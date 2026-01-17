@@ -24,7 +24,7 @@ public class ProceduralIconRenderer : IIconRenderer
             "cache" => new Color(160, 140, 100, 255),      // Tan/brown
             "carcass" => new Color(180, 100, 100, 255),    // Meat red
             "construction" => new Color(150, 150, 150, 255), // Gray
-            "bed" => new Color(140, 120, 180, 255),        // Soft purple
+            "bed" => new Color(160, 130, 90, 255),         // Fur/hide brown
             "harvest" => new Color(120, 180, 100, 255),    // Plant green
             "danger" => UIColors.Danger,                    // Red/yellow
             "body" => new Color(150, 130, 130, 255),       // Muted gray-brown
@@ -390,12 +390,15 @@ public class ProceduralIconRenderer : IIconRenderer
 
     private static void DrawBed(float cx, float cy, float size, Color tint)
     {
-        // Purple rectangle (bed)
-        float s = size * 0.35f;
-        Raylib.DrawRectangle((int)(cx - s), (int)(cy - s * 0.3f), (int)(s * 2), (int)(s * 0.8f), tint);
-        // Pillow
-        var pillowColor = new Color((byte)Math.Min(255, tint.R + 40), (byte)Math.Min(255, tint.G + 40), (byte)Math.Min(255, tint.B + 40), tint.A);
-        Raylib.DrawRectangle((int)(cx - s * 0.8f), (int)(cy - s * 0.25f), (int)(s * 0.5f), (int)(s * 0.5f), pillowColor);
+        float s = size * 0.3f;
+
+        // Fur bedding base (rounded rectangle shape using overlapping ellipses)
+        Raylib.DrawEllipse((int)cx, (int)cy, s * 1.3f, s * 0.6f, tint);
+
+        // Lighter fur texture lines
+        var lightFur = new Color((byte)Math.Min(255, tint.R + 30), (byte)Math.Min(255, tint.G + 25), (byte)Math.Min(255, tint.B + 15), tint.A);
+        Raylib.DrawEllipse((int)(cx - s * 0.3f), (int)(cy - s * 0.1f), s * 0.5f, s * 0.25f, lightFur);
+        Raylib.DrawEllipse((int)(cx + s * 0.4f), (int)(cy + s * 0.1f), s * 0.4f, s * 0.2f, lightFur);
     }
 
     private static void DrawHarvest(float cx, float cy, float size, Color tint)
@@ -511,29 +514,19 @@ public class ProceduralIconRenderer : IIconRenderer
 
     private static void DrawPrey(float cx, float cy, float size, Color tint)
     {
-        float s = size * 0.22f;
+        // Split hoof print - generic for any prey animal (caribou, bison, deer, etc.)
+        float s = size * 0.18f;
 
-        // Body (horizontal oval, sitting pose)
-        Raylib.DrawEllipse((int)(cx + s * 0.2f), (int)(cy + s * 0.4f), s * 1.0f, s * 0.7f, tint);
+        // Two vertical ovals side by side (cloven hoof shape)
+        float hoofWidth = s * 0.9f;
+        float hoofHeight = s * 1.6f;
+        float spacing = s * 0.5f;
 
-        // Haunches (back bump)
-        Raylib.DrawCircle((int)(cx + s * 0.9f), (int)(cy + s * 0.2f), s * 0.5f, tint);
+        // Left hoof half
+        Raylib.DrawEllipse((int)(cx - spacing), (int)cy, hoofWidth, hoofHeight, tint);
 
-        // Head (round, forward)
-        Raylib.DrawCircle((int)(cx - s * 0.6f), (int)(cy + s * 0.1f), s * 0.55f, tint);
-
-        // Ears (tall, distinctive)
-        var earColor = tint;  // Same color
-        Raylib.DrawEllipse((int)(cx - s * 0.9f), (int)(cy - s * 0.8f), s * 0.22f, s * 0.6f, earColor);
-        Raylib.DrawEllipse((int)(cx - s * 0.45f), (int)(cy - s * 0.75f), s * 0.22f, s * 0.55f, earColor);
-
-        // Inner ear detail (lighter)
-        var innerEar = new Color((byte)Math.Min(255, tint.R + 30), (byte)Math.Min(255, tint.G + 30), (byte)Math.Min(255, tint.B + 20), tint.A);
-        Raylib.DrawEllipse((int)(cx - s * 0.9f), (int)(cy - s * 0.75f), s * 0.1f, s * 0.35f, innerEar);
-        Raylib.DrawEllipse((int)(cx - s * 0.45f), (int)(cy - s * 0.7f), s * 0.1f, s * 0.3f, innerEar);
-
-        // Tiny tail
-        Raylib.DrawCircle((int)(cx + s * 1.3f), (int)(cy + s * 0.3f), s * 0.2f, tint);
+        // Right hoof half
+        Raylib.DrawEllipse((int)(cx + spacing), (int)cy, hoofWidth, hoofHeight, tint);
     }
 
     private static void DrawTracks(float cx, float cy, float size, Color tint)

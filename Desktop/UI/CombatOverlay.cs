@@ -79,10 +79,9 @@ public class CombatOverlay
         // Center the window
         OverlaySizes.SetupStandard();
 
-        bool open = IsOpen;
         string title = _currentData.Phase == CombatPhase.Outcome ? "Combat Result" : "Combat";
 
-        if (ImGui.Begin(title, ref open, ImGuiWindowFlags.NoCollapse))
+        if (ImGui.Begin(title, ImGuiWindowFlags.NoCollapse))
         {
             if (_currentData.Outcome != null)
             {
@@ -94,11 +93,6 @@ public class CombatOverlay
             }
         }
         ImGui.End();
-
-        if (!open)
-        {
-            IsOpen = false;
-        }
 
         return result;
     }

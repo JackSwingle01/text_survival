@@ -70,8 +70,7 @@ public class HuntOverlay
         // Center the window
         OverlaySizes.SetupStandard();
 
-        bool open = IsOpen;
-        if (ImGui.Begin("Hunt", ref open, ImGuiWindowFlags.NoCollapse))
+        if (ImGui.Begin("Hunt", ImGuiWindowFlags.NoCollapse))
         {
             if (_currentData.Outcome != null)
             {
@@ -83,11 +82,6 @@ public class HuntOverlay
             }
         }
         ImGui.End();
-
-        if (!open)
-        {
-            IsOpen = false;
-        }
 
         return result;
     }

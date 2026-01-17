@@ -38,6 +38,35 @@ public class GameContext(Player player, Location camp, Weather weather)
     public GameMap? Map { get; set; }
     [System.Text.Json.Serialization.JsonIgnore]
     public (int X, int Y)? PendingTravelTarget { get; set; }
+
+    /// <summary>
+    /// Tracks ongoing travel state for non-blocking travel with animated stats.
+    /// </summary>
+    public class ActiveTravelState
+    {
+        public int TotalMinutes { get; set; }
+        public int SimulatedMinutes { get; set; }
+        public Location Destination { get; set; } = null!;
+        public Location Origin { get; set; } = null!;
+        public GridPosition OriginPosition { get; set; }
+        public bool EventInterrupted { get; set; }
+        public bool FirstVisit { get; set; }
+        public float AnimationProgress { get; set; }
+        public float AnimationDurationSeconds { get; set; }
+
+        // Completion info for injury checks
+        public bool OriginQuickTravel { get; set; }
+        public bool DestQuickTravel { get; set; }
+        public double OriginInjuryRisk { get; set; }
+        public double DestInjuryRisk { get; set; }
+    }
+
+    /// <summary>
+    /// Active travel in progress. When set, the main loop processes travel simulation incrementally.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ActiveTravelState? ActiveTravel { get; set; }
+
     public int DaysSurvived => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalDays;
 
     // Tension system for tracking building threats/opportunities

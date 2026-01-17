@@ -51,11 +51,10 @@ public class GameEventOverlay
         // Center the popup
         OverlaySizes.SetupStandard();
 
-        bool open = IsOpen;
         var flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;
 
         string title = _currentEvent?.Name ?? "Event";
-        if (ImGui.Begin(title, ref open, flags))
+        if (ImGui.Begin(title, flags))
         {
             if (_outcome != null)
             {
@@ -77,13 +76,6 @@ public class GameEventOverlay
             }
         }
         ImGui.End();
-
-        if (!open)
-        {
-            IsOpen = false;
-            _currentEvent = null;
-            _outcome = null;
-        }
 
         return choiceResult;
     }
@@ -120,7 +112,7 @@ public class GameEventOverlay
                 : new Vector4(0.2f, 0.2f, 0.25f, 1f);
             ImGui.PushStyleColor(ImGuiCol.Button, buttonColor);
 
-            if (ImGui.Button(choice.Label, new Vector2(-1, 0)))
+            if (ImGui.Button(choice.Label, new Vector2(-1, 28)))
             {
                 _selectedChoiceId = choice.Id;
             }
@@ -140,10 +132,13 @@ public class GameEventOverlay
                 ImGui.TextColored(new Vector4(1f, 0.7f, 0.3f, 1f), $"Cost: {choice.Cost}");
             }
             ImGui.Unindent();
+            ImGui.Spacing();
         }
 
         ImGui.Spacing();
+        ImGui.Spacing();
         ImGui.Separator();
+        ImGui.Spacing();
 
         // Confirm button (only enabled when a choice is selected)
         if (_selectedChoiceId != null)

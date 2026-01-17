@@ -59,8 +59,7 @@ public class EncounterOverlay
         // Center the window
         OverlaySizes.SetupStandard();
 
-        bool open = IsOpen;
-        if (ImGui.Begin("Predator Encounter", ref open, ImGuiWindowFlags.NoCollapse))
+        if (ImGui.Begin("Predator Encounter", ImGuiWindowFlags.NoCollapse))
         {
             if (_currentData.Outcome != null)
             {
@@ -72,11 +71,6 @@ public class EncounterOverlay
             }
         }
         ImGui.End();
-
-        if (!open)
-        {
-            IsOpen = false;
-        }
 
         return result;
     }

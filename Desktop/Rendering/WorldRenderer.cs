@@ -73,9 +73,12 @@ public class WorldRenderer
             ConfigureCameraSize();
         }
 
-        // Update camera to follow player
-        var playerPos = ctx.Map.CurrentPosition;
-        Camera.SetCenter(playerPos.X, playerPos.Y);
+        // Update camera to follow player (skip during travel - ProcessTravelTick handles it)
+        if (ctx.ActiveTravel == null)
+        {
+            var playerPos = ctx.Map.CurrentPosition;
+            Camera.SetCenter(playerPos.X, playerPos.Y);
+        }
         Camera.Update(deltaTime);
 
         // Update hover state

@@ -125,6 +125,9 @@ public class InputHandler
         if (Raylib.IsKeyPressed(KeyboardKey.F))
             result.ToggleFire = true;
 
+        if (Raylib.IsKeyPressed(KeyboardKey.L))
+            result.OpenDiscoveryLog = true;
+
         if (Raylib.IsKeyPressed(KeyboardKey.Space))
             result.Wait = true;
 
@@ -143,6 +146,7 @@ public class InputResult
     public bool OpenLocationMenu { get; set; }
     public bool OpenInventory { get; set; }
     public bool OpenCrafting { get; set; }
+    public bool OpenDiscoveryLog { get; set; }
     public bool ToggleFire { get; set; }
     public bool Wait { get; set; }
     public bool Cancel { get; set; }

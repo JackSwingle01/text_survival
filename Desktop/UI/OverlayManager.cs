@@ -18,6 +18,7 @@ public class OverlayManager
     public EatingOverlay Eating { get; } = new();
     public CookingOverlay Cooking { get; } = new();
     public TransferOverlay Transfer { get; } = new();
+    public DiscoveryLogOverlay DiscoveryLog { get; } = new();
 
     private readonly NeedCraftingSystem _craftingSystem = new();
 
@@ -30,7 +31,8 @@ public class OverlayManager
     /// Check if any overlay is open.
     /// </summary>
     public bool AnyOverlayOpen => Inventory.IsOpen || Crafting.IsOpen || Event.IsOpen ||
-                                   Fire.IsOpen || Eating.IsOpen || Cooking.IsOpen || Transfer.IsOpen;
+                                   Fire.IsOpen || Eating.IsOpen || Cooking.IsOpen || Transfer.IsOpen ||
+                                   DiscoveryLog.IsOpen;
 
     /// <summary>
     /// Close all overlays.
@@ -44,6 +46,7 @@ public class OverlayManager
         Eating.IsOpen = false;
         Cooking.IsOpen = false;
         Transfer.IsOpen = false;
+        DiscoveryLog.IsOpen = false;
     }
 
     /// <summary>
@@ -57,6 +60,7 @@ public class OverlayManager
         Eating.IsOpen = false;
         Cooking.IsOpen = false;
         Transfer.IsOpen = false;
+        DiscoveryLog.IsOpen = false;
     }
 
     /// <summary>
@@ -85,6 +89,21 @@ public class OverlayManager
         {
             CloseNonBlocking();
             Crafting.IsOpen = true;
+        }
+    }
+
+    /// <summary>
+    /// Toggle the discovery log overlay.
+    /// </summary>
+    public void ToggleDiscoveryLog()
+    {
+        if (HasBlockingOverlay) return;
+
+        DiscoveryLog.IsOpen = !DiscoveryLog.IsOpen;
+        if (DiscoveryLog.IsOpen)
+        {
+            CloseNonBlocking();
+            DiscoveryLog.IsOpen = true;
         }
     }
 
@@ -197,13 +216,18 @@ public class OverlayManager
             results.TransferResult = Transfer.Render(ctx, deltaTime);
         }
 
+        if (DiscoveryLog.IsOpen)
+        {
+            DiscoveryLog.Render(deltaTime);
+        }
+
         return results;
     }
 
     /// <summary>
     /// Handle keyboard shortcuts for overlays.
     /// </summary>
-    public void HandleKeyboardShortcuts(bool iPressed, bool cPressed, bool escPressed)
+    public void HandleKeyboardShortcuts(bool iPressed, bool cPressed, bool lPressed, bool escPressed)
     {
         if (escPressed)
         {
@@ -216,6 +240,8 @@ public class OverlayManager
                 Eating.IsOpen = false;
             else if (Fire.IsOpen)
                 Fire.IsOpen = false;
+            else if (DiscoveryLog.IsOpen)
+                DiscoveryLog.IsOpen = false;
             else if (Crafting.IsOpen)
                 Crafting.IsOpen = false;
             else if (Inventory.IsOpen)
@@ -231,6 +257,11 @@ public class OverlayManager
         if (cPressed)
         {
             ToggleCrafting();
+        }
+
+        if (lPressed)
+        {
+            ToggleDiscoveryLog();
         }
     }
 }

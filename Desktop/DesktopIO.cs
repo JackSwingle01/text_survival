@@ -370,16 +370,38 @@ public static class DesktopIO
 
     public static void ShowDiscoveryLogAndWait(GameContext ctx)
     {
-        // Build discovery summary
-        var discoveries = ctx.Discoveries.DiscoveredLocations;
-        string message = discoveries.Count > 0
-            ? $"You have discovered {discoveries.Count} locations:\n\n" + string.Join("\n", discoveries.Take(10).Select(d => $"  - {d}"))
-            : "You haven't discovered any locations yet.";
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
 
-        if (discoveries.Count > 10)
-            message += $"\n  ... and {discoveries.Count - 10} more";
+        // Open discovery log overlay
+        overlays.ToggleDiscoveryLog();
+        overlays.DiscoveryLog.SetData(ctx.Discoveries.ToDto());
 
-        BlockingDialog.ShowMessageAndWait(ctx, "Discovery Log", message);
+        // Blocking render loop until overlay is closed
+        while (overlays.DiscoveryLog.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            // Handle escape to close (don't check 'L' here - it may still be pressed from the
+            // main loop that opened this overlay, causing an immediate close before any frame renders)
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+            {
+                overlays.DiscoveryLog.IsOpen = false;
+                break;
+            }
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            rlImGui.Begin();
+            overlays.DiscoveryLog.Render(deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
     }
 
     // Core selection methods
@@ -533,100 +555,8 @@ public static class DesktopIO
         BlockingDialog.ShowProgress(ctx, statusText, estimatedMinutes);
     }
 
-    /// <summary>
-    /// Render travel progress with animated camera pan and progress bar.
-    /// </summary>
-    public static void RenderTravelProgress(
-        GameContext ctx,
-        string statusText,
-        int estimatedMinutes,
-        int startX,
-        int startY)
-    {
-        // Match camera's 0.3s transition duration for synchronized animation
-        float animDuration = 0.3f;
-        float elapsed = 0f;
-
-        // Get destination (current position after travel)
-        var destPos = ctx.Map.CurrentPosition;
-
-        // Start camera transition from origin to destination
-        var camera = DesktopRuntime.WorldRenderer?.Camera;
-        if (camera != null)
-        {
-            // Set camera to start position without animation
-            camera.SetCenter(startX, startY, animate: false);
-            // Trigger camera animation to destination (once, not every frame)
-            camera.SetCenter(destPos.X, destPos.Y, animate: true);
-        }
-
-        var worldRenderer = DesktopRuntime.WorldRenderer;
-
-        while (elapsed < animDuration && !Raylib.WindowShouldClose())
-        {
-            float deltaTime = Raylib.GetFrameTime();
-            elapsed += deltaTime;
-
-            // Calculate progress
-            float progress = Math.Min(elapsed / animDuration, 1.0f);
-            float easedProgress = EaseOutCubic(progress);
-
-            // Interpolate player position
-            float interpX = startX + (destPos.X - startX) * easedProgress;
-            float interpY = startY + (destPos.Y - startY) * easedProgress;
-
-            // Set player position override for smooth animation
-            if (worldRenderer != null)
-            {
-                worldRenderer.PlayerPositionOverride = (interpX, interpY);
-            }
-
-            // Camera animation is handled by camera.Update() - don't call SetCenter here
-
-            Raylib.BeginDrawing();
-            Raylib.ClearBackground(new Color(20, 25, 30, 255));
-
-            // Render world (player icon will use override position)
-            worldRenderer?.Update(ctx, deltaTime);
-            worldRenderer?.Render(ctx);
-
-            // Draw progress bar at bottom
-            int screenWidth = Raylib.GetScreenWidth();
-            int screenHeight = Raylib.GetScreenHeight();
-            int barHeight = 40;
-            int barMargin = 20;
-
-            // Background
-            Raylib.DrawRectangle(barMargin, screenHeight - barHeight - barMargin,
-                screenWidth - barMargin * 2, barHeight, new Color(30, 35, 40, 220));
-
-            // Progress fill
-            int fillWidth = (int)((screenWidth - barMargin * 2 - 8) * progress);
-            Raylib.DrawRectangle(barMargin + 4, screenHeight - barHeight - barMargin + 4,
-                fillWidth, barHeight - 8, new Color(80, 140, 180, 255));
-
-            // Status text
-            int fontSize = 18;
-            int textWidth = Raylib.MeasureText(statusText, fontSize);
-            Raylib.DrawText(statusText, (screenWidth - textWidth) / 2,
-                screenHeight - barHeight - barMargin + (barHeight - fontSize) / 2,
-                fontSize, new Color(255, 255, 255, 255));
-
-            Raylib.EndDrawing();
-        }
-
-        // Clear player position override and ensure camera is at destination
-        if (worldRenderer != null)
-        {
-            worldRenderer.PlayerPositionOverride = null;
-        }
-        if (camera != null)
-        {
-            camera.SetCenter(destPos.X, destPos.Y, animate: false);
-        }
-    }
-
-    private static float EaseOutCubic(float t) => 1 - MathF.Pow(1 - t, 3);
+    // RenderTravelProgress removed - travel now uses non-blocking incremental simulation
+    // via GameContext.ActiveTravel and GameRunner.ProcessTravelTick()
 
     // Inventory methods
 
@@ -912,50 +842,48 @@ public static class DesktopIO
     }
 
     // Forage methods
+
+    // Persistent forage overlay for foraging sequences
+    private static UI.ForageOverlay? _forageOverlay;
+
+    /// <summary>
+    /// Show forage UI and block until player makes selections.
+    /// Returns (focus, minutes). Focus=null and minutes=0 means cancelled.
+    /// Focus=null and minutes=-1 means "keep walking" (reroll clues).
+    /// </summary>
     public static (ForageFocus? focus, int minutes) SelectForageOptions(GameContext ctx, ForageDto forageData)
     {
-        // First select focus
-        var focusChoices = new List<(string id, string label)>
+        _forageOverlay ??= new UI.ForageOverlay();
+        _forageOverlay.Open(forageData);
+
+        UI.ForageResult? result = null;
+
+        while (result == null && !Raylib.WindowShouldClose())
         {
-            ("cancel", "Cancel")
-        };
-        foreach (var opt in forageData.FocusOptions)
-        {
-            focusChoices.Add((opt.Id, $"{opt.Label} ({opt.Description})"));
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            result = _forageOverlay.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
         }
 
-        var focusSelection = BlockingDialog.Select(ctx, $"Foraging at {forageData.LocationQuality} location.\n\nSelect your focus:",
-            focusChoices, c => c.label);
+        _forageOverlay.Close();
 
-        if (focusSelection.id == "cancel")
-            return (null, 0);
+        if (result == null)
+            return (null, 0); // Window closed
 
-        ForageFocus focus = focusSelection.id switch
-        {
-            "fuel" => ForageFocus.Fuel,
-            "food" => ForageFocus.Food,
-            "medicine" => ForageFocus.Medicine,
-            "materials" => ForageFocus.Materials,
-            _ => ForageFocus.General
-        };
-
-        // Then select time
-        var timeChoices = new List<(string id, int minutes, string label)>
-        {
-            ("cancel", 0, "Cancel")
-        };
-        foreach (var opt in forageData.TimeOptions)
-        {
-            timeChoices.Add((opt.Id, opt.Minutes, opt.Label));
-        }
-
-        var timeSelection = BlockingDialog.Select(ctx, "How long will you forage?",
-            timeChoices, c => c.label);
-
-        if (timeSelection.id == "cancel")
-            return (null, 0);
-
-        return (focus, timeSelection.minutes);
+        return (result.Focus, result.Minutes);
     }
 
     // Butcher methods

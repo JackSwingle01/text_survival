@@ -1,3 +1,5 @@
+using System.Numerics;
+using ImGuiNET;
 using Raylib_cs;
 using rlImGui_cs;
 using text_survival.Actors.Animals;
@@ -113,6 +115,28 @@ public partial class GameRunner(GameContext ctx)
         {
             float deltaTime = Raylib.GetFrameTime();
 
+            // Process active travel (non-blocking travel simulation)
+            if (ctx.ActiveTravel != null)
+            {
+                bool travelComplete = ProcessTravelTick(ctx, deltaTime);
+                if (travelComplete)
+                {
+                    // Travel complete - call completion handler
+                    var traveler = new TravelRunner(ctx);
+                    bool survived = traveler.CompleteTravel();
+                    if (!survived)
+                    {
+                        return null; // Player died during travel completion
+                    }
+                    continue; // Skip rest of frame, next iteration will have no active travel
+                }
+
+                // During active travel, skip normal input processing
+                // Just render the world with progress bar
+                RenderTravelFrame(ctx, deltaTime);
+                continue;
+            }
+
             // Process input
             if (inputHandler != null)
             {
@@ -135,6 +159,7 @@ public partial class GameRunner(GameContext ctx)
                 // Handle keyboard shortcuts
                 if (input.OpenInventory) return "inventory";
                 if (input.OpenCrafting) return "crafting";
+                if (input.OpenDiscoveryLog) return "discovery_log";
                 if (input.ToggleFire) return HasActiveFire() ? "tend_fire" : "start_fire";
                 if (input.Wait) return "wait";
                 if (input.Cancel) tilePopup?.Hide();
@@ -210,6 +235,124 @@ public partial class GameRunner(GameContext ctx)
     private static void RenderStatsPanel(GameContext ctx)
     {
         Desktop.UI.StatsPanel.Render(ctx);
+    }
+
+    /// <summary>
+    /// Process one tick of travel simulation.
+    /// Returns true when travel is complete.
+    /// </summary>
+    private static bool ProcessTravelTick(GameContext ctx, float deltaTime)
+    {
+        var travel = ctx.ActiveTravel!;
+
+        // Update animation progress using stored duration
+        float animDuration = travel.AnimationDurationSeconds;
+        travel.AnimationProgress += deltaTime / animDuration;
+        travel.AnimationProgress = Math.Min(travel.AnimationProgress, 1f);
+
+        // Calculate how many minutes to simulate this frame
+        // Spread total minutes across the animation duration
+        float minutesPerSecond = travel.TotalMinutes / animDuration;
+        int minutesToSimulate = (int)(minutesPerSecond * deltaTime);
+        minutesToSimulate = Math.Max(1, minutesToSimulate); // At least 1 minute
+        minutesToSimulate = Math.Min(minutesToSimulate, travel.TotalMinutes - travel.SimulatedMinutes);
+
+        if (minutesToSimulate > 0)
+        {
+            // Simulate 1 minute at a time to allow events to interrupt
+            for (int i = 0; i < minutesToSimulate; i++)
+            {
+                ctx.Update(1, ActivityType.Traveling);
+                travel.SimulatedMinutes++;
+
+                // Check for events or death
+                if (ctx.EventOccurredLastUpdate)
+                {
+                    travel.EventInterrupted = true;
+                    break;
+                }
+                if (!ctx.player.IsAlive)
+                {
+                    break;
+                }
+            }
+        }
+
+        // Update player position override for smooth animation
+        var worldRenderer = DesktopRuntime.WorldRenderer;
+        if (worldRenderer != null)
+        {
+            float t = EaseOutCubic(travel.AnimationProgress);
+            var destPos = ctx.Map!.GetPosition(travel.Destination);
+            float interpX = travel.OriginPosition.X + (destPos.X - travel.OriginPosition.X) * t;
+            float interpY = travel.OriginPosition.Y + (destPos.Y - travel.OriginPosition.Y) * t;
+            worldRenderer.PlayerPositionOverride = (interpX, interpY);
+            // Camera animation is handled by Camera.Update() - started via SetCenter in TravelRunner
+        }
+
+        // Travel is complete when animation is done AND simulation is done (or player died/event interrupted)
+        bool animDone = travel.AnimationProgress >= 1f;
+        bool simDone = travel.SimulatedMinutes >= travel.TotalMinutes;
+        bool interrupted = travel.EventInterrupted || !ctx.player.IsAlive;
+
+        return animDone && (simDone || interrupted);
+    }
+
+    private static float EaseOutCubic(float t) => 1 - MathF.Pow(1 - t, 3);
+
+    /// <summary>
+    /// Render a frame during active travel with progress bar and stats.
+    /// </summary>
+    private void RenderTravelFrame(GameContext ctx, float deltaTime)
+    {
+        var travel = ctx.ActiveTravel!;
+        var worldRenderer = DesktopRuntime.WorldRenderer;
+
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        // Render world (player icon will use override position)
+        worldRenderer?.Update(ctx, deltaTime);
+        worldRenderer?.Render(ctx);
+
+        rlImGui.Begin();
+
+        // Render stats panel - this stays visible during travel!
+        RenderStatsPanel(ctx);
+
+        // Render travel progress bar at bottom
+        RenderTravelProgressBar(travel);
+
+        rlImGui.End();
+        Raylib.EndDrawing();
+    }
+
+    /// <summary>
+    /// Render the travel progress bar at the bottom of the screen.
+    /// </summary>
+    private static void RenderTravelProgressBar(GameContext.ActiveTravelState travel)
+    {
+        float progress = (float)travel.SimulatedMinutes / travel.TotalMinutes;
+        progress = Math.Min(progress, 1f);
+
+        var io = ImGui.GetIO();
+        float barWidth = io.DisplaySize.X - 40;
+        float barHeight = 35;
+        float barY = io.DisplaySize.Y - barHeight - 20;
+
+        ImGui.SetNextWindowPos(new Vector2(20, barY), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(barWidth, barHeight + 10), ImGuiCond.Always);
+
+        ImGuiWindowFlags flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize |
+            ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings;
+
+        if (ImGui.Begin("##travel_progress", flags))
+        {
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.3f, 0.55f, 0.7f, 1f));
+            ImGui.ProgressBar(progress, new Vector2(-1, barHeight), $"Traveling to {travel.Destination.Name}...");
+            ImGui.PopStyleColor();
+        }
+        ImGui.End();
     }
 
     /// <summary>

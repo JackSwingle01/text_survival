@@ -72,7 +72,11 @@ public class Camera
     /// <summary>
     /// Update camera position. Call this when player moves.
     /// </summary>
-    public void SetCenter(int x, int y, bool animate = true)
+    /// <param name="x">Target X coordinate</param>
+    /// <param name="y">Target Y coordinate</param>
+    /// <param name="animate">Whether to animate the transition</param>
+    /// <param name="durationSeconds">Animation duration (only used when animate=true)</param>
+    public void SetCenter(int x, int y, bool animate = true, float durationSeconds = 0.3f)
     {
         if (x == CenterX && y == CenterY)
             return;
@@ -84,6 +88,7 @@ public class Camera
             _toX = x;
             _toY = y;
             _transitionProgress = 0f;
+            _transitionDuration = durationSeconds;
         }
         else
         {

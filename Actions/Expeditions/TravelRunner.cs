@@ -242,54 +242,23 @@ public class TravelRunner(GameContext ctx)
         // Capture first visit status BEFORE MoveTo marks the location explored
         bool firstVisit = !destination.Explored;
 
-        var (died, stayed) = RunTravelWithProgress(totalTime, destination, originPos);
+        // Set up non-blocking travel - GameRunner will process incrementally
+        var (died, stayed, pending) = RunTravelWithProgress(
+            totalTime,
+            destination,
+            origin,
+            originPos,
+            firstVisit,
+            originQuickTravel,
+            destQuickTravel,
+            originInjuryRisk,
+            destInjuryRisk);
+
         if (died) return false;
-        if (stayed) return true;  // Player chose to stay at origin after event - travel "succeeded" but ended early
+        if (stayed) return true;
+        if (pending) return true;  // Travel in progress - GameRunner will call CompleteTravel
 
-        // Apply injury checks after travel completes - use risk captured at decision time
-        if (originQuickTravel && originInjuryRisk > 0 && Utils.RandDouble(0, 1) < originInjuryRisk)
-        {
-            TravelHandler.ApplyTravelInjury(_ctx, origin);
-            if (!_ctx.player.IsAlive) return false;
-        }
-
-        if (destQuickTravel && destInjuryRisk > 0 && Utils.RandDouble(0, 1) < destInjuryRisk)
-        {
-            TravelHandler.ApplyTravelInjury(_ctx, destination);
-            if (!_ctx.player.IsAlive) return false;
-        }
-
-        // Trigger first-visit event if one exists
-        if (firstVisit && destination.FirstVisitEvent != null)
-        {
-            var evt = destination.FirstVisitEvent(_ctx);
-            if (evt != null)
-            {
-                GameEventRegistry.HandleEvent(_ctx, evt);
-            }
-        }
-
-        destination.Explore();
-
-        // // Check for victory
-        // if (_ctx.IsWinLocation(destination))
-        // {
-        //     HandleVictory();
-        //     return true;
-        // }
-
-        // Show discovery popup if this is first visit and has discovery text
-        // Only if FirstVisitEvent didn't already handle it
-        if (firstVisit && !string.IsNullOrEmpty(destination.DiscoveryText) && destination.FirstVisitEvent == null)
-        {
-            DesktopIO.ShowDiscovery(_ctx, destination.Name, destination.DiscoveryText);
-        }
-        else
-        {
-            // Standard arrival message (always shown when no discovery)
-            GameDisplay.AddNarrative(_ctx, $"You arrive at {destination.Name}.");
-        }
-
+        // This code path is only for synchronous travel (if we ever need it)
         return true;
     }
 
@@ -351,25 +320,78 @@ public class TravelRunner(GameContext ctx)
     // --- Progress Bar Helpers ---
 
     /// <summary>
-    /// Runs travel with synchronized progress bar and camera pan animation.
-    /// Processes time, moves to destination, then sends TravelProgressMode.
-    /// Returns (died, stayed) - died if player died, stayed if player chose to stay at origin after event.
+    /// Sets up non-blocking travel with animated camera and incremental simulation.
+    /// Returns (died, stayed, pending) - pending=true means travel is in progress and will complete asynchronously.
     /// </summary>
-    private (bool died, bool stayed) RunTravelWithProgress(int totalTime, Location destination, Environments.Grid.GridPosition originPos)
+    private (bool died, bool stayed, bool pending) RunTravelWithProgress(
+        int totalTime,
+        Location destination,
+        Location origin,
+        GridPosition originPos,
+        bool firstVisit,
+        bool originQuickTravel,
+        bool destQuickTravel,
+        double originInjuryRisk,
+        double destInjuryRisk)
     {
-        // Process time without sending a frame (ctx.Update handles minute-by-minute internally)
-        _ctx.Update(totalTime, ActivityType.Traveling);
-        if (PlayerDied) return (true, false);
+        // Calculate animation duration based on travel time
+        // Longer trips get slower animations: 0.5s base + 0.03s per minute, capped at 1.2s
+        float animDuration = Math.Clamp(0.5f + (totalTime * 0.03f), 0.5f, 1.2f);
+
+        // Start camera animation to destination - let Camera's built-in easing handle the smooth pan
+        var camera = DesktopRuntime.WorldRenderer?.Camera;
+        var destPos = _ctx.Map!.GetPosition(destination);
+        camera?.SetCenter(destPos.X, destPos.Y, animate: true, durationSeconds: animDuration);
+
+        // Set up active travel state for incremental processing
+        _ctx.ActiveTravel = new GameContext.ActiveTravelState
+        {
+            TotalMinutes = totalTime,
+            SimulatedMinutes = 0,
+            Destination = destination,
+            Origin = origin,
+            OriginPosition = originPos,
+            FirstVisit = firstVisit,
+            EventInterrupted = false,
+            AnimationProgress = 0f,
+            AnimationDurationSeconds = animDuration,
+            OriginQuickTravel = originQuickTravel,
+            DestQuickTravel = destQuickTravel,
+            OriginInjuryRisk = originInjuryRisk,
+            DestInjuryRisk = destInjuryRisk
+        };
+
+        // Return with pending=true - travel will be processed by GameRunner
+        return (false, false, true);
+    }
+
+    /// <summary>
+    /// Completes travel after incremental simulation finishes.
+    /// Called by GameRunner when ActiveTravel is done.
+    /// Returns false if player died.
+    /// </summary>
+    public bool CompleteTravel()
+    {
+        var travel = _ctx.ActiveTravel;
+        if (travel == null) return true;
+
+        var destination = travel.Destination;
+        var origin = travel.Origin;
 
         // Check if event interrupted travel - give player option to stay at origin
-        if (_ctx.EventOccurredLastUpdate)
+        if (travel.EventInterrupted)
         {
-            GameDisplay.Render(_ctx, statusText: "Interrupted");
-
             if (!DesktopIO.Confirm(_ctx, $"Continue traveling to {destination.Name}?"))
             {
                 // Player chose to stay at origin - don't move
-                return (false, true);
+                _ctx.ActiveTravel = null;
+                // Clear player position override
+                if (DesktopRuntime.WorldRenderer != null)
+                    DesktopRuntime.WorldRenderer.PlayerPositionOverride = null;
+                // Reset camera to origin
+                var camera = DesktopRuntime.WorldRenderer?.Camera;
+                camera?.SetCenter(travel.OriginPosition.X, travel.OriginPosition.Y, animate: false);
+                return true;
             }
         }
 
@@ -380,11 +402,56 @@ public class TravelRunner(GameContext ctx)
         if (!destination.IsTerrainOnly)
             _ctx.RecordLocationDiscovery(destination.Name);
 
-        // Send combined frame for synchronized animation
-        // Grid state shows destination, origin position enables camera pan from start
-        DesktopIO.RenderTravelProgress(_ctx, "Traveling...", totalTime, originPos.X, originPos.Y);
+        // Clear player position override
+        if (DesktopRuntime.WorldRenderer != null)
+            DesktopRuntime.WorldRenderer.PlayerPositionOverride = null;
 
-        return (PlayerDied, false);
+        // Apply injury checks
+        if (travel.OriginQuickTravel && travel.OriginInjuryRisk > 0 && Utils.RandDouble(0, 1) < travel.OriginInjuryRisk)
+        {
+            TravelHandler.ApplyTravelInjury(_ctx, origin);
+            if (!_ctx.player.IsAlive)
+            {
+                _ctx.ActiveTravel = null;
+                return false;
+            }
+        }
+
+        if (travel.DestQuickTravel && travel.DestInjuryRisk > 0 && Utils.RandDouble(0, 1) < travel.DestInjuryRisk)
+        {
+            TravelHandler.ApplyTravelInjury(_ctx, destination);
+            if (!_ctx.player.IsAlive)
+            {
+                _ctx.ActiveTravel = null;
+                return false;
+            }
+        }
+
+        // Trigger first-visit event if one exists
+        if (travel.FirstVisit && destination.FirstVisitEvent != null)
+        {
+            var evt = destination.FirstVisitEvent(_ctx);
+            if (evt != null)
+            {
+                GameEventRegistry.HandleEvent(_ctx, evt);
+            }
+        }
+
+        destination.Explore();
+
+        // Show discovery popup if this is first visit and has discovery text
+        if (travel.FirstVisit && !string.IsNullOrEmpty(destination.DiscoveryText) && destination.FirstVisitEvent == null)
+        {
+            DesktopIO.ShowDiscovery(_ctx, destination.Name, destination.DiscoveryText);
+        }
+        else
+        {
+            // Standard arrival message
+            GameDisplay.AddNarrative(_ctx, $"You arrive at {destination.Name}.");
+        }
+
+        _ctx.ActiveTravel = null;
+        return _ctx.player.IsAlive;
     }
 
     private void HandleVictory()
