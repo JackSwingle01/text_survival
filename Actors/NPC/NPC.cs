@@ -97,6 +97,7 @@ public class NPC : Actor
             // pick action and do it
             CurrentAction = DetermineActionForNeed(context);
             Console.WriteLine($"[NPC:{Name}] Picked: {CurrentAction?.Name} for need {CurrentNeed}");
+            AddLog($"{CurrentAction?.Name} ({CurrentNeed?.ToString().ToLower() ?? "stockpiling"})");
             ContinueAction();
         }
     }
@@ -399,6 +400,7 @@ public class NPC : Actor
             if (nextLoc != null)
             {
                 Console.WriteLine($"  [Moving] Going to {destination.Name}");
+                AddLog($"Going to {destination.Name}");
                 return new NPCMove(nextLoc, this);
             }
             Console.WriteLine($"Can't move to {destination} - no path");
@@ -850,6 +852,7 @@ public class NPC : Actor
         // if at camp and have stuff -> store in cache
         if (CurrentLocation == Camp && Inventory.GetWeight(resource) >= 1.0)
         {
+            AddLog($"Stashing {resource.ToString().ToLower()}");
             return new NPCStash(resource);
         }
         // if inv full empty it first
@@ -859,6 +862,7 @@ public class NPC : Actor
             return invFull;
         }
         // else -> get resource ! at camp
+        AddLog($"Gathering {resource.ToString().ToLower()}");
         return DetermineGetResource(resource, allowCamp: false);
     }
     internal NPCAction? DealWithFullInventory()

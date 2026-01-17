@@ -107,6 +107,8 @@ public abstract class Actor : IMovable
         if (!string.IsNullOrWhiteSpace(message))
         {
             _messageLog.Add(message);
+            if (_messageLog.Count > 20)  // Keep last 20
+                _messageLog.RemoveAt(0);
         }
     }
     public List<string> GetFlushLogs()
@@ -114,6 +116,10 @@ public abstract class Actor : IMovable
         var messages = _messageLog.ToList();
         _messageLog.Clear();
         return messages;
+    }
+    public IReadOnlyList<string> GetRecentLogs(int count = 10)
+    {
+        return _messageLog.TakeLast(count).ToList();
     }
 
     public CapacityModifierContainer GetEffectModifiers() => EffectRegistry.GetCapacityModifiers();

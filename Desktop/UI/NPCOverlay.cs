@@ -81,6 +81,18 @@ public class NPCOverlay
             string effectNames = string.Join(", ", effects.Select(e => e.EffectKind));
             ImGui.TextColored(new Vector4(1f, 0.7f, 0.4f, 1f), $"Effects: {effectNames}");
         }
+
+        // Activity log
+        var logs = npc.GetRecentLogs(5);
+        if (logs.Count > 0)
+        {
+            ImGui.Spacing();
+            ImGui.TextDisabled("Recent:");
+            foreach (var entry in logs)
+            {
+                ImGui.Text($"  {entry}");
+            }
+        }
     }
 
     private void RenderStatBar(string label, float value, Vector4 color)
