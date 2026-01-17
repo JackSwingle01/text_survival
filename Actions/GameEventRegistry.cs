@@ -1,7 +1,8 @@
 using text_survival.IO;
 using text_survival.UI;
-using text_survival.Web;
-using text_survival.Web.Dto;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions;
 
@@ -376,18 +377,26 @@ public static partial class GameEventRegistry
             GameDisplay.AddNarrative(ctx, $"{evt.Name}", LogLevel.Warning);
             GameDisplay.AddNarrative(ctx, evt.Description);
 
-            // Phase 1: Show event with choices
-            // Use same ID generation as WebIO.Select to ensure frontend/backend match
+            // Phase 1: Show event with choices via overlay
+            var availableChoices = evt.GetAvailableChoices(ctx);
             var eventDto = new EventDto(
                 evt.Name,
                 evt.Description,
-                evt.GetAvailableChoices(ctx)
+                availableChoices
                     .Select((c, i) => BuildChoiceDto(ctx, c, i))
                     .ToList()
             );
-            WebIO.RenderEvent(ctx, eventDto);
 
-            var choice = evt.GetChoice(ctx);
+            // Block until player makes a choice
+            var choiceId = DesktopIO.WaitForEventChoice(ctx, eventDto);
+
+            // Map choice ID back to EventChoice (IDs are "choice_0", "choice_1", etc.)
+            int choiceIndex = 0;
+            if (choiceId.StartsWith("choice_") && int.TryParse(choiceId[7..], out var idx))
+            {
+                choiceIndex = idx;
+            }
+            var choice = availableChoices[Math.Clamp(choiceIndex, 0, availableChoices.Count - 1)];
             GameDisplay.AddNarrative(ctx, choice.Description + "\n");
 
             var outcome = choice.DetermineResult();
@@ -400,11 +409,11 @@ public static partial class GameEventRegistry
                 [],
                 outcomeData
             );
-            WebIO.RenderEvent(ctx, outcomeDto);
-            WebIO.WaitForEventContinue(ctx);
+            DesktopIO.RenderEvent(ctx, outcomeDto);
+            DesktopIO.WaitForEventContinue(ctx);
 
             // Clear event overlay after user acknowledges
-            WebIO.ClearEvent(ctx);
+            DesktopIO.ClearEvent(ctx);
 
             // Queue encounter if needed
             if (outcome.SpawnEncounter != null)
@@ -453,7 +462,7 @@ public static partial class GameEventRegistry
         var hasResources = maxCost == null || HasSufficientResources(ctx.Inventory, maxCost);
 
         return new EventChoiceDto(
-            WebIO.GenerateSemanticId(choice.Label, index),
+            DesktopIO.GenerateSemanticId(choice.Label, index),
             choice.Label,
             choice.Description,
             hasResources,

@@ -1,3 +1,7 @@
+using System.Numerics;
+using ImGuiNET;
+using Raylib_cs;
+using rlImGui_cs;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments.Features;
@@ -8,7 +12,9 @@ using text_survival.Actions.Handlers;
 using text_survival.Persistence;
 using text_survival.UI;
 using text_survival.Environments;
-using text_survival.Web;
+using text_survival.Desktop;
+using text_survival.Desktop.Input;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions;
 
@@ -38,14 +44,12 @@ public partial class GameRunner(GameContext ctx)
 
     public void Run()
     {
-        while (ctx.player.IsAlive) // && !ctx.HasWon)
+        while (ctx.player.IsAlive && !Raylib.WindowShouldClose())
         {
-            GameDisplay.Render(ctx, statusText: "Resting.");
-            CheckFireWarning();
-
-            // Handle pending travel from map click
+            // Handle pending travel from map click or WASD
             if (ctx.PendingTravelTarget.HasValue)
             {
+                DesktopRuntime.TilePopup?.Hide();
                 new TravelRunner(ctx).DoTravel();
                 continue;
             }
@@ -53,23 +57,362 @@ public partial class GameRunner(GameContext ctx)
             // Handle pending encounter from event or activity
             if (ctx.HasPendingEncounter)
             {
+                DesktopRuntime.TilePopup?.Hide();
                 ctx.HandlePendingEncounter();
-                continue; // Return to top of loop after encounter
+                continue;
             }
 
-            MainMenu();
+            // Run the main game loop with input processing
+            string? action = RunGameLoop();
+
+            // Process the action
+            if (action != null)
+            {
+                ProcessAction(action);
+            }
         }
 
-        // if (ctx.HasWon)
-        // {
-        //     // Victory was already displayed in ExpeditionRunner
-        //     return;
-        // }
+        // Player died - show death message
+        if (!ctx.player.IsAlive)
+        {
+            GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");
+            GameDisplay.AddDanger(ctx, "You have died.");
+            BlockingDialog.ShowMessageAndWait(ctx, "Death", "You have died.");
 
-        // Player died from survival conditions - show death message
-        GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");
-        GameDisplay.AddDanger(ctx, "You have died.");
-        GameDisplay.Render(ctx, addSeparator: false);
+            // Delete save so next launch starts fresh
+            SaveManager.DeleteSave(ctx.SessionId);
+        }
+    }
+
+    /// <summary>
+    /// Main game loop: render world, process input, show UI.
+    /// Returns an action string when the player takes an action.
+    /// </summary>
+    private string? RunGameLoop()
+    {
+        var inputHandler = DesktopRuntime.InputHandler;
+        var worldRenderer = DesktopRuntime.WorldRenderer;
+        var tilePopup = DesktopRuntime.TilePopup;
+        var actionPanel = DesktopRuntime.ActionPanel;
+        var overlays = DesktopRuntime.Overlays;
+
+        // Auto-save periodically
+        var (saved, saveError) = SaveManager.Save(ctx);
+        if (!saved)
+            Console.WriteLine($"[GameRunner] Save failed: {saveError}");
+
+        CheckFireWarning();
+
+        // Check for incapacitation
+        var capacities = ctx.player.GetCapacities();
+        if (capacities.Moving <= 0)
+        {
+            HandleIncapacitation();
+            return null;
+        }
+
+        while (!Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            // Process active travel (non-blocking travel simulation)
+            if (ctx.ActiveTravel != null)
+            {
+                bool travelComplete = ProcessTravelTick(ctx, deltaTime);
+                if (travelComplete)
+                {
+                    // Travel complete - call completion handler
+                    var traveler = new TravelRunner(ctx);
+                    bool survived = traveler.CompleteTravel();
+                    if (!survived)
+                    {
+                        return null; // Player died during travel completion
+                    }
+                    continue; // Skip rest of frame, next iteration will have no active travel
+                }
+
+                // During active travel, skip normal input processing
+                // Just render the world with progress bar
+                RenderTravelFrame(ctx, deltaTime);
+                continue;
+            }
+
+            // Process input
+            if (inputHandler != null)
+            {
+                var input = inputHandler.ProcessInput(ctx);
+
+                // Handle tile popup
+                if (input.ShowTilePopup && worldRenderer != null && tilePopup != null)
+                {
+                    var screenPos = worldRenderer.GetTileScreenPosition(input.PopupTileX, input.PopupTileY);
+                    tilePopup.Show(ctx, input.PopupTileX, input.PopupTileY, screenPos);
+                }
+
+                // Handle WASD instant travel
+                if (input.TravelInitiated)
+                {
+                    tilePopup?.Hide();
+                    return null; // PendingTravelTarget is set, loop will handle it
+                }
+
+                // Handle keyboard shortcuts
+                if (input.OpenInventory) return "inventory";
+                if (input.OpenCrafting) return "crafting";
+                if (input.OpenDiscoveryLog) return "discovery_log";
+                if (input.ToggleFire) return HasActiveFire() ? "tend_fire" : "start_fire";
+                if (input.Wait) return "wait";
+                if (input.Cancel) tilePopup?.Hide();
+
+                // Show message if any
+                if (input.Message != null)
+                {
+                    actionPanel?.ShowMessage(input.Message);
+                }
+            }
+
+            // Begin frame
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            // Render world
+            worldRenderer?.Update(ctx, deltaTime);
+            worldRenderer?.Render(ctx);
+
+            rlImGui.Begin();
+
+            // Render tile popup if open
+            if (tilePopup != null && tilePopup.IsOpen)
+            {
+                var popupResult = tilePopup.Render(ctx, deltaTime);
+                if (popupResult == "go" && tilePopup.SelectedTile.HasValue)
+                {
+                    // Set travel target and return
+                    var (x, y) = tilePopup.SelectedTile.Value;
+                    ctx.PendingTravelTarget = (x, y);
+                    tilePopup.Hide();
+                    rlImGui.End();
+                    Raylib.EndDrawing();
+                    return null; // Travel will be handled in main loop
+                }
+            }
+
+            // Render action panel
+            if (actionPanel != null)
+            {
+                var clickedAction = actionPanel.Render(ctx, deltaTime);
+                if (clickedAction != null)
+                {
+                    tilePopup?.Hide();
+                    rlImGui.End();
+                    Raylib.EndDrawing();
+                    return clickedAction;
+                }
+            }
+
+            // Render overlays
+            overlays?.Render(ctx, deltaTime);
+
+            // Render stats panel
+            RenderStatsPanel(ctx);
+
+            rlImGui.End();
+            Raylib.EndDrawing();
+
+            // Check if travel target was set (from popup)
+            if (ctx.PendingTravelTarget.HasValue)
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Render the stats panel.
+    /// </summary>
+    private static void RenderStatsPanel(GameContext ctx)
+    {
+        Desktop.UI.StatsPanel.Render(ctx);
+    }
+
+    /// <summary>
+    /// Process one tick of travel simulation.
+    /// Returns true when travel is complete.
+    /// </summary>
+    private static bool ProcessTravelTick(GameContext ctx, float deltaTime)
+    {
+        var travel = ctx.ActiveTravel!;
+
+        // Update animation progress using stored duration
+        float animDuration = travel.AnimationDurationSeconds;
+        travel.AnimationProgress += deltaTime / animDuration;
+        travel.AnimationProgress = Math.Min(travel.AnimationProgress, 1f);
+
+        // Calculate how many minutes to simulate this frame
+        // Spread total minutes across the animation duration
+        float minutesPerSecond = travel.TotalMinutes / animDuration;
+        int minutesToSimulate = (int)(minutesPerSecond * deltaTime);
+        minutesToSimulate = Math.Max(1, minutesToSimulate); // At least 1 minute
+        minutesToSimulate = Math.Min(minutesToSimulate, travel.TotalMinutes - travel.SimulatedMinutes);
+
+        if (minutesToSimulate > 0)
+        {
+            // Simulate 1 minute at a time to allow events to interrupt
+            for (int i = 0; i < minutesToSimulate; i++)
+            {
+                ctx.Update(1, ActivityType.Traveling);
+                travel.SimulatedMinutes++;
+
+                // Check for events or death
+                if (ctx.EventOccurredLastUpdate)
+                {
+                    travel.EventInterrupted = true;
+                    break;
+                }
+                if (!ctx.player.IsAlive)
+                {
+                    break;
+                }
+            }
+        }
+
+        // Update player position override for smooth animation
+        var worldRenderer = DesktopRuntime.WorldRenderer;
+        if (worldRenderer != null)
+        {
+            float t = EaseOutCubic(travel.AnimationProgress);
+            var destPos = ctx.Map!.GetPosition(travel.Destination);
+            float interpX = travel.OriginPosition.X + (destPos.X - travel.OriginPosition.X) * t;
+            float interpY = travel.OriginPosition.Y + (destPos.Y - travel.OriginPosition.Y) * t;
+            worldRenderer.PlayerPositionOverride = (interpX, interpY);
+            // Camera animation is handled by Camera.Update() - started via SetCenter in TravelRunner
+        }
+
+        // Travel is complete when animation is done AND simulation is done (or player died/event interrupted)
+        bool animDone = travel.AnimationProgress >= 1f;
+        bool simDone = travel.SimulatedMinutes >= travel.TotalMinutes;
+        bool interrupted = travel.EventInterrupted || !ctx.player.IsAlive;
+
+        return animDone && (simDone || interrupted);
+    }
+
+    private static float EaseOutCubic(float t) => 1 - MathF.Pow(1 - t, 3);
+
+    /// <summary>
+    /// Render a frame during active travel with progress bar and stats.
+    /// </summary>
+    private void RenderTravelFrame(GameContext ctx, float deltaTime)
+    {
+        var travel = ctx.ActiveTravel!;
+        var worldRenderer = DesktopRuntime.WorldRenderer;
+
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        // Render world (player icon will use override position)
+        worldRenderer?.Update(ctx, deltaTime);
+        worldRenderer?.Render(ctx);
+
+        rlImGui.Begin();
+
+        // Render stats panel - this stays visible during travel!
+        RenderStatsPanel(ctx);
+
+        // Render travel progress bar at bottom
+        RenderTravelProgressBar(travel);
+
+        rlImGui.End();
+        Raylib.EndDrawing();
+    }
+
+    /// <summary>
+    /// Render the travel progress bar at the bottom of the screen.
+    /// </summary>
+    private static void RenderTravelProgressBar(GameContext.ActiveTravelState travel)
+    {
+        float progress = (float)travel.SimulatedMinutes / travel.TotalMinutes;
+        progress = Math.Min(progress, 1f);
+
+        var io = ImGui.GetIO();
+        float barWidth = io.DisplaySize.X - 40;
+        float barHeight = 35;
+        float barY = io.DisplaySize.Y - barHeight - 20;
+
+        ImGui.SetNextWindowPos(new Vector2(20, barY), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(barWidth, barHeight + 10), ImGuiCond.Always);
+
+        ImGuiWindowFlags flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize |
+            ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings;
+
+        if (ImGui.Begin("##travel_progress", flags))
+        {
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.3f, 0.55f, 0.7f, 1f));
+            ImGui.ProgressBar(progress, new Vector2(-1, barHeight), $"Traveling to {travel.Destination.Name}...");
+            ImGui.PopStyleColor();
+        }
+        ImGui.End();
+    }
+
+    /// <summary>
+    /// Process an action string from the game loop.
+    /// </summary>
+    private void ProcessAction(string action)
+    {
+        // Handle work actions
+        if (action.StartsWith("work:"))
+        {
+            string workId = action.Substring(5);
+            ExecuteWork(workId);
+            return;
+        }
+
+        switch (action)
+        {
+            case "wait":
+                Wait();
+                break;
+            case "tend_fire":
+                TendFire();
+                break;
+            case "start_fire":
+                StartFire();
+                break;
+            case "eat_drink":
+                EatDrink();
+                break;
+            case "cook":
+                CookMelt();
+                break;
+            case "inventory":
+                RunInventoryMenu();
+                break;
+            case "crafting":
+                RunCrafting();
+                break;
+            case "discovery_log":
+                RunDiscoveryLog();
+                break;
+            case "storage":
+                RunStorageMenu();
+                break;
+            case "curing_rack":
+                UseCuringRack();
+                break;
+            case "sleep":
+                Sleep();
+                break;
+            case "make_camp":
+                MakeCamp();
+                break;
+            case "treat_wounds":
+                ApplyDirectTreatment();
+                break;
+            default:
+                // Unknown action, ignore
+                break;
+        }
     }
 
     private void MainMenu()
@@ -315,7 +658,7 @@ public partial class GameRunner(GameContext ctx)
         {
             message = "You can barely move at all. Your injuries prevent travel.";
             buttons = new() { { "ok", "OK" } };
-            WebIO.PromptConfirm(ctx, message, buttons);
+            DesktopIO.PromptConfirm(ctx, message, buttons);
             return false; // Blocked
         }
         else if (movingCapacity <= 0.3)
@@ -331,7 +674,7 @@ public partial class GameRunner(GameContext ctx)
             buttons = new() { { "proceed", "Proceed" }, { "cancel", "Cancel" } };
         }
 
-        return WebIO.PromptConfirm(ctx, message, buttons) == "proceed";
+        return DesktopIO.PromptConfirm(ctx, message, buttons) == "proceed";
     }
 
     private void TendFire() => FireHandler.ManageFire(ctx);
@@ -442,24 +785,24 @@ public partial class GameRunner(GameContext ctx)
 
     private void RunInventoryMenu()
     {
-        Web.WebIO.ShowInventoryAndWait(ctx, ctx.Inventory, "INVENTORY");
+        Desktop.DesktopIO.ShowInventoryAndWait(ctx, ctx.Inventory, "INVENTORY");
     }
 
     private void RunDiscoveryLog()
     {
-        Web.WebIO.ShowDiscoveryLogAndWait(ctx);
+        Desktop.DesktopIO.ShowDiscoveryLogAndWait(ctx);
     }
 
     private void RunStorageMenu()
     {
         var storage = ctx.Camp.GetFeature<CacheFeature>()!;
         // Start with storage view instead of player inventory
-        Web.WebIO.RunTransferUI(ctx, storage.Storage, "CAMP STORAGE");
+        Desktop.DesktopIO.RunTransferUI(ctx, storage.Storage, "CAMP STORAGE");
     }
 
     private void EatDrink()
     {
-        WebIO.RunEatingUI(ctx);
+        DesktopIO.RunEatingUI(ctx);
     }
 
     private void CookMelt() => CookingHandler.CookMelt(ctx);

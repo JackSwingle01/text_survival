@@ -4,7 +4,8 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -119,7 +120,7 @@ public class ExamineStrategy : IWorkStrategy
         // Show results
         if (collected.Count > 0)
         {
-            WebIO.ShowWorkResult(ctx, detail.DisplayName, examinationText ?? "You examine it closely.", collected);
+            DesktopIO.ShowWorkResult(ctx, detail.DisplayName, examinationText ?? "You examine it closely.", collected);
         }
         else if (!string.IsNullOrEmpty(examinationText))
         {

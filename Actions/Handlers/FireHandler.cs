@@ -5,7 +5,8 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Handlers;
 
@@ -398,7 +399,7 @@ public static class FireHandler
     public static void ManageFire(GameContext ctx, HeatSourceFeature? fire = null)
     {
         fire ??= ctx.CurrentLocation.GetFeature<HeatSourceFeature>() ?? new HeatSourceFeature();
-        WebIO.RunFireUI(ctx, fire);
+        DesktopIO.RunFireUI(ctx, fire);
     }
 
     /// <summary>

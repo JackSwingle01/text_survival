@@ -27,7 +27,7 @@ public record ButcheringModeConfig(
 
 public class CarcassFeature : LocationFeature, IWorkableFeature
 {
-    public override string? MapIcon => !IsCompletelyButchered ? "restaurant" : null;
+    public override string? MapIcon => !IsCompletelyButchered ? "carcass" : null;
     public override int IconPriority => 3;
 
     // Core identity

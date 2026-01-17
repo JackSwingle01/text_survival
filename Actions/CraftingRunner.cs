@@ -4,7 +4,8 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions;
 
@@ -18,53 +19,12 @@ public class CraftingRunner(GameContext ctx)
 
     /// <summary>
     /// Run the crafting menu. Shows all categories and recipes on one screen.
+    /// The CraftingOverlay handles all crafting logic internally.
     /// </summary>
     public void Run()
     {
-        // Render the crafting screen
-        GameDisplay.RenderCraftingScreen(_ctx, _crafting);
-
-        // Get all craftable options across all categories
-        var allCraftable = new List<(NeedCategory category, CraftOption option)>();
-
-        foreach (var category in Enum.GetValues<NeedCategory>())
-        {
-            var options = _crafting.GetOptionsForNeed(category, _ctx.Inventory);
-            options = options.Where(o => !IsFeatureAlreadyBuilt(o)).ToList();
-            var craftable = options.Where(o => o.CanCraft(_ctx.Inventory));
-
-            foreach (var opt in craftable)
-                allCraftable.Add((category, opt));
-        }
-
-        // if (allCraftable.Count == 0)
-        // {
-        //     GameDisplay.AddNarrative(_ctx, "You don't have materials to make anything.");
-        //     GameDisplay.Render(_ctx, statusText: "Thinking.");
-        //     Web.WebIO.ClearCrafting(_ctx);
-        //     return;
-        // }
-
-        // Let player select a recipe
-        var choice = new Choice<(NeedCategory, CraftOption)?>("Select a recipe to craft:");
-
-        foreach (var (category, option) in allCraftable)
-        {
-            string categoryLabel = GetCategoryShortLabel(category);
-            string label = $"[{categoryLabel}] {option.Name} - {option.GetRequirementsShort()} - {option.CraftingTimeMinutes} min";
-            choice.AddOption(label, (category, option));
-        }
-
-        choice.AddOption("Cancel", null);
-
-        var selected = choice.GetPlayerChoice(_ctx);
-
-        Web.WebIO.ClearCrafting(_ctx);
-
-        if (selected == null)
-            return;
-
-        DoCraft(selected.Value.Item2);
+        // Use the overlay-based crafting UI
+        Desktop.DesktopIO.RunCraftingAndWait(_ctx);
     }
 
     /// <summary>
@@ -88,7 +48,7 @@ public class CraftingRunner(GameContext ctx)
         GameDisplay.AddNarrative(_ctx, $"You could make {GetNeedDescription(need)}. Craft one now?");
         GameDisplay.Render(_ctx, statusText: "Thinking.");
 
-        if (!WebIO.Confirm(_ctx, "Craft now?"))
+        if (!DesktopIO.Confirm(_ctx, "Craft now?"))
             return false;
 
         // Show crafting screen for this category
@@ -96,7 +56,7 @@ public class CraftingRunner(GameContext ctx)
 
         var result = ShowOptionsForNeed(need);
 
-        Web.WebIO.ClearCrafting(_ctx);
+        Desktop.DesktopIO.ClearCrafting(_ctx);
         return result;
     }
 

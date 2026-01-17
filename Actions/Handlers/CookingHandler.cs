@@ -1,7 +1,8 @@
 using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Handlers;
 
@@ -135,6 +136,6 @@ public static class CookingHandler
     /// </summary>
     public static void CookMelt(GameContext ctx)
     {
-        WebIO.RunCookingUI(ctx);
+        DesktopIO.RunCookingUI(ctx);
     }
 }

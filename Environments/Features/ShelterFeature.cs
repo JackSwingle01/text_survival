@@ -2,7 +2,7 @@ namespace text_survival.Environments.Features;
 
 public class ShelterFeature : LocationFeature
 {
-    public override string? MapIcon => !IsDestroyed ? (IsSnowShelter ? "ac_unit" : "cabin") : null;
+    public override string? MapIcon => !IsDestroyed ? (IsSnowShelter ? "snow_shelter" : "shelter") : null;
     public override int IconPriority => 5; // Shelter is important
 
     public double TemperatureInsulation { get; set; } = 0; // ambient temp protection 0-1

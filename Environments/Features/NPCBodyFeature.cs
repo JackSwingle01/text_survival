@@ -14,7 +14,7 @@ namespace text_survival.Environments.Features;
 public class NPCBodyFeature : LocationFeature, IWorkableFeature
 {
     // Only show icon if discovered and not buried
-    public override string? MapIcon => IsDiscovered && !IsBuried ? "person_off" : null;
+    public override string? MapIcon => IsDiscovered && !IsBuried ? "body" : null;
     public override int IconPriority => 4;  // High priority - this is important
 
     public string NPCName { get; set; } = "";

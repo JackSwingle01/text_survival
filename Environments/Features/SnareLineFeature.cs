@@ -10,7 +10,7 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class SnareLineFeature : LocationFeature, IWorkableFeature
 {
-    public override string? MapIcon => SnareCount > 0 ? (HasCatchWaiting ? "check_circle" : "circle") : null;
+    public override string? MapIcon => SnareCount > 0 ? (HasCatchWaiting ? "trap_caught" : "trap") : null;
     public override int IconPriority => HasCatchWaiting ? 8 : 2; // Catches are urgent
 
     public readonly List<PlacedSnare> _snares = [];

@@ -7,8 +7,9 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
-using text_survival.Web.Dto;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -112,7 +113,7 @@ public class ForageStrategy : IWorkStrategy
             );
 
             // Show overlay and get selection
-            var (selectedFocus, selectedMinutes) = WebIO.SelectForageOptions(ctx, forageDto);
+            var (selectedFocus, selectedMinutes) = DesktopIO.SelectForageOptions(ctx, forageDto);
 
             // Handle "Keep Walking" - spend time to reroll clues
             if (selectedMinutes == -1)
@@ -375,7 +376,7 @@ public class ForageStrategy : IWorkStrategy
         }
 
         // Show results in popup overlay
-        WebIO.ShowWorkResult(ctx, activityHeader, resultMessage, collected);
+        DesktopIO.ShowWorkResult(ctx, activityHeader, resultMessage, collected);
 
         // Tutorial: Show fuel progress on Day 1
         double totalFuelGathered = found.GetWeight(ResourceCategory.Fuel);

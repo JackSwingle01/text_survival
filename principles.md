@@ -1,4 +1,4 @@
-# Text Survival — Design Principles
+# Ice-Age Survival — Design Principles
 
 *A web-based Ice Age survival game where you've been separated from your tribe during the mountain crossing. Survive until midsummer when the pass clears — or gear up and attempt the crossing early.*
 
@@ -8,7 +8,7 @@
 
 What we're optimizing for, in priority order:
 
-1. **Immersion** — The world feels real and present. Text carries the weight that graphics would.
+1. **Immersion** — The world feels real and present.
 2. **Tension** — The player feels pressure. Decisions have stakes.
 3. **Memorable moments** — Peaks of triumph and sorrow that stick with you. The barely-made-it-back. The wolf-got-me-50-meters-from-safety.
 4. **Agency** — Your choices caused this outcome, not dice rolls.
@@ -69,8 +69,6 @@ Physics-based modeling where possible. Players can reason about the world becaus
 ---
 
 ## Narrative Principles
-
-The text IS the game. No graphics to carry weight.
 
 **Brevity** — Laconic, punchy. Short sentences over flowery prose.
 

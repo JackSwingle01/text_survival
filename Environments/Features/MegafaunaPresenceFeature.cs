@@ -11,7 +11,7 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class MegafaunaPresenceFeature : LocationFeature, IWorkableFeature
 {
-    public override string? MapIcon => "warning";
+    public override string? MapIcon => "danger";
     public override int IconPriority => 5;  // High priority - important gameplay feature
 
     /// <summary>

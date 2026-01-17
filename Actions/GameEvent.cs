@@ -6,7 +6,7 @@ using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web.Dto;
+using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions;
 

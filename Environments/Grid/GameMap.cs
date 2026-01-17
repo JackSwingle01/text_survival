@@ -265,6 +265,21 @@ public class GameMap
         x >= 0 && x < Width && y >= 0 && y < Height;
 
     /// <summary>
+    /// Alias for IsInBounds - checks if position is valid on this map.
+    /// </summary>
+    public bool IsValidPosition(int x, int y) => IsInBounds(x, y);
+
+    /// <summary>
+    /// Get visibility state of a tile for fog of war rendering.
+    /// </summary>
+    public TileVisibility GetVisibility(int x, int y)
+    {
+        if (!IsInBounds(x, y)) return TileVisibility.Unexplored;
+        var loc = _locations[x, y];
+        return loc?.Visibility ?? TileVisibility.Unexplored;
+    }
+
+    /// <summary>
     /// Place a location at a position.
     /// </summary>
     public void SetLocation(int x, int y, Location location)

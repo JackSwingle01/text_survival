@@ -5,7 +5,8 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -104,7 +105,7 @@ public class HuntStrategy : IWorkStrategy
         var territory = location.GetFeature<AnimalTerritoryFeature>();
         if (territory == null || !territory.CanHunt())
         {
-            WebIO.ShowWorkResult(ctx, "Hunting", "You find no game. The area seems quiet.", []);
+            DesktopIO.ShowWorkResult(ctx, "Hunting", "You find no game. The area seems quiet.", []);
             return WorkResult.Empty(actualTime);
         }
 
@@ -123,7 +124,7 @@ public class HuntStrategy : IWorkStrategy
         if (found == null)
         {
             // Show popup only when no animal found (hunt ends here)
-            WebIO.ShowWorkResult(ctx, "Hunting", "You find no game. The area seems quiet.", []);
+            DesktopIO.ShowWorkResult(ctx, "Hunting", "You find no game. The area seems quiet.", []);
             return WorkResult.Empty(actualTime);
         }
 

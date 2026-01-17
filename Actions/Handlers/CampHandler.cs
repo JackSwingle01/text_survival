@@ -2,7 +2,8 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Web;
+using text_survival.Desktop;
+using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Handlers;
 
@@ -23,7 +24,7 @@ public static class CampHandler
         bool hasShovel = ctx.Inventory.GetTool(ToolType.Shovel) != null;
         int setupTimeMinutes = hasShovel ? 22 : 45;
 
-        if (!WebIO.Confirm(ctx, $"Do you want to setup camp here? ({setupTimeMinutes} min)"))
+        if (!DesktopIO.Confirm(ctx, $"Do you want to setup camp here? ({setupTimeMinutes} min)"))
             return;
 
         if (hasShovel)
