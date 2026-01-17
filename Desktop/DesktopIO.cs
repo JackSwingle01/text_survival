@@ -396,14 +396,128 @@ public static class DesktopIO
         => BlockingDialog.ReadInt(ctx, prompt, min, max, allowCancel);
 
     // Event methods
-    public static void WaitForEventContinue(GameContext ctx)
-        => BlockingDialog.ShowMessageAndWait(ctx, "Event", "Press continue to proceed.");
 
+    // Persistent event overlay for event sequences
+    private static GameEventOverlay? _eventOverlay;
+
+    /// <summary>
+    /// Render event state (non-blocking, for intermediate states).
+    /// </summary>
     public static void RenderEvent(GameContext ctx, EventDto eventData)
     {
-        // For now, just show a message with the event description
-        // Full event overlay integration would come later
-        BlockingDialog.ShowMessageAndWait(ctx, "Event", eventData.Description ?? "Something happened...");
+        _eventOverlay ??= new GameEventOverlay();
+        _eventOverlay.ShowEvent(eventData);
+
+        // Single frame render
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        DesktopRuntime.WorldRenderer?.Update(ctx, Raylib.GetFrameTime());
+        DesktopRuntime.WorldRenderer?.Render(ctx);
+
+        Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+            new Color(0, 0, 0, 128));
+
+        rlImGui.Begin();
+        _eventOverlay.Render(Raylib.GetFrameTime());
+        rlImGui.End();
+
+        Raylib.EndDrawing();
+    }
+
+    /// <summary>
+    /// Show event UI and block until player makes a choice.
+    /// </summary>
+    public static string WaitForEventChoice(GameContext ctx, EventDto eventData)
+    {
+        _eventOverlay ??= new GameEventOverlay();
+        _eventOverlay.ShowEvent(eventData);
+
+        string? choice = null;
+
+        while (choice == null && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            choice = _eventOverlay.Render(deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        return choice ?? "cancel";
+    }
+
+    /// <summary>
+    /// Wait for player to dismiss event outcome screen.
+    /// </summary>
+    public static void WaitForEventContinue(GameContext ctx)
+    {
+        if (_eventOverlay == null || !_eventOverlay.IsOpen) return;
+
+        while (_eventOverlay.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            _eventOverlay.Render(deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        _eventOverlay = null; // Clear after use
+    }
+
+    /// <summary>
+    /// Show event outcome directly (for events resolved by the backend).
+    /// </summary>
+    public static void ShowEventOutcome(GameContext ctx, EventOutcomeDto outcome)
+    {
+        _eventOverlay ??= new GameEventOverlay();
+        _eventOverlay.ShowOutcome(outcome);
+
+        // Wait for player to dismiss
+        while (_eventOverlay.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            _eventOverlay.Render(deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+
+        _eventOverlay = null;
     }
 
     // Render methods
@@ -429,8 +543,8 @@ public static class DesktopIO
         int startX,
         int startY)
     {
-        // Calculate animation duration (speed up for gameplay - 0.3 seconds per game minute, max 3 seconds)
-        float animDuration = Math.Min(estimatedMinutes * 0.3f, 3.0f);
+        // Match camera's 0.3s transition duration for synchronized animation
+        float animDuration = 0.3f;
         float elapsed = 0f;
 
         // Get destination (current position after travel)
@@ -442,7 +556,11 @@ public static class DesktopIO
         {
             // Set camera to start position without animation
             camera.SetCenter(startX, startY, animate: false);
+            // Trigger camera animation to destination (once, not every frame)
+            camera.SetCenter(destPos.X, destPos.Y, animate: true);
         }
+
+        var worldRenderer = DesktopRuntime.WorldRenderer;
 
         while (elapsed < animDuration && !Raylib.WindowShouldClose())
         {
@@ -453,32 +571,24 @@ public static class DesktopIO
             float progress = Math.Min(elapsed / animDuration, 1.0f);
             float easedProgress = EaseOutCubic(progress);
 
-            // Interpolate camera position
-            if (camera != null)
-            {
-                float interpX = startX + (destPos.X - startX) * easedProgress;
-                float interpY = startY + (destPos.Y - startY) * easedProgress;
+            // Interpolate player position
+            float interpX = startX + (destPos.X - startX) * easedProgress;
+            float interpY = startY + (destPos.Y - startY) * easedProgress;
 
-                // Smoothly move camera - we'll manually position it
-                camera.SetCenter((int)MathF.Round(interpX), (int)MathF.Round(interpY), animate: false);
+            // Set player position override for smooth animation
+            if (worldRenderer != null)
+            {
+                worldRenderer.PlayerPositionOverride = (interpX, interpY);
             }
+
+            // Camera animation is handled by camera.Update() - don't call SetCenter here
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-            // Render world
-            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
-            DesktopRuntime.WorldRenderer?.Render(ctx);
-
-            // Draw animated player trail (optional visual feedback)
-            if (camera != null)
-            {
-                // Draw a faint trail line from start to current interpolated position
-                var startScreen = camera.GetTileCenter(startX, startY);
-                var currentScreen = camera.GetTileCenter((int)MathF.Round(startX + (destPos.X - startX) * easedProgress),
-                                                          (int)MathF.Round(startY + (destPos.Y - startY) * easedProgress));
-                Raylib.DrawLineEx(startScreen, currentScreen, 3, new Color(100, 150, 200, 100));
-            }
+            // Render world (player icon will use override position)
+            worldRenderer?.Update(ctx, deltaTime);
+            worldRenderer?.Render(ctx);
 
             // Draw progress bar at bottom
             int screenWidth = Raylib.GetScreenWidth();
@@ -505,7 +615,11 @@ public static class DesktopIO
             Raylib.EndDrawing();
         }
 
-        // Ensure camera is at destination
+        // Clear player position override and ensure camera is at destination
+        if (worldRenderer != null)
+        {
+            worldRenderer.PlayerPositionOverride = null;
+        }
         if (camera != null)
         {
             camera.SetCenter(destPos.X, destPos.Y, animate: false);
@@ -562,8 +676,9 @@ public static class DesktopIO
         {
             float deltaTime = Raylib.GetFrameTime();
 
-            // Handle escape to close
-            if (Raylib.IsKeyPressed(KeyboardKey.Escape) || Raylib.IsKeyPressed(KeyboardKey.I))
+            // Handle escape to close (don't check 'I' here - it may still be pressed from the
+            // main loop that opened this overlay, causing an immediate close before any frame renders)
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
                 overlays.Inventory.IsOpen = false;
                 break;

@@ -13,12 +13,52 @@ public class WorldRenderer
     public Camera Camera { get; }
 
     private (int x, int y)? _hoveredTile;
+    private (int x, int y)? _selectedTile;
     private readonly EffectsRenderer _effects;
+
+    // Track screen size for resize handling
+    private int _lastScreenWidth;
+    private int _lastScreenHeight;
+
+    /// <summary>
+    /// Override position for player icon during travel animation.
+    /// When set, player is drawn at this position instead of ctx.Map.CurrentPosition.
+    /// </summary>
+    public (float x, float y)? PlayerPositionOverride { get; set; }
 
     public WorldRenderer()
     {
         Camera = new Camera();
         _effects = new EffectsRenderer();
+
+        // Initialize camera size based on current screen
+        ConfigureCameraSize();
+    }
+
+    /// <summary>
+    /// Configure camera dimensions based on current screen size.
+    /// Called on init and when window is resized.
+    /// </summary>
+    private void ConfigureCameraSize()
+    {
+        int screenWidth = Raylib.GetScreenWidth();
+        int screenHeight = Raylib.GetScreenHeight();
+
+        if (screenWidth != _lastScreenWidth || screenHeight != _lastScreenHeight)
+        {
+            _lastScreenWidth = screenWidth;
+            _lastScreenHeight = screenHeight;
+            Camera.ConfigureForScreenSize(screenWidth, screenHeight);
+        }
+    }
+
+    /// <summary>
+    /// Get or set the currently selected tile (for popup display).
+    /// </summary>
+    public (int x, int y)? SelectedTile
+    {
+        get => _selectedTile;
+        set => _selectedTile = value;
     }
 
     /// <summary>
@@ -26,6 +66,12 @@ public class WorldRenderer
     /// </summary>
     public void Update(GameContext ctx, float deltaTime)
     {
+        // Check for window resize
+        if (Raylib.IsWindowResized())
+        {
+            ConfigureCameraSize();
+        }
+
         // Update camera to follow player
         var playerPos = ctx.Map.CurrentPosition;
         Camera.SetCenter(playerPos.X, playerPos.Y);
@@ -70,8 +116,17 @@ public class WorldRenderer
         // Render edges between tiles (rivers, cliffs, trails)
         EdgeRenderer.RenderEdges(ctx, Camera, timeFactor);
 
-        // Render player icon
-        Vector2 playerScreenPos = Camera.GetTileCenter(playerPos.X, playerPos.Y);
+        // Render player icon (use override position if set, for travel animation)
+        Vector2 playerScreenPos;
+        if (PlayerPositionOverride.HasValue)
+        {
+            // Interpolate screen position for smooth travel animation
+            playerScreenPos = GetInterpolatedTileCenter(PlayerPositionOverride.Value.x, PlayerPositionOverride.Value.y);
+        }
+        else
+        {
+            playerScreenPos = Camera.GetTileCenter(playerPos.X, playerPos.Y);
+        }
         TileRenderer.DrawPlayerIcon(playerScreenPos.X, playerScreenPos.Y, Camera.TileSize);
 
         // Render weather effects
@@ -252,7 +307,7 @@ public class WorldRenderer
     public (int x, int y)? GetHoveredTile() => _hoveredTile;
 
     /// <summary>
-    /// Handle a tile click.
+    /// Handle a tile click. Returns the clicked tile coordinates.
     /// </summary>
     public (int x, int y)? HandleClick()
     {
@@ -261,5 +316,46 @@ public class WorldRenderer
             return _hoveredTile;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Get the screen position for a tile (top-left corner).
+    /// Used for popup positioning.
+    /// </summary>
+    public Vector2 GetTileScreenPosition(int x, int y)
+    {
+        return Camera.WorldToScreen(x, y);
+    }
+
+    /// <summary>
+    /// Get the center screen position for a fractional world position.
+    /// Used for smooth player movement animation.
+    /// </summary>
+    private Vector2 GetInterpolatedTileCenter(float worldX, float worldY)
+    {
+        // Get the four surrounding tile centers for bilinear interpolation
+        int x0 = (int)MathF.Floor(worldX);
+        int y0 = (int)MathF.Floor(worldY);
+        float fx = worldX - x0;
+        float fy = worldY - y0;
+
+        // For simplicity, just use linear interpolation between tile centers
+        Vector2 topLeft = Camera.GetTileCenter(x0, y0);
+        Vector2 topRight = Camera.GetTileCenter(x0 + 1, y0);
+        Vector2 bottomLeft = Camera.GetTileCenter(x0, y0 + 1);
+        Vector2 bottomRight = Camera.GetTileCenter(x0 + 1, y0 + 1);
+
+        // Bilinear interpolation
+        Vector2 top = Vector2.Lerp(topLeft, topRight, fx);
+        Vector2 bottom = Vector2.Lerp(bottomLeft, bottomRight, fx);
+        return Vector2.Lerp(top, bottom, fy);
+    }
+
+    /// <summary>
+    /// Clear the selected tile (hide popup).
+    /// </summary>
+    public void ClearSelection()
+    {
+        _selectedTile = null;
     }
 }

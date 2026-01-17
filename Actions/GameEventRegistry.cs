@@ -377,18 +377,26 @@ public static partial class GameEventRegistry
             GameDisplay.AddNarrative(ctx, $"{evt.Name}", LogLevel.Warning);
             GameDisplay.AddNarrative(ctx, evt.Description);
 
-            // Phase 1: Show event with choices
-            // Use same ID generation as DesktopIO.Select to ensure frontend/backend match
+            // Phase 1: Show event with choices via overlay
+            var availableChoices = evt.GetAvailableChoices(ctx);
             var eventDto = new EventDto(
                 evt.Name,
                 evt.Description,
-                evt.GetAvailableChoices(ctx)
+                availableChoices
                     .Select((c, i) => BuildChoiceDto(ctx, c, i))
                     .ToList()
             );
-            DesktopIO.RenderEvent(ctx, eventDto);
 
-            var choice = evt.GetChoice(ctx);
+            // Block until player makes a choice
+            var choiceId = DesktopIO.WaitForEventChoice(ctx, eventDto);
+
+            // Map choice ID back to EventChoice (IDs are "choice_0", "choice_1", etc.)
+            int choiceIndex = 0;
+            if (choiceId.StartsWith("choice_") && int.TryParse(choiceId[7..], out var idx))
+            {
+                choiceIndex = idx;
+            }
+            var choice = availableChoices[Math.Clamp(choiceIndex, 0, availableChoices.Count - 1)];
             GameDisplay.AddNarrative(ctx, choice.Description + "\n");
 
             var outcome = choice.DetermineResult();

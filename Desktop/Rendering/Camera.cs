@@ -22,7 +22,7 @@ public class Camera
     private float _transitionProgress = 1f;
     private int _fromX, _fromY;
     private int _toX, _toY;
-    private float _transitionDuration = 0.3f;  // seconds
+    private float _transitionDuration = 0.3f;  // seconds (matches web version)
 
     // Screen offset (where to draw the grid on screen)
     public int ScreenOffsetX { get; set; } = 50;
@@ -45,6 +45,7 @@ public class Camera
 
     /// <summary>
     /// Current interpolated camera offset for smooth panning.
+    /// When camera moves right (toX > fromX), world should shift left (negative offset).
     /// </summary>
     public Vector2 CurrentOffset
     {
@@ -201,5 +202,49 @@ public class Camera
     {
         Vector2 topLeft = WorldToScreen(worldX, worldY);
         return new Vector2(topLeft.X + TileSize / 2f, topLeft.Y + TileSize / 2f);
+    }
+
+    /// <summary>
+    /// Configure camera dimensions based on available screen space.
+    /// Reserves space for UI panels and centers the grid.
+    /// </summary>
+    /// <param name="screenWidth">Total screen width in pixels</param>
+    /// <param name="screenHeight">Total screen height in pixels</param>
+    /// <param name="leftPanelWidth">Width reserved for left UI panel (StatsPanel)</param>
+    /// <param name="rightPanelWidth">Width reserved for right UI panel (ActionPanel)</param>
+    /// <param name="padding">Padding around the grid</param>
+    public void ConfigureForScreenSize(int screenWidth, int screenHeight,
+        int leftPanelWidth = 300, int rightPanelWidth = 320, int padding = 20)
+    {
+        // Calculate available space for grid
+        int availableWidth = screenWidth - leftPanelWidth - rightPanelWidth - padding * 2;
+        int availableHeight = screenHeight - padding * 2;
+
+        // Use the smaller dimension to keep grid square
+        int availableSize = Math.Min(availableWidth, availableHeight);
+
+        // Calculate tile size: totalGridSize = ViewSize * TileSize + (ViewSize - 1) * TileGap
+        // Solving for TileSize: TileSize = (availableSize - (ViewSize - 1) * TileGap) / ViewSize
+        int calculatedTileSize = (availableSize - (ViewSize - 1) * TileGap) / ViewSize;
+
+        // Clamp tile size to reasonable bounds (min 60, max 150)
+        TileSize = Math.Clamp(calculatedTileSize, 60, 150);
+
+        // Center grid horizontally between panels
+        int actualGridWidth = ViewSize * TileSize + (ViewSize - 1) * TileGap;
+        int gridAreaStart = leftPanelWidth + padding;
+        int gridAreaWidth = screenWidth - leftPanelWidth - rightPanelWidth - padding * 2;
+        ScreenOffsetX = gridAreaStart + (gridAreaWidth - actualGridWidth) / 2;
+
+        // Center grid vertically
+        ScreenOffsetY = (screenHeight - actualGridWidth) / 2;
+    }
+
+    /// <summary>
+    /// Get the X position where UI panels on the right should start.
+    /// </summary>
+    public int GetRightPanelX()
+    {
+        return ScreenOffsetX + GridWidth + 20; // 20px gap after grid
     }
 }

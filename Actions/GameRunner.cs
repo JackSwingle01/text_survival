@@ -1,3 +1,5 @@
+using Raylib_cs;
+using rlImGui_cs;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments.Features;
@@ -9,6 +11,7 @@ using text_survival.Persistence;
 using text_survival.UI;
 using text_survival.Environments;
 using text_survival.Desktop;
+using text_survival.Desktop.Input;
 using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions;
@@ -39,14 +42,12 @@ public partial class GameRunner(GameContext ctx)
 
     public void Run()
     {
-        while (ctx.player.IsAlive) // && !ctx.HasWon)
+        while (ctx.player.IsAlive && !Raylib.WindowShouldClose())
         {
-            GameDisplay.Render(ctx, statusText: "Resting.");
-            CheckFireWarning();
-
-            // Handle pending travel from map click
+            // Handle pending travel from map click or WASD
             if (ctx.PendingTravelTarget.HasValue)
             {
+                DesktopRuntime.TilePopup?.Hide();
                 new TravelRunner(ctx).DoTravel();
                 continue;
             }
@@ -54,23 +55,218 @@ public partial class GameRunner(GameContext ctx)
             // Handle pending encounter from event or activity
             if (ctx.HasPendingEncounter)
             {
+                DesktopRuntime.TilePopup?.Hide();
                 ctx.HandlePendingEncounter();
-                continue; // Return to top of loop after encounter
+                continue;
             }
 
-            MainMenu();
+            // Run the main game loop with input processing
+            string? action = RunGameLoop();
+
+            // Process the action
+            if (action != null)
+            {
+                ProcessAction(action);
+            }
         }
 
-        // if (ctx.HasWon)
-        // {
-        //     // Victory was already displayed in ExpeditionRunner
-        //     return;
-        // }
+        // Player died - show death message
+        if (!ctx.player.IsAlive)
+        {
+            GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");
+            GameDisplay.AddDanger(ctx, "You have died.");
+            BlockingDialog.ShowMessageAndWait(ctx, "Death", "You have died.");
+        }
+    }
 
-        // Player died from survival conditions - show death message
-        GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");
-        GameDisplay.AddDanger(ctx, "You have died.");
-        GameDisplay.Render(ctx, addSeparator: false);
+    /// <summary>
+    /// Main game loop: render world, process input, show UI.
+    /// Returns an action string when the player takes an action.
+    /// </summary>
+    private string? RunGameLoop()
+    {
+        var inputHandler = DesktopRuntime.InputHandler;
+        var worldRenderer = DesktopRuntime.WorldRenderer;
+        var tilePopup = DesktopRuntime.TilePopup;
+        var actionPanel = DesktopRuntime.ActionPanel;
+        var overlays = DesktopRuntime.Overlays;
+
+        // Auto-save periodically
+        var (saved, saveError) = SaveManager.Save(ctx);
+        if (!saved)
+            Console.WriteLine($"[GameRunner] Save failed: {saveError}");
+
+        CheckFireWarning();
+
+        // Check for incapacitation
+        var capacities = ctx.player.GetCapacities();
+        if (capacities.Moving <= 0)
+        {
+            HandleIncapacitation();
+            return null;
+        }
+
+        while (!Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            // Process input
+            if (inputHandler != null)
+            {
+                var input = inputHandler.ProcessInput(ctx);
+
+                // Handle tile popup
+                if (input.ShowTilePopup && worldRenderer != null && tilePopup != null)
+                {
+                    var screenPos = worldRenderer.GetTileScreenPosition(input.PopupTileX, input.PopupTileY);
+                    tilePopup.Show(ctx, input.PopupTileX, input.PopupTileY, screenPos);
+                }
+
+                // Handle WASD instant travel
+                if (input.TravelInitiated)
+                {
+                    tilePopup?.Hide();
+                    return null; // PendingTravelTarget is set, loop will handle it
+                }
+
+                // Handle keyboard shortcuts
+                if (input.OpenInventory) return "inventory";
+                if (input.OpenCrafting) return "crafting";
+                if (input.ToggleFire) return HasActiveFire() ? "tend_fire" : "start_fire";
+                if (input.Wait) return "wait";
+                if (input.Cancel) tilePopup?.Hide();
+
+                // Show message if any
+                if (input.Message != null)
+                {
+                    actionPanel?.ShowMessage(input.Message);
+                }
+            }
+
+            // Begin frame
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            // Render world
+            worldRenderer?.Update(ctx, deltaTime);
+            worldRenderer?.Render(ctx);
+
+            rlImGui.Begin();
+
+            // Render tile popup if open
+            if (tilePopup != null && tilePopup.IsOpen)
+            {
+                var popupResult = tilePopup.Render(ctx, deltaTime);
+                if (popupResult == "go" && tilePopup.SelectedTile.HasValue)
+                {
+                    // Set travel target and return
+                    var (x, y) = tilePopup.SelectedTile.Value;
+                    ctx.PendingTravelTarget = (x, y);
+                    tilePopup.Hide();
+                    rlImGui.End();
+                    Raylib.EndDrawing();
+                    return null; // Travel will be handled in main loop
+                }
+            }
+
+            // Render action panel
+            if (actionPanel != null)
+            {
+                var clickedAction = actionPanel.Render(ctx, deltaTime);
+                if (clickedAction != null)
+                {
+                    tilePopup?.Hide();
+                    rlImGui.End();
+                    Raylib.EndDrawing();
+                    return clickedAction;
+                }
+            }
+
+            // Render overlays
+            overlays?.Render(ctx, deltaTime);
+
+            // Render stats panel
+            RenderStatsPanel(ctx);
+
+            rlImGui.End();
+            Raylib.EndDrawing();
+
+            // Check if travel target was set (from popup)
+            if (ctx.PendingTravelTarget.HasValue)
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Render the stats panel.
+    /// </summary>
+    private static void RenderStatsPanel(GameContext ctx)
+    {
+        Desktop.UI.StatsPanel.Render(ctx);
+    }
+
+    /// <summary>
+    /// Process an action string from the game loop.
+    /// </summary>
+    private void ProcessAction(string action)
+    {
+        // Handle work actions
+        if (action.StartsWith("work:"))
+        {
+            string workId = action.Substring(5);
+            ExecuteWork(workId);
+            return;
+        }
+
+        switch (action)
+        {
+            case "wait":
+                Wait();
+                break;
+            case "tend_fire":
+                TendFire();
+                break;
+            case "start_fire":
+                StartFire();
+                break;
+            case "eat_drink":
+                EatDrink();
+                break;
+            case "cook":
+                CookMelt();
+                break;
+            case "inventory":
+                RunInventoryMenu();
+                break;
+            case "crafting":
+                RunCrafting();
+                break;
+            case "discovery_log":
+                RunDiscoveryLog();
+                break;
+            case "storage":
+                RunStorageMenu();
+                break;
+            case "curing_rack":
+                UseCuringRack();
+                break;
+            case "sleep":
+                Sleep();
+                break;
+            case "make_camp":
+                MakeCamp();
+                break;
+            case "treat_wounds":
+                ApplyDirectTreatment();
+                break;
+            default:
+                // Unknown action, ignore
+                break;
+        }
     }
 
     private void MainMenu()

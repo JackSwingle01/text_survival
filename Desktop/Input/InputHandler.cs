@@ -44,6 +44,7 @@ public class InputHandler
 
     /// <summary>
     /// Handle a click on a world tile.
+    /// Shows tile popup instead of instant travel.
     /// </summary>
     private void HandleTileClick(GameContext ctx, int x, int y, InputResult result)
     {
@@ -52,33 +53,17 @@ public class InputHandler
 
         var currentPos = map.CurrentPosition;
 
-        // Check if clicked tile is adjacent and can be moved to
-        if (map.CanMoveTo(x, y))
+        // Any valid tile click shows the popup
+        if (map.IsValidPosition(x, y))
         {
-            var targetPos = new GridPosition(x, y);
-
-            // Check if edge is blocked
-            var season = ctx.Weather?.CurrentSeason ?? Weather.Season.Winter;
-            if (!map.IsEdgeBlocked(currentPos, targetPos, season))
+            var location = map.GetLocationAt(x, y);
+            if (location != null && location.Visibility != Environments.Grid.TileVisibility.Unexplored)
             {
-                // Set pending travel target - TravelRunner will handle it
-                ctx.PendingTravelTarget = (targetPos.X, targetPos.Y);
-                result.TravelInitiated = true;
+                // Show popup for this tile
+                result.ShowTilePopup = true;
+                result.PopupTileX = x;
+                result.PopupTileY = y;
             }
-            else
-            {
-                result.Message = "The way is blocked.";
-            }
-        }
-        else if (x == currentPos.X && y == currentPos.Y)
-        {
-            // Clicked on current tile - could open location menu
-            result.OpenLocationMenu = true;
-        }
-        else if (map.IsValidPosition(x, y))
-        {
-            // Clicked on non-adjacent tile
-            result.Message = "Too far to travel directly.";
         }
     }
 
@@ -162,4 +147,9 @@ public class InputResult
     public bool Wait { get; set; }
     public bool Cancel { get; set; }
     public string? Message { get; set; }
+
+    // Tile popup
+    public bool ShowTilePopup { get; set; }
+    public int PopupTileX { get; set; }
+    public int PopupTileY { get; set; }
 }

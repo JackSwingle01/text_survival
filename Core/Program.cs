@@ -5,6 +5,7 @@ using text_survival.Actions;
 using text_survival.Desktop.Rendering;
 using text_survival.Desktop;
 using text_survival.Desktop.UI;
+using text_survival.Desktop.Input;
 
 namespace text_survival.Core;
 
@@ -12,7 +13,25 @@ public static class Program
 {
     public static void Main()
     {
+        // Set resizable flag before window creation
+        Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
+
+        // Create initial window (will resize after getting monitor info)
         Raylib.InitWindow(1280, 720, "Text Survival");
+
+        // Get current monitor and resize to ~90% of display
+        int monitor = Raylib.GetCurrentMonitor();
+        int monitorWidth = Raylib.GetMonitorWidth(monitor);
+        int monitorHeight = Raylib.GetMonitorHeight(monitor);
+
+        int windowWidth = (int)(monitorWidth * 0.9);
+        int windowHeight = (int)(monitorHeight * 0.9);
+
+        Raylib.SetWindowSize(windowWidth, windowHeight);
+        Raylib.SetWindowPosition(
+            (monitorWidth - windowWidth) / 2,
+            (monitorHeight - windowHeight) / 2);
+
         Raylib.SetTargetFPS(60);
         rlImGui.Setup(true);
 
@@ -40,9 +59,11 @@ public static class Program
         var worldRenderer = new WorldRenderer();
         var overlays = new OverlayManager();
         var actionPanel = new ActionPanel();
+        var inputHandler = new InputHandler(worldRenderer);
+        var tilePopup = new TilePopup();
 
         // Initialize desktop runtime for blocking I/O
-        DesktopRuntime.Initialize(worldRenderer, overlays, actionPanel);
+        DesktopRuntime.Initialize(worldRenderer, overlays, actionPanel, inputHandler, tilePopup);
 
         // Run the game through GameRunner
         // GameRunner uses Input/GameDisplay which route to DesktopIO

@@ -29,8 +29,15 @@ public class ActionPanel
     {
         string? clickedAction = null;
 
-        ImGui.SetNextWindowPos(new Vector2(960, 50), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(300, 620), ImGuiCond.FirstUseEver);
+        // Position relative to grid if WorldRenderer is available
+        int panelX = 960; // Default fallback
+        if (DesktopRuntime.WorldRenderer != null)
+        {
+            panelX = DesktopRuntime.WorldRenderer.Camera.GetRightPanelX();
+        }
+
+        ImGui.SetNextWindowPos(new Vector2(panelX, 50), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(300, 620), ImGuiCond.Always);
 
         ImGui.Begin("Actions");
 
