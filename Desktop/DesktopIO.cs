@@ -728,6 +728,46 @@ public static class DesktopIO
         Raylib.EndDrawing();
     }
 
+    /// <summary>
+    /// Run the crafting UI in a blocking loop until user closes it.
+    /// The overlay handles all crafting logic internally (material consumption, time advancement).
+    /// </summary>
+    public static void RunCraftingAndWait(GameContext ctx)
+    {
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
+
+        // Open crafting overlay
+        if (!overlays.Crafting.IsOpen)
+        {
+            overlays.ToggleCrafting();
+        }
+
+        while (overlays.Crafting.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            // Handle escape to close
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+            {
+                overlays.Crafting.IsOpen = false;
+                break;
+            }
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            rlImGui.Begin();
+            overlays.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+    }
+
     // Grid/Map methods
 
     /// <summary>
@@ -844,7 +884,7 @@ public static class DesktopIO
     }
 
     // Hazard methods
-    public static bool PromptHazardChoice(
+    public static string? PromptHazardChoice(
         GameContext ctx,
         Location targetLocation,
         int targetX,
@@ -867,7 +907,8 @@ public static class DesktopIO
         };
 
         string choice = BlockingDialog.PromptConfirm(ctx, message, buttons);
-        return choice == "quick";
+        if (choice == "cancel") return null;
+        return choice;  // "quick" or "careful"
     }
 
     // Forage methods

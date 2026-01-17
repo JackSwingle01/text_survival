@@ -203,7 +203,7 @@ public class TravelRunner(GameContext ctx)
             // Combine hazard descriptions if both are hazardous with different types
             string hazardType = GetCombinedHazardDescription(origin, destination, originHazardous, destHazardous);
 
-            bool quickTravel = DesktopIO.PromptHazardChoice(
+            string? hazardChoice = DesktopIO.PromptHazardChoice(
                 _ctx,
                 destination,
                 position.X,
@@ -212,6 +212,14 @@ public class TravelRunner(GameContext ctx)
                 combinedCarefulTime,
                 maxRisk
             );
+
+            // Handle turn back
+            if (hazardChoice == null)
+            {
+                return true;  // Travel aborted, but not a failure
+            }
+
+            bool quickTravel = hazardChoice == "quick";
 
             // Apply speed choice to hazardous segments
             if (originHazardous)

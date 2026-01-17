@@ -93,48 +93,54 @@ public static class StatsPanel
 
     private static void RenderSurvivalStats(Body body)
     {
-        // Calculate percentages
         int energyPct = (int)(body.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES * 100);
         int caloriesPct = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
         int hydrationPct = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
-
-        RenderStatBar("Energy", energyPct, GetStatColor(energyPct));
-        RenderStatBar("Food", caloriesPct, GetStatColor(caloriesPct));
-        RenderStatBar("Water", hydrationPct, GetStatColor(hydrationPct));
-
-        // Vitality bar
         int vitalityPct = (int)(AbilityCalculator.CalculateVitality(body) * 100);
-        RenderStatBar("Vitality", vitalityPct, GetStatColor(vitalityPct));
+
+        if (ImGui.BeginTable("survival_stats", 2))
+        {
+            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableSetupColumn("Bar", ImGuiTableColumnFlags.WidthStretch);
+
+            RenderStatRow("Energy", energyPct, GetStatColor(energyPct));
+            RenderStatRow("Food", caloriesPct, GetStatColor(caloriesPct));
+            RenderStatRow("Water", hydrationPct, GetStatColor(hydrationPct));
+            RenderStatRow("Vitality", vitalityPct, GetStatColor(vitalityPct));
+
+            ImGui.EndTable();
+        }
     }
 
-    private static void RenderStatBar(string label, int percent, Vector4 color)
+    // Row helpers - caller manages table begin/end
+    private static void RenderStatRow(string label, int percent, Vector4 color)
     {
         percent = Math.Clamp(percent, 0, 100);
-
+        ImGui.TableNextColumn();
         ImGui.Text(label);
-        ImGui.SameLine(70);
-
-        // Draw progress bar
+        ImGui.TableNextColumn();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
-        ImGui.ProgressBar(percent / 100f, new Vector2(140, 14), $"{percent}%");
+        ImGui.ProgressBar(percent / 100f, new Vector2(-1, 18), $"{percent}%");
         ImGui.PopStyleColor();
     }
 
-    private static void RenderEffectBar(string label, int percent, Vector4 color, string trend)
+    private static void RenderEffectRow(string label, int percent, Vector4 color, string trend)
     {
         percent = Math.Clamp(percent, 0, 100);
+        ImGui.TableNextColumn();
         ImGui.Text($"  {label}");
-        ImGui.SameLine(OverlaySizes.EffectBarStart);
+        ImGui.TableNextColumn();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
         ImGui.ProgressBar(percent / 100f, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{percent}%{trend}");
         ImGui.PopStyleColor();
     }
 
-    private static void RenderCapacityBar(string label, double value)
+    private static void RenderCapacityRow(string label, double value)
     {
         int pct = (int)(value * 100);
+        ImGui.TableNextColumn();
         ImGui.Text($"  {label}");
-        ImGui.SameLine(OverlaySizes.EffectBarStart);
+        ImGui.TableNextColumn();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, GetCapacityColor(value));
         ImGui.ProgressBar((float)value, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{pct}%");
         ImGui.PopStyleColor();
@@ -152,55 +158,72 @@ public static class StatsPanel
             trendPerHour = (delta / ctx.player.LastUpdateMinutes) * 60;
         }
 
-        // Trend arrow
         string trendArrow = trendPerHour > 0.5 ? " ^" : trendPerHour < -0.5 ? " v" : "";
-
-        // Body temp bar: 90°F (0%) to 99°F (100%)
         double tempPct = Math.Clamp((bodyTemp - 90) / 9.0, 0, 1);
         Vector4 tempColor = bodyTemp < 95 ? ColorCold : bodyTemp < 97 ? ColorWarning : ColorGood;
-
-        ImGui.Text("Body Temp");
-        ImGui.SameLine(70);
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, tempColor);
-        ImGui.ProgressBar((float)tempPct, new Vector2(120, 14), $"{bodyTemp:F1}F{trendArrow}");
-        ImGui.PopStyleColor();
-
-        ImGui.Text("Air Temp");
-        ImGui.SameLine(70);
         Vector4 airColor = airTemp < 20 ? ColorCold : airTemp < 40 ? ColorMuted : ColorWarm;
-        ImGui.TextColored(airColor, $"{airTemp:F0}F");
-
-        // Clothing warmth bar - always visible
         int warmthPct = (int)(body.ClothingHeatBufferPct * 100);
-        RenderStatBar("Insulation", warmthPct, warmthPct < 30 ? ColorDanger : warmthPct < 60 ? ColorWarning : ColorGood);
+
+        if (ImGui.BeginTable("temperature", 2))
+        {
+            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+            // Body Temp row
+            ImGui.TableNextColumn();
+            ImGui.Text("Body Temp");
+            ImGui.TableNextColumn();
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, tempColor);
+            ImGui.ProgressBar((float)tempPct, new Vector2(-1, 18), $"{bodyTemp:F1}F{trendArrow}");
+            ImGui.PopStyleColor();
+
+            // Air Temp row
+            ImGui.TableNextColumn();
+            ImGui.Text("Air Temp");
+            ImGui.TableNextColumn();
+            ImGui.TextColored(airColor, $"{airTemp:F0}F");
+
+            // Insulation row
+            ImGui.TableNextColumn();
+            ImGui.Text("Insulation");
+            ImGui.TableNextColumn();
+            Vector4 warmthColor = warmthPct < 30 ? ColorDanger : warmthPct < 60 ? ColorWarning : ColorGood;
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, warmthColor);
+            ImGui.ProgressBar(warmthPct / 100f, new Vector2(-1, 18), $"{warmthPct}%");
+            ImGui.PopStyleColor();
+
+            ImGui.EndTable();
+        }
     }
 
     private static void RenderBodyCondition(GameContext ctx, Body body)
     {
-        bool hasIssues = false;
-
-        // Blood level (if low)
-        if (body.Blood.Condition < 0.95)
-        {
-            if (!hasIssues) { ImGui.Separator(); hasIssues = true; }
-            RenderCapacityBar("Blood", body.Blood.Condition);
-        }
-
-        // Impaired capacities
         var capacities = ctx.player.GetCapacities();
+        bool hasBloodIssue = body.Blood.Condition < 0.95;
         bool hasCapacityIssues = capacities.Moving < 0.9 || capacities.Manipulation < 0.9 || capacities.Consciousness < 0.9;
 
+        if (!hasBloodIssue && !hasCapacityIssues) return;
+
+        ImGui.Separator();
+
         if (hasCapacityIssues)
-        {
-            if (!hasIssues) { ImGui.Separator(); hasIssues = true; }
             ImGui.TextColored(ColorHeader, "Capacities");
 
+        if (ImGui.BeginTable("body_condition", 2))
+        {
+            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableSetupColumn("Bar", ImGuiTableColumnFlags.WidthStretch);
+
+            if (hasBloodIssue)
+                RenderCapacityRow("Blood", body.Blood.Condition);
             if (capacities.Moving < 0.9)
-                RenderCapacityBar("Moving", capacities.Moving);
+                RenderCapacityRow("Moving", capacities.Moving);
             if (capacities.Manipulation < 0.9)
-                RenderCapacityBar("Manipulate", capacities.Manipulation);
+                RenderCapacityRow("Manipulate", capacities.Manipulation);
             if (capacities.Consciousness < 0.9)
-                RenderCapacityBar("Conscious", capacities.Consciousness);
+                RenderCapacityRow("Conscious", capacities.Consciousness);
+
+            ImGui.EndTable();
         }
     }
 
@@ -212,14 +235,21 @@ public static class StatsPanel
         ImGui.Separator();
         ImGui.TextColored(ColorHeader, "Active Effects");
 
-        foreach (var effect in effects)
+        if (ImGui.BeginTable("effects", 2))
         {
-            int severity = (int)(effect.Severity * 100);
-            string trend = effect.HourlySeverityChange > 0 ? " ^" :
-                          effect.HourlySeverityChange < 0 ? " v" : "";
+            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableSetupColumn("Bar", ImGuiTableColumnFlags.WidthStretch);
 
-            Vector4 color = GetEffectColor(effect);
-            RenderEffectBar(effect.EffectKind, severity, color, trend);
+            foreach (var effect in effects)
+            {
+                int severity = (int)(effect.Severity * 100);
+                string trend = effect.HourlySeverityChange > 0 ? " ^" :
+                              effect.HourlySeverityChange < 0 ? " v" : "";
+                Vector4 color = GetEffectColor(effect);
+                RenderEffectRow(effect.EffectKind, severity, color, trend);
+            }
+
+            ImGui.EndTable();
         }
     }
 
@@ -242,28 +272,35 @@ public static class StatsPanel
     private static void RenderInventorySummary(GameContext ctx)
     {
         var inv = ctx.Inventory;
-
-        // Weight bar with inverted thresholds (higher = worse)
         double current = inv.CurrentWeightKg;
         double max = inv.MaxWeightKg;
         double pct = max > 0 ? current / max : 0;
-        int pctInt = (int)(pct * 100);
-
         Vector4 weightColor = pct > 0.9 ? ColorDanger : pct > 0.7 ? ColorWarning : ColorGood;
-
-        ImGui.Text("Carry");
-        ImGui.SameLine(70);
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, weightColor);
-        ImGui.ProgressBar((float)pct, new Vector2(140, 14), $"{current:F1}/{max:F1} kg");
-        ImGui.PopStyleColor();
-
-        // Fuel summary
         double fuelKg = inv.GetWeight(ResourceCategory.Fuel);
-        if (fuelKg > 0)
+
+        if (ImGui.BeginTable("inventory", 2))
         {
-            ImGui.Text("Fuel");
-            ImGui.SameLine(70);
-            ImGui.Text($"{fuelKg:F1} kg");
+            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+            // Carry row
+            ImGui.TableNextColumn();
+            ImGui.Text("Carry");
+            ImGui.TableNextColumn();
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, weightColor);
+            ImGui.ProgressBar((float)pct, new Vector2(-1, 18), $"{current:F1}/{max:F1} kg");
+            ImGui.PopStyleColor();
+
+            // Fuel row (if any)
+            if (fuelKg > 0)
+            {
+                ImGui.TableNextColumn();
+                ImGui.Text("Fuel");
+                ImGui.TableNextColumn();
+                ImGui.Text($"{fuelKg:F1} kg");
+            }
+
+            ImGui.EndTable();
         }
     }
 
@@ -295,7 +332,7 @@ public static class StatsPanel
                            minutes <= 30 ? ColorWarning : ColorWarm;
 
         ImGui.TextColored(ColorHeader, "Fire");
-        ImGui.SameLine(70);
+        ImGui.SameLine();
         ImGui.TextColored(fireColor, $"{phase} ({FormatTime(minutes)})");
     }
 

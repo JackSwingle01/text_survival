@@ -281,24 +281,64 @@ public class CraftingOverlay
         {
             if (ImGui.Button("Craft", new Vector2(-1, 30)))
             {
-                // Perform crafting
-                var result = option.Craft(inv);
+                // Handle feature-producing recipes (curing racks, shelters, etc.)
+                if (option.ProducesFeature)
+                {
+                    var feature = option.CraftFeature(inv);
+                    if (feature != null)
+                    {
+                        ctx.Camp.AddFeature(feature);
+                        _message = $"Built: {option.Name}";
+                        craftedItem = option.Name;
+                    }
+                }
+                else
+                {
+                    // Perform crafting for gear/materials
+                    var result = option.Craft(inv);
 
-                if (result != null)
-                {
-                    inv.Tools.Add(result);
-                    _message = $"Crafted: {result.Name}";
-                    craftedItem = result.Name;
-                }
-                else if (option.ProducesMaterials)
-                {
-                    _message = $"Processed: {option.GetOutputDescription()}";
-                    craftedItem = option.Name;
-                }
-                else if (option.IsMendingRecipe)
-                {
-                    _message = $"Repaired equipment";
-                    craftedItem = option.Name;
+                    if (result != null)
+                    {
+                        // Handle different gear categories
+                        switch (result.Category)
+                        {
+                            case Items.GearCategory.Equipment:
+                                inv.Equip(result);
+                                _message = $"Equipped: {result.Name}";
+                                craftedItem = result.Name;
+                                break;
+
+                            case Items.GearCategory.Accessory:
+                                inv.Accessories.Add(result);
+                                _message = $"Crafted: {result.Name}";
+                                craftedItem = result.Name;
+                                break;
+
+                            case Items.GearCategory.Tool:
+                                if (result.IsWeapon)
+                                {
+                                    inv.EquipWeapon(result);
+                                    _message = $"Equipped: {result.Name}";
+                                }
+                                else
+                                {
+                                    inv.Tools.Add(result);
+                                    _message = $"Crafted: {result.Name}";
+                                }
+                                craftedItem = result.Name;
+                                break;
+                        }
+                    }
+                    else if (option.ProducesMaterials)
+                    {
+                        _message = $"Processed: {option.GetOutputDescription()}";
+                        craftedItem = option.Name;
+                    }
+                    else if (option.IsMendingRecipe)
+                    {
+                        _message = $"Repaired equipment";
+                        craftedItem = option.Name;
+                    }
                 }
 
                 _messageTimer = 3.0f;

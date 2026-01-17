@@ -19,7 +19,7 @@ public static class OverlaySizes
     // Compact bar sizes for StatsPanel effects and capacities
     // Uses -1 width to auto-fill remaining space (matches main stat bar alignment)
     public const float EffectBarStart = 110;
-    public const float CompactBarHeight = 12;
+    public const float CompactBarHeight = 16;
 
     /// <summary>
     /// Set up a centered overlay with standard dimensions (40% × 55%).
