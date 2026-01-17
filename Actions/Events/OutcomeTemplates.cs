@@ -255,30 +255,15 @@ public static class OutcomeTemplates
     public static EventResult ProperRepair(this EventResult r, EquipSlot slot)
         => r.RepairsEquipment(slot, 10);
 
-    // === HERD DISCOVERY ===
-
-    /// <summary>
-    /// Discover a lone predator - spawns herd of 1 + creates Stalked tension.
-    /// </summary>
     public static EventResult DiscoversPredator(this EventResult r, AnimalType animal, double stalkSeverity = 0.3)
         => r.SpawnsHerd(animal, 1, 2).BecomeStalked(stalkSeverity, animal);
 
-    /// <summary>
-    /// Discover a predator pack - spawns pack + creates PackNearby tension.
-    /// </summary>
     public static EventResult DiscoversPack(this EventResult r, AnimalType animal, int count = 4, double severity = 0.4)
         => r.SpawnsHerd(animal, count, 3).CreateTension("PackNearby", severity, animalType: animal);
 
-    /// <summary>
-    /// Discover a prey herd - spawns herd + creates HerdNearby tension.
-    /// </summary>
     public static EventResult DiscoversPreyHerd(this EventResult r, AnimalType animal, int count = 8, double severity = 0.5)
         => r.SpawnsHerd(animal, count, 4).CreateTension("HerdNearby", severity, animalType: animal);
 
-    /// <summary>
-    /// Follow tracks to discover animals - spawns herd if none exists.
-    /// Creates appropriate tension based on predator/prey.
-    /// </summary>
     public static EventResult FollowsTracks(this EventResult r, AnimalType animal, bool isPredator, int count = 1)
     {
         r.SpawnsHerd(animal, count, isPredator ? 2 : 4);
@@ -287,100 +272,51 @@ public static class OutcomeTemplates
             : r.CreateTension("HerdNearby", 0.4, animalType: animal);
     }
 
-    // === SCAVENGER DYNAMICS ===
-
-    /// <summary>
-    /// Scavengers waiting nearby - patient opportunists.
-    /// </summary>
     public static EventResult ScavengersWaiting(this EventResult r, double severity = 0.4)
         => r.CreateTension("ScavengersWaiting", severity);
 
-    /// <summary>
-    /// Increase scavenger tension (they grow bolder).
-    /// </summary>
     public static EventResult EscalatesScavengers(this EventResult r, double amount = 0.15)
         => r.Escalate("ScavengersWaiting", amount);
 
-    /// <summary>
-    /// Resolve scavenger tension (drove them off or left area).
-    /// </summary>
     public static EventResult ResolvesScavengers(this EventResult r)
         => r.ResolveTension("ScavengersWaiting");
 
-    /// <summary>
-    /// Confront scavengers directly.
-    /// </summary>
     public static EventResult ConfrontScavengers(this EventResult r, int distance, double boldness)
         => r.ResolveTension("ScavengersWaiting").Encounter(AnimalType.Hyena, distance, boldness);
 
-    // === SABER-TOOTH DYNAMICS ===
-
-    /// <summary>
-    /// Begin being stalked by a saber-tooth. Unique threat profile.
-    /// </summary>
     public static EventResult BecomeSaberToothStalked(this EventResult r, double severity)
         => r.CreateTension("SaberToothStalked", severity);
 
-    /// <summary>
-    /// Increase saber-tooth tension (it grows closer).
-    /// </summary>
     public static EventResult EscalatesSaberTooth(this EventResult r, double amount = 0.2)
         => r.Escalate("SaberToothStalked", amount);
 
-    /// <summary>
-    /// Resolve saber-tooth tension (confrontation or escape).
-    /// </summary>
     public static EventResult ResolvesSaberTooth(this EventResult r)
         => r.ResolveTension("SaberToothStalked");
 
-    /// <summary>
-    /// Confront the saber-tooth directly. This is the primary way to resolve the threat.
-    /// </summary>
     public static EventResult ConfrontSaberTooth(this EventResult r, int distance, double boldness)
         => r.ResolveTension("SaberToothStalked").Encounter(AnimalType.SaberTooth, distance, boldness);
 
-    // === MAMMOTH DYNAMICS ===
-
-    /// <summary>
-    /// Discover/track mammoth herd.
-    /// </summary>
     public static EventResult MammothTracked(this EventResult r, double severity = 0.5)
         => r.CreateTension("MammothTracked", severity);
 
-    /// <summary>
-    /// Increase mammoth tracking tension (closer to herd).
-    /// </summary>
     public static EventResult EscalatesMammothTracking(this EventResult r, double amount = 0.2)
         => r.Escalate("MammothTracked", amount);
 
-    /// <summary>
-    /// Resolve mammoth tracking (lost trail or confrontation).
-    /// </summary>
     public static EventResult ResolvesMammothTracking(this EventResult r)
         => r.ResolveTension("MammothTracked");
 
-    /// <summary>
-    /// Player alerts the mammoth herd. Sets HerdAlert flag for event processing.
-    /// Note: Actual herd state change happens in event result processing.
-    /// </summary>
     public static EventResult AlertsHerd(this EventResult r, double alertLevel = 0.5)
     {
         r.HerdAlertLevel = alertLevel;
         return r;
     }
 
-    /// <summary>
-    /// Triggers herd to flee. Sets HerdFlee flag for event processing.
-    /// </summary>
     public static EventResult TriggersHerdFlee(this EventResult r)
     {
         r.HerdFlees = true;
         return r;
     }
 
-    /// <summary>
-    /// Player successfully kills a mammoth. Creates massive carcass and affects herd.
-    /// </summary>
     public static EventResult KillsMammoth(this EventResult r)
     {
         r.MammothKilled = true;
@@ -389,42 +325,29 @@ public static class OutcomeTemplates
                .TriggersHerdFlee();
     }
 
-    /// <summary>
-    /// Mammoth charges - dangerous prey that fights back.
-    /// Devastating blunt damage from trampling.
-    /// </summary>
     public static EventResult MammothCharge(this EventResult r)
         => r.Damage(0.80, Bodies.DamageType.Blunt)
            .Frightening()
            .TriggersHerdFlee();
 
-    // === SHELTER DAMAGE ===
-
-    /// <summary>Heavy rain damages shelter overhead coverage.</summary>
     public static EventResult DamagesRoof(this EventResult r, double amount = 0.07)
         => r.DamagesShelter(ShelterImprovementType.Overhead, amount);
 
-    /// <summary>High winds damage shelter wind coverage.</summary>
     public static EventResult DamagesWindBlock(this EventResult r, double amount = 0.07)
         => r.DamagesShelter(ShelterImprovementType.Wind, amount);
 
-    /// <summary>Extreme cold damages shelter insulation.</summary>
     public static EventResult DamagesInsulation(this EventResult r, double amount = 0.05)
         => r.DamagesShelter(ShelterImprovementType.Insulation, amount);
 
-    /// <summary>Storm damage to shelter - targets overhead and wind.</summary>
     public static EventResult StormDamagesShelter(this EventResult r)
         => r.DamagesShelter(ShelterImprovementType.Overhead, 0.10);
 
-    /// <summary>Minor weather wear on shelter.</summary>
     public static EventResult MinorShelterWear(this EventResult r, ShelterImprovementType stat)
         => r.DamagesShelter(stat, 0.03);
 
-    /// <summary>Moderate weather damage to shelter.</summary>
     public static EventResult ModerateShelterDamage(this EventResult r, ShelterImprovementType stat)
         => r.DamagesShelter(stat, 0.08);
 
-    /// <summary>Severe weather damage to shelter.</summary>
     public static EventResult SevereShelterDamage(this EventResult r, ShelterImprovementType stat)
         => r.DamagesShelter(stat, 0.15);
 }
