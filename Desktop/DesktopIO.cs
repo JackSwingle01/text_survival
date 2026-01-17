@@ -13,15 +13,8 @@ using ForageFocus = text_survival.Actions.Variants.ForageFocus;
 
 namespace text_survival.Desktop;
 
-/// <summary>
-/// Desktop I/O implementation using Raylib + ImGui.
-/// All blocking methods use nested render loops to keep the UI responsive.
-/// </summary>
 public static class DesktopIO
 {
-    /// <summary>
-    /// Generate a semantic ID from a label for more debuggable choice matching.
-    /// </summary>
     public static string GenerateSemanticId(string label, int index)
     {
         var slug = System.Text.RegularExpressions.Regex.Replace(label.ToLowerInvariant(), @"[^a-z0-9]+", "_").Trim('_');
@@ -29,7 +22,6 @@ public static class DesktopIO
         return $"{slug}_{index}";
     }
 
-    // Clear methods (no-op for now)
     public static void ClearInventory(GameContext ctx) { }
     public static void ClearCrafting(GameContext ctx) { }
     public static void ClearEvent(GameContext ctx) { }
@@ -48,20 +40,13 @@ public static class DesktopIO
     public static void ClearDiscoveryLog(GameContext ctx) { }
     public static void ClearAllOverlays(string sessionId) { }
 
-    // Hunt methods
-
-    // Persistent hunt overlay for the hunt sequence
     private static HuntOverlay? _huntOverlay;
 
-    /// <summary>
-    /// Render hunt state (non-blocking, for intermediate states).
-    /// </summary>
     public static void RenderHunt(GameContext ctx, HuntDto huntData)
     {
         _huntOverlay ??= new HuntOverlay();
         _huntOverlay.Open(huntData);
 
-        // Single frame render
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
@@ -78,9 +63,6 @@ public static class DesktopIO
         Raylib.EndDrawing();
     }
 
-    /// <summary>
-    /// Show hunt UI and block until player makes a choice.
-    /// </summary>
     public static string WaitForHuntChoice(GameContext ctx, HuntDto huntData)
     {
         _huntOverlay ??= new HuntOverlay();
@@ -111,9 +93,6 @@ public static class DesktopIO
         return choice ?? "stop";
     }
 
-    /// <summary>
-    /// Wait for player to dismiss hunt outcome screen.
-    /// </summary>
     public static void WaitForHuntContinue(GameContext ctx)
     {
         if (_huntOverlay == null || !_huntOverlay.IsOpen) return;
@@ -143,20 +122,13 @@ public static class DesktopIO
         _huntOverlay.Close();
     }
 
-    // Encounter methods
-
-    // Persistent encounter overlay for the encounter sequence
     private static EncounterOverlay? _encounterOverlay;
 
-    /// <summary>
-    /// Render encounter state (non-blocking, for intermediate states).
-    /// </summary>
     public static void RenderEncounter(GameContext ctx, EncounterDto encounterData)
     {
         _encounterOverlay ??= new EncounterOverlay();
         _encounterOverlay.Open(encounterData);
 
-        // Single frame render
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
@@ -173,9 +145,6 @@ public static class DesktopIO
         Raylib.EndDrawing();
     }
 
-    /// <summary>
-    /// Show encounter UI and block until player makes a choice.
-    /// </summary>
     public static string WaitForEncounterChoice(GameContext ctx, EncounterDto encounterData)
     {
         _encounterOverlay ??= new EncounterOverlay();
@@ -206,9 +175,6 @@ public static class DesktopIO
         return choice ?? "run";
     }
 
-    /// <summary>
-    /// Wait for player to dismiss encounter outcome screen.
-    /// </summary>
     public static void WaitForEncounterContinue(GameContext ctx)
     {
         if (_encounterOverlay == null || !_encounterOverlay.IsOpen) return;
@@ -238,20 +204,13 @@ public static class DesktopIO
         _encounterOverlay.Close();
     }
 
-    // Combat methods
-
-    // Persistent combat overlay for the combat sequence
     private static CombatOverlay? _combatOverlay;
 
-    /// <summary>
-    /// Render combat state (non-blocking, for intermediate states).
-    /// </summary>
     public static void RenderCombat(GameContext ctx, CombatDto combatData)
     {
         _combatOverlay ??= new CombatOverlay();
         _combatOverlay.Update(combatData);
 
-        // Single frame render
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
@@ -268,9 +227,6 @@ public static class DesktopIO
         Raylib.EndDrawing();
     }
 
-    /// <summary>
-    /// Show combat UI and block until player makes a choice.
-    /// </summary>
     public static string WaitForCombatChoice(GameContext ctx, CombatDto combatData)
     {
         _combatOverlay ??= new CombatOverlay();
@@ -301,27 +257,20 @@ public static class DesktopIO
         return choice ?? "disengage";
     }
 
-    /// <summary>
-    /// Show target selection and block until player chooses a target.
-    /// </summary>
     public static string WaitForTargetChoice(GameContext ctx, List<CombatActionDto> targetingOptions, string animalName)
     {
-        // Build a selection prompt from targeting options
         string prompt = $"Select target on {animalName}:";
         var choices = targetingOptions.Select(t => (t.Id, $"{t.Label} {(t.HitChance != null ? $"({t.HitChance})" : "")}")).ToList();
 
         if (choices.Count == 0)
         {
-            return "torso"; // Default target
+            return "torso";
         }
 
         var selection = BlockingDialog.Select(ctx, prompt, choices, c => c.Item2);
         return selection.Id;
     }
 
-    /// <summary>
-    /// Wait for player to dismiss combat outcome or auto-advance.
-    /// </summary>
     public static void WaitForCombatContinue(GameContext ctx)
     {
         if (_combatOverlay == null || !_combatOverlay.IsOpen) return;
@@ -351,7 +300,6 @@ public static class DesktopIO
         _combatOverlay.Close();
     }
 
-    // Discovery/Weather methods
     public static void ShowDiscovery(GameContext ctx, string locationName, string discoveryText)
     {
         BlockingDialog.ShowMessageAndWait(ctx, "Discovery!", $"{locationName}\n\n{discoveryText}");
@@ -360,7 +308,7 @@ public static class DesktopIO
     public static void ShowWeatherChange(GameContext ctx)
     {
         var weather = ctx.Weather;
-        double tempF = weather.BaseTemperature * 9 / 5 + 32; // Convert C to F
+        double tempF = weather.BaseTemperature * 9 / 5 + 32;
         string message = $"The weather has changed.\n\n" +
             $"Temperature: {tempF:F0}°F\n" +
             $"Wind: {weather.CurrentCondition}\n" +
@@ -373,11 +321,9 @@ public static class DesktopIO
         var overlays = DesktopRuntime.Overlays;
         if (overlays == null) return;
 
-        // Open discovery log overlay
         overlays.ToggleDiscoveryLog();
         overlays.DiscoveryLog.SetData(ctx.Discoveries.ToDto());
 
-        // Blocking render loop until overlay is closed
         while (overlays.DiscoveryLog.IsOpen && !Raylib.WindowShouldClose())
         {
             float deltaTime = Raylib.GetFrameTime();
@@ -409,19 +355,15 @@ public static class DesktopIO
         var overlays = DesktopRuntime.Overlays;
         if (overlays == null) return;
 
-        // Check if there are any NPCs at current location
         var npcsHere = ctx.NPCs.Where(n => n.CurrentLocation == ctx.CurrentLocation).ToList();
         if (npcsHere.Count == 0) return;
 
-        // Open NPC overlay
         overlays.ToggleNPCs();
 
-        // Blocking render loop until overlay is closed
         while (overlays.NPCs.IsOpen && !Raylib.WindowShouldClose())
         {
             float deltaTime = Raylib.GetFrameTime();
 
-            // Handle escape or N to close
             if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
                 overlays.NPCs.IsOpen = false;
@@ -442,7 +384,6 @@ public static class DesktopIO
         }
     }
 
-    // Core selection methods
     public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, string> display, Func<T, bool>? isDisabled = null)
         => BlockingDialog.Select(ctx, prompt, choices, display, isDisabled);
 
@@ -455,20 +396,13 @@ public static class DesktopIO
     public static int ReadInt(GameContext ctx, string prompt, int min, int max, bool allowCancel = false)
         => BlockingDialog.ReadInt(ctx, prompt, min, max, allowCancel);
 
-    // Event methods
-
-    // Persistent event overlay for event sequences
     private static GameEventOverlay? _eventOverlay;
 
-    /// <summary>
-    /// Render event state (non-blocking, for intermediate states).
-    /// </summary>
     public static void RenderEvent(GameContext ctx, EventDto eventData)
     {
         _eventOverlay ??= new GameEventOverlay();
         _eventOverlay.ShowEvent(eventData);
 
-        // Single frame render
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
@@ -485,9 +419,6 @@ public static class DesktopIO
         Raylib.EndDrawing();
     }
 
-    /// <summary>
-    /// Show event UI and block until player makes a choice.
-    /// </summary>
     public static string WaitForEventChoice(GameContext ctx, EventDto eventData)
     {
         _eventOverlay ??= new GameEventOverlay();
@@ -518,9 +449,6 @@ public static class DesktopIO
         return choice ?? "cancel";
     }
 
-    /// <summary>
-    /// Wait for player to dismiss event outcome screen.
-    /// </summary>
     public static void WaitForEventContinue(GameContext ctx)
     {
         if (_eventOverlay == null || !_eventOverlay.IsOpen) return;
@@ -545,18 +473,14 @@ public static class DesktopIO
             Raylib.EndDrawing();
         }
 
-        _eventOverlay = null; // Clear after use
+        _eventOverlay = null;
     }
 
-    /// <summary>
-    /// Show event outcome directly (for events resolved by the backend).
-    /// </summary>
     public static void ShowEventOutcome(GameContext ctx, EventOutcomeDto outcome)
     {
         _eventOverlay ??= new GameEventOverlay();
         _eventOverlay.ShowOutcome(outcome);
 
-        // Wait for player to dismiss
         while (_eventOverlay.IsOpen && !Raylib.WindowShouldClose())
         {
             float deltaTime = Raylib.GetFrameTime();
@@ -580,39 +504,26 @@ public static class DesktopIO
         _eventOverlay = null;
     }
 
-    // Render methods
     public static void Render(GameContext ctx, string? statusText = null)
     {
-        // Single frame render - used for intermediate states
         DesktopRuntime.RenderFrame(ctx);
     }
 
     public static void RenderWithDuration(GameContext ctx, string statusText, int estimatedMinutes)
     {
-        // Show progress bar while time passes
         BlockingDialog.ShowProgress(ctx, statusText, estimatedMinutes);
     }
 
-    // RenderTravelProgress removed - travel now uses non-blocking incremental simulation
-    // via GameContext.ActiveTravel and GameRunner.ProcessTravelTick()
-
-    // Inventory methods
-
-    /// <summary>
-    /// Render inventory state (non-blocking, single frame).
-    /// </summary>
     public static void RenderInventory(GameContext ctx, Inventory inventory, string title)
     {
         var overlays = DesktopRuntime.Overlays;
         if (overlays == null) return;
 
-        // Open inventory overlay if not already open
         if (!overlays.Inventory.IsOpen)
         {
             overlays.ToggleInventory();
         }
 
-        // Single frame render
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
@@ -626,15 +537,11 @@ public static class DesktopIO
         Raylib.EndDrawing();
     }
 
-    /// <summary>
-    /// Show inventory and wait for user to close it.
-    /// </summary>
     public static void ShowInventoryAndWait(GameContext ctx, Inventory inventory, string title)
     {
         var overlays = DesktopRuntime.Overlays;
         if (overlays == null) return;
 
-        // Open inventory overlay
         if (!overlays.Inventory.IsOpen)
         {
             overlays.ToggleInventory();
@@ -666,23 +573,16 @@ public static class DesktopIO
         }
     }
 
-    // Crafting methods
-
-    /// <summary>
-    /// Render crafting state (non-blocking, single frame).
-    /// </summary>
     public static void RenderCrafting(GameContext ctx, NeedCraftingSystem crafting, string title = "CRAFTING")
     {
         var overlays = DesktopRuntime.Overlays;
         if (overlays == null) return;
 
-        // Open crafting overlay if not already open
         if (!overlays.Crafting.IsOpen)
         {
             overlays.ToggleCrafting();
         }
 
-        // Single frame render
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
@@ -696,16 +596,12 @@ public static class DesktopIO
         Raylib.EndDrawing();
     }
 
-    /// <summary>
-    /// Run the crafting UI in a blocking loop until user closes it.
-    /// The overlay handles all crafting logic internally (material consumption, time advancement).
-    /// </summary>
+    // The overlay handles all crafting logic internally (material consumption, time advancement).
     public static void RunCraftingAndWait(GameContext ctx)
     {
         var overlays = DesktopRuntime.Overlays;
         if (overlays == null) return;
 
-        // Open crafting overlay
         if (!overlays.Crafting.IsOpen)
         {
             overlays.ToggleCrafting();
@@ -715,7 +611,6 @@ public static class DesktopIO
         {
             float deltaTime = Raylib.GetFrameTime();
 
-            // Handle escape to close
             if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
                 overlays.Crafting.IsOpen = false;
@@ -736,24 +631,17 @@ public static class DesktopIO
         }
     }
 
-    // Grid/Map methods
-
-    /// <summary>
-    /// Render the grid and wait for player input.
-    /// Returns a PlayerResponse indicating what the player chose to do.
-    /// </summary>
     public static PlayerResponse RenderGridAndWaitForInput(GameContext ctx, string? statusText = null)
     {
         var worldRenderer = DesktopRuntime.WorldRenderer;
         var actionPanel = DesktopRuntime.ActionPanel;
         var overlays = DesktopRuntime.Overlays;
-        int inputId = 0; // Desktop doesn't need input IDs
+        int inputId = 0;
 
         while (!Raylib.WindowShouldClose())
         {
             float deltaTime = Raylib.GetFrameTime();
 
-            // Check for keyboard input
             if (Raylib.IsKeyPressed(KeyboardKey.W) || Raylib.IsKeyPressed(KeyboardKey.Up))
             {
                 var pos = ctx.Map.CurrentPosition;
@@ -779,7 +667,6 @@ public static class DesktopIO
                     return new PlayerResponse(null, inputId, "travel_to", pos.X + 1, pos.Y);
             }
 
-            // Check for action keyboard shortcuts
             if (Raylib.IsKeyPressed(KeyboardKey.I))
                 return new PlayerResponse(null, inputId, "action", Action: "inventory");
             if (Raylib.IsKeyPressed(KeyboardKey.C))
@@ -787,7 +674,6 @@ public static class DesktopIO
             if (Raylib.IsKeyPressed(KeyboardKey.Space))
                 return new PlayerResponse(null, inputId, "action", Action: "wait");
 
-            // Check for tile click
             if (worldRenderer != null)
             {
                 var clicked = worldRenderer.HandleClick();
@@ -805,7 +691,6 @@ public static class DesktopIO
                 }
             }
 
-            // Render frame
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
@@ -815,7 +700,6 @@ public static class DesktopIO
                 worldRenderer.Render(ctx);
             }
 
-            // Draw status text if provided
             if (statusText != null)
             {
                 int fontSize = 20;
@@ -828,7 +712,6 @@ public static class DesktopIO
 
             rlImGui.Begin();
 
-            // Render action panel and check for clicked actions
             if (actionPanel != null)
             {
                 var clickedAction = actionPanel.Render(ctx, deltaTime);
@@ -840,18 +723,15 @@ public static class DesktopIO
                 }
             }
 
-            // Render overlays
             overlays?.Render(ctx, deltaTime);
 
             rlImGui.End();
             Raylib.EndDrawing();
         }
 
-        // Window close - return a default response
         return new PlayerResponse(null, inputId, "action", Action: "quit");
     }
 
-    // Hazard methods
     public static string? PromptHazardChoice(
         GameContext ctx,
         Location targetLocation,
@@ -876,19 +756,13 @@ public static class DesktopIO
 
         string choice = BlockingDialog.PromptConfirm(ctx, message, buttons);
         if (choice == "cancel") return null;
-        return choice;  // "quick" or "careful"
+        return choice;
     }
 
-    // Forage methods
-
-    // Persistent forage overlay for foraging sequences
     private static UI.ForageOverlay? _forageOverlay;
 
-    /// <summary>
-    /// Show forage UI and block until player makes selections.
-    /// Returns (focus, minutes). Focus=null and minutes=0 means cancelled.
-    /// Focus=null and minutes=-1 means "keep walking" (reroll clues).
-    /// </summary>
+    // Returns (focus, minutes). Focus=null and minutes=0 means cancelled.
+    // Focus=null and minutes=-1 means "keep walking" (reroll clues).
     public static (ForageFocus? focus, int minutes) SelectForageOptions(GameContext ctx, ForageDto forageData)
     {
         _forageOverlay ??= new UI.ForageOverlay();
@@ -919,12 +793,11 @@ public static class DesktopIO
         _forageOverlay.Close();
 
         if (result == null)
-            return (null, 0); // Window closed
+            return (null, 0);
 
         return (result.Focus, result.Minutes);
     }
 
-    // Butcher methods
     public static string? SelectButcherOptions(GameContext ctx, CarcassFeature carcass, List<string>? warnings = null)
     {
         var choices = new List<(string id, string label)>
@@ -932,7 +805,6 @@ public static class DesktopIO
             ("cancel", "Cancel")
         };
 
-        // Build mode options from carcass
         var modes = new[]
         {
             ("quick", "Quick Strip", carcass.GetRemainingMinutes(ButcheringMode.QuickStrip)),
@@ -960,7 +832,6 @@ public static class DesktopIO
         return selection.id == "cancel" ? null : selection.id;
     }
 
-    // Work result methods
     public static void ShowWorkResult(GameContext ctx, string activityName, string message, List<string> itemsGained)
     {
         string fullMessage = message;
@@ -971,11 +842,6 @@ public static class DesktopIO
         BlockingDialog.ShowMessageAndWait(ctx, activityName, fullMessage);
     }
 
-    // Complex UI loops - blocking versions that handle their own result processing
-
-    /// <summary>
-    /// Run the transfer UI in a blocking loop until user closes it.
-    /// </summary>
     public static void RunTransferUI(GameContext ctx, Inventory storage, string storageName)
     {
         var overlays = DesktopRuntime.Overlays;
@@ -991,20 +857,16 @@ public static class DesktopIO
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-            // Render world in background
             DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
             DesktopRuntime.WorldRenderer?.Render(ctx);
 
-            // Dim overlay
             Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
                 new Color(0, 0, 0, 128));
 
             rlImGui.Begin();
 
-            // Render the transfer overlay
             var result = overlays.Transfer.Render(ctx, deltaTime);
 
-            // Process transfer result immediately
             if (result != null)
             {
                 ProcessTransferResult(ctx, result, playerInv, storage, overlays.Transfer);
@@ -1035,9 +897,6 @@ public static class DesktopIO
             overlay.SetMessage(result.Message);
     }
 
-    /// <summary>
-    /// Run the fire UI in a blocking loop until user closes it.
-    /// </summary>
     public static void RunFireUI(GameContext ctx, HeatSourceFeature? fire)
     {
         var overlays = DesktopRuntime.Overlays;
@@ -1052,20 +911,16 @@ public static class DesktopIO
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-            // Render world in background
             DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
             DesktopRuntime.WorldRenderer?.Render(ctx);
 
-            // Dim overlay
             Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
                 new Color(0, 0, 0, 128));
 
             rlImGui.Begin();
 
-            // Render the fire overlay
             var result = overlays.Fire.Render(ctx, deltaTime);
 
-            // Process fire result immediately
             if (result != null)
             {
                 ProcessFireResult(ctx, result, overlays.Fire);
@@ -1097,16 +952,12 @@ public static class DesktopIO
             _ => new FireHandler.FireActionResult(false, "Unknown action")
         };
 
-        // Use appropriate overlay method based on action type
         if (result.Action == FireAction.StartFire || result.Action == FireAction.StartFromEmber)
             overlay.SetAttemptResult(actionResult.Success, actionResult.Message);
         else
             overlay.SetTendMessage(actionResult.Message);
     }
 
-    /// <summary>
-    /// Run the eating UI in a blocking loop until user closes it.
-    /// </summary>
     public static void RunEatingUI(GameContext ctx)
     {
         var overlays = DesktopRuntime.Overlays;
@@ -1121,20 +972,16 @@ public static class DesktopIO
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-            // Render world in background
             DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
             DesktopRuntime.WorldRenderer?.Render(ctx);
 
-            // Dim overlay
             Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
                 new Color(0, 0, 0, 128));
 
             rlImGui.Begin();
 
-            // Render the eating overlay
             var consumedId = overlays.Eating.Render(ctx, deltaTime);
 
-            // Process consumption result immediately
             if (consumedId != null)
             {
                 var consumeResult = ConsumptionHandler.Consume(ctx, consumedId);
@@ -1146,9 +993,6 @@ public static class DesktopIO
         }
     }
 
-    /// <summary>
-    /// Run the cooking UI in a blocking loop until user closes it.
-    /// </summary>
     public static void RunCookingUI(GameContext ctx)
     {
         var overlays = DesktopRuntime.Overlays;
@@ -1163,20 +1007,16 @@ public static class DesktopIO
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-            // Render world in background
             DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
             DesktopRuntime.WorldRenderer?.Render(ctx);
 
-            // Dim overlay
             Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
                 new Color(0, 0, 0, 128));
 
             rlImGui.Begin();
 
-            // Render the cooking overlay
             var result = overlays.Cooking.Render(ctx, deltaTime);
 
-            // Process cooking result immediately
             if (result != null)
             {
                 ProcessCookingResult(ctx, result, overlays.Cooking);

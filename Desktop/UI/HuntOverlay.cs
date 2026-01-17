@@ -5,10 +5,6 @@ using text_survival.Desktop.Dto;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>
-/// ImGui overlay for hunting sequences.
-/// Shows animal info, distance tracking, and hunt choices.
-/// </summary>
 public class HuntOverlay
 {
     public bool IsOpen { get; set; }
@@ -19,9 +15,6 @@ public class HuntOverlay
     private float _distanceAnimProgress;
     private const float DISTANCE_ANIM_DURATION = 0.5f;
 
-    /// <summary>
-    /// Open the hunt overlay with initial data.
-    /// </summary>
     public void Open(HuntDto data)
     {
         IsOpen = true;
@@ -31,9 +24,6 @@ public class HuntOverlay
         _distanceAnimProgress = data.IsAnimatingDistance ? 0f : 1f;
     }
 
-    /// <summary>
-    /// Update with new hunt data (e.g., after player choice is processed).
-    /// </summary>
     public void Update(HuntDto data)
     {
         _currentData = data;
@@ -51,10 +41,6 @@ public class HuntOverlay
         }
     }
 
-    /// <summary>
-    /// Render the hunt overlay.
-    /// Returns the selected choice ID when player makes a choice, null otherwise.
-    /// </summary>
     public string? Render(GameContext ctx, float deltaTime)
     {
         if (!IsOpen || _currentData == null) return null;
@@ -286,19 +272,10 @@ public class HuntOverlay
         return null;
     }
 
-    /// <summary>
-    /// Check if the overlay has a pending choice.
-    /// </summary>
     public bool HasChoice => _selectedChoice != null;
 
-    /// <summary>
-    /// Check if we're waiting for continue after outcome.
-    /// </summary>
     public bool IsWaitingForContinue => _waitingForContinue && _currentData?.Outcome != null;
 
-    /// <summary>
-    /// Close the overlay and reset state.
-    /// </summary>
     public void Close()
     {
         IsOpen = false;

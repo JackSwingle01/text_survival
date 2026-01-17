@@ -141,6 +141,48 @@ public class CraftingRunner(GameContext ctx)
             return false;
         }
 
+        // Handle shelter rebuild
+        if (option.RebuildShelter)
+        {
+            var oldShelter = _ctx.Camp.GetFeature<ShelterFeature>();
+            if (oldShelter == null)
+            {
+                GameDisplay.AddWarning(_ctx, "No shelter to rebuild.");
+                return false;
+            }
+
+            // Consume materials for new frame
+            foreach (var req in option.Requirements)
+            {
+                ConsumeMaterial(_ctx.Inventory, req.Material, req.Count);
+            }
+
+            // Salvage materials from old shelter
+            var salvage = oldShelter.GetSalvageMaterials();
+            foreach (var (resource, count) in salvage)
+            {
+                _ctx.Inventory.Add(resource, count);
+            }
+
+            // Remove old shelter and add new log frame
+            _ctx.Camp.RemoveFeature(oldShelter);
+            var newShelter = ShelterFeature.CreateLogFrame();
+            _ctx.Camp.AddFeature(newShelter);
+
+            GameDisplay.AddSuccess(_ctx, "You rebuilt your shelter with a log frame!");
+            GameDisplay.AddNarrative(_ctx, newShelter.GetStatusText());
+
+            if (salvage.Count > 0)
+            {
+                var salvageStr = string.Join(", ", salvage.Select(kvp => $"{kvp.Value} {kvp.Key.ToDisplayName()}"));
+                GameDisplay.AddNarrative(_ctx, $"Salvaged: {salvageStr}");
+            }
+
+            _ctx.RecordItemCrafted(option.Name);
+            GameDisplay.Render(_ctx, statusText: "Satisfied.");
+            return true;
+        }
+
         // Handle different recipe outputs
         if (option.ProducesFeature)
         {
@@ -327,10 +369,29 @@ public class CraftingRunner(GameContext ctx)
         _ => need.ToString().ToLower()
     };
 
-    /// <summary>
-    /// Check if a feature-producing recipe has already been built at camp.
-    /// Used to prevent building duplicate camp structures.
-    /// </summary>
+    private static void ConsumeMaterial(Inventory inv, MaterialSpecifier material, int count)
+    {
+        switch (material)
+        {
+            case MaterialSpecifier.Specific(var resource):
+                inv.Remove(resource, count);
+                break;
+            case MaterialSpecifier.Category(var category):
+                var categoryResources = ResourceCategories.Items[category];
+                int remaining = count;
+                foreach (var res in categoryResources)
+                {
+                    while (remaining > 0 && inv.Count(res) > 0)
+                    {
+                        inv.Pop(res);
+                        remaining--;
+                    }
+                    if (remaining <= 0) break;
+                }
+                break;
+        }
+    }
+
     private bool IsFeatureAlreadyBuilt(CraftOption option)
     {
         if (!option.ProducesFeature)

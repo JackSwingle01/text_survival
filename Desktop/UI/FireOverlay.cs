@@ -7,10 +7,6 @@ using text_survival.Items;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>
-/// ImGui overlay for fire starting and tending.
-/// Two modes: Starting (no fire) and Tending (active fire or embers).
-/// </summary>
 public class FireOverlay
 {
     public bool IsOpen { get; set; }
@@ -27,9 +23,6 @@ public class FireOverlay
     // Tending mode state
     private string? _tendMessage;
 
-    /// <summary>
-    /// Open the fire overlay for a given fire state.
-    /// </summary>
     public void Open(HeatSourceFeature? fire)
     {
         IsOpen = true;
@@ -47,10 +40,6 @@ public class FireOverlay
         }
     }
 
-    /// <summary>
-    /// Render the fire overlay.
-    /// Returns an action result if the user performed an action.
-    /// </summary>
     public FireOverlayResult? Render(GameContext ctx, float deltaTime)
     {
         if (!IsOpen) return null;
@@ -473,9 +462,6 @@ public class FireOverlay
         _ => r.ToString()
     };
 
-    /// <summary>
-    /// Set the result message from a fire start attempt.
-    /// </summary>
     public void SetAttemptResult(bool success, string message)
     {
         _lastAttemptSuccess = success;
@@ -488,18 +474,12 @@ public class FireOverlay
         }
     }
 
-    /// <summary>
-    /// Set a message for tending mode.
-    /// </summary>
     public void SetTendMessage(string message)
     {
         _tendMessage = message;
     }
 }
 
-/// <summary>
-/// Actions that can be performed from the fire overlay.
-/// </summary>
 public enum FireAction
 {
     StartFire,
@@ -510,9 +490,6 @@ public enum FireAction
     CollectEmber
 }
 
-/// <summary>
-/// Result from fire overlay interaction.
-/// </summary>
 public class FireOverlayResult
 {
     public FireAction Action { get; set; }

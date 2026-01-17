@@ -13,6 +13,7 @@ namespace text_survival.Actors;
 public abstract class NPCAction(string name, int durationMin, ActivityType activityType)
 {
     public string Name = name;
+    public abstract string LogMessage { get; }
     public int DurationMinutes = durationMin;
     public int MinutesSpent = 0;
     public bool IsComplete() => MinutesSpent >= DurationMinutes;
@@ -25,6 +26,7 @@ public abstract class NPCAction(string name, int durationMin, ActivityType activ
 
 public class NPCEat(Resource food, double amount) : NPCAction($"Eating {food.ToDisplayName()}", 5, ActivityType.Eating)
 {
+    public override string LogMessage => $"Eating {food.ToDisplayName()}";
     public override void Complete(NPC npc)
     {
         ConsumptionHandler.EatDrink(npc, food, amount);
@@ -34,6 +36,7 @@ public class NPCEat(Resource food, double amount) : NPCAction($"Eating {food.ToD
 public class NPCMove(Location destination, NPC npc) :
     NPCAction($"Traveling to {destination.Name}", TravelProcessor.GetTraversalMinutes(npc.CurrentLocation, destination, npc, npc.Inventory), ActivityType.Traveling)
 {
+    public override string LogMessage => $"Traveling to {destination.Name}";
     public override void Complete(NPC npc)
     {
         // first update destination memory as leaving
@@ -53,6 +56,7 @@ public class NPCMove(Location destination, NPC npc) :
 
 public class NPCForage(int minutes) : NPCAction("Foraging", minutes, ActivityType.Foraging)
 {
+    public override string LogMessage => "Foraging";
     public override void Complete(NPC npc)
     {
         bool hasLight = true; // todo
@@ -62,6 +66,7 @@ public class NPCForage(int minutes) : NPCAction("Foraging", minutes, ActivityTyp
 }
 public class NPCHarvest : NPCAction
 {
+    public override string LogMessage => "Harvesting";
     public NPCHarvest(int minutes) : base("Harvesting", minutes, ActivityType.Foraging) { }
 
     public override void Complete(NPC npc)
@@ -96,6 +101,7 @@ public class NPCHarvest : NPCAction
 }
 public class NPCChopWood : NPCAction
 {
+    public override string LogMessage => "Chopping wood";
     public NPCChopWood(int minutes) : base("Chopping wood", minutes, ActivityType.Chopping) { }
 
     public override void Complete(NPC npc)
@@ -143,10 +149,12 @@ public class NPCChopWood : NPCAction
 }
 public class NPCStartFire() : NPCAction("Starting Fire", 10, ActivityType.TendingFire)
 {
+    public override string LogMessage => "Starting fire";
     public override void Complete(NPC npc) => FireHandler.StartFire(npc, npc.Inventory!, npc.CurrentLocation);
 }
 public class NPCTendFire() : NPCAction("Tending Fire", 1, ActivityType.TendingFire)
 {
+    public override string LogMessage => "Tending fire";
     public override void Complete(NPC npc)
     {
         if (!npc.CurrentLocation.HasFeature<HeatSourceFeature>())
@@ -159,16 +167,19 @@ public class NPCTendFire() : NPCAction("Tending Fire", 1, ActivityType.TendingFi
 }
 public class NPCRest(int minutes) : NPCAction("Resting", minutes, ActivityType.Resting)
 {
+    public override string LogMessage => "Resting";
     public override void Complete(NPC npc) { } // do nothing
 }
 
 public class NPCSleep(int minutes) : NPCAction("Sleeping", minutes, ActivityType.Sleeping)
 {
+    public override string LogMessage => "Sleeping";
     public override void Complete(NPC npc) => npc.Body.Rest(MinutesSpent, npc.CurrentLocation, null);
 }
 
 public class NPCStash(ResourceCategory resourceCategory) : NPCAction($"Storing {resourceCategory}", 2, ActivityType.Crafting)
 {
+    public override string LogMessage => $"Stashing {resourceCategory.ToString().ToLower()}";
     public override void Complete(NPC npc)
     {
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
@@ -187,6 +198,7 @@ public class NPCStash(ResourceCategory resourceCategory) : NPCAction($"Storing {
 
 public class NPCStashWater() : NPCAction("Storing Water", 2, ActivityType.Crafting)
 {
+    public override string LogMessage => "Stashing water";
     public override void Complete(NPC npc)
     {
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
@@ -203,6 +215,7 @@ public class NPCStashWater() : NPCAction("Storing Water", 2, ActivityType.Crafti
 
 public class NPCTakeFromCache(ResourceCategory resourceCategory) : NPCAction($"Taking {resourceCategory}", 2, ActivityType.Crafting)
 {
+    public override string LogMessage => $"Getting {resourceCategory.ToString().ToLower()}";
     public override void Complete(NPC npc)
     {
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
@@ -219,6 +232,7 @@ public class NPCTakeFromCache(ResourceCategory resourceCategory) : NPCAction($"T
 
 public class NPCTakeToolFromCache(ToolType toolType) : NPCAction($"Taking {toolType}", 2, ActivityType.Crafting)
 {
+    public override string LogMessage => $"Getting {toolType.ToString().ToLower()}";
     public override void Complete(NPC npc)
     {
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
@@ -236,6 +250,8 @@ public class NPCTakeToolFromCache(ToolType toolType) : NPCAction($"Taking {toolT
 public class NPCCraft : NPCAction
 {
     private readonly CraftOption _recipe;
+
+    public override string LogMessage => $"Crafting {_recipe.Name.ToLower()}";
 
     public NPCCraft(CraftOption recipe) : base($"Crafting {recipe.Name}", recipe.CraftingTimeMinutes, ActivityType.Crafting)
     {
@@ -255,6 +271,8 @@ public class NPCCraft : NPCAction
 public class NPCFight : NPCAction
 {
     private readonly Animal _threat;
+
+    public override string LogMessage => $"Fighting {_threat.Name}";
 
     public NPCFight(Animal threat) : base($"Fighting {threat.Name}", 1, ActivityType.Fighting)
     {
@@ -288,6 +306,8 @@ public class NPCFight : NPCAction
 public class NPCFlee : NPCAction
 {
     private readonly Animal _threat;
+
+    public override string LogMessage => $"Fleeing from {_threat.Name}";
 
     public NPCFlee(Animal threat) : base($"Fleeing from {threat.Name}", 5, ActivityType.Traveling)
     {
@@ -325,6 +345,7 @@ public class NPCFlee : NPCAction
 
 public class NPCCookMeat : NPCAction
 {
+    public override string LogMessage => "Cooking meat";
     public NPCCookMeat() : base("Cooking meat", CookingHandler.CookMeatTimeMinutes, ActivityType.Cooking) { }
 
     public override void Complete(NPC npc)
@@ -334,6 +355,7 @@ public class NPCCookMeat : NPCAction
 }
 public class NPCMeltSnow : NPCAction
 {
+    public override string LogMessage => "Melting snow";
     public NPCMeltSnow() : base("Melting snow", CookingHandler.MeltSnowTimeMinutes, ActivityType.Cooking) { }
 
     public override void Complete(NPC npc)
@@ -345,6 +367,8 @@ public class NPCMeltSnow : NPCAction
 public class NPCDrinkWater : NPCAction
 {
     private readonly double _amount;
+
+    public override string LogMessage => "Drinking water";
 
     public NPCDrinkWater(double amount = 0.5) : base("Drinking water", 2, ActivityType.Eating)
     {
@@ -360,6 +384,48 @@ public class NPCDrinkWater : NPCAction
             npc.Body.AddHydration(toDrink);
             Console.WriteLine($"[NPC:{npc.Name}] Drank {toDrink:F1}L water");
         }
+    }
+}
+
+#endregion
+
+#region Shelter Actions
+
+public class NPCImproveShelter : NPCAction
+{
+    private readonly ShelterImprovementType _type;
+    private readonly Resource _material;
+    private readonly int _quantity;
+
+    public override string LogMessage => $"Improving shelter ({_type.ToString().ToLower()})";
+
+    public NPCImproveShelter(ShelterImprovementType type, Resource material, int quantity = 1)
+        : base($"Improving shelter ({type.ToString().ToLower()})", quantity * 10, ActivityType.Crafting)
+    {
+        _type = type;
+        _material = material;
+        _quantity = quantity;
+    }
+
+    public override void Complete(NPC npc)
+    {
+        var shelter = npc.CurrentLocation.GetFeature<ShelterFeature>();
+        if (shelter == null)
+        {
+            Console.WriteLine($"[NPC:{npc.Name}] No shelter to improve!");
+            return;
+        }
+
+        // Consume materials
+        for (int i = 0; i < _quantity; i++)
+        {
+            if (npc.Inventory!.Count(_material) > 0)
+                npc.Inventory.Pop(_material);
+        }
+
+        // Apply improvement
+        double improvement = shelter.Improve(_type, _material, _quantity);
+        Console.WriteLine($"[NPC:{npc.Name}] Improved shelter {_type.ToString().ToLower()} by {improvement:P1} using {_material.ToDisplayName()}");
     }
 }
 

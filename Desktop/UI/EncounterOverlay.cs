@@ -5,10 +5,6 @@ using text_survival.Desktop.Dto;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>
-/// ImGui overlay for predator encounters.
-/// Shows predator info, distance, boldness, and encounter choices.
-/// </summary>
 public class EncounterOverlay
 {
     public bool IsOpen { get; set; }
@@ -17,9 +13,6 @@ public class EncounterOverlay
     private float _distanceAnimProgress;
     private const float DISTANCE_ANIM_DURATION = 0.5f;
 
-    /// <summary>
-    /// Open the encounter overlay with initial data.
-    /// </summary>
     public void Open(EncounterDto data)
     {
         IsOpen = true;
@@ -27,9 +20,6 @@ public class EncounterOverlay
         _distanceAnimProgress = data.IsAnimatingDistance ? 0f : 1f;
     }
 
-    /// <summary>
-    /// Update with new encounter data.
-    /// </summary>
     public void Update(EncounterDto data)
     {
         _currentData = data;
@@ -40,10 +30,6 @@ public class EncounterOverlay
         }
     }
 
-    /// <summary>
-    /// Render the encounter overlay.
-    /// Returns the selected choice ID when player makes a choice, null otherwise.
-    /// </summary>
     public string? Render(GameContext ctx, float deltaTime)
     {
         if (!IsOpen || _currentData == null) return null;

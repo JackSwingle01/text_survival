@@ -5,10 +5,6 @@ using text_survival.Desktop.Dto;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>
-/// ImGui overlay for strategic distance-based combat.
-/// Shows distance zones, player/enemy state, and combat actions.
-/// </summary>
 public class CombatOverlay
 {
     public bool IsOpen { get; set; }
@@ -18,9 +14,6 @@ public class CombatOverlay
     private float _autoAdvanceTimer;
     private const float DISTANCE_ANIM_DURATION = 0.3f;
 
-    /// <summary>
-    /// Open the combat overlay with initial data.
-    /// </summary>
     public void Open(CombatDto data)
     {
         IsOpen = true;
@@ -29,9 +22,6 @@ public class CombatOverlay
         _autoAdvanceTimer = 0f;
     }
 
-    /// <summary>
-    /// Update with new combat data.
-    /// </summary>
     public void Update(CombatDto data)
     {
         bool distanceChanged = _currentData?.DistanceMeters != data.DistanceMeters;
@@ -49,11 +39,6 @@ public class CombatOverlay
         }
     }
 
-    /// <summary>
-    /// Render the combat overlay.
-    /// Returns the selected action ID when player makes a choice, null otherwise.
-    /// Returns "continue" for auto-advance or outcome dismissal.
-    /// </summary>
     public string? Render(GameContext ctx, float deltaTime)
     {
         if (!IsOpen || _currentData == null) return null;

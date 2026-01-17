@@ -354,17 +354,18 @@ public static class StatsPanel
 
     private static Vector4 GetEffectColor(Effect effect)
     {
-        // Categorize by effect type
-        string kind = effect.EffectKind.ToLowerInvariant();
+        float severity = (float)Math.Clamp(effect.Severity, 0, 1);
 
-        if (kind.Contains("bleed") || kind.Contains("hypother") || kind.Contains("frostbite"))
-            return ColorDanger;
-        if (kind.Contains("pain") || kind.Contains("hungry") || kind.Contains("thirst") || kind.Contains("tired"))
-            return ColorWarning;
-        if (kind.Contains("warm") || kind.Contains("rest") || kind.Contains("focus"))
-            return ColorGood;
-
-        return ColorMuted;
+        if (effect.IsBeneficial)
+        {
+            // Positive effects: green at high severity (strong buff), yellow at low (fading)
+            return Vector4.Lerp(ColorWarning, ColorGood, severity);
+        }
+        else
+        {
+            // Negative effects: red at high severity (dangerous), green at low (resolving)
+            return Vector4.Lerp(ColorGood, ColorDanger, severity);
+        }
     }
 
     private static string FormatTime(int minutes)

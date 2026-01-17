@@ -5,10 +5,6 @@ using text_survival.Items;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>
-/// ImGui overlay for transferring items between player inventory and storage.
-/// Shows side-by-side inventories with click-to-transfer.
-/// </summary>
 public class TransferOverlay
 {
     public bool IsOpen { get; set; }
@@ -17,9 +13,6 @@ public class TransferOverlay
     private string _storageName = "Storage";
     private string? _lastMessage;
 
-    /// <summary>
-    /// Open the transfer overlay with the specified storage.
-    /// </summary>
     public void Open(Inventory storage, string storageName)
     {
         IsOpen = true;
@@ -28,10 +21,6 @@ public class TransferOverlay
         _lastMessage = null;
     }
 
-    /// <summary>
-    /// Render the transfer overlay.
-    /// Returns a transfer result if an item was transferred.
-    /// </summary>
     public TransferResult? Render(GameContext ctx, float deltaTime)
     {
         if (!IsOpen || _storage == null) return null;

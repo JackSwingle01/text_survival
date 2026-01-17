@@ -6,10 +6,6 @@ using text_survival.Survival;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>
-/// ImGui overlay for eating and drinking.
-/// Shows available consumables with calories and hydration values.
-/// </summary>
 public class EatingOverlay
 {
     public bool IsOpen { get; set; }
@@ -17,19 +13,12 @@ public class EatingOverlay
     private string? _lastConsumeMessage;
     private bool _lastConsumeWarning;
 
-    /// <summary>
-    /// Open the eating overlay.
-    /// </summary>
     public void Open()
     {
         IsOpen = true;
         _lastConsumeMessage = null;
     }
 
-    /// <summary>
-    /// Render the eating overlay.
-    /// Returns the consumable ID if the user consumed something.
-    /// </summary>
     public string? Render(GameContext ctx, float deltaTime)
     {
         if (!IsOpen) return null;

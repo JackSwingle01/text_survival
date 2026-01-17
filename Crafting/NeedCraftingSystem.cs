@@ -1331,6 +1331,66 @@ public class NeedCraftingSystem
             FeatureFactory = () => new CuringRackFeature()
         });
 
+        // Branch Frame Shelter - quick, basic shelter that can be improved
+        _options.Add(new CraftOption
+        {
+            Name = "Branch Frame Shelter",
+            Description = "A basic frame of branches. Quick to build, provides immediate shelter. Improve with materials over time. Max 50% coverage.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 30,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement(Resource.Stick, 4)
+            ],
+            Prerequisite = ctx => {
+                if (ctx.Camp.HasFeature<ShelterFeature>())
+                    return "Camp already has a shelter";
+                return null;
+            },
+            FeatureFactory = () => ShelterFeature.CreateBranchFrame()
+        });
+
+        // Log Frame Shelter - sturdier shelter with higher caps
+        _options.Add(new CraftOption
+        {
+            Name = "Log Frame Shelter",
+            Description = "A sturdy log frame. More durable than branches, allows better improvements. Max 80% coverage.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 45,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement(ResourceCategory.Log, 3)
+            ],
+            Prerequisite = ctx => {
+                if (ctx.Camp.HasFeature<ShelterFeature>())
+                    return "Camp already has a shelter";
+                return null;
+            },
+            FeatureFactory = () => ShelterFeature.CreateLogFrame()
+        });
+
+        // Rebuild Shelter - upgrade from branch frame to log frame
+        _options.Add(new CraftOption
+        {
+            Name = "Rebuild Shelter",
+            Description = "Tear down your branch frame and rebuild with logs. Salvages ~60% of invested materials. Higher caps for improvements.",
+            Category = NeedCategory.CampInfrastructure,
+            CraftingTimeMinutes = 60,
+            Durability = 0,
+            Requirements = [
+                new MaterialRequirement(ResourceCategory.Log, 3)
+            ],
+            Prerequisite = ctx => {
+                var shelter = ctx.Camp.GetFeature<ShelterFeature>();
+                if (shelter == null)
+                    return "No shelter to rebuild";
+                if (!shelter.CanRebuild)
+                    return "This shelter type cannot be rebuilt";
+                return null;
+            },
+            RebuildShelter = true
+        });
+
         // 3. Mound Fire Pit (Multi-Session Project)
         _options.Add(new CraftOption
         {
@@ -1373,32 +1433,7 @@ public class NeedCraftingSystem
             )
         });
 
-        // 4. Lean-to Shelter (Multi-Session Project)
-        _options.Add(new CraftOption
-        {
-            Name = "Lean-to Shelter (Project)",
-            Description = "A simple angled roof shelter. Good overhead protection from rain and snow. Takes several hours to build.",
-            Category = NeedCategory.CampInfrastructure,
-            CraftingTimeMinutes = 15, // Setup time
-            Durability = 0,
-            Requirements = [
-                new MaterialRequirement(Resource.Stick, 15),
-                new MaterialRequirement(ResourceCategory.Log, 10),
-                new MaterialRequirement(Resource.PlantFiber, 5)
-            ],
-            Prerequisite = ctx => {
-                if (ctx.Camp.HasFeature<ShelterFeature>())
-                    return "Camp already has a shelter";
-                return null;
-            },
-            FeatureFactory = () => new CraftingProjectFeature(
-                "Lean-to Shelter",
-                ShelterFeature.CreateLeanTo(),
-                240 // 4 hours of work
-            )
-        });
-
-        // 5. Snow Shelter (Multi-Session Project with Environmental Prerequisite)
+        // 4. Snow Shelter (Multi-Session Project with Environmental Prerequisite)
         _options.Add(new CraftOption
         {
             Name = "Snow Shelter (Project)",
@@ -1453,32 +1488,6 @@ public class NeedCraftingSystem
                 new MaterialRequirement(Resource.Stick, 2)
             ],
             GearFactory = dur => Gear.MammothHideTent(dur)
-        });
-
-        // 8. Cabin (Multi-Session Project - Major Undertaking)
-        _options.Add(new CraftOption
-        {
-            Name = "Cabin (Project)",
-            Description = "A permanent log cabin with stone foundation. Best protection from elements. Major construction project requiring many hours of work. Benefits from shovel for foundation digging.",
-            Category = NeedCategory.CampInfrastructure,
-            CraftingTimeMinutes = 30, // Setup time
-            Durability = 0,
-            Requirements = [
-                new MaterialRequirement(ResourceCategory.Log, 80),
-                new MaterialRequirement(Resource.Stone, 40),
-                new MaterialRequirement(Resource.PlantFiber, 20),
-                new MaterialRequirement(Resource.Rope, 10)
-            ],
-            Prerequisite = ctx => {
-                if (ctx.Camp.HasFeature<ShelterFeature>())
-                    return "Camp already has a shelter";
-                return null;
-            },
-            FeatureFactory = () => new CraftingProjectFeature(
-                "Cabin",
-                ShelterFeature.CreateCabin(),
-                1200 // 20 hours of work - serious undertaking!
-            ) { BenefitsFromShovel = true }
         });
 
         // 8. Sleeping Bag (Multi-Session Project)

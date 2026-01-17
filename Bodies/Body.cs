@@ -13,14 +13,12 @@ public class Body
     public Blood Blood { get; init; } = new();
     public const double BASE_BODY_TEMP = 98.6;
 
-    // Public properties backed by private fields
     public double EnergyPct => Energy / SurvivalProcessor.MAX_ENERGY_MINUTES;
     public double FullPct => CalorieStore / SurvivalProcessor.MAX_CALORIES;
     public double HydratedPct => Hydration / SurvivalProcessor.MAX_HYDRATION;
     public double WarmPct => Math.Clamp(
         (BodyTemperature - SurvivalProcessor.HypothermiaThreshold) / (BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold), 0, 1);
 
-    // body properties
     public double _baseWeight;
     public double BodyFatKG;
     public double MuscleKG;
@@ -37,7 +35,6 @@ public class Body
     // Parameterless constructor for deserialization
     public Body() { }
 
-    // Normal constructor for creation
     public Body(BodyCreationInfo stats)
     {
         IsPlayer = stats.IsPlayer;
@@ -113,7 +110,6 @@ public class Body
 
     public void ApplyResult(SurvivalProcessorResult result)
     {
-        // Stats
         CalorieStore = Math.Max(0, CalorieStore + result.StatsDelta.CalorieDelta);
         Hydration = Math.Max(0, Hydration + result.StatsDelta.HydrationDelta);
         Energy = Math.Clamp(Energy + result.StatsDelta.EnergyDelta, 0, SurvivalProcessor.MAX_ENERGY_MINUTES);
@@ -121,23 +117,19 @@ public class Body
         BodyTemperature += result.StatsDelta.TemperatureDelta;
         ClothingHeatBufferPct = Math.Clamp(ClothingHeatBufferPct + result.ClothingHeatBufferDelta, 0, 1);
 
-        // Body composition
         BodyFatKG = Math.Max(0, BodyFatKG - result.FatToConsume);
         MuscleKG = Math.Max(0, MuscleKG - result.MuscleToConsume);
 
-        // Blood regeneration
         if (result.BloodHealing > 0)
         {
             Blood.Condition = Math.Min(1.0, Blood.Condition + result.BloodHealing);
         }
 
-        // Damage
         foreach (var damage in result.DamageEvents)
         {
             Damage(damage);
         }
 
-        // Healing
         foreach (var healing in result.HealingEvents)
         {
             Heal(healing);

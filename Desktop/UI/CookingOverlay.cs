@@ -6,10 +6,6 @@ using text_survival.Environments.Features;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>
-/// ImGui overlay for cooking and melting snow.
-/// Requires an active fire to use.
-/// </summary>
 public class CookingOverlay
 {
     public bool IsOpen { get; set; }
@@ -17,19 +13,12 @@ public class CookingOverlay
     private string? _lastActionMessage;
     private bool _lastActionSuccess;
 
-    /// <summary>
-    /// Open the cooking overlay.
-    /// </summary>
     public void Open()
     {
         IsOpen = true;
         _lastActionMessage = null;
     }
 
-    /// <summary>
-    /// Render the cooking overlay.
-    /// Returns an action result if the user performed an action.
-    /// </summary>
     public CookingOverlayResult? Render(GameContext ctx, float deltaTime)
     {
         if (!IsOpen) return null;
@@ -136,9 +125,6 @@ public class CookingOverlay
         return result;
     }
 
-    /// <summary>
-    /// Set the result message from a cooking action.
-    /// </summary>
     public void SetActionResult(bool success, string message)
     {
         _lastActionSuccess = success;
@@ -146,18 +132,12 @@ public class CookingOverlay
     }
 }
 
-/// <summary>
-/// Actions that can be performed from the cooking overlay.
-/// </summary>
 public enum CookingAction
 {
     CookMeat,
     MeltSnow
 }
 
-/// <summary>
-/// Result from cooking overlay interaction.
-/// </summary>
 public class CookingOverlayResult
 {
     public CookingAction Action { get; set; }

@@ -1,4 +1,3 @@
-// SurvivalProcessor.cs
 using text_survival.Bodies;
 using text_survival.Effects;
 
@@ -50,7 +49,6 @@ public static class SurvivalProcessor
 		result.Combine(ProcessDehydration(projectedHydration, minutesElapsed));
 		result.Combine(ProcessHypothermia(projectedTemp, minutesElapsed));
 		result.Combine(ProcessRegeneration(body, projectedCalories, projectedHydration, minutesElapsed));
-		// ProcessWarningMessages removed - stats panel shows this info
 
 		double projectedEnergy = body.Energy + result.StatsDelta.EnergyDelta;
 		result.Combine(ProcessSurvivalEffects(projectedCalories, projectedHydration, projectedEnergy));
@@ -120,7 +118,7 @@ public static class SurvivalProcessor
 		// Clothing thermal mass buffer
 		double clothingCapacityF = context.ClothingWeightKg * ThermalMassFactorFPerKg;
 		double bufferDelta = 0;
-		double bodyTempDelta = tempChange / 60 * minutes;  // Original calculation
+		double bodyTempDelta = tempChange / 60 * minutes;
 
 		if (clothingCapacityF > 0)
 		{

@@ -38,12 +38,10 @@ public enum WeaponClass { Blade, Blunt, Pierce, Claw, Unarmed }
 
 public class Gear
 {
-    // === Core Properties (all items) ===
     public string Name { get; set; } = "";
     public double Weight { get; set; }
     public GearCategory Category { get; init; }
 
-    // === Durability (all items) ===
     public int Durability { get; set; } = -1;  // -1=infinite, 0=broken
     public int MaxDurability { get; init; } = -1;
 
@@ -74,10 +72,8 @@ public class Gear
         Durability = Math.Min(MaxDurability, Durability + amount);
     }
 
-    // === Tool-Specific ===
     public ToolType? ToolType { get; init; }
 
-    // === Treatment-Specific (ToolType.Treatment) ===
     public string? TreatsEffect { get; init; }
     public double EffectReduction { get; init; }
     public string? TreatmentDescription { get; init; }
@@ -85,18 +81,15 @@ public class Gear
     public string? SecondaryTreatsEffect { get; init; }
     public double SecondaryEffectReduction { get; init; }
 
-    // === Combat (optional, for weapon-tools) ===
     public double? Damage { get; init; }
     public double? BlockChance { get; init; } // todo - remove - not used
     public WeaponClass? WeaponClass { get; init; }
     public bool IsWeapon => Damage.HasValue;
 
-    // === Equipment-Specific ===
     public EquipSlot? Slot { get; init; }
     public double BaseInsulation { get; init; }
     public double Insulation => BaseInsulation * ConditionPct;
 
-    // === Armor Properties (Equipment) ===
     // Cushioning: Absorbs impact damage (vs Blunt), range 0-1
     // Toughness: Resists cutting damage (vs Sharp, partially vs Pierce), range 0-1
     public double BaseCushioning { get; init; }
@@ -104,7 +97,6 @@ public class Gear
     public double Cushioning => BaseCushioning * ConditionPct;
     public double Toughness => BaseToughness * ConditionPct;
 
-    // === Waterproofing (Equipment) ===
     public double BaseWaterproofLevel { get; init; }
     public int ResinTreatmentDurability { get; set; }
     public bool IsResinTreated => ResinTreatmentDurability > 0;
@@ -119,22 +111,18 @@ public class Gear
             ResinTreatmentDurability--;
     }
 
-    // === Accessory-Specific ===
     public double CapacityBonusKg { get; init; }
 
-    // === Tent-Specific (ToolType.Tent) ===
     public double ShelterTempInsulation { get; init; }
     public double ShelterOverheadCoverage { get; init; }
     public double ShelterWindCoverage { get; init; }
     public bool IsTent => ToolType == Items.ToolType.Tent;
 
-    // === Ember Carrier-Specific (ToolType.EmberCarrier) ===
     public double EmberBurnHoursMax { get; init; }
     public double EmberBurnHoursRemaining { get; set; }
     public bool IsEmberLit => EmberBurnHoursRemaining > 0;
     public bool IsEmberCarrier => ToolType == Items.ToolType.EmberCarrier;
 
-    // === Display ===
     public override string ToString()
     {
         if (IsBroken) return $"{Name} (broken)";
@@ -168,8 +156,6 @@ public class Gear
 
         return Name;
     }
-
-    // === Tool Factory Methods ===
 
     public static Gear Axe(string name = "Stone Axe", int durability = -1) => new()
     {
@@ -293,8 +279,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    // === Equipment Factory Methods ===
-
     public static Gear FurHood(string name = "Fur Hood", int durability = 100) => new()
     {
         Name = name,
@@ -407,8 +391,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    // === High-Tier Equipment (Heavy Hide Armor) ===
-
     public static Gear BearHideChest(string name = "Bear Hide Chest", int durability = 150) => new()
     {
         Name = name,
@@ -465,8 +447,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    // === Accessory Factory Methods ===
-
     public static Gear SmallPouch(int durability = 100) => new()
     {
         Name = "Small Pouch",
@@ -506,8 +486,6 @@ public class Gear
         Durability = durability,
         MaxDurability = durability
     };
-
-    // === Tent Factory Methods ===
 
     public static Gear HideTent(int durability = 50) => new()
     {

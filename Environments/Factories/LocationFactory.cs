@@ -164,7 +164,7 @@ public static class LocationFactory
             visibilityFactor: 0.3);
 
         location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
-        location.Features.Add(new ShelterFeature("Cave", .5, 1, .9));
+        location.Features.Add(ShelterFeature.CreateCave());
 
         return location;
     }
@@ -518,7 +518,7 @@ public static class LocationFactory
         };
 
         location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
-        location.Features.Add(new ShelterFeature("Overhang", 0.3, 0.7, 0.5));
+        location.Features.Add(ShelterFeature.CreateRockOverhang());
 
         return location;
     }
@@ -688,6 +688,7 @@ public static class LocationFactory
 
         location.Features.Add(FeatureFactory.CreateSmallGameHavenForage(density: 1.2));
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 1.2));
+        location.Features.Add(ShelterFeature.CreateDenseThicket());
 
         return location;
     }
@@ -1274,7 +1275,7 @@ public static class LocationFactory
 
         location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 1.2));
         location.Features.Add(FeatureFactory.CreateMassiveDeadfall());
-        location.Features.Add(new ShelterFeature("Trunk Hollow", 0.25, 0.5, 0.6));
+        location.Features.Add(ShelterFeature.CreateFallenTree());
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.6));
 
         return location;

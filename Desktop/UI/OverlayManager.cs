@@ -23,21 +23,12 @@ public class OverlayManager
 
     private readonly NeedCraftingSystem _craftingSystem = new();
 
-    /// <summary>
-    /// Check if any blocking overlay is open (requires user interaction before game continues).
-    /// </summary>
     public bool HasBlockingOverlay => Event.IsOpen;
 
-    /// <summary>
-    /// Check if any overlay is open.
-    /// </summary>
     public bool AnyOverlayOpen => Inventory.IsOpen || Crafting.IsOpen || Event.IsOpen ||
                                    Fire.IsOpen || Eating.IsOpen || Cooking.IsOpen || Transfer.IsOpen ||
                                    DiscoveryLog.IsOpen || NPCs.IsOpen;
 
-    /// <summary>
-    /// Close all overlays.
-    /// </summary>
     public void CloseAll()
     {
         Inventory.IsOpen = false;
@@ -51,9 +42,6 @@ public class OverlayManager
         NPCs.IsOpen = false;
     }
 
-    /// <summary>
-    /// Close all non-blocking overlays.
-    /// </summary>
     private void CloseNonBlocking()
     {
         Inventory.IsOpen = false;
@@ -66,9 +54,6 @@ public class OverlayManager
         NPCs.IsOpen = false;
     }
 
-    /// <summary>
-    /// Toggle the inventory overlay.
-    /// </summary>
     public void ToggleInventory()
     {
         if (HasBlockingOverlay) return;
@@ -80,9 +65,6 @@ public class OverlayManager
         }
     }
 
-    /// <summary>
-    /// Toggle the crafting overlay.
-    /// </summary>
     public void ToggleCrafting()
     {
         if (HasBlockingOverlay) return;
@@ -95,9 +77,6 @@ public class OverlayManager
         }
     }
 
-    /// <summary>
-    /// Toggle the discovery log overlay.
-    /// </summary>
     public void ToggleDiscoveryLog()
     {
         if (HasBlockingOverlay) return;
@@ -110,9 +89,6 @@ public class OverlayManager
         }
     }
 
-    /// <summary>
-    /// Toggle the NPC overlay.
-    /// </summary>
     public void ToggleNPCs()
     {
         if (HasBlockingOverlay) return;
@@ -125,9 +101,6 @@ public class OverlayManager
         }
     }
 
-    /// <summary>
-    /// Open the fire overlay.
-    /// </summary>
     public void OpenFire(HeatSourceFeature? fire)
     {
         if (HasBlockingOverlay) return;
@@ -136,9 +109,6 @@ public class OverlayManager
         Fire.Open(fire);
     }
 
-    /// <summary>
-    /// Open the eating overlay.
-    /// </summary>
     public void OpenEating()
     {
         if (HasBlockingOverlay) return;
@@ -147,9 +117,6 @@ public class OverlayManager
         Eating.Open();
     }
 
-    /// <summary>
-    /// Open the cooking overlay.
-    /// </summary>
     public void OpenCooking()
     {
         if (HasBlockingOverlay) return;
@@ -158,9 +125,6 @@ public class OverlayManager
         Cooking.Open();
     }
 
-    /// <summary>
-    /// Open the transfer overlay.
-    /// </summary>
     public void OpenTransfer(Inventory storage, string storageName)
     {
         if (HasBlockingOverlay) return;
@@ -169,9 +133,6 @@ public class OverlayManager
         Transfer.Open(storage, storageName);
     }
 
-    /// <summary>
-    /// Show an event overlay.
-    /// </summary>
     public void ShowEvent(EventDto eventData)
     {
         // Close other non-blocking overlays when showing an event
@@ -181,18 +142,11 @@ public class OverlayManager
         Event.ShowEvent(eventData);
     }
 
-    /// <summary>
-    /// Show an event outcome.
-    /// </summary>
     public void ShowOutcome(EventOutcomeDto outcome)
     {
         Event.ShowOutcome(outcome);
     }
 
-    /// <summary>
-    /// Render all active overlays.
-    /// Returns action results that need to be processed.
-    /// </summary>
     public OverlayResults Render(GameContext ctx, float deltaTime)
     {
         var results = new OverlayResults();
@@ -247,9 +201,6 @@ public class OverlayManager
         return results;
     }
 
-    /// <summary>
-    /// Handle keyboard shortcuts for overlays.
-    /// </summary>
     public void HandleKeyboardShortcuts(bool iPressed, bool cPressed, bool lPressed, bool nPressed, bool escPressed)
     {
         if (escPressed)
@@ -296,44 +247,15 @@ public class OverlayManager
     }
 }
 
-/// <summary>
-/// Results from overlay rendering that need to be processed by the game loop.
-/// </summary>
 public class OverlayResults
 {
-    /// <summary>
-    /// The ID of the event choice selected, if any.
-    /// </summary>
     public string? EventChoice { get; set; }
-
-    /// <summary>
-    /// The name of an item that was crafted, if any.
-    /// </summary>
     public string? CraftedItem { get; set; }
-
-    /// <summary>
-    /// Fire overlay action result, if any.
-    /// </summary>
     public FireOverlayResult? FireResult { get; set; }
-
-    /// <summary>
-    /// ID of consumed item, if any.
-    /// </summary>
     public string? ConsumedItemId { get; set; }
-
-    /// <summary>
-    /// Cooking action result, if any.
-    /// </summary>
     public CookingOverlayResult? CookingResult { get; set; }
-
-    /// <summary>
-    /// Transfer action result, if any.
-    /// </summary>
     public TransferResult? TransferResult { get; set; }
 
-    /// <summary>
-    /// True if any result needs processing.
-    /// </summary>
     public bool HasResults => EventChoice != null || CraftedItem != null ||
                               FireResult != null || ConsumedItemId != null ||
                               CookingResult != null || TransferResult != null;

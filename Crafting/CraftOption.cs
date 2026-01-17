@@ -17,6 +17,7 @@ public class CraftOption
     public Func<Environments.Features.LocationFeature>? FeatureFactory { get; init; }
     public List<MaterialOutput>? MaterialOutputs { get; init; }
     public Items.EquipSlot? MendSlot { get; init; }
+    public bool RebuildShelter { get; init; } = false;
 
     public bool CanCraft(Inventory inventory)
     {

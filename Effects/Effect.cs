@@ -26,6 +26,26 @@ namespace text_survival.Effects
         /// </summary>
         public double HealingMultiplier { get; init; } = 1.0;
 
+        /// <summary>
+        /// True if this effect provides benefits (positive capacity modifiers or healing boost).
+        /// False if harmful (negative capacity modifiers or damage).
+        /// </summary>
+        public bool IsBeneficial
+        {
+            get
+            {
+                // Has damage = harmful
+                if (Damage != null) return false;
+
+                // Healing boost = beneficial
+                if (HealingMultiplier > 1.0) return true;
+
+                // Check capacity modifiers - sum them up
+                double totalModifier = CapacityModifiers.ToDictionary().Values.Sum();
+                return totalModifier > 0;
+            }
+        }
+
         // Messages
         public string? ApplicationMessage { get; init; }
         public string? RemovalMessage { get; init; }

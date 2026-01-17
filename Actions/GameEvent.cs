@@ -7,6 +7,7 @@ using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
 using text_survival.Desktop.Dto;
+using ShelterImprovementType = text_survival.Items.ShelterImprovementType;
 
 namespace text_survival.Actions;
 
@@ -35,6 +36,11 @@ public record CarcassCreation(AnimalType? AnimalType, double HarvestedPct = 0, d
 /// <param name="Count">Number of animals (1 for lone predator)</param>
 /// <param name="TerritoryRadius">Radius for home territory generation</param>
 public record HerdCreation(AnimalType AnimalType, int Count = 1, int TerritoryRadius = 2);
+
+/// <summary>
+/// Configuration for damaging a shelter stat.
+/// </summary>
+public record ShelterDamage(ShelterImprovementType Stat, double Amount);
 
 public class EventResult(string message, double weight = 1, int minutes = 0)
 {
@@ -86,6 +92,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public double? HerdAlertLevel;  // Alert level to set on nearby herd (0-1)
     public bool HerdFlees;          // Trigger herd to flee
     public bool MammothKilled;      // Player killed a mammoth from persistent herd
+
+    // Shelter damage (targeted weather damage)
+    public ShelterDamage? ShelterDamageInfo;
 
     // === Fluent builder methods ===
 
@@ -185,6 +194,11 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public EventResult RemovesFeature(Type featureType) { RemoveFeature = featureType; return this; }
     public EventResult DestroysSnare(int count = 1) { DestroysSnareCount = count; return this; }
     public EventResult WithScavengerLoss(double lossPct) { CarcassScavengerLoss = lossPct; return this; }
+    public EventResult DamagesShelter(ShelterImprovementType stat, double amount)
+    {
+        ShelterDamageInfo = new ShelterDamage(stat, amount);
+        return this;
+    }
 
     // Stat drains
     public EventResult DrainsStats(double calories = 0, double hydration = 0)
@@ -442,6 +456,24 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
                 {
                     feature.Damage(ModifyFeature.DepleteAmount.Value);
                 }
+            }
+        }
+
+        // Targeted shelter damage (weather damage to specific stats)
+        if (ShelterDamageInfo is not null)
+        {
+            var shelter = ctx.CurrentLocation.GetFeature<ShelterFeature>();
+            if (shelter != null && !shelter.IsDestroyed)
+            {
+                shelter.DamageStat(ShelterDamageInfo.Stat, ShelterDamageInfo.Amount);
+                string statName = ShelterDamageInfo.Stat switch
+                {
+                    ShelterImprovementType.Insulation => "insulation",
+                    ShelterImprovementType.Overhead => "overhead coverage",
+                    ShelterImprovementType.Wind => "wind protection",
+                    _ => "protection"
+                };
+                GameDisplay.AddWarning(ctx, $"  - Shelter's {statName} damaged ({shelter.GetStatValue(ShelterDamageInfo.Stat):P0})");
             }
         }
 

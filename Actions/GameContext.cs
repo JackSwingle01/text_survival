@@ -33,7 +33,6 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Player's carried inventory - references player.Inventory
     public Inventory Inventory => player.Inventory!;
 
-    // Zone and location tracking
     public Weather Weather { get; init; } = weather;
     public GameMap? Map { get; set; }
     [System.Text.Json.Serialization.JsonIgnore]
@@ -66,6 +65,30 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public ActiveTravelState? ActiveTravel { get; set; }
+
+    /// <summary>
+    /// Tracks ongoing work state for non-blocking work with animated stats.
+    /// </summary>
+    public class ActiveWorkState
+    {
+        public int TotalMinutes { get; set; }
+        public int SimulatedMinutes { get; set; }
+        public Location WorkLocation { get; set; } = null!;
+        public ActivityType Activity { get; set; }
+        public string ActivityName { get; set; } = "";
+        public bool EventInterrupted { get; set; }
+        public float AnimationProgress { get; set; }
+        public float AnimationDurationSeconds { get; set; }
+        public Expeditions.WorkStrategies.IWorkStrategy? Strategy { get; set; }
+        public bool AwaitingContinueDecision { get; set; }
+        public int MinutesRemainingAfterEvent { get; set; }
+    }
+
+    /// <summary>
+    /// Active work in progress. When set, the main loop processes work simulation incrementally.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ActiveWorkState? ActiveWork { get; set; }
 
     public int DaysSurvived => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalDays;
 
@@ -185,7 +208,6 @@ public class GameContext(Player player, Location camp, Weather weather)
     public bool EventOccurredLastUpdate { get; private set; } = false;
     public bool LastEventAborted { get; private set; } = false;
 
-    // Tutorial message tracking
     private HashSet<string> _shownTutorials = new();
 
     // Discovery Log - tracks player discoveries for progression display
@@ -209,7 +231,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         return true;
     }
 
-    // Discovery Log helper methods - record discovery and show notification if new
     public void RecordLocationDiscovery(string locationName)
     {
         if (Discoveries.DiscoverLocation(locationName))
@@ -243,25 +264,6 @@ public class GameContext(Player player, Location camp, Weather weather)
     // Parameterless constructor for JSON deserialization
     [System.Text.Json.Serialization.JsonConstructor]
     public GameContext() : this(null!, null!, null!) { }
-    // public void RestoreAfterDeserialization()
-    // {
-    //     // Map handles its own restoration via LocationData property
-    //     // Weather reference needs to be restored on the map
-    //     if (Map != null)
-    //     {
-    //         Map.Weather = Weather;
-
-    //         // Restore actor Map references (CurrentLocation restored via $ref)
-    //         player.Map = Map;
-    //         foreach (var npc in NPCs)
-    //         {
-    //             npc.Map = Map;
-    //         }
-    //     }
-
-    //     // Recreate non-serialized animal members for herds
-    //     Herds.RecreateAllMembers(Map);
-    // }
 
     public static GameContext CreateNewGame()
     {
@@ -283,7 +285,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         campfire.AddFuel(2, FuelType.Kindling);
         camp.Features.Add(campfire);
 
-        // Add camp storage cache
         camp.Features.Add(CacheFeature.CreateCampCache());
 
         var player = new Player();
@@ -293,20 +294,16 @@ public class GameContext(Player player, Location camp, Weather weather)
         GameContext ctx = new GameContext(player, camp, weather);
         ctx.Map = map;
 
-        // Populate world with persistent animal herds
         HerdPopulator.Populate(ctx.Herds, map);
 
-        // Spawn test NPC near camp
         var testNPC = NPCFactory.SpawnNearCamp(map, camp);
         if (testNPC != null) ctx.NPCs.Add(testNPC);
 
-        // Equip starting clothing
         ctx.Inventory.Equip(Gear.WornFurChestWrap());
         ctx.Inventory.Equip(Gear.FurLegWraps());
         ctx.Inventory.Equip(Gear.WornHideBoots());
         ctx.Inventory.Equip(Gear.HideHandwraps());
 
-        // Add starting supplies
         ctx.Inventory.Tools.Add(Gear.HandDrill());
         ctx.Inventory.Add(Resource.Stick, 0.3);
         ctx.Inventory.Add(Resource.Stick, 0.25);
@@ -327,7 +324,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Only show message if actually changing camp location
         bool isNewCamp = Camp != location;
 
-        // Update camp pointer
         Camp = location;
 
         if (isNewCamp)
@@ -364,7 +360,6 @@ public class GameContext(Player player, Location camp, Weather weather)
                     break; // Only break when an event actually triggers
             }
 
-            // Optional render with status from config
             if (render && !string.IsNullOrEmpty(config.StatusText))
                 GameDisplay.Render(this, statusText: config.StatusText);
         }
@@ -401,13 +396,10 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     private void UpdateInternal(int minutes)
     {
-        // Tick torch burn time and handle chaining logic
         Handlers.TorchHandler.UpdateTorchBurnTime(this, minutes, CurrentLocation.GetFeature<HeatSourceFeature>());
 
-        // Tick ember carrier burn time and check for wetness extinguishing
         UpdateEmberCarriers(minutes);
 
-        // Tick down waterproofing treatment during precipitation exposure
         UpdateWaterproofing(minutes);
 
         var context = SurvivalContext.GetSurvivalContext(player, Inventory, CurrentActivity, GetTimeOfDay());
@@ -416,7 +408,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Update zone weather and all named locations (terrain-only don't need updates)
         Weather.Update(GameTime);
 
-        // Show weather change popup
         if (Weather.WeatherJustChanged && SessionId != null)
         {
             Desktop.DesktopIO.ShowWeatherChange(this);
@@ -432,19 +423,14 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         Tensions.Update(minutes, IsAtCamp);
 
-        // Update herds - they move and can detect player
-
         var herdResults = Herds.Update(minutes, this);
-        // Process herd update results
         foreach (var result in herdResults)
         {
-            // Show narrative messages
             if (result.NarrativeMessage != null)
             {
                 GameDisplay.AddNarrative(this, result.NarrativeMessage);
             }
 
-            // Queue predator encounters
             if (result.EncounterRequest != null && _pendingEncounter == null)
             {
                 var encounterHerd = result.EncounterRequest.Herd;
@@ -463,7 +449,6 @@ public class GameContext(Player player, Location camp, Weather weather)
             }
         }
 
-        // Update NPCs
         for (int i = 0; i < minutes; i++)
         {
             foreach (NPC npc in NPCs.ToList())
@@ -473,7 +458,6 @@ public class GameContext(Player player, Location camp, Weather weather)
             }
         }
 
-        // Handle NPC deaths
         var deadNPCs = NPCs.Where(npc => !npc.IsAlive).ToList();
         foreach (var npc in deadNPCs)
         {
@@ -492,7 +476,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         }
         NPCs.RemoveAll(npc => !npc.IsAlive);
 
-        // Check for undiscovered bodies at current location
         var undiscoveredBody = CurrentLocation.GetFeature<NPCBodyFeature>();
         if (undiscoveredBody != null && !undiscoveredBody.IsDiscovered)
         {
@@ -530,7 +513,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         {
             if (wetness > 0.5)
             {
-                // Wetness extinguishes the ember
                 carrier.EmberBurnHoursRemaining = 0;
                 GameDisplay.AddWarning(this, $"Your {carrier.Name} hisses and goes out. Too wet to keep smoldering.");
             }
@@ -549,7 +531,6 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     private void UpdateWaterproofing(int minutes)
     {
-        // Only tick during precipitation
         bool isPrecipitating = Weather.CurrentCondition is
             Weather.WeatherCondition.Rainy or
             Weather.WeatherCondition.Stormy or
@@ -571,7 +552,6 @@ public class GameContext(Player player, Location camp, Weather weather)
             for (int i = 0; i < minutes; i++)
                 gear.TickResinTreatment();
 
-            // Warnings at thresholds
             if (oldDurability > 12 && gear.ResinTreatmentDurability <= 12)
                 GameDisplay.AddWarning(this, $"Your {gear.Name} resin treatment is wearing thin.");
             if (oldDurability > 0 && gear.ResinTreatmentDurability == 0)

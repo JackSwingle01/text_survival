@@ -8,10 +8,6 @@ using static text_survival.Environments.Grid.TerrainTypeExtensions;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>
-/// ImGui popup showing tile information when clicking on the world map.
-/// Shows location name, terrain, features, and a "Go" button for travel.
-/// </summary>
 public class TilePopup
 {
     // Currently selected tile (if popup is visible)
@@ -25,19 +21,10 @@ public class TilePopup
     // Screen position for popup (near the clicked tile)
     private Vector2 _popupPosition;
 
-    /// <summary>
-    /// Whether the popup is currently visible.
-    /// </summary>
     public bool IsOpen => _selectedTile.HasValue;
 
-    /// <summary>
-    /// The currently selected tile coordinates (if popup is open).
-    /// </summary>
     public (int x, int y)? SelectedTile => _selectedTile;
 
-    /// <summary>
-    /// Show the popup for a clicked tile.
-    /// </summary>
     public void Show(GameContext ctx, int x, int y, Vector2 screenPosition)
     {
         var map = ctx.Map;
@@ -67,18 +54,12 @@ public class TilePopup
         _popupPosition = new Vector2(screenPosition.X + 110, screenPosition.Y);
     }
 
-    /// <summary>
-    /// Hide the popup.
-    /// </summary>
     public void Hide()
     {
         _selectedTile = null;
         _selectedLocation = null;
     }
 
-    /// <summary>
-    /// Render the popup and return "go" if the Go button was clicked.
-    /// </summary>
     public string? Render(GameContext ctx, float deltaTime)
     {
         if (!IsOpen || _selectedLocation == null) return null;
@@ -143,9 +124,6 @@ public class TilePopup
         return result;
     }
 
-    /// <summary>
-    /// Render feature details for the location.
-    /// </summary>
     private void RenderFeatures(GameContext ctx)
     {
         if (_selectedLocation == null) return;
@@ -287,9 +265,6 @@ public class TilePopup
         }
     }
 
-    /// <summary>
-    /// Render NPCs at this location.
-    /// </summary>
     private void RenderNPCs(GameContext ctx)
     {
         if (_selectedLocation == null) return;
@@ -321,9 +296,6 @@ public class TilePopup
         }
     }
 
-    /// <summary>
-    /// Render detailed NPC info for current location.
-    /// </summary>
     private static void RenderNPCDetailed(Actors.NPC npc)
     {
         // Name + action + need
@@ -356,9 +328,6 @@ public class TilePopup
         }
     }
 
-    /// <summary>
-    /// Calculate estimated travel time to the location.
-    /// </summary>
     private static int CalculateTravelTime(GameContext ctx, Location destination)
     {
         // Base travel time depends on terrain and player movement capacity

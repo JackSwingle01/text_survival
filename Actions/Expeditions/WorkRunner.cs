@@ -17,6 +17,11 @@ public class WorkRunner(GameContext ctx)
     private readonly GameContext _ctx = ctx;
     private bool PlayerDied => !_ctx.player.IsAlive;
 
+    // Track current strategy for async completion
+    private IWorkStrategy? _currentStrategy;
+    private Location? _currentLocation;
+    private int _actualTimeElapsed;
+
     /// <summary>
     /// Check if location is too dark to work. Returns true if work is blocked.
     /// Darkness can come from: inherent location darkness OR nighttime.
@@ -50,6 +55,7 @@ public class WorkRunner(GameContext ctx)
 
     /// <summary>
     /// Execute work using a strategy pattern. Handles validation, timing, impairments, and execution.
+    /// Returns WorkResult.Pending() when async work starts - completion via CompleteWork().
     /// </summary>
     private WorkResult ExecuteWork(Location location, IWorkStrategy strategy)
     {
@@ -91,25 +97,20 @@ public class WorkRunner(GameContext ctx)
             _ctx.player.Body.BodyTemperature
         );
 
+        // Store strategy and location for async completion
+        _currentStrategy = strategy;
+        _currentLocation = location;
+
         // Run work with time passage (if time > 0)
-        int actualTime = adjustedTime;
         if (adjustedTime > 0)
         {
-            var (died, elapsed) = RunWorkWithContinuePrompt(
-                location,
-                adjustedTime,
-                strategy.GetActivityType(),
-                strategy.GetActivityName()
-            );
-
-            if (died)
-                return WorkResult.Died(elapsed);
-
-            actualTime = elapsed;
+            // Start async work - GameRunner will call CompleteWork when done
+            StartWorkAsync(location, adjustedTime, strategy.GetActivityType(), strategy.GetActivityName(), strategy);
+            return WorkResult.Pending();
         }
 
-        // Execute the work
-        var result = strategy.Execute(_ctx, location, actualTime);
+        // No time needed - execute immediately
+        var result = strategy.Execute(_ctx, location, 0);
 
         // Show UI and check weight
         GameDisplay.Render(_ctx, statusText: "Thinking.");
@@ -117,6 +118,78 @@ public class WorkRunner(GameContext ctx)
         ForceDropIfOverweight();
 
         return result;
+    }
+
+    /// <summary>
+    /// Start async work by setting up ActiveWork state.
+    /// GameRunner's main loop will simulate time and call CompleteWork when done.
+    /// </summary>
+    private void StartWorkAsync(Location location, int workMinutes, ActivityType activity, string activityName, IWorkStrategy strategy)
+    {
+        _ctx.ActiveWork = new GameContext.ActiveWorkState
+        {
+            TotalMinutes = workMinutes,
+            SimulatedMinutes = 0,
+            WorkLocation = location,
+            Activity = activity,
+            ActivityName = activityName,
+            AnimationDurationSeconds = Math.Clamp(0.5f + (workMinutes * 0.02f), 0.5f, 2.0f),
+            Strategy = strategy
+        };
+    }
+
+    /// <summary>
+    /// Complete async work after simulation finishes. Called by GameRunner.
+    /// </summary>
+    public void CompleteWork()
+    {
+        var work = _ctx.ActiveWork;
+        if (work == null) return;
+
+        var strategy = work.Strategy;
+        var location = work.WorkLocation;
+        int actualTime = work.SimulatedMinutes;
+
+        // Clear work state
+        _ctx.ActiveWork = null;
+
+        // If player died, nothing to execute
+        if (PlayerDied)
+            return;
+
+        // Execute the work if strategy exists
+        if (strategy != null && location != null)
+        {
+            var result = strategy.Execute(_ctx, location, actualTime);
+
+            // Show UI and check weight
+            GameDisplay.Render(_ctx, statusText: "Thinking.");
+
+            ForceDropIfOverweight();
+
+            // Handle discovered locations
+            if (result.DiscoveredLocation != null)
+            {
+                GameDisplay.AddNarrative(_ctx, $"Discovered: {result.DiscoveredLocation.Name}");
+                if (PromptTravelToDiscovery(_ctx, result.DiscoveredLocation))
+                {
+                    new TravelRunner(_ctx).TravelToLocation(result.DiscoveredLocation);
+                }
+            }
+
+            // Handle found animal from hunt search - run interactive hunt
+            if (result.FoundAnimal != null)
+            {
+                var (outcome, huntMinutes) = HuntRunner.Run(
+                    result.FoundAnimal, location, _ctx, result.FoundHerd);
+
+                // Time passage during hunt
+                if (huntMinutes > 0)
+                {
+                    _ctx.Update(huntMinutes, ActivityType.Hunting);
+                }
+            }
+        }
     }
 
     public WorkResult DoForage(Location location)
@@ -134,58 +207,6 @@ public class WorkRunner(GameContext ctx)
         return ExecuteWork(location, new SalvageStrategy());
     }
 
-    // === PROGRESS AND TIME PASSAGE ===
-
-    /// <summary>
-    /// Runs work with progress bar and event checks, prompting to continue after events.
-    /// Returns (died, actualMinutesWorked).
-    /// </summary>
-    private (bool died, int minutesWorked) RunWorkWithContinuePrompt(
-        Location location, int workMinutes, ActivityType activity, string activityName)
-    {
-        int totalElapsed = 0;
-
-        while (totalElapsed < workMinutes)
-        {
-            int remaining = workMinutes - totalElapsed;
-            var (died, segmentElapsed) = RunWorkSegment(location, remaining, activity);
-            totalElapsed += segmentElapsed;
-
-            if (died)
-                return (true, totalElapsed);
-
-            // Check if an event interrupted us
-            if (_ctx.EventOccurredLastUpdate && totalElapsed < workMinutes)
-            {
-                // If event aborted, stop immediately without prompting
-                if (_ctx.LastEventAborted)
-                    break;
-
-                int remainingAfterEvent = workMinutes - totalElapsed;
-                GameDisplay.Render(_ctx, statusText: "Interrupted");
-
-                if (!DesktopIO.Confirm(_ctx, $"Continue {activityName}? ({remainingAfterEvent} min remaining)"))
-                    break;
-            }
-        }
-
-        return (false, totalElapsed);
-    }
-
-    /// <summary>
-    /// Runs a single segment of work until completion, death, or event interruption.
-    /// Returns (died, elapsedMinutes).
-    /// </summary>
-    private (bool died, int elapsed) RunWorkSegment(Location location, int workMinutes, ActivityType activity)
-    {
-        // Use centralized progress method - handles web animation and processes all time at once
-        var (elapsed, interrupted) = GameDisplay.UpdateAndRenderProgress(_ctx, location.Name, workMinutes, activity);
-
-        if (PlayerDied)
-            return (true, elapsed);
-
-        return (false, elapsed);
-    }
 
     // === TRAPPING ===
 
