@@ -66,30 +66,6 @@ public class GameContext(Player player, Location camp, Weather weather)
     [System.Text.Json.Serialization.JsonIgnore]
     public ActiveTravelState? ActiveTravel { get; set; }
 
-    /// <summary>
-    /// Tracks ongoing work state for non-blocking work with animated stats.
-    /// </summary>
-    public class ActiveWorkState
-    {
-        public int TotalMinutes { get; set; }
-        public int SimulatedMinutes { get; set; }
-        public Location WorkLocation { get; set; } = null!;
-        public ActivityType Activity { get; set; }
-        public string ActivityName { get; set; } = "";
-        public bool EventInterrupted { get; set; }
-        public float AnimationProgress { get; set; }
-        public float AnimationDurationSeconds { get; set; }
-        public Expeditions.WorkStrategies.IWorkStrategy? Strategy { get; set; }
-        public bool AwaitingContinueDecision { get; set; }
-        public int MinutesRemainingAfterEvent { get; set; }
-    }
-
-    /// <summary>
-    /// Active work in progress. When set, the main loop processes work simulation incrementally.
-    /// </summary>
-    [System.Text.Json.Serialization.JsonIgnore]
-    public ActiveWorkState? ActiveWork { get; set; }
-
     public int DaysSurvived => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalDays;
 
     // Tension system for tracking building threats/opportunities
