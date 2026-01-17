@@ -416,7 +416,7 @@ public static class LocationFactory
 
         location.Features.Add(FeatureFactory.CreatePickedOverForage(density: 0.4));
         location.Features.Add(SalvageFeature.CreateAbandonedCamp());
-        location.Features.Add(new ShelterFeature("Collapsed Lean-to", 0.2, 0.4, 0.3));
+        location.Features.Add(new ShelterFeature("Collapsed Lean-to", ShelterType.BranchFrame, 0.2, 0.4, 0.3));
 
         return location;
     }
@@ -966,7 +966,7 @@ public static class LocationFactory
         location.Features.Add(salvage);
 
         // Collapsed shelter can be repaired
-        location.Features.Add(new ShelterFeature("Collapsed Lean-to", 0.15, 0.3, 0.25));
+        location.Features.Add(new ShelterFeature("Collapsed Lean-to", ShelterType.BranchFrame, 0.15, 0.3, 0.25));
 
         location.Features.Add(FeatureFactory.CreatePickedOverForage(density: 0.3));
 
@@ -1082,7 +1082,8 @@ public static class LocationFactory
         location.Features.Add(ancientBones);
 
         // Natural shelter from mammoth ribs
-        location.Features.Add(new ShelterFeature("Rib Arch", 0.35, 0.4, 0.5));
+        location.Features.Add(new ShelterFeature("Rib Arch", ShelterType.NaturalShelter,
+            0.35, 0.4, 0.5, insulationCap: 0.50, overheadCap: 0.55, windCap: 0.65));
 
         // Megafauna presence - woolly mammoths still pass through this ancient graveyard
         location.Features.Add(new MegafaunaPresenceFeature
@@ -1299,7 +1300,8 @@ public static class LocationFactory
         };
 
         location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.8));
-        location.Features.Add(new ShelterFeature("Tree Hollow", 0.35, 0.8, 0.7));
+        location.Features.Add(new ShelterFeature("Tree Hollow", ShelterType.NaturalShelter,
+            0.35, 0.8, 0.7, insulationCap: 0.50, overheadCap: 0.90, windCap: 0.80));
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.5));
         location.Features.Add(new WoodedAreaFeature("Old Oak", Resource.Oak, 60));
 
@@ -1513,7 +1515,8 @@ public static class LocationFactory
         location.Features.Add(forage);
 
         // Partial shelter from stones
-        location.Features.Add(new ShelterFeature("Stone Circle", 0.15, 0.0, 0.5));
+        location.Features.Add(new ShelterFeature("Stone Circle", ShelterType.NaturalShelter,
+            0.15, 0.0, 0.5, insulationCap: 0.30, overheadCap: 0.0, windCap: 0.60));
 
         return location;
     }
@@ -1595,7 +1598,8 @@ public static class LocationFactory
         };
 
         location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.6));
-        location.Features.Add(new ShelterFeature("Rock Cleft", 0.3, 0.6, 0.7));
+        location.Features.Add(new ShelterFeature("Rock Cleft", ShelterType.NaturalShelter,
+            0.3, 0.6, 0.7, insulationCap: 0.45, overheadCap: 0.75, windCap: 0.80));
 
         return location;
     }
@@ -2071,7 +2075,8 @@ public static class LocationFactory
         };
 
         location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.6));
-        location.Features.Add(new ShelterFeature("Root Hollow", 0.4, 0.8, 0.7));
+        location.Features.Add(new ShelterFeature("Root Hollow", ShelterType.NaturalShelter,
+            0.4, 0.8, 0.7, insulationCap: 0.55, overheadCap: 0.90, windCap: 0.80));
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.5));
 
         return location;
@@ -2167,7 +2172,8 @@ public static class LocationFactory
             .AsSolidIce();
         location.Features.Add(waterFeature);
 
-        location.Features.Add(new ShelterFeature("Ice Pocket", 0.25, 0.4, 0.6));
+        location.Features.Add(new ShelterFeature("Ice Pocket", ShelterType.NaturalShelter,
+            0.25, 0.4, 0.6, insulationCap: 0.35, overheadCap: 0.55, windCap: 0.70));
 
         return location;
     }
@@ -2448,7 +2454,8 @@ public static class LocationFactory
         };
 
         location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
-        location.Features.Add(new ShelterFeature("Rock Shelter", 0.5, 0.9, 0.8));
+        location.Features.Add(new ShelterFeature("Rock Shelter", ShelterType.NaturalShelter,
+            0.5, 0.9, 0.8, insulationCap: 0.65, overheadCap: 0.95, windCap: 0.90));
         location.Features.Add(SalvageFeature.CreateAbandonedCamp());
 
         return location;

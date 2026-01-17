@@ -159,7 +159,10 @@ public class ShelterImprovementStrategy : IWorkStrategy
         string resultMessage;
         if (improvement < 0.001)
         {
-            resultMessage = $"The shelter's {typeName} is at its limit for this frame type.";
+            if (shelter.IsNatural)
+                resultMessage = $"This {shelter.Name.ToLower()}'s {typeName} can't be improved further.";
+            else
+                resultMessage = $"The shelter's {typeName} is at its limit for this frame type.";
         }
         else
         {

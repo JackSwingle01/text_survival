@@ -701,11 +701,13 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     {
         if (config.FeatureType == typeof(ShelterFeature))
         {
-            // Default shelter stats if no config provided
+            // Improvised shelters are natural formations with limited improvement potential
             if (config.Config is (double temp, double overhead, double wind))
-                return new ShelterFeature("Improvised Shelter", temp, overhead, wind);
+                return new ShelterFeature("Improvised Shelter", ShelterType.NaturalShelter,
+                    temp, overhead, wind, insulationCap: temp + 0.15, overheadCap: overhead + 0.15, windCap: wind + 0.15);
             else
-                return new ShelterFeature("Improvised Shelter", 0.3, 0.4, 0.5);
+                return new ShelterFeature("Improvised Shelter", ShelterType.NaturalShelter,
+                    0.3, 0.4, 0.5, insulationCap: 0.45, overheadCap: 0.55, windCap: 0.65);
         }
 
         if (config.FeatureType == typeof(WaterFeature))

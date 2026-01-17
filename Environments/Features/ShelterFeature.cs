@@ -14,7 +14,8 @@ public enum ShelterType
     DenseThicket,
     FallenTree,
     SnowShelter,
-    HideTent
+    HideTent,
+    NaturalShelter
 }
 
 public record ShelterTypeConfig(
@@ -39,7 +40,7 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
         if (hasMaterials)
         {
             yield return new WorkOption(
-                $"Improve shelter ({Quality:P0})",
+                "Improve shelter",
                 "improve_shelter",
                 new ShelterImprovementStrategy()
             );
@@ -80,7 +81,10 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
         // SnowShelter: Emergency shelter, cannot be improved (caps = base)
         [ShelterType.SnowShelter] = new(0.60, 0.90, 0.80, 0.60, 0.90, 0.80, IsNatural: false, IsSnowShelter: true),
         // HideTent: Portable, limited improvement potential
-        [ShelterType.HideTent] = new(0.50, 0.90, 0.70, 0.60, 0.95, 0.80, IsNatural: false)
+        [ShelterType.HideTent] = new(0.50, 0.90, 0.70, 0.60, 0.95, 0.80, IsNatural: false),
+
+        // Generic natural shelter - high caps, actual limits set per-shelter via constructor
+        [ShelterType.NaturalShelter] = new(0.20, 0.50, 0.40, 0.80, 0.90, 0.80, IsNatural: true)
     };
 
     public static ShelterTypeConfig GetConfig(ShelterType type) =>
@@ -92,20 +96,31 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
     #region Caps
 
-    public double InsulationCap => Config.InsulationCap;
-    public double OverheadCap => Config.OverheadCap;
-    public double WindCap => Config.WindCap;
+    // Optional custom caps that override type defaults
+    private double? _customInsulationCap;
+    private double? _customOverheadCap;
+    private double? _customWindCap;
+
+    public double InsulationCap => _customInsulationCap ?? Config.InsulationCap;
+    public double OverheadCap => _customOverheadCap ?? Config.OverheadCap;
+    public double WindCap => _customWindCap ?? Config.WindCap;
 
     #endregion
 
     #region Constructors
 
-    public ShelterFeature(string name, double tempInsulation, double overheadCoverage, double windCoverage, bool isSnowShelter = false) : base(name)
+    public ShelterFeature(string name, ShelterType type,
+        double tempInsulation, double overheadCoverage, double windCoverage,
+        double? insulationCap = null, double? overheadCap = null, double? windCap = null) : base(name)
     {
+        ShelterType = type;
         TemperatureInsulation = tempInsulation;
         OverheadCoverage = overheadCoverage;
         WindCoverage = windCoverage;
-        IsSnowShelter = isSnowShelter;
+        IsSnowShelter = GetConfig(type).IsSnowShelter;
+        _customInsulationCap = insulationCap;
+        _customOverheadCap = overheadCap;
+        _customWindCap = windCap;
     }
 
     public ShelterFeature(string name, ShelterType type) : base(name)
@@ -403,13 +418,8 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
     public static ShelterFeature CreateFallenTree() => new("Fallen Tree Shelter", ShelterType.FallenTree);
 
-    public static ShelterFeature CreateSnowShelter() => new("Snow shelter",
-        tempInsulation: 0.6,  // Snow is excellent insulator
-        overheadCoverage: 0.9,
-        windCoverage: 0.8,
-        isSnowShelter: true   // Will degrade if temp > 40°F
-    )
-    { ShelterType = ShelterType.SnowShelter };
+    public static ShelterFeature CreateSnowShelter() =>
+        new("Snow shelter", ShelterType.SnowShelter, 0.6, 0.9, 0.8);
 
     public static ShelterFeature CreateHideTent() => new("Hide tent", ShelterType.HideTent);
 
@@ -420,13 +430,12 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
         var shelter = new ShelterFeature(
             tent.Name,
+            ShelterType.HideTent,
             tent.ShelterTempInsulation,
             tent.ShelterOverheadCoverage,
-            tent.ShelterWindCoverage,
-            isSnowShelter: false
+            tent.ShelterWindCoverage
         );
         shelter.SourceTent = tent;
-        shelter.ShelterType = ShelterType.HideTent;
         return shelter;
     }
 

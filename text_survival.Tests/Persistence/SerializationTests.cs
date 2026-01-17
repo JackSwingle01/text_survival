@@ -303,7 +303,7 @@ public class SerializationTests
         var originalFeatureCount = testLocation.Features.Count;
 
         // ShelterFeature with partial damage
-        var shelter = new ShelterFeature("lean-to", 0.8, 0.7, 0.6);
+        var shelter = new ShelterFeature("lean-to", ShelterType.BranchFrame, 0.8, 0.7, 0.6);
         shelter.Damage(0.2); // Simulate some wear
         testLocation.Features.Add(shelter);
 

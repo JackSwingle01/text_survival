@@ -125,7 +125,7 @@ public class EventConditionTests
         // Arrange
         var ctx = CreateTestContext();
         ctx.CurrentLocation.Features.Add(new ShelterFeature(
-            "test_shelter", 0.8, 0.5, 0.6));
+            "test_shelter", ShelterType.BranchFrame, 0.8, 0.5, 0.6));
 
         // Act & Assert
         Assert.True(ctx.Check(EventCondition.HasShelter));

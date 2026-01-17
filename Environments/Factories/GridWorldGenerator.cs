@@ -617,9 +617,13 @@ public class GridWorldGenerator
         camp.Features.Add(FeatureFactory.CreateMixedForestForage(density: 1.5));
         camp.Features.Add(new ShelterFeature(
             name: "Overhang",
+            type: ShelterType.NaturalShelter,
             tempInsulation: 0.55,
             overheadCoverage: 0.3,
-            windCoverage: 0.4
+            windCoverage: 0.4,
+            insulationCap: 0.70,
+            overheadCap: 0.50,
+            windCap: 0.55
         ));
         camp.Features.Add(BeddingFeature.CreateCampBedding());
         camp.MarkExplored();

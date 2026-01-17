@@ -330,7 +330,7 @@ public static class StatsPanel
                             hasModifiers = true;
                             int pctChange = (int)((modifier - 1.0) * 100);
                             Vector4 modColor = pctChange >= 0 ? ColorGood : ColorDanger;
-                            ImGui.TextColored(modColor, $"{capacity}: {pctChange:+0;-0}%");
+                            ImGui.TextColored(modColor, $"{capacity}: {pctChange:+0;-0}%%");
                         }
                     }
 
@@ -459,8 +459,8 @@ public static class StatsPanel
             int insulation = (int)Math.Round(shelter.TemperatureInsulation * 100);
             int wind = (int)Math.Round(shelter.WindCoverage * 100);
             int overhead = (int)Math.Round(shelter.OverheadCoverage * 100);
-            ImGui.Text($"  Shelter: {insulation}% insulation");
-            ImGui.TextDisabled($"    Wind: {wind}% | Overhead: {overhead}%");
+            ImGui.Text($"  Shelter: {insulation}%% insulation");
+            ImGui.TextDisabled($"    Wind: {wind}%% | Overhead: {overhead}%%");
         }
 
         // Bedding info

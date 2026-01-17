@@ -161,6 +161,7 @@ public partial class GameRunner(GameContext ctx)
                 if (input.OpenCrafting) return "crafting";
                 if (input.OpenDiscoveryLog) return "discovery_log";
                 if (input.OpenNPCs) return "npcs";
+                if (input.OpenStorage) return "storage";
                 if (input.ToggleFire) return HasActiveFire() ? "tend_fire" : "start_fire";
                 if (input.Wait) return "wait";
                 if (input.Cancel) tilePopup?.Hide();
