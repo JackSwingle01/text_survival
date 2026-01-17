@@ -183,12 +183,11 @@ public static class StatsPanel
             ImGui.TableNextColumn();
             ImGui.TextColored(airColor, $"{airTemp:F0}F");
 
-            // Insulation row
+            // Clothing Warmth row
             ImGui.TableNextColumn();
-            ImGui.Text("Insulation");
+            ImGui.Text("Clothing Warmth");
             ImGui.TableNextColumn();
-            Vector4 warmthColor = warmthPct < 30 ? ColorDanger : warmthPct < 60 ? ColorWarning : ColorGood;
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, warmthColor);
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, ColorWarning);
             ImGui.ProgressBar(warmthPct / 100f, new Vector2(-1, 18), $"{warmthPct}%");
             ImGui.PopStyleColor();
 

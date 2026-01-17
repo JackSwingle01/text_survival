@@ -72,6 +72,7 @@ public class NPCOverlay
         RenderStatBar("Energy", (float)npc.Body.EnergyPct, GetStatColor(npc.Body.EnergyPct));
         RenderStatBar("Food", (float)npc.Body.FullPct, GetStatColor(npc.Body.FullPct));
         RenderStatBar("Water", (float)npc.Body.HydratedPct, GetStatColor(npc.Body.HydratedPct));
+        RenderStatBar("Clothing Warmth", (float)npc.Body.ClothingHeatBufferPct, new Vector4(1f, 0.8f, 0.3f, 1f));
 
         // Active effects
         var effects = npc.EffectRegistry.GetAll().ToList();

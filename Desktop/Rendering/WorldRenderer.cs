@@ -144,6 +144,31 @@ public class WorldRenderer
             }
         }
 
+        // Render herd animal icons
+        foreach (var (worldX, worldY) in Camera.GetVisibleTiles())
+        {
+            if (map.IsValidPosition(worldX, worldY))
+            {
+                var visibility = map.GetVisibility(worldX, worldY);
+                if (visibility == Environments.Grid.TileVisibility.Visible)
+                {
+                    var position = new GridPosition(worldX, worldY);
+                    var herds = ctx.Herds.GetHerdsAt(position);
+
+                    // Render up to 3 herds per tile at cardinal positions
+                    int slot = 0;
+                    foreach (var herd in herds)
+                    {
+                        if (slot >= 3) break; // Limit to 3 herds per tile for clarity
+
+                        var screenPos = Camera.GetTileCenter(worldX, worldY);
+                        TileRenderer.DrawAnimalIcon(screenPos.X, screenPos.Y, Camera.TileSize, herd.AnimalType, slot);
+                        slot++;
+                    }
+                }
+            }
+        }
+
         // Render weather effects
         _effects.RenderSnow(Camera.ScreenOffsetX, Camera.ScreenOffsetY, Camera.GridWidth, Camera.GridHeight);
 
