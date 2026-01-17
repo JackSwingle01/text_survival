@@ -14,25 +14,12 @@ namespace text_survival.Actors.Animals;
 /// </summary>
 public enum HerdState
 {
-    /// <summary>Staying in place, low alertness.</summary>
     Resting,
-
-    /// <summary>Moving slowly within territory, eating. Reduces hunger.</summary>
     Grazing,
-
-    /// <summary>Predators only: moving through territory actively.</summary>
     Patrolling,
-
-    /// <summary>Detected stimulus, assessing threat. Freezes in place.</summary>
     Alert,
-
-    /// <summary>Prey response: moving away from threat quickly.</summary>
     Fleeing,
-
-    /// <summary>Predator response: pursuing player.</summary>
     Hunting,
-
-    /// <summary>Predators at a kill, consuming prey. Will defend aggressively.</summary>
     Feeding
 }
 
@@ -46,81 +33,50 @@ public class Herd
 
     #region Identity
 
-    /// <summary>Type of animals in this herd (Wolf, Bear, Caribou, etc.).</summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public AnimalTypeEnum AnimalType { get; set; }
 
-    /// <summary>The animals in this herd. Reuses existing Animal class for combat stats.</summary>
-    /// <remarks>Not serialized - recreated on load from MemberCount and AnimalType.</remarks>
     [JsonIgnore]
     public List<Animal> Members { get; private set; } = [];
 
-    /// <summary>Number of members for serialization. Animals recreated on load.</summary>
     public int MemberCount { get; set; }
 
     #endregion
 
     #region Position & Territory
 
-    /// <summary>Current tile position on the map.</summary>
     public GridPosition Position { get; set; }
-
-    /// <summary>Tiles this herd uses as its home range.</summary>
     public List<GridPosition> HomeTerritory { get; set; } = [];
-
-    /// <summary>Current index in territory patrol cycle.</summary>
     public int TerritoryIndex { get; set; }
-
-    /// <summary>Destination tile when traveling. Null if not traveling.</summary>
     public GridPosition? TravelDestination { get; set; }
-
-    /// <summary>Minutes remaining until travel completes.</summary>
     public int TravelTimeRemainingMinutes { get; set; }
 
     #endregion
 
     #region State Machine
 
-    /// <summary>Current behavioral state.</summary>
     public HerdState State { get; set; } = HerdState.Resting;
-
-    /// <summary>How long the herd has been in current state (minutes).</summary>
     public int StateTimeMinutes { get; set; }
 
     #endregion
 
     #region Shared Condition
 
-    /// <summary>Shared hunger level (0 = full, 1 = starving). Drives grazing behavior.</summary>
     public double Hunger { get; set; }
-
-    /// <summary>Whether this herd has a wounded member (affects behavior).</summary>
     public bool IsWounded { get; set; }
-
-    /// <summary>Severity of wound (0-1) for wounded herds.</summary>
     public double WoundSeverity { get; set; }
-
-    /// <summary>Learned fear from recent combat (0-1). Reduces aggression toward all targets. Decays over time.</summary>
     public double Fear { get; set; }
-
-    /// <summary>Game time in minutes when this herd last engaged in combat.</summary>
     public int LastCombatMinutes { get; set; } = -9999;
 
     #endregion
 
     #region Behavior Strategy
 
-    /// <summary>Type of behavior for serialization. Behavior is recreated from this on load.</summary>
     public HerdBehaviorType BehaviorType { get; set; } = HerdBehaviorType.Prey;
 
-    /// <summary>The behavior strategy implementation. Not serialized - recreated on load.</summary>
     [JsonIgnore]
     public IHerdBehavior? Behavior { get; private set; }
 
-    /// <summary>
-    /// Recreates the behavior strategy from BehaviorType.
-    /// Called after deserialization.
-    /// </summary>
     public void RecreateBehavior()
     {
         Behavior = BehaviorType switch
@@ -133,9 +89,6 @@ public class Herd
         };
     }
 
-    /// <summary>
-    /// Sets the behavior type and creates the behavior instance.
-    /// </summary>
     public void SetBehavior(HerdBehaviorType type)
     {
         BehaviorType = type;
@@ -146,31 +99,24 @@ public class Herd
 
     #region Derived Properties
 
-    /// <summary>True if this is a predator herd (wolf, bear, etc.).</summary>
     [JsonIgnore]
     public bool IsPredator => AnimalType.IsPredator();
 
-    /// <summary>Detection range in tiles based on animal type.</summary>
     [JsonIgnore]
     public int BaseDetectionRange => AnimalType.BaseDetectionRange();
 
-    /// <summary>Number of animals in the herd.</summary>
     [JsonIgnore]
     public int Count => Members.Count > 0 ? Members.Count : MemberCount;
 
-    /// <summary>True if the herd has no members left.</summary>
     [JsonIgnore]
     public bool IsEmpty => Count == 0;
 
-    /// <summary>Total mass of all herd members in kg.</summary>
     [JsonIgnore]
     public double TotalMassKg => Members.Sum(m => m.Body.WeightKG);
 
-    /// <summary>The diet type for this herd based on animal type.</summary>
     [JsonIgnore]
     public AnimalDiet Diet => AnimalType.GetDiet();
 
-    /// <summary>True if the herd is currently traveling between tiles.</summary>
     [JsonIgnore]
     public bool IsTraveling => TravelDestination != null;
 
@@ -178,14 +124,8 @@ public class Herd
 
     #region Constructor
 
-    /// <summary>
-    /// Creates a new herd. Use static factory methods for convenience.
-    /// </summary>
     public Herd() { }
 
-    /// <summary>
-    /// Creates a herd with specified type and starting position.
-    /// </summary>
     public static Herd Create(AnimalTypeEnum animalType, GridPosition startPosition, List<GridPosition> territory)
     {
         var behaviorType = animalType.GetBehaviorType();
@@ -215,28 +155,18 @@ public class Herd
 
     #region Member Management
 
-    /// <summary>
-    /// Adds an animal to the herd.
-    /// </summary>
     public void AddMember(Animal animal)
     {
         Members.Add(animal);
         MemberCount = Members.Count;
     }
 
-    /// <summary>
-    /// Removes an animal from the herd (after kill).
-    /// </summary>
     public void RemoveMember(Animal animal)
     {
         Members.Remove(animal);
         MemberCount = Members.Count;
     }
 
-    /// <summary>
-    /// Recreates animal members from MemberCount and AnimalType.
-    /// Called after deserialization.
-    /// </summary>
     public void RecreateMembers(GameMap map)
     {
         if (Members.Count > 0 || MemberCount == 0) return;
@@ -253,19 +183,12 @@ public class Herd
         }
     }
 
-    /// <summary>
-    /// Gets a random member from the herd (for hunt target selection).
-    /// </summary>
     public Animal? GetRandomMember()
     {
         if (Members.Count == 0) return null;
         return Members[_rng.Next(Members.Count)];
     }
 
-    /// <summary>
-    /// Splits off a wounded animal into its own herd of size 1.
-    /// Returns the new herd containing the wounded animal.
-    /// </summary>
     public Herd SplitOffWounded(Animal animal, GridPosition fleeDirection)
     {
         Members.Remove(animal);
@@ -293,13 +216,6 @@ public class Herd
 
     #region State Machine Update
 
-    /// <summary>
-    /// Updates the herd using behavior strategy. Called each game minute.
-    /// New signature takes GameContext instead of individual parameters.
-    /// </summary>
-    /// <param name="elapsedMinutes">Minutes elapsed since last update.</param>
-    /// <param name="ctx">Game context for behavior processing.</param>
-    /// <returns>Result containing any encounters, narratives, or carcass creations.</returns>
     public HerdUpdateResult Update(int elapsedMinutes, GameContext ctx)
     {
         // Ensure behavior is initialized
@@ -323,10 +239,6 @@ public class Herd
 
     #region Movement
 
-    /// <summary>
-    /// Initiates travel to a destination. Calculates travel time using TravelProcessor.
-    /// Returns false if already traveling or destination invalid.
-    /// </summary>
     public bool StartTravelTo(GridPosition destination, GameMap map)
     {
         if (TravelDestination != null) return false; // Already traveling
@@ -346,9 +258,6 @@ public class Herd
         return true;
     }
 
-    /// <summary>
-    /// Updates travel progress. Call each tick. Returns true if travel completed this tick.
-    /// </summary>
     public bool UpdateTravel(int elapsedMinutes)
     {
         if (TravelDestination == null) return false;
@@ -366,9 +275,6 @@ public class Herd
         return false;
     }
 
-    /// <summary>
-    /// Moves randomly within territory (for grazing).
-    /// </summary>
     private void MoveWithinTerritory()
     {
         if (HomeTerritory.Count == 0) return;
@@ -381,9 +287,6 @@ public class Herd
         }
     }
 
-    /// <summary>
-    /// Moves to next tile in territory patrol (for predators).
-    /// </summary>
     private void MoveToNextTerritoryTile()
     {
         if (HomeTerritory.Count == 0) return;
@@ -396,9 +299,6 @@ public class Herd
         }
     }
 
-    /// <summary>
-    /// Moves toward a target position.
-    /// </summary>
     private void MoveToward(GridPosition target)
     {
         // Move one tile toward target per update
@@ -420,9 +320,6 @@ public class Herd
         }
     }
 
-    /// <summary>
-    /// Moves away from a threat position.
-    /// </summary>
     private void MoveAwayFrom(GridPosition threat)
     {
         // Move one tile away from threat
@@ -450,9 +347,6 @@ public class Herd
 
     #region Description
 
-    /// <summary>
-    /// Gets a description of this herd for player display.
-    /// </summary>
     public string GetDescription()
     {
         string countDesc = Count switch
@@ -482,9 +376,6 @@ public class Herd
         return $"{countDesc} {animalName}, {stateDesc}";
     }
 
-    /// <summary>
-    /// Gets a track/sign description for foraging clues.
-    /// </summary>
     public string GetTrackDescription()
     {
         return AnimalType switch
