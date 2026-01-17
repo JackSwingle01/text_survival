@@ -1018,6 +1018,65 @@ public class NPC : Actor
         _ => 0
     };
 
+    #region Shelter Improvement
+
+    private bool ShouldImproveShelter()
+    {
+        if (CurrentLocation != Camp) return false;
+        var shelter = Camp?.GetFeature<ShelterFeature>();
+        if (shelter == null || shelter.IsDestroyed) return false;
+        if (shelter.Quality >= 0.8) return false;  // Good enough
+        return HasAnyShelterMaterials();
+    }
+
+    private bool HasAnyShelterMaterials()
+    {
+        return MaterialProperties.ShelterMaterials.Any(m => Inventory.Count(m) > 0);
+    }
+
+    private NPCAction? TryImproveShelter()
+    {
+        if (!ShouldImproveShelter()) return null;
+
+        var shelter = Camp!.GetFeature<ShelterFeature>()!;
+
+        // Find weakest stat that can still be improved
+        var type = GetWeakestImprovableType(shelter);
+        if (type == null) return null;
+
+        // Find best material for that type
+        var material = GetBestMaterialFor(type.Value);
+        if (material == null) return null;
+
+        Console.WriteLine($"[NPC:{Name}] Improving shelter ({type.Value.ToString().ToLower()}) with {material.Value.ToDisplayName()}");
+        return new NPCImproveShelter(type.Value, material.Value);
+    }
+
+    private ShelterImprovementType? GetWeakestImprovableType(ShelterFeature shelter)
+    {
+        // Return the type with most room for improvement
+        var options = new[]
+        {
+            (type: ShelterImprovementType.Insulation, gap: shelter.InsulationCap - shelter.TemperatureInsulation),
+            (type: ShelterImprovementType.Overhead, gap: shelter.OverheadCap - shelter.OverheadCoverage),
+            (type: ShelterImprovementType.Wind, gap: shelter.WindCap - shelter.WindCoverage)
+        };
+
+        var best = options.Where(o => o.gap > 0.05).OrderByDescending(o => o.gap).FirstOrDefault();
+        return best.gap > 0 ? best.type : null;
+    }
+
+    private Resource? GetBestMaterialFor(ShelterImprovementType type)
+    {
+        return MaterialProperties.ShelterMaterials
+            .Where(m => Inventory.Count(m) > 0)
+            .OrderByDescending(m => MaterialProperties.GetEffectiveness(m, type))
+            .Cast<Resource?>()
+            .FirstOrDefault();
+    }
+
+    #endregion
+
     private NPCAction? TryCraftSpecificTool(ToolType toolType)
     {
         Console.WriteLine($"    [Craft] TryCraftSpecificTool({toolType})");
