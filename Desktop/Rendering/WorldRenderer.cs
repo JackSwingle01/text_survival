@@ -105,9 +105,24 @@ public class WorldRenderer
     }
 
     /// <summary>
-    /// Render the world grid.
+    /// Render the world grid or combat grid based on context.
     /// </summary>
     public void Render(GameContext ctx)
+    {
+        if (ctx.ActiveCombat != null)
+        {
+            RenderCombatGrid(ctx);
+        }
+        else
+        {
+            RenderWorldGrid(ctx);
+        }
+    }
+
+    /// <summary>
+    /// Render the world grid.
+    /// </summary>
+    private void RenderWorldGrid(GameContext ctx)
     {
         float timeFactor = CalculateTimeFactor(ctx);
 
@@ -390,5 +405,158 @@ public class WorldRenderer
     public void ClearSelection()
     {
         _selectedTile = null;
+    }
+
+    /// <summary>
+    /// Render the combat grid (25x25m tactical view).
+    /// </summary>
+    private void RenderCombatGrid(GameContext ctx)
+    {
+        var combat = ctx.ActiveCombat;
+        if (combat == null) return;
+
+        // Dark battlefield background
+        Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(20, 20, 25, 255));
+
+        // Calculate grid parameters
+        int gridSize = 25; // 25x25 meter grid
+        int screenWidth = Camera.GridWidth;
+        int screenHeight = Camera.GridHeight;
+        int cellSize = Math.Min(screenWidth / gridSize, screenHeight / gridSize);
+        int gridPixelWidth = cellSize * gridSize;
+        int gridPixelHeight = cellSize * gridSize;
+        int offsetX = Camera.ScreenOffsetX + (screenWidth - gridPixelWidth) / 2;
+        int offsetY = Camera.ScreenOffsetY + (screenHeight - gridPixelHeight) / 2;
+
+        // Draw terrain background (use current location terrain)
+        var terrain = ctx.CurrentLocation?.Terrain.ToString() ?? "Plain";
+        var terrainColor = terrain switch
+        {
+            "Forest" => new Color(30, 40, 25, 255),
+            "Rocky" => new Color(40, 40, 45, 255),
+            "Ice" => new Color(200, 210, 220, 255),
+            "Snow" => new Color(220, 225, 230, 255),
+            _ => new Color(35, 35, 30, 255)
+        };
+        Raylib.DrawRectangle(offsetX, offsetY, gridPixelWidth, gridPixelHeight, terrainColor);
+
+        // Draw grid lines
+        var gridLineColor = new Color(60, 60, 65, 100);
+        for (int x = 0; x <= gridSize; x++)
+        {
+            int lineX = offsetX + x * cellSize;
+            Raylib.DrawLine(lineX, offsetY, lineX, offsetY + gridPixelHeight, gridLineColor);
+        }
+        for (int y = 0; y <= gridSize; y++)
+        {
+            int lineY = offsetY + y * cellSize;
+            Raylib.DrawLine(offsetX, lineY, offsetX + gridPixelWidth, lineY, gridLineColor);
+        }
+
+        // Draw distance zone circles (centered on player)
+        if (combat.Player != null)
+        {
+            var playerScreenX = offsetX + combat.Player.Position.X * cellSize + cellSize / 2;
+            var playerScreenY = offsetY + combat.Player.Position.Y * cellSize + cellSize / 2;
+
+            // Zone colors (faint)
+            var closeZoneColor = new Color(255, 200, 100, 30);
+            var nearZoneColor = new Color(255, 150, 80, 25);
+            var midZoneColor = new Color(255, 100, 50, 20);
+            var farZoneColor = new Color(200, 80, 40, 15);
+
+            // Draw zones (1m = 1 cell)
+            Raylib.DrawCircle(playerScreenX, playerScreenY, 1 * cellSize, closeZoneColor);   // 0-1m
+            Raylib.DrawCircle(playerScreenX, playerScreenY, 3 * cellSize, nearZoneColor);   // 0-3m
+            Raylib.DrawCircle(playerScreenX, playerScreenY, 15 * cellSize, midZoneColor);   // 0-15m
+            Raylib.DrawCircle(playerScreenX, playerScreenY, 25 * cellSize, farZoneColor);   // 0-25m (max)
+        }
+
+        // Draw units
+        foreach (var unit in combat.Units)
+        {
+            if (!unit.actor.IsAlive) continue;
+
+            var screenX = offsetX + unit.Position.X * cellSize + cellSize / 2;
+            var screenY = offsetY + unit.Position.Y * cellSize + cellSize / 2;
+
+            // Determine team color
+            Color teamColor;
+            if (unit == combat.Player)
+            {
+                teamColor = new Color(80, 150, 255, 255); // Blue for player
+            }
+            else if (combat.Team1.Contains(unit))
+            {
+                teamColor = new Color(100, 255, 100, 255); // Green for allies
+            }
+            else
+            {
+                teamColor = new Color(255, 80, 80, 255); // Red for enemies
+            }
+
+            // Draw unit icon
+            float iconScale = cellSize / 40f; // Scale based on cell size
+            if (unit.actor is Actors.Animals.Animal animal)
+            {
+                var animalType = Actors.Animals.AnimalTypes.Parse(animal.Name);
+                if (animalType.HasValue)
+                {
+                    // Draw team-colored circle underneath
+                    Raylib.DrawCircle(screenX, screenY, cellSize / 3, new Color((byte)teamColor.R, (byte)teamColor.G, (byte)teamColor.B, (byte)100));
+
+                    // Draw animal sprite
+                    AnimalRenderer.DrawAnimal(animalType.Value, screenX, screenY, iconScale);
+                }
+            }
+            else
+            {
+                // Player or NPC - draw as circle with person icon
+                Raylib.DrawCircle(screenX, screenY, cellSize / 3, teamColor);
+                // Simple person icon (stick figure approximation)
+                Raylib.DrawCircle(screenX, (int)(screenY - cellSize / 6), cellSize / 10, Color.White);
+            }
+
+            // Draw health bar above unit
+            float vitality = (float)unit.actor.Vitality;
+            int barWidth = cellSize - 4;
+            int barHeight = 4;
+            int barX = screenX - barWidth / 2;
+            int barY = screenY - cellSize / 2 - 8;
+
+            // Background (dark)
+            Raylib.DrawRectangle(barX, barY, barWidth, barHeight, new Color(40, 40, 40, 200));
+
+            // Health fill (green -> yellow -> red)
+            Color healthColor = vitality switch
+            {
+                >= 0.7f => new Color(100, 255, 100, 255),
+                >= 0.4f => new Color(255, 255, 100, 255),
+                _ => new Color(255, 100, 100, 255)
+            };
+            int fillWidth = (int)(barWidth * vitality);
+            if (fillWidth > 0)
+            {
+                Raylib.DrawRectangle(barX, barY, fillWidth, barHeight, healthColor);
+            }
+
+            // Draw boldness ring (for enemies)
+            if (!combat.Team1.Contains(unit))
+            {
+                float boldness = (float)unit.Boldness;
+                int ringRadius = cellSize / 2 + 2;
+                Color ringColor = boldness switch
+                {
+                    >= 0.7f => new Color(255, 100, 100, 150), // Aggressive - bright red
+                    >= 0.5f => new Color(255, 180, 100, 120), // Bold - orange
+                    >= 0.3f => new Color(255, 255, 100, 100), // Wary - yellow
+                    _ => new Color(200, 200, 200, 80)          // Cautious - gray
+                };
+                Raylib.DrawCircleLines(screenX, screenY, ringRadius, ringColor);
+            }
+        }
+
+        // Draw grid border
+        Raylib.DrawRectangleLines(offsetX, offsetY, gridPixelWidth, gridPixelHeight, new Color(100, 100, 110, 255));
     }
 }

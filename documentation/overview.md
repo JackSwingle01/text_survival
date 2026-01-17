@@ -386,51 +386,76 @@ Tensions interact with: events (tensions modify event weights, events modify ten
 
 ## Combat System
 
-Distance-zone based strategic combat. Emerges from hunting, events, or predator encounters.
+Grid-based tactical combat system. Combat emerges from hunting, events, or predator encounters.
 
-**Design Philosophy** — Predator encounters should feel dramatic, tense, deadly, and strategic. One wrong move against a megafauna or large predator can be life-threatening. Combat rewards preparation, reading the situation, and making calculated decisions under pressure.
+**Architecture** — Two-layer system:
+- `CombatOrchestrator` — Handles combat loop, player input, and UI coordination
+- `CombatScenario` — Combat state, rules, action execution, and AI processing
 
-**Distance Zones** — Distance is the single source of truth, constraining both player and animal options:
-- Melee (0-3m) — grappling range, desperate close-quarters
-- Close (3-8m) — weapon strike range, main combat zone
-- Mid (8-15m) — thrown weapon range, circling/threatening
-- Far (15-25m) — standoff distance, approach or disengage
+**Entry Points** — Three ways to enter combat:
+- **Hunting** — `HuntRunner` transitions to combat when animal confronted
+- **Encounters** — `EncounterRunner` transitions when predator charges or player fights
+- **Events** — `GameContext` spawns encounters during activities
 
-**Animal Behavior States** — Each zone limits which behaviors are available:
-- Circling — sizing up, repositioning (Far/Mid)
-- Approaching — closing distance (Far)
-- Threatening — posturing, about to strike (Mid/Close)
-- Attacking — lunging, biting, resolves damage (Close/Melee)
-- Recovering — off-balance after attack, vulnerable (Close/Melee)
-- Retreating — backing off (all zones)
-- Disengaging — trying to break contact (Melee)
+**Combat Grid** — 25x25 meter tactical grid (1m per cell):
+- Units positioned at grid coordinates
+- Distance determines available actions
+- Movement costs action, affects morale
+- Map edges allow fleeing
 
-Boldness (0-1) influences which available behavior the animal chooses. Calculated from context: player injured, carrying meat, low vitality. Modified by player actions — holding ground reduces boldness, retreating increases it.
+**Distance Zones:**
+- **Close (0-1m)** — Melee range, grappling distance
+- **Near (1-3m)** — Primary combat zone, weapon strike range
+- **Mid (3-15m)** — Throwing range, intimidation
+- **Far (15-25m)** — Standoff distance, approach or disengage
 
-**Player Options by Zone**:
-- Far: Disengage, intimidate, drop meat, close in
-- Mid: Throw weapon, intimidate, careful retreat, close in
-- Close: Thrust (spear), hold ground, brace, back away, close to melee
-- Melee: Strike, shove, grapple, play dead
+**Player Actions by Zone:**
+- **Close:** Attack, Block, Shove, Retreat
+- **Near:** Attack, Dodge, Block, Advance, Retreat
+- **Mid:** Throw (if weapon), Intimidate, Advance, Retreat
+- **Far:** Intimidate, Advance, Retreat
 
-**Defensive Actions** — Prepared before animal attacks:
-- Dodge — avoid damage entirely, costs energy, pushes you back
-- Block — reduce damage with weapon, costs weapon durability
-- Brace — set spear against charge, deals counter-damage if animal attacks
-- Give Ground — retreat to avoid attack, shows weakness (increases boldness)
+**Combat Actions:**
+- **Attack** — Melee strike, 90% base hit chance
+- **Throw** — Ranged attack, weapon lost, hit chance decreases with distance
+- **Dodge** — Set defensive stance, costs energy, pushes back 1m on success
+- **Block** — Reduce incoming damage with weapon (damages weapon durability)
+- **Shove** — Push enemy back based on strength/weight ratio
+- **Intimidate** — Lower enemy boldness, may cause retreat
+- **Advance/Retreat** — Move 3m toward/away from nearest enemy
 
-**Targeted Attacks** — At Close range, player can target specific body parts:
-- Legs — cripples movement, easier hit
-- Torso — standard damage, balanced
-- Head — high damage/lethal potential, risky
+**Morale & Boldness** — AI behavior driven by boldness (0-1):
+- Combat events modify boldness (damage taken/dealt, allies killed, enemy retreat, etc.)
+- Low boldness (<0.3) causes AI to flee
+- High boldness (>0.7) makes AI aggressive
+- Affects AI action selection via `CombatAI`
 
-Animal state affects targeting: Recovering animals easier to hit (vulnerability window), Attacking animals expose their head.
+**Team Combat** — Supports multiple participants:
+- Player can have NPC allies (NPCs decide to help via `DecideToHelpInCombat`)
+- Animals can have pack members from their herd (0-3 random members)
+- Allies/enemies tracked per unit
+- Morale cascades affect team members
 
-**Damage Narratives** — Combat damage reports which body part was hit: "The bear's jaws find your left leg!" Organ damage surfaced when applicable.
+**AI Behavior** — `CombatAI` determines actions:
+- Boldness-based decision making
+- Distance-aware action selection
+- Target selection (weakest enemy, or nearest if none wounded)
+- Movement positioning (advance when bold, retreat when scared)
 
-Combat interacts with: events (can spawn combat), body system (injuries affect options, damage hits specific parts), inventory (meat affects boldness, weapons enable attacks), effects (fear, bleeding, pain from attacks), tensions (predator threats).
+**Combat Resolution:**
+- **Victory** — All enemies dead/fled, creates carcasses via `CarcassFeature`
+- **Defeat** — Player killed
+- **Fled** — Player reached map edge
+- **Animal Fled** — All enemies fled
 
-**Files**: `Actions/CombatRunner.cs`, `Combat/AnimalCombatBehavior.cs`, `Combat/DefensiveActions.cs`, `Combat/CombatState.cs`
+**Damage System** — Integrated with body system:
+- Damage affects body parts, organs, blood
+- Injuries reduce abilities (movement, manipulation, consciousness)
+- Animal vitality shown descriptively (healthy, wounded, badly hurt, near death)
+
+Combat interacts with: events (can spawn combat), body system (damage and abilities), inventory (weapons, meat affects boldness), NPCs (allies), herds (pack members), features (carcasses on victory), abilities (speed for dodge, strength for shove).
+
+**Files:** `Combat/CombatOrchestrator.cs`, `Combat/CombatScenario.cs`, `Combat/CombatAI.cs`, `Combat/ICombatActor.cs`
 
 ---
 
@@ -578,7 +603,7 @@ Handlers — Activity-specific execution logic (static classes)
 - CuringRackHandler: hide/meat preservation
 
 Runners — Control flow, player decisions, display UI also includes:
-- CombatRunner: reusable combat module (can be called from encounters, events, hunts)
+- CombatOrchestrator: grid-based tactical combat (called from encounters, events, hunts)
 
 Handlers take `GameContext`, mutate state directly, handle player choices via `Input`. Runners orchestrate flow; handlers execute specific actions.
 

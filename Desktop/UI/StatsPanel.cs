@@ -197,8 +197,7 @@ public static class StatsPanel
     private static void RenderTemperature(GameContext ctx, Body body, Environments.Location location, Weather weather)
     {
         double bodyTemp = body.BodyTemperature;
-        double feelsLikeTemp = location.GetTemperature();
-        double baseTemp = weather.BaseTemperature;
+        var breakdown = location.GetTemperatureBreakdown();
 
         // Calculate trend
         double trendPerHour = 0;
@@ -208,10 +207,9 @@ public static class StatsPanel
         }
 
         string trendArrow = trendPerHour > 0.5 ? " ^" : trendPerHour < -0.5 ? " v" : "";
-        string trendText = Math.Abs(trendPerHour) > 0.5 ? $" ({trendPerHour:+0.0;-0.0}°F/hr)" : "";
         double tempPct = Math.Clamp((bodyTemp - 90) / 9.0, 0, 1);
         Vector4 tempColor = bodyTemp < 95 ? ColorCold : bodyTemp < 97 ? ColorWarning : ColorGood;
-        Vector4 feelsLikeColor = feelsLikeTemp < 20 ? ColorCold : feelsLikeTemp < 40 ? ColorMuted : ColorWarm;
+        Vector4 feelsLikeColor = breakdown.FinalTemp < 20 ? ColorCold : breakdown.FinalTemp < 40 ? ColorMuted : ColorWarm;
         int warmthPct = (int)(body.ClothingHeatBufferPct * 100);
 
         if (ImGui.BeginTable("temperature", 2))
@@ -241,13 +239,68 @@ public static class StatsPanel
             ImGui.TableNextColumn();
             ImGui.TextColored(ColorHeader, "Feels Like");
             ImGui.TableNextColumn();
-            ImGui.TextColored(feelsLikeColor, $"{feelsLikeTemp:F0}°F");
+            ImGui.TextColored(feelsLikeColor, $"{breakdown.FinalTemp:F0}°F");
 
-            // Base temp (for reference)
+            // Temperature breakdown - only show significant modifiers (> 1°F effect)
+            // Base temp
             ImGui.TableNextColumn();
             ImGui.TextDisabled("  Base");
             ImGui.TableNextColumn();
-            ImGui.TextDisabled($"{baseTemp:F0}°F");
+            ImGui.TextDisabled($"{breakdown.BaseTemp:F0}°F");
+
+            // Location modifier
+            if (Math.Abs(breakdown.LocationMod) > 1)
+            {
+                ImGui.TableNextColumn();
+                ImGui.TextDisabled("  Location");
+                ImGui.TableNextColumn();
+                ImGui.TextDisabled($"{breakdown.LocationMod:+0;-0}°F");
+            }
+
+            // Wind chill (negative)
+            if (breakdown.WindChill < -1)
+            {
+                ImGui.TableNextColumn();
+                ImGui.TextDisabled("  Wind");
+                ImGui.TableNextColumn();
+                ImGui.TextColored(ColorCold, $"{breakdown.WindChill:F0}°F");
+            }
+
+            // Sun warming (positive)
+            if (breakdown.SunWarming > 1)
+            {
+                ImGui.TableNextColumn();
+                ImGui.TextDisabled("  Sun");
+                ImGui.TableNextColumn();
+                ImGui.TextColored(ColorWarm, $"+{breakdown.SunWarming:F0}°F");
+            }
+
+            // Precipitation cooling (negative)
+            if (breakdown.PrecipCooling > 1)
+            {
+                ImGui.TableNextColumn();
+                ImGui.TextDisabled("  Precip");
+                ImGui.TableNextColumn();
+                ImGui.TextColored(ColorCold, $"-{breakdown.PrecipCooling:F0}°F");
+            }
+
+            // Shelter bonus (positive)
+            if (breakdown.ShelterBonus > 1)
+            {
+                ImGui.TableNextColumn();
+                ImGui.TextDisabled("  Shelter");
+                ImGui.TableNextColumn();
+                ImGui.TextColored(ColorWarm, $"+{breakdown.ShelterBonus:F0}°F");
+            }
+
+            // Fire bonus (positive)
+            if (breakdown.FireBonus > 1)
+            {
+                ImGui.TableNextColumn();
+                ImGui.TextDisabled("  Fire");
+                ImGui.TableNextColumn();
+                ImGui.TextColored(ColorWarm, $"+{breakdown.FireBonus:F0}°F");
+            }
 
             // Clothing Warmth row
             ImGui.TableNextColumn();

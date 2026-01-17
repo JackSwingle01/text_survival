@@ -1,6 +1,7 @@
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Combat;
 using text_survival.Desktop.Input;
 using text_survival.Environments.Features;
 
@@ -27,6 +28,21 @@ public class ActionPanel
     /// Render the action panel. Returns the action ID if one was clicked.
     /// </summary>
     public string? Render(GameContext ctx, float deltaTime)
+    {
+        if (ctx.ActiveCombat != null)
+        {
+            return RenderCombatActions(ctx, deltaTime);
+        }
+        else
+        {
+            return RenderLocationActions(ctx, deltaTime);
+        }
+    }
+
+    /// <summary>
+    /// Render location actions (normal gameplay).
+    /// </summary>
+    private string? RenderLocationActions(GameContext ctx, float deltaTime)
     {
         string? clickedAction = null;
 
@@ -251,5 +267,197 @@ public class ActionPanel
         bool hasTreatmentItems = ctx.Inventory.GetCount(ResourceCategory.Medicine) > 0;
 
         return hasTreatableWounds && hasTreatmentItems;
+    }
+
+    /// <summary>
+    /// Render combat actions when in combat mode.
+    /// </summary>
+    private string? RenderCombatActions(GameContext ctx, float deltaTime)
+    {
+        string? clickedAction = null;
+
+        // Position relative to grid if WorldRenderer is available
+        int panelX = 960; // Default fallback
+        if (DesktopRuntime.WorldRenderer != null)
+        {
+            panelX = DesktopRuntime.WorldRenderer.Camera.GetRightPanelX();
+        }
+
+        ImGui.SetNextWindowPos(new Vector2(panelX, 50), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(300, 620), ImGuiCond.Always);
+
+        ImGui.Begin("Combat");
+
+        var combat = ctx.ActiveCombat;
+        if (combat == null || combat.Player == null)
+        {
+            ImGui.End();
+            return null;
+        }
+
+        var playerUnit = combat.Player;
+        var nearest = combat.GetNearestEnemy(playerUnit);
+
+        // Combat header
+        ImGui.TextColored(new Vector4(1f, 0.5f, 0.3f, 1f), "COMBAT");
+        ImGui.Separator();
+
+        // Distance display
+        if (nearest != null)
+        {
+            double distance = playerUnit.Position.DistanceTo(nearest.Position);
+            var zone = CombatScenario.GetZone(distance);
+
+            string zoneText = zone switch
+            {
+                Zone.close => "CLOSE (0-1m)",
+                Zone.near => "NEAR (1-3m)",
+                Zone.mid => "MID (3-15m)",
+                Zone.far => "FAR (15-25m)",
+                _ => "UNKNOWN"
+            };
+
+            Vector4 zoneColor = zone switch
+            {
+                Zone.close => new Vector4(1f, 0.2f, 0.2f, 1f),   // Red - danger
+                Zone.near => new Vector4(1f, 0.5f, 0.2f, 1f),    // Orange
+                Zone.mid => new Vector4(1f, 0.8f, 0.3f, 1f),     // Yellow
+                Zone.far => new Vector4(0.6f, 0.8f, 0.6f, 1f),   // Green - safer
+                _ => new Vector4(0.7f, 0.7f, 0.7f, 1f)
+            };
+
+            ImGui.Text($"Distance: {distance:F0}m");
+            ImGui.TextColored(zoneColor, zoneText);
+
+            // Enemy status
+            ImGui.Separator();
+            ImGui.Text($"Enemy: {nearest.actor.Name}");
+
+            string healthDesc = nearest.actor.Vitality switch
+            {
+                >= 0.9 => "Healthy",
+                >= 0.7 => "Wounded",
+                >= 0.5 => "Badly Hurt",
+                >= 0.3 => "Staggering",
+                _ => "Near Death"
+            };
+
+            Vector4 healthColor = nearest.actor.Vitality switch
+            {
+                >= 0.7 => new Vector4(0.4f, 0.9f, 0.4f, 1f),
+                >= 0.4 => new Vector4(1f, 0.8f, 0.3f, 1f),
+                _ => new Vector4(1f, 0.3f, 0.3f, 1f)
+            };
+
+            ImGui.TextColored(healthColor, healthDesc);
+
+            string boldnessDesc = nearest.Boldness switch
+            {
+                >= 0.7 => "Aggressive",
+                >= 0.5 => "Bold",
+                >= 0.3 => "Wary",
+                _ => "Cautious"
+            };
+            ImGui.Text($"Mood: {boldnessDesc}");
+        }
+
+        ImGui.Separator();
+
+        // Player status
+        ImGui.Text("Your Status:");
+
+        // Vitality bar
+        Vector4 vitalityColor = ctx.player.Vitality switch
+        {
+            >= 0.7 => new Vector4(0.4f, 0.9f, 0.4f, 1f),
+            >= 0.4 => new Vector4(1f, 0.8f, 0.3f, 1f),
+            _ => new Vector4(1f, 0.3f, 0.3f, 1f)
+        };
+
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, vitalityColor);
+        ImGui.ProgressBar((float)ctx.player.Vitality, new Vector2(-1, 0),
+            $"Vitality: {ctx.player.Vitality * 100:F0}%");
+        ImGui.PopStyleColor();
+
+        // Energy bar
+        double energyPct = ctx.player.Body.Energy / 480.0;
+        Vector4 energyColor = energyPct switch
+        {
+            >= 0.5 => new Vector4(0.3f, 0.7f, 1f, 1f),
+            >= 0.25 => new Vector4(1f, 0.7f, 0.3f, 1f),
+            _ => new Vector4(0.6f, 0.3f, 0.3f, 1f)
+        };
+
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, energyColor);
+        ImGui.ProgressBar((float)energyPct, new Vector2(-1, 0),
+            $"Energy: {energyPct * 100:F0}%");
+        ImGui.PopStyleColor();
+
+        ImGui.Separator();
+
+        // Combat actions based on zone
+        ImGui.Text("Actions:");
+        ImGui.Spacing();
+
+        if (nearest != null)
+        {
+            double distance = playerUnit.Position.DistanceTo(nearest.Position);
+            var zone = CombatScenario.GetZone(distance);
+            bool hasWeapon = ctx.Inventory.Weapon != null;
+
+            switch (zone)
+            {
+                case Zone.close:
+                    if (ImGui.Button("Attack", new Vector2(-1, 0)))
+                        clickedAction = "combat:attack";
+                    if (ImGui.Button("Block", new Vector2(-1, 0)))
+                        clickedAction = "combat:block";
+                    if (ImGui.Button("Shove", new Vector2(-1, 0)))
+                        clickedAction = "combat:shove";
+                    if (ImGui.Button("Retreat", new Vector2(-1, 0)))
+                        clickedAction = "combat:retreat";
+                    break;
+
+                case Zone.near:
+                    if (ImGui.Button("Attack", new Vector2(-1, 0)))
+                        clickedAction = "combat:attack";
+                    if (ImGui.Button("Dodge", new Vector2(-1, 0)))
+                        clickedAction = "combat:dodge";
+                    if (ImGui.Button("Block", new Vector2(-1, 0)))
+                        clickedAction = "combat:block";
+                    if (ImGui.Button("Advance", new Vector2(-1, 0)))
+                        clickedAction = "combat:advance";
+                    if (ImGui.Button("Retreat", new Vector2(-1, 0)))
+                        clickedAction = "combat:retreat";
+                    break;
+
+                case Zone.mid:
+                    if (hasWeapon)
+                    {
+                        if (ImGui.Button("Throw Weapon", new Vector2(-1, 0)))
+                            clickedAction = "combat:throw";
+                    }
+                    if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
+                        clickedAction = "combat:intimidate";
+                    if (ImGui.Button("Advance", new Vector2(-1, 0)))
+                        clickedAction = "combat:advance";
+                    if (ImGui.Button("Retreat", new Vector2(-1, 0)))
+                        clickedAction = "combat:retreat";
+                    break;
+
+                case Zone.far:
+                    if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
+                        clickedAction = "combat:intimidate";
+                    if (ImGui.Button("Advance", new Vector2(-1, 0)))
+                        clickedAction = "combat:advance";
+                    if (ImGui.Button("Retreat", new Vector2(-1, 0)))
+                        clickedAction = "combat:retreat";
+                    break;
+            }
+        }
+
+        ImGui.End();
+
+        return clickedAction;
     }
 }

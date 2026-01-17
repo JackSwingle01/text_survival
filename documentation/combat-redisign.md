@@ -1,5 +1,7 @@
 # Strategic Combat System Redesign
 
+**✅ IMPLEMENTED** - This redesign was completed during the desktop migration. Combat now uses a 25x25m tactical grid with distance-based actions, team combat, and AI-driven enemy behavior.
+
 ## Summary
 Transform combat from basic turn-based HP trading into a distance-based tactical dance where positioning, defensive options, and reading animal behavior create meaningful decisions.
 

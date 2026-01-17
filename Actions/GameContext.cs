@@ -66,6 +66,12 @@ public class GameContext(Player player, Location camp, Weather weather)
     [System.Text.Json.Serialization.JsonIgnore]
     public ActiveTravelState? ActiveTravel { get; set; }
 
+    /// <summary>
+    /// Active combat scenario. When set, the UI switches from world grid to combat grid.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public CombatScenario? ActiveCombat { get; set; }
+
     public int DaysSurvived => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalDays;
 
     // Tension system for tracking building threats/opportunities

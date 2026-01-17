@@ -5,8 +5,7 @@ using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
-using text_survival.Desktop.Dto;
+using text_survival.UI;
 
 namespace text_survival.Combat;
 
@@ -20,63 +19,67 @@ public static class CombatOrchestrator
     private static readonly Random _rng = new();
 
     /// <summary>
-    /// Main entry point for player combat. Matches old CombatRunner signature.
+    /// Main entry point for player combat.
     /// </summary>
     public static CombatResult RunCombat(GameContext ctx, Animal enemy)
     {
         // === SETUP ===
         var (scenario, playerUnit) = SetupCombat(ctx, enemy);
+        ctx.ActiveCombat = scenario;  // Switch to combat mode
 
-        // Show intro
-        var introDto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.Intro,
-            narrative: $"A {enemy.Name.ToLower()} attacks!");
-        DesktopIO.RenderCombat(ctx, introDto);
-        DesktopIO.WaitForCombatContinue(ctx);
+        // Show intro message
+        GameDisplay.AddWarning(ctx, $"A {enemy.Name.ToLower()} attacks!");
 
         // === MAIN LOOP ===
-        while (!scenario.IsOver)
+        while (!scenario.IsOver && !Raylib_cs.Raylib.WindowShouldClose())
         {
-            // 1. Player choice
-            var choiceDto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.PlayerChoice);
-            string choice = DesktopIO.WaitForCombatChoice(ctx, choiceDto);
+            // Render and wait for player input
+            var response = DesktopIO.RenderGridAndWaitForInput(ctx);
 
-            // 2. Execute player action
-            var narrative = ExecutePlayerChoice(scenario, playerUnit, choice);
-
-            // 3. Show player action result
-            if (!string.IsNullOrEmpty(narrative))
+            if (response.Type == "action" && response.Action != null && response.Action.StartsWith("combat:"))
             {
-                var actionDto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.PlayerAction,
-                    narrative: narrative);
-                DesktopIO.RenderCombat(ctx, actionDto);
-                DesktopIO.WaitForCombatContinue(ctx);
-            }
+                // Extract action (remove "combat:" prefix)
+                string action = response.Action.Substring(7);
 
-            if (scenario.IsOver) break;
+                // Execute player action
+                var narrative = ExecutePlayerChoice(scenario, playerUnit, action);
 
-            // 4. AI turns - process each unit individually with 1-second auto-advance
-            foreach (var unit in scenario.Units.Where(u => u != playerUnit).ToList())
-            {
-                var aiNarrative = scenario.ProcessSingleAITurn(unit);
-                if (aiNarrative != null)
+                // Show result
+                if (!string.IsNullOrEmpty(narrative))
                 {
-                    var aiDto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.AnimalAction,
-                        narrative: aiNarrative);
-                    // Set auto-advance so frontend responds after 1 second
-                    aiDto = aiDto with { AutoAdvanceMs = 1000 };
-                    DesktopIO.RenderCombat(ctx, aiDto);
-                    DesktopIO.WaitForCombatContinue(ctx);
+                    GameDisplay.AddNarrative(ctx, narrative);
                 }
+
                 if (scenario.IsOver) break;
+
+                // AI turns
+                foreach (var unit in scenario.Units.Where(u => u != playerUnit).ToList())
+                {
+                    var aiNarrative = scenario.ProcessSingleAITurn(unit);
+                    if (aiNarrative != null)
+                    {
+                        GameDisplay.AddNarrative(ctx, aiNarrative);
+                    }
+                    if (scenario.IsOver) break;
+                }
             }
         }
 
         // === CLEANUP ===
+        ctx.ActiveCombat = null;  // Exit combat mode
+
         var result = DetermineResult(scenario, playerUnit);
-        var outcomeDto = BuildOutcomeDto(ctx, scenario, playerUnit, result);
-        DesktopIO.RenderCombat(ctx, outcomeDto);
-        DesktopIO.WaitForCombatContinue(ctx);
-        DesktopIO.ClearCombat(ctx);  // Clear combat mode - return to travel mode
+
+        // Show result message
+        string resultMessage = result switch
+        {
+            CombatResult.Victory => "You are victorious!",
+            CombatResult.Defeat => "You have been killed.",
+            CombatResult.Fled => "You escape!",
+            CombatResult.AnimalFled => "Your enemies flee!",
+            _ => "The encounter ends."
+        };
+        GameDisplay.AddSuccess(ctx, resultMessage);
 
         HandlePostCombat(ctx, scenario, result);
         return result;
@@ -207,61 +210,6 @@ public static class CombatOrchestrator
         return "You shout and make yourself large!";
     }
 
-    private static List<CombatActionDto> GetAvailableActions(CombatScenario scenario, Unit playerUnit, GameContext ctx)
-    {
-        var actions = new List<CombatActionDto>();
-        var nearest = scenario.GetNearestEnemy(playerUnit);
-        if (nearest == null) return actions;
-
-        double distance = playerUnit.Position.DistanceTo(nearest.Position);
-        var zone = CombatScenario.GetZone(distance);
-        bool hasWeapon = ctx.Inventory.Weapon != null;
-
-        switch (zone)
-        {
-            case Zone.close:
-                actions.Add(MakeAction(CombatActions.Attack));
-                actions.Add(MakeAction(CombatActions.Block));
-                actions.Add(MakeAction(CombatActions.Shove));
-                actions.Add(MakeAction(CombatActions.Retreat));
-                break;
-
-            case Zone.near:
-                actions.Add(MakeAction(CombatActions.Attack));
-                actions.Add(MakeAction(CombatActions.Dodge));
-                actions.Add(MakeAction(CombatActions.Block));
-                actions.Add(MakeAction(CombatActions.Advance));
-                actions.Add(MakeAction(CombatActions.Retreat));
-                break;
-
-            case Zone.mid:
-                if (hasWeapon)
-                    actions.Add(MakeAction(CombatActions.Throw));
-                actions.Add(MakeAction(CombatActions.Intimidate));
-                actions.Add(MakeAction(CombatActions.Advance));
-                actions.Add(MakeAction(CombatActions.Retreat));
-                break;
-
-            case Zone.far:
-                actions.Add(MakeAction(CombatActions.Intimidate));
-                actions.Add(MakeAction(CombatActions.Advance));
-                actions.Add(MakeAction(CombatActions.Retreat));
-                break;
-        }
-
-        return actions;
-    }
-
-    private static CombatActionDto MakeAction(CombatActions action)
-    {
-        string label = action switch
-        {
-            CombatActions.Throw => "Throw Weapon",
-            _ => action.ToString()
-        };
-        return new CombatActionDto(action.ToString().ToLowerInvariant(), label, null, true, null, null);
-    }
-
     #endregion
 
     #region Result & Cleanup
@@ -300,160 +248,6 @@ public static class CombatOrchestrator
                 ctx.NPCs.Remove(npc);
             }
         }
-    }
-
-    #endregion
-
-    #region DTO Building
-
-    private static CombatDto BuildCombatDto(
-        GameContext ctx,
-        CombatScenario scenario,
-        Unit playerUnit,
-        CombatPhase phase,
-        string? narrative = null)
-    {
-        var nearest = scenario.GetNearestEnemy(playerUnit);
-        double distance = nearest != null ? playerUnit.Position.DistanceTo(nearest.Position) : 99;
-        var zone = CombatScenario.GetZone(distance);
-
-        var actions = phase == CombatPhase.PlayerChoice
-            ? GetAvailableActions(scenario, playerUnit, ctx)
-            : new List<CombatActionDto>();
-
-        var grid = BuildGridDto(ctx, scenario);
-
-        return new CombatDto(
-            DistanceZone: zone.ToString(),
-            DistanceMeters: distance,
-            PreviousDistanceMeters: null,
-            PlayerVitality: ctx.player.Vitality,
-            PlayerEnergy: ctx.player.Body.Energy / 480.0,
-            PlayerBraced: false,
-            Phase: phase,
-            NarrativeMessage: narrative,
-            Actions: actions,
-            ThreatFactors: new List<ThreatFactorDto>(),
-            Outcome: null,
-            Grid: grid
-        );
-    }
-
-    private static CombatDto BuildOutcomeDto(
-        GameContext ctx,
-        CombatScenario scenario,
-        Unit playerUnit,
-        CombatResult result)
-    {
-        var outcomeType = result switch
-        {
-            CombatResult.Victory => "victory",
-            CombatResult.Defeat => "defeat",
-            CombatResult.Fled => "fled",
-            CombatResult.AnimalFled => "animal_fled",
-            _ => "ended"
-        };
-
-        var message = result switch
-        {
-            CombatResult.Victory => "You are victorious!",
-            CombatResult.Defeat => "You have been killed.",
-            CombatResult.Fled => "You escape!",
-            CombatResult.AnimalFled => "Your enemies flee!",
-            _ => "The encounter ends."
-        };
-
-        var rewards = result == CombatResult.Victory
-            ? scenario.Team2.Where(u => !u.actor.IsAlive)
-                .Select(u => $"{u.actor.Name} carcass")
-                .ToList()
-            : null;
-
-        var outcome = new CombatOutcomeDto(outcomeType, message, rewards);
-
-        var dto = BuildCombatDto(ctx, scenario, playerUnit, CombatPhase.Outcome);
-        // Return new DTO with outcome attached
-        return dto with { Outcome = outcome, NarrativeMessage = message };
-    }
-
-    private static CombatGridDto BuildGridDto(GameContext ctx, CombatScenario scenario)
-    {
-        var units = new List<CombatUnitDto>();
-
-        foreach (var unit in scenario.Units)
-        {
-            string team = scenario.Team1.Contains(unit) ? "ally" : "enemy";
-            if (unit == scenario.Player) team = "player";
-
-            // Get icon based on actor type
-            string icon = GetActorIcon(unit.actor, team);
-
-            units.Add(new CombatUnitDto(
-                Id: unit.GetHashCode().ToString(),
-                Name: unit.actor.Name,
-                Team: team,
-                Position: new CombatGridPositionDto(unit.Position.X, unit.Position.Y),
-                Vitality: unit.actor.Vitality,
-                HealthDescription: GetHealthDescription(unit.actor.Vitality),
-                Threat: unit.Threat,
-                Boldness: unit.Boldness,
-                Aggression: unit.Aggression,
-                BoldnessDescriptor: GetBoldnessDescriptor(unit.Boldness),
-                Icon: icon
-            ));
-        }
-
-        return new CombatGridDto(
-            GridSize: 25,
-            CellSizeMeters: 1.0,
-            Units: units,
-            Terrain: ctx.CurrentLocation?.Terrain.ToString(),
-            LocationX: ctx.Map?.CurrentPosition.X,
-            LocationY: ctx.Map?.CurrentPosition.Y
-        );
-    }
-
-    private static string GetActorIcon(Actor actor, string team)
-    {
-        // Player gets person icon
-        if (team == "player") return "👤";
-
-        // NPCs (allies) get person icon
-        if (actor is NPC) return "🧑";
-
-        // Animals get their type-specific emoji
-        if (actor is Animal)
-        {
-            var animalType = AnimalTypes.Parse(actor.Name);
-            if (animalType.HasValue)
-                return animalType.Value.Emoji();
-        }
-
-        // Fallback
-        return "🐾";
-    }
-
-    private static string GetBoldnessDescriptor(double boldness)
-    {
-        return boldness switch
-        {
-            >= 0.7 => "aggressive",
-            >= 0.5 => "bold",
-            >= 0.3 => "wary",
-            _ => "cautious"
-        };
-    }
-
-    private static string GetHealthDescription(double vitality)
-    {
-        return vitality switch
-        {
-            >= 0.9 => "healthy",
-            >= 0.7 => "wounded",
-            >= 0.5 => "badly hurt",
-            >= 0.3 => "staggering",
-            _ => "near death"
-        };
     }
 
     #endregion

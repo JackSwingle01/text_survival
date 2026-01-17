@@ -179,7 +179,7 @@ Speed = baseSpeed * vitalityFactor * (1 - encumbrancePenalty)
 **Used for**:
 - Travel time calculation (`Environments/TravelProcessor.cs`)
 - Dodge effectiveness (`Combat/DefensiveActions.cs`)
-- Combat movement (`Actions/CombatRunner.cs`)
+- Combat movement (`Combat/CombatOrchestrator.cs`)
 
 **Example Usage**:
 ```csharp

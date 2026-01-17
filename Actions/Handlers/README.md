@@ -52,7 +52,7 @@ public static class SomeHandler
 - `CraftingRunner` - multi-step crafting interface
 - `HuntRunner` - interactive hunting (creates CarcassFeature on kill)
 - `EncounterRunner` - predator encounter with turn-by-turn decisions
-- `CombatRunner` - reusable combat module, can be called from encounters, events, hunts (creates CarcassFeature on victory)
+- `CombatOrchestrator` - grid-based tactical combat module, can be called from encounters, events, hunts (creates CarcassFeature on victory)
 
 ### Pattern:
 ```csharp

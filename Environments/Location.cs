@@ -9,6 +9,17 @@ using text_survival.UI;
 
 namespace text_survival.Environments;
 
+public record TemperatureBreakdown(
+    double BaseTemp,           // Weather base temperature
+    double LocationMod,        // Location's inherent modifier
+    double WindChill,          // Wind chill effect (negative)
+    double SunWarming,         // Sun warming effect (positive)
+    double PrecipCooling,      // Precipitation cooling (negative)
+    double ShelterBonus,       // Shelter insulation bonus (positive)
+    double FireBonus,          // Heat source bonus (positive)
+    double FinalTemp           // Final calculated temperature
+);
+
 public class Location
 {
     public Guid Id { get; init; } = Guid.NewGuid();
@@ -320,6 +331,86 @@ public class Location
         // Where T = Air Temperature (°F), V = Wind Speed (mph)
         double windPowFactor = Math.Pow(windSpeedMph, 0.16);
         return 35.74 + (0.6215 * temperatureF) - (35.75 * windPowFactor) + (0.4275 * temperatureF * windPowFactor);
+    }
+
+    /// <summary>
+    /// Get a breakdown of temperature components at this location.
+    /// </summary>
+    /// <param name="isStationary">If true, apply structural shelter effects.</param>
+    public TemperatureBreakdown GetTemperatureBreakdown(bool isStationary = true)
+    {
+        double baseTemp = Weather.TemperatureInFahrenheit;
+        double locationMod = TemperatureDeltaF;
+        double windChill = 0;
+        double sunWarming = 0;
+        double precipCooling = 0;
+        double shelterBonus = 0;
+        double fireBonus = 0;
+
+        double locationTemp = baseTemp + locationMod;
+
+        // Wind chill calculation
+        double effectiveWindSpeed = 0;
+        if (Weather.WindSpeed > 0.1)
+        {
+            var fire = GetFeature<HeatSourceFeature>();
+            double fireWindProtection = (fire != null && fire.IsActive)
+                ? fire.WindProtectionFactor
+                : 0;
+            effectiveWindSpeed = Weather.WindSpeed * WindFactor * (1 - fireWindProtection);
+            double windSpeedMph = effectiveWindSpeed * 45;
+            double afterWindChill = CalculateWindChillNWS(locationTemp, windSpeedMph);
+            windChill = afterWindChill - locationTemp;
+            locationTemp = afterWindChill;
+        }
+
+        // Sun warming
+        double sunIntensity = Weather.SunlightIntensity;
+        double sunExposure = 1 - OverheadCoverLevel;
+        double rawSunWarming = sunIntensity * sunExposure * 10;
+        double temperatureAdjustment = rawSunWarming * Math.Max(0.5, Math.Min(1, (50 - locationTemp) / 30));
+        sunWarming = temperatureAdjustment;
+        locationTemp += sunWarming;
+
+        // Precipitation cooling
+        double precipitation = Weather.Precipitation;
+        precipitation *= (1 - OverheadCoverLevel);
+        precipCooling = precipitation * 5;
+        locationTemp -= precipCooling;
+
+        // Shelter effects (when stationary)
+        double insulation = 0;
+        var shelter = GetFeature<ShelterFeature>();
+        if (shelter != null && isStationary)
+        {
+            double minShelterTemp = 40;
+            double tempDifference = minShelterTemp - locationTemp;
+            insulation = Math.Clamp(shelter.TemperatureInsulation, 0, .9);
+            insulation *= 1 - (precipitation * .3);
+            insulation *= 1 - (effectiveWindSpeed * .3);
+            shelterBonus = tempDifference * insulation;
+            locationTemp += shelterBonus;
+        }
+
+        // Heat source bonus
+        var heatSource = GetFeature<HeatSourceFeature>();
+        if (heatSource != null)
+        {
+            double effectiveHeat = heatSource.GetEffectiveHeatOutput(locationTemp);
+            fireBonus = effectiveHeat * Math.Max(insulation, .40);
+            locationTemp += fireBonus;
+        }
+
+        return new TemperatureBreakdown(
+            baseTemp,
+            locationMod,
+            windChill,
+            sunWarming,
+            precipCooling,
+            shelterBonus,
+            fireBonus,
+            locationTemp
+        );
     }
 
     public void Update(int minutes)
