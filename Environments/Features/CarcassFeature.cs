@@ -376,6 +376,9 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
 
         // Apply yield multiplier, decay (meat only), and mode multipliers
         double effectiveMeat = meatToExtract * yieldMultiplier * meatDecayMultiplier * mode.MeatYieldFactor;
+        // Guarantee minimum 0.1 kg meat yield for small animals (prevents 0 yield from ptarmigan etc.)
+        if (effectiveMeat > 0 && effectiveMeat < 0.1 && MeatRemainingKg >= 0.1)
+            effectiveMeat = 0.1;
         double effectiveBone = boneToExtract * yieldMultiplier * mode.BoneYieldFactor;
         double effectiveHide = hideToExtract * yieldMultiplier * mode.HideYieldFactor;
         double effectiveSinew = sinewToExtract * yieldMultiplier * mode.SinewYieldFactor;
@@ -413,6 +416,9 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
 
         // Reduced meat yield when tearing by hand
         double effectiveMeat = meatToExtract * 0.5 * yieldMultiplier * meatDecayMultiplier;
+        // Guarantee minimum 0.1 kg meat yield for small animals (prevents 0 yield from ptarmigan etc.)
+        if (effectiveMeat > 0 && effectiveMeat < 0.1 && MeatRemainingKg >= 0.1)
+            effectiveMeat = 0.1;
         double effectiveBone = boneToExtract * yieldMultiplier * 0.67;  // Less efficient bone extraction
 
         AddMeat(result, effectiveMeat);
@@ -442,7 +448,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     // Resource adding helpers (from ButcherRunner)
     private static void AddMeat(Inventory result, double totalKg)
     {
-        if (totalKg < 0.1) return;
+        if (totalKg < 0.05) return;
 
         // Split into portions (roughly 0.5-1.5kg each)
         while (totalKg > 0.3)
@@ -453,7 +459,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         }
 
         // Add any remaining scraps
-        if (totalKg > 0.1)
+        if (totalKg > 0.05)
         {
             result.Add(Resource.RawMeat, totalKg);
         }
