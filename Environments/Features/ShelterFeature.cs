@@ -5,30 +5,18 @@ using text_survival.Items;
 
 namespace text_survival.Environments.Features;
 
-/// <summary>
-/// Types of shelter frames. Built shelters are constructed by the player;
-/// natural shelters are found in the world.
-/// </summary>
 public enum ShelterType
 {
-    // Built shelters (player constructs frame)
     BranchFrame,
     LogFrame,
-
-    // Natural shelters (found in world)
     RockOverhang,
     Cave,
     DenseThicket,
     FallenTree,
-
-    // Special shelters (unique niches)
-    SnowShelter,    // Emergency shelter, cannot be improved (packed snow)
-    HideTent        // Portable shelter, limited improvement
+    SnowShelter,
+    HideTent
 }
 
-/// <summary>
-/// Configuration for each shelter type defining base stats and caps.
-/// </summary>
 public record ShelterTypeConfig(
     double BaseInsulation,
     double BaseOverhead,
@@ -61,41 +49,17 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
     public override string? MapIcon => !IsDestroyed ? (IsSnowShelter ? "snow_shelter" : "shelter") : null;
     public override int IconPriority => 5; // Shelter is important
 
-    public double TemperatureInsulation { get; set; } = 0; // ambient temp protection 0-1
-    public double OverheadCoverage { get; set; } = 0; // rain / snow / sun protection 0-1
-    public double WindCoverage { get; set; } = 0; // wind protection 0-1
-
-    /// <summary>
-    /// The type of shelter frame.
-    /// </summary>
+    public double TemperatureInsulation { get; set; } = 0;
+    public double OverheadCoverage { get; set; } = 0;
+    public double WindCoverage { get; set; } = 0;
     public ShelterType ShelterType { get; set; } = ShelterType.BranchFrame;
-
-    /// <summary>
-    /// Whether this is a snow shelter that degrades in warm temperatures.
-    /// </summary>
     public bool IsSnowShelter { get; init; } = false;
 
-    /// <summary>
-    /// The tent gear item that created this shelter (if deployed from a portable tent).
-    /// Null for permanent structures like frame shelters.
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public text_survival.Items.Gear? SourceTent { get; set; }
 
-    /// <summary>
-    /// Whether this shelter was deployed from a portable tent and can be packed up.
-    /// </summary>
     public bool IsPortable => SourceTent != null;
-
-    /// <summary>
-    /// Whether this is a natural shelter (found in world) vs built by player.
-    /// Natural shelters cannot be rebuilt/salvaged.
-    /// </summary>
     public bool IsNatural => GetConfig(ShelterType).IsNatural;
-
-    /// <summary>
-    /// Materials invested in improvements. Used for salvage calculation when rebuilding.
-    /// </summary>
     public Dictionary<Resource, int> MaterialsInvested { get; set; } = new();
 
     #region Type Configurations
@@ -161,15 +125,8 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
     #region Improvement System
 
-    /// <summary>
-    /// Base improvement per material before effectiveness modifier.
-    /// </summary>
-    private const double BaseImprovement = 0.05; // 5%
+    private const double BaseImprovement = 0.05;
 
-    /// <summary>
-    /// Improve a specific aspect of the shelter using a material.
-    /// Returns the actual improvement applied (after diminishing returns).
-    /// </summary>
     public double Improve(ShelterImprovementType improvementType, Resource material, int quantity = 1)
     {
         double effectiveness = MaterialProperties.GetEffectiveness(material, improvementType);
@@ -237,10 +194,6 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
     #region Salvage System
 
-    /// <summary>
-    /// Get materials that would be salvaged when rebuilding this shelter.
-    /// Returns ~60% of materials invested. Only available for built shelters.
-    /// </summary>
     public Dictionary<Resource, int> GetSalvageMaterials()
     {
         if (IsNatural)
@@ -256,18 +209,12 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
         return salvage;
     }
 
-    /// <summary>
-    /// Whether this shelter can be rebuilt (upgraded to a better frame type).
-    /// </summary>
     public bool CanRebuild => !IsNatural && !IsPortable && ShelterType == ShelterType.BranchFrame;
 
     #endregion
 
     #region Weather Damage
 
-    /// <summary>
-    /// Update shelter state. Snow shelters degrade in warm temperatures.
-    /// </summary>
     public override void Update(int minutes)
     {
         // Snow shelters melt when temperature rises above freezing
@@ -280,10 +227,6 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
         }
     }
 
-    /// <summary>
-    /// Degrade snow shelter when temperature is above freezing.
-    /// Called from location with temperature context.
-    /// </summary>
     public void DegradeFromWarmth(double locationTempF, int minutes)
     {
         if (!IsSnowShelter) return;
@@ -297,9 +240,6 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
         Damage(damageAmount);
     }
 
-    /// <summary>
-    /// Apply weather damage to a specific stat.
-    /// </summary>
     public void DamageStat(ShelterImprovementType targetStat, double amount)
     {
         switch (targetStat)
@@ -320,9 +260,6 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
     #region Narrative Descriptions
 
-    /// <summary>
-    /// Get a narrative description of the shelter's current state.
-    /// </summary>
     public string GetNarrativeDescription()
     {
         string insDesc = GetStatNarrative(TemperatureInsulation, "insulation");
@@ -394,9 +331,6 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
         }
     };
 
-    /// <summary>
-    /// Get short status showing current stats and caps.
-    /// </summary>
     public string GetStatusText()
     {
         return $"Insulation: {TemperatureInsulation:P0}/{InsulationCap:P0} | " +
@@ -408,15 +342,8 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
     #region Quality and Status
 
-    /// <summary>
-    /// Get the overall quality of the shelter (average of all coverages).
-    /// </summary>
     public double Quality => (TemperatureInsulation + OverheadCoverage + WindCoverage) / 3.0;
 
-    /// <summary>
-    /// Damage the shelter, reducing all coverage values proportionally.
-    /// </summary>
-    /// <param name="amount">Amount to reduce quality (0-1)</param>
     public void Damage(double amount)
     {
         TemperatureInsulation = Math.Max(0, TemperatureInsulation - amount);
@@ -424,10 +351,6 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
         WindCoverage = Math.Max(0, WindCoverage - amount);
     }
 
-    /// <summary>
-    /// Repair the shelter, increasing coverage values.
-    /// </summary>
-    /// <param name="amount">Amount to increase quality (0-1)</param>
     public void Repair(double amount)
     {
         TemperatureInsulation = Math.Min(InsulationCap, TemperatureInsulation + amount);
@@ -435,35 +358,18 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
         WindCoverage = Math.Min(WindCap, WindCoverage + amount);
     }
 
-    /// <summary>
-    /// Check if the shelter is still functional (any protection remaining).
-    /// </summary>
     public bool IsDestroyed => Quality <= 0.05;
 
-    /// <summary>
-    /// Check if shelter is compromised (quality below safe threshold).
-    /// Used for events about shelter needing repair.
-    /// </summary>
     public bool IsCompromised => Quality <= 0.3;
 
-    /// <summary>
-    /// Check if shelter is weakened but still functional.
-    /// Used for warning events before shelter fails.
-    /// </summary>
     public bool IsWeakened => Quality > 0.3 && Quality <= 0.5;
 
-    /// <summary>
-    /// Check if shelter needs repair (any damage).
-    /// </summary>
     public bool NeedsRepair => Quality < 1.0 && !IsDestroyed;
 
     #endregion
 
     #region Save/Load Support
 
-    /// <summary>
-    /// Restore shelter state from save data.
-    /// </summary>
     internal void RestoreState(double tempInsulation, double overheadCoverage, double windCoverage)
     {
         TemperatureInsulation = tempInsulation;
@@ -485,41 +391,18 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
     #region Factory Methods
 
-    /// <summary>
-    /// Create a branch frame shelter (basic, quick to build).
-    /// </summary>
     public static ShelterFeature CreateBranchFrame() => new("Branch Frame Shelter", ShelterType.BranchFrame);
 
-    /// <summary>
-    /// Create a log frame shelter (sturdier, higher caps).
-    /// </summary>
     public static ShelterFeature CreateLogFrame() => new("Log Frame Shelter", ShelterType.LogFrame);
 
-    /// <summary>
-    /// Create a rock overhang shelter (natural, great overhead but drafty).
-    /// </summary>
     public static ShelterFeature CreateRockOverhang() => new("Rock Overhang", ShelterType.RockOverhang);
 
-    /// <summary>
-    /// Create a cave shelter (natural, excellent overhead, wind at mouth).
-    /// </summary>
     public static ShelterFeature CreateCave() => new("Cave", ShelterType.Cave);
 
-    /// <summary>
-    /// Create a dense thicket shelter (natural, good wind block, leaky roof).
-    /// </summary>
     public static ShelterFeature CreateDenseThicket() => new("Dense Thicket", ShelterType.DenseThicket);
 
-    /// <summary>
-    /// Create a fallen tree shelter (natural, quick shelter, low ceiling).
-    /// </summary>
     public static ShelterFeature CreateFallenTree() => new("Fallen Tree Shelter", ShelterType.FallenTree);
 
-    /// <summary>
-    /// Create a snow shelter dug into deep snow.
-    /// Excellent insulation and protection, but melts in warm temperatures.
-    /// Cannot be improved (it's packed snow).
-    /// </summary>
     public static ShelterFeature CreateSnowShelter() => new("Snow shelter",
         tempInsulation: 0.6,  // Snow is excellent insulator
         overheadCoverage: 0.9,
@@ -528,16 +411,8 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
     )
     { ShelterType = ShelterType.SnowShelter };
 
-    /// <summary>
-    /// Create a hide tent supported by wooden poles.
-    /// Good all-around protection, portable. Limited improvement potential.
-    /// </summary>
     public static ShelterFeature CreateHideTent() => new("Hide tent", ShelterType.HideTent);
 
-    /// <summary>
-    /// Create a shelter from a deployed tent.
-    /// The tent is stored so it can be packed up later.
-    /// </summary>
     public static ShelterFeature CreateFromTent(text_survival.Items.Gear tent)
     {
         if (!tent.IsTent)

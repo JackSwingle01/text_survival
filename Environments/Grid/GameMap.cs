@@ -29,55 +29,23 @@ public class MapLocationData
 /// </summary>
 public class GameMap
 {
-    // === Location Storage ===
     private Location?[,] _locations;
-
-    /// <summary>
-    /// Reverse lookup: Location ID -> Position. For finding where a location is.
-    /// </summary>
     private readonly Dictionary<Guid, GridPosition> _locationIndex = new();
-
-    // === Edge Storage ===
-
-    /// <summary>
-    /// Edge features between tiles. Key is (canonical position, direction).
-    /// Multiple edges can exist between same tiles (river + game trail).
-    /// </summary>
     private Dictionary<(GridPosition, Direction), List<TileEdge>> _edges = new();
 
     public int Width { get; set; }
     public int Height { get; set; }
-
-    /// <summary>
-    /// Current player position on the map.
-    /// </summary>
     public GridPosition CurrentPosition { get; set; }
 
-    /// <summary>
-    /// Weather reference (not serialized - restored after load).
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Weather Weather { get; set; } = null!;
 
-    /// <summary>
-    /// Transient flag: true if the last visibility update revealed new named locations.
-    /// Used to weight discovery-related events. Reset after event check.
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool RevealedNewLocations { get; internal set; }
 
-    // === Core Operations ===
-
-    /// <summary>
-    /// Where the player currently is.
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Location CurrentLocation => _locations[CurrentPosition.X, CurrentPosition.Y]!;
 
-    /// <summary>
-    /// Adjacent passable locations the player can travel to from current position.
-    /// Filters out edge-blocked paths based on current season.
-    /// </summary>
     public IReadOnlyList<Location> GetTravelOptions()
     {
         var season = Weather?.CurrentSeason ?? Weather.Season.Winter;
@@ -95,10 +63,6 @@ public class GameMap
         return options;
     }
 
-    /// <summary>
-    /// Get travel options from a specific location.
-    /// Filters out edge-blocked paths based on current season.
-    /// </summary>
     public IReadOnlyList<Location> GetTravelOptionsFrom(Location from)
     {
         var position = GetPosition(from);
@@ -118,9 +82,6 @@ public class GameMap
         return options;
     }
 
-    /// <summary>
-    /// All locations currently visible to the player.
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlyList<Location> VisibleLocations
     {
@@ -140,16 +101,10 @@ public class GameMap
         }
     }
 
-    /// <summary>
-    /// All named locations (locations with features) that are visible.
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlyList<Location> VisibleNamedLocations =>
         VisibleLocations.Where(l => !l.IsTerrainOnly).ToList();
 
-    /// <summary>
-    /// Move player to a location. Updates visibility and optionally the mover's CurrentLocation.
-    /// </summary>
     public void MoveTo(Location destination, IMovable? mover = null)
     {
         var position = GetPosition(destination);
@@ -199,23 +154,12 @@ public class GameMap
         return null;
     }
 
-    // === UI/Rendering (grid-specific) ===
-
-    /// <summary>
-    /// Get location at grid position. Returns null if out of bounds or empty.
-    /// </summary>
     public Location? GetLocationAt(int x, int y) =>
         IsInBounds(x, y) ? _locations[x, y] : null;
 
-    /// <summary>
-    /// Get location at grid position.
-    /// </summary>
     public Location? GetLocationAt(GridPosition pos) =>
         GetLocationAt(pos.X, pos.Y);
 
-    /// <summary>
-    /// Get the position of a location on this map.
-    /// </summary>
     public GridPosition GetPosition(Location location) =>
         _locationIndex.TryGetValue(location.Id, out var pos) ? pos : throw new Exception("Location doesn't exist!");
 
@@ -224,15 +168,9 @@ public class GameMap
         return GetPosition(a).ManhattanDistance(GetPosition(b));
     }
 
-    /// <summary>
-    /// Check if a location is on this map.
-    /// </summary>
     public bool Contains(Location location) =>
         _locationIndex.ContainsKey(location.Id);
 
-    /// <summary>
-    /// Check if position is adjacent to current position and passable.
-    /// </summary>
     public bool CanMoveTo(int x, int y)
     {
         if (!IsInBounds(x, y)) return false;
@@ -241,11 +179,6 @@ public class GameMap
         return loc != null && loc.IsPassable;
     }
 
-    // === Construction ===
-
-    /// <summary>
-    /// Create a new empty map of the specified size.
-    /// </summary>
     public GameMap(int width, int height)
     {
         Width = width;
@@ -253,25 +186,13 @@ public class GameMap
         _locations = new Location?[width, height];
     }
 
-    /// <summary>
-    /// Parameterless constructor for JSON deserialization.
-    /// </summary>
     public GameMap() : this(0, 0) { }
 
-    /// <summary>
-    /// Check if coordinates are within map bounds.
-    /// </summary>
     public bool IsInBounds(int x, int y) =>
         x >= 0 && x < Width && y >= 0 && y < Height;
 
-    /// <summary>
-    /// Alias for IsInBounds - checks if position is valid on this map.
-    /// </summary>
     public bool IsValidPosition(int x, int y) => IsInBounds(x, y);
 
-    /// <summary>
-    /// Get visibility state of a tile for fog of war rendering.
-    /// </summary>
     public TileVisibility GetVisibility(int x, int y)
     {
         if (!IsInBounds(x, y)) return TileVisibility.Unexplored;
@@ -279,9 +200,6 @@ public class GameMap
         return loc?.Visibility ?? TileVisibility.Unexplored;
     }
 
-    /// <summary>
-    /// Place a location at a position.
-    /// </summary>
     public void SetLocation(int x, int y, Location location)
     {
         if (!IsInBounds(x, y)) return;
@@ -295,11 +213,6 @@ public class GameMap
         _locationIndex[location.Id] = new GridPosition(x, y);
     }
 
-    // === Visibility ===
-
-    /// <summary>
-    /// Update visibility based on current position and sight capacity.
-    /// </summary>
     public void UpdateVisibility(double sightCapacity = 1.0)
     {
         int sightRange = GetSightRange(CurrentLocation, sightCapacity);
@@ -334,9 +247,6 @@ public class GameMap
         }
     }
 
-    /// <summary>
-    /// Calculate sight range based on location's visibility factor and player's sight capacity.
-    /// </summary>
     public static int GetSightRange(Location location, double sightCapacity = 1.0)
     {
         // Combine location visibility with player sight capacity
@@ -355,11 +265,6 @@ public class GameMap
         return 5;      // Vantage points
     }
 
-    // === Queries ===
-
-    /// <summary>
-    /// Get all named locations (non-terrain-only) on the map.
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public IEnumerable<Location> NamedLocations
     {
@@ -377,22 +282,12 @@ public class GameMap
         }
     }
 
-    /// <summary>
-    /// Check if there are unexplored named locations visible.
-    /// </summary>
     public bool HasUnexploredVisibleLocations =>
         VisibleNamedLocations.Any(l => !l.Explored);
 
-    /// <summary>
-    /// Get count of unexplored visible named locations.
-    /// </summary>
     public int UnexploredVisibleCount =>
         VisibleNamedLocations.Count(l => !l.Explored);
 
-    /// <summary>
-    /// Reveal a random unexplored named location within visible range.
-    /// Returns the location if found, null otherwise.
-    /// </summary>
     public Location? RevealRandomLocation()
     {
         var unexplored = VisibleNamedLocations.Where(l => !l.Explored).ToList();
@@ -403,12 +298,6 @@ public class GameMap
         return location;
     }
 
-    // === Edge Operations ===
-
-    /// <summary>
-    /// Get all edges when moving from one position to another.
-    /// Filters out one-way edges when traveling the reverse direction.
-    /// </summary>
     public IReadOnlyList<TileEdge> GetEdgesBetween(GridPosition from, GridPosition to)
     {
         var (canonical, dir, reversed) = Canonicalize(from, to);
@@ -423,32 +312,20 @@ public class GameMap
         return edges;
     }
 
-    /// <summary>
-    /// Check if passage is blocked between two positions.
-    /// </summary>
     public bool IsEdgeBlocked(GridPosition from, GridPosition to, Weather.Season season)
     {
         var edges = GetEdgesBetween(from, to);
         return edges.Any(e => e.IsBlockedIn(season));
     }
 
-    /// <summary>
-    /// Get total traversal modifier for crossing between positions.
-    /// </summary>
     public int GetEdgeTraversalModifier(GridPosition from, GridPosition to)
     {
         return GetEdgesBetween(from, to).Sum(e => e.TraversalModifierMinutes);
     }
 
-    /// <summary>
-    /// Check for specific edge types (for fishing, hunting, events).
-    /// </summary>
     public bool HasEdgeType(GridPosition a, GridPosition b, EdgeType type) =>
         GetEdgesBetween(a, b).Any(e => e.Type == type);
 
-    /// <summary>
-    /// Add an edge between two adjacent positions.
-    /// </summary>
     public void AddEdge(GridPosition a, GridPosition b, TileEdge edge)
     {
         var (canonical, dir, _) = Canonicalize(a, b);
@@ -462,9 +339,6 @@ public class GameMap
         _edges[key].Add(edge);
     }
 
-    /// <summary>
-    /// Remove edge of specific type.
-    /// </summary>
     public void RemoveEdge(GridPosition a, GridPosition b, EdgeType type)
     {
         var (canonical, dir, _) = Canonicalize(a, b);
@@ -472,10 +346,6 @@ public class GameMap
             edges.RemoveAll(e => e.Type == type);
     }
 
-    /// <summary>
-    /// Try to trigger an edge event when crossing between positions.
-    /// Returns the first event that triggers, or null if none.
-    /// </summary>
     public GameEvent? TryTriggerEdgeEvent(GridPosition from, GridPosition to, GameContext ctx)
     {
         var edges = GetEdgesBetween(from, to);
@@ -487,10 +357,6 @@ public class GameMap
         return null;
     }
 
-    /// <summary>
-    /// Canonicalize edge storage. Store from top-left position.
-    /// Returns (canonical position, direction, whether input was reversed).
-    /// </summary>
     private static (GridPosition pos, Direction dir, bool reversed) Canonicalize(GridPosition a, GridPosition b)
     {
         // Store North→South edges from the northern tile
@@ -502,11 +368,6 @@ public class GameMap
         return (b, Direction.East, true);
     }
 
-    // === Edge Serialization ===
-
-    /// <summary>
-    /// Serializable edge data.
-    /// </summary>
     public class EdgeData
     {
         public int X { get; set; }
@@ -525,9 +386,6 @@ public class GameMap
         }
     }
 
-    /// <summary>
-    /// Serializable edge data property.
-    /// </summary>
     public List<EdgeData> Edges
     {
         get => _edges
@@ -547,12 +405,6 @@ public class GameMap
         }
     }
 
-    // === Location Serialization ===
-
-    /// <summary>
-    /// Serializable location data property.
-    /// Converts between 2D array and flat list for JSON serialization.
-    /// </summary>
     public List<MapLocationData> Locations
     {
         get

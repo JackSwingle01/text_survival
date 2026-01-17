@@ -17,65 +17,30 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 {
     private static int _nextId = 1;
 
-    /// <summary>
-    /// Unique identifier for frontend reference.
-    /// </summary>
     public string Id { get; init; }
 
-    /// <summary>
-    /// Display name for the detail (shown in popup).
-    /// </summary>
     public string DisplayName { get; init; } = "";
 
-    /// <summary>
-    /// Description text when discovered/examined.
-    /// </summary>
     public string Description { get; init; } = "";
 
-    /// <summary>
-    /// Pool of examination variants for info-only details.
-    /// When interacted, a random variant is selected for flavor text.
-    /// </summary>
     public ExaminationVariant[]? ExaminationPool { get; init; }
 
-    /// <summary>
-    /// Material symbol for map display.
-    /// </summary>
     public string? _mapIcon;
     public override string? MapIcon => !Interacted ? _mapIcon : null;
     public override int IconPriority => 0; // Low priority - other features show first
 
-    /// <summary>
-    /// Whether this detail has been discovered by the player.
-    /// </summary>
     public bool _discovered = true; // Start visible for now
     public bool Discovered => _discovered;
 
-    /// <summary>
-    /// Whether this detail has been interacted with (one-time only).
-    /// </summary>
     public bool _interacted = false;
     public bool Interacted => _interacted;
 
-    /// <summary>
-    /// Optional loot when interacted with.
-    /// </summary>
     public Inventory? Loot { get; init; }
 
-    /// <summary>
-    /// Hint text shown in popup (e.g., "might find some sticks").
-    /// </summary>
     public string? InteractionHint { get; init; }
 
-    /// <summary>
-    /// Time in minutes to interact with this detail.
-    /// </summary>
     public int InteractionMinutes { get; init; } = 5;
 
-    /// <summary>
-    /// Optional tension created when this detail is examined.
-    /// Factory function to create the tension (allows randomization).
-    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Func<ActiveTension>? TensionOnInteract { get; init; }
 
@@ -94,11 +59,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         _mapIcon = icon;
     }
 
-    /// <summary>
-    /// Interact with this detail.
-    /// Returns loot (if any), examination text (for info-only details), and tension (if any).
-    /// Returns (null, null, null) if already interacted.
-    /// </summary>
     public (Inventory? loot, string? examinationText, ActiveTension? tension) Interact()
     {
         if (Interacted) return (null, null, null);
@@ -123,14 +83,8 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         return (new Inventory(), Description, tension);
     }
 
-    /// <summary>
-    /// Check if this detail can be interacted with.
-    /// </summary>
     public bool CanInteract => Discovered && !Interacted && (Loot != null || InteractionHint != null || ExaminationPool != null || TensionOnInteract != null);
 
-    /// <summary>
-    /// Get status description for display.
-    /// </summary>
     public string GetStatusDescription()
     {
         if (Interacted) return "examined";
@@ -138,10 +92,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         return Description;
     }
 
-    /// <summary>
-    /// Returns work option for examining this detail.
-    /// Part of IWorkableFeature - allows details to appear in the regular work menu.
-    /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
         if (!CanInteract) yield break;
@@ -153,11 +103,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         yield return new WorkOption(label, $"examine_{Id}", new ExamineStrategy(Id));
     }
 
-    // ===== Factory Methods for Common Details =====
-
-    /// <summary>
-    /// A fallen log with some gatherable sticks.
-    /// </summary>
     public static EnvironmentalDetail FallenLog()
     {
         var loot = new Inventory();
@@ -176,10 +121,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Animal tracks indicating nearby game.
-    /// Prey tracks create FreshTrail tension, predator tracks create weak Stalked tension.
-    /// </summary>
     public static EnvironmentalDetail AnimalTracks(AnimalType animalType = AnimalType.Caribou)
     {
         bool isPredator = animalType.IsPredator();
@@ -197,9 +138,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// A frozen puddle with a small amount of water.
-    /// </summary>
     public static EnvironmentalDetail FrozenPuddle()
     {
         var loot = new Inventory();
@@ -214,9 +152,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// A sheltered puddle in forested areas with a small amount of water.
-    /// </summary>
     public static EnvironmentalDetail ForestPuddle()
     {
         var loot = new Inventory();
@@ -231,10 +166,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Animal droppings indicating territory.
-    /// Prey droppings create FreshTrail tension, predator droppings create weak Stalked tension.
-    /// </summary>
     public static EnvironmentalDetail AnimalDroppings(AnimalType animalType = AnimalType.Wolf)
     {
         bool isPredator = animalType.IsPredator();
@@ -252,10 +183,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Bent or broken branches suggesting something passed through.
-    /// 50/50 chance of creating FreshTrail (prey) or weak Stalked (predator) tension.
-    /// </summary>
     public static EnvironmentalDetail BentBranches()
     {
         return new EnvironmentalDetail("bent_branches", "Bent Branches", "Low branches bent and broken.")
@@ -270,9 +197,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// A small stone pile with potential materials.
-    /// </summary>
     public static EnvironmentalDetail StonePile()
     {
         var loot = new Inventory();
@@ -291,9 +215,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// An old campfire ring, long cold.
-    /// </summary>
     public static EnvironmentalDetail OldCampfire()
     {
         var loot = new Inventory();
@@ -312,9 +233,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// A hollow tree with potential tinder.
-    /// </summary>
     public static EnvironmentalDetail HollowTree()
     {
         var loot = new Inventory();
@@ -333,9 +251,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Scattered bones from an old kill.
-    /// </summary>
     public static EnvironmentalDetail ScatteredBones()
     {
         var loot = new Inventory();
@@ -354,9 +269,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Dry grass tussock with some plant fiber.
-    /// </summary>
     public static EnvironmentalDetail DryGrassTussock()
     {
         var loot = new Inventory();
@@ -375,9 +287,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Animal burrow suggesting small game presence.
-    /// </summary>
     public static EnvironmentalDetail AnimalBurrow()
     {
         return new EnvironmentalDetail("animal_burrow", "Animal Burrow", "A small hole in the ground. Something lives here.")
@@ -396,9 +305,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Wind-swept snow depression. Visual only.
-    /// </summary>
     public static EnvironmentalDetail WindsweptSnow()
     {
         return new EnvironmentalDetail("windswept_snow", "Windswept Depression", "A shallow hollow where wind has scoured the snow thin.")
@@ -415,9 +321,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Old bird nest with potential tinder/fiber.
-    /// </summary>
     public static EnvironmentalDetail OldNest()
     {
         var loot = new Inventory();
@@ -437,9 +340,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Lichen-covered rocks. Visual detail for rocky terrain.
-    /// </summary>
     public static EnvironmentalDetail LichenRocks()
     {
         return new EnvironmentalDetail("lichen_rocks", "Lichen-Covered Rocks", "Pale green and orange lichens crust the stone.")
@@ -456,9 +356,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Dead reeds in marsh or water areas. Minor plant fiber.
-    /// </summary>
     public static EnvironmentalDetail DeadReeds()
     {
         var loot = new Inventory();
@@ -477,9 +374,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Interesting ice formation. Visual detail for frozen water.
-    /// </summary>
     public static EnvironmentalDetail IceFormation()
     {
         return new EnvironmentalDetail("ice_formation", "Ice Formation", "Strange shapes in the frozen surface.")
