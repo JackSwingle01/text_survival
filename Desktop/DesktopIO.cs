@@ -511,7 +511,36 @@ public static class DesktopIO
 
     public static void RenderWithDuration(GameContext ctx, string statusText, int estimatedMinutes)
     {
-        BlockingDialog.ShowProgress(ctx, statusText, estimatedMinutes);
+        // Legacy: just animate without simulation (for backwards compatibility)
+        float animDuration = Math.Clamp(0.5f + (estimatedMinutes * 0.02f), 0.5f, 3.0f);
+        float elapsed = 0;
+
+        while (elapsed < animDuration && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+            elapsed += deltaTime;
+            float progress = Math.Min(elapsed / animDuration, 1.0f);
+
+            DesktopRuntime.RenderFrameWithDialog(ctx, () =>
+            {
+                var io = ImGuiNET.ImGui.GetIO();
+                ImGuiNET.ImGui.SetNextWindowPos(new System.Numerics.Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
+                    ImGuiNET.ImGuiCond.Always, new System.Numerics.Vector2(0.5f, 0.5f));
+                ImGuiNET.ImGui.SetNextWindowSize(new System.Numerics.Vector2(400, 0), ImGuiNET.ImGuiCond.Always);
+
+                ImGuiNET.ImGui.Begin("Activity", ImGuiNET.ImGuiWindowFlags.NoResize | ImGuiNET.ImGuiWindowFlags.NoMove | ImGuiNET.ImGuiWindowFlags.NoCollapse);
+                ImGuiNET.ImGui.TextWrapped(statusText);
+                ImGuiNET.ImGui.Spacing();
+                ImGuiNET.ImGui.ProgressBar(progress, new System.Numerics.Vector2(-1, 20),
+                    $"{(int)(progress * estimatedMinutes)}/{estimatedMinutes} min");
+                ImGuiNET.ImGui.End();
+            });
+        }
+    }
+
+    public static (int elapsed, bool interrupted) RenderWithDuration(GameContext ctx, string statusText, int estimatedMinutes, ActivityType activity)
+    {
+        return BlockingDialog.ShowProgress(ctx, statusText, estimatedMinutes, activity);
     }
 
     public static void RenderInventory(GameContext ctx, Inventory inventory, string title)

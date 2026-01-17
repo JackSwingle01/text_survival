@@ -21,15 +21,4 @@ public record WorkResult(
 
     public static WorkResult Died(int minutes) =>
         new([], null, minutes, true);
-
-    /// <summary>
-    /// Work is pending - async simulation in progress. GameRunner will call CompleteWork when done.
-    /// </summary>
-    public static WorkResult Pending() =>
-        new([], null, -1, false);
-
-    /// <summary>
-    /// Returns true if this result indicates pending async work.
-    /// </summary>
-    public bool IsPending => MinutesElapsed == -1 && !PlayerDied;
 }

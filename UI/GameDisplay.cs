@@ -62,22 +62,20 @@ public static class GameDisplay
     }
 
     /// <summary>
-    /// Render a progress loop with status panel updates. Updates game time by default.
+    /// Render a progress loop with status panel updates. Simulates time incrementally during progress bar.
     /// Returns elapsed time and whether an event interrupted the operation.
     /// </summary>
     public static (int elapsed, bool interrupted) UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, ActivityType activity, bool updateTime = true)
     {
-        // Process time first so frame contains updated state for animation deltas
-        int elapsed = updateTime ? ctx.Update(minutes, activity) : minutes;
-
-        // Skip progress animation if work was aborted by an event/encounter.
-        // User's attention was on the event, not watching work progress.
-        if (!ctx.LastEventAborted)
+        if (!updateTime)
         {
-            Desktop.DesktopIO.RenderWithDuration(ctx, statusText, elapsed);
+            // Legacy path - just animate without simulation
+            Desktop.DesktopIO.RenderWithDuration(ctx, statusText, minutes);
+            return (minutes, false);
         }
 
-        return (elapsed, ctx.EventOccurredLastUpdate);
+        // New path - ShowProgress handles both simulation and animation
+        return Desktop.DesktopIO.RenderWithDuration(ctx, statusText, minutes, activity);
     }
 
 

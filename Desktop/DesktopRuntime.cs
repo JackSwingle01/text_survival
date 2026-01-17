@@ -343,45 +343,71 @@ public static class BlockingDialog
     }
 
     /// <summary>
-    /// Show a progress dialog that blocks for a duration.
+    /// Show a progress dialog that simulates time incrementally and shows animated stats.
+    /// Returns (elapsed minutes, whether event interrupted).
     /// </summary>
-    public static void ShowProgress(GameContext ctx, string statusText, int durationMinutes, Action<int>? onMinuteTick = null)
+    public static (int elapsed, bool interrupted) ShowProgress(GameContext ctx, string statusText, int durationMinutes, ActivityType activity)
     {
-        float totalSeconds = durationMinutes * 0.5f; // Speed up for gameplay (0.5 real seconds per game minute)
+        float animDuration = Math.Clamp(0.5f + (durationMinutes * 0.02f), 0.5f, 3.0f);
         float elapsed = 0;
-        int lastMinute = 0;
+        int simulatedMinutes = 0;
 
-        while (elapsed < totalSeconds && !Raylib.WindowShouldClose())
+        while (simulatedMinutes < durationMinutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
         {
             float deltaTime = Raylib.GetFrameTime();
             elapsed += deltaTime;
 
-            int currentMinute = (int)(elapsed / 0.5f);
-            if (currentMinute > lastMinute && currentMinute <= durationMinutes)
+            // Calculate how many minutes to simulate this frame
+            float minutesPerSecond = durationMinutes / animDuration;
+            int targetMinutes = Math.Min((int)(elapsed * minutesPerSecond), durationMinutes);
+
+            // Simulate any pending minutes
+            while (simulatedMinutes < targetMinutes && ctx.player.IsAlive)
             {
-                onMinuteTick?.Invoke(currentMinute);
-                lastMinute = currentMinute;
+                ctx.Update(1, activity);
+                simulatedMinutes++;
+
+                // Check for event interruption
+                if (ctx.EventOccurredLastUpdate)
+                {
+                    return (simulatedMinutes, true); // Exit early - event handled
+                }
             }
 
-            float progress = Math.Min(elapsed / totalSeconds, 1.0f);
+            float progress = (float)simulatedMinutes / durationMinutes;
 
-            DesktopRuntime.RenderFrameWithDialog(ctx, () =>
-            {
-                var io = ImGui.GetIO();
-                ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-                    ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-                ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+            // Render frame with full StatsPanel + dialog
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-                ImGui.Begin("Activity", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
 
-                ImGui.TextWrapped(statusText);
-                ImGui.Spacing();
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
 
-                ImGui.ProgressBar(progress, new Vector2(-1, 20),
-                    $"{(int)(progress * durationMinutes)}/{durationMinutes} min");
+            rlImGui.Begin();
 
-                ImGui.End();
-            });
+            // Full stats panel
+            UI.StatsPanel.Render(ctx);
+
+            // Centered progress dialog
+            var io = ImGui.GetIO();
+            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
+                ImGuiCond.Always, new Vector2(0.5f, 0.5f));
+            ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+
+            ImGui.Begin("Activity", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
+            ImGui.TextWrapped(statusText);
+            ImGui.Spacing();
+            ImGui.ProgressBar(progress, new Vector2(-1, 20),
+                $"{simulatedMinutes}/{durationMinutes} min");
+            ImGui.End();
+
+            rlImGui.End();
+            Raylib.EndDrawing();
         }
+
+        return (simulatedMinutes, false);
     }
 }
