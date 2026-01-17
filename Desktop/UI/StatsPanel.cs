@@ -101,6 +101,10 @@ public static class StatsPanel
         RenderStatBar("Energy", energyPct, GetStatColor(energyPct));
         RenderStatBar("Food", caloriesPct, GetStatColor(caloriesPct));
         RenderStatBar("Water", hydrationPct, GetStatColor(hydrationPct));
+
+        // Vitality bar
+        int vitalityPct = (int)(AbilityCalculator.CalculateVitality(body) * 100);
+        RenderStatBar("Vitality", vitalityPct, GetStatColor(vitalityPct));
     }
 
     private static void RenderStatBar(string label, int percent, Vector4 color)
@@ -116,6 +120,26 @@ public static class StatsPanel
         ImGui.PopStyleColor();
     }
 
+    private static void RenderEffectBar(string label, int percent, Vector4 color, string trend)
+    {
+        percent = Math.Clamp(percent, 0, 100);
+        ImGui.Text($"  {label}");
+        ImGui.SameLine(OverlaySizes.EffectBarStart);
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
+        ImGui.ProgressBar(percent / 100f, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{percent}%{trend}");
+        ImGui.PopStyleColor();
+    }
+
+    private static void RenderCapacityBar(string label, double value)
+    {
+        int pct = (int)(value * 100);
+        ImGui.Text($"  {label}");
+        ImGui.SameLine(OverlaySizes.EffectBarStart);
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, GetCapacityColor(value));
+        ImGui.ProgressBar((float)value, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{pct}%");
+        ImGui.PopStyleColor();
+    }
+
     private static void RenderTemperature(GameContext ctx, Body body, Environments.Location location, Weather weather)
     {
         double bodyTemp = body.BodyTemperature;
@@ -128,28 +152,27 @@ public static class StatsPanel
             trendPerHour = (delta / ctx.player.LastUpdateMinutes) * 60;
         }
 
-        // Trend arrow and color
-        string trendArrow = trendPerHour > 0.5 ? "^" : trendPerHour < -0.5 ? "v" : "-";
-        Vector4 tempColor = bodyTemp < 95 ? ColorDanger : bodyTemp < 97 ? ColorWarning : ColorGood;
+        // Trend arrow
+        string trendArrow = trendPerHour > 0.5 ? " ^" : trendPerHour < -0.5 ? " v" : "";
+
+        // Body temp bar: 90°F (0%) to 99°F (100%)
+        double tempPct = Math.Clamp((bodyTemp - 90) / 9.0, 0, 1);
+        Vector4 tempColor = bodyTemp < 95 ? ColorCold : bodyTemp < 97 ? ColorWarning : ColorGood;
 
         ImGui.Text("Body Temp");
         ImGui.SameLine(70);
-        ImGui.TextColored(tempColor, $"{bodyTemp:F1}F {trendArrow}");
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, tempColor);
+        ImGui.ProgressBar((float)tempPct, new Vector2(120, 14), $"{bodyTemp:F1}F{trendArrow}");
+        ImGui.PopStyleColor();
 
         ImGui.Text("Air Temp");
         ImGui.SameLine(70);
         Vector4 airColor = airTemp < 20 ? ColorCold : airTemp < 40 ? ColorMuted : ColorWarm;
         ImGui.TextColored(airColor, $"{airTemp:F0}F");
 
-        // Clothing warmth
+        // Clothing warmth bar - always visible
         int warmthPct = (int)(body.ClothingHeatBufferPct * 100);
-        if (warmthPct < 100)
-        {
-            ImGui.Text("Insulation");
-            ImGui.SameLine(70);
-            ImGui.TextColored(warmthPct < 30 ? ColorDanger : warmthPct < 60 ? ColorWarning : ColorMuted,
-                $"{warmthPct}%");
-        }
+        RenderStatBar("Insulation", warmthPct, warmthPct < 30 ? ColorDanger : warmthPct < 60 ? ColorWarning : ColorGood);
     }
 
     private static void RenderBodyCondition(GameContext ctx, Body body)
@@ -160,30 +183,24 @@ public static class StatsPanel
         if (body.Blood.Condition < 0.95)
         {
             if (!hasIssues) { ImGui.Separator(); hasIssues = true; }
-            int bloodPct = (int)(body.Blood.Condition * 100);
-            ImGui.TextColored(bloodPct < 50 ? ColorCritical : bloodPct < 70 ? ColorDanger : ColorWarning,
-                $"Blood: {bloodPct}%");
+            RenderCapacityBar("Blood", body.Blood.Condition);
         }
 
         // Impaired capacities
         var capacities = ctx.player.GetCapacities();
-        if (capacities.Moving < 0.9)
+        bool hasCapacityIssues = capacities.Moving < 0.9 || capacities.Manipulation < 0.9 || capacities.Consciousness < 0.9;
+
+        if (hasCapacityIssues)
         {
             if (!hasIssues) { ImGui.Separator(); hasIssues = true; }
-            ImGui.TextColored(GetCapacityColor(capacities.Moving),
-                $"Moving: {(int)(capacities.Moving * 100)}%");
-        }
-        if (capacities.Manipulation < 0.9)
-        {
-            if (!hasIssues) { ImGui.Separator(); hasIssues = true; }
-            ImGui.TextColored(GetCapacityColor(capacities.Manipulation),
-                $"Manipulation: {(int)(capacities.Manipulation * 100)}%");
-        }
-        if (capacities.Consciousness < 0.9)
-        {
-            if (!hasIssues) { ImGui.Separator(); hasIssues = true; }
-            ImGui.TextColored(GetCapacityColor(capacities.Consciousness),
-                $"Consciousness: {(int)(capacities.Consciousness * 100)}%");
+            ImGui.TextColored(ColorHeader, "Capacities");
+
+            if (capacities.Moving < 0.9)
+                RenderCapacityBar("Moving", capacities.Moving);
+            if (capacities.Manipulation < 0.9)
+                RenderCapacityBar("Manipulate", capacities.Manipulation);
+            if (capacities.Consciousness < 0.9)
+                RenderCapacityBar("Conscious", capacities.Consciousness);
         }
     }
 
@@ -198,11 +215,11 @@ public static class StatsPanel
         foreach (var effect in effects)
         {
             int severity = (int)(effect.Severity * 100);
-            string trend = effect.HourlySeverityChange > 0 ? "^" :
-                          effect.HourlySeverityChange < 0 ? "v" : "";
+            string trend = effect.HourlySeverityChange > 0 ? " ^" :
+                          effect.HourlySeverityChange < 0 ? " v" : "";
 
             Vector4 color = GetEffectColor(effect);
-            ImGui.TextColored(color, $"  {effect.EffectKind} {severity}% {trend}");
+            RenderEffectBar(effect.EffectKind, severity, color, trend);
         }
     }
 
@@ -226,16 +243,19 @@ public static class StatsPanel
     {
         var inv = ctx.Inventory;
 
-        // Weight
+        // Weight bar with inverted thresholds (higher = worse)
         double current = inv.CurrentWeightKg;
         double max = inv.MaxWeightKg;
         double pct = max > 0 ? current / max : 0;
+        int pctInt = (int)(pct * 100);
 
-        Vector4 weightColor = pct > 0.9 ? ColorDanger : pct > 0.7 ? ColorWarning : ColorMuted;
+        Vector4 weightColor = pct > 0.9 ? ColorDanger : pct > 0.7 ? ColorWarning : ColorGood;
 
         ImGui.Text("Carry");
         ImGui.SameLine(70);
-        ImGui.TextColored(weightColor, $"{current:F1}/{max:F1} kg");
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, weightColor);
+        ImGui.ProgressBar((float)pct, new Vector2(140, 14), $"{current:F1}/{max:F1} kg");
+        ImGui.PopStyleColor();
 
         // Fuel summary
         double fuelKg = inv.GetWeight(ResourceCategory.Fuel);

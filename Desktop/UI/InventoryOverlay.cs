@@ -24,8 +24,7 @@ public class InventoryOverlay
 
         bool shouldClose = false;
 
-        ImGui.SetNextWindowPos(new Vector2(200, 100), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(500, 500), ImGuiCond.FirstUseEver);
+        OverlaySizes.SetupStandard();
 
         bool open = IsOpen;
         if (ImGui.Begin("Inventory", ref open, ImGuiWindowFlags.NoCollapse))

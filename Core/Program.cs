@@ -1,5 +1,6 @@
 using Raylib_cs;
 using rlImGui_cs;
+using ImGuiNET;
 using text_survival.Persistence;
 using text_survival.Actions;
 using text_survival.Desktop.Rendering;
@@ -18,6 +19,7 @@ public static class Program
 
         // Create initial window (will resize after getting monitor info)
         Raylib.InitWindow(1280, 720, "Text Survival");
+        Raylib.SetExitKey(KeyboardKey.Null);  // Prevent ESC from closing window
 
         // Get current monitor and resize to ~90% of display
         int monitor = Raylib.GetCurrentMonitor();
@@ -34,6 +36,7 @@ public static class Program
 
         Raylib.SetTargetFPS(60);
         rlImGui.Setup(true);
+        ImGui.GetIO().FontGlobalScale = 1.25f;  // Scale up default font for readability
 
         // Load game (reuses existing save system)
         GameContext? ctx = null;

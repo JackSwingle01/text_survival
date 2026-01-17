@@ -1,6 +1,7 @@
 using Raylib_cs;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
 namespace text_survival.Desktop.Rendering;
@@ -129,6 +130,17 @@ public class WorldRenderer
         }
         TileRenderer.DrawPlayerIcon(playerScreenPos.X, playerScreenPos.Y, Camera.TileSize);
 
+        // Render NPC icons
+        foreach (var npc in ctx.NPCs)
+        {
+            var npcPos = map.GetPosition(npc.CurrentLocation);
+            if (map.GetVisibility(npcPos.X, npcPos.Y) == Environments.Grid.TileVisibility.Visible)
+            {
+                var screenPos = Camera.GetTileCenter(npcPos.X, npcPos.Y);
+                TileRenderer.DrawNPCIcon(screenPos.X, screenPos.Y, Camera.TileSize, npc.Name);
+            }
+        }
+
         // Render weather effects
         _effects.RenderSnow(Camera.ScreenOffsetX, Camera.ScreenOffsetY, Camera.GridWidth, Camera.GridHeight);
 
@@ -194,29 +206,15 @@ public class WorldRenderer
     {
         int slot = 0;
 
-        // Check for fire
-        var fire = location.GetFeature<Environments.Features.HeatSourceFeature>();
-        if (fire != null && fire.IsActive)
+        foreach (var feature in location.Features)
         {
-            TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, "local_fire_department", slot++, hasGlow: true);
-        }
-        else if (fire != null && fire.HasEmbers)
-        {
-            TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, "fireplace", slot++, hasGlow: true);
-        }
-
-        // Check for water
-        var water = location.GetFeature<Environments.Features.WaterFeature>();
-        if (water != null)
-        {
-            TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, "water_drop", slot++);
-        }
-
-        // Check for traps with catches
-        var traps = location.GetFeature<Environments.Features.SnareLineFeature>();
-        if (traps != null && traps.HasCatchWaiting)
-        {
-            TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, "check_circle", slot++, hasGlow: true);
+            if (feature.MapIcon != null && slot < 4)
+            {
+                // Determine if this feature should glow
+                bool hasGlow = feature is HeatSourceFeature { IsActive: true }
+                            || feature is SnareLineFeature { HasCatchWaiting: true };
+                TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, feature.MapIcon, slot++, hasGlow);
+            }
         }
     }
 

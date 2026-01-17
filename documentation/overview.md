@@ -631,27 +631,41 @@ Action executes
 
 ---
 
-## Web UI
+## Desktop UI
 
-WebSocket-based communication between C# backend and browser frontend. Backend sends `WebFrame` DTOs; frontend renders them.
+Native desktop application using Raylib-cs for graphics and ImGui.NET for overlay interfaces. Direct function calls replace WebSocket communication.
 
-Mode + Overlay pattern separates UI states:
-- **Modes** (mutually exclusive) — TravelMode (grid always visible), ProgressMode (animated activity in progress)
-- **Overlays** (stackable) — InventoryOverlay, CraftingOverlay, EventOverlay. Multiple can be active simultaneously.
+**Entry Point** — `Core/Program.cs` initializes a Raylib window at 90% monitor size, creates core UI components, and starts the game loop via `GameRunner`.
 
-Frame structure:
-- `State` — current game state (stats, weather, location, fire, etc.)
-- `Mode` — which primary UI to show
-- `Overlays` — which modal panels to display
-- `Input` — action buttons and their handlers
+**DesktopRuntime** — Static hub holding shared UI state:
+- `WorldRenderer` — Grid visualization with camera control
+- `OverlayManager` — Manages stackable overlay state
+- `ActionPanel` — Location-specific actions sidebar
+- `StatsPanel` — Survival stats, time, conditions display
+- `InputHandler` — Keyboard (WASD) and mouse input
 
-FrameQueue handles rapid frame arrivals during travel. State machine: idle → processing → animating → idle. Progress animations block queue processing until complete.
+**DesktopIO** — Blocking dialog pattern replaces async WebSocket:
+- Methods like `WaitForEventChoice()`, `ShowInventoryAndWait()`, `Select()` block execution
+- Nested render loops maintain responsive UI during blocking calls
+- Returns user choice immediately, allowing synchronous game logic
 
-JSON serialization uses `[JsonPolymorphic]` attributes for type discrimination. Frontend dispatches on `mode.type` and `overlay.type` via switch statements.
+**Overlays** (managed by OverlayManager):
+- **Toggleable** — InventoryOverlay, CraftingOverlay, FireOverlay, CookingOverlay, TransferOverlay
+- **Blocking** — GameEventOverlay (events), HuntOverlay, EncounterOverlay, CombatOverlay
+- **Notifications** — DiscoveryOverlay, WeatherChangeOverlay
 
-Web UI interacts with: all game systems (receives state updates), events (EventOverlay shows choices), inventory/crafting (overlay display).
+**Rendering Layer**:
+- `WorldRenderer` — Grid tiles, camera following, tile hover
+- `Camera` — Smooth camera movement with easing
+- `TileRenderer`, `TerrainRenderer`, `EffectsRenderer` — Specialized renderers
 
-**Files**: `Web/Dto/WebFrame.cs`, `Web/Dto/FrameMode.cs`, `Web/Dto/Overlay.cs`, `Web/WebIO.cs`, `wwwroot/app.js`, `wwwroot/modules/frameQueue.js`
+**DTOs** — Activity-focused data objects in `Desktop/Dto/`:
+- `Overlay.cs` — EventDto, HuntDto, EncounterDto, CombatDto, InventoryDto, CraftingDto
+- `PlayerResponse.cs` — User input responses
+
+Desktop UI interacts with: all game systems (direct state access), events (EventOverlay shows choices), inventory/crafting (overlay display).
+
+**Files**: `Core/Program.cs`, `Desktop/DesktopIO.cs`, `Desktop/DesktopRuntime.cs`, `Desktop/UI/OverlayManager.cs`, `Desktop/Rendering/WorldRenderer.cs`, `Desktop/Input/InputHandler.cs`
 
 ---
 

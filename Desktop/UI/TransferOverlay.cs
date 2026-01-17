@@ -40,10 +40,7 @@ public class TransferOverlay
         var playerInv = ctx.Inventory;
 
         // Center the window
-        var io = ImGui.GetIO();
-        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-            ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
-        ImGui.SetNextWindowSize(new Vector2(700, 500), ImGuiCond.FirstUseEver);
+        OverlaySizes.SetupWide();
 
         bool open = IsOpen;
         if (ImGui.Begin("Transfer Items", ref open, ImGuiWindowFlags.NoCollapse))

@@ -49,10 +49,7 @@ public class GameEventOverlay
         string? choiceResult = null;
 
         // Center the popup
-        var io = ImGui.GetIO();
-        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-            ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
-        ImGui.SetNextWindowSize(new Vector2(500, 400), ImGuiCond.FirstUseEver);
+        OverlaySizes.SetupStandard();
 
         bool open = IsOpen;
         var flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize;

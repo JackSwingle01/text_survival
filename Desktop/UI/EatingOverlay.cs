@@ -37,10 +37,7 @@ public class EatingOverlay
         string? consumedId = null;
 
         // Center the window
-        var io = ImGui.GetIO();
-        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-            ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
-        ImGui.SetNextWindowSize(new Vector2(400, 450), ImGuiCond.FirstUseEver);
+        OverlaySizes.SetupStandard();
 
         bool open = IsOpen;
         if (ImGui.Begin("Eat & Drink", ref open, ImGuiWindowFlags.NoCollapse))

@@ -50,8 +50,7 @@ public class CraftingOverlay
                 _message = null;
         }
 
-        ImGui.SetNextWindowPos(new Vector2(150, 80), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(600, 550), ImGuiCond.FirstUseEver);
+        OverlaySizes.SetupWide();
 
         bool open = IsOpen;
         if (ImGui.Begin("Crafting", ref open, ImGuiWindowFlags.NoCollapse))

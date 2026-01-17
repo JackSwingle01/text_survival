@@ -68,10 +68,7 @@ public class HuntOverlay
         string? result = null;
 
         // Center the window
-        var io = ImGui.GetIO();
-        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-            ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
-        ImGui.SetNextWindowSize(new Vector2(450, 500), ImGuiCond.FirstUseEver);
+        OverlaySizes.SetupStandard();
 
         bool open = IsOpen;
         if (ImGui.Begin("Hunt", ref open, ImGuiWindowFlags.NoCollapse))
