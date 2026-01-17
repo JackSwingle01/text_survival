@@ -1,6 +1,7 @@
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Desktop.Dto;
+using text_survival.Desktop.Input;
 
 namespace text_survival.Desktop.UI;
 
@@ -57,7 +58,7 @@ public class DiscoveryLogOverlay
 
             // Close button
             ImGui.Separator();
-            if (ImGui.Button("Close [Esc]", new Vector2(-1, 0)))
+            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.DiscoveryLog)}", new Vector2(-1, 0)))
             {
                 shouldClose = true;
             }

@@ -1,6 +1,7 @@
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Desktop.Input;
 using text_survival.Environments.Features;
 
 namespace text_survival.Desktop.UI;
@@ -68,7 +69,7 @@ public class ActionPanel
         // Quick actions
         ImGui.Text("Quick Actions:");
 
-        if (ImGui.Button("Wait (5 min) [Space]", new Vector2(-1, 0)))
+        if (ImGui.Button($"Wait (5 min) {HotkeyRegistry.GetTip(HotkeyAction.Wait)}", new Vector2(-1, 0)))
             clickedAction = "wait";
 
         // Fire actions
@@ -77,13 +78,13 @@ public class ActionPanel
         {
             if (ctx.Inventory.HasFuel)
             {
-                if (ImGui.Button("Tend Fire [F]", new Vector2(-1, 0)))
+                if (ImGui.Button($"Tend Fire {HotkeyRegistry.GetTip(HotkeyAction.Fire)}", new Vector2(-1, 0)))
                     clickedAction = "tend_fire";
             }
         }
         else if (CanStartFire(ctx))
         {
-            if (ImGui.Button("Start Fire [F]", new Vector2(-1, 0)))
+            if (ImGui.Button($"Start Fire {HotkeyRegistry.GetTip(HotkeyAction.Fire)}", new Vector2(-1, 0)))
                 clickedAction = "start_fire";
         }
 
@@ -122,13 +123,13 @@ public class ActionPanel
         // Menu actions
         ImGui.Text("Menus:");
 
-        if (ImGui.Button("Inventory [I]", new Vector2(-1, 0)))
+        if (ImGui.Button($"Inventory {HotkeyRegistry.GetTip(HotkeyAction.Inventory)}", new Vector2(-1, 0)))
             clickedAction = "inventory";
 
-        if (ImGui.Button("Crafting [C]", new Vector2(-1, 0)))
+        if (ImGui.Button($"Crafting {HotkeyRegistry.GetTip(HotkeyAction.Crafting)}", new Vector2(-1, 0)))
             clickedAction = "crafting";
 
-        if (ImGui.Button("Discovery Log", new Vector2(-1, 0)))
+        if (ImGui.Button($"Discovery Log {HotkeyRegistry.GetTip(HotkeyAction.DiscoveryLog)}", new Vector2(-1, 0)))
             clickedAction = "discovery_log";
 
         // Camp storage (if at camp)

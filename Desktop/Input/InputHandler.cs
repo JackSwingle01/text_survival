@@ -116,26 +116,26 @@ public class InputHandler
             }
         }
 
-        // Quick action shortcuts
-        if (Raylib.IsKeyPressed(KeyboardKey.I))
+        // Quick action shortcuts (via centralized registry)
+        if (HotkeyRegistry.IsPressed(HotkeyAction.Inventory))
             result.OpenInventory = true;
 
-        if (Raylib.IsKeyPressed(KeyboardKey.C))
+        if (HotkeyRegistry.IsPressed(HotkeyAction.Crafting))
             result.OpenCrafting = true;
 
-        if (Raylib.IsKeyPressed(KeyboardKey.F))
+        if (HotkeyRegistry.IsPressed(HotkeyAction.Fire))
             result.ToggleFire = true;
 
-        if (Raylib.IsKeyPressed(KeyboardKey.L))
+        if (HotkeyRegistry.IsPressed(HotkeyAction.DiscoveryLog))
             result.OpenDiscoveryLog = true;
 
-        if (Raylib.IsKeyPressed(KeyboardKey.N))
+        if (HotkeyRegistry.IsPressed(HotkeyAction.NPCs))
             result.OpenNPCs = true;
 
-        if (Raylib.IsKeyPressed(KeyboardKey.Space))
+        if (HotkeyRegistry.IsPressed(HotkeyAction.Wait))
             result.Wait = true;
 
-        if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+        if (HotkeyRegistry.IsPressed(HotkeyAction.Cancel))
             result.Cancel = true;
     }
 }

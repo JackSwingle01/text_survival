@@ -2,6 +2,7 @@ using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Actors;
+using text_survival.Desktop.Input;
 using text_survival.Survival;
 
 namespace text_survival.Desktop.UI;
@@ -42,7 +43,7 @@ public class NPCOverlay
             }
 
             ImGui.Spacing();
-            if (ImGui.Button("Close [N]", new Vector2(-1, 0)))
+            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.NPCs)}", new Vector2(-1, 0)))
             {
                 shouldClose = true;
             }

@@ -1,6 +1,7 @@
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Desktop.Input;
 using text_survival.Items;
 
 namespace text_survival.Desktop.UI;
@@ -88,7 +89,7 @@ public class InventoryOverlay
             ImGui.EndChild();
 
             // Close button
-            if (ImGui.Button("Close [I]", new Vector2(-1, 0)))
+            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.Inventory)}", new Vector2(-1, 0)))
             {
                 shouldClose = true;
             }

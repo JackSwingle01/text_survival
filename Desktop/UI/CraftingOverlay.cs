@@ -2,6 +2,7 @@ using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Crafting;
+using text_survival.Desktop.Input;
 
 namespace text_survival.Desktop.UI;
 
@@ -96,7 +97,7 @@ public class CraftingOverlay
             ImGui.EndChild();
 
             // Close button
-            if (ImGui.Button("Close [C]", new Vector2(-1, 0)))
+            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.Crafting)}", new Vector2(-1, 0)))
             {
                 IsOpen = false;
             }
