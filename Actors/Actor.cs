@@ -101,25 +101,40 @@ public abstract class Actor : IMovable
         Map = map;
     }
 
-    private readonly List<string> _messageLog = [];
+    private readonly List<(string Message, int Count)> _messageLog = [];
+
     public void AddLog(string? message)
     {
-        if (!string.IsNullOrWhiteSpace(message))
+        if (string.IsNullOrWhiteSpace(message)) return;
+
+        if (_messageLog.Count > 0 && _messageLog[^1].Message == message)
         {
-            _messageLog.Add(message);
-            if (_messageLog.Count > 20)  // Keep last 20
+            var last = _messageLog[^1];
+            _messageLog[^1] = (last.Message, last.Count + 1);
+        }
+        else
+        {
+            _messageLog.Add((message, 1));
+            if (_messageLog.Count > 20)
                 _messageLog.RemoveAt(0);
         }
     }
+
     public List<string> GetFlushLogs()
     {
-        var messages = _messageLog.ToList();
+        var messages = _messageLog
+            .Select(e => e.Count > 1 ? $"{e.Message} (x{e.Count})" : e.Message)
+            .ToList();
         _messageLog.Clear();
         return messages;
     }
+
     public IReadOnlyList<string> GetRecentLogs(int count = 10)
     {
-        return _messageLog.TakeLast(count).ToList();
+        return _messageLog
+            .TakeLast(count)
+            .Select(e => e.Count > 1 ? $"{e.Message} (x{e.Count})" : e.Message)
+            .ToList();
     }
 
     public CapacityModifierContainer GetEffectModifiers() => EffectRegistry.GetCapacityModifiers();
