@@ -512,7 +512,8 @@ public static class DesktopIO
     public static void RenderWithDuration(GameContext ctx, string statusText, int estimatedMinutes)
     {
         // Legacy: just animate without simulation (for backwards compatibility)
-        float animDuration = Math.Clamp(0.5f + (estimatedMinutes * 0.02f), 0.5f, 3.0f);
+        // ~0.3 seconds per in-game minute, clamped to reasonable bounds
+        float animDuration = Math.Clamp(estimatedMinutes * 0.3f, 1.0f, 30.0f);
         float elapsed = 0;
 
         while (elapsed < animDuration && !Raylib.WindowShouldClose())

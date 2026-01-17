@@ -84,6 +84,13 @@ public class WorldRenderer
         // Update hover state
         UpdateHover();
 
+        // Update weather effects based on current weather
+        var weather = ctx.CurrentLocation?.Weather;
+        if (weather != null)
+        {
+            _effects.UpdateWeather(weather.Precipitation, weather.WindSpeed);
+        }
+
         // Update effects
         _effects.Update(deltaTime);
     }

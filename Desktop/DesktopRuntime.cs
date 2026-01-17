@@ -6,6 +6,7 @@ using text_survival.Actions;
 using text_survival.Desktop.Rendering;
 using text_survival.Desktop.UI;
 using text_survival.Desktop.Input;
+using text_survival.IO;
 
 namespace text_survival.Desktop;
 
@@ -59,6 +60,9 @@ public static class DesktopRuntime
         // Render minimal game state panel
         RenderMinimalStatePanel(ctx);
 
+        // Render toast notifications
+        ToastManager.Render(deltaTime);
+
         rlImGui.End();
 
         Raylib.EndDrawing();
@@ -89,6 +93,9 @@ public static class DesktopRuntime
 
         // Render the blocking dialog
         renderDialog();
+
+        // Render toast notifications
+        ToastManager.Render(deltaTime);
 
         rlImGui.End();
 
@@ -348,7 +355,8 @@ public static class BlockingDialog
     /// </summary>
     public static (int elapsed, bool interrupted) ShowProgress(GameContext ctx, string statusText, int durationMinutes, ActivityType activity)
     {
-        float animDuration = Math.Clamp(0.5f + (durationMinutes * 0.02f), 0.5f, 3.0f);
+        // ~0.3 seconds per in-game minute, clamped to reasonable bounds
+        float animDuration = Math.Clamp(durationMinutes * 0.3f, 1.0f, 30.0f);
         float elapsed = 0;
         int simulatedMinutes = 0;
 

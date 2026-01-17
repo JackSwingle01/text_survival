@@ -9,12 +9,60 @@ namespace text_survival.Desktop.Rendering;
 public class EffectsRenderer
 {
     private readonly List<SnowParticle> _snowParticles = new();
-    private const int SnowParticleCount = 30;
+    private const int BaseSnowParticleCount = 10;
+    private const int MaxSnowParticleCount = 60;
     private readonly Random _random = new();
+
+    // Current weather parameters
+    private double _currentPrecipitation = 0.3;
+    private double _currentWindSpeed = 5;
 
     public EffectsRenderer()
     {
         InitSnowParticles();
+    }
+
+    /// <summary>
+    /// Update weather parameters to scale snow effects.
+    /// </summary>
+    /// <param name="precipitation">Precipitation level (0-1)</param>
+    /// <param name="windSpeed">Wind speed in mph</param>
+    public void UpdateWeather(double precipitation, double windSpeed)
+    {
+        _currentPrecipitation = precipitation;
+        _currentWindSpeed = windSpeed;
+
+        // Adjust particle count based on precipitation
+        int targetCount = (int)(BaseSnowParticleCount + precipitation * (MaxSnowParticleCount - BaseSnowParticleCount));
+        targetCount = Math.Clamp(targetCount, BaseSnowParticleCount, MaxSnowParticleCount);
+
+        // Add or remove particles to match target
+        while (_snowParticles.Count < targetCount)
+        {
+            _snowParticles.Add(CreateParticle());
+        }
+        while (_snowParticles.Count > targetCount)
+        {
+            _snowParticles.RemoveAt(_snowParticles.Count - 1);
+        }
+    }
+
+    private SnowParticle CreateParticle()
+    {
+        // Base speed scaled by precipitation (heavier snow = faster fall)
+        float baseSpeed = 0.02f + (float)(_currentPrecipitation * 0.03f);
+        // Drift scaled by wind
+        float baseDrift = (float)(_currentWindSpeed * 0.002f);
+
+        return new SnowParticle
+        {
+            X = (float)_random.NextDouble(),
+            Y = (float)_random.NextDouble(),
+            Speed = baseSpeed + (float)_random.NextDouble() * 0.02f,
+            Drift = baseDrift + ((float)_random.NextDouble() - 0.3f) * 0.01f,  // Bias drift in wind direction
+            Size = 2 + (float)_random.NextDouble() * 2,
+            Alpha = 0.3f + (float)(_currentPrecipitation * 0.4f)
+        };
     }
 
     /// <summary>
@@ -23,17 +71,9 @@ public class EffectsRenderer
     private void InitSnowParticles()
     {
         _snowParticles.Clear();
-        for (int i = 0; i < SnowParticleCount; i++)
+        for (int i = 0; i < BaseSnowParticleCount; i++)
         {
-            _snowParticles.Add(new SnowParticle
-            {
-                X = (float)_random.NextDouble(),
-                Y = (float)_random.NextDouble(),
-                Speed = 0.02f + (float)_random.NextDouble() * 0.03f,
-                Drift = ((float)_random.NextDouble() - 0.5f) * 0.01f,
-                Size = 2 + (float)_random.NextDouble() * 2,
-                Alpha = 0.3f + (float)_random.NextDouble() * 0.4f
-            });
+            _snowParticles.Add(CreateParticle());
         }
     }
 
@@ -42,19 +82,27 @@ public class EffectsRenderer
     /// </summary>
     public void Update(float deltaTime)
     {
+        // Scale speed and drift by current weather
+        float windFactor = 1 + (float)(_currentWindSpeed * 0.05f);
+        float precipFactor = 1 + (float)(_currentPrecipitation * 0.5f);
+
         foreach (var particle in _snowParticles)
         {
-            // Fall down
-            particle.Y += particle.Speed * deltaTime * 30;
+            // Fall down (faster in heavier precipitation)
+            particle.Y += particle.Speed * deltaTime * 30 * precipFactor;
 
-            // Drift sideways
-            particle.X += particle.Drift * deltaTime * 30;
+            // Drift sideways (more with stronger wind)
+            particle.X += particle.Drift * deltaTime * 30 * windFactor;
 
             // Wrap around
             if (particle.Y > 1.1f)
             {
                 particle.Y = -0.1f;
                 particle.X = (float)_random.NextDouble();
+                // Refresh particle properties on respawn
+                particle.Speed = 0.02f + (float)(_currentPrecipitation * 0.03f) + (float)_random.NextDouble() * 0.02f;
+                particle.Drift = (float)(_currentWindSpeed * 0.002f) + ((float)_random.NextDouble() - 0.3f) * 0.01f;
+                particle.Alpha = 0.3f + (float)(_currentPrecipitation * 0.4f);
             }
             if (particle.X < -0.1f) particle.X = 1.1f;
             if (particle.X > 1.1f) particle.X = -0.1f;

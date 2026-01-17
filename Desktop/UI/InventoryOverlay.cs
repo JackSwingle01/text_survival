@@ -89,7 +89,7 @@ public class InventoryOverlay
             ImGui.EndChild();
 
             // Close button
-            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.Inventory)}", new Vector2(-1, 0)))
+            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.Cancel)}", new Vector2(-1, 0)))
             {
                 shouldClose = true;
             }

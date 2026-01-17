@@ -15,6 +15,7 @@ public enum HotkeyAction
     NPCs,
     Wait,
     Cancel,
+    Storage,
 }
 
 /// <summary>
@@ -32,6 +33,7 @@ public static class HotkeyRegistry
         { HotkeyAction.NPCs, KeyboardKey.N },
         { HotkeyAction.Wait, KeyboardKey.Space },
         { HotkeyAction.Cancel, KeyboardKey.Escape },
+        { HotkeyAction.Storage, KeyboardKey.T },
     };
 
     /// <summary>

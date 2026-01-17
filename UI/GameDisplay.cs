@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Desktop.UI;
 using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.IO;
@@ -13,11 +14,23 @@ public static class GameDisplay
 
     /// <summary>
     /// Add narrative with context - routes to instance log for web sessions.
+    /// Also shows a toast notification for immediate feedback.
     /// </summary>
     public static void AddNarrative(GameContext ctx, string text, LogLevel level = LogLevel.Normal)
     {
         var timestamp = ctx.GameTime.ToString("h:mm");
         ctx.Log.Add(text, level, timestamp);
+
+        // Show toast notification for immediate feedback
+        var toastType = level switch
+        {
+            LogLevel.Success => ToastType.Success,
+            LogLevel.Warning => ToastType.Warning,
+            LogLevel.Danger => ToastType.Danger,
+            LogLevel.Discovery => ToastType.Success,
+            _ => ToastType.Info
+        };
+        ToastManager.Show(text, toastType);
     }
 
     /// <summary>
@@ -27,6 +40,20 @@ public static class GameDisplay
     {
         var timestamp = ctx.GameTime.ToString("h:mm");
         ctx.Log.AddRange(texts, level, timestamp);
+
+        // Show toast for each message
+        var toastType = level switch
+        {
+            LogLevel.Success => ToastType.Success,
+            LogLevel.Warning => ToastType.Warning,
+            LogLevel.Danger => ToastType.Danger,
+            LogLevel.Discovery => ToastType.Success,
+            _ => ToastType.Info
+        };
+        foreach (var text in texts)
+        {
+            ToastManager.Show(text, toastType);
+        }
     }
 
     public static void AddSuccess(GameContext ctx, string text) => AddNarrative(ctx, text, LogLevel.Success);

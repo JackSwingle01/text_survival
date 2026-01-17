@@ -136,7 +136,7 @@ public class ActionPanel
         var storage = ctx.Camp?.GetFeature<CacheFeature>();
         if (location == ctx.Camp && storage != null)
         {
-            if (ImGui.Button("Camp Storage", new Vector2(-1, 0)))
+            if (ImGui.Button($"Camp Storage {HotkeyRegistry.GetTip(HotkeyAction.Storage)}", new Vector2(-1, 0)))
                 clickedAction = "storage";
         }
 

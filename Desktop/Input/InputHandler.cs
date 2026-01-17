@@ -137,6 +137,9 @@ public class InputHandler
 
         if (HotkeyRegistry.IsPressed(HotkeyAction.Cancel))
             result.Cancel = true;
+
+        if (HotkeyRegistry.IsPressed(HotkeyAction.Storage))
+            result.OpenStorage = true;
     }
 }
 
@@ -152,6 +155,7 @@ public class InputResult
     public bool OpenCrafting { get; set; }
     public bool OpenDiscoveryLog { get; set; }
     public bool OpenNPCs { get; set; }
+    public bool OpenStorage { get; set; }
     public bool ToggleFire { get; set; }
     public bool Wait { get; set; }
     public bool Cancel { get; set; }

@@ -56,18 +56,14 @@ public class CraftingOverlay
         bool open = IsOpen;
         if (ImGui.Begin("Crafting", ref open, ImGuiWindowFlags.NoCollapse))
         {
-            // Category buttons
+            // Category buttons - all in one row with smaller buttons
             ImGui.Text("Category:");
             ImGui.SameLine();
 
-            // First row of categories
-            RenderCategoryButtons([
+            // All categories in a single row
+            RenderCategoryButtonsCompact([
                 NeedCategory.FireStarting, NeedCategory.CuttingTool, NeedCategory.HuntingWeapon,
-                NeedCategory.Trapping, NeedCategory.Processing, NeedCategory.Treatment
-            ], ctx, crafting);
-
-            // Second row
-            RenderCategoryButtons([
+                NeedCategory.Trapping, NeedCategory.Processing, NeedCategory.Treatment,
                 NeedCategory.Equipment, NeedCategory.Lighting, NeedCategory.Carrying,
                 NeedCategory.CampInfrastructure, NeedCategory.Mending
             ], ctx, crafting);
@@ -97,7 +93,7 @@ public class CraftingOverlay
             ImGui.EndChild();
 
             // Close button
-            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.Crafting)}", new Vector2(-1, 0)))
+            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.Cancel)}", new Vector2(-1, 0)))
             {
                 IsOpen = false;
             }
@@ -109,8 +105,12 @@ public class CraftingOverlay
         return craftedItem;
     }
 
-    private void RenderCategoryButtons(NeedCategory[] categories, GameContext ctx, NeedCraftingSystem crafting)
+    private void RenderCategoryButtonsCompact(NeedCategory[] categories, GameContext ctx, NeedCraftingSystem crafting)
     {
+        // Use smaller button sizing for compact single row
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(4, 2));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(2, 2));
+
         foreach (var category in categories)
         {
             bool selected = _selectedCategory == category;
@@ -130,9 +130,8 @@ public class CraftingOverlay
 
             ImGui.PushStyleColor(ImGuiCol.Button, buttonColor);
 
+            // Use short label only
             string label = CategoryNames.GetValueOrDefault(category, category.ToString());
-            if (craftableCount > 0)
-                label += $" ({craftableCount})";
 
             if (ImGui.Button(label))
             {
@@ -140,9 +139,19 @@ public class CraftingOverlay
                 _selectedOption = null;
             }
 
+            // Show craftable count in tooltip instead of label
+            if (ImGui.IsItemHovered() && craftableCount > 0)
+            {
+                ImGui.BeginTooltip();
+                ImGui.Text($"{craftableCount} craftable");
+                ImGui.EndTooltip();
+            }
+
             ImGui.PopStyleColor();
             ImGui.SameLine();
         }
+
+        ImGui.PopStyleVar(2);
         ImGui.NewLine();
     }
 
