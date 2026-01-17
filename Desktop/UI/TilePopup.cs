@@ -298,10 +298,61 @@ public class TilePopup
         if (npcsHere.Count == 0) return;
 
         ImGui.Spacing();
-        foreach (var npc in npcsHere)
+
+        // Show detailed info if player is at this tile, otherwise basic
+        if (_isPlayerHere)
         {
-            string action = npc.CurrentAction?.Name ?? "idle";
-            ImGui.Text($"{npc.Name}: {action}");
+            foreach (var npc in npcsHere)
+            {
+                RenderNPCDetailed(npc);
+            }
+
+            // Hint to open full overlay
+            ImGui.Spacing();
+            ImGui.TextDisabled("Press N to inspect");
+        }
+        else
+        {
+            foreach (var npc in npcsHere)
+            {
+                string action = npc.CurrentAction?.Name ?? "Idle";
+                ImGui.Text($"{npc.Name}: {action}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Render detailed NPC info for current location.
+    /// </summary>
+    private static void RenderNPCDetailed(Actors.NPC npc)
+    {
+        // Name + action + need
+        string action = npc.CurrentAction?.Name ?? "Idle";
+        string needText = npc.CurrentNeed.HasValue ? $" ({npc.CurrentNeed})" : "";
+        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), npc.Name);
+        ImGui.SameLine();
+        ImGui.TextDisabled($"- {action}{needText}");
+
+        // Warning icons for critical states
+        var warnings = new List<string>();
+
+        if (npc.Body.WarmPct < 0.3)
+            warnings.Add("freezing");
+        if (npc.Body.FullPct < 0.1)
+            warnings.Add("starving");
+        if (npc.Body.HydratedPct < 0.2)
+            warnings.Add("dehydrated");
+        if (npc.Body.EnergyPct < 0.15)
+            warnings.Add("exhausted");
+
+        // Check for injuries
+        var effects = npc.EffectRegistry.GetAll().ToList();
+        if (effects.Any(e => e.EffectKind == "Bleeding"))
+            warnings.Add("bleeding");
+
+        if (warnings.Count > 0)
+        {
+            ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), $"  ! {string.Join(", ", warnings)}");
         }
     }
 

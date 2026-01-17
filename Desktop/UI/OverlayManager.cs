@@ -19,6 +19,7 @@ public class OverlayManager
     public CookingOverlay Cooking { get; } = new();
     public TransferOverlay Transfer { get; } = new();
     public DiscoveryLogOverlay DiscoveryLog { get; } = new();
+    public NPCOverlay NPCs { get; } = new();
 
     private readonly NeedCraftingSystem _craftingSystem = new();
 
@@ -32,7 +33,7 @@ public class OverlayManager
     /// </summary>
     public bool AnyOverlayOpen => Inventory.IsOpen || Crafting.IsOpen || Event.IsOpen ||
                                    Fire.IsOpen || Eating.IsOpen || Cooking.IsOpen || Transfer.IsOpen ||
-                                   DiscoveryLog.IsOpen;
+                                   DiscoveryLog.IsOpen || NPCs.IsOpen;
 
     /// <summary>
     /// Close all overlays.
@@ -47,6 +48,7 @@ public class OverlayManager
         Cooking.IsOpen = false;
         Transfer.IsOpen = false;
         DiscoveryLog.IsOpen = false;
+        NPCs.IsOpen = false;
     }
 
     /// <summary>
@@ -61,6 +63,7 @@ public class OverlayManager
         Cooking.IsOpen = false;
         Transfer.IsOpen = false;
         DiscoveryLog.IsOpen = false;
+        NPCs.IsOpen = false;
     }
 
     /// <summary>
@@ -104,6 +107,21 @@ public class OverlayManager
         {
             CloseNonBlocking();
             DiscoveryLog.IsOpen = true;
+        }
+    }
+
+    /// <summary>
+    /// Toggle the NPC overlay.
+    /// </summary>
+    public void ToggleNPCs()
+    {
+        if (HasBlockingOverlay) return;
+
+        NPCs.IsOpen = !NPCs.IsOpen;
+        if (NPCs.IsOpen)
+        {
+            CloseNonBlocking();
+            NPCs.IsOpen = true;
         }
     }
 
@@ -221,13 +239,18 @@ public class OverlayManager
             DiscoveryLog.Render(deltaTime);
         }
 
+        if (NPCs.IsOpen)
+        {
+            NPCs.Render(ctx, deltaTime);
+        }
+
         return results;
     }
 
     /// <summary>
     /// Handle keyboard shortcuts for overlays.
     /// </summary>
-    public void HandleKeyboardShortcuts(bool iPressed, bool cPressed, bool lPressed, bool escPressed)
+    public void HandleKeyboardShortcuts(bool iPressed, bool cPressed, bool lPressed, bool nPressed, bool escPressed)
     {
         if (escPressed)
         {
@@ -240,6 +263,8 @@ public class OverlayManager
                 Eating.IsOpen = false;
             else if (Fire.IsOpen)
                 Fire.IsOpen = false;
+            else if (NPCs.IsOpen)
+                NPCs.IsOpen = false;
             else if (DiscoveryLog.IsOpen)
                 DiscoveryLog.IsOpen = false;
             else if (Crafting.IsOpen)
@@ -262,6 +287,11 @@ public class OverlayManager
         if (lPressed)
         {
             ToggleDiscoveryLog();
+        }
+
+        if (nPressed)
+        {
+            ToggleNPCs();
         }
     }
 }

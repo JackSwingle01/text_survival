@@ -1,3 +1,4 @@
+using ImGuiNET;
 using Raylib_cs;
 using text_survival.Actions;
 using text_survival.Desktop.Rendering;
@@ -25,8 +26,8 @@ public class InputHandler
     {
         var result = new InputResult();
 
-        // Handle tile clicks
-        if (Raylib.IsMouseButtonPressed(MouseButton.Left))
+        // Handle tile clicks (only if ImGui doesn't want the mouse)
+        if (Raylib.IsMouseButtonPressed(MouseButton.Left) && !ImGui.GetIO().WantCaptureMouse)
         {
             var clickedTile = _worldRenderer.HandleClick();
             if (clickedTile.HasValue)
@@ -128,6 +129,9 @@ public class InputHandler
         if (Raylib.IsKeyPressed(KeyboardKey.L))
             result.OpenDiscoveryLog = true;
 
+        if (Raylib.IsKeyPressed(KeyboardKey.N))
+            result.OpenNPCs = true;
+
         if (Raylib.IsKeyPressed(KeyboardKey.Space))
             result.Wait = true;
 
@@ -147,6 +151,7 @@ public class InputResult
     public bool OpenInventory { get; set; }
     public bool OpenCrafting { get; set; }
     public bool OpenDiscoveryLog { get; set; }
+    public bool OpenNPCs { get; set; }
     public bool ToggleFire { get; set; }
     public bool Wait { get; set; }
     public bool Cancel { get; set; }

@@ -160,6 +160,7 @@ public partial class GameRunner(GameContext ctx)
                 if (input.OpenInventory) return "inventory";
                 if (input.OpenCrafting) return "crafting";
                 if (input.OpenDiscoveryLog) return "discovery_log";
+                if (input.OpenNPCs) return "npcs";
                 if (input.ToggleFire) return HasActiveFire() ? "tend_fire" : "start_fire";
                 if (input.Wait) return "wait";
                 if (input.Cancel) tilePopup?.Hide();
@@ -393,6 +394,9 @@ public partial class GameRunner(GameContext ctx)
                 break;
             case "discovery_log":
                 RunDiscoveryLog();
+                break;
+            case "npcs":
+                RunNPCs();
                 break;
             case "storage":
                 RunStorageMenu();
@@ -791,6 +795,11 @@ public partial class GameRunner(GameContext ctx)
     private void RunDiscoveryLog()
     {
         Desktop.DesktopIO.ShowDiscoveryLogAndWait(ctx);
+    }
+
+    private void RunNPCs()
+    {
+        Desktop.DesktopIO.ShowNPCsAndWait(ctx);
     }
 
     private void RunStorageMenu()

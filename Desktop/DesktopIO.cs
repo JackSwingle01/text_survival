@@ -404,6 +404,44 @@ public static class DesktopIO
         }
     }
 
+    public static void ShowNPCsAndWait(GameContext ctx)
+    {
+        var overlays = DesktopRuntime.Overlays;
+        if (overlays == null) return;
+
+        // Check if there are any NPCs at current location
+        var npcsHere = ctx.NPCs.Where(n => n.CurrentLocation == ctx.CurrentLocation).ToList();
+        if (npcsHere.Count == 0) return;
+
+        // Open NPC overlay
+        overlays.ToggleNPCs();
+
+        // Blocking render loop until overlay is closed
+        while (overlays.NPCs.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            // Handle escape or N to close
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+            {
+                overlays.NPCs.IsOpen = false;
+                break;
+            }
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            rlImGui.Begin();
+            overlays.NPCs.Render(ctx, deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+    }
+
     // Core selection methods
     public static T Select<T>(GameContext ctx, string prompt, IEnumerable<T> choices, Func<T, string> display, Func<T, bool>? isDisabled = null)
         => BlockingDialog.Select(ctx, prompt, choices, display, isDisabled);
