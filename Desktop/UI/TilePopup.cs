@@ -160,7 +160,7 @@ public class TilePopup
             hasFeatures = true;
             int insulation = (int)Math.Round(shelter.TemperatureInsulation * 100);
             int wind = (int)Math.Round(shelter.WindCoverage * 100);
-            ImGui.Text($"Shelter: {insulation}% insulation, {wind}% wind block");
+            ImGui.Text($"Shelter: {insulation}%% insulation, {wind}%% wind block");
         }
 
         // Forage
