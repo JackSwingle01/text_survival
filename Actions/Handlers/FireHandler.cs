@@ -572,4 +572,99 @@ public static class FireHandler
             }
         }
     }
+
+    // ============================================
+    // Desktop UI Fire Actions
+    // ============================================
+
+    /// <summary>
+    /// Result of a fire action (used by desktop UI).
+    /// </summary>
+    public record FireActionResult(bool Success, string Message, int? SkillXp = null);
+
+    /// <summary>
+    /// Collect charcoal from a fire.
+    /// </summary>
+    public static FireActionResult CollectCharcoal(HeatSourceFeature? fire, Inventory inventory)
+    {
+        if (fire == null || !fire.HasCharcoal)
+            return new FireActionResult(false, "No charcoal to collect.");
+
+        double collected = fire.CollectCharcoal();
+        inventory.Add(Resource.Charcoal, collected);
+        return new FireActionResult(true, $"Collected {collected:F2}kg charcoal.");
+    }
+
+    /// <summary>
+    /// Light a torch from an active fire.
+    /// </summary>
+    public static FireActionResult LightTorchFromFire(HeatSourceFeature? fire, Inventory inventory)
+    {
+        if (fire == null || !fire.IsActive)
+            return new FireActionResult(false, "No active fire.");
+        if (!inventory.HasUnlitTorch)
+            return new FireActionResult(false, "No unlit torch available.");
+
+        inventory.LightTorch();
+        return new FireActionResult(true, "Torch lit!");
+    }
+
+    /// <summary>
+    /// Collect an ember into an ember carrier.
+    /// </summary>
+    public static FireActionResult CollectEmber(HeatSourceFeature? fire, Inventory inventory)
+    {
+        var carrier = inventory.Tools.FirstOrDefault(t => t.ToolType == ToolType.EmberCarrier && t.Works);
+        if (carrier == null)
+            return new FireActionResult(false, "No working ember carrier.");
+        if (fire == null || !fire.HasEmbers)
+            return new FireActionResult(false, "No embers to collect.");
+
+        // TODO: Implement ember collection on carrier
+        return new FireActionResult(true, $"Ember collected in {carrier.Name}!");
+    }
+
+    /// <summary>
+    /// Process fire start attempt with time advancement and skill XP.
+    /// Wrapper for desktop UI that handles side effects.
+    /// </summary>
+    public static FireActionResult ProcessStartFire(
+        GameContext ctx, Gear tool, Resource tinder, HeatSourceFeature? existingFire)
+    {
+        int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
+        var result = AttemptStartFire(ctx.player, ctx.Inventory, ctx.CurrentLocation,
+            tool, tinder, skillLevel, existingFire);
+
+        ctx.Update(10, ActivityType.TendingFire);
+
+        int xp = result.Success ? 3 : 1;
+        ctx.player.Skills.GetSkill("Firecraft").GainExperience(xp);
+
+        return new FireActionResult(result.Success, result.Message, xp);
+    }
+
+    /// <summary>
+    /// Process fire start from ember with time advancement.
+    /// Wrapper for desktop UI that handles side effects.
+    /// </summary>
+    public static FireActionResult ProcessStartFromEmber(
+        GameContext ctx, Gear emberCarrier, HeatSourceFeature? existingFire)
+    {
+        StartFromEmber(ctx.player, ctx.Inventory, ctx.CurrentLocation, emberCarrier, existingFire);
+        ctx.Update(5, ActivityType.TendingFire);
+        return new FireActionResult(true, "Fire started from ember!");
+    }
+
+    /// <summary>
+    /// Add fuel to fire and return result message.
+    /// Wrapper that returns a result for UI display.
+    /// </summary>
+    public static FireActionResult AddFuelWithResult(Inventory inv, HeatSourceFeature fire, Resource fuel, int count = 1)
+    {
+        if (fire == null)
+            return new FireActionResult(false, "No fire to add fuel to.");
+
+        AddFuel(inv, fire, fuel, count);
+        return new FireActionResult(true, $"Added {fuel} to fire.");
+    }
 }

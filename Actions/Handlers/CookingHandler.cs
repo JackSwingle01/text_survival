@@ -128,6 +128,34 @@ public static class CookingHandler
     }
 
     // ============================================
+    // Desktop UI Entry Points (with time advancement)
+    // ============================================
+
+    /// <summary>
+    /// Process cooking meat with time advancement.
+    /// Wrapper for desktop UI that handles side effects.
+    /// </summary>
+    public static CookingResult ProcessCookMeat(GameContext ctx)
+    {
+        var result = CookMeat(ctx.Inventory, ctx.CurrentLocation);
+        if (result.Success)
+            ctx.Update(CookMeatTimeMinutes, ActivityType.TendingFire);
+        return result;
+    }
+
+    /// <summary>
+    /// Process melting snow with time advancement.
+    /// Wrapper for desktop UI that handles side effects.
+    /// </summary>
+    public static CookingResult ProcessMeltSnow(GameContext ctx)
+    {
+        var result = MeltSnow(ctx.Inventory, ctx.CurrentLocation);
+        if (result.Success)
+            ctx.Update(MeltSnowTimeMinutes, ActivityType.TendingFire);
+        return result;
+    }
+
+    // ============================================
     // UI Entry Point (Player)
     // ============================================
 

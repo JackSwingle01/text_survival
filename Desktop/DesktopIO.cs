@@ -1015,54 +1015,24 @@ public static class DesktopIO
         }
     }
 
-    private static void ProcessTransferResult(GameContext ctx, TransferResult result, Inventory playerInv, Inventory storage, TransferOverlay overlay)
+    private static void ProcessTransferResult(GameContext ctx, TransferResult uiResult, Inventory playerInv, Inventory storage, TransferOverlay overlay)
     {
-        var source = result.FromPlayer ? playerInv : storage;
-        var dest = result.FromPlayer ? storage : playerInv;
-        string direction = result.FromPlayer ? "to storage" : "to inventory";
+        var source = uiResult.FromPlayer ? playerInv : storage;
+        var dest = uiResult.FromPlayer ? storage : playerInv;
+        string direction = uiResult.FromPlayer ? "to storage" : "to inventory";
 
-        if (result.Resource != null)
+        TransferHandler.TransferResult result = uiResult switch
         {
-            if (source.Count(result.Resource.Value) > 0)
-            {
-                double weight = source.Pop(result.Resource.Value);
-                dest.Add(result.Resource.Value, weight);
-                overlay.SetMessage($"Moved {result.Resource.Value} {direction}");
-            }
-        }
-        else if (result.IsWater)
-        {
-            double amount = Math.Min(result.WaterAmount, source.WaterLiters);
-            source.WaterLiters -= amount;
-            dest.WaterLiters += amount;
-            overlay.SetMessage($"Transferred {amount:F1}L water {direction}");
-        }
-        else if (result.Tool != null)
-        {
-            if (source.Tools.Remove(result.Tool))
-            {
-                dest.Tools.Add(result.Tool);
-                overlay.SetMessage($"Moved {result.Tool.Name} {direction}");
-            }
-        }
-        else if (result.Equipment != null)
-        {
-            // Find which slot this equipment is in
-            var slot = source.Equipment.FirstOrDefault(kvp => kvp.Value == result.Equipment).Key;
-            if (source.Equipment.Remove(slot))
-            {
-                dest.Equipment[slot] = result.Equipment;
-                overlay.SetMessage($"Moved {result.Equipment.Name} {direction}");
-            }
-        }
-        else if (result.Accessory != null)
-        {
-            if (source.Accessories.Remove(result.Accessory))
-            {
-                dest.Accessories.Add(result.Accessory);
-                overlay.SetMessage($"Moved {result.Accessory.Name} {direction}");
-            }
-        }
+            { Resource: { } r } => TransferHandler.TransferResource(source, dest, r, direction),
+            { IsWater: true } => TransferHandler.TransferWater(source, dest, uiResult.WaterAmount, direction),
+            { Tool: { } t } => TransferHandler.TransferTool(source, dest, t, direction),
+            { Equipment: { } e } => TransferHandler.TransferEquipment(source, dest, e, direction),
+            { Accessory: { } a } => TransferHandler.TransferAccessory(source, dest, a, direction),
+            _ => new TransferHandler.TransferResult(false, "Nothing to transfer")
+        };
+
+        if (result.Success)
+            overlay.SetMessage(result.Message);
     }
 
     /// <summary>
@@ -1110,73 +1080,28 @@ public static class DesktopIO
     {
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
 
-        switch (result.Action)
+        FireHandler.FireActionResult actionResult = result.Action switch
         {
-            case FireAction.StartFire:
-                if (result.Tool != null && result.Tinder != null)
-                {
-                    int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
-                    var startResult = FireHandler.AttemptStartFire(
-                        ctx.player, ctx.Inventory, ctx.CurrentLocation,
-                        result.Tool, result.Tinder.Value, skillLevel, fire);
+            FireAction.StartFire when result.Tool != null && result.Tinder != null
+                => FireHandler.ProcessStartFire(ctx, result.Tool, result.Tinder.Value, fire),
+            FireAction.StartFromEmber when result.EmberCarrier != null
+                => FireHandler.ProcessStartFromEmber(ctx, result.EmberCarrier, fire),
+            FireAction.AddFuel when result.FuelResource != null && fire != null
+                => FireHandler.AddFuelWithResult(ctx.Inventory, fire, result.FuelResource.Value),
+            FireAction.CollectCharcoal
+                => FireHandler.CollectCharcoal(fire, ctx.Inventory),
+            FireAction.LightTorch
+                => FireHandler.LightTorchFromFire(fire, ctx.Inventory),
+            FireAction.CollectEmber
+                => FireHandler.CollectEmber(fire, ctx.Inventory),
+            _ => new FireHandler.FireActionResult(false, "Unknown action")
+        };
 
-                    ctx.Update(10, ActivityType.TendingFire);
-                    overlay.SetAttemptResult(startResult.Success, startResult.Message);
-
-                    if (startResult.Success)
-                    {
-                        ctx.player.Skills.GetSkill("Firecraft").GainExperience(3);
-                    }
-                    else
-                    {
-                        ctx.player.Skills.GetSkill("Firecraft").GainExperience(1);
-                    }
-                }
-                break;
-
-            case FireAction.StartFromEmber:
-                if (result.EmberCarrier != null)
-                {
-                    FireHandler.StartFromEmber(ctx.player, ctx.Inventory, ctx.CurrentLocation, result.EmberCarrier, fire);
-                    ctx.Update(5, ActivityType.TendingFire);
-                    overlay.SetAttemptResult(true, "Fire started from ember!");
-                }
-                break;
-
-            case FireAction.AddFuel:
-                if (result.FuelResource != null && fire != null)
-                {
-                    FireHandler.AddFuel(ctx.Inventory, fire, result.FuelResource.Value);
-                    overlay.SetTendMessage($"Added {result.FuelResource.Value} to fire.");
-                }
-                break;
-
-            case FireAction.CollectCharcoal:
-                if (fire != null && fire.HasCharcoal)
-                {
-                    double collected = fire.CollectCharcoal();
-                    ctx.Inventory.Add(Resource.Charcoal, collected);
-                    overlay.SetTendMessage($"Collected {collected:F2}kg charcoal.");
-                }
-                break;
-
-            case FireAction.LightTorch:
-                if (ctx.Inventory.HasUnlitTorch && fire != null && fire.IsActive)
-                {
-                    ctx.Inventory.LightTorch();
-                    overlay.SetTendMessage("Torch lit!");
-                }
-                break;
-
-            case FireAction.CollectEmber:
-                var carrier = ctx.Inventory.Tools.FirstOrDefault(t => t.ToolType == ToolType.EmberCarrier && t.Works);
-                if (carrier != null && fire != null && fire.HasEmbers)
-                {
-                    // Ember collection logic would go here if implemented
-                    overlay.SetTendMessage($"Ember collected in {carrier.Name}!");
-                }
-                break;
-        }
+        // Use appropriate overlay method based on action type
+        if (result.Action == FireAction.StartFire || result.Action == FireAction.StartFromEmber)
+            overlay.SetAttemptResult(actionResult.Success, actionResult.Message);
+        else
+            overlay.SetTendMessage(actionResult.Message);
     }
 
     /// <summary>
@@ -1264,25 +1189,13 @@ public static class DesktopIO
 
     private static void ProcessCookingResult(GameContext ctx, CookingOverlayResult result, CookingOverlay overlay)
     {
-        switch (result.Action)
+        CookingHandler.CookingResult actionResult = result.Action switch
         {
-            case CookingAction.CookMeat:
-                var cookResult = CookingHandler.CookMeat(ctx.Inventory, ctx.CurrentLocation);
-                if (cookResult.Success)
-                {
-                    ctx.Update(CookingHandler.CookMeatTimeMinutes, ActivityType.TendingFire);
-                }
-                overlay.SetActionResult(cookResult.Success, cookResult.Message);
-                break;
+            CookingAction.CookMeat => CookingHandler.ProcessCookMeat(ctx),
+            CookingAction.MeltSnow => CookingHandler.ProcessMeltSnow(ctx),
+            _ => new CookingHandler.CookingResult(false, "Unknown action", 0)
+        };
 
-            case CookingAction.MeltSnow:
-                var meltResult = CookingHandler.MeltSnow(ctx.Inventory, ctx.CurrentLocation);
-                if (meltResult.Success)
-                {
-                    ctx.Update(CookingHandler.MeltSnowTimeMinutes, ActivityType.TendingFire);
-                }
-                overlay.SetActionResult(meltResult.Success, meltResult.Message);
-                break;
-        }
+        overlay.SetActionResult(actionResult.Success, actionResult.Message);
     }
 }
