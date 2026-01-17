@@ -19,7 +19,7 @@ public record AnimalSpawnEntry(AnimalType AnimalType, double SpawnWeight);
 /// </summary>
 public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
 {
-    public override string? MapIcon => CanHunt() ? (HasPredators() ? "pets" : "cruelty_free") : null;
+    public override string? MapIcon => CanHunt() ? (HasPredators() ? "predator" : "prey") : null;
     public override int IconPriority => HasPredators() ? 3 : 2; // Predators show prominently
 
     public List<AnimalSpawnEntry> _possibleAnimals = [];

@@ -132,17 +132,14 @@ public class GameEventOverlay
                 ImGui.EndDisabled();
             }
 
-            // Show description on hover or when selected
-            if (ImGui.IsItemHovered() || isSelected)
+            // Always show description
+            ImGui.Indent();
+            ImGui.TextDisabled(choice.Description);
+            if (choice.Cost != null)
             {
-                ImGui.Indent();
-                ImGui.TextDisabled(choice.Description);
-                if (choice.Cost != null)
-                {
-                    ImGui.TextColored(new Vector4(1f, 0.7f, 0.3f, 1f), $"Cost: {choice.Cost}");
-                }
-                ImGui.Unindent();
+                ImGui.TextColored(new Vector4(1f, 0.7f, 0.3f, 1f), $"Cost: {choice.Cost}");
             }
+            ImGui.Unindent();
         }
 
         ImGui.Spacing();

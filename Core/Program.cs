@@ -64,9 +64,10 @@ public static class Program
         var actionPanel = new ActionPanel();
         var inputHandler = new InputHandler(worldRenderer);
         var tilePopup = new TilePopup();
+        var iconRenderer = new ProceduralIconRenderer();
 
         // Initialize desktop runtime for blocking I/O
-        DesktopRuntime.Initialize(worldRenderer, overlays, actionPanel, inputHandler, tilePopup);
+        DesktopRuntime.Initialize(worldRenderer, overlays, actionPanel, inputHandler, tilePopup, iconRenderer);
 
         // Run the game through GameRunner
         // GameRunner uses Input/GameDisplay which route to DesktopIO
@@ -74,8 +75,9 @@ public static class Program
         var runner = new GameRunner(ctx);
         runner.Run();
 
-        // Save on exit
-        SaveManager.Save(ctx);
+        // Save on exit (but not if player died - save was already deleted)
+        if (ctx.player.IsAlive)
+            SaveManager.Save(ctx);
 
         rlImGui.Shutdown();
         Raylib.CloseWindow();

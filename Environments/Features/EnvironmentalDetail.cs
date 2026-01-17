@@ -187,7 +187,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("animal_tracks", "Animal Tracks", $"Fresh {displayName} tracks in the snow.")
         {
-            _mapIcon = "pets",
+            _mapIcon = "tracks",
             InteractionHint = "examine the tracks",
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.TrackExaminations,
@@ -207,7 +207,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("frozen_puddle", "Frozen Puddle", "A small frozen puddle. Ice looks thin enough to break.")
         {
-            _mapIcon = "water_drop",
+            _mapIcon = "water",
             Loot = loot,
             InteractionHint = "break ice for water",
             InteractionMinutes = 5
@@ -224,7 +224,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("forest_puddle", "Forest Puddle", "A shallow puddle fed by melting snow, sheltered by the trees.")
         {
-            _mapIcon = "water_drop",
+            _mapIcon = "water",
             Loot = loot,
             InteractionHint = "collect water",
             InteractionMinutes = 3
@@ -242,7 +242,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("animal_droppings", "Animal Droppings", $"Fresh {displayName} scat.")
         {
-            _mapIcon = "scatter_plot",
+            _mapIcon = "rocks",
             InteractionHint = "examine the scat",
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.DroppingExaminations,
@@ -260,7 +260,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     {
         return new EnvironmentalDetail("bent_branches", "Bent Branches", "Low branches bent and broken.")
         {
-            _mapIcon = "line_curve",
+            _mapIcon = "trail",
             InteractionHint = "examine the branches",
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.BranchExaminations,
@@ -284,7 +284,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("stone_pile", "Stone Pile", "Loose rocks piled at the base of a cliff.")
         {
-            _mapIcon = "landscape",
+            _mapIcon = "overlook",
             Loot = loot,
             InteractionHint = "gather stones",
             InteractionMinutes = 5
@@ -326,7 +326,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("hollow_tree", "Hollow Tree", "A dead tree with a hollow center. Dry material inside.")
         {
-            _mapIcon = "nature",
+            _mapIcon = "thicket",
             Loot = loot,
             InteractionHint = "gather tinder",
             InteractionMinutes = 4
@@ -347,7 +347,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("scattered_bones", "Scattered Bones", "Bones picked clean by scavengers. An old kill.")
         {
-            _mapIcon = "skeleton",
+            _mapIcon = "bones",
             Loot = loot,
             InteractionHint = "collect bones",
             InteractionMinutes = 3
@@ -382,7 +382,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     {
         return new EnvironmentalDetail("animal_burrow", "Animal Burrow", "A small hole in the ground. Something lives here.")
         {
-            _mapIcon = "circle",
+            _mapIcon = "burrow",
             InteractionHint = "examine the burrow",
             InteractionMinutes = 1,
             ExaminationPool =
@@ -403,7 +403,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     {
         return new EnvironmentalDetail("windswept_snow", "Windswept Depression", "A shallow hollow where wind has scoured the snow thin.")
         {
-            _mapIcon = "air",
+            _mapIcon = "wind_shelter",
             InteractionHint = "examine the area",
             InteractionMinutes = 1,
             ExaminationPool =
@@ -430,7 +430,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
         return new EnvironmentalDetail("old_nest", "Old Nest", "An abandoned bird nest, woven from grass and twigs.")
         {
-            _mapIcon = "egg",
+            _mapIcon = "nest",
             Loot = loot,
             InteractionHint = "gather nesting material",
             InteractionMinutes = 2
@@ -444,7 +444,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     {
         return new EnvironmentalDetail("lichen_rocks", "Lichen-Covered Rocks", "Pale green and orange lichens crust the stone.")
         {
-            _mapIcon = "texture",
+            _mapIcon = "webs",
             InteractionHint = "examine the lichens",
             InteractionMinutes = 1,
             ExaminationPool =
@@ -484,7 +484,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     {
         return new EnvironmentalDetail("ice_formation", "Ice Formation", "Strange shapes in the frozen surface.")
         {
-            _mapIcon = "ac_unit",
+            _mapIcon = "ice",
             InteractionHint = "examine the ice",
             InteractionMinutes = 1,
             ExaminationPool =

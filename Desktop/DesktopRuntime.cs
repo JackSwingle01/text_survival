@@ -20,18 +20,20 @@ public static class DesktopRuntime
     public static ActionPanel? ActionPanel { get; set; }
     public static InputHandler? InputHandler { get; set; }
     public static TilePopup? TilePopup { get; set; }
+    public static IIconRenderer? IconRenderer { get; set; }
 
     /// <summary>
     /// Initialize the runtime with required components.
     /// </summary>
     public static void Initialize(WorldRenderer worldRenderer, OverlayManager overlays, ActionPanel actionPanel,
-        InputHandler inputHandler, TilePopup tilePopup)
+        InputHandler inputHandler, TilePopup tilePopup, IIconRenderer iconRenderer)
     {
         WorldRenderer = worldRenderer;
         Overlays = overlays;
         ActionPanel = actionPanel;
         InputHandler = inputHandler;
         TilePopup = tilePopup;
+        IconRenderer = iconRenderer;
     }
 
     /// <summary>

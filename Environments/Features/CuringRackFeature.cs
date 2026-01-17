@@ -8,7 +8,7 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class CuringRackFeature : LocationFeature
 {
-    public override string? MapIcon => ItemCount > 0 ? (HasReadyItems ? "done_all" : "timelapse") : null;
+    public override string? MapIcon => ItemCount > 0 ? (HasReadyItems ? "ready" : "curing") : null;
     public override int IconPriority => HasReadyItems ? 7 : 1; // Ready items are urgent
 
     /// <summary>

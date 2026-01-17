@@ -76,6 +76,9 @@ public partial class GameRunner(GameContext ctx)
             GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");
             GameDisplay.AddDanger(ctx, "You have died.");
             BlockingDialog.ShowMessageAndWait(ctx, "Death", "You have died.");
+
+            // Delete save so next launch starts fresh
+            SaveManager.DeleteSave(ctx.SessionId);
         }
     }
 

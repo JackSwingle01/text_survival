@@ -2,7 +2,7 @@ namespace text_survival.Environments.Features;
 
 public class WaterFeature : LocationFeature
 {
-    public override string? MapIcon => "water_drop";
+    public override string? MapIcon => "water";
     public override int IconPriority => 2;
 
     // Explicit public fields for serialization (System.Text.Json IncludeFields requires public)
