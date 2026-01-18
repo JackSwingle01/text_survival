@@ -52,6 +52,26 @@ namespace text_survival.Effects
         public string? RemovalMessage { get; init; }
         public List<ThresholdMessage> ThresholdMessages { get; init; } = [];
 
+        /// <summary>
+        /// Snapshot current severity for trend tracking.
+        /// Call this ONCE at the start of each update cycle.
+        /// </summary>
+        public void SnapshotSeverity()
+        {
+            PreviousSeverity = Severity;
+        }
+
+        /// <summary>
+        /// Returns the change in severity since the last snapshot.
+        /// Positive = worsening, negative = improving.
+        /// Returns null if no snapshot has been taken yet.
+        /// </summary>
+        public double? GetSeverityChangeSinceSnapshot()
+        {
+            if (PreviousSeverity < 0) return null;  // -1 means not yet tracked
+            return Severity - PreviousSeverity;
+        }
+
         public record ThresholdMessage(double Threshold, string Message, bool WhenRising);
         public record DamageOverTime(double PerHour, DamageType Type);
     }

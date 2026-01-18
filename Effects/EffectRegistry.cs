@@ -58,7 +58,6 @@ public class EffectRegistry
         if (existingEffect != null)
         {
             double oldSeverity = existingEffect.Severity;
-            existingEffect.PreviousSeverity = oldSeverity;
             existingEffect.Severity = effect.Severity;
 
             // Return threshold message if severity changed
@@ -87,6 +86,19 @@ public class EffectRegistry
             return null;
         }
     }
+    /// <summary>
+    /// Snapshot all active effect severities for trend tracking.
+    /// Call this ONCE at the start of each update cycle, BEFORE any SetEffectSeverity calls.
+    /// </summary>
+    public void SnapshotAllSeverities()
+    {
+        foreach (Effect effect in _effects)
+        {
+            if (effect.IsActive)
+                effect.SnapshotSeverity();
+        }
+    }
+
     public List<string> Update(int minutes)
     {
         var messages = new List<string>();
@@ -122,7 +134,6 @@ public class EffectRegistry
     private string? UpdateSeverity(Effect effect, double change)
     {
         double oldSeverity = effect.Severity;
-        effect.PreviousSeverity = oldSeverity;
 
         // Effects that require treatment decay to a floor instead of fully clearing
         double floor = effect.RequiresTreatment ? RequiresTreatmentFloor : 0;

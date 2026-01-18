@@ -65,6 +65,9 @@ public abstract class Actor : IMovable
 
     public virtual void Update(int minutes, SurvivalContext context)
     {
+        // Snapshot severities BEFORE any changes for trend tracking
+        EffectRegistry.SnapshotAllSeverities();
+
         var result = SurvivalProcessor.Process(Body, context, minutes);
 
         // 2. Add effects from survival (hypothermia, etc)
