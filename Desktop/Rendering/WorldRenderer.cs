@@ -427,7 +427,7 @@ public class WorldRenderer
     }
 
     /// <summary>
-    /// Render the combat grid (25x25m tactical view).
+    /// Render the combat grid (50x50m tactical view).
     /// </summary>
     private void RenderCombatGrid(GameContext ctx)
     {
@@ -438,7 +438,7 @@ public class WorldRenderer
         Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(20, 20, 25, 255));
 
         // Calculate grid parameters
-        int gridSize = 25; // 25x25 meter grid
+        int gridSize = Combat.CombatScenario.MAP_SIZE; // Dynamic grid size from scenario
         int screenWidth = Camera.GridWidth;
         int screenHeight = Camera.GridHeight;
         int cellSize = Math.Min(screenWidth / gridSize, screenHeight / gridSize);
@@ -587,8 +587,8 @@ public class WorldRenderer
                 Raylib.DrawRectangle(barX, barY, fillWidth, barHeight, healthColor);
             }
 
-            // Draw boldness ring (for enemies)
-            if (!combat.Team1.Contains(unit))
+            // Draw boldness ring (for enemies) - only when engaged
+            if (!combat.Team1.Contains(unit) && unit.Awareness == Combat.AwarenessState.Engaged)
             {
                 float boldness = (float)unit.Boldness;
                 int ringRadius = cellSize / 2 + 2;
@@ -600,6 +600,34 @@ public class WorldRenderer
                     _ => new Color(200, 200, 200, 80)          // Cautious - gray
                 };
                 Raylib.DrawCircleLines(screenX, screenY, ringRadius, ringColor);
+            }
+
+            // Draw awareness state indicator (for non-engaged enemies)
+            if (!combat.Team1.Contains(unit) && unit.Awareness != Combat.AwarenessState.Engaged)
+            {
+                int indicatorRadius = cellSize / 2 + 4;
+                Color awarenessColor = unit.Awareness switch
+                {
+                    Combat.AwarenessState.Unaware => new Color(100, 200, 100, 100),  // Green - safe to approach
+                    Combat.AwarenessState.Alert => new Color(255, 200, 100, 120),     // Orange - be careful
+                    _ => new Color(255, 100, 100, 150)
+                };
+
+                // Draw dashed circle for awareness (dots instead of solid line)
+                int numDots = unit.Awareness == Combat.AwarenessState.Unaware ? 8 : 12;
+                for (int i = 0; i < numDots; i++)
+                {
+                    float angle = (float)(i * 2 * Math.PI / numDots);
+                    int dotX = screenX + (int)(indicatorRadius * Math.Cos(angle));
+                    int dotY = screenY + (int)(indicatorRadius * Math.Sin(angle));
+                    Raylib.DrawCircle(dotX, dotY, 2, awarenessColor);
+                }
+
+                // Draw awareness icon above unit (? for unaware, ! for alert)
+                string icon = unit.Awareness == Combat.AwarenessState.Unaware ? "?" : "!";
+                int iconX = screenX - 3;
+                int iconY = screenY - cellSize / 2 - 20;
+                Raylib.DrawText(icon, iconX, iconY, 14, awarenessColor);
             }
         }
 

@@ -1,9 +1,13 @@
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Actions.Handlers;
+using text_survival.Actions.Variants;
+using text_survival.Actors.Animals;
 using text_survival.Combat;
 using text_survival.Desktop.Input;
 using text_survival.Environments.Features;
+using text_survival.Items;
 
 namespace text_survival.Desktop.UI;
 
@@ -298,8 +302,13 @@ public class ActionPanel
         var playerUnit = combat.Player;
         var nearest = combat.GetNearestEnemy(playerUnit);
 
+        // Determine if we're in stealth mode (target not engaged)
+        bool inStealth = nearest != null && nearest.Awareness != AwarenessState.Engaged;
+        int huntingSkill = ctx.player.Skills.GetSkill("Hunting")?.Level ?? 0;
+
         // Combat header
-        ImGui.TextColored(new Vector4(1f, 0.5f, 0.3f, 1f), "COMBAT");
+        string headerText = inStealth ? "STALKING" : "COMBAT";
+        ImGui.TextColored(new Vector4(1f, 0.5f, 0.3f, 1f), headerText);
         ImGui.Separator();
 
         // Distance display
@@ -331,34 +340,56 @@ public class ActionPanel
 
             // Enemy status
             ImGui.Separator();
-            ImGui.Text($"Enemy: {nearest.actor.Name}");
+            ImGui.Text($"Target: {nearest.actor.Name}");
 
-            string healthDesc = nearest.actor.Vitality switch
+            // Show awareness state in stealth
+            if (inStealth)
             {
-                >= 0.9 => "Healthy",
-                >= 0.7 => "Wounded",
-                >= 0.5 => "Badly Hurt",
-                >= 0.3 => "Staggering",
-                _ => "Near Death"
-            };
+                string awarenessText = nearest.Awareness == AwarenessState.Unaware
+                    ? "Unaware"
+                    : "Alert";
+                Vector4 awarenessColor = nearest.Awareness == AwarenessState.Unaware
+                    ? new Vector4(0.4f, 0.9f, 0.4f, 1f)  // Green - good
+                    : new Vector4(1f, 0.8f, 0.3f, 1f);   // Yellow - caution
+                ImGui.TextColored(awarenessColor, awarenessText);
 
-            Vector4 healthColor = nearest.actor.Vitality switch
+                // Show activity hint for animals
+                if (nearest.actor is Animal animal)
+                {
+                    var behavior = HuntingSightingSelector.MapActivityToBehavior(animal);
+                    string hint = HuntingSightingSelector.GetBehaviorHint(behavior);
+                    ImGui.TextWrapped(hint);
+                }
+            }
+            else
             {
-                >= 0.7 => new Vector4(0.4f, 0.9f, 0.4f, 1f),
-                >= 0.4 => new Vector4(1f, 0.8f, 0.3f, 1f),
-                _ => new Vector4(1f, 0.3f, 0.3f, 1f)
-            };
+                string healthDesc = nearest.actor.Vitality switch
+                {
+                    >= 0.9 => "Healthy",
+                    >= 0.7 => "Wounded",
+                    >= 0.5 => "Badly Hurt",
+                    >= 0.3 => "Staggering",
+                    _ => "Near Death"
+                };
 
-            ImGui.TextColored(healthColor, healthDesc);
+                Vector4 healthColor = nearest.actor.Vitality switch
+                {
+                    >= 0.7 => new Vector4(0.4f, 0.9f, 0.4f, 1f),
+                    >= 0.4 => new Vector4(1f, 0.8f, 0.3f, 1f),
+                    _ => new Vector4(1f, 0.3f, 0.3f, 1f)
+                };
 
-            string boldnessDesc = nearest.Boldness switch
-            {
-                >= 0.7 => "Aggressive",
-                >= 0.5 => "Bold",
-                >= 0.3 => "Wary",
-                _ => "Cautious"
-            };
-            ImGui.Text($"Mood: {boldnessDesc}");
+                ImGui.TextColored(healthColor, healthDesc);
+
+                string boldnessDesc = nearest.Boldness switch
+                {
+                    >= 0.7 => "Aggressive",
+                    >= 0.5 => "Bold",
+                    >= 0.3 => "Wary",
+                    _ => "Cautious"
+                };
+                ImGui.Text($"Mood: {boldnessDesc}");
+            }
         }
 
         ImGui.Separator();
@@ -395,7 +426,7 @@ public class ActionPanel
 
         ImGui.Separator();
 
-        // Combat actions based on zone
+        // Combat actions based on zone and stealth state
         ImGui.Text("Actions:");
         ImGui.Spacing();
 
@@ -403,7 +434,23 @@ public class ActionPanel
         {
             double distance = playerUnit.Position.DistanceTo(nearest.Position);
             var zone = CombatScenario.GetZone(distance);
-            bool hasWeapon = ctx.Inventory.Weapon != null;
+            var weapon = ctx.Inventory.Weapon;
+            bool hasWeapon = weapon != null;
+
+            // Stealth actions (Wait and Assess) when target is unaware/alert
+            if (inStealth)
+            {
+                if (ImGui.Button("Wait", new Vector2(-1, 0)))
+                    clickedAction = "combat:wait";
+                if (ImGui.Button("Assess", new Vector2(-1, 0)))
+                    clickedAction = "combat:assess";
+                ImGui.Separator();
+            }
+
+            // Calculate detection risk for move buttons
+            double detectionRisk = inStealth
+                ? combat.CalculateDetectionRisk(playerUnit, nearest, huntingSkill)
+                : 0;
 
             switch (zone)
             {
@@ -426,19 +473,71 @@ public class ActionPanel
                     break;
 
                 case Zone.mid:
+                    // Throw weapon with hit chance
                     if (hasWeapon)
                     {
-                        if (ImGui.Button("Throw Weapon", new Vector2(-1, 0)))
+                        double maxRange = weapon!.Name.Contains("Stone") ? 25.0 : 20.0;
+                        double baseAccuracy = weapon.Name.Contains("Stone") ? 0.75 : 0.70;
+                        bool isSmall = nearest.actor is Animal a && a.Size == AnimalSize.Small;
+                        double hitChance = HuntingCalculator.CalculateThrownAccuracy(distance, maxRange, baseAccuracy, isSmall);
+
+                        if (ImGui.Button($"Throw {weapon.Name} ({hitChance:P0})", new Vector2(-1, 0)))
                             clickedAction = "combat:throw";
                     }
+
+                    // Throw stone with hit chance
+                    int stones = ctx.Inventory.Count(Resource.Stone);
+                    if (stones > 0)
+                    {
+                        bool isSmall = nearest.actor is Animal a && a.Size == AnimalSize.Small;
+                        double hitChance = HuntingCalculator.CalculateThrownAccuracy(
+                            distance, HuntHandler.GetStoneRange(), HuntHandler.GetStoneBaseAccuracy(), isSmall);
+
+                        if (ImGui.Button($"Throw Stone x{stones} ({hitChance:P0})", new Vector2(-1, 0)))
+                            clickedAction = "combat:throw_stone";
+                    }
+
                     if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
                         clickedAction = "combat:intimidate";
                     break;
 
                 case Zone.far:
+                    // Throw weapon at far range
+                    if (hasWeapon)
+                    {
+                        double maxRange = weapon!.Name.Contains("Stone") ? 25.0 : 20.0;
+                        double baseAccuracy = weapon.Name.Contains("Stone") ? 0.75 : 0.70;
+                        bool isSmall = nearest.actor is Animal a && a.Size == AnimalSize.Small;
+                        double hitChance = HuntingCalculator.CalculateThrownAccuracy(distance, maxRange, baseAccuracy, isSmall);
+
+                        if (hitChance > 0)
+                        {
+                            if (ImGui.Button($"Throw {weapon.Name} ({hitChance:P0})", new Vector2(-1, 0)))
+                                clickedAction = "combat:throw";
+                        }
+                    }
+
                     if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
                         clickedAction = "combat:intimidate";
                     break;
+            }
+
+            // Movement buttons with detection % in stealth
+            ImGui.Separator();
+            if (inStealth)
+            {
+                if (ImGui.Button($"Advance ({detectionRisk:P0} detection)", new Vector2(-1, 0)))
+                    clickedAction = "combat:advance";
+                double retreatRisk = detectionRisk * 0.5; // Retreating is safer
+                if (ImGui.Button($"Retreat ({retreatRisk:P0} detection)", new Vector2(-1, 0)))
+                    clickedAction = "combat:retreat";
+            }
+            else
+            {
+                if (ImGui.Button("Advance", new Vector2(-1, 0)))
+                    clickedAction = "combat:advance";
+                if (ImGui.Button("Retreat", new Vector2(-1, 0)))
+                    clickedAction = "combat:retreat";
             }
         }
 

@@ -1,6 +1,8 @@
 using System.Numerics;
-using System.Security.Cryptography.X509Certificates;
+using text_survival.Actions.Handlers;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
+using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Items;
 
@@ -25,10 +27,17 @@ public class CombatScenario
     public Unit? Player;
     public List<Gear> ThrownWeapons = new();
     private int _currentAIIndex;
-    public CombatScenario(List<Unit> team1, List<Unit> team2, Unit? player)
+
+    /// <summary>
+    /// Location where combat is occurring. Used for visibility-based detection modifiers.
+    /// </summary>
+    public Location? Location { get; set; }
+
+    public CombatScenario(List<Unit> team1, List<Unit> team2, Unit? player, Location? location = null)
     {
         Team1 = team1;
         Team2 = team2;
+        Location = location;
         Units.AddRange(team1);
         Units.AddRange(team2);
         foreach (var unit in team1)
@@ -89,6 +98,19 @@ public class CombatScenario
             else
             {
                 narrative = $"The {unit.actor.Name.ToLower()} moves.";
+            }
+        }
+        else if (action == CombatActions.Shove)
+        {
+            var target = CombatAI.DetermineTarget(unit, this);
+            if (target != null)
+            {
+                var (success, dodged) = Shove(unit, target);
+                narrative = CombatNarrator.DescribeShove(unit.actor, target.actor, success, dodged);
+            }
+            else
+            {
+                narrative = $"The {unit.actor.Name.ToLower()} acts.";
             }
         }
         else if (ActionNeedsTarget(action))
@@ -229,9 +251,16 @@ public class CombatScenario
     {
         var weapon = attacker.GetWeapon() ?? throw new InvalidOperationException("No weapon");
         double dist = attacker.Position.DistanceTo(target.Position);
-        double maxRange = 20.0;
-        double baseHitChance = .9;
-        double hitChance = baseHitChance * (1 - dist / maxRange);
+
+        // Use weapon-specific range and accuracy
+        double maxRange = weapon.Name.Contains("Stone") ? 25.0 : 20.0; // Stone-tipped spears have longer range
+        double baseAccuracy = weapon.Name.Contains("Stone") ? 0.75 : 0.70;
+
+        // Calculate hit chance with small target penalty
+        bool isSmallTarget = target.actor is Animal animal && animal.Size == AnimalSize.Small;
+        double hitChance = HuntingCalculator.CalculateThrownAccuracy(
+            dist, maxRange, baseAccuracy,
+            targetIsSmall: isSmallTarget);
 
         CombatActionResult result;
         if (Utils.DetermineSuccess(hitChance))
@@ -244,22 +273,87 @@ public class CombatScenario
         }
         attacker.UnequipWeapon(); // do this after for damage calculations
         ThrownWeapons.Add(weapon); // for retrieval after
-        // todo spawn ranged weapon on ground
+        return result;
+    }
+
+    /// <summary>
+    /// Stone throw attack - secondary ranged option. Lower damage but doesn't require equipped weapon.
+    /// </summary>
+    public CombatActionResult StoneAttack(Unit attacker, Unit target)
+    {
+        double dist = attacker.Position.DistanceTo(target.Position);
+
+        // Calculate hit chance with small target penalty (0.66 multiplier)
+        bool isSmallTarget = target.actor is Animal animal && animal.Size == AnimalSize.Small;
+        double hitChance = HuntingCalculator.CalculateThrownAccuracy(
+            dist, HuntHandler.GetStoneRange(), HuntHandler.GetStoneBaseAccuracy(),
+            targetIsSmall: isSmallTarget);
+
+        CombatActionResult result;
+        if (Utils.DetermineSuccess(hitChance))
+        {
+            // Stone does 0.25x damage compared to normal attack
+            var damage = attacker.actor.GetAttackDamage();
+            damage.Amount *= 0.25;
+
+            // Apply ambush multiplier
+            double awarenessMultiplier = GetAwarenessDamageMultiplier(target.Awareness);
+            damage.Amount *= awarenessMultiplier;
+
+            // Being attacked makes you Engaged
+            if (target.Awareness != AwarenessState.Engaged)
+            {
+                target.Awareness = AwarenessState.Engaged;
+            }
+
+            var damageResult = target.actor.Damage(damage);
+
+            attacker.ApplyBoldnessChange(MoraleEvent.DealtDamage, target);
+            target.ApplyBoldnessChange(MoraleEvent.TookDamage, attacker);
+
+            target.allies.ForEach(x => x.ApplyBoldnessChange(MoraleEvent.AllyDamaged, target));
+            attacker.allies.ForEach(x => x.ApplyBoldnessChange(MoraleEvent.AllyDealtDamage, attacker));
+
+            if (!target.actor.IsAlive)
+            {
+                HandleUnitDeath(target);
+                CheckIfOver();
+            }
+
+            result = new CombatActionResult(Hit: true, Dodged: false, Blocked: false, Damage: damageResult);
+        }
+        else
+        {
+            result = new CombatActionResult(Hit: false, Dodged: false, Blocked: false, Damage: null);
+        }
+
         return result;
     }
     private CombatActionResult ApplyDamage(Unit attacker, Unit defender)
     {
-        // Check dodge first
-        if (defender.DodgeSet && ResolveDodge(defender, attacker))
+        // Check dodge first (only if defender is aware)
+        if (defender.Awareness == AwarenessState.Engaged && defender.DodgeSet && ResolveDodge(defender, attacker))
         {
             return new CombatActionResult(Hit: false, Dodged: true, Blocked: false, Damage: null);
         }
 
         var damage = attacker.actor.GetAttackDamage();
-        bool blocked = defender.BlockSet;
+
+        // Apply ambush damage multiplier (2x if target is Unaware)
+        double awarenessMultiplier = GetAwarenessDamageMultiplier(defender.Awareness);
+        damage.Amount *= awarenessMultiplier;
+
+        // Block only works if defender is aware
+        bool blocked = defender.Awareness == AwarenessState.Engaged && defender.BlockSet;
         if (blocked) damage.Amount = ResolveBlock(defender, attacker, damage.Amount);
 
         var damageResult = defender.actor.Damage(damage);
+
+        // Being attacked makes you Engaged
+        if (defender.Awareness != AwarenessState.Engaged)
+        {
+            defender.Awareness = AwarenessState.Engaged;
+        }
 
         attacker.ApplyBoldnessChange(MoraleEvent.DealtDamage, defender);
         defender.ApplyBoldnessChange(MoraleEvent.TookDamage, attacker);
@@ -278,22 +372,28 @@ public class CombatScenario
     public void Block(Unit unit) { unit.BlockSet = true; }
     // public void Brace(Unit unit) { unit.BraceSet = true; } // todo
 
-    public void Shove(Unit attacker, Unit target)
+    public (bool success, bool dodged) Shove(Unit attacker, Unit target)
     {
         double strengthRatio = attacker.actor.Strength / target.actor.Strength;
         double weightRatio = attacker.actor.Body.WeightKG / target.actor.Body.WeightKG;
         double baseChance = .5;
         double successChance = baseChance * strengthRatio * weightRatio;
         if (target.BlockSet || target.BraceSet) successChance /= 2;
-        if (Utils.DetermineSuccess(successChance))
+        if (!Utils.DetermineSuccess(successChance))
         {
-            if (target.DodgeSet && ResolveDodge(target, attacker)) return;
-
-            float pushDistance = (float)(1.0 + (2 * strengthRatio) + weightRatio);
-            var direction = attacker.Position.DirectionTo(target.Position);
-            var pushDest = target.Position.Move(direction, pushDistance);
-            Move(target, pushDest);
+            return (success: false, dodged: false);
         }
+
+        if (target.DodgeSet && ResolveDodge(target, attacker))
+        {
+            return (success: false, dodged: true);
+        }
+
+        float pushDistance = (float)(1.0 + (2 * strengthRatio) + weightRatio);
+        var direction = attacker.Position.DirectionTo(target.Position);
+        var pushDest = target.Position.Move(direction, pushDistance);
+        Move(target, pushDest);
+        return (success: true, dodged: false);
     }
     public void Intimidate(Unit unit)
     {
@@ -309,10 +409,10 @@ public class CombatScenario
         {
             case CombatActions.Attack: return Attack(unit, target!);
             case CombatActions.Throw: return RangedAttack(unit, target!);
+            case CombatActions.ThrowStone: return StoneAttack(unit, target!);
             case CombatActions.Dodge: Dodge(unit); return null;
             case CombatActions.Block: Block(unit); return null;
             case CombatActions.Shove: Shove(unit, target!); return null;
-            // case CombatActions.Brace: Brace(unit); return null;
             case CombatActions.Intimidate: Intimidate(unit); return null;
             case CombatActions.Move: throw new InvalidOperationException("Call move directly");
             default: throw new NotImplementedException();
@@ -371,6 +471,7 @@ public class CombatScenario
     {
         CombatActions.Attack => true,
         CombatActions.Throw => true,
+        CombatActions.ThrowStone => true,
         CombatActions.Shove => true,
         _ => false,
     };
@@ -381,7 +482,7 @@ public class CombatScenario
         <= 15 => Zone.mid,
         _ => Zone.far
     };
-    private const int MAP_SIZE = 25;
+    public const int MAP_SIZE = 50;
     private const int FLEE_THRESHOLD = 3;
     private const int FLEE_ENERGY_COST = 20;
     private static readonly Random _rng = new();
@@ -435,8 +536,122 @@ public class CombatScenario
         Flee(unit);
         return true;
     }
+
+    #region Awareness & Detection
+
+    /// <summary>
+    /// Run detection checks for all enemies of the acting unit.
+    /// Call after any action when enemies are Unaware or Alert.
+    /// Returns list of units whose awareness changed.
+    /// </summary>
+    public List<(Unit unit, AwarenessState oldState, AwarenessState newState)> RunDetectionChecks(Unit actingUnit, int huntingSkill = 0)
+    {
+        var changes = new List<(Unit, AwarenessState, AwarenessState)>();
+
+        foreach (var enemy in actingUnit.enemies.ToList())
+        {
+            if (enemy.Awareness == AwarenessState.Engaged) continue;
+            if (!Units.Contains(enemy)) continue;
+
+            var oldState = enemy.Awareness;
+            var newState = CheckDetection(actingUnit, enemy, huntingSkill);
+
+            if (newState != oldState)
+            {
+                enemy.Awareness = newState;
+                changes.Add((enemy, oldState, newState));
+            }
+        }
+
+        return changes;
+    }
+
+    /// <summary>
+    /// Check if a detector (enemy) detects the mover.
+    /// Returns the new awareness state.
+    /// </summary>
+    private AwarenessState CheckDetection(Unit mover, Unit detector, int huntingSkill)
+    {
+        double distance = mover.Position.DistanceTo(detector.Position);
+
+        double detectionChance = HuntingCalculator.CalculateDetectionChance(
+            distance,
+            detector.Awareness,
+            huntingSkill,
+            0 // failedAttempts - could track this per unit if desired
+        );
+
+        // Location visibility reduces detection (good cover = lower detection)
+        if (Location != null)
+        {
+            // VisibilityFactor: 0 = deep cave/thick forest (good cover), 2 = open plain/overlook (no cover)
+            // Lower visibility = more cover = lower detection
+            double visibilityNormalized = Location.VisibilityFactor / 2.0; // 0-1 scale
+            double coverBonus = (1.0 - visibilityNormalized) * 0.3; // Up to 30% reduction in detection
+            detectionChance *= (1.0 - coverBonus);
+        }
+
+        double roll = _rng.NextDouble();
+
+        if (roll < detectionChance)
+        {
+            // Detected - escalate awareness
+            return detector.Awareness == AwarenessState.Unaware
+                ? AwarenessState.Alert
+                : AwarenessState.Engaged;
+        }
+        else if (HuntingCalculator.ShouldBecomeAlert(roll, detectionChance) && detector.Awareness == AwarenessState.Unaware)
+        {
+            // Near-miss becomes alert
+            return AwarenessState.Alert;
+        }
+
+        return detector.Awareness;
+    }
+
+    /// <summary>
+    /// Calculate detection chance for Assess action (shows risk without rolling).
+    /// </summary>
+    public double CalculateDetectionRisk(Unit mover, Unit detector, int huntingSkill)
+    {
+        double distance = mover.Position.DistanceTo(detector.Position);
+
+        double detectionChance = HuntingCalculator.CalculateDetectionChance(
+            distance,
+            detector.Awareness,
+            huntingSkill,
+            0
+        );
+
+        // Apply location visibility modifier
+        if (Location != null)
+        {
+            double visibilityNormalized = Location.VisibilityFactor / 2.0; // 0-1 scale
+            double coverBonus = (1.0 - visibilityNormalized) * 0.3; // Up to 30% reduction
+            detectionChance *= (1.0 - coverBonus);
+        }
+
+        return Math.Clamp(detectionChance, 0.05, 0.95);
+    }
+
+    /// <summary>
+    /// Calculate damage multiplier based on defender's awareness state.
+    /// Unaware targets take 2x damage (ambush bonus).
+    /// </summary>
+    public static double GetAwarenessDamageMultiplier(AwarenessState awareness)
+    {
+        return awareness switch
+        {
+            AwarenessState.Unaware => 2.0,
+            AwarenessState.Alert => 1.0,
+            AwarenessState.Engaged => 1.0,
+            _ => 1.0
+        };
+    }
+
+    #endregion
 }
 
-public enum CombatActions { Move, Attack, Throw, Dodge, Block, Shove, Intimidate, Advance, Retreat, Flee }
+public enum CombatActions { Move, Attack, Throw, ThrowStone, Dodge, Block, Shove, Intimidate, Advance, Retreat, Flee, Assess, Wait }
 
 public enum Zone { close, near, mid, far }

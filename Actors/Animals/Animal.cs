@@ -37,7 +37,6 @@ namespace text_survival.Actors.Animals
         public bool IsHostile { get; protected set; } = true;
         public AnimalBehaviorType BehaviorType { get; set; }
         public AnimalSize Size { get; set; }
-        public AnimalState State { get; set; }
         public double DistanceFromPlayer { get; set; }
         public int FailedStealthChecks { get; set; }
         public int TrackingDifficulty { get; set; }
@@ -101,7 +100,6 @@ namespace text_survival.Actors.Animals
             DisengageAfterMaul = disengageAfterMaul;
 
             // Defaults
-            State = AnimalState.Idle;
             DistanceFromPlayer = 100.0;
             FailedStealthChecks = 0;
             TrackingDifficulty = 5;
@@ -110,48 +108,6 @@ namespace text_survival.Actors.Animals
         #endregion
 
         #region Behavior Methods
-
-        public void BecomeAlert()
-        {
-            if (State == AnimalState.Idle)
-            {
-                State = AnimalState.Alert;
-            }
-        }
-
-        public void BecomeDetected()
-        {
-            State = AnimalState.Detected;
-        }
-
-        public void ResetState()
-        {
-            State = AnimalState.Idle;
-            FailedStealthChecks = 0;
-            DistanceFromPlayer = 100.0;
-        }
-
-        public bool ShouldFlee(Actor player)
-        {
-            if (State != AnimalState.Detected)
-                return false;
-
-            return BehaviorType switch
-            {
-                AnimalBehaviorType.Prey => true,
-                AnimalBehaviorType.Scavenger => AssessIfOutmatched(player),
-                AnimalBehaviorType.Predator => false,
-                AnimalBehaviorType.DangerousPrey => false,
-                _ => false
-            };
-        }
-
-        private bool AssessIfOutmatched(Actor player)
-        {
-            double playerThreat = player.Vitality * player.AttackDamage * player.Body.WeightKG;
-            double animalThreat = this.Vitality * this.AttackDamage * this.Body.WeightKG;
-            return playerThreat > animalThreat * .8;
-        }
 
         public double CalculateBoldness(Player.Player player, Inventory inventory)
         {

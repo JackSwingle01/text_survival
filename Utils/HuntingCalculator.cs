@@ -1,5 +1,6 @@
 using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
+using text_survival.Combat;
 
 namespace text_survival;
 
@@ -37,13 +38,13 @@ public static class HuntingCalculator
     /// Detection difficulty increases exponentially as distance decreases.
     /// </summary>
     /// <param name="distance">Current distance from animal in meters</param>
-    /// <param name="animalState">Animal's current awareness state</param>
+    /// <param name="awareness">Animal's current awareness state</param>
     /// <param name="huntingSkill">Player's Hunting skill level</param>
     /// <param name="failedAttempts">Number of previous failed stealth checks</param>
     /// <returns>Detection chance (0.0 - 1.0)</returns>
     public static double CalculateDetectionChance(
         double distance,
-        AnimalState animalState,
+        AwarenessState awareness,
         int huntingSkill,
         int failedAttempts = 0)
     {
@@ -52,12 +53,12 @@ public static class HuntingCalculator
         double baseDetectionChance = 1.0 - (distance / 100.0); // Linear scaling
         baseDetectionChance = Math.Pow(baseDetectionChance, 0.7); // Exponential curve (makes close range very dangerous)
 
-        // Animal state modifier
-        double stateModifier = animalState switch
+        // Awareness state modifier
+        double stateModifier = awareness switch
         {
-            AnimalState.Idle => 1.0,      // Normal detection
-            AnimalState.Alert => 1.5,     // 50% more likely to detect
-            AnimalState.Detected => 2.0,  // Already detected (flee/attack imminent)
+            AwarenessState.Unaware => 1.0,  // Normal detection
+            AwarenessState.Alert => 1.5,    // 50% more likely to detect
+            AwarenessState.Engaged => 2.0,  // Already detected (flee/attack imminent)
             _ => 1.0
         };
 
@@ -93,7 +94,8 @@ public static class HuntingCalculator
     /// More nervous animals are harder to approach. Grazing animals are easier.
     /// </summary>
     /// <param name="distance">Current distance from animal in meters</param>
-    /// <param name="animal">The target animal (provides state, nervousness, activity)</param>
+    /// <param name="animal">The target animal (provides nervousness, activity)</param>
+    /// <param name="awareness">The animal's awareness state</param>
     /// <param name="huntingSkill">Player's Hunting skill level</param>
     /// <param name="failedAttempts">Number of previous failed stealth checks</param>
     /// <param name="impairedMultiplier">Multiplier for consciousness impairment (1.0 = normal, 1.3 = impaired)</param>
@@ -101,12 +103,13 @@ public static class HuntingCalculator
     public static double CalculateDetectionChanceWithTraits(
         double distance,
         Animal animal,
+        AwarenessState awareness,
         int huntingSkill,
         int failedAttempts = 0,
         double impairedMultiplier = 1.0)
     {
         // Get base detection using existing formula
-        double baseChance = CalculateDetectionChance(distance, animal.State, huntingSkill, failedAttempts);
+        double baseChance = CalculateDetectionChance(distance, awareness, huntingSkill, failedAttempts);
 
         // Apply nervousness modifier: nervous (0.9) = 1.4x harder, calm (0.1) = 0.6x easier
         // Formula: 0.5 + nervousness maps [0,1] to [0.5, 1.5]
@@ -212,8 +215,8 @@ public static class HuntingCalculator
         // Closer is better (linear falloff from max range)
         double accuracy = baseAccuracy * (1.0 - distance / maxRange);
 
-        // Small target penalty (spears only — stones pass false)
-        if (targetIsSmall) accuracy *= 0.5;
+        // Small target penalty (0.66 multiplier - harder to hit but not impossible)
+        if (targetIsSmall) accuracy *= 0.66;
 
         // Manipulation impairment penalty (e.g., clumsy hands)
         accuracy -= manipulationPenalty;

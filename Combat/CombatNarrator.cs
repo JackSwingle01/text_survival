@@ -1,6 +1,5 @@
 using System.Text;
 using text_survival.Actors;
-using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
 using text_survival.Bodies;
 

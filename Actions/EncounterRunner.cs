@@ -2,9 +2,6 @@ using text_survival.Actors.Animals;
 using text_survival.Combat;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
-using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions.Expeditions;
 
@@ -13,46 +10,21 @@ namespace text_survival.Actions.Expeditions;
 /// </summary>
 public enum EncounterOutcome
 {
-    PredatorRetreated,  // Boldness dropped below 0.3, predator left
-    PlayerEscaped,      // Player outran or distracted predator
+    PredatorRetreated,  // Predator fled
+    PlayerEscaped,      // Player escaped
     CombatVictory,      // Player killed predator
     PlayerDied          // Player was killed
 }
 
 /// <summary>
-/// Handles predator encounters using the overlay UI.
-///
-/// State Machine:
-/// 1. Choice Phase: Player selects action (stand/back/run/fight/drop_meat)
-/// 2. Process: Apply effects of choice, update distance/boldness
-/// 3. Check: If boldness &lt; retreat threshold → Retreated
-///           If distance &lt;= attack range → Combat
-///           Else → Continue to next turn
-/// 4. Outcome Phase: Show result message, wait for acknowledgment
-///
-/// Transitions to CombatRunner when fight initiated or predator charges.
+/// Handles predator encounters by transitioning to the unified stealth-combat system.
+/// Player starts Unaware, predator is Alert/Engaged based on context.
 /// </summary>
 public static class EncounterRunner
 {
-    // Distance constants (meters)
-    private const double StandGroundDistanceCloseMeters = 10;
-    private const double BackAwayDistanceGainMeters = 5;
-    private const double AggressiveCloseDistanceMeters = 10;
-    private const double AttackRangeMeters = 5;
-    private const double FightOptionRangeMeters = 20;
-    private const double CaughtDistanceMeters = 5;
-
-    // Boldness constants (0-1 scale)
-    private const double StandGroundBoldnessDecrease = 0.10;
-    private const double BackAwayBoldnessIncrease = 0.05;
-    private const double BoldnessRetreatThreshold = 0.3;
-    private const double BoldnessAggressiveThreshold = 0.7;
-
-    // Other thresholds
-    private const double PlayerWeaknessVitalityThreshold = 0.7;
-
     /// <summary>
-    /// Handles a predator encounter using the overlay UI. Returns outcome for caller.
+    /// Handles a predator encounter using the combat grid.
+    /// Player starts Unaware - combat overlay only appears when player detects predator or is attacked.
     /// </summary>
     public static EncounterOutcome HandlePredatorEncounter(Animal predator, GameContext ctx)
     {
@@ -62,178 +34,29 @@ public static class EncounterRunner
         // Initialize boldness from observable context
         predator.EncounterBoldness = predator.CalculateBoldness(ctx.player, ctx.Inventory);
 
-        double? prevDistance = null;
-        string? statusMessage = null;
+        // Determine predator's initial awareness based on boldness
+        // Very bold predators are fully Engaged, others start Alert
+        bool predatorIsAlert = predator.EncounterBoldness < 0.7;
 
-        while (predator.IsAlive && ctx.player.IsAlive)
-        {
-            // Build encounter DTO
-            var encounterDto = BuildEncounterDto(ctx, predator, prevDistance, statusMessage);
+        // Run combat with predator encounter setup
+        var combatResult = CombatOrchestrator.RunPredatorEncounter(ctx, predator, predatorIsAlert);
 
-            // Get player choice
-            string action = DesktopIO.WaitForEncounterChoice(ctx, encounterDto);
-
-            // Save distance for next animation
-            prevDistance = predator.DistanceFromPlayer;
-
-            switch (action)
-            {
-                case "stand":
-                    predator.DistanceFromPlayer -= StandGroundDistanceCloseMeters;
-                    predator.EncounterBoldness -= StandGroundBoldnessDecrease;
-
-                    if (predator.EncounterBoldness < BoldnessRetreatThreshold)
-                    {
-                        // Show retreat outcome
-                        var retreatDto = BuildEncounterDto(ctx, predator, prevDistance, null,
-                            new EncounterOutcomeDto("retreated", $"The {predator.Name} hesitates... then slinks away."));
-                        DesktopIO.RenderEncounter(ctx, retreatDto);
-                        DesktopIO.WaitForEncounterContinue(ctx);
-                        return EncounterOutcome.PredatorRetreated;
-                    }
-                    statusMessage = $"The {predator.Name} moves closer, but seems less certain.";
-                    break;
-
-                case "back":
-                    predator.DistanceFromPlayer += BackAwayDistanceGainMeters;
-                    predator.EncounterBoldness += BackAwayBoldnessIncrease;
-                    statusMessage = "You slowly back away, keeping eyes on the predator.";
-                    break;
-
-                case "run":
-                    var (escaped, narrative) = HuntingCalculator.CalculatePursuitOutcome(
-                        ctx.player, predator, predator.DistanceFromPlayer);
-
-                    if (escaped)
-                    {
-                        var escapeDto = BuildEncounterDto(ctx, predator, prevDistance, null,
-                            new EncounterOutcomeDto("escaped", narrative));
-                        DesktopIO.RenderEncounter(ctx, escapeDto);
-                        DesktopIO.WaitForEncounterContinue(ctx);
-                        return EncounterOutcome.PlayerEscaped;
-                    }
-
-                    // Caught — forced combat
-                    predator.DistanceFromPlayer = CaughtDistanceMeters;
-                    var caughtDto = BuildEncounterDto(ctx, predator, prevDistance, null,
-                        new EncounterOutcomeDto("fight", narrative + " It catches you!"));
-                    DesktopIO.RenderEncounter(ctx, caughtDto);
-                    DesktopIO.WaitForEncounterContinue(ctx);
-                    DesktopIO.ClearEncounter(ctx);
-
-                    return TransitionToCombat(ctx, predator);
-
-                case "fight":
-                    var fightDto = BuildEncounterDto(ctx, predator, prevDistance, null,
-                        new EncounterOutcomeDto("fight", "You ready yourself for combat."));
-                    DesktopIO.RenderEncounter(ctx, fightDto);
-                    DesktopIO.WaitForEncounterContinue(ctx);
-                    DesktopIO.ClearEncounter(ctx);
-
-                    return TransitionToCombat(ctx, predator);
-
-                case "drop_meat":
-                    double meatDropped = ctx.Inventory.DropAllMeat();
-                    var meatDto = BuildEncounterDto(ctx, predator, prevDistance, null,
-                        new EncounterOutcomeDto("escaped",
-                            $"You drop {meatDropped:F1}kg of meat and back away. The {predator.Name} goes for the meat."));
-                    DesktopIO.RenderEncounter(ctx, meatDto);
-                    DesktopIO.WaitForEncounterContinue(ctx);
-                    return EncounterOutcome.PlayerEscaped;
-
-                default:
-                    statusMessage = null;
-                    break;
-            }
-
-            // Boldness ceiling: very bold predator closes regardless of player action
-            if (predator.EncounterBoldness >= BoldnessAggressiveThreshold)
-            {
-                predator.DistanceFromPlayer -= AggressiveCloseDistanceMeters;
-                statusMessage = $"The {predator.Name} grows impatient and closes in.";
-            }
-
-            // Check if predator reaches attack range
-            if (predator.DistanceFromPlayer <= AttackRangeMeters)
-            {
-                var chargeDto = BuildEncounterDto(ctx, predator, prevDistance, null,
-                    new EncounterOutcomeDto("fight", $"The {predator.Name} charges!"));
-                DesktopIO.RenderEncounter(ctx, chargeDto);
-                DesktopIO.WaitForEncounterContinue(ctx);
-                DesktopIO.ClearEncounter(ctx);
-
-                return TransitionToCombat(ctx, predator);
-            }
-
-            ctx.Update(1, ActivityType.Encounter); // 1 minute per turn
-        }
-
-        DesktopIO.ClearEncounter(ctx);
-        return ctx.player.IsAlive ? EncounterOutcome.PredatorRetreated : EncounterOutcome.PlayerDied;
+        return TranslateCombatResult(combatResult);
     }
 
     /// <summary>
-    /// Build EncounterDto for UI rendering.
+    /// Translate combat result to encounter outcome.
     /// </summary>
-    private static EncounterDto BuildEncounterDto(
-        GameContext ctx,
-        Animal predator,
-        double? prevDistance,
-        string? statusMessage,
-        EncounterOutcomeDto? outcome = null)
+    private static EncounterOutcome TranslateCombatResult(CombatResult combatResult)
     {
-        string boldnessDesc = predator.EncounterBoldness >= BoldnessAggressiveThreshold ? "aggressive"
-            : predator.EncounterBoldness > BoldnessRetreatThreshold ? "wary" : "hesitant";
-
-        // Build threat factors
-        var factors = new List<ThreatFactorDto>();
-        if (ctx.Inventory.HasMeat)
-            factors.Add(new ThreatFactorDto("meat", "Eyeing your meat", "restaurant"));
-        if (ctx.player.Vitality < PlayerWeaknessVitalityThreshold)
-            factors.Add(new ThreatFactorDto("weakness", "Senses your weakness", "personal_injury"));
-        if (ctx.player.EffectRegistry.HasEffect("Bloody"))
-            factors.Add(new ThreatFactorDto("blood", "Smells blood on you", "water_drop"));
-
-        // Build choices
-        var choices = new List<EncounterChoiceDto>
-        {
-            new("stand", "Stand your ground", "Face it down. May intimidate it.", true, null),
-            new("back", "Back away slowly", "Gain distance but it may grow bolder.", true, null),
-            new("run", "Run", "Try to outrun it. Risky if slow.", true, null)
-        };
-
-        if (predator.DistanceFromPlayer <= FightOptionRangeMeters)
-            choices.Add(new EncounterChoiceDto("fight", "Fight", "Attack now.", true, null));
-
-        if (ctx.Inventory.HasMeat)
-            choices.Add(new EncounterChoiceDto("drop_meat", "Drop the meat", "Distract it and escape.", true, null));
-
-        return new EncounterDto(
-            PredatorName: predator.Name,
-            CurrentDistanceMeters: predator.DistanceFromPlayer,
-            PreviousDistanceMeters: prevDistance,
-            IsAnimatingDistance: prevDistance != null,
-            BoldnessLevel: predator.EncounterBoldness,
-            BoldnessDescriptor: boldnessDesc,
-            ThreatFactors: factors,
-            StatusMessage: statusMessage,
-            Choices: choices,
-            Outcome: outcome
-        );
-    }
-
-    /// <summary>
-    /// Transition from encounter overlay to combat overlay.
-    /// </summary>
-    private static EncounterOutcome TransitionToCombat(GameContext ctx, Animal predator)
-    {
-        var combatResult = CombatOrchestrator.RunCombat(ctx, predator);
-
         return combatResult switch
         {
             CombatResult.Victory => EncounterOutcome.CombatVictory,
             CombatResult.Defeat => EncounterOutcome.PlayerDied,
             CombatResult.Fled => EncounterOutcome.PlayerEscaped,
+            CombatResult.AnimalFled => EncounterOutcome.PredatorRetreated,
+            CombatResult.AnimalDisengaged => EncounterOutcome.PredatorRetreated,
+            CombatResult.DistractedWithMeat => EncounterOutcome.PlayerEscaped,
             _ => EncounterOutcome.PlayerDied
         };
     }

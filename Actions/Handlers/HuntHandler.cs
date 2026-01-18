@@ -10,6 +10,22 @@ namespace text_survival.Actions.Handlers;
 /// </summary>
 public static class HuntHandler
 {
+    #region Stone Constants
+
+    /// <summary>
+    /// Get effective throwing range for a stone.
+    /// </summary>
+    public static double GetStoneRange() => 15.0;
+
+    /// <summary>
+    /// Get base accuracy for a thrown stone.
+    /// </summary>
+    public static double GetStoneBaseAccuracy() => 0.90;
+
+    #endregion
+
+    #region Spear Methods
+
     /// <summary>
     /// Get effective throwing range for a spear.
     /// Stone-tipped spears have longer range than wooden spears.
@@ -61,8 +77,8 @@ public static class HuntHandler
         // Stones don't get small target penalty (they're designed for small game)
         return HuntingCalculator.CalculateThrownAccuracy(
             target.DistanceFromPlayer,
-            12,
-            0.65,
+            GetStoneRange(),
+            GetStoneBaseAccuracy(),
             targetIsSmall: false,
             manipPenalty
         );
@@ -97,11 +113,13 @@ public static class HuntHandler
             // Stone throw (no small target penalty)
             return HuntingCalculator.CalculateThrownAccuracy(
                 target.DistanceFromPlayer,
-                12,
-                0.65,
+                GetStoneRange(),
+                GetStoneBaseAccuracy(),
                 targetIsSmall: false,
                 manipPenalty
             );
         }
     }
+
+    #endregion
 }

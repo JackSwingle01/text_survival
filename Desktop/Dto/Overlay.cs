@@ -193,65 +193,9 @@ public record ForageFocusDto(string Id, string Label, string Description);
 /// </summary>
 public record ForageTimeDto(string Id, string Label, int Minutes);
 
-/// <summary>
-/// Hunt state data for the hunt overlay popup.
-/// </summary>
-public record HuntDto(
-    string AnimalName,
-    string AnimalDescription,
-    string AnimalActivity,
-    string AnimalState,              // "idle", "alert", "detected"
-    double CurrentDistanceMeters,
-    double? PreviousDistanceMeters,  // For animation (null on first frame)
-    bool IsAnimatingDistance,
-    int MinutesSpent,
-    string? StatusMessage,
-    List<HuntChoiceDto> Choices,
-    HuntOutcomeDto? Outcome          // null during choice phase
-);
-
-/// <summary>
-/// A choice option in the hunt overlay.
-/// </summary>
-public record HuntChoiceDto(
-    string Id,
-    string Label,
-    string? Description,
-    bool IsAvailable,
-    string? DisabledReason
-);
-
-/// <summary>
-/// Hunt outcome when the hunt concludes.
-/// </summary>
-public record HuntOutcomeDto(
-    string Result,                   // "success", "fled", "abandoned", "combat"
-    string Message,
-    int TotalMinutesSpent,
-    List<string> ItemsGained,
-    List<string> EffectsApplied,
-    bool TransitionToCombat
-);
-
 // ============================================
-// ENCOUNTER OVERLAY
+// COMBAT OVERLAY (Distance-Based Strategic Combat)
 // ============================================
-
-/// <summary>
-/// Encounter state data for the predator encounter overlay popup.
-/// </summary>
-public record EncounterDto(
-    string PredatorName,
-    double CurrentDistanceMeters,
-    double? PreviousDistanceMeters,      // For animation (null on first frame)
-    bool IsAnimatingDistance,
-    double BoldnessLevel,                 // 0-1
-    string BoldnessDescriptor,            // "aggressive", "wary", "hesitant"
-    List<ThreatFactorDto> ThreatFactors,  // Observable factors making predator bold
-    string? StatusMessage,
-    List<EncounterChoiceDto> Choices,
-    EncounterOutcomeDto? Outcome          // null during choice phase
-);
 
 /// <summary>
 /// An observable factor affecting predator boldness (shown to player).
@@ -261,29 +205,6 @@ public record ThreatFactorDto(
     string Description,
     string Icon                           // Material icon name
 );
-
-/// <summary>
-/// A choice option in the encounter overlay.
-/// </summary>
-public record EncounterChoiceDto(
-    string Id,                            // "stand", "back", "run", "fight", "drop_meat"
-    string Label,
-    string? Description,
-    bool IsAvailable,
-    string? DisabledReason
-);
-
-/// <summary>
-/// Encounter outcome when the encounter concludes (before combat if fight chosen).
-/// </summary>
-public record EncounterOutcomeDto(
-    string Result,                        // "retreated", "escaped", "fight", "died"
-    string Message
-);
-
-// ============================================
-// COMBAT OVERLAY (Distance-Based Strategic Combat)
-// ============================================
 
 /// <summary>
 /// Combat phase for pacing narrative beats.

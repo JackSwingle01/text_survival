@@ -6,6 +6,16 @@ using text_survival.Items;
 namespace text_survival.Combat;
 
 /// <summary>
+/// Awareness state for stealth-combat system.
+/// </summary>
+public enum AwarenessState
+{
+    Unaware,  // Target wanders/stays put. Actions trigger detection check. 2x damage on hit.
+    Alert,    // Suspicious, harder to approach (1.5x detection). Still triggers detection checks.
+    Engaged   // Normal combat behavior. No detection checks. Normal damage.
+}
+
+/// <summary>
 /// Wrapper class for actors to separate the combat-specific calculations
 /// </summary>
 /// <param name="actor"></param>
@@ -16,6 +26,11 @@ public class Unit(Actor actor, GridPosition position)
     public List<Unit> enemies = [];
 
     public GridPosition Position = position;
+
+    /// <summary>
+    /// Current awareness state. Defaults to Engaged for backwards compatibility.
+    /// </summary>
+    public AwarenessState Awareness = AwarenessState.Engaged;
 
     // primary stats    
     public double Threat => actor.BaseThreat * actor.Vitality;
