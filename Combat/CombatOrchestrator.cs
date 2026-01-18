@@ -10,6 +10,11 @@ using text_survival.UI;
 namespace text_survival.Combat;
 
 /// <summary>
+/// Result of a player action attempt. ActionTaken=false means invalid action (turn not consumed).
+/// </summary>
+public record PlayerActionResult(bool ActionTaken, string? Narrative);
+
+/// <summary>
 /// Orchestrates combat encounters with turn loop and IO.
 /// CombatScenario handles state/rules, this handles the player-facing loop.
 /// </summary>
@@ -42,19 +47,23 @@ public static class CombatOrchestrator
                 string action = response.Action.Substring(7);
 
                 // Execute player action
-                var narrative = ExecutePlayerChoice(scenario, playerUnit, action);
+                var actionResult = ExecutePlayerChoice(scenario, playerUnit, action);
 
-                // Show result
-                if (!string.IsNullOrEmpty(narrative))
+                // Show result narrative if any
+                if (!string.IsNullOrEmpty(actionResult.Narrative))
                 {
-                    GameDisplay.AddNarrative(ctx, narrative);
+                    GameDisplay.AddNarrative(ctx, actionResult.Narrative);
                 }
 
-                if (scenario.IsOver) break;
+                // Only advance to AI turns if the action was valid
+                if (actionResult.ActionTaken)
+                {
+                    if (scenario.IsOver) break;
 
-                // AI turns - executed one at a time with rendering between
-                scenario.ResetAITurns(playerUnit);
-                DesktopIO.RunAITurnsWithAnimation(ctx, scenario, playerUnit);
+                    // AI turns - executed one at a time with rendering between
+                    scenario.ResetAITurns(playerUnit);
+                    DesktopIO.RunAITurnsWithAnimation(ctx, scenario, playerUnit);
+                }
             }
         }
 
@@ -131,7 +140,7 @@ public static class CombatOrchestrator
 
     #region Player Actions
 
-    private static string ExecutePlayerChoice(CombatScenario scenario, Unit playerUnit, string choice)
+    private static PlayerActionResult ExecutePlayerChoice(CombatScenario scenario, Unit playerUnit, string choice)
     {
         // Handle click-to-move (move_to_X_Y format)
         if (choice.StartsWith("move_to_"))
@@ -141,14 +150,14 @@ public static class CombatOrchestrator
             {
                 return ExecuteMoveTo(scenario, playerUnit, new GridPosition(x, y));
             }
-            return "";
+            return new PlayerActionResult(false, null);
         }
 
         var nearest = scenario.GetNearestEnemy(playerUnit);
-        if (nearest == null) return "";
+        if (nearest == null) return new PlayerActionResult(false, null);
 
         if (!Enum.TryParse<CombatActions>(choice, true, out var action))
-            return "";
+            return new PlayerActionResult(false, null);
 
         return action switch
         {
@@ -161,11 +170,11 @@ public static class CombatOrchestrator
             CombatActions.Shove => ExecuteShove(scenario, playerUnit, nearest),
             CombatActions.Intimidate => ExecuteIntimidate(scenario, playerUnit),
             CombatActions.Flee => ExecuteFlee(scenario, playerUnit),
-            _ => ""
+            _ => new PlayerActionResult(false, null)
         };
     }
 
-    private static string ExecuteMoveTo(CombatScenario scenario, Unit playerUnit, GridPosition dest)
+    private static PlayerActionResult ExecuteMoveTo(CombatScenario scenario, Unit playerUnit, GridPosition dest)
     {
         // Calculate distance to destination
         double distance = Math.Sqrt(
@@ -174,92 +183,80 @@ public static class CombatOrchestrator
 
         // Validate: within movement range (max 3m - same as MOVE_DIST)
         if (distance > MOVE_DIST)
-        {
-            return "Too far to move there.";
-        }
+            return new PlayerActionResult(false, null);
 
         // Can't move to current position
         if (distance == 0)
-        {
-            return "";
-        }
+            return new PlayerActionResult(false, null);
 
-        // Check if destination is occupied
-        if (scenario.Units.Any(u => u.actor.IsAlive && u.Position.X == dest.X && u.Position.Y == dest.Y))
-        {
-            return "That space is occupied.";
-        }
-
-        // Valid move - execute it
+        // Valid move - execute it (Move() handles collision resolution)
         scenario.Move(playerUnit, dest);
-        return "You move.";
+        return new PlayerActionResult(true, "You move.");
     }
 
-    private static string ExecuteAdvance(CombatScenario scenario, Unit playerUnit, Unit nearest)
+    private static PlayerActionResult ExecuteAdvance(CombatScenario scenario, Unit playerUnit, Unit nearest)
     {
         var dest = playerUnit.Position.MoveToward(nearest.Position, MOVE_DIST);
         scenario.Move(playerUnit, dest);
-        return "You advance.";
+        return new PlayerActionResult(true, "You advance.");
     }
 
-    private static string ExecuteRetreat(CombatScenario scenario, Unit playerUnit, Unit nearest)
+    private static PlayerActionResult ExecuteRetreat(CombatScenario scenario, Unit playerUnit, Unit nearest)
     {
         var dest = playerUnit.Position.MoveAway(nearest.Position, MOVE_DIST);
         scenario.Move(playerUnit, dest);
-        return "You back away.";
+        return new PlayerActionResult(true, "You back away.");
     }
 
-    private static string ExecuteAttack(CombatScenario scenario, Unit playerUnit, Unit nearest)
+    private static PlayerActionResult ExecuteAttack(CombatScenario scenario, Unit playerUnit, Unit nearest)
     {
         var result = scenario.ExecuteAction(CombatActions.Attack, playerUnit, nearest);
-        if (result != null)
-        {
-            return CombatNarrator.DescribeAttack(playerUnit.actor, nearest.actor, result);
-        }
-        return $"You attack the {nearest.actor.Name}!";
+        var narrative = result != null
+            ? CombatNarrator.DescribeAttack(playerUnit.actor, nearest.actor, result)
+            : $"You attack the {nearest.actor.Name}!";
+        return new PlayerActionResult(true, narrative);
     }
 
-    private static string ExecuteThrow(CombatScenario scenario, Unit playerUnit, Unit nearest)
+    private static PlayerActionResult ExecuteThrow(CombatScenario scenario, Unit playerUnit, Unit nearest)
     {
         var result = scenario.ExecuteAction(CombatActions.Throw, playerUnit, nearest);
-        if (result != null)
-        {
-            return CombatNarrator.DescribeAttack(playerUnit.actor, nearest.actor, result);
-        }
-        return $"You throw your weapon at the {nearest.actor.Name}!";
+        var narrative = result != null
+            ? CombatNarrator.DescribeAttack(playerUnit.actor, nearest.actor, result)
+            : $"You throw your weapon at the {nearest.actor.Name}!";
+        return new PlayerActionResult(true, narrative);
     }
 
-    private static string ExecuteDodge(CombatScenario scenario, Unit playerUnit)
+    private static PlayerActionResult ExecuteDodge(CombatScenario scenario, Unit playerUnit)
     {
         scenario.ExecuteAction(CombatActions.Dodge, playerUnit, null);
-        return "You ready to dodge.";
+        return new PlayerActionResult(true, "You ready to dodge.");
     }
 
-    private static string ExecuteBlock(CombatScenario scenario, Unit playerUnit)
+    private static PlayerActionResult ExecuteBlock(CombatScenario scenario, Unit playerUnit)
     {
         scenario.ExecuteAction(CombatActions.Block, playerUnit, null);
-        return "You raise your guard.";
+        return new PlayerActionResult(true, "You raise your guard.");
     }
 
-    private static string ExecuteShove(CombatScenario scenario, Unit playerUnit, Unit nearest)
+    private static PlayerActionResult ExecuteShove(CombatScenario scenario, Unit playerUnit, Unit nearest)
     {
         scenario.ExecuteAction(CombatActions.Shove, playerUnit, nearest);
-        return $"You shove the {nearest.actor.Name}!";
+        return new PlayerActionResult(true, $"You shove the {nearest.actor.Name}!");
     }
 
-    private static string ExecuteIntimidate(CombatScenario scenario, Unit playerUnit)
+    private static PlayerActionResult ExecuteIntimidate(CombatScenario scenario, Unit playerUnit)
     {
         scenario.ExecuteAction(CombatActions.Intimidate, playerUnit, null);
-        return CombatNarrator.DescribeIntimidate(playerUnit.actor, isPlayer: true);
+        return new PlayerActionResult(true, CombatNarrator.DescribeIntimidate(playerUnit.actor, isPlayer: true));
     }
 
-    private static string ExecuteFlee(CombatScenario scenario, Unit playerUnit)
+    private static PlayerActionResult ExecuteFlee(CombatScenario scenario, Unit playerUnit)
     {
         if (!CombatScenario.CanFlee(playerUnit.Position))
-            return "You're too far from the edge to flee.";
+            return new PlayerActionResult(false, null);
 
         scenario.ExecuteFlee(playerUnit);
-        return "You sprint for the edge!";
+        return new PlayerActionResult(true, "You sprint for the edge!");
     }
 
     #endregion

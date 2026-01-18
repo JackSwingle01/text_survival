@@ -189,6 +189,7 @@ public class CombatScenario
     // primary actions
     public void Move(Unit unit, GridPosition destination)
     {
+        destination = ResolveDestination(destination, unit);
         var moveDirection = unit.Position.DirectionTo(destination);
         unit.Position = destination;
         foreach (var enemy in unit.enemies.ToList())
@@ -290,7 +291,8 @@ public class CombatScenario
 
             float pushDistance = (float)(1.0 + (2 * strengthRatio) + weightRatio);
             var direction = attacker.Position.DirectionTo(target.Position);
-            target.Position = target.Position.Move(direction, pushDistance);
+            var pushDest = target.Position.Move(direction, pushDistance);
+            Move(target, pushDest);
         }
     }
     public void Intimidate(Unit unit)
@@ -327,7 +329,8 @@ public class CombatScenario
         {
             defender.actor.Body.Energy -= 10;
             var direction = attacker.Position.DirectionTo(defender.Position);
-            defender.Position = defender.Position.Move(direction, 1.0f);
+            var pushDest = defender.Position.Move(direction, 1.0f);
+            Move(defender, pushDest);
             return true;
         }
         else
@@ -381,6 +384,38 @@ public class CombatScenario
     private const int MAP_SIZE = 25;
     private const int FLEE_THRESHOLD = 3;
     private const int FLEE_ENERGY_COST = 20;
+    private static readonly Random _rng = new();
+
+    /// <summary>
+    /// Resolves a destination to an unoccupied tile. If dest is occupied,
+    /// returns a random unoccupied neighbor. If none available, returns mover's current position.
+    /// </summary>
+    private GridPosition ResolveDestination(GridPosition dest, Unit mover)
+    {
+        bool occupied = Units.Any(u => u != mover && u.actor.IsAlive &&
+            u.Position.X == dest.X && u.Position.Y == dest.Y);
+        if (!occupied) return dest;
+
+        var neighbors = GetAllNeighbors(dest)
+            .Where(p => IsInBounds(p))
+            .Where(p => !Units.Any(u => u != mover && u.actor.IsAlive &&
+                u.Position.X == p.X && u.Position.Y == p.Y))
+            .ToList();
+
+        if (neighbors.Count == 0) return mover.Position;
+        return neighbors[_rng.Next(neighbors.Count)];
+    }
+
+    private static IEnumerable<GridPosition> GetAllNeighbors(GridPosition pos)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+                if (dx != 0 || dy != 0)
+                    yield return new GridPosition(pos.X + dx, pos.Y + dy);
+    }
+
+    private static bool IsInBounds(GridPosition pos) =>
+        pos.X >= 0 && pos.X < MAP_SIZE && pos.Y >= 0 && pos.Y < MAP_SIZE;
 
     public static int GetDistanceFromEdge(GridPosition pos)
     {
