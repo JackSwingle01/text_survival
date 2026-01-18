@@ -78,58 +78,66 @@ public static class CombatOrchestrator
             // Render and wait for player input
             var response = DesktopIO.RenderGridAndWaitForInput(ctx);
 
-            if (response.Type == "action" && response.Action != null && response.Action.StartsWith("combat:"))
+            PlayerActionResult? actionResult = null;
+
+            // Handle click-to-move
+            if (response.CombatMoveTarget != null)
             {
-                // Extract action (remove "combat:" prefix)
-                string action = response.Action.Substring(7);
+                actionResult = ExecuteMoveTo(scenario, playerUnit, response.CombatMoveTarget.Value);
+            }
+            // Handle typed combat action
+            else if (response.CombatAction != null)
+            {
+                actionResult = ExecutePlayerChoice(scenario, playerUnit, response.CombatAction.Value, ctx);
+            }
+            else
+            {
+                continue; // No combat action, wait for next input
+            }
 
-                // Execute player action
-                var actionResult = ExecutePlayerChoice(scenario, playerUnit, action, ctx);
-
-                // Handle invalid action with feedback
-                if (!actionResult.ActionTaken)
-                {
-                    if (!string.IsNullOrEmpty(actionResult.Narrative))
-                    {
-                        BlockingDialog.ShowMessageAndWait(ctx, "Invalid Action", actionResult.Narrative);
-                    }
-                    continue;  // Go back to waiting for input
-                }
-
-                // Show result narrative for successful actions
+            // Handle invalid action with feedback
+            if (!actionResult.ActionTaken)
+            {
                 if (!string.IsNullOrEmpty(actionResult.Narrative))
                 {
-                    GameDisplay.AddNarrative(ctx, actionResult.Narrative);
+                    BlockingDialog.ShowMessageAndWait(ctx, "Invalid Action", actionResult.Narrative);
                 }
-
-                // Action was valid - advance to AI turns
-                // Time cost: 1 minute per action (survival pressure during combat)
-                ctx.Update(1, ActivityType.Fighting);
-
-                // Run detection checks (only affects enemies that are Unaware/Alert)
-                var awarenessChanges = scenario.RunDetectionChecks(playerUnit, huntingSkill);
-                foreach (var (unit, oldState, newState) in awarenessChanges)
-                {
-                    string detectionMsg = newState switch
-                    {
-                        AwarenessState.Alert when oldState == AwarenessState.Unaware =>
-                            $"The {unit.actor.Name.ToLower()} becomes alert - it senses something!",
-                        AwarenessState.Engaged =>
-                            $"The {unit.actor.Name.ToLower()} spots you!",
-                        _ => null
-                    };
-                    if (detectionMsg != null)
-                    {
-                        GameDisplay.AddWarning(ctx, detectionMsg);
-                    }
-                }
-
-                if (scenario.IsOver) break;
-
-                // AI turns - executed one at a time with rendering between
-                scenario.ResetAITurns(playerUnit);
-                DesktopIO.RunAITurnsWithAnimation(ctx, scenario, playerUnit);
+                continue;  // Go back to waiting for input
             }
+
+            // Show result narrative for successful actions
+            if (!string.IsNullOrEmpty(actionResult.Narrative))
+            {
+                GameDisplay.AddNarrative(ctx, actionResult.Narrative);
+            }
+
+            // Action was valid - advance to AI turns
+            // Time cost: 1 minute per action (survival pressure during combat)
+            ctx.Update(1, ActivityType.Fighting);
+
+            // Run detection checks (only affects enemies that are Unaware/Alert)
+            var awarenessChanges = scenario.RunDetectionChecks(playerUnit, huntingSkill);
+            foreach (var (unit, oldState, newState) in awarenessChanges)
+            {
+                string detectionMsg = newState switch
+                {
+                    AwarenessState.Alert when oldState == AwarenessState.Unaware =>
+                        $"The {unit.actor.Name.ToLower()} becomes alert - it senses something!",
+                    AwarenessState.Engaged =>
+                        $"The {unit.actor.Name.ToLower()} spots you!",
+                    _ => null
+                };
+                if (detectionMsg != null)
+                {
+                    GameDisplay.AddWarning(ctx, detectionMsg);
+                }
+            }
+
+            if (scenario.IsOver) break;
+
+            // AI turns - executed one at a time with rendering between
+            scenario.ResetAITurns(playerUnit);
+            DesktopIO.RunAITurnsWithAnimation(ctx, scenario, playerUnit);
         }
 
         // === CLEANUP ===
@@ -441,7 +449,7 @@ public static class CombatOrchestrator
     {
         // Run predator's turn (they're stalking/approaching)
         scenario.ResetAITurns(playerUnit);
-        while (scenario.HasRemainingAITurns(playerUnit))
+        while (scenario.HasRemainingAITurns(playerUnit) && !Raylib_cs.Raylib.WindowShouldClose())
         {
             scenario.RunNextAITurn(playerUnit);
             if (scenario.IsOver) break;
@@ -489,11 +497,22 @@ public static class CombatOrchestrator
     {
         var response = DesktopIO.RenderGridAndWaitForInput(ctx);
 
-        if (response.Type != "action" || response.Action == null || !response.Action.StartsWith("combat:"))
-            return;
+        PlayerActionResult? actionResult = null;
 
-        string action = response.Action.Substring(7);
-        var actionResult = ExecutePlayerChoice(scenario, playerUnit, action, ctx);
+        // Handle click-to-move
+        if (response.CombatMoveTarget != null)
+        {
+            actionResult = ExecuteMoveTo(scenario, playerUnit, response.CombatMoveTarget.Value);
+        }
+        // Handle typed combat action
+        else if (response.CombatAction != null)
+        {
+            actionResult = ExecutePlayerChoice(scenario, playerUnit, response.CombatAction.Value, ctx);
+        }
+        else
+        {
+            return; // No combat action
+        }
 
         if (!string.IsNullOrEmpty(actionResult.Narrative))
             GameDisplay.AddNarrative(ctx, actionResult.Narrative);
@@ -539,24 +558,10 @@ public static class CombatOrchestrator
 
     #region Player Actions
 
-    private static PlayerActionResult ExecutePlayerChoice(CombatScenario scenario, Unit playerUnit, string choice, GameContext ctx)
+    private static PlayerActionResult ExecutePlayerChoice(CombatScenario scenario, Unit playerUnit, CombatActions action, GameContext ctx)
     {
-        // Handle click-to-move (move_to_X_Y format)
-        if (choice.StartsWith("move_to_"))
-        {
-            var parts = choice.Split('_');
-            if (parts.Length == 4 && int.TryParse(parts[2], out int x) && int.TryParse(parts[3], out int y))
-            {
-                return ExecuteMoveTo(scenario, playerUnit, new GridPosition(x, y));
-            }
-            return new PlayerActionResult(false, null);
-        }
-
         var nearest = scenario.GetNearestEnemy(playerUnit);
         if (nearest == null) return new PlayerActionResult(false, null);
-
-        if (!Enum.TryParse<CombatActions>(choice, true, out var action))
-            return new PlayerActionResult(false, null);
 
         return action switch
         {

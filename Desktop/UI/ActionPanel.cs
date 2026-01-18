@@ -29,17 +29,17 @@ public class ActionPanel
     }
 
     /// <summary>
-    /// Render the action panel. Returns the action ID if one was clicked.
+    /// Render the action panel. Returns either a location action string or a typed combat action.
     /// </summary>
-    public string? Render(GameContext ctx, float deltaTime)
+    public (string? Action, CombatActions? CombatAction) Render(GameContext ctx, float deltaTime)
     {
         if (ctx.ActiveCombat != null)
         {
-            return RenderCombatActions(ctx, deltaTime);
+            return (null, RenderCombatActions(ctx, deltaTime));
         }
         else
         {
-            return RenderLocationActions(ctx, deltaTime);
+            return (RenderLocationActions(ctx, deltaTime), null);
         }
     }
 
@@ -276,9 +276,9 @@ public class ActionPanel
     /// <summary>
     /// Render combat actions when in combat mode.
     /// </summary>
-    private string? RenderCombatActions(GameContext ctx, float deltaTime)
+    private CombatActions? RenderCombatActions(GameContext ctx, float deltaTime)
     {
-        string? clickedAction = null;
+        CombatActions? clickedAction = null;
 
         // Position relative to grid if WorldRenderer is available
         int panelX = 960; // Default fallback
@@ -500,9 +500,9 @@ public class ActionPanel
             if (inStealth)
             {
                 if (ImGui.Button("Wait", new Vector2(-1, 0)))
-                    clickedAction = "combat:wait";
+                    clickedAction = CombatActions.Wait;
                 if (ImGui.Button("Assess", new Vector2(-1, 0)))
-                    clickedAction = "combat:assess";
+                    clickedAction = CombatActions.Assess;
                 ImGui.Separator();
             }
 
@@ -510,20 +510,20 @@ public class ActionPanel
             {
                 case Zone.close:
                     if (ImGui.Button("Attack", new Vector2(-1, 0)))
-                        clickedAction = "combat:attack";
+                        clickedAction = CombatActions.Attack;
                     if (ImGui.Button("Block", new Vector2(-1, 0)))
-                        clickedAction = "combat:block";
+                        clickedAction = CombatActions.Block;
                     if (ImGui.Button("Shove", new Vector2(-1, 0)))
-                        clickedAction = "combat:shove";
+                        clickedAction = CombatActions.Shove;
                     break;
 
                 case Zone.near:
                     if (ImGui.Button("Attack", new Vector2(-1, 0)))
-                        clickedAction = "combat:attack";
+                        clickedAction = CombatActions.Attack;
                     if (ImGui.Button("Dodge", new Vector2(-1, 0)))
-                        clickedAction = "combat:dodge";
+                        clickedAction = CombatActions.Dodge;
                     if (ImGui.Button("Block", new Vector2(-1, 0)))
-                        clickedAction = "combat:block";
+                        clickedAction = CombatActions.Block;
                     break;
 
                 case Zone.mid:
@@ -535,7 +535,7 @@ public class ActionPanel
                         double hitChance = HuntingCalculator.CalculateThrownAccuracy(distance, maxRange, baseAccuracy, isSmall);
 
                         if (ImGui.Button($"Throw {weapon.Name} ({hitChance:P0})", new Vector2(-1, 0)))
-                            clickedAction = "combat:throw";
+                            clickedAction = CombatActions.Throw;
                     }
 
                     // Throw stone with hit chance
@@ -546,11 +546,11 @@ public class ActionPanel
                             distance, HuntHandler.GetStoneRange(), HuntHandler.GetStoneBaseAccuracy(), isSmall);
 
                         if (ImGui.Button($"Throw Stone x{stones} ({hitChance:P0})", new Vector2(-1, 0)))
-                            clickedAction = "combat:throwstone";
+                            clickedAction = CombatActions.ThrowStone;
                     }
 
                     if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
-                        clickedAction = "combat:intimidate";
+                        clickedAction = CombatActions.Intimidate;
                     break;
 
                 case Zone.far:
@@ -564,12 +564,12 @@ public class ActionPanel
                         if (hitChance > 0)
                         {
                             if (ImGui.Button($"Throw {weapon.Name} ({hitChance:P0})", new Vector2(-1, 0)))
-                                clickedAction = "combat:throw";
+                                clickedAction = CombatActions.Throw;
                         }
                     }
 
                     if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
-                        clickedAction = "combat:intimidate";
+                        clickedAction = CombatActions.Intimidate;
                     break;
             }
         }
@@ -581,7 +581,7 @@ public class ActionPanel
             int dist = CombatScenario.GetDistanceFromEdge(playerUnit.Position);
             string label = dist == 0 ? "Flee! (at edge)" : $"Flee ({dist}m to edge)";
             if (ImGui.Button(label, new Vector2(-1, 0)))
-                clickedAction = "combat:flee";
+                clickedAction = CombatActions.Flee;
         }
 
         ImGui.End();

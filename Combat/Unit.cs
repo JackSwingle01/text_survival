@@ -34,7 +34,21 @@ public class Unit(Actor actor, GridPosition position)
 
     // primary stats    
     public double Threat => actor.BaseThreat * actor.Vitality;
-    public double Boldness => actor.StartingBoldness + GetBonusBoldnessFromAllies() + BoldnessModifier + (InitialOptimism ? 1.0 : 0);
+    public double Boldness => actor.StartingBoldness + GetBonusBoldnessFromAllies() + BoldnessModifier + (InitialOptimism ? 1.0 : 0) - GetHealthPenalty();
+    private double GetHealthPenalty()
+    {
+        // 0 = healthy, scales up as actor gets injured
+        double worstPartCondition = actor.Body.Parts.Min(p => p.Condition);
+        double bloodCondition = actor.Body.Blood.Condition;
+        bool isBleeding = actor.EffectRegistry.HasEffect("Bleeding");
+
+        double penalty = 0;
+        penalty += (1 - worstPartCondition) * 1.5;  // Up to 1.5 for destroyed part
+        penalty += (1 - bloodCondition) * 1.0;      // Blood loss is scary
+        if (isBleeding) penalty += 0.3;             // Active bleeding adds fear
+
+        return penalty;
+    }
     public double Aggression => actor.BaseAggression + (JustDamaged ? RETALIATION_BONUS : 0);
     public double CohesionTowards(Unit other)
     {
@@ -55,7 +69,7 @@ public class Unit(Actor actor, GridPosition position)
         double enemyThreat = other?.Threat ?? 0;
         BoldnessModifier += evt switch
         {
-            MoraleEvent.TookDamage => -0.6,
+            MoraleEvent.TookDamage => -0.1,
             MoraleEvent.DealtDamage => 0.4,
             MoraleEvent.AllyDealtDamage => .2,
             MoraleEvent.AllyDamaged => 0.3 * cohesion,
@@ -132,7 +146,7 @@ public class Unit(Actor actor, GridPosition position)
             basePull += direction * BASE_APPROACH;
 
             var advantage = Boldness - PerceivedThreat(enemy); // determine if unit feels stronger
-            var distWeight = Math.Max(.5, 3.0 / dist); // weight adv/retreat factor higher when closer
+            var distWeight = dist > 0 ? Math.Max(.5, 3.0 / dist) : 0.5; // weight adv/retreat factor higher when closer
             if (advantage > MIN_ADVANTAGE_THRESHOLD)
             {
                 // advance if has advantage

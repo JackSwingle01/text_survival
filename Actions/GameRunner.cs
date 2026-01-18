@@ -202,14 +202,15 @@ public partial class GameRunner(GameContext ctx)
             // Render action panel
             if (actionPanel != null)
             {
-                var clickedAction = actionPanel.Render(ctx, deltaTime);
-                if (clickedAction != null)
+                var (action, _) = actionPanel.Render(ctx, deltaTime);
+                if (action != null)
                 {
                     tilePopup?.Hide();
                     rlImGui.End();
                     Raylib.EndDrawing();
-                    return clickedAction;
+                    return action;
                 }
+                // Note: Combat actions don't go through GameRunner - they use DesktopIO directly
             }
 
             // Render overlays

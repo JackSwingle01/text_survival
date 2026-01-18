@@ -15,7 +15,7 @@ public class Player : Actor
     public int LastUpdateMinutes { get; private set; } = 1;
 
     // Combat - uses equipped weapon or unarmed defaults
-    public override double AttackDamage => Inventory?.Weapon?.Damage ?? 0.1;
+    public override double AttackDamage => Inventory?.Weapon?.Damage ?? 0.15;
     public override double BlockChance => Inventory?.Weapon?.BlockChance ?? 0.05;
     public override string AttackName => Inventory?.Weapon?.Name ?? "fists";
     public override DamageType AttackType => Inventory?.Weapon?.WeaponClass switch

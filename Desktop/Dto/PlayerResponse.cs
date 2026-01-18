@@ -1,3 +1,6 @@
+using text_survival.Combat;
+using text_survival.Environments.Grid;
+
 namespace text_survival.Desktop.Dto;
 
 /// <summary>
@@ -14,6 +17,9 @@ public record PlayerResponse(
     bool? QuickTravel = null, // For "hazard_choice" type (true = quick, false = careful)
     string? Action = null,    // For "action" type: "inventory", "crafting"
     string? DetailId = null,  // For "examine" type: environmental detail ID
+    // Combat action fields
+    CombatActions? CombatAction = null,   // Typed combat action (Attack, Dodge, etc.)
+    GridPosition? CombatMoveTarget = null, // Click-to-move target position
     // Transfer fields
     string? TransferItemId = null,  // For "transfer" type: item ID to transfer
     int? TransferCount = null,      // For "transfer" type: how many to transfer (1 or all)

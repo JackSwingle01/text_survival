@@ -9,6 +9,7 @@ using text_survival.Desktop.Dto;
 using text_survival.Desktop.UI;
 using text_survival.Environments;
 using text_survival.Environments.Features;
+using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.UI;
 using ForageFocus = text_survival.Actions.Variants.ForageFocus;
@@ -453,7 +454,7 @@ public static class DesktopIO
                     if (combatClick.HasValue)
                     {
                         return new PlayerResponse(null, inputId, "action",
-                            Action: $"combat:move_to_{combatClick.Value.x}_{combatClick.Value.y}");
+                            CombatMoveTarget: new GridPosition(combatClick.Value.x, combatClick.Value.y));
                     }
                 }
                 else
@@ -498,12 +499,18 @@ public static class DesktopIO
 
             if (actionPanel != null)
             {
-                var clickedAction = actionPanel.Render(ctx, deltaTime);
-                if (clickedAction != null)
+                var (action, combatAction) = actionPanel.Render(ctx, deltaTime);
+                if (action != null)
                 {
                     rlImGui.End();
                     Raylib.EndDrawing();
-                    return new PlayerResponse(null, inputId, "action", Action: clickedAction);
+                    return new PlayerResponse(null, inputId, "action", Action: action);
+                }
+                if (combatAction != null)
+                {
+                    rlImGui.End();
+                    Raylib.EndDrawing();
+                    return new PlayerResponse(null, inputId, "action", CombatAction: combatAction);
                 }
             }
 
