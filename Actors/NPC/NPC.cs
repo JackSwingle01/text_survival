@@ -1,7 +1,5 @@
-using text_survival.Actions;
 using text_survival.Actions.Handlers;
 using text_survival.Actors.Animals;
-using text_survival.Actors.Animals.Behaviors;
 using text_survival.Bodies;
 using text_survival.Crafting;
 using text_survival.Environments;
@@ -17,7 +15,7 @@ public class NPC : Actor
     private static readonly NeedCraftingSystem CraftingSystem = new();
 
     public Personality Personality { get; set; }
-    public Dictionary<Actor, double> Relationships { get; set; } = new();
+    public RelationshipMemory Relationships { get; set; } = new();
     public ResourceMemory ResourceMemory { get; set; } = new();
     public Location? Camp { get; set; }
 
@@ -530,7 +528,7 @@ public class NPC : Actor
     {
         bool canFight = Inventory.HasWeapon && Vitality > .5;
         double fightChance = Personality.Boldness;
-        double baseWillingness = ((threatTarget == this ? 2 : Relationships[threatTarget]) + 1.0) / 2.0;
+        double baseWillingness = ((threatTarget == this ? 2 : Relationships.GetOpinion(threatTarget)) + 1.0) / 2.0;
 
         return false;
     }
@@ -1234,12 +1232,7 @@ public class NPC : Actor
 
     public double GetRelationship(Actor other)
     {
-        return Relationships.TryGetValue(other, out var value) ? value : 0;
-    }
-    public void ModifyRelationship(Actor other, double delta)
-    {
-        double current = GetRelationship(other);
-        Relationships[other] = Math.Clamp(current + delta, -1, 1);
+        return Math.Clamp(Relationships.GetOpinion(other), -1, 1);
     }
 
     #region Combat Decisions

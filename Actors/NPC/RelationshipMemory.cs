@@ -13,10 +13,17 @@ public class RelationshipMemory
         }
         MemoryEvents.Add(new MemoryEvent(memory, subject));
     }
-    private double GetOpinion(Actor actor)
+    public double GetOpinion(Actor actor)
     {
-        return MemoryEvents.Where(x => x.Subject == actor).Sum(x => GetMemoryImpact(x.Type) * x.Count);
+        double sum = 0;
+        for (int i = 0; i < MemoryEvents.Count; i++)
+        {
+            if (MemoryEvents[i].Subject == actor)
+                sum += GetMemoryImpact(MemoryEvents[i].Type) * MemoryEvents[i].Count;
+        }
+        return sum;
     }
+    
     private static double GetMemoryImpact(MemoryType memoryType)
     {
         return memoryType switch
