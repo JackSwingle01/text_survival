@@ -254,13 +254,13 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     {
         if (TimeAddedMinutes != 0)
         {
-            GameDisplay.AddNarrative(ctx, $"(+{TimeAddedMinutes} minutes)");
+            // GameDisplay.AddNarrative(ctx, $"(+{TimeAddedMinutes} minutes)");
             // Apply time without progress animation (time shows in outcome popup)
             // This prevents the progress frame from blocking the event overlay
             ctx.Update(TimeAddedMinutes, ctx.CurrentActivity);
         }
 
-        GameDisplay.AddNarrative(ctx, Message);
+        // GameDisplay.AddNarrative(ctx, Message);s
     }
 
     private void ApplyEffects(GameContext ctx, OutcomeSummary summary)

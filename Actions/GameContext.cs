@@ -324,6 +324,9 @@ public class GameContext(Player player, Location camp, Weather weather)
         CurrentActivity = activity;
         var config = ActivityConfig.Get(activity);
 
+        // Snapshot effect severities ONCE before all updates for trend tracking
+        player.EffectRegistry.SnapshotAllSeverities();
+
         int elapsed = 0;
         GameEvent? evt = null;
 

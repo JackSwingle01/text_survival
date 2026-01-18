@@ -65,8 +65,8 @@ public abstract class Actor : IMovable
 
     public virtual void Update(int minutes, SurvivalContext context)
     {
-        // Snapshot severities BEFORE any changes for trend tracking
-        EffectRegistry.SnapshotAllSeverities();
+        // Note: Snapshot is called once per update cycle from GameContext.Update(),
+        // not here (which runs every minute in the loop)
 
         var result = SurvivalProcessor.Process(Body, context, minutes);
 
