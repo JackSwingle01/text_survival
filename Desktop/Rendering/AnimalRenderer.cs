@@ -6,6 +6,7 @@ namespace text_survival.Desktop.Rendering;
 
 /// <summary>
 /// Renders procedural animal sprites for herd visualization.
+/// Minimalist ice age fauna designs - all animals face left.
 /// </summary>
 public static class AnimalRenderer
 {
@@ -68,11 +69,15 @@ public static class AnimalRenderer
         Raylib.DrawEllipse((int)cx, (int)cy, rx, ry, color);
     }
 
-    private static void DrawRotatedEllipse(float cx, float cy, float rx, float ry, float angleDegrees, Color color)
+    private static void DrawCircle(float cx, float cy, float r, Color color)
+    {
+        Raylib.DrawCircle((int)cx, (int)cy, r, color);
+    }
+
+    private static void DrawRotatedEllipse(float cx, float cy, float rx, float ry, float angleRadians, Color color)
     {
         // Approximate rotated ellipse using a polygon
         int segments = 20;
-        float angleRad = angleDegrees * Raylib.DEG2RAD;
 
         for (int i = 0; i < segments; i++)
         {
@@ -86,10 +91,10 @@ public static class AnimalRenderer
             float y2 = ry * MathF.Sin(t2);
 
             // Rotate
-            float rx1 = x1 * MathF.Cos(angleRad) - y1 * MathF.Sin(angleRad);
-            float ry1 = x1 * MathF.Sin(angleRad) + y1 * MathF.Cos(angleRad);
-            float rx2 = x2 * MathF.Cos(angleRad) - y2 * MathF.Sin(angleRad);
-            float ry2 = x2 * MathF.Sin(angleRad) + y2 * MathF.Cos(angleRad);
+            float rx1 = x1 * MathF.Cos(angleRadians) - y1 * MathF.Sin(angleRadians);
+            float ry1 = x1 * MathF.Sin(angleRadians) + y1 * MathF.Cos(angleRadians);
+            float rx2 = x2 * MathF.Cos(angleRadians) - y2 * MathF.Sin(angleRadians);
+            float ry2 = x2 * MathF.Sin(angleRadians) + y2 * MathF.Cos(angleRadians);
 
             Raylib.DrawTriangle(
                 new Vector2(cx, cy),
@@ -100,359 +105,513 @@ public static class AnimalRenderer
     }
 
     // === Animal Drawing Functions ===
+    // All animals face LEFT (head/snout on negative X side)
 
     private static void DrawCaribou(float x, float y, float scale)
     {
-        // Brown deer with antlers
-        var bodyColor = new Color(139, 90, 60, 255);
-        var antlerColor = new Color(101, 67, 33, 255);
-        var legColor = new Color(120, 80, 55, 255);
+        var body = new Color(139, 115, 85, 255);
+        var bodyLight = new Color(160, 128, 96, 255);
+        var antler = new Color(90, 74, 58, 255);
+        var eye = new Color(42, 42, 42, 255);
+
+        float s = scale;
+
+        // Antlers (behind head)
+        DrawRotatedEllipse(x - 20 * s, y - 38 * s, 2 * s, 14 * s, -0.4f, antler);
+        DrawRotatedEllipse(x - 12 * s, y - 40 * s, 2 * s, 14 * s, 0.4f, antler);
+        DrawRotatedEllipse(x - 28 * s, y - 44 * s, 2 * s, 8 * s, -0.9f, antler);
+        DrawRotatedEllipse(x - 6 * s, y - 46 * s, 2 * s, 8 * s, 0.9f, antler);
+        DrawRotatedEllipse(x - 24 * s, y - 50 * s, 1.5f * s, 5 * s, -0.5f, antler);
+        DrawRotatedEllipse(x - 10 * s, y - 52 * s, 1.5f * s, 5 * s, 0.5f, antler);
 
         // Body
-        DrawEllipse(x, y, scale * 7, scale * 5, bodyColor);
+        DrawEllipse(x + 8 * s, y - 12 * s, 18 * s, 12 * s, body);
+        DrawEllipse(x + 2 * s, y - 14 * s, 8 * s, 6 * s, bodyLight);
+
+        // Legs
+        DrawEllipse(x - 2 * s, y + 2 * s, 3 * s, 10 * s, body);
+        DrawEllipse(x + 18 * s, y + 2 * s, 3 * s, 10 * s, body);
+
+        // Neck
+        DrawRotatedEllipse(x - 8 * s, y - 20 * s, 6 * s, 12 * s, -0.3f, body);
 
         // Head
-        DrawEllipse(x + scale * 8, y - scale * 2, scale * 4, scale * 3, bodyColor);
+        DrawEllipse(x - 16 * s, y - 28 * s, 7 * s, 6 * s, body);
 
-        // Legs (simple lines)
-        Raylib.DrawLineEx(new Vector2(x - scale * 3, y + scale * 5), new Vector2(x - scale * 3, y + scale * 10), scale * 1.5f, legColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 3, y + scale * 5), new Vector2(x + scale * 3, y + scale * 10), scale * 1.5f, legColor);
+        // Snout
+        DrawEllipse(x - 22 * s, y - 26 * s, 5 * s, 3 * s, bodyLight);
 
-        // Antlers
-        Raylib.DrawLineEx(new Vector2(x + scale * 7, y - scale * 5), new Vector2(x + scale * 5, y - scale * 10), scale, antlerColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 9, y - scale * 5), new Vector2(x + scale * 11, y - scale * 10), scale, antlerColor);
-        // Antler branches
-        Raylib.DrawLineEx(new Vector2(x + scale * 5.5f, y - scale * 8), new Vector2(x + scale * 3, y - scale * 9), scale * 0.8f, antlerColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 10.5f, y - scale * 8), new Vector2(x + scale * 13, y - scale * 9), scale * 0.8f, antlerColor);
+        // Eye
+        DrawCircle(x - 14 * s, y - 29 * s, 1.5f * s, eye);
     }
 
     private static void DrawRabbit(float x, float y, float scale)
     {
-        // Gray rabbit with long ears
-        var bodyColor = new Color(180, 180, 180, 255);
-        var earColor = new Color(160, 160, 160, 255);
-        var tailColor = new Color(220, 220, 220, 255);
+        var fur = new Color(212, 204, 196, 255);
+        var furLight = new Color(232, 224, 216, 255);
+        var earInner = new Color(196, 168, 152, 255);
+        var eye = new Color(42, 42, 42, 255);
+
+        float s = scale;
+
+        // Tail (behind body)
+        DrawCircle(x + 12 * s, y - 6 * s, 3 * s, furLight);
 
         // Body
-        DrawEllipse(x, y, scale * 6, scale * 5, bodyColor);
+        DrawEllipse(x + 4 * s, y - 8 * s, 10 * s, 7 * s, fur);
+        DrawEllipse(x + 2 * s, y - 10 * s, 5 * s, 4 * s, furLight);
+
+        // Back legs (hunched)
+        DrawEllipse(x + 10 * s, y - 2 * s, 5 * s, 5 * s, fur);
+
+        // Front legs
+        DrawEllipse(x - 4 * s, y - 2 * s, 2 * s, 6 * s, fur);
+
+        // Ears (behind head)
+        DrawRotatedEllipse(x - 8 * s, y - 26 * s, 3 * s, 10 * s, -0.3f, fur);
+        DrawRotatedEllipse(x - 2 * s, y - 28 * s, 3 * s, 10 * s, 0.2f, fur);
+        DrawRotatedEllipse(x - 8 * s, y - 26 * s, 1.5f * s, 7 * s, -0.3f, earInner);
+        DrawRotatedEllipse(x - 2 * s, y - 28 * s, 1.5f * s, 7 * s, 0.2f, earInner);
 
         // Head
-        DrawEllipse(x + scale * 5, y - scale, scale * 4, scale * 3.5f, bodyColor);
+        DrawCircle(x - 4 * s, y - 14 * s, 6 * s, fur);
 
-        // Long ears
-        DrawEllipse(x + scale * 4, y - scale * 7, scale * 1.5f, scale * 5, earColor);
-        DrawEllipse(x + scale * 7, y - scale * 7, scale * 1.5f, scale * 5, earColor);
+        // Snout
+        DrawEllipse(x - 10 * s, y - 12 * s, 4 * s, 3 * s, furLight);
 
-        // Fluffy tail
-        Raylib.DrawCircle((int)(x - scale * 5), (int)y, scale * 2.5f, tailColor);
+        // Eye
+        DrawCircle(x - 6 * s, y - 15 * s, 1.5f * s, eye);
     }
 
     private static void DrawPtarmigan(float x, float y, float scale)
     {
-        // White bird
-        var bodyColor = new Color(240, 240, 245, 255);
-        var beakColor = new Color(80, 80, 80, 255);
-        var eyeColor = new Color(40, 40, 40, 255);
+        var feather = new Color(232, 228, 220, 255);
+        var featherDark = new Color(196, 192, 184, 255);
+        var beak = new Color(74, 74, 58, 255);
+        var eye = new Color(42, 42, 42, 255);
+        var feet = new Color(138, 122, 90, 255);
+
+        float s = scale;
 
         // Body
-        DrawEllipse(x, y, scale * 5, scale * 4, bodyColor);
+        DrawEllipse(x, y - 8 * s, 12 * s, 8 * s, feather);
+        DrawEllipse(x + 4 * s, y - 10 * s, 6 * s, 5 * s, featherDark);
+
+        // Tail
+        DrawRotatedEllipse(x + 14 * s, y - 6 * s, 6 * s, 3 * s, 0.3f, featherDark);
+
+        // Wing detail
+        DrawRotatedEllipse(x + 2 * s, y - 8 * s, 8 * s, 4 * s, 0.2f, featherDark);
+
+        // Feet
+        DrawEllipse(x - 4 * s, y + 2 * s, 2 * s, 4 * s, feet);
+        DrawEllipse(x + 2 * s, y + 2 * s, 2 * s, 4 * s, feet);
 
         // Head
-        Raylib.DrawCircle((int)(x + scale * 4), (int)(y - scale * 2), scale * 3, bodyColor);
-
-        // Wing
-        DrawRotatedEllipse(x - scale * 2, y, scale * 4, scale * 2, 30, new Color(230, 230, 235, 255));
+        DrawCircle(x - 8 * s, y - 12 * s, 5 * s, feather);
 
         // Beak
-        Raylib.DrawTriangle(
-            new Vector2(x + scale * 7, y - scale * 2),
-            new Vector2(x + scale * 5, y - scale * 3),
-            new Vector2(x + scale * 5, y - scale * 1),
-            beakColor);
+        DrawRotatedEllipse(x - 14 * s, y - 11 * s, 4 * s, 2 * s, 0, beak);
 
         // Eye
-        Raylib.DrawCircle((int)(x + scale * 4), (int)(y - scale * 2.5f), scale * 0.8f, eyeColor);
+        DrawCircle(x - 7 * s, y - 13 * s, 1.2f * s, eye);
     }
 
     private static void DrawFox(float x, float y, float scale)
     {
-        // Orange fox with bushy tail
-        var bodyColor = new Color(218, 107, 44, 255);
-        var tailColor = new Color(200, 90, 30, 255);
-        var earColor = new Color(190, 95, 40, 255);
-        var chestColor = new Color(240, 230, 220, 255);
+        var fur = new Color(196, 122, 74, 255);
+        var furLight = new Color(212, 160, 112, 255);
+        var white = new Color(232, 224, 216, 255);
+        var eye = new Color(42, 42, 42, 255);
+
+        float s = scale;
+
+        // Tail
+        DrawRotatedEllipse(x + 18 * s, y - 8 * s, 12 * s, 5 * s, 0.4f, fur);
+        DrawRotatedEllipse(x + 24 * s, y - 4 * s, 4 * s, 3 * s, 0.4f, white);
 
         // Body
-        DrawEllipse(x, y, scale * 6, scale * 4, bodyColor);
+        DrawEllipse(x, y - 10 * s, 14 * s, 8 * s, fur);
+        DrawEllipse(x - 4 * s, y - 12 * s, 6 * s, 4 * s, furLight);
+
+        // Legs
+        DrawEllipse(x - 8 * s, y + 1 * s, 2.5f * s, 8 * s, fur);
+        DrawEllipse(x + 6 * s, y + 1 * s, 2.5f * s, 8 * s, fur);
+
+        // Ears
+        DrawRotatedEllipse(x - 18 * s, y - 26 * s, 3 * s, 6 * s, -0.4f, fur);
+        DrawRotatedEllipse(x - 12 * s, y - 26 * s, 3 * s, 6 * s, 0.4f, fur);
 
         // Head
-        DrawEllipse(x + scale * 6, y - scale, scale * 3.5f, scale * 3, bodyColor);
+        DrawEllipse(x - 15 * s, y - 16 * s, 8 * s, 6 * s, fur);
 
-        // Chest/belly (white)
-        DrawEllipse(x + scale, y + scale, scale * 3, scale * 2, chestColor);
+        // Snout
+        DrawEllipse(x - 22 * s, y - 14 * s, 5 * s, 3 * s, white);
 
-        // Pointed ears
-        Raylib.DrawTriangle(
-            new Vector2(x + scale * 5, y - scale * 5),
-            new Vector2(x + scale * 4, y - scale * 2),
-            new Vector2(x + scale * 6, y - scale * 2),
-            earColor);
-        Raylib.DrawTriangle(
-            new Vector2(x + scale * 8, y - scale * 5),
-            new Vector2(x + scale * 7, y - scale * 2),
-            new Vector2(x + scale * 9, y - scale * 2),
-            earColor);
-
-        // Bushy tail
-        DrawEllipse(x - scale * 7, y + scale, scale * 6, scale * 3, tailColor);
-        // Tail tip (white)
-        Raylib.DrawCircle((int)(x - scale * 11), (int)(y + scale), scale * 2, chestColor);
+        // Eye
+        DrawCircle(x - 14 * s, y - 17 * s, 1.5f * s, eye);
     }
 
     private static void DrawWolf(float x, float y, float scale)
     {
-        // Gray wolf
-        var bodyColor = new Color(120, 120, 130, 255);
-        var earColor = new Color(100, 100, 110, 255);
-        var eyeColor = new Color(200, 180, 100, 255);
+        var fur = new Color(106, 106, 106, 255);
+        var furLight = new Color(138, 138, 138, 255);
+        var eye = new Color(42, 42, 42, 255);
+
+        float s = scale;
+
+        // Tail (behind, curving up)
+        DrawRotatedEllipse(x + 22 * s, y - 16 * s, 4 * s, 12 * s, 0.6f, fur);
 
         // Body
-        DrawEllipse(x, y, scale * 8, scale * 5, bodyColor);
-
-        // Head
-        DrawEllipse(x + scale * 8, y - scale, scale * 5, scale * 4, bodyColor);
+        DrawEllipse(x + 6 * s, y - 12 * s, 18 * s, 10 * s, fur);
+        DrawEllipse(x + 2 * s, y - 14 * s, 8 * s, 5 * s, furLight);
 
         // Legs
-        Raylib.DrawLineEx(new Vector2(x - scale * 4, y + scale * 5), new Vector2(x - scale * 4, y + scale * 11), scale * 2, bodyColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 4, y + scale * 5), new Vector2(x + scale * 4, y + scale * 11), scale * 2, bodyColor);
+        DrawEllipse(x - 4 * s, y + 2 * s, 3 * s, 12 * s, fur);
+        DrawEllipse(x + 16 * s, y + 2 * s, 3 * s, 12 * s, fur);
 
-        // Pointed ears
-        Raylib.DrawTriangle(
-            new Vector2(x + scale * 7, y - scale * 6),
-            new Vector2(x + scale * 6, y - scale * 3),
-            new Vector2(x + scale * 8, y - scale * 3),
-            earColor);
-        Raylib.DrawTriangle(
-            new Vector2(x + scale * 10, y - scale * 6),
-            new Vector2(x + scale * 9, y - scale * 3),
-            new Vector2(x + scale * 11, y - scale * 3),
-            earColor);
+        // Neck
+        DrawRotatedEllipse(x - 10 * s, y - 18 * s, 7 * s, 10 * s, -0.3f, fur);
 
-        // Eyes (yellow)
-        Raylib.DrawCircle((int)(x + scale * 9), (int)(y - scale * 2), scale * 0.8f, eyeColor);
+        // Ears
+        DrawRotatedEllipse(x - 22 * s, y - 32 * s, 3 * s, 6 * s, -0.3f, fur);
+        DrawRotatedEllipse(x - 14 * s, y - 34 * s, 3 * s, 6 * s, 0.3f, fur);
+
+        // Head
+        DrawEllipse(x - 18 * s, y - 24 * s, 8 * s, 7 * s, fur);
+
+        // Snout
+        DrawEllipse(x - 26 * s, y - 22 * s, 6 * s, 4 * s, furLight);
+
+        // Eye
+        DrawCircle(x - 16 * s, y - 26 * s, 2 * s, eye);
     }
 
     private static void DrawBear(float x, float y, float scale)
     {
-        // Dark brown bear
-        var bodyColor = new Color(80, 50, 30, 255);
-        var earColor = new Color(70, 45, 25, 255);
+        var fur = new Color(90, 74, 58, 255);
+        var furLight = new Color(106, 90, 74, 255);
+        var snout = new Color(122, 106, 90, 255);
+        var eye = new Color(42, 42, 42, 255);
 
-        // Body (stocky)
-        DrawEllipse(x, y, scale * 9, scale * 7, bodyColor);
+        float s = scale;
+
+        // Body (big and round)
+        DrawEllipse(x + 6 * s, y - 14 * s, 22 * s, 14 * s, fur);
+        DrawEllipse(x + 2 * s, y - 16 * s, 10 * s, 7 * s, furLight);
+
+        // Legs
+        DrawEllipse(x - 8 * s, y + 4 * s, 5 * s, 12 * s, fur);
+        DrawEllipse(x + 18 * s, y + 4 * s, 5 * s, 12 * s, fur);
+
+        // Neck/shoulder
+        DrawEllipse(x - 12 * s, y - 18 * s, 10 * s, 10 * s, fur);
+
+        // Ears
+        DrawCircle(x - 24 * s, y - 32 * s, 4 * s, fur);
+        DrawCircle(x - 14 * s, y - 34 * s, 4 * s, fur);
 
         // Head
-        Raylib.DrawCircle((int)(x + scale * 8), (int)(y - scale * 3), scale * 5, bodyColor);
+        DrawCircle(x - 18 * s, y - 24 * s, 10 * s, fur);
 
-        // Rounded ears
-        Raylib.DrawCircle((int)(x + scale * 5), (int)(y - scale * 7), scale * 2.5f, earColor);
-        Raylib.DrawCircle((int)(x + scale * 11), (int)(y - scale * 7), scale * 2.5f, earColor);
+        // Snout
+        DrawEllipse(x - 26 * s, y - 22 * s, 6 * s, 4 * s, snout);
 
-        // Legs (thick)
-        Raylib.DrawLineEx(new Vector2(x - scale * 5, y + scale * 7), new Vector2(x - scale * 5, y + scale * 12), scale * 3, bodyColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 5, y + scale * 7), new Vector2(x + scale * 5, y + scale * 12), scale * 3, bodyColor);
+        // Eye
+        DrawCircle(x - 14 * s, y - 26 * s, 2 * s, eye);
     }
 
     private static void DrawCaveBear(float x, float y, float scale)
     {
-        // Darker, larger bear with shoulder hump
-        var bodyColor = new Color(50, 35, 25, 255);
-        var earColor = new Color(45, 30, 20, 255);
-        var humpColor = new Color(60, 40, 28, 255);
+        var fur = new Color(74, 58, 42, 255);
+        var furLight = new Color(90, 74, 58, 255);
+        var snout = new Color(106, 90, 74, 255);
+        var eye = new Color(42, 42, 42, 255);
 
-        // Body (larger, stockier)
-        DrawEllipse(x, y, scale * 11, scale * 8, bodyColor);
+        float s = scale;
 
         // Shoulder hump
-        DrawEllipse(x - scale * 2, y - scale * 4, scale * 6, scale * 5, humpColor);
+        DrawEllipse(x + 2 * s, y - 28 * s, 14 * s, 12 * s, fur);
+
+        // Body (massive)
+        DrawEllipse(x + 8 * s, y - 14 * s, 26 * s, 16 * s, fur);
+        DrawEllipse(x + 4 * s, y - 18 * s, 12 * s, 8 * s, furLight);
+
+        // Legs (thick)
+        DrawEllipse(x - 10 * s, y + 6 * s, 6 * s, 14 * s, fur);
+        DrawEllipse(x + 22 * s, y + 6 * s, 6 * s, 14 * s, fur);
+
+        // Neck
+        DrawEllipse(x - 14 * s, y - 22 * s, 12 * s, 12 * s, fur);
+
+        // Ears
+        DrawCircle(x - 28 * s, y - 40 * s, 5 * s, fur);
+        DrawCircle(x - 16 * s, y - 42 * s, 5 * s, fur);
 
         // Head
-        Raylib.DrawCircle((int)(x + scale * 9), (int)(y - scale * 2), scale * 6, bodyColor);
+        DrawCircle(x - 22 * s, y - 30 * s, 12 * s, fur);
 
-        // Rounded ears
-        Raylib.DrawCircle((int)(x + scale * 6), (int)(y - scale * 7), scale * 2.5f, earColor);
-        Raylib.DrawCircle((int)(x + scale * 12), (int)(y - scale * 7), scale * 2.5f, earColor);
+        // Snout
+        DrawEllipse(x - 32 * s, y - 28 * s, 8 * s, 5 * s, snout);
 
-        // Thick legs
-        Raylib.DrawLineEx(new Vector2(x - scale * 6, y + scale * 8), new Vector2(x - scale * 6, y + scale * 14), scale * 3.5f, bodyColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 6, y + scale * 8), new Vector2(x + scale * 6, y + scale * 14), scale * 3.5f, bodyColor);
+        // Eye
+        DrawCircle(x - 18 * s, y - 32 * s, 2.5f * s, eye);
     }
 
     private static void DrawHyena(float x, float y, float scale)
     {
-        // Tan with spots, sloped back
-        var bodyColor = new Color(180, 150, 110, 255);
-        var spotColor = new Color(100, 80, 60, 255);
-        var earColor = new Color(160, 130, 100, 255);
+        var fur = new Color(138, 122, 90, 255);
+        var furDark = new Color(106, 90, 74, 255);
+        var spots = new Color(90, 74, 58, 255);
+        var eye = new Color(42, 42, 42, 255);
 
-        // Body (sloped - higher at front)
-        DrawRotatedEllipse(x, y, scale * 8, scale * 5, -15, bodyColor);
+        float s = scale;
+
+        // Tail (short, behind)
+        DrawRotatedEllipse(x + 20 * s, y - 14 * s, 3 * s, 8 * s, 0.8f, fur);
+
+        // Body (sloped - higher at shoulders)
+        DrawRotatedEllipse(x + 8 * s, y - 10 * s, 18 * s, 10 * s, 0.15f, fur);
+
+        // Spots on body
+        DrawCircle(x + 12 * s, y - 12 * s, 3 * s, spots);
+        DrawCircle(x + 4 * s, y - 8 * s, 2 * s, spots);
+        DrawCircle(x - 2 * s, y - 14 * s, 2.5f * s, spots);
+
+        // Legs (front taller than back)
+        DrawEllipse(x - 4 * s, y + 2 * s, 3 * s, 12 * s, fur);
+        DrawEllipse(x + 14 * s, y + 4 * s, 3 * s, 10 * s, fur);
+
+        // Mane/shoulders
+        DrawEllipse(x - 6 * s, y - 18 * s, 8 * s, 10 * s, furDark);
+
+        // Ears (rounded)
+        DrawCircle(x - 20 * s, y - 28 * s, 4 * s, fur);
+        DrawCircle(x - 12 * s, y - 30 * s, 4 * s, fur);
 
         // Head
-        DrawEllipse(x + scale * 7, y - scale * 3, scale * 4, scale * 3.5f, bodyColor);
+        DrawEllipse(x - 16 * s, y - 20 * s, 8 * s, 7 * s, fur);
 
-        // Rounded ears
-        Raylib.DrawCircle((int)(x + scale * 6), (int)(y - scale * 6), scale * 2, earColor);
-        Raylib.DrawCircle((int)(x + scale * 9), (int)(y - scale * 6), scale * 2, earColor);
+        // Snout
+        DrawEllipse(x - 24 * s, y - 18 * s, 6 * s, 4 * s, furDark);
 
-        // Spots
-        Raylib.DrawCircle((int)(x - scale * 2), (int)(y - scale), scale * 1.5f, spotColor);
-        Raylib.DrawCircle((int)(x + scale * 2), (int)(y + scale), scale * 1.5f, spotColor);
-        Raylib.DrawCircle((int)(x - scale * 4), (int)(y + scale * 2), scale * 1.2f, spotColor);
-
-        // Legs
-        Raylib.DrawLineEx(new Vector2(x - scale * 3, y + scale * 5), new Vector2(x - scale * 3, y + scale * 10), scale * 2, bodyColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 4, y + scale * 5), new Vector2(x + scale * 4, y + scale * 10), scale * 2, bodyColor);
+        // Eye
+        DrawCircle(x - 14 * s, y - 22 * s, 2 * s, eye);
     }
 
     private static void DrawMammoth(float x, float y, float scale)
     {
-        // Massive with shaggy fur, curved tusks, trunk
-        var bodyColor = new Color(90, 70, 50, 255);
-        var furColor = new Color(110, 85, 60, 255);
-        var tuskColor = new Color(230, 220, 200, 255);
+        var fur = new Color(90, 74, 58, 255);
+        var furLight = new Color(106, 90, 74, 255);
+        var furDark = new Color(74, 58, 42, 255);
+        var tusk = new Color(212, 204, 196, 255);
+        var eye = new Color(42, 42, 42, 255);
 
-        // Massive body
-        DrawEllipse(x, y, scale * 14, scale * 11, bodyColor);
+        float s = scale;
 
-        // Shaggy fur texture
-        DrawEllipse(x - scale * 2, y - scale * 5, scale * 10, scale * 7, furColor);
-        DrawEllipse(x + scale * 3, y + scale * 6, scale * 8, scale * 4, furColor);
+        // Shaggy fur (behind body)
+        DrawEllipse(x + 8 * s, y - 2 * s, 26 * s, 8 * s, furDark);
 
-        // Head
-        DrawEllipse(x + scale * 12, y - scale * 4, scale * 7, scale * 6, bodyColor);
+        // Body (massive dome)
+        DrawEllipse(x + 8 * s, y - 18 * s, 28 * s, 20 * s, fur);
+        DrawEllipse(x + 4 * s, y - 22 * s, 14 * s, 10 * s, furLight);
 
-        // Curved tusks
-        Raylib.DrawLineEx(new Vector2(x + scale * 10, y + scale * 2), new Vector2(x + scale * 8, y + scale * 10), scale * 2, tuskColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 14, y + scale * 2), new Vector2(x + scale * 16, y + scale * 10), scale * 2, tuskColor);
-        // Curve tips inward
-        Raylib.DrawLineEx(new Vector2(x + scale * 8, y + scale * 10), new Vector2(x + scale * 9, y + scale * 12), scale * 1.5f, tuskColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 16, y + scale * 10), new Vector2(x + scale * 15, y + scale * 12), scale * 1.5f, tuskColor);
+        // Legs (column-like)
+        DrawEllipse(x - 12 * s, y + 8 * s, 6 * s, 16 * s, fur);
+        DrawEllipse(x + 24 * s, y + 8 * s, 6 * s, 16 * s, fur);
 
-        // Trunk
-        Raylib.DrawLineEx(new Vector2(x + scale * 12, y + scale * 2), new Vector2(x + scale * 11, y + scale * 9), scale * 2.5f, bodyColor);
+        // Head (connected to body)
+        DrawEllipse(x - 20 * s, y - 20 * s, 14 * s, 14 * s, fur);
+
+        // Trunk (series of connected ellipses going down then curling)
+        DrawRotatedEllipse(x - 30 * s, y - 12 * s, 5 * s, 10 * s, -0.2f, furLight);
+        DrawRotatedEllipse(x - 34 * s, y - 2 * s, 4 * s, 8 * s, -0.1f, furLight);
+        DrawRotatedEllipse(x - 36 * s, y + 8 * s, 4 * s, 6 * s, 0.3f, furLight);
+        DrawEllipse(x - 34 * s, y + 14 * s, 4 * s, 4 * s, furLight);
+
+        // Tusks (curving forward and up)
+        DrawRotatedEllipse(x - 30 * s, y - 8 * s, 3 * s, 14 * s, -0.5f, tusk);
+        DrawRotatedEllipse(x - 38 * s, y - 14 * s, 3 * s, 10 * s, -1.2f, tusk);
+
+        // Ear (small flap)
+        DrawEllipse(x - 10 * s, y - 26 * s, 5 * s, 7 * s, furDark);
+
+        // Eye
+        DrawCircle(x - 18 * s, y - 24 * s, 2.5f * s, eye);
     }
 
     private static void DrawSaberTooth(float x, float y, float scale)
     {
-        // Tan/orange with massive fangs
-        var bodyColor = new Color(210, 160, 100, 255);
-        var fangColor = new Color(240, 235, 220, 255);
-        var earColor = new Color(190, 145, 90, 255);
+        var fur = new Color(201, 160, 80, 255);
+        var furLight = new Color(217, 184, 104, 255);
+        var furDark = new Color(160, 128, 48, 255);
+        var fang = new Color(232, 228, 220, 255);
+        var nose = new Color(90, 74, 58, 255);
+        var eye = new Color(42, 42, 42, 255);
 
-        // Muscular body
-        DrawEllipse(x, y, scale * 9, scale * 6, bodyColor);
+        float s = scale;
 
-        // Head (large)
-        DrawEllipse(x + scale * 9, y - scale * 2, scale * 6, scale * 5, bodyColor);
+        // Tail (behind, hanging down from rear)
+        DrawRotatedEllipse(x + 26 * s, y - 6 * s, 4 * s, 14 * s, 0.3f, fur);
+        DrawCircle(x + 30 * s, y + 6 * s, 3 * s, furDark);
 
-        // Ears
-        Raylib.DrawTriangle(
-            new Vector2(x + scale * 8, y - scale * 7),
-            new Vector2(x + scale * 7, y - scale * 4),
-            new Vector2(x + scale * 9, y - scale * 4),
-            earColor);
-        Raylib.DrawTriangle(
-            new Vector2(x + scale * 12, y - scale * 7),
-            new Vector2(x + scale * 11, y - scale * 4),
-            new Vector2(x + scale * 13, y - scale * 4),
-            earColor);
+        // Body (muscular cat)
+        DrawEllipse(x + 8 * s, y - 12 * s, 20 * s, 12 * s, fur);
+        DrawEllipse(x + 4 * s, y - 14 * s, 10 * s, 6 * s, furLight);
 
-        // Massive fangs
-        Raylib.DrawLineEx(new Vector2(x + scale * 10, y + scale * 2), new Vector2(x + scale * 9, y + scale * 8), scale * 1.5f, fangColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 12, y + scale * 2), new Vector2(x + scale * 13, y + scale * 8), scale * 1.5f, fangColor);
+        // Back legs
+        DrawEllipse(x + 18 * s, y + 2 * s, 5 * s, 12 * s, fur);
 
-        // Legs
-        Raylib.DrawLineEx(new Vector2(x - scale * 4, y + scale * 6), new Vector2(x - scale * 4, y + scale * 12), scale * 2.5f, bodyColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 4, y + scale * 6), new Vector2(x + scale * 4, y + scale * 12), scale * 2.5f, bodyColor);
+        // Front legs (powerful)
+        DrawEllipse(x - 8 * s, y + 2 * s, 4 * s, 12 * s, fur);
+
+        // Chest/shoulders
+        DrawEllipse(x - 10 * s, y - 14 * s, 10 * s, 10 * s, fur);
+
+        // Neck
+        DrawEllipse(x - 16 * s, y - 20 * s, 8 * s, 10 * s, fur);
+
+        // Ears (rounded cat ears)
+        DrawCircle(x - 28 * s, y - 36 * s, 4 * s, fur);
+        DrawCircle(x - 18 * s, y - 38 * s, 4 * s, fur);
+
+        // Head (broad, cat-like)
+        DrawCircle(x - 22 * s, y - 28 * s, 10 * s, fur);
+
+        // Muzzle
+        DrawEllipse(x - 30 * s, y - 24 * s, 6 * s, 5 * s, furLight);
+
+        // Nose
+        DrawCircle(x - 32 * s, y - 26 * s, 2 * s, nose);
+
+        // FANGS (long sabertooth canines)
+        DrawRotatedEllipse(x - 32 * s, y - 14 * s, 2 * s, 10 * s, 0.1f, fang);
+        DrawRotatedEllipse(x - 26 * s, y - 14 * s, 2 * s, 10 * s, -0.1f, fang);
+
+        // Eye
+        DrawCircle(x - 20 * s, y - 30 * s, 2.5f * s, eye);
     }
 
     private static void DrawMegaloceros(float x, float y, float scale)
     {
-        // Huge palmate antlers, elk-like
-        var bodyColor = new Color(130, 95, 65, 255);
-        var antlerColor = new Color(95, 70, 45, 255);
-        var legColor = new Color(115, 85, 60, 255);
+        var body = new Color(122, 106, 90, 255);
+        var bodyLight = new Color(138, 122, 106, 255);
+        var antler = new Color(74, 58, 42, 255);
+        var eye = new Color(42, 42, 42, 255);
+
+        float s = scale;
+
+        // MASSIVE palmate antlers (behind head)
+        // Left antler
+        DrawRotatedEllipse(x - 24 * s, y - 48 * s, 4 * s, 18 * s, -0.5f, antler);
+        DrawRotatedEllipse(x - 34 * s, y - 56 * s, 3 * s, 14 * s, -0.9f, antler);
+        DrawRotatedEllipse(x - 16 * s, y - 58 * s, 3 * s, 12 * s, 0.1f, antler);
+        DrawRotatedEllipse(x - 40 * s, y - 50 * s, 2 * s, 8 * s, -1.2f, antler);
+        // Right antler
+        DrawRotatedEllipse(x - 6 * s, y - 50 * s, 4 * s, 18 * s, 0.5f, antler);
+        DrawRotatedEllipse(x + 4 * s, y - 58 * s, 3 * s, 14 * s, 0.9f, antler);
+        DrawRotatedEllipse(x - 12 * s, y - 60 * s, 3 * s, 12 * s, -0.1f, antler);
+        DrawRotatedEllipse(x + 10 * s, y - 52 * s, 2 * s, 8 * s, 1.2f, antler);
 
         // Body
-        DrawEllipse(x, y, scale * 8, scale * 6, bodyColor);
-
-        // Head
-        DrawEllipse(x + scale * 9, y - scale * 2, scale * 4.5f, scale * 3.5f, bodyColor);
+        DrawEllipse(x + 10 * s, y - 14 * s, 22 * s, 14 * s, body);
+        DrawEllipse(x + 6 * s, y - 16 * s, 10 * s, 7 * s, bodyLight);
 
         // Legs
-        Raylib.DrawLineEx(new Vector2(x - scale * 4, y + scale * 6), new Vector2(x - scale * 4, y + scale * 12), scale * 2, legColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 4, y + scale * 6), new Vector2(x + scale * 4, y + scale * 12), scale * 2, legColor);
+        DrawEllipse(x - 4 * s, y + 4 * s, 3 * s, 14 * s, body);
+        DrawEllipse(x + 22 * s, y + 4 * s, 3 * s, 14 * s, body);
 
-        // Massive palmate antlers (palm-like)
-        // Main beams
-        Raylib.DrawLineEx(new Vector2(x + scale * 7, y - scale * 6), new Vector2(x + scale * 3, y - scale * 14), scale * 1.2f, antlerColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 11, y - scale * 6), new Vector2(x + scale * 15, y - scale * 14), scale * 1.2f, antlerColor);
-        // Palm fans
-        DrawRotatedEllipse(x + scale * 3, y - scale * 15, scale * 5, scale * 3, 20, antlerColor);
-        DrawRotatedEllipse(x + scale * 15, y - scale * 15, scale * 5, scale * 3, -20, antlerColor);
+        // Neck (long, upright)
+        DrawRotatedEllipse(x - 8 * s, y - 26 * s, 6 * s, 14 * s, -0.2f, body);
+
+        // Head
+        DrawEllipse(x - 14 * s, y - 38 * s, 7 * s, 6 * s, body);
+
+        // Snout
+        DrawEllipse(x - 20 * s, y - 36 * s, 5 * s, 3 * s, bodyLight);
+
+        // Eye
+        DrawCircle(x - 12 * s, y - 39 * s, 2 * s, eye);
     }
 
     private static void DrawBison(float x, float y, float scale)
     {
-        // Dark fur, shoulder hump, horns, beard
-        var bodyColor = new Color(70, 50, 35, 255);
-        var humpColor = new Color(85, 60, 40, 255);
-        var hornColor = new Color(50, 40, 30, 255);
-        var beardColor = new Color(60, 45, 30, 255);
+        var fur = new Color(74, 58, 42, 255);
+        var furLight = new Color(90, 74, 58, 255);
+        var mane = new Color(58, 42, 26, 255);
+        var horn = new Color(42, 42, 42, 255);
+        var eye = new Color(26, 26, 26, 255);
 
-        // Body
-        DrawEllipse(x, y, scale * 10, scale * 7, bodyColor);
+        float s = scale;
 
-        // Shoulder hump
-        DrawEllipse(x - scale * 3, y - scale * 5, scale * 7, scale * 6, humpColor);
+        // Body (huge)
+        DrawEllipse(x + 12 * s, y - 10 * s, 26 * s, 14 * s, fur);
+        DrawEllipse(x + 8 * s, y - 12 * s, 12 * s, 7 * s, furLight);
 
-        // Head (small relative to body)
-        DrawEllipse(x + scale * 9, y - scale, scale * 5, scale * 4, bodyColor);
+        // Shoulder hump (massive)
+        DrawEllipse(x - 6 * s, y - 22 * s, 18 * s, 16 * s, mane);
 
-        // Horns (curved)
-        Raylib.DrawLineEx(new Vector2(x + scale * 8, y - scale * 4), new Vector2(x + scale * 6, y - scale * 7), scale * 1.2f, hornColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 6, y - scale * 7), new Vector2(x + scale * 7, y - scale * 8), scale * 1f, hornColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 11, y - scale * 4), new Vector2(x + scale * 13, y - scale * 7), scale * 1.2f, hornColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 13, y - scale * 7), new Vector2(x + scale * 12, y - scale * 8), scale * 1f, hornColor);
+        // Legs
+        DrawEllipse(x - 14 * s, y + 6 * s, 5 * s, 14 * s, fur);
+        DrawEllipse(x + 26 * s, y + 6 * s, 5 * s, 14 * s, fur);
+
+        // Neck (thick, going down)
+        DrawRotatedEllipse(x - 18 * s, y - 12 * s, 10 * s, 14 * s, 0.4f, mane);
+
+        // Horns (on lowered head)
+        DrawRotatedEllipse(x - 34 * s, y - 18 * s, 3 * s, 8 * s, -0.8f, horn);
+        DrawRotatedEllipse(x - 22 * s, y - 20 * s, 3 * s, 8 * s, 0.8f, horn);
+
+        // Head (low, grazing position)
+        DrawEllipse(x - 28 * s, y - 8 * s, 10 * s, 8 * s, fur);
 
         // Beard
-        DrawEllipse(x + scale * 9, y + scale * 3, scale * 3, scale * 2.5f, beardColor);
+        DrawEllipse(x - 34 * s, y - 2 * s, 5 * s, 8 * s, mane);
 
-        // Legs (thick)
-        Raylib.DrawLineEx(new Vector2(x - scale * 5, y + scale * 7), new Vector2(x - scale * 5, y + scale * 12), scale * 2.5f, bodyColor);
-        Raylib.DrawLineEx(new Vector2(x + scale * 5, y + scale * 7), new Vector2(x + scale * 5, y + scale * 12), scale * 2.5f, bodyColor);
+        // Snout
+        DrawEllipse(x - 36 * s, y - 6 * s, 6 * s, 4 * s, furLight);
+
+        // Eye
+        DrawCircle(x - 24 * s, y - 10 * s, 2 * s, eye);
     }
 
     private static void DrawRat(float x, float y, float scale)
     {
-        // Small, long tail, large ears
-        var bodyColor = new Color(110, 90, 80, 255);
-        var earColor = new Color(140, 120, 110, 255);
-        var tailColor = new Color(100, 80, 70, 255);
+        var fur = new Color(106, 90, 74, 255);
+        var furLight = new Color(122, 106, 90, 255);
+        var ear = new Color(138, 106, 90, 255);
+        var tail = new Color(90, 74, 58, 255);
+        var eye = new Color(26, 26, 26, 255);
+        var whisker = new Color(74, 74, 74, 255);
 
-        // Body (small)
-        DrawEllipse(x, y, scale * 4, scale * 3, bodyColor);
+        float s = scale;
+
+        // Tail
+        DrawRotatedEllipse(x + 16 * s, y - 4 * s, 14 * s, 2 * s, 0.2f, tail);
+
+        // Body
+        DrawEllipse(x, y - 6 * s, 10 * s, 6 * s, fur);
+        DrawEllipse(x - 3 * s, y - 7 * s, 5 * s, 3 * s, furLight);
+
+        // Ears
+        DrawCircle(x - 10 * s, y - 16 * s, 4 * s, ear);
+        DrawCircle(x - 4 * s, y - 17 * s, 4 * s, ear);
 
         // Head
-        Raylib.DrawCircle((int)(x + scale * 3.5f), (int)(y - scale * 0.5f), scale * 2, bodyColor);
+        DrawEllipse(x - 8 * s, y - 10 * s, 6 * s, 5 * s, fur);
 
-        // Large ears
-        Raylib.DrawCircle((int)(x + scale * 3), (int)(y - scale * 3), scale * 1.8f, earColor);
-        Raylib.DrawCircle((int)(x + scale * 5), (int)(y - scale * 3), scale * 1.8f, earColor);
+        // Snout
+        DrawEllipse(x - 14 * s, y - 9 * s, 4 * s, 2.5f * s, furLight);
 
-        // Long thin tail
-        Raylib.DrawLineEx(new Vector2(x - scale * 4, y), new Vector2(x - scale * 8, y + scale * 2), scale * 0.8f, tailColor);
+        // Eye
+        DrawCircle(x - 7 * s, y - 11 * s, 1.5f * s, eye);
+
+        // Whiskers
+        float whiskerThickness = 0.5f * s;
+        Raylib.DrawLineEx(new Vector2(x - 16 * s, y - 10 * s), new Vector2(x - 20 * s, y - 12 * s), whiskerThickness, whisker);
+        Raylib.DrawLineEx(new Vector2(x - 16 * s, y - 9 * s), new Vector2(x - 20 * s, y - 9 * s), whiskerThickness, whisker);
+        Raylib.DrawLineEx(new Vector2(x - 16 * s, y - 8 * s), new Vector2(x - 20 * s, y - 6 * s), whiskerThickness, whisker);
     }
 
     private static void DrawDefault(float x, float y, float scale)
@@ -460,6 +619,6 @@ public static class AnimalRenderer
         // Generic animal silhouette
         var color = new Color(120, 120, 120, 255);
         DrawEllipse(x, y, scale * 6, scale * 4, color);
-        Raylib.DrawCircle((int)(x + scale * 5), (int)(y - scale), scale * 2.5f, color);
+        DrawCircle(x - scale * 5, y - scale, scale * 2.5f, color);
     }
 }
