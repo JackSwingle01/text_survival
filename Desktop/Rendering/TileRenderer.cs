@@ -217,9 +217,9 @@ public static class TileRenderer
     /// <summary>
     /// Draw the player icon at a tile position.
     /// </summary>
-    public static void DrawPlayerIcon(float centerX, float centerY, float tileSize)
+    public static void DrawPlayerIcon(float centerX, float centerY, float tileSize, float scale = 1.0f)
     {
-        DrawCharacterMale(centerX, centerY, tileSize, 1.0f, PlayerPalette);
+        DrawCharacterMale(centerX, centerY, tileSize, scale, PlayerPalette);
     }
 
     /// <summary>

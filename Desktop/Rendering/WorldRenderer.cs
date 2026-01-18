@@ -530,7 +530,7 @@ public class WorldRenderer
             }
 
             // Draw unit icon
-            float iconScale = cellSize / 40f; // Scale based on cell size
+            float iconScale = cellSize / 20f; // Scale based on cell size
             if (unit.actor is Actors.Animals.Animal animal)
             {
                 // Draw team-colored circle underneath
@@ -545,7 +545,7 @@ public class WorldRenderer
                 if (unit == combat.Player)
                 {
                     // Use the same detailed player icon as normal gameplay
-                    TileRenderer.DrawPlayerIcon(screenX, screenY, cellSize);
+                    TileRenderer.DrawPlayerIcon(screenX, screenY, cellSize, 3.0f);
                 }
                 else if (unit.actor is NPC npc)
                 {
@@ -558,9 +558,9 @@ public class WorldRenderer
 
                     // Draw at full scale for combat
                     if (isFemale)
-                        TileRenderer.DrawCharacterFemale(screenX, screenY, cellSize, 1.0f, palette);
+                        TileRenderer.DrawCharacterFemale(screenX, screenY, cellSize, 3.0f, palette);
                     else
-                        TileRenderer.DrawCharacterMale(screenX, screenY, cellSize, 1.0f, palette);
+                        TileRenderer.DrawCharacterMale(screenX, screenY, cellSize, 3.0f, palette);
                 }
             }
 
