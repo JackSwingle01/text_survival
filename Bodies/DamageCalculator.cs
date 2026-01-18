@@ -111,6 +111,7 @@ public static class DamageProcessor
 
         result.HitPartName = hitPart.Name;
         result.HitPartHealthBefore = hitPart.Condition;
+        bool wasDestroyed = hitPart.IsDestroyed;
 
         // If we have a specific organ target, damage it directly
         if (targetOrgan != null)
@@ -127,6 +128,14 @@ public static class DamageProcessor
         }
 
         result.HitPartHealthAfter = hitPart.Condition;
+
+        // Catastrophic hemorrhage when region becomes destroyed
+        // Represents severed major blood vessels from catastrophic trauma
+        if (!wasDestroyed && hitPart.IsDestroyed)
+        {
+            // Maximum severity bleeding - fatal without immediate treatment
+            result.TriggeredEffects.Add(EffectFactory.Bleeding(1.0));
+        }
 
         // Check for bleeding trigger - sharp/pierce damage that broke skin
         // Threshold: 3% of skin condition lost triggers bleeding
