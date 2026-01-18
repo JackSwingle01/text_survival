@@ -86,42 +86,49 @@ public static class CombatOrchestrator
                 // Execute player action
                 var actionResult = ExecutePlayerChoice(scenario, playerUnit, action, ctx);
 
-                // Show result narrative if any
+                // Handle invalid action with feedback
+                if (!actionResult.ActionTaken)
+                {
+                    if (!string.IsNullOrEmpty(actionResult.Narrative))
+                    {
+                        BlockingDialog.ShowMessageAndWait(ctx, "Invalid Action", actionResult.Narrative);
+                    }
+                    continue;  // Go back to waiting for input
+                }
+
+                // Show result narrative for successful actions
                 if (!string.IsNullOrEmpty(actionResult.Narrative))
                 {
                     GameDisplay.AddNarrative(ctx, actionResult.Narrative);
                 }
 
-                // Only advance to AI turns if the action was valid
-                if (actionResult.ActionTaken)
+                // Action was valid - advance to AI turns
+                // Time cost: 1 minute per action (survival pressure during combat)
+                ctx.Update(1, ActivityType.Fighting);
+
+                // Run detection checks (only affects enemies that are Unaware/Alert)
+                var awarenessChanges = scenario.RunDetectionChecks(playerUnit, huntingSkill);
+                foreach (var (unit, oldState, newState) in awarenessChanges)
                 {
-                    // Time cost: 1 minute per action (survival pressure during combat)
-                    ctx.Update(1, ActivityType.Fighting);
-
-                    // Run detection checks (only affects enemies that are Unaware/Alert)
-                    var awarenessChanges = scenario.RunDetectionChecks(playerUnit, huntingSkill);
-                    foreach (var (unit, oldState, newState) in awarenessChanges)
+                    string detectionMsg = newState switch
                     {
-                        string detectionMsg = newState switch
-                        {
-                            AwarenessState.Alert when oldState == AwarenessState.Unaware =>
-                                $"The {unit.actor.Name.ToLower()} becomes alert - it senses something!",
-                            AwarenessState.Engaged =>
-                                $"The {unit.actor.Name.ToLower()} spots you!",
-                            _ => null
-                        };
-                        if (detectionMsg != null)
-                        {
-                            GameDisplay.AddWarning(ctx, detectionMsg);
-                        }
+                        AwarenessState.Alert when oldState == AwarenessState.Unaware =>
+                            $"The {unit.actor.Name.ToLower()} becomes alert - it senses something!",
+                        AwarenessState.Engaged =>
+                            $"The {unit.actor.Name.ToLower()} spots you!",
+                        _ => null
+                    };
+                    if (detectionMsg != null)
+                    {
+                        GameDisplay.AddWarning(ctx, detectionMsg);
                     }
-
-                    if (scenario.IsOver) break;
-
-                    // AI turns - executed one at a time with rendering between
-                    scenario.ResetAITurns(playerUnit);
-                    DesktopIO.RunAITurnsWithAnimation(ctx, scenario, playerUnit);
                 }
+
+                if (scenario.IsOver) break;
+
+                // AI turns - executed one at a time with rendering between
+                scenario.ResetAITurns(playerUnit);
+                DesktopIO.RunAITurnsWithAnimation(ctx, scenario, playerUnit);
             }
         }
 
@@ -578,7 +585,7 @@ public static class CombatOrchestrator
 
         // Validate: within movement range (max 3m - same as MOVE_DIST)
         if (distance > MOVE_DIST)
-            return new PlayerActionResult(false, null);
+            return new PlayerActionResult(false, "That's too far to move in one action.");
 
         // Can't move to current position
         if (distance == 0)

@@ -19,6 +19,11 @@ public class WorldRenderer
     private (int x, int y)? _hoveredCombatCell;
     private readonly EffectsRenderer _effects;
 
+    /// <summary>
+    /// The combat unit currently under the mouse cursor, if any.
+    /// </summary>
+    public Combat.Unit? HoveredCombatUnit { get; private set; }
+
     // Track screen size for resize handling
     private int _lastScreenWidth;
     private int _lastScreenHeight;
@@ -456,10 +461,14 @@ public class WorldRenderer
             && mousePos.X < offsetX + gridPixelWidth && mousePos.Y < offsetY + gridPixelHeight)
         {
             _hoveredCombatCell = (mouseGridX, mouseGridY);
+            // Find unit at hovered cell
+            HoveredCombatUnit = combat.Units.FirstOrDefault(u =>
+                u.actor.IsAlive && u.Position.X == mouseGridX && u.Position.Y == mouseGridY);
         }
         else
         {
             _hoveredCombatCell = null;
+            HoveredCombatUnit = null;
         }
 
         // Draw terrain background (use current location terrain)
@@ -587,47 +596,23 @@ public class WorldRenderer
                 Raylib.DrawRectangle(barX, barY, fillWidth, barHeight, healthColor);
             }
 
-            // Draw boldness ring (for enemies) - only when engaged
-            if (!combat.Team1.Contains(unit) && unit.Awareness == Combat.AwarenessState.Engaged)
+            // Draw awareness/boldness ring (for enemies)
+            if (!combat.Team1.Contains(unit))
             {
-                float boldness = (float)unit.Boldness;
                 int ringRadius = cellSize / 2 + 2;
-                Color ringColor = boldness switch
-                {
-                    >= 0.7f => new Color(255, 100, 100, 150), // Aggressive - bright red
-                    >= 0.5f => new Color(255, 180, 100, 120), // Bold - orange
-                    >= 0.3f => new Color(255, 255, 100, 100), // Wary - yellow
-                    _ => new Color(200, 200, 200, 80)          // Cautious - gray
-                };
-                Raylib.DrawCircleLines(screenX, screenY, ringRadius, ringColor);
-            }
-
-            // Draw awareness state indicator (for non-engaged enemies)
-            if (!combat.Team1.Contains(unit) && unit.Awareness != Combat.AwarenessState.Engaged)
-            {
-                int indicatorRadius = cellSize / 2 + 4;
-                Color awarenessColor = unit.Awareness switch
+                Color ringColor = unit.Awareness switch
                 {
                     Combat.AwarenessState.Unaware => new Color(100, 200, 100, 100),  // Green - safe to approach
                     Combat.AwarenessState.Alert => new Color(255, 200, 100, 120),     // Orange - be careful
-                    _ => new Color(255, 100, 100, 150)
+                    _ => (float)unit.Boldness switch  // Engaged - color based on boldness
+                    {
+                        >= 0.7f => new Color(255, 100, 100, 150), // Aggressive - bright red
+                        >= 0.5f => new Color(255, 180, 100, 120), // Bold - orange
+                        >= 0.3f => new Color(255, 255, 100, 100), // Wary - yellow
+                        _ => new Color(200, 200, 200, 80)          // Cautious - gray
+                    }
                 };
-
-                // Draw dashed circle for awareness (dots instead of solid line)
-                int numDots = unit.Awareness == Combat.AwarenessState.Unaware ? 8 : 12;
-                for (int i = 0; i < numDots; i++)
-                {
-                    float angle = (float)(i * 2 * Math.PI / numDots);
-                    int dotX = screenX + (int)(indicatorRadius * Math.Cos(angle));
-                    int dotY = screenY + (int)(indicatorRadius * Math.Sin(angle));
-                    Raylib.DrawCircle(dotX, dotY, 2, awarenessColor);
-                }
-
-                // Draw awareness icon above unit (? for unaware, ! for alert)
-                string icon = unit.Awareness == Combat.AwarenessState.Unaware ? "?" : "!";
-                int iconX = screenX - 3;
-                int iconY = screenY - cellSize / 2 - 20;
-                Raylib.DrawText(icon, iconX, iconY, 14, awarenessColor);
+                Raylib.DrawCircleLines(screenX, screenY, ringRadius, ringColor);
             }
         }
 

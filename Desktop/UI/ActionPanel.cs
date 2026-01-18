@@ -302,6 +302,9 @@ public class ActionPanel
         var playerUnit = combat.Player;
         var nearest = combat.GetNearestEnemy(playerUnit);
 
+        // Get display target: hovered unit or nearest enemy
+        var displayTarget = DesktopRuntime.WorldRenderer?.HoveredCombatUnit ?? nearest;
+
         // Determine if we're in stealth mode (target not engaged)
         bool inStealth = nearest != null && nearest.Awareness != AwarenessState.Engaged;
         int huntingSkill = ctx.player.Skills.GetSkill("Hunting")?.Level ?? 0;
@@ -311,7 +314,7 @@ public class ActionPanel
         ImGui.TextColored(new Vector4(1f, 0.5f, 0.3f, 1f), headerText);
         ImGui.Separator();
 
-        // Distance display
+        // Distance display (to nearest enemy for tactical relevance)
         if (nearest != null)
         {
             double distance = playerUnit.Position.DistanceTo(nearest.Position);
@@ -337,92 +340,147 @@ public class ActionPanel
 
             ImGui.Text($"Distance: {distance:F0}m");
             ImGui.TextColored(zoneColor, zoneText);
+        }
 
-            // Enemy status
+        // Target stats section
+        if (displayTarget != null)
+        {
             ImGui.Separator();
-            ImGui.Text($"Target: {nearest.actor.Name}");
 
-            // Show awareness state in stealth
-            if (inStealth)
+            // Target header with indicator if hovering different unit
+            bool isHoveredUnit = displayTarget != nearest && displayTarget != playerUnit;
+            string targetLabel = displayTarget == playerUnit ? "YOU" : displayTarget.actor.Name.ToUpper();
+            if (isHoveredUnit)
             {
-                string awarenessText = nearest.Awareness == AwarenessState.Unaware
+                ImGui.TextColored(new Vector4(0.7f, 0.85f, 1f, 1f), targetLabel);
+            }
+            else
+            {
+                ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), targetLabel);
+            }
+            ImGui.Separator();
+
+            // Show awareness state in stealth for non-player units
+            if (displayTarget != playerUnit && displayTarget.Awareness != AwarenessState.Engaged)
+            {
+                string awarenessText = displayTarget.Awareness == AwarenessState.Unaware
                     ? "Unaware"
                     : "Alert";
-                Vector4 awarenessColor = nearest.Awareness == AwarenessState.Unaware
+                Vector4 awarenessColor = displayTarget.Awareness == AwarenessState.Unaware
                     ? new Vector4(0.4f, 0.9f, 0.4f, 1f)  // Green - good
                     : new Vector4(1f, 0.8f, 0.3f, 1f);   // Yellow - caution
                 ImGui.TextColored(awarenessColor, awarenessText);
 
                 // Show activity hint for animals
-                if (nearest.actor is Animal animal)
+                if (displayTarget.actor is Animal animal)
                 {
                     var behavior = HuntingSightingSelector.MapActivityToBehavior(animal);
                     string hint = HuntingSightingSelector.GetBehaviorHint(behavior);
                     ImGui.TextWrapped(hint);
                 }
+                ImGui.Spacing();
+
+                // Detection risk display (stealth only)
+                if (inStealth && nearest != null)
+                {
+                    double detectionRisk = combat.CalculateDetectionRisk(playerUnit, nearest, huntingSkill);
+                    Vector4 riskColor = detectionRisk switch
+                    {
+                        >= 0.7 => new Vector4(1f, 0.3f, 0.3f, 1f),   // Red - high risk
+                        >= 0.4 => new Vector4(1f, 0.7f, 0.3f, 1f),   // Orange - medium
+                        _ => new Vector4(0.4f, 0.9f, 0.4f, 1f)        // Green - low
+                    };
+                    ImGui.TextColored(riskColor, $"Detection Risk: {detectionRisk:P0}");
+                    ImGui.Spacing();
+                }
             }
-            else
+
+            // Vitality bar
+            float vitalityVal = (float)Math.Clamp(displayTarget.actor.Vitality, 0, 1);
+            Vector4 vitalityColor = vitalityVal switch
             {
-                string healthDesc = nearest.actor.Vitality switch
-                {
-                    >= 0.9 => "Healthy",
-                    >= 0.7 => "Wounded",
-                    >= 0.5 => "Badly Hurt",
-                    >= 0.3 => "Staggering",
-                    _ => "Near Death"
-                };
+                >= 0.7f => new Vector4(0.4f, 0.9f, 0.4f, 1f),
+                >= 0.4f => new Vector4(1f, 0.8f, 0.3f, 1f),
+                _ => new Vector4(1f, 0.3f, 0.3f, 1f)
+            };
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, vitalityColor);
+            ImGui.ProgressBar(vitalityVal, new Vector2(-1, 0), $"Vitality: {vitalityVal * 100:F0}%");
+            ImGui.PopStyleColor();
 
-                Vector4 healthColor = nearest.actor.Vitality switch
+            // Only show combat stats for non-player units
+            if (displayTarget != playerUnit)
+            {
+                // Boldness bar
+                float boldnessVal = (float)Math.Clamp(displayTarget.Boldness, 0, 3.0);
+                float boldnessDisplay = boldnessVal / 3.0f; // Normalize for display (animals start at 2.3-3.0)
+                Vector4 boldnessColor = boldnessVal switch
                 {
-                    >= 0.7 => new Vector4(0.4f, 0.9f, 0.4f, 1f),
-                    >= 0.4 => new Vector4(1f, 0.8f, 0.3f, 1f),
-                    _ => new Vector4(1f, 0.3f, 0.3f, 1f)
+                    >= 0.7f => new Vector4(1f, 0.4f, 0.3f, 1f),   // Red - aggressive
+                    >= 0.5f => new Vector4(1f, 0.7f, 0.3f, 1f),   // Orange - bold
+                    >= 0.3f => new Vector4(1f, 1f, 0.4f, 1f),     // Yellow - wary
+                    _ => new Vector4(0.6f, 0.6f, 0.6f, 1f)         // Gray - cautious
                 };
+                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, boldnessColor);
+                ImGui.ProgressBar(boldnessDisplay, new Vector2(-1, 0), $"Boldness: {boldnessVal * 100:F0}%");
+                ImGui.PopStyleColor();
 
-                ImGui.TextColored(healthColor, healthDesc);
-
-                string boldnessDesc = nearest.Boldness switch
+                // Threat bar
+                float threatVal = (float)Math.Clamp(displayTarget.Threat, 0, 1.5);
+                float threatDisplay = threatVal / 1.5f;
+                Vector4 threatColor = threatVal switch
                 {
-                    >= 0.7 => "Aggressive",
-                    >= 0.5 => "Bold",
-                    >= 0.3 => "Wary",
-                    _ => "Cautious"
+                    >= 0.6f => new Vector4(0.8f, 0.2f, 0.2f, 1f), // Dark red - high threat
+                    >= 0.3f => new Vector4(0.9f, 0.5f, 0.3f, 1f), // Orange
+                    _ => new Vector4(0.6f, 0.7f, 0.6f, 1f)         // Muted green - low threat
                 };
-                ImGui.Text($"Mood: {boldnessDesc}");
+                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, threatColor);
+                ImGui.ProgressBar(threatDisplay, new Vector2(-1, 0), $"Threat: {threatVal * 100:F0}%");
+                ImGui.PopStyleColor();
+
+                // Aggression bar
+                float aggressionVal = (float)Math.Clamp(displayTarget.Aggression, 0, 1.5);
+                float aggressionDisplay = aggressionVal / 1.5f;
+                Vector4 aggressionColor = aggressionVal switch
+                {
+                    >= 0.7f => new Vector4(1f, 0.2f, 0.2f, 1f),   // Bright red
+                    >= 0.4f => new Vector4(1f, 0.6f, 0.2f, 1f),   // Orange
+                    _ => new Vector4(0.7f, 0.7f, 0.5f, 1f)         // Muted
+                };
+                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, aggressionColor);
+                ImGui.ProgressBar(aggressionDisplay, new Vector2(-1, 0), $"Aggression: {aggressionVal * 100:F0}%");
+                ImGui.PopStyleColor();
+            }
+
+            // Speed and Strength as numbers
+            ImGui.Spacing();
+            ImGui.TextDisabled($"Speed: {displayTarget.actor.Speed:F2}  Strength: {displayTarget.actor.Strength:F2}");
+
+            // Injuries section - show damaged body parts
+            var damagedParts = displayTarget.actor.Body.Parts
+                .Where(p => p.Condition < 1.0)
+                .OrderBy(p => p.Condition)
+                .Take(4)  // Limit to 4 to save space
+                .ToList();
+
+            if (damagedParts.Count > 0)
+            {
+                ImGui.Spacing();
+                ImGui.TextDisabled("Injuries:");
+                foreach (var part in damagedParts)
+                {
+                    float condition = (float)part.Condition;
+                    Vector4 injuryColor = condition switch
+                    {
+                        >= 0.7f => new Vector4(0.7f, 0.9f, 0.4f, 1f),  // Light damage
+                        >= 0.4f => new Vector4(1f, 0.7f, 0.3f, 1f),    // Moderate
+                        _ => new Vector4(1f, 0.3f, 0.3f, 1f)            // Severe
+                    };
+                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, injuryColor);
+                    ImGui.ProgressBar(condition, new Vector2(-1, 12), $"{part.Name}: {condition * 100:F0}%");
+                    ImGui.PopStyleColor();
+                }
             }
         }
-
-        ImGui.Separator();
-
-        // Player status
-        ImGui.Text("Your Status:");
-
-        // Vitality bar
-        Vector4 vitalityColor = ctx.player.Vitality switch
-        {
-            >= 0.7 => new Vector4(0.4f, 0.9f, 0.4f, 1f),
-            >= 0.4 => new Vector4(1f, 0.8f, 0.3f, 1f),
-            _ => new Vector4(1f, 0.3f, 0.3f, 1f)
-        };
-
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, vitalityColor);
-        ImGui.ProgressBar((float)ctx.player.Vitality, new Vector2(-1, 0),
-            $"Vitality: {ctx.player.Vitality * 100:F0}%");
-        ImGui.PopStyleColor();
-
-        // Energy bar
-        double energyPct = ctx.player.Body.Energy / 480.0;
-        Vector4 energyColor = energyPct switch
-        {
-            >= 0.5 => new Vector4(0.3f, 0.7f, 1f, 1f),
-            >= 0.25 => new Vector4(1f, 0.7f, 0.3f, 1f),
-            _ => new Vector4(0.6f, 0.3f, 0.3f, 1f)
-        };
-
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, energyColor);
-        ImGui.ProgressBar((float)energyPct, new Vector2(-1, 0),
-            $"Energy: {energyPct * 100:F0}%");
-        ImGui.PopStyleColor();
 
         ImGui.Separator();
 
@@ -447,11 +505,6 @@ public class ActionPanel
                     clickedAction = "combat:assess";
                 ImGui.Separator();
             }
-
-            // Calculate detection risk for move buttons
-            double detectionRisk = inStealth
-                ? combat.CalculateDetectionRisk(playerUnit, nearest, huntingSkill)
-                : 0;
 
             switch (zone)
             {
@@ -493,7 +546,7 @@ public class ActionPanel
                             distance, HuntHandler.GetStoneRange(), HuntHandler.GetStoneBaseAccuracy(), isSmall);
 
                         if (ImGui.Button($"Throw Stone x{stones} ({hitChance:P0})", new Vector2(-1, 0)))
-                            clickedAction = "combat:throw_stone";
+                            clickedAction = "combat:throwstone";
                     }
 
                     if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
@@ -518,24 +571,6 @@ public class ActionPanel
                     if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
                         clickedAction = "combat:intimidate";
                     break;
-            }
-
-            // Movement buttons with detection % in stealth
-            ImGui.Separator();
-            if (inStealth)
-            {
-                if (ImGui.Button($"Advance ({detectionRisk:P0} detection)", new Vector2(-1, 0)))
-                    clickedAction = "combat:advance";
-                double retreatRisk = detectionRisk * 0.5; // Retreating is safer
-                if (ImGui.Button($"Retreat ({retreatRisk:P0} detection)", new Vector2(-1, 0)))
-                    clickedAction = "combat:retreat";
-            }
-            else
-            {
-                if (ImGui.Button("Advance", new Vector2(-1, 0)))
-                    clickedAction = "combat:advance";
-                if (ImGui.Button("Retreat", new Vector2(-1, 0)))
-                    clickedAction = "combat:retreat";
             }
         }
 
