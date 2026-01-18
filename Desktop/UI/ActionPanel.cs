@@ -442,6 +442,16 @@ public class ActionPanel
             }
         }
 
+        // Flee option - available when near any edge
+        if (CombatScenario.CanFlee(playerUnit.Position))
+        {
+            ImGui.Separator();
+            int dist = CombatScenario.GetDistanceFromEdge(playerUnit.Position);
+            string label = dist == 0 ? "Flee! (at edge)" : $"Flee ({dist}m to edge)";
+            if (ImGui.Button(label, new Vector2(-1, 0)))
+                clickedAction = "combat:flee";
+        }
+
         ImGui.End();
 
         return clickedAction;

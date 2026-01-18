@@ -1,9 +1,20 @@
 using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
+using text_survival.Bodies;
 using text_survival.Environments.Grid;
 using text_survival.Items;
 
 namespace text_survival.Combat;
+
+/// <summary>
+/// Result of a combat action (attack, throw, etc.)
+/// </summary>
+public record CombatActionResult(
+    bool Hit,
+    bool Dodged,
+    bool Blocked,
+    DamageResult? Damage
+);
 
 
 public class CombatScenario
@@ -83,13 +94,13 @@ public class CombatScenario
         else if (ActionNeedsTarget(action))
         {
             var target = CombatAI.DetermineTarget(unit, this);
-            ExecuteAction(action, unit, target);
-            narrative = GetActionNarrative(action, unit, target);
+            var result = ExecuteAction(action, unit, target);
+            narrative = GetActionNarrative(action, unit, target, result);
         }
         else
         {
-            ExecuteAction(action, unit, null);
-            narrative = GetActionNarrative(action, unit, null);
+            var result = ExecuteAction(action, unit, null);
+            narrative = GetActionNarrative(action, unit, null, result);
         }
 
         unit.ApplyBoldnessChange(MoraleEvent.RoundAdvanced, null);
@@ -132,10 +143,16 @@ public class CombatScenario
         return ProcessSingleAITurn(unit);
     }
 
-    private string GetActionNarrative(CombatActions action, Unit actor, Unit? target)
+    private string GetActionNarrative(CombatActions action, Unit actor, Unit? target, CombatActionResult? result)
     {
         string actorName = $"The {actor.actor.Name.ToLower()}";
         string targetName = target != null ? $"the {target.actor.Name.ToLower()}" : "";
+
+        // For attacks with results, use the narrator
+        if ((action == CombatActions.Attack || action == CombatActions.Throw) && result != null && target != null)
+        {
+            return CombatNarrator.DescribeAttack(actor.actor, target.actor, result);
+        }
 
         return action switch
         {
@@ -144,7 +161,7 @@ public class CombatScenario
             CombatActions.Dodge => $"{actorName} readies to dodge.",
             CombatActions.Block => $"{actorName} raises its guard.",
             CombatActions.Shove => $"{actorName} shoves {targetName}!",
-            CombatActions.Intimidate => $"{actorName} tries to intimidate.",
+            CombatActions.Intimidate => CombatNarrator.DescribeIntimidate(actor.actor, isPlayer: false),
             _ => $"{actorName} acts."
         };
     }
@@ -198,15 +215,16 @@ public class CombatScenario
         var pos = unit.Position;
         return pos.X < 0 || pos.X >= MAP_SIZE || pos.Y < 0 || pos.Y >= MAP_SIZE;
     }
-    public void Attack(Unit attacker, Unit defender)
+    public CombatActionResult Attack(Unit attacker, Unit defender)
     {
         double hitChance = 0.9;
         if (Utils.DetermineSuccess(hitChance))
         {
-            ApplyDamage(attacker, defender);
+            return ApplyDamage(attacker, defender);
         }
+        return new CombatActionResult(Hit: false, Dodged: false, Blocked: false, Damage: null);
     }
-    public void RangedAttack(Unit attacker, Unit target)
+    public CombatActionResult RangedAttack(Unit attacker, Unit target)
     {
         var weapon = attacker.GetWeapon() ?? throw new InvalidOperationException("No weapon");
         double dist = attacker.Position.DistanceTo(target.Position);
@@ -214,22 +232,33 @@ public class CombatScenario
         double baseHitChance = .9;
         double hitChance = baseHitChance * (1 - dist / maxRange);
 
+        CombatActionResult result;
         if (Utils.DetermineSuccess(hitChance))
         {
-            ApplyDamage(attacker, target);
+            result = ApplyDamage(attacker, target);
+        }
+        else
+        {
+            result = new CombatActionResult(Hit: false, Dodged: false, Blocked: false, Damage: null);
         }
         attacker.UnequipWeapon(); // do this after for damage calculations
         ThrownWeapons.Add(weapon); // for retrieval after
         // todo spawn ranged weapon on ground
+        return result;
     }
-    private void ApplyDamage(Unit attacker, Unit defender)
+    private CombatActionResult ApplyDamage(Unit attacker, Unit defender)
     {
-        if (defender.DodgeSet && ResolveDodge(defender, attacker)) return;
+        // Check dodge first
+        if (defender.DodgeSet && ResolveDodge(defender, attacker))
+        {
+            return new CombatActionResult(Hit: false, Dodged: true, Blocked: false, Damage: null);
+        }
 
         var damage = attacker.actor.GetAttackDamage();
-        if (defender.BlockSet) damage.Amount = ResolveBlock(defender, attacker, damage.Amount);
+        bool blocked = defender.BlockSet;
+        if (blocked) damage.Amount = ResolveBlock(defender, attacker, damage.Amount);
 
-        defender.actor.Damage(damage);
+        var damageResult = defender.actor.Damage(damage);
 
         attacker.ApplyBoldnessChange(MoraleEvent.DealtDamage, defender);
         defender.ApplyBoldnessChange(MoraleEvent.TookDamage, attacker);
@@ -241,6 +270,8 @@ public class CombatScenario
             HandleUnitDeath(defender);
             CheckIfOver();
         }
+
+        return new CombatActionResult(Hit: true, Dodged: false, Blocked: blocked, Damage: damageResult);
     }
     public void Dodge(Unit unit) { unit.DodgeSet = true; }
     public void Block(Unit unit) { unit.BlockSet = true; }
@@ -267,20 +298,20 @@ public class CombatScenario
         unit.enemies.ForEach(e => e.ApplyBoldnessChange(MoraleEvent.Intimidated, unit));
     }
 
-    public void ExecuteAction(CombatActions action, Unit unit, Unit? target = null)
+    public CombatActionResult? ExecuteAction(CombatActions action, Unit unit, Unit? target = null)
     {
         if (ActionNeedsTarget(action) && target == null)
             throw new InvalidOperationException($"Target required for {action}");
 
         switch (action)
         {
-            case CombatActions.Attack: Attack(unit, target!); break;
-            case CombatActions.Throw: RangedAttack(unit, target!); break;
-            case CombatActions.Dodge: Dodge(unit); break;
-            case CombatActions.Block: Block(unit); break;
-            case CombatActions.Shove: Shove(unit, target!); break;
-            // case CombatActions.Brace: Brace(unit); break;
-            case CombatActions.Intimidate: Intimidate(unit); break;
+            case CombatActions.Attack: return Attack(unit, target!);
+            case CombatActions.Throw: return RangedAttack(unit, target!);
+            case CombatActions.Dodge: Dodge(unit); return null;
+            case CombatActions.Block: Block(unit); return null;
+            case CombatActions.Shove: Shove(unit, target!); return null;
+            // case CombatActions.Brace: Brace(unit); return null;
+            case CombatActions.Intimidate: Intimidate(unit); return null;
             case CombatActions.Move: throw new InvalidOperationException("Call move directly");
             default: throw new NotImplementedException();
         }
@@ -348,8 +379,29 @@ public class CombatScenario
         _ => Zone.far
     };
     private const int MAP_SIZE = 25;
+    private const int FLEE_THRESHOLD = 3;
+    private const int FLEE_ENERGY_COST = 20;
+
+    public static int GetDistanceFromEdge(GridPosition pos)
+    {
+        int distLeft = pos.X;
+        int distRight = MAP_SIZE - 1 - pos.X;
+        int distTop = pos.Y;
+        int distBottom = MAP_SIZE - 1 - pos.Y;
+        return Math.Min(Math.Min(distLeft, distRight), Math.Min(distTop, distBottom));
+    }
+
+    public static bool CanFlee(GridPosition pos) => GetDistanceFromEdge(pos) <= FLEE_THRESHOLD;
+
+    public bool ExecuteFlee(Unit unit)
+    {
+        if (!CanFlee(unit.Position)) return false;
+        unit.actor.Body.Energy -= FLEE_ENERGY_COST;
+        Flee(unit);
+        return true;
+    }
 }
 
-public enum CombatActions { Move, Attack, Throw, Dodge, Block, Shove, Intimidate, Advance, Retreat }
+public enum CombatActions { Move, Attack, Throw, Dodge, Block, Shove, Intimidate, Advance, Retreat, Flee }
 
 public enum Zone { close, near, mid, far }

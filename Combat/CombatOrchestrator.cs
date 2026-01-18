@@ -160,6 +160,7 @@ public static class CombatOrchestrator
             CombatActions.Block => ExecuteBlock(scenario, playerUnit),
             CombatActions.Shove => ExecuteShove(scenario, playerUnit, nearest),
             CombatActions.Intimidate => ExecuteIntimidate(scenario, playerUnit),
+            CombatActions.Flee => ExecuteFlee(scenario, playerUnit),
             _ => ""
         };
     }
@@ -210,13 +211,21 @@ public static class CombatOrchestrator
 
     private static string ExecuteAttack(CombatScenario scenario, Unit playerUnit, Unit nearest)
     {
-        scenario.ExecuteAction(CombatActions.Attack, playerUnit, nearest);
+        var result = scenario.ExecuteAction(CombatActions.Attack, playerUnit, nearest);
+        if (result != null)
+        {
+            return CombatNarrator.DescribeAttack(playerUnit.actor, nearest.actor, result);
+        }
         return $"You attack the {nearest.actor.Name}!";
     }
 
     private static string ExecuteThrow(CombatScenario scenario, Unit playerUnit, Unit nearest)
     {
-        scenario.ExecuteAction(CombatActions.Throw, playerUnit, nearest);
+        var result = scenario.ExecuteAction(CombatActions.Throw, playerUnit, nearest);
+        if (result != null)
+        {
+            return CombatNarrator.DescribeAttack(playerUnit.actor, nearest.actor, result);
+        }
         return $"You throw your weapon at the {nearest.actor.Name}!";
     }
 
@@ -241,7 +250,16 @@ public static class CombatOrchestrator
     private static string ExecuteIntimidate(CombatScenario scenario, Unit playerUnit)
     {
         scenario.ExecuteAction(CombatActions.Intimidate, playerUnit, null);
-        return "You shout and make yourself large!";
+        return CombatNarrator.DescribeIntimidate(playerUnit.actor, isPlayer: true);
+    }
+
+    private static string ExecuteFlee(CombatScenario scenario, Unit playerUnit)
+    {
+        if (!CombatScenario.CanFlee(playerUnit.Position))
+            return "You're too far from the edge to flee.";
+
+        scenario.ExecuteFlee(playerUnit);
+        return "You sprint for the edge!";
     }
 
     #endregion
