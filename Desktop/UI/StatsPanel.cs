@@ -330,8 +330,8 @@ public static class StatsPanel
 
         ImGui.Separator();
 
-        // Injuries section - show damaged body parts first
-        if (hasInjuries)
+        // Injuries section - show damaged body parts and blood loss
+        if (hasInjuries || hasBloodIssue)
         {
             ImGui.TextColored(ColorHeader, "Injuries");
 
@@ -346,14 +346,28 @@ public static class StatsPanel
                     RenderInjuryRow(part.Name, part.Condition);
                 }
 
+                // Blood loss display - shown with injuries since bleeding is injury-related
+                if (hasBloodIssue)
+                {
+                    int bloodPct = (int)(body.Blood.Condition * 100);
+                    ImGui.TableNextColumn();
+                    ImGui.Text("  Blood");
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, GetCapacityColor(body.Blood.Condition));
+                    ImGui.ProgressBar((float)body.Blood.Condition, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{bloodPct}%");
+                    ImGui.PopStyleColor();
+                    ImGui.TableNextColumn();
+                    ImGui.Text("");  // Empty third column to match table format
+                }
+
                 ImGui.EndTable();
             }
         }
 
         // Capacities section
-        if (hasBloodIssue || hasCapacityIssues)
+        if (hasCapacityIssues)
         {
-            if (hasInjuries)
+            if (hasInjuries || hasBloodIssue)
                 ImGui.Spacing();
             ImGui.TextColored(ColorHeader, "Capacities");
 
@@ -362,8 +376,6 @@ public static class StatsPanel
                 ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
                 ImGui.TableSetupColumn("Bar", ImGuiTableColumnFlags.WidthStretch);
 
-                if (hasBloodIssue)
-                    RenderCapacityRow("Blood", body.Blood.Condition);
                 if (capacities.Moving < 0.9)
                     RenderCapacityRow("Moving", capacities.Moving);
                 if (capacities.Manipulation < 0.9)
@@ -433,10 +445,14 @@ public static class StatsPanel
             {
                 int severity = (int)(effect.Severity * 100);
                 // Calculate actual trend from severity delta
-                double severityDelta = effect.Severity - effect.PreviousSeverity;
-                string trend = (effect.PreviousSeverity < 0) ? "" :  // No arrow if not yet tracked
-                               severityDelta > 0.001 ? ArrowUp :
-                               severityDelta < -0.001 ? ArrowDown : "";
+                double? severityDelta = effect.GetSeverityChangeSinceSnapshot();
+                string trend = severityDelta switch
+                {
+                    null => "",                    // No snapshot yet
+                    > 0.001 => ArrowUp,           // Worsening
+                    < -0.001 => ArrowDown,        // Improving
+                    _ => ""                        // Stable
+                };
                 Vector4 color = GetEffectColor(effect);
                 RenderEffectRow(effect.EffectKind, severity, color, trend);
 
