@@ -433,6 +433,9 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         for (int i = 0; i < minutes; i++)
         {
+            // Update relationship memories for actors sharing locations
+            UpdateTimeTogetherRelationships();
+
             foreach (NPC npc in NPCs.ToList())
             {
                 var npcContext = SurvivalContext.GetSurvivalContext(npc, npc.Inventory, npc.CurrentAction?.ActivityType ?? ActivityType.Idle, GetTimeOfDay());
@@ -538,6 +541,31 @@ public class GameContext(Player player, Location camp, Weather weather)
                 GameDisplay.AddWarning(this, $"Your {gear.Name} resin treatment is wearing thin.");
             if (oldDurability > 0 && gear.ResinTreatmentDurability == 0)
                 GameDisplay.AddWarning(this, $"The resin treatment on your {gear.Name} has worn off.");
+        }
+    }
+
+    /// <summary>
+    /// Groups actors by location and updates relationship memories for time spent together.
+    /// Called per-minute during the simulation loop.
+    /// </summary>
+    private void UpdateTimeTogetherRelationships()
+    {
+        if (Map == null) return;
+
+        // Group NPCs by their current location
+        var npcsByLocation = NPCs.GroupBy(n => n.CurrentLocation);
+
+        foreach (var group in npcsByLocation)
+        {
+            var actorsHere = group.Cast<Actor>().ToList();
+
+            // Add player to the group if they're at the same location
+            if (group.Key == CurrentLocation)
+                actorsHere.Add(player);
+
+            // Only process if multiple actors are present
+            if (actorsHere.Count > 1)
+                RelationshipEvents.TimeTogether(actorsHere);
         }
     }
 

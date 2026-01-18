@@ -507,6 +507,12 @@ Autonomous survival agents with full needs-based decision making. NPCs pursue th
 - Temperature-aware decay (fresh → decomposing → skeletal) affects discovery text.
 - Player can bury bodies or loot belongings via work options.
 
+**Relationship Memory:**
+- NPCs remember significant interactions with other actors.
+- Memories accumulate over time and affect NPC opinion.
+- Positive relationships make NPCs more likely to help in combat.
+- `RelationshipEvents` routes game occurrences (combat, shared time, etc.) to NPCs who should remember them.
+
 **Current Limitations:**
 - No player influence (can't command or suggest actions)
 - No NPC-to-player communication
@@ -514,9 +520,9 @@ Autonomous survival agents with full needs-based decision making. NPCs pursue th
 - Personality traits (Boldness, Selfishness, Sociability) exist but don't affect behavior yet
 - No collaboration on tasks
 
-NPCs interact with: survival simulation (same body/stats system), locations (same movement/features), inventory (own inventory + camp stockpile), crafting (autonomous tool creation), fire (start/tend), death (creates discoverable bodies).
+NPCs interact with: survival simulation (same body/stats system), locations (same movement/features), inventory (own inventory + camp stockpile), crafting (autonomous tool creation), fire (start/tend), death (creates discoverable bodies), combat (relationship memory affects ally decisions).
 
-**Files**: `Actors/NPC/NPC.cs`, `Actors/NPC/NPCFactory.cs`, `Environments/Features/NPCBodyFeature.cs`
+**Files**: `Actors/NPC/NPC.cs`, `Actors/NPC/NPCFactory.cs`, `Actors/NPC/RelationshipMemory.cs`, `Actors/NPC/RelationshipEvents.cs`, `Environments/Features/NPCBodyFeature.cs`
 
 ---
 

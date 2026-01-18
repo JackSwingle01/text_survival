@@ -300,6 +300,13 @@ public static class CombatOrchestrator
                 ctx.NPCs.Remove(npc);
             }
         }
+
+        // Record that team members fought together (relationship memory)
+        if (result == CombatResult.Victory || result == CombatResult.AnimalFled)
+        {
+            var team = scenario.Team1.Select(u => u.actor);
+            RelationshipEvents.FoughtTogether(team);
+        }
     }
 
     #endregion
