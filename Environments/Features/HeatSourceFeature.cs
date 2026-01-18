@@ -236,7 +236,7 @@ public class HeatSourceFeature : LocationFeature
 
         // Heat output scales with temperature differential and burning fire size
         double fireSizeMultiplier = Math.Sqrt(Math.Max(_burningMassKg, 0.5));
-        double heatOutput = (tempDifferential / 60.0) * fireSizeMultiplier;
+        double heatOutput = (tempDifferential / 50.0) * fireSizeMultiplier;
 
         return Math.Max(0, heatOutput);
     }

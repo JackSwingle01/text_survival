@@ -272,8 +272,8 @@ public class Location
         // Sun warming effects during daytime with clear skies
         double sunIntensity = Weather.SunlightIntensity;
         double sunExposure = 1 - OverheadCoverLevel;
-        // Sun can add up to 10°F on a cold day
-        double sunWarming = sunIntensity * sunExposure * 10;
+        // Sun can add up to 15°F in best conditions
+        double sunWarming = sunIntensity * sunExposure * 15;
 
         // Sun effect is more noticeable when cold
         double temperatureAdjustment = sunWarming * Math.Max(0.5, Math.Min(1, (50 - locationTemp) / 30));
