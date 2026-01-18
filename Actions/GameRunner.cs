@@ -8,6 +8,7 @@ using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.Items;
 using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Actions.Handlers;
 using text_survival.Persistence;
 using text_survival.UI;
@@ -17,6 +18,24 @@ using text_survival.Desktop.Input;
 using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions;
+
+public enum CampAction
+{
+    Wait,
+    TendFire,
+    StartFire,
+    EatDrink,
+    Cook,
+    Inventory,
+    Crafting,
+    DiscoveryLog,
+    NPCs,
+    Storage,
+    CuringRack,
+    Sleep,
+    MakeCamp,
+    TreatWounds
+}
 
 public class Choice<T>(string? prompt = null)
 {
@@ -202,13 +221,22 @@ public partial class GameRunner(GameContext ctx)
             // Render action panel
             if (actionPanel != null)
             {
-                var (action, _) = actionPanel.Render(ctx, deltaTime);
-                if (action != null)
+                var (campAction, workStrategy, _) = actionPanel.Render(ctx, deltaTime);
+                if (campAction != null)
                 {
                     tilePopup?.Hide();
                     rlImGui.End();
                     Raylib.EndDrawing();
-                    return action;
+                    ProcessCampAction(campAction.Value);
+                    return null; // Action processed, continue loop
+                }
+                if (workStrategy != null)
+                {
+                    tilePopup?.Hide();
+                    rlImGui.End();
+                    Raylib.EndDrawing();
+                    ExecuteWork(workStrategy);
+                    return null; // Action processed, continue loop
                 }
                 // Note: Combat actions don't go through GameRunner - they use DesktopIO directly
             }
@@ -366,63 +394,91 @@ public partial class GameRunner(GameContext ctx)
 
     /// <summary>
     /// Process an action string from the game loop.
+    /// Handles keyboard shortcut strings - work and camp actions use typed methods.
     /// </summary>
     private void ProcessAction(string action)
     {
-        // Handle work actions
-        if (action.StartsWith("work:"))
-        {
-            string workId = action.Substring(5);
-            ExecuteWork(workId);
-            return;
-        }
-
+        // Keyboard shortcut string handling
         switch (action)
         {
             case "wait":
-                Wait();
+                ProcessCampAction(CampAction.Wait);
                 break;
             case "tend_fire":
-                TendFire();
+                ProcessCampAction(CampAction.TendFire);
                 break;
             case "start_fire":
-                StartFire();
-                break;
-            case "eat_drink":
-                EatDrink();
-                break;
-            case "cook":
-                CookMelt();
+                ProcessCampAction(CampAction.StartFire);
                 break;
             case "inventory":
-                RunInventoryMenu();
+                ProcessCampAction(CampAction.Inventory);
                 break;
             case "crafting":
-                RunCrafting();
+                ProcessCampAction(CampAction.Crafting);
                 break;
             case "discovery_log":
-                RunDiscoveryLog();
+                ProcessCampAction(CampAction.DiscoveryLog);
                 break;
             case "npcs":
-                RunNPCs();
+                ProcessCampAction(CampAction.NPCs);
                 break;
             case "storage":
-                RunStorageMenu();
-                break;
-            case "curing_rack":
-                UseCuringRack();
-                break;
-            case "sleep":
-                Sleep();
-                break;
-            case "make_camp":
-                MakeCamp();
-                break;
-            case "treat_wounds":
-                ApplyDirectTreatment();
+                ProcessCampAction(CampAction.Storage);
                 break;
             default:
                 // Unknown action, ignore
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Process a typed camp action.
+    /// </summary>
+    private void ProcessCampAction(CampAction action)
+    {
+        switch (action)
+        {
+            case CampAction.Wait:
+                Wait();
+                break;
+            case CampAction.TendFire:
+                TendFire();
+                break;
+            case CampAction.StartFire:
+                StartFire();
+                break;
+            case CampAction.EatDrink:
+                EatDrink();
+                break;
+            case CampAction.Cook:
+                CookMelt();
+                break;
+            case CampAction.Inventory:
+                RunInventoryMenu();
+                break;
+            case CampAction.Crafting:
+                RunCrafting();
+                break;
+            case CampAction.DiscoveryLog:
+                RunDiscoveryLog();
+                break;
+            case CampAction.NPCs:
+                RunNPCs();
+                break;
+            case CampAction.Storage:
+                RunStorageMenu();
+                break;
+            case CampAction.CuringRack:
+                UseCuringRack();
+                break;
+            case CampAction.Sleep:
+                Sleep();
+                break;
+            case CampAction.MakeCamp:
+                MakeCamp();
+                break;
+            case CampAction.TreatWounds:
+                ApplyDirectTreatment();
                 break;
         }
     }
@@ -455,8 +511,8 @@ public partial class GameRunner(GameContext ctx)
         var workOptions = ctx.CurrentLocation.GetWorkOptions(ctx).ToList();
         foreach (var opt in workOptions)
         {
-            string workId = opt.Id; // Capture for lambda
-            choice.AddOption(opt.Label, () => ExecuteWork(workId));
+            var strategy = opt.Strategy; // Capture for lambda
+            choice.AddOption(opt.Label, () => ExecuteWork(strategy));
         }
 
         // Grid-based travel option (always visible, but may trigger warning)
@@ -537,13 +593,13 @@ public partial class GameRunner(GameContext ctx)
     private void MakeCamp() => CampHandler.MakeCamp(ctx, ctx.CurrentLocation);
 
     /// <summary>
-    /// Execute a single work action by ID.
+    /// Execute a work strategy directly.
     /// </summary>
-    private void ExecuteWork(string workId)
+    private void ExecuteWork(IWorkStrategy strategy)
     {
         TravelRunner traveler = new(ctx);
         var work = new WorkRunner(ctx);
-        var result = work.ExecuteById(ctx.CurrentLocation, workId);
+        var result = work.Execute(ctx.CurrentLocation, strategy);
 
         if (result != null)
         {

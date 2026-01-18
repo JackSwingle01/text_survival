@@ -272,6 +272,7 @@ public class ForageOverlay
         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.25f, 0.3f, 0.35f, 1f));
         if (ImGui.Button("Keep Walking (5 min)", new Vector2(halfWidth, 28)))
         {
+            ImGui.PopStyleColor();
             _result = new ForageResult(null, -1); // -1 signals keep walking
             IsOpen = false;
             return _result;

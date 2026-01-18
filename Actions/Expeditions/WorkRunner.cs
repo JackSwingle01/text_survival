@@ -158,7 +158,15 @@ public class WorkRunner(GameContext ctx)
     }
 
     // === WORK OPTIONS (used by ExpeditionRunner) ===
-    
+
+    /// <summary>
+    /// Execute a work strategy directly (no lookup needed).
+    /// </summary>
+    public WorkResult Execute(Location location, IWorkStrategy strategy)
+    {
+        return ExecuteWork(location, strategy);
+    }
+
     /// <summary>
     /// Execute work by ID. Finds the matching WorkOption and executes its strategy.
     /// </summary>

@@ -8,6 +8,7 @@ using text_survival.Combat;
 using text_survival.Desktop.Input;
 using text_survival.Environments.Features;
 using text_survival.Items;
+using text_survival.Actions.Expeditions.WorkStrategies;
 
 namespace text_survival.Desktop.UI;
 
@@ -29,26 +30,28 @@ public class ActionPanel
     }
 
     /// <summary>
-    /// Render the action panel. Returns either a location action string or a typed combat action.
+    /// Render the action panel. Returns typed camp action, work strategy, or combat action.
     /// </summary>
-    public (string? Action, CombatActions? CombatAction) Render(GameContext ctx, float deltaTime)
+    public (CampAction? CampAction, IWorkStrategy? WorkStrategy, CombatActions? CombatAction) Render(GameContext ctx, float deltaTime)
     {
         if (ctx.ActiveCombat != null)
         {
-            return (null, RenderCombatActions(ctx, deltaTime));
+            return (null, null, RenderCombatActions(ctx, deltaTime));
         }
         else
         {
-            return (RenderLocationActions(ctx, deltaTime), null);
+            var (action, workStrategy) = RenderLocationActions(ctx, deltaTime);
+            return (action, workStrategy, null);
         }
     }
 
     /// <summary>
     /// Render location actions (normal gameplay).
     /// </summary>
-    private string? RenderLocationActions(GameContext ctx, float deltaTime)
+    private (CampAction? action, IWorkStrategy? workStrategy) RenderLocationActions(GameContext ctx, float deltaTime)
     {
-        string? clickedAction = null;
+        CampAction? clickedAction = null;
+        IWorkStrategy? workStrategy = null;
 
         // Position relative to grid if WorldRenderer is available
         int panelX = 960; // Default fallback
@@ -90,7 +93,7 @@ public class ActionPanel
         ImGui.Text("Quick Actions:");
 
         if (ImGui.Button($"Wait (5 min) {HotkeyRegistry.GetTip(HotkeyAction.Wait)}", new Vector2(-1, 0)))
-            clickedAction = "wait";
+            clickedAction = CampAction.Wait;
 
         // Fire actions
         var fire = location?.GetFeature<HeatSourceFeature>();
@@ -99,27 +102,27 @@ public class ActionPanel
             if (ctx.Inventory.HasFuel)
             {
                 if (ImGui.Button($"Tend Fire {HotkeyRegistry.GetTip(HotkeyAction.Fire)}", new Vector2(-1, 0)))
-                    clickedAction = "tend_fire";
+                    clickedAction = CampAction.TendFire;
             }
         }
         else if (CanStartFire(ctx))
         {
             if (ImGui.Button($"Start Fire {HotkeyRegistry.GetTip(HotkeyAction.Fire)}", new Vector2(-1, 0)))
-                clickedAction = "start_fire";
+                clickedAction = CampAction.StartFire;
         }
 
         // Eat/Drink
         if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
         {
             if (ImGui.Button("Eat/Drink", new Vector2(-1, 0)))
-                clickedAction = "eat_drink";
+                clickedAction = CampAction.EatDrink;
         }
 
         // Cook/Melt (if fire active)
         if (fire != null && fire.IsActive)
         {
             if (ImGui.Button("Cook/Melt", new Vector2(-1, 0)))
-                clickedAction = "cook";
+                clickedAction = CampAction.Cook;
         }
 
         ImGui.Separator();
@@ -134,7 +137,7 @@ public class ActionPanel
                 foreach (var opt in workOptions)
                 {
                     if (ImGui.Button(opt.Label, new Vector2(-1, 0)))
-                        clickedAction = $"work:{opt.Id}";
+                        workStrategy = opt.Strategy;
                 }
                 ImGui.Separator();
             }
@@ -144,20 +147,20 @@ public class ActionPanel
         ImGui.Text("Menus:");
 
         if (ImGui.Button($"Inventory {HotkeyRegistry.GetTip(HotkeyAction.Inventory)}", new Vector2(-1, 0)))
-            clickedAction = "inventory";
+            clickedAction = CampAction.Inventory;
 
         if (ImGui.Button($"Crafting {HotkeyRegistry.GetTip(HotkeyAction.Crafting)}", new Vector2(-1, 0)))
-            clickedAction = "crafting";
+            clickedAction = CampAction.Crafting;
 
         if (ImGui.Button($"Discovery Log {HotkeyRegistry.GetTip(HotkeyAction.DiscoveryLog)}", new Vector2(-1, 0)))
-            clickedAction = "discovery_log";
+            clickedAction = CampAction.DiscoveryLog;
 
         // Camp storage (if at camp)
         var storage = ctx.Camp?.GetFeature<CacheFeature>();
         if (location == ctx.Camp && storage != null)
         {
             if (ImGui.Button($"Camp Storage {HotkeyRegistry.GetTip(HotkeyAction.Storage)}", new Vector2(-1, 0)))
-                clickedAction = "storage";
+                clickedAction = CampAction.Storage;
         }
 
         // Curing rack (if available)
@@ -170,7 +173,7 @@ public class ActionPanel
                     ? $"Curing Rack ({rack.ItemCount} curing)"
                     : "Curing Rack";
             if (ImGui.Button(rackLabel, new Vector2(-1, 0)))
-                clickedAction = "curing_rack";
+                clickedAction = CampAction.CuringRack;
         }
 
         ImGui.Separator();
@@ -180,24 +183,24 @@ public class ActionPanel
         if (bedding != null)
         {
             if (ImGui.Button("Sleep", new Vector2(-1, 0)))
-                clickedAction = "sleep";
+                clickedAction = CampAction.Sleep;
         }
         else
         {
             if (ImGui.Button("Make Camp", new Vector2(-1, 0)))
-                clickedAction = "make_camp";
+                clickedAction = CampAction.MakeCamp;
         }
 
         // Treatment (if wounds)
         if (CanTreatWounds(ctx))
         {
             if (ImGui.Button("Treat Wounds", new Vector2(-1, 0)))
-                clickedAction = "treat_wounds";
+                clickedAction = CampAction.TreatWounds;
         }
 
         ImGui.End();
 
-        return clickedAction;
+        return (clickedAction, workStrategy);
     }
 
     /// <summary>

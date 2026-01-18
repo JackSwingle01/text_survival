@@ -499,13 +499,15 @@ public static class DesktopIO
 
             if (actionPanel != null)
             {
-                var (action, combatAction) = actionPanel.Render(ctx, deltaTime);
-                if (action != null)
+                var (campAction, _, combatAction) = actionPanel.Render(ctx, deltaTime);
+                if (campAction != null)
                 {
                     rlImGui.End();
                     Raylib.EndDrawing();
-                    return new PlayerResponse(null, inputId, "action", Action: action);
+                    return new PlayerResponse(null, inputId, "action", CampAction: campAction);
                 }
+                // Work is handled by GameRunner.RunGameLoop directly, not through this path
+                // Combat is the only caller and doesn't use work actions
                 if (combatAction != null)
                 {
                     rlImGui.End();
