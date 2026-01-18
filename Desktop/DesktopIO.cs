@@ -678,6 +678,8 @@ public static class DesktopIO
             // Render stats panel (stays visible during combat)
             Desktop.UI.StatsPanel.Render(ctx);
 
+            Desktop.UI.ToastManager.Render(deltaTime);
+
             rlImGui.End();
             Raylib.EndDrawing();
         }
@@ -1025,6 +1027,7 @@ public static class DesktopIO
             rlImGui.Begin();
             DesktopRuntime.Overlays?.Render(ctx, deltaTime);
             Desktop.UI.StatsPanel.Render(ctx);
+            Desktop.UI.ToastManager.Render(deltaTime);
             rlImGui.End();
 
             Raylib.EndDrawing();
