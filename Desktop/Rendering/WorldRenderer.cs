@@ -530,14 +530,14 @@ public class WorldRenderer
             }
 
             // Draw unit icon
-            float iconScale = cellSize / 20f; // Scale based on cell size
+            float animalSize = cellSize * 0.6f; // 60% of cell size
             if (unit.actor is Actors.Animals.Animal animal)
             {
                 // Draw team-colored circle underneath
                 Raylib.DrawCircle(screenX, screenY, cellSize / 3, new Color((byte)teamColor.R, (byte)teamColor.G, (byte)teamColor.B, (byte)100));
 
                 // Draw animal sprite
-                AnimalRenderer.DrawAnimal(animal.AnimalType, screenX, screenY, iconScale);
+                AnimalRenderer.DrawAnimal(animal.AnimalType, screenX, screenY, animalSize);
             }
             else
             {

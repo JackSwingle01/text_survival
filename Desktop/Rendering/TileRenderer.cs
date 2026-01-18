@@ -511,14 +511,14 @@ public static class TileRenderer
             _ => 0
         };
 
-        // Scale for animal drawing (sized appropriately for tile)
-        float scale = tileSize * 0.01f; // ~12-15% of tile size after animal scaling
+        // Animal size as percentage of tile
+        float animalSize = tileSize * 0.25f;
 
-        // Shadow (oval underneath the animal)
+        // Shadow (oval underneath the animal, proportional to animal size)
         var shadowColor = new Color(0, 0, 0, 60);
-        Raylib.DrawEllipse((int)(iconX + 1), (int)(iconY + scale * 12), scale * 8, scale * 4, shadowColor);
+        Raylib.DrawEllipse((int)(iconX + 1), (int)(iconY + animalSize * 0.15f), animalSize * 0.1f, animalSize * 0.05f, shadowColor);
 
         // Draw the procedural animal
-        AnimalRenderer.DrawAnimal(animalType, iconX, iconY, scale);
+        AnimalRenderer.DrawAnimal(animalType, iconX, iconY, animalSize);
     }
 }

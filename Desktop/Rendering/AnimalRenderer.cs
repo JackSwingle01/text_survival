@@ -10,11 +10,16 @@ namespace text_survival.Desktop.Rendering;
 /// </summary>
 public static class AnimalRenderer
 {
+    // Largest sprite spans ~80 units (bison width, megaloceros height)
+    private const float NormalizationSize = 80f;
+
     /// <summary>
     /// Draw an animal sprite at the specified position.
     /// </summary>
-    public static void DrawAnimal(AnimalType type, float x, float y, float scale)
+    /// <param name="sizePixels">Target size in pixels (largest dimension)</param>
+    public static void DrawAnimal(AnimalType type, float x, float y, float sizePixels)
     {
+        float scale = sizePixels / NormalizationSize;
         switch (type)
         {
             case AnimalType.Caribou:
