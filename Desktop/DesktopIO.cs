@@ -610,17 +610,31 @@ public static class DesktopIO
 
             if (worldRenderer != null)
             {
-                var clicked = worldRenderer.HandleClick();
-                if (clicked.HasValue)
+                // Handle combat grid clicks
+                if (ctx.ActiveCombat != null)
                 {
-                    var (x, y) = clicked.Value;
-                    var currentPos = ctx.Map.CurrentPosition;
-                    bool isAdjacent = Math.Abs(x - currentPos.X) <= 1 && Math.Abs(y - currentPos.Y) <= 1
-                        && (x != currentPos.X || y != currentPos.Y);
-
-                    if (isAdjacent && ctx.Map.CanMoveTo(x, y))
+                    var combatClick = worldRenderer.HandleCombatClick();
+                    if (combatClick.HasValue)
                     {
-                        return new PlayerResponse(null, inputId, "travel_to", x, y);
+                        return new PlayerResponse(null, inputId, "action",
+                            Action: $"combat:move_to_{combatClick.Value.x}_{combatClick.Value.y}");
+                    }
+                }
+                else
+                {
+                    // Handle world map clicks (only when not in combat)
+                    var clicked = worldRenderer.HandleClick();
+                    if (clicked.HasValue)
+                    {
+                        var (x, y) = clicked.Value;
+                        var currentPos = ctx.Map.CurrentPosition;
+                        bool isAdjacent = Math.Abs(x - currentPos.X) <= 1 && Math.Abs(y - currentPos.Y) <= 1
+                            && (x != currentPos.X || y != currentPos.Y);
+
+                        if (isAdjacent && ctx.Map.CanMoveTo(x, y))
+                        {
+                            return new PlayerResponse(null, inputId, "travel_to", x, y);
+                        }
                     }
                 }
             }

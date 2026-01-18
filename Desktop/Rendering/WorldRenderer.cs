@@ -369,6 +369,23 @@ public class WorldRenderer
     }
 
     /// <summary>
+    /// Handle a combat grid click. Returns clicked cell coordinates.
+    /// </summary>
+    public (int x, int y)? HandleCombatClick()
+    {
+        if (Raylib.IsMouseButtonPressed(MouseButton.Left) && _hoveredCombatCell.HasValue)
+        {
+            return _hoveredCombatCell;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Get the currently hovered combat cell.
+    /// </summary>
+    public (int x, int y)? GetHoveredCombatCell() => _hoveredCombatCell;
+
+    /// <summary>
     /// Get the screen position for a tile (top-left corner).
     /// Used for popup positioning.
     /// </summary>
@@ -429,6 +446,21 @@ public class WorldRenderer
         int gridPixelHeight = cellSize * gridSize;
         int offsetX = Camera.ScreenOffsetX + (screenWidth - gridPixelWidth) / 2;
         int offsetY = Camera.ScreenOffsetY + (screenHeight - gridPixelHeight) / 2;
+
+        // Update hovered combat cell from mouse position
+        Vector2 mousePos = Raylib.GetMousePosition();
+        int mouseGridX = (int)((mousePos.X - offsetX) / cellSize);
+        int mouseGridY = (int)((mousePos.Y - offsetY) / cellSize);
+        if (mouseGridX >= 0 && mouseGridX < gridSize && mouseGridY >= 0 && mouseGridY < gridSize
+            && mousePos.X >= offsetX && mousePos.Y >= offsetY
+            && mousePos.X < offsetX + gridPixelWidth && mousePos.Y < offsetY + gridPixelHeight)
+        {
+            _hoveredCombatCell = (mouseGridX, mouseGridY);
+        }
+        else
+        {
+            _hoveredCombatCell = null;
+        }
 
         // Draw terrain background (use current location terrain)
         var terrain = ctx.CurrentLocation?.Terrain.ToString() ?? "Plain";
@@ -568,6 +600,55 @@ public class WorldRenderer
                     _ => new Color(200, 200, 200, 80)          // Cautious - gray
                 };
                 Raylib.DrawCircleLines(screenX, screenY, ringRadius, ringColor);
+            }
+        }
+
+        // Draw movement range indicator around player
+        var player = combat.Player;
+        if (player != null && player.actor.IsAlive)
+        {
+            int playerScreenX = offsetX + player.Position.X * cellSize + cellSize / 2;
+            int playerScreenY = offsetY + player.Position.Y * cellSize + cellSize / 2;
+            int moveDistPixels = 3 * cellSize; // MOVE_DIST = 3 meters
+
+            // Draw movement range circle (semi-transparent blue)
+            Raylib.DrawCircleLines(playerScreenX, playerScreenY, moveDistPixels, new Color(80, 150, 255, 100));
+            Raylib.DrawCircle(playerScreenX, playerScreenY, moveDistPixels, new Color(80, 150, 255, 20));
+
+            // Highlight hovered cell if within movement range
+            if (_hoveredCombatCell.HasValue)
+            {
+                var (hx, hy) = _hoveredCombatCell.Value;
+                int hoveredCellX = offsetX + hx * cellSize;
+                int hoveredCellY = offsetY + hy * cellSize;
+
+                // Calculate distance from player to hovered cell
+                double dist = Math.Sqrt(Math.Pow(hx - player.Position.X, 2) + Math.Pow(hy - player.Position.Y, 2));
+                bool isInRange = dist <= 3.0 && dist > 0; // MOVE_DIST = 3, can't move to own cell
+
+                // Check if cell is occupied by another unit
+                bool isOccupied = combat.Units.Any(u => u.actor.IsAlive && u.Position.X == hx && u.Position.Y == hy);
+
+                Color highlightColor;
+                if (isOccupied)
+                {
+                    // Yellow for occupied cells
+                    highlightColor = new Color(255, 200, 100, 60);
+                }
+                else if (isInRange)
+                {
+                    // Green for valid movement
+                    highlightColor = new Color(100, 255, 100, 60);
+                }
+                else
+                {
+                    // Red for out of range
+                    highlightColor = new Color(255, 100, 100, 40);
+                }
+
+                Raylib.DrawRectangle(hoveredCellX, hoveredCellY, cellSize, cellSize, highlightColor);
+                Raylib.DrawRectangleLines(hoveredCellX, hoveredCellY, cellSize, cellSize,
+                    new Color((byte)(highlightColor.R), (byte)(highlightColor.G), (byte)(highlightColor.B), (byte)150));
             }
         }
 

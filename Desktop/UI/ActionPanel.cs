@@ -414,8 +414,6 @@ public class ActionPanel
                         clickedAction = "combat:block";
                     if (ImGui.Button("Shove", new Vector2(-1, 0)))
                         clickedAction = "combat:shove";
-                    if (ImGui.Button("Retreat", new Vector2(-1, 0)))
-                        clickedAction = "combat:retreat";
                     break;
 
                 case Zone.near:
@@ -425,10 +423,6 @@ public class ActionPanel
                         clickedAction = "combat:dodge";
                     if (ImGui.Button("Block", new Vector2(-1, 0)))
                         clickedAction = "combat:block";
-                    if (ImGui.Button("Advance", new Vector2(-1, 0)))
-                        clickedAction = "combat:advance";
-                    if (ImGui.Button("Retreat", new Vector2(-1, 0)))
-                        clickedAction = "combat:retreat";
                     break;
 
                 case Zone.mid:
@@ -439,19 +433,11 @@ public class ActionPanel
                     }
                     if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
                         clickedAction = "combat:intimidate";
-                    if (ImGui.Button("Advance", new Vector2(-1, 0)))
-                        clickedAction = "combat:advance";
-                    if (ImGui.Button("Retreat", new Vector2(-1, 0)))
-                        clickedAction = "combat:retreat";
                     break;
 
                 case Zone.far:
                     if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
                         clickedAction = "combat:intimidate";
-                    if (ImGui.Button("Advance", new Vector2(-1, 0)))
-                        clickedAction = "combat:advance";
-                    if (ImGui.Button("Retreat", new Vector2(-1, 0)))
-                        clickedAction = "combat:retreat";
                     break;
             }
         }

@@ -140,6 +140,17 @@ public static class CombatOrchestrator
 
     private static string ExecutePlayerChoice(CombatScenario scenario, Unit playerUnit, string choice)
     {
+        // Handle click-to-move (move_to_X_Y format)
+        if (choice.StartsWith("move_to_"))
+        {
+            var parts = choice.Split('_');
+            if (parts.Length == 4 && int.TryParse(parts[2], out int x) && int.TryParse(parts[3], out int y))
+            {
+                return ExecuteMoveTo(scenario, playerUnit, new GridPosition(x, y));
+            }
+            return "";
+        }
+
         var nearest = scenario.GetNearestEnemy(playerUnit);
         if (nearest == null) return "";
 
@@ -158,6 +169,36 @@ public static class CombatOrchestrator
             CombatActions.Intimidate => ExecuteIntimidate(scenario, playerUnit),
             _ => ""
         };
+    }
+
+    private static string ExecuteMoveTo(CombatScenario scenario, Unit playerUnit, GridPosition dest)
+    {
+        // Calculate distance to destination
+        double distance = Math.Sqrt(
+            Math.Pow(dest.X - playerUnit.Position.X, 2) +
+            Math.Pow(dest.Y - playerUnit.Position.Y, 2));
+
+        // Validate: within movement range (max 3m - same as MOVE_DIST)
+        if (distance > MOVE_DIST)
+        {
+            return "Too far to move there.";
+        }
+
+        // Can't move to current position
+        if (distance == 0)
+        {
+            return "";
+        }
+
+        // Check if destination is occupied
+        if (scenario.Units.Any(u => u.actor.IsAlive && u.Position.X == dest.X && u.Position.Y == dest.Y))
+        {
+            return "That space is occupied.";
+        }
+
+        // Valid move - execute it
+        scenario.Move(playerUnit, dest);
+        return "You move.";
     }
 
     private static string ExecuteAdvance(CombatScenario scenario, Unit playerUnit, Unit nearest)
