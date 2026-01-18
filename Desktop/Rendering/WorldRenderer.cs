@@ -530,7 +530,7 @@ public class WorldRenderer
             }
 
             // Draw unit icon
-            float animalSize = cellSize * 0.6f; // 60% of cell size
+            float animalSize = cellSize * 0.8f; // 80% of cell size
             if (unit.actor is Actors.Animals.Animal animal)
             {
                 // Draw team-colored circle underneath

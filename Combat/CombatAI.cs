@@ -33,9 +33,9 @@ public static class CombatAI
         // 60% stay put, 40% wander
         if (_rng.NextDouble() < 0.6)
         {
-            return CombatActions.Move; // Will use wander position below
+            return CombatActions.Wait; // Stay in place
         }
-        return CombatActions.Move;
+        return CombatActions.Move; // Wander to a new position
     }
 
     /// <summary>

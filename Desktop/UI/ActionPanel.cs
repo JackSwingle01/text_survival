@@ -436,6 +436,7 @@ public class ActionPanel
             var zone = CombatScenario.GetZone(distance);
             var weapon = ctx.Inventory.Weapon;
             bool hasWeapon = weapon != null;
+            bool isSmall = nearest.actor is Animal a && a.Size == AnimalSize.Small;
 
             // Stealth actions (Wait and Assess) when target is unaware/alert
             if (inStealth)
@@ -478,7 +479,6 @@ public class ActionPanel
                     {
                         double maxRange = weapon!.Name.Contains("Stone") ? 25.0 : 20.0;
                         double baseAccuracy = weapon.Name.Contains("Stone") ? 0.75 : 0.70;
-                        bool isSmall = nearest.actor is Animal a && a.Size == AnimalSize.Small;
                         double hitChance = HuntingCalculator.CalculateThrownAccuracy(distance, maxRange, baseAccuracy, isSmall);
 
                         if (ImGui.Button($"Throw {weapon.Name} ({hitChance:P0})", new Vector2(-1, 0)))
@@ -489,7 +489,6 @@ public class ActionPanel
                     int stones = ctx.Inventory.Count(Resource.Stone);
                     if (stones > 0)
                     {
-                        bool isSmall = nearest.actor is Animal a && a.Size == AnimalSize.Small;
                         double hitChance = HuntingCalculator.CalculateThrownAccuracy(
                             distance, HuntHandler.GetStoneRange(), HuntHandler.GetStoneBaseAccuracy(), isSmall);
 
@@ -507,7 +506,6 @@ public class ActionPanel
                     {
                         double maxRange = weapon!.Name.Contains("Stone") ? 25.0 : 20.0;
                         double baseAccuracy = weapon.Name.Contains("Stone") ? 0.75 : 0.70;
-                        bool isSmall = nearest.actor is Animal a && a.Size == AnimalSize.Small;
                         double hitChance = HuntingCalculator.CalculateThrownAccuracy(distance, maxRange, baseAccuracy, isSmall);
 
                         if (hitChance > 0)

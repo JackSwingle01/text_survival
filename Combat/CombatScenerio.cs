@@ -81,7 +81,12 @@ public class CombatScenario
         var action = CombatAI.DetermineAction(unit, this);
         string narrative;
 
-        if (action == CombatActions.Move)
+        if (action == CombatActions.Wait)
+        {
+            // Unaware/alert animals staying in place - no action needed
+            narrative = $"The {unit.actor.Name.ToLower()} remains still.";
+        }
+        else if (action == CombatActions.Move)
         {
             var oldPos = unit.Position;
             var newPosition = CombatAI.DetermineMovePosition(unit);

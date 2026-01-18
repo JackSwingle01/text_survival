@@ -31,13 +31,13 @@ public static class HuntRunner
     /// Shows initial prompt, then transitions to stealth-combat grid.
     /// </summary>
     /// <param name="sourceHerd">Optional persistent herd this animal belongs to.</param>
-    /// <returns>Outcome of the hunt and minutes elapsed</returns>
-    public static (HuntOutcome outcome, int minutesElapsed) Run(Animal target, Location location, GameContext ctx, Herd? sourceHerd = null)
+    /// <returns>Outcome of the hunt</returns>
+    public static HuntOutcome Run(Animal target, Location location, GameContext ctx, Herd? sourceHerd = null)
     {
         // Show simple approach prompt
         if (!PromptApproach(target, ctx))
         {
-            return (HuntOutcome.PlayerAbandoned, 0);
+            return HuntOutcome.PlayerAbandoned;
         }
 
         // Record animal encounter in Discovery Log
@@ -52,7 +52,7 @@ public static class HuntRunner
         // Handle post-hunt cleanup
         HandlePostHunt(ctx, location, target, sourceHerd, combatResult);
 
-        return TranslateCombatResult(combatResult);
+        return TranslateOutcome(combatResult);
     }
 
     /// <summary>
@@ -159,19 +159,19 @@ public static class HuntRunner
 
     /// <summary>
     /// Translate combat result to hunt outcome.
+    /// Time is tracked by combat via GameContext.Update() - no separate tracking needed.
     /// </summary>
-    private static (HuntOutcome, int) TranslateCombatResult(CombatResult combatResult)
+    private static HuntOutcome TranslateOutcome(CombatResult combatResult)
     {
-        // Note: minutesElapsed is now tracked by combat via GameContext.Update()
         return combatResult switch
         {
-            CombatResult.Victory => (HuntOutcome.Success, 0),
-            CombatResult.Defeat => (HuntOutcome.PlayerDied, 0),
-            CombatResult.Fled => (HuntOutcome.PlayerAbandoned, 0),
-            CombatResult.AnimalFled => (HuntOutcome.PreyFled, 0),
-            CombatResult.AnimalDisengaged => (HuntOutcome.PreyFled, 0),
-            CombatResult.DistractedWithMeat => (HuntOutcome.PreyFled, 0),
-            _ => (HuntOutcome.PreyFled, 0)
+            CombatResult.Victory => HuntOutcome.Success,
+            CombatResult.Defeat => HuntOutcome.PlayerDied,
+            CombatResult.Fled => HuntOutcome.PlayerAbandoned,
+            CombatResult.AnimalFled => HuntOutcome.PreyFled,
+            CombatResult.AnimalDisengaged => HuntOutcome.PreyFled,
+            CombatResult.DistractedWithMeat => HuntOutcome.PreyFled,
+            _ => HuntOutcome.PreyFled
         };
     }
 }

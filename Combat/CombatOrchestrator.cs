@@ -270,12 +270,16 @@ public static class CombatOrchestrator
     /// </summary>
     private static (CombatScenario scenario, Unit playerUnit) SetupHuntCombat(GameContext ctx, Animal prey)
     {
+        // Derive positions from grid size for consistency
+        int playerY = MAP_SIZE / 6;                 // ~8 for 50x50
+        int preyY = MAP_SIZE - MAP_SIZE / 6;        // ~42 for 50x50
+
         // Player starts at bottom center
-        var playerUnit = new Unit(ctx.player, new GridPosition(MAP_SIZE / 2, 8));
+        var playerUnit = new Unit(ctx.player, new GridPosition(MAP_SIZE / 2, playerY));
         var team1 = new List<Unit> { playerUnit };
 
         // Prey starts far away at top (~40m away)
-        var preyUnit = new Unit(prey, new GridPosition(MAP_SIZE / 2, 42));
+        var preyUnit = new Unit(prey, new GridPosition(MAP_SIZE / 2, preyY));
         var team2 = new List<Unit> { preyUnit };
 
         // Include any pack members from herd
@@ -292,7 +296,7 @@ public static class CombatOrchestrator
             foreach (var animal in packMembers)
             {
                 int xOffset = (index % 3) * 2 - 2;
-                team2.Add(new Unit(animal, new GridPosition(MAP_SIZE / 2 + xOffset, 42 + index / 3)));
+                team2.Add(new Unit(animal, new GridPosition(MAP_SIZE / 2 + xOffset, preyY + index / 3)));
                 index++;
             }
         }
@@ -335,8 +339,12 @@ public static class CombatOrchestrator
     /// </summary>
     private static (CombatScenario scenario, Unit playerUnit) SetupEncounterCombat(GameContext ctx, Animal predator)
     {
+        // Derive positions from grid size - closer than hunt (~20-25m vs ~40m)
+        int playerY = MAP_SIZE / 4;                 // ~12 for 50x50
+        int predatorY = MAP_SIZE / 2 + MAP_SIZE / 5; // ~35 for 50x50 (~23m away)
+
         // Player at center-bottom
-        var playerUnit = new Unit(ctx.player, new GridPosition(MAP_SIZE / 2, MAP_SIZE / 4));
+        var playerUnit = new Unit(ctx.player, new GridPosition(MAP_SIZE / 2, playerY));
         var team1 = new List<Unit> { playerUnit };
 
         // Find allied NPCs who will help
@@ -344,11 +352,11 @@ public static class CombatOrchestrator
         var allies = npcsHere.Where(npc => npc.DecideToHelpInCombat(ctx.player, predator)).ToList();
         foreach (var npc in allies)
         {
-            team1.Add(new Unit(npc, new GridPosition(MAP_SIZE / 2 + team1.Count * 2, MAP_SIZE / 4)));
+            team1.Add(new Unit(npc, new GridPosition(MAP_SIZE / 2 + team1.Count * 2, playerY)));
         }
 
         // Predator starts at medium distance (~20-25m away)
-        var predatorUnit = new Unit(predator, new GridPosition(MAP_SIZE / 2, MAP_SIZE / 2 + 10));
+        var predatorUnit = new Unit(predator, new GridPosition(MAP_SIZE / 2, predatorY));
         var team2 = new List<Unit> { predatorUnit };
 
         // Add pack members if applicable
@@ -365,7 +373,7 @@ public static class CombatOrchestrator
             foreach (var animal in packMembers)
             {
                 int xOffset = (index % 3) * 2 - 2;
-                team2.Add(new Unit(animal, new GridPosition(MAP_SIZE / 2 + xOffset, MAP_SIZE / 2 + 10 + index / 3)));
+                team2.Add(new Unit(animal, new GridPosition(MAP_SIZE / 2 + xOffset, predatorY + index / 3)));
                 index++;
             }
         }

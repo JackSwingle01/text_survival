@@ -557,16 +557,10 @@ public partial class GameRunner(GameContext ctx)
             }
 
             // Handle found animal from hunt search - run interactive hunt
+            // Time is tracked during combat via GameContext.Update()
             if (result.FoundAnimal != null)
             {
-                var (outcome, huntMinutes) = HuntRunner.Run(
-                    result.FoundAnimal, ctx.CurrentLocation, ctx, result.FoundHerd);
-
-                // Time passage during hunt
-                if (huntMinutes > 0)
-                {
-                    ctx.Update(huntMinutes, ActivityType.Hunting);
-                }
+                HuntRunner.Run(result.FoundAnimal, ctx.CurrentLocation, ctx, result.FoundHerd);
             }
         }
     }
