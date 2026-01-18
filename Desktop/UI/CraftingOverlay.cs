@@ -81,14 +81,14 @@ public class CraftingOverlay
             float contentHeight = ImGui.GetContentRegionAvail().Y - 30;
 
             // Left: Recipe list
-            ImGui.BeginChild("RecipeList", new Vector2(250, contentHeight), ImGuiChildFlags.Border);
+            ImGui.BeginChild("RecipeList", new Vector2(250, contentHeight), ImGuiChildFlags.Borders);
             RenderRecipeList(ctx, crafting);
             ImGui.EndChild();
 
             ImGui.SameLine();
 
             // Right: Selected recipe details
-            ImGui.BeginChild("RecipeDetails", new Vector2(0, contentHeight), ImGuiChildFlags.Border);
+            ImGui.BeginChild("RecipeDetails", new Vector2(0, contentHeight), ImGuiChildFlags.Borders);
             craftedItem = RenderRecipeDetails(ctx, crafting);
             ImGui.EndChild();
 

@@ -65,7 +65,7 @@ public static partial class GameEventRegistry
     {
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
         var animalName = carcass != null
-            ? (AnimalTypes.Parse(carcass.AnimalName)?.DisplayName() ?? carcass.AnimalName).ToLower()
+            ? carcass.AnimalType.DisplayName().ToLower()
             : "carcass";
 
         return new GameEvent("Contested Carcass",
@@ -126,7 +126,7 @@ public static partial class GameEventRegistry
     {
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
         var animalName = carcass != null
-            ? (AnimalTypes.Parse(carcass.AnimalName)?.DisplayName() ?? carcass.AnimalName).ToLower()
+            ? carcass.AnimalType.DisplayName().ToLower()
             : "animal";
         var isFresh = carcass != null && carcass.DecayLevel < 0.5;
         var leavingsDesc = isFresh
@@ -245,7 +245,7 @@ public static partial class GameEventRegistry
     {
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
         var animalName = carcass != null
-            ? (AnimalTypes.Parse(carcass.AnimalName)?.DisplayName() ?? carcass.AnimalName).ToLower()
+            ? carcass.AnimalType.DisplayName().ToLower()
             : "prey";
 
         return new GameEvent("Scavenger's Gambit",

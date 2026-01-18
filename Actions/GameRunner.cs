@@ -218,6 +218,9 @@ public partial class GameRunner(GameContext ctx)
             // Render stats panel
             RenderStatsPanel(ctx);
 
+            // Render toast notifications
+            Desktop.UI.ToastManager.Render(deltaTime);
+
             rlImGui.End();
             Raylib.EndDrawing();
 
@@ -324,6 +327,9 @@ public partial class GameRunner(GameContext ctx)
 
         // Render travel progress bar at bottom
         RenderTravelProgressBar(travel);
+
+        // Render toast notifications
+        Desktop.UI.ToastManager.Render(deltaTime);
 
         rlImGui.End();
         Raylib.EndDrawing();

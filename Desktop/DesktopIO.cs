@@ -659,6 +659,9 @@ public static class DesktopIO
 
             overlays?.Render(ctx, deltaTime);
 
+            // Render stats panel (stays visible during combat)
+            Desktop.UI.StatsPanel.Render(ctx);
+
             rlImGui.End();
             Raylib.EndDrawing();
         }

@@ -31,7 +31,8 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     public override int IconPriority => 3;
 
     // Core identity
-    public string AnimalName { get; set; } = "";
+    public AnimalType AnimalType { get; set; }  // Primary identifier
+    public string AnimalName { get; set; } = "";  // Kept for backward compatibility with old saves
     public double BodyWeightKg { get; set; }
 
     // Decay tracking
@@ -60,7 +61,8 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     public CarcassFeature(Animal animal, double harvestedPct = 0, double ageHours = 0)
         : base($"{animal.Name} carcass")
     {
-        AnimalName = animal.Name;
+        AnimalType = animal.AnimalType;  // Store enum directly
+        AnimalName = animal.Name;  // Keep string for backward compatibility
         BodyWeightKg = animal.Body.WeightKG;
         RawHoursSinceDeath = ageHours;
         EffectiveHoursSinceDeath = ageHours;  // Assume average temp for found carcasses

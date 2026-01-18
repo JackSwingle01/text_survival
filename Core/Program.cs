@@ -35,6 +35,42 @@ public static class Program
             (monitorHeight - windowHeight) / 2);
 
         Raylib.SetTargetFPS(60);
+
+        // ImGui's default font lacks Unicode arrows (↑↓). Merge them from a system font.
+        rlImGui.SetupUserFonts = (ImGuiIOPtr io) =>
+        {
+            string[] fontPaths = [
+                "/System/Library/Fonts/Supplemental/Arial.ttf",
+                "/System/Library/Fonts/SFNS.ttf",
+                "/Library/Fonts/Arial.ttf"
+            ];
+
+            string? fontPath = fontPaths.FirstOrDefault(File.Exists);
+            if (fontPath == null) return;
+
+            unsafe
+            {
+                const ushort ArrowUp = 0x2191;   // ↑
+                const ushort ArrowDown = 0x2193; // ↓
+
+                ImFontGlyphRangesBuilder* builder = ImGuiNative.ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder();
+                ImGuiNative.ImFontGlyphRangesBuilder_AddChar(builder, ArrowUp);
+                ImGuiNative.ImFontGlyphRangesBuilder_AddChar(builder, ArrowDown);
+
+                ImVector ranges;
+                ImGuiNative.ImFontGlyphRangesBuilder_BuildRanges(builder, &ranges);
+
+                ImFontConfig* config = ImGuiNative.ImFontConfig_ImFontConfig();
+                config->MergeMode = 1;
+                config->PixelSnapH = 1;
+
+                io.Fonts.AddFontFromFileTTF(fontPath, 13.0f, config, (nint)ranges.Data);
+
+                ImGuiNative.ImFontConfig_destroy(config);
+                ImGuiNative.ImFontGlyphRangesBuilder_destroy(builder);
+            }
+        };
+
         rlImGui.Setup(true);
         ImGui.GetIO().FontGlobalScale = 1.25f;  // Scale up default font for readability
 

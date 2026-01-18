@@ -78,7 +78,7 @@ public class DiscoveryLogOverlay
         ImGui.Separator();
 
         // Scrollable content area
-        ImGui.BeginChild("CategoryContent", new Vector2(0, -35), ImGuiChildFlags.Border);
+        ImGui.BeginChild("CategoryContent", new Vector2(0, -35), ImGuiChildFlags.Borders);
 
         // Discovered items
         foreach (var item in category.Discovered)

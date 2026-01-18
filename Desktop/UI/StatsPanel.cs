@@ -24,6 +24,10 @@ public static class StatsPanel
     private static readonly Vector4 ColorCold = new(0.5f, 0.7f, 1f, 1f);
     private static readonly Vector4 ColorWarm = new(1f, 0.6f, 0.3f, 1f);
 
+    // Trend indicators (Unicode arrows merged into font in Program.cs)
+    private const string ArrowUp = " ↑";
+    private const string ArrowDown = " ↓";
+
     /// <summary>
     /// Render the stats panel.
     /// </summary>
@@ -206,7 +210,7 @@ public static class StatsPanel
             trendPerHour = (delta / ctx.player.LastUpdateMinutes) * 60;
         }
 
-        string trendArrow = trendPerHour > 0.5 ? " ^" : trendPerHour < -0.5 ? " v" : "";
+        string trendArrow = trendPerHour > 0.5 ? ArrowUp : trendPerHour < -0.5 ? ArrowDown : "";
         double tempPct = Math.Clamp((bodyTemp - 90) / 9.0, 0, 1);
         Vector4 tempColor = bodyTemp < 95 ? ColorCold : bodyTemp < 97 ? ColorWarning : ColorGood;
         Vector4 feelsLikeColor = breakdown.FinalTemp < 20 ? ColorCold : breakdown.FinalTemp < 40 ? ColorMuted : ColorWarm;
@@ -319,30 +323,97 @@ public static class StatsPanel
         var capacities = ctx.player.GetCapacities();
         bool hasBloodIssue = body.Blood.Condition < 0.95;
         bool hasCapacityIssues = capacities.Moving < 0.9 || capacities.Manipulation < 0.9 || capacities.Consciousness < 0.9;
+        var injuredParts = body.Parts.Where(p => p.Condition < 1.0).OrderBy(p => p.Condition).ToList();
+        bool hasInjuries = injuredParts.Count > 0;
 
-        if (!hasBloodIssue && !hasCapacityIssues) return;
+        if (!hasBloodIssue && !hasCapacityIssues && !hasInjuries) return;
 
         ImGui.Separator();
 
-        if (hasCapacityIssues)
+        // Injuries section - show damaged body parts first
+        if (hasInjuries)
+        {
+            ImGui.TextColored(ColorHeader, "Injuries");
+
+            if (ImGui.BeginTable("injuries", 3))
+            {
+                ImGui.TableSetupColumn("Part", ImGuiTableColumnFlags.WidthFixed, 80);
+                ImGui.TableSetupColumn("Bar", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("Severity", ImGuiTableColumnFlags.WidthFixed, 60);
+
+                foreach (var part in injuredParts)
+                {
+                    RenderInjuryRow(part.Name, part.Condition);
+                }
+
+                ImGui.EndTable();
+            }
+        }
+
+        // Capacities section
+        if (hasBloodIssue || hasCapacityIssues)
+        {
+            if (hasInjuries)
+                ImGui.Spacing();
             ImGui.TextColored(ColorHeader, "Capacities");
 
-        if (ImGui.BeginTable("body_condition", 2))
-        {
-            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
-            ImGui.TableSetupColumn("Bar", ImGuiTableColumnFlags.WidthStretch);
+            if (ImGui.BeginTable("body_condition", 2))
+            {
+                ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn("Bar", ImGuiTableColumnFlags.WidthStretch);
 
-            if (hasBloodIssue)
-                RenderCapacityRow("Blood", body.Blood.Condition);
-            if (capacities.Moving < 0.9)
-                RenderCapacityRow("Moving", capacities.Moving);
-            if (capacities.Manipulation < 0.9)
-                RenderCapacityRow("Manipulate", capacities.Manipulation);
-            if (capacities.Consciousness < 0.9)
-                RenderCapacityRow("Conscious", capacities.Consciousness);
+                if (hasBloodIssue)
+                    RenderCapacityRow("Blood", body.Blood.Condition);
+                if (capacities.Moving < 0.9)
+                    RenderCapacityRow("Moving", capacities.Moving);
+                if (capacities.Manipulation < 0.9)
+                    RenderCapacityRow("Manipulate", capacities.Manipulation);
+                if (capacities.Consciousness < 0.9)
+                    RenderCapacityRow("Conscious", capacities.Consciousness);
 
-            ImGui.EndTable();
+                ImGui.EndTable();
+            }
         }
+    }
+
+    private static void RenderInjuryRow(string partName, double condition)
+    {
+        double damage = 1 - condition;
+        int damagePct = (int)(damage * 100);
+        string severity = GetDamageDescription(condition);
+        Vector4 color = GetInjuryColor(condition);
+
+        ImGui.TableNextColumn();
+        ImGui.Text($"  {partName}");
+
+        ImGui.TableNextColumn();
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
+        ImGui.ProgressBar((float)damage, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{damagePct}%");
+        ImGui.PopStyleColor();
+
+        ImGui.TableNextColumn();
+        ImGui.TextColored(color, severity);
+    }
+
+    private static string GetDamageDescription(double condition)
+    {
+        return condition switch
+        {
+            <= 0 => "Destroyed",
+            < 0.2 => "Critical",
+            < 0.4 => "Severe",
+            < 0.6 => "Moderate",
+            < 0.8 => "Light",
+            _ => "Minor"
+        };
+    }
+
+    private static Vector4 GetInjuryColor(double condition)
+    {
+        if (condition < 0.2) return ColorCritical;
+        if (condition < 0.4) return ColorDanger;
+        if (condition < 0.6) return ColorWarning;
+        return ColorMuted;
     }
 
     private static void RenderEffects(GameContext ctx)
@@ -361,8 +432,11 @@ public static class StatsPanel
             foreach (var effect in effects)
             {
                 int severity = (int)(effect.Severity * 100);
-                string trend = effect.HourlySeverityChange > 0 ? " ^" :
-                              effect.HourlySeverityChange < 0 ? " v" : "";
+                // Calculate actual trend from severity delta
+                double severityDelta = effect.Severity - effect.PreviousSeverity;
+                string trend = (effect.PreviousSeverity < 0) ? "" :  // No arrow if not yet tracked
+                               severityDelta > 0.001 ? ArrowUp :
+                               severityDelta < -0.001 ? ArrowDown : "";
                 Vector4 color = GetEffectColor(effect);
                 RenderEffectRow(effect.EffectKind, severity, color, trend);
 

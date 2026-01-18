@@ -1,6 +1,7 @@
 using Raylib_cs;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Actors;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
@@ -15,6 +16,7 @@ public class WorldRenderer
 
     private (int x, int y)? _hoveredTile;
     private (int x, int y)? _selectedTile;
+    private (int x, int y)? _hoveredCombatCell;
     private readonly EffectsRenderer _effects;
 
     // Track screen size for resize handling
@@ -430,15 +432,34 @@ public class WorldRenderer
 
         // Draw terrain background (use current location terrain)
         var terrain = ctx.CurrentLocation?.Terrain.ToString() ?? "Plain";
-        var terrainColor = terrain switch
-        {
-            "Forest" => new Color(30, 40, 25, 255),
-            "Rocky" => new Color(40, 40, 45, 255),
-            "Ice" => new Color(200, 210, 220, 255),
-            "Snow" => new Color(220, 225, 230, 255),
-            _ => new Color(35, 35, 30, 255)
-        };
+        float timeFactor = CalculateTimeFactor(ctx);
+
+        // Get base terrain color and adjust for time of day (same as main map)
+        Color baseColor = TerrainColors.GetColor(terrain);
+        float brightness = 0.4f + timeFactor * 0.6f;
+        Color terrainColor = RenderUtils.AdjustBrightness(baseColor, brightness);
         Raylib.DrawRectangle(offsetX, offsetY, gridPixelWidth, gridPixelHeight, terrainColor);
+
+        // Tile the terrain texture across the combat grid
+        // Use scissor mode to clip terrain elements that extend beyond grid boundaries
+        Raylib.BeginScissorMode(offsetX, offsetY, gridPixelWidth, gridPixelHeight);
+        int tilePixels = cellSize * 3;  // Tile every 3 cells for good detail
+        for (int gridX = 0; gridX < gridPixelWidth; gridX += tilePixels)
+        {
+            for (int gridY = 0; gridY < gridPixelHeight; gridY += tilePixels)
+            {
+                // Use TerrainRenderer to draw procedural terrain pattern
+                TerrainRenderer.RenderTexture(
+                    terrain,                    // Current location terrain type
+                    offsetX + gridX,            // X position
+                    offsetY + gridY,            // Y position
+                    tilePixels,                 // Size
+                    gridX / tilePixels,         // World X for seeding
+                    gridY / tilePixels,         // World Y for seeding
+                    timeFactor);                // Time of day factor
+            }
+        }
+        Raylib.EndScissorMode();
 
         // Draw grid lines
         var gridLineColor = new Color(60, 60, 65, 100);
@@ -451,25 +472,6 @@ public class WorldRenderer
         {
             int lineY = offsetY + y * cellSize;
             Raylib.DrawLine(offsetX, lineY, offsetX + gridPixelWidth, lineY, gridLineColor);
-        }
-
-        // Draw distance zone circles (centered on player)
-        if (combat.Player != null)
-        {
-            var playerScreenX = offsetX + combat.Player.Position.X * cellSize + cellSize / 2;
-            var playerScreenY = offsetY + combat.Player.Position.Y * cellSize + cellSize / 2;
-
-            // Zone colors (faint)
-            var closeZoneColor = new Color(255, 200, 100, 30);
-            var nearZoneColor = new Color(255, 150, 80, 25);
-            var midZoneColor = new Color(255, 100, 50, 20);
-            var farZoneColor = new Color(200, 80, 40, 15);
-
-            // Draw zones (1m = 1 cell)
-            Raylib.DrawCircle(playerScreenX, playerScreenY, 1 * cellSize, closeZoneColor);   // 0-1m
-            Raylib.DrawCircle(playerScreenX, playerScreenY, 3 * cellSize, nearZoneColor);   // 0-3m
-            Raylib.DrawCircle(playerScreenX, playerScreenY, 15 * cellSize, midZoneColor);   // 0-15m
-            Raylib.DrawCircle(playerScreenX, playerScreenY, 25 * cellSize, farZoneColor);   // 0-25m (max)
         }
 
         // Draw units
@@ -499,22 +501,35 @@ public class WorldRenderer
             float iconScale = cellSize / 40f; // Scale based on cell size
             if (unit.actor is Actors.Animals.Animal animal)
             {
-                var animalType = Actors.Animals.AnimalTypes.Parse(animal.Name);
-                if (animalType.HasValue)
-                {
-                    // Draw team-colored circle underneath
-                    Raylib.DrawCircle(screenX, screenY, cellSize / 3, new Color((byte)teamColor.R, (byte)teamColor.G, (byte)teamColor.B, (byte)100));
+                // Draw team-colored circle underneath
+                Raylib.DrawCircle(screenX, screenY, cellSize / 3, new Color((byte)teamColor.R, (byte)teamColor.G, (byte)teamColor.B, (byte)100));
 
-                    // Draw animal sprite
-                    AnimalRenderer.DrawAnimal(animalType.Value, screenX, screenY, iconScale);
-                }
+                // Draw animal sprite
+                AnimalRenderer.DrawAnimal(animal.AnimalType, screenX, screenY, iconScale);
             }
             else
             {
-                // Player or NPC - draw as circle with person icon
-                Raylib.DrawCircle(screenX, screenY, cellSize / 3, teamColor);
-                // Simple person icon (stick figure approximation)
-                Raylib.DrawCircle(screenX, (int)(screenY - cellSize / 6), cellSize / 10, Color.White);
+                // Player or NPC - use proper character sprite
+                if (unit == combat.Player)
+                {
+                    // Use the same detailed player icon as normal gameplay
+                    TileRenderer.DrawPlayerIcon(screenX, screenY, cellSize);
+                }
+                else if (unit.actor is NPC npc)
+                {
+                    // Use NPC character sprite with consistent color per NPC
+                    int hash = npc.Name.GetHashCode();
+                    int paletteIndex = Math.Abs(hash) % TileRenderer.NpcPalettes.Length;
+                    bool isFemale = (Math.Abs(hash) / TileRenderer.NpcPalettes.Length) % 2 == 1;
+
+                    CharacterPalette palette = TileRenderer.NpcPalettes[paletteIndex];
+
+                    // Draw at full scale for combat
+                    if (isFemale)
+                        TileRenderer.DrawCharacterFemale(screenX, screenY, cellSize, 1.0f, palette);
+                    else
+                        TileRenderer.DrawCharacterMale(screenX, screenY, cellSize, 1.0f, palette);
+                }
             }
 
             // Draw health bar above unit

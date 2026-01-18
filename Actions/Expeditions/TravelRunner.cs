@@ -444,11 +444,6 @@ public class TravelRunner(GameContext ctx)
         {
             DesktopIO.ShowDiscovery(_ctx, destination.Name, destination.DiscoveryText);
         }
-        else
-        {
-            // Standard arrival message
-            GameDisplay.AddNarrative(_ctx, $"You arrive at {destination.Name}.");
-        }
 
         _ctx.ActiveTravel = null;
         return _ctx.player.IsAlive;

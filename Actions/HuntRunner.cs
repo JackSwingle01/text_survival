@@ -107,9 +107,7 @@ public static class HuntRunner
         }
 
         // Record animal encounter in Discovery Log
-        var animalType = AnimalTypes.Parse(target.Name);
-        if (animalType.HasValue)
-            ctx.RecordAnimalEncounter(animalType.Value);
+        ctx.RecordAnimalEncounter(target.AnimalType);
 
         // Initialize hunt state
         var state = new HuntState(target, location, ctx, sourceHerd);

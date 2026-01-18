@@ -59,7 +59,7 @@ public class InventoryOverlay
             }
 
             // Content based on selected category
-            ImGui.BeginChild("InventoryContent", new Vector2(0, -30), ImGuiChildFlags.Border);
+            ImGui.BeginChild("InventoryContent", new Vector2(0, -30), ImGuiChildFlags.Borders);
 
             switch (_selectedCategory)
             {

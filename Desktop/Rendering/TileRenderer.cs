@@ -49,7 +49,7 @@ public static class TileRenderer
     };
 
     // NPC palettes: 4 color variants
-    private static readonly CharacterPalette[] NpcPalettes =
+    public static readonly CharacterPalette[] NpcPalettes =
     [
         // Gray cloak variant
         new()
@@ -300,7 +300,7 @@ public static class TileRenderer
     /// <summary>
     /// Draw a male character with detailed parka sprite.
     /// </summary>
-    private static void DrawCharacterMale(
+    public static void DrawCharacterMale(
         float centerX, float centerY, float tileSize,
         float scale, CharacterPalette palette)
     {
@@ -361,7 +361,7 @@ public static class TileRenderer
     /// <summary>
     /// Draw a female character with detailed parka sprite.
     /// </summary>
-    private static void DrawCharacterFemale(
+    public static void DrawCharacterFemale(
         float centerX, float centerY, float tileSize,
         float scale, CharacterPalette palette)
     {

@@ -38,7 +38,7 @@ public class TransferOverlay
             float columnWidth = (ImGui.GetContentRegionAvail().X - 20) / 2;
 
             // Left column: Player inventory
-            ImGui.BeginChild("PlayerInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Border);
+            ImGui.BeginChild("PlayerInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Borders);
             ImGui.Text("Your Inventory");
 
             float playerWeightPct = (float)(playerInv.CurrentWeightKg / playerInv.MaxWeightKg);
@@ -59,7 +59,7 @@ public class TransferOverlay
             ImGui.SameLine();
 
             // Right column: Storage
-            ImGui.BeginChild("StorageInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Border);
+            ImGui.BeginChild("StorageInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Borders);
             ImGui.Text(_storageName);
 
             if (_storage.MaxWeightKg < double.MaxValue)

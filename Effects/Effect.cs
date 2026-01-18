@@ -10,6 +10,7 @@ namespace text_survival.Effects
 
         // State
         public double Severity { get; set; } = 1.0;
+        public double PreviousSeverity { get; set; } = -1; // -1 = not yet tracked
         public double HourlySeverityChange { get; init; } = 0;
         public bool RequiresTreatment { get; init; } = false;
         public bool CanHaveMultiple { get; init; } = false;

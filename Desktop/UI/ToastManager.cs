@@ -26,7 +26,7 @@ internal class Toast
 }
 
 /// <summary>
-/// Manages floating toast notifications that appear in the top-right corner.
+/// Manages floating toast notifications that appear at the top-center of the screen.
 /// Auto-dismisses after configurable duration with fade-out animation.
 /// </summary>
 public static class ToastManager
@@ -82,10 +82,10 @@ public static class ToastManager
 
         if (_toasts.Count == 0) return;
 
-        // Position in top-right corner
+        // Position at top-center of screen (avoids overlap with side panels)
         var io = ImGui.GetIO();
-        float startX = io.DisplaySize.X - 310;
-        float startY = 60;
+        float startX = (io.DisplaySize.X - 300) / 2;
+        float startY = 10;
         float spacing = 5;
 
         for (int i = 0; i < _toasts.Count; i++)
@@ -128,7 +128,9 @@ public static class ToastManager
 
             if (ImGui.Begin($"##Toast{i}", flags))
             {
-                ImGui.TextColored(color, toast.Message);
+                ImGui.PushStyleColor(ImGuiCol.Text, color);
+                ImGui.TextWrapped(toast.Message);
+                ImGui.PopStyleColor();
             }
             ImGui.End();
 

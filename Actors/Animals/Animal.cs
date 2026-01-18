@@ -26,6 +26,8 @@ namespace text_survival.Actors.Animals
 
         #region Properties
 
+        public AnimalType AnimalType { get; }  // Immutable - set at construction
+
         public override double BaseThreat { get; set; }
         public override double StartingBoldness { get; set; }
         public override double BaseAggression { get; set; }
@@ -65,7 +67,7 @@ namespace text_survival.Actors.Animals
         #region Constructor
 
         public Animal(
-            string name,
+            AnimalType animalType,
             BodyCreationInfo bodyStats,
             AnimalBehaviorType behaviorType,
             AnimalSize size,
@@ -79,8 +81,11 @@ namespace text_survival.Actors.Animals
             bool isHostile = true,
             double blockChance = 0.01,
             double disengageAfterMaul = 0.1)
-            : base(name, bodyStats, location, map)
+            : base(animalType.DisplayName(), bodyStats, location, map)
         {
+            // Core identity
+            AnimalType = animalType;
+
             // Combat stats
             AttackDamage = attackDamage;
             AttackName = attackName;
