@@ -47,7 +47,7 @@ public static class ToastManager
     /// <param name="message">The message to display.</param>
     /// <param name="type">The type of toast (affects color).</param>
     /// <param name="duration">How long to display (seconds).</param>
-    public static void Show(string message, ToastType type = ToastType.Info, float duration = 4f)
+    public static void Show(string message, ToastType type = ToastType.Info, float duration = 8f)
     {
         // Remove oldest if at max
         while (_toasts.Count >= MaxToasts)
@@ -87,6 +87,7 @@ public static class ToastManager
         float startX = (io.DisplaySize.X - 300) / 2;
         float startY = 10;
         float spacing = 5;
+        float currentY = startY;
 
         for (int i = 0; i < _toasts.Count; i++)
         {
@@ -111,8 +112,7 @@ public static class ToastManager
             var bgColor = new Vector4(0.15f, 0.15f, 0.15f, 0.9f * alpha);
 
             // Position this toast
-            float yOffset = i * (30 + spacing);
-            ImGui.SetNextWindowPos(new Vector2(startX, startY + yOffset), ImGuiCond.Always);
+            ImGui.SetNextWindowPos(new Vector2(startX, currentY), ImGuiCond.Always);
             ImGui.SetNextWindowSize(new Vector2(300, 0), ImGuiCond.Always);
 
             // Style the window
@@ -132,6 +132,7 @@ public static class ToastManager
                 ImGui.TextWrapped(toast.Message);
                 ImGui.PopStyleColor();
             }
+            currentY += ImGui.GetWindowSize().Y + spacing;
             ImGui.End();
 
             ImGui.PopStyleColor(2);
