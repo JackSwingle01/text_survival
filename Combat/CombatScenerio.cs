@@ -13,6 +13,7 @@ public class CombatScenario
     public bool InvolvesPlayer => Player != null;
     public Unit? Player;
     public List<Gear> ThrownWeapons = new();
+    private int _currentAIIndex;
     public CombatScenario(List<Unit> team1, List<Unit> team2, Unit? player)
     {
         Team1 = team1;
@@ -98,6 +99,37 @@ public class CombatScenario
         CheckIfOver();
 
         return narrative;
+    }
+
+    /// <summary>
+    /// Resets AI turn tracking. Call at start of AI phase each round.
+    /// </summary>
+    public void ResetAITurns(Unit playerUnit)
+    {
+        _currentAIIndex = 0;
+    }
+
+    /// <summary>
+    /// Returns true if there are more AI turns remaining this round.
+    /// </summary>
+    public bool HasRemainingAITurns(Unit playerUnit)
+    {
+        if (IsOver) return false;
+        var aiUnits = Units.Where(u => u != playerUnit && u.actor.IsAlive).ToList();
+        return _currentAIIndex < aiUnits.Count;
+    }
+
+    /// <summary>
+    /// Executes the next AI turn. Returns narrative text.
+    /// </summary>
+    public string? RunNextAITurn(Unit playerUnit)
+    {
+        var aiUnits = Units.Where(u => u != playerUnit && u.actor.IsAlive).ToList();
+        if (_currentAIIndex >= aiUnits.Count) return null;
+
+        var unit = aiUnits[_currentAIIndex];
+        _currentAIIndex++;
+        return ProcessSingleAITurn(unit);
     }
 
     private string GetActionNarrative(CombatActions action, Unit actor, Unit? target)

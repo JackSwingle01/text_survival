@@ -52,16 +52,9 @@ public static class CombatOrchestrator
 
                 if (scenario.IsOver) break;
 
-                // AI turns
-                foreach (var unit in scenario.Units.Where(u => u != playerUnit).ToList())
-                {
-                    var aiNarrative = scenario.ProcessSingleAITurn(unit);
-                    if (aiNarrative != null)
-                    {
-                        GameDisplay.AddNarrative(ctx, aiNarrative);
-                    }
-                    if (scenario.IsOver) break;
-                }
+                // AI turns - executed one at a time with rendering between
+                scenario.ResetAITurns(playerUnit);
+                DesktopIO.RunAITurnsWithAnimation(ctx, scenario, playerUnit);
             }
         }
 

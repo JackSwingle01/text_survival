@@ -3,12 +3,14 @@ using rlImGui_cs;
 using text_survival.Actions;
 using text_survival.Actions.Variants;
 using text_survival.Actions.Handlers;
+using text_survival.Combat;
 using text_survival.Crafting;
 using text_survival.Desktop.Dto;
 using text_survival.Desktop.UI;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
+using text_survival.UI;
 using ForageFocus = text_survival.Actions.Variants.ForageFocus;
 
 namespace text_survival.Desktop;
@@ -988,5 +990,44 @@ public static class DesktopIO
         };
 
         overlay.SetActionResult(actionResult.Success, actionResult.Message);
+    }
+
+    public static void RunAITurnsWithAnimation(GameContext ctx, CombatScenario scenario, Unit playerUnit)
+    {
+        while (scenario.HasRemainingAITurns(playerUnit) && !Raylib.WindowShouldClose())
+        {
+            var narrative = scenario.RunNextAITurn(playerUnit);
+
+            if (narrative != null)
+                GameDisplay.AddNarrative(ctx, narrative);
+
+            if (scenario.IsOver) break;
+
+            // Render and wait 1 second before next AI turn
+            RenderCombatDelayForSeconds(ctx, 1.0f);
+        }
+    }
+
+    private static void RenderCombatDelayForSeconds(GameContext ctx, float seconds)
+    {
+        float elapsed = 0;
+        while (elapsed < seconds && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+            elapsed += deltaTime;
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            rlImGui.Begin();
+            DesktopRuntime.Overlays?.Render(ctx, deltaTime);
+            Desktop.UI.StatsPanel.Render(ctx);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
     }
 }
