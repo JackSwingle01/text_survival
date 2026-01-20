@@ -55,7 +55,7 @@ public static class ConditionChecker
             EventCondition.IsBlizzard => ctx.Weather.CurrentCondition == Weather.WeatherCondition.Blizzard,
             EventCondition.IsRaining => ctx.Weather.CurrentCondition == Weather.WeatherCondition.Rainy || ctx.Weather.CurrentCondition == Weather.WeatherCondition.Stormy,
             EventCondition.IsStormy => ctx.Weather.CurrentCondition == Weather.WeatherCondition.Stormy,
-            EventCondition.HighWind => ctx.Weather.WindSpeed > 0.6,
+            EventCondition.HighWind => ctx.Weather.WindSpeedPct > 0.6,
             EventCondition.IsClear => ctx.Weather.CurrentCondition == Weather.WeatherCondition.Clear,
             EventCondition.IsMisty => ctx.Weather.CurrentCondition == Weather.WeatherCondition.Misty,
             EventCondition.ExtremelyCold => ctx.Weather.BaseTemperature < -25,

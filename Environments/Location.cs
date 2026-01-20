@@ -1,10 +1,8 @@
 ﻿using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
-using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;  // For TileVisibility enum
-using text_survival.UI;
 
 
 namespace text_survival.Environments;
@@ -102,7 +100,7 @@ public class Location
     public double TerrainHazardLevel { get; set; } = 0;
 
     // Parameterless constructor for deserialization
-    public Location() {}
+    public Location() { }
     public Location(string name, string tags, Weather weather,
         double terrainHazardLevel = 0, double windFactor = 1,
         double overheadCoverLevel = 0, double visibilityFactor = 1)
@@ -246,76 +244,7 @@ public class Location
     /// If false, only apply environmental shelter (foraging, hunting, traveling).</param>
     public double GetTemperature(bool isStationary = true)
     {
-        // Get zone's weather temperature (in Fahrenheit)
-        double zoneTemp = Weather.TemperatureInFahrenheit;
-
-        // Start with this base temperature
-        double locationTemp = zoneTemp;
-
-        // ------ STEP 1: Apply inherent location modifiers ------
-        locationTemp += TemperatureDeltaF;
-
-        // ------ STEP 2: Apply weather exposure effects ------
-        // Wind chill when windy (reduced by fire pit wind protection if present)
-        double effectiveWindSpeed = 0;
-        if (Weather.WindSpeed > 0.1) // Only significant wind
-        {
-            var fire = GetFeature<HeatSourceFeature>();
-            double fireWindProtection = (fire != null && fire.IsActive)
-                ? fire.WindProtectionFactor
-                : 0;
-            effectiveWindSpeed = Weather.WindSpeed * WindFactor * (1 - fireWindProtection);
-            double windSpeedMph = effectiveWindSpeed * 45; // Scale 0-1 to approx mph
-            locationTemp = CalculateWindChillNWS(locationTemp, windSpeedMph);
-        }
-
-        // Sun warming effects during daytime with clear skies
-        double sunIntensity = Weather.SunlightIntensity;
-        double sunExposure = 1 - OverheadCoverLevel;
-        // Sun can add up to 15°F in best conditions
-        double sunWarming = sunIntensity * sunExposure * 15;
-
-        // Sun effect is more noticeable when cold
-        double temperatureAdjustment = sunWarming * Math.Max(0.5, Math.Min(1, (50 - locationTemp) / 30));
-        locationTemp += temperatureAdjustment;
-
-        // Precipitation effects
-        double precipitation = Weather.Precipitation;
-        precipitation *= (1 - OverheadCoverLevel);
-        // todo, determine if this effects temp directly or if we use this elsewhere
-        double precipitationCooling = precipitation * 5; //  simple up to 5°F cooling for now
-        locationTemp -= precipitationCooling;
-
-        // ------ STEP 3: Apply shelter effects if present ------
-        // Structural shelter only applies when stationary (resting, crafting, etc.)
-        // When moving (foraging, hunting, traveling), you're not benefiting from the shelter
-        double insulation = 0;
-        var shelter = GetFeature<ShelterFeature>();
-        if (shelter != null && isStationary)
-        {
-            // Start with minimum temperature a shelter can maintain (in °F)
-            double minShelterTemp = 40; // About 4.4°C, what a good shelter can maintain from body heat
-            // Calculate warming effect based on insulation quality
-            double tempDifference = minShelterTemp - locationTemp;
-            insulation = Math.Clamp(shelter.TemperatureInsulation, 0, .9); // cap at 90%
-            insulation *= 1 - (precipitation * .3); // precipitation can reduce insulation up to 30%
-            insulation *= 1 - (effectiveWindSpeed * .3); // and wind another 30 on top of that
-
-            locationTemp += tempDifference * insulation;
-        }
-
-        // If there's a heat source, add its effect (including embers)
-        // Heat sources benefit you regardless of activity - you're still in the area
-        var heatSource = GetFeature<HeatSourceFeature>();
-        if (heatSource != null)
-        {
-            // Insulation increases effectiveness of heat sources
-            double effectiveHeat = heatSource.GetEffectiveHeatOutput(locationTemp);
-            double heatEffect = effectiveHeat * Math.Max(insulation, .40); // heat sources are less effective outside
-            locationTemp += heatEffect;
-        }
-
-        return locationTemp;
+        return GetTemperatureBreakdown(isStationary).FinalTemp;
     }
 
     public double CalculateWindChillNWS(double temperatureF, double windSpeedMph)
@@ -347,57 +276,67 @@ public class Location
         double shelterBonus = 0;
         double fireBonus = 0;
 
+        // ------ STEP 1: Apply inherent location modifiers ------
         double locationTemp = baseTemp + locationMod;
 
-        // Wind chill calculation
+        // ------ STEP 2: Apply weather exposure effects ------
+        // Wind chill when windy (reduced by fire pit wind protection if present)
         double effectiveWindSpeed = 0;
-        if (Weather.WindSpeed > 0.1)
+        if (Weather.WindSpeedPct > 0.1) // Only significant wind
         {
             var fire = GetFeature<HeatSourceFeature>();
             double fireWindProtection = (fire != null && fire.IsActive)
                 ? fire.WindProtectionFactor
                 : 0;
-            effectiveWindSpeed = Weather.WindSpeed * WindFactor * (1 - fireWindProtection);
-            double windSpeedMph = effectiveWindSpeed * 45;
-            double afterWindChill = CalculateWindChillNWS(locationTemp, windSpeedMph);
-            windChill = afterWindChill - locationTemp;
-            locationTemp = afterWindChill;
+            effectiveWindSpeed = Weather.WindSpeedMPH * WindFactor * (1 - fireWindProtection);
+            double oldTemp = locationTemp;
+            locationTemp = CalculateWindChillNWS(locationTemp, effectiveWindSpeed);
+            windChill = locationTemp - oldTemp;
         }
 
-        // Sun warming
+        // Sun warming effects during daytime with clear skies
         double sunIntensity = Weather.SunlightIntensity;
         double sunExposure = 1 - OverheadCoverLevel;
-        double rawSunWarming = sunIntensity * sunExposure * 10;
-        double temperatureAdjustment = rawSunWarming * Math.Max(0.5, Math.Min(1, (50 - locationTemp) / 30));
-        sunWarming = temperatureAdjustment;
+        // Sun can add up to 15°F in best conditions
+        sunWarming = sunIntensity * sunExposure * 15;
+
+        // Sun effect is more noticeable when cold
+        sunWarming = sunWarming * Math.Max(0.5, Math.Min(1, (50 - locationTemp) / 30));
         locationTemp += sunWarming;
 
-        // Precipitation cooling
-        double precipitation = Weather.Precipitation;
+        // Precipitation effects
+        double precipitation = Weather.PrecipitationPct;
         precipitation *= (1 - OverheadCoverLevel);
-        precipCooling = precipitation * 5;
+        // todo, determine if this effects temp directly or if we use this elsewhere
+        precipCooling = precipitation * 5; //  simple up to 5°F cooling for now
         locationTemp -= precipCooling;
 
-        // Shelter effects (when stationary)
+        // ------ STEP 3: Apply shelter effects if present ------
+        // Structural shelter only applies when stationary (resting, crafting, etc.)
+        // When moving (foraging, hunting, traveling), you're not benefiting from the shelter
         double insulation = 0;
         var shelter = GetFeature<ShelterFeature>();
         if (shelter != null && isStationary)
         {
-            double minShelterTemp = 40;
+            // Start with minimum temperature a shelter can maintain (in °F)
+            double minShelterTemp = 40; // About 4.4°C, what a good shelter can maintain from body heat
+            // Calculate warming effect based on insulation quality
             double tempDifference = minShelterTemp - locationTemp;
-            insulation = Math.Clamp(shelter.TemperatureInsulation, 0, .9);
-            insulation *= 1 - (precipitation * .3);
-            insulation *= 1 - (effectiveWindSpeed * .3);
+            insulation = Math.Clamp(shelter.TemperatureInsulation, 0, .9); // cap at 90%
+            insulation *= 1 - (precipitation * .3); // precipitation can reduce insulation up to 30%
+            insulation *= 1 - (effectiveWindSpeed * .3); // and wind another 30 on top of that
             shelterBonus = tempDifference * insulation;
             locationTemp += shelterBonus;
         }
 
-        // Heat source bonus
+        // If there's a heat source, add its effect (including embers)
+        // Heat sources benefit you regardless of activity - you're still in the area
         var heatSource = GetFeature<HeatSourceFeature>();
         if (heatSource != null)
         {
+            // Insulation increases effectiveness of heat sources
             double effectiveHeat = heatSource.GetEffectiveHeatOutput(locationTemp);
-            fireBonus = effectiveHeat * Math.Max(insulation, .40);
+            fireBonus = effectiveHeat * Math.Max(insulation, .40); // heat sources are less effective outside
             locationTemp += fireBonus;
         }
 
@@ -446,7 +385,6 @@ public class Location
         }
         return resources;
     }
-
 
     public void Explore()
     {

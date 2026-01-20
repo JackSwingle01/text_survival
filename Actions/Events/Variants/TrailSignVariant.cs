@@ -277,7 +277,7 @@ public static class TrailSignSelector
         bool hasPredators = territory?.HasPredators() == true;
         // Prey are non-predators - if territory has animals but not all predators, there's prey
         bool hasPrey = territory != null && !territory.HasPredators();
-        bool isSnowy = ctx.Weather.Precipitation > 0.1 && ctx.Weather.TemperatureInFahrenheit < 35;
+        bool isSnowy = ctx.Weather.PrecipitationPct > 0.1 && ctx.Weather.TemperatureInFahrenheit < 35;
         bool hasWater = water != null;
 
         var pool = BuildWeightedPool(ctx, hasPredators, hasPrey, isSnowy, hasWater);

@@ -1,10 +1,5 @@
 using text_survival.Actions;
 using text_survival.Desktop.UI;
-using text_survival.Effects;
-using text_survival.Environments.Features;
-using text_survival.IO;
-using text_survival.Items;
-using text_survival.Survival;
 
 namespace text_survival.UI;
 
@@ -61,11 +56,6 @@ public static class GameDisplay
     public static void AddDanger(GameContext ctx, string text) => AddNarrative(ctx, text, LogLevel.Danger);
     public static void AddDiscovery(GameContext ctx, string text) => AddNarrative(ctx, text, LogLevel.Discovery);
 
-    public static void AddSeparator(GameContext ctx)
-    {
-        ctx.Log.AddSeparator();
-    }
-
     public static void ClearNarrative(GameContext ctx)
     {
         ctx.Log.Clear();
@@ -103,22 +93,6 @@ public static class GameDisplay
 
         // New path - ShowProgress handles both simulation and animation
         return Desktop.DesktopIO.RenderWithDuration(ctx, statusText, minutes, activity);
-    }
-
-
-    // #region Inventory Screen
-
-    public static void RenderInventoryScreen(GameContext ctx, Inventory? inventory = null, string? title = null)
-    {
-        var inv = inventory ?? ctx.Inventory;
-        var headerTitle = title ?? "INVENTORY";
-
-        // Route to web UI when session is active
-        if (ctx.SessionId != null)
-        {
-            Desktop.DesktopIO.RenderInventory(ctx, inv, headerTitle);
-            return;
-        }
     }
 
     /// <summary>

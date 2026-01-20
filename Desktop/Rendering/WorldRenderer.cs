@@ -95,7 +95,7 @@ public class WorldRenderer
         var weather = ctx.CurrentLocation?.Weather;
         if (weather != null)
         {
-            _effects.UpdateWeather(weather.Precipitation, weather.WindSpeed);
+            _effects.UpdateWeather(weather.PrecipitationPct, weather.WindSpeedPct);
         }
 
         // Update effects

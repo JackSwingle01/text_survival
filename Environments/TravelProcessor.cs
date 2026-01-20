@@ -34,7 +34,7 @@ public static class TravelProcessor
 
         // Weather modifiers
         double weatherMod = 0;
-        if (weather.Precipitation > 0.3 || weather.CurrentCondition == Weather.WeatherCondition.LightSnow)
+        if (weather.PrecipitationPct > 0.3 || weather.CurrentCondition == Weather.WeatherCondition.LightSnow)
             weatherMod = 0.15;
         if (weather.CurrentCondition == Weather.WeatherCondition.Blizzard ||
             weather.CurrentCondition == Weather.WeatherCondition.Stormy)
@@ -65,10 +65,10 @@ public static class TravelProcessor
 
         // Weather from location's zone
         var weather = location.Weather;
-        if (weather.WindSpeed > 0.5)
-            multiplier *= 1 + (weather.WindSpeed * 0.3 * location.WindFactor);
-        if (weather.Precipitation > 0.5)
-            multiplier *= 1 + (weather.Precipitation * 0.2);
+        if (weather.WindSpeedPct > 0.5)
+            multiplier *= 1 + (weather.WindSpeedPct * 0.3 * location.WindFactor);
+        if (weather.PrecipitationPct > 0.5)
+            multiplier *= 1 + (weather.PrecipitationPct * 0.2);
 
         // Build ability context for Speed calculation
         // Speed ability handles: vitality, strength modulating encumbrance

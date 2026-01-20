@@ -76,12 +76,8 @@ public class WorkRunner(GameContext ctx)
                 return WorkResult.Empty(0);
         }
 
-        // Apply impairments and show warnings
+        // Apply impairments (warnings will be shown in overlay by strategy)
         var (adjustedTime, warnings) = strategy.ApplyImpairments(_ctx, location, workTime);
-        foreach (var warning in warnings)
-        {
-            GameDisplay.AddWarning(_ctx, warning);
-        }
 
         // Capture stats before work for delta display
         _ctx.StatsBeforeWork = (

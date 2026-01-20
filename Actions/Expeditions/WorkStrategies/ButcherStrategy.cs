@@ -21,6 +21,7 @@ public class ButcherStrategy : IWorkStrategy
     private ButcheringMode? _selectedMode;
     private int _selectedMinutes;
     private bool _cancelled;
+    private List<string> _impairmentWarnings = [];
 
     public ButcherStrategy(CarcassFeature carcass, ButcheringMode? mode = null)
     {
@@ -104,6 +105,9 @@ public class ButcherStrategy : IWorkStrategy
             effectRegistry: ctx.player.EffectRegistry
         );
 
+        // Store impairment warnings for later use in Execute
+        _impairmentWarnings = warnings;
+
         // Frozen carcass takes 50% longer to butcher
         if (_carcass.IsFrozen)
         {
@@ -129,6 +133,9 @@ public class ButcherStrategy : IWorkStrategy
         var mode = _selectedMode ?? ButcheringMode.Careful;
         var modeConfig = CarcassFeature.GetModeConfig(mode);
 
+        // Collect warnings for overlay display
+        var warnings = new List<string>();
+
         // Determine tool and dexterity status
         bool hasCuttingTool = ctx.Inventory.HasCuttingTool;
         double dexterity = AbilityCalculator.GetDexterity(ctx.player, ctx);
@@ -137,7 +144,7 @@ public class ButcherStrategy : IWorkStrategy
         // Warn if no cutting tool
         if (!hasCuttingTool)
         {
-            GameDisplay.AddWarning(ctx, "Without a cutting tool, you tear what you can by hand...");
+            warnings.Add("Without a cutting tool, you tear what you can by hand...");
         }
 
         // Warn if dexterity impaired (affects yield, not time here)
@@ -149,11 +156,11 @@ public class ButcherStrategy : IWorkStrategy
 
             // Contextual warning
             if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
-                GameDisplay.AddWarning(ctx, "The darkness makes your cuts imprecise, wasting some of the meat.");
+                warnings.Add("The darkness makes your cuts imprecise, wasting some of the meat.");
             else if (abilityContext.WetnessPct > 0.3)
-                GameDisplay.AddWarning(ctx, "Your wet, slippery hands waste some of the meat.");
+                warnings.Add("Your wet, slippery hands waste some of the meat.");
             else
-                GameDisplay.AddWarning(ctx, "Your unsteady hands waste some of the meat.");
+                warnings.Add("Your unsteady hands waste some of the meat.");
         }
 
         // Harvest from carcass with selected mode
@@ -213,11 +220,16 @@ public class ButcherStrategy : IWorkStrategy
         // Decay warning
         if (_carcass.DecayLevel > 0.5 && !_carcass.IsCompletelyButchered)
         {
-            resultMessage += " The meat is starting to spoil.";
+            warnings.Add("The meat is starting to spoil.");
         }
 
+        // Combine impairment warnings with activity-specific warnings
+        var allWarnings = new List<string>();
+        allWarnings.AddRange(_impairmentWarnings);
+        allWarnings.AddRange(warnings);
+
         // Show results in popup overlay
-        DesktopIO.ShowWorkResult(ctx, "Butchering", resultMessage, collected);
+        DesktopIO.ShowWorkResult(ctx, "Butchering", resultMessage, collected, warnings: allWarnings);
 
         return new WorkResult(collected, null, actualTime, false);
     }

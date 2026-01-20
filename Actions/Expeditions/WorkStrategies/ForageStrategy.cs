@@ -28,6 +28,7 @@ public class ForageStrategy : IWorkStrategy
     private ForageClue? _followedClue;
     private int _selectedMinutes;
     private bool _cancelled;
+    private List<string> _impairmentWarnings = [];
 
     public string? ValidateLocation(GameContext ctx, Location location)
     {
@@ -198,6 +199,9 @@ public class ForageStrategy : IWorkStrategy
             effectRegistry: ctx.player.EffectRegistry
         );
 
+        // Store impairment warnings for later use in Execute
+        _impairmentWarnings = warnings;
+
         return ((int)(workTime * timeFactor), warnings);
     }
 
@@ -219,26 +223,30 @@ public class ForageStrategy : IWorkStrategy
 
         var feature = location.GetFeature<ForageFeature>()!;
 
+        // Collect narrative and warnings for overlay display
+        var narrative = new List<string>();
+        var warnings = new List<string>();
+
         // Narrative based on clue types or focus
         if (_gameClue != null)
         {
-            GameDisplay.AddNarrative(ctx, $"You follow the signs... {_gameClue.Description.ToLower()}");
+            narrative.Add($"You follow the signs... {_gameClue.Description.ToLower()}");
         }
         else if (_scavengeClue != null)
         {
-            GameDisplay.AddNarrative(ctx, $"You investigate... {_scavengeClue.Description.ToLower()}");
+            narrative.Add($"You investigate... {_scavengeClue.Description.ToLower()}");
         }
         else if (_followedClue != null)
         {
-            GameDisplay.AddNarrative(ctx, $"You follow the signs... {_followedClue.Description.ToLower()}");
+            narrative.Add($"You follow the signs... {_followedClue.Description.ToLower()}");
         }
         else if (_focus != ForageFocus.General)
         {
-            GameDisplay.AddNarrative(ctx, $"You search for {FocusProcessor.GetFocusDescription(_focus)}...");
+            narrative.Add($"You search for {FocusProcessor.GetFocusDescription(_focus)}...");
         }
         else
         {
-            GameDisplay.AddNarrative(ctx, "You search the area for resources...");
+            narrative.Add("You search the area for resources...");
         }
 
         var found = feature.Forage(actualTime / 60.0);
@@ -268,11 +276,11 @@ public class ForageStrategy : IWorkStrategy
             // Contextual warning based on what's reducing perception
             if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
             {
-                GameDisplay.AddWarning(ctx, "The darkness limits what you can find.");
+                warnings.Add("The darkness limits what you can find.");
             }
             else if (perception < 0.7)
             {
-                GameDisplay.AddWarning(ctx, "Your foggy senses cause you to miss some resources.");
+                warnings.Add("Your foggy senses cause you to miss some resources.");
             }
         }
 
@@ -327,7 +335,7 @@ public class ForageStrategy : IWorkStrategy
             if (territory != null)
             {
                 territory.ApplyHuntBonus(_gameClue.HuntBonus);
-                GameDisplay.AddNarrative(ctx, "You've spotted signs of game. Hunting here might be more fruitful.");
+                narrative.Add("You've spotted signs of game. Hunting here might be more fruitful.");
             }
         }
 
@@ -342,7 +350,7 @@ public class ForageStrategy : IWorkStrategy
             {
                 ctx.Inventory.Add(Resource.Bone, 0.1 + Random.Shared.NextDouble() * 0.2);
                 collected.Add("bone scraps");
-                GameDisplay.AddNarrative(ctx, "You find some bone fragments.");
+                narrative.Add("You find some bone fragments.");
             }
             else
             {
@@ -356,7 +364,7 @@ public class ForageStrategy : IWorkStrategy
 
                 string description = $"{FreshnessHelper.GetDescription(scenario.Freshness)} - {animalType.DisplayName().ToLower()}";
                 collected.Add(description);
-                GameDisplay.AddNarrative(ctx, $"You find a {description}. It could be butchered for resources.");
+                narrative.Add($"You find a {description}. It could be butchered for resources.");
 
                 // Roll for predator encounter with freshness modifier
                 double riskMod = FreshnessHelper.GetRiskModifier(scenario.Freshness);
@@ -369,14 +377,19 @@ public class ForageStrategy : IWorkStrategy
                     {
                         double boldness = FreshnessHelper.GetBoldness(scenario.Freshness);
                         ctx.QueueEncounter(new EncounterConfig(predator.Value, 30, boldness));
-                        GameDisplay.AddWarning(ctx, "Something is watching from the brush...");
+                        warnings.Add("Something is watching from the brush...");
                     }
                 }
             }
         }
 
-        // Show results in popup overlay
-        DesktopIO.ShowWorkResult(ctx, activityHeader, resultMessage, collected);
+        // Combine impairment warnings with activity-specific warnings
+        var allWarnings = new List<string>();
+        allWarnings.AddRange(_impairmentWarnings);
+        allWarnings.AddRange(warnings);
+
+        // Show results in popup overlay with narrative and warnings
+        DesktopIO.ShowWorkResult(ctx, activityHeader, resultMessage, collected, narrative, allWarnings);
 
         // Tutorial: Show fuel progress on Day 1
         double totalFuelGathered = found.GetWeight(ResourceCategory.Fuel);
@@ -386,7 +399,7 @@ public class ForageStrategy : IWorkStrategy
             if (currentFuel < 8.0)
             {
                 double needed = 8.0 - currentFuel;
-                GameDisplay.AddNarrative(ctx, $"You'll want about {needed:F0} more kg of fuel for tonight.");
+                ctx.ShowTutorialOnce($"You'll want about {needed:F0} more kg of fuel for tonight.");
             }
         }
 

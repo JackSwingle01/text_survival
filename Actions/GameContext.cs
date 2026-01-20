@@ -72,7 +72,8 @@ public class GameContext(Player player, Location camp, Weather weather)
     [System.Text.Json.Serialization.JsonIgnore]
     public CombatScenario? ActiveCombat { get; set; }
 
-    public int DaysSurvived => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalDays;
+    public static DateTime StartTime =>  new DateTime(2025, 7, 1, 9, 0, 0);
+    public int DaysSurvived => (int)(GameTime - StartTime).TotalDays;
 
     // Tension system for tracking building threats/opportunities
     public TensionRegistry Tensions { get; set; } = new();
@@ -258,9 +259,7 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         var (map, camp) = worldGen.Generate(weather);
 
-        // Initialize weather for game start time (9:00 AM, Jan 1)
-        var gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
-        weather.Update(gameStartTime);
+        weather.Update(StartTime);
 
         // Add campfire (unlit - player must start it)
         HeatSourceFeature campfire = new HeatSourceFeature();
@@ -312,10 +311,10 @@ public class GameContext(Player player, Location camp, Weather weather)
             GameDisplay.AddSuccess(this, $"You've established camp at {location.Name}.");
     }
 
-    public DateTime GameTime { get; set; } = new DateTime(2025, 1, 1, 9, 0, 0); // Full date/time for resource respawn tracking
+    public DateTime GameTime { get; set; } = StartTime; // Full date/time for resource respawn tracking
 
     /// <summary>Total minutes elapsed since game start (for cooldown comparisons).</summary>
-    public int TotalMinutesElapsed => (int)(GameTime - new DateTime(2025, 1, 1, 9, 0, 0)).TotalMinutes;
+    public int TotalMinutesElapsed => (int)(GameTime - StartTime).TotalMinutes;
 
     public int Update(int targetMinutes, ActivityType activity, bool render = false)
     {

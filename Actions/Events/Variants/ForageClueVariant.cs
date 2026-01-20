@@ -276,7 +276,7 @@ public static class ClueSelector
 
         // Weather-triggered clues
         var weather = ctx.Weather;
-        if (weather.WindSpeed > 0.5)
+        if (weather.WindSpeedPct > 0.5)
         {
             foreach (var clue in ClueLibrary.StormResourceClues)
             {
@@ -285,7 +285,7 @@ public static class ClueSelector
             }
         }
 
-        if (weather.Precipitation > 0.3)
+        if (weather.PrecipitationPct > 0.3)
         {
             foreach (var clue in ClueLibrary.RainResourceClues)
             {
@@ -346,7 +346,7 @@ public static class ClueSelector
             var frozen = ClueLibrary.NegativeClues.FirstOrDefault(c => c.Description.Contains("frozen"));
             if (frozen != null) pool.Add((frozen, 1.5));
         }
-        if (weather.Precipitation > 0.6)
+        if (weather.PrecipitationPct > 0.6)
         {
             var saturated = ClueLibrary.NegativeClues.FirstOrDefault(c => c.Description.Contains("Saturated"));
             if (saturated != null) pool.Add((saturated, 1.2));

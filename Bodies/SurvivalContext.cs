@@ -107,7 +107,7 @@ public class SurvivalContext
 
             // Wetness context
             OverheadCoverLevel = overheadCover,
-            PrecipitationPct = actor.CurrentLocation.Weather.Precipitation,
+            PrecipitationPct = actor.CurrentLocation.Weather.PrecipitationPct,
             WindSpeedLevel = CalculateEffectiveWindSpeed(actor.CurrentLocation),
             IsRaining = isRaining,
             IsSnowing = isSnowing,
@@ -150,7 +150,7 @@ public class SurvivalContext
 
     private static double CalculateEffectiveWindSpeed(Environments.Location location)
     {
-        double baseWind = location.Weather.WindSpeed;
+        double baseWind = location.Weather.WindSpeedPct;
         var fire = location.GetFeature<HeatSourceFeature>();
 
         // Active fire with wind protection reduces effective wind

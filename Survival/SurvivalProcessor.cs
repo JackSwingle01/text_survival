@@ -299,8 +299,8 @@ public static class SurvivalProcessor
 		// Low severity (just below 95°F): ~0.5/hour
 		// High severity (~80°F): ~8/hour = death in ~45 minutes
 		double damagePerHour = severityFactor < 0.5
-			? 0.5 + (1.0 * severityFactor)              // 0.5-1.0/hour for mild
-			: 1.0 + (14.0 * (severityFactor - 0.5));    // 1.0-8.0/hour for severe
+			? 0.1 + (0.4 * severityFactor)              // .1-.5/hour for mild
+			: 0.5 + (0.5 * (severityFactor - 0.5));    // 1.0-8.0/hour for severe
 		double damage = (damagePerHour / 60.0) * minutesElapsed;
 
 		var coreOrgans = new[] { BodyTarget.Heart, BodyTarget.Brain, BodyTarget.Lungs };

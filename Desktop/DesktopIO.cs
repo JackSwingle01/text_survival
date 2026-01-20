@@ -53,7 +53,7 @@ public static class DesktopIO
         string message = $"The weather has changed.\n\n" +
             $"Temperature: {tempF:F0}°F\n" +
             $"Wind: {weather.CurrentCondition}\n" +
-            (weather.Precipitation > 0 ? $"Precipitation: {weather.Precipitation:P0}" : "Clear skies");
+            (weather.PrecipitationPct > 0 ? $"Precipitation: {weather.PrecipitationPct:P0}" : "Clear skies");
         BlockingDialog.ShowMessageAndWait(ctx, "Weather", message);
     }
 
@@ -630,14 +630,53 @@ public static class DesktopIO
         return selection.id == "cancel" ? null : selection.id;
     }
 
-    public static void ShowWorkResult(GameContext ctx, string activityName, string message, List<string> itemsGained)
+    public static void ShowWorkResult(
+        GameContext ctx,
+        string activityName,
+        string message,
+        List<string> itemsGained,
+        List<string>? narrative = null,
+        List<string>? warnings = null)
     {
-        string fullMessage = message;
+        var sb = new System.Text.StringBuilder();
+
+        // Add contextual narrative first (what happened during the activity)
+        if (narrative != null && narrative.Count > 0)
+        {
+            foreach (var line in narrative)
+            {
+                sb.AppendLine(line);
+            }
+            sb.AppendLine();
+        }
+
+        // Add result message
+        sb.Append(message);
+
+        // Add warnings
+        if (warnings != null && warnings.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine();
+            foreach (var warning in warnings)
+            {
+                sb.AppendLine($"⚠ {warning}");
+            }
+        }
+
+        // Add items gained
         if (itemsGained.Count > 0)
         {
-            fullMessage += "\n\nGained:\n" + string.Join("\n", itemsGained.Select(i => $"  - {i}"));
+            sb.AppendLine();
+            sb.AppendLine();
+            sb.AppendLine("Gained:");
+            foreach (var item in itemsGained)
+            {
+                sb.AppendLine($"  - {item}");
+            }
         }
-        BlockingDialog.ShowMessageAndWait(ctx, activityName, fullMessage);
+
+        BlockingDialog.ShowMessageAndWait(ctx, activityName, sb.ToString().TrimEnd());
     }
 
     public static void RunTransferUI(GameContext ctx, Inventory storage, string storageName)

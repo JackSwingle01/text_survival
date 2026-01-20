@@ -1,4 +1,5 @@
 using text_survival;
+using text_survival.Actions;
 using text_survival.Environments;
 
 public class Weather
@@ -7,9 +8,10 @@ public class Weather
     // todo: add more continuity and state to more granular changes
     public double BaseTemperature { get; set; } // In Celsius
     public WeatherCondition CurrentCondition { get; set; }
-    public double Precipitation { get; set; } // 0-1 intensity
-    public double WindSpeed { get; set; }    // 0-1 intensity
-    public double CloudCover { get; set; }   // 0-1 coverage
+    public double PrecipitationPct { get; set; }
+    public double WindSpeedPct { get; set; }
+    public double WindSpeedMPH => WindSpeedPct * 45.0;
+    public double CloudCoverPct { get; set; }
     public int Elevation { get; init; }
 
     // Weather transition tracking for events
@@ -119,7 +121,7 @@ public class Weather
             double timeOfDayFactor = GetSunIntensityByTime(Time);
 
             // Reduction factors from weather conditions
-            double cloudReduction = CloudCover * 0.9; // Clouds block up to 90% of sunlight
+            double cloudReduction = CloudCoverPct * 0.9; // Clouds block up to 90% of sunlight
 
             // Additional reduction based on weather condition
             double conditionReduction = CurrentCondition switch
@@ -165,7 +167,6 @@ public class Weather
     public DateTime Time { get; set; }
 
     // Grace period for early game - prevents severe weather
-    private DateTime _gameStartTime = new DateTime(2025, 1, 1, 9, 0, 0);
     private const int GRACE_PERIOD_DAYS = 7;
 
     // Parameterless constructor for deserialization
@@ -179,9 +180,9 @@ public class Weather
         // Initialize with fall weather
         BaseTemperature = baseTemp;
         CurrentCondition = WeatherCondition.Clear;
-        Precipitation = 0;
-        WindSpeed = 0.3; // Moderate wind - 30% of maximum
-        CloudCover = 0.3; // Light clouds - 30% coverage
+        PrecipitationPct = 0;
+        WindSpeedPct = 0.3; // Moderate wind - 30% of maximum
+        CloudCoverPct = 0.3; // Light clouds - 30% coverage
 
         _weatherDuration = TimeSpan.FromHours(6);
 
@@ -301,9 +302,9 @@ public class Weather
                 if (Utils.RandDouble(0, 1) < 0.15) // 15% of snow events are blizzards
                 {
                     CurrentCondition = WeatherCondition.Blizzard;
-                    Precipitation = Utils.RandDouble(0.7, 1.0); // 70-100% intensity
-                    WindSpeed = Utils.RandDouble(0.7, 1.0);     // 70-100% of max wind
-                    CloudCover = Utils.RandDouble(0.9, 1.0);    // 90-100% cloud cover
+                    PrecipitationPct = Utils.RandDouble(0.7, 1.0); // 70-100% intensity
+                    WindSpeedPct = Utils.RandDouble(0.7, 1.0);     // 70-100% of max wind
+                    CloudCoverPct = Utils.RandDouble(0.9, 1.0);    // 90-100% cloud cover
                     _weatherDuration = GenerateRandomWeatherDuration(4); // 1-7 hours
 
                     // Blizzards only occur in cold conditions - clamp to lower 40% of range
@@ -313,9 +314,9 @@ public class Weather
                 else
                 {
                     CurrentCondition = WeatherCondition.LightSnow;
-                    Precipitation = Utils.RandDouble(0.2, 0.6); // 20-60% intensity
-                    WindSpeed = Utils.RandDouble(0.2, 0.5);     // 20-50% of max wind
-                    CloudCover = Utils.RandDouble(0.7, 0.9);    // 70-90% cloud cover
+                    PrecipitationPct = Utils.RandDouble(0.2, 0.6); // 20-60% intensity
+                    WindSpeedPct = Utils.RandDouble(0.2, 0.5);     // 20-50% of max wind
+                    CloudCoverPct = Utils.RandDouble(0.7, 0.9);    // 70-90% cloud cover
                     _weatherDuration = GenerateRandomWeatherDuration(6); // 1-11 hours
                 }
             }
@@ -328,26 +329,26 @@ public class Weather
                     if (CurrentSeason == Season.Summer && Utils.RandDouble(0, 1) < 0.1) // 10% of summer rain is storms
                     {
                         CurrentCondition = WeatherCondition.Stormy;
-                        Precipitation = Utils.RandDouble(0.6, 0.9); // 60-90% intensity
-                        WindSpeed = Utils.RandDouble(0.5, 0.8);     // 50-80% of max wind
-                        CloudCover = Utils.RandDouble(0.9, 1.0);    // 90-100% cloud cover
+                        PrecipitationPct = Utils.RandDouble(0.6, 0.9); // 60-90% intensity
+                        WindSpeedPct = Utils.RandDouble(0.5, 0.8);     // 50-80% of max wind
+                        CloudCoverPct = Utils.RandDouble(0.9, 1.0);    // 90-100% cloud cover
                         _weatherDuration = GenerateRandomWeatherDuration(2); // 1-3 hours
                     }
                     else
                     {
                         CurrentCondition = WeatherCondition.Rainy;
-                        Precipitation = Utils.RandDouble(0.3, 0.6); // 30-60% intensity
-                        WindSpeed = Utils.RandDouble(0.2, 0.4);     // 20-40% of max wind
-                        CloudCover = Utils.RandDouble(0.7, 0.9);    // 70-90% cloud cover
+                        PrecipitationPct = Utils.RandDouble(0.3, 0.6); // 30-60% intensity
+                        WindSpeedPct = Utils.RandDouble(0.2, 0.4);     // 20-40% of max wind
+                        CloudCoverPct = Utils.RandDouble(0.7, 0.9);    // 70-90% cloud cover
                         _weatherDuration = GenerateRandomWeatherDuration(4); // 1-7 hours
                     }
                 }
                 else // Temperature too cold for rain, adjust to snow
                 {
                     CurrentCondition = WeatherCondition.LightSnow;
-                    Precipitation = Utils.RandDouble(0.2, 0.5); // 20-50% intensity
-                    WindSpeed = Utils.RandDouble(0.2, 0.4);     // 20-40% of max wind
-                    CloudCover = Utils.RandDouble(0.7, 0.9);    // 70-90% cloud cover
+                    PrecipitationPct = Utils.RandDouble(0.2, 0.5); // 20-50% intensity
+                    WindSpeedPct = Utils.RandDouble(0.2, 0.4);     // 20-40% of max wind
+                    CloudCoverPct = Utils.RandDouble(0.7, 0.9);    // 70-90% cloud cover
                     _weatherDuration = GenerateRandomWeatherDuration(5); // 1-9 hours
                 }
             }
@@ -360,25 +361,25 @@ public class Weather
             if (clearVsCloudyRoll < 0.4) // 40% chance for clear
             {
                 CurrentCondition = WeatherCondition.Clear;
-                Precipitation = 0;
-                WindSpeed = Utils.RandDouble(0.1, 0.5);     // 10-50% of max wind
-                CloudCover = Utils.RandDouble(0, 0.2);      // 0-20% cloud cover
+                PrecipitationPct = 0;
+                WindSpeedPct = Utils.RandDouble(0.1, 0.5);     // 10-50% of max wind
+                CloudCoverPct = Utils.RandDouble(0, 0.2);      // 0-20% cloud cover
                 _weatherDuration = GenerateRandomWeatherDuration(9); // 1-17 hours
             }
             else if (clearVsCloudyRoll < 0.8) // 40% chance for cloudy
             {
                 CurrentCondition = WeatherCondition.Cloudy;
-                Precipitation = 0;
-                WindSpeed = Utils.RandDouble(0.2, 0.6);     // 20-60% of max wind
-                CloudCover = Utils.RandDouble(0.5, 0.8);    // 50-80% cloud cover
+                PrecipitationPct = 0;
+                WindSpeedPct = Utils.RandDouble(0.2, 0.6);     // 20-60% of max wind
+                CloudCoverPct = Utils.RandDouble(0.5, 0.8);    // 50-80% cloud cover
                 _weatherDuration = GenerateRandomWeatherDuration(6); // 1-11 hours
             }
             else // 20% chance for misty
             {
                 CurrentCondition = WeatherCondition.Misty;
-                Precipitation = Utils.RandDouble(0, 0.1);   // 0-10% light moisture
-                WindSpeed = Utils.RandDouble(0, 0.2);       // 0-20% of max wind
-                CloudCover = Utils.RandDouble(0.6, 0.9);    // 60-90% cloud cover
+                PrecipitationPct = Utils.RandDouble(0, 0.1);   // 0-10% light moisture
+                WindSpeedPct = Utils.RandDouble(0, 0.2);       // 0-20% of max wind
+                CloudCoverPct = Utils.RandDouble(0.6, 0.9);    // 60-90% cloud cover
                 _weatherDuration = GenerateRandomWeatherDuration(3); // 1-5 hours
             }
         }
@@ -465,13 +466,13 @@ public class Weather
                 return "A cold mist hangs in the air.";
 
             case WeatherCondition.Rainy:
-                if (Precipitation < 0.5)
+                if (PrecipitationPct < 0.5)
                     return "A cold drizzle is falling.";
                 else
                     return "Cold rain is falling steadily.";
 
             case WeatherCondition.LightSnow:
-                if (Precipitation < 0.3)
+                if (PrecipitationPct < 0.3)
                     return "A few snowflakes drift through the air.";
                 else
                     return "Snow is falling steadily.";
@@ -489,13 +490,13 @@ public class Weather
 
     private string GetWindDescription()
     {
-        if (WindSpeed < 0.2)           // 0-20%
+        if (WindSpeedPct < 0.2)           // 0-20%
             return "The air is still.";
-        else if (WindSpeed < 0.4)      // 20-40%
+        else if (WindSpeedPct < 0.4)      // 20-40%
             return "A light breeze blows.";
-        else if (WindSpeed < 0.6)      // 40-60%
+        else if (WindSpeedPct < 0.6)      // 40-60%
             return "A cold wind blows steadily.";
-        else if (WindSpeed < 0.8)      // 60-80%
+        else if (WindSpeedPct < 0.8)      // 60-80%
             return "Strong, bitter winds howl across the landscape.";
         else                           // 80-100%
             return "Powerful, freezing gusts threaten to knock you over.";
@@ -504,18 +505,18 @@ public class Weather
     // Short-form labels for UI panels
     public string GetWindLabel()
     {
-        if (WindSpeed < 0.2) return "Calm";
-        if (WindSpeed < 0.4) return "Breezy";
-        if (WindSpeed < 0.6) return "Windy";
-        if (WindSpeed < 0.8) return "Strong";
+        if (WindSpeedPct < 0.2) return "Calm";
+        if (WindSpeedPct < 0.4) return "Breezy";
+        if (WindSpeedPct < 0.6) return "Windy";
+        if (WindSpeedPct < 0.8) return "Strong";
         return "Fierce";
     }
 
     public string GetPrecipitationLabel()
     {
-        if (Precipitation < 0.1) return "None";
-        if (Precipitation < 0.3) return "Light";
-        if (Precipitation < 0.6) return "Moderate";
+        if (PrecipitationPct < 0.1) return "None";
+        if (PrecipitationPct < 0.3) return "Light";
+        if (PrecipitationPct < 0.6) return "Moderate";
         return "Heavy";
     }
 
@@ -602,7 +603,7 @@ public class Weather
     /// </summary>
     private bool IsInGracePeriod(DateTime currentTime)
     {
-        return (currentTime - _gameStartTime).TotalDays < GRACE_PERIOD_DAYS;
+        return (currentTime - GameContext.StartTime).TotalDays < GRACE_PERIOD_DAYS;
     }
 
     /// <summary>
@@ -663,14 +664,14 @@ public class Weather
     {
         // Roll within state's ranges for variability
         BaseTemperature = Utils.RandDouble(state.TempRange.Min, state.TempRange.Max);
-        WindSpeed = Utils.RandDouble(state.WindRange.Min, state.WindRange.Max);
-        Precipitation = Utils.RandDouble(state.PrecipRange.Min, state.PrecipRange.Max);
-        CloudCover = Utils.RandDouble(state.CloudRange.Min, state.CloudRange.Max);
+        WindSpeedPct = Utils.RandDouble(state.WindRange.Min, state.WindRange.Max);
+        PrecipitationPct = Utils.RandDouble(state.PrecipRange.Min, state.PrecipRange.Max);
+        CloudCoverPct = Utils.RandDouble(state.CloudRange.Min, state.CloudRange.Max);
         CurrentCondition = state.Condition;
         _weatherDuration = state.Duration;
 
         // Set wind direction based on wind speed
-        if (WindSpeed < 0.2)
+        if (WindSpeedPct < 0.2)
             CurrentWindDirection = WindDirection.Calm;
         else
             CurrentWindDirection = (WindDirection)Utils.Roll(8);  // 8 cardinal/intercardinal directions

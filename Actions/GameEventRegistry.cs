@@ -369,14 +369,6 @@ public static partial class GameEventRegistry
         ctx.IsHandlingEvent = true;
         try
         {
-            if (ctx.CurrentActivity == ActivityType.Sleeping)
-            {
-                GameDisplay.AddNarrative(ctx, "You wake suddenly!");
-            }
-
-            GameDisplay.AddNarrative(ctx, $"{evt.Name}", LogLevel.Warning);
-            GameDisplay.AddNarrative(ctx, evt.Description);
-
             // Phase 1: Show event with choices via overlay
             var availableChoices = evt.GetAvailableChoices(ctx);
             var eventDto = new EventDto(
@@ -397,7 +389,6 @@ public static partial class GameEventRegistry
                 choiceIndex = idx;
             }
             var choice = availableChoices[Math.Clamp(choiceIndex, 0, availableChoices.Count - 1)];
-            GameDisplay.AddNarrative(ctx, choice.Description + "\n");
 
             var outcome = choice.DetermineResult();
             var outcomeData = HandleOutcome(ctx, outcome);

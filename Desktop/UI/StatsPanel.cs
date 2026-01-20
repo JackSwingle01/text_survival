@@ -1,10 +1,10 @@
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
-using text_survival.Survival;
 
 namespace text_survival.Desktop.UI;
 
@@ -51,7 +51,7 @@ public static class StatsPanel
             ImGui.Separator();
 
             // Survival Stats
-            RenderSurvivalStats(body);
+            RenderSurvivalStats(ctx.player);
 
             ImGui.Separator();
 
@@ -83,7 +83,7 @@ public static class StatsPanel
 
     private static void RenderTimeSection(GameContext ctx, Weather weather)
     {
-        var startDate = new DateTime(2025, 1, 1);
+        var startDate = GameContext.StartTime;
         int dayNumber = (ctx.GameTime - startDate).Days + 1;
         bool isDaytime = weather.IsDaytime(ctx.GameTime);
         string timeOfDay = ctx.GetTimeOfDay().ToString();
@@ -113,13 +113,13 @@ public static class StatsPanel
             ImGui.TableNextColumn();
             ImGui.TextDisabled("Wind");
             ImGui.TableNextColumn();
-            ImGui.TextDisabled($"{weather.WindSpeed:F0} mph {weather.CurrentWindDirection}");
+            ImGui.TextDisabled($"{weather.WindSpeedMPH:F0} mph {weather.CurrentWindDirection}");
 
             // Precipitation
             ImGui.TableNextColumn();
             ImGui.TextDisabled("Precip");
             ImGui.TableNextColumn();
-            ImGui.TextDisabled(GetPrecipitationLabel(weather.Precipitation));
+            ImGui.TextDisabled(GetPrecipitationLabel(weather.PrecipitationPct));
 
             // Weather front
             string frontLabel = weather.GetFrontLabel();
@@ -143,12 +143,12 @@ public static class StatsPanel
         return "Heavy";
     }
 
-    private static void RenderSurvivalStats(Body body)
+    private static void RenderSurvivalStats(Actor actor)
     {
-        int energyPct = (int)(body.Energy / SurvivalProcessor.MAX_ENERGY_MINUTES * 100);
-        int caloriesPct = (int)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES * 100);
-        int hydrationPct = (int)(body.Hydration / SurvivalProcessor.MAX_HYDRATION * 100);
-        int vitalityPct = (int)(AbilityCalculator.CalculateVitality(body) * 100);
+        int energyPct = (int)(actor.Body.EnergyPct * 100);
+        int caloriesPct = (int)(actor.Body.FullPct * 100);
+        int hydrationPct = (int)(actor.Body.HydratedPct * 100);
+        int vitalityPct = (int)(actor.Vitality * 100);
 
         if (ImGui.BeginTable("survival_stats", 2))
         {
@@ -344,6 +344,11 @@ public static class StatsPanel
                 foreach (var part in injuredParts)
                 {
                     RenderInjuryRow(part.Name, part.Condition);
+                    var damagedOrgans = part.Organs.Where(o=>o.Condition<.99).OrderBy(o=>o.Condition);
+                    foreach (var organ in damagedOrgans)
+                    {
+                        RenderInjuryRow(organ.Name,organ.Condition);
+                    }
                 }
 
                 // Blood loss display - shown with injuries since bleeding is injury-related
@@ -471,7 +476,7 @@ public static class StatsPanel
                         if (Math.Abs(modifier) > 0.01)
                         {
                             hasModifiers = true;
-                            int pctChange = (int)((modifier - 1.0) * 100);
+                            int pctChange = (int)(modifier * 100);
                             Vector4 modColor = pctChange >= 0 ? ColorGood : ColorDanger;
                             ImGui.TextColored(modColor, $"{capacity}: {pctChange:+0;-0}%%");
                         }
