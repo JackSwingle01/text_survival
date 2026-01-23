@@ -336,7 +336,7 @@ public class Location
         {
             // Insulation increases effectiveness of heat sources
             double effectiveHeat = heatSource.GetEffectiveHeatOutput(locationTemp);
-            fireBonus = effectiveHeat * Math.Max(insulation, .40); // heat sources are less effective outside
+            fireBonus = effectiveHeat * Math.Clamp(insulation + .40, .40, 1.0); // heat sources are less effective outside
             locationTemp += fireBonus;
         }
 
