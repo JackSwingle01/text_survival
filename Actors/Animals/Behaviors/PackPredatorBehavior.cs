@@ -122,21 +122,28 @@ public class PackPredatorBehavior : IHerdBehavior
                 foreach (var ally in nearbyAllies)
                     ally.SetCombatCooldown(5);
 
-                // Build combatant list: predator vs target + allies
-                var defenders = new List<Actor> { npc };
-                defenders.AddRange(nearbyAllies);
-
-                // Attack the NPC (and allies if any)
+                // Attack the primary target first
                 var outcome = ActorCombatResolver.ResolveCombat(
                     new List<Actor> { predator, npc },
                     npc.CurrentLocation
                 );
 
-                // Record alliance in relationship memory
-                if (nearbyAllies.Count > 0)
+                // Allies join the fight if predator survives the initial combat
+                if (predator.IsAlive && nearbyAllies.Count > 0)
                 {
+                    foreach (var ally in nearbyAllies.Where(a => a.IsAlive))
+                    {
+                        outcome = ActorCombatResolver.ResolveCombat(
+                            new List<Actor> { predator, ally },
+                            npc.CurrentLocation
+                        );
+
+                        if (!predator.IsAlive) break;  // Stop if predator dies
+                    }
+
+                    // Record alliance in relationship memory
                     var allDefenders = new List<Actor> { npc };
-                    allDefenders.AddRange(nearbyAllies);
+                    allDefenders.AddRange(nearbyAllies.Where(a => a.IsAlive));
                     RelationshipEvents.FoughtTogether(allDefenders);
                 }
 
@@ -526,6 +533,15 @@ public class PackPredatorBehavior : IHerdBehavior
 
             case ActorCombatResolver.CombatOutcome.AttackerRepelled:
                 Console.WriteLine($"[Predator] {npc.Name} fought off {herd.AnimalType.DisplayName()}");
+
+                // Check if predator died and remove from herd
+                var predator = herd.Members.FirstOrDefault();
+                if (predator != null && !predator.IsAlive)
+                {
+                    herd.RemoveMember(predator);
+                    // Carcass creation happens in NPCFight.Complete() when threat dies
+                }
+
                 // Predator learns fear and flees
                 herd.Fear = Math.Min(0.9, herd.Fear + 0.3);
                 herd.LastCombatMinutes = ctx.TotalMinutesElapsed;
