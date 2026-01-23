@@ -25,6 +25,20 @@ public class NPC : Actor
     [System.Text.Json.Serialization.JsonIgnore]
     private SurvivalContext? _currentContext;
 
+    // Context for threat detection (set during Update)
+    [System.Text.Json.Serialization.JsonIgnore]
+    private HerdRegistry? _currentHerds;
+    [System.Text.Json.Serialization.JsonIgnore]
+    private IEnumerable<NPC>? _currentNPCs;
+
+    // Combat cooldown prevents re-detection immediately after combat
+    [System.Text.Json.Serialization.JsonIgnore]
+    private int _combatCooldownMinutes = 0;
+
+    // Pending threat detected during ShouldInterrupt (handled in Update)
+    [System.Text.Json.Serialization.JsonIgnore]
+    private Actor? _pendingThreat;
+
     public NeedType? CurrentNeed { get; set; }
 
     public override double AttackDamage => Inventory.Weapon?.Damage ?? .1;
@@ -56,19 +70,41 @@ public class NPC : Actor
     // pending suggestion?
     // following?
 
-    public override void Update(int minutes, SurvivalContext context)
+    /// <summary>
+    /// Update NPC with optional context for threat detection.
+    /// </summary>
+    public void Update(int minutes, SurvivalContext context,
+        HerdRegistry? herds = null, IEnumerable<NPC>? npcs = null)
     {
         base.Update(minutes, context);
-        _currentContext = context; // Store for decision-making methods
+        _currentContext = context;
+        _currentHerds = herds;
+        _currentNPCs = npcs;
+
         for (int i = 0; i < minutes; i++)
         {
+            // Tick combat cooldown
+            if (_combatCooldownMinutes > 0)
+                _combatCooldownMinutes--;
+
             // Console.WriteLine($"[NPC:{Name}] Tick {i + 1}/{minutes} - Action={CurrentAction?.Name ?? "none"}, Need={CurrentNeed?.ToString() ?? "none"}");
 
             // if interrupt, clear action and let DetermineNeed pick it up
             if (ShouldInterrupt())
             {
                 CurrentAction?.Interrupt(this);
-                CurrentAction = null;
+
+                // Handle pending threat from ShouldInterrupt
+                if (_pendingThreat != null)
+                {
+                    bool fight = DecideFlightOrFight(_pendingThreat);
+                    CurrentAction = fight ? new NPCFight(_pendingThreat) : new NPCFlee(_pendingThreat);
+                    _pendingThreat = null;
+                }
+                else
+                {
+                    CurrentAction = null;
+                }
                 CurrentNeed = null;
             }
 
@@ -101,11 +137,18 @@ public class NPC : Actor
     }
     internal bool ShouldInterrupt()
     {
-        // TODO: Fix threat response - needs threatTarget and threat parameters
-        // if (DecideRespondToThreat())
-        //     return true;
+        // Threat response - highest priority (but not if already fighting/fleeing)
+        if (CurrentAction is not NPCFight && CurrentAction is not NPCFlee)
+        {
+            var threat = GetPriorityThreat();
+            if (threat != null)
+            {
+                _pendingThreat = threat;
+                return true;
+            }
+        }
 
-        // critical needs interrupt if higher priority 
+        // critical needs interrupt if higher priority
         var minimumCriticalNeed = NeedType.Food;
         var need = GetCriticalNeed();
         if (need == null || need == CurrentNeed) return false;
@@ -562,14 +605,6 @@ public class NPC : Actor
             return;
     }
 
-    private bool DecideRespondToThreat(Actor threatTarget, Actor threat)
-    {
-        bool canFight = Inventory.HasWeapon && Vitality > .5;
-        double fightChance = Personality.Boldness;
-        double baseWillingness = ((threatTarget == this ? 2 : Relationships.GetOpinion(threatTarget)) + 1.0) / 2.0;
-
-        return false;
-    }
     private bool DetermineCriticalNeed()
     {
         var need = GetCriticalNeed();
@@ -1261,9 +1296,9 @@ public class NPC : Actor
         // Fire has runway of 2 hours
         if (CurrentLocation.HasActiveHeatSource() && CurrentLocation.GetFeature<HeatSourceFeature>()!.BurningHoursRemaining < 2)
             return false;
-        // TODO: Fix threat response - needs threatTarget and threat parameters
-        // No threats
-        // if (DecideRespondToThreat()) return false;
+        // No threats nearby (predators OR hostile NPCs)
+        if (GetThreatsHere().Any())
+            return false;
 
         return true;
     }
@@ -1273,16 +1308,51 @@ public class NPC : Actor
         return Math.Clamp(Relationships.GetOpinion(other), -1, 1);
     }
 
-    #region Combat Decisions
+    #region Unified Actor Assessment
 
     /// <summary>
-    /// Decides if NPC will join combat to help another actor.
-    /// Uses relationship + self-assessment + threat assessment.
+    /// Determines if this NPC considers another actor hostile.
+    /// Used for: threat detection, combat decisions, sleep checks.
     /// </summary>
-    internal bool DecideToHelpInCombat(Actor ally, Animal threat)
+    internal bool IsHostileTo(Actor other)
     {
+        if (other == this || !other.IsAlive) return false;
+
+        return other switch
+        {
+            Animal animal => animal.AnimalType.IsPredator(),
+            NPC npc => GetRelationship(npc) <= -1.0,
+            Player.Player player => GetRelationship(player) <= -1.0,  // Future: hostile to player
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Determines if this NPC considers another actor prey (huntable).
+    /// Future: enables NPC hunting behavior.
+    /// </summary>
+    internal bool IsPreyTo(Actor other)
+    {
+        if (other == this || !other.IsAlive) return false;
+
+        return other switch
+        {
+            Animal animal => !animal.AnimalType.IsPredator(),  // Non-predators are prey
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Determines if this NPC would help defend an ally against a threat.
+    /// Generalizes DecideToHelpInCombat to work with any Actor threat.
+    /// </summary>
+    internal bool WouldDefend(Actor ally, Actor threat)
+    {
+        if (!IsHostileTo(threat)) return false;
+        if (IsHostileTo(ally)) return false;  // Won't help enemies
+
         double relationship = GetRelationship(ally);
-        if (relationship < -0.3) return false;  // Hostile NPCs won't help
+        if (relationship < -0.3) return false;
 
         // Base willingness from relationship: -1..1 → 0..1
         double baseWillingness = (relationship + 1) / 2;
@@ -1305,10 +1375,81 @@ public class NPC : Actor
     }
 
     /// <summary>
-    /// Decides fight vs flee when NPC faces threat alone.
+    /// Get all hostile actors at NPC's current location.
+    /// Returns predators AND hostile NPCs.
+    /// </summary>
+    internal IEnumerable<Actor> GetThreatsHere()
+    {
+        if (_currentHerds == null || Map == null)
+            yield break;
+
+        var position = Map.GetPosition(CurrentLocation);
+
+        // Predators from herds
+        foreach (var herd in _currentHerds.GetHerdsAt(position))
+        {
+            if (herd.IsPredator)
+            {
+                foreach (var animal in herd.Members.Where(m => m.IsAlive))
+                    yield return animal;
+            }
+        }
+
+        // Hostile NPCs at same location
+        if (_currentNPCs != null)
+        {
+            foreach (var npc in _currentNPCs)
+            {
+                if (npc != this && npc.IsAlive && npc.CurrentLocation == CurrentLocation)
+                {
+                    if (IsHostileTo(npc))
+                        yield return npc;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get the most dangerous threat at location (for fight/flee decisions).
+    /// Returns null during combat cooldown.
+    /// </summary>
+    internal Actor? GetPriorityThreat()
+    {
+        // Don't detect threats during cooldown
+        if (_combatCooldownMinutes > 0)
+            return null;
+
+        return GetThreatsHere()
+            .OrderByDescending(t => t.Body.WeightKG * t.Vitality)  // Biggest, healthiest = priority
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Set combat cooldown (called after combat to prevent re-detection).
+    /// </summary>
+    internal void SetCombatCooldown(int minutes = 5)
+    {
+        _combatCooldownMinutes = minutes;
+    }
+
+    #endregion
+
+    #region Combat Decisions
+
+    /// <summary>
+    /// Decides if NPC will join combat to help another actor.
+    /// Uses relationship + self-assessment + threat assessment.
+    /// </summary>
+    internal bool DecideToHelpInCombat(Actor ally, Actor threat)
+    {
+        return WouldDefend(ally, threat);
+    }
+
+    /// <summary>
+    /// Decides fight vs flee when NPC faces any threat.
     /// Returns true for fight, false for flee.
     /// </summary>
-    internal bool DecideFlightOrFight(Animal threat)
+    internal bool DecideFlightOrFight(Actor threat)
     {
         double fightChance = Personality.Boldness;
 
@@ -1319,7 +1460,7 @@ public class NPC : Actor
         if (hasWeapon && !isInjured) fightChance += 0.2;
         if (isInjured) fightChance -= 0.2;
 
-        // Threat comparison
+        // Threat comparison (works for any Actor)
         double npcStrength = Vitality * (hasWeapon ? 2.0 : 1.0);
         double threatStrength = threat.Vitality * (threat.Body.WeightKG / 30.0);
 
@@ -1333,6 +1474,7 @@ public class NPC : Actor
     /// <summary>
     /// Check for hostile predators at NPC's current location.
     /// </summary>
+    [Obsolete("Use GetPriorityThreat() instead - handles all threat types")]
     internal Animal? GetThreatAtLocation(HerdRegistry herds)
     {
         var position = Map.GetPosition(CurrentLocation);

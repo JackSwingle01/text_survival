@@ -270,18 +270,23 @@ public class NPCCraft : NPCAction
 
 public class NPCFight : NPCAction
 {
-    private readonly Animal _threat;
+    private readonly Actor _threat;
 
     public override string LogMessage => $"Fighting {_threat.Name}";
 
-    public NPCFight(Animal threat) : base($"Fighting {threat.Name}", 1, ActivityType.Fighting)
+    public NPCFight(Actor threat) : base($"Fighting {threat.Name}", 1, ActivityType.Fighting)
     {
         _threat = threat;
     }
 
     public override void Complete(NPC npc)
     {
-        var outcome = ActorCombatResolver.ResolveCombat(_threat, npc, npc.CurrentLocation);
+        // Set combat cooldown to prevent re-detection
+        npc.SetCombatCooldown(5);
+
+        var outcome = ActorCombatResolver.ResolveCombat(
+            new List<Actor> { _threat, npc },
+            npc.CurrentLocation);
 
         switch (outcome)
         {
@@ -293,6 +298,11 @@ public class NPCFight : NPCAction
                 break;
             case ActorCombatResolver.CombatOutcome.AttackerRepelled:
                 Console.WriteLine($"[NPC] {npc.Name} drove off {_threat.Name}!");
+                // Create carcass if threat died and was an animal
+                if (!_threat.IsAlive && _threat is Animal deadAnimal)
+                {
+                    npc.CurrentLocation.AddFeature(new CarcassFeature(deadAnimal));
+                }
                 break;
             case ActorCombatResolver.CombatOutcome.DefenderEscaped:
                 Console.WriteLine($"[NPC] {npc.Name} escaped from {_threat.Name}");
@@ -300,22 +310,25 @@ public class NPCFight : NPCAction
         }
     }
 
-    public Animal Threat => _threat;
+    public Actor Threat => _threat;
 }
 
 public class NPCFlee : NPCAction
 {
-    private readonly Animal _threat;
+    private readonly Actor _threat;
 
     public override string LogMessage => $"Fleeing from {_threat.Name}";
 
-    public NPCFlee(Animal threat) : base($"Fleeing from {threat.Name}", 5, ActivityType.Traveling)
+    public NPCFlee(Actor threat) : base($"Fleeing from {threat.Name}", 5, ActivityType.Traveling)
     {
         _threat = threat;
     }
 
     public override void Complete(NPC npc)
     {
+        // Set combat cooldown to prevent immediate re-detection
+        npc.SetCombatCooldown(5);
+
         // Move toward camp if known, else random adjacent
         Location? retreat = null;
 

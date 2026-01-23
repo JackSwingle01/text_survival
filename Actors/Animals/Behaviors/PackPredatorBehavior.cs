@@ -96,6 +96,7 @@ public class PackPredatorBehavior : IHerdBehavior
         // Check for NPC allies at this location (using unified actor tracking)
         var npcsHere = ctx.GetActorsAt(herd.Position)
             .OfType<NPC>()
+            .Where(n => n.IsAlive)
             .ToList();
 
         foreach (var npc in npcsHere)
@@ -105,12 +106,39 @@ public class PackPredatorBehavior : IHerdBehavior
 
             if (Random.Shared.NextDouble() < boldness)
             {
-                // Attack the NPC
+                // Set combat cooldown on the target to prevent double-detection
+                npc.SetCombatCooldown(5);
+
+                var predator = herd.Members[0];  // Lead predator
+
+                // Check for NPC allies who might join the fight
+                var nearbyAllies = npcsHere
+                    .Where(other => other != npc
+                        && other.IsAlive
+                        && other.WouldDefend(npc, predator))
+                    .ToList();
+
+                // Set cooldown on all allies to prevent double-detection
+                foreach (var ally in nearbyAllies)
+                    ally.SetCombatCooldown(5);
+
+                // Build combatant list: predator vs target + allies
+                var defenders = new List<Actor> { npc };
+                defenders.AddRange(nearbyAllies);
+
+                // Attack the NPC (and allies if any)
                 var outcome = ActorCombatResolver.ResolveCombat(
-                    herd.Members[0],  // Lead predator
-                    npc,
+                    new List<Actor> { predator, npc },
                     npc.CurrentLocation
                 );
+
+                // Record alliance in relationship memory
+                if (nearbyAllies.Count > 0)
+                {
+                    var allDefenders = new List<Actor> { npc };
+                    allDefenders.AddRange(nearbyAllies);
+                    RelationshipEvents.FoughtTogether(allDefenders);
+                }
 
                 HandleNPCCombatOutcome(herd, npc, outcome, ctx);
 
