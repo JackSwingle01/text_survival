@@ -608,6 +608,15 @@ public static class ResourceTypeExtensions
     }
 }
 
+/// <summary>
+/// Represents a found item for UI display.
+/// </summary>
+public record LootItem(
+    string Name,
+    int Count,
+    double WeightKg,
+    ResourceCategory? Category);
+
 public static class InventoryExtensions
 {
     public static string GetDescription(this Inventory inv)
@@ -630,5 +639,27 @@ public static class InventoryExtensions
         foreach (var accessory in inv.Accessories) parts.Add(accessory.Name);
 
         return parts.Count > 0 ? string.Join(", ", parts) : "nothing";
+    }
+
+    /// <summary>
+    /// Get found items as structured data for UI display.
+    /// </summary>
+    public static List<LootItem> GetLootItems(this Inventory inv)
+    {
+        var items = new List<LootItem>();
+
+        foreach (Resource type in Enum.GetValues<Resource>())
+        {
+            int count = inv.Count(type);
+            if (count > 0)
+            {
+                double weight = inv.Weight(type);
+                string name = type.ToDisplayName();
+                var category = type.GetCategory();
+                items.Add(new LootItem(name, count, weight, category));
+            }
+        }
+
+        return items;
     }
 }

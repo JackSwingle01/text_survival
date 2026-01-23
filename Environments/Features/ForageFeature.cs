@@ -101,6 +101,9 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     /// </summary>
     public Inventory Forage(double hours)
     {
+        // Roll session luck - creates variance in yields
+        double luckMultiplier = RollLuckMultiplier();
+
         var found = new Inventory();
 
         foreach (var resource in _resources)
@@ -111,7 +114,8 @@ public class ForageFeature : LocationFeature, IWorkableFeature
             // Apply grazing reduction to abundance
             double effectiveAbundance = resource.Abundance * (1 - grazedLevel);
 
-            double baseChance = ResourceDensity() * effectiveAbundance;
+            // Apply luck multiplier to base chance
+            double baseChance = ResourceDensity() * effectiveAbundance * luckMultiplier;
             double scaledChance = baseChance * hours;
 
             // Guaranteed finds from floor of scaledChance
@@ -144,6 +148,23 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         ClueSeed = Random.Shared.Next();
 
         return found;
+    }
+
+    /// <summary>
+    /// Roll luck multiplier for a foraging session.
+    /// Distribution: 15% lean (0.5x), 60% normal (1x), 20% good (1.5x), 4% great (2x), 1% jackpot (3x)
+    /// </summary>
+    private static double RollLuckMultiplier()
+    {
+        double roll = rng.NextDouble();
+        return roll switch
+        {
+            < 0.15 => 0.5,
+            < 0.75 => 1.0,
+            < 0.95 => 1.5,
+            < 0.99 => 2.0,
+            _ => 3.0
+        };
     }
 
     /// <summary>
