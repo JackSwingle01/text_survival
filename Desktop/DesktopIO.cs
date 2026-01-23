@@ -49,7 +49,7 @@ public static class DesktopIO
     public static void ShowWeatherChange(GameContext ctx)
     {
         var weather = ctx.Weather;
-        double tempF = weather.BaseTemperature * 9 / 5 + 32;
+        double tempF = weather.TemperatureInFahrenheit;
         string message = $"The weather has changed.\n\n" +
             $"Temperature: {tempF:F0}°F\n" +
             $"Wind: {weather.CurrentCondition}\n" +
