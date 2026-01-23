@@ -285,6 +285,16 @@ public static class DesktopIO
         return BlockingDialog.ShowProgress(ctx, statusText, estimatedMinutes, activity);
     }
 
+    public static (int elapsed, bool interrupted) RenderWithDurationAndLoot(
+        GameContext ctx,
+        string statusText,
+        int estimatedMinutes,
+        ActivityType activity,
+        List<LootItem> items)
+    {
+        return BlockingDialog.ShowProgressWithLoot(ctx, statusText, estimatedMinutes, activity, items);
+    }
+
     public static void RenderInventory(GameContext ctx, Inventory inventory, string title)
     {
         var overlays = DesktopRuntime.Overlays;

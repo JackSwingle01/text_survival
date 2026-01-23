@@ -91,10 +91,24 @@ public class WorkRunner(GameContext ctx)
         int actualTime = adjustedTime;
         if (adjustedTime > 0)
         {
-            string statusText = $"{char.ToUpper(strategy.GetActivityName()[0])}{strategy.GetActivityName().Substring(1)}...";
-            var (elapsed, interrupted) = GameDisplay.UpdateAndRenderProgress(
-                _ctx, statusText, adjustedTime, strategy.GetActivityType());
-            actualTime = elapsed;
+            // Check for custom progress handler (e.g., foraging with loot reveals)
+            var customResult = strategy.RunCustomProgress(_ctx, location, adjustedTime);
+            if (customResult.HasValue)
+            {
+                var (elapsed, interrupted) = customResult.Value;
+                actualTime = elapsed;
+
+                if (interrupted || PlayerDied)
+                    return WorkResult.Interrupted(actualTime);
+            }
+            else
+            {
+                // Standard progress
+                string statusText = $"{char.ToUpper(strategy.GetActivityName()[0])}{strategy.GetActivityName().Substring(1)}...";
+                var (elapsed, interrupted) = GameDisplay.UpdateAndRenderProgress(
+                    _ctx, statusText, adjustedTime, strategy.GetActivityType());
+                actualTime = elapsed;
+            }
 
             if (PlayerDied)
                 return WorkResult.Died(actualTime);
