@@ -692,7 +692,7 @@ public static class DesktopIO
     private static readonly LootRevealOverlay _lootRevealOverlay = new();
 
     /// <summary>
-    /// Show found loot with staged reveal animation.
+    /// Show found loot summary with all items displayed.
     /// </summary>
     public static void ShowLootReveal(GameContext ctx, Inventory found)
     {
