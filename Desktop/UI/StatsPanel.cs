@@ -73,7 +73,7 @@ public static class StatsPanel
             RenderInventorySummary(ctx);
 
             // Fire Status (if at location with fire)
-            RenderFireStatus(location);
+            RenderFireStatus(ctx);
 
             // Camp Info (if at camp)
             RenderCampInfo(ctx);
@@ -560,13 +560,15 @@ public static class StatsPanel
         }
     }
 
-    private static void RenderFireStatus(Environments.Location location)
+    private static void RenderFireStatus(GameContext ctx)
     {
+        var location = ctx.CurrentLocation;
         var fire = location.GetFeature<HeatSourceFeature>();
         if (fire == null || (!fire.IsActive && !fire.HasEmbers)) return;
 
         ImGui.Separator();
 
+        // Determine phase and time remaining
         string phase;
         int minutes;
 
@@ -583,13 +585,124 @@ public static class StatsPanel
                 : (int)(fire.BurningHoursRemaining * 60);
         }
 
-        Vector4 fireColor = minutes <= 5 ? ColorCritical :
-                           minutes <= 15 ? ColorDanger :
-                           minutes <= 30 ? ColorWarning : ColorWarm;
+        // Phase-appropriate color
+        Vector4 phaseColor = phase switch
+        {
+            "Roaring" => new Vector4(1f, 0.4f, 0.2f, 1f),  // Bright orange-red
+            "Building" => new Vector4(1f, 0.6f, 0.3f, 1f), // Orange
+            "Steady" => ColorWarm,                          // Warm orange
+            "Igniting" => new Vector4(1f, 0.8f, 0.4f, 1f), // Yellow-orange
+            "Dying" => new Vector4(0.8f, 0.4f, 0.2f, 1f),  // Dim orange
+            "Embers" => new Vector4(0.6f, 0.3f, 0.2f, 1f), // Deep red-brown
+            _ => ColorWarm
+        };
 
+        // Header with phase
         ImGui.TextColored(ColorHeader, "Fire");
         ImGui.SameLine();
-        ImGui.TextColored(fireColor, $"{phase} ({FormatTime(minutes)})");
+        ImGui.TextColored(phaseColor, phase);
+
+        if (ImGui.BeginTable("fire_status", 2))
+        {
+            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 80);
+            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+            // Fire temperature and heat output on one line
+            double fireTemp = fire.GetCurrentFireTemperature();
+            var breakdown = location.GetTemperatureBreakdown();
+            if (fireTemp > 0)
+            {
+                ImGui.TableNextColumn();
+                ImGui.TextDisabled("Temperature");
+                ImGui.TableNextColumn();
+                string heatText = breakdown.FireBonus > 1
+                    ? $"{fireTemp:F0}°F (+{breakdown.FireBonus:F0}°F)"
+                    : $"{fireTemp:F0}°F";
+                ImGui.TextColored(phaseColor, heatText);
+            }
+
+            // Fuel gauge (only for active fires, not embers)
+            if (fire.IsActive)
+            {
+                double burningKg = fire.BurningMassKg;
+                double unburnedKg = fire.UnburnedMassKg;
+                double maxKg = fire.MaxFuelCapacityKg;
+
+                ImGui.TableNextColumn();
+                ImGui.TextDisabled("Fuel");
+                ImGui.TableNextColumn();
+
+                // Progress bar showing burning + unburned fuel
+                float totalPct = (float)((burningKg + unburnedKg) / maxKg);
+                float burningPct = (float)(burningKg / maxKg);
+
+                // Draw fuel bar background
+                Vector2 barPos = ImGui.GetCursorScreenPos();
+                float barWidth = ImGui.GetContentRegionAvail().X - 5;
+                float barHeight = 14;
+
+                var drawList = ImGui.GetWindowDrawList();
+
+                // Background (empty capacity)
+                drawList.AddRectFilled(
+                    barPos,
+                    new Vector2(barPos.X + barWidth, barPos.Y + barHeight),
+                    ImGui.GetColorU32(new Vector4(0.2f, 0.2f, 0.2f, 1f)));
+
+                // Unburned fuel (lighter orange, behind burning)
+                if (unburnedKg > 0)
+                {
+                    drawList.AddRectFilled(
+                        barPos,
+                        new Vector2(barPos.X + barWidth * totalPct, barPos.Y + barHeight),
+                        ImGui.GetColorU32(new Vector4(0.6f, 0.4f, 0.2f, 1f)));
+                }
+
+                // Burning fuel (bright orange, on top)
+                if (burningKg > 0)
+                {
+                    drawList.AddRectFilled(
+                        barPos,
+                        new Vector2(barPos.X + barWidth * burningPct, barPos.Y + barHeight),
+                        ImGui.GetColorU32(phaseColor));
+                }
+
+                // Border
+                drawList.AddRect(
+                    barPos,
+                    new Vector2(barPos.X + barWidth, barPos.Y + barHeight),
+                    ImGui.GetColorU32(new Vector4(0.4f, 0.4f, 0.4f, 1f)));
+
+                // Text overlay showing fuel amounts
+                string fuelText = unburnedKg > 0.1
+                    ? $"{burningKg:F1} (+{unburnedKg:F1}) / {maxKg:F0} kg"
+                    : $"{burningKg:F1} / {maxKg:F0} kg";
+
+                // Center text in bar
+                Vector2 textSize = ImGui.CalcTextSize(fuelText);
+                Vector2 textPos = new(
+                    barPos.X + (barWidth - textSize.X) / 2,
+                    barPos.Y + (barHeight - textSize.Y) / 2);
+
+                drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 1f)), fuelText);
+
+                // Advance cursor past the bar
+                ImGui.Dummy(new Vector2(barWidth, barHeight));
+            }
+
+            // Time remaining with urgency-based coloring
+            ImGui.TableNextColumn();
+            ImGui.TextDisabled("Time Left");
+            ImGui.TableNextColumn();
+
+            Vector4 timeColor = minutes <= 5 ? ColorCritical :
+                               minutes <= 15 ? ColorDanger :
+                               minutes <= 30 ? ColorWarning : ColorMuted;
+
+            ImGui.TextColored(timeColor, FormatTime(minutes));
+
+            ImGui.EndTable();
+        }
     }
 
     private static void RenderCampInfo(GameContext ctx)
