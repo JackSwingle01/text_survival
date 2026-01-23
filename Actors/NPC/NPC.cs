@@ -172,7 +172,6 @@ public class NPC : Actor
         bool atDeadFire = !atActiveFire && CurrentLocation.HasFeature<HeatSourceFeature>();
         bool notAtFire = !(atActiveFire || atDeadFire);
 
-        bool isWarming = Body.LastTemperatureDelta > 0;
         bool needToStartFire = atDeadFire;
         bool needToTendFire = false;
 
@@ -200,17 +199,20 @@ public class NPC : Actor
             needToStartFire = true;
         }
 
-        // if at fire then wait
+        // if at fire, check if it's warming effectively
         if (atActiveFire)
         {
-            if (isWarming)
+            bool warmingEffectively = IsFireWarmingEffectively();
+            if (warmingEffectively)
             {
-                // Rest near fire to get fire proximity heat bonus
-                Console.WriteLine($"  [Warmth] At fire, resting");
+                // Fire is good, rest and warm up
+                Console.WriteLine($"  [Warmth] At fire, warming effectively, resting");
                 return new NPCRest(Utils.RandInt(5, 15));
             }
             else
             {
+                // Fire is too weak - need to improve it
+                Console.WriteLine($"  [Warmth] Fire too weak, need to tend");
                 needToTendFire = true;
             }
         }
@@ -428,6 +430,42 @@ public class NPC : Actor
             NeedType.Food => Body.FullPct > .3,
             _ => true,
         };
+    }
+
+    /// <summary>
+    /// Check if the current fire is warming the NPC fast enough to reach target warmth
+    /// within a reasonable time (2 hours). If not, the fire needs more fuel.
+    /// </summary>
+    private bool IsFireWarmingEffectively()
+    {
+        const double TARGET_WARMTH = 0.7;
+        const int MAX_ACCEPTABLE_MINUTES = 120; // 2 hours
+
+        // If already warm enough, fire is fine
+        if (Body.WarmPct >= TARGET_WARMTH) return true;
+
+        double warmingRate = Body.LastTemperatureDelta; // °F per minute
+
+        // If cooling or not warming at all, definitely need more fire
+        if (warmingRate <= 0) return false;
+
+        // Calculate minutes to reach target warmth at current rate
+        // WarmPct is based on body temp relative to hypothermia threshold
+        double currentTemp = Body.BodyTemperature;
+        // targetTemp such that WarmPct = TARGET_WARMTH
+        // WarmPct = (T - Threshold) / (BaseTemp - Threshold)
+        // T = WarmPct * (BaseTemp - Threshold) + Threshold
+        double tempRange = Body.BASE_BODY_TEMP - SurvivalProcessor.HypothermiaThreshold;
+        double targetTemp = TARGET_WARMTH * tempRange + SurvivalProcessor.HypothermiaThreshold;
+        double degreesNeeded = targetTemp - currentTemp;
+
+        if (degreesNeeded <= 0) return true; // Already there
+
+        double minutesToTarget = degreesNeeded / warmingRate;
+
+        Console.WriteLine($"  [Warmth] Rate: {warmingRate:F2}°F/min, need {degreesNeeded:F1}°F, ETA: {minutesToTarget:F0}min");
+
+        return minutesToTarget <= MAX_ACCEPTABLE_MINUTES;
     }
 
     /// <summary>

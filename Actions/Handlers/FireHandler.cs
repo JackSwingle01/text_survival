@@ -370,25 +370,37 @@ public static class FireHandler
     }
 
     /// <summary>
-    /// NPC fire tending - adds best available fuel.
+    /// NPC fire tending - adds fuel up to fire capacity for efficient warming.
+    /// Prioritizes best fuel types and fills fire rather than adding one piece at a time.
     /// </summary>
     public static void TendFire(Inventory inv, HeatSourceFeature fire)
     {
-        // Add logs if fire is hot enough, otherwise kindling
+        // Add logs if fire is hot enough, otherwise kindling only
         if (fire.GetCurrentFireTemperature() > 200)
         {
-            if (inv.Count(Resource.Oak) > 0)
-                AddFuel(inv, fire, Resource.Oak);
-            else if (inv.Count(Resource.Birch) > 0)
-                AddFuel(inv, fire, Resource.Birch);
-            else if (inv.Count(Resource.Pine) > 0)
-                AddFuel(inv, fire, Resource.Pine);
-            else if (inv.Count(Resource.Stick) > 0)
-                AddFuel(inv, fire, Resource.Stick);
+            // Add all available fuel in priority order until fire is at capacity
+            // Oak burns longest, then birch, then pine, then sticks
+            AddFuelToCapacity(inv, fire, Resource.Oak);
+            AddFuelToCapacity(inv, fire, Resource.Birch);
+            AddFuelToCapacity(inv, fire, Resource.Pine);
+            AddFuelToCapacity(inv, fire, Resource.Stick);
         }
-        else if (inv.Count(Resource.Stick) > 0)
+        else
         {
-            AddFuel(inv, fire, Resource.Stick);
+            // Fire is too cool for logs - add kindling to build it up
+            AddFuelToCapacity(inv, fire, Resource.Stick);
+        }
+    }
+
+    /// <summary>
+    /// Add all available fuel of a type until fire reaches capacity.
+    /// </summary>
+    private static void AddFuelToCapacity(Inventory inv, HeatSourceFeature fire, Resource fuel)
+    {
+        int available = inv.Count(fuel);
+        if (available > 0)
+        {
+            AddFuel(inv, fire, fuel, available);
         }
     }
 
