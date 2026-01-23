@@ -553,15 +553,6 @@ public static class StatsPanel
             ImGui.ProgressBar((float)pct, new Vector2(-1, 18), $"{current:F1}/{max:F1} kg");
             ImGui.PopStyleColor();
 
-            // Fuel row (if any)
-            if (fuelKg > 0)
-            {
-                ImGui.TableNextColumn();
-                ImGui.Text("Fuel");
-                ImGui.TableNextColumn();
-                ImGui.Text($"{fuelKg:F1} kg");
-            }
-
             ImGui.EndTable();
         }
     }
