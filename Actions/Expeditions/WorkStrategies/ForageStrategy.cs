@@ -310,22 +310,21 @@ public class ForageStrategy : IWorkStrategy
 
         var collected = new List<string>();
         string quality = feature.GetQualityDescription();
-        string resultMessage;
 
-        string activityHeader;
+        // Show loot reveal for found items (or empty message)
         if (found.IsEmpty)
         {
-            activityHeader = "You didn't find anything";
-            resultMessage = WorkRunner.GetForageFailureMessage(quality);
+            string failureMessage = WorkRunner.GetForageFailureMessage(quality);
+            DesktopIO.ShowWorkResult(ctx, "Foraging", failureMessage, [], narrative, []);
         }
         else
         {
-            activityHeader = "Foraging";
-            collected.Add(found.GetDescription());
+            // Add to inventory first
             InventoryCapacityHelper.CombineAndReport(ctx, found);
-            resultMessage = quality is "sparse" or "picked over"
-                ? "Resources here are getting scarce."
-                : "You gather what you can find.";
+            collected.Add(found.GetDescription());
+
+            // Show staged loot reveal
+            DesktopIO.ShowLootReveal(ctx, found);
         }
 
         // Handle Game clues - apply hunt bonus to territory
@@ -388,8 +387,14 @@ public class ForageStrategy : IWorkStrategy
         allWarnings.AddRange(_impairmentWarnings);
         allWarnings.AddRange(warnings);
 
-        // Show results in popup overlay with narrative and warnings
-        DesktopIO.ShowWorkResult(ctx, activityHeader, resultMessage, collected, narrative, allWarnings);
+        // Show follow-up dialog if there are special finds, narrative, or warnings
+        bool hasSpecialFinds = _gameClue != null || _scavengeClue?.Scenario != null;
+        bool hasWarnings = allWarnings.Count > 0;
+
+        if (hasSpecialFinds || hasWarnings)
+        {
+            DesktopIO.ShowWorkResult(ctx, "Foraging", "", [], narrative, allWarnings);
+        }
 
         // Tutorial: Show fuel progress on Day 1
         double totalFuelGathered = found.GetWeight(ResourceCategory.Fuel);
