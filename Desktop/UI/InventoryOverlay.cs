@@ -7,14 +7,42 @@ using text_survival.Items;
 namespace text_survival.Desktop.UI;
 
 /// <summary>
-/// ImGui overlay for viewing and managing inventory.
+/// Represents a selectable item in the inventory.
+/// </summary>
+public abstract record InventoryItem(string Name, double WeightKg)
+{
+    public record ResourceItem(Resource Resource, int Count, double WeightKg)
+        : InventoryItem(Resource.ToDisplayName(), WeightKg);
+
+    public record WaterItem(double Liters)
+        : InventoryItem("Water", Liters); // Water weighs ~1kg per liter
+
+    public record ToolItem(Gear Tool)
+        : InventoryItem(Tool.Name, Tool.Weight);
+
+    public record EquipmentItem(Gear Equipment, EquipSlot Slot)
+        : InventoryItem(Equipment.Name, Equipment.Weight);
+
+    public record AccessoryItem(Gear Accessory)
+        : InventoryItem(Accessory.Name, Accessory.Weight);
+
+    public record WeaponItem(Gear Weapon)
+        : InventoryItem(Weapon.Name, Weapon.Weight);
+}
+
+/// <summary>
+/// ImGui overlay for viewing and managing inventory with tile-based display.
 /// </summary>
 public class InventoryOverlay
 {
     public bool IsOpen { get; set; }
 
     private string _selectedCategory = "All";
-    private static readonly string[] Categories = { "All", "Fuel", "Food", "Medicine", "Material", "Tools", "Equipment" };
+    private InventoryItem? _selectedItem;
+    private string? _message;
+    private float _messageTimer;
+
+    private static readonly string[] Categories = { "All", "Food", "Fuel", "Medicine", "Material", "Gear" };
 
     /// <summary>
     /// Render the inventory overlay. Returns true if overlay should close.
@@ -25,7 +53,15 @@ public class InventoryOverlay
 
         bool shouldClose = false;
 
-        OverlaySizes.SetupStandard();
+        // Update message timer
+        if (_messageTimer > 0)
+        {
+            _messageTimer -= deltaTime;
+            if (_messageTimer <= 0)
+                _message = null;
+        }
+
+        OverlaySizes.SetupWide();
 
         bool open = IsOpen;
         if (ImGui.Begin("Inventory", ref open, ImGuiWindowFlags.NoCollapse))
@@ -33,59 +69,33 @@ public class InventoryOverlay
             var inv = ctx.Inventory;
 
             // Header with weight info
-            float weightPct = (float)(inv.CurrentWeightKg / inv.MaxWeightKg);
-            Vector4 weightColor = weightPct > 0.9f
-                ? new Vector4(1f, 0.3f, 0.3f, 1f)
-                : weightPct > 0.7f
-                    ? new Vector4(1f, 0.8f, 0.3f, 1f)
-                    : new Vector4(0.7f, 0.9f, 0.7f, 1f);
-
-            ImGui.TextColored(weightColor, $"Weight: {inv.CurrentWeightKg:F1} / {inv.MaxWeightKg:F1} kg");
-            ImGui.ProgressBar(weightPct, new Vector2(-1, 0), "");
+            RenderWeightBar(inv);
             ImGui.Separator();
 
-            // Category tabs
-            if (ImGui.BeginTabBar("InventoryTabs"))
+            // Category buttons in a row
+            RenderCategoryButtons(inv);
+            ImGui.Separator();
+
+            // Show message if any
+            if (_message != null)
             {
-                foreach (var category in Categories)
-                {
-                    if (ImGui.BeginTabItem(category))
-                    {
-                        _selectedCategory = category;
-                        ImGui.EndTabItem();
-                    }
-                }
-                ImGui.EndTabBar();
+                ImGui.TextColored(new Vector4(0.3f, 1f, 0.5f, 1f), _message);
+                ImGui.Separator();
             }
 
-            // Content based on selected category
-            ImGui.BeginChild("InventoryContent", new Vector2(0, -30), ImGuiChildFlags.Borders);
+            // Main content area - two columns
+            float contentHeight = ImGui.GetContentRegionAvail().Y - 30;
 
-            switch (_selectedCategory)
-            {
-                case "All":
-                    RenderAllItems(inv);
-                    break;
-                case "Fuel":
-                    RenderFuelItems(inv);
-                    break;
-                case "Food":
-                    RenderFoodItems(inv);
-                    break;
-                case "Medicine":
-                    RenderMedicineItems(inv);
-                    break;
-                case "Material":
-                    RenderMaterialItems(inv);
-                    break;
-                case "Tools":
-                    RenderTools(inv);
-                    break;
-                case "Equipment":
-                    RenderEquipment(inv);
-                    break;
-            }
+            // Left: Item tiles
+            ImGui.BeginChild("ItemGrid", new Vector2(280, contentHeight), ImGuiChildFlags.Borders);
+            RenderItemGrid(ctx, inv);
+            ImGui.EndChild();
 
+            ImGui.SameLine();
+
+            // Right: Selected item details
+            ImGui.BeginChild("ItemDetails", new Vector2(0, contentHeight), ImGuiChildFlags.Borders);
+            RenderItemDetails(ctx, inv);
             ImGui.EndChild();
 
             // Close button
@@ -102,289 +112,638 @@ public class InventoryOverlay
         return shouldClose;
     }
 
-    private void RenderAllItems(Inventory inv)
+    private void RenderWeightBar(Inventory inv)
     {
-        // Resources
-        RenderResourceSection(inv, "Fuel", ResourceCategory.Fuel);
-        RenderResourceSection(inv, "Food", ResourceCategory.Food);
-        RenderResourceSection(inv, "Medicine", ResourceCategory.Medicine);
-        RenderResourceSection(inv, "Materials", ResourceCategory.Material);
+        float weightPct = (float)(inv.CurrentWeightKg / inv.MaxWeightKg);
+        Vector4 weightColor = weightPct > 0.9f
+            ? new Vector4(1f, 0.3f, 0.3f, 1f)
+            : weightPct > 0.7f
+                ? new Vector4(1f, 0.8f, 0.3f, 1f)
+                : new Vector4(0.7f, 0.9f, 0.7f, 1f);
 
-        // Water
-        if (inv.WaterLiters > 0)
-        {
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), "Water");
-            ImGui.Text($"  {inv.WaterLiters:F1} liters");
-        }
-
-        // Tools summary
-        if (inv.Tools.Count > 0)
-        {
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.6f, 1f), $"Tools ({inv.Tools.Count})");
-        }
-
-        // Equipment summary
-        var equippedCount = inv.Equipment.Values.Count(e => e != null);
-        if (equippedCount > 0 || inv.Weapon != null)
-        {
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.9f, 1f), "Equipment");
-            if (inv.Weapon != null)
-                ImGui.Text($"  Weapon: {inv.Weapon.Name}");
-            ImGui.Text($"  {equippedCount}/5 slots equipped");
-        }
+        ImGui.TextColored(weightColor, $"Carrying: {inv.CurrentWeightKg:F1} / {inv.MaxWeightKg:F1} kg");
+        ImGui.ProgressBar(weightPct, new Vector2(-1, 0), "");
     }
 
-    private void RenderResourceSection(Inventory inv, string label, ResourceCategory category)
+    private void RenderCategoryButtons(Inventory inv)
     {
-        var resources = ResourceCategories.Items[category]
-            .Where(r => inv.Count(r) > 0)
-            .ToList();
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6, 3));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4, 4));
 
-        if (resources.Count == 0) return;
-
-        ImGui.Separator();
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), label);
-
-        foreach (var resource in resources)
+        foreach (var category in Categories)
         {
-            int count = inv.Count(resource);
-            double weight = inv.Weight(resource);
-            string name = resource.ToDisplayName();
-            ImGui.Text($"  {name}: {count} ({weight:F2} kg)");
-        }
-    }
+            bool selected = _selectedCategory == category;
+            int count = GetCategoryItemCount(inv, category);
 
-    private void RenderFuelItems(Inventory inv)
-    {
-        ImGui.Text("Fuel & Tinder");
-        ImGui.Separator();
+            Vector4 buttonColor;
+            if (selected)
+                buttonColor = new Vector4(0.3f, 0.5f, 0.8f, 1f);
+            else if (count > 0)
+                buttonColor = new Vector4(0.3f, 0.5f, 0.3f, 1f);
+            else
+                buttonColor = new Vector4(0.3f, 0.3f, 0.3f, 1f);
 
-        foreach (var resource in ResourceCategories.Items[ResourceCategory.Fuel])
-        {
-            int count = inv.Count(resource);
-            if (count > 0)
+            ImGui.PushStyleColor(ImGuiCol.Button, buttonColor);
+
+            if (ImGui.Button(category))
             {
-                double weight = inv.Weight(resource);
-                string name = resource.ToDisplayName();
-                ImGui.Text($"{name}: {count} ({weight:F2} kg)");
+                _selectedCategory = category;
+                _selectedItem = null;
             }
+
+            ImGui.PopStyleColor();
+            ImGui.SameLine();
         }
 
-        // Tinder (separate category but related)
-        ImGui.Separator();
-        ImGui.Text("Tinder:");
-        foreach (var resource in ResourceCategories.Items[ResourceCategory.Tinder])
-        {
-            int count = inv.Count(resource);
-            if (count > 0)
-            {
-                string name = resource.ToDisplayName();
-                ImGui.Text($"  {name}: {count}");
-            }
-        }
+        ImGui.PopStyleVar(2);
+        ImGui.NewLine();
     }
 
-    private void RenderFoodItems(Inventory inv)
+    private static int GetCategoryItemCount(Inventory inv, string category) => category switch
     {
-        ImGui.Text("Food & Water");
-        ImGui.Separator();
+        "All" => GetTotalItemCount(inv),
+        "Food" => ResourceCategories.Items[ResourceCategory.Food].Count(r => inv.Count(r) > 0) + (inv.WaterLiters > 0 ? 1 : 0),
+        "Fuel" => ResourceCategories.Items[ResourceCategory.Fuel].Count(r => inv.Count(r) > 0)
+               + ResourceCategories.Items[ResourceCategory.Tinder].Count(r => inv.Count(r) > 0),
+        "Medicine" => ResourceCategories.Items[ResourceCategory.Medicine].Count(r => inv.Count(r) > 0),
+        "Material" => ResourceCategories.Items[ResourceCategory.Material].Count(r => inv.Count(r) > 0),
+        "Gear" => inv.Tools.Count + inv.Equipment.Values.Count(e => e != null) + inv.Accessories.Count + (inv.Weapon != null ? 1 : 0),
+        _ => 0
+    };
 
-        // Water
-        if (inv.WaterLiters > 0)
-        {
-            ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), $"Water: {inv.WaterLiters:F1} L");
-        }
-        else
-        {
-            ImGui.TextDisabled("No water");
-        }
-
-        ImGui.Separator();
-
-        // Food items
-        bool hasFood = false;
-        foreach (var resource in ResourceCategories.Items[ResourceCategory.Food])
-        {
-            int count = inv.Count(resource);
-            if (count > 0)
-            {
-                hasFood = true;
-                double weight = inv.Weight(resource);
-                string name = resource.ToDisplayName();
-
-                // Color code food types
-                Vector4 color = resource switch
-                {
-                    Resource.RawMeat => new Vector4(0.9f, 0.6f, 0.6f, 1f),
-                    Resource.CookedMeat => new Vector4(0.8f, 0.7f, 0.5f, 1f),
-                    Resource.DriedMeat => new Vector4(0.7f, 0.6f, 0.5f, 1f),
-                    Resource.Berries or Resource.DriedBerries => new Vector4(0.8f, 0.5f, 0.8f, 1f),
-                    _ => new Vector4(0.8f, 0.8f, 0.7f, 1f)
-                };
-
-                ImGui.TextColored(color, $"{name}: {count} ({weight:F2} kg)");
-            }
-        }
-
-        if (!hasFood)
-        {
-            ImGui.TextDisabled("No food");
-        }
+    private static int GetTotalItemCount(Inventory inv)
+    {
+        int count = 0;
+        foreach (var cat in ResourceCategories.Items.Values)
+            count += cat.Count(r => inv.Count(r) > 0);
+        if (inv.WaterLiters > 0) count++;
+        count += inv.Tools.Count;
+        count += inv.Equipment.Values.Count(e => e != null);
+        count += inv.Accessories.Count;
+        if (inv.Weapon != null) count++;
+        return count;
     }
 
-    private void RenderMedicineItems(Inventory inv)
+    private void RenderItemGrid(GameContext ctx, Inventory inv)
     {
-        ImGui.Text("Medicine");
-        ImGui.Separator();
+        var items = GetItemsForCategory(inv, _selectedCategory);
 
-        bool hasMedicine = false;
-        foreach (var resource in ResourceCategories.Items[ResourceCategory.Medicine])
+        if (items.Count == 0)
         {
-            int count = inv.Count(resource);
-            if (count > 0)
-            {
-                hasMedicine = true;
-                string name = resource.ToDisplayName();
-                ImGui.Text($"{name}: {count}");
-            }
-        }
-
-        if (!hasMedicine)
-        {
-            ImGui.TextDisabled("No medicine");
-        }
-    }
-
-    private void RenderMaterialItems(Inventory inv)
-    {
-        ImGui.Text("Crafting Materials");
-        ImGui.Separator();
-
-        bool hasMaterials = false;
-        foreach (var resource in ResourceCategories.Items[ResourceCategory.Material])
-        {
-            int count = inv.Count(resource);
-            if (count > 0)
-            {
-                hasMaterials = true;
-                double weight = inv.Weight(resource);
-                string name = resource.ToDisplayName();
-                ImGui.Text($"{name}: {count} ({weight:F2} kg)");
-            }
-        }
-
-        if (!hasMaterials)
-        {
-            ImGui.TextDisabled("No materials");
-        }
-    }
-
-    private void RenderTools(Inventory inv)
-    {
-        ImGui.Text("Tools");
-        ImGui.Separator();
-
-        if (inv.Tools.Count == 0)
-        {
-            ImGui.TextDisabled("No tools");
+            ImGui.TextDisabled("No items in this category.");
             return;
         }
 
-        foreach (var tool in inv.Tools)
+        // Tile layout
+        float windowWidth = ImGui.GetContentRegionAvail().X;
+        float tileWidth = 85;
+        float tileHeight = 55;
+        float spacing = 6;
+        int tilesPerRow = Math.Max(1, (int)((windowWidth + spacing) / (tileWidth + spacing)));
+
+        int col = 0;
+        foreach (var item in items)
         {
-            // Color based on condition
-            Vector4 color = tool.ConditionPct > 0.5
-                ? new Vector4(0.8f, 0.8f, 0.7f, 1f)
-                : tool.ConditionPct > 0.25
-                    ? new Vector4(1f, 0.8f, 0.3f, 1f)
-                    : new Vector4(1f, 0.4f, 0.4f, 1f);
+            if (col > 0)
+                ImGui.SameLine(0, spacing);
 
-            ImGui.TextColored(color, $"{tool.Name}");
-            ImGui.SameLine();
-            ImGui.TextDisabled($"({tool.Weight:F1} kg, {tool.ConditionPct * 100:F0}%)");
-
-            // Tool properties
-            if (tool.IsWeapon)
+            bool isSelected = _selectedItem == item;
+            if (RenderItemTile(item, tileWidth, tileHeight, isSelected))
             {
-                ImGui.Text($"  Damage: {tool.Damage:F0}");
+                _selectedItem = item;
             }
-        }
 
-        // Active torch
-        if (inv.ActiveTorch != null)
-        {
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(1f, 0.7f, 0.3f, 1f), "Active Torch");
-            ImGui.Text($"  {inv.TorchBurnTimeRemainingMinutes:F0} minutes remaining");
+            col++;
+            if (col >= tilesPerRow)
+                col = 0;
         }
     }
 
-    private void RenderEquipment(Inventory inv)
+    private static List<InventoryItem> GetItemsForCategory(Inventory inv, string category)
     {
-        ImGui.Text("Equipment");
-        ImGui.Separator();
+        var items = new List<InventoryItem>();
 
-        // Weapon
-        ImGui.TextColored(new Vector4(0.9f, 0.7f, 0.7f, 1f), "Weapon:");
+        switch (category)
+        {
+            case "All":
+                AddResourceItems(inv, ResourceCategory.Food, items);
+                if (inv.WaterLiters > 0)
+                    items.Add(new InventoryItem.WaterItem(inv.WaterLiters));
+                AddResourceItems(inv, ResourceCategory.Fuel, items);
+                AddResourceItems(inv, ResourceCategory.Tinder, items);
+                AddResourceItems(inv, ResourceCategory.Medicine, items);
+                AddResourceItems(inv, ResourceCategory.Material, items);
+                AddGearItems(inv, items);
+                break;
+
+            case "Food":
+                AddResourceItems(inv, ResourceCategory.Food, items);
+                if (inv.WaterLiters > 0)
+                    items.Add(new InventoryItem.WaterItem(inv.WaterLiters));
+                break;
+
+            case "Fuel":
+                AddResourceItems(inv, ResourceCategory.Fuel, items);
+                AddResourceItems(inv, ResourceCategory.Tinder, items);
+                break;
+
+            case "Medicine":
+                AddResourceItems(inv, ResourceCategory.Medicine, items);
+                break;
+
+            case "Material":
+                AddResourceItems(inv, ResourceCategory.Material, items);
+                break;
+
+            case "Gear":
+                AddGearItems(inv, items);
+                break;
+        }
+
+        return items;
+    }
+
+    private static void AddResourceItems(Inventory inv, ResourceCategory category, List<InventoryItem> items)
+    {
+        foreach (var resource in ResourceCategories.Items[category])
+        {
+            int count = inv.Count(resource);
+            if (count > 0)
+            {
+                double weight = inv.Weight(resource);
+                items.Add(new InventoryItem.ResourceItem(resource, count, weight));
+            }
+        }
+    }
+
+    private static void AddGearItems(Inventory inv, List<InventoryItem> items)
+    {
+        // Weapon first
         if (inv.Weapon != null)
+            items.Add(new InventoryItem.WeaponItem(inv.Weapon));
+
+        // Equipment
+        foreach (var (slot, gear) in inv.Equipment)
         {
-            ImGui.SameLine();
-            ImGui.Text($"{inv.Weapon.Name} (Dmg: {inv.Weapon.Damage:F0})");
-        }
-        else
-        {
-            ImGui.SameLine();
-            ImGui.TextDisabled("None");
+            if (gear != null)
+                items.Add(new InventoryItem.EquipmentItem(gear, slot));
         }
 
-        ImGui.Separator();
-        ImGui.Text("Armor Slots:");
-
-        // Equipment slots
-        RenderEquipSlot(inv, EquipSlot.Head, "Head");
-        RenderEquipSlot(inv, EquipSlot.Chest, "Chest");
-        RenderEquipSlot(inv, EquipSlot.Legs, "Legs");
-        RenderEquipSlot(inv, EquipSlot.Feet, "Feet");
-        RenderEquipSlot(inv, EquipSlot.Hands, "Hands");
-
-        // Totals
-        ImGui.Separator();
-        ImGui.Text($"Total Insulation: {inv.TotalInsulation:F1}");
-        ImGui.Text($"Total Armor Weight: {inv.TotalEquipmentWeightKg:F1} kg");
-        ImGui.Text($"Waterproofing: {inv.CalculateWaterproofingLevel() * 100:F0}%");
+        // Tools
+        foreach (var tool in inv.Tools)
+            items.Add(new InventoryItem.ToolItem(tool));
 
         // Accessories
-        if (inv.Accessories.Count > 0)
+        foreach (var acc in inv.Accessories)
+            items.Add(new InventoryItem.AccessoryItem(acc));
+    }
+
+    private bool RenderItemTile(InventoryItem item, float width, float height, bool isSelected)
+    {
+        bool clicked = false;
+        Vector4 bgColor = GetItemColor(item);
+
+        if (isSelected)
         {
-            ImGui.Separator();
-            ImGui.Text("Accessories:");
-            foreach (var acc in inv.Accessories)
-            {
-                ImGui.Text($"  {acc.Name} (+{acc.CapacityBonusKg} kg capacity)");
-            }
+            // Brighter for selected
+            bgColor = new Vector4(
+                Math.Min(1f, bgColor.X + 0.2f),
+                Math.Min(1f, bgColor.Y + 0.2f),
+                Math.Min(1f, bgColor.Z + 0.2f),
+                1f
+            );
+        }
+
+        ImGui.PushStyleColor(ImGuiCol.Button, bgColor);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, bgColor with { W = 1f });
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, bgColor with { X = bgColor.X + 0.1f });
+
+        // Use unique ID for each tile
+        string id = GetItemId(item);
+        if (ImGui.Button($"##{id}", new Vector2(width, height)))
+        {
+            clicked = true;
+        }
+
+        // Draw text overlays
+        var rectMin = ImGui.GetItemRectMin();
+        var drawList = ImGui.GetWindowDrawList();
+
+        uint textColor = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, 1f));
+        uint subtextColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.9f, 0.9f, 0.9f, 0.8f));
+
+        // Item name at top
+        string displayName = TruncateName(item.Name, 11);
+        drawList.AddText(rectMin + new Vector2(4, 4), textColor, displayName);
+
+        // Count/quantity and weight at bottom
+        string bottomText = GetBottomText(item);
+        drawList.AddText(rectMin + new Vector2(4, height - 18), subtextColor, bottomText);
+
+        // Condition indicator for gear
+        if (item is InventoryItem.ToolItem t)
+            RenderConditionBar(drawList, rectMin, width, height, t.Tool.ConditionPct);
+        else if (item is InventoryItem.EquipmentItem e)
+            RenderConditionBar(drawList, rectMin, width, height, e.Equipment.ConditionPct);
+        else if (item is InventoryItem.WeaponItem w)
+            RenderConditionBar(drawList, rectMin, width, height, w.Weapon.ConditionPct);
+
+        ImGui.PopStyleColor(3);
+
+        return clicked;
+    }
+
+    private static void RenderConditionBar(ImDrawListPtr drawList, Vector2 rectMin, float width, float height, double condition)
+    {
+        // Small bar at the bottom of the tile
+        float barHeight = 3;
+        float barWidth = (width - 8) * (float)condition;
+
+        Vector4 barColor = condition > 0.5
+            ? new Vector4(0.4f, 0.8f, 0.4f, 0.9f)
+            : condition > 0.25
+                ? new Vector4(0.9f, 0.7f, 0.2f, 0.9f)
+                : new Vector4(0.9f, 0.3f, 0.3f, 0.9f);
+
+        var barStart = rectMin + new Vector2(4, height - 5);
+        var barEnd = barStart + new Vector2(barWidth, barHeight);
+
+        drawList.AddRectFilled(barStart, barEnd, ImGui.ColorConvertFloat4ToU32(barColor));
+    }
+
+    private static string GetItemId(InventoryItem item) => item switch
+    {
+        InventoryItem.ResourceItem r => $"res_{r.Resource}",
+        InventoryItem.WaterItem => "water",
+        InventoryItem.ToolItem t => $"tool_{t.Tool.Name}_{t.Tool.GetHashCode()}",
+        InventoryItem.EquipmentItem e => $"equip_{e.Slot}",
+        InventoryItem.AccessoryItem a => $"acc_{a.Accessory.Name}_{a.Accessory.GetHashCode()}",
+        InventoryItem.WeaponItem w => $"weapon_{w.Weapon.Name}",
+        _ => "unknown"
+    };
+
+    private static string GetBottomText(InventoryItem item) => item switch
+    {
+        InventoryItem.ResourceItem r => r.Count > 1 ? $"x{r.Count} {r.WeightKg:F1}kg" : $"{r.WeightKg:F2}kg",
+        InventoryItem.WaterItem w => $"{w.Liters:F1} L",
+        InventoryItem.ToolItem t => $"{t.Tool.Weight:F1}kg",
+        InventoryItem.EquipmentItem e => $"{e.Equipment.Weight:F1}kg",
+        InventoryItem.AccessoryItem a => $"+{a.Accessory.CapacityBonusKg}kg cap",
+        InventoryItem.WeaponItem w => $"{w.Weapon.Weight:F1}kg",
+        _ => ""
+    };
+
+    private static Vector4 GetItemColor(InventoryItem item) => item switch
+    {
+        InventoryItem.ResourceItem r => GetResourceColor(r.Resource),
+        InventoryItem.WaterItem => new Vector4(0.3f, 0.5f, 0.8f, 0.85f),      // Blue
+        InventoryItem.ToolItem => new Vector4(0.6f, 0.55f, 0.4f, 0.85f),      // Tan
+        InventoryItem.EquipmentItem => new Vector4(0.5f, 0.5f, 0.65f, 0.85f), // Blue-gray
+        InventoryItem.AccessoryItem => new Vector4(0.55f, 0.45f, 0.5f, 0.85f),// Mauve
+        InventoryItem.WeaponItem => new Vector4(0.65f, 0.4f, 0.4f, 0.85f),    // Red-brown
+        _ => new Vector4(0.4f, 0.4f, 0.4f, 0.85f)
+    };
+
+    private static Vector4 GetResourceColor(Resource resource)
+    {
+        var category = resource.GetCategory();
+        return category switch
+        {
+            ResourceCategory.Fuel => new Vector4(0.55f, 0.4f, 0.25f, 0.85f),     // Brown
+            ResourceCategory.Food => new Vector4(0.35f, 0.55f, 0.35f, 0.85f),    // Green
+            ResourceCategory.Medicine => new Vector4(0.5f, 0.35f, 0.55f, 0.85f), // Purple
+            ResourceCategory.Material => new Vector4(0.45f, 0.5f, 0.55f, 0.85f), // Blue-gray
+            ResourceCategory.Tinder => new Vector4(0.6f, 0.45f, 0.3f, 0.85f),    // Orange-brown
+            _ => new Vector4(0.4f, 0.4f, 0.4f, 0.85f)
+        };
+    }
+
+    private void RenderItemDetails(GameContext ctx, Inventory inv)
+    {
+        if (_selectedItem == null)
+        {
+            ImGui.TextDisabled("Select an item to see details.");
+            return;
+        }
+
+        switch (_selectedItem)
+        {
+            case InventoryItem.ResourceItem r:
+                RenderResourceDetails(ctx, inv, r);
+                break;
+            case InventoryItem.WaterItem w:
+                RenderWaterDetails(ctx, inv, w);
+                break;
+            case InventoryItem.ToolItem t:
+                RenderToolDetails(ctx, inv, t);
+                break;
+            case InventoryItem.EquipmentItem e:
+                RenderEquipmentDetails(ctx, inv, e);
+                break;
+            case InventoryItem.AccessoryItem a:
+                RenderAccessoryDetails(ctx, inv, a);
+                break;
+            case InventoryItem.WeaponItem w:
+                RenderWeaponDetails(ctx, inv, w);
+                break;
         }
     }
 
-    private void RenderEquipSlot(Inventory inv, EquipSlot slot, string label)
+    private void RenderResourceDetails(GameContext ctx, Inventory inv, InventoryItem.ResourceItem item)
     {
-        var gear = inv.GetEquipment(slot);
-        ImGui.Text($"  {label}:");
+        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), item.Name);
+        ImGui.Separator();
+
+        ImGui.Text($"Quantity: {item.Count}");
+        ImGui.Text($"Total Weight: {item.WeightKg:F2} kg");
+        ImGui.Text($"Per item: {item.WeightKg / item.Count:F3} kg");
+
+        var category = item.Resource.GetCategory();
+        ImGui.Text($"Category: {category}");
+
+        ImGui.Separator();
+
+        // Resource-specific info
+        if (category == ResourceCategory.Food)
+        {
+            RenderFoodInfo(item.Resource);
+            ImGui.Separator();
+
+            // Eat action
+            if (ImGui.Button("Eat", new Vector2(-1, 28)))
+            {
+                // Consume one unit
+                inv.Remove(item.Resource, 1);
+                ApplyFoodEffect(ctx, item.Resource);
+                _message = $"Ate {item.Resource.ToDisplayName()}";
+                _messageTimer = 2f;
+
+                // Update selection if depleted
+                if (inv.Count(item.Resource) == 0)
+                    _selectedItem = null;
+            }
+        }
+        else if (category == ResourceCategory.Medicine)
+        {
+            ImGui.TextWrapped("Medical item. Use at camp to treat injuries.");
+        }
+
+        // Drop action
+        ImGui.Spacing();
+        if (ImGui.Button("Drop 1", new Vector2(ImGui.GetContentRegionAvail().X / 2 - 4, 28)))
+        {
+            inv.Remove(item.Resource, 1);
+            _message = $"Dropped 1 {item.Resource.ToDisplayName()}";
+            _messageTimer = 2f;
+            if (inv.Count(item.Resource) == 0)
+                _selectedItem = null;
+        }
         ImGui.SameLine();
-        if (gear != null)
+        if (ImGui.Button("Drop All", new Vector2(-1, 28)))
         {
-            Vector4 color = gear.ConditionPct > 0.5
-                ? new Vector4(0.7f, 0.8f, 0.7f, 1f)
-                : gear.ConditionPct > 0.25
-                    ? new Vector4(1f, 0.8f, 0.3f, 1f)
-                    : new Vector4(1f, 0.4f, 0.4f, 1f);
-            ImGui.TextColored(color, $"{gear.Name} ({gear.ConditionPct * 100:F0}%)");
+            inv.Remove(item.Resource, item.Count);
+            _message = $"Dropped all {item.Resource.ToDisplayName()}";
+            _messageTimer = 2f;
+            _selectedItem = null;
         }
-        else
+    }
+
+    private static void RenderFoodInfo(Resource resource)
+    {
+        // Approximate calorie values
+        int calories = resource switch
         {
-            ImGui.TextDisabled("Empty");
+            Resource.RawMeat => 800,
+            Resource.CookedMeat => 900,
+            Resource.DriedMeat => 1000,
+            Resource.Berries => 50,
+            Resource.DriedBerries => 80,
+            Resource.Nuts => 200,
+            Resource.Roots => 100,
+            Resource.Grubs => 50,
+            Resource.Eggs => 150,
+            Resource.Fish => 400,
+            Resource.CookedFish => 450,
+            Resource.DriedFish => 500,
+            _ => 0
+        };
+
+        if (calories > 0)
+            ImGui.Text($"Calories: ~{calories} per unit");
+
+        // Warnings for raw food
+        if (resource == Resource.RawMeat)
+            ImGui.TextColored(new Vector4(1f, 0.6f, 0.4f, 1f), "Raw - risk of illness");
+    }
+
+    private static void ApplyFoodEffect(GameContext ctx, Resource resource)
+    {
+        // Basic calorie restoration - actual system may be more complex
+        int calories = resource switch
+        {
+            Resource.RawMeat => 800,
+            Resource.CookedMeat => 900,
+            Resource.DriedMeat => 1000,
+            Resource.Berries => 50,
+            Resource.DriedBerries => 80,
+            Resource.Nuts => 200,
+            Resource.Roots => 100,
+            Resource.Grubs => 50,
+            Resource.Eggs => 150,
+            Resource.Fish => 400,
+            Resource.CookedFish => 450,
+            Resource.DriedFish => 500,
+            _ => 0
+        };
+
+        ctx.Player.Body.Calories += calories;
+    }
+
+    private void RenderWaterDetails(GameContext ctx, Inventory inv, InventoryItem.WaterItem item)
+    {
+        ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), "Water");
+        ImGui.Separator();
+
+        ImGui.Text($"Amount: {item.Liters:F1} liters");
+        ImGui.Text($"Weight: {item.Liters:F1} kg");
+
+        ImGui.Separator();
+        ImGui.TextWrapped("Essential for survival. Drink regularly to stay hydrated.");
+
+        ImGui.Separator();
+
+        // Drink action
+        if (ImGui.Button("Drink", new Vector2(-1, 28)))
+        {
+            double amount = Math.Min(0.5, inv.WaterLiters);
+            inv.WaterLiters -= amount;
+            ctx.Player.Body.Hydration += amount * 500; // Rough hydration value
+            _message = $"Drank {amount:F1}L water";
+            _messageTimer = 2f;
+
+            if (inv.WaterLiters <= 0)
+                _selectedItem = null;
         }
+    }
+
+    private void RenderToolDetails(GameContext ctx, Inventory inv, InventoryItem.ToolItem item)
+    {
+        var tool = item.Tool;
+
+        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), tool.Name);
+        ImGui.Separator();
+
+        ImGui.Text($"Weight: {tool.Weight:F1} kg");
+
+        // Condition bar
+        ImGui.Text("Condition:");
+        ImGui.SameLine();
+        Vector4 condColor = tool.ConditionPct > 0.5
+            ? new Vector4(0.4f, 0.8f, 0.4f, 1f)
+            : tool.ConditionPct > 0.25
+                ? new Vector4(0.9f, 0.7f, 0.2f, 1f)
+                : new Vector4(0.9f, 0.3f, 0.3f, 1f);
+        ImGui.TextColored(condColor, $"{tool.ConditionPct * 100:F0}%");
+        ImGui.ProgressBar((float)tool.ConditionPct, new Vector2(-1, 0), "");
+
+        if (tool.Durability > 0)
+            ImGui.Text($"Uses remaining: {tool.Durability}");
+
+        ImGui.Text($"Type: {tool.ToolType}");
+
+        if (tool.IsWeapon)
+        {
+            ImGui.Separator();
+            ImGui.Text($"Damage: {tool.Damage:F0}");
+
+            // Equip as weapon option
+            if (inv.Weapon != tool)
+            {
+                if (ImGui.Button("Equip as Weapon", new Vector2(-1, 28)))
+                {
+                    inv.EquipWeapon(tool);
+                    _message = $"Equipped {tool.Name}";
+                    _messageTimer = 2f;
+                }
+            }
+        }
+
+        ImGui.Separator();
+
+        // Drop action
+        if (ImGui.Button("Drop", new Vector2(-1, 28)))
+        {
+            inv.Tools.Remove(tool);
+            _message = $"Dropped {tool.Name}";
+            _messageTimer = 2f;
+            _selectedItem = null;
+        }
+    }
+
+    private void RenderEquipmentDetails(GameContext ctx, Inventory inv, InventoryItem.EquipmentItem item)
+    {
+        var gear = item.Equipment;
+
+        ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), gear.Name);
+        ImGui.Separator();
+
+        ImGui.Text($"Slot: {item.Slot}");
+        ImGui.Text($"Weight: {gear.Weight:F1} kg");
+
+        // Condition
+        ImGui.Text("Condition:");
+        ImGui.SameLine();
+        Vector4 condColor = gear.ConditionPct > 0.5
+            ? new Vector4(0.4f, 0.8f, 0.4f, 1f)
+            : gear.ConditionPct > 0.25
+                ? new Vector4(0.9f, 0.7f, 0.2f, 1f)
+                : new Vector4(0.9f, 0.3f, 0.3f, 1f);
+        ImGui.TextColored(condColor, $"{gear.ConditionPct * 100:F0}%");
+        ImGui.ProgressBar((float)gear.ConditionPct, new Vector2(-1, 0), "");
+
+        ImGui.Separator();
+        ImGui.Text($"Insulation: {gear.Insulation:F1}");
+        ImGui.Text($"Effective: {gear.EffectiveInsulation:F1}");
+        if (gear.Waterproofing > 0)
+            ImGui.Text($"Waterproofing: {gear.Waterproofing * 100:F0}%");
+
+        ImGui.Separator();
+
+        // Unequip action
+        if (ImGui.Button("Unequip", new Vector2(-1, 28)))
+        {
+            inv.Unequip(item.Slot);
+            _message = $"Unequipped {gear.Name}";
+            _messageTimer = 2f;
+            _selectedItem = null;
+        }
+    }
+
+    private void RenderAccessoryDetails(GameContext ctx, Inventory inv, InventoryItem.AccessoryItem item)
+    {
+        var acc = item.Accessory;
+
+        ImGui.TextColored(new Vector4(0.8f, 0.7f, 0.8f, 1f), acc.Name);
+        ImGui.Separator();
+
+        ImGui.Text($"Weight: {acc.Weight:F1} kg");
+        ImGui.Text($"Capacity Bonus: +{acc.CapacityBonusKg:F1} kg");
+
+        ImGui.Separator();
+        ImGui.TextWrapped("Increases carrying capacity.");
+
+        ImGui.Separator();
+
+        // Remove action
+        if (ImGui.Button("Remove", new Vector2(-1, 28)))
+        {
+            inv.Accessories.Remove(acc);
+            _message = $"Removed {acc.Name}";
+            _messageTimer = 2f;
+            _selectedItem = null;
+        }
+    }
+
+    private void RenderWeaponDetails(GameContext ctx, Inventory inv, InventoryItem.WeaponItem item)
+    {
+        var weapon = item.Weapon;
+
+        ImGui.TextColored(new Vector4(0.9f, 0.6f, 0.6f, 1f), weapon.Name);
+        ImGui.Text("(Equipped Weapon)");
+        ImGui.Separator();
+
+        ImGui.Text($"Weight: {weapon.Weight:F1} kg");
+        ImGui.Text($"Damage: {weapon.Damage:F0}");
+
+        // Condition
+        ImGui.Text("Condition:");
+        ImGui.SameLine();
+        Vector4 condColor = weapon.ConditionPct > 0.5
+            ? new Vector4(0.4f, 0.8f, 0.4f, 1f)
+            : weapon.ConditionPct > 0.25
+                ? new Vector4(0.9f, 0.7f, 0.2f, 1f)
+                : new Vector4(0.9f, 0.3f, 0.3f, 1f);
+        ImGui.TextColored(condColor, $"{weapon.ConditionPct * 100:F0}%");
+        ImGui.ProgressBar((float)weapon.ConditionPct, new Vector2(-1, 0), "");
+
+        if (weapon.Durability > 0)
+            ImGui.Text($"Uses remaining: {weapon.Durability}");
+
+        ImGui.Separator();
+
+        // Unequip action
+        if (ImGui.Button("Unequip Weapon", new Vector2(-1, 28)))
+        {
+            inv.UnequipWeapon();
+            _message = $"Unequipped {weapon.Name}";
+            _messageTimer = 2f;
+            _selectedItem = null;
+        }
+    }
+
+    private static string TruncateName(string name, int maxLen)
+    {
+        if (name.Length <= maxLen) return name;
+        return name[..(maxLen - 2)] + "..";
     }
 }
