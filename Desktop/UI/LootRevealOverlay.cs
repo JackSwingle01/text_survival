@@ -48,7 +48,7 @@ public class LootRevealOverlay
             {
                 if (_revealedCount < _items.Count)
                 {
-                    _totalWeightKg += _items[_revealedCount].WeightKg;
+                    _totalWeightKg += (float)_items[_revealedCount].WeightKg;
                     _revealedCount++;
                     _revealTimer = RevealDelaySeconds;
                 }
@@ -144,33 +144,28 @@ public class LootRevealOverlay
     private void RenderItemTile(LootItem item, float width, float height)
     {
         Vector4 bgColor = GetCategoryColor(item.Category);
-        Vector4 textColor = new(1f, 1f, 1f, 1f);
 
         ImGui.PushStyleColor(ImGuiCol.Button, bgColor);
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, bgColor);
         ImGui.PushStyleColor(ImGuiCol.ButtonActive, bgColor);
 
-        // Use button as tile container
-        ImGui.BeginGroup();
-
-        var cursorStart = ImGui.GetCursorPos();
-
-        // Background tile
+        // Background tile button
         ImGui.Button("##tile" + item.Name, new Vector2(width, height));
 
-        // Overlay text
-        ImGui.SetCursorPos(cursorStart + new Vector2(5, 5));
-        ImGui.TextColored(textColor, TruncateName(item.Name, 12));
+        // Get button rect for text overlay positioning
+        var rectMin = ImGui.GetItemRectMin();
+        var drawList = ImGui.GetWindowDrawList();
 
-        ImGui.SetCursorPos(cursorStart + new Vector2(5, height - 20));
+        // Draw item name at top
+        uint textColor = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, 1f));
+        drawList.AddText(rectMin + new Vector2(5, 5), textColor, TruncateName(item.Name, 12));
+
+        // Draw count/weight at bottom
         string countWeight = item.Count > 1
             ? $"x{item.Count} ({item.WeightKg:F1}kg)"
             : $"{item.WeightKg:F2}kg";
-        ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.9f, 0.8f), countWeight);
-
-        ImGui.SetCursorPos(cursorStart + new Vector2(0, height));
-
-        ImGui.EndGroup();
+        uint subtextColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.9f, 0.9f, 0.9f, 0.8f));
+        drawList.AddText(rectMin + new Vector2(5, height - 20), subtextColor, countWeight);
 
         ImGui.PopStyleColor(3);
     }
