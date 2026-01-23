@@ -354,12 +354,8 @@ public class ForageStrategy : IWorkStrategy
             InventoryCapacityHelper.CombineAndReport(ctx, found);
             collected.Add(found.GetDescription());
 
-            // If items weren't shown during progress (fallback path), show them now
-            if (!itemsAlreadyShown)
-            {
-                DesktopIO.ShowLootReveal(ctx, found);
-            }
-            // Otherwise items were already revealed during progress bar - no extra UI needed
+            // Show loot summary
+            DesktopIO.ShowLootReveal(ctx, found);
         }
 
         // Handle Game clues - apply hunt bonus to territory

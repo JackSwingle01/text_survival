@@ -22,16 +22,16 @@ public class LootRevealOverlay
     private const float InitialDelaySeconds = 0.2f;  // Pause before first item
 
     /// <summary>
-    /// Initialize the overlay with items to reveal.
+    /// Initialize the overlay with items to display (all shown immediately).
     /// </summary>
     public void SetItems(List<LootItem> items)
     {
         _items = items;
-        _revealedCount = 0;
-        _revealTimer = InitialDelaySeconds;
-        _totalWeightKg = 0;
-        _allRevealed = items.Count == 0;
         _shouldClose = false;
+        _revealedCount = items.Count;
+        _revealTimer = 0;
+        _totalWeightKg = (float)items.Sum(i => i.WeightKg);
+        _allRevealed = true;
     }
 
     /// <summary>
