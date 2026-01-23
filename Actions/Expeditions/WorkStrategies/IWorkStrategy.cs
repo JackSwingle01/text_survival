@@ -49,4 +49,12 @@ public interface IWorkStrategy
     /// Returns the work result (collected items, discovered locations).
     /// </summary>
     WorkResult Execute(GameContext ctx, Location location, int actualTime);
+
+    /// <summary>
+    /// Optional: Run custom progress handling instead of the standard progress bar.
+    /// Return null to use standard progress. Return (elapsed, interrupted) to skip standard progress.
+    /// Used for activities that need special UI during progress (e.g., foraging with loot reveals).
+    /// </summary>
+    (int elapsed, bool interrupted)? RunCustomProgress(GameContext ctx, Location location, int minutes)
+        => null;
 }

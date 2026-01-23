@@ -30,6 +30,10 @@ public class ForageStrategy : IWorkStrategy
     private bool _cancelled;
     private List<string> _impairmentWarnings = [];
 
+    // Pre-calculated loot from RunCustomProgress (shown during progress bar)
+    private Inventory? _preCalculatedFound;
+    private List<LootItem>? _lootItems;
+
     public string? ValidateLocation(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<ForageFeature>();
@@ -215,6 +219,61 @@ public class ForageStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => true;
 
+    /// <summary>
+    /// Custom progress: pre-calculate foraged items and reveal during progress bar.
+    /// </summary>
+    public (int elapsed, bool interrupted)? RunCustomProgress(GameContext ctx, Location location, int minutes)
+    {
+        if (_cancelled)
+            return (0, false);
+
+        var feature = location.GetFeature<ForageFeature>();
+        if (feature == null)
+            return null; // Fall back to standard progress
+
+        // Pre-calculate what will be found
+        double hours = minutes / 60.0;
+        var found = feature.Forage(hours);
+
+        // Apply focus to results
+        FocusProcessor.ApplyFocus(found, _focus, _followedClue);
+
+        // Apply negative clue yield modifier
+        var negativeClue = _clues?.FirstOrDefault(c => c.Category == ClueCategory.Negative);
+        if (negativeClue != null)
+        {
+            found.ApplyMultiplier(negativeClue.YieldModifier);
+        }
+
+        // Perception affects yield
+        double perception = AbilityCalculator.GetPerception(ctx.player, ctx);
+        if (perception < 1.0)
+        {
+            found.ApplyMultiplier(perception);
+        }
+
+        // Tool bonuses
+        var axe = ctx.Inventory.GetTool(ToolType.Axe);
+        if (axe?.Works == true)
+            found.ApplyMultiplier(1.10);
+
+        var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
+        if (shovel?.Works == true)
+            found.ApplyMultiplier(1.10);
+
+        // Store for Execute()
+        _preCalculatedFound = found;
+        _lootItems = found.GetLootItems();
+
+        // If nothing found, use standard progress (no loot to reveal)
+        if (_lootItems.Count == 0)
+            return null;
+
+        // Run progress with loot reveals
+        string statusText = "Foraging...";
+        return DesktopIO.RenderWithDurationAndLoot(ctx, statusText, minutes, GetActivityType(), _lootItems);
+    }
+
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
         // Early return if user cancelled
@@ -227,104 +286,80 @@ public class ForageStrategy : IWorkStrategy
         var narrative = new List<string>();
         var warnings = new List<string>();
 
-        // Narrative based on clue types or focus
-        if (_gameClue != null)
+        // Use pre-calculated items if available (shown during progress bar)
+        // Otherwise calculate fresh (fallback for standard progress path)
+        Inventory found;
+        bool itemsAlreadyShown = _preCalculatedFound != null;
+
+        if (itemsAlreadyShown)
         {
-            narrative.Add($"You follow the signs... {_gameClue.Description.ToLower()}");
-        }
-        else if (_scavengeClue != null)
-        {
-            narrative.Add($"You investigate... {_scavengeClue.Description.ToLower()}");
-        }
-        else if (_followedClue != null)
-        {
-            narrative.Add($"You follow the signs... {_followedClue.Description.ToLower()}");
-        }
-        else if (_focus != ForageFocus.General)
-        {
-            narrative.Add($"You search for {FocusProcessor.GetFocusDescription(_focus)}...");
+            found = _preCalculatedFound!;
         }
         else
         {
-            narrative.Add("You search the area for resources...");
+            // Fallback: calculate items now (standard progress was used)
+            found = feature.Forage(actualTime / 60.0);
+            FocusProcessor.ApplyFocus(found, _focus, _followedClue);
+
+            var negativeClue = _clues?.FirstOrDefault(c => c.Category == ClueCategory.Negative);
+            if (negativeClue != null)
+                found.ApplyMultiplier(negativeClue.YieldModifier);
+
+            double perception = AbilityCalculator.GetPerception(ctx.player, ctx);
+            if (perception < 1.0)
+                found.ApplyMultiplier(perception);
+
+            var axe = ctx.Inventory.GetTool(ToolType.Axe);
+            if (axe?.Works == true)
+                found.ApplyMultiplier(1.10);
+
+            var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
+            if (shovel?.Works == true)
+                found.ApplyMultiplier(1.10);
         }
 
-        var found = feature.Forage(actualTime / 60.0);
-
-        // Apply focus to results (self-contained in FocusProcessor)
-        FocusProcessor.ApplyFocus(found, _focus, _followedClue);
-
-        // Apply negative clue yield modifier
-        var negativeClue = _clues?.FirstOrDefault(c => c.Category == ClueCategory.Negative);
-        if (negativeClue != null)
+        // Check for perception warnings (always needed for UI)
+        double currentPerception = AbilityCalculator.GetPerception(ctx.player, ctx);
+        if (currentPerception < 1.0)
         {
-            found.ApplyMultiplier(negativeClue.YieldModifier);
-        }
-
-        // Perception affects yield - includes darkness, consciousness, vitality, and injury effects
-        double perception = AbilityCalculator.GetPerception(ctx.player, ctx);
-
-        // Apply perception as a direct multiplier (perception 1.0 = full yield, 0.5 = half yield)
-        if (perception < 1.0)
-        {
-            found.ApplyMultiplier(perception);
-
-            // Get context for warnings
             var abilityContext = AbilityContext.FromFullContext(
                 ctx.player, ctx.Inventory, ctx.player.CurrentLocation, ctx.GameTime.Hour);
 
-            // Contextual warning based on what's reducing perception
             if (abilityContext.DarknessLevel > 0.5 && !abilityContext.HasLightSource)
-            {
                 warnings.Add("The darkness limits what you can find.");
-            }
-            else if (perception < 0.7)
-            {
+            else if (currentPerception < 0.7)
                 warnings.Add("Your foggy senses cause you to miss some resources.");
-            }
         }
 
-        // Tool bonuses - help gather more efficiently (+10% each)
-        bool hasAxeBonus = false;
-        bool hasShovelBonus = false;
-
-        var axe = ctx.Inventory.GetTool(ToolType.Axe);
-        if (axe != null && axe.Works)
-        {
-            found.ApplyMultiplier(1.10);
-            hasAxeBonus = true;
-        }
-
-        var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
-        if (shovel != null && shovel.Works)
-        {
-            found.ApplyMultiplier(1.10);
-            hasShovelBonus = true;
-        }
-
-        // Tutorial: Tool bonus explanation (once per tool type)
-        if (hasAxeBonus)
+        // Tool tutorials
+        var axeTool = ctx.Inventory.GetTool(ToolType.Axe);
+        var shovelTool = ctx.Inventory.GetTool(ToolType.Shovel);
+        if (axeTool?.Works == true)
             ctx.ShowTutorialOnce("Your axe helps break branches and strip bark. (+10% yield)");
-        if (hasShovelBonus)
+        if (shovelTool?.Works == true)
             ctx.ShowTutorialOnce("Your shovel helps dig up roots and turn soil. (+10% yield)");
 
         var collected = new List<string>();
         string quality = feature.GetQualityDescription();
 
-        // Show loot reveal for found items (or empty message)
         if (found.IsEmpty)
         {
+            // Show failure message (items weren't shown during progress since there were none)
             string failureMessage = WorkRunner.GetForageFailureMessage(quality);
-            DesktopIO.ShowWorkResult(ctx, "Foraging", failureMessage, [], narrative, []);
+            DesktopIO.ShowWorkResult(ctx, "Foraging", failureMessage, [], [], []);
         }
         else
         {
-            // Add to inventory first
+            // Add to inventory
             InventoryCapacityHelper.CombineAndReport(ctx, found);
             collected.Add(found.GetDescription());
 
-            // Show staged loot reveal
-            DesktopIO.ShowLootReveal(ctx, found);
+            // If items weren't shown during progress (fallback path), show them now
+            if (!itemsAlreadyShown)
+            {
+                DesktopIO.ShowLootReveal(ctx, found);
+            }
+            // Otherwise items were already revealed during progress bar - no extra UI needed
         }
 
         // Handle Game clues - apply hunt bonus to territory
