@@ -21,4 +21,7 @@ public record WorkResult(
 
     public static WorkResult Died(int minutes) =>
         new([], null, minutes, true);
+
+    public static WorkResult Interrupted(int minutes) =>
+        new([], null, minutes, false);
 }

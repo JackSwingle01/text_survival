@@ -430,7 +430,7 @@ public static class BlockingDialog
         string statusText,
         int durationMinutes,
         ActivityType activity,
-        List<Items.LootItem> items)
+        List<LootItem> items)
     {
         // ~0.3 seconds per in-game minute, clamped to reasonable bounds
         float animDuration = Math.Clamp(durationMinutes * 0.3f, 1.0f, 30.0f);
@@ -580,13 +580,13 @@ public static class BlockingDialog
         return times;
     }
 
-    private static Vector4 GetCategoryColor(Items.ResourceCategory? category) => category switch
+    private static Vector4 GetCategoryColor(ResourceCategory? category) => category switch
     {
-        Items.ResourceCategory.Fuel => new Vector4(0.8f, 0.6f, 0.4f, 1f),      // Warm brown
-        Items.ResourceCategory.Food => new Vector4(0.5f, 0.8f, 0.5f, 1f),      // Green
-        Items.ResourceCategory.Medicine => new Vector4(0.7f, 0.5f, 0.8f, 1f),  // Purple
-        Items.ResourceCategory.Material => new Vector4(0.6f, 0.7f, 0.8f, 1f),  // Blue-gray
-        Items.ResourceCategory.Tinder => new Vector4(0.9f, 0.7f, 0.5f, 1f),    // Orange
+        ResourceCategory.Fuel => new Vector4(0.8f, 0.6f, 0.4f, 1f),      // Warm brown
+        ResourceCategory.Food => new Vector4(0.5f, 0.8f, 0.5f, 1f),      // Green
+        ResourceCategory.Medicine => new Vector4(0.7f, 0.5f, 0.8f, 1f),  // Purple
+        ResourceCategory.Material => new Vector4(0.6f, 0.7f, 0.8f, 1f),  // Blue-gray
+        ResourceCategory.Tinder => new Vector4(0.9f, 0.7f, 0.5f, 1f),    // Orange
         _ => new Vector4(0.7f, 0.7f, 0.7f, 1f)                                  // Gray
     };
 }
