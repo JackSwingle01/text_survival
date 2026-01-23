@@ -7,6 +7,7 @@ using text_survival.Desktop.Rendering;
 using text_survival.Desktop.UI;
 using text_survival.Desktop.Input;
 using text_survival.IO;
+using text_survival.Items;
 
 namespace text_survival.Desktop;
 
@@ -418,4 +419,174 @@ public static class BlockingDialog
 
         return (simulatedMinutes, false);
     }
+
+    /// <summary>
+    /// Show a progress dialog with loot items revealed during the activity.
+    /// Items appear after 20% progress, biased towards the end, with 1 second between each.
+    /// Returns (elapsed minutes, whether event interrupted).
+    /// </summary>
+    public static (int elapsed, bool interrupted) ShowProgressWithLoot(
+        GameContext ctx,
+        string statusText,
+        int durationMinutes,
+        ActivityType activity,
+        List<Items.LootItem> items)
+    {
+        // ~0.3 seconds per in-game minute, clamped to reasonable bounds
+        float animDuration = Math.Clamp(durationMinutes * 0.3f, 1.0f, 30.0f);
+        float elapsed = 0;
+        int simulatedMinutes = 0;
+
+        // Calculate reveal times for items (biased towards end, none in first 20%)
+        var revealTimes = CalculateRevealTimes(items.Count, animDuration);
+        int revealedCount = 0;
+        float totalWeight = 0;
+
+        while (simulatedMinutes < durationMinutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
+        {
+            float deltaTime = Raylib.GetFrameTime();
+            elapsed += deltaTime;
+
+            // Calculate how many minutes to simulate this frame
+            float minutesPerSecond = durationMinutes / animDuration;
+            int targetMinutes = Math.Min((int)(elapsed * minutesPerSecond), durationMinutes);
+
+            // Simulate any pending minutes
+            while (simulatedMinutes < targetMinutes && ctx.player.IsAlive)
+            {
+                ctx.Update(1, activity);
+                simulatedMinutes++;
+
+                // Check for event interruption
+                if (ctx.EventOccurredLastUpdate)
+                {
+                    return (simulatedMinutes, true);
+                }
+            }
+
+            // Check for item reveals
+            while (revealedCount < items.Count && elapsed >= revealTimes[revealedCount])
+            {
+                totalWeight += (float)items[revealedCount].WeightKg;
+                revealedCount++;
+            }
+
+            float progress = (float)simulatedMinutes / durationMinutes;
+
+            // Render frame
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+
+            UI.StatsPanel.Render(ctx);
+
+            // Progress dialog with loot
+            var io = ImGui.GetIO();
+            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
+                ImGuiCond.Always, new Vector2(0.5f, 0.5f));
+            ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+
+            ImGui.Begin("Activity", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
+
+            ImGui.TextWrapped(statusText);
+            ImGui.Spacing();
+            ImGui.ProgressBar(progress, new Vector2(-1, 20),
+                $"{simulatedMinutes}/{durationMinutes} min");
+
+            // Show revealed items
+            if (revealedCount > 0)
+            {
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
+
+                ImGui.Text("Found:");
+                for (int i = 0; i < revealedCount; i++)
+                {
+                    var item = items[i];
+                    var color = GetCategoryColor(item.Category);
+                    string text = item.Count > 1
+                        ? $"  {item.Count}x {item.Name} ({item.WeightKg:F1}kg)"
+                        : $"  {item.Name} ({item.WeightKg:F2}kg)";
+                    ImGui.TextColored(color, text);
+                }
+
+                ImGui.Spacing();
+                ImGui.Text($"Total: {totalWeight:F1}kg");
+            }
+
+            ImGui.End();
+
+            rlImGui.End();
+            Raylib.EndDrawing();
+        }
+
+        return (simulatedMinutes, false);
+    }
+
+    /// <summary>
+    /// Calculate reveal times for items. No items in first 20%, biased towards end.
+    /// Each item has 1 second of display time before the next appears.
+    /// </summary>
+    private static List<float> CalculateRevealTimes(int itemCount, float totalDuration)
+    {
+        var times = new List<float>();
+        if (itemCount == 0) return times;
+
+        var rng = new Random();
+
+        // Available window: 20% to 100% of duration
+        float startTime = totalDuration * 0.2f;
+        float endTime = totalDuration;
+        float window = endTime - startTime;
+
+        // Generate random positions biased towards end (using x^2 distribution)
+        var rawPositions = new List<float>();
+        for (int i = 0; i < itemCount; i++)
+        {
+            // x^2 biases towards 1.0 (end)
+            double x = rng.NextDouble();
+            float biasedPosition = (float)(x * x);
+            rawPositions.Add(biasedPosition);
+        }
+
+        // Sort positions
+        rawPositions.Sort();
+
+        // Convert to actual times, ensuring 1 second minimum gap
+        float minGap = 1.0f;
+        float lastTime = startTime - minGap; // Allow first item at startTime
+
+        foreach (var pos in rawPositions)
+        {
+            float idealTime = startTime + pos * window;
+            float actualTime = Math.Max(idealTime, lastTime + minGap);
+
+            // Don't exceed end time
+            if (actualTime > endTime)
+                actualTime = endTime;
+
+            times.Add(actualTime);
+            lastTime = actualTime;
+        }
+
+        return times;
+    }
+
+    private static Vector4 GetCategoryColor(Items.ResourceCategory? category) => category switch
+    {
+        Items.ResourceCategory.Fuel => new Vector4(0.8f, 0.6f, 0.4f, 1f),      // Warm brown
+        Items.ResourceCategory.Food => new Vector4(0.5f, 0.8f, 0.5f, 1f),      // Green
+        Items.ResourceCategory.Medicine => new Vector4(0.7f, 0.5f, 0.8f, 1f),  // Purple
+        Items.ResourceCategory.Material => new Vector4(0.6f, 0.7f, 0.8f, 1f),  // Blue-gray
+        Items.ResourceCategory.Tinder => new Vector4(0.9f, 0.7f, 0.5f, 1f),    // Orange
+        _ => new Vector4(0.7f, 0.7f, 0.7f, 1f)                                  // Gray
+    };
 }
