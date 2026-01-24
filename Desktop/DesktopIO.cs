@@ -787,6 +787,12 @@ public static class DesktopIO
         {
             float deltaTime = Raylib.GetFrameTime();
 
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+            {
+                overlays.Transfer.IsOpen = false;
+                break;
+            }
+
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
@@ -840,6 +846,12 @@ public static class DesktopIO
         while (overlays.Fire.IsOpen && !Raylib.WindowShouldClose())
         {
             float deltaTime = Raylib.GetFrameTime();
+
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+            {
+                overlays.Fire.IsOpen = false;
+                break;
+            }
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
@@ -902,6 +914,12 @@ public static class DesktopIO
         {
             float deltaTime = Raylib.GetFrameTime();
 
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+            {
+                overlays.Eating.IsOpen = false;
+                break;
+            }
+
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
@@ -936,6 +954,12 @@ public static class DesktopIO
         while (overlays.Cooking.IsOpen && !Raylib.WindowShouldClose())
         {
             float deltaTime = Raylib.GetFrameTime();
+
+            if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+            {
+                overlays.Cooking.IsOpen = false;
+                break;
+            }
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
