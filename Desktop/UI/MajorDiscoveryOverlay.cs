@@ -33,10 +33,7 @@ public class MajorDiscoveryOverlay
         if (!IsOpen) return false;
 
         // Set up centered window
-        var io = ImGui.GetIO();
-        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-            ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-        ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+        OverlaySizes.SetupDialog();
 
         ImGui.Begin("Discovery!", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 

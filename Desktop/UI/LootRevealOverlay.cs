@@ -61,10 +61,7 @@ public class LootRevealOverlay
         }
 
         // Set up centered window
-        var io = ImGui.GetIO();
-        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-            ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-        ImGui.SetNextWindowSize(new Vector2(350, 0), ImGuiCond.Always);
+        OverlaySizes.SetupDialog();
 
         ImGui.Begin("Found", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 

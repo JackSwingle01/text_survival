@@ -66,9 +66,11 @@ public class TilePopup
 
         string? result = null;
 
-        // Position the popup
+        // Position the popup (20% of screen width)
+        int screenWidth = Raylib_cs.Raylib.GetScreenWidth();
+        float popupWidth = screenWidth * 0.20f;
         ImGui.SetNextWindowPos(_popupPosition, ImGuiCond.Always);
-        ImGui.SetNextWindowSize(new Vector2(220, 0), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(popupWidth, 0), ImGuiCond.Always);
 
         ImGuiWindowFlags flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
                                   ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings;

@@ -10,7 +10,6 @@ using text_survival.Desktop.UI;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
-using text_survival.Items;
 using text_survival.UI;
 using ForageFocus = text_survival.Actions.Variants.ForageFocus;
 
@@ -298,9 +297,7 @@ public static class DesktopIO
             DesktopRuntime.RenderFrameWithDialog(ctx, () =>
             {
                 var io = ImGuiNET.ImGui.GetIO();
-                ImGuiNET.ImGui.SetNextWindowPos(new System.Numerics.Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-                    ImGuiNET.ImGuiCond.Always, new System.Numerics.Vector2(0.5f, 0.5f));
-                ImGuiNET.ImGui.SetNextWindowSize(new System.Numerics.Vector2(400, 0), ImGuiNET.ImGuiCond.Always);
+                Desktop.UI.OverlaySizes.SetupDialog();
 
                 ImGuiNET.ImGui.Begin("Activity", ImGuiNET.ImGuiWindowFlags.NoResize | ImGuiNET.ImGuiWindowFlags.NoMove | ImGuiNET.ImGuiWindowFlags.NoCollapse);
                 ImGuiNET.ImGui.TextWrapped(statusText);

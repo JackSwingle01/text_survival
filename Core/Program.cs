@@ -21,13 +21,13 @@ public static class Program
         Raylib.InitWindow(1280, 720, "Text Survival");
         Raylib.SetExitKey(KeyboardKey.Null);  // Prevent ESC from closing window
 
-        // Get current monitor and resize to ~90% of display
+        // Get current monitor and resize to 95% of display (keeps window controls visible)
         int monitor = Raylib.GetCurrentMonitor();
         int monitorWidth = Raylib.GetMonitorWidth(monitor);
         int monitorHeight = Raylib.GetMonitorHeight(monitor);
 
-        int windowWidth = (int)(monitorWidth * 0.9);
-        int windowHeight = (int)(monitorHeight * 0.9);
+        int windowWidth = (int)(monitorWidth * 0.95);
+        int windowHeight = (int)(monitorHeight * 0.95);
 
         Raylib.SetWindowSize(windowWidth, windowHeight);
         Raylib.SetWindowPosition(

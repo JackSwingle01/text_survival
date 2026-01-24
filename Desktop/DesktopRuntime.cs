@@ -146,9 +146,7 @@ public static class DesktopRuntime
 
         // Progress dialog with loot
         var io = ImGui.GetIO();
-        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-            ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-        ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+        UI.OverlaySizes.SetupDialog();
 
         ImGui.Begin("Activity", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 
@@ -219,10 +217,7 @@ public static class BlockingDialog
             DesktopRuntime.RenderFrameWithDialog(ctx, () =>
             {
                 // Center the dialog
-                var io = ImGui.GetIO();
-                ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-                    ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-                ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+                UI.OverlaySizes.SetupDialog();
 
                 ImGui.Begin("Select", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 
@@ -270,10 +265,7 @@ public static class BlockingDialog
         {
             DesktopRuntime.RenderFrameWithDialog(ctx, () =>
             {
-                var io = ImGui.GetIO();
-                ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-                    ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-                ImGui.SetNextWindowSize(new Vector2(350, 0), ImGuiCond.Always);
+                UI.OverlaySizes.SetupSmallDialog();
 
                 ImGui.Begin("Confirm", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 
@@ -317,7 +309,7 @@ public static class BlockingDialog
                 var io = ImGui.GetIO();
                 ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
                     ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-                ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+                ImGui.SetNextWindowSize(new Vector2(650, 0), ImGuiCond.Always);
 
                 ImGui.Begin("Confirm", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 
@@ -354,10 +346,7 @@ public static class BlockingDialog
         {
             DesktopRuntime.RenderFrameWithDialog(ctx, () =>
             {
-                var io = ImGui.GetIO();
-                ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-                    ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-                ImGui.SetNextWindowSize(new Vector2(350, 0), ImGuiCond.Always);
+                UI.OverlaySizes.SetupSmallDialog();
 
                 ImGui.Begin("Input", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 
@@ -408,7 +397,7 @@ public static class BlockingDialog
                 var io = ImGui.GetIO();
                 ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
                     ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-                ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+                ImGui.SetNextWindowSize(new Vector2(650, 0), ImGuiCond.Always);
 
                 ImGui.Begin(title, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 
@@ -479,9 +468,7 @@ public static class BlockingDialog
 
             // Centered progress dialog
             var io = ImGui.GetIO();
-            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-                ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-            ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+            UI.OverlaySizes.SetupDialog();
 
             ImGui.Begin("Activity", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
             ImGui.TextWrapped(statusText);
@@ -566,9 +553,7 @@ public static class BlockingDialog
 
             // Progress dialog with loot
             var io = ImGui.GetIO();
-            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-                ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-            ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+            UI.OverlaySizes.SetupDialog();
 
             ImGui.Begin("Activity", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 
@@ -715,9 +700,7 @@ public static class BlockingDialog
 
             // Centered progress dialog
             var io = ImGui.GetIO();
-            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-                ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-            ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+            UI.OverlaySizes.SetupDialog();
 
             ImGui.Begin("Time Passing", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
             ImGui.TextWrapped(statusText);
