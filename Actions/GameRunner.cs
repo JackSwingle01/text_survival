@@ -94,17 +94,26 @@ public partial class GameRunner(GameContext ctx)
         // Player died - show death message and offer restart
         if (!ctx.player.IsAlive)
         {
+            // Render one final frame to show the fatal state
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+            rlImGui.Begin();
+            RenderStatsPanel(ctx);
+            rlImGui.End();
+            Raylib.EndDrawing();
             GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");
             GameDisplay.AddDanger(ctx, "You have died.");
 
-            // Ask player what to do next
+            // Ask player what to do next - show full stats so player can see what killed them
             string choice = BlockingDialog.PromptConfirm(ctx,
                 "You have died. What would you like to do?",
                 new Dictionary<string, string>
                 {
                     { "new_game", "Start New Game" },
                     { "quit", "Quit to Desktop" }
-                });
+                },
+                showFullStats: true);
 
             // Delete save so next launch starts fresh
             SaveManager.DeleteSave(ctx.SessionId);

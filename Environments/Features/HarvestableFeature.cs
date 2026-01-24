@@ -32,7 +32,6 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
 
     public string DisplayName => _displayName;
     public string Description { get; set; } = "";
-    public bool IsDiscovered { get; set; } = true; // Start discovered for v1
 
     /// <summary>
     /// Minutes of work required to complete one harvest cycle.
@@ -53,8 +52,8 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
 
     [System.Text.Json.Serialization.JsonInclude]
     private int _minutesWorked = 0;
-    [System.Text.Json.Serialization.JsonInclude]
-    private List<HarvestableResource> _resources = [];
+
+    public List<HarvestableResource> Resources { get; set; } = [];
 
     [System.Text.Json.Serialization.JsonConstructor]
     public HarvestableFeature() : base("harvestable") { }
@@ -72,7 +71,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     {
         double hours = minutes / 60.0;
 
-        foreach (var resource in _resources)
+        foreach (var resource in Resources)
         {
             if (resource.CurrentQuantity < resource.MaxQuantity)
             {
@@ -100,7 +99,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     public HarvestableFeature AddResource(string displayName, Resource resourceType,
         int maxQuantity, double weightPerUnit, double respawnHoursPerUnit, bool isWater = false)
     {
-        _resources.Add(new HarvestableResource
+        Resources.Add(new HarvestableResource
         {
             DisplayName = displayName,
             ResourceType = resourceType,
@@ -142,10 +141,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     public HarvestableFeature AddStone(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
         AddResource(displayName, Resource.Stone, maxQuantity, weightPerUnit, respawnHoursPerUnit);
 
-    // Builder methods for tool requirements
-    /// <summary>
-    /// Require a specific tool type to harvest this resource.
-    /// </summary>
+
     public HarvestableFeature RequiresTool(ToolType toolType, ToolTier tier = ToolTier.Basic)
     {
         RequiredToolType = toolType;
@@ -153,9 +149,6 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
         return this;
     }
 
-    /// <summary>
-    /// Check if a tool meets the harvesting requirements.
-    /// </summary>
     public bool MeetsToolRequirement(Gear? tool)
     {
         if (RequiredToolType == null && RequiredToolTier == ToolTier.None)
@@ -197,34 +190,13 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     /// </summary>
     public bool HasAvailableResources()
     {
-        return _resources.Any(r => r.CurrentQuantity > 0);
+        return Resources.Any(r => r.CurrentQuantity > 0);
     }
 
-    /// <summary>
-    /// Check if this feature can be harvested right now.
-    /// Combines discovery state and resource availability.
-    /// </summary>
-    public bool CanBeHarvested() => IsDiscovered && HasAvailableResources();
+    public bool CanBeHarvested() => HasAvailableResources();
 
-    /// <summary>
-    /// Check if all resources are depleted.
-    /// </summary>
-    public bool IsDepleted() => _resources.Count > 0 && _resources.All(r => r.CurrentQuantity == 0);
+    public bool IsDepleted() => Resources.Count > 0 && Resources.All(r => r.CurrentQuantity == 0);
 
-    /// <summary>
-    /// Check if resources are nearly depleted (less than 25% remaining).
-    /// </summary>
-    public bool IsNearlyDepleted()
-    {
-        if (_resources.Count == 0) return false;
-        int current = _resources.Sum(r => r.CurrentQuantity);
-        int max = _resources.Sum(r => r.MaxQuantity);
-        return max > 0 && current < max * 0.25;
-    }
-
-    /// <summary>
-    /// Get work options for this feature.
-    /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
         if (!CanBeHarvested()) yield break;
@@ -256,7 +228,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
         {
             _minutesWorked -= MinutesToHarvest;
 
-            foreach (var resource in _resources)
+            foreach (var resource in Resources)
             {
                 if (resource.CurrentQuantity > 0)
                 {
@@ -280,15 +252,12 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
         return found;
     }
 
-    /// <summary>
-    /// Get total minutes required to fully harvest all remaining resources.
-    /// </summary>
     public int GetTotalMinutesToHarvest()
     {
-        if (!_resources.Any())
+        if (!Resources.Any())
             return 0;
 
-        int maxRemaining = _resources.Max(r => r.CurrentQuantity);
+        int maxRemaining = Resources.Max(r => r.CurrentQuantity);
 
         if (maxRemaining == 0)
             return 0;
@@ -297,13 +266,10 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
         return Math.Max(0, totalMinutes - _minutesWorked);
     }
 
-    /// <summary>
-    /// Get a human-readable status description of available resources.
-    /// </summary>
     public string GetStatusDescription()
     {
         var descriptions = new List<string>();
-        foreach (var resource in _resources)
+        foreach (var resource in Resources)
         {
             string status = resource.CurrentQuantity switch
             {
@@ -325,7 +291,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     }
 
     public override List<Resource> ProvidedResources() =>
-        _resources.Where(r => !r.IsWater).Select(r => r.ResourceType).Distinct().ToList();
+        Resources.Where(r => !r.IsWater).Select(r => r.ResourceType).Distinct().ToList();
 
     public class HarvestableResource
     {

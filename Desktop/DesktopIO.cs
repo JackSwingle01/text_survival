@@ -731,50 +731,6 @@ public static class DesktopIO
         BlockingDialog.ShowMessageAndWait(ctx, activityName, sb.ToString().TrimEnd());
     }
 
-    private static readonly LootRevealOverlay _lootRevealOverlay = new();
-
-    /// <summary>
-    /// Show found loot summary with all items displayed.
-    /// </summary>
-    public static void ShowLootReveal(GameContext ctx, Inventory found)
-    {
-        var items = found.GetLootItems();
-        if (items.Count == 0)
-        {
-            BlockingDialog.ShowMessageAndWait(ctx, "Foraging", "You didn't find anything.");
-            return;
-        }
-
-        _lootRevealOverlay.SetItems(items);
-
-        while (!Raylib.WindowShouldClose())
-        {
-            float deltaTime = Raylib.GetFrameTime();
-
-            Raylib.BeginDrawing();
-            Raylib.ClearBackground(new Color(20, 25, 30, 255));
-
-            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
-            DesktopRuntime.WorldRenderer?.Render(ctx);
-
-            // Dim background
-            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
-                new Color(0, 0, 0, 128));
-
-            rlImGui.Begin();
-
-            if (_lootRevealOverlay.Render(deltaTime))
-            {
-                rlImGui.End();
-                Raylib.EndDrawing();
-                break;
-            }
-
-            rlImGui.End();
-            Raylib.EndDrawing();
-        }
-    }
-
     public static void RunTransferUI(GameContext ctx, Inventory storage, string storageName)
     {
         var overlays = DesktopRuntime.Overlays;

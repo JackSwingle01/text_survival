@@ -30,6 +30,10 @@ public class ForageStrategy : IWorkStrategy
     // Accumulated loot from RunCustomProgress (calculated minute-by-minute)
     private Inventory? _foundItems;
 
+    // Discovery tracking for display during progress and later processing
+    private List<string> _discoveries = [];
+    private List<HiddenFeature>? _discoveredFeatures;
+
     public string? ValidateLocation(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<ForageFeature>();
@@ -146,6 +150,10 @@ public class ForageStrategy : IWorkStrategy
         if (feature == null)
             return null; // Fall back to standard progress
 
+        // Initialize discovery tracking
+        _discoveries = [];
+        var discoveredFeatures = new List<HiddenFeature>();
+
         // Calculate modifiers once at the start (for consistency during session)
         var negativeClue = _clues?.FirstOrDefault(c => c.Category == ClueCategory.Negative);
         double negativeMultiplier = negativeClue?.YieldModifier ?? 1.0;
@@ -190,8 +198,9 @@ public class ForageStrategy : IWorkStrategy
                 {
                     if (ctx.LastEventAborted)
                     {
-                        // Aborting event - stop foraging, return partial loot
+                        // Aborting event - stop foraging, return partial loot and discoveries
                         _foundItems = accumulated;
+                        _discoveredFeatures = discoveredFeatures;
                         return (simulatedMinutes, true);
                     }
                     // Non-aborting event - continue foraging after event resolves
@@ -206,6 +215,21 @@ public class ForageStrategy : IWorkStrategy
                         found.ApplyMultiplier(totalMultiplier);
                     accumulated.Combine(found);
                 }
+
+                // GAME LOGIC: check for discoveries each minute
+                double hours = 1.0 / 60.0;
+                feature.DiscoveryProgress += hours * perception;
+                var newDiscoveries = location.RevealDiscoveries(feature.DiscoveryProgress);
+
+                foreach (var disc in newDiscoveries)
+                {
+                    discoveredFeatures.Add(disc);
+                    // Only show minor discoveries during progress (majors get popup later)
+                    if (disc.Category == DiscoveryCategory.Minor)
+                    {
+                        _discoveries.Add(GetDiscoveryMessage(disc));
+                    }
+                }
             }
 
             // DISPLAY: render one frame (no callbacks, no game logic)
@@ -213,13 +237,32 @@ public class ForageStrategy : IWorkStrategy
                 ctx,
                 accumulated.GetLootItems(),
                 (float)accumulated.CurrentWeightKg,
+                _discoveries,
                 simulatedMinutes,
                 minutes,
-                statusText);
+                statusText,
+                isComplete: false);
         }
 
-        // Store accumulated loot for Execute()
+        // Store accumulated loot and discoveries for Execute()
         _foundItems = accumulated;
+        _discoveredFeatures = discoveredFeatures;
+
+        // After progress completes, show Continue button and block until clicked
+        while (!Raylib.WindowShouldClose())
+        {
+            bool clicked = DesktopRuntime.RenderForagingFrame(
+                ctx,
+                accumulated.GetLootItems(),
+                (float)accumulated.CurrentWeightKg,
+                _discoveries,
+                simulatedMinutes,
+                minutes,
+                statusText,
+                isComplete: true);
+
+            if (clicked) break;
+        }
 
         return (simulatedMinutes, false);
     }
@@ -275,13 +318,12 @@ public class ForageStrategy : IWorkStrategy
             InventoryCapacityHelper.CombineAndReport(ctx, found);
             collected.Add(found.GetDescription());
 
-            // Show loot summary
-            DesktopIO.ShowLootReveal(ctx, found);
+            // Loot was already shown during progress bar - no separate reveal needed
         }
 
-        // Process exploration progress and reveal discoveries
-        var discoveries = ProcessExploration(ctx, location, actualTime);
-        foreach (var discovery in discoveries)
+        // Process discoveries (already revealed during RunCustomProgress)
+        // Handle major popups and event triggers
+        foreach (var discovery in _discoveredFeatures ?? [])
         {
             // EventTriggerFeature: queue event and remove feature
             if (discovery.Feature is EventTriggerFeature trigger)
@@ -292,16 +334,13 @@ public class ForageStrategy : IWorkStrategy
                 continue;
             }
 
-            string message = GetDiscoveryMessage(discovery);
-            if (discovery.Category == DiscoveryCategory.Minor)
+            if (discovery.Category == DiscoveryCategory.Major)
             {
-                narrative.Add(message);
-            }
-            else // Major
-            {
+                string message = GetDiscoveryMessage(discovery);
                 // Major discoveries get a special popup
                 DesktopIO.ShowMajorDiscovery(ctx, message);
             }
+            // Minor discoveries already shown during progress, no need to add to narrative
         }
 
         // Handle Game clues - apply hunt bonus to territory
@@ -386,25 +425,6 @@ public class ForageStrategy : IWorkStrategy
         }
 
         return new WorkResult(collected, null, actualTime, false);
-    }
-
-    /// <summary>
-    /// Add exploration progress and check for discoveries.
-    /// Perception affects how quickly you notice things.
-    /// Progress is tracked on ForageFeature (single source of truth).
-    /// </summary>
-    private List<HiddenFeature> ProcessExploration(GameContext ctx, Location location, int minutes)
-    {
-        var forage = location.GetFeature<ForageFeature>();
-        if (forage == null) return [];
-
-        double hours = minutes / 60.0;
-        double perception = AbilityCalculator.GetPerception(ctx.player, ctx);
-
-        // Better perception means noticing things faster
-        forage.DiscoveryProgress += hours * perception;
-
-        return location.RevealDiscoveries(forage.DiscoveryProgress);
     }
 
     /// <summary>

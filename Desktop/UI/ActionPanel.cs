@@ -45,9 +45,6 @@ public class ActionPanel
         }
     }
 
-    /// <summary>
-    /// Render location actions (normal gameplay).
-    /// </summary>
     private (CampAction? action, IWorkStrategy? workStrategy) RenderLocationActions(GameContext ctx, float deltaTime)
     {
         CampAction? clickedAction = null;
@@ -203,9 +200,6 @@ public class ActionPanel
         return (clickedAction, workStrategy);
     }
 
-    /// <summary>
-    /// Render fire status if there's a fire at current location.
-    /// </summary>
     private void RenderFireStatus(GameContext ctx)
     {
         var fire = ctx.CurrentLocation?.GetFeature<HeatSourceFeature>();
@@ -224,7 +218,7 @@ public class ActionPanel
                     : new Vector4(1f, 0.6f, 0.2f, 1f); // Normal fire color
 
             ImGui.TextColored(fireColor, $"Fire: {phase}");
-            ImGui.Text($"  {tempC:F0}°C - {FormatTime(minutes)} remaining");
+            ImGui.Text($"  {tempC:F0}°F - {FormatTime(minutes)} remaining");
 
             if (minutes <= 5)
                 ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), "  Add fuel now!");
@@ -460,7 +454,7 @@ public class ActionPanel
 
             // Injuries section - show damaged body parts
             var damagedParts = displayTarget.actor.Body.Parts
-                .Where(p => p.Condition <= 0.995)
+                .Where(p => p.Condition < 1.0)
                 .OrderBy(p => p.Condition)
                 .Take(4)  // Limit to 4 to save space
                 .ToList();

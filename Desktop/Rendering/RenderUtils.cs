@@ -1,3 +1,4 @@
+using System.Numerics;
 using Raylib_cs;
 
 namespace text_survival.Desktop.Rendering;
@@ -105,6 +106,117 @@ public static class RenderUtils
         return t < 0.5f
             ? 4 * t * t * t
             : 1 - MathF.Pow(-2 * t + 2, 3) / 2;
+    }
+
+    /// <summary>
+    /// Draw a polygon from a list of points.
+    /// Renders as a triangle fan from the first vertex.
+    /// </summary>
+    public static void DrawPolygon(Vector2[] points, Color color)
+    {
+        if (points.Length < 3) return;
+
+        // Draw as triangle fan from first vertex
+        for (int i = 1; i < points.Length - 1; i++)
+        {
+            Raylib.DrawTriangle(points[0], points[i], points[i + 1], color);
+        }
+    }
+
+    /// <summary>
+    /// Draw a quadrilateral (4-sided polygon).
+    /// Points should be in order (clockwise or counter-clockwise).
+    /// </summary>
+    public static void DrawQuadrilateral(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4, Color color)
+    {
+        Raylib.DrawTriangle(p1, p2, p3, color);
+        Raylib.DrawTriangle(p1, p3, p4, color);
+    }
+
+    /// <summary>
+    /// Draw a rotated ellipse.
+    /// Approximates rotation by drawing a polygon with rotated vertices.
+    /// </summary>
+    public static void DrawRotatedEllipse(float cx, float cy, float radiusX, float radiusY, float rotationRadians, Color color, int segments = 16)
+    {
+        Vector2[] points = new Vector2[segments];
+        float angleStep = MathF.PI * 2 / segments;
+
+        for (int i = 0; i < segments; i++)
+        {
+            float angle = i * angleStep;
+            // Point on unrotated ellipse
+            float x = radiusX * MathF.Cos(angle);
+            float y = radiusY * MathF.Sin(angle);
+
+            // Rotate the point
+            float cos = MathF.Cos(rotationRadians);
+            float sin = MathF.Sin(rotationRadians);
+            float rotatedX = x * cos - y * sin;
+            float rotatedY = x * sin + y * cos;
+
+            points[i] = new Vector2(cx + rotatedX, cy + rotatedY);
+        }
+
+        DrawPolygon(points, color);
+    }
+
+    /// <summary>
+    /// Draw a cubic bezier curve approximated by line segments.
+    /// P0 = start, P1/P2 = control points, P3 = end.
+    /// </summary>
+    public static void DrawBezierCurve(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, Color color, int thickness, int segments = 12)
+    {
+        Vector2 prev = p0;
+
+        for (int i = 1; i <= segments; i++)
+        {
+            float t = (float)i / segments;
+            float t2 = t * t;
+            float t3 = t2 * t;
+            float mt = 1 - t;
+            float mt2 = mt * mt;
+            float mt3 = mt2 * mt;
+
+            // Cubic bezier formula: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
+            float x = mt3 * p0.X + 3 * mt2 * t * p1.X + 3 * mt * t2 * p2.X + t3 * p3.X;
+            float y = mt3 * p0.Y + 3 * mt2 * t * p1.Y + 3 * mt * t2 * p2.Y + t3 * p3.Y;
+
+            Vector2 current = new(x, y);
+            Raylib.DrawLineEx(prev, current, thickness, color);
+            prev = current;
+        }
+    }
+
+    /// <summary>
+    /// Draw a quadratic mound shape (smooth hill curve).
+    /// Creates a parabolic arc from startX to endX at baseY, peaking at peakY.
+    /// </summary>
+    public static void DrawQuadraticMound(float startX, float endX, float baseY, float peakY, Color color, int segments = 16)
+    {
+        Vector2[] points = new Vector2[segments + 2];
+
+        // Start at base left
+        points[0] = new Vector2(startX, baseY);
+
+        // Build curve points
+        for (int i = 0; i <= segments; i++)
+        {
+            float t = (float)i / segments;
+            float x = startX + (endX - startX) * t;
+
+            // Quadratic curve: y = baseY - (peakY - baseY) * (4 * t * (1 - t))
+            // This gives smooth arc peaking at t=0.5
+            float height = (peakY - baseY) * 4 * t * (1 - t);
+            float y = baseY - height;
+
+            points[i + 1] = new Vector2(x, y);
+        }
+
+        // End at base right (close the shape)
+        points[segments + 1] = new Vector2(endX, baseY);
+
+        DrawPolygon(points, color);
     }
 }
 

@@ -219,6 +219,26 @@ public class Location
 
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
+        // // DEBUG
+        // Console.WriteLine($"=== Location.GetWorkOptions for {Name} ===");
+        // Console.WriteLine($"Features count: {Features.Count}");
+        // var workables = Features.OfType<IWorkableFeature>().ToList();
+        // Console.WriteLine($"IWorkableFeature count: {workables.Count}");
+        // foreach (var w in workables)
+        // {
+        //     Console.WriteLine($"  {w.GetType().Name}");
+        //     if (w is HarvestableFeature hf)
+        //     {
+        //         Console.WriteLine($"    CanBeHarvested: {hf.CanBeHarvested()}");
+        //         Console.WriteLine($"    Resources.Count: {hf.Resources.Count}");
+        //         foreach (var r in hf.Resources)
+        //             Console.WriteLine($"      {r.DisplayName}: {r.CurrentQuantity}/{r.MaxQuantity}");
+
+        //     }
+
+        // }
+        // // END DEBUG
+
         // Yield all feature-based work options (includes Hunt from AnimalTerritoryFeature)
         foreach (var feature in Features.OfType<IWorkableFeature>())
             foreach (var option in feature.GetWorkOptions(ctx))
@@ -242,7 +262,7 @@ public class Location
     {
         return Features.Remove(feature);
     }
-    
+
     public void AddFeature(LocationFeature feature)
     {
         Features.Add(feature);

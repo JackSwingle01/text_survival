@@ -54,7 +54,13 @@ public class HarvestStrategy : IWorkStrategy
         if (_selectedTarget == null)
             return null;
 
-        var choice = new Choice<int>($"How long should you harvest {_selectedTarget.DisplayName}?");
+        // Build resource preview
+        string resourcePreview = BuildResourcePreview(_selectedTarget);
+
+        // Create enhanced prompt with preview
+        string prompt = $"Harvest: {_selectedTarget.DisplayName}\n{resourcePreview}\n\nHow long should you work?";
+
+        var choice = new Choice<int>(prompt);
         choice.AddOption("Quick work - 15 min", 15);
         choice.AddOption("Standard work - 30 min", 30);
         choice.AddOption("Thorough work - 60 min", 60);
@@ -99,5 +105,56 @@ public class HarvestStrategy : IWorkStrategy
         DesktopIO.ShowWorkResult(ctx, "Harvesting", resultMessage, collected);
 
         return new WorkResult(collected, null, actualTime, false);
+    }
+
+    /// <summary>
+    /// Build resource preview showing what's available to harvest.
+    /// Format: "resource: status (quantity/max, ~weight)"
+    /// </summary>
+    private static string BuildResourcePreview(HarvestableFeature target)
+    {
+        var lines = new List<string>();
+
+        // Show each non-depleted resource
+        foreach (var resource in target.Resources)
+        {
+            if (resource.CurrentQuantity == 0)
+                continue;  // Skip depleted
+
+            // Calculate status (reuses existing logic from GetStatusDescription)
+            string status = resource.CurrentQuantity switch
+            {
+                var q when q < resource.MaxQuantity / 3.0 => "sparse",
+                var q when q < resource.MaxQuantity * 2.0 / 3.0 => "moderate",
+                _ => "abundant"
+            };
+
+            string quantityInfo = $"{resource.CurrentQuantity}/{resource.MaxQuantity}";
+            double totalWeightKg = resource.CurrentQuantity * resource.WeightPerUnit;
+
+            // Format differently for water vs regular resources
+            string line = resource.IsWater
+                ? $"{resource.DisplayName}: {status} ({quantityInfo} units, ~{totalWeightKg:F1}L)"
+                : $"{resource.DisplayName}: {status} ({quantityInfo} units, ~{totalWeightKg:F1}kg)";
+
+            lines.Add(line);
+        }
+
+        if (lines.Count == 0)
+            return "No resources available";
+
+        // Add tool requirement hint if present
+        string toolHint = "";
+        if (target.RequiredToolType != null)
+        {
+            toolHint = $"\n{target.GetToolRequirementDescription()}";
+        }
+
+        // Show harvest rate
+        string rateHint = target.MinutesToHarvest == 1
+            ? "\nHarvest rate: 1 unit per minute"
+            : $"\nHarvest rate: 1 unit per {target.MinutesToHarvest} minutes";
+
+        return string.Join("\n", lines) + toolHint + rateHint;
     }
 }

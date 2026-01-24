@@ -120,13 +120,15 @@ public static class DesktopRuntime
     /// <summary>
     /// Render a single frame of foraging progress. Pure display - no game logic.
     /// </summary>
-    public static void RenderForagingFrame(
+    public static bool RenderForagingFrame(
         GameContext ctx,
         List<LootItem> foundItems,
         float totalWeightKg,
+        List<string> discoveries,
         int simulatedMinutes,
         int totalMinutes,
-        string statusText)
+        string statusText,
+        bool isComplete)
     {
         float deltaTime = Raylib.GetFrameTime();
         float progress = (float)simulatedMinutes / totalMinutes;
@@ -176,10 +178,41 @@ public static class DesktopRuntime
             ImGui.Text($"Total: {totalWeightKg:F1}kg");
         }
 
+        // Show discoveries
+        if (discoveries.Count > 0)
+        {
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            ImGui.Text("Discovered:");
+            var discoveryColor = new Vector4(0.9f, 0.7f, 0.3f, 1f); // Golden/amber
+            foreach (var discovery in discoveries)
+            {
+                ImGui.TextColored(discoveryColor, $"  - {discovery}");
+            }
+        }
+
+        // Show Continue button when complete
+        bool continueClicked = false;
+        if (isComplete)
+        {
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            if (ImGui.Button("Continue", new Vector2(-1, 30)))
+            {
+                continueClicked = true;
+            }
+        }
+
         ImGui.End();
 
         rlImGui.End();
         Raylib.EndDrawing();
+
+        return continueClicked;
     }
 
     private static Vector4 GetCategoryColor(ResourceCategory? category) => category switch
@@ -298,36 +331,64 @@ public static class BlockingDialog
     /// <summary>
     /// Show a confirmation dialog with custom button labels.
     /// </summary>
-    public static string PromptConfirm(GameContext ctx, string message, Dictionary<string, string> buttons)
+    public static string PromptConfirm(GameContext ctx, string message, Dictionary<string, string> buttons, bool showFullStats = false)
     {
         string? result = null;
 
         while (result == null && !Raylib.WindowShouldClose())
         {
-            DesktopRuntime.RenderFrameWithDialog(ctx, () =>
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            // Render world (dimmed background)
+            if (DesktopRuntime.WorldRenderer != null)
             {
-                var io = ImGui.GetIO();
-                ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
-                    ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-                ImGui.SetNextWindowSize(new Vector2(650, 0), ImGuiCond.Always);
+                DesktopRuntime.WorldRenderer.Update(ctx, deltaTime);
+                DesktopRuntime.WorldRenderer.Render(ctx);
+            }
 
-                ImGui.Begin("Confirm", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
+            // Draw semi-transparent overlay to dim background
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
 
-                ImGui.TextWrapped(message);
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.Spacing();
+            rlImGui.Begin();
 
-                foreach (var (id, label) in buttons)
+            // Render stats panel if requested
+            if (showFullStats)
+            {
+                UI.StatsPanel.Render(ctx);
+            }
+
+            // Render the dialog
+            var io = ImGui.GetIO();
+            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
+                ImGuiCond.Always, new Vector2(0.5f, 0.5f));
+            ImGui.SetNextWindowSize(new Vector2(650, 0), ImGuiCond.Always);
+
+            ImGui.Begin("Confirm", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
+
+            ImGui.TextWrapped(message);
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            foreach (var (id, label) in buttons)
+            {
+                if (ImGui.Button(label, new Vector2(-1, 30)))
                 {
-                    if (ImGui.Button(label, new Vector2(-1, 30)))
-                    {
-                        result = id;
-                    }
+                    result = id;
                 }
+            }
 
-                ImGui.End();
-            });
+            ImGui.End();
+
+            // Render toast notifications
+            ToastManager.Render(deltaTime);
+
+            rlImGui.End();
+            Raylib.EndDrawing();
         }
 
         return result ?? buttons.Keys.First();
