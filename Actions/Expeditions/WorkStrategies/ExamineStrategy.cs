@@ -25,7 +25,7 @@ public class ExamineStrategy : IWorkStrategy
         if (detail == null)
             return "Nothing to examine here.";
         if (!detail.CanInteract)
-            return "Already examined.";
+            return "Nothing to interact with.";
         return null;
     }
 
@@ -59,6 +59,10 @@ public class ExamineStrategy : IWorkStrategy
         }
 
         var (loot, examinationText, tension) = detail.Interact();
+
+        // Remove the detail from the location after use
+        location.Features.Remove(detail);
+
         var collected = new List<string>();
 
         // Log examination text if present

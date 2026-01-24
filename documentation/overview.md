@@ -50,7 +50,7 @@ Travel system (`TravelRunner`):
 
 Work system (`WorkRunner`):
 - Strategy pattern: each work type has an `IWorkStrategy` implementation
-- Available work types: Forage, Hunt, Harvest, Explore, Trap, Chop, Cache, CraftingProject, Salvage
+- Available work types: Forage, Hunt, Harvest, Trap, Chop, Cache, CraftingProject, Salvage, Butcher
 - Darkness blocking — requires fire or torch for work in dark locations or at night
 - Impairment calculations — manipulation and consciousness affect work speed
 - Event interruption during work sessions
@@ -137,13 +137,42 @@ Features are what make locations useful. They live on locations and define avail
 
 **HeatSourceFeature** — Fire. See Fire section above.
 
-**CarcassFeature** — Dead animal carcasses awaiting butchering. Created by successful hunts, combat victories, and some events (like following ravens). Carcasses decay over time (fresh → good → questionable → spoiled) affecting meat yield. Contains all butchering logic: yields based on animal weight (40% meat, 15% bone, 10% hide, 5% sinew, 8% fat), tool checks (no knife = reduced yield), manipulation impairment penalties. Butchered via ButcherStrategy work type. Creates time pressure to return and process before spoilage.
-
-**EnvironmentFeature** — Terrain properties affecting gameplay.
+**CarcassFeature** — Dead animal carcasses awaiting butchering. Created by successful hunts, combat victories, and some events (like following ravens). Carcasses decay over time (fresh → good → questionable → spoiled) affecting meat yield. Contains all butchering logic: yields based on animal size and composition, tool checks (no knife = reduced yield), manipulation impairment penalties. Butchered via ButcherStrategy work type. Creates time pressure to return and process before spoilage.
 
 Features interact with: locations (features live on locations), expeditions (work types use features), events (features can trigger events and be modified by event outcomes), crafting (features provide materials), survival simulation (shelter and heat).
 
 **Files**: `Environments/Features/` (various feature implementations)
+
+---
+
+## Discovery System
+
+Hidden features are generated at location creation and revealed through foraging. Players don't know what's available until they search — exploration rewards time investment.
+
+Locations store both visible `Features` and hidden `HiddenFeatures`. Foraging accumulates discovery progress (perception-weighted hours). When progress exceeds a feature's threshold, it moves from hidden to visible.
+
+**Always visible:**
+- `ForageFeature` — Base foraging mechanic
+- `WoodedAreaFeature` — Trees are obviously visible
+
+**Hidden until discovered:**
+- `HarvestableFeature` — Berry bushes, deadfall, flint outcrops
+- `ShelterFeature` — Rock overhangs, natural shelters
+- `AnimalTerritoryFeature` — Game trails, hunting grounds
+- `EnvironmentalDetail` — Fallen logs, animal tracks, stone piles
+- `EventTriggerFeature` — One-time discovery events (abandoned camps, frozen travelers)
+
+Each terrain type has discovery pools. Reveal thresholds use exponential distribution — 50% found before expected time, with variance creating unpredictability. Environmental details are quick finds (15-30 min). Significant features take longer (flint outcrops 2-2.5 hours, rock overhangs 3-4 hours).
+
+**EnvironmentalDetail lifecycle** — Hidden → Discovered (via foraging) → Used (player interacts, detail removed). One-time finds like gathering sticks from a fallen log or examining animal tracks.
+
+**EventTriggerFeature** — When revealed, immediately triggers a discovery event via `DiscoveryEventFactory` then removes itself. Creates significant moments: finding an abandoned campsite, a frozen traveler, a hidden cache, a bear's food store. These are authored events placed in the world and revealed through exploration.
+
+Discovery progress is separate from resource depletion — foraging can yield both resources and discoveries. Perception ability speeds discovery. Seeded generation ensures consistent discoveries per location across saves.
+
+Discovery system interacts with: locations (storage), foraging (revelation), events (discovery events), perception (discovery speed).
+
+**Files**: `Environments/Features/HiddenFeature.cs`, `Environments/Factories/DiscoveryGenerator.cs`, `Actions/Events/DiscoveryEventFactory.cs`
 
 ---
 
@@ -282,7 +311,11 @@ Effects interact with: body system (damage triggers effects), survival simulatio
 
 Events trigger during expeditions based on context — location, player activity, player state, time, weather, and active tensions. Events aren't random encounters — they're contextual interrupts that create decisions.
 
-Architecture: `GameEvent` contains `EventChoice` objects with `EventResult` outcomes. `GameEventRegistry` (partial class across ~19 files) builds events with context-aware descriptions. Two-stage triggering: base roll per minute → weighted selection from eligible events.
+Architecture: `GameEvent` contains `EventChoice` objects with `EventResult` outcomes. `GameEventRegistry` (partial class across ~19 files) builds events with context-aware descriptions.
+
+Two triggering paths:
+- **Random events** — Base roll per minute → weighted selection from eligible events. Context affects both frequency and which events are eligible.
+- **Discovery events** — Triggered deterministically when `EventTriggerFeature` is revealed through foraging. Guaranteed significant moments (abandoned camps, frozen travelers, hidden caches) placed in the world via `DiscoveryEventFactory`.
 
 **Modular building blocks** — Three abstractions enable extensible event authoring:
 - **Situations** — Compound predicates for *when* events trigger
@@ -347,9 +380,9 @@ Categories:
 - **Compound** — `EscapeToCamp`, `FireScaresPredator`, `ColdAndFear`, `InjuredRetreat`
 - **Equipment** — `DamagesEquipment`, `MinorEquipmentWear`, `FieldRepair`
 
-Events interact with: tensions (create/escalate/resolve), locations (triggers and discovery), effects (outcomes apply them), predator encounters (can spawn them), inventory (costs and rewards), features (can modify).
+Events interact with: tensions (create/escalate/resolve), locations (triggers and discovery), effects (outcomes apply them), predator encounters (can spawn them), inventory (costs and rewards), features (can modify), discovery system (discovery events).
 
-**Files**: `Actions/Events/Situations.cs`, `Actions/Events/Variants/`, `Actions/Events/OutcomeTemplates.cs`, `Actions/GameEvent.cs`
+**Files**: `Actions/Events/Situations.cs`, `Actions/Events/Variants/`, `Actions/Events/OutcomeTemplates.cs`, `Actions/Events/DiscoveryEventFactory.cs`, `Actions/GameEvent.cs`
 
 ---
 
@@ -614,9 +647,8 @@ Runners — Control flow, player decisions, display UI also includes:
 Handlers take `GameContext`, mutate state directly, handle player choices via `Input`. Runners orchestrate flow; handlers execute specific actions.
 
 Work Strategies — `IWorkStrategy` implementations for each work type:
-- ForageStrategy, HuntStrategy, HarvestStrategy, ExploreStrategy
-- TrapStrategy (set/check modes), ChoppingStrategy, CacheStrategy
-- CraftingProjectStrategy, SalvageStrategy, ButcherStrategy
+- ForageStrategy, HuntStrategy, HarvestStrategy, TrapStrategy, ChoppingStrategy
+- CacheStrategy, CraftingProjectStrategy, SalvageStrategy, ButcherStrategy
 - Each strategy provides: location validation, time options, impairment calculations, execution logic
 
 GameContext — Central hub holding game state

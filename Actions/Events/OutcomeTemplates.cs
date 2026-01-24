@@ -146,6 +146,18 @@ public static class OutcomeTemplates
     public static EventResult MarksDiscovery(this EventResult r, string description, double severity = 0.5)
         => r.CreateTension("MarkedDiscovery", severity, description: description);
 
+    /// <summary>
+    /// Create a frozen traveler salvage feature at current location for later return.
+    /// </summary>
+    public static EventResult MarksFrozenTraveler(this EventResult r)
+        => r.CreatesSalvage("frozen_traveler");
+
+    /// <summary>
+    /// Create a hidden cache salvage feature at current location for later return.
+    /// </summary>
+    public static EventResult MarksHiddenCache(this EventResult r)
+        => r.CreatesSalvage("hidden_cache");
+
     public static EventResult MarksAnimalSign(this EventResult r, AnimalType animal, double severity = 0.4)
         => r.CreateTension("MarkedDiscovery", severity, animalType: animal, description: $"{animal.DisplayName().ToLower()} territory");
 

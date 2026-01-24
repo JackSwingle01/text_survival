@@ -8,6 +8,12 @@ namespace text_survival.Environments.Factories;
 
 public static class LocationFactory
 {
+    /// <summary>
+    /// Seed offset for discovery generation, ensuring it doesn't correlate with
+    /// other seeded generation (traversal modifier, environmental details).
+    /// </summary>
+    internal const int DiscoverySeedOffset = 7919;
+
     #region Terrain Location Factory
 
     /// <summary>
@@ -36,11 +42,18 @@ public static class LocationFactory
             Random rng = new Random(positionSeed.Value);
             location.TraversalModifier = 0.8 + (rng.NextDouble() * 0.4);  // Range: 0.8-1.2
 
-            // Add environmental details for terrain flavor
+            // Add environmental details as hidden discoveries
+            // Environmental details are quick finds (15-30 min expected)
             var details = EnvironmentalDetailFactory.GenerateForTerrain(terrain, positionSeed.Value);
             foreach (var detail in details)
             {
-                location.Features.Add(detail);
+                double expectedHours = 0.25 + rng.NextDouble() * 0.25;  // 0.25-0.5 hours
+                double revealAt = GenerateRevealThreshold(rng, expectedHours);
+                location.HiddenFeatures.Add(new HiddenFeature(
+                    detail,
+                    revealAt,
+                    DiscoveryCategory.Minor
+                ));
             }
         }
 
@@ -49,61 +62,22 @@ public static class LocationFactory
         {
             location.Features.Add(FeatureFactory.CreateTerrainForage(terrain));
 
-            // 10% chance for terrain-appropriate harvestable
-            if (Utils.DetermineSuccess(0.1))
-            {
-                var harvestable = GetTerrainHarvestable(terrain);
-                if (harvestable != null)
-                    location.Features.Add(harvestable);
-            }
-
-            // 10% chance for terrain-appropriate animals
-            if (Utils.DetermineSuccess(0.1))
-            {
-                var animals = GetTerrainAnimals(terrain);
-                if (animals != null)
-                    location.Features.Add(animals);
-            }
-
             // Add wooded area to forest terrain
             if (terrain == TerrainType.Forest)
             {
                 location.Features.Add(new WoodedAreaFeature("Forest Trees", null, 100));
             }
+
+            // Generate hidden features that can be discovered through foraging
+            if (positionSeed.HasValue)
+            {
+                var discoveryGenerator = new DiscoveryGenerator(positionSeed.Value + DiscoverySeedOffset);
+                var hiddenFeatures = discoveryGenerator.GenerateFor(terrain);
+                location.HiddenFeatures.AddRange(hiddenFeatures);
+            }
         }
 
         return location;
-    }
-
-    private static HarvestableFeature? GetTerrainHarvestable(TerrainType terrain) => terrain switch
-    {
-        TerrainType.Forest => Utils.FlipCoin() ? FeatureFactory.CreateBerryBush() : FeatureFactory.CreateMixedDeadfall(),
-        TerrainType.Clearing => FeatureFactory.CreateBerryBush(),
-        TerrainType.Plain => null, // Water via EnvironmentalDetail
-        TerrainType.Marsh => Utils.FlipCoin() ? FeatureFactory.CreateCattails() : FeatureFactory.CreateMarshWater(),
-        TerrainType.Water => FeatureFactory.CreateIceSource(),
-        _ => null
-    };
-
-    private static AnimalTerritoryFeature? GetTerrainAnimals(TerrainType terrain)
-    {
-        var (baseDensity, factory) = terrain switch
-        {
-            TerrainType.Forest => (0.4, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateMixedPreyAnimals),
-            TerrainType.Clearing => (0.35, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateMixedPreyAnimals),
-            TerrainType.Plain => (0.3, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateSmallGameAnimals),
-            TerrainType.Hills => (0.25, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateSmallGameAnimals),
-            TerrainType.Marsh => (0.35, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateWaterfowlAnimals),
-            TerrainType.Rock => (0.2, (Func<double, AnimalTerritoryFeature>)FeatureFactory.CreateSmallGameAnimals),
-            _ => (0.0, (Func<double, AnimalTerritoryFeature>?)null)
-        };
-
-        if (factory == null) return null;
-
-        double density = Utils.RandomNormal(baseDensity, 0.15);
-        density = Math.Clamp(density, 0.1, 0.8);
-
-        return factory(density);
     }
 
     /// <summary>
@@ -122,6 +96,18 @@ public static class LocationFactory
         TerrainType.DeepWater => "Deep Water",
         _ => terrain.ToString()
     };
+
+    /// <summary>
+    /// Generate a reveal threshold using exponential distribution.
+    /// 50% found before expected time, capped at 10x expected.
+    /// </summary>
+    private static double GenerateRevealThreshold(Random rng, double expectedHours)
+    {
+        double u = rng.NextDouble();
+        if (u == 0) u = double.Epsilon;
+        double threshold = -Math.Log(u) * expectedHours;
+        return Math.Min(threshold, expectedHours * 10.0);  // Cap at 10x
+    }
 
     #endregion
 
@@ -497,6 +483,12 @@ public static class LocationFactory
         location.Features.Add(FeatureFactory.CreateBurntStandForage(density: 2.0));
         location.Features.Add(FeatureFactory.CreateSparseAnimals(density: 0.3));
 
+        // Discovery event - find the lightning-struck origin
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("fire_origin"),
+            revealAtHours: 1.5,
+            DiscoveryCategory.Minor));
+
         return location;
     }
 
@@ -520,6 +512,12 @@ public static class LocationFactory
         location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.3));
         location.Features.Add(ShelterFeature.CreateRockOverhang());
 
+        // Discovery event - evidence of previous use
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("previous_use"),
+            revealAtHours: 0.5,
+            DiscoveryCategory.Minor));
+
         return location;
     }
 
@@ -541,6 +539,12 @@ public static class LocationFactory
         };
 
         location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.8));
+
+        // Discovery event - spot movement from the vantage point
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("spot_movement"),
+            revealAtHours: 1.5,
+            DiscoveryCategory.Minor));
 
         return location;
     }
@@ -608,6 +612,12 @@ public static class LocationFactory
 
         location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 0.5));
 
+        // Discovery event - realize you need an axe for the hardwood
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("need_an_axe"),
+            revealAtHours: 2.0,
+            DiscoveryCategory.Minor));
+
         return location;
     }
 
@@ -629,6 +639,12 @@ public static class LocationFactory
         };
 
         location.Features.Add(FeatureFactory.CreateFlintForage(density: 1.5));
+
+        // Discovery event - notice the hazardous sharp edges
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("sharp_edges"),
+            revealAtHours: 0.5,
+            DiscoveryCategory.Minor));
 
         return location;
     }
@@ -662,6 +678,12 @@ public static class LocationFactory
             ActivityLevel = 0.4,
             RespawnHours = 480
         });
+
+        // Discovery event - find fresh animal tracks
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("fresh_tracks"),
+            revealAtHours: 1.0,
+            DiscoveryCategory.Minor));
 
         return location;
     }
@@ -756,6 +778,12 @@ public static class LocationFactory
             RespawnHours = 480       // 20 days between encounters
         });
 
+        // Discovery event - see for miles from the ridge
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("see_for_miles"),
+            revealAtHours: 1.5,
+            DiscoveryCategory.Major));
+
         return location;
     }
 
@@ -791,6 +819,12 @@ public static class LocationFactory
 
         // Note: ShelterFeature intentionally NOT added at creation
         // It gets added by Den arc events when claimed (AddsFeature)
+
+        // Discovery event - find the bear's food cache
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("bear_cache"),
+            revealAtHours: 2.0,
+            DiscoveryCategory.Major));
 
         return location;
     }
@@ -832,6 +866,12 @@ public static class LocationFactory
             .WithDescription("Deep water. Ice at the edges, thin in places.")
             .WithIceThickness(0.4);
         location.Features.Add(waterFeature);
+
+        // Discovery event - observe beaver activity
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("beaver_activity"),
+            revealAtHours: 1.0,
+            DiscoveryCategory.Minor));
 
         return location;
     }
@@ -2606,6 +2646,12 @@ public static class LocationFactory
 
         location.Features.Add(FeatureFactory.CreateMassiveDeadfall());
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 1.2));
+
+        // Discovery event - find a small animal den in the deadfall
+        location.HiddenFeatures.Add(new HiddenFeature(
+            new EventTriggerFeature("deadfall_den"),
+            revealAtHours: 1.0,
+            DiscoveryCategory.Major));
 
         return location;
     }

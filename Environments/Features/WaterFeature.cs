@@ -1,6 +1,10 @@
+using text_survival.Actions;
+using text_survival.Actions.Expeditions;
+using text_survival.Actions.Expeditions.WorkStrategies;
+
 namespace text_survival.Environments.Features;
 
-public class WaterFeature : LocationFeature
+public class WaterFeature : LocationFeature, IWorkableFeature
 {
     public override string? MapIcon => "water";
     public override int IconPriority => 2;
@@ -68,8 +72,8 @@ public class WaterFeature : LocationFeature
     {
         if (!CanCutIceHole()) return 0;
 
-        // Thin ice: 15 min, Solid ice: 45 min, scaling linearly
-        return (int)(15 + _iceThicknessLevel * 40);
+        // Thin ice: 5 min, Solid ice: 45 min, scaling linearly
+        return (int)(5 + _iceThicknessLevel * 40);
     }
 
     public void CloseIceHole()
@@ -164,6 +168,27 @@ public class WaterFeature : LocationFeature
             _iceHoleRefreezeProgress = 0;
         }
         return this;
+    }
+
+    /// <summary>
+    /// Provides work options for ice cutting and fishing.
+    /// </summary>
+    public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        // Ice cutting option (only if frozen and no hole)
+        if (CanCutIceHole())
+        {
+            string label = IceThicknessLevel < 0.4
+                ? "Cut through thin ice"
+                : "Cut ice hole";
+            yield return new WorkOption(label, "cut_ice", new IceCuttingStrategy());
+        }
+
+        // Fishing option (requires open water or ice hole)
+        if (!IsFrozen || HasIceHole)
+        {
+            yield return new WorkOption("Fish", "fish", new FishingStrategy());
+        }
     }
 
     public override List<Resource> ProvidedResources() =>

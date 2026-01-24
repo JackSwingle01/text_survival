@@ -12,7 +12,7 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class SalvageFeature : LocationFeature, IWorkableFeature
 {
-    public override string? MapIcon => IsDiscovered && HasLoot ? "loot" : null;
+    public override string? MapIcon => "loot";
     public override int IconPriority => 3;
 
     // Explicit public fields for serialization (System.Text.Json IncludeFields requires public)
@@ -29,39 +29,16 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
     /// </summary>
     public string? DiscoveryText { get; set; }
 
-    /// <summary>
-    /// Narrative hook - what happened here?
-    /// </summary>
     public string? NarrativeHook { get; set; }
 
-    /// <summary>
-    /// Has the site been discovered? (Shown vs hidden)
-    /// </summary>
-    public bool IsDiscovered { get; set; } = false;
-
-    /// <summary>
-    /// Has the site been fully salvaged?
-    /// </summary>
     public bool IsSalvaged => _isSalvaged;
 
-    /// <summary>
-    /// Discrete items available for salvage.
-    /// </summary>
     public List<Gear> Tools { get; set; } = [];
 
-    /// <summary>
-    /// Equipment items available for salvage.
-    /// </summary>
     public List<Gear> Equipment { get; set; } = [];
 
-    /// <summary>
-    /// Aggregate resources available for salvage.
-    /// </summary>
     public Inventory Resources { get; set; } = new();
 
-    /// <summary>
-    /// Minutes required to salvage the site.
-    /// </summary>
     public int MinutesToSalvage { get; set; } = 30;
 
     [System.Text.Json.Serialization.JsonConstructor]
@@ -92,24 +69,12 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
         };
     }
 
-    /// <summary>
-    /// Check if there's anything to salvage.
-    /// </summary>
     public bool HasLoot =>
         !IsSalvaged && (Tools.Count > 0 || Equipment.Count > 0 || !Resources.IsEmpty);
 
-    /// <summary>
-    /// Check if this site can be salvaged.
-    /// Alias for HasLoot for naming consistency.
-    /// </summary>
-    public bool CanBeSalvaged => HasLoot;
-
-    /// <summary>
-    /// Get work options for this feature.
-    /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
-        if (!CanBeSalvaged) yield break;
+        if (!HasLoot) yield break;
         yield return new WorkOption(
             $"Salvage {DisplayName} ({GetLootHint()})",
             "salvage",
@@ -117,9 +82,6 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
         );
     }
 
-    /// <summary>
-    /// Get a description of available loot (without spoiling specifics).
-    /// </summary>
     public string GetLootHint()
     {
         if (IsSalvaged)
@@ -140,11 +102,35 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
     public override List<Resource> ProvidedResources() =>
         HasLoot ? Resources.GetResourceTypes() : [];
 
-    // === Factory methods for common salvage types ===
-
     /// <summary>
-    /// Create an abandoned camp salvage site.
+    /// Create a salvage feature using a shared reward pool.
+    /// This ensures consistent loot tables between events and discoverable salvage.
     /// </summary>
+    /// <param name="name">Internal identifier</param>
+    /// <param name="displayName">Display name shown in UI</param>
+    /// <param name="pool">RewardPool to generate loot from</param>
+    /// <param name="discoveryText">Flavor text shown on discovery</param>
+    /// <param name="narrativeHook">What happened here?</param>
+    /// <param name="minutes">Minutes required to salvage</param>
+    public static SalvageFeature FromRewardPool(
+        string name, string displayName,
+        RewardPool pool, string discoveryText, string narrativeHook, int minutes = 30)
+    {
+        var salvage = new SalvageFeature(name, displayName)
+        {
+            DiscoveryText = discoveryText,
+            NarrativeHook = narrativeHook,
+            MinutesToSalvage = minutes,
+        };
+
+        var inventory = RewardGenerator.Generate(pool);
+        salvage.Resources = inventory;
+        salvage.Tools = [.. inventory.Tools];
+        salvage.Equipment = [.. inventory.Equipment.Values.Where(e => e != null).Cast<Gear>()];
+
+        return salvage;
+    }
+
     public static SalvageFeature CreateAbandonedCamp()
     {
         var salvage = new SalvageFeature("AbandonedCamp", "Abandoned Camp")
@@ -169,10 +155,6 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
 
         return salvage;
     }
-
-    /// <summary>
-    /// Create a frozen traveler salvage site.
-    /// </summary>
     public static SalvageFeature CreateFrozenTraveler()
     {
         var salvage = new SalvageFeature("FrozenTraveler", "Frozen Figure")
@@ -212,9 +194,6 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
         return salvage;
     }
 
-    /// <summary>
-    /// Create a hidden cache salvage site.
-    /// </summary>
     public static SalvageFeature CreateHiddenCache()
     {
         var salvage = new SalvageFeature("HiddenCache", "Hidden Cache")
@@ -246,9 +225,7 @@ public class SalvageFeature : LocationFeature, IWorkableFeature
     }
 }
 
-/// <summary>
-/// Loot returned from salvaging a site.
-/// </summary>
+
 public class SalvageLoot
 {
     public List<Gear> Tools { get; set; } = [];

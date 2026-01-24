@@ -177,6 +177,28 @@ public class Location
     public bool Explored { get; set; } = false;
     public List<LocationFeature> Features { get; set; } = [];
 
+    public List<HiddenFeature> HiddenFeatures { get; set; } = [];
+
+    /// <summary>
+    /// Check hidden features against discovery progress, reveal any that qualify.
+    /// Returns list of newly revealed features for presentation.
+    /// </summary>
+    /// <param name="discoveryProgress">Perception-weighted hours</param>
+    public List<HiddenFeature> RevealDiscoveries(double discoveryProgress)
+    {
+        var revealed = HiddenFeatures
+            .Where(h => discoveryProgress >= h.RevealAtHours)
+            .ToList();
+
+        foreach (var hidden in revealed)
+        {
+            HiddenFeatures.Remove(hidden);
+            Features.Add(hidden.Feature);
+        }
+
+        return revealed;
+    }
+
     /// <summary>
     /// Mark as explored without triggering narrative display.
     /// </summary>
@@ -214,24 +236,13 @@ public class Location
         }
     }
 
-    public bool HasWorkOptions(GameContext ctx) => GetWorkOptions(ctx).Any();
-
-    /// <summary>
-    /// Check if this location has an active heat source (fire).
-    /// </summary>
     public bool HasActiveHeatSource() => GetFeature<HeatSourceFeature>()?.IsActive ?? false;
 
-    /// <summary>
-    /// Remove a specific feature instance.
-    /// </summary>
     public bool RemoveFeature(LocationFeature feature)
     {
         return Features.Remove(feature);
     }
-
-    /// <summary>
-    /// Add a feature to this location.
-    /// </summary>
+    
     public void AddFeature(LocationFeature feature)
     {
         Features.Add(feature);

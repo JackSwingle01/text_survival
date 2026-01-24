@@ -1,4 +1,3 @@
-using text_survival.IO;
 using text_survival.UI;
 using text_survival.Desktop;
 using DesktopIO = text_survival.Desktop.DesktopIO;
@@ -15,7 +14,7 @@ public static partial class GameEventRegistry
     public record TickResult(int MinutesElapsed, GameEvent? TriggeredEvent);
 
     // Single knob to control overall event frequency
-    private const double EventsPerHour = .5;
+    private const double EventsPerHour = .25;
     private static readonly double BaseChancePerMinute = RateToChancePerMinute(EventsPerHour);
 
     private static double RateToChancePerMinute(double eventsPerHour)
@@ -54,9 +53,6 @@ public static partial class GameEventRegistry
         return (gameTime - lastTrigger).TotalHours < cooldownHours;
     }
 
-    /// <summary>
-    /// Event factories that create fresh events with context baked in.
-    /// </summary>
     public static List<Func<GameContext, GameEvent>> AllEventFactories { get; } =
     [
         // Weather events (GameEventRegistry.Weather.cs)
@@ -69,13 +65,11 @@ public static partial class GameEventRegistry
         WaterproofingPayoff,  // Positive feedback when waterproofed gear works
         SoakedThrough,  // Negative feedback when lacking waterproofing
 
-        // Expedition events (GameEventRegistry.Expedition.cs)
+        // Expedition events
         TreacherousFooting,
         SomethingCatchesYourEye,
         MinorAccident,
         GlintInAshes,
-        OldCampsite,
-        WaterSource,
         UnexpectedYield,
         TrailGoesCold,
         ExposedPosition,
@@ -94,11 +88,11 @@ public static partial class GameEventRegistry
         // Early game aspiration
         TrackingSomething,
 
-        // Water/Ice events (GameEventRegistry.Water.cs)
+        // Water/Ice events 
         FallThroughIce,
         GetFootWet,
 
-        // Camp infrastructure events (GameEventRegistry.Camp.cs)
+        // Camp infrastructure events
         VerminRaid,
         ShelterGroans,
         ChokingSmoke,
@@ -107,7 +101,7 @@ public static partial class GameEventRegistry
         MeltingReveal,
         MountainGlimpse,  // Early game goal-setting event
 
-        // Threat events (GameEventRegistry.Threats.cs)
+        // Threat events
         // Wildlife
         FreshCarcass,
         Tracks,
@@ -178,38 +172,38 @@ public static partial class GameEventRegistry
         FacingTheSource,
         ShadowMovement,
 
-        // Consciousness events (GameEventRegistry.Consciousness.cs)
+        // Consciousness events
         LostYourBearings,
 
-        // Moving impairment events (GameEventRegistry.Moving.cs)
+        // Moving impairment events 
         StrugglingToKeepPace,
 
-        // Manipulation impairment events (GameEventRegistry.Manipulation.cs)
+        // Manipulation impairment events 
         FumblingHands,
 
-        // Perception impairment events (GameEventRegistry.Perception.cs)
+        // Perception impairment events
         DulledSenses,
 
-        // Den arc events (GameEventRegistry.Den.cs)
+        // Den arc events 
         TheFind,
         AssessingTheClaim,
         TheConfrontation,
         // ClaimingTheDen is chained from successful eviction outcomes, not random
 
-        // Pack arc events (GameEventRegistry.Pack.cs)
+        // Pack arc events 
         PackSigns,
         EyesInTreeline,
         Circling,
         ThePackCommits,
 
-        // Fever arc events (GameEventRegistry.Fever.cs)
+        // Fever arc events
         SomethingWrong,
         FeverTakesHold,
         TheFireIllusion,
         FootstepsOutside,
         FeverCrisisPoint,
 
-        // Trapping events (GameEventRegistry.Trapping.cs)
+        // Trapping events
         SnareTampered,
         PredatorAtTrapLine,
         GoodCatch,
@@ -217,51 +211,33 @@ public static partial class GameEventRegistry
         TrappingAccident,
         BaitedTrapAttention,
 
-        // Foraging events (GameEventRegistry.Foraging.cs)
+        // Foraging events
         LuckyFind,
-        MushroomPatch,
-        SquirrelCache,
-        BeehiveSpotted,
 
-        // Location-specific events - Tier 1 (GameEventRegistry.Locations.cs)
-        DiscoverFireOrigin,
+        // Location-specific events
         SpottedInOpen,
         LogShifts,
-        DeadfallDen,
-        PreviousUse,
         SmokeBuildsUp,
-        SpotMovement,
         MutualVisibility,
         WeatherTurns,
 
-        // Location-specific events - Tier 2 (GameEventRegistry.Locations.cs)
-        // TheSilence removed - now handled by FirstVisitAncientGrove
-        NeedAnAxe,
-        SharpEdges,
-        FreshTracks,
+        // Location-specific events
         EscapeIntoThicket,
         CaughtInBrush,
         TwistedAnkle,
-        SeeForMiles,
         RidgeWindChill,
 
-        // Location-specific events - Tier 3 (GameEventRegistry.Locations.cs)
-        // Bear Cave
-        BearCache,
+        // Location-specific events
         BearSigns,
         HibernatingBear,
-        // Beaver Dam
-        BeaverActivity,
         DamWeakening,
         DrainedPond,
         ExposedLodge,
 
-        // Location-specific events - Tier 4 (GameEventRegistry.Locations.cs)
-        // The Lookout
+        // Location-specific events
         ClimbTheLookout,
         StormOnTheHorizon,
         SpotFromHeight,
-        // Old Campsite
         InvestigateRemnants,
         FindTheJournal,
         WhatKilledThem,

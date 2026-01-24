@@ -284,9 +284,10 @@ public class SerializationTests
             $"Serialization took {sw.ElapsedMilliseconds}ms (expected < 200ms)");
 
         // Verify JSON is reasonable size (not absurdly large)
-        // Grid-based map with 1024 locations produces ~3MB compact JSON
-        Assert.True(json.Length < 6_000_000,
-            $"JSON is {json.Length} chars (expected < 6MB)");
+        // Grid-based map with 1024 locations + hidden features produces ~8MB compact JSON
+        // (increased from 7MB after adding discoverable salvage sites and harvestables)
+        Assert.True(json.Length < 9_000_000,
+            $"JSON is {json.Length} chars (expected < 9MB)");
     }
 
     [Fact]

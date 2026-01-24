@@ -13,6 +13,7 @@ public record FeatureUIInfo(
     List<string>? Details  // Additional details like resource types
 );
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(ForageFeature), "forage")]
 [JsonDerivedType(typeof(HarvestableFeature), "harvestable")]
 [JsonDerivedType(typeof(HeatSourceFeature), "heatSource")]
@@ -30,6 +31,7 @@ public record FeatureUIInfo(
 [JsonDerivedType(typeof(CarcassFeature), "carcass")]
 [JsonDerivedType(typeof(MegafaunaPresenceFeature), "megafaunaPresence")]
 [JsonDerivedType(typeof(NPCBodyFeature), "npcbody")]
+[JsonDerivedType(typeof(EventTriggerFeature), "eventTrigger")]
 public abstract class LocationFeature
 {
     public string Name { get; set; } = string.Empty;

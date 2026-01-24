@@ -670,6 +670,11 @@ public class GridWorldGenerator
             // Set the location's terrain type to match
             namedLocation.Terrain = terrain;
 
+            // Generate hidden features using position seed (same approach as terrain locations)
+            int positionSeed = HashCode.Combine(x, y, Width);
+            var discoveryGenerator = new DiscoveryGenerator(positionSeed + LocationFactory.DiscoverySeedOffset);
+            namedLocation.HiddenFeatures.AddRange(discoveryGenerator.GenerateFor(terrain));
+
             map.SetLocation(x, y, namedLocation);
             placedPositions.Add(pos);
         }

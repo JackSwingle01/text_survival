@@ -52,8 +52,8 @@ public class RewardGeneratorTests
         // Assert
         Assert.Single(result.Tools);
         var tool = result.Tools[0];
-        Assert.True(tool.Durability > 0 && tool.Durability < 10,
-            "Scrap tool should have limited durability");
+        Assert.True(tool.Durability >= 4 && tool.Durability <= 10,
+            "Scrap tool should have durability between 4 and 10");
     }
 
     [Fact]
@@ -64,8 +64,8 @@ public class RewardGeneratorTests
 
         // Assert
         Assert.True(result.WaterLiters > 0);
-        Assert.True(result.WaterLiters >= 0.5 && result.WaterLiters <= 1.5,
-            "Water amount should be between 0.5 and 1.5 liters");
+        Assert.True(result.WaterLiters >= 1.0 && result.WaterLiters <= 2.5,
+            "Water amount should be between 1.0 and 2.5 liters");
     }
 
     [Fact]
@@ -76,8 +76,8 @@ public class RewardGeneratorTests
 
         // Assert
         Assert.Equal(1, result.Count(Resource.Tinder));
-        Assert.True(result.Weight(Resource.Tinder) >= 0.2 && result.Weight(Resource.Tinder) <= 0.5,
-            "Tinder weight should be between 0.2 and 0.5 kg");
+        Assert.True(result.Weight(Resource.Tinder) >= 0.4 && result.Weight(Resource.Tinder) <= 0.8,
+            "Tinder weight should be between 0.4 and 0.8 kg");
     }
 
     [Fact]
@@ -101,10 +101,11 @@ public class RewardGeneratorTests
 
         // Assert
         Assert.Equal(1, result.Count(Resource.RawMeat));
-        Assert.True(result.Weight(Resource.RawMeat) >= 0.2 && result.Weight(Resource.RawMeat) <= 0.4,
-            "Small game meat should weigh between 0.2 and 0.4 kg");
-        // Bone is optional (50% chance)
+        Assert.True(result.Weight(Resource.RawMeat) >= 0.4 && result.Weight(Resource.RawMeat) <= 0.7,
+            "Small game meat should weigh between 0.4 and 0.7 kg");
+        // Bone is optional (70% chance), hide optional (40% chance)
         Assert.True(result.Count(Resource.Bone) <= 1);
+        Assert.True(result.Count(Resource.Hide) <= 1);
     }
 
     [Fact]
@@ -115,8 +116,8 @@ public class RewardGeneratorTests
 
         // Assert
         Assert.Equal(1, result.Count(Resource.Hide));
-        Assert.True(result.Weight(Resource.Hide) >= 0.3 && result.Weight(Resource.Hide) <= 0.6,
-            "Hide scrap should weigh between 0.3 and 0.6 kg");
+        Assert.True(result.Weight(Resource.Hide) >= 0.5 && result.Weight(Resource.Hide) <= 0.9,
+            "Hide scrap should weigh between 0.5 and 0.9 kg");
     }
 
     [Theory]

@@ -38,6 +38,13 @@ public record CarcassCreation(AnimalType? AnimalType, double HarvestedPct = 0, d
 public record HerdCreation(AnimalType AnimalType, int Count = 1, int TerritoryRadius = 2);
 
 /// <summary>
+/// Configuration for creating a salvage feature at the current location.
+/// Used when player marks a discovery location for later return.
+/// </summary>
+/// <param name="SalvageType">Type of salvage: "frozen_traveler" or "hidden_cache"</param>
+public record SalvageCreation(string SalvageType);
+
+/// <summary>
 /// Configuration for damaging a shelter stat.
 /// </summary>
 public record ShelterDamage(ShelterImprovementType Stat, double Amount);
@@ -87,6 +94,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     // Herd creation (for discovery events that spawn new herds)
     public HerdCreation? HerdCreation;
+
+    // Salvage feature creation (for marking discovery locations)
+    public SalvageCreation? SalvageCreation;
 
     // Herd effects (for mammoth integration)
     public double? HerdAlertLevel;  // Alert level to set on nearby herd (0-1)
@@ -214,6 +224,13 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         return this;
     }
 
+    // Salvage feature creation (for marking discovery locations for later return)
+    public EventResult CreatesSalvage(string salvageType)
+    {
+        SalvageCreation = new SalvageCreation(salvageType);
+        return this;
+    }
+
     // === Outcome Application ===
 
     /// <summary>
@@ -240,6 +257,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         ApplyCarcassCreation(ctx, summary);
         ApplyHerdCreation(ctx, summary);
         ApplyHerdEffects(ctx, summary);
+        ApplySalvageCreation(ctx, summary);
         DisplaySummary(ctx, summary);
 
         return new EventOutcomeDto(
@@ -629,6 +647,26 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
                 // If herd is now empty, it will be cleaned up in next registry update
             }
+        }
+    }
+
+    private void ApplySalvageCreation(GameContext ctx, OutcomeSummary summary)
+    {
+        if (SalvageCreation is null) return;
+
+        // todo - I don't love having this here and then duplicated in the record type comment - how can we make a SSOT?
+        SalvageFeature? salvage = SalvageCreation.SalvageType switch
+        {
+            "frozen_traveler" => SalvageFeature.CreateFrozenTraveler(),
+            "hidden_cache" => SalvageFeature.CreateHiddenCache(),
+            _ => null
+        };
+
+        if (salvage != null)
+        {
+            ctx.CurrentLocation.AddFeature(salvage);
+            GameDisplay.AddSuccess(ctx, $"  + Marked location: {salvage.DisplayName}");
+            summary.ItemsGained.Add($"Marked: {salvage.DisplayName}");
         }
     }
 

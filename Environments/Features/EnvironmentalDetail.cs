@@ -26,14 +26,8 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public ExaminationVariant[]? ExaminationPool { get; init; }
 
     public string? _mapIcon;
-    public override string? MapIcon => !Interacted ? _mapIcon : null;
+    public override string? MapIcon => _mapIcon;  // Always show while in Features list
     public override int IconPriority => 0; // Low priority - other features show first
-
-    public bool _discovered = true; // Start visible for now
-    public bool Discovered => _discovered;
-
-    public bool _interacted = false;
-    public bool Interacted => _interacted;
 
     public Inventory? Loot { get; init; }
 
@@ -61,10 +55,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
     public (Inventory? loot, string? examinationText, ActiveTension? tension) Interact()
     {
-        if (Interacted) return (null, null, null);
-
-        _interacted = true;
-
         // Create tension if this detail produces one
         var tension = TensionOnInteract?.Invoke();
 
@@ -83,11 +73,10 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         return (new Inventory(), Description, tension);
     }
 
-    public bool CanInteract => Discovered && !Interacted && (Loot != null || InteractionHint != null || ExaminationPool != null || TensionOnInteract != null);
+    public bool CanInteract => Loot != null || InteractionHint != null || ExaminationPool != null || TensionOnInteract != null;
 
     public string GetStatusDescription()
     {
-        if (Interacted) return "examined";
         if (InteractionHint != null) return InteractionHint;
         return Description;
     }

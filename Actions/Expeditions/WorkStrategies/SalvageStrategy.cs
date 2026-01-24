@@ -131,6 +131,12 @@ public class SalvageStrategy : IWorkStrategy
             InventoryCapacityHelper.CombineAndReport(ctx, loot.Resources);
         }
 
+        // remove the feature if fully salvaged
+        if (!salvage.HasLoot)
+        {
+            location.RemoveFeature(salvage);
+        }
+
         // Show results in popup overlay (include impairment warnings if any)
         DesktopIO.ShowWorkResult(ctx, "Salvaging", "You gather what you can find.", collected, narrative, _impairmentWarnings);
 

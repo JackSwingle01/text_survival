@@ -30,6 +30,12 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     public double HoursSinceLastForage { get; set; } = 0;
 
     /// <summary>
+    /// Perception-weighted foraging hours for discovery tracking.
+    /// Separate from NumberOfHoursForaged (which tracks depletion).
+    /// </summary>
+    public double DiscoveryProgress { get; set; } = 0;
+
+    /// <summary>
     /// Tracks per-resource depletion from animal grazing (0-1 scale).
     /// Key is Resource enum, value is grazing depletion level.
     /// </summary>
@@ -42,6 +48,14 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     /// </summary>
     [System.Text.Json.Serialization.JsonInclude]
     internal int ClueSeed { get; private set; } = Random.Shared.Next();
+
+    /// <summary>
+    /// Resources the player has found at least once here.
+    /// Populated passively during Forage() - no special discovery logic.
+    /// Used by UI/clues to show what's known to exist.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonInclude]
+    public HashSet<Resource> KnownResources { get; set; } = [];
 
     public ForageFeature(double resourceDensity = 1) : base("forage")
     {
@@ -142,6 +156,12 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         {
             NumberOfHoursForaged += hours;
             HoursSinceLastForage = 0;
+
+            // Track what we've found for UI purposes
+            foreach (var resourceType in found.GetResourceTypes())
+            {
+                KnownResources.Add(resourceType);
+            }
         }
 
         // Regenerate clue seed for next forage attempt

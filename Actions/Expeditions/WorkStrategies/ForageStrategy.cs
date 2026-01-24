@@ -1,13 +1,9 @@
-using text_survival.Actions;
 using text_survival.Actions.Variants;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
-using text_survival.UI;
-using text_survival.Desktop;
 using DesktopIO = text_survival.Desktop.DesktopIO;
 using text_survival.Desktop.Dto;
 
@@ -358,6 +354,35 @@ public class ForageStrategy : IWorkStrategy
             DesktopIO.ShowLootReveal(ctx, found);
         }
 
+        // Process exploration progress and reveal discoveries
+        var discoveries = ProcessExploration(ctx, location, actualTime);
+        foreach (var discovery in discoveries)
+        {
+            // EventTriggerFeature: trigger event and remove feature
+            if (discovery.Feature is EventTriggerFeature trigger)
+            {
+                var evt = DiscoveryEventFactory.Create(trigger.EventId, ctx);
+                if (evt != null)
+                {
+                    GameEventRegistry.HandleEvent(ctx, evt);
+                }
+                location.RemoveFeature(trigger);
+                continue;
+            }
+
+            string message = GetDiscoveryMessage(discovery);
+            if (discovery.Category == DiscoveryCategory.Minor)
+            {
+                narrative.Add(message);
+            }
+            else // Major
+            {
+                // todo - make this popup like an event overlay
+                // Major discoveries get special presentation
+                narrative.Add($"** {message} **");
+            }
+        }
+
         // Handle Game clues - apply hunt bonus to territory
         if (_gameClue != null)
         {
@@ -440,5 +465,172 @@ public class ForageStrategy : IWorkStrategy
         }
 
         return new WorkResult(collected, null, actualTime, false);
+    }
+
+    /// <summary>
+    /// Add exploration progress and check for discoveries.
+    /// Perception affects how quickly you notice things.
+    /// Progress is tracked on ForageFeature (single source of truth).
+    /// </summary>
+    private List<HiddenFeature> ProcessExploration(GameContext ctx, Location location, int minutes)
+    {
+        var forage = location.GetFeature<ForageFeature>();
+        if (forage == null) return [];
+
+        double hours = minutes / 60.0;
+        double perception = AbilityCalculator.GetPerception(ctx.player, ctx);
+
+        // Better perception means noticing things faster
+        forage.DiscoveryProgress += hours * perception;
+
+        return location.RevealDiscoveries(forage.DiscoveryProgress);
+    }
+
+    /// <summary>
+    /// Generate a discovery message based on the feature type.
+    /// Uses varied text pools for more interesting presentation.
+    /// </summary>
+    private static string GetDiscoveryMessage(HiddenFeature discovery)
+    {
+        var feature = discovery.Feature;
+
+        return feature switch
+        {
+            HarvestableFeature h => GetHarvestableDiscoveryMessage(h),
+            ShelterFeature s => GetShelterDiscoveryMessage(s),
+            EnvironmentalDetail d => GetEnvironmentalDetailDiscoveryMessage(d),
+            _ => $"You discover something interesting: {feature.Name}."
+        };
+    }
+
+    // todo - move these to their respective feature classes for better organization
+    private static string GetEnvironmentalDetailDiscoveryMessage(EnvironmentalDetail d)
+    {
+        return d.Name switch
+        {
+            "fallen_log" => SelectRandom(
+                "A fallen log, half-buried in snow. Might yield some sticks.",
+                "You notice a rotting log nearby. Worth investigating.",
+                "Deadfall - a log that could provide some kindling."
+            ),
+            "animal_tracks" => SelectRandom(
+                "Fresh tracks in the snow. Something passed through here.",
+                "Animal tracks - worth examining more closely.",
+                "You spot tracks. The snow holds their shape well."
+            ),
+            "animal_droppings" => SelectRandom(
+                "Animal scat. Fresh enough to tell you something lives here.",
+                "Droppings nearby. You're not alone in this area.",
+                "You notice animal scat - a sign of recent activity."
+            ),
+            "bent_branches" => SelectRandom(
+                "Bent branches catch your eye. Something pushed through here.",
+                "Low branches, broken and bent. A trail of sorts.",
+                "You notice disturbed undergrowth. Worth a closer look."
+            ),
+            "stone_pile" => SelectRandom(
+                "Loose stones gathered at the base of an outcrop.",
+                "A pile of rocks. Might find something useful.",
+                "Stones, naturally collected by erosion. Could be handy."
+            ),
+            "old_campfire" => SelectRandom(
+                "The remains of an old fire ring. Long cold.",
+                "A fire pit, abandoned. Someone camped here before.",
+                "You find evidence of an old campfire."
+            ),
+            "hollow_tree" => SelectRandom(
+                "A hollow tree catches your eye. Dry material inside.",
+                "Dead wood with a hollow center. Good for tinder.",
+                "You spot a hollow tree - might be worth checking."
+            ),
+            "scattered_bones" => SelectRandom(
+                "Bones, picked clean by scavengers. An old kill site.",
+                "You find scattered bones. Something died here.",
+                "Weathered bones in the snow. Still useful."
+            ),
+            "dry_grass" => SelectRandom(
+                "A tussock of dry grass, brown and brittle.",
+                "Dead grass poking through the snow. Good fiber.",
+                "You notice a clump of dry grass nearby."
+            ),
+            "animal_burrow" => SelectRandom(
+                "A small burrow entrance. Something lives down there.",
+                "You spot a hole in the ground - an animal den.",
+                "A burrow. Fresh digging at the entrance."
+            ),
+            "frozen_puddle" or "forest_puddle" => SelectRandom(
+                "A small frozen puddle. The ice looks thin.",
+                "You find a puddle of water, frozen over.",
+                "Ice covers a small pool. Drinkable water, perhaps."
+            ),
+            "old_nest" => SelectRandom(
+                "An abandoned nest, woven from grass and twigs.",
+                "You find an old bird's nest. Useful materials.",
+                "A nest from last season. Dry nesting material."
+            ),
+            _ => $"You notice something: {d.DisplayName.ToLower()}."
+        };
+    }
+
+    // todo - move to HarvestableFeature class
+    private static string GetHarvestableDiscoveryMessage(HarvestableFeature h)
+    {
+        var name = h.DisplayName.ToLower();
+
+        // Select variant based on feature name/type
+        return h.Name switch
+        {
+            "berry_bush" => SelectRandom(
+                $"You notice a {name} growing in a sheltered spot.",
+                $"Berries! A {name} with fruit still clinging to the branches.",
+                $"A {name} you almost walked past. Worth remembering."
+            ),
+            "deadfall" or "massive_deadfall" => SelectRandom(
+                $"You find a {name}. Dry wood, ready to use.",
+                $"A {name} - nature's kindling pile.",
+                $"Wind-felled timber. This {name} could fuel a fire for days."
+            ),
+            "flint_outcrop" => SelectRandom(
+                "Sharp flint nodules catch the light. A knapping site.",
+                "Flint! The rock here breaks clean and sharp.",
+                "Quality stone for tools. This spot is worth remembering."
+            ),
+            "pyrite_seam" => SelectRandom(
+                "Golden glints in the rock - iron pyrite. Sparks well against flint.",
+                "Fire-stone. A seam of pyrite runs through the rock here.",
+                "You find pyrite - 'fool's gold' that strikes true sparks."
+            ),
+            "bone_pile" => SelectRandom(
+                "Old bones scattered across the ground. Still useful.",
+                "Something died here long ago. The bones remain.",
+                "Weathered bone, picked clean by time and scavengers."
+            ),
+            "cattails" => SelectRandom(
+                "Cattails! Good for fiber and tinder both.",
+                "A stand of cattails. Useful plants, if you know how.",
+                "Cattail reeds - their fluff catches sparks easily."
+            ),
+            _ => h.Description != "" ? $"You find {name}. {h.Description}" : $"You discover {name}."
+        };
+    }
+
+    private static string GetShelterDiscoveryMessage(ShelterFeature s)
+    {
+        var name = s.Name.ToLower();
+
+        return s.ShelterType switch
+        {
+            ShelterType.NaturalShelter or ShelterType.RockOverhang => SelectRandom(
+                $"A natural overhang - this {name} could block the wind.",
+                $"You find a {name}. Not much, but it's something.",
+                $"Shelter! A {name} that would keep the worst of the weather off."
+            ),
+            _ => $"You find shelter: {name}."
+        };
+    }
+
+    private static string SelectRandom(params string[] options)
+    {
+        return options[Random.Shared.Next(options.Length)];
     }
 }
