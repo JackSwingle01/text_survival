@@ -968,6 +968,7 @@ public static class DesktopIO
         CookingHandler.CookingResult actionResult = result.Action switch
         {
             CookingAction.CookMeat => CookingHandler.ProcessCookMeat(ctx),
+            CookingAction.CookFish => CookingHandler.ProcessCookFish(ctx),
             CookingAction.MeltSnow => CookingHandler.ProcessMeltSnow(ctx),
             _ => new CookingHandler.CookingResult(false, "Unknown action", 0)
         };

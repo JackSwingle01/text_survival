@@ -69,6 +69,20 @@ public static class CuringRackHandler
                     };
                 }
 
+                // Raw fish -> Dried fish
+                if (inv.Count(Resource.RawFish) > 0)
+                {
+                    double w = inv.Peek(Resource.RawFish);
+                    string opt = $"Hang raw fish ({w:F1}kg) - 16 hours to dry";
+                    options.Add(opt);
+                    actions[opt] = () =>
+                    {
+                        double weight = inv.Pop(Resource.RawFish);
+                        rack.AddItem(CurableItemType.RawFish, weight);
+                        GameDisplay.AddSuccess(ctx, "You hang the fish on the rack to dry.");
+                    };
+                }
+
                 // Berries -> Dried berries
                 if (inv.Count(Resource.Berries) > 0)
                 {

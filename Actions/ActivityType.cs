@@ -24,5 +24,6 @@ public enum ActivityType
     Chopping,       // Full events, felling trees (strenuous)
     Tracking,       // Full events, following animal signs while foraging
     Butchering,     // Full events, processing a carcass
+    Fishing,        // Full events, fishing at water feature
 
 }

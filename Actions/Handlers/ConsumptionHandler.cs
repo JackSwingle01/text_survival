@@ -21,6 +21,14 @@ public static class ConsumptionHandler
     private const double DriedMeatCaloriesPerKg = 3000;
     private const double DriedBerriesCaloriesPerKg = 2500;
 
+    // Fish calorie values (less calorie-dense than mammal meat)
+    private const double CookedFishCaloriesPerKg = 1400;
+    private const double RawFishCaloriesPerKg = 1200;
+    private const double DriedFishCaloriesPerKg = 2800;
+
+    // Fish hydration (dried fish makes you thirsty, less than dried meat)
+    private const double DriedFishHydrationPerKg = -30;
+
     // Hydration values
     private const double BerriesHydrationPerKg = 200;
     private const double RootsHydrationPerKg = 100;
@@ -63,6 +71,9 @@ public static class ConsumptionHandler
             Resource.Roots => (RootsCaloriesPerKg, RootsHydrationPerKg),
             Resource.DriedMeat => (DriedMeatCaloriesPerKg, DriedMeatHydrationPerKg),
             Resource.DriedBerries => (DriedBerriesCaloriesPerKg, 0),
+            Resource.CookedFish => (CookedFishCaloriesPerKg, 0),
+            Resource.RawFish => (RawFishCaloriesPerKg, 0),
+            Resource.DriedFish => (DriedFishCaloriesPerKg, DriedFishHydrationPerKg),
             _ => (0, 0)
         };
     }
@@ -79,11 +90,14 @@ public static class ConsumptionHandler
         // Food items
         AddIfAvailable(result, inv, Resource.CookedMeat, "Cooked meat", CookedMeatCaloriesPerKg, 0, null);
         AddIfAvailable(result, inv, Resource.RawMeat, "Raw meat", RawMeatCaloriesPerKg, 0, "[risk of illness]");
+        AddIfAvailable(result, inv, Resource.CookedFish, "Cooked fish", CookedFishCaloriesPerKg, 0, null);
+        AddIfAvailable(result, inv, Resource.RawFish, "Raw fish", RawFishCaloriesPerKg, 0, "[risk of illness]");
         AddIfAvailable(result, inv, Resource.Berries, "Berries", BerriesCaloriesPerKg, BerriesHydrationPerKg, null);
         AddIfAvailable(result, inv, Resource.Honey, "Honey", HoneyCaloriesPerKg, 0, null);
         AddIfAvailable(result, inv, Resource.Nuts, "Nuts", NutsCaloriesPerKg, 0, null);
         AddIfAvailable(result, inv, Resource.Roots, "Roots", RootsCaloriesPerKg, RootsHydrationPerKg, null);
         AddIfAvailable(result, inv, Resource.DriedMeat, "Dried meat", DriedMeatCaloriesPerKg, DriedMeatHydrationPerKg, "[makes you thirsty]");
+        AddIfAvailable(result, inv, Resource.DriedFish, "Dried fish", DriedFishCaloriesPerKg, DriedFishHydrationPerKg, "[makes you thirsty]");
         AddIfAvailable(result, inv, Resource.DriedBerries, "Dried berries", DriedBerriesCaloriesPerKg, 0, null);
 
         // Water (drink up to 1L, capped by hydration room)
@@ -203,11 +217,15 @@ public static class ConsumptionHandler
             Resource.CookedMeat => Eat(body, eaten, CookedMeatCaloriesPerKg, 0, "You eat the cooked meat."),
             Resource.RawMeat => Eat(body, eaten, RawMeatCaloriesPerKg, 0, "You eat the raw meat.", isWarning: true),
             // TODO: Add chance of food poisoning for raw meat
+            Resource.CookedFish => Eat(body, eaten, CookedFishCaloriesPerKg, 0, "You eat the cooked fish."),
+            Resource.RawFish => Eat(body, eaten, RawFishCaloriesPerKg, 0, "You eat the raw fish.", isWarning: true),
+            // TODO: Add chance of food poisoning for raw fish
             Resource.Berries => Eat(body, eaten, BerriesCaloriesPerKg, BerriesHydrationPerKg, "You eat the berries."),
             Resource.Honey => EatHoney(ctx, body, eaten),
             Resource.Nuts => Eat(body, eaten, NutsCaloriesPerKg, 0, "You eat the nuts. Dense calories."),
             Resource.Roots => Eat(body, eaten, RootsCaloriesPerKg, RootsHydrationPerKg, "You eat the roots. Starchy and filling."),
             Resource.DriedMeat => Eat(body, eaten, DriedMeatCaloriesPerKg, DriedMeatHydrationPerKg, "You eat the dried meat. Salty and chewy."),
+            Resource.DriedFish => Eat(body, eaten, DriedFishCaloriesPerKg, DriedFishHydrationPerKg, "You eat the dried fish. Lighter than meat, but filling."),
             Resource.DriedBerries => Eat(body, eaten, DriedBerriesCaloriesPerKg, 0, "You eat the dried berries. Sweet and tangy."),
             _ => new ConsumptionResult($"Cannot eat {resource}", true)
         };
@@ -258,6 +276,13 @@ public static class ConsumptionHandler
                 body.AddCalories((int)(amount * RawMeatCaloriesPerKg));
                 // TODO: Add chance of food poisoning for raw meat
                 break;
+            case Resource.CookedFish:
+                body.AddCalories((int)(amount * CookedFishCaloriesPerKg));
+                break;
+            case Resource.RawFish:
+                body.AddCalories((int)(amount * RawFishCaloriesPerKg));
+                // TODO: Add chance of food poisoning for raw fish
+                break;
             case Resource.Berries:
                 body.AddCalories((int)(amount * BerriesCaloriesPerKg));
                 body.AddHydration(amount * BerriesHydrationPerKg);
@@ -277,6 +302,10 @@ public static class ConsumptionHandler
             case Resource.DriedMeat:
                 body.AddCalories((int)(amount * DriedMeatCaloriesPerKg));
                 body.AddHydration(amount * DriedMeatHydrationPerKg);
+                break;
+            case Resource.DriedFish:
+                body.AddCalories((int)(amount * DriedFishCaloriesPerKg));
+                body.AddHydration(amount * DriedFishHydrationPerKg);
                 break;
             case Resource.DriedBerries:
                 body.AddCalories((int)(amount * DriedBerriesCaloriesPerKg));

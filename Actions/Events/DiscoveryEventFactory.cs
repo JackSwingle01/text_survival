@@ -44,6 +44,9 @@ public static class DiscoveryEventFactory
         ["sharp_edges"] = SharpEdgesDiscovery,
         ["beaver_activity"] = BeaverActivityDiscovery,
         ["spot_movement"] = SpotMovementDiscovery,
+        // Fishing discoveries
+        ["deep_hole"] = DeepHoleDiscovery,
+        ["fish_run"] = FishRunDiscovery,
     };
 
     /// <summary>
@@ -724,6 +727,89 @@ public static class DiscoveryEventFactory
                 "Visibility works both ways.",
                 [
                     new EventResult("You descend quickly. Whatever it was, you don't want it seeing you.", 1.0, 5)
+                ]);
+    }
+
+    // === FISHING DISCOVERIES ===
+
+    /// <summary>
+    /// Discovered a deep hole in the water - better fishing but thinner ice.
+    /// Creates a meaningful tradeoff: best fishing spot is also most dangerous.
+    /// Note: The tradeoff is communicated narratively - the player learns the ice is thin here.
+    /// </summary>
+    private static GameEvent DeepHoleDiscovery(GameContext ctx)
+    {
+        // Modify the water feature when this discovery is triggered
+        var water = ctx.CurrentLocation.GetFeature<WaterFeature>();
+        if (water != null)
+        {
+            // Better fishing: +0.25 abundance (capped at 1.0)
+            water._fishAbundance = Math.Min(1.0, water._fishAbundance + 0.25);
+            // More danger: -0.2 ice thickness (minimum 0.2)
+            water._iceThicknessLevel = Math.Max(0.2, water._iceThicknessLevel - 0.2);
+        }
+
+        return new GameEvent("Deep Hole",
+            "You notice the ice here has a darker tint — the water runs deeper. " +
+            "Bigger fish lurk in the depths, but the ice is thinner where the current flows.",
+            1.0)
+            .Choice("Mark the Spot",
+                "This is valuable knowledge. Remember it for fishing.",
+                [
+                    new EventResult("You note the deep hole. Better fishing here, but watch your step on the ice.", 0.80, 5),
+                    new EventResult("The ice groans as you examine it. Definitely thinner here.", 0.20, 8)
+                        .Unsettling()
+                ])
+            .Choice("Test the Ice",
+                "Check how thick it really is before committing.",
+                [
+                    new EventResult("You tap and probe. Thin, but manageable with care.", 0.60, 12),
+                    new EventResult("Thinner than you thought. A crack runs from your test point.", 0.30, 10)
+                        .Shaken(),
+                    new EventResult("Your probe punches through. Very thin — but the fish below are huge.", 0.10, 8)
+                        .WithEffects(EffectFactory.Wet(0.2))
+                ])
+            .Choice("Avoid It",
+                "Not worth the risk.",
+                [
+                    new EventResult("You note the location to avoid. Safer ice elsewhere.", 1.0, 3)
+                ]);
+    }
+
+    /// <summary>
+    /// Discovered a fish run - a one-time opportunity for excellent fishing.
+    /// Gives immediate fish rewards rather than modifying abundance.
+    /// </summary>
+    private static GameEvent FishRunDiscovery(GameContext ctx)
+    {
+        return new GameEvent("Fish Run",
+            "The water churns with movement. Fish are running — spawning, migrating, feeding. " +
+            "You've stumbled onto a run. This won't last forever.",
+            1.0)
+            .Choice("Fish Now",
+                "Drop everything. This is the moment.",
+                [
+                    new EventResult("You work fast, pulling fish after fish. The run is incredible.", 0.50, 30)
+                        .FindsFish(3),
+                    new EventResult("Good timing. You land several solid catches before the run slows.", 0.35, 25)
+                        .FindsFish(2),
+                    new EventResult("You manage to grab a few before they move on.", 0.15, 20)
+                        .FindsFish(1)
+                ])
+            .Choice("Prepare First",
+                "Get your gear ready. Do this right.",
+                [
+                    new EventResult("Smart. With proper preparation, the fishing is excellent.", 0.70, 35)
+                        .FindsFish(2),
+                    new EventResult("By the time you're ready, the peak has passed. Still decent.", 0.25, 30)
+                        .FindsFish(1),
+                    new EventResult("You took too long. The run has moved on.", 0.05, 20)
+                ])
+            .Choice("Mark for Later",
+                "Remember this spot. Runs tend to recur.",
+                [
+                    new EventResult("You note the location and timing. Next time you'll be ready.", 1.0, 5)
+                        .CreateTension("MarkedDiscovery", 0.4, description: "fish run location")
                 ]);
     }
 }

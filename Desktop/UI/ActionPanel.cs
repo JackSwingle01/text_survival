@@ -460,7 +460,7 @@ public class ActionPanel
 
             // Injuries section - show damaged body parts
             var damagedParts = displayTarget.actor.Body.Parts
-                .Where(p => p.Condition < 1.0)
+                .Where(p => p.Condition <= 0.995)
                 .OrderBy(p => p.Condition)
                 .Take(4)  // Limit to 4 to save space
                 .ToList();

@@ -53,7 +53,7 @@ public class CheckNetStrategy : IWorkStrategy
         return (baseTime, []);
     }
 
-    public ActivityType GetActivityType() => ActivityType.Foraging;
+    public ActivityType GetActivityType() => ActivityType.Fishing;
 
     public string GetActivityName() => "checking nets";
 
@@ -83,7 +83,7 @@ public class CheckNetStrategy : IWorkStrategy
             {
                 foreach (var fishWeight in result.FishWeights)
                 {
-                    loot.Add(Resource.RawMeat, fishWeight);
+                    loot.Add(Resource.RawFish, fishWeight);
                     loot.Add(Resource.Bone, fishWeight * 0.1);
                     collected.Add($"Fish ({fishWeight:F1}kg)");
                 }

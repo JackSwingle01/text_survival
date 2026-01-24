@@ -17,6 +17,7 @@ public static class CookingHandler
     // ============================================
 
     public const int CookMeatTimeMinutes = 15;
+    public const int CookFishTimeMinutes = 12;  // Fish cooks faster than meat
     public const int MeltSnowTimeMinutes = 10;
     public const double MeltSnowWaterLiters = 1.0;
 
@@ -51,6 +52,14 @@ public static class CookingHandler
     }
 
     /// <summary>
+    /// Check if actor can cook fish (has raw fish and is at active fire).
+    /// </summary>
+    public static bool CanCookFish(Inventory inv, Location location)
+    {
+        return CanCookAt(location) && inv.Count(Resource.RawFish) > 0;
+    }
+
+    /// <summary>
     /// Check if actor can melt snow (at active fire).
     /// Snow is assumed to be freely available in this ice age setting.
     /// </summary>
@@ -79,6 +88,25 @@ public static class CookingHandler
         inv.Add(Resource.CookedMeat, weight);
 
         return new CookingResult(true, $"Cooked {weight:F1}kg of meat.", weight);
+    }
+
+    /// <summary>
+    /// Cook one unit of raw fish. Consumes RawFish, produces CookedFish.
+    /// Fish cooks faster than meat (12 min vs 15 min).
+    /// Returns result with success status and amount cooked.
+    /// </summary>
+    public static CookingResult CookFish(Inventory inv, Location location)
+    {
+        if (!CanCookAt(location))
+            return new CookingResult(false, "No active fire to cook on.", 0);
+
+        if (inv.Count(Resource.RawFish) <= 0)
+            return new CookingResult(false, "No raw fish to cook.", 0);
+
+        double weight = inv.Pop(Resource.RawFish);
+        inv.Add(Resource.CookedFish, weight);
+
+        return new CookingResult(true, $"Cooked {weight:F1}kg of fish.", weight);
     }
 
     /// <summary>
@@ -114,6 +142,20 @@ public static class CookingHandler
     }
 
     /// <summary>
+    /// NPC fish cooking - cooks one unit of raw fish.
+    /// Returns true if cooking succeeded.
+    /// </summary>
+    public static bool CookFishNPC(Actor actor, Inventory inv, Location location)
+    {
+        var result = CookFish(inv, location);
+        if (result.Success)
+        {
+            Console.WriteLine($"[NPC:{actor.Name}] Cooked {result.Amount:F1}kg fish");
+        }
+        return result.Success;
+    }
+
+    /// <summary>
     /// NPC snow melting - melts snow to produce water.
     /// Returns true if melting succeeded.
     /// </summary>
@@ -140,6 +182,18 @@ public static class CookingHandler
         var result = CookMeat(ctx.Inventory, ctx.CurrentLocation);
         if (result.Success)
             ctx.Update(CookMeatTimeMinutes, ActivityType.TendingFire);
+        return result;
+    }
+
+    /// <summary>
+    /// Process cooking fish with time advancement.
+    /// Wrapper for desktop UI that handles side effects.
+    /// </summary>
+    public static CookingResult ProcessCookFish(GameContext ctx)
+    {
+        var result = CookFish(ctx.Inventory, ctx.CurrentLocation);
+        if (result.Success)
+            ctx.Update(CookFishTimeMinutes, ActivityType.TendingFire);
         return result;
     }
 

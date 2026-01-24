@@ -29,7 +29,10 @@ public enum RewardPool
     HuntersBlind,       // Hunting gear - spear, bones
     ResinPocket,        // Pine resin
     CharDeposit,        // Old fire charcoal
-    AbandonedDen        // Predator den scraps - bones, hide
+    AbandonedDen,       // Predator den scraps - bones, hide
+
+    // Fishing
+    FishCatch           // Raw fish from fishing
 }
 
 public static class RewardGenerator
@@ -61,6 +64,7 @@ public static class RewardGenerator
             RewardPool.ResinPocket => GenerateResinPocket(),
             RewardPool.CharDeposit => GenerateCharDeposit(),
             RewardPool.AbandonedDen => GenerateAbandonedDen(),
+            RewardPool.FishCatch => GenerateFishCatch(densityFactor),
             _ => new Inventory()
         };
     }
@@ -479,6 +483,20 @@ public static class RewardGenerator
         // 30% chance of sinew
         if (Random.Shared.NextDouble() < 0.3)
             resources.Add(Resource.Sinew, RandomWeight(0.08, 0.15));
+
+        return resources;
+    }
+
+    private static Inventory GenerateFishCatch(double densityFactor)
+    {
+        var resources = new Inventory();
+        // Fish - slightly less calorie-dense than meat but good protein source
+        // Weight range similar to small game
+        resources.Add(Resource.RawFish, RandomWeight(0.3, 0.6) * densityFactor);
+
+        // 50% chance of fish bones
+        if (Random.Shared.NextDouble() < 0.5)
+            resources.Add(Resource.Bone, RandomWeight(0.05, 0.1) * densityFactor);
 
         return resources;
     }

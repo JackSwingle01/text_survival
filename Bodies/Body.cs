@@ -249,5 +249,4 @@ public class Body
 
     // Critical state tracking for message rate limiting
     public bool WasDehydrationCritical { get; set; }
-    public bool WasStarvationCritical { get; set; }
 }

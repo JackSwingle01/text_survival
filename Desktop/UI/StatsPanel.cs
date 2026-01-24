@@ -329,7 +329,7 @@ public static class StatsPanel
         var capacities = ctx.player.GetCapacities();
         bool hasBloodIssue = body.Blood.Condition < 0.95;
         bool hasCapacityIssues = capacities.Moving < 0.9 || capacities.Manipulation < 0.9 || capacities.Consciousness < 0.9;
-        var injuredParts = body.Parts.Where(p => p.Condition < 1.0).OrderBy(p => p.Condition).ToList();
+        var injuredParts = body.Parts.Where(p => p.Condition <= 0.995).OrderBy(p => p.Condition).ToList();
         bool hasInjuries = injuredParts.Count > 0;
 
         if (!hasBloodIssue && !hasCapacityIssues && !hasInjuries) return;
@@ -350,7 +350,7 @@ public static class StatsPanel
                 foreach (var part in injuredParts)
                 {
                     RenderInjuryRow(part.Name, part.Condition);
-                    var damagedOrgans = part.Organs.Where(o=>o.Condition<.99).OrderBy(o=>o.Condition);
+                    var damagedOrgans = part.Organs.Where(o=>o.Condition<=0.995).OrderBy(o=>o.Condition);
                     foreach (var organ in damagedOrgans)
                     {
                         RenderInjuryRow(organ.Name,organ.Condition);

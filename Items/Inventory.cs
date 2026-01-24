@@ -23,6 +23,7 @@ public enum Resource
 
     // Food
     CookedMeat, RawMeat, Berries, Nuts, Roots, DriedMeat, DriedBerries, Honey,
+    RawFish, CookedFish, DriedFish,
 
     // Water
     Water,
@@ -60,7 +61,8 @@ public static class ResourceCategories
         [ResourceCategory.Food] = new()
         {
             Resource.CookedMeat, Resource.RawMeat, Resource.Berries,
-            Resource.Nuts, Resource.Roots, Resource.DriedMeat, Resource.DriedBerries, Resource.Honey
+            Resource.Nuts, Resource.Roots, Resource.DriedMeat, Resource.DriedBerries, Resource.Honey,
+            Resource.RawFish, Resource.CookedFish, Resource.DriedFish
         },
 
         [ResourceCategory.Water] = new()
@@ -215,6 +217,7 @@ public class Inventory
     public bool HasFuel => Has(ResourceCategory.Fuel);
     public bool HasWater => WaterLiters > 0;
     public bool HasMeat => _stacks[Resource.RawMeat].Count > 0 || _stacks[Resource.CookedMeat].Count > 0;
+    public bool HasFish => _stacks[Resource.RawFish].Count > 0 || _stacks[Resource.CookedFish].Count > 0;
 
     // Log helpers (aggregates typed wood: Pine, Birch, Oak)
     public bool HasLogs => Has(ResourceCategory.Log);

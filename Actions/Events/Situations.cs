@@ -208,6 +208,20 @@ public static class Situations
         ctx.Check(EventCondition.SnareHasCatch) ||
         ctx.Tensions.HasTension("TrapLineActive");
 
+    public static bool Fishing(GameContext ctx) =>
+        ctx.CurrentActivity == ActivityType.Fishing;
+
+    public static bool FishingOnThinIce(GameContext ctx) =>
+        Fishing(ctx) && ctx.CurrentLocation.GetFeature<WaterFeature>()?.HasThinIce == true;
+
+    public static bool CheckingNets(GameContext ctx) =>
+        Fishing(ctx) && ctx.CurrentLocation.GetFeature<NetFishingFeature>() != null;
+
+    public static bool FishingAtIceHole(GameContext ctx) =>
+        Fishing(ctx) &&
+        ctx.CurrentLocation.GetFeature<WaterFeature>() is WaterFeature w &&
+        w.IsFrozen && w.HasIceHole;
+
     public static bool TrapLineAttractive(GameContext ctx) =>
         ctx.Check(EventCondition.SnareHasCatch) ||
         ctx.Check(EventCondition.SnareBaited);

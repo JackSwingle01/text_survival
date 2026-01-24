@@ -76,6 +76,27 @@ public class CookingOverlay
                 }
 
                 ImGui.Spacing();
+
+                // Cook Fish section
+                ImGui.Text("Cook Fish:");
+                int rawFishCount = inv.Count(Resource.RawFish);
+
+                if (rawFishCount > 0)
+                {
+                    double rawFishWeight = inv.Weight(Resource.RawFish);
+                    string fishLabel = $"Cook Raw Fish ({rawFishWeight:F1}kg) - {CookingHandler.CookFishTimeMinutes}min";
+
+                    if (ImGui.Button(fishLabel, new Vector2(-1, 0)))
+                    {
+                        result = new CookingOverlayResult { Action = CookingAction.CookFish };
+                    }
+                }
+                else
+                {
+                    ImGui.TextDisabled("No raw fish available");
+                }
+
+                ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
 
@@ -135,6 +156,7 @@ public class CookingOverlay
 public enum CookingAction
 {
     CookMeat,
+    CookFish,
     MeltSnow
 }
 

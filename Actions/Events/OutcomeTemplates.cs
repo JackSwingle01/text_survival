@@ -128,6 +128,16 @@ public static class OutcomeTemplates
     public static EventResult FindsGameTrail(this EventResult r)
         => r.Rewards(RewardPool.GameTrailDiscovery);
 
+    /// <summary>
+    /// Adds raw fish to the reward. Fish are lighter and less calorie-dense than meat.
+    /// </summary>
+    public static EventResult FindsFish(this EventResult r, int count = 1)
+    {
+        for (int i = 0; i < count; i++)
+            r.Rewards(RewardPool.FishCatch);
+        return r;
+    }
+
     public static EventResult BecomeStalked(this EventResult r, double severity, AnimalType? predator = null)
         => r.CreateTension("Stalked", severity, animalType: predator);
 

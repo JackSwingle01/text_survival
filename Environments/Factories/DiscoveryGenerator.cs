@@ -380,6 +380,18 @@ public class DiscoveryGenerator
     [
         new(FeatureFactory.CreateIceSource,
             SpawnChance: 0.3, ExpectedHours: 1.0, DiscoveryCategory.Minor),
+
+        // Deep hole - better fishing but thinner ice (tradeoff discovery)
+        new(() => new EventTriggerFeature("deep_hole"),
+            SpawnChance: 0.15, ExpectedHours: 2.0, DiscoveryCategory.Minor),
+
+        // Hidden spring - unfrozen water source
+        new(DiscoveryFeatureFactory.CreateHiddenSpring,
+            SpawnChance: 0.06, ExpectedHours: 4.0, DiscoveryCategory.Major),
+
+        // Fish run - temporary abundance boost (event trigger)
+        new(() => new EventTriggerFeature("fish_run"),
+            SpawnChance: 0.08, ExpectedHours: 3.0, DiscoveryCategory.Major),
     ];
 
     #endregion

@@ -54,7 +54,7 @@ public class FishingStrategy : IWorkStrategy
         return ((int)(baseTime * timeFactor), warnings);
     }
 
-    public ActivityType GetActivityType() => ActivityType.Foraging;
+    public ActivityType GetActivityType() => ActivityType.Fishing;
 
     public string GetActivityName() => "fishing";
 
@@ -105,7 +105,7 @@ public class FishingStrategy : IWorkStrategy
         {
             // Fish weight based on tool capability
             double fishWeight = 0.3 + Random.Shared.NextDouble() * (maxFishWeightKg - 0.3);
-            loot.Add(Resource.RawMeat, fishWeight);
+            loot.Add(Resource.RawFish, fishWeight);
             loot.Add(Resource.Bone, fishWeight * 0.1);
             collected.Add($"Fish ({fishWeight:F1}kg)");
 
@@ -116,7 +116,7 @@ public class FishingStrategy : IWorkStrategy
             if (actualTime >= 30 && Random.Shared.NextDouble() < 0.25)
             {
                 fishWeight = 0.3 + Random.Shared.NextDouble() * (maxFishWeightKg - 0.3);
-                loot.Add(Resource.RawMeat, fishWeight);
+                loot.Add(Resource.RawFish, fishWeight);
                 loot.Add(Resource.Bone, fishWeight * 0.1);
                 collected.Add($"Fish ({fishWeight:F1}kg)");
             }

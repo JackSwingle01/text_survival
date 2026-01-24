@@ -39,7 +39,8 @@ public class CuringRackFeature : LocationFeature
     {
         { CurableItemType.ScrapedHide, 2880 },  // 2 days (48 hours)
         { CurableItemType.RawMeat, 1440 },      // 1 day (24 hours)
-        { CurableItemType.Berries, 720 }        // 12 hours
+        { CurableItemType.Berries, 720 },       // 12 hours
+        { CurableItemType.RawFish, 960 }        // 16 hours (fish dries faster than meat)
     };
 
     [System.Text.Json.Serialization.JsonConstructor]
@@ -132,6 +133,9 @@ public class CuringRackFeature : LocationFeature
             case CurableItemType.Berries:
                 inventory.Add(Resource.DriedBerries, item.WeightKg * 0.3); // Most weight is water
                 break;
+            case CurableItemType.RawFish:
+                inventory.Add(Resource.DriedFish, item.WeightKg * 0.25); // Fish loses more water, lighter travel food
+                break;
         }
     }
 
@@ -151,6 +155,7 @@ public class CuringRackFeature : LocationFeature
                 CurableItemType.ScrapedHide => "scraped hide",
                 CurableItemType.RawMeat => "meat",
                 CurableItemType.Berries => "berries",
+                CurableItemType.RawFish => "fish",
                 _ => "unknown"
             };
 
@@ -199,6 +204,7 @@ public class CuringRackFeature : LocationFeature
                 CurableItemType.ScrapedHide => Resource.CuredHide,
                 CurableItemType.RawMeat => Resource.DriedMeat,
                 CurableItemType.Berries => Resource.DriedBerries,
+                CurableItemType.RawFish => Resource.DriedFish,
                 _ => Resource.RawMeat
             };
             if (!resources.Contains(output)) resources.Add(output);
@@ -240,7 +246,8 @@ public enum CurableItemType
 {
     ScrapedHide,
     RawMeat,
-    Berries
+    Berries,
+    RawFish
 }
 
 /// <summary>
