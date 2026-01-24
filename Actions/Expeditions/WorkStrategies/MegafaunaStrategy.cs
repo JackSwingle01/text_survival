@@ -115,7 +115,7 @@ public class MegafaunaStrategy : IWorkStrategy
                 // 40% chance to discover
                 if (rng.NextDouble() < 0.4)
                 {
-                    GameEventRegistry.HandleEvent(ctx, GameEventRegistry.AncientPredator(ctx));
+                    ctx.EventQueue.Enqueue(GameEventRegistry.AncientPredator(ctx));
                     return WorkResult.Empty(actualTime);
                 }
 
@@ -146,7 +146,7 @@ public class MegafaunaStrategy : IWorkStrategy
                         ? GameEventRegistry.DistantTrumpeting(ctx)
                         : GameEventRegistry.TheHerd(ctx);
 
-                    GameEventRegistry.HandleEvent(ctx, discoveryEvent);
+                    ctx.EventQueue.Enqueue(discoveryEvent);
                     return WorkResult.Empty(actualTime);
                 }
 

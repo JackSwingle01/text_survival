@@ -83,6 +83,22 @@ public class GameContext(Player player, Location camp, Weather weather)
     [System.Text.Json.Serialization.JsonIgnore]
     public EventQueue EventQueue { get; } = new();
 
+    /// <summary>
+    /// Process all queued events immediately, returning the last result.
+    /// Use sparingly - only for cases that need the result immediately (e.g., edge events with abort semantics).
+    /// Most events should just queue and let the main loop handle them.
+    /// </summary>
+    public EventResult? ProcessQueuedEvents()
+    {
+        EventResult? lastResult = null;
+        while (EventQueue.TryDequeue(out var evt) && evt != null)
+        {
+            lastResult = GameEventRegistry.HandleEvent(this, evt);
+            if (!player.IsAlive) break;
+        }
+        return lastResult;
+    }
+
     // Herd registry for tracking persistent animals
     public HerdRegistry Herds { get; set; } = new();
     public List<NPC> NPCs { get; set; } = new();

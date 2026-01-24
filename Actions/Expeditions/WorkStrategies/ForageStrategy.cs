@@ -283,14 +283,11 @@ public class ForageStrategy : IWorkStrategy
         var discoveries = ProcessExploration(ctx, location, actualTime);
         foreach (var discovery in discoveries)
         {
-            // EventTriggerFeature: trigger event and remove feature
+            // EventTriggerFeature: queue event and remove feature
             if (discovery.Feature is EventTriggerFeature trigger)
             {
                 var evt = DiscoveryEventFactory.Create(trigger.EventId, ctx);
-                if (evt != null)
-                {
-                    GameEventRegistry.HandleEvent(ctx, evt);
-                }
+                ctx.EventQueue.Enqueue(evt);
                 location.RemoveFeature(trigger);
                 continue;
             }

@@ -153,10 +153,11 @@ public class TravelRunner(GameContext ctx)
         var edgeEvent = _ctx.Map.TryTriggerEdgeEvent(originPos, destPos, _ctx);
         if (edgeEvent != null)
         {
-            var result = GameEventRegistry.HandleEvent(_ctx, edgeEvent);
+            _ctx.EventQueue.Enqueue(edgeEvent);
+            var result = _ctx.ProcessQueuedEvents();
 
             // Check if the chosen outcome aborted the travel
-            if (result.AbortsAction)
+            if (result?.AbortsAction == true)
             {
                 GameDisplay.AddNarrative(_ctx, "You decide not to proceed.");
                 return true;  // Didn't travel, but not dead
@@ -431,10 +432,7 @@ public class TravelRunner(GameContext ctx)
         if (travel.FirstVisit && destination.FirstVisitEvent != null)
         {
             var evt = destination.FirstVisitEvent(_ctx);
-            if (evt != null)
-            {
-                GameEventRegistry.HandleEvent(_ctx, evt);
-            }
+            _ctx.EventQueue.Enqueue(evt);
         }
 
         destination.Explore();
