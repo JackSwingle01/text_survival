@@ -105,15 +105,31 @@ public static class Program
         // Initialize desktop runtime for blocking I/O
         DesktopRuntime.Initialize(worldRenderer, overlays, actionPanel, inputHandler, tilePopup, iconRenderer);
 
-        // Run the game through GameRunner
+        // Run the game (with restart support)
         // GameRunner uses Input/GameDisplay which route to DesktopIO
         // DesktopIO methods have nested render loops for blocking I/O
-        var runner = new GameRunner(ctx);
-        runner.Run();
+        bool requestRestart;
+        do
+        {
+            var runner = new GameRunner(ctx);
+            requestRestart = runner.Run();
 
-        // Save on exit (but not if player died - save was already deleted)
-        if (ctx.player.IsAlive)
-            SaveManager.Save(ctx);
+            // Save on normal exit (but not if player died - save was already deleted)
+            if (ctx.player.IsAlive)
+                SaveManager.Save(ctx);
+
+            // If restarting, create a fresh game
+            if (requestRestart)
+            {
+                // Clear UI state
+                worldRenderer.ClearSelection();
+                tilePopup?.Hide();
+                overlays.CloseAll();
+
+                // Create new game
+                ctx = GameContext.CreateNewGame();
+            }
+        } while (requestRestart && !Raylib.WindowShouldClose());
 
         rlImGui.Shutdown();
         Raylib.CloseWindow();

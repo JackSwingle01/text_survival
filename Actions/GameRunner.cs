@@ -61,7 +61,7 @@ public partial class GameRunner(GameContext ctx)
     private readonly GameContext ctx = ctx;
     private static readonly Action BackAction = () => { };
 
-    public void Run()
+    public bool Run()
     {
         while (ctx.player.IsAlive && !Raylib.WindowShouldClose())
         {
@@ -91,16 +91,30 @@ public partial class GameRunner(GameContext ctx)
             }
         }
 
-        // Player died - show death message
+        // Player died - show death message and offer restart
         if (!ctx.player.IsAlive)
         {
             GameDisplay.AddDanger(ctx, "Your vision fades to black as you collapse...");
             GameDisplay.AddDanger(ctx, "You have died.");
-            BlockingDialog.ShowMessageAndWait(ctx, "Death", "You have died.");
+
+            // Ask player what to do next
+            string choice = BlockingDialog.PromptConfirm(ctx,
+                "You have died. What would you like to do?",
+                new Dictionary<string, string>
+                {
+                    { "new_game", "Start New Game" },
+                    { "quit", "Quit to Desktop" }
+                });
 
             // Delete save so next launch starts fresh
             SaveManager.DeleteSave(ctx.SessionId);
+
+            // Return true if player wants to restart
+            return choice == "new_game";
         }
+
+        // Normal exit (window closed while alive)
+        return false;
     }
 
     /// <summary>
