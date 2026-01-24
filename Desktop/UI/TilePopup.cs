@@ -188,7 +188,7 @@ public class TilePopup
             else
             {
                 int pctDisplay = (int)(explorationPct * 100);
-                ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"  {pctDisplay}% explored");
+                ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"  {pctDisplay}%% explored");
             }
         }
 
