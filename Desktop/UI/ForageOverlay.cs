@@ -58,17 +58,30 @@ public class ForageOverlay
 
         if (ImGui.Begin("Foraging", ImGuiWindowFlags.NoCollapse))
         {
-            result = RenderForageUI(_currentData);
+            result = RenderForageUI(ctx, _currentData);
         }
         ImGui.End();
 
         return result;
     }
 
-    private ForageResult? RenderForageUI(ForageDto data)
+    private ForageResult? RenderForageUI(GameContext ctx, ForageDto data)
     {
         // Quality header
         ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), $"Resources look {data.LocationQuality}.");
+
+        // Exploration progress - calculate directly from current location
+        double explorationPct = ctx.CurrentLocation.GetExplorationPct();
+        if (explorationPct >= 1.0)
+        {
+            ImGui.TextColored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "Fully explored");
+        }
+        else
+        {
+            int pctDisplay = (int)(explorationPct * 100);
+            ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"{pctDisplay}% explored");
+        }
+
         ImGui.Spacing();
 
         // Clues section

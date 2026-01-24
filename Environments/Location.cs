@@ -406,6 +406,22 @@ public class Location
         Explored = true;
     }
 
+    /// <summary>
+    /// Get the exploration percentage (0-1) representing how thoroughly
+    /// this location has been searched for hidden features.
+    /// </summary>
+    public double GetExplorationPct()
+    {
+        var forage = GetFeature<ForageFeature>();
+        if (forage == null) return 0;
+
+        // Nothing left to find = fully explored
+        if (HiddenFeatures.Count == 0) return 1.0;
+
+        double maxThreshold = HiddenFeatures.Max(h => h.RevealAtHours);
+        return Math.Min(1.0, forage.DiscoveryProgress / maxThreshold);
+    }
+
     public string GetUnexploredHint(Location origin, Actors.Player.Player player)
     {
         int minutes = TravelProcessor.GetTraversalMinutes(origin, this, player);

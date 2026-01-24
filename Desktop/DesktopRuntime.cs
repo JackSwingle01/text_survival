@@ -116,6 +116,83 @@ public static class DesktopRuntime
 
         ImGui.End();
     }
+
+    /// <summary>
+    /// Render a single frame of foraging progress. Pure display - no game logic.
+    /// </summary>
+    public static void RenderForagingFrame(
+        GameContext ctx,
+        List<LootItem> foundItems,
+        float totalWeightKg,
+        int simulatedMinutes,
+        int totalMinutes,
+        string statusText)
+    {
+        float deltaTime = Raylib.GetFrameTime();
+        float progress = (float)simulatedMinutes / totalMinutes;
+
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        WorldRenderer?.Update(ctx, deltaTime);
+        WorldRenderer?.Render(ctx);
+
+        Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+            new Color(0, 0, 0, 128));
+
+        rlImGui.Begin();
+
+        UI.StatsPanel.Render(ctx);
+
+        // Progress dialog with loot
+        var io = ImGui.GetIO();
+        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
+            ImGuiCond.Always, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+
+        ImGui.Begin("Activity", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
+
+        ImGui.TextWrapped(statusText);
+        ImGui.Spacing();
+        ImGui.ProgressBar(progress, new Vector2(-1, 20),
+            $"{simulatedMinutes}/{totalMinutes} min");
+
+        // Show found items
+        if (foundItems.Count > 0)
+        {
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            ImGui.Text("Found:");
+            foreach (var item in foundItems)
+            {
+                var color = GetCategoryColor(item.Category);
+                string text = item.Count > 1
+                    ? $"  {item.Count}x {item.Name} ({item.WeightKg:F1}kg)"
+                    : $"  {item.Name} ({item.WeightKg:F2}kg)";
+                ImGui.TextColored(color, text);
+            }
+
+            ImGui.Spacing();
+            ImGui.Text($"Total: {totalWeightKg:F1}kg");
+        }
+
+        ImGui.End();
+
+        rlImGui.End();
+        Raylib.EndDrawing();
+    }
+
+    private static Vector4 GetCategoryColor(ResourceCategory? category) => category switch
+    {
+        ResourceCategory.Fuel => new Vector4(0.8f, 0.6f, 0.4f, 1f),      // Warm brown
+        ResourceCategory.Food => new Vector4(0.5f, 0.8f, 0.5f, 1f),      // Green
+        ResourceCategory.Medicine => new Vector4(0.7f, 0.5f, 0.8f, 1f),  // Purple
+        ResourceCategory.Material => new Vector4(0.6f, 0.7f, 0.8f, 1f),  // Blue-gray
+        ResourceCategory.Tinder => new Vector4(0.9f, 0.7f, 0.5f, 1f),    // Orange
+        _ => new Vector4(0.7f, 0.7f, 0.7f, 1f)                           // Gray
+    };
 }
 
 /// <summary>

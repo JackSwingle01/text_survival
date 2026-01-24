@@ -1,11 +1,13 @@
+using Raylib_cs;
 using text_survival.Actions.Variants;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
+using text_survival.Desktop;
+using text_survival.Desktop.Dto;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using DesktopIO = text_survival.Desktop.DesktopIO;
-using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -26,9 +28,8 @@ public class ForageStrategy : IWorkStrategy
     private bool _cancelled;
     private List<string> _impairmentWarnings = [];
 
-    // Pre-calculated loot from RunCustomProgress (shown during progress bar)
-    private Inventory? _preCalculatedFound;
-    private List<LootItem>? _lootItems;
+    // Accumulated loot from RunCustomProgress (calculated minute-by-minute)
+    private Inventory? _foundItems;
 
     public string? ValidateLocation(GameContext ctx, Location location)
     {
@@ -216,7 +217,9 @@ public class ForageStrategy : IWorkStrategy
     public bool AllowedInDarkness => true;
 
     /// <summary>
-    /// Custom progress: pre-calculate foraged items and reveal during progress bar.
+    /// Custom progress: minute-by-minute foraging with items revealed as found.
+    /// Game logic owns the loop; display only renders what it's told.
+    /// Events pause foraging; aborting events stop it entirely.
     /// </summary>
     public (int elapsed, bool interrupted)? RunCustomProgress(GameContext ctx, Location location, int minutes)
     {
@@ -227,47 +230,82 @@ public class ForageStrategy : IWorkStrategy
         if (feature == null)
             return null; // Fall back to standard progress
 
-        // Pre-calculate what will be found
-        double hours = minutes / 60.0;
-        var found = feature.Forage(hours);
-
-        // Apply focus to results
-        FocusProcessor.ApplyFocus(found, _focus, _followedClue);
-
-        // Apply negative clue yield modifier
+        // Calculate modifiers once at the start (for consistency during session)
         var negativeClue = _clues?.FirstOrDefault(c => c.Category == ClueCategory.Negative);
-        if (negativeClue != null)
-        {
-            found.ApplyMultiplier(negativeClue.YieldModifier);
-        }
+        double negativeMultiplier = negativeClue?.YieldModifier ?? 1.0;
 
-        // Perception affects yield
         double perception = AbilityCalculator.GetPerception(ctx.player, ctx);
-        if (perception < 1.0)
-        {
-            found.ApplyMultiplier(perception);
-        }
+        double perceptionMultiplier = perception < 1.0 ? perception : 1.0;
 
-        // Tool bonuses
         var axe = ctx.Inventory.GetTool(ToolType.Axe);
-        if (axe?.Works == true)
-            found.ApplyMultiplier(1.10);
+        double axeMultiplier = axe?.Works == true ? 1.10 : 1.0;
 
         var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
-        if (shovel?.Works == true)
-            found.ApplyMultiplier(1.10);
+        double shovelMultiplier = shovel?.Works == true ? 1.10 : 1.0;
 
-        // Store for Execute()
-        _preCalculatedFound = found;
-        _lootItems = found.GetLootItems();
+        double totalMultiplier = negativeMultiplier * perceptionMultiplier * axeMultiplier * shovelMultiplier;
 
-        // If nothing found, use standard progress (no loot to reveal)
-        if (_lootItems.Count == 0)
-            return null;
+        // Animation timing: ~0.3 seconds per in-game minute, clamped to reasonable bounds
+        float animDurationSeconds = Math.Clamp(minutes * 0.3f, 1.0f, 30.0f);
+        float elapsedSeconds = 0;
+        int simulatedMinutes = 0;
 
-        // Run progress with loot reveals
+        var accumulated = new Inventory();
+        var activity = GetActivityType();
         string statusText = "Foraging...";
-        return DesktopIO.RenderWithDurationAndLoot(ctx, statusText, minutes, GetActivityType(), _lootItems);
+
+        // Game logic owns the loop
+        while (simulatedMinutes < minutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
+        {
+            float deltaTime = Raylib.GetFrameTime();
+            elapsedSeconds += deltaTime;
+
+            // Calculate how many minutes to simulate this frame
+            int targetMinutes = Math.Min((int)(elapsedSeconds * minutes / animDurationSeconds), minutes);
+
+            // GAME LOGIC: simulate pending minutes
+            while (simulatedMinutes < targetMinutes && ctx.player.IsAlive)
+            {
+                ctx.Update(1, activity);
+                simulatedMinutes++;
+
+                // Check for event interruption
+                if (ctx.EventOccurredLastUpdate)
+                {
+                    if (ctx.LastEventAborted)
+                    {
+                        // Aborting event - stop foraging, return partial loot
+                        _foundItems = accumulated;
+                        return (simulatedMinutes, true);
+                    }
+                    // Non-aborting event - continue foraging after event resolves
+                }
+
+                // GAME LOGIC: forage this minute
+                var found = feature.Forage(1.0 / 60.0);
+                if (!found.IsEmpty)
+                {
+                    FocusProcessor.ApplyFocus(found, _focus, _followedClue);
+                    if (totalMultiplier < 1.0)
+                        found.ApplyMultiplier(totalMultiplier);
+                    accumulated.Combine(found);
+                }
+            }
+
+            // DISPLAY: render one frame (no callbacks, no game logic)
+            DesktopRuntime.RenderForagingFrame(
+                ctx,
+                accumulated.GetLootItems(),
+                (float)accumulated.CurrentWeightKg,
+                simulatedMinutes,
+                minutes,
+                statusText);
+        }
+
+        // Store accumulated loot for Execute()
+        _foundItems = accumulated;
+
+        return (simulatedMinutes, false);
     }
 
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
@@ -282,37 +320,8 @@ public class ForageStrategy : IWorkStrategy
         var narrative = new List<string>();
         var warnings = new List<string>();
 
-        // Use pre-calculated items if available (shown during progress bar)
-        // Otherwise calculate fresh (fallback for standard progress path)
-        Inventory found;
-        bool itemsAlreadyShown = _preCalculatedFound != null;
-
-        if (itemsAlreadyShown)
-        {
-            found = _preCalculatedFound!;
-        }
-        else
-        {
-            // Fallback: calculate items now (standard progress was used)
-            found = feature.Forage(actualTime / 60.0);
-            FocusProcessor.ApplyFocus(found, _focus, _followedClue);
-
-            var negativeClue = _clues?.FirstOrDefault(c => c.Category == ClueCategory.Negative);
-            if (negativeClue != null)
-                found.ApplyMultiplier(negativeClue.YieldModifier);
-
-            double perception = AbilityCalculator.GetPerception(ctx.player, ctx);
-            if (perception < 1.0)
-                found.ApplyMultiplier(perception);
-
-            var axe = ctx.Inventory.GetTool(ToolType.Axe);
-            if (axe?.Works == true)
-                found.ApplyMultiplier(1.10);
-
-            var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
-            if (shovel?.Works == true)
-                found.ApplyMultiplier(1.10);
-        }
+        // Use accumulated items from RunCustomProgress (already shown during progress bar)
+        var found = _foundItems ?? new Inventory();
 
         // Check for perception warnings (always needed for UI)
         double currentPerception = AbilityCalculator.GetPerception(ctx.player, ctx);
@@ -377,9 +386,8 @@ public class ForageStrategy : IWorkStrategy
             }
             else // Major
             {
-                // todo - make this popup like an event overlay
-                // Major discoveries get special presentation
-                narrative.Add($"** {message} **");
+                // Major discoveries get a special popup
+                DesktopIO.ShowMajorDiscovery(ctx, message);
             }
         }
 

@@ -178,6 +178,18 @@ public class TilePopup
             {
                 ImGui.TextDisabled("Forage: depleted");
             }
+
+            // Show exploration progress
+            double explorationPct = _selectedLocation.GetExplorationPct();
+            if (explorationPct >= 1.0)
+            {
+                ImGui.TextColored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "  Fully explored");
+            }
+            else
+            {
+                int pctDisplay = (int)(explorationPct * 100);
+                ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"  {pctDisplay}% explored");
+            }
         }
 
         // Game (animals)

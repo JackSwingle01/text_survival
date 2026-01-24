@@ -46,6 +46,38 @@ public static class DesktopIO
         BlockingDialog.ShowMessageAndWait(ctx, "Discovery!", $"{locationName}\n\n{discoveryText}");
     }
 
+    private static readonly UI.MajorDiscoveryOverlay _majorDiscoveryOverlay = new();
+
+    /// <summary>
+    /// Show a major discovery popup during foraging.
+    /// Blocks until player acknowledges.
+    /// </summary>
+    public static void ShowMajorDiscovery(GameContext ctx, string message)
+    {
+        _majorDiscoveryOverlay.Open(message);
+
+        while (_majorDiscoveryOverlay.IsOpen && !Raylib.WindowShouldClose())
+        {
+            float deltaTime = Raylib.GetFrameTime();
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            // Dim background
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+            _majorDiscoveryOverlay.Render(deltaTime);
+            rlImGui.End();
+
+            Raylib.EndDrawing();
+        }
+    }
+
     public static void ShowWeatherChange(GameContext ctx)
     {
         var weather = ctx.Weather;

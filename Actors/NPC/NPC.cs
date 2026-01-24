@@ -1227,40 +1227,10 @@ public class NPC : Actor
         return TryCraftSpecificTool(toolType);
     }
 
-    /// <summary>
-    /// Check if the NPC can safely idle/rest without addressing critical needs.
-    /// Idle is only safe if: no critical needs OR currently warming by a fire
-    /// </summary>
-    private bool CanSafelyIdle()
-    {
-        // If no current need, idling is safe
-        if (CurrentNeed == null) return true;
-
-        // If current need is warmth AND we're near an active fire, idling (warming) is safe
-        if (CurrentNeed == NeedType.Warmth)
-        {
-            bool atActiveFire = CurrentLocation.HasActiveHeatSource();
-            if (atActiveFire)
-            {
-                Console.WriteLine($"  [Idle] Safe to idle - warming by fire");
-                return true;
-            }
-        }
-
-        // Otherwise, we have a critical need that requires action
-        return false;
-    }
-
     private NPCAction DetermineIdle(SurvivalContext context)
     {
-        // Check if idling is safe
-        if (!CanSafelyIdle())
-        {
-            Console.WriteLine($"  [Idle] Cannot safely idle - warmth critical");
-            // Force warmth need
-            CurrentNeed = NeedType.Warmth;
-            return DetermineActionForNeed(context);
-        }
+        // DetermineIdle is the final fallback - it must always return an action
+        // without calling back to DetermineActionForNeed (which would cause recursion)
 
         if (context.IsNight && Body.EnergyPct < .8)
         {
