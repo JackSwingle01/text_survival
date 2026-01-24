@@ -435,12 +435,23 @@ public static partial class GameEventRegistry
     }
 
     /// <summary>
-    /// Apply an event outcome - delegates to EventResult.Apply().
+    /// Apply an event outcome - shows progress bar for time costs, then applies effects.
     /// Returns outcome data for UI display.
     /// </summary>
     public static EventOutcomeDto HandleOutcome(GameContext ctx, EventResult outcome)
     {
-        return outcome.Apply(ctx);
+        // Show progress bar for time costs before applying outcome
+        if (outcome.TimeAddedMinutes > 0)
+        {
+            // Use a brief summary for the progress bar status text
+            string statusText = outcome.Message.Length <= 60
+                ? outcome.Message
+                : "Time passes...";
+            BlockingDialog.ShowEventProgress(ctx, statusText, outcome.TimeAddedMinutes, ctx.CurrentActivity);
+        }
+
+        // Apply outcome, skipping time (already handled by progress bar)
+        return outcome.Apply(ctx, skipTime: outcome.TimeAddedMinutes > 0);
     }
 
     /// <summary>

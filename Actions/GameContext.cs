@@ -378,6 +378,16 @@ public class GameContext(Player player, Location camp, Weather weather)
         return elapsed;
     }
 
+    /// <summary>
+    /// Update game time without checking for events.
+    /// Used during event outcome processing to animate time costs.
+    /// </summary>
+    public void UpdateWithoutEvents(int minutes, ActivityType activity)
+    {
+        CurrentActivity = activity;
+        UpdateInternal(minutes);
+    }
+
     private void UpdateInternal(int minutes)
     {
         Handlers.TorchHandler.UpdateTorchBurnTime(this, minutes, CurrentLocation.GetFeature<HeatSourceFeature>());

@@ -280,14 +280,16 @@ public class Location
         double locationTemp = baseTemp + locationMod;
 
         // ------ STEP 2: Apply weather exposure effects ------
+        // Get heat source once for wind protection and fire bonus calculations
+        var heatSource = GetFeature<HeatSourceFeature>();
+        double fireWindProtection = (heatSource != null && heatSource.IsActive)
+            ? heatSource.WindProtectionFactor
+            : 0;
+
         // Wind chill when windy (reduced by fire pit wind protection if present)
         double effectiveWindSpeed = 0;
         if (Weather.WindSpeedPct > 0.1) // Only significant wind
         {
-            var fire = GetFeature<HeatSourceFeature>();
-            double fireWindProtection = (fire != null && fire.IsActive)
-                ? fire.WindProtectionFactor
-                : 0;
             effectiveWindSpeed = Weather.WindSpeedMPH * WindFactor * (1 - fireWindProtection);
             double oldTemp = locationTemp;
             locationTemp = CalculateWindChillNWS(locationTemp, effectiveWindSpeed);
@@ -324,14 +326,15 @@ public class Location
             double tempDifference = minShelterTemp - locationTemp;
             insulation = Math.Clamp(shelter.TemperatureInsulation, 0, .9); // cap at 90%
             insulation *= 1 - (precipitation * .3); // precipitation can reduce insulation up to 30%
-            insulation *= 1 - (effectiveWindSpeed * .3); // and wind another 30 on top of that
+            // Use normalized wind (0-1) for insulation calculation, not MPH
+            double effectiveWindPct = Weather.WindSpeedPct * WindFactor * (1 - fireWindProtection);
+            insulation *= 1 - (effectiveWindPct * .3); // and wind another 30% on top of that
             shelterBonus = tempDifference * insulation;
             locationTemp += shelterBonus;
         }
 
         // If there's a heat source, add its effect (including embers)
         // Heat sources benefit you regardless of activity - you're still in the area
-        var heatSource = GetFeature<HeatSourceFeature>();
         if (heatSource != null)
         {
             // Insulation increases effectiveness of heat sources

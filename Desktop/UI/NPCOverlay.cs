@@ -3,6 +3,7 @@ using System.Numerics;
 using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Desktop.Input;
+using text_survival.Items;
 using text_survival.Survival;
 
 namespace text_survival.Desktop.UI;
@@ -95,6 +96,105 @@ public class NPCOverlay
                 ImGui.Text($"  {entry}");
             }
         }
+
+        // Inventory section
+        ImGui.Spacing();
+        RenderNPCInventory(npc.Inventory);
+    }
+
+    private void RenderNPCInventory(Inventory inv)
+    {
+        float weightPct = (float)(inv.CurrentWeightKg / inv.MaxWeightKg);
+        string header = $"Inventory ({inv.CurrentWeightKg:F1} / {inv.MaxWeightKg:F1} kg)";
+
+        if (ImGui.CollapsingHeader(header))
+        {
+            // Weight bar
+            Vector4 weightColor = weightPct > 0.9f
+                ? new Vector4(1f, 0.3f, 0.3f, 1f)
+                : weightPct > 0.7f
+                    ? new Vector4(1f, 0.8f, 0.3f, 1f)
+                    : new Vector4(0.7f, 0.9f, 0.7f, 1f);
+
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, weightColor);
+            ImGui.ProgressBar(weightPct, new Vector2(-1, OverlaySizes.CompactBarHeight), "");
+            ImGui.PopStyleColor();
+
+            ImGui.Spacing();
+
+            // Resource summary by category
+            RenderResourceCategory(inv, "Food", ResourceCategory.Food);
+            RenderResourceCategory(inv, "Fuel", ResourceCategory.Fuel);
+            RenderResourceCategory(inv, "Medicine", ResourceCategory.Medicine);
+            RenderResourceCategory(inv, "Material", ResourceCategory.Material);
+
+            // Water
+            if (inv.WaterLiters > 0)
+            {
+                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), $"Water: {inv.WaterLiters:F1}L");
+            }
+
+            // Gear section
+            bool hasGear = inv.Weapon != null || inv.Tools.Count > 0 ||
+                          inv.Equipment.Values.Any(e => e != null) ||
+                          inv.Accessories.Count > 0;
+
+            if (hasGear)
+            {
+                ImGui.Spacing();
+                ImGui.TextDisabled("Gear:");
+
+                // Weapon
+                if (inv.Weapon != null)
+                {
+                    RenderGearLine(inv.Weapon, "Weapon");
+                }
+
+                // Equipment
+                foreach (var (slot, gear) in inv.Equipment)
+                {
+                    if (gear != null)
+                    {
+                        RenderGearLine(gear, slot.ToString());
+                    }
+                }
+
+                // Tools
+                foreach (var tool in inv.Tools)
+                {
+                    RenderGearLine(tool, "Tool");
+                }
+
+                // Accessories
+                foreach (var acc in inv.Accessories)
+                {
+                    ImGui.Text($"  {acc.Name} (+{acc.CapacityBonusKg:F0}kg cap)");
+                }
+            }
+        }
+    }
+
+    private static void RenderResourceCategory(Inventory inv, string label, ResourceCategory category)
+    {
+        int count = inv.GetCount(category);
+        if (count > 0)
+        {
+            double weight = inv.GetWeight(category);
+            ImGui.Text($"{label}: {count} items ({weight:F1}kg)");
+        }
+    }
+
+    private static void RenderGearLine(Gear gear, string prefix)
+    {
+        Vector4 condColor = gear.ConditionPct > 0.5
+            ? new Vector4(0.7f, 0.9f, 0.7f, 1f)
+            : gear.ConditionPct > 0.25
+                ? new Vector4(1f, 0.8f, 0.3f, 1f)
+                : new Vector4(1f, 0.4f, 0.4f, 1f);
+
+        ImGui.Text($"  {gear.Name}");
+        ImGui.SameLine();
+        ImGui.TextColored(condColor, $"({gear.ConditionPct * 100:F0}%)");
     }
 
     private void RenderStatBar(string label, float value, Vector4 color)

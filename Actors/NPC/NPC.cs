@@ -482,7 +482,7 @@ public class NPC : Actor
     private bool IsFireWarmingEffectively()
     {
         const double TARGET_WARMTH = 0.7;
-        const int MAX_ACCEPTABLE_MINUTES = 120; // 2 hours
+        const int MAX_ACCEPTABLE_MINUTES = 90;
 
         // If already warm enough, fire is fine
         if (Body.WarmPct >= TARGET_WARMTH) return true;

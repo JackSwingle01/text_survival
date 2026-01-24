@@ -221,11 +221,14 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     /// Processes time, effects, damage, rewards, costs, tensions, equipment, and features.
     /// Returns outcome data for UI display.
     /// </summary>
-    public EventOutcomeDto Apply(GameContext ctx)
+    /// <param name="ctx">The game context</param>
+    /// <param name="skipTime">If true, skip time application (caller handles it separately with progress bar)</param>
+    public EventOutcomeDto Apply(GameContext ctx, bool skipTime = false)
     {
         var summary = new OutcomeSummary();
 
-        ApplyTimeAndMessage(ctx);
+        if (!skipTime)
+            ApplyTimeAndMessage(ctx);
         ApplyEffects(ctx, summary);
         ApplyDamage(ctx, summary);
         ApplyRewards(ctx, summary);

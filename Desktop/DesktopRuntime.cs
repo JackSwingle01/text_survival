@@ -589,4 +589,68 @@ public static class BlockingDialog
         ResourceCategory.Tinder => new Vector4(0.9f, 0.7f, 0.5f, 1f),    // Orange
         _ => new Vector4(0.7f, 0.7f, 0.7f, 1f)                                  // Gray
     };
+
+    /// <summary>
+    /// Show a progress bar for event time costs.
+    /// Similar to ShowProgress but doesn't check for event interruption (we're already in an event).
+    /// Simulates time passing minute-by-minute so the player "feels" the time cost.
+    /// </summary>
+    public static void ShowEventProgress(GameContext ctx, string statusText, int durationMinutes, ActivityType activity)
+    {
+        // ~0.3 seconds per in-game minute, clamped to reasonable bounds
+        float animDuration = Math.Clamp(durationMinutes * 0.3f, 1.0f, 30.0f);
+        float elapsed = 0;
+        int simulatedMinutes = 0;
+
+        while (simulatedMinutes < durationMinutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
+        {
+            float deltaTime = Raylib.GetFrameTime();
+            elapsed += deltaTime;
+
+            // Calculate how many minutes to simulate this frame
+            float minutesPerSecond = durationMinutes / animDuration;
+            int targetMinutes = Math.Min((int)(elapsed * minutesPerSecond), durationMinutes);
+
+            // Simulate any pending minutes (no event checks - we're already handling one)
+            while (simulatedMinutes < targetMinutes && ctx.player.IsAlive)
+            {
+                // Apply time without triggering events
+                ctx.UpdateWithoutEvents(1, activity);
+                simulatedMinutes++;
+            }
+
+            float progress = (float)simulatedMinutes / durationMinutes;
+
+            // Render frame with full StatsPanel + progress dialog
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
+            DesktopRuntime.WorldRenderer?.Render(ctx);
+
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+                new Color(0, 0, 0, 128));
+
+            rlImGui.Begin();
+
+            // Full stats panel so player sees stats changing
+            UI.StatsPanel.Render(ctx);
+
+            // Centered progress dialog
+            var io = ImGui.GetIO();
+            ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
+                ImGuiCond.Always, new Vector2(0.5f, 0.5f));
+            ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+
+            ImGui.Begin("Time Passing", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
+            ImGui.TextWrapped(statusText);
+            ImGui.Spacing();
+            ImGui.ProgressBar(progress, new Vector2(-1, 20),
+                $"{simulatedMinutes}/{durationMinutes} min");
+            ImGui.End();
+
+            rlImGui.End();
+            Raylib.EndDrawing();
+        }
+    }
 }
