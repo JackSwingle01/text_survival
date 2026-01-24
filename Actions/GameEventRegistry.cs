@@ -14,7 +14,9 @@ public static partial class GameEventRegistry
     public record TickResult(int MinutesElapsed, GameEvent? TriggeredEvent);
 
     // Single knob to control overall event frequency
-    private const double EventsPerHour = .25;
+    // Reduced from 0.25 to 0.15 after implementing intentional triggers for
+    // weather transitions, tension stage changes, and survival thresholds
+    private const double EventsPerHour = .15;
     private static readonly double BaseChancePerMinute = RateToChancePerMinute(EventsPerHour);
 
     private static double RateToChancePerMinute(double eventsPerHour)
@@ -56,12 +58,10 @@ public static partial class GameEventRegistry
     public static List<Func<GameContext, GameEvent>> AllEventFactories { get; } =
     [
         // Weather events (GameEventRegistry.Weather.cs)
+        // Note: Whiteout, LostInFog, SuddenClearing, MassiveStormApproaching
+        // are now intentional triggers via WeatherEventFactory (fire on transitions)
         StormApproaching,
-        Whiteout,
         ColdExposure,  // Unified: FrostbiteWarning, ColdRainSoaking, BitterWind
-        LostInFog,
-        SuddenClearing,
-        MassiveStormApproaching,  // Prolonged blizzard warning
         WaterproofingPayoff,  // Positive feedback when waterproofed gear works
         SoakedThrough,  // Negative feedback when lacking waterproofing
 

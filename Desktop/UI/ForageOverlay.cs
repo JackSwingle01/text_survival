@@ -1,31 +1,45 @@
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Actions.Variants;
-using text_survival.Desktop.Dto;
+using text_survival.Environments.Features;
 
 namespace text_survival.Desktop.UI;
 
 /// <summary>
 /// ImGui overlay for foraging with environmental clues, focus selection, and time options.
 /// Shows clues that can be clicked to auto-select suggested focus.
+/// Queries domain objects directly instead of using DTOs.
 /// </summary>
 public class ForageOverlay
 {
     public bool IsOpen { get; set; }
 
-    private ForageDto? _currentData;
+    private GameContext? _ctx;
+    private ForageFeature? _feature;
+    private List<ForageClue>? _clues;
     private string? _selectedFocusId;
     private int _selectedMinutes;
     private ForageResult? _result;
 
+    // Standard time options for foraging
+    private static readonly (string Id, int Minutes)[] TimeOptions =
+    [
+        ("15", 15),
+        ("30", 30),
+        ("60", 60)
+    ];
+
     /// <summary>
-    /// Open the forage overlay with data.
+    /// Open the forage overlay with domain objects.
     /// </summary>
-    public void Open(ForageDto data)
+    public void Open(GameContext ctx, ForageFeature feature, List<ForageClue> clues)
     {
         IsOpen = true;
-        _currentData = data;
+        _ctx = ctx;
+        _feature = feature;
+        _clues = clues;
         _selectedFocusId = null;
         _selectedMinutes = 0;
         _result = null;
@@ -37,7 +51,9 @@ public class ForageOverlay
     public void Close()
     {
         IsOpen = false;
-        _currentData = null;
+        _ctx = null;
+        _feature = null;
+        _clues = null;
         _selectedFocusId = null;
         _selectedMinutes = 0;
         _result = null;
@@ -49,7 +65,7 @@ public class ForageOverlay
     /// </summary>
     public ForageResult? Render(GameContext ctx, float deltaTime)
     {
-        if (!IsOpen || _currentData == null) return null;
+        if (!IsOpen || _feature == null || _ctx == null) return null;
 
         ForageResult? result = null;
 
@@ -58,20 +74,23 @@ public class ForageOverlay
 
         if (ImGui.Begin("Foraging", ImGuiWindowFlags.NoCollapse))
         {
-            result = RenderForageUI(ctx, _currentData);
+            result = RenderForageUI();
         }
         ImGui.End();
 
         return result;
     }
 
-    private ForageResult? RenderForageUI(GameContext ctx, ForageDto data)
+    private ForageResult? RenderForageUI()
     {
-        // Quality header
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), $"Resources look {data.LocationQuality}.");
+        if (_feature == null || _ctx == null || _clues == null) return null;
+
+        // Quality header - query feature directly
+        string quality = _feature.GetQualityDescription();
+        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), $"Resources look {quality}.");
 
         // Exploration progress - calculate directly from current location
-        double explorationPct = ctx.CurrentLocation.GetExplorationPct();
+        double explorationPct = _ctx.CurrentLocation.GetExplorationPct();
         if (explorationPct >= 1.0)
         {
             ImGui.TextColored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "Fully explored");
@@ -84,17 +103,20 @@ public class ForageOverlay
 
         ImGui.Spacing();
 
-        // Clues section
-        if (data.Clues.Count > 0)
+        // Clues section - iterate domain objects directly
+        if (_clues.Count > 0)
         {
             ImGui.Separator();
             ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "You notice:");
             ImGui.Spacing();
 
-            foreach (var clue in data.Clues)
+            for (int i = 0; i < _clues.Count; i++)
             {
+                var clue = _clues[i];
+                string? suggestedFocusId = clue.GetSuggestedFocusId();
+
                 // Make clues clickable if they suggest a focus
-                if (!string.IsNullOrEmpty(clue.SuggestedFocusId))
+                if (!string.IsNullOrEmpty(suggestedFocusId))
                 {
                     // Clickable clue - highlight on hover
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.8f, 1f, 1f));
@@ -102,16 +124,17 @@ public class ForageOverlay
                     ImGui.SameLine();
 
                     // Use selectable for click handling
-                    if (ImGui.Selectable($"{clue.Description}##clue_{clue.Id}", false, ImGuiSelectableFlags.None))
+                    if (ImGui.Selectable($"{clue.Description}##clue_{i}", false, ImGuiSelectableFlags.None))
                     {
-                        _selectedFocusId = clue.SuggestedFocusId;
+                        _selectedFocusId = suggestedFocusId;
                     }
 
                     // Tooltip explaining the click
                     if (ImGui.IsItemHovered())
                     {
-                        var suggestedFocus = data.FocusOptions.FirstOrDefault(f => f.Id == clue.SuggestedFocusId);
-                        if (suggestedFocus != null)
+                        var tooltipFocusOptions = _feature.GetAvailableFocusOptions();
+                        var suggestedFocus = tooltipFocusOptions.FirstOrDefault(f => f.Id == suggestedFocusId);
+                        if (suggestedFocus != default)
                         {
                             ImGui.SetTooltip($"Click to focus on {suggestedFocus.Label}");
                         }
@@ -129,13 +152,14 @@ public class ForageOverlay
             ImGui.Spacing();
         }
 
-        // Warnings section
-        if (data.Warnings.Count > 0)
+        // Warnings section - generate from utility
+        var warnings = ForageWarnings.Generate(_ctx, _ctx.CurrentLocation);
+        if (warnings.Count > 0)
         {
             ImGui.Separator();
             ImGui.Spacing();
 
-            foreach (var warning in data.Warnings)
+            foreach (var warning in warnings)
             {
                 // Color warnings based on content
                 Vector4 color = warning.Contains("reduced") || warning.Contains("dark") || warning.Contains("full")
@@ -147,17 +171,19 @@ public class ForageOverlay
             ImGui.Spacing();
         }
 
-        // Focus section
+        // Focus section - query feature directly
         ImGui.Separator();
         ImGui.Spacing();
         ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "What do you focus on?");
         ImGui.Spacing();
 
+        var focusOptions = _feature.GetAvailableFocusOptions();
+
         // Focus buttons in a grid
         float buttonWidth = (ImGui.GetContentRegionAvail().X - 8) / 2; // Two columns with spacing
 
         int focusIndex = 0;
-        foreach (var focus in data.FocusOptions)
+        foreach (var focus in focusOptions)
         {
             bool isSelected = _selectedFocusId == focus.Id;
 
@@ -196,8 +222,8 @@ public class ForageOverlay
         // Show selected focus description
         if (_selectedFocusId != null)
         {
-            var selectedFocus = data.FocusOptions.FirstOrDefault(f => f.Id == _selectedFocusId);
-            if (selectedFocus != null)
+            var selectedFocus = focusOptions.FirstOrDefault(f => f.Id == _selectedFocusId);
+            if (selectedFocus != default)
             {
                 ImGui.TextDisabled($"  {selectedFocus.Description}");
             }
@@ -205,16 +231,16 @@ public class ForageOverlay
 
         ImGui.Spacing();
 
-        // Time section
+        // Time section - use static options
         ImGui.Separator();
         ImGui.Spacing();
         ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "How long?");
         ImGui.Spacing();
 
         // Time buttons in a row
-        float timeButtonWidth = (ImGui.GetContentRegionAvail().X - 8) / data.TimeOptions.Count;
+        float timeButtonWidth = (ImGui.GetContentRegionAvail().X - 8) / TimeOptions.Length;
 
-        foreach (var time in data.TimeOptions)
+        foreach (var time in TimeOptions)
         {
             bool isSelected = _selectedMinutes == time.Minutes;
 
@@ -234,7 +260,7 @@ public class ForageOverlay
                 ImGui.PopStyleColor(2);
             }
 
-            if (time != data.TimeOptions.Last())
+            if (time != TimeOptions.Last())
             {
                 ImGui.SameLine();
             }

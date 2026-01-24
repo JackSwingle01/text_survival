@@ -154,17 +154,19 @@ public static class SurvivalProcessor
 			}
 			else if (bodyTempDelta > 0) // WARMING
 			{
-				if (context.ClothingHeatBuffer < 1.0)
-				{
-					// Split 50/50 between body and buffer
-					double halfGain = bodyTempDelta / 2;
-					double spaceF = (1.0 - context.ClothingHeatBuffer) * clothingCapacityF;
-					double toBufferF = Math.Min(halfGain, spaceF);
+				// Calculate heat blocked by insulation - goes to clothing buffer
+				double coldResistance = AbilityCalculator.CalculateColdResistance(body);
+				double totalInsulation = Math.Clamp(coldResistance + context.ClothingInsulation, 0, 0.95);
 
+				if (totalInsulation > 0 && clothingCapacityF > 0 && context.ClothingHeatBuffer < 1.0)
+				{
+					// blockedDelta = rawDelta * insulation = bodyTempDelta * ins / (1 - ins)
+					double blockedHeat = bodyTempDelta * totalInsulation / (1 - totalInsulation);
+					double spaceF = (1.0 - context.ClothingHeatBuffer) * clothingCapacityF;
+					double toBufferF = Math.Min(blockedHeat, spaceF);
 					bufferDelta = toBufferF / clothingCapacityF;
-					bodyTempDelta = halfGain + (halfGain - toBufferF);  // body gets half + overflow
 				}
-				// else: buffer full, all heat to body
+				// Body warming unchanged (already insulated rate)
 			}
 		}
 

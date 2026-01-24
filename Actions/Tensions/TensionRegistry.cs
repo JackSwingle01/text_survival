@@ -54,8 +54,9 @@ public class TensionRegistry
     /// <summary>
     /// Add a new tension. If a tension of the same type already exists,
     /// it takes the higher severity.
+    /// Returns a stage change if the tension was created or escalated to a new stage.
     /// </summary>
-    public void AddTension(ActiveTension tension)
+    public TensionStageChange? AddTension(ActiveTension tension)
     {
         var existing = GetTension(tension.Type);
         if (existing != null)
@@ -63,12 +64,15 @@ public class TensionRegistry
             // Take the higher severity
             if (tension.Severity > existing.Severity)
             {
-                existing.Severity = tension.Severity;
+                return existing.UpdateSeverity(tension.Severity);
             }
+            return null;
         }
         else
         {
             _tensions.Add(tension);
+            // Return creation change (null previous stage indicates new tension)
+            return new TensionStageChange(tension.Type, null, tension.Stage, tension);
         }
     }
 
@@ -89,48 +93,35 @@ public class TensionRegistry
     /// <summary>
     /// Escalate a tension's severity by a given amount.
     /// Creates the tension if it doesn't exist (using default factory).
+    /// Returns a stage change if a threshold was crossed.
     /// </summary>
-    public void EscalateTension(string type, double amount)
+    public TensionStageChange? EscalateTension(string type, double amount)
     {
         var tension = GetTension(type);
         if (tension != null)
         {
-            tension.Severity = Math.Clamp(tension.Severity + amount, 0.0, 1.0);
+            return tension.UpdateSeverity(tension.Severity + amount);
         }
         else if (amount > 0)
         {
             // Create new tension with the escalation amount as initial severity
             // Use Custom factory with minimal decay (0.01/hr) and camp decay enabled
-            AddTension(ActiveTension.Custom(type, amount, decayPerHour: 0.01, decaysAtCamp: true));
+            return AddTension(ActiveTension.Custom(type, amount, decayPerHour: 0.01, decaysAtCamp: true));
         }
-    }
-
-    /// <summary>
-    /// Reduce a tension's severity by a given amount.
-    /// Removes the tension if severity drops to 0.
-    /// </summary>
-    public void ReduceTension(string type, double amount)
-    {
-        var tension = GetTension(type);
-        if (tension != null)
-        {
-            tension.Severity = Math.Max(0, tension.Severity - amount);
-            if (tension.Severity <= 0)
-            {
-                _tensions.Remove(tension);
-            }
-        }
+        return null;
     }
 
     /// <summary>
     /// Update all tensions based on elapsed time.
     /// Passive decay only - no passive escalation.
+    /// Yields stage changes for any tensions that crossed thresholds.
     /// </summary>
     /// <param name="minutes">Elapsed game time in minutes</param>
     /// <param name="atCamp">Whether the player is currently at camp</param>
-    public void Update(int minutes, bool atCamp)
+    public IEnumerable<TensionStageChange> Update(int minutes, bool atCamp)
     {
         var toRemove = new List<ActiveTension>();
+        var changes = new List<TensionStageChange>();
 
         foreach (var tension in _tensions)
         {
@@ -146,7 +137,13 @@ public class TensionRegistry
                 }
 
                 double decay = decayRate * (minutes / 60.0);
-                tension.Severity = Math.Max(0, tension.Severity - decay);
+                double newSeverity = Math.Max(0, tension.Severity - decay);
+
+                var change = tension.UpdateSeverity(newSeverity);
+                if (change != null)
+                {
+                    changes.Add(change);
+                }
 
                 if (tension.Severity <= 0)
                 {
@@ -159,6 +156,8 @@ public class TensionRegistry
         {
             _tensions.Remove(tension);
         }
+
+        return changes;
     }
 
 }

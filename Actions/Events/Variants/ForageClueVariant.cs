@@ -41,7 +41,28 @@ public record ForageClue(
     AnimalType? GameAnimalType = null,             // For Game clues: AnimalType.Rabbit, AnimalType.Caribou, etc.
     double HuntBonus = 0,                      // For Game clues: additive density bonus
     ScavengeScenario? Scenario = null          // For Scavenge: scenario with animal/predator pools
-);
+)
+{
+    /// <summary>
+    /// Get the focus ID suggested by this clue, if any.
+    /// Only Resource clues suggest a focus category.
+    /// </summary>
+    public string? GetSuggestedFocusId()
+    {
+        if (Category != ClueCategory.Resource)
+            return null;
+
+        if (SuggestedResources.Any(r => r.IsFuel()))
+            return "fuel";
+        if (SuggestedResources.Any(r => r.IsFood()))
+            return "food";
+        if (SuggestedResources.Any(r => r.IsMedicine()))
+            return "medicine";
+        if (SuggestedResources.Any(r => r.IsMaterial()))
+            return "materials";
+        return null;
+    }
+}
 
 /// <summary>
 /// Predefined clue pools organized by category and context.

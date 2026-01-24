@@ -319,6 +319,25 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     };
 
     /// <summary>
+    /// Returns available focus options as (id, label, description) tuples.
+    /// Only includes focuses that have matching resources at this location.
+    /// </summary>
+    public IReadOnlyList<(string Id, string Label, string Description)> GetAvailableFocusOptions()
+    {
+        var options = new List<(string, string, string)>();
+        if (HasResourcesForFocus(ForageFocus.Fuel))
+            options.Add(("fuel", "Fuel", GetFocusDescription(ForageFocus.Fuel)));
+        if (HasResourcesForFocus(ForageFocus.Food))
+            options.Add(("food", "Food", GetFocusDescription(ForageFocus.Food)));
+        if (HasResourcesForFocus(ForageFocus.Medicine))
+            options.Add(("medicine", "Medicine", GetFocusDescription(ForageFocus.Medicine)));
+        if (HasResourcesForFocus(ForageFocus.Materials))
+            options.Add(("materials", "Materials", GetFocusDescription(ForageFocus.Materials)));
+        options.Add(("general", "General", "balanced search"));
+        return options;
+    }
+
+    /// <summary>
     /// Map individual resources to sub-category names for cleaner UI display.
     /// </summary>
     private static string GetSubCategory(Resource resource) => resource switch

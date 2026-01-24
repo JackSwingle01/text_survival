@@ -315,8 +315,11 @@ public class CraftingRunner(GameContext ctx)
             }
         }
 
-        // Record crafting discovery
-        _ctx.RecordItemCrafted(option.Name);
+        // Record crafting discovery - show popup if new
+        if (_ctx.RecordItemCrafted(option.Name))
+        {
+            DesktopIO.ShowMajorDiscovery(_ctx, $"New craft learned: {option.Name}");
+        }
 
         GameDisplay.Render(_ctx, statusText: "Satisfied.");
 

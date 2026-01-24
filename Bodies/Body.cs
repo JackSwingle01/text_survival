@@ -1,3 +1,4 @@
+using text_survival.Actions.Events;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -31,6 +32,46 @@ public class Body
     public double Energy = 900;
     public double Hydration = 3000;
     public double ClothingHeatBufferPct = .3;
+
+    // Threshold trackers for intentional event triggers
+    // Not serialized - will reinitialize on load
+    [System.Text.Json.Serialization.JsonIgnore]
+    private readonly StageTracker<ThresholdStage> _energyTracker = new(ThresholdMapper);
+    [System.Text.Json.Serialization.JsonIgnore]
+    private readonly StageTracker<ThresholdStage> _caloriesTracker = new(ThresholdMapper);
+    [System.Text.Json.Serialization.JsonIgnore]
+    private readonly StageTracker<ThresholdStage> _hydrationTracker = new(ThresholdMapper);
+
+    private static readonly Func<double, ThresholdStage> ThresholdMapper = pct => pct switch
+    {
+        < 0.10 => ThresholdStage.Critical,
+        < 0.25 => ThresholdStage.Severe,
+        < 0.50 => ThresholdStage.Normal,
+        _ => ThresholdStage.Healthy
+    };
+
+    /// <summary>
+    /// Check survival stat thresholds and return any stage changes.
+    /// Called from Update() to queue events for threshold crossings.
+    /// </summary>
+    public IEnumerable<ThresholdChange> CheckThresholds()
+    {
+        var changes = new List<ThresholdChange>();
+
+        var energyChange = _energyTracker.Update(EnergyPct);
+        if (energyChange != null)
+            changes.Add(new ThresholdChange("Energy", energyChange.Previous, energyChange.Current));
+
+        var caloriesChange = _caloriesTracker.Update(FullPct);
+        if (caloriesChange != null)
+            changes.Add(new ThresholdChange("Calories", caloriesChange.Previous, caloriesChange.Current));
+
+        var hydrationChange = _hydrationTracker.Update(HydratedPct);
+        if (hydrationChange != null)
+            changes.Add(new ThresholdChange("Hydration", hydrationChange.Previous, hydrationChange.Current));
+
+        return changes;
+    }
 
     // Parameterless constructor for deserialization
     public Body() { }

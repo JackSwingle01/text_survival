@@ -164,8 +164,7 @@ public class InventoryOverlay
     {
         "All" => GetTotalItemCount(inv),
         "Food" => ResourceCategories.Items[ResourceCategory.Food].Count(r => inv.Count(r) > 0) + (inv.WaterLiters > 0 ? 1 : 0),
-        "Fuel" => ResourceCategories.Items[ResourceCategory.Fuel].Count(r => inv.Count(r) > 0)
-               + ResourceCategories.Items[ResourceCategory.Tinder].Count(r => inv.Count(r) > 0),
+        "Fuel" => ResourceCategories.Items[ResourceCategory.Fuel].Count(r => inv.Count(r) > 0),
         "Medicine" => ResourceCategories.Items[ResourceCategory.Medicine].Count(r => inv.Count(r) > 0),
         "Material" => ResourceCategories.Items[ResourceCategory.Material].Count(r => inv.Count(r) > 0),
         "Gear" => inv.Tools.Count + inv.Equipment.Values.Count(e => e != null) + inv.Accessories.Count + (inv.Weapon != null ? 1 : 0),
@@ -195,28 +194,20 @@ public class InventoryOverlay
             return;
         }
 
-        // Tile layout
+        // Single column list layout
         float windowWidth = ImGui.GetContentRegionAvail().X;
-        float tileWidth = 85;
-        float tileHeight = 55;
-        float spacing = 6;
-        int tilesPerRow = Math.Max(1, (int)((windowWidth + spacing) / (tileWidth + spacing)));
+        float tileWidth = windowWidth - 8; // Leave small margin
+        float tileHeight = 32;
+        float spacing = 4;
 
-        int col = 0;
         foreach (var item in items)
         {
-            if (col > 0)
-                ImGui.SameLine(0, spacing);
-
             bool isSelected = _selectedItem == item;
             if (RenderItemTile(item, tileWidth, tileHeight, isSelected))
             {
                 _selectedItem = item;
             }
-
-            col++;
-            if (col >= tilesPerRow)
-                col = 0;
+            ImGui.Dummy(new Vector2(0, spacing));
         }
     }
 
@@ -231,7 +222,6 @@ public class InventoryOverlay
                 if (inv.WaterLiters > 0)
                     items.Add(new InventoryItem.WaterItem(inv.WaterLiters));
                 AddResourceItems(inv, ResourceCategory.Fuel, items);
-                AddResourceItems(inv, ResourceCategory.Tinder, items);
                 AddResourceItems(inv, ResourceCategory.Medicine, items);
                 AddResourceItems(inv, ResourceCategory.Material, items);
                 AddGearItems(inv, items);
@@ -245,7 +235,6 @@ public class InventoryOverlay
 
             case "Fuel":
                 AddResourceItems(inv, ResourceCategory.Fuel, items);
-                AddResourceItems(inv, ResourceCategory.Tinder, items);
                 break;
 
             case "Medicine":
@@ -333,15 +322,19 @@ public class InventoryOverlay
         uint textColor = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, 1f));
         uint subtextColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.9f, 0.9f, 0.9f, 0.8f));
 
-        // Item name at top
-        string displayName = TruncateName(item.Name, 11);
-        drawList.AddText(rectMin + new Vector2(4, 4), textColor, displayName);
+        // Horizontal layout: Name on left, count/weight on right
+        float verticalCenter = (height - 14) / 2; // Center text vertically (14 ~= text height)
 
-        // Count/quantity and weight at bottom
-        string bottomText = GetBottomText(item);
-        drawList.AddText(rectMin + new Vector2(4, height - 18), subtextColor, bottomText);
+        // Item name on left
+        string displayName = TruncateName(item.Name, 20);
+        drawList.AddText(rectMin + new Vector2(6, verticalCenter), textColor, displayName);
 
-        // Condition indicator for gear
+        // Count/quantity and weight on right
+        string rightText = GetBottomText(item);
+        float rightTextWidth = ImGui.CalcTextSize(rightText).X;
+        drawList.AddText(rectMin + new Vector2(width - rightTextWidth - 6, verticalCenter), subtextColor, rightText);
+
+        // Condition indicator for gear (small bar at bottom)
         if (item is InventoryItem.ToolItem t)
             RenderConditionBar(drawList, rectMin, width, height, t.Tool.ConditionPct);
         else if (item is InventoryItem.EquipmentItem e)
@@ -590,7 +583,10 @@ public class InventoryOverlay
             {
                 if (ImGui.Button("Equip as Weapon", new Vector2(-1, 28)))
                 {
-                    inv.EquipWeapon(tool);
+                    inv.Tools.Remove(tool);
+                    var previous = inv.EquipWeapon(tool);
+                    if (previous != null)
+                        inv.Tools.Add(previous);
                     _message = $"Equipped {tool.Name}";
                     _messageTimer = 2f;
                 }
@@ -641,7 +637,9 @@ public class InventoryOverlay
         // Unequip action
         if (ImGui.Button("Unequip", new Vector2(-1, 28)))
         {
-            inv.Unequip(item.Slot);
+            var unequipped = inv.Unequip(item.Slot);
+            if (unequipped != null)
+                inv.Tools.Add(unequipped);
             _message = $"Unequipped {gear.Name}";
             _messageTimer = 2f;
             _selectedItem = null;
@@ -703,7 +701,9 @@ public class InventoryOverlay
         // Unequip action
         if (ImGui.Button("Unequip Weapon", new Vector2(-1, 28)))
         {
-            inv.UnequipWeapon();
+            var unequipped = inv.UnequipWeapon();
+            if (unequipped != null)
+                inv.Tools.Add(unequipped);
             _message = $"Unequipped {weapon.Name}";
             _messageTimer = 2f;
             _selectedItem = null;

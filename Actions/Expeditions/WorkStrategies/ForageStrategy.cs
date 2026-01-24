@@ -3,7 +3,6 @@ using text_survival.Actions.Variants;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Desktop;
-using text_survival.Desktop.Dto;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
@@ -45,77 +44,11 @@ public class ForageStrategy : IWorkStrategy
 
         while (true)
         {
-            string quality = feature.GetQualityDescription();
-
             // Generate environmental clues using seed for deterministic results
             _clues = ClueSelector.GenerateClues(ctx, location, feature.ClueSeed);
 
-            // Build clue DTOs - only Resource clues suggest a focus
-            var clueDtos = _clues.Select((clue, i) => new ForageClueDto(
-                Id: $"clue_{i}",
-                Description: clue.Description,
-                SuggestedFocusId: GetSuggestedFocusId(clue)
-            )).ToList();
-
-            // Build focus options - only show if resources of that type exist
-            // Description shows actual available resources, not generic examples
-            var focusOptions = new List<ForageFocusDto>();
-
-            if (feature.HasResourcesForFocus(ForageFocus.Fuel))
-                focusOptions.Add(new("fuel", "Fuel", feature.GetFocusDescription(ForageFocus.Fuel)));
-            if (feature.HasResourcesForFocus(ForageFocus.Food))
-                focusOptions.Add(new("food", "Food", feature.GetFocusDescription(ForageFocus.Food)));
-            if (feature.HasResourcesForFocus(ForageFocus.Medicine))
-                focusOptions.Add(new("medicine", "Medicine", feature.GetFocusDescription(ForageFocus.Medicine)));
-            if (feature.HasResourcesForFocus(ForageFocus.Materials))
-                focusOptions.Add(new("materials", "Materials", feature.GetFocusDescription(ForageFocus.Materials)));
-
-            focusOptions.Add(new("general", "General", "balanced search"));
-
-            // Build time options
-            var timeOptions = new List<ForageTimeDto>
-            {
-                new("15", "Quick - 15 min", 15),
-                new("30", "Standard - 30 min", 30),
-                new("60", "Thorough - 60 min", 60)
-            };
-
-            // Build warnings
-            var warnings = new List<string>();
-            var previewContext = AbilityContext.FromFullContext(
-                ctx.player, ctx.Inventory, location, ctx.GameTime.Hour);
-            if (previewContext.DarknessLevel > 0.5 && !previewContext.HasLightSource)
-                warnings.Add("It's dark - your yield will be reduced without light.");
-
-            var axe = ctx.Inventory.GetTool(ToolType.Axe);
-            var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
-            if (axe?.Works == true)
-                warnings.Add("Your axe will help gather wood.");
-            if (shovel?.Works == true)
-                warnings.Add("Your shovel will help dig up roots.");
-
-            // Capacity warning when pack is nearly full
-            var inv = ctx.Inventory;
-            if (inv.MaxWeightKg > 0)
-            {
-                double capacityPct = inv.CurrentWeightKg / inv.MaxWeightKg;
-                if (capacityPct >= 0.8)
-                {
-                    double remaining = inv.RemainingCapacityKg;
-                    warnings.Add($"Your pack is nearly full ({remaining:F1}kg remaining).");
-                }
-            }
-
-            var forageDto = new ForageDto(
-                LocationQuality: quality,
-                Clues: clueDtos,
-                FocusOptions: focusOptions,
-                TimeOptions: timeOptions,
-                Warnings: warnings
-            );
-
-            // Show overlay and get selection
-            var (selectedFocus, selectedMinutes) = DesktopIO.SelectForageOptions(ctx, forageDto);
+            // Show overlay and get selection - pass domain objects directly
+            var (selectedFocus, selectedMinutes) = DesktopIO.SelectForageOptions(ctx, feature, _clues);
 
             // Handle "Keep Walking" - spend time to reroll clues
             if (selectedMinutes == -1)
@@ -166,23 +99,6 @@ public class ForageStrategy : IWorkStrategy
     // Additional clue storage for Execute()
     private ForageClue? _gameClue;
     private ForageClue? _scavengeClue;
-
-    private static string? GetSuggestedFocusId(ForageClue clue)
-    {
-        // Only Resource clues suggest a focus category
-        if (clue.Category != ClueCategory.Resource)
-            return null;
-
-        if (clue.SuggestedResources.Any(r => r.IsFuel()))
-            return "fuel";
-        if (clue.SuggestedResources.Any(r => r.IsFood()))
-            return "food";
-        if (clue.SuggestedResources.Any(r => r.IsMedicine()))
-            return "medicine";
-        if (clue.SuggestedResources.Any(r => r.IsMaterial()))
-            return "materials";
-        return null;
-    }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
     {

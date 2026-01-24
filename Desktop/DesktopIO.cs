@@ -601,12 +601,18 @@ public static class DesktopIO
 
     private static UI.ForageOverlay? _forageOverlay;
 
-    // Returns (focus, minutes). Focus=null and minutes=0 means cancelled.
-    // Focus=null and minutes=-1 means "keep walking" (reroll clues).
-    public static (ForageFocus? focus, int minutes) SelectForageOptions(GameContext ctx, ForageDto forageData)
+    /// <summary>
+    /// Show forage overlay and get player selection.
+    /// Returns (focus, minutes). Focus=null and minutes=0 means cancelled.
+    /// Focus=null and minutes=-1 means "keep walking" (reroll clues).
+    /// </summary>
+    public static (ForageFocus? focus, int minutes) SelectForageOptions(
+        GameContext ctx,
+        ForageFeature feature,
+        List<ForageClue> clues)
     {
         _forageOverlay ??= new UI.ForageOverlay();
-        _forageOverlay.Open(forageData);
+        _forageOverlay.Open(ctx, feature, clues);
 
         UI.ForageResult? result = null;
 

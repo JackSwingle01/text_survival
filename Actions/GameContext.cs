@@ -1,6 +1,7 @@
 using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
 using text_survival.Actions.Expeditions;
+using text_survival.Actions.Events;
 using text_survival.Actions.Tensions;
 using text_survival.Bodies;
 using text_survival.Combat;
@@ -77,6 +78,10 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     // Tension system for tracking building threats/opportunities
     public TensionRegistry Tensions { get; set; } = new();
+
+    // Event queue for intentional triggers (tension changes, weather transitions, thresholds)
+    [System.Text.Json.Serialization.JsonIgnore]
+    public EventQueue EventQueue { get; } = new();
 
     // Herd registry for tracking persistent animals
     public HerdRegistry Herds { get; set; } = new();
@@ -238,10 +243,12 @@ public class GameContext(Player player, Location camp, Weather weather)
             GameDisplay.AddDiscovery(this, $"New discovery: {medicineName}");
     }
 
-    public void RecordItemCrafted(string itemName)
+    public bool RecordItemCrafted(string itemName)
     {
-        if (Discoveries.CraftItem(itemName))
+        bool isNew = Discoveries.CraftItem(itemName);
+        if (isNew)
             GameDisplay.AddDiscovery(this, $"New discovery: {itemName}");
+        return isNew;
     }
 
     // Parameterless constructor for JSON deserialization
@@ -333,15 +340,20 @@ public class GameContext(Player player, Location camp, Weather weather)
         {
             elapsed++;
 
-            // Update survival/zone/tensions (always runs)
+            // Update survival/zone/tensions (always runs, may queue intentional events)
             UpdateInternal(1);
 
             // Check for event (only if activity allows events AND not already handling an event)
             if (config.EventMultiplier > 0 && !IsHandlingEvent)
             {
+                // First: check event queue (intentional triggers take precedence)
+                if (EventQueue.TryDequeue(out evt) && evt != null)
+                    break;
+
+                // Second: random event roll (only if queue was empty)
                 evt = GameEventRegistry.GetEventOnTick(this, config.EventMultiplier);
                 if (evt != null)
-                    break; // Only break when an event actually triggers
+                    break;
             }
 
             if (render && !string.IsNullOrEmpty(config.StatusText))
@@ -399,12 +411,33 @@ public class GameContext(Player player, Location camp, Weather weather)
         var context = SurvivalContext.GetSurvivalContext(player, Inventory, CurrentActivity, GetTimeOfDay());
         player.Update(minutes, context);
 
+        // Check survival thresholds and queue events for crossings
+        foreach (var thresholdChange in player.Body.CheckThresholds())
+        {
+            var thresholdEvent = ThresholdEventFactory.ForThresholdChange(thresholdChange, this);
+            EventQueue.Enqueue(thresholdEvent);
+        }
+
         // Update zone weather and all named locations (terrain-only don't need updates)
         Weather.Update(GameTime);
 
         if (Weather.WeatherJustChanged && SessionId != null)
         {
             Desktop.DesktopIO.ShowWeatherChange(this);
+
+            // Queue weather transition event
+            var weatherEvent = WeatherEventFactory.OnWeatherChange(
+                Weather.PreviousCondition,
+                Weather.CurrentCondition,
+                this);
+            EventQueue.Enqueue(weatherEvent);
+
+            // Special case: Calm Before The Storm (Prolonged Blizzard front)
+            if (Weather.CurrentFront?.Type == FrontType.ProlongedBlizzard &&
+                Weather.CurrentFront.CurrentStateIndex == 0)
+            {
+                EventQueue.Enqueue(WeatherEventFactory.OnCalmBeforeStorm(this));
+            }
         }
 
         if (Map != null)
@@ -415,7 +448,12 @@ public class GameContext(Player player, Location camp, Weather weather)
             }
         }
 
-        Tensions.Update(minutes, IsAtCamp);
+        // Update tensions and queue events for stage transitions
+        foreach (var tensionChange in Tensions.Update(minutes, IsAtCamp))
+        {
+            var tensionEvent = TensionEventFactory.ForStageChange(tensionChange, this);
+            EventQueue.Enqueue(tensionEvent);
+        }
 
         var herdResults = Herds.Update(minutes, this);
         foreach (var result in herdResults)

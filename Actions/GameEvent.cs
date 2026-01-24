@@ -1,3 +1,4 @@
+using text_survival.Actions.Events;
 using text_survival.Actions.Tensions;
 using text_survival.Actions.Variants;
 using text_survival.Actors.Animals;
@@ -364,7 +365,12 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (CreatesTension is not null)
         {
             var tension = CreateTensionFromConfig(CreatesTension);
-            ctx.Tensions.AddTension(tension);
+            var stageChange = ctx.Tensions.AddTension(tension);
+            if (stageChange != null)
+            {
+                var evt = TensionEventFactory.ForStageChange(stageChange, ctx);
+                ctx.EventQueue.Enqueue(evt);
+            }
             summary.TensionsChanged.Add($"+{CreatesTension.Type}");
         }
 
@@ -377,7 +383,12 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         if (EscalateTension is not null)
         {
             var (type, amount) = EscalateTension.Value;
-            ctx.Tensions.EscalateTension(type, amount);
+            var stageChange = ctx.Tensions.EscalateTension(type, amount);
+            if (stageChange != null)
+            {
+                var evt = TensionEventFactory.ForStageChange(stageChange, ctx);
+                ctx.EventQueue.Enqueue(evt);
+            }
             summary.TensionsChanged.Add($"↑{type}");
         }
     }

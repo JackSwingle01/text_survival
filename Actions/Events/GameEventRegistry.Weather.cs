@@ -54,6 +54,9 @@ public static partial class GameEventRegistry
                 ]);
     }
 
+    // Public accessor for intentional weather triggers
+    public static GameEvent GetWhiteout(GameContext ctx) => Whiteout(ctx);
+
     private static GameEvent Whiteout(GameContext ctx)
     {
         return new GameEvent("Whiteout",
@@ -231,6 +234,9 @@ public static partial class GameEventRegistry
             ]);
     }
 
+    // Public accessor for intentional weather triggers
+    public static GameEvent GetLostInFog(GameContext ctx) => LostInFog(ctx);
+
     private static GameEvent LostInFog(GameContext ctx)
     {
         return new GameEvent("Lost in Fog",
@@ -312,6 +318,9 @@ public static partial class GameEventRegistry
             ]);
     }
 
+    // Public accessor for intentional weather triggers
+    public static GameEvent GetSuddenClearing(GameContext ctx) => SuddenClearing(ctx);
+
     private static GameEvent SuddenClearing(GameContext ctx)
     {
         return new GameEvent("Sudden Clearing",
@@ -349,8 +358,10 @@ public static partial class GameEventRegistry
 
     /// <summary>
     /// Prolonged Blizzard Warning - triggers during the calm phase before a massive blizzard
-    /// Guaranteed to fire (high weight) when ProlongedBlizzard front is active at state index 0
+    /// Now triggered intentionally via WeatherEventFactory when front enters calm phase.
     /// </summary>
+    public static GameEvent GetMassiveStormApproaching(GameContext ctx) => MassiveStormApproaching(ctx);
+
     private static GameEvent MassiveStormApproaching(GameContext ctx)
     {
         return new GameEvent("The Calm",
