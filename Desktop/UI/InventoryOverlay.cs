@@ -1,6 +1,7 @@
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Actions.Handlers;
 using text_survival.Desktop.Input;
 using text_survival.Items;
 
@@ -466,16 +467,15 @@ public class InventoryOverlay
         // Resource-specific info
         if (category == ResourceCategory.Food)
         {
-            RenderFoodInfo(item.Resource);
+            double perUnitWeight = item.WeightKg / item.Count;
+            RenderFoodInfo(item.Resource, perUnitWeight);
             ImGui.Separator();
 
             // Eat action
             if (ImGui.Button("Eat", new Vector2(-1, 28)))
             {
-                // Consume one unit
-                inv.Remove(item.Resource, 1);
-                ApplyFoodEffect(ctx, item.Resource);
-                _message = $"Ate {item.Resource.ToDisplayName()}";
+                var result = ConsumptionHandler.Consume(ctx, item.Resource.ToString());
+                _message = result.Message;
                 _messageTimer = 2f;
 
                 // Update selection if depleted
@@ -508,55 +508,24 @@ public class InventoryOverlay
         }
     }
 
-    private static void RenderFoodInfo(Resource resource)
+    private static void RenderFoodInfo(Resource resource, double perUnitWeight)
     {
-        // Approximate calorie values
-        int calories = resource switch
-        {
-            Resource.RawMeat => 800,
-            Resource.CookedMeat => 900,
-            Resource.DriedMeat => 1000,
-            Resource.Berries => 50,
-            Resource.DriedBerries => 80,
-            Resource.Nuts => 200,
-            Resource.Roots => 100,
-            Resource.Grubs => 50,
-            Resource.Eggs => 150,
-            Resource.Fish => 400,
-            Resource.CookedFish => 450,
-            Resource.DriedFish => 500,
-            _ => 0
-        };
+        var (caloriesPerKg, hydrationPerKg) = ConsumptionHandler.GetNutritionInfo(resource);
 
-        if (calories > 0)
+        if (caloriesPerKg > 0)
+        {
+            int calories = (int)(perUnitWeight * caloriesPerKg);
             ImGui.Text($"Calories: ~{calories} per unit");
+        }
+
+        if (hydrationPerKg > 0)
+            ImGui.Text($"Hydration: +{(int)(perUnitWeight * hydrationPerKg)}");
+        else if (hydrationPerKg < 0)
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0.4f, 1f), "Makes you thirsty");
 
         // Warnings for raw food
         if (resource == Resource.RawMeat)
             ImGui.TextColored(new Vector4(1f, 0.6f, 0.4f, 1f), "Raw - risk of illness");
-    }
-
-    private static void ApplyFoodEffect(GameContext ctx, Resource resource)
-    {
-        // Basic calorie restoration - actual system may be more complex
-        int calories = resource switch
-        {
-            Resource.RawMeat => 800,
-            Resource.CookedMeat => 900,
-            Resource.DriedMeat => 1000,
-            Resource.Berries => 50,
-            Resource.DriedBerries => 80,
-            Resource.Nuts => 200,
-            Resource.Roots => 100,
-            Resource.Grubs => 50,
-            Resource.Eggs => 150,
-            Resource.Fish => 400,
-            Resource.CookedFish => 450,
-            Resource.DriedFish => 500,
-            _ => 0
-        };
-
-        ctx.Player.Body.Calories += calories;
     }
 
     private void RenderWaterDetails(GameContext ctx, Inventory inv, InventoryItem.WaterItem item)
@@ -577,7 +546,7 @@ public class InventoryOverlay
         {
             double amount = Math.Min(0.5, inv.WaterLiters);
             inv.WaterLiters -= amount;
-            ctx.Player.Body.Hydration += amount * 500; // Rough hydration value
+            ctx.player.Body.Hydration += amount * 500; // Rough hydration value
             _message = $"Drank {amount:F1}L water";
             _messageTimer = 2f;
 
@@ -662,10 +631,10 @@ public class InventoryOverlay
         ImGui.ProgressBar((float)gear.ConditionPct, new Vector2(-1, 0), "");
 
         ImGui.Separator();
-        ImGui.Text($"Insulation: {gear.Insulation:F1}");
-        ImGui.Text($"Effective: {gear.EffectiveInsulation:F1}");
-        if (gear.Waterproofing > 0)
-            ImGui.Text($"Waterproofing: {gear.Waterproofing * 100:F0}%");
+        ImGui.Text($"Base Insulation: {gear.BaseInsulation:F1}");
+        ImGui.Text($"Current: {gear.Insulation:F1}");
+        if (gear.TotalWaterproofLevel > 0)
+            ImGui.Text($"Waterproofing: {gear.TotalWaterproofLevel * 100:F0}%");
 
         ImGui.Separator();
 

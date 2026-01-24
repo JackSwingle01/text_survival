@@ -48,6 +48,26 @@ public static class ConsumptionHandler
     public record ConsumptionResult(string Message, bool IsWarning);
 
     /// <summary>
+    /// Returns nutrition info for a food resource (per kg values).
+    /// Use this for UI display to avoid duplicating calorie constants.
+    /// </summary>
+    public static (double CaloriesPerKg, double HydrationPerKg) GetNutritionInfo(Resource resource)
+    {
+        return resource switch
+        {
+            Resource.CookedMeat => (CookedMeatCaloriesPerKg, 0),
+            Resource.RawMeat => (RawMeatCaloriesPerKg, 0),
+            Resource.Berries => (BerriesCaloriesPerKg, BerriesHydrationPerKg),
+            Resource.Honey => (HoneyCaloriesPerKg, 0),
+            Resource.Nuts => (NutsCaloriesPerKg, 0),
+            Resource.Roots => (RootsCaloriesPerKg, RootsHydrationPerKg),
+            Resource.DriedMeat => (DriedMeatCaloriesPerKg, DriedMeatHydrationPerKg),
+            Resource.DriedBerries => (DriedBerriesCaloriesPerKg, 0),
+            _ => (0, 0)
+        };
+    }
+
+    /// <summary>
     /// Returns all available consumables based on current inventory state.
     /// </summary>
     public static List<ConsumableInfo> GetAvailableConsumables(GameContext ctx)

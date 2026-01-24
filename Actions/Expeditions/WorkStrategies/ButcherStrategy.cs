@@ -19,7 +19,6 @@ public class ButcherStrategy : IWorkStrategy
 {
     private readonly CarcassFeature _carcass;
     private ButcheringMode? _selectedMode;
-    private int _selectedMinutes;
     private bool _cancelled;
     private List<string> _impairmentWarnings = [];
 
@@ -39,11 +38,61 @@ public class ButcherStrategy : IWorkStrategy
 
     public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
     {
-        // Build warnings
-        var warnings = new List<string>();
+        // Mode selection (only if this is a fresh carcass - mode persists across sessions)
+        if (_carcass.SelectedMode == null)
+        {
+            var warnings = BuildModeSelectionWarnings(ctx);
+            var selectedModeId = DesktopIO.SelectButcherMode(ctx, _carcass, warnings);
 
-        var capacities = ctx.player.GetCapacities();
-        var effectModifiers = ctx.player.EffectRegistry.GetCapacityModifiers();
+            if (selectedModeId == null)
+            {
+                _cancelled = true;
+                return null;
+            }
+
+            // Persist mode on carcass for all future sessions
+            _carcass.SelectedMode = selectedModeId switch
+            {
+                "quick" => ButcheringMode.QuickStrip,
+                "careful" => ButcheringMode.Careful,
+                "full" => ButcheringMode.FullProcessing,
+                _ => ButcheringMode.Careful
+            };
+        }
+
+        _selectedMode = _carcass.SelectedMode.Value;
+
+        // Time chunk selection (like ChoppingStrategy)
+        double remainingMinutes = _carcass.GetRemainingMinutes(_selectedMode.Value);
+
+        string progressText = _carcass.ProgressPct > 0.01
+            ? $" ({_carcass.ProgressPct:P0} complete)"
+            : "";
+
+        var choice = new Choice<int>($"How long do you want to butcher?{progressText}");
+
+        // Offer time chunks up to remaining time
+        if (remainingMinutes >= 15)
+            choice.AddOption("15 minutes", 15);
+        if (remainingMinutes >= 30)
+            choice.AddOption("30 minutes", 30);
+        if (remainingMinutes >= 60)
+            choice.AddOption("1 hour", 60);
+
+        // If less than 15 minutes remain, or for convenience, offer to finish
+        if (remainingMinutes > 0 && remainingMinutes < 15)
+            choice.AddOption($"Finish ({(int)remainingMinutes} min)", (int)remainingMinutes);
+        else if (remainingMinutes >= 15)
+            choice.AddOption($"Finish ({(int)remainingMinutes} min)", (int)remainingMinutes);
+
+        choice.AddOption("Cancel", 0);
+
+        return choice;
+    }
+
+    private List<string> BuildModeSelectionWarnings(GameContext ctx)
+    {
+        var warnings = new List<string>();
 
         // Check dexterity impairment (combines manipulation, wetness, darkness, vitality)
         double dexterity = AbilityCalculator.GetDexterity(ctx.player, ctx);
@@ -64,35 +113,11 @@ public class ButcherStrategy : IWorkStrategy
             warnings.Add("The carcass is frozen solid. This will take longer.");
         }
 
-        // Show overlay and get selection - pass carcass directly
-        var selectedModeId = DesktopIO.SelectButcherOptions(ctx, _carcass, warnings);
-
-        if (selectedModeId == null)
-        {
-            _cancelled = true;
-            return null;
-        }
-
-        // Parse mode selection
-        _selectedMode = selectedModeId switch
-        {
-            "quick" => ButcheringMode.QuickStrip,
-            "careful" => ButcheringMode.Careful,
-            "full" => ButcheringMode.FullProcessing,
-            _ => ButcheringMode.Careful
-        };
-
-        // Store selected time based on mode
-        _selectedMinutes = _carcass.GetRemainingMinutes(_selectedMode.Value);
-
-        return null; // Time already selected via overlay
+        return warnings;
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
     {
-        // Use pre-selected time from overlay (baseTime will be 0 since GetTimeOptions returns null)
-        int workTime = _selectedMinutes;
-
         var capacities = ctx.player.GetCapacities();
         var effectModifiers = ctx.player.EffectRegistry.GetCapacityModifiers();
 
@@ -112,10 +137,10 @@ public class ButcherStrategy : IWorkStrategy
         if (_carcass.IsFrozen)
         {
             timeFactor *= 1.5;
-            // Warning already shown in overlay, don't duplicate
+            // Warning already shown in mode selection, don't duplicate
         }
 
-        return ((int)(workTime * timeFactor), warnings);
+        return ((int)(baseTime * timeFactor), warnings);
     }
 
     public ActivityType GetActivityType() => ActivityType.Butchering;

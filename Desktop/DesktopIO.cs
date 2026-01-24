@@ -606,29 +606,36 @@ public static class DesktopIO
         return (result.Focus, result.Minutes);
     }
 
-    public static string? SelectButcherOptions(GameContext ctx, CarcassFeature carcass, List<string>? warnings = null)
+    /// <summary>
+    /// Select butchering mode for a fresh carcass. Returns mode ID or null if cancelled.
+    /// Only called when carcass.SelectedMode is null (first butchering session).
+    /// Time selection happens separately via standard time chunk UI.
+    /// </summary>
+    public static string? SelectButcherMode(GameContext ctx, CarcassFeature carcass, List<string>? warnings = null)
     {
         var choices = new List<(string id, string label)>
         {
             ("cancel", "Cancel")
         };
 
+        // Show estimated total time for each mode to help player choose
         var modes = new[]
         {
-            ("quick", "Quick Strip", carcass.GetRemainingMinutes(ButcheringMode.QuickStrip)),
-            ("careful", "Careful", carcass.GetRemainingMinutes(ButcheringMode.Careful)),
-            ("full", "Full Processing", carcass.GetRemainingMinutes(ButcheringMode.FullProcessing))
+            ("quick", "Quick Strip - Fast, meat-focused, messy", carcass.GetRemainingMinutes(ButcheringMode.QuickStrip)),
+            ("careful", "Careful - Balanced approach", carcass.GetRemainingMinutes(ButcheringMode.Careful)),
+            ("full", "Full Processing - Slow, maximum yield", carcass.GetRemainingMinutes(ButcheringMode.FullProcessing))
         };
 
         foreach (var (id, label, minutes) in modes)
         {
-            string timeStr = minutes > 0 ? $" ({minutes}min)" : "";
+            string timeStr = $" (~{minutes}min total)";
             choices.Add((id, $"{label}{timeStr}"));
         }
 
         string description = $"Butcher: {carcass.AnimalName}\n" +
             $"Condition: {carcass.GetDecayDescription()}\n" +
-            $"Remaining: {carcass.GetTotalRemainingKg():F1}kg";
+            $"Total yield: ~{carcass.GetTotalRemainingKg():F1}kg\n\n" +
+            "Choose your approach:";
 
         if (warnings != null && warnings.Count > 0)
         {

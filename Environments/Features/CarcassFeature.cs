@@ -43,6 +43,18 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     // Butchering progress
     public double MinutesButchered { get; set; }
 
+    /// <summary>
+    /// The butchering mode selected for this carcass. Once selected (on first butchering session),
+    /// the mode persists for all subsequent sessions. Null means no butchering has started yet.
+    /// </summary>
+    public ButcheringMode? SelectedMode { get; set; }
+
+    /// <summary>
+    /// Progress as a percentage (0-1) based on yields remaining vs estimated initial.
+    /// Note: This is approximate since initial yields aren't stored separately.
+    /// </summary>
+    public double ProgressPct => Math.Clamp(1.0 - (GetTotalRemainingKg() / (BodyWeightKg * 0.78)), 0, 1);
+
     // Yields remaining (initialized on construction, decremented as harvested)
     public double MeatRemainingKg { get; set; }
     public double BoneRemainingKg { get; set; }
@@ -274,8 +286,11 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     {
         if (IsCompletelyButchered) yield break;
 
+        // Show progress percentage if butchering has started
+        string progressText = SelectedMode != null ? $" ({ProgressPct:P0})" : "";
+
         yield return new WorkOption(
-            $"Butcher {AnimalName} carcass",
+            $"Butcher {AnimalName} carcass{progressText}",
             "butcher",
             new ButcherStrategy(this)
         );
