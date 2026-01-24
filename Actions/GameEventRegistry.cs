@@ -40,13 +40,6 @@ public static partial class GameEventRegistry
     private static Dictionary<string, DateTime> EventTriggerTimes { get; } = new();
 
     public static void ClearTriggerTimes() => EventTriggerTimes.Clear();
-    public static Dictionary<string, DateTime> GetTriggerTimes() => new(EventTriggerTimes);
-    public static void LoadTriggerTimes(Dictionary<string, DateTime> times)
-    {
-        EventTriggerTimes.Clear();
-        foreach (var (name, time) in times)
-            EventTriggerTimes[name] = time;
-    }
 
     private static bool IsOnCooldown(string eventName, int cooldownHours, DateTime gameTime)
     {
