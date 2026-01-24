@@ -19,6 +19,9 @@ public class GridWorldGenerator
     private TerrainType[,] _terrain = null!;
     private Random _rng = null!;
 
+    // Positions adjacent to rivers (for adding WaterFeature)
+    private HashSet<GridPosition> _riverAdjacentPositions = new();
+
     // Cluster shapes for terrain feature placement
     private static readonly List<(int dx, int dy)[]> SmallShapes =
     [
@@ -187,16 +190,19 @@ public class GridWorldGenerator
         // Step 2: Add mountain range along north edge
         GenerateMountainRange();
 
-        // Step 3: Create terrain-only locations for all positions
+        // Step 3: Generate rivers flowing north to south
+        GenerateRivers(map);
+
+        // Step 4: Create terrain-only locations for all positions
         InitializeTerrainLocations(map, weather);
 
-        // Step 4: Place camp near center (replaces terrain location)
+        // Step 5: Place camp near center (replaces terrain location)
         var (campPos, camp) = PlaceCamp(map, weather);
 
-        // Step 5: Place named locations across the map (replaces terrain locations)
+        // Step 6: Place named locations across the map (replaces terrain locations)
         PlaceNamedLocations(map, weather, campPos);
 
-        // Step 6: Set initial position and visibility around camp
+        // Step 7: Set initial position and visibility around camp
         map.CurrentPosition = campPos;
         map.UpdateVisibility();
         camp.MarkExplored();
@@ -207,6 +213,7 @@ public class GridWorldGenerator
     /// <summary>
     /// Create terrain-only locations for all positions.
     /// Uses position-based seeds for deterministic environmental details.
+    /// Adds WaterFeature to tiles adjacent to rivers.
     /// </summary>
     private void InitializeTerrainLocations(GameMap map, Weather weather)
     {
@@ -218,6 +225,18 @@ public class GridWorldGenerator
                 // Create deterministic seed from position for environmental details
                 var positionSeed = HashCode.Combine(x, y, Width);
                 var location = LocationFactory.MakeTerrainLocation(terrain, weather, positionSeed);
+
+                // Add river water access to adjacent tiles (not water tiles - they have their own water)
+                var pos = new GridPosition(x, y);
+                if (_riverAdjacentPositions.Contains(pos) && terrain != TerrainType.Water)
+                {
+                    var riverAccess = new WaterFeature("river", "River")
+                        .WithDescription("A river flows past here.")
+                        .AsThinIce()  // Rivers don't freeze solid
+                        .WithFishAbundance(0.5);
+                    location.Features.Add(riverAccess);
+                }
+
                 map.SetLocation(x, y, location);
             }
         }
@@ -571,6 +590,126 @@ public class GridWorldGenerator
                 {
                     // Pass terrain - rocky and hazardous
                     _terrain[x, y] = TerrainType.Rock;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Generate rivers flowing north to south with gentle horizontal drift.
+    /// Creates TileEdge(EdgeType.River) between consecutive positions and tracks adjacent tiles.
+    /// </summary>
+    private void GenerateRivers(GameMap map)
+    {
+        _riverAdjacentPositions.Clear();
+
+        int riverCount = _rng.NextDouble() < 0.6 ? 1 : 2;
+        var usedStartX = new HashSet<int>();
+
+        for (int r = 0; r < riverCount; r++)
+        {
+            var path = GenerateRiverPath(usedStartX);
+            if (path.Count < 10) continue; // Skip too-short rivers
+
+            // Create river edges along path
+            for (int i = 0; i < path.Count - 1; i++)
+            {
+                map.AddEdge(path[i], path[i + 1], new Grid.TileEdge(Grid.EdgeType.River));
+            }
+
+            // Collect adjacent tiles for WaterFeature
+            CollectRiverAdjacentTiles(path);
+        }
+    }
+
+    /// <summary>
+    /// Generate a river path flowing from north to south.
+    /// Starts below mountain rows and flows with gentle horizontal drift.
+    /// </summary>
+    private List<GridPosition> GenerateRiverPath(HashSet<int> usedStartX)
+    {
+        var path = new List<GridPosition>();
+
+        // Find starting X position (below mountains, spaced from other rivers)
+        int startX = FindRiverStartX(usedStartX);
+        if (startX < 0) return path;
+
+        usedStartX.Add(startX);
+
+        int x = startX;
+        int lastDrift = 0; // Track last drift direction to prevent zigzag
+
+        // Flow from just below mountains to bottom of map
+        for (int y = MountainRows; y < Height; y++)
+        {
+            // Skip positions that would go into mountains or invalid terrain
+            var terrain = _terrain[x, y];
+            if (terrain == TerrainType.Mountain) continue;
+
+            path.Add(new GridPosition(x, y));
+
+            // Determine horizontal drift for next step
+            // 40% chance to drift, but constrained to prevent sharp zigzag
+            if (_rng.NextDouble() < 0.4)
+            {
+                int drift = _rng.Next(2) == 0 ? -1 : 1;
+
+                // Prevent immediate reversal (zigzag) - only drift if same direction or was straight
+                if (lastDrift == 0 || drift == lastDrift)
+                {
+                    int newX = x + drift;
+                    if (newX >= 1 && newX < Width - 1 && _terrain[newX, y] != TerrainType.Mountain)
+                    {
+                        x = newX;
+                        lastDrift = drift;
+                    }
+                }
+            }
+            else
+            {
+                lastDrift = 0; // Reset drift memory when going straight
+            }
+        }
+
+        return path;
+    }
+
+    /// <summary>
+    /// Find a valid starting X position for a river, spaced at least 10 tiles from others.
+    /// </summary>
+    private int FindRiverStartX(HashSet<int> usedStartX)
+    {
+        const int minSpacing = 10;
+        var candidates = new List<int>();
+
+        for (int x = 5; x < Width - 5; x++)
+        {
+            bool tooClose = usedStartX.Any(usedX => Math.Abs(x - usedX) < minSpacing);
+            if (!tooClose && _terrain[x, MountainRows] != TerrainType.Mountain)
+            {
+                candidates.Add(x);
+            }
+        }
+
+        if (candidates.Count == 0) return -1;
+        return candidates[_rng.Next(candidates.Count)];
+    }
+
+    /// <summary>
+    /// Collect all tiles adjacent to the river path for WaterFeature addition.
+    /// </summary>
+    private void CollectRiverAdjacentTiles(List<GridPosition> path)
+    {
+        foreach (var pos in path)
+        {
+            // Add all orthogonal neighbors
+            foreach (var (dx, dy) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
+            {
+                int nx = pos.X + dx;
+                int ny = pos.Y + dy;
+                if (nx >= 0 && nx < Width && ny >= MountainRows && ny < Height)
+                {
+                    _riverAdjacentPositions.Add(new GridPosition(nx, ny));
                 }
             }
         }

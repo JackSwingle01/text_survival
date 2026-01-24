@@ -82,8 +82,8 @@ public static class EdgeRenderer
             edgeY = (pos1.Y + pos2.Y + tileSize) / 2;
         }
 
-        // Check for river
-        if (HasRiver(loc1, loc2))
+        // Check for river (using edge data, not terrain)
+        if (HasRiver(map, x, y, nx, ny))
         {
             DrawRiver(edgeX, edgeY, tileSize, isHorizontal, x, y);
         }
@@ -103,14 +103,14 @@ public static class EdgeRenderer
     }
 
     /// <summary>
-    /// Check if there's a river between two locations.
+    /// Check if there's a river edge between two positions.
+    /// Uses edge data from map, not terrain comparison.
     /// </summary>
-    private static bool HasRiver(Environments.Location loc1, Environments.Location loc2)
+    private static bool HasRiver(GameMap map, int x1, int y1, int x2, int y2)
     {
-        // River exists when one terrain is water and the other isn't
-        bool is1Water = loc1.Terrain.ToString().Contains("Water");
-        bool is2Water = loc2.Terrain.ToString().Contains("Water");
-        return is1Water != is2Water;
+        var pos1 = new GridPosition(x1, y1);
+        var pos2 = new GridPosition(x2, y2);
+        return map.HasEdgeType(pos1, pos2, EdgeType.River);
     }
 
     /// <summary>

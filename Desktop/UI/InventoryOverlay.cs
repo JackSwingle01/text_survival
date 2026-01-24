@@ -455,6 +455,16 @@ public class InventoryOverlay
         var category = item.Resource.GetCategory();
         ImGui.Text($"Category: {category}");
 
+        // Add description
+        string description = ResourceDescriptions.GetDescription(item.Resource);
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            ImGui.Spacing();
+            ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
+            ImGui.TextWrapped(description);
+            ImGui.PopTextWrapPos();
+        }
+
         ImGui.Separator();
 
         // Resource-specific info
@@ -573,6 +583,15 @@ public class InventoryOverlay
 
         ImGui.Text($"Type: {tool.ToolType}");
 
+        // Add description
+        if (!string.IsNullOrWhiteSpace(tool.Description))
+        {
+            ImGui.Spacing();
+            ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
+            ImGui.TextWrapped(tool.Description);
+            ImGui.PopTextWrapPos();
+        }
+
         if (tool.IsWeapon)
         {
             ImGui.Separator();
@@ -632,6 +651,15 @@ public class InventoryOverlay
         if (gear.TotalWaterproofLevel > 0)
             ImGui.Text($"Waterproofing: {gear.TotalWaterproofLevel * 100:F0}%");
 
+        // Add description
+        if (!string.IsNullOrWhiteSpace(gear.Description))
+        {
+            ImGui.Spacing();
+            ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
+            ImGui.TextWrapped(gear.Description);
+            ImGui.PopTextWrapPos();
+        }
+
         ImGui.Separator();
 
         // Unequip action
@@ -656,8 +684,19 @@ public class InventoryOverlay
         ImGui.Text($"Weight: {acc.Weight:F1} kg");
         ImGui.Text($"Capacity Bonus: +{acc.CapacityBonusKg:F1} kg");
 
-        ImGui.Separator();
-        ImGui.TextWrapped("Increases carrying capacity.");
+        // Replace generic text with description
+        if (!string.IsNullOrWhiteSpace(acc.Description))
+        {
+            ImGui.Spacing();
+            ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
+            ImGui.TextWrapped(acc.Description);
+            ImGui.PopTextWrapPos();
+        }
+        else
+        {
+            ImGui.Separator();
+            ImGui.TextWrapped("Increases carrying capacity.");
+        }
 
         ImGui.Separator();
 
@@ -695,6 +734,15 @@ public class InventoryOverlay
 
         if (weapon.Durability > 0)
             ImGui.Text($"Uses remaining: {weapon.Durability}");
+
+        // Add description
+        if (!string.IsNullOrWhiteSpace(weapon.Description))
+        {
+            ImGui.Spacing();
+            ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
+            ImGui.TextWrapped(weapon.Description);
+            ImGui.PopTextWrapPos();
+        }
 
         ImGui.Separator();
 

@@ -611,6 +611,76 @@ public static class ResourceTypeExtensions
     }
 }
 
+public static class ResourceDescriptions
+{
+    public static string GetDescription(Resource resource) => resource switch
+    {
+        // Fuel - Logs (also used for crafting)
+        Resource.Stick => "Small wood. Burns quick. Needed for tools and shelters.",
+        Resource.Pine => "Burns hot and fast with resinous smoke. Good for cooking, less efficient for all-night fires.",
+        Resource.Birch => "Balanced burn. The workhorse of your fuel supply.",
+        Resource.Oak => "Dense, slow-burning. Makes coals that last through the night.",
+        Resource.Peat => "Alternative fuel from wetlands. Burns slow and smoky. Extends wood supply.",
+
+        // Tinder
+        Resource.Tinder => "Fire starting material. Dry grass, bark shavings, whatever catches easily.",
+        Resource.BirchBark => "Premium tinder. Papery and oily. Lights even when damp.",
+
+        // Food - Raw
+        Resource.RawMeat => "Fresh kill. Cook it or risk illness. Heavy and attracts predators.",
+        Resource.RawFish => "Flesh from cold waters. Spoils quick. Cook or dry it.",
+        Resource.Berries => "Sweet and hydrating. Foraged when available.",
+        Resource.Nuts => "Dense calories. Worth the time when you find them.",
+        Resource.Roots => "Starchy sustenance dug from frozen ground. Filling but bland.",
+        Resource.Honey => "Rare sweetness. Pure energy.",
+
+        // Food - Preserved
+        Resource.CookedMeat => "Safe to eat. Still spoils but slower than raw.",
+        Resource.CookedFish => "Cooked fish. Safe but doesn't keep long.",
+        Resource.DriedMeat => "Preserved meat. Won't spoil. Makes you thirsty. Your expedition lifeline.",
+        Resource.DriedFish => "Dried fish. Stores indefinitely. Lighter to carry than meat.",
+        Resource.DriedBerries => "Concentrated sweetness. Lightweight calories for treks.",
+
+        // Materials - Basic
+        Resource.Stone => "Basic tool material. Makes crude implements. Heavy but abundant.",
+        Resource.Bone => "From butchered animals. Knives, needles, shovels, hooks.",
+        Resource.Hide => "Raw animal skin. Scrape it, then cure for waterproof leather.",
+        Resource.PlantFiber => "Processed cordage. Rope, snares, bindings. From plants or willow bark.",
+        Resource.Sinew => "Animal tendon. Stronger binding than fiber. From large game.",
+
+        // Materials - Advanced
+        Resource.Shale => "Soft stone. Makes fragile tools but easier to shape.",
+        Resource.Flint => "Sharp-edged stone. Makes keen blades. Strikes sparks with pyrite.",
+        Resource.Pyrite => "Fool's gold. Reliable fire striker. Sparks hot against flint.",
+        Resource.ScrapedHide => "Hide prepared for use. Cure it for waterproof leather or use now.",
+        Resource.CuredHide => "Tanned and waterproofed. Superior material for lasting gear.",
+        Resource.RawFiber => "Unprocessed plant matter. Process into cordage for crafting.",
+        Resource.RawFat => "Animal fat. Render it into tallow for waterproofing and treatments.",
+        Resource.Tallow => "Rendered fat. Waterproofs gear. Seals wounds. Treatment base.",
+        Resource.Charcoal => "Remains of burnt wood. Collected after fires die.",
+        Resource.Rope => "Twisted cordage. Snares, bindings, construction.",
+        Resource.Ivory => "Mammoth tusk. Trophy material for exceptional tools.",
+        Resource.MammothHide => "Thick megafauna hide. Excellent insulation for equipment and shelters.",
+
+        // Medicine - Specific treatments
+        Resource.BirchPolypore => "Treats bleeding and fever. Styptic fungus from birch trees. Usable as tinder.",
+        Resource.Chaga => "Treats fever effectively. Black fungus from birch. Brew as tea for more effect.",
+        Resource.Amadou => "Treats bleeding and infection. Tinder fungus. Makes ember carriers.",
+        Resource.RoseHip => "Mild pain relief raw. Brew as tea for stronger effect. Winter vitamins.",
+        Resource.JuniperBerry => "Treats nausea. Aromatic digestive aid.",
+        Resource.WillowBark => "Natural pain relief. Brew as tea or process into fiber.",
+        Resource.PineNeedles => "Treats coughing. Brew as vitamin tea. Usable as bedding.",
+        Resource.PineResin => "Treats infection well. Sticky wound sealant. Waterproofs gear.",
+        Resource.Usnea => "Treats infection and coughing. Antimicrobial lichen. Usable as tinder.",
+        Resource.SphagnumMoss => "Treats bleeding and infection. Absorbent antiseptic dressing. Excellent bedding.",
+
+        // Water (though handled separately in UI)
+        Resource.Water => "Essential for survival. Drink regularly.",
+
+        _ => ""
+    };
+}
+
 /// <summary>
 /// Represents a found item for UI display.
 /// </summary>
