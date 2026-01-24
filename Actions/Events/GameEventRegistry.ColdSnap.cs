@@ -23,8 +23,8 @@ public static partial class GameEventRegistry
             .WithSituationFactor(Situations.ExtremeColdCrisis, 2.5)
             // Vulnerable: injured, slow, impaired - less able to cope with cold stress
             .WithSituationFactor(Situations.Vulnerable, 2.0)
-            .Choice("Run for Camp",
-                "Desperate sprint back to fire. Risk stumbling, but the cold will kill you if you don't.",
+            .Choice("Push Through",
+                "Keep moving. Motion generates heat.",
                 [
                     new EventResult("You run. The cold bites deep. Camp feels impossibly far.", weight: 0.60, minutes: 5)
                         .CreateTension("DeadlyCold", 0.4)

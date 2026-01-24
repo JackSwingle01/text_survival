@@ -205,4 +205,8 @@ public class Body
     }
 
     public double BaseColdResistance { get; } = 0;
+
+    // Critical state tracking for message rate limiting
+    public bool WasDehydrationCritical { get; set; }
+    public bool WasStarvationCritical { get; set; }
 }

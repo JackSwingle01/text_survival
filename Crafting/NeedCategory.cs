@@ -6,6 +6,7 @@ public enum NeedCategory
     CuttingTool,
     HuntingWeapon,
     Trapping,
+    Fishing,
     Processing,
     Treatment,
     Equipment,

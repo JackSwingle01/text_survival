@@ -15,6 +15,7 @@ public class NeedCraftingSystem
         InitializeToolOptions();
         InitializeHuntingWeaponOptions();
         InitializeTrappingOptions();
+        InitializeFishingOptions();
         InitializeMaterialOptions();
         InitializeTreatmentOptions();
         InitializeEquipmentOptions();
@@ -582,6 +583,47 @@ public class NeedCraftingSystem
                 Durability = dur,
                 MaxDurability = dur
             }
+        });
+    }
+
+    #endregion
+
+    #region Fishing Options
+
+    private void InitializeFishingOptions()
+    {
+        // Fishing Rod: 1 stick + 2 sinew + 1 bone
+        _options.Add(new CraftOption
+        {
+            Name = "Fishing Rod",
+            Description = "A pole with line and hook. Best catch rate for active fishing.",
+            Category = NeedCategory.Fishing,
+            CraftingTimeMinutes = 30,
+            Durability = 15,
+            Requirements = [
+                new MaterialRequirement(Resource.Stick, 1),
+                new MaterialRequirement(Resource.Sinew, 2),
+                new MaterialRequirement(Resource.Bone, 1)
+            ],
+            RequiredTools = [ToolType.Knife],
+            GearFactory = dur => Gear.FishingRod(durability: dur)
+        });
+
+        // Fishing Net: 4 plant fiber + 2 sinew + 2 sticks
+        _options.Add(new CraftOption
+        {
+            Name = "Fishing Net",
+            Description = "A woven net for passive fishing. Set it, leave, and return later for bulk catches.",
+            Category = NeedCategory.Fishing,
+            CraftingTimeMinutes = 60,
+            Durability = 8,
+            Requirements = [
+                new MaterialRequirement(Resource.PlantFiber, 4),
+                new MaterialRequirement(Resource.Sinew, 2),
+                new MaterialRequirement(Resource.Stick, 2)
+            ],
+            RequiredTools = [ToolType.Knife],
+            GearFactory = dur => Gear.FishingNet(durability: dur)
         });
     }
 

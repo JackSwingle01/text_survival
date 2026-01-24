@@ -258,7 +258,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         ApplyHerdCreation(ctx, summary);
         ApplyHerdEffects(ctx, summary);
         ApplySalvageCreation(ctx, summary);
-        DisplaySummary(ctx, summary);
 
         return new EventOutcomeDto(
             Message: Message,
@@ -687,22 +686,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
         // Default fallback
         return AnimalFactory.FromType(AnimalType.Caribou, ctx.CurrentLocation, ctx.Map);
-    }
-
-    private void DisplaySummary(GameContext ctx, OutcomeSummary summary)
-    {
-        if (summary.HasContent)
-        {
-            GameDisplay.AddNarrative(ctx, "");
-            foreach (var gain in summary.ItemsGained)
-                GameDisplay.AddSuccess(ctx, $"  + {gain}");
-            foreach (var loss in summary.ItemsLost)
-                GameDisplay.AddDanger(ctx, $"  - {loss}");
-            foreach (var damage in summary.DamageTaken)
-                GameDisplay.AddDanger(ctx, $"  - {damage}");
-            foreach (var effect in summary.EffectsApplied)
-                GameDisplay.AddWarning(ctx, $"  - {effect}");
-        }
     }
 
     /// <summary>

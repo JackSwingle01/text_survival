@@ -268,13 +268,13 @@ public static partial class GameEventRegistry
                 new EventResult("It commits.", weight: 0.10, minutes: 5)
                     .ConfrontStalker(predator, 15, 0.6)
             ])
-        .Choice("Return to Camp",
-            $"Head back now. {(variant.FireEffectiveness > 0.6 ? "Fire should deter it." : "Risky — fire may not work.")}",
+        .Choice("Fall Back",
+            "Retreat. Give ground but don't run.",
             [
-                new EventResult("You make it back. Fire deters it.", weight: 0.40 + variant.FireEffectiveness * 0.3)
+                new EventResult("You retreat carefully. It doesn't follow.", weight: 0.40 + variant.FireEffectiveness * 0.3)
                     .ResolvesStalking()
                     .Aborts(),
-                new EventResult("It follows to camp perimeter but won't approach fire.", weight: 0.20 + variant.FireEffectiveness * 0.1)
+                new EventResult("It follows but keeps distance.", weight: 0.20 + variant.FireEffectiveness * 0.1)
                     .ResolvesStalking()
                     .Unsettling()
                     .Aborts(),

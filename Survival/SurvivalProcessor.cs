@@ -46,7 +46,7 @@ public static class SurvivalProcessor
 		double projectedTemp = body.BodyTemperature + result.StatsDelta.TemperatureDelta;
 
 		result.Combine(ProcessStarvation(body, projectedCalories, minutesElapsed));
-		result.Combine(ProcessDehydration(projectedHydration, minutesElapsed));
+		result.Combine(ProcessDehydration(body, projectedHydration, minutesElapsed));
 		result.Combine(ProcessHypothermia(projectedTemp, minutesElapsed));
 		result.Combine(ProcessRegeneration(body, projectedCalories, projectedHydration, minutesElapsed));
 
@@ -267,10 +267,14 @@ public static class SurvivalProcessor
 		return result;
 	}
 
-	private static SurvivalProcessorResult ProcessDehydration(double projectedHydration, int minutesElapsed)
+	private static SurvivalProcessorResult ProcessDehydration(Body body, double projectedHydration, int minutesElapsed)
 	{
 		if (projectedHydration > 0)
+		{
+			// Reset critical flag when hydration recovers
+			body.WasDehydrationCritical = false;
 			return new SurvivalProcessorResult();
+		}
 
 		double damagePerMinute = 1.0 / 60.0;  // 1.0/hour = death in ~5 hours
 		double damage = damagePerMinute * minutesElapsed;
@@ -278,13 +282,21 @@ public static class SurvivalProcessor
 		var affectedOrgans = new[] { BodyTarget.Brain, BodyTarget.Heart, BodyTarget.Liver };
 		BodyTarget target = affectedOrgans[Random.Shared.Next(affectedOrgans.Length)];
 
-		return new SurvivalProcessorResult
+		var result = new SurvivalProcessorResult
 		{
 			DamageEvents = [
 				new DamageInfo(damage, DamageType.Internal, target)
 			],
-			Messages = ["Your organs are failing from dehydration!"],
 		};
+
+		// Only show message once when entering critical state
+		if (!body.WasDehydrationCritical)
+		{
+			result.Messages.Add("Your organs are failing from dehydration!");
+			body.WasDehydrationCritical = true;
+		}
+
+		return result;
 	}
 
 	private static SurvivalProcessorResult ProcessHypothermia(double projectedTemp, int minutesElapsed)

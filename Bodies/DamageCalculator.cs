@@ -235,11 +235,15 @@ public static class DamageProcessor
 
     private static void DamageTissue(Tissue tissue, DamageInfo damageInfo)
     {
-        double absorption = tissue.GetNaturalAbsorption(damageInfo.Type);
-        damageInfo.Amount -= absorption;
-        if (damageInfo.Amount <= 0)
+        // Internal damage bypasses natural absorption (systemic organ failure from dehydration, starvation, etc.)
+        if (damageInfo.Type != DamageType.Internal)
         {
-            return; // Natural squishiness absorbed it
+            double absorption = tissue.GetNaturalAbsorption(damageInfo.Type);
+            damageInfo.Amount -= absorption;
+            if (damageInfo.Amount <= 0)
+            {
+                return; // Natural squishiness absorbed it
+            }
         }
 
         double healthLoss = damageInfo.Amount / tissue.GetProtection(damageInfo.Type);

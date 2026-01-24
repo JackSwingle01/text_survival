@@ -22,7 +22,9 @@ public enum ToolType
     Shovel,     // Digging tool - speeds up camp setup, fire pits, snow shelters
     KnappingStone,  // Hammer stone for shaping flint, shale, and bone tools
     Tent,       // Portable shelter - can be deployed at any location
-    EmberCarrier // Portable smoldering ember for fire transport
+    EmberCarrier, // Portable smoldering ember for fire transport
+    FishingRod,  // Line and hook fishing tool
+    FishingNet   // Passive net fishing tool
 }
 
 public enum EquipSlot
@@ -511,5 +513,25 @@ public class Gear
         ShelterTempInsulation = 0.6,
         ShelterOverheadCoverage = 0.95,
         ShelterWindCoverage = 0.85
+    };
+
+    public static Gear FishingRod(string name = "Fishing Rod", int durability = 15) => new()
+    {
+        Name = name,
+        Category = GearCategory.Tool,
+        ToolType = Items.ToolType.FishingRod,
+        Weight = 0.4,
+        Durability = durability,
+        MaxDurability = durability
+    };
+
+    public static Gear FishingNet(string name = "Fishing Net", int durability = 8) => new()
+    {
+        Name = name,
+        Category = GearCategory.Tool,
+        ToolType = Items.ToolType.FishingNet,
+        Weight = 1.2,
+        Durability = durability,
+        MaxDurability = durability
     };
 }

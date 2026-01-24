@@ -15,6 +15,7 @@ public class WaterFeature : LocationFeature, IWorkableFeature
     public double _iceThicknessLevel = 0.7;
     public bool _hasIceHole = false;
     public double _iceHoleRefreezeProgress = 0;
+    public double _fishAbundance = 0.7;  // 0-1 scale, affects catch rates
 
     // Public properties backed by fields
     public string DisplayName => _displayName;
@@ -23,6 +24,7 @@ public class WaterFeature : LocationFeature, IWorkableFeature
     public double IceThicknessLevel => _iceThicknessLevel;  // 0=open, 0.3=thin, 0.7=solid, 1.0=glacier
     public bool HasIceHole => _hasIceHole;
     public double IceHoleRefreezeProgress => _iceHoleRefreezeProgress;
+    public double FishAbundance => _fishAbundance;  // 0-1 scale, affects catch rates
 
     // Hazard constants
     private const double BaseIceHazard = 0.15;      // All ice is slippery
@@ -170,8 +172,14 @@ public class WaterFeature : LocationFeature, IWorkableFeature
         return this;
     }
 
+    public WaterFeature WithFishAbundance(double abundance)
+    {
+        _fishAbundance = Math.Clamp(abundance, 0, 1);
+        return this;
+    }
+
     /// <summary>
-    /// Provides work options for ice cutting and fishing.
+    /// Provides work options for ice cutting, fishing, and net management.
     /// </summary>
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
@@ -184,10 +192,16 @@ public class WaterFeature : LocationFeature, IWorkableFeature
             yield return new WorkOption(label, "cut_ice", new IceCuttingStrategy());
         }
 
-        // Fishing option (requires open water or ice hole)
+        // Water access options (requires open water or ice hole)
         if (!IsFrozen || HasIceHole)
         {
             yield return new WorkOption("Fish", "fish", new FishingStrategy());
+
+            // Set net option if player has nets
+            if (ctx.Inventory.Tools.Any(t => t.ToolType == Items.ToolType.FishingNet && t.Works))
+            {
+                yield return new WorkOption("Set fishing net", "set_net", new SetNetStrategy());
+            }
         }
     }
 

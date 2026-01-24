@@ -116,7 +116,7 @@ public static partial class GameEventRegistry
     {
         return new GameEvent("Something in There",
             "Under a root ball, a dark opening. Fresh tracks in the dirt. Something small lives here.", 0.3)
-            .Requires(EventCondition.Working, EventCondition.HasFuelForage)
+            .Requires(EventCondition.Foraging, EventCondition.HasFuelForage)
             .WithCooldown(4)
             .Choice("Reach In Carefully",
                 "Risk a bite. Could be food.",

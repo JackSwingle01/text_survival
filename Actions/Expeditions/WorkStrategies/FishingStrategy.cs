@@ -65,28 +65,57 @@ public class FishingStrategy : IWorkStrategy
         // Catch probability: base 40% for 15min, +15% per 15min, cap 85%
         double catchChance = Math.Min(0.85, 0.40 + (actualTime / 15 - 1) * 0.15);
 
-        // todo: add effects/tools that modify catch chance
-        // Spear bonus: +15%
+        // Determine fishing tool and max fish size
+        // Priority: Rod > Spear > Hand fishing
+        var rod = ctx.Inventory.GetTool(ToolType.FishingRod);
         var spear = ctx.Inventory.GetTool(ToolType.Spear);
-        if (spear?.Works == true)
+
+        double maxFishWeightKg = 0.8;  // Hand fishing
+        string toolUsed = "bare hands";
+        Gear? toolToUse = null;
+
+        if (rod?.Works == true)
+        {
+            // Fishing rod: +25% catch chance, up to 1.5kg fish
+            catchChance = Math.Min(0.95, catchChance + 0.25);
+            maxFishWeightKg = 1.5;
+            toolUsed = rod.Name;
+            toolToUse = rod;
+        }
+        else if (spear?.Works == true)
+        {
+            // Spear: +15% catch chance, up to 1.0kg fish
             catchChance = Math.Min(0.95, catchChance + 0.15);
+            maxFishWeightKg = 1.0;
+            toolUsed = spear.Name;
+            // Spear doesn't consume durability for fishing (it's reusable)
+        }
+
+        // Apply fish abundance from water feature
+        var waterFeature = location.GetFeature<WaterFeature>();
+        if (waterFeature != null)
+        {
+            catchChance *= waterFeature.FishAbundance;
+        }
 
         var collected = new List<string>();
         var loot = new Inventory();
 
-        // todo flesh this out and add variety of fish types/sizes
         if (Random.Shared.NextDouble() < catchChance)
         {
-            // Small fish: 0.3-0.8 kg
-            double fishWeight = 0.3 + Random.Shared.NextDouble() * 0.5;
+            // Fish weight based on tool capability
+            double fishWeight = 0.3 + Random.Shared.NextDouble() * (maxFishWeightKg - 0.3);
             loot.Add(Resource.RawMeat, fishWeight);
             loot.Add(Resource.Bone, fishWeight * 0.1);
             collected.Add($"Fish ({fishWeight:F1}kg)");
 
+            // Use rod durability on successful catch
+            toolToUse?.Use();
+
             // Chance for second fish on longer sessions
             if (actualTime >= 30 && Random.Shared.NextDouble() < 0.25)
             {
-                fishWeight = 0.3 + Random.Shared.NextDouble() * 0.5;
+                fishWeight = 0.3 + Random.Shared.NextDouble() * (maxFishWeightKg - 0.3);
                 loot.Add(Resource.RawMeat, fishWeight);
                 loot.Add(Resource.Bone, fishWeight * 0.1);
                 collected.Add($"Fish ({fishWeight:F1}kg)");
@@ -96,8 +125,10 @@ public class FishingStrategy : IWorkStrategy
         if (collected.Count > 0)
         {
             InventoryCapacityHelper.CombineAndReport(ctx, loot);
-            DesktopIO.ShowWorkResult(ctx, "Fishing",
-                "Your patience pays off.", collected);
+            string message = toolToUse != null
+                ? $"Using your {toolUsed}, you pull in a catch."
+                : "Your patience pays off.";
+            DesktopIO.ShowWorkResult(ctx, "Fishing", message, collected);
         }
         else
         {

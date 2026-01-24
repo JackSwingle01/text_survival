@@ -113,10 +113,10 @@ public static partial class GameEventRegistry
                         .EscalatesPack(0.2)
                 ],
                 [EventCondition.HasTinder, EventCondition.HasFuel])
-            .Choice("Run for Camp",
-                $"Sprint. {(variant.ChaseThreshold > 0.5 ? "Dangerous — triggers chase." : "Maybe you're faster.")}",
+            .Choice("Flee",
+                "Sprint. Outrun them or outmaneuver them.",
                 [
-                    new EventResult("You run. They give chase. But camp is close.", weight: 0.40 - chaseWeight, minutes: 8)
+                    new EventResult("You run. They give chase. You're faster.", weight: 0.40 - chaseWeight, minutes: 8)
                         .EscalatesPack(0.3)
                         .Aborts(),
                     new EventResult($"Chase instinct triggered. {(isPackAnimal ? "They coordinate — closing fast." : "They're closing fast.")}", weight: chaseWeight + 0.30, minutes: 5)
@@ -191,12 +191,12 @@ public static partial class GameEventRegistry
                         .Terrifying()
                 ],
                 [EventCondition.HasTinder, EventCondition.HasFuel])
-            .Choice("Make Break for Camp",
-                $"All-out sprint. {(variant.ChaseThreshold > 0.5 ? "They WILL chase." : "Succeed or fail.")}",
+            .Choice("Break and Run",
+                "All-out sprint. Succeed or fail.",
                 [
-                    new EventResult("You run. Legs pumping. Camp in sight!", weight: 0.40 - variant.ChaseThreshold * 0.2, minutes: 10)
-                        .EscapeToCamp(),
-                    new EventResult($"Almost made it. {(isPackAnimal ? "They cut you off at the perimeter." : "It catches you at the perimeter.")}", weight: 0.30 + variant.ChaseThreshold * 0.1, minutes: 8)
+                    new EventResult("You run. Legs pumping. You break free.", weight: 0.40 - variant.ChaseThreshold * 0.2, minutes: 10)
+                        .Aborts(),
+                    new EventResult($"Almost made it. {(isPackAnimal ? "They cut you off." : "It cuts you off.")}", weight: 0.30 + variant.ChaseThreshold * 0.1, minutes: 8)
                         .ConfrontPack(predator, 10, 0.7),
                     new EventResult($"Too slow. {(isPackAnimal ? "They drag you down." : "It drags you down.")}", weight: 0.30, minutes: 5)
                         .ConfrontPack(predator, 5, 0.9)
