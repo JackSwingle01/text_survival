@@ -272,8 +272,8 @@ public class NPC : Actor
 
             if (!FireHandler.CanTendFire(Inventory, fireFeature))
             {
-                Console.WriteLine($"  [Warmth] Getting fuel");
-                var get = DetermineGetResource(ResourceCategory.Fuel);
+                Console.WriteLine($"  [Warmth] Getting fuel (urgent)");
+                var get = DetermineGetResource(ResourceCategory.Fuel, urgent: true);
                 if (get != null) return get;
             }
         }
@@ -583,6 +583,11 @@ public class NPC : Actor
     /// </summary>
     private NPCAction? TryExplore(SurvivalContext context, string reason)
     {
+        // Don't explore if it would be dangerous
+        int estimatedTravelMinutes = 10;
+        if (!CanSurviveAwayFromFire(estimatedTravelMinutes))
+            return null;
+
         // Check boldness - only explore if brave enough
         if (!Utils.DetermineSuccess(Personality.Boldness))
             return null;
@@ -727,9 +732,9 @@ public class NPC : Actor
         return null;
     }
 
-    private NPCAction? DetermineGetResource(ResourceCategory category, bool allowCamp = true)
+    private NPCAction? DetermineGetResource(ResourceCategory category, bool allowCamp = true, bool urgent = false)
     {
-        Console.WriteLine($"    [GetResource] Looking for category: {category}");
+        Console.WriteLine($"    [GetResource] Looking for category: {category}{(urgent ? " (URGENT)" : "")}");
 
         // can't gather if inv already full
         var invFull = DealWithFullInventory();
@@ -737,7 +742,7 @@ public class NPC : Actor
             return invFull;
 
         // in tile -> work
-        var work = GetResourceAtCurrentLocation(category);
+        var work = GetResourceAtCurrentLocation(category, urgent);
         if (work != null) return work;
         // in adjacent -> move to (filter by accessible resources, pick random)
         var adjacentWithResource = Map.GetTravelOptionsFrom(CurrentLocation)
@@ -760,9 +765,9 @@ public class NPC : Actor
         if (locWithResource != null)
         {
             // Check if we can survive traveling in current conditions
-            // Estimate travel time based on distance (rough estimate: 10 min per tile)
+            // Skip this check if urgent - we need the resource even if risky
             int estimatedTravelMinutes = 10;
-            if (!CanSurviveAwayFromFire(estimatedTravelMinutes))
+            if (!urgent && !CanSurviveAwayFromFire(estimatedTravelMinutes))
             {
                 Console.WriteLine($"    [GetResource] Too dangerous to travel");
                 return null;
@@ -832,7 +837,7 @@ public class NPC : Actor
         return resources.Distinct().ToList();
     }
 
-    private NPCAction? GetResourceAtCurrentLocation(ResourceCategory category)
+    private NPCAction? GetResourceAtCurrentLocation(ResourceCategory category, bool urgent = false)
     {
         var targetResources = ResourceCategories.Items[category];
 
@@ -842,8 +847,8 @@ public class NPC : Actor
             forage.ProvidedResources().Any(r => targetResources.Contains(r)))
         {
             int forageTime = Utils.RandInt(15, 60);
-            // Check if we can survive foraging in current conditions
-            if (!CanSurviveAwayFromFire(forageTime))
+            // Check if we can survive foraging in current conditions (skip if urgent)
+            if (!urgent && !CanSurviveAwayFromFire(forageTime))
                 return null;
             return new NPCForage(forageTime);
         }
@@ -868,8 +873,8 @@ public class NPC : Actor
             int workTime = Math.Min(60, harvestable.GetTotalMinutesToHarvest());
             if (workTime > 0)
             {
-                // Check if we can survive harvesting in current conditions
-                if (!CanSurviveAwayFromFire(workTime))
+                // Check if we can survive harvesting in current conditions (skip if urgent)
+                if (!urgent && !CanSurviveAwayFromFire(workTime))
                     return null;
                 return new NPCHarvest(workTime);
             }
@@ -891,8 +896,8 @@ public class NPC : Actor
             double remainingMinutes = wooded.MinutesToFell - wooded.MinutesWorked;
             int workTime = (int)Math.Min(60, Math.Max(30, remainingMinutes));
 
-            // Check if we can survive chopping in current conditions
-            if (!CanSurviveAwayFromFire(workTime))
+            // Check if we can survive chopping in current conditions (skip if urgent)
+            if (!urgent && !CanSurviveAwayFromFire(workTime))
                 return null;
 
             return new NPCChopWood(workTime);
