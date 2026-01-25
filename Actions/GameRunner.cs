@@ -211,6 +211,18 @@ public partial class GameRunner(GameContext ctx)
                 if (input.Wait) return "wait";
                 if (input.Cancel) tilePopup?.Hide();
 
+                // Handle forage hotkey
+                if (input.StartForaging)
+                {
+                    var forageFeature = ctx.CurrentLocation.GetFeature<ForageFeature>();
+                    if (forageFeature != null)
+                    {
+                        tilePopup?.Hide();
+                        ExecuteWork(new ForageStrategy());
+                        return null;
+                    }
+                }
+
                 // Show message if any
                 if (input.Message != null)
                 {

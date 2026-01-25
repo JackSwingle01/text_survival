@@ -140,6 +140,9 @@ public class InputHandler
 
         if (HotkeyRegistry.IsPressed(HotkeyAction.Storage))
             result.OpenStorage = true;
+
+        if (HotkeyRegistry.IsPressed(HotkeyAction.Forage))
+            result.StartForaging = true;
     }
 }
 
@@ -159,6 +162,7 @@ public class InputResult
     public bool ToggleFire { get; set; }
     public bool Wait { get; set; }
     public bool Cancel { get; set; }
+    public bool StartForaging { get; set; }
     public string? Message { get; set; }
 
     // Tile popup

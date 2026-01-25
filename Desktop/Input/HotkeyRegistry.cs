@@ -16,6 +16,7 @@ public enum HotkeyAction
     Wait,
     Cancel,
     Storage,
+    Forage,
 }
 
 /// <summary>
@@ -28,12 +29,13 @@ public static class HotkeyRegistry
     {
         { HotkeyAction.Inventory, KeyboardKey.I },
         { HotkeyAction.Crafting, KeyboardKey.C },
-        { HotkeyAction.Fire, KeyboardKey.F },
+        { HotkeyAction.Fire, KeyboardKey.R },
         { HotkeyAction.DiscoveryLog, KeyboardKey.L },
         { HotkeyAction.NPCs, KeyboardKey.N },
         { HotkeyAction.Wait, KeyboardKey.Space },
         { HotkeyAction.Cancel, KeyboardKey.Escape },
         { HotkeyAction.Storage, KeyboardKey.T },
+        { HotkeyAction.Forage, KeyboardKey.F },
     };
 
     /// <summary>

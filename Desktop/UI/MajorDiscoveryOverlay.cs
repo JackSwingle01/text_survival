@@ -1,4 +1,5 @@
 using ImGuiNET;
+using Raylib_cs;
 using System.Numerics;
 
 namespace text_survival.Desktop.UI;
@@ -48,7 +49,7 @@ public class MajorDiscoveryOverlay
         ImGui.Spacing();
 
         // Continue button
-        if (ImGui.Button("Continue", new Vector2(-1, 30)))
+        if (ImGui.Button("Continue [Enter]", new Vector2(-1, 30)) || Raylib.IsKeyPressed(KeyboardKey.Enter))
         {
             _shouldClose = true;
             IsOpen = false;

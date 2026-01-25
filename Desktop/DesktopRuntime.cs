@@ -213,7 +213,7 @@ public static class DesktopRuntime
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("Continue", new Vector2(-1, 30)))
+            if (ImGui.Button("Continue [Enter]", new Vector2(-1, 30)) || Raylib.IsKeyPressed(KeyboardKey.Enter))
             {
                 continueClicked = true;
             }
@@ -479,7 +479,7 @@ public static class BlockingDialog
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                if (ImGui.Button("Continue", new Vector2(-1, 30)))
+                if (ImGui.Button("Continue [Enter]", new Vector2(-1, 30)) || Raylib.IsKeyPressed(KeyboardKey.Enter))
                 {
                     done = true;
                 }

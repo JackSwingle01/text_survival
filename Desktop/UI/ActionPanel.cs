@@ -133,7 +133,11 @@ public class ActionPanel
                 ImGui.Text("Work:");
                 foreach (var opt in workOptions)
                 {
-                    if (ImGui.Button(opt.Label, new Vector2(-1, 0)))
+                    string label = opt.Strategy is ForageStrategy
+                        ? $"{opt.Label} [F]"
+                        : opt.Label;
+
+                    if (ImGui.Button(label, new Vector2(-1, 0)))
                         workStrategy = opt.Strategy;
                 }
                 ImGui.Separator();

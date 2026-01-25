@@ -1,4 +1,5 @@
 using ImGuiNET;
+using Raylib_cs;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions.WorkStrategies;
@@ -22,6 +23,7 @@ public class ForageOverlay
     private string? _selectedFocusId;
     private int _selectedMinutes;
     private ForageResult? _result;
+    private bool _justOpened;  // Skip F key on first frame to avoid double-trigger
 
     // Standard time options for foraging
     private static readonly (string Id, int Minutes)[] TimeOptions =
@@ -40,9 +42,10 @@ public class ForageOverlay
         _ctx = ctx;
         _feature = feature;
         _clues = clues;
-        _selectedFocusId = null;
-        _selectedMinutes = 0;
+        _selectedFocusId = "general";  // Default to General
+        _selectedMinutes = 30;          // Default to 30 min
         _result = null;
+        _justOpened = true;  // Skip F key on first frame
     }
 
     /// <summary>
@@ -67,6 +70,10 @@ public class ForageOverlay
     {
         if (!IsOpen || _feature == null || _ctx == null) return null;
 
+        // Handle keyboard input before ImGui
+        var keyResult = HandleKeyboardInput();
+        if (keyResult != null) return keyResult;
+
         ForageResult? result = null;
 
         // Center the window
@@ -79,6 +86,60 @@ public class ForageOverlay
         ImGui.End();
 
         return result;
+    }
+
+    private ForageResult? HandleKeyboardInput()
+    {
+        // Skip F key on first frame to avoid double-trigger from opening hotkey
+        bool skipConfirm = _justOpened;
+        _justOpened = false;
+
+        // [Esc] - Cancel
+        if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+        {
+            _result = new ForageResult(null, 0);
+            IsOpen = false;
+            return _result;
+        }
+
+        // [F] - Confirm (start foraging)
+        if (!skipConfirm && Raylib.IsKeyPressed(KeyboardKey.F))
+        {
+            if (_selectedFocusId != null && _selectedMinutes > 0)
+            {
+                var focus = ParseFocus(_selectedFocusId);
+                _result = new ForageResult(focus, _selectedMinutes);
+                IsOpen = false;
+                return _result;
+            }
+        }
+
+        // [1], [2], [3] - Time selection
+        if (Raylib.IsKeyPressed(KeyboardKey.One) || Raylib.IsKeyPressed(KeyboardKey.Kp1))
+            _selectedMinutes = 15;
+        if (Raylib.IsKeyPressed(KeyboardKey.Two) || Raylib.IsKeyPressed(KeyboardKey.Kp2))
+            _selectedMinutes = 30;
+        if (Raylib.IsKeyPressed(KeyboardKey.Three) || Raylib.IsKeyPressed(KeyboardKey.Kp3))
+            _selectedMinutes = 60;
+
+        // [Tab] - Cycle focus options
+        if (Raylib.IsKeyPressed(KeyboardKey.Tab))
+            CycleFocus();
+
+        return null;
+    }
+
+    private void CycleFocus()
+    {
+        if (_feature == null) return;
+        var focusOptions = _feature.GetAvailableFocusOptions().ToList();
+        if (focusOptions.Count == 0) return;
+
+        int currentIndex = focusOptions.FindIndex(f => f.Id == _selectedFocusId);
+        if (currentIndex < 0) currentIndex = 0;
+
+        int nextIndex = (currentIndex + 1) % focusOptions.Count;
+        _selectedFocusId = focusOptions[nextIndex].Id;
     }
 
     private ForageResult? RenderForageUI()
@@ -174,7 +235,7 @@ public class ForageOverlay
         // Focus section - query feature directly
         ImGui.Separator();
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "What do you focus on?");
+        ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "What do you focus on? [Tab]");
         ImGui.Spacing();
 
         var focusOptions = _feature.GetAvailableFocusOptions();
@@ -240,9 +301,11 @@ public class ForageOverlay
         // Time buttons in a row
         float timeButtonWidth = (ImGui.GetContentRegionAvail().X - 8) / TimeOptions.Length;
 
-        foreach (var time in TimeOptions)
+        for (int i = 0; i < TimeOptions.Length; i++)
         {
+            var time = TimeOptions[i];
             bool isSelected = _selectedMinutes == time.Minutes;
+            string hotkeyLabel = $"[{i + 1}] {time.Minutes} min";
 
             if (isSelected)
             {
@@ -250,7 +313,7 @@ public class ForageOverlay
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.55f, 0.75f, 1f));
             }
 
-            if (ImGui.Button($"{time.Minutes} min##{time.Id}", new Vector2(timeButtonWidth, 28)))
+            if (ImGui.Button($"{hotkeyLabel}##{time.Id}", new Vector2(timeButtonWidth, 28)))
             {
                 _selectedMinutes = time.Minutes;
             }
@@ -260,7 +323,7 @@ public class ForageOverlay
                 ImGui.PopStyleColor(2);
             }
 
-            if (time != TimeOptions.Last())
+            if (i < TimeOptions.Length - 1)
             {
                 ImGui.SameLine();
             }
@@ -280,7 +343,7 @@ public class ForageOverlay
             ImGui.BeginDisabled();
         }
 
-        if (ImGui.Button("Search", new Vector2(-1, 32)))
+        if (ImGui.Button("Search [F]", new Vector2(-1, 32)))
         {
             var focus = ParseFocus(_selectedFocusId!);
             _result = new ForageResult(focus, _selectedMinutes);
@@ -298,7 +361,7 @@ public class ForageOverlay
         // Bottom row: Cancel and Keep Walking
         float halfWidth = (ImGui.GetContentRegionAvail().X - 8) / 2;
 
-        if (ImGui.Button("Cancel", new Vector2(halfWidth, 28)))
+        if (ImGui.Button("Cancel [Esc]", new Vector2(halfWidth, 28)))
         {
             _result = new ForageResult(null, 0);
             IsOpen = false;
