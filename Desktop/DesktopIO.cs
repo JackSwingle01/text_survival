@@ -57,7 +57,7 @@ public static class DesktopIO
 
         while (_majorDiscoveryOverlay.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
@@ -98,7 +98,7 @@ public static class DesktopIO
 
         while (overlays.DiscoveryLog.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             // Handle escape to close (don't check 'L' here - it may still be pressed from the
             // main loop that opened this overlay, causing an immediate close before any frame renders)
@@ -134,7 +134,7 @@ public static class DesktopIO
 
         while (overlays.NPCs.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
@@ -175,17 +175,19 @@ public static class DesktopIO
         _eventOverlay ??= new GameEventOverlay();
         _eventOverlay.ShowEvent(eventData);
 
+        float deltaTime = DesktopRuntime.BeginFrame();
+
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-        DesktopRuntime.WorldRenderer?.Update(ctx, Raylib.GetFrameTime());
+        DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
         DesktopRuntime.WorldRenderer?.Render(ctx);
 
         Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
             new Color(0, 0, 0, 128));
 
         rlImGui.Begin();
-        _eventOverlay.Render(Raylib.GetFrameTime());
+        _eventOverlay.Render(deltaTime);
         rlImGui.End();
 
         Raylib.EndDrawing();
@@ -200,7 +202,7 @@ public static class DesktopIO
 
         while (choice == null && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
@@ -227,7 +229,7 @@ public static class DesktopIO
 
         while (_eventOverlay.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
@@ -255,7 +257,7 @@ public static class DesktopIO
 
         while (_eventOverlay.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
@@ -290,7 +292,7 @@ public static class DesktopIO
 
         while (elapsed < animDuration && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
             elapsed += deltaTime;
             float progress = Math.Min(elapsed / animDuration, 1.0f);
 
@@ -334,14 +336,16 @@ public static class DesktopIO
             overlays.ToggleInventory();
         }
 
+        float deltaTime = DesktopRuntime.BeginFrame();
+
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-        DesktopRuntime.WorldRenderer?.Update(ctx, Raylib.GetFrameTime());
+        DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
         DesktopRuntime.WorldRenderer?.Render(ctx);
 
         rlImGui.Begin();
-        overlays.Render(ctx, Raylib.GetFrameTime());
+        overlays.Render(ctx, deltaTime);
         rlImGui.End();
 
         Raylib.EndDrawing();
@@ -359,7 +363,7 @@ public static class DesktopIO
 
         while (overlays.Inventory.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             // Handle escape to close (don't check 'I' here - it may still be pressed from the
             // main loop that opened this overlay, causing an immediate close before any frame renders)
@@ -393,14 +397,16 @@ public static class DesktopIO
             overlays.ToggleCrafting();
         }
 
+        float deltaTime = DesktopRuntime.BeginFrame();
+
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
 
-        DesktopRuntime.WorldRenderer?.Update(ctx, Raylib.GetFrameTime());
+        DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
         DesktopRuntime.WorldRenderer?.Render(ctx);
 
         rlImGui.Begin();
-        overlays.Render(ctx, Raylib.GetFrameTime());
+        overlays.Render(ctx, deltaTime);
         rlImGui.End();
 
         Raylib.EndDrawing();
@@ -419,7 +425,7 @@ public static class DesktopIO
 
         while (overlays.Crafting.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
@@ -450,7 +456,7 @@ public static class DesktopIO
 
         while (!Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             if (Raylib.IsKeyPressed(KeyboardKey.W) || Raylib.IsKeyPressed(KeyboardKey.Up))
             {
@@ -615,7 +621,7 @@ public static class DesktopIO
 
         while (result == null && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
@@ -741,7 +747,7 @@ public static class DesktopIO
 
         while (overlays.Transfer.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
@@ -801,7 +807,7 @@ public static class DesktopIO
 
         while (overlays.Fire.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
@@ -868,7 +874,7 @@ public static class DesktopIO
 
         while (overlays.Eating.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
@@ -909,7 +915,7 @@ public static class DesktopIO
 
         while (overlays.Cooking.IsOpen && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
@@ -974,7 +980,7 @@ public static class DesktopIO
         float elapsed = 0;
         while (elapsed < seconds && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
             elapsed += deltaTime;
 
             Raylib.BeginDrawing();

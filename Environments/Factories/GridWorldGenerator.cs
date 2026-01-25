@@ -650,7 +650,7 @@ public class GridWorldGenerator
             edges.Add((new GridPosition(edgeX, y), new GridPosition(edgeX + 1, y)));
 
             // Drift: shift to a different vertical edge
-            if (_rng.NextDouble() < 0.4)
+            if (_rng.NextDouble() < 0.4 && y < Height - 1) // Don't drift on last row
             {
                 int drift = _rng.Next(2) == 0 ? -1 : 1;
 
@@ -658,11 +658,17 @@ public class GridWorldGenerator
                 if (lastDrift == 0 || drift == lastDrift)
                 {
                     int newEdgeX = edgeX + drift;
-                    // Ensure new edge is valid and both tiles exist
+                    // Ensure new edge is valid and both tiles exist at next row
                     if (newEdgeX >= 1 && newEdgeX < Width - 2 &&
-                        _terrain[newEdgeX, y] != TerrainType.Mountain &&
-                        _terrain[newEdgeX + 1, y] != TerrainType.Mountain)
+                        _terrain[newEdgeX, y + 1] != TerrainType.Mountain &&
+                        _terrain[newEdgeX + 1, y + 1] != TerrainType.Mountain)
                     {
+                        // Add connecting South edge before changing edgeX
+                        // The shared column connects old vertical edge to new one
+                        int connectingColumn = drift > 0 ? newEdgeX : edgeX;
+                        edges.Add((new GridPosition(connectingColumn, y),
+                                   new GridPosition(connectingColumn, y + 1)));
+
                         edgeX = newEdgeX;
                         lastDrift = drift;
                     }

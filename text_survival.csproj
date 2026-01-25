@@ -33,4 +33,9 @@
     <PackageReference Include="rlImGui-cs" Version="3.2.0" />
   </ItemGroup>
 
+  <!-- Copy assets to output directory -->
+  <ItemGroup>
+    <None Include="assets/**/*" CopyToOutputDirectory="PreserveNewest" LinkBase="assets" />
+  </ItemGroup>
+
 </Project>

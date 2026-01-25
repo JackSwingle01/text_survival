@@ -181,7 +181,7 @@ public class ForageStrategy : IWorkStrategy
         // Game logic owns the loop
         while (simulatedMinutes < minutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
             elapsedSeconds += deltaTime;
 
             // Calculate how many minutes to simulate this frame

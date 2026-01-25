@@ -14,6 +14,7 @@ using text_survival.Persistence;
 using text_survival.UI;
 using text_survival.Environments;
 using text_survival.Desktop;
+using text_survival.Desktop.Audio;
 using text_survival.Desktop.Input;
 using DesktopIO = text_survival.Desktop.DesktopIO;
 
@@ -63,6 +64,8 @@ public partial class GameRunner(GameContext ctx)
 
     public bool Run()
     {
+        AudioManager.PlayMusic();
+
         while (ctx.player.IsAlive && !Raylib.WindowShouldClose())
         {
             // Handle pending travel from map click or WASD
@@ -155,7 +158,7 @@ public partial class GameRunner(GameContext ctx)
 
         while (!Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             // Process active travel (non-blocking travel simulation)
             if (ctx.ActiveTravel != null)

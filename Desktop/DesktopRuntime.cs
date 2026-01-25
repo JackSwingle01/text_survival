@@ -3,6 +3,7 @@ using rlImGui_cs;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
+using text_survival.Desktop.Audio;
 using text_survival.Desktop.Rendering;
 using text_survival.Desktop.UI;
 using text_survival.Desktop.Input;
@@ -25,6 +26,17 @@ public static class DesktopRuntime
     public static IIconRenderer? IconRenderer { get; set; }
 
     /// <summary>
+    /// Called at the start of every frame. Returns delta time and handles per-frame updates.
+    /// Use this instead of Raylib.GetFrameTime() directly.
+    /// </summary>
+    public static float BeginFrame()
+    {
+        float deltaTime = Raylib.GetFrameTime();
+        AudioManager.Update();
+        return deltaTime;
+    }
+
+    /// <summary>
     /// Initialize the runtime with required components.
     /// </summary>
     public static void Initialize(WorldRenderer worldRenderer, OverlayManager overlays, ActionPanel actionPanel,
@@ -44,7 +56,7 @@ public static class DesktopRuntime
     /// </summary>
     public static void RenderFrame(GameContext ctx)
     {
-        float deltaTime = Raylib.GetFrameTime();
+        float deltaTime = BeginFrame();
 
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
@@ -74,7 +86,7 @@ public static class DesktopRuntime
     /// </summary>
     public static void RenderFrameWithDialog(GameContext ctx, Action renderDialog)
     {
-        float deltaTime = Raylib.GetFrameTime();
+        float deltaTime = BeginFrame();
 
         Raylib.BeginDrawing();
         Raylib.ClearBackground(new Color(20, 25, 30, 255));
@@ -130,7 +142,7 @@ public static class DesktopRuntime
         string statusText,
         bool isComplete)
     {
-        float deltaTime = Raylib.GetFrameTime();
+        float deltaTime = BeginFrame();
         float progress = (float)simulatedMinutes / totalMinutes;
 
         Raylib.BeginDrawing();
@@ -337,7 +349,7 @@ public static class BlockingDialog
 
         while (result == null && !Raylib.WindowShouldClose())
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(20, 25, 30, 255));
@@ -490,7 +502,7 @@ public static class BlockingDialog
 
         while (simulatedMinutes < durationMinutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
             elapsed += deltaTime;
 
             // Calculate how many minutes to simulate this frame
@@ -569,7 +581,7 @@ public static class BlockingDialog
 
         while (simulatedMinutes < durationMinutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
             elapsed += deltaTime;
 
             // Calculate how many minutes to simulate this frame
@@ -727,7 +739,7 @@ public static class BlockingDialog
 
         while (simulatedMinutes < durationMinutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
         {
-            float deltaTime = Raylib.GetFrameTime();
+            float deltaTime = DesktopRuntime.BeginFrame();
             elapsed += deltaTime;
 
             // Calculate how many minutes to simulate this frame

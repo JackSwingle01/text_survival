@@ -7,6 +7,7 @@ using text_survival.Desktop.Rendering;
 using text_survival.Desktop;
 using text_survival.Desktop.UI;
 using text_survival.Desktop.Input;
+using text_survival.Desktop.Audio;
 
 namespace text_survival.Core;
 
@@ -35,6 +36,9 @@ public static class Program
             (monitorHeight - windowHeight) / 2);
 
         Raylib.SetTargetFPS(60);
+
+        Raylib.InitAudioDevice();
+        AudioManager.Initialize();
 
         // ImGui's default font lacks Unicode arrows (↑↓). Merge them from a system font.
         rlImGui.SetupUserFonts = (ImGuiIOPtr io) =>
@@ -100,7 +104,8 @@ public static class Program
         var actionPanel = new ActionPanel();
         var inputHandler = new InputHandler(worldRenderer);
         var tilePopup = new TilePopup();
-        var iconRenderer = new ProceduralIconRenderer();
+        var proceduralRenderer = new ProceduralIconRenderer();
+        var iconRenderer = new TextureIconRenderer(proceduralRenderer);
 
         // Initialize desktop runtime for blocking I/O
         DesktopRuntime.Initialize(worldRenderer, overlays, actionPanel, inputHandler, tilePopup, iconRenderer);
@@ -130,6 +135,9 @@ public static class Program
                 ctx = GameContext.CreateNewGame();
             }
         } while (requestRestart && !Raylib.WindowShouldClose());
+
+        AudioManager.Shutdown();
+        Raylib.CloseAudioDevice();
 
         rlImGui.Shutdown();
         Raylib.CloseWindow();
