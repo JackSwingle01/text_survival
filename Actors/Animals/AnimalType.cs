@@ -95,6 +95,15 @@ public static class AnimalTypes
     };
 
     /// <summary>
+    /// Whether this animal is a bird (yields feathers instead of hide).
+    /// </summary>
+    public static bool IsBird(this AnimalType type) => type switch
+    {
+        AnimalType.Ptarmigan => true,
+        _ => false
+    };
+
+    /// <summary>
     /// Detection range in tiles for herd awareness.
     /// </summary>
     public static int BaseDetectionRange(this AnimalType type) => type switch

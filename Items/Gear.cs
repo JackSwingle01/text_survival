@@ -42,7 +42,12 @@ public class Gear
 {
     public string Name { get; set; } = "";
     public string Description { get; init; } = "";
-    public double Weight { get; set; }
+    public double BaseWeight { get; set; }
+    public double Weight
+    {
+        get => BaseWeight * (0.75 + 0.25 * ConditionPct);
+        set => BaseWeight = value;  // For backwards compatibility with crafting system
+    }
     public GearCategory Category { get; init; }
 
     public int Durability { get; set; } = -1;  // -1=infinite, 0=broken
@@ -166,7 +171,7 @@ public class Gear
         Description = "Fells trees. Doubles as a weapon in close quarters. Heavy but effective.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Axe,
-        Weight = 1.5,
+        BaseWeight = 1.5,
         Durability = durability,
         MaxDurability = durability,
         Damage = 12,
@@ -180,7 +185,7 @@ public class Gear
         Description = "Your primary tool. Butchering, crafting, backup weapon. Essential.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Knife,
-        Weight = 0.3,
+        BaseWeight = 0.3,
         Durability = durability,
         MaxDurability = durability,
         Damage = 6,
@@ -194,7 +199,7 @@ public class Gear
         Description = "Strikes sparks from flint or pyrite. Reliable ignition with tinder.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.FireStriker,
-        Weight = 0.2,
+        BaseWeight = 0.2,
         Durability = durability,
         MaxDurability = durability
     };
@@ -205,7 +210,7 @@ public class Gear
         Description = "Friction fire starting. No materials needed. Tiring and slow.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.HandDrill,
-        Weight = 0.3,
+        BaseWeight = 0.3,
         Durability = durability,
         MaxDurability = durability
     };
@@ -216,18 +221,18 @@ public class Gear
         Description = "Improved friction starter. Easier than hand drill. Still needs dry tinder.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.BowDrill,
-        Weight = 0.5,
+        BaseWeight = 0.5,
         Durability = durability,
         MaxDurability = durability
     };
 
-    public static Gear WaterContainer(string name = "Waterskin", double weight = 0.3, int durability = -1) => new()
+    public static Gear WaterContainer(string name = "Waterskin", double baseWeight = 0.3, int durability = -1) => new()
     {
         Name = name,
         Description = "Carry water on expeditions. Extends your range from camp.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.WaterContainer,
-        Weight = weight,
+        BaseWeight = baseWeight,
         Durability = durability,
         MaxDurability = durability
     };
@@ -238,7 +243,7 @@ public class Gear
         Description = "Pierce weapon with reach. Good for defense. Blocks better than blades.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Spear,
-        Weight = 2.0,
+        BaseWeight = 2.0,
         Durability = durability,
         MaxDurability = durability,
         Damage = 8,
@@ -252,7 +257,7 @@ public class Gear
         Description = "Blunt weapon. Heavy swings. Crushes bones.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Club,
-        Weight = 2.0,
+        BaseWeight = 2.0,
         Durability = durability,
         MaxDurability = durability,
         Damage = 10,
@@ -266,7 +271,7 @@ public class Gear
         Description = "Portable light and warmth. Single use. Light from fire or with tools.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Torch,
-        Weight = 0.5,
+        BaseWeight = 0.5,
         Durability = 1,
         MaxDurability = 1
     };
@@ -277,7 +282,7 @@ public class Gear
         Description = "Speeds camp setup and snow shelter digging. Made from large bones.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Shovel,
-        Weight = 1.2,
+        BaseWeight = 1.2,
         Durability = durability,
         MaxDurability = durability
     };
@@ -288,7 +293,7 @@ public class Gear
         Description = "Sews equipment. Needed for crafting clothing. Fragile.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Needle,
-        Weight = 0.05,
+        BaseWeight = 0.05,
         Durability = durability,
         MaxDurability = durability
     };
@@ -299,7 +304,7 @@ public class Gear
         Description = "Keeps your head warm. Raw fur sheds water poorly but traps heat well.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Head,
-        Weight = 0.4,
+        BaseWeight = 0.4,
         BaseInsulation = 0.15,
         BaseWaterproofLevel = 0.1,  // Raw fur
         BaseCushioning = 0.15,  // Fur is good padding
@@ -314,7 +319,7 @@ public class Gear
         Description = "Worn but functional. Core warmth matters most.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Chest,
-        Weight = 1.5,
+        BaseWeight = 1.5,
         BaseInsulation = 0.20,
         BaseWaterproofLevel = 0.1,  // Raw fur
         BaseCushioning = 0.12,  // Worn fur, less padding
@@ -329,7 +334,7 @@ public class Gear
         Description = "Good fur padding. Protects your core from cold.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Chest,
-        Weight = 1.8,
+        BaseWeight = 1.8,
         BaseInsulation = 0.30,
         BaseWaterproofLevel = 0.1,  // Raw fur
         BaseCushioning = 0.20,  // Good fur padding (chest is key protection)
@@ -344,7 +349,7 @@ public class Gear
         Description = "Wraps your legs in fur. Warmth lets you keep moving.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Legs,
-        Weight = 1.0,
+        BaseWeight = 1.0,
         BaseInsulation = 0.15,
         BaseWaterproofLevel = 0.1,  // Raw fur
         BaseCushioning = 0.15,  // Fur padding
@@ -359,7 +364,7 @@ public class Gear
         Description = "Warm feet mean you can keep moving. Fur insulates well.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Feet,
-        Weight = 0.6,
+        BaseWeight = 0.6,
         BaseInsulation = 0.10,
         BaseWaterproofLevel = 0.1,  // Raw fur
         BaseCushioning = 0.10,  // Some padding
@@ -374,7 +379,7 @@ public class Gear
         Description = "Basic foot protection. Less warmth than fur. Better than barefoot.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Feet,
-        Weight = 0.4,
+        BaseWeight = 0.4,
         BaseInsulation = 0.05,
         BaseWaterproofLevel = 0.1,  // Raw hide
         BaseCushioning = 0.06,  // Less padding than fur
@@ -389,7 +394,7 @@ public class Gear
         Description = "Keeps hands warm. Limits dexterity. Worth it in severe cold.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Hands,
-        Weight = 0.3,
+        BaseWeight = 0.3,
         BaseInsulation = 0.08,
         BaseWaterproofLevel = 0.1,  // Raw fur
         BaseCushioning = 0.12,  // Fur padding
@@ -404,7 +409,7 @@ public class Gear
         Description = "Protects hands from cuts and scrapes. Less warmth, better dexterity than mittens.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Hands,
-        Weight = 0.15,
+        BaseWeight = 0.15,
         BaseInsulation = 0.03,
         BaseWaterproofLevel = 0.1,  // Raw hide
         BaseCushioning = 0.05,  // Minimal padding
@@ -419,7 +424,7 @@ public class Gear
         Description = "Thick hide. Excellent protection and warmth. Trophy from dangerous hunt.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Chest,
-        Weight = 3.0,
+        BaseWeight = 3.0,
         BaseInsulation = 0.35,
         BaseWaterproofLevel = 0.2,  // Thick hide
         BaseCushioning = 0.18,  // Good padding from thick hide
@@ -434,7 +439,7 @@ public class Gear
         Description = "Massive hide armor. Superior insulation. Trophy from megafauna.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Chest,
-        Weight = 4.5,
+        BaseWeight = 4.5,
         BaseInsulation = 0.45,
         BaseWaterproofLevel = 0.25,  // Very thick hide
         BaseCushioning = 0.25,  // Excellent padding from massive hide
@@ -449,7 +454,7 @@ public class Gear
         Description = "Megafauna leg protection. Heavy but incredibly warm and durable.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Legs,
-        Weight = 2.5,
+        BaseWeight = 2.5,
         BaseInsulation = 0.30,
         BaseWaterproofLevel = 0.25,
         BaseCushioning = 0.22,
@@ -464,7 +469,7 @@ public class Gear
         Description = "Tanned leather. Better waterproofing than raw hide. Less insulation than fur.",
         Category = GearCategory.Equipment,
         Slot = EquipSlot.Chest,
-        Weight = 2.0,
+        BaseWeight = 2.0,
         BaseInsulation = 0.25,
         BaseWaterproofLevel = 0.35,  // Cured hide is waterproof
         BaseCushioning = 0.12,  // Less padding (hardened)
@@ -478,7 +483,7 @@ public class Gear
         Name = "Small Pouch",
         Description = "Modest capacity boost. Light and easy to craft early.",
         Category = GearCategory.Accessory,
-        Weight = 0.1,
+        BaseWeight = 0.1,
         CapacityBonusKg = 0.5,
         Durability = durability,
         MaxDurability = durability
@@ -489,7 +494,7 @@ public class Gear
         Name = "Rope Belt",
         Description = "Hang tools and supplies from your waist. Decent capacity increase.",
         Category = GearCategory.Accessory,
-        Weight = 0.4,
+        BaseWeight = 0.4,
         CapacityBonusKg = 3.0,
         Durability = durability,
         MaxDurability = durability
@@ -500,7 +505,7 @@ public class Gear
         Name = "Proper Belt",
         Description = "Quality belt with good attachment points. More capacity than rope.",
         Category = GearCategory.Accessory,
-        Weight = 0.3,
+        BaseWeight = 0.3,
         CapacityBonusKg = 4.0,
         Durability = durability,
         MaxDurability = durability
@@ -511,7 +516,7 @@ public class Gear
         Name = "Large Bag",
         Description = "Extends your expedition range significantly. Worth the weight when you need to haul.",
         Category = GearCategory.Accessory,
-        Weight = 0.8,
+        BaseWeight = 0.8,
         CapacityBonusKg = 10.0,
         Durability = durability,
         MaxDurability = durability
@@ -523,7 +528,7 @@ public class Gear
         Description = "Portable shelter. Deploy at any location. Heavy to carry but provides real protection.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Tent,
-        Weight = 3.0,
+        BaseWeight = 3.0,
         Durability = durability,
         MaxDurability = durability,
         ShelterTempInsulation = 0.5,
@@ -537,7 +542,7 @@ public class Gear
         Description = "Superior portable shelter. Thick hide blocks wind and cold better than standard tents.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Tent,
-        Weight = 5.0,
+        BaseWeight = 5.0,
         Durability = durability,
         MaxDurability = durability,
         ShelterTempInsulation = 0.6,
@@ -551,7 +556,7 @@ public class Gear
         Description = "Active fishing. Requires ice holes or open water. Wears out with use.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.FishingRod,
-        Weight = 0.4,
+        BaseWeight = 0.4,
         Durability = durability,
         MaxDurability = durability
     };
@@ -562,7 +567,7 @@ public class Gear
         Description = "Passive fishing. Leave it deployed and return later. More fragile than rod.",
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.FishingNet,
-        Weight = 1.2,
+        BaseWeight = 1.2,
         Durability = durability,
         MaxDurability = durability
     };

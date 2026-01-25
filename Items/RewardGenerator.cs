@@ -661,7 +661,7 @@ public static class RewardGenerator
         // 30% chance: large waterskin (70-100% durability)
         if (Random.Shared.NextDouble() < 0.3)
         {
-            var waterskin = Gear.WaterContainer("Large Waterskin", weight: 0.4);
+            var waterskin = Gear.WaterContainer("Large Waterskin", baseWeight: 0.4);
             waterskin.Durability = Random.Shared.Next(
                 (int)(waterskin.MaxDurability * 0.7),
                 (int)(waterskin.MaxDurability * 1.0) + 1

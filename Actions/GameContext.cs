@@ -304,7 +304,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (testNPC != null) ctx.NPCs.Add(testNPC);
 
         ctx.Inventory.Equip(Gear.WornFurChestWrap());
-        ctx.Inventory.Equip(Gear.FurLegWraps());
+        ctx.Inventory.Equip(Gear.FurLegWraps(durability: 60));
         ctx.Inventory.Equip(Gear.WornHideBoots());
         ctx.Inventory.Equip(Gear.HideHandwraps());
 

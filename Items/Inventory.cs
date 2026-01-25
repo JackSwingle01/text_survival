@@ -32,6 +32,7 @@ public enum Resource
     Stone, Bone, Hide, PlantFiber, Sinew, Shale, Flint, Pyrite,
     ScrapedHide, CuredHide, RawFat, Tallow, Charcoal, Rope, Ivory,
     MammothHide,  // Trophy material from mammoth hunts
+    Feather,      // From birds, used for fletching and insulation
 
     // Medicine
     BirchPolypore, Chaga, Amadou, RoseHip, JuniperBerry,
@@ -83,7 +84,7 @@ public static class ResourceCategories
             Resource.Sinew, Resource.Shale, Resource.Flint, Resource.Pyrite,
             Resource.ScrapedHide, Resource.CuredHide,
             Resource.RawFat, Resource.Tallow, Resource.Charcoal, Resource.Rope, Resource.Ivory,
-            Resource.MammothHide
+            Resource.MammothHide, Resource.Feather
         }
     };
 }
@@ -660,6 +661,7 @@ public static class ResourceDescriptions
         Resource.Rope => "Twisted cordage. Snares, bindings, construction.",
         Resource.Ivory => "Mammoth tusk. Trophy material for exceptional tools.",
         Resource.MammothHide => "Thick megafauna hide. Excellent insulation for equipment and shelters.",
+        Resource.Feather => "Bird feathers. Useful for fletching and insulation.",
 
         // Medicine - Specific treatments
         Resource.BirchPolypore => "Treats bleeding and fever. Styptic fungus from birch trees. Usable as tinder.",

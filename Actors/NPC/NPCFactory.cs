@@ -26,7 +26,7 @@ public static class NPCFactory
 
         // Equip starting clothing (same as player)
         npc.Inventory.Equip(Gear.WornFurChestWrap());
-        npc.Inventory.Equip(Gear.FurLegWraps());
+        npc.Inventory.Equip(Gear.FurLegWraps(durability: 60));
         npc.Inventory.Equip(Gear.WornHideBoots());
         npc.Inventory.Equip(Gear.HideHandwraps());
 

@@ -21,6 +21,7 @@ public record ButcheringModeConfig(
     double BoneYieldFactor,
     double SinewYieldFactor, // 0 = no sinew (QuickStrip)
     double FatYieldFactor,
+    double FeatherYieldFactor, // 0 = no feathers (QuickStrip)
     double ScentIncrease,    // Added to carcass scent
     double BloodySeverity    // Bloody effect severity applied to player
 );
@@ -63,11 +64,16 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     public double FatRemainingKg { get; set; }
     public double IvoryRemainingKg { get; set; }  // Mammoth only
     public double MammothHideRemainingKg { get; set; }  // Mammoth only
+    public double FeatherRemainingKg { get; set; }  // Birds only
 
-    // Time estimation: base setup time + ~2 minutes per kg of total yield
+    // Time estimation: base setup time + ~2.75 minutes per kg of total yield
     // Base time accounts for positioning, initial cuts, organizing - matters for small game
-    private const double BaseButcheringMinutes = 5.0;
-    private const double MinutesPerKgYield = 2.0;
+    // Scaled to produce realistic butchering times:
+    // - Rabbit (2kg): ~36 min careful
+    // - Caribou (120kg): ~6 hours careful
+    // - Bear (250kg): ~12 hours careful
+    private const double BaseButcheringMinutes = 30.0;
+    private const double MinutesPerKgYield = 2.75;
 
     [JsonConstructor]
     public CarcassFeature() : base("carcass") { }
@@ -113,8 +119,19 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         // Still percentage-based (not tracked in body composition)
         double baseWeight = body.WeightKG - body.MuscleKG - body.BodyFatKG;
         BoneRemainingKg = baseWeight * 0.25;
-        HideRemainingKg = hasSpecialHide ? 0 : BodyWeightKg * 0.10;  // No regular hide if special
         SinewRemainingKg = BodyWeightKg * 0.05;
+
+        // Birds yield feathers instead of hide
+        if (AnimalType.IsBird())
+        {
+            FeatherRemainingKg = BodyWeightKg * 0.08;  // ~8% body weight in feathers
+            HideRemainingKg = 0;  // No hide from birds
+        }
+        else
+        {
+            HideRemainingKg = hasSpecialHide ? 0 : BodyWeightKg * 0.10;  // No regular hide if special
+            FeatherRemainingKg = 0;
+        }
 
         // Cap megafauna yields for gameplay balance
         if (animal.IsMegafauna)
@@ -234,7 +251,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
 
     public static ButcheringModeConfig GetModeConfig(ButcheringMode mode) => mode switch
     {
-        // QuickStrip: 50% time, 80% meat, no hide/sinew, 50% bone/fat, high scent/blood
+        // QuickStrip: 50% time, 80% meat, no hide/sinew/feathers, 50% bone/fat, high scent/blood
         ButcheringMode.QuickStrip => new ButcheringModeConfig(
             TimeFactor: 0.5,
             MeatYieldFactor: 0.8,
@@ -242,6 +259,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
             BoneYieldFactor: 0.5,
             SinewYieldFactor: 0,
             FatYieldFactor: 0.5,
+            FeatherYieldFactor: 0,  // No time for careful plucking
             ScentIncrease: 0.2,
             BloodySeverity: 0.3
         ),
@@ -253,10 +271,11 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
             BoneYieldFactor: 1.0,
             SinewYieldFactor: 1.0,
             FatYieldFactor: 1.0,
+            FeatherYieldFactor: 1.0,
             ScentIncrease: 0.1,
             BloodySeverity: 0.15
         ),
-        // FullProcessing: 150% time, +10% meat/fat, +20% sinew, minimal scent/blood
+        // FullProcessing: 150% time, +10% meat/fat, +20% sinew/feathers, minimal scent/blood
         ButcheringMode.FullProcessing => new ButcheringModeConfig(
             TimeFactor: 1.5,
             MeatYieldFactor: 1.1,  // +10% from careful work
@@ -264,6 +283,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
             BoneYieldFactor: 1.0,
             SinewYieldFactor: 1.2, // +20% from careful extraction
             FatYieldFactor: 1.1,   // +10% from thorough rendering
+            FeatherYieldFactor: 1.2, // +20% from careful plucking
             ScentIncrease: 0.05,
             BloodySeverity: 0.1
         ),
@@ -280,7 +300,8 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
 
     public double GetTotalRemainingKg() =>
         MeatRemainingKg + BoneRemainingKg + HideRemainingKg +
-        SinewRemainingKg + FatRemainingKg + IvoryRemainingKg + MammothHideRemainingKg;
+        SinewRemainingKg + FatRemainingKg + FeatherRemainingKg +
+        IvoryRemainingKg + MammothHideRemainingKg;
 
     public int GetRemainingMinutes() =>
         (int)Math.Ceiling(BaseButcheringMinutes + GetTotalRemainingKg() * MinutesPerKgYield);
@@ -377,6 +398,9 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
                     case Resource.MammothHide:
                         MammothHideRemainingKg += leftoverWeight;
                         break;
+                    case Resource.Feather:
+                        FeatherRemainingKg += leftoverWeight;
+                        break;
                 }
             }
         }
@@ -393,6 +417,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         double hideToExtract = HideRemainingKg * workFraction;
         double sinewToExtract = SinewRemainingKg * workFraction;
         double fatToExtract = FatRemainingKg * workFraction;
+        double featherToExtract = FeatherRemainingKg * workFraction;
         double ivoryToExtract = IvoryRemainingKg * workFraction;
         double mammothHideToExtract = MammothHideRemainingKg * workFraction;
 
@@ -405,6 +430,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         double effectiveHide = hideToExtract * yieldMultiplier * mode.HideYieldFactor;
         double effectiveSinew = sinewToExtract * yieldMultiplier * mode.SinewYieldFactor;
         double effectiveFat = fatToExtract * yieldMultiplier * mode.FatYieldFactor;
+        double effectiveFeather = featherToExtract * yieldMultiplier * mode.FeatherYieldFactor;
         // Ivory and mammoth hide not affected by mode (trophy materials)
         double effectiveIvory = ivoryToExtract * yieldMultiplier;
         double effectiveMammothHide = mammothHideToExtract * yieldMultiplier;
@@ -415,6 +441,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         AddHide(result, effectiveHide);
         AddSinew(result, effectiveSinew);
         AddFat(result, effectiveFat);
+        AddFeathers(result, effectiveFeather);
         AddIvory(result, effectiveIvory);
         AddMammothHide(result, effectiveMammothHide);
 
@@ -424,6 +451,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         HideRemainingKg -= hideToExtract;
         SinewRemainingKg -= sinewToExtract;
         FatRemainingKg -= fatToExtract;
+        FeatherRemainingKg -= featherToExtract;
         IvoryRemainingKg -= ivoryToExtract;
         MammothHideRemainingKg -= mammothHideToExtract;
 
@@ -432,7 +460,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
 
     private void HarvestWithoutKnife(Inventory result, double workFraction, double yieldMultiplier, double meatDecayMultiplier)
     {
-        // Without knife: 50% meat yield (tearing by hand), bone only, no hide/sinew/fat
+        // Without knife: 50% meat yield (tearing by hand), bone only, no hide/sinew/fat/feathers
         double meatToExtract = MeatRemainingKg * workFraction;
         double boneToExtract = BoneRemainingKg * workFraction;
 
@@ -452,6 +480,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         HideRemainingKg -= HideRemainingKg * workFraction;  // Ruined
         SinewRemainingKg -= SinewRemainingKg * workFraction;  // Ruined
         FatRemainingKg -= FatRemainingKg * workFraction;  // Ruined
+        FeatherRemainingKg -= FeatherRemainingKg * workFraction;  // Ruined (destroyed without proper plucking)
 
         ClampRemaining();
     }
@@ -463,6 +492,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         HideRemainingKg = Math.Max(0, HideRemainingKg);
         SinewRemainingKg = Math.Max(0, SinewRemainingKg);
         FatRemainingKg = Math.Max(0, FatRemainingKg);
+        FeatherRemainingKg = Math.Max(0, FeatherRemainingKg);
         IvoryRemainingKg = Math.Max(0, IvoryRemainingKg);
         MammothHideRemainingKg = Math.Max(0, MammothHideRemainingKg);
     }
@@ -512,6 +542,14 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         if (totalKg > 0.1)
         {
             result.Add(Resource.Hide, totalKg);
+        }
+    }
+
+    private static void AddFeathers(Inventory result, double totalKg)
+    {
+        if (totalKg > 0.02)
+        {
+            result.Add(Resource.Feather, totalKg);
         }
     }
 
@@ -602,6 +640,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         if (HideRemainingKg > 0) resources.Add(Resource.Hide);
         if (SinewRemainingKg > 0) resources.Add(Resource.Sinew);
         if (FatRemainingKg > 0) resources.Add(Resource.RawFat);
+        if (FeatherRemainingKg > 0) resources.Add(Resource.Feather);
         if (IvoryRemainingKg > 0) resources.Add(Resource.Ivory);
         if (MammothHideRemainingKg > 0) resources.Add(Resource.MammothHide);
         return resources;
