@@ -109,7 +109,7 @@ public static class ClueLibrary
             [Resource.Roots], 1.3),
 
         new("Wind-scoured scrub growth", ClueCategory.Resource,
-            [Resource.PlantFiber, Resource.RawFiber], 1.2),
+            [Resource.PlantFiber], 1.2),
     ];
 
     public static readonly ForageClue[] WaterResourceClues =
@@ -118,7 +118,7 @@ public static class ClueLibrary
             [Resource.SphagnumMoss], 1.3),
 
         new("Reeds and fibrous plants", ClueCategory.Resource,
-            [Resource.PlantFiber, Resource.RawFiber], 1.3),
+            [Resource.PlantFiber], 1.3),
 
         new("Willow growing near the bank", ClueCategory.Resource,
             [Resource.WillowBark], 1.4),

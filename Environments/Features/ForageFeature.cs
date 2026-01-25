@@ -353,7 +353,7 @@ public class ForageFeature : LocationFeature, IWorkableFeature
 
         // Materials
         Resource.Stone or Resource.Shale or Resource.Flint or Resource.Pyrite => "stone",
-        Resource.PlantFiber or Resource.RawFiber or Resource.Rope => "fiber",
+        Resource.PlantFiber or Resource.Rope => "fiber",
         Resource.Bone or Resource.Hide or Resource.ScrapedHide or Resource.CuredHide
             or Resource.Sinew or Resource.RawFat or Resource.Tallow
             or Resource.Ivory or Resource.MammothHide => "animal parts",
@@ -491,10 +491,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
 
     public ForageFeature AddRoots(double abundance = 0.15, double minKg = 0.1, double maxKg = 0.3) =>
         AddResource("roots", Resource.Roots, abundance, minKg, maxKg);
-
-    // Raw material convenience methods (usually from processing, but can be foraged)
-    public ForageFeature AddRawFiber(double abundance = 0.3, double minKg = 0.05, double maxKg = 0.15) =>
-        AddResource("raw fiber", Resource.RawFiber, abundance, minKg, maxKg);
 
     // Fire remnant convenience methods
     public ForageFeature AddCharcoal(double abundance = 0.2, double minKg = 0.05, double maxKg = 0.15) =>

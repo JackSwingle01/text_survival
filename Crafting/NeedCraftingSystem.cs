@@ -657,18 +657,6 @@ public class NeedCraftingSystem
             MaterialOutputs = [new MaterialOutput("Tallow", 1, 0.15)]
         });
 
-        // Process Fiber: Raw plant material → Usable cordage fiber
-        _options.Add(new CraftOption
-        {
-            Name = "Process Fiber",
-            Description = "Strip and twist plant fibers into usable cordage. Essential for binding and lashing.",
-            Category = NeedCategory.Processing,
-            CraftingTimeMinutes = 15,
-            Durability = 0,
-            Requirements = [new MaterialRequirement(Resource.RawFiber, 1)],
-            MaterialOutputs = [new MaterialOutput("PlantFiber", 2, 0.05)] // Get 2 units of fiber per raw
-        });
-
         // Process Willow Bark: Inner bark strips → Cordage fiber (alternative to raw fiber)
         _options.Add(new CraftOption
         {

@@ -30,7 +30,7 @@ public enum Resource
 
     // Materials
     Stone, Bone, Hide, PlantFiber, Sinew, Shale, Flint, Pyrite,
-    ScrapedHide, CuredHide, RawFiber, RawFat, Tallow, Charcoal, Rope, Ivory,
+    ScrapedHide, CuredHide, RawFat, Tallow, Charcoal, Rope, Ivory,
     MammothHide,  // Trophy material from mammoth hunts
 
     // Medicine
@@ -81,7 +81,7 @@ public static class ResourceCategories
         {
             Resource.Stone, Resource.Bone, Resource.Hide, Resource.PlantFiber,
             Resource.Sinew, Resource.Shale, Resource.Flint, Resource.Pyrite,
-            Resource.ScrapedHide, Resource.CuredHide, Resource.RawFiber,
+            Resource.ScrapedHide, Resource.CuredHide,
             Resource.RawFat, Resource.Tallow, Resource.Charcoal, Resource.Rope, Resource.Ivory,
             Resource.MammothHide
         }
@@ -654,7 +654,6 @@ public static class ResourceDescriptions
         Resource.Pyrite => "Fool's gold. Reliable fire striker. Sparks hot against flint.",
         Resource.ScrapedHide => "Hide prepared for use. Cure it for waterproof leather or use now.",
         Resource.CuredHide => "Tanned and waterproofed. Superior material for lasting gear.",
-        Resource.RawFiber => "Unprocessed plant matter. Process into cordage for crafting.",
         Resource.RawFat => "Animal fat. Render it into tallow for waterproofing and treatments.",
         Resource.Tallow => "Rendered fat. Waterproofs gear. Seals wounds. Treatment base.",
         Resource.Charcoal => "Remains of burnt wood. Collected after fires die.",

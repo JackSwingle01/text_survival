@@ -248,14 +248,17 @@ public static class DiscoveryFeatureFactory
     {
         int quantity = 1 + Random.Shared.Next(3);  // 1-3 portions
 
-        var pot = new HarvestableFeature("tallow_pot", "Tallow Cache")
+        var cache = new SalvageFeature("tallow_pot", "Tallow Cache")
         {
-            Description = "Rendered fat sealed in birch bark. Someone cached this here.",
-            MinutesToHarvest = 3
+            DiscoveryText = "Rendered fat sealed in birch bark. Someone cached this here.",
+            NarrativeHook = "Someone else's preparation. Now yours.",
+            MinutesToSalvage = 5
         };
-        pot.AddResource("tallow", Resource.Tallow,
-            maxQuantity: quantity, weightPerUnit: 0.25, respawnHoursPerUnit: 0);
-        return pot;
+
+        for (int i = 0; i < quantity; i++)
+            cache.Resources.Add(Resource.Tallow, 0.25);
+
+        return cache;
     }
 
     public static LocationFeature CreateDryWoodStack()
@@ -284,68 +287,82 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreateCordageBundle()
     {
-        var bundle = new HarvestableFeature("cordage_bundle", "Cordage Bundle")
+        var cache = new SalvageFeature("cordage_bundle", "Cordage Bundle")
         {
-            Description = "Coiled rope and bundles of processed fiber wrapped in bark.",
-            MinutesToHarvest = 3
+            DiscoveryText = "Coiled rope and bundles of processed fiber wrapped in bark.",
+            NarrativeHook = "Someone else's preparation. Now yours.",
+            MinutesToSalvage = 5
         };
 
         // Always some plant fiber
-        bundle.AddPlantFiber("processed fiber", maxQuantity: 3 + Random.Shared.Next(3), weightPerUnit: 0.08, respawnHoursPerUnit: 0);
+        int fiberQuantity = 3 + Random.Shared.Next(3);
+        for (int i = 0; i < fiberQuantity; i++)
+            cache.Resources.Add(Resource.PlantFiber, 0.08);
 
         // Usually some rope
         if (Random.Shared.NextDouble() < 0.7)
-            bundle.AddResource("rope lengths", Resource.Rope,
-                maxQuantity: 1 + Random.Shared.Next(2), weightPerUnit: 0.15, respawnHoursPerUnit: 0);
+        {
+            int ropeQuantity = 1 + Random.Shared.Next(2);
+            for (int i = 0; i < ropeQuantity; i++)
+                cache.Resources.Add(Resource.Rope, 0.15);
+        }
 
-        return bundle;
+        return cache;
     }
 
     public static LocationFeature CreateTinderCache()
     {
-        var cache = new HarvestableFeature("tinder_cache", "Tinder Cache")
+        var cache = new SalvageFeature("tinder_cache", "Tinder Cache")
         {
-            Description = "Birch bark strips and resin wrapped tight and tucked into a crevice.",
-            MinutesToHarvest = 2
+            DiscoveryText = "Birch bark strips and resin wrapped tight and tucked into a crevice.",
+            NarrativeHook = "Someone else's preparation. Now yours.",
+            MinutesToSalvage = 5
         };
 
         // Birch bark - prime tinder
-        cache.AddResource("birch bark strips", Resource.BirchBark,
-            maxQuantity: 3 + Random.Shared.Next(3), weightPerUnit: 0.03, respawnHoursPerUnit: 0);
+        int barkQuantity = 3 + Random.Shared.Next(3);
+        for (int i = 0; i < barkQuantity; i++)
+            cache.Resources.Add(Resource.BirchBark, 0.03);
 
         // Pine resin
-        cache.AddResource("pine resin", Resource.PineResin,
-            maxQuantity: 2 + Random.Shared.Next(2), weightPerUnit: 0.05, respawnHoursPerUnit: 0);
+        int resinQuantity = 2 + Random.Shared.Next(2);
+        for (int i = 0; i < resinQuantity; i++)
+            cache.Resources.Add(Resource.PineResin, 0.05);
 
         // Sometimes some amadou
         if (Random.Shared.NextDouble() < 0.3)
-            cache.AddResource("amadou", Resource.Amadou,
-                maxQuantity: 1 + Random.Shared.Next(2), weightPerUnit: 0.02, respawnHoursPerUnit: 0);
+        {
+            int amadouQuantity = 1 + Random.Shared.Next(2);
+            for (int i = 0; i < amadouQuantity; i++)
+                cache.Resources.Add(Resource.Amadou, 0.02);
+        }
 
         return cache;
     }
 
     public static LocationFeature CreateMedicineStash()
     {
-        var stash = new HarvestableFeature("medicine_stash", "Medicine Stash")
+        var cache = new SalvageFeature("medicine_stash", "Medicine Stash")
         {
-            Description = "Dried herbs and fungi bundled together. Someone's healing supplies.",
-            MinutesToHarvest = 5
+            DiscoveryText = "Dried herbs and fungi bundled together. Someone's healing supplies.",
+            NarrativeHook = "Someone else's preparation. Now yours.",
+            MinutesToSalvage = 10
         };
 
         // Always some birch polypore
-        stash.AddResource("birch polypore", Resource.BirchPolypore,
-            maxQuantity: 2 + Random.Shared.Next(2), weightPerUnit: 0.08, respawnHoursPerUnit: 0);
+        int polyporeQuantity = 2 + Random.Shared.Next(2);
+        for (int i = 0; i < polyporeQuantity; i++)
+            cache.Resources.Add(Resource.BirchPolypore, 0.08);
 
         // Randomly add 2-3 other medicines
-        var medicines = new List<(string name, Resource resource, double weight)>
+        var medicines = new List<(Resource resource, double weight)>
         {
-            ("willow bark", Resource.WillowBark, 0.06),
-            ("chaga chunks", Resource.Chaga, 0.1),
-            ("usnea lichen", Resource.Usnea, 0.04),
-            ("sphagnum moss", Resource.SphagnumMoss, 0.05),
-            ("rose hips", Resource.RoseHip, 0.03),
-            ("juniper berries", Resource.JuniperBerry, 0.03)
+            (Resource.WillowBark, 0.06),
+            (Resource.Chaga, 0.1),
+            (Resource.Usnea, 0.04),
+            (Resource.SphagnumMoss, 0.05),
+            (Resource.RoseHip, 0.03),
+            (Resource.JuniperBerry, 0.03)
         };
 
         // Shuffle and pick 2-3
@@ -354,12 +371,13 @@ public static class DiscoveryFeatureFactory
 
         for (int i = 0; i < count && i < shuffled.Count; i++)
         {
-            var (name, resource, weight) = shuffled[i];
-            stash.AddResource(name, resource,
-                maxQuantity: 2 + Random.Shared.Next(2), weightPerUnit: weight, respawnHoursPerUnit: 0);
+            var (resource, weight) = shuffled[i];
+            int quantity = 2 + Random.Shared.Next(2);
+            for (int j = 0; j < quantity; j++)
+                cache.Resources.Add(resource, weight);
         }
 
-        return stash;
+        return cache;
     }
 
     // Terrain-specific animal territory wrappers

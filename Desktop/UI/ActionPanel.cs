@@ -20,6 +20,81 @@ public class ActionPanel
     private string? _lastMessage;
     private float _messageTimer;
 
+    // Panel width minus padding for button content
+    private const float ButtonContentWidthPx = 270f;
+
+    /// <summary>
+    /// Truncates text to fit within maxWidth, preserving parenthetical suffixes.
+    /// Returns original text if it fits.
+    /// </summary>
+    private static string TruncateText(string text, float maxWidthPx)
+    {
+        var fullSize = ImGui.CalcTextSize(text);
+        if (fullSize.X <= maxWidthPx)
+            return text;
+
+        // Check for parenthetical suffix to preserve (e.g., "(45%)", "(Sparse)")
+        string suffix = "";
+        string mainText = text;
+        int parenIndex = text.LastIndexOf('(');
+        if (parenIndex > 0 && text.EndsWith(")"))
+        {
+            suffix = text.Substring(parenIndex);
+            mainText = text.Substring(0, parenIndex).TrimEnd();
+        }
+
+        // Calculate available width for main text (minus suffix and ellipsis)
+        string ellipsis = "...";
+        float suffixWidth = string.IsNullOrEmpty(suffix) ? 0 : ImGui.CalcTextSize(" " + suffix).X;
+        float ellipsisWidth = ImGui.CalcTextSize(ellipsis).X;
+        float availableWidth = maxWidthPx - suffixWidth - ellipsisWidth;
+
+        // Binary search for the right truncation point
+        int low = 0;
+        int high = mainText.Length;
+        while (low < high)
+        {
+            int mid = (low + high + 1) / 2;
+            string test = mainText.Substring(0, mid);
+            if (ImGui.CalcTextSize(test).X <= availableWidth)
+                low = mid;
+            else
+                high = mid - 1;
+        }
+
+        // Build truncated result
+        string truncated = mainText.Substring(0, low).TrimEnd() + ellipsis;
+        if (!string.IsNullOrEmpty(suffix))
+            truncated += " " + suffix;
+
+        return truncated;
+    }
+
+    /// <summary>
+    /// Renders a button with truncated text and tooltip showing full text if truncated.
+    /// Returns true if button was clicked.
+    /// </summary>
+    private static bool ButtonWithTooltip(string fullText, string? hotkeyTip = null)
+    {
+        string displayText = fullText;
+        if (!string.IsNullOrEmpty(hotkeyTip))
+            displayText = fullText + " " + hotkeyTip;
+
+        string truncated = TruncateText(displayText, ButtonContentWidthPx);
+        bool wasTruncated = truncated != displayText;
+
+        bool clicked = ImGui.Button(truncated, new Vector2(-1, 0));
+
+        if (wasTruncated && ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text(displayText);
+            ImGui.EndTooltip();
+        }
+
+        return clicked;
+    }
+
     /// <summary>
     /// Show a temporary message (e.g., "The way is blocked").
     /// </summary>
@@ -108,18 +183,12 @@ public class ActionPanel
                 clickedAction = CampAction.StartFire;
         }
 
-        // Eat/Drink
-        if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
+        // Food & Water (if has food/water or can cook at fire)
+        bool canCook = fire != null && fire.IsActive;
+        if (ctx.Inventory.HasFood || ctx.Inventory.HasWater || canCook)
         {
-            if (ImGui.Button("Eat/Drink", new Vector2(-1, 0)))
-                clickedAction = CampAction.EatDrink;
-        }
-
-        // Cook/Melt (if fire active)
-        if (fire != null && fire.IsActive)
-        {
-            if (ImGui.Button("Cook/Melt", new Vector2(-1, 0)))
-                clickedAction = CampAction.Cook;
+            if (ImGui.Button("Food & Water", new Vector2(-1, 0)))
+                clickedAction = CampAction.Food;
         }
 
         ImGui.Separator();
@@ -133,11 +202,9 @@ public class ActionPanel
                 ImGui.Text("Work:");
                 foreach (var opt in workOptions)
                 {
-                    string label = opt.Strategy is ForageStrategy
-                        ? $"{opt.Label} [F]"
-                        : opt.Label;
+                    string? hotkeyTip = opt.Strategy is ForageStrategy ? "[F]" : null;
 
-                    if (ImGui.Button(label, new Vector2(-1, 0)))
+                    if (ButtonWithTooltip(opt.Label, hotkeyTip))
                         workStrategy = opt.Strategy;
                 }
                 ImGui.Separator();
@@ -173,7 +240,7 @@ public class ActionPanel
                 : rack.ItemCount > 0
                     ? $"Curing Rack ({rack.ItemCount} curing)"
                     : "Curing Rack";
-            if (ImGui.Button(rackLabel, new Vector2(-1, 0)))
+            if (ButtonWithTooltip(rackLabel))
                 clickedAction = CampAction.CuringRack;
         }
 

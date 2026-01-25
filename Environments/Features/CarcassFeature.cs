@@ -64,7 +64,9 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     public double IvoryRemainingKg { get; set; }  // Mammoth only
     public double MammothHideRemainingKg { get; set; }  // Mammoth only
 
-    // Time estimation: ~2 minutes per kg of total yield
+    // Time estimation: base setup time + ~2 minutes per kg of total yield
+    // Base time accounts for positioning, initial cuts, organizing - matters for small game
+    private const double BaseButcheringMinutes = 5.0;
     private const double MinutesPerKgYield = 2.0;
 
     [JsonConstructor]
@@ -271,14 +273,17 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     public int GetRemainingMinutes(ButcheringMode mode)
     {
         var config = GetModeConfig(mode);
-        return (int)Math.Ceiling(GetTotalRemainingKg() * MinutesPerKgYield * config.TimeFactor);
+        double kgTime = GetTotalRemainingKg() * MinutesPerKgYield;
+        // Base time + kg-based time, all scaled by mode factor
+        return (int)Math.Ceiling((BaseButcheringMinutes + kgTime) * config.TimeFactor);
     }
 
     public double GetTotalRemainingKg() =>
         MeatRemainingKg + BoneRemainingKg + HideRemainingKg +
         SinewRemainingKg + FatRemainingKg + IvoryRemainingKg + MammothHideRemainingKg;
 
-    public int GetRemainingMinutes() => (int)Math.Ceiling(GetTotalRemainingKg() * MinutesPerKgYield);
+    public int GetRemainingMinutes() =>
+        (int)Math.Ceiling(BaseButcheringMinutes + GetTotalRemainingKg() * MinutesPerKgYield);
 
     public bool IsCompletelyButchered => GetTotalRemainingKg() < 0.01;
 

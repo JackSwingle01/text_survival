@@ -199,10 +199,12 @@ public static class DesktopRuntime
 
             ImGui.Text("Discovered:");
             var discoveryColor = new Vector4(0.9f, 0.7f, 0.3f, 1f); // Golden/amber
+            ImGui.PushStyleColor(ImGuiCol.Text, discoveryColor);
             foreach (var discovery in discoveries)
             {
-                ImGui.TextColored(discoveryColor, $"  - {discovery}");
+                ImGui.TextWrapped($"  - {discovery}");
             }
+            ImGui.PopStyleColor();
         }
 
         // Show Continue button when complete

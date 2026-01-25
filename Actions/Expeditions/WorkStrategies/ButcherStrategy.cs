@@ -42,7 +42,8 @@ public class ButcherStrategy : IWorkStrategy
         if (_carcass.SelectedMode == null)
         {
             var warnings = BuildModeSelectionWarnings(ctx);
-            var selectedModeId = DesktopIO.SelectButcherMode(ctx, _carcass, warnings);
+            bool hasCuttingTool = ctx.Inventory.HasCuttingTool;
+            var selectedModeId = DesktopIO.SelectButcherMode(ctx, _carcass, warnings, hasCuttingTool);
 
             if (selectedModeId == null)
             {
@@ -62,8 +63,8 @@ public class ButcherStrategy : IWorkStrategy
 
         _selectedMode = _carcass.SelectedMode.Value;
 
-        // Time chunk selection (like ChoppingStrategy)
-        double remainingMinutes = _carcass.GetRemainingMinutes(_selectedMode.Value);
+        // Time chunk selection
+        int remainingMinutes = _carcass.GetRemainingMinutes(_selectedMode.Value);
 
         string progressText = _carcass.ProgressPct > 0.01
             ? $" ({_carcass.ProgressPct:P0} complete)"
@@ -71,19 +72,25 @@ public class ButcherStrategy : IWorkStrategy
 
         var choice = new Choice<int>($"How long do you want to butcher?{progressText}");
 
-        // Offer time chunks up to remaining time
-        if (remainingMinutes >= 15)
-            choice.AddOption("15 minutes", 15);
-        if (remainingMinutes >= 30)
-            choice.AddOption("30 minutes", 30);
-        if (remainingMinutes >= 60)
-            choice.AddOption("1 hour", 60);
+        // Smart time options based on remaining time (like HarvestStrategy)
+        if (remainingMinutes <= 10)
+        {
+            // Quick butchering - single option to complete
+            choice.AddOption($"Butcher completely - {remainingMinutes} min", remainingMinutes);
+        }
+        else
+        {
+            // Standard options, filtered to what's useful
+            if (remainingMinutes >= 15)
+                choice.AddOption("15 minutes", 15);
+            if (remainingMinutes >= 30)
+                choice.AddOption("30 minutes", 30);
+            if (remainingMinutes >= 60)
+                choice.AddOption("1 hour", 60);
 
-        // If less than 15 minutes remain, or for convenience, offer to finish
-        if (remainingMinutes > 0 && remainingMinutes < 15)
-            choice.AddOption($"Finish ({(int)remainingMinutes} min)", (int)remainingMinutes);
-        else if (remainingMinutes >= 15)
-            choice.AddOption($"Finish ({(int)remainingMinutes} min)", (int)remainingMinutes);
+            // Always show finish option
+            choice.AddOption($"Finish ({remainingMinutes} min)", remainingMinutes);
+        }
 
         choice.AddOption("Cancel", 0);
 

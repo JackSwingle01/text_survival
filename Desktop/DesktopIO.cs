@@ -32,7 +32,7 @@ public static class DesktopIO
     public static void ClearForage(GameContext ctx) { }
     public static void ClearTransfer(GameContext ctx) { }
     public static void ClearFire(GameContext ctx) { }
-    public static void ClearCooking(GameContext ctx) { }
+    public static void ClearFood(GameContext ctx) { }
     public static void ClearButcher(GameContext ctx) { }
     public static void ClearCombat(GameContext ctx) { }
     public static void ClearDiscovery(GameContext ctx) { }
@@ -652,7 +652,8 @@ public static class DesktopIO
     /// Only called when carcass.SelectedMode is null (first butchering session).
     /// Time selection happens separately via standard time chunk UI.
     /// </summary>
-    public static string? SelectButcherMode(GameContext ctx, CarcassFeature carcass, List<string>? warnings = null)
+    /// <param name="hasCuttingTool">If false, Full Processing option is hidden (requires precise cuts)</param>
+    public static string? SelectButcherMode(GameContext ctx, CarcassFeature carcass, List<string>? warnings = null, bool hasCuttingTool = true)
     {
         var choices = new List<(string id, string label)>
         {
@@ -660,12 +661,17 @@ public static class DesktopIO
         };
 
         // Show estimated total time for each mode to help player choose
-        var modes = new[]
+        var modes = new List<(string id, string label, int minutes)>
         {
             ("quick", "Quick Strip - Fast, meat-focused, messy", carcass.GetRemainingMinutes(ButcheringMode.QuickStrip)),
-            ("careful", "Careful - Balanced approach", carcass.GetRemainingMinutes(ButcheringMode.Careful)),
-            ("full", "Full Processing - Slow, maximum yield", carcass.GetRemainingMinutes(ButcheringMode.FullProcessing))
+            ("careful", "Careful - Balanced approach", carcass.GetRemainingMinutes(ButcheringMode.Careful))
         };
+
+        // Only show Full Processing if player has a cutting tool (precise extractions require it)
+        if (hasCuttingTool)
+        {
+            modes.Add(("full", "Full Processing - Slow, maximum yield", carcass.GetRemainingMinutes(ButcheringMode.FullProcessing)));
+        }
 
         foreach (var (id, label, minutes) in modes)
         {
@@ -865,20 +871,20 @@ public static class DesktopIO
             overlay.SetTendMessage(actionResult.Message);
     }
 
-    public static void RunEatingUI(GameContext ctx)
+    public static void RunFoodUI(GameContext ctx)
     {
         var overlays = DesktopRuntime.Overlays;
         if (overlays == null) return;
 
-        overlays.OpenEating();
+        overlays.OpenFood();
 
-        while (overlays.Eating.IsOpen && !Raylib.WindowShouldClose())
+        while (overlays.Food.IsOpen && !Raylib.WindowShouldClose())
         {
             float deltaTime = DesktopRuntime.BeginFrame();
 
             if (Raylib.IsKeyPressed(KeyboardKey.Escape))
             {
-                overlays.Eating.IsOpen = false;
+                overlays.Food.IsOpen = false;
                 break;
             }
 
@@ -893,70 +899,17 @@ public static class DesktopIO
 
             rlImGui.Begin();
 
-            var consumedId = overlays.Eating.Render(ctx, deltaTime);
-
-            if (consumedId != null)
-            {
-                var consumeResult = ConsumptionHandler.Consume(ctx, consumedId);
-                overlays.Eating.SetConsumeResult(consumeResult.Message, consumeResult.IsWarning);
-            }
+            overlays.Food.Render(ctx, deltaTime);
 
             rlImGui.End();
             Raylib.EndDrawing();
         }
-    }
 
-    public static void RunCookingUI(GameContext ctx)
-    {
-        var overlays = DesktopRuntime.Overlays;
-        if (overlays == null) return;
-
-        overlays.OpenCooking();
-
-        while (overlays.Cooking.IsOpen && !Raylib.WindowShouldClose())
+        // Process pending food action outside ImGui frame (allows blocking animation)
+        if (overlays.Food.PendingAction != null)
         {
-            float deltaTime = DesktopRuntime.BeginFrame();
-
-            if (Raylib.IsKeyPressed(KeyboardKey.Escape))
-            {
-                overlays.Cooking.IsOpen = false;
-                break;
-            }
-
-            Raylib.BeginDrawing();
-            Raylib.ClearBackground(new Color(20, 25, 30, 255));
-
-            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
-            DesktopRuntime.WorldRenderer?.Render(ctx);
-
-            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
-                new Color(0, 0, 0, 128));
-
-            rlImGui.Begin();
-
-            var result = overlays.Cooking.Render(ctx, deltaTime);
-
-            if (result != null)
-            {
-                ProcessCookingResult(ctx, result, overlays.Cooking);
-            }
-
-            rlImGui.End();
-            Raylib.EndDrawing();
+            overlays.Food.ProcessPendingAction(ctx);
         }
-    }
-
-    private static void ProcessCookingResult(GameContext ctx, CookingOverlayResult result, CookingOverlay overlay)
-    {
-        CookingHandler.CookingResult actionResult = result.Action switch
-        {
-            CookingAction.CookMeat => CookingHandler.ProcessCookMeat(ctx),
-            CookingAction.CookFish => CookingHandler.ProcessCookFish(ctx),
-            CookingAction.MeltSnow => CookingHandler.ProcessMeltSnow(ctx),
-            _ => new CookingHandler.CookingResult(false, "Unknown action", 0)
-        };
-
-        overlay.SetActionResult(actionResult.Success, actionResult.Message);
     }
 
     public static void RunAITurnsWithAnimation(GameContext ctx, CombatScenario scenario, Unit playerUnit)

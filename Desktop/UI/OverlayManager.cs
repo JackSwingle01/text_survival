@@ -15,8 +15,7 @@ public class OverlayManager
     public CraftingOverlay Crafting { get; } = new();
     public GameEventOverlay Event { get; } = new();
     public FireOverlay Fire { get; } = new();
-    public EatingOverlay Eating { get; } = new();
-    public CookingOverlay Cooking { get; } = new();
+    public FoodOverlay Food { get; } = new();
     public TransferOverlay Transfer { get; } = new();
     public DiscoveryLogOverlay DiscoveryLog { get; } = new();
     public NPCOverlay NPCs { get; } = new();
@@ -26,7 +25,7 @@ public class OverlayManager
     public bool HasBlockingOverlay => Event.IsOpen;
 
     public bool AnyOverlayOpen => Inventory.IsOpen || Crafting.IsOpen || Event.IsOpen ||
-                                   Fire.IsOpen || Eating.IsOpen || Cooking.IsOpen || Transfer.IsOpen ||
+                                   Fire.IsOpen || Food.IsOpen || Transfer.IsOpen ||
                                    DiscoveryLog.IsOpen || NPCs.IsOpen;
 
     public void CloseAll()
@@ -35,8 +34,7 @@ public class OverlayManager
         Crafting.IsOpen = false;
         Event.IsOpen = false;
         Fire.IsOpen = false;
-        Eating.IsOpen = false;
-        Cooking.IsOpen = false;
+        Food.IsOpen = false;
         Transfer.IsOpen = false;
         DiscoveryLog.IsOpen = false;
         NPCs.IsOpen = false;
@@ -47,8 +45,7 @@ public class OverlayManager
         Inventory.IsOpen = false;
         Crafting.IsOpen = false;
         Fire.IsOpen = false;
-        Eating.IsOpen = false;
-        Cooking.IsOpen = false;
+        Food.IsOpen = false;
         Transfer.IsOpen = false;
         DiscoveryLog.IsOpen = false;
         NPCs.IsOpen = false;
@@ -109,20 +106,12 @@ public class OverlayManager
         Fire.Open(fire);
     }
 
-    public void OpenEating()
+    public void OpenFood()
     {
         if (HasBlockingOverlay) return;
 
         CloseNonBlocking();
-        Eating.Open();
-    }
-
-    public void OpenCooking()
-    {
-        if (HasBlockingOverlay) return;
-
-        CloseNonBlocking();
-        Cooking.Open();
+        Food.Open();
     }
 
     public void OpenTransfer(Inventory storage, string storageName)
@@ -173,14 +162,9 @@ public class OverlayManager
             results.FireResult = Fire.Render(ctx, deltaTime);
         }
 
-        if (Eating.IsOpen)
+        if (Food.IsOpen)
         {
-            results.ConsumedItemId = Eating.Render(ctx, deltaTime);
-        }
-
-        if (Cooking.IsOpen)
-        {
-            results.CookingResult = Cooking.Render(ctx, deltaTime);
+            Food.Render(ctx, deltaTime);
         }
 
         if (Transfer.IsOpen)
@@ -208,10 +192,8 @@ public class OverlayManager
             // Close the topmost non-blocking overlay
             if (Transfer.IsOpen)
                 Transfer.IsOpen = false;
-            else if (Cooking.IsOpen)
-                Cooking.IsOpen = false;
-            else if (Eating.IsOpen)
-                Eating.IsOpen = false;
+            else if (Food.IsOpen)
+                Food.IsOpen = false;
             else if (Fire.IsOpen)
                 Fire.IsOpen = false;
             else if (NPCs.IsOpen)
@@ -252,11 +234,8 @@ public class OverlayResults
     public string? EventChoice { get; set; }
     public string? CraftedItem { get; set; }
     public FireOverlayResult? FireResult { get; set; }
-    public string? ConsumedItemId { get; set; }
-    public CookingOverlayResult? CookingResult { get; set; }
     public TransferResult? TransferResult { get; set; }
 
     public bool HasResults => EventChoice != null || CraftedItem != null ||
-                              FireResult != null || ConsumedItemId != null ||
-                              CookingResult != null || TransferResult != null;
+                              FireResult != null || TransferResult != null;
 }

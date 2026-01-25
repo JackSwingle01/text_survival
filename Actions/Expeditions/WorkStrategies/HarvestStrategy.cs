@@ -57,13 +57,44 @@ public class HarvestStrategy : IWorkStrategy
         // Build resource preview
         string resourcePreview = BuildResourcePreview(_selectedTarget);
 
+        // Calculate max time needed to harvest all remaining resources
+        int maxTime = _selectedTarget.GetTotalMinutesToHarvest();
+
         // Create enhanced prompt with preview
         string prompt = $"Harvest: {_selectedTarget.DisplayName}\n{resourcePreview}\n\nHow long should you work?";
 
         var choice = new Choice<int>(prompt);
-        choice.AddOption("Quick work - 15 min", 15);
-        choice.AddOption("Standard work - 30 min", 30);
-        choice.AddOption("Thorough work - 60 min", 60);
+
+        // For small harvests (10 min or less), offer single "Gather all" option
+        if (maxTime <= 10)
+        {
+            choice.AddOption($"Gather all - {maxTime} min", maxTime);
+        }
+        else
+        {
+            // Standard options, but only show those <= max time needed
+            int[] standardOptions = [15, 30, 60];
+            foreach (int option in standardOptions)
+            {
+                if (option <= maxTime)
+                {
+                    string label = option switch
+                    {
+                        15 => "Quick work",
+                        30 => "Standard work",
+                        _ => "Thorough work"
+                    };
+                    choice.AddOption($"{label} - {option} min", option);
+                }
+            }
+
+            // Add "Complete harvest" option if max time differs from standard options
+            if (!standardOptions.Contains(maxTime))
+            {
+                choice.AddOption($"Complete harvest - {maxTime} min", maxTime);
+            }
+        }
+
         choice.AddOption("Cancel", 0);
         return choice;
     }

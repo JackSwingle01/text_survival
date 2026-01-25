@@ -344,15 +344,10 @@ public class TilePopup
 
     private static int CalculateTravelTime(GameContext ctx, Location destination)
     {
-        // Base travel time depends on terrain and player movement capacity
-        var capacities = ctx.player.GetCapacities();
-        double movingCapacity = Math.Max(0.1, capacities.Moving);
+        var origin = ctx.CurrentLocation;
+        if (origin == null) return destination.Terrain.BaseTraversalMinutes();
 
-        // Use terrain's base traversal time
-        int baseMinutes = destination.Terrain.BaseTraversalMinutes();
-
-        // Adjust for movement capacity
-        return (int)(baseMinutes / movingCapacity);
+        return TravelProcessor.GetTraversalMinutes(origin, destination, ctx.player, ctx.Inventory);
     }
 
     private static string FormatTime(int minutes)

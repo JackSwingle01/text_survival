@@ -25,8 +25,7 @@ public enum CampAction
     Wait,
     TendFire,
     StartFire,
-    EatDrink,
-    Cook,
+    Food,
     Inventory,
     Crafting,
     DiscoveryLog,
@@ -492,11 +491,8 @@ public partial class GameRunner(GameContext ctx)
             case CampAction.StartFire:
                 StartFire();
                 break;
-            case CampAction.EatDrink:
-                EatDrink();
-                break;
-            case CampAction.Cook:
-                CookMelt();
+            case CampAction.Food:
+                RunFood();
                 break;
             case CampAction.Inventory:
                 RunInventoryMenu();
@@ -572,11 +568,8 @@ public partial class GameRunner(GameContext ctx)
         if (CanStartFire())
             choice.AddOption("Start fire", StartFire);
 
-        if (ctx.Inventory.HasFood || ctx.Inventory.HasWater)
-            choice.AddOption("Eat/Drink", EatDrink);
-
-        if (CanUseFireForCooking())
-            choice.AddOption("Cook/Melt", CookMelt);
+        if (ctx.Inventory.HasFood || ctx.Inventory.HasWater || CanUseFireForCooking())
+            choice.AddOption("Food & Water", RunFood);
 
         if (CanLightTorch())
             choice.AddOption("Light torch", LightTorch);
@@ -912,12 +905,10 @@ public partial class GameRunner(GameContext ctx)
         Desktop.DesktopIO.RunTransferUI(ctx, storage.Storage, "CAMP STORAGE");
     }
 
-    private void EatDrink()
+    private void RunFood()
     {
-        DesktopIO.RunEatingUI(ctx);
+        DesktopIO.RunFoodUI(ctx);
     }
-
-    private void CookMelt() => CookingHandler.CookMelt(ctx);
 
     private void UseCuringRack() => CuringRackHandler.UseCuringRack(ctx);
 
