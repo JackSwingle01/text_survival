@@ -390,15 +390,32 @@ public class ProceduralIconRenderer : IIconRenderer
 
     private static void DrawBed(float cx, float cy, float size, Color tint)
     {
+        // Detailed bedding with layered hides/furs showing texture and depth
         float s = size * 0.3f;
+        var shadowColor = new Color((byte)(tint.R * 0.6f), (byte)(tint.G * 0.6f), (byte)(tint.B * 0.55f), tint.A);
+        var darkFur = new Color((byte)(tint.R * 0.8f), (byte)(tint.G * 0.75f), (byte)(tint.B * 0.7f), tint.A);
+        var lightFur = new Color((byte)Math.Min(255, tint.R + 35), (byte)Math.Min(255, tint.G + 30), (byte)Math.Min(255, tint.B + 20), tint.A);
+        var highlightFur = new Color((byte)Math.Min(255, tint.R + 50), (byte)Math.Min(255, tint.G + 45), (byte)Math.Min(255, tint.B + 35), (byte)(tint.A * 0.8f));
 
-        // Fur bedding base (rounded rectangle shape using overlapping ellipses)
-        Raylib.DrawEllipse((int)cx, (int)cy, s * 1.3f, s * 0.6f, tint);
+        // Shadow beneath bedding
+        Raylib.DrawEllipse((int)(cx + s * 0.1f), (int)(cy + s * 0.15f), s * 1.4f, s * 0.65f, shadowColor);
 
-        // Lighter fur texture lines
-        var lightFur = new Color((byte)Math.Min(255, tint.R + 30), (byte)Math.Min(255, tint.G + 25), (byte)Math.Min(255, tint.B + 15), tint.A);
-        Raylib.DrawEllipse((int)(cx - s * 0.3f), (int)(cy - s * 0.1f), s * 0.5f, s * 0.25f, lightFur);
-        Raylib.DrawEllipse((int)(cx + s * 0.4f), (int)(cy + s * 0.1f), s * 0.4f, s * 0.2f, lightFur);
+        // Base layer (bottom hide/fur)
+        Raylib.DrawEllipse((int)cx, (int)cy, s * 1.35f, s * 0.6f, tint);
+
+        // Middle layer showing folds and texture
+        Raylib.DrawEllipse((int)(cx - s * 0.5f), (int)(cy - s * 0.1f), s * 0.8f, s * 0.4f, darkFur);
+        Raylib.DrawEllipse((int)(cx + s * 0.3f), (int)(cy + s * 0.05f), s * 0.9f, s * 0.45f, darkFur);
+
+        // Top layer highlights (bunched fur showing volume)
+        Raylib.DrawEllipse((int)(cx - s * 0.6f), (int)(cy - s * 0.25f), s * 0.5f, s * 0.3f, lightFur);
+        Raylib.DrawEllipse((int)(cx - s * 0.1f), (int)(cy - s * 0.2f), s * 0.6f, s * 0.35f, lightFur);
+        Raylib.DrawEllipse((int)(cx + s * 0.5f), (int)(cy - s * 0.15f), s * 0.45f, s * 0.25f, lightFur);
+
+        // Bright fur highlights (suggesting soft, fluffy texture)
+        Raylib.DrawEllipse((int)(cx - s * 0.65f), (int)(cy - s * 0.32f), s * 0.25f, s * 0.15f, highlightFur);
+        Raylib.DrawEllipse((int)(cx - s * 0.05f), (int)(cy - s * 0.28f), s * 0.3f, s * 0.18f, highlightFur);
+        Raylib.DrawEllipse((int)(cx + s * 0.52f), (int)(cy - s * 0.22f), s * 0.22f, s * 0.13f, highlightFur);
     }
 
     private static void DrawHarvest(float cx, float cy, float size, Color tint)
@@ -531,28 +548,74 @@ public class ProceduralIconRenderer : IIconRenderer
 
     private static void DrawTracks(float cx, float cy, float size, Color tint)
     {
-        // Brown paw prints (smaller, trail-like)
-        float s = size * 0.1f;
-        // First print
-        Raylib.DrawCircle((int)(cx - s * 1.5f), (int)(cy + s), s, tint);
-        Raylib.DrawCircle((int)(cx - s * 2.2f), (int)(cy - s * 0.5f), s * 0.5f, tint);
-        // Second print
-        Raylib.DrawCircle((int)(cx + s * 1.5f), (int)(cy - s), s, tint);
-        Raylib.DrawCircle((int)(cx + s * 2.2f), (int)(cy + s * 0.5f), s * 0.5f, tint);
+        // Trail of paw prints showing direction of travel
+        float s = size * 0.08f;
+        var shadowColor = new Color((byte)(tint.R * 0.6f), (byte)(tint.G * 0.6f), (byte)(tint.B * 0.6f), tint.A);
+        var fadeColor = new Color((byte)tint.R, (byte)tint.G, (byte)tint.B, (byte)(tint.A * 0.7f));
+
+        // Helper function to draw a single paw print
+        void DrawPrint(float x, float y, float scale, Color color, bool withShadow = true)
+        {
+            // Shadow
+            if (withShadow)
+                Raylib.DrawEllipse((int)(x + s * 0.1f * scale), (int)(y + s * 0.1f * scale), s * 0.7f * scale, s * 0.5f * scale, shadowColor);
+            // Main pad
+            Raylib.DrawEllipse((int)x, (int)y, s * 0.7f * scale, s * 0.5f * scale, color);
+            // Toe pads (3 toes)
+            Raylib.DrawEllipse((int)(x - s * 0.4f * scale), (int)(y - s * 0.4f * scale), s * 0.2f * scale, s * 0.25f * scale, color);
+            Raylib.DrawEllipse((int)x, (int)(y - s * 0.55f * scale), s * 0.2f * scale, s * 0.25f * scale, color);
+            Raylib.DrawEllipse((int)(x + s * 0.4f * scale), (int)(y - s * 0.4f * scale), s * 0.2f * scale, s * 0.25f * scale, color);
+        }
+
+        // Back prints (smaller, faded - older tracks)
+        DrawPrint(cx - s * 2.5f, cy + s * 2.0f, 0.85f, fadeColor, false);
+        DrawPrint(cx - s * 1.2f, cy + s * 1.2f, 0.85f, fadeColor, false);
+
+        // Middle prints (medium size and opacity)
+        DrawPrint(cx - s * 3.2f, cy + s * 0.8f, 0.95f, fadeColor);
+        DrawPrint(cx + s * 0.2f, cy + s * 0.3f, 0.95f, fadeColor);
+
+        // Front prints (largest, most prominent - fresh tracks)
+        DrawPrint(cx - s * 1.8f, cy - s * 0.8f, 1.0f, tint);
+        DrawPrint(cx + s * 1.5f, cy - s * 1.5f, 1.0f, tint);
     }
 
     private static void DrawForest(float cx, float cy, float size, Color tint)
     {
-        // Green tree (triangle on stick)
+        // Detailed evergreen tree with layered canopy
         float s = size * 0.3f;
-        // Trunk
         var trunkColor = new Color((byte)100, (byte)70, (byte)40, tint.A);
+        var trunkShadow = new Color((byte)70, (byte)50, (byte)30, tint.A);
+        var canopyDark = new Color((byte)(tint.R * 0.8f), (byte)(tint.G * 0.8f), (byte)(tint.B * 0.7f), tint.A);
+        var snowColor = new Color((byte)255, (byte)255, (byte)255, (byte)100);
+
+        // Trunk shadow (right side)
+        Raylib.DrawRectangle((int)(cx + s * 0.05f), (int)(cy + s * 0.2f), (int)(s * 0.12f), (int)(s * 0.6f), trunkShadow);
+        // Trunk main
         Raylib.DrawRectangle((int)(cx - s * 0.15f), (int)(cy + s * 0.2f), (int)(s * 0.3f), (int)(s * 0.6f), trunkColor);
-        // Canopy
-        var v1 = new Vector2(cx, cy - s);
-        var v2 = new Vector2(cx - s * 0.8f, cy + s * 0.3f);
-        var v3 = new Vector2(cx + s * 0.8f, cy + s * 0.3f);
-        Raylib.DrawTriangle(v1, v3, v2, tint);
+
+        // Canopy - layered triangles for evergreen look
+        // Back/bottom layer (darker)
+        var v1 = new Vector2(cx, cy + s * 0.4f);
+        var v2 = new Vector2(cx - s * 0.9f, cy + s * 0.5f);
+        var v3 = new Vector2(cx + s * 0.9f, cy + s * 0.5f);
+        Raylib.DrawTriangle(v1, v3, v2, canopyDark);
+
+        // Mid layer
+        var v4 = new Vector2(cx, cy - s * 0.3f);
+        var v5 = new Vector2(cx - s * 0.75f, cy + s * 0.3f);
+        var v6 = new Vector2(cx + s * 0.75f, cy + s * 0.3f);
+        Raylib.DrawTriangle(v4, v6, v5, tint);
+
+        // Top layer (smallest)
+        var v7 = new Vector2(cx, cy - s);
+        var v8 = new Vector2(cx - s * 0.5f, cy - s * 0.1f);
+        var v9 = new Vector2(cx + s * 0.5f, cy - s * 0.1f);
+        Raylib.DrawTriangle(v7, v9, v8, tint);
+
+        // Snow accents on branches
+        Raylib.DrawRectangle((int)(cx - s * 0.35f), (int)(cy + s * 0.28f), (int)(s * 0.15f), (int)(s * 0.05f), snowColor);
+        Raylib.DrawRectangle((int)(cx + s * 0.25f), (int)(cy - s * 0.08f), (int)(s * 0.12f), (int)(s * 0.04f), snowColor);
     }
 
     private static void DrawRocks(float cx, float cy, float size, Color tint)
@@ -567,13 +630,41 @@ public class ProceduralIconRenderer : IIconRenderer
 
     private static void DrawTrail(float cx, float cy, float size, Color tint)
     {
-        // Brown dotted line
+        // Detailed worn path showing multiple footprints and trampled snow
         float s = size * 0.3f;
-        float dotSize = size * 0.08f;
-        Raylib.DrawCircle((int)(cx - s), (int)cy, dotSize, tint);
-        Raylib.DrawCircle((int)(cx - s * 0.33f), (int)(cy - s * 0.2f), dotSize, tint);
-        Raylib.DrawCircle((int)(cx + s * 0.33f), (int)(cy + s * 0.2f), dotSize, tint);
-        Raylib.DrawCircle((int)(cx + s), (int)cy, dotSize, tint);
+        var pathBaseColor = new Color((byte)(tint.R * 0.85f), (byte)(tint.G * 0.85f), (byte)(tint.B * 0.8f), tint.A);
+        var compressedColor = new Color((byte)(tint.R * 0.65f), (byte)(tint.G * 0.65f), (byte)(tint.B * 0.6f), tint.A);
+        var edgeColor = new Color((byte)(tint.R * 0.75f), (byte)(tint.G * 0.75f), (byte)(tint.B * 0.65f), (byte)(tint.A * 0.7f));
+        var snowPileColor = new Color((byte)Math.Min(255, tint.R + 25), (byte)Math.Min(255, tint.G + 25), (byte)Math.Min(255, tint.B + 20), (byte)(tint.A * 0.5f));
+
+        // Main trampled path base (wider irregular shape)
+        Raylib.DrawEllipse((int)(cx - s * 0.9f), (int)cy, s * 0.7f, s * 0.4f, pathBaseColor);
+        Raylib.DrawEllipse((int)(cx - s * 0.3f), (int)(cy - s * 0.05f), s * 0.8f, s * 0.45f, pathBaseColor);
+        Raylib.DrawEllipse((int)(cx + s * 0.4f), (int)(cy + s * 0.05f), s * 0.65f, s * 0.4f, pathBaseColor);
+
+        // Individual footprint depressions (darker compressed areas)
+        float footSize = size * 0.055f;
+        Raylib.DrawEllipse((int)(cx - s * 0.85f), (int)(cy - s * 0.12f), footSize * 1.3f, footSize * 0.9f, compressedColor);
+        Raylib.DrawEllipse((int)(cx - s * 0.5f), (int)(cy + s * 0.1f), footSize * 1.4f, footSize, compressedColor);
+        Raylib.DrawEllipse((int)(cx - s * 0.15f), (int)(cy - s * 0.08f), footSize * 1.2f, footSize * 0.85f, compressedColor);
+        Raylib.DrawEllipse((int)(cx + s * 0.25f), (int)(cy + s * 0.12f), footSize * 1.3f, footSize * 0.95f, compressedColor);
+        Raylib.DrawEllipse((int)(cx + s * 0.55f), (int)(cy - s * 0.05f), footSize * 1.2f, footSize * 0.9f, compressedColor);
+
+        // Pushed-aside snow banks on edges (lighter mounds)
+        Raylib.DrawEllipse((int)(cx - s * 0.85f), (int)(cy - s * 0.45f), s * 0.35f, s * 0.15f, snowPileColor);
+        Raylib.DrawEllipse((int)(cx - s * 0.2f), (int)(cy + s * 0.45f), s * 0.4f, s * 0.18f, snowPileColor);
+        Raylib.DrawEllipse((int)(cx + s * 0.5f), (int)(cy - s * 0.42f), s * 0.3f, s * 0.14f, snowPileColor);
+
+        // Path edge definition (irregular lines showing path boundary)
+        float edgeThickness = size * 0.025f;
+        // Top edge
+        Raylib.DrawLineEx(new Vector2(cx - s * 1.1f, cy - s * 0.35f), new Vector2(cx - s * 0.5f, cy - s * 0.28f), edgeThickness, edgeColor);
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.4f, cy - s * 0.32f), new Vector2(cx + s * 0.2f, cy - s * 0.3f), edgeThickness, edgeColor);
+        Raylib.DrawLineEx(new Vector2(cx + s * 0.3f, cy - s * 0.28f), new Vector2(cx + s * 0.9f, cy - s * 0.32f), edgeThickness, edgeColor);
+        // Bottom edge
+        Raylib.DrawLineEx(new Vector2(cx - s * 1.1f, cy + s * 0.35f), new Vector2(cx - s * 0.4f, cy + s * 0.38f), edgeThickness, edgeColor);
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.3f, cy + s * 0.35f), new Vector2(cx + s * 0.3f, cy + s * 0.4f), edgeThickness, edgeColor);
+        Raylib.DrawLineEx(new Vector2(cx + s * 0.4f, cy + s * 0.38f), new Vector2(cx + s * 0.9f, cy + s * 0.35f), edgeThickness, edgeColor);
     }
 
     private static void DrawOverlook(float cx, float cy, float size, Color tint)
@@ -637,13 +728,28 @@ public class ProceduralIconRenderer : IIconRenderer
 
     private static void DrawGrass(float cx, float cy, float size, Color tint)
     {
-        // Green blades
+        // Detailed grass tuft with multiple blades and base
         float s = size * 0.25f;
-        float thickness = size * 0.04f;
-        // Multiple grass blades
-        Raylib.DrawLineEx(new Vector2(cx - s * 0.5f, cy + s * 0.5f), new Vector2(cx - s * 0.7f, cy - s), thickness, tint);
-        Raylib.DrawLineEx(new Vector2(cx, cy + s * 0.5f), new Vector2(cx - s * 0.1f, cy - s * 1.1f), thickness, tint);
-        Raylib.DrawLineEx(new Vector2(cx + s * 0.5f, cy + s * 0.5f), new Vector2(cx + s * 0.6f, cy - s * 0.9f), thickness, tint);
+        float thickness = size * 0.03f;
+        var baseColor = new Color((byte)(tint.R * 0.7f), (byte)(tint.G * 0.7f), (byte)(tint.B * 0.6f), tint.A);
+        var lightColor = new Color((byte)Math.Min(255, tint.R + 20), (byte)Math.Min(255, tint.G + 30), (byte)Math.Min(255, tint.B + 10), tint.A);
+
+        // Base tuft (darker, wider)
+        float baseY = cy + s * 0.4f;
+        Raylib.DrawEllipse((int)cx, (int)baseY, s * 0.6f, s * 0.25f, baseColor);
+
+        // Back layer blades (darker)
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.6f, baseY), new Vector2(cx - s * 0.8f, cy - s * 0.8f), thickness, baseColor);
+        Raylib.DrawLineEx(new Vector2(cx + s * 0.6f, baseY), new Vector2(cx + s * 0.75f, cy - s * 0.7f), thickness, baseColor);
+
+        // Mid layer blades (main color)
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.4f, baseY), new Vector2(cx - s * 0.5f, cy - s * 1.0f), thickness * 1.2f, tint);
+        Raylib.DrawLineEx(new Vector2(cx, baseY), new Vector2(cx - s * 0.05f, cy - s * 1.2f), thickness * 1.2f, tint);
+        Raylib.DrawLineEx(new Vector2(cx + s * 0.4f, baseY), new Vector2(cx + s * 0.5f, cy - s * 0.95f), thickness * 1.2f, tint);
+
+        // Front layer blades (lighter, more prominent)
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.2f, baseY), new Vector2(cx - s * 0.25f, cy - s * 1.1f), thickness * 1.3f, lightColor);
+        Raylib.DrawLineEx(new Vector2(cx + s * 0.2f, baseY), new Vector2(cx + s * 0.3f, cy - s * 1.05f), thickness * 1.3f, lightColor);
     }
 
     private static void DrawNest(float cx, float cy, float size, Color tint)
@@ -681,13 +787,41 @@ public class ProceduralIconRenderer : IIconRenderer
 
     private static void DrawWindShelter(float cx, float cy, float size, Color tint)
     {
-        // Blue wind lines
+        // Rock wall or windbreak with wind flow lines showing protection
         float s = size * 0.3f;
-        float thickness = size * 0.04f;
-        // Curved wind lines (simplified as wavy lines)
-        Raylib.DrawLineEx(new Vector2(cx - s, cy - s * 0.5f), new Vector2(cx + s, cy - s * 0.5f), thickness, tint);
-        Raylib.DrawLineEx(new Vector2(cx - s * 0.8f, cy), new Vector2(cx + s * 0.8f, cy), thickness, tint);
-        Raylib.DrawLineEx(new Vector2(cx - s * 0.6f, cy + s * 0.5f), new Vector2(cx + s * 0.6f, cy + s * 0.5f), thickness, tint);
+        var rockColor = new Color((byte)(tint.R * 0.6f), (byte)(tint.G * 0.65f), (byte)(tint.B * 0.7f), tint.A);
+        var rockHighlight = new Color((byte)(tint.R * 0.8f), (byte)(tint.G * 0.85f), (byte)(tint.B * 0.9f), (byte)(tint.A * 0.7f));
+        var windFaded = new Color((byte)tint.R, (byte)tint.G, (byte)tint.B, (byte)(tint.A * 0.6f));
+        var windVeryFaded = new Color((byte)tint.R, (byte)tint.G, (byte)tint.B, (byte)(tint.A * 0.3f));
+
+        // Wind barrier structure (stacked rocks or snow wall) - left side
+        Raylib.DrawEllipse((int)(cx - s * 0.7f), (int)(cy + s * 0.3f), s * 0.35f, s * 0.4f, rockColor);
+        Raylib.DrawEllipse((int)(cx - s * 0.85f), (int)(cy - s * 0.15f), s * 0.3f, s * 0.35f, rockColor);
+        Raylib.DrawEllipse((int)(cx - s * 0.55f), (int)(cy - s * 0.25f), s * 0.32f, s * 0.38f, rockColor);
+        Raylib.DrawEllipse((int)(cx - s * 0.7f), (int)(cy - s * 0.6f), s * 0.28f, s * 0.3f, rockColor);
+
+        // Highlights on windbreak (showing dimensionality)
+        Raylib.DrawEllipse((int)(cx - s * 0.75f), (int)(cy - s * 0.65f), s * 0.15f, s * 0.12f, rockHighlight);
+        Raylib.DrawEllipse((int)(cx - s * 0.6f), (int)(cy - s * 0.3f), s * 0.12f, s * 0.1f, rockHighlight);
+
+        // Wind flow lines - strong on left (windward side)
+        float windThickness = size * 0.03f;
+        Raylib.DrawLineEx(new Vector2(cx - s * 1.1f, cy - s * 0.6f), new Vector2(cx - s * 0.9f, cy - s * 0.65f), windThickness, tint);
+        Raylib.DrawLineEx(new Vector2(cx - s * 1.1f, cy - s * 0.2f), new Vector2(cx - s * 0.85f, cy - s * 0.25f), windThickness, tint);
+        Raylib.DrawLineEx(new Vector2(cx - s * 1.1f, cy + s * 0.2f), new Vector2(cx - s * 0.75f, cy + s * 0.15f), windThickness, tint);
+        Raylib.DrawLineEx(new Vector2(cx - s * 1.1f, cy + s * 0.5f), new Vector2(cx - s * 0.7f, cy + s * 0.45f), windThickness * 0.9f, windFaded);
+
+        // Deflected wind lines above barrier (showing wind going up and over)
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.5f, cy - s * 0.75f), new Vector2(cx + s * 0.1f, cy - s * 0.85f), windThickness * 0.85f, windFaded);
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.3f, cy - s * 0.65f), new Vector2(cx + s * 0.4f, cy - s * 0.75f), windThickness * 0.75f, windFaded);
+
+        // Calm zone behind barrier (very faint lines showing reduced wind)
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.3f, cy - s * 0.1f), new Vector2(cx + s * 0.3f, cy - s * 0.08f), windThickness * 0.6f, windVeryFaded);
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.2f, cy + s * 0.2f), new Vector2(cx + s * 0.5f, cy + s * 0.22f), windThickness * 0.5f, windVeryFaded);
+        Raylib.DrawLineEx(new Vector2(cx - s * 0.15f, cy + s * 0.45f), new Vector2(cx + s * 0.6f, cy + s * 0.5f), windThickness * 0.45f, windVeryFaded);
+
+        // Sheltered indicator (small calm area marker)
+        Raylib.DrawCircle((int)(cx + s * 0.5f), (int)(cy + s * 0.05f), size * 0.04f, windVeryFaded);
     }
 
     private static void DrawDefault(float cx, float cy, float size, Color tint)

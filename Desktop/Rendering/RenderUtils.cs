@@ -119,7 +119,7 @@ public static class RenderUtils
         // Draw as triangle fan from first vertex
         for (int i = 1; i < points.Length - 1; i++)
         {
-            Raylib.DrawTriangle(points[0], points[i], points[i + 1], color);
+            Raylib.DrawTriangle(points[0], points[i + 1], points[i], color);
         }
     }
 
@@ -205,9 +205,9 @@ public static class RenderUtils
             float t = (float)i / segments;
             float x = startX + (endX - startX) * t;
 
-            // Quadratic curve: y = baseY - (peakY - baseY) * (4 * t * (1 - t))
+            // Quadratic curve: y = baseY - (baseY - peakY) * (4 * t * (1 - t))
             // This gives smooth arc peaking at t=0.5
-            float height = (peakY - baseY) * 4 * t * (1 - t);
+            float height = (baseY - peakY) * 4 * t * (1 - t);
             float y = baseY - height;
 
             points[i + 1] = new Vector2(x, y);

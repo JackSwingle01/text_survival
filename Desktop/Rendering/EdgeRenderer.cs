@@ -147,7 +147,7 @@ public static class EdgeRenderer
     /// </summary>
     private static void DrawRiver(float cx, float cy, float tileSize, bool isHorizontal, int worldX, int worldY)
     {
-        float length = tileSize * 0.8f;
+        float length = tileSize;  // Full edge length so segments connect
         float width = tileSize * 0.1f;
 
         // Wavy line using sine wave
@@ -160,17 +160,19 @@ public static class EdgeRenderer
             float t = (float)i / segments;
             float wave = MathF.Sin(t * MathF.PI * 3 + RenderUtils.SeededRandom(worldX, worldY, 100)) * waveAmp;
 
-            if (isHorizontal)
+            if (isHorizontal)  // Edge runs east-west (north/south tile boundary)
             {
-                points[i] = new Vector2(
-                    cx - length / 2 + t * length,
-                    cy + wave);
-            }
-            else
-            {
+                // Draw vertical river (north-south flow along the edge)
                 points[i] = new Vector2(
                     cx + wave,
                     cy - length / 2 + t * length);
+            }
+            else  // Edge runs north-south (east/west tile boundary)
+            {
+                // Draw horizontal river (east-west flow along the edge)
+                points[i] = new Vector2(
+                    cx - length / 2 + t * length,
+                    cy + wave);
             }
         }
 

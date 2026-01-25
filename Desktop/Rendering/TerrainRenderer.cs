@@ -384,7 +384,6 @@ public static class TerrainRenderer
     {
         var hillColor = new Color(90, 105, 115, 80);
         var hillShadowColor = new Color(70, 85, 95, 60);
-        var snowCapColor = new Color(255, 255, 255, 50);
         var rockColor = new Color(80, 85, 90, 70);
         var grassColor = new Color(100, 110, 90, 60);
 
@@ -408,17 +407,6 @@ public static class TerrainRenderer
 
             // Main mound
             RenderUtils.DrawQuadraticMound(hx - hw / 2, hx + hw / 2, baseY, peakY, hillColor);
-
-            // Snow cap using quadratic curve
-            float capWidth = hw * (0.3f + RenderUtils.SeededRandom(worldX, worldY, i + 15) * 0.2f);
-            float capPeakY = peakY - size * 0.02f;
-            RenderUtils.DrawQuadraticMound(
-                hx - capWidth / 2,
-                hx + capWidth / 2,
-                peakY,
-                capPeakY,
-                snowCapColor
-            );
 
             // Exposed rock patches on slopes (rotated ellipses)
             if (RenderUtils.SeededRandom(worldX, worldY, i + 20) > 0.5f)

@@ -596,8 +596,8 @@ public class GridWorldGenerator
     }
 
     /// <summary>
-    /// Generate rivers flowing north to south with gentle horizontal drift.
-    /// Creates TileEdge(EdgeType.River) between consecutive positions and tracks adjacent tiles.
+    /// Generate rivers flowing north to south along vertical tile edges.
+    /// Rivers flow ON edges (between columns), not through tile centers.
     /// </summary>
     private void GenerateRivers(GameMap map)
     {
@@ -608,59 +608,62 @@ public class GridWorldGenerator
 
         for (int r = 0; r < riverCount; r++)
         {
-            var path = GenerateRiverPath(usedStartX);
-            if (path.Count < 10) continue; // Skip too-short rivers
+            var edges = GenerateRiverEdges(usedStartX);
+            if (edges.Count < 10) continue; // Skip too-short rivers
 
-            // Create river edges along path
-            for (int i = 0; i < path.Count - 1; i++)
+            // Create river edges directly
+            foreach (var (pos1, pos2) in edges)
             {
-                map.AddEdge(path[i], path[i + 1], new Grid.TileEdge(Grid.EdgeType.River));
+                map.AddEdge(pos1, pos2, new Grid.TileEdge(Grid.EdgeType.River));
             }
 
             // Collect adjacent tiles for WaterFeature
-            CollectRiverAdjacentTiles(path);
+            CollectRiverAdjacentTiles(edges);
         }
     }
 
     /// <summary>
-    /// Generate a river path flowing from north to south.
-    /// Starts below mountain rows and flows with gentle horizontal drift.
+    /// Generate river edges flowing from north to south along vertical tile edges.
+    /// Rivers flow along the boundary between two columns (edgeX and edgeX+1).
+    /// Each edge is an East edge connecting horizontally adjacent tiles at the same row.
     /// </summary>
-    private List<GridPosition> GenerateRiverPath(HashSet<int> usedStartX)
+    private List<(GridPosition, GridPosition)> GenerateRiverEdges(HashSet<int> usedStartX)
     {
-        var path = new List<GridPosition>();
+        var edges = new List<(GridPosition, GridPosition)>();
 
-        // Find starting X position (below mountains, spaced from other rivers)
-        int startX = FindRiverStartX(usedStartX);
-        if (startX < 0) return path;
+        // Find starting column for the vertical edge (between edgeX and edgeX+1)
+        int edgeX = FindRiverStartX(usedStartX);
+        if (edgeX < 0 || edgeX >= Width - 1) return edges;
 
-        usedStartX.Add(startX);
-
-        int x = startX;
+        usedStartX.Add(edgeX);
         int lastDrift = 0; // Track last drift direction to prevent zigzag
 
         // Flow from just below mountains to bottom of map
         for (int y = MountainRows; y < Height; y++)
         {
-            // Skip positions that would go into mountains or invalid terrain
-            var terrain = _terrain[x, y];
-            if (terrain == TerrainType.Mountain) continue;
+            // Check if both tiles on either side of the edge are valid
+            if (_terrain[edgeX, y] == TerrainType.Mountain ||
+                _terrain[edgeX + 1, y] == TerrainType.Mountain)
+                continue;
 
-            path.Add(new GridPosition(x, y));
+            // Add the vertical edge at this row (between the two columns)
+            edges.Add((new GridPosition(edgeX, y), new GridPosition(edgeX + 1, y)));
 
-            // Determine horizontal drift for next step
-            // 40% chance to drift, but constrained to prevent sharp zigzag
+            // Drift: shift to a different vertical edge
             if (_rng.NextDouble() < 0.4)
             {
                 int drift = _rng.Next(2) == 0 ? -1 : 1;
 
-                // Prevent immediate reversal (zigzag) - only drift if same direction or was straight
+                // Prevent immediate reversal (zigzag)
                 if (lastDrift == 0 || drift == lastDrift)
                 {
-                    int newX = x + drift;
-                    if (newX >= 1 && newX < Width - 1 && _terrain[newX, y] != TerrainType.Mountain)
+                    int newEdgeX = edgeX + drift;
+                    // Ensure new edge is valid and both tiles exist
+                    if (newEdgeX >= 1 && newEdgeX < Width - 2 &&
+                        _terrain[newEdgeX, y] != TerrainType.Mountain &&
+                        _terrain[newEdgeX + 1, y] != TerrainType.Mountain)
                     {
-                        x = newX;
+                        edgeX = newEdgeX;
                         lastDrift = drift;
                     }
                 }
@@ -671,7 +674,7 @@ public class GridWorldGenerator
             }
         }
 
-        return path;
+        return edges;
     }
 
     /// <summary>
@@ -696,22 +699,16 @@ public class GridWorldGenerator
     }
 
     /// <summary>
-    /// Collect all tiles adjacent to the river path for WaterFeature addition.
+    /// Collect all tiles adjacent to the river edges for WaterFeature addition.
+    /// Both tiles on either side of each edge are adjacent to the river.
     /// </summary>
-    private void CollectRiverAdjacentTiles(List<GridPosition> path)
+    private void CollectRiverAdjacentTiles(List<(GridPosition, GridPosition)> edges)
     {
-        foreach (var pos in path)
+        foreach (var (pos1, pos2) in edges)
         {
-            // Add all orthogonal neighbors
-            foreach (var (dx, dy) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
-            {
-                int nx = pos.X + dx;
-                int ny = pos.Y + dy;
-                if (nx >= 0 && nx < Width && ny >= MountainRows && ny < Height)
-                {
-                    _riverAdjacentPositions.Add(new GridPosition(nx, ny));
-                }
-            }
+            // Both tiles on either side of the edge are adjacent to the river
+            _riverAdjacentPositions.Add(pos1);
+            _riverAdjacentPositions.Add(pos2);
         }
     }
 
