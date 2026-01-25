@@ -488,6 +488,47 @@ public static class TileRenderer
     }
 
     /// <summary>
+    /// Draw a progress bar with action label above an NPC sprite.
+    /// </summary>
+    public static void DrawActionProgressBar(float centerX, float centerY, float tileSize, float progress, string actionName)
+    {
+        // NPC is offset from center horizontally
+        float offsetX = tileSize * 0.15f;
+        float drawX = centerX + offsetX;
+
+        // NPC sprite top is at approximately centerY - tileSize * 0.12 (for 0.8 scale)
+        // Position bar just above that with small margin
+        float npcTop = centerY - tileSize * 0.12f;
+        float barY = npcTop - tileSize * 0.08f;
+
+        // Bar dimensions (smaller bar)
+        float barWidth = tileSize * 0.35f;
+        float barHeight = Math.Max(3f, tileSize * 0.035f);
+        float barX = drawX - barWidth / 2;
+
+        // Label above bar (smaller font)
+        int fontSize = Math.Max(8, (int)(tileSize * 0.09f));
+        int textWidth = Raylib.MeasureText(actionName, fontSize);
+        float textX = drawX - textWidth / 2;
+        float textY = barY - fontSize - 2;
+
+        // Draw label shadow + label
+        Raylib.DrawText(actionName, (int)(textX + 1), (int)(textY + 1), fontSize, new Color(0, 0, 0, 180));
+        Raylib.DrawText(actionName, (int)textX, (int)textY, fontSize, new Color(255, 255, 255, 230));
+
+        // Draw bar background
+        Raylib.DrawRectangle((int)barX, (int)barY, (int)barWidth, (int)barHeight, new Color(40, 40, 40, 180));
+
+        // Draw bar fill
+        int fillWidth = (int)(barWidth * Math.Clamp(progress, 0f, 1f));
+        if (fillWidth > 0)
+            Raylib.DrawRectangle((int)barX, (int)barY, fillWidth, (int)barHeight, new Color(80, 180, 140, 220));
+
+        // Draw bar border
+        Raylib.DrawRectangleLines((int)barX, (int)barY, (int)barWidth, (int)barHeight, new Color(60, 60, 60, 150));
+    }
+
+    /// <summary>
     /// Draw an animal icon on a tile.
     /// </summary>
     public static void DrawAnimalIcon(float centerX, float centerY, float tileSize, Actors.Animals.AnimalType animalType, int position)

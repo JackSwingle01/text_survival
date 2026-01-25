@@ -274,26 +274,36 @@ public static class DesktopRuntime
 
         ImGui.Begin($"Crafting {resultName}", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
 
-        // Two-column layout
-        ImGui.Columns(2, "CraftingColumns", true);
-        ImGui.SetColumnWidth(0, dialogWidth * 0.5f);
+        // Two-panel layout using child windows
+        float panelWidth = (dialogWidth - 30) * 0.5f;
+        float panelHeight = 120;
 
-        // Left column: Materials
+        // Left panel: Materials
+        ImGui.BeginChild("MaterialsPanel", new Vector2(panelWidth, panelHeight), ImGuiChildFlags.Borders);
         ImGui.Text("Materials");
         ImGui.Separator();
+
+        // Show each material unit on its own line
         foreach (var mat in materials)
         {
-            // Consumed items are dimmed
-            Vector4 color = mat.Remaining > 0
-                ? new Vector4(0.9f, 0.9f, 0.9f, 1f)
-                : new Vector4(0.5f, 0.5f, 0.5f, 0.4f);
-
-            ImGui.TextColored(color, $"{mat.Name}: {mat.Remaining}/{mat.Total}");
+            int consumed = mat.Total - mat.Remaining;
+            // Show consumed items with checkmark, dimmed
+            for (int i = 0; i < consumed; i++)
+            {
+                ImGui.TextColored(new Vector4(0.5f, 0.7f, 0.5f, 0.5f), $"  [x] {mat.Name}");
+            }
+            // Show remaining items
+            for (int i = 0; i < mat.Remaining; i++)
+            {
+                ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.9f, 1f), $"  [ ] {mat.Name}");
+            }
         }
+        ImGui.EndChild();
 
-        ImGui.NextColumn();
+        ImGui.SameLine();
 
-        // Right column: Result
+        // Right panel: Result
+        ImGui.BeginChild("ResultPanel", new Vector2(panelWidth, panelHeight), ImGuiChildFlags.Borders);
         ImGui.Text("Result");
         ImGui.Separator();
         if (isComplete)
@@ -309,8 +319,7 @@ public static class DesktopRuntime
             ImGui.TextWrapped(resultDescription);
             ImGui.PopStyleColor();
         }
-
-        ImGui.Columns(1);
+        ImGui.EndChild();
 
         // Progress bar
         ImGui.Spacing();
@@ -841,13 +850,17 @@ public static class BlockingDialog
         float animDuration = Math.Clamp(durationMinutes * 0.3f, 1.0f, 30.0f);
         float elapsed = 0;
         int simulatedMinutes = 0;
+        float lastFrameTime = (float)Raylib.GetTime();
 
         // Calculate total material count for consumption animation
         int totalMaterialCount = materials.Sum(m => m.Total);
 
         while (simulatedMinutes < durationMinutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
         {
-            float deltaTime = DesktopRuntime.BeginFrame();
+            // Calculate delta time manually before RenderCraftingProgressFrame calls BeginFrame
+            float currentTime = (float)Raylib.GetTime();
+            float deltaTime = currentTime - lastFrameTime;
+            lastFrameTime = currentTime;
             elapsed += deltaTime;
 
             // Calculate how many minutes to simulate this frame

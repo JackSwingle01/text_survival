@@ -18,6 +18,12 @@ public class CraftingOverlay
     private string? _message;
     private float _messageTimer;
 
+    /// <summary>
+    /// Stores a craft option that was requested but needs to be processed
+    /// outside the ImGui frame (to allow blocking animation).
+    /// </summary>
+    public CraftOption? PendingCraft { get; private set; }
+
     private static readonly Dictionary<NeedCategory, string> CategoryNames = new()
     {
         [NeedCategory.FireStarting] = "Fire",
@@ -291,80 +297,10 @@ public class CraftingOverlay
         {
             if (ImGui.Button("Craft", new Vector2(-1, 30)))
             {
-                // Build material state list for animation
-                var materialStates = option.Requirements.Select(req =>
-                    new CraftingMaterialState(GetMaterialDisplayName(req.Material), req.Count)).ToList();
-
-                // Show crafting progress animation (advances time, does NOT consume materials)
-                BlockingDialog.ShowCraftingProgress(
-                    ctx,
-                    option.Name,
-                    option.Description,
-                    option.CraftingTimeMinutes,
-                    materialStates);
-
-                // Handle feature-producing recipes (curing racks, shelters, etc.)
-                if (option.ProducesFeature)
-                {
-                    var feature = option.CraftFeature(inv);
-                    if (feature != null)
-                    {
-                        ctx.Camp.AddFeature(feature);
-                        _message = $"Built: {option.Name}";
-                        craftedItem = option.Name;
-                    }
-                }
-                else
-                {
-                    // Perform crafting for gear/materials (consumes materials, creates item)
-                    var result = option.Craft(inv);
-
-                    if (result != null)
-                    {
-                        // Handle different gear categories
-                        switch (result.Category)
-                        {
-                            case Items.GearCategory.Equipment:
-                                inv.Equip(result);
-                                _message = $"Equipped: {result.Name}";
-                                craftedItem = result.Name;
-                                break;
-
-                            case Items.GearCategory.Accessory:
-                                inv.Accessories.Add(result);
-                                _message = $"Crafted: {result.Name}";
-                                craftedItem = result.Name;
-                                break;
-
-                            case Items.GearCategory.Tool:
-                                if (result.IsWeapon)
-                                {
-                                    inv.EquipWeapon(result);
-                                    _message = $"Equipped: {result.Name}";
-                                }
-                                else
-                                {
-                                    inv.Tools.Add(result);
-                                    _message = $"Crafted: {result.Name}";
-                                }
-                                craftedItem = result.Name;
-                                break;
-                        }
-                    }
-                    else if (option.ProducesMaterials)
-                    {
-                        _message = $"Processed: {option.GetOutputDescription()}";
-                        craftedItem = option.Name;
-                    }
-                    else if (option.IsMendingRecipe)
-                    {
-                        _message = $"Repaired equipment";
-                        craftedItem = option.Name;
-                    }
-                }
-
-                _messageTimer = 3.0f;
-                // Note: Time already advanced in ShowCraftingProgress, no ctx.Update needed
+                // Store the pending craft and close overlay
+                // The animation will run outside the ImGui frame
+                PendingCraft = option;
+                IsOpen = false;
             }
         }
         else
@@ -405,5 +341,96 @@ public class CraftingOverlay
     {
         _message = message;
         _messageTimer = 3.0f;
+    }
+
+    /// <summary>
+    /// Process a pending craft action. Call this outside the ImGui frame
+    /// to allow the blocking animation to run properly.
+    /// Returns the crafted item name, or null if nothing was pending.
+    /// </summary>
+    public string? ProcessPendingCraft(GameContext ctx)
+    {
+        if (PendingCraft == null) return null;
+
+        var option = PendingCraft;
+        var inv = ctx.Inventory;
+        PendingCraft = null;
+
+        string? craftedItem = null;
+
+        // Build material state list for animation
+        var materialStates = option.Requirements.Select(req =>
+            new CraftingMaterialState(GetMaterialDisplayName(req.Material), req.Count)).ToList();
+
+        // Show crafting progress animation (advances time, does NOT consume materials)
+        BlockingDialog.ShowCraftingProgress(
+            ctx,
+            option.Name,
+            option.Description,
+            option.CraftingTimeMinutes,
+            materialStates);
+
+        // Handle feature-producing recipes (curing racks, shelters, etc.)
+        if (option.ProducesFeature)
+        {
+            var feature = option.CraftFeature(inv);
+            if (feature != null)
+            {
+                ctx.Camp.AddFeature(feature);
+                _message = $"Built: {option.Name}";
+                craftedItem = option.Name;
+            }
+        }
+        else
+        {
+            // Perform crafting for gear/materials (consumes materials, creates item)
+            var result = option.Craft(inv);
+
+            if (result != null)
+            {
+                // Handle different gear categories
+                switch (result.Category)
+                {
+                    case Items.GearCategory.Equipment:
+                        inv.Equip(result);
+                        _message = $"Equipped: {result.Name}";
+                        craftedItem = result.Name;
+                        break;
+
+                    case Items.GearCategory.Accessory:
+                        inv.Accessories.Add(result);
+                        _message = $"Crafted: {result.Name}";
+                        craftedItem = result.Name;
+                        break;
+
+                    case Items.GearCategory.Tool:
+                        if (result.IsWeapon)
+                        {
+                            inv.EquipWeapon(result);
+                            _message = $"Equipped: {result.Name}";
+                        }
+                        else
+                        {
+                            inv.Tools.Add(result);
+                            _message = $"Crafted: {result.Name}";
+                        }
+                        craftedItem = result.Name;
+                        break;
+                }
+            }
+            else if (option.ProducesMaterials)
+            {
+                _message = $"Processed: {option.GetOutputDescription()}";
+                craftedItem = option.Name;
+            }
+            else if (option.IsMendingRecipe)
+            {
+                _message = $"Repaired equipment";
+                craftedItem = option.Name;
+            }
+        }
+
+        _messageTimer = 3.0f;
+        return craftedItem;
     }
 }

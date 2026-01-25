@@ -170,6 +170,15 @@ public class WorldRenderer
             {
                 var screenPos = Camera.GetTileCenter(npcPos.X, npcPos.Y);
                 TileRenderer.DrawNPCIcon(screenPos.X, screenPos.Y, Camera.TileSize, npc.Name);
+
+                // Draw progress bar if NPC has active action with duration
+                if (npc.CurrentAction != null && npc.CurrentAction.DurationMinutes > 0)
+                {
+                    float progress = (float)npc.CurrentAction.MinutesSpent / npc.CurrentAction.DurationMinutes;
+                    TileRenderer.DrawActionProgressBar(
+                        screenPos.X, screenPos.Y, Camera.TileSize,
+                        progress, npc.CurrentAction.Name);
+                }
             }
         }
 
