@@ -291,6 +291,18 @@ public class CraftingOverlay
         {
             if (ImGui.Button("Craft", new Vector2(-1, 30)))
             {
+                // Build material state list for animation
+                var materialStates = option.Requirements.Select(req =>
+                    new CraftingMaterialState(GetMaterialDisplayName(req.Material), req.Count)).ToList();
+
+                // Show crafting progress animation (advances time, does NOT consume materials)
+                BlockingDialog.ShowCraftingProgress(
+                    ctx,
+                    option.Name,
+                    option.Description,
+                    option.CraftingTimeMinutes,
+                    materialStates);
+
                 // Handle feature-producing recipes (curing racks, shelters, etc.)
                 if (option.ProducesFeature)
                 {
@@ -304,7 +316,7 @@ public class CraftingOverlay
                 }
                 else
                 {
-                    // Perform crafting for gear/materials
+                    // Perform crafting for gear/materials (consumes materials, creates item)
                     var result = option.Craft(inv);
 
                     if (result != null)
@@ -352,9 +364,7 @@ public class CraftingOverlay
                 }
 
                 _messageTimer = 3.0f;
-
-                // Advance game time
-                ctx.Update(option.CraftingTimeMinutes, ActivityType.Crafting);
+                // Note: Time already advanced in ShowCraftingProgress, no ctx.Update needed
             }
         }
         else

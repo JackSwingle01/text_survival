@@ -32,7 +32,12 @@ public enum RewardPool
     AbandonedDen,       // Predator den scraps - bones, hide
 
     // Fishing
-    FishCatch           // Raw fish from fishing
+    FishCatch,          // Raw fish from fishing
+
+    // Elite pools
+    EliteShelter,       // Well-preserved abandoned camp
+    MegafaunaGraveyard, // Natural deposit of bones/hides
+    AncientCache        // Hidden high-value stash
 }
 
 public static class RewardGenerator
@@ -65,6 +70,9 @@ public static class RewardGenerator
             RewardPool.CharDeposit => GenerateCharDeposit(),
             RewardPool.AbandonedDen => GenerateAbandonedDen(),
             RewardPool.FishCatch => GenerateFishCatch(densityFactor),
+            RewardPool.EliteShelter => GenerateEliteShelter(),
+            RewardPool.MegafaunaGraveyard => GenerateMegafaunaGraveyard(),
+            RewardPool.AncientCache => GenerateAncientCache(),
             _ => new Inventory()
         };
     }
@@ -97,16 +105,20 @@ public static class RewardGenerator
     {
         var resources = new Inventory();
 
-        // Random tool left behind
-        var tools = new Func<Gear>[]
+        // Random tool left behind - with durability variance (30-70%)
+        var tool = Random.Shared.Next(4) switch
         {
-            () => Gear.Knife("Bone Knife"),
-            () => Gear.Axe("Stone Axe"),
-            () => Gear.Spear("Wooden Spear"),
-            () => Gear.Torch("Simple Torch")
+            0 => Gear.Knife("Bone Knife"),
+            1 => Gear.Axe("Stone Axe"),
+            2 => Gear.Spear("Wooden Spear"),
+            _ => Gear.Torch("Simple Torch")
         };
 
-        resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());
+        tool.Durability = Random.Shared.Next(
+            (int)(tool.MaxDurability * 0.3),
+            (int)(tool.MaxDurability * 0.7) + 1
+        );
+        resources.Tools.Add(tool);
 
         // Always both tinder and sticks (buffed from either/or)
         resources.Add(Resource.Tinder, RandomWeight(0.15, 0.3));
@@ -123,20 +135,26 @@ public static class RewardGenerator
     {
         var resources = new Inventory();
 
-        // Valuable tool - fire striker is most valuable
+        // Valuable tool - fire striker is most valuable, with durability variance (60-100%)
+        Gear tool;
         if (Random.Shared.Next(3) == 0)
         {
-            resources.Tools.Add(Gear.FireStriker("Flint and Steel"));
+            tool = Gear.FireStriker("Flint and Steel");
         }
         else
         {
-            var tools = new Func<Gear>[]
+            tool = Random.Shared.Next(2) switch
             {
-                () => Gear.Knife("Flint Knife"),
-                () => Gear.Axe("Flint Axe")
+                0 => Gear.Knife("Flint Knife"),
+                _ => Gear.Axe("Flint Axe")
             };
-            resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());
         }
+
+        tool.Durability = Random.Shared.Next(
+            (int)(tool.MaxDurability * 0.6),
+            (int)(tool.MaxDurability * 1.0) + 1
+        );
+        resources.Tools.Add(tool);
 
         // Better fuel (buffed from 1.5-2.5)
         resources.Add(RandomWoodType(), RandomWeight(2.0, 3.5));
@@ -311,15 +329,19 @@ public static class RewardGenerator
     {
         var resources = new Inventory();
 
-        // A damaged tool with limited durability (buffed +2 each)
-        var tools = new Func<Gear>[]
+        // A damaged tool with limited durability (20-60% range)
+        var tool = Random.Shared.Next(3) switch
         {
-            () => { var t = Gear.Knife("Worn Knife"); t.Durability = Random.Shared.Next(5, 11); return t; },
-            () => { var t = Gear.Axe("Damaged Axe"); t.Durability = Random.Shared.Next(4, 9); return t; },
-            () => { var t = Gear.Spear("Cracked Spear"); t.Durability = Random.Shared.Next(5, 11); return t; }
+            0 => Gear.Knife("Worn Knife"),
+            1 => Gear.Axe("Damaged Axe"),
+            _ => Gear.Spear("Cracked Spear")
         };
 
-        resources.Tools.Add(tools[Random.Shared.Next(tools.Length)]());
+        tool.Durability = Random.Shared.Next(
+            (int)(tool.MaxDurability * 0.2),
+            (int)(tool.MaxDurability * 0.6) + 1
+        );
+        resources.Tools.Add(tool);
 
         return resources;
     }
@@ -417,9 +439,16 @@ public static class RewardGenerator
         // Buffed weights
         resources.Add(Resource.Stick, RandomWeight(0.6, 1.0));          // +50%
 
-        // 50% chance of an abandoned spear with better durability (was 40% at dur 4)
+        // 50% chance of an abandoned spear with durability variance (30-70%)
         if (Random.Shared.NextDouble() < 0.5)
-            resources.Tools.Add(Gear.Spear("Crude Spear", durability: 6));
+        {
+            var spear = Gear.Spear("Crude Spear");
+            spear.Durability = Random.Shared.Next(
+                (int)(spear.MaxDurability * 0.3),
+                (int)(spear.MaxDurability * 0.7) + 1
+            );
+            resources.Tools.Add(spear);
+        }
 
         // 50% chance of bones (was 30%)
         if (Random.Shared.NextDouble() < 0.5)
@@ -499,5 +528,155 @@ public static class RewardGenerator
             resources.Add(Resource.Bone, RandomWeight(0.05, 0.1) * densityFactor);
 
         return resources;
+    }
+
+    // Elite loot pool generators
+
+    private static Inventory GenerateEliteShelter()
+    {
+        var inv = new Inventory();
+
+        // Guaranteed: good-condition tool (70-100% durability)
+        Gear tool = Random.Shared.Next(3) switch
+        {
+            0 => Gear.Knife("Flint Knife"),
+            1 => Gear.Axe("Flint Axe"),
+            _ => Gear.Spear("Wooden Spear")
+        };
+        tool.Durability = Random.Shared.Next(
+            (int)(tool.MaxDurability * 0.7),
+            (int)(tool.MaxDurability * 1.0) + 1
+        );
+        inv.Tools.Add(tool);
+
+        // Guaranteed: preserved food
+        inv.Add(Resource.DriedMeat, RandomWeight(0.8, 1.5));
+
+        // 25% chance: high-tier clothing (70-95% durability)
+        if (Random.Shared.NextDouble() < 0.25)
+        {
+            Gear clothing = Random.Shared.Next(2) switch
+            {
+                0 => Gear.BearHideChest("Bear Hide Coat", 150),
+                _ => Gear.MammothHideChest("Mammoth Hide Coat", 200)
+            };
+            clothing.Durability = Random.Shared.Next(
+                (int)(clothing.MaxDurability * 0.7),
+                (int)(clothing.MaxDurability * 0.95) + 1
+            );
+            if (clothing.Slot.HasValue)
+                inv.Equipment[clothing.Slot.Value] = clothing;
+        }
+
+        // 30% chance: capacity expansion (60-90% durability)
+        if (Random.Shared.NextDouble() < 0.3)
+        {
+            Gear bag = Random.Shared.Next(2) switch
+            {
+                0 => Gear.LargeBag(100),
+                _ => Gear.ProperBelt(150)
+            };
+            bag.Durability = Random.Shared.Next(
+                (int)(bag.MaxDurability * 0.6),
+                (int)(bag.MaxDurability * 0.9) + 1
+            );
+            inv.Tools.Add(bag);
+        }
+
+        // Materials
+        inv.Add(Resource.CuredHide, RandomWeight(0.5, 1.0));
+        if (Random.Shared.NextDouble() < 0.5)
+            inv.Add(Resource.Sinew, RandomWeight(0.2, 0.4));
+
+        return inv;
+    }
+
+    private static Inventory GenerateMegafaunaGraveyard()
+    {
+        var inv = new Inventory();
+
+        // Guaranteed: bones (3-6 pieces)
+        int boneCount = Random.Shared.Next(3, 7);
+        for (int i = 0; i < boneCount; i++)
+            inv.Add(Resource.Bone, RandomWeight(0.4, 0.8));
+
+        // Guaranteed: mammoth hide material
+        inv.Add(Resource.MammothHide, RandomWeight(1.5, 2.5));
+
+        // 60% chance: ivory
+        if (Random.Shared.NextDouble() < 0.6)
+            inv.Add(Resource.Ivory, RandomWeight(0.5, 1.2));
+
+        // 25% chance: intact mammoth hide clothing (50-80% durability)
+        if (Random.Shared.NextDouble() < 0.25)
+        {
+            Gear clothing = Random.Shared.Next(2) switch
+            {
+                0 => Gear.MammothHideChest("Ancient Mammoth Coat", 200),
+                _ => Gear.MammothHideLegs("Ancient Mammoth Leggings", 200)
+            };
+            clothing.Durability = Random.Shared.Next(
+                (int)(clothing.MaxDurability * 0.5),
+                (int)(clothing.MaxDurability * 0.8) + 1
+            );
+            if (clothing.Slot.HasValue)
+                inv.Equipment[clothing.Slot.Value] = clothing;
+        }
+
+        return inv;
+    }
+
+    private static Inventory GenerateAncientCache()
+    {
+        var inv = new Inventory();
+
+        // Guaranteed: high-quality tool (80-100% durability)
+        Gear tool = Random.Shared.Next(3) switch
+        {
+            0 => Gear.BowDrill("Quality Bow Drill"),
+            1 => Gear.FireStriker("Flint and Steel"),
+            _ => Gear.Knife("Flint Knife")
+        };
+        tool.Durability = Random.Shared.Next(
+            (int)(tool.MaxDurability * 0.8),
+            (int)(tool.MaxDurability * 1.0) + 1
+        );
+        inv.Tools.Add(tool);
+
+        // 40% chance: fishing gear (60-90% durability)
+        if (Random.Shared.NextDouble() < 0.4)
+        {
+            Gear fishing = Random.Shared.Next(2) switch
+            {
+                0 => Gear.FishingRod("Fishing Rod", 15),
+                _ => Gear.FishingNet("Fishing Net", 8)
+            };
+            fishing.Durability = Random.Shared.Next(
+                (int)(fishing.MaxDurability * 0.6),
+                (int)(fishing.MaxDurability * 0.9) + 1
+            );
+            inv.Tools.Add(fishing);
+        }
+
+        // 30% chance: large waterskin (70-100% durability)
+        if (Random.Shared.NextDouble() < 0.3)
+        {
+            var waterskin = Gear.WaterContainer("Large Waterskin", weight: 0.4);
+            waterskin.Durability = Random.Shared.Next(
+                (int)(waterskin.MaxDurability * 0.7),
+                (int)(waterskin.MaxDurability * 1.0) + 1
+            );
+            inv.Tools.Add(waterskin);
+        }
+
+        // Fire materials
+        inv.Add(Resource.Tinder, RandomWeight(0.3, 0.6));
+        inv.Add(Resource.BirchBark, RandomWeight(0.1, 0.2));
+
+        // Preserved food
+        if (Random.Shared.NextDouble() < 0.5)
+            inv.Add(Resource.DriedMeat, RandomWeight(0.5, 1.0));
+
+        return inv;
     }
 }

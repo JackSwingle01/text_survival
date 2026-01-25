@@ -52,8 +52,11 @@ public class RewardGeneratorTests
         // Assert
         Assert.Single(result.Tools);
         var tool = result.Tools[0];
-        Assert.True(tool.Durability >= 4 && tool.Durability <= 10,
-            "Scrap tool should have durability between 4 and 10");
+        // Scrap tools should have 20-60% durability
+        double minDurability = tool.MaxDurability * 0.2;
+        double maxDurability = tool.MaxDurability * 0.6;
+        Assert.True(tool.Durability >= minDurability && tool.Durability <= maxDurability + 1,
+            $"Scrap tool should have durability between {minDurability} and {maxDurability} (20-60% of max)");
     }
 
     [Fact]

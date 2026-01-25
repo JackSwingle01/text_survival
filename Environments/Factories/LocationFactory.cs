@@ -618,6 +618,26 @@ public static class LocationFactory
             revealAtHours: 2.0,
             DiscoveryCategory.Minor));
 
+        // Multi-container elite location: sacred center and offering stones
+
+        // Sacred center - offerings and materials
+        location.Features.Add(SalvageFeature.FromRewardPool(
+            "sacred_center", "Sacred Center",
+            RewardPool.MedicinalForage,
+            discoveryText: "The grove's heart. Old offerings remain.",
+            narrativeHook: "The tribe left gifts to the spirits here.",
+            minutes: 40
+        ));
+
+        // Offering stones - small finds
+        location.Features.Add(SalvageFeature.FromRewardPool(
+            "offering_stones", "Offering Stones",
+            RewardPool.CraftingMaterials,
+            discoveryText: "Stacked stones mark ritual sites.",
+            narrativeHook: "Small tokens and materials left as offerings.",
+            minutes: 20
+        ));
+
         return location;
     }
 
@@ -826,6 +846,26 @@ public static class LocationFactory
             revealAtHours: 2.0,
             DiscoveryCategory.Major));
 
+        // Multi-container elite location: den floor and back cave
+
+        // Den floor - bones and remains from kills
+        location.Features.Add(SalvageFeature.FromRewardPool(
+            "den_floor", "Den Floor",
+            RewardPool.MegafaunaGraveyard,
+            discoveryText: "Bones litter the cave floor. Years of kills.",
+            narrativeHook: "Some of this might be usable.",
+            minutes: 45
+        ));
+
+        // Back cave - bear's food cache
+        location.Features.Add(SalvageFeature.FromRewardPool(
+            "back_cache", "Deep Cave Cache",
+            RewardPool.BoneHarvest,
+            discoveryText: "The cave narrows. Cached bones in the back.",
+            narrativeHook: "The bear stored food here.",
+            minutes: 25
+        ));
+
         return location;
     }
 
@@ -910,6 +950,15 @@ public static class LocationFactory
 
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.4));
 
+        // Signal supplies left by previous watchers
+        location.Features.Add(SalvageFeature.FromRewardPool(
+            "lookout_supplies", "Abandoned Supplies",
+            RewardPool.AncientCache,
+            discoveryText: "At the tree's base: a weathered pack.",
+            narrativeHook: "The last watcher left supplies behind.",
+            minutes: 35
+        ));
+
         return location;
     }
 
@@ -948,62 +997,25 @@ public static class LocationFactory
             FirstVisitEvent = GameEventRegistry.FirstVisitOldCampsite
         };
 
-        // Create enhanced salvage based on story
-        var salvage = new SalvageFeature("old_camp_salvage", "Camp Remnants")
-        {
-            DiscoveryText = "Signs of habitation. Might be something useful left.",
-            NarrativeHook = narrativeHook,
-            MinutesToSalvage = 30
-        };
+        // Multi-container elite location: main camp and hidden cache
 
-        // Base loot
-        salvage.Resources.Add(Resource.Stick,0.4);
-        salvage.Resources.Add(Resource.Tinder,0.08);
-        salvage.Resources.Add(Resource.Charcoal,0.1);
+        // Main camp - best loot
+        location.Features.Add(SalvageFeature.FromRewardPool(
+            "main_camp", "Main Camp Area",
+            RewardPool.EliteShelter,
+            discoveryText: $"The camp's main living area. {narrativeHook}",
+            narrativeHook: "Someone capable lived here. Their gear might remain.",
+            minutes: 45
+        ));
 
-        // Story-specific loot
-        switch (extraLoot)
-        {
-            case "predator_attack":
-                salvage.Resources.Add(Resource.Bone,0.3);
-                salvage.Resources.Add(Resource.Hide,0.4);
-                if (Utils.DetermineSuccess(0.3))
-                    salvage.Tools.Add(Gear.Knife("Bloodied Knife", 4));
-                break;
-            case "fled":
-                if (Utils.DetermineSuccess(0.5))
-                    salvage.Tools.Add(Gear.Axe("Dropped Hand Axe", 6));
-                salvage.Resources.Add(Resource.PlantFiber,0.2);
-                break;
-            case "never_returned":
-                salvage.Resources.Add(Resource.Pine, 1.5);
-                salvage.Resources.Add(Resource.Birch, 1.5);
-                salvage.Resources.Add(Resource.Oak, 1.5);
-                if (Utils.DetermineSuccess(0.4))
-                {
-                    var coat = new Gear
-                    {
-                        Name = "Cached Coat",
-                        Category = GearCategory.Equipment,
-                        Slot = EquipSlot.Chest,
-                        Weight = 1.8,
-                        BaseInsulation = 0.12,
-                        Durability = 60,
-                        MaxDurability = 80
-                    };
-                    salvage.Equipment.Add(coat);
-                }
-                break;
-            case "counted_days":
-                salvage.Resources.Add(Resource.Stone,0.3);
-                if (Utils.DetermineSuccess(0.3))
-                    salvage.Tools.Add(Gear.HandDrill("Worn Hand Drill", 5));
-                break;
-            default:
-                salvage.Resources.Add(Resource.PlantFiber,0.15);
-                break;
-        }
-        location.Features.Add(salvage);
+        // Hidden cache - tools and fire materials
+        location.Features.Add(SalvageFeature.FromRewardPool(
+            "hidden_cache", "Hidden Cache",
+            RewardPool.AncientCache,
+            discoveryText: "A pile of rocks looks deliberate. A cache?",
+            narrativeHook: "They hid their best tools here.",
+            minutes: 30
+        ));
 
         // Collapsed shelter can be repaired
         location.Features.Add(new ShelterFeature("Collapsed Lean-to", ShelterType.BranchFrame, 0.15, 0.3, 0.25));
@@ -2497,6 +2509,26 @@ public static class LocationFactory
         location.Features.Add(new ShelterFeature("Rock Shelter", ShelterType.NaturalShelter,
             0.5, 0.9, 0.8, insulationCap: 0.65, overheadCap: 0.95, windCap: 0.90));
         location.Features.Add(SalvageFeature.CreateAbandonedCamp());
+
+        // Multi-container elite location: shelter floor and tool stash
+
+        // Shelter floor - someone lived here
+        location.Features.Add(SalvageFeature.FromRewardPool(
+            "shelter_remains", "Shelter Floor",
+            RewardPool.EliteShelter,
+            discoveryText: "The rock overhang shows signs of long habitation.",
+            narrativeHook: "They weathered storms here. What did they leave?",
+            minutes: 40
+        ));
+
+        // Tool stash under rocks
+        location.Features.Add(SalvageFeature.FromRewardPool(
+            "tool_stash", "Hidden Tool Cache",
+            RewardPool.ScrapTool,
+            discoveryText: "Flat stones hide a small cache underneath.",
+            narrativeHook: "Emergency backup tools.",
+            minutes: 20
+        ));
 
         return location;
     }

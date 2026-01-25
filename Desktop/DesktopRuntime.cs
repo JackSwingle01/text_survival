@@ -236,6 +236,107 @@ public static class DesktopRuntime
         ResourceCategory.Tinder => new Vector4(0.9f, 0.7f, 0.5f, 1f),    // Orange
         _ => new Vector4(0.7f, 0.7f, 0.7f, 1f)                           // Gray
     };
+
+    /// <summary>
+    /// Render a single frame of crafting progress. Pure display - no game logic.
+    /// </summary>
+    public static bool RenderCraftingProgressFrame(
+        GameContext ctx,
+        List<CraftingMaterialState> materials,
+        string resultName,
+        string resultDescription,
+        int simulatedMinutes,
+        int totalMinutes,
+        bool isComplete)
+    {
+        float deltaTime = BeginFrame();
+        float progress = (float)simulatedMinutes / totalMinutes;
+
+        Raylib.BeginDrawing();
+        Raylib.ClearBackground(new Color(20, 25, 30, 255));
+
+        WorldRenderer?.Update(ctx, deltaTime);
+        WorldRenderer?.Render(ctx);
+
+        Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
+            new Color(0, 0, 0, 128));
+
+        rlImGui.Begin();
+
+        UI.StatsPanel.Render(ctx);
+
+        // Progress dialog with two-panel layout
+        var io = ImGui.GetIO();
+        float dialogWidth = Math.Min(io.DisplaySize.X * 0.35f, 500);
+        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X * 0.5f, io.DisplaySize.Y * 0.5f),
+            ImGuiCond.Always, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowSize(new Vector2(dialogWidth, 0), ImGuiCond.Always);
+
+        ImGui.Begin($"Crafting {resultName}", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
+
+        // Two-column layout
+        ImGui.Columns(2, "CraftingColumns", true);
+        ImGui.SetColumnWidth(0, dialogWidth * 0.5f);
+
+        // Left column: Materials
+        ImGui.Text("Materials");
+        ImGui.Separator();
+        foreach (var mat in materials)
+        {
+            // Consumed items are dimmed
+            Vector4 color = mat.Remaining > 0
+                ? new Vector4(0.9f, 0.9f, 0.9f, 1f)
+                : new Vector4(0.5f, 0.5f, 0.5f, 0.4f);
+
+            ImGui.TextColored(color, $"{mat.Name}: {mat.Remaining}/{mat.Total}");
+        }
+
+        ImGui.NextColumn();
+
+        // Right column: Result
+        ImGui.Text("Result");
+        ImGui.Separator();
+        if (isComplete)
+        {
+            ImGui.TextColored(new Vector4(0.5f, 1f, 0.5f, 1f), resultName);
+            ImGui.TextWrapped(resultDescription);
+        }
+        else
+        {
+            // Dimmed preview until complete
+            ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 0.5f), resultName);
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 0.4f));
+            ImGui.TextWrapped(resultDescription);
+            ImGui.PopStyleColor();
+        }
+
+        ImGui.Columns(1);
+
+        // Progress bar
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+        ImGui.ProgressBar(progress, new Vector2(-1, 20),
+            $"{simulatedMinutes}/{totalMinutes} min");
+
+        // Show Continue button when complete
+        bool continueClicked = false;
+        if (isComplete)
+        {
+            ImGui.Spacing();
+            if (ImGui.Button("Continue [Enter]", new Vector2(-1, 30)) || Raylib.IsKeyPressed(KeyboardKey.Enter))
+            {
+                continueClicked = true;
+            }
+        }
+
+        ImGui.End();
+
+        rlImGui.End();
+        Raylib.EndDrawing();
+
+        return continueClicked;
+    }
 }
 
 /// <summary>
@@ -726,6 +827,98 @@ public static class BlockingDialog
     };
 
     /// <summary>
+    /// Show a crafting progress animation where materials disappear and the item appears.
+    /// Simulates time passing without event interruption (crafting at camp).
+    /// </summary>
+    public static void ShowCraftingProgress(
+        GameContext ctx,
+        string itemName,
+        string itemDescription,
+        int durationMinutes,
+        List<CraftingMaterialState> materials)
+    {
+        // ~0.3 seconds per in-game minute, clamped to reasonable bounds
+        float animDuration = Math.Clamp(durationMinutes * 0.3f, 1.0f, 30.0f);
+        float elapsed = 0;
+        int simulatedMinutes = 0;
+
+        // Calculate total material count for consumption animation
+        int totalMaterialCount = materials.Sum(m => m.Total);
+
+        while (simulatedMinutes < durationMinutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
+        {
+            float deltaTime = DesktopRuntime.BeginFrame();
+            elapsed += deltaTime;
+
+            // Calculate how many minutes to simulate this frame
+            float minutesPerSecond = durationMinutes / animDuration;
+            int targetMinutes = Math.Min((int)(elapsed * minutesPerSecond), durationMinutes);
+
+            // Simulate any pending minutes (no event checks - crafting at camp)
+            while (simulatedMinutes < targetMinutes && ctx.player.IsAlive)
+            {
+                ctx.UpdateWithoutEvents(1, ActivityType.Crafting);
+                simulatedMinutes++;
+            }
+
+            // Update material consumption animation
+            // Materials disappear across first 80% of progress
+            float progressPct = (float)simulatedMinutes / durationMinutes;
+            float consumptionProgress = Math.Min(progressPct / 0.8f, 1.0f);
+
+            // Consume materials one by one in order
+            int totalConsumed = (int)(totalMaterialCount * consumptionProgress);
+            int remainingToConsume = totalConsumed;
+            foreach (var mat in materials)
+            {
+                int consumeFromThis = Math.Min(remainingToConsume, mat.Total);
+                mat.Remaining = mat.Total - consumeFromThis;
+                remainingToConsume -= consumeFromThis;
+            }
+
+            bool isComplete = simulatedMinutes >= durationMinutes;
+
+            // Render the frame
+            bool continueClicked = DesktopRuntime.RenderCraftingProgressFrame(
+                ctx,
+                materials,
+                itemName,
+                itemDescription,
+                simulatedMinutes,
+                durationMinutes,
+                isComplete);
+
+            // If complete and continue clicked, exit
+            if (isComplete && continueClicked)
+            {
+                break;
+            }
+        }
+
+        // Wait for continue button if not already clicked
+        while (!Raylib.WindowShouldClose())
+        {
+            // Ensure all materials show as consumed
+            foreach (var mat in materials)
+            {
+                mat.Remaining = 0;
+            }
+
+            bool clicked = DesktopRuntime.RenderCraftingProgressFrame(
+                ctx,
+                materials,
+                itemName,
+                itemDescription,
+                durationMinutes,
+                durationMinutes,
+                true);
+
+            if (clicked)
+                break;
+        }
+    }
+
+    /// <summary>
     /// Show a progress bar for event time costs.
     /// Similar to ShowProgress but doesn't check for event interruption (we're already in an event).
     /// Simulates time passing minute-by-minute so the player "feels" the time cost.
@@ -785,5 +978,22 @@ public static class BlockingDialog
             rlImGui.End();
             Raylib.EndDrawing();
         }
+    }
+}
+
+/// <summary>
+/// Tracks the display state of a material during crafting animation.
+/// </summary>
+public class CraftingMaterialState
+{
+    public string Name { get; init; }
+    public int Total { get; init; }
+    public int Remaining { get; set; }
+
+    public CraftingMaterialState(string name, int total)
+    {
+        Name = name;
+        Total = total;
+        Remaining = total;
     }
 }

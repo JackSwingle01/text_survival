@@ -47,6 +47,16 @@ public class GridWorldGenerator
         [(0, 0), (1, 0), (2, 0), (1, 1)],            // quad_t
     ];
 
+    // Elite locations that should only spawn in outer 20% of map
+    private static readonly HashSet<Func<Weather, Location>> EliteLocationFactories =
+    [
+        LocationFactory.MakeOldCampsite,
+        LocationFactory.MakeBearCave,
+        LocationFactory.MakeTheLookout,
+        LocationFactory.MakeRockShelter,
+        LocationFactory.MakeAncientGrove
+    ];
+
     // Location type weights with preferred terrain types
     // null terrain means location can be placed anywhere
     private static readonly List<(Func<Weather, Location> Factory, double Weight, TerrainType[]? PreferredTerrain)> LocationWeights =
@@ -776,12 +786,17 @@ public class GridWorldGenerator
     /// <summary>
     /// Place named locations across the map using terrain-aware selection.
     /// Locations are matched to their preferred terrain types.
+    /// Elite locations only spawn in outer 20% of map (far from camp).
     /// </summary>
     private void PlaceNamedLocations(GameMap map, Weather weather, GridPosition campPos)
     {
         var placedPositions = new List<GridPosition> { campPos };
         int attempts = 0;
         int maxAttempts = TargetNamedLocations * 10;
+
+        // Calculate outer ring threshold (inner 80% of area = outer 20%)
+        double maxRadius = Math.Min(Width, Height) / 2.0;  // 24 tiles for 48x48 map
+        double minEliteDistance = maxRadius * Math.Sqrt(0.8);  // ~21.5 tiles
 
         while (placedPositions.Count <= TargetNamedLocations && attempts < maxAttempts)
         {
@@ -802,9 +817,13 @@ public class GridWorldGenerator
             if (tooClose)
                 continue;
 
+            // Calculate distance from camp and determine if elite locations allowed
+            double distanceFromCamp = pos.DistanceTo(campPos);
+            bool allowElite = distanceFromCamp >= minEliteDistance;
+
             // Get the terrain at this position and generate a matching location
             var terrain = _terrain[x, y];
-            var namedLocation = GenerateLocationForTerrain(weather, terrain);
+            var namedLocation = GenerateLocationForTerrain(weather, terrain, allowElite);
 
             if (namedLocation == null)
                 continue; // No suitable location for this terrain
@@ -825,13 +844,22 @@ public class GridWorldGenerator
     /// <summary>
     /// Generate a location that matches the given terrain type.
     /// Uses weighted selection filtered to locations that prefer this terrain.
+    /// If allowElite is false, filters out elite locations.
     /// </summary>
-    private Location? GenerateLocationForTerrain(Weather weather, TerrainType terrain)
+    private Location? GenerateLocationForTerrain(Weather weather, TerrainType terrain, bool allowElite)
     {
         // Filter to locations that prefer this terrain
         var validLocations = LocationWeights
             .Where(l => l.PreferredTerrain != null && l.PreferredTerrain.Contains(terrain))
             .ToList();
+
+        // If not allowing elite, filter them out
+        if (!allowElite)
+        {
+            validLocations = validLocations
+                .Where(l => !EliteLocationFactories.Contains(l.Factory))
+                .ToList();
+        }
 
         if (validLocations.Count == 0)
             return null;
