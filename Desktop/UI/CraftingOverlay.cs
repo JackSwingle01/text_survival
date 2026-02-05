@@ -120,8 +120,10 @@ public class CraftingOverlay
         foreach (var category in categories)
         {
             bool selected = _selectedCategory == category;
-            var options = crafting.GetOptionsForNeed(category, ctx.Inventory);
+            // Use discovery-filtered options
+            var options = crafting.GetDiscoveredOptionsForNeed(category, ctx.Inventory, ctx.Discoveries);
             int craftableCount = options.Count(o => o.CanCraft(ctx.Inventory));
+            int hiddenCount = crafting.GetHiddenRecipeCount(category, ctx.Discoveries);
 
             // Color based on availability
             Vector4 buttonColor;
@@ -145,11 +147,14 @@ public class CraftingOverlay
                 _selectedOption = null;
             }
 
-            // Show craftable count in tooltip instead of label
-            if (ImGui.IsItemHovered() && craftableCount > 0)
+            // Show craftable count and hidden count in tooltip
+            if (ImGui.IsItemHovered())
             {
                 ImGui.BeginTooltip();
-                ImGui.Text($"{craftableCount} craftable");
+                if (craftableCount > 0)
+                    ImGui.Text($"{craftableCount} craftable");
+                if (hiddenCount > 0)
+                    ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), $"{hiddenCount} locked");
                 ImGui.EndTooltip();
             }
 
@@ -163,50 +168,86 @@ public class CraftingOverlay
 
     private void RenderRecipeList(GameContext ctx, NeedCraftingSystem crafting)
     {
-        var options = crafting.GetOptionsForNeed(_selectedCategory, ctx.Inventory, showAll: true);
+        // Get discovered (visible) recipes
+        var discoveredOptions = crafting.GetDiscoveredOptionsForNeed(_selectedCategory, ctx.Inventory, ctx.Discoveries);
 
-        if (options.Count == 0)
+        // Get locked recipes grouped by missing resource
+        var lockedByResource = crafting.GetLockedRecipesByMissingResource(_selectedCategory, ctx.Discoveries);
+
+        if (discoveredOptions.Count == 0 && lockedByResource.Count == 0)
         {
             ImGui.TextDisabled("No recipes in this category.");
             return;
         }
 
-        ImGui.Text($"{CategoryNames.GetValueOrDefault(_selectedCategory, _selectedCategory.ToString())} Recipes:");
-        ImGui.Separator();
-
-        foreach (var option in options)
+        // Render discovered recipes
+        if (discoveredOptions.Count > 0)
         {
-            bool canCraft = option.CanCraft(ctx.Inventory);
-            bool isSelected = _selectedOption == option;
+            ImGui.Text($"{CategoryNames.GetValueOrDefault(_selectedCategory, _selectedCategory.ToString())} Recipes:");
+            ImGui.Separator();
 
-            // Color based on craftability
-            Vector4 textColor;
-            if (isSelected)
-                textColor = new Vector4(1f, 1f, 0.8f, 1f);
-            else if (canCraft)
-                textColor = new Vector4(0.5f, 1f, 0.5f, 1f);
-            else
-                textColor = new Vector4(0.6f, 0.6f, 0.6f, 1f);
-
-            ImGui.PushStyleColor(ImGuiCol.Text, textColor);
-
-            string label = option.Name;
-            if (canCraft)
-                label = "[+] " + label;
-
-            if (ImGui.Selectable(label, isSelected))
+            foreach (var option in discoveredOptions)
             {
-                _selectedOption = option;
+                bool canCraft = option.CanCraft(ctx.Inventory);
+                bool isSelected = _selectedOption == option;
+
+                // Color based on craftability
+                Vector4 textColor;
+                if (isSelected)
+                    textColor = new Vector4(1f, 1f, 0.8f, 1f);
+                else if (canCraft)
+                    textColor = new Vector4(0.5f, 1f, 0.5f, 1f);
+                else
+                    textColor = new Vector4(0.6f, 0.6f, 0.6f, 1f);
+
+                ImGui.PushStyleColor(ImGuiCol.Text, textColor);
+
+                string label = option.Name;
+                if (canCraft)
+                    label = "[+] " + label;
+
+                if (ImGui.Selectable(label, isSelected))
+                {
+                    _selectedOption = option;
+                }
+
+                ImGui.PopStyleColor();
+
+                // Show brief requirement on hover
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.Text(option.Description);
+                    ImGui.EndTooltip();
+                }
             }
+        }
 
-            ImGui.PopStyleColor();
+        // Render locked recipes grouped by missing resource
+        if (lockedByResource.Count > 0)
+        {
+            ImGui.Spacing();
+            ImGui.Separator();
 
-            // Show brief requirement on hover
-            if (ImGui.IsItemHovered())
+            foreach (var (missingResource, lockedRecipes) in lockedByResource.OrderBy(kvp => kvp.Key.ToDisplayName()))
             {
-                ImGui.BeginTooltip();
-                ImGui.Text(option.Description);
-                ImGui.EndTooltip();
+                // Section header for missing resource
+                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), $"Find {missingResource.ToDisplayName()} to unlock:");
+
+                foreach (var recipe in lockedRecipes)
+                {
+                    ImGui.TextColored(new Vector4(0.4f, 0.4f, 0.4f, 1f), $"  ??? {recipe.Name}");
+
+                    // Show what the recipe makes on hover
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        ImGui.Text(recipe.Description);
+                        ImGui.EndTooltip();
+                    }
+                }
+
+                ImGui.Spacing();
             }
         }
     }

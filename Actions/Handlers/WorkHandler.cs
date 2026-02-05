@@ -31,7 +31,7 @@ public static class WorkHandler
             return new Inventory();
 
         double hours = minutesToSpend / 60.0;
-        var found = feature.Forage(hours);
+        var (found, _) = feature.Forage(hours);  // NPCs don't use luck tier
 
         // Apply modifiers
         if (!hasLight && location.IsDark)

@@ -9,6 +9,7 @@ namespace text_survival.Discovery;
 /// <summary>
 /// Tracks player discoveries throughout a run for the Discovery Log system.
 /// Five categories: Locations, Beasts, Provisions (food), Medicine, Works (crafted items).
+/// Also tracks discovered resources for recipe unlocking (The Long Dark-style progression).
 /// Binary tracking: either discovered or unknown (shown as ???).
 /// </summary>
 public class DiscoveryLog
@@ -18,6 +19,88 @@ public class DiscoveryLog
 
     /// <summary>Animals encountered (any interaction: combat, fled, saw during event, hunted).</summary>
     public HashSet<AnimalType> EncounteredAnimals { get; set; } = new();
+
+    /// <summary>Resources the player has acquired at least once. Used for recipe unlocking.</summary>
+    public HashSet<Resource> DiscoveredResources { get; set; } = new();
+
+    /// <summary>
+    /// Single source of truth for resources the player knows about at game start.
+    /// These don't require discovery to unlock recipes.
+    /// </summary>
+    private static readonly Resource[] StartingKnownResources =
+    [
+        Resource.Stick, Resource.Tinder, Resource.Stone, Resource.Water,
+        Resource.PlantFiber, Resource.Pine, Resource.Birch, Resource.Oak
+    ];
+
+    /// <summary>
+    /// Initialize the starting resource knowledge for a new game.
+    /// Call this once when creating a new GameContext.
+    /// </summary>
+    public void InitializeStartingKnowledge()
+    {
+        foreach (var r in StartingKnownResources)
+            DiscoveredResources.Add(r);
+    }
+
+    /// <summary>
+    /// Discover a new resource. Returns true if this was a new discovery.
+    /// </summary>
+    public bool DiscoverResource(Resource resource) => DiscoveredResources.Add(resource);
+
+    /// <summary>
+    /// Check if the player has discovered all resources required for a recipe.
+    /// Used by crafting system to filter visible recipes.
+    /// </summary>
+    public bool HasDiscoveredAllRequirements(IEnumerable<MaterialRequirement> requirements)
+    {
+        foreach (var req in requirements)
+        {
+            switch (req.Material)
+            {
+                case MaterialSpecifier.Specific(var resource):
+                    if (!DiscoveredResources.Contains(resource)) return false;
+                    break;
+                case MaterialSpecifier.Category(var category):
+                    // Category satisfied if ANY resource in category is known
+                    if (!ResourceCategories.Items[category].Any(DiscoveredResources.Contains))
+                        return false;
+                    break;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Get list of resources missing to unlock a recipe.
+    /// Returns empty list if all requirements are discovered.
+    /// </summary>
+    public List<Resource> GetMissingResources(IEnumerable<MaterialRequirement> requirements)
+    {
+        var missing = new List<Resource>();
+        foreach (var req in requirements)
+        {
+            switch (req.Material)
+            {
+                case MaterialSpecifier.Specific(var resource):
+                    if (!DiscoveredResources.Contains(resource))
+                        missing.Add(resource);
+                    break;
+                case MaterialSpecifier.Category(var category):
+                    // Category satisfied if ANY resource in category is known
+                    if (!ResourceCategories.Items[category].Any(DiscoveredResources.Contains))
+                    {
+                        // Return first undiscovered resource from category as hint
+                        var hint = ResourceCategories.Items[category]
+                            .FirstOrDefault(r => !DiscoveredResources.Contains(r));
+                        if (hint != default)
+                            missing.Add(hint);
+                    }
+                    break;
+            }
+        }
+        return missing.Distinct().ToList();
+    }
 
     /// <summary>Foods eaten (resource or food item names).</summary>
     public HashSet<string> FoodsEaten { get; set; } = new();

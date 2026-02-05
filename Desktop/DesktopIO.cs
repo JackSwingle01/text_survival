@@ -45,6 +45,38 @@ public static class DesktopIO
         BlockingDialog.ShowMessageAndWait(ctx, "Discovery!", $"{locationName}\n\n{discoveryText}");
     }
 
+    /// <summary>
+    /// Show a notification when new resources are discovered and recipes are unlocked.
+    /// Called when items enter player inventory.
+    /// </summary>
+    public static void ShowResourceDiscovery(
+        GameContext ctx,
+        List<Resource> newResources,
+        List<Crafting.CraftOption> unlockedRecipes)
+    {
+        if (newResources.Count == 0 && unlockedRecipes.Count == 0) return;
+
+        var lines = new List<string>();
+
+        if (newResources.Count > 0)
+        {
+            var resourceNames = newResources.Select(r => r.ToDisplayName());
+            lines.Add($"New resource{(newResources.Count > 1 ? "s" : "")}: {string.Join(", ", resourceNames)}");
+        }
+
+        if (unlockedRecipes.Count > 0)
+        {
+            lines.Add("");
+            lines.Add($"Recipe{(unlockedRecipes.Count > 1 ? "s" : "")} unlocked:");
+            foreach (var recipe in unlockedRecipes.Take(5)) // Limit to 5 to avoid huge popups
+                lines.Add($"  - {recipe.Name}");
+            if (unlockedRecipes.Count > 5)
+                lines.Add($"  ... and {unlockedRecipes.Count - 5} more");
+        }
+
+        BlockingDialog.ShowMessageAndWait(ctx, "Discovery!", string.Join("\n", lines));
+    }
+
     private static readonly UI.MajorDiscoveryOverlay _majorDiscoveryOverlay = new();
 
     /// <summary>

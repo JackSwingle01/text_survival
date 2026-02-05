@@ -8,6 +8,34 @@ using text_survival.Items;
 namespace text_survival.Environments.Features;
 
 /// <summary>
+/// Luck tiers for foraging sessions. Provides player feedback about yield variance.
+/// </summary>
+public enum LuckTier
+{
+    Lean,     // Bad luck - reduced yields
+    Normal,   // Average luck - no message
+    Good,     // Good luck - increased yields
+    Jackpot   // Great luck - significantly increased yields
+}
+
+/// <summary>
+/// Extension methods for LuckTier to provide flavor text.
+/// </summary>
+public static class LuckTierExtensions
+{
+    /// <summary>
+    /// Get flavor text for a luck tier. Returns null for Normal (no message needed).
+    /// </summary>
+    public static string? GetFlavorText(this LuckTier tier) => tier switch
+    {
+        LuckTier.Lean => "The pickings feel thin here today.",
+        LuckTier.Good => "Something about this spot feels right.",
+        LuckTier.Jackpot => "You've found a rich patch.",
+        _ => null // Normal = no message
+    };
+}
+
+/// <summary>
 /// Configuration for a forageable resource.
 /// </summary>
 public record ForageResource(
@@ -111,12 +139,19 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     }
 
     /// <summary>
-    /// Forage for resources. Returns Inventory with found items.
+    /// Forage for resources. Returns Inventory with found items and the luck tier.
     /// </summary>
-    public Inventory Forage(double hours)
+    public (Inventory found, LuckTier luck) Forage(double hours)
     {
         // Roll session luck - creates variance in yields
         double luckMultiplier = RollLuckMultiplier();
+        var luck = luckMultiplier switch
+        {
+            < 0.6 => LuckTier.Lean,
+            < 1.2 => LuckTier.Normal,
+            < 1.8 => LuckTier.Good,
+            _ => LuckTier.Jackpot
+        };
 
         var found = new Inventory();
 
@@ -167,7 +202,7 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         // Regenerate clue seed for next forage attempt
         ClueSeed = Random.Shared.Next();
 
-        return found;
+        return (found, luck);
     }
 
     /// <summary>

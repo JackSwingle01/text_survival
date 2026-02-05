@@ -1,3 +1,4 @@
+using text_survival.Discovery;
 using text_survival.Environments.Features;
 using text_survival.Items;
 
@@ -49,6 +50,93 @@ public class NeedCraftingSystem
         var (_, missing) = option.CheckRequirements(inventory);
         return missing.Count < option.Requirements.Count;
     }
+
+    #region Discovery-Based Recipe Filtering
+
+    /// <summary>
+    /// Get recipes for a need category, filtered by discovered resources.
+    /// Only shows recipes where all required resources have been discovered.
+    /// </summary>
+    public List<CraftOption> GetDiscoveredOptionsForNeed(
+        NeedCategory need, Inventory inventory, DiscoveryLog discoveries)
+    {
+        return _options
+            .Where(o => o.Category == need)
+            .Where(o => discoveries.HasDiscoveredAllRequirements(o.Requirements))
+            .OrderByDescending(o => o.CanCraft(inventory))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Get count of recipes hidden due to undiscovered resources for a need category.
+    /// Used to show "??? (X more)" hints in UI.
+    /// </summary>
+    public int GetHiddenRecipeCount(NeedCategory need, DiscoveryLog discoveries)
+    {
+        return _options
+            .Where(o => o.Category == need)
+            .Count(o => !discoveries.HasDiscoveredAllRequirements(o.Requirements));
+    }
+
+    /// <summary>
+    /// Find recipes that would become visible if a specific resource is discovered.
+    /// Used to show "Recipes unlocked: X, Y" in discovery toast.
+    /// </summary>
+    public List<CraftOption> GetRecipesUnlockedBy(Resource resource, DiscoveryLog discoveries)
+    {
+        // Create a temporary discoveries set with the new resource
+        var withNewResource = new HashSet<Resource>(discoveries.DiscoveredResources) { resource };
+
+        return _options.Where(o =>
+        {
+            // Recipe was locked before
+            if (discoveries.HasDiscoveredAllRequirements(o.Requirements))
+                return false;
+
+            // Check if recipe would be unlocked with new resource
+            return o.Requirements.All(req => req.Material switch
+            {
+                MaterialSpecifier.Specific(var r) => withNewResource.Contains(r),
+                MaterialSpecifier.Category(var category) =>
+                    ResourceCategories.Items[category].Any(withNewResource.Contains),
+                _ => true
+            });
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Group locked recipes by the missing resource that would unlock them.
+    /// Used to show "Find Flint to unlock: Flint Knife, Fire Striker" sections.
+    /// </summary>
+    public Dictionary<Resource, List<CraftOption>> GetLockedRecipesByMissingResource(
+        NeedCategory need, DiscoveryLog discoveries)
+    {
+        var result = new Dictionary<Resource, List<CraftOption>>();
+
+        var lockedRecipes = _options
+            .Where(o => o.Category == need)
+            .Where(o => !discoveries.HasDiscoveredAllRequirements(o.Requirements));
+
+        foreach (var recipe in lockedRecipes)
+        {
+            var missing = discoveries.GetMissingResources(recipe.Requirements);
+            if (missing.Count == 0) continue;
+
+            // Use first missing resource as the "unlock key" for grouping
+            var primaryMissing = missing[0];
+
+            if (!result.TryGetValue(primaryMissing, out var list))
+            {
+                list = [];
+                result[primaryMissing] = list;
+            }
+            list.Add(recipe);
+        }
+
+        return result;
+    }
+
+    #endregion
 
     #region Fire-Starting Options
 

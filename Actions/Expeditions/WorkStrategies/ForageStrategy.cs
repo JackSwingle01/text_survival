@@ -177,6 +177,7 @@ public class ForageStrategy : IWorkStrategy
         var accumulated = new Inventory();
         var activity = GetActivityType();
         string statusText = "Foraging...";
+        LuckTier? notableLuck = null;
 
         // Game logic owns the loop
         while (simulatedMinutes < minutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
@@ -207,7 +208,17 @@ public class ForageStrategy : IWorkStrategy
                 }
 
                 // GAME LOGIC: forage this minute
-                var found = feature.Forage(1.0 / 60.0);
+                var (found, luck) = feature.Forage(1.0 / 60.0);
+
+                // Track first notable luck tier for flavor text
+                if (notableLuck == null && luck != LuckTier.Normal)
+                {
+                    notableLuck = luck;
+                    var flavorText = luck.GetFlavorText();
+                    if (flavorText != null)
+                        statusText = flavorText;
+                }
+
                 if (!found.IsEmpty)
                 {
                     FocusProcessor.ApplyFocus(found, _focus, _followedClue);

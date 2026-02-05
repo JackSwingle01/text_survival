@@ -267,6 +267,36 @@ public class GameContext(Player player, Location camp, Weather weather)
         return isNew;
     }
 
+    /// <summary>
+    /// Discover resources from an inventory and return newly unlocked recipes.
+    /// Called when items enter player inventory to enable recipe discovery progression.
+    /// </summary>
+    public List<Crafting.CraftOption> DiscoverResources(Inventory source)
+    {
+        var crafting = new Crafting.NeedCraftingSystem();
+        var newResources = new List<Resource>();
+        var unlockedRecipes = new List<Crafting.CraftOption>();
+
+        // Discover each resource type in the source inventory
+        foreach (var resourceType in source.GetResourceTypes())
+        {
+            if (Discoveries.DiscoverResource(resourceType))
+            {
+                newResources.Add(resourceType);
+
+                // Find recipes this resource unlocks
+                var unlocked = crafting.GetRecipesUnlockedBy(resourceType, Discoveries);
+                foreach (var recipe in unlocked)
+                {
+                    if (!unlockedRecipes.Contains(recipe))
+                        unlockedRecipes.Add(recipe);
+                }
+            }
+        }
+
+        return unlockedRecipes;
+    }
+
     // Parameterless constructor for JSON deserialization
     [System.Text.Json.Serialization.JsonConstructor]
     public GameContext() : this(null!, null!, null!) { }
@@ -297,6 +327,9 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         GameContext ctx = new GameContext(player, camp, weather);
         ctx.Map = map;
+
+        // Initialize starting resource knowledge for recipe discovery
+        ctx.Discoveries.InitializeStartingKnowledge();
 
         HerdPopulator.Populate(ctx.Herds, map);
 

@@ -81,9 +81,9 @@ public class TextureIconRenderer : IIconRenderer, IDisposable
             Raylib.DrawTexturePro(texture, source, glowDest, System.Numerics.Vector2.Zero, 0f, glowTint);
         }
 
-        // Draw main icon
+        // Draw main icon — use White tint to preserve the texture's native colors
         var dest = new Rectangle(x, y, size, size);
-        Raylib.DrawTexturePro(texture, source, dest, System.Numerics.Vector2.Zero, 0f, tint);
+        Raylib.DrawTexturePro(texture, source, dest, System.Numerics.Vector2.Zero, 0f, Color.White);
     }
 
     public void Dispose()
