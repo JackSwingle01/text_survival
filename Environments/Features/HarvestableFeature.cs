@@ -285,7 +285,8 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     }
 
     public override List<Resource> ProvidedResources() =>
-        Resources.Select(r => r.ResourceType).Distinct().ToList();
+        Resources.Where(r => r.CurrentQuantity > 0)
+            .Select(r => r.ResourceType).Distinct().ToList();
 
     public class HarvestableResource
     {
