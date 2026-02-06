@@ -124,7 +124,7 @@ public static class LocationFactory
             overheadCoverLevel: .3,
             visibilityFactor: .7);
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.50));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Premium));
         location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 1.2));
 
         if (Utils.DetermineSuccess(0.3))
@@ -149,7 +149,7 @@ public static class LocationFactory
             overheadCoverLevel: 1.0,
             visibilityFactor: 0.3);
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.08));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Scarce));
         location.Features.Add(ShelterFeature.CreateCave());
 
         return location;
@@ -166,7 +166,7 @@ public static class LocationFactory
             overheadCoverLevel: 0.1,
             visibilityFactor: 1.2);
 
-        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.30));
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: ForageDensity.Decent));
         location.Features.Add(FeatureFactory.CreateRiver());
 
         var waterFeature = new WaterFeature("river_water", "River")
@@ -188,7 +188,7 @@ public static class LocationFactory
             overheadCoverLevel: 0.0,
             visibilityFactor: 1.5);
 
-        location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.13));
+        location.Features.Add(FeatureFactory.CreateOpenForage(density: ForageDensity.Sparse));
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.8));
 
         return location;
@@ -205,7 +205,7 @@ public static class LocationFactory
             overheadCoverLevel: 0.0,
             visibilityFactor: 1.3);
 
-        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.10));
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: ForageDensity.Thin));
 
         return location;
     }
@@ -221,7 +221,7 @@ public static class LocationFactory
             overheadCoverLevel: 0.2,
             visibilityFactor: 1.1);
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.33));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Good));
         location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 1.0));
         location.Features.Add(new WoodedAreaFeature("Forest Edge", null, 120));
 
@@ -246,7 +246,7 @@ public static class LocationFactory
             FirstVisitEvent = GameEventRegistry.FirstVisitHotSpring
         };
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.08));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Scarce));
         location.Features.Add(FeatureFactory.CreateHotSpring());
         location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 0.6));
 
@@ -270,7 +270,7 @@ public static class LocationFactory
             DiscoveryText = "The creek is frozen solid. Dark shapes move beneath the ice."
         };
 
-        location.Features.Add(FeatureFactory.CreateFrozenCreekForage(density: 0.15));
+        location.Features.Add(FeatureFactory.CreateFrozenCreekForage(density: ForageDensity.Light));
         location.Features.Add(FeatureFactory.CreateIceSource());
 
         var waterFeature = new WaterFeature("creek_water", "Frozen Creek")
@@ -298,7 +298,7 @@ public static class LocationFactory
             DiscoveryText = "A tangle of fallen trees, bleached and dry. Fuel everywhere - but one wrong step could snap an ankle."
         };
 
-        location.Features.Add(FeatureFactory.CreateDeadwoodForage(density: 0.75));
+        location.Features.Add(FeatureFactory.CreateDeadwoodForage(density: ForageDensity.Exceptional));
         location.Features.Add(FeatureFactory.CreateMassiveDeadfall());
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.7));
 
@@ -322,7 +322,7 @@ public static class LocationFactory
             DiscoveryText = "The view stretches for miles. You can see smoke from distant fires, animal trails below."
         };
 
-        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.10));
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: ForageDensity.Thin));
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.4));
 
         return location;
@@ -345,7 +345,7 @@ public static class LocationFactory
             DiscoveryText = "The ground gives way to frozen marsh. Cattails poke through the ice. Rich foraging if you're careful."
         };
 
-        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.45));
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: ForageDensity.Lush));
         location.Features.Add(FeatureFactory.CreateCattails());
         location.Features.Add(FeatureFactory.CreateMarshWater());
 
@@ -377,7 +377,7 @@ public static class LocationFactory
             IsDark = true
         };
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.03));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Minimal));
         location.Features.Add(CacheFeature.CreateIceCache());
 
         return location;
@@ -400,7 +400,7 @@ public static class LocationFactory
             DiscoveryText = "Signs of an old camp. The fire pit is cold, shelter collapsed. Someone was here before you."
         };
 
-        location.Features.Add(FeatureFactory.CreatePickedOverForage(density: 0.10));
+        location.Features.Add(FeatureFactory.CreatePickedOverForage(density: ForageDensity.Thin));
         location.Features.Add(SalvageFeature.CreateAbandonedCamp());
         location.Features.Add(new ShelterFeature("Collapsed Lean-to", ShelterType.BranchFrame, 0.2, 0.4, 0.3));
 
@@ -424,7 +424,7 @@ public static class LocationFactory
             DiscoveryText = "Wolf tracks everywhere. Bones scattered around a rocky hollow. The smell of predator is strong."
         };
 
-        location.Features.Add(FeatureFactory.CreatePickedOverForage(density: 0.15));
+        location.Features.Add(FeatureFactory.CreatePickedOverForage(density: ForageDensity.Light));
         location.Features.Add(FeatureFactory.CreateWolfDenAnimals(density: 1.5));
 
         return location;
@@ -447,7 +447,7 @@ public static class LocationFactory
             DiscoveryText = "A natural hollow, shielded from the worst winds. This would make a good camp."
         };
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.40));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Plentiful));
         location.Features.Add(FeatureFactory.CreateMixedPreyAnimals(density: 1.3));
         location.Features.Add(CacheFeature.CreateRockCache());
         location.Features.Add(new WoodedAreaFeature("Hardwood Stand", Resource.Oak, 180));
@@ -480,7 +480,7 @@ public static class LocationFactory
             DiscoveryText = "Fire came through here. Blackened trunks stand like pillars. Ash pads your footsteps."
         };
 
-        location.Features.Add(FeatureFactory.CreateBurntStandForage(density: 0.50));
+        location.Features.Add(FeatureFactory.CreateBurntStandForage(density: ForageDensity.Premium));
         location.Features.Add(FeatureFactory.CreateSparseAnimals(density: 0.3));
 
         // Discovery event - find the lightning-struck origin
@@ -509,7 +509,7 @@ public static class LocationFactory
             DiscoveryText = "A stone lip juts from a cliff face. The ground beneath is dry. Wind passes over but the space below is calm."
         };
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.08));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Scarce));
         location.Features.Add(ShelterFeature.CreateRockOverhang());
 
         // Discovery event - evidence of previous use
@@ -538,7 +538,7 @@ public static class LocationFactory
             DiscoveryText = "Bare stone breaks through the landscape. Wind-scoured and exposed, the view is commanding. Stone flakes litter the base."
         };
 
-        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.20));
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: ForageDensity.Moderate));
 
         // Discovery event - spot movement from the vantage point
         location.HiddenFeatures.Add(new HiddenFeature(
@@ -566,7 +566,7 @@ public static class LocationFactory
             DiscoveryText = "A depression where glacial meltwater collects. Crystal clear and painfully cold. Ice rings the edges."
         };
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.08));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Scarce));
 
         var waterFeature = new WaterFeature("meltwater", "Meltwater Pool")
             .WithDescription("Glacial meltwater. Pure but frigid.")
@@ -598,7 +598,7 @@ public static class LocationFactory
             FirstVisitEvent = GameEventRegistry.FirstVisitAncientGrove
         };
 
-        location.Features.Add(FeatureFactory.CreateOldGrowthForage(density: 0.25));
+        location.Features.Add(FeatureFactory.CreateOldGrowthForage(density: ForageDensity.Standard));
 
         // Premium hardwood - requires axe (unique to this location, keep inline)
         var hardwood = new HarvestableFeature("ancient_hardwood", "Ancient Hardwood")
@@ -658,7 +658,7 @@ public static class LocationFactory
             DiscoveryText = "Dark stripe cutting across exposed rock. Nodules of flint embedded in limestone. Sharp flakes litter the ground."
         };
 
-        location.Features.Add(FeatureFactory.CreateFlintForage(density: 0.38));
+        location.Features.Add(FeatureFactory.CreateFlintForage(density: ForageDensity.Rich));
 
         // Discovery event - notice the hazardous sharp edges
         location.HiddenFeatures.Add(new HiddenFeature(
@@ -688,7 +688,7 @@ public static class LocationFactory
             DiscoveryText = "A worn path through the brush. Hoofprints overlap in the mud. They pass through here regularly."
         };
 
-        location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.15));
+        location.Features.Add(FeatureFactory.CreateOpenForage(density: ForageDensity.Light));
         location.Features.Add(FeatureFactory.CreateGameTrailAnimals(density: 0.6));
 
         // Saber-tooth ambush territory - stalks prey along the trail
@@ -728,7 +728,7 @@ public static class LocationFactory
             IsEscapeTerrain = true   // Large predators can't follow
         };
 
-        location.Features.Add(FeatureFactory.CreateSmallGameHavenForage(density: 0.30));
+        location.Features.Add(FeatureFactory.CreateSmallGameHavenForage(density: ForageDensity.Decent));
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 1.2));
         location.Features.Add(ShelterFeature.CreateDenseThicket());
 
@@ -758,7 +758,7 @@ public static class LocationFactory
         // Climb edges on all sides - scrambling over rocks
         location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
 
-        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.20));
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: ForageDensity.Moderate));
 
         return location;
     }
@@ -788,7 +788,7 @@ public static class LocationFactory
                 "The ridge rises sharply. Broken stone and loose scree. Good handholds if you pick your route."))
         ]);
 
-        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.08));
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: ForageDensity.Scarce));
 
         // Saber-tooth hunting ground - commands view of prey below
         location.Features.Add(new MegafaunaPresenceFeature
@@ -830,7 +830,7 @@ public static class LocationFactory
         };
 
         // Bones from bear kills - unique forage pattern, keep inline
-        var forageFeature = new ForageFeature(0.20)
+        var forageFeature = new ForageFeature(ForageDensity.Moderate)
             .AddBone(2.0, 0.15, 0.5)
             .AddTinder(0.2, 0.01, 0.03);
         location.Features.Add(forageFeature);
@@ -887,7 +887,7 @@ public static class LocationFactory
             DiscoveryText = "A beaver dam spans the stream. The pond behind it is still and deep. Gnawed stumps litter the banks."
         };
 
-        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.63));
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: ForageDensity.Abundant));
         location.Features.Add(FeatureFactory.CreateBeaverPond());
 
         // The dam itself - destructive harvest with consequences (unique, keep inline)
@@ -941,7 +941,7 @@ public static class LocationFactory
         };
 
         // Pine resources - unique mix for this location, keep inline
-        var forageFeature = new ForageFeature(0.20)
+        var forageFeature = new ForageFeature(ForageDensity.Moderate)
             .AddSticks(1.0, 0.15, 0.4)
             .AddTinder(0.5, 0.02, 0.06)
             .AddPineNeedles(0.3)
@@ -1020,7 +1020,7 @@ public static class LocationFactory
         // Collapsed shelter can be repaired
         location.Features.Add(new ShelterFeature("Collapsed Lean-to", ShelterType.BranchFrame, 0.15, 0.3, 0.25));
 
-        location.Features.Add(FeatureFactory.CreatePickedOverForage(density: 0.08));
+        location.Features.Add(FeatureFactory.CreatePickedOverForage(density: ForageDensity.Scarce));
 
         return location;
     }
@@ -1048,7 +1048,7 @@ public static class LocationFactory
             FirstVisitEvent = GameEventRegistry.FirstVisitPeatBog
         };
 
-        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.25));
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: ForageDensity.Standard));
         location.Features.Add(FeatureFactory.CreateWaterfowlAnimals(density: 0.6));
 
         // Peat extraction - finite exceptional fuel (unique, keep inline)
@@ -1092,7 +1092,7 @@ public static class LocationFactory
         // Climb edges on all sides - scrambling up frozen waterfall
         location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.05));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Barren));
 
         var iceFace = new WaterFeature("ice_face", "Ice Face")
             .WithDescription("Solid ice. Harvestable for water if you have tools.")
@@ -1121,7 +1121,7 @@ public static class LocationFactory
             FirstVisitEvent = GameEventRegistry.FirstVisitBoneHollow
         };
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.08));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Scarce));
 
         // Ancient bones - premium crafting materials (unique, keep inline)
         var ancientBones = new HarvestableFeature("ancient_bones", "Ancient Bones")
@@ -1168,7 +1168,7 @@ public static class LocationFactory
             FirstVisitEvent = GameEventRegistry.FirstVisitWindGap
         };
 
-        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.05));
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: ForageDensity.Barren));
 
         return location;
     }
@@ -1193,7 +1193,7 @@ public static class LocationFactory
         };
 
         // Sparse foraging - animals strip this area clean
-        var forage = new ForageFeature(0.10)
+        var forage = new ForageFeature(ForageDensity.Thin)
             .AddSticks(0.3, 0.1, 0.25)
             .AddPlantFiber(0.4, 0.05, 0.12)
             .AddBone(0.15, 0.1, 0.3)
@@ -1235,7 +1235,7 @@ public static class LocationFactory
         location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
 
         // Sparse foraging - stone and bone from animals sheltering here
-        var forage = new ForageFeature(0.15)
+        var forage = new ForageFeature(ForageDensity.Light)
             .AddStone(0.8, 0.2, 0.4)
             .AddBone(0.2, 0.1, 0.3)
             .AddTinder(0.3, 0.02, 0.05);
@@ -1280,7 +1280,7 @@ public static class LocationFactory
         };
 
         // Stone-focused foraging - the main draw
-        var forage = new ForageFeature(0.20)
+        var forage = new ForageFeature(ForageDensity.Moderate)
             .AddStone(1.2, 0.15, 0.4)      // Primary resource
             .AddTinder(0.3, 0.02, 0.05)    // Dry grass between rocks
             .AddFlint(0.1, 0.05, 0.15);    // Occasional better finds
@@ -1326,7 +1326,7 @@ public static class LocationFactory
             DiscoveryText = "A massive tree, ancient and fallen. Its trunk creates a natural windbreak, branches reaching skyward like ribs."
         };
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.30));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Decent));
         location.Features.Add(FeatureFactory.CreateMassiveDeadfall());
         location.Features.Add(ShelterFeature.CreateFallenTree());
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.6));
@@ -1351,7 +1351,7 @@ public static class LocationFactory
             DiscoveryText = "A gnarled oak, hollow at the base. The cavity is large enough to crouch in, protected from wind and snow."
         };
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.20));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Moderate));
         location.Features.Add(new ShelterFeature("Tree Hollow", ShelterType.NaturalShelter,
             0.35, 0.8, 0.7, insulationCap: 0.50, overheadCap: 0.90, windCap: 0.80));
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.5));
@@ -1378,7 +1378,7 @@ public static class LocationFactory
         };
 
         // Enhanced mushroom foraging
-        var forage = new ForageFeature(0.38)
+        var forage = new ForageFeature(ForageDensity.Rich)
             .AddTinder(0.3, 0.02, 0.05)
             .AddAmadou(0.25, 0.03, 0.08)
             .AddChaga(0.2, 0.02, 0.06)
@@ -1409,7 +1409,7 @@ public static class LocationFactory
         };
 
         // Birch-focused foraging
-        var forage = new ForageFeature(0.33)
+        var forage = new ForageFeature(ForageDensity.Good)
             .AddBirchBark(0.8, 0.08, 0.2)
             .AddSticks(0.6, 0.1, 0.3)
             .AddTinder(0.4, 0.03, 0.08);
@@ -1438,7 +1438,7 @@ public static class LocationFactory
             DiscoveryText = "The ground dips into a natural hollow, carpeted in thick moss. Sheltered from wind, though perpetually damp."
         };
 
-        var forage = new ForageFeature(0.25)
+        var forage = new ForageFeature(ForageDensity.Standard)
             .AddPlantFiber(0.5, 0.05, 0.12)
             .AddTinder(0.3, 0.02, 0.05)
             .AddSticks(0.4, 0.08, 0.2);
@@ -1470,7 +1470,7 @@ public static class LocationFactory
             IsEscapeTerrain = true
         };
 
-        var forage = new ForageFeature(0.20)
+        var forage = new ForageFeature(ForageDensity.Moderate)
             .AddSticks(0.5, 0.1, 0.25)
             .AddPlantFiber(0.3, 0.04, 0.1)
             .AddBone(0.1, 0.05, 0.15);
@@ -1500,7 +1500,7 @@ public static class LocationFactory
             DiscoveryText = "A bare patch where animals have licked the earth white. Tracks converge from every direction. They come here regularly."
         };
 
-        location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.10));
+        location.Features.Add(FeatureFactory.CreateOpenForage(density: ForageDensity.Thin));
 
         // High animal density - the draw of this location
         var animals = new AnimalTerritoryFeature(1.6)
@@ -1530,7 +1530,7 @@ public static class LocationFactory
             DiscoveryText = "Grass taller than your waist, swaying in the wind. Small things rustle unseen. Good cover for stalking — or being stalked."
         };
 
-        var forage = new ForageFeature(0.23)
+        var forage = new ForageFeature(ForageDensity.Fair)
             .AddPlantFiber(0.7, 0.08, 0.18)
             .AddTinder(0.4, 0.03, 0.08);
         location.Features.Add(forage);
@@ -1561,7 +1561,7 @@ public static class LocationFactory
             DiscoveryText = "Stones stand upright in a rough circle, placed by hands long gone. The wind breaks around them. Someone worshipped here once."
         };
 
-        var forage = new ForageFeature(0.13)
+        var forage = new ForageFeature(ForageDensity.Sparse)
             .AddStone(0.4, 0.1, 0.25)
             .AddBone(0.15, 0.05, 0.15);
         location.Features.Add(forage);
@@ -1591,7 +1591,7 @@ public static class LocationFactory
             DiscoveryText = "The ground is beaten flat by countless hooves. A migration path — herds pass through here on their seasonal journey."
         };
 
-        location.Features.Add(FeatureFactory.CreateOpenForage(density: 0.13));
+        location.Features.Add(FeatureFactory.CreateOpenForage(density: ForageDensity.Sparse));
 
         // Exceptional hunting - migration route
         var animals = new AnimalTerritoryFeature(1.8)
@@ -1624,7 +1624,7 @@ public static class LocationFactory
             DiscoveryText = "Loose rock cascades down the slope. Every step threatens to start a slide. But the stone here is good — fractured and ready."
         };
 
-        var forage = new ForageFeature(0.30)
+        var forage = new ForageFeature(ForageDensity.Decent)
             .AddStone(1.5, 0.2, 0.5)
             .AddFlint(0.2, 0.05, 0.15);
         location.Features.Add(forage);
@@ -1649,7 +1649,7 @@ public static class LocationFactory
             DiscoveryText = "A massive boulder, cleaved in two by ancient forces. The gap between is just wide enough to shelter in, dry and out of the wind."
         };
 
-        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.15));
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: ForageDensity.Light));
         location.Features.Add(new ShelterFeature("Rock Cleft", ShelterType.NaturalShelter,
             0.3, 0.6, 0.7, insulationCap: 0.45, overheadCap: 0.75, windCap: 0.80));
 
@@ -1673,7 +1673,7 @@ public static class LocationFactory
             DiscoveryText = "Ancient bones jut from the eroded hillside. Not mammoth — older. Strange shapes, but the bone is still good."
         };
 
-        var forage = new ForageFeature(0.23)
+        var forage = new ForageFeature(ForageDensity.Fair)
             .AddBone(1.5, 0.2, 0.5)
             .AddStone(0.4, 0.1, 0.25);
         location.Features.Add(forage);
@@ -1707,7 +1707,7 @@ public static class LocationFactory
             DiscoveryText = "Layered stone, splitting into thin sheets. The edges are sharp where frost has cleaved them. Good for scraping tools."
         };
 
-        var forage = new ForageFeature(0.28)
+        var forage = new ForageFeature(ForageDensity.Decent)
             .AddShale(1.2, 0.15, 0.4)
             .AddStone(0.5, 0.1, 0.25);
         location.Features.Add(forage);
@@ -1734,7 +1734,7 @@ public static class LocationFactory
         };
 
         location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
-        location.Features.Add(FeatureFactory.CreateRockyForage(density: 0.10));
+        location.Features.Add(FeatureFactory.CreateRockyForage(density: ForageDensity.Thin));
 
         return location;
     }
@@ -1758,7 +1758,7 @@ public static class LocationFactory
             DiscoveryText = "Water bubbles from the ground, too warm to freeze. A small pool collects before it soaks away. Animals come here to drink."
         };
 
-        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.20));
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: ForageDensity.Moderate));
 
         var waterFeature = new WaterFeature("spring_water", "Spring")
             .AsOpenWater()
@@ -1791,7 +1791,7 @@ public static class LocationFactory
             DiscoveryText = "Dense reeds crowd the shallows, rattling in the wind. Ducks burst from cover as you approach. Good fiber, if you can reach it."
         };
 
-        var forage = new ForageFeature(0.35)
+        var forage = new ForageFeature(ForageDensity.Good)
             .AddPlantFiber(1.2, 0.1, 0.25)
             .AddTinder(0.3, 0.02, 0.05);
         location.Features.Add(forage);
@@ -1824,7 +1824,7 @@ public static class LocationFactory
             DiscoveryText = "The stream narrows over rocks, forcing fish through a bottleneck. Dark shapes flash in the current. You could spear them here."
         };
 
-        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.15));
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: ForageDensity.Light));
         location.Features.Add(FeatureFactory.CreateRiver());
 
         var waterFeature = new WaterFeature("rapids_water", "Rapids")
@@ -1853,7 +1853,7 @@ public static class LocationFactory
             DiscoveryText = "Red berries dot the spongy ground, frozen but still good. The footing is treacherous — one wrong step and you're through."
         };
 
-        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.25));
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: ForageDensity.Standard));
         location.Features.Add(FeatureFactory.CreateBerryBush());
         location.Features.Add(FeatureFactory.CreateWaterfowlAnimals(density: 0.6));
 
@@ -1884,11 +1884,11 @@ public static class LocationFactory
             DiscoveryText = "Ravens circle overhead, cawing. They've found something. Where there are ravens, there's often a kill nearby."
         };
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.23));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Fair));
         location.Features.Add(new WoodedAreaFeature("Perch Trees", null, 60));
 
         // Bones from scavenged kills
-        var forage = new ForageFeature(0.20)
+        var forage = new ForageFeature(ForageDensity.Moderate)
             .AddBone(0.4, 0.1, 0.3);
         location.Features.Add(forage);
 
@@ -1912,7 +1912,7 @@ public static class LocationFactory
             DiscoveryText = "A burrow entrance, well-used. The musky smell of fox. Small bones scattered around the opening. Valuable fur, if you're patient."
         };
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.18));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Modest));
 
         var animals = new AnimalTerritoryFeature(0.9)
             .AddFox(2.0)
@@ -1920,7 +1920,7 @@ public static class LocationFactory
             .WithPeakHours(4, 7, 1.8);
         location.Features.Add(animals);
 
-        var forage = new ForageFeature(0.15)
+        var forage = new ForageFeature(ForageDensity.Light)
             .AddBone(0.3, 0.05, 0.15);
         location.Features.Add(forage);
 
@@ -1944,11 +1944,11 @@ public static class LocationFactory
             DiscoveryText = "A hollow in a dead tree, streaked white. Pellets of compressed bone and fur litter the ground below. An owl's roost."
         };
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.15));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Light));
         location.Features.Add(new WoodedAreaFeature("Dead Snag", null, 40));
 
         // Owl pellets provide small bones
-        var forage = new ForageFeature(0.18)
+        var forage = new ForageFeature(ForageDensity.Modest)
             .AddBone(0.6, 0.08, 0.2);
         location.Features.Add(forage);
 
@@ -1977,7 +1977,7 @@ public static class LocationFactory
 
         location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
 
-        var forage = new ForageFeature(0.13)
+        var forage = new ForageFeature(ForageDensity.Sparse)
             .AddBone(0.5, 0.1, 0.3)
             .AddStone(0.3, 0.08, 0.2);
         location.Features.Add(forage);
@@ -2004,7 +2004,7 @@ public static class LocationFactory
             DiscoveryText = "Water roars over a rocky drop. The spray freezes on the stones. Fish leap in the pool below — and the noise covers your approach."
         };
 
-        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.18));
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: ForageDensity.Modest));
         location.Features.Add(FeatureFactory.CreateRiver());
 
         var waterFeature = new WaterFeature("falls_pool", "Falls Pool")
@@ -2033,7 +2033,7 @@ public static class LocationFactory
             DiscoveryText = "Tall pines, widely spaced. The ground is clear of brush — you can move fast here, and see far. So can they."
         };
 
-        var forage = new ForageFeature(0.23)
+        var forage = new ForageFeature(ForageDensity.Fair)
             .AddSticks(0.5, 0.1, 0.3)
             .AddPineNeedles(0.4)
             .AddPineResin(0.15)
@@ -2071,7 +2071,7 @@ public static class LocationFactory
             IsEscapeTerrain = true
         };
 
-        var forage = new ForageFeature(0.13)
+        var forage = new ForageFeature(ForageDensity.Sparse)
             .AddSticks(0.3, 0.05, 0.15)
             .AddPlantFiber(0.3, 0.03, 0.08);
         location.Features.Add(forage);
@@ -2101,7 +2101,7 @@ public static class LocationFactory
 
         location.WithEdgesOnAllSides(Grid.EdgeType.Climb);
 
-        var forage = new ForageFeature(0.10)
+        var forage = new ForageFeature(ForageDensity.Thin)
             .AddStone(0.5, 0.15, 0.35)
             .AddBone(0.2, 0.05, 0.15);
         location.Features.Add(forage);
@@ -2126,7 +2126,7 @@ public static class LocationFactory
             DiscoveryText = "A massive root ball, torn from the earth. The hollow beneath is dry and sheltered — barely room for one, but enough."
         };
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.15));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Light));
         location.Features.Add(new ShelterFeature("Root Hollow", ShelterType.NaturalShelter,
             0.4, 0.8, 0.7, insulationCap: 0.55, overheadCap: 0.90, windCap: 0.80));
         location.Features.Add(FeatureFactory.CreateSmallGameAnimals(density: 0.5));
@@ -2151,7 +2151,7 @@ public static class LocationFactory
             DiscoveryText = "A broad meadow, grass poking through snow. Tracks everywhere — they graze here. But you'll be seen from a long way off."
         };
 
-        var forage = new ForageFeature(0.15)
+        var forage = new ForageFeature(ForageDensity.Light)
             .AddPlantFiber(0.5, 0.05, 0.12)
             .AddBone(0.1, 0.05, 0.15);
         location.Features.Add(forage);
@@ -2184,7 +2184,7 @@ public static class LocationFactory
             DiscoveryText = "Burrow entrances dot the slope, earth worn smooth by generations of rabbits. They're here — you just have to be patient."
         };
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.18));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Modest));
 
         // Exceptional small game density
         var animals = new AnimalTerritoryFeature(1.3)
@@ -2217,7 +2217,7 @@ public static class LocationFactory
             IsEscapeTerrain = true
         };
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.05));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Barren));
 
         var waterFeature = new WaterFeature("pressure_ice", "Pressure Ice")
             .WithDescription("Jumbled ice plates. Hard to reach open water, but harvestable ice everywhere.")
@@ -2274,7 +2274,7 @@ public static class LocationFactory
             DiscoveryText = "Water stained rust-red, smelling of iron. Warm from underground. Animals come for the minerals — and so do predators."
         };
 
-        location.Features.Add(FeatureFactory.CreateWetlandForage(density: 0.15));
+        location.Features.Add(FeatureFactory.CreateWetlandForage(density: ForageDensity.Light));
 
         var waterFeature = new WaterFeature("mineral_water", "Mineral Spring")
             .AsOpenWater()
@@ -2336,7 +2336,7 @@ public static class LocationFactory
             DiscoveryText = "A high bowl filled with deep snow. Post-holing through it exhausts you — but every track is preserved. Nothing moves through here unseen."
         };
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.03));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Minimal));
 
         return location;
     }
@@ -2360,7 +2360,7 @@ public static class LocationFactory
             IsEscapeTerrain = true
         };
 
-        var forage = new ForageFeature(0.38)
+        var forage = new ForageFeature(ForageDensity.Rich)
             .AddStone(2.0, 0.2, 0.6)
             .AddFlint(0.3, 0.08, 0.2);
         location.Features.Add(forage);
@@ -2386,7 +2386,7 @@ public static class LocationFactory
             DiscoveryText = "Loose rock in a steep channel. Going down is fast — going up is exhausting. Every step sends stones clattering."
         };
 
-        var forage = new ForageFeature(0.20)
+        var forage = new ForageFeature(ForageDensity.Moderate)
             .AddStone(1.0, 0.15, 0.4)
             .AddShale(0.5, 0.1, 0.3);
         location.Features.Add(forage);
@@ -2412,7 +2412,7 @@ public static class LocationFactory
             DiscoveryText = "Stunted, wind-twisted trees barely knee-high. You're crawling through them — but there's firewood everywhere, and ptarmigan love it here."
         };
 
-        var forage = new ForageFeature(0.50)
+        var forage = new ForageFeature(ForageDensity.Premium)
             .AddSticks(1.5, 0.15, 0.4)
             .AddTinder(0.5, 0.03, 0.08);
         location.Features.Add(forage);
@@ -2442,7 +2442,7 @@ public static class LocationFactory
             DiscoveryText = "The ground glitters with flakes and failed attempts. Someone stood here making tools, long ago. The flint is premium quality."
         };
 
-        var forage = new ForageFeature(0.50)
+        var forage = new ForageFeature(ForageDensity.Premium)
             .AddFlint(2.0, 0.1, 0.3)
             .AddStone(0.4, 0.1, 0.25);
         location.Features.Add(forage);
@@ -2467,7 +2467,7 @@ public static class LocationFactory
             DiscoveryText = "Bones piled where many animals died. A stampede? A coordinated hunt? The bones are old but usable — and scavengers remember this place."
         };
 
-        var forage = new ForageFeature(0.38)
+        var forage = new ForageFeature(ForageDensity.Rich)
             .AddBone(2.5, 0.3, 0.8);
         location.Features.Add(forage);
 
@@ -2505,7 +2505,7 @@ public static class LocationFactory
             DiscoveryText = "Painted walls in the firelight. Someone lived here, seasons beyond counting. Their handprints are still on the stone. A fire pit is already dug."
         };
 
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.08));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Scarce));
         location.Features.Add(new ShelterFeature("Rock Shelter", ShelterType.NaturalShelter,
             0.5, 0.9, 0.8, insulationCap: 0.65, overheadCap: 0.95, windCap: 0.90));
         location.Features.Add(SalvageFeature.CreateAbandonedCamp());
@@ -2551,7 +2551,7 @@ public static class LocationFactory
             IsVantagePoint = true
         };
 
-        var forage = new ForageFeature(0.10)
+        var forage = new ForageFeature(ForageDensity.Thin)
             .AddStone(0.5, 0.1, 0.25);
         location.Features.Add(forage);
 
@@ -2577,7 +2577,7 @@ public static class LocationFactory
         };
 
         // Dung as alternative fuel
-        var forage = new ForageFeature(0.25)
+        var forage = new ForageFeature(ForageDensity.Standard)
             .AddTinder(0.8, 0.1, 0.3);  // Dried dung burns
         location.Features.Add(forage);
 
@@ -2608,7 +2608,7 @@ public static class LocationFactory
             DiscoveryText = "Fool's gold glitters in the rock face. Worthless for trade — but strike it against flint and you get sparks."
         };
 
-        var forage = new ForageFeature(0.30)
+        var forage = new ForageFeature(ForageDensity.Decent)
             .AddPyrite(1.5, 0.05, 0.15)
             .AddStone(0.5, 0.1, 0.25);
         location.Features.Add(forage);
@@ -2671,7 +2671,7 @@ public static class LocationFactory
             IsEscapeTerrain = true
         };
 
-        var forage = new ForageFeature(0.75)
+        var forage = new ForageFeature(ForageDensity.Exceptional)
             .AddSticks(2.0, 0.2, 0.5)
             .AddMixedWood(1.5, 1.5, 4.0);
         location.Features.Add(forage);
@@ -2714,7 +2714,7 @@ public static class LocationFactory
         smokeHarvest.AddResource("charcoal", Resource.Charcoal, maxQuantity: 10, weightPerUnit: 0.3, respawnHoursPerUnit: 0);
         location.Features.Add(smokeHarvest);
 
-        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.15));
+        location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Light));
 
         return location;
     }
@@ -2738,7 +2738,7 @@ public static class LocationFactory
         };
 
         // Barren - no forage
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: 0.03));
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Minimal));
 
         return location;
     }

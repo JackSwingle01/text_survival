@@ -177,18 +177,18 @@ public static class FeatureFactory
     {
         var (baseDensity, factory) = terrain switch
         {
-            TerrainType.Forest => (0.25, (Func<double, ForageFeature>)CreateMixedForestForage),
-            TerrainType.Clearing => (0.18, (Func<double, ForageFeature>)CreateMixedForestForage),
-            TerrainType.Marsh => (0.13, (Func<double, ForageFeature>)CreateWetlandForage),
-            TerrainType.Water => (0.13, (Func<double, ForageFeature>)CreateFrozenCreekForage),
-            TerrainType.Plain => (0.13, (Func<double, ForageFeature>)CreateOpenForage),
-            TerrainType.Hills => (0.10, (Func<double, ForageFeature>)CreateRockyForage),
-            TerrainType.Rock => (0.13, (Func<double, ForageFeature>)CreateRockyForage),
-            _ => (0.08, (Func<double, ForageFeature>)CreateBarrenForage)
+            TerrainType.Forest => (ForageDensity.TerrainForest, (Func<double, ForageFeature>)CreateMixedForestForage),
+            TerrainType.Clearing => (ForageDensity.TerrainClearing, (Func<double, ForageFeature>)CreateMixedForestForage),
+            TerrainType.Marsh => (ForageDensity.TerrainMarsh, (Func<double, ForageFeature>)CreateWetlandForage),
+            TerrainType.Water => (ForageDensity.TerrainWater, (Func<double, ForageFeature>)CreateFrozenCreekForage),
+            TerrainType.Plain => (ForageDensity.TerrainPlain, (Func<double, ForageFeature>)CreateOpenForage),
+            TerrainType.Hills => (ForageDensity.TerrainHills, (Func<double, ForageFeature>)CreateRockyForage),
+            TerrainType.Rock => (ForageDensity.TerrainRock, (Func<double, ForageFeature>)CreateRockyForage),
+            _ => (ForageDensity.TerrainDefault, (Func<double, ForageFeature>)CreateBarrenForage)
         };
 
-        double density = Utils.RandomNormal(baseDensity, 0.08);
-        density = Math.Clamp(density, 0.025, 0.5);
+        double density = Utils.RandomNormal(baseDensity, 0.32);
+        density = Math.Clamp(density, 0.1, 2.0);
 
         return factory(density);
     }

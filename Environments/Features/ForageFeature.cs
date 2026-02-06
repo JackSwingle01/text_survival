@@ -49,6 +49,11 @@ public class ForageFeature : LocationFeature, IWorkableFeature
 {
     private readonly double respawnRateHours = 672.0; // Full respawn takes 4 weeks
     private const double BaseGrazingRatePerKgPerHour = 0.0001;
+    private const double DepletedThreshold = 0.4;
+    private const double NearlyDepletedThreshold = 1.2;
+    private const double AbundantQualityThreshold = 3.2;
+    private const double DecentQualityThreshold = 2.0;
+    private const double SparseQualityThreshold = 1.2;
     [System.Text.Json.Serialization.JsonInclude]
     private List<ForageResource> _resources = [];
     private static readonly Random rng = new();
@@ -124,7 +129,7 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     private double ResourceDensity()
     {
         // Calculate base depleted density
-        double depletedDensity = BaseResourceDensity / (1.0 + (NumberOfHoursForaged / 2));
+        double depletedDensity = BaseResourceDensity / (1.0 + (NumberOfHoursForaged * 2));
 
         // Calculate respawn recovery if time has passed
         if (HasForagedBefore && NumberOfHoursForaged > 0)
@@ -547,9 +552,9 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         double density = ResourceDensity();
         return density switch
         {
-            >= 0.8 => "abundant",
-            >= 0.5 => "decent",
-            >= 0.3 => "sparse",
+            >= AbundantQualityThreshold => "abundant",
+            >= DecentQualityThreshold => "decent",
+            >= SparseQualityThreshold => "sparse",
             _ => "picked over"
         };
     }
@@ -567,17 +572,17 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Check if this forage area is depleted (density below useful threshold).
     /// </summary>
-    public bool IsDepleted() => ResourceDensity() < 0.1;
+    public bool IsDepleted() => ResourceDensity() < DepletedThreshold;
 
     /// <summary>
     /// Check if this forage area is nearly depleted.
     /// </summary>
-    public bool IsNearlyDepleted() => ResourceDensity() < 0.3;
+    public bool IsNearlyDepleted() => ResourceDensity() < NearlyDepletedThreshold;
 
     /// <summary>
     /// Check if foraging can be productive here.
     /// </summary>
-    public bool CanForage() => ResourceDensity() >= 0.1;
+    public bool CanForage() => ResourceDensity() >= DepletedThreshold;
 
     /// <summary>
     /// Get work options for this feature.
