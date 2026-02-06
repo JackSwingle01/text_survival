@@ -165,8 +165,8 @@ public static class ConditionChecker
             EventCondition.TrapLineActive => ctx.Tensions.HasTension("TrapLineActive"),
 
             // Spatial/grid conditions
-            EventCondition.FarFromCamp => GetDistanceFromCamp(ctx) > 8,
-            EventCondition.VeryFarFromCamp => GetDistanceFromCamp(ctx) > 15,
+            EventCondition.FarFromCamp => GetDistanceFromCamp(ctx) > 32,
+            EventCondition.VeryFarFromCamp => GetDistanceFromCamp(ctx) > 60,
             EventCondition.NearMountains => HasAdjacentTerrain(ctx, TerrainType.Mountain),
             EventCondition.SurroundedByWater => CountAdjacentTerrain(ctx, TerrainType.Water) >= 2,
             EventCondition.IsForest => ctx.CurrentLocation?.Terrain == TerrainType.Forest,
@@ -179,7 +179,7 @@ public static class ConditionChecker
                     .Distinct()
                     .Count() > 2,
             EventCondition.Cornered => CountPassableExits(ctx) <= 2,
-            EventCondition.AtTerrainBottleneck => CountPassableExits(ctx) <= 2 && GetDistanceFromCamp(ctx) > 5,
+            EventCondition.AtTerrainBottleneck => CountPassableExits(ctx) <= 2 && GetDistanceFromCamp(ctx) > 20,
             EventCondition.JustRevealedLocation => ctx.Map?.RevealedNewLocations ?? false,
 
             // Carcass conditions

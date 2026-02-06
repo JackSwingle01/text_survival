@@ -88,7 +88,7 @@ Locations interact with: expeditions (travel destinations), features (what's ava
 
 The world map is a 2D grid of locations. `GameMap` owns all spatial relationships — locations don't know their positions.
 
-**Scale**: Each tile represents approximately **1/4 square mile** (0.25 sq mi) of terrain. Travel time across a tile (entering or exiting) is based on ~24 minutes per mile on flat terrain, giving a 3-minute radius for typical terrain, scaled up for difficult terrain types.
+**Scale**: Each tile represents approximately **100 meters** of terrain. The grid is 96x96 tiles (~9.6km x 9.6km). Travel time across a tile is based on ~80m/min walking speed, giving a ~1-minute base traversal for flat terrain, scaled up for difficult terrain types.
 
 Core operations:
 - `CurrentPosition` — player's (X, Y) coordinates
@@ -98,7 +98,7 @@ Core operations:
 
 Visibility system:
 - `TileVisibility`: Hidden → Explored → Visible
-- Sight range calculated from current location's visibility factor (0-4 tiles)
+- Sight range calculated from current location's visibility factor (0-20 tiles)
 - Moving updates which tiles are visible vs merely explored
 
 Travel uses cardinal directions (N/S/E/W). Locations connect implicitly by adjacency, not explicit edges.

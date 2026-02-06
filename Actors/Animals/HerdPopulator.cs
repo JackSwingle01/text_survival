@@ -21,7 +21,7 @@ public static class HerdPopulator
 
         // Avoid placing herds too close to camp (give player safe zone)
         var campPos = map.CurrentPosition;
-        var safeZone = 6; // Tiles from camp (~1.5 miles)
+        var safeZone = 24; // Tiles from camp (~2.4km)
 
         var availablePositions = allPositions
             .Where(p => p.ManhattanDistance(campPos) > safeZone)
@@ -113,9 +113,9 @@ public static class HerdPopulator
     private static List<GridPosition> GetInteriorPositions(GameMap map)
     {
         var positions = new List<GridPosition>();
-        for (int x = 6; x < map.Width - 6; x++)
+        for (int x = 24; x < map.Width - 24; x++)
         {
-            for (int y = 6; y < map.Height - 6; y++)
+            for (int y = 24; y < map.Height - 24; y++)
             {
                 var loc = map.GetLocationAt(x, y);
                 if (loc != null && loc.IsPassable)
@@ -139,8 +139,8 @@ public static class HerdPopulator
             // Pick a random starting position
             var startPos = available[_rng.Next(available.Count)];
 
-            // Create territory of 12-20 adjacent tiles
-            var territory = CreateContiguousTerritory(startPos, available, 12 + _rng.Next(9));
+            // Create territory of 48-80 adjacent tiles
+            var territory = CreateContiguousTerritory(startPos, available, 48 + _rng.Next(33));
 
             if (territory.Count < 3) continue; // Need minimum territory
 
@@ -180,8 +180,8 @@ public static class HerdPopulator
 
             var startPos = available[_rng.Next(available.Count)];
 
-            // Bears have moderate territories (16-32 tiles) to spread out foraging impact
-            var territory = CreateContiguousTerritory(startPos, available, 16 + _rng.Next(17));
+            // Bears have moderate territories (64-128 tiles) to spread out foraging impact
+            var territory = CreateContiguousTerritory(startPos, available, 64 + _rng.Next(65));
 
             if (territory.Count < 3) continue;
 
@@ -215,8 +215,8 @@ public static class HerdPopulator
 
             var startPos = available[_rng.Next(available.Count)];
 
-            // Caribou have large territories (32-48 tiles)
-            var territory = CreateContiguousTerritory(startPos, available, 32 + _rng.Next(17));
+            // Caribou have large territories (128-192 tiles)
+            var territory = CreateContiguousTerritory(startPos, available, 128 + _rng.Next(65));
 
             if (territory.Count < 6) continue;
 
@@ -263,8 +263,8 @@ public static class HerdPopulator
 
             var startPos = available[_rng.Next(available.Count)];
 
-            // Megaloceros: 12-24 tile territories
-            var territory = CreateContiguousTerritory(startPos, available, 12 + _rng.Next(13));
+            // Megaloceros: 48-96 tile territories
+            var territory = CreateContiguousTerritory(startPos, available, 48 + _rng.Next(49));
 
             if (territory.Count < 3) continue;
 
@@ -298,8 +298,8 @@ public static class HerdPopulator
 
             var startPos = available[_rng.Next(available.Count)];
 
-            // Bison: 60-100 tile territories (large grazers need space)
-            var territory = CreateContiguousTerritory(startPos, available, 60 + _rng.Next(41));
+            // Bison: 240-400 tile territories (large grazers need space)
+            var territory = CreateContiguousTerritory(startPos, available, 240 + _rng.Next(161));
 
             if (territory.Count < 3) continue;
 
@@ -449,8 +449,8 @@ public static class HerdPopulator
 
             var startPos = validPositions[_rng.Next(validPositions.Count)];
 
-            // Saber-tooths have large territories (24-40 tiles)
-            var territory = CreateContiguousTerritory(startPos, available, 24 + _rng.Next(17));
+            // Saber-tooths have large territories (96-160 tiles)
+            var territory = CreateContiguousTerritory(startPos, available, 96 + _rng.Next(65));
 
             if (territory.Count < 4) continue;
 
@@ -500,8 +500,8 @@ public static class HerdPopulator
 
             var startPos = hyenaSpawnZone[_rng.Next(hyenaSpawnZone.Count)];
 
-            // Hyena territories: 16-28 tiles
-            var territory = CreateContiguousTerritory(startPos, available, 16 + _rng.Next(13));
+            // Hyena territories: 64-112 tiles
+            var territory = CreateContiguousTerritory(startPos, available, 64 + _rng.Next(49));
 
             if (territory.Count < 3) continue;
 
@@ -558,10 +558,10 @@ public static class HerdPopulator
         }
 
         // Get available positions around Bone Hollow
-        var available = GetPositionsInRadius(map, boneHollowPos.Value, 10);
+        var available = GetPositionsInRadius(map, boneHollowPos.Value, 40);
 
-        // Create large territory centered on Bone Hollow (48-72 tiles)
-        var territory = CreateContiguousTerritory(boneHollowPos.Value, available, 48 + _rng.Next(25));
+        // Create large territory centered on Bone Hollow (192-288 tiles)
+        var territory = CreateContiguousTerritory(boneHollowPos.Value, available, 192 + _rng.Next(97));
 
         if (territory.Count < 8)
         {

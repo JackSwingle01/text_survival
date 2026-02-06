@@ -279,16 +279,15 @@ public class SerializationTests
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
         sw.Stop();
 
-        // Assert - Reasonable performance (< 200ms for new game)
-        Assert.True(sw.ElapsedMilliseconds < 200,
-            $"Serialization took {sw.ElapsedMilliseconds}ms (expected < 200ms)");
+        // Assert - Reasonable performance (< 500ms for new game)
+        Assert.True(sw.ElapsedMilliseconds < 500,
+            $"Serialization took {sw.ElapsedMilliseconds}ms (expected < 500ms)");
 
         // Verify JSON is reasonable size (not absurdly large)
-        // Grid-based map with 1024 locations + hidden features produces ~9MB compact JSON
-        // (increased from 8MB after adding discoverable salvage sites and harvestables)
-        // (increased from 9MB after adding DiscoveredResources tracking)
-        Assert.True(json.Length < 10_000_000,
-            $"JSON is {json.Length} chars (expected < 10MB)");
+        // 96x96 grid (9216 locations) + hidden features produces ~28MB compact JSON
+        // (scaled from 48x48 grid which was ~9MB)
+        Assert.True(json.Length < 40_000_000,
+            $"JSON is {json.Length} chars (expected < 40MB)");
     }
 
     [Fact]

@@ -617,7 +617,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
         // Find mammoths for herd effects (these specifically target the mammoth herd)
         var mammothHerd = ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
-            .FirstOrDefault(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 2);
+            .FirstOrDefault(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 8);
 
         // Alert herd if alert level set
         if (HerdAlertLevel.HasValue && mammothHerd != null)

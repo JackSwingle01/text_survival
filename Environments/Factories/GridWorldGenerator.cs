@@ -9,11 +9,11 @@ namespace text_survival.Environments.Factories;
 /// </summary>
 public class GridWorldGenerator
 {
-    public int Width { get; set; } = 48;
-    public int Height { get; set; } = 48;
-    public int TargetNamedLocations { get; set; } = 150;
-    public int MinLocationSpacing { get; set; } = 5;  // Minimum tiles between named locations
-    public int MountainRows { get; set; } = 9;
+    public int Width { get; set; } = 96;
+    public int Height { get; set; } = 96;
+    public int TargetNamedLocations { get; set; } = 300;
+    public int MinLocationSpacing { get; set; } = 10;  // Minimum tiles between named locations
+    public int MountainRows { get; set; } = 18;
 
     // Terrain matrix used during generation
     private TerrainType[,] _terrain = null!;
@@ -264,7 +264,7 @@ public class GridWorldGenerator
     /// </summary>
     private void GenerateLayeredTerrain()
     {
-        const int minTilesPerTerrain = 10;
+        const int minTilesPerTerrain = 40;
         const int maxAttempts = 20;
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
@@ -281,7 +281,7 @@ public class GridWorldGenerator
             {
                 for (int y = 0; y < Height; y++)
                 {
-                    double noise = OctaveNoise(x, y, seed, scale: 8);
+                    double noise = OctaveNoise(x, y, seed, scale: 16);
                     noiseGrid[x, y] = noise;
                     if (y >= MountainRows)
                         noiseValues.Add(noise);
@@ -302,7 +302,7 @@ public class GridWorldGenerator
             }
 
             // Layer 2: Rock - scattered single tiles
-            int rockCount = _rng.Next(56, 93);
+            int rockCount = _rng.Next(224, 372);
             for (int i = 0; i < rockCount; i++)
             {
                 var (x, y) = RandomPosition(avoidMountainRows: true);
@@ -313,15 +313,15 @@ public class GridWorldGenerator
             }
 
             // Layer 3: Clearings - clusters placed in forest
-            int clearingClusters = _rng.Next(27, 48);
+            int clearingClusters = _rng.Next(108, 192);
             PlaceClusters(clearingClusters, TerrainType.Clearing, TerrainType.Forest, MediumShapes);
 
             // Layer 4: Hills - clusters placed in plains
-            int hillClusters = _rng.Next(23, 39);
+            int hillClusters = _rng.Next(92, 156);
             PlaceClusters(hillClusters, TerrainType.Hills, TerrainType.Plain, MediumShapes);
 
             // Layer 5: Water - small clusters scattered
-            int waterFeatures = _rng.Next(23, 39);
+            int waterFeatures = _rng.Next(92, 156);
             PlaceClusters(waterFeatures, TerrainType.Water, null, SmallShapes,
                 allowedBase: [TerrainType.Forest, TerrainType.Plain, TerrainType.Clearing]);
 
@@ -694,14 +694,14 @@ public class GridWorldGenerator
     }
 
     /// <summary>
-    /// Find a valid starting X position for a river, spaced at least 10 tiles from others.
+    /// Find a valid starting X position for a river, spaced at least 20 tiles from others.
     /// </summary>
     private int FindRiverStartX(HashSet<int> usedStartX)
     {
-        const int minSpacing = 10;
+        const int minSpacing = 20;
         var candidates = new List<int>();
 
-        for (int x = 5; x < Width - 5; x++)
+        for (int x = 10; x < Width - 10; x++)
         {
             bool tooClose = usedStartX.Any(usedX => Math.Abs(x - usedX) < minSpacing);
             if (!tooClose && _terrain[x, MountainRows] != TerrainType.Mountain)
@@ -766,7 +766,7 @@ public class GridWorldGenerator
             Terrain = TerrainType.Forest
         };
 
-        camp.Features.Add(FeatureFactory.CreateMixedForestForage(density: 1.5));
+        camp.Features.Add(FeatureFactory.CreateMixedForestForage(density: 0.38));
         camp.Features.Add(new ShelterFeature(
             name: "Overhang",
             type: ShelterType.NaturalShelter,

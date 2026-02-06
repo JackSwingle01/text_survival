@@ -108,13 +108,13 @@ public static class AnimalTypes
     /// </summary>
     public static int BaseDetectionRange(this AnimalType type) => type switch
     {
-        AnimalType.Wolf => 3,
-        AnimalType.SaberTooth => 3,  // Stealthy ambush hunter
-        AnimalType.Bear or AnimalType.CaveBear => 2,
-        AnimalType.Hyena => 2,
-        AnimalType.Mammoth => 2,
-        AnimalType.Caribou or AnimalType.Megaloceros or AnimalType.Bison => 2,
-        _ => 2
+        AnimalType.Wolf => 12,
+        AnimalType.SaberTooth => 12,  // Stealthy ambush hunter
+        AnimalType.Bear or AnimalType.CaveBear => 8,
+        AnimalType.Hyena => 8,
+        AnimalType.Mammoth => 8,
+        AnimalType.Caribou or AnimalType.Megaloceros or AnimalType.Bison => 8,
+        _ => 8
     };
 
     /// <summary>

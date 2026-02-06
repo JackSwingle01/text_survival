@@ -633,7 +633,7 @@ public static class Situations
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
         return ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
-            .Any(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 2);
+            .Any(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 8);
     }
 
     public static bool MammothHerdPresent(GameContext ctx)
@@ -660,8 +660,8 @@ public static class Situations
 
         int distance = mammothHerd.Position.ManhattanDistance(pos);
         if (distance == 0) return 1.0;
-        if (distance == 1) return 0.5;
-        if (distance == 2) return 0.3;
+        if (distance <= 4) return 0.5;
+        if (distance <= 8) return 0.3;
         if (mammothHerd.HomeTerritory.Contains(pos)) return 0.1;
 
         return 0;

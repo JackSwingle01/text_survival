@@ -235,7 +235,7 @@ public class NPC : Actor
             else if (Camp != null) // if no known fire prefer to make it at camp
             {
                 Console.WriteLine($"  [Warmth] Going to camp");
-                var move = DecideToMove(Camp, maxTiles: 4); // only if close
+                var move = DecideToMove(Camp, maxTiles: 16); // only if close
                 if (move != null) return move;
             }
             // no known fire and camp is far
@@ -433,7 +433,7 @@ public class NPC : Actor
         return null;
     }
 
-    private NPCMove? DecideToMove(Location destination, int maxTiles = 100)
+    private NPCMove? DecideToMove(Location destination, int maxTiles = 400)
     {
         if (destination == CurrentLocation) throw new Exception("You can't move to current location");
         int distanceTo = Map.DistanceBetween(CurrentLocation, destination);

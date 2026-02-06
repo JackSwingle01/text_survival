@@ -325,12 +325,12 @@ public class LocationTests
         var location = new Location("Test Cave", "[cave]", weather,
             terrainHazardLevel: 0.3, windFactor: 0.2)
         {
-            Terrain = TerrainType.Rock  // Base 5 min
+            Terrain = TerrainType.Rock  // Base 2 min
         };
 
         Assert.Equal("Test Cave", location.Name);
-        // BaseTraversalMinutes is now computed from terrain (Rock=5) + hazard (floor(0.3*5)=1) = 6
-        Assert.Equal(6, location.BaseTraversalMinutes);
+        // BaseTraversalMinutes is now computed from terrain (Rock=2) + hazard (floor(0.3*5)=1) = 3
+        Assert.Equal(3, location.BaseTraversalMinutes);
         Assert.Equal(0.3, location.TerrainHazardLevel);
         Assert.Equal(0.2, location.WindFactor);
     }
@@ -407,18 +407,18 @@ public class VisibilityTests
     [Fact]
     public void UpdateVisibility_DowngradesPreviouslyVisibleToExplored()
     {
-        var map = CreateInitializedMap(10, 10);
+        var map = CreateInitializedMap(30, 30);
         map.CurrentPosition = new GridPosition(5, 5);
 
         // First visibility update at (5, 5)
         map.UpdateVisibility();
         Assert.Equal(TileVisibility.Visible, map.GetLocationAt(5, 6)!.Visibility);
 
-        // Move to (8, 8) - far enough that (5, 6) is outside sight range of 3
-        map.CurrentPosition = new GridPosition(8, 8);
+        // Move to (25, 25) - far enough that (5, 6) is outside sight range of 12
+        map.CurrentPosition = new GridPosition(25, 25);
         map.UpdateVisibility();
 
-        // Previous tile should now be explored but not visible (distance 5 > range 3)
+        // Previous tile should now be explored but not visible (distance 21 > range 12)
         Assert.Equal(TileVisibility.Explored, map.GetLocationAt(5, 6)!.Visibility);
     }
 }
