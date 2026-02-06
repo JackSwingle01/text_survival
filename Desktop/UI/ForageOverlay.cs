@@ -147,8 +147,11 @@ public class ForageOverlay
         if (_feature == null || _ctx == null || _clues == null) return null;
 
         // Quality header - query feature directly
-        string quality = _feature.GetQualityDescription();
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), $"Resources look {quality}.");
+        string? quality = _feature.GetQualityDescription();
+        if (quality != null)
+            ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), $"Resources look {quality}.");
+        else
+            ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), "You haven't searched here yet.");
 
         // Exploration progress - calculate directly from current location
         double explorationPct = _ctx.CurrentLocation.GetExplorationPct();

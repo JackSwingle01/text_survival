@@ -315,7 +315,7 @@ public class ForageStrategy : IWorkStrategy
             ctx.ShowTutorialOnce("Your shovel helps dig up roots and turn soil. (+10% yield)");
 
         var collected = new List<string>();
-        string quality = feature.GetQualityDescription();
+        string quality = feature.GetQualityDescription() ?? "unknown";
 
         if (found.IsEmpty)
         {

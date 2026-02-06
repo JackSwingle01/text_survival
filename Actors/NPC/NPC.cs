@@ -745,6 +745,11 @@ public class NPC : Actor
         // in tile -> work
         var work = GetResourceAtCurrentLocation(category, urgent);
         if (work != null) return work;
+
+        // Nothing here for this category — refresh memory with depletion-aware check
+        ResourceMemory.ForgetLocation(CurrentLocation);
+        ResourceMemory.RememberResources(CurrentLocation, GetAccessibleResources(CurrentLocation));
+
         // in adjacent -> move to (filter by accessible resources, pick random)
         var adjacentWithResource = Map.GetTravelOptionsFrom(CurrentLocation)
            .Where(loc => GetAccessibleResources(loc).Any(r => ResourceCategories.Items[category].Contains(r)))
@@ -787,6 +792,7 @@ public class NPC : Actor
         var resources = ResourceCategories.Items[category];
         var knownLocations = resources
             .SelectMany(r => ResourceMemory.WhereIs(r))
+            .Where(loc => loc != CurrentLocation)
             .Distinct()
             .ToList();
 

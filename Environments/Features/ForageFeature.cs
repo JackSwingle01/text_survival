@@ -51,9 +51,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     private const double BaseGrazingRatePerKgPerHour = 0.0001;
     private const double DepletedThreshold = 0.4;
     private const double NearlyDepletedThreshold = 1.2;
-    private const double AbundantQualityThreshold = 3.2;
-    private const double DecentQualityThreshold = 2.0;
-    private const double SparseQualityThreshold = 1.2;
     [System.Text.Json.Serialization.JsonInclude]
     private List<ForageResource> _resources = [];
     private static readonly Random rng = new();
@@ -546,16 +543,33 @@ public class ForageFeature : LocationFeature, IWorkableFeature
 
     /// <summary>
     /// Get a description of the forage quality based on resource density.
+    /// Returns null if the player hasn't foraged here yet.
     /// </summary>
-    public string GetQualityDescription()
+    public string? GetQualityDescription()
     {
+        if (!HasForagedBefore) return null;
+
         double density = ResourceDensity();
         return density switch
         {
-            >= AbundantQualityThreshold => "abundant",
-            >= DecentQualityThreshold => "decent",
-            >= SparseQualityThreshold => "sparse",
-            _ => "picked over"
+            >= ForageDensity.Exceptional => "exceptional",
+            >= ForageDensity.Abundant    => "abundant",
+            >= ForageDensity.Premium     => "premium",
+            >= ForageDensity.Lush        => "lush",
+            >= ForageDensity.Plentiful   => "plentiful",
+            >= ForageDensity.Rich        => "rich",
+            >= ForageDensity.Good        => "good",
+            >= ForageDensity.Decent      => "decent",
+            >= ForageDensity.Standard    => "standard",
+            >= ForageDensity.Fair        => "fair",
+            >= ForageDensity.Moderate    => "moderate",
+            >= ForageDensity.Modest      => "modest",
+            >= ForageDensity.Light       => "light",
+            >= ForageDensity.Sparse      => "sparse",
+            >= ForageDensity.Thin        => "thin",
+            >= ForageDensity.Scarce      => "scarce",
+            >= ForageDensity.Barren      => "barren",
+            _                            => "minimal",
         };
     }
 
@@ -590,8 +604,10 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
         if (!CanForage()) yield break;
+        string? quality = GetQualityDescription();
+        string label = quality != null ? $"Forage ({quality})" : "Forage";
         yield return new WorkOption(
-            $"Forage ({GetQualityDescription()})",
+            label,
             "forage",
             new ForageStrategy()
         );

@@ -219,7 +219,7 @@ public class WorkRunner(GameContext ctx)
     {
         string[] messages = quality switch
         {
-            "abundant" =>
+            "exceptional" or "abundant" or "premium" or "lush" =>
             [
                 "Fresh snow. Everything's buried.",
                 "What you spot is rotten through.",
@@ -227,7 +227,7 @@ public class WorkRunner(GameContext ctx)
                 "A sound nearby. You wait it out, lose your momentum.",
                 "Ice crust over everything. Takes too long to break through.",
             ],
-            "decent" =>
+            "plentiful" or "rich" or "good" or "decent" =>
             [
                 "Hollow log, empty inside. Wasted time.",
                 "Wind-scoured ground. Bare rock in every crevice.",
@@ -235,7 +235,15 @@ public class WorkRunner(GameContext ctx)
                 "What you find crumbles apart in your hands.",
                 "Steep terrain. You cover less ground than planned.",
             ],
-            "sparse" =>
+            "standard" or "fair" or "moderate" or "modest" =>
+            [
+                "Slim pickings today. The area's not bad, just unlucky.",
+                "You search thoroughly but come up empty.",
+                "Frozen ground makes digging pointless.",
+                "Wind scattered what was here. Nothing to show for it.",
+                "You find traces but nothing worth collecting.",
+            ],
+            "light" or "sparse" or "thin" =>
             [
                 "Slim pickings. Most of it's already gone.",
                 "Traces of what was here. Nearly spent.",
