@@ -812,7 +812,6 @@ public static class DesktopIO
         TransferHandler.TransferResult result = uiResult switch
         {
             { Resource: { } r } => TransferHandler.TransferResource(source, dest, r, direction),
-            { IsWater: true } => TransferHandler.TransferWater(source, dest, uiResult.WaterAmount, direction),
             { Tool: { } t } => TransferHandler.TransferTool(source, dest, t, direction),
             { Equipment: { } e } => TransferHandler.TransferEquipment(source, dest, e, direction),
             { Accessory: { } a } => TransferHandler.TransferAccessory(source, dest, a, direction),

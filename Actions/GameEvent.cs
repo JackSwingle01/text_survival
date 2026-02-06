@@ -796,7 +796,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
                 case ResourceType.Water:
                     // Deduct 0.25L per unit
-                    inv.WaterLiters = Math.Max(0, inv.WaterLiters - 0.25);
+                    inv.ConsumeByWeight(Resource.Water, 0.25);
                     break;
 
                 case ResourceType.PlantFiber:

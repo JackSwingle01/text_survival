@@ -120,7 +120,7 @@ public class NPCActionTests
         // Fuel below threshold (need 40kg)
         cache.Storage.Add(Resource.Stick, 30.0);
         // Water and food above thresholds
-        cache.Storage.WaterLiters = 10.0;
+        cache.Storage.Add(Resource.Water, 10.0);
         cache.Storage.Add(Resource.CookedMeat, 5.0);
 
         // Add adjacent location with fuel so Stockpile has somewhere to go
@@ -144,7 +144,7 @@ public class NPCActionTests
         // Fuel at threshold
         cache.Storage.Add(Resource.Stick, 40.0);
         // Water below threshold (need 6L)
-        cache.Storage.WaterLiters = 4.0;
+        cache.Storage.Add(Resource.Water, 4.0);
         // Food above threshold
         cache.Storage.Add(Resource.CookedMeat, 5.0);
 
@@ -166,7 +166,7 @@ public class NPCActionTests
         var (npc, camp, cache, map) = CreateTestNPCWithCache();
         // Fuel and water at threshold
         cache.Storage.Add(Resource.Stick, 40.0);
-        cache.Storage.WaterLiters = 6.0;
+        cache.Storage.Add(Resource.Water, 6.0);
         // Food below threshold (need 2kg)
         cache.Storage.Add(Resource.CookedMeat, 1.0);
 
@@ -189,7 +189,7 @@ public class NPCActionTests
         var (npc, _, cache, _) = CreateTestNPCWithCache();
         // All resources above thresholds
         cache.Storage.Add(Resource.Stick, 50.0);
-        cache.Storage.WaterLiters = 10.0;
+        cache.Storage.Add(Resource.Water, 10.0);
         cache.Storage.Add(Resource.CookedMeat, 5.0);
 
         var result = npc.DetermineWork();

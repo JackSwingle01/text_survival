@@ -78,7 +78,7 @@ public static class Situations
     public static bool SupplyPressure(GameContext ctx) =>
         ctx.Check(EventCondition.LowOnFuel) ||
         ctx.Check(EventCondition.LowOnFood) ||
-        ctx.Inventory.WaterLiters < 0.5;
+        ctx.Inventory.Weight(Resource.Water) < 0.5;
 
     public static double SupplyPressureLevel(GameContext ctx)
     {
@@ -87,8 +87,9 @@ public static class Situations
         else if (ctx.Check(EventCondition.LowOnFuel)) level += 0.2;
         if (ctx.Check(EventCondition.NoFood)) level += 0.4;
         else if (ctx.Check(EventCondition.LowOnFood)) level += 0.2;
-        if (ctx.Inventory.WaterLiters <= 0) level += 0.3;
-        else if (ctx.Inventory.WaterLiters < 0.5) level += 0.15;
+        double water = ctx.Inventory.Weight(Resource.Water);
+        if (water <= 0) level += 0.3;
+        else if (water < 0.5) level += 0.15;
         return Math.Min(1.0, level);
     }
 

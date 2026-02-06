@@ -469,7 +469,7 @@ public static partial class GameEventRegistry
             ResourceType.Fuel => inv.GetCount(ResourceCategory.Fuel) >= cost.Amount,
             ResourceType.Tinder => inv.GetCount(ResourceCategory.Tinder) >= cost.Amount,
             ResourceType.Food => inv.GetCount(ResourceCategory.Food) >= cost.Amount,
-            ResourceType.Water => inv.WaterLiters >= cost.Amount * 0.25,
+            ResourceType.Water => inv.Weight(Resource.Water) >= cost.Amount * 0.25,
             ResourceType.PlantFiber => inv.Count(Resource.PlantFiber) >= cost.Amount,
             ResourceType.Medicine => inv.GetCount(ResourceCategory.Medicine) >= cost.Amount,
             _ => true

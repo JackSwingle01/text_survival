@@ -400,7 +400,7 @@ public class FoodOverlay
         ImGui.Spacing();
 
         // Current water
-        ImGui.Text($"Current water: {ctx.Inventory.WaterLiters:F2}L");
+        ImGui.Text($"Current water: {ctx.Inventory.Weight(Resource.Water):F2}L");
 
         ImGui.Spacing();
         ImGui.Separator();

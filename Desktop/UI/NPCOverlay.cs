@@ -129,9 +129,10 @@ public class NPCOverlay
             RenderResourceCategory(inv, "Material", ResourceCategory.Material);
 
             // Water
-            if (inv.WaterLiters > 0)
+            double waterWeight = inv.Weight(Resource.Water);
+            if (waterWeight > 0)
             {
-                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), $"Water: {inv.WaterLiters:F1}L");
+                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), $"Water: {waterWeight:F1}L");
             }
 
             // Gear section

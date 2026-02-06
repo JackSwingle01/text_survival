@@ -79,7 +79,7 @@ public class SerializationTests
         original.Inventory.Add(Resource.Stick, 0.25);  // Multiple stacks
         original.Inventory.Add(Resource.Pine, 1.2);
         original.Inventory.Add(Resource.Berries, 0.15);
-        original.Inventory.WaterLiters = 1.5;
+        original.Inventory.Add(Resource.Water, 1.5);
 
         // Add tool (test discrete items)
         original.Inventory.Tools.Add(Gear.Knife());
@@ -124,7 +124,7 @@ public class SerializationTests
         // Inventory preserved
         Assert.Equal(hadSticks, deserialized.Inventory.Count(Resource.Stick) > 0);
         Assert.Equal(hadTools, deserialized.Inventory.Tools.Count > 0);
-        Assert.True(deserialized.Inventory.WaterLiters > 0, "Water preserved");
+        Assert.True(deserialized.Inventory.Weight(Resource.Water) > 0, "Water preserved");
 
         // Weather exists
         Assert.NotNull(deserialized.Weather);

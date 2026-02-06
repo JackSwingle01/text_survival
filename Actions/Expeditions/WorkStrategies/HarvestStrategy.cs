@@ -163,10 +163,9 @@ public class HarvestStrategy : IWorkStrategy
             string quantityInfo = $"{resource.CurrentQuantity}/{resource.MaxQuantity}";
             double totalWeightKg = resource.CurrentQuantity * resource.WeightPerUnit;
 
-            // Format differently for water vs regular resources
-            string line = resource.IsWater
-                ? $"{resource.DisplayName}: {status} ({quantityInfo} units, ~{totalWeightKg:F1}L)"
-                : $"{resource.DisplayName}: {status} ({quantityInfo} units, ~{totalWeightKg:F1}kg)";
+            // Water weight in kg = liters, so display works correctly for all resources
+            string units = resource.ResourceType == Resource.Water ? "L" : "kg";
+            string line = $"{resource.DisplayName}: {status} ({quantityInfo} units, ~{totalWeightKg:F1}{units})";
 
             lines.Add(line);
         }

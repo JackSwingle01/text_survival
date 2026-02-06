@@ -28,21 +28,6 @@ public static class TransferHandler
     }
 
     /// <summary>
-    /// Transfer water from source to destination.
-    /// </summary>
-    public static TransferResult TransferWater(
-        Inventory source, Inventory dest, double amount, string direction)
-    {
-        double actualAmount = Math.Min(amount, source.WaterLiters);
-        if (actualAmount <= 0)
-            return new TransferResult(false, "No water to transfer.");
-
-        source.WaterLiters -= actualAmount;
-        dest.WaterLiters += actualAmount;
-        return new TransferResult(true, $"Transferred {actualAmount:F1}L water {direction}");
-    }
-
-    /// <summary>
     /// Transfer a tool from source to destination.
     /// </summary>
     public static TransferResult TransferTool(

@@ -106,13 +106,6 @@ public class ExamineStrategy : IWorkStrategy
                 collected.Add(loot.GetDescription());
                 InventoryCapacityHelper.CombineAndReport(ctx, loot);
             }
-
-            // Add water
-            if (loot.WaterLiters > 0)
-            {
-                ctx.Inventory.WaterLiters += loot.WaterLiters;
-                collected.Add($"{loot.WaterLiters:F1}L water");
-            }
         }
 
         // Add tension if generated

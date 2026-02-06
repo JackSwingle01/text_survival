@@ -15,9 +15,6 @@ public abstract record InventoryItem(string Name, double WeightKg)
     public record ResourceItem(Resource Resource, int Count, double WeightKg)
         : InventoryItem(Resource.ToDisplayName(), WeightKg);
 
-    public record WaterItem(double Liters)
-        : InventoryItem("Water", Liters); // Water weighs ~1kg per liter
-
     public record ToolItem(Gear Tool)
         : InventoryItem(Tool.Name, Tool.Weight);
 
@@ -163,7 +160,7 @@ public class InventoryOverlay
     private static int GetCategoryItemCount(Inventory inv, string category) => category switch
     {
         "All" => GetTotalItemCount(inv),
-        "Food" => ResourceCategories.Items[ResourceCategory.Food].Count(r => inv.Count(r) > 0) + (inv.WaterLiters > 0 ? 1 : 0),
+        "Food" => ResourceCategories.Items[ResourceCategory.Food].Count(r => inv.Count(r) > 0) + inv.Count(Resource.Water),
         "Fuel" => ResourceCategories.Items[ResourceCategory.Fuel].Count(r => inv.Count(r) > 0),
         "Medicine" => ResourceCategories.Items[ResourceCategory.Medicine].Count(r => inv.Count(r) > 0),
         "Material" => ResourceCategories.Items[ResourceCategory.Material].Count(r => inv.Count(r) > 0),
@@ -176,7 +173,6 @@ public class InventoryOverlay
         int count = 0;
         foreach (var cat in ResourceCategories.Items.Values)
             count += cat.Count(r => inv.Count(r) > 0);
-        if (inv.WaterLiters > 0) count++;
         count += inv.Tools.Count;
         count += inv.Equipment.Values.Count(e => e != null);
         count += inv.Accessories.Count;
@@ -219,8 +215,7 @@ public class InventoryOverlay
         {
             case "All":
                 AddResourceItems(inv, ResourceCategory.Food, items);
-                if (inv.WaterLiters > 0)
-                    items.Add(new InventoryItem.WaterItem(inv.WaterLiters));
+                AddResourceItem(inv, Resource.Water, items);
                 AddResourceItems(inv, ResourceCategory.Fuel, items);
                 AddResourceItems(inv, ResourceCategory.Medicine, items);
                 AddResourceItems(inv, ResourceCategory.Material, items);
@@ -229,8 +224,7 @@ public class InventoryOverlay
 
             case "Food":
                 AddResourceItems(inv, ResourceCategory.Food, items);
-                if (inv.WaterLiters > 0)
-                    items.Add(new InventoryItem.WaterItem(inv.WaterLiters));
+                AddResourceItem(inv, Resource.Water, items);
                 break;
 
             case "Fuel":
@@ -263,6 +257,16 @@ public class InventoryOverlay
                 double weight = inv.Weight(resource);
                 items.Add(new InventoryItem.ResourceItem(resource, count, weight));
             }
+        }
+    }
+
+    private static void AddResourceItem(Inventory inv, Resource resource, List<InventoryItem> items)
+    {
+        int count = inv.Count(resource);
+        if (count > 0)
+        {
+            double weight = inv.Weight(resource);
+            items.Add(new InventoryItem.ResourceItem(resource, count, weight));
         }
     }
 
@@ -368,7 +372,6 @@ public class InventoryOverlay
     private static string GetItemId(InventoryItem item) => item switch
     {
         InventoryItem.ResourceItem r => $"res_{r.Resource}",
-        InventoryItem.WaterItem => "water",
         InventoryItem.ToolItem t => $"tool_{t.Tool.Name}_{t.Tool.GetHashCode()}",
         InventoryItem.EquipmentItem e => $"equip_{e.Slot}",
         InventoryItem.AccessoryItem a => $"acc_{a.Accessory.Name}_{a.Accessory.GetHashCode()}",
@@ -379,7 +382,6 @@ public class InventoryOverlay
     private static string GetBottomText(InventoryItem item) => item switch
     {
         InventoryItem.ResourceItem r => r.Count > 1 ? $"x{r.Count} {r.WeightKg:F1}kg" : $"{r.WeightKg:F2}kg",
-        InventoryItem.WaterItem w => $"{w.Liters:F1} L",
         InventoryItem.ToolItem t => $"{t.Tool.Weight:F1}kg",
         InventoryItem.EquipmentItem e => $"{e.Equipment.Weight:F1}kg",
         InventoryItem.AccessoryItem a => $"+{a.Accessory.CapacityBonusKg}kg cap",
@@ -390,7 +392,6 @@ public class InventoryOverlay
     private static Vector4 GetItemColor(InventoryItem item) => item switch
     {
         InventoryItem.ResourceItem r => GetResourceColor(r.Resource),
-        InventoryItem.WaterItem => new Vector4(0.3f, 0.5f, 0.8f, 0.85f),      // Blue
         InventoryItem.ToolItem => new Vector4(0.6f, 0.55f, 0.4f, 0.85f),      // Tan
         InventoryItem.EquipmentItem => new Vector4(0.5f, 0.5f, 0.65f, 0.85f), // Blue-gray
         InventoryItem.AccessoryItem => new Vector4(0.55f, 0.45f, 0.5f, 0.85f),// Mauve
@@ -424,9 +425,6 @@ public class InventoryOverlay
         {
             case InventoryItem.ResourceItem r:
                 RenderResourceDetails(ctx, inv, r);
-                break;
-            case InventoryItem.WaterItem w:
-                RenderWaterDetails(ctx, inv, w);
                 break;
             case InventoryItem.ToolItem t:
                 RenderToolDetails(ctx, inv, t);
@@ -529,33 +527,6 @@ public class InventoryOverlay
         // Warnings for raw food
         if (resource == Resource.RawMeat)
             ImGui.TextColored(new Vector4(1f, 0.6f, 0.4f, 1f), "Raw - risk of illness");
-    }
-
-    private void RenderWaterDetails(GameContext ctx, Inventory inv, InventoryItem.WaterItem item)
-    {
-        ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), "Water");
-        ImGui.Separator();
-
-        ImGui.Text($"Amount: {item.Liters:F1} liters");
-        ImGui.Text($"Weight: {item.Liters:F1} kg");
-
-        ImGui.Separator();
-        ImGui.TextWrapped("Essential for survival. Drink regularly to stay hydrated.");
-
-        ImGui.Separator();
-
-        // Drink action
-        if (ImGui.Button("Drink", new Vector2(-1, 28)))
-        {
-            double amount = Math.Min(0.5, inv.WaterLiters);
-            inv.WaterLiters -= amount;
-            ctx.player.Body.Hydration += amount * 500; // Rough hydration value
-            _message = $"Drank {amount:F1}L water";
-            _messageTimer = 2f;
-
-            if (inv.WaterLiters <= 0)
-                _selectedItem = null;
-        }
     }
 
     private void RenderToolDetails(GameContext ctx, Inventory inv, InventoryItem.ToolItem item)

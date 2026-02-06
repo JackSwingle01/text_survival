@@ -66,8 +66,9 @@ public class RewardGeneratorTests
         var result = RewardGenerator.Generate(RewardPool.WaterSource);
 
         // Assert
-        Assert.True(result.WaterLiters > 0);
-        Assert.True(result.WaterLiters >= 1.0 && result.WaterLiters <= 2.5,
+        double waterWeight = result.Weight(Resource.Water);
+        Assert.True(waterWeight > 0);
+        Assert.True(waterWeight >= 1.0 && waterWeight <= 2.5,
             "Water amount should be between 1.0 and 2.5 liters");
     }
 

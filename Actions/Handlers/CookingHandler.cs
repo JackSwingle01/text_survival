@@ -116,7 +116,7 @@ public static class CookingHandler
         if (!CanCookAt(location))
             return new CookingResult(false, "No active fire to melt snow.", 0);
 
-        inv.WaterLiters += MeltSnowWaterLiters;
+        inv.Add(Resource.Water, MeltSnowWaterLiters);
 
         return new CookingResult(true, $"Melted snow for {MeltSnowWaterLiters:F1}L of water.", MeltSnowWaterLiters);
     }

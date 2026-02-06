@@ -207,9 +207,12 @@ public class NPCStashWater() : NPCAction("Storing Water", 2, ActivityType.Crafti
             Console.WriteLine("AI's BROKE. Trying to store water where there's no cache!");
             return;
         }
-        var water = npc.Inventory!.WaterLiters;
-        cache.Storage.WaterLiters += water;
-        npc.Inventory.WaterLiters = 0;
+        // Transfer all water from NPC inventory to cache storage
+        while (npc.Inventory!.Count(Resource.Water) > 0)
+        {
+            double water = npc.Inventory.Pop(Resource.Water);
+            cache.Storage.Add(Resource.Water, water);
+        }
     }
 }
 
@@ -390,12 +393,11 @@ public class NPCDrinkWater : NPCAction
 
     public override void Complete(NPC npc)
     {
-        double toDrink = Math.Min(_amount, npc.Inventory!.WaterLiters);
-        if (toDrink > 0)
+        double consumed = npc.Inventory!.ConsumeByWeight(Resource.Water, _amount);
+        if (consumed > 0)
         {
-            npc.Inventory.WaterLiters -= toDrink;
-            npc.Body.AddHydration(toDrink);
-            Console.WriteLine($"[NPC:{npc.Name}] Drank {toDrink:F1}L water");
+            npc.Body.AddHydration(consumed);
+            Console.WriteLine($"[NPC:{npc.Name}] Drank {consumed:F1}L water");
         }
     }
 }

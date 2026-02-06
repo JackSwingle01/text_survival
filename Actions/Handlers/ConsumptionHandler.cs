@@ -101,10 +101,11 @@ public static class ConsumptionHandler
         AddIfAvailable(result, inv, Resource.DriedBerries, "Dried berries", DriedBerriesCaloriesPerKg, 0, null);
 
         // Water (drink up to 1L, capped by hydration room)
-        if (inv.HasWater)
+        double waterAvailable = inv.Weight(Resource.Water);
+        if (waterAvailable > 0)
         {
             double hydrationRoom = (SurvivalProcessor.MAX_HYDRATION - body.Hydration) / WaterHydrationPerLiter;
-            double toDrink = Math.Min(1.0, Math.Min(inv.WaterLiters, hydrationRoom));
+            double toDrink = Math.Min(1.0, Math.Min(waterAvailable, hydrationRoom));
             toDrink = Math.Round(toDrink, 2);
 
             if (toDrink >= 0.01)
@@ -121,9 +122,9 @@ public static class ConsumptionHandler
         }
 
         // Special action: wash off blood
-        if (ctx.player.EffectRegistry.HasEffect("Bloody") && inv.WaterLiters >= 0.5)
+        if (ctx.player.EffectRegistry.HasEffect("Bloody") && waterAvailable >= 0.5)
         {
-            double toUse = Math.Min(0.5, inv.WaterLiters);
+            double toUse = Math.Min(0.5, waterAvailable);
             result.Add(new ConsumableInfo(
                 "wash_blood",
                 "Wash off blood",
@@ -175,18 +176,19 @@ public static class ConsumptionHandler
         // Water
         if (consumableId == "water")
         {
+            double waterAvailable = inv.Weight(Resource.Water);
             double hydrationRoom = (SurvivalProcessor.MAX_HYDRATION - body.Hydration) / WaterHydrationPerLiter;
-            double toDrink = Math.Min(1.0, Math.Min(inv.WaterLiters, hydrationRoom));
+            double toDrink = Math.Min(1.0, Math.Min(waterAvailable, hydrationRoom));
             toDrink = Math.Round(toDrink, 2);
 
-            inv.WaterLiters -= toDrink;
-            body.AddHydration(toDrink * WaterHydrationPerLiter);
+            double consumed = inv.ConsumeByWeight(Resource.Water, toDrink);
+            body.AddHydration(consumed * WaterHydrationPerLiter);
 
             // Drinking water helps cool down when overheating
             var hyperthermia = ctx.player.EffectRegistry.GetEffectsByKind("Hyperthermia").FirstOrDefault();
             if (hyperthermia != null)
             {
-                double cooldown = HyperthermiaCooldownPerQuarterLiter * (toDrink / 0.25);
+                double cooldown = HyperthermiaCooldownPerQuarterLiter * (consumed / 0.25);
                 hyperthermia.Severity = Math.Max(0, hyperthermia.Severity - cooldown);
                 return new ConsumptionResult("You drink some water. The cool water helps you cool down.", false);
             }
@@ -196,8 +198,7 @@ public static class ConsumptionHandler
         // Wash blood
         if (consumableId == "wash_blood")
         {
-            double toUse = Math.Min(0.5, inv.WaterLiters);
-            inv.WaterLiters -= toUse;
+            inv.ConsumeByWeight(Resource.Water, 0.5);
             ctx.player.EffectRegistry.RemoveEffectsByKind("Bloody");
             ctx.player.EffectRegistry.AddEffect(EffectFactory.Wet(0.05));
             return new ConsumptionResult("You wash the blood from your hands and clothes. You're a bit damp now.", false);

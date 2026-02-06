@@ -95,15 +95,13 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     /// <param name="maxQuantity">Maximum available quantity</param>
     /// <param name="weightPerUnit">Weight in kg per unit harvested</param>
     /// <param name="respawnHoursPerUnit">Hours required to respawn one unit</param>
-    /// <param name="isWater">True if this adds to WaterLiters instead of resources</param>
     public HarvestableFeature AddResource(string displayName, Resource resourceType,
-        int maxQuantity, double weightPerUnit, double respawnHoursPerUnit, bool isWater = false)
+        int maxQuantity, double weightPerUnit, double respawnHoursPerUnit)
     {
         Resources.Add(new HarvestableResource
         {
             DisplayName = displayName,
             ResourceType = resourceType,
-            IsWater = isWater,
             MaxQuantity = maxQuantity,
             CurrentQuantity = maxQuantity,
             WeightPerUnit = weightPerUnit,
@@ -130,7 +128,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
         AddResource(displayName, Resource.Berries, maxQuantity, weightPerUnit, respawnHoursPerUnit);
 
     public HarvestableFeature AddWater(string displayName, int maxQuantity, double litersPerUnit, double respawnHoursPerUnit) =>
-        AddResource(displayName, Resource.Stick, maxQuantity, litersPerUnit, respawnHoursPerUnit, isWater: true);  // ResourceType unused for water
+        AddResource(displayName, Resource.Water, maxQuantity, litersPerUnit, respawnHoursPerUnit);
 
     public HarvestableFeature AddPlantFiber(string displayName, int maxQuantity, double weightPerUnit, double respawnHoursPerUnit) =>
         AddResource(displayName, Resource.PlantFiber, maxQuantity, weightPerUnit, respawnHoursPerUnit);
@@ -232,11 +230,7 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
             {
                 if (resource.CurrentQuantity > 0)
                 {
-                    if (resource.IsWater)
-                        found.WaterLiters += resource.WeightPerUnit;
-                    else
-                        found.Add(resource.ResourceType, resource.WeightPerUnit);
-
+                    found.Add(resource.ResourceType, resource.WeightPerUnit);
                     resource.CurrentQuantity--;
                     resource.RespawnProgressHours = 0;
                 }
@@ -291,13 +285,12 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     }
 
     public override List<Resource> ProvidedResources() =>
-        Resources.Where(r => !r.IsWater).Select(r => r.ResourceType).Distinct().ToList();
+        Resources.Select(r => r.ResourceType).Distinct().ToList();
 
     public class HarvestableResource
     {
         public string DisplayName { get; set; } = "";
         public Resource ResourceType { get; set; }  // Serializable enum instead of delegate
-        public bool IsWater { get; set; } = false;  // Water handled specially
         public int MaxQuantity { get; set; }
         public int CurrentQuantity { get; set; }
         public double WeightPerUnit { get; set; }

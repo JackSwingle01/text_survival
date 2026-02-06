@@ -147,30 +147,6 @@ public class TransferOverlay
             }
         }
 
-        // Water
-        if (inv.WaterLiters > 0)
-        {
-            hasItems = true;
-            ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "Water");
-            string waterLabel = $"  Water: {inv.WaterLiters:F2}L";
-
-            if (ImGui.Selectable(waterLabel))
-            {
-                result = new TransferResult
-                {
-                    IsWater = true,
-                    WaterAmount = Math.Min(1.0, inv.WaterLiters),
-                    FromPlayer = isPlayerInventory
-                };
-            }
-
-            if (ImGui.IsItemHovered())
-            {
-                string direction = isPlayerInventory ? _storageName : "your inventory";
-                ImGui.SetTooltip($"Click to transfer 1L to {direction}");
-            }
-        }
-
         // Tools
         if (inv.Tools.Count > 0)
         {
@@ -274,6 +250,4 @@ public class TransferResult
     public Gear? Tool { get; set; }
     public Gear? Equipment { get; set; }
     public Gear? Accessory { get; set; }
-    public bool IsWater { get; set; }
-    public double WaterAmount { get; set; }
 }

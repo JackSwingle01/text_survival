@@ -130,7 +130,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail FrozenPuddle()
     {
         var loot = new Inventory();
-        loot.WaterLiters = 0.2 + Random.Shared.NextDouble() * 0.3;
+        loot.Add(Resource.Water, 0.2 + Random.Shared.NextDouble() * 0.3);
 
         return new EnvironmentalDetail("frozen_puddle", "Frozen Puddle", "A small frozen puddle. Ice looks thin enough to break.")
         {
@@ -144,7 +144,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail ForestPuddle()
     {
         var loot = new Inventory();
-        loot.WaterLiters = 0.3 + Random.Shared.NextDouble() * 0.4;
+        loot.Add(Resource.Water, 0.3 + Random.Shared.NextDouble() * 0.4);
 
         return new EnvironmentalDetail("forest_puddle", "Forest Puddle", "A shallow puddle fed by melting snow, sheltered by the trees.")
         {

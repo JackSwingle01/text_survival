@@ -350,7 +350,7 @@ public static class RewardGenerator
     {
         var resources = new Inventory();
         // Buffed +67%
-        resources.WaterLiters += RandomWeight(1.0, 2.5);
+        resources.Add(Resource.Water, RandomWeight(1.0, 2.5));
         return resources;
     }
 

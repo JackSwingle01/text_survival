@@ -129,8 +129,6 @@ public class Inventory
         }
     }
 
-    // Water (kept separate - measured in liters)
-    public double WaterLiters { get; set; }
 
     // Discrete items
     public List<Gear> Tools { get; set; } = new();
@@ -192,6 +190,33 @@ public class Inventory
         for (int i = 0; i < count; i++) Pop(type);
     }
 
+    /// <summary>
+    /// Consume up to maxKg from a resource stack, handling partial consumption.
+    /// Returns the actual amount consumed in kg.
+    /// </summary>
+    public double ConsumeByWeight(Resource type, double maxKg)
+    {
+        double consumed = 0;
+        while (consumed < maxKg && _stacks[type].Count > 0)
+        {
+            double top = _stacks[type].Pop();
+            double needed = maxKg - consumed;
+            if (top <= needed)
+                consumed += top;
+            else
+            {
+                consumed += needed;
+                _stacks[type].Push(top - needed);
+            }
+        }
+        return consumed;
+    }
+
+    /// <summary>
+    /// Convenience method to add weight directly (wraps Push).
+    /// </summary>
+    public void AddWeight(Resource type, double kg) => _stacks[type].Push(kg);
+
     // Category-based queries
     public bool Has(ResourceCategory category) =>
         ResourceCategories.Items[category].Any(type => _stacks[type].Count > 0);
@@ -216,7 +241,7 @@ public class Inventory
     // Convenience properties
     public bool HasFood => Has(ResourceCategory.Food);
     public bool HasFuel => Has(ResourceCategory.Fuel);
-    public bool HasWater => WaterLiters > 0;
+    public bool HasWater => Weight(Resource.Water) > 0;
     public bool HasMeat => _stacks[Resource.RawMeat].Count > 0 || _stacks[Resource.CookedMeat].Count > 0;
     public bool HasFish => _stacks[Resource.RawFish].Count > 0 || _stacks[Resource.CookedFish].Count > 0;
 
@@ -248,7 +273,7 @@ public class Inventory
         _equipment.Values.Sum(e => e?.Weight ?? 0) + (Weapon?.Weight ?? 0);
 
     public double CurrentWeightKg =>
-        ResourceWeight + WaterLiters + ToolsWeight + EquipmentWeight +
+        ResourceWeight + ToolsWeight + EquipmentWeight +
         AccessoriesWeight + (ActiveTorch?.Weight ?? 0);
 
     public double TotalInsulation =>
@@ -320,7 +345,6 @@ public class Inventory
             foreach (var item in other._stacks[type])
                 _stacks[type].Push(item);
 
-        WaterLiters += other.WaterLiters;
         Tools.AddRange(other.Tools);
         Accessories.AddRange(other.Accessories);
     }
@@ -343,17 +367,6 @@ public class Inventory
                 else
                     leftovers._stacks[type].Push(weight);
             }
-        }
-
-        // Add water (partial liters OK)
-        if (other.WaterLiters > 0)
-        {
-            double canFit = RemainingCapacityKg;
-            double toAdd = Math.Min(other.WaterLiters, canFit);
-            WaterLiters += toAdd;
-            double leftover = other.WaterLiters - toAdd;
-            if (leftover > 0)
-                leftovers.WaterLiters = leftover;
         }
 
         // Add tools if they fit
@@ -382,8 +395,6 @@ public class Inventory
     {
         foreach (var stack in _stacks.Values)
             MultiplyStack(stack, multiplier);
-
-        WaterLiters *= multiplier;
     }
 
     private static void MultiplyStack(Stack<double> stack, double multiplier)
@@ -397,7 +408,6 @@ public class Inventory
     // Convenience checks
     public bool IsEmpty =>
         _stacks.Values.All(s => s.Count == 0) &&
-        WaterLiters == 0 &&
         Tools.Count == 0 &&
         Accessories.Count == 0;
 
@@ -531,16 +541,6 @@ public class Inventory
                     () => target._stacks[type].Push(_stacks[type].Pop())));
             }
         }
-
-        if (WaterLiters >= 0.1)
-            items.Add(("Water", "Water (1.0L)", 1.0,
-                () =>
-                {
-                    double amount = Math.Min(1.0, WaterLiters);
-                    target.WaterLiters += amount;
-                    WaterLiters -= amount;
-                }
-            ));
 
         foreach (var tool in Tools.ToList())
         {
@@ -706,8 +706,6 @@ public static class InventoryExtensions
                 parts.Add(count > 1 ? $"{count} {name}s" : $"{count} {name}");
             }
         }
-
-        if (inv.WaterLiters > 0) parts.Add($"{inv.WaterLiters:F1}L water");
 
         foreach (var tool in inv.Tools) parts.Add(tool.Name);
         foreach (var accessory in inv.Accessories) parts.Add(accessory.Name);

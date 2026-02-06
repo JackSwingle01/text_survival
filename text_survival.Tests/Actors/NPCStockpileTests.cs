@@ -136,7 +136,7 @@ public class NPCStockpileTests
     public void IsEnoughStockpiled_Water_BelowTarget_ReturnsFalse()
     {
         var (npc, _, cache) = CreateTestNPCWithCache();
-        cache.Storage.WaterLiters = 5.0; // 5L < 6L target
+        cache.Storage.Add(Resource.Water, 5.0); // 5L < 6L target
 
         var result = npc.IsEnoughStockpiled(ResourceCategory.Water);
 
@@ -147,7 +147,7 @@ public class NPCStockpileTests
     public void IsEnoughStockpiled_Water_AtTarget_ReturnsTrue()
     {
         var (npc, _, cache) = CreateTestNPCWithCache();
-        cache.Storage.WaterLiters = 6.0; // Exactly 6L
+        cache.Storage.Add(Resource.Water, 6.0); // Exactly 6L
 
         var result = npc.IsEnoughStockpiled(ResourceCategory.Water);
 

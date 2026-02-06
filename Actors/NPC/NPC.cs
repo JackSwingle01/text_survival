@@ -333,9 +333,10 @@ public class NPC : Actor
         Console.WriteLine($"  [Water] Determining action for water need");
 
         // Check for water in inventory first - drink it
-        if (Inventory.WaterLiters > 0.1)
+        double waterAvailable = Inventory.Weight(Resource.Water);
+        if (waterAvailable > 0.1)
         {
-            Console.WriteLine($"  [Water] Drinking from inventory ({Inventory.WaterLiters:F1}L)");
+            Console.WriteLine($"  [Water] Drinking from inventory ({waterAvailable:F1}L)");
             return new NPCDrinkWater();
         }
 
@@ -713,7 +714,7 @@ public class NPC : Actor
             locWithResource = Utils.GetRandomFromList(Map.GetTravelOptionsFrom(CurrentLocation).ToList());
         }
 
-        if (locWithResource != null)
+        if (locWithResource != null && locWithResource != CurrentLocation)
         {
             // Check if we can survive traveling in current conditions
             int estimatedTravelMinutes = 10;
@@ -971,9 +972,10 @@ public class NPC : Actor
                     }
                 }
                 // Try stashing water if no resources left
-                if (Inventory.WaterLiters > 0)
+                double waterWeight = Inventory.Weight(Resource.Water);
+                if (waterWeight > 0)
                 {
-                    Console.WriteLine($"    [InvCheck] Stashing Water ({Inventory.WaterLiters:F1}L)");
+                    Console.WriteLine($"    [InvCheck] Stashing Water ({waterWeight:F1}L)");
                     return new NPCStashWater();
                 }
                 // Only tools/equipment remain - can't stash, continue with tasks
@@ -991,10 +993,8 @@ public class NPC : Actor
         int PEOPLE_AT_CAMP = 1; // todo add property to location
         if (Cache is null) return false;
 
-        // Water is tracked via WaterLiters, not in resource stacks
-        bool hasResource = resource == ResourceCategory.Water
-            ? Cache.WaterLiters > 0
-            : CampHas(resource);
+        // Check if resource exists in cache
+        bool hasResource = CampHas(resource);
         if (!hasResource) return false;
 
         double neededPerPersonDay = resource switch
@@ -1010,9 +1010,7 @@ public class NPC : Actor
         };
         int target = (int)(DAYS_RESERVE * PEOPLE_AT_CAMP * neededPerPersonDay);
 
-        double currentAmount = resource == ResourceCategory.Water
-            ? Cache.WaterLiters
-            : Cache.GetWeight(resource);
+        double currentAmount = Cache.GetWeight(resource);
 
         return currentAmount >= target;
     }

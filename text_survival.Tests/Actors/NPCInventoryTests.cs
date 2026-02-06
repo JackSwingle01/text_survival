@@ -109,14 +109,15 @@ public class NPCInventoryTests
     {
         // Arrange: NPC at camp with only water (no resources)
         var (npc, _, _, _) = CreateTestNPCAtCamp();
-        npc.Inventory.WaterLiters = 14.0; // 14L = 14kg (93%)
+        npc.Inventory.Add(Resource.Water, 14.0); // 14L = 14kg (93%)
 
         // Act
         var action = npc.DealWithFullInventory();
 
-        // Assert: Should stash water
+        // Assert: Should stash water (water is now a normal resource category)
         Assert.NotNull(action);
-        Assert.IsType<NPCStashWater>(action);
+        var stashAction = Assert.IsType<NPCStash>(action);
+        // Water is now in ResourceCategory.Water, so it gets stashed as a normal resource
     }
 
     [Fact]
