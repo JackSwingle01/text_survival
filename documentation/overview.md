@@ -507,7 +507,7 @@ Wounded animals split into trackable single-animal herds. NPC predator-prey reso
 
 Herds interact with: locations (territory spans tiles), features (grazing depletes ForageFeature), hunting (HuntStrategy searches herds), events (herd arc triggers), tensions (HerdNearby, WoundedPrey), encounters (predators engage player).
 
-**Files**: `Actors/Animals/Herd.cs`, `Actors/Animals/HerdRegistry.cs`, `Actors/Animals/Behaviors/`
+**Files**: `Actors/Animals/Herd.cs`, `Actors/Animals/HerdExtensions.cs`, `Actors/Animals/Behaviors/`
 
 ---
 

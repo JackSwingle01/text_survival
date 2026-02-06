@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using text_survival.Actions;
+using text_survival.Actors.Animals;
 
 namespace text_survival.Persistence;
 
@@ -83,7 +84,7 @@ public static class SaveManager
             var ctx = JsonSerializer.Deserialize<GameContext>(json, Options);
 
             // Post-load: recreate non-serialized data
-            ctx?.Herds.RecreateAllMembers(ctx.Map);
+            ctx?.Herds.RecreateAllBehaviors();
 
             return (ctx, null);
         }
@@ -127,7 +128,7 @@ public static class SaveManager
         var deserialized = JsonSerializer.Deserialize<GameContext>(json, Options);
 
         // Post-load: recreate non-serialized data
-        deserialized?.Herds.RecreateAllMembers(deserialized.Map);
+        deserialized?.Herds.RecreateAllBehaviors();
 
         int locationCount = 0;
         if (deserialized?.Map != null)

@@ -1,5 +1,4 @@
 using text_survival.Actions;
-using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
 namespace text_survival.Actors.Animals.Behaviors;
@@ -10,8 +9,6 @@ namespace text_survival.Actors.Animals.Behaviors;
 /// </summary>
 public class PreyBehavior : IHerdBehavior
 {
-    private static readonly Random _rng = new();
-
     // Hunger rates per minute
     private const double HungerRatePerMinute = 0.003;   // ~5.5 hours to get hungry
     private const double GrazeRatePerMinute = 0.008;    // ~2 hours grazing to satiate
@@ -27,8 +24,7 @@ public class PreyBehavior : IHerdBehavior
             // Just arrived - if fleeing, transition to resting
             if (herd.State == HerdState.Fleeing)
             {
-                herd.State = HerdState.Resting;
-                herd.StateTimeMinutes = 0;
+                herd.TransitionTo(HerdState.Resting);
                 return HerdUpdateResult.None;
             }
         }
@@ -47,72 +43,55 @@ public class PreyBehavior : IHerdBehavior
         switch (herd.State)
         {
             case HerdState.Resting:
-                return UpdateResting(herd, elapsedMinutes, ctx);
+                return UpdateResting(herd, elapsedMinutes);
 
             case HerdState.Grazing:
-                return UpdateGrazing(herd, elapsedMinutes, ctx);
+                return UpdateGrazing(herd, elapsedMinutes);
 
             case HerdState.Fleeing:
                 return ExecuteFlee(herd, ctx);
 
             case HerdState.Alert:
-                return UpdateAlert(herd, ctx);
+                // Prey in alert state flee immediately
+                herd.TransitionTo(HerdState.Fleeing);
+                return HerdUpdateResult.None;
 
             default:
-                // Fall back to resting for unexpected states
-                herd.State = HerdState.Resting;
+                herd.TransitionTo(HerdState.Resting);
                 return HerdUpdateResult.None;
         }
     }
 
-    private static HerdUpdateResult UpdateResting(Herd herd, int elapsedMinutes, GameContext ctx)
+    private static HerdUpdateResult UpdateResting(Herd herd, int elapsedMinutes)
     {
         // Hungry? Start grazing
         if (herd.Hunger > 0.5)
         {
-            herd.State = HerdState.Grazing;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Grazing);
         }
 
         return HerdUpdateResult.None;
     }
 
-    private static HerdUpdateResult UpdateGrazing(Herd herd, int elapsedMinutes, GameContext ctx)
+    private static HerdUpdateResult UpdateGrazing(Herd herd, int elapsedMinutes)
     {
         // Reduce hunger while grazing
         herd.Hunger = Math.Max(0, herd.Hunger - elapsedMinutes * GrazeRatePerMinute);
 
         // Graze at current location, depleting resources
-        GrazeAtLocation(herd, elapsedMinutes, ctx);
+        herd.GrazeHere(elapsedMinutes);
 
         // Move slowly within territory (faster if area is grazed)
-        TryMoveWithinTerritory(herd, elapsedMinutes, ctx);
+        // Base 1% per minute, increases with grazing depletion
+        double moveChancePerMinute = 0.01 + 0.01 * herd.GetGrazedLevel();
+        herd.TryPatrolTerritory(elapsedMinutes, moveChancePerMinute);
 
         // Full? Rest
         if (herd.Hunger < 0.2)
         {
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
-        return HerdUpdateResult.None;
-    }
-
-    private static void GrazeAtLocation(Herd herd, int elapsedMinutes, GameContext ctx)
-    {
-        if (ctx.Map == null) return;
-
-        var location = ctx.Map.GetLocationAt(herd.Position);
-        var forage = location?.Features.OfType<ForageFeature>().FirstOrDefault();
-
-        forage?.Graze(herd.Diet, herd.TotalMassKg, elapsedMinutes);
-    }
-
-    private static HerdUpdateResult UpdateAlert(Herd herd, GameContext ctx)
-    {
-        // Prey in alert state flee immediately
-        herd.State = HerdState.Fleeing;
-        herd.StateTimeMinutes = 0;
         return HerdUpdateResult.None;
     }
 
@@ -120,25 +99,23 @@ public class PreyBehavior : IHerdBehavior
     {
         if (ctx.Map == null) return HerdUpdateResult.None;
 
-        var fleeTarget = GetFleeTarget(herd, ctx);
+        var playerPos = ctx.Map.CurrentPosition;
+        var fleeTarget = herd.GetFleeTarget(playerPos);
 
         if (fleeTarget != null && fleeTarget != herd.Position)
         {
             var previousPosition = herd.Position;
 
-            // Start travel instead of instant move (state transitions to Resting when travel completes)
             if (!herd.StartTravelTo(fleeTarget.Value, ctx.Map))
             {
-                // Can't start travel - just rest
-                herd.State = HerdState.Resting;
-                herd.StateTimeMinutes = 0;
+                herd.TransitionTo(HerdState.Resting);
                 return HerdUpdateResult.None;
             }
 
             // Narrative if player can see them bolt
             if (ctx.Map.CurrentPosition == previousPosition)
             {
-                string direction = GetCardinalDirection(previousPosition, fleeTarget.Value);
+                string direction = Herd.GetCardinalDirection(previousPosition, fleeTarget.Value);
                 return HerdUpdateResult.WithNarrative(
                     $"The {herd.AnimalType.DisplayName().ToLower()} herd bolts {direction}.");
             }
@@ -147,9 +124,7 @@ public class PreyBehavior : IHerdBehavior
         }
         else
         {
-            // Can't flee - just rest
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
         return HerdUpdateResult.None;
@@ -157,8 +132,7 @@ public class PreyBehavior : IHerdBehavior
 
     public void TriggerFlee(Herd herd, GridPosition threatSource, GameContext ctx)
     {
-        herd.State = HerdState.Fleeing;
-        herd.StateTimeMinutes = 0;
+        herd.TransitionTo(HerdState.Fleeing);
     }
 
     public double GetVisibilityFactor(Herd herd)
@@ -176,66 +150,5 @@ public class PreyBehavior : IHerdBehavior
         visibility *= 1 + Math.Log(herd.Count + 1) * 0.15;
 
         return visibility;
-    }
-
-    private static GridPosition? GetFleeTarget(Herd herd, GameContext ctx)
-    {
-        if (ctx.Map == null) return null;
-
-        var playerPos = ctx.Map.CurrentPosition;
-
-        // Get passable neighbors and sort by distance from player (furthest first)
-        var options = herd.Position.GetCardinalNeighbors()
-            .Where(p => ctx.Map.GetLocationAt(p)?.IsPassable ?? false)
-            .OrderByDescending(p => p.ManhattanDistance(playerPos))
-            .ToList();
-
-        return options.FirstOrDefault();
-    }
-
-    private static void TryMoveWithinTerritory(Herd herd, int elapsedMinutes, GameContext ctx)
-    {
-        if (herd.HomeTerritory.Count == 0 || herd.IsTraveling || ctx.Map == null) return;
-
-        // Get grazed level at current location to influence movement
-        double grazedLevel = GetGrazedLevelAtLocation(herd, ctx);
-
-        // Base 1% per minute, increases with grazing depletion
-        // grazedLevel=0: 1% per minute (~100 min avg), grazedLevel=1: 2% per minute (~50 min avg)
-        double moveChancePerMinute = 0.01 + 0.01 * grazedLevel;
-
-        // Calculate probability of moving at least once during elapsed time
-        double moveProbability = 1.0 - Math.Pow(1.0 - moveChancePerMinute, elapsedMinutes);
-
-        if (_rng.NextDouble() < moveProbability)
-        {
-            herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
-            herd.StartTravelTo(herd.HomeTerritory[herd.TerritoryIndex], ctx.Map);
-        }
-    }
-
-    private static double GetGrazedLevelAtLocation(Herd herd, GameContext ctx)
-    {
-        if (ctx.Map == null) return 0;
-
-        var location = ctx.Map.GetLocationAt(herd.Position);
-        var forage = location?.Features.OfType<ForageFeature>().FirstOrDefault();
-
-        return forage?.GetGrazingLevelForDiet(herd.Diet) ?? 0;
-    }
-
-    private static string GetCardinalDirection(GridPosition from, GridPosition to)
-    {
-        int dx = to.X - from.X;
-        int dy = to.Y - from.Y;
-
-        return (dx, dy) switch
-        {
-            ( > 0, _) => "east",
-            ( < 0, _) => "west",
-            (_, > 0) => "south",
-            (_, < 0) => "north",
-            _ => "away"
-        };
     }
 }

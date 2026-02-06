@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
 using text_survival.Bodies;
 using text_survival.Environments;
@@ -277,7 +278,7 @@ public static class ConditionChecker
     private static bool HasPreyHerdOnTile(GameContext ctx)
     {
         if (ctx.Map == null) return false;
-        var herds = ctx.Herds.GetHerdsAt(ctx.Map.CurrentPosition);
+        var herds = ctx.Herds.At(ctx.Map.CurrentPosition);
         return herds.Any(h => !h.IsPredator && h.Count > 0);
     }
 

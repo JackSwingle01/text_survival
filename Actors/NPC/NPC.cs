@@ -27,7 +27,7 @@ public class NPC : Actor
 
     // Context for threat detection (set during Update)
     [System.Text.Json.Serialization.JsonIgnore]
-    private HerdRegistry? _currentHerds;
+    private List<Herd>? _currentHerds;
     [System.Text.Json.Serialization.JsonIgnore]
     private IEnumerable<NPC>? _currentNPCs;
 
@@ -74,7 +74,7 @@ public class NPC : Actor
     /// Update NPC with optional context for threat detection.
     /// </summary>
     public void Update(int minutes, SurvivalContext context,
-        HerdRegistry? herds = null, IEnumerable<NPC>? npcs = null)
+        List<Herd>? herds = null, IEnumerable<NPC>? npcs = null)
     {
         base.Update(minutes, context);
         _currentContext = context;
@@ -1361,7 +1361,7 @@ public class NPC : Actor
         var position = Map.GetPosition(CurrentLocation);
 
         // Predators from herds
-        foreach (var herd in _currentHerds.GetHerdsAt(position))
+        foreach (var herd in _currentHerds.At(position))
         {
             if (herd.IsPredator)
             {
@@ -1450,10 +1450,10 @@ public class NPC : Actor
     /// Check for hostile predators at NPC's current location.
     /// </summary>
     [Obsolete("Use GetPriorityThreat() instead - handles all threat types")]
-    internal Animal? GetThreatAtLocation(HerdRegistry herds)
+    internal Animal? GetThreatAtLocation(List<Herd> herds)
     {
         var position = Map.GetPosition(CurrentLocation);
-        var herdsHere = herds.GetHerdsAt(position);
+        var herdsHere = herds.At(position);
         var predatorHerd = herdsHere.FirstOrDefault(h => h.IsPredator);
         return predatorHerd?.GetRandomMember();
     }

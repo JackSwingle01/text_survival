@@ -1,6 +1,7 @@
 ﻿using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;  // For TileVisibility enum
 
@@ -213,7 +214,7 @@ public class Location
 
         var pos = ctx.Map.GetPosition(this);
 
-        var herdsHere = ctx.Herds.GetHerdsAt(pos);
+        var herdsHere = ctx.Herds.At(pos);
         return herdsHere.Any(h => h.Count > 0);
     }
 

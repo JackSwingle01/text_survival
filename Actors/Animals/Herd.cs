@@ -27,7 +27,7 @@ public enum HerdState
 /// A group of animals that move and behave together.
 /// Even a solo bear is a "herd of 1". All members share position, hunger, and behavioral state.
 /// </summary>
-public class Herd
+public class Herd : IMovable
 {
     private static readonly Random _rng = new();
 
@@ -36,8 +36,7 @@ public class Herd
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public AnimalTypeEnum AnimalType { get; set; }
 
-    [JsonIgnore]
-    public List<Animal> Members { get; private set; } = [];
+    public List<Animal> Members { get; set; } = [];
 
     public int MemberCount { get; set; }
 
@@ -45,10 +44,16 @@ public class Herd
 
     #region Position & Territory
 
-    public GridPosition Position { get; set; }
+    public Location CurrentLocation { get; set; } = null!;
+    public GameMap Map { get; set; } = null!;
+
+    /// <summary>Derived from CurrentLocation via Map. Use for spatial math only.</summary>
+    [JsonIgnore]
+    public GridPosition Position => Map?.GetPosition(CurrentLocation) ?? default;
+
     public List<GridPosition> HomeTerritory { get; set; } = [];
     public int TerritoryIndex { get; set; }
-    public GridPosition? TravelDestination { get; set; }
+    public Location? TravelDestination { get; set; }
     public int TravelTimeRemainingMinutes { get; set; }
 
     #endregion
@@ -126,14 +131,15 @@ public class Herd
 
     public Herd() { }
 
-    public static Herd Create(AnimalTypeEnum animalType, GridPosition startPosition, List<GridPosition> territory)
+    public static Herd Create(AnimalTypeEnum animalType, Location location, GameMap map, List<GridPosition> territory)
     {
         var behaviorType = animalType.GetBehaviorType();
 
         var herd = new Herd
         {
             AnimalType = animalType,
-            Position = startPosition,
+            CurrentLocation = location,
+            Map = map,
             HomeTerritory = territory,
             TerritoryIndex = 0,
             BehaviorType = behaviorType,
@@ -167,22 +173,6 @@ public class Herd
         MemberCount = Members.Count;
     }
 
-    public void RecreateMembers(GameMap map)
-    {
-        if (Members.Count > 0 || MemberCount == 0) return;
-
-        var location = map.GetLocationAt(Position);
-
-        for (int i = 0; i < MemberCount; i++)
-        {
-            var animal = AnimalFactory.FromType(AnimalType, location, map);
-            if (animal != null)
-            {
-                Members.Add(animal);
-            }
-        }
-    }
-
     public Animal? GetRandomMember()
     {
         if (Members.Count == 0) return null;
@@ -197,7 +187,8 @@ public class Herd
         var newHerd = new Herd
         {
             AnimalType = AnimalType,
-            Position = Position,
+            CurrentLocation = CurrentLocation,
+            Map = Map,
             HomeTerritory = [Position, fleeDirection], // Small territory around where it fled
             TerritoryIndex = 0,
             BehaviorType = BehaviorType, // Inherit behavior type from parent herd
@@ -243,17 +234,16 @@ public class Herd
     {
         if (TravelDestination != null) return false; // Already traveling
 
-        var origin = map.GetLocationAt(Position);
         var destLocation = map.GetLocationAt(destination);
-        if (origin == null || destLocation == null || !destLocation.IsPassable) return false;
+        if (destLocation == null || !destLocation.IsPassable) return false;
 
         // Use first member as representative for speed calculation
         var representative = Members.FirstOrDefault();
         if (representative == null) return false;
 
-        int travelMinutes = TravelProcessor.GetTraversalMinutes(origin, destLocation, representative, inventory: null);
+        int travelMinutes = TravelProcessor.GetTraversalMinutes(CurrentLocation, destLocation, representative, inventory: null);
 
-        TravelDestination = destination;
+        TravelDestination = destLocation;
         TravelTimeRemainingMinutes = travelMinutes;
         return true;
     }
@@ -266,7 +256,7 @@ public class Herd
 
         if (TravelTimeRemainingMinutes <= 0)
         {
-            Position = TravelDestination.Value;
+            CurrentLocation = TravelDestination;
             TravelDestination = null;
             TravelTimeRemainingMinutes = 0;
             return true;
@@ -275,72 +265,140 @@ public class Herd
         return false;
     }
 
-    private void MoveWithinTerritory()
+    /// <summary>
+    /// Get the best flee destination away from a threat (usually the player).
+    /// Returns the passable neighbor tile furthest from the threat.
+    /// </summary>
+    public GridPosition? GetFleeTarget(GridPosition threat)
     {
-        if (HomeTerritory.Count == 0) return;
+        var options = Position.GetCardinalNeighbors()
+            .Where(p => Map?.GetLocationAt(p)?.IsPassable ?? false)
+            .OrderByDescending(p => p.ManhattanDistance(threat))
+            .ToList();
 
-        // 30% chance to move each update while grazing
-        if (_rng.NextDouble() < 0.3)
-        {
-            // Pick a random territory tile
-            Position = HomeTerritory[_rng.Next(HomeTerritory.Count)];
-        }
+        return options.FirstOrDefault();
     }
 
-    private void MoveToNextTerritoryTile()
+    /// <summary>
+    /// Flee from a threat position. Starts travel to furthest passable neighbor.
+    /// Returns a narrative message if the player can see the flee, or null.
+    /// </summary>
+    public string? FleeFrom(GridPosition threat)
     {
-        if (HomeTerritory.Count == 0) return;
+        var fleeTarget = GetFleeTarget(threat);
 
-        // Move every ~30 minutes of patrol time
-        if (StateTimeMinutes > 0 && StateTimeMinutes % 30 == 0)
+        if (fleeTarget != null && fleeTarget != Position)
+        {
+            var previousPosition = Position;
+
+            if (!StartTravelTo(fleeTarget.Value, Map))
+            {
+                TransitionTo(HerdState.Resting);
+                return null;
+            }
+
+            return null;
+        }
+
+        TransitionTo(HerdState.Resting);
+        return null;
+    }
+
+    /// <summary>
+    /// Try to move to a random territory tile. Used during grazing/patrolling.
+    /// </summary>
+    public void TryPatrolTerritory(int elapsedMinutes, double chancePerMinute)
+    {
+        if (HomeTerritory.Count == 0 || IsTraveling) return;
+
+        double moveProbability = 1.0 - Math.Pow(1.0 - chancePerMinute, elapsedMinutes);
+
+        if (_rng.NextDouble() < moveProbability)
         {
             TerritoryIndex = (TerritoryIndex + 1) % HomeTerritory.Count;
-            Position = HomeTerritory[TerritoryIndex];
+            StartTravelTo(HomeTerritory[TerritoryIndex], Map);
         }
     }
 
-    private void MoveToward(GridPosition target)
+    /// <summary>
+    /// Graze at current location, depleting forage resources.
+    /// </summary>
+    public void GrazeHere(int elapsedMinutes)
     {
-        // Move one tile toward target per update
+        var forage = CurrentLocation?.Features.OfType<Environments.Features.ForageFeature>().FirstOrDefault();
+        forage?.Graze(Diet, TotalMassKg, elapsedMinutes);
+    }
+
+    /// <summary>
+    /// Get how grazed the current location is for this herd's diet (0-1).
+    /// </summary>
+    public double GetGrazedLevel()
+    {
+        var forage = CurrentLocation?.Features.OfType<Environments.Features.ForageFeature>().FirstOrDefault();
+        return forage?.GetGrazingLevelForDiet(Diet) ?? 0;
+    }
+
+    /// <summary>
+    /// Move one tile toward a target position. Starts travel if not already traveling.
+    /// </summary>
+    public void MoveToward(GridPosition target)
+    {
+        if (IsTraveling) return;
+
         int dx = Math.Sign(target.X - Position.X);
         int dy = Math.Sign(target.Y - Position.Y);
 
-        // Prefer the direction with greater distance
-        if (Math.Abs(target.X - Position.X) > Math.Abs(target.Y - Position.Y))
+        GridPosition? newPos = null;
+        if (Math.Abs(target.X - Position.X) >= Math.Abs(target.Y - Position.Y) && dx != 0)
         {
-            Position = new GridPosition(Position.X + dx, Position.Y);
+            newPos = new GridPosition(Position.X + dx, Position.Y);
         }
         else if (dy != 0)
         {
-            Position = new GridPosition(Position.X, Position.Y + dy);
+            newPos = new GridPosition(Position.X, Position.Y + dy);
         }
         else if (dx != 0)
         {
-            Position = new GridPosition(Position.X + dx, Position.Y);
+            newPos = new GridPosition(Position.X + dx, Position.Y);
+        }
+
+        if (newPos != null && Map?.GetLocationAt(newPos.Value)?.IsPassable == true)
+        {
+            StartTravelTo(newPos.Value, Map);
         }
     }
 
-    private void MoveAwayFrom(GridPosition threat)
+    /// <summary>
+    /// Transition to a new state, resetting state timer.
+    /// </summary>
+    public void TransitionTo(HerdState newState)
     {
-        // Move one tile away from threat
-        int dx = Math.Sign(Position.X - threat.X);
-        int dy = Math.Sign(Position.Y - threat.Y);
+        State = newState;
+        StateTimeMinutes = 0;
+    }
 
-        // If directly adjacent, pick a direction
-        if (dx == 0 && dy == 0)
-        {
-            dx = _rng.Next(2) == 0 ? 1 : -1;
-        }
+    /// <summary>
+    /// Whether the player is at the same position as this herd.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsPlayerHere => Map?.CurrentPosition == Position;
 
-        // Prefer the direction with greater distance
-        if (Math.Abs(dx) >= Math.Abs(dy) && dx != 0)
+    /// <summary>
+    /// Cardinal direction string from one position to another.
+    /// </summary>
+    public static string GetCardinalDirection(GridPosition from, GridPosition to)
+    {
+        int dx = to.X - from.X;
+        int dy = to.Y - from.Y;
+
+        return (dx, dy) switch
         {
-            Position = new GridPosition(Position.X + dx, Position.Y);
-        }
-        else if (dy != 0)
-        {
-            Position = new GridPosition(Position.X, Position.Y + dy);
-        }
+            ( > 0, _) => "east",
+            ( < 0, _) => "west",
+            (_, > 0) => "south",
+            (_, < 0) => "north",
+            _ => "away"
+        };
     }
 
     #endregion

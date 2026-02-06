@@ -12,7 +12,7 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 
 /// <summary>
 /// Strategy for the search phase of hunting.
-/// Can hunt on tiles with herds present (checked via HerdRegistry at current position).
+/// Can hunt on tiles with herds present (checked via herd list at current position).
 /// AnimalTerritoryFeature provides additional small game spawning (rabbit, fox, ptarmigan).
 /// If animal found, returns WorkResult.FoundAnimal for caller to handle interactive hunt.
 /// </summary>
@@ -25,7 +25,7 @@ public class HuntStrategy : IWorkStrategy
         {
             var pos = ctx.Map.GetPosition(location);
 
-            var herdsHere = ctx.Herds.GetHerdsAt(pos);
+            var herdsHere = ctx.Herds.At(pos);
             if (herdsHere.Any(h => h.Count > 0))
             {
                 return null; // Game available (prey or predator)

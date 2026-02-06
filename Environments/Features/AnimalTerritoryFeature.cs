@@ -112,7 +112,7 @@ public class AnimalTerritoryFeature : LocationFeature, IWorkableFeature
 
     /// <summary>
     /// Search for game. Returns a small game animal if found, null otherwise.
-    /// Large game (caribou, wolves, bears, etc.) come from persistent herds via HerdRegistry.
+    /// Large game (caribou, wolves, bears, etc.) come from persistent herds.
     /// Automatically consumes any temporary hunt bonus from game clues.
     /// </summary>
     /// <param name="minutesSearching">Time spent searching</param>

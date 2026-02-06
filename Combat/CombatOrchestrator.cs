@@ -181,7 +181,7 @@ public static class CombatOrchestrator
         var team2 = new List<Unit> { enemyUnit };
 
         // Random pack members from herd (0-3 extra)
-        var herd = ctx.Herds.GetHerdContaining(enemy);
+        var herd = ctx.Herds.ContainingAnimal(enemy);
         if (herd != null)
         {
             int maxPack = Math.Min(herd.Members.Count - 1, 3);
@@ -298,7 +298,7 @@ public static class CombatOrchestrator
         var team2 = new List<Unit> { preyUnit };
 
         // Include any pack members from herd
-        var herd = ctx.Herds.GetHerdContaining(prey);
+        var herd = ctx.Herds.ContainingAnimal(prey);
         if (herd != null)
         {
             int maxPack = Math.Min(herd.Members.Count - 1, 2);
@@ -375,7 +375,7 @@ public static class CombatOrchestrator
         var team2 = new List<Unit> { predatorUnit };
 
         // Add pack members if applicable
-        var herd = ctx.Herds.GetHerdContaining(predator);
+        var herd = ctx.Herds.ContainingAnimal(predator);
         if (herd != null)
         {
             int maxPack = Math.Min(herd.Members.Count - 1, 2);

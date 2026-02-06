@@ -1,5 +1,4 @@
 using text_survival.Actions;
-using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
 namespace text_survival.Actors.Animals.Behaviors;
@@ -32,7 +31,7 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         switch (herd.State)
         {
             case HerdState.Resting:
-                return UpdateResting(herd, elapsedMinutes, ctx);
+                return UpdateResting(herd, ctx);
 
             case HerdState.Grazing:  // Bears use Grazing state for foraging
                 return UpdateForaging(herd, elapsedMinutes, ctx);
@@ -41,37 +40,35 @@ public class SolitaryPredatorBehavior : IHerdBehavior
                 return UpdatePatrolling(herd, elapsedMinutes, ctx);
 
             case HerdState.Feeding:
-                return UpdateFeeding(herd, elapsedMinutes, ctx);
+                return UpdateFeeding(herd, ctx);
 
             case HerdState.Alert:
                 return UpdateAlert(herd, ctx);
 
             case HerdState.Hunting:
                 // Bears don't have a prolonged hunting state - they charge
-                herd.State = HerdState.Patrolling;
+                herd.TransitionTo(HerdState.Patrolling);
                 return HerdUpdateResult.None;
 
             case HerdState.Fleeing:
                 return UpdateFleeing(herd, ctx);
 
             default:
-                herd.State = HerdState.Resting;
+                herd.TransitionTo(HerdState.Resting);
                 return HerdUpdateResult.None;
         }
     }
 
-    private static HerdUpdateResult UpdateResting(Herd herd, int elapsedMinutes, GameContext ctx)
+    private static HerdUpdateResult UpdateResting(Herd herd, GameContext ctx)
     {
         // Hungry? Start foraging
         if (herd.Hunger > 0.5)
         {
-            herd.State = HerdState.Grazing;  // Grazing = foraging for bears
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Grazing);
         }
 
         // Defend den if player enters
-        if (ctx.Map != null && herd.Position == herd.HomeTerritory.FirstOrDefault() &&
-            herd.Position == ctx.Map.CurrentPosition)
+        if (herd.Position == herd.HomeTerritory.FirstOrDefault() && herd.IsPlayerHere)
         {
             // High chance to defend den
             if (_rng.NextDouble() < 0.7)
@@ -89,20 +86,20 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         herd.Hunger = Math.Max(0, herd.Hunger - elapsedMinutes * ForageRatePerMinute);
 
         // Graze at current location, depleting resources
-        GrazeAtLocation(herd, elapsedMinutes, ctx);
+        herd.GrazeHere(elapsedMinutes);
 
         // Move within territory while foraging (faster if area is grazed)
-        TryMoveWithinTerritory(herd, elapsedMinutes, ctx);
+        double moveChancePerMinute = 0.01 + 0.01 * herd.GetGrazedLevel();
+        herd.TryPatrolTerritory(elapsedMinutes, moveChancePerMinute);
 
         // Sated? Rest
         if (herd.Hunger < 0.3)
         {
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
         // Check for player in tile
-        if (ctx.Map != null && herd.Position == ctx.Map.CurrentPosition)
+        if (herd.IsPlayerHere)
         {
             if (ShouldEngagePlayer(herd, ctx))
             {
@@ -113,23 +110,14 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         return HerdUpdateResult.None;
     }
 
-    private static void GrazeAtLocation(Herd herd, int elapsedMinutes, GameContext ctx)
-    {
-        if (ctx.Map == null) return;
-
-        var location = ctx.Map.GetLocationAt(herd.Position);
-        var forage = location?.Features.OfType<ForageFeature>().FirstOrDefault();
-
-        forage?.Graze(herd.Diet, herd.TotalMassKg, elapsedMinutes);
-    }
-
     private static HerdUpdateResult UpdatePatrolling(Herd herd, int elapsedMinutes, GameContext ctx)
     {
         // Bears patrol less than wolves - mostly territory check
-        TryMoveWithinTerritory(herd, elapsedMinutes, ctx);
+        double moveChancePerMinute = 0.01 + 0.01 * herd.GetGrazedLevel();
+        herd.TryPatrolTerritory(elapsedMinutes, moveChancePerMinute);
 
         // Check for player in tile
-        if (ctx.Map != null && herd.Position == ctx.Map.CurrentPosition)
+        if (herd.IsPlayerHere)
         {
             if (ShouldEngagePlayer(herd, ctx))
             {
@@ -140,8 +128,7 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         // Short patrol then rest
         if (herd.StateTimeMinutes > 60)
         {
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
         return HerdUpdateResult.None;
@@ -152,7 +139,7 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         // Bears decide quickly
         if (herd.StateTimeMinutes > 2)
         {
-            if (ctx.Map != null && herd.Position == ctx.Map.CurrentPosition)
+            if (herd.IsPlayerHere)
             {
                 if (ShouldEngagePlayer(herd, ctx))
                 {
@@ -161,17 +148,16 @@ public class SolitaryPredatorBehavior : IHerdBehavior
             }
 
             // Not engaging - resume previous activity
-            herd.State = HerdState.Patrolling;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Patrolling);
         }
 
         return HerdUpdateResult.None;
     }
 
-    private static HerdUpdateResult UpdateFeeding(Herd herd, int elapsedMinutes, GameContext ctx)
+    private static HerdUpdateResult UpdateFeeding(Herd herd, GameContext ctx)
     {
         // Defend kill if player enters
-        if (ctx.Map != null && herd.Position == ctx.Map.CurrentPosition)
+        if (herd.IsPlayerHere)
         {
             return HerdUpdateResult.WithEncounter(herd, isDefending: true);
         }
@@ -179,8 +165,7 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         // Bears feed longer than wolves
         if (herd.StateTimeMinutes > FeedingDurationMinutes)
         {
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
         return HerdUpdateResult.None;
@@ -190,53 +175,33 @@ public class SolitaryPredatorBehavior : IHerdBehavior
     {
         if (ctx.Map == null) return HerdUpdateResult.None;
 
-        var fleeTarget = GetFleeTarget(herd, ctx);
+        var fleeTarget = herd.GetFleeTarget(ctx.Map.CurrentPosition);
 
         if (fleeTarget != null && fleeTarget != herd.Position)
         {
             if (!herd.StartTravelTo(fleeTarget.Value, ctx.Map))
             {
-                // Can't start travel - just rest
-                herd.State = HerdState.Resting;
-                herd.StateTimeMinutes = 0;
+                herd.TransitionTo(HerdState.Resting);
                 return HerdUpdateResult.None;
             }
 
             // Narrative if player sees them flee
-            if (ctx.Map.CurrentPosition == herd.Position)
+            if (herd.IsPlayerHere)
             {
                 return HerdUpdateResult.WithNarrative($"The {herd.AnimalType.DisplayName()} retreats into the distance.");
             }
         }
         else
         {
-            // Can't flee - just rest
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
         return HerdUpdateResult.None;
     }
 
-    private static GridPosition? GetFleeTarget(Herd herd, GameContext ctx)
-    {
-        if (ctx.Map == null) return null;
-
-        var playerPos = ctx.Map.CurrentPosition;
-
-        // Get passable neighbors and sort by distance from player (furthest first)
-        var options = herd.Position.GetCardinalNeighbors()
-            .Where(p => ctx.Map.GetLocationAt(p)?.IsPassable ?? false)
-            .OrderByDescending(p => p.ManhattanDistance(playerPos))
-            .ToList();
-
-        return options.FirstOrDefault();
-    }
-
     public void TriggerFlee(Herd herd, GridPosition threatSource, GameContext ctx)
     {
-        herd.State = HerdState.Fleeing;
-        herd.StateTimeMinutes = 0;
+        herd.TransitionTo(HerdState.Fleeing);
     }
 
     public double GetVisibilityFactor(Herd herd) => 0.4;  // Slightly more visible than wolves
@@ -275,35 +240,5 @@ public class SolitaryPredatorBehavior : IHerdBehavior
             aggression *= (1.0 - herd.Fear);
 
         return _rng.NextDouble() < aggression;
-    }
-
-    private static void TryMoveWithinTerritory(Herd herd, int elapsedMinutes, GameContext ctx)
-    {
-        if (herd.HomeTerritory.Count == 0 || herd.IsTraveling || ctx.Map == null) return;
-
-        // Get grazed level at current location to influence movement
-        double grazedLevel = GetGrazedLevelAtLocation(herd, ctx);
-
-        // Base 1% per minute, increases with grazing depletion
-        double moveChancePerMinute = 0.01 + 0.01 * grazedLevel;
-
-        // Calculate probability of moving at least once during elapsed time
-        double moveProbability = 1.0 - Math.Pow(1.0 - moveChancePerMinute, elapsedMinutes);
-
-        if (_rng.NextDouble() < moveProbability)
-        {
-            herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
-            herd.StartTravelTo(herd.HomeTerritory[herd.TerritoryIndex], ctx.Map);
-        }
-    }
-
-    private static double GetGrazedLevelAtLocation(Herd herd, GameContext ctx)
-    {
-        if (ctx.Map == null) return 0;
-
-        var location = ctx.Map.GetLocationAt(herd.Position);
-        var forage = location?.Features.OfType<ForageFeature>().FirstOrDefault();
-
-        return forage?.GetGrazingLevelForDiet(herd.Diet) ?? 0;
     }
 }

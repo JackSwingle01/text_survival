@@ -30,8 +30,7 @@ public class ScavengerBehavior : IHerdBehavior
             // Just arrived - if fleeing, transition to patrolling
             if (herd.State == HerdState.Fleeing)
             {
-                herd.State = HerdState.Patrolling;
-                herd.StateTimeMinutes = 0;
+                herd.TransitionTo(HerdState.Patrolling);
                 return HerdUpdateResult.None;
             }
         }
@@ -42,7 +41,7 @@ public class ScavengerBehavior : IHerdBehavior
         switch (herd.State)
         {
             case HerdState.Resting:
-                return UpdateResting(herd, elapsedMinutes, ctx);
+                return UpdateResting(herd);
 
             case HerdState.Patrolling:
                 return UpdatePatrolling(herd, elapsedMinutes, ctx);
@@ -54,21 +53,20 @@ public class ScavengerBehavior : IHerdBehavior
                 return UpdateAlert(herd, ctx);
 
             case HerdState.Fleeing:
-                return UpdateFleeing(herd, elapsedMinutes, ctx);
+                return UpdateFleeing(herd);
 
             default:
-                herd.State = HerdState.Patrolling;
+                herd.TransitionTo(HerdState.Patrolling);
                 return HerdUpdateResult.None;
         }
     }
 
-    private static HerdUpdateResult UpdateResting(Herd herd, int elapsedMinutes, GameContext ctx)
+    private static HerdUpdateResult UpdateResting(Herd herd)
     {
         // Hungry? Start patrolling for food
         if (herd.Hunger > 0.4)
         {
-            herd.State = HerdState.Patrolling;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Patrolling);
         }
 
         return HerdUpdateResult.None;
@@ -79,11 +77,10 @@ public class ScavengerBehavior : IHerdBehavior
         if (ctx.Map == null) return HerdUpdateResult.None;
 
         // Priority 1: Check for carcass at current location
-        var carcassHere = GetCarcassAtPosition(herd.Position, ctx);
+        var carcassHere = GetCarcassAtPosition(herd.CurrentLocation);
         if (carcassHere != null && carcassHere.GetTotalRemainingKg() > 0)
         {
-            herd.State = HerdState.Feeding;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Feeding);
             return HerdUpdateResult.None;
         }
 
@@ -91,13 +88,13 @@ public class ScavengerBehavior : IHerdBehavior
         var nearestCarcass = FindNearestCarcass(herd.Position, ctx);
         if (nearestCarcass != null)
         {
-            MoveToward(herd, nearestCarcass.Value, ctx);
+            herd.MoveToward(nearestCarcass.Value);
             return HerdUpdateResult.None;
         }
 
         // Priority 3: Follow feeding predators (they have food)
         var feedingPredator = FindFeedingPredator(herd.Position, ctx);
-        if (feedingPredator != null && ctx.Map != null)
+        if (feedingPredator != null)
         {
             // Stay one tile away from feeding predator
             var oneAway = GetTileNear(herd.Position, feedingPredator.Position, ctx);
@@ -113,15 +110,16 @@ public class ScavengerBehavior : IHerdBehavior
         if (wolfPack != null)
         {
             // Move toward wolf territory edge
-            MoveTowardTerritory(herd, wolfPack, ctx);
+            MoveTowardTerritory(herd, wolfPack);
             return HerdUpdateResult.None;
         }
 
         // Default: Wander within territory
-        TryMoveWithinTerritory(herd, elapsedMinutes, ctx);
+        // Hyenas move frequently while patrolling (faster than wolves)
+        herd.TryPatrolTerritory(elapsedMinutes, 0.04);
 
         // Check for player - hyenas are cowardly but opportunistic
-        if (herd.Position == ctx.Map.CurrentPosition)
+        if (herd.IsPlayerHere)
         {
             if (ShouldEngagePlayer(herd, ctx))
             {
@@ -132,8 +130,7 @@ public class ScavengerBehavior : IHerdBehavior
         // Rest if not hungry
         if (herd.Hunger < 0.3 && herd.StateTimeMinutes > 60)
         {
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
         return HerdUpdateResult.None;
@@ -144,7 +141,7 @@ public class ScavengerBehavior : IHerdBehavior
         if (ctx.Map == null) return HerdUpdateResult.None;
 
         // Check for larger predator at our location - flee!
-        var threatHere = ctx.Herds.GetHerdsAt(herd.Position)
+        var threatHere = ctx.Herds.At(herd.Position)
             .FirstOrDefault(h => h != herd && IsLargerPredator(h));
 
         if (threatHere != null)
@@ -156,7 +153,7 @@ public class ScavengerBehavior : IHerdBehavior
         }
 
         // Consume carcass
-        var carcass = GetCarcassAtPosition(herd.Position, ctx);
+        var carcass = GetCarcassAtPosition(herd.CurrentLocation);
         if (carcass != null && carcass.GetTotalRemainingKg() > 0)
         {
             // Consume proportional to pack size and time
@@ -168,13 +165,12 @@ public class ScavengerBehavior : IHerdBehavior
         else
         {
             // Carcass gone, back to patrol
-            herd.State = HerdState.Patrolling;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Patrolling);
             return HerdUpdateResult.None;
         }
 
         // Defend carcass if player enters (but less aggressively than wolves)
-        if (herd.Position == ctx.Map.CurrentPosition)
+        if (herd.IsPlayerHere)
         {
             if (ShouldEngagePlayer(herd, ctx, isDefendingCarcass: true))
             {
@@ -185,8 +181,7 @@ public class ScavengerBehavior : IHerdBehavior
         // Done feeding
         if (herd.StateTimeMinutes > FeedingDurationMinutes || herd.Hunger < 0.1)
         {
-            herd.State = HerdState.Patrolling;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Patrolling);
         }
 
         return HerdUpdateResult.None;
@@ -198,7 +193,7 @@ public class ScavengerBehavior : IHerdBehavior
         if (herd.StateTimeMinutes > 5)
         {
             // Usually just flee rather than engage
-            if (ctx.Map != null && herd.Position == ctx.Map.CurrentPosition)
+            if (herd.IsPlayerHere)
             {
                 if (_rng.NextDouble() < 0.3)  // Only 30% chance to engage
                 {
@@ -206,20 +201,18 @@ public class ScavengerBehavior : IHerdBehavior
                 }
             }
 
-            herd.State = HerdState.Patrolling;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Patrolling);
         }
 
         return HerdUpdateResult.None;
     }
 
-    private static HerdUpdateResult UpdateFleeing(Herd herd, int elapsedMinutes, GameContext ctx)
+    private static HerdUpdateResult UpdateFleeing(Herd herd)
     {
         // Flee for a bit then go back to patrolling
         if (herd.StateTimeMinutes > 10)
         {
-            herd.State = HerdState.Patrolling;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Patrolling);
         }
 
         return HerdUpdateResult.None;
@@ -245,9 +238,8 @@ public class ScavengerBehavior : IHerdBehavior
 
     #region Carcass Detection
 
-    private static CarcassFeature? GetCarcassAtPosition(GridPosition pos, GameContext ctx)
+    private static CarcassFeature? GetCarcassAtPosition(Environments.Location? location)
     {
-        var location = ctx.Map?.GetLocationAt(pos);
         return location?.Features.OfType<CarcassFeature>().FirstOrDefault();
     }
 
@@ -265,7 +257,8 @@ public class ScavengerBehavior : IHerdBehavior
                 if (dx == 0 && dy == 0) continue;
 
                 var pos = new GridPosition(from.X + dx, from.Y + dy);
-                var carcass = GetCarcassAtPosition(pos, ctx);
+                var location = ctx.Map.GetLocationAt(pos);
+                var carcass = GetCarcassAtPosition(location);
 
                 if (carcass != null && carcass.GetTotalRemainingKg() > 0)
                 {
@@ -288,7 +281,7 @@ public class ScavengerBehavior : IHerdBehavior
 
     private static Herd? FindFeedingPredator(GridPosition from, GameContext ctx)
     {
-        return ctx.Herds.GetPredatorHerds()
+        return ctx.Herds.Predators()
             .Where(h => h.State == HerdState.Feeding)
             .Where(h => h.Position.ManhattanDistance(from) <= PredatorFollowRadius)
             .OrderBy(h => h.Position.ManhattanDistance(from))
@@ -297,7 +290,7 @@ public class ScavengerBehavior : IHerdBehavior
 
     private static Herd? FindWolfPack(Herd herd, GameContext ctx)
     {
-        return ctx.Herds.GetHerdsByType(AnimalType.Wolf)
+        return ctx.Herds.OfAnimalType(AnimalType.Wolf)
             .Where(h => h.State == HerdState.Patrolling)
             .OrderBy(h => h.Position.ManhattanDistance(herd.Position))
             .FirstOrDefault();
@@ -312,34 +305,6 @@ public class ScavengerBehavior : IHerdBehavior
 
     #region Movement
 
-    private static void MoveToward(Herd herd, GridPosition target, GameContext ctx)
-    {
-        if (herd.IsTraveling || ctx.Map == null) return;
-
-        int dx = Math.Sign(target.X - herd.Position.X);
-        int dy = Math.Sign(target.Y - herd.Position.Y);
-
-        // Prefer direction with greater distance
-        GridPosition? newPos = null;
-        if (Math.Abs(target.X - herd.Position.X) >= Math.Abs(target.Y - herd.Position.Y) && dx != 0)
-        {
-            newPos = new GridPosition(herd.Position.X + dx, herd.Position.Y);
-        }
-        else if (dy != 0)
-        {
-            newPos = new GridPosition(herd.Position.X, herd.Position.Y + dy);
-        }
-        else if (dx != 0)
-        {
-            newPos = new GridPosition(herd.Position.X + dx, herd.Position.Y);
-        }
-
-        if (newPos != null && ctx.Map.GetLocationAt(newPos.Value)?.IsPassable == true)
-        {
-            herd.StartTravelTo(newPos.Value, ctx.Map);
-        }
-    }
-
     private static GridPosition? GetTileNear(GridPosition from, GridPosition target, GameContext ctx)
     {
         // Get a tile adjacent to target but not on target
@@ -351,7 +316,7 @@ public class ScavengerBehavior : IHerdBehavior
         return candidates.FirstOrDefault();
     }
 
-    private static void MoveTowardTerritory(Herd herd, Herd target, GameContext ctx)
+    private static void MoveTowardTerritory(Herd herd, Herd target)
     {
         if (target.HomeTerritory.Count == 0) return;
 
@@ -363,22 +328,7 @@ public class ScavengerBehavior : IHerdBehavior
 
         if (nearest != default)
         {
-            MoveToward(herd, nearest, ctx);
-        }
-    }
-
-    private static void TryMoveWithinTerritory(Herd herd, int elapsedMinutes, GameContext ctx)
-    {
-        if (herd.HomeTerritory.Count == 0 || herd.IsTraveling || ctx.Map == null) return;
-
-        // Hyenas move frequently while patrolling (faster than wolves)
-        double moveChancePerMinute = 0.04;  // ~4% per minute
-        double moveProbability = 1.0 - Math.Pow(1.0 - moveChancePerMinute, elapsedMinutes);
-
-        if (_rng.NextDouble() < moveProbability)
-        {
-            herd.TerritoryIndex = (herd.TerritoryIndex + 1) % herd.HomeTerritory.Count;
-            herd.StartTravelTo(herd.HomeTerritory[herd.TerritoryIndex], ctx.Map);
+            herd.MoveToward(nearest);
         }
     }
 

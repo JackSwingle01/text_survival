@@ -55,7 +55,7 @@ public static partial class GameEventRegistry
     {
         // Determine animal type - prefer herd data over territory feature
         var pos = ctx.Map?.CurrentPosition ?? default;
-        var herdInTerritory = ctx.Herds._herds
+        var herdInTerritory = ctx.Herds
             .FirstOrDefault(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
         var animal = herdInTerritory?.AnimalType ?? territory?.GetRandomAnimal() ?? AnimalType.Wolf;
@@ -101,7 +101,7 @@ public static partial class GameEventRegistry
     private static GameEvent SomethingWatching(GameContext ctx)
     {
         // Prefer herd data for predator type
-        var predatorHerd = ctx.Herds.GetPredatorHerds()
+        var predatorHerd = ctx.Herds.Predators()
             .FirstOrDefault(h => h.HomeTerritory.Contains(ctx.Map?.CurrentPosition ?? default) && h.Count > 0);
         var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
         var predator = predatorHerd?.AnimalType ?? territory?.GetRandomPredator() ?? AnimalType.Wolf;

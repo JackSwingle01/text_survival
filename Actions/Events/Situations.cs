@@ -469,7 +469,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetPredatorHerds()
+        return ctx.Herds.Predators()
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
     }
 
@@ -477,7 +477,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetPreyHerds()
+        return ctx.Herds.Prey()
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
     }
 
@@ -485,7 +485,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetPredatorHerds()
+        return ctx.Herds.Predators()
             .Any(h => h.BehaviorType == HerdBehaviorType.PackPredator
                   && h.HomeTerritory.Contains(pos) && h.Count > 0);
     }
@@ -494,7 +494,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetPredatorHerds()
+        return ctx.Herds.Predators()
             .Any(h => h.BehaviorType == HerdBehaviorType.SolitaryPredator
                   && h.HomeTerritory.Contains(pos) && h.Count > 0);
     }
@@ -503,7 +503,7 @@ public static class Situations
     {
         if (ctx.Map == null) return 0;
         var pos = ctx.Map.CurrentPosition;
-        var predators = ctx.Herds.GetPredatorHerds().Where(h => h.Count > 0).ToList();
+        var predators = ctx.Herds.Predators().Where(h => h.Count > 0).ToList();
 
         // On tile = maximum presence
         if (predators.Any(h => h.Position == pos)) return 1.0;
@@ -518,7 +518,7 @@ public static class Situations
     {
         if (ctx.Map == null) return 0;
         var pos = ctx.Map.CurrentPosition;
-        var prey = ctx.Herds.GetPreyHerds().Where(h => h.Count > 0).ToList();
+        var prey = ctx.Herds.Prey().Where(h => h.Count > 0).ToList();
 
         if (prey.Any(h => h.Position == pos)) return 1.0;
         if (prey.Any(h => h.HomeTerritory.Contains(pos))) return 0.5;
@@ -530,7 +530,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByBehavior(HerdBehaviorType.Scavenger)
+        return ctx.Herds.OfBehavior(HerdBehaviorType.Scavenger)
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
     }
 
@@ -538,7 +538,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByBehavior(HerdBehaviorType.Scavenger)
+        return ctx.Herds.OfBehavior(HerdBehaviorType.Scavenger)
             .Any(h => h.Position == pos && h.Count > 0);
     }
 
@@ -547,9 +547,9 @@ public static class Situations
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
 
-        bool hasScavengers = ctx.Herds.GetHerdsByBehavior(HerdBehaviorType.Scavenger)
+        bool hasScavengers = ctx.Herds.OfBehavior(HerdBehaviorType.Scavenger)
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-        bool hasWolves = ctx.Herds.GetHerdsByType(AnimalType.Wolf)
+        bool hasWolves = ctx.Herds.OfAnimalType(AnimalType.Wolf)
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
 
         return hasScavengers && hasWolves;
@@ -563,7 +563,7 @@ public static class Situations
         double level = 0;
 
         // Direct presence
-        if (ctx.Herds.GetHerdsByBehavior(HerdBehaviorType.Scavenger)
+        if (ctx.Herds.OfBehavior(HerdBehaviorType.Scavenger)
             .Any(h => h.Position == pos && h.Count > 0))
         {
             level += 0.5;
@@ -590,7 +590,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByType(AnimalType.SaberTooth)
+        return ctx.Herds.OfAnimalType(AnimalType.SaberTooth)
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
     }
 
@@ -624,7 +624,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
+        return ctx.Herds.OfAnimalType(AnimalType.Mammoth)
             .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
     }
 
@@ -632,7 +632,7 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
+        return ctx.Herds.OfAnimalType(AnimalType.Mammoth)
             .Any(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 8);
     }
 
@@ -640,13 +640,13 @@ public static class Situations
     {
         if (ctx.Map == null) return false;
         var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
+        return ctx.Herds.OfAnimalType(AnimalType.Mammoth)
             .Any(h => h.Position == pos && h.Count > 0);
     }
 
     public static Herd? GetMammothHerd(GameContext ctx)
     {
-        return ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
+        return ctx.Herds.OfAnimalType(AnimalType.Mammoth)
             .FirstOrDefault(h => h.Count > 0);
     }
 

@@ -2,6 +2,7 @@ using Raylib_cs;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Actors;
+using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 
@@ -191,7 +192,7 @@ public class WorldRenderer
                 if (visibility == Environments.Grid.TileVisibility.Visible)
                 {
                     var position = new GridPosition(worldX, worldY);
-                    var herds = ctx.Herds.GetHerdsAt(position);
+                    var herds = ctx.Herds.At(position);
 
                     // Render up to 3 herds per tile at cardinal positions
                     int slot = 0;

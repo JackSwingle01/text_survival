@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments.Features;
@@ -565,15 +566,15 @@ public class SerializationTests
         var ctx = GameContext.CreateNewGame();
 
         // Record original counts (including game-spawned herds)
-        int originalHerdCount = ctx.Herds.HerdCount;
-        int originalAnimalCount = ctx.Herds.TotalAnimalCount;
+        int originalHerdCount = ctx.Herds.Count;
+        int originalAnimalCount = ctx.Herds.TotalAnimalCount();
 
         // Verify game spawns herds by default
         Assert.True(originalHerdCount > 0, "Game should spawn some herds at start");
 
         // Pick a specific herd to verify state preservation
-        var firstHerd = ctx.Herds.GetPredatorHerds().FirstOrDefault()
-            ?? ctx.Herds.GetPreyHerds().First();
+        var firstHerd = ctx.Herds.Predators().FirstOrDefault()
+            ?? ctx.Herds.Prey().First();
         var firstHerdPosition = firstHerd.Position;
         var firstHerdType = firstHerd.AnimalType;
         var firstHerdMemberCount = firstHerd.MemberCount;
@@ -585,15 +586,15 @@ public class SerializationTests
         var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
 
         // Post-load restoration (mimics SaveManager.Load)
-        deserialized?.Herds.RecreateAllMembers(deserialized.Map!);
+        deserialized?.Herds.RecreateAllBehaviors();
 
         // Assert - Herd registry preserved
         Assert.NotNull(deserialized);
-        Assert.Equal(originalHerdCount, deserialized.Herds.HerdCount);
-        Assert.Equal(originalAnimalCount, deserialized.Herds.TotalAnimalCount);
+        Assert.Equal(originalHerdCount, deserialized.Herds.Count);
+        Assert.Equal(originalAnimalCount, deserialized.Herds.TotalAnimalCount());
 
         // Verify the specific herd we tracked still exists with correct state
-        var matchingHerds = deserialized.Herds.GetHerdsByType(firstHerdType)
+        var matchingHerds = deserialized.Herds.OfAnimalType(firstHerdType)
             .Where(h => h.Position == firstHerdPosition && h.MemberCount == firstHerdMemberCount)
             .ToList();
         Assert.NotEmpty(matchingHerds);

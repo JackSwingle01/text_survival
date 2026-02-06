@@ -1,4 +1,5 @@
 using text_survival.Actors.Animals;
+using text_survival.Actors.Animals.Behaviors;
 using text_survival.Actors.Player;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Events;
@@ -99,8 +100,8 @@ public class GameContext(Player player, Location camp, Weather weather)
         return lastResult;
     }
 
-    // Herd registry for tracking persistent animals
-    public HerdRegistry Herds { get; set; } = new();
+    // Persistent herds in the world
+    public List<Herd> Herds { get; set; } = new();
     public List<NPC> NPCs { get; set; } = new();
     public List<NPC> GetNPCsAt(GridPosition pos)
     {
@@ -117,7 +118,7 @@ public class GameContext(Player player, Location camp, Weather weather)
             yield return player;
             foreach (var npc in NPCs)
                 yield return npc;
-            foreach (var animal in Herds.GetAllAnimals())
+            foreach (var animal in Herds.AllAnimals())
                 yield return animal;
         }
     }
@@ -131,7 +132,7 @@ public class GameContext(Player player, Location camp, Weather weather)
             return Map?.GetPosition(npc.CurrentLocation);
 
         if (actor is Animal animal)
-            return Herds.GetHerdContaining(animal)?.Position;
+            return Herds.ContainingAnimal(animal)?.Position;
 
         return null;
     }
@@ -331,7 +332,8 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Initialize starting resource knowledge for recipe discovery
         ctx.Discoveries.InitializeStartingKnowledge();
 
-        HerdPopulator.Populate(ctx.Herds, map);
+        HerdPopulator.Populate(ctx.Herds, map!);
+
 
         var testNPC = NPCFactory.SpawnNearCamp(map, camp);
         if (testNPC != null) ctx.NPCs.Add(testNPC);
@@ -504,7 +506,7 @@ public class GameContext(Player player, Location camp, Weather weather)
             EventQueue.Enqueue(tensionEvent);
         }
 
-        var herdResults = Herds.Update(minutes, this);
+        var herdResults = UpdateHerds(minutes);
         foreach (var result in herdResults)
         {
             if (result.NarrativeMessage != null)
@@ -611,6 +613,43 @@ public class GameContext(Player player, Location camp, Weather weather)
                 }
             }
         }
+    }
+
+    private List<HerdUpdateResult> UpdateHerds(int minutes)
+    {
+        var results = new List<HerdUpdateResult>();
+
+        foreach (var herd in Herds.ToList())
+        {
+            if (herd.IsEmpty)
+            {
+                Herds.Remove(herd);
+                continue;
+            }
+
+            var result = herd.Update(minutes, this);
+
+            if (result.EncounterRequest != null ||
+                result.PreyKill != null ||
+                result.NarrativeMessage != null)
+            {
+                results.Add(result);
+            }
+
+            // Handle prey kills - create carcass at kill location
+            if (result.PreyKill != null)
+            {
+                var location = Map?.GetLocationAt(result.PreyKill.Position);
+                if (location != null)
+                {
+                    location.Features.Add(new Environments.Features.CarcassFeature(result.PreyKill.Victim));
+                }
+            }
+        }
+
+        Herds.RemoveAll(h => h.IsEmpty);
+
+        return results;
     }
 
     private void UpdateWaterproofing(int minutes)

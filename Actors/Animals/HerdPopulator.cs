@@ -14,7 +14,7 @@ public static class HerdPopulator
     /// <summary>
     /// Populate the world with herds. Called from GameContext.CreateNewGame().
     /// </summary>
-    public static void Populate(HerdRegistry registry, GameMap map)
+    public static void Populate(List<Herd> registry, GameMap map)
     {
         // Get all valid positions (exclude map edges to keep animals in playable area)
         var allPositions = GetInteriorPositions(map);
@@ -51,9 +51,9 @@ public static class HerdPopulator
     /// Adds environmental details to tiles within herd territories.
     /// Gives players hints about animal presence through tracks, droppings, etc.
     /// </summary>
-    private static void AddTerritoryDetails(HerdRegistry registry, GameMap map)
+    private static void AddTerritoryDetails(List<Herd> registry, GameMap map)
     {
-        foreach (var herd in registry._herds)
+        foreach (var herd in registry)
         {
             // Skip empty herds
             if (herd.IsEmpty) continue;
@@ -130,7 +130,7 @@ public static class HerdPopulator
     /// <summary>
     /// Create wolf packs with overlapping patrol territories.
     /// </summary>
-    private static void PopulateWolves(HerdRegistry registry, List<GridPosition> available, int packCount, GameMap map)
+    private static void PopulateWolves(List<Herd> registry, List<GridPosition> available, int packCount, GameMap map)
     {
         for (int i = 0; i < packCount; i++)
         {
@@ -144,11 +144,12 @@ public static class HerdPopulator
 
             if (territory.Count < 3) continue; // Need minimum territory
 
-            // Create pack with 3-8 wolves
-            var herd = Herd.Create(AnimalType.Wolf, startPos, territory);
-            int packSize = 3 + _rng.Next(6);
-
             var location = map.GetLocationAt(startPos);
+            if (location == null) continue;
+
+            // Create pack with 3-8 wolves
+            var herd = Herd.Create(AnimalType.Wolf, location, map, territory);
+            int packSize = 3 + _rng.Next(6);
 
             for (int j = 0; j < packSize; j++)
             {
@@ -159,7 +160,7 @@ public static class HerdPopulator
                 }
             }
 
-            registry.AddHerd(herd);
+            registry.Add(herd);
 
             // Remove territory from available (prevents overlapping predator territories)
             foreach (var pos in territory)
@@ -172,7 +173,7 @@ public static class HerdPopulator
     /// <summary>
     /// Create solitary bears with small home ranges.
     /// </summary>
-    private static void PopulateBears(HerdRegistry registry, List<GridPosition> available, int bearCount, GameMap map)
+    private static void PopulateBears(List<Herd> registry, List<GridPosition> available, int bearCount, GameMap map)
     {
         for (int i = 0; i < bearCount; i++)
         {
@@ -185,10 +186,11 @@ public static class HerdPopulator
 
             if (territory.Count < 3) continue;
 
-            // Create "herd" of 1 bear
-            var herd = Herd.Create(AnimalType.Bear, startPos, territory);
-
             var location = map.GetLocationAt(startPos);
+            if (location == null) continue;
+
+            // Create "herd" of 1 bear
+            var herd = Herd.Create(AnimalType.Bear, location, map, territory);
 
             // 50% chance of cave bear vs regular bear
             var bear = _rng.NextDouble() < 0.5 ? AnimalFactory.MakeCaveBear(location, map) : AnimalFactory.MakeBear(location, map);
@@ -197,7 +199,7 @@ public static class HerdPopulator
                 herd.AddMember(bear);
             }
 
-            registry.AddHerd(herd);
+            registry.Add(herd);
 
             // Remove only the center tile (bears can overlap with prey)
             available.Remove(startPos);
@@ -207,7 +209,7 @@ public static class HerdPopulator
     /// <summary>
     /// Create caribou herds with large grazing territories.
     /// </summary>
-    private static void PopulateCaribou(HerdRegistry registry, List<GridPosition> available, int herdCount, GameMap map)
+    private static void PopulateCaribou(List<Herd> registry, List<GridPosition> available, int herdCount, GameMap map)
     {
         for (int i = 0; i < herdCount; i++)
         {
@@ -220,9 +222,10 @@ public static class HerdPopulator
 
             if (territory.Count < 6) continue;
 
-            var herd = Herd.Create(AnimalType.Caribou, startPos, territory);
-
             var location = map.GetLocationAt(startPos);
+            if (location == null) continue;
+
+            var herd = Herd.Create(AnimalType.Caribou, location, map, territory);
 
             // Herd size 5-15
             int herdSize = 5 + _rng.Next(11);
@@ -235,14 +238,14 @@ public static class HerdPopulator
                 }
             }
 
-            registry.AddHerd(herd);
+            registry.Add(herd);
         }
     }
 
     /// <summary>
     /// Create individual large prey animals (megaloceros, bison).
     /// </summary>
-    private static void PopulateLargePrey(HerdRegistry registry, List<GridPosition> available, int count, GameMap map)
+    private static void PopulateLargePrey(List<Herd> registry, List<GridPosition> available, int count, GameMap map)
     {
         // Split count between types
         int megalocerosCount = count / 2;
@@ -255,7 +258,7 @@ public static class HerdPopulator
     /// <summary>
     /// Create megaloceros herds (small groups in medium territories).
     /// </summary>
-    private static void PopulateMegaloceros(HerdRegistry registry, List<GridPosition> available, int count, GameMap map)
+    private static void PopulateMegaloceros(List<Herd> registry, List<GridPosition> available, int count, GameMap map)
     {
         for (int i = 0; i < count; i++)
         {
@@ -268,9 +271,10 @@ public static class HerdPopulator
 
             if (territory.Count < 3) continue;
 
-            var herd = Herd.Create(AnimalType.Megaloceros, startPos, territory);
-
             var location = map.GetLocationAt(startPos);
+            if (location == null) continue;
+
+            var herd = Herd.Create(AnimalType.Megaloceros, location, map, territory);
 
             // Small groups (1-3)
             int groupSize = 1 + _rng.Next(3);
@@ -283,14 +287,14 @@ public static class HerdPopulator
                 }
             }
 
-            registry.AddHerd(herd);
+            registry.Add(herd);
         }
     }
 
     /// <summary>
     /// Create bison herds (larger groups needing expansive grazing territories).
     /// </summary>
-    private static void PopulateBison(HerdRegistry registry, List<GridPosition> available, int count, GameMap map)
+    private static void PopulateBison(List<Herd> registry, List<GridPosition> available, int count, GameMap map)
     {
         for (int i = 0; i < count; i++)
         {
@@ -303,9 +307,10 @@ public static class HerdPopulator
 
             if (territory.Count < 3) continue;
 
-            var herd = Herd.Create(AnimalType.Bison, startPos, territory);
-
             var location = map.GetLocationAt(startPos);
+            if (location == null) continue;
+
+            var herd = Herd.Create(AnimalType.Bison, location, map, territory);
 
             // Larger groups (3-8)
             int groupSize = 3 + _rng.Next(6);
@@ -318,7 +323,7 @@ public static class HerdPopulator
                 }
             }
 
-            registry.AddHerd(herd);
+            registry.Add(herd);
         }
     }
 
@@ -358,12 +363,6 @@ public static class HerdPopulator
     /// <summary>
     /// Spawn a herd at a specific location. Used by discovery events.
     /// </summary>
-    /// <param name="ctx">Game context</param>
-    /// <param name="animalType">Animal type name (Wolf, Bear, Caribou, etc.)</param>
-    /// <param name="count">Number of animals</param>
-    /// <param name="position">Position to spawn at</param>
-    /// <param name="territoryRadius">Approximate radius for territory</param>
-    /// <returns>The created herd, or null if creation failed</returns>
     public static Herd? SpawnHerdAt(GameContext ctx, AnimalType animalType, int count, GridPosition position, int territoryRadius)
     {
         if (ctx.Map == null) return null;
@@ -380,10 +379,11 @@ public static class HerdPopulator
             territory = [position]; // Fallback to just the spawn position
         }
 
-        // Create herd
-        var herd = Herd.Create(animalType, position, territory);
-
         var location = ctx.Map.GetLocationAt(position);
+        if (location == null) return null;
+
+        // Create herd
+        var herd = Herd.Create(animalType, location, ctx.Map, territory);
 
         // Add members
         for (int i = 0; i < count; i++)
@@ -398,7 +398,7 @@ public static class HerdPopulator
         // Only add if we have at least one member
         if (herd.Count > 0)
         {
-            ctx.Herds.AddHerd(herd);
+            ctx.Herds.Add(herd);
             return herd;
         }
 
@@ -431,10 +431,10 @@ public static class HerdPopulator
     /// <summary>
     /// Create solitary saber-tooth tigers (rare apex predators).
     /// </summary>
-    private static void PopulateSaberTooths(HerdRegistry registry, List<GridPosition> available, int count, GameMap map)
+    private static void PopulateSaberTooths(List<Herd> registry, List<GridPosition> available, int count, GameMap map)
     {
         // Get wolf territories to avoid overlap
-        var wolfTerritories = registry._herds
+        var wolfTerritories = registry
             .Where(h => h.AnimalType == AnimalType.Wolf)
             .SelectMany(h => h.HomeTerritory)
             .ToHashSet();
@@ -454,17 +454,19 @@ public static class HerdPopulator
 
             if (territory.Count < 4) continue;
 
-            // Create "herd" of 1 saber-tooth
-            var herd = Herd.Create(AnimalType.SaberTooth, startPos, territory);
-
             var location = map.GetLocationAt(startPos);
+            if (location == null) continue;
+
+            // Create "herd" of 1 saber-tooth
+            var herd = Herd.Create(AnimalType.SaberTooth, location, map, territory);
+
             var cat = AnimalFactory.MakeSaberToothTiger(location, map);
             if (cat != null)
             {
                 herd.AddMember(cat);
             }
 
-            registry.AddHerd(herd);
+            registry.Add(herd);
 
             // Remove territory from available (apex predator)
             foreach (var pos in territory)
@@ -477,10 +479,10 @@ public static class HerdPopulator
     /// <summary>
     /// Create hyena packs near wolf territories (scavengers follow predators).
     /// </summary>
-    private static void PopulateHyenas(HerdRegistry registry, List<GridPosition> available, int packCount, GameMap map)
+    private static void PopulateHyenas(List<Herd> registry, List<GridPosition> available, int packCount, GameMap map)
     {
         // Get wolf territories to spawn hyenas nearby
-        var wolfTerritories = registry._herds
+        var wolfTerritories = registry
             .Where(h => h.AnimalType == AnimalType.Wolf)
             .SelectMany(h => h.HomeTerritory)
             .ToHashSet();
@@ -505,9 +507,10 @@ public static class HerdPopulator
 
             if (territory.Count < 3) continue;
 
-            var herd = Herd.Create(AnimalType.Hyena, startPos, territory);
-
             var location = map.GetLocationAt(startPos);
+            if (location == null) continue;
+
+            var herd = Herd.Create(AnimalType.Hyena, location, map, territory);
 
             // Pack size: 3-6
             int packSize = 3 + _rng.Next(4);
@@ -520,7 +523,7 @@ public static class HerdPopulator
                 }
             }
 
-            registry.AddHerd(herd);
+            registry.Add(herd);
 
             // Remove spawn zone positions used
             foreach (var pos in territory)
@@ -533,7 +536,7 @@ public static class HerdPopulator
     /// <summary>
     /// Create mammoth herd centered on Bone Hollow location.
     /// </summary>
-    private static void PopulateMammoths(HerdRegistry registry, GameMap map)
+    private static void PopulateMammoths(List<Herd> registry, GameMap map)
     {
         // Find Bone Hollow by name
         GridPosition? boneHollowPos = null;
@@ -569,9 +572,10 @@ public static class HerdPopulator
             territory = [boneHollowPos.Value];
         }
 
-        var herd = Herd.Create(AnimalType.Mammoth, boneHollowPos.Value, territory);
-
         var location = map.GetLocationAt(boneHollowPos.Value);
+        if (location == null) return;
+
+        var herd = Herd.Create(AnimalType.Mammoth, location, map, territory);
 
         // Herd size: 8-12 (realistic matriarchal family group)
         int herdSize = 8 + _rng.Next(5);
@@ -584,7 +588,7 @@ public static class HerdPopulator
             }
         }
 
-        registry.AddHerd(herd);
+        registry.Add(herd);
     }
 
 }

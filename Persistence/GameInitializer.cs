@@ -1,4 +1,5 @@
 using text_survival.Actions;
+using text_survival.Actors.Animals;
 
 namespace text_survival.Persistence;
 
@@ -19,7 +20,7 @@ public static class GameInitializer
         }
 
         // Post-load: recreate non-serialized data
-        ctx?.Herds.RecreateAllMembers(ctx.Map);
+        ctx?.Herds.RecreateAllBehaviors();
 
         return ctx;
     }

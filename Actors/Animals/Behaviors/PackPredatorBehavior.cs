@@ -32,37 +32,35 @@ public class PackPredatorBehavior : IHerdBehavior
         switch (herd.State)
         {
             case HerdState.Resting:
-                return UpdateResting(herd, elapsedMinutes, ctx);
+                return UpdateResting(herd);
 
             case HerdState.Patrolling:
                 return UpdatePatrolling(herd, elapsedMinutes, ctx);
 
             case HerdState.Hunting:
-                return UpdateHunting(herd, ctx);
+                return UpdateHunting(herd);
 
             case HerdState.Feeding:
-                return UpdateFeeding(herd, elapsedMinutes, ctx);
+                return UpdateFeeding(herd, ctx);
 
             case HerdState.Alert:
-                // Predators in alert state decide to hunt or not
                 return UpdateAlert(herd, ctx);
 
             case HerdState.Fleeing:
                 return UpdateFleeing(herd, ctx);
 
             default:
-                herd.State = HerdState.Resting;
+                herd.TransitionTo(HerdState.Resting);
                 return HerdUpdateResult.None;
         }
     }
 
-    private static HerdUpdateResult UpdateResting(Herd herd, int elapsedMinutes, GameContext ctx)
+    private static HerdUpdateResult UpdateResting(Herd herd)
     {
         // Hungry? Start patrolling
         if (herd.Hunger > 0.6)
         {
-            herd.State = HerdState.Patrolling;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Patrolling);
         }
 
         return HerdUpdateResult.None;
@@ -83,12 +81,11 @@ public class PackPredatorBehavior : IHerdBehavior
         }
 
         // Check for player in this tile
-        if (ctx.Map != null && herd.Position == ctx.Map.CurrentPosition)
+        if (herd.IsPlayerHere)
         {
             if (ShouldEngagePlayer(herd, ctx))
             {
-                herd.State = HerdState.Hunting;
-                herd.StateTimeMinutes = 0;
+                herd.TransitionTo(HerdState.Hunting);
                 return HerdUpdateResult.WithEncounter(herd);
             }
         }
@@ -155,7 +152,7 @@ public class PackPredatorBehavior : IHerdBehavior
         }
 
         // Check for prey herds in this tile
-        var preyHere = ctx.Herds.GetHerdsAt(herd.Position)
+        var preyHere = ctx.Herds.At(herd.Position)
             .FirstOrDefault(h => !h.IsPredator && !h.IsEmpty);
 
         if (preyHere != null && herd.Hunger > 0.4)
@@ -167,16 +164,14 @@ public class PackPredatorBehavior : IHerdBehavior
         // Patrol timeout - rest
         if (herd.StateTimeMinutes > PatrolTimeoutMinutes)
         {
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
             ReturnToHome(herd, ctx);
         }
 
         // Low hunger - rest
         if (herd.Hunger < 0.3)
         {
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
         return HerdUpdateResult.None;
@@ -193,26 +188,23 @@ public class PackPredatorBehavior : IHerdBehavior
                 int distance = herd.Position.ManhattanDistance(ctx.Map.CurrentPosition);
                 if (distance <= 4 && ShouldEngagePlayer(herd, ctx))
                 {
-                    herd.State = HerdState.Hunting;
-                    herd.StateTimeMinutes = 0;
+                    herd.TransitionTo(HerdState.Hunting);
                     return HerdUpdateResult.WithEncounter(herd);
                 }
             }
 
             // Not engaging - return to patrol
-            herd.State = HerdState.Patrolling;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Patrolling);
         }
 
         return HerdUpdateResult.None;
     }
 
-    private static HerdUpdateResult UpdateHunting(Herd herd, GameContext ctx)
+    private static HerdUpdateResult UpdateHunting(Herd herd)
     {
         // Player is in the same tile - encounter already triggered
         // This state is transitional
-        herd.State = HerdState.Patrolling;
-        herd.StateTimeMinutes = 0;
+        herd.TransitionTo(HerdState.Patrolling);
         return HerdUpdateResult.None;
     }
 
@@ -220,53 +212,34 @@ public class PackPredatorBehavior : IHerdBehavior
     {
         if (ctx.Map == null) return HerdUpdateResult.None;
 
-        var fleeTarget = GetFleeTarget(herd, ctx);
+        var fleeTarget = herd.GetFleeTarget(ctx.Map.CurrentPosition);
 
         if (fleeTarget != null && fleeTarget != herd.Position)
         {
             if (!herd.StartTravelTo(fleeTarget.Value, ctx.Map))
             {
-                // Can't start travel - just rest
-                herd.State = HerdState.Resting;
-                herd.StateTimeMinutes = 0;
+                herd.TransitionTo(HerdState.Resting);
                 return HerdUpdateResult.None;
             }
 
             // Narrative if player sees them flee
-            if (ctx.Map.CurrentPosition == herd.Position)
+            if (herd.IsPlayerHere)
             {
                 return HerdUpdateResult.WithNarrative($"The {herd.AnimalType.DisplayName()} pack retreats into the distance.");
             }
         }
         else
         {
-            // Can't flee - just rest
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
         return HerdUpdateResult.None;
     }
 
-    private static GridPosition? GetFleeTarget(Herd herd, GameContext ctx)
-    {
-        if (ctx.Map == null) return null;
-
-        var playerPos = ctx.Map.CurrentPosition;
-
-        // Get passable neighbors and sort by distance from player (furthest first)
-        var options = herd.Position.GetCardinalNeighbors()
-            .Where(p => ctx.Map.GetLocationAt(p)?.IsPassable ?? false)
-            .OrderByDescending(p => p.ManhattanDistance(playerPos))
-            .ToList();
-
-        return options.FirstOrDefault();
-    }
-
-    private static HerdUpdateResult UpdateFeeding(Herd herd, int elapsedMinutes, GameContext ctx)
+    private static HerdUpdateResult UpdateFeeding(Herd herd, GameContext ctx)
     {
         // Defend kill if player enters
-        if (ctx.Map != null && herd.Position == ctx.Map.CurrentPosition)
+        if (herd.IsPlayerHere)
         {
             // Always encounter when defending a kill
             return HerdUpdateResult.WithEncounter(herd, isDefending: true);
@@ -274,8 +247,7 @@ public class PackPredatorBehavior : IHerdBehavior
 
         if (herd.StateTimeMinutes > FeedingDurationMinutes)
         {
-            herd.State = HerdState.Resting;
-            herd.StateTimeMinutes = 0;
+            herd.TransitionTo(HerdState.Resting);
         }
 
         return HerdUpdateResult.None;
@@ -301,18 +273,17 @@ public class PackPredatorBehavior : IHerdBehavior
             }
             else
             {
-                prey.State = HerdState.Fleeing;
+                prey.TransitionTo(HerdState.Fleeing);
             }
 
             // Hungry wolves may pursue
             if (predator.Hunger > 0.8 && _rng.NextDouble() < 0.4 && ctx.Map != null)
             {
                 predator.StartTravelTo(prey.Position, ctx.Map);
-                // Will re-encounter after arrival
             }
 
             // Narrative if player present
-            if (ctx.Map != null && ctx.Map.CurrentPosition == predator.Position)
+            if (predator.IsPlayerHere)
             {
                 return HerdUpdateResult.WithNarrative(
                     $"Wolves chase {prey.AnimalType.DisplayName().ToLower()}, but they escape.");
@@ -333,15 +304,10 @@ public class PackPredatorBehavior : IHerdBehavior
                 prey.RemoveMember(victim);
 
                 // Create carcass at this location
-                if (ctx.Map != null)
-                {
-                    var location = ctx.Map.GetLocationAt(predator.Position);
-                    location?.Features.Add(new CarcassFeature(victim));
-                }
+                predator.CurrentLocation?.Features.Add(new CarcassFeature(victim));
 
-                predator.State = HerdState.Feeding;
+                predator.TransitionTo(HerdState.Feeding);
                 predator.Hunger = 0;
-                predator.StateTimeMinutes = 0;
 
                 // Remaining prey flees
                 if (!prey.IsEmpty)
@@ -349,11 +315,11 @@ public class PackPredatorBehavior : IHerdBehavior
                     if (prey.Behavior != null)
                         prey.Behavior.TriggerFlee(prey, predator.Position, ctx);
                     else
-                        prey.State = HerdState.Fleeing;
+                        prey.TransitionTo(HerdState.Fleeing);
                 }
 
                 // Narrative if player present
-                if (ctx.Map != null && ctx.Map.CurrentPosition == predator.Position)
+                if (predator.IsPlayerHere)
                 {
                     return HerdUpdateResult.WithNarrative(
                         $"Wolves bring down a {victim.Name}. They begin feeding.");
@@ -368,11 +334,11 @@ public class PackPredatorBehavior : IHerdBehavior
             if (prey.Behavior != null)
                 prey.Behavior.TriggerFlee(prey, predator.Position, ctx);
             else
-                prey.State = HerdState.Fleeing;
+                prey.TransitionTo(HerdState.Fleeing);
 
             predator.State = HerdState.Patrolling;
 
-            if (ctx.Map != null && ctx.Map.CurrentPosition == predator.Position)
+            if (predator.IsPlayerHere)
             {
                 return HerdUpdateResult.WithNarrative(
                     $"Wolves chase {prey.AnimalType.DisplayName().ToLower()}, but the herd escapes.");
@@ -384,8 +350,7 @@ public class PackPredatorBehavior : IHerdBehavior
 
     public void TriggerFlee(Herd herd, GridPosition threatSource, GameContext ctx)
     {
-        herd.State = HerdState.Fleeing;
-        herd.StateTimeMinutes = 0;
+        herd.TransitionTo(HerdState.Fleeing);
     }
 
     public double GetVisibilityFactor(Herd herd) => 0.3;  // Predators stay hidden
@@ -459,7 +424,15 @@ public class PackPredatorBehavior : IHerdBehavior
 
                 if (_rng.NextDouble() < pullStrength)
                 {
-                    return GetTileToward(herd.Position, playerPos, ctx);
+                    // Move one tile toward player
+                    int dx = Math.Sign(playerPos.X - herd.Position.X);
+                    int dy = Math.Sign(playerPos.Y - herd.Position.Y);
+
+                    var candidates = new List<GridPosition>();
+                    if (dx != 0) candidates.Add(new GridPosition(herd.Position.X + dx, herd.Position.Y));
+                    if (dy != 0) candidates.Add(new GridPosition(herd.Position.X, herd.Position.Y + dy));
+
+                    return candidates.FirstOrDefault(p => ctx.Map.GetLocationAt(p)?.IsPassable ?? false);
                 }
             }
         }
@@ -467,18 +440,6 @@ public class PackPredatorBehavior : IHerdBehavior
         // Normal patrol
         if (herd.HomeTerritory.Count == 0) return null;
         return herd.HomeTerritory[(herd.TerritoryIndex + 1) % herd.HomeTerritory.Count];
-    }
-
-    private static GridPosition? GetTileToward(GridPosition from, GridPosition to, GameContext ctx)
-    {
-        int dx = Math.Sign(to.X - from.X);
-        int dy = Math.Sign(to.Y - from.Y);
-
-        var candidates = new List<GridPosition>();
-        if (dx != 0) candidates.Add(new GridPosition(from.X + dx, from.Y));
-        if (dy != 0) candidates.Add(new GridPosition(from.X, from.Y + dy));
-
-        return candidates.FirstOrDefault(p => ctx.Map?.GetLocationAt(p)?.IsPassable ?? false);
     }
 
     private static double CalculateBoldnessTowardNPC(Herd herd, NPC npc, GameContext ctx)
@@ -504,9 +465,6 @@ public class PackPredatorBehavior : IHerdBehavior
         if (npc.Inventory.Count(Resource.RawMeat) > 0)
             bold += 0.1;
 
-        // Reduce by fear learned from this NPC (if tracked)
-        // bold *= (1.0 - herd.NPCFear);  // Future enhancement
-
         return Math.Clamp(bold, 0, 1);
     }
 
@@ -517,7 +475,6 @@ public class PackPredatorBehavior : IHerdBehavior
         {
             case ActorCombatResolver.CombatOutcome.DefenderEscaped:
                 Console.WriteLine($"[Predator] {npc.Name} escaped from {herd.AnimalType.DisplayName()}");
-                // NPC already has fear effect from resolver
                 break;
 
             case ActorCombatResolver.CombatOutcome.DefenderInjured:
@@ -527,8 +484,7 @@ public class PackPredatorBehavior : IHerdBehavior
 
             case ActorCombatResolver.CombatOutcome.DefenderKilled:
                 Console.WriteLine($"[Predator] {npc.Name} was killed by {herd.AnimalType.DisplayName()}");
-                // NPC death handled by GameContext.Update() death detection
-                herd.Hunger = 0;  // Predator is fed
+                herd.Hunger = 0;
                 break;
 
             case ActorCombatResolver.CombatOutcome.AttackerRepelled:
@@ -539,7 +495,6 @@ public class PackPredatorBehavior : IHerdBehavior
                 if (predator != null && !predator.IsAlive)
                 {
                     herd.RemoveMember(predator);
-                    // Carcass creation happens in NPCFight.Complete() when threat dies
                 }
 
                 // Predator learns fear and flees

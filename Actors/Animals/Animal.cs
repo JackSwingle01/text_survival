@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
@@ -17,16 +18,21 @@ namespace text_survival.Actors.Animals
         private static readonly Random _rng = new();
         #region Combat Properties
 
-        public override double AttackDamage { get; }
-        public override double BlockChance { get; }
-        public override string AttackName { get; }
-        public override DamageType AttackType { get; }
+        [JsonInclude] private double _attackDamage;
+        [JsonInclude] private double _blockChance;
+        [JsonInclude] private string _attackName = "";
+        [JsonInclude] private DamageType _attackType;
+
+        public override double AttackDamage => _attackDamage;
+        public override double BlockChance => _blockChance;
+        public override string AttackName => _attackName;
+        public override DamageType AttackType => _attackType;
 
         #endregion
 
         #region Properties
 
-        public AnimalType AnimalType { get; }  // Immutable - set at construction
+        public AnimalType AnimalType { get; set; }
 
         public override double BaseThreat { get; set; }
         public override double StartingBoldness { get; set; }
@@ -34,7 +40,7 @@ namespace text_survival.Actors.Animals
         public override double BaseCohesion { get; set; }
 
         public string Description { get; set; } = "";
-        public bool IsHostile { get; protected set; } = true;
+        public bool IsHostile { get; set; } = true;
         public AnimalBehaviorType BehaviorType { get; set; }
         public AnimalSize Size { get; set; }
         public double DistanceFromPlayer { get; set; }
@@ -44,8 +50,10 @@ namespace text_survival.Actors.Animals
         public DateTime? WoundedTime { get; set; }
         public double CurrentWoundSeverity { get; set; }
         public double EncounterBoldness { get; set; }
-        public double SpeedMps { get; }
-        public double PursuitCommitmentSeconds { get; }
+        [JsonInclude] private double _speedMps;
+        [JsonInclude] private double _pursuitCommitmentSeconds;
+        public double SpeedMps => _speedMps;
+        public double PursuitCommitmentSeconds => _pursuitCommitmentSeconds;
         public double DisengageAfterMaul { get; set; }
         public List<(Resource resource, double kgYield)> SpecialYields { get; init; } = [];
         public bool IsMegafauna => Body.WeightKG > 500;
@@ -58,12 +66,15 @@ namespace text_survival.Actors.Animals
         public double Condition { get; set; } = 1.0;
         public double Nervousness { get; set; } = 0.5;
         public List<string> DistinguishingMarks { get; set; } = [];
-        public AnimalActivity CurrentActivity { get; private set; } = AnimalActivity.Resting;
+        public AnimalActivity CurrentActivity { get; set; } = AnimalActivity.Resting;
         private int _activityRemainingMinutes = 10;
 
         #endregion
 
         #region Constructor
+
+        /// <summary>Parameterless constructor for JSON deserialization.</summary>
+        public Animal() : base("", Body.BaselineHumanStats, null!, null!) { }
 
         public Animal(
             AnimalType animalType,
@@ -86,17 +97,17 @@ namespace text_survival.Actors.Animals
             AnimalType = animalType;
 
             // Combat stats
-            AttackDamage = attackDamage;
-            AttackName = attackName;
-            AttackType = attackType;
-            BlockChance = blockChance;
+            _attackDamage = attackDamage;
+            _attackName = attackName;
+            _attackType = attackType;
+            _blockChance = blockChance;
 
             // Behavior
             BehaviorType = behaviorType;
             Size = size;
             IsHostile = isHostile;
-            SpeedMps = speedMps;
-            PursuitCommitmentSeconds = pursuitCommitment;
+            _speedMps = speedMps;
+            _pursuitCommitmentSeconds = pursuitCommitment;
             DisengageAfterMaul = disengageAfterMaul;
 
             // Defaults

@@ -97,7 +97,7 @@ public static class HuntRunner
                 sourceHerd.RemoveMember(target);
                 if (sourceHerd.IsEmpty)
                 {
-                    ctx.Herds.RemoveHerd(sourceHerd);
+                    ctx.Herds.Remove(sourceHerd);
                 }
             }
 

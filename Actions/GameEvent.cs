@@ -588,7 +588,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         var pos = ctx.Map.CurrentPosition;
 
         // Skip if a herd of this type already exists in this territory
-        var existingHerds = ctx.Herds.GetHerdsByType(HerdCreation.AnimalType);
+        var existingHerds = ctx.Herds.OfAnimalType(HerdCreation.AnimalType);
         if (existingHerds.Any(h => h.HomeTerritory.Contains(pos)))
         {
             return;
@@ -616,7 +616,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         var pos = ctx.Map.CurrentPosition;
 
         // Find mammoths for herd effects (these specifically target the mammoth herd)
-        var mammothHerd = ctx.Herds.GetHerdsByType(AnimalType.Mammoth)
+        var mammothHerd = ctx.Herds.OfAnimalType(AnimalType.Mammoth)
             .FirstOrDefault(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 8);
 
         // Alert herd if alert level set
