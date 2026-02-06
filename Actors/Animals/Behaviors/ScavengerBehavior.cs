@@ -16,8 +16,8 @@ public class ScavengerBehavior : IHerdBehavior
 
     private const double HungerRatePerMinute = 0.001;   // Similar to pack predators
     private const int FeedingDurationMinutes = 45;      // Hyenas feed quickly
-    private const int CarcassSearchRadius = 2;          // Tiles to scan for carcasses
-    private const int PredatorFollowRadius = 3;         // Tiles to detect feeding predators
+    private const int CarcassSearchRadius = 8;          // Tiles to scan for carcasses (~800m)
+    private const int PredatorFollowRadius = 12;        // Tiles to detect feeding predators (~1200m)
 
     public HerdUpdateResult Update(Herd herd, int elapsedMinutes, GameContext ctx)
     {

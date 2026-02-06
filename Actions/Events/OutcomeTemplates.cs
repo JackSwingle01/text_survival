@@ -278,17 +278,17 @@ public static class OutcomeTemplates
         => r.RepairsEquipment(slot, 10);
 
     public static EventResult DiscoversPredator(this EventResult r, AnimalType animal, double stalkSeverity = 0.3)
-        => r.SpawnsHerd(animal, 1, 2).BecomeStalked(stalkSeverity, animal);
+        => r.SpawnsHerd(animal, 1, 8).BecomeStalked(stalkSeverity, animal);
 
     public static EventResult DiscoversPack(this EventResult r, AnimalType animal, int count = 4, double severity = 0.4)
-        => r.SpawnsHerd(animal, count, 3).CreateTension("PackNearby", severity, animalType: animal);
+        => r.SpawnsHerd(animal, count, 12).CreateTension("PackNearby", severity, animalType: animal);
 
     public static EventResult DiscoversPreyHerd(this EventResult r, AnimalType animal, int count = 8, double severity = 0.5)
-        => r.SpawnsHerd(animal, count, 4).CreateTension("HerdNearby", severity, animalType: animal);
+        => r.SpawnsHerd(animal, count, 16).CreateTension("HerdNearby", severity, animalType: animal);
 
     public static EventResult FollowsTracks(this EventResult r, AnimalType animal, bool isPredator, int count = 1)
     {
-        r.SpawnsHerd(animal, count, isPredator ? 2 : 4);
+        r.SpawnsHerd(animal, count, isPredator ? 8 : 16);
         return isPredator
             ? r.BecomeStalked(0.2, animal)
             : r.CreateTension("HerdNearby", 0.4, animalType: animal);

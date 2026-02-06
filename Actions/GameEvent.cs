@@ -36,7 +36,7 @@ public record CarcassCreation(AnimalType? AnimalType, double HarvestedPct = 0, d
 /// <param name="AnimalType">Animal type name (Wolf, Bear, Caribou, etc.)</param>
 /// <param name="Count">Number of animals (1 for lone predator)</param>
 /// <param name="TerritoryRadius">Radius for home territory generation</param>
-public record HerdCreation(AnimalType AnimalType, int Count = 1, int TerritoryRadius = 2);
+public record HerdCreation(AnimalType AnimalType, int Count = 1, int TerritoryRadius = 8);
 
 /// <summary>
 /// Configuration for creating a salvage feature at the current location.
@@ -219,7 +219,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     }
 
     // Herd spawning
-    public EventResult SpawnsHerd(AnimalType animalType, int count = 1, int territoryRadius = 2)
+    public EventResult SpawnsHerd(AnimalType animalType, int count = 1, int territoryRadius = 8)
     {
         HerdCreation = new HerdCreation(animalType, count, territoryRadius);
         return this;

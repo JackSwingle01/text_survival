@@ -191,7 +191,7 @@ public class PackPredatorBehavior : IHerdBehavior
             if (ctx.Map != null)
             {
                 int distance = herd.Position.ManhattanDistance(ctx.Map.CurrentPosition);
-                if (distance <= 1 && ShouldEngagePlayer(herd, ctx))
+                if (distance <= 4 && ShouldEngagePlayer(herd, ctx))
                 {
                     herd.State = HerdState.Hunting;
                     herd.StateTimeMinutes = 0;
@@ -445,7 +445,7 @@ public class PackPredatorBehavior : IHerdBehavior
             var playerPos = ctx.Map.CurrentPosition;
             int playerDistance = herd.Position.ManhattanDistance(playerPos);
 
-            if (playerDistance <= 2 && herd.HomeTerritory.Contains(playerPos))
+            if (playerDistance <= 8 && herd.HomeTerritory.Contains(playerPos))
             {
                 double pullStrength = 0;
 
