@@ -35,6 +35,50 @@ public enum TileVisibility
 /// </summary>
 public static class TileRenderer
 {
+    private static Texture2D? _playerSprite;
+    private static readonly Dictionary<string, Texture2D> _tileSprites = new();
+
+    /// <summary>
+    /// Load sprite textures from assets/icons/. Call after Raylib window is initialized.
+    /// Loads player.png and *_tile.png (e.g. forest_tile.png) files.
+    /// </summary>
+    public static void LoadSprites()
+    {
+        string assetsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "icons");
+
+        if (!Directory.Exists(assetsPath))
+            assetsPath = Path.Combine(Directory.GetCurrentDirectory(), "assets", "icons");
+
+        if (!Directory.Exists(assetsPath))
+            return;
+
+        string playerPath = Path.Combine(assetsPath, "player.png");
+        if (File.Exists(playerPath))
+        {
+            var texture = Raylib.LoadTexture(playerPath);
+            if (texture.Id != 0)
+                _playerSprite = texture;
+        }
+
+        foreach (string filePath in Directory.GetFiles(assetsPath, "*_tile.png"))
+        {
+            string fileName = Path.GetFileNameWithoutExtension(filePath);
+            string terrainKey = fileName.Replace("_tile", "").ToLowerInvariant();
+
+            var texture = Raylib.LoadTexture(filePath);
+            if (texture.Id != 0)
+                _tileSprites[terrainKey] = texture;
+        }
+    }
+
+    /// <summary>
+    /// Try to get a loaded tile sprite for a terrain type.
+    /// </summary>
+    public static bool TryGetTileSprite(string terrain, out Texture2D sprite)
+    {
+        return _tileSprites.TryGetValue(terrain.ToLowerInvariant(), out sprite);
+    }
+
     // Player palette: brown cloak, cream fur, warm skin, dark hair
     private static readonly CharacterPalette PlayerPalette = new()
     {
@@ -121,15 +165,24 @@ public static class TileRenderer
             return;
         }
 
-        // Get base terrain color and adjust for time of day
-        Color baseColor = TerrainColors.GetColor(terrain);
-        baseColor = AdjustForTimeOfDay(baseColor, timeFactor);
+        // Draw terrain: use sprite if available, otherwise procedural
+        if (_tileSprites.TryGetValue(terrain.ToLowerInvariant(), out var tileSprite))
+        {
+            float brightness = 0.4f + timeFactor * 0.6f;
+            byte b = (byte)(255 * brightness);
+            var tint = new Color(b, b, b, (byte)255);
 
-        // Draw base color
-        Raylib.DrawRectangle((int)x, (int)y, (int)size, (int)size, baseColor);
-
-        // Draw terrain texture
-        TerrainRenderer.RenderTexture(terrain, x, y, size, worldX, worldY, timeFactor);
+            var source = new Rectangle(0, 0, tileSprite.Width, tileSprite.Height);
+            var dest = new Rectangle(x, y, size, size);
+            Raylib.DrawTexturePro(tileSprite, source, dest, System.Numerics.Vector2.Zero, 0f, tint);
+        }
+        else
+        {
+            Color baseColor = TerrainColors.GetColor(terrain);
+            baseColor = AdjustForTimeOfDay(baseColor, timeFactor);
+            Raylib.DrawRectangle((int)x, (int)y, (int)size, (int)size, baseColor);
+            TerrainRenderer.RenderTexture(terrain, x, y, size, worldX, worldY, timeFactor);
+        }
 
         // Apply fog of war for explored but not visible tiles
         if (visibility == TileVisibility.Explored)
@@ -219,82 +272,25 @@ public static class TileRenderer
     /// </summary>
     public static void DrawPlayerIcon(float centerX, float centerY, float tileSize, float scale = 1.0f)
     {
-        DrawCharacterMale(centerX, centerY, tileSize, scale, PlayerPalette);
+        if (_playerSprite.HasValue)
+            DrawSprite(_playerSprite.Value, centerX, centerY, tileSize, scale);
+        else
+            DrawCharacterMale(centerX, centerY, tileSize, scale, PlayerPalette);
     }
 
-    /// <summary>
-    /// Draw a hooded figure silhouette (cloaked person).
-    /// </summary>
-    private static void DrawHoodedFigure(
-        float centerX, float centerY, float tileSize,
-        float scale, Color bodyColor, Color headColor, Color shadowColor)
+    private static void DrawSprite(Texture2D texture, float centerX, float centerY, float tileSize, float scale)
     {
-        // Proportions relative to tile size
-        float figureHeight = tileSize * 0.30f * scale;
-        float headRadius = tileSize * 0.06f * scale;
-        float bodyWidth = tileSize * 0.18f * scale;
-        float bodyHeight = tileSize * 0.18f * scale;
-        float shadowOffset = 2f * scale;
+        float spriteHeight = tileSize * 0.55f * scale;
+        float aspectRatio = (float)texture.Width / texture.Height;
+        float spriteWidth = spriteHeight * aspectRatio;
 
-        // Position: center the figure, head at top
-        float headY = centerY - figureHeight * 0.35f;
-        float bodyTopY = headY + headRadius * 0.5f;
-        float bodyBottomY = bodyTopY + bodyHeight;
+        float x = centerX - spriteWidth / 2;
+        float y = centerY - spriteHeight / 2;
 
-        // Shadow (draw entire figure offset)
-        // Shadow body (triangle)
-        Vector2 shadowP1 = new(centerX + shadowOffset, bodyTopY + shadowOffset);
-        Vector2 shadowP2 = new(centerX - bodyWidth / 2 + shadowOffset, bodyBottomY + shadowOffset);
-        Vector2 shadowP3 = new(centerX + bodyWidth / 2 + shadowOffset, bodyBottomY + shadowOffset);
-        Raylib.DrawTriangle(shadowP1, shadowP3, shadowP2, shadowColor);
-        // Shadow head
-        Raylib.DrawCircle((int)(centerX + shadowOffset), (int)(headY + shadowOffset), headRadius, shadowColor);
-        // Shadow hood
-        Raylib.DrawCircle((int)(centerX + shadowOffset), (int)(headY + headRadius * 0.3f + shadowOffset), headRadius * 1.2f, shadowColor);
+        var source = new Rectangle(0, 0, texture.Width, texture.Height);
+        var dest = new Rectangle(x, y, spriteWidth, spriteHeight);
 
-        // Hood (slightly larger circle behind and below head)
-        var hoodColor = new Color(bodyColor.R, bodyColor.G, bodyColor.B, (byte)(bodyColor.A * 0.8f));
-        Raylib.DrawCircle((int)centerX, (int)(headY + headRadius * 0.3f), headRadius * 1.2f, hoodColor);
-
-        // Body/Cloak (triangle pointing up)
-        Vector2 p1 = new(centerX, bodyTopY);           // Top center (shoulders)
-        Vector2 p2 = new(centerX - bodyWidth / 2, bodyBottomY);  // Bottom left
-        Vector2 p3 = new(centerX + bodyWidth / 2, bodyBottomY);  // Bottom right
-        Raylib.DrawTriangle(p1, p3, p2, bodyColor);
-
-        // Head
-        Raylib.DrawCircle((int)centerX, (int)headY, headRadius, headColor);
-
-        // Hood outline (arc effect using line segments)
-        var outlineColor = new Color(
-            (byte)Math.Max(0, bodyColor.R - 40),
-            (byte)Math.Max(0, bodyColor.G - 40),
-            (byte)Math.Max(0, bodyColor.B - 40),
-            bodyColor.A);
-        float arcRadius = headRadius * 1.3f;
-        float arcY = headY + headRadius * 0.2f;
-        // Draw a simple arc using line segments
-        for (int i = 0; i < 8; i++)
-        {
-            float angle1 = (float)(Math.PI * 0.7 + i * Math.PI * 0.2 / 8);
-            float angle2 = (float)(Math.PI * 0.7 + (i + 1) * Math.PI * 0.2 / 8);
-            float x1 = centerX + (float)Math.Cos(angle1) * arcRadius;
-            float y1 = arcY - (float)Math.Sin(angle1) * arcRadius;
-            float x2 = centerX + (float)Math.Cos(angle2) * arcRadius;
-            float y2 = arcY - (float)Math.Sin(angle2) * arcRadius;
-            Raylib.DrawLine((int)x1, (int)y1, (int)x2, (int)y2, outlineColor);
-        }
-        // Right side of hood arc
-        for (int i = 0; i < 8; i++)
-        {
-            float angle1 = (float)(Math.PI * 0.1 + i * Math.PI * 0.2 / 8);
-            float angle2 = (float)(Math.PI * 0.1 + (i + 1) * Math.PI * 0.2 / 8);
-            float x1 = centerX + (float)Math.Cos(angle1) * arcRadius;
-            float y1 = arcY - (float)Math.Sin(angle1) * arcRadius;
-            float x2 = centerX + (float)Math.Cos(angle2) * arcRadius;
-            float y2 = arcY - (float)Math.Sin(angle2) * arcRadius;
-            Raylib.DrawLine((int)x1, (int)y1, (int)x2, (int)y2, outlineColor);
-        }
+        Raylib.DrawTexturePro(texture, source, dest, System.Numerics.Vector2.Zero, 0f, Color.White);
     }
 
     /// <summary>

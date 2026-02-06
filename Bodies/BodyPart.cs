@@ -47,44 +47,5 @@ public class BodyRegion(string name, double coverage)
         return overallCondition;
     }
 
-    // public void Describe()
-    // {
-    //     // Calculate health percentage
-    //     int healthPercent = (int)(Condition * 100); 
-
-    //     // Determine damage severity description
-    //     string damageDescription;
-    //     if (healthPercent <= 0)
-    //     {
-    //         damageDescription = "destroyed";
-    //     }
-    //     else if (healthPercent < 20)
-    //     {
-    //         damageDescription = "critically damaged";
-    //     }
-    //     else if (healthPercent < 40)
-    //     {
-    //         damageDescription = "severely damaged";
-    //     }
-    //     else if (healthPercent < 60)
-    //     {
-    //         damageDescription = "moderately damaged";
-    //     }
-    //     else if (healthPercent < 80)
-    //     {
-    //         damageDescription = "lightly damaged";
-    //     }
-    //     else if (healthPercent < 100)
-    //     {
-    //         damageDescription = "slightly damaged";
-    //     }
-    //     else
-    //     {
-    //         damageDescription = "in perfect condition";
-    //     }
-
-    //     // Output description line
-    //     GameDisplay.AddNarrative($"- {Name} is {damageDescription} ({healthPercent}%)");
-    // }
     public override string ToString() => Name;
 }

@@ -82,8 +82,7 @@ public class EffectRegistry
         }
         else
         {
-            Console.WriteLine("ERROR: couldn't find effect to remove."); // shouldn't hit this, but soft error for now
-            return null;
+            throw new InvalidOperationException($"Cannot remove effect '{effect.EffectKind}': not found in registry.");
         }
     }
     /// <summary>

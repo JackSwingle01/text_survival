@@ -89,7 +89,7 @@ public class EffectsRenderer
         foreach (var particle in _snowParticles)
         {
             // Fall down (faster in heavier precipitation)
-            particle.Y += particle.Speed * deltaTime * 30 * precipFactor;
+            particle.Y += particle.Speed * deltaTime * 15 * precipFactor;
 
             // Drift sideways (more with stronger wind)
             particle.X += particle.Drift * deltaTime * 30 * windFactor;

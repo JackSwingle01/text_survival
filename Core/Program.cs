@@ -98,6 +98,9 @@ public static class Program
             ctx = GameContext.CreateNewGame();
         }
 
+        // Load sprite textures (must be after Raylib.InitWindow)
+        TileRenderer.LoadSprites();
+
         // Create rendering infrastructure
         var worldRenderer = new WorldRenderer();
         var overlays = new OverlayManager();

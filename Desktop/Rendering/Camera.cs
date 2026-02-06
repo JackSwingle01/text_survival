@@ -12,7 +12,7 @@ public class Camera
     // Grid settings
     public int TileSize { get; set; } = 100;
     public int TileGap { get; set; } = 2;
-    public int ViewSize { get; set; } = 7;  // 7x7 tile viewport
+    public int ViewSize { get; set; } = 5;  // 5x5 tile viewport
 
     // Camera position (world coordinates - which tile is centered)
     public int CenterX { get; private set; }
@@ -232,8 +232,8 @@ public class Camera
         // Solving for TileSize: TileSize = (availableSize - (ViewSize - 1) * TileGap) / ViewSize
         int calculatedTileSize = (availableSize - (ViewSize - 1) * TileGap) / ViewSize;
 
-        // Clamp tile size to reasonable bounds (min 60, max 150)
-        TileSize = Math.Clamp(calculatedTileSize, 60, 150);
+        // Clamp tile size to reasonable bounds
+        TileSize = Math.Clamp(calculatedTileSize, 60, 300);
 
         // Center grid horizontally between panels
         int actualGridWidth = ViewSize * TileSize + (ViewSize - 1) * TileGap;

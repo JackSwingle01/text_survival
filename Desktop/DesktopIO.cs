@@ -24,21 +24,8 @@ public static class DesktopIO
         return $"{slug}_{index}";
     }
 
-    public static void ClearInventory(GameContext ctx) { }
     public static void ClearCrafting(GameContext ctx) { }
     public static void ClearEvent(GameContext ctx) { }
-    public static void ClearHazard(GameContext ctx) { }
-    public static void ClearConfirm(GameContext ctx) { }
-    public static void ClearForage(GameContext ctx) { }
-    public static void ClearTransfer(GameContext ctx) { }
-    public static void ClearFire(GameContext ctx) { }
-    public static void ClearFood(GameContext ctx) { }
-    public static void ClearButcher(GameContext ctx) { }
-    public static void ClearCombat(GameContext ctx) { }
-    public static void ClearDiscovery(GameContext ctx) { }
-    public static void ClearWeatherChange(GameContext ctx) { }
-    public static void ClearDiscoveryLog(GameContext ctx) { }
-    public static void ClearAllOverlays(string sessionId) { }
 
     public static void ShowDiscovery(GameContext ctx, string locationName, string discoveryText)
     {
