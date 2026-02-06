@@ -248,6 +248,24 @@ public class Location
         Features.Add(feature);
     }
 
+    public void AddGroundItems(Inventory items)
+    {
+        var stash = GetFeature<GroundItemsFeature>();
+        if (stash == null)
+        {
+            stash = new GroundItemsFeature();
+            AddFeature(stash);
+        }
+        stash.Add(items);
+    }
+
+    public void CleanupGroundItems()
+    {
+        var stash = GetFeature<GroundItemsFeature>();
+        if (stash != null && !stash.HasItems)
+            RemoveFeature(stash);
+    }
+
     /// <summary>
     /// Get the effective temperature at this location.
     /// </summary>

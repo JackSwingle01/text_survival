@@ -39,7 +39,8 @@ public static class InventoryCapacityHelper
 
         if (!leftovers.IsEmpty)
         {
-            GameDisplay.AddWarning(ctx, $"Your pack is full. You left behind: {leftovers.GetDescription()}");
+            ctx.CurrentLocation.AddGroundItems(leftovers);
+            GameDisplay.AddWarning(ctx, $"Your pack is full. You dropped: {leftovers.GetDescription()}");
             ctx.ShowTutorialOnce("You can store extra items at camp to free up space.");
         }
 
