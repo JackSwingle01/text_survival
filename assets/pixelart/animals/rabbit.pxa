@@ -1,0 +1,17 @@
+SIZE 16x16
+PALETTE
+. = #00000000
+f = #d4c8b8
+p = #d89aa0
+d = #2a2a2a
+
+RECT 5 1 2 5 f
+RECT 5 2 1 3 p
+RECT 1 6 7 7 f
+RECT 3 8 2 2 d
+RECT 6 11 1 1 d
+MIRRORX
+
+CHECKS
+  CONNECTED
+ENDCHECKS
