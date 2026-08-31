@@ -28,6 +28,15 @@ dotnet run --project tools/PixelArtCli -- <command> ...
   ```
   dotnet run --project tools/PixelArtCli -- render-all assets/pixelart assets/icons
   ```
+- `sheet <sourceDir> <output.png> [--scale N] [--cols N]` — tile every `*.pxa` under
+  `sourceDir` onto one upscaled contact sheet over a neutral grey ground:
+  ```
+  dotnet run --project tools/PixelArtCli -- sheet assets/pixelart /tmp/sheet.png --scale 10 --cols 3
+  ```
+  Reviewing the whole set at once is how style drift gets caught — assets that
+  each look fine alone can still disagree on outline weight, palette, or scale.
+  The grey ground also matters: transparent pixels render as black in most
+  viewers, which hides exactly the dark outlines you need to judge.
 - `validate <file.pxa>` — parse, execute, and run CHECKS without writing a PNG. Catches
   row-length mismatches, undefined palette keys, and failed CHECKS (see below)
   immediately — use this while iterating.
@@ -186,10 +195,38 @@ facing the viewer**: a wolf is a front-facing head (ears, eyes, muzzle, nose)
 bold, legible idea, not a small painting.
 
 **Exploit symmetry.** Most recognizable subjects (faces, flames, most
-creatures viewed head-on) are bilaterally symmetric — draw one half with
-primitives and `MIRRORX`/`MIRRORY` it. This is also the biggest lever against
-authoring "blind": half the coordinates to get right, and no way for the two
-sides to drift out of alignment.
+creatures viewed head-on) are bilaterally symmetric — author the left half
+only (8 columns of content, the rest `.`) and `MIRRORX` it. This is the
+biggest lever against authoring "blind": half the coordinates to get right,
+and no way for the two sides to drift out of alignment.
+
+**Outline, shade, and taper — or it reads as stacked boxes.** The three
+things that separate pixel art from flat blocks, in order of impact:
+
+1. *A dark outline around the silhouette.* Not pure black — a very dark
+   version of the subject's own hue. Without it a sprite has no contour and
+   dissolves against the background. This matters most on icons drawn over
+   varied terrain.
+2. *Two or three tones per material*, lit consistently (top-left by
+   convention): a base, a shadow at the edges/underside, a highlight on the
+   lit side. One flat tone per material is the single clearest tell of
+   amateur work.
+3. *Stepped, tapering contours.* Curves are implied by stepping in one pixel
+   at a time (`..o`, `.o`, `o`), never by an axis-aligned rectangle edge.
+   A head narrows toward the muzzle; a bundle rounds at the shoulders.
+
+Because of #3, prefer an explicit `PIXELS`/`GRID` block over `RECT`
+composition for anything organic — `RECT` produces boxes by construction, so
+`RECT`-built creatures come out looking like robots. Keep the primitives for
+what they're good at: `MIRRORX`, flat man-made forms, and erasing with `.`.
+
+**`CIRCLE` is unreliable below r≈4.** At small radii it rasterizes to a
+sparse diamond, not a curve — a bear's ears drawn as `CIRCLE ... 2` came out
+looking like antlers. Hand-place small round forms in a grid instead.
+
+**Fire, light, and glowing things take no outline.** They read by heat
+gradient (deep red → orange → yellow → white core), not by contour. Outlining
+a flame makes it look like a painted cutout.
 
 **Compose, don't eyeball.** Whenever an asset has two or more parts that
 must visually connect (flame + logs, head + ears, body + limbs), build them

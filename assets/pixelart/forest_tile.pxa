@@ -1,25 +1,30 @@
+// Snowy conifer stand. Opaque terrain tile - no outline (it butts against
+// neighbouring tiles) and deliberately asymmetric, so no MIRRORX here.
+// Two snow-capped pines with layered branch tiers, lit from the left,
+// over a snow ground plane that darkens toward the foreground.
 SIZE 16x16
 PALETTE
-s = #dce8ee
-t = #b8ccd6
-p = #2b3d2e
-q = #3f5942
-g = #4a3728
-w = #f0f5f7
+S = #e3edf2
+s = #cbd9e2
+h = #aec1ce
+W = #f4fafc
+P = #24352a
+p = #35503c
+t = #3d2c1c
 PIXELS
+SSSSSSSSSSSSSSSS
+SSSSWSSSSSSSSSSS
+SSSpPPSSSSSSSSSS
+SSpPPPPSSSSSSSSS
+SSSpPPSSSSSWSSSS
+SSpPPPPSSSpPPSSS
+SpPPPPPPSpPPPPSS
+SSpPPPPSSSpPPSSS
+SpPPPPPPSpPPPPSS
+SSSStSSSSSStSSSS
+sssstsssssstssss
 ssssssssssssssss
+sshsssssshssssss
 ssssssssssssssss
-ssssswssssssssss
-ssssspssssssssss
-sssqppssssssssss
-sssqppssssssssss
-ssqppppssssswsss
-ssqppppssssspsss
-sqppppppssqppsss
-sqppppppssqppsss
-tttggttttqpppptt
-tttggttttqpppptt
-ttttttttttggtttt
-ttttttttttggtttt
-tttttttttttttttt
-tttttttttttttttt
+ssssshssssssshss
+ssssssssssssssss

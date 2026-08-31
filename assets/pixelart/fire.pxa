@@ -1,36 +1,45 @@
+// Campfire. Flame and logs are separate parts; STACK guarantees they meet.
+// Fire carries no dark outline (it glows) - heat gradient instead:
+// deep red edge -> orange -> yellow -> white-hot core at the base of the flame.
 SIZE 16x16
 PALETTE
 . = #00000000
-g = #4a3728
-h = #6b4f37
-r = #c62828
-o = #f57c00
-y = #ffca28
+r = #d13b1f
+o = #f5811f
+y = #ffc93c
+w = #fff3c4
+k = #2b1f14
+g = #55402a
+h = #7a5a3a
 
-PART flame 8x7
-  PIXEL 3 0 y
-  PIXEL 3 1 y
-  PIXEL 2 1 o
-  PIXEL 2 2 o
-  PIXEL 3 2 y
-  RECT 2 3 2 2 o
-  PIXEL 1 3 r
-  PIXEL 1 4 r
-  RECT 0 5 4 1 r
-  PIXEL 2 5 o
-  PIXEL 3 5 o
-  RECT 1 6 3 1 r
+PART flame 16x11
+  GRID
+  .......y........
+  ......yy........
+  ......oy........
+  .....roy........
+  .....roy........
+  ....rooy........
+  ....royw........
+  ...rooyw........
+  ..rrooyw........
+  ..rrooyw........
+  ...rrooy........
   MIRRORX
 ENDPART
 
-PART logs 10x3
-  RECT 0 0 10 1 h
-  RECT 1 1 8 2 g
+PART logs 16x4
+  GRID
+  ..khhhhh........
+  .kgggggg........
+  .kgggggg........
+  ..kkkkkk........
+  MIRRORX
 ENDPART
 
 COMPOSE
-  PLACE flame CENTERED
-  STACK logs BELOW flame CENTERED OVERLAP 1
+  PLACE flame AT 0 1
+  STACK logs BELOW flame CENTERED
 ENDCOMPOSE
 
 CHECKS
