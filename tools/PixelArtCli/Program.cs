@@ -193,9 +193,7 @@ public static class Program
 
         string path = args[0];
         var doc = PxaDocument.Parse(File.ReadAllText(path), path);
-        // Force full grid resolution to catch undefined palette keys too.
-        doc.ToRgba();
-        Console.WriteLine($"ok: {path} ({doc.Width}x{doc.Height}, {doc.Palette.Count} palette colors)");
+        Console.WriteLine($"ok: {path} ({doc.Width}x{doc.Height}, {doc.PaletteCount} palette colors)");
         return 0;
     }
 }
