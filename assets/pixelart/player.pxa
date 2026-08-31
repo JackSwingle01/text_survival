@@ -1,0 +1,26 @@
+SIZE 16x16
+PALETTE
+. = #00000000
+c = #8b5a2b
+h = #a06e3c
+f = #f5ebdc
+k = #deb887
+d = #3c2818
+e = #281e19
+PIXELS
+................
+................
+.....dddddd.....
+.....kkkkkk.....
+.....kkeekk.....
+......kkkk......
+...ffffffffff...
+..cccccccccccc..
+..hccccccccccc..
+..hccccccccccc..
+..hccccccccccc..
+..hccccccccccc..
+..hccccccccccc..
+..hccccccccccc..
+.hccccccccccccc.
+.....dddddd.....

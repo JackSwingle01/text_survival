@@ -1,0 +1,25 @@
+SIZE 16x16
+PALETTE
+s = #dce8ee
+t = #b8ccd6
+p = #2b3d2e
+q = #3f5942
+g = #4a3728
+w = #f0f5f7
+PIXELS
+ssssssssssssssss
+ssssssssssssssss
+ssssswssssssssss
+ssssspssssssssss
+sssqppssssssssss
+sssqppssssssssss
+ssqppppssssswsss
+ssqppppssssspsss
+sqppppppssqppsss
+sqppppppssqppsss
+tttggttttqpppptt
+tttggttttqpppptt
+ttttttttttggtttt
+ttttttttttggtttt
+tttttttttttttttt
+tttttttttttttttt

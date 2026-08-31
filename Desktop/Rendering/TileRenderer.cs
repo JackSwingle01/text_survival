@@ -57,7 +57,11 @@ public static class TileRenderer
         {
             var texture = Raylib.LoadTexture(playerPath);
             if (texture.Id != 0)
+            {
+                // Pixel art must not be smoothed when scaled up.
+                Raylib.SetTextureFilter(texture, TextureFilter.Point);
                 _playerSprite = texture;
+            }
         }
 
         foreach (string filePath in Directory.GetFiles(assetsPath, "*_tile.png"))
@@ -67,8 +71,13 @@ public static class TileRenderer
 
             var texture = Raylib.LoadTexture(filePath);
             if (texture.Id != 0)
+            {
+                Raylib.SetTextureFilter(texture, TextureFilter.Point);
                 _tileSprites[terrainKey] = texture;
+            }
         }
+
+        AnimalRenderer.LoadSprites(assetsPath);
     }
 
     /// <summary>
