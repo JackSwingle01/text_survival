@@ -49,7 +49,6 @@ namespace text_survival.Actors.Animals
         public bool IsBleeding { get; set; }
         public DateTime? WoundedTime { get; set; }
         public double CurrentWoundSeverity { get; set; }
-        public double EncounterBoldness { get; set; }
         [JsonInclude] private double _speedMps;
         [JsonInclude] private double _pursuitCommitmentSeconds;
         public double SpeedMps => _speedMps;
@@ -114,27 +113,6 @@ namespace text_survival.Actors.Animals
             DistanceFromPlayer = 100.0;
             FailedStealthChecks = 0;
             TrackingDifficulty = 5;
-        }
-
-        #endregion
-
-        #region Behavior Methods
-
-        public double CalculateBoldness(Player.Player player, Inventory inventory)
-        {
-            double boldness = 0.4;
-
-            bool hasMeat = inventory.Count(Resource.RawMeat) > 0 || inventory.Count(Resource.CookedMeat) > 0;
-            if (hasMeat) boldness += 0.20;
-            if (player.Vitality < 0.7) boldness += 0.15;
-            if (player.Body.WeightKG > this.Body.WeightKG) boldness -= 0.10;
-
-            // Blood scent attracts predators
-            double bloodySeverity = player.EffectRegistry.GetSeverity("Bloody");
-            if (bloodySeverity > 0)
-                boldness += 0.15 * bloodySeverity;  // Up to +0.15 at full severity
-
-            return Math.Clamp(boldness, 0.0, 1.0);
         }
 
         #endregion

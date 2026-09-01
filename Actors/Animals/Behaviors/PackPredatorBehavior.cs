@@ -98,8 +98,7 @@ public class PackPredatorBehavior : IHerdBehavior
 
         foreach (var npc in npcsHere)
         {
-            // Calculate boldness toward this NPC (similar to player)
-            double boldness = CalculateBoldnessTowardNPC(herd, npc, ctx);
+            double boldness = herd.BoldnessToward(npc, ctx);
 
             if (Random.Shared.NextDouble() < boldness)
             {
@@ -364,42 +363,7 @@ public class PackPredatorBehavior : IHerdBehavior
             return false; // Still on cooldown
         }
 
-        double boldness = CalculateBoldness(herd, ctx);
-        return _rng.NextDouble() < boldness;
-    }
-
-    private static double CalculateBoldness(Herd herd, GameContext ctx)
-    {
-        double bold = 0.2;
-
-        // Pack size
-        bold += herd.Count * 0.05;
-
-        // Hunger
-        if (herd.Hunger > 0.7) bold += 0.2;
-        if (herd.Hunger > 0.9) bold += 0.2;
-
-        // Player vulnerability
-        bool isBleeding = ctx.player.EffectRegistry.HasEffect("Bleeding") ||
-                          ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.3;
-        if (isBleeding) bold += 0.15;
-
-        bool carryingMeat = ctx.Inventory.Count(Resource.RawMeat) > 0 ||
-                            ctx.Inventory.Count(Resource.CookedMeat) > 0;
-        if (carryingMeat) bold += 0.1;
-
-        double movementCapacity = ctx.player.GetCapacities().Moving;
-        if (movementCapacity < 0.5) bold += 0.2;
-
-        // Night time
-        bool isNight = ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
-        if (isNight) bold += 0.1;
-
-        // Apply learned fear (multiplicative - preserves relative relationships)
-        if (herd.Fear > 0)
-            bold *= (1.0 - herd.Fear);
-
-        return Math.Clamp(bold, 0, 0.9);
+        return _rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx);
     }
 
     private GridPosition? GetNextPatrolTarget(Herd herd, GameContext ctx)
@@ -440,32 +404,6 @@ public class PackPredatorBehavior : IHerdBehavior
         // Normal patrol
         if (herd.HomeTerritory.Count == 0) return null;
         return herd.HomeTerritory[(herd.TerritoryIndex + 1) % herd.HomeTerritory.Count];
-    }
-
-    private static double CalculateBoldnessTowardNPC(Herd herd, NPC npc, GameContext ctx)
-    {
-        double bold = 0.3;  // Base boldness
-
-        // Pack size
-        bold += herd.Count * 0.05;
-
-        // Hunger
-        if (herd.Hunger > 0.7) bold += 0.2;
-        if (herd.Hunger > 0.9) bold += 0.2;
-
-        // NPC condition
-        if (npc.EffectRegistry.HasEffect("Bleeding"))
-            bold += 0.15;
-
-        var capacities = npc.GetCapacities();
-        if (capacities.Moving < 0.5)
-            bold += 0.2;
-
-        // NPC carrying meat
-        if (npc.Inventory.Count(Resource.RawMeat) > 0)
-            bold += 0.1;
-
-        return Math.Clamp(bold, 0, 1);
     }
 
     private void HandleNPCCombatOutcome(

@@ -27,6 +27,18 @@ public enum AnimalType
 }
 
 /// <summary>
+/// Species temperament: how a herd's engage chance is built up.
+/// </summary>
+/// <param name="Base">Engage chance with nothing else going for it.</param>
+/// <param name="PerPackMember">Added per living member.</param>
+/// <param name="HungryAt">Hunger above which HungerBonus applies once.</param>
+/// <param name="StarvingAt">Hunger above which HungerBonus applies a second time.</param>
+/// <param name="HungerBonus">Added at each hunger threshold.</param>
+/// <param name="DefendBonus">Added when defending a den, kill, or carcass.</param>
+/// <param name="Cap">Maximum engage chance.</param>
+public record Temperament(double Base, double PerPackMember, double HungryAt, double StarvingAt, double HungerBonus, double DefendBonus, double Cap);
+
+/// <summary>
 /// Extension methods for AnimalType - single source of truth for all animal properties.
 /// </summary>
 public static class AnimalTypes
@@ -162,6 +174,19 @@ public static class AnimalTypes
         AnimalType.SaberTooth => HerdBehaviorType.SolitaryPredator,
         AnimalType.Hyena => HerdBehaviorType.Scavenger,
         _ => HerdBehaviorType.Prey
+    };
+
+    /// <summary>
+    /// How readily a species engages a target. The inputs to <see cref="Herd.BoldnessToward"/>.
+    /// Prey and megafauna herbivores never hunt the player, so their cap is 0.
+    /// </summary>
+    public static Temperament Temperament(this AnimalType type) => type switch
+    {
+        AnimalType.Wolf => new(Base: 0.20, PerPackMember: 0.05, HungryAt: 0.7, StarvingAt: 0.9, HungerBonus: 0.2, DefendBonus: 0.6, Cap: 0.9),
+        AnimalType.Bear or AnimalType.CaveBear => new(Base: 0.15, PerPackMember: 0, HungryAt: 0.8, StarvingAt: 0.95, HungerBonus: 0.3, DefendBonus: 0.55, Cap: 1.0),
+        AnimalType.SaberTooth => new(Base: 0.25, PerPackMember: 0, HungryAt: 0.7, StarvingAt: 0.9, HungerBonus: 0.3, DefendBonus: 0.5, Cap: 1.0),
+        AnimalType.Hyena => new(Base: 0.10, PerPackMember: 0.08, HungryAt: 0.8, StarvingAt: 1.1, HungerBonus: 0.2, DefendBonus: 0.15, Cap: 0.6),
+        _ => new(Base: 0, PerPackMember: 0, HungryAt: 1.1, StarvingAt: 1.1, HungerBonus: 0, DefendBonus: 0, Cap: 0)
     };
 
     /// <summary>

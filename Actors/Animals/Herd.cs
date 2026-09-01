@@ -3,6 +3,7 @@ using text_survival.Actions;
 using text_survival.Actors.Animals.Behaviors;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
+using text_survival.Items;
 
 // Avoid ambiguity between Herd.AnimalType property and AnimalType enum
 using AnimalTypeEnum = text_survival.Actors.Animals.AnimalType;
@@ -124,6 +125,47 @@ public class Herd : IMovable
 
     [JsonIgnore]
     public bool IsTraveling => TravelDestination != null;
+
+    /// <summary>True when the herd stands on its den tile (the first tile of its territory).</summary>
+    [JsonIgnore]
+    public bool AtDen => HomeTerritory.Count > 0 && Position == HomeTerritory[0];
+
+    #endregion
+
+    #region Boldness
+
+    /// <summary>
+    /// Chance (0-1) that this herd engages the target right now. The one boldness formula:
+    /// species temperament, pack size, hunger, what it is defending, the target's vulnerability,
+    /// the hour, and learned fear. Used both to decide whether an encounter starts and to seed
+    /// the animals' morale when it does, so the wolf that approached boldly also fights boldly.
+    /// </summary>
+    public double BoldnessToward(Actor target, GameContext ctx, bool defending = false)
+    {
+        var t = AnimalType.Temperament();
+        if (t.Cap <= 0) return 0;
+
+        double bold = t.Base + Count * t.PerPackMember;
+        if (Hunger > t.HungryAt) bold += t.HungerBonus;
+        if (Hunger > t.StarvingAt) bold += t.HungerBonus;
+        if (defending) bold += t.DefendBonus;
+
+        // Target vulnerability
+        bool bleeding = target.EffectRegistry.HasEffect("Bleeding") ||
+                        target.EffectRegistry.GetSeverity("Bloody") > 0.3;
+        if (bleeding) bold += 0.15;
+        var inventory = target.Inventory;
+        if (inventory != null && (inventory.Count(Resource.RawMeat) > 0 || inventory.Count(Resource.CookedMeat) > 0))
+            bold += 0.1;
+        if (target.GetCapacities().Moving < 0.5) bold += 0.2;
+        if (target.Vitality < 0.7) bold += 0.1;
+        if (ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night) bold += 0.1;
+
+        // Learned fear scales the whole thing down
+        if (Fear > 0) bold *= 1.0 - Fear;
+
+        return Math.Clamp(bold, 0, t.Cap);
+    }
 
     #endregion
 

@@ -45,25 +45,19 @@ public static class CombatOrchestrator
         EnableBackgroundPhase: false
     );
 
-    /// <summary>Encounter config: player starts unaware, predator is alert or engaged.</summary>
-    public static StealthCombatConfig EncounterConfig(bool predatorIsAlert) => new(
-        PlayerAwareness: AwarenessState.Unaware,
-        TargetAwareness: predatorIsAlert ? AwarenessState.Alert : AwarenessState.Engaged,
-        ActivityType: ActivityType.Encounter,
-        IntroMessage: null,
-        EnableBackgroundPhase: true
-    );
-
     #endregion
 
     /// <summary>
     /// Main entry point for player combat.
     /// </summary>
-    public static CombatResult RunCombat(GameContext ctx, Animal enemy)
+    /// <param name="engageChance">The boldness (0-1) that brought the enemy here; seeds its morale.</param>
+    public static CombatResult RunCombat(GameContext ctx, Animal enemy, double engageChance = 0.5)
     {
         // === SETUP ===
         var (scenario, playerUnit) = SetupCombat(ctx, enemy);
         scenario.Location = ctx.CurrentLocation; // Set location for detection modifiers
+        foreach (var unit in scenario.Team2)
+            unit.BoldnessModifier += engageChance - 0.5;
         ctx.ActiveCombat = scenario;  // Switch to combat mode
 
         // Show intro message
@@ -224,34 +218,6 @@ public static class CombatOrchestrator
     }
 
     /// <summary>
-    /// Configure combat for a hunt scenario: player engaged, enemies unaware.
-    /// Enemies start far away (~40m from player).
-    /// </summary>
-    public static void SetupHunt(CombatScenario scenario)
-    {
-        SetTeamAwareness(scenario.Team1, AwarenessState.Engaged);
-        SetTeamAwareness(scenario.Team2, AwarenessState.Unaware);
-    }
-
-    /// <summary>
-    /// Configure combat for a predator encounter: player unaware, enemies alert/engaged.
-    /// </summary>
-    public static void SetupPredatorEncounter(CombatScenario scenario, bool predatorIsAlert = false)
-    {
-        SetTeamAwareness(scenario.Team1, AwarenessState.Unaware);
-        SetTeamAwareness(scenario.Team2, predatorIsAlert ? AwarenessState.Alert : AwarenessState.Engaged);
-    }
-
-    /// <summary>
-    /// Configure combat for mutual encounter: both sides engaged (current default behavior).
-    /// </summary>
-    public static void SetupMutualEncounter(CombatScenario scenario)
-    {
-        SetTeamAwareness(scenario.Team1, AwarenessState.Engaged);
-        SetTeamAwareness(scenario.Team2, AwarenessState.Engaged);
-    }
-
-    /// <summary>
     /// Run combat as a hunt scenario: player approaches unaware prey.
     /// </summary>
     public static CombatResult RunHunt(GameContext ctx, Animal prey)
@@ -321,88 +287,13 @@ public static class CombatOrchestrator
 
     private const int MAP_SIZE = CombatScenario.MAP_SIZE;
 
-    /// <summary>
-    /// Run combat as a predator encounter: player starts Unaware, predator approaches.
-    /// Combat overlay only appears when player detects predator or is attacked.
-    /// </summary>
-    public static CombatResult RunPredatorEncounter(GameContext ctx, Animal predator, bool predatorIsAlert = false)
-    {
-        var (scenario, playerUnit) = SetupEncounterCombat(ctx, predator);
-        scenario.Location = ctx.CurrentLocation;
-        ctx.ActiveCombat = scenario;
-
-        var result = RunStealthCombat(ctx, scenario, playerUnit, EncounterConfig(predatorIsAlert));
-
-        ctx.ActiveCombat = null;
-
-        string resultMessage = result switch
-        {
-            CombatResult.Victory => "You kill the predator!",
-            CombatResult.Defeat => "You have been killed.",
-            CombatResult.Fled => "You escape!",
-            CombatResult.AnimalFled => "The predator flees!",
-            _ => "The encounter ends."
-        };
-        GameDisplay.AddSuccess(ctx, resultMessage);
-
-        HandlePostCombat(ctx, scenario, result);
-        return result;
-    }
-
-    /// <summary>
-    /// Setup combat scenario for predator encounter - predator starts closer than hunt.
-    /// </summary>
-    private static (CombatScenario scenario, Unit playerUnit) SetupEncounterCombat(GameContext ctx, Animal predator)
-    {
-        // Derive positions from grid size - closer than hunt (~20-25m vs ~40m)
-        int playerY = MAP_SIZE / 4;                 // ~12 for 50x50
-        int predatorY = MAP_SIZE / 2 + MAP_SIZE / 5; // ~35 for 50x50 (~23m away)
-
-        // Player at center-bottom
-        var playerUnit = new Unit(ctx.player, new GridPosition(MAP_SIZE / 2, playerY));
-        var team1 = new List<Unit> { playerUnit };
-
-        // Find allied NPCs who will help
-        var npcsHere = ctx.GetNPCsAt(ctx.Map?.CurrentPosition ?? new GridPosition(0, 0));
-        var allies = npcsHere.Where(npc => npc.DecideToHelpInCombat(ctx.player, predator)).ToList();
-        foreach (var npc in allies)
-        {
-            team1.Add(new Unit(npc, new GridPosition(MAP_SIZE / 2 + team1.Count * 2, playerY)));
-        }
-
-        // Predator starts at medium distance (~20-25m away)
-        var predatorUnit = new Unit(predator, new GridPosition(MAP_SIZE / 2, predatorY));
-        var team2 = new List<Unit> { predatorUnit };
-
-        // Add pack members if applicable
-        var herd = ctx.Herds.ContainingAnimal(predator);
-        if (herd != null)
-        {
-            int maxPack = Math.Min(herd.Members.Count - 1, 2);
-            int packSize = maxPack > 0 ? _rng.Next(0, maxPack + 1) : 0;
-            var packMembers = herd.Members
-                .Where(a => a != predator && a.IsAlive)
-                .OrderBy(_ => _rng.Next())
-                .Take(packSize);
-            int index = 1;
-            foreach (var animal in packMembers)
-            {
-                int xOffset = (index % 3) * 2 - 2;
-                team2.Add(new Unit(animal, new GridPosition(MAP_SIZE / 2 + xOffset, predatorY + index / 3)));
-                index++;
-            }
-        }
-
-        return (new CombatScenario(team1, team2, playerUnit, ctx.CurrentLocation), playerUnit);
-    }
-
     #endregion
 
     #region Unified Stealth Combat
 
     /// <summary>
     /// Unified stealth combat loop for both hunts and predator encounters.
-    /// Eliminates duplication between RunHunt and RunPredatorEncounter.
+    /// Detection checks run every turn against enemies that are Unaware or Alert.
     /// </summary>
     private static CombatResult RunStealthCombat(
         GameContext ctx,

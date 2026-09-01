@@ -165,13 +165,14 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (activityConfig.EventMultiplier == 0)
             return; // Activities that block events also block encounters
 
-        var predator = EncounterRunner.CreateAnimalFromConfig(_pendingEncounter, CurrentLocation, Map);
+        var config = _pendingEncounter;
+        var predator = EncounterRunner.CreateAnimalFromConfig(config, CurrentLocation, Map);
         _pendingEncounter = null;
 
         if (predator != null)
         {
             // CombatOrchestrator handles allies automatically via SetupCombat
-            var outcome = CombatOrchestrator.RunCombat(this, predator);
+            var outcome = CombatOrchestrator.RunCombat(this, predator, config.InitialBoldness);
 
             LastEventAborted = true;  // Encounters abort the current action
 
@@ -526,7 +527,7 @@ public class GameContext(Player player, Location camp, Weather weather)
                     _pendingEncounter = new EncounterConfig(
                         encounterHerd.AnimalType,
                         InitialDistance: result.EncounterRequest.IsDefendingKill ? 10 : 20,
-                        InitialBoldness: result.EncounterRequest.IsDefendingKill ? 0.8 : 0.6
+                        InitialBoldness: encounterHerd.BoldnessToward(player, this, result.EncounterRequest.IsDefendingKill)
                     );
                 }
             }

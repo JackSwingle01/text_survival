@@ -193,12 +193,9 @@ public class ScavengerBehavior : IHerdBehavior
         if (herd.StateTimeMinutes > 5)
         {
             // Usually just flee rather than engage
-            if (herd.IsPlayerHere)
+            if (herd.IsPlayerHere && ShouldEngagePlayer(herd, ctx))
             {
-                if (_rng.NextDouble() < 0.3)  // Only 30% chance to engage
-                {
-                    return HerdUpdateResult.WithEncounter(herd);
-                }
+                return HerdUpdateResult.WithEncounter(herd);
             }
 
             herd.TransitionTo(HerdState.Patrolling);
@@ -338,52 +335,7 @@ public class ScavengerBehavior : IHerdBehavior
 
     private static bool ShouldEngagePlayer(Herd herd, GameContext ctx, bool isDefendingCarcass = false)
     {
-        double boldness = CalculateBoldness(herd, ctx, isDefendingCarcass);
-        return _rng.NextDouble() < boldness;
-    }
-
-    private static double CalculateBoldness(Herd herd, GameContext ctx, bool isDefendingCarcass)
-    {
-        double bold = 0.1;  // Very low base - hyenas are cowards
-
-        // Pack size matters a lot for hyenas
-        bold += herd.Count * 0.08;
-
-        // Vulnerability checks
-        double vulnerability = GetPlayerVulnerability(ctx);
-        bold += vulnerability * 0.25;
-
-        // Starving hyenas are bolder
-        if (herd.Hunger > 0.8) bold += 0.2;
-
-        // Defending food
-        if (isDefendingCarcass) bold += 0.15;
-
-        // Apply learned fear (multiplicative - preserves relative relationships)
-        if (herd.Fear > 0)
-            bold *= (1.0 - herd.Fear);
-
-        // Cap at 0.6 - hyenas won't engage confidently like wolves
-        return Math.Clamp(bold, 0, 0.6);
-    }
-
-    private static double GetPlayerVulnerability(GameContext ctx)
-    {
-        double vuln = 0;
-
-        bool isBleeding = ctx.player.EffectRegistry.HasEffect("Bleeding") ||
-                          ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.3;
-        if (isBleeding) vuln += 0.3;
-
-        double movementCapacity = ctx.player.GetCapacities().Moving;
-        if (movementCapacity < 0.7) vuln += 0.2;
-        if (movementCapacity < 0.5) vuln += 0.3;
-
-        bool carryingMeat = ctx.Inventory.Count(Resource.RawMeat) > 0 ||
-                            ctx.Inventory.Count(Resource.CookedMeat) > 0;
-        if (carryingMeat) vuln += 0.2;
-
-        return Math.Clamp(vuln, 0, 1);
+        return _rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx, defending: isDefendingCarcass);
     }
 
     #endregion
