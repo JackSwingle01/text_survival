@@ -1,0 +1,23 @@
+// Deep water variant: wave crests catching light.
+SIZE 16x16
+PALETTE
+d = #1a3644
+w = #27505f
+W = #3d7080
+PIXELS
+dddddddddddddddd
+dddddddddddddddd
+dwWWdddddddddddd
+ddWddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+ddddddddddddwWWd
+ddddddddddddddWd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddwWWdddddddddd
+ddddWddddddddddd
+dddddddddddddddd
+dddddddddddddddd

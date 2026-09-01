@@ -13,12 +13,50 @@ public static class AnimalRenderer
     // Largest sprite spans ~80 units (bison width, megaloceros height)
     private const float NormalizationSize = 80f;
 
+    private static readonly Dictionary<AnimalType, Texture2D> _sprites = new();
+
     /// <summary>
-    /// Draw an animal sprite at the specified position.
+    /// Load pixel-art sprite textures from assets/icons/animals/. Call after Raylib window
+    /// is initialized. A file named e.g. "wolf.png" overrides the procedural AnimalType.Wolf drawing.
+    /// </summary>
+    public static void LoadSprites(string iconsAssetsPath)
+    {
+        string animalsPath = Path.Combine(iconsAssetsPath, "animals");
+        if (!Directory.Exists(animalsPath))
+            return;
+
+        foreach (string filePath in Directory.GetFiles(animalsPath, "*.png"))
+        {
+            string name = Path.GetFileNameWithoutExtension(filePath);
+            if (!Enum.TryParse(name, ignoreCase: true, out AnimalType type))
+            {
+                Console.Error.WriteLine($"AnimalRenderer: '{filePath}' does not match any AnimalType, skipping.");
+                continue;
+            }
+
+            Texture2D texture = Raylib.LoadTexture(filePath);
+            if (texture.Id != 0)
+            {
+                // Pixel art must not be smoothed when scaled up.
+                Raylib.SetTextureFilter(texture, TextureFilter.Point);
+                _sprites[type] = texture;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Draw an animal sprite at the specified position. Uses a loaded pixel-art texture
+    /// when one exists for this type, otherwise falls back to procedural drawing.
     /// </summary>
     /// <param name="sizePixels">Target size in pixels (largest dimension)</param>
     public static void DrawAnimal(AnimalType type, float x, float y, float sizePixels)
     {
+        if (_sprites.TryGetValue(type, out Texture2D texture))
+        {
+            DrawSprite(texture, x, y, sizePixels);
+            return;
+        }
+
         float scale = sizePixels / NormalizationSize;
         switch (type)
         {
@@ -68,6 +106,18 @@ public static class AnimalRenderer
     }
 
     // === Helper Methods ===
+
+    private static void DrawSprite(Texture2D texture, float centerX, float centerY, float sizePixels)
+    {
+        float aspectRatio = (float)texture.Width / texture.Height;
+        float height = sizePixels;
+        float width = height * aspectRatio;
+
+        var source = new Rectangle(0, 0, texture.Width, texture.Height);
+        var dest = new Rectangle(centerX - width / 2, centerY - height / 2, width, height);
+
+        Raylib.DrawTexturePro(texture, source, dest, Vector2.Zero, 0f, Color.White);
+    }
 
     private static void DrawEllipse(float cx, float cy, float rx, float ry, Color color)
     {

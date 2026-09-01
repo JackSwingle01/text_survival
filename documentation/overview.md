@@ -730,6 +730,28 @@ Desktop UI interacts with: all game systems (direct state access), events (Event
 
 **Files**: `Core/Program.cs`, `Desktop/DesktopIO.cs`, `Desktop/DesktopRuntime.cs`, `Desktop/UI/OverlayManager.cs`, `Desktop/Rendering/WorldRenderer.cs`, `Desktop/Input/InputHandler.cs`
 
+### Pixel Art Pipeline
+
+World/UI visuals come from three sources, in priority order: a hand-authored
+16x16 pixel-art PNG (if one exists for that entity), otherwise procedural
+Raylib primitive drawing (`ProceduralIconRenderer`, `AnimalRenderer`,
+`TerrainRenderer`) as a fallback. `tools/PixelArtCli` is a standalone CLI
+(zero dependencies, not part of the main build) that renders a compact text
+format (`.pxa` — an ASCII grid plus a hex-color palette legend) to PNG, so
+pixel art can be authored and reviewed as plain text rather than drawn in an
+image editor. Source files live in `assets/pixelart/`; `render-all` renders
+them into `assets/icons/` where the existing texture loaders
+(`TextureIconRenderer`, `TileRenderer`, `AnimalRenderer`) pick them up
+automatically, falling back to procedural drawing for anything not yet
+authored. All loaded textures use `TextureFilter.Point` so they stay crisp
+when scaled. See `tools/PixelArtCli/README.md` for the format spec and
+per-category naming conventions.
+
+Pixel art pipeline interacts with: tile/feature/animal/player rendering (art
+source, procedural is the fallback), the desktop rendering layer generally.
+
+**Files**: `tools/PixelArtCli/`, `assets/pixelart/`, `assets/icons/`
+
 ---
 
 ## Design Direction

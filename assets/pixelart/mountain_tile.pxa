@@ -1,0 +1,25 @@
+// Mountain, base variant - impassable. Fills the tile edge to edge with rock,
+// noticeably darker than anything walkable, so a wall of it reads as a barrier.
+// Facets are irregular blotches: an earlier version ran them at a regular 45
+// degrees and tiled into an obvious herringbone.
+SIZE 16x16
+PALETTE
+K = #5a5a64
+k = #7a7a86
+PIXELS
+KKkkKKKKKkKKKKkk
+KkkKKKkkKKKKkkKK
+KKKKKkkKKKkkKKKK
+kKKKkkKKKKKKKkkK
+kkKKKKKKkkKKKKKK
+KKKkkKKKkkKKKkkK
+KKkkKKKKKKKkkKKK
+kKKKKKkkKKKKKKKk
+KKKkkKKKKkkKKKkk
+KkkKKKKkKKKKkkKK
+KKKKKkkKKKkkKKKK
+KKkkKKKKkkKKKKkK
+kKKKKkkKKKKKkkKK
+KKKkkKKKKkkKKKKK
+kkKKKKKkkKKKKkkK
+KKKkkKKKKKKkkKKK

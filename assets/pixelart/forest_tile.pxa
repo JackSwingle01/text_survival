@@ -1,0 +1,28 @@
+// Forest, base variant. The snow ground is one flat tone with scattered dither -
+// an earlier version graded light at the top to dark at the bottom, which tiled
+// into hard horizontal stripes every 16px across the whole map.
+SIZE 16x16
+PALETTE
+S = #e3edf2
+s = #cbd9e2
+W = #f4fafc
+P = #24352a
+p = #35503c
+t = #3d2c1c
+PIXELS
+SSSSSSSSSSSSSSSS
+SSSSWSSSSSSSSSSS
+SSSpPPSSSSSSSSSS
+SSpPPPPSSSSSSSSS
+SSSpPPSSSSSWSSSS
+SSpPPPPSSSpPPSSS
+SpPPPPPPSpPPPPSS
+SSpPPPPSSSpPPSSS
+SpPPPPPPSpPPPPSS
+SSSStSSSSSStSSSS
+SSSStSSSSSStSSSS
+SSSSSSSSSSSSSSSS
+SSsSSSSSSSSSSSSS
+SSSSSSSSSSSsSSSS
+SSSSSsSSSSSSSSSS
+SSSSSSSSSSSSSSSS

@@ -26,6 +26,12 @@
     <None Include="text_survival.Tests/**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Exclude the standalone pixel-art authoring tool from main project compilation -->
+    <Compile Remove="tools/**" />
+    <None Include="tools/**" />
+  </ItemGroup>
+
   <!-- Desktop rendering packages -->
   <ItemGroup>
     <PackageReference Include="Raylib-cs" Version="7.0.2" />

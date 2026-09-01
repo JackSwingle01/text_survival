@@ -1,0 +1,23 @@
+// Mountain variant: a different blotch arrangement, so long ridges of mountain
+// do not repeat the same rock face.
+SIZE 16x16
+PALETTE
+K = #5a5a64
+k = #7a7a86
+PIXELS
+KKKkkKKKKkkKKKKK
+kKKKKkkKKKKKkkKK
+kkKKKKKkkKKKKKkk
+KkkKKKKKKkkKKKKK
+KKKKkkKKKKKkkKKK
+KKKKKkkKKKKKKKkk
+kkKKKKKKkkKKKKKK
+KkkKKKkkKKKKkkKK
+KKKkkKKKKKKkkKKK
+KKKKKkkKKKkkKKKK
+kKKKKKkkKKKKKkkK
+kkKKKKKKkkKKKKKK
+KKkkKKKKKKkkKKkk
+KKKKkkKKKkkKKKKK
+kKKKKKkkKKKKkkKK
+kkKKKKKKkkKKKKKK

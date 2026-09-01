@@ -1,0 +1,30 @@
+// Drying rack finished: the same rack as curing.pxa, strips gone golden.
+// Colour is the whole signal - the shapes deliberately match so the change
+// of state reads as the same object, later.
+SIZE 16x16
+PALETTE
+. = #00000000
+o = #4a3728
+w = #7a5c38
+m = #c9954a
+PIXELS
+................
+................
+................
+.o............o.
+.owwwwwwwwwwwwo.
+.omm.mm.mm.mm.o.
+.omm.mm.mm.mm.o.
+.omm.mm.mm.mm.o.
+.omm.mm.mm.mm.o.
+.o............o.
+.o............o.
+.oo..........oo.
+................
+................
+................
+................
+
+CHECKS
+  CONNECTED
+ENDCHECKS

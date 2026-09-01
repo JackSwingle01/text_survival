@@ -1,0 +1,21 @@
+// Deep water, base variant - flat, unfrozen and much darker than water_tile's ice.
+SIZE 16x16
+PALETTE
+d = #1a3644
+PIXELS
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd

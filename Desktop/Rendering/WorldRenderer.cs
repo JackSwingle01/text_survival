@@ -568,18 +568,8 @@ public class WorldRenderer
                 }
                 else if (unit.actor is NPC npc)
                 {
-                    // Use NPC character sprite with consistent color per NPC
-                    int hash = npc.Name.GetHashCode();
-                    int paletteIndex = Math.Abs(hash) % TileRenderer.NpcPalettes.Length;
-                    bool isFemale = (Math.Abs(hash) / TileRenderer.NpcPalettes.Length) % 2 == 1;
-
-                    CharacterPalette palette = TileRenderer.NpcPalettes[paletteIndex];
-
-                    // Draw at full scale for combat
-                    if (isFemale)
-                        TileRenderer.DrawCharacterFemale(screenX, screenY, cellSize, 3.0f, palette);
-                    else
-                        TileRenderer.DrawCharacterMale(screenX, screenY, cellSize, 3.0f, palette);
+                    // Same appearance rules as the map, at full scale for combat
+                    TileRenderer.DrawNPCSprite(screenX, screenY, cellSize, npc.Name, 3.0f);
                 }
             }
 

@@ -36,11 +36,16 @@ public enum TileVisibility
 public static class TileRenderer
 {
     private static Texture2D? _playerSprite;
-    private static readonly Dictionary<string, Texture2D> _tileSprites = new();
+    private static readonly Dictionary<string, List<Texture2D>> _tileSprites = new();
+    private static readonly Dictionary<string, Texture2D> _npcSprites = new();
 
     /// <summary>
     /// Load sprite textures from assets/icons/. Call after Raylib window is initialized.
-    /// Loads player.png and *_tile.png (e.g. forest_tile.png) files.
+    /// Loads player.png, npc/*.png, and terrain tiles.
+    ///
+    /// A terrain may supply several tiles - forest_tile.png, forest_tile2.png and so on.
+    /// They are all filed under the same terrain key and chosen between per map position,
+    /// so a field of one terrain does not read as a stamped grid.
     /// </summary>
     public static void LoadSprites()
     {
@@ -54,29 +59,71 @@ public static class TileRenderer
 
         string playerPath = Path.Combine(assetsPath, "player.png");
         if (File.Exists(playerPath))
-        {
-            var texture = Raylib.LoadTexture(playerPath);
-            if (texture.Id != 0)
-                _playerSprite = texture;
-        }
+            _playerSprite = LoadPixelTexture(playerPath);
 
-        foreach (string filePath in Directory.GetFiles(assetsPath, "*_tile.png"))
+        // Ordinal sort, so variant order - and therefore which tile a position gets - is
+        // identical on every machine. It also keeps the unsuffixed base tile at index 0,
+        // which VariantIndex weights most heavily; a culture-aware sort does not.
+        foreach (string filePath in Directory.GetFiles(assetsPath, "*_tile*.png").Order(StringComparer.Ordinal))
         {
             string fileName = Path.GetFileNameWithoutExtension(filePath);
-            string terrainKey = fileName.Replace("_tile", "").ToLowerInvariant();
+            string terrainKey = fileName[..fileName.IndexOf("_tile", StringComparison.Ordinal)].ToLowerInvariant();
 
-            var texture = Raylib.LoadTexture(filePath);
-            if (texture.Id != 0)
-                _tileSprites[terrainKey] = texture;
+            Texture2D? texture = LoadPixelTexture(filePath);
+            if (texture == null) continue;
+
+            if (!_tileSprites.TryGetValue(terrainKey, out var variants))
+                _tileSprites[terrainKey] = variants = [];
+            variants.Add(texture.Value);
         }
+
+        string npcPath = Path.Combine(assetsPath, "npc");
+        if (Directory.Exists(npcPath))
+        {
+            foreach (string filePath in Directory.GetFiles(npcPath, "*.png"))
+            {
+                Texture2D? texture = LoadPixelTexture(filePath);
+                if (texture != null)
+                    _npcSprites[Path.GetFileNameWithoutExtension(filePath).ToLowerInvariant()] = texture.Value;
+            }
+        }
+
+        AnimalRenderer.LoadSprites(assetsPath);
+    }
+
+    private static Texture2D? LoadPixelTexture(string filePath)
+    {
+        Texture2D texture = Raylib.LoadTexture(filePath);
+        if (texture.Id == 0)
+            return null;
+
+        // Pixel art must not be smoothed when scaled up.
+        Raylib.SetTextureFilter(texture, TextureFilter.Point);
+        return texture;
     }
 
     /// <summary>
-    /// Try to get a loaded tile sprite for a terrain type.
+    /// Which variant a map position gets. Deterministic in world position - never
+    /// per-frame random, or tiles would shimmer as the camera moves. The base variant
+    /// is weighted to appear half the time and the rest share the remainder, so a field
+    /// reads as ground with occasional incident rather than as noise.
+    ///
+    /// Mirrored by VariantIndex in tools/PixelArtCli, which previews the tiling.
     /// </summary>
-    public static bool TryGetTileSprite(string terrain, out Texture2D sprite)
+    private static int VariantIndex(int worldX, int worldY, int count)
     {
-        return _tileSprites.TryGetValue(terrain.ToLowerInvariant(), out sprite);
+        if (count <= 1) return 0;
+
+        unchecked
+        {
+            int h = worldX * 73856093 ^ worldY * 19349663;
+            h ^= h >> 13;
+            h *= 1274126177;
+            h ^= h >> 16;
+
+            int roll = (int)((uint)h % (uint)(2 * (count - 1)));
+            return roll < count - 1 ? 0 : roll - (count - 2);
+        }
     }
 
     // Player palette: brown cloak, cream fur, warm skin, dark hair
@@ -166,8 +213,10 @@ public static class TileRenderer
         }
 
         // Draw terrain: use sprite if available, otherwise procedural
-        if (_tileSprites.TryGetValue(terrain.ToLowerInvariant(), out var tileSprite))
+        if (_tileSprites.TryGetValue(terrain.ToLowerInvariant(), out var variants))
         {
+            Texture2D tileSprite = variants[VariantIndex(worldX, worldY, variants.Count)];
+
             float brightness = 0.4f + timeFactor * 0.6f;
             byte b = (byte)(255 * brightness);
             var tint = new Color(b, b, b, (byte)255);
@@ -466,21 +515,53 @@ public static class TileRenderer
     {
         // Offset slightly from center so NPCs don't overlap with player
         float offsetX = tileSize * 0.15f;
-        float drawX = centerX + offsetX;
-        float drawY = centerY;
 
-        // Use name hash for consistent appearance per NPC
-        int hash = name.GetHashCode();
-        int paletteIndex = Math.Abs(hash) % NpcPalettes.Length;
-        bool isFemale = (Math.Abs(hash) / NpcPalettes.Length) % 2 == 1;
+        // 80% scale compared to player
+        DrawNPCSprite(centerX + offsetX, centerY, tileSize, name, 0.8f);
+    }
+
+    /// <summary>
+    /// Draw an NPC, its appearance derived from its name so the same person looks the
+    /// same wherever they are drawn. Shared by the map and the combat grid so the two
+    /// cannot drift apart.
+    /// </summary>
+    public static void DrawNPCSprite(float centerX, float centerY, float tileSize, string name, float scale)
+    {
+        int hash = StableHash(name);
+        int paletteIndex = hash % NpcPalettes.Length;
+        bool isFemale = hash / NpcPalettes.Length % 2 == 1;
+
+        string key = $"{(isFemale ? "female" : "male")}_{paletteIndex}";
+        if (_npcSprites.TryGetValue(key, out Texture2D sprite))
+        {
+            DrawSprite(sprite, centerX, centerY, tileSize, scale);
+            return;
+        }
 
         CharacterPalette palette = NpcPalettes[paletteIndex];
-
-        // Draw at 80% scale compared to player
         if (isFemale)
-            DrawCharacterFemale(drawX, drawY, tileSize, 0.8f, palette);
+            DrawCharacterFemale(centerX, centerY, tileSize, scale, palette);
         else
-            DrawCharacterMale(drawX, drawY, tileSize, 0.8f, palette);
+            DrawCharacterMale(centerX, centerY, tileSize, scale, palette);
+    }
+
+    /// <summary>
+    /// FNV-1a over the characters. string.GetHashCode() is randomised per process on
+    /// .NET Core, so using it here would give an NPC a different face every launch -
+    /// the opposite of the "consistent appearance per NPC" this is for.
+    /// </summary>
+    private static int StableHash(string text)
+    {
+        unchecked
+        {
+            uint hash = 2166136261;
+            foreach (char c in text)
+            {
+                hash ^= c;
+                hash *= 16777619;
+            }
+            return (int)(hash & 0x7FFFFFFF);
+        }
     }
 
     /// <summary>

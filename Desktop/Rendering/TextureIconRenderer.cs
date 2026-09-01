@@ -38,6 +38,8 @@ public class TextureIconRenderer : IIconRenderer, IDisposable
 
             if (texture.Id != 0)
             {
+                // Pixel art must not be smoothed when scaled up.
+                Raylib.SetTextureFilter(texture, TextureFilter.Point);
                 _textures[iconName] = texture;
             }
         }

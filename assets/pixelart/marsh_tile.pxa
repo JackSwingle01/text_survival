@@ -1,0 +1,25 @@
+// Frozen marsh, base variant. Peat showing dark through thin ice is the hazard
+// cue, so it has to be present on the common tile, not saved for the variants.
+SIZE 16x16
+PALETTE
+S = #e3edf2
+D = #4a4a3a
+d = #6b6b52
+r = #8a7a4a
+PIXELS
+SSSSSSSSSSSSSSSS
+SSrSSSSSSSSrSSSS
+SSrSSSSrSSSSrSSS
+SSrSSSSrSSSSrSSS
+SdDDdSSrSSSSrSSS
+dDDDDdSrSSddDdSS
+SdDDdSSrSSdDDDdS
+SSddSSSSSSdDDdSS
+SSSSSSSSSSdddSSS
+SSSSrSSSSSSSSSSS
+SSSSrSSSSSSrSSSS
+SdDdrSSSSSSrSSSS
+dDDDdSSSSdDdrSSS
+SdDDdSSSdDDDdSSS
+SSdddSSSdDDddSSS
+SSSSSSSSdddSSSSS
