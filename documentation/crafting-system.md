@@ -190,10 +190,15 @@ public string? ProcessPendingCraft(GameContext ctx)
 }
 ```
 
-**Not handled by the overlay:** multi-session `CraftingProjectFeature`
-recipes and shelter rebuild. The only implementation of those two branches
-lives in `CraftingRunner.DoCraft`, which nothing calls - so today a project
-cannot be started from the crafting screen.
+**Not handled by the overlay:** `CraftOption.RebuildShelter`. The only code
+that reads that flag is `CraftingRunner.DoCraft`, which nothing calls. The
+"Rebuild Shelter" recipe sets it and supplies no `GearFactory`, so crafting it
+through the overlay consumes the logs in `CraftOption.Craft` and then throws on
+`return GearFactory!(Durability)`. Porting the branch (or giving the recipe a
+`FeatureFactory`) fixes it.
+
+Feature recipes, including the multi-session `CraftingProjectFeature` ones, go
+through `FeatureFactory`/`CraftFeature` and do work.
 
 ---
 
