@@ -14,8 +14,7 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent PackSigns(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         // Pack animals coordinate better - higher risk of being detected
@@ -26,7 +25,7 @@ public static partial class GameEventRegistry
             $"Multiple tracks, recent. {(isPackAnimal ? "Coordinated movement patterns." : "Scattered, but recent.")} This isn't a lone hunter — it's a pack of {predator.DisplayName()}s.", 0.8)
             .Requires(EventCondition.InAnimalTerritory, EventCondition.HasPredators)
             .Requires(EventCondition.OnExpedition)
-            .RequiresSituation(Situations.PackPredatorInTerritory)  // Requires pack predator herd present
+            .RequiresSituation(AnimalPresence.PackPredatorsNear)  // Requires pack predator herd present
             .WithSituationFactor(Situations.AttractiveToPredators, 2.0)  // Meat, bleeding, food scent
             .Choice("Move Carefully, Watch Flanks",
                 "Slow down. Stay alert. Don't let them get behind you.",

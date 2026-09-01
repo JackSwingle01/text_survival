@@ -88,7 +88,7 @@ public static class HuntRunner
         if (result == CombatResult.Victory)
         {
             // Record successful hunt for territory depletion
-            var territory = location.GetFeature<AnimalTerritoryFeature>();
+            var territory = location.GetFeature<SmallGameFeature>();
             territory?.RecordSuccessfulHunt();
 
             // Remove from persistent herd if applicable

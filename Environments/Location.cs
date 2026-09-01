@@ -211,30 +211,27 @@ public class Location
     private bool HasHerdsHere(GameContext ctx)
     {
         if (ctx.Map == null) return false;
-
-        var pos = ctx.Map.GetPosition(this);
-
-        var herdsHere = ctx.Herds.At(pos);
-        return herdsHere.Any(h => h.Count > 0);
+        return ctx.Herds.At(ctx.Map.GetPosition(this)).Any(h => h.Count > 0);
     }
 
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
-        // Yield all feature-based work options (includes Hunt from AnimalTerritoryFeature)
         foreach (var feature in Features.OfType<IWorkableFeature>())
             foreach (var option in feature.GetWorkOptions(ctx))
                 yield return option;
 
-        // Add herd-based hunt option if no AnimalTerritoryFeature exists
-        // (AnimalTerritoryFeature already provides Hunt + small game spawning)
-        if (!HasFeature<AnimalTerritoryFeature>() && HasHerdsHere(ctx))
+        // One hunt option. Large game comes from herds on the tile, small game from local density.
+        var smallGame = GetFeature<SmallGameFeature>();
+        bool herdsHere = HasHerdsHere(ctx);
+        bool smallGameHere = smallGame?.CanHunt() ?? false;
+        if (herdsHere || smallGameHere)
         {
-            yield return new WorkOption(
-                "Hunt",
-                "hunt_herd",  // Different ID to avoid collision with territory hunt
-                new HuntStrategy()
-            );
+            string label = herdsHere ? "Hunt" : $"Hunt ({smallGame!.GetQualityDescription()})";
+            yield return new WorkOption(label, "hunt", new HuntStrategy());
         }
+
+        foreach (var option in MegafaunaStrategy.GetWorkOptions(ctx))
+            yield return option;
     }
 
     public bool HasActiveHeatSource() => GetFeature<HeatSourceFeature>()?.IsActive ?? false;

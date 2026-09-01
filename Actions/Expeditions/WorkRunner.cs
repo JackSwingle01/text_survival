@@ -144,7 +144,7 @@ public class WorkRunner(GameContext ctx)
     // === TRAPPING ===
 
     /// <summary>
-    /// Set a snare at this location. Requires AnimalTerritoryFeature.
+    /// Set a snare at this location. Requires SmallGameFeature.
     /// </summary>
     public WorkResult DoSetTrap(Location location)
     {

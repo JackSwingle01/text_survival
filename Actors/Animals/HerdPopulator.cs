@@ -33,8 +33,9 @@ public static class HerdPopulator
         // Caribou herds: 1-2 herds of 5-15, 8-12 tile territories
         // Large individual prey: 5-10 (megaloceros, bison)
 
-        PopulateWolves(registry, availablePositions, 1 + _rng.Next(2), map); // 1-2 packs
-        PopulateBears(registry, availablePositions, 3 + _rng.Next(3), map); // 3-5 bears
+        // Dens are authored locations; the predator that lives there is a herd anchored on it.
+        PopulateWolves(registry, availablePositions, 1 + _rng.Next(2), map, dens: FindLocations(map, "Wolf Den")); // 1-2 roaming packs + one per den
+        PopulateBears(registry, availablePositions, 3 + _rng.Next(3), map, dens: FindLocations(map, "Bear Cave")); // 3-5 roaming bears + one per cave
         PopulateCaribou(registry, availablePositions, 2 + _rng.Next(2), map); // 2-3 herds
         PopulateLargePrey(registry, availablePositions, 8 + _rng.Next(8), map); // 8-15 individuals
 
@@ -110,6 +111,40 @@ public static class HerdPopulator
     /// <summary>
     /// Get all grid positions that are not on the map edges.
     /// </summary>
+    /// <summary>
+    /// Start positions for a population: every den first, then random picks up to the requested count.
+    /// </summary>
+    private static List<GridPosition> PickStarts(List<GridPosition> dens, List<GridPosition> available, int count)
+    {
+        var starts = new List<GridPosition>(dens);
+        while (starts.Count < Math.Max(count, dens.Count) && available.Count > 0)
+        {
+            var pos = available[_rng.Next(available.Count)];
+            if (!starts.Contains(pos)) starts.Add(pos);
+        }
+        return starts;
+    }
+
+    /// <summary>
+    /// Tiles a territory may grow into. Den-anchored herds use the map around the den;
+    /// roaming herds use the safe-zone-filtered pool.
+    /// </summary>
+    private static List<GridPosition> TerritoryCandidates(GridPosition start, List<GridPosition> dens, List<GridPosition> available, GameMap map, int radius)
+        => dens.Contains(start) ? GetPositionsInRadius(map, start, radius) : available;
+
+    /// <summary>
+    /// Positions of every named location matching the given name.
+    /// </summary>
+    private static List<GridPosition> FindLocations(GameMap map, string name)
+    {
+        var result = new List<GridPosition>();
+        for (int x = 0; x < map.Width; x++)
+            for (int y = 0; y < map.Height; y++)
+                if (map.GetLocationAt(x, y)?.Name == name)
+                    result.Add(new GridPosition(x, y));
+        return result;
+    }
+
     private static List<GridPosition> GetInteriorPositions(GameMap map)
     {
         var positions = new List<GridPosition>();
@@ -130,17 +165,13 @@ public static class HerdPopulator
     /// <summary>
     /// Create wolf packs with overlapping patrol territories.
     /// </summary>
-    private static void PopulateWolves(List<Herd> registry, List<GridPosition> available, int packCount, GameMap map)
+    private static void PopulateWolves(List<Herd> registry, List<GridPosition> available, int packCount, GameMap map, List<GridPosition> dens)
     {
-        for (int i = 0; i < packCount; i++)
+        foreach (var startPos in PickStarts(dens, available, packCount))
         {
-            if (available.Count == 0) break;
-
-            // Pick a random starting position
-            var startPos = available[_rng.Next(available.Count)];
-
-            // Create territory of 48-80 adjacent tiles
-            var territory = CreateContiguousTerritory(startPos, available, 48 + _rng.Next(33));
+            // Create territory of 48-80 adjacent tiles. Dens may sit inside the camp safe zone,
+            // so their territory grows from the map rather than the safe-zone-filtered list.
+            var territory = CreateContiguousTerritory(startPos, TerritoryCandidates(startPos, dens, available, map, 10), 48 + _rng.Next(33));
 
             if (territory.Count < 3) continue; // Need minimum territory
 
@@ -173,16 +204,12 @@ public static class HerdPopulator
     /// <summary>
     /// Create solitary bears with small home ranges.
     /// </summary>
-    private static void PopulateBears(List<Herd> registry, List<GridPosition> available, int bearCount, GameMap map)
+    private static void PopulateBears(List<Herd> registry, List<GridPosition> available, int bearCount, GameMap map, List<GridPosition> dens)
     {
-        for (int i = 0; i < bearCount; i++)
+        foreach (var startPos in PickStarts(dens, available, bearCount))
         {
-            if (available.Count == 0) break;
-
-            var startPos = available[_rng.Next(available.Count)];
-
             // Bears have moderate territories (64-128 tiles) to spread out foraging impact
-            var territory = CreateContiguousTerritory(startPos, available, 64 + _rng.Next(65));
+            var territory = CreateContiguousTerritory(startPos, TerritoryCandidates(startPos, dens, available, map, 12), 64 + _rng.Next(65));
 
             if (territory.Count < 3) continue;
 
@@ -538,21 +565,7 @@ public static class HerdPopulator
     /// </summary>
     private static void PopulateMammoths(List<Herd> registry, GameMap map)
     {
-        // Find Bone Hollow by name
-        GridPosition? boneHollowPos = null;
-        for (int x = 0; x < map.Width; x++)
-        {
-            for (int y = 0; y < map.Height; y++)
-            {
-                var loc = map.GetLocationAt(x, y);
-                if (loc?.Name == "Bone Hollow")
-                {
-                    boneHollowPos = new GridPosition(x, y);
-                    break;
-                }
-            }
-            if (boneHollowPos != null) break;
-        }
+        GridPosition? boneHollowPos = FindLocations(map, "Bone Hollow").Cast<GridPosition?>().FirstOrDefault();
 
         if (boneHollowPos == null)
         {

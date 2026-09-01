@@ -357,7 +357,7 @@ public class ForageStrategy : IWorkStrategy
         // Handle Game clues - apply hunt bonus to territory
         if (_gameClue != null)
         {
-            var territory = location.GetFeature<AnimalTerritoryFeature>();
+            var territory = location.GetFeature<SmallGameFeature>();
             if (territory != null)
             {
                 territory.ApplyHuntBonus(_gameClue.HuntBonus);

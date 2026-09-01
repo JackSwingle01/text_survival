@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 namespace text_survival.Actions.Variants;
 
 /// <summary>
@@ -271,12 +272,10 @@ public static class TrailSignSelector
     /// </summary>
     public static TrailSign? SelectForContext(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<Environments.Features.AnimalTerritoryFeature>();
         var water = ctx.CurrentLocation.GetFeature<Environments.Features.WaterFeature>();
 
-        bool hasPredators = territory?.HasPredators() == true;
-        // Prey are non-predators - if territory has animals but not all predators, there's prey
-        bool hasPrey = territory != null && !territory.HasPredators();
+        bool hasPredators = AnimalPresence.PredatorsNear(ctx);
+        bool hasPrey = AnimalPresence.PreyNear(ctx) || AnimalPresence.SmallGameHere(ctx) != null;
         bool isSnowy = ctx.Weather.PrecipitationPct > 0.1 && ctx.Weather.TemperatureInFahrenheit < 35;
         bool hasWater = water != null;
 

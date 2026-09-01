@@ -122,9 +122,8 @@ public static class DiscoverySelector
         pool.AddRange(DiscoveryVariants.MaterialFinds.Select(v => (v, 0.8)));
         pool.AddRange(DiscoveryVariants.TinderFinds.Select(v => (v, 0.6)));
 
-        // Bone finds more common in animal territory
-        var territory = ctx.CurrentLocation.GetFeature<Environments.Features.AnimalTerritoryFeature>();
-        if (territory != null)
+        // Bone finds more common where animals live
+        if (Actors.Animals.AnimalPresence.AnyGame(ctx))
             pool.AddRange(DiscoveryVariants.BoneFinds.Select(v => (v, 1.2)));
         else
             pool.AddRange(DiscoveryVariants.BoneFinds.Select(v => (v, 0.4)));

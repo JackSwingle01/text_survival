@@ -681,22 +681,15 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     }
 
     /// <summary>
-    /// Get a random animal type from the current location's territory feature.
-    /// Falls back to AnimalType.Caribou if no territory feature exists.
+    /// A plausible carcass for this spot: prey from a herd near the player, else the tile's small game,
+    /// else caribou.
     /// </summary>
     private static Animal GetTerritoryAnimal(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        if (territory != null)
-        {
-            // Use the territory's spawn entries to pick a random animal
-            var animal = territory.SearchForGame(0, ctx.CurrentLocation, ctx.Map);  // 0 minutes = just get random type
-            if (animal != null)
-                return animal;
-        }
-
-        // Default fallback
-        return AnimalFactory.FromType(AnimalType.Caribou, ctx.CurrentLocation, ctx.Map);
+        var type = AnimalPresence.PickPrey(ctx)
+            ?? AnimalPresence.SmallGameHere(ctx)?.RandomSmallGame()
+            ?? AnimalType.Caribou;
+        return AnimalFactory.FromType(type, ctx.CurrentLocation, ctx.Map);
     }
 
     /// <summary>

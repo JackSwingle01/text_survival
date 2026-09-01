@@ -198,8 +198,7 @@ public static partial class GameEventRegistry
 
     private static GameEvent RustleAtCampEdge(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Fox;
 
         return new GameEvent("Rustle at Camp Edge",
             $"Rustling at the camp perimeter. Something drawn by the scent of your food.", 0.8)

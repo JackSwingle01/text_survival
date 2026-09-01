@@ -24,8 +24,8 @@ public static class ConditionChecker
             EventCondition.FireBurning => ctx.Camp.HasActiveHeatSource(),
             EventCondition.Inside => ctx.CurrentLocation.HasFeature<ShelterFeature>() && !Check(ctx, EventCondition.FieldWork),
             EventCondition.Outside => !Check(ctx, EventCondition.Inside),
-            EventCondition.InAnimalTerritory => ctx.CurrentLocation.HasFeature<AnimalTerritoryFeature>(),
-            EventCondition.HasPredators => ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>()?.HasPredators() ?? false,
+            EventCondition.InAnimalTerritory => AnimalPresence.AnyGame(ctx),
+            EventCondition.HasPredators => AnimalPresence.PredatorsNear(ctx),
 
             // Location visibility and darkness
             EventCondition.HighVisibility => ctx.CurrentLocation.VisibilityFactor > 0.7,

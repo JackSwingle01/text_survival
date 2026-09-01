@@ -68,12 +68,9 @@ public static partial class GameEventRegistry
     {
         var woundedTension = ctx.Tensions.GetTension("WoundedPrey");
         var animal = woundedTension?.AnimalType ?? AnimalType.Caribou;
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
 
         // Scavenger type affects options - null indicates ravens
-        var scavengerType = territory?.HasPredators() == true
-            ? territory.GetRandomPredator()
-            : null;
+        var scavengerType = AnimalPresence.PickPredator(ctx);
 
         var scavengerDesc = scavengerType == null
             ? "Ravens circle overhead, cawing. They've spotted the blood."
@@ -153,8 +150,7 @@ public static partial class GameEventRegistry
     {
         var woundedTension = ctx.Tensions.GetTension("WoundedPrey");
         var animal = woundedTension?.AnimalType ?? AnimalType.Caribou;
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
 
         return new GameEvent("Scavengers Converge",
             $"Too late. {predator.DisplayName()}s have found the blood trail. They're between you and the {animal.DisplayName()}.", 3.0)

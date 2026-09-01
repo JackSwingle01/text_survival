@@ -425,7 +425,6 @@ public static class LocationFactory
         };
 
         location.Features.Add(FeatureFactory.CreatePickedOverForage(density: ForageDensity.Light));
-        location.Features.Add(FeatureFactory.CreateWolfDenAnimals(density: 1.5));
 
         return location;
     }
@@ -452,13 +451,6 @@ public static class LocationFactory
         location.Features.Add(CacheFeature.CreateRockCache());
         location.Features.Add(new WoodedAreaFeature("Hardwood Stand", Resource.Oak, 180));
 
-        // Saber-tooth drawn by abundant prey
-        location.Features.Add(new MegafaunaPresenceFeature
-        {
-            MegafaunaType = AnimalType.SaberTooth,
-            ActivityLevel = 0.45,    // More active where prey gathers
-            RespawnHours = 480
-        });
 
         return location;
     }
@@ -691,13 +683,6 @@ public static class LocationFactory
         location.Features.Add(FeatureFactory.CreateOpenForage(density: ForageDensity.Light));
         location.Features.Add(FeatureFactory.CreateGameTrailAnimals(density: 0.6));
 
-        // Saber-tooth ambush territory - stalks prey along the trail
-        location.Features.Add(new MegafaunaPresenceFeature
-        {
-            MegafaunaType = AnimalType.SaberTooth,
-            ActivityLevel = 0.4,
-            RespawnHours = 480
-        });
 
         // Discovery event - find fresh animal tracks
         location.HiddenFeatures.Add(new HiddenFeature(
@@ -790,13 +775,6 @@ public static class LocationFactory
 
         location.Features.Add(FeatureFactory.CreateRockyForage(density: ForageDensity.Scarce));
 
-        // Saber-tooth hunting ground - commands view of prey below
-        location.Features.Add(new MegafaunaPresenceFeature
-        {
-            MegafaunaType = AnimalType.SaberTooth,
-            ActivityLevel = 0.35,    // Elusive apex predator
-            RespawnHours = 480       // 20 days between encounters
-        });
 
         // Discovery event - see for miles from the ridge
         location.HiddenFeatures.Add(new HiddenFeature(
@@ -835,7 +813,6 @@ public static class LocationFactory
             .AddTinder(0.2, 0.01, 0.03);
         location.Features.Add(forageFeature);
 
-        location.Features.Add(FeatureFactory.CreateBearCaveAnimals(density: 0.8));
 
         // Note: ShelterFeature intentionally NOT added at creation
         // It gets added by Den arc events when claimed (AddsFeature)
@@ -1137,13 +1114,6 @@ public static class LocationFactory
         location.Features.Add(new ShelterFeature("Rib Arch", ShelterType.NaturalShelter,
             0.35, 0.4, 0.5, insulationCap: 0.50, overheadCap: 0.55, windCap: 0.65));
 
-        // Megafauna presence - woolly mammoths still pass through this ancient graveyard
-        location.Features.Add(new MegafaunaPresenceFeature
-        {
-            MegafaunaType = AnimalType.Mammoth,
-            ActivityLevel = 0.7,
-            RespawnHours = 720  // 30 days between hunts
-        });
 
         return location;
     }
@@ -1201,7 +1171,7 @@ public static class LocationFactory
         location.Features.Add(forage);
 
         // Exceptional small game - the core draw for trappers
-        var animals = new AnimalTerritoryFeature(1.4)
+        var animals = new SmallGameFeature(1.4)
             .AddRabbit(2.0)
             .AddPtarmigan(1.5)
             .AddFox(0.6)
@@ -1242,7 +1212,7 @@ public static class LocationFactory
         location.Features.Add(forage);
 
         // Ptarmigan-focused hunting - birds sun themselves on warm rocks
-        var animals = new AnimalTerritoryFeature(0.7)
+        var animals = new SmallGameFeature(0.7)
             .AddPtarmigan(1.5)
             .AddRabbit(1.0)
             .AddFox(0.4)
@@ -1289,7 +1259,7 @@ public static class LocationFactory
         // 25% chance for small game - rocks provide cover
         if (Utils.RandDouble(0, 1) < 0.25)
         {
-            var animals = new AnimalTerritoryFeature(0.5)
+            var animals = new SmallGameFeature(0.5)
                 .AddRabbit(1.0)
                 .AddPtarmigan(0.6);
             location.Features.Add(animals);
@@ -1503,9 +1473,7 @@ public static class LocationFactory
         location.Features.Add(FeatureFactory.CreateOpenForage(density: ForageDensity.Thin));
 
         // High animal density - the draw of this location
-        var animals = new AnimalTerritoryFeature(1.6)
-            .AddMegaloceros(1.5)
-            .AddCaribou(1.2)
+        var animals = new SmallGameFeature(1.6)
             .AddRabbit(0.8)
             .WithPeakHours(5, 8, 2.0);
         location.Features.Add(animals);
@@ -1535,7 +1503,7 @@ public static class LocationFactory
             .AddTinder(0.4, 0.03, 0.08);
         location.Features.Add(forage);
 
-        var animals = new AnimalTerritoryFeature(1.2)
+        var animals = new SmallGameFeature(1.2)
             .AddRabbit(1.5)
             .AddPtarmigan(1.2)
             .AddFox(0.5);
@@ -1594,10 +1562,8 @@ public static class LocationFactory
         location.Features.Add(FeatureFactory.CreateOpenForage(density: ForageDensity.Sparse));
 
         // Exceptional hunting - migration route
-        var animals = new AnimalTerritoryFeature(1.8)
-            .AddCaribou(2.0)
-            .AddMegaloceros(1.5)
-            .AddBison(0.8)
+        var animals = new SmallGameFeature(1.8)
+            .AddRabbit(0.8)
             .WithPeakHours(6, 10, 1.8);
         location.Features.Add(animals);
 
@@ -1765,8 +1731,7 @@ public static class LocationFactory
             .WithDescription("Clear water seeping from underground. Slightly warm, never freezes.");
         location.Features.Add(waterFeature);
 
-        var animals = new AnimalTerritoryFeature(1.0)
-            .AddMegaloceros(1.0)
+        var animals = new SmallGameFeature(1.0)
             .AddRabbit(0.8)
             .WithPeakHours(5, 8, 1.5);
         location.Features.Add(animals);
@@ -1914,7 +1879,7 @@ public static class LocationFactory
 
         location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Modest));
 
-        var animals = new AnimalTerritoryFeature(0.9)
+        var animals = new SmallGameFeature(0.9)
             .AddFox(2.0)
             .AddRabbit(0.6)
             .WithPeakHours(4, 7, 1.8);
@@ -2042,10 +2007,9 @@ public static class LocationFactory
 
         location.Features.Add(new WoodedAreaFeature("Pine Stand", Resource.Pine, 140));
 
-        var animals = new AnimalTerritoryFeature(1.1)
-            .AddCaribou(1.2)
-            .AddMegaloceros(1.0)
-            .AddWolf(0.4);
+        var animals = new SmallGameFeature(1.1)
+            .AddRabbit(0.8)
+            .AddPtarmigan(0.4);
         location.Features.Add(animals);
 
         return location;
@@ -2157,9 +2121,7 @@ public static class LocationFactory
         location.Features.Add(forage);
 
         // High animal density with dawn/dusk peak
-        var animals = new AnimalTerritoryFeature(1.5)
-            .AddMegaloceros(1.8)
-            .AddCaribou(1.5)
+        var animals = new SmallGameFeature(1.5)
             .AddRabbit(0.6)
             .WithPeakHours(5, 8, 2.2);
         location.Features.Add(animals);
@@ -2187,7 +2149,7 @@ public static class LocationFactory
         location.Features.Add(FeatureFactory.CreateMixedForestForage(density: ForageDensity.Modest));
 
         // Exceptional small game density
-        var animals = new AnimalTerritoryFeature(1.3)
+        var animals = new SmallGameFeature(1.3)
             .AddRabbit(2.5)
             .AddFox(0.6)
             .WithPeakHours(5, 7, 1.8);
@@ -2281,10 +2243,7 @@ public static class LocationFactory
             .WithDescription("Iron-rich water. Medicinal, if you can stomach the taste.");
         location.Features.Add(waterFeature);
 
-        var animals = new AnimalTerritoryFeature(1.3)
-            .AddCaribou(1.2)
-            .AddMegaloceros(1.0)
-            .AddWolf(0.4)
+        var animals = new SmallGameFeature(1.3)
             .WithPeakHours(5, 8, 1.8);
         location.Features.Add(animals);
 
@@ -2417,7 +2376,7 @@ public static class LocationFactory
             .AddTinder(0.5, 0.03, 0.08);
         location.Features.Add(forage);
 
-        var animals = new AnimalTerritoryFeature(1.0)
+        var animals = new SmallGameFeature(1.0)
             .AddPtarmigan(2.0)
             .AddRabbit(0.8);
         location.Features.Add(animals);
@@ -2480,9 +2439,8 @@ public static class LocationFactory
         boneHeap.AddResource("quality bone", Resource.Bone, maxQuantity: 15, weightPerUnit: 1.0, respawnHoursPerUnit: 0);
         location.Features.Add(boneHeap);
 
-        var animals = new AnimalTerritoryFeature(0.8)
-            .AddFox(1.5)
-            .AddWolf(0.6);
+        var animals = new SmallGameFeature(0.8)
+            .AddFox(1.5);
         location.Features.Add(animals);
 
         return location;
@@ -2581,12 +2539,6 @@ public static class LocationFactory
             .AddTinder(0.8, 0.1, 0.3);  // Dried dung burns
         location.Features.Add(forage);
 
-        location.Features.Add(new MegafaunaPresenceFeature
-        {
-            MegafaunaType = AnimalType.Mammoth,
-            ActivityLevel = 0.9,
-            RespawnHours = 480
-        });
 
         return location;
     }

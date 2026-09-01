@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Effects;
 
@@ -19,7 +20,7 @@ public static partial class GameEventRegistry
             "Deep gouges on the tree bark. Higher than any wolf could reach. The claw marks are fresh. " +
             "Something from another age hunts in this territory.", 0.3)
             .Requires(EventCondition.OnExpedition)
-            .RequiresSituation(Situations.InSaberToothTerritory)
+            .RequiresSituation(ctx => AnimalPresence.OfTypeNear(ctx, AnimalType.SaberTooth))
             .Excludes(EventCondition.SaberToothStalked)
             .WithConditionFactor(EventCondition.LowVisibility, 1.5)
             .WithSituationFactor(Situations.AttractiveToPredators, 2.0)

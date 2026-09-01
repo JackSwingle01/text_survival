@@ -195,7 +195,7 @@ public class TilePopup
         }
 
         // Game (animals)
-        var territory = _selectedLocation.GetFeature<AnimalTerritoryFeature>();
+        var territory = _selectedLocation.GetFeature<SmallGameFeature>();
         if (territory != null)
         {
             hasFeatures = true;
