@@ -18,8 +18,6 @@ public class CraftingOverlay
 
     private NeedCategory _selectedCategory = NeedCategory.FireStarting;
     private CraftOption? _selectedOption;
-    private string? _message;
-    private float _messageTimer;
 
     /// <summary>
     /// The recipe the player committed to. Crafting passes game time, so the caller runs
@@ -49,14 +47,6 @@ public class CraftingOverlay
     {
         if (!IsOpen) return;
 
-        // Update message timer
-        if (_messageTimer > 0)
-        {
-            _messageTimer -= deltaTime;
-            if (_messageTimer <= 0)
-                _message = null;
-        }
-
         OverlaySizes.SetupWide();
 
         bool open = IsOpen;
@@ -75,13 +65,6 @@ public class CraftingOverlay
             ], ctx, crafting);
 
             ImGui.Separator();
-
-            // Show message if any
-            if (_message != null)
-            {
-                ImGui.TextColored(new Vector4(0.3f, 1f, 0.5f, 1f), _message);
-                ImGui.Separator();
-            }
 
             // Main content area - two columns
             float contentHeight = ImGui.GetContentRegionAvail().Y - 30;
@@ -369,10 +352,4 @@ public class CraftingOverlay
         MaterialSpecifier.Category(var c) => c.ToString(),
         _ => "unknown"
     };
-
-    public void ShowMessage(string message)
-    {
-        _message = message;
-        _messageTimer = 3.0f;
-    }
 }

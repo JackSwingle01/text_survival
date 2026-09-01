@@ -48,6 +48,4 @@ public static class ToastFeed
                 _toasts.RemoveAt(i);
         }
     }
-
-    public static void Clear() => _toasts.Clear();
 }

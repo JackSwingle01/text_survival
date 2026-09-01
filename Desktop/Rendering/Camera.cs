@@ -43,9 +43,6 @@ public class Camera
         Target = Center;
     }
 
-    /// <summary>Move the centre to the target immediately.</summary>
-    public void Snap() => Center = Target;
-
     /// <summary>Glide toward the target. Call once per frame.</summary>
     public void Update(float deltaTime)
     {
