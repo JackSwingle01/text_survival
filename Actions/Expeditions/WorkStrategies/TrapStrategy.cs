@@ -2,11 +2,8 @@ using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -29,7 +26,7 @@ public class TrapStrategy : IWorkStrategy
         _mode = mode;
     }
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public async Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         if (_mode == TrapMode.Set)
         {
@@ -49,18 +46,16 @@ public class TrapStrategy : IWorkStrategy
             }
             else
             {
-                GameDisplay.Render(ctx);
                 var snareChoice = new Choice<Gear>("Which snare do you want to set?");
                 foreach (var snare in snares)
                 {
                     string durability = snare.Durability > 0 ? $"{snare.Durability} uses" : "unlimited";
                     snareChoice.AddOption($"{snare.Name} ({durability})", snare);
                 }
-                _selectedSnare = snareChoice.GetPlayerChoice(ctx);
+                _selectedSnare = await snareChoice.GetPlayerChoice(ctx);
             }
 
             // Ask about bait
-            GameDisplay.Render(ctx);
             var baitChoice = new Choice<BaitType>("Do you want to bait the snare?");
             baitChoice.AddOption("No bait", BaitType.None);
 
@@ -69,7 +64,7 @@ public class TrapStrategy : IWorkStrategy
             if (ctx.Inventory.Count(Resource.Berries) > 0)
                 baitChoice.AddOption("Use berries (moderate attraction)", BaitType.Berries);
 
-            _selectedBait = baitChoice.GetPlayerChoice(ctx);
+            _selectedBait = await baitChoice.GetPlayerChoice(ctx);
 
             // Consume bait
             if (_selectedBait == BaitType.Meat)
@@ -95,10 +90,10 @@ public class TrapStrategy : IWorkStrategy
         return null;
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         // Trap work has fixed time - no player choice
-        return null;
+        return Task.FromResult<Choice<int>?>(null);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -167,15 +162,15 @@ public class TrapStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         if (_mode == TrapMode.Set)
-            return ExecuteSet(ctx, location, actualTime);
+            return await ExecuteSet(ctx, location, actualTime);
         else
-            return ExecuteCheck(ctx, location, actualTime);
+            return await ExecuteCheck(ctx, location, actualTime);
     }
 
-    private WorkResult ExecuteSet(GameContext ctx, Location location, int actualTime)
+    private async Task<WorkResult> ExecuteSet(GameContext ctx, Location location, int actualTime)
     {
         string resultMessage;
         bool injured = false;
@@ -214,12 +209,12 @@ public class TrapStrategy : IWorkStrategy
         var collected = new List<string> { $"Set {_selectedSnare.Name}" };
 
         // Show results in popup overlay
-        DesktopIO.ShowWorkResult(ctx, "Setting Trap", resultMessage, collected);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Setting Trap", resultMessage, collected));
 
         return new WorkResult(collected, null, actualTime, false);
     }
 
-    private WorkResult ExecuteCheck(GameContext ctx, Location location, int actualTime)
+    private async Task<WorkResult> ExecuteCheck(GameContext ctx, Location location, int actualTime)
     {
         bool injured = false;
 
@@ -282,7 +277,7 @@ public class TrapStrategy : IWorkStrategy
             resultMessage = "A snare caught your hand! " + resultMessage;
 
         // Show results in popup overlay
-        DesktopIO.ShowWorkResult(ctx, "Checking Traps", resultMessage, collected);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Checking Traps", resultMessage, collected));
 
         return new WorkResult(collected, null, actualTime, false);
     }

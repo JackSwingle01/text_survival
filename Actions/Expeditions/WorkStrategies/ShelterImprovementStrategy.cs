@@ -2,11 +2,8 @@ using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -17,25 +14,25 @@ public class ShelterImprovementStrategy : IWorkStrategy
     private int _quantity = 1;
     private bool _cancelled;
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var shelter = location.GetFeature<ShelterFeature>();
         if (shelter == null)
-            return "There's no shelter here to improve.";
+            return Task.FromResult<string?>("There's no shelter here to improve.");
         if (shelter.IsDestroyed)
-            return "The shelter is destroyed and cannot be improved.";
+            return Task.FromResult<string?>("The shelter is destroyed and cannot be improved.");
 
         // Check if player has any shelter materials
         bool hasMaterials = MaterialProperties.ShelterMaterials
             .Any(m => ctx.Inventory.Count(m) > 0);
 
         if (!hasMaterials)
-            return "You don't have any materials to improve the shelter.";
+            return Task.FromResult<string?>("You don't have any materials to improve the shelter.");
 
-        return null;
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public async Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         var shelter = location.GetFeature<ShelterFeature>()!;
 
@@ -46,7 +43,7 @@ public class ShelterImprovementStrategy : IWorkStrategy
         typeChoice.AddOption($"Wind ({shelter.WindCoverage:P0}/{shelter.WindCap:P0})", ShelterImprovementType.Wind);
         typeChoice.AddOption("Cancel", null);
 
-        var selectedType = typeChoice.GetPlayerChoice(ctx);
+        var selectedType = await typeChoice.GetPlayerChoice(ctx);
         if (selectedType == null)
         {
             _cancelled = true;
@@ -76,7 +73,7 @@ public class ShelterImprovementStrategy : IWorkStrategy
         }
         materialChoice.AddOption("Cancel", null);
 
-        var selectedMaterial = materialChoice.GetPlayerChoice(ctx);
+        var selectedMaterial = await materialChoice.GetPlayerChoice(ctx);
         if (selectedMaterial == null)
         {
             _cancelled = true;
@@ -93,7 +90,7 @@ public class ShelterImprovementStrategy : IWorkStrategy
             {
                 quantityChoice.AddOption($"{i}", i);
             }
-            _quantity = quantityChoice.GetPlayerChoice(ctx);
+            _quantity = await quantityChoice.GetPlayerChoice(ctx);
         }
         else
         {
@@ -131,7 +128,7 @@ public class ShelterImprovementStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         if (_cancelled)
             return new WorkResult([], null, 0, false);
@@ -174,7 +171,7 @@ public class ShelterImprovementStrategy : IWorkStrategy
         // Add narrative description
         GameDisplay.AddNarrative(ctx, shelter.GetNarrativeDescription());
 
-        DesktopIO.ShowWorkResult(ctx, "Shelter Improvement", resultMessage, collected);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Shelter Improvement", resultMessage, collected));
 
         return new WorkResult(collected, null, actualTime, false);
     }

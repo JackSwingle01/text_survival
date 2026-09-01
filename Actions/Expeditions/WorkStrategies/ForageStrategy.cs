@@ -1,12 +1,10 @@
-using Raylib_cs;
 using text_survival.Actions.Variants;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
-using text_survival.Desktop;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
-using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -34,15 +32,15 @@ public class ForageStrategy : IWorkStrategy
     private List<string> _discoveries = [];
     private List<HiddenFeature>? _discoveredFeatures;
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<ForageFeature>();
         if (feature == null)
-            return "There's nothing to forage here.";
-        return null;
+            return Task.FromResult<string?>("There's nothing to forage here.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public async Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<ForageFeature>()!;
 
@@ -52,12 +50,12 @@ public class ForageStrategy : IWorkStrategy
             _clues = ClueSelector.GenerateClues(ctx, location, feature.ClueSeed);
 
             // Show overlay and get selection - pass domain objects directly
-            var (selectedFocus, selectedMinutes) = DesktopIO.SelectForageOptions(ctx, feature, _clues);
+            var (selectedFocus, selectedMinutes) = await ctx.Ui.SelectForageOptions(feature, _clues);
 
             // Handle "Keep Walking" - spend time to reroll clues
             if (selectedMinutes == -1)
             {
-                ctx.Update(5, ActivityType.Traveling);
+                await ctx.Update(5, ActivityType.Traveling);
                 feature.RerollClues();
                 continue; // Show overlay again with new clues
             }
@@ -141,7 +139,7 @@ public class ForageStrategy : IWorkStrategy
     /// Game logic owns the loop; display only renders what it's told.
     /// Events pause foraging; aborting events stop it entirely.
     /// </summary>
-    public (int elapsed, bool interrupted)? RunCustomProgress(GameContext ctx, Location location, int minutes)
+    public async Task<(int elapsed, bool interrupted)?> RunCustomProgress(GameContext ctx, Location location, int minutes)
     {
         if (_cancelled)
             return (0, false);
@@ -169,54 +167,47 @@ public class ForageStrategy : IWorkStrategy
 
         double totalMultiplier = negativeMultiplier * perceptionMultiplier * axeMultiplier * shovelMultiplier;
 
-        // Animation timing: ~0.3 seconds per in-game minute, clamped to reasonable bounds
-        float animDurationSeconds = Math.Clamp(minutes * 0.3f, 1.0f, 30.0f);
-        float elapsedSeconds = 0;
-        int simulatedMinutes = 0;
-
         var accumulated = new Inventory();
         var activity = GetActivityType();
-        string statusText = "Foraging...";
         LuckTier? notableLuck = null;
 
-        // Game logic owns the loop
-        while (simulatedMinutes < minutes && !Raylib.WindowShouldClose() && ctx.player.IsAlive)
+        var run = new TimedRun(minutes, Pacing.ProgressSeconds(minutes));
+
+        using var view = ctx.Ui.BeginProgress(ProgressKind.Forage, "Foraging...");
+        view.TotalMinutes = minutes;
+        var findings = view.Section("Found");
+        var discoveries = view.Section("Discovered");
+
+        bool aborted = false;
+
+        while (!run.Done && ctx.player.IsAlive && !aborted)
         {
-            float deltaTime = DesktopRuntime.BeginFrame();
-            elapsedSeconds += deltaTime;
+            float dt = await ctx.Ui.NextFrame();
+            int due = run.Advance(dt);
 
-            // Calculate how many minutes to simulate this frame
-            int targetMinutes = Math.Min((int)(elapsedSeconds * minutes / animDurationSeconds), minutes);
-
-            // GAME LOGIC: simulate pending minutes
-            while (simulatedMinutes < targetMinutes && ctx.player.IsAlive)
+            for (int i = 0; i < due; i++)
             {
-                ctx.Update(1, activity);
-                simulatedMinutes++;
+                await ctx.Update(1, activity);
+                run.MarkSimulated(1);
 
-                // Check for event interruption
-                if (ctx.EventOccurredLastUpdate)
+                if (!ctx.player.IsAlive) break;
+
+                // An aborting event ends the search; anything else just pauses it.
+                if (ctx.EventOccurredLastUpdate && ctx.LastEventAborted)
                 {
-                    if (ctx.LastEventAborted)
-                    {
-                        // Aborting event - stop foraging, return partial loot and discoveries
-                        _foundItems = accumulated;
-                        _discoveredFeatures = discoveredFeatures;
-                        return (simulatedMinutes, true);
-                    }
-                    // Non-aborting event - continue foraging after event resolves
+                    aborted = true;
+                    break;
                 }
 
-                // GAME LOGIC: forage this minute
                 var (found, luck) = feature.Forage(1.0 / 60.0);
 
-                // Track first notable luck tier for flavor text
+                // First notable stroke of luck colours the status line.
                 if (notableLuck == null && luck != LuckTier.Normal)
                 {
                     notableLuck = luck;
                     var flavorText = luck.GetFlavorText();
                     if (flavorText != null)
-                        statusText = flavorText;
+                        view.Status = flavorText;
                 }
 
                 if (!found.IsEmpty)
@@ -227,58 +218,68 @@ public class ForageStrategy : IWorkStrategy
                     accumulated.Combine(found);
                 }
 
-                // GAME LOGIC: check for discoveries each minute
-                double hours = 1.0 / 60.0;
-                feature.DiscoveryProgress += hours * perception;
-                var newDiscoveries = location.RevealDiscoveries(feature.DiscoveryProgress);
-
-                foreach (var disc in newDiscoveries)
+                feature.DiscoveryProgress += perception / 60.0;
+                foreach (var disc in location.RevealDiscoveries(feature.DiscoveryProgress))
                 {
                     discoveredFeatures.Add(disc);
-                    // Only show minor discoveries during progress (majors get popup later)
+                    // Minor finds are shown as they happen; major ones get their own moment later.
                     if (disc.Category == DiscoveryCategory.Minor)
-                    {
                         _discoveries.Add(GetDiscoveryMessage(disc));
-                    }
                 }
             }
 
-            // DISPLAY: render one frame (no callbacks, no game logic)
-            DesktopRuntime.RenderForagingFrame(
-                ctx,
-                accumulated.GetLootItems(),
-                (float)accumulated.CurrentWeightKg,
-                _discoveries,
-                simulatedMinutes,
-                minutes,
-                statusText,
-                isComplete: false);
+            view.Progress = run.Progress;
+            view.SimulatedMinutes = run.SimulatedMinutes;
+            RenderFindings(findings, accumulated);
+            RenderDiscoveries(discoveries, _discoveries);
         }
 
-        // Store accumulated loot and discoveries for Execute()
         _foundItems = accumulated;
         _discoveredFeatures = discoveredFeatures;
 
-        // After progress completes, show Continue button and block until clicked
-        while (!Raylib.WindowShouldClose())
-        {
-            bool clicked = DesktopRuntime.RenderForagingFrame(
-                ctx,
-                accumulated.GetLootItems(),
-                (float)accumulated.CurrentWeightKg,
-                _discoveries,
-                simulatedMinutes,
-                minutes,
-                statusText,
-                isComplete: true);
+        if (aborted || !ctx.player.IsAlive)
+            return (run.SimulatedMinutes, aborted);
 
-            if (clicked) break;
-        }
+        await view.WaitForContinue();
 
-        return (simulatedMinutes, false);
+        return (run.SimulatedMinutes, false);
     }
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    private static void RenderFindings(ProgressSection section, Inventory accumulated)
+    {
+        section.Lines.Clear();
+        var items = accumulated.GetLootItems();
+        if (items.Count == 0) return;
+
+        foreach (var item in items)
+        {
+            string text = item.Count > 1
+                ? $"{item.Count}x {item.Name} ({item.WeightKg:F1}kg)"
+                : $"{item.Name} ({item.WeightKg:F2}kg)";
+            section.Lines.Add(new ProgressLine(text, ToneFor(item.Category)));
+        }
+
+        section.Lines.Add(new ProgressLine($"Total: {accumulated.CurrentWeightKg:F1}kg", ProgressTone.Muted));
+    }
+
+    private static void RenderDiscoveries(ProgressSection section, List<string> discoveries)
+    {
+        section.Lines.Clear();
+        foreach (var discovery in discoveries)
+            section.Lines.Add(new ProgressLine($"- {discovery}", ProgressTone.Discovery));
+    }
+
+    private static ProgressTone ToneFor(ResourceCategory? category) => category switch
+    {
+        ResourceCategory.Fuel => ProgressTone.Fuel,
+        ResourceCategory.Food => ProgressTone.Food,
+        ResourceCategory.Medicine => ProgressTone.Medicine,
+        ResourceCategory.Material => ProgressTone.Material,
+        ResourceCategory.Tinder => ProgressTone.Tinder,
+        _ => ProgressTone.Normal
+    };
+
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         // Early return if user cancelled
         if (_cancelled)
@@ -321,7 +322,7 @@ public class ForageStrategy : IWorkStrategy
         {
             // Show failure message (items weren't shown during progress since there were none)
             string failureMessage = WorkRunner.GetForageFailureMessage(quality);
-            DesktopIO.ShowWorkResult(ctx, "Foraging", failureMessage, [], [], []);
+            await ctx.Ui.ShowWorkResult(new WorkResultView("Foraging", failureMessage, [], [], []));
         }
         else
         {
@@ -348,8 +349,7 @@ public class ForageStrategy : IWorkStrategy
             if (discovery.Category == DiscoveryCategory.Major)
             {
                 string message = GetDiscoveryMessage(discovery);
-                // Major discoveries get a special popup
-                DesktopIO.ShowMajorDiscovery(ctx, message);
+                    await ctx.Ui.ShowMessage("Discovery!", message);
             }
             // Minor discoveries already shown during progress, no need to add to narrative
         }
@@ -420,7 +420,7 @@ public class ForageStrategy : IWorkStrategy
 
         if (hasSpecialFinds || hasWarnings)
         {
-            DesktopIO.ShowWorkResult(ctx, "Foraging", "", [], narrative, allWarnings);
+            await ctx.Ui.ShowWorkResult(new WorkResultView("Foraging", "", [], narrative, allWarnings));
         }
 
         // Tutorial: Show fuel progress on Day 1

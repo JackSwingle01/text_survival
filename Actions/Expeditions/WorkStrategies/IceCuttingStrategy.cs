@@ -1,7 +1,7 @@
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -12,22 +12,22 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 /// </summary>
 public class IceCuttingStrategy : IWorkStrategy
 {
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<WaterFeature>();
         if (feature == null)
-            return "There's no water here.";
+            return Task.FromResult<string?>("There's no water here.");
         if (!feature.CanCutIceHole())
-            return feature.HasIceHole
+            return Task.FromResult<string?>(feature.HasIceHole
                 ? "There's already an ice hole here."
-                : "The ice cannot be cut.";
-        return null;
+                : "The ice cannot be cut.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         // Fixed time based on ice thickness - no choices offered
-        return null;
+        return Task.FromResult<Choice<int>?>(null);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -57,7 +57,7 @@ public class IceCuttingStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         var feature = location.GetFeature<WaterFeature>()!;
         feature.CutIceHole();
@@ -66,7 +66,7 @@ public class IceCuttingStrategy : IWorkStrategy
             ? "You break through the thin ice. Water is now accessible."
             : "You cut through the ice. Water is now accessible.";
 
-        DesktopIO.ShowWorkResult(ctx, "Ice Cutting", resultMessage, []);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Ice Cutting", resultMessage, []));
 
         return new WorkResult([], null, actualTime, false);
     }

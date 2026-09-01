@@ -1,5 +1,4 @@
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
 
@@ -36,7 +35,7 @@ public static class TorchHandler
     /// Light a torch from available flame source.
     /// From fire/torch: FREE. From tinder+firestarter: consumes tinder.
     /// </summary>
-    public static void LightTorch(GameContext ctx)
+    public static async Task LightTorch(GameContext ctx)
     {
         bool hasActiveFire = ctx.CurrentLocation.HasActiveHeatSource();
         bool hasLitTorch = ctx.Inventory.HasLitTorch;
@@ -47,26 +46,26 @@ public static class TorchHandler
             // Free lighting from fire
             ctx.Inventory.LightTorch();
             GameDisplay.AddSuccess(ctx, "You light a torch from the fire. It burns steadily.");
-            ctx.Update(1, ActivityType.Idle);
+            await ctx.Update(1, ActivityType.Idle);
         }
         else if (hasLitTorch)
         {
             // Free lighting from existing torch
             ctx.Inventory.LightTorch();
             GameDisplay.AddSuccess(ctx, "You light a fresh torch from your dying flame.");
-            ctx.Update(1, ActivityType.Idle);
+            await ctx.Update(1, ActivityType.Idle);
         }
         else
         {
             // Need to use firestarter + tinder (same mechanics as fire starting but simpler)
-            LightTorchWithFirestarter(ctx);
+            await LightTorchWithFirestarter(ctx);
         }
     }
 
     /// <summary>
     /// Light a torch using firestarter and tinder (similar to fire starting but simpler).
     /// </summary>
-    private static void LightTorchWithFirestarter(GameContext ctx)
+    private static async Task LightTorchWithFirestarter(GameContext ctx)
     {
         var inv = ctx.Inventory;
 
@@ -97,8 +96,7 @@ public static class TorchHandler
         }
         toolChoices.Add("Cancel");
 
-        GameDisplay.Render(ctx);
-        string choice = Input.Select(ctx, "Light torch with:", toolChoices);
+        string choice = await ctx.Ui.Select("Light torch with:", toolChoices, label => label);
 
         if (choice == "Cancel")
         {
@@ -117,7 +115,7 @@ public static class TorchHandler
         finalChance = Math.Clamp(finalChance, 0.05, 0.95);
 
         GameDisplay.AddNarrative(ctx, $"You work with the {selectedTool.Name}...");
-        ctx.Update(2, ActivityType.TendingFire);
+        await ctx.Update(2, ActivityType.TendingFire);
 
         if (Utils.DetermineSuccess(finalChance))
         {
@@ -131,12 +129,8 @@ public static class TorchHandler
             playerSkill.GainExperience(1);
 
             // Offer retry if materials available
-            if (inv.Has(ResourceCategory.Tinder))
-            {
-                GameDisplay.Render(ctx);
-                if (Input.Confirm(ctx, "Try again?"))
-                    LightTorchWithFirestarter(ctx);
-            }
+            if (inv.Has(ResourceCategory.Tinder) && await ctx.Ui.Confirm("Try again?"))
+                await LightTorchWithFirestarter(ctx);
         }
     }
 
@@ -163,24 +157,15 @@ public static class TorchHandler
         double previousTime = ctx.Inventory.TorchBurnTimeRemainingMinutes;
         ctx.Inventory.TorchBurnTimeRemainingMinutes -= minutes;
 
-        // Torch chaining prompt at 5 minutes (only if not near fire and have another torch)
+        // A guttering torch away from a fire is chained onto a fresh one automatically.
+        // This runs inside the simulation tick, which cannot stop to ask.
         if (previousTime > 5 && ctx.Inventory.TorchBurnTimeRemainingMinutes <= 5 &&
-            ctx.Inventory.TorchBurnTimeRemainingMinutes > 0 && ctx.Inventory.HasUnlitTorch)
+            ctx.Inventory.TorchBurnTimeRemainingMinutes > 0 && ctx.Inventory.HasUnlitTorch &&
+            !ctx.CurrentLocation.HasActiveHeatSource())
         {
-            if (!ctx.CurrentLocation.HasActiveHeatSource())
-            {
-                int torchCount = ctx.Inventory.Tools.Count(t => t.ToolType == ToolType.Torch && t.Works);
-                var chainChoice = new Choice<bool>("Your torch is burning low. Light another?");
-                chainChoice.AddOption($"Yes, light new torch ({torchCount} remaining)", true);
-                chainChoice.AddOption("No, let it burn out", false);
-
-                GameDisplay.Render(ctx);
-                if (chainChoice.GetPlayerChoice(ctx))
-                {
-                    ctx.Inventory.LightTorch();
-                    GameDisplay.AddNarrative(ctx, "You light a fresh torch from the dying flame.");
-                }
-            }
+            ctx.Inventory.LightTorch();
+            int remaining = ctx.Inventory.Tools.Count(t => t.ToolType == ToolType.Torch && t.Works);
+            GameDisplay.AddWarning(ctx, $"Your torch gutters. You light a fresh one from it - {remaining} left.");
         }
 
         // Torch burns out

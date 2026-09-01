@@ -25,7 +25,7 @@ namespace text_survival.Desktop;
 /// on <see cref="IGameUi"/>; this resolves them from inside a frame, and the
 /// continuations run on the next scheduler pump - never during rendering.
 /// </summary>
-public sealed class DesktopUi : IGameUi, IDisposable
+public sealed class DesktopUi : IGameUi
 {
     private static readonly Color Background = new(20, 25, 30, 255);
     private static readonly Color Dim = new(0, 0, 0, 128);
@@ -34,9 +34,8 @@ public sealed class DesktopUi : IGameUi, IDisposable
     private readonly FrameScheduler _scheduler;
 
     private readonly WorldRenderer _world = new();
-    private readonly ActionPanel _actionPanel = new();
+    private readonly ActionPanel _actionPanel;
     private readonly TilePopup _tilePopup = new();
-    private readonly IconRenderer _icons = new(AssetPaths.Icons());
 
     private readonly InventoryOverlay _inventory = new();
     private readonly CraftingOverlay _crafting = new();
@@ -57,11 +56,8 @@ public sealed class DesktopUi : IGameUi, IDisposable
     {
         _ctx = ctx;
         _scheduler = scheduler;
+        _actionPanel = new ActionPanel(_world);
     }
-
-    public WorldRenderer World => _world;
-
-    public void Dispose() => _icons.Dispose();
 
     // ═══════════════════════════════════════════════════════════════════════════
     // THE FRAME

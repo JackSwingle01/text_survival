@@ -25,7 +25,7 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_DamageTool_ReducesDurability()
+    public async Task HandleOutcome_DamageTool_ReducesDurability()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -39,7 +39,7 @@ public class HandleOutcomeTests
         };
 
         // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
+        await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
         Assert.Equal(7, knife.Durability);
@@ -47,7 +47,7 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_DamageTool_CanBreakTool()
+    public async Task HandleOutcome_DamageTool_CanBreakTool()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -61,7 +61,7 @@ public class HandleOutcomeTests
         };
 
         // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
+        await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
         Assert.Equal(0, knife.Durability);
@@ -69,7 +69,7 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_DamageClothing_ReducesDurability()
+    public async Task HandleOutcome_DamageClothing_ReducesDurability()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -84,7 +84,7 @@ public class HandleOutcomeTests
         };
 
         // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
+        await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
         Assert.Equal(90, chest.Durability);
@@ -92,7 +92,7 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_DamageClothing_CapsAtZero()
+    public async Task HandleOutcome_DamageClothing_CapsAtZero()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -107,7 +107,7 @@ public class HandleOutcomeTests
         };
 
         // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
+        await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
         Assert.Equal(0, chest.Durability); // Durability capped at zero
@@ -115,7 +115,7 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_CreatesTension_AddsTensionToRegistry()
+    public async Task HandleOutcome_CreatesTension_AddsTensionToRegistry()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -125,7 +125,7 @@ public class HandleOutcomeTests
         };
 
         // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
+        await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
         Assert.True(ctx.Tensions.HasTension("Stalked"));
@@ -135,7 +135,7 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_ResolvesTension_RemovesTension()
+    public async Task HandleOutcome_ResolvesTension_RemovesTension()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -147,14 +147,14 @@ public class HandleOutcomeTests
         };
 
         // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
+        await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
         Assert.False(ctx.Tensions.HasTension("Stalked"));
     }
 
     [Fact]
-    public void HandleOutcome_EscalateTension_IncreasesSeverity()
+    public async Task HandleOutcome_EscalateTension_IncreasesSeverity()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -166,7 +166,7 @@ public class HandleOutcomeTests
         };
 
         // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
+        await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
         var tension = ctx.Tensions.GetTension("Stalked");
@@ -175,7 +175,7 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_Effects_AddsBuff()
+    public async Task HandleOutcome_Effects_AddsBuff()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -187,7 +187,7 @@ public class HandleOutcomeTests
         };
 
         // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
+        await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
         var effects = ctx.player.EffectRegistry.GetAll();
@@ -195,7 +195,7 @@ public class HandleOutcomeTests
     }
 
     [Fact]
-    public void HandleOutcome_Effects_AddsNegativeEffect()
+    public async Task HandleOutcome_Effects_AddsNegativeEffect()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -207,7 +207,7 @@ public class HandleOutcomeTests
         };
 
         // Act
-        GameEventRegistry.HandleOutcome(ctx, outcome);
+        await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
         var effects = ctx.player.EffectRegistry.GetAll();
@@ -219,7 +219,7 @@ public class HandleOutcomeTests
     // modify expedition time since events occur during normal update cycles.
 
     [Fact]
-    public void HandleOutcome_MissingTool_DoesNotThrow()
+    public async Task HandleOutcome_MissingTool_DoesNotThrow()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -231,12 +231,12 @@ public class HandleOutcomeTests
         };
 
         // Act & Assert - should not throw
-        var exception = Record.Exception(() => GameEventRegistry.HandleOutcome(ctx, outcome));
+        var exception = await Record.ExceptionAsync(() => GameEventRegistry.HandleOutcome(ctx, outcome));
         Assert.Null(exception);
     }
 
     [Fact]
-    public void HandleOutcome_MissingEquipment_DoesNotThrow()
+    public async Task HandleOutcome_MissingEquipment_DoesNotThrow()
     {
         // Arrange
         var ctx = CreateTestContext();
@@ -248,7 +248,7 @@ public class HandleOutcomeTests
         };
 
         // Act & Assert - should not throw
-        var exception = Record.Exception(() => GameEventRegistry.HandleOutcome(ctx, outcome));
+        var exception = await Record.ExceptionAsync(() => GameEventRegistry.HandleOutcome(ctx, outcome));
         Assert.Null(exception);
     }
 }

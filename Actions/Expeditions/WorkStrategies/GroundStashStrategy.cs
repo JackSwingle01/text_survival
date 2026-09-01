@@ -9,15 +9,15 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 /// </summary>
 public class GroundStashStrategy : IWorkStrategy
 {
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var stash = location.GetFeature<GroundItemsFeature>();
         if (stash == null || !stash.HasItems)
-            return "There's nothing on the ground here.";
-        return null;
+            return Task.FromResult<string?>("There's nothing on the ground here.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location) => null;
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location) => Task.FromResult<Choice<int>?>(null);
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
     {
@@ -30,11 +30,11 @@ public class GroundStashStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         var stash = location.GetFeature<GroundItemsFeature>()!;
 
-        Desktop.DesktopIO.RunTransferUI(ctx, stash.Storage, "DROPPED ITEMS");
+        await ctx.Ui.ShowTransfer(stash.Storage, "DROPPED ITEMS");
 
         location.CleanupGroundItems();
 

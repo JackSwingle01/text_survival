@@ -4,7 +4,6 @@ using text_survival.Actors.Animals;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Items;
-using text_survival.Desktop;
 using text_survival.UI;
 
 namespace text_survival.Combat;
@@ -30,7 +29,7 @@ public static class CombatOrchestrator
     /// <summary>
     /// The player stalks prey: player Engaged, prey Unaware, opened at stalking distance.
     /// </summary>
-    public static CombatResult RunHunt(GameContext ctx, Animal prey)
+    public static Task<CombatResult> RunHunt(GameContext ctx, Animal prey)
     {
         var scenario = CombatScenario.Create(
             PlayerSide(ctx, prey), AnimalSide(ctx, prey), ctx.CurrentLocation, HUNT_START_DISTANCE_M,
@@ -52,7 +51,7 @@ public static class CombatOrchestrator
     /// A predator comes for the player: both sides Engaged, opened at the encounter's distance.
     /// </summary>
     /// <param name="engageChance">The boldness (0-1) that brought the predator here; seeds its morale.</param>
-    public static CombatResult RunEncounter(GameContext ctx, Animal predator, int startDistanceM, double engageChance)
+    public static Task<CombatResult> RunEncounter(GameContext ctx, Animal predator, int startDistanceM, double engageChance)
     {
         var scenario = CombatScenario.Create(
             PlayerSide(ctx, predator), AnimalSide(ctx, predator), ctx.CurrentLocation, startDistanceM,
@@ -122,18 +121,27 @@ public static class CombatOrchestrator
 
     #region Player Loop
 
-    private static CombatResult RunWithPlayer(GameContext ctx, CombatScenario scenario, ActivityType activity, Func<CombatResult, string> describe)
+    private static async Task<CombatResult> RunWithPlayer(
+        GameContext ctx, CombatScenario scenario, ActivityType activity, Func<CombatResult, string> describe)
     {
         var playerUnit = scenario.Player!;
         ctx.ActiveCombat = scenario;
         int huntingSkill = ctx.player.Skills.GetSkill("Hunting")?.Level ?? 0;
 
-        while (!scenario.IsOver && scenario.Units.Contains(playerUnit) && !Raylib_cs.Raylib.WindowShouldClose())
+        try
         {
-            RunCombatTurn(ctx, scenario, playerUnit, huntingSkill, activity);
-        }
+            while (!scenario.IsOver && scenario.Units.Contains(playerUnit))
+            {
+                var input = await ctx.Ui.WaitForCombatAction();
+                if (input == null) break;
 
-        ctx.ActiveCombat = null;
+                await RunCombatTurn(ctx, scenario, playerUnit, huntingSkill, activity, input);
+            }
+        }
+        finally
+        {
+            ctx.ActiveCombat = null;
+        }
 
         var result = scenario.DetermineResult();
         GameDisplay.AddSuccess(ctx, describe(result));
@@ -144,21 +152,19 @@ public static class CombatOrchestrator
     /// <summary>
     /// Processes one player turn + AI responses.
     /// </summary>
-    private static void RunCombatTurn(
+    private static async Task RunCombatTurn(
         GameContext ctx,
         CombatScenario scenario,
         Unit playerUnit,
         int huntingSkill,
-        ActivityType activityType)
+        ActivityType activityType,
+        CombatInput input)
     {
-        var input = DesktopIO.WaitForCombatAction(ctx);
-        if (input == null) return; // Window closed - the outer loop stops.
-
         PlayerActionResult actionResult;
         if (input.MoveTarget != null)
             actionResult = ExecuteMoveTo(scenario, playerUnit, input.MoveTarget.Value);
         else if (input.Action != null)
-            actionResult = ExecutePlayerChoice(scenario, playerUnit, input.Action.Value, ctx);
+            actionResult = await ExecutePlayerChoice(scenario, playerUnit, input.Action.Value, ctx);
         else
             throw new InvalidOperationException("Combat input carried neither an action nor a move target.");
 
@@ -167,13 +173,31 @@ public static class CombatOrchestrator
 
         if (!actionResult.ActionTaken) return;
 
-        ctx.Update(1, activityType);
+        await ctx.Update(1, activityType);
         ProcessDetectionChanges(ctx, scenario, playerUnit, huntingSkill);
 
-        if (!scenario.IsOver)
+        if (scenario.IsOver) return;
+
+        scenario.ResetAITurns(playerUnit);
+        await RunAITurns(ctx, scenario, playerUnit);
+    }
+
+    /// <summary>
+    /// The enemy's answer, one turn at a time with a beat between them so the player can
+    /// read what happened.
+    /// </summary>
+    private static async Task RunAITurns(GameContext ctx, CombatScenario scenario, Unit playerUnit)
+    {
+        while (scenario.HasRemainingAITurns(playerUnit))
         {
-            scenario.ResetAITurns(playerUnit);
-            DesktopIO.RunAITurnsWithAnimation(ctx, scenario, playerUnit);
+            var narrative = scenario.RunNextAITurn(playerUnit);
+
+            if (narrative != null)
+                GameDisplay.AddNarrative(ctx, narrative);
+
+            if (scenario.IsOver) break;
+
+            await ctx.Ui.Wait(1f);
         }
     }
 
@@ -206,10 +230,13 @@ public static class CombatOrchestrator
 
     #region Player Actions
 
-    private static PlayerActionResult ExecutePlayerChoice(CombatScenario scenario, Unit playerUnit, CombatActions action, GameContext ctx)
+    private static async Task<PlayerActionResult> ExecutePlayerChoice(CombatScenario scenario, Unit playerUnit, CombatActions action, GameContext ctx)
     {
         var nearest = scenario.GetNearestEnemy(playerUnit);
         if (nearest == null) return new PlayerActionResult(false, null);
+
+        if (action == CombatActions.Wait)
+            return await ExecuteWait(scenario, playerUnit, ctx);
 
         return action switch
         {
@@ -224,7 +251,6 @@ public static class CombatOrchestrator
             CombatActions.Intimidate => ExecuteIntimidate(scenario, playerUnit),
             CombatActions.Flee => ExecuteFlee(scenario, playerUnit),
             CombatActions.Assess => ExecuteAssess(scenario, playerUnit, nearest, ctx),
-            CombatActions.Wait => ExecuteWait(scenario, playerUnit, ctx),
             _ => new PlayerActionResult(false, null)
         };
     }
@@ -344,11 +370,11 @@ public static class CombatOrchestrator
         return new PlayerActionResult(true, narrative);
     }
 
-    private static PlayerActionResult ExecuteWait(CombatScenario scenario, Unit playerUnit, GameContext ctx)
+    private static async Task<PlayerActionResult> ExecuteWait(CombatScenario scenario, Unit playerUnit, GameContext ctx)
     {
         // Wait 5-10 min, animal may change activity
         int waitTimeMinutes = Utils.RandInt(5, 10);
-        ctx.Update(waitTimeMinutes, ActivityType.Hunting);
+        await ctx.Update(waitTimeMinutes, ActivityType.Hunting);
 
         // Check each unaware/alert enemy for activity change
         var messages = new List<string>();

@@ -234,7 +234,7 @@ public class SerializationTests
     }
 
     [Fact]
-    public void SerializeDeserialize_DeserializedGame_CanContinuePlaying()
+    public async Task SerializeDeserialize_DeserializedGame_CanContinuePlaying()
     {
         // Arrange
         var ctx = GameContext.CreateNewGame();
@@ -249,7 +249,7 @@ public class SerializationTests
         // Assert - Game can continue (functional API works)
 
         // Can advance time
-        var updateException = Record.Exception(() => deserialized.Update(10, ActivityType.Idle));
+        var updateException = await Record.ExceptionAsync(() => deserialized!.Update(10, ActivityType.Idle));
         Assert.Null(updateException);
 
         // Can access inventory

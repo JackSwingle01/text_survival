@@ -21,6 +21,26 @@ public class GameContext(Player player, Location camp, Weather weather)
 {
     public Player player { get; set; } = player;
 
+    private IGameUi? _ui;
+
+    /// <summary>
+    /// How game logic reaches the player. Set once, before the game task starts.
+    /// The simulation tick below <see cref="UpdateInternal"/> must never touch it.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IGameUi Ui
+    {
+        get => _ui ?? throw new InvalidOperationException("GameContext.Ui was read before a UI was attached.");
+        set => _ui = value;
+    }
+
+    /// <summary>
+    /// Things the simulation needs to tell the player. The tick queues them; game logic
+    /// drains them between actions, so nothing below the tick opens a dialog.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Queue<Notice> Notices { get; } = new();
+
     [System.Text.Json.Serialization.JsonIgnore]
     public Location CurrentLocation => player.CurrentLocation;
     public Location Camp { get; set; } = camp;
@@ -37,33 +57,28 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     public Weather Weather { get; init; } = weather;
     public GameMap? Map { get; set; }
-    [System.Text.Json.Serialization.JsonIgnore]
-    public (int X, int Y)? PendingTravelTarget { get; set; }
 
     /// <summary>
-    /// Tracks ongoing travel state for non-blocking travel with animated stats.
+    /// A walk between two tiles, in progress. Rendering reads it to place the player
+    /// sprite and the camera; the run is the single clock both derive from.
     /// </summary>
     public class ActiveTravelState
     {
-        public int TotalMinutes { get; set; }
-        public int SimulatedMinutes { get; set; }
-        public Location Destination { get; set; } = null!;
-        public Location Origin { get; set; } = null!;
-        public GridPosition OriginPosition { get; set; }
-        public bool EventInterrupted { get; set; }
-        public bool FirstVisit { get; set; }
-        public float AnimationProgress { get; set; }
-        public float AnimationDurationSeconds { get; set; }
+        public required Location Destination { get; init; }
+        public required Location Origin { get; init; }
+        public required GridPosition OriginPosition { get; init; }
+        public required TimedRun Run { get; init; }
+        public bool FirstVisit { get; init; }
 
         // Completion info for injury checks
-        public bool OriginQuickTravel { get; set; }
-        public bool DestQuickTravel { get; set; }
-        public double OriginInjuryRisk { get; set; }
-        public double DestInjuryRisk { get; set; }
+        public bool OriginQuickTravel { get; init; }
+        public bool DestQuickTravel { get; init; }
+        public double OriginInjuryRisk { get; init; }
+        public double DestInjuryRisk { get; init; }
     }
 
     /// <summary>
-    /// Active travel in progress. When set, the main loop processes travel simulation incrementally.
+    /// Active travel in progress. Null whenever the player is standing still.
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public ActiveTravelState? ActiveTravel { get; set; }
@@ -89,12 +104,12 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// Use sparingly - only for cases that need the result immediately (e.g., edge events with abort semantics).
     /// Most events should just queue and let the main loop handle them.
     /// </summary>
-    public EventResult? ProcessQueuedEvents()
+    public async Task<EventResult?> ProcessQueuedEvents()
     {
         EventResult? lastResult = null;
         while (EventQueue.TryDequeue(out var evt) && evt != null)
         {
-            lastResult = GameEventRegistry.HandleEvent(this, evt);
+            lastResult = await GameEventRegistry.HandleEvent(this, evt);
             if (!player.IsAlive) break;
         }
         return lastResult;
@@ -155,7 +170,7 @@ public class GameContext(Player player, Location camp, Weather weather)
     }
     public bool HasPendingEncounter => _pendingEncounter != null;
 
-    public void HandlePendingEncounter()
+    public async Task HandlePendingEncounter()
     {
         if (_pendingEncounter == null)
             return;
@@ -171,7 +186,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         var predator = config.Animal ?? AnimalFactory.FromType(config.AnimalType, CurrentLocation, Map)
             ?? throw new InvalidOperationException($"No animal for encounter type {config.AnimalType}");
 
-        CombatOrchestrator.RunEncounter(this, predator, (int)config.InitialDistance, config.InitialBoldness);
+        await CombatOrchestrator.RunEncounter(this, predator, (int)config.InitialDistance, config.InitialBoldness);
         LastEventAborted = true;  // Encounters abort the current action
     }
 
@@ -322,6 +337,19 @@ public class GameContext(Player player, Location camp, Weather weather)
         return ctx;
     }
 
+    /// <summary>
+    /// Show everything the simulation queued for the player. Game logic calls this
+    /// between actions and on arrival somewhere new.
+    /// </summary>
+    public async Task ShowNotices()
+    {
+        while (Notices.Count > 0)
+        {
+            var notice = Notices.Dequeue();
+            await Ui.ShowMessage(notice.Title, notice.Text);
+        }
+    }
+
     public bool Check(EventCondition condition) => ConditionChecker.Check(this, condition);
 
     public void EstablishCamp(Location location)
@@ -340,7 +368,11 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// <summary>Total minutes elapsed since game start (for cooldown comparisons).</summary>
     public int TotalMinutesElapsed => (int)(GameTime - StartTime).TotalMinutes;
 
-    public int Update(int targetMinutes, ActivityType activity, bool render = false)
+    /// <summary>
+    /// Advance the simulation, stopping early if an event fires. Awaits the player only
+    /// when handling that event - the tick itself stays synchronous.
+    /// </summary>
+    public async Task<int> Update(int targetMinutes, ActivityType activity)
     {
         EventOccurredLastUpdate = false;
         LastEventAborted = false;
@@ -372,9 +404,6 @@ public class GameContext(Player player, Location camp, Weather weather)
                 if (evt != null)
                     break;
             }
-
-            if (render)
-                GameDisplay.Render(this);
         }
 
         if (!player.IsAlive)
@@ -383,7 +412,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (evt is not null)
         {
             EventOccurredLastUpdate = true;
-            var result = GameEventRegistry.HandleEvent(this, evt);
+            var result = await GameEventRegistry.HandleEvent(this, evt);
             LastEventAborted = result.AbortsAction;
         }
 
@@ -438,9 +467,9 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Update zone weather and all named locations (terrain-only don't need updates)
         Weather.Update(GameTime);
 
-        if (Weather.WeatherJustChanged && SessionId != null)
+        if (Weather.WeatherJustChanged)
         {
-            Desktop.DesktopIO.ShowWeatherChange(this);
+            GameDisplay.AddWarning(this, WeatherSummary());
 
             // Queue weather transition event
             var weatherEvent = WeatherEventFactory.OnWeatherChange(
@@ -521,8 +550,7 @@ public class GameContext(Player player, Location camp, Weather weather)
             if (npc.CurrentLocation == CurrentLocation)
             {
                 body.IsDiscovered = true;
-                string text = $"{body.NPCName} collapses. {body.DeathCause}";
-                Desktop.DesktopIO.ShowDiscovery(this, body.NPCName, text);
+                Notices.Enqueue(new Notice(body.NPCName, $"{body.NPCName} collapses. {body.DeathCause}"));
             }
             // Otherwise, they'll discover it when they return to this tile
         }
@@ -532,8 +560,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (undiscoveredBody != null && !undiscoveredBody.IsDiscovered)
         {
             undiscoveredBody.IsDiscovered = true;
-            string text = undiscoveredBody.DeathDiscoveryText();
-            Desktop.DesktopIO.ShowDiscovery(this, undiscoveredBody.NPCName, text);
+            Notices.Enqueue(new Notice(undiscoveredBody.NPCName, undiscoveredBody.DeathDiscoveryText()));
         }
 
         // DeadlyCold auto-resolves when player reaches fire
@@ -659,6 +686,14 @@ public class GameContext(Player player, Location camp, Weather weather)
             if (actorsHere.Count > 1)
                 RelationshipEvents.TimeTogether(actorsHere);
         }
+    }
+
+    private string WeatherSummary()
+    {
+        string precipitation = Weather.PrecipitationPct > 0
+            ? $"{Weather.PrecipitationPct:P0} precipitation"
+            : "clear skies";
+        return $"The weather turns: {Weather.CurrentCondition}, {Weather.TemperatureInFahrenheit:F0}°F, {precipitation}.";
     }
 
     public enum TimeOfDay

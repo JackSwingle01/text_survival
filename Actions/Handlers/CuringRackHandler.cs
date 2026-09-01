@@ -1,5 +1,4 @@
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
 
@@ -11,7 +10,7 @@ namespace text_survival.Actions.Handlers;
 /// </summary>
 public static class CuringRackHandler
 {
-    public static void UseCuringRack(GameContext ctx)
+    public static async Task UseCuringRack(GameContext ctx)
     {
         var rack = ctx.Camp.GetFeature<CuringRackFeature>();
         var inv = ctx.Inventory;
@@ -19,7 +18,6 @@ public static class CuringRackHandler
         while (true)
         {
             GameDisplay.AddNarrative(ctx, rack!.GetDescription());
-            GameDisplay.Render(ctx);
 
             var options = new List<string>();
             var actions = new Dictionary<string, Action>();
@@ -110,13 +108,13 @@ public static class CuringRackHandler
                 break;
             }
 
-            string choice = Input.Select(ctx, "Curing rack:", options);
+            string choice = await ctx.Ui.Select("Curing rack:", options, label => label);
 
             if (choice == "Done")
                 break;
 
             actions[choice]();
-            ctx.Update(2, ActivityType.Crafting); // Brief time to add/collect
+            await ctx.Update(2, ActivityType.Crafting); // Brief time to add/collect
         }
     }
 }

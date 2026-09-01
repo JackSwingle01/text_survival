@@ -109,7 +109,7 @@ public class WorldRenderer
         }
 
         var destination = ctx.Map!.GetPosition(travel.Destination);
-        float t = Easing.OutCubic(travel.AnimationProgress);
+        float t = Easing.OutCubic(travel.Run.Progress);
         return Vector2.Lerp(
             new Vector2(travel.OriginPosition.X, travel.OriginPosition.Y),
             new Vector2(destination.X, destination.Y),

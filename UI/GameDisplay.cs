@@ -1,15 +1,12 @@
 using text_survival.Actions;
-using text_survival.Desktop.UI;
 
 namespace text_survival.UI;
 
 public static class GameDisplay
 {
-    #region Context-aware overloads (route to DesktopIO when SessionId present)
-
     /// <summary>
-    /// Add narrative with context - routes to instance log for web sessions.
-    /// Also shows a toast notification for immediate feedback.
+    /// Record a line of narrative: into the journal, and onto the toast feed so it is
+    /// seen as it happens. State only - the renderer decides when to draw it.
     /// </summary>
     public static void AddNarrative(GameContext ctx, string text, LogLevel level = LogLevel.Normal)
     {
@@ -25,12 +22,10 @@ public static class GameDisplay
             LogLevel.Discovery => ToastType.Success,
             _ => ToastType.Info
         };
-        ToastManager.Show(text, toastType);
+        ToastFeed.Show(text, toastType);
     }
 
-    /// <summary>
-    /// Add multiple narrative entries with context.
-    /// </summary>
+    /// <summary>Record several lines of narrative at once.</summary>
     public static void AddNarrative(GameContext ctx, IEnumerable<string> texts, LogLevel level = LogLevel.Normal)
     {
         var timestamp = ctx.GameTime.ToString("h:mm");
@@ -47,7 +42,7 @@ public static class GameDisplay
         };
         foreach (var text in texts)
         {
-            ToastManager.Show(text, toastType);
+            ToastFeed.Show(text, toastType);
         }
     }
 
@@ -60,19 +55,4 @@ public static class GameDisplay
     {
         ctx.Log.Clear();
     }
-
-    #endregion
-
-    /// <summary>
-    /// Draw a frame so queued narrative reaches the screen before the next blocking step.
-    /// </summary>
-    public static void Render(GameContext ctx) => Desktop.DesktopIO.Render(ctx);
-
-    /// <summary>
-    /// Run a progress bar that simulates the time it displays. Returns elapsed time and
-    /// whether an event interrupted the operation.
-    /// </summary>
-    public static (int elapsed, bool interrupted) UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, ActivityType activity)
-        => Desktop.DesktopIO.RenderWithDuration(ctx, statusText, minutes, activity);
-
 }

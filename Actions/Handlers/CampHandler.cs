@@ -2,8 +2,6 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Handlers;
 
@@ -16,7 +14,7 @@ public static class CampHandler
     /// Create a makeshift camp at the given location.
     /// Adds bedding feature and takes time.
     /// </summary>
-    public static void MakeCamp(GameContext ctx, Location location)
+    public static async Task MakeCamp(GameContext ctx, Location location)
     {
         GameDisplay.AddNarrative(ctx, "You can setup a camp here to make a fire and rest.");
 
@@ -24,7 +22,7 @@ public static class CampHandler
         bool hasShovel = ctx.Inventory.GetTool(ToolType.Shovel) != null;
         int setupTimeMinutes = hasShovel ? 22 : 45;
 
-        if (!DesktopIO.Confirm(ctx, $"Do you want to setup camp here? ({setupTimeMinutes} min)"))
+        if (!await ctx.Ui.Confirm($"Do you want to setup camp here? ({setupTimeMinutes} min)"))
             return;
 
         if (hasShovel)
@@ -35,11 +33,12 @@ public static class CampHandler
         {
             GameDisplay.AddNarrative(ctx, "You clear the area and gather materials to make a place to rest...");
         }
-        GameDisplay.Render(ctx);
 
-        // Time cost: 45 minutes normally, 22 minutes with shovel
-        // Note: ActivityType.Crafting has EventMultiplier=0, so no events can interrupt this
-        GameDisplay.UpdateAndRenderProgress(ctx, "Setting up camp", setupTimeMinutes, ActivityType.Crafting);
+        // Crafting has an event multiplier of 0, so nothing interrupts the setup.
+        using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, "Setting up camp"))
+        {
+            await Pacing.PassTime(ctx, setupTimeMinutes, ActivityType.Crafting, view);
+        }
 
         if (!ctx.player.IsAlive) return;
 
@@ -54,14 +53,13 @@ public static class CampHandler
         ctx.EstablishCamp(location);
 
         GameDisplay.AddNarrative(ctx, "You have established a camp here. You can now make a fire and rest.");
-        GameDisplay.Render(ctx);
     }
 
     /// <summary>
     /// Deploy a portable tent at the current location.
     /// Removes tent from inventory and adds a ShelterFeature to the location.
     /// </summary>
-    public static void DeployTent(GameContext ctx, Gear tent)
+    public static async Task DeployTent(GameContext ctx, Gear tent)
     {
         if (!tent.IsTent)
         {
@@ -85,16 +83,18 @@ public static class CampHandler
 
         // Takes a few minutes to set up
         GameDisplay.AddNarrative(ctx, $"You set up your {tent.Name}...");
-        GameDisplay.UpdateAndRenderProgress(ctx, $"Setting up {tent.Name}", 10, ActivityType.Crafting);
+        using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, $"Setting up {tent.Name}"))
+        {
+            await Pacing.PassTime(ctx, 10, ActivityType.Crafting, view);
+        }
 
         GameDisplay.AddSuccess(ctx, $"{tent.Name} is now set up. You have shelter here.");
-        GameDisplay.Render(ctx);
     }
 
     /// <summary>
     /// Pack up a deployed tent and return it to inventory.
     /// </summary>
-    public static void PackTent(GameContext ctx)
+    public static async Task PackTent(GameContext ctx)
     {
         var location = ctx.CurrentLocation;
         var shelter = location.GetFeature<ShelterFeature>();
@@ -115,10 +115,12 @@ public static class CampHandler
 
         // Takes a few minutes to pack up
         GameDisplay.AddNarrative(ctx, $"You pack up your {tent.Name}...");
-        GameDisplay.UpdateAndRenderProgress(ctx, $"Packing {tent.Name}", 5, ActivityType.Crafting);
+        using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, $"Packing {tent.Name}"))
+        {
+            await Pacing.PassTime(ctx, 5, ActivityType.Crafting, view);
+        }
 
         GameDisplay.AddSuccess(ctx, $"{tent.Name} packed and ready to carry.");
-        GameDisplay.Render(ctx);
     }
 
     /// <summary>

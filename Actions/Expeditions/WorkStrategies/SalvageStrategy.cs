@@ -2,11 +2,8 @@ using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -19,18 +16,18 @@ public class SalvageStrategy : IWorkStrategy
 {
     private List<string> _impairmentWarnings = [];
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var salvage = location.GetFeature<SalvageFeature>();
         if (salvage == null || !salvage.HasLoot)
-            return "There's nothing to salvage here.";
-        return null;
+            return Task.FromResult<string?>("There's nothing to salvage here.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         // Salvage has fixed time based on feature - no player choice
-        return null;
+        return Task.FromResult<Choice<int>?>(null);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -60,7 +57,7 @@ public class SalvageStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         var salvage = location.GetFeature<SalvageFeature>()!;
 
@@ -92,9 +89,9 @@ public class SalvageStrategy : IWorkStrategy
             string previewText = string.Join("\n", previewLines);
 
             // Present moral choice
-            if (!DesktopIO.Confirm(ctx, $"{previewText}\n\nTake their belongings?"))
+            if (!await ctx.Ui.Confirm($"{previewText}\n\nTake their belongings?"))
             {
-                DesktopIO.ShowWorkResult(ctx, "Salvaging", "You leave everything as you found it.", [], narrative, _impairmentWarnings);
+                await ctx.Ui.ShowWorkResult(new WorkResultView("Salvaging", "You leave everything as you found it.", [], narrative, _impairmentWarnings));
                 return new WorkResult([], null, actualTime, false);
             }
         }
@@ -104,7 +101,7 @@ public class SalvageStrategy : IWorkStrategy
 
         if (loot.IsEmpty)
         {
-            DesktopIO.ShowWorkResult(ctx, "Salvaging", "You find nothing useful.", [], narrative, _impairmentWarnings);
+            await ctx.Ui.ShowWorkResult(new WorkResultView("Salvaging", "You find nothing useful.", [], narrative, _impairmentWarnings));
             return new WorkResult([], null, actualTime, false);
         }
 
@@ -138,7 +135,7 @@ public class SalvageStrategy : IWorkStrategy
         }
 
         // Show results in popup overlay (include impairment warnings if any)
-        DesktopIO.ShowWorkResult(ctx, "Salvaging", "You gather what you can find.", collected, narrative, _impairmentWarnings);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Salvaging", "You gather what you can find.", collected, narrative, _impairmentWarnings));
 
         return new WorkResult(collected, null, actualTime, false);
     }

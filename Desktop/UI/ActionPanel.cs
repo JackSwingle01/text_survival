@@ -6,6 +6,7 @@ using text_survival.Actions.Variants;
 using text_survival.Actors.Animals;
 using text_survival.Combat;
 using text_survival.Desktop.Input;
+using text_survival.Desktop.Rendering;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.Actions.Expeditions.WorkStrategies;
@@ -15,8 +16,10 @@ namespace text_survival.Desktop.UI;
 /// <summary>
 /// ImGui panel showing available actions at the current location.
 /// </summary>
-public class ActionPanel
+public class ActionPanel(WorldRenderer world)
 {
+    private readonly WorldRenderer _world = world;
+
     private string? _lastMessage;
     private float _messageTimer;
 
@@ -125,12 +128,7 @@ public class ActionPanel
         CampAction? clickedAction = null;
         IWorkStrategy? workStrategy = null;
 
-        // Position relative to grid if WorldRenderer is available
-        int panelX = 960; // Default fallback
-        if (DesktopRuntime.WorldRenderer != null)
-        {
-            panelX = DesktopRuntime.WorldRenderer.Camera.GetRightPanelX();
-        }
+        int panelX = _world.Camera.GetRightPanelX();
 
         ImGui.SetNextWindowPos(new Vector2(panelX, 50), ImGuiCond.Always);
         ImGui.SetNextWindowSize(new Vector2(300, 620), ImGuiCond.Always);
@@ -361,12 +359,7 @@ public class ActionPanel
     {
         CombatActions? clickedAction = null;
 
-        // Position relative to grid if WorldRenderer is available
-        int panelX = 960; // Default fallback
-        if (DesktopRuntime.WorldRenderer != null)
-        {
-            panelX = DesktopRuntime.WorldRenderer.Camera.GetRightPanelX();
-        }
+        int panelX = _world.Camera.GetRightPanelX();
 
         ImGui.SetNextWindowPos(new Vector2(panelX, 50), ImGuiCond.Always);
         ImGui.SetNextWindowSize(new Vector2(300, 620), ImGuiCond.Always);
@@ -384,7 +377,7 @@ public class ActionPanel
         var nearest = combat.GetNearestEnemy(playerUnit);
 
         // Get display target: hovered unit or nearest enemy
-        var displayTarget = DesktopRuntime.WorldRenderer?.HoveredCombatUnit ?? nearest;
+        var displayTarget = _world.HoveredCombatUnit ?? nearest;
 
         // Determine if we're in stealth mode (target not engaged)
         bool inStealth = nearest != null && nearest.Awareness != AwarenessState.Engaged;

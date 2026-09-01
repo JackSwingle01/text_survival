@@ -2,11 +2,8 @@ using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -16,17 +13,17 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 /// </summary>
 public class CraftingProjectStrategy : IWorkStrategy
 {
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var project = location.GetFeature<CraftingProjectFeature>();
         if (project == null)
-            return "There's no construction project here.";
+            return Task.FromResult<string?>("There's no construction project here.");
         if (project.IsComplete)
-            return "This project is already complete.";
-        return null;
+            return Task.FromResult<string?>("This project is already complete.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         var project = location.GetFeature<CraftingProjectFeature>()!;
         double remainingMinutes = project.TimeRequiredMinutes - project.TimeInvestedMinutes;
@@ -50,7 +47,7 @@ public class CraftingProjectStrategy : IWorkStrategy
             choice.AddOption($"Finish ({remaining} min)", remaining);
         }
 
-        return choice;
+        return Task.FromResult<Choice<int>?>(choice);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -75,7 +72,7 @@ public class CraftingProjectStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         var project = location.GetFeature<CraftingProjectFeature>()!;
 
@@ -112,7 +109,7 @@ public class CraftingProjectStrategy : IWorkStrategy
         }
 
         // Show results in popup overlay
-        DesktopIO.ShowWorkResult(ctx, "Construction", resultMessage, collected);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Construction", resultMessage, collected));
 
         return new WorkResult(collected, null, actualTime, false);
     }
