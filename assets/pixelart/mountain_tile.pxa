@@ -1,0 +1,28 @@
+// Mountain - impassable. Fills the tile edge to edge with rock and reads
+// noticeably darker than anything walkable, so a wall of it is obvious
+// as a barrier on the map.
+SIZE 16x16
+PALETTE
+S = #e3edf2
+s = #cbd9e2
+K = #5a5a64
+k = #7a7a86
+L = #9a9aa6
+W = #f2f8fb
+PIXELS
+SSSSWWSSSSSSSSSS
+SSSWWWWSSSSSWWSS
+SSWWkKWWSSSWWWWS
+SLkkkKKKWSWWkKWW
+LkkkkKKKKWkkkKKK
+kkkkkKKKKKkkkKKK
+kkkkKKKKKKkkKKKK
+KkkKKKKKKKKKKKKK
+KKKKKKKKKKKKKKKK
+KKKKKKKKKKKKKKKK
+sKKKKKKKKKKKKKKs
+ssKKKKKKKKKKKKss
+sssKKKKKKKKKKsss
+ssssssssssssssss
+ssssssssssssssss
+ssssssssssssssss

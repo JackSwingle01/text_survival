@@ -1,0 +1,25 @@
+// Rolling hills: snow mounds catching light on their crowns with the
+// lee slopes in shadow, which is what sells relief on a flat tile.
+SIZE 16x16
+PALETTE
+S = #e3edf2
+s = #cbd9e2
+h = #aec1ce
+H = #f2f8fb
+PIXELS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSHHHHSSSSSSSS
+SSSHHHHHHhSSSSSS
+SSHHHHHHHHhSSSSS
+SSHHHHHHHHhhSSSS
+SShhhhhhhhhhSHHH
+SSSSSSSSSSSSHHHH
+ssssssssssHHHHHh
+ssssssssHHHHHHhh
+sssssssshhhhhhhh
+ssssssssssssssss
+ssssssssssssssss
+sshsssssssssshss
+ssssssssssssssss
+ssssssssssssssss

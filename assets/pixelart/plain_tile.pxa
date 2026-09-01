@@ -1,0 +1,24 @@
+// Open snowy plain: nothing but wind. Read entirely from drift ripples,
+// kept sparse so a tile of it never fights the icons drawn on top.
+SIZE 16x16
+PALETTE
+S = #e3edf2
+s = #cbd9e2
+h = #aec1ce
+PIXELS
+SSSSSSSSSSSSSSSS
+SShhSSSSShhhSSSS
+SSSSSSSSSSSSSSSS
+SSSSSShhhSSSSShh
+SSSSSSSSSSSSSSSS
+ShhhSSSSSSSShhSS
+SSSSSSSSSSSSSSSS
+SSSSSSSShhhSSSSS
+ssssssssssssssss
+sshhssssssssshhs
+ssssssssssssssss
+sssssshhhsssssss
+ssssssssssssssss
+shhssssssshhssss
+ssssssssssssssss
+sssssssshhssssss

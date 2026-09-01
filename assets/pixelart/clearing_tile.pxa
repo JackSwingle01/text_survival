@@ -1,0 +1,26 @@
+// Open ground in the forest: bare snow with dry grass pushing through.
+// Shares the snow base of forest_tile so the two read as one landscape.
+SIZE 16x16
+PALETTE
+S = #e3edf2
+s = #cbd9e2
+h = #aec1ce
+g = #8a7a4a
+G = #a89660
+PIXELS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSgSSSSSSSSSSSS
+SSGgGSSSSSSgSSSS
+SSGgGSSSSSGgGSSS
+SSSSSSSSSSSSSSSS
+ssssssssssssssss
+ssssssssssssssss
+sssssshsssssssss
+ssssssssssssssss
+ssssgsssssssssss
+sssGgGssssssgsss
+ssssssssssssGgGs
+ssssssssssssssss
