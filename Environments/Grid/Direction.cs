@@ -20,34 +20,6 @@ public static class DirectionExtensions
     };
 
     /// <summary>
-    /// Get the opposite direction.
-    /// </summary>
-    public static Direction Opposite(this Direction dir) => dir switch
-    {
-        Direction.North => Direction.South,
-        Direction.East => Direction.West,
-        Direction.South => Direction.North,
-        Direction.West => Direction.East,
-        _ => dir
-    };
-
-    /// <summary>
-    /// Get direction from one position to an adjacent position.
-    /// Returns null if not adjacent.
-    /// </summary>
-    public static Direction? GetDirection(GridPosition from, GridPosition to)
-    {
-        int dx = to.X - from.X;
-        int dy = to.Y - from.Y;
-
-        if (dx == 0 && dy == -1) return Direction.North;
-        if (dx == 1 && dy == 0) return Direction.East;
-        if (dx == 0 && dy == 1) return Direction.South;
-        if (dx == -1 && dy == 0) return Direction.West;
-        return null;
-    }
-
-    /// <summary>
     /// Get all four cardinal directions.
     /// </summary>
     public static IEnumerable<Direction> All =>

@@ -24,7 +24,7 @@ Player interaction is handled by **Runners** — classes that own a game loop an
 - `Actions/GameRunner.cs` — Main camp loop
 - `Actions/Expeditions/ExpeditionRunner.cs` — Travel and expedition logic
 - `Actions/Expeditions/WorkRunner.cs` — Work activities (forage, hunt, explore)
-- `Actions/CraftingRunner.cs` — Crafting menu
+- `Desktop/UI/CraftingOverlay.cs` — Crafting screen
 
 **Why Runners?**
 - Explicit control flow (easy to trace)
@@ -205,7 +205,7 @@ public class GameRunner(GameContext ctx)
 GameRunner (main loop)
 ├── ExpeditionRunner (leaving camp)
 │   └── WorkRunner (activities at locations)
-├── CraftingRunner (making items)
+├── CraftingOverlay (making items)
 └── Direct methods (Wait, TendFire, EatDrink, etc.)
 ```
 
@@ -254,20 +254,15 @@ Activities at a location (not at camp).
 - Exploring (discovering locations)
 - Harvesting specific resources
 
-**Key methods:**
-- `DoForage()` — Search for resources
-- `DoHunt()` — Find and stalk game
-- `DoExplore()` — Discover new locations
-- `DoHarvest()` — Collect from harvestable features
+**Key method:**
+- `Execute(location, strategy)` — run one `IWorkStrategy` at a location.
+  Every work type goes through it; there are no per-activity entry points.
 
-### CraftingRunner
+### Crafting
 
-Need-based crafting interface.
-
-**Responsibilities:**
-- Show craftable items by need category
-- Check material requirements
-- Execute crafting (time, materials, results)
+`GameRunner.RunCrafting()` opens `CraftingOverlay`, which shows the recipes
+and executes the craft itself. There is no crafting runner; see
+[crafting-system.md](crafting-system.md).
 
 ---
 

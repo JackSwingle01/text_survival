@@ -244,9 +244,6 @@ public static class AbilityCalculator
     // Manipulation impairment check - used for clumsy/fumbling effects
     public static bool IsManipulationImpaired(double manipulation) => manipulation < 0.5;
 
-    // BloodPumping impairment check - used for weak circulation effects
-    public static bool IsBloodPumpingImpaired(double bloodPumping) => bloodPumping < 0.5;
-
     // Perception impairment check - used for foggy/dulled senses effects
     public static bool IsPerceptionImpaired(double perception) => perception < 0.5;
 
@@ -296,9 +293,6 @@ public static class AbilityCalculator
         if (checkMoving && IsMovingImpaired(capacities.Moving))
         {
             timeFactor *= 1.20;
-            // Debug logging to catch exact state when warning triggers
-            Console.WriteLine($"[DEBUG] Moving impaired: capacity={capacities.Moving:F3}, modifier={effectModifiers.GetCapacityModifier(CapacityNames.Moving):F3}");
-            Console.WriteLine($"[DEBUG] All capacities: Moving={capacities.Moving:F3}, Manipulation={capacities.Manipulation:F3}, Breathing={capacities.Breathing:F3}, Consciousness={capacities.Consciousness:F3}, BloodPumping={capacities.BloodPumping:F3}");
             warnings.Add(GetMovingImpairmentCause(effectRegistry));
         }
 

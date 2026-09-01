@@ -75,20 +75,6 @@ public class NetFishingFeature : LocationFeature, IWorkableFeature
         _nets.Add(new PlacedNet(durability));
     }
 
-    /// <summary>
-    /// Remove a net from this location.
-    /// Returns the net if found.
-    /// </summary>
-    public PlacedNet? RemoveNet(int index)
-    {
-        if (index < 0 || index >= _nets.Count)
-            return null;
-
-        var net = _nets[index];
-        _nets.RemoveAt(index);
-        return net;
-    }
-
     public override void Update(int minutes)
     {
         // Check if ice hole has refrozen (nets get frozen in!)
@@ -114,31 +100,6 @@ public class NetFishingFeature : LocationFeature, IWorkableFeature
         }
 
         // Remove lost nets
-        _nets.RemoveAll(n => n.State == NetState.Lost);
-    }
-
-    /// <summary>
-    /// Update nets with stalked tension awareness.
-    /// Called from GameContext update loop.
-    /// </summary>
-    public void UpdateWithTension(int minutes, bool isStalked)
-    {
-        // Check if ice hole has refrozen
-        if (_water.IsFrozen && !_water.HasIceHole)
-        {
-            foreach (var net in _nets.Where(n => n.IsUsable))
-            {
-                net.MarkLost();
-            }
-        }
-
-        foreach (var net in _nets.Where(n => n.IsUsable))
-        {
-            bool isFlowingWater = _water.DisplayName.Contains("Stream", StringComparison.OrdinalIgnoreCase) ||
-                                  _water.DisplayName.Contains("River", StringComparison.OrdinalIgnoreCase);
-            net.Update(minutes, _water.FishAbundance, isFlowingWater, isStalked);
-        }
-
         _nets.RemoveAll(n => n.State == NetState.Lost);
     }
 
@@ -190,16 +151,6 @@ public class NetFishingFeature : LocationFeature, IWorkableFeature
         if (stolen > 0)
             return $"{usable} nets ({stolen} plundered)";
         return $"{usable} nets set";
-    }
-
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        if (NetCount == 0) return null;
-        return new FeatureUIInfo(
-            "nets",
-            "Fishing Nets",
-            GetDescription(),
-            null);
     }
 
     public override List<Resource> ProvidedResources() =>

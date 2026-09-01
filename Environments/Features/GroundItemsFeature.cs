@@ -37,17 +37,6 @@ public class GroundItemsFeature : LocationFeature, IWorkableFeature
         );
     }
 
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        if (!HasItems) return null;
-
-        return new FeatureUIInfo(
-            "ground_items",
-            "Dropped Items",
-            $"{Storage.CurrentWeightKg:F1} kg on ground",
-            null);
-    }
-
     public override List<Resource> ProvidedResources() =>
         Storage.GetResourceTypes();
 }

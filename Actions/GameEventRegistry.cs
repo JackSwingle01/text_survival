@@ -68,6 +68,7 @@ public static partial class GameEventRegistry
         ExposedPosition,
         NaturalShelterSpotted,
         Debris,
+        OldCampsite,
         // Location condition events
         DarkPassage,
         WaterCrossing,
@@ -206,6 +207,35 @@ public static partial class GameEventRegistry
 
         // Foraging events
         LuckyFind,
+        BeehiveSpotted,
+
+        // Equipment wear events (GameEventRegistry.Equipment.cs)
+        BootFailure,
+        GlovesFraying,
+        KnifeDulling,
+        ChestWrapTearing,
+        FirestarterFailing,
+
+        // Fishing events (GameEventRegistry.Fishing.cs)
+        IceGivesWay,
+        BearAtFishingHole,
+        WolvesCirclingNets,
+        FumbleOnIce,
+        LuckyCatch,
+
+        // Scavenger events (GameEventRegistry.Scavenger.cs)
+        CirclingScavengers,
+        ContestedCarcass,
+        ThePacksLeavings,
+        Opportunists,
+        ScavengersGambit,
+
+        // Small game sightings (GameEventRegistry.SmallGame.cs)
+        RabbitFreeze,
+        BirdsRoosting,
+        FishVisible,
+        TrackIntersection,
+        GrouseFlushed,
 
         // Location-specific events
         SpottedInOpen,
@@ -234,29 +264,9 @@ public static partial class GameEventRegistry
         InvestigateRemnants,
         FindTheJournal,
         WhatKilledThem,
-        RebuildTheShelter
+        RebuildTheShelter,
+        TheSilence
     ];
-
-    /// <summary>
-    /// Runs minute-by-minute ticks, checking for events each minute.
-    /// Returns when targetMinutes is reached OR an event triggers.
-    /// Caller is responsible for calling ctx.Update() with the elapsed time.
-    /// </summary>
-    public static TickResult RunTicks(GameContext ctx, int targetMinutes)
-    {
-        int elapsed = 0;
-        GameEvent? evt = null;
-
-        while (elapsed < targetMinutes)
-        {
-            elapsed++;
-            evt = GetEventOnTick(ctx);
-            if (evt is not null)
-                break;
-        }
-
-        return new TickResult(elapsed, evt);
-    }
 
     public static GameEvent? GetEventOnTick(GameContext ctx, double activityMultiplier = 1.0)
     {

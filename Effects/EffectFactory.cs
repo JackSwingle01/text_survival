@@ -158,8 +158,6 @@ public static class EffectFactory
         ]
     };
 
-    public static Effect GutSickness(double severity) => Nauseous(severity, fromContamination: true);
-
     public static Effect Coughing(double severity, int durationMinutes = 60) => new()
     {
         EffectKind = "Coughing",

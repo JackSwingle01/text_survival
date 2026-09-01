@@ -95,12 +95,6 @@ public class Herd : IMovable
         };
     }
 
-    public void SetBehavior(HerdBehaviorType type)
-    {
-        BehaviorType = type;
-        RecreateBehavior();
-    }
-
     #endregion
 
     #region Derived Properties
@@ -322,31 +316,6 @@ public class Herd : IMovable
     }
 
     /// <summary>
-    /// Flee from a threat position. Starts travel to furthest passable neighbor.
-    /// Returns a narrative message if the player can see the flee, or null.
-    /// </summary>
-    public string? FleeFrom(GridPosition threat)
-    {
-        var fleeTarget = GetFleeTarget(threat);
-
-        if (fleeTarget != null && fleeTarget != Position)
-        {
-            var previousPosition = Position;
-
-            if (!StartTravelTo(fleeTarget.Value, Map))
-            {
-                TransitionTo(HerdState.Resting);
-                return null;
-            }
-
-            return null;
-        }
-
-        TransitionTo(HerdState.Resting);
-        return null;
-    }
-
-    /// <summary>
     /// Try to move to a random territory tile. Used during grazing/patrolling.
     /// </summary>
     public void TryPatrolTerritory(int elapsedMinutes, double chancePerMinute)
@@ -474,22 +443,6 @@ public class Herd : IMovable
         };
 
         return $"{countDesc} {animalName}, {stateDesc}";
-    }
-
-    public string GetTrackDescription()
-    {
-        return AnimalType switch
-        {
-            AnimalTypeEnum.Wolf => "wolf tracks, moving in a pack",
-            AnimalTypeEnum.Bear or AnimalTypeEnum.CaveBear => "large bear prints, deep in the snow",
-            AnimalTypeEnum.Caribou => "caribou tracks, many hooves",
-            AnimalTypeEnum.Megaloceros => "massive deer tracks",
-            AnimalTypeEnum.Bison => "heavy bison tracks",
-            AnimalTypeEnum.Mammoth => "enormous mammoth tracks",
-            AnimalTypeEnum.SaberTooth => "large cat prints",
-            AnimalTypeEnum.Hyena => "hyena tracks, scattered",
-            _ => $"fresh {AnimalType.DisplayName().ToLower()} tracks"
-        };
     }
 
     #endregion

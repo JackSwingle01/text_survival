@@ -1,26 +1,4 @@
-using System.Text.Json.Serialization;
-
 namespace text_survival.Desktop.Dto;
-
-/// <summary>
-/// Base class for UI overlays. Multiple overlays can be active simultaneously.
-/// Overlays stack on top of the base mode.
-/// </summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(EventOverlay), "event")]
-[JsonDerivedType(typeof(ConfirmOverlay), "confirm")]
-[JsonDerivedType(typeof(DiscoveryLogOverlay), "discoveryLog")]
-public abstract record Overlay;
-
-/// <summary>
-/// Event overlay: Popup for narrative events requiring player choice.
-/// </summary>
-public record EventOverlay(EventDto Data) : Overlay;
-
-/// <summary>
-/// Confirm overlay: Simple yes/no confirmation prompt.
-/// </summary>
-public record ConfirmOverlay(string Prompt) : Overlay;
 
 /// <summary>
 /// Event data for popup display.
@@ -56,11 +34,6 @@ public record EventChoiceDto(
     bool IsAvailable,
     string? Cost = null  // e.g., "2 medicine" or null if free
 );
-
-/// <summary>
-/// Discovery Log overlay: Shows all player discoveries organized by category.
-/// </summary>
-public record DiscoveryLogOverlay(DiscoveryLogDto Data) : Overlay;
 
 /// <summary>
 /// Data for the Discovery Log overlay.

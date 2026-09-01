@@ -37,7 +37,7 @@ public class HarvestStrategy : IWorkStrategy
         }
         else
         {
-            GameDisplay.Render(ctx, statusText: "Planning.");
+            GameDisplay.Render(ctx);
             var harvestChoice = new Choice<HarvestableFeature>("What do you want to harvest?");
             foreach (var h in harvestables)
             {

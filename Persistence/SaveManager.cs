@@ -106,38 +106,4 @@ public static class SaveManager
         }
     }
 
-    /// <summary>
-    /// Get the save file location for display.
-    /// </summary>
-    public static string GetSaveLocation(string? sessionId = null)
-    {
-        return GetSavePath(sessionId);
-    }
-
-    /// <summary>
-    /// Test serialization and return result (throws on error).
-    /// </summary>
-    public static string TestSerialization()
-    {
-        var ctx = GameContext.CreateNewGame();
-
-        // This will throw if serialization fails
-        string json = JsonSerializer.Serialize(ctx, Options);
-
-        // Try deserialization too
-        var deserialized = JsonSerializer.Deserialize<GameContext>(json, Options);
-
-        // Post-load: recreate non-serialized data
-        deserialized?.Herds.RecreateAllBehaviors();
-
-        int locationCount = 0;
-        if (deserialized?.Map != null)
-        {
-            foreach (var loc in deserialized.Map.NamedLocations)
-                locationCount++;
-        }
-
-        return $"SUCCESS: Serialized {json.Length} characters, deserialized OK. " +
-               $"Locations: {locationCount}";
-    }
 }

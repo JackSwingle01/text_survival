@@ -1311,21 +1311,6 @@ public class NPC : Actor
     }
 
     /// <summary>
-    /// Determines if this NPC considers another actor prey (huntable).
-    /// Future: enables NPC hunting behavior.
-    /// </summary>
-    internal bool IsPreyTo(Actor other)
-    {
-        if (other == this || !other.IsAlive) return false;
-
-        return other switch
-        {
-            Animal animal => !animal.AnimalType.IsPredator(),  // Non-predators are prey
-            _ => false
-        };
-    }
-
-    /// <summary>
     /// Determines if this NPC would help defend an ally against a threat.
     /// Generalizes DecideToHelpInCombat to work with any Actor threat.
     /// </summary>

@@ -95,18 +95,6 @@ public class BeddingFeature : LocationFeature
     };
 
     /// <summary>
-    /// Create a natural soft ground spot (very crude).
-    /// </summary>
-    public static BeddingFeature CreateNaturalBedding() => new("Soft ground")
-    {
-        Description = "A patch of soft leaves and moss.",
-        Quality = 0.4,
-        HasWindProtection = false,
-        HasGroundInsulation = false,
-        WarmthBonus = 0
-    };
-
-    /// <summary>
     /// Create padded bedding with plant fiber mat and hide blanket.
     /// Better than makeshift, not as good as sleeping bag.
     /// </summary>

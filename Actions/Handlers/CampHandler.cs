@@ -35,7 +35,7 @@ public static class CampHandler
         {
             GameDisplay.AddNarrative(ctx, "You clear the area and gather materials to make a place to rest...");
         }
-        GameDisplay.Render(ctx, statusText: "Setting camp.");
+        GameDisplay.Render(ctx);
 
         // Time cost: 45 minutes normally, 22 minutes with shovel
         // Note: ActivityType.Crafting has EventMultiplier=0, so no events can interrupt this

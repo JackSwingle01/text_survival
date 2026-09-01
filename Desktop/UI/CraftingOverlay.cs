@@ -3,6 +3,9 @@ using System.Numerics;
 using text_survival.Actions;
 using text_survival.Crafting;
 using text_survival.Desktop.Input;
+using text_survival.Environments.Features;
+using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Desktop.UI;
 
@@ -403,12 +406,17 @@ public class CraftingOverlay
         var materialStates = option.Requirements.Select(req =>
             new CraftingMaterialState(GetMaterialDisplayName(req.Material), req.Count)).ToList();
 
+        // Impaired hands, a dark shelter or wet fingers all cost time.
+        var (craftMinutes, warnings) = CraftingEffort.ForRecipe(ctx, option);
+        foreach (string warning in warnings)
+            GameDisplay.AddWarning(ctx, warning);
+
         // Show crafting progress animation (advances time, does NOT consume materials)
         BlockingDialog.ShowCraftingProgress(
             ctx,
             option.Name,
             option.Description,
-            option.CraftingTimeMinutes,
+            craftMinutes,
             materialStates);
 
         // Handle feature-producing recipes (curing racks, shelters, etc.)
@@ -418,9 +426,43 @@ public class CraftingOverlay
             if (feature != null)
             {
                 ctx.Camp.AddFeature(feature);
-                _message = $"Built: {option.Name}";
                 craftedItem = option.Name;
+
+                // A project is started, not built - say so, and say what it will cost.
+                if (feature is CraftingProjectFeature project)
+                {
+                    _message = $"Started: {project.ProjectName}";
+                    GameDisplay.AddSuccess(ctx, $"Started construction project: {project.ProjectName}");
+                    GameDisplay.AddNarrative(ctx,
+                        $"Materials consumed. Work on it at camp to make progress - " +
+                        $"{project.TimeRequiredMinutes / 60:F1} hours of work in all.");
+
+                    if (project.BenefitsFromShovel)
+                    {
+                        GameDisplay.AddNarrative(ctx, ctx.Inventory.GetTool(ToolType.Shovel) != null
+                            ? "Your shovel will double progress on this digging work."
+                            : "A shovel would double your progress on this digging work.");
+                    }
+                }
+                else
+                {
+                    _message = $"Built: {option.Name}";
+                    GameDisplay.AddSuccess(ctx, $"You built a {option.Name}. It's at your camp now.");
+                }
             }
+        }
+        else if (option.RebuildShelter)
+        {
+            var (shelter, salvage) = option.CraftShelterRebuild(ctx.Camp, inv)!.Value;
+            GameDisplay.AddSuccess(ctx, "You rebuilt your shelter with a log frame!");
+            GameDisplay.AddNarrative(ctx, shelter.GetStatusText());
+            if (salvage.Count > 0)
+            {
+                string salvaged = string.Join(", ", salvage.Select(kvp => $"{kvp.Value} {kvp.Key.ToDisplayName()}"));
+                GameDisplay.AddNarrative(ctx, $"Salvaged: {salvaged}");
+            }
+            _message = $"Rebuilt: {shelter.Name}";
+            craftedItem = option.Name;
         }
         else
         {

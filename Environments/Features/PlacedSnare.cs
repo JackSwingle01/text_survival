@@ -254,33 +254,5 @@ public class PlacedSnare
 
     #region Save/Load Support
 
-    /// <summary>
-    /// Restore snare state from save data.
-    /// </summary>
-    internal void RestoreState(
-        SnareState state,
-        int minutesSet,
-        BaitType bait,
-        double baitFreshness,
-        string? caughtAnimalType,
-        double caughtAnimalWeight,
-        int minutesSinceCatch,
-        int durability)
-    {
-        State = state;
-        MinutesSet = minutesSet;
-        Bait = bait;
-        BaitFreshness = baitFreshness;
-        CaughtAnimalType = caughtAnimalType;
-        CaughtAnimalWeightKg = caughtAnimalWeight;
-        MinutesSinceCatch = minutesSinceCatch;
-        DurabilityRemaining = durability;
-    }
-
-    /// <summary>
-    /// Create a snare with restored state (for save/load).
-    /// </summary>
-    internal static PlacedSnare CreateRestored(int durability, bool reinforced) => new(durability, reinforced);
-
     #endregion
 }

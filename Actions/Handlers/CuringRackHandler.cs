@@ -19,7 +19,7 @@ public static class CuringRackHandler
         while (true)
         {
             GameDisplay.AddNarrative(ctx, rack!.GetDescription());
-            GameDisplay.Render(ctx, statusText: "Checking rack.");
+            GameDisplay.Render(ctx);
 
             var options = new List<string>();
             var actions = new Dictionary<string, Action>();

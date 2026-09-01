@@ -187,23 +187,6 @@ namespace text_survival.Actors.Animals
             };
         }
 
-        public string GetFullDescription()
-        {
-            return $"{GetTraitDescription()}, {GetActivityDescription()}";
-        }
-
-        public double GetActivityDetectionModifier()
-        {
-            return CurrentActivity switch
-            {
-                AnimalActivity.Grazing => 0.7,   // Head down, less aware
-                AnimalActivity.Moving => 1.2,    // More alert while moving
-                AnimalActivity.Resting => 0.9,   // Relaxed but not distracted
-                AnimalActivity.Alert => 2.0,     // Very hard to approach
-                _ => 1.0
-            };
-        }
-
         public void UpdateActivity(int minutes)
         {
             _activityRemainingMinutes -= minutes;

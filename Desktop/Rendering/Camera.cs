@@ -54,7 +54,7 @@ public class Camera
             if (!IsTransitioning)
                 return Vector2.Zero;
 
-            float t = RenderUtils.EaseOutCubic(_transitionProgress);
+            float t = EaseOutCubic(_transitionProgress);
             float dx = (_toX - _fromX) * (1 - t);
             float dy = (_toY - _fromY) * (1 - t);
             return new Vector2(dx * (TileSize + TileGap), dy * (TileSize + TileGap));
@@ -167,25 +167,6 @@ public class Camera
     }
 
     /// <summary>
-    /// Get the screen rectangle for a tile.
-    /// </summary>
-    public Rectangle GetTileRect(int worldX, int worldY)
-    {
-        Vector2 pos = WorldToScreen(worldX, worldY);
-        return new Rectangle(pos.X, pos.Y, TileSize, TileSize);
-    }
-
-    /// <summary>
-    /// Check if a world tile is visible in the current viewport.
-    /// </summary>
-    public bool IsTileVisible(int worldX, int worldY)
-    {
-        int halfView = ViewSize / 2;
-        return worldX >= CenterX - halfView && worldX <= CenterX + halfView &&
-               worldY >= CenterY - halfView && worldY <= CenterY + halfView;
-    }
-
-    /// <summary>
     /// Get all visible tile coordinates.
     /// </summary>
     public IEnumerable<(int x, int y)> GetVisibleTiles()
@@ -252,4 +233,10 @@ public class Camera
     {
         return ScreenOffsetX + GridWidth + 20; // 20px gap after grid
     }
+
+    /// <summary>
+    /// Ease-out cubic: fast at first, settling at the end. Keeps a camera pan from
+    /// stopping dead when the player steps to the next tile.
+    /// </summary>
+    private static float EaseOutCubic(float t) => 1 - MathF.Pow(1 - t, 3);
 }

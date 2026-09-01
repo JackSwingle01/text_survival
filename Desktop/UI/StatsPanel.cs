@@ -79,6 +79,10 @@ public static class StatsPanel
             RenderCampInfo(ctx);
         }
         ImGui.End();
+
+        // The journal is part of the same persistent HUD, so it appears wherever the
+        // stats do rather than needing its own call at every render site.
+        JournalPanel.Render(ctx);
     }
 
     private static void RenderTimeSection(GameContext ctx, Weather weather)

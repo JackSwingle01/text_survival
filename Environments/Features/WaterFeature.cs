@@ -118,15 +118,6 @@ public class WaterFeature : LocationFeature, IWorkableFeature
         return thickness;
     }
 
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        return new FeatureUIInfo(
-            "water",
-            DisplayName,
-            GetStatusDescription(),
-            null);
-    }
-
     // Builder methods for fluent construction
 
     public WaterFeature WithDescription(string description)

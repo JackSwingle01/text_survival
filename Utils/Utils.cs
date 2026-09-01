@@ -21,11 +21,6 @@ namespace text_survival
             return random.Next(low, high + 1);
         }
 
-        public static float RandFloat(float low, float high)
-        {
-            return (float)random.NextDouble() * (high - low) + low;
-        }
-
         public static double RandDouble(double low, double high)
         {
             return random.NextDouble() * (high - low) + low;

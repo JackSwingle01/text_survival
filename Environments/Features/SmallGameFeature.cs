@@ -208,24 +208,6 @@ public class SmallGameFeature : LocationFeature, IWorkableFeature
         return this;
     }
 
-    public bool IsPeakTime(int currentHour)
-    {
-        if (_peakHours == null) return false;
-        var (start, end) = _peakHours.Value;
-        if (start <= end)
-            return currentHour >= start && currentHour < end;
-        else // Wraps around midnight
-            return currentHour >= start || currentHour < end;
-    }
-
-    public double GetEffectiveDensity(int currentHour)
-    {
-        double density = _gameDensity;
-        if (IsPeakTime(currentHour))
-            density *= _peakMultiplier;
-        return Math.Min(1.5, density); // Cap at 150%
-    }
-
     public string GetDescription()
     {
         if (SmallGameEntries.Count == 0) return "barren";
@@ -241,12 +223,6 @@ public class SmallGameFeature : LocationFeature, IWorkableFeature
             >= 0.3 => "sparse",
             _ => "barren"
         };
-    }
-
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        if (!CanHunt()) return null;
-        return new FeatureUIInfo("animal", "Small Game", GetDescription(), null);
     }
 
     public override List<Resource> ProvidedResources() =>

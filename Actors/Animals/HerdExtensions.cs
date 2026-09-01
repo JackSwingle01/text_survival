@@ -40,11 +40,6 @@ public static class HerdExtensions
         return herds.Where(h => h.AnimalType == animalType).ToList();
     }
 
-    public static IReadOnlyList<Herd> OfBehavior(this List<Herd> herds, HerdBehaviorType behaviorType)
-    {
-        return herds.Where(h => h.BehaviorType == behaviorType).ToList();
-    }
-
     public static IEnumerable<Animal> AllAnimals(this List<Herd> herds)
     {
         foreach (var herd in herds)
@@ -129,17 +124,6 @@ public static class HerdExtensions
 
         var mostNotable = herdsHere.OrderByDescending(h => h.IsPredator ? 100 : h.Count).First();
         return mostNotable.GetDescription() + ".";
-    }
-
-    /// <summary>
-    /// Gets track descriptions for foraging clues.
-    /// </summary>
-    public static IReadOnlyList<string> GetTrackDescriptions(this List<Herd> herds, GridPosition pos, int range)
-    {
-        return herds.InRange(pos, range)
-            .Select(h => h.GetTrackDescription())
-            .Distinct()
-            .ToList();
     }
 
     /// <summary>

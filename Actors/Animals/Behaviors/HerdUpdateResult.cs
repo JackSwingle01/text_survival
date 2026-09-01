@@ -28,9 +28,6 @@ public record HerdUpdateResult
     public static HerdUpdateResult WithNarrative(string message) =>
         new() { NarrativeMessage = message };
 
-    /// <summary>Create result with position change and optional narrative.</summary>
-    public static HerdUpdateResult WithMove(GridPosition newPosition, string? narrative = null) =>
-        new() { NewPosition = newPosition, NarrativeMessage = narrative };
 }
 
 /// <summary>

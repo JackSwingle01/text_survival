@@ -274,7 +274,7 @@ Dexterity = baseDexterity * (1 - darknessPenalty) * (1 - wetnessPenalty) * stead
 
 **Used for**:
 - Fire-starting chance (`Actions/Handlers/FireHandler.cs`)
-- Crafting time (`Actions/CraftingRunner.cs`)
+- Crafting time (`Crafting/CraftingEffort.cs`)
 - Butchering yield (`Actions/Expeditions/WorkStrategies/ButcherStrategy.cs`)
 - Trap setting/checking (`Actions/Expeditions/WorkStrategies/TrapStrategy.cs`)
 
@@ -498,6 +498,6 @@ Question: What are you trying to do?
 - `Combat/DefensiveActions.cs` - Speed for dodge
 - `Actions/Expeditions/WorkStrategies/ForageStrategy.cs` - Perception with darkness
 - `Actions/Handlers/FireHandler.cs` - Dexterity with darkness and wetness
-- `Actions/CraftingRunner.cs` - Dexterity for crafting time
+- `Crafting/CraftingEffort.cs` - Dexterity for crafting time
 - `Actions/Expeditions/WorkStrategies/ButcherStrategy.cs` - Dexterity for yield
 - `Actions/Expeditions/WorkStrategies/TrapStrategy.cs` - Dexterity for trap work

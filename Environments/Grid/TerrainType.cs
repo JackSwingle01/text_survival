@@ -118,20 +118,4 @@ public static class TerrainTypeExtensions
     /// </summary>
     public static bool IsDark(this TerrainType terrain) => false;  // Caves are locations, not terrain
 
-    /// <summary>
-    /// Display color for placeholder rendering (hex format).
-    /// </summary>
-    public static string PlaceholderColor(this TerrainType terrain) => terrain switch
-    {
-        TerrainType.Forest => "#1a3d2e",       // Dark green
-        TerrainType.Clearing => "#4a7c59",     // Lighter green
-        TerrainType.Plain => "#e8e8e8",        // Snow white
-        TerrainType.Hills => "#8b7355",        // Brown
-        TerrainType.Water => "#a8d4e6",        // Light ice blue
-        TerrainType.Marsh => "#5a6b4f",        // Murky green
-        TerrainType.Rock => "#6b6b6b",         // Gray
-        TerrainType.Mountain => "#3d3d3d",     // Dark gray
-        TerrainType.DeepWater => "#4a90a4",    // Darker blue
-        _ => "#888888"
-    };
 }

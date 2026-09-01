@@ -62,17 +62,6 @@ public static class AudioManager
     }
 
     /// <summary>
-    /// Stop playing background music.
-    /// </summary>
-    public static void StopMusic()
-    {
-        if (!_musicLoaded || !_musicPlaying) return;
-
-        Raylib.StopMusicStream(_backgroundMusic);
-        _musicPlaying = false;
-    }
-
-    /// <summary>
     /// Update music stream - must be called every frame for streaming to work.
     /// </summary>
     public static void Update()

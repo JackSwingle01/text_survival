@@ -447,22 +447,4 @@ public class TravelRunner(GameContext ctx)
         return _ctx.player.IsAlive;
     }
 
-    private void HandleVictory()
-    {
-        // _ctx.TriggerVictory();
-
-        GameDisplay.ClearNarrative(_ctx);
-        GameDisplay.AddSuccess(_ctx, "You made it.");
-        GameDisplay.AddNarrative(_ctx, "");
-        GameDisplay.AddNarrative(_ctx, "The pass is behind you now.");
-        GameDisplay.AddNarrative(_ctx, "Below, the far valley stretches green and sheltered.");
-        GameDisplay.AddNarrative(_ctx, "Smoke rises from distant fires. Your tribe is there.");
-        GameDisplay.AddNarrative(_ctx, "");
-        GameDisplay.AddNarrative(_ctx, "You survived.");
-        GameDisplay.AddNarrative(_ctx, "");
-        GameDisplay.AddNarrative(_ctx, $"Days survived: {_ctx.DaysSurvived}");
-        GameDisplay.AddNarrative(_ctx, $"Season: {_ctx.Weather.GetSeasonLabel()}");
-        GameDisplay.Render(_ctx, statusText: "Victory!");
-    }
-
 }

@@ -228,17 +228,14 @@ public class WorldRenderer
         // Check if tile exists in the map
         if (!map.IsValidPosition(worldX, worldY))
         {
-            // Out of bounds - draw as hidden
             Vector2 pos = Camera.WorldToScreen(worldX, worldY);
-            Raylib.DrawRectangle((int)pos.X, (int)pos.Y, Camera.TileSize, Camera.TileSize, TerrainColors.Unexplored);
+            TileRenderer.DrawUnexplored(pos.X, pos.Y, Camera.TileSize);
             return;
         }
 
-        var location = map.GetLocationAt(worldX, worldY);
-        var visibility = GetTileVisibility(map, worldX, worldY);
-
-        // Get terrain type
-        string terrain = location?.Terrain.ToString() ?? "Plain";
+        var location = map.GetLocationAt(worldX, worldY)
+            ?? throw new InvalidOperationException($"Map has no location at in-bounds position ({worldX}, {worldY}).");
+        var visibility = map.GetVisibility(worldX, worldY);
 
         // Check tile state
         bool isPlayerTile = worldX == playerPos.X && worldY == playerPos.Y;
@@ -252,7 +249,7 @@ public class WorldRenderer
         TileRenderer.RenderTile(
             screenPos.X, screenPos.Y, Camera.TileSize,
             worldX, worldY,
-            terrain,
+            location.Terrain,
             visibility,
             isPlayerTile,
             isHovered,
@@ -260,10 +257,8 @@ public class WorldRenderer
             timeFactor);
 
         // Render feature icons if visible
-        if (visibility == TileVisibility.Visible && location != null)
-        {
+        if (visibility == TileVisibility.Visible)
             RenderLocationFeatures(location, screenPos.X, screenPos.Y);
-        }
     }
 
     /// <summary>
@@ -277,26 +272,16 @@ public class WorldRenderer
         {
             if (feature.MapIcon != null && slot < 4)
             {
-                // Determine if this feature should glow
-                bool hasGlow = feature is HeatSourceFeature { IsActive: true }
-                            || feature is SnareLineFeature { HasCatchWaiting: true };
-                TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, feature.MapIcon, slot++, hasGlow);
+                // A lit fire glows warm; a snare with a catch glows ready.
+                Color? glow = feature switch
+                {
+                    HeatSourceFeature { IsActive: true } => new Color(224, 136, 48, 255),
+                    SnareLineFeature { HasCatchWaiting: true } => new Color(100, 220, 100, 255),
+                    _ => null
+                };
+                TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, feature.MapIcon, slot++, glow);
             }
         }
-    }
-
-    /// <summary>
-    /// Get visibility state for a tile.
-    /// </summary>
-    private static TileVisibility GetTileVisibility(GameMap map, int x, int y)
-    {
-        var vis = map.GetVisibility(x, y);
-        return vis switch
-        {
-            Environments.Grid.TileVisibility.Visible => TileVisibility.Visible,
-            Environments.Grid.TileVisibility.Explored => TileVisibility.Explored,
-            _ => TileVisibility.Hidden
-        };
     }
 
     /// <summary>
@@ -367,11 +352,6 @@ public class WorldRenderer
     }
 
     /// <summary>
-    /// Get the tile currently under the mouse, if any.
-    /// </summary>
-    public (int x, int y)? GetHoveredTile() => _hoveredTile;
-
-    /// <summary>
     /// Handle a tile click. Returns the clicked tile coordinates.
     /// </summary>
     public (int x, int y)? HandleClick()
@@ -394,11 +374,6 @@ public class WorldRenderer
         }
         return null;
     }
-
-    /// <summary>
-    /// Get the currently hovered combat cell.
-    /// </summary>
-    public (int x, int y)? GetHoveredCombatCell() => _hoveredCombatCell;
 
     /// <summary>
     /// Get the screen position for a tile (top-left corner).
@@ -481,33 +456,22 @@ public class WorldRenderer
             HoveredCombatUnit = null;
         }
 
-        // Draw terrain background (use current location terrain)
-        var terrain = ctx.CurrentLocation?.Terrain.ToString() ?? "Plain";
+        // Ground: the same tile art as the map, so the terrain you walked onto is the
+        // terrain you fight on. Tiled every 3 cells; scissored so no tile spills past the grid.
+        var terrain = ctx.CurrentLocation.Terrain;
         float timeFactor = CalculateTimeFactor(ctx);
 
-        // Get base terrain color and adjust for time of day (same as main map)
-        Color baseColor = TerrainColors.GetColor(terrain);
-        float brightness = 0.4f + timeFactor * 0.6f;
-        Color terrainColor = RenderUtils.AdjustBrightness(baseColor, brightness);
-        Raylib.DrawRectangle(offsetX, offsetY, gridPixelWidth, gridPixelHeight, terrainColor);
-
-        // Tile the terrain texture across the combat grid
-        // Use scissor mode to clip terrain elements that extend beyond grid boundaries
         Raylib.BeginScissorMode(offsetX, offsetY, gridPixelWidth, gridPixelHeight);
-        int tilePixels = cellSize * 3;  // Tile every 3 cells for good detail
+        int tilePixels = cellSize * 3;
         for (int gridX = 0; gridX < gridPixelWidth; gridX += tilePixels)
         {
             for (int gridY = 0; gridY < gridPixelHeight; gridY += tilePixels)
             {
-                // Use TerrainRenderer to draw procedural terrain pattern
-                TerrainRenderer.RenderTexture(
-                    terrain,                    // Current location terrain type
-                    offsetX + gridX,            // X position
-                    offsetY + gridY,            // Y position
-                    tilePixels,                 // Size
-                    gridX / tilePixels,         // World X for seeding
-                    gridY / tilePixels,         // World Y for seeding
-                    timeFactor);                // Time of day factor
+                TileRenderer.DrawTerrain(
+                    terrain,
+                    offsetX + gridX, offsetY + gridY, tilePixels,
+                    gridX / tilePixels, gridY / tilePixels,
+                    timeFactor);
             }
         }
         Raylib.EndScissorMode();

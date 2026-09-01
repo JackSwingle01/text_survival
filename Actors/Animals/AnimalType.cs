@@ -217,11 +217,4 @@ public static class AnimalTypes
         };
     }
 
-    /// <summary>
-    /// Parse a string to AnimalType, throwing if not found.
-    /// </summary>
-    public static AnimalType ParseRequired(string name)
-    {
-        return Parse(name) ?? throw new ArgumentException($"Unknown animal type: {name}");
-    }
 }

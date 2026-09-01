@@ -37,40 +37,6 @@ public readonly struct AbilityContext
     public static AbilityContext Default => new();
 
     /// <summary>
-    /// Create context from inventory (for encumbrance).
-    /// </summary>
-    public static AbilityContext FromInventory(Inventory? inventory)
-    {
-        double encumbrance = 0;
-        if (inventory != null && inventory.MaxWeightKg > 0)
-        {
-            encumbrance = inventory.CurrentWeightKg / inventory.MaxWeightKg;
-        }
-        return new AbilityContext { EncumbrancePct = encumbrance };
-    }
-
-    /// <summary>
-    /// Create context from actor (for wetness) and inventory (for encumbrance).
-    /// Does not include darkness - use FromFullContext for perception calculations.
-    /// </summary>
-    public static AbilityContext FromActorAndInventory(Actor actor, Inventory? inventory)
-    {
-        double encumbrance = 0;
-        if (inventory != null && inventory.MaxWeightKg > 0)
-        {
-            encumbrance = inventory.CurrentWeightKg / inventory.MaxWeightKg;
-        }
-
-        double wetness = actor.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault()?.Severity ?? 0;
-
-        return new AbilityContext
-        {
-            EncumbrancePct = encumbrance,
-            WetnessPct = wetness
-        };
-    }
-
-    /// <summary>
     /// Create full context including darkness for perception/dexterity calculations.
     /// </summary>
     /// <param name="actor">Actor for wetness effects</param>

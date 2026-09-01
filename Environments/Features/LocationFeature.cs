@@ -2,17 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace text_survival.Environments.Features;
 
-/// <summary>
-/// UI-agnostic feature information for display.
-/// Keeps domain code independent of web DTOs.
-/// </summary>
-public record FeatureUIInfo(
-    string Type,           // "shelter", "forage", "animal", etc.
-    string Label,          // Display name
-    string? Status,        // e.g., "75% insulation", "abundant"
-    List<string>? Details  // Additional details like resource types
-);
-
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(ForageFeature), "forage")]
 [JsonDerivedType(typeof(HarvestableFeature), "harvestable")]
@@ -56,12 +45,6 @@ public abstract class LocationFeature
     public virtual void Update(int minutes) {}
     public abstract List<Resource> ProvidedResources();
 
-    /// <summary>
-    /// Returns UI display information for this feature.
-    /// Override in feature classes to provide self-describing UI info.
-    /// Returns null if feature should not be displayed (destroyed, depleted, etc.)
-    /// </summary>
-    public virtual FeatureUIInfo? GetUIInfo() => null;
 }
 
 

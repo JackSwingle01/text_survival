@@ -31,26 +31,6 @@ public class ResourceMemory
         }
     }
 
-    public void ForgetLocation(Location location)
-    {
-        foreach (var locs in _resourceLocations.Values)
-            locs.Remove(location);
-        _fireLocations.Remove(location);
-    }
-
-    public void RememberResources(Location location, IEnumerable<Resource> resources)
-    {
-        foreach (var resource in resources)
-        {
-            if (!_resourceLocations.TryGetValue(resource, out var locations))
-            {
-                locations = new HashSet<Location>();
-                _resourceLocations[resource] = locations;
-            }
-            locations.Add(location);
-        }
-    }
-
     public IEnumerable<Location> WhereIs(Resource r) =>
         _resourceLocations.TryGetValue(r, out var locs) ? locs : [];
 

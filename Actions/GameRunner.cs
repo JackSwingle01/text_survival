@@ -34,6 +34,8 @@ public enum CampAction
     CuringRack,
     Sleep,
     MakeCamp,
+    PitchTent,
+    PackTent,
     TreatWounds
 }
 
@@ -65,7 +67,9 @@ public partial class GameRunner(GameContext ctx)
     {
         AudioManager.PlayMusic();
 
-        while (ctx.player.IsAlive && !Raylib.WindowShouldClose())
+        // The run ends when the player dies or reaches the far side of the pass. Both are
+        // derived from state - there is no separate "game over" flag to keep in sync.
+        while (ctx.player.IsAlive && !ctx.CurrentLocation.IsCrossingExit && !Raylib.WindowShouldClose())
         {
             // Handle pending travel from map click or WASD
             if (ctx.PendingTravelTarget.HasValue)
@@ -92,6 +96,9 @@ public partial class GameRunner(GameContext ctx)
                 ProcessAction(action);
             }
         }
+
+        if (ctx.player.IsAlive && ctx.CurrentLocation.IsCrossingExit)
+            return HandleVictory();
 
         // Player died - show death message and offer restart
         if (!ctx.player.IsAlive)
@@ -126,6 +133,38 @@ public partial class GameRunner(GameContext ctx)
 
         // Normal exit (window closed while alive)
         return false;
+    }
+
+    /// <summary>
+    /// The player crossed the pass. Ends the run the same way death does: a closing
+    /// screen, the save deleted, and the choice to start again.
+    /// </summary>
+    private bool HandleVictory()
+    {
+        GameDisplay.ClearNarrative(ctx);
+        GameDisplay.AddSuccess(ctx, "You made it.");
+        GameDisplay.AddNarrative(ctx, "The pass is behind you now.");
+        GameDisplay.AddNarrative(ctx, "Below, the far valley stretches green and sheltered.");
+        GameDisplay.AddNarrative(ctx, "Smoke rises from distant fires. Your tribe is there.");
+        GameDisplay.AddNarrative(ctx, "You survived.");
+
+        string summary =
+            $"You crossed the pass.\n\n" +
+            $"Days survived: {ctx.DaysSurvived}\n" +
+            $"Season: {ctx.Weather.GetSeasonLabel()}";
+
+        string choice = BlockingDialog.PromptConfirm(ctx, summary,
+            new Dictionary<string, string>
+            {
+                { "new_game", "Start New Game" },
+                { "quit", "Quit to Desktop" }
+            },
+            showFullStats: true);
+
+        // The run is over either way - the save must not resume past the ending.
+        SaveManager.DeleteSave(ctx.SessionId);
+
+        return choice == "new_game";
     }
 
     /// <summary>
@@ -518,117 +557,19 @@ public partial class GameRunner(GameContext ctx)
             case CampAction.MakeCamp:
                 MakeCamp();
                 break;
+            case CampAction.PitchTent:
+                CampHandler.DeployTent(ctx, CampHandler.GetDeployableTent(ctx)!);
+                break;
+            case CampAction.PackTent:
+                CampHandler.PackTent(ctx);
+                break;
             case CampAction.TreatWounds:
                 ApplyDirectTreatment();
                 break;
         }
     }
 
-    private void MainMenu()
-    {
-        // Auto-save when at main menu
-        var (saved, saveError) = SaveManager.Save(ctx);
-        if (!saved)
-            Console.WriteLine($"[GameRunner] Save failed: {saveError}");
-        CheckFireWarning();
-
-        var choice = new Choice<Action>();
-        var capacities = ctx.player.GetCapacities();
-
-        // Check for incapacitation - moving at exactly 0%
-        if (capacities.Moving <= 0)
-        {
-            HandleIncapacitation();
-            return; // Don't show menu, handler will loop until recovery/death
-        }
-
-        var isImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
-        var isClumsy = AbilityCalculator.IsManipulationImpaired(capacities.Manipulation);
-
-        // can always wait
-        choice.AddOption("Wait (5 min)", Wait);
-
-        // Work options (field activities) - listed directly in menu
-        var workOptions = ctx.CurrentLocation.GetWorkOptions(ctx).ToList();
-        foreach (var opt in workOptions)
-        {
-            var strategy = opt.Strategy; // Capture for lambda
-            choice.AddOption(opt.Label, () => ExecuteWork(strategy));
-        }
-
-        // Grid-based travel option (always visible, but may trigger warning)
-        if (ctx.Map != null)
-        {
-            choice.AddOption("Travel", HandleTravel);
-        }
-
-        if (HasActiveFire())
-            choice.AddOption("Tend fire", TendFire);
-
-        if (CanStartFire())
-            choice.AddOption("Start fire", StartFire);
-
-        if (ctx.Inventory.HasFood || ctx.Inventory.HasWater || CanUseFireForCooking())
-            choice.AddOption("Food & Water", RunFood);
-
-        if (CanLightTorch())
-            choice.AddOption("Light torch", LightTorch);
-        if (ctx.Inventory.HasLitTorch)
-        {
-            int mins = (int)ctx.Inventory.TorchBurnTimeRemainingMinutes;
-            choice.AddOption($"Extinguish torch ({mins} min remaining)", ExtinguishTorch);
-        }
-
-        // Crafting always available - menu shows what's craftable/uncraftable
-        string craftLabel = isClumsy ? "Crafting (your hands are unsteady)" : "Crafting";
-        choice.AddOption(craftLabel, RunCrafting);
-
-        // Inventory - always available when player has items
-        if (HasItems())
-            choice.AddOption("Inventory", RunInventoryMenu);
-
-        // Discovery Log - always available
-        choice.AddOption("Discovery Log", RunDiscoveryLog);
-
-        // Storage - available at camp when player has items OR storage has items
-        var storage = ctx.Camp.GetFeature<CacheFeature>();
-        if (ctx.CurrentLocation == ctx.Camp && storage != null && (HasItems() || storage.Storage.CurrentWeightKg > 0))
-            choice.AddOption("Storage", RunStorageMenu);
-
-        var rack = ctx.Camp.GetFeature<CuringRackFeature>();
-        if (rack != null)
-        {
-            string rackLabel = rack.HasReadyItems
-                ? "Curing rack (items ready!)"
-                : rack.ItemCount > 0
-                    ? $"Curing rack ({rack.ItemCount} items curing)"
-                    : "Curing rack (empty)";
-            choice.AddOption(rackLabel, UseCuringRack);
-        }
-
-        if (CanApplyDirectTreatment())
-            choice.AddOption("Treat wounds", ApplyDirectTreatment);
-
-        if (CanApplyWaterproofing())
-            choice.AddOption("Waterproof equipment", ApplyWaterproofing);
-
-        // Sleep requires bedding at current location
-        if (ctx.CurrentLocation.HasFeature<BeddingFeature>())
-        {
-            string sleepLabel = isImpaired ? "Sleep (you need rest)" : "Sleep";
-            choice.AddOption(sleepLabel, Sleep);
-        }
-        else
-        {
-            // Can make camp at any location without bedding
-            choice.AddOption("Make camp", MakeCamp);
-        }
-
-        choice.GetPlayerChoice(ctx).Invoke();
-    }
-
-    private bool CanCamp() => ctx.CurrentLocation.HasFeature<BeddingFeature>();
-    private void MakeCamp() => CampHandler.MakeCamp(ctx, ctx.CurrentLocation);
+private void MakeCamp() => CampHandler.MakeCamp(ctx, ctx.CurrentLocation);
 
     /// <summary>
     /// Execute a work strategy directly.
@@ -660,11 +601,7 @@ public partial class GameRunner(GameContext ctx)
         }
     }
 
-    private void RunCrafting()
-    {
-        var craftingRunner = new CraftingRunner(ctx);
-        craftingRunner.Run();
-    }
+    private void RunCrafting() => DesktopIO.RunCraftingAndWait(ctx);
 
     // ═══════════════════════════════════════════════════════════════════════════
     // FIRE MANAGEMENT
@@ -677,13 +614,6 @@ public partial class GameRunner(GameContext ctx)
 
         // Show "Tend fire" if there's an active fire AND we have fuel to add
         return (fire.IsActive || fire.HasEmbers) && ctx.Inventory.HasFuel;
-    }
-
-    private bool CanUseFireForCooking()
-    {
-        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
-        // Can cook/melt with any active fire - don't need fuel in inventory
-        return fire != null && fire.IsActive;
     }
 
     private void CheckFireWarning()
@@ -720,61 +650,6 @@ public partial class GameRunner(GameContext ctx)
             t.ToolType == ToolType.HandDrill ||
             t.ToolType == ToolType.BowDrill);
         return hasTool && ctx.Inventory.CanStartFire;
-    }
-
-    private bool CanRestByFire()
-    {
-        return ctx.CurrentLocation.HasActiveHeatSource();
-    }
-
-    private void HandleTravel()
-    {
-        // Skip capacity check if there's a pending travel target from grid click
-        // TravelRunner.DoTravel() will handle validation for grid-initiated travel
-        if (!ctx.PendingTravelTarget.HasValue)
-        {
-            var capacities = ctx.player.GetCapacities();
-            double moving = capacities.Moving;
-
-            // Check for impairment and show popup if needed
-            if (moving <= 0.5)
-            {
-                bool proceed = ShowMovementWarning(moving);
-                if (!proceed)
-                    return; // User cancelled or blocked
-            }
-        }
-
-        // Proceed with travel
-        new TravelRunner(ctx).DoTravel();
-    }
-
-    private bool ShowMovementWarning(double movingCapacity)
-    {
-        string message;
-        Dictionary<string, string> buttons;
-
-        if (movingCapacity <= 0.1)
-        {
-            message = "You can barely move at all. Your injuries prevent travel.";
-            buttons = new() { { "ok", "OK" } };
-            DesktopIO.PromptConfirm(ctx, message, buttons);
-            return false; // Blocked
-        }
-        else if (movingCapacity <= 0.3)
-        {
-            int slowdown = (int)(1.0 / movingCapacity);
-            message = $"You can barely stand. Travel will be extremely slow and dangerous. (approximately {slowdown}x slower)";
-            buttons = new() { { "proceed", "Proceed" }, { "cancel", "Cancel" } };
-        }
-        else // movingCapacity <= 0.5
-        {
-            int slowdown = (int)(1.0 / movingCapacity);
-            message = $"Moving is difficult. Travel will be noticeably slower. (approximately {slowdown}x slower)";
-            buttons = new() { { "proceed", "Proceed" }, { "cancel", "Cancel" } };
-        }
-
-        return DesktopIO.PromptConfirm(ctx, message, buttons) == "proceed";
     }
 
     private void TendFire() => FireHandler.ManageFire(ctx);
@@ -911,8 +786,6 @@ public partial class GameRunner(GameContext ctx)
     }
 
     private void UseCuringRack() => CuringRackHandler.UseCuringRack(ctx);
-
-    private bool CanApplyDirectTreatment() => TreatmentHandler.CanApplyTreatment(ctx);
 
     private void ApplyDirectTreatment() => TreatmentHandler.ApplyTreatment(ctx);
 

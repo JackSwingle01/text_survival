@@ -97,7 +97,7 @@ Core operations:
 - `MoveTo(location)` — updates position and visibility
 
 Visibility system:
-- `TileVisibility`: Hidden → Explored → Visible
+- `TileVisibility`: Unexplored → Explored → Visible
 - Sight range calculated from current location's visibility factor (0-20 tiles)
 - Moving updates which tiles are visible vs merely explored
 
@@ -133,7 +133,7 @@ Features are what make locations useful. They live on locations and define avail
 
 **CraftingProjectFeature** — Multi-session construction. Tracks time invested and materials consumed. Progress persists. Material reclaim if abandoned. Some projects benefit from tools (shovel for digging).
 
-**ShelterFeature** — Built protection. Temperature insulation, overhead coverage, wind coverage. Snow shelters degrade in warm temps. Damage/repair system.
+**ShelterFeature** — Built protection. Temperature insulation, overhead coverage, wind coverage. Snow shelters degrade in warm temps. Damage/repair system. A crafted tent is a portable shelter: pitch it anywhere from the action panel and pack it up again to carry on (`CampHandler.DeployTent`/`PackTent`).
 
 **HeatSourceFeature** — Fire. See Fire section above.
 
@@ -632,7 +632,7 @@ Runners — Control flow, player decisions, display UI
 - GameRunner: main camp loop
 - TravelRunner: movement between locations
 - WorkRunner: all work activities (uses strategy pattern)
-- CraftingRunner: need-based crafting UI
+- CraftingOverlay: the crafting screen; picks recipes and executes the craft
 - HuntRunner: the approach prompt before a hunt; the hunt itself is combat
 
 Handlers — Activity-specific execution logic (static classes)
@@ -721,14 +721,20 @@ Native desktop application using Raylib-cs for graphics and ImGui.NET for overla
 - **Blocking** — GameEventOverlay (events), HuntOverlay, EncounterOverlay, CombatOverlay
 - **Notifications** — DiscoveryOverlay, WeatherChangeOverlay
 
+**Persistent HUD** — `StatsPanel` (survival state, top-left) and `JournalPanel`
+(the last few narrative lines, bottom-left). Toasts say what just happened and fade;
+the journal is where the player reconstructs why. `StatsPanel.Render` draws both, so
+the HUD appears wherever the game renders a frame. `NarrativeLog` keeps the last 200
+entries.
+
 **Rendering Layer**:
 - `WorldRenderer` — Grid tiles, camera following, tile hover
 - `Camera` — Smooth camera movement with easing
-- `TileRenderer`, `TerrainRenderer`, `EffectsRenderer` — Specialized renderers
+- `TileRenderer`, `IconRenderer`, `AnimalRenderer`, `EdgeRenderer`, `EffectsRenderer` — Specialized renderers
 
 **DTOs** — Activity-focused data objects in `Desktop/Dto/`:
-- `Overlay.cs` — EventDto, HuntDto, EncounterDto, CombatDto, InventoryDto, CraftingDto
-- `PlayerResponse.cs` — User input responses
+- `OverlayData.cs` — EventDto, EventChoiceDto, EventOutcomeDto, DiscoveryLogDto
+- `CombatInput.cs` — What the player committed to on a combat turn
 
 Desktop UI interacts with: all game systems (direct state access), events (EventOverlay shows choices), inventory/crafting (overlay display).
 
@@ -736,33 +742,65 @@ Desktop UI interacts with: all game systems (direct state access), events (Event
 
 ### Pixel Art Pipeline
 
-World/UI visuals come from three sources, in priority order: a hand-authored
-16x16 pixel-art PNG (if one exists for that entity), otherwise procedural
-Raylib primitive drawing (`ProceduralIconRenderer`, `AnimalRenderer`,
-`TerrainRenderer`) as a fallback. `tools/PixelArtCli` is a standalone CLI
-(zero dependencies, not part of the main build) that renders a compact text
-format (`.pxa` — an ASCII grid plus a hex-color palette legend) to PNG, so
-pixel art can be authored and reviewed as plain text rather than drawn in an
-image editor. Source files live in `assets/pixelart/`; `render-all` renders
-them into `assets/icons/` where the existing texture loaders
-(`TextureIconRenderer`, `TileRenderer`, `AnimalRenderer`) pick them up
-automatically, falling back to procedural drawing for anything not yet
-authored. All loaded textures use `TextureFilter.Point` so they stay crisp
-when scaled. See `tools/PixelArtCli/README.md` for the format spec and
-per-category naming conventions.
+Every world visual is a hand-authored 16x16 pixel-art PNG. There is no
+procedural fallback: art is the only source, so an entity with no PNG is a
+missing asset, and the loaders say so on stderr rather than quietly drawing
+something else.
 
-Pixel art pipeline interacts with: tile/feature/animal/player rendering (art
-source, procedural is the fallback), the desktop rendering layer generally.
+`tools/PixelArtCli` is a standalone CLI (zero dependencies, not part of the
+main build) that renders a compact text format (`.pxa` — an ASCII grid plus a
+hex-color palette legend) to PNG, so pixel art can be authored and reviewed as
+plain text rather than drawn in an image editor. Source files live in
+`assets/pixelart/`; `render-all` renders them into `assets/icons/`, where the
+loaders pick them up by filename:
 
-**Files**: `tools/PixelArtCli/`, `assets/pixelart/`, `assets/icons/`
+- `IconRenderer` — feature icons. A feature's `MapIcon` string is the PNG's
+  basename, so a new icon is a new file and no code change.
+- `TileRenderer` — terrain tiles (`<terrain>_tile*.png`, several variants per
+  terrain), `player.png`, and `npc/{male,female}_{0..3}.png`.
+- `AnimalRenderer` — `animals/<AnimalType>.png`, one per animal type.
+
+`AssetPaths.Icons()` is the single place that resolves `assets/icons` (next to
+the executable when published, next to the working directory in development)
+and throws if it is missing. All loaded textures use `TextureFilter.Point` so
+they stay crisp when scaled. See `tools/PixelArtCli/README.md` for the format
+spec and per-category naming conventions.
+
+Pixel art pipeline interacts with: tile/feature/animal/player rendering (the
+only art source), the desktop rendering layer generally.
+
+**Files**: `Desktop/Rendering/`, `tools/PixelArtCli/`, `assets/pixelart/`, `assets/icons/`
+
+---
+
+## The Mountain Crossing
+
+The win condition, and the only ending other than death.
+
+`GridWorldGenerator.GenerateMountainRange` walls off the north edge with 18 rows of
+impassable mountain and carves a single-tile corridor of Rock through it at a random
+column. `PlacePassLocations` names six stages along that corridor, south to north:
+
+Pass Approach → Lower Pass → The Pass Proper → Upper Descent → Lower Descent → Far Side
+
+Unnamed rock sits between them, so the crossing is an eighteen-tile trek, not a
+doorway. Each stage is colder, more exposed and more hazardous than the last, peaking
+at The Pass Proper (`terrainHazardLevel` 1.0, wind x2, -15°F, near-zero visibility).
+`PlaceNamedLocations` only draws below the mountain rows, so nothing else lands there.
+
+Far Side sets `Location.IsCrossingExit`. `GameRunner.Run` loops
+`while (player.IsAlive && !CurrentLocation.IsCrossingExit)`, so reaching it ends the
+run - there is no separate victory flag to keep in sync. `HandleVictory` closes out
+the same way death does: a final screen with days survived and season, the save
+deleted, and the choice to start again.
+
+**Files**: `Environments/Factories/GridWorldGenerator.cs`, `Environments/Factories/LocationFactory.cs` (Mountain Pass Factories), `Actions/GameRunner.cs`
 
 ---
 
 ## Design Direction
 
 Not yet implemented, but shaping future development:
-
-The mountain crossing — Win condition. Requires serious preparation (warmth, supplies, condition). Multi-day expedition.
 
 Megafauna hunts — Trophy hunts that provide materials for gear required for the crossing.
 

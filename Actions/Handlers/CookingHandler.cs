@@ -50,14 +50,6 @@ public static class CookingHandler
     }
 
     /// <summary>
-    /// Check if actor can cook fish (has raw fish and is at active fire).
-    /// </summary>
-    public static bool CanCookFish(Inventory inv, Location location)
-    {
-        return CanCookAt(location) && inv.Count(Resource.RawFish) > 0;
-    }
-
-    /// <summary>
     /// Check if actor can melt snow (at active fire).
     /// Snow is assumed to be freely available in this ice age setting.
     /// </summary>
@@ -140,20 +132,6 @@ public static class CookingHandler
     }
 
     /// <summary>
-    /// NPC fish cooking - cooks one unit of raw fish.
-    /// Returns true if cooking succeeded.
-    /// </summary>
-    public static bool CookFishNPC(Actor actor, Inventory inv, Location location)
-    {
-        var result = CookFish(inv, location);
-        if (result.Success)
-        {
-            Console.WriteLine($"[NPC:{actor.Name}] Cooked {result.Amount:F1}kg fish");
-        }
-        return result.Success;
-    }
-
-    /// <summary>
     /// NPC snow melting - melts snow to produce water.
     /// Returns true if melting succeeded.
     /// </summary>
@@ -170,41 +148,5 @@ public static class CookingHandler
     // ============================================
     // Desktop UI Entry Points (with time advancement)
     // ============================================
-
-    /// <summary>
-    /// Process cooking meat with time advancement.
-    /// Wrapper for desktop UI that handles side effects.
-    /// </summary>
-    public static CookingResult ProcessCookMeat(GameContext ctx)
-    {
-        var result = CookMeat(ctx.Inventory, ctx.CurrentLocation);
-        if (result.Success)
-            ctx.Update(CookMeatTimeMinutes, ActivityType.TendingFire);
-        return result;
-    }
-
-    /// <summary>
-    /// Process cooking fish with time advancement.
-    /// Wrapper for desktop UI that handles side effects.
-    /// </summary>
-    public static CookingResult ProcessCookFish(GameContext ctx)
-    {
-        var result = CookFish(ctx.Inventory, ctx.CurrentLocation);
-        if (result.Success)
-            ctx.Update(CookFishTimeMinutes, ActivityType.TendingFire);
-        return result;
-    }
-
-    /// <summary>
-    /// Process melting snow with time advancement.
-    /// Wrapper for desktop UI that handles side effects.
-    /// </summary>
-    public static CookingResult ProcessMeltSnow(GameContext ctx)
-    {
-        var result = MeltSnow(ctx.Inventory, ctx.CurrentLocation);
-        if (result.Success)
-            ctx.Update(MeltSnowTimeMinutes, ActivityType.TendingFire);
-        return result;
-    }
 
 }

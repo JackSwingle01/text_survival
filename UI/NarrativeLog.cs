@@ -12,8 +12,12 @@ public enum LogLevel
 
 public class NarrativeLog
 {
-    public const int MAX_VISIBLE_LINES = 16;
-    private const string SEPARATOR = "· · ·";
+    /// <summary>
+    /// How much history is kept. Enough to reconstruct how a situation developed;
+    /// bounded so a long run does not carry an ever-growing log through every save.
+    /// </summary>
+    private const int MaxEntries = 200;
+
     private List<(string Text, LogLevel Level, string Timestamp)> _entries = [];
 
     // For JSON serialization
@@ -29,29 +33,20 @@ public class NarrativeLog
         if (_entries.Count > 0 && _entries[^1].Text.Trim() == text.Trim())
             return;
         _entries.Add((text, level, timestamp));
+
+        if (_entries.Count > MaxEntries)
+            _entries.RemoveRange(0, _entries.Count - MaxEntries);
     }
 
-    public void AddSeparator()
-    {
-        // Disabled - no longer using separators
-    }
-
-    public bool LastEntryIsSeparator() => false;
+    /// <summary>The most recent entries, oldest first. Reading does not consume them.</summary>
+    public IReadOnlyList<(string Text, LogLevel Level, string Timestamp)> Recent(int count) =>
+        _entries.TakeLast(count).ToList();
 
     public void AddRange(IEnumerable<string> texts, LogLevel level = LogLevel.Normal, string timestamp = "")
     {
         foreach (var text in texts)
             Add(text, level, timestamp);
     }
-
-    public IReadOnlyList<(string Text, LogLevel Level, string Timestamp)> GetVisible()
-    {
-        var visible = _entries.TakeLast(MAX_VISIBLE_LINES).ToList();
-        _entries.Clear();
-        return visible;
-    }
-
-    public int TotalCount => _entries.Count;
 
     public void Clear() => _entries.Clear();
 }

@@ -14,7 +14,6 @@ public static class EdgeRenderer
     private static readonly Color RiverColor = new(100, 140, 170, 180);
     private static readonly Color CliffColor = new(80, 70, 60, 200);
     private static readonly Color TrailColor = new(140, 130, 110, 120);
-    private static readonly Color HazardColor = new(180, 100, 60, 150);
 
     /// <summary>
     /// Render all edges between visible tiles.
@@ -158,7 +157,7 @@ public static class EdgeRenderer
         for (int i = 0; i <= segments; i++)
         {
             float t = (float)i / segments;
-            float wave = MathF.Sin(t * MathF.PI * 3 + RenderUtils.SeededRandom(worldX, worldY, 100)) * waveAmp;
+            float wave = MathF.Sin(t * MathF.PI * 3 + SeededRandom(worldX, worldY, 100)) * waveAmp;
 
             if (isHorizontal)  // Edge runs east-west (north/south tile boundary)
             {
@@ -282,5 +281,14 @@ public static class EdgeRenderer
         East,
         South,
         West
+    }
+
+    /// <summary>
+    /// Seeded random, so an edge's wave is the same every frame and on every machine.
+    /// </summary>
+    private static float SeededRandom(int worldX, int worldY, int seed)
+    {
+        int h = (worldX * 73856093) ^ (worldY * 19349663) ^ (seed * 83492791);
+        return MathF.Abs(MathF.Sin(h)) % 1.0f;
     }
 }

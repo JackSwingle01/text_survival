@@ -259,6 +259,19 @@ public class ActionPanel
                 clickedAction = CampAction.MakeCamp;
         }
 
+        // A tent is shelter you carry - it can go up anywhere and come back down with you.
+        var tent = CampHandler.GetDeployableTent(ctx);
+        if (tent != null && CampHandler.CanDeployTent(ctx))
+        {
+            if (ImGui.Button($"Pitch {tent.Name}", new Vector2(-1, 0)))
+                clickedAction = CampAction.PitchTent;
+        }
+        else if (CampHandler.CanPackTent(ctx))
+        {
+            if (ImGui.Button("Pack Up Tent", new Vector2(-1, 0)))
+                clickedAction = CampAction.PackTent;
+        }
+
         // Treatment (if wounds)
         if (CanTreatWounds(ctx))
         {

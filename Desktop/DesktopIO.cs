@@ -24,8 +24,7 @@ public static class DesktopIO
         return $"{slug}_{index}";
     }
 
-    public static void ClearCrafting(GameContext ctx) { }
-    public static void ClearEvent(GameContext ctx) { }
+public static void ClearEvent(GameContext ctx) { }
 
     public static void ShowDiscovery(GameContext ctx, string locationName, string discoveryText)
     {
@@ -269,105 +268,14 @@ public static class DesktopIO
         _eventOverlay = null;
     }
 
-    public static void ShowEventOutcome(GameContext ctx, EventOutcomeDto outcome)
-    {
-        _eventOverlay ??= new GameEventOverlay();
-        _eventOverlay.ShowOutcome(outcome);
-
-        while (_eventOverlay.IsOpen && !Raylib.WindowShouldClose())
-        {
-            float deltaTime = DesktopRuntime.BeginFrame();
-
-            Raylib.BeginDrawing();
-            Raylib.ClearBackground(new Color(20, 25, 30, 255));
-
-            DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
-            DesktopRuntime.WorldRenderer?.Render(ctx);
-
-            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(),
-                new Color(0, 0, 0, 128));
-
-            rlImGui.Begin();
-            _eventOverlay.Render(deltaTime);
-            rlImGui.End();
-
-            Raylib.EndDrawing();
-        }
-
-        _eventOverlay = null;
-    }
-
-    public static void Render(GameContext ctx, string? statusText = null)
+    public static void Render(GameContext ctx)
     {
         DesktopRuntime.RenderFrame(ctx);
-    }
-
-    public static void RenderWithDuration(GameContext ctx, string statusText, int estimatedMinutes)
-    {
-        // Legacy: just animate without simulation (for backwards compatibility)
-        // ~0.3 seconds per in-game minute, clamped to reasonable bounds
-        float animDuration = Math.Clamp(estimatedMinutes * 0.3f, 1.0f, 30.0f);
-        float elapsed = 0;
-
-        while (elapsed < animDuration && !Raylib.WindowShouldClose())
-        {
-            float deltaTime = DesktopRuntime.BeginFrame();
-            elapsed += deltaTime;
-            float progress = Math.Min(elapsed / animDuration, 1.0f);
-
-            DesktopRuntime.RenderFrameWithDialog(ctx, () =>
-            {
-                var io = ImGuiNET.ImGui.GetIO();
-                Desktop.UI.OverlaySizes.SetupDialog();
-
-                ImGuiNET.ImGui.Begin("Activity", ImGuiNET.ImGuiWindowFlags.NoResize | ImGuiNET.ImGuiWindowFlags.NoMove | ImGuiNET.ImGuiWindowFlags.NoCollapse);
-                ImGuiNET.ImGui.TextWrapped(statusText);
-                ImGuiNET.ImGui.Spacing();
-                ImGuiNET.ImGui.ProgressBar(progress, new System.Numerics.Vector2(-1, 20),
-                    $"{(int)(progress * estimatedMinutes)}/{estimatedMinutes} min");
-                ImGuiNET.ImGui.End();
-            });
-        }
     }
 
     public static (int elapsed, bool interrupted) RenderWithDuration(GameContext ctx, string statusText, int estimatedMinutes, ActivityType activity)
     {
         return BlockingDialog.ShowProgress(ctx, statusText, estimatedMinutes, activity);
-    }
-
-    public static (int elapsed, bool interrupted) RenderWithDurationAndLoot(
-        GameContext ctx,
-        string statusText,
-        int estimatedMinutes,
-        ActivityType activity,
-        List<LootItem> items)
-    {
-        return BlockingDialog.ShowProgressWithLoot(ctx, statusText, estimatedMinutes, activity, items);
-    }
-
-    public static void RenderInventory(GameContext ctx, Inventory inventory, string title)
-    {
-        var overlays = DesktopRuntime.Overlays;
-        if (overlays == null) return;
-
-        if (!overlays.Inventory.IsOpen)
-        {
-            overlays.ToggleInventory();
-        }
-
-        float deltaTime = DesktopRuntime.BeginFrame();
-
-        Raylib.BeginDrawing();
-        Raylib.ClearBackground(new Color(20, 25, 30, 255));
-
-        DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
-        DesktopRuntime.WorldRenderer?.Render(ctx);
-
-        rlImGui.Begin();
-        overlays.Render(ctx, deltaTime);
-        rlImGui.End();
-
-        Raylib.EndDrawing();
     }
 
     public static void ShowInventoryAndWait(GameContext ctx, Inventory inventory, string title)
@@ -406,31 +314,6 @@ public static class DesktopIO
         }
     }
 
-    public static void RenderCrafting(GameContext ctx, NeedCraftingSystem crafting, string title = "CRAFTING")
-    {
-        var overlays = DesktopRuntime.Overlays;
-        if (overlays == null) return;
-
-        if (!overlays.Crafting.IsOpen)
-        {
-            overlays.ToggleCrafting();
-        }
-
-        float deltaTime = DesktopRuntime.BeginFrame();
-
-        Raylib.BeginDrawing();
-        Raylib.ClearBackground(new Color(20, 25, 30, 255));
-
-        DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
-        DesktopRuntime.WorldRenderer?.Render(ctx);
-
-        rlImGui.Begin();
-        overlays.Render(ctx, deltaTime);
-        rlImGui.End();
-
-        Raylib.EndDrawing();
-    }
-
     // The overlay handles all crafting logic internally (material consumption, time advancement).
     public static void RunCraftingAndWait(GameContext ctx)
     {
@@ -466,78 +349,26 @@ public static class DesktopIO
         }
     }
 
-    public static PlayerResponse RenderGridAndWaitForInput(GameContext ctx, string? statusText = null)
+    /// <summary>
+    /// Run the frame loop until the player commits to a combat action - a button on the
+    /// action panel, or a click on a grid cell to move there. Returns null if the window
+    /// closed, which the combat loop reads as "stop".
+    /// </summary>
+    public static CombatInput? WaitForCombatAction(GameContext ctx)
     {
         var worldRenderer = DesktopRuntime.WorldRenderer;
         var actionPanel = DesktopRuntime.ActionPanel;
         var overlays = DesktopRuntime.Overlays;
-        int inputId = 0;
 
         while (!Raylib.WindowShouldClose())
         {
             float deltaTime = DesktopRuntime.BeginFrame();
 
-            if (Raylib.IsKeyPressed(KeyboardKey.W) || Raylib.IsKeyPressed(KeyboardKey.Up))
-            {
-                var pos = ctx.Map.CurrentPosition;
-                if (ctx.Map.CanMoveTo(pos.X, pos.Y - 1))
-                    return new PlayerResponse(null, inputId, "travel_to", pos.X, pos.Y - 1);
-            }
-            if (Raylib.IsKeyPressed(KeyboardKey.S) || Raylib.IsKeyPressed(KeyboardKey.Down))
-            {
-                var pos = ctx.Map.CurrentPosition;
-                if (ctx.Map.CanMoveTo(pos.X, pos.Y + 1))
-                    return new PlayerResponse(null, inputId, "travel_to", pos.X, pos.Y + 1);
-            }
-            if (Raylib.IsKeyPressed(KeyboardKey.A) || Raylib.IsKeyPressed(KeyboardKey.Left))
-            {
-                var pos = ctx.Map.CurrentPosition;
-                if (ctx.Map.CanMoveTo(pos.X - 1, pos.Y))
-                    return new PlayerResponse(null, inputId, "travel_to", pos.X - 1, pos.Y);
-            }
-            if (Raylib.IsKeyPressed(KeyboardKey.D) || Raylib.IsKeyPressed(KeyboardKey.Right))
-            {
-                var pos = ctx.Map.CurrentPosition;
-                if (ctx.Map.CanMoveTo(pos.X + 1, pos.Y))
-                    return new PlayerResponse(null, inputId, "travel_to", pos.X + 1, pos.Y);
-            }
-
-            if (Raylib.IsKeyPressed(KeyboardKey.I))
-                return new PlayerResponse(null, inputId, "action", Action: "inventory");
-            if (Raylib.IsKeyPressed(KeyboardKey.C))
-                return new PlayerResponse(null, inputId, "action", Action: "crafting");
-            if (Raylib.IsKeyPressed(KeyboardKey.Space))
-                return new PlayerResponse(null, inputId, "action", Action: "wait");
-
             if (worldRenderer != null)
             {
-                // Handle combat grid clicks
-                if (ctx.ActiveCombat != null)
-                {
-                    var combatClick = worldRenderer.HandleCombatClick();
-                    if (combatClick.HasValue)
-                    {
-                        return new PlayerResponse(null, inputId, "action",
-                            CombatMoveTarget: new GridPosition(combatClick.Value.x, combatClick.Value.y));
-                    }
-                }
-                else
-                {
-                    // Handle world map clicks (only when not in combat)
-                    var clicked = worldRenderer.HandleClick();
-                    if (clicked.HasValue)
-                    {
-                        var (x, y) = clicked.Value;
-                        var currentPos = ctx.Map.CurrentPosition;
-                        bool isAdjacent = Math.Abs(x - currentPos.X) <= 1 && Math.Abs(y - currentPos.Y) <= 1
-                            && (x != currentPos.X || y != currentPos.Y);
-
-                        if (isAdjacent && ctx.Map.CanMoveTo(x, y))
-                        {
-                            return new PlayerResponse(null, inputId, "travel_to", x, y);
-                        }
-                    }
-                }
+                var moveTarget = worldRenderer.HandleCombatClick();
+                if (moveTarget.HasValue)
+                    return new CombatInput(null, new GridPosition(moveTarget.Value.x, moveTarget.Value.y));
             }
 
             Raylib.BeginDrawing();
@@ -549,49 +380,30 @@ public static class DesktopIO
                 worldRenderer.Render(ctx);
             }
 
-            if (statusText != null)
-            {
-                int fontSize = 20;
-                int textWidth = Raylib.MeasureText(statusText, fontSize);
-                int screenWidth = Raylib.GetScreenWidth();
-                int screenHeight = Raylib.GetScreenHeight();
-                Raylib.DrawRectangle(10, screenHeight - 40, textWidth + 20, 30, new Color(30, 35, 40, 200));
-                Raylib.DrawText(statusText, 20, screenHeight - 35, fontSize, new Color(200, 220, 240, 255));
-            }
-
             rlImGui.Begin();
 
             if (actionPanel != null)
             {
-                var (campAction, _, combatAction) = actionPanel.Render(ctx, deltaTime);
-                if (campAction != null)
-                {
-                    rlImGui.End();
-                    Raylib.EndDrawing();
-                    return new PlayerResponse(null, inputId, "action", CampAction: campAction);
-                }
-                // Work is handled by GameRunner.RunGameLoop directly, not through this path
-                // Combat is the only caller and doesn't use work actions
+                var (_, _, combatAction) = actionPanel.Render(ctx, deltaTime);
                 if (combatAction != null)
                 {
                     rlImGui.End();
                     Raylib.EndDrawing();
-                    return new PlayerResponse(null, inputId, "action", CombatAction: combatAction);
+                    return new CombatInput(combatAction, null);
                 }
             }
 
             overlays?.Render(ctx, deltaTime);
 
-            // Render stats panel (stays visible during combat)
+            // Stats panel stays visible during combat
             Desktop.UI.StatsPanel.Render(ctx);
-
             Desktop.UI.ToastManager.Render(deltaTime);
 
             rlImGui.End();
             Raylib.EndDrawing();
         }
 
-        return new PlayerResponse(null, inputId, "action", Action: "quit");
+        return null;
     }
 
     public static string? PromptHazardChoice(

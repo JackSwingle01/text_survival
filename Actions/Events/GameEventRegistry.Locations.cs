@@ -13,31 +13,6 @@ public static partial class GameEventRegistry
     // === BURNT STAND EVENTS ===
 
     /// <summary>
-    /// Narrative event - discover the origin of the fire.
-    /// First visit to Burnt Stand, 30% chance.
-    /// </summary>
-    private static GameEvent DiscoverFireOrigin(GameContext ctx)
-    {
-        return new GameEvent("The Fire's Origin",
-            "Near the center of the burnt stand, you find a massive split trunk. Lightning-struck. The fire started here.", 0.3)
-            .Requires(EventCondition.Working)
-            .OnlyAt("Burnt Stand")
-            .WithCooldown(168) // Once per week (effectively once per playthrough for this location)
-            .Choice("Examine the Strike",
-                "Study the pattern of destruction.",
-                [
-                    new EventResult("The strike split the trunk and ignited the heartwood. Nature's violence made this clearing.", weight: 0.70, minutes: 5),
-                    new EventResult("Among the ash, you find chunks of charcoal perfect for fire-starting.", weight: 0.30, minutes: 8)
-                        .Rewards(RewardPool.TinderBundle)
-                ])
-            .Choice("Move On",
-                "It's just burnt forest.",
-                [
-                    new EventResult("You leave the origin behind. The charcoal here is plentiful regardless.", weight: 1.0)
-                ]);
-    }
-
-    /// <summary>
     /// Tactical event - mutual visibility in the burnt stand.
     /// Triggers when Stalked tension active in exposed location.
     /// </summary>
@@ -109,70 +84,7 @@ public static partial class GameEventRegistry
                 ]);
     }
 
-    /// <summary>
-    /// Discovery event - find a small animal den in the deadfall.
-    /// </summary>
-    private static GameEvent DeadfallDen(GameContext ctx)
-    {
-        return new GameEvent("Something in There",
-            "Under a root ball, a dark opening. Fresh tracks in the dirt. Something small lives here.", 0.3)
-            .Requires(EventCondition.Foraging, EventCondition.HasFuelForage)
-            .WithCooldown(4)
-            .Choice("Reach In Carefully",
-                "Risk a bite. Could be food.",
-                [
-                    new EventResult("Your fingers close on fur. You pull out a rabbit — dinner.", weight: 0.35, minutes: 8)
-                        .Rewards(RewardPool.SmallGame),
-                    new EventResult("Nothing. The den goes deeper than you thought.", weight: 0.40, minutes: 5),
-                    new EventResult("Sharp teeth! You jerk back, bleeding.", weight: 0.25, minutes: 3)
-                        .WithEffects(Effects.EffectFactory.Bleeding(0.2))
-                ])
-            .Choice("Smoke It Out",
-                "Build a small fire at the entrance.",
-                [
-                    new EventResult("Smoke fills the hole. A rabbit bolts out — you grab it.", weight: 0.60, minutes: 15)
-                        .Costs(ResourceType.Tinder, 1)
-                        .Costs(ResourceType.Fuel, 1)
-                        .Rewards(RewardPool.SmallGame),
-                    new EventResult("Nothing emerges. Maybe already abandoned.", weight: 0.40, minutes: 12)
-                        .Costs(ResourceType.Tinder, 1)
-                        .Costs(ResourceType.Fuel, 1)
-                ],
-                [EventCondition.HasTinder, EventCondition.HasFuel])
-            .Choice("Leave It",
-                "Not worth the risk.",
-                [
-                    new EventResult("You move on. Plenty else to find here.", weight: 1.0)
-                ]);
-    }
-
     // === ROCK OVERHANG EVENTS ===
-
-    /// <summary>
-    /// Discovery event - evidence of previous use.
-    /// </summary>
-    private static GameEvent PreviousUse(GameContext ctx)
-    {
-        return new GameEvent("Someone Was Here",
-            "Charcoal smudges the rock. A fire pit circle. Someone used this shelter before.", 0.4)
-            .Requires(EventCondition.Working)
-            .OnlyAt("Rock Overhang")
-            .WithCooldown(168)
-            .Choice("Search Thoroughly",
-                "They might have left something.",
-                [
-                    new EventResult("Under a loose rock — a cache of tinder, dry and ready.", weight: 0.40, minutes: 15)
-                        .Rewards(RewardPool.TinderBundle),
-                    new EventResult("Scratched into the stone: a tally of days. They survived here.", weight: 0.35, minutes: 10),
-                    new EventResult("Bones, cracked for marrow. Old. Picked clean.", weight: 0.25, minutes: 12)
-                        .Rewards(RewardPool.BoneHarvest)
-                ])
-            .Choice("Use What's Here",
-                "The fire pit is ready. That's enough.",
-                [
-                    new EventResult("The old fire pit will save you time. Good enough.", weight: 1.0, minutes: 5)
-                ]);
-    }
 
     /// <summary>
     /// Fire management event - smoke builds up in enclosed spaces with overhead cover.
@@ -204,37 +116,6 @@ public static partial class GameEventRegistry
     }
 
     // === GRANITE OUTCROP EVENTS ===
-
-    /// <summary>
-    /// Scouting event - spot movement from vantage point.
-    /// </summary>
-    private static GameEvent SpotMovement(GameContext ctx)
-    {
-        return new GameEvent("Movement Below",
-            "From the outcrop's height, you see it — movement at the tree line. Something is watching.", 0.5)
-            .Requires(EventCondition.Working)
-            .OnlyAt("Granite Outcrop")
-            .WithConditionFactor(EventCondition.Stalked, 3.0)
-            .WithCooldown(2)
-            .Choice("Study It",
-                "Use your vantage. Learn what you're dealing with.",
-                [
-                    new EventResult("A wolf, circling. Now you know where it is.", weight: 0.50, minutes: 10)
-                        .BecomeStalked(0.3, AnimalType.Wolf),
-                    new EventResult("A fox, hunting mice. No threat.", weight: 0.30, minutes: 8),
-                    new EventResult("Deer, grazing. Opportunity, if you can get close.", weight: 0.20, minutes: 8)
-                ])
-            .Choice("Mark the Direction",
-                "Note it and stay alert.",
-                [
-                    new EventResult("You mark the direction. Now you know which way not to go.", weight: 1.0, minutes: 3)
-                ])
-            .Choice("Get Down",
-                "Visibility works both ways.",
-                [
-                    new EventResult("You descend quickly. Whatever it was, you don't want it seeing you.", weight: 1.0, minutes: 5)
-                ]);
-    }
 
     /// <summary>
     /// Tactical event - mutual visibility when Stalked.
@@ -336,110 +217,9 @@ public static partial class GameEventRegistry
                 ]);
     }
 
-    /// <summary>
-    /// Tool-gated frustration - can't harvest hardwood without axe.
-    /// </summary>
-    private static GameEvent NeedAnAxe(GameContext ctx)
-    {
-        return new GameEvent("Need an Axe",
-            "Massive trunks everywhere. Premium fuel — dense, long-burning hardwood. But you can't cut it with what you have.", 0.6)
-            .Requires(EventCondition.Working)
-            .OnlyAt("Ancient Grove")
-            .WithCooldown(24)
-            .Choice("Look for Deadfall",
-                "There must be something already down.",
-                [
-                    new EventResult("Precious little. This forest is too healthy — everything is either standing or rotted.", weight: 0.70, minutes: 15),
-                    new EventResult("A fallen branch, storm-snapped. Not much, but it's something.", weight: 0.30, minutes: 12)
-                        .FindsSupplies()
-                ])
-            .Choice("Mark It for Later",
-                "Come back with proper tools.",
-                [
-                    new EventResult("You note the location. When you have an axe, this place is gold.", weight: 1.0, minutes: 3)
-                ]);
-    }
-
     // === FLINT SEAM EVENTS ===
 
-    /// <summary>
-    /// Hazard event - sharp edges everywhere.
-    /// </summary>
-    private static GameEvent SharpEdges(GameContext ctx)
-    {
-        return new GameEvent("Sharp Edges",
-            "Flint flakes everywhere — razor-sharp. A wrong step could cut deep.", 0.5)
-            .Requires(EventCondition.Working)
-            .OnlyAt("Flint Seam")
-            .WithCooldown(2)
-            .Choice("Move Carefully",
-                "Watch every step.",
-                [
-                    new EventResult("Slow going, but you avoid the worst of it.", weight: 0.80, minutes: 10),
-                    new EventResult("A flake slices through your footwear. Blood wells up.", weight: 0.20, minutes: 5)
-                        .WithEffects(Effects.EffectFactory.Bleeding(0.15))
-                ])
-            .Choice("Clear a Path",
-                "Sweep the worst debris aside.",
-                [
-                    new EventResult("You clear a workspace. Safer now.", weight: 0.90, minutes: 15),
-                    new EventResult("A piece shatters as you move it. Shard catches your hand.", weight: 0.10, minutes: 8)
-                        .WithEffects(Effects.EffectFactory.Bleeding(0.1))
-                ]);
-    }
-
     // === GAME TRAIL EVENTS ===
-
-    /// <summary>
-    /// Fresh animal tracks - opportunity to follow, mark, or note the area.
-    /// Works anywhere with animal territory, weighted higher at Game Trail.
-    /// </summary>
-    private static GameEvent FreshTracks(GameContext ctx)
-    {
-        var animal = AnimalPresence.PickAnimal(ctx) ?? AnimalType.Caribou;
-        var trackDesc = animal switch
-        {
-            AnimalType.Caribou => "Hoofprints in the snow",
-            AnimalType.Megaloceros => "Massive hoofprints with antler drag marks",
-            AnimalType.Bison => "Deep cloven tracks churning the snow",
-            AnimalType.Rabbit => "Small paw prints, close together",
-            _ => "Fresh tracks"
-        };
-
-        bool isGameTrail = ctx.CurrentLocation?.Name == "Game Trail";
-        var animalDisplay = animal.DisplayName();
-
-        return new GameEvent("Fresh Tracks",
-            $"{trackDesc}, still crisp. {char.ToUpper(animalDisplay[0]) + animalDisplay[1..]} passed through recently.", isGameTrail ? 1.2 : 0.6)
-            .Requires(EventCondition.Working, EventCondition.InAnimalTerritory)
-            .WithSituationFactor(Situations.IsFollowingAnimalSigns, 1.5)
-            .WithSituationFactor(Situations.HasFreshTrail, 1.5)  // Examining signs helps find more
-            .WithCooldown(4)
-            .Choice("Follow Them",
-                "The trail is fresh. They can't be far.",
-                [
-                    new EventResult($"You track them carefully. {char.ToUpper(animalDisplay[0]) + animalDisplay[1..]} ahead, grazing. An opportunity.", weight: 0.45, minutes: 20)
-                        .CreateTension("WoundedPrey", 0.5, description: $"Fresh {animalDisplay.ToLower()} trail"),
-                    new EventResult("The trail goes cold. They're faster than you.", weight: 0.30, minutes: 15),
-                    new EventResult("The trail leads to a thicket. Bedded down - dangerous to approach.", weight: 0.15, minutes: 12)
-                        .CreateTension("WoundedPrey", 0.3),
-                    new EventResult("Following the tracks, you find something else found them first.", weight: 0.10, minutes: 12)
-                        .BecomeStalked(0.4)
-                ])
-            .Choice("Mark the Location",
-                "Note where you found these. Return prepared for a proper hunt.",
-                [
-                    new EventResult("You memorize the landmarks. Good hunting ground.", weight: 0.80, minutes: 3)
-                        .CreateTension("MarkedDiscovery", 0.3, description: $"{animalDisplay.ToLower()} trail spotted"),
-                    new EventResult("You break some branches to mark the spot.", weight: 0.20, minutes: 5)
-                        .CreateTension("MarkedDiscovery", 0.4, description: $"Marked {animalDisplay.ToLower()} trail")
-                ])
-            .Choice("Keep Working",
-                "Note the tracks and continue what you were doing.",
-                [
-                    new EventResult("You file it away mentally. Good to know they're in the area.", weight: 1.0, minutes: 0)
-                ]);
-    }
 
     // === DENSE THICKET EVENTS ===
 
@@ -529,31 +309,6 @@ public static partial class GameEventRegistry
     // === ROCKY RIDGE EVENTS ===
 
     /// <summary>
-    /// Scouting event - see for miles from the ridge.
-    /// </summary>
-    private static GameEvent SeeForMiles(GameContext ctx)
-    {
-        return new GameEvent("See for Miles",
-            "From the ridge top, both valleys spread below. You can see everything.", 0.6)
-            .Requires(EventCondition.Working)
-            .OnlyAt("Rocky Ridge")
-            .WithCooldown(6)
-            .Choice("Survey the Landscape",
-                "Take time to study what's below.",
-                [
-                    new EventResult("Smoke to the east — another camp? Movement in the southern forest — game.", weight: 0.50, minutes: 15),
-                    new EventResult("Wolves moving in a pack to the north. Good to know where they are.", weight: 0.30, minutes: 12)
-                        .CreateTension("PackNearby", 0.3),
-                    new EventResult("The pass is visible. Still snow-choked, but you can see the route.", weight: 0.20, minutes: 10)
-                ])
-            .Choice("Note Key Features",
-                "Quick scan for landmarks.",
-                [
-                    new EventResult("You mark locations in your mind. The lay of the land is clearer now.", weight: 1.0, minutes: 5)
-                ]);
-    }
-
-    /// <summary>
     /// Exposure event - brutal wind on the ridge.
     /// </summary>
     private static GameEvent RidgeWindChill(GameContext ctx)
@@ -590,45 +345,6 @@ public static partial class GameEventRegistry
     // === BEAR CAVE EVENTS ===
     // Note: Primary occupied-state mechanics handled by Den arc events (TheFind, AssessingTheClaim, etc.)
     // These events provide additional Bear Cave-specific flavor and encounters.
-
-    /// <summary>
-    /// Discovery event - find cached meat from bear kills.
-    /// Bears cache food — a desperate opportunity or a deadly trap.
-    /// </summary>
-    private static GameEvent BearCache(GameContext ctx)
-    {
-        return new GameEvent("Bear's Cache",
-            "Deep in the cave, a mound of dirt and debris. The smell of rotting meat. The bear has cached its kills here.", 0.4)
-            .Requires(EventCondition.Working)
-            .OnlyAt("Bear Cave")
-            .WithCooldown(24)
-            .Choice("Risk It — Take the Meat",
-                "Food is food. Work fast.",
-                [
-                    new EventResult("You uncover frozen carcasses. Partially eaten, but there's meat here.", weight: 0.50, minutes: 20)
-                        .FindsMeat()
-                        .CreateTension("ClaimedTerritory", 0.4, animalType: AnimalType.Bear, location: ctx.CurrentLocation),
-                    new EventResult("The cache is fresh. The bear hasn't been gone long.", weight: 0.30, minutes: 15)
-                        .Rewards(RewardPool.SmallGame)
-                        .CreateTension("ClaimedTerritory", 0.6, animalType: AnimalType.Bear, location: ctx.CurrentLocation),
-                    new EventResult("A rumbling growl from the cave mouth. It's back. RUN.", weight: 0.20, minutes: 5)
-                        .Encounter(AnimalType.Bear, 20, 0.7)
-                ])
-            .Choice("Take Bones Only",
-                "Less valuable, but won't smell like fresh theft.",
-                [
-                    new EventResult("You grab bones from the older kills. The bear won't miss them.", weight: 0.80, minutes: 10)
-                        .Rewards(RewardPool.BoneHarvest),
-                    new EventResult("Even this disturbs the cache. You've left a sign.", weight: 0.20, minutes: 8)
-                        .Rewards(RewardPool.BoneHarvest)
-                        .CreateTension("ClaimedTerritory", 0.2, animalType: AnimalType.Bear, location: ctx.CurrentLocation)
-                ])
-            .Choice("Leave It Untouched",
-                "Not worth angering whatever lives here.",
-                [
-                    new EventResult("You back away from the cache. Wisdom over hunger.", weight: 1.0, minutes: 3)
-                ]);
-    }
 
     /// <summary>
     /// Atmosphere event - signs of the cave's occupant.
@@ -691,29 +407,6 @@ public static partial class GameEventRegistry
     }
 
     // === BEAVER DAM EVENTS ===
-
-    /// <summary>
-    /// Atmosphere event - beaver activity visible.
-    /// </summary>
-    private static GameEvent BeaverActivity(GameContext ctx)
-    {
-        return new GameEvent("Dam Builders",
-            "Splashing in the pond. A beaver surfaces, branch in its teeth, and swims toward the dam. The ecosystem is alive.", 0.4)
-            .Requires(EventCondition.Working)
-            .OnlyAt("Beaver Dam")
-            .WithCooldown(6)
-            .Choice("Watch Them Work",
-                "There's something peaceful about it.",
-                [
-                    new EventResult("They weave branches, pack mud, repair gaps. Industrious creatures.", weight: 0.70, minutes: 10),
-                    new EventResult("One slaps its tail — warning. They've spotted you. The pond goes silent.", weight: 0.30, minutes: 5)
-                ])
-            .Choice("Ignore Them",
-                "You have your own work to do.",
-                [
-                    new EventResult("You gather what you need. The beavers keep their distance.", weight: 1.0, minutes: 3)
-                ]);
-    }
 
     /// <summary>
     /// Consequence event - dam starts to fail after heavy harvest.

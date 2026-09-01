@@ -31,6 +31,12 @@ public class Location
 
     public TerrainType Terrain { get; set; } = TerrainType.Plain;
 
+    /// <summary>
+    /// The far side of the mountain pass. Standing here ends the run - the player has
+    /// crossed and found their tribe. Exactly one location on the map sets this.
+    /// </summary>
+    public bool IsCrossingExit { get; init; } = false;
+
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsPassable => Terrain.IsPassable();
 
@@ -168,13 +174,6 @@ public class Location
         };
         return this;
     }
-    public Location WithEdge(Direction dir, EdgeType type, List<EdgeEvent>? customEvents = null)
-    {
-        EdgeOverrides ??= new();
-        EdgeOverrides[dir] = customEvents != null ? new TileEdge(type, customEvents) : new TileEdge(type);
-        return this;
-    }
-
     public bool Explored { get; set; } = false;
     public List<LocationFeature> Features { get; set; } = [];
 
