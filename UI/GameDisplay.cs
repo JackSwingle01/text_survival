@@ -75,9 +75,4 @@ public static class GameDisplay
     public static (int elapsed, bool interrupted) UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, ActivityType activity)
         => Desktop.DesktopIO.RenderWithDuration(ctx, statusText, minutes, activity);
 
-    /// <summary>
-    /// Render the crafting screen showing all categories and recipes.
-    /// </summary>
-    public static void RenderCraftingScreen(GameContext ctx, Crafting.NeedCraftingSystem crafting, string? title = null)
-        => Desktop.DesktopIO.RenderCrafting(ctx, crafting, title ?? "CRAFTING");
 }

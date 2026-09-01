@@ -244,9 +244,6 @@ public static class AbilityCalculator
     // Manipulation impairment check - used for clumsy/fumbling effects
     public static bool IsManipulationImpaired(double manipulation) => manipulation < 0.5;
 
-    // BloodPumping impairment check - used for weak circulation effects
-    public static bool IsBloodPumpingImpaired(double bloodPumping) => bloodPumping < 0.5;
-
     // Perception impairment check - used for foggy/dulled senses effects
     public static bool IsPerceptionImpaired(double perception) => perception < 0.5;
 

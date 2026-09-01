@@ -212,11 +212,6 @@ public class Inventory
         return consumed;
     }
 
-    /// <summary>
-    /// Convenience method to add weight directly (wraps Push).
-    /// </summary>
-    public void AddWeight(Resource type, double kg) => _stacks[type].Push(kg);
-
     // Category-based queries
     public bool Has(ResourceCategory category) =>
         ResourceCategories.Items[category].Any(type => _stacks[type].Count > 0);
@@ -414,14 +409,6 @@ public class Inventory
     public bool CanStartFire =>
         _stacks[Resource.Tinder].Count > 0 &&
         (_stacks[Resource.Stick].Count > 0 || HasLogs);
-
-    public double DropAllMeat()
-    {
-        double total = _stacks[Resource.RawMeat].Sum() + _stacks[Resource.CookedMeat].Sum();
-        _stacks[Resource.RawMeat].Clear();
-        _stacks[Resource.CookedMeat].Clear();
-        return total;
-    }
 
     public bool HasWeapon => Weapon != null;
 

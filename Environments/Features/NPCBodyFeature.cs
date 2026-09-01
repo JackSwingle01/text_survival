@@ -83,18 +83,6 @@ public class NPCBodyFeature : LocationFeature, IWorkableFeature
         Belongings = belongings;
     }
 
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        // Don't show in UI until discovered
-        if (!IsDiscovered)
-            return null;
-
-        if (IsBuried)
-            return new FeatureUIInfo("grave", $"{NPCName}'s grave", "buried", null);
-
-        return new FeatureUIInfo("body", NPCName, DecayDescription, null);
-    }
-
     public override List<Resource> ProvidedResources() => [];
 
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)

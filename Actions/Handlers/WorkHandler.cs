@@ -103,11 +103,4 @@ public static class WorkHandler
         return feature.Harvest(minutesToSpend);
     }
 
-    /// <summary>
-    /// Check if location has harvestable resources.
-    /// </summary>
-    public static bool CanHarvest(Location location)
-    {
-        return GetAvailableHarvestable(location) != null;
-    }
 }

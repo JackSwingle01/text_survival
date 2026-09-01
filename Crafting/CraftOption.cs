@@ -169,51 +169,6 @@ public class CraftOption
         }
     }
 
-    public string GetRequirementsSummary(Inventory inventory)
-    {
-        var parts = new List<string>();
-
-        // Material requirements
-        foreach (var req in Requirements)
-        {
-            int have = GetMaterialCount(inventory, req.Material);
-            string displayName = GetMaterialDisplayName(req.Material);
-            string status = have >= req.Count ? "ok" : $"need {req.Count - have} more";
-            parts.Add($"{req.Count} {displayName} ({status})");
-        }
-
-        // Tool requirements
-        foreach (var toolType in RequiredTools)
-        {
-            var tool = inventory.GetTool(toolType);
-            string status;
-            if (tool == null)
-                status = "missing";
-            else if (tool.Durability < 1)
-                status = "broken";
-            else
-                status = $"{tool.Durability} uses left";
-
-            parts.Add($"{toolType} ({status})");
-        }
-
-        return string.Join(", ", parts);
-    }
-
-    public string GetRequirementsShort()
-    {
-        var parts = Requirements.Select(r => $"{r.Count} {GetMaterialDisplayName(r.Material)}").ToList();
-
-        // Add tool requirements
-        if (RequiredTools.Count > 0)
-        {
-            var toolParts = RequiredTools.Select(t => $"{t}");
-            parts.AddRange(toolParts);
-        }
-
-        return string.Join(", ", parts);
-    }
-
     public string GetOutputDescription()
     {
         if (MaterialOutputs == null || MaterialOutputs.Count == 0)

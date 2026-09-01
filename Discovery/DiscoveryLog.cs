@@ -215,18 +215,6 @@ public class DiscoveryLog
         ItemsCrafted.Count;
 
     /// <summary>
-    /// Check if a specific location has been discovered.
-    /// </summary>
-    public bool HasDiscoveredLocation(string locationName) =>
-        DiscoveredLocations.Contains(locationName);
-
-    /// <summary>
-    /// Check if a specific animal has been encountered.
-    /// </summary>
-    public bool HasEncounteredAnimal(AnimalType animalType) =>
-        EncounteredAnimals.Contains(animalType);
-
-    /// <summary>
     /// Get display string for a category showing discovery progress.
     /// Early game: just "X discovered"
     /// Later (after finding 5+ in category): "X / ~Y"

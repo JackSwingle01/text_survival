@@ -63,42 +63,6 @@ public static class TreatmentHandler
         public bool IsCrafted => CraftedGear != null;
     }
 
-    public static bool CanApplyTreatment(GameContext ctx)
-    {
-        var effects = ctx.player.EffectRegistry.GetAll();
-        var inv = ctx.Inventory;
-
-        // Check direct treatments
-        foreach (var (resource, effectKind, _, _) in DirectTreatments)
-        {
-            if (!effects.Any(e => e.EffectKind.Equals(effectKind, StringComparison.OrdinalIgnoreCase)))
-                continue;
-            if (inv.Count(resource) > 0)
-                return true;
-        }
-
-        // Check crafted treatments
-        var craftedTreatments = inv.Tools
-            .Where(t => t.ToolType == ToolType.Treatment && !string.IsNullOrEmpty(t.TreatsEffect))
-            .ToList();
-
-        foreach (var gear in craftedTreatments)
-        {
-            if (effects.Any(e => e.EffectKind.Equals(gear.TreatsEffect, StringComparison.OrdinalIgnoreCase)))
-                return true;
-        }
-
-        // Check crafted treatments that grant buffs (can always be used if player has them)
-        var buffTreatments = inv.Tools
-            .Where(t => t.ToolType == ToolType.Treatment && !string.IsNullOrEmpty(t.GrantsEffect))
-            .ToList();
-
-        if (buffTreatments.Count > 0)
-            return true;
-
-        return false;
-    }
-
     public static void ApplyTreatment(GameContext ctx)
     {
         var effects = ctx.player.EffectRegistry.GetAll();

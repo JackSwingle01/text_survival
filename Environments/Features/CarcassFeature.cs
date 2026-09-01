@@ -197,25 +197,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         }
     }
 
-    public void ProcessScavenging(double hoursAway, bool predatorActivityNearby)
-    {
-        if (!predatorActivityNearby || hoursAway < 0.5) return;
-
-        // Higher scent = more attractive to scavengers
-        // Up to 15% meat loss per hour at max scent
-        double lossRatePerHour = ScentIntensity * 0.15;
-        double totalLossPct = Math.Min(0.8, lossRatePerHour * hoursAway);  // Cap at 80% loss
-
-        MeatRemainingKg *= (1 - totalLossPct);
-
-        // Scavengers also damage hide/sinew (tearing)
-        if (totalLossPct > 0.3)
-        {
-            HideRemainingKg *= 0.7;  // 30% hide damage from scavenger activity
-            SinewRemainingKg *= 0.8;  // 20% sinew loss
-        }
-    }
-
     public double DecayLevel  // 0=fresh, 1=spoiled
     {
         get
@@ -607,28 +588,6 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         {
             result.Add(Resource.MammothHide, perPiece);
         }
-    }
-
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        if (IsCompletelyButchered)
-            return null;
-
-        string status = GetDecayDescription();
-        double remainingKg = GetTotalRemainingKg();
-
-        var details = new List<string>
-        {
-            $"~{remainingKg:F1}kg remaining",
-            $"~{GetRemainingMinutes()} min to butcher"
-        };
-
-        return new FeatureUIInfo(
-            Type: "carcass",
-            Label: $"{AnimalName} carcass",
-            Status: status,
-            Details: details
-        );
     }
 
     public override List<Resource> ProvidedResources()

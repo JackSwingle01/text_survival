@@ -254,20 +254,15 @@ Activities at a location (not at camp).
 - Exploring (discovering locations)
 - Harvesting specific resources
 
-**Key methods:**
-- `DoForage()` — Search for resources
-- `DoHunt()` — Find and stalk game
-- `DoExplore()` — Discover new locations
-- `DoHarvest()` — Collect from harvestable features
+**Key method:**
+- `Execute(location, strategy)` — run one `IWorkStrategy` at a location.
+  Every work type goes through it; there are no per-activity entry points.
 
-### CraftingRunner
+### Crafting
 
-Need-based crafting interface.
-
-**Responsibilities:**
-- Show craftable items by need category
-- Check material requirements
-- Execute crafting (time, materials, results)
+`GameRunner.RunCrafting()` opens `CraftingOverlay`, which shows the recipes
+and executes the craft itself. `CraftingRunner` is a thin wrapper over the
+same call; see [crafting-system.md](crafting-system.md).
 
 ---
 

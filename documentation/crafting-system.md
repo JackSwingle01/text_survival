@@ -15,7 +15,7 @@ The crafting system is **need-based**, not recipe-list based. Players express wh
 - `Crafting/NeedCraftingSystem.cs` — Manages craft options by need
 - `Crafting/CraftOption.cs` — Single craftable item definition
 - `Crafting/NeedCategory.cs` — Need category enum
-- `Actions/CraftingRunner.cs` — UI for crafting
+- `Desktop/UI/CraftingOverlay.cs` — the crafting screen and craft execution
 
 ---
 
@@ -165,38 +165,35 @@ Options are initialized in the constructor, organized by category.
 
 ---
 
-## CraftingRunner
+## CraftingOverlay
 
-UI handler in `Actions/CraftingRunner.cs`:
+Crafting is driven by the overlay, not by a runner. `GameRunner.RunCrafting()`
+opens it via `DesktopIO.RunCraftingAndWait`; `CraftingRunner.Run()` is a
+one-line wrapper around the same call. The overlay lists every category and
+recipe on one screen and executes the craft itself:
 
 ```csharp
-public void Run()
+// Desktop/UI/CraftingOverlay.cs
+public string? ProcessPendingCraft(GameContext ctx)
 {
-    // 1. Get available needs
-    var needs = _crafting.GetAvailableNeeds(_ctx.Inventory);
+    // Progress animation advances time (materials are not consumed yet)
+    BlockingDialog.ShowCraftingProgress(ctx, option.Name, option.Description,
+                                        option.CraftingTimeMinutes, materialStates);
 
-    // 2. Player picks a need
-    var selectedNeed = choice.GetPlayerChoice();
-
-    // 3. Show options for that need
-    ShowOptionsForNeed(selectedNeed);
-}
-
-private bool DoCraft(CraftOption option)
-{
-    // Time passes
-    _ctx.Update(option.CraftingTimeMinutes);
-
-    // Create tool
-    var tool = option.Craft(_ctx.Inventory);
-
-    // Add to inventory (weapons auto-equip)
-    if (tool.IsWeapon)
-        _ctx.Inventory.EquipWeapon(tool);
+    if (option.ProducesFeature)
+        ctx.Camp.AddFeature(option.CraftFeature(inv));
     else
-        _ctx.Inventory.Tools.Add(tool);
+        // option.Craft(inv) consumes materials and returns the gear;
+        // equipment is equipped, accessories and tools go to the inventory,
+        // weapons auto-equip.
+        ...
 }
 ```
+
+**Not handled by the overlay:** multi-session `CraftingProjectFeature`
+recipes and shelter rebuild. The only implementation of those two branches
+lives in `CraftingRunner.DoCraft`, which nothing calls - so today a project
+cannot be started from the crafting screen.
 
 ---
 
@@ -270,7 +267,7 @@ public enum NeedCategory
 }
 ```
 
-Update `CraftingRunner.GetNeedLabel()` and `GetNeedDescription()` for display.
+Add display text for the category in `NeedCategoryDisplay`.
 
 ### 3. Add material (if needed)
 
@@ -282,5 +279,5 @@ If using new materials:
 ---
 
 **Related Files:**
-- [action-system.md](action-system.md) — Runner pattern for CraftingRunner
+- [action-system.md](action-system.md) — Runner pattern
 - [overview.md](overview.md) — System overview

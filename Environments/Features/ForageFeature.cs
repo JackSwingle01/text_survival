@@ -313,17 +313,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     }
 
     /// <summary>
-    /// Check if an animal with this diet would find food here.
-    /// </summary>
-    public bool HasFoodForDiet(AnimalDiet diet)
-    {
-        if (diet == AnimalDiet.Carnivore) return false;
-
-        var consumedResources = diet.GetConsumedResources();
-        return _resources.Any(r => consumedResources.Contains(r.ResourceType));
-    }
-
-    /// <summary>
     /// Reroll the clue seed (used by "keep walking" option).
     /// </summary>
     public void RerollClues() => ClueSeed = Random.Shared.Next();
@@ -499,13 +488,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     public ForageFeature AddAmadou(double abundance = 0.1, double minKg = 0.02, double maxKg = 0.08) =>
         AddResource("amadou", Resource.Amadou, abundance, minKg, maxKg);
 
-    // Persistent plant convenience methods (winter-available)
-    public ForageFeature AddRoseHips(double abundance = 0.2, double minKg = 0.02, double maxKg = 0.1) =>
-        AddResource("rose hips", Resource.RoseHip, abundance, minKg, maxKg);
-
-    public ForageFeature AddJuniperBerries(double abundance = 0.15, double minKg = 0.02, double maxKg = 0.08) =>
-        AddResource("juniper berries", Resource.JuniperBerry, abundance, minKg, maxKg);
-
     public ForageFeature AddWillowBark(double abundance = 0.15, double minKg = 0.02, double maxKg = 0.1) =>
         AddResource("willow bark", Resource.WillowBark, abundance, minKg, maxKg);
 
@@ -521,13 +503,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
 
     public ForageFeature AddSphagnum(double abundance = 0.2, double minKg = 0.1, double maxKg = 0.3) =>
         AddResource("sphagnum", Resource.SphagnumMoss, abundance, minKg, maxKg);
-
-    // Food expansion convenience methods
-    public ForageFeature AddNuts(double abundance = 0.2, double minKg = 0.05, double maxKg = 0.15) =>
-        AddResource("nuts", Resource.Nuts, abundance, minKg, maxKg);
-
-    public ForageFeature AddRoots(double abundance = 0.15, double minKg = 0.1, double maxKg = 0.3) =>
-        AddResource("roots", Resource.Roots, abundance, minKg, maxKg);
 
     // Fire remnant convenience methods
     public ForageFeature AddCharcoal(double abundance = 0.2, double minKg = 0.05, double maxKg = 0.15) =>
@@ -620,16 +595,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     public void Deplete(double hours)
     {
         NumberOfHoursForaged += hours;
-    }
-
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        if (!CanForage()) return null;
-        return new FeatureUIInfo(
-            "forage",
-            "Foraging",
-            GetQualityDescription(),
-            GetAvailableResourceTypes());
     }
 
     public override List<Resource> ProvidedResources() =>

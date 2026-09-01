@@ -294,21 +294,6 @@ public class HeatSourceFeature : LocationFeature
     }
 
     /// <summary>
-    /// Ignite fuel - transfers from unburned to burning.
-    /// Used when starting a fire or relighting from embers.
-    /// </summary>
-    public void IgniteFuel(FuelType fuelType, double massKg)
-    {
-        double available = _unburnedMixture.GetValueOrDefault(fuelType, 0);
-        double toIgnite = Math.Min(massKg, available);
-
-        if (toIgnite > 0)
-        {
-            TransferToBurning(fuelType, toIgnite);
-        }
-    }
-
-    /// <summary>
     /// Ignite all unburned fuel of types that can ignite from cold (tinder/kindling)
     /// </summary>
     public void IgniteAll()

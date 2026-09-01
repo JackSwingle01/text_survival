@@ -198,11 +198,4 @@ public static class FuelDatabase
         return _properties.ContainsKey(fuelType);
     }
 
-    /// <summary>
-    /// Get all defined fuel types
-    /// </summary>
-    public static IEnumerable<FuelType> GetAllFuelTypes()
-    {
-        return _properties.Keys;
-    }
 }

@@ -217,23 +217,6 @@ public class NPCStashWater() : NPCAction("Storing Water", 2, ActivityType.Crafti
     }
 }
 
-public class NPCTakeFromCache(ResourceCategory resourceCategory) : NPCAction($"Taking {resourceCategory}", 2, ActivityType.Crafting)
-{
-    public override string LogMessage => $"Getting {resourceCategory.ToString().ToLower()}";
-    public override void Complete(NPC npc)
-    {
-        var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
-        if (cache == null)
-        {
-            Console.WriteLine("AI's BROKE. Trying to take items where there's no cache!");
-            return;
-        }
-        // just take one and the action should get requeued if more needed
-        var item = cache.Storage.FindAnyResourceInCategory(resourceCategory);
-        npc.Inventory!.Add(item, cache.Storage.Pop(item));
-    }
-}
-
 public class NPCTakeToolFromCache(ToolType toolType) : NPCAction($"Taking {toolType}", 2, ActivityType.Crafting)
 {
     public override string LogMessage => $"Getting {toolType.ToString().ToLower()}";

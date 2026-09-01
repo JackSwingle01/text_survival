@@ -114,15 +114,6 @@ public class CacheFeature : LocationFeature, IWorkableFeature
         );
     }
 
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        return new FeatureUIInfo(
-            "cache",
-            Name,
-            GetDescription(),
-            null);
-    }
-
     public override List<Resource> ProvidedResources() =>
         Storage.GetResourceTypes();
 
@@ -148,18 +139,6 @@ public class CacheFeature : LocationFeature, IWorkableFeature
         protectsFromPredators: true,
         protectsFromWeather: true,
         preservesFood: true
-    );
-
-    /// <summary>
-    /// Create a tree cache (hung from branches, predator-safe from ground predators).
-    /// </summary>
-    public static CacheFeature CreateTreeCache() => new(
-        "Tree Cache",
-        CacheType.Natural,
-        capacityKg: 30,
-        protectsFromPredators: true,
-        protectsFromWeather: false,
-        preservesFood: false
     );
 
     /// <summary>

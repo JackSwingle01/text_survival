@@ -125,47 +125,8 @@ public class WorkRunner(GameContext ctx)
         return result;
     }
 
-    public WorkResult DoForage(Location location)
-    {
-        return ExecuteWork(location, new ForageStrategy());
-    }
-
-    public WorkResult DoHarvest(Location location)
-    {
-        return ExecuteWork(location, new HarvestStrategy());
-    }
-
-    public WorkResult DoSalvage(Location location)
-    {
-        return ExecuteWork(location, new SalvageStrategy());
-    }
-
 
     // === TRAPPING ===
-
-    /// <summary>
-    /// Set a snare at this location. Requires SmallGameFeature.
-    /// </summary>
-    public WorkResult DoSetTrap(Location location)
-    {
-        return ExecuteWork(location, new TrapStrategy(TrapStrategy.TrapMode.Set));
-    }
-
-    /// <summary>
-    /// Check all snares at this location.
-    /// </summary>
-    public WorkResult DoCheckTraps(Location location)
-    {
-        return ExecuteWork(location, new TrapStrategy(TrapStrategy.TrapMode.Check));
-    }
-
-    /// <summary>
-    /// Access a cache at the location to store/retrieve items.
-    /// </summary>
-    public WorkResult DoCache(Location location)
-    {
-        return ExecuteWork(location, new CacheStrategy());
-    }
 
     // === WORK OPTIONS (used by ExpeditionRunner) ===
 
@@ -175,16 +136,6 @@ public class WorkRunner(GameContext ctx)
     public WorkResult Execute(Location location, IWorkStrategy strategy)
     {
         return ExecuteWork(location, strategy);
-    }
-
-    /// <summary>
-    /// Execute work by ID. Finds the matching WorkOption and executes its strategy.
-    /// </summary>
-    public WorkResult ExecuteById(Location location, string workId)
-    {
-        var option = location.GetWorkOptions(_ctx).FirstOrDefault(o => o.Id == workId);
-        if (option == null) return WorkResult.Empty(0);
-        return ExecuteWork(location, option.Strategy);
     }
 
     // === HELPERS ===
@@ -199,20 +150,6 @@ public class WorkRunner(GameContext ctx)
         GameDisplay.Render(ctx);
 
         return DesktopIO.Confirm(ctx, $"Go to {discovered.Name} now? (~{travelMinutes} min)");
-    }
-
-    /// <summary>
-    /// Calculate chance to discover a new location.
-    /// In grid mode, base chance with visibility bonus.
-    /// </summary>
-    public static double CalculateExploreChance(Location location)
-    {
-        double baseChance = 0.70;
-
-        // High visibility improves scouting (up to +20% at visibility 2.0)
-        double chance = baseChance + location.VisibilityFactor * 0.10;
-
-        return Math.Min(0.95, chance);
     }
 
     public static string GetForageFailureMessage(string quality)

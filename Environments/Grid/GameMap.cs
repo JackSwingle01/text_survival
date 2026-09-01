@@ -288,16 +288,6 @@ public class GameMap
     public int UnexploredVisibleCount =>
         VisibleNamedLocations.Count(l => !l.Explored);
 
-    public Location? RevealRandomLocation()
-    {
-        var unexplored = VisibleNamedLocations.Where(l => !l.Explored).ToList();
-        if (unexplored.Count == 0) return null;
-
-        var location = unexplored[Random.Shared.Next(unexplored.Count)];
-        location.MarkExplored();
-        return location;
-    }
-
     public IReadOnlyList<TileEdge> GetEdgesBetween(GridPosition from, GridPosition to)
     {
         var (canonical, dir, reversed) = Canonicalize(from, to);
@@ -337,13 +327,6 @@ public class GameMap
         // Replace existing edge of same type (trail marker → cut trail)
         _edges[key].RemoveAll(e => e.Type == edge.Type);
         _edges[key].Add(edge);
-    }
-
-    public void RemoveEdge(GridPosition a, GridPosition b, EdgeType type)
-    {
-        var (canonical, dir, _) = Canonicalize(a, b);
-        if (_edges.TryGetValue((canonical, dir), out var edges))
-            edges.RemoveAll(e => e.Type == type);
     }
 
     public GameEvent? TryTriggerEdgeEvent(GridPosition from, GridPosition to, GameContext ctx)

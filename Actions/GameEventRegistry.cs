@@ -237,27 +237,6 @@ public static partial class GameEventRegistry
         RebuildTheShelter
     ];
 
-    /// <summary>
-    /// Runs minute-by-minute ticks, checking for events each minute.
-    /// Returns when targetMinutes is reached OR an event triggers.
-    /// Caller is responsible for calling ctx.Update() with the elapsed time.
-    /// </summary>
-    public static TickResult RunTicks(GameContext ctx, int targetMinutes)
-    {
-        int elapsed = 0;
-        GameEvent? evt = null;
-
-        while (elapsed < targetMinutes)
-        {
-            elapsed++;
-            evt = GetEventOnTick(ctx);
-            if (evt is not null)
-                break;
-        }
-
-        return new TickResult(elapsed, evt);
-    }
-
     public static GameEvent? GetEventOnTick(GameContext ctx, double activityMultiplier = 1.0)
     {
         // Stage 1: Base roll - does ANY event trigger?

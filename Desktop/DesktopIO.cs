@@ -24,8 +24,7 @@ public static class DesktopIO
         return $"{slug}_{index}";
     }
 
-    public static void ClearCrafting(GameContext ctx) { }
-    public static void ClearEvent(GameContext ctx) { }
+public static void ClearEvent(GameContext ctx) { }
 
     public static void ShowDiscovery(GameContext ctx, string locationName, string discoveryText)
     {
@@ -313,31 +312,6 @@ public static class DesktopIO
 
             Raylib.EndDrawing();
         }
-    }
-
-    public static void RenderCrafting(GameContext ctx, NeedCraftingSystem crafting, string title = "CRAFTING")
-    {
-        var overlays = DesktopRuntime.Overlays;
-        if (overlays == null) return;
-
-        if (!overlays.Crafting.IsOpen)
-        {
-            overlays.ToggleCrafting();
-        }
-
-        float deltaTime = DesktopRuntime.BeginFrame();
-
-        Raylib.BeginDrawing();
-        Raylib.ClearBackground(new Color(20, 25, 30, 255));
-
-        DesktopRuntime.WorldRenderer?.Update(ctx, deltaTime);
-        DesktopRuntime.WorldRenderer?.Render(ctx);
-
-        rlImGui.Begin();
-        overlays.Render(ctx, deltaTime);
-        rlImGui.End();
-
-        Raylib.EndDrawing();
     }
 
     // The overlay handles all crafting logic internally (material consumption, time advancement).

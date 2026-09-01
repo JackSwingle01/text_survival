@@ -49,22 +49,6 @@ public static class AnimalPresence
     /// <summary>Anything to hunt or track here: a herd near, or small game on the tile.</summary>
     public static bool AnyGame(GameContext ctx) => AnyNear(ctx) || SmallGameHere(ctx) != null;
 
-    /// <summary>1.0 when a predator herd is on the tile, 0.5 when the tile is in its territory, else 0.</summary>
-    public static double PredatorLevel(GameContext ctx) => PresenceLevel(ctx, h => h.IsPredator);
-
-    /// <summary>1.0 when a prey herd is on the tile, 0.5 when the tile is in its territory, else 0.</summary>
-    public static double PreyLevel(GameContext ctx) => PresenceLevel(ctx, h => !h.IsPredator);
-
-    private static double PresenceLevel(GameContext ctx, Func<Herd, bool> filter)
-    {
-        if (ctx.Map == null) return 0;
-        var pos = ctx.Map.CurrentPosition;
-        var herds = Near(ctx).Where(filter).ToList();
-        if (herds.Any(h => h.Position == pos)) return 1.0;
-        if (herds.Count > 0) return 0.5;
-        return 0;
-    }
-
     /// <summary>A predator type near the player, weighted toward herds on the tile. Null if none.</summary>
     public static AnimalType? PickPredator(GameContext ctx) => Pick(ctx, h => h.IsPredator);
 

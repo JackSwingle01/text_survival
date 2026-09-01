@@ -33,28 +33,6 @@ public static class TensionDisplay
         ["FoodScentStrong"] = new("The scent of meat carries", "neutral")
     };
 
-    public static string GetMessage(ActiveTension tension)
-    {
-        if (TensionLookup.TryGetValue(tension.Type, out var info))
-        {
-            var message = info.MessageTemplate;
-            if (tension.AnimalType.HasValue)
-            {
-                message = message.Replace("{animalType}", tension.AnimalType.Value.DisplayName().ToLower());
-            }
-            else
-            {
-                // Fallback for missing animal type
-                message = message.Replace("A {animalType}", "Something");
-                message = message.Replace("A herd of {animalType}", "A herd");
-            }
-            return message;
-        }
-
-        // Fallback for unknown tension types
-        return tension.Description ?? tension.Type;
-    }
-
     public static string GetCategory(string tensionType)
     {
         if (TensionLookup.TryGetValue(tensionType, out var info))

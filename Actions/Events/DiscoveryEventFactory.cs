@@ -62,11 +62,6 @@ public static class DiscoveryEventFactory
         return null;
     }
 
-    /// <summary>
-    /// Check if an EventId is registered.
-    /// </summary>
-    public static bool HasEvent(string eventId) => EventFactories.ContainsKey(eventId);
-
     // === DISCOVERY EVENTS ===
 
     /// <summary>

@@ -81,21 +81,6 @@ public class CuringRackFeature : LocationFeature
     }
 
     /// <summary>
-    /// Get all items currently on the rack with their status.
-    /// </summary>
-    public List<CuringItemStatus> GetItemStatus()
-    {
-        return _items.Select(item => new CuringItemStatus
-        {
-            Type = item.Type,
-            WeightKg = item.WeightKg,
-            IsReady = item.IsReady,
-            ProgressPct = item.ProgressPct,
-            HoursRemaining = item.HoursRemaining
-        }).ToList();
-    }
-
-    /// <summary>
     /// Check if any items are ready to collect.
     /// </summary>
     public bool HasReadyItems => _items.Any(i => i.IsReady);
@@ -184,15 +169,6 @@ public class CuringRackFeature : LocationFeature
         public double HoursRemaining => Math.Max(0, (MinutesRequired - MinutesCured) / 60.0);
     }
 
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        return new FeatureUIInfo(
-            "curing",
-            "Curing Rack",
-            GetDescription(),
-            null);
-    }
-
     public override List<Resource> ProvidedResources()
     {
         if (!HasReadyItems) return [];
@@ -220,23 +196,6 @@ public class CuringRackFeature : LocationFeature
         return _items.Select(i => (i.Type, i.WeightKg, i.MinutesCured, i.MinutesRequired));
     }
 
-    /// <summary>
-    /// Restore internal state from save.
-    /// </summary>
-    public void RestoreState(IEnumerable<(CurableItemType Type, double WeightKg, int MinutesCured, int MinutesRequired)> items)
-    {
-        _items.Clear();
-        foreach (var (type, weight, cured, req) in items)
-        {
-            _items.Add(new CuringItem
-            {
-                Type = type,
-                WeightKg = weight,
-                MinutesCured = cured,
-                MinutesRequired = req
-            });
-        }
-    }
 }
 
 /// <summary>

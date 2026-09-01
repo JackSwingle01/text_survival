@@ -152,16 +152,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         return this;
     }
 
-    /// <summary>
-    /// Apply effects from an IllnessOnsetVariant, ensuring text and mechanics match.
-    /// Uses the variant's initial effects and severity multiplier.
-    /// </summary>
-    public EventResult WithIllnessOnset(IllnessOnsetVariant variant)
-    {
-        Effects.AddRange(variant.InitialEffects);
-        return this;
-    }
-
     // Tension operations
     public EventResult CreateTension(string type, double severity, Environments.Location? location = null,
         AnimalType? animalType = null, string? direction = null, string? description = null)
@@ -872,16 +862,7 @@ public class GameEvent(string name, string description, double weight)
     public string? RequiredLocationName;  // Exact match on location name
 
     private List<EventChoice> _choices = [];
-    public EventChoice GetChoice(GameContext ctx)
-    {
-        // filter to only ones that meet conditions todo
-        var choices = new Choice<EventChoice>("What do you do?");
-        _choices.Where(x => x.RequiredConditions.All(ctx.Check)).ToList().ForEach(x => choices.AddOption(x.Label, x));
-        return choices.GetPlayerChoice(ctx);
-    }
-    public void AddChoice(EventChoice c) => _choices.Add(c);
-
-    /// <summary>
+/// <summary>
     /// Get choices available to the player (filtered by conditions).
     /// </summary>
     public List<EventChoice> GetAvailableChoices(GameContext ctx)

@@ -632,7 +632,7 @@ Runners — Control flow, player decisions, display UI
 - GameRunner: main camp loop
 - TravelRunner: movement between locations
 - WorkRunner: all work activities (uses strategy pattern)
-- CraftingRunner: need-based crafting UI
+- CraftingOverlay: the crafting screen; picks recipes and executes the craft
 - HuntRunner: the approach prompt before a hunt; the hunt itself is combat
 
 Handlers — Activity-specific execution logic (static classes)

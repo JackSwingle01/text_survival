@@ -206,17 +206,4 @@ public class CapacityModifierContainer
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 
-    /// <summary>
-    /// Create from dictionary (for deserialization).
-    /// </summary>
-    public static CapacityModifierContainer FromDictionary(Dictionary<string, double>? dict)
-    {
-        if (dict == null || dict.Count == 0)
-            return new CapacityModifierContainer();
-
-        var container = new CapacityModifierContainer();
-        foreach (var kvp in dict)
-            container.SetCapacityModifier(kvp.Key, kvp.Value);
-        return container;
-    }
 }

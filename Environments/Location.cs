@@ -168,13 +168,6 @@ public class Location
         };
         return this;
     }
-    public Location WithEdge(Direction dir, EdgeType type, List<EdgeEvent>? customEvents = null)
-    {
-        EdgeOverrides ??= new();
-        EdgeOverrides[dir] = customEvents != null ? new TileEdge(type, customEvents) : new TileEdge(type);
-        return this;
-    }
-
     public bool Explored { get; set; } = false;
     public List<LocationFeature> Features { get; set; } = [];
 

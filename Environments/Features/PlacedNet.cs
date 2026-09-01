@@ -193,15 +193,6 @@ public class PlacedNet
         DurabilityRemaining = 0;
     }
 
-    /// <summary>
-    /// Mark catch as stolen by predator.
-    /// </summary>
-    public void MarkStolen()
-    {
-        State = NetState.Stolen;
-        CaughtFishWeights = [];
-    }
-
     private void ConsumeDurability()
     {
         if (DurabilityRemaining > 0)

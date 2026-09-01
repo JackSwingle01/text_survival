@@ -424,94 +424,6 @@ public class Weather
     // Convert Celsius to Fahrenheit
     public double TemperatureInFahrenheit => (BaseTemperature * 9 / 5) + 32;
 
-    // Get detailed weather description
-    public string GetWeatherDescription()
-    {
-        string temp = GetTemperatureDescription();
-        string conditions = GetConditionsDescription();
-        string wind = GetWindDescription();
-
-        return $"{temp} {conditions} {wind}";
-    }
-
-    private string GetTemperatureDescription()
-    {
-        if (BaseTemperature < -25)
-            return "It's brutally cold.";
-        else if (BaseTemperature < -15)
-            return "It's extremely cold.";
-        else if (BaseTemperature < -5)
-            return "It's very cold.";
-        else if (BaseTemperature < 0)
-            return "It's freezing cold.";
-        else if (BaseTemperature < 5)
-            return "It's cold.";
-        else if (BaseTemperature < 10)
-            return "It's cool.";
-        else
-            return "It's mild."; // As warm as it gets in Ice Age
-    }
-
-    private string GetConditionsDescription()
-    {
-        switch (CurrentCondition)
-        {
-            case WeatherCondition.Clear:
-                return "The sky is clear.";
-
-            case WeatherCondition.Cloudy:
-                return "The sky is cloudy and gray.";
-
-            case WeatherCondition.Misty:
-                return "A cold mist hangs in the air.";
-
-            case WeatherCondition.Rainy:
-                if (PrecipitationPct < 0.5)
-                    return "A cold drizzle is falling.";
-                else
-                    return "Cold rain is falling steadily.";
-
-            case WeatherCondition.LightSnow:
-                if (PrecipitationPct < 0.3)
-                    return "A few snowflakes drift through the air.";
-                else
-                    return "Snow is falling steadily.";
-
-            case WeatherCondition.Blizzard:
-                return "A blizzard rages with heavy snow and wind.";
-
-            case WeatherCondition.Stormy:
-                return "A thunderstorm rumbles overhead.";
-
-            default:
-                return "";
-        }
-    }
-
-    private string GetWindDescription()
-    {
-        if (WindSpeedPct < 0.2)           // 0-20%
-            return "The air is still.";
-        else if (WindSpeedPct < 0.4)      // 20-40%
-            return "A light breeze blows.";
-        else if (WindSpeedPct < 0.6)      // 40-60%
-            return "A cold wind blows steadily.";
-        else if (WindSpeedPct < 0.8)      // 60-80%
-            return "Strong, bitter winds howl across the landscape.";
-        else                           // 80-100%
-            return "Powerful, freezing gusts threaten to knock you over.";
-    }
-
-    // Short-form labels for UI panels
-    public string GetWindLabel()
-    {
-        if (WindSpeedPct < 0.2) return "Calm";
-        if (WindSpeedPct < 0.4) return "Breezy";
-        if (WindSpeedPct < 0.6) return "Windy";
-        if (WindSpeedPct < 0.8) return "Strong";
-        return "Fierce";
-    }
-
     public string GetPrecipitationLabel()
     {
         if (PrecipitationPct < 0.1) return "None";
@@ -557,39 +469,6 @@ public class Weather
             Season.Summer => 20,
             _ => 18 // Spring/Fall
         };
-    }
-
-    public double GetHoursUntilSunset(DateTime time)
-    {
-        int hour = time.Hour;
-        int minute = time.Minute;
-        int sunsetHour = GetSunsetHour();
-
-        if (hour >= sunsetHour)
-            return 0; // Already past sunset
-
-        double currentTimeInHours = hour + (minute / 60.0);
-        return sunsetHour - currentTimeInHours;
-    }
-
-    public double GetHoursUntilSunrise(DateTime time)
-    {
-        int hour = time.Hour;
-        int minute = time.Minute;
-        int sunriseHour = GetSunriseHour();
-
-        double currentTimeInHours = hour + (minute / 60.0);
-
-        if (hour < sunriseHour)
-        {
-            // Before sunrise today
-            return sunriseHour - currentTimeInHours;
-        }
-        else
-        {
-            // After sunrise, calculate until next day's sunrise
-            return (24 - currentTimeInHours) + sunriseHour;
-        }
     }
 
     public bool IsDaytime(DateTime time)

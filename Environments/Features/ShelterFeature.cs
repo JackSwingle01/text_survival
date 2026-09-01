@@ -242,19 +242,6 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
         }
     }
 
-    public void DegradeFromWarmth(double locationTempF, int minutes)
-    {
-        if (!IsSnowShelter) return;
-        if (locationTempF <= 40) return;  // Snow stable below 40°F
-
-        // Degrade based on how warm it is and time elapsed
-        double warmthDelta = locationTempF - 40;
-        double degradeRate = 0.01 * (warmthDelta / 20.0);  // Faster degradation in warmer temps
-        double damageAmount = degradeRate * (minutes / 60.0);
-
-        Damage(damageAmount);
-    }
-
     public void DamageStat(ShelterImprovementType targetStat, double amount)
     {
         switch (targetStat)
@@ -385,24 +372,7 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
     #region Save/Load Support
 
-    internal void RestoreState(double tempInsulation, double overheadCoverage, double windCoverage)
-    {
-        TemperatureInsulation = tempInsulation;
-        OverheadCoverage = overheadCoverage;
-        WindCoverage = windCoverage;
-    }
-
     #endregion
-
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        if (IsDestroyed) return null;
-        return new FeatureUIInfo(
-            "shelter",
-            Name,
-            $"{(int)(TemperatureInsulation * 100)}% ins, {(int)(WindCoverage * 100)}% wind",
-            null);
-    }
 
     #region Factory Methods
 
@@ -420,8 +390,6 @@ public class ShelterFeature : LocationFeature, IWorkableFeature
 
     public static ShelterFeature CreateSnowShelter() =>
         new("Snow shelter", ShelterType.SnowShelter, 0.6, 0.9, 0.8);
-
-    public static ShelterFeature CreateHideTent() => new("Hide tent", ShelterType.HideTent);
 
     public static ShelterFeature CreateFromTent(text_survival.Items.Gear tent)
     {

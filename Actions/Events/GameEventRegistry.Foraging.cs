@@ -32,46 +32,6 @@ Sometimes fortune smiles.", 1.0, 3)
     }
 
     /// <summary>
-    /// Discover a patch of mushrooms with varying risk/reward.
-    /// Knowledge test: experienced players learn which are safe vs risky.
-    /// </summary>
-    private static GameEvent MushroomPatch(GameContext ctx)
-    {
-        return new GameEvent("Mushroom Patch",
-            "You spot a cluster of mushrooms growing on a rotting log. Some look familiar, others have an unusual red tinge.", 1.0)
-            .Requires(EventCondition.Foraging)
-            .WithConditionFactor(EventCondition.IsForest, 1.5)
-            .Choice("Take the Safe Ones",
-                "Gather only the mushrooms you recognize.",
-                [
-                    new EventResult("You carefully select the familiar fungi. Birch polypore and amadou - useful medicine.", 0.70, 8)
-                        .Rewards(RewardPool.MedicinalForage, 0.8),
-                    new EventResult("Slim pickings. Most of these are varieties you don't recognize.", 0.30, 5)
-                ])
-            .Choice("Risk the Red Ones",
-                "The unusual ones might be valuable... or dangerous.",
-                [
-                    new EventResult("Your gamble pays off. These are potent medicinal mushrooms.", 0.25, 10)
-                        .Rewards(RewardPool.MedicinalForage, 1.5),
-                    new EventResult("You gather them, but something feels off. Best not to eat these.", 0.35, 8),
-                    new EventResult("You nibble a small piece to test. Your stomach cramps almost immediately.", 0.30, 5)
-                        .WithEffects(EffectFactory.Nauseous(0.4, 60)),
-                    new EventResult("Violent reaction. You spend the next hour retching.", 0.10, 60)
-                        .WithEffects(EffectFactory.Nauseous(0.7, 120))
-                        .DrainsStats(calories: 200)
-                ])
-            .Choice("Take All Carefully",
-                "Spend extra time examining and sorting everything.",
-                [
-                    new EventResult("Patience rewarded. You identify several useful varieties and avoid the toxic ones.", 0.60, 20)
-                        .Rewards(RewardPool.MedicinalForage, 1.2),
-                    new EventResult("You gather what you can identify, leaving the questionable ones.", 0.30, 15)
-                        .Rewards(RewardPool.MedicinalForage, 0.7),
-                    new EventResult("Despite your care, you're not certain about any of them. Better safe than sorry.", 0.10, 15)
-                ]);
-    }
-
-    /// <summary>
     /// Find a squirrel's winter cache. Time vs yield tradeoff.
     /// </summary>
     private static GameEvent SquirrelCache(GameContext ctx)

@@ -18,9 +18,6 @@ public static class ResourceExtensions
     public static bool IsMaterial(this Resource r) =>
         ResourceCategories.Items[ResourceCategory.Material].Contains(r);
 
-    public static bool IsTinder(this Resource r) =>
-        ResourceCategories.Items[ResourceCategory.Tinder].Contains(r);
-
     /// <summary>
     /// Get the primary category for a resource.
     /// Returns null if resource doesn't belong to any category.
@@ -33,12 +30,4 @@ public static class ResourceExtensions
         return null;
     }
 
-    /// <summary>
-    /// Check if a resource matches a foraging focus category.
-    /// </summary>
-    public static bool MatchesFocus(this Resource r, ResourceCategory? focus)
-    {
-        if (focus == null) return true; // General search matches all
-        return GetCategory(r) == focus;
-    }
 }

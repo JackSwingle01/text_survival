@@ -204,24 +204,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
         };
     }
 
-    public static EnvironmentalDetail OldCampfire()
-    {
-        var loot = new Inventory();
-        // Small chance of finding charcoal
-        if (Random.Shared.NextDouble() < 0.4)
-        {
-            loot.Add(Resource.Charcoal, 0.05 + Random.Shared.NextDouble() * 0.1);
-        }
-
-        return new EnvironmentalDetail("old_campfire", "Old Campfire", "The remains of a fire ring. Long since cold.")
-        {
-            _mapIcon = null, // No icon - cold campfires aren't visually prominent
-            Loot = loot.IsEmpty ? null : loot,
-            InteractionHint = loot.IsEmpty ? null : "sift through ashes",
-            InteractionMinutes = 3
-        };
-    }
-
     public static EnvironmentalDetail HollowTree()
     {
         var loot = new Inventory();

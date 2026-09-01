@@ -27,73 +27,6 @@ public class CraftingRunner(GameContext ctx)
         Desktop.DesktopIO.RunCraftingAndWait(_ctx);
     }
 
-    /// <summary>
-    /// Contextual prompt when player needs something specific.
-    /// Returns true if player crafted something.
-    /// </summary>
-    public bool PromptForNeed(NeedCategory need, string context)
-    {
-        GameDisplay.AddNarrative(_ctx, $"You {context}.");
-
-        var options = _crafting.GetOptionsForNeed(need, _ctx.Inventory);
-        var craftable = options.Where(o => o.CanCraft(_ctx.Inventory)).ToList();
-
-        if (craftable.Count == 0)
-        {
-            GameDisplay.AddNarrative(_ctx, $"You need {GetNeedDescription(need)}, but don't have materials to make one.");
-            GameDisplay.Render(_ctx);
-            return false;
-        }
-
-        GameDisplay.AddNarrative(_ctx, $"You could make {GetNeedDescription(need)}. Craft one now?");
-        GameDisplay.Render(_ctx);
-
-        if (!DesktopIO.Confirm(_ctx, "Craft now?"))
-            return false;
-
-        // Show crafting screen for this category
-        GameDisplay.RenderCraftingScreen(_ctx, _crafting, $"CRAFT {GetNeedLabel(need).ToUpper()}");
-
-        var result = ShowOptionsForNeed(need);
-
-        Desktop.DesktopIO.ClearCrafting(_ctx);
-        return result;
-    }
-
-    private bool ShowOptionsForNeed(NeedCategory need)
-    {
-        var options = _crafting.GetOptionsForNeed(need, _ctx.Inventory);
-
-        // Filter out features that already exist at camp (can only build one)
-        options = options.Where(o => !IsFeatureAlreadyBuilt(o)).ToList();
-
-        var craftable = options.Where(o => o.CanCraft(_ctx.Inventory)).ToList();
-
-        if (craftable.Count == 0)
-        {
-            GameDisplay.AddNarrative(_ctx, "You can't make anything right now.");
-            GameDisplay.Render(_ctx);
-            return false;
-        }
-
-        var choice = new Choice<CraftOption?>("What do you want to make?");
-
-        foreach (var option in craftable)
-        {
-            string label = $"{option.Name} - {option.GetRequirementsShort()} - {option.CraftingTimeMinutes} min";
-            choice.AddOption(label, option);
-        }
-
-        choice.AddOption("Cancel", null);
-
-        var selected = choice.GetPlayerChoice(_ctx);
-
-        if (selected == null)
-            return false;
-
-        return DoCraft(selected);
-    }
-
     private bool DoCraft(CraftOption option)
     {
         GameDisplay.AddNarrative(_ctx, $"You begin working on a {option.Name}...");
@@ -325,52 +258,6 @@ public class CraftingRunner(GameContext ctx)
 
         return true;
     }
-
-    private static string GetCategoryShortLabel(NeedCategory category) => category switch
-    {
-        NeedCategory.FireStarting => "Fire",
-        NeedCategory.CuttingTool => "Tool",
-        NeedCategory.HuntingWeapon => "Weapon",
-        NeedCategory.Trapping => "Trap",
-        NeedCategory.Processing => "Material",
-        NeedCategory.Treatment => "Medical",
-        NeedCategory.Equipment => "Clothing",
-        NeedCategory.Lighting => "Light",
-        NeedCategory.Carrying => "Storage",
-        NeedCategory.CampInfrastructure => "Camp",
-        NeedCategory.Mending => "Repair",
-        _ => category.ToString()
-    };
-
-    private static string GetNeedLabel(NeedCategory need) => need switch
-    {
-        NeedCategory.FireStarting => "Fire-starting supplies",
-        NeedCategory.CuttingTool => "A cutting tool",
-        NeedCategory.HuntingWeapon => "A hunting weapon",
-        NeedCategory.Trapping => "Trapping equipment",
-        NeedCategory.Processing => "Process materials",
-        NeedCategory.Treatment => "Medical treatments",
-        NeedCategory.Equipment => "Clothing and gear",
-        NeedCategory.Lighting => "Light sources",
-        NeedCategory.Carrying => "Carrying gear",
-        NeedCategory.Mending => "Equipment mending",
-        _ => need.ToString()
-    };
-
-    private static string GetNeedDescription(NeedCategory need) => need switch
-    {
-        NeedCategory.FireStarting => "something to start a fire with",
-        NeedCategory.CuttingTool => "a cutting tool",
-        NeedCategory.HuntingWeapon => "a hunting weapon",
-        NeedCategory.Trapping => "trapping equipment",
-        NeedCategory.Processing => "processing raw materials",
-        NeedCategory.Treatment => "medical treatments",
-        NeedCategory.Equipment => "clothing and gear",
-        NeedCategory.Lighting => "a light source",
-        NeedCategory.Carrying => "something to carry more",
-        NeedCategory.Mending => "mending worn equipment",
-        _ => need.ToString().ToLower()
-    };
 
     private static void ConsumeMaterial(Inventory inv, MaterialSpecifier material, int count)
     {

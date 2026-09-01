@@ -38,13 +38,6 @@ public class NeedCraftingSystem
             .ToList();
     }
 
-    public List<NeedCategory> GetAvailableNeeds(Inventory inventory)
-    {
-        return Enum.GetValues<NeedCategory>()
-            .Where(need => GetOptionsForNeed(need, inventory).Any())
-            .ToList();
-    }
-
     private static bool HasPartialMaterials(CraftOption option, Inventory inventory)
     {
         var (_, missing) = option.CheckRequirements(inventory);

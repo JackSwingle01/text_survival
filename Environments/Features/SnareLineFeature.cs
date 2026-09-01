@@ -75,20 +75,6 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
     }
 
     /// <summary>
-    /// Remove a snare from this location.
-    /// Returns the snare if found.
-    /// </summary>
-    public PlacedSnare? RemoveSnare(int index)
-    {
-        if (index < 0 || index >= _snares.Count)
-            return null;
-
-        var snare = _snares[index];
-        _snares.RemoveAt(index);
-        return snare;
-    }
-
-    /// <summary>
     /// Destroy snares (called by predator events).
     /// Prioritizes snares with catches or bait.
     /// Returns number actually destroyed.
@@ -193,16 +179,6 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
         if (stolen > 0)
             return $"{usable} snares ({stolen} plundered)";
         return $"{usable} snares set";
-    }
-
-    public override FeatureUIInfo? GetUIInfo()
-    {
-        if (SnareCount == 0) return null;
-        return new FeatureUIInfo(
-            "snares",
-            "Snares",
-            GetDescription(),
-            null);
     }
 
     public override List<Resource> ProvidedResources() =>
