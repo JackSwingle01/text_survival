@@ -22,10 +22,12 @@ public class CraftingOverlay
     private float _messageTimer;
 
     /// <summary>
-    /// Stores a craft option that was requested but needs to be processed
-    /// outside the ImGui frame (to allow blocking animation).
+    /// The recipe the player committed to. Crafting passes game time, so the caller runs
+    /// it - the screen only reports the choice.
     /// </summary>
-    public CraftOption? PendingCraft { get; private set; }
+    public CraftOption? SelectedRecipe { get; private set; }
+
+    public void ClearSelectedRecipe() => SelectedRecipe = null;
 
     private static readonly Dictionary<NeedCategory, string> CategoryNames = new()
     {
@@ -42,15 +44,10 @@ public class CraftingOverlay
         [NeedCategory.Mending] = "Mend"
     };
 
-    /// <summary>
-    /// Render the crafting overlay.
-    /// Returns the crafted item name if something was crafted, null otherwise.
-    /// </summary>
-    public string? Render(GameContext ctx, NeedCraftingSystem crafting, float deltaTime)
+    /// <summary>Render the crafting overlay.</summary>
+    public void Render(GameContext ctx, NeedCraftingSystem crafting, float deltaTime)
     {
-        if (!IsOpen) return null;
-
-        string? craftedItem = null;
+        if (!IsOpen) return;
 
         // Update message timer
         if (_messageTimer > 0)
@@ -98,7 +95,7 @@ public class CraftingOverlay
 
             // Right: Selected recipe details
             ImGui.BeginChild("RecipeDetails", new Vector2(0, contentHeight), ImGuiChildFlags.Borders);
-            craftedItem = RenderRecipeDetails(ctx, crafting);
+            RenderRecipeDetails(ctx, crafting);
             ImGui.EndChild();
 
             // Close button
@@ -110,8 +107,6 @@ public class CraftingOverlay
         ImGui.End();
 
         if (!open) IsOpen = false;
-
-        return craftedItem;
     }
 
     private void RenderCategoryButtonsCompact(NeedCategory[] categories, GameContext ctx, NeedCraftingSystem crafting)
@@ -255,14 +250,12 @@ public class CraftingOverlay
         }
     }
 
-    private string? RenderRecipeDetails(GameContext ctx, NeedCraftingSystem crafting)
+    private void RenderRecipeDetails(GameContext ctx, NeedCraftingSystem crafting)
     {
-        string? craftedItem = null;
-
         if (_selectedOption == null)
         {
             ImGui.TextDisabled("Select a recipe from the list.");
-            return null;
+            return;
         }
 
         var option = _selectedOption;
@@ -341,9 +334,7 @@ public class CraftingOverlay
         {
             if (ImGui.Button("Craft", new Vector2(-1, 30)))
             {
-                // Store the pending craft and close overlay
-                // The animation will run outside the ImGui frame
-                PendingCraft = option;
+                SelectedRecipe = option;
                 IsOpen = false;
             }
         }
@@ -363,8 +354,6 @@ public class CraftingOverlay
                 }
             }
         }
-
-        return craftedItem;
     }
 
     private static int GetMaterialCount(Inventory inv, MaterialSpecifier material) => material switch
@@ -385,135 +374,5 @@ public class CraftingOverlay
     {
         _message = message;
         _messageTimer = 3.0f;
-    }
-
-    /// <summary>
-    /// Process a pending craft action. Call this outside the ImGui frame
-    /// to allow the blocking animation to run properly.
-    /// Returns the crafted item name, or null if nothing was pending.
-    /// </summary>
-    public string? ProcessPendingCraft(GameContext ctx)
-    {
-        if (PendingCraft == null) return null;
-
-        var option = PendingCraft;
-        var inv = ctx.Inventory;
-        PendingCraft = null;
-
-        string? craftedItem = null;
-
-        // Build material state list for animation
-        var materialStates = option.Requirements.Select(req =>
-            new CraftingMaterialState(GetMaterialDisplayName(req.Material), req.Count)).ToList();
-
-        // Impaired hands, a dark shelter or wet fingers all cost time.
-        var (craftMinutes, warnings) = CraftingEffort.ForRecipe(ctx, option);
-        foreach (string warning in warnings)
-            GameDisplay.AddWarning(ctx, warning);
-
-        // Show crafting progress animation (advances time, does NOT consume materials)
-        BlockingDialog.ShowCraftingProgress(
-            ctx,
-            option.Name,
-            option.Description,
-            craftMinutes,
-            materialStates);
-
-        // Handle feature-producing recipes (curing racks, shelters, etc.)
-        if (option.ProducesFeature)
-        {
-            var feature = option.CraftFeature(inv);
-            if (feature != null)
-            {
-                ctx.Camp.AddFeature(feature);
-                craftedItem = option.Name;
-
-                // A project is started, not built - say so, and say what it will cost.
-                if (feature is CraftingProjectFeature project)
-                {
-                    _message = $"Started: {project.ProjectName}";
-                    GameDisplay.AddSuccess(ctx, $"Started construction project: {project.ProjectName}");
-                    GameDisplay.AddNarrative(ctx,
-                        $"Materials consumed. Work on it at camp to make progress - " +
-                        $"{project.TimeRequiredMinutes / 60:F1} hours of work in all.");
-
-                    if (project.BenefitsFromShovel)
-                    {
-                        GameDisplay.AddNarrative(ctx, ctx.Inventory.GetTool(ToolType.Shovel) != null
-                            ? "Your shovel will double progress on this digging work."
-                            : "A shovel would double your progress on this digging work.");
-                    }
-                }
-                else
-                {
-                    _message = $"Built: {option.Name}";
-                    GameDisplay.AddSuccess(ctx, $"You built a {option.Name}. It's at your camp now.");
-                }
-            }
-        }
-        else if (option.RebuildShelter)
-        {
-            var (shelter, salvage) = option.CraftShelterRebuild(ctx.Camp, inv)!.Value;
-            GameDisplay.AddSuccess(ctx, "You rebuilt your shelter with a log frame!");
-            GameDisplay.AddNarrative(ctx, shelter.GetStatusText());
-            if (salvage.Count > 0)
-            {
-                string salvaged = string.Join(", ", salvage.Select(kvp => $"{kvp.Value} {kvp.Key.ToDisplayName()}"));
-                GameDisplay.AddNarrative(ctx, $"Salvaged: {salvaged}");
-            }
-            _message = $"Rebuilt: {shelter.Name}";
-            craftedItem = option.Name;
-        }
-        else
-        {
-            // Perform crafting for gear/materials (consumes materials, creates item)
-            var result = option.Craft(inv);
-
-            if (result != null)
-            {
-                // Handle different gear categories
-                switch (result.Category)
-                {
-                    case Items.GearCategory.Equipment:
-                        inv.Equip(result);
-                        _message = $"Equipped: {result.Name}";
-                        craftedItem = result.Name;
-                        break;
-
-                    case Items.GearCategory.Accessory:
-                        inv.Accessories.Add(result);
-                        _message = $"Crafted: {result.Name}";
-                        craftedItem = result.Name;
-                        break;
-
-                    case Items.GearCategory.Tool:
-                        if (result.IsWeapon)
-                        {
-                            inv.EquipWeapon(result);
-                            _message = $"Equipped: {result.Name}";
-                        }
-                        else
-                        {
-                            inv.Tools.Add(result);
-                            _message = $"Crafted: {result.Name}";
-                        }
-                        craftedItem = result.Name;
-                        break;
-                }
-            }
-            else if (option.ProducesMaterials)
-            {
-                _message = $"Processed: {option.GetOutputDescription()}";
-                craftedItem = option.Name;
-            }
-            else if (option.IsMendingRecipe)
-            {
-                _message = $"Repaired equipment";
-                craftedItem = option.Name;
-            }
-        }
-
-        _messageTimer = 3.0f;
-        return craftedItem;
     }
 }

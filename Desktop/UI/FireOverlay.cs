@@ -4,6 +4,7 @@ using text_survival.Actions;
 using text_survival.Actions.Handlers;
 using text_survival.Environments.Features;
 using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Desktop.UI;
 
@@ -480,21 +481,3 @@ public class FireOverlay
     }
 }
 
-public enum FireAction
-{
-    StartFire,
-    StartFromEmber,
-    AddFuel,
-    CollectCharcoal,
-    LightTorch,
-    CollectEmber
-}
-
-public class FireOverlayResult
-{
-    public FireAction Action { get; set; }
-    public Gear? Tool { get; set; }
-    public Resource? Tinder { get; set; }
-    public Gear? EmberCarrier { get; set; }
-    public Resource? FuelResource { get; set; }
-}

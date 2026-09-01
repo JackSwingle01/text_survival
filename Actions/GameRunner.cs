@@ -342,12 +342,6 @@ public partial class GameRunner(GameContext ctx)
             rlImGui.End();
             Raylib.EndDrawing();
 
-            // Process pending crafts outside ImGui frame (allows blocking animation)
-            if (overlays?.Crafting.PendingCraft != null)
-            {
-                overlays.Crafting.ProcessPendingCraft(ctx);
-                continue; // Start fresh frame after crafting
-            }
 
             // Check if travel target was set (from popup)
             if (ctx.PendingTravelTarget.HasValue)

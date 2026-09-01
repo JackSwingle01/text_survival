@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 using text_survival.Actors.Animals;
 using text_survival.Crafting;
 using text_survival.Environments.Factories;
-using text_survival.Desktop.Dto;
+using text_survival.UI;
 
 namespace text_survival.Discovery;
 

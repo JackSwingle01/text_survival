@@ -1,7 +1,7 @@
 using text_survival.Combat;
 using text_survival.Environments.Grid;
 
-namespace text_survival.Desktop.Dto;
+namespace text_survival.UI;
 
 /// <summary>
 /// What the player committed to on their combat turn: exactly one of a typed action

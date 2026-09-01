@@ -5,12 +5,11 @@ using text_survival.Actions.Variants;
 using text_survival.Actions.Handlers;
 using text_survival.Combat;
 using text_survival.Crafting;
-using text_survival.Desktop.Dto;
+using text_survival.UI;
 using text_survival.Desktop.UI;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
-using text_survival.UI;
 using ForageFocus = text_survival.Actions.Variants.ForageFocus;
 
 namespace text_survival.Desktop;
@@ -735,11 +734,6 @@ public static void ClearEvent(GameContext ctx) { }
             Raylib.EndDrawing();
         }
 
-        // Process pending food action outside ImGui frame (allows blocking animation)
-        if (overlays.Food.PendingAction != null)
-        {
-            overlays.Food.ProcessPendingAction(ctx);
-        }
     }
 
     public static void RunAITurnsWithAnimation(GameContext ctx, CombatScenario scenario, Unit playerUnit)

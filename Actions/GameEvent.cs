@@ -7,7 +7,6 @@ using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop.Dto;
 using ShelterImprovementType = text_survival.Items.ShelterImprovementType;
 
 namespace text_survival.Actions;

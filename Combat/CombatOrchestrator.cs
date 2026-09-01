@@ -5,7 +5,6 @@ using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.Desktop;
-using text_survival.Desktop.Dto;
 using text_survival.UI;
 
 namespace text_survival.Combat;

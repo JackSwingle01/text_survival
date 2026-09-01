@@ -1,6 +1,6 @@
 using text_survival.Actions;
 using text_survival.Crafting;
-using text_survival.Desktop.Dto;
+using text_survival.UI;
 using text_survival.Environments.Features;
 using text_survival.Items;
 
@@ -154,7 +154,7 @@ public class OverlayManager
 
         if (Crafting.IsOpen)
         {
-            results.CraftedItem = Crafting.Render(ctx, _craftingSystem, deltaTime);
+            Crafting.Render(ctx, _craftingSystem, deltaTime);
         }
 
         if (Fire.IsOpen)

@@ -1,7 +1,6 @@
 using text_survival.UI;
 using text_survival.Desktop;
 using DesktopIO = text_survival.Desktop.DesktopIO;
-using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions;
 
