@@ -1,0 +1,29 @@
+// Drying rack in progress: raw red strips hung on the bar.
+// Pairs with ready.pxa, which differs only in the colour of the strips.
+SIZE 16x16
+PALETTE
+. = #00000000
+o = #4a3728
+w = #7a5c38
+m = #a8452f
+PIXELS
+................
+................
+................
+.o............o.
+.owwwwwwwwwwwwo.
+.omm.mm.mm.mm.o.
+.omm.mm.mm.mm.o.
+.omm.mm.mm.mm.o.
+.omm.mm.mm.mm.o.
+.o............o.
+.o............o.
+.oo..........oo.
+................
+................
+................
+................
+
+CHECKS
+  CONNECTED
+ENDCHECKS
