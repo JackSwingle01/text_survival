@@ -1,0 +1,25 @@
+// Mountain variant: snow collected on ledges. Streaks rather than dots, and a
+// softer white - full-brightness single pixels on this dark rock read as specks
+// of noise instead of as snow.
+SIZE 16x16
+PALETTE
+K = #5a5a64
+k = #7a7a86
+W = #d8e2e8
+PIXELS
+WWWkKKKKKkKKKKkk
+WWkKKKkkKKKKkkKK
+KKKKKkkKKKkkWWWK
+kKKKkkKKKKKKWWWK
+kkKKKKKKkkKKKKKK
+KKKkkKKKkkKKKkkK
+KKkkKKKKKKKkkKKK
+kKKKKKkkKKKKKKKk
+KKKkkKKKKkkKKKkk
+KkkKKKKkKKKKkkKK
+WWWKKkkKKKkkKKKK
+WWkkKKKKkkKKKKkK
+kKKKKkkKKKKKkkKK
+KKKkkKKKKkkKWWWK
+kkKKKKKkkKKKWWkK
+KKKkkKKKKKKkkKKK

@@ -1,26 +1,23 @@
-// Open ground in the forest: bare snow with dry grass pushing through.
-// Shares the snow base of forest_tile so the two read as one landscape.
+// Clearing, base variant. Perfectly flat on purpose: VariantIndex gives the base
+// half of all tiles, so any detail here repeats at a fixed offset and shows up as
+// a lattice. All the incident lives in the variants.
 SIZE 16x16
 PALETTE
 S = #e3edf2
-s = #cbd9e2
-h = #aec1ce
-g = #8a7a4a
-G = #a89660
 PIXELS
 SSSSSSSSSSSSSSSS
 SSSSSSSSSSSSSSSS
 SSSSSSSSSSSSSSSS
 SSSSSSSSSSSSSSSS
-SSSgSSSSSSSSSSSS
-SSGgGSSSSSSgSSSS
-SSGgGSSSSSGgGSSS
 SSSSSSSSSSSSSSSS
-ssssssssssssssss
-ssssssssssssssss
-sssssshsssssssss
-ssssssssssssssss
-ssssgsssssssssss
-sssGgGssssssgsss
-ssssssssssssGgGs
-ssssssssssssssss
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS
+SSSSSSSSSSSSSSSS

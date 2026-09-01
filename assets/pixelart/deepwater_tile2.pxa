@@ -1,0 +1,22 @@
+// Deep water variant: ice floes drifting on the surface.
+SIZE 16x16
+PALETTE
+d = #1a3644
+I = #cfe3ea
+PIXELS
+dddddddddddddddd
+ddddIIIddddddddd
+dddIIIIIdddddddd
+ddddIIIddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddIIIIddd
+ddddddddIIIIIIdd
+dddddddddIIIIddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd
+dddddddddddddddd

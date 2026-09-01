@@ -37,6 +37,13 @@ dotnet run --project tools/PixelArtCli -- <command> ...
   each look fine alone can still disagree on outline weight, palette, or scale.
   The grey ground also matters: transparent pixels render as black in most
   viewers, which hides exactly the dark outlines you need to judge.
+- `tile <file.pxa|variantDir> <output.png> [--repeat N] [--scale N]` — lay a terrain tile
+  out as a field, hash-selecting across variants exactly as the game does:
+  ```
+  dotnet run --project tools/PixelArtCli -- tile assets/pixelart/forest_tile.pxa /tmp/t.png
+  ```
+  Seams and repetition are invisible on a single tile and glaring in bulk — this
+  is the only way to judge a tile honestly. See **Terrain tiles and repetition**.
 - `validate <file.pxa>` — parse, execute, and run CHECKS without writing a PNG. Catches
   row-length mismatches, undefined palette keys, and failed CHECKS (see below)
   immediately — use this while iterating.
@@ -239,6 +246,39 @@ viewing the PNG (e.g. via Claude's Read tool) is the only feedback loop this
 format has. One-shot authoring without looking is how both of the mistakes
 above happened.
 
+## Terrain tiles and repetition
+
+A tile is a texture field, not a little scene, and the two want opposite things.
+The first pass here was drawn as scenes — light snow grading to darker ground —
+and tiled into hard horizontal stripes every 16px across the entire map, with
+identical trees stamped on a perfect grid. Rules that came out of fixing it:
+
+**No directional gradient in the base.** Anything that grades light-to-dark
+across the tile becomes a stripe when stacked. Ground is one flat tone;
+variation comes from scattered incident, not from a gradient.
+
+**Give a terrain several tiles.** `forest_tile.png`, `forest_tile2.png`,
+`forest_tile3.png` are all filed under `forest` and chosen between per map
+position. Three is enough to break the eye's pattern-matching.
+
+**The base variant carries half of all tiles**, so it is the one that must not
+draw attention. For terrain that is genuinely featureless — clearing, plain,
+open water — the base is *perfectly flat*, and every speck lives in the
+variants; detail in the base repeats at a fixed offset and shows up as a
+lattice. Terrain defined *by* its features (forest, hills, marsh, rock,
+mountain) still needs them in the base, or it stops reading as itself.
+
+**Prefer irregular incident to regular pattern.** Mountain rock drawn with
+facets at a tidy 45° tiled into a herringbone; the same rock drawn as irregular
+blotches reads as stone. Likewise snow on rock wants patches, not single
+pixels, which read as noise.
+
+Selection is `TileRenderer.VariantIndex` — a hash of the tile's world position,
+so it is stable as the camera moves rather than shimmering per frame. It
+weights the base to half and splits the remainder among the variants. The tool
+mirrors that function so `tile` previews tell the truth; if you change one,
+change both.
+
 ## Where assets live
 
 - Source of truth: `assets/pixelart/**/*.pxa` (checked into git, human/AI-editable).
@@ -251,7 +291,12 @@ Rendering conventions the game's texture loaders already expect:
 
 - **Terrain tile**: `assets/pixelart/<terrain>_tile.pxa` → `assets/icons/<terrain>_tile.png`,
   where `<terrain>` matches `Location.Terrain.ToString().ToLowerInvariant()`
-  (`Desktop/Rendering/TileRenderer.cs`).
+  (`Desktop/Rendering/TileRenderer.cs`). Add variants by suffixing a number —
+  `<terrain>_tile2.pxa`, `<terrain>_tile3.pxa` — and they are picked up
+  automatically; see **Terrain tiles and repetition**.
+- **NPC**: `assets/pixelart/npc/{male|female}_{0..3}.pxa` → `assets/icons/npc/`.
+  The eight combinations are chosen from the NPC's name, so a given person looks
+  the same on the map and in combat.
 - **Feature icon**: `assets/pixelart/<icon>.pxa` → `assets/icons/<icon>.png`, where
   `<icon>` matches the feature's `MapIcon` string (e.g. `HeatSourceFeature.MapIcon`
   in `Environments/Features/*.cs`). Falls back to `ProceduralIconRenderer` if absent.

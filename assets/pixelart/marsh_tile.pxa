@@ -1,9 +1,8 @@
-// Frozen marsh: peat showing dark through thin ice, dead reeds standing.
-// The dark patches are the hazard cue - this is ground that gives way.
+// Frozen marsh, base variant. Peat showing dark through thin ice is the hazard
+// cue, so it has to be present on the common tile, not saved for the variants.
 SIZE 16x16
 PALETTE
 S = #e3edf2
-s = #cbd9e2
 D = #4a4a3a
 d = #6b6b52
 r = #8a7a4a
@@ -14,13 +13,13 @@ SSrSSSSrSSSSrSSS
 SSrSSSSrSSSSrSSS
 SdDDdSSrSSSSrSSS
 dDDDDdSrSSddDdSS
-sdDDdssrssdDDDds
-ssddssssssdDDdss
-ssssssssssdddsss
-ssssrsssssssssss
-ssssrssssssrssss
-sdDdrssssssrssss
-dDDDdssssdDdrsss
-sdDDdsssdDDDdsss
-ssdddsssdDDddsss
-ssssssssdddsssss
+SdDDdSSrSSdDDDdS
+SSddSSSSSSdDDdSS
+SSSSSSSSSSdddSSS
+SSSSrSSSSSSSSSSS
+SSSSrSSSSSSrSSSS
+SdDdrSSSSSSrSSSS
+dDDDdSSSSdDdrSSS
+SdDDdSSSdDDDdSSS
+SSdddSSSdDDddSSS
+SSSSSSSSdddSSSSS

@@ -1,27 +1,22 @@
-// Frozen creek: pale ice with an open hole and cracks radiating from it,
-// wind-blown snow drifted into opposite corners.
-// Opaque terrain tile, so no outline and no MIRRORX.
+// Frozen creek, base variant - flat ice. Cracks and holes are notable features,
+// so they belong in the rarer variants, not on every second tile.
 SIZE 16x16
 PALETTE
 I = #cfe3ea
-i = #a9cbd8
-c = #6f9cae
-k = #1d3b49
-W = #eef7fa
 PIXELS
-IIIcIIIIIIIIWWWW
-IIIIcIIIIIIIIWWW
-IIIIcIIIIIIIcIWW
-IIIIIcIIIIIcIIII
-IIIIIcIIIIIcIIII
-IIIIIiiiiiiIIIII
-IIIIIikkkkiIIIII
-IIIIikkkkkkiIIII
-IIIIikkkkkkiIIII
-IIIIIikkkkiIIIII
-IIIIIiiiiiiIIIII
-IIIIIcIIIIIcIIII
-IIIIcIIIIIIIcIII
-WIIIcIIIIIIIIIII
-WWIcIIIIIIIIIIII
-WWWIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII
+IIIIIIIIIIIIIIII

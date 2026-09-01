@@ -18,6 +18,7 @@ public static class Program
                 "render" => CmdRender(args[1..]),
                 "render-all" => CmdRenderAll(args[1..]),
                 "sheet" => CmdSheet(args[1..]),
+                "tile" => CmdTile(args[1..]),
                 "validate" => CmdValidate(args[1..]),
                 "-h" or "--help" or "help" => PrintUsageOk(),
                 _ => UnknownCommand(args[0])
@@ -269,6 +270,101 @@ public static class Program
         PngWriter.EncodeToFile(outputPath, sheetW, sheetH, sheet);
         Console.WriteLine($"sheet: {docs.Count} asset(s) -> {outputPath} ({sheetW}x{sheetH}, {cols} cols, {scale}x)");
         return 0;
+    }
+
+    /// <summary>
+    /// Tiled preview: repeat a terrain tile (or hash-select across a folder of variants)
+    /// across a field, exactly as the game will. Seams and repetition are invisible on a
+    /// single tile and obvious the moment it is laid out in bulk.
+    /// </summary>
+    private static int CmdTile(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            Console.Error.WriteLine("usage: pixelart tile <file.pxa|variantDir> <output.png> [--repeat N] [--scale N]");
+            return 1;
+        }
+
+        string source = args[0];
+        string outputPath = args[1];
+        int repeat = 6, scale = 4;
+
+        for (int i = 2; i < args.Length; i++)
+        {
+            if (args[i] == "--repeat" && i + 1 < args.Length) repeat = int.Parse(args[++i]);
+            else if (args[i] == "--scale" && i + 1 < args.Length) scale = int.Parse(args[++i]);
+        }
+
+        var docs = new List<PxaDocument>();
+        if (Directory.Exists(source))
+            // Ordinal, to match the game's load order - see TileRenderer.LoadSprites.
+            foreach (string file in Directory.EnumerateFiles(source, "*.pxa").Order(StringComparer.Ordinal))
+                docs.Add(PxaDocument.Parse(File.ReadAllText(file), file));
+        else
+            docs.Add(PxaDocument.Parse(File.ReadAllText(source), source));
+
+        if (docs.Count == 0)
+        {
+            Console.Error.WriteLine($"error: no .pxa files found at '{source}'");
+            return 1;
+        }
+
+        int tileW = docs[0].Width, tileH = docs[0].Height;
+        foreach (var d in docs)
+            if (d.Width != tileW || d.Height != tileH)
+            {
+                Console.Error.WriteLine("error: all variants must share one size");
+                return 1;
+            }
+
+        var upscaled = docs.Select(d => d.ToUpscaledRgba(scale)).ToList();
+        int cellW = tileW * scale, cellH = tileH * scale;
+        int outW = cellW * repeat, outH = cellH * repeat;
+        var field = new byte[outW * outH * 4];
+
+        for (int ty = 0; ty < repeat; ty++)
+            for (int tx = 0; tx < repeat; tx++)
+            {
+                var (w, _, rgba) = upscaled[VariantIndex(tx, ty, docs.Count)];
+                for (int y = 0; y < cellH; y++)
+                    for (int x = 0; x < cellW; x++)
+                    {
+                        int src = (y * w + x) * 4;
+                        int dst = ((ty * cellH + y) * outW + tx * cellW + x) * 4;
+                        field[dst] = rgba[src];
+                        field[dst + 1] = rgba[src + 1];
+                        field[dst + 2] = rgba[src + 2];
+                        field[dst + 3] = rgba[src + 3];
+                    }
+            }
+
+        PngWriter.EncodeToFile(outputPath, outW, outH, field);
+        Console.WriteLine($"tiled {docs.Count} variant(s) {repeat}x{repeat} -> {outputPath} ({outW}x{outH})");
+        return 0;
+    }
+
+    /// <summary>
+    /// Which variant a tile position gets. Deterministic in world position - never
+    /// per-frame random, or tiles shimmer as the camera moves. The base variant is
+    /// weighted to appear half the time; the rest share the remainder, so a field reads
+    /// as texture with incident rather than as noise.
+    ///
+    /// MUST match TileRenderer.VariantIndex in the game, or this preview lies.
+    /// </summary>
+    private static int VariantIndex(int worldX, int worldY, int count)
+    {
+        if (count <= 1) return 0;
+
+        unchecked
+        {
+            int h = worldX * 73856093 ^ worldY * 19349663;
+            h ^= h >> 13;
+            h *= 1274126177;
+            h ^= h >> 16;
+
+            int roll = (int)((uint)h % (uint)(2 * (count - 1)));
+            return roll < count - 1 ? 0 : roll - (count - 2);
+        }
     }
 
     private static int CmdValidate(string[] args)
