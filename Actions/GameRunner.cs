@@ -63,6 +63,22 @@ public partial class GameRunner(GameContext ctx)
     private readonly GameContext ctx = ctx;
     private static readonly Action BackAction = () => { };
 
+    /// <summary>Serialising the world costs a visible hitch, so it happens on a clock, not per action.</summary>
+    private const double SaveIntervalSeconds = 120;
+    private DateTime _lastSaveUtc = DateTime.UtcNow;
+
+    /// <summary>Save if enough real time has passed since the last one.</summary>
+    private void SaveIfDue()
+    {
+        if ((DateTime.UtcNow - _lastSaveUtc).TotalSeconds < SaveIntervalSeconds)
+            return;
+
+        _lastSaveUtc = DateTime.UtcNow;
+        var (saved, saveError) = SaveManager.Save(ctx);
+        if (!saved)
+            Console.WriteLine($"[GameRunner] Save failed: {saveError}");
+    }
+
     public bool Run()
     {
         AudioManager.PlayMusic();
@@ -179,10 +195,7 @@ public partial class GameRunner(GameContext ctx)
         var actionPanel = DesktopRuntime.ActionPanel;
         var overlays = DesktopRuntime.Overlays;
 
-        // Auto-save periodically
-        var (saved, saveError) = SaveManager.Save(ctx);
-        if (!saved)
-            Console.WriteLine($"[GameRunner] Save failed: {saveError}");
+        SaveIfDue();
 
         CheckFireWarning();
 
@@ -395,18 +408,6 @@ public partial class GameRunner(GameContext ctx)
             }
         }
 
-        // Update player position override for smooth animation
-        var worldRenderer = DesktopRuntime.WorldRenderer;
-        if (worldRenderer != null)
-        {
-            float t = EaseOutCubic(travel.AnimationProgress);
-            var destPos = ctx.Map!.GetPosition(travel.Destination);
-            float interpX = travel.OriginPosition.X + (destPos.X - travel.OriginPosition.X) * t;
-            float interpY = travel.OriginPosition.Y + (destPos.Y - travel.OriginPosition.Y) * t;
-            worldRenderer.PlayerPositionOverride = (interpX, interpY);
-            // Camera animation is handled by Camera.Update() - started via SetCenter in TravelRunner
-        }
-
         // Travel is complete when animation is done AND simulation is done (or player died/event interrupted)
         bool animDone = travel.AnimationProgress >= 1f;
         bool simDone = travel.SimulatedMinutes >= travel.TotalMinutes;
@@ -415,7 +416,7 @@ public partial class GameRunner(GameContext ctx)
         return animDone && (simDone || interrupted);
     }
 
-    private static float EaseOutCubic(float t) => 1 - MathF.Pow(1 - t, 3);
+
 
     /// <summary>
     /// Render a frame during active travel with progress bar and stats.

@@ -78,11 +78,6 @@ public class TravelRunner(GameContext ctx)
 
         while (true)
         {
-            // Auto-save when at travel menu
-            var (saved, saveError) = SaveManager.Save(_ctx);
-            if (!saved)
-                Console.WriteLine($"[TravelRunner] Save failed: {saveError}");
-
             var connections = _ctx.Map?.GetTravelOptions() ?? [];
             if (connections.Count == 0)
             {
@@ -339,11 +334,6 @@ public class TravelRunner(GameContext ctx)
         // Longer trips get slower animations: 0.5s base + 0.03s per minute, capped at 1.2s
         float animDuration = Math.Clamp(0.5f + (totalTime * 0.03f), 0.5f, 1.2f);
 
-        // Start camera animation to destination - let Camera's built-in easing handle the smooth pan
-        var camera = DesktopRuntime.WorldRenderer?.Camera;
-        var destPos = _ctx.Map!.GetPosition(destination);
-        camera?.SetCenter(destPos.X, destPos.Y, animate: true, durationSeconds: animDuration);
-
         // Set up active travel state for incremental processing
         _ctx.ActiveTravel = new GameContext.ActiveTravelState
         {
@@ -386,12 +376,6 @@ public class TravelRunner(GameContext ctx)
             {
                 // Player chose to stay at origin - don't move
                 _ctx.ActiveTravel = null;
-                // Clear player position override
-                if (DesktopRuntime.WorldRenderer != null)
-                    DesktopRuntime.WorldRenderer.PlayerPositionOverride = null;
-                // Reset camera to origin
-                var camera = DesktopRuntime.WorldRenderer?.Camera;
-                camera?.SetCenter(travel.OriginPosition.X, travel.OriginPosition.Y, animate: false);
                 return true;
             }
         }
@@ -402,10 +386,6 @@ public class TravelRunner(GameContext ctx)
         // Record discovery for named locations
         if (!destination.IsTerrainOnly)
             _ctx.RecordLocationDiscovery(destination.Name);
-
-        // Clear player position override
-        if (DesktopRuntime.WorldRenderer != null)
-            DesktopRuntime.WorldRenderer.PlayerPositionOverride = null;
 
         // Apply injury checks
         if (travel.OriginQuickTravel && travel.OriginInjuryRisk > 0 && Utils.RandDouble(0, 1) < travel.OriginInjuryRisk)
