@@ -611,7 +611,7 @@ public class ActionPanel
                     if (stones > 0)
                     {
                         double hitChance = HuntingCalculator.CalculateThrownAccuracy(
-                            distance, HuntHandler.GetStoneRange(), HuntHandler.GetStoneBaseAccuracy(), isSmall);
+                            distance, CombatScenario.STONE_RANGE_M, CombatScenario.STONE_BASE_ACCURACY, isSmall);
 
                         if (ImGui.Button($"Throw Stone x{stones} ({hitChance:P0})", new Vector2(-1, 0)))
                             clickedAction = CombatActions.ThrowStone;

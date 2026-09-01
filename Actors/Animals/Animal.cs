@@ -43,17 +43,19 @@ namespace text_survival.Actors.Animals
         public bool IsHostile { get; set; } = true;
         public AnimalBehaviorType BehaviorType { get; set; }
         public AnimalSize Size { get; set; }
-        public double DistanceFromPlayer { get; set; }
         public int FailedStealthChecks { get; set; }
         public int TrackingDifficulty { get; set; }
         public bool IsBleeding { get; set; }
         public DateTime? WoundedTime { get; set; }
-        public double CurrentWoundSeverity { get; set; }
         [JsonInclude] private double _speedMps;
         [JsonInclude] private double _pursuitCommitmentSeconds;
         public double SpeedMps => _speedMps;
         public double PursuitCommitmentSeconds => _pursuitCommitmentSeconds;
         public double DisengageAfterMaul { get; set; }
+
+        /// <summary>How badly hurt this animal is (0-1): its worst tissue or its blood, whichever is worse.</summary>
+        [JsonIgnore]
+        public double WoundLevel => Math.Max(1 - Body.Parts.Min(p => p.Condition), 1 - Body.Blood.Condition);
         public List<(Resource resource, double kgYield)> SpecialYields { get; init; } = [];
         public bool IsMegafauna => Body.WeightKG > 500;
 
@@ -110,7 +112,6 @@ namespace text_survival.Actors.Animals
             DisengageAfterMaul = disengageAfterMaul;
 
             // Defaults
-            DistanceFromPlayer = 100.0;
             FailedStealthChecks = 0;
             TrackingDifficulty = 5;
         }

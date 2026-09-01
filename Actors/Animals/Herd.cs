@@ -236,7 +236,7 @@ public class Herd : IMovable
             BehaviorType = BehaviorType, // Inherit behavior type from parent herd
             State = HerdState.Fleeing,
             IsWounded = true,
-            WoundSeverity = animal.CurrentWoundSeverity,
+            WoundSeverity = animal.WoundLevel,
             Hunger = Hunger
         };
         newHerd.AddMember(animal);

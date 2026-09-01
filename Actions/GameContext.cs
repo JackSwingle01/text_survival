@@ -148,7 +148,6 @@ public class GameContext(Player player, Location camp, Weather weather)
     public (double Energy, double Calories, double Hydration, double Temp)? StatsBeforeWork { get; set; }
 
     private EncounterConfig? _pendingEncounter;
-    private Herd? _pendingEncounterHerd;
 
     public void QueueEncounter(EncounterConfig config)
     {
@@ -166,48 +165,14 @@ public class GameContext(Player player, Location camp, Weather weather)
             return; // Activities that block events also block encounters
 
         var config = _pendingEncounter;
-        var predator = EncounterRunner.CreateAnimalFromConfig(config, CurrentLocation, Map);
         _pendingEncounter = null;
 
-        if (predator != null)
-        {
-            // CombatOrchestrator handles allies automatically via SetupCombat
-            var outcome = CombatOrchestrator.RunCombat(this, predator, config.InitialBoldness);
+        // A herd sends one of its own; an event conjures a fresh animal.
+        var predator = config.Animal ?? AnimalFactory.FromType(config.AnimalType, CurrentLocation, Map)
+            ?? throw new InvalidOperationException($"No animal for encounter type {config.AnimalType}");
 
-            LastEventAborted = true;  // Encounters abort the current action
-
-            // Set fear on source herd based on encounter outcome
-            if (_pendingEncounterHerd != null)
-            {
-                var herd = _pendingEncounterHerd;
-                double fear = outcome switch
-                {
-                    CombatResult.Victory => 0.9,           // Player killed predator - high fear
-                    CombatResult.AnimalFled => 0.7,        // Predator retreated - moderate fear
-                    CombatResult.DistractedWithMeat => 0.5, // Got food, mild wariness
-                    CombatResult.Fled => 0.2,              // Player fled - predator "won", low fear
-                    CombatResult.AnimalDisengaged => 0.4,  // Mutual disengage - mild fear
-                    _ => 0.5
-                };
-                herd.Fear = Math.Max(herd.Fear, fear);
-
-                // Handle post-combat behavior based on outcome
-                if (outcome == CombatResult.AnimalFled || outcome == CombatResult.AnimalDisengaged)
-                {
-                    // Trigger herd to flee the area
-                    if (herd.Behavior != null && Map != null)
-                    {
-                        herd.Behavior.TriggerFlee(herd, Map.CurrentPosition, this);
-                    }
-                }
-                else if (outcome == CombatResult.Fled)
-                {
-                    // Mark combat time for cooldown (player fled, predator stays)
-                    herd.LastCombatMinutes = TotalMinutesElapsed;
-                }
-                _pendingEncounterHerd = null;
-            }
-        }
+        CombatOrchestrator.RunEncounter(this, predator, (int)config.InitialDistance, config.InitialBoldness);
+        LastEventAborted = true;  // Encounters abort the current action
     }
 
     public bool IsHandlingEvent { get; set; } = false;
@@ -521,13 +486,13 @@ public class GameContext(Player player, Location camp, Weather weather)
                 var predator = encounterHerd.GetRandomMember();
                 if (predator != null)
                 {
-                    _pendingEncounterHerd = encounterHerd;  // Track source herd for fear setting
                     encounterHerd.LastCombatMinutes = TotalMinutesElapsed;  // Mark combat start for cooldown
 
                     _pendingEncounter = new EncounterConfig(
                         encounterHerd.AnimalType,
                         InitialDistance: result.EncounterRequest.IsDefendingKill ? 10 : 20,
-                        InitialBoldness: encounterHerd.BoldnessToward(player, this, result.EncounterRequest.IsDefendingKill)
+                        InitialBoldness: encounterHerd.BoldnessToward(player, this, result.EncounterRequest.IsDefendingKill),
+                        Animal: predator
                     );
                 }
             }
@@ -541,7 +506,7 @@ public class GameContext(Player player, Location camp, Weather weather)
             foreach (NPC npc in NPCs.ToList())
             {
                 var npcContext = SurvivalContext.GetSurvivalContext(npc, npc.Inventory, npc.CurrentAction?.ActivityType ?? ActivityType.Idle, GetTimeOfDay());
-                npc.Update(1, npcContext, Herds, NPCs);
+                npc.Update(1, npcContext, Herds, NPCs, this);
             }
         }
 
@@ -630,21 +595,9 @@ public class GameContext(Player player, Location camp, Weather weather)
 
             var result = herd.Update(minutes, this);
 
-            if (result.EncounterRequest != null ||
-                result.PreyKill != null ||
-                result.NarrativeMessage != null)
+            if (result.EncounterRequest != null || result.NarrativeMessage != null)
             {
                 results.Add(result);
-            }
-
-            // Handle prey kills - create carcass at kill location
-            if (result.PreyKill != null)
-            {
-                var location = Map?.GetLocationAt(result.PreyKill.Position);
-                if (location != null)
-                {
-                    location.Features.Add(new Environments.Features.CarcassFeature(result.PreyKill.Victim));
-                }
             }
         }
 

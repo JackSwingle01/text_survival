@@ -1,3 +1,4 @@
+using text_survival.Combat;
 
 using text_survival.Actions;
 using text_survival.Actions.Handlers;
@@ -287,30 +288,15 @@ public class NPCFight : NPCAction
         // Set combat cooldown to prevent re-detection
         npc.SetCombatCooldown(5);
 
-        var outcome = ActorCombatResolver.ResolveCombat(
-            new List<Actor> { _threat, npc },
-            npc.CurrentLocation);
+        var ctx = npc.Game;
+        List<Actor> enemies = _threat is Animal animal
+            ? CombatOrchestrator.AnimalSide(ctx, animal)
+            : [_threat];
 
-        switch (outcome)
-        {
-            case ActorCombatResolver.CombatOutcome.DefenderKilled:
-                Console.WriteLine($"[NPC] {npc.Name} was killed by {_threat.Name}");
-                break;
-            case ActorCombatResolver.CombatOutcome.DefenderInjured:
-                Console.WriteLine($"[NPC] {npc.Name} was injured fighting {_threat.Name}");
-                break;
-            case ActorCombatResolver.CombatOutcome.AttackerRepelled:
-                Console.WriteLine($"[NPC] {npc.Name} drove off {_threat.Name}!");
-                // Create carcass if threat died and was an animal
-                if (!_threat.IsAlive && _threat is Animal deadAnimal)
-                {
-                    npc.CurrentLocation.AddFeature(new CarcassFeature(deadAnimal));
-                }
-                break;
-            case ActorCombatResolver.CombatOutcome.DefenderEscaped:
-                Console.WriteLine($"[NPC] {npc.Name} escaped from {_threat.Name}");
-                break;
-        }
+        var result = CombatOrchestrator.ResolveHeadless(
+            ctx, [npc], enemies, npc.CurrentLocation,
+            startDistanceM: 5, AwarenessState.Engaged, AwarenessState.Engaged);
+        Console.WriteLine($"[NPC] {npc.Name} vs {_threat.Name}: {result}");
     }
 
     public Actor Threat => _threat;

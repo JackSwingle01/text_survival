@@ -83,12 +83,11 @@ public class HuntStrategy : IWorkStrategy
             var herdResult = ctx.Herds.SearchForLargeGame(pos, actualTime);
             if (herdResult.HasValue)
             {
-                var (herd, animal) = herdResult.Value;
+                var (_, animal) = herdResult.Value;
                 GameDisplay.AddNarrative(ctx, $"You spot {animal.GetTraitDescription()}.");
                 GameDisplay.AddNarrative(ctx, $"It's {animal.GetActivityDescription()}.");
 
-                // Return with FoundAnimal and Herd set
-                return new WorkResult([], null, actualTime, false, animal, herd);
+                return new WorkResult([], null, actualTime, false, animal);
             }
         }
 

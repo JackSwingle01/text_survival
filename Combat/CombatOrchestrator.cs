@@ -1,7 +1,7 @@
 using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Actors.Animals;
-using text_survival.Environments.Features;
+using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.Desktop;
@@ -15,365 +15,130 @@ namespace text_survival.Combat;
 public record PlayerActionResult(bool ActionTaken, string? Narrative);
 
 /// <summary>
-/// Configuration for stealth-based combat (hunts and predator encounters).
-/// </summary>
-public record StealthCombatConfig(
-    AwarenessState PlayerAwareness,    // Engaged (hunt) or Unaware (encounter)
-    AwarenessState TargetAwareness,    // Unaware (hunt) or Alert/Engaged (encounter)
-    ActivityType ActivityType,          // Hunting, Encounter, Fighting
-    string? IntroMessage,               // "You begin stalking..." or null for encounters
-    bool EnableBackgroundPhase          // True for encounters (predator stalks before player aware)
-);
-
-/// <summary>
-/// Orchestrates combat encounters with turn loop and IO.
-/// CombatScenario handles state/rules, this handles the player-facing loop.
+/// Runs fights. Player fights get the turn loop and the UI; fights with no player run headless.
+/// Every fight is built by <see cref="CombatScenario.Create"/> and ends in <see cref="CombatAftermath"/>.
 /// </summary>
 public static class CombatOrchestrator
 {
     private const int MOVE_DIST = 3;
+    private const int HUNT_START_DISTANCE_M = 34;
+    private const int MAX_PACK_MEMBERS = 3;
     private static readonly Random _rng = new();
 
-    #region Stealth Combat Configs
-
-    /// <summary>Hunt config: player is engaged, prey starts unaware.</summary>
-    public static StealthCombatConfig HuntConfig => new(
-        PlayerAwareness: AwarenessState.Engaged,
-        TargetAwareness: AwarenessState.Unaware,
-        ActivityType: ActivityType.Hunting,
-        IntroMessage: null,  // Handled by pre-approach phase in HuntRunner
-        EnableBackgroundPhase: false
-    );
-
-    #endregion
+    #region Entry Points
 
     /// <summary>
-    /// Main entry point for player combat.
-    /// </summary>
-    /// <param name="engageChance">The boldness (0-1) that brought the enemy here; seeds its morale.</param>
-    public static CombatResult RunCombat(GameContext ctx, Animal enemy, double engageChance = 0.5)
-    {
-        // === SETUP ===
-        var (scenario, playerUnit) = SetupCombat(ctx, enemy);
-        scenario.Location = ctx.CurrentLocation; // Set location for detection modifiers
-        foreach (var unit in scenario.Team2)
-            unit.BoldnessModifier += engageChance - 0.5;
-        ctx.ActiveCombat = scenario;  // Switch to combat mode
-
-        // Show intro message
-        GameDisplay.AddWarning(ctx, $"A {enemy.Name.ToLower()} attacks!");
-
-        // Get hunting skill for detection checks
-        int huntingSkill = ctx.player.Skills.GetSkill("Hunting")?.Level ?? 0;
-
-        // === MAIN LOOP ===
-        while (!scenario.IsOver && !Raylib_cs.Raylib.WindowShouldClose())
-        {
-            // Render and wait for player input
-            var response = DesktopIO.RenderGridAndWaitForInput(ctx);
-
-            PlayerActionResult? actionResult = null;
-
-            // Handle click-to-move
-            if (response.CombatMoveTarget != null)
-            {
-                actionResult = ExecuteMoveTo(scenario, playerUnit, response.CombatMoveTarget.Value);
-            }
-            // Handle typed combat action
-            else if (response.CombatAction != null)
-            {
-                actionResult = ExecutePlayerChoice(scenario, playerUnit, response.CombatAction.Value, ctx);
-            }
-            else
-            {
-                continue; // No combat action, wait for next input
-            }
-
-            // Handle invalid action with feedback
-            if (!actionResult.ActionTaken)
-            {
-                if (!string.IsNullOrEmpty(actionResult.Narrative))
-                {
-                    BlockingDialog.ShowMessageAndWait(ctx, "Invalid Action", actionResult.Narrative);
-                }
-                continue;  // Go back to waiting for input
-            }
-
-            // Show result narrative for successful actions
-            if (!string.IsNullOrEmpty(actionResult.Narrative))
-            {
-                GameDisplay.AddNarrative(ctx, actionResult.Narrative);
-            }
-
-            // Action was valid - advance to AI turns
-            // Time cost: 1 minute per action (survival pressure during combat)
-            ctx.Update(1, ActivityType.Fighting);
-
-            // Run detection checks (only affects enemies that are Unaware/Alert)
-            var awarenessChanges = scenario.RunDetectionChecks(playerUnit, huntingSkill);
-            foreach (var (unit, oldState, newState) in awarenessChanges)
-            {
-                string detectionMsg = newState switch
-                {
-                    AwarenessState.Alert when oldState == AwarenessState.Unaware =>
-                        $"The {unit.actor.Name.ToLower()} becomes alert - it senses something!",
-                    AwarenessState.Engaged =>
-                        $"The {unit.actor.Name.ToLower()} spots you!",
-                    _ => null
-                };
-                if (detectionMsg != null)
-                {
-                    GameDisplay.AddWarning(ctx, detectionMsg);
-                }
-            }
-
-            if (scenario.IsOver) break;
-
-            // AI turns - executed one at a time with rendering between
-            scenario.ResetAITurns(playerUnit);
-            DesktopIO.RunAITurnsWithAnimation(ctx, scenario, playerUnit);
-        }
-
-        // === CLEANUP ===
-        ctx.ActiveCombat = null;  // Exit combat mode
-
-        var result = DetermineResult(scenario, playerUnit);
-
-        // Show result message
-        string resultMessage = result switch
-        {
-            CombatResult.Victory => "You are victorious!",
-            CombatResult.Defeat => "You have been killed.",
-            CombatResult.Fled => "You escape!",
-            CombatResult.AnimalFled => "Your enemies flee!",
-            _ => "The encounter ends."
-        };
-        GameDisplay.AddSuccess(ctx, resultMessage);
-
-        HandlePostCombat(ctx, scenario, result);
-        return result;
-    }
-
-    #region Setup
-
-    private static (CombatScenario scenario, Unit playerUnit) SetupCombat(GameContext ctx, Animal enemy)
-    {
-        // Player team
-        var playerUnit = new Unit(ctx.player, StartPosition(true, 0));
-        var team1 = new List<Unit> { playerUnit };
-
-        // Find allied NPCs who will help
-        var npcsHere = ctx.GetNPCsAt(ctx.Map?.CurrentPosition ?? new GridPosition(0, 0));
-        var allies = npcsHere.Where(npc => npc.DecideToHelpInCombat(ctx.player, enemy)).ToList();
-        foreach (var npc in allies)
-        {
-            team1.Add(new Unit(npc, StartPosition(true, team1.Count)));
-        }
-
-        // Enemy team
-        var enemyUnit = new Unit(enemy, StartPosition(false, 0));
-        var team2 = new List<Unit> { enemyUnit };
-
-        // Random pack members from herd (0-3 extra)
-        var herd = ctx.Herds.ContainingAnimal(enemy);
-        if (herd != null)
-        {
-            int maxPack = Math.Min(herd.Members.Count - 1, 3);
-            int packSize = maxPack > 0 ? _rng.Next(0, maxPack + 1) : 0;
-            var packMembers = herd.Members
-                .Where(a => a != enemy && a.IsAlive)
-                .OrderBy(_ => _rng.Next())
-                .Take(packSize);
-            foreach (var animal in packMembers)
-            {
-                team2.Add(new Unit(animal, StartPosition(false, team2.Count)));
-            }
-        }
-
-        return (new CombatScenario(team1, team2, playerUnit), playerUnit);
-    }
-
-    private static GridPosition StartPosition(bool isPlayerTeam, int index, int gridSize = CombatScenario.MAP_SIZE)
-    {
-        // Player team: bottom quarter, clustered 1-2m apart
-        // Enemy team: top quarter, clustered 1-2m apart
-        int centerX = gridSize / 2;
-        int playerBaseY = gridSize / 6;        // ~8 for 50x50
-        int enemyBaseY = gridSize - gridSize / 6; // ~42 for 50x50
-        int baseY = isPlayerTeam ? playerBaseY : enemyBaseY;
-        int xOffset = (index % 3) * 2;  // 0, 2, 4
-        int yOffset = index / 3;         // stack rows if > 3
-        return new GridPosition(centerX + xOffset, baseY + yOffset);
-    }
-
-    /// <summary>
-    /// Sets awareness state for an entire team.
-    /// </summary>
-    public static void SetTeamAwareness(IEnumerable<Unit> team, AwarenessState awareness)
-    {
-        foreach (var unit in team)
-        {
-            unit.Awareness = awareness;
-        }
-    }
-
-    /// <summary>
-    /// Run combat as a hunt scenario: player approaches unaware prey.
+    /// The player stalks prey: player Engaged, prey Unaware, opened at stalking distance.
     /// </summary>
     public static CombatResult RunHunt(GameContext ctx, Animal prey)
     {
-        var (scenario, playerUnit) = SetupHuntCombat(ctx, prey);
-        scenario.Location = ctx.CurrentLocation;
-        ctx.ActiveCombat = scenario;
+        var scenario = CombatScenario.Create(
+            PlayerSide(ctx, prey), AnimalSide(ctx, prey), ctx.CurrentLocation, HUNT_START_DISTANCE_M,
+            AwarenessState.Engaged, AwarenessState.Unaware, ctx.player);
 
         GameDisplay.AddNarrative(ctx, $"You begin stalking the {prey.Name.ToLower()}...");
 
-        var result = RunStealthCombat(ctx, scenario, playerUnit, HuntConfig);
-
-        ctx.ActiveCombat = null;
-
-        string resultMessage = result switch
+        return RunWithPlayer(ctx, scenario, ActivityType.Hunting, result => result switch
         {
             CombatResult.Victory => "You bring down your prey!",
             CombatResult.Defeat => "You have been killed.",
             CombatResult.Fled => "You retreat from the hunt.",
             CombatResult.AnimalFled => "The prey escapes!",
             _ => "The hunt ends."
-        };
-        GameDisplay.AddSuccess(ctx, resultMessage);
+        });
+    }
 
-        HandlePostCombat(ctx, scenario, result);
+    /// <summary>
+    /// A predator comes for the player: both sides Engaged, opened at the encounter's distance.
+    /// </summary>
+    /// <param name="engageChance">The boldness (0-1) that brought the predator here; seeds its morale.</param>
+    public static CombatResult RunEncounter(GameContext ctx, Animal predator, int startDistanceM, double engageChance)
+    {
+        var scenario = CombatScenario.Create(
+            PlayerSide(ctx, predator), AnimalSide(ctx, predator), ctx.CurrentLocation, startDistanceM,
+            AwarenessState.Engaged, AwarenessState.Engaged, ctx.player);
+
+        foreach (var unit in scenario.Team2)
+            unit.BoldnessModifier += engageChance - 0.5;
+
+        GameDisplay.AddWarning(ctx, $"A {predator.Name.ToLower()} attacks!");
+
+        return RunWithPlayer(ctx, scenario, ActivityType.Fighting, result => result switch
+        {
+            CombatResult.Victory => "You are victorious!",
+            CombatResult.Defeat => "You have been killed.",
+            CombatResult.Fled => "You escape!",
+            CombatResult.AnimalFled => "Your enemies flee!",
+            _ => "The encounter ends."
+        });
+    }
+
+    /// <summary>
+    /// A fight with no player in it: NPCs defending themselves, a pack pulling down prey.
+    /// Same grid, same AI, same aftermath; nobody watches.
+    /// </summary>
+    public static CombatResult ResolveHeadless(
+        GameContext ctx,
+        IReadOnlyList<Actor> teamA,
+        IReadOnlyList<Actor> teamB,
+        Location where,
+        int startDistanceM,
+        AwarenessState teamAAwareness,
+        AwarenessState teamBAwareness)
+    {
+        var scenario = CombatScenario.Create(teamA, teamB, where, startDistanceM, teamAAwareness, teamBAwareness);
+        var result = scenario.ResolveHeadless();
+        CombatAftermath.Apply(ctx, scenario, result, where);
         return result;
     }
 
-    /// <summary>
-    /// Setup combat scenario for hunting - enemies start far away (~40m).
-    /// </summary>
-    private static (CombatScenario scenario, Unit playerUnit) SetupHuntCombat(GameContext ctx, Animal prey)
+    /// <summary>The player and any NPC here who decides to help against this enemy.</summary>
+    private static List<Actor> PlayerSide(GameContext ctx, Animal enemy)
     {
-        // Derive positions from grid size for consistency
-        int playerY = MAP_SIZE / 6;                 // ~8 for 50x50
-        int preyY = MAP_SIZE - MAP_SIZE / 6;        // ~42 for 50x50
-
-        // Player starts at bottom center
-        var playerUnit = new Unit(ctx.player, new GridPosition(MAP_SIZE / 2, playerY));
-        var team1 = new List<Unit> { playerUnit };
-
-        // Prey starts far away at top (~40m away)
-        var preyUnit = new Unit(prey, new GridPosition(MAP_SIZE / 2, preyY));
-        var team2 = new List<Unit> { preyUnit };
-
-        // Include any pack members from herd
-        var herd = ctx.Herds.ContainingAnimal(prey);
-        if (herd != null)
-        {
-            int maxPack = Math.Min(herd.Members.Count - 1, 2);
-            int packSize = maxPack > 0 ? _rng.Next(0, maxPack + 1) : 0;
-            var packMembers = herd.Members
-                .Where(a => a != prey && a.IsAlive)
-                .OrderBy(_ => _rng.Next())
-                .Take(packSize);
-            int index = 1;
-            foreach (var animal in packMembers)
-            {
-                int xOffset = (index % 3) * 2 - 2;
-                team2.Add(new Unit(animal, new GridPosition(MAP_SIZE / 2 + xOffset, preyY + index / 3)));
-                index++;
-            }
-        }
-
-        return (new CombatScenario(team1, team2, playerUnit, ctx.CurrentLocation), playerUnit);
+        var side = new List<Actor> { ctx.player };
+        var npcsHere = ctx.GetNPCsAt(ctx.Map?.CurrentPosition ?? new GridPosition(0, 0));
+        side.AddRange(npcsHere.Where(npc => npc.DecideToHelpInCombat(ctx.player, enemy)));
+        return side;
     }
 
-    private const int MAP_SIZE = CombatScenario.MAP_SIZE;
+    /// <summary>The animal plus a random handful of its living herd mates.</summary>
+    public static List<Actor> AnimalSide(GameContext ctx, Animal lead, int maxExtra = MAX_PACK_MEMBERS)
+    {
+        var side = new List<Actor> { lead };
+        var herd = ctx.Herds.ContainingAnimal(lead);
+        if (herd != null)
+        {
+            int maxPack = Math.Min(herd.Members.Count - 1, maxExtra);
+            int packSize = maxPack > 0 ? _rng.Next(0, maxPack + 1) : 0;
+            side.AddRange(herd.Members
+                .Where(a => a != lead && a.IsAlive)
+                .OrderBy(_ => _rng.Next())
+                .Take(packSize));
+        }
+        return side;
+    }
 
     #endregion
 
-    #region Unified Stealth Combat
+    #region Player Loop
 
-    /// <summary>
-    /// Unified stealth combat loop for both hunts and predator encounters.
-    /// Detection checks run every turn against enemies that are Unaware or Alert.
-    /// </summary>
-    private static CombatResult RunStealthCombat(
-        GameContext ctx,
-        CombatScenario scenario,
-        Unit playerUnit,
-        StealthCombatConfig config)
+    private static CombatResult RunWithPlayer(GameContext ctx, CombatScenario scenario, ActivityType activity, Func<CombatResult, string> describe)
     {
-        // 1. Apply awareness states
-        SetTeamAwareness(scenario.Team1, config.PlayerAwareness);
-        SetTeamAwareness(scenario.Team2, config.TargetAwareness);
-
-        // 2. Show intro message if provided
-        if (config.IntroMessage != null)
-            GameDisplay.AddNarrative(ctx, config.IntroMessage);
-
-        // 3. Get hunting skill once
+        var playerUnit = scenario.Player!;
+        ctx.ActiveCombat = scenario;
         int huntingSkill = ctx.player.Skills.GetSkill("Hunting")?.Level ?? 0;
 
-        // 4. Main loop
-        while (!scenario.IsOver && !Raylib_cs.Raylib.WindowShouldClose())
+        while (!scenario.IsOver && scenario.Units.Contains(playerUnit) && !Raylib_cs.Raylib.WindowShouldClose())
         {
-            // 4a. Background phase for encounters (player unaware)
-            if (config.EnableBackgroundPhase && playerUnit.Awareness == AwarenessState.Unaware)
-            {
-                RunBackgroundPhase(ctx, scenario, playerUnit, huntingSkill);
-                continue;
-            }
-
-            // 4b. Normal combat turn
-            RunCombatTurn(ctx, scenario, playerUnit, huntingSkill, config.ActivityType);
+            RunCombatTurn(ctx, scenario, playerUnit, huntingSkill, activity);
         }
 
-        return DetermineResult(scenario, playerUnit);
-    }
+        ctx.ActiveCombat = null;
 
-    /// <summary>
-    /// Processes background phase when player is unaware (predator stalking).
-    /// </summary>
-    private static void RunBackgroundPhase(
-        GameContext ctx,
-        CombatScenario scenario,
-        Unit playerUnit,
-        int huntingSkill)
-    {
-        // Run predator's turn (they're stalking/approaching)
-        scenario.ResetAITurns(playerUnit);
-        while (scenario.HasRemainingAITurns(playerUnit) && !Raylib_cs.Raylib.WindowShouldClose())
-        {
-            scenario.RunNextAITurn(playerUnit);
-            if (scenario.IsOver) break;
-
-            // Check if player detected the predator (reverse detection check)
-            var nearestEnemy = scenario.GetNearestEnemy(playerUnit);
-            if (nearestEnemy != null)
-            {
-                double distance = playerUnit.Position.DistanceTo(nearestEnemy.Position);
-                double detectionChance = HuntingCalculator.CalculateDetectionChance(
-                    distance,
-                    AwarenessState.Alert, // Player is alert to danger in general
-                    huntingSkill,
-                    0
-                );
-
-                // Location visibility helps player spot predator
-                if (scenario.Location != null)
-                {
-                    double visibilityNormalized = scenario.Location.VisibilityFactor / 2.0;
-                    detectionChance *= (1.0 + visibilityNormalized * 0.3);
-                }
-
-                if (Utils.DetermineSuccess(detectionChance))
-                {
-                    playerUnit.Awareness = AwarenessState.Engaged;
-                    GameDisplay.AddWarning(ctx, $"You spot a {nearestEnemy.actor.Name.ToLower()} stalking you!");
-                }
-            }
-        }
-
-        // Time passes during stalking
-        ctx.Update(1, ActivityType.Encounter);
+        var result = scenario.DetermineResult();
+        GameDisplay.AddSuccess(ctx, describe(result));
+        CombatAftermath.Apply(ctx, scenario, result, ctx.CurrentLocation);
+        return result;
     }
 
     /// <summary>
@@ -607,53 +372,6 @@ public static class CombatOrchestrator
             ? string.Join(" ", messages)
             : "You wait and watch.";
         return new PlayerActionResult(true, narrative);
-    }
-
-    #endregion
-
-    #region Result & Cleanup
-
-    private static CombatResult DetermineResult(CombatScenario scenario, Unit player)
-    {
-        if (!player.actor.IsAlive) return CombatResult.Defeat;
-        if (scenario.Team2.All(u => !u.actor.IsAlive)) return CombatResult.Victory;
-        if (!scenario.Units.Contains(player)) return CombatResult.Fled;
-        return CombatResult.AnimalFled;  // enemies fled
-    }
-
-    private static void HandlePostCombat(GameContext ctx, CombatScenario scenario, CombatResult result)
-    {
-        // Create carcasses for dead enemies
-        if (result == CombatResult.Victory)
-        {
-            foreach (var unit in scenario.Team2)
-            {
-                if (!unit.actor.IsAlive && unit.actor is Animal animal)
-                {
-                    var carcass = new CarcassFeature(animal);
-                    ctx.CurrentLocation.AddFeature(carcass);
-                }
-            }
-        }
-
-        // Dead ally NPCs become bodies
-        foreach (var unit in scenario.Team1)
-        {
-            if (!unit.actor.IsAlive && unit.actor is NPC npc)
-            {
-                var cause = NPCBodyFeature.DetermineDeathCause(npc);
-                var body = new NPCBodyFeature(npc.Name, cause, ctx.GameTime, npc.Inventory ?? new Inventory());
-                ctx.CurrentLocation.AddFeature(body);
-                ctx.NPCs.Remove(npc);
-            }
-        }
-
-        // Record that team members fought together (relationship memory)
-        if (result == CombatResult.Victory || result == CombatResult.AnimalFled)
-        {
-            var team = scenario.Team1.Select(u => u.actor);
-            RelationshipEvents.FoughtTogether(team);
-        }
     }
 
     #endregion
