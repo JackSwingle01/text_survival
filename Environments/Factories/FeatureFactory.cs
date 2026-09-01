@@ -195,16 +195,17 @@ public static class FeatureFactory
 
     #endregion
 
-    #region AnimalTerritoryFeature Factories
+    #region SmallGameFeature Factories
+    // Large animals (caribou, bison, wolves, bears...) are never placed here.
+    // They live in herds placed by HerdPopulator; see AnimalPresence.
 
     /// <summary>
-    /// Mixed prey animals - caribou + small game.
+    /// Mixed small game under big-game country. Caribou herds roam here on their own.
     /// Used by: Forest (1.2), Clearing (1.0), Sheltered Valley (1.3), Ancient Grove (0.5), Hot Spring (0.6)
     /// </summary>
-    public static AnimalTerritoryFeature CreateMixedPreyAnimals(double density = 1.0)
+    public static SmallGameFeature CreateMixedPreyAnimals(double density = 1.0)
     {
-        return new AnimalTerritoryFeature(density)
-            .AddCaribou(1.0)
+        return new SmallGameFeature(density)
             .AddRabbit(0.6)
             .AddFox(0.3);
     }
@@ -213,46 +214,23 @@ public static class FeatureFactory
     /// Game trail animals - peak activity at dawn.
     /// Used by: Game Trail (0.6)
     /// </summary>
-    public static AnimalTerritoryFeature CreateGameTrailAnimals(double density = 0.6)
+    public static SmallGameFeature CreateGameTrailAnimals(double density = 0.6)
     {
-        return new AnimalTerritoryFeature(density)
-            .AddCaribou(1.5)
-            .AddMegaloceros(0.3)
+        return new SmallGameFeature(density)
             .AddRabbit(1.0)
             .AddFox(0.3)
             .WithPeakHours(5, 8, 2.5);
     }
 
-    /// <summary>
-    /// Grazing herd animals - bison, caribou, and megaloceros.
-    /// Used by: Open plains, valleys, grasslands
-    /// </summary>
-    public static AnimalTerritoryFeature CreateGrazingHerdAnimals(double density = 0.8)
-    {
-        return new AnimalTerritoryFeature(density)
-            .AddBison(1.0)
-            .AddCaribou(0.8)
-            .AddMegaloceros(0.3);
-    }
 
-    /// <summary>
-    /// Scavenger territory - hyenas and foxes.
-    /// Used by: Areas near carcass-rich zones, old kills
-    /// </summary>
-    public static AnimalTerritoryFeature CreateScavengerTerritory(double density = 0.6)
-    {
-        return new AnimalTerritoryFeature(density)
-            .AddHyena(1.0)
-            .AddFox(0.5);
-    }
 
     /// <summary>
     /// Small game animals - rabbit + ptarmigan.
     /// Used by: Plain (0.8), Thicket (1.2), Deadwood (0.7), Overlook (0.4)
     /// </summary>
-    public static AnimalTerritoryFeature CreateSmallGameAnimals(double density = 0.8)
+    public static SmallGameFeature CreateSmallGameAnimals(double density = 0.8)
     {
-        return new AnimalTerritoryFeature(density)
+        return new SmallGameFeature(density)
             .AddRabbit(1.2)
             .AddPtarmigan(1.0);
     }
@@ -261,42 +239,22 @@ public static class FeatureFactory
     /// Waterfowl animals - ptarmigan-heavy.
     /// Used by: Marsh (0.9), Beaver Dam (0.7)
     /// </summary>
-    public static AnimalTerritoryFeature CreateWaterfowlAnimals(double density = 0.9)
+    public static SmallGameFeature CreateWaterfowlAnimals(double density = 0.9)
     {
-        return new AnimalTerritoryFeature(density)
+        return new SmallGameFeature(density)
             .AddPtarmigan(1.5)
             .AddRabbit(0.5);
     }
 
-    /// <summary>
-    /// Wolf den animals - predator territory.
-    /// Used by: Wolf Den (1.5)
-    /// </summary>
-    public static AnimalTerritoryFeature CreateWolfDenAnimals(double density = 1.5)
-    {
-        return new AnimalTerritoryFeature(density)
-            .AddWolf(2.0)
-            .AddRabbit(0.3);
-    }
 
-    /// <summary>
-    /// Bear cave animals - bear territory.
-    /// Used by: Bear Cave (0.8)
-    /// </summary>
-    public static AnimalTerritoryFeature CreateBearCaveAnimals(double density = 0.8)
-    {
-        return new AnimalTerritoryFeature(density)
-            .AddBear(2.0)
-            .AddAnimal(AnimalType.CaveBear, 0.3);
-    }
 
     /// <summary>
     /// Sparse animals - minimal game.
     /// Used by: Burnt Stand (0.3)
     /// </summary>
-    public static AnimalTerritoryFeature CreateSparseAnimals(double density = 0.3)
+    public static SmallGameFeature CreateSparseAnimals(double density = 0.3)
     {
-        return new AnimalTerritoryFeature(density)
+        return new SmallGameFeature(density)
             .AddRabbit(1.0);
     }
 

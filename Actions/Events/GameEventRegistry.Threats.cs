@@ -13,14 +13,13 @@ public static partial class GameEventRegistry
 
     private static GameEvent FreshCarcass(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimal() ?? AnimalType.Wolf;
+        var animal = AnimalPresence.PickAnimal(ctx) ?? AnimalType.Wolf;
 
         return new GameEvent(
             "Fresh Carcass",
             $"Something killed a {animal.DisplayName().ToLower()} recently. The meat's still good, but you didn't make this kill.", 0.5)
             .Requires(EventCondition.Working, EventCondition.InAnimalTerritory)
-            .WithSituationFactor(Situations.PredatorInTerritory, 2.0)  // More likely in predator territory
+            .WithSituationFactor(AnimalPresence.PredatorsNear, 2.0)  // More likely in predator territory
             .Choice("Scavenge Quickly", "Grab what you can and get out before whatever killed this returns.",
                 [
                     new EventResult("You cut away some meat and leave.", weight: 0.7f, minutes:8)
@@ -53,23 +52,16 @@ public static partial class GameEventRegistry
 
     private static GameEvent Tracks(GameContext ctx)
     {
-        // Determine animal type - prefer herd data over territory feature
-        var pos = ctx.Map?.CurrentPosition ?? default;
-        var herdInTerritory = ctx.Herds
-            .FirstOrDefault(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = herdInTerritory?.AnimalType ?? territory?.GetRandomAnimal() ?? AnimalType.Wolf;
-        bool isPredator = herdInTerritory != null
-            ? herdInTerritory.IsPredator
-            : (territory?.HasPredators() ?? false);
+        var animal = AnimalPresence.PickAnimal(ctx) ?? AnimalType.Wolf;
+        bool isPredator = animal.IsPredator();
 
         return new GameEvent(
             "Tracks",
             $"Fresh {animal.DisplayName().ToLower()} tracks cross your path. They're recent.", 0.3)
             .Requires(EventCondition.IsExpedition, EventCondition.InAnimalTerritory)
             .WithConditionFactor(EventCondition.HighVisibility, 1.5) // Easier to see tracks in open terrain
-            .WithSituationFactor(Situations.PredatorInTerritory, 5.0) // Very common when predator herd present
-            .WithSituationFactor(Situations.PreyInTerritory, 5.0) // Very common when prey herd present
+            .WithSituationFactor(AnimalPresence.PredatorsNear, 5.0) // Very common when predator herd present
+            .WithSituationFactor(AnimalPresence.PreyNear, 5.0) // Very common when prey herd present
             .Choice("Follow Them",
                 "The trail is clear. You could track this animal.",
                 [
@@ -100,11 +92,7 @@ public static partial class GameEventRegistry
 
     private static GameEvent SomethingWatching(GameContext ctx)
     {
-        // Prefer herd data for predator type
-        var predatorHerd = ctx.Herds.Predators()
-            .FirstOrDefault(h => h.HomeTerritory.Contains(ctx.Map?.CurrentPosition ?? default) && h.Count > 0);
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = predatorHerd?.AnimalType ?? territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
         // Noise effectiveness varies by animal - skittish animals flee, others may be provoked
@@ -114,7 +102,6 @@ public static partial class GameEventRegistry
         return new GameEvent("Something Watching",
             $"The hair on your neck stands up. Something is watching. You catch a glimpse of movement — {predator.DisplayName()}?", 0.2f)
             .Requires(EventCondition.Working, EventCondition.HasPredators)
-            .WithSituationFactor(Situations.PredatorInTerritory, 5.0)    // Very common when predator herd present
             .WithSituationFactor(Situations.AttractiveToPredators, 3.0)  // Meat, bleeding, food scent
             .WithSituationFactor(Situations.Vulnerable, 2.0)             // Injured, slow, no weapon
             .WithSituationFactor(Situations.IsFollowingAnimalSigns, 2.5) // Following tracks/scat clues
@@ -160,8 +147,7 @@ public static partial class GameEventRegistry
 
     private static GameEvent RavenCall(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
 
         return new GameEvent("Raven Call",
             "Ravens circling overhead. They've spotted something — or someone. They're watching you.", 0.6f)
@@ -565,8 +551,7 @@ public static partial class GameEventRegistry
 
     private static GameEvent ParanoiaEvent(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
 
         return new GameEvent("Paranoia",
             "You are certain — absolutely certain — you see eyes reflecting at the edge of the firelight.", 0.5f)
@@ -893,13 +878,12 @@ public static partial class GameEventRegistry
 
     private static GameEvent DistantCarcassStench(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimal() ?? AnimalType.Wolf;
+        var animal = AnimalPresence.PickAnimal(ctx) ?? AnimalType.Wolf;
 
         return new GameEvent("Distant Carcass Stench",
             $"The wind brings a smell — death, recent. Something died nearby, or something killed nearby.", 0.6f)
             .Requires(EventCondition.IsExpedition, EventCondition.InAnimalTerritory)
-            .WithSituationFactor(Situations.PredatorInTerritory, 2.0)  // More likely in predator territory
+            .WithSituationFactor(AnimalPresence.PredatorsNear, 2.0)  // More likely in predator territory
             .Choice("Scout Toward It",
                 "Follow the smell. Could be free meat.",
                 [
@@ -911,7 +895,7 @@ public static partial class GameEventRegistry
                         .FindsGameTrail(),
                     new EventResult("Can't find it. Wind shifted.", weight: 0.15, minutes: 30),
                     new EventResult("Find it. And what killed it.", weight: 0.05, minutes: 20)
-                        .Encounter(territory?.GetRandomPredator() ?? AnimalType.Wolf, 25, 0.6)
+                        .Encounter(AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf, 25, 0.6)
                 ])
             .Choice("Mark the Direction",
                 "Note for later investigation.",
@@ -1079,9 +1063,7 @@ public static partial class GameEventRegistry
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
         string carcassName = carcass?.AnimalName ?? "carcass";
 
-        // Pick a scavenger based on territory
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        AnimalType scavenger = territory?.HasPredators() == true ? AnimalType.Wolf : AnimalType.Fox;
+        AnimalType scavenger = AnimalPresence.PickPredator(ctx) ?? AnimalType.Fox;
 
         return new GameEvent(
             "Scavenger Approach",
@@ -1128,10 +1110,7 @@ public static partial class GameEventRegistry
         string carcassName = carcass?.AnimalName ?? "kill";
 
         // More dangerous predator for contested kills
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        AnimalType predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
-        if (territory?.HasPredators() != true)
-            predator = AnimalType.Wolf;  // Default to wolf for contested kills
+        AnimalType predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
 
         return new GameEvent(
             "Contested Kill",
@@ -1181,8 +1160,7 @@ public static partial class GameEventRegistry
         var carcass = ctx.CurrentLocation.GetFeature<CarcassFeature>();
         if (carcass == null) return new GameEvent("Empty", "", 0).Requires(EventCondition.Cornered);  // Invalid
 
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var scavenger = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var scavenger = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
 
         string animal = carcass.AnimalName;
         double lossPercent = Random.Shared.NextDouble() * 0.5 + 0.3;  // 30-80% loss

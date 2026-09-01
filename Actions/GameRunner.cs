@@ -655,7 +655,7 @@ public partial class GameRunner(GameContext ctx)
             // Time is tracked during combat via GameContext.Update()
             if (result.FoundAnimal != null)
             {
-                HuntRunner.Run(result.FoundAnimal, ctx.CurrentLocation, ctx, result.FoundHerd);
+                HuntRunner.Run(result.FoundAnimal, ctx);
             }
         }
     }

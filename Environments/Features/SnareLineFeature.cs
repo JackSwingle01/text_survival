@@ -6,7 +6,7 @@ namespace text_survival.Environments.Features;
 
 /// <summary>
 /// Manages placed snares at a location.
-/// Requires AnimalTerritoryFeature for valid placement.
+/// Requires SmallGameFeature for valid placement.
 /// </summary>
 public class SnareLineFeature : LocationFeature, IWorkableFeature
 {
@@ -14,7 +14,7 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
     public override int IconPriority => HasCatchWaiting ? 8 : 2; // Catches are urgent
 
     public readonly List<PlacedSnare> _snares = [];
-    public readonly AnimalTerritoryFeature _territory;
+    public readonly SmallGameFeature _territory;
 
     // Small game weight threshold (kg)
     private const double SmallGameMaxWeightKg = 10.0;
@@ -22,7 +22,7 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
     [System.Text.Json.Serialization.JsonConstructor]
     public SnareLineFeature() : base("snare_line") { }
 
-    public SnareLineFeature(AnimalTerritoryFeature territory) : base("snare_line")
+    public SnareLineFeature(SmallGameFeature territory) : base("snare_line")
     {
         _territory = territory;
     }
@@ -167,7 +167,7 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
 
     /// <summary>
     /// Get list of small game animals that can be caught.
-    /// Filters AnimalTerritoryFeature spawn list to animals under 10kg.
+    /// Filters SmallGameFeature spawn list to animals under 10kg.
     /// </summary>
     private List<(string type, double weightKg)> GetSmallGameList()
     {

@@ -117,7 +117,7 @@ Features are what make locations useful. They live on locations and define avail
 
 **HarvestableFeature** — Visible specific resources. A berry bush, a dead tree. Quantity-based, not probability-based. Tool tier gating — some resources require better tools. Individual resource respawn timers.
 
-**AnimalTerritoryFeature** — What game can be found here. Animals spawn dynamically when searching, not pre-placed. Game density depletes with successful hunts and respawns over time. Peak activity hours system affects encounter rates.
+**SmallGameFeature** — Ambient small game (rabbit, ptarmigan, fox, fish) as a density, like forage. Animals spawn when searched for, density depletes with kills and respawns over weeks, peak hours raise encounter rates. Large animals are never here: they live in herds. `AnimalPresence` is the one place that answers "what animals are near the player" by combining herds and small game; events, conditions, and work options all ask it.
 
 **WoodedAreaFeature** — Tree chopping mechanic. Work accumulates until tree fells. Progress persists across sessions. Can specify wood type (Pine/Birch/Oak) or mixed forest. Trees respawn slowly.
 
@@ -158,7 +158,7 @@ Locations store both visible `Features` and hidden `HiddenFeatures`. Foraging ac
 **Hidden until discovered:**
 - `HarvestableFeature` — Berry bushes, deadfall, flint outcrops
 - `ShelterFeature` — Rock overhangs, natural shelters
-- `AnimalTerritoryFeature` — Game trails, hunting grounds
+- `SmallGameFeature` — Game trails, hunting grounds
 - `EnvironmentalDetail` — Fallen logs, animal tracks, stone piles
 - `EventTriggerFeature` — One-time discovery events (abandoned camps, frozen travelers)
 
@@ -419,16 +419,18 @@ Tensions interact with: events (tensions modify event weights, events modify ten
 
 ## Combat System
 
-Grid-based tactical combat system. Combat emerges from hunting, events, or predator encounters.
+Grid-based tactical combat. Every fight in the game runs on it: the player's hunts and encounters, NPCs defending themselves, and packs pulling down prey.
 
-**Architecture** — Two-layer system:
-- `CombatOrchestrator` — Handles combat loop, player input, and UI coordination
-- `CombatScenario` — Combat state, rules, action execution, and AI processing
+**Architecture** — One scenario, one setup, one aftermath:
+- `CombatScenario.Create` — The only way to build a fight: two teams, a location, an opening distance, and an awareness state per side. A hunt is an Engaged player against Unaware prey; an ambush is the reverse; a brawl is Engaged on both sides.
+- `CombatScenario` — State, rules, action execution, AI turns. `ResolveHeadless` runs a fight with no player in it on the same grid and AI.
+- `CombatOrchestrator` — The player's turn loop and UI. `RunHunt`, `RunEncounter`, and `ResolveHeadless` are the entry points.
+- `CombatAftermath.Apply` — Everything the world remembers afterward: carcasses and bodies, herd losses, fear, feeding and flight, wounded prey that got away, small game depletion, relationship memory, hunting experience.
 
-**Entry Points** — Three ways to enter combat:
-- **Hunting** — `HuntRunner` transitions to combat when animal confronted
-- **Encounters** — `EncounterRunner` transitions when predator charges or player fights
-- **Events** — `GameContext` spawns encounters during activities
+**Entry Points:**
+- **Hunting** — `HuntRunner` prompts the approach, then `CombatOrchestrator.RunHunt`
+- **Encounters** — Herd behaviors and event outcomes queue an `EncounterConfig`; `GameContext` runs it through `CombatOrchestrator.RunEncounter`. A herd sends one of its own members, so kills thin the pack.
+- **NPC and herd fights** — `NPCFight` and `PackPredatorBehavior` call `CombatOrchestrator.ResolveHeadless`
 
 **Combat Grid** — 25x25 meter tactical grid (1m per cell):
 - Units positioned at grid coordinates
@@ -458,6 +460,7 @@ Grid-based tactical combat system. Combat emerges from hunting, events, or preda
 - **Advance/Retreat** — Move 3m toward/away from nearest enemy
 
 **Morale & Boldness** — AI behavior driven by boldness (0-1):
+- Whether a herd engages at all is `Herd.BoldnessToward(target)`: species `Temperament`, pack size, hunger, what it is defending, the target's vulnerability, the hour, and learned fear. The same number seeds the animals' morale when the fight opens.
 - Combat events modify boldness (damage taken/dealt, allies killed, enemy retreat, etc.)
 - Low boldness (<0.3) causes AI to flee
 - High boldness (>0.7) makes AI aggressive
@@ -475,11 +478,12 @@ Grid-based tactical combat system. Combat emerges from hunting, events, or preda
 - Target selection (weakest enemy, or nearest if none wounded)
 - Movement positioning (advance when bold, retreat when scared)
 
-**Combat Resolution:**
-- **Victory** — All enemies dead/fled, creates carcasses via `CarcassFeature`
-- **Defeat** — Player killed
-- **Fled** — Player reached map edge
-- **Animal Fled** — All enemies fled
+**Combat Resolution** (`CombatResult`, from team A's point of view):
+- **Victory** — All enemies dead
+- **Defeat** — Player killed, or team A dead
+- **Fled** — Team A left the field
+- **Animal Fled** — Team B left the field
+- **Animal Disengaged** — Stand-off or headless round cap
 
 **Damage System** — Integrated with body system:
 - Damage affects body parts, organs, blood
@@ -488,7 +492,7 @@ Grid-based tactical combat system. Combat emerges from hunting, events, or preda
 
 Combat interacts with: events (can spawn combat), body system (damage and abilities), inventory (weapons, meat affects boldness), NPCs (allies), herds (pack members), features (carcasses on victory), abilities (speed for dodge, strength for shove).
 
-**Files:** `Combat/CombatOrchestrator.cs`, `Combat/CombatScenario.cs`, `Combat/CombatAI.cs`, `Combat/ICombatActor.cs`
+**Files:** `Combat/CombatOrchestrator.cs`, `Combat/CombatScenerio.cs`, `Combat/CombatAftermath.cs`, `Combat/CombatAI.cs`, `Combat/CombatFormulas.cs`
 
 ---
 
@@ -503,7 +507,9 @@ Three behavior types (strategy pattern):
 
 Hunger drives behavior transitions: Resting → Grazing/Patrolling → Hunting/Feeding. Grazing depletes ForageFeature resources based on diet (browsers eat lichens, grazers eat grass, omnivores eat berries/fungi). Herds leave depleted areas faster — competing with player for forage.
 
-Wounded animals split into trackable single-animal herds. NPC predator-prey resolved via `PredatorPreyResolver` — successful kills create CarcassFeature that predators defend.
+Wounded animals split into trackable single-animal herds. Pack hunts run on the combat grid: `HerdVigilance` decides whether the prey noticed the pack, which sets how the fight opens, and `CombatAftermath` leaves the carcass the pack then defends.
+
+Wolf dens and bear caves are authored locations; `HerdPopulator` anchors a real pack or bear on each one. Megafauna (mammoth, saber-tooth) are herds too, and their scout/track/approach work options come from the herd being near plus the hunt tension. A dead megafauna herd stays dead for the run.
 
 Herds interact with: locations (territory spans tiles), features (grazing depletes ForageFeature), hunting (HuntStrategy searches herds), events (herd arc triggers), tensions (HerdNearby, WoundedPrey), encounters (predators engage player).
 
@@ -627,8 +633,7 @@ Runners — Control flow, player decisions, display UI
 - TravelRunner: movement between locations
 - WorkRunner: all work activities (uses strategy pattern)
 - CraftingRunner: need-based crafting UI
-- HuntRunner: interactive hunt sequences (creates CarcassFeature on kill)
-- EncounterRunner: predator encounters (creates CarcassFeature on victory)
+- HuntRunner: the approach prompt before a hunt; the hunt itself is combat
 
 Handlers — Activity-specific execution logic (static classes)
 - FireHandler: fire starting, tending, fuel management
@@ -638,11 +643,10 @@ Handlers — Activity-specific execution logic (static classes)
 - TreatmentHandler: medical treatment application
 - CampHandler: sleep, rest, camp improvements
 - TravelHandler: movement between locations
-- HuntHandler: hunting sequences
 - CuringRackHandler: hide/meat preservation
 
 Runners — Control flow, player decisions, display UI also includes:
-- CombatOrchestrator: grid-based tactical combat (called from encounters, events, hunts)
+- CombatOrchestrator: grid-based tactical combat (hunts, encounters, and headless NPC/herd fights)
 
 Handlers take `GameContext`, mutate state directly, handle player choices via `Input`. Runners orchestrate flow; handlers execute specific actions.
 

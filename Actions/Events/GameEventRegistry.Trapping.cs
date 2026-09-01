@@ -57,8 +57,7 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent PredatorAtTrapLine(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Fox;
 
         return new GameEvent("Predator at Trap Line",
             $"You approach your snares and freeze. A {predator.DisplayName()} is there, sniffing around the bait.", 1.2)
@@ -137,8 +136,7 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent TrapLinePlundered(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Fox;
 
         return new GameEvent("Trap Line Plundered",
             "Your snares have been hit. The snow is churned up, feathers and fur scattered. Something got here first.", 0.7)
@@ -236,8 +234,7 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent BaitedTrapAttention(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Fox;
 
         return new GameEvent("Unwanted Attention",
             $"The meat bait on your snare has attracted attention. {predator.DisplayName().ToLower()} tracks circle the trap.", 0.5)

@@ -20,7 +20,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Distant Thunder",
             "The ground trembles. A sound like thunder, but rhythmic. A herd is moving through — hundreds of animals.", 0.5)
             .Requires(EventCondition.OnExpedition)
-            .RequiresSituation(Situations.PreyInTerritory)  // Requires prey herd present
+            .RequiresSituation(AnimalPresence.PreyNear)  // Requires prey herd present
             // SupplyPressure: low food, fuel, or water - more driven to pursue food opportunity
             .WithSituationFactor(Situations.SupplyPressure, 2.0)
             .Choice("Track Them",
@@ -62,8 +62,7 @@ public static partial class GameEventRegistry
         var animal = herdTension?.AnimalType ?? AnimalType.Caribou;
         var stampedeVariant = VariantSelector.SelectStampedeVariant(ctx);
 
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
 
         var isLargeAnimal = animal == AnimalType.Bison;
         var description = isLargeAnimal

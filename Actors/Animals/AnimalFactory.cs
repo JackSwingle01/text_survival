@@ -42,7 +42,6 @@ public static class AnimalFactory
             attackDamage: 0.05, attackName: "teeth", attackType: DamageType.Pierce,
             location: location, map: map)
         {
-            TrackingDifficulty = 3,
             BaseThreat = 0.05,
             StartingBoldness = 0.3,
             BaseAggression = 0.05,
@@ -69,7 +68,6 @@ public static class AnimalFactory
             speedMps: 8.0, pursuitCommitment: 60.0,
             disengageAfterMaul: 0.2)  // Pack hunters tend to finish prey
         {
-            TrackingDifficulty = 6,
             BaseThreat = 0.7,
             StartingBoldness = 1.3,
             BaseAggression = 0.8,
@@ -96,7 +94,6 @@ public static class AnimalFactory
             speedMps: 5.0, pursuitCommitment: 30.0,
             disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
-            TrackingDifficulty = 5,
             BaseThreat = 2.5,
             StartingBoldness = 1.6,
             BaseAggression = 0.4,
@@ -123,7 +120,6 @@ public static class AnimalFactory
             speedMps: 4.5, pursuitCommitment: 25.0,
             disengageAfterMaul: 0.5)  // Often leaves after incapacitating (territorial defense)
         {
-            TrackingDifficulty = 4,
             BaseThreat = 3.0,
             StartingBoldness = 1.8,
             BaseAggression = 0.4,
@@ -149,7 +145,6 @@ public static class AnimalFactory
             location: location, map: map,
             disengageAfterMaul: 0.7)  // Defensive - just wants you to go away
         {
-            TrackingDifficulty = 2,
             SpecialYields =
             [
                 (Resource.Ivory, 4),        // 2 tusks
@@ -181,7 +176,6 @@ public static class AnimalFactory
             speedMps: 9.0, pursuitCommitment: 45.0,
             disengageAfterMaul: 0.15)  // Big cat, likely to finish kill
         {
-            TrackingDifficulty = 7,
             BaseThreat = 3.0,
             StartingBoldness = 2.0,
             BaseAggression = 0.7,
@@ -207,7 +201,6 @@ public static class AnimalFactory
             location: location, map: map,
             isHostile: false)
         {
-            TrackingDifficulty = 4,
             BaseThreat = 0.3,
             StartingBoldness = 0.3,
             BaseAggression = 0.05,
@@ -233,7 +226,6 @@ public static class AnimalFactory
             location: location, map: map,
             isHostile: false)
         {
-            TrackingDifficulty = 6,
             BaseThreat = 0.05,
             StartingBoldness = 0.1,
             BaseAggression = 0.0,
@@ -259,7 +251,6 @@ public static class AnimalFactory
             location: location, map: map,
             isHostile: false)
         {
-            TrackingDifficulty = 7,
             BaseThreat = 0.02,
             StartingBoldness = 0.1,
             BaseAggression = 0.0,
@@ -285,7 +276,6 @@ public static class AnimalFactory
             location: location, map: map,
             isHostile: false)
         {
-            TrackingDifficulty = 6,
             BaseThreat = 0.15,
             StartingBoldness = 0.4,
             BaseAggression = 0.1,
@@ -313,7 +303,6 @@ public static class AnimalFactory
             isHostile: false,
             disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
         {
-            TrackingDifficulty = 3,
             BaseThreat = 0.5,
             StartingBoldness = 0.4,
             BaseAggression = 0.1,
@@ -341,7 +330,6 @@ public static class AnimalFactory
             isHostile: false,
             disengageAfterMaul: 0.6)  // Defensive - leaves once threat neutralized
         {
-            TrackingDifficulty = 2,
             BaseThreat = 1.8,
             StartingBoldness = 0.5,
             BaseAggression = 0.1,
@@ -368,7 +356,6 @@ public static class AnimalFactory
             speedMps: 7.5, pursuitCommitment: 50.0,
             disengageAfterMaul: 0.3)  // Scavenger, may leave if prey plays dead
         {
-            TrackingDifficulty = 5,
             BaseThreat = 0.4,
             StartingBoldness = 0.7,
             BaseAggression = 0.5,

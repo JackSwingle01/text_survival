@@ -73,7 +73,7 @@ public static class Situations
     public static bool ResourceScarcity(GameContext ctx) =>
         ctx.CurrentLocation.GetFeature<ForageFeature>()?.IsDepleted() == true ||
         ctx.CurrentLocation.GetFeature<HarvestableFeature>()?.IsDepleted() == true ||
-        ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>()?.CanHunt() == false;
+        ctx.CurrentLocation.GetFeature<SmallGameFeature>()?.CanHunt() == false;
 
     public static bool SupplyPressure(GameContext ctx) =>
         ctx.Check(EventCondition.LowOnFuel) ||
@@ -466,114 +466,27 @@ public static class Situations
         return worst != null ? (worst, worst.ConditionPct) : null;
     }
 
-    public static bool PredatorInTerritory(GameContext ctx)
-    {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.Predators()
-            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-    }
 
-    public static bool PreyInTerritory(GameContext ctx)
-    {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.Prey()
-            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-    }
 
-    public static bool PackPredatorInTerritory(GameContext ctx)
-    {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.Predators()
-            .Any(h => h.BehaviorType == HerdBehaviorType.PackPredator
-                  && h.HomeTerritory.Contains(pos) && h.Count > 0);
-    }
 
-    public static bool SolitaryPredatorInTerritory(GameContext ctx)
-    {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.Predators()
-            .Any(h => h.BehaviorType == HerdBehaviorType.SolitaryPredator
-                  && h.HomeTerritory.Contains(pos) && h.Count > 0);
-    }
 
-    public static double PredatorPresenceLevel(GameContext ctx)
-    {
-        if (ctx.Map == null) return 0;
-        var pos = ctx.Map.CurrentPosition;
-        var predators = ctx.Herds.Predators().Where(h => h.Count > 0).ToList();
 
-        // On tile = maximum presence
-        if (predators.Any(h => h.Position == pos)) return 1.0;
 
-        // In territory = partial presence
-        if (predators.Any(h => h.HomeTerritory.Contains(pos))) return 0.5;
 
-        return 0;
-    }
-
-    public static double PreyPresenceLevel(GameContext ctx)
-    {
-        if (ctx.Map == null) return 0;
-        var pos = ctx.Map.CurrentPosition;
-        var prey = ctx.Herds.Prey().Where(h => h.Count > 0).ToList();
-
-        if (prey.Any(h => h.Position == pos)) return 1.0;
-        if (prey.Any(h => h.HomeTerritory.Contains(pos))) return 0.5;
-
-        return 0;
-    }
-
-    public static bool ScavengerInTerritory(GameContext ctx)
-    {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.OfBehavior(HerdBehaviorType.Scavenger)
-            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-    }
-
-    public static bool ScavengerPresent(GameContext ctx)
-    {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.OfBehavior(HerdBehaviorType.Scavenger)
-            .Any(h => h.Position == pos && h.Count > 0);
-    }
 
     public static bool ScavengerWolfDynamics(GameContext ctx)
     {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-
-        bool hasScavengers = ctx.Herds.OfBehavior(HerdBehaviorType.Scavenger)
-            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-        bool hasWolves = ctx.Herds.OfAnimalType(AnimalType.Wolf)
-            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-
-        return hasScavengers && hasWolves;
+        return AnimalPresence.ScavengersNear(ctx) && AnimalPresence.OfTypeNear(ctx, AnimalType.Wolf);
     }
 
     public static double ScavengerThreatLevel(GameContext ctx)
     {
-        if (ctx.Map == null) return 0;
-        var pos = ctx.Map.CurrentPosition;
-
         double level = 0;
 
-        // Direct presence
-        if (ctx.Herds.OfBehavior(HerdBehaviorType.Scavenger)
-            .Any(h => h.Position == pos && h.Count > 0))
-        {
+        if (AnimalPresence.ScavengersHere(ctx))
             level += 0.5;
-        }
-        // In territory
-        else if (ScavengerInTerritory(ctx))
-        {
+        else if (AnimalPresence.ScavengersNear(ctx))
             level += 0.2;
-        }
 
         // Carrying meat attracts scavengers
         if (ctx.Inventory.HasMeat) level += 0.2;
@@ -587,13 +500,6 @@ public static class Situations
         return Math.Min(1.0, level);
     }
 
-    public static bool InSaberToothTerritory(GameContext ctx)
-    {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.OfAnimalType(AnimalType.SaberTooth)
-            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-    }
 
     public static bool SaberToothThreat(GameContext ctx) =>
         ctx.Tensions.HasTension("SaberToothStalked");
@@ -604,7 +510,7 @@ public static class Situations
     public static double SaberToothThreatLevel(GameContext ctx)
     {
         var tension = ctx.Tensions.GetTension("SaberToothStalked");
-        if (tension == null) return InSaberToothTerritory(ctx) ? 0.1 : 0;
+        if (tension == null) return AnimalPresence.OfTypeNear(ctx, AnimalType.SaberTooth) ? 0.1 : 0;
 
         double level = tension.Severity;
 
@@ -621,13 +527,6 @@ public static class Situations
         return Math.Min(1.0, level);
     }
 
-    public static bool InMammothTerritory(GameContext ctx)
-    {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.OfAnimalType(AnimalType.Mammoth)
-            .Any(h => h.HomeTerritory.Contains(pos) && h.Count > 0);
-    }
 
     public static bool NearMammothHerd(GameContext ctx)
     {
@@ -637,13 +536,6 @@ public static class Situations
             .Any(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 8);
     }
 
-    public static bool MammothHerdPresent(GameContext ctx)
-    {
-        if (ctx.Map == null) return false;
-        var pos = ctx.Map.CurrentPosition;
-        return ctx.Herds.OfAnimalType(AnimalType.Mammoth)
-            .Any(h => h.Position == pos && h.Count > 0);
-    }
 
     public static Herd? GetMammothHerd(GameContext ctx)
     {
@@ -690,5 +582,5 @@ public static class Situations
 
     public static bool CarcassContested(GameContext ctx) =>
         CarcassPresent(ctx) &&
-        (ctx.Tensions.HasTension("ScavengersWaiting") || ScavengerPresent(ctx));
+        (ctx.Tensions.HasTension("ScavengersWaiting") || AnimalPresence.ScavengersHere(ctx));
 }

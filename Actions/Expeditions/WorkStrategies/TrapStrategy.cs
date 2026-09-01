@@ -33,10 +33,9 @@ public class TrapStrategy : IWorkStrategy
     {
         if (_mode == TrapMode.Set)
         {
-            // Validate location has animal territory
-            var territory = location.GetFeature<AnimalTerritoryFeature>();
+            var territory = location.GetFeature<SmallGameFeature>();
             if (territory == null)
-                return "No game trails here. Snares need animal territory.";
+                return "No game trails here. Snares need small game.";
 
             // Get available snares from inventory
             var snares = ctx.Inventory.Tools.Where(t => t.ToolType == ToolType.Snare && t.Works).ToList();
@@ -189,7 +188,7 @@ public class TrapStrategy : IWorkStrategy
         }
 
         // Get or create SnareLineFeature at this location
-        var territory = location.GetFeature<AnimalTerritoryFeature>()!;
+        var territory = location.GetFeature<SmallGameFeature>()!;
         var snareLine = location.GetFeature<SnareLineFeature>();
         if (snareLine == null)
         {

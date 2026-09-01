@@ -759,8 +759,7 @@ public static partial class GameEventRegistry
 
     private static GameEvent AmbushOpportunity(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animalType = territory?.GetRandomAnimal() ?? AnimalType.Rabbit;
+        var animalType = AnimalPresence.PickAnimal(ctx) ?? AnimalType.Rabbit;
         var animalName = animalType.DisplayName().ToLower();
 
         return new GameEvent("Ambush Opportunity",
@@ -778,7 +777,7 @@ public static partial class GameEventRegistry
                         .Unsettling()
                         .BecomeStalked(0.2),
                     new EventResult("Something was hunting YOU. It pounces.", 0.10, 30)
-                        .Encounter(territory?.GetRandomPredator() ?? AnimalType.Wolf, 10, 0.7)
+                        .Encounter(AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf, 10, 0.7)
                         .Aborts(),
                     new EventResult("Perfect shot. Quality kill.", 0.05, 55)
                         .FindsLargeMeat()
@@ -795,7 +794,7 @@ public static partial class GameEventRegistry
                         .FindsSupplies()
                         .Damage(0.05, DamageType.Sharp),
                     new EventResult("You disturb a nest. Something angry emerges.", 0.10, 15)
-                        .Encounter(territory?.GetRandomAnimal() ?? AnimalType.Fox, 15, 0.4)
+                        .Encounter(AnimalPresence.PickAnimal(ctx) ?? AnimalType.Fox, 15, 0.4)
                 ])
             .Choice("Move Through Quickly",
                 "Don't linger. This place favors predators.",

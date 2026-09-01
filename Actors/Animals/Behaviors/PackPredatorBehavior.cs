@@ -1,3 +1,4 @@
+using text_survival.Combat;
 using text_survival.Actions;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
@@ -98,57 +99,24 @@ public class PackPredatorBehavior : IHerdBehavior
 
         foreach (var npc in npcsHere)
         {
-            // Calculate boldness toward this NPC (similar to player)
-            double boldness = CalculateBoldnessTowardNPC(herd, npc, ctx);
+            if (Random.Shared.NextDouble() >= herd.BoldnessToward(npc, ctx))
+                continue;
 
-            if (Random.Shared.NextDouble() < boldness)
-            {
-                // Set combat cooldown on the target to prevent double-detection
-                npc.SetCombatCooldown(5);
+            var predator = herd.Members[0];  // Lead predator
 
-                var predator = herd.Members[0];  // Lead predator
+            // The target and any NPC here who would stand with them
+            var defenders = new List<Actor> { npc };
+            defenders.AddRange(npcsHere.Where(other => other != npc && other.WouldDefend(npc, predator)));
+            foreach (var defender in defenders.OfType<NPC>())
+                defender.SetCombatCooldown(5);  // Prevent double-detection
 
-                // Check for NPC allies who might join the fight
-                var nearbyAllies = npcsHere
-                    .Where(other => other != npc
-                        && other.IsAlive
-                        && other.WouldDefend(npc, predator))
-                    .ToList();
+            var result = CombatOrchestrator.ResolveHeadless(
+                ctx, defenders, CombatOrchestrator.AnimalSide(ctx, predator), npc.CurrentLocation,
+                startDistanceM: 5, AwarenessState.Engaged, AwarenessState.Engaged);
+            Console.WriteLine($"[Predator] {herd.AnimalType.DisplayName()} pack vs {npc.Name}: {result}");
 
-                // Set cooldown on all allies to prevent double-detection
-                foreach (var ally in nearbyAllies)
-                    ally.SetCombatCooldown(5);
-
-                // Attack the primary target first
-                var outcome = ActorCombatResolver.ResolveCombat(
-                    new List<Actor> { predator, npc },
-                    npc.CurrentLocation
-                );
-
-                // Allies join the fight if predator survives the initial combat
-                if (predator.IsAlive && nearbyAllies.Count > 0)
-                {
-                    foreach (var ally in nearbyAllies.Where(a => a.IsAlive))
-                    {
-                        outcome = ActorCombatResolver.ResolveCombat(
-                            new List<Actor> { predator, ally },
-                            npc.CurrentLocation
-                        );
-
-                        if (!predator.IsAlive) break;  // Stop if predator dies
-                    }
-
-                    // Record alliance in relationship memory
-                    var allDefenders = new List<Actor> { npc };
-                    allDefenders.AddRange(nearbyAllies.Where(a => a.IsAlive));
-                    RelationshipEvents.FoughtTogether(allDefenders);
-                }
-
-                HandleNPCCombatOutcome(herd, npc, outcome, ctx);
-
-                // Only one attack per update
-                break;
-            }
+            // Only one attack per update
+            break;
         }
 
         // Check for prey herds in this tile
@@ -261,91 +229,42 @@ public class PackPredatorBehavior : IHerdBehavior
             return HerdUpdateResult.None;
         }
 
-        // Predator-prey resolution
-        var resolution = PredatorPreyResolver.ResolvePredatorPreyEncounter(predator, prey);
-
-        if (resolution == PredatorPreyResolver.HuntResolution.PreyEscaped)
-        {
-            // Prey flees
-            if (prey.Behavior != null)
-            {
-                prey.Behavior.TriggerFlee(prey, predator.Position, ctx);
-            }
-            else
-            {
-                prey.TransitionTo(HerdState.Fleeing);
-            }
-
-            // Hungry wolves may pursue
-            if (predator.Hunger > 0.8 && _rng.NextDouble() < 0.4 && ctx.Map != null)
-            {
-                predator.StartTravelTo(prey.Position, ctx.Map);
-            }
-
-            // Narrative if player present
-            if (predator.IsPlayerHere)
-            {
-                return HerdUpdateResult.WithNarrative(
-                    $"Wolves chase {prey.AnimalType.DisplayName().ToLower()}, but they escape.");
-            }
-
+        // The pack goes for the weakest few; the rest of the herd scatters afterward.
+        var targets = prey.Members
+            .Where(m => m.IsAlive)
+            .OrderBy(m => m.SpeedMps * m.Condition)
+            .ThenBy(m => m.Condition)
+            .Take(3)
+            .ToList<Actor>();
+        var pack = predator.Members.Where(m => m.IsAlive).Take(6).ToList<Actor>();
+        if (targets.Count == 0 || pack.Count == 0)
             return HerdUpdateResult.None;
-        }
 
-        // Attack initiated - resolve kill attempt
-        if (PredatorPreyResolver.AttemptPreyKill(predator, prey))
+        // Vigilance decides how the fight opens: noticed prey start alert at range, surprised prey are ambushed.
+        bool noticed = HerdVigilance.PreyNoticesPredator(predator, prey);
+        var result = CombatOrchestrator.ResolveHeadless(
+            ctx, pack, targets, predator.CurrentLocation,
+            startDistanceM: noticed ? 15 : 5,
+            AwarenessState.Engaged,
+            noticed ? AwarenessState.Alert : AwarenessState.Unaware);
+
+        bool killed = targets.Any(t => !t.IsAlive);
+        if (!killed)
         {
-            var victim = prey.Members.OrderBy(m => m.SpeedMps * m.Condition)
-                .ThenBy(m => m.Condition)
-                .FirstOrDefault();
-
-            if (victim != null)
-            {
-                prey.RemoveMember(victim);
-
-                // Create carcass at this location
-                predator.CurrentLocation?.Features.Add(new CarcassFeature(victim));
-
-                predator.TransitionTo(HerdState.Feeding);
-                predator.Hunger = 0;
-
-                // Remaining prey flees
-                if (!prey.IsEmpty)
-                {
-                    if (prey.Behavior != null)
-                        prey.Behavior.TriggerFlee(prey, predator.Position, ctx);
-                    else
-                        prey.TransitionTo(HerdState.Fleeing);
-                }
-
-                // Narrative if player present
-                if (predator.IsPlayerHere)
-                {
-                    return HerdUpdateResult.WithNarrative(
-                        $"Wolves bring down a {victim.Name}. They begin feeding.");
-                }
-
-                return HerdUpdateResult.WithPreyKill(prey, victim, predator.Position);
-            }
-        }
-        else
-        {
-            // Chase failed
-            if (prey.Behavior != null)
-                prey.Behavior.TriggerFlee(prey, predator.Position, ctx);
-            else
-                prey.TransitionTo(HerdState.Fleeing);
-
-            predator.State = HerdState.Patrolling;
-
-            if (predator.IsPlayerHere)
-            {
-                return HerdUpdateResult.WithNarrative(
-                    $"Wolves chase {prey.AnimalType.DisplayName().ToLower()}, but the herd escapes.");
-            }
+            // Chase failed; hungry wolves may pursue
+            if (predator.State == HerdState.Hunting)
+                predator.State = HerdState.Patrolling;
+            if (predator.Hunger > 0.8 && _rng.NextDouble() < 0.4 && ctx.Map != null && !prey.IsEmpty)
+                predator.StartTravelTo(prey.Position, ctx.Map);
         }
 
-        return HerdUpdateResult.None;
+        if (!predator.IsPlayerHere)
+            return HerdUpdateResult.None;
+
+        string preyName = prey.AnimalType.DisplayName().ToLower();
+        return HerdUpdateResult.WithNarrative(killed
+            ? $"Wolves bring down a {preyName}. They begin feeding."
+            : $"Wolves chase {preyName}, but they escape.");
     }
 
     public void TriggerFlee(Herd herd, GridPosition threatSource, GameContext ctx)
@@ -364,42 +283,7 @@ public class PackPredatorBehavior : IHerdBehavior
             return false; // Still on cooldown
         }
 
-        double boldness = CalculateBoldness(herd, ctx);
-        return _rng.NextDouble() < boldness;
-    }
-
-    private static double CalculateBoldness(Herd herd, GameContext ctx)
-    {
-        double bold = 0.2;
-
-        // Pack size
-        bold += herd.Count * 0.05;
-
-        // Hunger
-        if (herd.Hunger > 0.7) bold += 0.2;
-        if (herd.Hunger > 0.9) bold += 0.2;
-
-        // Player vulnerability
-        bool isBleeding = ctx.player.EffectRegistry.HasEffect("Bleeding") ||
-                          ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.3;
-        if (isBleeding) bold += 0.15;
-
-        bool carryingMeat = ctx.Inventory.Count(Resource.RawMeat) > 0 ||
-                            ctx.Inventory.Count(Resource.CookedMeat) > 0;
-        if (carryingMeat) bold += 0.1;
-
-        double movementCapacity = ctx.player.GetCapacities().Moving;
-        if (movementCapacity < 0.5) bold += 0.2;
-
-        // Night time
-        bool isNight = ctx.GetTimeOfDay() == GameContext.TimeOfDay.Night;
-        if (isNight) bold += 0.1;
-
-        // Apply learned fear (multiplicative - preserves relative relationships)
-        if (herd.Fear > 0)
-            bold *= (1.0 - herd.Fear);
-
-        return Math.Clamp(bold, 0, 0.9);
+        return _rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx);
     }
 
     private GridPosition? GetNextPatrolTarget(Herd herd, GameContext ctx)
@@ -440,69 +324,6 @@ public class PackPredatorBehavior : IHerdBehavior
         // Normal patrol
         if (herd.HomeTerritory.Count == 0) return null;
         return herd.HomeTerritory[(herd.TerritoryIndex + 1) % herd.HomeTerritory.Count];
-    }
-
-    private static double CalculateBoldnessTowardNPC(Herd herd, NPC npc, GameContext ctx)
-    {
-        double bold = 0.3;  // Base boldness
-
-        // Pack size
-        bold += herd.Count * 0.05;
-
-        // Hunger
-        if (herd.Hunger > 0.7) bold += 0.2;
-        if (herd.Hunger > 0.9) bold += 0.2;
-
-        // NPC condition
-        if (npc.EffectRegistry.HasEffect("Bleeding"))
-            bold += 0.15;
-
-        var capacities = npc.GetCapacities();
-        if (capacities.Moving < 0.5)
-            bold += 0.2;
-
-        // NPC carrying meat
-        if (npc.Inventory.Count(Resource.RawMeat) > 0)
-            bold += 0.1;
-
-        return Math.Clamp(bold, 0, 1);
-    }
-
-    private void HandleNPCCombatOutcome(
-        Herd herd, NPC npc, ActorCombatResolver.CombatOutcome outcome, GameContext ctx)
-    {
-        switch (outcome)
-        {
-            case ActorCombatResolver.CombatOutcome.DefenderEscaped:
-                Console.WriteLine($"[Predator] {npc.Name} escaped from {herd.AnimalType.DisplayName()}");
-                break;
-
-            case ActorCombatResolver.CombatOutcome.DefenderInjured:
-                Console.WriteLine($"[Predator] {npc.Name} was mauled by {herd.AnimalType.DisplayName()}");
-                herd.Hunger = Math.Max(0, herd.Hunger - 0.3);
-                break;
-
-            case ActorCombatResolver.CombatOutcome.DefenderKilled:
-                Console.WriteLine($"[Predator] {npc.Name} was killed by {herd.AnimalType.DisplayName()}");
-                herd.Hunger = 0;
-                break;
-
-            case ActorCombatResolver.CombatOutcome.AttackerRepelled:
-                Console.WriteLine($"[Predator] {npc.Name} fought off {herd.AnimalType.DisplayName()}");
-
-                // Check if predator died and remove from herd
-                var predator = herd.Members.FirstOrDefault();
-                if (predator != null && !predator.IsAlive)
-                {
-                    herd.RemoveMember(predator);
-                }
-
-                // Predator learns fear and flees
-                herd.Fear = Math.Min(0.9, herd.Fear + 0.3);
-                herd.LastCombatMinutes = ctx.TotalMinutesElapsed;
-                TriggerFlee(herd, herd.Position, ctx);
-                break;
-        }
     }
 
     private static void ReturnToHome(Herd herd, GameContext ctx)

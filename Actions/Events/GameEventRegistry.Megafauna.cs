@@ -30,7 +30,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Distant Trumpeting",
             $"A deep, resonant call echoes across the valley. Mammoth. {herdDesc} " +
             "Following it means committing time, resources. But the rewards...", 1.0)
-            .RequiresSituation(ctx => Situations.NearMammothHerd(ctx) || Situations.InMammothTerritory(ctx))
+            .RequiresSituation(ctx => Situations.NearMammothHerd(ctx) || AnimalPresence.OfTypeNear(ctx, AnimalType.Mammoth))
             .WithSituationFactor(Situations.SupplyPressure, 1.5)
             .Choice("Follow the Sound",
                 "Track it down now while the trail is fresh.",
@@ -280,7 +280,7 @@ public static partial class GameEventRegistry
             "Adults, young, a matriarch with tusks curved like twin moons. " +
             "They haven't seen you. The wind is in your favor.", 0.8)
             .Requires(EventCondition.OnExpedition)
-            .RequiresSituation(Situations.MammothHerdPresent)
+            .RequiresSituation(ctx => AnimalPresence.OfTypeHere(ctx, AnimalType.Mammoth))
             .RequiresSituation(ctx => {
                 var h = Situations.GetMammothHerd(ctx);
                 return h != null && (h.State == HerdState.Grazing || h.State == HerdState.Resting);
@@ -333,7 +333,7 @@ public static partial class GameEventRegistry
             "The message is clear: you've been noticed. " +
             "Behind her, the herd shifts uneasily. Waiting for her signal.", 1.5)
             .Requires(EventCondition.OnExpedition)
-            .RequiresSituation(Situations.MammothHerdPresent)
+            .RequiresSituation(ctx => AnimalPresence.OfTypeHere(ctx, AnimalType.Mammoth))
             .RequiresSituation(Situations.MammothHerdAggravated)
             .Choice("Back Away Slowly",
                 "Show submission. Leave their space.",
@@ -388,7 +388,7 @@ public static partial class GameEventRegistry
             "They're covering ground fast. If you want to follow, you need to decide now.", 0.5)
             .Requires(EventCondition.OnExpedition)
             .RequiresSituation(Situations.NearMammothHerd)
-            .RequiresSituation(ctx => !Situations.MammothHerdPresent(ctx))  // Nearby but not on tile
+            .RequiresSituation(ctx => !AnimalPresence.OfTypeHere(ctx, AnimalType.Mammoth))  // Nearby but not on tile
             .WithConditionFactor(EventCondition.GoodVisibility, 2.0)
             .Choice("Follow from a Distance",
                 "Track them. Stay far enough back to avoid detection.",
@@ -421,7 +421,7 @@ public static partial class GameEventRegistry
             "A sound like thunder. Tusks gleaming. Thousands of pounds of muscle and fury. " +
             "The mammoth is charging.", 3.0)
             .Requires(EventCondition.OnExpedition)
-            .RequiresSituation(Situations.MammothHerdPresent)
+            .RequiresSituation(ctx => AnimalPresence.OfTypeHere(ctx, AnimalType.Mammoth))
             .RequiresSituation(Situations.MammothHerdAggravated)
             .WithSituationFactor(Situations.Vulnerable, 2.0)
             .Choice("Dodge and Strike",

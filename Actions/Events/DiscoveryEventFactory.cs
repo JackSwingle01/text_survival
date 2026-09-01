@@ -565,8 +565,7 @@ public static class DiscoveryEventFactory
     /// </summary>
     private static GameEvent FreshTracksDiscovery(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation?.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimal() ?? AnimalType.Caribou;
+        var animal = AnimalPresence.PickAnimal(ctx) ?? AnimalType.Caribou;
         var trackDesc = animal switch
         {
             AnimalType.Caribou => "Hoofprints in the snow",

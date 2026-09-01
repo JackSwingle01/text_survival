@@ -22,7 +22,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Circling Scavengers",
             $"Movement at the edge of your vision. Hunched shapes with sloped backs. Hyenas.{meatClause}", 0.4)
             .Requires(EventCondition.OnExpedition)
-            .RequiresSituation(Situations.ScavengerInTerritory)
+            .RequiresSituation(AnimalPresence.ScavengersNear)
             .Excludes(EventCondition.AtCamp)
             .WithConditionFactor(EventCondition.HasMeat, 2.0)
             .WithSituationFactor(Situations.Vulnerable, 1.5)
@@ -72,7 +72,7 @@ public static partial class GameEventRegistry
             $"The hyenas have grown bold. They circle the {animalName}, yipping and cackling. They want it.", 1.5)
             .Requires(EventCondition.OnExpedition)
             .RequiresSituation(Situations.CarcassContested)
-            .WithSituationFactor(Situations.ScavengerPresent, 2.0)
+            .WithSituationFactor(AnimalPresence.ScavengersHere, 2.0)
             .Choice("Stand Over the Kill",
                 "Plant yourself. This is yours.",
                 [
@@ -137,7 +137,7 @@ public static partial class GameEventRegistry
             $"You find a {animalName} carcass. {leavingsDesc} Hyena tracks everywhere.", 0.5)
             .Requires(EventCondition.OnExpedition)
             .RequiresSituation(Situations.CarcassPresent)
-            .RequiresSituation(Situations.ScavengerInTerritory)
+            .RequiresSituation(AnimalPresence.ScavengersNear)
             .Excludes(EventCondition.IsButchering)
             .Choice("Salvage What's Left",
                 "Some meat is better than none.",
@@ -182,7 +182,7 @@ public static partial class GameEventRegistry
             $"The hyenas are closer now. {vulnDesc} They're testing your strength.", 1.0)
             .Requires(EventCondition.OnExpedition)
             .Requires(EventCondition.Night)
-            .RequiresSituation(Situations.ScavengerInTerritory)
+            .RequiresSituation(AnimalPresence.ScavengersNear)
             .RequiresSituation(Situations.Vulnerable)
             .Excludes(EventCondition.AtCamp)
             .WithSituationFactor(Situations.Vulnerable, 2.0)

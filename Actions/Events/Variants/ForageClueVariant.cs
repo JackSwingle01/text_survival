@@ -240,10 +240,9 @@ public static class ClueSelector
     {
         var pool = new List<(ForageClue clue, double weight)>();
         var forage = location.GetFeature<ForageFeature>();
-        var territory = location.GetFeature<AnimalTerritoryFeature>();
         var availableResources = forage?.Resources.Select(r => r.ResourceType).ToHashSet()
             ?? new HashSet<Resource>();
-        bool hasHuntableGame = territory != null;
+        bool hasHuntableGame = AnimalPresence.AnyGame(ctx);
 
         // Forest clues - check for wooded features or forest tags
         bool isForested = location.HasFeature<WoodedAreaFeature>() ||
@@ -338,9 +337,9 @@ public static class ClueSelector
         }
 
         // Scavenge scenarios - context-aware carcass discovery
-        bool isPredatorTerritory = territory?.HasPredators() == true;
-        bool isBearTerritory = territory?._possibleAnimals.Any(a =>
-            a.AnimalType == AnimalType.Bear) == true;
+        bool isPredatorTerritory = AnimalPresence.PredatorsNear(ctx);
+        bool isBearTerritory = AnimalPresence.OfTypeNear(ctx, AnimalType.Bear)
+            || AnimalPresence.OfTypeNear(ctx, AnimalType.CaveBear);
 
         var scavengePool = ScavengeScenarioSelector.BuildWeightedPool(
             ctx, isSnowy, isPredatorTerritory, isBearTerritory);

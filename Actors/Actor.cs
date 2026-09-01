@@ -60,7 +60,6 @@ public abstract class Actor : IMovable
     public virtual double BaseAggression { get; set; } = 1.0;
     public virtual double BaseCohesion { get; set; } = 0.5;
 
-    public bool IsEngaged { get; set; }
     public bool IsAlive => Vitality > 0;
 
     public virtual void Update(int minutes, SurvivalContext context)

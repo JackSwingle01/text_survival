@@ -209,7 +209,7 @@ public class SerializationTests
 
         // Add multiple feature types to test polymorphism
         ctx.Camp.Features.Add(new ForageFeature(1.0).AddSticks());
-        ctx.Camp.Features.Add(new AnimalTerritoryFeature());
+        ctx.Camp.Features.Add(new SmallGameFeature());
 
         int featureCountBefore = ctx.Camp.Features.Count;
 
@@ -224,7 +224,7 @@ public class SerializationTests
         Assert.NotNull(deserialized.Camp.GetFeature<HeatSourceFeature>());
         Assert.NotNull(deserialized.Camp.GetFeature<CacheFeature>());
         Assert.NotNull(deserialized.Camp.GetFeature<ForageFeature>());
-        Assert.NotNull(deserialized.Camp.GetFeature<AnimalTerritoryFeature>());
+        Assert.NotNull(deserialized.Camp.GetFeature<SmallGameFeature>());
 
         // Verify feature data preserved (ForageFeature resources list)
         var forageFeature = deserialized.Camp.GetFeature<ForageFeature>();
@@ -324,7 +324,7 @@ public class SerializationTests
         testLocation.Features.Add(salvage);
 
         // SnareLineFeature with territory
-        var territory = new AnimalTerritoryFeature(0.8).AddRabbit();
+        var territory = new SmallGameFeature(0.8).AddRabbit();
         var snareLine = new SnareLineFeature(territory);
         testLocation.Features.Add(snareLine);
 

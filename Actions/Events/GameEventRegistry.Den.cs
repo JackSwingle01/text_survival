@@ -15,8 +15,7 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent TheFind(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator();
+        var predator = AnimalPresence.PickPredator(ctx);
 
         // Vary description based on what kind of den
         var denType = Utils.DetermineSuccess(0.5) ? "cave" : "overhang";
@@ -27,7 +26,7 @@ public static partial class GameEventRegistry
         return new GameEvent("The Find",
             $"{denDesc} But there are signs — tracks, scat, the smell of animal.", 0.6)
             .Requires(EventCondition.IsExpedition, EventCondition.NoShelter)
-            .RequiresSituation(Situations.SolitaryPredatorInTerritory)  // Requires solitary predator herd present
+            .RequiresSituation(AnimalPresence.SolitaryPredatorsNear)  // Requires solitary predator herd present
             .WithConditionFactor(EventCondition.ShelterWeakened, 3.0)
             .WithSituationFactor(Situations.ExtremeColdCrisis, 2.0)  // ExtremelyCold, IsBlizzard + LowOnFuel
             .Choice("Investigate Carefully",

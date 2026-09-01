@@ -18,13 +18,19 @@ public record TensionCreation(
 );
 
 /// <summary>
-/// Configuration for spawning a predator encounter from an event outcome.
+/// Configuration for spawning a predator encounter.
 /// </summary>
+/// <param name="InitialDistance">Metres between the animal and the player when combat opens.</param>
+/// <param name="InitialBoldness">
+/// Engage chance (0-1) that brought the animal here. Herd encounters compute it with
+/// <see cref="Actors.Animals.Herd.BoldnessToward"/>; event outcomes author it. It seeds the animal's morale.
+/// </param>
+/// <param name="Animal">The actual herd member coming, when a herd sent it. Null means conjure a fresh animal.</param>
 public record EncounterConfig(
     AnimalType AnimalType,
     double InitialDistance,
     double InitialBoldness,
-    List<string>? Modifiers = null
+    Animal? Animal = null
 );
 
 /// <summary>

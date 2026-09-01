@@ -2,47 +2,78 @@ using text_survival.Actions;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
-using text_survival.Environments.Features;
 using text_survival.IO;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
 /// <summary>
-/// Strategy for megafauna hunting (mammoth, cave bear, saber-tooth).
-/// Multi-stage process: scout → track → approach.
-/// Each stage creates/escalates hunt tensions and triggers appropriate events.
+/// Strategy for megafauna hunting (mammoth, saber-tooth).
+/// Multi-stage process: scout → track → approach, staged by the hunt tension's severity.
+/// Presence comes from the megafauna herd itself; when the herd is dead, the options are gone.
 /// </summary>
-public class MegafaunaStrategy : IWorkStrategy
+public class MegafaunaStrategy(AnimalType megafauna) : IWorkStrategy
 {
+    private readonly AnimalType _megafauna = megafauna;
+
+    public static string TensionNameFor(AnimalType type) => type switch
+    {
+        AnimalType.Mammoth => "MammothTracked",
+        AnimalType.SaberTooth => "SaberToothStalked",
+        _ => throw new ArgumentException($"{type} is not huntable megafauna")
+    };
+
+    /// <summary>
+    /// Megafauna types with a living herd near the player: in whose territory the player stands,
+    /// or (for the roaming mammoth herd) within calling distance.
+    /// </summary>
+    public static IEnumerable<AnimalType> MegafaunaNear(GameContext ctx)
+    {
+        if (AnimalPresence.OfTypeNear(ctx, AnimalType.SaberTooth))
+            yield return AnimalType.SaberTooth;
+        if (Situations.NearMammothHerd(ctx) || AnimalPresence.OfTypeNear(ctx, AnimalType.Mammoth))
+            yield return AnimalType.Mammoth;
+    }
+
+    /// <summary>
+    /// Work options for every megafauna herd near the player, gated by hunt progress.
+    /// </summary>
+    public static IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
+    {
+        foreach (var type in MegafaunaNear(ctx))
+        {
+            string name = type.DisplayName().ToLower();
+            double severity = ctx.Tensions.GetTension(TensionNameFor(type))?.Severity ?? 0.0;
+
+            if (severity < 0.5)
+                yield return new WorkOption($"Scout for {name} signs", $"scout_{name}", new MegafaunaStrategy(type));
+            if (severity >= 0.3 && severity < 0.6)
+                yield return new WorkOption($"Track the {name}", $"track_{name}", new MegafaunaStrategy(type));
+            if (severity >= 0.6)
+                yield return new WorkOption("Approach for confrontation", $"approach_{name}", new MegafaunaStrategy(type));
+        }
+    }
+
+    private string HuntStage(GameContext ctx)
+    {
+        double severity = ctx.Tensions.GetTension(TensionNameFor(_megafauna))?.Severity ?? 0.0;
+        if (severity < 0.3) return "scout";
+        if (severity < 0.6) return "track";
+        return "approach";
+    }
+
     public string? ValidateLocation(GameContext ctx, Location location)
     {
-        var megafaunaFeature = location.GetFeature<MegafaunaPresenceFeature>();
-        if (megafaunaFeature == null)
-            return "There's no sign of megafauna here.";
-
-        // Check respawn status
-        if (megafaunaFeature.LastEncounterTime.HasValue)
-        {
-            var hoursSince = (DateTime.Now - megafaunaFeature.LastEncounterTime.Value).TotalHours;
-            if (hoursSince < megafaunaFeature.RespawnHours)
-            {
-                var daysRemaining = (int)Math.Ceiling((megafaunaFeature.RespawnHours - hoursSince) / 24.0);
-                return $"The {megafaunaFeature.MegafaunaType.DisplayName()} haven't returned yet. (About {daysRemaining} days)";
-            }
-        }
-
+        if (!MegafaunaNear(ctx).Contains(_megafauna))
+            return $"There's no sign of {_megafauna.DisplayName().ToLower()} here.";
         return null;
     }
 
     public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
     {
-        var megafaunaFeature = location.GetFeature<MegafaunaPresenceFeature>()!;
-        string huntStage = megafaunaFeature.GetHuntStage(ctx);
-
         var choice = new Choice<int>("How long do you want to work?");
 
-        switch (huntStage)
+        switch (HuntStage(ctx))
         {
             case "scout":
                 choice.AddOption("Quick scouting - 15 min", 15);
@@ -67,28 +98,20 @@ public class MegafaunaStrategy : IWorkStrategy
         var capacities = ctx.player.GetCapacities();
         var effectModifiers = ctx.player.EffectRegistry.GetCapacityModifiers();
 
-        // Megafauna tracking requires movement, perception, and focus
         var (timeFactor, warnings) = AbilityCalculator.GetWorkImpairments(
             capacities,
             effectModifiers,
-            checkMoving: true,       // Need to track and follow
-            checkBreathing: false,   // Not physically demanding
+            checkMoving: true,
+            checkBreathing: false,
             effectRegistry: ctx.player.EffectRegistry
         );
 
-        // Check perception impairment
-        var perception = AbilityCalculator.CalculatePerception(
-            ctx.player.Body, effectModifiers);
+        var perception = AbilityCalculator.CalculatePerception(ctx.player.Body, effectModifiers);
         if (AbilityCalculator.IsPerceptionImpaired(perception))
-        {
             warnings.Add("Your dulled senses make tracking difficult.");
-        }
 
-        // Check consciousness impairment
         if (AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness))
-        {
             warnings.Add("Your unfocused mind struggles to read the signs.");
-        }
 
         return ((int)(baseTime * timeFactor), warnings);
     }
@@ -101,67 +124,31 @@ public class MegafaunaStrategy : IWorkStrategy
 
     public WorkResult Execute(GameContext ctx, Location location, int actualTime)
     {
-        var rng = new Random();
+        string name = _megafauna.DisplayName().ToLower();
 
-        // Check for saber-tooth discovery
-        if (Situations.InSaberToothTerritory(ctx))
+        if (ctx.Tensions.GetTension(TensionNameFor(_megafauna)) != null)
         {
-            var tension = ctx.Tensions.GetTension("SaberToothStalked");
-
-            if (tension == null)
-            {
-                GameDisplay.AddNarrative(ctx, "You search for signs of the saber-tooth...");
-
-                // 40% chance to discover
-                if (rng.NextDouble() < 0.4)
-                {
-                    ctx.EventQueue.Enqueue(GameEventRegistry.AncientPredator(ctx));
-                    return WorkResult.Empty(actualTime);
-                }
-
-                GameDisplay.AddNarrative(ctx, "You find nothing conclusive. Old tracks, maybe.");
-                return WorkResult.Empty(actualTime);
-            }
-            else
-            {
-                GameDisplay.AddNarrative(ctx, "You're already tracking the saber-tooth. The tension hangs heavy.");
-                return WorkResult.Empty(actualTime);
-            }
+            GameDisplay.AddNarrative(ctx, $"You're already tracking the {name}. The tension hangs heavy.");
+            return WorkResult.Empty(actualTime);
         }
 
-        // Check for mammoth discovery
-        if (Situations.NearMammothHerd(ctx) || Situations.MammothHerdPresent(ctx))
+        GameDisplay.AddNarrative(ctx, $"You search for signs of the {name}...");
+
+        // 40% chance per session to find the sign that starts the hunt arc
+        if (Random.Shared.NextDouble() < 0.4)
         {
-            var tension = ctx.Tensions.GetTension("MammothTracked");
-
-            if (tension == null)
+            var discoveryEvent = _megafauna switch
             {
-                GameDisplay.AddNarrative(ctx, "You search for signs of the mammoth herd...");
-
-                // 40% chance to discover
-                if (rng.NextDouble() < 0.4)
-                {
-                    // 50/50 between hearing calls and seeing herd
-                    var discoveryEvent = rng.NextDouble() < 0.5
-                        ? GameEventRegistry.DistantTrumpeting(ctx)
-                        : GameEventRegistry.TheHerd(ctx);
-
-                    ctx.EventQueue.Enqueue(discoveryEvent);
-                    return WorkResult.Empty(actualTime);
-                }
-
-                GameDisplay.AddNarrative(ctx, "You search but find no fresh signs of the herd.");
-                return WorkResult.Empty(actualTime);
-            }
-            else
-            {
-                GameDisplay.AddNarrative(ctx, "You're already tracking the mammoth herd.");
-                return WorkResult.Empty(actualTime);
-            }
+                AnimalType.SaberTooth => GameEventRegistry.AncientPredator(ctx),
+                _ => Random.Shared.NextDouble() < 0.5
+                    ? GameEventRegistry.DistantTrumpeting(ctx)
+                    : GameEventRegistry.TheHerd(ctx)
+            };
+            ctx.EventQueue.Enqueue(discoveryEvent);
+            return WorkResult.Empty(actualTime);
         }
 
-        // No megafauna in area
-        GameDisplay.AddNarrative(ctx, "There's no sign of megafauna here.");
+        GameDisplay.AddNarrative(ctx, "You find nothing conclusive. Old tracks, maybe.");
         return WorkResult.Empty(actualTime);
     }
 }

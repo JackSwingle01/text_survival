@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Actions.Handlers;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
@@ -30,6 +31,12 @@ public class NPC : Actor
     private List<Herd>? _currentHerds;
     [System.Text.Json.Serialization.JsonIgnore]
     private IEnumerable<NPC>? _currentNPCs;
+
+    // The game this NPC lives in (set during Update); fights need it for their aftermath
+    [System.Text.Json.Serialization.JsonIgnore]
+    private GameContext? _game;
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal GameContext Game => _game ?? throw new InvalidOperationException($"{Name} has no game context; NPC.Update must receive one");
 
     // Combat cooldown prevents re-detection immediately after combat
     [System.Text.Json.Serialization.JsonIgnore]
@@ -74,12 +81,13 @@ public class NPC : Actor
     /// Update NPC with optional context for threat detection.
     /// </summary>
     public void Update(int minutes, SurvivalContext context,
-        List<Herd>? herds = null, IEnumerable<NPC>? npcs = null)
+        List<Herd>? herds = null, IEnumerable<NPC>? npcs = null, GameContext? game = null)
     {
         base.Update(minutes, context);
         _currentContext = context;
         _currentHerds = herds;
         _currentNPCs = npcs;
+        _game = game ?? _game;
 
         for (int i = 0; i < minutes; i++)
         {
@@ -1444,18 +1452,6 @@ public class NPC : Actor
 
         fightChance = Math.Clamp(fightChance, 0.1, 0.9);
         return Utils.DetermineSuccess(fightChance);
-    }
-
-    /// <summary>
-    /// Check for hostile predators at NPC's current location.
-    /// </summary>
-    [Obsolete("Use GetPriorityThreat() instead - handles all threat types")]
-    internal Animal? GetThreatAtLocation(List<Herd> herds)
-    {
-        var position = Map.GetPosition(CurrentLocation);
-        var herdsHere = herds.At(position);
-        var predatorHerd = herdsHere.FirstOrDefault(h => h.IsPredator);
-        return predatorHerd?.GetRandomMember();
     }
 
     #endregion

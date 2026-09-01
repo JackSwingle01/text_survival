@@ -68,13 +68,9 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         }
 
         // Defend den if player enters
-        if (herd.Position == herd.HomeTerritory.FirstOrDefault() && herd.IsPlayerHere)
+        if (herd.AtDen && herd.IsPlayerHere && ShouldEngagePlayer(herd, ctx))
         {
-            // High chance to defend den
-            if (_rng.NextDouble() < 0.7)
-            {
-                return HerdUpdateResult.WithEncounter(herd, isDefending: true);
-            }
+            return HerdUpdateResult.WithEncounter(herd, isDefending: true);
         }
 
         return HerdUpdateResult.None;
@@ -215,30 +211,7 @@ public class SolitaryPredatorBehavior : IHerdBehavior
             return false; // Still on cooldown
         }
 
-        double aggression = 0.15;  // Lower base than wolves
-
-        // Starving bear is dangerous
-        if (herd.Hunger > 0.8) aggression += 0.3;
-        if (herd.Hunger > 0.95) aggression += 0.3;
-
-        // Player vulnerability
-        bool isBleeding = ctx.player.EffectRegistry.HasEffect("Bleeding") ||
-                          ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.3;
-        if (isBleeding) aggression += 0.1;
-
-        double movementCapacity = ctx.player.GetCapacities().Moving;
-        if (movementCapacity < 0.5) aggression += 0.15;
-
-        // Territorial near den (first tile in territory)
-        if (herd.HomeTerritory.Count > 0 && herd.Position == herd.HomeTerritory[0])
-        {
-            aggression += 0.2;
-        }
-
-        // Apply learned fear (multiplicative - preserves relative relationships)
-        if (herd.Fear > 0)
-            aggression *= (1.0 - herd.Fear);
-
-        return _rng.NextDouble() < aggression;
+        // A bear on its den tile is defending it
+        return _rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx, defending: herd.AtDen);
     }
 }

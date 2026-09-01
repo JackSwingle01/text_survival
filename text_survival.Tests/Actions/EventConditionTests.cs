@@ -1,6 +1,7 @@
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Tensions;
+using text_survival.Actors.Animals;
 using text_survival.Actors.Player;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -291,38 +292,67 @@ public class EventConditionTests
 
     // Location Conditions
 
-    [Fact]
-    public void Check_InAnimalTerritory_WhenHasAnimalTerritory_ReturnsTrue()
+    private static Herd AddHerd(GameContext ctx, AnimalType type, int count = 2)
     {
-        // Arrange
-        var ctx = CreateTestContext();
-        ctx.CurrentLocation.Features.Add(AnimalTerritoryFeature.CreateMixedTerritory());
+        var map = ctx.Map!;
+        var location = map.CurrentLocation;
+        var herd = Herd.Create(type, location, map, [map.CurrentPosition]);
+        for (int i = 0; i < count; i++)
+            herd.AddMember(AnimalFactory.FromType(type, location, map)!);
+        ctx.Herds.Add(herd);
+        return herd;
+    }
 
-        // Act & Assert
+    [Fact]
+    public void Check_InAnimalTerritory_WhenSmallGameHere_ReturnsTrue()
+    {
+        var ctx = CreateTestContext();
+        ctx.CurrentLocation.Features.Add(new SmallGameFeature(1.0).AddRabbit());
+
         Assert.True(ctx.Check(EventCondition.InAnimalTerritory));
     }
 
     [Fact]
-    public void Check_HasPredators_WhenTerritoryHasPredators_ReturnsTrue()
+    public void Check_InAnimalTerritory_WhenHerdTerritoryCoversTile_ReturnsTrue()
     {
-        // Arrange
-        var ctx = CreateTestContext();
-        var territory = AnimalTerritoryFeature.CreatePredatorTerritory();
-        ctx.CurrentLocation.Features.Add(territory);
+        var ctx = CreateTestContextWithMap();
+        AddHerd(ctx, AnimalType.Caribou);
 
-        // Act & Assert
+        Assert.True(ctx.Check(EventCondition.InAnimalTerritory));
+    }
+
+    [Fact]
+    public void Check_HasPredators_WhenPredatorHerdNear_ReturnsTrue()
+    {
+        var ctx = CreateTestContextWithMap();
+        AddHerd(ctx, AnimalType.Wolf);
+
         Assert.True(ctx.Check(EventCondition.HasPredators));
+    }
+
+    [Fact]
+    public void Check_HasPredators_WhenPackWipedOut_ReturnsFalse()
+    {
+        var ctx = CreateTestContextWithMap();
+        var pack = AddHerd(ctx, AnimalType.Wolf);
+        foreach (var wolf in pack.Members.ToList())
+            pack.RemoveMember(wolf);
+
+        Assert.False(ctx.Check(EventCondition.HasPredators));
     }
 
     [Fact]
     public void Check_HasPredators_WhenSmallGameOnly_ReturnsFalse()
     {
-        // Arrange
-        var ctx = CreateTestContext();
-        var territory = AnimalTerritoryFeature.CreateSmallGameTerritory();
-        ctx.CurrentLocation.Features.Add(territory);
+        var ctx = CreateTestContextWithMap();
+        ctx.CurrentLocation.Features.Add(new SmallGameFeature(1.0).AddRabbit().AddFox());
 
-        // Act & Assert
         Assert.False(ctx.Check(EventCondition.HasPredators));
+    }
+
+    [Fact]
+    public void SmallGameFeature_RejectsLargeAnimals()
+    {
+        Assert.Throws<ArgumentException>(() => new SmallGameFeature(1.0).AddAnimal(AnimalType.Wolf));
     }
 }

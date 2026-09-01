@@ -43,18 +43,15 @@ namespace text_survival.Actors.Animals
         public bool IsHostile { get; set; } = true;
         public AnimalBehaviorType BehaviorType { get; set; }
         public AnimalSize Size { get; set; }
-        public double DistanceFromPlayer { get; set; }
-        public int FailedStealthChecks { get; set; }
-        public int TrackingDifficulty { get; set; }
-        public bool IsBleeding { get; set; }
-        public DateTime? WoundedTime { get; set; }
-        public double CurrentWoundSeverity { get; set; }
-        public double EncounterBoldness { get; set; }
         [JsonInclude] private double _speedMps;
         [JsonInclude] private double _pursuitCommitmentSeconds;
         public double SpeedMps => _speedMps;
         public double PursuitCommitmentSeconds => _pursuitCommitmentSeconds;
         public double DisengageAfterMaul { get; set; }
+
+        /// <summary>How badly hurt this animal is (0-1): its worst tissue or its blood, whichever is worse.</summary>
+        [JsonIgnore]
+        public double WoundLevel => Math.Max(1 - Body.Parts.Min(p => p.Condition), 1 - Body.Blood.Condition);
         public List<(Resource resource, double kgYield)> SpecialYields { get; init; } = [];
         public bool IsMegafauna => Body.WeightKG > 500;
 
@@ -109,32 +106,6 @@ namespace text_survival.Actors.Animals
             _speedMps = speedMps;
             _pursuitCommitmentSeconds = pursuitCommitment;
             DisengageAfterMaul = disengageAfterMaul;
-
-            // Defaults
-            DistanceFromPlayer = 100.0;
-            FailedStealthChecks = 0;
-            TrackingDifficulty = 5;
-        }
-
-        #endregion
-
-        #region Behavior Methods
-
-        public double CalculateBoldness(Player.Player player, Inventory inventory)
-        {
-            double boldness = 0.4;
-
-            bool hasMeat = inventory.Count(Resource.RawMeat) > 0 || inventory.Count(Resource.CookedMeat) > 0;
-            if (hasMeat) boldness += 0.20;
-            if (player.Vitality < 0.7) boldness += 0.15;
-            if (player.Body.WeightKG > this.Body.WeightKG) boldness -= 0.10;
-
-            // Blood scent attracts predators
-            double bloodySeverity = player.EffectRegistry.GetSeverity("Bloody");
-            if (bloodySeverity > 0)
-                boldness += 0.15 * bloodySeverity;  // Up to +0.15 at full severity
-
-            return Math.Clamp(boldness, 0.0, 1.0);
         }
 
         #endregion

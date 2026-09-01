@@ -381,37 +381,37 @@ public static class DiscoveryFeatureFactory
     }
 
     // Terrain-specific animal territory wrappers
-    public static AnimalTerritoryFeature CreateForestGameTrail()
+    public static SmallGameFeature CreateForestGameTrail()
     {
         double density = 0.4 + Random.Shared.NextDouble() * 0.3;
         return FeatureFactory.CreateMixedPreyAnimals(density);
     }
 
-    public static AnimalTerritoryFeature CreateClearingGameTrail()
+    public static SmallGameFeature CreateClearingGameTrail()
     {
         double density = 0.3 + Random.Shared.NextDouble() * 0.25;
         return FeatureFactory.CreateMixedPreyAnimals(density);
     }
 
-    public static AnimalTerritoryFeature CreatePlainSmallGame()
+    public static SmallGameFeature CreatePlainSmallGame()
     {
         double density = 0.25 + Random.Shared.NextDouble() * 0.2;
         return FeatureFactory.CreateSmallGameAnimals(density);
     }
 
-    public static AnimalTerritoryFeature CreateHillsSmallGame()
+    public static SmallGameFeature CreateHillsSmallGame()
     {
         double density = 0.2 + Random.Shared.NextDouble() * 0.15;
         return FeatureFactory.CreateSmallGameAnimals(density);
     }
 
-    public static AnimalTerritoryFeature CreateRockySmallGame()
+    public static SmallGameFeature CreateRockySmallGame()
     {
         double density = 0.15 + Random.Shared.NextDouble() * 0.15;
         return FeatureFactory.CreateSmallGameAnimals(density);
     }
 
-    public static AnimalTerritoryFeature CreateMarshWaterfowl()
+    public static SmallGameFeature CreateMarshWaterfowl()
     {
         double density = 0.3 + Random.Shared.NextDouble() * 0.2;
         return FeatureFactory.CreateWaterfowlAnimals(density);

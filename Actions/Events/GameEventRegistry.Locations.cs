@@ -396,8 +396,7 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent FreshTracks(GameContext ctx)
     {
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var animal = territory?.GetRandomAnimal() ?? AnimalType.Caribou;
+        var animal = AnimalPresence.PickAnimal(ctx) ?? AnimalType.Caribou;
         var trackDesc = animal switch
         {
             AnimalType.Caribou => "Hoofprints in the snow",
@@ -1005,8 +1004,7 @@ public static partial class GameEventRegistry
         var tensionCheck = ctx.Tensions.GetTension("PredatorTerritory");
         if (tensionCheck == null) return new GameEvent("WhatKilledThem", "", 0);
 
-        var territory = ctx.CurrentLocation.GetFeature<AnimalTerritoryFeature>();
-        var predator = territory?.GetRandomPredator() ?? AnimalType.Wolf;
+        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
 
         return new GameEvent("Still Here",
             "A sound in the brush. The same thing that ended the last occupant might still be around.", 0.8)

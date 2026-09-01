@@ -1,3 +1,5 @@
+using text_survival.Actions;
+using text_survival.Actors;
 using System.Numerics;
 using text_survival.Actions.Handlers;
 using text_survival.Actors.Animals;
@@ -40,32 +42,101 @@ public class CombatScenario
         Location = location;
         Units.AddRange(team1);
         Units.AddRange(team2);
+        // Each unit gets its own copies: allies and enemies shrink as units die or flee,
+        // while Team1/Team2 stay the full rosters so the aftermath can see who fell.
         foreach (var unit in team1)
         {
-            unit.allies = team1;
-            unit.enemies = team2;
+            unit.allies = new List<Unit>(team1);
+            unit.enemies = new List<Unit>(team2);
         }
         foreach (var unit in team2)
         {
-            unit.allies = team2;
-            unit.enemies = team1;
+            unit.allies = new List<Unit>(team2);
+            unit.enemies = new List<Unit>(team1);
         }
         Player = player;
     }
     public readonly List<Unit> Team1;
     public readonly List<Unit> Team2;
 
+    public const double STONE_RANGE_M = 15.0;
+    public const double STONE_BASE_ACCURACY = 0.90;
+
     /// <summary>
-    /// Process all AI turns in batch (for NPC-vs-NPC combat).
+    /// The one way to build a fight. Team A clusters at the bottom of the grid, team B
+    /// startDistanceM up from them. Awareness is set per team: a hunt is an Engaged player
+    /// against Unaware prey, an ambush is the reverse, a brawl is Engaged on both sides.
     /// </summary>
-    public void ProcessAITurns()
+    public static CombatScenario Create(
+        IReadOnlyList<Actor> teamA,
+        IReadOnlyList<Actor> teamB,
+        Location? location,
+        int startDistanceM,
+        AwarenessState teamAAwareness,
+        AwarenessState teamBAwareness,
+        Actor? player = null)
     {
-        foreach (Unit unit in Units.ToList())
+        if (teamA.Count == 0 || teamB.Count == 0)
+            throw new ArgumentException("Combat needs at least one actor on each side");
+
+        int centerX = MAP_SIZE / 2;
+        int aY = MAP_SIZE / 6;
+        int bY = Math.Clamp(aY + startDistanceM, aY + 1, MAP_SIZE - 2);
+
+        var a = teamA.Select((actor, i) => new Unit(actor, ClusterPosition(centerX, aY, i)) { Awareness = teamAAwareness }).ToList();
+        var b = teamB.Select((actor, i) => new Unit(actor, ClusterPosition(centerX, bY, i)) { Awareness = teamBAwareness }).ToList();
+
+        Unit? playerUnit = null;
+        if (player != null)
         {
-            ProcessSingleAITurn(unit);
-            if (IsOver) return;
+            playerUnit = a.Concat(b).FirstOrDefault(u => u.actor == player)
+                ?? throw new ArgumentException("The player must be on one of the teams");
         }
+
+        return new CombatScenario(a, b, playerUnit, location);
     }
+
+    private static GridPosition ClusterPosition(int centerX, int baseY, int index)
+        => new(centerX + (index % 3) * 2 - 2, baseY + index / 3);
+
+    /// <summary>
+    /// Runs a fight with no player in it: AI on both sides until one side is dead or gone,
+    /// or maxRounds pass. After each unit acts, enemies still Unaware or Alert get a chance
+    /// to notice it, so an ambushed herd wakes up as the pack closes in.
+    /// </summary>
+    public CombatResult ResolveHeadless(int maxRounds = 20)
+    {
+        if (Player != null)
+            throw new InvalidOperationException("Headless combat cannot include the player; use CombatOrchestrator");
+
+        for (int round = 0; round < maxRounds && !IsOver; round++)
+        {
+            foreach (var unit in Units.ToList())
+            {
+                if (IsOver) break;
+                ProcessSingleAITurn(unit);
+                if (Units.Contains(unit))
+                    RunDetectionChecks(unit);
+            }
+        }
+
+        return DetermineResult();
+    }
+
+    /// <summary>
+    /// Outcome from team A's point of view.
+    /// </summary>
+    public CombatResult DetermineResult()
+    {
+        if (Player != null && !Player.actor.IsAlive) return CombatResult.Defeat;
+        if (Player != null && !Units.Contains(Player)) return CombatResult.Fled;
+        if (!Team2.Any(u => u.actor.IsAlive)) return CombatResult.Victory;
+        if (!Team1.Any(u => u.actor.IsAlive)) return CombatResult.Defeat;
+        if (!Units.Any(Team1.Contains)) return CombatResult.Fled;
+        if (!Units.Any(Team2.Contains)) return CombatResult.AnimalFled;
+        return CombatResult.AnimalDisengaged;
+    }
+
 
     /// <summary>
     /// Process a single AI unit's turn. Returns narrative of the action taken, or null if skipped.
@@ -263,7 +334,7 @@ public class CombatScenario
 
         // Calculate hit chance with small target penalty
         bool isSmallTarget = target.actor is Animal animal && animal.Size == AnimalSize.Small;
-        double hitChance = HuntingCalculator.CalculateThrownAccuracy(
+        double hitChance = CombatFormulas.CalculateThrownAccuracy(
             dist, maxRange, baseAccuracy,
             targetIsSmall: isSmallTarget);
 
@@ -290,8 +361,8 @@ public class CombatScenario
 
         // Calculate hit chance with small target penalty (0.66 multiplier)
         bool isSmallTarget = target.actor is Animal animal && animal.Size == AnimalSize.Small;
-        double hitChance = HuntingCalculator.CalculateThrownAccuracy(
-            dist, HuntHandler.GetStoneRange(), HuntHandler.GetStoneBaseAccuracy(),
+        double hitChance = CombatFormulas.CalculateThrownAccuracy(
+            dist, STONE_RANGE_M, STONE_BASE_ACCURACY,
             targetIsSmall: isSmallTarget);
 
         CombatActionResult result;
@@ -579,7 +650,7 @@ public class CombatScenario
     {
         double distance = mover.Position.DistanceTo(detector.Position);
 
-        double detectionChance = HuntingCalculator.CalculateDetectionChance(
+        double detectionChance = CombatFormulas.CalculateDetectionChance(
             distance,
             detector.Awareness,
             huntingSkill,
@@ -605,7 +676,7 @@ public class CombatScenario
                 ? AwarenessState.Alert
                 : AwarenessState.Engaged;
         }
-        else if (HuntingCalculator.ShouldBecomeAlert(roll, detectionChance) && detector.Awareness == AwarenessState.Unaware)
+        else if (CombatFormulas.ShouldBecomeAlert(roll, detectionChance) && detector.Awareness == AwarenessState.Unaware)
         {
             // Near-miss becomes alert
             return AwarenessState.Alert;
@@ -621,7 +692,7 @@ public class CombatScenario
     {
         double distance = mover.Position.DistanceTo(detector.Position);
 
-        double detectionChance = HuntingCalculator.CalculateDetectionChance(
+        double detectionChance = CombatFormulas.CalculateDetectionChance(
             distance,
             detector.Awareness,
             huntingSkill,
