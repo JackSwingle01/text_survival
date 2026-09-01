@@ -1,5 +1,4 @@
 using text_survival.Effects;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
 
@@ -63,7 +62,7 @@ public static class TreatmentHandler
         public bool IsCrafted => CraftedGear != null;
     }
 
-    public static void ApplyTreatment(GameContext ctx)
+    public static async Task ApplyTreatment(GameContext ctx)
     {
         var effects = ctx.player.EffectRegistry.GetAll();
         var inv = ctx.Inventory;
@@ -135,7 +134,6 @@ public static class TreatmentHandler
         if (available.Count == 0)
         {
             GameDisplay.AddNarrative(ctx, "You don't have the right materials to treat your conditions.");
-            GameDisplay.Render(ctx);
             return;
         }
 
@@ -171,8 +169,7 @@ public static class TreatmentHandler
         }
         choice.AddOption("Cancel", null);
 
-        GameDisplay.Render(ctx);
-        var selected = choice.GetPlayerChoice(ctx);
+        var selected = await choice.GetPlayerChoice(ctx);
 
         if (selected == null)
             return;
@@ -206,7 +203,7 @@ public static class TreatmentHandler
                 targetEffect.Severity = Math.Max(0, targetEffect.Severity - selected.EffectReduction);
 
                 // Time cost for treatment
-                ctx.Update(5, ActivityType.TendingFire);
+                await ctx.Update(5, ActivityType.TendingFire);
 
                 // Show success message
                 if (!string.IsNullOrEmpty(selected.SuccessMessage))
@@ -253,7 +250,7 @@ public static class TreatmentHandler
         else
         {
             // Buff-only treatment - just time cost
-            ctx.Update(5, ActivityType.TendingFire);
+            await ctx.Update(5, ActivityType.TendingFire);
             if (!string.IsNullOrEmpty(selected.SuccessMessage))
             {
                 GameDisplay.AddSuccess(ctx, selected.SuccessMessage);
@@ -271,7 +268,6 @@ public static class TreatmentHandler
             }
         }
 
-        GameDisplay.Render(ctx);
     }
 
     private static string GetResourceDisplayName(Resource resource) => resource switch

@@ -1,11 +1,8 @@
 using text_survival.Actions;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -19,20 +16,20 @@ public class ExamineStrategy : IWorkStrategy
 
     public ExamineStrategy(string detailId) => _detailId = detailId;
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var detail = FindDetail(location);
         if (detail == null)
-            return "Nothing to examine here.";
+            return Task.FromResult<string?>("Nothing to examine here.");
         if (!detail.CanInteract)
-            return "Nothing to interact with.";
-        return null;
+            return Task.FromResult<string?>("Nothing to interact with.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         // Fixed time based on detail - no player choice
-        return null;
+        return Task.FromResult<Choice<int>?>(null);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -50,7 +47,7 @@ public class ExamineStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         var detail = FindDetail(location);
         if (detail == null || !detail.CanInteract)
@@ -117,12 +114,11 @@ public class ExamineStrategy : IWorkStrategy
         // Show results
         if (collected.Count > 0)
         {
-            DesktopIO.ShowWorkResult(ctx, detail.DisplayName, examinationText ?? "You examine it closely.", collected);
+            await ctx.Ui.ShowWorkResult(new WorkResultView(detail.DisplayName, examinationText ?? "You examine it closely.", collected));
         }
         else if (!string.IsNullOrEmpty(examinationText))
         {
             // Info-only detail - render to show the text
-            GameDisplay.Render(ctx);
         }
 
         return new WorkResult(collected, null, actualTime, false);

@@ -2,7 +2,7 @@ using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
-using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -16,24 +16,24 @@ public class FishingStrategy : IWorkStrategy
 {
     private int _selectedMinutes;
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<WaterFeature>();
         if (feature == null)
-            return "There's no water here.";
+            return Task.FromResult<string?>("There's no water here.");
         if (feature.IsFrozen && !feature.HasIceHole)
-            return "The water is frozen. You need to cut an ice hole first.";
-        return null;
+            return Task.FromResult<string?>("The water is frozen. You need to cut an ice hole first.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         var choice = new Choice<int>("How long do you want to fish?");
         choice.AddOption("15 minutes (quick try)", 15);
         choice.AddOption("30 minutes (patient)", 30);
         choice.AddOption("60 minutes (dedicated)", 60);
         choice.AddOption("Cancel", 0);
-        return choice;
+        return Task.FromResult<Choice<int>?>(choice);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -60,7 +60,7 @@ public class FishingStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         // Catch probability: base 40% for 15min, +15% per 15min, cap 85%
         double catchChance = Math.Min(0.85, 0.40 + (actualTime / 15 - 1) * 0.15);
@@ -128,12 +128,12 @@ public class FishingStrategy : IWorkStrategy
             string message = toolToUse != null
                 ? $"Using your {toolUsed}, you pull in a catch."
                 : "Your patience pays off.";
-            DesktopIO.ShowWorkResult(ctx, "Fishing", message, collected);
+            await ctx.Ui.ShowWorkResult(new WorkResultView("Fishing", message, collected));
         }
         else
         {
-            DesktopIO.ShowWorkResult(ctx, "Fishing",
-                "The fish aren't biting today.", []);
+            await ctx.Ui.ShowWorkResult(new WorkResultView("Fishing",
+                "The fish aren't biting today.", []));
         }
 
         return new WorkResult(collected, null, actualTime, false);

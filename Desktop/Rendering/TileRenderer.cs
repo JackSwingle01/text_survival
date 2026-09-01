@@ -26,9 +26,13 @@ public static class TileRenderer
     /// They are all filed under the same terrain and chosen between per map position,
     /// so a field of one terrain does not read as a stamped grid.
     /// </summary>
+    private static IconRenderer? _iconRenderer;
+
     public static void LoadSprites()
     {
         string assetsPath = AssetPaths.Icons();
+
+        _iconRenderer = new IconRenderer(assetsPath);
 
         _playerSprite = LoadPixelTexture(Path.Combine(assetsPath, "player.png"))
             ?? throw new FileNotFoundException($"Player sprite not found: {Path.Combine(assetsPath, "player.png")}");
@@ -245,8 +249,8 @@ public static class TileRenderer
     /// </summary>
     public static void DrawFeatureIcon(float x, float y, float tileSize, string icon, int slot, Color? glow = null)
     {
-        var iconRenderer = DesktopRuntime.IconRenderer;
-        if (iconRenderer == null) return;
+        var iconRenderer = _iconRenderer
+            ?? throw new InvalidOperationException("Feature icons were drawn before TileRenderer.LoadSprites ran.");
 
         float iconSize = tileSize * 0.3f;
         float margin = tileSize * 0.1f;

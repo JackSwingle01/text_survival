@@ -2,11 +2,8 @@ using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -26,48 +23,48 @@ public class TrailMarkingStrategy : IWorkStrategy
         _fullCut = fullCut;
     }
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var pos = ctx.Map?.GetPosition(location);
-        if (pos == null) return "Cannot mark trails here.";
+        if (pos == null) return Task.FromResult<string?>("Cannot mark trails here.");
 
         var targetPos = _direction.GetNeighbor(pos.Value);
         var targetLoc = ctx.Map!.GetLocationAt(targetPos);
 
         if (targetLoc == null || !targetLoc.IsPassable)
-            return "No accessible terrain in that direction.";
+            return Task.FromResult<string?>("No accessible terrain in that direction.");
 
         // Can't mark through cliffs or water
         var edges = ctx.Map.GetEdgesBetween(pos.Value, targetPos);
         if (edges.Any(e => e.Type is EdgeType.Cliff or EdgeType.River))
-            return "Cannot mark a trail through this terrain.";
+            return Task.FromResult<string?>("Cannot mark a trail through this terrain.");
 
         // Check if already has this trail type
         var existingType = _fullCut ? EdgeType.CutTrail : EdgeType.TrailMarker;
         if (edges.Any(e => e.Type == existingType))
-            return $"Trail already {(_fullCut ? "cut" : "marked")} here.";
+            return Task.FromResult<string?>($"Trail already {(_fullCut ? "cut" : "marked")} here.");
 
         // Tool check
         if (_fullCut)
         {
             var axe = ctx.Inventory.GetTool(ToolType.Axe);
             if (axe == null)
-                return "You need an axe to cut a trail.";
+                return Task.FromResult<string?>("You need an axe to cut a trail.");
             if (axe.IsBroken)
-                return "Your axe is broken.";
+                return Task.FromResult<string?>("Your axe is broken.");
         }
         else
         {
             var knife = ctx.Inventory.GetTool(ToolType.Knife);
             var axe = ctx.Inventory.GetTool(ToolType.Axe);
             if ((knife == null || knife.IsBroken) && (axe == null || axe.IsBroken))
-                return "You need a knife or axe to blaze marks.";
+                return Task.FromResult<string?>("You need a knife or axe to blaze marks.");
         }
 
-        return null;
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         int baseTime = _fullCut ? 60 : 15;  // 1 hour to cut, 15 min to mark
         string action = _fullCut ? "cut trail" : "mark trail";
@@ -75,7 +72,7 @@ public class TrailMarkingStrategy : IWorkStrategy
         var choice = new Choice<int>($"Time to {action}:");
         choice.AddOption($"{baseTime} minutes", baseTime);
         choice.AddOption("Cancel", 0);
-        return choice;
+        return Task.FromResult<Choice<int>?>(choice);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -101,7 +98,7 @@ public class TrailMarkingStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;  // Need to see what you're doing
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         var pos = ctx.Map!.GetPosition(location);
         var targetPos = _direction.GetNeighbor(pos);
@@ -135,7 +132,7 @@ public class TrailMarkingStrategy : IWorkStrategy
             _fullCut ? "Cut trail created" : "Trail marker created"
         };
 
-        DesktopIO.ShowWorkResult(ctx, _fullCut ? "Cutting Trail" : "Marking Trail", message, collected);
+        await ctx.Ui.ShowWorkResult(new WorkResultView(_fullCut ? "Cutting Trail" : "Marking Trail", message, collected));
 
         return new WorkResult(collected, null, actualTime, false);
     }

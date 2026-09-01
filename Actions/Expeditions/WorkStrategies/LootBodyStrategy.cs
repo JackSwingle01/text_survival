@@ -1,7 +1,6 @@
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
 
@@ -15,19 +14,19 @@ public class LootBodyStrategy(NPCBodyFeature body) : IWorkStrategy
 {
     private readonly NPCBodyFeature _body = body;
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         if (_body.Belongings.CurrentWeightKg == 0 && _body.Belongings.Tools.Count == 0)
-            return $"{_body.NPCName} has nothing to take.";
-        return null;
+            return Task.FromResult<string?>($"{_body.NPCName} has nothing to take.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         var choice = new Choice<int>($"Take {_body.NPCName}'s belongings?");
         choice.AddOption("Yes (5 minutes)", 5);
         choice.AddOption("Leave them", 0);
-        return choice;
+        return Task.FromResult<Choice<int>?>(choice);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -53,7 +52,7 @@ public class LootBodyStrategy(NPCBodyFeature body) : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         // Get description of what's being taken before transfer
         var description = _body.Belongings.GetDescription();
@@ -73,6 +72,6 @@ public class LootBodyStrategy(NPCBodyFeature body) : IWorkStrategy
             GameDisplay.AddNarrative(ctx, $"You take what you can carry from {_body.NPCName}'s belongings. Some items remain.");
         }
 
-        return WorkResult.Empty(actualTime);
+        return Task.FromResult<WorkResult>(WorkResult.Empty(actualTime));
     }
 }

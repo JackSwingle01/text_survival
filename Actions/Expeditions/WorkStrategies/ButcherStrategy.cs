@@ -3,11 +3,8 @@ using text_survival.Bodies;
 using text_survival.Effects;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -28,22 +25,22 @@ public class ButcherStrategy : IWorkStrategy
         _selectedMode = mode;
     }
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         if (_carcass.IsCompletelyButchered)
-            return "There's nothing left to butcher.";
+            return Task.FromResult<string?>("There's nothing left to butcher.");
 
-        return null;
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public async Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         // Mode selection (only if this is a fresh carcass - mode persists across sessions)
         if (_carcass.SelectedMode == null)
         {
             var warnings = BuildModeSelectionWarnings(ctx);
             bool hasCuttingTool = ctx.Inventory.HasCuttingTool;
-            var selectedModeId = DesktopIO.SelectButcherMode(ctx, _carcass, warnings, hasCuttingTool);
+            var selectedModeId = await ctx.Ui.SelectButcherMode(_carcass, warnings, hasCuttingTool);
 
             if (selectedModeId == null)
             {
@@ -156,7 +153,7 @@ public class ButcherStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         // Early return if user cancelled
         if (_cancelled)
@@ -261,7 +258,7 @@ public class ButcherStrategy : IWorkStrategy
         allWarnings.AddRange(warnings);
 
         // Show results in popup overlay
-        DesktopIO.ShowWorkResult(ctx, "Butchering", resultMessage, collected, warnings: allWarnings);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Butchering", resultMessage, collected, Warnings: allWarnings));
 
         return new WorkResult(collected, null, actualTime, false);
     }

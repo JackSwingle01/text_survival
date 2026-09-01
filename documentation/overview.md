@@ -28,7 +28,7 @@ Fire interacts with: survival simulation (heat source), expeditions (time pressu
 
 Portable light and warmth for dark locations and night work.
 
-Can be lit from fire, another torch, or firestarter+tinder. Limited burn time. Chaining prompt appears when running low.
+Can be lit from fire, another torch, or firestarter+tinder. Limited burn time. A guttering torch away from a fire chains onto a fresh one automatically.
 
 Enable work in dark locations (caves, night) and provide portable warmth during expeditions. Consumable — cannot be relit once extinguished.
 
@@ -628,11 +628,11 @@ Crafting interacts with: inventory (materials consumed, items produced), feature
 
 ## Architecture
 
-Runners — Control flow, player decisions, display UI
-- GameRunner: main camp loop
+Runners — Control flow and player decisions. They await the player; they never draw.
+- GameRunner: the action loop
+- CombatOrchestrator: grid-based tactical combat (hunts, encounters, and headless NPC/herd fights)
 - TravelRunner: movement between locations
 - WorkRunner: all work activities (uses strategy pattern)
-- CraftingOverlay: the crafting screen; picks recipes and executes the craft
 - HuntRunner: the approach prompt before a hunt; the hunt itself is combat
 
 Handlers — Activity-specific execution logic (static classes)
@@ -644,11 +644,11 @@ Handlers — Activity-specific execution logic (static classes)
 - CampHandler: sleep, rest, camp improvements
 - TravelHandler: movement between locations
 - CuringRackHandler: hide/meat preservation
+- CraftingHandler: runs a chosen recipe - the work, the materials, the result
 
-Runners — Control flow, player decisions, display UI also includes:
-- CombatOrchestrator: grid-based tactical combat (hunts, encounters, and headless NPC/herd fights)
-
-Handlers take `GameContext`, mutate state directly, handle player choices via `Input`. Runners orchestrate flow; handlers execute specific actions.
+Handlers take `GameContext`, mutate state directly, and await player choices through
+`ctx.Ui`. Runners orchestrate flow; handlers execute specific actions. Everything from
+`GameRunner.RunAsync` down is async - it awaits the player, never a thread.
 
 Work Strategies — `IWorkStrategy` implementations for each work type:
 - ForageStrategy, HuntStrategy, HarvestStrategy, TrapStrategy, ChoppingStrategy
@@ -659,7 +659,10 @@ GameContext — Central hub holding game state
 - Player, Camp, Inventory, CurrentLocation (no expedition state object)
 - Tensions, Weather, Locations
 - Condition checking for events
-- Update methods that tick time forward with event interruption
+- `Update` ticks time forward and awaits the player when an event fires;
+  `UpdateWithoutEvents` stays synchronous
+- `Notices`, the queue the tick uses to reach the player, and `Ui`, the surface game
+  logic reaches them through
 
 Activity Configuration — defines behavior for each activity type:
 - Event multiplier (how often events trigger)
@@ -679,66 +682,120 @@ Data Objects — Hold state, minimal behavior
 
 Update Flow:
 ```
-Action executes
-    → GameContext.Update(N minutes, activity type)
-        → Per-minute loop
-            → Calculate survival context (temp, wetness, insulation)
-            → Player.Update()
-                → EffectRegistry.Update()
-                → SurvivalProcessor calculates
-                → Body applies changes
-            → Locations update (fire burns, features tick)
-            → Tensions decay
-            → Event check (can interrupt)
-        → Handle triggered event
-        → Spawn queued encounter
+Program frame loop
+    → scheduler.Pump()            game logic advances until its next await
+        → GameRunner.RunAsync
+            → await ctx.Ui.WaitForPlayerAction()
+            → the action runs: handler, work strategy, travel, combat
+                → Pacing.PassTime(minutes, activity, progress view)
+                    → await ctx.Ui.NextFrame()      one frame's dt
+                    → TimedRun.Advance(dt)          how many minutes are now due
+                    → await ctx.Update(1, activity) per due minute
+                        → UpdateInternal(1)         synchronous, UI-free
+                            → survival context, Player.Update, effects, body
+                            → locations tick, weather, tensions, herds, NPCs
+                            → queues events, encounters and notices
+                        → if an event fired: await the player through ctx.Ui
+            → drain ctx.Notices, run any pending encounter
+    → ui.Frame(ctx, dt)           one frame: world, modals, HUD
 ```
 
-**Files**: `Actions/GameContext.cs`, `Config/ActivityConfig.cs`, `Actions/Expeditions/WorkStrategies/`
+**Files**: `Actions/GameContext.cs`, `Actions/GameRunner.cs`, `Config/ActivityConfig.cs`, `Actions/Expeditions/WorkStrategies/`
 
 ---
 
 ## Desktop UI
 
-Native desktop application using Raylib-cs for graphics and ImGui.NET for overlay interfaces. Direct function calls replace WebSocket communication.
+Native desktop application using Raylib-cs for graphics and ImGui.NET for panels. There
+is **one frame loop**, **one frame composition**, and a one-way dependency: the UI
+depends on the simulation and the simulation never depends on the UI. Game logic stays
+ordinary sequential code, made possible by `async`/`await`.
 
-**Entry Point** — `Core/Program.cs` initializes a Raylib window at 90% monitor size, creates core UI components, and starts the game loop via `GameRunner`.
+See [frame-loop-architecture.md](frame-loop-architecture.md) for the full contract.
 
-**DesktopRuntime** — Static hub holding shared UI state:
-- `WorldRenderer` — Grid visualization with camera control
-- `OverlayManager` — Manages stackable overlay state
-- `ActionPanel` — Location-specific actions sidebar
-- `StatsPanel` — Survival stats, time, conditions display
-- `InputHandler` — Keyboard (WASD) and mouse input
+**Entry Point** — `Core/Program.cs` opens the window, installs the `FrameScheduler` as
+the synchronization context, starts `GameRunner.RunAsync`, and then runs the only frame
+loop there is:
 
-**DesktopIO** — Blocking dialog pattern replaces async WebSocket:
-- Methods like `WaitForEventChoice()`, `ShowInventoryAndWait()`, `Select()` block execution
-- Nested render loops maintain responsive UI during blocking calls
-- Returns user choice immediately, allowing synchronous game logic
+```
+while (!WindowShouldClose && !game.IsCompleted)
+    dt = min(GetFrameTime(), 0.1)
+    scheduler.Pump()       // game logic advances until it awaits again
+    ui.Frame(ctx, dt)      // one frame; prompts may complete
+```
 
-**Overlays** (managed by OverlayManager):
-- **Toggleable** — InventoryOverlay, CraftingOverlay, FireOverlay, CookingOverlay, TransferOverlay
-- **Blocking** — GameEventOverlay (events), HuntOverlay, EncounterOverlay, CombatOverlay
-- **Notifications** — DiscoveryOverlay, WeatherChangeOverlay
+A faulted game task is rethrown, never swallowed. Restart re-creates the context and the
+UI and starts a new game task.
 
-**Persistent HUD** — `StatsPanel` (survival state, top-left) and `JournalPanel`
-(the last few narrative lines, bottom-left). Toasts say what just happened and fade;
-the journal is where the player reconstructs why. `StatsPanel.Render` draws both, so
-the HUD appears wherever the game renders a frame. `NarrativeLog` keeps the last 200
-entries.
+**FrameScheduler** (`Core/FrameScheduler.cs`) — a `SynchronizationContext` whose queue is
+pumped once per frame. Every await in game logic resumes inside `Pump`, never inside
+rendering: prompts complete a `TaskCompletionSource` created with
+`RunContinuationsAsynchronously`, so the continuation is posted, not run inline. `Send`
+throws and `Pump` is not reentrant.
+
+**IGameUi** (`UI/IGameUi.cs`) — the complete surface game logic has on the player, reached
+through `ctx.Ui`. `NextFrame`/`Wait` for time, prompts (`Select`, `Confirm`, `Choose`,
+`ReadInt`, `ShowMessage`, `ShowWorkResult`, event choices, forage options, butcher mode),
+screens (inventory, crafting, fire, food, transfer, discovery log, NPCs), the two base
+screens (`WaitForPlayerAction`, `WaitForCombatAction`), and `BeginProgress`.
+
+**DesktopUi** (`Desktop/DesktopUi.cs`) — the implementation, and the only
+`Raylib.BeginDrawing` in the codebase. It owns the `WorldRenderer`, camera, HUD panels,
+screen objects, and a **modal stack**:
+
+- Base screens (`MapScreen`, `CombatScreen`) sit at the bottom and do not dim the world.
+- Prompts and screens wrap a `TaskCompletionSource` and stack above them; nested prompts
+  render underneath each other, which is the intended look.
+- Progress views are modals that live until disposed.
+- Only the top modal receives raw keyboard and mouse input; world hover always updates.
+- The HUD (`StatsPanel`, `JournalPanel`, toasts) renders every frame in every state.
+
+**Screens** keep their ImGui bodies but no longer own control flow: a screen *returns*
+what the player chose and game logic acts on it. Instant actions (moving an item, adding
+fuel) are applied inside the screen; anything that costs game time comes back as a result
+so the caller can run it under a progress view.
+
+**ProgressView** (`UI/ProgressView.cs`) — one display for every timed activity. Game logic
+creates it, updates `Status`, `Progress` and `Sections` between frames, and disposes it
+when done. Foraging finds and crafting materials are sections on this one view; there is
+no bespoke foraging or crafting frame.
+
+**Time** — `Pacing` decides how fast game time flows on screen; `TimedRun` turns real
+seconds into whole due minutes with a fractional accumulator. `Pacing.PassTime` is the
+canonical loop used by rest, sleep, work, camp setup, event time costs and incapacitation.
+Anything that both animates and simulates derives both from one `TimedRun`, so they finish
+together by construction.
+
+**Notices** — the simulation tick never talks to the player. Witnessed deaths, discovered
+bodies and newly unlocked recipes go onto `ctx.Notices`; game logic drains them between
+actions and on arrival somewhere new.
+
+**ScriptedUi** (`text_survival.Tests/Support/ScriptedUi.cs`) — answers from canned queues
+and returns completed tasks, so the whole action loop runs in a test with no window.
+An unanswered prompt throws with the prompt text.
 
 **Rendering Layer**:
-- `WorldRenderer` — Grid tiles, camera following, tile hover
-- `Camera` — Smooth camera movement with easing
-- `TileRenderer`, `IconRenderer`, `AnimalRenderer`, `EdgeRenderer`, `EffectsRenderer` — Specialized renderers
+- `WorldRenderer` — grid tiles, the player sprite (interpolated during travel), hover
+- `Camera` — a continuous world-space centre easing toward a target, one tile of overscan,
+  drawn inside a scissor rect so nothing spills under the panels
+- `TileRenderer`, `IconRenderer`, `AnimalRenderer`, `EdgeRenderer`, `EffectsRenderer`
 
-**DTOs** — Activity-focused data objects in `Desktop/Dto/`:
-- `OverlayData.cs` — EventDto, EventChoiceDto, EventOutcomeDto, DiscoveryLogDto
-- `CombatInput.cs` — What the player committed to on a combat turn
+**View models** live in `UI/` so game logic can name them without reaching into the
+renderer: `OverlayData.cs` (EventDto, EventChoiceDto, EventOutcomeDto, DiscoveryLogDto),
+`CombatInput.cs`, `PlayerAction.cs` (PlayerAction, Notice, WorkResultView, FireFeedback),
+`ScreenResults.cs`, `ProgressView.cs`, `ToastFeed.cs`.
 
-Desktop UI interacts with: all game systems (direct state access), events (EventOverlay shows choices), inventory/crafting (overlay display).
+**Layering is enforced by a test** — `text_survival.Tests/Architecture/LayeringTests.cs`
+scans the source and fails if game logic references the renderer, if the simulation
+references `ctx.Ui`, if more than one file begins drawing, or if game logic blocks or
+threads.
 
-**Files**: `Core/Program.cs`, `Desktop/DesktopIO.cs`, `Desktop/DesktopRuntime.cs`, `Desktop/UI/OverlayManager.cs`, `Desktop/Rendering/WorldRenderer.cs`, `Desktop/Input/InputHandler.cs`
+Desktop UI interacts with: all game systems (direct state access, read-only while
+rendering), events (the event screen shows choices), inventory/crafting (screens).
+
+**Files**: `Core/Program.cs`, `Core/FrameScheduler.cs`, `UI/IGameUi.cs`,
+`Desktop/DesktopUi.cs`, `Desktop/Rendering/WorldRenderer.cs`, `Actions/Pacing.cs`,
+`Actions/TimedRun.cs`
 
 ### Pixel Art Pipeline
 

@@ -5,6 +5,7 @@ using text_survival.Actions.Handlers;
 using text_survival.Environments.Features;
 using text_survival.Survival;
 using text_survival.Desktop.Input;
+using text_survival.UI;
 
 namespace text_survival.Desktop.UI;
 
@@ -20,6 +21,8 @@ public class FoodOverlay
     /// Pending cooking/melting action to be processed outside the ImGui frame.
     /// </summary>
     public PendingFoodAction? PendingAction { get; private set; }
+
+    public void ClearPendingAction() => PendingAction = null;
 
     private FoodItem? _selectedItem;
     private string? _lastMessage;
@@ -430,44 +433,6 @@ public class FoodOverlay
         _lastMessageIsWarning = isWarning;
         _messageTimer = 3.0f;
     }
-
-    /// <summary>
-    /// Process a pending cooking/melting action. Call this outside the ImGui frame
-    /// to allow the blocking animation to run properly.
-    /// </summary>
-    public void ProcessPendingAction(GameContext ctx)
-    {
-        if (PendingAction == null) return;
-
-        var action = PendingAction;
-        PendingAction = null;
-
-        string statusText = action.Action switch
-        {
-            FoodAction.CookMeat => "Cooking meat...",
-            FoodAction.CookFish => "Cooking fish...",
-            FoodAction.MeltSnow => "Melting snow...",
-            _ => "Working..."
-        };
-
-        // Show progress animation
-        BlockingDialog.ShowProgress(ctx, statusText, action.Minutes, ActivityType.TendingFire);
-
-        // Execute the actual cooking/melting
-        CookingHandler.CookingResult result = action.Action switch
-        {
-            FoodAction.CookMeat => CookingHandler.CookMeat(ctx.Inventory, ctx.CurrentLocation),
-            FoodAction.CookFish => CookingHandler.CookFish(ctx.Inventory, ctx.CurrentLocation),
-            FoodAction.MeltSnow => CookingHandler.MeltSnow(ctx.Inventory, ctx.CurrentLocation),
-            _ => new CookingHandler.CookingResult(false, "Unknown action", 0)
-        };
-
-        // Show result as toast
-        if (result.Success)
-        {
-            ToastManager.Show(result.Message, ToastType.Success);
-        }
-    }
 }
 
 /// <summary>
@@ -479,24 +444,3 @@ public abstract record FoodItem
     public record MeltSnow() : FoodItem;
 }
 
-/// <summary>
-/// Actions available for food items.
-/// </summary>
-public enum FoodAction
-{
-    Eat,
-    Drink,
-    CookMeat,
-    CookFish,
-    MeltSnow
-}
-
-/// <summary>
-/// Pending food action to be processed outside ImGui frame.
-/// </summary>
-public class PendingFoodAction
-{
-    public FoodAction Action { get; set; }
-    public string ItemId { get; set; } = "";
-    public int Minutes { get; set; }
-}

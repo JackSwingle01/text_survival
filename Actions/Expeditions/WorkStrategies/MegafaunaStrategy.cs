@@ -2,7 +2,6 @@ using text_survival.Actions;
 using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
-using text_survival.IO;
 using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
@@ -62,14 +61,14 @@ public class MegafaunaStrategy(AnimalType megafauna) : IWorkStrategy
         return "approach";
     }
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         if (!MegafaunaNear(ctx).Contains(_megafauna))
-            return $"There's no sign of {_megafauna.DisplayName().ToLower()} here.";
-        return null;
+            return Task.FromResult<string?>($"There's no sign of {_megafauna.DisplayName().ToLower()} here.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         var choice = new Choice<int>("How long do you want to work?");
 
@@ -90,7 +89,7 @@ public class MegafaunaStrategy(AnimalType megafauna) : IWorkStrategy
         }
 
         choice.AddOption("Cancel", 0);
-        return choice;
+        return Task.FromResult<Choice<int>?>(choice);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -122,14 +121,14 @@ public class MegafaunaStrategy(AnimalType megafauna) : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         string name = _megafauna.DisplayName().ToLower();
 
         if (ctx.Tensions.GetTension(TensionNameFor(_megafauna)) != null)
         {
             GameDisplay.AddNarrative(ctx, $"You're already tracking the {name}. The tension hangs heavy.");
-            return WorkResult.Empty(actualTime);
+            return Task.FromResult<WorkResult>(WorkResult.Empty(actualTime));
         }
 
         GameDisplay.AddNarrative(ctx, $"You search for signs of the {name}...");
@@ -145,10 +144,10 @@ public class MegafaunaStrategy(AnimalType megafauna) : IWorkStrategy
                     : GameEventRegistry.TheHerd(ctx)
             };
             ctx.EventQueue.Enqueue(discoveryEvent);
-            return WorkResult.Empty(actualTime);
+            return Task.FromResult<WorkResult>(WorkResult.Empty(actualTime));
         }
 
         GameDisplay.AddNarrative(ctx, "You find nothing conclusive. Old tracks, maybe.");
-        return WorkResult.Empty(actualTime);
+        return Task.FromResult<WorkResult>(WorkResult.Empty(actualTime));
     }
 }

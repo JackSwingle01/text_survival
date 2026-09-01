@@ -7,7 +7,6 @@ using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop.Dto;
 using ShelterImprovementType = text_survival.Items.ShelterImprovementType;
 
 namespace text_survival.Actions;
@@ -226,17 +225,15 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     /// <summary>
     /// Apply this event outcome to the game context.
-    /// Processes time, effects, damage, rewards, costs, tensions, equipment, and features.
+    /// Processes effects, damage, rewards, costs, tensions, equipment, and features. The
+    /// time cost is not applied here - the caller lets it pass on screen first.
     /// Returns outcome data for UI display.
     /// </summary>
     /// <param name="ctx">The game context</param>
-    /// <param name="skipTime">If true, skip time application (caller handles it separately with progress bar)</param>
-    public EventOutcomeDto Apply(GameContext ctx, bool skipTime = false)
+    public EventOutcomeDto Apply(GameContext ctx)
     {
         var summary = new OutcomeSummary();
 
-        if (!skipTime)
-            ApplyTimeAndMessage(ctx);
         ApplyEffects(ctx, summary);
         ApplyDamage(ctx, summary);
         ApplyRewards(ctx, summary);
@@ -259,19 +256,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
             ItemsLost: summary.ItemsLost,
             TensionsChanged: summary.TensionsChanged
         );
-    }
-
-    private void ApplyTimeAndMessage(GameContext ctx)
-    {
-        if (TimeAddedMinutes != 0)
-        {
-            // GameDisplay.AddNarrative(ctx, $"(+{TimeAddedMinutes} minutes)");
-            // Apply time without progress animation (time shows in outcome popup)
-            // This prevents the progress frame from blocking the event overlay
-            ctx.Update(TimeAddedMinutes, ctx.CurrentActivity);
-        }
-
-        // GameDisplay.AddNarrative(ctx, Message);s
     }
 
     private void ApplyEffects(GameContext ctx, OutcomeSummary summary)

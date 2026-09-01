@@ -1,6 +1,8 @@
 using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Environments.Features;
+using text_survival.Items;
+using text_survival.UI;
 
 namespace text_survival.Actions.Handlers;
 
@@ -121,6 +123,41 @@ public static class CookingHandler
     /// NPC meat cooking - cooks one unit of raw meat.
     /// Returns true if cooking succeeded.
     /// </summary>
+    /// <summary>
+    /// Run a cooking action the food screen handed back: the time it takes, then the
+    /// transformation itself.
+    /// </summary>
+    public static async Task RunPendingAction(GameContext ctx, PendingFoodAction action)
+    {
+        string statusText = action.Action switch
+        {
+            FoodAction.CookMeat => "Cooking meat...",
+            FoodAction.CookFish => "Cooking fish...",
+            FoodAction.MeltSnow => "Melting snow...",
+            _ => throw new InvalidOperationException($"{action.Action} does not pass time and should not reach here.")
+        };
+
+        using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, statusText))
+        {
+            await Pacing.PassTime(ctx, action.Minutes, ActivityType.TendingFire, view);
+        }
+
+        if (!ctx.player.IsAlive) return;
+
+        CookingResult result = action.Action switch
+        {
+            FoodAction.CookMeat => CookMeat(ctx.Inventory, ctx.CurrentLocation),
+            FoodAction.CookFish => CookFish(ctx.Inventory, ctx.CurrentLocation),
+            FoodAction.MeltSnow => MeltSnow(ctx.Inventory, ctx.CurrentLocation),
+            _ => throw new InvalidOperationException($"Unhandled cooking action: {action.Action}")
+        };
+
+        if (result.Success)
+            GameDisplay.AddSuccess(ctx, result.Message);
+        else
+            GameDisplay.AddWarning(ctx, result.Message);
+    }
+
     public static bool CookMeatNPC(Actor actor, Inventory inv, Location location)
     {
         var result = CookMeat(inv, location);

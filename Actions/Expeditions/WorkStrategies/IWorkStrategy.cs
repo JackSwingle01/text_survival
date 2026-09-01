@@ -1,6 +1,5 @@
 using text_survival.Actions;
 using text_survival.Environments;
-using text_survival.IO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -14,13 +13,13 @@ public interface IWorkStrategy
     /// Check if this work is available at the given location.
     /// Returns null if available, or an error message if not.
     /// </summary>
-    string? ValidateLocation(GameContext ctx, Location location);
+    Task<string?> ValidateLocation(GameContext ctx, Location location);
 
     /// <summary>
     /// Get time options for this work type.
     /// Returns null if work should proceed without prompting (e.g., salvage, cache).
     /// </summary>
-    Choice<int>? GetTimeOptions(GameContext ctx, Location location);
+    Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location);
 
     /// <summary>
     /// Apply time impairments based on player capacities.
@@ -48,13 +47,13 @@ public interface IWorkStrategy
     /// Execute the work after time has elapsed.
     /// Returns the work result (collected items, discovered locations).
     /// </summary>
-    WorkResult Execute(GameContext ctx, Location location, int actualTime);
+    Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime);
 
     /// <summary>
     /// Optional: Run custom progress handling instead of the standard progress bar.
     /// Return null to use standard progress. Return (elapsed, interrupted) to skip standard progress.
     /// Used for activities that need special UI during progress (e.g., foraging with loot reveals).
     /// </summary>
-    (int elapsed, bool interrupted)? RunCustomProgress(GameContext ctx, Location location, int minutes)
-        => null;
+    Task<(int elapsed, bool interrupted)?> RunCustomProgress(GameContext ctx, Location location, int minutes)
+        => Task.FromResult<(int, bool)?>(null);
 }

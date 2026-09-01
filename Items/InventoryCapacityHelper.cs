@@ -1,5 +1,4 @@
 using text_survival.Actions;
-using text_survival.Desktop;
 using text_survival.UI;
 
 namespace text_survival.Items;
@@ -28,11 +27,9 @@ public static class InventoryCapacityHelper
         // Discover resources and get newly unlocked recipes
         var unlockedRecipes = ctx.DiscoverResources(source);
 
-        // Show discovery notification if anything new
+        // Queue a notice; game logic shows it when it next reaches the player.
         if (newResources.Count > 0 || unlockedRecipes.Count > 0)
-        {
-            DesktopIO.ShowResourceDiscovery(ctx, newResources, unlockedRecipes);
-        }
+            ctx.Notices.Enqueue(new Notice("Discovery!", DescribeDiscoveries(newResources, unlockedRecipes)));
 
         // Combine with capacity limits
         var leftovers = ctx.Inventory.CombineWithCapacity(source);
@@ -45,5 +42,28 @@ public static class InventoryCapacityHelper
         }
 
         return leftovers;
+    }
+
+    private static string DescribeDiscoveries(List<Resource> newResources, List<Crafting.CraftOption> unlockedRecipes)
+    {
+        var lines = new List<string>();
+
+        if (newResources.Count > 0)
+        {
+            var names = newResources.Select(r => r.ToDisplayName());
+            lines.Add($"New resource{(newResources.Count > 1 ? "s" : "")}: {string.Join(", ", names)}");
+        }
+
+        if (unlockedRecipes.Count > 0)
+        {
+            lines.Add("");
+            lines.Add($"Recipe{(unlockedRecipes.Count > 1 ? "s" : "")} unlocked:");
+            foreach (var recipe in unlockedRecipes.Take(5))
+                lines.Add($"  - {recipe.Name}");
+            if (unlockedRecipes.Count > 5)
+                lines.Add($"  ... and {unlockedRecipes.Count - 5} more");
+        }
+
+        return string.Join("\n", lines);
     }
 }

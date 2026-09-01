@@ -1,5 +1,4 @@
-﻿using text_survival.IO;
-using text_survival.UI;
+﻿using text_survival.UI;
 
 namespace text_survival.Skills
 {

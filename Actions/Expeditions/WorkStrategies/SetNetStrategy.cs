@@ -3,7 +3,6 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.UI;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -15,7 +14,7 @@ public class SetNetStrategy : IWorkStrategy
 {
     private Gear? _selectedNet;
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public async Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         // Validate location has water
         var water = location.GetFeature<WaterFeature>();
@@ -38,23 +37,22 @@ public class SetNetStrategy : IWorkStrategy
         }
         else
         {
-            GameDisplay.Render(ctx);
             var netChoice = new Choice<Gear>("Which net do you want to set?");
             foreach (var net in nets)
             {
                 string durability = net.Durability > 0 ? $"{net.Durability} uses" : "unlimited";
                 netChoice.AddOption($"{net.Name} ({durability})", net);
             }
-            _selectedNet = netChoice.GetPlayerChoice(ctx);
+            _selectedNet = await netChoice.GetPlayerChoice(ctx);
         }
 
         return null;
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         // Fixed time operation
-        return null;
+        return Task.FromResult<Choice<int>?>(null);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -89,7 +87,7 @@ public class SetNetStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         var water = location.GetFeature<WaterFeature>()!;
 
@@ -115,7 +113,7 @@ public class SetNetStrategy : IWorkStrategy
 
         var collected = new List<string> { $"Set {_selectedNet.Name}" };
 
-        DesktopIO.ShowWorkResult(ctx, "Setting Net", resultMessage, collected);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Setting Net", resultMessage, collected));
 
         return new WorkResult(collected, null, actualTime, false);
     }

@@ -1,7 +1,6 @@
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
 
@@ -15,14 +14,14 @@ public class BuryStrategy(NPCBodyFeature body) : IWorkStrategy
 {
     private readonly NPCBodyFeature _body = body;
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         if (_body.IsBuried)
-            return $"{_body.NPCName} has already been buried.";
-        return null;
+            return Task.FromResult<string?>($"{_body.NPCName} has already been buried.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         var shovel = ctx.Inventory.GetTool(ToolType.Shovel);
         bool hasShovel = shovel != null && !shovel.IsBroken;
@@ -33,7 +32,7 @@ public class BuryStrategy(NPCBodyFeature body) : IWorkStrategy
         var choice = new Choice<int>($"Bury {_body.NPCName}?");
         choice.AddOption($"Yes ({timeDesc})", baseTime);
         choice.AddOption("Not now", 0);
-        return choice;
+        return Task.FromResult<Choice<int>?>(choice);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -59,7 +58,7 @@ public class BuryStrategy(NPCBodyFeature body) : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         // Mark as buried
         _body.IsBuried = true;
@@ -67,6 +66,6 @@ public class BuryStrategy(NPCBodyFeature body) : IWorkStrategy
         // Narrative
         GameDisplay.AddNarrative(ctx, $"You bury {_body.NPCName}. You mark the grave with stones. It isn't much. It's something.");
 
-        return WorkResult.Empty(actualTime);
+        return Task.FromResult<WorkResult>(WorkResult.Empty(actualTime));
     }
 }

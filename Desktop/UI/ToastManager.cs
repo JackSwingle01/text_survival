@@ -1,40 +1,16 @@
 using ImGuiNET;
 using System.Numerics;
+using text_survival.UI;
 
 namespace text_survival.Desktop.UI;
 
 /// <summary>
-/// Types of toast notifications with different visual styling.
-/// </summary>
-public enum ToastType
-{
-    Info,
-    Success,
-    Warning,
-    Danger
-}
-
-/// <summary>
-/// A single toast notification.
-/// </summary>
-internal class Toast
-{
-    public string Message { get; init; } = "";
-    public ToastType Type { get; init; }
-    public float Duration { get; init; }
-    public float TimeRemaining { get; set; }
-}
-
-/// <summary>
-/// Manages floating toast notifications that appear at the top-center of the screen.
-/// Auto-dismisses after configurable duration with fade-out animation.
+/// Draws the toasts in <see cref="ToastFeed"/> at the top-centre of the screen, fading
+/// each one out as it expires.
 /// </summary>
 public static class ToastManager
 {
-    private static readonly List<Toast> _toasts = new();
     private const float FadeOutDuration = 0.5f;
-    private const int MaxToasts = 5;
-
     // Colors for different toast types
     private static readonly Vector4 ColorInfo = new(0.5f, 0.5f, 0.5f, 1f);
     private static readonly Vector4 ColorSuccess = new(0.3f, 0.8f, 0.3f, 1f);
@@ -42,45 +18,14 @@ public static class ToastManager
     private static readonly Vector4 ColorDanger = new(1f, 0.3f, 0.3f, 1f);
 
     /// <summary>
-    /// Show a toast notification.
+    /// Tick the feed down and draw what is left. Once per frame.
     /// </summary>
-    /// <param name="message">The message to display.</param>
-    /// <param name="type">The type of toast (affects color).</param>
-    /// <param name="duration">How long to display (seconds).</param>
-    public static void Show(string message, ToastType type = ToastType.Info, float duration = 8f)
-    {
-        // Remove oldest if at max
-        while (_toasts.Count >= MaxToasts)
-        {
-            _toasts.RemoveAt(0);
-        }
-
-        _toasts.Add(new Toast
-        {
-            Message = message,
-            Type = type,
-            Duration = duration,
-            TimeRemaining = duration
-        });
-    }
-
-    /// <summary>
-    /// Render all active toasts. Call each frame.
-    /// </summary>
-    /// <param name="deltaTime">Time since last frame in seconds.</param>
     public static void Render(float deltaTime)
     {
-        // Update timers and remove expired toasts
-        for (int i = _toasts.Count - 1; i >= 0; i--)
-        {
-            _toasts[i].TimeRemaining -= deltaTime;
-            if (_toasts[i].TimeRemaining <= 0)
-            {
-                _toasts.RemoveAt(i);
-            }
-        }
+        ToastFeed.Tick(deltaTime);
 
-        if (_toasts.Count == 0) return;
+        var toasts = ToastFeed.Active;
+        if (toasts.Count == 0) return;
 
         // Position at top-center of screen (avoids overlap with side panels)
         var io = ImGui.GetIO();
@@ -89,9 +34,9 @@ public static class ToastManager
         float spacing = 5;
         float currentY = startY;
 
-        for (int i = 0; i < _toasts.Count; i++)
+        for (int i = 0; i < toasts.Count; i++)
         {
-            var toast = _toasts[i];
+            var toast = toasts[i];
 
             // Calculate alpha (fade out in final 0.5 seconds)
             float alpha = toast.TimeRemaining < FadeOutDuration
@@ -138,13 +83,5 @@ public static class ToastManager
             ImGui.PopStyleColor(2);
             ImGui.PopStyleVar(2);
         }
-    }
-
-    /// <summary>
-    /// Clear all active toasts.
-    /// </summary>
-    public static void Clear()
-    {
-        _toasts.Clear();
     }
 }

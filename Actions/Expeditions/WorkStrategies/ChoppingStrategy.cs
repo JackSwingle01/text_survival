@@ -2,11 +2,8 @@ using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -17,25 +14,25 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 /// </summary>
 public class ChoppingStrategy : IWorkStrategy
 {
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<WoodedAreaFeature>();
         if (feature == null)
-            return "There are no trees to fell here.";
+            return Task.FromResult<string?>("There are no trees to fell here.");
         if (!feature.HasTrees)
-            return "All the trees here have been felled.";
+            return Task.FromResult<string?>("All the trees here have been felled.");
 
         // Check for axe
         var axe = ctx.Inventory.GetTool(ToolType.Axe);
         if (axe == null)
-            return "You need an axe to fell trees.";
+            return Task.FromResult<string?>("You need an axe to fell trees.");
         if (axe.IsBroken)
-            return "Your axe is broken.";
+            return Task.FromResult<string?>("Your axe is broken.");
 
-        return null;
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         var feature = location.GetFeature<WoodedAreaFeature>()!;
         double remainingMinutes = feature.MinutesToFell - feature.MinutesWorked;
@@ -61,7 +58,7 @@ public class ChoppingStrategy : IWorkStrategy
             choice.AddOption($"Finish the tree ({(int)remainingMinutes} min)", (int)remainingMinutes);
 
         choice.AddOption("Cancel", 0);
-        return choice;
+        return Task.FromResult<Choice<int>?>(choice);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -87,7 +84,7 @@ public class ChoppingStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         var feature = location.GetFeature<WoodedAreaFeature>()!;
         var axe = ctx.Inventory.GetTool(ToolType.Axe)!;
@@ -141,7 +138,7 @@ public class ChoppingStrategy : IWorkStrategy
             resultMessage += $" Your {axe.Name} is wearing out.";
 
         // Show results in popup overlay
-        DesktopIO.ShowWorkResult(ctx, "Chopping", resultMessage, collected);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Chopping", resultMessage, collected));
 
         return new WorkResult(collected, null, actualTime, false);
     }

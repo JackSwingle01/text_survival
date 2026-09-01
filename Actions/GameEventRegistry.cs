@@ -1,7 +1,4 @@
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
-using text_survival.Desktop.Dto;
 
 namespace text_survival.Actions;
 
@@ -335,7 +332,7 @@ public static partial class GameEventRegistry
     /// Sets ctx.PendingEncounter if the outcome spawns a predator encounter.
     /// Returns the EventResult so callers can check flags like AbortsExpedition.
     /// </summary>
-    public static EventResult HandleEvent(GameContext ctx, GameEvent evt)
+    public static async Task<EventResult> HandleEvent(GameContext ctx, GameEvent evt)
     {
         List<ActivityType> excluded = [ActivityType.Sleeping, ActivityType.Fighting, ActivityType.Encounter];
         if (excluded.Contains(ctx.CurrentActivity))
@@ -359,18 +356,16 @@ public static partial class GameEventRegistry
             );
 
             // Block until player makes a choice
-            var choiceId = DesktopIO.WaitForEventChoice(ctx, eventDto);
+            var choiceId = await ctx.Ui.ShowEventChoices(eventDto);
 
-            // Map choice ID back to EventChoice (IDs are "choice_0", "choice_1", etc.)
-            int choiceIndex = 0;
-            if (choiceId.StartsWith("choice_") && int.TryParse(choiceId[7..], out var idx))
-            {
-                choiceIndex = idx;
-            }
-            var choice = availableChoices[Math.Clamp(choiceIndex, 0, availableChoices.Count - 1)];
+            int choiceIndex = eventDto.Choices.FindIndex(c => c.Id == choiceId);
+            if (choiceIndex < 0)
+                throw new InvalidOperationException($"Event '{evt.Name}' got back an unknown choice id: {choiceId}");
+
+            var choice = availableChoices[choiceIndex];
 
             var outcome = choice.DetermineResult();
-            var outcomeData = HandleOutcome(ctx, outcome);
+            var outcomeData = await HandleOutcome(ctx, outcome);
 
             // Phase 2: Show outcome in same popup
             var outcomeDto = new EventDto(
@@ -379,30 +374,17 @@ public static partial class GameEventRegistry
                 [],
                 outcomeData
             );
-            DesktopIO.RenderEvent(ctx, outcomeDto);
-            DesktopIO.WaitForEventContinue(ctx);
-
-            // Clear event overlay after user acknowledges
-            DesktopIO.ClearEvent(ctx);
+            await ctx.Ui.ShowEventOutcome(outcomeDto);
 
             // Queue encounter if needed
             if (outcome.SpawnEncounter != null)
-            {
                 ctx.QueueEncounter(outcome.SpawnEncounter);
-                // Skip Render() - encounter spawns immediately after HandleEvent returns
-                // and will send its own frames via WaitForEncounterChoice
-            }
-            else
-            {
-                // Only render if no encounter pending
-                GameDisplay.Render(ctx);
-            }
 
             // Chain to follow-up event if specified
             if (outcome.ChainEvent != null)
             {
                 var chainedEvent = outcome.ChainEvent(ctx);
-                HandleEvent(ctx, chainedEvent);
+                await HandleEvent(ctx, chainedEvent);
             }
 
             return outcome;
@@ -417,20 +399,22 @@ public static partial class GameEventRegistry
     /// Apply an event outcome - shows progress bar for time costs, then applies effects.
     /// Returns outcome data for UI display.
     /// </summary>
-    public static EventOutcomeDto HandleOutcome(GameContext ctx, EventResult outcome)
+    public static async Task<EventOutcomeDto> HandleOutcome(GameContext ctx, EventResult outcome)
     {
-        // Show progress bar for time costs before applying outcome
+        // Let the time cost pass on screen before applying the rest of the outcome, so
+        // the player feels it. No event check - we are already handling one.
         if (outcome.TimeAddedMinutes > 0)
         {
-            // Use a brief summary for the progress bar status text
             string statusText = outcome.Message.Length <= 60
                 ? outcome.Message
                 : "Time passes...";
-            BlockingDialog.ShowEventProgress(ctx, statusText, outcome.TimeAddedMinutes, ctx.CurrentActivity);
+
+            using var view = ctx.Ui.BeginProgress(ProgressKind.Activity, statusText);
+            await Pacing.PassTime(ctx, outcome.TimeAddedMinutes, ctx.CurrentActivity, view, allowEvents: false);
         }
 
-        // Apply outcome, skipping time (already handled by progress bar)
-        return outcome.Apply(ctx, skipTime: outcome.TimeAddedMinutes > 0);
+        // The time cost has already passed on screen; Apply only does the rest.
+        return outcome.Apply(ctx);
     }
 
     /// <summary>
@@ -443,12 +427,23 @@ public static partial class GameEventRegistry
         var hasResources = maxCost == null || HasSufficientResources(ctx.Inventory, maxCost);
 
         return new EventChoiceDto(
-            DesktopIO.GenerateSemanticId(choice.Label, index),
+            SemanticId(choice.Label, index),
             choice.Label,
             choice.Description,
             hasResources,
             costString
         );
+    }
+
+    /// <summary>
+    /// A stable, readable id for a choice. The index keeps it unique when two choices
+    /// share a label.
+    /// </summary>
+    private static string SemanticId(string label, int index)
+    {
+        var slug = System.Text.RegularExpressions.Regex.Replace(label.ToLowerInvariant(), @"[^a-z0-9]+", "_").Trim('_');
+        if (slug.Length > 30) slug = slug[..30];
+        return $"{slug}_{index}";
     }
 
     /// <summary>

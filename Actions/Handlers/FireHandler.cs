@@ -2,11 +2,8 @@ using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Handlers;
 
@@ -408,10 +405,50 @@ public static class FireHandler
     // UI Entry Points (Player)
     // ============================================
 
-    public static void ManageFire(GameContext ctx, HeatSourceFeature? fire = null)
+    /// <summary>
+    /// The fire screen, and the actions the player takes from it. Actions that cost time
+    /// come back as results so they can run under a progress view; the rest apply at once.
+    /// </summary>
+    public static async Task ManageFire(GameContext ctx, HeatSourceFeature? fire = null)
     {
         fire ??= ctx.CurrentLocation.GetFeature<HeatSourceFeature>() ?? new HeatSourceFeature();
-        DesktopIO.RunFireUI(ctx, fire);
+        FireFeedback? feedback = null;
+
+        while (true)
+        {
+            var request = await ctx.Ui.ShowFire(fire, feedback);
+            if (request == null) return;
+
+            feedback = await ApplyFireAction(ctx, request, fire);
+        }
+    }
+
+    private static async Task<FireFeedback> ApplyFireAction(
+        GameContext ctx, FireOverlayResult request, HeatSourceFeature fire)
+    {
+        switch (request.Action)
+        {
+            case FireAction.StartFire when request.Tool != null && request.Tinder != null:
+            {
+                var attempt = await ProcessStartFire(ctx, request.Tool, request.Tinder.Value, fire);
+                return new FireFeedback(attempt.Message, attempt.Success);
+            }
+            case FireAction.StartFromEmber when request.EmberCarrier != null:
+            {
+                var attempt = await ProcessStartFromEmber(ctx, request.EmberCarrier, fire);
+                return new FireFeedback(attempt.Message, attempt.Success);
+            }
+            case FireAction.AddFuel when request.FuelResource != null:
+                return new FireFeedback(AddFuelWithResult(ctx.Inventory, fire, request.FuelResource.Value).Message);
+            case FireAction.CollectCharcoal:
+                return new FireFeedback(CollectCharcoal(fire, ctx.Inventory).Message);
+            case FireAction.LightTorch:
+                return new FireFeedback(LightTorchFromFire(fire, ctx.Inventory).Message);
+            case FireAction.CollectEmber:
+                return new FireFeedback(CollectEmber(fire, ctx.Inventory).Message);
+            default:
+                throw new InvalidOperationException($"The fire screen returned an incomplete {request.Action} request.");
+        }
     }
 
     // ============================================
@@ -469,14 +506,17 @@ public static class FireHandler
     /// Process fire start attempt with time advancement and skill XP.
     /// Wrapper for desktop UI that handles side effects.
     /// </summary>
-    public static FireActionResult ProcessStartFire(
+    public static async Task<FireActionResult> ProcessStartFire(
         GameContext ctx, Gear tool, Resource tinder, HeatSourceFeature? existingFire)
     {
         int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
         var result = AttemptStartFire(ctx.player, ctx.Inventory, ctx.CurrentLocation,
             tool, tinder, skillLevel, existingFire);
 
-        ctx.Update(10, ActivityType.TendingFire);
+        using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, "Working the tinder..."))
+        {
+            await Pacing.PassTime(ctx, 10, ActivityType.TendingFire, view);
+        }
 
         int xp = result.Success ? 3 : 1;
         ctx.player.Skills.GetSkill("Firecraft").GainExperience(xp);
@@ -488,11 +528,16 @@ public static class FireHandler
     /// Process fire start from ember with time advancement.
     /// Wrapper for desktop UI that handles side effects.
     /// </summary>
-    public static FireActionResult ProcessStartFromEmber(
+    public static async Task<FireActionResult> ProcessStartFromEmber(
         GameContext ctx, Gear emberCarrier, HeatSourceFeature? existingFire)
     {
         StartFromEmber(ctx.player, ctx.Inventory, ctx.CurrentLocation, emberCarrier, existingFire);
-        ctx.Update(5, ActivityType.TendingFire);
+
+        using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, "Coaxing the ember..."))
+        {
+            await Pacing.PassTime(ctx, 5, ActivityType.TendingFire, view);
+        }
+
         return new FireActionResult(true, "Fire started from ember!");
     }
 

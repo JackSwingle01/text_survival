@@ -3,10 +3,7 @@ using text_survival.Actors.Animals;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -17,28 +14,28 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 /// </summary>
 public class HuntStrategy : IWorkStrategy
 {
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         // Large game: herds standing on this tile
         if (ctx.Map != null && ctx.Herds.At(ctx.Map.GetPosition(location)).Any(h => h.Count > 0))
-            return null;
+            return Task.FromResult<string?>(null);
 
         // Small game: local density
         var smallGame = location.GetFeature<SmallGameFeature>();
         if (smallGame == null)
-            return "There's no game to be found here.";
+            return Task.FromResult<string?>("There's no game to be found here.");
         if (!smallGame.CanHunt())
-            return "There's no game here.";
-        return null;
+            return Task.FromResult<string?>("There's no game here.");
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         var choice = new Choice<int>("How long do you want to search?");
         choice.AddOption("Quick scan - 15 min", 15);
         choice.AddOption("Thorough search - 30 min", 30);
         choice.AddOption("Cancel", 0);
-        return choice;
+        return Task.FromResult<Choice<int>?>(choice);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -71,7 +68,7 @@ public class HuntStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         GameDisplay.AddNarrative(ctx, "You scan the area for signs of game...");
 
@@ -95,7 +92,7 @@ public class HuntStrategy : IWorkStrategy
         var territory = location.GetFeature<SmallGameFeature>();
         if (territory == null || !territory.CanHunt())
         {
-            DesktopIO.ShowWorkResult(ctx, "Hunting", "You find no game. The area seems quiet.", []);
+            await ctx.Ui.ShowWorkResult(new WorkResultView("Hunting", "You find no game. The area seems quiet.", []));
             return WorkResult.Empty(actualTime);
         }
 
@@ -114,7 +111,7 @@ public class HuntStrategy : IWorkStrategy
         if (found == null)
         {
             // Show popup only when no animal found (hunt ends here)
-            DesktopIO.ShowWorkResult(ctx, "Hunting", "You find no game. The area seems quiet.", []);
+            await ctx.Ui.ShowWorkResult(new WorkResultView("Hunting", "You find no game. The area seems quiet.", []));
             return WorkResult.Empty(actualTime);
         }
 

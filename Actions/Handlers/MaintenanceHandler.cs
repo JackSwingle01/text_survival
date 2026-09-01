@@ -1,5 +1,4 @@
 using text_survival.Items;
-using text_survival.IO;
 using text_survival.UI;
 
 namespace text_survival.Actions.Handlers;
@@ -25,7 +24,7 @@ public static class MaintenanceHandler
     /// <summary>
     /// Apply resin waterproofing treatment to equipment.
     /// </summary>
-    public static void ApplyWaterproofing(GameContext ctx)
+    public static async Task ApplyWaterproofing(GameContext ctx)
     {
         var inv = ctx.Inventory;
         int resinCount = inv.Count(Resource.PineResin);
@@ -77,8 +76,7 @@ public static class MaintenanceHandler
         }
         choice.AddOption("Cancel", null);
 
-        GameDisplay.Render(ctx);
-        var selected = choice.GetPlayerChoice(ctx);
+        var selected = await choice.GetPlayerChoice(ctx);
 
         if (selected == null)
             return;
@@ -90,6 +88,6 @@ public static class MaintenanceHandler
         GameDisplay.AddSuccess(ctx, $"You coat your {selected.Name} with sticky pine resin. It should repel moisture now.");
 
         // Time cost
-        ctx.Update(10, ActivityType.Crafting);
+        await ctx.Update(10, ActivityType.Crafting);
     }
 }

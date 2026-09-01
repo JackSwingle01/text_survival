@@ -29,12 +29,6 @@ public class WorldRenderer
     private int _lastScreenWidth;
     private int _lastScreenHeight;
 
-    /// <summary>
-    /// Override position for player icon during travel animation.
-    /// When set, player is drawn at this position instead of ctx.Map.CurrentPosition.
-    /// </summary>
-    public (float x, float y)? PlayerPositionOverride { get; set; }
-
     public WorldRenderer()
     {
         Camera = new Camera();
@@ -81,12 +75,9 @@ public class WorldRenderer
             ConfigureCameraSize();
         }
 
-        // Update camera to follow player (skip during travel - ProcessTravelTick handles it)
-        if (ctx.ActiveTravel == null)
-        {
-            var playerPos = ctx.Map.CurrentPosition;
-            Camera.SetCenter(playerPos.X, playerPos.Y);
-        }
+        // The camera follows the player sprite - the same position the sprite is drawn at,
+        // so the two arrive together instead of racing on separate clocks.
+        Camera.Target = PlayerWorldPosition(ctx);
         Camera.Update(deltaTime);
 
         // Update hover state
@@ -101,6 +92,28 @@ public class WorldRenderer
 
         // Update effects
         _effects.Update(deltaTime);
+    }
+
+    /// <summary>
+    /// Where the player is on the world grid right now, in tile coordinates. While
+    /// travelling this interpolates along the path from the travel run's own clock, so
+    /// sprite and camera share one source of truth.
+    /// </summary>
+    private static Vector2 PlayerWorldPosition(GameContext ctx)
+    {
+        var travel = ctx.ActiveTravel;
+        if (travel == null)
+        {
+            var pos = ctx.Map!.CurrentPosition;
+            return new Vector2(pos.X, pos.Y);
+        }
+
+        var destination = ctx.Map!.GetPosition(travel.Destination);
+        float t = Easing.OutCubic(travel.Run.Progress);
+        return Vector2.Lerp(
+            new Vector2(travel.OriginPosition.X, travel.OriginPosition.Y),
+            new Vector2(destination.X, destination.Y),
+            t);
     }
 
     /// <summary>
@@ -141,6 +154,10 @@ public class WorldRenderer
         var map = ctx.Map;
         var playerPos = map.CurrentPosition;
 
+        // Everything grid-bound is clipped to the grid rect so the overscan tiles never
+        // spill under the side panels while the camera pans.
+        Raylib.BeginScissorMode(Camera.ScreenOffsetX, Camera.ScreenOffsetY, Camera.GridWidth, Camera.GridHeight);
+
         // Render all visible tiles
         foreach (var (worldX, worldY) in Camera.GetVisibleTiles())
         {
@@ -150,17 +167,10 @@ public class WorldRenderer
         // Render edges between tiles (rivers, cliffs, trails)
         EdgeRenderer.RenderEdges(ctx, Camera, timeFactor);
 
-        // Render player icon (use override position if set, for travel animation)
-        Vector2 playerScreenPos;
-        if (PlayerPositionOverride.HasValue)
-        {
-            // Interpolate screen position for smooth travel animation
-            playerScreenPos = GetInterpolatedTileCenter(PlayerPositionOverride.Value.x, PlayerPositionOverride.Value.y);
-        }
-        else
-        {
-            playerScreenPos = Camera.GetTileCenter(playerPos.X, playerPos.Y);
-        }
+        // Render player icon at the position the simulation says they are - interpolated
+        // along the path while travelling, on their tile otherwise.
+        Vector2 spritePos = PlayerWorldPosition(ctx);
+        Vector2 playerScreenPos = Camera.GetTileCenter(spritePos.X, spritePos.Y);
         TileRenderer.DrawPlayerIcon(playerScreenPos.X, playerScreenPos.Y, Camera.TileSize);
 
         // Render NPC icons
@@ -207,6 +217,8 @@ public class WorldRenderer
                 }
             }
         }
+
+        Raylib.EndScissorMode();
 
         // Render weather effects
         _effects.RenderSnow(Camera.ScreenOffsetX, Camera.ScreenOffsetY, Camera.GridWidth, Camera.GridHeight);
@@ -382,30 +394,6 @@ public class WorldRenderer
     public Vector2 GetTileScreenPosition(int x, int y)
     {
         return Camera.WorldToScreen(x, y);
-    }
-
-    /// <summary>
-    /// Get the center screen position for a fractional world position.
-    /// Used for smooth player movement animation.
-    /// </summary>
-    private Vector2 GetInterpolatedTileCenter(float worldX, float worldY)
-    {
-        // Get the four surrounding tile centers for bilinear interpolation
-        int x0 = (int)MathF.Floor(worldX);
-        int y0 = (int)MathF.Floor(worldY);
-        float fx = worldX - x0;
-        float fy = worldY - y0;
-
-        // For simplicity, just use linear interpolation between tile centers
-        Vector2 topLeft = Camera.GetTileCenter(x0, y0);
-        Vector2 topRight = Camera.GetTileCenter(x0 + 1, y0);
-        Vector2 bottomLeft = Camera.GetTileCenter(x0, y0 + 1);
-        Vector2 bottomRight = Camera.GetTileCenter(x0 + 1, y0 + 1);
-
-        // Bilinear interpolation
-        Vector2 top = Vector2.Lerp(topLeft, topRight, fx);
-        Vector2 bottom = Vector2.Lerp(bottomLeft, bottomRight, fx);
-        return Vector2.Lerp(top, bottom, fy);
     }
 
     /// <summary>

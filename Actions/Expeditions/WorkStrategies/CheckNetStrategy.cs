@@ -2,7 +2,7 @@ using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
-using DesktopIO = text_survival.Desktop.DesktopIO;
+using text_survival.UI;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -12,19 +12,19 @@ namespace text_survival.Actions.Expeditions.WorkStrategies;
 /// </summary>
 public class CheckNetStrategy : IWorkStrategy
 {
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         var netFeature = location.GetFeature<NetFishingFeature>();
         if (netFeature?.CanBeChecked != true)
-            return "No nets set here.";
+            return Task.FromResult<string?>("No nets set here.");
 
-        return null;
+        return Task.FromResult<string?>(null);
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         // Fixed time operation
-        return null;
+        return Task.FromResult<Choice<int>?>(null);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -59,7 +59,7 @@ public class CheckNetStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         var netFeature = location.GetFeature<NetFishingFeature>()!;
         var results = netFeature.CheckAllNets();
@@ -120,7 +120,7 @@ public class CheckNetStrategy : IWorkStrategy
         else if (collected.Count > 0 || lostCount > 0 || stolenCount > 0)
             resultMessage += " No nets remain.";
 
-        DesktopIO.ShowWorkResult(ctx, "Checking Nets", resultMessage, collected);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Checking Nets", resultMessage, collected));
 
         return new WorkResult(collected, null, actualTime, false);
     }

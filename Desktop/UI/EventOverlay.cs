@@ -2,7 +2,7 @@ using ImGuiNET;
 using Raylib_cs;
 using System.Numerics;
 using text_survival.Actions;
-using text_survival.Desktop.Dto;
+using text_survival.UI;
 
 namespace text_survival.Desktop.UI;
 

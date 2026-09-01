@@ -1,10 +1,7 @@
 using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions;
 
@@ -44,20 +41,19 @@ public class WorkRunner(GameContext ctx)
 
         string reason = isNight ? "It's too dark to work at night." : "It's too dark to work here.";
         GameDisplay.AddWarning(_ctx, $"{reason} You need a light source.");
-        GameDisplay.Render(_ctx);
         return true;
     }
 
     /// <summary>
     /// Execute work using a strategy pattern. Handles validation, timing, impairments, and execution.
     /// </summary>
-    private WorkResult ExecuteWork(Location location, IWorkStrategy strategy)
+    private async Task<WorkResult> ExecuteWork(Location location, IWorkStrategy strategy)
     {
         if (CheckDarknessBlocking(location, strategy))
             return WorkResult.Empty(0);
 
         // Validate location
-        string? validationError = strategy.ValidateLocation(_ctx, location);
+        string? validationError = await strategy.ValidateLocation(_ctx, location);
         if (validationError != null)
         {
             GameDisplay.AddNarrative(_ctx, validationError);
@@ -65,12 +61,11 @@ public class WorkRunner(GameContext ctx)
         }
 
         // Get time options (may be null for fixed-time work)
-        var timeChoice = strategy.GetTimeOptions(_ctx, location);
+        var timeChoice = await strategy.GetTimeOptions(_ctx, location);
         int workTime = 0;
         if (timeChoice != null)
         {
-            GameDisplay.Render(_ctx);
-            workTime = timeChoice.GetPlayerChoice(_ctx);
+            workTime = await timeChoice.GetPlayerChoice(_ctx);
 
             if (workTime == 0) // Player cancelled
                 return WorkResult.Empty(0);
@@ -92,7 +87,7 @@ public class WorkRunner(GameContext ctx)
         if (adjustedTime > 0)
         {
             // Check for custom progress handler (e.g., foraging with loot reveals)
-            var customResult = strategy.RunCustomProgress(_ctx, location, adjustedTime);
+            var customResult = await strategy.RunCustomProgress(_ctx, location, adjustedTime);
             if (customResult.HasValue)
             {
                 var (elapsed, interrupted) = customResult.Value;
@@ -103,10 +98,9 @@ public class WorkRunner(GameContext ctx)
             }
             else
             {
-                // Standard progress
-                string statusText = $"{char.ToUpper(strategy.GetActivityName()[0])}{strategy.GetActivityName().Substring(1)}...";
-                var (elapsed, interrupted) = GameDisplay.UpdateAndRenderProgress(
-                    _ctx, statusText, adjustedTime, strategy.GetActivityType());
+                string statusText = $"{char.ToUpper(strategy.GetActivityName()[0])}{strategy.GetActivityName()[1..]}...";
+                using var view = _ctx.Ui.BeginProgress(ProgressKind.Activity, statusText);
+                var (elapsed, _) = await Pacing.PassTime(_ctx, adjustedTime, strategy.GetActivityType(), view);
                 actualTime = elapsed;
             }
 
@@ -115,12 +109,9 @@ public class WorkRunner(GameContext ctx)
         }
 
         // Execute the strategy to get results
-        var result = strategy.Execute(_ctx, location, actualTime);
+        var result = await strategy.Execute(_ctx, location, actualTime);
 
-        // Show UI and check weight
-        GameDisplay.Render(_ctx);
-
-        ForceDropIfOverweight();
+        await ForceDropIfOverweight();
 
         return result;
     }
@@ -133,7 +124,7 @@ public class WorkRunner(GameContext ctx)
     /// <summary>
     /// Execute a work strategy directly (no lookup needed).
     /// </summary>
-    public WorkResult Execute(Location location, IWorkStrategy strategy)
+    public Task<WorkResult> Execute(Location location, IWorkStrategy strategy)
     {
         return ExecuteWork(location, strategy);
     }
@@ -143,13 +134,12 @@ public class WorkRunner(GameContext ctx)
     /// <summary>
     /// Prompts player to travel to a newly discovered location.
     /// </summary>
-    public static bool PromptTravelToDiscovery(GameContext ctx, Location discovered)
+    public static Task<bool> PromptTravelToDiscovery(GameContext ctx, Location discovered)
     {
         int travelMinutes = TravelProcessor.GetTraversalMinutes(ctx.CurrentLocation, discovered, ctx.player, ctx.Inventory);
         GameDisplay.AddNarrative(ctx, $"You've found a path to {discovered.Name}.");
-        GameDisplay.Render(ctx);
 
-        return DesktopIO.Confirm(ctx, $"Go to {discovered.Name} now? (~{travelMinutes} min)");
+        return ctx.Ui.Confirm($"Go to {discovered.Name} now? (~{travelMinutes} min)");
     }
 
     public static string GetForageFailureMessage(string quality)
@@ -204,7 +194,7 @@ public class WorkRunner(GameContext ctx)
     /// <summary>
     /// Check if player is over carry capacity and force them to drop items.
     /// </summary>
-    private void ForceDropIfOverweight()
+    private async Task ForceDropIfOverweight()
     {
         var inv = _ctx.Inventory;
 
@@ -216,7 +206,6 @@ public class WorkRunner(GameContext ctx)
             $"You're carrying too much! ({inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0} kg)"
         );
         GameDisplay.AddNarrative(_ctx, "You must drop some items.");
-        GameDisplay.Render(_ctx);
 
         // Create a dummy "drop target" that just discards items
         var dropTarget = new Inventory { MaxWeightKg = 10000 };
@@ -233,9 +222,8 @@ public class WorkRunner(GameContext ctx)
             GameDisplay.AddWarning(_ctx,
                 $"Over capacity by {-inv.RemainingCapacityKg:F1} kg. Drop something."
             );
-            GameDisplay.Render(_ctx);
 
-            string selected = Input.Select(_ctx, "Drop which item?", options);
+            string selected = await _ctx.Ui.Select("Drop which item?", options, label => label);
             int idx = options.IndexOf(selected);
 
             items[idx].TransferTo();
@@ -243,6 +231,5 @@ public class WorkRunner(GameContext ctx)
         }
 
         GameDisplay.AddNarrative(_ctx, "You adjust your load and continue.");
-        GameDisplay.Render(_ctx);
     }
 }

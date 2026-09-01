@@ -1,4 +1,4 @@
-namespace text_survival.Desktop.Dto;
+namespace text_survival.UI;
 
 /// <summary>
 /// Event data for popup display.

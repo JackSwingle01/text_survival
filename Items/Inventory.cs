@@ -467,35 +467,6 @@ public class Inventory
         return removed;
     }
 
-    public Gear? GetOrEquipWeapon(GameContext ctx, ToolType? type = null)
-    {
-        if (Weapon != null && (type == null || Weapon.ToolType == type))
-            return Weapon;
-
-        var available = Tools.Where(t => t.IsWeapon && (type == null || t.ToolType == type)).ToList();
-        if (available.Count == 0) return null;
-
-        Gear toEquip;
-        if (available.Count == 1)
-        {
-            toEquip = available[0];
-        }
-        else
-        {
-            var choice = new Choice<Gear>("Which weapon?");
-            foreach (var w in available)
-                choice.AddOption($"{w.Name} ({w.Damage:F0} dmg)", w);
-            toEquip = choice.GetPlayerChoice(ctx);
-        }
-
-        Tools.Remove(toEquip);
-        var previous = EquipWeapon(toEquip);
-        if (previous != null)
-            Tools.Add(previous);
-
-        return toEquip;
-    }
-
     public Gear? GetTool(ToolType type)
     {
         if (Weapon != null && Weapon.ToolType == type)

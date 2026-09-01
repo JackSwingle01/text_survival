@@ -1,11 +1,10 @@
 using System.Numerics;
-using Raylib_cs;
 
 namespace text_survival.Desktop.Rendering;
 
 /// <summary>
-/// Camera for the world grid view.
-/// Handles viewport tracking, coordinate conversion, and smooth transitions.
+/// Camera for the world grid view. Holds a continuous world-space centre in tiles and
+/// glides toward a target. Coordinate conversion is pure geometry off that centre.
 /// </summary>
 public class Camera
 {
@@ -14,177 +13,106 @@ public class Camera
     public int TileGap { get; set; } = 2;
     public int ViewSize { get; set; } = 5;  // 5x5 tile viewport
 
-    // Camera position (world coordinates - which tile is centered)
-    public int CenterX { get; private set; }
-    public int CenterY { get; private set; }
+    /// <summary>How fast the centre closes on the target. Higher is snappier.</summary>
+    public const float Smoothing = 10f;
 
-    // Smooth transition state
-    private float _transitionProgress = 1f;
-    private int _fromX, _fromY;
-    private int _toX, _toY;
-    private float _transitionDuration = 0.3f;  // seconds (matches web version)
+    /// <summary>Beyond this gap the camera teleports instead of gliding (new game, load, restart).</summary>
+    public const float SnapDistanceTiles = 6f;
+
+    /// <summary>Current centre of the view, in world tile coordinates.</summary>
+    public Vector2 Center { get; private set; }
+
+    /// <summary>Where the centre is heading. Rendering sets this every frame.</summary>
+    public Vector2 Target { get; set; }
 
     // Screen offset (where to draw the grid on screen)
     public int ScreenOffsetX { get; set; } = 50;
     public int ScreenOffsetY { get; set; } = 50;
 
-    /// <summary>
-    /// Total grid width in pixels.
-    /// </summary>
+    /// <summary>Total grid width in pixels.</summary>
     public int GridWidth => ViewSize * TileSize + (ViewSize - 1) * TileGap;
 
-    /// <summary>
-    /// Total grid height in pixels.
-    /// </summary>
+    /// <summary>Total grid height in pixels.</summary>
     public int GridHeight => GridWidth;  // Square grid
 
-    /// <summary>
-    /// Is the camera currently animating a transition?
-    /// </summary>
-    public bool IsTransitioning => _transitionProgress < 1f;
+    private float Pitch => TileSize + TileGap;
 
-    /// <summary>
-    /// Current interpolated camera offset for smooth panning.
-    /// When camera moves right (toX > fromX), world should shift left (negative offset).
-    /// </summary>
-    public Vector2 CurrentOffset
+    public Camera(float centerX = 0, float centerY = 0)
     {
-        get
-        {
-            if (!IsTransitioning)
-                return Vector2.Zero;
-
-            float t = EaseOutCubic(_transitionProgress);
-            float dx = (_toX - _fromX) * (1 - t);
-            float dy = (_toY - _fromY) * (1 - t);
-            return new Vector2(dx * (TileSize + TileGap), dy * (TileSize + TileGap));
-        }
+        Center = new Vector2(centerX, centerY);
+        Target = Center;
     }
 
-    public Camera(int centerX = 0, int centerY = 0)
-    {
-        CenterX = centerX;
-        CenterY = centerY;
-        _fromX = _toX = centerX;
-        _fromY = _toY = centerY;
-    }
-
-    /// <summary>
-    /// Update camera position. Call this when player moves.
-    /// </summary>
-    /// <param name="x">Target X coordinate</param>
-    /// <param name="y">Target Y coordinate</param>
-    /// <param name="animate">Whether to animate the transition</param>
-    /// <param name="durationSeconds">Animation duration (only used when animate=true)</param>
-    public void SetCenter(int x, int y, bool animate = true, float durationSeconds = 0.3f)
-    {
-        if (x == CenterX && y == CenterY)
-            return;
-
-        if (animate)
-        {
-            _fromX = CenterX;
-            _fromY = CenterY;
-            _toX = x;
-            _toY = y;
-            _transitionProgress = 0f;
-            _transitionDuration = durationSeconds;
-        }
-        else
-        {
-            _transitionProgress = 1f;
-        }
-
-        CenterX = x;
-        CenterY = y;
-    }
-
-    /// <summary>
-    /// Update camera animation. Call once per frame.
-    /// </summary>
+    /// <summary>Glide toward the target. Call once per frame.</summary>
     public void Update(float deltaTime)
     {
-        if (IsTransitioning)
+        Vector2 delta = Target - Center;
+
+        if (delta.Length() > SnapDistanceTiles)
         {
-            _transitionProgress += deltaTime / _transitionDuration;
-            if (_transitionProgress >= 1f)
-                _transitionProgress = 1f;
+            Center = Target;
+            return;
         }
+
+        Center += delta * (1 - MathF.Exp(-Smoothing * deltaTime));
     }
 
     /// <summary>
-    /// Convert world tile coordinates to screen position.
-    /// Returns the top-left corner of the tile on screen.
+    /// Convert world tile coordinates to screen position (top-left corner of the tile).
     /// </summary>
-    public Vector2 WorldToScreen(int worldX, int worldY)
+    public Vector2 WorldToScreen(float worldX, float worldY)
     {
-        // Calculate view-space position (relative to center of viewport)
-        int viewX = worldX - CenterX + ViewSize / 2;
-        int viewY = worldY - CenterY + ViewSize / 2;
+        float viewX = worldX - Center.X + ViewSize / 2;
+        float viewY = worldY - Center.Y + ViewSize / 2;
 
-        // Convert to screen pixels
-        float screenX = ScreenOffsetX + viewX * (TileSize + TileGap);
-        float screenY = ScreenOffsetY + viewY * (TileSize + TileGap);
-
-        // Apply transition offset
-        Vector2 offset = CurrentOffset;
-        screenX += offset.X;
-        screenY += offset.Y;
-
-        return new Vector2(screenX, screenY);
+        return new Vector2(ScreenOffsetX + viewX * Pitch, ScreenOffsetY + viewY * Pitch);
     }
 
     /// <summary>
     /// Convert screen position to world tile coordinates.
-    /// Returns null if position is outside the grid.
+    /// Returns null if the position is outside the grid rect or lands in a gap.
     /// </summary>
     public (int x, int y)? ScreenToWorld(Vector2 screenPos)
     {
-        // Adjust for transition offset
-        Vector2 offset = CurrentOffset;
-        float adjustedX = screenPos.X - ScreenOffsetX - offset.X;
-        float adjustedY = screenPos.Y - ScreenOffsetY - offset.Y;
-
-        // Calculate view-space tile
-        int viewX = (int)(adjustedX / (TileSize + TileGap));
-        int viewY = (int)(adjustedY / (TileSize + TileGap));
-
-        // Check bounds
-        if (viewX < 0 || viewX >= ViewSize || viewY < 0 || viewY >= ViewSize)
+        if (screenPos.X < ScreenOffsetX || screenPos.Y < ScreenOffsetY ||
+            screenPos.X >= ScreenOffsetX + GridWidth || screenPos.Y >= ScreenOffsetY + GridHeight)
             return null;
 
-        // Check if within tile (not in gap)
-        float tileLocalX = adjustedX - viewX * (TileSize + TileGap);
-        float tileLocalY = adjustedY - viewY * (TileSize + TileGap);
-        if (tileLocalX > TileSize || tileLocalY > TileSize)
-            return null;
+        float viewX = (screenPos.X - ScreenOffsetX) / Pitch + Center.X - ViewSize / 2;
+        float viewY = (screenPos.Y - ScreenOffsetY) / Pitch + Center.Y - ViewSize / 2;
 
-        // Convert to world coordinates
-        int worldX = viewX - ViewSize / 2 + CenterX;
-        int worldY = viewY - ViewSize / 2 + CenterY;
+        int worldX = (int)MathF.Floor(viewX);
+        int worldY = (int)MathF.Floor(viewY);
+
+        // Reject the gap between tiles so a click never lands on the wrong side of a seam.
+        Vector2 topLeft = WorldToScreen(worldX, worldY);
+        if (screenPos.X - topLeft.X > TileSize || screenPos.Y - topLeft.Y > TileSize)
+            return null;
 
         return (worldX, worldY);
     }
 
     /// <summary>
-    /// Get all visible tile coordinates.
+    /// Every tile the view can show, plus one tile of overscan on each side so panning
+    /// never leaves a blank strip on the incoming edge.
     /// </summary>
     public IEnumerable<(int x, int y)> GetVisibleTiles()
     {
-        int halfView = ViewSize / 2;
-        for (int y = CenterY - halfView; y <= CenterY + halfView; y++)
+        int half = ViewSize / 2 + 1;
+        int centerX = (int)MathF.Round(Center.X);
+        int centerY = (int)MathF.Round(Center.Y);
+
+        for (int y = centerY - half; y <= centerY + half; y++)
         {
-            for (int x = CenterX - halfView; x <= CenterX + halfView; x++)
+            for (int x = centerX - half; x <= centerX + half; x++)
             {
                 yield return (x, y);
             }
         }
     }
 
-    /// <summary>
-    /// Get the center point of a tile in screen coordinates.
-    /// </summary>
-    public Vector2 GetTileCenter(int worldX, int worldY)
+    /// <summary>Get the centre point of a tile in screen coordinates.</summary>
+    public Vector2 GetTileCenter(float worldX, float worldY)
     {
         Vector2 topLeft = WorldToScreen(worldX, worldY);
         return new Vector2(topLeft.X + TileSize / 2f, topLeft.Y + TileSize / 2f);
@@ -194,49 +122,28 @@ public class Camera
     /// Configure camera dimensions based on available screen space.
     /// Reserves space for UI panels and centers the grid.
     /// </summary>
-    /// <param name="screenWidth">Total screen width in pixels</param>
-    /// <param name="screenHeight">Total screen height in pixels</param>
-    /// <param name="leftPanelWidth">Width reserved for left UI panel (StatsPanel)</param>
-    /// <param name="rightPanelWidth">Width reserved for right UI panel (ActionPanel)</param>
-    /// <param name="padding">Padding around the grid</param>
     public void ConfigureForScreenSize(int screenWidth, int screenHeight,
         int leftPanelWidth = 300, int rightPanelWidth = 320, int padding = 20)
     {
-        // Calculate available space for grid
         int availableWidth = screenWidth - leftPanelWidth - rightPanelWidth - padding * 2;
         int availableHeight = screenHeight - padding * 2;
 
-        // Use the smaller dimension to keep grid square
         int availableSize = Math.Min(availableWidth, availableHeight);
 
-        // Calculate tile size: totalGridSize = ViewSize * TileSize + (ViewSize - 1) * TileGap
-        // Solving for TileSize: TileSize = (availableSize - (ViewSize - 1) * TileGap) / ViewSize
         int calculatedTileSize = (availableSize - (ViewSize - 1) * TileGap) / ViewSize;
-
-        // Clamp tile size to reasonable bounds
         TileSize = Math.Clamp(calculatedTileSize, 60, 300);
 
-        // Center grid horizontally between panels
         int actualGridWidth = ViewSize * TileSize + (ViewSize - 1) * TileGap;
         int gridAreaStart = leftPanelWidth + padding;
         int gridAreaWidth = screenWidth - leftPanelWidth - rightPanelWidth - padding * 2;
         ScreenOffsetX = gridAreaStart + (gridAreaWidth - actualGridWidth) / 2;
 
-        // Center grid vertically
         ScreenOffsetY = (screenHeight - actualGridWidth) / 2;
     }
 
-    /// <summary>
-    /// Get the X position where UI panels on the right should start.
-    /// </summary>
+    /// <summary>Get the X position where UI panels on the right should start.</summary>
     public int GetRightPanelX()
     {
         return ScreenOffsetX + GridWidth + 20; // 20px gap after grid
     }
-
-    /// <summary>
-    /// Ease-out cubic: fast at first, settling at the end. Keeps a camera pan from
-    /// stopping dead when the player steps to the next tile.
-    /// </summary>
-    private static float EaseOutCubic(float t) => 1 - MathF.Pow(1 - t, 3);
 }

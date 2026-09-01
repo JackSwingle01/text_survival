@@ -2,7 +2,6 @@ using text_survival.Actions.Variants;
 using text_survival.Actors;
 using text_survival.Bodies;
 using text_survival.Environments;
-using text_survival.IO;
 using text_survival.UI;
 
 namespace text_survival.Actions.Handlers;

@@ -1,6 +1,6 @@
 using ImGuiNET;
 using System.Numerics;
-using text_survival.Desktop.Dto;
+using text_survival.UI;
 using text_survival.Desktop.Input;
 
 namespace text_survival.Desktop.UI;

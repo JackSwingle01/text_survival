@@ -2,11 +2,8 @@ using text_survival.Actions;
 using text_survival.Bodies;
 using text_survival.Environments;
 using text_survival.Environments.Features;
-using text_survival.IO;
 using text_survival.Items;
 using text_survival.UI;
-using text_survival.Desktop;
-using DesktopIO = text_survival.Desktop.DesktopIO;
 
 namespace text_survival.Actions.Expeditions.WorkStrategies;
 
@@ -19,7 +16,7 @@ public class HarvestStrategy : IWorkStrategy
 {
     private HarvestableFeature? _selectedTarget;
 
-    public string? ValidateLocation(GameContext ctx, Location location)
+    public async Task<string?> ValidateLocation(GameContext ctx, Location location)
     {
         // Use feature's CanBeHarvested method
         var harvestables = location
@@ -37,22 +34,21 @@ public class HarvestStrategy : IWorkStrategy
         }
         else
         {
-            GameDisplay.Render(ctx);
             var harvestChoice = new Choice<HarvestableFeature>("What do you want to harvest?");
             foreach (var h in harvestables)
             {
                 harvestChoice.AddOption($"{h.DisplayName}", h);
             }
-            _selectedTarget = harvestChoice.GetPlayerChoice(ctx);
+            _selectedTarget = await harvestChoice.GetPlayerChoice(ctx);
         }
 
         return null;
     }
 
-    public Choice<int>? GetTimeOptions(GameContext ctx, Location location)
+    public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
     {
         if (_selectedTarget == null)
-            return null;
+            return Task.FromResult<Choice<int>?>(null);
 
         // Build resource preview
         string resourcePreview = BuildResourcePreview(_selectedTarget);
@@ -96,7 +92,7 @@ public class HarvestStrategy : IWorkStrategy
         }
 
         choice.AddOption("Cancel", 0);
-        return choice;
+        return Task.FromResult<Choice<int>?>(choice);
     }
 
     public (int adjustedTime, List<string> warnings) ApplyImpairments(GameContext ctx, Location location, int baseTime)
@@ -111,7 +107,7 @@ public class HarvestStrategy : IWorkStrategy
 
     public bool AllowedInDarkness => false;
 
-    public WorkResult Execute(GameContext ctx, Location location, int actualTime)
+    public async Task<WorkResult> Execute(GameContext ctx, Location location, int actualTime)
     {
         if (_selectedTarget == null)
             return WorkResult.Empty(0);
@@ -133,7 +129,7 @@ public class HarvestStrategy : IWorkStrategy
         }
 
         // Show results in popup overlay
-        DesktopIO.ShowWorkResult(ctx, "Harvesting", resultMessage, collected);
+        await ctx.Ui.ShowWorkResult(new WorkResultView("Harvesting", resultMessage, collected));
 
         return new WorkResult(collected, null, actualTime, false);
     }
