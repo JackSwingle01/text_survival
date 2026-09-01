@@ -43,10 +43,6 @@ namespace text_survival.Actors.Animals
         public bool IsHostile { get; set; } = true;
         public AnimalBehaviorType BehaviorType { get; set; }
         public AnimalSize Size { get; set; }
-        public int FailedStealthChecks { get; set; }
-        public int TrackingDifficulty { get; set; }
-        public bool IsBleeding { get; set; }
-        public DateTime? WoundedTime { get; set; }
         [JsonInclude] private double _speedMps;
         [JsonInclude] private double _pursuitCommitmentSeconds;
         public double SpeedMps => _speedMps;
@@ -110,10 +106,6 @@ namespace text_survival.Actors.Animals
             _speedMps = speedMps;
             _pursuitCommitmentSeconds = pursuitCommitment;
             DisengageAfterMaul = disengageAfterMaul;
-
-            // Defaults
-            FailedStealthChecks = 0;
-            TrackingDifficulty = 5;
         }
 
         #endregion

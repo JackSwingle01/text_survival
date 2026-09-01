@@ -334,7 +334,7 @@ public class CombatScenario
 
         // Calculate hit chance with small target penalty
         bool isSmallTarget = target.actor is Animal animal && animal.Size == AnimalSize.Small;
-        double hitChance = HuntingCalculator.CalculateThrownAccuracy(
+        double hitChance = CombatFormulas.CalculateThrownAccuracy(
             dist, maxRange, baseAccuracy,
             targetIsSmall: isSmallTarget);
 
@@ -361,7 +361,7 @@ public class CombatScenario
 
         // Calculate hit chance with small target penalty (0.66 multiplier)
         bool isSmallTarget = target.actor is Animal animal && animal.Size == AnimalSize.Small;
-        double hitChance = HuntingCalculator.CalculateThrownAccuracy(
+        double hitChance = CombatFormulas.CalculateThrownAccuracy(
             dist, STONE_RANGE_M, STONE_BASE_ACCURACY,
             targetIsSmall: isSmallTarget);
 
@@ -650,7 +650,7 @@ public class CombatScenario
     {
         double distance = mover.Position.DistanceTo(detector.Position);
 
-        double detectionChance = HuntingCalculator.CalculateDetectionChance(
+        double detectionChance = CombatFormulas.CalculateDetectionChance(
             distance,
             detector.Awareness,
             huntingSkill,
@@ -676,7 +676,7 @@ public class CombatScenario
                 ? AwarenessState.Alert
                 : AwarenessState.Engaged;
         }
-        else if (HuntingCalculator.ShouldBecomeAlert(roll, detectionChance) && detector.Awareness == AwarenessState.Unaware)
+        else if (CombatFormulas.ShouldBecomeAlert(roll, detectionChance) && detector.Awareness == AwarenessState.Unaware)
         {
             // Near-miss becomes alert
             return AwarenessState.Alert;
@@ -692,7 +692,7 @@ public class CombatScenario
     {
         double distance = mover.Position.DistanceTo(detector.Position);
 
-        double detectionChance = HuntingCalculator.CalculateDetectionChance(
+        double detectionChance = CombatFormulas.CalculateDetectionChance(
             distance,
             detector.Awareness,
             huntingSkill,

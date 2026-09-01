@@ -50,9 +50,8 @@ public static class SomeHandler
 - `ExpeditionRunner` - manages travel, working, and returning
 - `WorkRunner` - handles foraging, hunting, exploring loops
 - `CraftingRunner` - multi-step crafting interface
-- `HuntRunner` - interactive hunting (creates CarcassFeature on kill)
-- `EncounterRunner` - predator encounter with turn-by-turn decisions
-- `CombatOrchestrator` - grid-based tactical combat module, can be called from encounters, events, hunts (creates CarcassFeature on victory)
+- `HuntRunner` - the approach prompt before a hunt
+- `CombatOrchestrator` - grid-based tactical combat; every fight ends in `CombatAftermath`
 
 ### Pattern:
 ```csharp

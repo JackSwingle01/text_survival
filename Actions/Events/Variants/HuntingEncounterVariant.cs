@@ -251,7 +251,7 @@ public static class HuntingSightingSelector
     public static HuntingBehavior MapActivityToBehavior(Animal animal)
     {
         // Check for wounded first (overrides activity)
-        if (animal.WoundedTime != null)
+        if (animal.WoundLevel > 0.05)
             return HuntingBehavior.Wounded;
 
         // Check nervousness level (high nervousness = alert)

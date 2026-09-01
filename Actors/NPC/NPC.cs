@@ -1454,18 +1454,6 @@ public class NPC : Actor
         return Utils.DetermineSuccess(fightChance);
     }
 
-    /// <summary>
-    /// Check for hostile predators at NPC's current location.
-    /// </summary>
-    [Obsolete("Use GetPriorityThreat() instead - handles all threat types")]
-    internal Animal? GetThreatAtLocation(List<Herd> herds)
-    {
-        var position = Map.GetPosition(CurrentLocation);
-        var herdsHere = herds.At(position);
-        var predatorHerd = herdsHere.FirstOrDefault(h => h.IsPredator);
-        return predatorHerd?.GetRandomMember();
-    }
-
     #endregion
 }
 
