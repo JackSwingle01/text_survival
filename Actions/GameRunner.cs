@@ -34,6 +34,8 @@ public enum CampAction
     CuringRack,
     Sleep,
     MakeCamp,
+    PitchTent,
+    PackTent,
     TreatWounds
 }
 
@@ -65,7 +67,9 @@ public partial class GameRunner(GameContext ctx)
     {
         AudioManager.PlayMusic();
 
-        while (ctx.player.IsAlive && !Raylib.WindowShouldClose())
+        // The run ends when the player dies or reaches the far side of the pass. Both are
+        // derived from state - there is no separate "game over" flag to keep in sync.
+        while (ctx.player.IsAlive && !ctx.CurrentLocation.IsCrossingExit && !Raylib.WindowShouldClose())
         {
             // Handle pending travel from map click or WASD
             if (ctx.PendingTravelTarget.HasValue)
@@ -92,6 +96,9 @@ public partial class GameRunner(GameContext ctx)
                 ProcessAction(action);
             }
         }
+
+        if (ctx.player.IsAlive && ctx.CurrentLocation.IsCrossingExit)
+            return HandleVictory();
 
         // Player died - show death message and offer restart
         if (!ctx.player.IsAlive)
@@ -126,6 +133,38 @@ public partial class GameRunner(GameContext ctx)
 
         // Normal exit (window closed while alive)
         return false;
+    }
+
+    /// <summary>
+    /// The player crossed the pass. Ends the run the same way death does: a closing
+    /// screen, the save deleted, and the choice to start again.
+    /// </summary>
+    private bool HandleVictory()
+    {
+        GameDisplay.ClearNarrative(ctx);
+        GameDisplay.AddSuccess(ctx, "You made it.");
+        GameDisplay.AddNarrative(ctx, "The pass is behind you now.");
+        GameDisplay.AddNarrative(ctx, "Below, the far valley stretches green and sheltered.");
+        GameDisplay.AddNarrative(ctx, "Smoke rises from distant fires. Your tribe is there.");
+        GameDisplay.AddNarrative(ctx, "You survived.");
+
+        string summary =
+            $"You crossed the pass.\n\n" +
+            $"Days survived: {ctx.DaysSurvived}\n" +
+            $"Season: {ctx.Weather.GetSeasonLabel()}";
+
+        string choice = BlockingDialog.PromptConfirm(ctx, summary,
+            new Dictionary<string, string>
+            {
+                { "new_game", "Start New Game" },
+                { "quit", "Quit to Desktop" }
+            },
+            showFullStats: true);
+
+        // The run is over either way - the save must not resume past the ending.
+        SaveManager.DeleteSave(ctx.SessionId);
+
+        return choice == "new_game";
     }
 
     /// <summary>
@@ -518,6 +557,12 @@ public partial class GameRunner(GameContext ctx)
             case CampAction.MakeCamp:
                 MakeCamp();
                 break;
+            case CampAction.PitchTent:
+                CampHandler.DeployTent(ctx, CampHandler.GetDeployableTent(ctx)!);
+                break;
+            case CampAction.PackTent:
+                CampHandler.PackTent(ctx);
+                break;
             case CampAction.TreatWounds:
                 ApplyDirectTreatment();
                 break;
@@ -556,11 +601,7 @@ private void MakeCamp() => CampHandler.MakeCamp(ctx, ctx.CurrentLocation);
         }
     }
 
-    private void RunCrafting()
-    {
-        var craftingRunner = new CraftingRunner(ctx);
-        craftingRunner.Run();
-    }
+    private void RunCrafting() => DesktopIO.RunCraftingAndWait(ctx);
 
     // ═══════════════════════════════════════════════════════════════════════════
     // FIRE MANAGEMENT

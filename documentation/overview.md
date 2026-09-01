@@ -133,7 +133,7 @@ Features are what make locations useful. They live on locations and define avail
 
 **CraftingProjectFeature** — Multi-session construction. Tracks time invested and materials consumed. Progress persists. Material reclaim if abandoned. Some projects benefit from tools (shovel for digging).
 
-**ShelterFeature** — Built protection. Temperature insulation, overhead coverage, wind coverage. Snow shelters degrade in warm temps. Damage/repair system.
+**ShelterFeature** — Built protection. Temperature insulation, overhead coverage, wind coverage. Snow shelters degrade in warm temps. Damage/repair system. A crafted tent is a portable shelter: pitch it anywhere from the action panel and pack it up again to carry on (`CampHandler.DeployTent`/`PackTent`).
 
 **HeatSourceFeature** — Fire. See Fire section above.
 
@@ -721,6 +721,12 @@ Native desktop application using Raylib-cs for graphics and ImGui.NET for overla
 - **Blocking** — GameEventOverlay (events), HuntOverlay, EncounterOverlay, CombatOverlay
 - **Notifications** — DiscoveryOverlay, WeatherChangeOverlay
 
+**Persistent HUD** — `StatsPanel` (survival state, top-left) and `JournalPanel`
+(the last few narrative lines, bottom-left). Toasts say what just happened and fade;
+the journal is where the player reconstructs why. `StatsPanel.Render` draws both, so
+the HUD appears wherever the game renders a frame. `NarrativeLog` keeps the last 200
+entries.
+
 **Rendering Layer**:
 - `WorldRenderer` — Grid tiles, camera following, tile hover
 - `Camera` — Smooth camera movement with easing
@@ -767,11 +773,34 @@ only art source), the desktop rendering layer generally.
 
 ---
 
+## The Mountain Crossing
+
+The win condition, and the only ending other than death.
+
+`GridWorldGenerator.GenerateMountainRange` walls off the north edge with 18 rows of
+impassable mountain and carves a single-tile corridor of Rock through it at a random
+column. `PlacePassLocations` names six stages along that corridor, south to north:
+
+Pass Approach → Lower Pass → The Pass Proper → Upper Descent → Lower Descent → Far Side
+
+Unnamed rock sits between them, so the crossing is an eighteen-tile trek, not a
+doorway. Each stage is colder, more exposed and more hazardous than the last, peaking
+at The Pass Proper (`terrainHazardLevel` 1.0, wind x2, -15°F, near-zero visibility).
+`PlaceNamedLocations` only draws below the mountain rows, so nothing else lands there.
+
+Far Side sets `Location.IsCrossingExit`. `GameRunner.Run` loops
+`while (player.IsAlive && !CurrentLocation.IsCrossingExit)`, so reaching it ends the
+run - there is no separate victory flag to keep in sync. `HandleVictory` closes out
+the same way death does: a final screen with days survived and season, the save
+deleted, and the choice to start again.
+
+**Files**: `Environments/Factories/GridWorldGenerator.cs`, `Environments/Factories/LocationFactory.cs` (Mountain Pass Factories), `Actions/GameRunner.cs`
+
+---
+
 ## Design Direction
 
 Not yet implemented, but shaping future development:
-
-The mountain crossing — Win condition. Requires serious preparation (warmth, supplies, condition). Multi-day expedition.
 
 Megafauna hunts — Trophy hunts that provide materials for gear required for the crossing.
 

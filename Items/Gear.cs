@@ -251,20 +251,6 @@ public class Gear
         WeaponClass = Items.WeaponClass.Pierce
     };
 
-    public static Gear Club(string name = "Wooden Club", int durability = -1) => new()
-    {
-        Name = name,
-        Description = "Blunt weapon. Heavy swings. Crushes bones.",
-        Category = GearCategory.Tool,
-        ToolType = Items.ToolType.Club,
-        BaseWeight = 2.0,
-        Durability = durability,
-        MaxDurability = durability,
-        Damage = 10,
-        BlockChance = 0.08,
-        WeaponClass = Items.WeaponClass.Blunt
-    };
-
     public static Gear Torch(string name = "Torch") => new()
     {
         Name = name,
@@ -276,17 +262,6 @@ public class Gear
         MaxDurability = 1
     };
 
-    public static Gear Shovel(string name = "Bone Shovel", int durability = -1) => new()
-    {
-        Name = name,
-        Description = "Speeds camp setup and snow shelter digging. Made from large bones.",
-        Category = GearCategory.Tool,
-        ToolType = Items.ToolType.Shovel,
-        BaseWeight = 1.2,
-        Durability = durability,
-        MaxDurability = durability
-    };
-
     public static Gear BoneNeedle(string name = "Bone Needle", int durability = 20) => new()
     {
         Name = name,
@@ -294,21 +269,6 @@ public class Gear
         Category = GearCategory.Tool,
         ToolType = Items.ToolType.Needle,
         BaseWeight = 0.05,
-        Durability = durability,
-        MaxDurability = durability
-    };
-
-    public static Gear FurHood(string name = "Fur Hood", int durability = 100) => new()
-    {
-        Name = name,
-        Description = "Keeps your head warm. Raw fur sheds water poorly but traps heat well.",
-        Category = GearCategory.Equipment,
-        Slot = EquipSlot.Head,
-        BaseWeight = 0.4,
-        BaseInsulation = 0.15,
-        BaseWaterproofLevel = 0.1,  // Raw fur
-        BaseCushioning = 0.15,  // Fur is good padding
-        BaseToughness = 0.05,   // Minimal cut resistance
         Durability = durability,
         MaxDurability = durability
     };
@@ -358,21 +318,6 @@ public class Gear
         MaxDurability = durability
     };
 
-    public static Gear FurBoots(string name = "Fur Boots", int durability = 100) => new()
-    {
-        Name = name,
-        Description = "Warm feet mean you can keep moving. Fur insulates well.",
-        Category = GearCategory.Equipment,
-        Slot = EquipSlot.Feet,
-        BaseWeight = 0.6,
-        BaseInsulation = 0.10,
-        BaseWaterproofLevel = 0.1,  // Raw fur
-        BaseCushioning = 0.10,  // Some padding
-        BaseToughness = 0.05,   // Minimal cut resistance
-        Durability = durability,
-        MaxDurability = durability
-    };
-
     public static Gear WornHideBoots(string name = "Worn Hide Boots", int durability = 30) => new()
     {
         Name = name,
@@ -384,21 +329,6 @@ public class Gear
         BaseWaterproofLevel = 0.1,  // Raw hide
         BaseCushioning = 0.06,  // Less padding than fur
         BaseToughness = 0.08,   // Hide provides some cut resistance
-        Durability = durability,
-        MaxDurability = durability
-    };
-
-    public static Gear FurMittens(string name = "Fur Mittens", int durability = 100) => new()
-    {
-        Name = name,
-        Description = "Keeps hands warm. Limits dexterity. Worth it in severe cold.",
-        Category = GearCategory.Equipment,
-        Slot = EquipSlot.Hands,
-        BaseWeight = 0.3,
-        BaseInsulation = 0.08,
-        BaseWaterproofLevel = 0.1,  // Raw fur
-        BaseCushioning = 0.12,  // Fur padding
-        BaseToughness = 0.04,   // Minimal cut resistance
         Durability = durability,
         MaxDurability = durability
     };
@@ -459,21 +389,6 @@ public class Gear
         BaseWaterproofLevel = 0.25,
         BaseCushioning = 0.22,
         BaseToughness = 0.35,
-        Durability = durability,
-        MaxDurability = durability
-    };
-
-    public static Gear CuredHideChest(string name = "Cured Hide Chest", int durability = 120) => new()
-    {
-        Name = name,
-        Description = "Tanned leather. Better waterproofing than raw hide. Less insulation than fur.",
-        Category = GearCategory.Equipment,
-        Slot = EquipSlot.Chest,
-        BaseWeight = 2.0,
-        BaseInsulation = 0.25,
-        BaseWaterproofLevel = 0.35,  // Cured hide is waterproof
-        BaseCushioning = 0.12,  // Less padding (hardened)
-        BaseToughness = 0.22,   // Good cut resistance (cured)
         Durability = durability,
         MaxDurability = durability
     };

@@ -31,6 +31,12 @@ public class Location
 
     public TerrainType Terrain { get; set; } = TerrainType.Plain;
 
+    /// <summary>
+    /// The far side of the mountain pass. Standing here ends the run - the player has
+    /// crossed and found their tribe. Exactly one location on the map sets this.
+    /// </summary>
+    public bool IsCrossingExit { get; init; } = false;
+
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsPassable => Terrain.IsPassable();
 

@@ -22,6 +22,9 @@ public class GridWorldGenerator
     // Positions adjacent to rivers (for adding WaterFeature)
     private HashSet<GridPosition> _riverAdjacentPositions = new();
 
+    /// <summary>Column the pass is carved through, set by GenerateMountainRange.</summary>
+    private int _passX;
+
     // Cluster shapes for terrain feature placement
     private static readonly List<(int dx, int dy)[]> SmallShapes =
     [
@@ -212,7 +215,10 @@ public class GridWorldGenerator
         // Step 6: Place named locations across the map (replaces terrain locations)
         PlaceNamedLocations(map, weather, campPos);
 
-        // Step 7: Set initial position and visibility around camp
+        // Step 7: Name the stages of the crossing along the pass corridor
+        PlacePassLocations(map, weather);
+
+        // Step 8: Set initial position and visibility around camp
         map.CurrentPosition = campPos;
         map.UpdateVisibility();
         camp.MarkExplored();
@@ -585,6 +591,7 @@ public class GridWorldGenerator
         // Randomize pass position (keep it somewhat central)
         int passStart = _rng.Next(Width / 4, Width * 3 / 4);
         int passWidth = 1;  // Single-tile pass through mountains
+        _passX = passStart;
 
         for (int x = 0; x < Width; x++)
         {
@@ -781,6 +788,37 @@ public class GridWorldGenerator
         camp.MarkExplored();
 
         return camp;
+    }
+
+    /// <summary>
+    /// Name the stages of the mountain crossing along the corridor GenerateMountainRange
+    /// carved. They run south to north - Pass Approach at the treeline, Far Side at the
+    /// map's north edge - with unnamed rock between them, so the crossing is a trek
+    /// rather than a doorway. PlaceNamedLocations never reaches these rows.
+    /// </summary>
+    private void PlacePassLocations(GameMap map, Weather weather)
+    {
+        // South to north. The last entry must land on row 0, the map edge the player leaves by.
+        (int Row, Func<Weather, Location> Factory)[] stages =
+        [
+            (15, LocationFactory.MakePassApproach),
+            (12, LocationFactory.MakeLowerPass),
+            (9,  LocationFactory.MakePassProper),
+            (6,  LocationFactory.MakeUpperDescent),
+            (3,  LocationFactory.MakeLowerDescent),
+            (0,  LocationFactory.MakeFarSide),
+        ];
+
+        foreach (var (row, factory) in stages)
+        {
+            if (row >= MountainRows)
+                throw new InvalidOperationException(
+                    $"Pass stage at row {row} falls outside the {MountainRows}-row mountain range.");
+
+            var location = factory(weather);
+            location.Terrain = _terrain[_passX, row];
+            map.SetLocation(_passX, row, location);
+        }
     }
 
     /// <summary>

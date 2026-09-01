@@ -24,7 +24,7 @@ Player interaction is handled by **Runners** — classes that own a game loop an
 - `Actions/GameRunner.cs` — Main camp loop
 - `Actions/Expeditions/ExpeditionRunner.cs` — Travel and expedition logic
 - `Actions/Expeditions/WorkRunner.cs` — Work activities (forage, hunt, explore)
-- `Actions/CraftingRunner.cs` — Crafting menu
+- `Desktop/UI/CraftingOverlay.cs` — Crafting screen
 
 **Why Runners?**
 - Explicit control flow (easy to trace)
@@ -205,7 +205,7 @@ public class GameRunner(GameContext ctx)
 GameRunner (main loop)
 ├── ExpeditionRunner (leaving camp)
 │   └── WorkRunner (activities at locations)
-├── CraftingRunner (making items)
+├── CraftingOverlay (making items)
 └── Direct methods (Wait, TendFire, EatDrink, etc.)
 ```
 
@@ -261,8 +261,8 @@ Activities at a location (not at camp).
 ### Crafting
 
 `GameRunner.RunCrafting()` opens `CraftingOverlay`, which shows the recipes
-and executes the craft itself. `CraftingRunner` is a thin wrapper over the
-same call; see [crafting-system.md](crafting-system.md).
+and executes the craft itself. There is no crafting runner; see
+[crafting-system.md](crafting-system.md).
 
 ---
 

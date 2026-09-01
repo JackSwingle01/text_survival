@@ -2773,6 +2773,7 @@ public static class LocationFactory
         overheadCoverLevel: 0.3,
         visibilityFactor: 1.2)
     {
+        IsCrossingExit = true,
         DiscoveryText = "You made it. The valley stretches before you, green and sheltered.",
         TemperatureDeltaF = 0
     };

@@ -123,20 +123,46 @@ public class CraftOption
         if (!ProducesFeature)
             return null;
 
-        // Consume materials
-        foreach (var req in Requirements)
-        {
-            ConsumeMaterial(inventory, req.Material, req.Count);
-        }
-
-        // Consume tool durability (1 per required tool)
-        foreach (var toolType in RequiredTools)
-        {
-            var tool = inventory.GetTool(toolType)!;
-            tool.Use();
-        }
-
+        ConsumeInputs(inventory);
         return FeatureFactory!();
+    }
+
+    /// <summary>
+    /// Tear down the camp's shelter and put up a log frame in its place, returning the
+    /// new shelter and what the old one gave back. Rebuilding is neither "produces gear"
+    /// nor "produces a feature" - it replaces one - so it gets its own entry point rather
+    /// than a flag the caller has to interpret.
+    /// </summary>
+    public (Environments.Features.ShelterFeature Shelter, Dictionary<Resource, int> Salvage)? CraftShelterRebuild(
+        Environments.Location camp, Inventory inventory)
+    {
+        if (!RebuildShelter)
+            return null;
+
+        var old = camp.GetFeature<Environments.Features.ShelterFeature>()
+            ?? throw new InvalidOperationException("Rebuild Shelter offered with no shelter at camp.");
+
+        ConsumeInputs(inventory);
+
+        var salvage = old.GetSalvageMaterials();
+        foreach (var (resource, count) in salvage)
+            inventory.Add(resource, count);
+
+        camp.RemoveFeature(old);
+        var rebuilt = Environments.Features.ShelterFeature.CreateLogFrame();
+        camp.AddFeature(rebuilt);
+
+        return (rebuilt, salvage);
+    }
+
+    /// <summary>Consume this recipe's materials and a point of durability from each required tool.</summary>
+    private void ConsumeInputs(Inventory inventory)
+    {
+        foreach (var req in Requirements)
+            ConsumeMaterial(inventory, req.Material, req.Count);
+
+        foreach (var toolType in RequiredTools)
+            inventory.GetTool(toolType)!.Use();
     }
 
     private static void AddMaterialToInventory(Inventory inv, MaterialOutput output)

@@ -293,9 +293,6 @@ public static class AbilityCalculator
         if (checkMoving && IsMovingImpaired(capacities.Moving))
         {
             timeFactor *= 1.20;
-            // Debug logging to catch exact state when warning triggers
-            Console.WriteLine($"[DEBUG] Moving impaired: capacity={capacities.Moving:F3}, modifier={effectModifiers.GetCapacityModifier(CapacityNames.Moving):F3}");
-            Console.WriteLine($"[DEBUG] All capacities: Moving={capacities.Moving:F3}, Manipulation={capacities.Manipulation:F3}, Breathing={capacities.Breathing:F3}, Consciousness={capacities.Consciousness:F3}, BloodPumping={capacities.BloodPumping:F3}");
             warnings.Add(GetMovingImpairmentCause(effectRegistry));
         }
 

@@ -68,6 +68,7 @@ public static partial class GameEventRegistry
         ExposedPosition,
         NaturalShelterSpotted,
         Debris,
+        OldCampsite,
         // Location condition events
         DarkPassage,
         WaterCrossing,
@@ -206,6 +207,35 @@ public static partial class GameEventRegistry
 
         // Foraging events
         LuckyFind,
+        BeehiveSpotted,
+
+        // Equipment wear events (GameEventRegistry.Equipment.cs)
+        BootFailure,
+        GlovesFraying,
+        KnifeDulling,
+        ChestWrapTearing,
+        FirestarterFailing,
+
+        // Fishing events (GameEventRegistry.Fishing.cs)
+        IceGivesWay,
+        BearAtFishingHole,
+        WolvesCirclingNets,
+        FumbleOnIce,
+        LuckyCatch,
+
+        // Scavenger events (GameEventRegistry.Scavenger.cs)
+        CirclingScavengers,
+        ContestedCarcass,
+        ThePacksLeavings,
+        Opportunists,
+        ScavengersGambit,
+
+        // Small game sightings (GameEventRegistry.SmallGame.cs)
+        RabbitFreeze,
+        BirdsRoosting,
+        FishVisible,
+        TrackIntersection,
+        GrouseFlushed,
 
         // Location-specific events
         SpottedInOpen,
@@ -234,7 +264,8 @@ public static partial class GameEventRegistry
         InvestigateRemnants,
         FindTheJournal,
         WhatKilledThem,
-        RebuildTheShelter
+        RebuildTheShelter,
+        TheSilence
     ];
 
     public static GameEvent? GetEventOnTick(GameContext ctx, double activityMultiplier = 1.0)

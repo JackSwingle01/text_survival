@@ -168,9 +168,8 @@ Options are initialized in the constructor, organized by category.
 ## CraftingOverlay
 
 Crafting is driven by the overlay, not by a runner. `GameRunner.RunCrafting()`
-opens it via `DesktopIO.RunCraftingAndWait`; `CraftingRunner.Run()` is a
-one-line wrapper around the same call. The overlay lists every category and
-recipe on one screen and executes the craft itself:
+opens it via `DesktopIO.RunCraftingAndWait`. The overlay lists every category
+and recipe on one screen and executes the craft itself:
 
 ```csharp
 // Desktop/UI/CraftingOverlay.cs
@@ -190,15 +189,23 @@ public string? ProcessPendingCraft(GameContext ctx)
 }
 ```
 
-**Not handled by the overlay:** `CraftOption.RebuildShelter`. The only code
-that reads that flag is `CraftingRunner.DoCraft`, which nothing calls. The
-"Rebuild Shelter" recipe sets it and supplies no `GearFactory`, so crafting it
-through the overlay consumes the logs in `CraftOption.Craft` and then throws on
-`return GearFactory!(Durability)`. Porting the branch (or giving the recipe a
-`FeatureFactory`) fixes it.
+A recipe does one of three things, and `CraftOption` owns each:
 
-Feature recipes, including the multi-session `CraftingProjectFeature` ones, go
-through `FeatureFactory`/`CraftFeature` and do work.
+| Recipe shape | Entry point |
+|---|---|
+| Produces gear or materials, or mends | `Craft(inventory)` |
+| Produces a feature (curing rack, shelter, multi-session project) | `CraftFeature(inventory)` |
+| Replaces the camp's shelter (`RebuildShelter`) | `CraftShelterRebuild(camp, inventory)` |
+
+All three consume the recipe's materials and a point of durability from each
+required tool. The overlay picks the entry point and writes the narrative; it
+does not know how any of them work.
+
+**Time.** A recipe's `CraftingTimeMinutes` is the time for someone whole, warm, dry
+and working in daylight. `CraftingEffort.ForRecipe` adjusts it for injured hands
+(+25%), a foggy mind (+25%) and low dexterity - which folds in darkness, wet hands
+and general frailty - up to half again as long, and returns the warnings that say
+which of those is biting.
 
 ---
 
