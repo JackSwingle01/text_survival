@@ -225,25 +225,4 @@ public class GameEventOverlay
         }
     }
 
-    /// <summary>
-    /// Create an EventDto from a GameEvent for display.
-    /// </summary>
-    public static EventDto CreateEventDto(GameEvent evt, GameContext ctx)
-    {
-        var choices = evt.GetAvailableChoices(ctx)
-            .Select((c, i) => new EventChoiceDto(
-                Id: $"choice_{i}",
-                Label: c.Label,
-                Description: c.Description,
-                IsAvailable: true,
-                Cost: c.GetMaxCost() is { } cost ? $"{cost.Amount} {cost.Type}" : null
-            ))
-            .ToList();
-
-        return new EventDto(
-            Name: evt.Name,
-            Description: evt.Description,
-            Choices: choices
-        );
-    }
 }

@@ -64,47 +64,20 @@ public static class GameDisplay
     #endregion
 
     /// <summary>
-    /// Render the game display with optional status text.
-    /// Status text style: laconic, character perspective (e.g. "Resting." "Planning." "Thinking.")
+    /// Draw a frame so queued narrative reaches the screen before the next blocking step.
     /// </summary>
-    public static void Render(
-        GameContext ctx,
-        bool addSeparator = true,
-        string? statusText = null)
-    {
-        if (addSeparator)
-            ctx.Log.AddSeparator();
-        Desktop.DesktopIO.Render(ctx, statusText);
-        return;
-    }
+    public static void Render(GameContext ctx) => Desktop.DesktopIO.Render(ctx);
 
     /// <summary>
-    /// Render a progress loop with status panel updates. Simulates time incrementally during progress bar.
-    /// Returns elapsed time and whether an event interrupted the operation.
+    /// Run a progress bar that simulates the time it displays. Returns elapsed time and
+    /// whether an event interrupted the operation.
     /// </summary>
-    public static (int elapsed, bool interrupted) UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, ActivityType activity, bool updateTime = true)
-    {
-        if (!updateTime)
-        {
-            // Legacy path - just animate without simulation
-            Desktop.DesktopIO.RenderWithDuration(ctx, statusText, minutes);
-            return (minutes, false);
-        }
-
-        // New path - ShowProgress handles both simulation and animation
-        return Desktop.DesktopIO.RenderWithDuration(ctx, statusText, minutes, activity);
-    }
+    public static (int elapsed, bool interrupted) UpdateAndRenderProgress(GameContext ctx, string statusText, int minutes, ActivityType activity)
+        => Desktop.DesktopIO.RenderWithDuration(ctx, statusText, minutes, activity);
 
     /// <summary>
     /// Render the crafting screen showing all categories and recipes.
     /// </summary>
     public static void RenderCraftingScreen(GameContext ctx, Crafting.NeedCraftingSystem crafting, string? title = null)
-    {
-        var headerTitle = title ?? "CRAFTING";
-
-        Desktop.DesktopIO.RenderCrafting(ctx, crafting, headerTitle);
-        return;
-
-    }
-
+        => Desktop.DesktopIO.RenderCrafting(ctx, crafting, title ?? "CRAFTING");
 }

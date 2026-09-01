@@ -462,7 +462,7 @@ public class TravelRunner(GameContext ctx)
         GameDisplay.AddNarrative(_ctx, "");
         GameDisplay.AddNarrative(_ctx, $"Days survived: {_ctx.DaysSurvived}");
         GameDisplay.AddNarrative(_ctx, $"Season: {_ctx.Weather.GetSeasonLabel()}");
-        GameDisplay.Render(_ctx, statusText: "Victory!");
+        GameDisplay.Render(_ctx);
     }
 
 }

@@ -107,8 +107,7 @@ public static class Program
         var actionPanel = new ActionPanel();
         var inputHandler = new InputHandler(worldRenderer);
         var tilePopup = new TilePopup();
-        var proceduralRenderer = new ProceduralIconRenderer();
-        var iconRenderer = new TextureIconRenderer(proceduralRenderer);
+        var iconRenderer = new IconRenderer(AssetPaths.Icons());
 
         // Initialize desktop runtime for blocking I/O
         DesktopRuntime.Initialize(worldRenderer, overlays, actionPanel, inputHandler, tilePopup, iconRenderer);
@@ -142,6 +141,7 @@ public static class Program
         AudioManager.Shutdown();
         Raylib.CloseAudioDevice();
 
+        iconRenderer.Dispose();
         rlImGui.Shutdown();
         Raylib.CloseWindow();
     }

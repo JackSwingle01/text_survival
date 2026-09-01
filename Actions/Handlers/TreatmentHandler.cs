@@ -171,7 +171,7 @@ public static class TreatmentHandler
         if (available.Count == 0)
         {
             GameDisplay.AddNarrative(ctx, "You don't have the right materials to treat your conditions.");
-            GameDisplay.Render(ctx, statusText: "Thinking.");
+            GameDisplay.Render(ctx);
             return;
         }
 
@@ -207,7 +207,7 @@ public static class TreatmentHandler
         }
         choice.AddOption("Cancel", null);
 
-        GameDisplay.Render(ctx, statusText: "Deciding.");
+        GameDisplay.Render(ctx);
         var selected = choice.GetPlayerChoice(ctx);
 
         if (selected == null)
@@ -307,7 +307,7 @@ public static class TreatmentHandler
             }
         }
 
-        GameDisplay.Render(ctx, statusText: "Treating.");
+        GameDisplay.Render(ctx);
     }
 
     private static string GetResourceDisplayName(Resource resource) => resource switch

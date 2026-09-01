@@ -49,7 +49,7 @@ public class TrapStrategy : IWorkStrategy
             }
             else
             {
-                GameDisplay.Render(ctx, statusText: "Planning.");
+                GameDisplay.Render(ctx);
                 var snareChoice = new Choice<Gear>("Which snare do you want to set?");
                 foreach (var snare in snares)
                 {
@@ -60,7 +60,7 @@ public class TrapStrategy : IWorkStrategy
             }
 
             // Ask about bait
-            GameDisplay.Render(ctx, statusText: "Planning.");
+            GameDisplay.Render(ctx);
             var baitChoice = new Choice<BaitType>("Do you want to bait the snare?");
             baitChoice.AddOption("No bait", BaitType.None);
 

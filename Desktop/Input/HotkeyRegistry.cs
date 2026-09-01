@@ -39,11 +39,6 @@ public static class HotkeyRegistry
     };
 
     /// <summary>
-    /// Get the key bound to an action.
-    /// </summary>
-    public static KeyboardKey GetKey(HotkeyAction action) => _bindings[action];
-
-    /// <summary>
     /// Check if an action's key was pressed this frame.
     /// </summary>
     public static bool IsPressed(HotkeyAction action) =>

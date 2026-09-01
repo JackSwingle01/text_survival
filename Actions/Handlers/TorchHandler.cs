@@ -97,7 +97,7 @@ public static class TorchHandler
         }
         toolChoices.Add("Cancel");
 
-        GameDisplay.Render(ctx, statusText: "Preparing.");
+        GameDisplay.Render(ctx);
         string choice = Input.Select(ctx, "Light torch with:", toolChoices);
 
         if (choice == "Cancel")
@@ -133,7 +133,7 @@ public static class TorchHandler
             // Offer retry if materials available
             if (inv.Has(ResourceCategory.Tinder))
             {
-                GameDisplay.Render(ctx, statusText: "Thinking.");
+                GameDisplay.Render(ctx);
                 if (Input.Confirm(ctx, "Try again?"))
                     LightTorchWithFirestarter(ctx);
             }
@@ -174,7 +174,7 @@ public static class TorchHandler
                 chainChoice.AddOption($"Yes, light new torch ({torchCount} remaining)", true);
                 chainChoice.AddOption("No, let it burn out", false);
 
-                GameDisplay.Render(ctx, statusText: "Torch dying.");
+                GameDisplay.Render(ctx);
                 if (chainChoice.GetPlayerChoice(ctx))
                 {
                     ctx.Inventory.LightTorch();

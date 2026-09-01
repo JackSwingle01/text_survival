@@ -44,7 +44,7 @@ public class WorkRunner(GameContext ctx)
 
         string reason = isNight ? "It's too dark to work at night." : "It's too dark to work here.";
         GameDisplay.AddWarning(_ctx, $"{reason} You need a light source.");
-        GameDisplay.Render(_ctx, statusText: "Darkness.");
+        GameDisplay.Render(_ctx);
         return true;
     }
 
@@ -69,7 +69,7 @@ public class WorkRunner(GameContext ctx)
         int workTime = 0;
         if (timeChoice != null)
         {
-            GameDisplay.Render(_ctx, statusText: "Planning.");
+            GameDisplay.Render(_ctx);
             workTime = timeChoice.GetPlayerChoice(_ctx);
 
             if (workTime == 0) // Player cancelled
@@ -118,7 +118,7 @@ public class WorkRunner(GameContext ctx)
         var result = strategy.Execute(_ctx, location, actualTime);
 
         // Show UI and check weight
-        GameDisplay.Render(_ctx, statusText: "Thinking.");
+        GameDisplay.Render(_ctx);
 
         ForceDropIfOverweight();
 
@@ -196,7 +196,7 @@ public class WorkRunner(GameContext ctx)
     {
         int travelMinutes = TravelProcessor.GetTraversalMinutes(ctx.CurrentLocation, discovered, ctx.player, ctx.Inventory);
         GameDisplay.AddNarrative(ctx, $"You've found a path to {discovered.Name}.");
-        GameDisplay.Render(ctx, statusText: "Discovery!");
+        GameDisplay.Render(ctx);
 
         return DesktopIO.Confirm(ctx, $"Go to {discovered.Name} now? (~{travelMinutes} min)");
     }
@@ -279,7 +279,7 @@ public class WorkRunner(GameContext ctx)
             $"You're carrying too much! ({inv.CurrentWeightKg:F1}/{inv.MaxWeightKg:F0} kg)"
         );
         GameDisplay.AddNarrative(_ctx, "You must drop some items.");
-        GameDisplay.Render(_ctx, statusText: "Overburdened.");
+        GameDisplay.Render(_ctx);
 
         // Create a dummy "drop target" that just discards items
         var dropTarget = new Inventory { MaxWeightKg = 10000 };
@@ -296,7 +296,7 @@ public class WorkRunner(GameContext ctx)
             GameDisplay.AddWarning(_ctx,
                 $"Over capacity by {-inv.RemainingCapacityKg:F1} kg. Drop something."
             );
-            GameDisplay.Render(_ctx, statusText: "Overburdened.");
+            GameDisplay.Render(_ctx);
 
             string selected = Input.Select(_ctx, "Drop which item?", options);
             int idx = options.IndexOf(selected);
@@ -306,6 +306,6 @@ public class WorkRunner(GameContext ctx)
         }
 
         GameDisplay.AddNarrative(_ctx, "You adjust your load and continue.");
-        GameDisplay.Render(_ctx, statusText: "Relieved.");
+        GameDisplay.Render(_ctx);
     }
 }

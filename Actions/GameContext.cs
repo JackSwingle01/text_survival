@@ -373,8 +373,8 @@ public class GameContext(Player player, Location camp, Weather weather)
                     break;
             }
 
-            if (render && !string.IsNullOrEmpty(config.StatusText))
-                GameDisplay.Render(this, statusText: config.StatusText);
+            if (render)
+                GameDisplay.Render(this);
         }
 
         if (!player.IsAlive)

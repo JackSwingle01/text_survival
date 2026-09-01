@@ -38,7 +38,7 @@ public class SetNetStrategy : IWorkStrategy
         }
         else
         {
-            GameDisplay.Render(ctx, statusText: "Planning.");
+            GameDisplay.Render(ctx);
             var netChoice = new Choice<Gear>("Which net do you want to set?");
             foreach (var net in nets)
             {

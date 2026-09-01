@@ -185,48 +185,6 @@ public class OverlayManager
         return results;
     }
 
-    public void HandleKeyboardShortcuts(bool iPressed, bool cPressed, bool lPressed, bool nPressed, bool escPressed)
-    {
-        if (escPressed)
-        {
-            // Close the topmost non-blocking overlay
-            if (Transfer.IsOpen)
-                Transfer.IsOpen = false;
-            else if (Food.IsOpen)
-                Food.IsOpen = false;
-            else if (Fire.IsOpen)
-                Fire.IsOpen = false;
-            else if (NPCs.IsOpen)
-                NPCs.IsOpen = false;
-            else if (DiscoveryLog.IsOpen)
-                DiscoveryLog.IsOpen = false;
-            else if (Crafting.IsOpen)
-                Crafting.IsOpen = false;
-            else if (Inventory.IsOpen)
-                Inventory.IsOpen = false;
-            return;
-        }
-
-        if (iPressed)
-        {
-            ToggleInventory();
-        }
-
-        if (cPressed)
-        {
-            ToggleCrafting();
-        }
-
-        if (lPressed)
-        {
-            ToggleDiscoveryLog();
-        }
-
-        if (nPressed)
-        {
-            ToggleNPCs();
-        }
-    }
 }
 
 public class OverlayResults

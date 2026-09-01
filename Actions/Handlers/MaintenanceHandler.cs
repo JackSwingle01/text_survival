@@ -77,7 +77,7 @@ public static class MaintenanceHandler
         }
         choice.AddOption("Cancel", null);
 
-        GameDisplay.Render(ctx, statusText: "Deciding.");
+        GameDisplay.Render(ctx);
         var selected = choice.GetPlayerChoice(ctx);
 
         if (selected == null)

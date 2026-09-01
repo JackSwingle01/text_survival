@@ -122,7 +122,7 @@ public class ExamineStrategy : IWorkStrategy
         else if (!string.IsNullOrEmpty(examinationText))
         {
             // Info-only detail - render to show the text
-            GameDisplay.Render(ctx, statusText: "Examined.");
+            GameDisplay.Render(ctx);
         }
 
         return new WorkResult(collected, null, actualTime, false);

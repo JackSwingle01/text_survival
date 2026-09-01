@@ -97,7 +97,7 @@ Core operations:
 - `MoveTo(location)` — updates position and visibility
 
 Visibility system:
-- `TileVisibility`: Hidden → Explored → Visible
+- `TileVisibility`: Unexplored → Explored → Visible
 - Sight range calculated from current location's visibility factor (0-20 tiles)
 - Moving updates which tiles are visible vs merely explored
 
@@ -724,11 +724,11 @@ Native desktop application using Raylib-cs for graphics and ImGui.NET for overla
 **Rendering Layer**:
 - `WorldRenderer` — Grid tiles, camera following, tile hover
 - `Camera` — Smooth camera movement with easing
-- `TileRenderer`, `TerrainRenderer`, `EffectsRenderer` — Specialized renderers
+- `TileRenderer`, `IconRenderer`, `AnimalRenderer`, `EdgeRenderer`, `EffectsRenderer` — Specialized renderers
 
 **DTOs** — Activity-focused data objects in `Desktop/Dto/`:
-- `Overlay.cs` — EventDto, HuntDto, EncounterDto, CombatDto, InventoryDto, CraftingDto
-- `PlayerResponse.cs` — User input responses
+- `OverlayData.cs` — EventDto, EventChoiceDto, EventOutcomeDto, DiscoveryLogDto
+- `CombatInput.cs` — What the player committed to on a combat turn
 
 Desktop UI interacts with: all game systems (direct state access), events (EventOverlay shows choices), inventory/crafting (overlay display).
 
@@ -736,25 +736,34 @@ Desktop UI interacts with: all game systems (direct state access), events (Event
 
 ### Pixel Art Pipeline
 
-World/UI visuals come from three sources, in priority order: a hand-authored
-16x16 pixel-art PNG (if one exists for that entity), otherwise procedural
-Raylib primitive drawing (`ProceduralIconRenderer`, `AnimalRenderer`,
-`TerrainRenderer`) as a fallback. `tools/PixelArtCli` is a standalone CLI
-(zero dependencies, not part of the main build) that renders a compact text
-format (`.pxa` — an ASCII grid plus a hex-color palette legend) to PNG, so
-pixel art can be authored and reviewed as plain text rather than drawn in an
-image editor. Source files live in `assets/pixelart/`; `render-all` renders
-them into `assets/icons/` where the existing texture loaders
-(`TextureIconRenderer`, `TileRenderer`, `AnimalRenderer`) pick them up
-automatically, falling back to procedural drawing for anything not yet
-authored. All loaded textures use `TextureFilter.Point` so they stay crisp
-when scaled. See `tools/PixelArtCli/README.md` for the format spec and
-per-category naming conventions.
+Every world visual is a hand-authored 16x16 pixel-art PNG. There is no
+procedural fallback: art is the only source, so an entity with no PNG is a
+missing asset, and the loaders say so on stderr rather than quietly drawing
+something else.
 
-Pixel art pipeline interacts with: tile/feature/animal/player rendering (art
-source, procedural is the fallback), the desktop rendering layer generally.
+`tools/PixelArtCli` is a standalone CLI (zero dependencies, not part of the
+main build) that renders a compact text format (`.pxa` — an ASCII grid plus a
+hex-color palette legend) to PNG, so pixel art can be authored and reviewed as
+plain text rather than drawn in an image editor. Source files live in
+`assets/pixelart/`; `render-all` renders them into `assets/icons/`, where the
+loaders pick them up by filename:
 
-**Files**: `tools/PixelArtCli/`, `assets/pixelart/`, `assets/icons/`
+- `IconRenderer` — feature icons. A feature's `MapIcon` string is the PNG's
+  basename, so a new icon is a new file and no code change.
+- `TileRenderer` — terrain tiles (`<terrain>_tile*.png`, several variants per
+  terrain), `player.png`, and `npc/{male,female}_{0..3}.png`.
+- `AnimalRenderer` — `animals/<AnimalType>.png`, one per animal type.
+
+`AssetPaths.Icons()` is the single place that resolves `assets/icons` (next to
+the executable when published, next to the working directory in development)
+and throws if it is missing. All loaded textures use `TextureFilter.Point` so
+they stay crisp when scaled. See `tools/PixelArtCli/README.md` for the format
+spec and per-category naming conventions.
+
+Pixel art pipeline interacts with: tile/feature/animal/player rendering (the
+only art source), the desktop rendering layer generally.
+
+**Files**: `Desktop/Rendering/`, `tools/PixelArtCli/`, `assets/pixelart/`, `assets/icons/`
 
 ---
 

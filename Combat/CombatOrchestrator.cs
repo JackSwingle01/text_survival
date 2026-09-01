@@ -5,6 +5,7 @@ using text_survival.Environments;
 using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.Desktop;
+using text_survival.Desktop.Dto;
 using text_survival.UI;
 
 namespace text_survival.Combat;
@@ -151,24 +152,16 @@ public static class CombatOrchestrator
         int huntingSkill,
         ActivityType activityType)
     {
-        var response = DesktopIO.RenderGridAndWaitForInput(ctx);
+        var input = DesktopIO.WaitForCombatAction(ctx);
+        if (input == null) return; // Window closed - the outer loop stops.
 
-        PlayerActionResult? actionResult = null;
-
-        // Handle click-to-move
-        if (response.CombatMoveTarget != null)
-        {
-            actionResult = ExecuteMoveTo(scenario, playerUnit, response.CombatMoveTarget.Value);
-        }
-        // Handle typed combat action
-        else if (response.CombatAction != null)
-        {
-            actionResult = ExecutePlayerChoice(scenario, playerUnit, response.CombatAction.Value, ctx);
-        }
+        PlayerActionResult actionResult;
+        if (input.MoveTarget != null)
+            actionResult = ExecuteMoveTo(scenario, playerUnit, input.MoveTarget.Value);
+        else if (input.Action != null)
+            actionResult = ExecutePlayerChoice(scenario, playerUnit, input.Action.Value, ctx);
         else
-        {
-            return; // No combat action
-        }
+            throw new InvalidOperationException("Combat input carried neither an action nor a move target.");
 
         if (!string.IsNullOrEmpty(actionResult.Narrative))
             GameDisplay.AddNarrative(ctx, actionResult.Narrative);

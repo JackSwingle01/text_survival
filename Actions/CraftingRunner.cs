@@ -41,12 +41,12 @@ public class CraftingRunner(GameContext ctx)
         if (craftable.Count == 0)
         {
             GameDisplay.AddNarrative(_ctx, $"You need {GetNeedDescription(need)}, but don't have materials to make one.");
-            GameDisplay.Render(_ctx, statusText: "Thinking.");
+            GameDisplay.Render(_ctx);
             return false;
         }
 
         GameDisplay.AddNarrative(_ctx, $"You could make {GetNeedDescription(need)}. Craft one now?");
-        GameDisplay.Render(_ctx, statusText: "Thinking.");
+        GameDisplay.Render(_ctx);
 
         if (!DesktopIO.Confirm(_ctx, "Craft now?"))
             return false;
@@ -72,7 +72,7 @@ public class CraftingRunner(GameContext ctx)
         if (craftable.Count == 0)
         {
             GameDisplay.AddNarrative(_ctx, "You can't make anything right now.");
-            GameDisplay.Render(_ctx, statusText: "Thinking.");
+            GameDisplay.Render(_ctx);
             return false;
         }
 
@@ -179,7 +179,7 @@ public class CraftingRunner(GameContext ctx)
             }
 
             _ctx.RecordItemCrafted(option.Name);
-            GameDisplay.Render(_ctx, statusText: "Satisfied.");
+            GameDisplay.Render(_ctx);
             return true;
         }
 
@@ -321,7 +321,7 @@ public class CraftingRunner(GameContext ctx)
             DesktopIO.ShowMajorDiscovery(_ctx, $"New craft learned: {option.Name}");
         }
 
-        GameDisplay.Render(_ctx, statusText: "Satisfied.");
+        GameDisplay.Render(_ctx);
 
         return true;
     }
