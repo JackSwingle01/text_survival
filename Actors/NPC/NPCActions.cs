@@ -77,7 +77,7 @@ public class NPCHarvest : NPCAction
         var feature = WorkHandler.GetAvailableHarvestable(npc.CurrentLocation);
         if (feature == null)
         {
-            Console.WriteLine($"[NPC:{npc.Name}] No harvestable at {npc.CurrentLocation.Name}");
+            npc.Trace($"[NPC:{npc.Name}] No harvestable at {npc.CurrentLocation.Name}");
             return;
         }
 
@@ -87,7 +87,7 @@ public class NPCHarvest : NPCAction
             var tool = npc.Inventory!.GetTool(feature.RequiredToolType.Value);
             if (!feature.MeetsToolRequirement(tool))
             {
-                Console.WriteLine($"[NPC:{npc.Name}] Missing tool: {feature.GetToolRequirementDescription()}");
+                npc.Trace($"[NPC:{npc.Name}] Missing tool: {feature.GetToolRequirementDescription()}");
                 return;
             }
         }
@@ -98,7 +98,7 @@ public class NPCHarvest : NPCAction
         // Add to NPC inventory (discard overflow)
         _ = npc.Inventory!.CombineWithCapacity(found);
 
-        Console.WriteLine($"[NPC:{npc.Name}] Harvested {found.GetDescription()} from {feature.DisplayName}");
+        npc.Trace($"[NPC:{npc.Name}] Harvested {found.GetDescription()} from {feature.DisplayName}");
     }
 }
 public class NPCChopWood : NPCAction
@@ -111,7 +111,7 @@ public class NPCChopWood : NPCAction
         var feature = npc.CurrentLocation.GetFeature<WoodedAreaFeature>();
         if (feature == null || !feature.HasTrees)
         {
-            Console.WriteLine($"[NPC:{npc.Name}] No trees at {npc.CurrentLocation.Name}");
+            npc.Trace($"[NPC:{npc.Name}] No trees at {npc.CurrentLocation.Name}");
             return;
         }
 
@@ -119,7 +119,7 @@ public class NPCChopWood : NPCAction
         var axe = npc.Inventory!.GetTool(ToolType.Axe);
         if (axe == null || axe.IsBroken)
         {
-            Console.WriteLine($"[NPC:{npc.Name}] No working axe");
+            npc.Trace($"[NPC:{npc.Name}] No working axe");
             return;
         }
 
@@ -136,17 +136,17 @@ public class NPCChopWood : NPCAction
             var overflow = npc.Inventory.CombineWithCapacity(yield);
 
             if (!overflow.IsEmpty)
-                Console.WriteLine($"[NPC:{npc.Name}] Inventory overflow - dropped {overflow.GetDescription()}");
+                npc.Trace($"[NPC:{npc.Name}] Inventory overflow - dropped {overflow.GetDescription()}");
 
-            Console.WriteLine($"[NPC:{npc.Name}] Felled tree! Got {yield.GetDescription()}");
+            npc.Trace($"[NPC:{npc.Name}] Felled tree! Got {yield.GetDescription()}");
         }
         else
         {
-            Console.WriteLine($"[NPC:{npc.Name}] Chopping: {feature.ProgressPct:P0}");
+            npc.Trace($"[NPC:{npc.Name}] Chopping: {feature.ProgressPct:P0}");
         }
 
         if (!axeStillWorks)
-            Console.WriteLine($"[NPC:{npc.Name}] Axe broke!");
+            npc.Trace($"[NPC:{npc.Name}] Axe broke!");
     }
 }
 public class NPCStartFire() : NPCAction("Starting Fire", 10, ActivityType.TendingFire)
@@ -161,7 +161,7 @@ public class NPCTendFire() : NPCAction("Tending Fire", 1, ActivityType.TendingFi
     {
         if (!npc.CurrentLocation.HasFeature<HeatSourceFeature>())
         {
-            Console.WriteLine("Looks like the AI is broke! Trying to tend a fire where there is none!");
+            npc.Trace("Looks like the AI is broke! Trying to tend a fire where there is none!");
             return;
         }
         FireHandler.TendFire(npc.Inventory!, npc.CurrentLocation.GetFeature<HeatSourceFeature>()!);
@@ -187,7 +187,7 @@ public class NPCStash(ResourceCategory resourceCategory) : NPCAction($"Storing {
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
         if (cache == null)
         {
-            Console.WriteLine("AI's BROKE. Trying to store items where there's no cache!");
+            npc.Trace("AI's BROKE. Trying to store items where there's no cache!");
             return;
         }
         while (npc.Inventory!.GetCount(resourceCategory) > 0)
@@ -206,7 +206,7 @@ public class NPCStashWater() : NPCAction("Storing Water", 2, ActivityType.Crafti
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
         if (cache == null)
         {
-            Console.WriteLine("AI's BROKE. Trying to store water where there's no cache!");
+            npc.Trace("AI's BROKE. Trying to store water where there's no cache!");
             return;
         }
         // Transfer all water from NPC inventory to cache storage
@@ -305,7 +305,7 @@ public class NPCFight : NPCAction
         var result = CombatOrchestrator.ResolveHeadless(
             ctx, [npc], enemies, npc.CurrentLocation,
             startDistanceM: 5, AwarenessState.Engaged, AwarenessState.Engaged);
-        Console.WriteLine($"[NPC] {npc.Name} vs {_threat.Name}: {result}");
+        npc.Trace($"[NPC] {npc.Name} vs {_threat.Name}: {result}");
     }
 
     public Actor Threat => _threat;
@@ -344,12 +344,12 @@ public class NPCFlee : NPCAction
 
         if (retreat != null)
         {
-            Console.WriteLine($"[NPC:{npc.Name}] Fleeing to {retreat.Name}");
+            npc.Trace($"[NPC:{npc.Name}] Fleeing to {retreat.Name}");
             npc.CurrentLocation = retreat;
         }
         else
         {
-            Console.WriteLine($"[NPC:{npc.Name}] Cannot flee - no escape route!");
+            npc.Trace($"[NPC:{npc.Name}] Cannot flee - no escape route!");
         }
     }
 }
@@ -394,7 +394,7 @@ public class NPCDrinkWater : NPCAction
         if (consumed > 0)
         {
             npc.Body.AddHydration(consumed * ConsumptionHandler.WaterHydrationPerLiter);
-            Console.WriteLine($"[NPC:{npc.Name}] Drank {consumed:F1}L water");
+            npc.Trace($"[NPC:{npc.Name}] Drank {consumed:F1}L water");
         }
     }
 }
@@ -424,7 +424,7 @@ public class NPCImproveShelter : NPCAction
         var shelter = npc.CurrentLocation.GetFeature<ShelterFeature>();
         if (shelter == null)
         {
-            Console.WriteLine($"[NPC:{npc.Name}] No shelter to improve!");
+            npc.Trace($"[NPC:{npc.Name}] No shelter to improve!");
             return;
         }
 
@@ -437,7 +437,7 @@ public class NPCImproveShelter : NPCAction
 
         // Apply improvement
         double improvement = shelter.Improve(_type, _material, _quantity);
-        Console.WriteLine($"[NPC:{npc.Name}] Improved shelter {_type.ToString().ToLower()} by {improvement:P1} using {_material.ToDisplayName()}");
+        npc.Trace($"[NPC:{npc.Name}] Improved shelter {_type.ToString().ToLower()} by {improvement:P1} using {_material.ToDisplayName()}");
     }
 }
 

@@ -163,7 +163,7 @@ public static class CookingHandler
         var result = CookMeat(inv, location);
         if (result.Success)
         {
-            Console.WriteLine($"[NPC:{actor.Name}] Cooked {result.Amount:F1}kg meat");
+            (actor as NPC)?.Trace($"[NPC:{actor.Name}] Cooked {result.Amount:F1}kg meat");
         }
         return result.Success;
     }
@@ -177,7 +177,7 @@ public static class CookingHandler
         var result = MeltSnow(inv, location);
         if (result.Success)
         {
-            Console.WriteLine($"[NPC:{actor.Name}] Melted snow for {result.Amount:F1}L water");
+            (actor as NPC)?.Trace($"[NPC:{actor.Name}] Melted snow for {result.Amount:F1}L water");
         }
         return result.Success;
     }

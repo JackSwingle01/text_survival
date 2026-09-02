@@ -15,7 +15,15 @@ namespace text_survival.Environments.Features;
 /// </summary>
 public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 {
-    private static int _nextId = 1;
+    // [ThreadStatic] so parallel world generations do not share (or race on) this counter.
+    // Ids must be per-world to be reproducible; a process-wide counter made the same seed
+    // produce different ids depending on what else had been generated first.
+    [ThreadStatic] private static int _nextIdBacking;
+    private static int _nextId
+    {
+        get => _nextIdBacking == 0 ? _nextIdBacking = 1 : _nextIdBacking;
+        set => _nextIdBacking = value;
+    }
 
     public string Id { get; init; }
 

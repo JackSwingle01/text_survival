@@ -156,7 +156,7 @@ public class NPC : Actor
 
             // pick action and do it
             CurrentAction = DetermineActionForNeed(context);
-            Console.WriteLine($"[NPC:{Name}] Picked: {CurrentAction?.Name} for need {CurrentNeed}");
+            Trace($"[NPC:{Name}] Picked: {CurrentAction?.Name} for need {CurrentNeed}");
             AddLog(CurrentAction?.LogMessage);
             ContinueAction();
         }
@@ -197,7 +197,7 @@ public class NPC : Actor
         // check for completion
         if (CurrentAction.IsComplete())
         {
-            Console.WriteLine($"[NPC:{Name}] Completed: {CurrentAction.Name} ({CurrentAction.MinutesSpent}/{CurrentAction.DurationMinutes} min)");
+            Trace($"[NPC:{Name}] Completed: {CurrentAction.Name} ({CurrentAction.MinutesSpent}/{CurrentAction.DurationMinutes} min)");
             CurrentAction.Complete(this);
             int minutesLeftover = CurrentAction.MinutesSpent - CurrentAction.DurationMinutes;
             CurrentAction = null;
@@ -205,7 +205,7 @@ public class NPC : Actor
     }
     private NPCAction DetermineActionForNeed(SurvivalContext context)
     {
-        if (TraceDecisions) Console.WriteLine($"  [Warmth] Determining action for need: {CurrentNeed}");
+        if (IsTracing) Trace($"  [Warmth] Determining action for need: {CurrentNeed}");
         if (CurrentNeed == NeedType.Warmth)
         {
             var warm = HandleWarmthNeed(context);
@@ -253,7 +253,7 @@ public class NPC : Actor
         if (notAtFire)
         {
             var knownActiveFire = GetKnownActiveFire();
-            if (TraceDecisions) Console.WriteLine($"  [Warmth] Known fire: {knownActiveFire?.Name ?? "none"}");
+            if (IsTracing) Trace($"  [Warmth] Known fire: {knownActiveFire?.Name ?? "none"}");
 
             // If the known fire is weak enough that this NPC left it to find fuel,
             // marching straight back empty-handed just repeats the trip. Gather here
@@ -264,7 +264,7 @@ public class NPC : Actor
                 var gatherHere = GetResourceAtCurrentLocation(ResourceCategory.Fuel, urgent: true);
                 if (gatherHere != null)
                 {
-                    if (TraceDecisions) Console.WriteLine($"  [Warmth] No fuel for {knownActiveFire.Name} - gathering here first");
+                    if (IsTracing) Trace($"  [Warmth] No fuel for {knownActiveFire.Name} - gathering here first");
                     return gatherHere;
                 }
             }
@@ -272,13 +272,13 @@ public class NPC : Actor
             // known fire -> go there
             if (knownActiveFire != null)
             {
-                if (TraceDecisions) Console.WriteLine($"  [Warmth] Going to fire at {knownActiveFire.Name}");
+                if (IsTracing) Trace($"  [Warmth] Going to fire at {knownActiveFire.Name}");
                 var move = DecideToMove(knownActiveFire);
                 if (move != null) return move;
             }
             else if (Camp != null) // if no known fire prefer to make it at camp
             {
-                if (TraceDecisions) Console.WriteLine($"  [Warmth] Going to camp");
+                if (IsTracing) Trace($"  [Warmth] Going to camp");
                 var move = DecideToMove(Camp, maxTiles: 16); // only if close
                 if (move != null) return move;
             }
@@ -293,13 +293,13 @@ public class NPC : Actor
             if (warmingEffectively)
             {
                 // Fire is good, rest and warm up
-                if (TraceDecisions) Console.WriteLine($"  [Warmth] At fire, warming effectively, resting");
+                if (IsTracing) Trace($"  [Warmth] At fire, warming effectively, resting");
                 return new NPCRest(Utils.RandInt(5, 15));
             }
             else
             {
                 // Fire is too weak - need to improve it
-                if (TraceDecisions) Console.WriteLine($"  [Warmth] Fire too weak, need to tend");
+                if (IsTracing) Trace($"  [Warmth] Fire too weak, need to tend");
                 needToTendFire = true;
             }
         }
@@ -310,7 +310,7 @@ public class NPC : Actor
             var fireFeature = CurrentLocation.GetFeature<HeatSourceFeature>()!;
             if (FireHandler.CanTendFire(Inventory, fireFeature))
             {
-                if (TraceDecisions) Console.WriteLine($"  [Warmth] Tending fire");
+                if (IsTracing) Trace($"  [Warmth] Tending fire");
                 return new NPCTendFire();
             }
 
@@ -320,11 +320,11 @@ public class NPC : Actor
                 // unattended - it's a two-minute trip instead of a round trip to forage.
                 if (CurrentLocation == Camp && CampHas(ResourceCategory.Fuel))
                 {
-                    if (TraceDecisions) Console.WriteLine($"  [Warmth] Getting fuel from cache (urgent)");
+                    if (IsTracing) Trace($"  [Warmth] Getting fuel from cache (urgent)");
                     return new NPCTakeResourceFromCache(ResourceCategory.Fuel);
                 }
 
-                if (TraceDecisions) Console.WriteLine($"  [Warmth] Getting fuel (urgent)");
+                if (IsTracing) Trace($"  [Warmth] Getting fuel (urgent)");
                 var get = DetermineGetResource(ResourceCategory.Fuel, urgent: true);
                 if (get != null) return get;
             }
@@ -334,36 +334,36 @@ public class NPC : Actor
         if (needToStartFire)
         {
             var hasTool = FireHandler.GetBestTool(Inventory) != null;
-            if (TraceDecisions) Console.WriteLine($"  [Warmth] Has fire tool: {hasTool}");
+            if (IsTracing) Trace($"  [Warmth] Has fire tool: {hasTool}");
             if (FireHandler.CanStartFire(Inventory))
             {
-                if (TraceDecisions) Console.WriteLine($"  [Warmth] Can start fire, starting");
+                if (IsTracing) Trace($"  [Warmth] Can start fire, starting");
                 return new NPCStartFire();
             }
             // No fire-starting tool? Try to craft one before gathering resources
             if (!hasTool)
             {
-                if (TraceDecisions) Console.WriteLine($"  [Warmth] No tool, trying to craft");
+                if (IsTracing) Trace($"  [Warmth] No tool, trying to craft");
                 var craft = DetermineCraft();
                 if (craft != null)
                 {
-                    if (TraceDecisions) Console.WriteLine($"  [Warmth] Crafting: {craft.Name}");
+                    if (IsTracing) Trace($"  [Warmth] Crafting: {craft.Name}");
                     return craft;
                 }
-                if (TraceDecisions) Console.WriteLine($"  [Warmth] Can't craft, skipping fire materials");
+                if (IsTracing) Trace($"  [Warmth] Can't craft, skipping fire materials");
                 // Can't craft tool - don't gather fire materials we can't use
             }
             else
             {
                 if (FireHandler.GetFireMaterials(Inventory).Tinders.Count < 1)
                 {
-                    if (TraceDecisions) Console.WriteLine($"  [Warmth] Getting tinder");
+                    if (IsTracing) Trace($"  [Warmth] Getting tinder");
                     var get = DetermineGetResource(ResourceCategory.Tinder);
                     if (get != null) return get;
                 }
                 if (!FireHandler.GetFireMaterials(Inventory).HasKindling)
                 {
-                    if (TraceDecisions) Console.WriteLine($"  [Warmth] Getting fuel");
+                    if (IsTracing) Trace($"  [Warmth] Getting fuel");
                     var get = DetermineGetResource(ResourceCategory.Fuel);
                     if (get != null) return get;
                 }
@@ -377,25 +377,25 @@ public class NPC : Actor
         if (exploreAction != null) return exploreAction;
 
         // If even exploration fails (low boldness), fall through to idle as last resort
-        if (TraceDecisions) Console.WriteLine($"  [Warmth] Falling through to work/craft");
+        if (IsTracing) Trace($"  [Warmth] Falling through to work/craft");
         return null;
     }
     private NPCAction? HandleWaterNeed(SurvivalContext context)
     {
-        if (TraceDecisions) Console.WriteLine($"  [Water] Determining action for water need");
+        if (IsTracing) Trace($"  [Water] Determining action for water need");
 
         // Check for water in inventory first - drink it
         double waterAvailable = Inventory.Weight(Resource.Water);
         if (waterAvailable > 0.1)
         {
-            if (TraceDecisions) Console.WriteLine($"  [Water] Drinking from inventory ({waterAvailable:F1}L)");
+            if (IsTracing) Trace($"  [Water] Drinking from inventory ({waterAvailable:F1}L)");
             return new NPCDrinkWater();
         }
 
         // At active fire? Melt snow for water
         if (CookingHandler.CanMeltSnow(CurrentLocation))
         {
-            if (TraceDecisions) Console.WriteLine($"  [Water] Melting snow at fire");
+            if (IsTracing) Trace($"  [Water] Melting snow at fire");
             return new NPCMeltSnow();
         }
 
@@ -414,7 +414,7 @@ public class NPC : Actor
         var knownActiveFire = GetKnownActiveFire();
         if (knownActiveFire != null && knownActiveFire != CurrentLocation)
         {
-            if (TraceDecisions) Console.WriteLine($"  [Water] Going to fire at {knownActiveFire.Name} to melt snow");
+            if (IsTracing) Trace($"  [Water] Going to fire at {knownActiveFire.Name} to melt snow");
             var move = DecideToMove(knownActiveFire);
             if (move != null) return move;
         }
@@ -424,18 +424,18 @@ public class NPC : Actor
         if (coldAction != null) return coldAction;
 
         // No fire available - need to start one first, then melt snow
-        if (TraceDecisions) Console.WriteLine($"  [Water] Need fire to melt snow - switching to warmth");
+        if (IsTracing) Trace($"  [Water] Need fire to melt snow - switching to warmth");
         CurrentNeed = NeedType.Warmth;
         return DetermineActionForNeed(context);
     }
     private NPCAction? HandleFoodNeed(SurvivalContext context)
     {
-        if (TraceDecisions) Console.WriteLine($"  [Food] Determining action for food need");
+        if (IsTracing) Trace($"  [Food] Determining action for food need");
 
         // Priority 1: Eat cooked meat (ready to consume)
         if (Inventory.Count(Resource.CookedMeat) > 0)
         {
-            if (TraceDecisions) Console.WriteLine($"  [Food] Eating cooked meat");
+            if (IsTracing) Trace($"  [Food] Eating cooked meat");
             return new NPCEat(Resource.CookedMeat, Inventory.Pop(Resource.CookedMeat));
         }
 
@@ -444,7 +444,7 @@ public class NPC : Actor
         {
             if (CookingHandler.CanCookMeat(Inventory, CurrentLocation))
             {
-                if (TraceDecisions) Console.WriteLine($"  [Food] Cooking raw meat at fire");
+                if (IsTracing) Trace($"  [Food] Cooking raw meat at fire");
                 return new NPCCookMeat();
             }
 
@@ -452,13 +452,13 @@ public class NPC : Actor
             var knownActiveFire = GetKnownActiveFire();
             if (knownActiveFire != null && knownActiveFire != CurrentLocation)
             {
-                if (TraceDecisions) Console.WriteLine($"  [Food] Going to fire at {knownActiveFire.Name} to cook meat");
+                if (IsTracing) Trace($"  [Food] Going to fire at {knownActiveFire.Name} to cook meat");
                 var move = DecideToMove(knownActiveFire);
                 if (move != null) return move;
             }
 
             // No fire available - start one (warmth need handles fire creation)
-            if (TraceDecisions) Console.WriteLine($"  [Food] Need fire to cook - switching to warmth");
+            if (IsTracing) Trace($"  [Food] Need fire to cook - switching to warmth");
             CurrentNeed = NeedType.Warmth;
             return DetermineActionForNeed(context);
         }
@@ -467,7 +467,7 @@ public class NPC : Actor
         if (HasResource(ResourceCategory.Food))
         {
             var food = Inventory.FindAnyResourceInCategory(ResourceCategory.Food);
-            if (TraceDecisions) Console.WriteLine($"  [Food] Eating {food}");
+            if (IsTracing) Trace($"  [Food] Eating {food}");
             return new NPCEat(food, Inventory.Pop(food));
         }
 
@@ -495,14 +495,14 @@ public class NPC : Actor
             var nextLoc = Map.GetNextInPath(CurrentLocation, destination);
             if (nextLoc != null)
             {
-                if (TraceDecisions) Console.WriteLine($"  [Moving] Going to {destination.Name}");
+                if (IsTracing) Trace($"  [Moving] Going to {destination.Name}");
                 return new NPCMove(nextLoc, this);
             }
-            if (TraceDecisions) Console.WriteLine($"Can't move to {destination} - no path");
+            if (IsTracing) Trace($"Can't move to {destination} - no path");
         }
         else
         {
-            if (TraceDecisions) Console.WriteLine($"Can't move to {destination} - too far");
+            if (IsTracing) Trace($"Can't move to {destination} - too far");
         }
         return null;
     }
@@ -559,7 +559,7 @@ public class NPC : Actor
 
         double minutesToTarget = degreesNeeded / warmingRate;
 
-        if (TraceDecisions) Console.WriteLine($"  [Warmth] Rate: {warmingRate:F2}°F/min, need {degreesNeeded:F1}°F, ETA: {minutesToTarget:F0}min");
+        if (IsTracing) Trace($"  [Warmth] Rate: {warmingRate:F2}°F/min, need {degreesNeeded:F1}°F, ETA: {minutesToTarget:F0}min");
 
         return minutesToTarget <= MAX_ACCEPTABLE_MINUTES;
     }
@@ -583,7 +583,7 @@ public class NPC : Actor
 
         if (!canSurvive)
         {
-            if (TraceDecisions) Console.WriteLine($"  [Survival] {durationMinutes}min away would drop warmth to {projectedWarmPct:P0} - too dangerous");
+            if (IsTracing) Trace($"  [Survival] {durationMinutes}min away would drop warmth to {projectedWarmPct:P0} - too dangerous");
         }
 
         return canSurvive;
@@ -610,7 +610,7 @@ public class NPC : Actor
 
         if (blocked)
         {
-            if (TraceDecisions) Console.WriteLine($"  [Prerequisite] Blocked by cold (projected warmth after {estimatedMinutes}min: {projectedWarmPct:P0})");
+            if (IsTracing) Trace($"  [Prerequisite] Blocked by cold (projected warmth after {estimatedMinutes}min: {projectedWarmPct:P0})");
         }
 
         return blocked;
@@ -625,7 +625,7 @@ public class NPC : Actor
         if (!IsBlockedByCold())
             return null;
 
-        if (TraceDecisions) Console.WriteLine($"  [Prerequisite] {CurrentNeed} blocked by cold → switching to Warmth");
+        if (IsTracing) Trace($"  [Prerequisite] {CurrentNeed} blocked by cold → switching to Warmth");
         CurrentNeed = NeedType.Warmth;
         return DetermineActionForNeed(context);
     }
@@ -655,7 +655,7 @@ public class NPC : Actor
             return null;
 
         var destination = ResourceMemory.LeastRecentlyVisited(adjacentLocations)!;
-        if (TraceDecisions) Console.WriteLine($"  [Exploration] {reason} → exploring to {destination.Name}");
+        if (IsTracing) Trace($"  [Exploration] {reason} → exploring to {destination.Name}");
         return new NPCMove(destination, this);
     }
 
@@ -731,23 +731,23 @@ public class NPC : Actor
     /// </summary>
     private NPCAction? DetermineGetSpecificResource(Resource resource)
     {
-        if (TraceDecisions) Console.WriteLine($"    [GetResource] Looking for specific: {resource} at {CurrentLocation.Name}");
+        if (IsTracing) Trace($"    [GetResource] Looking for specific: {resource} at {CurrentLocation.Name}");
 
         // can't gather if inv already full
         var invFull = DealWithFullInventory();
         if (invFull != null)
         {
-            if (TraceDecisions) Console.WriteLine($"    [GetResource] Inventory full, returning early");
+            if (IsTracing) Trace($"    [GetResource] Inventory full, returning early");
             return invFull;
         }
 
         // in tile -> work (if this location has this specific resource)
         var forage = CurrentLocation.GetFeature<ForageFeature>();
-        if (TraceDecisions) Console.WriteLine($"    [GetResource] ForageFeature: {(forage != null ? "yes" : "no")}, NearlyDepleted: {forage?.IsNearlyDepleted()}");
+        if (IsTracing) Trace($"    [GetResource] ForageFeature: {(forage != null ? "yes" : "no")}, NearlyDepleted: {forage?.IsNearlyDepleted()}");
         if (forage != null)
         {
             var provided = forage.ProvidedResources();
-            if (TraceDecisions) Console.WriteLine($"    [GetResource] Provided resources: [{string.Join(", ", provided)}]");
+            if (IsTracing) Trace($"    [GetResource] Provided resources: [{string.Join(", ", provided)}]");
         }
         if (forage != null && forage.CanForage() &&
             forage.ProvidedResources().Contains(resource))
@@ -756,22 +756,22 @@ public class NPC : Actor
             // Check if we can survive foraging in current conditions
             if (!CanSurviveAwayFromFire(forageTime))
                 return null;
-            if (TraceDecisions) Console.WriteLine($"    [GetResource] Found {resource} at current location, foraging");
+            if (IsTracing) Trace($"    [GetResource] Found {resource} at current location, foraging");
             return new NPCForage(forageTime);
         }
 
         // in adjacent -> move to location that has this specific resource
         var adjacentLocations = Map.GetTravelOptionsFrom(CurrentLocation).ToList();
-        if (TraceDecisions) Console.WriteLine($"    [GetResource] Adjacent locations: {string.Join(", ", adjacentLocations.Select(l => l.Name))}");
+        if (IsTracing) Trace($"    [GetResource] Adjacent locations: {string.Join(", ", adjacentLocations.Select(l => l.Name))}");
         foreach (var adj in adjacentLocations)
         {
             var adjResources = GetAccessibleResources(adj);
-            if (TraceDecisions) Console.WriteLine($"    [GetResource]   {adj.Name} has: [{string.Join(", ", adjResources)}]");
+            if (IsTracing) Trace($"    [GetResource]   {adj.Name} has: [{string.Join(", ", adjResources)}]");
         }
         var adjacentWithResource = adjacentLocations
             .Where(loc => GetAccessibleResources(loc).Contains(resource))
             .ToList();
-        if (TraceDecisions) Console.WriteLine($"    [GetResource] Adjacent with {resource}: {adjacentWithResource.Count}");
+        if (IsTracing) Trace($"    [GetResource] Adjacent with {resource}: {adjacentWithResource.Count}");
 
         var locWithResource = adjacentWithResource.Count > 0
             ? Utils.GetRandomFromList(adjacentWithResource)
@@ -781,14 +781,14 @@ public class NPC : Actor
         var remembered = ResourceMemory.WhereIs(resource).FirstOrDefault();
         if (remembered != null)
         {
-            if (TraceDecisions) Console.WriteLine($"    [GetResource] Remembered location with {resource}: {remembered.Name}");
+            if (IsTracing) Trace($"    [GetResource] Remembered location with {resource}: {remembered.Name}");
             locWithResource ??= remembered;
         }
 
         // unknown? -> explore outward, as far as boldness allows
         if (locWithResource == null && !IsBeyondExploreLeash())
         {
-            if (TraceDecisions) Console.WriteLine($"    [GetResource] No known location, exploring");
+            if (IsTracing) Trace($"    [GetResource] No known location, exploring");
             locWithResource = ResourceMemory.LeastRecentlyVisited(Map.GetTravelOptionsFrom(CurrentLocation).ToList());
         }
 
@@ -798,22 +798,22 @@ public class NPC : Actor
             int estimatedTravelMinutes = 10;
             if (!CanSurviveAwayFromFire(estimatedTravelMinutes))
             {
-                if (TraceDecisions) Console.WriteLine($"    [GetResource] Too dangerous to travel");
+                if (IsTracing) Trace($"    [GetResource] Too dangerous to travel");
                 return null;
             }
 
-            if (TraceDecisions) Console.WriteLine($"    [GetResource] Moving to {locWithResource.Name}");
+            if (IsTracing) Trace($"    [GetResource] Moving to {locWithResource.Name}");
             var move = DecideToMove(locWithResource);
             if (move != null) return move;
         }
 
-        if (TraceDecisions) Console.WriteLine($"    [GetResource] Could not find {resource}");
+        if (IsTracing) Trace($"    [GetResource] Could not find {resource}");
         return null;
     }
 
     private NPCAction? DetermineGetResource(ResourceCategory category, bool allowCamp = true, bool urgent = false)
     {
-        if (TraceDecisions) Console.WriteLine($"    [GetResource] Looking for category: {category}{(urgent ? " (URGENT)" : "")}");
+        if (IsTracing) Trace($"    [GetResource] Looking for category: {category}{(urgent ? " (URGENT)" : "")}");
 
         // can't gather if inv already full
         var invFull = DealWithFullInventory();
@@ -849,11 +849,11 @@ public class NPC : Actor
             int estimatedTravelMinutes = 10;
             if (!urgent && !CanSurviveAwayFromFire(estimatedTravelMinutes))
             {
-                if (TraceDecisions) Console.WriteLine($"    [GetResource] Too dangerous to travel");
+                if (IsTracing) Trace($"    [GetResource] Too dangerous to travel");
                 return null;
             }
 
-            if (TraceDecisions) Console.WriteLine($"    [GetResource] Moving to {locWithResource.Name}");
+            if (IsTracing) Trace($"    [GetResource] Moving to {locWithResource.Name}");
             return new NPCMove(locWithResource, this);
         }
         // otherwise wait
@@ -1036,7 +1036,7 @@ public class NPC : Actor
         if (Inventory.Weight(Resource.Water) >= WaterReserveLiters) return null;
         if (!Inventory.CanCarry(CookingHandler.MeltSnowWaterLiters)) return null;
 
-        if (TraceDecisions) Console.WriteLine($"  [Water] Building reserve ({Inventory.Weight(Resource.Water):F1}/{WaterReserveLiters:F1}L)");
+        if (IsTracing) Trace($"  [Water] Building reserve ({Inventory.Weight(Resource.Water):F1}/{WaterReserveLiters:F1}L)");
         return new NPCMeltSnow();
     }
 
@@ -1059,12 +1059,12 @@ public class NPC : Actor
 
             if (FireHandler.CanTendFire(Inventory, fire))
             {
-                if (TraceDecisions) Console.WriteLine($"  [Fire] Proactively tending camp fire ({fire.TotalHoursRemaining:F1}h left)");
+                if (IsTracing) Trace($"  [Fire] Proactively tending camp fire ({fire.TotalHoursRemaining:F1}h left)");
                 return new NPCTendFire();
             }
             if (CampHas(ResourceCategory.Fuel))
             {
-                if (TraceDecisions) Console.WriteLine($"  [Fire] Getting fuel from cache to tend camp fire");
+                if (IsTracing) Trace($"  [Fire] Getting fuel from cache to tend camp fire");
                 return new NPCTakeResourceFromCache(ResourceCategory.Fuel);
             }
             return null;
@@ -1072,7 +1072,7 @@ public class NPC : Actor
 
         if (FireHandler.CanStartFire(Inventory))
         {
-            if (TraceDecisions) Console.WriteLine($"  [Fire] Camp fire is out - relighting");
+            if (IsTracing) Trace($"  [Fire] Camp fire is out - relighting");
             return new NPCStartFire();
         }
 
@@ -1097,14 +1097,14 @@ public class NPC : Actor
     }
     internal NPCAction? DealWithFullInventory()
     {
-        if (TraceDecisions) Console.WriteLine($"    [InvCheck] Current: {Inventory.CurrentWeightKg:F2}kg, Max: {Inventory.MaxWeightKg:F2}kg, Threshold: {Inventory.MaxWeightKg * .9:F2}kg");
+        if (IsTracing) Trace($"    [InvCheck] Current: {Inventory.CurrentWeightKg:F2}kg, Max: {Inventory.MaxWeightKg:F2}kg, Threshold: {Inventory.MaxWeightKg * .9:F2}kg");
         // if inv full -> return to camp
         if (Inventory.CurrentWeightKg > Inventory.MaxWeightKg * .9)
         {
-            if (TraceDecisions) Console.WriteLine($"    [InvCheck] Inventory full! At camp: {CurrentLocation == Camp}");
+            if (IsTracing) Trace($"    [InvCheck] Inventory full! At camp: {CurrentLocation == Camp}");
             if (Camp != null && CurrentLocation != Camp)
             {
-                if (TraceDecisions) Console.WriteLine($"    [InvCheck] Returning to camp");
+                if (IsTracing) Trace($"    [InvCheck] Returning to camp");
                 var move = DecideToMove(Camp);
                 if (move != null) return move;
             }
@@ -1117,7 +1117,7 @@ public class NPC : Actor
                     var heaviest = heaviestResource.GetCategory();
                     if (heaviest != null)
                     {
-                        if (TraceDecisions) Console.WriteLine($"    [InvCheck] Stashing {heaviest}");
+                        if (IsTracing) Trace($"    [InvCheck] Stashing {heaviest}");
                         return new NPCStash((ResourceCategory)heaviest);
                     }
                 }
@@ -1125,11 +1125,11 @@ public class NPC : Actor
                 double waterWeight = Inventory.Weight(Resource.Water);
                 if (waterWeight > 0)
                 {
-                    if (TraceDecisions) Console.WriteLine($"    [InvCheck] Stashing Water ({waterWeight:F1}L)");
+                    if (IsTracing) Trace($"    [InvCheck] Stashing Water ({waterWeight:F1}L)");
                     return new NPCStashWater();
                 }
                 // Only tools/equipment remain - can't stash, continue with tasks
-                if (TraceDecisions) Console.WriteLine($"    [InvCheck] At camp, inv full, only tools/equipment - continuing");
+                if (IsTracing) Trace($"    [InvCheck] At camp, inv full, only tools/equipment - continuing");
                 return null;
             }
         }
@@ -1143,7 +1143,16 @@ public class NPC : Actor
     /// (40) matches the original DAYS_RESERVE(2) * 20/day formula exactly, so gameplay
     /// behavior is unchanged unless a test explicitly sets this.
     /// </summary>
-    internal static double FuelStockpileTargetKg = 40;
+    /// <remarks>
+    /// [ThreadStatic] so a parameter sweep can vary it without one parallel run's value
+    /// leaking into another's, matching how <see cref="Utils.Rng"/> is already isolated.
+    /// </remarks>
+    [ThreadStatic] private static double _fuelStockpileTargetKg;
+    internal static double FuelStockpileTargetKg
+    {
+        get => _fuelStockpileTargetKg <= 0 ? 40 : _fuelStockpileTargetKg;
+        set => _fuelStockpileTargetKg = value;
+    }
 
     /// <summary>
     /// Per-decision tracing. Off by default: these lines are debug narration nothing reads
@@ -1152,7 +1161,18 @@ public class NPC : Actor
     /// The action-level "Picked:"/"Completed:" lines are always emitted - they are one per
     /// action, and the harness counts behaviour from them.
     /// </summary>
-    internal static bool TraceDecisions;
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal Action<string>? TraceSink { get; set; }
+
+    /// <summary>
+    /// True when something is listening. Guard interpolated trace strings with this - see
+    /// the note above about their cost dominating simulation runtime.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal bool IsTracing => TraceSink != null;
+
+    /// <summary>Narrate a decision to whoever attached a sink. No-op in a normal game.</summary>
+    internal void Trace(string line) => TraceSink?.Invoke(line);
 
     /// <summary>
     /// How much of a resource the camp wants stockpiled. Fuel bypasses the per-day-rate
@@ -1201,7 +1221,7 @@ public class NPC : Actor
             NeedType.Food => NeedCategory.HuntingWeapon,
             _ => null
         };
-        if (TraceDecisions) Console.WriteLine($"Need {category}");
+        if (IsTracing) Trace($"Need {category}");
         if (category == null) return null;
 
         return TryCraftFromCategory(category.Value);
@@ -1209,28 +1229,28 @@ public class NPC : Actor
 
     private NPCAction? TryCraftFromCategory(NeedCategory category)
     {
-        if (TraceDecisions) Console.WriteLine($"    [Craft] TryCraftFromCategory({category})");
+        if (IsTracing) Trace($"    [Craft] TryCraftFromCategory({category})");
         var options = CraftingSystem.GetOptionsForNeed(category, Inventory, true);
-        if (TraceDecisions) Console.WriteLine($"    [Craft] Options count: {options.Count()}");
+        if (IsTracing) Trace($"    [Craft] Options count: {options.Count()}");
 
         // Try to craft if we can
         var craftable = options.FirstOrDefault(o => o.CanCraft(Inventory));
         if (craftable != null)
         {
-            if (TraceDecisions) Console.WriteLine($"    [Craft] Can craft: {craftable.Name}");
+            if (IsTracing) Trace($"    [Craft] Can craft: {craftable.Name}");
             return new NPCCraft(craftable);
         }
 
         // Can't craft - find first missing thing and resolve it
         foreach (var option in options)
         {
-            if (TraceDecisions) Console.WriteLine($"    [Craft] Checking option: {option.Name}");
+            if (IsTracing) Trace($"    [Craft] Checking option: {option.Name}");
 
             // Check missing tools FIRST - need tools before gathering materials
             foreach (var toolType in option.RequiredTools)
             {
                 var tool = Inventory.GetTool(toolType);
-                if (TraceDecisions) Console.WriteLine($"    [Craft]   Required tool: {toolType}, have: {tool?.Name ?? "none"}");
+                if (IsTracing) Trace($"    [Craft]   Required tool: {toolType}, have: {tool?.Name ?? "none"}");
                 if (tool == null || tool.Durability < 1)
                 {
                     return DetermineGetTool(toolType);
@@ -1241,25 +1261,25 @@ public class NPC : Actor
             foreach (var req in option.Requirements)
             {
                 var needed = GetMissingCount(req);
-                if (TraceDecisions) Console.WriteLine($"    [Craft]   Req: {req.Material}, need {req.Count}, missing {needed}");
+                if (IsTracing) Trace($"    [Craft]   Req: {req.Material}, need {req.Count}, missing {needed}");
                 if (needed > 0)
                 {
                     // Specific resource → search for that exact resource
                     if (req.Material is MaterialSpecifier.Specific(var resource))
                     {
-                        if (TraceDecisions) Console.WriteLine($"    [Craft]   Getting specific resource: {resource}");
+                        if (IsTracing) Trace($"    [Craft]   Getting specific resource: {resource}");
                         return DetermineGetSpecificResource(resource);
                     }
                     // Category → search for any resource in that category
                     else if (req.Material is MaterialSpecifier.Category(var resCat))
                     {
-                        if (TraceDecisions) Console.WriteLine($"    [Craft]   Getting category: {resCat}");
+                        if (IsTracing) Trace($"    [Craft]   Getting category: {resCat}");
                         return DetermineGetResource(resCat);
                     }
                 }
             }
         }
-        if (TraceDecisions) Console.WriteLine($"    [Craft] No craftable options found");
+        if (IsTracing) Trace($"    [Craft] No craftable options found");
         return null;
     }
 
@@ -1300,7 +1320,7 @@ public class NPC : Actor
         var material = GetBestMaterialFor(type.Value);
         if (material == null) return null;
 
-        if (TraceDecisions) Console.WriteLine($"[NPC:{Name}] Improving shelter ({type.Value.ToString().ToLower()}) with {material.Value.ToDisplayName()}");
+        if (IsTracing) Trace($"[NPC:{Name}] Improving shelter ({type.Value.ToString().ToLower()}) with {material.Value.ToDisplayName()}");
         return new NPCImproveShelter(type.Value, material.Value);
     }
 
@@ -1331,20 +1351,20 @@ public class NPC : Actor
 
     private NPCAction? TryCraftSpecificTool(ToolType toolType)
     {
-        if (TraceDecisions) Console.WriteLine($"    [Craft] TryCraftSpecificTool({toolType})");
+        if (IsTracing) Trace($"    [Craft] TryCraftSpecificTool({toolType})");
 
         // Get all craft options that produce this specific tool type
         var options = CraftingSystem.AllOptions
             .Where(o => o.GearFactory != null && o.GearFactory(1).ToolType == toolType)
             .ToList();
 
-        if (TraceDecisions) Console.WriteLine($"    [Craft] Options for {toolType}: {options.Count}");
+        if (IsTracing) Trace($"    [Craft] Options for {toolType}: {options.Count}");
 
         // Try to craft if we can
         var craftable = options.FirstOrDefault(o => o.CanCraft(Inventory));
         if (craftable != null)
         {
-            if (TraceDecisions) Console.WriteLine($"    [Craft] Can craft: {craftable.Name}");
+            if (IsTracing) Trace($"    [Craft] Can craft: {craftable.Name}");
             return new NPCCraft(craftable);
         }
 
@@ -1356,7 +1376,7 @@ public class NPC : Actor
         // create, which is why this check was originally left out entirely.
         foreach (var option in options)
         {
-            if (TraceDecisions) Console.WriteLine($"    [Craft] Checking option: {option.Name}");
+            if (IsTracing) Trace($"    [Craft] Checking option: {option.Name}");
 
             foreach (var prerequisite in option.RequiredTools)
             {
@@ -1364,7 +1384,7 @@ public class NPC : Actor
                 if (held != null && held.Durability >= 1) continue;
                 if (_toolsBeingResolved.Contains(prerequisite)) continue;
 
-                if (TraceDecisions) Console.WriteLine($"    [Craft]   Missing prerequisite tool: {prerequisite}");
+                if (IsTracing) Trace($"    [Craft]   Missing prerequisite tool: {prerequisite}");
                 _toolsBeingResolved.Add(prerequisite);
                 try
                 {
@@ -1376,33 +1396,34 @@ public class NPC : Actor
                     _toolsBeingResolved.Remove(prerequisite);
                 }
             }
+
             foreach (var req in option.Requirements)
             {
                 var needed = GetMissingCount(req);
-                if (TraceDecisions) Console.WriteLine($"    [Craft]   Req: {req.Material}, need {req.Count}, missing {needed}");
+                if (IsTracing) Trace($"    [Craft]   Req: {req.Material}, need {req.Count}, missing {needed}");
                 if (needed > 0)
                 {
                     if (req.Material is MaterialSpecifier.Specific(var resource))
                     {
-                        if (TraceDecisions) Console.WriteLine($"    [Craft]   Getting specific resource: {resource}");
+                        if (IsTracing) Trace($"    [Craft]   Getting specific resource: {resource}");
                         return DetermineGetSpecificResource(resource);
                     }
                     else if (req.Material is MaterialSpecifier.Category(var resCat))
                     {
-                        if (TraceDecisions) Console.WriteLine($"    [Craft]   Getting category: {resCat}");
+                        if (IsTracing) Trace($"    [Craft]   Getting category: {resCat}");
                         return DetermineGetResource(resCat);
                     }
                 }
             }
         }
 
-        if (TraceDecisions) Console.WriteLine($"    [Craft] No options found for {toolType}");
+        if (IsTracing) Trace($"    [Craft] No options found for {toolType}");
         return null;
     }
 
     private NPCAction? DetermineGetTool(ToolType toolType)
     {
-        if (TraceDecisions) Console.WriteLine($"    [GetTool] Looking for {toolType}");
+        if (IsTracing) Trace($"    [GetTool] Looking for {toolType}");
 
         // Check cache for this tool
         var cache = Camp?.GetFeature<CacheFeature>()?.Storage;
@@ -1410,7 +1431,7 @@ public class NPC : Actor
 
         if (cachedTool != null)
         {
-            if (TraceDecisions) Console.WriteLine($"    [GetTool] Found {cachedTool.Name} in cache");
+            if (IsTracing) Trace($"    [GetTool] Found {cachedTool.Name} in cache");
             if (CurrentLocation == Camp)
             {
                 return new NPCTakeToolFromCache(toolType);
@@ -1423,7 +1444,7 @@ public class NPC : Actor
         }
 
         // Not in cache, try to craft the specific tool type
-        if (TraceDecisions) Console.WriteLine($"    [GetTool] Not in cache, trying to craft {toolType}");
+        if (IsTracing) Trace($"    [GetTool] Not in cache, trying to craft {toolType}");
         return TryCraftSpecificTool(toolType);
     }
 

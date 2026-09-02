@@ -34,7 +34,10 @@ public static partial class GameEventRegistry
     }
 
     // Event cooldown tracking - persisted via save/load
-    private static Dictionary<string, DateTime> EventTriggerTimes { get; } = new();
+    // [ThreadStatic] so parallel simulation runs cannot race on this dictionary or clear
+    // each other's cooldowns. In the real game there is one thread, so behavior is unchanged.
+    [ThreadStatic] private static Dictionary<string, DateTime>? _eventTriggerTimes;
+    private static Dictionary<string, DateTime> EventTriggerTimes => _eventTriggerTimes ??= new();
 
     public static void ClearTriggerTimes() => EventTriggerTimes.Clear();
 

@@ -112,7 +112,7 @@ public class PackPredatorBehavior : IHerdBehavior
             var result = CombatOrchestrator.ResolveHeadless(
                 ctx, defenders, CombatOrchestrator.AnimalSide(ctx, predator), npc.CurrentLocation,
                 startDistanceM: 5, AwarenessState.Engaged, AwarenessState.Engaged);
-            Console.WriteLine($"[Predator] {herd.AnimalType.DisplayName()} pack vs {npc.Name}: {result}");
+            npc.Trace($"[Predator] {herd.AnimalType.DisplayName()} pack vs {npc.Name}: {result}");
 
             // Only one attack per update
             break;
