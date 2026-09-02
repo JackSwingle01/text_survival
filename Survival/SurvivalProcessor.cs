@@ -35,6 +35,13 @@ public static class SurvivalProcessor
     private const double MaxSweatRateMlPerHour = 1000.0;
 
     /// <summary>
+    /// Water held by fully saturated clothing (Wet severity 1.0). Shared by the two sides of
+    /// the wetness ledger - sweat soaking in, and drying taking it back out - so they cannot
+    /// drift apart.
+    /// </summary>
+    private const double MlPerFullSoak = 2000.0;
+
+    /// <summary>
     /// Latent heat of vaporisation of sweat: evaporating 1ml removes ~0.58 kcal. This is why
     /// sweating cools at all, and why sweat that cannot evaporate cools nothing.
     /// </summary>
@@ -546,31 +553,54 @@ public static class SurvivalProcessor
         return TemperatureStage.Hot;
     }
 
+    /// <summary>
+    /// How fast wet clothing dries, in Wet-severity per hour.
+    /// </summary>
+    /// <remarks>
+    /// Derived from latent heat rather than picked: evaporating a millilitre costs ~0.58
+    /// kcal, so taking fully soaked clothing (2000ml) back to dry needs ~1160 kcal - about
+    /// half a day of a resting person's entire metabolism. That is precisely why wet clothing
+    /// is dangerous and why a fire is the real answer to it, and it sets every timescale here.
+    ///
+    /// The previous rates were 5-8x too fast: fully soaked clothing dried in 86 minutes at
+    /// 40F and in 7-10 minutes by a fire, which made both the Wet effect and sweat-soaking
+    /// nearly inert. Now:
+    ///
+    ///     by a fire        1.0-1.4 h      50F breezy       4.4 h
+    ///     60F breezy       2.9 h          40F breezy      10.0 h
+    ///     below freezing   never (only a fire will do it)
+    /// </remarks>
     private static double CalculateDryingRate(SurvivalContext context)
     {
-        double baseRate = 0;
+        double kcalPerHour;
 
         if (context.FireProximityBonus > 0)
         {
-            // Near fire: 2-5/hr (dry in 12-30 min)
-            baseRate = 2.0 + (context.FireProximityBonus / 5.0);
+            // A fire supplies the latent heat directly, which is why it dries you in about an
+            // hour when the weather alone would take all day.
+            kcalPerHour = 300 + context.FireProximityBonus * 25;
         }
         else if (context.LocationTemperature > 32)
         {
-            // Above freezing: slow natural drying
-            baseRate = Math.Max(0, (context.LocationTemperature - 32) / 20.0);
+            // Ambient evaporation, scaling with how far above freezing the air is.
+            kcalPerHour = (context.LocationTemperature - 32) * 10;
         }
-        // else: below freezing = 0 (clothes freeze wet)
+        else
+        {
+            // Below freezing clothes freeze wet - only a fire will dry them. This used to be
+            // the intent but not the behavior: wind was added after this branch, so a windy
+            // day at 25F dried soaked clothing in two hours.
+            return 0;
+        }
 
-        // Wind accelerates drying (but not during active precipitation)
-        double windBonus = 0;
+        // Wind accelerates evaporation; it cannot create it. Multiplying rather than adding is
+        // what keeps the freezing rule above true.
         if (!context.IsRaining && !context.IsSnowing && !context.IsBlizzard)
         {
-            windBonus = context.WindSpeedLevel;
+            kcalPerHour *= 1 + context.WindSpeedLevel * 1.5;
         }
-        baseRate += windBonus;
 
-        return baseRate;
+        return kcalPerHour / (MlPerFullSoak * EvaporativeCoolingKcalPerMl);
     }
 
     private static SurvivalProcessorResult ProcessWetness(Body body, SurvivalContext context, int minutesElapsed)
@@ -596,8 +626,6 @@ public static class SurvivalProcessor
 
         // Sweat that could not evaporate soaks the clothing. This is the classic way to
         // die in the cold: work hard, soak your layers, then stop moving and freeze in them.
-        // MlPerFullSoak is the sweat needed to take dry clothing to fully saturated.
-        const double MlPerFullSoak = 2000.0;
         wetnessDelta += GetSweatResponse(body, context).SoakedMlPerHour / 60.0 / MlPerFullSoak;
 
         // Calculate drying (reduction in wetness per minute)
@@ -609,8 +637,16 @@ public static class SurvivalProcessor
             context.CurrentWetnessPct + wetnessDelta * minutesElapsed - dryingDelta,
             0, 1);
 
-        // Create/update effect when wetness reaches 5%
-        if (newSeverity >= 0.05)
+        // The Wet effect IS the stored wetness - SurvivalContext reads CurrentWetnessPct back
+        // off it - so it has to be emitted whenever there is any wetness at all, not only
+        // once it is worth mentioning. Gating emission at 5% meant the effect was never
+        // created, so CurrentWetnessPct read 0 every tick and accumulation restarted from
+        // zero each minute. Wetness could never exceed a single minute's delta (0.01 in the
+        // heaviest rain), so in practice nobody in this game has ever got wet.
+        //
+        // EffectRegistry.SetEffectSeverity already withholds the "you're getting wet" message
+        // below 0.05, which is where that threshold belongs.
+        if (newSeverity > 0)
         {
             result.Effects.Add(EffectFactory.Wet(newSeverity));
         }
