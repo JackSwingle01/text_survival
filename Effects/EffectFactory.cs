@@ -25,11 +25,35 @@ public static class EffectFactory
         RemovalMessage = "You have cooled down, the overheating has passed."
     };
 
+    /// <summary>
+    /// Evaporative cooling - the body's only way to shed heat, and the mirror of
+    /// <see cref="Shivering"/>'s +3F/hr on the cold side.
+    /// </summary>
+    /// <remarks>
+    /// The temperature figure is not tuned, it is derived from the hydration cost this
+    /// effect already charged: evaporating 1000ml removes ~580 kcal, and a 70kg body has a
+    /// heat capacity of ~58 kcal/F, so 1000ml/hr buys ~10F/hr of cooling. Both deltas are
+    /// scaled by Severity together, so the water spent and the heat shed stay in step.
+    ///
+    /// Without this the body had a heater and no cooler: metabolism adds ~1.7F/hr that
+    /// insulation (clamped at 0.95, so only 5% escapes) cannot vent, and an NPC in good
+    /// hide gear cooked to 111.9F and died of thirst in 0.45 days - three times faster than
+    /// one wearing rags.
+    /// </remarks>
     public static Effect Sweating(double severity) => new()
     {
         EffectKind = "Sweating",
         Severity = severity,
-        StatsDelta = new() { HydrationDelta = -1000.0 / 60.0 }
+        // Fades once you are no longer hot, at the same rate Shivering fades once you are no
+        // longer cold. Without this it never decayed, and since AddEffect keeps the more
+        // severe of old and new, sweating only ever ratcheted upward - an NPC that got hot
+        // once kept spending water on cooling for the rest of its life.
+        HourlySeverityChange = -2,
+        StatsDelta = new()
+        {
+            HydrationDelta = -1000.0 / 60.0,
+            TemperatureDelta = -10.0 / 60.0,
+        }
     };
 
     public static Effect Shivering(double intensity) => new()
