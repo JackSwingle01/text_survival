@@ -4,6 +4,15 @@ namespace text_survival.Tests.Bodies;
 
 public class DamageProcessorTests
 {
+    /// <summary>
+    /// Most tests here damage a body with no explicit target, so DamageProcessor picks the
+    /// region from Utils.Rng by hit-coverage. Unseeded, that made them intermittently fail -
+    /// DamageBody_LowDamage_AbsorbedBySkin asserts 2.0 blunt damage reaches no organ, which
+    /// is true for most regions but not every roll. xunit constructs the class per test, so
+    /// seeding here makes every test in it deterministic.
+    /// </summary>
+    public DamageProcessorTests() => text_survival.Utils.Seed(1);
+
     [Fact]
     public void DamageBody_SpecificTarget_HitsNamedPart()
     {
