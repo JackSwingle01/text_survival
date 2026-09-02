@@ -554,9 +554,26 @@ public static class SurvivalProcessor
         return new SurvivalProcessorResult { Effects = effects };
     }
 
+    /// <summary>
+    /// Basal metabolic rate in kcal/day, by the Katch-McArdle formula.
+    /// </summary>
+    /// <remarks>
+    /// Katch-McArdle is defined on LEAN BODY MASS - everything that is not fat, so bone,
+    /// organs, blood and water as well as muscle. It used to be passed MuscleKG (22.5kg for
+    /// a baseline human) where it wanted lean mass (63.8kg), which gave 925 kcal/day against
+    /// a real adult's ~1800. Every survivor in this game was running on half a human's
+    /// metabolism: burning half the food, and - because metabolism is also the body's only
+    /// heat source - producing half the warmth, which is why comfort temperatures came out
+    /// 10-25F above the textbook figures for the same clothing.
+    ///
+    /// Fat is deliberately excluded rather than given its own term: the formula is defined
+    /// that way, adipose tissue is barely metabolically active, and its contribution is
+    /// already inside the 370 constant.
+    /// </remarks>
     public static double GetCurrentMetabolism(Body body, double activityLevel)
     {
-        double bmr = 370 + (21.6 * body.MuscleKG) + (6.17 * body.BodyFatKG);
+        double leanBodyMassKg = Math.Max(0, body.WeightKG - body.BodyFatKG);
+        double bmr = 370 + (21.6 * leanBodyMassKg);
         // Organ condition affects metabolism - damaged organs = less efficient
         double organCondition = body.Parts.SelectMany(p => p.Organs).Average(o => o.Condition);
         bmr *= 0.7 + (0.3 * organCondition);

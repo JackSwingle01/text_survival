@@ -20,32 +20,41 @@ public class WarmthTests
     };
 
     /// <summary>
-    /// Each layer must buy real cold tolerance, and more of it must always be warmer.
+    /// The textbook anchor, and the whole point of using a real unit: clo values can be
+    /// checked against reality instead of invented. If this drifts, either the thermal model
+    /// or the body's metabolism has moved, and every garment silently means something else.
     /// </summary>
     /// <remarks>
-    /// Absolute comfort temperatures currently run ~10-25F warmer than the textbook figures
-    /// for these clo values (1 clo should be comfortable at 21C/70F; here it is ~78F). That
-    /// is not the thermal model - it is that this body produces about half a real human's
-    /// heat. GetCurrentMetabolism uses the Katch-McArdle formula, 370 + 21.6 x lean body
-    /// mass, but passes MuscleKG (22.5) where the formula expects lean body mass (63.8, i.e.
-    /// everything that is not fat), giving 925 kcal/day against a real adult's ~1800. Less
-    /// heat produced means comfort at a warmer air temperature for the same clothing.
-    /// Correcting it doubles calorie burn, so it is a food-balance decision, not a thermal
-    /// one, and it is deliberately not bundled here. When it is fixed, these numbers should
-    /// converge on the textbook ones and CloPerInsulationPoint should be re-checked.
+    /// The model reads a few degrees colder than the published figures because those assume
+    /// a nude reference with no subcutaneous fat, while this body carries some - which is
+    /// itself insulation. Hence the tolerance.
     /// </remarks>
-    [Fact]
-    public void MoreClothing_IsAlwaysWarmer_AndBuysRealTolerance()
+    [Theory]
+    [InlineData(1.0, 70.0)]   // 1 clo: comfortable at 21C/70F - the definition of the unit
+    [InlineData(2.0, 58.0)]   // heavy winter outfit
+    [InlineData(4.0, 34.0)]   // arctic expedition clothing, comfortable near freezing
+    public void ComfortTemperature_MatchesTheDefinitionOfClo(double clo, double expectedF)
     {
         var body = new Body(Body.BaselineHumanStats);
+        double comfort = SurvivalProcessor.ComfortTemperatureF(body, StillAir(clo));
 
-        double nude = SurvivalProcessor.ComfortTemperatureF(body, StillAir(0));
-        double one = SurvivalProcessor.ComfortTemperatureF(body, StillAir(1));
-        double four = SurvivalProcessor.ComfortTemperatureF(body, StillAir(4));
+        Assert.True(Math.Abs(comfort - expectedF) <= 8.0,
+            $"{clo} clo should be comfortable near {expectedF}F, got {comfort:F1}F.");
+    }
 
-        Assert.True(one < nude && four < one, $"Comfort must fall with clothing: {nude:F0} / {one:F0} / {four:F0}F.");
-        Assert.True(nude - four > 15,
-            $"Four clo should buy well over 15F of tolerance, bought {nude - four:F1}F.");
+    /// <summary>
+    /// Metabolism is the body's only heat source, so a wrong BMR silently moves every
+    /// temperature in the game. It is also what makes the clo anchor above meaningful.
+    /// </summary>
+    [Fact]
+    public void BasalMetabolism_MatchesARealAdult()
+    {
+        var body = new Body(Body.BaselineHumanStats);
+        double bmr = SurvivalProcessor.GetCurrentMetabolism(body, 1.0);
+
+        Assert.True(bmr > 1500 && bmr < 2000,
+            $"A {body.WeightKG:F0}kg adult's BMR should be ~1800 kcal/day, got {bmr:F0}. " +
+            "Katch-McArdle takes lean body mass, not muscle mass.");
     }
 
     /// <summary>

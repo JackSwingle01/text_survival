@@ -115,7 +115,12 @@ public class NPCBodyFeature : LocationFeature, IWorkableFeature
         if (npc.Body.Blood.Condition < 0.2)
             return "They bled out.";
 
-        if (npc.Body.CalorieStore < 100)
+        // An empty calorie store is just hunger - every survivor runs one most of the time,
+        // and a day's metabolism exceeds the whole store. Real starvation is having burned
+        // through the fat reserve behind it, which is weeks of energy. Testing the store
+        // instead labelled almost every death "Starvation" regardless of what actually
+        // killed them, and it did so before the cold and thirst checks below ever ran.
+        if (npc.Body.BodyFatPercentage <= 0.04)
             return "Starvation.";
 
         if (npc.Body.Hydration < 500) // Hydration is in mL

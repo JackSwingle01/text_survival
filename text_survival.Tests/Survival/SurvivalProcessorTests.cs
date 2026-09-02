@@ -236,22 +236,18 @@ public class SurvivalProcessorTests
     {
         // Arrange
         var body = TestFixtures.CreateBaselineHumanBody();
-        var context = TestFixtures.CreateBaselineSurvivalContext();
-        int minutesElapsed = 1440; // 24 hours
 
-        // Expected BMR calculation:
-        // bmr = 370 + (21.6 * 22.5) + (6.17 * 11.25)
-        //     = 370 + 486 + 69.4 = 925.4
-        // bmr *= 0.7 + (0.3 * 1.0) = 925.4 * 1.0 = 925.4
-        // total = bmr * activityLevel = 925.4 * 1.0 = 925.4 cal/day
+        // Katch-McArdle on LEAN BODY MASS (weight - fat), not muscle mass:
+        //   bmr = 370 + 21.6 * (75 - 11.25) = 370 + 1377 = ~1747 kcal/day
+        // This is measured directly rather than over a simulated day, because a day's burn
+        // now exceeds the 2000kcal store and starvation clamps the reported delta.
 
         // Act
-        var result = SurvivalProcessor.Process(body, context, minutesElapsed);
+        double bmr = SurvivalProcessor.GetCurrentMetabolism(body, 1.0);
 
         // Assert
-        double caloriesBurned = Math.Abs(result.StatsDelta.CalorieDelta);
-        Assert.True(caloriesBurned > 900 && caloriesBurned < 950,
-            $"24-hour metabolism should be ~925 calories. Actual: {caloriesBurned}");
+        Assert.True(bmr > 1650 && bmr < 1850,
+            $"A baseline adult's BMR should be ~1750 kcal/day. Actual: {bmr:F0}");
     }
 
     [Fact]
@@ -263,16 +259,11 @@ public class SurvivalProcessorTests
             fatPercent: 10.0 / 90.0,
             musclePercent: 40.0 / 90.0);
         var baselineBody = TestFixtures.CreateBaselineHumanBody();
-        var context = TestFixtures.CreateBaselineSurvivalContext();
-        int minutesElapsed = 1440; // 24 hours
 
-        // Act
-        var highMuscleResult = SurvivalProcessor.Process(highMuscleBody, context, minutesElapsed);
-        var baselineResult = SurvivalProcessor.Process(baselineBody, context, minutesElapsed);
-
-        // Assert
-        double highMuscleCaloriesBurned = Math.Abs(highMuscleResult.StatsDelta.CalorieDelta);
-        double baselineCaloriesBurned = Math.Abs(baselineResult.StatsDelta.CalorieDelta);
+        // Act - measured directly; over a full day both bodies outrun the calorie store and
+        // starvation clamps the delta, which would hide the difference being tested.
+        double highMuscleCaloriesBurned = SurvivalProcessor.GetCurrentMetabolism(highMuscleBody, 1.0);
+        double baselineCaloriesBurned = SurvivalProcessor.GetCurrentMetabolism(baselineBody, 1.0);
 
         Assert.True(highMuscleCaloriesBurned > baselineCaloriesBurned,
             $"High muscle mass should burn more calories. High: {highMuscleCaloriesBurned}, Baseline: {baselineCaloriesBurned}");
