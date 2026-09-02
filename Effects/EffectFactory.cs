@@ -40,20 +40,21 @@ public static class EffectFactory
     /// hide gear cooked to 111.9F and died of thirst in 0.45 days - three times faster than
     /// one wearing rags.
     /// </remarks>
+    /// <summary>
+    /// A signal, not a driver. The cooling, the water it costs and the sweat that soaks into
+    /// clothing are all resolved together in SurvivalProcessor's heat balance, because
+    /// evaporation depends on what is being worn and an effect cannot see that. This carries
+    /// no StatsDelta of its own precisely so the two can never disagree about how hard the
+    /// body is working.
+    /// </summary>
     public static Effect Sweating(double severity) => new()
     {
         EffectKind = "Sweating",
         Severity = severity,
-        // Fades once you are no longer hot, at the same rate Shivering fades once you are no
-        // longer cold. Without this it never decayed, and since AddEffect keeps the more
-        // severe of old and new, sweating only ever ratcheted upward - an NPC that got hot
-        // once kept spending water on cooling for the rest of its life.
+        // Fades once you are no longer hot, mirroring how Shivering fades once you are no
+        // longer cold. Without it, AddEffect keeping the more severe of old and new meant
+        // sweating only ever ratcheted upward and never stopped.
         HourlySeverityChange = -2,
-        StatsDelta = new()
-        {
-            HydrationDelta = -1000.0 / 60.0,
-            TemperatureDelta = -10.0 / 60.0,
-        }
     };
 
     public static Effect Shivering(double intensity) => new()

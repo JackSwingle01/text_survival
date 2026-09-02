@@ -31,13 +31,64 @@ public static class SurvivalProcessor
 
     private const double ThermalMassFactorFPerKg = 2.0;  // °F capacity per kg of clothing
 
+    /// <summary>Sweat production at full severity, in millilitres per hour.</summary>
+    private const double MaxSweatRateMlPerHour = 1000.0;
+
+    /// <summary>
+    /// Latent heat of vaporisation of sweat: evaporating 1ml removes ~0.58 kcal. This is why
+    /// sweating cools at all, and why sweat that cannot evaporate cools nothing.
+    /// </summary>
+    private const double EvaporativeCoolingKcalPerMl = 0.58;
+
+    /// <summary>
+    /// The body's attempt to cool itself, resolved once and feeding three consequences:
+    /// heat shed, water spent, and the sweat the clothing could not pass - which soaks into
+    /// it as wetness. Computing it in one place is what lets evaporation depend on clothing;
+    /// while the cooling lived on the Sweating effect it could not see what was being worn.
+    /// </summary>
+    private readonly record struct SweatResponse(
+        double Severity,
+        double ProducedMlPerHour,
+        double EvaporatedMlPerHour,
+        double CoolingKcalPerHour)
+    {
+        /// <summary>Sweat that never evaporated. It is still lost from the body, and it ends up in the clothing.</summary>
+        public double SoakedMlPerHour => ProducedMlPerHour - EvaporatedMlPerHour;
+    }
+
+    /// <summary>
+    /// Evaporation is limited by two things the player can act on: how sealed the clothing is
+    /// (the same waterproofing that keeps rain out also keeps vapour in - there is no
+    /// breathable-waterproof material in this world), and how saturated it already is.
+    /// Both approaching zero is heatstroke: the body keeps spending water and gets no cooling.
+    /// </summary>
+    private static SweatResponse GetSweatResponse(Body body, SurvivalContext context)
+    {
+        if (body.BodyTemperature <= SweatingThreshold) return default;
+
+        double severity = Math.Clamp((body.BodyTemperature - SweatingThreshold) / 4.0, 0.10, 1.0);
+        double producedMlPerHour = MaxSweatRateMlPerHour * severity;
+
+        double permeability = Math.Clamp(1 - context.WaterproofingLevel, 0, 1);
+        double saturationHeadroom = Math.Clamp(1 - context.CurrentWetnessPct, 0, 1);
+        double evaporatedFraction = permeability * saturationHeadroom;
+
+        double evaporatedMlPerHour = producedMlPerHour * evaporatedFraction;
+
+        return new SweatResponse(
+            severity,
+            producedMlPerHour,
+            evaporatedMlPerHour,
+            evaporatedMlPerHour * EvaporativeCoolingKcalPerMl);
+    }
+
     private enum TemperatureStage { Warm, Cool, Cold, Freezing, Hot }
 
     public static SurvivalProcessorResult Process(Body body, SurvivalContext context, int minutesElapsed)
     {
         var result = ProcessBaseNeeds(body, context, minutesElapsed);
         result.Combine(ProcessTemperature(body, context, minutesElapsed));
-        result.Combine(ProcessWetness(context, minutesElapsed));
+        result.Combine(ProcessWetness(body, context, minutesElapsed));
         result.Combine(ProcessBloody(context, minutesElapsed));
 
         // Project stats after delta to check consequences
@@ -104,10 +155,15 @@ public static class SurvivalProcessor
         double deltaT = tempDifferential * (5.0 / 9.0);
 
         double heatLossW = h * surfaceArea * deltaT * (1 - totalInsulation);
-        double heatLossHr = heatLossW * 0.86;
+        double sensibleLossHr = heatLossW * 0.86;
         double heatGainHr = GetCurrentMetabolism(body, context.ActivityLevel) / 24;
 
-        double netHeatHr = heatGainHr - heatLossHr;
+        // One heat balance: metabolism in, conduction/convection out, evaporation out.
+        // Evaporative loss belongs here beside the sensible loss because it depends on the
+        // same things - what is being worn, and how wet it already is.
+        double evaporativeLossHr = GetSweatResponse(body, context).CoolingKcalPerHour;
+
+        double netHeatHr = heatGainHr - sensibleLossHr - evaporativeLossHr;
         return netHeatHr / heatCapacity; // °F/hr
     }
 
@@ -170,11 +226,17 @@ public static class SurvivalProcessor
             }
         }
 
+        // The water cost of sweating is reported by the same computation that spent it,
+        // rather than by the Sweating effect, so the two can never disagree about how hard
+        // the body is working.
+        double sweatHydrationDelta = -GetSweatResponse(body, context).ProducedMlPerHour / 60.0 * minutes;
+
         return new SurvivalProcessorResult
         {
             StatsDelta = new SurvivalStatsDelta
             {
                 TemperatureDelta = bodyTempDelta,
+                HydrationDelta = sweatHydrationDelta,
             },
             ClothingHeatBufferDelta = bufferDelta,
             Effects = GetTemperatureEffects(body),
@@ -511,7 +573,7 @@ public static class SurvivalProcessor
         return baseRate;
     }
 
-    private static SurvivalProcessorResult ProcessWetness(SurvivalContext context, int minutesElapsed)
+    private static SurvivalProcessorResult ProcessWetness(Body body, SurvivalContext context, int minutesElapsed)
     {
         var result = new SurvivalProcessorResult();
 
@@ -531,6 +593,12 @@ public static class SurvivalProcessor
             else if (context.IsSnowing)
                 wetnessDelta = 0.003 * context.PrecipitationPct * exposureFactor * waterproofReduction;
         }
+
+        // Sweat that could not evaporate soaks the clothing. This is the classic way to
+        // die in the cold: work hard, soak your layers, then stop moving and freeze in them.
+        // MlPerFullSoak is the sweat needed to take dry clothing to fully saturated.
+        const double MlPerFullSoak = 2000.0;
+        wetnessDelta += GetSweatResponse(body, context).SoakedMlPerHour / 60.0 / MlPerFullSoak;
 
         // Calculate drying (reduction in wetness per minute)
         double dryingRate = CalculateDryingRate(context);
