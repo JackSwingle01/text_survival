@@ -190,12 +190,16 @@ public class GridWorldGenerator
     /// Generate a complete world map.
     /// Returns the map and the camp location.
     /// </summary>
-    public (GameMap Map, Location Camp) Generate(Weather weather)
+    /// <summary>
+    /// Generate a world. Pass <paramref name="seed"/> for a reproducible layout (tests, the
+    /// NPC simulation harness); omit it for normal gameplay.
+    /// </summary>
+    public (GameMap Map, Location Camp) Generate(Weather weather, int? seed = null)
     {
         var map = new GameMap(Width, Height);
         map.Weather = weather;
         _terrain = new TerrainType[Width, Height];
-        _rng = new Random();
+        _rng = seed.HasValue ? new Random(seed.Value) : new Random();
 
         // Step 1: Generate layered terrain
         GenerateLayeredTerrain();
@@ -239,7 +243,7 @@ public class GridWorldGenerator
             {
                 var terrain = _terrain[x, y];
                 // Create deterministic seed from position for environmental details
-                var positionSeed = HashCode.Combine(x, y, Width);
+                var positionSeed = unchecked(x * 374761393 + y * 668265263 + Width * 1274126177);
                 var location = LocationFactory.MakeTerrainLocation(terrain, weather, positionSeed);
 
                 // Add river water access to adjacent tiles (not water tiles - they have their own water)
@@ -870,7 +874,7 @@ public class GridWorldGenerator
             namedLocation.Terrain = terrain;
 
             // Generate hidden features using position seed (same approach as terrain locations)
-            int positionSeed = HashCode.Combine(x, y, Width);
+            int positionSeed = unchecked(x * 374761393 + y * 668265263 + Width * 1274126177);
             var discoveryGenerator = new DiscoveryGenerator(positionSeed + LocationFactory.DiscoverySeedOffset);
             namedLocation.HiddenFeatures.AddRange(discoveryGenerator.GenerateFor(terrain));
 

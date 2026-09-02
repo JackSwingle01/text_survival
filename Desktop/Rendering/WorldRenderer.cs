@@ -151,7 +151,7 @@ public class WorldRenderer
         DrawBackground(timeFactor);
 
         // Get map data
-        var map = ctx.Map;
+        var map = ctx.Map ?? throw new InvalidOperationException("Cannot render without an initialized map.");
         var playerPos = map.CurrentPosition;
 
         // Everything grid-bound is clipped to the grid rect so the overscan tiles never
@@ -235,7 +235,7 @@ public class WorldRenderer
     /// </summary>
     private void RenderTileAt(GameContext ctx, int worldX, int worldY, GridPosition playerPos, float timeFactor)
     {
-        var map = ctx.Map;
+        var map = ctx.Map ?? throw new InvalidOperationException("Cannot render without an initialized map.");
 
         // Check if tile exists in the map
         if (!map.IsValidPosition(worldX, worldY))

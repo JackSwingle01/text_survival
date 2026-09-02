@@ -20,7 +20,7 @@ public static class EdgeRenderer
     /// </summary>
     public static void RenderEdges(GameContext ctx, Camera camera, float timeFactor)
     {
-        var map = ctx.Map;
+        var map = ctx.Map ?? throw new InvalidOperationException("Cannot render without an initialized map.");
 
         foreach (var (worldX, worldY) in camera.GetVisibleTiles())
         {
@@ -40,7 +40,7 @@ public static class EdgeRenderer
     /// </summary>
     private static void RenderEdge(GameContext ctx, Camera camera, int x, int y, Direction dir, float timeFactor)
     {
-        var map = ctx.Map;
+        var map = ctx.Map ?? throw new InvalidOperationException("Cannot render without an initialized map.");
 
         // Get neighbor position
         int nx = x + dir switch { Direction.East => 1, Direction.West => -1, _ => 0 };

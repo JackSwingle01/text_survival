@@ -206,7 +206,7 @@ public class NPCActionTests
     {
         var (npc, camp, cache, _) = CreateTestNPCWithCache();
         npc.CurrentLocation = camp;
-        npc.Inventory.Add(Resource.Stick, 5.0);
+        Assert.IsType<Inventory>(npc.Inventory).Add(Resource.Stick, 5.0);
 
         var result = npc.Stockpile(ResourceCategory.Fuel);
 
@@ -245,7 +245,7 @@ public class NPCActionTests
         npc.CurrentLocation = away;
 
         // Fill inventory past 90% threshold
-        npc.Inventory.Add(Resource.Stick, 15.0); // Should be near full for default capacity
+        Assert.IsType<Inventory>(npc.Inventory).Add(Resource.Stick, 15.0); // Should be near full for default capacity
 
         var result = npc.Stockpile(ResourceCategory.Fuel);
 

@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - run: dotnet restore text_survival.sln
+      - run: dotnet build text_survival.sln -c Release --no-restore
+      - run: dotnet test text_survival.sln -c Release --no-build --no-restore

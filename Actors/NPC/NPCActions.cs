@@ -234,6 +234,31 @@ public class NPCTakeToolFromCache(ToolType toolType) : NPCAction($"Taking {toolT
     }
 }
 
+public class NPCTakeResourceFromCache(ResourceCategory category, double targetWeightKg = 5.0)
+    : NPCAction($"Taking {category}", 2, ActivityType.Crafting)
+{
+    public override string LogMessage => $"Getting {category.ToString().ToLower()} from cache";
+    public override void Complete(NPC npc)
+    {
+        var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
+        if (cache == null) return;
+
+        double taken = 0;
+        while (taken < targetWeightKg && cache.Storage.GetWeight(category) > 0)
+        {
+            var resource = cache.Storage.FindAnyResourceInCategory(category);
+            double amount = cache.Storage.Pop(resource);
+            if (!npc.Inventory!.CanCarry(amount))
+            {
+                cache.Storage.Add(resource, amount);
+                break;
+            }
+            npc.Inventory.Add(resource, amount);
+            taken += amount;
+        }
+    }
+}
+
 public class NPCCraft : NPCAction
 {
     private readonly CraftOption _recipe;

@@ -29,7 +29,7 @@ public class SerializationTests
         Assert.NotEmpty(json);
 
         // Try to deserialize
-        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+        var deserialized = Assert.IsType<GameContext>(JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions()));
 
         // Assert
         Assert.NotNull(deserialized);
@@ -61,7 +61,7 @@ public class SerializationTests
 
         // Act
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
-        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+        var deserialized = Assert.IsType<GameContext>(JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions()));
 
         // Assert
         Assert.NotNull(deserialized);
@@ -99,7 +99,7 @@ public class SerializationTests
             json
         );
 
-        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+        var deserialized = Assert.IsType<GameContext>(JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions()));
 
         // Assert - Critical data categories preserved
         Assert.NotNull(deserialized);
@@ -149,8 +149,8 @@ public class SerializationTests
 
         // Act
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
-        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
-        // deserialized!.RestoreAfterDeserialization();
+        var deserialized = Assert.IsType<GameContext>(JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions()));
+        // deserialized.RestoreAfterDeserialization();
 
         // Assert - Connections can be resolved
         var deserializedConnections = deserialized.Map!.GetTravelOptionsFrom(deserialized.Camp);
@@ -185,7 +185,7 @@ public class SerializationTests
 
         // Act
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
-        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+        var deserialized = Assert.IsType<GameContext>(JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions()));
 
         // Assert - LIFO order preserved
         Assert.Equal(3, deserialized!.Inventory.Count(Resource.Stick));
@@ -215,7 +215,7 @@ public class SerializationTests
 
         // Act
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
-        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+        var deserialized = Assert.IsType<GameContext>(JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions()));
 
         // Assert - All feature types preserved (not just base LocationFeature)
         Assert.Equal(featureCountBefore, deserialized!.Camp.Features.Count);
@@ -241,7 +241,7 @@ public class SerializationTests
 
         // Act - Serialize and deserialize
         string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
-        var deserialized = JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions());
+        var deserialized = Assert.IsType<GameContext>(JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions()));
 
         // // Restore transient state after deserialization
         // deserialized!.RestoreAfterDeserialization();

@@ -41,7 +41,7 @@ public class RelationshipMemory
 public class MemoryEvent
 {
     public MemoryType Type;
-    public Actor Subject;
+    public Actor? Subject;
     public int Count;
     public MemoryEvent(MemoryType memoryType, Actor subject)
     {

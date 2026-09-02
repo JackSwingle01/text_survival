@@ -15,6 +15,19 @@ public class NPC : Actor
 {
     private static readonly NeedCraftingSystem CraftingSystem = new();
 
+    /// <summary>
+    /// Longest an "urgent" gathering trip (one taken without checking
+    /// <see cref="CanSurviveAwayFromFire"/>) is allowed to run. Urgent bypasses the safety
+    /// check because the NPC needs the resource regardless of risk, but that isn't licence
+    /// to commit to a full-length session - a critically cold NPC can die of exposure
+    /// before a 60-minute forage even finishes.
+    /// </summary>
+    private const int UrgentGatherCapMinutes = 15;
+
+#pragma warning disable CS8765 // NPCs always have an inventory; the base Actor permits animals to omit one.
+    public override Inventory Inventory { get; set; } = new();
+#pragma warning restore CS8765
+
     public Personality Personality { get; set; }
     public RelationshipMemory Relationships { get; set; } = new();
     public ResourceMemory ResourceMemory { get; set; } = new();
@@ -139,7 +152,7 @@ public class NPC : Actor
             // pick action and do it
             CurrentAction = DetermineActionForNeed(context);
             Console.WriteLine($"[NPC:{Name}] Picked: {CurrentAction?.Name} for need {CurrentNeed}");
-            AddLog(CurrentAction.LogMessage);
+            AddLog(CurrentAction?.LogMessage);
             ContinueAction();
         }
     }
@@ -233,6 +246,21 @@ public class NPC : Actor
         {
             var knownActiveFire = GetKnownActiveFire();
             Console.WriteLine($"  [Warmth] Known fire: {knownActiveFire?.Name ?? "none"}");
+
+            // If the known fire is weak enough that this NPC left it to find fuel,
+            // marching straight back empty-handed just repeats the trip. Gather here
+            // first if this tile can provide fuel.
+            bool haveFuelToTend = FireHandler.GetFireMaterials(Inventory).HasKindling;
+            if (knownActiveFire != null && !haveFuelToTend)
+            {
+                var gatherHere = GetResourceAtCurrentLocation(ResourceCategory.Fuel, urgent: true);
+                if (gatherHere != null)
+                {
+                    Console.WriteLine($"  [Warmth] No fuel for {knownActiveFire.Name} - gathering here first");
+                    return gatherHere;
+                }
+            }
+
             // known fire -> go there
             if (knownActiveFire != null)
             {
@@ -280,6 +308,14 @@ public class NPC : Actor
 
             if (!FireHandler.CanTendFire(Inventory, fireFeature))
             {
+                // Prefer the camp cache over wandering off and leaving a dying fire
+                // unattended - it's a two-minute trip instead of a round trip to forage.
+                if (CurrentLocation == Camp && CampHas(ResourceCategory.Fuel))
+                {
+                    Console.WriteLine($"  [Warmth] Getting fuel from cache (urgent)");
+                    return new NPCTakeResourceFromCache(ResourceCategory.Fuel);
+                }
+
                 Console.WriteLine($"  [Warmth] Getting fuel (urgent)");
                 var get = DetermineGetResource(ResourceCategory.Fuel, urgent: true);
                 if (get != null) return get;
@@ -597,18 +633,36 @@ public class NPC : Actor
         if (!CanSurviveAwayFromFire(estimatedTravelMinutes))
             return null;
 
-        // Check boldness - only explore if brave enough
-        if (!Utils.DetermineSuccess(Personality.Boldness))
-            return null;
+        // Boldness sets how far this NPC is willing to wander from safety before giving
+        // up, not a coin flip re-rolled every single hop - a coin flip has no memory that
+        // this is hop 3 of the same search, so a search that "should" continue can just
+        // stop by chance while the need that started it hasn't gone anywhere.
+        if (IsBeyondExploreLeash()) return null;
 
-        // Get adjacent locations and pick a random one
+        // Get adjacent locations and head for whichever has gone longest without a visit -
+        // an actual outward walk instead of a uniform random pick that can walk straight
+        // back to the tile just left.
         var adjacentLocations = Map?.GetTravelOptionsFrom(CurrentLocation)?.ToList();
         if (adjacentLocations == null || adjacentLocations.Count == 0)
             return null;
 
-        var destination = Utils.GetRandomFromList(adjacentLocations);
+        var destination = ResourceMemory.LeastRecentlyVisited(adjacentLocations)!;
         Console.WriteLine($"  [Exploration] {reason} → exploring to {destination.Name}");
         return new NPCMove(destination, this);
+    }
+
+    /// <summary>
+    /// True once this NPC has wandered further from its safe base (camp, or a known active
+    /// fire) than its boldness allows. Bolder NPCs range further before an exploring search
+    /// gives up and falls back to whatever else is available.
+    /// </summary>
+    private bool IsBeyondExploreLeash()
+    {
+        var safeBase = Camp ?? GetKnownActiveFire();
+        if (safeBase == null || safeBase == CurrentLocation) return false;
+
+        int leashTiles = (int)(2 + Personality.Boldness * 8); // ~2-10 tiles
+        return Map.DistanceBetween(CurrentLocation, safeBase) >= leashTiles;
     }
 
     private void DetermineNeed()
@@ -640,15 +694,23 @@ public class NPC : Actor
     }
     private bool DecideSatisfyNeed()
     {
-        NeedType? need = null;
-        if (Body.WarmPct < .5)
-            need = NeedType.Warmth;
-        if (Body.HydratedPct < .5)
-            need = NeedType.Water;
-        if (Body.EnergyPct < .3) // todo check for night
-            need = NeedType.Rest;
-        if (Body.FullPct < .05)
-            need = NeedType.Food;
+        // Priority order matters: this returns the FIRST match, not the last, so Warmth
+        // always outranks Water outranks Rest outranks Food - matching the documented
+        // need hierarchy instead of always resolving to whichever check happens to run
+        // last in an if-chain.
+        NeedType? need = Body.WarmPct switch
+        {
+            < .5 => NeedType.Warmth,
+            _ => Body.HydratedPct switch
+            {
+                < .5 => NeedType.Water,
+                _ => Body.EnergyPct switch // todo check for night
+                {
+                    < .3 => NeedType.Rest,
+                    _ => Body.FullPct < .3 ? NeedType.Food : null
+                }
+            }
+        };
 
         if (need == null) return false;
         CurrentNeed = need;
@@ -679,7 +741,7 @@ public class NPC : Actor
             var provided = forage.ProvidedResources();
             Console.WriteLine($"    [GetResource] Provided resources: [{string.Join(", ", provided)}]");
         }
-        if (forage != null && !forage.IsNearlyDepleted() &&
+        if (forage != null && forage.CanForage() &&
             forage.ProvidedResources().Contains(resource))
         {
             int forageTime = Utils.RandInt(15, 60);
@@ -715,11 +777,11 @@ public class NPC : Actor
             locWithResource ??= remembered;
         }
 
-        // unknown? -> (bold check?) move random (explore)
-        if (locWithResource == null && Utils.DetermineSuccess(Personality.Boldness))
+        // unknown? -> explore outward, as far as boldness allows
+        if (locWithResource == null && !IsBeyondExploreLeash())
         {
             Console.WriteLine($"    [GetResource] No known location, exploring");
-            locWithResource = Utils.GetRandomFromList(Map.GetTravelOptionsFrom(CurrentLocation).ToList());
+            locWithResource = ResourceMemory.LeastRecentlyVisited(Map.GetTravelOptionsFrom(CurrentLocation).ToList());
         }
 
         if (locWithResource != null && locWithResource != CurrentLocation)
@@ -768,9 +830,9 @@ public class NPC : Actor
         if (remembered != null)
             locWithResource ??= Map.GetNextInPath(CurrentLocation, remembered);
 
-        // unknown? -> (bold check?) move random (explore)
-        if (Utils.DetermineSuccess(Personality.Boldness))
-            locWithResource ??= Utils.GetRandomFromList(Map.GetTravelOptionsFrom(CurrentLocation).ToList());
+        // unknown? -> explore outward, as far as boldness allows
+        if (locWithResource == null && !IsBeyondExploreLeash())
+            locWithResource = ResourceMemory.LeastRecentlyVisited(Map.GetTravelOptionsFrom(CurrentLocation).ToList());
 
         if (locWithResource != null)
         {
@@ -813,7 +875,7 @@ public class NPC : Actor
 
         // ForageFeature - always accessible
         var forage = location.GetFeature<ForageFeature>();
-        if (forage != null && !forage.IsNearlyDepleted())
+        if (forage != null && forage.CanForage())
             resources.AddRange(forage.ProvidedResources());
 
         // HarvestableFeature - check tool requirements
@@ -854,12 +916,15 @@ public class NPC : Actor
 
         // ForageFeature - always accessible
         var forage = CurrentLocation.GetFeature<ForageFeature>();
-        if (forage != null && !forage.IsNearlyDepleted() &&
+        if (forage != null && forage.CanForage() &&
             forage.ProvidedResources().Any(r => targetResources.Contains(r)))
         {
             int forageTime = Utils.RandInt(15, 60);
-            // Check if we can survive foraging in current conditions (skip if urgent)
-            if (!urgent && !CanSurviveAwayFromFire(forageTime))
+            // Urgent still means a quick grab, not license to stay out however long it
+            // takes - a critically cold NPC that commits to a full session can die of
+            // exposure before it ever finishes gathering.
+            if (urgent) forageTime = Math.Min(forageTime, UrgentGatherCapMinutes);
+            else if (!CanSurviveAwayFromFire(forageTime))
                 return null;
             return new NPCForage(forageTime);
         }
@@ -884,8 +949,8 @@ public class NPC : Actor
             int workTime = Math.Min(60, harvestable.GetTotalMinutesToHarvest());
             if (workTime > 0)
             {
-                // Check if we can survive harvesting in current conditions (skip if urgent)
-                if (!urgent && !CanSurviveAwayFromFire(workTime))
+                if (urgent) workTime = Math.Min(workTime, UrgentGatherCapMinutes);
+                else if (!CanSurviveAwayFromFire(workTime))
                     return null;
                 return new NPCHarvest(workTime);
             }
@@ -907,8 +972,8 @@ public class NPC : Actor
             double remainingMinutes = wooded.MinutesToFell - wooded.MinutesWorked;
             int workTime = (int)Math.Min(60, Math.Max(30, remainingMinutes));
 
-            // Check if we can survive chopping in current conditions (skip if urgent)
-            if (!urgent && !CanSurviveAwayFromFire(workTime))
+            if (urgent) workTime = Math.Min(workTime, UrgentGatherCapMinutes);
+            else if (!CanSurviveAwayFromFire(workTime))
                 return null;
 
             return new NPCChopWood(workTime);
@@ -918,6 +983,12 @@ public class NPC : Actor
     }
     internal NPCAction? DetermineWork()
     {
+        // Keep the camp fire alive proactively - otherwise it only gets attention once
+        // warmth becomes a pressing need, by which point it's already gone out.
+        var campFireAction = TryMaintainCampFire();
+        if (campFireAction != null)
+            return campFireAction;
+
         // Stockpile resources if camp doesn't have enough
         if (!IsEnoughStockpiled(ResourceCategory.Fuel))
         {
@@ -939,6 +1010,43 @@ public class NPC : Actor
 
         return null;
     }
+
+    /// <summary>
+    /// Tend or relight the camp fire before it becomes a Warmth-need emergency. Only acts
+    /// while standing at camp - fetching fuel from afar is HandleWarmthNeed's job.
+    /// </summary>
+    private NPCAction? TryMaintainCampFire()
+    {
+        if (Camp == null || CurrentLocation != Camp) return null;
+        var fire = Camp.GetFeature<HeatSourceFeature>();
+        if (fire == null) return null;
+
+        if (fire.IsActive)
+        {
+            if (fire.TotalHoursRemaining >= 2) return null;
+
+            if (FireHandler.CanTendFire(Inventory, fire))
+            {
+                Console.WriteLine($"  [Fire] Proactively tending camp fire ({fire.TotalHoursRemaining:F1}h left)");
+                return new NPCTendFire();
+            }
+            if (CampHas(ResourceCategory.Fuel))
+            {
+                Console.WriteLine($"  [Fire] Getting fuel from cache to tend camp fire");
+                return new NPCTakeResourceFromCache(ResourceCategory.Fuel);
+            }
+            return null;
+        }
+
+        if (FireHandler.CanStartFire(Inventory))
+        {
+            Console.WriteLine($"  [Fire] Camp fire is out - relighting");
+            return new NPCStartFire();
+        }
+
+        return null;
+    }
+
     internal NPCAction? Stockpile(ResourceCategory resource)
     {
         // if at camp and have stuff -> store in cache
@@ -1249,6 +1357,19 @@ public class NPC : Actor
         // todo
         // follow high relationship actors
 
+        // Don't idle-rest while cold and away from a fire - resting here just keeps
+        // cooling. Head for the fire, or failing that go get fuel, instead.
+        if (Body.WarmPct < .5 && !CurrentLocation.HasActiveHeatSource())
+        {
+            if (Camp != null && CurrentLocation != Camp)
+            {
+                var moveToCamp = DecideToMove(Camp);
+                if (moveToCamp != null) return moveToCamp;
+            }
+            var getFuel = DetermineGetResource(ResourceCategory.Fuel, urgent: true);
+            if (getFuel != null) return getFuel;
+        }
+
         // Weighted random idle action
         // options = WeightedList:
         //     { REST_NEAR_FIRE,   50 }
@@ -1260,7 +1381,10 @@ public class NPC : Actor
         // if context.Time.IsNight and CAN_SLEEP(npc, context):
         //     options.Add(SLEEP, 40)
 
-        return new NPCRest(Utils.RandInt(5, 30));
+        // A need still unmet should re-evaluate soon rather than commit to a long rest.
+        bool anyNeedUnmet = Body.WarmPct < .5 || Body.HydratedPct < .5 || Body.EnergyPct < .3 || Body.FullPct < .3;
+        int restMinutes = anyNeedUnmet ? Utils.RandInt(3, 5) : Utils.RandInt(5, 30);
+        return new NPCRest(restMinutes);
     }
     private NPCSleep? DecideSleep()
     {

@@ -4,7 +4,13 @@ namespace text_survival
 {
     public static class Utils
     {
-        private static readonly Random random = new Random();
+        private static Random random = new Random();
+
+        /// <summary>
+        /// Reseed the shared RNG for reproducible runs (tests, the NPC simulation harness).
+        /// Never call this from gameplay code - it exists for controlled comparisons only.
+        /// </summary>
+        public static void Seed(int seed) => random = new Random(seed);
 
         public static int Roll(int sides)
         {

@@ -10,6 +10,10 @@ public class Player : Actor
 {
     public readonly SkillRegistry Skills;
 
+#pragma warning disable CS8765 // Players always have an inventory; the base Actor permits animals to omit one.
+    public override Inventory Inventory { get; set; } = new();
+#pragma warning restore CS8765
+
     // Last survival delta and duration for UI trend display
     public SurvivalStatsDelta? LastSurvivalDelta { get; private set; }
     public int LastUpdateMinutes { get; private set; } = 1;

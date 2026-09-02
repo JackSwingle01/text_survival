@@ -14,7 +14,7 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
     public override int IconPriority => HasCatchWaiting ? 8 : 2; // Catches are urgent
 
     public readonly List<PlacedSnare> _snares = [];
-    public readonly SmallGameFeature _territory;
+    public readonly SmallGameFeature? _territory;
 
     // Small game weight threshold (kg)
     private const double SmallGameMaxWeightKg = 10.0;
@@ -149,7 +149,7 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
         return results;
     }
 
-    private double GetGameDensity() => _territory.GameDensity;
+    private double GetGameDensity() => _territory?.GameDensity ?? 0;
 
     /// <summary>
     /// Get list of small game animals that can be caught.

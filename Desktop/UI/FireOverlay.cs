@@ -12,9 +12,6 @@ public class FireOverlay
 {
     public bool IsOpen { get; set; }
 
-    private enum Mode { Starting, Tending }
-    private Mode _currentMode = Mode.Starting;
-
     // Starting mode state
     private int _selectedToolIndex = 0;
     private int _selectedTinderIndex = 0;
@@ -33,11 +30,9 @@ public class FireOverlay
         // Determine initial mode based on fire state
         if (fire != null && (fire.IsActive || fire.HasEmbers))
         {
-            _currentMode = Mode.Tending;
         }
         else
         {
-            _currentMode = Mode.Starting;
         }
     }
 
@@ -61,7 +56,6 @@ public class FireOverlay
                 bool canShowStartTab = fire == null || fire.IsCold || fire.HasEmbers;
                 if (canShowStartTab && ImGui.BeginTabItem("Start Fire"))
                 {
-                    _currentMode = Mode.Starting;
                     result = RenderStartingMode(ctx, fire);
                     ImGui.EndTabItem();
                 }
@@ -71,7 +65,6 @@ public class FireOverlay
                 {
                     if (ImGui.BeginTabItem("Tend Fire"))
                     {
-                        _currentMode = Mode.Tending;
                         result = RenderTendingMode(ctx, fire);
                         ImGui.EndTabItem();
                     }
@@ -471,7 +464,6 @@ public class FireOverlay
         // Switch to tending mode if successful
         if (success)
         {
-            _currentMode = Mode.Tending;
         }
     }
 
@@ -480,4 +472,3 @@ public class FireOverlay
         _tendMessage = message;
     }
 }
-

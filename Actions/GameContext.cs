@@ -183,7 +183,8 @@ public class GameContext(Player player, Location camp, Weather weather)
         _pendingEncounter = null;
 
         // A herd sends one of its own; an event conjures a fresh animal.
-        var predator = config.Animal ?? AnimalFactory.FromType(config.AnimalType, CurrentLocation, Map)
+        var map = Map ?? throw new InvalidOperationException("Cannot start an encounter before the map is initialized.");
+        var predator = config.Animal ?? AnimalFactory.FromType(config.AnimalType, CurrentLocation, map)
             ?? throw new InvalidOperationException($"No animal for encounter type {config.AnimalType}");
 
         await CombatOrchestrator.RunEncounter(this, predator, (int)config.InitialDistance, config.InitialBoldness);
@@ -283,8 +284,15 @@ public class GameContext(Player player, Location camp, Weather weather)
     [System.Text.Json.Serialization.JsonConstructor]
     public GameContext() : this(null!, null!, null!) { }
 
-    public static GameContext CreateNewGame()
+    /// <summary>
+    /// Start a new game. Pass <paramref name="seed"/> for a reproducible world and RNG
+    /// sequence (tests, the NPC simulation harness); omit it for normal gameplay.
+    /// </summary>
+    public static GameContext CreateNewGame(int? seed = null)
     {
+        if (seed.HasValue)
+            Utils.Seed(seed.Value);
+
         // Clear event cooldowns for fresh game
         GameEventRegistry.ClearTriggerTimes();
         Weather weather = new Weather(-10);
@@ -292,7 +300,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Generate world map (uses defaults: 48x48 with 150 locations)
         var worldGen = new GridWorldGenerator();
 
-        var (map, camp) = worldGen.Generate(weather);
+        var (map, camp) = worldGen.Generate(weather, seed);
 
         weather.Update(StartTime);
 
@@ -313,7 +321,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Initialize starting resource knowledge for recipe discovery
         ctx.Discoveries.InitializeStartingKnowledge();
 
-        HerdPopulator.Populate(ctx.Herds, map!);
+        HerdPopulator.Populate(ctx.Herds, map!, seed);
 
 
         var testNPC = NPCFactory.SpawnNearCamp(map, camp);

@@ -9,13 +9,18 @@ namespace text_survival.Actors.Animals;
 /// </summary>
 public static class HerdPopulator
 {
-    private static readonly Random _rng = new();
+    private static Random _rng = new();
 
     /// <summary>
-    /// Populate the world with herds. Called from GameContext.CreateNewGame().
+    /// Populate the world with herds. Called from GameContext.CreateNewGame(). Pass
+    /// <paramref name="seed"/> for a reproducible herd layout (tests, the NPC simulation
+    /// harness); omit it for normal gameplay.
     /// </summary>
-    public static void Populate(List<Herd> registry, GameMap map)
+    public static void Populate(List<Herd> registry, GameMap map, int? seed = null)
     {
+        if (seed.HasValue)
+            _rng = new Random(seed.Value);
+
         // Get all valid positions (exclude map edges to keep animals in playable area)
         var allPositions = GetInteriorPositions(map);
 

@@ -97,7 +97,8 @@ public class HuntStrategy : IWorkStrategy
         }
 
         // Search for small game
-        var found = territory.SearchForGame(actualTime, location, ctx.Map);
+        var map = ctx.Map ?? throw new InvalidOperationException("Cannot hunt before the map is initialized.");
+        var found = territory.SearchForGame(actualTime, location, map);
 
         // Perception impairment reduces effective search time by 25%
         double perception = AbilityCalculator.GetPerception(ctx.player, ctx);

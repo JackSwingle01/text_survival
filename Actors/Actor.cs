@@ -13,7 +13,7 @@ public abstract class Actor : IMovable
     public GameMap Map { get; set; }
 
     // Inventory - set by subclasses that have one (Player, NPC). Animals leave null.
-    public Inventory? Inventory { get; set; }
+    public virtual Inventory? Inventory { get; set; }
 
     // Combat interface - subclasses provide these from their weapon/natural attacks
     public abstract double AttackDamage { get; }
@@ -167,5 +167,4 @@ public abstract class Actor : IMovable
 
 
 }
-
 

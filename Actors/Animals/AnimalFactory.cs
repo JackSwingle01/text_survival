@@ -24,6 +24,7 @@ public static class AnimalFactory
             AnimalType.Bison => MakeSteppeBison(location, map),
             AnimalType.Rat => MakeRat(location, map),
             AnimalType.Fish => throw new NotImplementedException(),
+            _ => throw new ArgumentOutOfRangeException(nameof(animalType), animalType, "Unknown animal type"),
         };
     }
 
@@ -365,4 +366,3 @@ public static class AnimalFactory
         return animal;
     }
 }
-

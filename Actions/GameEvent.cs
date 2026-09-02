@@ -540,7 +540,8 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         Animal animal = GetTerritoryAnimal(ctx);
         if (CarcassCreation.AnimalType is not null)
         {
-            animal = AnimalFactory.FromType((AnimalType)CarcassCreation.AnimalType, ctx.CurrentLocation, ctx.Map);
+            var map = ctx.Map ?? throw new InvalidOperationException("Cannot create a carcass before the map is initialized.");
+            animal = AnimalFactory.FromType((AnimalType)CarcassCreation.AnimalType, ctx.CurrentLocation, map);
         }
 
         var carcass = CarcassFeature.FromAnimal(
@@ -663,7 +664,8 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         var type = AnimalPresence.PickPrey(ctx)
             ?? AnimalPresence.SmallGameHere(ctx)?.RandomSmallGame()
             ?? AnimalType.Caribou;
-        return AnimalFactory.FromType(type, ctx.CurrentLocation, ctx.Map);
+        var map = ctx.Map ?? throw new InvalidOperationException("Cannot select territory prey before the map is initialized.");
+        return AnimalFactory.FromType(type, ctx.CurrentLocation, map);
     }
 
     /// <summary>
@@ -921,5 +923,4 @@ public class GameEvent(string name, string description, double weight)
     // Static helper for cleaner EventResult creation
     public static EventResult Result(string message, double weight = 1, int time = 0) => new(message, weight, time);
 }
-
 

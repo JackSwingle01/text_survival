@@ -34,7 +34,8 @@ public class NPCInventoryTests
         var personality = new Personality { Boldness = 0.5, Selfishness = 0.3, Sociability = 0.6 };
         var npc = new NPC("Test NPC", personality, camp, map);
         npc.Camp = camp;
-        npc.Inventory.MaxWeightKg = 15.0; // Standard NPC capacity
+        var inventory = Assert.IsType<Inventory>(npc.Inventory);
+        inventory.MaxWeightKg = 15.0; // Standard NPC capacity
 
         return (npc, camp, away, map);
     }
@@ -44,7 +45,7 @@ public class NPCInventoryTests
     {
         // Arrange: NPC at camp with inventory under 90% capacity
         var (npc, _, _, _) = CreateTestNPCAtCamp();
-        npc.Inventory.Add(Resource.Stick, 10.0); // 10kg of 15kg = 67%
+        Assert.IsType<Inventory>(npc.Inventory).Add(Resource.Stick, 10.0); // 10kg of 15kg = 67%
 
         // Act
         var action = npc.DealWithFullInventory();
@@ -59,7 +60,7 @@ public class NPCInventoryTests
         // Arrange: NPC at away location with full inventory
         var (npc, _, away, _) = CreateTestNPCAtCamp();
         npc.CurrentLocation = away; // Move NPC away from camp
-        npc.Inventory.Add(Resource.Stick, 14.0); // 14kg of 15kg = 93%
+        Assert.IsType<Inventory>(npc.Inventory).Add(Resource.Stick, 14.0); // 14kg of 15kg = 93%
 
         // Act
         var action = npc.DealWithFullInventory();
@@ -76,8 +77,9 @@ public class NPCInventoryTests
         var (npc, _, _, _) = CreateTestNPCAtCamp();
         // Note: Avoid Resource.Stick being heaviest - it's enum value 0 (default)
         // and the code checks `heaviestResource != default` which fails for Stick
-        npc.Inventory.Add(Resource.Pine, 10.0); // 10kg fuel (heaviest)
-        npc.Inventory.Add(Resource.RawMeat, 4.0); // 4kg food
+        var inventory = Assert.IsType<Inventory>(npc.Inventory);
+        inventory.Add(Resource.Pine, 10.0); // 10kg fuel (heaviest)
+        inventory.Add(Resource.RawMeat, 4.0); // 4kg food
         // Total: 14kg = 93%
 
         // Act
@@ -94,7 +96,7 @@ public class NPCInventoryTests
     {
         // Arrange: Resource.Stick is enum value 0 (default) - verify it still stashes
         var (npc, _, _, _) = CreateTestNPCAtCamp();
-        npc.Inventory.Add(Resource.Stick, 14.0); // 14kg sticks = 93%
+        Assert.IsType<Inventory>(npc.Inventory).Add(Resource.Stick, 14.0); // 14kg sticks = 93%
 
         // Act
         var action = npc.DealWithFullInventory();
@@ -109,7 +111,7 @@ public class NPCInventoryTests
     {
         // Arrange: NPC at camp with only water (no resources)
         var (npc, _, _, _) = CreateTestNPCAtCamp();
-        npc.Inventory.Add(Resource.Water, 14.0); // 14L = 14kg (93%)
+        Assert.IsType<Inventory>(npc.Inventory).Add(Resource.Water, 14.0); // 14L = 14kg (93%)
 
         // Act
         var action = npc.DealWithFullInventory();
@@ -128,11 +130,11 @@ public class NPCInventoryTests
         // Add heavy tools to exceed threshold
         for (int i = 0; i < 5; i++)
         {
-            npc.Inventory.Tools.Add(Gear.Axe()); // Each ~1.5kg
+            Assert.IsType<Inventory>(npc.Inventory).Tools.Add(Gear.Axe()); // Each ~1.5kg
         }
         // Tools alone might not hit threshold, so add a bit of equipment weight
         // Actually, let's just reduce max capacity to make tools exceed threshold
-        npc.Inventory.MaxWeightKg = 5.0; // Lower threshold so tools exceed it
+        Assert.IsType<Inventory>(npc.Inventory).MaxWeightKg = 5.0; // Lower threshold so tools exceed it
 
         // Act
         var action = npc.DealWithFullInventory();

@@ -123,6 +123,9 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         }
     }
 
+    /// <summary>Exposes the current density for diagnostics (e.g. the NPC simulation harness).</summary>
+    internal double CurrentDensity => ResourceDensity();
+
     private double ResourceDensity()
     {
         // Calculate base depleted density

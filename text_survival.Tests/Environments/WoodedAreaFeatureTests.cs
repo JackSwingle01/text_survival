@@ -146,8 +146,8 @@ public class WoodedAreaFeatureTests
         // Assert - should yield oak logs specifically
         int oakCount = yield.Stacks[Resource.Oak].Count;
         Assert.InRange(oakCount, 8, 10);
-        Assert.Equal(0, yield.Stacks[Resource.Pine].Count);
-        Assert.Equal(0, yield.Stacks[Resource.Birch].Count);
+        Assert.Empty(yield.Stacks[Resource.Pine]);
+        Assert.Empty(yield.Stacks[Resource.Birch]);
     }
 
     [Fact]
