@@ -47,6 +47,55 @@ public static class SurvivalProcessor
     /// </summary>
     private const double EvaporativeCoolingKcalPerMl = 0.58;
 
+    /// <summary>Core-to-skin temperature gap when the skin is fully vasoconstricted, in F.</summary>
+    /// <remarks>
+    /// Skin near 29C at a normal core - cold hands, pale fingers. This is the state a body
+    /// holds all winter, and the reason bare skin can feel freezing while the core is fine.
+    /// </remarks>
+    private const double ConstrictedGradientF = 14.0;
+
+    /// <summary>Core-to-skin temperature gap when the skin is fully vasodilated, in F.</summary>
+    /// <remarks>Skin near 35C - flushed, hot to the touch, shedding heat as fast as it can.</remarks>
+    private const double DilatedGradientF = 2.8;
+
+    /// <summary>
+    /// How open the skin circulation is: 0 fully constricted, 1 fully dilated. This is the
+    /// body's first and cheapest response to a heat imbalance - it moves blood, not water -
+    /// and it runs out before the expensive ones start.
+    /// </summary>
+    /// <remarks>
+    /// The two ends are the game's existing temperature thresholds, which makes the three
+    /// lines of defence read in order: constriction is exhausted exactly where shivering
+    /// begins, and dilation is exhausted exactly where sweating begins. Neither effector
+    /// switches on while the blood alone could still have handled it.
+    ///
+    /// The ramp is asymmetric because the setpoint is 98.6F, not the midpoint of the two
+    /// thresholds. At the setpoint tone is 0.5 and the gap is 8.4F - which is the fixed
+    /// constant this replaced, so the thermal model is unchanged for a body at rest at a
+    /// normal temperature and only starts to differ once it has something to correct.
+    /// </remarks>
+    private static double VasomotorTone(double coreTemperatureF)
+    {
+        if (coreTemperatureF < BaseBodyTemperature)
+            return Math.Clamp(
+                0.5 * (coreTemperatureF - ShiveringThreshold) / (BaseBodyTemperature - ShiveringThreshold), 0, 0.5);
+
+        return Math.Clamp(
+            0.5 + 0.5 * (coreTemperatureF - BaseBodyTemperature) / (SweatingThreshold - BaseBodyTemperature), 0.5, 1);
+    }
+
+    /// <summary>
+    /// Skin temperature, which is what the environment actually touches. Heat leaves the body
+    /// across the skin-to-air gap, so raising or lowering the skin is by itself a way to shed
+    /// or hold heat, and it costs nothing.
+    /// </summary>
+    public static double SkinTemperatureF(double coreTemperatureF)
+    {
+        double tone = VasomotorTone(coreTemperatureF);
+        double gradientF = ConstrictedGradientF + tone * (DilatedGradientF - ConstrictedGradientF);
+        return coreTemperatureF - gradientF;
+    }
+
     /// <summary>
     /// The body's attempt to cool itself, resolved once and feeding three consequences:
     /// heat shed, water spent, and the sweat the clothing could not pass - which soaks into
@@ -71,9 +120,15 @@ public static class SurvivalProcessor
     /// </summary>
     private static SweatResponse GetSweatResponse(Body body, SurvivalContext context)
     {
-        if (body.BodyTemperature <= SweatingThreshold) return default;
+        // Sweating is the second line of defence against heat and the expensive one - it
+        // spends water the player has to go and find. It opens only once the blood has done
+        // all it can, which by construction is where vasodilation tops out.
+        if (VasomotorTone(body.BodyTemperature) < 1.0) return default;
 
-        double severity = Math.Clamp((body.BodyTemperature - SweatingThreshold) / 4.0, 0.10, 1.0);
+        // Ramping from zero rather than from a floor matters: the old 0.10 minimum meant
+        // crossing the threshold by a hundredth of a degree cost 100ml/hr, which over a day
+        // is 2.4L - most of a survivor's water budget, spent on nothing.
+        double severity = Math.Clamp((body.BodyTemperature - SweatingThreshold) / 4.0, 0, 1.0);
         double producedMlPerHour = MaxSweatRateMlPerHour * severity;
 
         double permeability = Math.Clamp(1 - context.WaterproofingLevel, 0, 1);
@@ -154,10 +209,13 @@ public static class SurvivalProcessor
     /// </summary>
     public static double ComfortTemperatureF(Body body, SurvivalContext context)
     {
-        const double SkinTempC = 33.0;
+        // Comfort is by definition the neutral vasomotor state - neither shutting the skin
+        // down nor opening it up - so the skin temperature comes from the same curve the
+        // heat balance uses rather than being restated here.
+        double neutralSkinF = SkinTemperatureF(BaseBodyTemperature);
         double sensibleLossW = GetCurrentMetabolism(body, 1.0) / 24 / 0.86 * 0.75;
-        double deltaC = sensibleLossW / 1.8 * TotalThermalResistance(body, context);
-        return (SkinTempC - deltaC) * 9.0 / 5.0 + 32.0;
+        double deltaF = sensibleLossW / 1.8 * TotalThermalResistance(body, context) * 9.0 / 5.0;
+        return neutralSkinF - deltaF;
     }
 
     private enum TemperatureStage { Warm, Cool, Cold, Freezing, Hot }
@@ -219,7 +277,10 @@ public static class SurvivalProcessor
 
         double h = ConvectiveCoefficient(context);
 
-        double skinTemp = body.BodyTemperature - 8.4;
+        // Skin temperature is regulated, not a fixed offset from the core: this is the
+        // vasomotor loop, and it is negative feedback. A rising core opens the skin, which
+        // widens the gap to the air and sheds more heat; a falling core shuts it down.
+        double skinTemp = SkinTemperatureF(body.BodyTemperature);
         double effectiveTemp = context.LocationTemperature + context.FireProximityBonus;
         double tempDifferential = skinTemp - effectiveTemp;
         double deltaT = tempDifferential * (5.0 / 9.0);
@@ -312,7 +373,7 @@ public static class SurvivalProcessor
                 HydrationDelta = sweatHydrationDelta,
             },
             ClothingHeatBufferDelta = bufferDelta,
-            Effects = GetTemperatureEffects(body),
+            Effects = GetTemperatureEffects(body, context),
         };
     }
 
@@ -579,7 +640,7 @@ public static class SurvivalProcessor
         bmr *= 0.7 + (0.3 * organCondition);
         return bmr * activityLevel;
     }
-    private static List<Effect> GetTemperatureEffects(Body body)
+    private static List<Effect> GetTemperatureEffects(Body body, SurvivalContext context)
     {
         List<Effect> effects = [];
         var stage = GetTemperatureStage(body.BodyTemperature);
@@ -592,11 +653,11 @@ public static class SurvivalProcessor
             effects.Add(EffectFactory.Hyperthermia(severity));
         }
 
-        if (body.BodyTemperature > SweatingThreshold)
-        {
-            double severity = Math.Clamp((body.BodyTemperature - SweatingThreshold) / 4.0, 0.10, 1.0);
-            effects.Add(EffectFactory.Sweating(severity));
-        }
+        // The visible Sweating effect reports the same response that spends the water and
+        // sheds the heat, rather than recomputing the severity and drifting from it.
+        double sweatSeverity = GetSweatResponse(body, context).Severity;
+        if (sweatSeverity > 0.01)
+            effects.Add(EffectFactory.Sweating(sweatSeverity));
 
         return effects;
     }

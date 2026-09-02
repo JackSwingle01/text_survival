@@ -132,6 +132,86 @@ public class WarmthTests
     }
 
     /// <summary>
+    /// The neutral anchor. A body at its setpoint sits at mid vasomotor tone, and the gap
+    /// between core and skin there is 8.4F - the fixed constant the regulated skin replaced.
+    /// Everything calibrated against the old model (the clo anchor above, every gear value)
+    /// therefore still means what it meant; only a body with something to correct differs.
+    /// </summary>
+    [Fact]
+    public void SkinTemperature_AtTheSetpoint_MatchesTheOldFixedGradient()
+    {
+        Assert.Equal(98.6 - 8.4, SurvivalProcessor.SkinTemperatureF(98.6), 3);
+    }
+
+    /// <summary>
+    /// The property a fixed skin gradient could not have: skin temperature is regulated, so
+    /// the heat balance is a negative feedback loop. A body running warm opens its skin and
+    /// sheds faster; a body running cold shuts it down and holds on. Without this the only
+    /// correction available in either direction was an expensive one - sweat or shivering.
+    /// </summary>
+    [Fact]
+    public void Vasomotor_MakesTheHeatBalance_SelfCorrecting()
+    {
+        var context = StillAir(2.0) with { LocationTemperature = 40 };
+        double previousRate = double.MaxValue;
+
+        foreach (double coreF in new[] { 97.0, 97.5, 98.0, 98.6, 99.0 })
+        {
+            var body = new Body(Body.BaselineHumanStats) { BodyTemperature = coreF };
+            double rate = SurvivalProcessor.CalculateTemperatureChangePerHour(body, context);
+
+            Assert.True(rate < previousRate,
+                $"At {coreF}F the body gains heat at {rate:F2}F/hr, no slower than the colder " +
+                "body below it. A warmer body must shed faster, or nothing pulls it back.");
+            previousRate = rate;
+        }
+    }
+
+    /// <summary>
+    /// Order of defences, and the reason this exists: between the setpoint and the sweating
+    /// threshold the body sheds heat by moving blood, which is free. Water only gets spent
+    /// once that is exhausted. Previously the body had no such move, so it began sweating -
+    /// and dehydrating - at the slightest excess heat.
+    /// </summary>
+    [Fact]
+    public void MildOverheating_ShedsHeatWithBlood_WithoutSpendingWater()
+    {
+        var context = StillAir(2.0) with { LocationTemperature = 40 };
+
+        var neutral = new Body(Body.BaselineHumanStats) { BodyTemperature = 98.6 };
+        var warm = new Body(Body.BaselineHumanStats) { BodyTemperature = 98.95 };
+
+        double neutralSkin = SurvivalProcessor.SkinTemperatureF(neutral.BodyTemperature);
+        double warmSkin = SurvivalProcessor.SkinTemperatureF(warm.BodyTemperature);
+
+        Assert.True(warmSkin > neutralSkin + 3,
+            $"A body 0.35F over its setpoint should have flushed skin, got {warmSkin:F1}F " +
+            $"against a neutral {neutralSkin:F1}F.");
+
+        double waterSpent = SurvivalProcessor.ProcessTemperature(warm, context, 60)
+            .StatsDelta.HydrationDelta;
+
+        Assert.Equal(0, waterSpent);
+    }
+
+    /// <summary>
+    /// The other half: once dilation is maxed out, sweating does open - otherwise the body
+    /// would have no answer to real heat at all.
+    /// </summary>
+    [Fact]
+    public void RealOverheating_DoesSpendWater()
+    {
+        var context = StillAir(2.0) with { LocationTemperature = 40 };
+        var hot = new Body(Body.BaselineHumanStats) { BodyTemperature = 101.0 };
+
+        double waterSpent = SurvivalProcessor.ProcessTemperature(hot, context, 60)
+            .StatsDelta.HydrationDelta;
+
+        Assert.True(waterSpent < -100,
+            $"A body at 101F should be sweating hard, but spent only {-waterSpent:F0}ml in an hour.");
+    }
+
+    /// <summary>
     /// Area weighting: a chest wrap covers 40% of the body and handwraps 10%, so the same
     /// garment quality has to be worth four times as much on the chest. The old model summed
     /// slot values, which made these identical.
