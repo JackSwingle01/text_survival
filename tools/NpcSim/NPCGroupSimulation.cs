@@ -7,7 +7,9 @@ using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.Survival;
 
-namespace text_survival.Tests.Support;
+using text_survival.Tests.Support;
+
+namespace NpcSim;
 
 /// <summary>One NPC's outcome within a group run.</summary>
 public sealed record MemberOutcome(string Name, double Boldness, int SurvivedMinutes, bool Died, string? DeathCause);

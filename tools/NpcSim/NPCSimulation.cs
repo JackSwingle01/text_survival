@@ -8,7 +8,9 @@ using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.Survival;
 
-namespace text_survival.Tests.Support;
+using text_survival.Tests.Support;
+
+namespace NpcSim;
 
 /// <summary>
 /// Which starting condition to run the NPC simulation from. All three reuse
@@ -199,6 +201,9 @@ public sealed class NPCSimulation
     private GridPosition? _prevPos;
     private string? _lastActionName;
 
+    /// <summary>Per-run trace buffer, filled by the NPC's own sink. Per-instance so parallel runs cannot interleave.</summary>
+    private readonly List<string> _traceBuffer = [];
+
     private NPCSimulation(GameContext ctx, NPC npc)
     {
         Ctx = ctx;
@@ -258,7 +263,7 @@ public sealed class NPCSimulation
     public void Run(int minutes, bool captureTileView = false, bool traceDecisions = false)
     {
         var player = Ctx.player;
-        NPC.TraceDecisions = traceDecisions;
+        Npc.TraceSink = traceDecisions ? line => _traceBuffer.Add(line) : null;
 
         for (int i = 0; i < minutes; i++)
         {
@@ -269,22 +274,11 @@ public sealed class NPCSimulation
             player.Body.Hydration = SurvivalProcessor.MAX_HYDRATION;
             player.Body.CalorieStore = SurvivalProcessor.MAX_CALORIES;
 
-            var sw = new StringWriter();
-            var originalOut = Console.Out;
-            Console.SetOut(sw);
-            try
-            {
-                Ctx.UpdateWithoutEvents(1, ActivityType.Resting);
-            }
-            finally
-            {
-                Console.SetOut(originalOut);
-            }
-
-            var lines = sw.ToString()
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(l => l.TrimEnd('\r'))
-                .ToList();
+            // The NPC narrates into a per-instance sink rather than through Console.SetOut,
+            // which was process-global and the reason these runs could never go in parallel.
+            _traceBuffer.Clear();
+            Ctx.UpdateWithoutEvents(1, ActivityType.Resting);
+            var lines = new List<string>(_traceBuffer);
 
             bool alive = Npc.IsAlive;
             string? deathCause = alive ? null : NPCBodyFeature.DetermineDeathCause(Npc);
@@ -316,7 +310,7 @@ public sealed class NPCSimulation
                 HydratedPct: Npc.Body.HydratedPct,
                 EnergyPct: Npc.Body.EnergyPct,
                 FullPct: Npc.Body.FullPct,
-                AmbientTempF: Npc.CurrentLocation.GetTemperature(),
+                AmbientTempF: Npc.CurrentLocation.GetTemperature(Npc.CurrentAction?.ActivityType ?? ActivityType.Idle),
                 Sticks: Npc.Inventory.Count(Resource.Stick),
                 Tinder: Npc.Inventory.Count(Resource.Tinder),
                 Logs: Npc.Inventory.GetCount(ResourceCategory.Log),

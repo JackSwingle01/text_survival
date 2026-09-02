@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>NpcSim</RootNamespace>
+    <AssemblyName>npcsim</AssemblyName>
+    <!-- Batch experiments are numeric loops; the JIT's full optimizer is worth a lot here. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../text_survival.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The headless UI is shared with the test project rather than duplicated. It is the
+         one piece of test scaffolding both a unit test and a batch run genuinely need. -->
+    <Compile Include="../../text_survival.Tests/Support/ScriptedUi.cs" Link="ScriptedUi.cs" />
+  </ItemGroup>
+
+</Project>
