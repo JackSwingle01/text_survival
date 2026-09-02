@@ -4,6 +4,13 @@
 
 The symptom being chased: the starting NPC walks back and forth between tiles, then sits still, and never gets the camp fire built or fed.
 
+> **Read Part 10 first.** Every measurement in Parts 5-9 was taken while the game started
+> each run in *winter, in July* - a world-generation bug, unrelated to the AI, that killed
+> every NPC before it ever saw the correct weather. Part 10 documents the bug, re-tests the
+> load-bearing conclusions, and marks which survive. Parts 1-4 (what the code does, the
+> harness design) still stand. Parts 5-9 are kept as a record of the reasoning, not as
+> current findings.
+
 ---
 
 ## Part 1 — What the code does today
@@ -81,10 +88,14 @@ Yes, with the current architecture. `GameContext.UpdateWithoutEvents(1, activity
 
 ### 2.2 Files
 
+> **Moved in Part 10.** The harness is no longer a test project; it is the `tools/NpcSim`
+> CLI, and there is no `NPC_SIM=1` gate any more. The layout below is what was originally
+> built; see Part 10 and `tools/NpcSim/README.md` for how to run it now.
+
 ```
-text_survival.Tests/Support/NPCSimulation.cs        the harness
-text_survival.Tests/Support/SimulationFactAttribute.cs   gating attribute
-text_survival.Tests/Actors/NPCSimulationTests.cs    scenarios + assertions
+tools/NpcSim/NPCSimulation.cs        the harness       (was text_survival.Tests/Support/)
+tools/NpcSim/NPCGroupSimulation.cs   group harness     (was text_survival.Tests/Support/)
+tools/NpcSim/Program.cs              CLI + scenarios   (was NPCSimulationTests.cs)
 ```
 
 Gate: `SimulationFactAttribute : FactAttribute` sets `Skip = "Set NPC_SIM=1 to run"` unless the environment variable `NPC_SIM` is set. These runs are slow and nondeterministic, so they do not run in CI by default. Put the test class in `[Collection("NPCSimulation")]` with a `[CollectionDefinition(..., DisableParallelization = true)]` because the harness redirects `Console.Out`.
@@ -286,6 +297,8 @@ Plus: the paths of the before/after logs, the diff of `Actors/NPC/*.cs`, and any
 
 ## Part 5 — What actually happened
 
+*Superseded by Part 10 - measured on an unreproducible harness AND in the winter-in-July world.*
+
 The harness (`text_survival.Tests/Support/NPCSimulation.cs`, `SimulationFactAttribute.cs`, `text_survival.Tests/Actors/NPCSimulationTests.cs`) was built as designed and confirmed §1.3 on the first run: every tile around a fresh camp reported `nearlyDepleted=True` even on tiles the NPC was actively standing on with `canForage=True`, so the NPC gathered nothing and died of cold at **369 minutes (6.2h)** with zero forage minutes, zero fire starts, and an empty cache. That log is saved as the "before" baseline.
 
 Hypotheses were applied cumulatively, each measured against a 10-run, 72-hour batch (`Batch_Baseline_10runs`). Two things beyond the original H1–H6 list were found empirically and fixed; they're numbered H7/H8 to keep the change log traceable:
@@ -333,6 +346,8 @@ This is scoped as a follow-up, not fixed in this pass, because it's a resource-t
 
 ## Part 6 — Seeding infrastructure, and Option 2 (persistent search)
 
+*Partly superseded by Part 10. The seeding work stands; the numbers were taken in the winter-in-July world.*
+
 The design consult in this pass's follow-up work asked a higher-tier model (Fable) for advice on a specific gap the harness surfaced: `CurrentNeed` persists as a de facto goal across many action-cycles, but the *search itself* (which tile to walk toward, within a still-active need) doesn't — every hop re-rolls a uniformly random adjacent tile with a fresh boldness coin-flip, no memory of tiles already tried, and no anti-backtracking. Three options were proposed: (1) new cursor fields on `NPC` tracking the in-progress search, (2) derive it from `ResourceMemory`, which already records every tile visited, and (3) a dedicated long-lived `NPCSearch` action. Option 3 was rejected as fighting the existing `NPCAction`/`ContinueAction`/`ShouldInterrupt` lifecycle for no real gain. Option 2 was recommended and chosen: no new tracked state, reuses writes `NPCMove.Complete` already makes.
 
 **Implemented:**
@@ -366,6 +381,8 @@ The user's stated goal, given directly during this pass, is different from "the 
 ---
 
 ## Part 7 — Behavioral fingerprint metrics, and the personality × seed test matrix
+
+*Superseded by Part 10. Re-tested: the MaxDistance signal holds, the survival and sticks gradients were noise, and `Reversals` was reporting 0 for every run.*
 
 Two things were added on top of Part 6: a wider set of harness metrics aimed specifically at telling NPCs apart from each other (not just measuring whether they survived), and a repeatable test structure (personality profile × fixed seed set) for hill-climbing future AI changes with real statistical power instead of single-run anecdotes.
 
@@ -428,6 +445,8 @@ Per-seed logs for every one of the 30 runs are at `matrix-<profile>-seed<N>.log`
 
 ## Part 8 — More fingerprint metrics, and group survival
 
+*Superseded by Part 10. Re-tested: the group-size effect is +13%, not 3x, and H9 ("water structurally never stockpiles") is refuted.*
+
 ### The remaining "not yet implemented" metrics from Part 7, now implemented
 
 All added to `SimulationSummary` in `NPCSimulation.cs`:
@@ -462,6 +481,8 @@ A new, separate harness class (`text_survival.Tests/Support/NPCGroupSimulation.c
 ---
 
 ## Part 9 - H14-H18, and the measurement bug that invalidated Parts 5-8
+
+*Superseded by Part 10. Part 9 fixed the harness's reproducibility but not the world it measured, so its closing direction - "cold is now the binding constraint" - is refuted.*
 
 ### The harness was never actually reproducible
 
@@ -551,3 +572,198 @@ adopting the three fixes:
 Survival roughly triples at the tuning target and fuel gathered nearly triples, but 1.19
 days is still well short of the 7-day goal and nobody survives a week at any group size.
 **Cold is now the binding constraint**, so that is where the next hypotheses belong.
+
+---
+
+## Part 10 - Winter in July: the world bug that invalidated Parts 5-9
+
+### Two things sent us chasing the AI for nine parts
+
+Part 9 fixed the harness's *reproducibility* and correctly flagged Parts 5-8 as indicative
+only. It did not catch that the *world itself* was wrong, so its own numbers - and the
+direction it set - are also superseded. The measurement was clean by Part 9; the thing being
+measured was not.
+
+**The game started every run in winter, in July.**
+
+`GameContext.StartTime` is July 1, which `Weather.CurrentSeason` calls Summer, whose declared
+air range is -5..15C (23..59F). Measured at hour 0: **-18.5F**.
+
+Root cause: `new Weather(-10)` was constructed in `GameContext.CreateNewGame` *before* its
+clock was set. `CurrentSeason` derives from `Time.DayOfYear`, and an unset `DateTime` is year
+1, day 1 - which lands in Winter. Every front generated in that constructor was therefore a
+winter front, and the initial one runs 24-48h. `weather.Update(StartTime)` ran afterwards,
+far too late. The hardcoded `Season.Winter` and `TempRange = (-25, -15)` in that path were not
+the disease - they were a previous author hitting the same thing and pinning it in place.
+
+| Day | Mean air temp | In season? |
+|---|---|---|
+| 0 | +0.6F | 100% out |
+| 1 | -4.4F | 100% out |
+| 2-6 | +31.7 .. +41.4F | 0% out |
+
+**Every NPC death recorded in this document died inside days 0-1.** No run in Parts 5-9 ever
+reached the corrected weather.
+
+Fix: `Weather(double baseTemp, DateTime startTime)` with `startTime` **required**, `Time` made
+`private set`, and the season passed to front generation. Effect, no AI changes at all:
+
+| | Before | After |
+|---|---|---|
+| Mean survival | 0.75 d | **1.26 d** (+68%) |
+| Death causes | cold x10 | **cold x4, dehydration x4, starvation x2** |
+| Per-seed spread | 0.1-1.5 d (15x) | 0.7-1.5 d (2x) |
+| Fire active | 862 min | 1397 min |
+
+The "seed lottery" was mostly this: identical weather across seeds, but fragile seeds died
+early inside the cold snap. Per-seed weather medians are tightly clustered (25-42F) and do
+**not** correlate with survival - the warmest seed dies fastest.
+
+### The second measurement bug: the reported temperature was never the felt one
+
+`NPCSimulation` recorded `AmbientTempF` as `CurrentLocation.GetTemperature()`, which defaulted
+to `isStationary: true` and so always included the shelter bonus - even in snapshots where the
+NPC was travelling or foraging and by the model's own rules got none. Measured gap at camp:
+**13.8F to 60.4F**. Every cold diagnosis in Parts 5-9 was read off that number.
+
+The simulation used the activity correctly, so this was diagnostic-only. But its behavioral
+cousin is real and still open: `SurvivalProcessor.ProjectTemperatureAwayFromFire` zeroes the
+fire bonus but keeps `LocationTemperature`, so an NPC resting in a sheltered camp asking "can
+I survive out there" is answered about a world up to 60F warmer than the one it is about to
+walk into. Left deliberately unfixed and documented on the method, because fixing it changes
+NPC behavior and belongs in a balance pass.
+
+### `Reversals` was always zero
+
+The metric compared three consecutive **per-minute** snapshots, but a tile takes 5-10 minutes
+to cross, so the middle sample was essentially never a different tile. It reported 0 for every
+seed. Counted properly over the sequence of distinct tiles, the real figure is 8-47 - and as a
+fraction of all movement, **~80-90% of NPC movement is walking back where it came from**
+(seed 10: 38 reversals in 42 tile-steps). The shuttling this document opens by describing was
+real the whole time and the harness could not see it.
+
+*Rule this suggests: derive event-level metrics from an event log, not by differencing a
+sampled state stream.*
+
+### Re-tested on the corrected harness
+
+Solo NPC, seeds 1-10, one simulated week, unless stated.
+
+**Personality (Part 7).** The movement signal survives; nothing else does.
+
+| Metric | Part 7 claim | Re-test | Verdict |
+|---|---|---|---|
+| Survival | 0.4 / 0.4 / 0.5 d | 1.26 / 1.26 / 1.26 | **Refuted** - no survival effect |
+| MaxDistanceFromCamp | 2.8 / 3.6 / 4.1 | 4.1 / 4.9 / 5.3 | **Confirmed**, stronger |
+| SticksGathered | 7.2 / 7.9 / 8.7 | 36.7 / 36.7 / 36.7 | **Refuted** - was noise |
+| Death causes | cold 60%, dehydration 37% | cold 40% / dehydration 40% / starvation 20% | **Refuted** |
+
+Fuel gathered is identical to the kilogram across all three profiles. Boldness moves the NPC
+further from camp and changes nothing else.
+
+**Group size (Parts 8 and 9).**
+
+| Size | Part 9 | Re-test | Cache fuel | Cache water |
+|---|---|---|---|---|
+| 1 | 0.39 d | 1.04 d | 8.4 kg | 0.00 L |
+| 2 | 1.19 d | 1.17 d | 25.5 kg | 0.00 L |
+| 3 | 1.53 d | 1.29 d | 47.1 kg | **3.00 L** |
+
+"Survival roughly triples from 1 to 2 members" is **refuted** - it is +13%. The old 3x was the
+cold snap killing lone NPCs fast; extra bodies were buying fire-tending coverage in a crisis
+that should not have existed.
+
+**H9 is refuted.** Part 8 called water staying "exactly 0.0L at every group size" the
+strongest evidence that `DetermineWork`'s chain *structurally* never reaches Water. It does -
+3.0L at size 3. It is a throughput problem, not a structural one. Cache fuel at size 3 also
+reaches 47kg, above the 40kg target H13 assumed unreachable.
+
+**H13 - fuel stockpile target.** Premise confirmed, remedy not worth having.
+
+| Target | 5 | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
+|---|---|---|---|---|---|---|---|---|
+| Days | 1.34 | 1.37 | 1.39 | 1.29 | 1.29 | 1.26 | 1.26 | 1.26 |
+
+A solo NPC banks 6-10kg whatever the setting, so 40kg is indeed unreachable alone - but the
+spread is ~10% and non-monotonic, and **30/35/40 are byte-identical** because the target is
+never approached. The parameter is inert above ~20 and is not a tuning lever.
+
+**"Cold is now the binding constraint" (Part 9's closing direction) is refuted.** Deaths are an
+even three-way split solo and highly varied at group 3. The varied, seed-dependent death
+profile Part 9 named as the goal was already achievable - it needed the weather fixed, not
+more AI work.
+
+### The sharpest balance problem now: insulation is a one-way ratchet
+
+| Gear | Days | Max body temp | Causes |
+|---|---|---|---|
+| starting | 1.26 | 100.4F | cold 4, dehydration 4, starvation 2 |
+| fresh, same tier | 1.20 | - | dehydration 5, starvation 3, cold 2 |
+| **best hide** | **0.45** | **111.9F** | **dehydration 10/10** |
+
+`SurvivalProcessor` clamps insulation at 0.95 with no path to shed heat. Insulation does solve
+cold - cold deaths go 4 -> 2 -> 0 - but converts them into faster heat deaths. The best-geared
+NPC sits above 99F for 610 of the 648 minutes it is alive. **The mammoth coat, the design
+doc's flagship megafauna reward, currently kills three times faster than rags.**
+
+Note also that *starting* gear spends 47% of a run above 99F. The thermal model was tuned
+against a world running 40F too cold, so the heat side likely needs revisiting generally, not
+just the top tier.
+
+### The harness is no longer a test suite
+
+It asserted nothing, took ~2.7 minutes, and had to run serially because it redirected
+`Console.Out`. It is now `tools/NpcSim` (a CLI beside `PixelArtCli`), emitting CSV so before
+and after are a `diff` rather than two console tables read by eye. `dotnet test` is now **349
+passed, 0 skipped, 8s**, with no `NPC_SIM=1` gate.
+
+```bash
+dotnet run --project tools/NpcSim -c Release -- run --seeds 1-10 --days 7 --out before.csv
+dotnet run --project tools/NpcSim -c Release -- verify --seeds 1-10   # determinism gate
+```
+
+Supporting changes: `NPC` gained a per-instance `TraceSink` replacing the static
+`TraceDecisions` plus `Console.SetOut` (which also caught `CookingHandler` and
+`PackPredatorBehavior` writing NPC narration straight to stdout); the event-cooldown table,
+`NPC.FuelStockpileTargetKg` and `EnvironmentalDetail`'s id counter are now `[ThreadStatic]`
+like `Utils.Rng` already was.
+
+**In-process `--parallel` is not reproducible and defaults to 1.** At `--parallel 14` the same
+seed varies from 0.99 to 1.52 days; serial is exact. Something is still shared that those four
+`[ThreadStatic]` conversions did not cover, and it has not been found. Shard across
+**processes** instead - verified byte-identical to serial, 7.1s -> 4.4s for 12 seeds on 14
+cores. Release buys only ~7% over Debug: a run is ~80% simulation tick, and the tick is
+allocation-bound (a fresh `SurvivalContext` per actor per minute), which the JIT cannot help.
+
+### API changes made so this class of bug is harder to write
+
+- `Location.GetTemperature(bool isStationary = true)` -> `GetTemperature(ActivityType)`. No
+  default, no bool; `ActivityConfig.IsStationary` is the single source of truth. The compiler
+  pointed straight at the harness line that caused the 60F error. This also exposed that the
+  old helper ended in `_ => true`, silently giving Tracking, Butchering and Incapacitated a
+  shelter bonus they should not get.
+- `Weather` requires its clock in the constructor. *Anything derived from a field must not be
+  readable before that field is set, so the input belongs in the constructor, not a setter.*
+- `SurvivalContext` is a `record`; the away-from-fire counterfactual is
+  `context with { FireProximityBonus = 0 }` rather than mutate-and-restore without a
+  `try/finally`.
+- `WeatherSeasonTests` asserts the world's temperature matches its season at start and through
+  the first three days - the canary that would have caught this on day one.
+
+### Where this leaves things
+
+Cold is not the binding constraint; nothing single is. The open items, in order:
+
+1. **Heat shedding.** Better insulation must not be lethal. This blocks the megafauna pull
+   goals as designed.
+2. **Re-tune the thermal model** against correct weather - the cold side was calibrated against
+   a world 40F too cold.
+3. **The empty-handed shuttle.** `HandleWarmthNeed`'s "gather here first" branch is gated on
+   `knownActiveFire != null`, so it is skipped exactly when the fire is dead and fuel matters
+   most. The NPC walks a round trip repeatedly without ever foraging. This is most of the
+   ~80-90% movement-reversal figure.
+4. **`CanSleep` permits sleeping beside a dead fire** - its runway guard only fires when a fire
+   *is* active, so no fire short-circuits to "sleep is fine."
+5. **Interrupts are severity-blind.** `ShouldInterrupt` returns false when `need == CurrentNeed`,
+   so an action chosen at WarmPct 0.34 runs to completion at 0.00.
+6. **Find the parallel-determinism leak**, so the bench can use all cores in-process.
