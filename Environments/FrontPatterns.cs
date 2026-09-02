@@ -38,14 +38,15 @@ public static class FrontPatterns
     /// Generate initial front for game start - gentle light snow
     /// Provides atmospheric weather without overwhelming new players
     /// </summary>
-    public static WeatherFront GenerateInitialFront()
+    public static WeatherFront GenerateInitialFront(Weather.Season season)
     {
+        var (minTemp, maxTemp, _) = GetSeasonalRanges(season);
         var states = new List<WeatherState>
         {
             new WeatherState
             {
                 Condition = Weather.WeatherCondition.LightSnow,
-                TempRange = (-25, -15),  // Cold but manageable winter temp
+                TempRange = (minTemp, maxTemp),  // gentle FOR THE SEASON, not always winter
                 WindRange = (0.1, 0.3),  // Light to moderate wind
                 PrecipRange = (0.1, 0.3), // Light precipitation
                 CloudRange = (0.5, 0.8),  // Overcast

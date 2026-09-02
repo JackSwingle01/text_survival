@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -16,7 +17,7 @@ public class NPCStockpileTests
 {
     private static (NPC npc, Location camp, CacheFeature cache) CreateTestNPCWithCache()
     {
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[camp]", weather, 5);
         var cache = new CacheFeature("Camp Cache", CacheType.Built);
         camp.AddFeature(cache);
@@ -38,7 +39,7 @@ public class NPCStockpileTests
     [Fact]
     public void IsEnoughStockpiled_NoCache_ReturnsFalse()
     {
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[camp]", weather, 5);
         // No cache feature added
 

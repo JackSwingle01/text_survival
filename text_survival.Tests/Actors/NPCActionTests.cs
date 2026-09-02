@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Crafting;
 using text_survival.Environments;
@@ -16,7 +17,7 @@ public class NPCActionTests
 {
     private static (NPC npc, Location camp, CacheFeature cache, GameMap map) CreateTestNPCWithCache()
     {
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[camp]", weather, 5);
         var cache = new CacheFeature("Camp Cache", CacheType.Built);
         camp.AddFeature(cache);
@@ -124,7 +125,7 @@ public class NPCActionTests
         cache.Storage.Add(Resource.CookedMeat, 5.0);
 
         // Add adjacent location with fuel so Stockpile has somewhere to go
-        var forest = new Location("Forest", "[forest]", new Weather(-10), 5);
+        var forest = new Location("Forest", "[forest]", new Weather(-10, GameContext.StartTime), 5);
         var forage = new ForageFeature();
         forage.AddSticks();
         forest.AddFeature(forage);
@@ -149,7 +150,7 @@ public class NPCActionTests
         cache.Storage.Add(Resource.CookedMeat, 5.0);
 
         // Add adjacent location with water
-        var stream = new Location("Stream", "[stream]", new Weather(-10), 5);
+        var stream = new Location("Stream", "[stream]", new Weather(-10, GameContext.StartTime), 5);
         var water = new WaterFeature("stream", "Frozen Stream").AsOpenWater();
         stream.AddFeature(water);
         map.SetLocation(0, 1, stream);
@@ -171,7 +172,7 @@ public class NPCActionTests
         cache.Storage.Add(Resource.CookedMeat, 1.0);
 
         // Add adjacent location with food source
-        var meadow = new Location("Meadow", "[meadow]", new Weather(-10), 5);
+        var meadow = new Location("Meadow", "[meadow]", new Weather(-10, GameContext.StartTime), 5);
         var forage = new ForageFeature();
         forage.AddBerries();
         meadow.AddFeature(forage);
@@ -222,7 +223,7 @@ public class NPCActionTests
         // No resources in inventory
 
         // Add a location with foraging opportunity
-        var forest = new Location("Forest", "[forest]", new Weather(-10), 5);
+        var forest = new Location("Forest", "[forest]", new Weather(-10, GameContext.StartTime), 5);
         var forage = new ForageFeature();
         forage.AddSticks();
         forest.AddFeature(forage);
@@ -240,7 +241,7 @@ public class NPCActionTests
         var (npc, camp, cache, map) = CreateTestNPCWithCache();
 
         // Create a location away from camp
-        var away = new Location("Away", "[away]", new Weather(-10), 5);
+        var away = new Location("Away", "[away]", new Weather(-10, GameContext.StartTime), 5);
         map.SetLocation(0, 1, away);
         npc.CurrentLocation = away;
 
@@ -274,7 +275,7 @@ public class NPCActionTests
     {
         var (npc, camp, cache, map) = CreateTestNPCWithCache();
 
-        var forest = new Location("Forest", "[forest]", new Weather(-10), 5);
+        var forest = new Location("Forest", "[forest]", new Weather(-10, GameContext.StartTime), 5);
         var forage = new ForageFeature();
         forage.AddSticks();
         forest.AddFeature(forage);
@@ -294,13 +295,13 @@ public class NPCActionTests
         var (npc, camp, cache, map) = CreateTestNPCWithCache();
 
         // NPC is at camp (1,1)
-        var nearForest = new Location("Near Forest", "[near]", new Weather(-10), 5);
+        var nearForest = new Location("Near Forest", "[near]", new Weather(-10, GameContext.StartTime), 5);
         var nearForage = new ForageFeature();
         nearForage.AddSticks();
         nearForest.AddFeature(nearForage);
         map.SetLocation(1, 0, nearForest); // Distance 1
 
-        var farForest = new Location("Far Forest", "[far]", new Weather(-10), 5);
+        var farForest = new Location("Far Forest", "[far]", new Weather(-10, GameContext.StartTime), 5);
         var farForage = new ForageFeature();
         farForage.AddSticks();
         farForest.AddFeature(farForage);
@@ -318,7 +319,7 @@ public class NPCActionTests
     [Fact]
     public void GetClosestKnownResource_NoMap_ReturnsNull()
     {
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[camp]", weather, 5);
         var personality = new Personality { Boldness = 0.5 };
         var npc = new NPC("Test NPC", personality, camp, null!);

@@ -18,7 +18,7 @@ public class CarcassFeatureButcheringOverflowTests
     private static GameContext CreateTestContext()
     {
         var player = new Player();
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[test]", weather, 5);
 
         player.CurrentLocation = camp;

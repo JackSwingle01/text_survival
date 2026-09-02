@@ -295,7 +295,7 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         // Clear event cooldowns for fresh game
         GameEventRegistry.ClearTriggerTimes();
-        Weather weather = new Weather(-10);
+        Weather weather = new Weather(-10, StartTime);
 
         // Generate world map (uses defaults: 48x48 with 150 locations)
         var worldGen = new GridWorldGenerator();

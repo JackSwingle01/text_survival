@@ -18,7 +18,7 @@ public class HeadlessCombatTests
     private static GameContext CreateContext()
     {
         var player = new Player();
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[camp]", weather, 5);
         var field = new Location("Field", "[field]", weather, 5);
 

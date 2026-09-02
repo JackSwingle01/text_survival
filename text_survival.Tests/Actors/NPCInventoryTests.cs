@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -18,7 +19,7 @@ public class NPCInventoryTests
     /// </summary>
     private static (NPC npc, Location camp, Location away, GameMap map) CreateTestNPCAtCamp()
     {
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[camp]", weather, 5);
         var away = new Location("Away Location", "[away]", weather, 5);
 

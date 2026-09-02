@@ -164,19 +164,37 @@ public class Weather
     private TimeSpan _weatherDuration = TimeSpan.FromHours(6);
     public TimeSpan TimeSinceWeatherChange { get; set; } = TimeSpan.Zero;
 
-    public DateTime Time { get; set; }
+    /// <summary>
+    /// The clock this weather derives its season from. Private setter: only
+    /// <see cref="Update"/> may move it, so <see cref="CurrentSeason"/> cannot silently
+    /// disagree with the rest of the game.
+    /// </summary>
+    public DateTime Time { get; private set; }
 
     // Grace period for early game - prevents severe weather
     private const int GRACE_PERIOD_DAYS = 7;
 
-    // Parameterless constructor for deserialization
+    /// <summary>
+    /// Deserialization only. Leaves <see cref="Time"/> at its default, which makes
+    /// <see cref="CurrentSeason"/> read Winter - safe only because the deserializer
+    /// immediately overwrites both. Game code must use the other constructor.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConstructor]
     public Weather()
     {
     }
 
-    // Normal constructor for creation
-    public Weather(double baseTemp)
+    /// <summary>
+    /// <paramref name="startTime"/> is required rather than defaulted because the season -
+    /// and therefore every weather front built in this constructor - is derived from it. It
+    /// used to be set afterwards, so CurrentSeason read a default DateTime (year 1, day 1),
+    /// every front generated here was a winter front, and a game starting on July 1 spent
+    /// its first two days about 40F below its own summer range.
+    /// </summary>
+    public Weather(double baseTemp, DateTime startTime)
     {
+        Time = startTime;
+
         // Initialize with fall weather
         BaseTemperature = baseTemp;
         CurrentCondition = WeatherCondition.Clear;
@@ -187,10 +205,10 @@ public class Weather
         _weatherDuration = TimeSpan.FromHours(6);
 
         // Initialize weather fronts - guaranteed gentle start for grace period
-        CurrentFront = FrontPatterns.GenerateInitialFront();
+        CurrentFront = FrontPatterns.GenerateInitialFront(CurrentSeason);
         // BUG FIX: NextFront must also be gentle during grace period
         // Previously used Generate() which could produce blizzards immediately after initial front
-        NextFront = FrontPatterns.GenerateGentleFront(Season.Winter, CurrentCondition);
+        NextFront = FrontPatterns.GenerateGentleFront(CurrentSeason, CurrentCondition);
 
         // Apply the initial state immediately (fixes bug where 6-hour legacy duration was used)
         ApplyWeatherState(CurrentFront.CurrentState);

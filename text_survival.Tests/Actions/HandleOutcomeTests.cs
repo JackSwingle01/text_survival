@@ -15,7 +15,7 @@ public class HandleOutcomeTests
     {
         // Create a minimal GameContext for testing
         var player = new Player();
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var campLocation = new Location("Test Location", "[test]", weather, 5);
 
         player.CurrentLocation = campLocation;

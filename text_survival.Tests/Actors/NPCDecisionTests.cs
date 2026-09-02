@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Environments;
 using text_survival.Environments.Features;
@@ -16,7 +17,7 @@ public class NPCDecisionTests
 {
     private static (NPC npc, Location camp) CreateTestNPC()
     {
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[camp]", weather, 5);
 
         var map = new GameMap(2, 1);
@@ -225,7 +226,7 @@ public class NPCDecisionTests
     public void CanSleep_AwayFromCamp_ReturnsFalse()
     {
         var (npc, camp) = CreateTestNPC();
-        var away = new Location("Away", "[away]", new Weather(-10), 5);
+        var away = new Location("Away", "[away]", new Weather(-10, GameContext.StartTime), 5);
         npc.CurrentLocation = away;
         SetBodyStats(npc, warmPct: 0.5, hydratedPct: 0.5, energyPct: 0.5, fullPct: 0.5);
 

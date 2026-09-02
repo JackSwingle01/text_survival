@@ -15,7 +15,7 @@ public class EventConditionTests
     private static GameContext CreateTestContext()
     {
         var player = new Player();
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[test]", weather, 5);
 
         player.CurrentLocation = camp;
@@ -27,7 +27,7 @@ public class EventConditionTests
     private static GameContext CreateTestContextWithMap()
     {
         var player = new Player();
-        var weather = new Weather(-10);
+        var weather = new Weather(-10, GameContext.StartTime);
         var camp = new Location("Test Camp", "[camp]", weather, 5);
         var awayLocation = new Location("Away Location", "[away]", weather, 5);
 
