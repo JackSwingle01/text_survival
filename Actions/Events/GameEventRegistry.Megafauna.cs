@@ -281,7 +281,8 @@ public static partial class GameEventRegistry
             "They haven't seen you. The wind is in your favor.", 0.8)
             .Requires(EventCondition.OnExpedition)
             .RequiresSituation(ctx => AnimalPresence.OfTypeHere(ctx, AnimalType.Mammoth))
-            .RequiresSituation(ctx => {
+            .RequiresSituation(ctx =>
+            {
                 var h = Situations.GetMammothHerd(ctx);
                 return h != null && (h.State == HerdState.Grazing || h.State == HerdState.Resting);
             })

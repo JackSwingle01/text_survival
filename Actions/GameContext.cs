@@ -89,7 +89,7 @@ public class GameContext(Player player, Location camp, Weather weather)
     [System.Text.Json.Serialization.JsonIgnore]
     public CombatScenario? ActiveCombat { get; set; }
 
-    public static DateTime StartTime =>  new DateTime(2025, 7, 1, 9, 0, 0);
+    public static DateTime StartTime => new DateTime(2025, 7, 1, 9, 0, 0);
     public int DaysSurvived => (int)(GameTime - StartTime).TotalDays;
 
     // Tension system for tracking building threats/opportunities

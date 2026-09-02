@@ -50,7 +50,7 @@ public class ResourceMemory
         _resourceLocations.TryGetValue(r, out var locs) ? locs : [];
 
     public List<Location> WhereIsFirePit() => _fireLocations;
-    public Location? GetClosestActiveFire(Location currentLocation,GameMap map) => WhereIsFirePit().Where(f=>f.HasActiveHeatSource()).OrderBy(l=>map.DistanceBetween(currentLocation, l)).FirstOrDefault();
+    public Location? GetClosestActiveFire(Location currentLocation, GameMap map) => WhereIsFirePit().Where(f => f.HasActiveHeatSource()).OrderBy(l => map.DistanceBetween(currentLocation, l)).FirstOrDefault();
 
     /// <summary>
     /// Pick the candidate that's gone longest without a visit (never-visited beats any

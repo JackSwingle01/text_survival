@@ -8,7 +8,7 @@ namespace text_survival.Actions.Variants;
 /// Eliminates wolf/bear branching logic scattered across events.
 /// </summary>
 public record AnimalTypeVariant(
-    AnimalType AnimalType,     
+    AnimalType AnimalType,
     string TacticsDescription,  // What the player sees about tactics
     string WaitDescription,     // Description for "wait for it to leave" choice
     double FireEffectiveness,   // 0-1 how well fire/smoke works
@@ -16,10 +16,10 @@ public record AnimalTypeVariant(
     double AmbushChance,        // Likelihood of ambush-style attacks
     bool IsDiurnal,             // Hunts during day (wolves) vs nocturnal/hibernating
     double PackBonus,           // Weight modifier when in group
-    // === STALKING BEHAVIOR ===
+                                // === STALKING BEHAVIOR ===
     double StalkingPersistence, // 0-1 how likely to keep following after losing sight
     double ChaseThreshold,      // 0-1 how easily running triggers chase (higher = more likely to chase)
-    // === PACK BEHAVIOR ===
+                                // === PACK BEHAVIOR ===
     double PackCoordination,    // 0-1 how well they coordinate (wolves high, bears N/A)
     string CirclingDescription  // Description for "They're circling" events
 );

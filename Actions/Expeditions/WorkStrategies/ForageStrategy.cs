@@ -349,7 +349,7 @@ public class ForageStrategy : IWorkStrategy
             if (discovery.Category == DiscoveryCategory.Major)
             {
                 string message = GetDiscoveryMessage(discovery);
-                    await ctx.Ui.ShowMessage("Discovery!", message);
+                await ctx.Ui.ShowMessage("Discovery!", message);
             }
             // Minor discoveries already shown during progress, no need to add to narrative
         }

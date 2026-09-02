@@ -283,5 +283,5 @@ namespace text_survival.Actors.Animals
         public override string ToString() => Name;
     }
 
-    
+
 }

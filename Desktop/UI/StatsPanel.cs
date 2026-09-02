@@ -357,10 +357,10 @@ public static class StatsPanel
                 foreach (var part in injuredParts)
                 {
                     RenderInjuryRow(part.Name, part.Condition);
-                    var damagedOrgans = part.Organs.Where(o=>o.Condition<=0.995).OrderBy(o=>o.Condition);
+                    var damagedOrgans = part.Organs.Where(o => o.Condition <= 0.995).OrderBy(o => o.Condition);
                     foreach (var organ in damagedOrgans)
                     {
-                        RenderInjuryRow(organ.Name,organ.Condition);
+                        RenderInjuryRow(organ.Name, organ.Condition);
                     }
                 }
 

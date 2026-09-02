@@ -848,7 +848,7 @@ public class GameEvent(string name, string description, double weight)
     public string? RequiredLocationName;  // Exact match on location name
 
     private List<EventChoice> _choices = [];
-/// <summary>
+    /// <summary>
     /// Get choices available to the player (filtered by conditions).
     /// </summary>
     public List<EventChoice> GetAvailableChoices(GameContext ctx)

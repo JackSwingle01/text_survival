@@ -1453,7 +1453,8 @@ public class NeedCraftingSystem
             Requirements = [
                 new MaterialRequirement(Resource.Stick, 4)
             ],
-            Prerequisite = ctx => {
+            Prerequisite = ctx =>
+            {
                 if (ctx.Camp.HasFeature<ShelterFeature>())
                     return "Camp already has a shelter";
                 return null;
@@ -1472,7 +1473,8 @@ public class NeedCraftingSystem
             Requirements = [
                 new MaterialRequirement(ResourceCategory.Log, 3)
             ],
-            Prerequisite = ctx => {
+            Prerequisite = ctx =>
+            {
                 if (ctx.Camp.HasFeature<ShelterFeature>())
                     return "Camp already has a shelter";
                 return null;
@@ -1491,7 +1493,8 @@ public class NeedCraftingSystem
             Requirements = [
                 new MaterialRequirement(ResourceCategory.Log, 3)
             ],
-            Prerequisite = ctx => {
+            Prerequisite = ctx =>
+            {
                 var shelter = ctx.Camp.GetFeature<ShelterFeature>();
                 if (shelter == null)
                     return "No shelter to rebuild";
@@ -1531,7 +1534,8 @@ public class NeedCraftingSystem
                 new MaterialRequirement(Resource.Stone, 30),
                 new MaterialRequirement(Resource.Stick, 10)
             ],
-            Prerequisite = ctx => {
+            Prerequisite = ctx =>
+            {
                 var fire = ctx.Camp.GetFeature<HeatSourceFeature>();
                 if (fire == null || fire.PitType != FirePitType.Mound)
                     return "Requires Mound Fire Pit first";
@@ -1554,7 +1558,8 @@ public class NeedCraftingSystem
             Durability = 0,
             Requirements = [],
             RequiredTools = [ToolType.Shovel],
-            Prerequisite = ctx => {
+            Prerequisite = ctx =>
+            {
                 if (ctx.Camp.HasFeature<ShelterFeature>())
                     return "Camp already has a shelter";
                 // Check temperature - snow shelters need cold weather (below freezing)
@@ -1566,7 +1571,8 @@ public class NeedCraftingSystem
                 "Snow Shelter",
                 ShelterFeature.CreateSnowShelter(),
                 120 // 2 hours of work
-            ) { BenefitsFromShovel = true }
+            )
+            { BenefitsFromShovel = true }
         });
 
         // 6. Portable Hide Tent - crafted item you can deploy anywhere

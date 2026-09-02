@@ -7,5 +7,5 @@ namespace text_survival.Actors;
 public interface IMovable
 {
     public Location CurrentLocation { get; set; }
-    public GameMap Map {get; set;}
+    public GameMap Map { get; set; }
 }

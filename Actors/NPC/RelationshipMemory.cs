@@ -23,7 +23,7 @@ public class RelationshipMemory
         }
         return sum;
     }
-    
+
     private static double GetMemoryImpact(MemoryType memoryType)
     {
         return memoryType switch

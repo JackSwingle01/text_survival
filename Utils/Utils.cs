@@ -75,43 +75,43 @@ namespace text_survival
             }
             return list[Roll(list.Count) - 1];
         }
-        
-    public static T GetRandomWeighted<T>(IDictionary<T, double> choices)
-    {
-        if (choices == null || choices.Count == 0)
-            throw new ArgumentException("Cannot select from an empty collection", nameof(choices));
-            
-        double totalWeight = choices.Sum(pair => pair.Value);
-        if (totalWeight <= 0)
-            throw new ArgumentException("Total weight must be positive", nameof(choices));
-            
-        double roll = random.NextDouble() * totalWeight;
-        
-        double cumulativeWeight = 0;
-        foreach (var pair in choices)
+
+        public static T GetRandomWeighted<T>(IDictionary<T, double> choices)
         {
-            cumulativeWeight += pair.Value;
-            if (roll <= cumulativeWeight)
+            if (choices == null || choices.Count == 0)
+                throw new ArgumentException("Cannot select from an empty collection", nameof(choices));
+
+            double totalWeight = choices.Sum(pair => pair.Value);
+            if (totalWeight <= 0)
+                throw new ArgumentException("Total weight must be positive", nameof(choices));
+
+            double roll = random.NextDouble() * totalWeight;
+
+            double cumulativeWeight = 0;
+            foreach (var pair in choices)
+            {
+                cumulativeWeight += pair.Value;
+                if (roll <= cumulativeWeight)
                 {
                     // GameDisplay.AddNarrative($"Debug: Odds: {pair.Value / totalWeight * 100:F2}%");
                     return pair.Key;
                 }
+            }
+
+            // This should never happen if weights are positive
+            return choices.Keys.Last();
         }
-        
-        // This should never happen if weights are positive
-        return choices.Keys.Last();
-    }
 
-    /// <summary>
-    /// Format fire time display: shows minutes if under 60, hours (1 decimal) if 60+
-    /// </summary>
-    public static string FormatFireTime(int minutes)
-    {
-        if (minutes <= 59)
-            return $"{minutes} minutes";
+        /// <summary>
+        /// Format fire time display: shows minutes if under 60, hours (1 decimal) if 60+
+        /// </summary>
+        public static string FormatFireTime(int minutes)
+        {
+            if (minutes <= 59)
+                return $"{minutes} minutes";
 
-        double hours = minutes / 60.0;
-        return $"{hours:F1} hours";
-    }
+            double hours = minutes / 60.0;
+            return $"{hours:F1} hours";
+        }
     }
 }
