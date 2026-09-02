@@ -25,7 +25,7 @@ public class NPCSimulationTests
     public void Baseline_72h_WritesLog()
     {
         var sim = NPCSimulation.Create(SimulationScenario.Baseline);
-        sim.Run(SeventyTwoHoursMinutes, captureTileView: true);
+        sim.Run(SeventyTwoHoursMinutes, captureTileView: true, traceDecisions: true);
         var path = sim.WriteLog("baseline-single");
         _output.WriteLine($"Log: {path}");
         _output.WriteLine(sim.Summarize().ToString());
@@ -35,7 +35,7 @@ public class NPCSimulationTests
     public void FireLit_72h_WritesLog()
     {
         var sim = NPCSimulation.Create(SimulationScenario.FireLit);
-        sim.Run(SeventyTwoHoursMinutes, captureTileView: true);
+        sim.Run(SeventyTwoHoursMinutes, captureTileView: true, traceDecisions: true);
         var path = sim.WriteLog("firelit-single");
         _output.WriteLine($"Log: {path}");
         _output.WriteLine(sim.Summarize().ToString());
@@ -45,7 +45,7 @@ public class NPCSimulationTests
     public void NpcAtCamp_72h_WritesLog()
     {
         var sim = NPCSimulation.Create(SimulationScenario.NpcAtCamp);
-        sim.Run(SeventyTwoHoursMinutes, captureTileView: true);
+        sim.Run(SeventyTwoHoursMinutes, captureTileView: true, traceDecisions: true);
         var path = sim.WriteLog("npcatcamp-single");
         _output.WriteLine($"Log: {path}");
         _output.WriteLine(sim.Summarize().ToString());
@@ -75,7 +75,7 @@ public class NPCSimulationTests
         foreach (var seed in ComparisonSeeds)
         {
             var sim = NPCSimulation.Create(SimulationScenario.Baseline, seed);
-            sim.Run(SeventyTwoHoursMinutes, captureTileView: true);
+            sim.Run(SeventyTwoHoursMinutes, captureTileView: true, traceDecisions: true);
             var path = sim.WriteLog($"seeded-{seed}");
             var summary = sim.Summarize();
             summaries.Add((seed, summary));
@@ -222,7 +222,15 @@ public class NPCSimulationTests
         return sb.ToString();
     }
 
-    private static readonly int[] GroupSizes = [1, 2, 3, 4];
+    /// <summary>
+    /// The camp size we tune against: the real game starts with the player plus one NPC, so
+    /// two survivors sharing a fire is the closest match. (The harness player is inert - it
+    /// exists only so the world ticks - so two NPCs stands in for "a player who behaves like
+    /// a competent NPC, plus one NPC".) Sizes 1 and 3 run alongside it for context.
+    /// </summary>
+    public const int DefaultGroupSize = 2;
+
+    private static readonly int[] GroupSizes = [1, 2, 3];
     private static readonly int[] GroupSeeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
     /// <summary>
@@ -260,20 +268,168 @@ public class NPCSimulationTests
     private static string FormatGroupSizeTable(Dictionary<int, List<GroupSummary>> bySize)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"{"GroupSize",9} | {"AvgSurvived(d)",14} | {"MinSurvived(d)",14} | {"MaxSurvived(d)",14} | {"AnySurvivedWk%",14} | {"AllSurvivedWk%",14} | {"CacheFuel",9} | {"CacheWater",10}");
-        foreach (var (size, summaries) in bySize)
+        sb.AppendLine($"{"GroupSize",9} | {"AvgSurvived(d)",14} | {"AnySurvivedWk%",14} | {"CacheFuel",9} | {"PeakFuel",8} | {"CacheWater",10} | {"PeakWater",9} | {"WaterStock%",11}");
+        foreach (var (size, summaries) in bySize.OrderBy(kv => kv.Key))
         {
             double avgDays = summaries.Average(g => g.AverageSurvivedMinutes) / 1440.0;
-            double minDays = summaries.Average(g => g.MinSurvivedMinutes) / 1440.0;
-            double maxDays = summaries.Average(g => g.MaxSurvivedMinutes) / 1440.0;
             double anySurvivedPct = 100.0 * summaries.Count(g => g.MembersAliveAtEnd > 0) / summaries.Count;
-            double allSurvivedPct = 100.0 * summaries.Count(g => g.MembersAliveAtEnd == g.Members.Count) / summaries.Count;
             double avgFuel = summaries.Average(g => g.CacheFuelKgFinal);
+            double peakFuel = summaries.Average(g => g.CacheFuelKgPeak);
             double avgWater = summaries.Average(g => g.CacheWaterLFinal);
-            sb.AppendLine($"{size,9} | {avgDays,14:F2} | {minDays,14:F2} | {maxDays,14:F2} | {anySurvivedPct,13:F0}% | {allSurvivedPct,13:F0}% | {avgFuel,9:F1} | {avgWater,10:F1}");
+            double peakWater = summaries.Average(g => g.CacheWaterLPeak);
+            double waterStockPct = 100.0 * summaries.Count(g => g.WaterEverStockpiled) / summaries.Count;
+            string marker = size == DefaultGroupSize ? " <-- tuning target" : "";
+            sb.AppendLine($"{size,9} | {avgDays,14:F2} | {anySurvivedPct,13:F0}% | {avgFuel,9:F1} | {peakFuel,8:F1} | {avgWater,10:F1} | {peakWater,9:F1} | {waterStockPct,10:F0}%{marker}");
         }
+
+        sb.AppendLine();
+        sb.AppendLine($"{"GroupSize",9} | {"FuelGathered",12} | {"FuelStashed",11} | {"FuelToFire",10} | {"StashActions",12} | {"StashedPct",10}");
+        foreach (var (size, summaries) in bySize.OrderBy(kv => kv.Key))
+        {
+            double gathered = summaries.Average(g => g.FuelGatheredKg);
+            double stashed = summaries.Average(g => g.FuelStashedKg);
+            double toFire = summaries.Average(g => g.FuelToFireKg);
+            double stashActions = summaries.Average(g => g.StashActionCount);
+            double stashedPct = gathered > 0 ? 100.0 * stashed / gathered : 0;
+            sb.AppendLine($"{size,9} | {gathered,12:F1} | {stashed,11:F1} | {toFire,10:F1} | {stashActions,12:F1} | {stashedPct,9:F0}%");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Death causes by group size:");
+        foreach (var (size, summaries) in bySize.OrderBy(kv => kv.Key))
+        {
+            var causes = summaries
+                .SelectMany(g => g.Members)
+                .Select(m => m.Died ? (m.DeathCause ?? "unknown") : "survived")
+                .GroupBy(c => c)
+                .OrderByDescending(g => g.Count())
+                .Select(g => $"{g.Key}={g.Count()}");
+            sb.AppendLine($"  size {size}: {string.Join(", ", causes)}");
+        }
+
         return sb.ToString();
     }
+
+    private static readonly double[] FuelTargetsKg = [5, 10, 15, 20, 25, 30, 35, 40];
+    private static readonly int[] SweepSeeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    /// <summary>
+    /// Sweeps NPC.FuelStockpileTargetKg (default 40, added specifically for this sweep -
+    /// see its doc comment) from 5 to 40 in 5kg steps, 10 fixed seeds per value, one
+    /// simulated week each, solo NPC with Baseline personality. Answers H13 directly: is
+    /// the 40kg default simply unreachable given a 15kg carry capacity and sparse
+    /// camp-adjacent forage, and if so, what target actually gets stockpiling to happen
+    /// without being so low it's pointless.
+    /// </summary>
+    [SimulationFact]
+    public void FuelStockpileTarget_Sweep()
+    {
+        double original = NPC.FuelStockpileTargetKg;
+        var byTarget = new Dictionary<double, List<SimulationSummary>>();
+        try
+        {
+            var baseline = PersonalityProfiles.First(p => p.Name == "Baseline").Personality;
+
+            foreach (var fuelTarget in FuelTargetsKg)
+            {
+                NPC.FuelStockpileTargetKg = fuelTarget;
+
+                var summaries = new List<SimulationSummary>();
+                foreach (var seed in SweepSeeds)
+                {
+                    var sim = NPCSimulation.Create(SimulationScenario.Baseline, seed, baseline);
+                    sim.Run(OneWeekMinutes);
+                    summaries.Add(sim.Summarize());
+                }
+                byTarget[fuelTarget] = summaries;
+                _output.WriteLine($"FuelTarget={fuelTarget}kg: {summaries.Count} seeds run");
+            }
+        }
+        finally
+        {
+            NPC.FuelStockpileTargetKg = original; // this is process-shared static state - never leave it changed
+        }
+
+        _output.WriteLine("");
+        _output.WriteLine(FormatFuelTargetTable(byTarget));
+    }
+
+    private static string FormatFuelTargetTable(Dictionary<double, List<SimulationSummary>> byTarget)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"{"FuelTarget",10} | {"AvgSurvived(d)",14} | {"Died%",6} | {"FuelStockpiled%",15} | {"WaterStockpiled%",16} | {"CacheUtil%",10} | {"AvgSticks",9}");
+        foreach (var (target, summaries) in byTarget.OrderBy(kv => kv.Key))
+        {
+            double avgDays = summaries.Average(s => s.SurvivedMinutes) / 1440.0;
+            double diedPct = 100.0 * summaries.Count(s => s.Died) / summaries.Count;
+            double fuelPct = 100.0 * summaries.Count(s => s.FuelEverStockpiled) / summaries.Count;
+            double waterPct = 100.0 * summaries.Count(s => s.WaterEverStockpiled) / summaries.Count;
+            double avgUtil = 100.0 * summaries.Average(s => s.CacheUtilizationPct);
+            double avgSticks = summaries.Average(s => s.SticksGathered);
+            sb.AppendLine($"{target,10:F0} | {avgDays,14:F2} | {diedPct,5:F0}% | {fuelPct,14:F0}% | {waterPct,15:F0}% | {avgUtil,9:F1}% | {avgSticks,9:F1}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Death causes by target:");
+        foreach (var (target, summaries) in byTarget.OrderBy(kv => kv.Key))
+        {
+            var causes = summaries
+                .Select(s => s.Died ? (s.DeathCause ?? "unknown") : "survived")
+                .GroupBy(c => c)
+                .Select(g => $"{g.Key}={g.Count()}");
+            sb.AppendLine($"  {target,4:F0}kg: {string.Join(", ", causes)}");
+        }
+
+        return sb.ToString();
+    }
+
+    // ==================================================================================
+    // Reproducibility
+    // ==================================================================================
+
+    private static readonly int[] AblationSeeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    /// <summary>
+    /// The same configuration run three times over the same seeds. Any spread at all between
+    /// the rows is run-to-run nondeterminism, which sets the noise floor every comparison in
+    /// this file has to clear before it means anything - and for a long time that floor was
+    /// about +/-35%, because most of the simulation drew from unseeded RNGs and quietly
+    /// carried state between runs (see documentation/npc-simulation-plan.md, Part 9). This
+    /// guards that fix: anything random added to the simulation must draw from Utils.Rng, and
+    /// this test fails if it doesn't.
+    /// </summary>
+    [SimulationFact]
+    public void SameConfigAndSeeds_ProduceIdenticalRuns()
+    {
+        var runs = new List<List<GroupSummary>>();
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            var summaries = new List<GroupSummary>();
+            foreach (var seed in AblationSeeds)
+            {
+                var sim = NPCGroupSimulation.Create(DefaultGroupSize, seed);
+                sim.Run(OneWeekMinutes);
+                summaries.Add(sim.Summarize());
+            }
+            runs.Add(summaries);
+        }
+
+        for (int seedIndex = 0; seedIndex < AblationSeeds.Length; seedIndex++)
+        {
+            var expected = Describe(runs[0][seedIndex]);
+            for (int attempt = 1; attempt < runs.Count; attempt++)
+            {
+                Assert.True(expected == Describe(runs[attempt][seedIndex]),
+                    $"Seed {AblationSeeds[seedIndex]} was not reproducible.\n" +
+                    $"  run 1: {expected}\n  run {attempt + 1}: {Describe(runs[attempt][seedIndex])}");
+            }
+        }
+    }
+
+    private static string Describe(GroupSummary g) =>
+        $"survived={g.AverageSurvivedMinutes:F4} alive={g.MembersAliveAtEnd} " +
+        $"fuel={g.CacheFuelKgFinal:F4} water={g.CacheWaterLFinal:F4} food={g.CacheFoodKgFinal:F4} " +
+        $"gathered={g.FuelGatheredKg:F4} deaths=[{string.Join(",", g.Members.Select(m => m.DeathCause ?? "alive"))}]";
 }
 
 [CollectionDefinition("NPCSimulation", DisableParallelization = true)]

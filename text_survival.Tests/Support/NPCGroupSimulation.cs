@@ -23,13 +23,37 @@ public sealed class GroupSummary
     public double CacheFuelKgFinal;
     public double CacheWaterLFinal;
     public double CacheFoodKgFinal;
+    public double CacheFuelKgPeak;
+    public double CacheWaterLPeak;
+
+    // Group-level fuel flow. Attributed at the group level rather than per-member because
+    // the cache and fire are shared - when several NPCs act in the same minute there is no
+    // reliable way to say whose kilogram went where, and the question that matters ("does
+    // gathered fuel ever reach the cache, or is it all burned straight out of inventory")
+    // is answered the same either way.
+    public double FuelGatheredKg;
+    public double FuelStashedKg;
+    public double FuelToFireKg;
+    public int StashActionCount;
+
+    public bool FuelEverStockpiled;
+    public bool WaterEverStockpiled;
+    public bool FoodEverStockpiled;
+
+    /// <summary>Minutes each need was active, summed across all members (so a 2-member group over 100 minutes contributes 200 member-minutes).</summary>
+    public Dictionary<string, int> NeedMemberMinutes = new();
 
     public override string ToString()
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Members: {Members.Count}   AliveAtEnd: {MembersAliveAtEnd}");
         sb.AppendLine($"Survived (min): avg={AverageSurvivedMinutes:F0}  min={MinSurvivedMinutes}  max={MaxSurvivedMinutes}");
-        sb.AppendLine($"CacheFinal: fuel={CacheFuelKgFinal:F1}kg water={CacheWaterLFinal:F1}L food={CacheFoodKgFinal:F1}kg");
+        sb.AppendLine($"CacheFinal: fuel={CacheFuelKgFinal:F1}kg water={CacheWaterLFinal:F1}L food={CacheFoodKgFinal:F1}kg   (peak fuel={CacheFuelKgPeak:F1}kg water={CacheWaterLPeak:F1}L)");
+        sb.AppendLine($"StockpiledEver: fuel={FuelEverStockpiled} water={WaterEverStockpiled} food={FoodEverStockpiled}");
+        sb.AppendLine($"FuelFlow: gathered={FuelGatheredKg:F2}kg  stashed={FuelStashedKg:F2}kg  toFire={FuelToFireKg:F2}kg  stashActions={StashActionCount}");
+        sb.AppendLine("NeedMemberMinutes:");
+        foreach (var (need, minutes) in NeedMemberMinutes.OrderByDescending(kv => kv.Value))
+            sb.AppendLine($"  {need}: {minutes}");
         foreach (var m in Members)
             sb.AppendLine($"  {m.Name} (boldness={m.Boldness:F2}): survived={m.SurvivedMinutes}min  {(m.Died ? $"died: {m.DeathCause}" : "alive at end")}");
         return sb.ToString();
@@ -51,6 +75,12 @@ public sealed class NPCGroupSimulation
 
     private readonly Dictionary<NPC, int> _survivedMinutes = [];
     private readonly Dictionary<NPC, string?> _deathCause = [];
+    private readonly Dictionary<string, int> _needMemberMinutes = [];
+
+    private double _fuelGatheredKg, _fuelStashedKg, _fuelToFireKg;
+    private double _cacheFuelPeak, _cacheWaterPeak;
+    private int _stashActionCount;
+    private bool _fuelEverStockpiled, _waterEverStockpiled, _foodEverStockpiled;
 
     private NPCGroupSimulation(GameContext ctx, List<NPC> npcs)
     {
@@ -103,6 +133,12 @@ public sealed class NPCGroupSimulation
     public void Run(int minutes)
     {
         var player = Ctx.player;
+        var cache = Ctx.Camp.GetFeature<CacheFeature>()?.Storage;
+        var campFire = Ctx.Camp.GetFeature<HeatSourceFeature>();
+
+        double prevInvFuel = Npcs.Sum(n => n.Inventory.GetWeight(ResourceCategory.Fuel));
+        double prevCacheFuel = cache?.GetWeight(ResourceCategory.Fuel) ?? 0;
+        double prevFireMass = (campFire?.BurningMassKg ?? 0) + (campFire?.UnburnedMassKg ?? 0);
 
         for (int i = 0; i < minutes; i++)
         {
@@ -114,8 +150,9 @@ public sealed class NPCGroupSimulation
             player.Body.Hydration = SurvivalProcessor.MAX_HYDRATION;
             player.Body.CalorieStore = SurvivalProcessor.MAX_CALORIES;
 
+            var sw = new StringWriter();
             var originalOut = Console.Out;
-            Console.SetOut(TextWriter.Null); // group runs measure outcomes, not per-minute decision traces
+            Console.SetOut(sw);
             try
             {
                 Ctx.UpdateWithoutEvents(1, ActivityType.Resting);
@@ -123,6 +160,50 @@ public sealed class NPCGroupSimulation
             finally
             {
                 Console.SetOut(originalOut);
+            }
+
+            foreach (var line in sw.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                if (line.Contains("] Completed: Storing ", StringComparison.Ordinal))
+                    _stashActionCount++;
+
+            // Need occupancy, summed across living members
+            foreach (var npc in Npcs)
+            {
+                if (!npc.IsAlive) continue;
+                var needName = npc.CurrentNeed?.ToString() ?? "(none)";
+                _needMemberMinutes[needName] = _needMemberMinutes.GetValueOrDefault(needName) + 1;
+            }
+
+            // Group fuel flow
+            double invFuel = Npcs.Sum(n => n.Inventory.GetWeight(ResourceCategory.Fuel));
+            double cacheFuel = cache?.GetWeight(ResourceCategory.Fuel) ?? 0;
+            double fireMass = (campFire?.BurningMassKg ?? 0) + (campFire?.UnburnedMassKg ?? 0);
+
+            double invDelta = invFuel - prevInvFuel;
+            double cacheDelta = cacheFuel - prevCacheFuel;
+            double fireDelta = fireMass - prevFireMass;
+
+            if (invDelta > 0) _fuelGatheredKg += invDelta;
+            else if (invDelta < 0)
+            {
+                double left = -invDelta;
+                if (cacheDelta > 0) _fuelStashedKg += Math.Min(left, cacheDelta);
+                if (fireDelta > 0) _fuelToFireKg += Math.Min(left, fireDelta);
+            }
+            prevInvFuel = invFuel;
+            prevCacheFuel = cacheFuel;
+            prevFireMass = fireMass;
+
+            _cacheFuelPeak = Math.Max(_cacheFuelPeak, cacheFuel);
+            _cacheWaterPeak = Math.Max(_cacheWaterPeak, cache?.Weight(Resource.Water) ?? 0);
+
+            // Stockpile targets are read off any living member (they all share one camp cache)
+            var probe = Npcs.FirstOrDefault(n => n.IsAlive);
+            if (probe != null)
+            {
+                if (probe.IsEnoughStockpiled(ResourceCategory.Fuel)) _fuelEverStockpiled = true;
+                if (probe.IsEnoughStockpiled(ResourceCategory.Water)) _waterEverStockpiled = true;
+                if (probe.IsEnoughStockpiled(ResourceCategory.Food)) _foodEverStockpiled = true;
             }
 
             foreach (var npc in Npcs)
@@ -151,6 +232,18 @@ public sealed class NPCGroupSimulation
         s.CacheFuelKgFinal = cache?.GetWeight(ResourceCategory.Fuel) ?? 0;
         s.CacheWaterLFinal = cache?.Weight(Resource.Water) ?? 0;
         s.CacheFoodKgFinal = cache?.GetWeight(ResourceCategory.Food) ?? 0;
+        s.CacheFuelKgPeak = _cacheFuelPeak;
+        s.CacheWaterLPeak = _cacheWaterPeak;
+
+        s.FuelGatheredKg = _fuelGatheredKg;
+        s.FuelStashedKg = _fuelStashedKg;
+        s.FuelToFireKg = _fuelToFireKg;
+        s.StashActionCount = _stashActionCount;
+
+        s.FuelEverStockpiled = _fuelEverStockpiled;
+        s.WaterEverStockpiled = _waterEverStockpiled;
+        s.FoodEverStockpiled = _foodEverStockpiled;
+        s.NeedMemberMinutes = new Dictionary<string, int>(_needMemberMinutes);
 
         return s;
     }
