@@ -31,4 +31,37 @@ public static class ActivityConfig
     };
 
     public static Config Get(ActivityType activity) => _configs[activity];
+
+    /// <summary>
+    /// Whether an activity keeps you put long enough for a structural shelter to help. This
+    /// is the single source of truth for that question - <see cref="Environments.Location"/>
+    /// derives its temperature from it rather than taking a bool from each caller, because
+    /// callers that had to decide for themselves got it wrong silently.
+    /// </summary>
+    public static bool IsStationary(ActivityType activity) => activity switch
+    {
+        // Stationary activities - shelter applies
+        ActivityType.Idle => true,
+        ActivityType.Fighting => true,
+        ActivityType.Encounter => true,
+        ActivityType.Sleeping => true,
+        ActivityType.Resting => true,
+        ActivityType.Incapacitated => true,
+        ActivityType.TendingFire => true,
+        ActivityType.Eating => true,
+        ActivityType.Cooking => true,
+        ActivityType.Crafting => true,
+
+        // Moving activities - no structural shelter
+        ActivityType.Traveling => false,
+        ActivityType.Foraging => false,
+        ActivityType.Hunting => false,
+        ActivityType.Exploring => false,
+        ActivityType.Chopping => false,
+        ActivityType.Tracking => false,
+        ActivityType.Butchering => false,
+
+        _ => throw new ArgumentOutOfRangeException(nameof(activity), activity,
+            "New activity types must say whether shelter applies to them."),
+    };
 }

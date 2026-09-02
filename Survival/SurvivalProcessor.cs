@@ -184,14 +184,23 @@ public static class SurvivalProcessor
     /// <summary>
     /// Project temperature after duration away from fire, accounting for buffer depletion.
     /// </summary>
+    /// <remarks>
+    /// KNOWN GAP: this removes the fire but keeps <see cref="SurvivalContext.LocationTemperature"/>
+    /// exactly as the caller measured it. If the caller built its context while resting in a
+    /// sheltered camp, that figure still carries the shelter bonus - worth up to 60F - even
+    /// though walking away forfeits it. So an NPC asking "can I survive out there" is
+    /// answered about a warmer world than the one it is about to enter. Fixing it means
+    /// deciding which tile and activity the projection is for, which changes NPC behavior,
+    /// so it is deliberately left visible here rather than silently patched.
+    /// </remarks>
     public static double ProjectTemperatureAwayFromFire(Body body, SurvivalContext context, int minutes)
     {
-        double originalFireBonus = context.FireProximityBonus;
-        context.FireProximityBonus = 0;
+        // The counterfactual is a value, not a mutation of the caller's context. The old
+        // version zeroed the field and restored it afterwards with no try/finally, so a
+        // throw inside ProcessTemperature left the caller's context permanently altered.
+        var awayFromFire = context with { FireProximityBonus = 0 };
 
-        var result = ProcessTemperature(body, context, minutes);
-
-        context.FireProximityBonus = originalFireBonus;
+        var result = ProcessTemperature(body, awayFromFire, minutes);
 
         return body.BodyTemperature + result.StatsDelta.TemperatureDelta;
     }

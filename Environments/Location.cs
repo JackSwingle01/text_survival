@@ -268,9 +268,19 @@ public class Location
     /// </summary>
     /// <param name="isStationary">If true, apply structural shelter effects (resting, crafting).
     /// If false, only apply environmental shelter (foraging, hunting, traveling).</param>
-    public double GetTemperature(bool isStationary = true)
+    /// <summary>
+    /// Temperature as experienced by someone doing <paramref name="activity"/> here.
+    /// </summary>
+    /// <remarks>
+    /// There is deliberately no parameterless overload. A structural shelter only helps
+    /// activities that keep you put, so "the temperature here" is not a well-formed
+    /// question - the answer differs by up to 60F between resting and foraging on the same
+    /// tile. The old signature took a defaulted bool, and every caller that did not think
+    /// about it silently got the sheltered figure.
+    /// </remarks>
+    public double GetTemperature(ActivityType activity)
     {
-        return GetTemperatureBreakdown(isStationary).FinalTemp;
+        return GetTemperatureBreakdown(activity).FinalTemp;
     }
 
     public double CalculateWindChillNWS(double temperatureF, double windSpeedMph)
@@ -291,9 +301,10 @@ public class Location
     /// <summary>
     /// Get a breakdown of temperature components at this location.
     /// </summary>
-    /// <param name="isStationary">If true, apply structural shelter effects.</param>
-    public TemperatureBreakdown GetTemperatureBreakdown(bool isStationary = true)
+    /// <param name="activity">What is being done here; shelter only helps activities that keep you put.</param>
+    public TemperatureBreakdown GetTemperatureBreakdown(ActivityType activity)
     {
+        bool isStationary = ActivityConfig.IsStationary(activity);
         double baseTemp = Weather.TemperatureInFahrenheit;
         double locationMod = TemperatureDeltaF;
         double windChill = 0;
@@ -383,8 +394,9 @@ public class Location
 
     public void Update(int minutes)
     {
-        // Get temperature once for features that need it
-        double temperatureF = GetTemperature(isStationary: true);
+        // Get temperature once for features that need it. Carcasses and stored goods sit
+        // still, so they get whatever a shelter here provides.
+        double temperatureF = GetTemperature(ActivityType.Idle);
 
         // Update location features (fires consume fuel, etc.)
         foreach (var feature in Features)

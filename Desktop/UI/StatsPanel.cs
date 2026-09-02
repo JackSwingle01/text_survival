@@ -199,7 +199,7 @@ public static class StatsPanel
     private static void RenderTemperature(GameContext ctx, Body body, Environments.Location location, Weather weather)
     {
         double bodyTemp = body.BodyTemperature;
-        var breakdown = location.GetTemperatureBreakdown();
+        var breakdown = location.GetTemperatureBreakdown(ActivityType.Idle);
 
         // Calculate trend
         double trendPerHour = 0;
@@ -613,7 +613,7 @@ public static class StatsPanel
 
             // Fire temperature and heat output on one line
             double fireTemp = fire.GetCurrentFireTemperature();
-            var breakdown = location.GetTemperatureBreakdown();
+            var breakdown = location.GetTemperatureBreakdown(ActivityType.Idle);
             if (fireTemp > 0)
             {
                 ImGui.TableNextColumn();

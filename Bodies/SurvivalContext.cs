@@ -5,33 +5,33 @@ using static text_survival.Actions.GameContext;
 
 namespace text_survival.Bodies;
 
-public class SurvivalContext
+public record SurvivalContext
 {
-    public double LocationTemperature;
-    public bool IsNight;
-    public double ClothingInsulation;
-    public double ActivityLevel;
-    public double FireProximityBonus; // Direct radiant heat from fire proximity (0-2 scale multiplied by fire heat)
+    public double LocationTemperature { get; init; }
+    public bool IsNight { get; init; }
+    public double ClothingInsulation { get; init; }
+    public double ActivityLevel { get; init; }
+    public double FireProximityBonus { get; init; } // Direct radiant heat from fire proximity (0-2 scale multiplied by fire heat)
 
     // Wetness system context
-    public double OverheadCoverLevel;
-    public double PrecipitationPct;
-    public double WindSpeedLevel;
-    public bool IsRaining;
-    public bool IsSnowing;                 // Weather condition flag (light snow)
-    public bool IsBlizzard;
-    public double CurrentWetnessPct;  // 0-1 current wetness from effect
+    public double OverheadCoverLevel { get; init; }
+    public double PrecipitationPct { get; init; }
+    public double WindSpeedLevel { get; init; }
+    public bool IsRaining { get; init; }
+    public bool IsSnowing { get; init; }                 // Weather condition flag (light snow)
+    public bool IsBlizzard { get; init; }
+    public double CurrentWetnessPct { get; init; }  // 0-1 current wetness from effect
 
     // Waterproofing from resin-treated equipment (0-1 scale)
-    public double WaterproofingLevel;      // Reduces wetness accumulation by this factor
+    public double WaterproofingLevel { get; init; }      // Reduces wetness accumulation by this factor
 
     // Bloody accumulation from bleeding
-    public double CurrentBleedingPct; // 0-1 from Bleeding effect
-    public double CurrentBloodyPct;   // 0-1 from Bloody effect
+    public double CurrentBleedingPct { get; init; } // 0-1 from Bleeding effect
+    public double CurrentBloodyPct { get; init; }   // 0-1 from Bloody effect
 
     // Clothing thermal mass
-    public double ClothingWeightKg;        // Total equipment weight for capacity calc
-    public double ClothingHeatBuffer;      // Current buffer level 0-1
+    public double ClothingWeightKg { get; init; }        // Total equipment weight for capacity calc
+    public double ClothingHeatBuffer { get; init; }      // Current buffer level 0-1
 
 
     public static SurvivalContext GetSurvivalContext(Actor actor, Inventory inventory, ActivityType activity, TimeOfDay timeOfDay)
@@ -55,7 +55,7 @@ public class SurvivalContext
         }
 
         // Calculate overhead cover (environmental + shelter if stationary)
-        bool isStationary = IsActivityStationary(activity);
+        bool isStationary = ActivityConfig.IsStationary(activity);
         double overheadCover = actor.CurrentLocation.OverheadCoverLevel;
         if (isStationary)
         {
@@ -82,7 +82,7 @@ public class SurvivalContext
         var fire = actor.CurrentLocation.GetFeature<HeatSourceFeature>();
         if (fire != null && fire.IsActive && !actor.EffectRegistry.HasEffect("Hyperthermia"))
         {
-            double fireHeat = fire.GetEffectiveHeatOutput(actor.CurrentLocation.GetTemperature(IsActivityStationary(activity)));
+            double fireHeat = fire.GetEffectiveHeatOutput(actor.CurrentLocation.GetTemperature(activity));
             double fireProximityMultiplier = activityConfig.FireProximity;
             fireProximityBonus = fireHeat * fireProximityMultiplier;
         }
@@ -99,7 +99,7 @@ public class SurvivalContext
         return new SurvivalContext
         {
             ActivityLevel = activityConfig.ActivityLevel,
-            LocationTemperature = actor.CurrentLocation.GetTemperature(isStationary),
+            LocationTemperature = actor.CurrentLocation.GetTemperature(activity),
             ClothingInsulation = clothingInsulation,
             FireProximityBonus = fireProximityBonus,
             IsNight = isNight,
@@ -124,29 +124,6 @@ public class SurvivalContext
             ClothingHeatBuffer = actor.Body.ClothingHeatBufferPct,
         };
     }
-
-    public static bool IsActivityStationary(ActivityType activity) => activity switch
-    {
-        // Stationary activities - shelter applies
-        ActivityType.Idle => true,
-        ActivityType.Fighting => true,
-        ActivityType.Encounter => true,
-        ActivityType.Sleeping => true,
-        ActivityType.Resting => true,
-        ActivityType.TendingFire => true,
-        ActivityType.Eating => true,
-        ActivityType.Cooking => true,
-        ActivityType.Crafting => true,
-
-        // Moving activities - no structural shelter
-        ActivityType.Traveling => false,
-        ActivityType.Foraging => false,
-        ActivityType.Hunting => false,
-        ActivityType.Exploring => false,
-        ActivityType.Chopping => false,
-
-        _ => true // Default to stationary
-    };
 
     private static double CalculateEffectiveWindSpeed(Environments.Location location)
     {
