@@ -177,7 +177,7 @@ public class PlacedSnare
         if (animals.Count == 0)
             return ("rabbit", 2.0);
 
-        return animals[Random.Shared.Next(animals.Count)];
+        return animals[Utils.Rng.Next(animals.Count)];
     }
 
     /// <summary>

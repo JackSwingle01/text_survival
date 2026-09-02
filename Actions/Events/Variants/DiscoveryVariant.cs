@@ -136,7 +136,7 @@ public static class DiscoverySelector
     /// </summary>
     public static DiscoveryVariant SelectSupplyDiscovery(GameContext ctx)
     {
-        return DiscoveryVariants.SupplyFinds[Random.Shared.Next(DiscoveryVariants.SupplyFinds.Length)];
+        return DiscoveryVariants.SupplyFinds[Utils.Rng.Next(DiscoveryVariants.SupplyFinds.Length)];
     }
 
     /// <summary>
@@ -144,7 +144,7 @@ public static class DiscoverySelector
     /// </summary>
     public static DiscoveryVariant SelectTinderDiscovery(GameContext ctx)
     {
-        return DiscoveryVariants.TinderFinds[Random.Shared.Next(DiscoveryVariants.TinderFinds.Length)];
+        return DiscoveryVariants.TinderFinds[Utils.Rng.Next(DiscoveryVariants.TinderFinds.Length)];
     }
 
     /// <summary>
@@ -152,7 +152,7 @@ public static class DiscoverySelector
     /// </summary>
     public static DiscoveryVariant SelectMaterialDiscovery(GameContext ctx)
     {
-        return DiscoveryVariants.MaterialFinds[Random.Shared.Next(DiscoveryVariants.MaterialFinds.Length)];
+        return DiscoveryVariants.MaterialFinds[Utils.Rng.Next(DiscoveryVariants.MaterialFinds.Length)];
     }
 
     /// <summary>
@@ -160,7 +160,7 @@ public static class DiscoverySelector
     /// </summary>
     public static DiscoveryVariant SelectBoneDiscovery(GameContext ctx)
     {
-        return DiscoveryVariants.BoneFinds[Random.Shared.Next(DiscoveryVariants.BoneFinds.Length)];
+        return DiscoveryVariants.BoneFinds[Utils.Rng.Next(DiscoveryVariants.BoneFinds.Length)];
     }
 
     /// <summary>
@@ -168,7 +168,7 @@ public static class DiscoverySelector
     /// </summary>
     public static DiscoveryVariant SelectCampDiscovery(GameContext ctx)
     {
-        return DiscoveryVariants.CampFinds[Random.Shared.Next(DiscoveryVariants.CampFinds.Length)];
+        return DiscoveryVariants.CampFinds[Utils.Rng.Next(DiscoveryVariants.CampFinds.Length)];
     }
 
     /// <summary>
@@ -176,7 +176,7 @@ public static class DiscoverySelector
     /// </summary>
     public static DiscoveryVariant SelectCacheDiscovery(GameContext ctx)
     {
-        return DiscoveryVariants.CacheFinds[Random.Shared.Next(DiscoveryVariants.CacheFinds.Length)];
+        return DiscoveryVariants.CacheFinds[Utils.Rng.Next(DiscoveryVariants.CacheFinds.Length)];
     }
 
     /// <summary>
@@ -197,7 +197,7 @@ public static class DiscoverySelector
     /// </summary>
     public static DiscoveryVariant SelectGameDiscovery(GameContext ctx)
     {
-        return DiscoveryVariants.SmallGameFinds[Random.Shared.Next(DiscoveryVariants.SmallGameFinds.Length)];
+        return DiscoveryVariants.SmallGameFinds[Utils.Rng.Next(DiscoveryVariants.SmallGameFinds.Length)];
     }
 
     /// <summary>
@@ -205,7 +205,7 @@ public static class DiscoverySelector
     /// </summary>
     public static DiscoveryVariant SelectHideDiscovery(GameContext ctx)
     {
-        return DiscoveryVariants.HideFinds[Random.Shared.Next(DiscoveryVariants.HideFinds.Length)];
+        return DiscoveryVariants.HideFinds[Utils.Rng.Next(DiscoveryVariants.HideFinds.Length)];
     }
 
     private static DiscoveryVariant SelectWeighted(List<(DiscoveryVariant variant, double weight)> pool)
@@ -214,7 +214,7 @@ public static class DiscoverySelector
             return DiscoveryVariants.SupplyFinds[0];
 
         var totalWeight = pool.Sum(p => p.weight);
-        var roll = Random.Shared.NextDouble() * totalWeight;
+        var roll = Utils.Rng.NextDouble() * totalWeight;
 
         double cumulative = 0;
         foreach (var (variant, weight) in pool)

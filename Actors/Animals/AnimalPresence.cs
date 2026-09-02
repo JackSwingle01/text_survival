@@ -69,7 +69,7 @@ public static class AnimalPresence
             .ToList();
         if (candidates.Count == 0) return null;
 
-        double roll = Random.Shared.NextDouble() * candidates.Sum(c => c.Weight);
+        double roll = Utils.Rng.NextDouble() * candidates.Sum(c => c.Weight);
         foreach (var (type, weight) in candidates)
         {
             roll -= weight;

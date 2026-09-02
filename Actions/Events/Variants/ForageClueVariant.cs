@@ -458,7 +458,6 @@ public static class ClueSelector
 /// </summary>
 public static class FocusProcessor
 {
-    private static readonly Random _rng = new();
 
     /// <summary>
     /// Apply focus to forage results by filtering/adjusting the inventory.
@@ -493,7 +492,7 @@ public static class FocusProcessor
             if (!isTargetCategory)
             {
                 // Randomly drop items from this stack (keep ~40-50%)
-                ReduceStack(stack, 0.4 + _rng.NextDouble() * 0.2);
+                ReduceStack(stack, 0.4 + Utils.Rng.NextDouble() * 0.2);
             }
             // Apply yield multiplier for resources matching the followed Resource clue
             else if (followedClue?.Category == ClueCategory.Resource &&
@@ -516,7 +515,7 @@ public static class FocusProcessor
 
         foreach (var item in items)
         {
-            if (_rng.NextDouble() < keepRatio)
+            if (Utils.Rng.NextDouble() < keepRatio)
             {
                 stack.Push(item);
             }

@@ -22,7 +22,6 @@ public static class CombatOrchestrator
     private const int MOVE_DIST = 3;
     private const int HUNT_START_DISTANCE_M = 34;
     private const int MAX_PACK_MEMBERS = 3;
-    private static readonly Random _rng = new();
 
     #region Entry Points
 
@@ -108,10 +107,10 @@ public static class CombatOrchestrator
         if (herd != null)
         {
             int maxPack = Math.Min(herd.Members.Count - 1, maxExtra);
-            int packSize = maxPack > 0 ? _rng.Next(0, maxPack + 1) : 0;
+            int packSize = maxPack > 0 ? Utils.Rng.Next(0, maxPack + 1) : 0;
             side.AddRange(herd.Members
                 .Where(a => a != lead && a.IsAlive)
-                .OrderBy(_ => _rng.Next())
+                .OrderBy(_ => Utils.Rng.Next())
                 .Take(packSize));
         }
         return side;

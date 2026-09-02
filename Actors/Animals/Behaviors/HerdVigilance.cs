@@ -7,15 +7,14 @@ namespace text_survival.Actors.Animals.Behaviors;
 /// </summary>
 public static class HerdVigilance
 {
-    private static readonly Random _rng = new();
 
     public static bool PreyNoticesPredator(Herd predator, Herd prey)
     {
         double preyVigilance = CalculatePreyVigilance(prey);
         double predatorStealth = CalculatePredatorStealth(predator);
 
-        double preyRoll = _rng.NextDouble() * preyVigilance;
-        double predatorRoll = _rng.NextDouble() * predatorStealth;
+        double preyRoll = Utils.Rng.NextDouble() * preyVigilance;
+        double predatorRoll = Utils.Rng.NextDouble() * predatorStealth;
 
         return preyRoll > predatorRoll;
     }

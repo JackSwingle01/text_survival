@@ -77,7 +77,7 @@ public static class EdgeEvents
     public static GameEvent? ClimbingHazard(GameContext ctx)
     {
         var fallVariant = AccidentVariants.ClimbingFall[
-            Random.Shared.Next(AccidentVariants.ClimbingFall.Length)];
+            Utils.Rng.Next(AccidentVariants.ClimbingFall.Length)];
 
         return new GameEvent("Difficult Terrain",
             "The way forward requires scrambling over rough ground.", 0.9)
@@ -120,7 +120,7 @@ public static class EdgeEvents
         return ctx =>
         {
             var fallVariant = AccidentVariants.ClimbingFall[
-                Random.Shared.Next(AccidentVariants.ClimbingFall.Length)];
+                Utils.Rng.Next(AccidentVariants.ClimbingFall.Length)];
 
             return new GameEvent($"The Approach to {locationName}", description, 1.0)
                 .Choice("Make the Climb",

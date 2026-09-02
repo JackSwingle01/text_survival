@@ -29,7 +29,7 @@ public abstract class Actor : IMovable
         double baseDamage = AttackDamage;
         double strengthMod = (Strength / 2) + 0.5;      // 50-100%
         double vitalityMod = 0.7 + (0.3 * Vitality);    // 70-100%
-        double rngMod = 0.5 + Random.Shared.NextDouble(); // 50-150%
+        double rngMod = 0.5 + Utils.Rng.NextDouble(); // 50-150%
 
         double damage = baseDamage * strengthMod * vitalityMod * rngMod;
         return new DamageInfo(damage, AttackType, target);

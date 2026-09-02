@@ -142,7 +142,7 @@ public static partial class GameEventRegistry
             "Your snares have been hit. The snow is churned up, feathers and fur scattered. Something got here first.", 0.7)
             .Requires(EventCondition.TrapLineActive, EventCondition.OnExpedition)
             .WithConditionFactor(EventCondition.SnareHasCatch, 0.3) // Less likely if catch still there
-            // InDarkness covers: Night, InDarkness
+                                                                    // InDarkness covers: Night, InDarkness
             .WithSituationFactor(Situations.InDarkness, 1.5)
             .Choice("Salvage What You Can",
                 "Maybe there's something left.",

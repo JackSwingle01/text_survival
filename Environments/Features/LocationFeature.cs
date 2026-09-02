@@ -42,7 +42,7 @@ public abstract class LocationFeature
         Name = name;
     }
     public LocationFeature() { } // Parameterless constructor for deserialization
-    public virtual void Update(int minutes) {}
+    public virtual void Update(int minutes) { }
     public abstract List<Resource> ProvidedResources();
 
 }

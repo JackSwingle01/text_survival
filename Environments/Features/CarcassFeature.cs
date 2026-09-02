@@ -486,7 +486,7 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         // Split into portions (roughly 0.5-1.5kg each)
         while (totalKg > 0.3)
         {
-            double portionSize = Math.Min(totalKg, 0.5 + Random.Shared.NextDouble());
+            double portionSize = Math.Min(totalKg, 0.5 + Utils.Rng.NextDouble());
             result.Add(Resource.RawMeat, portionSize);
             totalKg -= portionSize;
         }

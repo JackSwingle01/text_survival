@@ -5,7 +5,11 @@ using text_survival.Environments.Grid;
 
 public class ResourceMemory
 {
-    public Dictionary<Resource, HashSet<Location>> _resourceLocations = new();
+    // Ordered by when each location was first learned about, not hashed. Location has no
+    // GetHashCode of its own, so a HashSet here iterated in allocation order - which differs
+    // between two runs of the same seed, and leaked into every "closest known source" tie,
+    // making seeded runs unreproducible.
+    public Dictionary<Resource, List<Location>> _resourceLocations = new();
     public List<Location> _fireLocations = new();
 
     // Tracks when each location was last visited, as a monotonic counter rather than game
@@ -25,10 +29,11 @@ public class ResourceMemory
         {
             if (!_resourceLocations.TryGetValue(resource, out var locations))
             {
-                locations = new HashSet<Location>();
+                locations = [];
                 _resourceLocations[resource] = locations;
             }
-            locations.Add(location);
+            if (!locations.Contains(location))
+                locations.Add(location);
         }
         // store fire
         if (location.HasFeature<HeatSourceFeature>())
@@ -45,7 +50,7 @@ public class ResourceMemory
         _resourceLocations.TryGetValue(r, out var locs) ? locs : [];
 
     public List<Location> WhereIsFirePit() => _fireLocations;
-    public Location? GetClosestActiveFire(Location currentLocation,GameMap map) => WhereIsFirePit().Where(f=>f.HasActiveHeatSource()).OrderBy(l=>map.DistanceBetween(currentLocation, l)).FirstOrDefault();
+    public Location? GetClosestActiveFire(Location currentLocation, GameMap map) => WhereIsFirePit().Where(f => f.HasActiveHeatSource()).OrderBy(l => map.DistanceBetween(currentLocation, l)).FirstOrDefault();
 
     /// <summary>
     /// Pick the candidate that's gone longest without a visit (never-visited beats any

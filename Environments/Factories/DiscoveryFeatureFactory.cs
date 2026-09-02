@@ -5,14 +5,14 @@ namespace text_survival.Environments.Factories;
 /// <summary>
 /// Factory methods for creating discoverable features.
 /// Centralizes feature creation logic used by DiscoveryGenerator terrain pools.
-/// Uses Random.Shared internally for variance.
+/// Uses Utils.Rng internally for variance.
 /// </summary>
 public static class DiscoveryFeatureFactory
 {
     public static LocationFeature CreateNaturalShelter()
     {
-        double insulation = 0.3 + Random.Shared.NextDouble() * 0.3;  // 0.3 - 0.6
-        double windProtection = 0.4 + Random.Shared.NextDouble() * 0.3;  // 0.4 - 0.7
+        double insulation = 0.3 + Utils.Rng.NextDouble() * 0.3;  // 0.3 - 0.6
+        double windProtection = 0.4 + Utils.Rng.NextDouble() * 0.3;  // 0.4 - 0.7
 
         return new ShelterFeature
         {
@@ -26,7 +26,7 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreateFlintOutcrop()
     {
-        int quantity = 3 + Random.Shared.Next(5);  // 3-7 pieces
+        int quantity = 3 + Utils.Rng.Next(5);  // 3-7 pieces
 
         var outcrop = new HarvestableFeature("flint_outcrop", "Flint Outcrop")
         {
@@ -39,7 +39,7 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreatePyriteSeam()
     {
-        int quantity = 2 + Random.Shared.Next(4);  // 2-5 pieces
+        int quantity = 2 + Utils.Rng.Next(4);  // 2-5 pieces
 
         var seam = new HarvestableFeature("pyrite_seam", "Iron Pyrite Seam")
         {
@@ -52,7 +52,7 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreateBonePile()
     {
-        int quantity = 2 + Random.Shared.Next(4);  // 2-5 bones
+        int quantity = 2 + Utils.Rng.Next(4);  // 2-5 bones
 
         var pile = new HarvestableFeature("bone_pile", "Old Bones")
         {
@@ -73,24 +73,24 @@ public static class DiscoveryFeatureFactory
 
         // Always add shelf fungus
         patch.AddResource("shelf fungus", Resource.BirchPolypore,
-            maxQuantity: 3 + Random.Shared.Next(3), weightPerUnit: 0.1, respawnHoursPerUnit: 336);
+            maxQuantity: 3 + Utils.Rng.Next(3), weightPerUnit: 0.1, respawnHoursPerUnit: 336);
 
         // 50% chance of willow bark
-        if (Random.Shared.NextDouble() < 0.5)
+        if (Utils.Rng.NextDouble() < 0.5)
             patch.AddResource("willow bark", Resource.WillowBark,
-                maxQuantity: 2 + Random.Shared.Next(2), weightPerUnit: 0.08, respawnHoursPerUnit: 336);
+                maxQuantity: 2 + Utils.Rng.Next(2), weightPerUnit: 0.08, respawnHoursPerUnit: 336);
 
         // 40% chance of old man's beard
-        if (Random.Shared.NextDouble() < 0.4)
+        if (Utils.Rng.NextDouble() < 0.4)
             patch.AddResource("old man's beard", Resource.Usnea,
-                maxQuantity: 2 + Random.Shared.Next(2), weightPerUnit: 0.05, respawnHoursPerUnit: 336);
+                maxQuantity: 2 + Utils.Rng.Next(2), weightPerUnit: 0.05, respawnHoursPerUnit: 336);
 
         return patch;
     }
 
     public static LocationFeature CreateResinPocket()
     {
-        int quantity = 2 + Random.Shared.Next(4);  // 2-5 globs
+        int quantity = 2 + Utils.Rng.Next(4);  // 2-5 globs
 
         var pocket = new HarvestableFeature("resin_pocket", "Resin-Weeping Pine")
         {
@@ -110,10 +110,10 @@ public static class DiscoveryFeatureFactory
             MinutesToHarvest = 10
         };
 
-        den.AddBone("old bones", maxQuantity: 2 + Random.Shared.Next(3), weightPerUnit: 0.2, respawnHoursPerUnit: 0);
+        den.AddBone("old bones", maxQuantity: 2 + Utils.Rng.Next(3), weightPerUnit: 0.2, respawnHoursPerUnit: 0);
 
         // 40% chance of fur scraps
-        if (Random.Shared.NextDouble() < 0.4)
+        if (Utils.Rng.NextDouble() < 0.4)
             den.AddResource("fur scraps", Resource.Hide,
                 maxQuantity: 1, weightPerUnit: 0.15, respawnHoursPerUnit: 0);
 
@@ -129,7 +129,7 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreateCharDeposit()
     {
-        int quantity = 3 + Random.Shared.Next(5);  // 3-7 pieces
+        int quantity = 3 + Utils.Rng.Next(5);  // 3-7 pieces
 
         var deposit = new HarvestableFeature("char_deposit", "Old Fire Scar")
         {
@@ -144,7 +144,7 @@ public static class DiscoveryFeatureFactory
     public static LocationFeature CreateFrozenSmallGame()
     {
         // 50/50 rabbit or ptarmigan
-        AnimalType type = Random.Shared.NextDouble() < 0.5 ? AnimalType.Rabbit : AnimalType.Ptarmigan;
+        AnimalType type = Utils.Rng.NextDouble() < 0.5 ? AnimalType.Rabbit : AnimalType.Ptarmigan;
         string name = type == AnimalType.Rabbit ? "Rabbit" : "Ptarmigan";
         double weight = type == AnimalType.Rabbit ? 2.0 : 0.5;
 
@@ -175,8 +175,8 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreateIceCave()
     {
-        double insulation = 0.25 + Random.Shared.NextDouble() * 0.15;  // 0.25 - 0.40 (cold but stable)
-        double windProtection = 0.7 + Random.Shared.NextDouble() * 0.2;  // 0.7 - 0.9
+        double insulation = 0.25 + Utils.Rng.NextDouble() * 0.15;  // 0.25 - 0.40 (cold but stable)
+        double windProtection = 0.7 + Utils.Rng.NextDouble() * 0.2;  // 0.7 - 0.9
 
         return new ShelterFeature("Ice Cave", ShelterType.Cave,
             tempInsulation: insulation,
@@ -189,7 +189,7 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreateAntlerShed()
     {
-        int quantity = 2 + Random.Shared.Next(3);  // 2-4 antler pieces
+        int quantity = 2 + Utils.Rng.Next(3);  // 2-4 antler pieces
 
         var shed = new HarvestableFeature("antler_shed", "Shed Antlers")
         {
@@ -209,15 +209,15 @@ public static class DiscoveryFeatureFactory
         };
 
         // Always some bone scraps
-        site.AddBone("bone scraps", maxQuantity: 2 + Random.Shared.Next(2), weightPerUnit: 0.15, respawnHoursPerUnit: 0);
+        site.AddBone("bone scraps", maxQuantity: 2 + Utils.Rng.Next(2), weightPerUnit: 0.15, respawnHoursPerUnit: 0);
 
         // Usually some sinew
-        if (Random.Shared.NextDouble() < 0.7)
+        if (Utils.Rng.NextDouble() < 0.7)
             site.AddResource("dried sinew", Resource.Sinew,
-                maxQuantity: 1 + Random.Shared.Next(2), weightPerUnit: 0.05, respawnHoursPerUnit: 0);
+                maxQuantity: 1 + Utils.Rng.Next(2), weightPerUnit: 0.05, respawnHoursPerUnit: 0);
 
         // Sometimes hide scraps
-        if (Random.Shared.NextDouble() < 0.4)
+        if (Utils.Rng.NextDouble() < 0.4)
             site.AddResource("hide scraps", Resource.Hide,
                 maxQuantity: 1, weightPerUnit: 0.2, respawnHoursPerUnit: 0);
 
@@ -226,7 +226,7 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreateKnappingScatter()
     {
-        int quantity = 2 + Random.Shared.Next(4);  // 2-5 usable pieces
+        int quantity = 2 + Utils.Rng.Next(4);  // 2-5 usable pieces
 
         var scatter = new HarvestableFeature("knapping_scatter", "Knapping Scatter")
         {
@@ -237,7 +237,7 @@ public static class DiscoveryFeatureFactory
             maxQuantity: quantity, weightPerUnit: 0.12, respawnHoursPerUnit: 0);
 
         // Sometimes a chunk of shale too
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
             scatter.AddResource("shale chunk", Resource.Shale,
                 maxQuantity: 1, weightPerUnit: 0.2, respawnHoursPerUnit: 0);
 
@@ -246,7 +246,7 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreateTallowPot()
     {
-        int quantity = 1 + Random.Shared.Next(3);  // 1-3 portions
+        int quantity = 1 + Utils.Rng.Next(3);  // 1-3 portions
 
         var cache = new SalvageFeature("tallow_pot", "Tallow Cache")
         {
@@ -263,11 +263,11 @@ public static class DiscoveryFeatureFactory
 
     public static LocationFeature CreateDryWoodStack()
     {
-        int logQuantity = 3 + Random.Shared.Next(4);  // 3-6 logs
-        int stickQuantity = 4 + Random.Shared.Next(5);  // 4-8 sticks
+        int logQuantity = 3 + Utils.Rng.Next(4);  // 3-6 logs
+        int stickQuantity = 4 + Utils.Rng.Next(5);  // 4-8 sticks
 
         // Random wood type
-        Resource woodType = Random.Shared.Next(3) switch
+        Resource woodType = Utils.Rng.Next(3) switch
         {
             0 => Resource.Pine,
             1 => Resource.Birch,
@@ -295,14 +295,14 @@ public static class DiscoveryFeatureFactory
         };
 
         // Always some plant fiber
-        int fiberQuantity = 3 + Random.Shared.Next(3);
+        int fiberQuantity = 3 + Utils.Rng.Next(3);
         for (int i = 0; i < fiberQuantity; i++)
             cache.Resources.Add(Resource.PlantFiber, 0.08);
 
         // Usually some rope
-        if (Random.Shared.NextDouble() < 0.7)
+        if (Utils.Rng.NextDouble() < 0.7)
         {
-            int ropeQuantity = 1 + Random.Shared.Next(2);
+            int ropeQuantity = 1 + Utils.Rng.Next(2);
             for (int i = 0; i < ropeQuantity; i++)
                 cache.Resources.Add(Resource.Rope, 0.15);
         }
@@ -320,19 +320,19 @@ public static class DiscoveryFeatureFactory
         };
 
         // Birch bark - prime tinder
-        int barkQuantity = 3 + Random.Shared.Next(3);
+        int barkQuantity = 3 + Utils.Rng.Next(3);
         for (int i = 0; i < barkQuantity; i++)
             cache.Resources.Add(Resource.BirchBark, 0.03);
 
         // Pine resin
-        int resinQuantity = 2 + Random.Shared.Next(2);
+        int resinQuantity = 2 + Utils.Rng.Next(2);
         for (int i = 0; i < resinQuantity; i++)
             cache.Resources.Add(Resource.PineResin, 0.05);
 
         // Sometimes some amadou
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
         {
-            int amadouQuantity = 1 + Random.Shared.Next(2);
+            int amadouQuantity = 1 + Utils.Rng.Next(2);
             for (int i = 0; i < amadouQuantity; i++)
                 cache.Resources.Add(Resource.Amadou, 0.02);
         }
@@ -350,7 +350,7 @@ public static class DiscoveryFeatureFactory
         };
 
         // Always some birch polypore
-        int polyporeQuantity = 2 + Random.Shared.Next(2);
+        int polyporeQuantity = 2 + Utils.Rng.Next(2);
         for (int i = 0; i < polyporeQuantity; i++)
             cache.Resources.Add(Resource.BirchPolypore, 0.08);
 
@@ -366,13 +366,13 @@ public static class DiscoveryFeatureFactory
         };
 
         // Shuffle and pick 2-3
-        var shuffled = medicines.OrderBy(_ => Random.Shared.Next()).ToList();
-        int count = 2 + Random.Shared.Next(2);
+        var shuffled = medicines.OrderBy(_ => Utils.Rng.Next()).ToList();
+        int count = 2 + Utils.Rng.Next(2);
 
         for (int i = 0; i < count && i < shuffled.Count; i++)
         {
             var (resource, weight) = shuffled[i];
-            int quantity = 2 + Random.Shared.Next(2);
+            int quantity = 2 + Utils.Rng.Next(2);
             for (int j = 0; j < quantity; j++)
                 cache.Resources.Add(resource, weight);
         }
@@ -383,37 +383,37 @@ public static class DiscoveryFeatureFactory
     // Terrain-specific animal territory wrappers
     public static SmallGameFeature CreateForestGameTrail()
     {
-        double density = 0.4 + Random.Shared.NextDouble() * 0.3;
+        double density = 0.4 + Utils.Rng.NextDouble() * 0.3;
         return FeatureFactory.CreateMixedPreyAnimals(density);
     }
 
     public static SmallGameFeature CreateClearingGameTrail()
     {
-        double density = 0.3 + Random.Shared.NextDouble() * 0.25;
+        double density = 0.3 + Utils.Rng.NextDouble() * 0.25;
         return FeatureFactory.CreateMixedPreyAnimals(density);
     }
 
     public static SmallGameFeature CreatePlainSmallGame()
     {
-        double density = 0.25 + Random.Shared.NextDouble() * 0.2;
+        double density = 0.25 + Utils.Rng.NextDouble() * 0.2;
         return FeatureFactory.CreateSmallGameAnimals(density);
     }
 
     public static SmallGameFeature CreateHillsSmallGame()
     {
-        double density = 0.2 + Random.Shared.NextDouble() * 0.15;
+        double density = 0.2 + Utils.Rng.NextDouble() * 0.15;
         return FeatureFactory.CreateSmallGameAnimals(density);
     }
 
     public static SmallGameFeature CreateRockySmallGame()
     {
-        double density = 0.15 + Random.Shared.NextDouble() * 0.15;
+        double density = 0.15 + Utils.Rng.NextDouble() * 0.15;
         return FeatureFactory.CreateSmallGameAnimals(density);
     }
 
     public static SmallGameFeature CreateMarshWaterfowl()
     {
-        double density = 0.3 + Random.Shared.NextDouble() * 0.2;
+        double density = 0.3 + Utils.Rng.NextDouble() * 0.2;
         return FeatureFactory.CreateWaterfowlAnimals(density);
     }
 }

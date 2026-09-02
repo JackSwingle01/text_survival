@@ -40,9 +40,11 @@ public sealed record NPCSnapshot(
     double WarmPct, double BodyTempF, double HydratedPct, double EnergyPct, double FullPct,
     double AmbientTempF,
     int Sticks, int Tinder, int Logs, double WaterL, int FoodItems, double CarryKg, double CarryMaxKg,
+    double InventoryFuelKg,
     bool CampFireActive, double CampFireBurningKg, double CampFireUnburnedKg, double CampFireHoursLeft, double CampFireTempF,
     bool HereFireActive,
     double CacheFuelKg, double CacheWaterL, double CacheFoodKg,
+    bool FuelStockpiled, bool WaterStockpiled, bool FoodStockpiled,
     bool IsAlive, string? DeathCause,
     IReadOnlyList<string> Lines,
     IReadOnlyList<string>? TileView);
@@ -120,6 +122,35 @@ public sealed class SimulationSummary
     /// </summary>
     public double CacheUtilizationPct;
 
+    /// <summary>
+    /// Minutes spent under each CurrentNeed value ("(none)" when no critical/satisfy need
+    /// is active). DetermineWork - the whole Fuel/Water/Food stockpile chain - is only ever
+    /// consulted while Need is "(none)", so this says whether that chain is reached often
+    /// enough to matter at all before asking whether its internal ordering is the problem.
+    /// </summary>
+    public Dictionary<string, int> NeedMinutes = new();
+
+    // Fuel-flow accounting: where does gathered fuel actually END UP? Gathered fuel either
+    // reaches the cache (stashed), gets fed straight to a fire from inventory, or is still
+    // being carried when the NPC dies. If gathering is high but stashing is ~0, the
+    // stockpile errand is being reabsorbed into immediate survival, never banked.
+    public double FuelGatheredKg;
+    public double FuelStashedKg;
+    public double FuelToFireKg;
+    public double MaxFuelCarriedKg;
+    public double MaxCarryPctReached;
+    public int StashActionCount;
+
+    /// <summary>Minutes spent away from camp holding at least 1kg of fuel - i.e. carrying a stashable surplus and not taking it home.</summary>
+    public int MinutesInFieldWithStashableFuel;
+
+    public bool FuelEverStockpiled;
+    public int? FuelStockpiledAtMinute;
+    public bool WaterEverStockpiled;
+    public int? WaterStockpiledAtMinute;
+    public bool FoodEverStockpiled;
+    public int? FoodStockpiledAtMinute;
+
     public override string ToString()
     {
         var sb = new StringBuilder();
@@ -135,6 +166,12 @@ public sealed class SimulationSummary
         sb.AppendLine($"IdleRatio: {IdleRatio:P0}   DistinctActionTypes: {DistinctActionTypes}   NearMissCount: {NearMissCount}");
         sb.AppendLine($"NightRestPct: {NightRestPct:P0}   DayRestPct: {DayRestPct:P0}   CacheUtilizationPct: {CacheUtilizationPct:P0}");
         sb.AppendLine($"CacheFinal: fuel={CacheFuelKgFinal:F1}kg water={CacheWaterLFinal:F1}L food={CacheFoodKgFinal:F1}kg");
+        sb.AppendLine($"StockpiledEver: fuel={FuelEverStockpiled}({FuelStockpiledAtMinute?.ToString() ?? "-"}) water={WaterEverStockpiled}({WaterStockpiledAtMinute?.ToString() ?? "-"}) food={FoodEverStockpiled}({FoodStockpiledAtMinute?.ToString() ?? "-"})");
+        sb.AppendLine($"FuelFlow: gathered={FuelGatheredKg:F2}kg  stashed={FuelStashedKg:F2}kg  toFire={FuelToFireKg:F2}kg  stashActions={StashActionCount}");
+        sb.AppendLine($"Carry: maxFuelCarried={MaxFuelCarriedKg:F2}kg  maxCarryPctReached={MaxCarryPctReached:P0} (return-to-camp triggers at 90%)  minutesInFieldWithStashableFuel={MinutesInFieldWithStashableFuel}");
+        sb.AppendLine("NeedMinutes:");
+        foreach (var (name, minutes) in NeedMinutes.OrderByDescending(kv => kv.Value))
+            sb.AppendLine($"  {name}: {minutes}");
         sb.AppendLine("ActionMinutes:");
         foreach (var (name, minutes) in ActionMinutes.OrderByDescending(kv => kv.Value))
             sb.AppendLine($"  {name}: {minutes}");
@@ -213,9 +250,15 @@ public sealed class NPCSimulation
     }
 
     /// <summary>Advance the simulation minute by minute, up to <paramref name="minutes"/>, stopping early if the NPC dies.</summary>
-    public void Run(int minutes, bool captureTileView = false)
+    /// <summary>
+    /// <paramref name="traceDecisions"/> turns on the NPC's per-decision narration. It is
+    /// what makes a transcript readable, and it is also most of the run cost, so batch
+    /// comparisons that only count actions leave it off.
+    /// </summary>
+    public void Run(int minutes, bool captureTileView = false, bool traceDecisions = false)
     {
         var player = Ctx.player;
+        NPC.TraceDecisions = traceDecisions;
 
         for (int i = 0; i < minutes; i++)
         {
@@ -281,6 +324,7 @@ public sealed class NPCSimulation
                 FoodItems: Npc.Inventory.GetCount(ResourceCategory.Food),
                 CarryKg: Npc.Inventory.CurrentWeightKg,
                 CarryMaxKg: Npc.Inventory.MaxWeightKg,
+                InventoryFuelKg: Npc.Inventory.GetWeight(ResourceCategory.Fuel),
                 CampFireActive: campFire?.IsActive ?? false,
                 CampFireBurningKg: campFire?.BurningMassKg ?? 0,
                 CampFireUnburnedKg: campFire?.UnburnedMassKg ?? 0,
@@ -290,6 +334,9 @@ public sealed class NPCSimulation
                 CacheFuelKg: cache?.GetWeight(ResourceCategory.Fuel) ?? 0,
                 CacheWaterL: cache?.Weight(Resource.Water) ?? 0,
                 CacheFoodKg: cache?.GetWeight(ResourceCategory.Food) ?? 0,
+                FuelStockpiled: Npc.IsEnoughStockpiled(ResourceCategory.Fuel),
+                WaterStockpiled: Npc.IsEnoughStockpiled(ResourceCategory.Water),
+                FoodStockpiled: Npc.IsEnoughStockpiled(ResourceCategory.Food),
                 IsAlive: alive,
                 DeathCause: deathCause,
                 Lines: lines,
@@ -365,6 +412,10 @@ public sealed class NPCSimulation
         double prevWater = Snapshots[0].WaterL;
         bool prevCampFireActive = Snapshots[0].CampFireActive;
 
+        double prevInvFuel = Snapshots[0].InventoryFuelKg;
+        double prevCacheFuel = Snapshots[0].CacheFuelKg;
+        double prevFireMass = Snapshots[0].CampFireBurningKg + Snapshots[0].CampFireUnburnedKg;
+
         var campPos = Ctx.Map!.GetPosition(Ctx.Camp);
         var visitedTiles = new HashSet<GridPosition>();
         GridPosition? prevPos = null;
@@ -380,6 +431,13 @@ public sealed class NPCSimulation
 
             if (snap.CampFireActive && !prevCampFireActive) s.FireStartSuccesses++;
             prevCampFireActive = snap.CampFireActive;
+
+            var needName = snap.Need?.ToString() ?? "(none)";
+            s.NeedMinutes[needName] = s.NeedMinutes.GetValueOrDefault(needName) + 1;
+
+            if (snap.FuelStockpiled && !s.FuelEverStockpiled) { s.FuelEverStockpiled = true; s.FuelStockpiledAtMinute = snap.Minute; }
+            if (snap.WaterStockpiled && !s.WaterEverStockpiled) { s.WaterEverStockpiled = true; s.WaterStockpiledAtMinute = snap.Minute; }
+            if (snap.FoodStockpiled && !s.FoodEverStockpiled) { s.FoodEverStockpiled = true; s.FoodStockpiledAtMinute = snap.Minute; }
 
             var actionName = snap.Action ?? "(none)";
             s.ActionMinutes[actionName] = s.ActionMinutes.GetValueOrDefault(actionName) + 1;
@@ -408,6 +466,8 @@ public sealed class NPCSimulation
                     s.FleeCount++;
                 if (line.Contains(": Victory", StringComparison.Ordinal))
                     s.CombatVictories++;
+                if (line.Contains("] Completed: Storing ", StringComparison.Ordinal))
+                    s.StashActionCount++;
             }
 
             if (actionName.StartsWith("Foraging", StringComparison.Ordinal)) s.ForageMinutes++;
@@ -456,6 +516,33 @@ public sealed class NPCSimulation
             prevTinder = snap.Tinder;
             prevCarry = snap.CarryKg;
             prevWater = snap.WaterL;
+
+            // Fuel flow: gathered (inventory up) vs. stashed (inventory down, cache up) vs.
+            // fed to the fire (inventory down, fire mass up).
+            double invFuelDelta = snap.InventoryFuelKg - prevInvFuel;
+            double cacheFuelDelta = snap.CacheFuelKg - prevCacheFuel;
+            double fireMass = snap.CampFireBurningKg + snap.CampFireUnburnedKg;
+            double fireMassDelta = fireMass - prevFireMass;
+
+            if (invFuelDelta > 0)
+            {
+                s.FuelGatheredKg += invFuelDelta;
+            }
+            else if (invFuelDelta < 0)
+            {
+                double left = -invFuelDelta;
+                if (cacheFuelDelta > 0) s.FuelStashedKg += Math.Min(left, cacheFuelDelta);
+                if (fireMassDelta > 0) s.FuelToFireKg += Math.Min(left, fireMassDelta);
+            }
+            prevInvFuel = snap.InventoryFuelKg;
+            prevCacheFuel = snap.CacheFuelKg;
+            prevFireMass = fireMass;
+
+            s.MaxFuelCarriedKg = Math.Max(s.MaxFuelCarriedKg, snap.InventoryFuelKg);
+            if (snap.CarryMaxKg > 0)
+                s.MaxCarryPctReached = Math.Max(s.MaxCarryPctReached, snap.CarryKg / snap.CarryMaxKg);
+            if (snap.Pos != campPos && snap.InventoryFuelKg >= 1.0)
+                s.MinutesInFieldWithStashableFuel++;
 
             visitedTiles.Add(snap.Pos);
             s.MaxDistanceFromCamp = Math.Max(s.MaxDistanceFromCamp, snap.Pos.ManhattanDistance(campPos));
@@ -513,7 +600,8 @@ public sealed class NPCSimulation
                 $"warm={snap.WarmPct:F2} hyd={snap.HydratedPct:F2} en={snap.EnergyPct:F2} full={snap.FullPct:F2} T={snap.AmbientTempF:F0}F " +
                 $"inv: st={snap.Sticks} ti={snap.Tinder} lg={snap.Logs} w={snap.WaterL:F1} kg={snap.CarryKg:F1}/{snap.CarryMaxKg:F0} " +
                 $"campfire: {(snap.CampFireActive ? "ON" : "off")} {snap.CampFireBurningKg:F1}/{snap.CampFireUnburnedKg:F1}kg {snap.CampFireHoursLeft:F1}h " +
-                $"cache: fuel={snap.CacheFuelKg:F1} water={snap.CacheWaterL:F1} food={snap.CacheFoodKg:F1}" +
+                $"cache: fuel={snap.CacheFuelKg:F1} water={snap.CacheWaterL:F1} food={snap.CacheFoodKg:F1} " +
+                $"stockpiled: fuel={(snap.FuelStockpiled ? "Y" : "N")} water={(snap.WaterStockpiled ? "Y" : "N")} food={(snap.FoodStockpiled ? "Y" : "N")}" +
                 (snap.IsAlive ? "" : $"  *** DIED: {snap.DeathCause} ***"));
 
             if (snap.TileView != null)

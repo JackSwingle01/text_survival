@@ -8,6 +8,7 @@ using text_survival.Crafting;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Items;
+using text_survival.Survival;
 
 namespace text_survival.Actors;
 
@@ -376,21 +377,23 @@ public class NPCMeltSnow : NPCAction
 
 public class NPCDrinkWater : NPCAction
 {
-    private readonly double _amount;
-
     public override string LogMessage => "Drinking water";
 
-    public NPCDrinkWater(double amount = 0.5) : base("Drinking water", 2, ActivityType.Eating)
-    {
-        _amount = amount;
-    }
+    public NPCDrinkWater() : base("Drinking water", 2, ActivityType.Eating) { }
 
     public override void Complete(NPC npc)
     {
-        double consumed = npc.Inventory!.ConsumeByWeight(Resource.Water, _amount);
+        // Drink to fill the room actually available, the way the player does, rather than a
+        // fixed sip. Hydration is measured in milliliters, so litres must be converted -
+        // without that an NPC gains 0.5ml from half a litre and can never rehydrate.
+        double roomLiters = (SurvivalProcessor.MAX_HYDRATION - npc.Body.Hydration)
+            / ConsumptionHandler.WaterHydrationPerLiter;
+        double toDrink = Math.Min(ConsumptionHandler.MaxDrinkLiters, Math.Max(0, roomLiters));
+
+        double consumed = npc.Inventory!.ConsumeByWeight(Resource.Water, toDrink);
         if (consumed > 0)
         {
-            npc.Body.AddHydration(consumed);
+            npc.Body.AddHydration(consumed * ConsumptionHandler.WaterHydrationPerLiter);
             Console.WriteLine($"[NPC:{npc.Name}] Drank {consumed:F1}L water");
         }
     }

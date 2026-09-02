@@ -134,12 +134,12 @@ public class MegafaunaStrategy(AnimalType megafauna) : IWorkStrategy
         GameDisplay.AddNarrative(ctx, $"You search for signs of the {name}...");
 
         // 40% chance per session to find the sign that starts the hunt arc
-        if (Random.Shared.NextDouble() < 0.4)
+        if (Utils.Rng.NextDouble() < 0.4)
         {
             var discoveryEvent = _megafauna switch
             {
                 AnimalType.SaberTooth => GameEventRegistry.AncientPredator(ctx),
-                _ => Random.Shared.NextDouble() < 0.5
+                _ => Utils.Rng.NextDouble() < 0.5
                     ? GameEventRegistry.DistantTrumpeting(ctx)
                     : GameEventRegistry.TheHerd(ctx)
             };

@@ -4,13 +4,26 @@ namespace text_survival
 {
     public static class Utils
     {
-        private static Random random = new Random();
+        // Per-thread, so a test collection running beside the NPC simulation harness cannot
+        // interleave draws into its stream and destroy the harness's reproducibility. The
+        // game itself is single-threaded, so this is simply "the RNG".
+        [ThreadStatic] private static Random? _random;
+        private static Random random => _random ??= new Random();
+
+        /// <summary>
+        /// The one RNG the whole simulation draws from. Everything random must come through
+        /// here - never Random.Shared, and never a private `new Random()`, neither of which
+        /// can be seeded. A single unseeded draw anywhere makes an entire run
+        /// unreproducible, which cost the NPC simulation harness several rounds of
+        /// measurements before it was found.
+        /// </summary>
+        public static Random Rng => random;
 
         /// <summary>
         /// Reseed the shared RNG for reproducible runs (tests, the NPC simulation harness).
         /// Never call this from gameplay code - it exists for controlled comparisons only.
         /// </summary>
-        public static void Seed(int seed) => random = new Random(seed);
+        public static void Seed(int seed) => _random = new Random(seed);
 
         public static int Roll(int sides)
         {
@@ -62,43 +75,43 @@ namespace text_survival
             }
             return list[Roll(list.Count) - 1];
         }
-        
-    public static T GetRandomWeighted<T>(IDictionary<T, double> choices)
-    {
-        if (choices == null || choices.Count == 0)
-            throw new ArgumentException("Cannot select from an empty collection", nameof(choices));
-            
-        double totalWeight = choices.Sum(pair => pair.Value);
-        if (totalWeight <= 0)
-            throw new ArgumentException("Total weight must be positive", nameof(choices));
-            
-        double roll = random.NextDouble() * totalWeight;
-        
-        double cumulativeWeight = 0;
-        foreach (var pair in choices)
+
+        public static T GetRandomWeighted<T>(IDictionary<T, double> choices)
         {
-            cumulativeWeight += pair.Value;
-            if (roll <= cumulativeWeight)
+            if (choices == null || choices.Count == 0)
+                throw new ArgumentException("Cannot select from an empty collection", nameof(choices));
+
+            double totalWeight = choices.Sum(pair => pair.Value);
+            if (totalWeight <= 0)
+                throw new ArgumentException("Total weight must be positive", nameof(choices));
+
+            double roll = random.NextDouble() * totalWeight;
+
+            double cumulativeWeight = 0;
+            foreach (var pair in choices)
+            {
+                cumulativeWeight += pair.Value;
+                if (roll <= cumulativeWeight)
                 {
                     // GameDisplay.AddNarrative($"Debug: Odds: {pair.Value / totalWeight * 100:F2}%");
                     return pair.Key;
                 }
+            }
+
+            // This should never happen if weights are positive
+            return choices.Keys.Last();
         }
-        
-        // This should never happen if weights are positive
-        return choices.Keys.Last();
-    }
 
-    /// <summary>
-    /// Format fire time display: shows minutes if under 60, hours (1 decimal) if 60+
-    /// </summary>
-    public static string FormatFireTime(int minutes)
-    {
-        if (minutes <= 59)
-            return $"{minutes} minutes";
+        /// <summary>
+        /// Format fire time display: shows minutes if under 60, hours (1 decimal) if 60+
+        /// </summary>
+        public static string FormatFireTime(int minutes)
+        {
+            if (minutes <= 59)
+                return $"{minutes} minutes";
 
-        double hours = minutes / 60.0;
-        return $"{hours:F1} hours";
-    }
+            double hours = minutes / 60.0;
+            return $"{hours:F1} hours";
+        }
     }
 }

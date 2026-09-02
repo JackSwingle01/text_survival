@@ -31,7 +31,7 @@ public record WeightedAnimalPool(AnimalType[] Animals, double[] Weights)
         if (Animals.Length == 1) return Animals[0];
 
         double total = Weights.Sum();
-        double roll = Random.Shared.NextDouble() * total;
+        double roll = Utils.Rng.NextDouble() * total;
         double cumulative = 0;
 
         for (int i = 0; i < Weights.Length; i++)
@@ -60,7 +60,7 @@ public record WeightedPredatorPool(AnimalType[] Predators, double[] Weights)
         if (Predators.Length == 1) return Predators[0];
 
         double total = Weights.Sum();
-        double roll = Random.Shared.NextDouble() * total;
+        double roll = Utils.Rng.NextDouble() * total;
         double cumulative = 0;
 
         for (int i = 0; i < Weights.Length; i++)
@@ -119,7 +119,7 @@ public static class FreshnessHelper
     public static double RollHarvestedPct(FreshnessCategory freshness)
     {
         var (min, max) = GetHarvestedRange(freshness);
-        return min + Random.Shared.NextDouble() * (max - min);
+        return min + Utils.Rng.NextDouble() * (max - min);
     }
 
     public static string GetDescription(FreshnessCategory freshness) =>
@@ -307,7 +307,7 @@ public static class ScavengeScenarioSelector
         if (pool.Count == 0) return null;
 
         double totalWeight = pool.Sum(p => p.weight);
-        double roll = Random.Shared.NextDouble() * totalWeight;
+        double roll = Utils.Rng.NextDouble() * totalWeight;
         double cumulative = 0;
 
         foreach (var (scenario, weight) in pool)

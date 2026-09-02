@@ -349,7 +349,7 @@ public class ForageStrategy : IWorkStrategy
             if (discovery.Category == DiscoveryCategory.Major)
             {
                 string message = GetDiscoveryMessage(discovery);
-                    await ctx.Ui.ShowMessage("Discovery!", message);
+                await ctx.Ui.ShowMessage("Discovery!", message);
             }
             // Minor discoveries already shown during progress, no need to add to narrative
         }
@@ -374,7 +374,7 @@ public class ForageStrategy : IWorkStrategy
             if (scenario.Freshness == FreshnessCategory.BonesOnly &&
                 scenario.Animals.Animals.Length == 0)
             {
-                ctx.Inventory.Add(Resource.Bone, 0.1 + Random.Shared.NextDouble() * 0.2);
+                ctx.Inventory.Add(Resource.Bone, 0.1 + Utils.Rng.NextDouble() * 0.2);
                 collected.Add("bone scraps");
                 narrative.Add("You find some bone fragments.");
             }
@@ -584,6 +584,6 @@ public class ForageStrategy : IWorkStrategy
 
     private static string SelectRandom(params string[] options)
     {
-        return options[Random.Shared.Next(options.Length)];
+        return options[Utils.Rng.Next(options.Length)];
     }
 }

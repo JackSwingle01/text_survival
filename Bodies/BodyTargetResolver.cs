@@ -46,13 +46,13 @@ public static class BodyTargetResolver
     private static string? PickRandomLeg(Body body)
     {
         var legs = body.Parts.Where(p => p.Name.Contains("Leg")).ToList();
-        return legs.Count > 0 ? legs[Random.Shared.Next(legs.Count)].Name : null;
+        return legs.Count > 0 ? legs[Utils.Rng.Next(legs.Count)].Name : null;
     }
 
     private static string? PickRandomArm(Body body)
     {
         var arms = body.Parts.Where(p => p.Name.Contains("Arm")).ToList();
-        return arms.Count > 0 ? arms[Random.Shared.Next(arms.Count)].Name : null;
+        return arms.Count > 0 ? arms[Utils.Rng.Next(arms.Count)].Name : null;
     }
 
     /// <summary>

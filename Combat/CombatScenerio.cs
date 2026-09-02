@@ -561,7 +561,6 @@ public class CombatScenario
     public const int MAP_SIZE = 50;
     private const int FLEE_THRESHOLD = 3;
     private const int FLEE_ENERGY_COST = 20;
-    private static readonly Random _rng = new();
 
     /// <summary>
     /// Resolves a destination to an unoccupied tile. If dest is occupied,
@@ -580,7 +579,7 @@ public class CombatScenario
             .ToList();
 
         if (neighbors.Count == 0) return mover.Position;
-        return neighbors[_rng.Next(neighbors.Count)];
+        return neighbors[Utils.Rng.Next(neighbors.Count)];
     }
 
     private static IEnumerable<GridPosition> GetAllNeighbors(GridPosition pos)
@@ -667,7 +666,7 @@ public class CombatScenario
             detectionChance *= (1.0 - coverBonus);
         }
 
-        double roll = _rng.NextDouble();
+        double roll = Utils.Rng.NextDouble();
 
         if (roll < detectionChance)
         {

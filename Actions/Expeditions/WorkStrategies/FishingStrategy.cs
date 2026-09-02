@@ -101,10 +101,10 @@ public class FishingStrategy : IWorkStrategy
         var collected = new List<string>();
         var loot = new Inventory();
 
-        if (Random.Shared.NextDouble() < catchChance)
+        if (Utils.Rng.NextDouble() < catchChance)
         {
             // Fish weight based on tool capability
-            double fishWeight = 0.3 + Random.Shared.NextDouble() * (maxFishWeightKg - 0.3);
+            double fishWeight = 0.3 + Utils.Rng.NextDouble() * (maxFishWeightKg - 0.3);
             loot.Add(Resource.RawFish, fishWeight);
             loot.Add(Resource.Bone, fishWeight * 0.1);
             collected.Add($"Fish ({fishWeight:F1}kg)");
@@ -113,9 +113,9 @@ public class FishingStrategy : IWorkStrategy
             toolToUse?.Use();
 
             // Chance for second fish on longer sessions
-            if (actualTime >= 30 && Random.Shared.NextDouble() < 0.25)
+            if (actualTime >= 30 && Utils.Rng.NextDouble() < 0.25)
             {
-                fishWeight = 0.3 + Random.Shared.NextDouble() * (maxFishWeightKg - 0.3);
+                fishWeight = 0.3 + Utils.Rng.NextDouble() * (maxFishWeightKg - 0.3);
                 loot.Add(Resource.RawFish, fishWeight);
                 loot.Add(Resource.Bone, fishWeight * 0.1);
                 collected.Add($"Fish ({fishWeight:F1}kg)");

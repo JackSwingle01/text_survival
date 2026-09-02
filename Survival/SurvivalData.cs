@@ -5,16 +5,16 @@ namespace text_survival.Survival;
 
 public class SurvivalData
 {
-	// Primary stats
+    // Primary stats
 
-	public double ColdResistance;
+    public double ColdResistance;
 
-	// body stats
-	public required BodyStats BodyStats;
+    // body stats
+    public required BodyStats BodyStats;
 
-	// Secondary stats
-	public double equipmentInsulation;
-	public double environmentalTemp;
-	public double activityLevel;
-	public bool IsPlayer;
+    // Secondary stats
+    public double equipmentInsulation;
+    public double environmentalTemp;
+    public double activityLevel;
+    public bool IsPlayer;
 }

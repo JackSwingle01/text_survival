@@ -222,11 +222,11 @@ public static class DamageProcessor
                 Amount = remainingDamage * 0.5,
                 Type = damageInfo.Type
             };
-            
+
             double muscleHealthBefore = part.Muscle.Condition;
             DamageTissue(part.Muscle, muscleDamage);
             double muscleDamageAmount = muscleHealthBefore - part.Muscle.Condition;
-            
+
             if (muscleDamageAmount > 0)
                 result.TissuesDamaged.Add((part.Muscle.Name, muscleDamageAmount));
         }
@@ -262,7 +262,7 @@ public static class DamageProcessor
             double protection = layer!.GetProtection(damageInfo.Type);
             double maxAbsorption = remainingDamage * 0.7;
             double actualAbsorption = Math.Min(maxAbsorption, protection);
-            
+
             if (actualAbsorption > 0)
             {
                 var layerDamage = new DamageInfo
@@ -270,17 +270,17 @@ public static class DamageProcessor
                     Amount = actualAbsorption,
                     Type = damageInfo.Type
                 };
-                
+
                 double layerHealthBefore = layer.Condition;
                 DamageTissue(layer, layerDamage);
                 double layerDamageAmount = layerHealthBefore - layer.Condition;
-                
+
                 result.DamageAbsorbed += actualAbsorption;
-                
+
                 if (layerDamageAmount > 0)
                     result.TissuesDamaged.Add((layer.Name, layerDamageAmount));
             }
-            
+
             remainingDamage -= actualAbsorption;
         }
 

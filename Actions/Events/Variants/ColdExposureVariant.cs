@@ -133,6 +133,6 @@ public static class ColdExposureSelector
 
     private static ColdExposureVariant SelectFromPool(ColdExposureVariant[] pool)
     {
-        return pool[Random.Shared.Next(pool.Length)];
+        return pool[Utils.Rng.Next(pool.Length)];
     }
 }

@@ -254,7 +254,7 @@ public static class TrailSignSelector
         if (pool.Count == 0) return null;
 
         double totalWeight = pool.Sum(p => p.weight);
-        double roll = Random.Shared.NextDouble() * totalWeight;
+        double roll = Utils.Rng.NextDouble() * totalWeight;
         double cumulative = 0;
 
         foreach (var (sign, weight) in pool)

@@ -55,6 +55,6 @@ public static class ExaminationVariants
     /// </summary>
     public static ExaminationVariant SelectRandom(ExaminationVariant[] pool)
     {
-        return pool[Random.Shared.Next(pool.Length)];
+        return pool[Utils.Rng.Next(pool.Length)];
     }
 }

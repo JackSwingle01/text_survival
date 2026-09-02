@@ -721,7 +721,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
             if (config.Config is (double min, double typical, double max))
             {
                 // Weight toward typical value
-                thickness = typical + (Random.Shared.NextDouble() - 0.5) * (max - min) * 0.5;
+                thickness = typical + (Utils.Rng.NextDouble() - 0.5) * (max - min) * 0.5;
                 thickness = Math.Clamp(thickness, min, max);
             }
             return new WaterFeature("water", "Stream")
@@ -848,7 +848,7 @@ public class GameEvent(string name, string description, double weight)
     public string? RequiredLocationName;  // Exact match on location name
 
     private List<EventChoice> _choices = [];
-/// <summary>
+    /// <summary>
     /// Get choices available to the player (filtered by conditions).
     /// </summary>
     public List<EventChoice> GetAvailableChoices(GameContext ctx)

@@ -109,14 +109,14 @@ public class PlacedNet
             if (Utils.DetermineSuccess(catchChance) || SoakDurationMinutes >= MaxSoakMinutes)
             {
                 // Generate catch
-                int fishCount = MinFishCount + Random.Shared.Next(MaxFishCount - MinFishCount + 1);
+                int fishCount = MinFishCount + Utils.Rng.Next(MaxFishCount - MinFishCount + 1);
                 fishCount = (int)(fishCount * fishAbundance);
                 fishCount = Math.Max(MinFishCount, fishCount);
 
                 CaughtFishWeights = [];
                 for (int i = 0; i < fishCount; i++)
                 {
-                    double weight = MinFishWeight + Random.Shared.NextDouble() * (MaxFishWeight - MinFishWeight);
+                    double weight = MinFishWeight + Utils.Rng.NextDouble() * (MaxFishWeight - MinFishWeight);
                     CaughtFishWeights.Add(weight);
                 }
 

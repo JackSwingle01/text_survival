@@ -8,7 +8,6 @@ namespace text_survival.Actors.Animals;
 /// </summary>
 public static class HerdExtensions
 {
-    private static readonly Random _rng = new();
 
     public static IReadOnlyList<Herd> At(this List<Herd> herds, Location location)
     {
@@ -71,7 +70,7 @@ public static class HerdExtensions
         double baseChance = searchMinutes / 30.0;
         double effectiveChance = Math.Min(0.9, baseChance * (1 + huntableHerds.Count * 0.2));
 
-        if (_rng.NextDouble() > effectiveChance)
+        if (Utils.Rng.NextDouble() > effectiveChance)
             return null;
 
         var weights = huntableHerds.Select(h =>
@@ -84,7 +83,7 @@ public static class HerdExtensions
         }).ToList();
 
         double totalWeight = weights.Sum();
-        double roll = _rng.NextDouble() * totalWeight;
+        double roll = Utils.Rng.NextDouble() * totalWeight;
         double cumulative = 0;
 
         for (int i = 0; i < huntableHerds.Count; i++)

@@ -115,25 +115,25 @@ public static class EquipmentWearSelector
     /// Select a boot wear variant.
     /// </summary>
     public static EquipmentWearVariant SelectBootWear(GameContext ctx)
-        => EquipmentWearVariants.BootWear[Random.Shared.Next(EquipmentWearVariants.BootWear.Length)];
+        => EquipmentWearVariants.BootWear[Utils.Rng.Next(EquipmentWearVariants.BootWear.Length)];
 
     /// <summary>
     /// Select a glove wear variant.
     /// </summary>
     public static EquipmentWearVariant SelectGloveWear(GameContext ctx)
-        => EquipmentWearVariants.GloveWear[Random.Shared.Next(EquipmentWearVariants.GloveWear.Length)];
+        => EquipmentWearVariants.GloveWear[Utils.Rng.Next(EquipmentWearVariants.GloveWear.Length)];
 
     /// <summary>
     /// Select a chest wear variant.
     /// </summary>
     public static EquipmentWearVariant SelectChestWear(GameContext ctx)
-        => EquipmentWearVariants.ChestWear[Random.Shared.Next(EquipmentWearVariants.ChestWear.Length)];
+        => EquipmentWearVariants.ChestWear[Utils.Rng.Next(EquipmentWearVariants.ChestWear.Length)];
 
     /// <summary>
     /// Select a head wear variant.
     /// </summary>
     public static EquipmentWearVariant SelectHeadWear(GameContext ctx)
-        => EquipmentWearVariants.HeadWear[Random.Shared.Next(EquipmentWearVariants.HeadWear.Length)];
+        => EquipmentWearVariants.HeadWear[Utils.Rng.Next(EquipmentWearVariants.HeadWear.Length)];
 
     /// <summary>
     /// Select a blade (knife/axe) wear variant.
@@ -148,12 +148,12 @@ public static class EquipmentWearSelector
         var axeVariants = EquipmentWearVariants.BladeWear.Where(v => v.Tool == ToolType.Axe).ToArray();
 
         if (knife != null && knife.ConditionPct < 0.3)
-            return knifeVariants[Random.Shared.Next(knifeVariants.Length)];
+            return knifeVariants[Utils.Rng.Next(knifeVariants.Length)];
         if (axe != null && axe.ConditionPct < 0.3)
-            return axeVariants[Random.Shared.Next(axeVariants.Length)];
+            return axeVariants[Utils.Rng.Next(axeVariants.Length)];
 
         // Default to knife variants
-        return knifeVariants[Random.Shared.Next(knifeVariants.Length)];
+        return knifeVariants[Utils.Rng.Next(knifeVariants.Length)];
     }
 
     /// <summary>
@@ -173,14 +173,14 @@ public static class EquipmentWearSelector
         if (pool.Count == 0)
             return EquipmentWearVariants.FirestarterWear[0]; // Fallback
 
-        return pool[Random.Shared.Next(pool.Count)];
+        return pool[Utils.Rng.Next(pool.Count)];
     }
 
     /// <summary>
     /// Select a spear wear variant.
     /// </summary>
     public static EquipmentWearVariant SelectSpearWear(GameContext ctx)
-        => EquipmentWearVariants.SpearWear[Random.Shared.Next(EquipmentWearVariants.SpearWear.Length)];
+        => EquipmentWearVariants.SpearWear[Utils.Rng.Next(EquipmentWearVariants.SpearWear.Length)];
 
     /// <summary>
     /// Select the most pressing equipment wear variant based on what's actually worn.

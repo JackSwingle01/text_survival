@@ -458,3 +458,96 @@ A new, separate harness class (`text_survival.Tests/Support/NPCGroupSimulation.c
 **Water stockpiling stays at exactly 0.0L at every group size.** This is the strongest evidence yet for H9: it isn't bad luck or a solo-NPC resource-math problem that more hands can fix - `DetermineWork`'s stockpile chain structurally never reaches Water (Fuel is checked first, and `TryMaintainCampFire`, now also checked first as of Part 6's H2, keeps returning non-null whenever the fire needs attention, which is most of the time). Adding NPCs doesn't route around this bug because every NPC runs the exact same broken priority order - it just makes Fuel accumulate through sheer repetition while Water never gets attempted at all, by anyone.
 
 **No group size gets anyone through a full week.** Even at 4 members, `AnySurvivedWk%` is 0 - the current AI's ceiling is under a day and a half on average regardless of headcount. Grouping is a real, useful lever (worth keeping in mind as a lategame/design feature, not just a test scenario) but it does not substitute for fixing the underlying AI. The next concrete step: fix `DetermineWork`'s stockpile ordering (or `TryMaintainCampFire`'s precedence over it) so Water gets attempted at all, then re-run both `PersonalityMatrix_OneWeek` and `GroupSize_OneWeek` to see how much of the remaining gap to 7 days that closes.
+
+---
+
+## Part 9 - H14-H18, and the measurement bug that invalidated Parts 5-8
+
+### The harness was never actually reproducible
+
+Before any of H14-H18 could be scored, an ablation of the same configuration against the
+same seeds, run three times, produced **1.47 / 0.99 / 1.67 days**. A +/-35% spread on
+identical inputs - larger than most effects being measured. Every comparative number in
+Parts 5-8 was taken on that harness and should be treated as indicative only.
+
+Root cause, found by bisecting on RNG draw counts: **16 unseeded `Random` instances**, plus
+214 `Random.Shared` call sites. `Utils.Seed` only ever reseeded `Utils.random`, so most of
+the simulation - forage yields, herd behaviour, combat, animals, event variants - drew from
+streams that simply continued from wherever the previous run in the process had left them.
+The Part 6 "cross-process determinism" check passed only because it compared NPC *names*,
+which do come from the seeded stream.
+
+A second, smaller source: `ResourceMemory` stored known locations in `HashSet<Location>`,
+and `Location` has no `GetHashCode`, so iteration ran in allocation order and leaked into
+every "closest known source" tie-break.
+
+Fixes: all simulation randomness routed through `Utils.Rng` (world generation's deliberately
+seeded RNGs and the UI particle renderer left alone); resource memory changed to an
+insertion-ordered `List`; `GetClosestKnownResource` ties broken by map position. The
+determinism check now returns **1.13 / 1.13 / 1.13** - a noise floor of exactly zero, so any
+difference at all is now signal. `Determinism_SameConfigThrice` keeps it that way.
+
+*Anything random added from here must draw from `Utils.Rng`. A single `Random.Shared` or
+`new Random()` anywhere in the simulation silently destroys reproducibility for everything.*
+
+### The three fixes (group size 2, 10 seeds, one simulated week, zero noise)
+
+Named by what they do. Earlier parts of this document number hypotheses H1-H13; that
+numbering is historical and not worth carrying forward.
+
+| Variant | Avg survived | vs base | Cache water | Deaths |
+|---|---|---|---|---|
+| baseline | 0.42 d | - | 0.0 L | dehydration 11, cold 9 |
+| hydration units | 0.69 d | +62% | 0.0 L | dehydration 10, cold 10 |
+| critical interrupt | 0.41 d | -3% | 0.0 L | dehydration 11, cold 9 |
+| water reserve | 0.50 d | +17% | 0.0 L | cold 12, dehydration 8 |
+| **all three** | **1.19 d** | **+180%** | 0.0 L | **cold 17, starvation 3** |
+| *(rejected)* independent stockpile order | 0.41 d | -3% | 1.4 L | cold 11, dehydration 9 |
+| *(rejected)* need timeout | 0.42 d | 0% | 0.0 L | dehydration 11, cold 9 |
+
+Leave-one-out from all five candidates: without the hydration fix 1.13 -> 0.43, without the
+interrupt fix -> 0.86, without the water reserve -> 0.98; removing either rejected change
+left the result the same or better.
+
+**Drinking water did nothing. Adopted.** `Body.AddHydration` takes millilitres and maxes at
+4000. The player path converts litres first (`x WaterHydrationPerLiter`); `NPCDrinkWater`
+passed litres straight through, so an NPC drinking half a litre gained **0.5ml of 4000**.
+NPCs could not rehydrate by drinking at all. The fallback that should have caught this was
+broken too - `ConsumptionHandler.EatDrink` had no `case Resource.Water`, so it silently did
+nothing. NPCs now drink to fill the room available, capped at the same `MaxDrinkLiters` the
+player uses.
+
+**Nothing could interrupt anything. Adopted.** The guard read
+`if (CurrentNeed <= NeedType.Food) return false`, and `NeedType` runs `Warmth=0 .. Food=3`,
+so it was true for every real need. Meant to stop critical-vs-critical thrash, it blocked
+*all* interrupts, latching an NPC onto one need for up to an hour - long enough to keep
+foraging while dying of thirst. Now only a strictly higher-priority need cuts in. Worth
+little alone (-3%) but 24% of the combination.
+
+**NPCs left camp with no water. Adopted.** Snow can only be melted at a fire, so an NPC that
+melts only once already thirsty must happen to be standing at a fire the moment thirst
+hits - which never happens out foraging. They now top up to 2L before leaving.
+
+**Independent stockpile ordering. Rejected.** The only thing that ever got water into the
+camp cache (1.4L vs 0.0L), but it cost ~5% survival: carried water is worth more than cached
+water, because thirst strikes in the field. Worth revisiting if NPCs ever survive long
+enough for a camp reserve to matter.
+
+**Need timeout. Rejected.** Zero effect alone or in combination. The interrupt fix already
+breaks the latch it was designed to break, so nothing ever reaches the timeout.
+
+### What now kills them
+
+Dehydration goes from 55% of deaths to **zero at the tuning target**, replaced by cold and
+starvation - the varied, seed-dependent death profile that was the goal. Measured after
+adopting the three fixes:
+
+| Group size | Avg survived | Fuel gathered | Deaths |
+|---|---|---|---|
+| 1 | 0.39 d | 11.2 kg | cold 10 |
+| 2 | 1.19 d | 72.3 kg | cold 17, starvation 3 |
+| 3 | 1.53 d | 104.1 kg | cold 18, starvation 11, dehydration 1 |
+
+Survival roughly triples at the tuning target and fuel gathered nearly triples, but 1.19
+days is still well short of the 7-day goal and nobody survives a week at any group size.
+**Cold is now the binding constraint**, so that is where the next hypotheses belong.

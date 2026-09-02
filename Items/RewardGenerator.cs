@@ -82,7 +82,7 @@ public static class RewardGenerator
         var resources = new Inventory();
 
         // Roll 2-4 items (buffed from 1-3)
-        int itemCount = Random.Shared.Next(2, 5);
+        int itemCount = Utils.Rng.Next(2, 5);
         var options = new List<Action>
         {
             () => resources.Add(Resource.Stick, RandomWeight(0.4, 0.8)),      // +75%
@@ -92,7 +92,7 @@ public static class RewardGenerator
         };
 
         // Shuffle and pick
-        var shuffled = options.OrderBy(_ => Random.Shared.Next()).Take(itemCount);
+        var shuffled = options.OrderBy(_ => Utils.Rng.Next()).Take(itemCount);
         foreach (var add in shuffled)
         {
             add();
@@ -106,7 +106,7 @@ public static class RewardGenerator
         var resources = new Inventory();
 
         // Random tool left behind - with durability variance (30-70%)
-        var tool = Random.Shared.Next(4) switch
+        var tool = Utils.Rng.Next(4) switch
         {
             0 => Gear.Knife("Bone Knife"),
             1 => Gear.Axe("Stone Axe"),
@@ -114,7 +114,7 @@ public static class RewardGenerator
             _ => Gear.Torch("Simple Torch")
         };
 
-        tool.Durability = Random.Shared.Next(
+        tool.Durability = Utils.Rng.Next(
             (int)(tool.MaxDurability * 0.3),
             (int)(tool.MaxDurability * 0.7) + 1
         );
@@ -125,7 +125,7 @@ public static class RewardGenerator
         resources.Add(Resource.Stick, RandomWeight(0.3, 0.5));
 
         // 30% chance of bone
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
             resources.Add(Resource.Bone, RandomWeight(0.2, 0.4));
 
         return resources;
@@ -137,20 +137,20 @@ public static class RewardGenerator
 
         // Valuable tool - fire striker is most valuable, with durability variance (60-100%)
         Gear tool;
-        if (Random.Shared.Next(3) == 0)
+        if (Utils.Rng.Next(3) == 0)
         {
             tool = Gear.FireStriker("Flint and Steel");
         }
         else
         {
-            tool = Random.Shared.Next(2) switch
+            tool = Utils.Rng.Next(2) switch
             {
                 0 => Gear.Knife("Flint Knife"),
                 _ => Gear.Axe("Flint Axe")
             };
         }
 
-        tool.Durability = Random.Shared.Next(
+        tool.Durability = Utils.Rng.Next(
             (int)(tool.MaxDurability * 0.6),
             (int)(tool.MaxDurability * 1.0) + 1
         );
@@ -160,11 +160,11 @@ public static class RewardGenerator
         resources.Add(RandomWoodType(), RandomWeight(2.0, 3.5));
 
         // 40% chance of tinder
-        if (Random.Shared.NextDouble() < 0.4)
+        if (Utils.Rng.NextDouble() < 0.4)
             resources.Add(Resource.Tinder, RandomWeight(0.2, 0.4));
 
         // 25% chance of dried meat
-        if (Random.Shared.NextDouble() < 0.25)
+        if (Utils.Rng.NextDouble() < 0.25)
             resources.Add(Resource.DriedMeat, RandomWeight(0.3, 0.5));
 
         return resources;
@@ -182,7 +182,7 @@ public static class RewardGenerator
     {
         var resources = new Inventory();
         // Thorough butchering - significant haul
-        int cuts = Random.Shared.Next(2, 4); // 2-3 portions
+        int cuts = Utils.Rng.Next(2, 4); // 2-3 portions
         for (int i = 0; i < cuts; i++)
         {
             resources.Add(Resource.RawMeat, RandomWeight(0.4, 0.8));
@@ -195,7 +195,7 @@ public static class RewardGenerator
         var resources = new Inventory();
         // Megafauna kill - massive haul (~50kg total)
         // Player can't carry all at once, will need multiple trips or caching
-        int cuts = Random.Shared.Next(5, 8); // 5-7 portions
+        int cuts = Utils.Rng.Next(5, 8); // 5-7 portions
         for (int i = 0; i < cuts; i++)
         {
             resources.Add(Resource.RawMeat, RandomWeight(8.0, 12.0));
@@ -211,11 +211,11 @@ public static class RewardGenerator
         resources.Add(Resource.Tinder, RandomWeight(0.15, 0.3));
 
         // 50% chance of bone (evidence of kills)
-        if (Random.Shared.NextDouble() < 0.5)
+        if (Utils.Rng.NextDouble() < 0.5)
             resources.Add(Resource.Bone, RandomWeight(0.2, 0.4));
 
         // 30% chance of hide scrap
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
             resources.Add(Resource.Hide, RandomWeight(0.15, 0.3));
 
         return resources;
@@ -226,7 +226,7 @@ public static class RewardGenerator
         var resources = new Inventory();
 
         // Scale item count by density: 2-4 base (buffed from 1-3)
-        int baseItems = Random.Shared.Next(2, 5);
+        int baseItems = Utils.Rng.Next(2, 5);
         int itemCount = (int)Math.Ceiling(baseItems * densityFactor);
 
         var options = new List<Action>
@@ -237,7 +237,7 @@ public static class RewardGenerator
             () => resources.Add(Resource.Nuts, RandomWeight(0.25, 0.4) * densityFactor)           // +60%
         };
 
-        var shuffled = options.OrderBy(_ => Random.Shared.Next()).Take(itemCount);
+        var shuffled = options.OrderBy(_ => Utils.Rng.Next()).Take(itemCount);
         foreach (var add in shuffled) add();
 
         return resources;
@@ -258,7 +258,7 @@ public static class RewardGenerator
         var resources = new Inventory();
 
         // Scale item count by density: 2-4 base (buffed from 1-3)
-        int baseItems = Random.Shared.Next(2, 5);
+        int baseItems = Utils.Rng.Next(2, 5);
         int itemCount = (int)Math.Ceiling(baseItems * densityFactor);
 
         // Weights doubled (was 0.03-0.1 range, now 0.06-0.2 range)
@@ -272,7 +272,7 @@ public static class RewardGenerator
             () => resources.Add(Resource.Usnea, RandomWeight(0.06, 0.16) * densityFactor)
         };
 
-        var shuffled = options.OrderBy(_ => Random.Shared.Next()).Take(itemCount);
+        var shuffled = options.OrderBy(_ => Utils.Rng.Next()).Take(itemCount);
         foreach (var add in shuffled) add();
 
         return resources;
@@ -280,12 +280,12 @@ public static class RewardGenerator
 
     private static double RandomWeight(double min, double max)
     {
-        return min + Random.Shared.NextDouble() * (max - min);
+        return min + Utils.Rng.NextDouble() * (max - min);
     }
 
     private static Resource RandomWoodType()
     {
-        return Random.Shared.Next(3) switch
+        return Utils.Rng.Next(3) switch
         {
             0 => Resource.Pine,
             1 => Resource.Birch,
@@ -300,7 +300,7 @@ public static class RewardGenerator
         var resources = new Inventory();
 
         // Roll 2-4 crafting material types (buffed from 1-3)
-        int itemCount = Random.Shared.Next(2, 5);
+        int itemCount = Utils.Rng.Next(2, 5);
         var options = new List<Action>
         {
             () => resources.Add(Resource.Stone, RandomWeight(0.4, 0.7)),       // +75%
@@ -308,18 +308,18 @@ public static class RewardGenerator
             () => resources.Add(Resource.PlantFiber, RandomWeight(0.2, 0.5))   // +67%
         };
 
-        var shuffled = options.OrderBy(_ => Random.Shared.Next()).Take(itemCount);
+        var shuffled = options.OrderBy(_ => Utils.Rng.Next()).Take(itemCount);
         foreach (var add in shuffled)
         {
             add();
         }
 
         // 30% chance of sinew
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
             resources.Add(Resource.Sinew, RandomWeight(0.1, 0.2));
 
         // 25% chance of hide
-        if (Random.Shared.NextDouble() < 0.25)
+        if (Utils.Rng.NextDouble() < 0.25)
             resources.Add(Resource.Hide, RandomWeight(0.2, 0.4));
 
         return resources;
@@ -330,14 +330,14 @@ public static class RewardGenerator
         var resources = new Inventory();
 
         // A damaged tool with limited durability (20-60% range)
-        var tool = Random.Shared.Next(3) switch
+        var tool = Utils.Rng.Next(3) switch
         {
             0 => Gear.Knife("Worn Knife"),
             1 => Gear.Axe("Damaged Axe"),
             _ => Gear.Spear("Cracked Spear")
         };
 
-        tool.Durability = Random.Shared.Next(
+        tool.Durability = Utils.Rng.Next(
             (int)(tool.MaxDurability * 0.2),
             (int)(tool.MaxDurability * 0.6) + 1
         );
@@ -365,7 +365,7 @@ public static class RewardGenerator
     private static Inventory GenerateBoneHarvest(double densityFactor)
     {
         var resources = new Inventory();
-        int baseBones = Random.Shared.Next(1, 4); // 1-3 bones
+        int baseBones = Utils.Rng.Next(1, 4); // 1-3 bones
         int boneCount = (int)Math.Ceiling(baseBones * densityFactor);
         for (int i = 0; i < boneCount; i++)
         {
@@ -381,11 +381,11 @@ public static class RewardGenerator
         resources.Add(Resource.RawMeat, RandomWeight(0.4, 0.7));
 
         // 70% chance of bone (was 50%)
-        if (Random.Shared.NextDouble() < 0.7)
+        if (Utils.Rng.NextDouble() < 0.7)
             resources.Add(Resource.Bone, RandomWeight(0.15, 0.3));
 
         // 40% chance of hide scrap
-        if (Random.Shared.NextDouble() < 0.4)
+        if (Utils.Rng.NextDouble() < 0.4)
             resources.Add(Resource.Hide, RandomWeight(0.1, 0.2));
 
         return resources;
@@ -423,11 +423,11 @@ public static class RewardGenerator
         resources.Add(Resource.Stick, RandomWeight(0.5, 0.8));          // +60%
 
         // 50% chance of preserved bait hide (was 30%)
-        if (Random.Shared.NextDouble() < 0.5)
+        if (Utils.Rng.NextDouble() < 0.5)
             resources.Add(Resource.Hide, RandomWeight(0.3, 0.5));       // +25%
 
         // 30% chance of rope
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
             resources.Add(Resource.Rope, RandomWeight(0.1, 0.2));
 
         return resources;
@@ -440,10 +440,10 @@ public static class RewardGenerator
         resources.Add(Resource.Stick, RandomWeight(0.6, 1.0));          // +50%
 
         // 50% chance of an abandoned spear with durability variance (30-70%)
-        if (Random.Shared.NextDouble() < 0.5)
+        if (Utils.Rng.NextDouble() < 0.5)
         {
             var spear = Gear.Spear("Crude Spear");
-            spear.Durability = Random.Shared.Next(
+            spear.Durability = Utils.Rng.Next(
                 (int)(spear.MaxDurability * 0.3),
                 (int)(spear.MaxDurability * 0.7) + 1
             );
@@ -451,11 +451,11 @@ public static class RewardGenerator
         }
 
         // 50% chance of bones (was 30%)
-        if (Random.Shared.NextDouble() < 0.5)
+        if (Utils.Rng.NextDouble() < 0.5)
             resources.Add(Resource.Bone, RandomWeight(0.3, 0.5));       // +50%
 
         // 40% chance of tinder
-        if (Random.Shared.NextDouble() < 0.4)
+        if (Utils.Rng.NextDouble() < 0.4)
             resources.Add(Resource.Tinder, RandomWeight(0.15, 0.3));
 
         return resources;
@@ -467,7 +467,7 @@ public static class RewardGenerator
         // Pine resin globs - good for fire-starting and waterproofing
         // Buffed: 5-10 globs (was 2-5), weight 0.08-0.15 each (was 0.04-0.08)
         // Total: 0.4-1.5kg (was 0.08-0.4kg)
-        int globs = Random.Shared.Next(5, 11);
+        int globs = Utils.Rng.Next(5, 11);
         for (int i = 0; i < globs; i++)
         {
             resources.Add(Resource.PineResin, RandomWeight(0.08, 0.15));
@@ -481,14 +481,14 @@ public static class RewardGenerator
         // Charcoal from old fires - useful for crafting and fuel
         // Buffed: 6-12 pieces (was 3-7), weight 0.1-0.18 each (was 0.06-0.12)
         // Total: 0.6-2.2kg (was 0.18-0.84kg)
-        int pieces = Random.Shared.Next(6, 13);
+        int pieces = Utils.Rng.Next(6, 13);
         for (int i = 0; i < pieces; i++)
         {
             resources.Add(Resource.Charcoal, RandomWeight(0.1, 0.18));
         }
 
         // 30% chance of tinder
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
             resources.Add(Resource.Tinder, RandomWeight(0.1, 0.2));
 
         return resources;
@@ -499,18 +499,18 @@ public static class RewardGenerator
         var resources = new Inventory();
         // Bones from old kills
         // Buffed: 3-6 bones (was 2-4), weight 0.25-0.45 each (was 0.15-0.3)
-        int bones = Random.Shared.Next(3, 7);
+        int bones = Utils.Rng.Next(3, 7);
         for (int i = 0; i < bones; i++)
         {
             resources.Add(Resource.Bone, RandomWeight(0.25, 0.45));
         }
 
         // 50% chance of usable hide scraps (was 40%)
-        if (Random.Shared.NextDouble() < 0.5)
+        if (Utils.Rng.NextDouble() < 0.5)
             resources.Add(Resource.Hide, RandomWeight(0.25, 0.5));      // +50%
 
         // 30% chance of sinew
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
             resources.Add(Resource.Sinew, RandomWeight(0.08, 0.15));
 
         return resources;
@@ -524,7 +524,7 @@ public static class RewardGenerator
         resources.Add(Resource.RawFish, RandomWeight(0.3, 0.6) * densityFactor);
 
         // 50% chance of fish bones
-        if (Random.Shared.NextDouble() < 0.5)
+        if (Utils.Rng.NextDouble() < 0.5)
             resources.Add(Resource.Bone, RandomWeight(0.05, 0.1) * densityFactor);
 
         return resources;
@@ -537,13 +537,13 @@ public static class RewardGenerator
         var inv = new Inventory();
 
         // Guaranteed: good-condition tool (70-100% durability)
-        Gear tool = Random.Shared.Next(3) switch
+        Gear tool = Utils.Rng.Next(3) switch
         {
             0 => Gear.Knife("Flint Knife"),
             1 => Gear.Axe("Flint Axe"),
             _ => Gear.Spear("Wooden Spear")
         };
-        tool.Durability = Random.Shared.Next(
+        tool.Durability = Utils.Rng.Next(
             (int)(tool.MaxDurability * 0.7),
             (int)(tool.MaxDurability * 1.0) + 1
         );
@@ -553,14 +553,14 @@ public static class RewardGenerator
         inv.Add(Resource.DriedMeat, RandomWeight(0.8, 1.5));
 
         // 25% chance: high-tier clothing (70-95% durability)
-        if (Random.Shared.NextDouble() < 0.25)
+        if (Utils.Rng.NextDouble() < 0.25)
         {
-            Gear clothing = Random.Shared.Next(2) switch
+            Gear clothing = Utils.Rng.Next(2) switch
             {
                 0 => Gear.BearHideChest("Bear Hide Coat", 150),
                 _ => Gear.MammothHideChest("Mammoth Hide Coat", 200)
             };
-            clothing.Durability = Random.Shared.Next(
+            clothing.Durability = Utils.Rng.Next(
                 (int)(clothing.MaxDurability * 0.7),
                 (int)(clothing.MaxDurability * 0.95) + 1
             );
@@ -569,14 +569,14 @@ public static class RewardGenerator
         }
 
         // 30% chance: capacity expansion (60-90% durability)
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
         {
-            Gear bag = Random.Shared.Next(2) switch
+            Gear bag = Utils.Rng.Next(2) switch
             {
                 0 => Gear.LargeBag(100),
                 _ => Gear.ProperBelt(150)
             };
-            bag.Durability = Random.Shared.Next(
+            bag.Durability = Utils.Rng.Next(
                 (int)(bag.MaxDurability * 0.6),
                 (int)(bag.MaxDurability * 0.9) + 1
             );
@@ -585,7 +585,7 @@ public static class RewardGenerator
 
         // Materials
         inv.Add(Resource.CuredHide, RandomWeight(0.5, 1.0));
-        if (Random.Shared.NextDouble() < 0.5)
+        if (Utils.Rng.NextDouble() < 0.5)
             inv.Add(Resource.Sinew, RandomWeight(0.2, 0.4));
 
         return inv;
@@ -596,7 +596,7 @@ public static class RewardGenerator
         var inv = new Inventory();
 
         // Guaranteed: bones (3-6 pieces)
-        int boneCount = Random.Shared.Next(3, 7);
+        int boneCount = Utils.Rng.Next(3, 7);
         for (int i = 0; i < boneCount; i++)
             inv.Add(Resource.Bone, RandomWeight(0.4, 0.8));
 
@@ -604,18 +604,18 @@ public static class RewardGenerator
         inv.Add(Resource.MammothHide, RandomWeight(1.5, 2.5));
 
         // 60% chance: ivory
-        if (Random.Shared.NextDouble() < 0.6)
+        if (Utils.Rng.NextDouble() < 0.6)
             inv.Add(Resource.Ivory, RandomWeight(0.5, 1.2));
 
         // 25% chance: intact mammoth hide clothing (50-80% durability)
-        if (Random.Shared.NextDouble() < 0.25)
+        if (Utils.Rng.NextDouble() < 0.25)
         {
-            Gear clothing = Random.Shared.Next(2) switch
+            Gear clothing = Utils.Rng.Next(2) switch
             {
                 0 => Gear.MammothHideChest("Ancient Mammoth Coat", 200),
                 _ => Gear.MammothHideLegs("Ancient Mammoth Leggings", 200)
             };
-            clothing.Durability = Random.Shared.Next(
+            clothing.Durability = Utils.Rng.Next(
                 (int)(clothing.MaxDurability * 0.5),
                 (int)(clothing.MaxDurability * 0.8) + 1
             );
@@ -631,27 +631,27 @@ public static class RewardGenerator
         var inv = new Inventory();
 
         // Guaranteed: high-quality tool (80-100% durability)
-        Gear tool = Random.Shared.Next(3) switch
+        Gear tool = Utils.Rng.Next(3) switch
         {
             0 => Gear.BowDrill("Quality Bow Drill"),
             1 => Gear.FireStriker("Flint and Steel"),
             _ => Gear.Knife("Flint Knife")
         };
-        tool.Durability = Random.Shared.Next(
+        tool.Durability = Utils.Rng.Next(
             (int)(tool.MaxDurability * 0.8),
             (int)(tool.MaxDurability * 1.0) + 1
         );
         inv.Tools.Add(tool);
 
         // 40% chance: fishing gear (60-90% durability)
-        if (Random.Shared.NextDouble() < 0.4)
+        if (Utils.Rng.NextDouble() < 0.4)
         {
-            Gear fishing = Random.Shared.Next(2) switch
+            Gear fishing = Utils.Rng.Next(2) switch
             {
                 0 => Gear.FishingRod("Fishing Rod", 15),
                 _ => Gear.FishingNet("Fishing Net", 8)
             };
-            fishing.Durability = Random.Shared.Next(
+            fishing.Durability = Utils.Rng.Next(
                 (int)(fishing.MaxDurability * 0.6),
                 (int)(fishing.MaxDurability * 0.9) + 1
             );
@@ -659,10 +659,10 @@ public static class RewardGenerator
         }
 
         // 30% chance: large waterskin (70-100% durability)
-        if (Random.Shared.NextDouble() < 0.3)
+        if (Utils.Rng.NextDouble() < 0.3)
         {
             var waterskin = Gear.WaterContainer("Large Waterskin", baseWeight: 0.4);
-            waterskin.Durability = Random.Shared.Next(
+            waterskin.Durability = Utils.Rng.Next(
                 (int)(waterskin.MaxDurability * 0.7),
                 (int)(waterskin.MaxDurability * 1.0) + 1
             );
@@ -674,7 +674,7 @@ public static class RewardGenerator
         inv.Add(Resource.BirchBark, RandomWeight(0.1, 0.2));
 
         // Preserved food
-        if (Random.Shared.NextDouble() < 0.5)
+        if (Utils.Rng.NextDouble() < 0.5)
             inv.Add(Resource.DriedMeat, RandomWeight(0.5, 1.0));
 
         return inv;

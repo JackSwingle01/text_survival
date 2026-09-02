@@ -12,7 +12,6 @@ namespace text_survival.Actors.Animals.Behaviors;
 /// </summary>
 public class PackPredatorBehavior : IHerdBehavior
 {
-    private static readonly Random _rng = new();
 
     private const double HungerRatePerMinute = 0.001;  // Slower metabolism than prey
     private const int PatrolTimeoutMinutes = 120;
@@ -99,7 +98,7 @@ public class PackPredatorBehavior : IHerdBehavior
 
         foreach (var npc in npcsHere)
         {
-            if (Random.Shared.NextDouble() >= herd.BoldnessToward(npc, ctx))
+            if (Utils.Rng.NextDouble() >= herd.BoldnessToward(npc, ctx))
                 continue;
 
             var predator = herd.Members[0];  // Lead predator
@@ -254,7 +253,7 @@ public class PackPredatorBehavior : IHerdBehavior
             // Chase failed; hungry wolves may pursue
             if (predator.State == HerdState.Hunting)
                 predator.State = HerdState.Patrolling;
-            if (predator.Hunger > 0.8 && _rng.NextDouble() < 0.4 && ctx.Map != null && !prey.IsEmpty)
+            if (predator.Hunger > 0.8 && Utils.Rng.NextDouble() < 0.4 && ctx.Map != null && !prey.IsEmpty)
                 predator.StartTravelTo(prey.Position, ctx.Map);
         }
 
@@ -283,7 +282,7 @@ public class PackPredatorBehavior : IHerdBehavior
             return false; // Still on cooldown
         }
 
-        return _rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx);
+        return Utils.Rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx);
     }
 
     private GridPosition? GetNextPatrolTarget(Herd herd, GameContext ctx)
@@ -306,7 +305,7 @@ public class PackPredatorBehavior : IHerdBehavior
                                     ctx.Inventory.Count(Resource.CookedMeat) > 0;
                 if (carryingMeat) pullStrength += 0.3;
 
-                if (_rng.NextDouble() < pullStrength)
+                if (Utils.Rng.NextDouble() < pullStrength)
                 {
                     // Move one tile toward player
                     int dx = Math.Sign(playerPos.X - herd.Position.X);
