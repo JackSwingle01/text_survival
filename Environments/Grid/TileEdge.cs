@@ -145,7 +145,7 @@ public class TileEdge
                 continue;
 
             // Roll for trigger
-            if (Random.Shared.NextDouble() < edgeEvent.TriggerChance)
+            if (Utils.Rng.NextDouble() < edgeEvent.TriggerChance)
             {
                 return edgeEvent.CreateEvent(ctx);
             }

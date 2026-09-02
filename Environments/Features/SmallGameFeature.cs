@@ -152,7 +152,7 @@ public class SmallGameFeature : LocationFeature, IWorkableFeature
         if (animals.Count == 0) return null;
 
         double totalWeight = animals.Sum(a => a.SpawnWeight);
-        double roll = Random.Shared.NextDouble() * totalWeight;
+        double roll = Utils.Rng.NextDouble() * totalWeight;
 
         double cumulative = 0;
         foreach (var entry in animals)

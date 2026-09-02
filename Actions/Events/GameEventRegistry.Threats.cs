@@ -781,7 +781,7 @@ public static partial class GameEventRegistry
         };
 
         return new GameEvent("Old Ache",
-            descriptions[Random.Shared.Next(descriptions.Length)], 0.35f)
+            descriptions[Utils.Rng.Next(descriptions.Length)], 0.35f)
             .Requires(EventCondition.Awake)
             .WithConditionFactor(EventCondition.LowTemperature, 1.5)
             .WithSituationFactor(Situations.Vulnerable, 2.0)  // Injured, slow, impaired, no weapon
@@ -1163,7 +1163,7 @@ public static partial class GameEventRegistry
         var scavenger = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
 
         string animal = carcass.AnimalName;
-        double lossPercent = Random.Shared.NextDouble() * 0.5 + 0.3;  // 30-80% loss
+        double lossPercent = Utils.Rng.NextDouble() * 0.5 + 0.3;  // 30-80% loss
         double remainingKg = carcass.MeatRemainingKg * (1 - lossPercent);
 
         return new GameEvent(

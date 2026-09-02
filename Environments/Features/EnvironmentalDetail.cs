@@ -95,10 +95,10 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail FallenLog()
     {
         var loot = new Inventory();
-        int stickCount = Random.Shared.Next(2, 5);
+        int stickCount = Utils.Rng.Next(2, 5);
         for (int i = 0; i < stickCount; i++)
         {
-            loot.Add(Resource.Stick, 0.2 + Random.Shared.NextDouble() * 0.2);
+            loot.Add(Resource.Stick, 0.2 + Utils.Rng.NextDouble() * 0.2);
         }
 
         return new EnvironmentalDetail("fallen_log", "Fallen Log", "A rotting log, partially buried in snow.")
@@ -130,7 +130,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail FrozenPuddle()
     {
         var loot = new Inventory();
-        loot.Add(Resource.Water, 0.2 + Random.Shared.NextDouble() * 0.3);
+        loot.Add(Resource.Water, 0.2 + Utils.Rng.NextDouble() * 0.3);
 
         return new EnvironmentalDetail("frozen_puddle", "Frozen Puddle", "A small frozen puddle. Ice looks thin enough to break.")
         {
@@ -144,7 +144,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail ForestPuddle()
     {
         var loot = new Inventory();
-        loot.Add(Resource.Water, 0.3 + Random.Shared.NextDouble() * 0.4);
+        loot.Add(Resource.Water, 0.3 + Utils.Rng.NextDouble() * 0.4);
 
         return new EnvironmentalDetail("forest_puddle", "Forest Puddle", "A shallow puddle fed by melting snow, sheltered by the trees.")
         {
@@ -180,7 +180,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
             InteractionHint = "examine the branches",
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.BranchExaminations,
-            TensionOnInteract = () => Random.Shared.NextDouble() < 0.5
+            TensionOnInteract = () => Utils.Rng.NextDouble() < 0.5
                 ? ActiveTension.FreshTrail(0.3, null)
                 : ActiveTension.Stalked(0.1)
         };
@@ -189,10 +189,10 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail StonePile()
     {
         var loot = new Inventory();
-        int stoneCount = Random.Shared.Next(1, 4);
+        int stoneCount = Utils.Rng.Next(1, 4);
         for (int i = 0; i < stoneCount; i++)
         {
-            loot.Add(Resource.Stone, 0.3 + Random.Shared.NextDouble() * 0.3);
+            loot.Add(Resource.Stone, 0.3 + Utils.Rng.NextDouble() * 0.3);
         }
 
         return new EnvironmentalDetail("stone_pile", "Stone Pile", "Loose rocks piled at the base of a cliff.")
@@ -207,10 +207,10 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail HollowTree()
     {
         var loot = new Inventory();
-        int tinderCount = Random.Shared.Next(1, 3);
+        int tinderCount = Utils.Rng.Next(1, 3);
         for (int i = 0; i < tinderCount; i++)
         {
-            loot.Add(Resource.Tinder, 0.02 + Random.Shared.NextDouble() * 0.03);
+            loot.Add(Resource.Tinder, 0.02 + Utils.Rng.NextDouble() * 0.03);
         }
 
         return new EnvironmentalDetail("hollow_tree", "Hollow Tree", "A dead tree with a hollow center. Dry material inside.")
@@ -225,10 +225,10 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail ScatteredBones()
     {
         var loot = new Inventory();
-        int boneCount = Random.Shared.Next(1, 3);
+        int boneCount = Utils.Rng.Next(1, 3);
         for (int i = 0; i < boneCount; i++)
         {
-            loot.Add(Resource.Bone, 0.1 + Random.Shared.NextDouble() * 0.2);
+            loot.Add(Resource.Bone, 0.1 + Utils.Rng.NextDouble() * 0.2);
         }
 
         return new EnvironmentalDetail("scattered_bones", "Scattered Bones", "Bones picked clean by scavengers. An old kill.")
@@ -243,10 +243,10 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail DryGrassTussock()
     {
         var loot = new Inventory();
-        int fiberCount = Random.Shared.Next(1, 3);
+        int fiberCount = Utils.Rng.Next(1, 3);
         for (int i = 0; i < fiberCount; i++)
         {
-            loot.Add(Resource.PlantFiber, 0.03 + Random.Shared.NextDouble() * 0.04);
+            loot.Add(Resource.PlantFiber, 0.03 + Utils.Rng.NextDouble() * 0.04);
         }
 
         return new EnvironmentalDetail("dry_grass", "Dry Grass Tussock", "A clump of dead grass, dry and brittle.")
@@ -296,11 +296,11 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     {
         var loot = new Inventory();
         // Mix of tinder and plant fiber
-        if (Random.Shared.NextDouble() < 0.6)
+        if (Utils.Rng.NextDouble() < 0.6)
         {
-            loot.Add(Resource.Tinder, 0.01 + Random.Shared.NextDouble() * 0.02);
+            loot.Add(Resource.Tinder, 0.01 + Utils.Rng.NextDouble() * 0.02);
         }
-        loot.Add(Resource.PlantFiber, 0.02 + Random.Shared.NextDouble() * 0.03);
+        loot.Add(Resource.PlantFiber, 0.02 + Utils.Rng.NextDouble() * 0.03);
 
         return new EnvironmentalDetail("old_nest", "Old Nest", "An abandoned bird nest, woven from grass and twigs.")
         {
@@ -330,10 +330,10 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
     public static EnvironmentalDetail DeadReeds()
     {
         var loot = new Inventory();
-        int reedCount = Random.Shared.Next(2, 4);
+        int reedCount = Utils.Rng.Next(2, 4);
         for (int i = 0; i < reedCount; i++)
         {
-            loot.Add(Resource.PlantFiber, 0.02 + Random.Shared.NextDouble() * 0.03);
+            loot.Add(Resource.PlantFiber, 0.02 + Utils.Rng.NextDouble() * 0.03);
         }
 
         return new EnvironmentalDetail("dead_reeds", "Dead Reeds", "Brown stalks of last season's growth, dry and hollow.")

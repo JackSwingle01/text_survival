@@ -215,7 +215,7 @@ public static class AnimalSelector
             AnimalVariants.Squirrel,
             AnimalVariants.Grouse
         };
-        return smallGame[Random.Shared.Next(smallGame.Length)];
+        return smallGame[Utils.Rng.Next(smallGame.Length)];
     }
 
     /// <summary>

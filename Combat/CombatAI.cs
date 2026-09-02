@@ -7,7 +7,6 @@ public static class CombatAI
 {
     private const int MOVE_DIST = 3;
     private const int WANDER_DIST = 2;
-    private static readonly Random _rng = new();
 
     public static CombatActions DetermineAction(Unit unit, CombatScenario scenario)
     {
@@ -31,7 +30,7 @@ public static class CombatAI
     private static CombatActions DetermineUnawareAction(Unit unit)
     {
         // 60% stay put, 40% wander
-        if (_rng.NextDouble() < 0.6)
+        if (Utils.Rng.NextDouble() < 0.6)
         {
             return CombatActions.Wait; // Stay in place
         }
@@ -113,15 +112,15 @@ public static class CombatAI
     private static GridPosition DetermineWanderPosition(Unit unit, CombatScenario? scenario)
     {
         // 40% chance to stay put
-        if (_rng.NextDouble() < 0.4)
+        if (Utils.Rng.NextDouble() < 0.4)
         {
             return unit.Position;
         }
 
         // Random direction wander
-        double angle = _rng.NextDouble() * 2 * Math.PI;
+        double angle = Utils.Rng.NextDouble() * 2 * Math.PI;
         var direction = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
-        float distance = (float)(_rng.NextDouble() * WANDER_DIST + 1); // 1-3m wander
+        float distance = (float)(Utils.Rng.NextDouble() * WANDER_DIST + 1); // 1-3m wander
 
         var newPos = unit.Position.Move(direction, distance);
 

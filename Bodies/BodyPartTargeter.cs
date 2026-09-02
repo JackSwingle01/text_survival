@@ -42,14 +42,14 @@ public static class BodyTargetHelper
         var externalOrgans = part.Organs.Where(o => o.IsExternal).ToList();
         if (externalOrgans.Count > 0 && damageAmount > 0)
         {
-            return externalOrgans[Random.Shared.Next(externalOrgans.Count)];
+            return externalOrgans[Utils.Rng.Next(externalOrgans.Count)];
         }
 
         // Internal organs need significant penetrating damage
         var internalOrgans = part.Organs.Where(o => !o.IsExternal).ToList();
         if (internalOrgans.Count > 0 && damageAmount > 5) // Threshold for internal damage
         {
-            return internalOrgans[Random.Shared.Next(internalOrgans.Count)];
+            return internalOrgans[Utils.Rng.Next(internalOrgans.Count)];
         }
 
         return null; // No organ hit

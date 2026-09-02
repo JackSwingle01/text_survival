@@ -15,7 +15,6 @@ namespace text_survival.Actors.Animals
 
     public class Animal : Actor
     {
-        private static readonly Random _rng = new();
         #region Combat Properties
 
         [JsonInclude] private double _attackDamage;
@@ -134,17 +133,17 @@ namespace text_survival.Actors.Animals
 
             // Distinguishing marks based on condition and chance
             DistinguishingMarks = [];
-            if (Condition < 0.5 && _rng.NextDouble() < 0.6)
+            if (Condition < 0.5 && Utils.Rng.NextDouble() < 0.6)
             {
-                DistinguishingMarks.Add(_rng.NextDouble() < 0.5 ? "a limp" : "visible ribs");
+                DistinguishingMarks.Add(Utils.Rng.NextDouble() < 0.5 ? "a limp" : "visible ribs");
             }
-            if (_rng.NextDouble() < 0.10)
+            if (Utils.Rng.NextDouble() < 0.10)
             {
-                DistinguishingMarks.Add(_rng.NextDouble() < 0.5 ? "a scarred flank" : "old scars");
+                DistinguishingMarks.Add(Utils.Rng.NextDouble() < 0.5 ? "a scarred flank" : "old scars");
             }
 
             // Start with a random activity
-            CurrentActivity = (AnimalActivity)_rng.Next(0, 3); // Grazing, Moving, or Resting
+            CurrentActivity = (AnimalActivity)Utils.Rng.Next(0, 3); // Grazing, Moving, or Resting
             _activityRemainingMinutes = GetActivityDuration(CurrentActivity);
         }
 
@@ -247,10 +246,10 @@ namespace text_survival.Actors.Animals
         {
             return activity switch
             {
-                AnimalActivity.Grazing => _rng.Next(10, 30),
-                AnimalActivity.Moving => _rng.Next(5, 15),
-                AnimalActivity.Resting => _rng.Next(15, 40),
-                AnimalActivity.Alert => _rng.Next(2, 8),
+                AnimalActivity.Grazing => Utils.Rng.Next(10, 30),
+                AnimalActivity.Moving => Utils.Rng.Next(5, 15),
+                AnimalActivity.Resting => Utils.Rng.Next(15, 40),
+                AnimalActivity.Alert => Utils.Rng.Next(2, 8),
                 _ => 10
             };
         }
@@ -258,7 +257,7 @@ namespace text_survival.Actors.Animals
         private static AnimalActivity PickWeighted(params (AnimalActivity activity, double weight)[] options)
         {
             double total = options.Sum(o => o.weight);
-            double roll = _rng.NextDouble() * total;
+            double roll = Utils.Rng.NextDouble() * total;
             double cumulative = 0;
 
             foreach (var (activity, weight) in options)
@@ -274,8 +273,8 @@ namespace text_survival.Actors.Animals
         private static double GenerateNormalish(double mean, double spread)
         {
             // Average of two uniform randoms approximates normal distribution
-            double u1 = _rng.NextDouble();
-            double u2 = _rng.NextDouble();
+            double u1 = Utils.Rng.NextDouble();
+            double u2 = Utils.Rng.NextDouble();
             return mean + (((u1 + u2) / 2.0) - 0.5) * 2.0 * spread;
         }
 

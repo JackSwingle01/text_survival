@@ -12,7 +12,6 @@ namespace text_survival.Actors.Animals.Behaviors;
 /// </summary>
 public class ScavengerBehavior : IHerdBehavior
 {
-    private static readonly Random _rng = new();
 
     private const double HungerRatePerMinute = 0.001;   // Similar to pack predators
     private const int FeedingDurationMinutes = 45;      // Hyenas feed quickly
@@ -335,7 +334,7 @@ public class ScavengerBehavior : IHerdBehavior
 
     private static bool ShouldEngagePlayer(Herd herd, GameContext ctx, bool isDefendingCarcass = false)
     {
-        return _rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx, defending: isDefendingCarcass);
+        return Utils.Rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx, defending: isDefendingCarcass);
     }
 
     #endregion

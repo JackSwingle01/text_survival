@@ -4,13 +4,26 @@ namespace text_survival
 {
     public static class Utils
     {
-        private static Random random = new Random();
+        // Per-thread, so a test collection running beside the NPC simulation harness cannot
+        // interleave draws into its stream and destroy the harness's reproducibility. The
+        // game itself is single-threaded, so this is simply "the RNG".
+        [ThreadStatic] private static Random? _random;
+        private static Random random => _random ??= new Random();
+
+        /// <summary>
+        /// The one RNG the whole simulation draws from. Everything random must come through
+        /// here - never Random.Shared, and never a private `new Random()`, neither of which
+        /// can be seeded. A single unseeded draw anywhere makes an entire run
+        /// unreproducible, which cost the NPC simulation harness several rounds of
+        /// measurements before it was found.
+        /// </summary>
+        public static Random Rng => random;
 
         /// <summary>
         /// Reseed the shared RNG for reproducible runs (tests, the NPC simulation harness).
         /// Never call this from gameplay code - it exists for controlled comparisons only.
         /// </summary>
-        public static void Seed(int seed) => random = new Random(seed);
+        public static void Seed(int seed) => _random = new Random(seed);
 
         public static int Roll(int sides)
         {

@@ -188,7 +188,7 @@ public class WorkRunner(GameContext ctx)
             ],
         };
 
-        return messages[Random.Shared.Next(messages.Length)];
+        return messages[Utils.Rng.Next(messages.Length)];
     }
 
     /// <summary>

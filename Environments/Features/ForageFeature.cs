@@ -53,7 +53,6 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     private const double NearlyDepletedThreshold = 1.2;
     [System.Text.Json.Serialization.JsonInclude]
     private List<ForageResource> _resources = [];
-    private static readonly Random rng = new();
 
     public double BaseResourceDensity { get; set; } = 1;
     public double NumberOfHoursForaged { get; set; } = 0;
@@ -77,7 +76,7 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     /// Seed for deterministic clue generation. Changes after foraging or "keep walking".
     /// </summary>
     [System.Text.Json.Serialization.JsonInclude]
-    internal int ClueSeed { get; private set; } = Random.Shared.Next();
+    internal int ClueSeed { get; private set; } = Utils.Rng.Next();
 
     /// <summary>
     /// Resources the player has found at least once here.
@@ -205,7 +204,7 @@ public class ForageFeature : LocationFeature, IWorkableFeature
         }
 
         // Regenerate clue seed for next forage attempt
-        ClueSeed = Random.Shared.Next();
+        ClueSeed = Utils.Rng.Next();
 
         return (found, luck);
     }
@@ -216,7 +215,7 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     /// </summary>
     private static double RollLuckMultiplier()
     {
-        double roll = rng.NextDouble();
+        double roll = Utils.Rng.NextDouble();
         return roll switch
         {
             < 0.15 => 0.5,
@@ -318,11 +317,11 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// Reroll the clue seed (used by "keep walking" option).
     /// </summary>
-    public void RerollClues() => ClueSeed = Random.Shared.Next();
+    public void RerollClues() => ClueSeed = Utils.Rng.Next();
 
     private static double RandomWeight(double min, double max)
     {
-        return min + rng.NextDouble() * (max - min);
+        return min + Utils.Rng.NextDouble() * (max - min);
     }
 
     /// <summary>

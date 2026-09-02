@@ -147,7 +147,7 @@ public static class IllnessSelector
         if (ctx.player.Body.Hydration < 800 && ctx.player.Body.Hydration > 200)
         {
             // Slim chance this is contamination-related
-            if (Random.Shared.NextDouble() < 0.3)
+            if (Utils.Rng.NextDouble() < 0.3)
                 return SelectFromPool(IllnessVariants.ContaminationOnset);
         }
 
@@ -223,7 +223,7 @@ public static class IllnessSelector
     public static bool IsHallucinationReal(HallucinationVariant hallucination, GameContext ctx)
     {
         // Base check against reality chance
-        if (Random.Shared.NextDouble() > hallucination.RealityChance)
+        if (Utils.Rng.NextDouble() > hallucination.RealityChance)
             return false;
 
         // Additional context checks based on threat type
@@ -237,7 +237,7 @@ public static class IllnessSelector
 
     private static T SelectFromPool<T>(T[] pool)
     {
-        return pool[Random.Shared.Next(pool.Length)];
+        return pool[Utils.Rng.Next(pool.Length)];
     }
 
     private static HallucinationVariant SelectWeighted(List<(HallucinationVariant variant, double weight)> pool)
@@ -246,7 +246,7 @@ public static class IllnessSelector
             return IllnessVariants.MovementHallucinations[0];
 
         var totalWeight = pool.Sum(p => p.weight);
-        var roll = Random.Shared.NextDouble() * totalWeight;
+        var roll = Utils.Rng.NextDouble() * totalWeight;
 
         double cumulative = 0;
         foreach (var (variant, weight) in pool)

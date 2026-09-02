@@ -30,7 +30,6 @@ public enum HerdState
 /// </summary>
 public class Herd : IMovable
 {
-    private static readonly Random _rng = new();
 
     #region Identity
 
@@ -186,7 +185,7 @@ public class Herd : IMovable
                 HerdBehaviorType.Scavenger => HerdState.Patrolling,  // Always searching
                 _ => HerdState.Grazing
             },
-            Hunger = _rng.NextDouble() * 0.3 // Start slightly hungry
+            Hunger = Utils.Rng.NextDouble() * 0.3 // Start slightly hungry
         };
 
         herd.RecreateBehavior();
@@ -212,7 +211,7 @@ public class Herd : IMovable
     public Animal? GetRandomMember()
     {
         if (Members.Count == 0) return null;
-        return Members[_rng.Next(Members.Count)];
+        return Members[Utils.Rng.Next(Members.Count)];
     }
 
     public Herd SplitOffWounded(Animal animal, GridPosition fleeDirection)
@@ -324,7 +323,7 @@ public class Herd : IMovable
 
         double moveProbability = 1.0 - Math.Pow(1.0 - chancePerMinute, elapsedMinutes);
 
-        if (_rng.NextDouble() < moveProbability)
+        if (Utils.Rng.NextDouble() < moveProbability)
         {
             TerritoryIndex = (TerritoryIndex + 1) % HomeTerritory.Count;
             StartTravelTo(HomeTerritory[TerritoryIndex], Map);

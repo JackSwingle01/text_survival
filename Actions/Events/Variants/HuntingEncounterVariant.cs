@@ -242,7 +242,7 @@ public static class HuntingSightingSelector
         };
 
         // Random selection from pool
-        return pool[Random.Shared.Next(pool.Length)];
+        return pool[Utils.Rng.Next(pool.Length)];
     }
 
     /// <summary>

@@ -82,7 +82,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectSprainVariant(GameContext ctx)
     {
-        return AccidentVariants.Sprains[Random.Shared.Next(AccidentVariants.Sprains.Length)];
+        return AccidentVariants.Sprains[Utils.Rng.Next(AccidentVariants.Sprains.Length)];
     }
 
     /// <summary>
@@ -187,7 +187,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectDebrisInjury(GameContext ctx)
     {
-        return AccidentVariants.DebrisCuts[Random.Shared.Next(AccidentVariants.DebrisCuts.Length)];
+        return AccidentVariants.DebrisCuts[Utils.Rng.Next(AccidentVariants.DebrisCuts.Length)];
     }
 
     /// <summary>
@@ -195,7 +195,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectVerminBite(GameContext ctx)
     {
-        return AccidentVariants.VerminBites[Random.Shared.Next(AccidentVariants.VerminBites.Length)];
+        return AccidentVariants.VerminBites[Utils.Rng.Next(AccidentVariants.VerminBites.Length)];
     }
 
     /// <summary>
@@ -203,7 +203,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectCollapseInjury(GameContext ctx)
     {
-        return AccidentVariants.CollapseInjuries[Random.Shared.Next(AccidentVariants.CollapseInjuries.Length)];
+        return AccidentVariants.CollapseInjuries[Utils.Rng.Next(AccidentVariants.CollapseInjuries.Length)];
     }
 
     /// <summary>
@@ -211,7 +211,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectEmberBurn(GameContext ctx)
     {
-        return AccidentVariants.EmberBurns[Random.Shared.Next(AccidentVariants.EmberBurns.Length)];
+        return AccidentVariants.EmberBurns[Utils.Rng.Next(AccidentVariants.EmberBurns.Length)];
     }
 
     // ========================================
@@ -223,7 +223,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectFrostbiteVariant(GameContext ctx)
     {
-        return AccidentVariants.Frostbite[Random.Shared.Next(AccidentVariants.Frostbite.Length)];
+        return AccidentVariants.Frostbite[Utils.Rng.Next(AccidentVariants.Frostbite.Length)];
     }
 
     /// <summary>
@@ -231,7 +231,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectSevereFrostbiteVariant(GameContext ctx)
     {
-        return AccidentVariants.SevereFrostbite[Random.Shared.Next(AccidentVariants.SevereFrostbite.Length)];
+        return AccidentVariants.SevereFrostbite[Utils.Rng.Next(AccidentVariants.SevereFrostbite.Length)];
     }
 
     /// <summary>
@@ -256,7 +256,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectMuscleCramp(GameContext ctx)
     {
-        return AccidentVariants.MuscleCramp[Random.Shared.Next(AccidentVariants.MuscleCramp.Length)];
+        return AccidentVariants.MuscleCramp[Utils.Rng.Next(AccidentVariants.MuscleCramp.Length)];
     }
 
     /// <summary>
@@ -264,7 +264,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectMuscleStrain(GameContext ctx)
     {
-        return AccidentVariants.MuscleStrain[Random.Shared.Next(AccidentVariants.MuscleStrain.Length)];
+        return AccidentVariants.MuscleStrain[Utils.Rng.Next(AccidentVariants.MuscleStrain.Length)];
     }
 
     /// <summary>
@@ -272,7 +272,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectMuscleTear(GameContext ctx)
     {
-        return AccidentVariants.MuscleTear[Random.Shared.Next(AccidentVariants.MuscleTear.Length)];
+        return AccidentVariants.MuscleTear[Utils.Rng.Next(AccidentVariants.MuscleTear.Length)];
     }
 
     /// <summary>
@@ -297,7 +297,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectStampedeVariant(GameContext ctx)
     {
-        return AccidentVariants.Stampede[Random.Shared.Next(AccidentVariants.Stampede.Length)];
+        return AccidentVariants.Stampede[Utils.Rng.Next(AccidentVariants.Stampede.Length)];
     }
 
     /// <summary>
@@ -305,7 +305,7 @@ public static class VariantSelector
     /// </summary>
     public static InjuryVariant SelectGoreVariant(GameContext ctx)
     {
-        return AccidentVariants.Gore[Random.Shared.Next(AccidentVariants.Gore.Length)];
+        return AccidentVariants.Gore[Utils.Rng.Next(AccidentVariants.Gore.Length)];
     }
 
     private static bool HasIce(GameContext ctx)
@@ -320,7 +320,7 @@ public static class VariantSelector
             return AccidentVariants.TripStumble[0]; // Fallback
 
         var totalWeight = pool.Sum(p => p.weight);
-        var roll = Random.Shared.NextDouble() * totalWeight;
+        var roll = Utils.Rng.NextDouble() * totalWeight;
 
         double cumulative = 0;
         foreach (var (variant, weight) in pool)

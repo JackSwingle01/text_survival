@@ -10,7 +10,6 @@ namespace text_survival.Actors.Animals.Behaviors;
 /// </summary>
 public class SolitaryPredatorBehavior : IHerdBehavior
 {
-    private static readonly Random _rng = new();
 
     private const double HungerRatePerMinute = 0.0008;  // Slowest metabolism
     private const double ForageRatePerMinute = 0.003;   // Foraging reduces hunger
@@ -212,6 +211,6 @@ public class SolitaryPredatorBehavior : IHerdBehavior
         }
 
         // A bear on its den tile is defending it
-        return _rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx, defending: herd.AtDen);
+        return Utils.Rng.NextDouble() < herd.BoldnessToward(ctx.player, ctx, defending: herd.AtDen);
     }
 }

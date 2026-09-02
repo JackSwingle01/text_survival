@@ -710,7 +710,7 @@ public static partial class GameEventRegistry
     {
         // Pre-select variants for ridge hazards
         var stumbleVariant = VariantSelector.SelectTerrainVariant(ctx);
-        var sharpVariant = AccidentVariants.SharpHazards[Random.Shared.Next(AccidentVariants.SharpHazards.Length)];
+        var sharpVariant = AccidentVariants.SharpHazards[Utils.Rng.Next(AccidentVariants.SharpHazards.Length)];
         var partName = BodyTargetResolver.GetDisplayName(sharpVariant.Target);
 
         return new GameEvent("Exposed on the Ridge",

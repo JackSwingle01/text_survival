@@ -7,7 +7,6 @@ namespace text_survival.Combat;
 
 public static class CombatNarrator
 {
-    private static readonly Random _rng = new();
 
     private static readonly Dictionary<DamageType, List<string>> AttackVerbs = new()
     {
@@ -167,7 +166,7 @@ public static class CombatNarrator
     public static string GetAttackVerb(DamageType damageType)
     {
         if (AttackVerbs.TryGetValue(damageType, out var verbs))
-            return verbs[_rng.Next(verbs.Count)];
+            return verbs[Utils.Rng.Next(verbs.Count)];
         return "strikes";
     }
 

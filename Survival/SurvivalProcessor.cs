@@ -261,7 +261,7 @@ public static class SurvivalProcessor
 			double damage = damagePerMinute * minutesElapsed;
 
 			var vitalOrgans = new[] { BodyTarget.Heart, BodyTarget.Liver, BodyTarget.Brain, BodyTarget.Lungs };
-			BodyTarget target = vitalOrgans[Random.Shared.Next(vitalOrgans.Length)];
+			BodyTarget target = vitalOrgans[Utils.Rng.Next(vitalOrgans.Length)];
 
 			result.DamageEvents.Add(new DamageInfo(damage, DamageType.Internal, target));
 		}
@@ -282,7 +282,7 @@ public static class SurvivalProcessor
 		double damage = damagePerMinute * minutesElapsed;
 
 		var affectedOrgans = new[] { BodyTarget.Brain, BodyTarget.Heart, BodyTarget.Liver };
-		BodyTarget target = affectedOrgans[Random.Shared.Next(affectedOrgans.Length)];
+		BodyTarget target = affectedOrgans[Utils.Rng.Next(affectedOrgans.Length)];
 
 		var result = new SurvivalProcessorResult
 		{
@@ -318,7 +318,7 @@ public static class SurvivalProcessor
 		double damage = (damagePerHour / 60.0) * minutesElapsed;
 
 		var coreOrgans = new[] { BodyTarget.Heart, BodyTarget.Brain, BodyTarget.Lungs };
-		BodyTarget target = coreOrgans[Random.Shared.Next(coreOrgans.Length)];
+		BodyTarget target = coreOrgans[Utils.Rng.Next(coreOrgans.Length)];
 
 		return new SurvivalProcessorResult
 		{
@@ -368,7 +368,7 @@ public static class SurvivalProcessor
 			});
 		}
 
-		if (Random.Shared.NextDouble() < 0.01)
+		if (Utils.Rng.NextDouble() < 0.01)
 			result.Messages.Add("Your body is slowly healing...");
 
 		return result;

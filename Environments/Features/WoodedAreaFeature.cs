@@ -111,27 +111,27 @@ public class WoodedAreaFeature : LocationFeature, IWorkableFeature
         Resource logType = WoodType ?? GetRandomWoodType();
 
         // 8-10 logs (random)
-        int logCount = Random.Shared.Next(8, 11);
+        int logCount = Utils.Rng.Next(8, 11);
         double logWeight = logType == Resource.Oak ? 4.0 : (logType == Resource.Pine ? 2.5 : 2.0);
         for (int i = 0; i < logCount; i++)
         {
             // Slight weight variation
-            double weight = logWeight * (0.9 + Random.Shared.NextDouble() * 0.2);
+            double weight = logWeight * (0.9 + Utils.Rng.NextDouble() * 0.2);
             yield.Add(logType, weight);
         }
 
         // 4-6 sticks from branches
-        int stickCount = Random.Shared.Next(4, 7);
+        int stickCount = Utils.Rng.Next(4, 7);
         for (int i = 0; i < stickCount; i++)
         {
-            yield.Add(Resource.Stick, 0.2 + Random.Shared.NextDouble() * 0.3);
+            yield.Add(Resource.Stick, 0.2 + Utils.Rng.NextDouble() * 0.3);
         }
 
         // 2-3 tinder from bark
-        int tinderCount = Random.Shared.Next(2, 4);
+        int tinderCount = Utils.Rng.Next(2, 4);
         for (int i = 0; i < tinderCount; i++)
         {
-            yield.Add(Resource.Tinder, 0.03 + Random.Shared.NextDouble() * 0.05);
+            yield.Add(Resource.Tinder, 0.03 + Utils.Rng.NextDouble() * 0.05);
         }
 
         // Reset for next tree
@@ -148,7 +148,7 @@ public class WoodedAreaFeature : LocationFeature, IWorkableFeature
 
     private static Resource GetRandomWoodType()
     {
-        return Random.Shared.NextDouble() switch
+        return Utils.Rng.NextDouble() switch
         {
             < 0.4 => Resource.Pine,
             < 0.75 => Resource.Birch,
