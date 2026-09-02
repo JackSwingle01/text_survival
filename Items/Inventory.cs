@@ -271,9 +271,6 @@ public class Inventory
         ResourceWeight + ToolsWeight + EquipmentWeight +
         AccessoriesWeight + (ActiveTorch?.Weight ?? 0);
 
-    public double TotalInsulation =>
-        _equipment.Values.Sum(e => e?.Insulation ?? 0);
-
     public double TotalEquipmentWeightKg =>
         _equipment.Values.Sum(e => e?.Weight ?? 0);
 
@@ -531,31 +528,62 @@ public class Inventory
         return "Other";
     }
 
-    public double CalculateWaterproofingLevel()
-    {
-        // Slot coverage weights (how much of body each slot covers for wetness)
-        var slotWeights = new Dictionary<EquipSlot, double>
+    /// <summary>
+    /// Fraction of body surface each slot covers. The one place this is decided: insulation,
+    /// waterproofing and coverage all weight by it, so a garment cannot be worth more to one
+    /// of them than to another. Sums to 1.0.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<EquipSlot, double> SlotCoverage =
+        new Dictionary<EquipSlot, double>
         {
             { EquipSlot.Head, 0.1 },
             { EquipSlot.Chest, 0.4 },
             { EquipSlot.Legs, 0.3 },
             { EquipSlot.Hands, 0.1 },
-            { EquipSlot.Feet, 0.1 }
+            { EquipSlot.Feet, 0.1 },
         };
 
+    public double CalculateWaterproofingLevel()
+    {
         double totalWaterproofing = 0;
-        foreach (var slot in slotWeights.Keys)
+        foreach (var (slot, coverage) in SlotCoverage)
         {
+            // Use gear's total waterproof level (base material + treatment bonus)
             var equipment = GetEquipment(slot);
             if (equipment != null)
-            {
-                // Use gear's total waterproof level (base material + treatment bonus)
-                totalWaterproofing += slotWeights[slot] * equipment.TotalWaterproofLevel;
-            }
+                totalWaterproofing += coverage * equipment.TotalWaterproofLevel;
         }
 
         return Math.Min(totalWaterproofing, 1.0);
     }
+
+    /// <summary>
+    /// Whole-body clothing insulation in clo, area-weighted. Bare slots contribute nothing,
+    /// which is how a missing hat shows up as a real cost rather than as silence.
+    /// </summary>
+    /// <remarks>
+    /// Area-weighting is the correction to the old <c>Sum(e.Insulation)</c>: four garments at
+    /// 0.25 summed to "fully insulated", which let a pair of handwraps count for as much as a
+    /// chest wrap. Waterproofing already weighted by these same slots; insulation did not.
+    /// </remarks>
+    public double ClothingClo
+    {
+        get
+        {
+            double clo = 0;
+            foreach (var (slot, coverage) in SlotCoverage)
+            {
+                var equipment = GetEquipment(slot);
+                if (equipment != null)
+                    clo += coverage * equipment.CloValue;
+            }
+            return clo;
+        }
+    }
+
+    /// <summary>Fraction of body surface covered by any garment at all - the player-facing "coverage".</summary>
+    public double CoveragePct =>
+        SlotCoverage.Where(kv => GetEquipment(kv.Key) != null).Sum(kv => kv.Value);
 
 }
 

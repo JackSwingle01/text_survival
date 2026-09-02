@@ -89,6 +89,77 @@ public static class SurvivalProcessor
             evaporatedMlPerHour * EvaporativeCoolingKcalPerMl);
     }
 
+    /// <summary>Thermal resistance of one clo, in m²K/W. The standard conversion.</summary>
+    private const double MSquaredKPerWattPerClo = 0.155;
+
+    /// <summary>
+    /// Convective heat transfer coefficient for the air around the body, W/m²K. Wind strips
+    /// the still-air layer that does most of the insulating when you are undressed.
+    /// </summary>
+    private static double ConvectiveCoefficient(SurvivalContext context)
+        => 5.0 * (1.0 + context.WindSpeedLevel * 2.0);
+
+    /// <summary>
+    /// Total resistance between core and air: clothing, body fat, and the boundary layer of
+    /// air, added in series the way real thermal resistances add.
+    /// </summary>
+    /// <remarks>
+    /// This replaces <c>heatLoss * (1 - insulation)</c> with <c>heatLoss / R</c>. The old form
+    /// treated insulation as a percentage of heat blocked, which cannot exceed 100% and so
+    /// needed an arbitrary clamp at 0.95 - and heavy gear sat exactly on that clamp, where
+    /// every additional garment did nothing and the remaining 5% could not vent metabolism.
+    /// That clamp was the reason the best clothing in the game cooked people to 111.9F.
+    ///
+    /// In series form no clamp is needed: doubling your clothing never halves heat loss,
+    /// because the air layer is always in series with it, and returns diminish on their own.
+    /// It also reproduces the textbook definition of the unit - 1 clo keeps a resting person
+    /// comfortable at 21C - which is what makes gear values checkable against reality rather
+    /// than invented. See WarmthTests.
+    /// </remarks>
+    public static double TotalThermalResistance(Body body, SurvivalContext context)
+    {
+        // Wet clothing conducts: soaked layers lose most of their trapped air.
+        double wetnessPenalty = 1 - context.CurrentWetnessPct * 0.7;
+        double clothingClo = context.ClothingClo * Math.Clamp(wetnessPenalty, 0.1, 1.0);
+
+        // Wind pushes through anything not sealed. The same waterproofing that keeps rain out
+        // and sweat in is what keeps wind out, so it does that job here too.
+        double sealed_ = Math.Clamp(context.WaterproofingLevel, 0, 1);
+        double windPenetration = context.WindSpeedLevel * (1 - sealed_) * 0.4;
+        clothingClo *= Math.Clamp(1 - windPenetration, 0.2, 1.0);
+
+        // Body fat and species fur, on the same scale. CalculateColdResistance returns 0-1;
+        // a very fat human is worth roughly a clo of subcutaneous insulation.
+        double naturalClo = Math.Clamp(AbilityCalculator.CalculateColdResistance(body), 0, 1) * 1.5;
+
+        double rAir = 1.0 / ConvectiveCoefficient(context);
+        return (clothingClo + naturalClo) * MSquaredKPerWattPerClo + rAir;
+    }
+
+    /// <summary>
+    /// Fraction of heat the insulation blocks relative to being naked in the same conditions.
+    /// The old <c>totalInsulation</c> number, now derived from the resistances rather than
+    /// being the primary model - kept because the clothing heat buffer is expressed in it.
+    /// </summary>
+    private static double InsulationFraction(Body body, SurvivalContext context)
+    {
+        double rAir = 1.0 / ConvectiveCoefficient(context);
+        return Math.Clamp(1 - rAir / TotalThermalResistance(body, context), 0, 0.99);
+    }
+
+    /// <summary>
+    /// The air temperature at which a resting person in this clothing is in heat balance -
+    /// warmer than this and they must shed heat, colder and they lose it. This is the number
+    /// worth showing a player: compare it to the temperature outside.
+    /// </summary>
+    public static double ComfortTemperatureF(Body body, SurvivalContext context)
+    {
+        const double SkinTempC = 33.0;
+        double sensibleLossW = GetCurrentMetabolism(body, 1.0) / 24 / 0.86 * 0.75;
+        double deltaC = sensibleLossW / 1.8 * TotalThermalResistance(body, context);
+        return (SkinTempC - deltaC) * 9.0 / 5.0 + 32.0;
+    }
+
     private enum TemperatureStage { Warm, Cool, Cold, Freezing, Hot }
 
     public static SurvivalProcessorResult Process(Body body, SurvivalContext context, int minutesElapsed)
@@ -146,22 +217,18 @@ public static class SurvivalProcessor
         double surfaceArea = 1.8; // m^2
         double heatCapacity = body.WeightKG * specificHeat;
 
-        // Clothing provides wind protection proportional to insulation
-        double clothingWindProtection = context.ClothingInsulation * 0.5;
-        double effectiveWind = context.WindSpeedLevel * (1 - clothingWindProtection);
-        double windFactor = 1.0 + (effectiveWind * 2.0);
-        double h = 5.0 * windFactor;
-
-        double coldResistance = AbilityCalculator.CalculateColdResistance(body);
-        double naturalInsulation = Math.Clamp(coldResistance, 0, 1);
-        double totalInsulation = Math.Clamp(naturalInsulation + context.ClothingInsulation, 0, 0.95);
+        double h = ConvectiveCoefficient(context);
 
         double skinTemp = body.BodyTemperature - 8.4;
         double effectiveTemp = context.LocationTemperature + context.FireProximityBonus;
         double tempDifferential = skinTemp - effectiveTemp;
         double deltaT = tempDifferential * (5.0 / 9.0);
 
-        double heatLossW = h * surfaceArea * deltaT * (1 - totalInsulation);
+        // Insulation is a thermal resistance in series with the air around you, not a
+        // percentage of heat blocked. See ThermalResistance.
+        double rTotal = TotalThermalResistance(body, context);
+
+        double heatLossW = surfaceArea * deltaT / rTotal;
         double sensibleLossHr = heatLossW * 0.86;
         double heatGainHr = GetCurrentMetabolism(body, context.ActivityLevel) / 24;
 
@@ -218,8 +285,7 @@ public static class SurvivalProcessor
             else if (bodyTempDelta > 0) // WARMING
             {
                 // Calculate heat blocked by insulation - goes to clothing buffer
-                double coldResistance = AbilityCalculator.CalculateColdResistance(body);
-                double totalInsulation = Math.Clamp(coldResistance + context.ClothingInsulation, 0, 0.95);
+                double totalInsulation = InsulationFraction(body, context);
 
                 if (totalInsulation > 0 && clothingCapacityF > 0 && context.ClothingHeatBuffer < 1.0)
                 {

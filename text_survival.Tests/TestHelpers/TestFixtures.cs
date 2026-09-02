@@ -56,7 +56,7 @@ public static class TestFixtures
         return new SurvivalContext
         {
             LocationTemperature = TestConstants.Temperature.RoomTemp,
-            ClothingInsulation = 0.0,
+            ClothingClo = 0.0,
             ActivityLevel = 1.0
         };
     }
@@ -66,13 +66,13 @@ public static class TestFixtures
     /// </summary>
     public static SurvivalContext CreateCustomSurvivalContext(
         double? locationTemperature = null,
-        double? clothingInsulation = null,
+        double? clothingClo = null,
         double? activityLevel = null)
     {
         return new SurvivalContext
         {
             LocationTemperature = locationTemperature ?? TestConstants.Temperature.RoomTemp,
-            ClothingInsulation = clothingInsulation ?? 0.0,
+            ClothingClo = clothingClo ?? 0.0,
             ActivityLevel = activityLevel ?? 1.0
         };
     }

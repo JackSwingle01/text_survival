@@ -53,7 +53,7 @@ public class SurvivalProcessorTests
         // Since we can't directly set BodyTemperature, use a hot environment context
         var context = TestFixtures.CreateCustomSurvivalContext(
             locationTemperature: 110.0, // Hot environment
-            clothingInsulation: 0.0);
+            clothingClo: 0.0);
 
         // First, warm up the body by simulating many ticks in hot environment
         for (int i = 0; i < 60; i++)
@@ -82,7 +82,7 @@ public class SurvivalProcessorTests
         var body = TestFixtures.CreateBaselineHumanBody();
         var context = TestFixtures.CreateCustomSurvivalContext(
             locationTemperature: -20.0, // Very cold
-            clothingInsulation: 0.0);
+            clothingClo: 0.0);
 
         // Cool down the body
         for (int i = 0; i < 120; i++)
@@ -108,7 +108,7 @@ public class SurvivalProcessorTests
         var body = TestFixtures.CreateBaselineHumanBody();
         var context = TestFixtures.CreateCustomSurvivalContext(
             locationTemperature: -40.0, // Extreme cold
-            clothingInsulation: 0.0);
+            clothingClo: 0.0);
 
         // Cool down the body significantly
         for (int i = 0; i < 240; i++)
@@ -135,7 +135,7 @@ public class SurvivalProcessorTests
         var body = TestFixtures.CreateBaselineHumanBody();
         var context = TestFixtures.CreateCustomSurvivalContext(
             locationTemperature: 32.0, // Freezing
-            clothingInsulation: 0.0);
+            clothingClo: 0.0);
 
         double initialTemp = body.BodyTemperature;
         int minutesElapsed = 60;
@@ -157,10 +157,10 @@ public class SurvivalProcessorTests
 
         var contextWithInsulation = TestFixtures.CreateCustomSurvivalContext(
             locationTemperature: 32.0,
-            clothingInsulation: 0.9); // High insulation
+            clothingClo: 4.5); // High insulation - good arctic clothing
         var contextWithoutInsulation = TestFixtures.CreateCustomSurvivalContext(
             locationTemperature: 32.0,
-            clothingInsulation: 0.0);
+            clothingClo: 0.0);
 
         int minutesElapsed = 60;
 

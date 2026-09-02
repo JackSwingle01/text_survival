@@ -95,8 +95,26 @@ public class Gear
     public bool IsWeapon => Damage.HasValue;
 
     public EquipSlot? Slot { get; init; }
+
+    /// <summary>
+    /// Authored insulation, 0-1. Interpreted as tenths of a clo of *local* insulation over
+    /// the part of the body this garment covers - see <see cref="CloValue"/>.
+    /// </summary>
     public double BaseInsulation { get; init; }
     public double Insulation => BaseInsulation * ConditionPct;
+
+    /// <summary>
+    /// Local insulation of this garment in clo, the standard unit: 1 clo is roughly a
+    /// business suit, and keeps a resting person comfortable at 21C. Hide and fur run 1.5-4.5.
+    /// </summary>
+    /// <remarks>
+    /// Derived from <see cref="BaseInsulation"/> rather than authored separately, so every
+    /// garment's value relative to every other is exactly as it was before clo existed - the
+    /// change is what the number means physically, not the balance between items.
+    /// </remarks>
+    public double CloValue => BaseInsulation * CloPerInsulationPoint * ConditionPct;
+
+    private const double CloPerInsulationPoint = 10.0;
 
     // Cushioning: Absorbs impact damage (vs Blunt), range 0-1
     // Toughness: Resists cutting damage (vs Sharp, partially vs Pierce), range 0-1

@@ -9,7 +9,8 @@ public record SurvivalContext
 {
     public double LocationTemperature { get; init; }
     public bool IsNight { get; init; }
-    public double ClothingInsulation { get; init; }
+    /// <summary>Whole-body clothing insulation in clo, area-weighted across covered slots.</summary>
+    public double ClothingClo { get; init; }
     public double ActivityLevel { get; init; }
     public double FireProximityBonus { get; init; } // Direct radiant heat from fire proximity (0-2 scale multiplied by fire heat)
 
@@ -36,7 +37,7 @@ public record SurvivalContext
 
     public static SurvivalContext GetSurvivalContext(Actor actor, Inventory inventory, ActivityType activity, TimeOfDay timeOfDay)
     {
-        double clothingInsulation = inventory.TotalInsulation;
+        double clothingClo = inventory.ClothingClo;
 
         // Get current wetness
         var wetEffect = actor.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault();
@@ -46,13 +47,8 @@ public record SurvivalContext
         double currentBleeding = actor.EffectRegistry.GetSeverity("Bleeding");
         double currentBloody = actor.EffectRegistry.GetSeverity("Bloody");
 
-        // Wetness reduces insulation effectiveness
-        if (wetEffect != null)
-        {
-            // At full wetness (severity 1.0), clothing loses 70% effectiveness
-            double insulationLossFactor = wetEffect.Severity * 0.70;
-            clothingInsulation *= (1 - insulationLossFactor);
-        }
+        // Wetness reduces insulation, but that is applied inside TotalThermalResistance -
+        // the one place that knows how clothing, fat and air combine. Only the level travels.
 
         // Calculate overhead cover (environmental + shelter if stationary)
         bool isStationary = ActivityConfig.IsStationary(activity);
@@ -100,7 +96,7 @@ public record SurvivalContext
         {
             ActivityLevel = activityConfig.ActivityLevel,
             LocationTemperature = actor.CurrentLocation.GetTemperature(activity),
-            ClothingInsulation = clothingInsulation,
+            ClothingClo = clothingClo,
             FireProximityBonus = fireProximityBonus,
             IsNight = isNight,
 
