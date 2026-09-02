@@ -59,6 +59,11 @@ public class NPC : Actor
     [System.Text.Json.Serialization.JsonIgnore]
     private Actor? _pendingThreat;
 
+    // Tool types currently being resolved up a prerequisite chain, so crafting a tool that
+    // requires a tool cannot recurse forever.
+    [System.Text.Json.Serialization.JsonIgnore]
+    private readonly HashSet<ToolType> _toolsBeingResolved = [];
+
     public NeedType? CurrentNeed { get; set; }
 
     public override double AttackDamage => Inventory.Weapon?.Damage ?? .1;
@@ -1343,10 +1348,34 @@ public class NPC : Actor
             return new NPCCraft(craftable);
         }
 
-        // Can't craft - find missing materials (but NOT tools - that causes recursion)
+        // Can't craft - find the first missing thing and resolve it. Prerequisite tools
+        // come first: a Stone Axe needs a KnappingStone, and an NPC that only ever looks at
+        // materials sees every material present, concludes nothing is missing, and gives up
+        // - which is why it could never build the axe that unlocks felling trees.
+        // _toolsBeingResolved breaks the cycle a tool-requires-a-tool chain would otherwise
+        // create, which is why this check was originally left out entirely.
         foreach (var option in options)
         {
             if (TraceDecisions) Console.WriteLine($"    [Craft] Checking option: {option.Name}");
+
+            foreach (var prerequisite in option.RequiredTools)
+            {
+                var held = Inventory.GetTool(prerequisite);
+                if (held != null && held.Durability >= 1) continue;
+                if (_toolsBeingResolved.Contains(prerequisite)) continue;
+
+                if (TraceDecisions) Console.WriteLine($"    [Craft]   Missing prerequisite tool: {prerequisite}");
+                _toolsBeingResolved.Add(prerequisite);
+                try
+                {
+                    var getPrerequisite = DetermineGetTool(prerequisite);
+                    if (getPrerequisite != null) return getPrerequisite;
+                }
+                finally
+                {
+                    _toolsBeingResolved.Remove(prerequisite);
+                }
+            }
             foreach (var req in option.Requirements)
             {
                 var needed = GetMissingCount(req);
