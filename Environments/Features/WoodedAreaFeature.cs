@@ -182,7 +182,7 @@ public class WoodedAreaFeature : LocationFeature, IWorkableFeature
         if (!HasTrees)
             return "cleared";
         if (MinutesWorked > 0)
-            return $"tree {ProgressPct:P0} felled";
+            return $"tree {ProgressPct * 100:0}% felled";
         if (TreesAvailable != null)
             return $"{TreesAvailable} trees";
         return "standing timber";
