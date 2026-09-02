@@ -33,7 +33,10 @@ public static class ConsumptionHandler
     private const double BerriesHydrationPerKg = 200;
     private const double RootsHydrationPerKg = 100;
     private const double DriedMeatHydrationPerKg = -50;  // Needs water to digest
-    private const double WaterHydrationPerLiter = 1000;
+    public const double WaterHydrationPerLiter = 1000;
+
+    /// <summary>Most water anyone drinks in one go, player or NPC.</summary>
+    public const double MaxDrinkLiters = 1.0;
 
     // Hyperthermia relief from drinking
     private const double HyperthermiaCooldownPerQuarterLiter = 0.15;
@@ -105,7 +108,7 @@ public static class ConsumptionHandler
         if (waterAvailable > 0)
         {
             double hydrationRoom = (SurvivalProcessor.MAX_HYDRATION - body.Hydration) / WaterHydrationPerLiter;
-            double toDrink = Math.Min(1.0, Math.Min(waterAvailable, hydrationRoom));
+            double toDrink = Math.Min(MaxDrinkLiters, Math.Min(waterAvailable, hydrationRoom));
             toDrink = Math.Round(toDrink, 2);
 
             if (toDrink >= 0.01)
@@ -178,7 +181,7 @@ public static class ConsumptionHandler
         {
             double waterAvailable = inv.Weight(Resource.Water);
             double hydrationRoom = (SurvivalProcessor.MAX_HYDRATION - body.Hydration) / WaterHydrationPerLiter;
-            double toDrink = Math.Min(1.0, Math.Min(waterAvailable, hydrationRoom));
+            double toDrink = Math.Min(MaxDrinkLiters, Math.Min(waterAvailable, hydrationRoom));
             toDrink = Math.Round(toDrink, 2);
 
             double consumed = inv.ConsumeByWeight(Resource.Water, toDrink);
@@ -310,6 +313,9 @@ public static class ConsumptionHandler
                 break;
             case Resource.DriedBerries:
                 body.AddCalories((int)(amount * DriedBerriesCaloriesPerKg));
+                break;
+            case Resource.Water:
+                body.AddHydration(amount * WaterHydrationPerLiter);
                 break;
         }
     }
