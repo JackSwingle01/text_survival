@@ -22,7 +22,7 @@ public class Camera
     /// <summary>Current centre of the view, in world tile coordinates.</summary>
     public Vector2 Center { get; private set; }
 
-    /// <summary>Where the centre is heading. Rendering sets this every frame.</summary>
+    /// <summary>Where the centre is heading.</summary>
     public Vector2 Target { get; set; }
 
     // Screen offset (where to draw the grid on screen)
@@ -42,6 +42,34 @@ public class Camera
         Center = new Vector2(centerX, centerY);
         Target = Center;
     }
+
+    public bool IsFollowingPlayer { get; private set; } = true;
+
+    public void Follow(Vector2 playerPosition)
+    {
+        IsFollowingPlayer = true;
+        Target = playerPosition;
+    }
+
+    public void TrackPlayer(Vector2 playerPosition)
+    {
+        if (IsFollowingPlayer) Target = playerPosition;
+    }
+
+    /// <summary>Pan in tiles, bounded by the map. Manual movement releases follow mode.</summary>
+    public void Pan(Vector2 tiles, int mapWidth, int mapHeight, bool immediate = false)
+    {
+        if (tiles == Vector2.Zero) return;
+        if (IsFollowingPlayer) Target = Center;
+        IsFollowingPlayer = false;
+        Target = Vector2.Clamp(Target + tiles, Vector2.Zero,
+            new Vector2(Math.Max(0, mapWidth - 1), Math.Max(0, mapHeight - 1)));
+        if (immediate) Center = Target;
+    }
+
+    public bool ContainsScreenPoint(Vector2 point) =>
+        point.X >= ScreenOffsetX && point.Y >= ScreenOffsetY &&
+        point.X < ScreenOffsetX + GridWidth && point.Y < ScreenOffsetY + GridHeight;
 
     /// <summary>Glide toward the target. Call once per frame.</summary>
     public void Update(float deltaTime)

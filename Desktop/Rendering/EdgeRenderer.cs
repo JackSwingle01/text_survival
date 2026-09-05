@@ -5,291 +5,259 @@ using text_survival.Environments.Grid;
 
 namespace text_survival.Desktop.Rendering;
 
-/// <summary>
-/// Renders edges between tiles (rivers, cliffs, trails).
-/// </summary>
+/// <summary>Continuous river channels and rock escarpments along tile boundaries.</summary>
 public static class EdgeRenderer
 {
-    // Edge colors
-    private static readonly Color RiverColor = new(100, 140, 170, 180);
-    private static readonly Color CliffColor = new(80, 70, 60, 200);
-    private static readonly Color TrailColor = new(140, 130, 110, 120);
+    private static readonly (int X, int Y)[] Directions = [(0, -1), (1, 0), (0, 1), (-1, 0)];
+    internal readonly record struct Boundary(Vector2[] Points, float[] Widths, Vector2 Downhill, int Seed,
+        (int X, int Y) StartCorner, (int X, int Y) EndCorner);
 
-    /// <summary>
-    /// Render all edges between visible tiles.
-    /// </summary>
     public static void RenderEdges(GameContext ctx, Camera camera, float timeFactor)
     {
         var map = ctx.Map ?? throw new InvalidOperationException("Cannot render without an initialized map.");
+        var rivers = new List<Boundary>();
+        var cliffs = new List<Boundary>();
+        var drawn = new HashSet<(int X, int Y, bool Vertical)>();
+        float pitch = camera.TileSize + camera.TileGap;
 
-        foreach (var (worldX, worldY) in camera.GetVisibleTiles())
+        foreach (var (x, y) in camera.GetVisibleTiles())
         {
-            if (!map.IsValidPosition(worldX, worldY))
+            if (!map.IsValidPosition(x, y) || map.GetVisibility(x, y) == TileVisibility.Unexplored)
                 continue;
-
-            // Check each edge direction
-            RenderEdge(ctx, camera, worldX, worldY, Direction.North, timeFactor);
-            RenderEdge(ctx, camera, worldX, worldY, Direction.East, timeFactor);
-            RenderEdge(ctx, camera, worldX, worldY, Direction.South, timeFactor);
-            RenderEdge(ctx, camera, worldX, worldY, Direction.West, timeFactor);
-        }
-    }
-
-    /// <summary>
-    /// Render an edge from one tile in a given direction.
-    /// </summary>
-    private static void RenderEdge(GameContext ctx, Camera camera, int x, int y, Direction dir, float timeFactor)
-    {
-        var map = ctx.Map ?? throw new InvalidOperationException("Cannot render without an initialized map.");
-
-        // Get neighbor position
-        int nx = x + dir switch { Direction.East => 1, Direction.West => -1, _ => 0 };
-        int ny = y + dir switch { Direction.South => 1, Direction.North => -1, _ => 0 };
-
-        // Check if both tiles are visible
-        if (!map.IsValidPosition(nx, ny))
-            return;
-
-        var vis1 = map.GetVisibility(x, y);
-        var vis2 = map.GetVisibility(nx, ny);
-        if (vis1 == Environments.Grid.TileVisibility.Unexplored || vis2 == Environments.Grid.TileVisibility.Unexplored)
-            return;
-
-        // Get locations
-        var loc1 = map.GetLocationAt(x, y);
-        var loc2 = map.GetLocationAt(nx, ny);
-        if (loc1 == null || loc2 == null)
-            return;
-
-        // Calculate edge position
-        var pos1 = camera.WorldToScreen(x, y);
-        var pos2 = camera.WorldToScreen(nx, ny);
-        float tileSize = camera.TileSize;
-
-        // Edge midpoint and orientation
-        float edgeX, edgeY;
-        bool isHorizontal = dir == Direction.East || dir == Direction.West;
-
-        if (isHorizontal)
-        {
-            edgeX = (pos1.X + pos2.X + tileSize) / 2;
-            edgeY = pos1.Y + tileSize / 2;
-        }
-        else
-        {
-            edgeX = pos1.X + tileSize / 2;
-            edgeY = (pos1.Y + pos2.Y + tileSize) / 2;
-        }
-
-        // Check for river (using edge data, not terrain)
-        if (HasRiver(map, x, y, nx, ny))
-        {
-            DrawRiver(edgeX, edgeY, tileSize, isHorizontal, x, y);
-        }
-
-        // Check for cliff/climb
-        bool hasCliff = HasCliff(loc1, loc2, dir);
-        if (hasCliff)
-        {
-            DrawCliff(edgeX, edgeY, tileSize, isHorizontal, dir);
-        }
-
-        // Check for a worn route - authored trails and desire paths both land here.
-        var trailTier = map.GetTrailTier(new GridPosition(x, y), new GridPosition(nx, ny));
-        if (trailTier != TrailTier.None)
-        {
-            DrawTrail(edgeX, edgeY, tileSize, isHorizontal, trailTier);
-        }
-    }
-
-    /// <summary>
-    /// Check if there's a river edge between two positions.
-    /// Uses edge data from map, not terrain comparison.
-    /// </summary>
-    private static bool HasRiver(GameMap map, int x1, int y1, int x2, int y2)
-    {
-        var pos1 = new GridPosition(x1, y1);
-        var pos2 = new GridPosition(x2, y2);
-        return map.HasEdgeType(pos1, pos2, EdgeType.River);
-    }
-
-    /// <summary>
-    /// Check if there's a cliff/climb between two locations.
-    /// </summary>
-    private static bool HasCliff(Environments.Location loc1, Environments.Location loc2, Direction dir)
-    {
-        // Cliff exists between different elevation terrains
-        var terrain1 = loc1.Terrain.ToString();
-        var terrain2 = loc2.Terrain.ToString();
-
-        bool is1High = terrain1 == "Mountain" || terrain1 == "Hills" || terrain1 == "Rock";
-        bool is2High = terrain2 == "Mountain" || terrain2 == "Hills" || terrain2 == "Rock";
-
-        // Only show cliff if one is high and other is low
-        if (is1High == is2High)
-            return false;
-
-        // Show cliff on the high side going down
-        return is1High;
-    }
-
-    /// <summary>
-    /// Draw a river edge.
-    /// </summary>
-    private static void DrawRiver(float cx, float cy, float tileSize, bool isHorizontal, int worldX, int worldY)
-    {
-        float length = tileSize;  // Full edge length so segments connect
-        float width = tileSize * 0.1f;
-
-        // Wavy line using sine wave
-        int segments = 12;
-        float waveAmp = tileSize * 0.03f;
-
-        var points = new Vector2[segments + 1];
-        for (int i = 0; i <= segments; i++)
-        {
-            float t = (float)i / segments;
-            float wave = MathF.Sin(t * MathF.PI * 3 + SeededRandom(worldX, worldY, 100)) * waveAmp;
-
-            if (isHorizontal)  // Edge runs east-west (north/south tile boundary)
+            foreach (var (dx, dy) in Directions)
             {
-                // Draw vertical river (north-south flow along the edge)
-                points[i] = new Vector2(
-                    cx + wave,
-                    cy - length / 2 + t * length);
-            }
-            else  // Edge runs north-south (east/west tile boundary)
-            {
-                // Draw horizontal river (east-west flow along the edge)
-                points[i] = new Vector2(
-                    cx - length / 2 + t * length,
-                    cy + wave);
+                int nx = x + dx, ny = y + dy;
+                if (!map.IsValidPosition(nx, ny) || map.GetVisibility(nx, ny) == TileVisibility.Unexplored)
+                    continue;
+                var a = map.GetLocationAt(x, y);
+                var b = map.GetLocationAt(nx, ny);
+                if (a == null || b == null) continue;
+
+                // The shared boundary is keyed by its top/left grid corner, regardless
+                // of which tile sees it first. This also covers viewport fringe edges.
+                bool vertical = dx != 0;
+                int cornerX = x + Math.Max(dx, 0), cornerY = y + Math.Max(dy, 0);
+                if (!drawn.Add((cornerX, cornerY, vertical))) continue;
+                var origin = camera.WorldToScreen(cornerX, cornerY) - new Vector2(camera.TileGap / 2f);
+                if (map.HasEdgeType(new GridPosition(x, y), new GridPosition(nx, ny), EdgeType.River))
+                    rivers.Add(BuildBoundary(cornerX, cornerY, vertical, origin, pitch, true, Vector2.Zero));
+
+                bool highA = IsHigh(a.Terrain), highB = IsHigh(b.Terrain);
+                if (highA != highB)
+                {
+                    var downhill = new Vector2(dx, dy) * (highA ? 1 : -1);
+                    cliffs.Add(BuildBoundary(cornerX, cornerY, vertical, origin, pitch, false, downhill));
+                }
             }
         }
 
-        // Draw river line
-        for (int i = 0; i < segments; i++)
-        {
-            Raylib.DrawLineEx(points[i], points[i + 1], width, RiverColor);
-        }
+        // Water remains legible where a channel follows the foot of a cliff.
+        DrawCliffs(cliffs, pitch, timeFactor);
+        DrawRivers(RoundRiverBends(rivers), pitch, timeFactor);
+    }
 
-        // Ice shimmer highlights
-        var shimmerColor = new Color(200, 220, 240, 60);
-        for (int i = 0; i < 2; i++)
+    private static bool IsHigh(TerrainType terrain) =>
+        terrain is TerrainType.Mountain or TerrainType.Hills or TerrainType.Rock;
+
+    internal static Boundary BuildBoundary(int x, int y, bool vertical, Vector2 origin,
+        float pitch, bool river, Vector2 downhill)
+    {
+        const int steps = 24;
+        var direction = vertical ? Vector2.UnitY : Vector2.UnitX;
+        var normal = new Vector2(-direction.Y, direction.X);
+        int ex = x + (vertical ? 0 : 1), ey = y + (vertical ? 1 : 0);
+        Vector2 Corner(int cx, int cy) => new(Noise(cx, cy, 13) - 0.5f, Noise(cx, cy, 31) - 0.5f);
+        var start = origin + Corner(x, y) * pitch * 0.045f;
+        var end = origin + direction * pitch + Corner(ex, ey) * pitch * 0.045f;
+        var points = new Vector2[steps + 1];
+        var widths = new float[steps + 1];
+        int seed = unchecked(x * 73856093 ^ y * 19349663 ^ (vertical ? 193 : 397));
+        float bend = (Noise(x, y, vertical ? 61 : 79) - 0.5f) * 0.12f;
+        float baseWidth = river ? 0.135f : 0.12f;
+        float startWidth = baseWidth * (0.9f + Noise(x, y, 103) * 0.2f);
+        float endWidth = baseWidth * (0.9f + Noise(ex, ey, 103) * 0.2f);
+        for (int i = 0; i <= steps; i++)
         {
-            float t = 0.3f + i * 0.4f;
-            int idx = (int)(t * segments);
-            if (idx < segments)
+            float t = (float)i / steps;
+            float envelope = MathF.Sin(MathF.PI * t);
+            // Position, width and local noise converge at the same world corner for
+            // straight runs, turns, and junctions. Detail never depends on the camera.
+            float offset = river
+                ? bend * envelope * envelope + MathF.Sin(t * MathF.PI * 4) * envelope * 0.009f
+                : (Noise(seed, i / 2, 127) - 0.5f) * envelope * 0.04f;
+            points[i] = Vector2.Lerp(start, end, t) + normal * offset * pitch;
+            float roughness = (Noise(seed, i, 149) - 0.5f) * envelope * (river ? 0.10f : 0.22f);
+            widths[i] = (startWidth * (1 - t) + endWidth * t) * pitch * (1 + roughness);
+        }
+        // Avoid floating-point sine residue at joins.
+        points[0] = start;
+        points[^1] = end;
+        widths[0] = startWidth * pitch;
+        widths[^1] = endWidth * pitch;
+        return new Boundary(points, widths, downhill, seed, (x, y), (ex, ey));
+    }
+
+    /// <summary>Replace two-way corner elbows with curved channel sections.</summary>
+    internal static List<Boundary> RoundRiverBends(IReadOnlyList<Boundary> edges)
+    {
+        var junctions = new Dictionary<(int X, int Y), List<(int Edge, bool Start)>>();
+        for (int i = 0; i < edges.Count; i++)
+        {
+            foreach (bool start in new[] { true, false })
             {
-                Raylib.DrawCircle((int)points[idx].X, (int)points[idx].Y, width * 0.3f, shimmerColor);
+                // Topology uses world corners so subpixel camera movement cannot
+                // change whether two channels are recognized as connected.
+                var key = start ? edges[i].StartCorner : edges[i].EndCorner;
+                if (!junctions.TryGetValue(key, out var connections))
+                    junctions[key] = connections = [];
+                connections.Add((i, start));
+            }
+        }
+        var first = new int[edges.Count];
+        var last = edges.Select(e => e.Points.Length - 1).ToArray();
+        var bends = new List<Boundary>();
+        foreach (var connections in junctions.Values)
+        {
+            if (connections.Count != 2) continue;
+            var a = connections[0];
+            var b = connections[1];
+            var edgeA = edges[a.Edge];
+            var edgeB = edges[b.Edge];
+            int ai = a.Start ? 4 : edgeA.Points.Length - 5;
+            int bi = b.Start ? 4 : edgeB.Points.Length - 5;
+            var corner = a.Start ? edgeA.Points[0] : edgeA.Points[^1];
+            var start = edgeA.Points[ai];
+            var end = edgeB.Points[bi];
+            if (Vector2.Dot(Vector2.Normalize(start - corner), Vector2.Normalize(end - corner)) < -0.8f)
+                continue;
+            if (a.Start) first[a.Edge] = ai; else last[a.Edge] = ai;
+            if (b.Start) first[b.Edge] = bi; else last[b.Edge] = bi;
+            var points = new Vector2[13];
+            var widths = new float[13];
+            for (int i = 0; i < points.Length; i++)
+            {
+                float t = i / 12f, u = 1 - t;
+                points[i] = u * u * start + 2 * u * t * corner + t * t * end;
+                widths[i] = edgeA.Widths[ai] * u + edgeB.Widths[bi] * t;
+            }
+            var cornerKey = a.Start ? edgeA.StartCorner : edgeA.EndCorner;
+            bends.Add(new Boundary(points, widths, Vector2.Zero, edgeA.Seed ^ edgeB.Seed, cornerKey, cornerKey));
+        }
+        for (int i = 0; i < edges.Count; i++)
+            bends.Add(edges[i] with
+            {
+                Points = edges[i].Points[first[i]..(last[i] + 1)],
+                Widths = edges[i].Widths[first[i]..(last[i] + 1)]
+            });
+        return bends;
+    }
+
+    private static Color Lit(int r, int g, int b, float timeFactor)
+    {
+        float light = 0.4f + Math.Clamp(timeFactor, 0, 1) * 0.6f;
+        return new Color((int)(r * light), (int)(g * light), (int)(b * light), 255);
+    }
+
+    private static void Ribbon(Boundary edge, float scale, Vector2 offset, Color color)
+    {
+        for (int i = 0; i < edge.Points.Length - 1; i++)
+        {
+            var a = edge.Points[i] + offset;
+            var b = edge.Points[i + 1] + offset;
+            Raylib.DrawLineEx(a, b, (edge.Widths[i] + edge.Widths[i + 1]) * 0.5f * scale, color);
+            Raylib.DrawCircleV(a, edge.Widths[i] * scale * 0.5f, color);
+        }
+        Raylib.DrawCircleV(edge.Points[^1] + offset, edge.Widths[^1] * scale * 0.5f, color);
+    }
+
+    internal static void DrawRivers(IReadOnlyList<Boundary> rivers, float pitch, float timeFactor)
+    {
+        // Draw each layer across the entire network before adding the next so caps
+        // merge into a single channel instead of stamping a bank over flowing water.
+        (float Scale, int R, int G, int B)[] layers =
+        [
+            (1.48f, 109, 112, 99), // damp, stony bank
+            (1.22f, 169, 188, 186), // pale gravel / ice at the margin
+            (1.00f, 87, 145, 165),  // shallow water
+            (0.64f, 48, 106, 136),  // deeper central channel
+            (0.28f, 58, 121, 149)
+        ];
+        foreach (var layer in layers)
+            foreach (var edge in rivers)
+                Ribbon(edge, layer.Scale, Vector2.Zero, Lit(layer.R, layer.G, layer.B, timeFactor));
+
+        foreach (var edge in rivers)
+        {
+            for (int i = 2; i < edge.Points.Length - 3; i += 3)
+            {
+                float n = Noise(edge.Seed, i, 173);
+                var tangent = Vector2.Normalize(edge.Points[i + 1] - edge.Points[i - 1]);
+                var normal = new Vector2(-tangent.Y, tangent.X);
+                float side = n > 0.5f ? 1 : -1;
+                var offset = normal * edge.Widths[i] * (n - 0.5f) * 0.55f;
+                // Short curved glints suggest current, with no repetitive crossbars.
+                var glint = Lit(158, 204, 214, timeFactor);
+                Raylib.DrawLineEx(edge.Points[i] + offset, edge.Points[i + 1] + offset, pitch * 0.009f, glint);
+                if (n > 0.35f)
+                    Raylib.DrawLineEx(edge.Points[i + 1] + offset, edge.Points[i + 2] + offset,
+                        pitch * 0.006f, glint);
+                var bank = edge.Points[i] + normal * side * edge.Widths[i] * 0.64f;
+                Raylib.DrawCircleV(bank, pitch * (0.009f + n * 0.008f), Lit(123, 139, 135, timeFactor));
+                Raylib.DrawLineEx(bank - tangent * pitch * 0.006f, bank + tangent * pitch * 0.012f,
+                    pitch * 0.009f, Lit(202, 215, 205, timeFactor));
             }
         }
     }
 
-    /// <summary>
-    /// Draw a cliff edge.
-    /// </summary>
-    private static void DrawCliff(float cx, float cy, float tileSize, bool isHorizontal, Direction dir)
+    internal static void DrawCliffs(IReadOnlyList<Boundary> cliffs, float pitch, float timeFactor)
     {
-        float length = tileSize * 0.6f;
-        float height = tileSize * 0.08f;
-
-        Vector2 start, end;
-        if (isHorizontal)
+        for (int layer = 0; layer < 4; layer++)
         {
-            start = new Vector2(cx, cy - length / 2);
-            end = new Vector2(cx, cy + length / 2);
+            foreach (var edge in cliffs)
+            {
+                var (scale, displacement, color) = layer switch
+                {
+                    0 => (1.30f, 0.033f, Lit(76, 77, 70, timeFactor)),
+                    1 => (1.12f, 0.012f, Lit(100, 95, 84, timeFactor)),
+                    2 => (0.68f, -0.012f, Lit(143, 136, 117, timeFactor)),
+                    _ => (0.25f, -0.044f, Lit(194, 186, 161, timeFactor))
+                };
+                Ribbon(edge, scale, edge.Downhill * pitch * displacement, color);
+            }
         }
-        else
+        foreach (var edge in cliffs)
         {
-            start = new Vector2(cx - length / 2, cy);
-            end = new Vector2(cx + length / 2, cy);
-        }
-
-        // Draw cliff shadow
-        var shadowColor = new Color(40, 35, 30, 150);
-        Vector2 shadowOffset = new(2, 2);
-        Raylib.DrawLineEx(start + shadowOffset, end + shadowOffset, height, shadowColor);
-
-        // Draw cliff line
-        Raylib.DrawLineEx(start, end, height, CliffColor);
-
-        // Draw hazard stripes
-        var stripeColor = new Color(200, 150, 100, 100);
-        int stripeCount = 3;
-        for (int i = 0; i < stripeCount; i++)
-        {
-            float t = (i + 0.5f) / stripeCount;
-            Vector2 pos = Vector2.Lerp(start, end, t);
-
-            // Small diagonal lines to indicate hazard
-            float stripeLen = tileSize * 0.02f;
-            Raylib.DrawLine(
-                (int)(pos.X - stripeLen), (int)(pos.Y - stripeLen),
-                (int)(pos.X + stripeLen), (int)(pos.Y + stripeLen),
-                stripeColor);
+            for (int i = 1; i < edge.Points.Length - 2; i += 3 + (int)(Noise(edge.Seed, i, 211) * 3))
+            {
+                float n = Noise(edge.Seed, i, 197);
+                var tangent = Vector2.Normalize(edge.Points[i + 1] - edge.Points[i - 1]);
+                var p = edge.Points[i];
+                var lip = p - edge.Downhill * pitch * (0.01f + n * 0.023f);
+                var foot = p + edge.Downhill * pitch * (0.045f + n * 0.023f);
+                var kink = Vector2.Lerp(lip, foot, 0.5f) + tangent * pitch * (n - 0.5f) * 0.065f;
+                // Broken vertical seams and ledge shelves describe exposed rock faces.
+                var crack = Lit(87, 83, 73, timeFactor);
+                Raylib.DrawLineEx(lip, kink, pitch * (0.009f + n * 0.012f), crack);
+                Raylib.DrawLineEx(kink, foot, pitch * 0.014f, crack);
+                Raylib.DrawLineEx(kink + tangent * pitch * 0.014f,
+                    kink + tangent * pitch * (0.033f + n * 0.025f), pitch * 0.012f,
+                    Lit(169, 157, 133, timeFactor));
+                if (n > 0.4f)
+                {
+                    var chip = foot + edge.Downhill * pitch * 0.044f;
+                    Raylib.DrawLineEx(chip, chip + tangent * pitch * (0.013f + n * 0.014f),
+                        pitch * 0.022f, Lit(123, 118, 102, timeFactor));
+                }
+            }
         }
     }
 
-    /// <summary>
-    /// Draw a worn route. The three tiers read as one thing getting more definite: a
-    /// faint line through the grass, then bare earth, then a packed trail. A trace shows
-    /// before it is any faster to walk, which is what lets a player watch a path of their
-    /// own making form.
-    /// </summary>
-    private static void DrawTrail(float cx, float cy, float tileSize, bool isHorizontal, TrailTier tier)
+    private static float Noise(int x, int y, int salt)
     {
-        (float lengthPct, float widthPct, byte alpha, int marks) = tier switch
-        {
-            TrailTier.Trail => (0.95f, 0.085f, (byte)180, 4),
-            TrailTier.Path => (0.85f, 0.055f, (byte)130, 3),
-            _ => (0.70f, 0.030f, (byte)75, 2)
-        };
-
-        float length = tileSize * lengthPct;
-        float width = tileSize * widthPct;
-
-        Vector2 start, end;
-        if (isHorizontal)
-        {
-            start = new Vector2(cx - length / 2, cy);
-            end = new Vector2(cx + length / 2, cy);
-        }
-        else
-        {
-            start = new Vector2(cx, cy - length / 2);
-            end = new Vector2(cx, cy + length / 2);
-        }
-
-        Raylib.DrawLineEx(start, end, width, new Color(TrailColor.R, TrailColor.G, TrailColor.B, alpha));
-
-        // Scuffs along the run of it, so a trail reads as trodden rather than drawn.
-        var scuffColor = new Color((byte)100, (byte)90, (byte)80, (byte)(alpha * 0.7f));
-        for (int i = 0; i < marks; i++)
-        {
-            float t = (i + 0.5f) / marks;
-            Vector2 pos = Vector2.Lerp(start, end, t);
-            Raylib.DrawCircle((int)pos.X, (int)pos.Y, width * 0.35f, scuffColor);
-        }
-    }
-
-    /// <summary>
-    /// Direction enum for edges.
-    /// </summary>
-    private enum Direction
-    {
-        North,
-        East,
-        South,
-        West
-    }
-
-    /// <summary>
-    /// Seeded random, so an edge's wave is the same every frame and on every machine.
-    /// </summary>
-    private static float SeededRandom(int worldX, int worldY, int seed)
-    {
-        int h = (worldX * 73856093) ^ (worldY * 19349663) ^ (seed * 83492791);
-        return MathF.Abs(MathF.Sin(h)) % 1.0f;
+        uint h = unchecked((uint)(x * 73856093 ^ y * 19349663 ^ salt * 83492791));
+        h ^= h >> 16;
+        h *= 0x7feb352d;
+        h ^= h >> 15;
+        return (h & 0xffff) / 65535f;
     }
 }

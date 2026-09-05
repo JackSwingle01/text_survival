@@ -18,10 +18,15 @@ public enum NetState
 /// </summary>
 public class PlacedNet
 {
+    [System.Text.Json.Serialization.JsonInclude]
     public NetState State { get; private set; } = NetState.Empty;
+    [System.Text.Json.Serialization.JsonInclude]
     public int SoakDurationMinutes { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
     public List<double> CaughtFishWeights { get; private set; } = [];
+    [System.Text.Json.Serialization.JsonInclude]
     public int DurabilityRemaining { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
     public int MinutesSinceCatch { get; private set; }
 
     // Constants
@@ -35,6 +40,8 @@ public class PlacedNet
     private const double SpoilageThresholdMinutes = 1080;  // 18 hours
     private const double CurrentLossChancePerHour = 0.01;  // 5% over ~5 hours
     private const double PredatorTheftChancePerHour = 0.02; // When stalked
+
+    public PlacedNet() { }
 
     public PlacedNet(int durability)
     {

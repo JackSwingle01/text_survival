@@ -234,6 +234,28 @@ public class SerializationTests
     }
 
     [Fact]
+    public void SerializeDeserialize_CampStorage_PreservesAllContents()
+    {
+        LocationFeature original = CacheFeature.CreateCampCache();
+        var originalStorage = Assert.IsType<CacheFeature>(original).Storage;
+        originalStorage.Add(Resource.Stick, 0.35);
+        originalStorage.Add(Resource.Water, 1.5);
+        originalStorage.Tools.Add(Gear.Knife("Stored Knife"));
+        originalStorage.Accessories.Add(Gear.SmallPouch());
+
+        string json = JsonSerializer.Serialize(original, GetSerializerOptions());
+        var deserialized = Assert.IsType<CacheFeature>(
+            JsonSerializer.Deserialize<LocationFeature>(json, GetSerializerOptions()));
+
+        Assert.Equal(1, deserialized.Storage.Count(Resource.Stick));
+        Assert.Equal(1.5, deserialized.Storage.Weight(Resource.Water), precision: 2);
+        Assert.Contains(deserialized.Storage.Tools, tool => tool.Name == "Stored Knife");
+        Assert.Single(deserialized.Storage.Accessories);
+        Assert.Equal(1000, deserialized.CapacityKg);
+        Assert.Equal(originalStorage.MaxWeightKg, deserialized.Storage.MaxWeightKg);
+    }
+
+    [Fact]
     public async Task SerializeDeserialize_DeserializedGame_CanContinuePlaying()
     {
         // Arrange

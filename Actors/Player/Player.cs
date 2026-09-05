@@ -8,7 +8,8 @@ namespace text_survival.Actors.Player;
 
 public class Player : Actor
 {
-    public readonly SkillRegistry Skills;
+    [System.Text.Json.Serialization.JsonInclude]
+    public SkillRegistry Skills { get; private set; }
 
 #pragma warning disable CS8765 // Players always have an inventory; the base Actor permits animals to omit one.
     public override Inventory Inventory { get; set; } = new();

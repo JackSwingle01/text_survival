@@ -15,7 +15,8 @@ public class GroundItemsFeature : LocationFeature, IWorkableFeature
     public override string? MapIcon => HasItems ? "ground_items" : null;
     public override int IconPriority => 1;
 
-    public Inventory Storage { get; } = new() { MaxWeightKg = 10000 };
+    [System.Text.Json.Serialization.JsonInclude]
+    public Inventory Storage { get; private set; } = new() { MaxWeightKg = 10000 };
 
     public bool HasItems => !Storage.IsEmpty;
 

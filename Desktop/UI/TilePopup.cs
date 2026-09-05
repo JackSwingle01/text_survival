@@ -90,14 +90,16 @@ public class TilePopup
 
             ImGui.Separator();
 
-            // Render feature details
-            RenderFeatures(ctx);
-
-            // Sign on the ground - not a feature of the place, but of what passed through
-            RenderTracks(ctx);
-
-            // Render NPCs if any
-            RenderNPCs(ctx);
+            if (_selectedLocation.Visibility == TileVisibility.Visible)
+            {
+                RenderFeatures(ctx);
+                RenderTracks(ctx);
+                RenderNPCs(ctx);
+            }
+            else
+            {
+                UiText.Disabled("Explored - outside your sight");
+            }
 
             ImGui.Separator();
 
@@ -347,8 +349,47 @@ public class TilePopup
             };
 
             string tally = count > 1 ? $" x{count}" : "";
-            UiText.Colored(color, $"{what}{tally} - {age}, heading {track.Heading.ToString().ToLower()}");
+            string direction = DirectionSummary(track, freshness);
+            UiText.Colored(color, $"{what}{tally} - {age}, {direction}");
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.BeginTooltip();
+                UiText.Text("Direction is based on net movement");
+                UiText.Text($"North/South traffic: {Readable(track.NorthSouthTraffic, freshness)}");
+                UiText.Text($"East/West traffic: {Readable(track.EastWestTraffic, freshness)}");
+                ImGui.EndTooltip();
+            }
         }
+    }
+
+    private static string DirectionSummary(Track track, double freshness)
+    {
+        double northSouth = track.NorthSouthTraffic * freshness;
+        double eastWest = track.EastWestTraffic * freshness;
+        if (northSouth <= 0 && eastWest <= 0)
+            return $"heading {track.DominantHeading.ToString().ToLower()}";
+
+        bool northSouthDominant = northSouth >= eastWest * 1.5;
+        bool eastWestDominant = eastWest >= northSouth * 1.5;
+        if (!northSouthDominant && !eastWestDominant)
+            return "mixed";
+
+        double axisTraffic = northSouthDominant ? northSouth : eastWest;
+        double net = northSouthDominant ? Math.Abs(track.DirectionY * freshness) : Math.Abs(track.DirectionX * freshness);
+        double opposing = Math.Max(0, axisTraffic - net) / 2;
+        double leading = (axisTraffic + net) / 2;
+
+        if (opposing <= 0 || leading >= opposing * 1.5)
+            return $"mostly {track.DominantHeading.ToString().ToLower()}";
+
+        return northSouthDominant ? "N/S traffic" : "E/W traffic";
+    }
+
+    private static int Readable(double traffic, double freshness)
+    {
+        double readable = traffic * freshness;
+        return readable <= 0 ? 0 : Math.Max(1, (int)Math.Round(readable));
     }
 
     private void RenderNPCs(GameContext ctx)

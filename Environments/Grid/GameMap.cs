@@ -301,14 +301,14 @@ public class GameMap
         if (effectiveVisibility < 0.25)
             return 0;  // Nearly blind - only current tile
         if (effectiveVisibility < 0.5)
-            return 4;  // ~400m visibility
+            return 3;  // ~300m visibility
         if (effectiveVisibility < 1.0)
-            return 8;  // ~800m visibility
+            return 7;  // ~700m visibility
         if (effectiveVisibility < 1.5)
-            return 12; // ~1200m visibility
+            return 11; // ~1100m visibility
         if (effectiveVisibility < 2.0)
-            return 16; // ~1600m visibility
-        return 20;     // ~2000m vantage points
+            return 15; // ~1500m visibility
+        return 19;     // ~1900m vantage points
     }
 
     [System.Text.Json.Serialization.JsonIgnore]

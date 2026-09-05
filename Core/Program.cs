@@ -138,7 +138,7 @@ public static class Program
     {
         while (true)
         {
-            var ui = new DesktopUi(ctx, scheduler);
+            using var ui = new DesktopUi(ctx, scheduler);
             ctx.Ui = ui;
 
             Task<bool> game = new GameRunner(ctx).RunAsync();

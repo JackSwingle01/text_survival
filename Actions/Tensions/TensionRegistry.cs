@@ -9,7 +9,8 @@ namespace text_survival.Actions.Tensions;
 /// </summary>
 public class TensionRegistry
 {
-    private readonly List<ActiveTension> _tensions = [];
+    [System.Text.Json.Serialization.JsonInclude]
+    private List<ActiveTension> _tensions = [];
 
     /// <summary>
     /// Get all active tensions (read-only).

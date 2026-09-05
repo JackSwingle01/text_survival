@@ -28,8 +28,31 @@ public readonly record struct Track(
     Direction Heading,
     double StampedErosion,
     double Traffic,
-    double HeaviestIndividual)
+    double HeaviestIndividual,
+    double DirectionX = 0,
+    double DirectionY = 0,
+    double NorthSouthTraffic = 0,
+    double EastWestTraffic = 0)
 {
+    /// <summary>
+    /// The direction with the strongest net movement. Opposing traffic cancels out,
+    /// while the axis totals below preserve whether that cancellation was north/south
+    /// or east/west traffic.
+    /// </summary>
+    public Direction DominantHeading
+    {
+        get
+        {
+            if (Math.Abs(DirectionX) < double.Epsilon && Math.Abs(DirectionY) < double.Epsilon)
+                return Heading;
+
+            if (Math.Abs(DirectionX) >= Math.Abs(DirectionY))
+                return DirectionX >= 0 ? Direction.East : Direction.West;
+
+            return DirectionY >= 0 ? Direction.South : Direction.North;
+        }
+    }
+
     /// <summary>
     /// How deeply the ground is marked, and so how long the sign lasts. Linear in the
     /// weight of the heaviest thing through, sublinear in how many came - a mammoth
@@ -104,6 +127,10 @@ public class TrackRegistry
     {
         double traffic = individuals;
         double heaviest = individualDepth;
+        double directionX = 0;
+        double directionY = 0;
+        double northSouthTraffic = 0;
+        double eastWestTraffic = 0;
 
         if (_tracks.TryGetValue((position, maker), out Track existing))
         {
@@ -111,11 +138,39 @@ public class TrackRegistry
             // passage adds to it, so a route in daily use reads as busier than one
             // crossed once - and traffic can never pile up forever, because what is
             // carried has already faded.
-            traffic += existing.Traffic * Freshness(existing);
+            double freshness = Freshness(existing);
+            traffic += existing.Traffic * freshness;
             heaviest = Math.Max(heaviest, existing.HeaviestIndividual);
+
+            directionX = existing.DirectionX * freshness;
+            directionY = existing.DirectionY * freshness;
+            northSouthTraffic = existing.NorthSouthTraffic * freshness;
+            eastWestTraffic = existing.EastWestTraffic * freshness;
         }
 
-        _tracks[(position, maker)] = new Track(maker, heading, Erosion, traffic, heaviest);
+        switch (heading)
+        {
+            case Direction.North:
+                directionY -= individuals;
+                northSouthTraffic += individuals;
+                break;
+            case Direction.East:
+                directionX += individuals;
+                eastWestTraffic += individuals;
+                break;
+            case Direction.South:
+                directionY += individuals;
+                northSouthTraffic += individuals;
+                break;
+            case Direction.West:
+                directionX -= individuals;
+                eastWestTraffic += individuals;
+                break;
+        }
+
+        _tracks[(position, maker)] = new Track(
+            maker, heading, Erosion, traffic, heaviest,
+            directionX, directionY, northSouthTraffic, eastWestTraffic);
     }
 
     /// <summary>
@@ -233,6 +288,10 @@ public class TrackRegistry
         public double StampedErosion { get; set; }
         public double Traffic { get; set; }
         public double HeaviestIndividual { get; set; }
+        public double DirectionX { get; set; }
+        public double DirectionY { get; set; }
+        public double NorthSouthTraffic { get; set; }
+        public double EastWestTraffic { get; set; }
 
         public TrackData() { }
 
@@ -245,6 +304,10 @@ public class TrackRegistry
             StampedErosion = track.StampedErosion;
             Traffic = track.Traffic;
             HeaviestIndividual = track.HeaviestIndividual;
+            DirectionX = track.DirectionX;
+            DirectionY = track.DirectionY;
+            NorthSouthTraffic = track.NorthSouthTraffic;
+            EastWestTraffic = track.EastWestTraffic;
         }
     }
 
@@ -257,8 +320,28 @@ public class TrackRegistry
             foreach (var data in value ?? [])
             {
                 var position = new GridPosition(data.X, data.Y);
+
+                // Saves made before directional summaries were added only have one
+                // heading and a total. Treat that total as one-way traffic.
+                double directionX = data.DirectionX;
+                double directionY = data.DirectionY;
+                double northSouthTraffic = data.NorthSouthTraffic;
+                double eastWestTraffic = data.EastWestTraffic;
+                if (northSouthTraffic + eastWestTraffic <= 0 && data.Traffic > 0)
+                {
+                    switch (data.Heading)
+                    {
+                        case Direction.North: directionY = -data.Traffic; northSouthTraffic = data.Traffic; break;
+                        case Direction.East: directionX = data.Traffic; eastWestTraffic = data.Traffic; break;
+                        case Direction.South: directionY = data.Traffic; northSouthTraffic = data.Traffic; break;
+                        case Direction.West: directionX = -data.Traffic; eastWestTraffic = data.Traffic; break;
+                    }
+                }
+
                 _tracks[(position, data.Maker)] = new Track(
-                    data.Maker, data.Heading, data.StampedErosion, data.Traffic, data.HeaviestIndividual);
+                    data.Maker, data.Heading, data.StampedErosion, data.Traffic,
+                    data.HeaviestIndividual, directionX, directionY,
+                    northSouthTraffic, eastWestTraffic);
             }
         }
     }

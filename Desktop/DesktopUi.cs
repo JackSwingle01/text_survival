@@ -25,7 +25,7 @@ namespace text_survival.Desktop;
 /// on <see cref="IGameUi"/>; this resolves them from inside a frame, and the
 /// continuations run on the next scheduler pump - never during rendering.
 /// </summary>
-public sealed class DesktopUi : IGameUi
+public sealed class DesktopUi : IGameUi, IDisposable
 {
     private static readonly Color Background = new(20, 25, 30, 255);
     private static readonly Color Dim = new(0, 0, 0, 128);
@@ -52,6 +52,8 @@ public sealed class DesktopUi : IGameUi
     private readonly List<TaskCompletionSource<float>> _frameWaiters = [];
     private readonly List<TimeWaiter> _timeWaiters = [];
 
+    public void Dispose() => _world.Dispose();
+
     public DesktopUi(GameContext ctx, FrameScheduler scheduler)
     {
         _ctx = ctx;
@@ -76,6 +78,12 @@ public sealed class DesktopUi : IGameUi
         ResolveTimeWaiters(dt);
 
         AudioManager.Update();
+        if (!_stack.Any(m => m.DimsWorld))
+        {
+            var io = ImGui.GetIO();
+            if (_world.HandleCameraInput(ctx, dt, io.WantCaptureMouse, io.WantCaptureKeyboard))
+                _tilePopup.Hide();
+        }
         _world.Update(ctx, dt);
 
         Raylib.BeginDrawing();
@@ -699,6 +707,8 @@ public sealed class DesktopUi : IGameUi
             }
         }
 
+        if (ImGui.GetIO().WantCaptureKeyboard) return null;
+
         var step = ReadMovementKey();
         if (step != null)
         {
@@ -735,10 +745,10 @@ public sealed class DesktopUi : IGameUi
 
     private static (int dx, int dy)? ReadMovementKey()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.W) || Raylib.IsKeyPressed(KeyboardKey.Up)) return (0, -1);
-        if (Raylib.IsKeyPressed(KeyboardKey.S) || Raylib.IsKeyPressed(KeyboardKey.Down)) return (0, 1);
-        if (Raylib.IsKeyPressed(KeyboardKey.A) || Raylib.IsKeyPressed(KeyboardKey.Left)) return (-1, 0);
-        if (Raylib.IsKeyPressed(KeyboardKey.D) || Raylib.IsKeyPressed(KeyboardKey.Right)) return (1, 0);
+        if (Raylib.IsKeyPressed(KeyboardKey.W)) return (0, -1);
+        if (Raylib.IsKeyPressed(KeyboardKey.S)) return (0, 1);
+        if (Raylib.IsKeyPressed(KeyboardKey.A)) return (-1, 0);
+        if (Raylib.IsKeyPressed(KeyboardKey.D)) return (1, 0);
         return null;
     }
 

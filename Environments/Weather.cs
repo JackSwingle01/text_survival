@@ -169,6 +169,7 @@ public class Weather
     /// <see cref="Update"/> may move it, so <see cref="CurrentSeason"/> cannot silently
     /// disagree with the rest of the game.
     /// </summary>
+    [System.Text.Json.Serialization.JsonInclude]
     public DateTime Time { get; private set; }
 
     // Grace period for early game - prevents severe weather
@@ -596,5 +597,4 @@ public class Weather
         };
     }
 }
-
 

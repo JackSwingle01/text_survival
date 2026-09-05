@@ -89,16 +89,29 @@ public static class ResourceCategories
     };
 }
 
-public class Inventory
+public class Inventory : IJsonOnDeserialized
 {
     // Base capacity before accessory bonuses (default 15kg for a person)
     private double _baseMaxWeightKg = 15;
+    private bool _serializedMaxWeightRead;
 
     // Effective capacity including accessory bonuses
     public double MaxWeightKg
     {
         get => _baseMaxWeightKg + AccessoryCapacityBonus;
-        set => _baseMaxWeightKg = value;
+        set
+        {
+            _baseMaxWeightKg = value;
+            _serializedMaxWeightRead = true;
+        }
+    }
+
+    public void OnDeserialized()
+    {
+        // Saves store the effective capacity through MaxWeightKg. Once Accessories have
+        // also been restored, remove their bonus so it is not counted again every reload.
+        if (_serializedMaxWeightRead)
+            _baseMaxWeightKg -= AccessoryCapacityBonus;
     }
 
     // For display/serialization when needed

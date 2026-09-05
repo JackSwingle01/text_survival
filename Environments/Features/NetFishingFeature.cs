@@ -13,8 +13,8 @@ public class NetFishingFeature : LocationFeature, IWorkableFeature
     public override string? MapIcon => NetCount > 0 ? (HasCatchWaiting ? "net_caught" : "net") : null;
     public override int IconPriority => HasCatchWaiting ? 8 : 2;  // Catches are urgent
 
-    public readonly List<PlacedNet> _nets = [];
-    public readonly WaterFeature _water;
+    public List<PlacedNet> _nets = [];
+    public WaterFeature _water;
 
     [System.Text.Json.Serialization.JsonConstructor]
     public NetFishingFeature() : base("net_fishing")

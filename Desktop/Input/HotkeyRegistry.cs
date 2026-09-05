@@ -4,7 +4,7 @@ namespace text_survival.Desktop.Input;
 
 /// <summary>
 /// Actions that can be triggered by hotkeys.
-/// Movement is handled separately (WASD/arrows).
+/// Movement is handled separately (WASD); arrows pan the camera.
 /// </summary>
 public enum HotkeyAction
 {

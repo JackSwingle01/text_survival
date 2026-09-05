@@ -5,9 +5,13 @@ namespace text_survival.Skills
     public class Skill(string name)
     {
         public int Xp = 0;
+        [System.Text.Json.Serialization.JsonInclude]
         public int Level { get; private set; } = 0;
         public string Name { get; set; } = name;
         public int LevelUpThreshold => (Level) * 10;
+
+        [System.Text.Json.Serialization.JsonConstructor]
+        public Skill() : this("") { }
 
         public void GainExperience(int xp)
         {

@@ -154,6 +154,8 @@ public class ActionPanel(WorldRenderer world)
 
         // Movement info
         UiText.Disabled("Movement: WASD or click adjacent tile");
+        UiText.Disabled("Pan: arrows / middle-mouse drag");
+        UiText.Disabled("Home: follow player");
         ImGui.Separator();
 
         // Quick actions

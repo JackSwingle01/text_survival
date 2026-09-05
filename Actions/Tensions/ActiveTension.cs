@@ -32,27 +32,41 @@ public record TensionStageChange(
 
 public class ActiveTension
 {
-    public string Type { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public string Type { get; private set; }
     private double _severity;
     public double Severity
     {
         get => _severity;
-        set => _severity = Math.Clamp(value, 0.0, 1.0);
+        set
+        {
+            _severity = Math.Clamp(value, 0.0, 1.0);
+            _stageTracker.Update(_severity);
+        }
     }
-    public DateTime CreatedAt { get; }
-    public Location? RelevantLocation { get; }
-    public Location? SourceLocation { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public DateTime CreatedAt { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public Location? RelevantLocation { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public Location? SourceLocation { get; private set; }
 
     // Content properties (explicit, no Dictionary<string, object>)
-    public AnimalType? AnimalType { get; }
-    public string? Direction { get; }
-    public string? Description { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public AnimalType? AnimalType { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public string? Direction { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public string? Description { get; private set; }
 
-    public Herd? SourceHerd { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public Herd? SourceHerd { get; private set; }
 
     // Decay behavior
-    public double DecayPerHour { get; }
-    public bool DecaysAtCamp { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public double DecayPerHour { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public bool DecaysAtCamp { get; private set; }
 
     // Stage tracking for event triggers
     private readonly StageTracker<TensionStage> _stageTracker = new(severity => severity switch
@@ -62,6 +76,11 @@ public class ActiveTension
         < 0.66 => TensionStage.Escalating,
         _ => TensionStage.Critical
     });
+
+    public ActiveTension()
+        : this("", 0, 0, false)
+    {
+    }
 
     /// <summary>
     /// Current stage based on severity.

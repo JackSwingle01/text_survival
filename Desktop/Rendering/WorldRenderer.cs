@@ -11,9 +11,13 @@ namespace text_survival.Desktop.Rendering;
 /// <summary>
 /// Main world renderer that coordinates all grid rendering.
 /// </summary>
-public class WorldRenderer
+public class WorldRenderer : IDisposable
 {
     public Camera Camera { get; }
+    private readonly FogRenderer _fog = new();
+    private bool _draggingCamera;
+
+    public void Dispose() => _fog.Dispose();
 
     private (int x, int y)? _hoveredTile;
     private (int x, int y)? _selectedTile;
@@ -77,7 +81,7 @@ public class WorldRenderer
 
         // The camera follows the player sprite - the same position the sprite is drawn at,
         // so the two arrive together instead of racing on separate clocks.
-        Camera.Target = PlayerWorldPosition(ctx);
+        Camera.TrackPlayer(PlayerWorldPosition(ctx));
         Camera.Update(deltaTime);
 
         // Update hover state
@@ -92,6 +96,46 @@ public class WorldRenderer
 
         // Update effects
         _effects.Update(deltaTime);
+    }
+
+    public bool HandleCameraInput(GameContext ctx, float deltaTime, bool mouseCaptured, bool keyboardCaptured)
+    {
+        if (ctx.ActiveCombat != null || ctx.Map == null)
+        {
+            _draggingCamera = false;
+            return false;
+        }
+
+        bool changed = false;
+        if (!keyboardCaptured)
+        {
+            if (Raylib.IsKeyPressed(KeyboardKey.Home))
+            {
+                Camera.Follow(PlayerWorldPosition(ctx));
+                changed = true;
+            }
+            Vector2 direction = new(
+                (Raylib.IsKeyDown(KeyboardKey.Right) ? 1 : 0) - (Raylib.IsKeyDown(KeyboardKey.Left) ? 1 : 0),
+                (Raylib.IsKeyDown(KeyboardKey.Down) ? 1 : 0) - (Raylib.IsKeyDown(KeyboardKey.Up) ? 1 : 0));
+            if (direction != Vector2.Zero)
+            {
+                Camera.Pan(Vector2.Normalize(direction) * (8f * deltaTime), ctx.Map.Width, ctx.Map.Height);
+                changed = true;
+            }
+        }
+
+        if (!Raylib.IsMouseButtonDown(MouseButton.Middle) || mouseCaptured)
+            _draggingCamera = false;
+        if (!mouseCaptured && Raylib.IsMouseButtonPressed(MouseButton.Middle) &&
+            Camera.ContainsScreenPoint(Raylib.GetMousePosition()))
+            _draggingCamera = true;
+        if (_draggingCamera)
+        {
+            Camera.Pan(-Raylib.GetMouseDelta() / (Camera.TileSize + Camera.TileGap),
+                ctx.Map.Width, ctx.Map.Height, immediate: true);
+            changed = true;
+        }
+        return changed;
     }
 
     /// <summary>
@@ -154,6 +198,8 @@ public class WorldRenderer
         var map = ctx.Map ?? throw new InvalidOperationException("Cannot render without an initialized map.");
         var playerPos = map.CurrentPosition;
 
+        _fog.Begin();
+
         // Everything grid-bound is clipped to the grid rect so the overscan tiles never
         // spill under the side panels while the camera pans.
         Raylib.BeginScissorMode(Camera.ScreenOffsetX, Camera.ScreenOffsetY, Camera.GridWidth, Camera.GridHeight);
@@ -164,11 +210,22 @@ public class WorldRenderer
             RenderTileAt(ctx, worldX, worldY, playerPos, timeFactor);
         }
 
+        // Worn ground runs continuously beneath the prints left on it.
+        TrailRenderer.Render(ctx, Camera, timeFactor);
+
         // Prints sit on the ground, under everything that made them.
         TrackRenderer.Render(ctx, Camera, timeFactor);
 
         // Render edges between tiles (rivers, cliffs, trails)
         EdgeRenderer.RenderEdges(ctx, Camera, timeFactor);
+
+        Raylib.EndScissorMode();
+        _fog.End(Camera, map);
+        Raylib.BeginScissorMode(Camera.ScreenOffsetX, Camera.ScreenOffsetY, Camera.GridWidth, Camera.GridHeight);
+
+        // The player's camp is a persistent landmark. Once discovered, its marker
+        // remains available while the camp is outside the current sight radius.
+        RenderCampMarker(ctx, map);
 
         // Render player icon at the position the simulation says they are - interpolated
         // along the path while travelling, on their tile otherwise.
@@ -297,6 +354,19 @@ public class WorldRenderer
                 TileRenderer.DrawFeatureIcon(x, y, Camera.TileSize, feature.MapIcon, slot++, glow);
             }
         }
+    }
+
+    private void RenderCampMarker(GameContext ctx, GameMap map)
+    {
+        var camp = ctx.Camp;
+        var campPosition = map.GetPosition(camp);
+        if (map.GetVisibility(campPosition.X, campPosition.Y) != TileVisibility.Explored)
+            return;
+
+        Vector2 screenPosition = Camera.WorldToScreen(campPosition.X, campPosition.Y);
+        TileRenderer.DrawFeatureIcon(
+            screenPosition.X, screenPosition.Y, Camera.TileSize, "shelter", slot: 0,
+            glow: new Color(150, 210, 255, 180));
     }
 
     /// <summary>

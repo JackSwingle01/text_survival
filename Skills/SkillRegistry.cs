@@ -4,17 +4,17 @@ namespace text_survival.Skills
 {
     public class SkillRegistry
     {
-        public Skill Fighting { get; private set; }
-        public Skill Endurance { get; private set; }
-        public Skill Reflexes { get; private set; }
-        public Skill Defense { get; private set; }
-        public Skill Hunting { get; private set; }
-        public Skill Crafting { get; private set; }
-        public Skill Foraging { get; private set; }
-        public Skill Firecraft { get; private set; }
-        public Skill Mending { get; private set; }
-        public Skill Healing { get; private set; }
-        public Skill Magic { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Fighting { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Endurance { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Reflexes { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Defense { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Hunting { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Crafting { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Foraging { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Firecraft { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Mending { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Healing { get; private set; }
+        [System.Text.Json.Serialization.JsonInclude] public Skill Magic { get; private set; }
 
         public SkillRegistry()
         {

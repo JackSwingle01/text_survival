@@ -119,7 +119,7 @@ public static class TrackRenderer
         byte brightness = (byte)(255 * (0.4f + timeFactor * 0.6f));
         var tint = new Color(brightness, brightness, brightness, alpha);
 
-        float rotation = track.Heading switch
+        float rotation = track.DominantHeading switch
         {
             Direction.North => 0f,
             Direction.East => 90f,

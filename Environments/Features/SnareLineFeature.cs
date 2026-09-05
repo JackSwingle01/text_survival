@@ -13,8 +13,8 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
     public override string? MapIcon => SnareCount > 0 ? (HasCatchWaiting ? "trap_caught" : "trap") : null;
     public override int IconPriority => HasCatchWaiting ? 8 : 2; // Catches are urgent
 
-    public readonly List<PlacedSnare> _snares = [];
-    public readonly SmallGameFeature? _territory;
+    public List<PlacedSnare> _snares = [];
+    public SmallGameFeature? _territory;
 
     // Small game weight threshold (kg)
     private const double SmallGameMaxWeightKg = 10.0;

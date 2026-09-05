@@ -125,8 +125,10 @@ walks on two feet, on pads, or on hooves.
 
 Each track carries `Traffic` — how many individuals came through, accumulated across
 passages and faded by weather in between, so three passes by one person and one pass by
-three people read alike, which is also true on the ground. Clicking a tile reports it:
-`Paw prints x5 - fresh, heading north`.
+three people read alike, which is also true on the ground. Direction is summarized from
+the net movement vector: a clear majority reads as `heading north`, while opposing or
+cross-axis traffic reads as `N/S traffic`, `E/W traffic`, or `mixed`. Clicking a tile can
+show the axis totals in a tooltip.
 
 Rather than ageing every track every minute, the world keeps **one monotonic erosion
 accumulator** that advances faster in snow, wind, and thaw. A track stores the

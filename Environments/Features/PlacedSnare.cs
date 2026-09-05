@@ -29,15 +29,24 @@ public enum SnareState
 /// </summary>
 public class PlacedSnare
 {
+    [System.Text.Json.Serialization.JsonInclude]
     public SnareState State { get; private set; } = SnareState.Empty;
+    [System.Text.Json.Serialization.JsonInclude]
     public int MinutesSet { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
     public BaitType Bait { get; private set; } = BaitType.None;
+    [System.Text.Json.Serialization.JsonInclude]
     public double BaitFreshness { get; private set; } = 1.0;
+    [System.Text.Json.Serialization.JsonInclude]
     public string? CaughtAnimalType { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
     public double CaughtAnimalWeightKg { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
     public int MinutesSinceCatch { get; private set; }
+    [System.Text.Json.Serialization.JsonInclude]
     public int DurabilityRemaining { get; private set; }
-    public bool IsReinforced { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public bool IsReinforced { get; private set; }
 
     // Constants
     private const double BaseChancePerHour = 0.03;
@@ -46,6 +55,8 @@ public class PlacedSnare
     private const double BaitDecayPerHour = 0.10;
     private const double ScavengerChancePerHour = 0.08;
     private const int ScavengerThresholdMinutes = 180; // 3 hours
+
+    public PlacedSnare() { }
 
     public PlacedSnare(int durability, bool reinforced = false)
     {

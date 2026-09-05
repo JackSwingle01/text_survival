@@ -2,7 +2,7 @@ namespace text_survival.Actors;
 
 public class RelationshipMemory
 {
-    public readonly List<MemoryEvent> MemoryEvents = [];
+    public List<MemoryEvent> MemoryEvents = [];
     public void AddMemory(MemoryType memory, Actor subject)
     {
         var existing = MemoryEvents.FirstOrDefault(x => x.Subject == subject && x.Type == memory);

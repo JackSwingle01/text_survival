@@ -404,6 +404,22 @@ public class VisibilityTests
         Assert.Equal(TileVisibility.Visible, map.GetLocationAt(6, 5)!.Visibility);
     }
 
+    [Theory]
+    [InlineData(0.1, 0)]
+    [InlineData(0.3, 3)]
+    [InlineData(0.8, 7)]
+    [InlineData(1.2, 11)]
+    [InlineData(1.7, 15)]
+    [InlineData(2.0, 19)]
+    public void SightRangeUsesShorterBands(double visibility, int expectedTiles)
+    {
+        var weather = new Weather();
+        var location = LocationFactory.MakeTerrainLocation(TerrainType.Plain, weather);
+        location.VisibilityFactor = visibility;
+
+        Assert.Equal(expectedTiles, GameMap.GetSightRange(location));
+    }
+
     [Fact]
     public void UpdateVisibility_DowngradesPreviouslyVisibleToExplored()
     {

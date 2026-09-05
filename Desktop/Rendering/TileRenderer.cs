@@ -157,10 +157,6 @@ public static class TileRenderer
 
         DrawTerrain(terrain, x, y, size, worldX, worldY, timeFactor);
 
-        // Fog of war for explored but not currently visible tiles
-        if (visibility == TileVisibility.Explored)
-            Raylib.DrawRectangle((int)x, (int)y, (int)size, (int)size, new Color(0, 0, 0, 160));
-
         if (isPlayerTile)
             DrawPlayerTileHighlight(x, y, size);
         else if (isHovered)

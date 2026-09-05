@@ -21,6 +21,7 @@ namespace text_survival.Environments.Features;
 [JsonDerivedType(typeof(NPCBodyFeature), "npcbody")]
 [JsonDerivedType(typeof(EventTriggerFeature), "eventTrigger")]
 [JsonDerivedType(typeof(GroundItemsFeature), "groundItems")]
+[JsonDerivedType(typeof(NetFishingFeature), "netFishing")]
 public abstract class LocationFeature
 {
     public string Name { get; set; } = string.Empty;
@@ -46,6 +47,5 @@ public abstract class LocationFeature
     public abstract List<Resource> ProvidedResources();
 
 }
-
 
 

@@ -17,32 +17,44 @@ public class CacheFeature : LocationFeature, IWorkableFeature
     /// <summary>
     /// The storage inventory for this cache.
     /// </summary>
-    public Inventory Storage { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public Inventory Storage { get; private set; }
 
     /// <summary>
     /// Type of cache - affects UI and available features.
     /// </summary>
-    public CacheType Type { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public CacheType Type { get; private set; }
 
     /// <summary>
     /// Maximum storage capacity in kg.
     /// </summary>
-    public double CapacityKg { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public double CapacityKg { get; private set; }
 
     /// <summary>
     /// If true, stored food won't attract predators.
     /// </summary>
-    public bool ProtectsFromPredators { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public bool ProtectsFromPredators { get; private set; }
 
     /// <summary>
     /// If true, cache is protected from weather (rain, snow).
     /// </summary>
-    public bool ProtectsFromWeather { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public bool ProtectsFromWeather { get; private set; }
 
     /// <summary>
     /// If true, food stored here won't decay (ice cache).
     /// </summary>
-    public bool PreservesFood { get; }
+    [System.Text.Json.Serialization.JsonInclude]
+    public bool PreservesFood { get; private set; }
+
+    public CacheFeature()
+        : base("")
+    {
+        Storage = new Inventory();
+    }
 
     public CacheFeature(
         string name,

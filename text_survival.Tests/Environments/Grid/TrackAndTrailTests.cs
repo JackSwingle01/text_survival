@@ -163,6 +163,31 @@ public class TrackRegistryTests
         Assert.Equal(original.Track.Depth, copy.Track.Depth);
         Assert.Equal(original.Freshness, copy.Freshness, 6);
     }
+
+    [Fact]
+    public void Marks_MigratesLegacySingleHeadingTraffic()
+    {
+        var restored = new TrackRegistry
+        {
+            Marks =
+            [
+                new TrackRegistry.TrackData
+                {
+                    X = 2,
+                    Y = 3,
+                    Maker = TrackMaker.Human,
+                    Heading = Direction.West,
+                    StampedErosion = 0,
+                    Traffic = 3,
+                    HeaviestIndividual = 1
+                }
+            ]
+        };
+
+        var track = restored.At(new GridPosition(2, 3))[0].Track;
+        Assert.Equal(-3, track.DirectionX);
+        Assert.Equal(3, track.EastWestTraffic);
+    }
 }
 
 
@@ -202,6 +227,21 @@ public class TrackTrafficTests
         tracks.Stamp(A, B, TrackMaker.Human);
         tracks.Stamp(A, B, TrackMaker.Human);
         Assert.Equal(3, tracks.TrafficOf(A, TrackMaker.Human));
+    }
+
+    [Fact]
+    public void TrafficSummary_SummarizesDirectionalTrafficAsANetVector()
+    {
+        var tracks = new TrackRegistry();
+
+        for (int i = 0; i < 6; i++) tracks.Stamp(A, B, TrackMaker.Human);
+        for (int i = 0; i < 4; i++) tracks.Stamp(B, A, TrackMaker.Human);
+
+        var track = tracks.At(A)[0].Track;
+
+        Assert.Equal(2, track.DirectionX);
+        Assert.Equal(10, track.EastWestTraffic);
+        Assert.Equal(Direction.East, track.DominantHeading);
     }
 
     [Fact]
