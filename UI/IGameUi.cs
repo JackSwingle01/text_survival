@@ -62,7 +62,7 @@ public interface IGameUi
     Task<CraftOption?> ShowCrafting();
 
     /// <summary>The fire action the player committed to, or null if they closed the screen.</summary>
-    Task<FireOverlayResult?> ShowFire(HeatSourceFeature? fire, FireFeedback? feedback);
+    Task<FireOverlayResult?> ShowFire(FireFeedback? feedback);
 
     /// <summary>A cooking action that costs time, or null if the player closed the screen.</summary>
     Task<PendingFoodAction?> ShowFood();

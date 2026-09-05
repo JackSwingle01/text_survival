@@ -21,19 +21,11 @@ public class FireOverlay
     // Tending mode state
     private string? _tendMessage;
 
-    public void Open(HeatSourceFeature? fire)
+    public void Open()
     {
         IsOpen = true;
         _lastAttemptMessage = null;
         _tendMessage = null;
-
-        // Determine initial mode based on fire state
-        if (fire != null && (fire.IsActive || fire.HasEmbers))
-        {
-        }
-        else
-        {
-        }
     }
 
     public FireOverlayResult? Render(GameContext ctx, float deltaTime)

@@ -20,6 +20,12 @@ public sealed class ScriptedUi : IGameUi
     public Queue<object> Selections { get; } = new();
     public Queue<CombatInput?> CombatInputs { get; } = new();
 
+    /// <summary>
+    /// Answers for the fire screen. An empty queue closes the screen, which is how a test
+    /// that reaches the fire screen incidentally gets out of it.
+    /// </summary>
+    public Queue<FireOverlayResult?> FireRequests { get; } = new();
+
     /// <summary>Delta time handed to every <see cref="NextFrame"/>.</summary>
     public float FrameSeconds { get; set; } = 1f / 60f;
 
@@ -95,7 +101,8 @@ public sealed class ScriptedUi : IGameUi
     public Task ShowTransfer(Inventory storage, string storageName) => Task.CompletedTask;
 
     public Task<CraftOption?> ShowCrafting() => Task.FromResult<CraftOption?>(null);
-    public Task<FireOverlayResult?> ShowFire(HeatSourceFeature? fire, FireFeedback? feedback) => Task.FromResult<FireOverlayResult?>(null);
+    public Task<FireOverlayResult?> ShowFire(FireFeedback? feedback)
+        => Task.FromResult(FireRequests.Count > 0 ? FireRequests.Dequeue() : null);
     public Task<PendingFoodAction?> ShowFood() => Task.FromResult<PendingFoodAction?>(null);
 
     public Task<PlayerAction> WaitForPlayerAction() => Task.FromResult(Next(PlayerActions, "player action"));

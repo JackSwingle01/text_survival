@@ -252,7 +252,7 @@ public static class FireHandler
     /// <summary>
     /// Start fire from ember carrier. Always succeeds. Consumes the carrier.
     /// </summary>
-    public static void StartFromEmber(
+    public static bool StartFromEmber(
         Actor actor,
         Inventory inv,
         Location location,
@@ -260,7 +260,7 @@ public static class FireHandler
         HeatSourceFeature? existingFire = null)
     {
         if (inv.Count(Resource.Stick) <= 0)
-            return;
+            return false;
 
         // Consume kindling
         double kindlingWeight = inv.Pop(Resource.Stick);
@@ -280,6 +280,8 @@ public static class FireHandler
             newFire.IgniteAll();
             location.Features.Add(newFire);
         }
+
+        return true;
     }
 
     /// <summary>
@@ -409,14 +411,15 @@ public static class FireHandler
     /// The fire screen, and the actions the player takes from it. Actions that cost time
     /// come back as results so they can run under a progress view; the rest apply at once.
     /// </summary>
-    public static async Task ManageFire(GameContext ctx, HeatSourceFeature? fire = null)
+    public static async Task ManageFire(GameContext ctx)
     {
-        fire ??= ctx.CurrentLocation.GetFeature<HeatSourceFeature>() ?? new HeatSourceFeature();
         FireFeedback? feedback = null;
 
         while (true)
         {
-            var request = await ctx.Ui.ShowFire(fire, feedback);
+            // Re-read every pass: a successful start puts a new fire on the location.
+            var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
+            var request = await ctx.Ui.ShowFire(feedback);
             if (request == null) return;
 
             feedback = await ApplyFireAction(ctx, request, fire);
@@ -424,7 +427,7 @@ public static class FireHandler
     }
 
     private static async Task<FireFeedback> ApplyFireAction(
-        GameContext ctx, FireOverlayResult request, HeatSourceFeature fire)
+        GameContext ctx, FireOverlayResult request, HeatSourceFeature? fire)
     {
         switch (request.Action)
         {
@@ -531,7 +534,9 @@ public static class FireHandler
     public static async Task<FireActionResult> ProcessStartFromEmber(
         GameContext ctx, Gear emberCarrier, HeatSourceFeature? existingFire)
     {
-        StartFromEmber(ctx.player, ctx.Inventory, ctx.CurrentLocation, emberCarrier, existingFire);
+        bool started = StartFromEmber(ctx.player, ctx.Inventory, ctx.CurrentLocation, emberCarrier, existingFire);
+        if (!started)
+            return new FireActionResult(false, "No kindling available.");
 
         using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, "Coaxing the ember..."))
         {
@@ -545,7 +550,7 @@ public static class FireHandler
     /// Add fuel to fire and return result message.
     /// Wrapper that returns a result for UI display.
     /// </summary>
-    public static FireActionResult AddFuelWithResult(Inventory inv, HeatSourceFeature fire, Resource fuel, int count = 1)
+    public static FireActionResult AddFuelWithResult(Inventory inv, HeatSourceFeature? fire, Resource fuel, int count = 1)
     {
         if (fire == null)
             return new FireActionResult(false, "No fire to add fuel to.");

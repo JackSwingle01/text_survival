@@ -575,10 +575,10 @@ public sealed class DesktopUi : IGameUi
         }));
     }
 
-    public Task<FireOverlayResult?> ShowFire(HeatSourceFeature? fire, FireFeedback? feedback)
+    public Task<FireOverlayResult?> ShowFire(FireFeedback? feedback)
     {
         // The screen keeps its selection between actions, so only open it the first time.
-        if (!_fire.IsOpen) _fire.Open(fire);
+        if (!_fire.IsOpen) _fire.Open();
 
         if (feedback != null)
         {
