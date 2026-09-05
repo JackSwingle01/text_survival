@@ -106,7 +106,13 @@ public class SnareLineFeature : LocationFeature, IWorkableFeature
 
         foreach (var snare in _snares.Where(s => s.IsUsable))
         {
+            bool wasEmpty = snare.State == SnareState.Empty;
             snare.Update(minutes, GetGameDensity(), smallGame);
+
+            // A snare catch is a kill like any other - deplete the territory the same way
+            // an active hunt does, so trapping isn't a free lunch relative to hunting.
+            if (wasEmpty && snare.State == SnareState.CatchReady)
+                _territory?.RecordSuccessfulHunt();
         }
 
         // Remove broken snares - handled in check
