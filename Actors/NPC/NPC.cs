@@ -292,7 +292,28 @@ public class NPC : Actor
             bool warmingEffectively = IsFireWarmingEffectively();
             if (warmingEffectively)
             {
-                // Fire is good, rest and warm up
+                // Warming is not a task, it is waiting for the fire to do its work - and the
+                // fire is the only place in the world snow can be melted. Anything that keeps
+                // you sitting at it for free should happen now rather than costing a second
+                // trip later. Cooking (which melting snow is) and crafting all share Resting's
+                // ActivityLevel and FireProximity, so each of these warms exactly as fast and
+                // burns exactly the same calories as staring at the flames.
+                //
+                // Only a craft the NPC can do right now counts: DetermineCraft falls through
+                // to fetching missing materials, and walking off to find flint is the one
+                // thing a cold NPC at a good fire must not do. The cast drops that case, and
+                // the normal work loop picks it up again once warm.
+                NPCAction? whileWarming = TryBuildWaterReserve();
+                whileWarming ??= CookingHandler.CanCookMeat(Inventory, CurrentLocation)
+                    ? new NPCCookMeat()
+                    : null;
+                whileWarming ??= DetermineCraft() as NPCCraft;
+                if (whileWarming != null)
+                {
+                    if (IsTracing) Trace($"  [Warmth] At fire, warming - doing {whileWarming.Name} meanwhile");
+                    return whileWarming;
+                }
+
                 if (IsTracing) Trace($"  [Warmth] At fire, warming effectively, resting");
                 return new NPCRest(Utils.RandInt(5, 15));
             }

@@ -18,7 +18,11 @@ public static class ActivityConfig
         [ActivityType.TendingFire] = new(0.5, 1.0, 2.0, "Tending fire."),
         [ActivityType.Eating] = new(0.5, 1.0, 2.0, "Eating."),
         [ActivityType.Cooking] = new(0.5, 1.0, 2.0, "Cooking."),
-        [ActivityType.Crafting] = new(0.5, 1.0, 0.5, "Crafting."),
+        // Crafting sat at 0.5 while every other camp activity got 2.0, which meant knapping a
+        // blade beside your own fire warmed you a quarter as much as eating beside it. Nothing
+        // about crafting moves you away from the fire, and the penalty was invisible - it read
+        // as a bug rather than a tradeoff, so it is one now.
+        [ActivityType.Crafting] = new(0.5, 1.0, 2.0, "Crafting."),
 
         // Expedition activities (away from fire, full events)
         [ActivityType.Traveling] = new(1.0, 1.5, 0.0, "Traveling."),
