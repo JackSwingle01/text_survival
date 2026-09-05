@@ -21,6 +21,19 @@ public class FireOverlay
     // Tending mode state
     private string? _tendMessage;
 
+    private static readonly Vector4 Warning = new(1f, 0.4f, 0.4f, 1f);
+
+    /// <summary>What a fuel looks like in the pile, so the list reads at a glance.</summary>
+    private static string FuelIcon(Resource fuel) => fuel switch
+    {
+        Resource.Stick => "sticks",
+        Resource.Bone => "bone",
+        Resource.Charcoal => "charcoal",
+        Resource.Tinder or Resource.BirchBark or Resource.Amadou
+            or Resource.Usnea or Resource.Chaga => "tinder",
+        _ => "fuel"
+    };
+
     public void Open()
     {
         IsOpen = true;
@@ -83,14 +96,14 @@ public class FireOverlay
         // Check for ember carrier first
         if (materials.EmberCarrier != null)
         {
-            UiText.Colored(new Vector4(1f, 0.6f, 0.2f, 1f), "Ember Carrier Available!");
+            UiIcons.LabelColored("ember", new Vector4(1f, 0.6f, 0.2f, 1f), "Ember Carrier Available!");
             UiText.Text($"  {materials.EmberCarrier.Name}");
             UiText.Text($"  {materials.EmberCarrier.EmberBurnHoursRemaining:F1}h remaining");
             ImGui.Spacing();
 
             if (materials.HasKindling)
             {
-                if (ImGui.Button("Use Ember Carrier (100% success)", new Vector2(-1, 30)))
+                if (UiIcons.Button("ember", "Use Ember Carrier (100% success)", "use_ember", new Vector2(-1, 30)))
                 {
                     return new FireOverlayResult
                     {
@@ -101,7 +114,7 @@ public class FireOverlay
             }
             else
             {
-                UiText.Colored(new Vector4(1f, 0.4f, 0.4f, 1f), "Need kindling (sticks) to use ember");
+                UiIcons.LabelColored("sticks", Warning, "Need kindling (sticks) to use ember");
             }
 
             ImGui.Separator();
@@ -111,21 +124,21 @@ public class FireOverlay
         // Check materials
         if (materials.Tools.Count == 0)
         {
-            UiText.Colored(new Vector4(1f, 0.4f, 0.4f, 1f), "No fire-making tools available!");
+            UiIcons.LabelColored("gear", Warning, "No fire-making tools available!");
             UiText.Disabled("Craft a hand drill, bow drill, or fire striker.");
             return null;
         }
 
         if (materials.Tinders.Count == 0)
         {
-            UiText.Colored(new Vector4(1f, 0.4f, 0.4f, 1f), "No tinder available!");
+            UiIcons.LabelColored("tinder", Warning, "No tinder available!");
             UiText.Disabled("Forage for birch bark, amadou, or other tinder.");
             return null;
         }
 
         if (!materials.HasKindling)
         {
-            UiText.Colored(new Vector4(1f, 0.4f, 0.4f, 1f), "No kindling available!");
+            UiIcons.LabelColored("sticks", Warning, "No kindling available!");
             UiText.Disabled("Gather sticks for kindling.");
             return null;
         }
@@ -149,7 +162,7 @@ public class FireOverlay
         ImGui.Spacing();
 
         // Tinder selection
-        UiText.Text("Tinder:");
+        UiIcons.Label("tinder", "Tinder:");
         for (int i = 0; i < materials.Tinders.Count; i++)
         {
             var tinder = materials.Tinders[i];
@@ -180,7 +193,7 @@ public class FireOverlay
 
         // Kindling status
         int kindlingCount = inv.Count(Resource.Stick);
-        UiText.Text($"Kindling: {kindlingCount} sticks");
+        UiIcons.Label("sticks", $"Kindling: {kindlingCount} sticks");
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -280,7 +293,7 @@ public class FireOverlay
 
         // Temperature
         double temp = fire.GetCurrentFireTemperature();
-        UiText.Text($"Temperature: {temp:F0}°F");
+        UiIcons.Label("temperature", $"Temperature: {temp:F0}°F");
 
         // Time remaining
         if (fire.IsActive)
@@ -298,14 +311,14 @@ public class FireOverlay
                 _ => new Vector4(0.7f, 0.9f, 0.7f, 1f)
             };
 
-            UiText.Text("Time Remaining:");
+            UiIcons.Label("clock", "Time Remaining:");
             ImGui.SameLine();
             UiText.Colored(timeColor, timeStr);
         }
         else if (fire.HasEmbers)
         {
             double emberMinutes = fire.EmberTimeRemaining * 60;
-            UiText.Text($"Ember Time: {emberMinutes:F0}m");
+            UiIcons.Label("ember", $"Ember Time: {emberMinutes:F0}m");
             UiText.Colored(new Vector4(1f, 0.6f, 0.3f, 1f), "Add fuel to relight!");
         }
 
@@ -331,11 +344,12 @@ public class FireOverlay
 
             string fuelName = GetFuelDisplayName(resource);
             string buttonLabel = $"{fuelName} x{count} ({weight:F1}kg)";
+            string icon = FuelIcon(resource);
 
             if (!canAdd)
             {
                 ImGui.BeginDisabled();
-                ImGui.Button(buttonLabel, new Vector2(-1, 0));
+                UiIcons.Button(icon, buttonLabel, $"fuel_{resource}", new Vector2(-1, 0));
                 ImGui.EndDisabled();
 
                 if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
@@ -345,7 +359,7 @@ public class FireOverlay
             }
             else
             {
-                if (ImGui.Button(buttonLabel, new Vector2(-1, 0)))
+                if (UiIcons.Button(icon, buttonLabel, $"fuel_{resource}", new Vector2(-1, 0)))
                 {
                     return new FireOverlayResult
                     {
@@ -368,8 +382,8 @@ public class FireOverlay
         // Charcoal collection
         if (fire.HasCharcoal)
         {
-            UiText.Text($"Charcoal Available: {fire.CharcoalAvailableKg:F2} kg");
-            if (ImGui.Button("Collect Charcoal", new Vector2(-1, 0)))
+            UiIcons.Label("charcoal", $"Charcoal Available: {fire.CharcoalAvailableKg:F2} kg");
+            if (UiIcons.Button("charcoal", "Collect Charcoal", "collect_charcoal", new Vector2(-1, 0)))
             {
                 return new FireOverlayResult { Action = FireAction.CollectCharcoal };
             }
@@ -380,7 +394,7 @@ public class FireOverlay
         bool hasUnlitTorch = inv.HasUnlitTorch;
         if (fire.IsActive && hasUnlitTorch)
         {
-            if (UiIcons.Button("fire", "Light Torch", "light_torch", new Vector2(-1, 0)))
+            if (UiIcons.Button("torch", "Light Torch", "light_torch", new Vector2(-1, 0)))
             {
                 return new FireOverlayResult { Action = FireAction.LightTorch };
             }
@@ -390,7 +404,7 @@ public class FireOverlay
         bool hasEmberCarrier = inv.Tools.Any(t => t.IsEmberCarrier && !t.IsEmberLit);
         if (fire.HasEmbers && hasEmberCarrier)
         {
-            if (UiIcons.Button("fire", "Collect Ember", "collect_ember", new Vector2(-1, 0)))
+            if (UiIcons.Button("ember", "Collect Ember", "collect_ember", new Vector2(-1, 0)))
             {
                 return new FireOverlayResult { Action = FireAction.CollectEmber };
             }

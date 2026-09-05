@@ -1,6 +1,6 @@
 # UI icon set
 
-Thirty transparent 16×16 sprites authored with `tools/PixelArtCli`. Shared palette,
+Thirty-five transparent 16×16 sprites authored with `tools/PixelArtCli`. Shared palette,
 dark outlines, and upper-left highlights match the existing pixel-art pipeline.
 The desktop UI loads these once at startup and releases them before the window closes.
 They appear beside survival stats, inventory category buttons and item rows, and
@@ -61,6 +61,21 @@ The location actions use width-aware labels with full text tooltips; work icons
 map to strategy types. Existing art covers Food & Water, Crafting, foraging,
 hunting, fishing, butchering, and the curing rack. Combat controls are unchanged.
 
+## Fire set
+
+| File | Picture | UI use |
+| --- | --- | --- |
+| charcoal | Black angular chunks | Charcoal available and Collect Charcoal |
+| ember | Banked coals over a glow | Ember carrier, Collect Ember, ember time remaining |
+| sticks | Pile of loose twigs | Kindling: the stick count, the kindling fuel row, missing-kindling warnings |
+| tinder | Teased tuft of fibre | The tinder section, tinder and birch bark fuel rows, missing-tinder warning |
+| torch | Lit torch on a shaft | Light Torch |
+
+Preview: `assets/previews/ui-icons-set4.png`, alphabetical as above. These five
+exist to separate things the fire screen used to draw with one flame: an ember
+is not a fire, kindling is not a log, and tinder is not either. `FuelIcon` in
+`Desktop/UI/FireOverlay.cs` maps a fuel resource to its icon.
+
 From the repository root:
 
 ```sh
@@ -70,6 +85,6 @@ dotnet run --project tools/PixelArtCli -- sheet assets/pixelart/ui assets/previe
 
 The complete preview is alphabetical, left to right, top to bottom.
 Render validates pixel dimensions, palette entries, and CONNECTED checks for
-all thirty sources (CONNECTED checks are omitted for intentionally separate sun rays, wind strokes, and rain drops). The generated contact sheet has been visually reviewed.
+all thirty-five sources (CONNECTED checks are omitted for intentionally separate sun rays, wind strokes, and rain drops). The generated contact sheet has been visually reviewed.
 Load native PNGs from `assets/icons/ui`, use point filtering, and display at
 16×16 or 32×32 for crisp whole-pixel scaling. The sheet is for review only.
