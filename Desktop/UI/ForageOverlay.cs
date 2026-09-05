@@ -183,12 +183,15 @@ public class ForageOverlay
                 if (!string.IsNullOrEmpty(suggestedFocusId))
                 {
                     // Clickable clue - highlight on hover
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.8f, 1f, 1f));
                     ImGui.Bullet();
                     ImGui.SameLine();
 
-                    // Use selectable for click handling
-                    if (ImGui.Selectable($"{clue.Description}##clue_{i}", false, ImGuiSelectableFlags.None))
+                    // Wrapped text still registers as an item, so hover/click still work
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.8f, 1f, 1f));
+                    ImGui.TextWrapped(clue.Description);
+                    ImGui.PopStyleColor();
+
+                    if (ImGui.IsItemClicked())
                     {
                         _selectedFocusId = suggestedFocusId;
                     }
@@ -203,7 +206,6 @@ public class ForageOverlay
                             ImGui.SetTooltip($"Click to focus on {suggestedFocus.Label}");
                         }
                     }
-                    ImGui.PopStyleColor();
                 }
                 else
                 {
