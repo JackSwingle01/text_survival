@@ -806,7 +806,14 @@ public sealed class DesktopUi : IGameUi
                 UiText.Text(section.Header);
 
                 foreach (var line in section.Lines)
-                    UiText.Colored(ToneColor(line.Tone), $"  {line.Text}");
+                {
+                    ImGui.Indent();
+                    if (line.Icon != null)
+                        UiIcons.LabelColored(line.Icon, ToneColor(line.Tone), line.Text);
+                    else
+                        UiText.Colored(ToneColor(line.Tone), line.Text);
+                    ImGui.Unindent();
+                }
             }
 
             if (_continue != null)

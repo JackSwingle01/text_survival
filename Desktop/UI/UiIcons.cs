@@ -38,17 +38,7 @@ public static class UiIcons
         var name => name
     };
 
-    // Match domain types, not display names, so renamed items keep their icons.
-    public static string ForResource(Resource resource) => resource switch
-    {
-        Resource.RawMeat or Resource.CookedMeat or Resource.DriedMeat => "meat",
-        Resource.RawFish or Resource.CookedFish or Resource.DriedFish => "fish",
-        Resource.Roots => "roots",
-        Resource.Hide or Resource.ScrapedHide or Resource.CuredHide or Resource.MammothHide => "hide",
-        Resource.Bone or Resource.Ivory => "bone",
-        Resource.Rope or Resource.PlantFiber or Resource.Sinew => "rope",
-        _ => ForCategory(resource.GetCategory()?.ToString())
-    };
+    public static string ForResource(Resource resource) => resource.GetIconKey();
 
     public static string ForGear(Gear gear) => gear.Category == GearCategory.Equipment || gear.Slot.HasValue
         ? "clothing"

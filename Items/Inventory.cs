@@ -675,7 +675,8 @@ public record LootItem(
     string Name,
     int Count,
     double WeightKg,
-    ResourceCategory? Category);
+    ResourceCategory? Category,
+    Resource Resource);
 
 public static class InventoryExtensions
 {
@@ -714,7 +715,7 @@ public static class InventoryExtensions
                 double weight = inv.Weight(type);
                 string name = type.ToDisplayName();
                 var category = type.GetCategory();
-                items.Add(new LootItem(name, count, weight, category));
+                items.Add(new LootItem(name, count, weight, category, type));
             }
         }
 

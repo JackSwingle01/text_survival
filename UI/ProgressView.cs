@@ -29,7 +29,12 @@ public enum ProgressTone
     Tinder,
 }
 
-public record ProgressLine(string Text, ProgressTone Tone = ProgressTone.Normal);
+/// <summary>
+/// A progress display line. <paramref name="Icon"/> is a key into assets/icons/ui/
+/// (see Resource.GetIconKey) — the platform-agnostic layer names the icon, the
+/// desktop layer resolves and draws it.
+/// </summary>
+public record ProgressLine(string Text, ProgressTone Tone = ProgressTone.Normal, string? Icon = null);
 
 /// <summary>A headed block of lines inside a progress view.</summary>
 public class ProgressSection(string header)

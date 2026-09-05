@@ -256,7 +256,7 @@ public class ForageStrategy : IWorkStrategy
             string text = item.Count > 1
                 ? $"{item.Count}x {item.Name} ({item.WeightKg:F1}kg)"
                 : $"{item.Name} ({item.WeightKg:F2}kg)";
-            section.Lines.Add(new ProgressLine(text, ToneFor(item.Category)));
+            section.Lines.Add(new ProgressLine(text, ToneFor(item.Category), item.Resource.GetIconKey()));
         }
 
         section.Lines.Add(new ProgressLine($"Total: {accumulated.CurrentWeightKg:F1}kg", ProgressTone.Muted));
