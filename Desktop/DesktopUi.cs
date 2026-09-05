@@ -94,11 +94,37 @@ public sealed class DesktopUi : IGameUi
         // The HUD is unconditional: the same stats, journal and toasts in every state.
         StatsPanel.Render(ctx);
         ToastManager.Render(dt);
+        RenderMusicToggle();
 
         rlImGui.End();
         Raylib.EndDrawing();
 
         PublishFinishedModals();
+    }
+
+    private static void RenderMusicToggle()
+    {
+        var io = ImGui.GetIO();
+        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X - 44, 10), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(34, 34), ImGuiCond.Always);
+
+        ImGuiWindowFlags flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize |
+                                  ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse |
+                                  ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar;
+
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(2, 2));
+        if (ImGui.Begin("##MusicToggle", flags))
+        {
+            bool muted = AudioManager.IsMuted;
+            if (muted) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.6f, 1f));
+            if (ImGui.Button(muted ? "M-" : "M+", new Vector2(-1, -1)))
+                AudioManager.ToggleMute();
+            if (muted) ImGui.PopStyleColor();
+            if (ImGui.IsItemHovered())
+                UiText.Tooltip(muted ? "Music muted - click to unmute" : "Music on - click to mute");
+        }
+        ImGui.End();
+        ImGui.PopStyleVar();
     }
 
     private void ResolveTimeWaiters(float dt)

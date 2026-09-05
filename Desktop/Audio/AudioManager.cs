@@ -11,6 +11,9 @@ public static class AudioManager
     private static Music _backgroundMusic;
     private static bool _musicLoaded;
     private static bool _musicPlaying;
+    private static bool _muted;
+
+    public static bool IsMuted => _muted;
 
     private static readonly string[] MusicPaths =
     [
@@ -58,6 +61,7 @@ public static class AudioManager
         if (!_musicLoaded || _musicPlaying) return;
 
         Raylib.PlayMusicStream(_backgroundMusic);
+        Raylib.SetMusicVolume(_backgroundMusic, _muted ? 0f : 1f);
         _musicPlaying = true;
     }
 
@@ -69,6 +73,16 @@ public static class AudioManager
         if (!_musicLoaded || !_musicPlaying) return;
 
         Raylib.UpdateMusicStream(_backgroundMusic);
+    }
+
+    /// <summary>
+    /// Toggle mute. Music keeps playing silently while muted so it stays in sync.
+    /// </summary>
+    public static void ToggleMute()
+    {
+        _muted = !_muted;
+        if (_musicLoaded)
+            Raylib.SetMusicVolume(_backgroundMusic, _muted ? 0f : 1f);
     }
 
     /// <summary>
