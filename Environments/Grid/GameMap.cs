@@ -46,6 +46,50 @@ public class GameMap
     [System.Text.Json.Serialization.JsonIgnore]
     public Location CurrentLocation => _locations[CurrentPosition.X, CurrentPosition.Y]!;
 
+    /// <summary>Footprints on the ground, and the weather erasing them.</summary>
+    public TrackRegistry Tracks { get; set; } = new();
+
+    /// <summary>Desire paths: how beaten-in each edge is from being walked.</summary>
+    public TrailWear Trails { get; set; } = new();
+
+    /// <summary>
+    /// Something finished a move between two adjacent tiles. The single seam for a
+    /// completed crossing, whoever made it: prints go on the ground here, and the
+    /// route wears in a little further.
+    /// </summary>
+    /// <param name="individuals">How many came through - one walker, or a whole herd.</param>
+    /// <param name="individualDepth">
+    /// How heavily one of them marks the ground, with an adult human at 1.0.
+    /// </param>
+    public void RecordMove(GridPosition from, GridPosition to, TrackMaker maker,
+        double individuals = 1, double individualDepth = 1.0)
+    {
+        if (from == to) return;
+
+        Tracks.Stamp(from, to, maker, individuals, individualDepth);
+
+        // Wear belongs to an edge, and an edge only exists between neighbours. Herd
+        // patrol can hop to any tile of its territory, and crediting one arbitrary
+        // adjacent edge for a multi-tile move would wear in a route nothing walked.
+        if (!from.IsAdjacentTo(to)) return;
+
+        // Wear is linear in head count - every set of feet treads the ground. This is
+        // what lets a herd beat in a route it visits rarely while a lone animal
+        // crossing the same ground never does.
+        var (canonical, dir, _) = Canonicalize(from, to);
+        Trails.Add((canonical, dir), individuals * individualDepth);
+    }
+
+    /// <summary>
+    /// Advance the ground's clock: erosion wipes footprints, and takes a much smaller
+    /// bite out of trail wear. Called once per simulation tick, after weather updates.
+    /// </summary>
+    public void AdvanceGround(int minutes, Weather weather)
+    {
+        double erosionUnits = Tracks.Advance(minutes, weather);
+        Trails.Decay(minutes, erosionUnits);
+    }
+
     public IReadOnlyList<Location> GetTravelOptions()
     {
         var season = Weather?.CurrentSeason ?? Weather.Season.Winter;
@@ -108,6 +152,8 @@ public class GameMap
     public void MoveTo(Location destination, IMovable? mover = null)
     {
         var position = GetPosition(destination);
+
+        RecordMove(CurrentPosition, position, TrackMaker.Human);
 
         CurrentPosition = position;
         destination.MarkExplored();
@@ -308,13 +354,27 @@ public class GameMap
         return edges.Any(e => e.IsBlockedIn(season));
     }
 
+    /// <summary>
+    /// Minutes added to (or saved from) a crossing: authored and player-built edges,
+    /// plus however far the route has been beaten in by use.
+    /// </summary>
     public int GetEdgeTraversalModifier(GridPosition from, GridPosition to)
     {
-        return GetEdgesBetween(from, to).Sum(e => e.TraversalModifierMinutes);
+        var (canonical, dir, _) = Canonicalize(from, to);
+
+        return GetEdgesBetween(from, to).Sum(e => e.TraversalModifierMinutes)
+             + Trails.TraversalModifierMinutes((canonical, dir));
     }
 
     public bool HasEdgeType(GridPosition a, GridPosition b, EdgeType type) =>
         GetEdgesBetween(a, b).Any(e => e.Type == type);
+
+    /// <summary>How far the route between two adjacent tiles has been beaten in by use.</summary>
+    public TrailTier GetTrailTier(GridPosition from, GridPosition to)
+    {
+        var (canonical, dir, _) = Canonicalize(from, to);
+        return Trails.TierAt((canonical, dir));
+    }
 
     public void AddEdge(GridPosition a, GridPosition b, TileEdge edge)
     {

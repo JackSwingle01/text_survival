@@ -13,7 +13,7 @@ public class TilePopup
     // Currently selected tile (if popup is visible)
     private (int x, int y)? _selectedTile;
     private Location? _selectedLocation;
-    private int? _travelTimeMinutes;
+    private CrossingPreview? _preview;
     private bool _isAdjacent;
     private bool _isPassable;
     private bool _isPlayerHere;
@@ -40,14 +40,16 @@ public class TilePopup
         _isAdjacent = currentPos.IsAdjacentTo(targetPos);
         _isPassable = _selectedLocation?.IsPassable ?? false;
 
-        // Calculate travel time if adjacent and passable
-        if (_isAdjacent && _isPassable && !_isPlayerHere && _selectedLocation != null)
+        // Preview the crossing if adjacent and passable - the same numbers TravelRunner
+        // will actually use, so this can never promise a time or risk it doesn't deliver.
+        if (_isAdjacent && _isPassable && !_isPlayerHere && _selectedLocation != null && ctx.CurrentLocation != null)
         {
-            _travelTimeMinutes = CalculateTravelTime(ctx, _selectedLocation);
+            _preview = TravelProcessor.PreviewCrossing(
+                ctx.CurrentLocation, _selectedLocation, ctx.player, ctx.Weather, ctx.Inventory, map);
         }
         else
         {
-            _travelTimeMinutes = null;
+            _preview = null;
         }
 
         // Position popup to the right of the tile, vertically centered
@@ -91,16 +93,36 @@ public class TilePopup
             // Render feature details
             RenderFeatures(ctx);
 
+            // Sign on the ground - not a feature of the place, but of what passed through
+            RenderTracks(ctx);
+
             // Render NPCs if any
             RenderNPCs(ctx);
 
             ImGui.Separator();
 
-            // Go button (only if adjacent, passable, and not current tile)
-            if (_isAdjacent && _isPassable && !_isPlayerHere)
+            // Go button(s) (only if adjacent, passable, and not current tile). Hazardous
+            // terrain gets two paces up front instead of a follow-up prompt after "Go".
+            if (_isAdjacent && _isPassable && !_isPlayerHere && _preview.HasValue && _preview.Value.IsHazardous)
             {
-                string buttonLabel = _travelTimeMinutes.HasValue
-                    ? $"Go ({_travelTimeMinutes.Value} min)"
+                var preview = _preview.Value;
+                int riskPercent = (int)(preview.RiskLevel * 100);
+
+                UiText.Colored(new Vector4(0.9f, 0.6f, 0.3f, 1f), "Hazardous terrain");
+
+                if (ImGui.Button($"Go careful ({preview.CarefulMinutes} min)", new Vector2(-1, 30)))
+                {
+                    result = "go_careful";
+                }
+                if (ImGui.Button($"Go quick ({preview.QuickMinutes} min, {riskPercent}% risk)", new Vector2(-1, 30)))
+                {
+                    result = "go_quick";
+                }
+            }
+            else if (_isAdjacent && _isPassable && !_isPlayerHere)
+            {
+                string buttonLabel = _preview.HasValue
+                    ? $"Go ({_preview.Value.QuickMinutes} min)"
                     : "Go";
 
                 if (ImGui.Button(buttonLabel, new Vector2(-1, 30)))
@@ -279,6 +301,56 @@ public class TilePopup
         }
     }
 
+    /// <summary>
+    /// What has come through here, as the ground reports it. Count and age both matter:
+    /// one set of prints an hour old and a dozen sets from two days back are different
+    /// situations, and the player should be able to tell them apart before deciding
+    /// whether to follow.
+    /// </summary>
+    private void RenderTracks(GameContext ctx)
+    {
+        if (_selectedTile == null || ctx.Map == null) return;
+
+        var position = new GridPosition(_selectedTile.Value.x, _selectedTile.Value.y);
+        var tracks = ctx.Map.Tracks.At(position);
+        if (tracks.Count == 0) return;
+
+        ImGui.Spacing();
+
+        foreach (var (track, freshness) in tracks)
+        {
+            int count = ctx.Map.Tracks.TrafficOf(position, track.Maker);
+            if (count <= 0) continue;
+
+            string what = track.Maker switch
+            {
+                TrackMaker.Human => "Footprints",
+                TrackMaker.Paw => "Paw prints",
+                TrackMaker.Hoof => "Hoof prints",
+                _ => "Tracks"
+            };
+
+            // Fresher sign reads brighter, the same way it draws on the map.
+            var color = freshness switch
+            {
+                > 0.75 => new Vector4(0.85f, 0.85f, 0.80f, 1f),
+                > 0.45 => new Vector4(0.70f, 0.70f, 0.66f, 1f),
+                _ => new Vector4(0.55f, 0.55f, 0.52f, 1f)
+            };
+
+            string age = freshness switch
+            {
+                > 0.75 => "fresh",
+                > 0.45 => "recent",
+                > 0.15 => "old",
+                _ => "nearly gone"
+            };
+
+            string tally = count > 1 ? $" x{count}" : "";
+            UiText.Colored(color, $"{what}{tally} - {age}, heading {track.Heading.ToString().ToLower()}");
+        }
+    }
+
     private void RenderNPCs(GameContext ctx)
     {
         if (_selectedLocation == null) return;
@@ -340,14 +412,6 @@ public class TilePopup
         {
             UiText.Colored(new Vector4(1f, 0.4f, 0.4f, 1f), $"  ! {string.Join(", ", warnings)}");
         }
-    }
-
-    private static int CalculateTravelTime(GameContext ctx, Location destination)
-    {
-        var origin = ctx.CurrentLocation;
-        if (origin == null) return destination.Terrain.BaseTraversalMinutes();
-
-        return TravelProcessor.GetTraversalMinutes(origin, destination, ctx.player, ctx.Inventory);
     }
 
     private static string FormatTime(int minutes)

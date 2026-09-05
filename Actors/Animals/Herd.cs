@@ -51,6 +51,14 @@ public class Herd : IMovable
     [JsonIgnore]
     public GridPosition Position => Map?.GetPosition(CurrentLocation) ?? default;
 
+    /// <summary>
+    /// How heavily one member marks the ground, with an adult human at 1.0. The herd's
+    /// total effect is this times <see cref="Count"/> - every set of feet treads the
+    /// ground, which is why a dozen caribou beat in a route a lone animal never would.
+    /// </summary>
+    [JsonIgnore]
+    public double IndividualTrackDepth => AnimalType.IndividualTrackDepth();
+
     public List<GridPosition> HomeTerritory { get; set; } = [];
     public int TerritoryIndex { get; set; }
     public Location? TravelDestination { get; set; }
@@ -276,7 +284,7 @@ public class Herd : IMovable
         var representative = Members.FirstOrDefault();
         if (representative == null) return false;
 
-        int travelMinutes = TravelProcessor.GetTraversalMinutes(CurrentLocation, destLocation, representative, inventory: null);
+        int travelMinutes = TravelProcessor.GetTraversalMinutes(CurrentLocation, destLocation, representative, inventory: null, map: map);
 
         TravelDestination = destLocation;
         TravelTimeRemainingMinutes = travelMinutes;
@@ -291,6 +299,9 @@ public class Herd : IMovable
 
         if (TravelTimeRemainingMinutes <= 0)
         {
+            // Position derives from CurrentLocation, so read the departure tile first.
+            Map?.RecordMove(Position, Map.GetPosition(TravelDestination), AnimalType.Tracks(), Count, IndividualTrackDepth);
+
             CurrentLocation = TravelDestination;
             TravelDestination = null;
             TravelTimeRemainingMinutes = 0;

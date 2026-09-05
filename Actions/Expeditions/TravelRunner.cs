@@ -15,25 +15,28 @@ public class TravelRunner(GameContext ctx)
 
     /// <summary>
     /// Travel to the tile at these grid coordinates, checking first that the player can
-    /// still walk.
+    /// still walk. <paramref name="hazardMode"/> carries a pace ("quick"/"careful")
+    /// already chosen from the tile popup, so hazardous terrain doesn't ask again.
     /// </summary>
-    public async Task TravelTo(int x, int y)
+    public async Task TravelTo(int x, int y, string? hazardMode = null)
     {
         if (!await CanStillWalk()) return;
 
         var destination = _ctx.Map?.GetLocationAt(x, y);
         if (destination == null || destination == _ctx.CurrentLocation) return;
 
-        await TravelToLocation(destination);
+        await TravelToLocation(destination, hazardMode);
     }
 
     /// <summary>
-    /// Injured legs make travel slow and dangerous. Warn, and let the player back out.
+    /// Injured legs make travel slow and dangerous. This is never a real decision - the
+    /// player already chose to move here - so it's a warning, not a blocking prompt,
+    /// and only fires again once the injury gets worse than what was last flagged.
+    /// Still blocks outright when the player genuinely can't walk.
     /// </summary>
     private async Task<bool> CanStillWalk()
     {
         double moving = _ctx.player.GetCapacities().Moving;
-        if (moving > 0.5) return true;
 
         if (moving <= 0.1)
         {
@@ -41,20 +44,30 @@ public class TravelRunner(GameContext ctx)
             return false;
         }
 
+        if (moving > 0.5)
+        {
+            _ctx.WarnedSlowMoving = null;
+            return true;
+        }
+
+        if (_ctx.WarnedSlowMoving.HasValue && moving >= _ctx.WarnedSlowMoving.Value)
+            return true;
+
         int slowdown = (int)(1.0 / moving);
         string message = moving <= 0.3
-            ? $"You can barely stand. Travel will be extremely slow and dangerous. (approximately {slowdown}x slower)"
-            : $"Moving is difficult. Travel will be noticeably slower. (approximately {slowdown}x slower)";
+            ? $"You can barely stand. Travel is extremely slow and dangerous. (approximately {slowdown}x slower)"
+            : $"Moving is difficult. Travel is noticeably slower. (approximately {slowdown}x slower)";
 
-        string response = await _ctx.Ui.Choose(message, [("proceed", "Proceed"), ("cancel", "Cancel")]);
-        return response == "proceed";
+        GameDisplay.AddWarning(_ctx, message);
+        _ctx.WarnedSlowMoving = moving;
+        return true;
     }
 
     /// <summary>
     /// Travels to the destination, handling hazardous terrain, edge events, the walk, and
     /// arrival. Returns false only if the player died.
     /// </summary>
-    internal async Task<bool> TravelToLocation(Location destination)
+    internal async Task<bool> TravelToLocation(Location destination, string? hazardMode = null)
     {
         Location origin = _ctx.CurrentLocation;
         var originPos = _ctx.Map!.CurrentPosition;
@@ -95,6 +108,11 @@ public class TravelRunner(GameContext ctx)
         bool originHazardous = TravelProcessor.IsHazardousTerrain(origin);
         bool destHazardous = TravelProcessor.IsHazardousTerrain(destination);
 
+        // A step through safe terrain ends the hazardous stretch - the next hazard is a
+        // fresh decision, not a continuation of the last one.
+        if (!originHazardous && !destHazardous)
+            _ctx.LastHazardChoice = null;
+
         // One decision for the whole journey, however many hazardous segments it has.
         if (originHazardous || destHazardous)
         {
@@ -103,15 +121,21 @@ public class TravelRunner(GameContext ctx)
             originInjuryRisk = originHazardous ? TravelProcessor.GetInjuryRisk(origin, _ctx.player, _ctx.Weather) : 0;
             destInjuryRisk = destHazardous ? TravelProcessor.GetInjuryRisk(destination, _ctx.player, _ctx.Weather) : 0;
 
-            int combinedQuickTime = (originHazardous ? exitTime : 0) + (destHazardous ? entryTime : 0);
-            int combinedCarefulTime = (originHazardous ? originCarefulTime : 0) + (destHazardous ? destCarefulTime : 0);
-            double maxRisk = Math.Max(originInjuryRisk, destInjuryRisk);
+            var preview = TravelProcessor.PreviewCrossing(origin, destination, _ctx.player, _ctx.Weather, _ctx.Inventory, _ctx.Map);
 
-            string? hazardChoice = await PromptHazardChoice(
-                destination, combinedQuickTime, combinedCarefulTime, maxRisk);
+            // The tile popup already asked (hazardMode), or a WASD stretch already
+            // settled on a pace no riskier than this segment - either way, don't ask
+            // again. Otherwise this is a fresh decision and needs the prompt.
+            string? hazardChoice = hazardMode
+                ?? (_ctx.LastHazardChoice != null && preview.RiskLevel <= _ctx.LastHazardRiskAccepted
+                    ? _ctx.LastHazardChoice
+                    : await PromptHazardChoice(destination, preview));
 
             if (hazardChoice == null)
                 return true;  // Turned back, but not a failure
+
+            _ctx.LastHazardChoice = hazardChoice;
+            _ctx.LastHazardRiskAccepted = Math.Max(_ctx.LastHazardRiskAccepted, preview.RiskLevel);
 
             bool quickTravel = hazardChoice == "quick";
 
@@ -234,19 +258,18 @@ public class TravelRunner(GameContext ctx)
         return _ctx.player.IsAlive;
     }
 
-    private async Task<string?> PromptHazardChoice(
-        Location targetLocation, int quickTimeMinutes, int carefulTimeMinutes, double hazardLevel)
+    private async Task<string?> PromptHazardChoice(Location targetLocation, CrossingPreview preview)
     {
-        int riskPercent = (int)(hazardLevel * 100);
+        int riskPercent = (int)(preview.RiskLevel * 100);
         string message = $"Hazardous terrain ahead: {targetLocation.Name}\n\n" +
             $"Risk of injury: {riskPercent}%\n\n" +
-            $"Quick crossing: {quickTimeMinutes} minutes (full risk)\n" +
-            $"Careful crossing: {carefulTimeMinutes} minutes (reduced risk)";
+            $"Quick crossing: {preview.QuickMinutes} minutes (full risk)\n" +
+            $"Careful crossing: {preview.CarefulMinutes} minutes (reduced risk)";
 
         string choice = await _ctx.Ui.Choose(message,
         [
-            ("quick", $"Quick ({quickTimeMinutes}min)"),
-            ("careful", $"Careful ({carefulTimeMinutes}min)"),
+            ("quick", $"Quick ({preview.QuickMinutes}min)"),
+            ("careful", $"Careful ({preview.CarefulMinutes}min)"),
             ("cancel", "Turn back")
         ]);
 

@@ -89,7 +89,7 @@ public class GameRunner(GameContext ctx)
                 case PlayerAction.Quit:
                     return false;
                 case PlayerAction.Travel travel:
-                    await new TravelRunner(ctx).TravelTo(travel.X, travel.Y);
+                    await new TravelRunner(ctx).TravelTo(travel.X, travel.Y, travel.HazardMode);
                     break;
                 case PlayerAction.Camp camp:
                     await ProcessCampAction(camp.Action);

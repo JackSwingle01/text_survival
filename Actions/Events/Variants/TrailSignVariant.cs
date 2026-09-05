@@ -1,4 +1,5 @@
 using text_survival.Actors.Animals;
+using text_survival.Environments.Grid;
 namespace text_survival.Actions.Variants;
 
 /// <summary>
@@ -202,28 +203,38 @@ public static class TrailSignSelector
     /// <summary>
     /// Build weighted pool of signs based on context.
     /// </summary>
+    /// <param name="pawEvidence">
+    /// Freshness (0-1) of predator prints actually on this tile, and likewise
+    /// <paramref name="hoofEvidence"/> for prey. Real marks on the ground both make a
+    /// category eligible and pull the sign's age toward what the prints say - so
+    /// "still warm" appears because something warm really did pass, not on a die roll.
+    /// </param>
     public static List<(TrailSign sign, double weight)> BuildWeightedPool(
         GameContext ctx,
         bool hasPredators,
         bool hasPrey,
         bool isSnowy,
-        bool hasWater)
+        bool hasWater,
+        double pawEvidence = 0,
+        double hoofEvidence = 0)
     {
         var pool = new List<(TrailSign, double)>();
         bool isStalked = ctx.Tensions.HasTension("Stalked");
 
         // Predator signs - higher weight in predator territory or when already stalked
-        if (hasPredators || isStalked)
+        if (hasPredators || isStalked || pawEvidence > 0)
         {
             double predatorWeight = hasPredators ? 1.5 : 0.5;
             if (isStalked) predatorWeight *= 1.3; // More signs when being watched
-            pool.AddRange(TrailSigns.PredatorSigns.Select(s => (s, predatorWeight)));
+            predatorWeight *= 1 + pawEvidence;
+            pool.AddRange(TrailSigns.PredatorSigns.Select(s => (s, predatorWeight * AgeMatch(s.Age, pawEvidence))));
         }
 
         // Prey signs - higher weight in prey territory
-        if (hasPrey)
+        if (hasPrey || hoofEvidence > 0)
         {
-            pool.AddRange(TrailSigns.PreySigns.Select(s => (s, 1.2)));
+            double preyWeight = 1.2 * (1 + hoofEvidence);
+            pool.AddRange(TrailSigns.PreySigns.Select(s => (s, preyWeight * AgeMatch(s.Age, hoofEvidence))));
         }
 
         // Human signs - rare but always possible
@@ -268,6 +279,25 @@ public static class TrailSignSelector
     }
 
     /// <summary>
+    /// How much to favour a sign of this age given the prints underfoot. Neutral when
+    /// there are none, so a location with nothing on the ground reads as it always did.
+    /// </summary>
+    private static double AgeMatch(SignAge age, double evidence)
+    {
+        if (evidence <= 0) return 1.0;
+
+        SignAge indicated = evidence switch
+        {
+            > 0.75 => SignAge.Fresh,
+            > 0.45 => SignAge.Recent,
+            > 0.15 => SignAge.Old,
+            _ => SignAge.Ancient
+        };
+
+        return age == indicated ? 2.5 : 1.0;
+    }
+
+    /// <summary>
     /// Convenience method to select a sign for current context.
     /// </summary>
     public static TrailSign? SelectForContext(GameContext ctx)
@@ -279,7 +309,16 @@ public static class TrailSignSelector
         bool isSnowy = ctx.Weather.PrecipitationPct > 0.1 && ctx.Weather.TemperatureInFahrenheit < 35;
         bool hasWater = water != null;
 
-        var pool = BuildWeightedPool(ctx, hasPredators, hasPrey, isSnowy, hasWater);
+        // What is actually printed in the snow underfoot, if anything.
+        double pawEvidence = 0, hoofEvidence = 0;
+        if (ctx.Map != null)
+        {
+            var here = ctx.Map.CurrentPosition;
+            pawEvidence = ctx.Map.Tracks.FreshnessOf(here, TrackMaker.Paw);
+            hoofEvidence = ctx.Map.Tracks.FreshnessOf(here, TrackMaker.Hoof);
+        }
+
+        var pool = BuildWeightedPool(ctx, hasPredators, hasPrey, isSnowy, hasWater, pawEvidence, hoofEvidence);
         return SelectFromPool(pool);
     }
 }

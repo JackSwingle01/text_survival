@@ -7,6 +7,7 @@ using text_survival.Actors.Animals.Behaviors;
 using text_survival.Crafting;
 using text_survival.Environments;
 using text_survival.Environments.Features;
+using text_survival.Environments.Grid;
 using text_survival.Items;
 using text_survival.Survival;
 
@@ -36,13 +37,17 @@ public class NPCEat(Resource food, double amount) : NPCAction($"Eating {food.ToD
 }
 
 public class NPCMove(Location destination, NPC npc) :
-    NPCAction($"Traveling to {destination.Name}", TravelProcessor.GetTraversalMinutes(npc.CurrentLocation, destination, npc, npc.Inventory), ActivityType.Traveling)
+    NPCAction($"Traveling to {destination.Name}", TravelProcessor.GetTraversalMinutes(npc.CurrentLocation, destination, npc, npc.Inventory, npc.Map), ActivityType.Traveling)
 {
     public override string LogMessage => $"Traveling to {destination.Name}";
     public override void Complete(NPC npc)
     {
         // first update destination memory as leaving
         npc.ResourceMemory.RememberLocation(npc.CurrentLocation);
+        npc.Map.RecordMove(
+            npc.Map.GetPosition(npc.CurrentLocation),
+            npc.Map.GetPosition(destination),
+            TrackMaker.Human);
         npc.CurrentLocation = destination;
         npc.ResourceMemory.RememberLocation(destination);
     }
@@ -351,6 +356,10 @@ public class NPCFlee : NPCAction
         if (retreat != null)
         {
             npc.Trace($"[NPC:{npc.Name}] Fleeing to {retreat.Name}");
+            npc.Map.RecordMove(
+                npc.Map.GetPosition(npc.CurrentLocation),
+                npc.Map.GetPosition(retreat),
+                TrackMaker.Human);
             npc.CurrentLocation = retreat;
         }
         else

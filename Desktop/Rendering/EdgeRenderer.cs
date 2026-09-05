@@ -94,10 +94,11 @@ public static class EdgeRenderer
             DrawCliff(edgeX, edgeY, tileSize, isHorizontal, dir);
         }
 
-        // Check for trail
-        if (HasTrail(loc1, loc2))
+        // Check for a worn route - authored trails and desire paths both land here.
+        var trailTier = map.GetTrailTier(new GridPosition(x, y), new GridPosition(nx, ny));
+        if (trailTier != TrailTier.None)
         {
-            DrawTrail(edgeX, edgeY, tileSize, isHorizontal, x, y);
+            DrawTrail(edgeX, edgeY, tileSize, isHorizontal, trailTier);
         }
     }
 
@@ -130,15 +131,6 @@ public static class EdgeRenderer
 
         // Show cliff on the high side going down
         return is1High;
-    }
-
-    /// <summary>
-    /// Check if there's a trail between two locations.
-    /// </summary>
-    private static bool HasTrail(Environments.Location loc1, Environments.Location loc2)
-    {
-        // For now, no trail system - can be expanded later
-        return false;
     }
 
     /// <summary>
@@ -240,12 +232,22 @@ public static class EdgeRenderer
     }
 
     /// <summary>
-    /// Draw a trail edge.
+    /// Draw a worn route. The three tiers read as one thing getting more definite: a
+    /// faint line through the grass, then bare earth, then a packed trail. A trace shows
+    /// before it is any faster to walk, which is what lets a player watch a path of their
+    /// own making form.
     /// </summary>
-    private static void DrawTrail(float cx, float cy, float tileSize, bool isHorizontal, int worldX, int worldY)
+    private static void DrawTrail(float cx, float cy, float tileSize, bool isHorizontal, TrailTier tier)
     {
-        float length = tileSize * 0.7f;
-        float width = tileSize * 0.04f;
+        (float lengthPct, float widthPct, byte alpha, int marks) = tier switch
+        {
+            TrailTier.Trail => (0.95f, 0.085f, (byte)180, 4),
+            TrailTier.Path => (0.85f, 0.055f, (byte)130, 3),
+            _ => (0.70f, 0.030f, (byte)75, 2)
+        };
+
+        float length = tileSize * lengthPct;
+        float width = tileSize * widthPct;
 
         Vector2 start, end;
         if (isHorizontal)
@@ -259,16 +261,15 @@ public static class EdgeRenderer
             end = new Vector2(cx, cy + length / 2);
         }
 
-        // Draw worn path
-        Raylib.DrawLineEx(start, end, width, TrailColor);
+        Raylib.DrawLineEx(start, end, width, new Color(TrailColor.R, TrailColor.G, TrailColor.B, alpha));
 
-        // Footprint marks
-        var footprintColor = new Color(100, 90, 80, 80);
-        for (int i = 0; i < 3; i++)
+        // Scuffs along the run of it, so a trail reads as trodden rather than drawn.
+        var scuffColor = new Color((byte)100, (byte)90, (byte)80, (byte)(alpha * 0.7f));
+        for (int i = 0; i < marks; i++)
         {
-            float t = 0.2f + i * 0.3f;
+            float t = (i + 0.5f) / marks;
             Vector2 pos = Vector2.Lerp(start, end, t);
-            Raylib.DrawCircle((int)pos.X, (int)pos.Y, width * 0.3f, footprintColor);
+            Raylib.DrawCircle((int)pos.X, (int)pos.Y, width * 0.35f, scuffColor);
         }
     }
 

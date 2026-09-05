@@ -136,7 +136,7 @@ public class WorkRunner(GameContext ctx)
     /// </summary>
     public static Task<bool> PromptTravelToDiscovery(GameContext ctx, Location discovered)
     {
-        int travelMinutes = TravelProcessor.GetTraversalMinutes(ctx.CurrentLocation, discovered, ctx.player, ctx.Inventory);
+        int travelMinutes = TravelProcessor.GetTraversalMinutes(ctx.CurrentLocation, discovered, ctx.player, ctx.Inventory, ctx.Map);
         GameDisplay.AddNarrative(ctx, $"You've found a path to {discovered.Name}.");
 
         return ctx.Ui.Confirm($"Go to {discovered.Name} now? (~{travelMinutes} min)");

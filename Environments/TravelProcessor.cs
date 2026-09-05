@@ -89,13 +89,68 @@ public static class TravelProcessor
     }
 
     /// <summary>
+    /// Shortest a crossing can take, however many trail bonuses stack on it.
+    /// </summary>
+    public const int MinimumCrossingMinutes = 5;
+
+    /// <summary>
     /// Get total traversal time from origin to destination (exit origin + enter destination).
     /// </summary>
-    public static int GetTraversalMinutes(Location origin, Location destination, Actor actor, Inventory? inventory = null)
+    /// <param name="map">
+    /// Supply it to include what lies between the two tiles - rivers, climbs, and how far
+    /// the route has been beaten in. Everyone who walks the map should pass it; it is
+    /// optional only for callers that have no map to hand.
+    /// </param>
+    public static int GetTraversalMinutes(Location origin, Location destination, Actor actor,
+        Inventory? inventory = null, GameMap? map = null)
     {
         int exitTime = CalculateSegmentTime(origin, actor, inventory);
         int entryTime = CalculateSegmentTime(destination, actor, inventory);
-        return exitTime + entryTime;
+
+        int edgeModifier = map != null
+            ? map.GetEdgeTraversalModifier(map.GetPosition(origin), map.GetPosition(destination))
+            : 0;
+
+        return Math.Max(MinimumCrossingMinutes, exitTime + entryTime + edgeModifier);
     }
 
+    /// <summary>
+    /// What crossing to this destination actually costs, for the given actor right now -
+    /// the same numbers <see cref="TravelRunner"/> uses to run the crossing, so a preview
+    /// (the tile popup) can never show a time or risk that doesn't match what happens.
+    /// QuickMinutes/CarefulMinutes and RiskLevel already reflect the actor's current
+    /// capacities (injuries included), since they're built from the actor's live Speed.
+    /// </summary>
+    public static CrossingPreview PreviewCrossing(Location origin, Location destination, Actor actor,
+        Weather weather, Inventory? inventory = null, GameMap? map = null)
+    {
+        int exitTime = CalculateSegmentTime(origin, actor, inventory);
+        int entryTime = CalculateSegmentTime(destination, actor, inventory);
+        int edgeModifier = map != null
+            ? map.GetEdgeTraversalModifier(map.GetPosition(origin), map.GetPosition(destination))
+            : 0;
+
+        bool originHazardous = IsHazardousTerrain(origin);
+        bool destHazardous = IsHazardousTerrain(destination);
+
+        int quickMinutes = Math.Max(MinimumCrossingMinutes, exitTime + entryTime + edgeModifier);
+
+        if (!originHazardous && !destHazardous)
+            return new CrossingPreview(quickMinutes, quickMinutes, 0, false);
+
+        int carefulExitTime = originHazardous ? (int)Math.Ceiling(exitTime * CarefulTravelMultiplier) : exitTime;
+        int carefulEntryTime = destHazardous ? (int)Math.Ceiling(entryTime * CarefulTravelMultiplier) : entryTime;
+        int carefulMinutes = Math.Max(MinimumCrossingMinutes, carefulExitTime + carefulEntryTime + edgeModifier);
+
+        double originRisk = originHazardous ? GetInjuryRisk(origin, actor, weather) : 0;
+        double destRisk = destHazardous ? GetInjuryRisk(destination, actor, weather) : 0;
+
+        return new CrossingPreview(quickMinutes, carefulMinutes, Math.Max(originRisk, destRisk), true);
+    }
 }
+
+/// <summary>
+/// A crossing's cost as the player would choose between paces. <see cref="RiskLevel"/> is
+/// 0 when <see cref="IsHazardous"/> is false - the risk only applies to a quick crossing.
+/// </summary>
+public readonly record struct CrossingPreview(int QuickMinutes, int CarefulMinutes, double RiskLevel, bool IsHazardous);

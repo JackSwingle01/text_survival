@@ -84,6 +84,26 @@ public class GameContext(Player player, Location camp, Weather weather)
     public ActiveTravelState? ActiveTravel { get; set; }
 
     /// <summary>
+    /// The most impaired "Moving" capacity the slow-travel warning has already flagged.
+    /// Lets the warning fire once per worsening injury instead of every single tile;
+    /// resets when Moving recovers above the warning threshold.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double? WarnedSlowMoving { get; set; }
+
+    /// <summary>
+    /// The hazard pace ("quick"/"careful") last chosen - by a tile-popup click or a WASD
+    /// prompt - and the risk level it covered. Reused for consecutive hazardous segments
+    /// so WASD travel isn't re-prompted every tile of the same stretch; cleared once
+    /// travel passes through non-hazardous terrain, and re-asked if risk rises above
+    /// what was accepted.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? LastHazardChoice { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double LastHazardRiskAccepted { get; set; }
+
+    /// <summary>
     /// Active combat scenario. When set, the UI switches from world grid to combat grid.
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]

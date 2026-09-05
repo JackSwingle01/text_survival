@@ -75,6 +75,7 @@ public static class TileRenderer
         }
 
         AnimalRenderer.LoadSprites(assetsPath);
+        TrackRenderer.LoadSprites(assetsPath);
     }
 
     private static Texture2D? LoadPixelTexture(string filePath)

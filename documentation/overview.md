@@ -109,6 +109,73 @@ Grid interacts with: locations (grid contains them), travel (adjacency determine
 
 ---
 
+## Tracks and Trails
+
+The ground remembers who walked on it, on two clocks.
+
+`GameMap.RecordMove(from, to, maker, individuals, individualDepth)` is the single seam for
+a completed crossing, whoever made it — the player via `GameMap.MoveTo`, NPCs via
+`NPCMove.Complete` and their flee path, herds via `Herd.UpdateTravel`. Both systems below
+are fed from that one call, and `GameMap.AdvanceGround` ages both once per tick.
+
+**Footprints** (`TrackRegistry`) — Three makers by *shape*, not identity: Human, Paw,
+Hoof. The player's boots and an NPC's leave the same mark and the player is trusted to
+remember where they have been; what a print tells you is whether the thing that passed
+walks on two feet, on pads, or on hooves.
+
+Each track carries `Traffic` — how many individuals came through, accumulated across
+passages and faded by weather in between, so three passes by one person and one pass by
+three people read alike, which is also true on the ground. Clicking a tile reports it:
+`Paw prints x5 - fresh, heading north`.
+
+Rather than ageing every track every minute, the world keeps **one monotonic erosion
+accumulator** that advances faster in snow, wind, and thaw. A track stores the
+accumulator's value when stamped, so its age is one subtraction — and a blizzard that blew
+through while the player was elsewhere is already accounted for, because it advanced the
+same counter. One addition per minute, whatever the size of the map. Roughly four days in
+dead calm cold, six hours in a blizzard, for one person's prints. `Depth` is derived, not
+stored: linear in the weight of the heaviest thing through, sublinear in how many came, so
+a herd's churn outlasts a lone animal's without lasting twelve times as long.
+
+Prints render only within a short radius that widens with Perception — sight range reaches
+twenty tiles, but nobody reads paw prints from two kilometres away. They also feed
+`TrailSignSelector`, so "fresh wolf scat, still warm" appears because a wolf herd really
+did pass, and the sign's age matches what the prints say.
+
+**Desire paths** (`TrailWear`) — Every crossing adds wear to that edge; tiers are *derived*
+from the scalar, never stored: None → Trace (visible, no faster) → Path (−1 min) → Trail
+(−2 min). One adult human adds 1, so thresholds (5 / 14 / 35) read roughly as net
+crossings. Wear is shared by both directions and only accrues between adjacent tiles —
+herd patrol can hop across its territory, and crediting one arbitrary edge for a multi-tile
+move would wear in a route nothing walked.
+
+**Wear is linear in head count**, which is what makes herds work: every set of feet treads
+the ground. A lone bear never forms a trace; a dozen caribou lay a Path in eight days and a
+Trail in nineteen; a wolf pack of five gets there in about six weeks. Head count matters
+more than bulk — three mammoths are slower to beat a route in than twelve caribou.
+
+Decay has two named terms, deliberately weighted toward the first: settling and regrowth
+per minute (~0.5 wear/day, so an abandoned Path is gone in about a month), plus a smaller
+contribution from erosion as snow fills the trench. A single term cannot do this job —
+erosion swings 16x between calm and blizzard, so any one constant either lets storms erase
+weeks of walking or leaves calm weather never reclaiming anything. Two terms decouple the
+reclaim timescale from the weather response: weather buries a path without undoing it, and
+five unbroken days of blizzard costs a Path its speed bonus but not its existence.
+
+`EdgeType.GameTrail`, `TrailMarker`, and `CutTrail` remain separate authored and
+player-built edges; desire paths are the emergent sibling of the trail you cut by hand with
+an axe, and both reach travel time through `GameMap.GetEdgeTraversalModifier`.
+
+Tracks and trails interact with: travel (edge modifiers reach players, NPCs and herds alike
+through `TravelProcessor.GetTraversalMinutes`), weather (erosion), herds and NPCs (they mark
+the ground too), events (trail signs read real prints), rendering (`TrackRenderer`,
+`EdgeRenderer`), the tile popup (`TilePopup.RenderTracks`).
+
+**Files**: `Environments/Grid/TrackRegistry.cs`, `Environments/Grid/TrailWear.cs`,
+`Desktop/Rendering/TrackRenderer.cs`, `assets/pixelart/tracks/`
+
+---
+
 ## Features
 
 Features are what make locations useful. They live on locations and define available activities.

@@ -164,6 +164,9 @@ public class WorldRenderer
             RenderTileAt(ctx, worldX, worldY, playerPos, timeFactor);
         }
 
+        // Prints sit on the ground, under everything that made them.
+        TrackRenderer.Render(ctx, Camera, timeFactor);
+
         // Render edges between tiles (rivers, cliffs, trails)
         EdgeRenderer.RenderEdges(ctx, Camera, timeFactor);
 

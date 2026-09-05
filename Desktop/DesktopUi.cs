@@ -648,11 +648,18 @@ public sealed class DesktopUi : IGameUi
             }
         }
 
-        if (_tilePopup.IsOpen && _tilePopup.Render(ctx, dt) == "go" && _tilePopup.SelectedTile.HasValue)
+        string? tileAction = _tilePopup.IsOpen ? _tilePopup.Render(ctx, dt) : null;
+        if (tileAction != null && _tilePopup.SelectedTile.HasValue)
         {
             var (x, y) = _tilePopup.SelectedTile.Value;
+            string? hazardMode = tileAction switch
+            {
+                "go_quick" => "quick",
+                "go_careful" => "careful",
+                _ => null
+            };
             _tilePopup.Hide();
-            self.Finish(new PlayerAction.Travel(x, y));
+            self.Finish(new PlayerAction.Travel(x, y, hazardMode));
             return;
         }
 

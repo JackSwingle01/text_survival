@@ -1,3 +1,5 @@
+using text_survival.Environments.Grid;
+
 namespace text_survival.Actors.Animals;
 
 /// <summary>
@@ -105,6 +107,22 @@ public static class AnimalTypes
         AnimalType.Rabbit or AnimalType.Ptarmigan or AnimalType.Fox or AnimalType.Fish => true,
         _ => false
     };
+
+    /// <summary>
+    /// The kind of print this animal leaves. Only herd animals ever mark the map, so
+    /// the split is simply predator or prey - which is also the only thing a player
+    /// can read from prints at map scale, and the only thing they act on.
+    /// </summary>
+    public static TrackMaker Tracks(this AnimalType type) =>
+        type.IsPredator() ? TrackMaker.Paw : TrackMaker.Hoof;
+
+    /// <summary>
+    /// How heavily one of these marks the ground, with an adult human at 1.0. Scales
+    /// with the square root of body mass, so a mammoth prints far deeper than a fox
+    /// without printing seventy times deeper.
+    /// </summary>
+    public static double IndividualTrackDepth(this AnimalType type) =>
+        Math.Clamp(Math.Sqrt(type.WeightKg() / 70.0), 0.4, 3.0);
 
     /// <summary>
     /// Whether this animal is a bird (yields feathers instead of hide).
