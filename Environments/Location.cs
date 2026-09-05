@@ -439,6 +439,8 @@ public class Location
     /// </summary>
     public double GetExplorationPct()
     {
+        if (!Explored) return 0;
+
         var forage = GetFeature<ForageFeature>();
         if (forage == null) return 0;
 

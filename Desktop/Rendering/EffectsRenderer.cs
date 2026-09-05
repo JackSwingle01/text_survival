@@ -164,13 +164,6 @@ public class EffectsRenderer
             new Color(0, 0, 0, 0),
             new Color(0, 0, 0, 80),
             vertical: false);
-
-        // Corners (darker)
-        float cornerSize = Math.Min(vignetteWidth, vignetteHeight);
-        DrawCornerVignette(offsetX, offsetY, cornerSize, topLeft: true);
-        DrawCornerVignette(offsetX + width - cornerSize, offsetY, cornerSize, topLeft: false);
-        DrawCornerVignette(offsetX, offsetY + height - cornerSize, cornerSize, topLeft: true, flipY: true);
-        DrawCornerVignette(offsetX + width - cornerSize, offsetY + height - cornerSize, cornerSize, topLeft: false, flipY: true);
     }
 
     /// <summary>
@@ -201,27 +194,6 @@ public class EffectsRenderer
         else
         {
             Raylib.DrawRectangleGradientH((int)x, (int)y, (int)w, (int)h, startColor, endColor);
-        }
-    }
-
-    /// <summary>
-    /// Draw a corner vignette.
-    /// </summary>
-    private static void DrawCornerVignette(float x, float y, float size, bool topLeft, bool flipY = false)
-    {
-        // Draw as series of fading rectangles
-        int steps = 5;
-        for (int i = 0; i < steps; i++)
-        {
-            float t = (float)i / steps;
-            float alpha = 40 * (1 - t);
-
-            float rectSize = size * (1 - t * 0.5f);
-            float rectX = topLeft ? x : x + size - rectSize;
-            float rectY = flipY ? y + size - rectSize : y;
-
-            var color = new Color((byte)0, (byte)0, (byte)0, (byte)alpha);
-            Raylib.DrawRectangle((int)rectX, (int)rectY, (int)rectSize, (int)rectSize, color);
         }
     }
 

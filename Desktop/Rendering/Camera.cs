@@ -11,7 +11,7 @@ public class Camera
     // Grid settings
     public int TileSize { get; set; } = 100;
     public int TileGap { get; set; } = 2;
-    public int ViewSize { get; set; } = 5;  // 5x5 tile viewport
+    public int ViewSize { get; set; } = 7;  // 7x7 tile viewport
 
     /// <summary>How fast the centre closes on the target. Higher is snappier.</summary>
     public const float Smoothing = 10f;
