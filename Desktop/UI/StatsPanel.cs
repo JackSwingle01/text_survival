@@ -92,41 +92,48 @@ public static class StatsPanel
         bool isDaytime = weather.IsDaytime(ctx.GameTime);
         string timeOfDay = ctx.GetTimeOfDay().ToString();
 
-        ImGui.TextColored(ColorHeader, $"Day {dayNumber}");
+        UiIcons.LabelColored(isDaytime ? "sun" : "moon", ColorHeader, $"Day {dayNumber}");
         ImGui.SameLine();
-        ImGui.Text($"  {ctx.GameTime:h:mm tt}");
+        UiText.Text($"  {ctx.GameTime:h:mm tt}");
 
         // Weather info - expanded
-        ImGui.TextDisabled(weather.GetSeasonLabel());
+        UiText.Disabled(weather.GetSeasonLabel());
         ImGui.SameLine();
-        ImGui.TextDisabled($"| {weather.GetConditionLabel()}");
+        UiText.Disabled($"| {weather.GetConditionLabel()}");
 
         // Weather details
         if (ImGui.BeginTable("weather_details", 2))
         {
-            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 80);
+            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 88);
             ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+            // Ambient temperature
+            var breakdown = ctx.CurrentLocation.GetTemperatureBreakdown(ctx.CurrentActivity);
+            ImGui.TableNextColumn();
+            UiIcons.LabelColored("temperature", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Temp");
+            ImGui.TableNextColumn();
+            UiText.Disabled($"{breakdown.BaseTemp:F0}°F");
 
             // Wind
             ImGui.TableNextColumn();
-            ImGui.TextDisabled("Wind");
+            UiIcons.LabelColored("wind", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Wind");
             ImGui.TableNextColumn();
-            ImGui.TextDisabled($"{weather.WindSpeedMPH:F0} mph {weather.CurrentWindDirection}");
+            UiText.Disabled($"{weather.WindSpeedMPH:F0} mph {weather.CurrentWindDirection}");
 
             // Precipitation
             ImGui.TableNextColumn();
-            ImGui.TextDisabled("Precip");
+            UiIcons.LabelColored("precipitation", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Precip");
             ImGui.TableNextColumn();
-            ImGui.TextDisabled(GetPrecipitationLabel(weather.PrecipitationPct));
+            UiText.Disabled(GetPrecipitationLabel(weather.PrecipitationPct));
 
             // Weather front
             string frontLabel = weather.GetFrontLabel();
             if (!string.IsNullOrEmpty(frontLabel))
             {
                 ImGui.TableNextColumn();
-                ImGui.TextDisabled("Front");
+                UiIcons.LabelColored("wind", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Front");
                 ImGui.TableNextColumn();
-                ImGui.TextDisabled(frontLabel);
+                UiText.Disabled(frontLabel);
             }
 
             ImGui.EndTable();
@@ -167,7 +174,7 @@ public static class StatsPanel
     {
         percent = Math.Clamp(percent, 0, 100);
         ImGui.TableNextColumn();
-        ImGui.Text(label);
+        UiIcons.Label(label == "Food" ? "food" : label.ToLowerInvariant(), label);
         ImGui.TableNextColumn();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
         ImGui.ProgressBar(percent / 100f, new Vector2(-1, 18), $"{percent}%");
@@ -178,7 +185,7 @@ public static class StatsPanel
     {
         percent = Math.Clamp(percent, 0, 100);
         ImGui.TableNextColumn();
-        ImGui.Text($"  {label}");
+        UiText.Text($"  {label}");
         ImGui.TableNextColumn();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
         ImGui.ProgressBar(percent / 100f, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{percent}%{trend}");
@@ -189,7 +196,7 @@ public static class StatsPanel
     {
         int pct = (int)(value * 100);
         ImGui.TableNextColumn();
-        ImGui.Text($"  {label}");
+        UiText.Text($"  {label}");
         ImGui.TableNextColumn();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, GetCapacityColor(value));
         ImGui.ProgressBar((float)value, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{pct}%");
@@ -199,7 +206,12 @@ public static class StatsPanel
     private static void RenderTemperature(GameContext ctx, Body body, Environments.Location location, Weather weather)
     {
         double bodyTemp = body.BodyTemperature;
-        var breakdown = location.GetTemperatureBreakdown(ActivityType.Idle);
+        // The player's real activity, not a constant. A structural shelter only helps while
+        // you stay put, so asking at Idle always returned the sheltered figure - the panel
+        // showed a snug number while the player was out foraging in it, and the gap between
+        // the two runs to tens of degrees. GetTemperature has no parameterless overload for
+        // exactly this reason; passing a literal was the same mistake by another route.
+        var breakdown = location.GetTemperatureBreakdown(ctx.CurrentActivity);
 
         // Calculate trend
         double trendPerHour = 0;
@@ -222,7 +234,7 @@ public static class StatsPanel
 
             // Body Temp row with trend rate
             ImGui.TableNextColumn();
-            ImGui.Text("Body Temp");
+            UiIcons.Label("temperature", "Body Temp");
             ImGui.TableNextColumn();
             ImGui.PushStyleColor(ImGuiCol.PlotHistogram, tempColor);
             ImGui.ProgressBar((float)tempPct, new Vector2(-1, 18), $"{bodyTemp:F1}°F{trendArrow}");
@@ -232,21 +244,21 @@ public static class StatsPanel
             if (Math.Abs(trendPerHour) > 0.5)
             {
                 ImGui.TableNextColumn();
-                ImGui.Text("");
+                UiText.Text("");
                 ImGui.TableNextColumn();
                 Vector4 rateColor = trendPerHour > 0 ? ColorWarm : ColorCold;
-                ImGui.TextColored(rateColor, $"  {trendPerHour:+0.0;-0.0}°F/hr");
+                UiText.Colored(rateColor, $"  {trendPerHour:+0.0;-0.0}°F/hr");
             }
 
             // Feels Like (effective temperature) - prominent display
             ImGui.TableNextColumn();
-            ImGui.TextColored(ColorHeader, "Feels Like");
+            UiIcons.LabelColored("temperature", ColorHeader, "Feels Like");
             ImGui.TableNextColumn();
-            ImGui.TextColored(feelsLikeColor, $"{breakdown.FinalTemp:F0}°F");
+            UiText.Colored(feelsLikeColor, $"{breakdown.FinalTemp:F0}°F");
 
             // Clothing Warmth row
             ImGui.TableNextColumn();
-            ImGui.Text("Clothing Warmth");
+            UiIcons.Label("clothing", "Clothing Warmth");
             ImGui.TableNextColumn();
             ImGui.PushStyleColor(ImGuiCol.PlotHistogram, ColorWarning);
             ImGui.ProgressBar(warmthPct / 100f, new Vector2(-1, 18), $"{warmthPct}%");
@@ -265,62 +277,62 @@ public static class StatsPanel
 
                 // Base temp
                 ImGui.TableNextColumn();
-                ImGui.TextDisabled("Base");
+                UiText.Disabled("Base");
                 ImGui.TableNextColumn();
-                ImGui.TextDisabled($"{breakdown.BaseTemp:F0}°F");
+                UiText.Disabled($"{breakdown.BaseTemp:F0}°F");
 
                 // Location modifier
                 if (Math.Abs(breakdown.LocationMod) > 1)
                 {
                     ImGui.TableNextColumn();
-                    ImGui.TextDisabled("Location");
+                    UiText.Disabled("Location");
                     ImGui.TableNextColumn();
-                    ImGui.TextDisabled($"{breakdown.LocationMod:+0;-0}°F");
+                    UiText.Disabled($"{breakdown.LocationMod:+0;-0}°F");
                 }
 
                 // Wind chill (negative)
                 if (breakdown.WindChill < -1)
                 {
                     ImGui.TableNextColumn();
-                    ImGui.TextDisabled("Wind");
+                    UiIcons.LabelColored("wind", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Wind");
                     ImGui.TableNextColumn();
-                    ImGui.TextColored(ColorCold, $"{breakdown.WindChill:F0}°F");
+                    UiText.Colored(ColorCold, $"{breakdown.WindChill:F0}°F");
                 }
 
                 // Sun warming (positive)
                 if (breakdown.SunWarming > 1)
                 {
                     ImGui.TableNextColumn();
-                    ImGui.TextDisabled("Sun");
+                    UiIcons.LabelColored("sun", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Sun");
                     ImGui.TableNextColumn();
-                    ImGui.TextColored(ColorWarm, $"+{breakdown.SunWarming:F0}°F");
+                    UiText.Colored(ColorWarm, $"+{breakdown.SunWarming:F0}°F");
                 }
 
                 // Precipitation cooling (negative)
                 if (breakdown.PrecipCooling > 1)
                 {
                     ImGui.TableNextColumn();
-                    ImGui.TextDisabled("Precip");
+                    UiIcons.LabelColored("precipitation", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Precip");
                     ImGui.TableNextColumn();
-                    ImGui.TextColored(ColorCold, $"-{breakdown.PrecipCooling:F0}°F");
+                    UiText.Colored(ColorCold, $"-{breakdown.PrecipCooling:F0}°F");
                 }
 
                 // Shelter bonus (positive)
                 if (breakdown.ShelterBonus > 1)
                 {
                     ImGui.TableNextColumn();
-                    ImGui.TextDisabled("Shelter");
+                    UiIcons.LabelColored("shelter", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Shelter");
                     ImGui.TableNextColumn();
-                    ImGui.TextColored(ColorWarm, $"+{breakdown.ShelterBonus:F0}°F");
+                    UiText.Colored(ColorWarm, $"+{breakdown.ShelterBonus:F0}°F");
                 }
 
                 // Fire bonus (positive)
                 if (breakdown.FireBonus > 1)
                 {
                     ImGui.TableNextColumn();
-                    ImGui.TextDisabled("Fire");
+                    UiIcons.LabelColored("fire", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Fire");
                     ImGui.TableNextColumn();
-                    ImGui.TextColored(ColorWarm, $"+{breakdown.FireBonus:F0}°F");
+                    UiText.Colored(ColorWarm, $"+{breakdown.FireBonus:F0}°F");
                 }
 
                 ImGui.EndTable();
@@ -346,7 +358,7 @@ public static class StatsPanel
         // Injuries section - show damaged body parts and blood loss
         if (hasInjuries || hasBloodIssue)
         {
-            ImGui.TextColored(ColorHeader, "Injuries");
+            UiIcons.LabelColored("bandage", ColorHeader, "Injuries");
 
             if (ImGui.BeginTable("injuries", 3))
             {
@@ -369,13 +381,13 @@ public static class StatsPanel
                 {
                     int bloodPct = (int)(body.Blood.Condition * 100);
                     ImGui.TableNextColumn();
-                    ImGui.Text("  Blood");
+                    UiText.Text("  Blood");
                     ImGui.TableNextColumn();
                     ImGui.PushStyleColor(ImGuiCol.PlotHistogram, GetCapacityColor(body.Blood.Condition));
                     ImGui.ProgressBar((float)body.Blood.Condition, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{bloodPct}%");
                     ImGui.PopStyleColor();
                     ImGui.TableNextColumn();
-                    ImGui.Text("");  // Empty third column to match table format
+                    UiText.Text("");  // Empty third column to match table format
                 }
 
                 ImGui.EndTable();
@@ -387,7 +399,7 @@ public static class StatsPanel
         {
             if (hasInjuries || hasBloodIssue)
                 ImGui.Spacing();
-            ImGui.TextColored(ColorHeader, "Capacities");
+            UiText.Colored(ColorHeader, "Capacities");
 
             if (ImGui.BeginTable("body_condition", 2))
             {
@@ -414,7 +426,7 @@ public static class StatsPanel
         Vector4 color = GetInjuryColor(condition);
 
         ImGui.TableNextColumn();
-        ImGui.Text($"  {partName}");
+        UiText.Text($"  {partName}");
 
         ImGui.TableNextColumn();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
@@ -422,7 +434,7 @@ public static class StatsPanel
         ImGui.PopStyleColor();
 
         ImGui.TableNextColumn();
-        ImGui.TextColored(color, severity);
+        UiText.Colored(color, severity);
     }
 
     private static string GetDamageDescription(double condition)
@@ -452,7 +464,7 @@ public static class StatsPanel
         if (effects.Count == 0) return;
 
         ImGui.Separator();
-        ImGui.TextColored(ColorHeader, "Active Effects");
+        UiIcons.LabelColored("medicine", ColorHeader, "Active Effects");
 
         if (ImGui.BeginTable("effects", 2))
         {
@@ -478,7 +490,7 @@ public static class StatsPanel
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.BeginTooltip();
-                    ImGui.TextColored(ColorHeader, effect.EffectKind);
+                    UiText.Colored(ColorHeader, effect.EffectKind);
                     ImGui.Separator();
 
                     // Show capacity modifiers
@@ -491,7 +503,7 @@ public static class StatsPanel
                             hasModifiers = true;
                             int pctChange = (int)(modifier * 100);
                             Vector4 modColor = pctChange >= 0 ? ColorGood : ColorDanger;
-                            ImGui.TextColored(modColor, $"{capacity}: {pctChange:+0;-0}%%");
+                            UiText.Colored(modColor, $"{capacity}: {pctChange:+0;-0}%");
                         }
                     }
 
@@ -499,19 +511,19 @@ public static class StatsPanel
                     if (effect.Damage != null)
                     {
                         hasModifiers = true;
-                        ImGui.TextColored(ColorDanger, $"Damage: {effect.Damage.PerHour:F0}/hr ({effect.Damage.Type})");
+                        UiText.Colored(ColorDanger, $"Damage: {effect.Damage.PerHour:F0}/hr ({effect.Damage.Type})");
                     }
 
                     // Show if treatment required
                     if (effect.RequiresTreatment)
                     {
                         hasModifiers = true;
-                        ImGui.TextColored(ColorWarning, "Requires treatment");
+                        UiText.Colored(ColorWarning, "Requires treatment");
                     }
 
                     if (!hasModifiers)
                     {
-                        ImGui.TextDisabled("No direct capacity effects");
+                        UiText.Disabled("No direct capacity effects");
                     }
 
                     ImGui.EndTooltip();
@@ -528,13 +540,13 @@ public static class StatsPanel
         if (tensions.Count == 0) return;
 
         ImGui.Separator();
-        ImGui.TextColored(ColorHeader, "Threats");
+        UiIcons.LabelColored("spear", ColorHeader, "Threats");
 
         foreach (var tension in tensions)
         {
             Vector4 color = tension.Severity > 0.7 ? ColorDanger :
                            tension.Severity > 0.4 ? ColorWarning : ColorMuted;
-            ImGui.TextColored(color, $"  {tension.Type}");
+            UiText.Colored(color, $"  {tension.Type}");
         }
     }
 
@@ -554,7 +566,7 @@ public static class StatsPanel
 
             // Carry row
             ImGui.TableNextColumn();
-            ImGui.Text("Carry");
+            UiIcons.Label("backpack", "Carry");
             ImGui.TableNextColumn();
             ImGui.PushStyleColor(ImGuiCol.PlotHistogram, weightColor);
             ImGui.ProgressBar((float)pct, new Vector2(-1, 18), $"{current:F1}/{max:F1} kg");
@@ -602,27 +614,27 @@ public static class StatsPanel
         };
 
         // Header with phase
-        ImGui.TextColored(ColorHeader, "Fire");
+        UiIcons.LabelColored("fire", ColorHeader, "Fire");
         ImGui.SameLine();
-        ImGui.TextColored(phaseColor, phase);
+        UiText.Colored(phaseColor, phase);
 
         if (ImGui.BeginTable("fire_status", 2))
         {
-            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 80);
+            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 88);
             ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
 
             // Fire temperature and heat output on one line
             double fireTemp = fire.GetCurrentFireTemperature();
-            var breakdown = location.GetTemperatureBreakdown(ActivityType.Idle);
+            var breakdown = location.GetTemperatureBreakdown(ctx.CurrentActivity);
             if (fireTemp > 0)
             {
                 ImGui.TableNextColumn();
-                ImGui.TextDisabled("Temperature");
+                UiText.Disabled("Temperature");
                 ImGui.TableNextColumn();
                 string heatText = breakdown.FireBonus > 1
                     ? $"{fireTemp:F0}°F (+{breakdown.FireBonus:F0}°F)"
                     : $"{fireTemp:F0}°F";
-                ImGui.TextColored(phaseColor, heatText);
+                UiText.Colored(phaseColor, heatText);
             }
 
             // Fuel gauge (only for active fires, not embers)
@@ -633,7 +645,7 @@ public static class StatsPanel
                 double maxKg = fire.MaxFuelCapacityKg;
 
                 ImGui.TableNextColumn();
-                ImGui.TextDisabled("Fuel");
+                UiIcons.LabelColored("fuel", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Fuel");
                 ImGui.TableNextColumn();
 
                 // Progress bar showing burning + unburned fuel
@@ -696,14 +708,14 @@ public static class StatsPanel
 
             // Time remaining with urgency-based coloring
             ImGui.TableNextColumn();
-            ImGui.TextDisabled("Time Left");
+            UiIcons.LabelColored("clock", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Time Left");
             ImGui.TableNextColumn();
 
             Vector4 timeColor = minutes <= 5 ? ColorCritical :
                                minutes <= 15 ? ColorDanger :
                                minutes <= 30 ? ColorWarning : ColorMuted;
 
-            ImGui.TextColored(timeColor, FormatTime(minutes));
+            UiText.Colored(timeColor, FormatTime(minutes));
 
             ImGui.EndTable();
         }
@@ -715,7 +727,7 @@ public static class StatsPanel
         if (ctx.Camp == null || ctx.CurrentLocation != ctx.Camp) return;
 
         ImGui.Separator();
-        ImGui.TextColored(ColorHeader, "Camp");
+        UiIcons.LabelColored("shelter", ColorHeader, "Camp");
 
         // Shelter info
         var shelter = ctx.Camp.GetFeature<ShelterFeature>();
@@ -724,22 +736,22 @@ public static class StatsPanel
             int insulation = (int)Math.Round(shelter.TemperatureInsulation * 100);
             int wind = (int)Math.Round(shelter.WindCoverage * 100);
             int overhead = (int)Math.Round(shelter.OverheadCoverage * 100);
-            ImGui.Text($"  Shelter: {insulation}%% insulation");
-            ImGui.TextDisabled($"    Wind: {wind}%% | Overhead: {overhead}%%");
+            UiText.Text($"  Shelter: {insulation}% insulation");
+            UiText.Disabled($"    Wind: {wind}% | Overhead: {overhead}%");
         }
 
         // Bedding info
         var bedding = ctx.Camp.GetFeature<BeddingFeature>();
         if (bedding != null)
         {
-            ImGui.Text($"  Bedding: {bedding.Quality} quality");
+            UiText.Text($"  Bedding: {bedding.Quality} quality");
         }
 
         // Storage summary
         var cache = ctx.Camp.GetFeature<CacheFeature>();
         if (cache != null && cache.Storage.CurrentWeightKg > 0)
         {
-            ImGui.Text($"  Storage: {cache.Storage.CurrentWeightKg:F1} kg stored");
+            UiText.Text($"  Storage: {cache.Storage.CurrentWeightKg:F1} kg stored");
         }
 
         // Curing rack status
@@ -748,11 +760,11 @@ public static class StatsPanel
         {
             if (rack.HasReadyItems)
             {
-                ImGui.TextColored(ColorGood, $"  Curing Rack: items ready!");
+                UiText.Colored(ColorGood, $"  Curing Rack: items ready!");
             }
             else
             {
-                ImGui.Text($"  Curing Rack: {rack.ItemCount} curing");
+                UiText.Text($"  Curing Rack: {rack.ItemCount} curing");
             }
         }
     }

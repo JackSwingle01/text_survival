@@ -74,7 +74,7 @@ public static class ToastManager
             if (ImGui.Begin($"##Toast{i}", flags))
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, color);
-                ImGui.TextWrapped(toast.Message);
+                UiText.Wrapped(toast.Message);
                 ImGui.PopStyleColor();
             }
             currentY += ImGui.GetWindowSize().Y + spacing;

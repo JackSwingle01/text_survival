@@ -67,7 +67,7 @@ public class FoodOverlay
                 Vector4 msgColor = _lastMessageIsWarning
                     ? new Vector4(1f, 0.6f, 0.3f, 1f)
                     : new Vector4(0.5f, 0.9f, 0.5f, 1f);
-                ImGui.TextColored(msgColor, _lastMessage);
+                UiText.Colored(msgColor, _lastMessage);
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
@@ -129,7 +129,12 @@ public class FoodOverlay
             _ => new Vector4(0.4f, 0.7f, 1f, 1f)
         };
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, hydColor);
-        ImGui.ProgressBar(hydPct, new Vector2(-1, 0), $"Hydration: {body.Hydration:F1}L / {SurvivalProcessor.MAX_HYDRATION:F0}L");
+        // Hydration is stored in millilitres. Printing it with an L suffix read "3000.0L / 4000L"
+        // - three tonnes of water. Converted through the same constant that turns a litre drunk
+        // into hydration gained, so the display cannot drift from the thing it is displaying.
+        double hydrationLiters = body.Hydration / ConsumptionHandler.WaterHydrationPerLiter;
+        double maxHydrationLiters = SurvivalProcessor.MAX_HYDRATION / ConsumptionHandler.WaterHydrationPerLiter;
+        ImGui.ProgressBar(hydPct, new Vector2(-1, 0), $"Hydration: {hydrationLiters:F1}L / {maxHydrationLiters:F1}L");
         ImGui.PopStyleColor();
     }
 
@@ -141,9 +146,9 @@ public class FoodOverlay
 
         if (consumables.Count == 0 && !hasActiveFire)
         {
-            ImGui.TextColored(new Vector4(1f, 0.5f, 0.3f, 1f), "No food or water available!");
-            ImGui.TextDisabled("Forage for berries, hunt for meat,");
-            ImGui.TextDisabled("or melt snow at a fire.");
+            UiText.Colored(new Vector4(1f, 0.5f, 0.3f, 1f), "No food or water available!");
+            UiText.Disabled("Forage for berries, hunt for meat,");
+            UiText.Disabled("or melt snow at a fire.");
             return;
         }
 
@@ -192,7 +197,7 @@ public class FoodOverlay
             var meltItem = new FoodItem.MeltSnow();
             bool isSelected = _selectedItem is FoodItem.MeltSnow;
 
-            if (ImGui.Selectable($"Melt Snow (+{CookingHandler.MeltSnowWaterLiters:F1}L)", isSelected))
+            if (UiIcons.Selectable("water", $"Melt Snow (+{CookingHandler.MeltSnowWaterLiters:F1}L)", "melt_snow", isSelected))
             {
                 _selectedItem = meltItem;
             }
@@ -202,7 +207,7 @@ public class FoodOverlay
     private static void RenderSectionHeader(string title)
     {
         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.8f, 0.9f, 1f));
-        ImGui.Text(title);
+        UiIcons.Label(title == "Fire Actions" ? "fire" : UiIcons.ForCategory(title), title);
         ImGui.PopStyleColor();
         ImGui.Separator();
     }
@@ -226,7 +231,7 @@ public class FoodOverlay
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.7f, 0.5f, 1f));
         }
 
-        if (ImGui.Selectable(label, isSelected))
+        if (UiIcons.Selectable(UiIcons.ForConsumable(item.Id), label, item.Id, isSelected))
         {
             _selectedItem = new FoodItem.Consumable(item);
         }
@@ -237,7 +242,7 @@ public class FoodOverlay
 
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip(item.Warning);
+                UiText.Tooltip(item.Warning);
             }
         }
     }
@@ -246,7 +251,7 @@ public class FoodOverlay
     {
         if (_selectedItem == null)
         {
-            ImGui.TextDisabled("Select an item from the list.");
+            UiText.Disabled("Select an item from the list.");
             return;
         }
 
@@ -268,38 +273,38 @@ public class FoodOverlay
     private void RenderConsumableDetails(GameContext ctx, ConsumptionHandler.ConsumableInfo item, bool hasActiveFire)
     {
         // Item name
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), item.Name);
+        UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), item.Name);
         ImGui.Separator();
         ImGui.Spacing();
 
         // Amount
         if (item.Id == "water")
-            ImGui.Text($"Amount: {item.Amount:F2}L");
+            UiText.Text($"Amount: {item.Amount:F2}L");
         else if (item.Id == "wash_blood")
-            ImGui.Text($"Uses: {item.Amount:F1}L of water");
+            UiText.Text($"Uses: {item.Amount:F1}L of water");
         else
-            ImGui.Text($"Amount: {item.Amount * 1000:F0}g ({item.Amount:F2}kg)");
+            UiText.Text($"Amount: {item.Amount * 1000:F0}g ({item.Amount:F2}kg)");
 
         ImGui.Spacing();
 
         // Nutritional info
         if (item.Calories.HasValue)
         {
-            ImGui.Text($"Calories: +{item.Calories}");
+            UiText.Text($"Calories: +{item.Calories}");
         }
         if (item.Hydration.HasValue)
         {
             if (item.Hydration > 0)
-                ImGui.Text($"Hydration: +{item.Hydration}ml");
+                UiText.Text($"Hydration: +{item.Hydration}ml");
             else
-                ImGui.Text($"Hydration: {item.Hydration}ml");
+                UiText.Text($"Hydration: {item.Hydration}ml");
         }
 
         // Warning
         if (item.Warning != null)
         {
             ImGui.Spacing();
-            ImGui.TextColored(new Vector4(1f, 0.6f, 0.3f, 1f), item.Warning);
+            UiText.Colored(new Vector4(1f, 0.6f, 0.3f, 1f), item.Warning);
         }
 
         ImGui.Spacing();
@@ -382,28 +387,28 @@ public class FoodOverlay
             else if (isRaw && !hasActiveFire)
             {
                 ImGui.Spacing();
-                ImGui.TextDisabled("Start a fire to cook");
+                UiText.Disabled("Start a fire to cook");
             }
         }
     }
 
     private void RenderMeltSnowDetails(GameContext ctx)
     {
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), "Melt Snow");
+        UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), "Melt Snow");
         ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.Text($"Produces: {CookingHandler.MeltSnowWaterLiters:F1}L of water");
-        ImGui.Text($"Time: {CookingHandler.MeltSnowTimeMinutes} minutes");
+        UiText.Text($"Produces: {CookingHandler.MeltSnowWaterLiters:F1}L of water");
+        UiText.Text($"Time: {CookingHandler.MeltSnowTimeMinutes} minutes");
 
         ImGui.Spacing();
-        ImGui.TextDisabled("Snow is freely available in this");
-        ImGui.TextDisabled("frozen landscape.");
+        UiText.Disabled("Snow is freely available in this");
+        UiText.Disabled("frozen landscape.");
 
         ImGui.Spacing();
 
         // Current water
-        ImGui.Text($"Current water: {ctx.Inventory.Weight(Resource.Water):F2}L");
+        UiText.Text($"Current water: {ctx.Inventory.Weight(Resource.Water):F2}L");
 
         ImGui.Spacing();
         ImGui.Separator();

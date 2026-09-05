@@ -23,9 +23,6 @@ public class ActionPanel(WorldRenderer world)
     private string? _lastMessage;
     private float _messageTimer;
 
-    // Panel width minus padding for button content
-    private const float ButtonContentWidthPx = 270f;
-
     /// <summary>
     /// Truncates text to fit within maxWidth, preserving parenthetical suffixes.
     /// Returns original text if it fits.
@@ -77,21 +74,21 @@ public class ActionPanel(WorldRenderer world)
     /// Renders a button with truncated text and tooltip showing full text if truncated.
     /// Returns true if button was clicked.
     /// </summary>
-    private static bool ButtonWithTooltip(string fullText, string? hotkeyTip = null)
+    private static bool ButtonWithTooltip(string fullText, string? hotkeyTip = null, string icon = "gear")
     {
         string displayText = fullText;
         if (!string.IsNullOrEmpty(hotkeyTip))
             displayText = fullText + " " + hotkeyTip;
 
-        string truncated = TruncateText(displayText, ButtonContentWidthPx);
+        string truncated = TruncateText(displayText, Math.Max(0, ImGui.GetContentRegionAvail().X - 22 - ImGui.GetStyle().FramePadding.X * 2));
         bool wasTruncated = truncated != displayText;
 
-        bool clicked = ImGui.Button(truncated, new Vector2(-1, 0));
+        bool clicked = UiIcons.Button(icon, truncated, displayText, new Vector2(-1, 0));
 
         if (wasTruncated && ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text(displayText);
+            UiText.Text(displayText);
             ImGui.EndTooltip();
         }
 
@@ -137,10 +134,10 @@ public class ActionPanel(WorldRenderer world)
 
         // Location header
         var location = ctx.CurrentLocation;
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), location?.Name ?? "Unknown");
+        UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), location?.Name ?? "Unknown");
         if (location != null)
         {
-            ImGui.TextDisabled($"Terrain: {location.Terrain}");
+            UiText.Disabled($"Terrain: {location.Terrain}");
         }
         ImGui.Separator();
 
@@ -148,7 +145,7 @@ public class ActionPanel(WorldRenderer world)
         if (_messageTimer > 0)
         {
             _messageTimer -= deltaTime;
-            ImGui.TextColored(new Vector4(1f, 0.8f, 0.3f, 1f), _lastMessage ?? "");
+            UiText.Colored(new Vector4(1f, 0.8f, 0.3f, 1f), _lastMessage ?? "");
             ImGui.Separator();
         }
 
@@ -156,13 +153,13 @@ public class ActionPanel(WorldRenderer world)
         RenderFireStatus(ctx);
 
         // Movement info
-        ImGui.TextDisabled("Movement: WASD or click adjacent tile");
+        UiText.Disabled("Movement: WASD or click adjacent tile");
         ImGui.Separator();
 
         // Quick actions
-        ImGui.Text("Quick Actions:");
+        UiText.Text("Quick Actions:");
 
-        if (ImGui.Button($"Wait (5 min) {HotkeyRegistry.GetTip(HotkeyAction.Wait)}", new Vector2(-1, 0)))
+        if (ButtonWithTooltip($"Wait (5 min) {HotkeyRegistry.GetTip(HotkeyAction.Wait)}", icon: "clock"))
             clickedAction = CampAction.Wait;
 
         // Fire actions
@@ -171,13 +168,13 @@ public class ActionPanel(WorldRenderer world)
         {
             if (ctx.Inventory.HasFuel)
             {
-                if (ImGui.Button($"Tend Fire {HotkeyRegistry.GetTip(HotkeyAction.Fire)}", new Vector2(-1, 0)))
+                if (ButtonWithTooltip($"Tend Fire {HotkeyRegistry.GetTip(HotkeyAction.Fire)}", icon: "fire"))
                     clickedAction = CampAction.TendFire;
             }
         }
         else if (CanStartFire(ctx))
         {
-            if (ImGui.Button($"Start Fire {HotkeyRegistry.GetTip(HotkeyAction.Fire)}", new Vector2(-1, 0)))
+            if (ButtonWithTooltip($"Start Fire {HotkeyRegistry.GetTip(HotkeyAction.Fire)}", icon: "fire"))
                 clickedAction = CampAction.StartFire;
         }
 
@@ -185,7 +182,7 @@ public class ActionPanel(WorldRenderer world)
         bool canCook = fire != null && fire.IsActive;
         if (ctx.Inventory.HasFood || ctx.Inventory.HasWater || canCook)
         {
-            if (ImGui.Button("Food & Water", new Vector2(-1, 0)))
+            if (ButtonWithTooltip("Food & Water", icon: "food"))
                 clickedAction = CampAction.Food;
         }
 
@@ -197,12 +194,12 @@ public class ActionPanel(WorldRenderer world)
             var workOptions = location.GetWorkOptions(ctx).ToList();
             if (workOptions.Count > 0)
             {
-                ImGui.Text("Work:");
+                UiText.Text("Work:");
                 foreach (var opt in workOptions)
                 {
                     string? hotkeyTip = opt.Strategy is ForageStrategy ? "[F]" : null;
 
-                    if (ButtonWithTooltip(opt.Label, hotkeyTip))
+                    if (ButtonWithTooltip(opt.Label, hotkeyTip, WorkIcon(opt.Strategy)))
                         workStrategy = opt.Strategy;
                 }
                 ImGui.Separator();
@@ -210,22 +207,22 @@ public class ActionPanel(WorldRenderer world)
         }
 
         // Menu actions
-        ImGui.Text("Menus:");
+        UiText.Text("Menus:");
 
-        if (ImGui.Button($"Inventory {HotkeyRegistry.GetTip(HotkeyAction.Inventory)}", new Vector2(-1, 0)))
+        if (ButtonWithTooltip($"Inventory {HotkeyRegistry.GetTip(HotkeyAction.Inventory)}", icon: "backpack"))
             clickedAction = CampAction.Inventory;
 
-        if (ImGui.Button($"Crafting {HotkeyRegistry.GetTip(HotkeyAction.Crafting)}", new Vector2(-1, 0)))
+        if (ButtonWithTooltip($"Crafting {HotkeyRegistry.GetTip(HotkeyAction.Crafting)}", icon: "gear"))
             clickedAction = CampAction.Crafting;
 
-        if (ImGui.Button($"Discovery Log {HotkeyRegistry.GetTip(HotkeyAction.DiscoveryLog)}", new Vector2(-1, 0)))
+        if (ButtonWithTooltip($"Discovery Log {HotkeyRegistry.GetTip(HotkeyAction.DiscoveryLog)}", icon: "journal"))
             clickedAction = CampAction.DiscoveryLog;
 
         // Camp storage (if at camp)
         var storage = ctx.Camp?.GetFeature<CacheFeature>();
         if (location == ctx.Camp && storage != null)
         {
-            if (ImGui.Button($"Camp Storage {HotkeyRegistry.GetTip(HotkeyAction.Storage)}", new Vector2(-1, 0)))
+            if (ButtonWithTooltip($"Camp Storage {HotkeyRegistry.GetTip(HotkeyAction.Storage)}", icon: "storage"))
                 clickedAction = CampAction.Storage;
         }
 
@@ -238,7 +235,7 @@ public class ActionPanel(WorldRenderer world)
                 : rack.ItemCount > 0
                     ? $"Curing Rack ({rack.ItemCount} curing)"
                     : "Curing Rack";
-            if (ButtonWithTooltip(rackLabel))
+            if (ButtonWithTooltip(rackLabel, icon: "hide"))
                 clickedAction = CampAction.CuringRack;
         }
 
@@ -248,12 +245,12 @@ public class ActionPanel(WorldRenderer world)
         var bedding = location?.GetFeature<BeddingFeature>();
         if (bedding != null)
         {
-            if (ImGui.Button("Sleep", new Vector2(-1, 0)))
+            if (ButtonWithTooltip("Sleep", icon: "moon"))
                 clickedAction = CampAction.Sleep;
         }
         else
         {
-            if (ImGui.Button("Make Camp", new Vector2(-1, 0)))
+            if (ButtonWithTooltip("Make Camp", icon: "shelter"))
                 clickedAction = CampAction.MakeCamp;
         }
 
@@ -261,19 +258,19 @@ public class ActionPanel(WorldRenderer world)
         var tent = CampHandler.GetDeployableTent(ctx);
         if (tent != null && CampHandler.CanDeployTent(ctx))
         {
-            if (ImGui.Button($"Pitch {tent.Name}", new Vector2(-1, 0)))
+            if (ButtonWithTooltip($"Pitch {tent.Name}", icon: "shelter"))
                 clickedAction = CampAction.PitchTent;
         }
         else if (CampHandler.CanPackTent(ctx))
         {
-            if (ImGui.Button("Pack Up Tent", new Vector2(-1, 0)))
+            if (ButtonWithTooltip("Pack Up Tent", icon: "shelter"))
                 clickedAction = CampAction.PackTent;
         }
 
         // Treatment (if wounds)
         if (CanTreatWounds(ctx))
         {
-            if (ImGui.Button("Treat Wounds", new Vector2(-1, 0)))
+            if (ButtonWithTooltip("Treat Wounds", icon: "bandage"))
                 clickedAction = CampAction.TreatWounds;
         }
 
@@ -281,6 +278,21 @@ public class ActionPanel(WorldRenderer world)
 
         return (clickedAction, workStrategy);
     }
+
+    private static string WorkIcon(IWorkStrategy strategy) => strategy switch
+    {
+        ForageStrategy or HarvestStrategy => "foraging",
+        HuntStrategy or MegafaunaStrategy => "spear",
+        ButcherStrategy => "knife",
+        FishingStrategy or SetNetStrategy or CheckNetStrategy => "fish",
+        TrapStrategy => "rope",
+        CacheStrategy or GroundStashStrategy => "storage",
+        ShelterImprovementStrategy => "shelter",
+        ExamineStrategy or TrailMarkingStrategy => "journal",
+        LootBodyStrategy or SalvageStrategy => "backpack",
+        IceCuttingStrategy => "water",
+        _ => "gear"
+    };
 
     private void RenderFireStatus(GameContext ctx)
     {
@@ -299,19 +311,19 @@ public class ActionPanel(WorldRenderer world)
                     ? new Vector4(1f, 0.7f, 0.3f, 1f)  // Orange - warning
                     : new Vector4(1f, 0.6f, 0.2f, 1f); // Normal fire color
 
-            ImGui.TextColored(fireColor, $"Fire: {phase}");
-            ImGui.Text($"  {tempC:F0}°F - {FormatTime(minutes)} remaining");
+            UiIcons.LabelColored("fire", fireColor, $"Fire: {phase}");
+            UiText.Text($"  {tempC:F0}°F - {FormatTime(minutes)} remaining");
 
             if (minutes <= 5)
-                ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), "  Add fuel now!");
+                UiText.Colored(new Vector4(1f, 0.3f, 0.3f, 1f), "  Add fuel now!");
 
             ImGui.Separator();
         }
         else if (fire.HasEmbers)
         {
             int emberMinutes = (int)(fire.EmberTimeRemaining * 60);
-            ImGui.TextColored(new Vector4(0.8f, 0.4f, 0.2f, 1f), "Embers glowing");
-            ImGui.Text($"  {FormatTime(emberMinutes)} until cold");
+            UiText.Colored(new Vector4(0.8f, 0.4f, 0.2f, 1f), "Embers glowing");
+            UiText.Text($"  {FormatTime(emberMinutes)} until cold");
             ImGui.Separator();
         }
     }
@@ -385,7 +397,7 @@ public class ActionPanel(WorldRenderer world)
 
         // Combat header
         string headerText = inStealth ? "STALKING" : "COMBAT";
-        ImGui.TextColored(new Vector4(1f, 0.5f, 0.3f, 1f), headerText);
+        UiText.Colored(new Vector4(1f, 0.5f, 0.3f, 1f), headerText);
         ImGui.Separator();
 
         // Distance display (to nearest enemy for tactical relevance)
@@ -412,8 +424,8 @@ public class ActionPanel(WorldRenderer world)
                 _ => new Vector4(0.7f, 0.7f, 0.7f, 1f)
             };
 
-            ImGui.Text($"Distance: {distance:F0}m");
-            ImGui.TextColored(zoneColor, zoneText);
+            UiText.Text($"Distance: {distance:F0}m");
+            UiText.Colored(zoneColor, zoneText);
         }
 
         // Target stats section
@@ -426,11 +438,11 @@ public class ActionPanel(WorldRenderer world)
             string targetLabel = displayTarget == playerUnit ? "YOU" : displayTarget.actor.Name.ToUpper();
             if (isHoveredUnit)
             {
-                ImGui.TextColored(new Vector4(0.7f, 0.85f, 1f, 1f), targetLabel);
+                UiText.Colored(new Vector4(0.7f, 0.85f, 1f, 1f), targetLabel);
             }
             else
             {
-                ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), targetLabel);
+                UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), targetLabel);
             }
             ImGui.Separator();
 
@@ -443,14 +455,14 @@ public class ActionPanel(WorldRenderer world)
                 Vector4 awarenessColor = displayTarget.Awareness == AwarenessState.Unaware
                     ? new Vector4(0.4f, 0.9f, 0.4f, 1f)  // Green - good
                     : new Vector4(1f, 0.8f, 0.3f, 1f);   // Yellow - caution
-                ImGui.TextColored(awarenessColor, awarenessText);
+                UiText.Colored(awarenessColor, awarenessText);
 
                 // Show activity hint for animals
                 if (displayTarget.actor is Animal animal)
                 {
                     var behavior = HuntingSightingSelector.MapActivityToBehavior(animal);
                     string hint = HuntingSightingSelector.GetBehaviorHint(behavior);
-                    ImGui.TextWrapped(hint);
+                    UiText.Wrapped(hint);
                 }
                 ImGui.Spacing();
 
@@ -464,7 +476,7 @@ public class ActionPanel(WorldRenderer world)
                         >= 0.4 => new Vector4(1f, 0.7f, 0.3f, 1f),   // Orange - medium
                         _ => new Vector4(0.4f, 0.9f, 0.4f, 1f)        // Green - low
                     };
-                    ImGui.TextColored(riskColor, $"Detection Risk: {detectionRisk:P0}");
+                    UiText.Colored(riskColor, $"Detection Risk: {detectionRisk:P0}");
                     ImGui.Spacing();
                 }
             }
@@ -527,7 +539,7 @@ public class ActionPanel(WorldRenderer world)
 
             // Speed and Strength as numbers
             ImGui.Spacing();
-            ImGui.TextDisabled($"Speed: {displayTarget.actor.Speed:F2}  Strength: {displayTarget.actor.Strength:F2}");
+            UiText.Disabled($"Speed: {displayTarget.actor.Speed:F2}  Strength: {displayTarget.actor.Strength:F2}");
 
             // Injuries section - show damaged body parts
             var damagedParts = displayTarget.actor.Body.Parts
@@ -539,7 +551,7 @@ public class ActionPanel(WorldRenderer world)
             if (damagedParts.Count > 0)
             {
                 ImGui.Spacing();
-                ImGui.TextDisabled("Injuries:");
+                UiText.Disabled("Injuries:");
                 foreach (var part in damagedParts)
                 {
                     float condition = (float)part.Condition;
@@ -559,7 +571,7 @@ public class ActionPanel(WorldRenderer world)
         ImGui.Separator();
 
         // Combat actions based on zone and stealth state
-        ImGui.Text("Actions:");
+        UiText.Text("Actions:");
         ImGui.Spacing();
 
         if (nearest != null)

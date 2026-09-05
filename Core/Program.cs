@@ -6,6 +6,7 @@ using text_survival.Actions;
 using text_survival.Desktop;
 using text_survival.Desktop.Rendering;
 using text_survival.Desktop.Audio;
+using text_survival.Desktop.UI;
 using text_survival.UI;
 
 namespace text_survival.Core;
@@ -109,7 +110,15 @@ public static class Program
         var scheduler = new FrameScheduler();
         SynchronizationContext.SetSynchronizationContext(scheduler);
 
-        RunGame(ctx, scheduler);
+        UiIcons.Load();
+        try
+        {
+            RunGame(ctx, scheduler);
+        }
+        finally
+        {
+            UiIcons.Unload();
+        }
 
         AudioManager.Shutdown();
         Raylib.CloseAudioDevice();

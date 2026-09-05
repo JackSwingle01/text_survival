@@ -78,12 +78,12 @@ public class TilePopup
         if (ImGui.Begin("##TilePopup", flags))
         {
             // Location name
-            ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), _selectedLocation.Name);
+            UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), _selectedLocation.Name);
 
             // Terrain type (if different from name)
             if (_selectedLocation.Name != _selectedLocation.Terrain.ToString())
             {
-                ImGui.TextDisabled(_selectedLocation.Terrain.ToString());
+                UiText.Disabled(_selectedLocation.Terrain.ToString());
             }
 
             ImGui.Separator();
@@ -110,15 +110,15 @@ public class TilePopup
             }
             else if (_isPlayerHere)
             {
-                ImGui.TextDisabled("You are here");
+                UiText.Disabled("You are here");
             }
             else if (!_isAdjacent)
             {
-                ImGui.TextDisabled("Too far to travel");
+                UiText.Disabled("Too far to travel");
             }
             else if (!_isPassable)
             {
-                ImGui.TextDisabled("Impassable terrain");
+                UiText.Disabled("Impassable terrain");
             }
         }
         ImGui.End();
@@ -146,12 +146,12 @@ public class TilePopup
                     : minutes <= 15
                         ? new Vector4(1f, 0.7f, 0.3f, 1f)
                         : new Vector4(1f, 0.6f, 0.2f, 1f);
-                ImGui.TextColored(color, $"Fire: {phase} ({FormatTime(minutes)})");
+                UiText.Colored(color, $"Fire: {phase} ({FormatTime(minutes)})");
             }
             else if (fire.HasEmbers)
             {
                 int minutes = (int)(fire.EmberTimeRemaining * 60);
-                ImGui.TextColored(new Vector4(0.8f, 0.4f, 0.2f, 1f), $"Embers ({FormatTime(minutes)})");
+                UiText.Colored(new Vector4(0.8f, 0.4f, 0.2f, 1f), $"Embers ({FormatTime(minutes)})");
             }
         }
 
@@ -162,7 +162,7 @@ public class TilePopup
             hasFeatures = true;
             int insulation = (int)Math.Round(shelter.TemperatureInsulation * 100);
             int wind = (int)Math.Round(shelter.WindCoverage * 100);
-            ImGui.Text($"Shelter: {insulation}%% insulation, {wind}%% wind block");
+            UiText.Text($"Shelter: {insulation}% insulation, {wind}% wind block");
         }
 
         // Forage
@@ -174,23 +174,23 @@ public class TilePopup
             if (resources.Count > 0)
             {
                 string resourceList = string.Join(", ", resources.Take(3));
-                ImGui.Text($"Forage: {resourceList}");
+                UiText.Text($"Forage: {resourceList}");
             }
             else
             {
-                ImGui.TextDisabled("Forage: depleted");
+                UiText.Disabled("Forage: depleted");
             }
 
             // Show exploration progress
             double explorationPct = _selectedLocation.GetExplorationPct();
             if (explorationPct >= 1.0)
             {
-                ImGui.TextColored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "  Fully explored");
+                UiText.Colored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "  Fully explored");
             }
             else
             {
                 int pctDisplay = (int)(explorationPct * 100);
-                ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"  {pctDisplay}%% explored");
+                UiText.Colored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"  {pctDisplay}% explored");
             }
         }
 
@@ -199,7 +199,7 @@ public class TilePopup
         if (territory != null)
         {
             hasFeatures = true;
-            ImGui.Text($"Game: {territory.GetDescription()}");
+            UiText.Text($"Game: {territory.GetDescription()}");
         }
 
         // Water
@@ -207,7 +207,7 @@ public class TilePopup
         if (water != null)
         {
             hasFeatures = true;
-            ImGui.Text("Water source");
+            UiText.Text("Water source");
         }
 
         // Traps
@@ -217,11 +217,11 @@ public class TilePopup
             hasFeatures = true;
             if (traps.HasCatchWaiting)
             {
-                ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.4f, 1f), $"Traps: {traps.CatchCount} catch ready!");
+                UiText.Colored(new Vector4(0.4f, 0.9f, 0.4f, 1f), $"Traps: {traps.CatchCount} catch ready!");
             }
             else
             {
-                ImGui.Text($"Traps: {traps.SnareCount} active");
+                UiText.Text($"Traps: {traps.SnareCount} active");
             }
         }
 
@@ -232,11 +232,11 @@ public class TilePopup
             hasFeatures = true;
             if (rack.HasReadyItems)
             {
-                ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.4f, 1f), $"Curing rack: items ready!");
+                UiText.Colored(new Vector4(0.4f, 0.9f, 0.4f, 1f), $"Curing rack: items ready!");
             }
             else
             {
-                ImGui.Text($"Curing rack: {rack.ItemCount} curing");
+                UiText.Text($"Curing rack: {rack.ItemCount} curing");
             }
         }
 
@@ -246,7 +246,7 @@ public class TilePopup
         {
             hasFeatures = true;
             string decay = carcass.GetDecayDescription();
-            ImGui.Text($"Carcass: {carcass.AnimalName} ({decay})");
+            UiText.Text($"Carcass: {carcass.AnimalName} ({decay})");
         }
 
         // Cache/Storage
@@ -257,11 +257,11 @@ public class TilePopup
             double weight = cache.Storage.CurrentWeightKg;
             if (weight > 0)
             {
-                ImGui.Text($"Cache: {weight:F1}kg stored");
+                UiText.Text($"Cache: {weight:F1}kg stored");
             }
             else
             {
-                ImGui.Text("Cache: empty");
+                UiText.Text("Cache: empty");
             }
         }
 
@@ -270,12 +270,12 @@ public class TilePopup
         if (bedding != null)
         {
             hasFeatures = true;
-            ImGui.Text($"Bedding: {bedding.Quality} quality");
+            UiText.Text($"Bedding: {bedding.Quality} quality");
         }
 
         if (!hasFeatures)
         {
-            ImGui.TextDisabled("No notable features");
+            UiText.Disabled("No notable features");
         }
     }
 
@@ -298,14 +298,14 @@ public class TilePopup
 
             // Hint to open full overlay
             ImGui.Spacing();
-            ImGui.TextDisabled("Press N to inspect");
+            UiText.Disabled("Press N to inspect");
         }
         else
         {
             foreach (var npc in npcsHere)
             {
                 string action = npc.CurrentAction?.Name ?? "Idle";
-                ImGui.Text($"{npc.Name}: {action}");
+                UiText.Text($"{npc.Name}: {action}");
             }
         }
     }
@@ -315,9 +315,9 @@ public class TilePopup
         // Name + action + need
         string action = npc.CurrentAction?.Name ?? "Idle";
         string needText = npc.CurrentNeed.HasValue ? $" ({npc.CurrentNeed})" : "";
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), npc.Name);
+        UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), npc.Name);
         ImGui.SameLine();
-        ImGui.TextDisabled($"- {action}{needText}");
+        UiText.Disabled($"- {action}{needText}");
 
         // Warning icons for critical states
         var warnings = new List<string>();
@@ -338,7 +338,7 @@ public class TilePopup
 
         if (warnings.Count > 0)
         {
-            ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), $"  ! {string.Join(", ", warnings)}");
+            UiText.Colored(new Vector4(1f, 0.4f, 0.4f, 1f), $"  ! {string.Join(", ", warnings)}");
         }
     }
 

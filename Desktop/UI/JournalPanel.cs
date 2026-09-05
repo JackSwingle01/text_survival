@@ -43,12 +43,12 @@ public static class JournalPanel
             {
                 if (!string.IsNullOrEmpty(timestamp))
                 {
-                    ImGui.TextColored(ColorTimestamp, timestamp);
+                    UiText.Colored(ColorTimestamp, timestamp);
                     ImGui.SameLine();
                 }
 
                 ImGui.PushTextWrapPos(0);
-                ImGui.TextColored(ColorFor(level), text);
+                UiText.Colored(ColorFor(level), text);
                 ImGui.PopTextWrapPos();
             }
 

@@ -1,0 +1,43 @@
+// Blue droplet for Water survival stat and stored Water.
+SIZE 16x16
+PALETTE
+. = #00000000
+o = #292832
+s = #514651
+r = #a44750
+R = #d57373
+p = #f0b29a
+y = #e9b65e
+Y = #ffe1a0
+b = #36718e
+B = #70b7ce
+w = #d5ece4
+g = #50724d
+G = #8ea766
+h = #75503e
+H = #aa7d52
+c = #d4b383
+k = #64727b
+K = #9eafb0
+
+PIXELS
+................
+.......oo.......
+......oBBo......
+......oBbo......
+.....oBBbbo.....
+.....oBBbbo.....
+....oBwBbbbo....
+...oBwBBbbbbo...
+..oBwBBBbbbbbo..
+..oBwBBBbbbbbo..
+..oBBBBbbbbboo..
+..oBBBbbbbbboo..
+...oBbbbbbboo...
+....obbbbboo....
+.....oooooo.....
+................
+
+CHECKS
+  CONNECTED
+ENDCHECKS

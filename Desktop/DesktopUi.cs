@@ -223,7 +223,7 @@ public sealed class DesktopUi : IGameUi
             OverlaySizes.SetupDialog();
             ImGui.Begin("Select", DialogFlags);
 
-            ImGui.TextWrapped(prompt);
+            UiText.Wrapped(prompt);
             ImGui.Separator();
             ImGui.Spacing();
 
@@ -254,7 +254,7 @@ public sealed class DesktopUi : IGameUi
             OverlaySizes.SetupSmallDialog();
             ImGui.Begin("Confirm", DialogFlags);
 
-            ImGui.TextWrapped(prompt);
+            UiText.Wrapped(prompt);
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
@@ -278,7 +278,7 @@ public sealed class DesktopUi : IGameUi
             CenterDialog(650);
             ImGui.Begin("Confirm", DialogFlags);
 
-            ImGui.TextWrapped(message);
+            UiText.Wrapped(message);
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
@@ -302,11 +302,11 @@ public sealed class DesktopUi : IGameUi
             OverlaySizes.SetupSmallDialog();
             ImGui.Begin("Input", DialogFlags);
 
-            ImGui.TextWrapped(prompt);
+            UiText.Wrapped(prompt);
             ImGui.Spacing();
 
             ImGui.SliderInt("##value", ref value, min, max);
-            ImGui.Text($"Range: {min} - {max}");
+            UiText.Text($"Range: {min} - {max}");
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -334,7 +334,7 @@ public sealed class DesktopUi : IGameUi
             CenterDialog(650);
             ImGui.Begin(title, DialogFlags);
 
-            ImGui.TextWrapped(message);
+            UiText.Wrapped(message);
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
@@ -765,7 +765,7 @@ public sealed class DesktopUi : IGameUi
             OverlaySizes.SetupDialog();
             ImGui.Begin(Title(kind), DialogFlags);
 
-            ImGui.TextWrapped(_view.Status);
+            UiText.Wrapped(_view.Status);
             ImGui.Spacing();
             ImGui.ProgressBar(Math.Clamp(_view.Progress, 0f, 1f), new Vector2(-1, 20),
                 $"{_view.SimulatedMinutes}/{_view.TotalMinutes} min");
@@ -777,10 +777,10 @@ public sealed class DesktopUi : IGameUi
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
-                ImGui.Text(section.Header);
+                UiText.Text(section.Header);
 
                 foreach (var line in section.Lines)
-                    ImGui.TextColored(ToneColor(line.Tone), $"  {line.Text}");
+                    UiText.Colored(ToneColor(line.Tone), $"  {line.Text}");
             }
 
             if (_continue != null)

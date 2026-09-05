@@ -60,12 +60,12 @@ public class NPCOverlay
     private void RenderNPC(NPC npc)
     {
         // Name header
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), npc.Name);
+        UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), npc.Name);
 
         // Current action + need
         string action = npc.CurrentAction?.Name ?? "Idle";
         string needText = npc.CurrentNeed.HasValue ? $" ({npc.CurrentNeed})" : "";
-        ImGui.TextDisabled($"{action}{needText}");
+        UiText.Disabled($"{action}{needText}");
 
         ImGui.Spacing();
 
@@ -82,7 +82,7 @@ public class NPCOverlay
         {
             ImGui.Spacing();
             string effectNames = string.Join(", ", effects.Select(e => e.EffectKind));
-            ImGui.TextColored(new Vector4(1f, 0.7f, 0.4f, 1f), $"Effects: {effectNames}");
+            UiText.Colored(new Vector4(1f, 0.7f, 0.4f, 1f), $"Effects: {effectNames}");
         }
 
         // Activity log
@@ -90,10 +90,10 @@ public class NPCOverlay
         if (logs.Count > 0)
         {
             ImGui.Spacing();
-            ImGui.TextDisabled("Recent:");
+            UiText.Disabled("Recent:");
             foreach (var entry in logs)
             {
-                ImGui.Text($"  {entry}");
+                UiText.Text($"  {entry}");
             }
         }
 
@@ -132,7 +132,7 @@ public class NPCOverlay
             double waterWeight = inv.Weight(Resource.Water);
             if (waterWeight > 0)
             {
-                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), $"Water: {waterWeight:F1}L");
+                UiText.Colored(new Vector4(0.5f, 0.8f, 1f, 1f), $"Water: {waterWeight:F1}L");
             }
 
             // Gear section
@@ -143,7 +143,7 @@ public class NPCOverlay
             if (hasGear)
             {
                 ImGui.Spacing();
-                ImGui.TextDisabled("Gear:");
+                UiText.Disabled("Gear:");
 
                 // Weapon
                 if (inv.Weapon != null)
@@ -169,7 +169,7 @@ public class NPCOverlay
                 // Accessories
                 foreach (var acc in inv.Accessories)
                 {
-                    ImGui.Text($"  {acc.Name} (+{acc.CapacityBonusKg:F0}kg cap)");
+                    UiText.Text($"  {acc.Name} (+{acc.CapacityBonusKg:F0}kg cap)");
                 }
             }
         }
@@ -181,7 +181,7 @@ public class NPCOverlay
         if (count > 0)
         {
             double weight = inv.GetWeight(category);
-            ImGui.Text($"{label}: {count} items ({weight:F1}kg)");
+            UiText.Text($"{label}: {count} items ({weight:F1}kg)");
         }
     }
 
@@ -193,14 +193,14 @@ public class NPCOverlay
                 ? new Vector4(1f, 0.8f, 0.3f, 1f)
                 : new Vector4(1f, 0.4f, 0.4f, 1f);
 
-        ImGui.Text($"  {gear.Name}");
+        UiText.Text($"  {gear.Name}");
         ImGui.SameLine();
-        ImGui.TextColored(condColor, $"({gear.ConditionPct * 100:F0}%)");
+        UiText.Colored(condColor, $"({gear.ConditionPct * 100:F0}%)");
     }
 
     private void RenderStatBar(string label, float value, Vector4 color)
     {
-        ImGui.Text(label);
+        UiText.Text(label);
         ImGui.SameLine(80);
 
         // Draw colored progress bar

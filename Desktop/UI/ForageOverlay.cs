@@ -149,20 +149,20 @@ public class ForageOverlay
         // Quality header - query feature directly
         string? quality = _feature.GetQualityDescription();
         if (quality != null)
-            ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), $"Resources look {quality}.");
+            UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), $"Resources look {quality}.");
         else
-            ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), "You haven't searched here yet.");
+            UiText.Colored(new Vector4(0.6f, 0.6f, 0.6f, 1f), "You haven't searched here yet.");
 
         // Exploration progress - calculate directly from current location
         double explorationPct = _ctx.CurrentLocation.GetExplorationPct();
         if (explorationPct >= 1.0)
         {
-            ImGui.TextColored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "Fully explored");
+            UiText.Colored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "Fully explored");
         }
         else
         {
             int pctDisplay = (int)(explorationPct * 100);
-            ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"{pctDisplay}%% explored");
+            UiText.Colored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"{pctDisplay}% explored");
         }
 
         ImGui.Spacing();
@@ -171,7 +171,7 @@ public class ForageOverlay
         if (_clues.Count > 0)
         {
             ImGui.Separator();
-            ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "You notice:");
+            UiText.Colored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "You notice:");
             ImGui.Spacing();
 
             for (int i = 0; i < _clues.Count; i++)
@@ -188,7 +188,7 @@ public class ForageOverlay
 
                     // Wrapped text still registers as an item, so hover/click still work
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.8f, 1f, 1f));
-                    ImGui.TextWrapped(clue.Description);
+                    UiText.Wrapped(clue.Description);
                     ImGui.PopStyleColor();
 
                     if (ImGui.IsItemClicked())
@@ -203,7 +203,7 @@ public class ForageOverlay
                         var suggestedFocus = tooltipFocusOptions.FirstOrDefault(f => f.Id == suggestedFocusId);
                         if (suggestedFocus != default)
                         {
-                            ImGui.SetTooltip($"Click to focus on {suggestedFocus.Label}");
+                            UiText.Tooltip($"Click to focus on {suggestedFocus.Label}");
                         }
                     }
                 }
@@ -212,7 +212,7 @@ public class ForageOverlay
                     // Non-clickable clue
                     ImGui.Bullet();
                     ImGui.SameLine();
-                    ImGui.TextWrapped(clue.Description);
+                    UiText.Wrapped(clue.Description);
                 }
             }
             ImGui.Spacing();
@@ -232,7 +232,7 @@ public class ForageOverlay
                     ? new Vector4(1f, 0.7f, 0.3f, 1f)  // Orange for negative
                     : new Vector4(0.5f, 0.9f, 0.5f, 1f); // Green for positive (tool bonuses)
 
-                ImGui.TextColored(color, $"  {warning}");
+                UiText.Colored(color, $"  {warning}");
             }
             ImGui.Spacing();
         }
@@ -240,7 +240,7 @@ public class ForageOverlay
         // Focus section - query feature directly
         ImGui.Separator();
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "What do you focus on? [Tab]");
+        UiText.Colored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "What do you focus on? [Tab]");
         ImGui.Spacing();
 
         var focusOptions = _feature.GetAvailableFocusOptions();
@@ -266,7 +266,7 @@ public class ForageOverlay
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.55f, 0.75f, 1f));
             }
 
-            if (ImGui.Button($"{focus.Label}##{focus.Id}", new Vector2(buttonWidth, 28)))
+            if (UiIcons.Button(UiIcons.ForCategory(focus.Id), focus.Label, focus.Id, new Vector2(buttonWidth, 28)))
             {
                 _selectedFocusId = focus.Id;
             }
@@ -279,7 +279,7 @@ public class ForageOverlay
             // Show description in tooltip
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip(focus.Description);
+                UiText.Tooltip(focus.Description);
             }
 
             focusIndex++;
@@ -291,7 +291,7 @@ public class ForageOverlay
             var selectedFocus = focusOptions.FirstOrDefault(f => f.Id == _selectedFocusId);
             if (selectedFocus != default)
             {
-                ImGui.TextDisabled($"  {selectedFocus.Description}");
+                UiText.Disabled($"  {selectedFocus.Description}");
             }
         }
 
@@ -300,7 +300,7 @@ public class ForageOverlay
         // Time section - use static options
         ImGui.Separator();
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "How long?");
+        UiText.Colored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "How long?");
         ImGui.Spacing();
 
         // Time buttons in a row
@@ -388,7 +388,7 @@ public class ForageOverlay
 
         if (ImGui.IsItemHovered())
         {
-            ImGui.SetTooltip("Spend 5 minutes walking to find new clues");
+            UiText.Tooltip("Spend 5 minutes walking to find new clues");
         }
 
         return null;

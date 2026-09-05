@@ -74,7 +74,7 @@ public class DiscoveryLogOverlay
     private void RenderCategory(DiscoveryLogCategoryDto category)
     {
         // Category count header
-        ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), category.CountDisplay);
+        UiText.Colored(new Vector4(0.7f, 0.8f, 0.9f, 1f), category.CountDisplay);
         ImGui.Separator();
 
         // Scrollable content area
@@ -83,7 +83,7 @@ public class DiscoveryLogOverlay
         // Discovered items
         foreach (var item in category.Discovered)
         {
-            ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.8f, 1f), item);
+            UiText.Colored(new Vector4(0.9f, 0.9f, 0.8f, 1f), item);
         }
 
         // Undiscovered placeholders
@@ -96,20 +96,20 @@ public class DiscoveryLogOverlay
 
             for (int i = 0; i < placeholdersToShow; i++)
             {
-                ImGui.TextDisabled("???");
+                UiText.Disabled("???");
             }
 
             // If there are more than we're showing, indicate that
             if (category.RemainingCount > placeholdersToShow)
             {
-                ImGui.TextDisabled($"... and {category.RemainingCount - placeholdersToShow} more");
+                UiText.Disabled($"... and {category.RemainingCount - placeholdersToShow} more");
             }
         }
 
         // If nothing discovered and nothing remaining, show empty message
         if (category.Discovered.Count == 0 && category.RemainingCount == 0)
         {
-            ImGui.TextDisabled("Nothing to discover in this category.");
+            UiText.Disabled("Nothing to discover in this category.");
         }
 
         ImGui.EndChild();

@@ -87,14 +87,14 @@ public class GameEventOverlay
 
         // Event description
         ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
-        ImGui.TextWrapped(evt.Description);
+        UiText.Wrapped(evt.Description);
         ImGui.PopTextWrapPos();
 
         ImGui.Separator();
         ImGui.Spacing();
 
         // Choices
-        ImGui.Text("What do you do?");
+        UiText.Text("What do you do?");
         ImGui.Spacing();
 
         foreach (var choice in evt.Choices)
@@ -127,10 +127,10 @@ public class GameEventOverlay
 
             // Always show description
             ImGui.Indent();
-            ImGui.TextDisabled(choice.Description);
+            UiText.Disabled(choice.Description);
             if (choice.Cost != null)
             {
-                ImGui.TextColored(new Vector4(1f, 0.7f, 0.3f, 1f), $"Cost: {choice.Cost}");
+                UiText.Colored(new Vector4(1f, 0.7f, 0.3f, 1f), $"Cost: {choice.Cost}");
             }
             ImGui.Unindent();
             ImGui.Spacing();
@@ -163,13 +163,13 @@ public class GameEventOverlay
     {
         // Outcome message
         ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
-        ImGui.TextWrapped(outcome.Message);
+        UiText.Wrapped(outcome.Message);
         ImGui.PopTextWrapPos();
 
         // Time cost
         if (outcome.TimeAddedMinutes > 0)
         {
-            ImGui.TextDisabled($"(+{outcome.TimeAddedMinutes} minutes)");
+            UiText.Disabled($"(+{outcome.TimeAddedMinutes} minutes)");
         }
 
         ImGui.Spacing();
@@ -179,7 +179,7 @@ public class GameEventOverlay
         {
             foreach (var item in outcome.ItemsGained)
             {
-                ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.4f, 1f), $"+ {item}");
+                UiText.Colored(new Vector4(0.4f, 0.9f, 0.4f, 1f), $"+ {item}");
             }
         }
 
@@ -188,7 +188,7 @@ public class GameEventOverlay
         {
             foreach (var item in outcome.ItemsLost)
             {
-                ImGui.TextColored(new Vector4(0.9f, 0.5f, 0.4f, 1f), $"- {item}");
+                UiText.Colored(new Vector4(0.9f, 0.5f, 0.4f, 1f), $"- {item}");
             }
         }
 
@@ -197,7 +197,7 @@ public class GameEventOverlay
         {
             foreach (var damage in outcome.DamageTaken)
             {
-                ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), $"! {damage}");
+                UiText.Colored(new Vector4(1f, 0.4f, 0.4f, 1f), $"! {damage}");
             }
         }
 
@@ -206,7 +206,7 @@ public class GameEventOverlay
         {
             foreach (var effect in outcome.EffectsApplied)
             {
-                ImGui.TextColored(new Vector4(1f, 0.8f, 0.3f, 1f), $"* {effect}");
+                UiText.Colored(new Vector4(1f, 0.8f, 0.3f, 1f), $"* {effect}");
             }
         }
 
@@ -220,7 +220,7 @@ public class GameEventOverlay
                     : tension.StartsWith("-")
                         ? new Vector4(0.5f, 0.8f, 0.5f, 1f)
                         : new Vector4(0.8f, 0.8f, 0.5f, 1f);
-                ImGui.TextColored(color, $"  {tension}");
+                UiText.Colored(color, $"  {tension}");
             }
         }
     }

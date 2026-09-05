@@ -77,7 +77,7 @@ public class InventoryOverlay
             // Show message if any
             if (_message != null)
             {
-                ImGui.TextColored(new Vector4(0.3f, 1f, 0.5f, 1f), _message);
+                UiText.Colored(new Vector4(0.3f, 1f, 0.5f, 1f), _message);
                 ImGui.Separator();
             }
 
@@ -119,7 +119,7 @@ public class InventoryOverlay
                 ? new Vector4(1f, 0.8f, 0.3f, 1f)
                 : new Vector4(0.7f, 0.9f, 0.7f, 1f);
 
-        ImGui.TextColored(weightColor, $"Carrying: {inv.CurrentWeightKg:F1} / {inv.MaxWeightKg:F1} kg");
+        UiText.Colored(weightColor, $"Carrying: {inv.CurrentWeightKg:F1} / {inv.MaxWeightKg:F1} kg");
         ImGui.ProgressBar(weightPct, new Vector2(-1, 0), "");
     }
 
@@ -143,7 +143,7 @@ public class InventoryOverlay
 
             ImGui.PushStyleColor(ImGuiCol.Button, buttonColor);
 
-            if (ImGui.Button(category))
+            if (UiIcons.Button(UiIcons.ForCategory(category), category, category))
             {
                 _selectedCategory = category;
                 _selectedItem = null;
@@ -186,7 +186,7 @@ public class InventoryOverlay
 
         if (items.Count == 0)
         {
-            ImGui.TextDisabled("No items in this category.");
+            UiText.Disabled("No items in this category.");
             return;
         }
 
@@ -326,17 +326,19 @@ public class InventoryOverlay
         uint textColor = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, 1f));
         uint subtextColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.9f, 0.9f, 0.9f, 0.8f));
 
-        // Horizontal layout: Name on left, count/weight on right
-        float verticalCenter = (height - 14) / 2; // Center text vertically (14 ~= text height)
-
-        // Item name on left
-        string displayName = TruncateName(item.Name, 20);
-        drawList.AddText(rectMin + new Vector2(6, verticalCenter), textColor, displayName);
-
-        // Count/quantity and weight on right
+        // Reserve room for the icon and quantity before fitting the item name.
+        float verticalCenter = (height - ImGui.GetTextLineHeight()) / 2;
+        UiIcons.Draw(GetItemIcon(item), rectMin + new Vector2(6, (height - 16) / 2));
         string rightText = GetBottomText(item);
         float rightTextWidth = ImGui.CalcTextSize(rightText).X;
+        float nameWidth = Math.Max(0, width - rightTextWidth - 42);
+        string displayName = TruncateName(item.Name, nameWidth);
+        drawList.PushClipRect(rectMin + new Vector2(28, 0),
+            rectMin + new Vector2(28 + nameWidth, height), true);
+        drawList.AddText(rectMin + new Vector2(28, verticalCenter), textColor, displayName);
+        drawList.PopClipRect();
         drawList.AddText(rectMin + new Vector2(width - rightTextWidth - 6, verticalCenter), subtextColor, rightText);
+        if (ImGui.IsItemHovered()) UiText.Tooltip(item.Name);
 
         // Condition indicator for gear (small bar at bottom)
         if (item is InventoryItem.ToolItem t)
@@ -417,7 +419,7 @@ public class InventoryOverlay
     {
         if (_selectedItem == null)
         {
-            ImGui.TextDisabled("Select an item to see details.");
+            UiText.Disabled("Select an item to see details.");
             return;
         }
 
@@ -443,15 +445,15 @@ public class InventoryOverlay
 
     private void RenderResourceDetails(GameContext ctx, Inventory inv, InventoryItem.ResourceItem item)
     {
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), item.Name);
+        UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), item.Name);
         ImGui.Separator();
 
-        ImGui.Text($"Quantity: {item.Count}");
-        ImGui.Text($"Total Weight: {item.WeightKg:F2} kg");
-        ImGui.Text($"Per item: {item.WeightKg / item.Count:F3} kg");
+        UiText.Text($"Quantity: {item.Count}");
+        UiText.Text($"Total Weight: {item.WeightKg:F2} kg");
+        UiText.Text($"Per item: {item.WeightKg / item.Count:F3} kg");
 
         var category = item.Resource.GetCategory();
-        ImGui.Text($"Category: {category}");
+        UiText.Text($"Category: {category}");
 
         // Add description
         string description = ResourceDescriptions.GetDescription(item.Resource);
@@ -459,7 +461,7 @@ public class InventoryOverlay
         {
             ImGui.Spacing();
             ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
-            ImGui.TextWrapped(description);
+            UiText.Wrapped(description);
             ImGui.PopTextWrapPos();
         }
 
@@ -486,7 +488,7 @@ public class InventoryOverlay
         }
         else if (category == ResourceCategory.Medicine)
         {
-            ImGui.TextWrapped("Medical item. Use at camp to treat injuries.");
+            UiText.Wrapped("Medical item. Use at camp to treat injuries.");
         }
 
         // Drop action
@@ -516,57 +518,57 @@ public class InventoryOverlay
         if (caloriesPerKg > 0)
         {
             int calories = (int)(perUnitWeight * caloriesPerKg);
-            ImGui.Text($"Calories: ~{calories} per unit");
+            UiText.Text($"Calories: ~{calories} per unit");
         }
 
         if (hydrationPerKg > 0)
-            ImGui.Text($"Hydration: +{(int)(perUnitWeight * hydrationPerKg)}");
+            UiText.Text($"Hydration: +{(int)(perUnitWeight * hydrationPerKg)}");
         else if (hydrationPerKg < 0)
-            ImGui.TextColored(new Vector4(1f, 0.8f, 0.4f, 1f), "Makes you thirsty");
+            UiText.Colored(new Vector4(1f, 0.8f, 0.4f, 1f), "Makes you thirsty");
 
         // Warnings for raw food
         if (resource == Resource.RawMeat)
-            ImGui.TextColored(new Vector4(1f, 0.6f, 0.4f, 1f), "Raw - risk of illness");
+            UiText.Colored(new Vector4(1f, 0.6f, 0.4f, 1f), "Raw - risk of illness");
     }
 
     private void RenderToolDetails(GameContext ctx, Inventory inv, InventoryItem.ToolItem item)
     {
         var tool = item.Tool;
 
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), tool.Name);
+        UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), tool.Name);
         ImGui.Separator();
 
-        ImGui.Text($"Weight: {tool.Weight:F1} kg");
+        UiText.Text($"Weight: {tool.Weight:F1} kg");
 
         // Condition bar
-        ImGui.Text("Condition:");
+        UiText.Text("Condition:");
         ImGui.SameLine();
         Vector4 condColor = tool.ConditionPct > 0.5
             ? new Vector4(0.4f, 0.8f, 0.4f, 1f)
             : tool.ConditionPct > 0.25
                 ? new Vector4(0.9f, 0.7f, 0.2f, 1f)
                 : new Vector4(0.9f, 0.3f, 0.3f, 1f);
-        ImGui.TextColored(condColor, $"{tool.ConditionPct * 100:F0}%");
+        UiText.Colored(condColor, $"{tool.ConditionPct * 100:F0}%");
         ImGui.ProgressBar((float)tool.ConditionPct, new Vector2(-1, 0), "");
 
         if (tool.Durability > 0)
-            ImGui.Text($"Uses remaining: {tool.Durability}");
+            UiText.Text($"Uses remaining: {tool.Durability}");
 
-        ImGui.Text($"Type: {tool.ToolType}");
+        UiText.Text($"Type: {tool.ToolType}");
 
         // Add description
         if (!string.IsNullOrWhiteSpace(tool.Description))
         {
             ImGui.Spacing();
             ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
-            ImGui.TextWrapped(tool.Description);
+            UiText.Wrapped(tool.Description);
             ImGui.PopTextWrapPos();
         }
 
         if (tool.IsWeapon)
         {
             ImGui.Separator();
-            ImGui.Text($"Damage: {tool.Damage:F0}");
+            UiText.Text($"Damage: {tool.Damage:F0}");
 
             // Equip as weapon option
             if (inv.Weapon != tool)
@@ -599,35 +601,35 @@ public class InventoryOverlay
     {
         var gear = item.Equipment;
 
-        ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), gear.Name);
+        UiText.Colored(new Vector4(0.7f, 0.8f, 0.9f, 1f), gear.Name);
         ImGui.Separator();
 
-        ImGui.Text($"Slot: {item.Slot}");
-        ImGui.Text($"Weight: {gear.Weight:F1} kg");
+        UiText.Text($"Slot: {item.Slot}");
+        UiText.Text($"Weight: {gear.Weight:F1} kg");
 
         // Condition
-        ImGui.Text("Condition:");
+        UiText.Text("Condition:");
         ImGui.SameLine();
         Vector4 condColor = gear.ConditionPct > 0.5
             ? new Vector4(0.4f, 0.8f, 0.4f, 1f)
             : gear.ConditionPct > 0.25
                 ? new Vector4(0.9f, 0.7f, 0.2f, 1f)
                 : new Vector4(0.9f, 0.3f, 0.3f, 1f);
-        ImGui.TextColored(condColor, $"{gear.ConditionPct * 100:F0}%");
+        UiText.Colored(condColor, $"{gear.ConditionPct * 100:F0}%");
         ImGui.ProgressBar((float)gear.ConditionPct, new Vector2(-1, 0), "");
 
         ImGui.Separator();
-        ImGui.Text($"Base Insulation: {gear.BaseInsulation:F1}");
-        ImGui.Text($"Current: {gear.Insulation:F1}");
+        UiText.Text($"Base Insulation: {gear.BaseInsulation:F1}");
+        UiText.Text($"Current: {gear.Insulation:F1}");
         if (gear.TotalWaterproofLevel > 0)
-            ImGui.Text($"Waterproofing: {gear.TotalWaterproofLevel * 100:F0}%");
+            UiText.Text($"Waterproofing: {gear.TotalWaterproofLevel * 100:F0}%");
 
         // Add description
         if (!string.IsNullOrWhiteSpace(gear.Description))
         {
             ImGui.Spacing();
             ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
-            ImGui.TextWrapped(gear.Description);
+            UiText.Wrapped(gear.Description);
             ImGui.PopTextWrapPos();
         }
 
@@ -649,24 +651,24 @@ public class InventoryOverlay
     {
         var acc = item.Accessory;
 
-        ImGui.TextColored(new Vector4(0.8f, 0.7f, 0.8f, 1f), acc.Name);
+        UiText.Colored(new Vector4(0.8f, 0.7f, 0.8f, 1f), acc.Name);
         ImGui.Separator();
 
-        ImGui.Text($"Weight: {acc.Weight:F1} kg");
-        ImGui.Text($"Capacity Bonus: +{acc.CapacityBonusKg:F1} kg");
+        UiText.Text($"Weight: {acc.Weight:F1} kg");
+        UiText.Text($"Capacity Bonus: +{acc.CapacityBonusKg:F1} kg");
 
         // Replace generic text with description
         if (!string.IsNullOrWhiteSpace(acc.Description))
         {
             ImGui.Spacing();
             ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
-            ImGui.TextWrapped(acc.Description);
+            UiText.Wrapped(acc.Description);
             ImGui.PopTextWrapPos();
         }
         else
         {
             ImGui.Separator();
-            ImGui.TextWrapped("Increases carrying capacity.");
+            UiText.Wrapped("Increases carrying capacity.");
         }
 
         ImGui.Separator();
@@ -685,33 +687,33 @@ public class InventoryOverlay
     {
         var weapon = item.Weapon;
 
-        ImGui.TextColored(new Vector4(0.9f, 0.6f, 0.6f, 1f), weapon.Name);
-        ImGui.Text("(Equipped Weapon)");
+        UiText.Colored(new Vector4(0.9f, 0.6f, 0.6f, 1f), weapon.Name);
+        UiText.Text("(Equipped Weapon)");
         ImGui.Separator();
 
-        ImGui.Text($"Weight: {weapon.Weight:F1} kg");
-        ImGui.Text($"Damage: {weapon.Damage:F0}");
+        UiText.Text($"Weight: {weapon.Weight:F1} kg");
+        UiText.Text($"Damage: {weapon.Damage:F0}");
 
         // Condition
-        ImGui.Text("Condition:");
+        UiText.Text("Condition:");
         ImGui.SameLine();
         Vector4 condColor = weapon.ConditionPct > 0.5
             ? new Vector4(0.4f, 0.8f, 0.4f, 1f)
             : weapon.ConditionPct > 0.25
                 ? new Vector4(0.9f, 0.7f, 0.2f, 1f)
                 : new Vector4(0.9f, 0.3f, 0.3f, 1f);
-        ImGui.TextColored(condColor, $"{weapon.ConditionPct * 100:F0}%");
+        UiText.Colored(condColor, $"{weapon.ConditionPct * 100:F0}%");
         ImGui.ProgressBar((float)weapon.ConditionPct, new Vector2(-1, 0), "");
 
         if (weapon.Durability > 0)
-            ImGui.Text($"Uses remaining: {weapon.Durability}");
+            UiText.Text($"Uses remaining: {weapon.Durability}");
 
         // Add description
         if (!string.IsNullOrWhiteSpace(weapon.Description))
         {
             ImGui.Spacing();
             ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
-            ImGui.TextWrapped(weapon.Description);
+            UiText.Wrapped(weapon.Description);
             ImGui.PopTextWrapPos();
         }
 
@@ -729,9 +731,24 @@ public class InventoryOverlay
         }
     }
 
-    private static string TruncateName(string name, int maxLen)
+    private static string GetItemIcon(InventoryItem item) => item switch
     {
-        if (name.Length <= maxLen) return name;
-        return name[..(maxLen - 2)] + "..";
+        InventoryItem.ResourceItem r => UiIcons.ForResource(r.Resource),
+        InventoryItem.ToolItem t => UiIcons.ForGear(t.Tool),
+        InventoryItem.EquipmentItem e => UiIcons.ForGear(e.Equipment),
+        InventoryItem.AccessoryItem a => UiIcons.ForGear(a.Accessory),
+        InventoryItem.WeaponItem w => UiIcons.ForGear(w.Weapon),
+        _ => "gear"
+    };
+
+    private static string TruncateName(string name, float maxWidth)
+    {
+        if (ImGui.CalcTextSize(name).X <= maxWidth) return name;
+        const string suffix = "..";
+        if (ImGui.CalcTextSize(suffix).X > maxWidth) return "";
+        int length = name.Length;
+        while (length > 0 && ImGui.CalcTextSize(name[..length] + suffix).X > maxWidth)
+            length--;
+        return name[..length] + suffix;
     }
 }

@@ -53,7 +53,7 @@ public class CraftingOverlay
         if (ImGui.Begin("Crafting", ref open, ImGuiWindowFlags.NoCollapse))
         {
             // Category buttons - all in one row with smaller buttons
-            ImGui.Text("Category:");
+            UiText.Text("Category:");
             ImGui.SameLine();
 
             // All categories in a single row
@@ -133,9 +133,9 @@ public class CraftingOverlay
             {
                 ImGui.BeginTooltip();
                 if (craftableCount > 0)
-                    ImGui.Text($"{craftableCount} craftable");
+                    UiText.Text($"{craftableCount} craftable");
                 if (hiddenCount > 0)
-                    ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), $"{hiddenCount} locked");
+                    UiText.Colored(new Vector4(0.6f, 0.6f, 0.6f, 1f), $"{hiddenCount} locked");
                 ImGui.EndTooltip();
             }
 
@@ -157,14 +157,14 @@ public class CraftingOverlay
 
         if (discoveredOptions.Count == 0 && lockedByResource.Count == 0)
         {
-            ImGui.TextDisabled("No recipes in this category.");
+            UiText.Disabled("No recipes in this category.");
             return;
         }
 
         // Render discovered recipes
         if (discoveredOptions.Count > 0)
         {
-            ImGui.Text($"{CategoryNames.GetValueOrDefault(_selectedCategory, _selectedCategory.ToString())} Recipes:");
+            UiText.Text($"{CategoryNames.GetValueOrDefault(_selectedCategory, _selectedCategory.ToString())} Recipes:");
             ImGui.Separator();
 
             foreach (var option in discoveredOptions)
@@ -198,7 +198,7 @@ public class CraftingOverlay
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.BeginTooltip();
-                    ImGui.Text(option.Description);
+                    UiText.Text(option.Description);
                     ImGui.EndTooltip();
                 }
             }
@@ -213,17 +213,17 @@ public class CraftingOverlay
             foreach (var (missingResource, lockedRecipes) in lockedByResource.OrderBy(kvp => kvp.Key.ToDisplayName()))
             {
                 // Section header for missing resource
-                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), $"Find {missingResource.ToDisplayName()} to unlock:");
+                UiText.Colored(new Vector4(0.5f, 0.5f, 0.5f, 1f), $"Find {missingResource.ToDisplayName()} to unlock:");
 
                 foreach (var recipe in lockedRecipes)
                 {
-                    ImGui.TextColored(new Vector4(0.4f, 0.4f, 0.4f, 1f), $"  ??? {recipe.Name}");
+                    UiText.Colored(new Vector4(0.4f, 0.4f, 0.4f, 1f), $"  ??? {recipe.Name}");
 
                     // Show what the recipe makes on hover
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.BeginTooltip();
-                        ImGui.Text(recipe.Description);
+                        UiText.Text(recipe.Description);
                         ImGui.EndTooltip();
                     }
                 }
@@ -237,7 +237,7 @@ public class CraftingOverlay
     {
         if (_selectedOption == null)
         {
-            ImGui.TextDisabled("Select a recipe from the list.");
+            UiText.Disabled("Select a recipe from the list.");
             return;
         }
 
@@ -245,13 +245,13 @@ public class CraftingOverlay
         var inv = ctx.Inventory;
 
         // Recipe name and description
-        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.7f, 1f), option.Name);
+        UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), option.Name);
         ImGui.Separator();
-        ImGui.TextWrapped(option.Description);
+        UiText.Wrapped(option.Description);
         ImGui.Separator();
 
         // Requirements
-        ImGui.Text("Requirements:");
+        UiText.Text("Requirements:");
         var (canCraft, missing) = option.CheckRequirements(inv);
 
         foreach (var req in option.Requirements)
@@ -264,13 +264,13 @@ public class CraftingOverlay
                 : new Vector4(1f, 0.5f, 0.5f, 1f);
 
             string materialName = GetMaterialDisplayName(req.Material);
-            ImGui.TextColored(color, $"  {materialName}: {have}/{req.Count}");
+            UiText.Colored(color, $"  {materialName}: {have}/{req.Count}");
         }
 
         // Tool requirements
         if (option.RequiredTools.Count > 0)
         {
-            ImGui.Text("Tools needed:");
+            UiText.Text("Tools needed:");
             foreach (var toolType in option.RequiredTools)
             {
                 var tool = inv.GetTool(toolType);
@@ -293,21 +293,21 @@ public class CraftingOverlay
                     status = $"{tool.Durability} uses";
                 }
 
-                ImGui.TextColored(color, $"  {toolType}: {status}");
+                UiText.Colored(color, $"  {toolType}: {status}");
             }
         }
 
         ImGui.Separator();
 
         // Crafting info
-        ImGui.Text($"Time: {option.CraftingTimeMinutes} minutes");
+        UiText.Text($"Time: {option.CraftingTimeMinutes} minutes");
         if (option.Durability > 0)
-            ImGui.Text($"Durability: {option.Durability} uses");
+            UiText.Text($"Durability: {option.Durability} uses");
 
         // Output info
         if (option.ProducesMaterials)
         {
-            ImGui.Text($"Produces: {option.GetOutputDescription()}");
+            UiText.Text($"Produces: {option.GetOutputDescription()}");
         }
 
         ImGui.Separator();
@@ -330,10 +330,10 @@ public class CraftingOverlay
             // Show what's missing
             if (missing.Count > 0)
             {
-                ImGui.TextColored(new Vector4(1f, 0.6f, 0.4f, 1f), "Need:");
+                UiText.Colored(new Vector4(1f, 0.6f, 0.4f, 1f), "Need:");
                 foreach (var item in missing)
                 {
-                    ImGui.Text($"  - {item}");
+                    UiText.Text($"  - {item}");
                 }
             }
         }

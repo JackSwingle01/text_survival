@@ -39,7 +39,7 @@ public class TransferOverlay
 
             // Left column: Player inventory
             ImGui.BeginChild("PlayerInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Borders);
-            ImGui.Text("Your Inventory");
+            UiText.Text("Your Inventory");
 
             float playerWeightPct = (float)(playerInv.CurrentWeightKg / playerInv.MaxWeightKg);
             Vector4 playerWeightColor = playerWeightPct > 0.9f
@@ -48,7 +48,7 @@ public class TransferOverlay
                     ? new Vector4(1f, 0.8f, 0.3f, 1f)
                     : new Vector4(0.7f, 0.9f, 0.7f, 1f);
 
-            ImGui.TextColored(playerWeightColor, $"{playerInv.CurrentWeightKg:F1} / {playerInv.MaxWeightKg:F1} kg");
+            UiText.Colored(playerWeightColor, $"{playerInv.CurrentWeightKg:F1} / {playerInv.MaxWeightKg:F1} kg");
             ImGui.ProgressBar(playerWeightPct, new Vector2(-1, 0), "");
             ImGui.Separator();
 
@@ -60,18 +60,18 @@ public class TransferOverlay
 
             // Right column: Storage
             ImGui.BeginChild("StorageInv", new Vector2(columnWidth, -60), ImGuiChildFlags.Borders);
-            ImGui.Text(_storageName);
+            UiText.Text(_storageName);
 
             if (_storage.MaxWeightKg < double.MaxValue)
             {
                 float storageWeightPct = (float)(_storage.CurrentWeightKg / _storage.MaxWeightKg);
-                ImGui.Text($"{_storage.CurrentWeightKg:F1} / {_storage.MaxWeightKg:F1} kg");
+                UiText.Text($"{_storage.CurrentWeightKg:F1} / {_storage.MaxWeightKg:F1} kg");
                 ImGui.ProgressBar(storageWeightPct, new Vector2(-1, 0), "");
             }
             else
             {
-                ImGui.Text($"{_storage.CurrentWeightKg:F1} kg");
-                ImGui.TextDisabled("Unlimited capacity");
+                UiText.Text($"{_storage.CurrentWeightKg:F1} kg");
+                UiText.Disabled("Unlimited capacity");
             }
             ImGui.Separator();
 
@@ -83,7 +83,7 @@ public class TransferOverlay
             if (_lastMessage != null)
             {
                 ImGui.Spacing();
-                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), _lastMessage);
+                UiText.Colored(new Vector4(0.5f, 0.8f, 1f, 1f), _lastMessage);
             }
 
             ImGui.Spacing();
@@ -124,13 +124,13 @@ public class TransferOverlay
                 {
                     hasAny = true;
                     hasItems = true;
-                    ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), category.ToString());
+                    UiText.Colored(new Vector4(0.7f, 0.8f, 0.9f, 1f), category.ToString());
                 }
 
                 double weight = inv.Weight(resource);
                 string label = $"  {GetResourceName(resource)} x{count} ({weight:F1}kg)";
 
-                if (ImGui.Selectable(label))
+                if (UiIcons.Selectable(UiIcons.ForResource(resource), label.TrimStart(), resource.ToString()))
                 {
                     result = new TransferResult
                     {
@@ -142,7 +142,7 @@ public class TransferOverlay
                 if (ImGui.IsItemHovered())
                 {
                     string direction = isPlayerInventory ? _storageName : "your inventory";
-                    ImGui.SetTooltip($"Click to move to {direction}");
+                    UiText.Tooltip($"Click to move to {direction}");
                 }
             }
         }
@@ -151,14 +151,14 @@ public class TransferOverlay
         if (inv.Tools.Count > 0)
         {
             hasItems = true;
-            ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "Tools");
+            UiText.Colored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "Tools");
 
             foreach (var tool in inv.Tools.ToList())
             {
                 string conditionStr = tool.ConditionPct < 0.3f ? " [worn]" : "";
                 string label = $"  {tool.Name}{conditionStr}";
 
-                if (ImGui.Selectable(label))
+                if (UiIcons.Selectable(UiIcons.ForGear(tool), label.TrimStart(), label))
                 {
                     result = new TransferResult
                     {
@@ -173,7 +173,7 @@ public class TransferOverlay
         if (inv.Equipment.Count > 0)
         {
             hasItems = true;
-            ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "Equipment");
+            UiText.Colored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "Equipment");
 
             foreach (var kvp in inv.Equipment.ToList())
             {
@@ -182,7 +182,7 @@ public class TransferOverlay
                 string conditionStr = equip.ConditionPct < 0.3f ? " [worn]" : "";
                 string label = $"  {equip.Name}{conditionStr}";
 
-                if (ImGui.Selectable(label))
+                if (UiIcons.Selectable(UiIcons.ForGear(equip), label.TrimStart(), label))
                 {
                     result = new TransferResult
                     {
@@ -197,13 +197,13 @@ public class TransferOverlay
         if (inv.Accessories.Count > 0)
         {
             hasItems = true;
-            ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "Accessories");
+            UiText.Colored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "Accessories");
 
             foreach (var acc in inv.Accessories.ToList())
             {
                 string label = $"  {acc.Name}";
 
-                if (ImGui.Selectable(label))
+                if (UiIcons.Selectable(UiIcons.ForGear(acc), label.TrimStart(), label))
                 {
                     result = new TransferResult
                     {
@@ -216,7 +216,7 @@ public class TransferOverlay
 
         if (!hasItems)
         {
-            ImGui.TextDisabled("Empty");
+            UiText.Disabled("Empty");
         }
     }
 
