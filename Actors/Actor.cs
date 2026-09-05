@@ -69,6 +69,10 @@ public abstract class Actor : IMovable
 
         var result = SurvivalProcessor.Process(Body, context, minutes);
 
+        // Sleep heals in step with the clock, not in a lump when the sleeper wakes.
+        if (context.IsSleeping)
+            Body.Rest(minutes, CurrentLocation, EffectRegistry);
+
         // 2. Add effects from survival (hypothermia, etc)
         foreach (var effect in result.Effects)
         {

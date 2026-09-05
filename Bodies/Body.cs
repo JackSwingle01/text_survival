@@ -195,11 +195,12 @@ public class Body
         return capacities.Digestion;
     }
 
-    public bool Rest(int minutes, Location? location = null, EffectRegistry? effects = null)
+    /// <summary>
+    /// The healing a stretch of sleep buys. Stat changes are not applied here - the
+    /// survival tick handles those while the sleeping activity runs.
+    /// </summary>
+    public void Rest(int minutes, Location? location = null, EffectRegistry? effects = null)
     {
-        var result = SurvivalProcessor.Sleep(this, minutes);
-        ApplyResult(result);
-
         // Base quality from exhaustion state
         double quality = Energy <= 0 ? 1.0 : 0.7;
 
@@ -223,8 +224,6 @@ public class Body
             Quality = quality,
         };
         Heal(healing);
-
-        return Energy <= 0;
     }
 
     public static BodyCreationInfo BaselineHumanStats => new()

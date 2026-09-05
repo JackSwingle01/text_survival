@@ -182,7 +182,7 @@ public class NPCRest(int minutes) : NPCAction("Resting", minutes, ActivityType.R
 public class NPCSleep(int minutes) : NPCAction("Sleeping", minutes, ActivityType.Sleeping)
 {
     public override string LogMessage => "Sleeping";
-    public override void Complete(NPC npc) => npc.Body.Rest(MinutesSpent, npc.CurrentLocation, null);
+    public override void Complete(NPC npc) { } // the survival tick handles rest while asleep
 }
 
 public class NPCStash(ResourceCategory resourceCategory) : NPCAction($"Storing {resourceCategory}", 2, ActivityType.Crafting)

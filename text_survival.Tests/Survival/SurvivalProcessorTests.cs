@@ -4,6 +4,10 @@ namespace text_survival.Tests.Survival;
 
 public class SurvivalProcessorTests
 {
+    /// <summary>Baseline context with the sleeping activity's level and flag.</summary>
+    private static text_survival.Bodies.SurvivalContext SleepingContext() =>
+        TestFixtures.CreateBaselineSurvivalContext() with { ActivityLevel = 0.5, IsSleeping = true };
+
     [Fact]
     public void Process_NormalConditions_ReturnsNegativeDeltas()
     {
@@ -184,7 +188,7 @@ public class SurvivalProcessorTests
         int minutesSlept = 60;
 
         // Act
-        var result = SurvivalProcessor.Sleep(body, minutesSlept);
+        var result = SurvivalProcessor.Process(body, SleepingContext(), minutesSlept);
 
         // Assert - energy should increase during sleep
         Assert.True(result.StatsDelta.EnergyDelta > 0,
@@ -200,7 +204,7 @@ public class SurvivalProcessorTests
         int minutes = 480; // 8 hours
 
         // Act
-        var sleepResult = SurvivalProcessor.Sleep(body, minutes);
+        var sleepResult = SurvivalProcessor.Process(body, SleepingContext(), minutes);
         var awakeResult = SurvivalProcessor.Process(body, context, minutes);
 
         // Assert - sleep should burn fewer calories than being awake
@@ -225,7 +229,7 @@ public class SurvivalProcessorTests
             SurvivalProcessor.BaseWaterLossMlPerDay / (24.0 * 60.0) * 0.7 * minutesSlept;
 
         // Act
-        var result = SurvivalProcessor.Sleep(body, minutesSlept);
+        var result = SurvivalProcessor.Process(body, SleepingContext(), minutesSlept);
 
         // Assert
         double actualDehydration = Math.Abs(result.StatsDelta.HydrationDelta);

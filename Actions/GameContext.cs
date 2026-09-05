@@ -403,8 +403,9 @@ public class GameContext(Player player, Location camp, Weather weather)
             // Check for event (only if activity allows events AND not already handling an event)
             if (config.EventMultiplier > 0 && !IsHandlingEvent)
             {
-                // First: check event queue (intentional triggers take precedence)
-                if (EventQueue.TryDequeue(out evt) && evt != null)
+                // First: check event queue (intentional triggers take precedence).
+                // A sleeper isn't there to answer them - they keep until morning.
+                if (activity != ActivityType.Sleeping && EventQueue.TryDequeue(out evt) && evt != null)
                     break;
 
                 // Second: random event roll (only if queue was empty)

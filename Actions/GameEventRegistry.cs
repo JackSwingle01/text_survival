@@ -281,9 +281,15 @@ public static partial class GameEventRegistry
         // Stage 2: Build eligible pool with weights
         var eligible = new Dictionary<GameEvent, double>();
 
+        // A sleeper only meets events written for sleep - nothing else reaches them.
+        bool asleep = ctx.CurrentActivity == ActivityType.Sleeping;
+
         foreach (var factory in AllEventFactories)
         {
             var evt = factory(ctx);
+
+            if (asleep && !evt.RequiredConditions.Contains(EventCondition.IsSleeping))
+                continue;
 
             // Filter: skip if required conditions not met
             if (!evt.RequiredConditions.All(ctx.Check))
@@ -337,10 +343,6 @@ public static partial class GameEventRegistry
     /// </summary>
     public static async Task<EventResult> HandleEvent(GameContext ctx, GameEvent evt)
     {
-        List<ActivityType> excluded = [ActivityType.Sleeping, ActivityType.Fighting, ActivityType.Encounter];
-        if (excluded.Contains(ctx.CurrentActivity))
-            return new EventResult("", 1.0, 0);  // No-op result
-
         // Record trigger time for cooldown
         EventTriggerTimes[evt.Name] = ctx.GameTime;
 

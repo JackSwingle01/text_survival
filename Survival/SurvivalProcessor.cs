@@ -7,6 +7,10 @@ namespace text_survival.Survival;
 public static class SurvivalProcessor
 {
     private const double BASE_EXHAUSTION_RATE = 1;
+    /// <summary>Energy regained per minute asleep, as a multiple of the waking drain.</summary>
+    private const double SLEEP_RECOVERY_FACTOR = 2;
+    /// <summary>A sleeping body loses less water than a waking one.</summary>
+    private const double SLEEP_WATER_LOSS_FACTOR = 0.7;
     public const double MAX_ENERGY_MINUTES = 960.0;
     /// <summary>
     /// Water lost per day to everything that is not sweat: urine, breath, and the moisture
@@ -263,12 +267,19 @@ public static class SurvivalProcessor
         double currentMetabolism = GetCurrentMetabolism(body, context.ActivityLevel);
         double caloriesBurned = currentMetabolism / 24.0 / 60.0 * minutesElapsed;
 
+        // Sleep is the one activity that pays energy back: an hour asleep buys two awake.
+        double energyDelta = context.IsSleeping
+            ? BASE_EXHAUSTION_RATE * SLEEP_RECOVERY_FACTOR * minutesElapsed
+            : -(BASE_EXHAUSTION_RATE * minutesElapsed);
+
+        double waterLossFactor = context.IsSleeping ? SLEEP_WATER_LOSS_FACTOR : 1.0;
+
         return new SurvivalProcessorResult
         {
             StatsDelta = new SurvivalStatsDelta
             {
-                EnergyDelta = -(BASE_EXHAUSTION_RATE * minutesElapsed),
-                HydrationDelta = -(BaseWaterLossMlPerMinute * minutesElapsed),
+                EnergyDelta = energyDelta,
+                HydrationDelta = -(BaseWaterLossMlPerMinute * waterLossFactor * minutesElapsed),
                 CalorieDelta = -caloriesBurned,
                 TemperatureDelta = 0 // caloriesBurned / 24000.0, - handled in ProcessTemperature
             }
@@ -836,18 +847,5 @@ public static class SurvivalProcessor
         }
 
         return result;
-    }
-
-    public static SurvivalProcessorResult Sleep(Body body, int minutes)
-    {
-        return new SurvivalProcessorResult
-        {
-            StatsDelta = new SurvivalStatsDelta
-            {
-                EnergyDelta = BASE_EXHAUSTION_RATE * 2 * minutes,
-                HydrationDelta = -BaseWaterLossMlPerMinute * 0.7 * minutes,
-                CalorieDelta = -GetCurrentMetabolism(body, .5) / 24.0 / 60.0 * minutes,
-            }
-        };
     }
 }

@@ -334,22 +334,17 @@ public class GameRunner(GameContext ctx)
         }
 
         using var view = ctx.Ui.BeginProgress(ProgressKind.Activity, "Sleeping...");
-        int slept = 0;
 
-        while (slept < sleepMinutes && ctx.player.IsAlive)
-        {
-            // Rest in hour chunks so the body's recovery keeps step with the clock.
-            int chunkMinutes = Math.Min(60, sleepMinutes - slept);
-            ctx.player.Body.Rest(chunkMinutes, ctx.CurrentLocation, ctx.player.EffectRegistry);
-
-            var (elapsed, interrupted) = await Pacing.PassTime(ctx, chunkMinutes, ActivityType.Sleeping, view);
-            slept += elapsed;
-
-            if (interrupted) break;
-        }
+        // Recovery rides on the sleeping activity itself, so one pass covers the whole night.
+        var (slept, interrupted) = await Pacing.PassTime(ctx, sleepMinutes, ActivityType.Sleeping, view);
 
         if (slept > 0)
-            GameDisplay.AddNarrative(ctx, $"You slept for {slept / 60} hours.");
+        {
+            string duration = Utils.FormatFireTime(slept);
+            GameDisplay.AddNarrative(ctx, interrupted
+                ? $"You wake after {duration}."
+                : $"You slept for {duration}.");
+        }
     }
 
     private async Task Wait()

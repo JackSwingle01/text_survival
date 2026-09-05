@@ -12,6 +12,8 @@ public record SurvivalContext
     /// <summary>Whole-body clothing insulation in clo, area-weighted across covered slots.</summary>
     public double ClothingClo { get; init; }
     public double ActivityLevel { get; init; }
+    /// <summary>Sleep is the one activity that restores energy rather than spending it.</summary>
+    public bool IsSleeping { get; init; }
     public double FireProximityBonus { get; init; } // Direct radiant heat from fire proximity (0-2 scale multiplied by fire heat)
 
     // Wetness system context
@@ -95,6 +97,7 @@ public record SurvivalContext
         return new SurvivalContext
         {
             ActivityLevel = activityConfig.ActivityLevel,
+            IsSleeping = activity == ActivityType.Sleeping,
             LocationTemperature = actor.CurrentLocation.GetTemperature(activity),
             ClothingClo = clothingClo,
             FireProximityBonus = fireProximityBonus,
