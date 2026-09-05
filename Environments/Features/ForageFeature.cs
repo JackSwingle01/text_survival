@@ -447,8 +447,14 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     public ForageFeature AddTinder(double abundance = 0.4, double minKg = 0.02, double maxKg = 0.08) =>
         AddResource("tinder", Resource.Tinder, abundance, minKg, maxKg);
 
-    public ForageFeature AddBerries(double abundance = 0.2, double minKg = 0.05, double maxKg = 0.2) =>
+    public ForageFeature AddBerries(double abundance = 0.2, double minKg = 0.2, double maxKg = 0.6) =>
         AddResource("berries", Resource.Berries, abundance, minKg, maxKg);
+
+    public ForageFeature AddNuts(double abundance = 0.08, double minKg = 0.03, double maxKg = 0.08) =>
+        AddResource("nuts", Resource.Nuts, abundance, minKg, maxKg);
+
+    public ForageFeature AddRoots(double abundance = 0.3, double minKg = 0.15, double maxKg = 0.3) =>
+        AddResource("roots", Resource.Roots, abundance, minKg, maxKg);
 
     public ForageFeature AddStone(double abundance = 0.3, double minKg = 0.2, double maxKg = 0.5) =>
         AddResource("stone", Resource.Stone, abundance, minKg, maxKg);

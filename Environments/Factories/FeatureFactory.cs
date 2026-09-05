@@ -23,7 +23,9 @@ public static class FeatureFactory
             .AddMixedWood(1.5, 1.5, 3.5)
             .AddSticks(3.0, 0.2, 0.6)
             .AddTinder(2.0, 0.02, 0.08)
-            .AddBerries(0.6, 0.05, 0.15)
+            .AddBerries(0.6, 0.2, 0.6)
+            .AddNuts(0.08, 0.03, 0.08)
+            .AddRoots(0.15, 0.15, 0.3)
             .AddPlantFiber(0.5, 0.05, 0.15)
             .AddStone(0.3, 0.2, 0.4)  // Scattered rocks for early crafting
             .AddBirchPolypore(0.15)
@@ -84,6 +86,7 @@ public static class FeatureFactory
             .AddSticks(2.0, 0.2, 0.5)
             .AddBirch(1.0, 1.0, 2.0)
             .AddStone(0.6, 0.2, 0.5)
+            .AddRoots(0.4, 0.15, 0.3)
             .AddWillowBark(0.25)
             .AddSphagnum(0.15);
     }
@@ -97,7 +100,8 @@ public static class FeatureFactory
         return new ForageFeature(density)
             .AddTinder(0.7, 0.03, 0.1)
             .AddSticks(0.2, 0.1, 0.3)
-            .AddBerries(0.15, 0.03, 0.1)
+            .AddBerries(0.15, 0.12, 0.4)
+            .AddRoots(0.3, 0.1, 0.25)
             .AddPlantFiber(0.6, 0.05, 0.12);
     }
 
@@ -144,7 +148,7 @@ public static class FeatureFactory
         return new ForageFeature(density)
             .AddPlantFiber(1.5, 0.1, 0.25)
             .AddSticks(1.0, 0.15, 0.4)
-            .AddBerries(0.8, 0.05, 0.15);
+            .AddBerries(0.8, 0.2, 0.6);
     }
 
     /// <summary>
@@ -338,7 +342,7 @@ public static class FeatureFactory
         {
             Description = "A frost-hardy shrub with clusters of dark berries."
         };
-        bush.AddBerries("berries", maxQuantity: 5, weightPerUnit: 0.1, respawnHoursPerUnit: 168.0);
+        bush.AddBerries("berries", maxQuantity: 5, weightPerUnit: 0.4, respawnHoursPerUnit: 168.0);
         return bush;
     }
 
