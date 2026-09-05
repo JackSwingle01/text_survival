@@ -521,7 +521,12 @@ public class NPC : Actor
         return CurrentNeed switch
         {
             NeedType.Warmth => Body.WarmPct > .7,
-            NeedType.Water => Body.HydratedPct > .5,
+            // Deliberately well above the .5 that triggers thirst in DecideSatisfyNeed. When
+            // the two matched, an NPC drank until it crossed the threshold and stopped on the
+            // same tick, so it lived permanently pinned at the line - never using the water it
+            // was already carrying, and always one interruption from a crisis. Every other
+            // need here already leaves itself headroom; water was the odd one out.
+            NeedType.Water => Body.HydratedPct > .9,
             NeedType.Rest => Body.EnergyPct > .5,
             NeedType.Food => Body.FullPct > .3,
             _ => true,
@@ -888,20 +893,20 @@ public class NPC : Actor
         if (forage != null && forage.CanForage())
             resources.AddRange(forage.ProvidedResources());
 
-        // HarvestableFeature - check tool requirements
-        var harvestable = WorkHandler.GetAvailableHarvestable(location);
-        if (harvestable != null && harvestable.CanBeHarvested())
+        // HarvestableFeature - every one of them, not just whichever sorts first. This scan
+        // decides where to travel, so a tile has to report everything it can give.
+        foreach (var harvestable in location.Features.OfType<HarvestableFeature>())
         {
-            // Check if NPC has required tool (if any)
+            if (!harvestable.CanBeHarvested()) continue;
+
             if (harvestable.RequiredToolType != null)
             {
                 var tool = Inventory.GetTool(harvestable.RequiredToolType.Value);
                 if (!harvestable.MeetsToolRequirement(tool))
-                    goto skipHarvest; // Skip - can't harvest without tool
+                    continue; // can't harvest this one without the tool - others may be fine
             }
             resources.AddRange(harvestable.ProvidedResources());
         }
-    skipHarvest:
 
         // WoodedAreaFeature - requires working axe
         var wooded = location.GetFeature<WoodedAreaFeature>();
@@ -912,10 +917,13 @@ public class NPC : Actor
                 resources.AddRange(wooded.ProvidedResources());
         }
 
-        // WaterFeature - can collect water if conditions allow
-        var water = location.GetFeature<WaterFeature>();
-        if (water != null)
-            resources.AddRange(water.ProvidedResources());
+        // WaterFeature deliberately does NOT contribute water here. It reports Resource.Water
+        // from ProvidedResources, but nothing in the game can take water out of one: its work
+        // options are fishing, netting and cutting an ice hole. Believing it sent NPCs walking
+        // to frozen lakes to stand at the edge of water they had no way to collect. Drinkable
+        // water comes from HarvestableFeatures (rivers, meltwater, marsh water) and from
+        // melting snow at a fire; if an ice hole is ever meant to fill a waterskin, that wants
+        // a real work option and this scan will pick it up through the loop above.
 
         return resources.Distinct().ToList();
     }
@@ -939,8 +947,8 @@ public class NPC : Actor
             return new NPCForage(forageTime);
         }
 
-        // HarvestableFeature - check tool requirements
-        var harvestable = WorkHandler.GetAvailableHarvestable(CurrentLocation);
+        // HarvestableFeature - ask for one that yields what we actually came for
+        var harvestable = WorkHandler.GetAvailableHarvestable(CurrentLocation, targetResources);
         if (harvestable != null && harvestable.CanBeHarvested() &&
             harvestable.ProvidedResources().Any(r => targetResources.Contains(r)))
         {
@@ -962,7 +970,7 @@ public class NPC : Actor
                 if (urgent) workTime = Math.Min(workTime, UrgentGatherCapMinutes);
                 else if (!CanSurviveAwayFromFire(workTime))
                     return null;
-                return new NPCHarvest(workTime);
+                return new NPCHarvest(workTime, targetResources);
             }
         }
 
@@ -1040,8 +1048,14 @@ public class NPC : Actor
         return new NPCMeltSnow();
     }
 
-    /// <summary>How much water an NPC tries to have on them before leaving a fire.</summary>
-    private const double WaterReserveLiters = 2.0;
+    /// <summary>
+    /// How much water an NPC tries to have on them before leaving a fire: one day's
+    /// non-sweat water loss. Derived rather than picked so it cannot drift away from the
+    /// physics - it was a flat 2.0L, which was under half a day's supply against a demand
+    /// the survival model had already changed underneath it.
+    /// </summary>
+    private static double WaterReserveLiters =>
+        SurvivalProcessor.BaseWaterLossMlPerDay / ConsumptionHandler.WaterHydrationPerLiter;
 
     /// <summary>
     /// Tend or relight the camp fire before it becomes a Warmth-need emergency. Only acts

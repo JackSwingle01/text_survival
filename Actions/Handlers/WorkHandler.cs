@@ -82,21 +82,36 @@ public static class WorkHandler
     }
 
     /// <summary>
-    /// Get first available harvestable at location.
+    /// The harvestable a worker can use here. <paramref name="wanted"/> narrows the choice to
+    /// features that actually yield one of those resources; passing null takes whatever is
+    /// available, which is what a player picking off a menu means.
     /// </summary>
-    public static HarvestableFeature? GetAvailableHarvestable(Location location)
+    /// <remarks>
+    /// The filter is the whole point. This used to return the first harvestable on the tile
+    /// regardless of what was being looked for, and every caller then checked whether *that
+    /// one* provided what it wanted - so a berry bush sitting ahead of a water pool made the
+    /// water invisible to anything searching for it, and an NPC that walked to a marsh for
+    /// water harvested berries once it arrived. Water was hit hardest because it is the only
+    /// resource whose other source needs a lit fire, but food and medicine were hidden the
+    /// same way.
+    /// </remarks>
+    public static HarvestableFeature? GetAvailableHarvestable(
+        Location location, IReadOnlyCollection<Resource>? wanted = null)
     {
         return location.Features
             .OfType<HarvestableFeature>()
-            .FirstOrDefault(h => h.CanBeHarvested());
+            .FirstOrDefault(h => h.CanBeHarvested()
+                && (wanted == null || h.ProvidedResources().Any(wanted.Contains)));
     }
 
     /// <summary>
-    /// NPC harvesting - auto-selects available harvestable at location.
+    /// NPC harvesting. <paramref name="wanted"/> must match whatever the decision to come here
+    /// was made on, or the NPC harvests something other than what it came for.
     /// </summary>
-    public static Inventory Harvest(Location location, int minutesToSpend)
+    public static Inventory Harvest(
+        Location location, int minutesToSpend, IReadOnlyCollection<Resource>? wanted = null)
     {
-        var feature = GetAvailableHarvestable(location);
+        var feature = GetAvailableHarvestable(location, wanted);
         if (feature == null)
             return new Inventory();
 

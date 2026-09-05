@@ -68,13 +68,19 @@ public class NPCForage(int minutes) : NPCAction("Foraging", minutes, ActivityTyp
 }
 public class NPCHarvest : NPCAction
 {
+    /// <summary>
+    /// What the NPC came here for. Carried from the decision through to the work so it cannot
+    /// walk to a marsh needing water and harvest the berry bush it finds standing in front.
+    /// </summary>
+    private readonly IReadOnlyCollection<Resource>? _wanted;
+
     public override string LogMessage => "Harvesting";
-    public NPCHarvest(int minutes) : base("Harvesting", minutes, ActivityType.Foraging) { }
+    public NPCHarvest(int minutes, IReadOnlyCollection<Resource>? wanted = null)
+        : base("Harvesting", minutes, ActivityType.Foraging) => _wanted = wanted;
 
     public override void Complete(NPC npc)
     {
-        // Get first available harvestable (NPCs auto-select)
-        var feature = WorkHandler.GetAvailableHarvestable(npc.CurrentLocation);
+        var feature = WorkHandler.GetAvailableHarvestable(npc.CurrentLocation, _wanted);
         if (feature == null)
         {
             npc.Trace($"[NPC:{npc.Name}] No harvestable at {npc.CurrentLocation.Name}");
@@ -93,7 +99,7 @@ public class NPCHarvest : NPCAction
         }
 
         // Execute harvest via WorkHandler
-        var found = WorkHandler.Harvest(npc.CurrentLocation, MinutesSpent);
+        var found = WorkHandler.Harvest(npc.CurrentLocation, MinutesSpent, _wanted);
 
         // Add to NPC inventory (discard overflow)
         _ = npc.Inventory!.CombineWithCapacity(found);

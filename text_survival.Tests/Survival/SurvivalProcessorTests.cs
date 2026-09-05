@@ -218,9 +218,11 @@ public class SurvivalProcessorTests
         var body = TestFixtures.CreateBaselineHumanBody();
         int minutesSlept = 480; // 8 hours
 
-        // BASE_DEHYDRATION_RATE ≈ 2.78 mL/min
-        // During sleep: rate * 0.7 ≈ 1.95 mL/min
-        double expectedDehydration = (4000.0 / (24.0 * 60.0)) * 0.7 * minutesSlept;
+        // Derived from the processor's own daily figure rather than a copy of it. The literal
+        // 4000 that used to sit here silently encoded a bug - the baseline was double-counting
+        // sweat - and the test went on passing after the physics was corrected elsewhere.
+        double expectedDehydration =
+            SurvivalProcessor.BaseWaterLossMlPerDay / (24.0 * 60.0) * 0.7 * minutesSlept;
 
         // Act
         var result = SurvivalProcessor.Sleep(body, minutesSlept);

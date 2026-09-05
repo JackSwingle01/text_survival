@@ -169,11 +169,29 @@ public class NPCDecisionTests
     {
         var (npc, _) = CreateTestNPC();
         npc.CurrentNeed = NeedType.Water;
-        SetBodyStats(npc, warmPct: 0.5, hydratedPct: 0.55, energyPct: 0.5, fullPct: 0.5);
+        SetBodyStats(npc, warmPct: 0.5, hydratedPct: 0.95, energyPct: 0.5, fullPct: 0.5);
 
         var result = npc.IsCriticalNeedSatisfied();
 
         Assert.True(result);
+    }
+
+    /// <summary>
+    /// The invariant behind the number: a need must be satisfied somewhere above the level
+    /// that raises it, or the NPC resolves it and re-raises it on the same tick and lives
+    /// pinned at the threshold forever. Water used to be satisfied at exactly the .5 that
+    /// makes it thirsty, so it never drank the water it was already carrying.
+    /// </summary>
+    [Fact]
+    public void IsCriticalNeedSatisfied_WaterNeed_LeavesHeadroomAboveTheThirstThreshold()
+    {
+        var (npc, _) = CreateTestNPC();
+        npc.CurrentNeed = NeedType.Water;
+
+        // Just over the level that triggers thirst - resolving here would be no resolution.
+        SetBodyStats(npc, warmPct: 0.5, hydratedPct: 0.51, energyPct: 0.5, fullPct: 0.5);
+
+        Assert.False(npc.IsCriticalNeedSatisfied());
     }
 
     [Fact]

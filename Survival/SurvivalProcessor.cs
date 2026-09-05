@@ -8,7 +8,22 @@ public static class SurvivalProcessor
 {
     private const double BASE_EXHAUSTION_RATE = 1;
     public const double MAX_ENERGY_MINUTES = 960.0;
-    private const double BASE_DEHYDRATION_RATE = 4000.0 / (24.0 * 60.0);
+    /// <summary>
+    /// Water lost per day to everything that is not sweat: urine, breath, and the moisture
+    /// that passes through skin without sweating. Cold dry air makes the breath term larger
+    /// than it would be in a temperate climate, which is why this sits at the top of the
+    /// real range rather than the middle.
+    /// </summary>
+    /// <remarks>
+    /// This was 4000, which is a real adult's *total* daily water turnover - and that figure
+    /// already includes sweat. Sweat is modelled separately in GetSweatResponse and added on
+    /// top, so every survivor was paying for their sweat twice. Measured over 30 seeds, the
+    /// double count was 73% of all water lost and dehydration killed 24-29 of 30 within a day.
+    /// </remarks>
+    public const double BaseWaterLossMlPerDay = 2500.0;
+
+    /// <summary>Non-sweat water loss per minute, in millilitres.</summary>
+    private const double BaseWaterLossMlPerMinute = BaseWaterLossMlPerDay / (24.0 * 60.0);
     public const double MAX_HYDRATION = 4000.0;
     public const double MAX_CALORIES = 2000.0;
 
@@ -253,7 +268,7 @@ public static class SurvivalProcessor
             StatsDelta = new SurvivalStatsDelta
             {
                 EnergyDelta = -(BASE_EXHAUSTION_RATE * minutesElapsed),
-                HydrationDelta = -(BASE_DEHYDRATION_RATE * minutesElapsed),
+                HydrationDelta = -(BaseWaterLossMlPerMinute * minutesElapsed),
                 CalorieDelta = -caloriesBurned,
                 TemperatureDelta = 0 // caloriesBurned / 24000.0, - handled in ProcessTemperature
             }
@@ -830,7 +845,7 @@ public static class SurvivalProcessor
             StatsDelta = new SurvivalStatsDelta
             {
                 EnergyDelta = BASE_EXHAUSTION_RATE * 2 * minutes,
-                HydrationDelta = -BASE_DEHYDRATION_RATE * 0.7 * minutes,
+                HydrationDelta = -BaseWaterLossMlPerMinute * 0.7 * minutes,
                 CalorieDelta = -GetCurrentMetabolism(body, .5) / 24.0 / 60.0 * minutes,
             }
         };
