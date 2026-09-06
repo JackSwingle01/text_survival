@@ -17,6 +17,7 @@ public enum HotkeyAction
     Cancel,
     Storage,
     Forage,
+    FollowPlayer,
 }
 
 /// <summary>
@@ -36,6 +37,7 @@ public static class HotkeyRegistry
         { HotkeyAction.Cancel, KeyboardKey.Escape },
         { HotkeyAction.Storage, KeyboardKey.T },
         { HotkeyAction.Forage, KeyboardKey.F },
+        { HotkeyAction.FollowPlayer, KeyboardKey.G },
     };
 
     /// <summary>

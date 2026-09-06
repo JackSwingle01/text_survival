@@ -12,7 +12,37 @@ public class Camera
     public int TileSize { get; set; } = 100;
     // Terrain textures meet at their shared edges; highlights still identify cells.
     public int TileGap { get; set; } = 0;
-    public int ViewSize { get; set; } = 7;  // 7x7 tile viewport
+    public int ViewSize { get; private set; } = 7;
+    private (float x, float y, float width, float height)? _viewport;
+    private float _wheelRemainder;
+
+    /// <summary>Zoom in odd tile-count steps, retaining a tile at the centre of the view.</summary>
+    public bool Zoom(int steps)
+    {
+        int size = (int)Math.Clamp((long)ViewSize - 2L * steps, 3, 15);
+        if (size == ViewSize) return false;
+        ViewSize = size;
+        if (_viewport is { } rect)
+            ConfigureForViewport(rect.x, rect.y, rect.width, rect.height);
+        return true;
+    }
+
+    /// <summary>Accumulate fractional trackpad deltas without losing small gestures.</summary>
+    public bool ZoomWheel(float delta)
+    {
+        if (!float.IsFinite(delta) || delta == 0) return false;
+        if (Math.Sign(delta) != Math.Sign(_wheelRemainder)) _wheelRemainder = 0;
+        _wheelRemainder += Math.Clamp(delta, -6, 6);
+        int steps = (int)_wheelRemainder;
+        _wheelRemainder -= steps;
+        return Zoom(steps);
+    }
+
+    public bool ResetZoom()
+    {
+        _wheelRemainder = 0;
+        return Zoom((ViewSize - 7) / 2);
+    }
 
     /// <summary>How fast the centre closes on the target. Higher is snappier.</summary>
     public const float Smoothing = 10f;
@@ -147,32 +177,13 @@ public class Camera
         return new Vector2(topLeft.X + TileSize / 2f, topLeft.Y + TileSize / 2f);
     }
 
-    /// <summary>
-    /// Configure camera dimensions based on available screen space.
-    /// Reserves space for UI panels and centers the grid.
-    /// </summary>
-    public void ConfigureForScreenSize(int screenWidth, int screenHeight,
-        int leftPanelWidth = 300, int rightPanelWidth = 320, int padding = 20)
+    /// <summary>Fit the square grid into an explicit HUD-owned viewport.</summary>
+    public void ConfigureForViewport(float x, float y, float width, float height)
     {
-        int availableWidth = screenWidth - leftPanelWidth - rightPanelWidth - padding * 2;
-        int availableHeight = screenHeight - padding * 2;
-
-        int availableSize = Math.Min(availableWidth, availableHeight);
-
-        int calculatedTileSize = (availableSize - (ViewSize - 1) * TileGap) / ViewSize;
-        TileSize = Math.Clamp(calculatedTileSize, 60, 300);
-
-        int actualGridWidth = ViewSize * TileSize + (ViewSize - 1) * TileGap;
-        int gridAreaStart = leftPanelWidth + padding;
-        int gridAreaWidth = screenWidth - leftPanelWidth - rightPanelWidth - padding * 2;
-        ScreenOffsetX = gridAreaStart + (gridAreaWidth - actualGridWidth) / 2;
-
-        ScreenOffsetY = (screenHeight - actualGridWidth) / 2;
-    }
-
-    /// <summary>Get the X position where UI panels on the right should start.</summary>
-    public int GetRightPanelX()
-    {
-        return ScreenOffsetX + GridWidth + 20; // 20px gap after grid
+        _viewport = (x, y, width, height);
+        int available = Math.Max(1, (int)Math.Min(width, height));
+        TileSize = Math.Max(1, (available - (ViewSize - 1) * TileGap) / ViewSize);
+        ScreenOffsetX = (int)(x + (width - GridWidth) / 2);
+        ScreenOffsetY = (int)(y + (height - GridHeight) / 2);
     }
 }

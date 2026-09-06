@@ -18,6 +18,9 @@ public class NarrativeLog
     /// </summary>
     private const int MaxEntries = 200;
 
+    [System.Text.Json.Serialization.JsonIgnore]
+    public long Revision { get; private set; }
+
     private List<(string Text, LogLevel Level, string Timestamp)> _entries = [];
 
     // For JSON serialization
@@ -33,6 +36,7 @@ public class NarrativeLog
         if (_entries.Count > 0 && _entries[^1].Text.Trim() == text.Trim())
             return;
         _entries.Add((text, level, timestamp));
+        Revision++;
 
         if (_entries.Count > MaxEntries)
             _entries.RemoveRange(0, _entries.Count - MaxEntries);

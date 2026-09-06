@@ -30,7 +30,7 @@ public class FirePitUpgradeProject : CraftingProjectFeature
     /// Override completion logic to modify existing fire pit instead of replacing it.
     /// This preserves the fire state (fuel, embers, temperature).
     /// </summary>
-    public new void AddProgress(double minutes, Location location)
+    public override void AddProgress(double minutes, Location location)
     {
         TimeInvestedMinutes += minutes;
 

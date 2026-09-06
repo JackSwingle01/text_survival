@@ -19,50 +19,22 @@ public class CraftOption
     public Items.EquipSlot? MendSlot { get; init; }
     public bool RebuildShelter { get; init; } = false;
 
-    public bool CanCraft(Inventory inventory)
-    {
-        foreach (var req in Requirements)
-        {
-            if (GetMaterialCount(inventory, req.Material) < req.Count)
-                return false;
-        }
+    public string Id { get; set; } = "";
+    public string FamilyId { get; set; } = "";
+    public string Method { get; set; } = "Make";
+    public int ProjectWorkMinutes { get; init; }
+    public bool ProjectBenefitsFromShovel { get; init; }
+    public Dictionary<ToolType, int> ToolWear { get; init; } = [];
+    public Gear? TargetGear { get; init; }
+    public Func<Gear>? TargetResult { get; init; }
+    public Func<string?>? TargetBlocker { get; init; }
 
-        // Check required tools
-        foreach (var toolType in RequiredTools)
-        {
-            var tool = inventory.GetTool(toolType);
-            if (tool == null || tool.Durability < 1)
-                return false;
-        }
-
-        return true;
-    }
+    public bool CanCraft(Inventory inventory) => CraftInputs.Resolve(this, inventory).Ready;
 
     public (bool CanCraft, List<string> Missing) CheckRequirements(Inventory inventory)
     {
-        var missing = new List<string>();
-
-        foreach (var req in Requirements)
-        {
-            int have = GetMaterialCount(inventory, req.Material);
-            if (have < req.Count)
-            {
-                int need = req.Count - have;
-                missing.Add($"{need} {GetMaterialDisplayName(req.Material)}");
-            }
-        }
-
-        // Check tool requirements
-        foreach (var toolType in RequiredTools)
-        {
-            var tool = inventory.GetTool(toolType);
-            if (tool == null)
-                missing.Add($"{toolType} (required tool)");
-            else if (tool.Durability < 1)
-                missing.Add($"{toolType} (broken - no durability left)");
-        }
-
-        return (missing.Count == 0, missing);
+        var inputs = CraftInputs.Resolve(this, inventory);
+        return (inputs.Ready, inputs.Missing);
     }
 
     public bool ProducesMaterials => MaterialOutputs != null && MaterialOutputs.Count > 0;
@@ -70,19 +42,16 @@ public class CraftOption
     public bool ProducesFeature => FeatureFactory != null;
     public bool IsMendingRecipe => MendSlot.HasValue;
 
-    public Gear? Craft(Inventory inventory)
+    public Gear? Craft(Inventory inventory, CraftInputs? inputs = null)
     {
-        // Consume materials
-        foreach (var req in Requirements)
+        if (TargetGear != null && (!CraftInputs.OwnedGear(inventory).Contains(TargetGear) || TargetBlocker?.Invoke() != null))
+            throw new InvalidOperationException("The selected equipment can no longer be worked on.");
+        var transformed = TargetResult?.Invoke();
+        (inputs ?? CraftInputs.Resolve(this, inventory)).Consume(inventory);
+        if (transformed != null)
         {
-            ConsumeMaterial(inventory, req.Material, req.Count);
-        }
-
-        // Consume tool durability (1 per required tool)
-        foreach (var toolType in RequiredTools)
-        {
-            var tool = inventory.GetTool(toolType)!;
-            tool.Use();
+            inventory.ReplaceGear(TargetGear!, transformed);
+            return transformed;
         }
 
         // If this is a mending recipe, repair the equipment
@@ -115,15 +84,17 @@ public class CraftOption
         }
 
         // Create and return the gear
-        return GearFactory!(Durability);
+        var gear = GearFactory!(Durability);
+        gear.DesignId = Id;
+        return gear;
     }
 
-    public Environments.Features.LocationFeature? CraftFeature(Inventory inventory)
+    public Environments.Features.LocationFeature? CraftFeature(Inventory inventory, CraftInputs? inputs = null)
     {
         if (!ProducesFeature)
             return null;
 
-        ConsumeInputs(inventory);
+        (inputs ?? CraftInputs.Resolve(this, inventory)).Consume(inventory);
         return FeatureFactory!();
     }
 
@@ -134,7 +105,7 @@ public class CraftOption
     /// than a flag the caller has to interpret.
     /// </summary>
     public (Environments.Features.ShelterFeature Shelter, Dictionary<Resource, int> Salvage)? CraftShelterRebuild(
-        Environments.Location camp, Inventory inventory)
+        Environments.Location camp, Inventory inventory, CraftInputs? inputs = null)
     {
         if (!RebuildShelter)
             return null;
@@ -142,7 +113,7 @@ public class CraftOption
         var old = camp.GetFeature<Environments.Features.ShelterFeature>()
             ?? throw new InvalidOperationException("Rebuild Shelter offered with no shelter at camp.");
 
-        ConsumeInputs(inventory);
+        (inputs ?? CraftInputs.Resolve(this, inventory)).Consume(inventory);
 
         var salvage = old.GetSalvageMaterials();
         foreach (var (resource, count) in salvage)
@@ -153,16 +124,6 @@ public class CraftOption
         camp.AddFeature(rebuilt);
 
         return (rebuilt, salvage);
-    }
-
-    /// <summary>Consume this recipe's materials and a point of durability from each required tool.</summary>
-    private void ConsumeInputs(Inventory inventory)
-    {
-        foreach (var req in Requirements)
-            ConsumeMaterial(inventory, req.Material, req.Count);
-
-        foreach (var toolType in RequiredTools)
-            inventory.GetTool(toolType)!.Use();
     }
 
     private static void AddMaterialToInventory(Inventory inv, MaterialOutput output)
@@ -214,43 +175,7 @@ public class CraftOption
         _ => material.ToLower()
     };
 
-    private static int GetMaterialCount(Inventory inv, MaterialSpecifier material) => material switch
-    {
-        MaterialSpecifier.Specific(var resource) => inv.Count(resource),
-        MaterialSpecifier.Category(var category) => inv.GetCount(category),
-        _ => 0
-    };
 
-    private static void ConsumeMaterial(Inventory inv, MaterialSpecifier material, int count)
-    {
-        switch (material)
-        {
-            case MaterialSpecifier.Specific(var resource):
-                inv.Remove(resource, count);
-                break;
-            case MaterialSpecifier.Category(var category):
-                // For category requirements, consume from the first available resource in that category
-                var categoryResources = ResourceCategories.Items[category];
-                int remaining = count;
-                foreach (var res in categoryResources)
-                {
-                    while (remaining > 0 && inv.Count(res) > 0)
-                    {
-                        inv.Pop(res);
-                        remaining--;
-                    }
-                    if (remaining <= 0) break;
-                }
-                break;
-        }
-    }
-
-    private static string GetMaterialDisplayName(MaterialSpecifier material) => material switch
-    {
-        MaterialSpecifier.Specific(var r) => r.ToDisplayName(),
-        MaterialSpecifier.Category(var c) => c.ToString().ToLower(),
-        _ => "unknown"
-    };
 }
 
 public abstract record MaterialSpecifier

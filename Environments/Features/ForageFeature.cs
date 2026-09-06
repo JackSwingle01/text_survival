@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions;
 using text_survival.Actions.Expeditions.WorkStrategies;
@@ -45,7 +46,7 @@ public record ForageResource(
     double MinWeight,
     double MaxWeight);
 
-public class ForageFeature : LocationFeature, IWorkableFeature
+public class ForageFeature : LocationFeature, IWorkableFeature, IJsonOnDeserialized
 {
     private readonly double respawnRateHours = 672.0; // Full respawn takes 4 weeks
     private const double BaseGrazingRatePerKgPerHour = 0.0001;
@@ -329,9 +330,30 @@ public class ForageFeature : LocationFeature, IWorkableFeature
     /// </summary>
     public ForageFeature AddResource(string name, Resource resourceType, double abundance, double minWeight, double maxWeight)
     {
-        _resources.Add(new ForageResource(name, resourceType, abundance, minWeight, maxWeight));
+        _resources = Intern([.. _resources, new ForageResource(name, resourceType, abundance, minWeight, maxWeight)]);
         return this;
     }
+
+    /// <summary>
+    /// Thousands of tiles share a handful of distinct resource tables. Sharing the list
+    /// instance lets ReferenceHandler.Preserve write $ref instead of a full copy per tile,
+    /// which is most of the save file. Interned lists must never be mutated in place -
+    /// AddResource builds a new list and re-interns it.
+    /// </summary>
+    private static readonly Dictionary<string, List<ForageResource>> InternedTables = [];
+
+    private static List<ForageResource> Intern(List<ForageResource> table)
+    {
+        string key = string.Join('|', table);
+        lock (InternedTables)
+        {
+            if (InternedTables.TryGetValue(key, out var shared)) return shared;
+            InternedTables[key] = table;
+            return table;
+        }
+    }
+
+    public void OnDeserialized() => _resources = Intern(_resources);
 
     /// <summary>
     /// Check if this feature has any resources matching a forage focus.

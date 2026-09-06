@@ -99,7 +99,7 @@ public class WoodedAreaFeatureTests
         var yield = feature.FellTree();
 
         // Assert - should yield 8-10 logs
-        int logCount = yield.Stacks[Resource.Pine].Count;
+        int logCount = yield[Resource.Pine].Count;
         Assert.InRange(logCount, 8, 10);
     }
 
@@ -114,7 +114,7 @@ public class WoodedAreaFeatureTests
         var yield = feature.FellTree();
 
         // Assert - should yield 4-6 sticks
-        int stickCount = yield.Stacks[Resource.Stick].Count;
+        int stickCount = yield[Resource.Stick].Count;
         Assert.InRange(stickCount, 4, 6);
     }
 
@@ -129,7 +129,7 @@ public class WoodedAreaFeatureTests
         var yield = feature.FellTree();
 
         // Assert - should yield 2-3 tinder
-        int tinderCount = yield.Stacks[Resource.Tinder].Count;
+        int tinderCount = yield[Resource.Tinder].Count;
         Assert.InRange(tinderCount, 2, 3);
     }
 
@@ -144,10 +144,10 @@ public class WoodedAreaFeatureTests
         var yield = oakFeature.FellTree();
 
         // Assert - should yield oak logs specifically
-        int oakCount = yield.Stacks[Resource.Oak].Count;
+        int oakCount = yield[Resource.Oak].Count;
         Assert.InRange(oakCount, 8, 10);
-        Assert.Empty(yield.Stacks[Resource.Pine]);
-        Assert.Empty(yield.Stacks[Resource.Birch]);
+        Assert.Empty(yield[Resource.Pine]);
+        Assert.Empty(yield[Resource.Birch]);
     }
 
     [Fact]
@@ -163,9 +163,9 @@ public class WoodedAreaFeatureTests
             mixedFeature.AddProgress(150);
             var yield = mixedFeature.FellTree();
 
-            if (yield.Stacks[Resource.Pine].Count > 0) woodTypesFound.Add(Resource.Pine);
-            if (yield.Stacks[Resource.Birch].Count > 0) woodTypesFound.Add(Resource.Birch);
-            if (yield.Stacks[Resource.Oak].Count > 0) woodTypesFound.Add(Resource.Oak);
+            if (yield[Resource.Pine].Count > 0) woodTypesFound.Add(Resource.Pine);
+            if (yield[Resource.Birch].Count > 0) woodTypesFound.Add(Resource.Birch);
+            if (yield[Resource.Oak].Count > 0) woodTypesFound.Add(Resource.Oak);
         }
 
         // Assert - over 20 trees, should see variety (statistically very unlikely to get only one type)

@@ -23,7 +23,7 @@ public static class OverlaySizes
     // Small Dialog: 25% width for compact dialogs (auto height)
     private const float SmallDialogWidthPct = 0.25f;
 
-    // Compact bar sizes for StatsPanel effects and capacities
+    // Compact bar sizes for SurvivorPanel effects and capacities
     // Uses -1 width to auto-fill remaining space (matches main stat bar alignment)
     public const float EffectBarStart = 110;
     public const float CompactBarHeight = 16;

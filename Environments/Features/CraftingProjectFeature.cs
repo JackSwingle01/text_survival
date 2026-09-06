@@ -83,7 +83,7 @@ public class CraftingProjectFeature : LocationFeature, IWorkableFeature
     /// Add progress to the project. Called after work session completes.
     /// If project completes, removes itself and adds the result feature.
     /// </summary>
-    public void AddProgress(double minutes, Location location)
+    public virtual void AddProgress(double minutes, Location location)
     {
         TimeInvestedMinutes += minutes;
 

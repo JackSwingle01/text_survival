@@ -24,6 +24,7 @@ public class NeedCraftingSystem
         InitializeCarryingOptions();
         InitializeCampInfrastructureOptions();
         InitializeMendingOptions();
+        foreach (var option in _options) CraftFamilies.Assign(option);
     }
 
     public List<CraftOption> GetOptionsForNeed(NeedCategory need, Inventory inventory, bool showAll = false)
@@ -138,6 +139,7 @@ public class NeedCraftingSystem
         // Hand Drill: 2 sticks
         _options.Add(new CraftOption
         {
+            Id = "hand-drill",
             Name = "Hand Drill",
             Description = "A simple friction fire-starter. Rub a stick against another to create embers.",
             Category = NeedCategory.FireStarting,
@@ -159,6 +161,7 @@ public class NeedCraftingSystem
         // Bow Drill: 3 sticks + 1 plant fiber
         _options.Add(new CraftOption
         {
+            Id = "bow-drill",
             Name = "Bow Drill",
             Description = "An improved friction fire-starter. The bow makes spinning easier and faster.",
             Category = NeedCategory.FireStarting,
@@ -180,6 +183,7 @@ public class NeedCraftingSystem
         // Strike-a-Light (Flint + Amadou): reliable sparks
         _options.Add(new CraftOption
         {
+            Id = "flint-striker",
             Name = "Flint Striker",
             Description = "Strike flint against steel or stone to create sparks. Amadou catches and holds the ember.",
             Category = NeedCategory.FireStarting,
@@ -203,6 +207,7 @@ public class NeedCraftingSystem
         // Pyrite Strike-a-Light: Flint + Pyrite (classic combination, very reliable)
         _options.Add(new CraftOption
         {
+            Id = "pyrite-strike-a-light",
             Name = "Pyrite Strike-a-Light",
             Description = "Iron pyrite struck against flint creates hot sparks. The best fire-starting kit.",
             Category = NeedCategory.FireStarting,
@@ -226,6 +231,7 @@ public class NeedCraftingSystem
         // Birch bark tinder bundle: improved tinder using amadou and birch bark
         _options.Add(new CraftOption
         {
+            Id = "tinder-bundle",
             Name = "Tinder Bundle",
             Description = "A prepared bundle of birch bark and amadou. Catches sparks and holds an ember.",
             Category = NeedCategory.FireStarting,
@@ -257,6 +263,7 @@ public class NeedCraftingSystem
         // Enables early game progression before player has KnappingStone
         _options.Add(new CraftOption
         {
+            Id = "crude-edge",
             Name = "Crude Edge",
             Description = "Bash a stone against a hard surface. Crude but cuts.",
             Category = NeedCategory.CuttingTool,
@@ -281,6 +288,7 @@ public class NeedCraftingSystem
         // Sharp Rock: Proper knapped edge (requires KnappingStone)
         _options.Add(new CraftOption
         {
+            Id = "sharp-rock",
             Name = "Sharp Rock",
             Description = "A crude cutting tool. Bash two rocks together to create a sharp edge.",
             Category = NeedCategory.CuttingTool,
@@ -305,6 +313,7 @@ public class NeedCraftingSystem
         // Stone Knife: 1 stone + 1 stick + 1 plant fiber
         _options.Add(new CraftOption
         {
+            Id = "stone-knife",
             Name = "Stone Knife",
             Description = "A proper knife with a handle. More durable and easier to use.",
             Category = NeedCategory.CuttingTool,
@@ -333,6 +342,7 @@ public class NeedCraftingSystem
         // Bone Knife: 1 bone + 1 stick + 1 plant fiber
         _options.Add(new CraftOption
         {
+            Id = "bone-knife",
             Name = "Bone Knife",
             Description = "A knife made from sharpened bone. Good edge retention.",
             Category = NeedCategory.CuttingTool,
@@ -361,6 +371,7 @@ public class NeedCraftingSystem
         // Shale Knife: 1 shale + 1 stick + 1 plant fiber (easy to make, fragile)
         _options.Add(new CraftOption
         {
+            Id = "shale-knife",
             Name = "Shale Knife",
             Description = "A knife made from shale. Easy to knap but fragile.",
             Category = NeedCategory.CuttingTool,
@@ -389,6 +400,7 @@ public class NeedCraftingSystem
         // Flint Knife: 1 flint + 1 stick + 1 plant fiber (durable, better edge)
         _options.Add(new CraftOption
         {
+            Id = "flint-knife",
             Name = "Flint Knife",
             Description = "A knife made from flint. Holds a razor-sharp edge and lasts longer.",
             Category = NeedCategory.CuttingTool,
@@ -417,6 +429,7 @@ public class NeedCraftingSystem
         // Stone Axe: Chopping tool for felling trees
         _options.Add(new CraftOption
         {
+            Id = "stone-axe",
             Name = "Stone Axe",
             Description = "A heavy stone head lashed to a wooden handle. Required for felling standing trees.",
             Category = NeedCategory.CuttingTool,
@@ -445,6 +458,7 @@ public class NeedCraftingSystem
         // Bone Shovel: Digging tool for camp improvements
         _options.Add(new CraftOption
         {
+            Id = "bone-shovel",
             Name = "Bone Shovel",
             Description = "A flat bone lashed to a sturdy stick. Speeds up digging for fire pits, snow shelters, and camp setup.",
             Category = NeedCategory.CuttingTool,
@@ -470,6 +484,7 @@ public class NeedCraftingSystem
         // Knapping Stone: Essential tool for shaping flint, shale, and bone
         _options.Add(new CraftOption
         {
+            Id = "knapping-stone",
             Name = "Knapping Stone",
             Description = "A hard stone used for knapping. Strike flint, shale, or bone to shape tools.",
             Category = NeedCategory.CuttingTool,
@@ -490,6 +505,7 @@ public class NeedCraftingSystem
         // Bone Needle: Essential for sewing equipment and mending
         _options.Add(new CraftOption
         {
+            Id = "bone-needle",
             Name = "Bone Needle",
             Description = "A fine bone needle for stitching hide. Required for crafting and mending equipment.",
             Category = NeedCategory.CuttingTool,
@@ -510,6 +526,7 @@ public class NeedCraftingSystem
         // Wooden Spear: 1 log OR 3 sticks
         _options.Add(new CraftOption
         {
+            Id = "wooden-spear",
             Name = "Wooden Spear",
             Description = "A sharpened wooden pole. Simple but effective for hunting.",
             Category = NeedCategory.HuntingWeapon,
@@ -534,6 +551,7 @@ public class NeedCraftingSystem
         // Alternative: Log-based spear
         _options.Add(new CraftOption
         {
+            Id = "heavy-spear",
             Name = "Heavy Spear",
             Description = "A hefty spear carved from a log. More durable but heavier.",
             Category = NeedCategory.HuntingWeapon,
@@ -558,6 +576,7 @@ public class NeedCraftingSystem
         // Stone-Tipped Spear: 1 log + 1 stone + 1 plant fiber
         _options.Add(new CraftOption
         {
+            Id = "stone-tipped-spear",
             Name = "Stone-Tipped Spear",
             Description = "A spear with a sharp stone point. Significantly more lethal.",
             Category = NeedCategory.HuntingWeapon,
@@ -587,6 +606,7 @@ public class NeedCraftingSystem
         // Trophy weapon from mammoth hunts
         _options.Add(new CraftOption
         {
+            Id = "ivory-tipped-spear",
             Name = "Ivory-Tipped Spear",
             Description = "A spear with a sharpened ivory point. Mammoth tusk is incredibly hard and holds an edge. Trophy weapon.",
             Category = NeedCategory.HuntingWeapon,
@@ -622,6 +642,7 @@ public class NeedCraftingSystem
         // Simple Snare: 2 sticks + 2 plant fiber
         _options.Add(new CraftOption
         {
+            Id = "simple-snare",
             Name = "Simple Snare",
             Description = "A basic loop trap for catching small game. Set it on an animal trail and wait.",
             Category = NeedCategory.Trapping,
@@ -645,6 +666,7 @@ public class NeedCraftingSystem
         // Reinforced Snare: 2 sticks + 1 sinew + 1 plant fiber
         _options.Add(new CraftOption
         {
+            Id = "reinforced-snare",
             Name = "Reinforced Snare",
             Description = "A stronger snare using sinew cordage. Lasts longer and holds larger prey.",
             Category = NeedCategory.Trapping,
@@ -676,6 +698,7 @@ public class NeedCraftingSystem
         // Fishing Rod: 1 stick + 2 sinew + 1 bone
         _options.Add(new CraftOption
         {
+            Id = "fishing-rod",
             Name = "Fishing Rod",
             Description = "A pole with line and hook. Best catch rate for active fishing.",
             Category = NeedCategory.Fishing,
@@ -693,6 +716,7 @@ public class NeedCraftingSystem
         // Fishing Net: 4 plant fiber + 2 sinew + 2 sticks
         _options.Add(new CraftOption
         {
+            Id = "fishing-net",
             Name = "Fishing Net",
             Description = "A woven net for passive fishing. Set it, leave, and return later for bulk catches.",
             Category = NeedCategory.Fishing,
@@ -717,6 +741,7 @@ public class NeedCraftingSystem
         // Scrape Hide: Raw hide → Scraped hide (requires cutting tool)
         _options.Add(new CraftOption
         {
+            Id = "scrape-hide",
             Name = "Scrape Hide",
             Description = "Scrape the fat and flesh from a hide. Prepares it for curing.",
             Category = NeedCategory.Processing,
@@ -729,6 +754,7 @@ public class NeedCraftingSystem
         // Render Fat: Raw fat → Tallow (requires fire)
         _options.Add(new CraftOption
         {
+            Id = "render-fat",
             Name = "Render Fat",
             Description = "Slowly heat animal fat over a fire to render it into tallow. Used for waterproofing and lamp fuel.",
             Category = NeedCategory.Processing,
@@ -741,6 +767,7 @@ public class NeedCraftingSystem
         // Process Willow Bark: Inner bark strips → Cordage fiber (alternative to raw fiber)
         _options.Add(new CraftOption
         {
+            Id = "process-willow-bark",
             Name = "Process Willow Bark",
             Description = "Strip and twist willow bark into cordage fiber. Alternative to raw plant fiber - sacrifices pain relief for binding materials.",
             Category = NeedCategory.Processing,
@@ -753,6 +780,7 @@ public class NeedCraftingSystem
         // Make Rope: 3 plant fiber → 1 rope
         _options.Add(new CraftOption
         {
+            Id = "rope",
             Name = "Rope",
             Description = "Twisted plant fiber cordage. Strong enough for carrying gear and lashing.",
             Category = NeedCategory.Processing,
@@ -772,6 +800,7 @@ public class NeedCraftingSystem
         // Willow Tea: Pain relief + fever reduction
         _options.Add(new CraftOption
         {
+            Id = "willow-bark-tea",
             Name = "Willow Bark Tea",
             Description = "Bitter tea that eases pain and reduces fever. Natural aspirin.",
             Category = NeedCategory.Treatment,
@@ -797,6 +826,7 @@ public class NeedCraftingSystem
         // Pine Needle Tea: Respiratory relief + nourishment
         _options.Add(new CraftOption
         {
+            Id = "pine-needle-tea",
             Name = "Pine Needle Tea",
             Description = "Sharp-tasting tea rich in vitamins. Helps clear breathing and strengthens the body.",
             Category = NeedCategory.Treatment,
@@ -821,6 +851,7 @@ public class NeedCraftingSystem
         // Rose Hip Tea: Vitamin C boost, immune support
         _options.Add(new CraftOption
         {
+            Id = "rose-hip-tea",
             Name = "Rose Hip Tea",
             Description = "Tangy red tea packed with vitamins. Strengthens the body against sickness.",
             Category = NeedCategory.Treatment,
@@ -845,6 +876,7 @@ public class NeedCraftingSystem
         // Chaga Tea: Fever fighter + immune boost
         _options.Add(new CraftOption
         {
+            Id = "chaga-tea",
             Name = "Chaga Tea",
             Description = "Dark, earthy tea from birch fungus. Fights fever and strengthens the body.",
             Category = NeedCategory.Treatment,
@@ -869,6 +901,7 @@ public class NeedCraftingSystem
         // Polypore Poultice: Styptic bleeding treatment
         _options.Add(new CraftOption
         {
+            Id = "polypore-poultice",
             Name = "Polypore Poultice",
             Description = "A compress of birch polypore. The styptic properties staunch bleeding quickly.",
             Category = NeedCategory.Treatment,
@@ -892,6 +925,7 @@ public class NeedCraftingSystem
         // Usnea Poultice: Antimicrobial infection treatment
         _options.Add(new CraftOption
         {
+            Id = "usnea-poultice",
             Name = "Usnea Poultice",
             Description = "Old man's beard lichen prepared as an antimicrobial poultice. Fights wound infection.",
             Category = NeedCategory.Treatment,
@@ -915,6 +949,7 @@ public class NeedCraftingSystem
         // Fiber Wrap: Basic bleeding treatment
         _options.Add(new CraftOption
         {
+            Id = "fiber-wrap",
             Name = "Fiber Wrap",
             Description = "Strips of plant fiber twisted into a rough wrap. Barely holds together.",
             Category = NeedCategory.Treatment,
@@ -938,6 +973,7 @@ public class NeedCraftingSystem
         // Hide Bandage: Proper bandage with antiseptic properties
         _options.Add(new CraftOption
         {
+            Id = "hide-bandage",
             Name = "Hide Bandage",
             Description = "Sphagnum moss wrapped in soft hide. The moss prevents infection.",
             Category = NeedCategory.Treatment,
@@ -964,6 +1000,7 @@ public class NeedCraftingSystem
         // Resin Seal: Infection prevention
         _options.Add(new CraftOption
         {
+            Id = "resin-seal",
             Name = "Resin Seal",
             Description = "Pine resin mixed with fat and applied as an antiseptic seal. Protects wounds from infection.",
             Category = NeedCategory.Treatment,
@@ -987,6 +1024,7 @@ public class NeedCraftingSystem
         // Sealed Bandage: Premium treatment - best all-around
         _options.Add(new CraftOption
         {
+            Id = "sealed-bandage",
             Name = "Sealed Bandage",
             Description = "Hide bandage sealed with pine resin. Waterproof and antiseptic.",
             Category = NeedCategory.Treatment,
@@ -1020,6 +1058,7 @@ public class NeedCraftingSystem
         // Hide Gloves: Hand protection, cold resistance
         _options.Add(new CraftOption
         {
+            Id = "hide-gloves",
             Name = "Hide Gloves",
             Description = "Simple gloves sewn from cured hide. Protects hands from cold and injury.",
             Category = NeedCategory.Equipment,
@@ -1046,6 +1085,7 @@ public class NeedCraftingSystem
         // Hide Cap: Head protection
         _options.Add(new CraftOption
         {
+            Id = "hide-cap",
             Name = "Hide Cap",
             Description = "A fitted cap of cured hide. Keeps your head warm.",
             Category = NeedCategory.Equipment,
@@ -1072,6 +1112,7 @@ public class NeedCraftingSystem
         // Hide Wrap: Chest protection (larger piece)
         _options.Add(new CraftOption
         {
+            Id = "hide-wrap",
             Name = "Hide Wrap",
             Description = "A large wrap of cured hide worn around the torso. Essential cold protection.",
             Category = NeedCategory.Equipment,
@@ -1098,6 +1139,7 @@ public class NeedCraftingSystem
         // Hide Leggings: Leg protection
         _options.Add(new CraftOption
         {
+            Id = "hide-leggings",
             Name = "Hide Leggings",
             Description = "Cured hide wraps for the legs. Protects against cold and brush.",
             Category = NeedCategory.Equipment,
@@ -1124,6 +1166,7 @@ public class NeedCraftingSystem
         // Hide Boots: Foot protection
         _options.Add(new CraftOption
         {
+            Id = "hide-boots",
             Name = "Hide Boots",
             Description = "Sturdy boots of cured hide. Protects feet from cold and rough terrain.",
             Category = NeedCategory.Equipment,
@@ -1151,6 +1194,7 @@ public class NeedCraftingSystem
         // Uses all 3 hides from one mammoth - the all-in warmth choice
         _options.Add(new CraftOption
         {
+            Id = "mammoth-hide-coat",
             Name = "Mammoth Hide Coat",
             Description = "A massive coat of woolly mammoth hide. The thick fur and dense leather block wind completely. Trophy gear.",
             Category = NeedCategory.Equipment,
@@ -1178,6 +1222,7 @@ public class NeedCraftingSystem
         // Mammoth Hood: Uses 1 hide, leaving 2 for utility items
         _options.Add(new CraftOption
         {
+            Id = "mammoth-hood",
             Name = "Mammoth Hood",
             Description = "A hood of mammoth hide with thick fur lining. Covers head and neck completely.",
             Category = NeedCategory.Equipment,
@@ -1211,6 +1256,7 @@ public class NeedCraftingSystem
         // Simple Torch: 1 stick + 2 tinder
         _options.Add(new CraftOption
         {
+            Id = "simple-torch",
             Name = "Simple Torch",
             Description = "A stick wrapped with tinder. Burns for about an hour, provides light and modest warmth.",
             Category = NeedCategory.Lighting,
@@ -1226,6 +1272,7 @@ public class NeedCraftingSystem
         // Birch Bark Torch: 1 stick + 1 birch bark (better starting material)
         _options.Add(new CraftOption
         {
+            Id = "birch-bark-torch",
             Name = "Birch Bark Torch",
             Description = "A torch with oily birch bark. Catches fire easily and burns brightly.",
             Category = NeedCategory.Lighting,
@@ -1241,6 +1288,7 @@ public class NeedCraftingSystem
         // Resin Torch: 1 stick + 1 tinder + 1 pine resin (longer burn, weatherproof)
         _options.Add(new CraftOption
         {
+            Id = "resin-torch",
             Name = "Resin Torch",
             Description = "A torch coated with pine resin. Burns longer and resists wind and moisture.",
             Category = NeedCategory.Lighting,
@@ -1257,6 +1305,7 @@ public class NeedCraftingSystem
         // Amadou Ember Carrier: 2 Amadou -> portable fire transport (starts unlit)
         _options.Add(new CraftOption
         {
+            Id = "amadou-ember-carrier",
             Name = "Amadou Ember Carrier",
             Description = "Prepared amadou fungus that holds a smoldering ember. Light from a fire to carry fire for 8 hours. Extinguished by getting wet.",
             Category = NeedCategory.Lighting,
@@ -1279,6 +1328,7 @@ public class NeedCraftingSystem
         // Polypore Ember Carrier: 2 BirchPolypore -> longer burn time
         _options.Add(new CraftOption
         {
+            Id = "polypore-ember-carrier",
             Name = "Polypore Ember Carrier",
             Description = "Dense birch polypore that smolders for hours. Light from a fire to carry fire for 12 hours. Heavier but longer lasting.",
             Category = NeedCategory.Lighting,
@@ -1308,6 +1358,7 @@ public class NeedCraftingSystem
         // Small Pouch: PlantFiber + BirchBark -> +0.5kg
         _options.Add(new CraftOption
         {
+            Id = "small-pouch",
             Name = "Small Pouch",
             Description = "A simple pouch woven from plant fiber and birch bark. Clips to your belt.",
             Category = NeedCategory.Carrying,
@@ -1323,6 +1374,7 @@ public class NeedCraftingSystem
         // Rope Belt: 2 Rope -> +3kg
         _options.Add(new CraftOption
         {
+            Id = "rope-belt",
             Name = "Rope Belt",
             Description = "A sturdy belt of woven rope. Lets you hang tools and pouches.",
             Category = NeedCategory.Carrying,
@@ -1335,6 +1387,7 @@ public class NeedCraftingSystem
         // Proper Belt: CuredHide + Sinew -> +4kg
         _options.Add(new CraftOption
         {
+            Id = "proper-belt",
             Name = "Proper Belt",
             Description = "A proper leather belt with loops and attachment points.",
             Category = NeedCategory.Carrying,
@@ -1350,6 +1403,7 @@ public class NeedCraftingSystem
         // Large Bag: 3 CuredHide + 2 Sinew + 2 Rope -> +10kg
         _options.Add(new CraftOption
         {
+            Id = "large-bag",
             Name = "Large Bag",
             Description = "A large hide bag with rope shoulder straps. Serious carrying capacity.",
             Category = NeedCategory.Carrying,
@@ -1367,6 +1421,7 @@ public class NeedCraftingSystem
         // Uses 2 of 3 mammoth hides - alternative to the coat
         _options.Add(new CraftOption
         {
+            Id = "mammoth-hide-pack",
             Name = "Mammoth Hide Pack",
             Description = "A massive pack of mammoth hide. The thick leather is nearly indestructible. Trophy gear.",
             Category = NeedCategory.Carrying,
@@ -1398,6 +1453,7 @@ public class NeedCraftingSystem
         // 1. Padded Bedding (Instant Improvement)
         _options.Add(new CraftOption
         {
+            Id = "padded-bedding",
             Name = "Padded Bedding",
             Description = "A comfortable sleeping mat with plant fiber padding and a hide blanket. Better rest quality and ground insulation.",
             Category = NeedCategory.CampInfrastructure,
@@ -1413,6 +1469,7 @@ public class NeedCraftingSystem
         // 1b. Moss-Padded Bedding (Instant Improvement - superior to padded bedding)
         _options.Add(new CraftOption
         {
+            Id = "moss-padded-bedding",
             Name = "Moss-Padded Bedding",
             Description = "Layers of sphagnum moss over pine boughs. Superior ground insulation from moss's air-trapping properties. +3°F warmth.",
             Category = NeedCategory.CampInfrastructure,
@@ -1429,6 +1486,7 @@ public class NeedCraftingSystem
         // 2. Curing Rack (Instant Improvement)
         _options.Add(new CraftOption
         {
+            Id = "curing-rack",
             Name = "Curing Rack",
             Description = "A wooden rack for curing hides and drying meat. Essential for leather-working and food preservation.",
             Category = NeedCategory.CampInfrastructure,
@@ -1445,6 +1503,7 @@ public class NeedCraftingSystem
         // Branch Frame Shelter - quick, basic shelter that can be improved
         _options.Add(new CraftOption
         {
+            Id = "branch-frame-shelter",
             Name = "Branch Frame Shelter",
             Description = "A basic frame of branches. Quick to build, provides immediate shelter. Improve with materials over time. Max 50% coverage.",
             Category = NeedCategory.CampInfrastructure,
@@ -1465,6 +1524,7 @@ public class NeedCraftingSystem
         // Log Frame Shelter - sturdier shelter with higher caps
         _options.Add(new CraftOption
         {
+            Id = "log-frame-shelter",
             Name = "Log Frame Shelter",
             Description = "A sturdy log frame. More durable than branches, allows better improvements. Max 80% coverage.",
             Category = NeedCategory.CampInfrastructure,
@@ -1485,6 +1545,7 @@ public class NeedCraftingSystem
         // Rebuild Shelter - upgrade from branch frame to log frame
         _options.Add(new CraftOption
         {
+            Id = "rebuild-shelter",
             Name = "Rebuild Shelter",
             Description = "Tear down your branch frame and rebuild with logs. Salvages ~60% of invested materials. Higher caps for improvements.",
             Category = NeedCategory.CampInfrastructure,
@@ -1508,7 +1569,10 @@ public class NeedCraftingSystem
         // 3. Mound Fire Pit (Multi-Session Project)
         _options.Add(new CraftOption
         {
+            Id = "mound-fire-pit",
             Name = "Mound Fire Pit (Project)",
+            ProjectWorkMinutes = 180,
+            ProjectBenefitsFromShovel = true,
             Description = "A shaped depression in the earth. Provides wind protection and larger fuel capacity. Requires shovel.",
             Category = NeedCategory.CampInfrastructure,
             CraftingTimeMinutes = 15, // Setup time
@@ -1525,7 +1589,10 @@ public class NeedCraftingSystem
         // 3. Stone Fire Pit (Multi-Session Project with Prerequisite)
         _options.Add(new CraftOption
         {
+            Id = "stone-fire-pit",
             Name = "Stone Fire Pit (Project)",
+            ProjectWorkMinutes = 300,
+            ProjectBenefitsFromShovel = true,
             Description = "A stone-lined pit with excellent wind protection and fuel efficiency. Requires digging work (benefits from shovel). Requires Mound Pit first.",
             Category = NeedCategory.CampInfrastructure,
             CraftingTimeMinutes = 15, // Setup time
@@ -1551,7 +1618,10 @@ public class NeedCraftingSystem
         // 4. Snow Shelter (Multi-Session Project with Environmental Prerequisite)
         _options.Add(new CraftOption
         {
+            Id = "snow-shelter",
             Name = "Snow Shelter (Project)",
+            ProjectWorkMinutes = 120,
+            ProjectBenefitsFromShovel = true,
             Description = "A carved snow shelter with excellent insulation. Requires cold weather (below 32°F) and a shovel. Melts in warm temperatures.",
             Category = NeedCategory.CampInfrastructure,
             CraftingTimeMinutes = 15, // Setup time
@@ -1578,6 +1648,7 @@ public class NeedCraftingSystem
         // 6. Portable Hide Tent - crafted item you can deploy anywhere
         _options.Add(new CraftOption
         {
+            Id = "hide-tent",
             Name = "Hide Tent",
             Description = "A portable tent made from cured hides and a collapsible frame. Carry it with you and deploy shelter anywhere.",
             Category = NeedCategory.CampInfrastructure,
@@ -1594,6 +1665,7 @@ public class NeedCraftingSystem
         // 7. Mammoth Hide Tent - superior portable shelter from trophy materials
         _options.Add(new CraftOption
         {
+            Id = "mammoth-hide-tent",
             Name = "Mammoth Hide Tent",
             Description = "A heavy-duty tent of mammoth hide. Superior wind and cold protection. Trophy gear.",
             Category = NeedCategory.CampInfrastructure,
@@ -1610,7 +1682,10 @@ public class NeedCraftingSystem
         // 8. Sleeping Bag (Multi-Session Project)
         _options.Add(new CraftOption
         {
+            Id = "sleeping-bag",
             Name = "Sleeping Bag (Project)",
+            ProjectWorkMinutes = 180,
+            ProjectBenefitsFromShovel = false,
             Description = "Cured hides sewn together into an enclosed sleeping bag. Best bedding quality with warmth bonus. Requires several hours of stitching work.",
             Category = NeedCategory.CampInfrastructure,
             CraftingTimeMinutes = 15, // Setup time
@@ -1636,6 +1711,7 @@ public class NeedCraftingSystem
         // Mend Boots
         _options.Add(new CraftOption
         {
+            Id = "mend-boots",
             Name = "Mend Boots",
             Description = "Patch holes and restitch seams on your footwear.",
             Category = NeedCategory.Mending,
@@ -1659,6 +1735,7 @@ public class NeedCraftingSystem
         // Mend Gloves
         _options.Add(new CraftOption
         {
+            Id = "mend-gloves",
             Name = "Mend Gloves",
             Description = "Patch worn spots and fix loose stitching on your gloves.",
             Category = NeedCategory.Mending,
@@ -1682,6 +1759,7 @@ public class NeedCraftingSystem
         // Mend Cap
         _options.Add(new CraftOption
         {
+            Id = "mend-cap",
             Name = "Mend Cap",
             Description = "Patch and restitch your head covering.",
             Category = NeedCategory.Mending,
@@ -1705,6 +1783,7 @@ public class NeedCraftingSystem
         // Mend Chest Wrap
         _options.Add(new CraftOption
         {
+            Id = "mend-chest-wrap",
             Name = "Mend Chest Wrap",
             Description = "Patch tears and reinforce seams on your chest covering.",
             Category = NeedCategory.Mending,
@@ -1728,6 +1807,7 @@ public class NeedCraftingSystem
         // Mend Leggings
         _options.Add(new CraftOption
         {
+            Id = "mend-leggings",
             Name = "Mend Leggings",
             Description = "Patch worn areas and fix loose stitching on your leg wraps.",
             Category = NeedCategory.Mending,

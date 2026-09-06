@@ -129,12 +129,13 @@ public class Inventory : IJsonOnDeserialized
 
     // Public property for serialization (System.Text.Json needs this)
     // Note: StackConverterFactory handles order preservation, no manual reversal needed
+    // Empty stacks are omitted from saves; the constructor pre-populates every
+    // Resource key, so absent keys on load simply stay empty.
     public Dictionary<Resource, Stack<double>> Stacks
     {
-        get => _stacks;
+        get => _stacks.Where(kvp => kvp.Value.Count > 0).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         set
         {
-            _stacks.Clear();
             foreach (var (resource, stack) in value)
             {
                 _stacks[resource] = stack;
@@ -475,6 +476,19 @@ public class Inventory : IJsonOnDeserialized
         var removed = Weapon;
         Weapon = null;
         return removed;
+    }
+
+    public void ReplaceGear(Gear target, Gear result)
+    {
+        result.InstanceId = target.InstanceId;
+        if (ReferenceEquals(Weapon, target)) { Weapon = result; return; }
+        int index = Tools.IndexOf(target);
+        if (index >= 0) { Tools[index] = result; return; }
+        index = Accessories.IndexOf(target);
+        if (index >= 0) { Accessories[index] = result; return; }
+        foreach (var slot in Enum.GetValues<EquipSlot>())
+            if (ReferenceEquals(GetEquipment(slot), target)) { _equipment[slot] = result; return; }
+        throw new InvalidOperationException("The selected gear is no longer owned.");
     }
 
     public Gear? GetTool(ToolType type)

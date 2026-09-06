@@ -9,10 +9,9 @@ using text_survival.Environments.Features;
 namespace text_survival.Desktop.UI;
 
 /// <summary>
-/// Comprehensive stats panel displaying full survival state.
-/// Matches the web version's GameStateDto content.
+/// Personal survival summary with independently scrolling condition details.
 /// </summary>
-public static class StatsPanel
+public static class SurvivorPanel
 {
     // Color constants
     private static readonly Vector4 ColorGood = new(0.4f, 0.9f, 0.4f, 1f);
@@ -31,121 +30,43 @@ public static class StatsPanel
     /// <summary>
     /// Render the stats panel.
     /// </summary>
-    public static void Render(GameContext ctx)
+    public static text_survival.UI.PlayerAction? Render(GameContext ctx, HudRect rect, IReadOnlyList<HudAction> actions, bool interactive)
     {
-        ImGui.SetNextWindowPos(new Vector2(10, 10), ImGuiCond.Always);
-        ImGui.SetNextWindowSize(new Vector2(280, 0), ImGuiCond.Always);
-
-        ImGuiWindowFlags flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
-                                  ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings;
-
-        if (ImGui.Begin("Survival Status", flags))
+        text_survival.UI.PlayerAction? result = null;
+        HudWidgets.Begin("##Survivor", rect);
+        UiText.Colored(HudWidgets.Heading, "SURVIVOR");
+        ImGui.Separator();
+        RenderSurvivalStats(ctx.player);
+        ImGui.Separator();
+        var body = ctx.player.Body;
+        double rate = ctx.player.LastUpdateMinutes > 0 && ctx.player.LastSurvivalDelta?.TemperatureDelta is double delta
+            ? delta / ctx.player.LastUpdateMinutes * 60 : 0;
+        UiIcons.LabelColored("temperature", body.BodyTemperature < 97 ? ColorWarning : ColorGood,
+            $"Body {body.BodyTemperature:F1}°F{(rate < -.5 ? ArrowDown : rate > .5 ? ArrowUp : "")}");
+        UiText.Disabled($"{rate:+0.0;-0.0;0.0}°F/hr · Feels {ctx.CurrentLocation.GetTemperatureBreakdown(ctx.CurrentActivity).FinalTemp:F0}°F");
+        RenderInventorySummary(ctx);
+        var warnings = SurvivorWarnings.Build(ctx);
+        if (warnings.Count > 0)
         {
-            var body = ctx.player.Body;
-            var location = ctx.CurrentLocation;
-            var weather = location.Weather;
-
-            // Time Section
-            RenderTimeSection(ctx, weather);
-
-            ImGui.Separator();
-
-            // Survival Stats
-            RenderSurvivalStats(ctx.player);
-
-            ImGui.Separator();
-
-            // Temperature
-            RenderTemperature(ctx, body, location, weather);
-
-            // Body Condition (if any issues)
-            RenderBodyCondition(ctx, body);
-
-            // Active Effects
-            RenderEffects(ctx);
-
-            // Tensions
-            RenderTensions(ctx);
-
-            ImGui.Separator();
-
-            // Inventory Summary
-            RenderInventorySummary(ctx);
-
-            // Fire Status (if at location with fire)
-            RenderFireStatus(ctx);
-
-            // Camp Info (if at camp)
-            RenderCampInfo(ctx);
+            // One fixed-height summary. Full warnings remain accessible in the details below.
+            UiText.Colored(ColorDanger, warnings.Count == 1 ? warnings[0] : $"{warnings[0]} (+{warnings.Count - 1})");
+            if (ImGui.IsItemHovered()) UiText.Tooltip(string.Join("\n", warnings));
         }
+        ImGui.Separator();
+        foreach (var action in actions.Where(a => a.Group == HudActionGroup.Personal))
+            if (HudWidgets.Action(action, interactive)) result = action.Payload;
+        ImGui.Separator();
+        ImGui.BeginChild("survivor-details", new Vector2(0, 0), ImGuiChildFlags.None, ImGuiWindowFlags.AlwaysVerticalScrollbar);
+        UiText.Colored(HudWidgets.Heading, "CONDITION");
+        foreach (var warning in warnings) { ImGui.PushTextWrapPos(0); UiText.Colored(ColorWarning, warning); ImGui.PopTextWrapPos(); }
+        RenderBodyCondition(ctx, body);
+        RenderEffects(ctx);
+        RenderTensions(ctx);
+        if (ImGui.CollapsingHeader("Temperature & clothing"))
+            RenderTemperature(ctx, body, ctx.CurrentLocation, ctx.CurrentLocation.Weather);
+        ImGui.EndChild();
         ImGui.End();
-
-        // The journal is part of the same persistent HUD, so it appears wherever the
-        // stats do rather than needing its own call at every render site.
-        JournalPanel.Render(ctx);
-    }
-
-    private static void RenderTimeSection(GameContext ctx, Weather weather)
-    {
-        var startDate = GameContext.StartTime;
-        int dayNumber = (ctx.GameTime - startDate).Days + 1;
-        bool isDaytime = weather.IsDaytime(ctx.GameTime);
-        string timeOfDay = ctx.GetTimeOfDay().ToString();
-
-        UiIcons.LabelColored(isDaytime ? "sun" : "moon", ColorHeader, $"Day {dayNumber}");
-        ImGui.SameLine();
-        UiText.Text($"  {ctx.GameTime:h:mm tt}");
-
-        // Weather info - expanded
-        UiText.Disabled(weather.GetSeasonLabel());
-        ImGui.SameLine();
-        UiText.Disabled($"| {weather.GetConditionLabel()}");
-
-        // Weather details
-        if (ImGui.BeginTable("weather_details", 2))
-        {
-            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 88);
-            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
-
-            // Ambient temperature
-            var breakdown = ctx.CurrentLocation.GetTemperatureBreakdown(ctx.CurrentActivity);
-            ImGui.TableNextColumn();
-            UiIcons.LabelColored("temperature", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Temp");
-            ImGui.TableNextColumn();
-            UiText.Disabled($"{breakdown.BaseTemp:F0}°F");
-
-            // Wind
-            ImGui.TableNextColumn();
-            UiIcons.LabelColored("wind", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Wind");
-            ImGui.TableNextColumn();
-            UiText.Disabled($"{weather.WindSpeedMPH:F0} mph {weather.CurrentWindDirection}");
-
-            // Precipitation
-            ImGui.TableNextColumn();
-            UiIcons.LabelColored("precipitation", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Precip");
-            ImGui.TableNextColumn();
-            UiText.Disabled(GetPrecipitationLabel(weather.PrecipitationPct));
-
-            // Weather front
-            string frontLabel = weather.GetFrontLabel();
-            if (!string.IsNullOrEmpty(frontLabel))
-            {
-                ImGui.TableNextColumn();
-                UiIcons.LabelColored("wind", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Front");
-                ImGui.TableNextColumn();
-                UiText.Disabled(frontLabel);
-            }
-
-            ImGui.EndTable();
-        }
-    }
-
-    private static string GetPrecipitationLabel(double precipitation)
-    {
-        if (precipitation < 0.1) return "None";
-        if (precipitation < 0.3) return "Light";
-        if (precipitation < 0.6) return "Moderate";
-        return "Heavy";
+        return result;
     }
 
     private static void RenderSurvivalStats(Actor actor)
@@ -460,7 +381,7 @@ public static class StatsPanel
 
     private static void RenderEffects(GameContext ctx)
     {
-        var effects = ctx.player.EffectRegistry.GetAll().Take(6).ToList();
+        var effects = ctx.player.EffectRegistry.GetAll().ToList();
         if (effects.Count == 0) return;
 
         ImGui.Separator();
@@ -576,199 +497,6 @@ public static class StatsPanel
         }
     }
 
-    private static void RenderFireStatus(GameContext ctx)
-    {
-        var location = ctx.CurrentLocation;
-        var fire = location.GetFeature<HeatSourceFeature>();
-        if (fire == null || (!fire.IsActive && !fire.HasEmbers)) return;
-
-        ImGui.Separator();
-
-        // Determine phase and time remaining
-        string phase;
-        int minutes;
-
-        if (fire.HasEmbers)
-        {
-            phase = "Embers";
-            minutes = (int)(fire.EmberTimeRemaining * 60);
-        }
-        else
-        {
-            phase = fire.GetFirePhase();
-            minutes = fire.UnburnedMassKg > 0.1
-                ? (int)(fire.TotalHoursRemaining * 60)
-                : (int)(fire.BurningHoursRemaining * 60);
-        }
-
-        // Phase-appropriate color
-        Vector4 phaseColor = phase switch
-        {
-            "Roaring" => new Vector4(1f, 0.4f, 0.2f, 1f),  // Bright orange-red
-            "Building" => new Vector4(1f, 0.6f, 0.3f, 1f), // Orange
-            "Steady" => ColorWarm,                          // Warm orange
-            "Igniting" => new Vector4(1f, 0.8f, 0.4f, 1f), // Yellow-orange
-            "Dying" => new Vector4(0.8f, 0.4f, 0.2f, 1f),  // Dim orange
-            "Embers" => new Vector4(0.6f, 0.3f, 0.2f, 1f), // Deep red-brown
-            _ => ColorWarm
-        };
-
-        // Header with phase
-        UiIcons.LabelColored("fire", ColorHeader, "Fire");
-        ImGui.SameLine();
-        UiText.Colored(phaseColor, phase);
-
-        if (ImGui.BeginTable("fire_status", 2))
-        {
-            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 88);
-            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
-
-            // Fire temperature and heat output on one line
-            double fireTemp = fire.GetCurrentFireTemperature();
-            var breakdown = location.GetTemperatureBreakdown(ctx.CurrentActivity);
-            if (fireTemp > 0)
-            {
-                ImGui.TableNextColumn();
-                UiText.Disabled("Temperature");
-                ImGui.TableNextColumn();
-                string heatText = breakdown.FireBonus > 1
-                    ? $"{fireTemp:F0}°F (+{breakdown.FireBonus:F0}°F)"
-                    : $"{fireTemp:F0}°F";
-                UiText.Colored(phaseColor, heatText);
-            }
-
-            // Fuel gauge (only for active fires, not embers)
-            if (fire.IsActive)
-            {
-                double burningKg = fire.BurningMassKg;
-                double unburnedKg = fire.UnburnedMassKg;
-                double maxKg = fire.MaxFuelCapacityKg;
-
-                ImGui.TableNextColumn();
-                UiIcons.LabelColored("fuel", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Fuel");
-                ImGui.TableNextColumn();
-
-                // Progress bar showing burning + unburned fuel
-                float totalPct = (float)((burningKg + unburnedKg) / maxKg);
-                float burningPct = (float)(burningKg / maxKg);
-
-                // Draw fuel bar background
-                Vector2 barPos = ImGui.GetCursorScreenPos();
-                float barWidth = ImGui.GetContentRegionAvail().X - 5;
-                float barHeight = 14;
-
-                var drawList = ImGui.GetWindowDrawList();
-
-                // Background (empty capacity)
-                drawList.AddRectFilled(
-                    barPos,
-                    new Vector2(barPos.X + barWidth, barPos.Y + barHeight),
-                    ImGui.GetColorU32(new Vector4(0.2f, 0.2f, 0.2f, 1f)));
-
-                // Unburned fuel (lighter orange, behind burning)
-                if (unburnedKg > 0)
-                {
-                    drawList.AddRectFilled(
-                        barPos,
-                        new Vector2(barPos.X + barWidth * totalPct, barPos.Y + barHeight),
-                        ImGui.GetColorU32(new Vector4(0.6f, 0.4f, 0.2f, 1f)));
-                }
-
-                // Burning fuel (bright orange, on top)
-                if (burningKg > 0)
-                {
-                    drawList.AddRectFilled(
-                        barPos,
-                        new Vector2(barPos.X + barWidth * burningPct, barPos.Y + barHeight),
-                        ImGui.GetColorU32(phaseColor));
-                }
-
-                // Border
-                drawList.AddRect(
-                    barPos,
-                    new Vector2(barPos.X + barWidth, barPos.Y + barHeight),
-                    ImGui.GetColorU32(new Vector4(0.4f, 0.4f, 0.4f, 1f)));
-
-                // Text overlay showing fuel amounts
-                string fuelText = unburnedKg > 0.1
-                    ? $"{burningKg:F1} (+{unburnedKg:F1}) / {maxKg:F0} kg"
-                    : $"{burningKg:F1} / {maxKg:F0} kg";
-
-                // Center text in bar
-                Vector2 textSize = ImGui.CalcTextSize(fuelText);
-                Vector2 textPos = new(
-                    barPos.X + (barWidth - textSize.X) / 2,
-                    barPos.Y + (barHeight - textSize.Y) / 2);
-
-                drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 1f)), fuelText);
-
-                // Advance cursor past the bar
-                ImGui.Dummy(new Vector2(barWidth, barHeight));
-            }
-
-            // Time remaining with urgency-based coloring
-            ImGui.TableNextColumn();
-            UiIcons.LabelColored("clock", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Time Left");
-            ImGui.TableNextColumn();
-
-            Vector4 timeColor = minutes <= 5 ? ColorCritical :
-                               minutes <= 15 ? ColorDanger :
-                               minutes <= 30 ? ColorWarning : ColorMuted;
-
-            UiText.Colored(timeColor, FormatTime(minutes));
-
-            ImGui.EndTable();
-        }
-    }
-
-    private static void RenderCampInfo(GameContext ctx)
-    {
-        // Only show when at camp
-        if (ctx.Camp == null || ctx.CurrentLocation != ctx.Camp) return;
-
-        ImGui.Separator();
-        UiIcons.LabelColored("shelter", ColorHeader, "Camp");
-
-        // Shelter info
-        var shelter = ctx.Camp.GetFeature<ShelterFeature>();
-        if (shelter != null)
-        {
-            int insulation = (int)Math.Round(shelter.TemperatureInsulation * 100);
-            int wind = (int)Math.Round(shelter.WindCoverage * 100);
-            int overhead = (int)Math.Round(shelter.OverheadCoverage * 100);
-            UiText.Text($"  Shelter: {insulation}% insulation");
-            UiText.Disabled($"    Wind: {wind}% | Overhead: {overhead}%");
-        }
-
-        // Bedding info
-        var bedding = ctx.Camp.GetFeature<BeddingFeature>();
-        if (bedding != null)
-        {
-            UiText.Text($"  Bedding: {bedding.Quality} quality");
-        }
-
-        // Storage summary
-        var cache = ctx.Camp.GetFeature<CacheFeature>();
-        if (cache != null && cache.Storage.CurrentWeightKg > 0)
-        {
-            UiText.Text($"  Storage: {cache.Storage.CurrentWeightKg:F1} kg stored");
-        }
-
-        // Curing rack status
-        var rack = ctx.Camp.GetFeature<CuringRackFeature>();
-        if (rack != null && rack.ItemCount > 0)
-        {
-            if (rack.HasReadyItems)
-            {
-                UiText.Colored(ColorGood, $"  Curing Rack: items ready!");
-            }
-            else
-            {
-                UiText.Text($"  Curing Rack: {rack.ItemCount} curing");
-            }
-        }
-    }
-
     private static Vector4 GetStatColor(int percent)
     {
         if (percent <= 15) return ColorCritical;
@@ -801,14 +529,4 @@ public static class StatsPanel
         }
     }
 
-    private static string FormatTime(int minutes)
-    {
-        if (minutes >= 60)
-        {
-            int hours = minutes / 60;
-            int mins = minutes % 60;
-            return mins > 0 ? $"{hours}h {mins}m" : $"{hours}h";
-        }
-        return $"{minutes}m";
-    }
 }

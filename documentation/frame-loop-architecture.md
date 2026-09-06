@@ -140,7 +140,7 @@ public interface IGameUi
     Task<PendingFoodAction?> ShowFood();
 
     // ── Base screens (the thing the player is "in" when no prompt is up) ──
-    Task<PlayerAction> WaitForPlayerAction();    // map screen: action panel, tile popup, WASD, hotkeys
+    Task<PlayerAction> WaitForPlayerAction();    // map screen: persistent HUD, location inspector, WASD, hotkeys
     Task<CombatInput?> WaitForCombatAction();    // combat screen; null = window closing
 
     // ── Progress (non-blocking handle; caller drives time with NextFrame) ──
@@ -186,11 +186,11 @@ public void Frame(GameContext ctx, float dt)
 {
     // 1. resolve time waiters: NextFrame() waiters get dt; Wait() waiters count down
     // 2. input: only the top modal receives input; world hover always updates
-    // 3. update UI-only animation: camera smoothing, snow, toast timers
+    // 3. update UI-only animation: camera smoothing, snow, local feedback timers
     // 4. draw — the ONLY BeginDrawing in the codebase:
     //      world (map or combat grid)
     //      dim layer if any modal on the stack dims
-    //      ImGui: modals bottom→top, then HUD (StatsPanel, JournalPanel, Toasts) — always
+    //      ImGui: persistent HUD, then modals bottom→top; only the active prompt may submit actions
 }
 ```
 
@@ -203,8 +203,30 @@ logic is running between awaits without a screen up (e.g. passing time with no d
 prompts (an event during a progress bar, a confirm inside a screen) stack naturally and
 render underneath each other, which is the intended look.
 
-**HUD is unconditional.** `StatsPanel`, `JournalPanel`, and toasts render every frame in
-every state — map, combat, dialogs, screens. There is no "minimal" status panel.
+**HUD is unconditional.** `HudController` renders the top bar, survivor rail, location or
+combat inspector, and event history in every state. Only an active map/combat prompt
+accepts HUD actions. Background prompts are disabled. HUD renders before modal windows,
+so dialogs remain above the persistent panels.
+
+`HudLayout` supplies all five region rectangles and the camera viewport in logical pixels.
+The camera fits its square grid to that viewport; changing history height or UI scale
+recalculates layout without changing its world center. Survivor details and inspector
+content scroll independently of pinned summaries/footers.
+
+`HudState` owns selection. `MapInputRouter` changes it on map clicks; the inspector and
+world renderer read the same identity. Movement clears selection. `TravelInspection`
+recomputes legal travel choices using `TravelProcessor.PreviewCrossing`; no cached popup
+preview or string-to-action conversion remains. `HudActions` supplies stable action IDs,
+availability, groups and shortcut hints to both buttons and keyboard dispatch.
+
+Weather details open from the top weather summary. People appears once in the location
+inspector. Follow Player is **G**, registered in `HotkeyRegistry`; camera panning still
+uses arrows or middle-mouse drag.
+
+`EventLogPanel` reads retained narrative directly. `LogFollowState` suspends automatic
+following when the reader scrolls back and tracks unread entries. A nonserialized log
+revision identifies entries even when the bounded history rolls over. Routine narrative
+is displayed once; ongoing danger is derived from live survivor state.
 
 ### `Program.Main` (`Core/Program.cs`)
 
@@ -384,8 +406,7 @@ grid-click movement.
 - `CraftingOverlay.PendingCraft/ProcessPendingCraft`, `FoodOverlay.PendingAction/ProcessPendingAction`
   and the fire/transfer "process result inside the render loop" code.
 
-`GameDisplay.AddNarrative` and friends stay: they write to the log and raise toasts, which
-is sim→state, not sim→UI. `ToastManager` stays but only `DesktopUi.Frame` ticks it.
+`GameDisplay.AddNarrative` and friends write to the persistent log (sim→state). The HUD migration removed the duplicate toast feed and floating toast renderer.
 
 ---
 

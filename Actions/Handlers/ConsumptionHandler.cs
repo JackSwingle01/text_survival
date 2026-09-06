@@ -38,6 +38,10 @@ public static class ConsumptionHandler
     /// <summary>Most water anyone drinks in one go, player or NPC.</summary>
     public const double MaxDrinkLiters = 1.0;
 
+    public const int EatTimeMinutes = 10;
+    public const int DrinkTimeMinutes = 2;
+    public const int WashTimeMinutes = 5;
+
     // Hyperthermia relief from drinking
     private const double HyperthermiaCooldownPerQuarterLiter = 0.15;
 

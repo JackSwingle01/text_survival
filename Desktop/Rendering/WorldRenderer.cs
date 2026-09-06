@@ -20,11 +20,11 @@ public class WorldRenderer : IDisposable
     public void Dispose()
     {
         _fog.Dispose();
-        TerrainRenderer.Unload();
     }
 
     private (int x, int y)? _hoveredTile;
-    private (int x, int y)? _selectedTile;
+    private readonly UI.HudState _hud;
+    private (int x, int y)? _selectedTile => _hud.SelectedTile;
     private (int x, int y)? _hoveredCombatCell;
     private readonly EffectsRenderer _effects;
 
@@ -33,56 +33,20 @@ public class WorldRenderer : IDisposable
     /// </summary>
     public Combat.Unit? HoveredCombatUnit { get; private set; }
 
-    // Track screen size for resize handling
-    private int _lastScreenWidth;
-    private int _lastScreenHeight;
-
-    public WorldRenderer()
+    public WorldRenderer(UI.HudState hud)
     {
+        _hud = hud;
         Camera = new Camera();
         _effects = new EffectsRenderer();
-
-        // Initialize camera size based on current screen
-        ConfigureCameraSize();
     }
 
-    /// <summary>
-    /// Configure camera dimensions based on current screen size.
-    /// Called on init and when window is resized.
-    /// </summary>
-    private void ConfigureCameraSize()
-    {
-        int screenWidth = Raylib.GetScreenWidth();
-        int screenHeight = Raylib.GetScreenHeight();
-
-        if (screenWidth != _lastScreenWidth || screenHeight != _lastScreenHeight)
-        {
-            _lastScreenWidth = screenWidth;
-            _lastScreenHeight = screenHeight;
-            Camera.ConfigureForScreenSize(screenWidth, screenHeight);
-        }
-    }
-
-    /// <summary>
-    /// Get or set the currently selected tile (for popup display).
-    /// </summary>
-    public (int x, int y)? SelectedTile
-    {
-        get => _selectedTile;
-        set => _selectedTile = value;
-    }
+    public void SetViewport(UI.HudRect rect) => Camera.ConfigureForViewport(rect.X, rect.Y, rect.Width, rect.Height);
 
     /// <summary>
     /// Update renderer state. Call once per frame.
     /// </summary>
     public void Update(GameContext ctx, float deltaTime)
     {
-        // Check for window resize
-        if (Raylib.IsWindowResized())
-        {
-            ConfigureCameraSize();
-        }
-
         // The camera follows the player sprite - the same position the sprite is drawn at,
         // so the two arrive together instead of racing on separate clocks.
         Camera.TrackPlayer(PlayerWorldPosition(ctx));
@@ -111,9 +75,23 @@ public class WorldRenderer : IDisposable
         }
 
         bool changed = false;
+        if (!mouseCaptured && Camera.ContainsScreenPoint(Raylib.GetMousePosition()))
+            changed |= Camera.ZoomWheel(Raylib.GetMouseWheelMove());
+
         if (!keyboardCaptured)
         {
-            if (Raylib.IsKeyPressed(KeyboardKey.Home))
+            bool zoomModifier = Raylib.IsKeyDown(KeyboardKey.LeftControl) || Raylib.IsKeyDown(KeyboardKey.RightControl) ||
+                Raylib.IsKeyDown(KeyboardKey.LeftSuper) || Raylib.IsKeyDown(KeyboardKey.RightSuper);
+            if (zoomModifier)
+            {
+                if (Raylib.IsKeyPressed(KeyboardKey.Equal) || Raylib.IsKeyPressed(KeyboardKey.KpAdd))
+                    changed |= Camera.Zoom(1);
+                if (Raylib.IsKeyPressed(KeyboardKey.Minus) || Raylib.IsKeyPressed(KeyboardKey.KpSubtract))
+                    changed |= Camera.Zoom(-1);
+                if (Raylib.IsKeyPressed(KeyboardKey.Zero) || Raylib.IsKeyPressed(KeyboardKey.Kp0))
+                    changed |= Camera.ResetZoom();
+            }
+            if (Input.HotkeyRegistry.IsPressed(Input.HotkeyAction.FollowPlayer))
             {
                 Camera.Follow(PlayerWorldPosition(ctx));
                 changed = true;
@@ -147,6 +125,8 @@ public class WorldRenderer : IDisposable
     /// travelling this interpolates along the path from the travel run's own clock, so
     /// sprite and camera share one source of truth.
     /// </summary>
+    public void RecenterOnPlayer(GameContext ctx) => Camera.Follow(PlayerWorldPosition(ctx));
+
     private static Vector2 PlayerWorldPosition(GameContext ctx)
     {
         var travel = ctx.ActiveTravel;
@@ -283,6 +263,21 @@ public class WorldRenderer : IDisposable
             }
         }
 
+        if (_selectedTile is { } selected)
+        {
+            var selectedPosition = Camera.WorldToScreen(selected.x, selected.y);
+            var outline = new Color(235, 180, 75, 255);
+            Raylib.DrawRectangleLinesEx(new Rectangle(selectedPosition.X + 2, selectedPosition.Y + 2,
+                Camera.TileSize - 4, Camera.TileSize - 4), 2, outline);
+            var destination = new GridPosition(selected.x, selected.y);
+            if (playerPos.IsAdjacentTo(destination) && map.CanMoveTo(selected.x, selected.y) &&
+                !map.IsEdgeBlocked(playerPos, destination, ctx.Weather.CurrentSeason))
+            {
+                var end = Camera.GetTileCenter(selected.x, selected.y);
+                for (float t = .3f; t < .9f; t += .12f)
+                    Raylib.DrawCircleV(Vector2.Lerp(playerScreenPos, end, t), 2, outline);
+            }
+        }
         Raylib.EndScissorMode();
 
         // Render weather effects
@@ -381,13 +376,13 @@ public class WorldRenderer : IDisposable
     }
 
     /// <summary>
-    /// Check if two tiles are adjacent (including diagonals).
+    /// Check cardinal adjacency, matching legal map movement.
     /// </summary>
     private static bool IsAdjacent(int x1, int y1, int x2, int y2)
     {
         int dx = Math.Abs(x1 - x2);
         int dy = Math.Abs(y1 - y2);
-        return dx <= 1 && dy <= 1 && (dx + dy > 0);
+        return dx + dy == 1;
     }
 
     /// <summary>
@@ -469,23 +464,6 @@ public class WorldRenderer : IDisposable
             return _hoveredCombatCell;
         }
         return null;
-    }
-
-    /// <summary>
-    /// Get the screen position for a tile (top-left corner).
-    /// Used for popup positioning.
-    /// </summary>
-    public Vector2 GetTileScreenPosition(int x, int y)
-    {
-        return Camera.WorldToScreen(x, y);
-    }
-
-    /// <summary>
-    /// Clear the selected tile (hide popup).
-    /// </summary>
-    public void ClearSelection()
-    {
-        _selectedTile = null;
     }
 
     /// <summary>

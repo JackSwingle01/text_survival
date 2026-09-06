@@ -134,15 +134,31 @@ public static class CookingHandler
             FoodAction.CookMeat => "Cooking meat...",
             FoodAction.CookFish => "Cooking fish...",
             FoodAction.MeltSnow => "Melting snow...",
+            FoodAction.Eat => "Eating...",
+            FoodAction.Drink => action.ItemId == "wash_blood" ? "Washing off the blood..." : "Drinking...",
             _ => throw new InvalidOperationException($"{action.Action} does not pass time and should not reach here.")
         };
 
+        var activity = action.Action is FoodAction.Eat or FoodAction.Drink
+            ? ActivityType.Eating
+            : ActivityType.TendingFire;
+
         using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, statusText))
         {
-            await Pacing.PassTime(ctx, action.Minutes, ActivityType.TendingFire, view);
+            await Pacing.PassTime(ctx, action.Minutes, activity, view);
         }
 
         if (!ctx.player.IsAlive) return;
+
+        if (action.Action is FoodAction.Eat or FoodAction.Drink)
+        {
+            var consumed = ConsumptionHandler.Consume(ctx, action.ItemId);
+            if (consumed.IsWarning)
+                GameDisplay.AddWarning(ctx, consumed.Message);
+            else
+                GameDisplay.AddSuccess(ctx, consumed.Message);
+            return;
+        }
 
         CookingResult result = action.Action switch
         {

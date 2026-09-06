@@ -473,18 +473,7 @@ public class InventoryOverlay
             double perUnitWeight = item.WeightKg / item.Count;
             RenderFoodInfo(item.Resource, perUnitWeight);
             ImGui.Separator();
-
-            // Eat action
-            if (ImGui.Button("Eat", new Vector2(-1, 28)))
-            {
-                var result = ConsumptionHandler.Consume(ctx, item.Resource.ToString());
-                _message = result.Message;
-                _messageTimer = 2f;
-
-                // Update selection if depleted
-                if (inv.Count(item.Resource) == 0)
-                    _selectedItem = null;
-            }
+            UiText.Disabled("Eat from the food screen.");
         }
         else if (category == ResourceCategory.Medicine)
         {

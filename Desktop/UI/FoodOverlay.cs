@@ -314,21 +314,13 @@ public class FoodOverlay
         // Action buttons
         if (item.Id == "water")
         {
-            if (ImGui.Button("Drink", new Vector2(-1, 30)))
-            {
-                var result = ConsumptionHandler.Consume(ctx, item.Id);
-                SetMessage(result.Message, result.IsWarning);
-                _selectedItem = null; // Deselect after consuming
-            }
+            if (ImGui.Button($"Drink ({ConsumptionHandler.DrinkTimeMinutes} min)", new Vector2(-1, 30)))
+                Queue(FoodAction.Drink, item.Id, ConsumptionHandler.DrinkTimeMinutes);
         }
         else if (item.Id == "wash_blood")
         {
-            if (ImGui.Button("Wash", new Vector2(-1, 30)))
-            {
-                var result = ConsumptionHandler.Consume(ctx, item.Id);
-                SetMessage(result.Message, result.IsWarning);
-                _selectedItem = null;
-            }
+            if (ImGui.Button($"Wash ({ConsumptionHandler.WashTimeMinutes} min)", new Vector2(-1, 30)))
+                Queue(FoodAction.Drink, item.Id, ConsumptionHandler.WashTimeMinutes);
         }
         else
         {
@@ -342,12 +334,8 @@ public class FoodOverlay
             }
 
             string eatLabel = isRaw ? "Eat (risky)" : "Eat";
-            if (ImGui.Button(eatLabel, new Vector2(-1, 30)))
-            {
-                var result = ConsumptionHandler.Consume(ctx, item.Id);
-                SetMessage(result.Message, result.IsWarning);
-                _selectedItem = null;
-            }
+            if (ImGui.Button($"{eatLabel} ({ConsumptionHandler.EatTimeMinutes} min)", new Vector2(-1, 30)))
+                Queue(FoodAction.Eat, item.Id, ConsumptionHandler.EatTimeMinutes);
 
             if (isRaw && item.Warning != null)
             {
@@ -430,6 +418,12 @@ public class FoodOverlay
         }
 
         ImGui.PopStyleColor(2);
+    }
+
+    private void Queue(FoodAction action, string itemId, int minutes)
+    {
+        PendingAction = new PendingFoodAction { Action = action, ItemId = itemId, Minutes = minutes };
+        IsOpen = false;
     }
 
     private void SetMessage(string message, bool isWarning)

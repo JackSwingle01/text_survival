@@ -454,6 +454,8 @@ public class ForageStrategy : IWorkStrategy
             HarvestableFeature h => GetHarvestableDiscoveryMessage(h),
             ShelterFeature s => GetShelterDiscoveryMessage(s),
             EnvironmentalDetail d => GetEnvironmentalDetailDiscoveryMessage(d),
+            WaterFeature w => $"You discover something interesting: {w.DisplayName}.",
+            SalvageFeature s => $"You discover something interesting: {s.DisplayName}.",
             _ => $"You discover something interesting: {feature.Name}."
         };
     }

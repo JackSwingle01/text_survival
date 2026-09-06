@@ -4,173 +4,105 @@ using text_survival.Actions;
 using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
+using text_survival.UI;
 using static text_survival.Environments.Grid.TerrainTypeExtensions;
 
 namespace text_survival.Desktop.UI;
 
-public class TilePopup
+/// <summary>Inspects a live location. Selection belongs to HudState, never to this renderer.</summary>
+public sealed class LocationInspector
 {
-    // Currently selected tile (if popup is visible)
-    private (int x, int y)? _selectedTile;
-    private Location? _selectedLocation;
-    private CrossingPreview? _preview;
-    private bool _isAdjacent;
-    private bool _isPassable;
-    private bool _isPlayerHere;
-
-    // Screen position for popup (near the clicked tile)
-    private Vector2 _popupPosition;
-
-    public bool IsOpen => _selectedTile.HasValue;
-
-    public (int x, int y)? SelectedTile => _selectedTile;
-
-    public void Show(GameContext ctx, int x, int y, Vector2 screenPosition)
+    public PlayerAction? Render(GameContext ctx, HudRect rect, HudState state, IReadOnlyList<HudAction> actions, bool interactive)
     {
-        var map = ctx.Map;
-        if (map == null) return;
-
-        _selectedTile = (x, y);
-        _selectedLocation = map.GetLocationAt(x, y);
-
-        var currentPos = map.CurrentPosition;
-        var targetPos = new GridPosition(x, y);
-
-        _isPlayerHere = currentPos.X == x && currentPos.Y == y;
-        _isAdjacent = currentPos.IsAdjacentTo(targetPos);
-        _isPassable = _selectedLocation?.IsPassable ?? false;
-
-        // Preview the crossing if adjacent and passable - the same numbers TravelRunner
-        // will actually use, so this can never promise a time or risk it doesn't deliver.
-        if (_isAdjacent && _isPassable && !_isPlayerHere && _selectedLocation != null && ctx.CurrentLocation != null)
+        PlayerAction? result = null;
+        HudWidgets.Begin("##LocationInspector", rect);
+        var selected = state.SelectedTile;
+        var location = selected is { } tile ? ctx.Map?.GetLocationAt(tile.x, tile.y) : ctx.CurrentLocation;
+        if (location == null) { ImGui.End(); return null; }
+        bool destination = selected.HasValue;
+        UiText.Colored(HudWidgets.Heading, destination ? "SELECTED DESTINATION" : "YOU ARE HERE");
+        UiText.Wrapped(location.Name);
+        UiText.Disabled(location.Terrain.ToString());
+        ImGui.Separator();
+        float footer = ImGui.GetFrameHeight() + ImGui.GetTextLineHeightWithSpacing() * 2 + 20;
+        ImGui.BeginChild("location-content", new Vector2(0, Math.Max(30, ImGui.GetContentRegionAvail().Y - footer)));
+        ImGui.PushTextWrapPos(0);
+        if (destination)
         {
-            _preview = TravelProcessor.PreviewCrossing(
-                ctx.CurrentLocation, _selectedLocation, ctx.player, ctx.Weather, ctx.Inventory, map);
+            if (location.Visibility == TileVisibility.Visible)
+            {
+                RenderGround(location);
+                RenderFeatures(ctx, location);
+                RenderTracks(ctx, selected!.Value);
+                RenderNPCs(ctx, location, false);
+            }
+            else UiText.Disabled("Explored · outside your sight");
+            HudWidgets.Section("Travel");
+            var travel = TravelInspection.Build(ctx, selected!.Value);
+            if (travel.Reason != null) UiText.Wrapped(travel.Reason);
+            foreach (var action in travel.Actions)
+                if (HudWidgets.Action(action, interactive)) result = action.Payload;
+            ImGui.BeginDisabled(!interactive);
+            if (ImGui.Button("Current location [Esc]", new Vector2(-1, 0))) state.ClearSelection();
+            ImGui.EndDisabled();
         }
         else
         {
-            _preview = null;
-        }
-
-        // Position popup to the right of the tile, vertically centered
-        _popupPosition = new Vector2(screenPosition.X + 110, screenPosition.Y);
-    }
-
-    public void Hide()
-    {
-        _selectedTile = null;
-        _selectedLocation = null;
-    }
-
-    public string? Render(GameContext ctx, float deltaTime)
-    {
-        if (!IsOpen || _selectedLocation == null) return null;
-
-        string? result = null;
-
-        // Position the popup (20% of screen width)
-        int screenWidth = Raylib_cs.Raylib.GetScreenWidth();
-        float popupWidth = screenWidth * 0.20f;
-        ImGui.SetNextWindowPos(_popupPosition, ImGuiCond.Always);
-        ImGui.SetNextWindowSize(new Vector2(popupWidth, 0), ImGuiCond.Always);
-
-        ImGuiWindowFlags flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
-                                  ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings;
-
-        if (ImGui.Begin("##TilePopup", flags))
-        {
-            // Location name
-            UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), _selectedLocation.Name);
-
-            // Terrain type (if different from name)
-            if (_selectedLocation.Name != _selectedLocation.Terrain.ToString())
+            RenderGround(location);
+            foreach (var group in new[] { HudActionGroup.Fire, HudActionGroup.Shelter, HudActionGroup.Resources, HudActionGroup.Storage, HudActionGroup.People, HudActionGroup.Other })
             {
-                UiText.Disabled(_selectedLocation.Terrain.ToString());
-            }
-
-            ImGui.Separator();
-
-            if (_selectedLocation.Visibility == TileVisibility.Visible)
-            {
-                RenderGround();
-                RenderFeatures(ctx);
-                RenderTracks(ctx);
-                RenderNPCs(ctx);
-            }
-            else
-            {
-                UiText.Disabled("Explored - outside your sight");
-            }
-
-            ImGui.Separator();
-
-            // Go button(s) (only if adjacent, passable, and not current tile). Hazardous
-            // terrain gets two paces up front instead of a follow-up prompt after "Go".
-            if (_isAdjacent && _isPassable && !_isPlayerHere && _preview.HasValue && _preview.Value.IsHazardous)
-            {
-                var preview = _preview.Value;
-                int riskPercent = (int)(preview.RiskLevel * 100);
-
-                UiText.Colored(new Vector4(0.9f, 0.6f, 0.3f, 1f), "Hazardous terrain");
-
-                if (ImGui.Button($"Go careful ({preview.CarefulMinutes} min)", new Vector2(-1, 30)))
+                var grouped = actions.Where(a => a.Group == group).ToList();
+                bool hasResourceInfo = group == HudActionGroup.Resources &&
+                    (location.Features.Any(f => f is ForageFeature or SmallGameFeature or WaterFeature or SnareLineFeature) ||
+                     (ctx.Map is { } currentMap && currentMap.Tracks.At(currentMap.CurrentPosition).Count > 0));
+                if (grouped.Count == 0 && !hasResourceInfo) continue;
+                HudWidgets.Section(group switch {
+                    HudActionGroup.Shelter => "Shelter & rest", HudActionGroup.Resources => "Resources & work",
+                    HudActionGroup.Storage => "Storage & processing", HudActionGroup.Other => "Other work", _ => group.ToString() });
+                RenderFeatures(ctx, location, group);
+                if (group == HudActionGroup.Resources && ctx.Map is { } map)
+                    RenderTracks(ctx, (map.CurrentPosition.X, map.CurrentPosition.Y));
+                if (group == HudActionGroup.People) RenderNPCs(ctx, location, true);
+                foreach (var action in grouped)
+                    if (HudWidgets.Action(action, interactive)) result = action.Payload;
+                if (group == HudActionGroup.Fire && location.GetFeature<HeatSourceFeature>()?.IsActive == true)
                 {
-                    result = "go_careful";
+                    var food = actions.First(a => a.Id == CampAction.Food.ToString());
+                    if (HudWidgets.Action(food with { Label = "Cook / food & water..." }, interactive)) result = food.Payload;
                 }
-                if (ImGui.Button($"Go quick ({preview.QuickMinutes} min, {riskPercent}% risk)", new Vector2(-1, 30)))
-                {
-                    result = "go_quick";
-                }
-            }
-            else if (_isAdjacent && _isPassable && !_isPlayerHere)
-            {
-                string buttonLabel = _preview.HasValue
-                    ? $"Go ({_preview.Value.QuickMinutes} min)"
-                    : "Go";
-
-                if (ImGui.Button(buttonLabel, new Vector2(-1, 30)))
-                {
-                    result = "go";
-                }
-            }
-            else if (_isPlayerHere)
-            {
-                UiText.Disabled("You are here");
-            }
-            else if (!_isAdjacent)
-            {
-                UiText.Disabled("Too far to travel");
-            }
-            else if (!_isPassable)
-            {
-                UiText.Disabled("Impassable terrain");
             }
         }
+        ImGui.PopTextWrapPos();
+        ImGui.EndChild();
+        ImGui.Separator();
+        UiText.Disabled("AT YOUR LOCATION");
+        UiText.Text(ctx.CurrentLocation.Name);
+        var wait = actions.First(a => a.Group == HudActionGroup.Wait);
+        if (HudWidgets.Action(wait, interactive)) result = wait.Payload;
         ImGui.End();
-
         return result;
     }
 
     /// <summary>What the ground is like here today, if it is worth saying.</summary>
-    private void RenderGround()
+    private static void RenderGround(Location location)
     {
-        if (_selectedLocation == null || !_selectedLocation.IsPassable) return;
+        if (location == null || !location.IsPassable) return;
 
-        var condition = _selectedLocation.Surface.ConditionText();
+        var condition = location.Surface.ConditionText();
         if (condition == null) return;
 
         UiText.Colored(new Vector4(0.72f, 0.82f, 0.92f, 1f), condition);
     }
 
-    private void RenderFeatures(GameContext ctx)
+    private static void RenderFeatures(GameContext ctx, Location location, HudActionGroup? group = null)
     {
-        if (_selectedLocation == null) return;
+        if (location == null) return;
 
         bool hasFeatures = false;
 
         // Fire status
-        var fire = _selectedLocation.GetFeature<HeatSourceFeature>();
-        if (fire != null)
+        var fire = location.GetFeature<HeatSourceFeature>();
+        if (fire != null && (group == null || group == HudActionGroup.Fire))
         {
             hasFeatures = true;
             if (fire.IsActive)
@@ -182,28 +114,28 @@ public class TilePopup
                     : minutes <= 15
                         ? new Vector4(1f, 0.7f, 0.3f, 1f)
                         : new Vector4(1f, 0.6f, 0.2f, 1f);
-                UiText.Colored(color, $"Fire: {phase} ({FormatTime(minutes)})");
+                UiText.Colored(color, $"Fire: {phase} ({HudWidgets.Duration(minutes)})");
             }
             else if (fire.HasEmbers)
             {
                 int minutes = (int)(fire.EmberTimeRemaining * 60);
-                UiText.Colored(new Vector4(0.8f, 0.4f, 0.2f, 1f), $"Embers ({FormatTime(minutes)})");
+                UiText.Colored(new Vector4(0.8f, 0.4f, 0.2f, 1f), $"Embers ({HudWidgets.Duration(minutes)})");
             }
         }
 
         // Shelter
-        var shelter = _selectedLocation.GetFeature<ShelterFeature>();
-        if (shelter != null)
+        var shelter = location.GetFeature<ShelterFeature>();
+        if (shelter != null && (group == null || group == HudActionGroup.Shelter))
         {
             hasFeatures = true;
             int insulation = (int)Math.Round(shelter.TemperatureInsulation * 100);
             int wind = (int)Math.Round(shelter.WindCoverage * 100);
-            UiText.Text($"Shelter: {insulation}% insulation, {wind}% wind block");
+            UiText.Wrapped($"Shelter: {insulation}% insulation, {wind}% wind block");
         }
 
         // Forage
-        var forage = _selectedLocation.GetFeature<ForageFeature>();
-        if (forage != null)
+        var forage = location.GetFeature<ForageFeature>();
+        if (forage != null && (group == null || group == HudActionGroup.Resources))
         {
             hasFeatures = true;
             var resources = forage.GetAvailableResourceTypes();
@@ -218,7 +150,7 @@ public class TilePopup
             }
 
             // Show exploration progress
-            double explorationPct = _selectedLocation.GetExplorationPct();
+            double explorationPct = location.GetExplorationPct();
             if (explorationPct >= 1.0)
             {
                 UiText.Colored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "  Fully explored");
@@ -231,24 +163,24 @@ public class TilePopup
         }
 
         // Game (animals)
-        var territory = _selectedLocation.GetFeature<SmallGameFeature>();
-        if (territory != null)
+        var territory = location.GetFeature<SmallGameFeature>();
+        if (territory != null && (group == null || group == HudActionGroup.Resources))
         {
             hasFeatures = true;
             UiText.Text($"Game: {territory.GetDescription()}");
         }
 
         // Water
-        var water = _selectedLocation.GetFeature<WaterFeature>();
-        if (water != null)
+        var water = location.GetFeature<WaterFeature>();
+        if (water != null && (group == null || group == HudActionGroup.Resources))
         {
             hasFeatures = true;
             UiText.Text("Water source");
         }
 
         // Traps
-        var traps = _selectedLocation.GetFeature<SnareLineFeature>();
-        if (traps != null && traps.SnareCount > 0)
+        var traps = location.GetFeature<SnareLineFeature>();
+        if (traps != null && traps.SnareCount > 0 && (group == null || group == HudActionGroup.Resources))
         {
             hasFeatures = true;
             if (traps.HasCatchWaiting)
@@ -262,8 +194,8 @@ public class TilePopup
         }
 
         // Curing rack
-        var rack = _selectedLocation.GetFeature<CuringRackFeature>();
-        if (rack != null && rack.ItemCount > 0)
+        var rack = location.GetFeature<CuringRackFeature>();
+        if (rack != null && rack.ItemCount > 0 && (group == null || group == HudActionGroup.Storage))
         {
             hasFeatures = true;
             if (rack.HasReadyItems)
@@ -277,8 +209,8 @@ public class TilePopup
         }
 
         // Carcass
-        var carcass = _selectedLocation.GetFeature<CarcassFeature>();
-        if (carcass != null)
+        var carcass = location.GetFeature<CarcassFeature>();
+        if (carcass != null && (group == null || group == HudActionGroup.Storage))
         {
             hasFeatures = true;
             string decay = carcass.GetDecayDescription();
@@ -286,8 +218,8 @@ public class TilePopup
         }
 
         // Cache/Storage
-        var cache = _selectedLocation.GetFeature<CacheFeature>();
-        if (cache != null)
+        var cache = location.GetFeature<CacheFeature>();
+        if (cache != null && (group == null || group == HudActionGroup.Storage))
         {
             hasFeatures = true;
             double weight = cache.Storage.CurrentWeightKg;
@@ -302,14 +234,14 @@ public class TilePopup
         }
 
         // Bedding
-        var bedding = _selectedLocation.GetFeature<BeddingFeature>();
-        if (bedding != null)
+        var bedding = location.GetFeature<BeddingFeature>();
+        if (bedding != null && (group == null || group == HudActionGroup.Shelter))
         {
             hasFeatures = true;
             UiText.Text($"Bedding: {bedding.Quality} quality");
         }
 
-        if (!hasFeatures)
+        if (!hasFeatures && group == null)
         {
             UiText.Disabled("No notable features");
         }
@@ -321,11 +253,11 @@ public class TilePopup
     /// situations, and the player should be able to tell them apart before deciding
     /// whether to follow.
     /// </summary>
-    private void RenderTracks(GameContext ctx)
+    private static void RenderTracks(GameContext ctx, (int x, int y) tile)
     {
-        if (_selectedTile == null || ctx.Map == null) return;
+        if (ctx.Map == null) return;
 
-        var position = new GridPosition(_selectedTile.Value.x, _selectedTile.Value.y);
+        var position = new GridPosition(tile.x, tile.y);
         var tracks = ctx.Map.Tracks.At(position);
         if (tracks.Count == 0) return;
 
@@ -404,17 +336,17 @@ public class TilePopup
         return readable <= 0 ? 0 : Math.Max(1, (int)Math.Round(readable));
     }
 
-    private void RenderNPCs(GameContext ctx)
+    private static void RenderNPCs(GameContext ctx, Location location, bool isPlayerHere)
     {
-        if (_selectedLocation == null) return;
+        if (location == null) return;
 
-        var npcsHere = ctx.NPCs.Where(n => n.CurrentLocation == _selectedLocation).ToList();
+        var npcsHere = ctx.NPCs.Where(n => n.CurrentLocation == location).ToList();
         if (npcsHere.Count == 0) return;
 
         ImGui.Spacing();
 
         // Show detailed info if player is at this tile, otherwise basic
-        if (_isPlayerHere)
+        if (isPlayerHere)
         {
             foreach (var npc in npcsHere)
             {
@@ -467,14 +399,4 @@ public class TilePopup
         }
     }
 
-    private static string FormatTime(int minutes)
-    {
-        if (minutes >= 60)
-        {
-            int hours = minutes / 60;
-            int mins = minutes % 60;
-            return mins > 0 ? $"{hours}h {mins}m" : $"{hours}h";
-        }
-        return $"{minutes}m";
-    }
 }

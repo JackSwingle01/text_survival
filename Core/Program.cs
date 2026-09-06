@@ -20,6 +20,7 @@ public static class Program
 
         // Create initial window (will resize after getting monitor info)
         Raylib.InitWindow(1280, 720, "Text Survival");
+        Raylib.SetWindowMinSize(1280, 720);
         Raylib.SetExitKey(KeyboardKey.Null);  // Prevent ESC from closing window
 
         // Get current monitor and resize to 95% of display (keeps window controls visible)
@@ -118,6 +119,8 @@ public static class Program
         finally
         {
             UiIcons.Unload();
+            // Terrain assets are shared across DesktopUi instances (including new runs).
+            TerrainRenderer.Unload();
         }
 
         AudioManager.Shutdown();

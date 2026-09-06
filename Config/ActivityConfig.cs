@@ -32,6 +32,7 @@ public static class ActivityConfig
         [ActivityType.Chopping] = new(1.0, 1.8, 0.0, "Chopping wood."),
         [ActivityType.Tracking] = new(1.0, 1.5, 0.0, "Tracking."),
         [ActivityType.Butchering] = new(1.0, 1.5, 0.0, "Butchering."),
+        [ActivityType.Fishing] = new(1.0, 1.0, 0.0, "Fishing."),
     };
 
     public static Config Get(ActivityType activity) => _configs[activity];
@@ -64,6 +65,7 @@ public static class ActivityConfig
         ActivityType.Chopping => false,
         ActivityType.Tracking => false,
         ActivityType.Butchering => false,
+        ActivityType.Fishing => false,
 
         _ => throw new ArgumentOutOfRangeException(nameof(activity), activity,
             "New activity types must say whether shelter applies to them."),

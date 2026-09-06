@@ -40,6 +40,9 @@ public enum WeaponClass { Blade, Blunt, Pierce, Claw, Unarmed }
 
 public class Gear
 {
+    public string? DesignId { get; set; }
+    public Guid InstanceId { get; set; } = Guid.NewGuid();
+
     public string Name { get; set; } = "";
     public string Description { get; init; } = "";
     public double BaseWeight { get; set; }
@@ -73,6 +76,8 @@ public class Gear
         Durability--;
         return Durability > 0;
     }
+
+    public Gear Copy() => (Gear)MemberwiseClone();
 
     public void Repair(int amount)
     {

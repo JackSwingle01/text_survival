@@ -33,9 +33,8 @@ public sealed class DesktopUi : IGameUi, IDisposable
     private readonly GameContext _ctx;
     private readonly FrameScheduler _scheduler;
 
-    private readonly WorldRenderer _world = new();
-    private readonly ActionPanel _actionPanel;
-    private readonly TilePopup _tilePopup = new();
+    private readonly HudController _hud = new();
+    private readonly WorldRenderer _world;
 
     private readonly InventoryOverlay _inventory = new();
     private readonly CraftingOverlay _crafting = new();
@@ -58,7 +57,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
     {
         _ctx = ctx;
         _scheduler = scheduler;
-        _actionPanel = new ActionPanel(_world);
+        _world = new WorldRenderer(_hud.State);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -78,11 +77,11 @@ public sealed class DesktopUi : IGameUi, IDisposable
         ResolveTimeWaiters(dt);
 
         AudioManager.Update();
+        _hud.Update(ctx, _world, dt);
         if (!_stack.Any(m => m.DimsWorld))
         {
             var io = ImGui.GetIO();
-            if (_world.HandleCameraInput(ctx, dt, io.WantCaptureMouse, io.WantCaptureKeyboard))
-                _tilePopup.Hide();
+            _world.HandleCameraInput(ctx, dt, io.WantCaptureMouse, io.WantCaptureKeyboard);
         }
         _world.Update(ctx, dt);
 
@@ -96,43 +95,21 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
         rlImGui.Begin();
 
+        bool mapInteractive = _stack.LastOrDefault() is Prompt<PlayerAction> && !_stack[^1].Finished;
+        bool combatInteractive = _stack.LastOrDefault() is Prompt<CombatInput?> && !_stack[^1].Finished;
+        _hud.Render(ctx, _world, mapInteractive, combatInteractive);
         for (int i = 0; i < _stack.Count; i++)
-            _stack[i].Render(ctx, dt, isTop: i == _stack.Count - 1);
-
-        // The HUD is unconditional: the same stats, journal and toasts in every state.
-        StatsPanel.Render(ctx);
-        ToastManager.Render(dt);
-        RenderMusicToggle();
+        {
+            bool isTop = i == _stack.Count - 1;
+            ImGui.BeginDisabled(!isTop);
+            _stack[i].Render(ctx, dt, isTop);
+            ImGui.EndDisabled();
+        }
 
         rlImGui.End();
         Raylib.EndDrawing();
 
         PublishFinishedModals();
-    }
-
-    private static void RenderMusicToggle()
-    {
-        var io = ImGui.GetIO();
-        ImGui.SetNextWindowPos(new Vector2(io.DisplaySize.X - 44, 10), ImGuiCond.Always);
-        ImGui.SetNextWindowSize(new Vector2(34, 34), ImGuiCond.Always);
-
-        ImGuiWindowFlags flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize |
-                                  ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse |
-                                  ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoScrollbar;
-
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(2, 2));
-        if (ImGui.Begin("##MusicToggle", flags))
-        {
-            bool muted = AudioManager.IsMuted;
-            if (muted) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.6f, 1f));
-            if (ImGui.Button(muted ? "M-" : "M+", new Vector2(-1, -1)))
-                AudioManager.ToggleMute();
-            if (muted) ImGui.PopStyleColor();
-            if (ImGui.IsItemHovered())
-                UiText.Tooltip(muted ? "Music muted - click to unmute" : "Music on - click to mute");
-        }
-        ImGui.End();
-        ImGui.PopStyleVar();
     }
 
     private void ResolveTimeWaiters(float dt)
@@ -645,140 +622,14 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
     private void RenderMapScreen(Prompt<PlayerAction> self, GameContext ctx, float dt, bool isTop)
     {
-        if (isTop)
-        {
-            var keyed = ReadMapInput(ctx);
-            if (keyed != null)
-            {
-                _tilePopup.Hide();
-                self.Finish(keyed);
-                return;
-            }
-        }
-
-        string? tileAction = _tilePopup.IsOpen ? _tilePopup.Render(ctx, dt) : null;
-        if (tileAction != null && _tilePopup.SelectedTile.HasValue)
-        {
-            var (x, y) = _tilePopup.SelectedTile.Value;
-            string? hazardMode = tileAction switch
-            {
-                "go_quick" => "quick",
-                "go_careful" => "careful",
-                _ => null
-            };
-            _tilePopup.Hide();
-            self.Finish(new PlayerAction.Travel(x, y, hazardMode));
-            return;
-        }
-
-        var (campAction, workStrategy, _) = _actionPanel.Render(ctx, dt);
-
-        if (campAction != null)
-        {
-            _tilePopup.Hide();
-            self.Finish(new PlayerAction.Camp(campAction.Value));
-        }
-        else if (workStrategy != null)
-        {
-            _tilePopup.Hide();
-            self.Finish(new PlayerAction.Work(workStrategy));
-        }
-    }
-
-    /// <summary>
-    /// Mouse and keyboard on the map: a click opens the tile popup, WASD walks, hotkeys
-    /// take actions. Returns the action the player asked for, or null.
-    /// </summary>
-    private PlayerAction? ReadMapInput(GameContext ctx)
-    {
-        var map = ctx.Map ?? throw new InvalidOperationException("The map screen needs a map.");
-
-        if (Raylib.IsMouseButtonPressed(MouseButton.Left) && !ImGui.GetIO().WantCaptureMouse)
-        {
-            var clicked = _world.HandleClick();
-            if (clicked.HasValue && map.IsValidPosition(clicked.Value.x, clicked.Value.y))
-            {
-                var location = map.GetLocationAt(clicked.Value.x, clicked.Value.y);
-                if (location != null && location.Visibility != TileVisibility.Unexplored)
-                {
-                    var screenPos = _world.GetTileScreenPosition(clicked.Value.x, clicked.Value.y);
-                    _tilePopup.Show(ctx, clicked.Value.x, clicked.Value.y, screenPos);
-                }
-            }
-        }
-
-        if (ImGui.GetIO().WantCaptureKeyboard) return null;
-
-        var step = ReadMovementKey();
-        if (step != null)
-        {
-            var current = map.CurrentPosition;
-            int targetX = current.X + step.Value.dx;
-            int targetY = current.Y + step.Value.dy;
-
-            if (!map.CanMoveTo(targetX, targetY))
-                _actionPanel.ShowMessage("Cannot move there.");
-            else if (map.IsEdgeBlocked(current, new GridPosition(targetX, targetY), ctx.Weather.CurrentSeason))
-                _actionPanel.ShowMessage("The way is blocked.");
-            else
-                return new PlayerAction.Travel(targetX, targetY);
-        }
-
-        if (HotkeyRegistry.IsPressed(HotkeyAction.Inventory)) return new PlayerAction.Camp(CampAction.Inventory);
-        if (HotkeyRegistry.IsPressed(HotkeyAction.Crafting)) return new PlayerAction.Camp(CampAction.Crafting);
-        if (HotkeyRegistry.IsPressed(HotkeyAction.DiscoveryLog)) return new PlayerAction.Camp(CampAction.DiscoveryLog);
-        if (HotkeyRegistry.IsPressed(HotkeyAction.NPCs)) return new PlayerAction.Camp(CampAction.NPCs);
-        if (HotkeyRegistry.IsPressed(HotkeyAction.Storage)) return new PlayerAction.Camp(CampAction.Storage);
-        if (HotkeyRegistry.IsPressed(HotkeyAction.Wait)) return new PlayerAction.Camp(CampAction.Wait);
-
-        if (HotkeyRegistry.IsPressed(HotkeyAction.Fire))
-            return new PlayerAction.Camp(HasFireToTend(ctx) ? CampAction.TendFire : CampAction.StartFire);
-
-        if (HotkeyRegistry.IsPressed(HotkeyAction.Forage) && ctx.CurrentLocation.GetFeature<ForageFeature>() != null)
-            return new PlayerAction.Work(new ForageStrategy());
-
-        if (HotkeyRegistry.IsPressed(HotkeyAction.Cancel))
-            _tilePopup.Hide();
-
-        return null;
-    }
-
-    private static (int dx, int dy)? ReadMovementKey()
-    {
-        if (Raylib.IsKeyPressed(KeyboardKey.W)) return (0, -1);
-        if (Raylib.IsKeyPressed(KeyboardKey.S)) return (0, 1);
-        if (Raylib.IsKeyPressed(KeyboardKey.A)) return (-1, 0);
-        if (Raylib.IsKeyPressed(KeyboardKey.D)) return (1, 0);
-        return null;
-    }
-
-    private static bool HasFireToTend(GameContext ctx)
-    {
-        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
-        return fire != null && (fire.IsActive || fire.HasEmbers) && ctx.Inventory.HasFuel;
+        if (isTop && _hud.TakeAction() is { } action) self.Finish(action);
     }
 
     public Task<CombatInput?> WaitForCombatAction() =>
         Push(new Prompt<CombatInput?>((self, ctx, dt, isTop) =>
         {
-            if (isTop)
-            {
-                var moveTarget = _world.HandleCombatClick();
-                if (moveTarget.HasValue)
-                {
-                    self.Finish(new CombatInput(null, new GridPosition(moveTarget.Value.x, moveTarget.Value.y)));
-                    return;
-                }
-            }
-
-            var (_, _, combatAction) = _actionPanel.Render(ctx, dt);
-            if (combatAction != null)
-                self.Finish(new CombatInput(combatAction, null));
+            if (isTop && _hud.TakeCombatInput() is { } input) self.Finish(input);
         }, dims: false));
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // PROGRESS
-    // ═══════════════════════════════════════════════════════════════════════════
 
     public ProgressView BeginProgress(ProgressKind kind, string status)
     {

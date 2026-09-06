@@ -15,21 +15,31 @@ public static class CraftingHandler
     {
         var inv = ctx.Inventory;
 
-        // Impaired hands, a dark shelter or wet fingers all cost time.
-        var (craftMinutes, warnings) = CraftingEffort.ForRecipe(ctx, option);
-        foreach (string warning in warnings)
-            GameDisplay.AddWarning(ctx, warning);
+        var evaluation = CraftEvaluation.For(ctx, option);
+        if (!evaluation.Ready)
+        {
+            foreach (var blocker in evaluation.Blockers) GameDisplay.AddWarning(ctx, blocker);
+            return;
+        }
+        int craftMinutes = evaluation.Minutes;
+        foreach (string warning in evaluation.Warnings) GameDisplay.AddWarning(ctx, warning);
 
         await RunCraftingProgress(ctx, option, craftMinutes);
 
         if (!ctx.player.IsAlive) return;
 
+        // Keep the original tool/material choices. If state changed, leave all inputs intact.
+        if (!evaluation.Inputs.CanConsume(inv) || !CraftEvaluation.For(ctx, option).Ready)
+        {
+            GameDisplay.AddWarning(ctx, "The requirements changed during work. Your materials were kept.");
+            return;
+        }
         if (option.ProducesFeature)
-            BuildFeature(ctx, option);
+            BuildFeature(ctx, option, evaluation.Inputs);
         else if (option.RebuildShelter)
-            RebuildShelter(ctx, option);
+            RebuildShelter(ctx, option, evaluation.Inputs);
         else
-            MakeItem(ctx, option, inv);
+            MakeItem(ctx, option, inv, evaluation.Inputs);
     }
 
     /// <summary>
@@ -105,9 +115,9 @@ public static class CraftingHandler
             section.Lines.Add(new ProgressLine(option.Description, tone));
     }
 
-    private static void BuildFeature(GameContext ctx, CraftOption option)
+    private static void BuildFeature(GameContext ctx, CraftOption option, CraftInputs inputs)
     {
-        var feature = option.CraftFeature(ctx.Inventory);
+        var feature = option.CraftFeature(ctx.Inventory, inputs);
         if (feature == null) return;
 
         ctx.Camp.AddFeature(feature);
@@ -122,7 +132,7 @@ public static class CraftingHandler
 
             if (project.BenefitsFromShovel)
             {
-                GameDisplay.AddNarrative(ctx, ctx.Inventory.GetTool(ToolType.Shovel) != null
+                GameDisplay.AddNarrative(ctx, CraftInputs.OwnedGear(ctx.Inventory).Any(g => g.ToolType == ToolType.Shovel && g.Works)
                     ? "Your shovel will double progress on this digging work."
                     : "A shovel would double your progress on this digging work.");
             }
@@ -135,9 +145,9 @@ public static class CraftingHandler
         ctx.RecordItemCrafted(option.Name);
     }
 
-    private static void RebuildShelter(GameContext ctx, CraftOption option)
+    private static void RebuildShelter(GameContext ctx, CraftOption option, CraftInputs inputs)
     {
-        var rebuilt = option.CraftShelterRebuild(ctx.Camp, ctx.Inventory)
+        var rebuilt = option.CraftShelterRebuild(ctx.Camp, ctx.Inventory, inputs)
             ?? throw new InvalidOperationException($"Shelter rebuild '{option.Name}' produced nothing.");
 
         var (shelter, salvage) = rebuilt;
@@ -153,16 +163,23 @@ public static class CraftingHandler
         ctx.RecordItemCrafted(option.Name);
     }
 
-    private static void MakeItem(GameContext ctx, CraftOption option, Inventory inv)
+    private static void MakeItem(GameContext ctx, CraftOption option, Inventory inv, CraftInputs inputs)
     {
-        var result = option.Craft(inv);
+        var result = option.Craft(inv, inputs);
 
+        if (result != null && option.TargetGear != null)
+        {
+            GameDisplay.AddSuccess(ctx, $"{option.Name}: {result.Name} ({result.ConditionPct:P0} condition)");
+            ctx.RecordItemCrafted(result.Name);
+            return;
+        }
         if (result != null)
         {
             switch (result.Category)
             {
                 case GearCategory.Equipment:
-                    inv.Equip(result);
+                    var previous = inv.Equip(result);
+                    if (previous != null) inv.Tools.Add(previous);
                     GameDisplay.AddSuccess(ctx, $"Equipped: {result.Name}");
                     break;
 
@@ -174,7 +191,8 @@ public static class CraftingHandler
                 case GearCategory.Tool:
                     if (result.IsWeapon)
                     {
-                        inv.EquipWeapon(result);
+                        var previousWeapon = inv.EquipWeapon(result);
+                        if (previousWeapon != null) inv.Tools.Add(previousWeapon);
                         GameDisplay.AddSuccess(ctx, $"Equipped: {result.Name}");
                     }
                     else

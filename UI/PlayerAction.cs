@@ -12,7 +12,7 @@ public abstract record PlayerAction
     /// <summary>
     /// Walk to the tile at these grid coordinates. <paramref name="HazardMode"/> is
     /// "quick" or "careful" when the player already chose a pace for hazardous terrain
-    /// (from the tile popup's two travel buttons); null when the choice still needs
+    /// (from the location inspector's two travel buttons); null when the choice still needs
     /// asking (WASD, or a plain non-hazardous move).
     /// </summary>
     public sealed record Travel(int X, int Y, string? HazardMode = null) : PlayerAction;

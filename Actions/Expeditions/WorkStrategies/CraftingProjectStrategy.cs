@@ -77,7 +77,7 @@ public class CraftingProjectStrategy : IWorkStrategy
         var project = location.GetFeature<CraftingProjectFeature>()!;
 
         // Check for shovel bonus - double progress for digging projects
-        bool hasShovel = ctx.Inventory.GetTool(ToolType.Shovel) != null;
+        bool hasShovel = Crafting.CraftInputs.OwnedGear(ctx.Inventory).Any(g => g.ToolType == ToolType.Shovel && g.Works);
         double progressMultiplier = 1.0;
 
         if (project.BenefitsFromShovel && hasShovel)
