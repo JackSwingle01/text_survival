@@ -81,7 +81,7 @@ public static class CompanionInteractions
         invited.Social.NextInvitationMinute = minute + 60;
         if (invited.GetRelationship(inviter) < 0.1 + 0.2 * invited.Personality.Selfishness)
             return "They do not know you well enough to come along.";
-        return Following.TryBegin(invited, inviter) ? "They agree to come along." : "That following arrangement cannot work.";
+        return Following.TryBegin(invited, inviter, minute) ? "They agree to come along." : "That following arrangement cannot work.";
     }
 
     public static string RequestResource(Actor requester, NPC owner, Resource resource, double amount, double minute)

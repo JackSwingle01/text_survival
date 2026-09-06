@@ -197,7 +197,7 @@ public class NPC : Actor
                 var target = candidates.Where(a => a != this && a.CurrentLocation == CurrentLocation && a.IsAlive)
                     .Where(a => GetRelationship(a) >= 0.35 && Personality.Sociability >= 0.5)
                     .OrderByDescending(GetRelationship).FirstOrDefault();
-                if (target != null) text_survival.Actors.Following.TryBegin(this, target);
+                if (target != null) text_survival.Actors.Following.TryBegin(this, target, _game.TotalMinutesElapsed);
             }
 
             // pick action and do it
@@ -280,9 +280,9 @@ public class NPC : Actor
             if (eat != null) return eat;
         }
 
-        // Exhausting survival options is not permission to start optional travel.
-        // Retry locally; a newly available supply/fire or a higher-priority threat can change the decision.
-        if (GetCriticalNeed() != null)
+        // An unresolved critical need must not become a commitment to catch up.
+        // While following, retry locally until self-care or a threat changes the decision.
+        if (Following != null && GetCriticalNeed() != null)
         {
             DecisionReason = CompanionDecisionReason.BlockedNeed;
             return new NPCRest(2);

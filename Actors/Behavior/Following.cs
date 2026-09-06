@@ -22,7 +22,7 @@ public static class Following
         if (follower.Following is { } intent) intent.SearchEffortMinutes++;
     }
 
-    public static bool TryBegin(Actor follower, Actor target)
+    public static bool TryBegin(Actor follower, Actor target, double minute = 0)
     {
         if (follower == target || !follower.IsAlive || !target.IsAlive || !Sight.CanSeeActor(follower, target)) return false;
         var seen = new HashSet<Actor> { follower };
@@ -30,6 +30,7 @@ public static class Following
             if (!seen.Add(actor)) return false;
         follower.Following = new FollowIntent(target);
         follower.FollowEndReason = null;
+        Observe(follower, minute);
         return true;
     }
 

@@ -7,6 +7,21 @@ namespace text_survival.Tests.Companions;
 public class CompanionReliabilityTests
 {
     [Fact]
+    public void VoluntaryRecruitmentLaterInTheGameStartsWithFreshEvidence()
+    {
+        var world = new CompanionWorld();
+        world.Game.GameTime = GameContext.StartTime.AddHours(12);
+        var leader = world.AddLeader(LeaderKind.Npc);
+        var npc = world.AddNpc("Sociable");
+        npc.Relationships.AddMemory(MemoryType.SavedMe, leader);
+        npc.Relationships.AddMemory(MemoryType.FoughtTogether, leader);
+        world.Advance(1);
+        Assert.Same(leader, npc.Following!.Target);
+        Assert.Equal(720, npc.Following.LastEvidenceMinute);
+        Assert.Equal(world.Position(leader), npc.Following.LastSeenPosition);
+    }
+
+    [Fact]
     public void ExhaustedCriticalWarmthOptionsDoNotFallThroughToPursuit()
     {
         var world = new CompanionWorld();
