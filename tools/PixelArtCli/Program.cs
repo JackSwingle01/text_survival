@@ -345,11 +345,10 @@ public static class Program
 
     /// <summary>
     /// Which variant a tile position gets. Deterministic in world position - never
-    /// per-frame random, or tiles shimmer as the camera moves. The base variant is
-    /// weighted to appear half the time; the rest share the remainder, so a field reads
-    /// as texture with incident rather than as noise.
+    /// per-frame random, or tiles shimmer as the camera moves. Each terrain variant
+    /// receives equal weight to avoid repeating the base texture across the map.
     ///
-    /// MUST match TileRenderer.VariantIndex in the game, or this preview lies.
+    /// MUST match TerrainRenderer.VariantIndex in the game, or this preview lies.
     /// </summary>
     private static int VariantIndex(int worldX, int worldY, int count)
     {
@@ -362,8 +361,7 @@ public static class Program
             h *= 1274126177;
             h ^= h >> 16;
 
-            int roll = (int)((uint)h % (uint)(2 * (count - 1)));
-            return roll < count - 1 ? 0 : roll - (count - 2);
+            return (int)((uint)h % (uint)count);
         }
     }
 

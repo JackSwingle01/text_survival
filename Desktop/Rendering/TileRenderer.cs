@@ -15,7 +15,6 @@ public static class TileRenderer
     private static readonly Color UnexploredColor = new(8, 10, 12, 255);
 
     private static Texture2D _playerSprite;
-    private static readonly Dictionary<TerrainType, List<Texture2D>> _tileSprites = new();
     private static readonly Dictionary<string, Texture2D> _npcSprites = new();
 
     /// <summary>
@@ -37,31 +36,7 @@ public static class TileRenderer
         _playerSprite = LoadPixelTexture(Path.Combine(assetsPath, "player.png"))
             ?? throw new FileNotFoundException($"Player sprite not found: {Path.Combine(assetsPath, "player.png")}");
 
-        // Ordinal sort, so variant order - and therefore which tile a position gets - is
-        // identical on every machine. It also keeps the unsuffixed base tile at index 0,
-        // which VariantIndex weights most heavily; a culture-aware sort does not.
-        foreach (string filePath in Directory.GetFiles(assetsPath, "*_tile*.png").Order(StringComparer.Ordinal))
-        {
-            string fileName = Path.GetFileNameWithoutExtension(filePath);
-            string terrainName = fileName[..fileName.IndexOf("_tile", StringComparison.Ordinal)];
-
-            if (!Enum.TryParse(terrainName, ignoreCase: true, out TerrainType terrain))
-            {
-                Console.Error.WriteLine($"TileRenderer: '{filePath}' does not match any TerrainType, skipping.");
-                continue;
-            }
-
-            Texture2D? texture = LoadPixelTexture(filePath);
-            if (texture == null) continue;
-
-            if (!_tileSprites.TryGetValue(terrain, out var variants))
-                _tileSprites[terrain] = variants = [];
-            variants.Add(texture.Value);
-        }
-
-        var missingTerrain = Enum.GetValues<TerrainType>().Where(t => !_tileSprites.ContainsKey(t)).ToList();
-        if (missingTerrain.Count > 0)
-            Console.Error.WriteLine($"TileRenderer: no tile art for {string.Join(", ", missingTerrain)}.");
+        TerrainRenderer.Load(assetsPath);
 
         string npcPath = Path.Combine(assetsPath, "npc");
         if (!Directory.Exists(npcPath))
@@ -93,47 +68,15 @@ public static class TileRenderer
     }
 
     /// <summary>
-    /// Which variant a map position gets. Deterministic in world position - never
-    /// per-frame random, or tiles would shimmer as the camera moves. The base variant
-    /// is weighted to appear half the time and the rest share the remainder, so a field
-    /// reads as ground with occasional incident rather than as noise.
-    ///
-    /// Mirrored by VariantIndex in tools/PixelArtCli, which previews the tiling.
-    /// </summary>
-    private static int VariantIndex(int worldX, int worldY, int count)
-    {
-        if (count <= 1) return 0;
-
-        unchecked
-        {
-            int h = worldX * 73856093 ^ worldY * 19349663;
-            h ^= h >> 13;
-            h *= 1274126177;
-            h ^= h >> 16;
-
-            int roll = (int)((uint)h % (uint)(2 * (count - 1)));
-            return roll < count - 1 ? 0 : roll - (count - 2);
-        }
-    }
-
-    /// <summary>
     /// Draw the ground for one terrain square. The world map and the combat grid both
     /// go through here, so the ground you fight on is the ground you walked onto.
     /// </summary>
     /// <param name="timeFactor">0 at midnight, 1 at noon; dims the tile toward night.</param>
-    public static void DrawTerrain(TerrainType terrain, float x, float y, float size, int worldX, int worldY, float timeFactor)
+    public static void DrawTerrain(TerrainType terrain, float x, float y, float size, int worldX, int worldY,
+        float timeFactor, Func<int, int, TerrainType?>? neighbor = null)
     {
-        if (!_tileSprites.TryGetValue(terrain, out var variants))
-            return;
-
-        Texture2D tile = variants[VariantIndex(worldX, worldY, variants.Count)];
-
-        byte brightness = (byte)(255 * (0.4f + timeFactor * 0.6f));
-        var tint = new Color(brightness, brightness, brightness, (byte)255);
-
-        var source = new Rectangle(0, 0, tile.Width, tile.Height);
-        Raylib.DrawTexturePro(tile, source, new Rectangle(x, y, size, size),
-            System.Numerics.Vector2.Zero, 0f, tint);
+        TerrainRenderer.Draw(x, y, size, worldX, worldY, timeFactor,
+            TerrainRenderer.Neighborhood.Create(terrain, neighbor));
     }
 
     /// <summary>
@@ -147,7 +90,8 @@ public static class TileRenderer
         bool isPlayerTile,
         bool isHovered,
         bool isAdjacent,
-        float timeFactor)
+        float timeFactor,
+        Func<int, int, TerrainType?>? neighbor = null)
     {
         if (visibility == TileVisibility.Unexplored)
         {
@@ -155,7 +99,7 @@ public static class TileRenderer
             return;
         }
 
-        DrawTerrain(terrain, x, y, size, worldX, worldY, timeFactor);
+        DrawTerrain(terrain, x, y, size, worldX, worldY, timeFactor, neighbor);
 
         if (isPlayerTile)
             DrawPlayerTileHighlight(x, y, size);
@@ -217,8 +161,8 @@ public static class TileRenderer
     private static void DrawTileBorder(float x, float y, float size, bool isVisible)
     {
         var borderColor = isVisible
-            ? new Color(255, 255, 255, 20)
-            : new Color(255, 255, 255, 10);
+            ? new Color(255, 255, 255, 6)
+            : new Color(255, 255, 255, 3);
         Raylib.DrawRectangleLinesEx(new Rectangle(x, y, size, size), 1, borderColor);
     }
 
@@ -227,7 +171,8 @@ public static class TileRenderer
     /// </summary>
     public static void DrawPlayerIcon(float centerX, float centerY, float tileSize, float scale = 1.0f)
     {
-        DrawSprite(_playerSprite, centerX, centerY, tileSize, scale);
+        // Keep the player readable without covering so much of the finer terrain.
+        DrawSprite(_playerSprite, centerX, centerY, tileSize, scale * 0.8f);
     }
 
     private static void DrawSprite(Texture2D texture, float centerX, float centerY, float tileSize, float scale)

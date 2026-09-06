@@ -10,7 +10,8 @@ public class Camera
 {
     // Grid settings
     public int TileSize { get; set; } = 100;
-    public int TileGap { get; set; } = 2;
+    // Terrain textures meet at their shared edges; highlights still identify cells.
+    public int TileGap { get; set; } = 0;
     public int ViewSize { get; set; } = 7;  // 7x7 tile viewport
 
     /// <summary>How fast the centre closes on the target. Higher is snappier.</summary>

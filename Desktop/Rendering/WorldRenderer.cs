@@ -17,7 +17,11 @@ public class WorldRenderer : IDisposable
     private readonly FogRenderer _fog = new();
     private bool _draggingCamera;
 
-    public void Dispose() => _fog.Dispose();
+    public void Dispose()
+    {
+        _fog.Dispose();
+        TerrainRenderer.Unload();
+    }
 
     private (int x, int y)? _hoveredTile;
     private (int x, int y)? _selectedTile;
@@ -174,6 +178,7 @@ public class WorldRenderer : IDisposable
     /// </summary>
     public void Render(GameContext ctx)
     {
+        TerrainRenderer.BeginFrame();
         if (ctx.ActiveCombat != null)
         {
             RenderCombatGrid(ctx);
@@ -326,7 +331,13 @@ public class WorldRenderer : IDisposable
             isPlayerTile,
             isHovered,
             isAdjacent && visibility == TileVisibility.Visible,
-            timeFactor);
+            timeFactor,
+            (dx, dy) =>
+            {
+                int nx = worldX+dx, ny = worldY+dy;
+                return map.IsValidPosition(nx, ny) && map.GetVisibility(nx, ny) != TileVisibility.Unexplored
+                    ? map.GetLocationAt(nx, ny)?.Terrain : null;
+            });
 
         // Render feature icons if visible
         if (visibility == TileVisibility.Visible)

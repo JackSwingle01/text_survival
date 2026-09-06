@@ -259,25 +259,29 @@ variation comes from scattered incident, not from a gradient.
 
 **Give a terrain several tiles.** `forest_tile.png`, `forest_tile2.png`,
 `forest_tile3.png` are all filed under `forest` and chosen between per map
-position. Three is enough to break the eye's pattern-matching.
+position. The current terrain set has eight equally weighted 96×96 variants.
 
-**The base variant carries half of all tiles**, so it is the one that must not
-draw attention. For terrain that is genuinely featureless — clearing, plain,
-open water — the base is *perfectly flat*, and every speck lives in the
-variants; detail in the base repeats at a fixed offset and shows up as a
-lattice. Terrain defined *by* its features (forest, hills, marsh, rock,
-mountain) still needs them in the base, or it stops reading as itself.
+**Author at world scale.** Each tile represents approximately 100 metres.
+Tree crowns span 4–9 pixels; rocks are outcrops, and hills use ground relief.
+`python3 scripts/build-terrain.py` regenerates terrain PXA sources, PNGs, and
+`assets/previews/terrain-tiling.png` (nine 3×3 terrain patches, in order: forest,
+clearing, plain / hills, water, marsh / rock, mountain, deep water).
+The generator owns these terrain sources; edit its palette and drawing rules
+rather than hand-editing the generated terrain files. Other PXA art remains
+hand-authored. Variants share periodic edge detail and vary their interiors.
 
 **Prefer irregular incident to regular pattern.** Mountain rock drawn with
 facets at a tidy 45° tiled into a herringbone; the same rock drawn as irregular
 blotches reads as stone. Likewise snow on rock wants patches, not single
 pixels, which read as noise.
 
-Selection is `TileRenderer.VariantIndex` — a hash of the tile's world position,
+Selection is `TerrainRenderer.VariantIndex` — a hash of the tile's world position,
 so it is stable as the camera moves rather than shimmering per frame. It
-weights the base to half and splits the remainder among the variants. The tool
+gives each variant equal weight. The tool
 mirrors that function so `tile` previews tell the truth; if you change one,
-change both.
+change both. The runtime samples each source across a 2×2 block of map cells
+for the accepted 2× detail scale, and blends known neighboring terrain over
+roughly 16% of a cell on each side of the boundary.
 
 ## Where assets live
 
