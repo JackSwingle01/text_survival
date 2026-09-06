@@ -32,6 +32,7 @@ public class NPC : Actor
     public RelationshipMemory Relationships { get; set; } = new();
     public ResourceMemory ResourceMemory { get; set; } = new();
     public Location? Camp { get; set; }
+    public double NextSocialDecisionMinute { get; set; }
 
     [System.Text.Json.Serialization.JsonIgnore]
     public NPCAction? CurrentAction
@@ -177,6 +178,16 @@ public class NPC : Actor
                 DetermineNeed();
             }
 
+            if (Following == null && _game != null && _game.TotalMinutesElapsed >= NextSocialDecisionMinute)
+            {
+                NextSocialDecisionMinute = _game.TotalMinutesElapsed + 60;
+                var candidates = _game.NPCs.Cast<Actor>().Append(_game.player);
+                var target = candidates.Where(a => a != this && a.CurrentLocation == CurrentLocation && a.IsAlive)
+                    .Where(a => GetRelationship(a) >= 0.35 && Personality.Sociability >= 0.5)
+                    .OrderByDescending(GetRelationship).FirstOrDefault();
+                if (target != null) text_survival.Actors.Following.TryBegin(this, target);
+            }
+
             // pick action and do it
             CurrentAction = DetermineActionForNeed(context);
             Trace($"[NPC:{Name}] Picked: {CurrentAction?.Name} for need {CurrentNeed}");
@@ -265,6 +276,8 @@ public class NPC : Actor
         action ??= DetermineCraft();
         action ??= DetermineIdle(context);
 
+        // Optional camp errands must not pull a reunited companion away again.
+        if (Following != null && action is NPCMove) return new NPCRest(5);
         return action;
     }
     private NPCAction? HandleWarmthNeed(SurvivalContext context)
@@ -442,6 +455,9 @@ public class NPC : Actor
             return new NPCDrinkWater();
         }
 
+        if (CurrentLocation.GetFeature<CacheFeature>()?.Storage.Weight(Resource.Water) > 0)
+            return new NPCTakeResourceFromCache(ResourceCategory.Water, 1);
+
         // At active fire? Melt snow for water
         if (CookingHandler.CanMeltSnow(CurrentLocation))
         {
@@ -488,6 +504,9 @@ public class NPC : Actor
             if (IsTracing) Trace($"  [Food] Eating cooked meat");
             return new NPCEat(Resource.CookedMeat, Inventory.Pop(Resource.CookedMeat));
         }
+
+        if (!HasResource(ResourceCategory.Food) && CurrentLocation.GetFeature<CacheFeature>()?.Storage.GetWeight(ResourceCategory.Food) > 0)
+            return new NPCTakeResourceFromCache(ResourceCategory.Food, 0.5);
 
         // Priority 2: Cook raw meat if at fire
         if (Inventory.Count(Resource.RawMeat) > 0)
@@ -1565,8 +1584,8 @@ public class NPC : Actor
     }
     internal bool CanSleep()
     {
-        // Must be at camp
-        if (CurrentLocation != Camp) return false;
+        // A safe temporary stopping place is sufficient; permanent camp ownership is unchanged.
+        if (CurrentLocation != Camp && Following == null) return false;
         // Not freezing
         if (Body.WarmPct < .2) return false;
         // Fire has runway of 2 hours
