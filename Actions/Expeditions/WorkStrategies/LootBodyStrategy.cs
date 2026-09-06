@@ -18,7 +18,7 @@ public class LootBodyStrategy(NPCBodyFeature body) : IWorkStrategy
     {
         if (_body.Belongings.CurrentWeightKg == 0 && _body.Belongings.Tools.Count == 0)
             return Task.FromResult<string?>($"{_body.NPCName} has nothing to take.");
-        return Task.FromResult<string?>(null);
+        return Task.FromResult(SurfaceAccess.Check(location, _body));
     }
 
     public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)

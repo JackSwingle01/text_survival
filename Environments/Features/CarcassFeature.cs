@@ -31,6 +31,11 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
     public override string? MapIcon => !IsCompletelyButchered ? "carcass" : null;
     public override int IconPriority => 3;
 
+    public override double PlacementHeightM => 0.45;
+    public override double PlacementFootprintM2 => 2.0;
+    public override bool BlockedByCover => true;
+    public override string AccessName => $"the {AnimalType.DisplayName().ToLower()} carcass";
+
     // Core identity
     public AnimalType AnimalType { get; set; }  // Primary identifier
     public string AnimalName { get; set; } = "";  // Kept for backward compatibility with old saves

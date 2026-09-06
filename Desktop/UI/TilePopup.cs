@@ -92,6 +92,7 @@ public class TilePopup
 
             if (_selectedLocation.Visibility == TileVisibility.Visible)
             {
+                RenderGround();
                 RenderFeatures(ctx);
                 RenderTracks(ctx);
                 RenderNPCs(ctx);
@@ -148,6 +149,17 @@ public class TilePopup
         ImGui.End();
 
         return result;
+    }
+
+    /// <summary>What the ground is like here today, if it is worth saying.</summary>
+    private void RenderGround()
+    {
+        if (_selectedLocation == null || !_selectedLocation.IsPassable) return;
+
+        var condition = _selectedLocation.Surface.ConditionText();
+        if (condition == null) return;
+
+        UiText.Colored(new Vector4(0.72f, 0.82f, 0.92f, 1f), condition);
     }
 
     private void RenderFeatures(GameContext ctx)

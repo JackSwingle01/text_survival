@@ -1,6 +1,7 @@
 using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Environments.Features;
+using text_survival.Environments.Surface;
 using static text_survival.Actions.GameContext;
 
 namespace text_survival.Bodies;
@@ -27,6 +28,16 @@ public record SurvivalContext
 
     // Waterproofing from resin-treated equipment (0-1 scale)
     public double WaterproofingLevel { get; init; }      // Reduces wetness accumulation by this factor
+
+    /// <summary>
+    /// Wetness picked up per minute from the ground - slush, mud, standing water - before
+    /// clothing or bedding get a say. A separate source from rain: a roof stops one and does
+    /// nothing about the other.
+    /// </summary>
+    public double GroundContactWettingPct { get; init; }
+
+    /// <summary>What is between you and that ground: bedding, mostly. 0-1.</summary>
+    public double GroundContactProtectionLevel { get; init; }
 
     // Bloody accumulation from bleeding
     public double CurrentBleedingPct { get; init; } // 0-1 from Bleeding effect
@@ -74,6 +85,16 @@ public record SurvivalContext
         var activityConfig = ActivityConfig.Get(activity);
         bool isNight = timeOfDay == TimeOfDay.Night;
 
+        var contact = GroundContactFor(activity);
+        double groundWetting = actor.CurrentLocation.Surface.GetContactWettingRate(contact);
+        double groundProtection = 0;
+        if (contact == SurfaceContact.RestingOnGround)
+        {
+            var bedding = actor.CurrentLocation.GetFeature<BeddingFeature>();
+            if (bedding != null)
+                groundProtection = Math.Clamp(0.5 + bedding.Quality * 0.4, 0, 0.95);
+        }
+
         // Calculate fire proximity bonus if there's an active fire
         // Skip if hyperthermic - player would back away from fire
         double fireProximityBonus = 0;
@@ -113,6 +134,8 @@ public record SurvivalContext
             IsBlizzard = isBlizzard,
             CurrentWetnessPct = currentWetness,
             WaterproofingLevel = waterproofingLevel,
+            GroundContactWettingPct = groundWetting,
+            GroundContactProtectionLevel = groundProtection,
 
             // Bloody accumulation context
             CurrentBleedingPct = currentBleeding,
@@ -123,6 +146,26 @@ public record SurvivalContext
             ClothingHeatBuffer = actor.Body.ClothingHeatBufferPct,
         };
     }
+
+    /// <summary>
+    /// How this activity puts you in touch with the ground. Wading a flooded tile soaks you
+    /// faster than kneeling on it, because you go through all of it rather than sit on some.
+    /// </summary>
+    private static SurfaceContact GroundContactFor(ActivityType activity) => activity switch
+    {
+        ActivityType.Sleeping => SurfaceContact.RestingOnGround,
+        ActivityType.Resting => SurfaceContact.RestingOnGround,
+        ActivityType.Incapacitated => SurfaceContact.RestingOnGround,
+
+        ActivityType.Crafting => SurfaceContact.WorkingOnGround,
+        ActivityType.Cooking => SurfaceContact.WorkingOnGround,
+        ActivityType.Eating => SurfaceContact.WorkingOnGround,
+        ActivityType.TendingFire => SurfaceContact.WorkingOnGround,
+        ActivityType.Butchering => SurfaceContact.WorkingOnGround,
+        ActivityType.Fishing => SurfaceContact.WorkingOnGround,
+
+        _ => SurfaceContact.Walking
+    };
 
     private static double CalculateEffectiveWindSpeed(Environments.Location location)
     {

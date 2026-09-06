@@ -26,6 +26,11 @@ public class CacheFeature : LocationFeature, IWorkableFeature
     [System.Text.Json.Serialization.JsonInclude]
     public CacheType Type { get; private set; }
 
+    public override double PlacementHeightM => 0.5;
+    public override double PlacementFootprintM2 => 1.0;
+    public override bool BlockedByCover => true;
+    public override string AccessName => Name;
+
     /// <summary>
     /// Maximum storage capacity in kg.
     /// </summary>

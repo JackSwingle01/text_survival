@@ -23,7 +23,7 @@ public class ExamineStrategy : IWorkStrategy
             return Task.FromResult<string?>("Nothing to examine here.");
         if (!detail.CanInteract)
             return Task.FromResult<string?>("Nothing to interact with.");
-        return Task.FromResult<string?>(null);
+        return Task.FromResult(SurfaceAccess.Check(location, detail));
     }
 
     public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)

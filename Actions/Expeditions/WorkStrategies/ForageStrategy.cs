@@ -218,8 +218,10 @@ public class ForageStrategy : IWorkStrategy
                     accumulated.Combine(found);
                 }
 
-                feature.DiscoveryProgress += perception / 60.0;
-                foreach (var disc in location.RevealDiscoveries(feature.DiscoveryProgress))
+                // An increment: each hidden find keeps its own tally.
+                double searched = perception / 60.0;
+                feature.DiscoveryProgress += searched;
+                foreach (var disc in location.RevealDiscoveries(searched))
                 {
                     discoveredFeatures.Add(disc);
                     // Minor finds are shown as they happen; major ones get their own moment later.

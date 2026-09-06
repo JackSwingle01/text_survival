@@ -798,6 +798,12 @@ public static class SurvivalProcessor
         // die in the cold: work hard, soak your layers, then stop moving and freeze in them.
         wetnessDelta += GetSweatResponse(body, context).SoakedMlPerHour / 60.0 / MlPerFullSoak;
 
+        // The ground you are standing in. No overhead-cover term: a roof does not drain the
+        // puddle, and the surface already accounted for whatever the canopy kept off it.
+        wetnessDelta += context.GroundContactWettingPct
+            * (1 - context.GroundContactProtectionLevel)
+            * waterproofReduction;
+
         // Calculate drying (reduction in wetness per minute)
         double dryingRate = CalculateDryingRate(context);
         double dryingDelta = (dryingRate / 60.0) * minutesElapsed; // Convert hourly rate to per-minute

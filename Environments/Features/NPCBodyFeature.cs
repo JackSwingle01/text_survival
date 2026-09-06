@@ -17,6 +17,15 @@ public class NPCBodyFeature : LocationFeature, IWorkableFeature
     public override string? MapIcon => IsDiscovered && !IsBuried ? "body" : null;
     public override int IconPriority => 4;  // High priority - this is important
 
+    public override double PlacementHeightM => 0.35;
+    public override double PlacementFootprintM2 => 1.5;
+    public override bool BlockedByCover => true;
+
+    // Snow over a body is not IsBuried, which is a grave dug on purpose and stops decay and
+    // every interaction. Drifted-over remains are still rotting and still there.
+    public override bool IsKnownToPlayer => IsDiscovered;
+    public override string AccessName => $"{NPCName}'s remains";
+
     public string NPCName { get; set; } = "";
     public string DeathCause { get; set; } = "";
     public DateTime TimeOfDeath { get; set; }

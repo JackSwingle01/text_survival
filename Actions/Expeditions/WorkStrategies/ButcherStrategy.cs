@@ -30,7 +30,7 @@ public class ButcherStrategy : IWorkStrategy
         if (_carcass.IsCompletelyButchered)
             return Task.FromResult<string?>("There's nothing left to butcher.");
 
-        return Task.FromResult<string?>(null);
+        return Task.FromResult(SurfaceAccess.Check(location, _carcass));
     }
 
     public async Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)

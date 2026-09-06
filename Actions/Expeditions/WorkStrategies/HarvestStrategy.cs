@@ -21,7 +21,7 @@ public class HarvestStrategy : IWorkStrategy
         // Use feature's CanBeHarvested method
         var harvestables = location
             .Features.OfType<HarvestableFeature>()
-            .Where(h => h.CanBeHarvested())
+            .Where(h => h.CanBeHarvested() && !location.IsCovered(h))
             .ToList();
 
         if (harvestables.Count == 0)

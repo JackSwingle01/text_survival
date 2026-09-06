@@ -18,7 +18,7 @@ public class BuryStrategy(NPCBodyFeature body) : IWorkStrategy
     {
         if (_body.IsBuried)
             return Task.FromResult<string?>($"{_body.NPCName} has already been buried.");
-        return Task.FromResult<string?>(null);
+        return Task.FromResult(SurfaceAccess.Check(location, _body));
     }
 
     public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)

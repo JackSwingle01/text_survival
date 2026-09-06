@@ -472,8 +472,21 @@ public class GameContext(Player player, Location camp, Weather weather)
     public void UpdateWithoutEvents(int minutes, ActivityType activity)
     {
         CurrentActivity = activity;
-        UpdateInternal(minutes);
+
+        // Weather is re-read once per tick, so a single eight-hour call would hand eight
+        // hours of world to one instant's sky - a blizzard arriving at hour seven would have
+        // blown since hour zero.
+        int remaining = minutes;
+        while (remaining > 0)
+        {
+            int step = Math.Min(remaining, WeatherSampleMinutes);
+            UpdateInternal(step);
+            remaining -= step;
+        }
     }
+
+    /// <summary>Longest stretch of world time run against one reading of the weather.</summary>
+    private const int WeatherSampleMinutes = 15;
 
     private void UpdateInternal(int minutes)
     {
@@ -524,13 +537,11 @@ public class GameContext(Player player, Location camp, Weather weather)
             }
         }
 
+        // The whole map, not just the named tiles. Footprints and trail wear age here too.
         if (Map != null)
-        {
-            foreach (var location in Map.NamedLocations)
-            {
-                location.Update(minutes);
-            }
-        }
+            Map.AdvanceWorld(minutes, Weather, CurrentLocation);
+        else
+            CurrentLocation.Update(minutes);
 
         // Update tensions and queue events for stage transitions
         foreach (var tensionChange in Tensions.Update(minutes, IsAtCamp))

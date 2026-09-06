@@ -110,6 +110,97 @@ Grid interacts with: locations (grid contains them), travel (adjacency determine
 
 ---
 
+## Ground Surface
+
+The weather changes the ground, and the ground changes travel, footing, searching and how
+wet you get. Snow accumulates, packs, melts and refreezes; meltwater and rain soak in until
+the ground will take no more and then stand on top of it; standing water freezes from the
+top down. All of it persists after the sky clears - the day after the blizzard is harder
+than the blizzard.
+
+Every `Location` owns a `GroundSurface`. It is a deep module with a small mouth: callers ask
+what crossing costs (`TraversalFactor`), how slippery it is (`HazardDelta`), how hard it is
+to search (`GetSearchFactor`), how wet it makes you (`GetContactWettingRate`) and whether a
+buried thing can be reached - they never see a layer, a saturation or a frozen fraction.
+Combining mud, snow, water and crust lives in one place, because every caller that combined
+them itself would combine them slightly differently.
+
+**Layers** are stored bottom-to-top: one finite substrate layer, an optional pond, and up to
+three snow layers. Each carries thickness, compaction, water saturation and frozen fraction.
+Mud is not a material - it is substrate that is wet and unfrozen; slush is snow holding
+liquid; ice is the frozen fraction of whatever holds the water. Fractions are a
+representation, not permission to lose quantities: every operation derives metres of
+skeleton and metres of water, does its arithmetic on those, and recomputes the fractions.
+Water in equals water held plus water gone (`WaterDrainedM`, `WaterEvaporatedM`,
+`WaterOverflowedM`) at all times, and the tests say so.
+
+**Substrate** comes from terrain (`SubstrateProfile.For`): loam, forest floor, thin slope
+soil, bare rock, peat, and an inert profile for lake ice and impassable tiles. Peat holds
+nearly everything and ponds at once; rock takes nothing in and sheds it off the tile; loam
+drinks a day of rain before it floods. Standing liquid is capped at one foot, with the
+excess exported through a named overflow sink - routing water between tiles is a follow-up,
+and the ledger has to survive until then.
+
+**Weather reaches the ground** through `Location.GetSurfaceWeather`, which is deliberately
+not `GetTemperature`: that answers what a *person* feels, with wind chill, clothing, shelter
+and their fire in it, and none of that melts snow. The canopy intercepts precipitation and
+shades the sun exactly once; a whiteout is blowing snow and deposits nothing.
+
+**Scheduling.** `GameMap.AdvanceWorld` moves the whole world on: footprints and trail wear,
+the tile under the player exactly, and every other tile in quarter-hour batches. Nine
+thousand tiles updated every minute costs about a frame; batched it costs a fifteenth of
+that. Every minute is consumed by every tile exactly once - when the player moves, the batch
+owed under the old tile is settled first. `GameContext.UpdateWithoutEvents` splits long calls
+into bounded weather samples, so an eight-hour sleep cannot hand eight hours of world to one
+instant's weather.
+
+**Travel and footing.** `TravelProcessor` charges segment time against terrain shape
+(`Location.GetTravelHazardLevel`) and adds the surface's excess separately, so a blizzard is
+not billed twice. The excess is added *after* the route's own trail bonus and computed from
+the baseline segments: a worn path is bare earth under the snow, not a cleared lane through
+it. `Location.GetEffectiveTerrainHazard` adds `GetSurfaceHazardDelta` for injury risk, and
+that delta yields entirely to `WaterFeature` on lakes and rivers, which already owns ice
+thickness and thin-ice hazard.
+
+**Getting wet.** `SurvivalContext` carries a ground contact rate and whatever protects you
+from it. Wading a flooded tile soaks you in minutes; kneeling on damp ground barely does;
+frozen ground has no liquid to give however hazardous it is to stand on. Bedding is the
+thing that keeps you off wet ground. A roof stops the rain reaching you and does nothing
+about the puddle you are standing in.
+
+**Burial and digging.** Placed things carry `PlacedBaseElevationM` (null means ground level,
+which is where everything the world was born with sits) plus a height and footprint.
+`Location.AddFeature` puts anything dropped or killed now on today's surface, so a carcass
+left on fresh snow is not buried by the snow it lies on. Snow over a find reduces new search
+progress in proportion to how much of it is under the snow, down to a floor of 0.1 - effort
+already earned stays earned, and a find created today inherits none of the tile's history
+(`HiddenFeature.EffectiveSearchHours`).
+
+Finding a thing and reaching it are different questions, and the snow only answers the
+second. A covered target stays visible and remembered but offers one action - **Dig up X**
+(`DigUpStrategy`) - and its usual actions are refused at execution too (`SurfaceAccess`), not
+merely hidden from the menu. Undiscovered finds never advertise themselves. A working shovel
+doubles progress. A hole is one number - how far this target's footprint has been dug below
+the tile's cover - so fresh snow refills it, a thaw shallows it, and clearing one bush does
+not expose its neighbours or speed up the crossing. Snow drifting over a body is not the
+same thing as `NPCBodyFeature.IsBuried`, which is a grave the player dug on purpose.
+
+Deferred, deliberately: route-local snow packing (so a return trip through your own trench
+is faster) - `TrailWear` stays as it is until that exists; and water deeper than a foot,
+with routing between tiles and depth-dependent passability.
+
+Ground surface interacts with: weather (its whole input), travel (`TravelProcessor`),
+survival simulation (contact wetting), discovery (search factor and burial), features
+(placement and access), work strategies (`DigUpStrategy`), the tile popup and forage
+warnings.
+
+**Files**: `Environments/Surface/` (`GroundSurface.cs`, `GroundSurface.Excavation.cs`,
+`SurfaceLayer.cs`, `SubstrateProfile.cs`, `SurfaceWeather.cs`, `SurfacePlacement.cs`),
+`Environments/Location.cs`, `Environments/Grid/GameMap.cs`,
+`Actions/Expeditions/WorkStrategies/DigUpStrategy.cs`
+
+---
+
 ## Tracks and Trails
 
 The ground remembers who walked on it, on two clocks.

@@ -23,6 +23,16 @@ public static class ForageWarnings
         if (previewContext.DarknessLevel > 0.5 && !previewContext.HasLightSource)
             warnings.Add("It's dark - your yield will be reduced without light.");
 
+        double searchFactor = location.Surface.GetSearchFactor(0, 0.3);
+        if (searchFactor < 0.35)
+            warnings.Add("Deep snow makes searching very difficult.");
+        else if (searchFactor < 0.75)
+            warnings.Add("Snow over the ground will slow your searching.");
+
+        var ground = location.Surface.ConditionText();
+        if (ground != null && searchFactor >= 0.75)
+            warnings.Add(ground);
+
         // Check tool bonuses
         var axe = ctx.Inventory.GetTool(ToolType.Axe);
         var shovel = ctx.Inventory.GetTool(ToolType.Shovel);

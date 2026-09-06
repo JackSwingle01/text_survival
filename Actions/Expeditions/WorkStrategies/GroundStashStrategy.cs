@@ -14,7 +14,7 @@ public class GroundStashStrategy : IWorkStrategy
         var stash = location.GetFeature<GroundItemsFeature>();
         if (stash == null || !stash.HasItems)
             return Task.FromResult<string?>("There's nothing on the ground here.");
-        return Task.FromResult<string?>(null);
+        return Task.FromResult(SurfaceAccess.Check(location, stash));
     }
 
     public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location) => Task.FromResult<Choice<int>?>(null);

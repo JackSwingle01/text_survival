@@ -15,6 +15,11 @@ public class GroundItemsFeature : LocationFeature, IWorkableFeature
     public override string? MapIcon => HasItems ? "ground_items" : null;
     public override int IconPriority => 1;
 
+    public override double PlacementHeightM => 0.15;
+    public override double PlacementFootprintM2 => 0.6;
+    public override bool BlockedByCover => true;
+    public override string AccessName => "the dropped items";
+
     [System.Text.Json.Serialization.JsonInclude]
     public Inventory Storage { get; private set; } = new() { MaxWeightKg = 10000 };
 

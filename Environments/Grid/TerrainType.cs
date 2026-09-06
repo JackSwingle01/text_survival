@@ -56,7 +56,9 @@ public static class TerrainTypeExtensions
         TerrainType.Forest => 0.1,
         TerrainType.Hills => 0.25,
         TerrainType.Rock => 0.3,
-        TerrainType.Marsh => 0.35,
+        // Tussocks, hidden holes and root mats. The part that was soft wet ground is now
+        // the surface's business - a marsh frozen hard is not the marsh you sink into.
+        TerrainType.Marsh => 0.30,
         TerrainType.Water => 0.4,  // Ice is slippery
         _ => 0.0
     };

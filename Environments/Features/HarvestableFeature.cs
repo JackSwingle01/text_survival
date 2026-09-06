@@ -31,6 +31,11 @@ public class HarvestableFeature : LocationFeature, IWorkableFeature
     private string _displayName = "";
 
     public string DisplayName => _displayName;
+
+    public override double PlacementHeightM => 0.6;
+    public override double PlacementFootprintM2 => 1.2;
+    public override bool BlockedByCover => true;
+    public override string AccessName => _displayName;
     public string Description { get; set; } = "";
 
     /// <summary>

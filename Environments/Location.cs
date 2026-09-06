@@ -4,6 +4,7 @@ using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Actors.Animals;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;  // For TileVisibility enum
+using text_survival.Environments.Surface;
 
 
 namespace text_survival.Environments;
@@ -107,6 +108,63 @@ public class Location
     /// </summary>
     public double TerrainHazardLevel { get; set; } = 0;
 
+    private GroundSurface? _surface;
+
+    /// <summary>
+    /// The ground here, and everything the weather has done to it. <see cref="Terrain"/> says
+    /// what the ground is made of; this says what state it is in today.
+    ///
+    /// Created on demand, so a save written before the ground was modelled loads as clean
+    /// ground for its terrain. There is no reconstructed snowfall history.
+    /// </summary>
+    public GroundSurface Surface
+    {
+        get => _surface ??= new GroundSurface(SubstrateProfile.For(Terrain));
+        set => _surface = value;
+    }
+
+    /// <summary>
+    /// The weather as the ground here feels it, with every attenuation applied exactly once.
+    /// Deliberately not <see cref="GetTemperature"/>, which answers what a person standing
+    /// here feels - wind chill on skin, clothing, shelter, their fire - none of which melts
+    /// snow.
+    /// </summary>
+    public SurfaceWeather GetSurfaceWeather()
+    {
+        double exposure = 1 - OverheadCoverLevel;
+        double precipitation = Weather.PrecipitationPct * exposure;
+
+        double snowfall = 0;
+        double rainfall = 0;
+        switch (Weather.CurrentCondition)
+        {
+            case Weather.WeatherCondition.LightSnow:
+            case Weather.WeatherCondition.HeavySnow:
+            case Weather.WeatherCondition.Blizzard:
+                snowfall = precipitation * MaxSnowfallWeMPerMinute;
+                break;
+            case Weather.WeatherCondition.Rainy:
+            case Weather.WeatherCondition.Stormy:
+            case Weather.WeatherCondition.FreezingRain:
+                rainfall = precipitation * MaxRainfallMPerMinute;
+                break;
+            // A whiteout is snow already down, blown about. Nothing new falls.
+        }
+
+        return new SurfaceWeather(
+            AirTemperatureF: Weather.TemperatureInFahrenheit + TemperatureDeltaF,
+            WindLevel: Math.Clamp(Weather.WindSpeedPct * WindFactor, 0, 1),
+            SunlightLevel: Weather.SunlightIntensity * exposure,
+            SnowfallWeMPerMinute: snowfall,
+            RainfallMPerMinute: rainfall);
+    }
+
+    /// <summary>Heaviest snowfall, in metres water-equivalent per minute: 5 mm an hour.</summary>
+    private const double MaxSnowfallWeMPerMinute = 0.005 / 60;
+
+    /// <summary>Heaviest rain: 10 mm an hour.</summary>
+    private const double MaxRainfallMPerMinute = 0.010 / 60;
+
     // Parameterless constructor for deserialization
     public Location() { }
     public Location(string name, string tags, Weather weather,
@@ -127,6 +185,16 @@ public class Location
     /// </summary>
     public double GetEffectiveTerrainHazard()
     {
+        return Math.Min(1.0, GetTravelHazardLevel() + GetSurfaceHazardDelta());
+    }
+
+    /// <summary>
+    /// The shape of the ground rather than its state: rocks, undergrowth, and the ice on a
+    /// frozen lake. <see cref="TravelProcessor"/> charges travel time against this and adds
+    /// the surface separately, so a foot of snow is not paid for twice.
+    /// </summary>
+    public double GetTravelHazardLevel()
+    {
         double hazard = TerrainHazardLevel;
 
         // Frozen water adds to terrain hazard (slippery ice)
@@ -138,6 +206,13 @@ public class Location
 
         return Math.Min(1.0, hazard);
     }
+
+    /// <summary>
+    /// What today's ground adds to the risk of going over. A lake or river yields entirely to
+    /// its <see cref="WaterFeature"/>, which already owns ice thickness and thin-ice hazard.
+    /// </summary>
+    public double GetSurfaceHazardDelta() =>
+        HasFeature<WaterFeature>() ? 0 : Surface.HazardDelta;
 
     public bool IsDark { get; set; } = false;
 
@@ -181,15 +256,30 @@ public class Location
     public List<HiddenFeature> HiddenFeatures { get; set; } = [];
 
     /// <summary>
-    /// Check hidden features against discovery progress, reveal any that qualify.
-    /// Returns list of newly revealed features for presentation.
+    /// Search here a little longer and see what turns up.
     /// </summary>
-    /// <param name="discoveryProgress">Perception-weighted hours</param>
-    public List<HiddenFeature> RevealDiscoveries(double discoveryProgress)
+    /// <param name="perceptionWeightedHours">
+    /// Hours just spent, weighted by how well the searcher can see. An increment, not a
+    /// total: each find keeps its own tally, because the same snow does not hide them all
+    /// equally.
+    /// </param>
+    public List<HiddenFeature> RevealDiscoveries(double perceptionWeightedHours)
     {
-        var revealed = HiddenFeatures
-            .Where(h => discoveryProgress >= h.RevealAtHours)
-            .ToList();
+        MigrateSearchEffort();
+
+        List<HiddenFeature>? revealed = null;
+
+        foreach (var hidden in HiddenFeatures)
+        {
+            var placement = hidden.Feature.Placement;
+            hidden.EffectiveSearchHours += perceptionWeightedHours
+                * Surface.GetSearchFactor(placement.BaseElevationM, placement.HeightM);
+
+            if (hidden.EffectiveSearchHours >= hidden.RevealAtHours)
+                (revealed ??= []).Add(hidden);
+        }
+
+        if (revealed == null) return [];
 
         foreach (var hidden in revealed)
         {
@@ -198,6 +288,26 @@ public class Location
         }
 
         return revealed;
+    }
+
+    /// <summary>Whether the pre-per-find tile progress has been handed out. Persisted.</summary>
+    public bool SearchEffortMigrated { get; set; }
+
+    /// <summary>
+    /// Older saves carried one search total for the whole tile. Those hours were genuinely
+    /// spent on this ground, so they go to every find still hidden here rather than being
+    /// dropped on the first load.
+    /// </summary>
+    private void MigrateSearchEffort()
+    {
+        if (SearchEffortMigrated) return;
+        SearchEffortMigrated = true;
+
+        double earned = GetFeature<ForageFeature>()?.DiscoveryProgress ?? 0;
+        if (earned <= 0) return;
+
+        foreach (var hidden in HiddenFeatures)
+            hidden.EffectiveSearchHours = Math.Max(hidden.EffectiveSearchHours, earned);
     }
 
     /// <summary>
@@ -217,8 +327,20 @@ public class Location
     public IEnumerable<WorkOption> GetWorkOptions(GameContext ctx)
     {
         foreach (var feature in Features.OfType<IWorkableFeature>())
+        {
+            if (feature is LocationFeature placed && IsCovered(placed))
+            {
+                // Only if the player knows it is there - an undiscovered find must not give
+                // itself away by offering to be dug up.
+                if (placed.IsKnownToPlayer)
+                    yield return new WorkOption($"Dig up {placed.AccessName}",
+                        $"dig_{placed.PlacementId}", new DigUpStrategy(placed.PlacementId));
+                continue;
+            }
+
             foreach (var option in feature.GetWorkOptions(ctx))
                 yield return option;
+        }
 
         // One hunt option. Large game comes from herds on the tile, small game from local density.
         var smallGame = GetFeature<SmallGameFeature>();
@@ -243,8 +365,15 @@ public class Location
 
     public void AddFeature(LocationFeature feature)
     {
+        // What is put down now rests on today's surface. Anything the world was born with
+        // keeps its null and reads as ground level, where it was authored to be.
+        feature.PlacedBaseElevationM ??= Surface.SurfaceHeightM;
         Features.Add(feature);
     }
+
+    /// <summary>Whether enough solid cover lies over this to have to move some first.</summary>
+    public bool IsCovered(LocationFeature feature) =>
+        feature.BlockedByCover && Surface.IsAccessBlocked(feature.Placement);
 
     public void AddGroundItems(Inventory items)
     {
@@ -395,27 +524,30 @@ public class Location
 
     public void Update(int minutes)
     {
-        // Get temperature once for features that need it. Carcasses and stored goods sit
-        // still, so they get whatever a shelter here provides.
-        double temperatureF = GetTemperature(ActivityType.Idle);
+        Surface.Advance(minutes, GetSurfaceWeather());
 
-        // Update location features (fires consume fuel, etc.)
+        // Every tile on the map ticks now, and almost none of them contain anything that
+        // needs a temperature, so this is computed at most once and only if asked.
+        double? temperatureF = null;
+        double Temperature() => temperatureF ??= GetTemperature(ActivityType.Idle);
+
         foreach (var feature in Features)
-        {
-            feature.Update(minutes);
+            UpdateFeature(feature, minutes, Temperature);
 
-            // Temperature-aware decay for carcasses
-            if (feature is CarcassFeature carcass)
-            {
-                carcass.ApplyTemperatureDecay(temperatureF, minutes);
-            }
+        // Undiscovered things age too - finding a body must not be what starts it rotting.
+        // This never reveals anything; discovery is still only ever earned by searching.
+        foreach (var hidden in HiddenFeatures)
+            UpdateFeature(hidden.Feature, minutes, Temperature);
+    }
 
-            // Temperature-aware decay for NPC bodies
-            if (feature is NPCBodyFeature body)
-            {
-                body.ApplyTemperatureDecay(temperatureF, minutes);
-            }
-        }
+    private static void UpdateFeature(LocationFeature feature, int minutes, Func<double> temperature)
+    {
+        feature.Update(minutes);
+
+        if (feature is CarcassFeature carcass)
+            carcass.ApplyTemperatureDecay(temperature(), minutes);
+        else if (feature is NPCBodyFeature body)
+            body.ApplyTemperatureDecay(temperature(), minutes);
     }
 
     public List<Resource> ListResourcesHere()
@@ -442,14 +574,17 @@ public class Location
     {
         if (!Explored) return 0;
 
-        var forage = GetFeature<ForageFeature>();
-        if (forage == null) return 0;
-
-        // Nothing left to find = fully explored
+        // How far through the *current* list you are, not a promise nothing new will ever
+        // appear here - an animal can die on this tile tomorrow.
         if (HiddenFeatures.Count == 0) return 1.0;
 
-        double maxThreshold = HiddenFeatures.Max(h => h.RevealAtHours);
-        return Math.Min(1.0, forage.DiscoveryProgress / maxThreshold);
+        MigrateSearchEffort();
+
+        double total = 0;
+        foreach (var hidden in HiddenFeatures)
+            total += Math.Clamp(hidden.EffectiveSearchHours / Math.Max(hidden.RevealAtHours, 1e-6), 0, 1);
+
+        return total / HiddenFeatures.Count;
     }
 
     public string GetUnexploredHint(Location origin, Actors.Player.Player player)

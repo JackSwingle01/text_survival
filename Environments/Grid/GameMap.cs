@@ -90,6 +90,59 @@ public class GameMap
         Trails.Decay(minutes, erosionUnits);
     }
 
+    /// <summary>
+    /// World time a distant tile is advanced in per sweep. Nine thousand tiles every minute
+    /// costs about a frame; a quarter-hour at a time costs a fifteenth of that, and nothing
+    /// at that distance moves faster. The tile the player is standing on is exempt, because
+    /// a fire is watched minute by minute.
+    /// </summary>
+    public const int BackgroundStepMinutes = 15;
+
+    /// <summary>Minutes owed to the rest of the map. Serialized so a save cannot lose them.</summary>
+    public int PendingBackgroundMinutes { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    private Location? _foreground;
+
+    /// <summary>
+    /// Move the whole world on: footprints and trails, the tile under
+    /// <paramref name="foreground"/> exactly, and every other tile in bounded batches. Every
+    /// minute reaches every tile exactly once - a change of foreground settles the batch owed
+    /// under the old one first.
+    /// </summary>
+    public void AdvanceWorld(int minutes, Weather weather, Location? foreground)
+    {
+        if (minutes <= 0) return;
+
+        AdvanceGround(minutes, weather);
+
+        if (!ReferenceEquals(foreground, _foreground))
+        {
+            FlushBackground();
+            _foreground = foreground;
+        }
+
+        foreground?.Update(minutes);
+
+        PendingBackgroundMinutes += minutes;
+        if (PendingBackgroundMinutes >= BackgroundStepMinutes)
+            FlushBackground();
+    }
+
+    private void FlushBackground()
+    {
+        int due = PendingBackgroundMinutes;
+        if (due <= 0) return;
+        PendingBackgroundMinutes = 0;
+
+        foreach (var location in AllLocations)
+        {
+            // Nothing walks onto a mountain or open water, so nothing there is ever seen.
+            if (ReferenceEquals(location, _foreground) || !location.IsPassable) continue;
+            location.Update(due);
+        }
+    }
+
     public IReadOnlyList<Location> GetTravelOptions()
     {
         var season = Weather?.CurrentSeason ?? Weather.Season.Winter;
@@ -350,6 +403,27 @@ public class GameMap
 
     private bool IsOpaque(int x, int y) =>
         GetLocationAt(x, y) is not { } location || double.IsPositiveInfinity(SightAbsorption(location));
+
+    /// <summary>
+    /// Every tile on the map. The world happens on all of them, not only the named ones -
+    /// forage regrows and snow lies on plain terrain too.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IEnumerable<Location> AllLocations
+    {
+        get
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    var loc = _locations[x, y];
+                    if (loc != null)
+                        yield return loc;
+                }
+            }
+        }
+    }
 
     [System.Text.Json.Serialization.JsonIgnore]
     public IEnumerable<Location> NamedLocations

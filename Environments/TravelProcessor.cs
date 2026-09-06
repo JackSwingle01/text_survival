@@ -61,7 +61,9 @@ public static class TravelProcessor
     {
         if (location.BaseTraversalMinutes == 0) return 0;
 
-        double multiplier = location.GetEffectiveTerrainHazard();
+        // The shape of the ground, not its state. Snow and mud are charged once, by
+        // SurfaceExcessMinutes; folding them in here too would bill a blizzard twice.
+        double multiplier = location.GetTravelHazardLevel();
 
         // Weather from location's zone
         var weather = location.Weather;
@@ -111,8 +113,22 @@ public static class TravelProcessor
             ? map.GetEdgeTraversalModifier(map.GetPosition(origin), map.GetPosition(destination))
             : 0;
 
-        return Math.Max(MinimumCrossingMinutes, exitTime + entryTime + edgeModifier);
+        double surface = SurfaceExcessMinutes(origin, exitTime) + SurfaceExcessMinutes(destination, entryTime);
+
+        return Math.Max(MinimumCrossingMinutes,
+            (int)Math.Ceiling(exitTime + entryTime + edgeModifier + surface));
     }
+
+    /// <summary>
+    /// Minutes today's ground adds to a segment costing <paramref name="segmentMinutes"/>.
+    ///
+    /// Added after the route's own bonus and worked out from the baseline segment, because a
+    /// worn path is bare earth under the snow rather than a cleared lane through it. Packing
+    /// a route so that it *is* faster in deep snow needs the route's own surface state, which
+    /// does not exist yet.
+    /// </summary>
+    private static double SurfaceExcessMinutes(Location location, int segmentMinutes) =>
+        segmentMinutes * (location.Surface.TraversalFactor - 1);
 
     /// <summary>
     /// What crossing to this destination actually costs, for the given actor right now -
@@ -133,14 +149,18 @@ public static class TravelProcessor
         bool originHazardous = IsHazardousTerrain(origin);
         bool destHazardous = IsHazardousTerrain(destination);
 
-        int quickMinutes = Math.Max(MinimumCrossingMinutes, exitTime + entryTime + edgeModifier);
+        double surface = SurfaceExcessMinutes(origin, exitTime) + SurfaceExcessMinutes(destination, entryTime);
+
+        int quickMinutes = Math.Max(MinimumCrossingMinutes,
+            (int)Math.Ceiling(exitTime + entryTime + edgeModifier + surface));
 
         if (!originHazardous && !destHazardous)
             return new CrossingPreview(quickMinutes, quickMinutes, 0, false);
 
         int carefulExitTime = originHazardous ? (int)Math.Ceiling(exitTime * CarefulTravelMultiplier) : exitTime;
         int carefulEntryTime = destHazardous ? (int)Math.Ceiling(entryTime * CarefulTravelMultiplier) : entryTime;
-        int carefulMinutes = Math.Max(MinimumCrossingMinutes, carefulExitTime + carefulEntryTime + edgeModifier);
+        int carefulMinutes = Math.Max(MinimumCrossingMinutes,
+            (int)Math.Ceiling(carefulExitTime + carefulEntryTime + edgeModifier + surface));
 
         double originRisk = originHazardous ? GetInjuryRisk(origin, actor, weather) : 0;
         double destRisk = destHazardous ? GetInjuryRisk(destination, actor, weather) : 0;

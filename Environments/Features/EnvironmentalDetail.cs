@@ -35,6 +35,11 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
 
     public string? _mapIcon;
     public override string? MapIcon => _mapIcon;  // Always show while in Features list
+
+    public override double PlacementHeightM => 0.25;
+    public override double PlacementFootprintM2 => 0.6;
+    public override bool BlockedByCover => true;
+    public override string AccessName => DisplayName;
     public override int IconPriority => 0; // Low priority - other features show first
 
     public Inventory? Loot { get; init; }

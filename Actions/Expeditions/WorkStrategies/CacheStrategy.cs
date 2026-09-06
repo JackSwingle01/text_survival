@@ -16,7 +16,7 @@ public class CacheStrategy : IWorkStrategy
         var cache = location.GetFeature<CacheFeature>();
         if (cache == null)
             return Task.FromResult<string?>("There's no cache here.");
-        return Task.FromResult<string?>(null);
+        return Task.FromResult(SurfaceAccess.Check(location, cache));
     }
 
     public Task<Choice<int>?> GetTimeOptions(GameContext ctx, Location location)
