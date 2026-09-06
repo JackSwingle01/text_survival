@@ -323,10 +323,7 @@ public class NPCFight : NPCAction
             ? CombatOrchestrator.AnimalSide(ctx, animal)
             : [_threat];
 
-        var result = CombatOrchestrator.ResolveHeadless(
-            ctx, [npc], enemies, npc.CurrentLocation,
-            startDistanceM: 5, AwarenessState.Engaged, AwarenessState.Engaged);
-        npc.Trace($"[NPC] {npc.Name} vs {_threat.Name}: {result}");
+        CompanionCombat.StartDefense(ctx, npc, enemies);
     }
 
     public Actor Threat => _threat;

@@ -108,6 +108,8 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public CombatScenario? ActiveCombat { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public List<CombatScenario> BackgroundCombats { get; } = [];
 
     public static DateTime StartTime => new DateTime(2025, 7, 1, 9, 0, 0);
     public int DaysSurvived => (int)(GameTime - StartTime).TotalDays;
@@ -581,12 +583,13 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         for (int i = 0; i < minutes; i++)
         {
+            CompanionCombat.JoinArrivals(this);
             // Update relationship memories for actors sharing locations
             UpdateTimeTogetherRelationships();
 
             foreach (NPC npc in NPCs.ToList())
             {
-                var npcContext = SurvivalContext.GetSurvivalContext(npc, npc.Inventory, (ActiveCombat?.Units.Any(u => u.actor == npc) == true ? ActivityType.Fighting : npc.CurrentAction?.ActivityType ?? ActivityType.Idle), GetTimeOfDay());
+                var npcContext = SurvivalContext.GetSurvivalContext(npc, npc.Inventory, (CompanionCombat.Owns(this, npc) ? ActivityType.Fighting : npc.CurrentAction?.ActivityType ?? ActivityType.Idle), GetTimeOfDay());
                 npc.Update(1, npcContext, Herds, NPCs, this);
                 if (npc.Social.PendingNeed is { Recipient: NPC recipient } request)
                 {
@@ -595,6 +598,10 @@ public class GameContext(Player player, Location camp, Weather weather)
                     CompanionInteractions.Reply(npc, recipient, NeedReply.LetGo, TotalMinutesElapsed);
                 }
             }
+            foreach (var actor in CompanionCombat.Encounters(this).SelectMany(s => s.Units).Select(u => u.actor).Distinct()
+                .Where(a => a is not NPC && a != player))
+                actor.Update(1, SurvivalContext.GetSurvivalContext(actor, actor.Inventory, ActivityType.Fighting, GetTimeOfDay()));
+            CompanionCombat.TickBackground(this);
         }
 
         var deadNPCs = NPCs.Where(npc => !npc.IsAlive).ToList();
@@ -678,6 +685,7 @@ public class GameContext(Player player, Location camp, Weather weather)
                 continue;
             }
 
+            if (herd.Members.Any(a => CompanionCombat.Owns(this, a))) continue;
             var result = herd.Update(minutes, this);
 
             if (result.EncounterRequest != null || result.NarrativeMessage != null)

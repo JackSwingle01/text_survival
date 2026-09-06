@@ -18,7 +18,6 @@ public sealed class NPCActionState
     public ToolType Tool { get; set; }
     public double Amount { get; set; }
     public List<Resource>? Wanted { get; set; }
-    public string? RecipeId { get; set; }
     public string? RecipeName { get; set; }
     public ShelterImprovementType Improvement { get; set; }
     public int Quantity { get; set; }
@@ -34,7 +33,7 @@ public sealed class NPCActionState
             case NPCStash stash: state.Category = stash.Category; break;
             case NPCTakeToolFromCache take: state.Tool = take.Tool; break;
             case NPCTakeResourceFromCache take: state.Category = take.Category; state.Amount = take.TargetWeight; break;
-            case NPCCraft craft: state.RecipeId = craft.Recipe.Id; state.RecipeName = craft.Recipe.Name; break;
+            case NPCCraft craft: state.RecipeName = craft.Recipe.Name; break;
             case NPCFight fight: state.Target = fight.Threat; break;
             case NPCFlee flee: state.Target = flee.Threat; break;
             case NPCImproveShelter shelter: state.Improvement = shelter.Improvement; state.Resource = shelter.Material; state.Quantity = shelter.Quantity; break;
@@ -60,7 +59,7 @@ public sealed class NPCActionState
             nameof(NPCTakeToolFromCache) => new NPCTakeToolFromCache(Tool),
             nameof(NPCTakeResourceFromCache) => new NPCTakeResourceFromCache(Category, Amount),
             nameof(NPCCraft) => new NPCCraft(new NeedCraftingSystem().AllOptions.First(r =>
-                !string.IsNullOrEmpty(RecipeId) ? r.Id == RecipeId : r.Name == RecipeName)),
+                r.Name == RecipeName)),
             nameof(NPCFight) => new NPCFight(Target!),
             nameof(NPCFlee) => new NPCFlee(Target!),
             nameof(NPCCookMeat) => new NPCCookMeat(),

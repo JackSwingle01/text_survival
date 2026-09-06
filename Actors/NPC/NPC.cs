@@ -130,7 +130,7 @@ public class NPC : Actor
         _game = game ?? _game;
 
         text_survival.Actors.Following.Observe(this, _game?.TotalMinutesElapsed ?? 0);
-        if (_game?.ActiveCombat?.Units.Any(u => u.actor == this) == true) return;
+        if (_game != null && text_survival.Combat.CompanionCombat.Owns(_game, this)) return;
 
         for (int i = 0; i < minutes; i++)
         {

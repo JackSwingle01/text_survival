@@ -25,6 +25,39 @@ public class CombatScenario
 {
     public List<Unit> Units = new();
     public bool IsOver = false;
+    public EncounterPurpose Purpose { get; set; }
+    public int ElapsedRounds { get; set; }
+    public bool AftermathApplied { get; set; }
+    public HashSet<Actor> ConsideredHelpers { get; } = [];
+    public Dictionary<Actor, double> LastSignalMinute { get; } = [];
+
+    public bool AddParticipant(Actor actor, bool teamOne)
+    {
+        if (IsOver || Team1.Concat(Team2).Any(u => u.actor == actor)) return false;
+        var own = teamOne ? Team1 : Team2;
+        var opposing = teamOne ? Team2 : Team1;
+        var anchor = own.FirstOrDefault(u => Units.Contains(u));
+        if (anchor == null) return false;
+        var unit = new Unit(actor, new GridPosition(anchor.Position.X, teamOne ? 1 : MAP_SIZE - 2)) { Awareness = AwarenessState.Engaged };
+        own.Add(unit);
+        unit.allies = own.Where(Units.Contains).ToList();
+        unit.enemies = opposing.Where(Units.Contains).ToList();
+        foreach (var ally in unit.allies) ally.allies.Add(unit);
+        foreach (var enemy in unit.enemies) enemy.enemies.Add(unit);
+        Units.Add(unit);
+        return true;
+    }
+
+    public void AdvanceAutonomousRound()
+    {
+        foreach (var unit in Units.ToList())
+        {
+            if (IsOver) break;
+            ProcessSingleAITurn(unit);
+            if (Units.Contains(unit)) RunDetectionChecks(unit);
+        }
+    }
+
     public bool InvolvesPlayer => Player != null;
     public Unit? Player;
     public List<Gear> ThrownWeapons = new();
@@ -266,12 +299,6 @@ public class CombatScenario
 
     private void CheckIfOver()
     {
-        // Player death ends combat immediately
-        if (Player != null && !Player.actor.IsAlive)
-        {
-            IsOver = true;
-            return;
-        }
         var team1Alive = Units.Any(u => Team1.Contains(u));
         var team2Alive = Units.Any(Team2.Contains);
         IsOver = !team1Alive || !team2Alive;
@@ -524,6 +551,12 @@ public class CombatScenario
     private void Flee(Unit unit)
     {
         Units.Remove(unit);
+        if (unit.actor is NPC npc)
+        {
+            npc.SetCombatCooldown(60);
+            var retreat = npc.Map.GetTravelOptionsFrom(npc.CurrentLocation).FirstOrDefault();
+            if (retreat != null) npc.CurrentAction = new NPCMove(retreat, npc);
+        }
         foreach (Unit ally in unit.allies.ToList())
         {
             ally.allies.Remove(unit);
@@ -727,6 +760,6 @@ public class CombatScenario
     #endregion
 }
 
-public enum CombatActions { Move, Attack, Throw, ThrowStone, Dodge, Block, Shove, Intimidate, Advance, Retreat, Flee, Assess, Wait }
+public enum CombatActions { Move, Attack, Throw, ThrowStone, Dodge, Block, Shove, Intimidate, Advance, Retreat, Flee, Assess, Wait, CallHelp, CallRetreat }
 
 public enum Zone { close, near, mid, far }

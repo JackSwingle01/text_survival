@@ -63,6 +63,8 @@ public class Unit(Actor actor, GridPosition position)
     }
 
     public double BoldnessModifier = 0;
+    public double CompanionSignalModifier;
+    public double CompanionSignalExpiresAt;
     public void ApplyBoldnessChange(MoraleEvent evt, Unit? other)
     {
         double cohesion = other != null ? CohesionTowards(other) : 0;

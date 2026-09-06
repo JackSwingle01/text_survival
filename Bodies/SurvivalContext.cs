@@ -48,9 +48,9 @@ public record SurvivalContext
     public double ClothingHeatBuffer { get; init; }      // Current buffer level 0-1
 
 
-    public static SurvivalContext GetSurvivalContext(Actor actor, Inventory inventory, ActivityType activity, TimeOfDay timeOfDay)
+    public static SurvivalContext GetSurvivalContext(Actor actor, Inventory? inventory, ActivityType activity, TimeOfDay timeOfDay)
     {
-        double clothingClo = inventory.ClothingClo;
+        double clothingClo = inventory?.ClothingClo ?? 0;
 
         // Get current wetness
         var wetEffect = actor.EffectRegistry.GetEffectsByKind("Wet").FirstOrDefault();
@@ -80,7 +80,7 @@ public record SurvivalContext
         bool isSnowing = actor.CurrentLocation.Weather.CurrentCondition == Weather.WeatherCondition.LightSnow;
 
         // Calculate waterproofing level from resin-treated equipment
-        double waterproofingLevel = inventory.CalculateWaterproofingLevel();
+        double waterproofingLevel = inventory?.CalculateWaterproofingLevel() ?? 0;
 
         var activityConfig = ActivityConfig.Get(activity);
         bool isNight = timeOfDay == TimeOfDay.Night;
@@ -107,13 +107,13 @@ public record SurvivalContext
         }
 
         // Torch provides warmth during expeditions (when away from fire)
-        if (inventory.HasLitTorch)
+        if (inventory?.HasLitTorch == true)
         {
             fireProximityBonus += inventory.GetTorchHeatBonusF();
         }
 
         // Ember carriers provide smaller warmth bonus (2-3°F vs torch's 3-5°F)
-        fireProximityBonus += inventory.GetEmberCarrierHeatBonusF();
+        fireProximityBonus += inventory?.GetEmberCarrierHeatBonusF() ?? 0;
 
         return new SurvivalContext
         {
@@ -142,7 +142,7 @@ public record SurvivalContext
             CurrentBloodyPct = currentBloody,
 
             // Clothing thermal mass
-            ClothingWeightKg = inventory.TotalEquipmentWeightKg,
+            ClothingWeightKg = inventory?.TotalEquipmentWeightKg ?? 0,
             ClothingHeatBuffer = actor.Body.ClothingHeatBufferPct,
         };
     }

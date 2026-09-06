@@ -31,9 +31,10 @@ public static class CombatOrchestrator
     public static Task<CombatResult> RunHunt(GameContext ctx, Animal prey)
     {
         var scenario = CombatScenario.Create(
-            PlayerSide(ctx, prey), AnimalSide(ctx, prey), ctx.CurrentLocation, HUNT_START_DISTANCE_M,
+            PlayerSide(ctx, prey, EncounterPurpose.Hunt), AnimalSide(ctx, prey), ctx.CurrentLocation, HUNT_START_DISTANCE_M,
             AwarenessState.Engaged, AwarenessState.Unaware, ctx.player);
 
+        scenario.Purpose = EncounterPurpose.Hunt;
         GameDisplay.AddNarrative(ctx, $"You begin stalking the {prey.Name.ToLower()}...");
 
         return RunWithPlayer(ctx, scenario, ActivityType.Hunting, result => result switch
@@ -91,11 +92,11 @@ public static class CombatOrchestrator
     }
 
     /// <summary>The player and any NPC here who decides to help against this enemy.</summary>
-    private static List<Actor> PlayerSide(GameContext ctx, Animal enemy)
+    private static List<Actor> PlayerSide(GameContext ctx, Animal enemy, EncounterPurpose purpose = EncounterPurpose.Defense)
     {
         var side = new List<Actor> { ctx.player };
         var npcsHere = ctx.GetNPCsAt(ctx.Map?.CurrentPosition ?? new GridPosition(0, 0));
-        side.AddRange(npcsHere.Where(npc => npc.DecideToHelpInCombat(ctx.player, enemy)));
+        side.AddRange(npcsHere.Where(npc => CompanionCombat.WillAssist(npc, ctx.player, enemy, purpose)));
         return side;
     }
 
@@ -124,18 +125,26 @@ public static class CombatOrchestrator
         GameContext ctx, CombatScenario scenario, ActivityType activity, Func<CombatResult, string> describe)
     {
         var playerUnit = scenario.Player!;
+        foreach (var npc in scenario.Units.Select(u => u.actor).OfType<NPC>()) CompanionCombat.SettleWork(npc);
         ctx.ActiveCombat = scenario;
         int huntingSkill = ctx.player.Skills.GetSkill("Hunting")?.Level ?? 0;
 
         try
         {
-            while (!scenario.IsOver && scenario.Units.Contains(playerUnit))
+            while (!scenario.IsOver && playerUnit.actor.IsAlive && scenario.Units.Contains(playerUnit))
             {
                 var input = await ctx.Ui.WaitForCombatAction();
-                if (input == null) break;
+                if (input == null) { scenario.ExecuteFlee(playerUnit); break; }
 
                 await RunCombatTurn(ctx, scenario, playerUnit, huntingSkill, activity, input);
             }
+            // A player's departure does not decide the remaining actors' outcomes.
+            for (int round = 0; !scenario.IsOver && round < 120; round++)
+            {
+                ctx.UpdateWithoutEvents(1, ActivityType.Resting);
+                scenario.AdvanceAutonomousRound();
+            }
+            scenario.IsOver = true;
         }
         finally
         {
@@ -144,7 +153,17 @@ public static class CombatOrchestrator
 
         var result = scenario.DetermineResult();
         GameDisplay.AddSuccess(ctx, describe(result));
-        CombatAftermath.Apply(ctx, scenario, result, ctx.CurrentLocation);
+        CombatAftermath.Apply(ctx, scenario, result, scenario.Location!);
+        if (result == CombatResult.Fled && ctx.player.IsAlive && ctx.Map != null)
+        {
+            var retreat = ctx.Map.GetTravelOptionsFrom(ctx.player.CurrentLocation).FirstOrDefault();
+            if (retreat != null)
+            {
+                int crossing = TravelProcessor.GetTraversalMinutes(ctx.player.CurrentLocation, retreat, ctx.player, ctx.Inventory, ctx.Map);
+                ctx.UpdateWithoutEvents(crossing, ActivityType.Traveling);
+                ctx.Map.MoveTo(retreat, ctx.player);
+            }
+        }
         return result;
     }
 
@@ -233,6 +252,10 @@ public static class CombatOrchestrator
     {
         var nearest = scenario.GetNearestEnemy(playerUnit);
         if (nearest == null) return new PlayerActionResult(false, null);
+
+        if (action is CombatActions.CallHelp or CombatActions.CallRetreat)
+            return new PlayerActionResult(CompanionCombat.Signal(scenario, playerUnit.actor, action == CombatActions.CallRetreat, ctx.TotalMinutesElapsed),
+                action == CombatActions.CallRetreat ? "You call for everyone to retreat!" : "You call for help!");
 
         if (action == CombatActions.Wait)
             return await ExecuteWait(scenario, playerUnit, ctx);

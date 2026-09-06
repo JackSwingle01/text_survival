@@ -662,6 +662,9 @@ public class ActionPanel(WorldRenderer world)
             }
         }
 
+        if (ImGui.Button("Call for help", new Vector2(-1, 0))) clickedAction = CombatActions.CallHelp;
+        if (ImGui.Button("Call for retreat", new Vector2(-1, 0))) clickedAction = CombatActions.CallRetreat;
+
         // Flee option - available when near any edge
         if (CombatScenario.CanFlee(playerUnit.Position))
         {

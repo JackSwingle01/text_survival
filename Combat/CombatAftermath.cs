@@ -20,6 +20,8 @@ public static class CombatAftermath
 {
     public static void Apply(GameContext ctx, CombatScenario scenario, CombatResult result, Location where)
     {
+        if (scenario.AftermathApplied) return;
+        scenario.AftermathApplied = true;
         var teamA = scenario.Team1.Select(u => u.actor).ToList();
         var teamB = scenario.Team2.Select(u => u.actor).ToList();
         bool playerFought = scenario.Player != null;
