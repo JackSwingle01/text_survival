@@ -2,6 +2,8 @@
 
 Implemented on `main` in successive commits, starting with executable acceptance tests. The detailed design and scenario catalogue remain in [companion-system-plan.md](companion-system-plan.md).
 
+See the [reliability pass report](companion-reliability-report.md) for subsequent fixes, expanded tests, and before/after evidence.
+
 ## Ownership
 
 | Responsibility | Owner | Boundary |
@@ -27,15 +29,15 @@ Open the NPC overlay to see opinion, personality, current work/need, following t
 
 An NPC that needs a movement detour can ask its nearby target. Player responses are let them go, provide useful supplies where available, or ask them to stay briefly. Requests expire and have cooldowns; survival proceeds while the player sleeps or cannot answer. NPC recipients use the same resource-consent rules automatically. Letting someone fetch supplies retains their reunion intention.
 
-Companions can participate in hunts without treating prey as hostile. Late arrivals join the existing fight. Help and retreat calls nudge morale rather than issuing orders. Remaining actors resolve their fight after player escape; escape into the world spends real crossing time.
+Companions can participate in hunts without treating prey as hostile. Late arrivals join the existing fight. Help and retreat calls nudge morale rather than issuing orders. After player escape, remaining actors continue in a background fight while escape into the world spends real crossing time.
 
 ## Policy defaults
 
-- Searching lasts at most 90 minutes without a new sighting. Anonymous tracks advance the search but do not renew it indefinitely.
-- Unreachable routes back off for five minutes and terminate after three failed attempts. A newly sighted destination resets route-failure state.
+- Searching allows 90 minutes of active effort; evidence older than 360 minutes is rejected when pursuit resumes. Self-care does not spend effort or refresh evidence.
+- Unreachable routes back off for five minutes and terminate after three failures. Computational exhaustion uses up to six attempts with increasing, capped budgets. A newly sighted destination resets route failures.
 - Recent passage storage is bounded at 4,000 crossings. Existing aggregate track rendering remains intact.
 - Invitations have a 60-minute cooldown; item requests 30 minutes; need requests 60 minutes.
-- Reassurance lasts ten minutes and cannot override an emergency. Asking imposes a small relationship consequence once per resolved request.
+- Reassurance lasts ten minutes and cannot override an emergency. Accepting a costly delay imposes a small relationship consequence once per incident; refusing does not automatically do so.
 - Meaningful need-related gifts can earn a memory at most once per six hours. Tiny transfers do not earn memories.
 - Passive familiarity contributes at most +0.2 opinion; serious incidents still matter.
 - Combat calls have a five-minute cooldown and replace, rather than stack, their five-minute morale effect.
@@ -45,7 +47,7 @@ These are initial gameplay defaults, not a claim that the full survival economy 
 
 ## Verification
 
-The first committed acceptance suite had 22 cases: 10 passing and 12 failing. It exposed missing pursuit, routing, activity ownership and persistence. The implemented suite now contains 53 companion tests, including real world ticks, JSON round trips and a complete player retreat/escape through the orchestrator. No tests are skipped.
+The first committed acceptance suite had 22 cases: 10 passing and 12 failing. It exposed missing pursuit, routing, activity ownership and persistence. The initial implementation contained 53 companion tests; the reliability pass brings the suite to 81 tests, including real world ticks, JSON round trips and a complete player retreat/escape through the orchestrator. No tests are skipped.
 
 The initial fixture accidentally supplied terrain hazard through a positional location-constructor argument. It was corrected to explicitly use safe terrain and short crossings. Production travel costs were retained. Tests now cover timed crossing separately from leader positioning used to arrange scenarios.
 
@@ -77,7 +79,7 @@ dotnet run --project tools/NpcSim -c Release -- run --seeds 1-2 --days 2 --group
 
 - Actor-neutral sight, evidence, following and routing support non-human contracts. A dog controller/species behavior is not implemented.
 - Prints remain anonymous. Intersections may produce false leads; there is no guaranteed identification or omniscient recovery.
-- The supply UI currently transfers resources, not equipped gear. Useful-resource departure offers currently cover water and ready-to-eat meat; warmth/rest requests offer departure or limited reassurance.
+- The supply UI currently transfers resources, not equipped gear. Useful-resource departure offers cover water and ready-to-eat foods; warmth/rest requests offer departure or limited reassurance.
 - Background fights are saved. Saving during the active interactive combat screen is explicitly rejected because its awaited UI turn is not a resumable checkpoint.
 - Recipe checkpoints use the existing recipe name; renaming recipes will require a migration or adoption of stable recipe IDs when the separate crafting work lands.
 - The scenario catalogue includes broader combinations and balancing questions beyond the executable examples. Passing the suite establishes its tested contracts, not exhaustive coverage of every combination or completed manual UI playtesting.

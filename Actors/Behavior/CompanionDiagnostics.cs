@@ -20,6 +20,8 @@ public sealed class CompanionDiagnostics
     public void Sample(NPC npc, double minute, bool captureTransitions = false)
     {
         var intent = npc.Following;
+        Label(npc);
+        if (intent != null) Label(intent.Target);
         bool separated = npc.IsAlive && intent != null && npc.CurrentLocation != intent.Target.CurrentLocation;
         string reason = npc.IsAlive ? (npc.DecisionReason == CompanionDecisionReason.Pursuit ? $"Pursuit/{intent?.Status}" : npc.DecisionReason.ToString()) : "Dead";
         if (separated)

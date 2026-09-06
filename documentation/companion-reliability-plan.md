@@ -1,6 +1,6 @@
 # Companion reliability pass
 
-Status: proposed implementation plan. This pass builds on the existing companion implementation and F01–F38 scenario catalogue; it does not replace them.
+Status: implementation completed in steps; validation results and remaining scenario/manual limits are documented in [companion-reliability-report.md](companion-reliability-report.md). This pass builds on the existing companion implementation and F01–F38 scenario catalogue; it does not replace them.
 
 ## Outcome
 

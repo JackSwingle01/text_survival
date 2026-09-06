@@ -7,6 +7,26 @@ namespace text_survival.Tests.Companions;
 public class CompanionReliabilityTests
 {
     [Fact]
+    public void DiagnosticActorLabelsAreIndependentOfTransitionCapture()
+    {
+        static string Sample(bool capture)
+        {
+            var world = new CompanionWorld();
+            var leader = world.AddNpc("Leader");
+            var npc = world.AddNpc("Follower");
+            CompanionWorld.Follow(npc, leader);
+            var diagnostics = new CompanionDiagnostics();
+            diagnostics.Sample(leader, 0, capture);
+            diagnostics.Sample(npc, 0, capture);
+            world.MoveActor(leader, 2, 1);
+            diagnostics.Sample(leader, 1, capture);
+            diagnostics.Sample(npc, 1, capture);
+            return System.Text.Json.JsonSerializer.Serialize(diagnostics.Episodes);
+        }
+        Assert.Equal(Sample(false), Sample(true));
+    }
+
+    [Fact]
     public void WaterDetourUsesCampSuppliesThenReunitesWithMovingTarget()
     {
         var world = new CompanionWorld();
