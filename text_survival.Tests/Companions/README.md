@@ -26,7 +26,7 @@ Leader movements are scenario setup: real completed-crossing operations create t
 
 Forage abundance guarantees that even a short lean session yields something, since the production feature only records depletion after a successful find. Tests assert elapsed work/depletion, not a particular random inventory yield or exact AI roll.
 
-Route tests currently use a thin fixture adapter around the existing `GameMap.GetNextInPath`. The adapter performs no search or barrier filtering. When `Navigation` and `IPathfinder` arrive, migrate that adapter and retain the behavior assertions; add direct interface tests for budget exhaustion, cost optimality, and interchangeable implementations then.
+Route tests now call the shared `Navigation` interface. Spatial contract tests also cover search budgets, weighted routes, observer-local sight, and crossing revalidation.
 
 ## Coverage
 

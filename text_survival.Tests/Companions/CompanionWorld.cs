@@ -139,24 +139,11 @@ internal sealed class CompanionWorld
         }
     }
 
-    /// <summary>
-    /// Migration adapter only: repeatedly asks the current production route query for
-    /// steps. Replace this adapter with Navigation when IPathfinder is introduced.
-    /// No search, barrier filtering, or fallback route is implemented in the fixture.
-    /// </summary>
     public IReadOnlyList<GridPosition>? FindRoute(GridPosition from, GridPosition to)
     {
-        var steps = new List<GridPosition>();
-        var visited = new HashSet<GridPosition> { from };
-        while (from != to)
-        {
-            var next = Map.GetNextInPath(Map.GetLocationAt(from)!, Map.GetLocationAt(to)!);
-            if (next == null) return null;
-            from = Map.GetPosition(next);
-            Assert.True(visited.Add(from), "Route planning repeated a tile without reaching the destination.");
-            steps.Add(from);
-        }
-        return steps;
+        var result = text_survival.Environments.Navigation.Navigation.FindRoute(Map, from, to);
+        return result.Status is text_survival.Environments.Navigation.PathStatus.Found
+            or text_survival.Environments.Navigation.PathStatus.AlreadyThere ? result.Steps : null;
     }
 }
 

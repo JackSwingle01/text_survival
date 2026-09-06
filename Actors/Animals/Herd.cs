@@ -303,6 +303,7 @@ public class Herd : IMovable
             Map?.RecordMove(Position, Map.GetPosition(TravelDestination), AnimalType.Tracks(), Count, IndividualTrackDepth);
 
             CurrentLocation = TravelDestination;
+            foreach (var member in Members) member.CurrentLocation = CurrentLocation;
             TravelDestination = null;
             TravelTimeRemainingMinutes = 0;
             return true;

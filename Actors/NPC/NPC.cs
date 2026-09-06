@@ -513,7 +513,7 @@ public class NPC : Actor
         int distanceTo = Map.DistanceBetween(CurrentLocation, destination);
         if (distanceTo <= maxTiles) // tiles
         {
-            var nextLoc = Map.GetNextInPath(CurrentLocation, destination);
+            var nextLoc = text_survival.Environments.Navigation.Navigation.NextStep(this, destination);
             if (nextLoc != null)
             {
                 if (IsTracing) Trace($"  [Moving] Going to {destination.Name}");
@@ -862,7 +862,7 @@ public class NPC : Actor
         // in memory -> move towards
         var remembered = GetClosestKnownResource(category);
         if (remembered != null)
-            locWithResource ??= Map.GetNextInPath(CurrentLocation, remembered);
+            locWithResource ??= text_survival.Environments.Navigation.Navigation.NextStep(this, remembered);
 
         // unknown? -> explore outward, as far as boldness allows
         if (locWithResource == null && !IsBeyondExploreLeash())

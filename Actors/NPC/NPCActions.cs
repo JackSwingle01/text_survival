@@ -42,14 +42,7 @@ public class NPCMove(Location destination, NPC npc) :
     public override string LogMessage => $"Traveling to {destination.Name}";
     public override void Complete(NPC npc)
     {
-        // first update destination memory as leaving
-        npc.ResourceMemory.RememberLocation(npc.CurrentLocation);
-        npc.Map.RecordMove(
-            npc.Map.GetPosition(npc.CurrentLocation),
-            npc.Map.GetPosition(destination),
-            TrackMaker.Human);
-        npc.CurrentLocation = destination;
-        npc.ResourceMemory.RememberLocation(destination);
+        ActorMovement.CompleteCrossing(npc, destination);
     }
     public override void Interrupt(NPC npc)
     {
@@ -343,7 +336,7 @@ public class NPCFlee : NPCAction
 
         if (npc.Camp != null && npc.CurrentLocation != npc.Camp)
         {
-            retreat = npc.Map.GetNextInPath(npc.CurrentLocation, npc.Camp);
+            retreat = text_survival.Environments.Navigation.Navigation.NextStep(npc, npc.Camp);
         }
 
         if (retreat == null)
@@ -356,11 +349,7 @@ public class NPCFlee : NPCAction
         if (retreat != null)
         {
             npc.Trace($"[NPC:{npc.Name}] Fleeing to {retreat.Name}");
-            npc.Map.RecordMove(
-                npc.Map.GetPosition(npc.CurrentLocation),
-                npc.Map.GetPosition(retreat),
-                TrackMaker.Human);
-            npc.CurrentLocation = retreat;
+            ActorMovement.CompleteCrossing(npc, retreat);
         }
         else
         {
