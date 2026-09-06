@@ -6,6 +6,10 @@ using text_survival.Survival;
 
 namespace text_survival.Actors;
 
+[System.Text.Json.Serialization.JsonPolymorphic]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(NPC), "npc")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(Player.Player), "player")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(Animals.Animal), "animal")]
 public abstract class Actor : IMovable
 {
     public string Name;

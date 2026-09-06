@@ -583,7 +583,7 @@ public class GameContext(Player player, Location camp, Weather weather)
 
             foreach (NPC npc in NPCs.ToList())
             {
-                var npcContext = SurvivalContext.GetSurvivalContext(npc, npc.Inventory, npc.CurrentAction?.ActivityType ?? ActivityType.Idle, GetTimeOfDay());
+                var npcContext = SurvivalContext.GetSurvivalContext(npc, npc.Inventory, (ActiveCombat?.Units.Any(u => u.actor == npc) == true ? ActivityType.Fighting : npc.CurrentAction?.ActivityType ?? ActivityType.Idle), GetTimeOfDay());
                 npc.Update(1, npcContext, Herds, NPCs, this);
             }
         }

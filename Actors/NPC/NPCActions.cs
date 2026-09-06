@@ -21,7 +21,7 @@ public abstract class NPCAction(string name, int durationMin, ActivityType activ
     public int MinutesSpent = 0;
     public bool IsComplete() => MinutesSpent >= DurationMinutes;
     public abstract void Complete(NPC npc);
-    public virtual void Interrupt(NPC npc) => Complete(npc); // can override for partial completion
+    public virtual void Interrupt(NPC npc) { } // Atomic actions earn no result until completed.
     public ActivityType ActivityType = activityType;
 }
 
@@ -29,6 +29,11 @@ public abstract class NPCAction(string name, int durationMin, ActivityType activ
 
 public class NPCEat(Resource food, double amount) : NPCAction($"Eating {food.ToDisplayName()}", 5, ActivityType.Eating)
 {
+    public override void Interrupt(NPC npc) => npc.Inventory.Add(food, amount);
+
+    public Resource Food => food;
+    public double Amount => amount;
+
     public override string LogMessage => $"Eating {food.ToDisplayName()}";
     public override void Complete(NPC npc)
     {
@@ -39,23 +44,20 @@ public class NPCEat(Resource food, double amount) : NPCAction($"Eating {food.ToD
 public class NPCMove(Location destination, NPC npc) :
     NPCAction($"Traveling to {destination.Name}", TravelProcessor.GetTraversalMinutes(npc.CurrentLocation, destination, npc, npc.Inventory, npc.Map), ActivityType.Traveling)
 {
+    public Location Destination => destination;
+
     public override string LogMessage => $"Traveling to {destination.Name}";
     public override void Complete(NPC npc)
     {
         ActorMovement.CompleteCrossing(npc, destination);
     }
-    public override void Interrupt(NPC npc)
-    {
-        if (MinutesSpent > (.5 * DurationMinutes)) // rough estimate
-        {
-            Complete(npc);
-        }
-        // otherwise they stay in the current location
-    }
+
 }
 
 public class NPCForage(int minutes) : NPCAction("Foraging", minutes, ActivityType.Foraging)
 {
+    public override void Interrupt(NPC npc) { if (MinutesSpent > 0) Complete(npc); }
+
     public override string LogMessage => "Foraging";
     public override void Complete(NPC npc)
     {
@@ -66,6 +68,10 @@ public class NPCForage(int minutes) : NPCAction("Foraging", minutes, ActivityTyp
 }
 public class NPCHarvest : NPCAction
 {
+    public override void Interrupt(NPC npc) { if (MinutesSpent > 0) Complete(npc); }
+
+    public IReadOnlyCollection<Resource>? Wanted => _wanted;
+
     /// <summary>
     /// What the NPC came here for. Carried from the decision through to the work so it cannot
     /// walk to a marsh needing water and harvest the berry bush it finds standing in front.
@@ -107,6 +113,8 @@ public class NPCHarvest : NPCAction
 }
 public class NPCChopWood : NPCAction
 {
+    public override void Interrupt(NPC npc) { if (MinutesSpent > 0) Complete(npc); }
+
     public override string LogMessage => "Chopping wood";
     public NPCChopWood(int minutes) : base("Chopping wood", minutes, ActivityType.Chopping) { }
 
@@ -185,6 +193,8 @@ public class NPCSleep(int minutes) : NPCAction("Sleeping", minutes, ActivityType
 
 public class NPCStash(ResourceCategory resourceCategory) : NPCAction($"Storing {resourceCategory}", 2, ActivityType.Crafting)
 {
+    public ResourceCategory Category => resourceCategory;
+
     public override string LogMessage => $"Stashing {resourceCategory.ToString().ToLower()}";
     public override void Complete(NPC npc)
     {
@@ -224,6 +234,8 @@ public class NPCStashWater() : NPCAction("Storing Water", 2, ActivityType.Crafti
 
 public class NPCTakeToolFromCache(ToolType toolType) : NPCAction($"Taking {toolType}", 2, ActivityType.Crafting)
 {
+    public ToolType Tool => toolType;
+
     public override string LogMessage => $"Getting {toolType.ToString().ToLower()}";
     public override void Complete(NPC npc)
     {
@@ -242,6 +254,9 @@ public class NPCTakeToolFromCache(ToolType toolType) : NPCAction($"Taking {toolT
 public class NPCTakeResourceFromCache(ResourceCategory category, double targetWeightKg = 5.0)
     : NPCAction($"Taking {category}", 2, ActivityType.Crafting)
 {
+    public ResourceCategory Category => category;
+    public double TargetWeight => targetWeightKg;
+
     public override string LogMessage => $"Getting {category.ToString().ToLower()} from cache";
     public override void Complete(NPC npc)
     {
@@ -266,6 +281,8 @@ public class NPCTakeResourceFromCache(ResourceCategory category, double targetWe
 
 public class NPCCraft : NPCAction
 {
+    public CraftOption Recipe => _recipe;
+
     private readonly CraftOption _recipe;
 
     public override string LogMessage => $"Crafting {_recipe.Name.ToLower()}";
@@ -317,6 +334,8 @@ public class NPCFight : NPCAction
 
 public class NPCFlee : NPCAction
 {
+    public Actor Threat => _threat;
+
     private readonly Actor _threat;
 
     public override string LogMessage => $"Fleeing from {_threat.Name}";
@@ -409,6 +428,10 @@ public class NPCDrinkWater : NPCAction
 
 public class NPCImproveShelter : NPCAction
 {
+    public ShelterImprovementType Improvement => _type;
+    public Resource Material => _material;
+    public int Quantity => _quantity;
+
     private readonly ShelterImprovementType _type;
     private readonly Resource _material;
     private readonly int _quantity;

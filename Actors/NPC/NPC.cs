@@ -34,7 +34,27 @@ public class NPC : Actor
     public Location? Camp { get; set; }
 
     [System.Text.Json.Serialization.JsonIgnore]
-    public NPCAction? CurrentAction { get; set; }
+    public NPCAction? CurrentAction
+    {
+        get
+        {
+            if (_savedAction != null)
+            {
+                _currentAction = _savedAction.Restore(this);
+                _savedAction = null;
+            }
+            return _currentAction;
+        }
+        set { _savedAction = null; _currentAction = value; }
+    }
+
+    public NPCActionState? ActionState
+    {
+        get => CurrentAction == null ? null : NPCActionState.Capture(CurrentAction);
+        set => _savedAction = value;
+    }
+    private NPCActionState? _savedAction;
+    private NPCAction? _currentAction;
 
     [System.Text.Json.Serialization.JsonIgnore]
     private SurvivalContext? _currentContext;
@@ -107,6 +127,8 @@ public class NPC : Actor
         _currentNPCs = npcs;
         _game = game ?? _game;
 
+        if (_game?.ActiveCombat?.Units.Any(u => u.actor == this) == true) return;
+
         for (int i = 0; i < minutes; i++)
         {
             // Tick combat cooldown
@@ -138,7 +160,7 @@ public class NPC : Actor
             if (CurrentAction != null)
             {
                 ContinueAction();
-                return;
+                continue;
             }
             // otherwise we need to pick a new action
 

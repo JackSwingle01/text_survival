@@ -79,6 +79,33 @@ public class ActivityOwnershipAcceptanceTests
         Assert.Equal(3, loadedNpc.CurrentAction.MinutesSpent);
         Assert.Equal(10, loadedNpc.CurrentAction.DurationMinutes);
         Assert.Equal(0, loadedNpc.CurrentLocation.GetFeature<ForageFeature>()!.NumberOfHoursForaged);
+
+        for (int i = 0; i < 7; i++) loaded.UpdateWithoutEvents(1, ActivityType.Resting);
+        Assert.Equal(10.0 / 60, loadedNpc.CurrentLocation.GetFeature<ForageFeature>()!.NumberOfHoursForaged, 6);
+    }
+
+    [Fact]
+    public void InterruptedCrossingNeverMovesBeforeItsFullDuration()
+    {
+        var world = new CompanionWorld();
+        var npc = world.AddNpc("Walker");
+        var origin = npc.CurrentLocation;
+        var move = new NPCMove(world.Tile(2, 1), npc);
+        move.MinutesSpent = move.DurationMinutes - 1;
+        move.Interrupt(npc);
+        Assert.Same(origin, npc.CurrentLocation);
+        Assert.Empty(world.Map.Tracks.Marks);
+    }
+
+    [Fact]
+    public void SaveLoadKeepsReservedFoodAndCancellationReturnsIt()
+    {
+        var world = new CompanionWorld();
+        var npc = world.AddNpc("Eater");
+        npc.CurrentAction = new NPCEat(Resource.CookedMeat, 0.5) { MinutesSpent = 2 };
+        var loadedNpc = Assert.Single(RoundTrip(world.Game).NPCs);
+        Assert.IsType<NPCEat>(loadedNpc.CurrentAction).Interrupt(loadedNpc);
+        Assert.Equal(0.5, loadedNpc.Inventory.Weight(Resource.CookedMeat), 6);
     }
 
     [Theory]
