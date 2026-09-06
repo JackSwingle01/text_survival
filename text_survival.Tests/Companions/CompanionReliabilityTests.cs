@@ -7,6 +7,58 @@ namespace text_survival.Tests.Companions;
 public class CompanionReliabilityTests
 {
     [Fact]
+    public void BudgetExhaustionRetriesWithMoreWorkAndNeverClaimsNoRoute()
+    {
+        var world = new CompanionWorld();
+        var leader = world.AddNpc("Leader", 2, 1);
+        var npc = world.AddNpc("Follower");
+        CompanionWorld.Follow(npc, leader);
+        Following.Observe(npc, 0);
+        var algorithm = new ExhaustedPathfinder();
+        world.Map.Pathfinder = algorithm;
+        Following.Pursue(npc, 0);
+        Assert.Equal(PursuitStatus.BudgetExceeded, npc.Following!.Status);
+        Assert.Null(Following.Pursue(npc, 1));
+        Assert.Equal(PursuitStatus.RetryDelay, npc.Following.Status);
+        Assert.Equal(0, npc.Following.RouteFailures);
+        Following.Pursue(npc, 5);
+        Assert.Equal(new[] { 10000, 20000 }, algorithm.Budgets);
+        for (int minute = 10; minute <= 25; minute += 5) Following.Pursue(npc, minute);
+        Assert.Null(npc.Following);
+        Assert.Equal("Route search budget exhausted", npc.FollowEndReason);
+    }
+
+    private sealed class ExhaustedPathfinder : text_survival.Environments.Navigation.IPathfinder
+    {
+        public List<int> Budgets { get; } = [];
+        public text_survival.Environments.Navigation.PathResult FindPath(
+            text_survival.Environments.Navigation.PathRequest request, text_survival.Environments.Navigation.NavigationView view)
+        {
+            Budgets.Add(request.MaxExpandedNodes);
+            return new(text_survival.Environments.Navigation.PathStatus.BudgetExceeded, []);
+        }
+    }
+
+    [Fact]
+    public void ChainFollowerStaysWithDirectTargetWhileItFinishesWork()
+    {
+        var world = new CompanionWorld();
+        var c = world.AddLeader(LeaderKind.Npc);
+        var b = world.AddNpc("B");
+        var a = world.AddNpc("A");
+        CompanionWorld.Follow(b, c);
+        CompanionWorld.Follow(a, b);
+        world.AddForage(b.CurrentLocation);
+        b.CurrentAction = new NPCForage(30);
+        world.Advance(1);
+        world.MoveActor(c, 4, 1);
+        world.Advance(10);
+        Assert.Same(b, a.Following!.Target);
+        Assert.Same(b.CurrentLocation, a.CurrentLocation);
+        Assert.NotSame(c.CurrentLocation, a.CurrentLocation);
+    }
+
+    [Fact]
     public void ColdAtAnUnlitCampDoesNotTryToTravelToTheSameTile()
     {
         var world = new CompanionWorld();

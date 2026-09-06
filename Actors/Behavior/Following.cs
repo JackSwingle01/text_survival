@@ -49,7 +49,6 @@ public static class Following
         intent.LeadPosition = intent.LastSeenPosition;
         intent.LastEvidenceMinute = minute;
         intent.SearchEffortMinutes = 0;
-        intent.Status = PursuitStatus.Observing;
         intent.LastPassage = follower.Map.Tracks.LatestPassage;
         intent.TrackKind = intent.Target is Animal animal ? animal.AnimalType.Tracks() : TrackMaker.Human;
         intent.Investigated.Clear();
@@ -83,7 +82,8 @@ public static class Following
             // Trail evidence advances the route, but does not indefinitely reset the search clock.
         }
         if (minute < intent.NextRouteAttemptMinute) { intent.Status = PursuitStatus.RetryDelay; return null; }
-        var route = Navigation.FindRoute(follower.Map, position, lead, follower);
+        var route = Navigation.FindRoute(follower.Map, position, lead, follower,
+            maxExpandedNodes: 10000 << Math.Min(intent.BudgetFailures, 3));
         if (route.Status is PathStatus.NoRoute or PathStatus.BudgetExceeded)
         {
             intent.NextRouteAttemptMinute = minute + 5;

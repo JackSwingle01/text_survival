@@ -8,6 +8,12 @@ public sealed class CompanionDiagnostics
     public Dictionary<string, int> SeparatedMinutes { get; } = [];
     public List<SeparationEpisode> Episodes { get; } = [];
     public List<CompanionTransition> Transitions { get; } = [];
+    private readonly Dictionary<Actor, int> _ids = [];
+    private string Label(Actor actor)
+    {
+        if (!_ids.TryGetValue(actor, out int id)) _ids[actor] = id = _ids.Count + 1;
+        return $"{actor.Name}#{id}";
+    }
     private readonly Dictionary<NPC, SeparationEpisode> _open = [];
     private readonly Dictionary<NPC, string> _lastState = [];
 
@@ -21,7 +27,7 @@ public sealed class CompanionDiagnostics
             SeparatedMinutes[reason] = SeparatedMinutes.GetValueOrDefault(reason) + 1;
             if (!_open.ContainsKey(npc))
             {
-                var episode = new SeparationEpisode(npc.Name, intent!.Target.Name, minute);
+                var episode = new SeparationEpisode(Label(npc), Label(intent!.Target), minute);
                 _open[npc] = episode;
                 Episodes.Add(episode);
             }
@@ -35,14 +41,15 @@ public sealed class CompanionDiagnostics
         string state = $"{reason}/{npc.CurrentAction?.Name}/{npc.CurrentNeed}/{npc.CurrentLocation.Name}/{intent?.LeadPosition}/{intent?.RouteFailures}/{intent == null}";
         if (_lastState.GetValueOrDefault(npc) == state) return;
         _lastState[npc] = state;
-        Transitions.Add(new(minute, npc.Name, intent?.Target.Name, reason, npc.CurrentAction?.Name,
+        Transitions.Add(new(minute, Label(npc), intent == null ? null : Label(intent.Target), reason, npc.CurrentAction?.Name,
             npc.CurrentAction?.MinutesSpent ?? 0, npc.CurrentNeed?.ToString(),
-            intent == null ? null : minute - intent.LastEvidenceMinute));
+            intent == null ? null : minute - intent.LastEvidenceMinute, npc.CurrentLocation.Name,
+            intent?.LeadPosition?.ToString(), intent?.Status.ToString(), npc.FollowEndReason));
     }
 }
 
 public sealed record CompanionTransition(double Minute, string Actor, string? Target, string Reason,
-    string? Action, int Progress, string? Need, double? EvidenceAge);
+    string? Action, int Progress, string? Need, double? EvidenceAge, string Location, string? Lead, string? Pursuit, string? EndReason);
 
 public sealed record SeparationEpisode(string Actor, string Target, double StartMinute)
 {

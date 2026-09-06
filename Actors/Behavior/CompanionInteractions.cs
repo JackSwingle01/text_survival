@@ -51,7 +51,7 @@ public static class CompanionInteractions
              minute >= pending.ExpiresAtMinute || (!pending.IsDeparture && npc.CurrentNeed != pending.Need)))
         {
             state.PendingNeed = null;
-            if (pending.IsDeparture)
+            if (pending.IsDeparture && npc.Following.Target == pending.Recipient)
             {
                 EndAgreement(npc, minute, "Chose to leave");
                 return;
@@ -120,7 +120,7 @@ public static class CompanionInteractions
         var state = npc.Social;
         if (state.PendingNeed is { } pending)
         {
-            if (!pending.IsDeparture && action is NPCEat or NPCDrinkWater)
+            if (!pending.IsDeparture && action is (NPCEat or NPCDrinkWater or NPCTakeResourceFromCache or NPCSleep or NPCStartFire or NPCTendFire))
             {
                 state.PendingNeed = null;
                 return action;
@@ -143,7 +143,7 @@ public static class CompanionInteractions
         if (Emergency(npc) || minute < state.NextNeedRequestMinute || action is not NPCMove) return action;
         state.NextNeedRequestMinute = minute + 60;
         npc.DecisionReason = CompanionDecisionReason.RequestWait;
-        state.PendingNeed = new CompanionNeedRequest { Id = state.NextIncidentId++, Recipient = intent.Target, Need = need, ExpiresAtMinute = minute + (Emergency(npc) ? 2 : 10) };
+        state.PendingNeed = new CompanionNeedRequest { Id = state.NextIncidentId++, Recipient = intent.Target, Need = need, ExpiresAtMinute = minute + 10 };
         return new NPCRest(1);
     }
 
