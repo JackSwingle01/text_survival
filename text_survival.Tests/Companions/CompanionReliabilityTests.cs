@@ -7,6 +7,39 @@ namespace text_survival.Tests.Companions;
 public class CompanionReliabilityTests
 {
     [Fact]
+    public void WaterDetourUsesCampSuppliesThenReunitesWithMovingTarget()
+    {
+        var world = new CompanionWorld();
+        var leader = world.AddLeader(LeaderKind.Npc);
+        var npc = world.AddNpc("Thirsty");
+        CompanionWorld.Follow(npc, leader);
+        npc.Body.Hydration = SurvivalProcessor.MAX_HYDRATION * 0.4;
+        var fire = new text_survival.Environments.Features.HeatSourceFeature();
+        Assert.True(fire.AddFuel(5, text_survival.Items.FuelType.Tinder));
+        fire.IgniteAll();
+        Assert.True(fire.IsActive);
+        world.Camp.AddFeature(fire);
+        var cache = world.Camp.GetFeature<text_survival.Environments.Features.CacheFeature>()!.Storage;
+        cache.Add(Resource.Water, 2);
+        world.Advance(1); // NPC recipient permits the detour through the ordinary request adapter.
+        world.MoveActor(leader, 3, 1);
+        bool visitedCamp = false, reunited = false;
+        for (int minute = 0; minute < 100 && !reunited; minute++)
+        {
+            // Isolate hydration and movement from independent cold-weather experiments.
+            npc.Body.BodyTemperature = Body.BASE_BODY_TEMP;
+            leader.Body.BodyTemperature = Body.BASE_BODY_TEMP;
+            world.Advance(1);
+            visitedCamp |= npc.CurrentLocation == world.Camp;
+            reunited = visitedCamp && npc.CurrentLocation == leader.CurrentLocation;
+        }
+        Assert.True(reunited, $"visited={visitedCamp}, at={world.Position(npc)}, target={world.Position(leader)}, need={npc.CurrentNeed}, action={npc.CurrentAction?.Name}, hydration={npc.Body.HydratedPct}, following={npc.Following?.Target.Name}, last={npc.Following?.LastSeenPosition}");
+        Assert.True(npc.Body.HydratedPct > 0.85);
+        Assert.True(cache.Weight(Resource.Water) < 2);
+        Assert.Same(leader, npc.Following!.Target);
+    }
+
+    [Fact]
     public void VoluntaryRecruitmentLaterInTheGameStartsWithFreshEvidence()
     {
         var world = new CompanionWorld();

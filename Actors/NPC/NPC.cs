@@ -497,7 +497,7 @@ public class NPC : Actor
         }
 
         // Try to get water from environment (water sources)
-        var get = DetermineGetResource(ResourceCategory.Water);
+        var get = DetermineGetResource(ResourceCategory.Water, allowExplore: false);
         if (get != null) return get;
 
         // No water source found - go to fire to melt snow
@@ -508,6 +508,10 @@ public class NPC : Actor
             var move = DecideToMove(knownActiveFire);
             if (move != null) return move;
         }
+
+        // Only explore unknown tiles after known water and a known fire have failed.
+        get = DetermineGetResource(ResourceCategory.Water);
+        if (get != null) return get;
 
         // Check if blocked by cold prerequisite
         var coldAction = HandleColdPrerequisite(context);
@@ -909,7 +913,7 @@ public class NPC : Actor
         return null;
     }
 
-    private NPCAction? DetermineGetResource(ResourceCategory category, bool allowCamp = true, bool urgent = false)
+    private NPCAction? DetermineGetResource(ResourceCategory category, bool allowCamp = true, bool urgent = false, bool allowExplore = true)
     {
         if (IsTracing) Trace($"    [GetResource] Looking for category: {category}{(urgent ? " (URGENT)" : "")}");
 
@@ -937,7 +941,7 @@ public class NPC : Actor
             locWithResource ??= text_survival.Environments.Navigation.Navigation.NextStep(this, remembered);
 
         // unknown? -> explore outward, as far as boldness allows
-        if (locWithResource == null && !IsBeyondExploreLeash())
+        if (allowExplore && locWithResource == null && !IsBeyondExploreLeash())
             locWithResource = ResourceMemory.LeastRecentlyVisited(Map.GetTravelOptionsFrom(CurrentLocation).ToList());
 
         if (locWithResource != null)
