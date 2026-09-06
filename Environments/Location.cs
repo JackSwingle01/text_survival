@@ -69,8 +69,9 @@ public class Location
     public double OverheadCoverLevel { get; init; } = 0;
 
     /// <summary>
-    /// How far you can see/be seen.
-    /// 0-2: 0 = deep narrow cave, .5 = thick forest, 1 = open plain, 2 = high overlook
+    /// Sight transmission through this tile: cost per tile-length is max(1, 1 / factor²).
+    /// 0 is opaque, .5 is thick forest, 1 is open ground. Values above 1.3 also
+    /// encode a vantage bonus when observing from here (2 is a high overlook).
     /// </summary>
     public double VisibilityFactor { get; set; } = 1;
 

@@ -10,7 +10,7 @@ public readonly record struct GridPosition(int X, int Y)
 {
     /// <summary>
     /// Calculate Manhattan distance to another position.
-    /// Used for visibility range and adjacency checks.
+    /// Used for cardinal travel distances and adjacency checks.
     /// </summary>
     public int ManhattanDistance(GridPosition other) =>
         Math.Abs(X - other.X) + Math.Abs(Y - other.Y);
@@ -35,7 +35,7 @@ public readonly record struct GridPosition(int X, int Y)
 
     /// <summary>
     /// Get all positions within a given Manhattan distance.
-    /// Used for visibility calculations.
+    /// Useful for searches limited by cardinal travel distance.
     /// </summary>
     public IEnumerable<GridPosition> GetPositionsInRange(int range)
     {

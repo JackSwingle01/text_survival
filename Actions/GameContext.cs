@@ -496,6 +496,15 @@ public class GameContext(Player player, Location camp, Weather weather)
         // Update zone weather and all named locations (terrain-only don't need updates)
         Weather.Update(GameTime);
 
+        if (Map != null)
+        {
+            // Refresh sight while stationary too, when weather or the body changes.
+            // Keep travel discoveries pending until the event check consumes them.
+            bool hadRevealedLocations = Map.RevealedNewLocations;
+            Map.UpdateVisibility(player.GetCapacities().Sight);
+            Map.RevealedNewLocations |= hadRevealedLocations;
+        }
+
         if (Weather.WeatherJustChanged)
         {
             GameDisplay.AddWarning(this, WeatherSummary());

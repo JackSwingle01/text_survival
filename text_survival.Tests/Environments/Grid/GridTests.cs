@@ -404,20 +404,90 @@ public class VisibilityTests
         Assert.Equal(TileVisibility.Visible, map.GetLocationAt(6, 5)!.Visibility);
     }
 
-    [Theory]
-    [InlineData(0.1, 0)]
-    [InlineData(0.3, 3)]
-    [InlineData(0.8, 7)]
-    [InlineData(1.2, 11)]
-    [InlineData(1.7, 15)]
-    [InlineData(2.0, 19)]
-    public void SightRangeUsesShorterBands(double visibility, int expectedTiles)
+    [Fact]
+    public void ForestAbsorbsSightOnlyInItsDirection()
     {
-        var weather = new Weather();
-        var location = LocationFactory.MakeTerrainLocation(TerrainType.Plain, weather);
-        location.VisibilityFactor = visibility;
+        var map = CreateInitializedMap(41, 41);
+        map.CurrentPosition = new GridPosition(20, 20);
+        for (int x = 21; x <= 30; x++)
+            map.GetLocationAt(x, 20)!.VisibilityFactor = TerrainType.Forest.BaseVisibility();
+        map.UpdateVisibility();
 
-        Assert.Equal(expectedTiles, GameMap.GetSightRange(location));
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(23, 20));
+        Assert.Equal(TileVisibility.Unexplored, map.GetVisibility(24, 20));
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(9, 20));
+        Assert.Equal(TileVisibility.Unexplored, map.GetVisibility(8, 20));
+    }
+
+    [Fact]
+    public void HillBonusExtendsOpenSightButDoesNotBypassForest()
+    {
+        var map = CreateInitializedMap(41, 41);
+        map.CurrentPosition = new GridPosition(20, 20);
+        map.UpdateVisibility();
+        Assert.Equal(TileVisibility.Unexplored, map.GetVisibility(5, 20));
+        map.CurrentLocation.Terrain = TerrainType.Hills;
+        for (int x = 21; x <= 30; x++)
+            map.GetLocationAt(x, 20)!.VisibilityFactor = TerrainType.Forest.BaseVisibility();
+        map.UpdateVisibility();
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(5, 20));
+        Assert.Equal(TileVisibility.Explored, map.GetVisibility(25, 20));
+    }
+
+    [Fact]
+    public void BlockingTileIsVisibleButGroundBehindItIsHidden()
+    {
+        var map = CreateInitializedMap(21, 21);
+        map.CurrentPosition = new GridPosition(10, 10);
+        map.GetLocationAt(11, 10)!.Terrain = TerrainType.Mountain;
+        map.GetLocationAt(9, 10)!.VisibilityFactor = 0;
+        map.UpdateVisibility();
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(11, 10));
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(9, 10));
+        Assert.Equal(TileVisibility.Unexplored, map.GetVisibility(12, 10));
+        Assert.Equal(TileVisibility.Unexplored, map.GetVisibility(8, 10));
+    }
+
+    [Fact]
+    public void RaysAreCircularAndCannotPeekBetweenOpaqueCorners()
+    {
+        var map = CreateInitializedMap(31, 31);
+        map.CurrentPosition = new GridPosition(15, 15);
+        map.UpdateVisibility();
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(22, 22));
+        Assert.Equal(TileVisibility.Unexplored, map.GetVisibility(23, 23));
+        map.GetLocationAt(16, 15)!.Terrain = TerrainType.Mountain;
+        map.GetLocationAt(15, 16)!.Terrain = TerrainType.Mountain;
+        map.UpdateVisibility();
+        Assert.Equal(TileVisibility.Explored, map.GetVisibility(16, 16));
+    }
+
+    [Fact]
+    public void WeatherAndSightCapacityReduceVisibilityWithoutErasingExploration()
+    {
+        var map = CreateInitializedMap(31, 31);
+        map.CurrentPosition = new GridPosition(15, 15);
+        map.UpdateVisibility();
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(25, 15));
+        map.Weather.CurrentCondition = Weather.WeatherCondition.Blizzard;
+        map.UpdateVisibility();
+        Assert.Equal(TileVisibility.Explored, map.GetVisibility(25, 15));
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(17, 15));
+        map.UpdateVisibility(sightCapacity: 0);
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(15, 15));
+        Assert.Equal(TileVisibility.Explored, map.GetVisibility(16, 15));
+    }
+
+    [Fact]
+    public void RaysChargeTheObserversTileBeforeReachingOpenGround()
+    {
+        var map = CreateInitializedMap(31, 31);
+        map.CurrentPosition = new GridPosition(15, 15);
+        map.CurrentLocation.VisibilityFactor = 0.1;
+        map.UpdateVisibility();
+
+        Assert.Equal(TileVisibility.Visible, map.GetVisibility(15, 15));
+        Assert.Equal(TileVisibility.Unexplored, map.GetVisibility(16, 15));
     }
 
     [Fact]
@@ -430,11 +500,11 @@ public class VisibilityTests
         map.UpdateVisibility();
         Assert.Equal(TileVisibility.Visible, map.GetLocationAt(5, 6)!.Visibility);
 
-        // Move to (25, 25) - far enough that (5, 6) is outside sight range of 12
+        // Move far enough that the old position is outside all sight rays.
         map.CurrentPosition = new GridPosition(25, 25);
         map.UpdateVisibility();
 
-        // Previous tile should now be explored but not visible (distance 21 > range 12)
+        // Previous tile remains explored after leaving direct sight.
         Assert.Equal(TileVisibility.Explored, map.GetLocationAt(5, 6)!.Visibility);
     }
 }

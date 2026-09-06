@@ -98,7 +98,8 @@ Core operations:
 
 Visibility system:
 - `TileVisibility`: Unexplored → Explored → Visible
-- Sight range calculated from current location's visibility factor (0-20 tiles)
+- Sight rays spend a budget crossing each tile: absorption is `max(1, 1 / VisibilityFactor²)` per tile-length. Open ground costs 1, forest (0.5) costs 4; mountains and zero transmission block sight behind them. The blocking tile itself remains visible.
+- Open-ground budget is 11 tiles, up to 19 from existing hill/overlook values; weather visibility and sight capacity reduce it. Regional weather elevation is not a per-tile heightmap. The camera does not reveal tiles, and the explored camp retains its marker.
 - Moving updates which tiles are visible vs merely explored
 
 Travel uses cardinal directions (N/S/E/W). Locations connect implicitly by adjacency, not explicit edges.

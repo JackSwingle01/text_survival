@@ -85,6 +85,7 @@ public static class SaveManager
 
             // Post-load: recreate non-serialized data
             ctx?.Herds.RecreateAllBehaviors();
+            ctx?.Map?.UpdateVisibility(ctx.player.GetCapacities().Sight);
 
             return (ctx, null);
         }

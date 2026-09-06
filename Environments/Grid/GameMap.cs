@@ -157,7 +157,7 @@ public class GameMap
 
         CurrentPosition = position;
         destination.MarkExplored();
-        UpdateVisibility();
+        UpdateVisibility(mover is Actor actor ? actor.GetCapacities().Sight : 1.0);
 
         if (mover != null)
             mover.CurrentLocation = destination;
@@ -261,7 +261,8 @@ public class GameMap
 
     public void UpdateVisibility(double sightCapacity = 1.0)
     {
-        int sightRange = GetSightRange(CurrentLocation, sightCapacity);
+        double budget = GetSightRange(CurrentLocation, sightCapacity) * (Weather?.VisibilityFactor ?? 1.0);
+        int sightRange = (int)Math.Ceiling(budget);
 
         // Reset reveal flag
         RevealedNewLocations = false;
@@ -277,11 +278,13 @@ public class GameMap
             }
         }
 
-        // Then mark locations in range as visible
-        foreach (var pos in CurrentPosition.GetPositionsInRange(sightRange))
+        // Trace through the terrain in every direction; the radius is only an upper bound.
+        for (int x = Math.Max(0, CurrentPosition.X - sightRange); x <= Math.Min(Width - 1, CurrentPosition.X + sightRange); x++)
+        for (int y = Math.Max(0, CurrentPosition.Y - sightRange); y <= Math.Min(Height - 1, CurrentPosition.Y + sightRange); y++)
         {
+            var pos = new GridPosition(x, y);
             var loc = GetLocationAt(pos);
-            if (loc != null)
+            if (loc != null && HasLineOfSight(pos, budget))
             {
                 bool wasHidden = loc.Visibility == TileVisibility.Unexplored;
                 loc.Visibility = TileVisibility.Visible;
@@ -293,23 +296,60 @@ public class GameMap
         }
     }
 
+    /// <summary>Maximum open-ground sight budget; intervening tiles consume it along each ray.</summary>
     public static int GetSightRange(Location location, double sightCapacity = 1.0)
     {
-        // Combine location visibility with player sight capacity
-        double effectiveVisibility = location.VisibilityFactor * sightCapacity;
-
-        if (effectiveVisibility < 0.25)
-            return 0;  // Nearly blind - only current tile
-        if (effectiveVisibility < 0.5)
-            return 3;  // ~300m visibility
-        if (effectiveVisibility < 1.0)
-            return 7;  // ~700m visibility
-        if (effectiveVisibility < 1.5)
-            return 11; // ~1100m visibility
-        if (effectiveVisibility < 2.0)
-            return 15; // ~1500m visibility
-        return 19;     // ~1900m vantage points
+        // Existing hill terrain and overlook visibility values encode vantage height.
+        // Weather.Elevation is regional, not a heightmap, so it cannot give local advantage.
+        double vantage = Math.Max(location.VisibilityFactor,
+            location.Terrain == TerrainType.Hills ? TerrainType.Hills.BaseVisibility() : 0);
+        double bonus = Math.Clamp((vantage - 1.3) * 20, 0, 8);
+        return (int)Math.Round((11 + bonus) * Math.Clamp(sightCapacity, 0, 1));
     }
+
+    private static double SightAbsorption(Location location) =>
+        location.Terrain == TerrainType.Mountain || location.VisibilityFactor <= 0
+            ? double.PositiveInfinity
+            : Math.Max(1, 1 / (location.VisibilityFactor * location.VisibilityFactor));
+
+    /// <summary>
+    /// Traverse every cell intersected by a centre-to-centre ray, charging its exact
+    /// segment length. Reveal the obstructing destination before charging its cost.
+    /// </summary>
+    private bool HasLineOfSight(GridPosition target, double budget)
+    {
+        if (target == CurrentPosition) return true;
+        int dx = target.X - CurrentPosition.X, dy = target.Y - CurrentPosition.Y;
+        double distance = Math.Sqrt(dx * dx + dy * dy);
+        if (budget <= 0 || distance > budget) return false;
+
+        int stepX = Math.Sign(dx), stepY = Math.Sign(dy);
+        double strideX = dx == 0 ? double.PositiveInfinity : distance / Math.Abs(dx);
+        double strideY = dy == 0 ? double.PositiveInfinity : distance / Math.Abs(dy);
+        double nextX = strideX / 2, nextY = strideY / 2, travelled = 0;
+        int x = CurrentPosition.X, y = CurrentPosition.Y;
+
+        while (x != target.X || y != target.Y)
+        {
+            var location = GetLocationAt(x, y);
+            if (location == null) return false;
+            double exit = Math.Min(nextX, nextY);
+            budget -= (exit - travelled) * SightAbsorption(location);
+            if (budget <= 0) return false;
+            travelled = exit;
+
+            bool crossX = nextX <= exit + 1e-9, crossY = nextY <= exit + 1e-9;
+            // A diagonal cannot peek through the seam between two opaque tiles.
+            if (crossX && crossY && IsOpaque(x + stepX, y) && IsOpaque(x, y + stepY))
+                return false;
+            if (crossX) { x += stepX; nextX += strideX; }
+            if (crossY) { y += stepY; nextY += strideY; }
+        }
+        return true;
+    }
+
+    private bool IsOpaque(int x, int y) =>
+        GetLocationAt(x, y) is not { } location || double.IsPositiveInfinity(SightAbsorption(location));
 
     [System.Text.Json.Serialization.JsonIgnore]
     public IEnumerable<Location> NamedLocations
