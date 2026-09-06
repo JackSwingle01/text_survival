@@ -134,7 +134,7 @@ public static class CombatOrchestrator
             while (!scenario.IsOver && playerUnit.actor.IsAlive && scenario.Units.Contains(playerUnit))
             {
                 var input = await ctx.Ui.WaitForCombatAction();
-                if (input == null) { scenario.ExecuteFlee(playerUnit); break; }
+                if (input == null) { scenario.IsOver = true; break; }
 
                 await RunCombatTurn(ctx, scenario, playerUnit, huntingSkill, activity, input);
             }

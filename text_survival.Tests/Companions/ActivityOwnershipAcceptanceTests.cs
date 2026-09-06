@@ -105,6 +105,8 @@ public class ActivityOwnershipAcceptanceTests
         npc.CurrentAction = new NPCEat(Resource.CookedMeat, 0.5) { MinutesSpent = 2 };
         var loadedNpc = Assert.Single(RoundTrip(world.Game).NPCs);
         Assert.IsType<NPCEat>(loadedNpc.CurrentAction).Interrupt(loadedNpc);
+        loadedNpc.CurrentAction!.Interrupt(loadedNpc);
+        loadedNpc.CurrentAction.Complete(loadedNpc);
         Assert.Equal(0.5, loadedNpc.Inventory.Weight(Resource.CookedMeat), 6);
     }
 

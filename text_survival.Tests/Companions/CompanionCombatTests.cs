@@ -1,3 +1,4 @@
+using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Actors.Animals;
 using text_survival.Combat;
@@ -6,6 +7,25 @@ namespace text_survival.Tests.Companions;
 
 public class CompanionCombatTests
 {
+    [Fact]
+    public async Task PlayerEscapeResolvesTheEncounterAndUsesATimedWorldCrossing()
+    {
+        var world = new CompanionWorld();
+        var npc = world.AddNpc("Companion", 0, 0);
+        CompanionWorld.Follow(npc, world.Game.player);
+        var origin = world.Game.player.CurrentLocation;
+        var prey = AnimalFactory.FromType(AnimalType.Caribou, origin, world.Map)!;
+        var inputs = ((text_survival.Tests.Support.ScriptedUi)world.Game.Ui).CombatInputs;
+        inputs.Enqueue(new text_survival.UI.CombatInput(CombatActions.Retreat, null));
+        inputs.Enqueue(new text_survival.UI.CombatInput(CombatActions.Retreat, null));
+        inputs.Enqueue(new text_survival.UI.CombatInput(CombatActions.Flee, null));
+        var result = await CombatOrchestrator.RunHunt(world.Game, prey);
+        Assert.Equal(CombatResult.Fled, result);
+        Assert.Null(world.Game.ActiveCombat);
+        Assert.NotSame(origin, world.Game.player.CurrentLocation);
+        Assert.True(world.Game.TotalMinutesElapsed >= 5);
+    }
+
     [Fact]
     public void CompanionCanHelpHuntWithoutConsideringPreyHostile()
     {

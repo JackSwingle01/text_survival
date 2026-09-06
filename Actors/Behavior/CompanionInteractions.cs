@@ -73,9 +73,18 @@ public static class CompanionInteractions
         var state = npc.Social;
         if (state.PendingNeed is { } pending)
         {
+            if (action is NPCEat or NPCDrinkWater)
+            {
+                state.PendingNeed = null;
+                return action;
+            }
             if (npc.CurrentNeed != pending.Need || !CanTalk(npc, pending.Recipient) || minute >= pending.ExpiresAtMinute || npc.Following?.Target != pending.Recipient)
                 state.PendingNeed = null;
-            else return new NPCRest(1);
+            else
+            {
+                action.Interrupt(npc);
+                return new NPCRest(1);
+            }
         }
         if (npc.Following is not { } intent || npc.CurrentNeed is not { } need || !CanTalk(npc, intent.Target)) return action;
         if (action is NPCMove && minute < state.StayUntilMinute && !Emergency(npc)) return new NPCRest(1);

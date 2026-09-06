@@ -66,6 +66,23 @@ public class NPCOverlay
         UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), npc.Name);
 
         UiText.Text($"Opinion of you: {npc.GetRelationship(ctx.player):+0.00;-0.00;0.00}");
+        if (ImGui.CollapsingHeader("What they remember about you"))
+        {
+            foreach (var memory in npc.Relationships.MemoryEvents.Where(m => m.Subject == ctx.player))
+            {
+                string label = memory.Type switch
+                {
+                    MemoryType.SavedMe => "You helped save them",
+                    MemoryType.AbandonedMe => "You abandoned them",
+                    MemoryType.SharedFood => "You shared needed supplies",
+                    MemoryType.FoughtTogether => "You fought together",
+                    MemoryType.PressuredMe => "You pressured them to stay",
+                    MemoryType.TimeTogether => "Familiarity from time together (limited influence)",
+                    _ => memory.Type.ToString()
+                };
+                UiText.Text(memory.Type == MemoryType.TimeTogether ? label : $"{label}: {memory.Count}");
+            }
+        }
         UiText.Disabled($"Sociability {npc.Personality.Sociability:P0} · Selfishness {npc.Personality.Selfishness:P0} · Boldness {npc.Personality.Boldness:P0}");
         UiText.Disabled("Opinion affects willingness; sociability draws them to others; selfishness affects sharing; boldness affects risk.");
         if (npc.Following != null)

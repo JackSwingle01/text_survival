@@ -22,6 +22,9 @@ public sealed class GroupSummary
     public int MinSurvivedMinutes => Members.Count > 0 ? Members.Min(m => m.SurvivedMinutes) : 0;
     public int MaxSurvivedMinutes => Members.Count > 0 ? Members.Max(m => m.SurvivedMinutes) : 0;
 
+    public int FollowingMemberMinutes;
+    public int TogetherMemberMinutes;
+    public int LostAgreements;
     public double CacheFuelKgFinal;
     public double CacheWaterLFinal;
     public double CacheFoodKgFinal;
@@ -75,6 +78,8 @@ public sealed class NPCGroupSimulation
     public GameContext Ctx { get; }
     public List<NPC> Npcs { get; }
 
+    private int _followingMemberMinutes, _togetherMemberMinutes, _lostAgreements;
+    private readonly HashSet<NPC> _previousFollowers = [];
     private readonly Dictionary<NPC, int> _survivedMinutes = [];
     private readonly Dictionary<NPC, string?> _deathCause = [];
     private readonly Dictionary<string, int> _needMemberMinutes = [];
@@ -158,6 +163,16 @@ public sealed class NPCGroupSimulation
             try
             {
                 Ctx.UpdateWithoutEvents(1, ActivityType.Resting);
+                foreach (var npc in Npcs)
+                {
+                    if (npc.Following is { } intent && npc.IsAlive)
+                    {
+                        _followingMemberMinutes++;
+                        if (npc.CurrentLocation == intent.Target.CurrentLocation) _togetherMemberMinutes++;
+                        _previousFollowers.Add(npc);
+                    }
+                    else if (_previousFollowers.Remove(npc)) _lostAgreements++;
+                }
             }
             finally
             {
@@ -245,6 +260,9 @@ public sealed class NPCGroupSimulation
         s.FuelEverStockpiled = _fuelEverStockpiled;
         s.WaterEverStockpiled = _waterEverStockpiled;
         s.FoodEverStockpiled = _foodEverStockpiled;
+        s.FollowingMemberMinutes = _followingMemberMinutes;
+        s.TogetherMemberMinutes = _togetherMemberMinutes;
+        s.LostAgreements = _lostAgreements;
         s.NeedMemberMinutes = new Dictionary<string, int>(_needMemberMinutes);
 
         return s;

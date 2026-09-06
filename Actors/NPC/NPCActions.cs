@@ -20,8 +20,21 @@ public abstract class NPCAction(string name, int durationMin, ActivityType activ
     public int DurationMinutes = durationMin;
     public int MinutesSpent = 0;
     public bool IsComplete() => MinutesSpent >= DurationMinutes;
-    public abstract void Complete(NPC npc);
-    public virtual void Interrupt(NPC npc) { } // Atomic actions earn no result until completed.
+    public bool Settled { get; set; }
+    public void Complete(NPC npc)
+    {
+        if (Settled) return;
+        Settled = true;
+        OnComplete(npc);
+    }
+    public void Interrupt(NPC npc)
+    {
+        if (Settled) return;
+        OnInterrupt(npc);
+        Settled = true;
+    }
+    protected abstract void OnComplete(NPC npc);
+    protected virtual void OnInterrupt(NPC npc) { } // Atomic actions earn no result until completed.
     public ActivityType ActivityType = activityType;
 }
 
@@ -29,13 +42,13 @@ public abstract class NPCAction(string name, int durationMin, ActivityType activ
 
 public class NPCEat(Resource food, double amount) : NPCAction($"Eating {food.ToDisplayName()}", 5, ActivityType.Eating)
 {
-    public override void Interrupt(NPC npc) => npc.Inventory.Add(food, amount);
+    protected override void OnInterrupt(NPC npc) => npc.Inventory.Add(food, amount);
 
     public Resource Food => food;
     public double Amount => amount;
 
     public override string LogMessage => $"Eating {food.ToDisplayName()}";
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         ConsumptionHandler.EatDrink(npc, food, amount);
     }
@@ -47,7 +60,7 @@ public class NPCMove(Location destination, NPC npc) :
     public Location Destination => destination;
 
     public override string LogMessage => $"Traveling to {destination.Name}";
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         ActorMovement.CompleteCrossing(npc, destination);
     }
@@ -56,10 +69,10 @@ public class NPCMove(Location destination, NPC npc) :
 
 public class NPCForage(int minutes) : NPCAction("Foraging", minutes, ActivityType.Foraging)
 {
-    public override void Interrupt(NPC npc) { if (MinutesSpent > 0) Complete(npc); }
+    protected override void OnInterrupt(NPC npc) { if (MinutesSpent > 0) Complete(npc); }
 
     public override string LogMessage => "Foraging";
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         bool hasLight = true; // todo
         var found = WorkHandler.Forage(npc, npc.Inventory, npc.CurrentLocation, MinutesSpent, hasLight);
@@ -68,7 +81,7 @@ public class NPCForage(int minutes) : NPCAction("Foraging", minutes, ActivityTyp
 }
 public class NPCHarvest : NPCAction
 {
-    public override void Interrupt(NPC npc) { if (MinutesSpent > 0) Complete(npc); }
+    protected override void OnInterrupt(NPC npc) { if (MinutesSpent > 0) Complete(npc); }
 
     public IReadOnlyCollection<Resource>? Wanted => _wanted;
 
@@ -82,7 +95,7 @@ public class NPCHarvest : NPCAction
     public NPCHarvest(int minutes, IReadOnlyCollection<Resource>? wanted = null)
         : base("Harvesting", minutes, ActivityType.Foraging) => _wanted = wanted;
 
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         var feature = WorkHandler.GetAvailableHarvestable(npc.CurrentLocation, _wanted);
         if (feature == null)
@@ -113,12 +126,12 @@ public class NPCHarvest : NPCAction
 }
 public class NPCChopWood : NPCAction
 {
-    public override void Interrupt(NPC npc) { if (MinutesSpent > 0) Complete(npc); }
+    protected override void OnInterrupt(NPC npc) { if (MinutesSpent > 0) Complete(npc); }
 
     public override string LogMessage => "Chopping wood";
     public NPCChopWood(int minutes) : base("Chopping wood", minutes, ActivityType.Chopping) { }
 
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         var feature = npc.CurrentLocation.GetFeature<WoodedAreaFeature>();
         if (feature == null || !feature.HasTrees)
@@ -164,12 +177,12 @@ public class NPCChopWood : NPCAction
 public class NPCStartFire() : NPCAction("Starting Fire", 10, ActivityType.TendingFire)
 {
     public override string LogMessage => "Starting fire";
-    public override void Complete(NPC npc) => FireHandler.StartFire(npc, npc.Inventory!, npc.CurrentLocation);
+    protected override void OnComplete(NPC npc) => FireHandler.StartFire(npc, npc.Inventory!, npc.CurrentLocation);
 }
 public class NPCTendFire() : NPCAction("Tending Fire", 1, ActivityType.TendingFire)
 {
     public override string LogMessage => "Tending fire";
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         if (!npc.CurrentLocation.HasFeature<HeatSourceFeature>())
         {
@@ -182,13 +195,13 @@ public class NPCTendFire() : NPCAction("Tending Fire", 1, ActivityType.TendingFi
 public class NPCRest(int minutes) : NPCAction("Resting", minutes, ActivityType.Resting)
 {
     public override string LogMessage => "Resting";
-    public override void Complete(NPC npc) { } // do nothing
+    protected override void OnComplete(NPC npc) { } // do nothing
 }
 
 public class NPCSleep(int minutes) : NPCAction("Sleeping", minutes, ActivityType.Sleeping)
 {
     public override string LogMessage => "Sleeping";
-    public override void Complete(NPC npc) { } // the survival tick handles rest while asleep
+    protected override void OnComplete(NPC npc) { } // the survival tick handles rest while asleep
 }
 
 public class NPCStash(ResourceCategory resourceCategory) : NPCAction($"Storing {resourceCategory}", 2, ActivityType.Crafting)
@@ -196,7 +209,7 @@ public class NPCStash(ResourceCategory resourceCategory) : NPCAction($"Storing {
     public ResourceCategory Category => resourceCategory;
 
     public override string LogMessage => $"Stashing {resourceCategory.ToString().ToLower()}";
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
         if (cache == null)
@@ -215,7 +228,7 @@ public class NPCStash(ResourceCategory resourceCategory) : NPCAction($"Storing {
 public class NPCStashWater() : NPCAction("Storing Water", 2, ActivityType.Crafting)
 {
     public override string LogMessage => "Stashing water";
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
         if (cache == null)
@@ -237,7 +250,7 @@ public class NPCTakeToolFromCache(ToolType toolType) : NPCAction($"Taking {toolT
     public ToolType Tool => toolType;
 
     public override string LogMessage => $"Getting {toolType.ToString().ToLower()}";
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
         if (cache == null) return;
@@ -258,7 +271,7 @@ public class NPCTakeResourceFromCache(ResourceCategory category, double targetWe
     public double TargetWeight => targetWeightKg;
 
     public override string LogMessage => $"Getting {category.ToString().ToLower()} from cache";
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         var cache = npc.CurrentLocation.GetFeature<CacheFeature>();
         if (cache == null) return;
@@ -292,7 +305,7 @@ public class NPCCraft : NPCAction
         _recipe = recipe;
     }
 
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         var result = _recipe.Craft(npc.Inventory!);
         if (result != null)
@@ -313,7 +326,7 @@ public class NPCFight : NPCAction
         _threat = threat;
     }
 
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         // Set combat cooldown to prevent re-detection
         npc.SetCombatCooldown(5);
@@ -342,7 +355,7 @@ public class NPCFlee : NPCAction
         _threat = threat;
     }
 
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         // Set combat cooldown to prevent immediate re-detection
         npc.SetCombatCooldown(5);
@@ -379,7 +392,7 @@ public class NPCCookMeat : NPCAction
     public override string LogMessage => "Cooking meat";
     public NPCCookMeat() : base("Cooking meat", CookingHandler.CookMeatTimeMinutes, ActivityType.Cooking) { }
 
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         CookingHandler.CookMeatNPC(npc, npc.Inventory!, npc.CurrentLocation);
     }
@@ -389,7 +402,7 @@ public class NPCMeltSnow : NPCAction
     public override string LogMessage => "Melting snow";
     public NPCMeltSnow() : base("Melting snow", CookingHandler.MeltSnowTimeMinutes, ActivityType.Cooking) { }
 
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         CookingHandler.MeltSnowNPC(npc, npc.Inventory!, npc.CurrentLocation);
     }
@@ -401,7 +414,7 @@ public class NPCDrinkWater : NPCAction
 
     public NPCDrinkWater() : base("Drinking water", 2, ActivityType.Eating) { }
 
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         // Drink to fill the room actually available, the way the player does, rather than a
         // fixed sip. Hydration is measured in milliliters, so litres must be converted -
@@ -443,7 +456,7 @@ public class NPCImproveShelter : NPCAction
         _quantity = quantity;
     }
 
-    public override void Complete(NPC npc)
+    protected override void OnComplete(NPC npc)
     {
         var shelter = npc.CurrentLocation.GetFeature<ShelterFeature>();
         if (shelter == null)
@@ -452,6 +465,7 @@ public class NPCImproveShelter : NPCAction
             return;
         }
 
+        if (npc.Inventory.Count(_material) < _quantity) return;
         // Consume materials
         for (int i = 0; i < _quantity; i++)
         {

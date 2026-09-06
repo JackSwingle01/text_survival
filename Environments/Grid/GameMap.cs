@@ -220,12 +220,6 @@ public class GameMap
             mover.CurrentLocation = destination;
     }
 
-    public Location? GetNextInPath(Location from, Location to)
-    {
-        var route = Navigation.Navigation.FindRoute(this, GetPosition(from), GetPosition(to));
-        return route.Steps.Count > 0 ? GetLocationAt(route.Steps[0]) : null;
-    }
-
     [System.Text.Json.Serialization.JsonIgnore]
     public Navigation.IPathfinder Pathfinder { get; set; } = new Navigation.DijkstraPathfinder();
 

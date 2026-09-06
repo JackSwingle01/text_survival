@@ -55,6 +55,8 @@ public static class SaveManager
     /// </summary>
     public static (bool success, string? error) Save(GameContext ctx)
     {
+        if (ctx.ActiveCombat != null)
+            return (false, "Finish the active encounter before saving. Background encounters are saved normally.");
         try
         {
             string json = JsonSerializer.Serialize(ctx, Options);

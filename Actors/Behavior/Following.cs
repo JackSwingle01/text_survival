@@ -25,7 +25,13 @@ public static class Following
         if (follower.Following is not { } intent) return;
         if (!Sight.CanSeeActor(follower, intent.Target)) return;
         if (!intent.Target.IsAlive) { follower.Following = null; return; }
-        intent.LastSeenPosition = follower.Map.GetPosition(intent.Target.CurrentLocation);
+        var observedPosition = follower.Map.GetPosition(intent.Target.CurrentLocation);
+        if (intent.LastSeenPosition != observedPosition)
+        {
+            intent.RouteFailures = 0;
+            intent.NextRouteAttemptMinute = 0;
+        }
+        intent.LastSeenPosition = observedPosition;
         intent.LeadPosition = intent.LastSeenPosition;
         intent.LastEvidenceMinute = minute;
         intent.LastPassage = follower.Map.Tracks.LatestPassage;
@@ -56,6 +62,14 @@ public static class Following
             intent.LeadPosition = lead = passage.To;
             // Trail evidence advances the route, but does not indefinitely reset the search clock.
         }
-        return Navigation.FindRoute(follower.Map, position, lead, follower);
+        if (minute < intent.NextRouteAttemptMinute) return new(PathStatus.BudgetExceeded, []);
+        var route = Navigation.FindRoute(follower.Map, position, lead, follower);
+        if (route.Status is PathStatus.NoRoute or PathStatus.BudgetExceeded)
+        {
+            intent.NextRouteAttemptMinute = minute + 5;
+            if (++intent.RouteFailures >= 3) follower.Following = null;
+        }
+        else intent.RouteFailures = 0;
+        return route;
     }
 }

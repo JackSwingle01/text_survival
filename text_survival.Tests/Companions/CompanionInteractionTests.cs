@@ -6,6 +6,21 @@ namespace text_survival.Tests.Companions;
 public class CompanionInteractionTests
 {
     [Fact]
+    public void NewSuppliesResolveAPendingNeedWithoutDiscardingReservedFood()
+    {
+        var world = new CompanionWorld();
+        var leader = world.AddNpc("Leader");
+        var npc = world.AddNpc("Follower");
+        CompanionWorld.Follow(npc, leader);
+        npc.CurrentNeed = NeedType.Food;
+        npc.Social.PendingNeed = new CompanionNeedRequest { Recipient = leader, Need = NeedType.Food, ExpiresAtMinute = 10 };
+        var eating = new NPCEat(Resource.CookedMeat, 0.5);
+        Assert.Same(eating, CompanionInteractions.ConsiderNeed(npc, eating, 1));
+        Assert.Null(npc.Social.PendingNeed);
+        Assert.False(eating.Settled);
+    }
+
+    [Fact]
     public async Task PendingRequestIsDeliveredWithoutARandomEventRoll()
     {
         var world = new CompanionWorld();

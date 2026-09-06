@@ -76,6 +76,7 @@ public class NPC : Actor
     // Combat cooldown prevents re-detection immediately after combat
     [System.Text.Json.Serialization.JsonIgnore]
     private int _combatCooldownMinutes = 0;
+    public int CombatCooldownMinutes { get => _combatCooldownMinutes; set => _combatCooldownMinutes = value; }
 
     // Pending threat detected during ShouldInterrupt (handled in Update)
     [System.Text.Json.Serialization.JsonIgnore]

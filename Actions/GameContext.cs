@@ -109,7 +109,25 @@ public class GameContext(Player player, Location camp, Weather weather)
     [System.Text.Json.Serialization.JsonIgnore]
     public CombatScenario? ActiveCombat { get; set; }
     [System.Text.Json.Serialization.JsonIgnore]
-    public List<CombatScenario> BackgroundCombats { get; } = [];
+    public List<CombatScenario> BackgroundCombats
+    {
+        get
+        {
+            if (_savedEncounters != null)
+            {
+                _backgroundCombats = _savedEncounters.Select(s => s.Restore()).ToList();
+                _savedEncounters = null;
+            }
+            return _backgroundCombats;
+        }
+    }
+    private List<CombatScenario> _backgroundCombats = [];
+    private List<EncounterState>? _savedEncounters;
+    public List<EncounterState> BackgroundEncounterStates
+    {
+        get => BackgroundCombats.Select(EncounterState.Capture).ToList();
+        set => _savedEncounters = value;
+    }
 
     public static DateTime StartTime => new DateTime(2025, 7, 1, 9, 0, 0);
     public int DaysSurvived => (int)(GameTime - StartTime).TotalDays;
@@ -478,20 +496,11 @@ public class GameContext(Player player, Location camp, Weather weather)
     {
         CurrentActivity = activity;
 
-        // Weather is re-read once per tick, so a single eight-hour call would hand eight
-        // hours of world to one instant's sky - a blizzard arriving at hour seven would have
-        // blown since hour zero.
-        int remaining = minutes;
-        while (remaining > 0)
-        {
-            int step = Math.Min(remaining, WeatherSampleMinutes);
-            UpdateInternal(step);
-            remaining -= step;
-        }
+        // Minute boundaries keep observation, social deadlines and encounter rounds aligned
+        // with world time, regardless of the size of the caller's requested advance.
+        for (int elapsed = 0; elapsed < minutes; elapsed++)
+            UpdateInternal(1);
     }
-
-    /// <summary>Longest stretch of world time run against one reading of the weather.</summary>
-    private const int WeatherSampleMinutes = 15;
 
     private void UpdateInternal(int minutes)
     {

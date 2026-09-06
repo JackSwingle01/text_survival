@@ -10,6 +10,8 @@ public sealed class FollowIntent
     public GridPosition? LeadPosition { get; set; }
     public double LastEvidenceMinute { get; set; }
     public long LastPassage { get; set; }
+    public int RouteFailures { get; set; }
+    public double NextRouteAttemptMinute { get; set; }
     public TrackMaker TrackKind { get; set; }
     public List<GridPosition> Investigated { get; set; } = [];
     public FollowIntent() { }

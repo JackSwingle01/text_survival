@@ -50,6 +50,7 @@ public static class Program
           --days N               simulated days per run       (default 7)
           --scenario NAME        baseline | firelit | npcatcamp (default baseline)
           --group N              members sharing one camp; 0 = solo NPCSimulation (default 0)
+          --follow               group members begin following the first NPC
           --boldness X           override Boldness 0..1       (default: leave as rolled)
           --parallel N           worker threads (default 1; >1 is NOT yet reproducible)
           --out FILE.csv         also write per-seed rows as CSV
@@ -179,8 +180,16 @@ public static class Program
     {
         if (o.FuelTarget is double t) NPC.FuelStockpileTargetKg = t;
         var sim = NPCGroupSimulation.Create(o.GroupSize, seed, o.Personality());
+        if (o.Follow)
+            foreach (var npc in sim.Npcs.Skip(1))
+            {
+                npc.Relationships.AddMemory(MemoryType.SavedMe, sim.Npcs[0]);
+                Following.TryBegin(npc, sim.Npcs[0]);
+            }
         sim.Run(o.Minutes);
         var g = sim.Summarize();
+        if (o.Follow)
+            Console.WriteLine($"follow seed={seed} members={g.Members.Count} alive={g.MembersAliveAtEnd} followingMemberMinutes={g.FollowingMemberMinutes} togetherMemberMinutes={g.TogetherMemberMinutes} lostAgreements={g.LostAgreements}");
 
         string cause = g.Members.All(m => !m.Died)
             ? "survived"
@@ -256,6 +265,7 @@ public sealed class Options
     public int Days = 7;
     public SimulationScenario Scenario = SimulationScenario.Baseline;
     public int GroupSize;
+    public bool Follow;
     public double? Boldness;
     /// <summary>
     /// Defaults to 1. In-process parallelism is NOT currently reproducible - the same seed
@@ -299,6 +309,7 @@ public sealed class Options
                 case "--days": o.Days = int.Parse(Next()); break;
                 case "--scenario": o.Scenario = Enum.Parse<SimulationScenario>(Next(), ignoreCase: true); break;
                 case "--group": o.GroupSize = int.Parse(Next()); break;
+                case "--follow": o.Follow = true; break;
                 case "--boldness": o.Boldness = double.Parse(Next(), CultureInfo.InvariantCulture); break;
                 case "--parallel": o.Parallelism = int.Parse(Next()); break;
                 case "--out": o.OutPath = Next(); break;
