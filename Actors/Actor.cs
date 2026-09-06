@@ -22,6 +22,7 @@ public abstract class Actor : IMovable
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public FollowIntent? Following { get; set; }
+    public string? FollowEndReason { get; set; }
 
     // Inventory - set by subclasses that have one (Player, NPC). Animals leave null.
     public virtual Inventory? Inventory { get; set; }

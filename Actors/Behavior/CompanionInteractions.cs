@@ -78,7 +78,7 @@ public static class CompanionInteractions
                 state.PendingNeed = null;
                 return action;
             }
-            if (npc.CurrentNeed != pending.Need || !CanTalk(npc, pending.Recipient) || minute >= pending.ExpiresAtMinute || npc.Following?.Target != pending.Recipient)
+            if (Emergency(npc) || npc.CurrentNeed != pending.Need || !CanTalk(npc, pending.Recipient) || minute >= pending.ExpiresAtMinute || npc.Following?.Target != pending.Recipient)
                 state.PendingNeed = null;
             else
             {
@@ -93,7 +93,7 @@ public static class CompanionInteractions
             npc.DecisionReason = CompanionDecisionReason.AgreedWait;
             return new NPCRest(1);
         }
-        if (minute < state.NextNeedRequestMinute || action is not NPCMove) return action;
+        if (Emergency(npc) || minute < state.NextNeedRequestMinute || action is not NPCMove) return action;
         state.NextNeedRequestMinute = minute + 60;
         npc.DecisionReason = CompanionDecisionReason.RequestWait;
         state.PendingNeed = new CompanionNeedRequest { Recipient = intent.Target, Need = need, ExpiresAtMinute = minute + (Emergency(npc) ? 2 : 10) };
@@ -111,8 +111,12 @@ public static class CompanionInteractions
     public static string Reply(NPC npc, Actor recipient, NeedReply reply, double minute)
     {
         var pending = npc.Social.PendingNeed;
-        if (pending == null || pending.Recipient != recipient || !CanTalk(npc, recipient) || minute >= pending.ExpiresAtMinute)
+        if (pending == null || pending.Recipient != recipient || npc.Following?.Target != recipient ||
+            npc.CurrentNeed != pending.Need || Emergency(npc) || !CanTalk(npc, recipient) || minute >= pending.ExpiresAtMinute)
+        {
+            if (pending?.Recipient == recipient) npc.Social.PendingNeed = null;
             return "The situation has changed.";
+        }
         if (reply == NeedReply.GiveResource)
         {
             var resource = UsefulResource(recipient, pending.Need);

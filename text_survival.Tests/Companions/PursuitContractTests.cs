@@ -51,6 +51,7 @@ public class PursuitContractTests
         leader.CurrentLocation = world.Tile(30, 1);
         Following.Observe(follower, 1);
         Assert.NotNull(follower.Following);
+        for (int i = 0; i < Following.SearchMinutes; i++) Following.SpendSearchMinute(follower);
         Following.Pursue(follower, Following.SearchMinutes);
         Assert.Null(follower.Following);
     }

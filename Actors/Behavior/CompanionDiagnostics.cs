@@ -15,7 +15,7 @@ public sealed class CompanionDiagnostics
     {
         var intent = npc.Following;
         bool separated = npc.IsAlive && intent != null && npc.CurrentLocation != intent.Target.CurrentLocation;
-        string reason = npc.IsAlive ? npc.DecisionReason.ToString() : "Dead";
+        string reason = npc.IsAlive ? (npc.DecisionReason == CompanionDecisionReason.Pursuit ? $"Pursuit/{intent?.Status}" : npc.DecisionReason.ToString()) : "Dead";
         if (separated)
         {
             SeparatedMinutes[reason] = SeparatedMinutes.GetValueOrDefault(reason) + 1;
@@ -29,7 +29,7 @@ public sealed class CompanionDiagnostics
         else if (_open.Remove(npc, out var ended))
         {
             ended.EndMinute = minute;
-            ended.Outcome = !npc.IsAlive ? "Died" : intent == null ? "AgreementEnded" : "Reunited";
+            ended.Outcome = !npc.IsAlive ? "Died" : intent == null ? npc.FollowEndReason ?? "AgreementEnded" : "Reunited";
         }
         if (!captureTransitions) return;
         string state = $"{reason}/{npc.CurrentAction?.Name}/{npc.CurrentNeed}/{npc.CurrentLocation.Name}/{intent?.LeadPosition}/{intent?.RouteFailures}/{intent == null}";

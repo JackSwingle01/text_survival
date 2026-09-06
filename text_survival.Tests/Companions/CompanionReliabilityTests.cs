@@ -6,6 +6,99 @@ namespace text_survival.Tests.Companions;
 
 public class CompanionReliabilityTests
 {
+    [Fact]
+    public void ColdAtAnUnlitCampDoesNotTryToTravelToTheSameTile()
+    {
+        var world = new CompanionWorld();
+        var npc = world.AddNpc("Cold", 0, 0);
+        npc.Body.BodyTemperature = Body.BASE_BODY_TEMP - 5;
+        npc.CurrentNeed = NeedType.Warmth;
+        world.Advance(1);
+        Assert.NotNull(npc.CurrentAction);
+    }
+
+    [Fact]
+    public void SearchProgressAndPursuitActionSurviveCheckpoint()
+    {
+        var world = new CompanionWorld();
+        var leader = world.AddLeader(LeaderKind.Npc);
+        var npc = world.AddNpc("Follower");
+        CompanionWorld.Follow(npc, leader);
+        npc.Following!.SearchEffortMinutes = 42;
+        npc.CurrentAction = new NPCRest(2) { IsFollowingPursuit = true };
+        var loaded = System.Text.Json.JsonSerializer.Deserialize<GameContext>(
+            System.Text.Json.JsonSerializer.Serialize(world.Game, text_survival.Persistence.SaveManager.Options),
+            text_survival.Persistence.SaveManager.Options)!;
+        Assert.Equal(42, loaded.NPCs[1].Following!.SearchEffortMinutes);
+        Assert.True(loaded.NPCs[1].CurrentAction!.IsFollowingPursuit);
+    }
+
+    [Fact]
+    public void LongSelfCareDoesNotSpendSearchEffortButEvidenceEventuallyExpires()
+    {
+        var world = new CompanionWorld(31, 3);
+        var leader = world.AddNpc("Leader");
+        var npc = world.AddNpc("Follower");
+        CompanionWorld.Follow(npc, leader);
+        Following.Observe(npc, 0);
+        leader.CurrentLocation = world.Tile(30, 1);
+        Following.Pursue(npc, 120);
+        Assert.NotNull(npc.Following);
+        Assert.Equal(0, npc.Following.SearchEffortMinutes);
+        Following.Pursue(npc, Following.StaleEvidenceMinutes);
+        Assert.Null(npc.Following);
+        Assert.Equal("Search exhausted", npc.FollowEndReason);
+    }
+
+    [Fact]
+    public void SearchAtAnEmptyLeadTerminatesThroughRealTicks()
+    {
+        var world = new CompanionWorld(31, 3);
+        var leader = world.AddLeader(LeaderKind.Npc);
+        var npc = world.AddNpc("Follower");
+        CompanionWorld.Follow(npc, leader);
+        Following.Observe(npc, 0);
+        leader.CurrentLocation = world.Tile(30, 1);
+        for (int i = 0; i < Following.SearchMinutes + 3 && npc.Following != null; i++)
+        {
+            CompanionWorld.SetComfortable(npc); // Isolate search effort from cold survival.
+            world.Advance(1);
+        }
+        Assert.Null(npc.Following);
+        Assert.Equal("Search exhausted", npc.FollowEndReason);
+    }
+
+    [Fact]
+    public void MissingLeaderAtLastSighting_DoesNotStartOptionalForage()
+    {
+        var world = new CompanionWorld(31, 3);
+        var leader = world.AddNpc("Leader");
+        var npc = world.AddNpc("Follower");
+        CompanionWorld.Follow(npc, leader);
+        Following.Observe(npc, 0);
+        leader.CurrentLocation = world.Tile(30, 1); // No new evidence.
+        world.AddForage(npc.CurrentLocation);
+        world.Advance(1);
+        Assert.Equal(CompanionDecisionReason.Pursuit, npc.DecisionReason);
+        Assert.IsNotType<NPCForage>(npc.CurrentAction);
+    }
+
+    [Fact]
+    public void EmergencyDuringPendingRequest_DoesNotWaitForTheAnswer()
+    {
+        var world = new CompanionWorld();
+        var leader = world.AddNpc("Leader");
+        var npc = world.AddNpc("Follower");
+        CompanionWorld.Follow(npc, leader);
+        npc.CurrentNeed = NeedType.Water;
+        npc.Social.PendingNeed = new() { Recipient = leader, Need = NeedType.Water, ExpiresAtMinute = 10 };
+        npc.Social.NextNeedRequestMinute = 60;
+        npc.Body.Hydration = SurvivalProcessor.MAX_HYDRATION * 0.1;
+        var move = new NPCMove(world.Tile(2, 1), npc);
+        Assert.Same(move, CompanionInteractions.ConsiderNeed(npc, move, 1));
+        Assert.Null(npc.Social.PendingNeed);
+    }
+
     [Theory]
     [InlineData(LeaderKind.Npc, 1)]
     [InlineData(LeaderKind.Player, 1)]

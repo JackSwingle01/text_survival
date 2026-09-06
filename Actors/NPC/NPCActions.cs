@@ -21,6 +21,7 @@ public abstract class NPCAction(string name, int durationMin, ActivityType activ
     public int MinutesSpent = 0;
     public bool IsComplete() => MinutesSpent >= DurationMinutes;
     public bool Settled { get; set; }
+    public bool IsFollowingPursuit { get; set; }
     public void Complete(NPC npc)
     {
         if (Settled) return;

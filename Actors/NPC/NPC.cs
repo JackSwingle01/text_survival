@@ -238,6 +238,7 @@ public class NPC : Actor
     private void ContinueAction()
     {
         if (CurrentAction == null) throw new NullReferenceException("Something's fucked"); // should never happen
+        if (CurrentAction.IsFollowingPursuit) text_survival.Actors.Following.SpendSearchMinute(this);
         CurrentAction.MinutesSpent++;
         // check for completion
         if (CurrentAction.IsComplete())
@@ -281,9 +282,9 @@ public class NPC : Actor
         DecisionReason = CompanionDecisionReason.Pursuit;
         var pursuit = text_survival.Actors.Following.Pursue(this, _game?.TotalMinutesElapsed ?? 0);
         if (pursuit?.Steps.Count > 0)
-            return new NPCMove(Map.GetLocationAt(pursuit.Steps[0])!, this);
-        if (Following != null && pursuit?.Status != text_survival.Environments.Navigation.PathStatus.AlreadyThere)
-            return new NPCRest(2);
+            return new NPCMove(Map.GetLocationAt(pursuit.Steps[0])!, this) { IsFollowingPursuit = true };
+        if (Following != null && (pursuit?.Status != text_survival.Environments.Navigation.PathStatus.AlreadyThere || Following.Status == PursuitStatus.Investigating))
+            return new NPCRest(2) { IsFollowingPursuit = true };
 
         DecisionReason = CompanionDecisionReason.OptionalWork;
         var action = DetermineWork();
@@ -332,7 +333,7 @@ public class NPC : Actor
                 var move = DecideToMove(knownActiveFire);
                 if (move != null) return move;
             }
-            else if (Camp != null) // if no known fire prefer to make it at camp
+            else if (Camp != null && Camp != CurrentLocation) // if no known fire prefer to make it at camp
             {
                 if (IsTracing) Trace($"  [Warmth] Going to camp");
                 var move = DecideToMove(Camp, maxTiles: 16); // only if close

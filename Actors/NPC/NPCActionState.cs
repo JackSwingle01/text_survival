@@ -12,6 +12,7 @@ public sealed class NPCActionState
     public int Duration { get; set; }
     public int Progress { get; set; }
     public bool Settled { get; set; }
+    public bool IsFollowingPursuit { get; set; }
     public Location? Destination { get; set; }
     public Actor? Target { get; set; }
     public Resource Resource { get; set; }
@@ -25,7 +26,7 @@ public sealed class NPCActionState
 
     public static NPCActionState Capture(NPCAction action)
     {
-        var state = new NPCActionState { Kind = action.GetType().Name, Duration = action.DurationMinutes, Progress = action.MinutesSpent, Settled = action.Settled };
+        var state = new NPCActionState { Kind = action.GetType().Name, Duration = action.DurationMinutes, Progress = action.MinutesSpent, Settled = action.Settled, IsFollowingPursuit = action.IsFollowingPursuit };
         switch (action)
         {
             case NPCEat eat: state.Resource = eat.Food; state.Amount = eat.Amount; break;
@@ -72,6 +73,7 @@ public sealed class NPCActionState
         action.DurationMinutes = Duration;
         action.MinutesSpent = Progress;
         action.Settled = Settled;
+        action.IsFollowingPursuit = IsFollowingPursuit;
         return action;
     }
 }
