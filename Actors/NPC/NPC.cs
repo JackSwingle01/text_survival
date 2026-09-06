@@ -280,6 +280,14 @@ public class NPC : Actor
             if (eat != null) return eat;
         }
 
+        // Exhausting survival options is not permission to start optional travel.
+        // Retry locally; a newly available supply/fire or a higher-priority threat can change the decision.
+        if (GetCriticalNeed() != null)
+        {
+            DecisionReason = CompanionDecisionReason.BlockedNeed;
+            return new NPCRest(2);
+        }
+
         DecisionReason = CompanionDecisionReason.Pursuit;
         var pursuit = text_survival.Actors.Following.Pursue(this, _game?.TotalMinutesElapsed ?? 0);
         if (pursuit?.Steps.Count > 0)

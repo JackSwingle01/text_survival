@@ -1,6 +1,6 @@
 namespace text_survival.Actors;
 
-public enum CompanionDecisionReason { CommittedWork, SelfCare, Pursuit, OptionalWork, RequestWait, AgreedWait, Combat }
+public enum CompanionDecisionReason { CommittedWork, SelfCare, Pursuit, OptionalWork, RequestWait, AgreedWait, Combat, BlockedNeed }
 
 /// <summary>Read-only measurements. Ground-truth separation must never feed actor decisions.</summary>
 public sealed class CompanionDiagnostics

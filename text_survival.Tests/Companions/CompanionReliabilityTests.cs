@@ -7,6 +7,76 @@ namespace text_survival.Tests.Companions;
 public class CompanionReliabilityTests
 {
     [Fact]
+    public void ExhaustedCriticalWarmthOptionsDoNotFallThroughToPursuit()
+    {
+        var world = new CompanionWorld();
+        var leader = world.AddNpc("Leader", 2, 1);
+        leader.CurrentAction = new NPCRest(100);
+        var npc = world.AddNpc("Freezing");
+        npc.Camp = npc.CurrentLocation;
+        CompanionWorld.Follow(npc, leader);
+        npc.Body.BodyTemperature = SurvivalProcessor.HypothermiaThreshold + 0.1;
+        world.Advance(1);
+        Assert.IsNotType<NPCMove>(npc.CurrentAction);
+        Assert.Equal(CompanionDecisionReason.BlockedNeed, npc.DecisionReason);
+    }
+
+    [Fact]
+    public void NewSightingAfterDoubleBackReplacesOldTravelLead()
+    {
+        var world = new CompanionWorld();
+        var leader = world.AddLeader(LeaderKind.Npc);
+        var npc = world.AddNpc("Follower");
+        CompanionWorld.Follow(npc, leader);
+        world.Advance(1);
+        world.MoveActor(leader, 3, 1);
+        world.Advance(1);
+        world.MoveActor(leader, 0, 1);
+        world.Advance(1);
+        Assert.Equal(world.Position(leader), npc.Following!.LastSeenPosition);
+        world.AdvanceUntil(() => npc.CurrentLocation == leader.CurrentLocation, 25);
+    }
+
+    [Fact]
+    public void FullPackDoesNotCauseAnUnrelatedCampReturnWhileCatchingUp()
+    {
+        var world = new CompanionWorld();
+        var leader = world.AddLeader(LeaderKind.Npc);
+        var npc = world.AddNpc("Follower");
+        npc.Inventory.Add(Resource.Stick, npc.Inventory.MaxWeightKg - npc.Inventory.CurrentWeightKg - 0.1);
+        CompanionWorld.Follow(npc, leader);
+        npc.CurrentAction = new NPCRest(2);
+        world.Advance(1);
+        world.MoveActor(leader, 3, 1);
+        for (int i = 0; i < 30 && npc.CurrentLocation != leader.CurrentLocation; i++)
+        {
+            world.Advance(1);
+            Assert.NotSame(world.Camp, npc.CurrentLocation);
+        }
+        Assert.Same(leader.CurrentLocation, npc.CurrentLocation);
+    }
+
+    [Fact]
+    public void OneFollowersThirstDoesNotFreezeAnotherFollowersWork()
+    {
+        var world = new CompanionWorld();
+        var leader = world.AddLeader(LeaderKind.Npc);
+        var thirsty = world.AddNpc("Thirsty");
+        var worker = world.AddNpc("Worker");
+        CompanionWorld.Follow(thirsty, leader);
+        CompanionWorld.Follow(worker, leader);
+        thirsty.Body.Hydration = SurvivalProcessor.MAX_HYDRATION * 0.4;
+        thirsty.Inventory.Add(Resource.Water, 1);
+        var work = new NPCForage(10);
+        world.AddForage(worker.CurrentLocation);
+        worker.CurrentAction = work;
+        world.Advance(3);
+        Assert.Equal(3, work.MinutesSpent);
+        Assert.True(thirsty.Body.HydratedPct > 0.4);
+        Assert.NotNull(worker.Following);
+    }
+
+    [Fact]
     public void BudgetExhaustionRetriesWithMoreWorkAndNeverClaimsNoRoute()
     {
         var world = new CompanionWorld();

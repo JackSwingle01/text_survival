@@ -91,6 +91,7 @@ public class NPCOverlay
             UiText.Disabled(npc.DecisionReason switch
             {
                 CompanionDecisionReason.SelfCare => "Taking care of survival needs",
+                CompanionDecisionReason.BlockedNeed => "Unable to meet an urgent need; resting and reconsidering",
                 CompanionDecisionReason.Pursuit => npc.Following.Status == PursuitStatus.Traveling ? "Catching up" : "Looking for a way to catch up",
                 CompanionDecisionReason.RequestWait => "Waiting for an answer",
                 CompanionDecisionReason.AgreedWait => "Agreed to wait briefly",
