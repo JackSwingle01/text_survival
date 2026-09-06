@@ -138,31 +138,35 @@ public static class CombatOrchestrator
 
                 await RunCombatTurn(ctx, scenario, playerUnit, huntingSkill, activity, input);
             }
-            // A player's departure does not decide the remaining actors' outcomes.
-            for (int round = 0; !scenario.IsOver && round < 120; round++)
-            {
-                ctx.UpdateWithoutEvents(1, ActivityType.Resting);
-                scenario.AdvanceAutonomousRound();
-            }
-            scenario.IsOver = true;
         }
         finally
         {
             ctx.ActiveCombat = null;
         }
 
-        var result = scenario.DetermineResult();
+        var result = CompletePlayerExit(ctx, scenario);
         GameDisplay.AddSuccess(ctx, describe(result));
-        CombatAftermath.Apply(ctx, scenario, result, scenario.Location!);
-        if (result == CombatResult.Fled && ctx.player.IsAlive && ctx.Map != null)
+        return result;
+    }
+
+    /// <summary>Transfer unfinished fighting to world ownership before charging escape travel.</summary>
+    internal static CombatResult CompletePlayerExit(GameContext ctx, CombatScenario scenario)
+    {
+        var result = scenario.DetermineResult();
+        var retreat = result == CombatResult.Fled && ctx.player.IsAlive
+            ? CompanionCombat.EscapeDestination(scenario, ctx.player) : null;
+        if (!scenario.IsOver)
         {
-            var retreat = ctx.Map.GetTravelOptionsFrom(ctx.player.CurrentLocation).FirstOrDefault();
-            if (retreat != null)
-            {
-                int crossing = TravelProcessor.GetTraversalMinutes(ctx.player.CurrentLocation, retreat, ctx.player, ctx.Inventory, ctx.Map);
-                ctx.UpdateWithoutEvents(crossing, ActivityType.Traveling);
-                ctx.Map.MoveTo(retreat, ctx.player);
-            }
+            // No interactive observer remains. Aftermath is based on the remaining teams' outcome.
+            scenario.Player = null;
+            if (!ctx.BackgroundCombats.Contains(scenario)) ctx.BackgroundCombats.Add(scenario);
+        }
+        else CombatAftermath.Apply(ctx, scenario, result, scenario.Location!);
+        if (retreat != null && ctx.Map != null)
+        {
+            int crossing = TravelProcessor.GetTraversalMinutes(ctx.player.CurrentLocation, retreat, ctx.player, ctx.Inventory, ctx.Map);
+            ctx.UpdateWithoutEvents(crossing, ActivityType.Traveling);
+            if (ctx.player.IsAlive) ctx.Map.MoveTo(retreat, ctx.player);
         }
         return result;
     }

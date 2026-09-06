@@ -554,7 +554,7 @@ public class CombatScenario
         if (unit.actor is NPC npc)
         {
             npc.SetCombatCooldown(60);
-            var retreat = npc.Map.GetTravelOptionsFrom(npc.CurrentLocation).FirstOrDefault();
+            var retreat = CompanionCombat.EscapeDestination(this, npc);
             if (retreat != null) npc.CurrentAction = new NPCMove(retreat, npc);
         }
         foreach (Unit ally in unit.allies.ToList())

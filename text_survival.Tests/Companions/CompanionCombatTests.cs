@@ -2,11 +2,48 @@ using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Actors.Animals;
 using text_survival.Combat;
+using text_survival.Environments;
 
 namespace text_survival.Tests.Companions;
 
 public class CompanionCombatTests
 {
+    [Fact]
+    public void EscapeDirectionUsesLocalThreatAndAvoidsBlockedExit()
+    {
+        var world = new CompanionWorld(5, 3);
+        var npc = world.AddNpc("Fleeing", 2, 1);
+        var enemy = world.AddNpc("Enemy", 2, 1);
+        var scenario = CombatScenario.Create([npc], [enemy], npc.CurrentLocation, 5,
+            AwarenessState.Engaged, AwarenessState.Engaged);
+        scenario.Team1[0].Position = new(10, 10);
+        scenario.Team2[0].Position = new(15, 10);
+        Assert.Same(world.Tile(1, 1), CompanionCombat.EscapeDestination(scenario, npc));
+        world.Tile(1, 1).Terrain = text_survival.Environments.Grid.TerrainType.Mountain;
+        Assert.NotSame(world.Tile(1, 1), CompanionCombat.EscapeDestination(scenario, npc));
+    }
+
+    [Fact]
+    public void EscapeTravelDoesNotWaitForTheRemainingBattle()
+    {
+        var world = new CompanionWorld();
+        var player = world.Game.player;
+        var ally = world.AddNpc("Ally", 0, 0);
+        var enemy = world.AddNpc("Enemy", 0, 0);
+        var scenario = CombatScenario.Create([player, ally], [enemy], player.CurrentLocation, 34,
+            AwarenessState.Unaware, AwarenessState.Unaware, player);
+        scenario.Player!.Position = new(0, 0);
+        Assert.True(scenario.ExecuteFlee(scenario.Player));
+        var destination = CompanionCombat.EscapeDestination(scenario, player)!;
+        int crossing = TravelProcessor.GetTraversalMinutes(player.CurrentLocation, destination, player, player.Inventory, world.Map);
+        Assert.Equal(CombatResult.Fled, CombatOrchestrator.CompletePlayerExit(world.Game, scenario));
+        Assert.Equal(crossing, world.Game.TotalMinutesElapsed);
+        Assert.Same(destination, player.CurrentLocation);
+        Assert.DoesNotContain(scenario.Units, u => u.actor == player);
+        Assert.True(scenario.IsOver || world.Game.BackgroundCombats.Contains(scenario));
+        Assert.InRange(scenario.ElapsedRounds, 1, crossing);
+    }
+
     [Fact]
     public async Task PlayerEscapeResolvesTheEncounterAndUsesATimedWorldCrossing()
     {

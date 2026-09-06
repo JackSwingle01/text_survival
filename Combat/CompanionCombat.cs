@@ -10,6 +10,22 @@ public enum EncounterPurpose { Defense, Hunt }
 /// <summary>Participation at world-tick boundaries. Combat AI retains tactical control.</summary>
 public static class CompanionCombat
 {
+    /// <summary>Choose a legal exit using local tactical threat direction and crossing cost.</summary>
+    public static Location? EscapeDestination(CombatScenario scenario, Actor actor)
+    {
+        var unit = scenario.Team1.Concat(scenario.Team2).FirstOrDefault(u => u.actor == actor);
+        var threat = unit?.enemies.Where(e => scenario.Units.Contains(e) && e.Awareness == AwarenessState.Engaged)
+            .OrderBy(e => e.Position.DistanceTo(unit.Position)).FirstOrDefault();
+        var away = threat == null || unit == null ? System.Numerics.Vector2.Zero : unit.Position.ToVector() - threat.Position.ToVector();
+        if (away != System.Numerics.Vector2.Zero) away = System.Numerics.Vector2.Normalize(away);
+        var origin = actor.Map.GetPosition(actor.CurrentLocation);
+        return actor.Map.GetTravelOptionsFrom(actor.CurrentLocation)
+            .OrderByDescending(l => System.Numerics.Vector2.Dot(actor.Map.GetPosition(l).ToVector() - origin.ToVector(), away))
+            .ThenBy(l => TravelProcessor.GetTraversalMinutes(actor.CurrentLocation, l, actor, actor.Inventory, actor.Map))
+            .ThenBy(l => actor.Map.GetPosition(l).X).ThenBy(l => actor.Map.GetPosition(l).Y)
+            .FirstOrDefault();
+    }
+
     public static bool WillAssist(NPC npc, Actor ally, Actor enemy, EncounterPurpose purpose)
     {
         if (!npc.IsAlive || npc.CurrentLocation != ally.CurrentLocation || npc.Vitality < 0.35 || npc.IsHostileTo(ally)) return false;
