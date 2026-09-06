@@ -32,6 +32,7 @@ public class NPC : Actor
     public RelationshipMemory Relationships { get; set; } = new();
     public ResourceMemory ResourceMemory { get; set; } = new();
     public Location? Camp { get; set; }
+    public CompanionSocialState Social { get; set; } = new();
     public double NextSocialDecisionMinute { get; set; }
 
     [System.Text.Json.Serialization.JsonIgnore]
@@ -189,7 +190,7 @@ public class NPC : Actor
             }
 
             // pick action and do it
-            CurrentAction = DetermineActionForNeed(context);
+            CurrentAction = CompanionInteractions.ConsiderNeed(this, DetermineActionForNeed(context), _game?.TotalMinutesElapsed ?? 0);
             Trace($"[NPC:{Name}] Picked: {CurrentAction?.Name} for need {CurrentNeed}");
             AddLog(CurrentAction?.LogMessage);
             ContinueAction();

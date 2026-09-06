@@ -15,6 +15,7 @@ namespace text_survival.Desktop.UI;
 public class NPCOverlay
 {
     public bool IsOpen { get; set; }
+    private string? _feedback;
 
     /// <summary>
     /// Render the NPC overlay. Returns true if overlay should close.
@@ -39,7 +40,9 @@ public class NPCOverlay
         {
             foreach (var npc in npcsHere)
             {
-                RenderNPC(npc);
+                ImGui.PushID(ctx.NPCs.IndexOf(npc));
+                RenderNPC(npc, ctx);
+                ImGui.PopID();
                 ImGui.Separator();
             }
 
@@ -57,10 +60,43 @@ public class NPCOverlay
         return shouldClose;
     }
 
-    private void RenderNPC(NPC npc)
+    private void RenderNPC(NPC npc, GameContext ctx)
     {
         // Name header
         UiText.Colored(new Vector4(0.9f, 0.85f, 0.7f, 1f), npc.Name);
+
+        UiText.Text($"Opinion of you: {npc.GetRelationship(ctx.player):+0.00;-0.00;0.00}");
+        UiText.Disabled($"Sociability {npc.Personality.Sociability:P0} · Selfishness {npc.Personality.Selfishness:P0} · Boldness {npc.Personality.Boldness:P0}");
+        UiText.Disabled("Opinion affects willingness; sociability draws them to others; selfishness affects sharing; boldness affects risk.");
+        if (npc.Following != null)
+        {
+            UiText.Text($"Following {npc.Following.Target.Name}");
+            if (npc.Following.Target == ctx.player && ImGui.Button("Go your own way"))
+            {
+                npc.Following = null;
+                npc.Social.PendingNeed = null;
+                npc.NextSocialDecisionMinute = ctx.TotalMinutesElapsed + 120;
+            }
+        }
+        else if (ImGui.Button("Come with me"))
+            _feedback = CompanionInteractions.Invite(ctx.player, npc, ctx.TotalMinutesElapsed);
+        if (ImGui.CollapsingHeader("Give or ask for supplies"))
+        {
+            foreach (Resource resource in Enum.GetValues<Resource>())
+            {
+                double theirs = npc.Inventory.Weight(resource), ours = ctx.Inventory.Weight(resource);
+                if (theirs <= 0 && ours <= 0) continue;
+                ImGui.PushID(resource.ToString());
+                UiText.Text($"{resource.ToDisplayName()}: you {ours:F1}, {npc.Name} {theirs:F1} kg");
+                if (ours > 0 && ImGui.SmallButton("Give up to 0.5 kg"))
+                    _feedback = CompanionInteractions.Give(ctx.player, npc, resource, Math.Min(0.5, ours), ctx.TotalMinutesElapsed) ? "Supplies given." : "They cannot take that right now.";
+                if (ours > 0) ImGui.SameLine();
+                if (theirs > 0 && ImGui.SmallButton("Ask for up to 0.5 kg"))
+                    _feedback = CompanionInteractions.RequestResource(ctx.player, npc, resource, Math.Min(0.5, theirs), ctx.TotalMinutesElapsed);
+                ImGui.PopID();
+            }
+        }
+        if (_feedback != null) UiText.Text(_feedback);
 
         // Current action + need
         string action = npc.CurrentAction?.Name ?? "Idle";

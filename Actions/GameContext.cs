@@ -420,6 +420,9 @@ public class GameContext(Player player, Location camp, Weather weather)
             // Update survival/zone/tensions (always runs, may queue intentional events)
             UpdateInternal(1);
 
+            if (activity != ActivityType.Sleeping && ActiveCombat == null && !IsHandlingEvent)
+                await DeliverCompanionRequest();
+
             // Check for event (only if activity allows events AND not already handling an event)
             if (config.EventMultiplier > 0 && !IsHandlingEvent)
             {
@@ -585,6 +588,12 @@ public class GameContext(Player player, Location camp, Weather weather)
             {
                 var npcContext = SurvivalContext.GetSurvivalContext(npc, npc.Inventory, (ActiveCombat?.Units.Any(u => u.actor == npc) == true ? ActivityType.Fighting : npc.CurrentAction?.ActivityType ?? ActivityType.Idle), GetTimeOfDay());
                 npc.Update(1, npcContext, Herds, NPCs, this);
+                if (npc.Social.PendingNeed is { Recipient: NPC recipient } request)
+                {
+                    var resource = CompanionInteractions.UsefulResource(recipient, request.Need);
+                    if (resource != null) CompanionInteractions.RequestResource(npc, recipient, resource.Value, 0.5, TotalMinutesElapsed);
+                    CompanionInteractions.Reply(npc, recipient, NeedReply.LetGo, TotalMinutesElapsed);
+                }
             }
         }
 
@@ -716,6 +725,21 @@ public class GameContext(Player player, Location camp, Weather weather)
     /// Groups actors by location and updates relationship memories for time spent together.
     /// Called per-minute during the simulation loop.
     /// </summary>
+    private async Task DeliverCompanionRequest()
+    {
+        var npc = NPCs.FirstOrDefault(n => n.Social.PendingNeed?.Recipient == player &&
+            CompanionInteractions.CanTalk(n, player) && TotalMinutesElapsed < n.Social.PendingNeed.ExpiresAtMinute);
+        if (npc?.Social.PendingNeed is not { } pending) return;
+        var choices = new List<(string id, string label)> { ("go", "Let them take care of it") };
+        if (CompanionInteractions.UsefulResource(player, pending.Need) != null)
+            choices.Add(("give", "Give them supplies"));
+        choices.Add(("stay", "Ask them to stay a little longer (may strain the relationship)"));
+        string choice = await Ui.Choose($"{npc.Name} needs to leave to take care of {pending.Need.ToString().ToLower()}.", choices);
+        string result = CompanionInteractions.Reply(npc, player, choice == "give" ? NeedReply.GiveResource :
+            choice == "stay" ? NeedReply.AskToStay : NeedReply.LetGo, TotalMinutesElapsed);
+        GameDisplay.AddNarrative(this, result);
+    }
+
     private void UpdateTimeTogetherRelationships()
     {
         if (Map == null) return;

@@ -19,7 +19,7 @@ public class RelationshipMemory
         for (int i = 0; i < MemoryEvents.Count; i++)
         {
             if (MemoryEvents[i].Subject == actor)
-                sum += GetMemoryImpact(MemoryEvents[i].Type) * MemoryEvents[i].Count;
+                sum += GetMemoryImpact(MemoryEvents[i].Type) * (MemoryEvents[i].Type == MemoryType.TimeTogether ? Math.Min(200, MemoryEvents[i].Count) : MemoryEvents[i].Count);
         }
         return sum;
     }
@@ -30,6 +30,7 @@ public class RelationshipMemory
         {
             MemoryType.SavedMe => .3,
             MemoryType.AbandonedMe => -.5,
+            MemoryType.PressuredMe => -.05,
             MemoryType.SharedFood => .05,
             MemoryType.FoughtTogether => .1,
             MemoryType.TimeTogether => .001,
@@ -66,4 +67,5 @@ public enum MemoryType
     // WitnessedTheft,
     // WitnessedGenerosity,
     TimeTogether,
+    PressuredMe,
 }
