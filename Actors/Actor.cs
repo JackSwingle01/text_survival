@@ -12,6 +12,13 @@ public abstract class Actor : IMovable
     public Location CurrentLocation { get; set; }
     public GameMap Map { get; set; }
 
+    /// <summary>
+    /// An enduring intention, separate from the action currently being executed.
+    /// Following behavior will consume this state; ordinary actors default to none.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FollowIntent? Following { get; set; }
+
     // Inventory - set by subclasses that have one (Player, NPC). Animals leave null.
     public virtual Inventory? Inventory { get; set; }
 
@@ -171,4 +178,3 @@ public abstract class Actor : IMovable
 
 
 }
-
