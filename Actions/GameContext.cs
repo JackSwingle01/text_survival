@@ -602,9 +602,9 @@ public class GameContext(Player player, Location camp, Weather weather)
                 npc.Update(1, npcContext, Herds, NPCs, this);
                 if (npc.Social.PendingNeed is { Recipient: NPC recipient } request)
                 {
-                    var resource = CompanionInteractions.UsefulResource(recipient, request.Need);
+                    var resource = request.IsDeparture ? null : CompanionInteractions.UsefulResource(recipient, request.Need);
                     if (resource != null) CompanionInteractions.RequestResource(npc, recipient, resource.Value, 0.5, TotalMinutesElapsed);
-                    CompanionInteractions.Reply(npc, recipient, NeedReply.LetGo, TotalMinutesElapsed);
+                    CompanionInteractions.Reply(npc, recipient, NeedReply.LetGo, TotalMinutesElapsed, request.Id);
                 }
             }
             foreach (var actor in CompanionCombat.Encounters(this).SelectMany(s => s.Units).Select(u => u.actor).Distinct()
@@ -747,13 +747,14 @@ public class GameContext(Player player, Location camp, Weather weather)
         var npc = NPCs.FirstOrDefault(n => n.Social.PendingNeed?.Recipient == player &&
             CompanionInteractions.CanTalk(n, player) && TotalMinutesElapsed < n.Social.PendingNeed.ExpiresAtMinute);
         if (npc?.Social.PendingNeed is not { } pending) return;
-        var choices = new List<(string id, string label)> { ("go", "Let them take care of it") };
-        if (CompanionInteractions.UsefulResource(player, pending.Need) != null)
+        var choices = new List<(string id, string label)> { ("go", pending.IsDeparture ? "Let them go their own way" : "Let them take care of it") };
+        if (!pending.IsDeparture && CompanionInteractions.UsefulResource(player, pending.Need) != null)
             choices.Add(("give", "Give them supplies"));
         choices.Add(("stay", "Ask them to stay a little longer (may strain the relationship)"));
-        string choice = await Ui.Choose($"{npc.Name} needs to leave to take care of {pending.Need.ToString().ToLower()}.", choices);
+        string prompt = pending.IsDeparture ? $"{npc.Name} no longer wants to travel with you." : $"{npc.Name} needs to leave to take care of {pending.Need.ToString().ToLower()}.";
+        string choice = await Ui.Choose(prompt, choices);
         string result = CompanionInteractions.Reply(npc, player, choice == "give" ? NeedReply.GiveResource :
-            choice == "stay" ? NeedReply.AskToStay : NeedReply.LetGo, TotalMinutesElapsed);
+            choice == "stay" ? NeedReply.AskToStay : NeedReply.LetGo, TotalMinutesElapsed, pending.Id);
         GameDisplay.AddNarrative(this, result);
     }
 

@@ -88,11 +88,18 @@ public class NPCOverlay
         if (npc.Following != null)
         {
             UiText.Text($"Following {npc.Following.Target.Name}");
+            UiText.Disabled(npc.DecisionReason switch
+            {
+                CompanionDecisionReason.SelfCare => "Taking care of survival needs",
+                CompanionDecisionReason.Pursuit => npc.Following.Status == PursuitStatus.Traveling ? "Catching up" : "Looking for a way to catch up",
+                CompanionDecisionReason.RequestWait => "Waiting for an answer",
+                CompanionDecisionReason.AgreedWait => "Agreed to wait briefly",
+                CompanionDecisionReason.Combat => "In combat",
+                _ => "Finishing work nearby"
+            });
             if (npc.Following.Target == ctx.player && ImGui.Button("Go your own way"))
             {
-                npc.Following = null;
-                npc.Social.PendingNeed = null;
-                npc.NextSocialDecisionMinute = ctx.TotalMinutesElapsed + 120;
+                CompanionInteractions.EndAgreement(npc, ctx.TotalMinutesElapsed, "Dismissed");
             }
         }
         else if (ImGui.Button("Come with me"))

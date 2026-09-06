@@ -136,6 +136,7 @@ public class NPC : Actor
         _game = game ?? _game;
 
         text_survival.Actors.Following.Observe(this, _game?.TotalMinutesElapsed ?? 0);
+        CompanionInteractions.UpdateAgreement(this, _game?.TotalMinutesElapsed ?? 0);
         if (_game != null && text_survival.Combat.CompanionCombat.Owns(_game, this))
         {
             DecisionReason = CompanionDecisionReason.Combat;
