@@ -77,6 +77,7 @@ public sealed class NPCGroupSimulation
 {
     public GameContext Ctx { get; }
     public List<NPC> Npcs { get; }
+    public CompanionDiagnostics Diagnostics { get; } = new();
 
     private int _followingMemberMinutes, _togetherMemberMinutes, _lostAgreements;
     private readonly HashSet<NPC> _previousFollowers = [];
@@ -137,7 +138,7 @@ public sealed class NPCGroupSimulation
     }
 
     /// <summary>Advance minute by minute until every member has died or <paramref name="minutes"/> elapses.</summary>
-    public void Run(int minutes)
+    public void Run(int minutes, bool captureTransitions = false)
     {
         var player = Ctx.player;
         var cache = Ctx.Camp.GetFeature<CacheFeature>()?.Storage;
@@ -165,6 +166,7 @@ public sealed class NPCGroupSimulation
                 Ctx.UpdateWithoutEvents(1, ActivityType.Resting);
                 foreach (var npc in Npcs)
                 {
+                    Diagnostics.Sample(npc, Ctx.TotalMinutesElapsed, captureTransitions);
                     if (npc.Following is { } intent && npc.IsAlive)
                     {
                         _followingMemberMinutes++;

@@ -83,13 +83,19 @@ public static class CompanionInteractions
             else
             {
                 action.Interrupt(npc);
+                npc.DecisionReason = CompanionDecisionReason.RequestWait;
                 return new NPCRest(1);
             }
         }
         if (npc.Following is not { } intent || npc.CurrentNeed is not { } need || !CanTalk(npc, intent.Target)) return action;
-        if (action is NPCMove && minute < state.StayUntilMinute && !Emergency(npc)) return new NPCRest(1);
+        if (action is NPCMove && minute < state.StayUntilMinute && !Emergency(npc))
+        {
+            npc.DecisionReason = CompanionDecisionReason.AgreedWait;
+            return new NPCRest(1);
+        }
         if (minute < state.NextNeedRequestMinute || action is not NPCMove) return action;
         state.NextNeedRequestMinute = minute + 60;
+        npc.DecisionReason = CompanionDecisionReason.RequestWait;
         state.PendingNeed = new CompanionNeedRequest { Recipient = intent.Target, Need = need, ExpiresAtMinute = minute + (Emergency(npc) ? 2 : 10) };
         return new NPCRest(1);
     }

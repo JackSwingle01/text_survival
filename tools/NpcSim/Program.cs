@@ -186,7 +186,10 @@ public static class Program
                 npc.Relationships.AddMemory(MemoryType.SavedMe, sim.Npcs[0]);
                 Following.TryBegin(npc, sim.Npcs[0]);
             }
-        sim.Run(o.Minutes);
+        sim.Run(o.Minutes, o.Trace);
+        if (o.OutPath != null && o.Follow)
+            File.WriteAllText($"{o.OutPath}.seed{seed}.companions.json", System.Text.Json.JsonSerializer.Serialize(
+                sim.Diagnostics, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
         var g = sim.Summarize();
         if (o.Follow)
             Console.WriteLine($"follow seed={seed} members={g.Members.Count} alive={g.MembersAliveAtEnd} followingMemberMinutes={g.FollowingMemberMinutes} togetherMemberMinutes={g.TogetherMemberMinutes} lostAgreements={g.LostAgreements}");

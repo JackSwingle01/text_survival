@@ -35,6 +35,11 @@ public class NPC : Actor
     public CompanionSocialState Social { get; set; } = new();
     public double NextSocialDecisionMinute { get; set; }
 
+    // Observational only: never used to select behavior or persisted in a save.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public CompanionDecisionReason DecisionReason { get; internal set; } = CompanionDecisionReason.CommittedWork;
+
+
     [System.Text.Json.Serialization.JsonIgnore]
     public NPCAction? CurrentAction
     {
@@ -131,7 +136,11 @@ public class NPC : Actor
         _game = game ?? _game;
 
         text_survival.Actors.Following.Observe(this, _game?.TotalMinutesElapsed ?? 0);
-        if (_game != null && text_survival.Combat.CompanionCombat.Owns(_game, this)) return;
+        if (_game != null && text_survival.Combat.CompanionCombat.Owns(_game, this))
+        {
+            DecisionReason = CompanionDecisionReason.Combat;
+            return;
+        }
 
         for (int i = 0; i < minutes; i++)
         {
@@ -241,6 +250,7 @@ public class NPC : Actor
     }
     private NPCAction DetermineActionForNeed(SurvivalContext context)
     {
+        DecisionReason = CompanionDecisionReason.SelfCare;
         if (IsTracing) Trace($"  [Warmth] Determining action for need: {CurrentNeed}");
         if (CurrentNeed == NeedType.Warmth)
         {
@@ -268,12 +278,14 @@ public class NPC : Actor
             if (eat != null) return eat;
         }
 
+        DecisionReason = CompanionDecisionReason.Pursuit;
         var pursuit = text_survival.Actors.Following.Pursue(this, _game?.TotalMinutesElapsed ?? 0);
         if (pursuit?.Steps.Count > 0)
             return new NPCMove(Map.GetLocationAt(pursuit.Steps[0])!, this);
         if (Following != null && pursuit?.Status != text_survival.Environments.Navigation.PathStatus.AlreadyThere)
             return new NPCRest(2);
 
+        DecisionReason = CompanionDecisionReason.OptionalWork;
         var action = DetermineWork();
         action ??= DetermineCraft();
         action ??= DetermineIdle(context);
