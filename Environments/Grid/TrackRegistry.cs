@@ -73,8 +73,16 @@ public readonly record struct Track(
 /// for, because it advanced the same counter. One addition per minute, whatever the
 /// size of the map.
 /// </summary>
+public sealed record TrackPassage(long Sequence, GridPosition From, GridPosition To, TrackMaker Maker, double StampedErosion);
+
 public class TrackRegistry
 {
+    public long LatestPassage { get; set; }
+    public List<TrackPassage> Passages { get; set; } = [];
+
+    public IEnumerable<TrackPassage> ReadPassages(GridPosition position) =>
+        Passages.Where(p => p.From == position && Erosion - p.StampedErosion < BaseLifespanUnits);
+
     /// <summary>Erosion units a Depth-1 track survives. Tuned against the rates below.</summary>
     public const double BaseLifespanUnits = 2880;
 
@@ -114,6 +122,8 @@ public class TrackRegistry
     {
         if (from == to) return;
 
+        Passages.Add(new TrackPassage(++LatestPassage, from, to, maker, Erosion));
+        if (Passages.Count > MaxTracks) Passages.RemoveRange(0, Passages.Count - MaxTracks);
         Direction heading = HeadingOf(from, to);
 
         // Both tiles: the ground departed from and the ground arrived on. A trail is

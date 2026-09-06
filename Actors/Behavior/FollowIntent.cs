@@ -1,17 +1,17 @@
+using text_survival.Environments.Grid;
+
 namespace text_survival.Actors;
 
-/// <summary>
-/// The minimal state contract for autonomous following. Establishing willingness and
-/// pursuing the target belong to behavior; this object does not choose or execute actions.
-/// </summary>
+/// <summary>An agreement plus the follower's own evidence. Hidden target positions are never cached.</summary>
 public sealed class FollowIntent
 {
     public Actor Target { get; set; } = null!;
-
+    public GridPosition? LastSeenPosition { get; set; }
+    public GridPosition? LeadPosition { get; set; }
+    public double LastEvidenceMinute { get; set; }
+    public long LastPassage { get; set; }
+    public TrackMaker TrackKind { get; set; }
+    public List<GridPosition> Investigated { get; set; } = [];
     public FollowIntent() { }
-
-    public FollowIntent(Actor target)
-    {
-        Target = target;
-    }
+    public FollowIntent(Actor target) => Target = target;
 }

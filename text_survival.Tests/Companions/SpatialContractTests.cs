@@ -40,7 +40,7 @@ public class SpatialContractTests
         var result = Navigation.FindRoute(world.Map, new(0, 0), new(2, 0));
         Assert.Equal(PathStatus.Found, result.Status);
         Assert.Equal(new GridPosition(0, 1), result.Steps[0]);
-        Assert.Equal(48, result.CostMinutes);
+        Assert.Equal(20, result.CostMinutes);
     }
 
     [Fact]

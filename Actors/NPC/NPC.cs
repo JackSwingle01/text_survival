@@ -127,6 +127,7 @@ public class NPC : Actor
         _currentNPCs = npcs;
         _game = game ?? _game;
 
+        text_survival.Actors.Following.Observe(this, _game?.TotalMinutesElapsed ?? 0);
         if (_game?.ActiveCombat?.Units.Any(u => u.actor == this) == true) return;
 
         for (int i = 0; i < minutes; i++)
@@ -253,6 +254,12 @@ public class NPC : Actor
             var eat = HandleFoodNeed(context);
             if (eat != null) return eat;
         }
+
+        var pursuit = text_survival.Actors.Following.Pursue(this, _game?.TotalMinutesElapsed ?? 0);
+        if (pursuit?.Steps.Count > 0)
+            return new NPCMove(Map.GetLocationAt(pursuit.Steps[0])!, this);
+        if (Following != null && pursuit?.Status != text_survival.Environments.Navigation.PathStatus.AlreadyThere)
+            return new NPCRest(2);
 
         var action = DetermineWork();
         action ??= DetermineCraft();

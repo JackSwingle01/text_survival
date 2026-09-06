@@ -27,9 +27,10 @@ internal sealed class CompanionWorld
         var map = new GameMap(width, height) { Weather = weather };
         for (int x = 0; x < width; x++)
             for (int y = 0; y < height; y++)
-                map.SetLocation(x, y, new Location($"Tile {x},{y}", "Test ground", weather, 1)
+                map.SetLocation(x, y, new Location($"Tile {x},{y}", "Test ground", weather, terrainHazardLevel: 0)
                 {
                     Terrain = TerrainType.Plain,
+                    TraversalModifier = 0.1,
                     VisibilityFactor = 1
                 });
 
