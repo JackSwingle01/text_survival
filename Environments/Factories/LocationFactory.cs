@@ -159,23 +159,6 @@ public static class LocationFactory
         return location;
     }
 
-    public static Location MakeCave(Weather weather)
-    {
-        var location = new Location(
-            name: "Cave",
-            tags: "[Sheltered] [Dark]",
-            weather: weather,
-            terrainHazardLevel: 0.1,
-            windFactor: 0.1,
-            overheadCoverLevel: 1.0,
-            visibilityFactor: 0.3);
-
-        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Scarce));
-        location.Features.Add(ShelterFeature.CreateCave());
-
-        return location;
-    }
-
     public static Location MakeRiverbank(Weather weather)
     {
         var location = new Location(

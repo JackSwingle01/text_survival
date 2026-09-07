@@ -175,19 +175,17 @@ public class TravelRunner(GameContext ctx)
         _ctx.ActiveTravel = travel;
         try
         {
-            // An event can stop the crossing partway. If the player pushes on, the walk
-            // resumes from where it left off - the run keeps the elapsed time.
-            while (await Walk(travel))
+            // Only an encounter stops the crossing partway - ordinary events wait in the
+            // queue and fire on arrival.
+            if (await Walk(travel))
             {
                 if (!_ctx.player.IsAlive) return false;
-                if (_ctx.HasPendingEncounter || _ctx.LastEventAborted) return true;
-
-                if (!await _ctx.Ui.Confirm($"Continue traveling to {destination.Name}?"))
-                    return true;  // Stayed at the origin
+                return true;  // Stayed at the origin
             }
 
             if (!_ctx.player.IsAlive) return false;
 
+            _ctx.ActiveTravel = null;
             return await Arrive(travel);
         }
         finally
@@ -199,7 +197,7 @@ public class TravelRunner(GameContext ctx)
     /// <summary>
     /// The walk. Animation and simulation both come off the travel run's clock, so the
     /// sprite, the camera and the game time arrive together.
-    /// Returns true if an event cut the crossing short.
+    /// Returns true if an encounter cut the crossing short.
     /// </summary>
     private async Task<bool> Walk(GameContext.ActiveTravelState travel)
     {
@@ -215,7 +213,7 @@ public class TravelRunner(GameContext ctx)
                 await _ctx.Update(1, ActivityType.Traveling);
                 run.MarkSimulated(1);
 
-                if (_ctx.EventOccurredLastUpdate) return true;
+                if (_ctx.HasPendingEncounter) return true;
                 if (!_ctx.player.IsAlive) return false;
             }
         }
@@ -257,6 +255,9 @@ public class TravelRunner(GameContext ctx)
             await _ctx.Ui.ShowMessage("Discovery!", $"{destination.Name}\n\n{destination.DiscoveryText}");
 
         await _ctx.ShowNotices();
+
+        // Everything that happened on the way here fires now that the player has stopped.
+        await _ctx.ProcessQueuedEvents();
 
         return _ctx.player.IsAlive;
     }

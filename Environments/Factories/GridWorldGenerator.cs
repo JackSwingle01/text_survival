@@ -100,7 +100,6 @@ public class GridWorldGenerator
         (LocationFactory.MakeStoneScatter, 5.0, [TerrainType.Rock, TerrainType.Hills]),
         (LocationFactory.MakeHillside, 5.0, [TerrainType.Hills]),
         (LocationFactory.MakeOverlook, 3.0, [TerrainType.Hills, TerrainType.Rock]),
-        (LocationFactory.MakeCave, 2.0, [TerrainType.Rock]),
         (LocationFactory.MakeRockOverhang, 3.0, [TerrainType.Rock, TerrainType.Hills]),
         (LocationFactory.MakeGraniteOutcrop, 3.0, [TerrainType.Rock]),
         (LocationFactory.MakeFlintSeam, 1.5, [TerrainType.Rock]),

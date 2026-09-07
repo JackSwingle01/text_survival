@@ -290,10 +290,19 @@ public class GameMap
         _locationIndex[location.Id] = new GridPosition(x, y);
     }
 
+    /// <summary>Debug: reveal the whole map. Toggled in-game with F12.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public static bool RevealAll { get; set; }
+
     public void UpdateVisibility(double sightCapacity = 1.0)
     {
         // Reset reveal flag
         RevealedNewLocations = false;
+
+        if (RevealAll)
+            foreach (var loc in AllLocations)
+                if (loc.Visibility == TileVisibility.Unexplored)
+                    loc.Visibility = TileVisibility.Explored;
 
         // First, downgrade all visible locations to explored
         for (int x = 0; x < Width; x++)

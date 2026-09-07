@@ -44,8 +44,8 @@ public static class EdgeRenderer
                 if (map.HasEdgeType(new GridPosition(x, y), new GridPosition(nx, ny), EdgeType.River))
                     rivers.Add(BuildBoundary(cornerX, cornerY, vertical, origin, pitch, true, Vector2.Zero));
 
-                bool mouthA = a.Structure == TileStructure.CaveEntrance && !b.CaveId.HasValue && b.IsPassable;
-                bool mouthB = b.Structure == TileStructure.CaveEntrance && !a.CaveId.HasValue && a.IsPassable;
+                bool mouthA = MouthDirection(map, x, y) == (dx, dy);
+                bool mouthB = MouthDirection(map, nx, ny) == (-dx, -dy);
                 if (mouthA || mouthB)
                 {
                     var center = origin + (vertical ? Vector2.UnitY : Vector2.UnitX) * pitch * .5f;
@@ -71,6 +71,19 @@ public static class EdgeRenderer
         DrawRivers(RoundRiverBends(rivers), pitch, timeFactor);
         foreach (var entrance in entrances)
             CaveEntranceRenderer.Draw(entrance.Center, entrance.Inward, pitch, timeFactor);
+    }
+
+    // One mouth per entrance tile: a corner entrance opens on two sides, but a cave
+    // has one way in. First open direction wins, so the choice is stable across frames.
+    private static (int X, int Y)? MouthDirection(GameMap map, int x, int y)
+    {
+        if (map.GetLocationAt(x, y)?.Structure != TileStructure.CaveEntrance) return null;
+        foreach (var (dx, dy) in Directions)
+        {
+            var neighbor = map.IsValidPosition(x + dx, y + dy) ? map.GetLocationAt(x + dx, y + dy) : null;
+            if (neighbor is { IsPassable: true, CaveId: null }) return (dx, dy);
+        }
+        return null;
     }
 
     // Rock is rough ground, not high ground - a boulder field does not sit on a

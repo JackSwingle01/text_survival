@@ -18,6 +18,13 @@ public static class MapInputRouter
         if (io.WantTextInput || ImGui.IsPopupOpen("", ImGuiPopupFlags.AnyPopupId)) return null;
         if (HotkeyRegistry.IsPressed(HotkeyAction.Cancel)) { state.ClearSelection(); return null; }
         if (io.WantCaptureKeyboard) return null;
+        if (Raylib.IsKeyPressed(KeyboardKey.F12))
+        {
+            GameMap.RevealAll = !GameMap.RevealAll;
+            ctx.Map?.UpdateVisibility();
+            state.ShowFeedback(GameMap.RevealAll ? "Debug: map revealed." : "Debug: reveal off.");
+            return null;
+        }
         (int x, int y)? step = Raylib.IsKeyPressed(KeyboardKey.W) ? (0, -1) :
             Raylib.IsKeyPressed(KeyboardKey.S) ? (0, 1) : Raylib.IsKeyPressed(KeyboardKey.A) ? (-1, 0) :
             Raylib.IsKeyPressed(KeyboardKey.D) ? (1, 0) : null;

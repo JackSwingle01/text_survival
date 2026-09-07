@@ -473,6 +473,14 @@ public class GameContext(Player player, Location camp, Weather weather)
             // Check for event (only if activity allows events AND not already handling an event)
             if (config.EventMultiplier > 0 && !IsHandlingEvent)
             {
+                // Traveling: an event mid-stride would mean asking whether to finish the
+                // step. It waits in the queue until the player arrives.
+                if (ActiveTravel != null)
+                {
+                    EventQueue.Enqueue(GameEventRegistry.GetEventOnTick(this, config.EventMultiplier));
+                    continue;
+                }
+
                 // First: check event queue (intentional triggers take precedence).
                 // A sleeper isn't there to answer them - they keep until morning.
                 if (activity != ActivityType.Sleeping && EventQueue.TryDequeue(out evt) && evt != null)
