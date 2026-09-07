@@ -155,7 +155,7 @@ public static partial class GameEventRegistry
                     new EventResult("It runs the wrong direction. Lost.", 0.45, 3),
                     new EventResult("Nothing there. The tracks were old.", 0.20, 2),
                     new EventResult("Something larger was watching too. It takes the prey before you can.", 0.05, 3)
-                        .CreateTension("Stalked", 0.2)
+                        .ObservesPredator()
                 ])
             .Choice("Circle Around",
                 "Get into ambush position. Take your time.",

@@ -106,14 +106,10 @@ public static class Situations
         ctx.Check(EventCondition.ExtremelyCold);
 
     public static bool UnderThreat(GameContext ctx) =>
-        ctx.Tensions.HasTension("Stalked") ||
-        ctx.Tensions.HasTension("Hunted") ||
-        ctx.Tensions.HasTension("PackNearby");
+        PredatorInteractions.ObservedFollowing(ctx);
 
     public static bool UnderSeriousThreat(GameContext ctx) =>
-        ctx.Tensions.HasTensionAbove("Stalked", 0.5) ||
-        ctx.Tensions.HasTension("Hunted") ||
-        ctx.Tensions.HasTensionAbove("PackNearby", 0.5);
+        PredatorInteractions.ImmediateThreat(ctx);
 
     public static bool InCrisis(GameContext ctx) =>
         (Vulnerable(ctx) && UnderThreat(ctx)) ||
@@ -193,11 +189,11 @@ public static class Situations
     public static bool PsychologicallyCompromised(GameContext ctx) =>
         ctx.Check(EventCondition.Disturbed) ||
         ctx.Check(EventCondition.DisturbedHigh) ||
-        ctx.Tensions.HasTension("Stalked");
+        PredatorInteractions.ObservedFollowing(ctx);
 
     public static bool SeverelyCompromised(GameContext ctx) =>
         ctx.Check(EventCondition.DisturbedHigh) ||
-        ctx.Tensions.HasTensionAbove("Stalked", 0.5);
+        PredatorInteractions.ImmediateThreat(ctx);
 
     public static bool CognitivelyImpaired(GameContext ctx) =>
         ctx.Check(EventCondition.Clumsy) ||
@@ -348,18 +344,13 @@ public static class Situations
     }
 
     public static bool PackThreat(GameContext ctx) =>
-        ctx.Tensions.HasTension("PackNearby") &&
+        PredatorInteractions.ObservedPack(ctx) &&
         ctx.Check(EventCondition.HasPredators);
 
     public static double PackThreatLevel(GameContext ctx)
     {
-        var packTension = ctx.Tensions.GetTension("PackNearby");
-        if (packTension == null) return 0;
-
-        double level = packTension.Severity;
-        level += VulnerabilityLevel(ctx) * 0.3;
-        level += PredatorAttractionLevel(ctx) * 0.2;
-        return Math.Min(1.0, level);
+        var pack = PredatorInteractions.Observed(ctx, packOnly: true);
+        return pack?.BoldnessToward(ctx.player, ctx) ?? 0;
     }
 
     public static bool HeavilyEncumbered(GameContext ctx) =>
@@ -466,14 +457,6 @@ public static class Situations
         return worst != null ? (worst, worst.ConditionPct) : null;
     }
 
-
-
-
-
-
-
-
-
     public static bool ScavengerWolfDynamics(GameContext ctx)
     {
         return AnimalPresence.ScavengersNear(ctx) && AnimalPresence.OfTypeNear(ctx, AnimalType.Wolf);
@@ -499,7 +482,6 @@ public static class Situations
 
         return Math.Min(1.0, level);
     }
-
 
     public static bool SaberToothThreat(GameContext ctx) =>
         ctx.Tensions.HasTension("SaberToothStalked");
@@ -527,7 +509,6 @@ public static class Situations
         return Math.Min(1.0, level);
     }
 
-
     public static bool NearMammothHerd(GameContext ctx)
     {
         if (ctx.Map == null) return false;
@@ -535,7 +516,6 @@ public static class Situations
         return ctx.Herds.OfAnimalType(AnimalType.Mammoth)
             .Any(h => h.Count > 0 && h.Position.ManhattanDistance(pos) <= 8);
     }
-
 
     public static Herd? GetMammothHerd(GameContext ctx)
     {

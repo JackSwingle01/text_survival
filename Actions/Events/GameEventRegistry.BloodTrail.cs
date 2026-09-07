@@ -38,7 +38,7 @@ public static partial class GameEventRegistry
                     new EventResult("You're deep in unfamiliar territory now. The trail continues.", weight: 0.15, minutes: 30)
                         .Escalate("WoundedPrey", 0.15),
                     new EventResult("Something else found the trail first.", weight: 0.10, minutes: 15)
-                        .BecomeStalked(0.3)
+                        .ObservesPredator()
                         .ResolveTension("WoundedPrey")
                 ])
             .Choice("Set Snare on Trail",
@@ -70,7 +70,7 @@ public static partial class GameEventRegistry
         var animal = woundedTension?.AnimalType ?? AnimalType.Caribou;
 
         // Scavenger type affects options - null indicates ravens
-        var scavengerType = AnimalPresence.PickPredator(ctx);
+        var scavengerType = PredatorInteractions.Observed(ctx)?.AnimalType;
 
         var scavengerDesc = scavengerType == null
             ? "Ravens circle overhead, cawing. They've spotted the blood."
@@ -93,7 +93,7 @@ public static partial class GameEventRegistry
                         : $"The {scavengerType.Value.DisplayName()} moves closer as you work. Hurrying now.", weight: 0.25, minutes: 12)
                         .ResolveTension("WoundedPrey")
                         .FindsMeat()
-                        .BecomeStalked(0.3, scavengerType),
+                        .ObservesPredator(scavengerType),
                     new EventResult(scavengerType == null
                         ? "Too slow. The ravens commit."
                         : $"Too slow. The {scavengerType.Value.DisplayName()} commits.", weight: 0.15, minutes: 10)
@@ -111,7 +111,7 @@ public static partial class GameEventRegistry
                         ? "The ravens don't wait. They claim the kill."
                         : $"The {scavengerType.Value.DisplayName()} doesn't wait. It claims the kill.", weight: 0.35, minutes: 20)
                         .ResolveTension("WoundedPrey")
-                        .BecomeStalked(0.2, scavengerType),
+                        .ObservesPredator(scavengerType),
                     new EventResult("Takes too long. Other scavengers arrive. You retreat.", weight: 0.25, minutes: 30)
                         .ResolveTension("WoundedPrey")
                 ])
@@ -132,7 +132,7 @@ public static partial class GameEventRegistry
                         new EventResult($"The {scavengerType.Value.DisplayName()} backs off. For now.", weight: 0.50, minutes: 20)
                             .ResolveTension("WoundedPrey")
                             .FindsLargeMeat()
-                            .BecomeStalked(0.2, scavengerType),
+                            .ObservesPredator(scavengerType),
                         new EventResult("It doesn't back down. This is a confrontation.", weight: 0.30, minutes: 10)
                             .ResolveTension("WoundedPrey")
                             .Encounter(scavengerType ?? AnimalType.Wolf, 25, 0.6),
@@ -150,7 +150,7 @@ public static partial class GameEventRegistry
     {
         var woundedTension = ctx.Tensions.GetTension("WoundedPrey");
         var animal = woundedTension?.AnimalType ?? AnimalType.Caribou;
-        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
+        var predator = PredatorInteractions.Observed(ctx)?.AnimalType ?? AnimalType.Wolf;
 
         return new GameEvent("Scavengers Converge",
             $"Too late. {predator.DisplayName()}s have found the blood trail. They're between you and the {animal.DisplayName()}.", 3.0)
@@ -169,7 +169,7 @@ public static partial class GameEventRegistry
                         .ResolveTension("WoundedPrey"),
                     new EventResult("One follows. It's not letting you go that easily.", weight: 0.30, minutes: 8)
                         .ResolveTension("WoundedPrey")
-                        .BecomeStalked(0.4, predator)
+                        .ObservesPredator(predator)
                 ])
             .Choice("Create Distraction",
                 "Throw something to draw them away. Make a break for the carcass.",

@@ -104,7 +104,7 @@ public static partial class GameEventRegistry
                         .ResolvesScavengers(),
                     new EventResult("They follow, wanting what you're carrying too.", weight: 0.2, minutes: 3)
                         .ResolvesScavengers()
-                        .BecomeStalked(0.2, AnimalType.Hyena)
+                        .ObservesPredator(AnimalType.Hyena)
                 ])
             .Choice("Use Fire",
                 "Light a torch. Animals fear fire.",
@@ -250,38 +250,39 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Scavenger's Gambit",
             $"A {animalName} carcass. Wolves feed. Hyenas circle, waiting. You're the third faction in this stand-off.", 0.8)
+            .ForPredatorScene(PredatorSceneKind.ScavengersGambit)
             .Requires(EventCondition.OnExpedition)
-            .Requires(EventCondition.PackNearby)
             .RequiresSituation(Situations.FreshCarcassPresent)
             .RequiresSituation(Situations.ScavengerWolfDynamics)
             .Choice("Wait for Wolves to Leave",
                 "Patience. Let the wolves eat their fill and move on.",
                 [
                     new EventResult("The wolves finish, move off. Hyenas dart in. You wait longer.", weight: 0.4, minutes: 45)
-                        .ResolvesPack()
+                        .PredatorWithdraws()
                         .WithScavengerLoss(0.3),
                     new EventResult("Wolves leave. You reach the carcass before the hyenas.", weight: 0.3, minutes: 40)
-                        .ResolvesPack()
+                        .PredatorWithdraws()
                         .ScavengersWaiting(0.3),
                     new EventResult("They're taking forever. Night is coming.", weight: 0.2, minutes: 60)
-                        .EscalatesPack(0.1),
-                    new EventResult("A second pack arrives. The situation gets complicated.", weight: 0.1, minutes: 30)
-                        .EscalatesPack(0.3)
+                        .PredatorFollows(),
+                    new EventResult("A second wolf pack is here too. The situation gets complicated.", weight: 0.1, minutes: 30)
+                        .When(c => c.Herds.Count(h => h.AnimalType == AnimalType.Wolf && PredatorInteractions.CanObserve(c, h)) >= 2)
+                        .PredatorFollows()
                         .EscalatesScavengers(0.2)
                 ])
             .Choice("Spook the Wolves",
                 "Make noise. Maybe they'll abandon the kill.",
                 [
                     new EventResult("They startle, grab what they can, flee. Hyenas rush in. You're left with scraps.", weight: 0.4, minutes: 10)
-                        .ResolvesPack()
+                        .PredatorWithdraws()
                         .WithScavengerLoss(0.5),
                     new EventResult("Wolves retreat but stay close. Watching. You have a window.", weight: 0.3, minutes: 10)
-                        .EscalatesPack(-0.2)
+                        .PredatorWithdraws()
                         .ScavengersWaiting(0.2),
                     new EventResult("The wolves don't spook. Now they're looking at YOU.", weight: 0.2, minutes: 5)
-                        .EscalatesPack(0.3),
+                        .PredatorFollows(),
                     new EventResult("You draw the attention of both packs. Bad idea.", weight: 0.1, minutes: 5)
-                        .EscalatesPack(0.4)
+                        .PredatorFollows()
                         .EscalatesScavengers(0.3)
                         .Frightening()
                 ])
@@ -298,17 +299,17 @@ public static partial class GameEventRegistry
                     new EventResult("Quick work. The wolves notice you leaving.", weight: 0.2, minutes: 10)
                         .FindsMeat()
                         .MinorBloody()
-                        .BecomeStalked(0.2, AnimalType.Wolf),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("Everyone noticed. Time to run.", weight: 0.2, minutes: 5)
                         .Frightening()
-                        .EscalatesPack(0.2)
+                        .PredatorFollows()
                         .EscalatesScavengers(0.2)
                 ])
             .Choice("Let Them Have It",
                 "Not worth the risk. Leave them to fight over it.",
                 [
                     new EventResult("You fade back. The natural order continues without you.", weight: 1.0, minutes: 5)
-                        .ResolvesPack()
+                        .PredatorWithdraws()
                         .ResolvesScavengers()
                 ]);
     }

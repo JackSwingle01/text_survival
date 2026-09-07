@@ -135,7 +135,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.TrackExaminations,
             TensionOnInteract = isPredator
-                ? () => ActiveTension.Stalked(0.2, animalType)
+                ? null
                 : () => ActiveTension.FreshTrail(0.4, animalType)
         };
     }
@@ -180,7 +180,7 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.DroppingExaminations,
             TensionOnInteract = isPredator
-                ? () => ActiveTension.Stalked(0.15, animalType)
+                ? null
                 : () => ActiveTension.FreshTrail(0.3, animalType)
         };
     }
@@ -193,9 +193,6 @@ public class EnvironmentalDetail : LocationFeature, IWorkableFeature
             InteractionHint = "examine the branches",
             InteractionMinutes = 1,
             ExaminationPool = ExaminationVariants.BranchExaminations,
-            TensionOnInteract = () => Utils.Rng.NextDouble() < 0.5
-                ? ActiveTension.FreshTrail(0.3, null)
-                : ActiveTension.Stalked(0.1)
         };
     }
 

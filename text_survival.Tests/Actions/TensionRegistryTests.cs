@@ -10,13 +10,13 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        var tension = ActiveTension.Stalked(0.5, AnimalType.Wolf);
+        var tension = ActiveTension.WoundedPrey(0.5, AnimalType.Wolf);
 
         // Act
         registry.AddTension(tension);
 
         // Assert
-        Assert.True(registry.HasTension("Stalked"));
+        Assert.True(registry.HasTension("WoundedPrey"));
     }
 
     [Fact]
@@ -24,13 +24,13 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        registry.AddTension(ActiveTension.Stalked(0.3, AnimalType.Wolf));
+        registry.AddTension(ActiveTension.WoundedPrey(0.3, AnimalType.Wolf));
 
         // Act - add same type with higher severity
-        registry.AddTension(ActiveTension.Stalked(0.8, AnimalType.Bear));
+        registry.AddTension(ActiveTension.WoundedPrey(0.8, AnimalType.Bear));
 
         // Assert - severity updates but original tension properties remain
-        var tension = registry.GetTension("Stalked");
+        var tension = registry.GetTension("WoundedPrey");
         Assert.NotNull(tension);
         Assert.Equal(0.8, tension.Severity);
         // Note: AnimalType remains AnimalType.Wolf as only severity is updated
@@ -42,14 +42,14 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        registry.AddTension(ActiveTension.Stalked(0.6, AnimalType.Wolf));
+        registry.AddTension(ActiveTension.WoundedPrey(0.6, AnimalType.Wolf));
 
         // Act
-        var tension = registry.GetTension("Stalked");
+        var tension = registry.GetTension("WoundedPrey");
 
         // Assert
         Assert.NotNull(tension);
-        Assert.Equal("Stalked", tension.Type);
+        Assert.Equal("WoundedPrey", tension.Type);
         Assert.Equal(0.6, tension.Severity);
     }
 
@@ -60,7 +60,7 @@ public class TensionRegistryTests
         var registry = new TensionRegistry();
 
         // Act
-        var tension = registry.GetTension("Stalked");
+        var tension = registry.GetTension("WoundedPrey");
 
         // Assert
         Assert.Null(tension);
@@ -71,13 +71,13 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        registry.AddTension(ActiveTension.Stalked(0.7));
+        registry.AddTension(ActiveTension.WoundedPrey(0.7));
 
         // Act & Assert
-        Assert.True(registry.HasTensionAbove("Stalked", 0.5));
-        Assert.True(registry.HasTensionAbove("Stalked", 0.6));
-        Assert.False(registry.HasTensionAbove("Stalked", 0.7));
-        Assert.False(registry.HasTensionAbove("Stalked", 0.8));
+        Assert.True(registry.HasTensionAbove("WoundedPrey", 0.5));
+        Assert.True(registry.HasTensionAbove("WoundedPrey", 0.6));
+        Assert.False(registry.HasTensionAbove("WoundedPrey", 0.7));
+        Assert.False(registry.HasTensionAbove("WoundedPrey", 0.8));
     }
 
     [Fact]
@@ -85,13 +85,13 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        registry.AddTension(ActiveTension.Stalked(0.5));
+        registry.AddTension(ActiveTension.WoundedPrey(0.5));
 
         // Act
-        registry.ResolveTension("Stalked");
+        registry.ResolveTension("WoundedPrey");
 
         // Assert
-        Assert.False(registry.HasTension("Stalked"));
+        Assert.False(registry.HasTension("WoundedPrey"));
     }
 
     [Fact]
@@ -99,13 +99,13 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        registry.AddTension(ActiveTension.Stalked(0.3));
+        registry.AddTension(ActiveTension.WoundedPrey(0.3));
 
         // Act
-        registry.EscalateTension("Stalked", 0.2);
+        registry.EscalateTension("WoundedPrey", 0.2);
 
         // Assert
-        var tension = registry.GetTension("Stalked");
+        var tension = registry.GetTension("WoundedPrey");
         Assert.NotNull(tension);
         Assert.Equal(0.5, tension.Severity, precision: 2);
     }
@@ -115,13 +115,13 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        registry.AddTension(ActiveTension.Stalked(0.9));
+        registry.AddTension(ActiveTension.WoundedPrey(0.9));
 
         // Act
-        registry.EscalateTension("Stalked", 0.5);
+        registry.EscalateTension("WoundedPrey", 0.5);
 
         // Assert
-        var tension = registry.GetTension("Stalked");
+        var tension = registry.GetTension("WoundedPrey");
         Assert.NotNull(tension);
         Assert.Equal(1.0, tension.Severity);
     }
@@ -131,7 +131,7 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        var tension = ActiveTension.Stalked(0.5);
+        var tension = ActiveTension.WoundedPrey(0.5);
         registry.AddTension(tension);
         double initialSeverity = tension.Severity;
 
@@ -147,15 +147,15 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        var stalked = ActiveTension.Stalked(0.5); // DecaysAtCamp = true
-        registry.AddTension(stalked);
-        double initialSeverity = stalked.Severity;
+        var woundedPrey = ActiveTension.WoundedPrey(0.5); // DecaysAtCamp = true
+        registry.AddTension(woundedPrey);
+        double initialSeverity = woundedPrey.Severity;
 
         // Act - simulate 60 minutes at camp
         registry.Update(60, atCamp: true);
 
-        // Assert - Stalked decays at camp
-        Assert.True(stalked.Severity < initialSeverity);
+        // Assert - WoundedPrey decays at camp
+        Assert.True(woundedPrey.Severity < initialSeverity);
     }
 
     [Fact]
@@ -163,24 +163,24 @@ public class TensionRegistryTests
     {
         // Arrange
         var registry = new TensionRegistry();
-        var tension = ActiveTension.Stalked(0.01); // Very low severity
+        var tension = ActiveTension.WoundedPrey(0.01); // Very low severity
         registry.AddTension(tension);
 
         // Act - simulate enough time to fully decay
         registry.Update(120, atCamp: false);
 
         // Assert - tension should be removed when severity hits 0
-        Assert.False(registry.HasTension("Stalked"));
+        Assert.False(registry.HasTension("WoundedPrey"));
     }
 
     [Fact]
-    public void ActiveTension_Stalked_HasCorrectDefaults()
+    public void ActiveTension_WoundedPrey_HasCorrectDefaults()
     {
         // Act
-        var tension = ActiveTension.Stalked(0.5, AnimalType.Wolf);
+        var tension = ActiveTension.WoundedPrey(0.5, AnimalType.Wolf);
 
         // Assert
-        Assert.Equal("Stalked", tension.Type);
+        Assert.Equal("WoundedPrey", tension.Type);
         Assert.Equal(0.5, tension.Severity);
         Assert.Equal(AnimalType.Wolf, tension.AnimalType);
         Assert.True(tension.DecaysAtCamp);

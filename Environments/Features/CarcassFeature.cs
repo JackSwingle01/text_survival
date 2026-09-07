@@ -160,6 +160,13 @@ public class CarcassFeature : LocationFeature, IWorkableFeature
         }
     }
 
+    public double ConsumeMeat(double kilograms)
+    {
+        double consumed = Math.Min(MeatRemainingKg, Math.Max(0, kilograms));
+        MeatRemainingKg -= consumed;
+        return consumed;
+    }
+
     public override void Update(int minutes)
     {
         RawHoursSinceDeath += minutes / 60.0;

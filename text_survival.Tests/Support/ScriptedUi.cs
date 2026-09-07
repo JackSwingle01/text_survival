@@ -35,6 +35,8 @@ public sealed class ScriptedUi : IGameUi
     /// opts in here rather than scripting every possibility.
     /// </summary>
     public bool AutoResolveEvents { get; set; }
+    public Func<EventDto, string>? SelectEventChoice { get; set; }
+    public List<EventDto> EventsShown { get; } = [];
 
     public List<(string Title, string Text)> Messages { get; } = [];
     public List<WorkResultView> WorkResults { get; } = [];
@@ -81,6 +83,8 @@ public sealed class ScriptedUi : IGameUi
 
     public Task<string> ShowEventChoices(EventDto evt)
     {
+        EventsShown.Add(evt);
+        if (SelectEventChoice != null) return Task.FromResult(SelectEventChoice(evt));
         if (AutoResolveEvents && evt.Choices.Count > 0)
             return Task.FromResult(evt.Choices[0].Id);
 

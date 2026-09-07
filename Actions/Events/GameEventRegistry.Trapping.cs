@@ -28,7 +28,7 @@ public static partial class GameEventRegistry
                     new EventResult("Rabbit tracks. It triggered the snare but escaped. The mechanism needs resetting.", 0.35, 10),
                     new EventResult("Fox tracks circling, sniffing. It was curious but didn't take the bait.", 0.25, 8),
                     new EventResult("Larger prints. Something bigger was interested. This could attract predators.", 0.20, 10)
-                        .BecomeStalked(0.2),
+                        .ObservesPredator(),
                     new EventResult("The snare is gone. Dragged off by something strong. You follow the drag marks and find usable parts.", 0.15, 20)
                         .Rewards(RewardPool.CraftingMaterials),
                     new EventResult("Human bootprints. Someone else knows about your trap line.", 0.05, 15)
@@ -48,7 +48,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You back away carefully. The snare can wait.", 0.80, 0),
                     new EventResult("Smart instinct. You hear movement in the brush as you retreat.", 0.20, 0)
-                        .BecomeStalked(0.25)
+                        .ObservesPredator()
                 ]);
     }
 
@@ -57,22 +57,23 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent PredatorAtTrapLine(GameContext ctx)
     {
-        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Fox;
+        var predator = PredatorInteractions.Observed(ctx)?.AnimalType ?? AnimalType.Fox;
 
         return new GameEvent("Predator at Trap Line",
             $"You approach your snares and freeze. A {predator.DisplayName()} is there, sniffing around the bait.", 1.2)
-            .Requires(EventCondition.TrapLineActive, EventCondition.Stalked, EventCondition.FieldWork)
+            .ForPredatorScene(PredatorSceneKind.PredatorAtTrapLine)
+            .Requires(EventCondition.TrapLineActive, EventCondition.PredatorFollowing, EventCondition.FieldWork)
             // TrapLineAttractive covers: SnareHasCatch OR SnareBaited (higher-value target)
             .WithSituationFactor(Situations.TrapLineAttractive, 2.5)
-            .WithConditionFactor(EventCondition.StalkedHigh, 1.5)
+            .WithConditionFactor(EventCondition.PredatorWithinReach, 1.5)
             .Choice("Drive It Off",
                 "Make noise. Assert dominance. This is YOUR trap line.",
                 [
                     new EventResult($"You shout and wave your arms. The {predator.DisplayName()} backs off, watching.", 0.40, 5)
-                        .ResolvesStalking()
+                        .PredatorWithdraws()
                         .Shaken(),
-                    new EventResult($"It startles and runs. But it knows where to find food now.", 0.30, 3)
-                        .EscalatesStalking(0.15),
+                    new EventResult($"It startles and runs. The bait remains here.", 0.30, 3)
+                        .PredatorWithdraws(),
                     new EventResult($"It doesn't back down. Hackles raised, it holds its ground.", 0.20, 0)
                         .Frightening()
                         .Encounter(predator, 20, 0.5),
@@ -83,8 +84,11 @@ public static partial class GameEventRegistry
                 "Stay hidden. Let it take what it wants and leave.",
                 [
                     new EventResult($"The {predator.DisplayName()} sniffs around, then wanders off. Your catches are safe.", 0.30, 20)
-                        .ResolvesStalking(),
-                    new EventResult($"It finds your catch and drags it away. You watch helplessly.", 0.40, 15),
+                        .PredatorWithdraws(),
+                    new EventResult($"It gets at the catch, wrecking the snare as it pulls away.", 0.40, 15)
+                        .When(c => c.CurrentLocation.GetFeature<SnareLineFeature>()?.HasCatchWaiting == true)
+                        .DestroysSnare()
+                        .PredatorWithdraws(),
                     new EventResult($"It destroys a snare trying to get at something. Then leaves.", 0.20, 15)
                         .DestroysSnare(),
                     new EventResult($"It catches your scent. Turns toward your hiding spot.", 0.10, 10)
@@ -96,7 +100,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You slip away unseen. The trap line can wait.", 0.70, 0),
                     new EventResult($"A branch snaps. The {predator.DisplayName()} looks up, ears forward.", 0.30, 0)
-                        .EscalatesStalking(0.2)
+                        .PredatorFollows()
                         .Unsettling()
                 ]);
     }
@@ -126,7 +130,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Clear. You collect your catch without incident.", 0.75, 5),
                     new EventResult("Smart. Tracks around the snare — something was circling. Already gone.", 0.20, 8)
-                        .BecomeStalked(0.15),
+                        .ObservesPredator(),
                     new EventResult("A scavenger was nearby, waiting for you to leave. It flees as you approach.", 0.05, 5)
                 ]);
     }
@@ -136,7 +140,7 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent TrapLinePlundered(GameContext ctx)
     {
-        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Fox;
+        var predator = PredatorInteractions.Observed(ctx)?.AnimalType ?? AnimalType.Fox;
 
         return new GameEvent("Trap Line Plundered",
             "Your snares have been hit. The snow is churned up, feathers and fur scattered. Something got here first.", 0.7)
@@ -153,7 +157,7 @@ public static partial class GameEventRegistry
                         .DestroysSnare(),
                     new EventResult("Picked clean. Nothing left but tracks.", 0.20, 8),
                     new EventResult("Blood trail leads away. Something large was here recently.", 0.05, 5)
-                        .BecomeStalked(0.3)
+                        .ObservesPredator()
                 ])
             .Choice("Track the Scavenger",
                 "Follow the trail. Maybe you can recover something.",
@@ -234,14 +238,14 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent BaitedTrapAttention(GameContext ctx)
     {
-        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Fox;
+        var predator = PredatorInteractions.Observed(ctx)?.AnimalType ?? AnimalType.Fox;
 
         return new GameEvent("Unwanted Attention",
             $"The meat bait on your snare has attracted attention. {predator.DisplayName().ToLower()} tracks circle the trap.", 0.5)
             .Requires(EventCondition.TrapLineActive, EventCondition.SnareBaited, EventCondition.FieldWork)
             // InDarkness covers: Night, InDarkness
             .WithSituationFactor(Situations.InDarkness, 1.5)
-            .WithConditionFactor(EventCondition.Stalked, 2.0)
+            .WithConditionFactor(EventCondition.PredatorFollowing, 2.0)
             .Choice("Remove the Bait",
                 "It's attracting the wrong things. Take it back.",
                 [
@@ -253,9 +257,9 @@ public static partial class GameEventRegistry
                 "Maybe it'll catch something good.",
                 [
                     new EventResult("You decide the risk is worth it. For now.", 0.60, 0)
-                        .EscalatesStalking(0.1),
+                        .PredatorFollows(),
                     new EventResult("As you debate, you hear something moving nearby.", 0.30, 0)
-                        .BecomeStalked(0.25),
+                        .ObservesPredator(),
                     new EventResult($"Too late to decide. A {predator.DisplayName()} emerges from cover.", 0.10, 0)
                         .Encounter(predator, 25, 0.4)
                 ])

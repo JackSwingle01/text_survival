@@ -88,6 +88,11 @@ public class GameRunner(GameContext ctx)
             {
                 case PlayerAction.Quit:
                     return false;
+                case PlayerAction.NewGame:
+                    if (!await ctx.Ui.Confirm("Start a new game? This erases your existing save and ends this run."))
+                        break;
+                    SaveManager.DeleteSave(ctx.SessionId);
+                    return true;
                 case PlayerAction.Travel travel:
                     await new TravelRunner(ctx).TravelTo(travel.X, travel.Y, travel.HazardMode);
                     break;

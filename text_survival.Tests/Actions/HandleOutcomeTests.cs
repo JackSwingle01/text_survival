@@ -121,15 +121,15 @@ public class HandleOutcomeTests
         var ctx = CreateTestContext();
         var outcome = new EventResult("Test")
         {
-            CreatesTension = new TensionCreation("Stalked", 0.5, AnimalType: AnimalType.Wolf)
+            CreatesTension = new TensionCreation("WoundedPrey", 0.5, AnimalType: AnimalType.Wolf)
         };
 
         // Act
         await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
-        Assert.True(ctx.Tensions.HasTension("Stalked"));
-        var tension = ctx.Tensions.GetTension("Stalked");
+        Assert.True(ctx.Tensions.HasTension("WoundedPrey"));
+        var tension = ctx.Tensions.GetTension("WoundedPrey");
         Assert.NotNull(tension);
         Assert.Equal(0.5, tension.Severity);
     }
@@ -139,18 +139,18 @@ public class HandleOutcomeTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        ctx.Tensions.AddTension(ActiveTension.Stalked(0.5));
+        ctx.Tensions.AddTension(ActiveTension.WoundedPrey(0.5));
 
         var outcome = new EventResult("Test")
         {
-            ResolvesTension = "Stalked"
+            ResolvesTension = "WoundedPrey"
         };
 
         // Act
         await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
-        Assert.False(ctx.Tensions.HasTension("Stalked"));
+        Assert.False(ctx.Tensions.HasTension("WoundedPrey"));
     }
 
     [Fact]
@@ -158,18 +158,18 @@ public class HandleOutcomeTests
     {
         // Arrange
         var ctx = CreateTestContext();
-        ctx.Tensions.AddTension(ActiveTension.Stalked(0.3));
+        ctx.Tensions.AddTension(ActiveTension.WoundedPrey(0.3));
 
         var outcome = new EventResult("Test")
         {
-            EscalateTension = ("Stalked", 0.2)
+            EscalateTension = ("WoundedPrey", 0.2)
         };
 
         // Act
         await GameEventRegistry.HandleOutcome(ctx, outcome);
 
         // Assert
-        var tension = ctx.Tensions.GetTension("Stalked");
+        var tension = ctx.Tensions.GetTension("WoundedPrey");
         Assert.NotNull(tension);
         Assert.Equal(0.5, tension.Severity, precision: 2);
     }

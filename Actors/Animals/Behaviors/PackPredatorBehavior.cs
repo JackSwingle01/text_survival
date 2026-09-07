@@ -288,37 +288,6 @@ public class PackPredatorBehavior : IHerdBehavior
     private GridPosition? GetNextPatrolTarget(Herd herd, GameContext ctx)
     {
         // Hungry predators bias toward player tile if signals are strong
-        if (herd.Hunger > 0.5 && ctx.Map != null)
-        {
-            var playerPos = ctx.Map.CurrentPosition;
-            int playerDistance = herd.Position.ManhattanDistance(playerPos);
-
-            if (playerDistance <= 8 && herd.HomeTerritory.Contains(playerPos))
-            {
-                double pullStrength = 0;
-
-                bool isBleeding = ctx.player.EffectRegistry.HasEffect("Bleeding") ||
-                                  ctx.player.EffectRegistry.GetSeverity("Bloody") > 0.3;
-                if (isBleeding) pullStrength += 0.4;
-
-                bool carryingMeat = ctx.Inventory.Count(Resource.RawMeat) > 0 ||
-                                    ctx.Inventory.Count(Resource.CookedMeat) > 0;
-                if (carryingMeat) pullStrength += 0.3;
-
-                if (Utils.Rng.NextDouble() < pullStrength)
-                {
-                    // Move one tile toward player
-                    int dx = Math.Sign(playerPos.X - herd.Position.X);
-                    int dy = Math.Sign(playerPos.Y - herd.Position.Y);
-
-                    var candidates = new List<GridPosition>();
-                    if (dx != 0) candidates.Add(new GridPosition(herd.Position.X + dx, herd.Position.Y));
-                    if (dy != 0) candidates.Add(new GridPosition(herd.Position.X, herd.Position.Y + dy));
-
-                    return candidates.FirstOrDefault(p => ctx.Map.GetLocationAt(p)?.IsPassable ?? false);
-                }
-            }
-        }
 
         // Normal patrol
         if (herd.HomeTerritory.Count == 0) return null;

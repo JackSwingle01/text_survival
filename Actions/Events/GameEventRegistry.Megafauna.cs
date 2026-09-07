@@ -226,20 +226,21 @@ public static partial class GameEventRegistry
         return new GameEvent("Wolves Smell Blood",
             "You're elbow-deep in the mammoth carcass, working as fast as you can. " +
             "Then you hear it: howls. Close. They've smelled the blood, and they're coming.", 1.8)
-            .Requires(EventCondition.FoodScentStrong)
+            .ForPredatorScene(PredatorSceneKind.WolvesSmellBlood)
+            .RequiresSituation(c => AuthoredPredatorScenes.Carcass(c) != null)
             .Choice("Work Faster, Grab What You Can",
                 "Take the best cuts and run. Leave the rest.",
                 [
                     new EventResult("You cut free what you can carry and bolt. The howls are very close now.", weight: 0.60, minutes: 8)
                         .FindsLargeMeat()
-                        .BecomeStalked(0.4, AnimalType.Wolf),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("Knife slips in your haste—you cut yourself. But you get clear.", weight: 0.25, minutes: 10)
                         .FindsMeat()
                         .Damage(0.15, DamageType.Sharp)
                         .WithEffects(EffectFactory.Bleeding(0.3))
-                        .BecomeStalked(0.5, AnimalType.Wolf),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("Too slow. They're here. You drop everything and run.", weight: 0.15, minutes: 5)
-                        .BecomeStalked(0.6, AnimalType.Wolf)
+                        .ObservesPredator(AnimalType.Wolf)
                 ])
             .Choice("Defend the Kill",
                 "This is YOUR kill. Stand your ground.",
@@ -250,7 +251,7 @@ public static partial class GameEventRegistry
                         .ResolveTension("FoodScentStrong"),
                     new EventResult("They test you. One rushes in—you drive it back. They keep circling. Waiting.", weight: 0.35, minutes: 25)
                         .FindsLargeMeat()
-                        .CreateTension("PackNearby", 0.6),
+                        .ObservesPredator(),
                     new EventResult("There are too many. They swarm. You fight them off the carcass.", weight: 0.25)
                         .FindsMeat()
                         .Encounter(AnimalType.Wolf, distance: 15, boldness: 0.7)

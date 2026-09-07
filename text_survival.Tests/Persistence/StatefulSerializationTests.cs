@@ -48,7 +48,7 @@ public class StatefulSerializationTests
         var netFishing = new NetFishingFeature(water);
         netFishing.PlaceNet(9);
         netFishing._nets[0].Update(60, fishAbundance: 0, isFlowingWater: false,
-            stalkedTensionActive: false);
+            predatorPresent: false);
 
         var loaded = Assert.IsType<NetFishingFeature>(RoundTrip<LocationFeature>(netFishing));
         var net = Assert.Single(loaded._nets);

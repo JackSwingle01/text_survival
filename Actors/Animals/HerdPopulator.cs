@@ -122,7 +122,7 @@ public static class HerdPopulator
     private static List<GridPosition> PickStarts(List<GridPosition> dens, List<GridPosition> available, int count)
     {
         var starts = new List<GridPosition>(dens);
-        while (starts.Count < Math.Max(count, dens.Count) && available.Count > 0)
+        while (starts.Count < Math.Max(count, dens.Count) && available.Any(p => !starts.Contains(p)))
         {
             var pos = available[_rng.Next(available.Count)];
             if (!starts.Contains(pos)) starts.Add(pos);
@@ -153,12 +153,12 @@ public static class HerdPopulator
     private static List<GridPosition> GetInteriorPositions(GameMap map)
     {
         var positions = new List<GridPosition>();
-        for (int x = 24; x < map.Width - 24; x++)
+        for (int x = 2; x < map.Width - 2; x++)
         {
-            for (int y = 24; y < map.Height - 24; y++)
+            for (int y = 2; y < map.Height - 2; y++)
             {
                 var loc = map.GetLocationAt(x, y);
-                if (loc != null && loc.IsPassable)
+                if (loc != null && loc.IsPassable && !loc.CaveId.HasValue && !loc.IsCrossingExit)
                 {
                     positions.Add(new GridPosition(x, y));
                 }
@@ -450,7 +450,7 @@ public static class HerdPopulator
             {
                 var pos = new GridPosition(center.X + dx, center.Y + dy);
                 var loc = map.GetLocationAt(pos);
-                if (loc != null && loc.IsPassable)
+                if (loc != null && loc.IsPassable && !loc.CaveId.HasValue && !loc.IsCrossingExit)
                 {
                     positions.Add(pos);
                 }

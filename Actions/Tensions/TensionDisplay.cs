@@ -13,9 +13,6 @@ public static class TensionDisplay
     private static readonly Dictionary<string, TensionInfo> TensionLookup = new()
     {
         // Threats
-        ["Stalked"] = new("A {animalType} is following you", "threat"),
-        ["Hunted"] = new("You are being hunted", "threat"),
-        ["PackNearby"] = new("A pack is nearby", "threat"),
         ["DeadlyCold"] = new("The cold is killing you", "threat"),
 
         // Opportunities

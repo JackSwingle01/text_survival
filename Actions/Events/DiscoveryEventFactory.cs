@@ -210,7 +210,7 @@ public static class DiscoveryEventFactory
                 "What killed this? What ate it?",
                 [
                     new EventResult("Old wolf sign. They've moved on.", 0.5, 8)
-                        .BecomeStalked(0.15),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("Bear teeth marks. Be careful in this area.", 0.3, 10)
                         .CreateTension("ClaimedTerritory", 0.3, animalType: AnimalType.Bear),
                     new EventResult("Human tool marks on some bones. Someone else hunted here.", 0.2, 12)
@@ -240,7 +240,7 @@ public static class DiscoveryEventFactory
                         .Rewards(RewardPool.BasicMeat)
                         .Rewards(RewardPool.BoneHarvest),
                     new EventResult("Something growls from the brush. You back away slowly.", 0.2, 5)
-                        .BecomeStalked(0.4)
+                        .ObservesPredator()
                         .Aborts(),
                     new EventResult("You get close and realize something is still feeding. Wolf.", 0.15, 3)
                         .Encounter(AnimalType.Wolf, 15, 0.6)
@@ -251,7 +251,7 @@ public static class DiscoveryEventFactory
                     new EventResult("Ravens circle but nothing larger appears. Safe to approach.", 0.6, 20)
                         .Rewards(RewardPool.BasicMeat),
                     new EventResult("A wolf arrives. You note its path and slip away.", 0.3, 15)
-                        .BecomeStalked(0.2),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("Nothing comes. The carcass is truly abandoned.", 0.1, 25)
                         .Rewards(RewardPool.BasicMeat)
                         .Rewards(RewardPool.BoneHarvest)
@@ -584,7 +584,7 @@ public static class DiscoveryEventFactory
                     new EventResult("The trail leads to a thicket. Bedded down - dangerous to approach.", 0.15, 12)
                         .CreateTension("WoundedPrey", 0.3),
                     new EventResult("Following the tracks, you find something else found them first.", 0.10, 12)
-                        .BecomeStalked(0.4)
+                        .ObservesPredator()
                 ])
             .Choice("Mark the Location",
                 "Note where you found these. Return prepared for a proper hunt.",
@@ -615,7 +615,7 @@ public static class DiscoveryEventFactory
                 [
                     new EventResult("Smoke to the east — another camp? Movement in the southern forest — game.", 0.50, 15),
                     new EventResult("Wolves moving in a pack to the north. Good to know where they are.", 0.30, 12)
-                        .CreateTension("PackNearby", 0.3),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("The pass is visible. Still snow-choked, but you can see the route.", 0.20, 10)
                 ])
             .Choice("Note Key Features",
@@ -708,7 +708,7 @@ public static class DiscoveryEventFactory
                 "Use your vantage. Learn what you're dealing with.",
                 [
                     new EventResult("A wolf, circling. Now you know where it is.", 0.50, 10)
-                        .BecomeStalked(0.3, AnimalType.Wolf),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("A fox, hunting mice. No threat.", 0.30, 8),
                     new EventResult("Deer, grazing. Opportunity, if you can get close.", 0.20, 8)
                 ])

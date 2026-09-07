@@ -2,6 +2,9 @@ namespace text_survival.Actions;
 
 public enum EventCondition
 {
+    PredatorFollowing,
+    PredatorWithinReach,
+    PackFollowing,
     IsDaytime,
     Traveling,
     Working,
@@ -45,16 +48,12 @@ public enum EventCondition
     NoFood,
 
     // Tension conditions
-    Stalked,            // Being stalked by a predator
-    StalkedHigh,        // Stalked with severity > 0.5
-    StalkedCritical,    // Stalked with severity > 0.7
     SmokeSpotted,       // Someone spotted the player's smoke
     Infested,           // Vermin have infested the camp
     WoundUntreated,     // An untreated wound risks infection
     WoundUntreatedHigh, // Untreated wound with severity > 0.6 (infection spreading)
     ShelterWeakened,    // Shelter has been damaged
     FoodScentStrong,    // Strong food scent attracting predators
-    Hunted,             // Actively being hunted by a predator
     Disturbed,          // Player witnessed disturbing content (death, remains)
     DisturbedHigh,      // Disturbed with severity > 0.5
     DisturbedCritical,  // Disturbed with severity > 0.7
@@ -65,9 +64,6 @@ public enum EventCondition
     WoundedPreyCritical,   // WoundedPrey severity > 0.7
 
     // Pack arc
-    PackNearby,            // Any PackNearby tension exists
-    PackNearbyHigh,        // PackNearby severity > 0.4
-    PackNearbyCritical,    // PackNearby severity > 0.7
 
     // Den arc
     ClaimedTerritory,      // Any ClaimedTerritory tension exists

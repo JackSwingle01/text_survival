@@ -180,7 +180,7 @@ public static partial class GameEventRegistry
     private static GameEvent FootstepsOutside(GameContext ctx)
     {
         // Use IllnessVariant for context-aware hallucination
-        // Reality now responds to Stalked tension state, not flat 20%
+        // Reality depends on an actually observed predator.
         var hallucination = IllnessSelector.SelectPredatorHallucination(ctx);
         var isReal = IllnessSelector.IsHallucinationReal(hallucination, ctx);
 
@@ -196,10 +196,10 @@ public static partial class GameEventRegistry
                 isReal
                     ? [
                         new EventResult("You were right to check. Something slinks away into darkness.", weight: 0.70, minutes: 10)
-                            .BecomeStalked(0.3)
+                            .ObservesPredator()
                             .Unsettling(),
                         new EventResult("Eyes reflect in firelight. It's real. It's watching.", weight: 0.30, minutes: 8)
-                            .BecomeStalked(0.4)
+                            .ObservesPredator()
                             .Frightening()
                     ]
                     : [
@@ -212,10 +212,10 @@ public static partial class GameEventRegistry
                 "Fever. It's just the fever.",
                 isReal
                     ? [
-                        new EventResult("You stay by fire. In the morning, tracks circle the camp.", weight: 0.70)
-                            .BecomeStalked(0.35),
-                        new EventResult("You ignore it. Something tests your defenses overnight.", weight: 0.30, minutes: 60)
-                            .BecomeStalked(0.45)
+                        new EventResult("You stay where you are. The movement outside keeps drawing your attention.", weight: 0.70)
+                            .ObservesPredator(),
+                        new EventResult("You ignore it. The movement outside keeps you uneasy.", weight: 0.30, minutes: 60)
+                            .ObservesPredator()
                             .Unsettling()
                     ]
                     : [
@@ -228,9 +228,9 @@ public static partial class GameEventRegistry
                 isReal
                     ? [
                         new EventResult("Patient observation reveals movement. It's real.", weight: 0.80, minutes: 20)
-                            .BecomeStalked(0.25),
+                            .ObservesPredator(),
                         new EventResult("You see it clearly now. Wolf. Circling.", weight: 0.20, minutes: 15)
-                            .BecomeStalked(0.4, AnimalType.Wolf)
+                            .ObservesPredator(AnimalType.Wolf)
                     ]
                     : [
                         new EventResult("Long minutes of watching. Nothing. Fever lied.", weight: 0.70, minutes: 20)

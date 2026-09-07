@@ -13,6 +13,9 @@ public static class ConditionChecker
     {
         return condition switch
         {
+            EventCondition.PredatorFollowing => PredatorInteractions.ObservedFollowing(ctx),
+            EventCondition.PredatorWithinReach => PredatorInteractions.ImmediateThreat(ctx),
+            EventCondition.PackFollowing => PredatorInteractions.ObservedPack(ctx),
             EventCondition.IsDaytime => ctx.GetTimeOfDay() == GameContext.TimeOfDay.Morning ||
                          ctx.GetTimeOfDay() == GameContext.TimeOfDay.Afternoon ||
                          ctx.GetTimeOfDay() == GameContext.TimeOfDay.Evening || ctx.GetTimeOfDay() == GameContext.TimeOfDay.Noon,
@@ -77,16 +80,12 @@ public static class ConditionChecker
             EventCondition.NoFood => ctx.Inventory.GetWeight(ResourceCategory.Food) <= 0.0,
 
             // Tension conditions
-            EventCondition.Stalked => ctx.Tensions.HasTension("Stalked"),
-            EventCondition.StalkedHigh => ctx.Tensions.HasTensionAbove("Stalked", 0.5),
-            EventCondition.StalkedCritical => ctx.Tensions.HasTensionAbove("Stalked", 0.7),
             EventCondition.SmokeSpotted => ctx.Tensions.HasTension("SmokeSpotted"),
             EventCondition.Infested => ctx.Tensions.HasTension("Infested"),
             EventCondition.WoundUntreated => ctx.Tensions.HasTension("WoundUntreated"),
             EventCondition.WoundUntreatedHigh => ctx.Tensions.HasTensionAbove("WoundUntreated", 0.6),
             EventCondition.ShelterWeakened => ctx.Tensions.HasTension("ShelterWeakened"),
             EventCondition.FoodScentStrong => ctx.Tensions.HasTension("FoodScentStrong"),
-            EventCondition.Hunted => ctx.Tensions.HasTension("Hunted"),
             EventCondition.Disturbed => ctx.Tensions.HasTension("Disturbed"),
             EventCondition.DisturbedHigh => ctx.Tensions.HasTensionAbove("Disturbed", 0.5),
             EventCondition.DisturbedCritical => ctx.Tensions.HasTensionAbove("Disturbed", 0.7),
@@ -95,10 +94,6 @@ public static class ConditionChecker
             EventCondition.WoundedPrey => ctx.Tensions.HasTension("WoundedPrey"),
             EventCondition.WoundedPreyHigh => ctx.Tensions.HasTensionAbove("WoundedPrey", 0.5),
             EventCondition.WoundedPreyCritical => ctx.Tensions.HasTensionAbove("WoundedPrey", 0.7),
-
-            EventCondition.PackNearby => ctx.Tensions.HasTension("PackNearby"),
-            EventCondition.PackNearbyHigh => ctx.Tensions.HasTensionAbove("PackNearby", 0.4),
-            EventCondition.PackNearbyCritical => ctx.Tensions.HasTensionAbove("PackNearby", 0.7),
 
             EventCondition.ClaimedTerritory => ctx.Tensions.HasTension("ClaimedTerritory"),
             EventCondition.ClaimedTerritoryHigh => ctx.Tensions.HasTensionAbove("ClaimedTerritory", 0.5),

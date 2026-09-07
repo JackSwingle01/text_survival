@@ -67,7 +67,7 @@ public static partial class GameEventRegistry
                     new EventResult("It's still there in the morning. This is becoming a problem.", 0.30, 0)
                         .CreateTension("Infested", 0.3, ctx.CurrentLocation),
                     new EventResult("The commotion attracts something larger.", 0.20, 0)
-                        .CreateTension("Stalked", 0.2)
+                        .ObservesPredator()
                 ]);
     }
 
@@ -198,10 +198,11 @@ public static partial class GameEventRegistry
 
     private static GameEvent RustleAtCampEdge(GameContext ctx)
     {
-        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Fox;
+        var predator = PredatorInteractions.Observed(ctx)?.AnimalType ?? AnimalType.Fox;
 
         return new GameEvent("Rustle at Camp Edge",
             $"Rustling at the camp perimeter. Something drawn by the scent of your food.", 0.8)
+            .ForPredatorScene(PredatorSceneKind.RustleAtCampEdge)
             .Requires(EventCondition.AtCamp, EventCondition.HasFood, EventCondition.Awake)
             // InDarkness covers: Night, InDarkness conditions
             .WithSituationFactor(Situations.InDarkness, 2.0)
@@ -213,18 +214,18 @@ public static partial class GameEventRegistry
                     new EventResult("A weak rabbit. Easy catch.", 0.25, 10)
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("A fox. It retreats but doesn't go far.", 0.20, 8)
-                        .BecomeStalked(0.15, AnimalType.Fox),
+                        .ObservesPredator(AnimalType.Fox),
                     new EventResult("Nothing there now. Tracks suggest a small scavenger.", 0.15, 8)
-                        .BecomeStalked(0.05),
+                        .ObservesPredator(),
                     new EventResult($"{predator.DisplayName()}. Close. It hasn't decided if you're prey yet.", 0.20, 5)
                         .Frightening()
-                        .BecomeStalked(0.4, predator),
+                        .ObservesPredator(predator),
                     new EventResult($"{predator.DisplayName()}. It charges.", 0.15, 0)
                         .Panicking()
                         .Encounter(predator, 15, 0.6),
                     new EventResult("Blood on the snow. Something killed here recently — and it's still nearby.", 0.05, 3)
                         .Terrifying()
-                        .BecomeStalked(0.5, predator)
+                        .ObservesPredator(predator)
                 ])
             .Choice("Throw a Rock",
                 "Scare it off with noise.",
@@ -241,7 +242,7 @@ public static partial class GameEventRegistry
                     new EventResult("It steals some food while you're not looking.", 0.35, 0)
                         .Costs(ResourceType.Food, 1),
                     new EventResult("Ignoring it emboldens it. It'll be back.", 0.15, 0)
-                        .BecomeStalked(0.2)
+                        .ObservesPredator()
                 ]);
     }
 
@@ -331,7 +332,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Paranoid(0.2)),
                     new EventResult("A noise in the dark. Probably nothing. Probably.", 0.10, 10)
                         .MinorCold()
-                        .BecomeStalked(0.15)
+                        .ObservesPredator()
                 ]);
     }
 
@@ -353,7 +354,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Paranoid(0.15)),
                     new EventResult("In the flickering light, you see movement. Real this time.", 0.05, 5)
                         .BurnsFuel(2)
-                        .BecomeStalked(0.3)
+                        .ObservesPredator()
                 ],
                 requires: [EventCondition.HasFuel])
             .Choice("Investigate",
@@ -368,7 +369,7 @@ public static partial class GameEventRegistry
                         .Frightening()
                         .Escalate("Disturbed", 0.15),
                     new EventResult("Something WAS there. You see it slink away.", 0.05, 10)
-                        .BecomeStalked(0.35)
+                        .ObservesPredator()
                 ])
             .Choice("Endure It",
                 "Stay still. Don't give in to the fear.",

@@ -30,7 +30,9 @@ public record EncounterConfig(
     AnimalType AnimalType,
     double InitialDistance,
     double InitialBoldness,
-    Animal? Animal = null
+    Animal? Animal = null,
+    bool RequiresPursuit = false,
+    bool IsDefending = false
 );
 
 /// <summary>

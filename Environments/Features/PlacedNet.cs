@@ -66,7 +66,7 @@ public class PlacedNet
     /// <summary>
     /// Update net state for elapsed time.
     /// </summary>
-    public List<string> Update(int minutes, double fishAbundance, bool isFlowingWater, bool stalkedTensionActive)
+    public List<string> Update(int minutes, double fishAbundance, bool isFlowingWater, bool predatorPresent)
     {
         var messages = new List<string>();
 
@@ -83,7 +83,7 @@ public class PlacedNet
                 break;
 
             case NetState.CatchReady:
-                UpdateCatchReadyState(minutes, stalkedTensionActive, messages);
+                UpdateCatchReadyState(minutes, predatorPresent, messages);
                 break;
         }
 
@@ -134,13 +134,13 @@ public class PlacedNet
         }
     }
 
-    private void UpdateCatchReadyState(int minutes, bool stalkedTensionActive, List<string> messages)
+    private void UpdateCatchReadyState(int minutes, bool predatorPresent, List<string> messages)
     {
         MinutesSinceCatch += minutes;
         double hours = minutes / 60.0;
 
         // Risk: Predator theft when stalked
-        if (stalkedTensionActive)
+        if (predatorPresent)
         {
             double theftChance = PredatorTheftChancePerHour * hours;
             if (Utils.DetermineSuccess(theftChance))

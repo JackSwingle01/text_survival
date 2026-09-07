@@ -73,7 +73,8 @@ public class TravelRunner(GameContext ctx)
         var originPos = _ctx.Map!.CurrentPosition;
         var destPos = _ctx.Map.GetPosition(destination);
 
-        if (_ctx.Map.IsEdgeBlocked(originPos, destPos, _ctx.Weather.CurrentSeason))
+        if (!_ctx.Map.CanMoveTo(destPos.X, destPos.Y) ||
+            _ctx.Map.IsEdgeBlocked(originPos, destPos, _ctx.Weather.CurrentSeason))
         {
             GameDisplay.AddNarrative(_ctx, GetBlockedMessage(originPos, destPos));
             return true;  // Not dead, just can't go there
@@ -178,6 +179,7 @@ public class TravelRunner(GameContext ctx)
             while (await Walk(travel))
             {
                 if (!_ctx.player.IsAlive) return false;
+                if (_ctx.HasPendingEncounter || _ctx.LastEventAborted) return true;
 
                 if (!await _ctx.Ui.Confirm($"Continue traveling to {destination.Name}?"))
                     return true;  // Stayed at the origin
@@ -286,6 +288,7 @@ public class TravelRunner(GameContext ctx)
 
         return blocking?.Type switch
         {
+            EdgeType.Ravine => "A deep ravine blocks the way. Find a crossing or go around.",
             EdgeType.Cliff => "Sheer cliff face. No way up.",
             EdgeType.River when blocking.BlockedSeason == Weather.Season.Spring =>
                 "The river is in full flood. Impassable until the waters recede.",

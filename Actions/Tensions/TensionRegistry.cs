@@ -59,6 +59,7 @@ public class TensionRegistry
     /// </summary>
     public TensionStageChange? AddTension(ActiveTension tension)
     {
+        if (Actors.Animals.PredatorInteractions.IsLegacyTension(tension.Type)) return null;
         var existing = GetTension(tension.Type);
         if (existing != null)
         {

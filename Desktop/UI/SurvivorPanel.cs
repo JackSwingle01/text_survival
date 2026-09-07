@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
@@ -458,11 +459,19 @@ public static class SurvivorPanel
     private static void RenderTensions(GameContext ctx)
     {
         var tensions = ctx.Tensions.GetAllTensions().ToList();
-        if (tensions.Count == 0) return;
+        if (tensions.Count == 0 && ctx.PredatorObservations.Count == 0) return;
 
         ImGui.Separator();
         UiIcons.LabelColored("spear", ColorHeader, "Threats");
 
+        foreach (var seen in ctx.PredatorObservations)
+        {
+            int ago = ctx.TotalMinutesElapsed - seen.LastSeenMinute;
+            ImGui.PushTextWrapPos(0);
+            UiText.Colored(ColorWarning, $"{seen.Source.AnimalType.DisplayName()}: last seen {seen.Behavior}");
+            UiText.Disabled($"{seen.LastSeenLocation.Name} · {ago}m ago");
+            ImGui.PopTextWrapPos();
+        }
         foreach (var tension in tensions)
         {
             Vector4 color = tension.Severity > 0.7 ? ColorDanger :

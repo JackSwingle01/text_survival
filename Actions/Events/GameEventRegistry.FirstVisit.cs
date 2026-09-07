@@ -23,7 +23,7 @@ public static partial class GameEventRegistry
     public static GameEvent? FirstVisitLookout(GameContext ctx)
     {
         return new GameEvent("Vantage Point",
-            "From this height, the landscape unfolds below. The mountain pass is visible to the north — snow-choked but there. Smoke rises in the distance. Another fire, or another survivor?", 0.9)
+            "From this height, the landscape unfolds below. The mountain pass is visible to the east — snow-choked but there. Smoke rises in the distance. Another fire, or another survivor?", 0.9)
             .Choice("Study the smoke",
                 "You memorize the direction. It's far, but reachable.",
                 [
@@ -117,7 +117,7 @@ public static partial class GameEventRegistry
                     new EventResult("Just silence. Ancient, patient silence. You're alone here — and somehow that's worse.", weight: 0.7, minutes: 5)
                         .WithEffects(Effects.EffectFactory.Shaken(0.1)),
                     new EventResult("There — the faintest crack. A branch, somewhere deep in the grove. Something else is here.", weight: 0.3, minutes: 3)
-                        .BecomeStalked(0.2)
+                        .ObservesPredator()
                 ])
             .Choice("Press forward",
                 "Silence is just silence.",
@@ -182,7 +182,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Movement in the southern trees. Something large. Good to know.", weight: 0.6, minutes: 10)
                         .LightChill()
-                        .BecomeStalked(0.15),
+                        .ObservesPredator(),
                     new EventResult("Nothing moves. The world is still. You're alone — for now.", weight: 0.4, minutes: 8)
                         .LightChill()
                 ])

@@ -185,7 +185,7 @@ public static partial class GameEventRegistry
                         .CreateTension("Disturbed", 0.35, ctx.CurrentLocation, description: "scattered bones"),
                     new EventResult("Something is still here. Watching. You leave fast.", 0.07, 10)
                         .Frightening()
-                        .BecomeStalked(0.3)
+                        .ObservesPredator()
                         .Aborts()
                 ])
             .Choice("Scavenge Fast",
@@ -622,7 +622,7 @@ public static partial class GameEventRegistry
                     new EventResult("The wait stretches. Cold seeps in.", 0.20, 60)
                         .WithCold(-8, 30),
                     new EventResult("Something stirs in the darkness nearby. You freeze.", 0.10, 50)
-                        .BecomeStalked(0.25)
+                        .ObservesPredator()
                 ])
             .Choice("Rush Through",
                 "Move fast. Minimize time in the dark.",
@@ -731,7 +731,7 @@ public static partial class GameEventRegistry
                         .HarshCold()
                         .WithEffects(EffectFactory.Exhausted(0.2, 45)),
                     new EventResult("Something saw you. Movement on the horizon.", 0.10, 12)
-                        .BecomeStalked(0.3)
+                        .ObservesPredator()
                 ])
             .Choice("Low Crawl",
                 "Stay low, stay hidden. Use what cover exists.",
@@ -753,7 +753,7 @@ public static partial class GameEventRegistry
                     new EventResult("The way back is harder than you remembered.", 0.25, 25)
                         .WithEffects(EffectFactory.Sore(0.15, 45)),
                     new EventResult("As you turn, you spot tracks. Something uses this ridge.", 0.05, 10)
-                        .BecomeStalked(0.2)
+                        .ObservesPredator()
                 ]);
     }
 
@@ -775,9 +775,9 @@ public static partial class GameEventRegistry
                     new EventResult("Nothing comes. Wasted time, but you're well-positioned now.", 0.30, 40),
                     new EventResult("Something comes — too big. You let it pass.", 0.20, 50)
                         .Unsettling()
-                        .BecomeStalked(0.2),
+                        .ObservesPredator(),
                     new EventResult("Something was hunting YOU. It pounces.", 0.10, 30)
-                        .Encounter(AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf, 10, 0.7)
+                        .Encounter(PredatorInteractions.Observed(ctx)?.AnimalType ?? AnimalType.Wolf, 10, 0.7)
                         .Aborts(),
                     new EventResult("Perfect shot. Quality kill.", 0.05, 55)
                         .FindsLargeMeat()
@@ -789,7 +789,7 @@ public static partial class GameEventRegistry
                         .FindsSupplies(),
                     new EventResult("You find some things, but something's watching.", 0.25, 20)
                         .Rewards(RewardPool.CraftingMaterials)
-                        .BecomeStalked(0.2),
+                        .ObservesPredator(),
                     new EventResult("The undergrowth scratches and tears. Minor wounds.", 0.15, 22)
                         .FindsSupplies()
                         .Damage(0.05, DamageType.Sharp),
@@ -801,7 +801,7 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You slip through the cover. Unseen, unharmed.", 0.60, 10),
                     new EventResult("Something follows your movement. You feel eyes on you.", 0.25, 12)
-                        .BecomeStalked(0.25),
+                        .ObservesPredator(),
                     new EventResult("You startle something. It bolts — away from you, thankfully.", 0.15, 8)
                 ]);
     }
@@ -1011,7 +1011,7 @@ public static partial class GameEventRegistry
                 .CreateTension("FreshTrail", 0.4, description: "wounded animal"));
             results.Add(new EventResult("The trail leads... somewhere dangerous. Predators followed too.", 0.15, 12)
                 .CreateTension("WoundedPrey", sign.TensionSeverity)
-                .BecomeStalked(0.25));
+                .ObservesPredator());
         }
         else
         {

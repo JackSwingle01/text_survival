@@ -25,6 +25,9 @@ public abstract record PlayerAction
 
     /// <summary>Leave the run.</summary>
     public sealed record Quit : PlayerAction;
+
+    /// <summary>Abandon this run and start a fresh one.</summary>
+    public sealed record NewGame : PlayerAction;
 }
 
 /// <summary>

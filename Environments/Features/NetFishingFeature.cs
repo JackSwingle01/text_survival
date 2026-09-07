@@ -94,7 +94,7 @@ public class NetFishingFeature : LocationFeature, IWorkableFeature
             bool isFlowingWater = _water.DisplayName.Contains("Stream", StringComparison.OrdinalIgnoreCase) ||
                                   _water.DisplayName.Contains("River", StringComparison.OrdinalIgnoreCase);
 
-            // TODO: Check for stalked tension from GameContext
+            // Animal interactions must come from a physical visitor, not a global threat flag.
             // For now, we'll handle this in the strategy when checking
             net.Update(minutes, _water.FishAbundance, isFlowingWater, false);
         }

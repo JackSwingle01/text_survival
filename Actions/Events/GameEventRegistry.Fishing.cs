@@ -65,7 +65,9 @@ public static partial class GameEventRegistry
             "Movement at the tree line. A bear emerges, nose raised, sniffing the air. " +
             "It's caught the scent of fish — and it's coming this way.",
             0.8)
-            .Requires(EventCondition.HasIceHole, EventCondition.FieldWork, EventCondition.InAnimalTerritory)
+            .ForPredatorScene(PredatorSceneKind.BearAtFishingHole)
+            .Requires(EventCondition.HasIceHole)
+            .RequiresSituation(Situations.Fishing)
             .WithSituationFactor(Situations.FishingAtIceHole, 2.0)
             .WithConditionFactor(EventCondition.HasMeat, 2.5) // Fish counts as meat for attraction
             .WithSituationFactor(Situations.AttractiveToPredators, 1.5)
@@ -99,7 +101,7 @@ public static partial class GameEventRegistry
                         .LosesFish(),
                     new EventResult("It takes the fish but still seems interested in you. You keep moving.", 0.08, 15)
                         .LosesFish()
-                        .BecomeStalked(0.3, AnimalType.Bear),
+                        .ObservesPredator(AnimalType.Bear),
                     new EventResult("It ignores the fish and comes for you.", 0.02, 5)
                         .Encounter(AnimalType.Bear, 20, 0.7)
                 ]);
@@ -117,10 +119,11 @@ public static partial class GameEventRegistry
             "They appear at the edge of the ice — three, maybe four wolves. " +
             "They've been watching you work. Now they're circling closer.",
             0.9)
-            .Requires(EventCondition.FieldWork)
-            .WithSituationFactor(Situations.CheckingNets, 1.5)
-            .WithConditionFactor(EventCondition.Stalked, 2.0)
-            .WithConditionFactor(EventCondition.PackNearby, 2.0)
+            .ForPredatorScene(PredatorSceneKind.WolvesCirclingNets)
+            .RequiresSituation(Situations.Fishing)
+            .RequiresSituation(Situations.CheckingNets)
+            .WithConditionFactor(EventCondition.PredatorFollowing, 2.0)
+            .WithConditionFactor(EventCondition.PackFollowing, 2.0)
             .WithConditionFactor(EventCondition.HasMeat, 2.0)
             .WithSituationFactor(Situations.Vulnerable, 1.5)
             .Choice("Fire Drives Them Off",
@@ -129,29 +132,29 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You wave the torch. The wolves retreat into the trees.", 0.70, 10)
                         .BurnsFuel(1)
-                        .ResolvesStalking(),
+                        .PredatorWithdraws(),
                     new EventResult("They back off but don't leave. Watching, waiting.", 0.25, 15)
                         .BurnsFuel(1),
                     new EventResult("One is braver than the others. It snaps at you before retreating.", 0.05, 8)
                         .BurnsFuel(1)
-                        .EscalatesStalking(0.2)
+                        .PredatorFollows()
                 ] :
                 [
                     new EventResult("You have nothing to threaten them with. The standoff continues.", 1.0, 0)
-                        .EscalatesStalking(0.15)
+                        .PredatorFollows()
                 ])
             .Choice("Wait Them Out",
                 "Stay still. They might lose interest.",
                 [
                     new EventResult("An hour passes. They finally drift away, seeking easier prey.", 0.40, 60)
                         .HarshCold()
-                        .ResolvesStalking(),
+                        .PredatorWithdraws(),
                     new EventResult("They settle in to wait. This could take all day.", 0.35, 90)
                         .HarshCold()
-                        .EscalatesStalking(0.1),
+                        .PredatorFollows(),
                     new EventResult("One tests you, coming close. The others watch to see what you do.", 0.20, 45)
                         .HarshCold()
-                        .EscalatesStalking(0.25),
+                        .PredatorFollows(),
                     new EventResult("They grow bolder. This isn't working.", 0.05, 30)
                         .Encounter(AnimalType.Wolf, 25, 0.4)
                 ])
@@ -162,7 +165,7 @@ public static partial class GameEventRegistry
                         .LosesFish(),
                     new EventResult("They let you go. One follows for a while, then gives up.", 0.12, 10)
                         .LosesFish()
-                        .BecomeStalked(0.2),
+                        .ObservesPredator(),
                     new EventResult("They cut you off. You have to go through them.", 0.03, 3)
                         .Encounter(AnimalType.Wolf, 20, 0.5)
                 ]);

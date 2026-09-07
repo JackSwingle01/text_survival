@@ -77,6 +77,7 @@ public static class CombatAftermath
                 herd.RemoveMember(dead);
 
             herd.LastCombatMinutes = ctx.TotalMinutesElapsed;
+            herd.Pursuit = null;
 
             if (herd.IsPredator && opponents.Any(o => !o.IsAlive))
             {

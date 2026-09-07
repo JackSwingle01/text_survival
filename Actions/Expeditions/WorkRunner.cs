@@ -102,6 +102,7 @@ public class WorkRunner(GameContext ctx)
                 using var view = _ctx.Ui.BeginProgress(ProgressKind.Activity, statusText);
                 var (elapsed, _) = await Pacing.PassTime(_ctx, adjustedTime, strategy.GetActivityType(), view);
                 actualTime = elapsed;
+                if (_ctx.HasPendingEncounter || _ctx.LastEventAborted) return WorkResult.Interrupted(actualTime);
             }
 
             if (PlayerDied)
@@ -115,7 +116,6 @@ public class WorkRunner(GameContext ctx)
 
         return result;
     }
-
 
     // === TRAPPING ===
 

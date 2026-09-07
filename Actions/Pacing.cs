@@ -22,7 +22,7 @@ public static class Pacing
     /// Returns how many minutes actually elapsed and whether an event cut it short.
     /// </summary>
     public static async Task<(int elapsed, bool interrupted)> PassTime(
-        GameContext ctx, int minutes, ActivityType activity, ProgressView? view, bool allowEvents = true)
+        GameContext ctx, int minutes, ActivityType activity, ProgressView? view, bool allowEvents = true, bool stopOnEncounter = false)
     {
         if (minutes <= 0) return (0, false);
 
@@ -44,6 +44,7 @@ public static class Pacing
                     ctx.UpdateWithoutEvents(1, activity);
 
                 run.MarkSimulated(1);
+                if (stopOnEncounter && ctx.HasPendingEncounter) return (run.SimulatedMinutes, true);
 
                 if (allowEvents && ctx.EventOccurredLastUpdate)
                     return (run.SimulatedMinutes, true);

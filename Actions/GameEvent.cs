@@ -51,9 +51,18 @@ public record ShelterDamage(ShelterImprovementType Stat, double Amount);
 
 public class EventResult(string message, double weight = 1, int minutes = 0)
 {
+    public Herd? SourceHerd;
+    public Func<GameContext, bool>? Validate;
+    public Func<GameContext, Task>? WorldAction;
+    public Action<GameContext>? AfterTimeAction;
+    public Func<GameContext, Task>? AfterTimeWorldAction;
+    public Func<GameContext, string>? DescribeAfterAction;
+    public PredatorReaction? PredatorReaction;
+    public AnimalType? PredatorSpecies;
     public string Message = message;
     public double Weight = weight;
     public int TimeAddedMinutes = minutes;
+    public ActivityType? TimeActivity;
     public bool AbortsAction;
     public List<Effect> Effects = [];
     public DamageInfo? NewDamage;
@@ -232,6 +241,9 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     /// <param name="ctx">The game context</param>
     public EventOutcomeDto Apply(GameContext ctx)
     {
+        if (WorldAction == null && AfterTimeWorldAction == null && Validate?.Invoke(ctx) == false)
+            return new EventResult("The situation has changed.").Apply(ctx);
+        AuthoredPredatorScenes.ApplyReaction(ctx, this);
         var summary = new OutcomeSummary();
 
         ApplyEffects(ctx, summary);
@@ -248,7 +260,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         ApplySalvageCreation(ctx, summary);
 
         return new EventOutcomeDto(
-            Message: Message,
+            Message: DescribeAfterAction?.Invoke(ctx) ?? Message,
             TimeAddedMinutes: TimeAddedMinutes,
             EffectsApplied: summary.EffectsApplied,
             DamageTaken: summary.DamageTaken,
@@ -675,17 +687,14 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     {
         return tc.Type switch
         {
-            "Stalked" => ActiveTension.Stalked(tc.Severity, tc.AnimalType, tc.RelevantLocation),
             "SmokeSpotted" => ActiveTension.SmokeSpotted(tc.Severity, tc.Direction, tc.RelevantLocation),
             "Infested" => ActiveTension.Infested(tc.Severity, tc.RelevantLocation),
             "WoundUntreated" => ActiveTension.WoundUntreated(tc.Severity, tc.Description),
             "ShelterWeakened" => ActiveTension.ShelterWeakened(tc.Severity, tc.RelevantLocation),
             "FoodScentStrong" => ActiveTension.FoodScentStrong(tc.Severity),
-            "Hunted" => ActiveTension.Hunted(tc.Severity, tc.AnimalType),
             "MarkedDiscovery" => ActiveTension.MarkedDiscovery(tc.Severity, tc.RelevantLocation, tc.Description),
             "Disturbed" => ActiveTension.Disturbed(tc.Severity, tc.RelevantLocation, tc.Description),
             "WoundedPrey" => ActiveTension.WoundedPrey(tc.Severity, tc.AnimalType, tc.RelevantLocation),
-            "PackNearby" => ActiveTension.PackNearby(tc.Severity, tc.AnimalType),
             "ClaimedTerritory" => ActiveTension.ClaimedTerritory(tc.Severity, tc.AnimalType, tc.RelevantLocation),
             "HerdNearby" => ActiveTension.HerdNearby(tc.Severity, tc.AnimalType, tc.Direction),
             "DeadlyCold" => ActiveTension.DeadlyCold(tc.Severity),
@@ -816,15 +825,15 @@ public class EventChoice(string label, string description, List<EventResult> res
     public string Label = label;
     public string Description = description;
     public readonly List<EventCondition> RequiredConditions = conditions ?? [];
-    public List<EventResult> Result = results;
-    public EventResult DetermineResult() => Utils.GetRandomWeighted(Result.ToDictionary(x => x, x => x.Weight));
+    public List<EventResult> Results = results;
+    public EventResult DetermineResult() => Utils.GetRandomWeighted(Results.ToDictionary(x => x, x => x.Weight));
 
     /// <summary>
     /// Gets the maximum cost among all possible outcomes for this choice.
     /// Returns null if no outcomes have costs.
     /// </summary>
     public ResourceCost? GetMaxCost() =>
-        Result
+        Results
             .Where(r => r.Cost != null)
             .GroupBy(r => r.Cost!.Type)
             .Select(g => new ResourceCost(g.Key, g.Max(r => r.Cost!.Amount)))
@@ -833,6 +842,10 @@ public class EventChoice(string label, string description, List<EventResult> res
 
 public class GameEvent(string name, string description, double weight)
 {
+    public PredatorSceneKind? PredatorScene;
+    public GameEvent ForPredatorScene(PredatorSceneKind kind) { PredatorScene = kind; return this; }
+    public Herd? SourceHerd;
+    public Func<GameContext, bool>? Validate;
     public string Name = name;
     public string Description = description;
     public readonly List<EventCondition> RequiredConditions = [];
@@ -852,7 +865,44 @@ public class GameEvent(string name, string description, double weight)
     /// Get choices available to the player (filtered by conditions).
     /// </summary>
     public List<EventChoice> GetAvailableChoices(GameContext ctx)
-        => _choices.Where(c => c.RequiredConditions.All(ctx.Check)).ToList();
+        => _choices.Where(c => c.RequiredConditions.All(ctx.Check) &&
+            c.Results.Any(r => r.Weight > 0 && (r.Validate?.Invoke(ctx) ?? true))).ToList();
+
+    internal IReadOnlyList<EventChoice> AuthoredChoices => _choices;
+
+    public bool IsEligible(GameContext ctx) => (Validate?.Invoke(ctx) ?? true) && RequiredConditions.All(ctx.Check) &&
+        !ExcludedConditions.Any(ctx.Check) && RequiredSituations.All(s => s(ctx)) &&
+        (RequiredLocationName == null || ctx.CurrentLocation.Name == RequiredLocationName) && GetAvailableChoices(ctx).Count > 0;
+
+    private bool _encountersBound;
+    public void BindPredatorEncounters(GameContext ctx)
+    {
+        if (_encountersBound) return;
+        _encountersBound = true;
+        AuthoredPredatorScenes.Bind(ctx, this);
+        foreach (var choice in _choices)
+            foreach (var outcome in choice.Results)
+            {
+                if (outcome.PredatorReaction != null && outcome.SourceHerd == null)
+                {
+                    var observed = ctx.Herds.FirstOrDefault(h => h.IsPredator && PredatorInteractions.CanObserve(ctx, h) &&
+                        (outcome.PredatorSpecies == null || h.AnimalType == outcome.PredatorSpecies));
+                    outcome.SourceHerd = observed;
+                    var original = outcome.Validate;
+                    outcome.Validate = c => (original?.Invoke(c) ?? true) && PredatorInteractions.CanObserve(c, observed) &&
+                        (outcome.NewDamage == null || PredatorInteractions.WithinReach(c, observed));
+                }
+                if (outcome.SpawnEncounter is not { } encounter || !encounter.AnimalType.IsPredator()) continue;
+                var herd = outcome.SourceHerd ?? SourceHerd ?? ctx.Herds.FirstOrDefault(h =>
+                    h.AnimalType == encounter.AnimalType && PredatorInteractions.WithinReach(ctx, h));
+                outcome.SourceHerd = herd;
+                var prior = outcome.Validate;
+                outcome.Validate = c => (prior?.Invoke(c) ?? true) && PredatorInteractions.WithinReach(c, herd) &&
+                    herd!.AnimalType == encounter.AnimalType && c.TotalMinutesElapsed - herd.LastCombatMinutes >= 30;
+                var animal = herd?.Members.FirstOrDefault(a => a.IsAlive);
+                outcome.SpawnEncounter = encounter with { Animal = animal };
+            }
+    }
 
     // === Fluent builder methods ===
 

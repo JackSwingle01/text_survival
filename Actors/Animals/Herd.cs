@@ -75,6 +75,8 @@ public class Herd : IMovable
 
     #region Shared Condition
 
+    public PredatorInteraction? Pursuit { get; set; }
+
     public double Hunger { get; set; }
     public bool IsWounded { get; set; }
     public double WoundSeverity { get; set; }
@@ -266,7 +268,7 @@ public class Herd : IMovable
         }
 
         // Delegate to behavior strategy
-        return Behavior!.Update(this, elapsedMinutes, ctx);
+        return PredatorInteractions.Update(this, elapsedMinutes, ctx) ?? Behavior!.Update(this, elapsedMinutes, ctx);
     }
 
     #endregion
@@ -279,6 +281,14 @@ public class Herd : IMovable
 
         var destLocation = map.GetLocationAt(destination);
         if (destLocation == null || !destLocation.IsPassable) return false;
+
+        // Patrol targets can be distant; take one legal step along their route.
+        if (!map.GetTravelOptionsFrom(CurrentLocation).Contains(destLocation))
+        {
+            var route = text_survival.Environments.Navigation.Navigation.FindRoute(map, Position, destination);
+            if (route.Steps.Count == 0) return false;
+            destLocation = map.GetLocationAt(route.Steps[0])!;
+        }
 
         // Use first member as representative for speed calculation
         var representative = Members.FirstOrDefault();
@@ -319,11 +329,12 @@ public class Herd : IMovable
     public GridPosition? GetFleeTarget(GridPosition threat)
     {
         var options = Position.GetCardinalNeighbors()
-            .Where(p => Map?.GetLocationAt(p)?.IsPassable ?? false)
+            .Where(p => Map != null && Map.GetLocationAt(p)?.IsPassable == true &&
+                !Map.IsEdgeBlocked(Position, p, Map.Weather.CurrentSeason))
             .OrderByDescending(p => p.ManhattanDistance(threat))
             .ToList();
 
-        return options.FirstOrDefault();
+        return options.Count == 0 ? null : options[0];
     }
 
     /// <summary>
@@ -367,27 +378,7 @@ public class Herd : IMovable
     {
         if (IsTraveling) return;
 
-        int dx = Math.Sign(target.X - Position.X);
-        int dy = Math.Sign(target.Y - Position.Y);
-
-        GridPosition? newPos = null;
-        if (Math.Abs(target.X - Position.X) >= Math.Abs(target.Y - Position.Y) && dx != 0)
-        {
-            newPos = new GridPosition(Position.X + dx, Position.Y);
-        }
-        else if (dy != 0)
-        {
-            newPos = new GridPosition(Position.X, Position.Y + dy);
-        }
-        else if (dx != 0)
-        {
-            newPos = new GridPosition(Position.X + dx, Position.Y);
-        }
-
-        if (newPos != null && Map?.GetLocationAt(newPos.Value)?.IsPassable == true)
-        {
-            StartTravelTo(newPos.Value, Map);
-        }
+        if (Map != null) StartTravelTo(target, Map);
     }
 
     /// <summary>

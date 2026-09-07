@@ -130,16 +130,6 @@ public class ActiveTension
         return null;
     }
 
-    public static ActiveTension Stalked(double severity, AnimalType? animalType = null, Location? location = null, Herd? sourceHerd = null) => new(
-        type: "Stalked",
-        severity: severity,
-        decayPerHour: 0.05,
-        decaysAtCamp: true,
-        relevantLocation: location,
-        animalType: animalType,
-        sourceHerd: sourceHerd
-    );
-
     public static ActiveTension SmokeSpotted(double severity, string? direction = null, Location? sourceLocation = null) => new(
         type: "SmokeSpotted",
         severity: severity,
@@ -180,14 +170,6 @@ public class ActiveTension
         decaysAtCamp: true
     );
 
-    public static ActiveTension Hunted(double severity, AnimalType? animalType = null) => new(
-        type: "Hunted",
-        severity: severity,
-        decayPerHour: 0.02,
-        decaysAtCamp: true,
-        animalType: animalType
-    );
-
     public static ActiveTension MarkedDiscovery(double severity, Location? location = null, string? description = null) => new(
         type: "MarkedDiscovery",
         severity: severity,
@@ -212,15 +194,6 @@ public class ActiveTension
         decayPerHour: 0.08,
         decaysAtCamp: true,  // Trail goes cold if you return to camp
         relevantLocation: location,
-        animalType: animalType,
-        sourceHerd: sourceHerd
-    );
-
-    public static ActiveTension PackNearby(double severity, AnimalType? animalType = null, Herd? sourceHerd = null) => new(
-        type: "PackNearby",
-        severity: severity,
-        decayPerHour: 0.03,
-        decaysAtCamp: true,
         animalType: animalType,
         sourceHerd: sourceHerd
     );

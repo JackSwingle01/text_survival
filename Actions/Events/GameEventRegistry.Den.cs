@@ -15,7 +15,7 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent TheFind(GameContext ctx)
     {
-        var predator = AnimalPresence.PickPredator(ctx);
+        var predator = PredatorInteractions.Observed(ctx)?.AnimalType;
 
         // Vary description based on what kind of den
         var denType = Utils.DetermineSuccess(0.5) ? "cave" : "overhang";
@@ -81,7 +81,7 @@ public static partial class GameEventRegistry
                         new EventResult("Hours pass. No movement. Still occupied.", weight: 0.35, minutes: 90),
                         new EventResult("You wait too long. They return. Spotted.", weight: 0.20, minutes: 75)
                             .Escalate("ClaimedTerritory", 0.3)
-                            .BecomeStalked(0.3, animal)
+                            .ObservesPredator(animal)
                     ]
                     : [
                         new EventResult("It emerges to hunt. You slip in.", weight: 0.25, minutes: 120)
@@ -180,7 +180,7 @@ public static partial class GameEventRegistry
                     new EventResult("It bolts past you. Den yours, but it's not happy.", weight: 0.20, minutes: 8)
                         .Costs(ResourceType.Tinder, 1)
                         .ResolveTension("ClaimedTerritory")
-                        .BecomeStalked(0.4, animal)
+                        .ObservesPredator(animal)
                         .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
                         .Chain(ClaimingTheDen)
                 ],

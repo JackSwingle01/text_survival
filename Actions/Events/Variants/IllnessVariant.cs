@@ -1,3 +1,4 @@
+using text_survival.Actors.Animals;
 using text_survival.Effects;
 using text_survival.Environments.Features;
 
@@ -189,7 +190,7 @@ public static class IllnessSelector
         pool.AddRange(IllnessVariants.FireHallucinations.Select(v => (v, fireWeight)));
 
         // Predator hallucinations more likely if stalked
-        double predatorWeight = ctx.Tensions.HasTension("Stalked") ? 2.5 : 0.8;
+        double predatorWeight = PredatorInteractions.ObservedFollowing(ctx) ? 2.5 : 0.8;
         pool.AddRange(IllnessVariants.PredatorHallucinations.Select(v => (v, predatorWeight)));
 
         // Movement hallucinations always possible
@@ -230,7 +231,7 @@ public static class IllnessSelector
         return hallucination.ThreatType switch
         {
             "fire" => (ctx.Camp.GetFeature<HeatSourceFeature>()?.BurningMassKg ?? 0) < 0.5,
-            "predator" => ctx.Tensions.HasTension("Stalked"),
+            "predator" => PredatorInteractions.ObservedFollowing(ctx),
             _ => true // Other types just use base chance
         };
     }

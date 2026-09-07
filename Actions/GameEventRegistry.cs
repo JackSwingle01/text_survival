@@ -268,6 +268,22 @@ public static partial class GameEventRegistry
         TheSilence
     ];
 
+    public static GameEvent? GetPredatorObservationEvent(GameContext ctx, Actors.Animals.Herd source)
+    {
+        Func<GameContext, GameEvent>[] scenes = [BearAtFishingHole, WolvesCirclingNets, WolvesSmellBlood,
+            ScavengersGambit, PredatorAtTrapLine, RustleAtCampEdge, SpottedInOpen, MutualVisibility,
+            EscapeIntoThicket, ThePackCommits, Ambush, Circling, StalkerCircling, EyesInTreeline,
+            PredatorRevealed, TheFollowers, SomethingWatching, PackSigns];
+        foreach (var factory in scenes)
+        {
+            var evt = factory(ctx);
+            evt.BindPredatorEncounters(ctx);
+            if (evt.SourceHerd == source && evt.IsEligible(ctx) &&
+                !IsOnCooldown(evt.Name, evt.CooldownHours, ctx.GameTime)) return evt;
+        }
+        return null;
+    }
+
     public static GameEvent? GetEventOnTick(GameContext ctx, double activityMultiplier = 1.0)
     {
         // Stage 1: Base roll - does ANY event trigger?
@@ -287,6 +303,8 @@ public static partial class GameEventRegistry
         foreach (var factory in AllEventFactories)
         {
             var evt = factory(ctx);
+            evt.BindPredatorEncounters(ctx);
+            if (!evt.IsEligible(ctx)) continue;
 
             if (asleep && !evt.RequiredConditions.Contains(EventCondition.IsSleeping))
                 continue;
@@ -302,6 +320,9 @@ public static partial class GameEventRegistry
             // Filter: skip if required situations not met
             if (!evt.RequiredSituations.All(s => s(ctx)))
                 continue;
+
+            if (evt.PredatorScene != null && ctx.PredatorObservations.Any(o => o.Source == evt.SourceHerd &&
+                ctx.TotalMinutesElapsed - o.LastAnnouncedMinute < 10)) continue;
 
             // Filter: skip if on cooldown
             if (IsOnCooldown(evt.Name, evt.CooldownHours, ctx.GameTime))
@@ -343,10 +364,15 @@ public static partial class GameEventRegistry
     /// </summary>
     public static async Task<EventResult> HandleEvent(GameContext ctx, GameEvent evt)
     {
+        evt.BindPredatorEncounters(ctx);
+        if (!evt.IsEligible(ctx))
+            return new EventResult("The situation has changed.");
+
         // Record trigger time for cooldown
         EventTriggerTimes[evt.Name] = ctx.GameTime;
 
         // Prevent nested events from triggering during this event's outcome processing
+        bool wasHandlingEvent = ctx.IsHandlingEvent;
         ctx.IsHandlingEvent = true;
         try
         {
@@ -369,7 +395,11 @@ public static partial class GameEventRegistry
 
             var choice = availableChoices[choiceIndex];
 
-            var outcome = choice.DetermineResult();
+            if (evt.Validate?.Invoke(ctx) == false) return new EventResult("The animals are no longer in sight.");
+            var validResults = choice.Results.Where(r => r.Weight > 0 && (r.Validate?.Invoke(ctx) ?? true)).ToDictionary(r => r, r => r.Weight);
+            if (validResults.Count == 0) return new EventResult("That response is no longer possible.");
+            var outcome = Utils.GetRandomWeighted(validResults);
+            if (outcome.Validate?.Invoke(ctx) == false) return new EventResult("That response is no longer possible.");
             var outcomeData = await HandleOutcome(ctx, outcome);
 
             // Phase 2: Show outcome in same popup
@@ -396,7 +426,7 @@ public static partial class GameEventRegistry
         }
         finally
         {
-            ctx.IsHandlingEvent = false;
+            ctx.IsHandlingEvent = wasHandlingEvent;
         }
     }
 
@@ -406,6 +436,10 @@ public static partial class GameEventRegistry
     /// </summary>
     public static async Task<EventOutcomeDto> HandleOutcome(GameContext ctx, EventResult outcome)
     {
+        if (outcome.Validate?.Invoke(ctx) == false) return new EventResult("The situation has changed.").Apply(ctx);
+        // Concrete responses happen before their time cost: dropped meat exists while time passes.
+        if (outcome.WorldAction != null) await outcome.WorldAction(ctx);
+
         // Let the time cost pass on screen before applying the rest of the outcome, so
         // the player feels it. No event check - we are already handling one.
         if (outcome.TimeAddedMinutes > 0)
@@ -415,8 +449,17 @@ public static partial class GameEventRegistry
                 : "Time passes...";
 
             using var view = ctx.Ui.BeginProgress(ProgressKind.Activity, statusText);
-            await Pacing.PassTime(ctx, outcome.TimeAddedMinutes, ctx.CurrentActivity, view, allowEvents: false);
+            var (_, interrupted) = await Pacing.PassTime(ctx, outcome.TimeAddedMinutes, outcome.TimeActivity ?? ctx.CurrentActivity, view,
+                allowEvents: false, stopOnEncounter: outcome.SourceHerd != null);
+            if (interrupted)
+                return new EventResult("The animals interrupt what you were doing.").Apply(ctx);
         }
+
+        if (outcome.WorldAction == null && outcome.Validate?.Invoke(ctx) == false)
+            return new EventResult("The animals have moved on before you could finish.").Apply(ctx);
+
+        outcome.AfterTimeAction?.Invoke(ctx);
+        if (outcome.AfterTimeWorldAction != null) await outcome.AfterTimeWorldAction(ctx);
 
         // The time cost has already passed on screen; Apply only does the rest.
         return outcome.Apply(ctx);

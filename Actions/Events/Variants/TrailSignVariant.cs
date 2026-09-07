@@ -10,7 +10,7 @@ public record TrailSign(
     string Description,           // "Tracks in the snow, half-filled"
     SignCategory Category,        // Predator, Prey, Human, Weather, Danger
     SignAge Age,                  // Fresh, Recent, Old, Ancient
-    string? TensionToCreate,      // Optional: "Stalked", "FreshTrail", etc.
+    string? TensionToCreate,      // Optional: "FreshTrail", etc.
     double TensionSeverity,       // 0.0-0.5
     string? FollowUpHint          // "The trail heads north" or null
 );
@@ -38,19 +38,19 @@ public enum SignAge
 public static class TrailSigns
 {
     // ============ PREDATOR SIGNS ============
-    // Creates Stalked tension, raises awareness of threat
+    // Predator signs provide evidence without creating pursuit
     public static readonly TrailSign[] PredatorSigns =
     [
         new("Fresh wolf scat, still warm",
-            SignCategory.Predator, SignAge.Fresh, "Stalked", 0.3,
+            SignCategory.Predator, SignAge.Fresh, null, 0,
             "Territory marked recently"),
 
         new("Deep claw marks on a tree trunk",
-            SignCategory.Predator, SignAge.Recent, "Stalked", 0.2,
+            SignCategory.Predator, SignAge.Recent, null, 0,
             null),
 
         new("Tracks crossing yours — large cat",
-            SignCategory.Predator, SignAge.Fresh, "Stalked", 0.4,
+            SignCategory.Predator, SignAge.Fresh, null, 0,
             "Moving same direction"),
 
         new("Old bones cracked for marrow",
@@ -58,11 +58,11 @@ public static class TrailSigns
             "Feeding site nearby"),
 
         new("Yellow stain in snow, musky smell",
-            SignCategory.Predator, SignAge.Recent, "Stalked", 0.15,
+            SignCategory.Predator, SignAge.Recent, null, 0,
             null),
 
         new("Drag marks through the brush",
-            SignCategory.Predator, SignAge.Recent, "Stalked", 0.25,
+            SignCategory.Predator, SignAge.Recent, null, 0,
             "Something made a kill here"),
 
         new("Fur caught on branches at shoulder height",
@@ -70,7 +70,7 @@ public static class TrailSigns
             "Large animal passed through"),
 
         new("Paw prints in mud, claws extended",
-            SignCategory.Predator, SignAge.Fresh, "Stalked", 0.35,
+            SignCategory.Predator, SignAge.Fresh, null, 0,
             "Moving with purpose"),
     ];
 
@@ -219,7 +219,7 @@ public static class TrailSignSelector
         double hoofEvidence = 0)
     {
         var pool = new List<(TrailSign, double)>();
-        bool isStalked = ctx.Tensions.HasTension("Stalked");
+        bool isStalked = PredatorInteractions.ObservedFollowing(ctx);
 
         // Predator signs - higher weight in predator territory or when already stalked
         if (hasPredators || isStalked || pawEvidence > 0)

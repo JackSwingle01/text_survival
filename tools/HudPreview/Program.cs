@@ -21,6 +21,7 @@ Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
 Raylib.InitWindow(1600, 900, "HUD Preview");
 Raylib.SetTargetFPS(60);
 rlImGui.Setup(true);
+unsafe { ImGui.GetIO().NativePtr->IniFilename = null; } // Preview must not rewrite the player's UI settings.
 ImGui.GetIO().FontGlobalScale = 1.25f;
 TileRenderer.LoadSprites();
 UiIcons.Load();
@@ -28,7 +29,7 @@ var ctx = GameContext.CreateNewGame(seed: 1234);
 var hud = new HudController();
 var world = new WorldRenderer(hud.State);
 world.RecenterOnPlayer(ctx);
-for (int scenario = 0; scenario < 7; scenario++)
+for (int scenario = 0; scenario < 8; scenario++)
 {
     if (scenario == 1)
     {
@@ -75,6 +76,17 @@ for (int scenario = 0; scenario < 7; scenario++)
         ctx.ActiveCombat = CombatScenario.Create([ctx.player], [wolf], ctx.CurrentLocation, 5,
             AwarenessState.Engaged, AwarenessState.Engaged, ctx.player);
     }
+    if (scenario == 7)
+    {
+        ctx = GameContext.CreateNewGame(seed: 1234);
+        ctx.Herds.Clear();
+        var wolves = Herd.Create(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map!, [ctx.Map!.CurrentPosition]);
+        for (int i = 0; i < 3; i++) wolves.AddMember(AnimalFactory.FromType(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map)!);
+        wolves.Hunger = 0.8;
+        ctx.Herds.Add(wolves);
+        PredatorInteractions.Update(wolves, 1, ctx);
+        PredatorInteractions.Observe(ctx);
+    }
     for (int frame = 0; frame < 15; frame++)
     {
         hud.Update(ctx, world, 1f/60);
@@ -102,6 +114,38 @@ using (var ui = new DesktopUi(ctx, scheduler))
     for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f/60);
     var screenshot = Raylib.LoadImageFromScreen();
     Raylib.ExportImage(screenshot, Path.Combine(output, "hud-7-modal.png"));
+    Raylib.UnloadImage(screenshot);
+}
+var predatorScheduler = new FrameScheduler();
+using (var ui = new DesktopUi(ctx, predatorScheduler))
+{
+    ctx.Ui = ui;
+    var evt = text_survival.Actions.Events.PredatorEventFactory.Create(ctx, ctx.Herds[0]);
+    _ = ui.ShowEventChoices(new EventDto(evt.Name, evt.Description,
+        evt.GetAvailableChoices(ctx).Select((c, i) => new EventChoiceDto(i.ToString(), c.Label, c.Description, true, null)).ToList()));
+    for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f/60);
+    var screenshot = Raylib.LoadImageFromScreen();
+    Raylib.ExportImage(screenshot, Path.Combine(output, "predator-response.png"));
+    Raylib.UnloadImage(screenshot);
+}
+// Authored scenes use their own decisions over the same live herd.
+ctx.Inventory.Add(Resource.RawMeat, 1);
+foreach (var title in new[] { "Rustle at Camp Edge", "Wolves Smell Blood" })
+{
+    if (title == "Wolves Smell Blood")
+    {
+        ctx.CurrentLocation.AddFeature(new CarcassFeature(AnimalFactory.FromType(AnimalType.Mammoth, ctx.CurrentLocation, ctx.Map!)!));
+        ctx.UpdateWithoutEvents(0, ActivityType.Butchering);
+    }
+    using var ui = new DesktopUi(ctx, new FrameScheduler());
+    ctx.Ui = ui;
+    var evt = GameEventRegistry.AllEventFactories.Select(f => f(ctx)).First(e => e.Name == title);
+    evt.BindPredatorEncounters(ctx);
+    _ = ui.ShowEventChoices(new EventDto(evt.Name, evt.Description,
+        evt.GetAvailableChoices(ctx).Select((c, i) => new EventChoiceDto(i.ToString(), c.Label, c.Description, true, null)).ToList()));
+    for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f/60);
+    var screenshot = Raylib.LoadImageFromScreen();
+    Raylib.ExportImage(screenshot, Path.Combine(output, title == "Wolves Smell Blood" ? "authored-carcass.png" : "authored-camp.png"));
     Raylib.UnloadImage(screenshot);
 }
 UiIcons.Unload();

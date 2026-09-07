@@ -249,8 +249,7 @@ public static class EscapeScenarioSelector
         chance *= caps.Moving; // Injured = worse odds
 
         // Active tensions
-        var stalkedTension = ctx.Tensions.GetTension("Stalked");
-        if (stalkedTension?.Severity > 0.5)
+        if (PredatorInteractions.ImmediateThreat(ctx))
             chance -= 0.1; // They know you well now
 
         // Time of day

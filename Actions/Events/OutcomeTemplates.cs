@@ -138,21 +138,6 @@ public static class OutcomeTemplates
         return r;
     }
 
-    public static EventResult BecomeStalked(this EventResult r, double severity, AnimalType? predator = null)
-        => r.CreateTension("Stalked", severity, animalType: predator);
-
-    public static EventResult EscalatesStalking(this EventResult r, double amount = 0.15)
-        => r.Escalate("Stalked", amount);
-
-    public static EventResult ResolvesStalking(this EventResult r)
-        => r.ResolveTension("Stalked");
-
-    public static EventResult EscalatesPack(this EventResult r, double amount = 0.15)
-        => r.Escalate("PackNearby", amount);
-
-    public static EventResult ResolvesPack(this EventResult r)
-        => r.ResolveTension("PackNearby");
-
     public static EventResult MarksDiscovery(this EventResult r, string description, double severity = 0.5)
         => r.CreateTension("MarkedDiscovery", severity, description: description);
 
@@ -170,21 +155,6 @@ public static class OutcomeTemplates
 
     public static EventResult MarksAnimalSign(this EventResult r, AnimalType animal, double severity = 0.4)
         => r.CreateTension("MarkedDiscovery", severity, animalType: animal, description: $"{animal.DisplayName().ToLower()} territory");
-
-    public static EventResult ConfrontStalker(this EventResult r, AnimalType animal, int distance, double boldness)
-        => r.ResolveTension("Stalked").Encounter(animal, distance, boldness);
-
-    public static EventResult ConfrontPack(this EventResult r, AnimalType animal, int distance, double boldness)
-        => r.ResolveTension("PackNearby").Encounter(animal, distance, boldness);
-
-    public static EventResult EscalatesToHunted(this EventResult r, AnimalType? animal = null)
-        => r.ResolveTension("Stalked").CreateTension("Hunted", 0.5, animalType: animal);
-
-    public static EventResult EscapeToCamp(this EventResult r)
-        => r.ResolveTension("Stalked").ResolveTension("PackNearby").Aborts();
-
-    public static EventResult FireScaresPredator(this EventResult r, string tension = "Stalked", double reduction = 0.3)
-        => r.BurnsFuel(2).Escalate(tension, -reduction);
 
     public static EventResult ColdAndFear(this EventResult r, double coldDegrees = -12, int coldMinutes = 45, double fear = 0.3)
         => r.WithEffects(EffectFactory.Cold(coldDegrees, coldMinutes), EffectFactory.Fear(fear));
@@ -277,21 +247,13 @@ public static class OutcomeTemplates
     public static EventResult ProperRepair(this EventResult r, EquipSlot slot)
         => r.RepairsEquipment(slot, 10);
 
-    public static EventResult DiscoversPredator(this EventResult r, AnimalType animal, double stalkSeverity = 0.3)
-        => r.SpawnsHerd(animal, 1, 8).BecomeStalked(stalkSeverity, animal);
-
-    public static EventResult DiscoversPack(this EventResult r, AnimalType animal, int count = 4, double severity = 0.4)
-        => r.SpawnsHerd(animal, count, 12).CreateTension("PackNearby", severity, animalType: animal);
-
     public static EventResult DiscoversPreyHerd(this EventResult r, AnimalType animal, int count = 8, double severity = 0.5)
         => r.SpawnsHerd(animal, count, 16).CreateTension("HerdNearby", severity, animalType: animal);
 
     public static EventResult FollowsTracks(this EventResult r, AnimalType animal, bool isPredator, int count = 1)
     {
-        r.SpawnsHerd(animal, count, isPredator ? 8 : 16);
-        return isPredator
-            ? r.BecomeStalked(0.2, animal)
-            : r.CreateTension("HerdNearby", 0.4, animalType: animal);
+        if (isPredator) return r; // Tracks are evidence, not a new animal.
+        return r.SpawnsHerd(animal, count, 16).CreateTension("HerdNearby", 0.4, animalType: animal);
     }
 
     public static EventResult ScavengersWaiting(this EventResult r, double severity = 0.4)

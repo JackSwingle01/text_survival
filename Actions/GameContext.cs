@@ -46,8 +46,6 @@ public class GameContext(Player player, Location camp, Weather weather)
     public Location Camp { get; set; } = camp;
     public bool IsAtCamp => CurrentLocation == Camp;
 
-
-
     // Web session identifier for this game instance
     public string? SessionId { get; set; }
     public NarrativeLog Log { get; set; } = new();
@@ -134,6 +132,7 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     // Tension system for tracking building threats/opportunities
     public TensionRegistry Tensions { get; set; } = new();
+    public List<PredatorObservation> PredatorObservations { get; set; } = [];
 
     // Event queue for intentional triggers (tension changes, weather transitions, thresholds)
     [System.Text.Json.Serialization.JsonIgnore]
@@ -206,6 +205,16 @@ public class GameContext(Player player, Location camp, Weather weather)
 
     public void QueueEncounter(EncounterConfig config)
     {
+        if (_pendingEncounter != null || ActiveCombat != null) return;
+        if (config.AnimalType.IsPredator())
+        {
+            var herd = config.Animal == null ? null : Herds.ContainingAnimal(config.Animal);
+            if (herd?.AnimalType != config.AnimalType || !PredatorInteractions.WithinReach(this, herd) ||
+                TotalMinutesElapsed - herd.LastCombatMinutes < 30) return;
+            var animal = config.Animal ?? herd.Members.FirstOrDefault(a => a.IsAlive);
+            if (animal?.IsAlive != true || CompanionCombat.Owns(this, animal)) return;
+            config = config with { Animal = animal, InitialBoldness = herd.BoldnessToward(player, this, config.IsDefending) };
+        }
         _pendingEncounter = config;
     }
     public bool HasPendingEncounter => _pendingEncounter != null;
@@ -215,14 +224,27 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (_pendingEncounter == null)
             return;
 
-        var activityConfig = ActivityConfig.Get(CurrentActivity);
-        if (activityConfig.EventMultiplier == 0)
-            return; // Activities that block events also block encounters
-
+        if (_pendingEncounter.AnimalType.IsPredator())
+        {
+            var source = _pendingEncounter.Animal == null ? null : Herds.ContainingAnimal(_pendingEncounter.Animal);
+            if (_pendingEncounter.Animal?.IsAlive != true || CompanionCombat.Owns(this, _pendingEncounter.Animal) || !PredatorInteractions.WithinReach(this, source) ||
+                (_pendingEncounter.RequiresPursuit && (source!.Pursuit?.Target != player || source.Fear >= 0.6)))
+            {
+                _pendingEncounter = null;
+                return;
+            }
+        }
         var config = _pendingEncounter;
         _pendingEncounter = null;
 
-        // A herd sends one of its own; an event conjures a fresh animal.
+        if (config.AnimalType.IsPredator())
+        {
+            var herd = config.Animal == null ? null : Herds.ContainingAnimal(config.Animal);
+            if (config.Animal?.IsAlive != true || !PredatorInteractions.WithinReach(this, herd)) return;
+            herd!.LastCombatMinutes = TotalMinutesElapsed;
+            herd.Pursuit = null;
+        }
+        // Predator combat always uses a member of the existing world population.
         var map = Map ?? throw new InvalidOperationException("Cannot start an encounter before the map is initialized.");
         var predator = config.Animal ?? AnimalFactory.FromType(config.AnimalType, CurrentLocation, map)
             ?? throw new InvalidOperationException($"No animal for encounter type {config.AnimalType}");
@@ -337,7 +359,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         GameEventRegistry.ClearTriggerTimes();
         Weather weather = new Weather(-10, StartTime);
 
-        // Generate world map (uses defaults: 48x48 with 150 locations)
+        // Generate the west-to-east valley world with an eastern mountain crossing.
         var worldGen = new GridWorldGenerator();
 
         var (map, camp) = worldGen.Generate(weather, seed);
@@ -362,7 +384,6 @@ public class GameContext(Player player, Location camp, Weather weather)
         ctx.Discoveries.InitializeStartingKnowledge();
 
         HerdPopulator.Populate(ctx.Herds, map!, seed);
-
 
         var testNPC = NPCFactory.SpawnNearCamp(map, camp);
         if (testNPC != null) ctx.NPCs.Add(testNPC);
@@ -439,6 +460,12 @@ public class GameContext(Player player, Location camp, Weather weather)
 
             // Update survival/zone/tensions (always runs, may queue intentional events)
             UpdateInternal(1);
+            if (HasPendingEncounter)
+            {
+                EventOccurredLastUpdate = true;
+                LastEventAborted = true;
+                break;
+            }
 
             if (activity != ActivityType.Sleeping && ActiveCombat == null && !IsHandlingEvent)
                 await DeliverCompanionRequest();
@@ -565,6 +592,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         }
 
         var herdResults = UpdateHerds(minutes);
+        PredatorInteractions.Observe(this);
         foreach (var result in herdResults)
         {
             if (result.NarrativeMessage != null)
@@ -578,14 +606,14 @@ public class GameContext(Player player, Location camp, Weather weather)
                 var predator = encounterHerd.GetRandomMember();
                 if (predator != null)
                 {
-                    encounterHerd.LastCombatMinutes = TotalMinutesElapsed;  // Mark combat start for cooldown
-
-                    _pendingEncounter = new EncounterConfig(
+                    QueueEncounter(new EncounterConfig(
                         encounterHerd.AnimalType,
                         InitialDistance: result.EncounterRequest.IsDefendingKill ? 10 : 20,
                         InitialBoldness: encounterHerd.BoldnessToward(player, this, result.EncounterRequest.IsDefendingKill),
-                        Animal: predator
-                    );
+                        Animal: predator,
+                        RequiresPursuit: encounterHerd.Pursuit?.Target == player,
+                        IsDefending: result.EncounterRequest.IsDefendingKill
+                    ));
                 }
             }
         }

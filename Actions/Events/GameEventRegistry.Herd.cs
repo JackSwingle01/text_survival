@@ -46,7 +46,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.2, 30)),
                     new EventResult("Made it. Wolves shadow the herd's edge.", weight: 0.30, minutes: 15)
                         .CreateTension("HerdNearby", 0.6, animalType: AnimalType.Caribou)
-                        .CreateTension("Stalked", 0.2, animalType: AnimalType.Wolf),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("Too late. They've moved past. Just stragglers left.", weight: 0.20, minutes: 20)
                         .CreateTension("HerdNearby", 0.3, animalType: AnimalType.Caribou)
                 ]);
@@ -62,7 +62,7 @@ public static partial class GameEventRegistry
         var animal = herdTension?.AnimalType ?? AnimalType.Caribou;
         var stampedeVariant = VariantSelector.SelectStampedeVariant(ctx);
 
-        var predator = AnimalPresence.PickPredator(ctx) ?? AnimalType.Wolf;
+        var predator = PredatorInteractions.Observed(ctx)?.AnimalType ?? AnimalType.Wolf;
 
         var isLargeAnimal = animal == AnimalType.Bison;
         var description = isLargeAnimal
@@ -84,7 +84,7 @@ public static partial class GameEventRegistry
                     new EventResult("Kill, but predators noticed. Working fast now.", weight: 0.15, minutes: 20)
                         .ResolveTension("HerdNearby")
                         .FindsMeat()
-                        .BecomeStalked(0.3, predator),
+                        .ObservesPredator(predator),
                     new EventResult("Spooked them. Stampede!", weight: 0.05, minutes: 5)
                         .Escalate("HerdNearby", 0.3)
                         .Frightening()
@@ -210,8 +210,9 @@ public static partial class GameEventRegistry
     private static GameEvent TheFollowers(GameContext ctx)
     {
         return new GameEvent("The Followers",
-            "The herd has moved on. Their shadows haven't. Wolves that were following the herd are now following YOU.", 2.0)
-            .Requires(EventCondition.FoodScentStrong)
+            "The wolves are matching your movements. Whatever first drew their attention, they are now following YOU.", 2.0)
+            .RequiresSituation(PredatorInteractions.ObservedFollowing)
+            .ForPredatorScene(PredatorSceneKind.TheFollowers)
             .Requires(EventCondition.OnExpedition)
             // AttractiveToPredators: carrying meat, bleeding, or food scent - wolves drawn to you
             .WithSituationFactor(Situations.AttractiveToPredators, 3.0)
@@ -219,9 +220,9 @@ public static partial class GameEventRegistry
                 "Get the meat back to camp. Stay vigilant.",
                 [
                     new EventResult("A lone wolf peels off from the pack. It's following.", weight: 0.45, minutes: 10)
-                        .BecomeStalked(0.3, AnimalType.Wolf),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("Three shapes detach from the herd's shadow. They're coordinating.", weight: 0.35, minutes: 10)
-                        .CreateTension("PackNearby", 0.25, animalType: AnimalType.Wolf),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("They don't follow. Too busy with their own kills.", weight: 0.20, minutes: 10)
                 ])
             .Choice("Create Distance",
@@ -230,7 +231,7 @@ public static partial class GameEventRegistry
                     new EventResult("Long way around. But you lose the followers.", weight: 0.60, minutes: 30)
                         .Escalate("FoodScentStrong", -0.2),
                     new EventResult("They're persistent. Still behind you.", weight: 0.30, minutes: 25)
-                        .BecomeStalked(0.2, AnimalType.Wolf),
+                        .ObservesPredator(AnimalType.Wolf),
                     new EventResult("Detour leads you somewhere unfamiliar.", weight: 0.10, minutes: 35)
                         .Shaken()
                 ])
@@ -241,7 +242,7 @@ public static partial class GameEventRegistry
                         .Costs(ResourceType.Food, 2),
                     new EventResult("They take it AND keep following. Want more.", weight: 0.30, minutes: 10)
                         .Costs(ResourceType.Food, 2)
-                        .BecomeStalked(0.3, AnimalType.Wolf)
+                        .ObservesPredator(AnimalType.Wolf)
                 ],
                 [EventCondition.HasMeat]);
     }
