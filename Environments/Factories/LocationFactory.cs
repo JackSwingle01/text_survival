@@ -84,7 +84,7 @@ public static class LocationFactory
     public static Location MakeCaveTile(Weather weather, bool entrance)
     {
         var location = new Location(
-            name: entrance ? "Cave Entrance" : "Cave Passage",
+            name: entrance ? "Cave Entrance" : "Cave",
             tags: entrance ? "[Cave] [Entrance]" : "[Cave] [Sheltered] [Dark]",
             weather: weather,
             terrainHazardLevel: entrance ? 0.2 : 0.3,
