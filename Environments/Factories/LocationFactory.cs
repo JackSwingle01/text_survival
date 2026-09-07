@@ -80,6 +80,27 @@ public static class LocationFactory
         return location;
     }
 
+    /// <summary>Continuous underground floor; mouths remain visible from the surface.</summary>
+    public static Location MakeCaveTile(Weather weather, bool entrance)
+    {
+        var location = new Location(
+            name: entrance ? "Cave Entrance" : "Cave Passage",
+            tags: entrance ? "[Cave] [Entrance]" : "[Cave] [Sheltered] [Dark]",
+            weather: weather,
+            terrainHazardLevel: entrance ? 0.2 : 0.3,
+            windFactor: entrance ? 0.3 : 0.0,
+            overheadCoverLevel: entrance ? 0.6 : 1.0,
+            visibilityFactor: entrance ? 0.8 : 0.7)
+        {
+            Terrain = TerrainType.Rock,
+            IsTerrainOnly = !entrance,
+            IsDark = !entrance,
+            DiscoveryText = entrance ? "A dark opening leads into the mountain. A passage winds beyond the mouth." : "Rock walls close around a winding passage."
+        };
+        location.Features.Add(FeatureFactory.CreateBarrenForage(density: ForageDensity.Minimal));
+        return location;
+    }
+
     /// <summary>
     /// Get a display name for terrain types.
     /// </summary>

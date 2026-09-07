@@ -245,7 +245,8 @@ public class GameMap
         if (!IsInBounds(x, y)) return false;
         if (!CurrentPosition.IsAdjacentTo(new GridPosition(x, y))) return false;
         var loc = _locations[x, y];
-        return loc != null && loc.IsPassable;
+        return loc != null && loc.IsPassable &&
+            !IsEdgeBlocked(CurrentPosition, new GridPosition(x, y), Weather?.CurrentSeason ?? Weather.Season.Winter);
     }
 
     public GameMap(int width, int height)
@@ -266,8 +267,15 @@ public class GameMap
     {
         if (!IsInBounds(x, y)) return TileVisibility.Unexplored;
         var loc = _locations[x, y];
-        return loc?.Visibility ?? TileVisibility.Unexplored;
+        return loc == null ? TileVisibility.Unexplored : IsCaveConcealed(loc) ? loc.CaveRoofVisibility : loc.Visibility;
     }
+
+    /// <summary>The roof remains mountain on the surface, including after a cave was explored.</summary>
+    public bool IsCaveConcealed(Location location) => location.IsCaveInterior
+        && location.CaveId != CurrentLocation.CaveId;
+
+    public TerrainType DisplayTerrain(Location location) => IsCaveConcealed(location)
+        ? TerrainType.Mountain : location.Terrain;
 
     public void SetLocation(int x, int y, Location location)
     {
@@ -295,12 +303,19 @@ public class GameMap
                 var loc = _locations[x, y];
                 if (loc != null && loc.Visibility == TileVisibility.Visible)
                     loc.Visibility = TileVisibility.Explored;
+                if (loc?.CaveRoofVisibility == TileVisibility.Visible)
+                    loc.CaveRoofVisibility = TileVisibility.Explored;
             }
         }
 
         foreach (var position in Perception.Sight.VisibleTiles(this, CurrentPosition, sightCapacity))
         {
             var location = GetLocationAt(position)!;
+            if (IsCaveConcealed(location))
+            {
+                location.CaveRoofVisibility = TileVisibility.Visible;
+                continue;
+            }
             bool wasHidden = location.Visibility == TileVisibility.Unexplored;
             location.Visibility = TileVisibility.Visible;
             if (wasHidden && !location.IsTerrainOnly && !location.Explored)
@@ -371,6 +386,14 @@ public class GameMap
 
     public bool IsEdgeBlocked(GridPosition from, GridPosition to, Weather.Season season)
     {
+        if (!from.IsAdjacentTo(to)) return true;
+        var a = GetLocationAt(from); var b = GetLocationAt(to);
+        if (a == null || b == null || !a.IsPassable || !b.IsPassable) return true;
+        // Underground floor connects only to its own floor or an explicit mouth.
+        if (a.IsCaveInterior && (a.CaveId != b.CaveId ||
+            b.Structure is not (TileStructure.CaveFloor or TileStructure.CaveEntrance))) return true;
+        if (b.IsCaveInterior && (a.CaveId != b.CaveId ||
+            a.Structure is not (TileStructure.CaveFloor or TileStructure.CaveEntrance))) return true;
         var edges = GetEdgesBetween(from, to);
         return edges.Any(e => e.IsBlockedIn(season));
     }

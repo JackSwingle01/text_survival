@@ -12,7 +12,8 @@ public sealed record TravelInspection(string? Reason, IReadOnlyList<HudAction> A
         var map = ctx.Map;
         var target = new GridPosition(tile.x, tile.y);
         var location = map?.GetLocationAt(tile.x, tile.y);
-        string? reason = map == null || location == null || location.Visibility == TileVisibility.Unexplored ? "Unexplored location." :
+        string? reason = map == null || location == null || map.GetVisibility(tile.x, tile.y) == TileVisibility.Unexplored ? "Unexplored location." :
+            map.IsCaveConcealed(location) ? "Mountain wall. Enter through a cave mouth." :
             target == map.CurrentPosition ? "You are here." :
             !map.CurrentPosition.IsAdjacentTo(target) ? "Select an adjacent tile to travel." :
             !map.CanMoveTo(tile.x, tile.y) ? "Impassable terrain." :

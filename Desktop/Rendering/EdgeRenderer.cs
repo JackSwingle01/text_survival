@@ -15,6 +15,8 @@ public static class EdgeRenderer
     public static void RenderEdges(GameContext ctx, Camera camera, float timeFactor)
     {
         var map = ctx.Map ?? throw new InvalidOperationException("Cannot render without an initialized map.");
+        var entrances = new List<(Vector2 Center, Vector2 Inward, int Seed)>();
+        var ravines = new List<Boundary>();
         var rivers = new List<Boundary>();
         var cliffs = new List<Boundary>();
         var drawn = new HashSet<(int X, int Y, bool Vertical)>();
@@ -42,10 +44,22 @@ public static class EdgeRenderer
                 if (map.HasEdgeType(new GridPosition(x, y), new GridPosition(nx, ny), EdgeType.River))
                     rivers.Add(BuildBoundary(cornerX, cornerY, vertical, origin, pitch, true, Vector2.Zero));
 
-                bool highA = IsHigh(a.Terrain), highB = IsHigh(b.Terrain);
-                if (highA != highB)
+                bool mouthA = a.Structure == TileStructure.CaveEntrance && !b.CaveId.HasValue && b.IsPassable;
+                bool mouthB = b.Structure == TileStructure.CaveEntrance && !a.CaveId.HasValue && a.IsPassable;
+                if (mouthA || mouthB)
                 {
-                    var downhill = new Vector2(dx, dy) * (highA ? 1 : -1);
+                    var center = origin + (vertical ? Vector2.UnitY : Vector2.UnitX) * pitch * .5f;
+                    entrances.Add((center, new Vector2(dx, dy) * (mouthB ? 1 : -1),
+                        unchecked(cornerX * 73856093 ^ cornerY * 19349663)));
+                }
+                bool ravine = map.HasEdgeType(new GridPosition(x, y), new GridPosition(nx, ny), EdgeType.Ravine);
+                bool cliff = map.HasEdgeType(new GridPosition(x, y), new GridPosition(nx, ny), EdgeType.Cliff);
+                if (ravine)
+                    ravines.Add(BuildBoundary(cornerX, cornerY, vertical, origin, pitch, false, Vector2.Zero));
+                bool highA = IsHigh(map.DisplayTerrain(a)), highB = IsHigh(map.DisplayTerrain(b));
+                if (!ravine && (cliff || highA != highB))
+                {
+                    var downhill = new Vector2(dx, dy) * (highA ? -1 : 1);
                     cliffs.Add(BuildBoundary(cornerX, cornerY, vertical, origin, pitch, false, downhill));
                 }
             }
@@ -53,11 +67,16 @@ public static class EdgeRenderer
 
         // Water remains legible where a channel follows the foot of a cliff.
         DrawCliffs(cliffs, pitch, timeFactor);
+        DrawRavines(ravines, pitch, timeFactor);
         DrawRivers(RoundRiverBends(rivers), pitch, timeFactor);
+        foreach (var entrance in entrances)
+            CaveEntranceRenderer.Draw(entrance.Center, entrance.Inward, pitch, timeFactor);
     }
 
+    // Rock is rough ground, not high ground - a boulder field does not sit on a
+    // plateau. Only ground that actually stands above its neighbours gets a scarp.
     private static bool IsHigh(TerrainType terrain) =>
-        terrain is TerrainType.Mountain or TerrainType.Hills or TerrainType.Rock;
+        terrain is TerrainType.Mountain or TerrainType.Hills;
 
     internal static Boundary BuildBoundary(int x, int y, bool vertical, Vector2 origin,
         float pitch, bool river, Vector2 downhill)
@@ -209,6 +228,30 @@ public static class EdgeRenderer
         }
     }
 
+    /// <summary>Two opposing rock banks and a recessed fissure along the shared boundary.</summary>
+    private static void DrawRavines(IReadOnlyList<Boundary> ravines, float pitch, float timeFactor)
+    {
+        var banks = new List<Boundary>();
+        foreach (var edge in ravines)
+        {
+            var tangent = Vector2.Normalize(edge.Points[^1] - edge.Points[0]);
+            var normal = new Vector2(-tangent.Y, tangent.X);
+            foreach (float side in new[] { -1f, 1f })
+                banks.Add(edge with
+                {
+                    Points = edge.Points.Select(p => p + normal * (side * pitch * .065f)).ToArray(),
+                    Widths = edge.Widths.Select(w => w * .55f).ToArray(),
+                    Downhill = -normal * side
+                });
+        }
+        DrawCliffs(banks, pitch, timeFactor);
+        foreach (var edge in ravines)
+        {
+            Ribbon(edge, .55f, Vector2.Zero, Lit(40, 45, 44, timeFactor));
+            Ribbon(edge, .24f, Vector2.Zero, Lit(24, 30, 31, timeFactor));
+        }
+    }
+
     internal static void DrawCliffs(IReadOnlyList<Boundary> cliffs, float pitch, float timeFactor)
     {
         for (int layer = 0; layer < 4; layer++)
@@ -217,10 +260,10 @@ public static class EdgeRenderer
             {
                 var (scale, displacement, color) = layer switch
                 {
-                    0 => (1.30f, 0.033f, Lit(76, 77, 70, timeFactor)),
-                    1 => (1.12f, 0.012f, Lit(100, 95, 84, timeFactor)),
-                    2 => (0.68f, -0.012f, Lit(143, 136, 117, timeFactor)),
-                    _ => (0.25f, -0.044f, Lit(194, 186, 161, timeFactor))
+                    0 => (1.30f, 0.033f, Lit(48, 59, 61, timeFactor)),
+                    1 => (1.12f, 0.012f, Lit(69, 83, 85, timeFactor)),
+                    2 => (0.68f, -0.012f, Lit(109, 125, 127, timeFactor)),
+                    _ => (0.25f, -0.044f, Lit(162, 174, 171, timeFactor))
                 };
                 Ribbon(edge, scale, edge.Downhill * pitch * displacement, color);
             }
@@ -236,17 +279,17 @@ public static class EdgeRenderer
                 var foot = p + edge.Downhill * pitch * (0.045f + n * 0.023f);
                 var kink = Vector2.Lerp(lip, foot, 0.5f) + tangent * pitch * (n - 0.5f) * 0.065f;
                 // Broken vertical seams and ledge shelves describe exposed rock faces.
-                var crack = Lit(87, 83, 73, timeFactor);
+                var crack = Lit(48, 59, 61, timeFactor);
                 Raylib.DrawLineEx(lip, kink, pitch * (0.009f + n * 0.012f), crack);
                 Raylib.DrawLineEx(kink, foot, pitch * 0.014f, crack);
                 Raylib.DrawLineEx(kink + tangent * pitch * 0.014f,
                     kink + tangent * pitch * (0.033f + n * 0.025f), pitch * 0.012f,
-                    Lit(169, 157, 133, timeFactor));
+                    Lit(135, 150, 151, timeFactor));
                 if (n > 0.4f)
                 {
                     var chip = foot + edge.Downhill * pitch * 0.044f;
                     Raylib.DrawLineEx(chip, chip + tangent * pitch * (0.013f + n * 0.014f),
-                        pitch * 0.022f, Lit(123, 118, 102, timeFactor));
+                        pitch * 0.022f, Lit(89, 105, 108, timeFactor));
                 }
             }
         }

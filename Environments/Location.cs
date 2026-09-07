@@ -31,6 +31,12 @@ public class Location
     public string Tags { get; init; } = "";
 
     public TerrainType Terrain { get; set; } = TerrainType.Plain;
+    public TileStructure Structure { get; set; }
+    public int? CaveId { get; set; }
+    public TileVisibility CaveRoofVisibility { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsCaveInterior => Structure == TileStructure.CaveFloor;
 
     /// <summary>
     /// The far side of the mountain pass. Standing here ends the run - the player has

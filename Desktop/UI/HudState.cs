@@ -17,7 +17,7 @@ public sealed class HudState
         var map = ctx.Map;
         if (map == null || !map.IsValidPosition(x, y)) return;
         var location = map.GetLocationAt(x, y);
-        if (location == null || location.Visibility == TileVisibility.Unexplored) return;
+        if (location == null || map.GetVisibility(x, y) == TileVisibility.Unexplored) return;
         SelectedTile = map.CurrentPosition.X == x && map.CurrentPosition.Y == y ? null : (x, y);
     }
 
@@ -30,7 +30,7 @@ public sealed class HudState
             ClearSelection();
         _map = ctx.Map;
         _position = ctx.Map?.CurrentPosition;
-        if (SelectedTile is { } tile && ctx.Map?.GetLocationAt(tile.x, tile.y)?.Visibility is null or TileVisibility.Unexplored)
+        if (SelectedTile is { } tile && ctx.Map?.GetVisibility(tile.x, tile.y) is null or TileVisibility.Unexplored)
             ClearSelection();
         _feedbackSeconds -= dt;
         if (_feedbackSeconds <= 0) Feedback = null;

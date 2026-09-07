@@ -21,15 +21,16 @@ public sealed class LocationInspector
         if (location == null) { ImGui.End(); return null; }
         bool destination = selected.HasValue;
         UiText.Colored(HudWidgets.Heading, destination ? "SELECTED DESTINATION" : "YOU ARE HERE");
-        UiText.Wrapped(location.Name);
-        UiText.Disabled(location.Terrain.ToString());
+        bool concealed = ctx.Map?.IsCaveConcealed(location) == true;
+        UiText.Wrapped(concealed ? "Mountain" : location.Name);
+        UiText.Disabled(concealed ? "Mountain" : location.Terrain.ToString());
         ImGui.Separator();
         float footer = ImGui.GetFrameHeight() + ImGui.GetTextLineHeightWithSpacing() * 2 + 20;
         ImGui.BeginChild("location-content", new Vector2(0, Math.Max(30, ImGui.GetContentRegionAvail().Y - footer)));
         ImGui.PushTextWrapPos(0);
         if (destination)
         {
-            if (location.Visibility == TileVisibility.Visible)
+            if (!concealed && location.Visibility == TileVisibility.Visible)
             {
                 RenderGround(location);
                 RenderFeatures(ctx, location);

@@ -511,7 +511,7 @@ public class VisibilityTests
 
 public class GridWorldGeneratorTests
 {
-    /// <summary>The crossing, south to north, in the order the player walks it.</summary>
+    /// <summary>The crossing, west to east, in the order the player walks it.</summary>
     private static readonly string[] CrossingStages =
     [
         "Pass Approach", "Lower Pass", "The Pass Proper",
@@ -523,8 +523,8 @@ public class GridWorldGeneratorTests
         var (map, _) = new GridWorldGenerator().Generate(new Weather());
 
         var found = new List<(string, GridPosition)>();
-        for (int x = 0; x < 96; x++)
-            for (int y = 0; y < 96; y++)
+        for (int x = 0; x < map.Width; x++)
+            for (int y = 0; y < map.Height; y++)
             {
                 var loc = map.GetLocationAt(x, y);
                 if (loc != null && CrossingStages.Contains(loc.Name))
@@ -543,44 +543,41 @@ public class GridWorldGeneratorTests
     }
 
     [Fact]
-    public void Generate_CrossingRunsNorthUpASingleColumn()
+    public void Generate_CrossingRunsEastAlongASingleRow()
     {
         var (_, stages) = GenerateWithCrossing();
 
         // One corridor, not six scattered tiles.
-        Assert.Single(stages.Select(s => s.Pos.X).Distinct());
+        Assert.Single(stages.Select(s => s.Pos.Y).Distinct());
 
-        // Walking the stages in narrative order means walking north (decreasing Y).
-        var rows = CrossingStages.Select(n => stages.First(s => s.Name == n).Pos.Y).ToList();
-        Assert.Equal(rows.OrderByDescending(y => y), rows);
+        // Walking the stages in narrative order means walking east (increasing X).
+        var columns = CrossingStages.Select(n => stages.First(s => s.Name == n).Pos.X).ToList();
+        Assert.Equal(columns.OrderBy(x => x), columns);
     }
 
     [Fact]
-    public void Generate_FarSideIsTheOnlyCrossingExitAndSitsOnTheNorthEdge()
+    public void Generate_FarSideIsTheOnlyCrossingExitAndSitsOnTheEastEdge()
     {
         var (map, stages) = GenerateWithCrossing();
 
         var exits = new List<Location>();
-        for (int x = 0; x < 96; x++)
-            for (int y = 0; y < 96; y++)
+        for (int x = 0; x < map.Width; x++)
+            for (int y = 0; y < map.Height; y++)
                 if (map.GetLocationAt(x, y) is { IsCrossingExit: true } loc)
                     exits.Add(loc);
 
         var exit = Assert.Single(exits);
         Assert.Equal("Far Side", exit.Name);
-        Assert.Equal(0, stages.First(s => s.Name == "Far Side").Pos.Y);
+        Assert.Equal(map.Width - 1, stages.First(s => s.Name == "Far Side").Pos.X);
     }
 
     [Fact]
     public void Generate_PassCorridorIsWalkableAllTheWayThrough()
     {
         var (map, stages) = GenerateWithCrossing();
-        int passX = stages[0].Pos.X;
-
-        // Every tile from the north edge down to the treeline must be passable, or the
-        // crossing is unreachable and the run has no ending.
-        for (int y = 0; y <= stages.Max(s => s.Pos.Y); y++)
-            Assert.True(map.GetLocationAt(passX, y)!.IsPassable, $"Pass blocked at ({passX}, {y})");
+        int passY = stages[0].Pos.Y;
+        for (int x = stages.Min(s => s.Pos.X); x < map.Width; x++)
+            Assert.True(map.GetLocationAt(x, passY)!.IsPassable, $"Pass blocked at ({x}, {passY})");
     }
 
     [Fact]
@@ -634,7 +631,7 @@ public class GridWorldGeneratorTests
             var neighbor = map.GetLocationAt(neighborPos);
             if (neighbor != null)
             {
-                Assert.True(neighbor.Visibility == TileVisibility.Visible,
+                Assert.True(map.GetVisibility(neighborPos.X, neighborPos.Y) == TileVisibility.Visible,
                     $"Neighbor at {neighborPos} should be visible");
             }
         }

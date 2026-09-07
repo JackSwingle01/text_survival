@@ -17,6 +17,8 @@ public enum EdgeType
     // Player-created
     TrailMarker,    // Blazed trees, cairns - small navigation bonus
     CutTrail,       // Cleared path - larger bonus, replaces marker
+
+    Ravine,         // Impassable fissure between tiles; crossings are gaps in the chain
 }
 
 /// <summary>
@@ -107,6 +109,7 @@ public class TileEdge
     {
         (TraversalModifierMinutes, Bidirectional, Impassable, BlockedSeason) = Type switch
         {
+            EdgeType.Ravine => (0, true, true, (Weather.Season?)null),
             EdgeType.River => (4, true, false, (Weather.Season?)null),        // +4 min to ford
             EdgeType.Cliff => (0, false, true, (Weather.Season?)null),        // One-way down, blocks up
             EdgeType.Climb => (6, true, false, (Weather.Season?)null),        // +6 min, risky

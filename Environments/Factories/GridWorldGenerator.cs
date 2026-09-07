@@ -9,11 +9,16 @@ namespace text_survival.Environments.Factories;
 /// </summary>
 public class GridWorldGenerator
 {
-    public int Width { get; set; } = 96;
-    public int Height { get; set; } = 96;
+    public int Width { get; set; } = 224;
+    public int Height { get; set; } = 82;
     public int TargetNamedLocations { get; set; } = 300;
     public int MinLocationSpacing { get; set; } = 10;  // Minimum tiles between named locations
+    // Retained for callers configuring older generators; geography no longer reserves northern rows.
     public int MountainRows { get; set; } = 18;
+    private ValleyLayout _layout = null!;
+    private List<GridPosition> _land = [];
+    private double _terrainDensity;
+    private HashSet<GridPosition> _paintable = [];
 
     // Terrain matrix used during generation
     private TerrainType[,] _terrain = null!;
@@ -22,8 +27,6 @@ public class GridWorldGenerator
     // Positions adjacent to rivers (for adding WaterFeature)
     private HashSet<GridPosition> _riverAdjacentPositions = new();
 
-    /// <summary>Column the pass is carved through, set by GenerateMountainRange.</summary>
-    private int _passX;
 
     // Cluster shapes for terrain feature placement
     private static readonly List<(int dx, int dy)[]> SmallShapes =
@@ -201,19 +204,26 @@ public class GridWorldGenerator
         _terrain = new TerrainType[Width, Height];
         _rng = seed.HasValue ? new Random(seed.Value) : new Random();
 
-        // Step 1: Generate layered terrain
+        // Build connectivity and barriers first; the biome pass can only paint open land.
+        _layout = new ValleyLayout(Width, Height, _rng);
+        _terrain = _layout.Terrain;
+        _land = _layout.Reachable.Where(p => _layout.Structures[p.X, p.Y] == TileStructure.None
+            && !_layout.Pass.Contains(p) && !_layout.WaterCrossings.Contains(p)).ToList();
+        _paintable = _land.ToHashSet();
+        _terrainDensity = _land.Count / (96.0 * (96 - 18));
         GenerateLayeredTerrain();
-
-        // Step 2: Add mountain range along north edge
-        GenerateMountainRange();
-
-        // Step 3: Generate rivers flowing north to south
-        GenerateRivers(map);
+        _riverAdjacentPositions.Clear();
+        foreach (var p in _layout.Reachable)
+            if (p.GetCardinalNeighbors().Any(n => map.IsInBounds(n.X, n.Y)
+                && _terrain[n.X, n.Y] == TerrainType.DeepWater)) _riverAdjacentPositions.Add(p);
 
         // Step 4: Create terrain-only locations for all positions
         InitializeTerrainLocations(map, weather);
+        foreach (var (positions, type) in _layout.Barriers)
+            if (map.GetLocationAt(positions.A)?.IsPassable == true && map.GetLocationAt(positions.B)?.IsPassable == true)
+                map.AddEdge(positions.A, positions.B, new TileEdge(type) { Bidirectional = true, Impassable = true });
 
-        // Step 5: Place camp near center (replaces terrain location)
+        // Step 5: Place camp in the western starting basin (replaces terrain location)
         var (campPos, camp) = PlaceCamp(map, weather);
 
         // Step 6: Place named locations across the map (replaces terrain locations)
@@ -244,7 +254,12 @@ public class GridWorldGenerator
                 var terrain = _terrain[x, y];
                 // Create deterministic seed from position for environmental details
                 var positionSeed = unchecked(x * 374761393 + y * 668265263 + Width * 1274126177);
-                var location = LocationFactory.MakeTerrainLocation(terrain, weather, positionSeed);
+                var structure = _layout.Structures[x, y];
+                var location = structure is TileStructure.CaveFloor or TileStructure.CaveEntrance
+                    ? LocationFactory.MakeCaveTile(weather, structure == TileStructure.CaveEntrance)
+                    : LocationFactory.MakeTerrainLocation(terrain, weather, positionSeed);
+                location.Structure = structure;
+                location.CaveId = _layout.CaveIds[x, y];
 
                 // Add river water access to adjacent tiles (not water tiles - they have their own water)
                 var pos = new GridPosition(x, y);
@@ -270,11 +285,11 @@ public class GridWorldGenerator
     /// Layer 4: Hills (clusters in plains)
     /// Layer 5: Water (small clusters)
     /// Layer 6: Marsh (expands from water edges)
-    /// Rerolls if any terrain type has fewer than 10 tiles.
+    /// Rerolls sparse distributions using a minimum scaled to usable land.
     /// </summary>
     private void GenerateLayeredTerrain()
     {
-        const int minTilesPerTerrain = 40;
+        int minTilesPerTerrain = Math.Max(1, (int)Math.Round(40 * _terrainDensity));
         const int maxAttempts = 20;
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
@@ -293,7 +308,7 @@ public class GridWorldGenerator
                 {
                     double noise = OctaveNoise(x, y, seed, scale: 16);
                     noiseGrid[x, y] = noise;
-                    if (y >= MountainRows)
+                    if (_paintable.Contains(new GridPosition(x, y)))
                         noiseValues.Add(noise);
                 }
             }
@@ -307,15 +322,16 @@ public class GridWorldGenerator
             {
                 for (int y = 0; y < Height; y++)
                 {
-                    _terrain[x, y] = noiseGrid[x, y] > median ? TerrainType.Forest : TerrainType.Plain;
+                    if (_paintable.Contains(new GridPosition(x, y)))
+                        _terrain[x, y] = noiseGrid[x, y] > median ? TerrainType.Forest : TerrainType.Plain;
                 }
             }
 
             // Layer 2: Rock - scattered single tiles
-            int rockCount = _rng.Next(224, 372);
+            int rockCount = Math.Max(1, (int)Math.Round(_rng.Next(224, 372) * _terrainDensity));
             for (int i = 0; i < rockCount; i++)
             {
-                var (x, y) = RandomPosition(avoidMountainRows: true);
+                var (x, y) = RandomPosition();
                 if (_terrain[x, y] == TerrainType.Forest || _terrain[x, y] == TerrainType.Plain)
                 {
                     _terrain[x, y] = TerrainType.Rock;
@@ -323,15 +339,15 @@ public class GridWorldGenerator
             }
 
             // Layer 3: Clearings - clusters placed in forest
-            int clearingClusters = _rng.Next(108, 192);
+            int clearingClusters = Math.Max(1, (int)Math.Round(_rng.Next(108, 192) * _terrainDensity));
             PlaceClusters(clearingClusters, TerrainType.Clearing, TerrainType.Forest, MediumShapes);
 
             // Layer 4: Hills - clusters placed in plains
-            int hillClusters = _rng.Next(92, 156);
+            int hillClusters = Math.Max(1, (int)Math.Round(_rng.Next(92, 156) * _terrainDensity));
             PlaceClusters(hillClusters, TerrainType.Hills, TerrainType.Plain, MediumShapes);
 
             // Layer 5: Water - small clusters scattered
-            int waterFeatures = _rng.Next(92, 156);
+            int waterFeatures = Math.Max(1, (int)Math.Round(_rng.Next(92, 156) * _terrainDensity));
             PlaceClusters(waterFeatures, TerrainType.Water, null, SmallShapes,
                 allowedBase: [TerrainType.Forest, TerrainType.Plain, TerrainType.Clearing]);
 
@@ -353,11 +369,12 @@ public class GridWorldGenerator
     {
         var counts = new Dictionary<TerrainType, int>();
 
-        // Count tiles per terrain type (excluding mountain rows)
+        // Count the land painted by the biome pass.
         for (int x = 0; x < Width; x++)
         {
-            for (int y = MountainRows; y < Height; y++)
+            for (int y = 0; y < Height; y++)
             {
+                if (!_paintable.Contains(new GridPosition(x, y))) continue;
                 var terrain = _terrain[x, y];
                 if (!counts.ContainsKey(terrain))
                     counts[terrain] = 0;
@@ -388,7 +405,7 @@ public class GridWorldGenerator
     {
         for (int i = 0; i < count; i++)
         {
-            var (x, y) = RandomPosition(avoidMountainRows: true);
+            var (x, y) = RandomPosition();
 
             // Check base terrain requirement
             if (requiredBase.HasValue && _terrain[x, y] != requiredBase.Value)
@@ -406,7 +423,7 @@ public class GridWorldGenerator
             {
                 int nx = x + dx;
                 int ny = y + dy;
-                if (nx < 0 || nx >= Width || ny < MountainRows || ny >= Height)
+                if (nx < 0 || nx >= Width || ny < 0 || ny >= Height || !_paintable.Contains(new GridPosition(nx, ny)))
                 {
                     valid = false;
                     break;
@@ -443,8 +460,9 @@ public class GridWorldGenerator
         // Find tiles adjacent to water
         for (int x = 0; x < Width; x++)
         {
-            for (int y = MountainRows; y < Height; y++)
+            for (int y = 0; y < Height; y++)
             {
+                if (!_paintable.Contains(new GridPosition(x, y))) continue;
                 if (_terrain[x, y] != TerrainType.Forest &&
                     _terrain[x, y] != TerrainType.Plain &&
                     _terrain[x, y] != TerrainType.Clearing)
@@ -457,7 +475,7 @@ public class GridWorldGenerator
                     int nx = x + dx;
                     int ny = y + dy;
                     if (nx >= 0 && nx < Width && ny >= 0 && ny < Height &&
-                        _terrain[nx, ny] == TerrainType.Water)
+                        _terrain[nx, ny] is TerrainType.Water or TerrainType.DeepWater)
                     {
                         adjacentToWater = true;
                         break;
@@ -482,12 +500,10 @@ public class GridWorldGenerator
     /// <summary>
     /// Get a random position on the grid.
     /// </summary>
-    private (int x, int y) RandomPosition(bool avoidMountainRows = false)
+    private (int x, int y) RandomPosition()
     {
-        int x = _rng.Next(0, Width);
-        int minY = avoidMountainRows ? MountainRows : 0;
-        int y = _rng.Next(minY, Height);
-        return (x, y);
+        var p = _land[_rng.Next(_land.Count)];
+        return (p.X, p.Y);
     }
 
     /// <summary>
@@ -588,173 +604,17 @@ public class GridWorldGenerator
     }
 
     /// <summary>
-    /// Add a mountain range along the north edge with a randomized pass.
-    /// </summary>
-    private void GenerateMountainRange()
-    {
-        // Randomize pass position (keep it somewhat central)
-        int passStart = _rng.Next(Width / 4, Width * 3 / 4);
-        int passWidth = 1;  // Single-tile pass through mountains
-        _passX = passStart;
-
-        for (int x = 0; x < Width; x++)
-        {
-            for (int y = 0; y < MountainRows; y++)
-            {
-                // Leave a gap for the pass
-                bool isPass = x >= passStart && x < passStart + passWidth;
-                if (!isPass)
-                {
-                    _terrain[x, y] = TerrainType.Mountain;
-                }
-                else
-                {
-                    // Pass terrain - rocky and hazardous
-                    _terrain[x, y] = TerrainType.Rock;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Generate rivers flowing north to south along vertical tile edges.
-    /// Rivers flow ON edges (between columns), not through tile centers.
-    /// </summary>
-    private void GenerateRivers(GameMap map)
-    {
-        _riverAdjacentPositions.Clear();
-
-        int riverCount = _rng.NextDouble() < 0.6 ? 1 : 2;
-        var usedStartX = new HashSet<int>();
-
-        for (int r = 0; r < riverCount; r++)
-        {
-            var edges = GenerateRiverEdges(usedStartX);
-            if (edges.Count < 10) continue; // Skip too-short rivers
-
-            // Create river edges directly
-            foreach (var (pos1, pos2) in edges)
-            {
-                map.AddEdge(pos1, pos2, new Grid.TileEdge(Grid.EdgeType.River));
-            }
-
-            // Collect adjacent tiles for WaterFeature
-            CollectRiverAdjacentTiles(edges);
-        }
-    }
-
-    /// <summary>
-    /// Generate river edges flowing from north to south along vertical tile edges.
-    /// Rivers flow along the boundary between two columns (edgeX and edgeX+1).
-    /// Each edge is an East edge connecting horizontally adjacent tiles at the same row.
-    /// </summary>
-    private List<(GridPosition, GridPosition)> GenerateRiverEdges(HashSet<int> usedStartX)
-    {
-        var edges = new List<(GridPosition, GridPosition)>();
-
-        // Find starting column for the vertical edge (between edgeX and edgeX+1)
-        int edgeX = FindRiverStartX(usedStartX);
-        if (edgeX < 0 || edgeX >= Width - 1) return edges;
-
-        usedStartX.Add(edgeX);
-        int lastDrift = 0; // Track last drift direction to prevent zigzag
-
-        // Flow from just below mountains to bottom of map
-        for (int y = MountainRows; y < Height; y++)
-        {
-            // Check if both tiles on either side of the edge are valid
-            if (_terrain[edgeX, y] == TerrainType.Mountain ||
-                _terrain[edgeX + 1, y] == TerrainType.Mountain)
-                continue;
-
-            // Add the vertical edge at this row (between the two columns)
-            edges.Add((new GridPosition(edgeX, y), new GridPosition(edgeX + 1, y)));
-
-            // Drift: shift to a different vertical edge
-            if (_rng.NextDouble() < 0.4 && y < Height - 1) // Don't drift on last row
-            {
-                int drift = _rng.Next(2) == 0 ? -1 : 1;
-
-                // Prevent immediate reversal (zigzag)
-                if (lastDrift == 0 || drift == lastDrift)
-                {
-                    int newEdgeX = edgeX + drift;
-                    // Ensure new edge is valid and both tiles exist at next row
-                    if (newEdgeX >= 1 && newEdgeX < Width - 2 &&
-                        _terrain[newEdgeX, y + 1] != TerrainType.Mountain &&
-                        _terrain[newEdgeX + 1, y + 1] != TerrainType.Mountain)
-                    {
-                        // Add connecting South edge before changing edgeX
-                        // The shared column connects old vertical edge to new one
-                        int connectingColumn = drift > 0 ? newEdgeX : edgeX;
-                        edges.Add((new GridPosition(connectingColumn, y),
-                                   new GridPosition(connectingColumn, y + 1)));
-
-                        edgeX = newEdgeX;
-                        lastDrift = drift;
-                    }
-                }
-            }
-            else
-            {
-                lastDrift = 0; // Reset drift memory when going straight
-            }
-        }
-
-        return edges;
-    }
-
-    /// <summary>
-    /// Find a valid starting X position for a river, spaced at least 20 tiles from others.
-    /// </summary>
-    private int FindRiverStartX(HashSet<int> usedStartX)
-    {
-        const int minSpacing = 20;
-        var candidates = new List<int>();
-
-        for (int x = 10; x < Width - 10; x++)
-        {
-            bool tooClose = usedStartX.Any(usedX => Math.Abs(x - usedX) < minSpacing);
-            if (!tooClose && _terrain[x, MountainRows] != TerrainType.Mountain)
-            {
-                candidates.Add(x);
-            }
-        }
-
-        if (candidates.Count == 0) return -1;
-        return candidates[_rng.Next(candidates.Count)];
-    }
-
-    /// <summary>
-    /// Collect all tiles adjacent to the river edges for WaterFeature addition.
-    /// Both tiles on either side of each edge are adjacent to the river.
-    /// </summary>
-    private void CollectRiverAdjacentTiles(List<(GridPosition, GridPosition)> edges)
-    {
-        foreach (var (pos1, pos2) in edges)
-        {
-            // Both tiles on either side of the edge are adjacent to the river
-            _riverAdjacentPositions.Add(pos1);
-            _riverAdjacentPositions.Add(pos2);
-        }
-    }
-
-    /// <summary>
-    /// Place the camp near the center of the map.
+    /// Place the camp in the western starting basin.
     /// </summary>
     private (GridPosition CampPos, Location Camp) PlaceCamp(GameMap map, Weather weather)
     {
-        int centerX = Width / 2;
-        int centerY = Height / 2;
-
-        // Find a suitable spot near center (prefer forest/clearing)
-        var campPos = FindSuitablePosition(map, centerX, centerY, 5,
-            terrain => terrain == TerrainType.Forest || terrain == TerrainType.Clearing);
+        var campPos = _layout.Camp;
 
         // Create camp location
         var camp = CreateCampLocation(weather);
 
-        // Place on map
+        // Keep water access when camp replaces a riverbank tile.
+        camp.Features.AddRange(map.GetLocationAt(campPos)!.Features.OfType<WaterFeature>());
         map.SetLocation(campPos.X, campPos.Y, camp);
 
         return (campPos, camp);
@@ -794,41 +654,28 @@ public class GridWorldGenerator
         return camp;
     }
 
-    /// <summary>
-    /// Name the stages of the mountain crossing along the corridor GenerateMountainRange
-    /// carved. They run south to north - Pass Approach at the treeline, Far Side at the
-    /// map's north edge - with unnamed rock between them, so the crossing is a trek
-    /// rather than a doorway. PlaceNamedLocations never reaches these rows.
-    /// </summary>
+    /// <summary>The final eastern corridor retains the six-stage mountain crossing.</summary>
     private void PlacePassLocations(GameMap map, Weather weather)
     {
-        // South to north. The last entry must land on row 0, the map edge the player leaves by.
-        (int Row, Func<Weather, Location> Factory)[] stages =
+        Func<Weather, Location>[] factories =
         [
-            (15, LocationFactory.MakePassApproach),
-            (12, LocationFactory.MakeLowerPass),
-            (9,  LocationFactory.MakePassProper),
-            (6,  LocationFactory.MakeUpperDescent),
-            (3,  LocationFactory.MakeLowerDescent),
-            (0,  LocationFactory.MakeFarSide),
+            LocationFactory.MakePassApproach, LocationFactory.MakeLowerPass,
+            LocationFactory.MakePassProper, LocationFactory.MakeUpperDescent,
+            LocationFactory.MakeLowerDescent, LocationFactory.MakeFarSide
         ];
-
-        foreach (var (row, factory) in stages)
+        for (int j = 0; j < factories.Length; j++)
         {
-            if (row >= MountainRows)
-                throw new InvalidOperationException(
-                    $"Pass stage at row {row} falls outside the {MountainRows}-row mountain range.");
-
-            var location = factory(weather);
-            location.Terrain = _terrain[_passX, row];
-            map.SetLocation(_passX, row, location);
+            var p = _layout.Pass[j * (_layout.Pass.Count - 1) / (factories.Length - 1)];
+            var location = factories[j](weather);
+            location.Terrain = TerrainType.Rock;
+            map.SetLocation(p.X, p.Y, location);
         }
     }
 
     /// <summary>
     /// Place named locations across the map using terrain-aware selection.
     /// Locations are matched to their preferred terrain types.
-    /// Elite locations only spawn in outer 20% of map (far from camp).
+    /// Elite locations spawn farther east, away from the starting camp.
     /// </summary>
     private void PlaceNamedLocations(GameMap map, Weather weather, GridPosition campPos)
     {
@@ -836,17 +683,16 @@ public class GridWorldGenerator
         int attempts = 0;
         int maxAttempts = TargetNamedLocations * 10;
 
-        // Calculate outer ring threshold (inner 80% of area = outer 20%)
-        double maxRadius = Math.Min(Width, Height) / 2.0;  // 24 tiles for 48x48 map
-        double minEliteDistance = maxRadius * Math.Sqrt(0.8);  // ~21.5 tiles
+        double minEliteDistance = Width * 0.65;  // ~21.5 tiles
 
         while (placedPositions.Count <= TargetNamedLocations && attempts < maxAttempts)
         {
             attempts++;
 
             // Pick a random position
-            int x = Utils.RandInt(0, Width - 1);
-            int y = Utils.RandInt(MountainRows, Height - 1);  // Avoid mountain range
+            var candidate = _land[_rng.Next(_land.Count)];
+            int x = candidate.X;
+            int y = candidate.Y;
 
             var pos = new GridPosition(x, y);
             var location = map.GetLocationAt(pos);
@@ -878,6 +724,9 @@ public class GridWorldGenerator
             var discoveryGenerator = new DiscoveryGenerator(positionSeed + LocationFactory.DiscoverySeedOffset);
             namedLocation.HiddenFeatures.AddRange(discoveryGenerator.GenerateFor(terrain));
 
+            // Named sites inherit local river/lake access from their terrain location.
+            if (!namedLocation.Features.OfType<WaterFeature>().Any())
+                namedLocation.Features.AddRange(location.Features.OfType<WaterFeature>());
             map.SetLocation(x, y, namedLocation);
             placedPositions.Add(pos);
         }
@@ -907,7 +756,7 @@ public class GridWorldGenerator
             return null;
 
         double totalWeight = validLocations.Sum(w => w.Weight);
-        double roll = Utils.RandDouble(0, totalWeight);
+        double roll = _rng.NextDouble() * totalWeight;
 
         double cumulative = 0;
         foreach (var (factory, weight, _) in validLocations)

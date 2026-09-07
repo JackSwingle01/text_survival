@@ -18,7 +18,9 @@ public static class Sight
     public static bool CanSeeTile(GameMap map, GridPosition origin, GridPosition target, double sightCapacity = 1)
     {
         var location = map.GetLocationAt(origin);
-        if (location == null || map.GetLocationAt(target) == null) return false;
+        var destination = map.GetLocationAt(target);
+        if (location == null || destination == null) return false;
+        if (destination.IsCaveInterior && destination.CaveId != location.CaveId) return false;
         double budget = GetSightRange(location, sightCapacity) * (map.Weather?.VisibilityFactor ?? 1);
         return HasLineOfSight(map, origin, target, budget);
     }
@@ -41,6 +43,7 @@ public static class Sight
     /// <summary>Maximum open-ground sight budget; intervening tiles consume it along each ray.</summary>
     public static int GetSightRange(Location location, double sightCapacity = 1.0)
     {
+        if (location.IsCaveInterior) return (int)Math.Round(6 * Math.Clamp(sightCapacity, 0, 1));
         // Existing hill terrain and overlook visibility values encode vantage height.
         // Weather.Elevation is regional, not a heightmap, so it cannot give local advantage.
         double vantage = Math.Max(location.VisibilityFactor,
@@ -49,8 +52,9 @@ public static class Sight
         return (int)Math.Round((11 + bonus) * Math.Clamp(sightCapacity, 0, 1));
     }
 
-    private static double SightAbsorption(Location location) =>
-        location.Terrain == TerrainType.Mountain || location.VisibilityFactor <= 0
+    private static double SightAbsorption(Location location, int? caveId) =>
+        location.Terrain == TerrainType.Mountain || location.VisibilityFactor <= 0 ||
+        location.IsCaveInterior && location.CaveId != caveId
             ? double.PositiveInfinity
             : Math.Max(1, 1 / (location.VisibilityFactor * location.VisibilityFactor));
 
@@ -61,6 +65,7 @@ public static class Sight
     private static bool HasLineOfSight(GameMap map, GridPosition origin, GridPosition target, double budget)
     {
         if (target == origin) return true;
+        int? caveId = map.GetLocationAt(origin)?.CaveId;
         int dx = target.X - origin.X, dy = target.Y - origin.Y;
         double distance = Math.Sqrt(dx * dx + dy * dy);
         if (budget <= 0 || distance > budget) return false;
@@ -76,21 +81,25 @@ public static class Sight
             var location = map.GetLocationAt(x, y);
             if (location == null) return false;
             double exit = Math.Min(nextX, nextY);
-            budget -= (exit - travelled) * SightAbsorption(location);
+            budget -= (exit - travelled) * SightAbsorption(location, caveId);
             if (budget <= 0) return false;
             travelled = exit;
 
             bool crossX = nextX <= exit + 1e-9, crossY = nextY <= exit + 1e-9;
             // A diagonal cannot peek through the seam between two opaque tiles.
-            if (crossX && crossY && IsOpaque(map, x + stepX, y) && IsOpaque(map, x, y + stepY))
+            if (crossX && crossY && IsOpaque(map, x + stepX, y, caveId) && IsOpaque(map, x, y + stepY, caveId))
                 return false;
             if (crossX) { x += stepX; nextX += strideX; }
             if (crossY) { y += stepY; nextY += strideY; }
+            var entered = map.GetLocationAt(x, y);
+            if (location.IsCaveInterior && entered?.IsPassable == true &&
+                (entered.CaveId != location.CaveId || entered.Structure is not
+                    (TileStructure.CaveFloor or TileStructure.CaveEntrance))) return false;
         }
         return true;
     }
 
-    private static bool IsOpaque(GameMap map, int x, int y) =>
-        map.GetLocationAt(x, y) is not { } location || double.IsPositiveInfinity(SightAbsorption(location));
+    private static bool IsOpaque(GameMap map, int x, int y, int? caveId) =>
+        map.GetLocationAt(x, y) is not { } location || double.IsPositiveInfinity(SightAbsorption(location, caveId));
 
 }

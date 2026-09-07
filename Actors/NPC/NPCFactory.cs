@@ -59,7 +59,8 @@ public static class NPCFactory
         foreach (var pos in adjacentPositions)
         {
             var location = map.GetLocationAt(pos);
-            if (location != null)
+            if (location != null && location.IsPassable &&
+                !map.IsEdgeBlocked(campPos, pos, map.Weather.CurrentSeason))
             {
                 return CreateTestNPC(location, map, camp);
             }

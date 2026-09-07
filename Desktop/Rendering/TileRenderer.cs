@@ -73,10 +73,10 @@ public static class TileRenderer
     /// </summary>
     /// <param name="timeFactor">0 at midnight, 1 at noon; dims the tile toward night.</param>
     public static void DrawTerrain(TerrainType terrain, float x, float y, float size, int worldX, int worldY,
-        float timeFactor, Func<int, int, TerrainType?>? neighbor = null)
+        float timeFactor, Func<int, int, TerrainType?>? neighbor = null, bool caveFloor = false)
     {
         TerrainRenderer.Draw(x, y, size, worldX, worldY, timeFactor,
-            TerrainRenderer.Neighborhood.Create(terrain, neighbor));
+            TerrainRenderer.Neighborhood.Create(terrain, neighbor), caveFloor);
     }
 
     /// <summary>
@@ -91,7 +91,7 @@ public static class TileRenderer
         bool isHovered,
         bool isAdjacent,
         float timeFactor,
-        Func<int, int, TerrainType?>? neighbor = null)
+        Func<int, int, TerrainType?>? neighbor = null, bool caveFloor = false)
     {
         if (visibility == TileVisibility.Unexplored)
         {
@@ -99,7 +99,7 @@ public static class TileRenderer
             return;
         }
 
-        DrawTerrain(terrain, x, y, size, worldX, worldY, timeFactor, neighbor);
+        DrawTerrain(terrain, x, y, size, worldX, worldY, timeFactor, neighbor, caveFloor);
 
         if (isPlayerTile)
             DrawPlayerTileHighlight(x, y, size);

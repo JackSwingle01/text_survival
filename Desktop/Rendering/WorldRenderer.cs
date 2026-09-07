@@ -201,7 +201,7 @@ public class WorldRenderer : IDisposable
         // Prints sit on the ground, under everything that made them.
         TrackRenderer.Render(ctx, Camera, timeFactor);
 
-        // Render edges between tiles (rivers, cliffs, trails)
+        // Render edges between tiles (rivers, cliffs, cave entrances)
         EdgeRenderer.RenderEdges(ctx, Camera, timeFactor);
 
         Raylib.EndScissorMode();
@@ -321,7 +321,7 @@ public class WorldRenderer : IDisposable
         TileRenderer.RenderTile(
             screenPos.X, screenPos.Y, Camera.TileSize,
             worldX, worldY,
-            location.Terrain,
+            map.DisplayTerrain(location),
             visibility,
             isPlayerTile,
             isHovered,
@@ -331,11 +331,11 @@ public class WorldRenderer : IDisposable
             {
                 int nx = worldX+dx, ny = worldY+dy;
                 return map.IsValidPosition(nx, ny) && map.GetVisibility(nx, ny) != TileVisibility.Unexplored
-                    ? map.GetLocationAt(nx, ny)?.Terrain : null;
-            });
+                    ? map.DisplayTerrain(map.GetLocationAt(nx, ny)!) : null;
+            }, caveFloor: location.CaveId.HasValue && !map.IsCaveConcealed(location));
 
         // Render feature icons if visible
-        if (visibility == TileVisibility.Visible)
+        if (visibility == TileVisibility.Visible && !map.IsCaveConcealed(location))
             RenderLocationFeatures(location, screenPos.X, screenPos.Y);
     }
 
@@ -521,7 +521,7 @@ public class WorldRenderer : IDisposable
                     terrain,
                     offsetX + gridX, offsetY + gridY, tilePixels,
                     gridX / tilePixels, gridY / tilePixels,
-                    timeFactor);
+                    timeFactor, caveFloor: ctx.CurrentLocation.CaveId.HasValue);
             }
         }
         Raylib.EndScissorMode();

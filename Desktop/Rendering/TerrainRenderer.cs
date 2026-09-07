@@ -29,7 +29,7 @@ public static class TerrainRenderer
         }
     }
 
-    private readonly record struct Key(int X, int Y, Neighborhood Neighbors);
+    private readonly record struct Key(int X, int Y, Neighborhood Neighbors, bool CaveFloor);
     private sealed class Cached(Texture2D texture, long frame)
     {
         public Texture2D Texture = texture;
@@ -37,6 +37,7 @@ public static class TerrainRenderer
     }
     private static readonly Dictionary<TerrainType, Art[]> _art = new();
     private static readonly Dictionary<Key, Cached> _cache = new();
+    private static Art[] _caveFloor = [];
     private static long _frame;
 
     public static unsafe void Load(string path)
@@ -45,7 +46,8 @@ public static class TerrainRenderer
         foreach (var group in Directory.GetFiles(path, "*_tile*.png").Order(StringComparer.Ordinal)
                      .GroupBy(file => Path.GetFileName(file).Split("_tile")[0]))
         {
-            if (!Enum.TryParse<TerrainType>(group.Key, true, out var terrain)) continue;
+            bool caveFloor = group.Key.Equals("cavefloor", StringComparison.OrdinalIgnoreCase);
+            if (!Enum.TryParse<TerrainType>(group.Key, true, out var terrain) && !caveFloor) continue;
             var variants = new List<Art>();
             foreach (string file in group)
             {
@@ -63,8 +65,11 @@ public static class TerrainRenderer
                 }
                 finally { Raylib.UnloadImage(image); }
             }
-            _art.Add(terrain, variants.ToArray());
+            if (caveFloor) _caveFloor = variants.ToArray();
+            else _art.Add(terrain, variants.ToArray());
         }
+        if (_caveFloor.Length == 0) throw new IOException("Missing cave floor art.");
+        CaveEntranceRenderer.Load(path);
         foreach (var terrain in Enum.GetValues<TerrainType>())
             if (!_art.ContainsKey(terrain)) throw new IOException($"Missing terrain art: {terrain}");
     }
@@ -87,15 +92,17 @@ public static class TerrainRenderer
         foreach (var item in _cache.Values) Raylib.UnloadTexture(item.Texture);
         _cache.Clear();
         _art.Clear();
+        _caveFloor = [];
+        CaveEntranceRenderer.Unload();
     }
 
     internal static unsafe void Draw(float x, float y, float size, int worldX, int worldY,
-        float timeFactor, Neighborhood neighbors)
+        float timeFactor, Neighborhood neighbors, bool caveFloor = false)
     {
-        var key = new Key(worldX, worldY, neighbors);
+        var key = new Key(worldX, worldY, neighbors, caveFloor);
         if (!_cache.TryGetValue(key, out var cached))
         {
-            var pixels = Rasterize(worldX, worldY, neighbors, _art);
+            var pixels = Rasterize(worldX, worldY, neighbors, _art, caveFloor: caveFloor);
             Texture2D texture;
             fixed (Color* data = pixels)
             {
@@ -114,13 +121,18 @@ public static class TerrainRenderer
     }
 
     internal static Color[] Rasterize(int worldX, int worldY, Neighborhood neighbors,
-        IReadOnlyDictionary<TerrainType, Art[]> art, bool blend = true)
+        IReadOnlyDictionary<TerrainType, Art[]> art, bool blend = true, bool caveFloor = false)
     {
         var pixels = new Color[Resolution*Resolution];
         for (int y = 0; y < Resolution; y++)
         for (int x = 0; x < Resolution; x++)
         {
             int px = worldX*Resolution+x, py = worldY*Resolution+y;
+            if (caveFloor)
+            {
+                pixels[y*Resolution+x] = SampleArt(_caveFloor, px, py);
+                continue;
+            }
             float u = (x+0.5f)/Resolution, v = (y+0.5f)/Resolution;
             // The same continuous world-space displacement on both sides of an
             // edge prevents straight seams, including four-terrain junctions.
@@ -155,9 +167,13 @@ public static class TerrainRenderer
 
     internal static Color Sample(TerrainType terrain, int px, int py, IReadOnlyDictionary<TerrainType, Art[]> art)
     {
+        return SampleArt(art[terrain], px, py);
+    }
+
+    private static Color SampleArt(Art[] variants, int px, int py)
+    {
         const int span = Resolution*2;
         int tx = (int)Math.Floor((double)px/span), ty = (int)Math.Floor((double)py/span);
-        var variants = art[terrain];
         var tile = variants[VariantIndex(tx, ty, variants.Length)];
         int x = (px-tx*span)*tile.Width/span, y = (py-ty*span)*tile.Height/span;
         return tile.Pixels[y*tile.Width+x];
