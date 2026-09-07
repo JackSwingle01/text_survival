@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
@@ -143,7 +144,7 @@ public class InventoryOverlay
 
             ImGui.PushStyleColor(ImGuiCol.Button, buttonColor);
 
-            if (UiIcons.Button(UiIcons.ForCategory(category), category, category))
+            if (UiIcons.Button(UiIcons.ForCategory(category), category, category, selected: selected))
             {
                 _selectedCategory = category;
                 _selectedItem = null;
@@ -314,7 +315,7 @@ public class InventoryOverlay
 
         // Use unique ID for each tile
         string id = GetItemId(item);
-        if (ImGui.Button($"##{id}", new Vector2(width, height)))
+        if (ImGui.Button($"##{id}", new Vector2(width, height), selected: isSelected))
         {
             clicked = true;
         }
@@ -353,7 +354,7 @@ public class InventoryOverlay
         return clicked;
     }
 
-    private static void RenderConditionBar(ImDrawListPtr drawList, Vector2 rectMin, float width, float height, double condition)
+    private static void RenderConditionBar(GameDrawList drawList, Vector2 rectMin, float width, float height, double condition)
     {
         // Small bar at the bottom of the tile
         float barHeight = 3;

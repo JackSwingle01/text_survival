@@ -317,6 +317,26 @@ public class NPCActionTests
     }
 
     [Fact]
+    public void GetClosestKnownResource_RevisitingDepletedLocation_ForgetsIt()
+    {
+        var (npc, camp, cache, map) = CreateTestNPCWithCache();
+
+        var forest = new Location("Forest", "[forest]", new Weather(-10, GameContext.StartTime), 5);
+        var forage = new ForageFeature();
+        forage.AddSticks();
+        forest.AddFeature(forage);
+        map.SetLocation(0, 1, forest);
+
+        npc.ResourceMemory.RememberLocation(forest);
+        Assert.Equal(forest, npc.GetClosestKnownResource(ResourceCategory.Fuel));
+
+        forage.Deplete(1000);
+        npc.ResourceMemory.RememberLocation(forest);
+
+        Assert.Null(npc.GetClosestKnownResource(ResourceCategory.Fuel));
+    }
+
+    [Fact]
     public void GetClosestKnownResource_NoMap_ReturnsNull()
     {
         var weather = new Weather(-10, GameContext.StartTime);

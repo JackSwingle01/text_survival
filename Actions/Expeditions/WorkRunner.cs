@@ -56,7 +56,7 @@ public class WorkRunner(GameContext ctx)
         string? validationError = await strategy.ValidateLocation(_ctx, location);
         if (validationError != null)
         {
-            GameDisplay.AddNarrative(_ctx, validationError);
+            GameDisplay.AddWarning(_ctx, validationError);
             return WorkResult.Empty(0);
         }
 

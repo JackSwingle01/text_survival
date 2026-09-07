@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using text_survival.Actors.Animals;
 using ImGuiNET;
 using System.Numerics;
@@ -37,14 +38,12 @@ public static class SurvivorPanel
         HudWidgets.Begin("##Survivor", rect);
         UiText.Colored(HudWidgets.Heading, "SURVIVOR");
         ImGui.Separator();
-        RenderSurvivalStats(ctx.player);
-        ImGui.Separator();
         var body = ctx.player.Body;
         double rate = ctx.player.LastUpdateMinutes > 0 && ctx.player.LastSurvivalDelta?.TemperatureDelta is double delta
             ? delta / ctx.player.LastUpdateMinutes * 60 : 0;
-        UiIcons.LabelColored("temperature", body.BodyTemperature < 97 ? ColorWarning : ColorGood,
-            $"Body {body.BodyTemperature:F1}°F{(rate < -.5 ? ArrowDown : rate > .5 ? ArrowUp : "")}");
+        RenderSurvivalStats(ctx.player, rate);
         UiText.Disabled($"{rate:+0.0;-0.0;0.0}°F/hr · Feels {ctx.CurrentLocation.GetTemperatureBreakdown(ctx.CurrentActivity).FinalTemp:F0}°F");
+        ImGui.Separator();
         RenderInventorySummary(ctx);
         var warnings = SurvivorWarnings.Build(ctx);
         if (warnings.Count > 0)
@@ -53,9 +52,6 @@ public static class SurvivorPanel
             UiText.Colored(ColorDanger, warnings.Count == 1 ? warnings[0] : $"{warnings[0]} (+{warnings.Count - 1})");
             if (ImGui.IsItemHovered()) UiText.Tooltip(string.Join("\n", warnings));
         }
-        ImGui.Separator();
-        foreach (var action in actions.Where(a => a.Group == HudActionGroup.Personal))
-            if (HudWidgets.Action(action, interactive)) result = action.Payload;
         ImGui.Separator();
         ImGui.BeginChild("survivor-details", new Vector2(0, 0), ImGuiChildFlags.None, ImGuiWindowFlags.AlwaysVerticalScrollbar);
         UiText.Colored(HudWidgets.Heading, "CONDITION");
@@ -70,8 +66,9 @@ public static class SurvivorPanel
         return result;
     }
 
-    private static void RenderSurvivalStats(Actor actor)
+    private static void RenderSurvivalStats(Actor actor, double tempRatePerHour)
     {
+        double bodyTemp = actor.Body.BodyTemperature;
         int energyPct = (int)(actor.Body.EnergyPct * 100);
         int caloriesPct = (int)(actor.Body.FullPct * 100);
         int hydrationPct = (int)(actor.Body.HydratedPct * 100);
@@ -81,6 +78,15 @@ public static class SurvivorPanel
         {
             ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
             ImGui.TableSetupColumn("Bar", ImGuiTableColumnFlags.WidthStretch);
+
+            // Body temp is not a 0-100 stat: 90-99F spans collapse to death and normal.
+            ImGui.TableNextColumn();
+            UiIcons.Label("temperature", "Warmth");
+            ImGui.TableNextColumn();
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, bodyTemp < 95 ? ColorCold : bodyTemp < 97 ? ColorWarning : ColorGood);
+            ImGui.ProgressBar((float)Math.Clamp((bodyTemp - 90) / 9.0, 0, 1), new Vector2(-1, 18),
+                $"{bodyTemp:F1}°F{(tempRatePerHour < -.5 ? ArrowDown : tempRatePerHour > .5 ? ArrowUp : "")}");
+            ImGui.PopStyleColor();
 
             RenderStatRow("Energy", energyPct, GetStatColor(energyPct));
             RenderStatRow("Food", caloriesPct, GetStatColor(caloriesPct));
@@ -189,10 +195,36 @@ public static class SurvivorPanel
             ImGui.EndTable();
         }
 
-        // Collapsible breakdown section - default collapsed
-        if (ImGui.CollapsingHeader("Details##temp", ImGuiTreeNodeFlags.None))
+        // The breakdown is the whole point of opening this section - a second collapse
+        // hid the numbers that explain the Feels Like figure above.
         {
             if (ImGui.BeginTable("temp_breakdown", 2))
+            {
+                ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+
+                ImGui.TableNextColumn();
+                UiIcons.LabelColored("wind", ImGui.StyleColor(ImGuiCol.TextDisabled), "Wind");
+                ImGui.TableNextColumn();
+                UiText.Disabled($"{weather.WindSpeedMPH:F0} mph {weather.CurrentWindDirection}");
+
+                ImGui.TableNextColumn();
+                UiIcons.LabelColored("precipitation", ImGui.StyleColor(ImGuiCol.TextDisabled), "Precip");
+                ImGui.TableNextColumn();
+                UiText.Disabled(weather.PrecipitationPct < 0.1 ? "None" : weather.PrecipitationPct < 0.3 ? "Light"
+                    : weather.PrecipitationPct < 0.6 ? "Moderate" : "Heavy");
+
+                if (weather.GetFrontLabel() is { Length: > 0 } front)
+                {
+                    ImGui.TableNextColumn();
+                    UiText.Disabled("Front");
+                    ImGui.TableNextColumn();
+                    UiText.Disabled(front);
+                }
+
+                ImGui.EndTable();
+            }
+            if (ImGui.BeginTable("temp_contributions", 2))
             {
                 ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
                 ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
@@ -216,7 +248,7 @@ public static class SurvivorPanel
                 if (breakdown.WindChill < -1)
                 {
                     ImGui.TableNextColumn();
-                    UiIcons.LabelColored("wind", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Wind");
+                    UiIcons.LabelColored("wind", ImGui.StyleColor(ImGuiCol.TextDisabled), "Wind");
                     ImGui.TableNextColumn();
                     UiText.Colored(ColorCold, $"{breakdown.WindChill:F0}°F");
                 }
@@ -225,7 +257,7 @@ public static class SurvivorPanel
                 if (breakdown.SunWarming > 1)
                 {
                     ImGui.TableNextColumn();
-                    UiIcons.LabelColored("sun", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Sun");
+                    UiIcons.LabelColored("sun", ImGui.StyleColor(ImGuiCol.TextDisabled), "Sun");
                     ImGui.TableNextColumn();
                     UiText.Colored(ColorWarm, $"+{breakdown.SunWarming:F0}°F");
                 }
@@ -234,7 +266,7 @@ public static class SurvivorPanel
                 if (breakdown.PrecipCooling > 1)
                 {
                     ImGui.TableNextColumn();
-                    UiIcons.LabelColored("precipitation", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Precip");
+                    UiIcons.LabelColored("precipitation", ImGui.StyleColor(ImGuiCol.TextDisabled), "Precip");
                     ImGui.TableNextColumn();
                     UiText.Colored(ColorCold, $"-{breakdown.PrecipCooling:F0}°F");
                 }
@@ -243,7 +275,7 @@ public static class SurvivorPanel
                 if (breakdown.ShelterBonus > 1)
                 {
                     ImGui.TableNextColumn();
-                    UiIcons.LabelColored("shelter", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Shelter");
+                    UiIcons.LabelColored("shelter", ImGui.StyleColor(ImGuiCol.TextDisabled), "Shelter");
                     ImGui.TableNextColumn();
                     UiText.Colored(ColorWarm, $"+{breakdown.ShelterBonus:F0}°F");
                 }
@@ -252,7 +284,7 @@ public static class SurvivorPanel
                 if (breakdown.FireBonus > 1)
                 {
                     ImGui.TableNextColumn();
-                    UiIcons.LabelColored("fire", ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled], "Fire");
+                    UiIcons.LabelColored("fire", ImGui.StyleColor(ImGuiCol.TextDisabled), "Fire");
                     ImGui.TableNextColumn();
                     UiText.Colored(ColorWarm, $"+{breakdown.FireBonus:F0}°F");
                 }
@@ -352,7 +384,7 @@ public static class SurvivorPanel
 
         ImGui.TableNextColumn();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
-        ImGui.ProgressBar((float)damage, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{damagePct}%");
+        ImGui.ProgressBar((float)damage, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{damagePct}% damage");
         ImGui.PopStyleColor();
 
         ImGui.TableNextColumn();
@@ -363,6 +395,7 @@ public static class SurvivorPanel
     {
         return condition switch
         {
+            >= 1 => "Healthy",
             <= 0 => "Destroyed",
             < 0.2 => "Critical",
             < 0.4 => "Severe",
@@ -448,12 +481,44 @@ public static class SurvivorPanel
                         UiText.Disabled("No direct capacity effects");
                     }
 
+                    RenderContributions(effect);
+
                     ImGui.EndTooltip();
                 }
             }
 
             ImGui.EndTable();
         }
+    }
+
+    /// <summary>
+    /// Why the effect is where it is: the terms that fed its severity, biggest first, with
+    /// the total they add up to. Reading a rate against its own total is what tells you
+    /// whether this is getting worse and which term to do something about.
+    /// </summary>
+    private static void RenderContributions(Effect effect)
+    {
+        if (effect.Contributions.Count == 0) return;
+
+        ImGui.Separator();
+        UiText.Disabled($"Rate ({effect.ContributionUnit ?? "per hour"})");
+
+        double total = 0;
+        foreach (var (name, value) in effect.Contributions.OrderByDescending(c => Math.Abs(c.Value)))
+        {
+            total += value;
+            if (value == 0)
+            {
+                UiText.Disabled(name);
+                continue;
+            }
+            // Worse is red whichever direction "worse" runs for this effect.
+            bool worsening = effect.IsBeneficial ? value < 0 : value > 0;
+            UiText.Colored(worsening ? ColorDanger : ColorGood, $"{name}: {value:+0.00;-0.00}");
+        }
+
+        ImGui.Separator();
+        UiText.Colored(ColorHeader, $"Net: {total:+0.00;-0.00}");
     }
 
     private static void RenderTensions(GameContext ctx)

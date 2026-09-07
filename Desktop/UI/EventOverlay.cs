@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using Raylib_cs;
 using System.Numerics;
@@ -60,7 +61,7 @@ public class GameEventOverlay
                 RenderOutcome(_outcome);
 
                 ImGui.Separator();
-                if (ImGui.Button("Continue [Enter]", new Vector2(-1, 30)) || Raylib.IsKeyPressed(KeyboardKey.Enter))
+                if (ImGui.Button("Continue [Enter]", new Vector2(-1, 30)) || ImGui.IsKeyPressed(KeyboardKey.Enter))
                 {
                     IsOpen = false;
                     _currentEvent = null;

@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
@@ -164,8 +165,8 @@ public class CraftingOverlay
         {
             if (i > 0) ImGui.SameLine();
             bool active = i == selected;
-            if (active) ImGui.PushStyleColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.TabSelected]);
-            if (ImGui.Button($"{labels[i]}##{id}{i}")) selected = i;
+            if (active) ImGui.PushStyleColor(ImGuiCol.Button, ImGui.StyleColor(ImGuiCol.TabSelected));
+            if (ImGui.Button($"{labels[i]}##{id}{i}", selected: active)) selected = i;
             if (active) ImGui.PopStyleColor();
         }
         return before != selected;

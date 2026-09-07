@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
@@ -70,7 +71,7 @@ public class FireOverlay
                 {
                     if (ImGui.BeginTabItem("Tend Fire"))
                     {
-                        result = RenderTendingMode(ctx, fire);
+                        result ??= RenderTendingMode(ctx, fire);
                         ImGui.EndTabItem();
                     }
                 }

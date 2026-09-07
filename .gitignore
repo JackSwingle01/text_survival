@@ -423,3 +423,6 @@ tmp/
 /saves
 /saves
 imgui.ini
+
+# Persistent agent CLI transport and worker logs
+/.gamecli/

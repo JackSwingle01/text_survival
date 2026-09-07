@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
@@ -50,7 +51,7 @@ public sealed class LocationInspector
         else
         {
             RenderGround(location);
-            foreach (var group in new[] { HudActionGroup.Fire, HudActionGroup.Shelter, HudActionGroup.Resources, HudActionGroup.Storage, HudActionGroup.People, HudActionGroup.Other })
+            foreach (var group in new[] { HudActionGroup.Personal, HudActionGroup.Fire, HudActionGroup.Shelter, HudActionGroup.Resources, HudActionGroup.Storage, HudActionGroup.People, HudActionGroup.Other })
             {
                 var grouped = actions.Where(a => a.Group == group).ToList();
                 bool hasResourceInfo = group == HudActionGroup.Resources &&
@@ -58,7 +59,7 @@ public sealed class LocationInspector
                      (ctx.Map is { } currentMap && currentMap.Tracks.At(currentMap.CurrentPosition).Count > 0));
                 if (grouped.Count == 0 && !hasResourceInfo) continue;
                 HudWidgets.Section(group switch {
-                    HudActionGroup.Shelter => "Shelter & rest", HudActionGroup.Resources => "Resources & work",
+                    HudActionGroup.Personal => "Personal", HudActionGroup.Shelter => "Shelter & rest", HudActionGroup.Resources => "Resources & work",
                     HudActionGroup.Storage => "Storage & processing", HudActionGroup.Other => "Other work", _ => group.ToString() });
                 RenderFeatures(ctx, location, group);
                 if (group == HudActionGroup.Resources && ctx.Map is { } map)
@@ -66,11 +67,6 @@ public sealed class LocationInspector
                 if (group == HudActionGroup.People) RenderNPCs(ctx, location, true);
                 foreach (var action in grouped)
                     if (HudWidgets.Action(action, interactive)) result = action.Payload;
-                if (group == HudActionGroup.Fire && location.GetFeature<HeatSourceFeature>()?.IsActive == true)
-                {
-                    var food = actions.First(a => a.Id == CampAction.Food.ToString());
-                    if (HudWidgets.Action(food with { Label = "Cook / food & water..." }, interactive)) result = food.Payload;
-                }
             }
         }
         ImGui.PopTextWrapPos();
@@ -82,6 +78,29 @@ public sealed class LocationInspector
         if (HudWidgets.Action(wait, interactive)) result = wait.Payload;
         ImGui.End();
         return result;
+    }
+
+    /// <summary>Burning fuel over unburned, against pit capacity.</summary>
+    private static void RenderFuelBar(HeatSourceFeature fire, Vector4 phaseColor)
+    {
+        double max = fire.MaxFuelCapacityKg;
+        if (max <= 0) return;
+        float burning = (float)(fire.BurningMassKg / max);
+        float total = (float)Math.Clamp((fire.BurningMassKg + fire.UnburnedMassKg) / max, 0, 1);
+        string label = fire.UnburnedMassKg > 0.1
+            ? $"{fire.BurningMassKg:F1} (+{fire.UnburnedMassKg:F1}) / {max:F0} kg"
+            : $"{fire.BurningMassKg:F1} / {max:F0} kg";
+
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.6f, 0.4f, 0.2f, 1f));
+        ImGui.ProgressBar(total, new Vector2(-1, OverlaySizes.CompactBarHeight), "");
+        ImGui.PopStyleColor();
+        // Burning portion drawn over the unburned bar in the phase color.
+        var min = ImGui.GetItemRectMin();
+        var size = ImGui.GetItemRectSize();
+        ImGui.GetWindowDrawList().AddRectFilled(min, min + new Vector2(size.X * Math.Clamp(burning, 0, 1), size.Y),
+            ImGui.GetColorU32(phaseColor));
+        ImGui.GetWindowDrawList().AddText(min + new Vector2((size.X - ImGui.CalcTextSize(label).X) / 2, (size.Y - ImGui.GetTextLineHeight()) / 2),
+            ImGui.GetColorU32(ImGuiCol.Text), label);
     }
 
     /// <summary>What the ground is like here today, if it is worth saying.</summary>
@@ -109,13 +128,16 @@ public sealed class LocationInspector
             if (fire.IsActive)
             {
                 string phase = fire.GetFirePhase();
-                int minutes = (int)(fire.BurningHoursRemaining * 60);
+                // Unburned fuel is time you already paid for - showing only the burning mass
+                // told the player their fire was minutes from out with an hour of wood on it.
+                int minutes = (int)((fire.UnburnedMassKg > 0.1 ? fire.TotalHoursRemaining : fire.BurningHoursRemaining) * 60);
                 Vector4 color = minutes <= 5
                     ? new Vector4(1f, 0.3f, 0.3f, 1f)
                     : minutes <= 15
                         ? new Vector4(1f, 0.7f, 0.3f, 1f)
                         : new Vector4(1f, 0.6f, 0.2f, 1f);
                 UiText.Colored(color, $"Fire: {phase} ({HudWidgets.Duration(minutes)})");
+                RenderFuelBar(fire, color);
             }
             else if (fire.HasEmbers)
             {

@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../text_survival.csproj" />
+    <ProjectReference Include="../tools/GameCli/GameCli.csproj" />
   </ItemGroup>
 
 </Project>

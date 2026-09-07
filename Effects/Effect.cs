@@ -16,6 +16,21 @@ namespace text_survival.Effects
         public bool CanHaveMultiple { get; init; } = false;
         public bool IsActive { get; set; } = true;
 
+        /// <summary>
+        /// Why this effect is at the severity it is: each term that fed it, signed, so the
+        /// player can hover it and read the balance instead of guessing. Only the effects
+        /// that accumulate from several competing terms bother to fill this in - the ones
+        /// where "why is this getting worse" is a real question.
+        ///
+        /// Units are whatever <see cref="ContributionUnit"/> says, per hour, and are the
+        /// producer's own working numbers rather than a re-derivation: a breakdown that can
+        /// disagree with the thing it explains is worse than no breakdown.
+        /// </summary>
+        public Dictionary<string, double> Contributions { get; init; } = [];
+
+        /// <summary>Unit for <see cref="Contributions"/>, e.g. "soak/hr" or "F/hr".</summary>
+        public string? ContributionUnit { get; init; }
+
         // What it does - all optional data components
         public SurvivalStatsDelta StatsDelta { get; init; } = new();
         public CapacityModifierContainer CapacityModifiers { get; init; } = new();

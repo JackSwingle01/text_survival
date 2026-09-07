@@ -1,0 +1,15 @@
+# Luna CLI playtest — 2026-09-07
+
+Session: `cli_loop_sept7`, seed 42. Resumed at day 1, 14:01, Rocky Hills (10,41), healthy but already around 62% energy, 48% food, 61% water.
+
+I deliberately traveled toward the known Salt Lick. The route crossed a Frozen Marsh and Frozen Lake; both presented explicit hazardous terrain prompts with 30% and 40% injury risk, and I chose careful crossings. Travel consumed about 90 minutes and steadily drained food/water/energy. Reaching (12,36) at 16:05 triggered a clear Salt Lick discovery (“Tracks converge from every direction”), followed by a `Hunt (plentiful)...` action.
+
+The hunt had a satisfying shape at first: a 30-minute thorough search surfaced a rabbit, then a stalking combat screen showed distance, detection risk, boldness, vitality, threat, and movement. Closing from 34m to 1m changed the bands (FAR/MID/NEAR) and unlocked attack options. The rabbit became Alert while approaching; after one attack, it moved away and I had to chase. At close range one attack reduced rabbit vitality to 47% and injured its front left leg/torso; a stone throw consumed carried weight and slightly reduced torso health. The rabbit’s boldness reached 0%, which made the scene feel like a fleeing prey chase rather than a static health bar.
+
+The combat then became unclear from a player perspective. Once the rabbit moved to about 13–17m, `Attack` disappeared; movement commands were accepted but mostly just advanced time and let distance drift. `Call for retreat`, `Intimidate`, and `Call for help` were exposed and accepted but did not end the combat. `close` correctly reported that the decision could not be cancelled. I stopped here rather than forcing more commands. Follow-up guidance indicates combat can be exited by moving to the edge of the combat grid; I had not discovered that interaction, so this should be treated as player unfamiliarity with the escape mechanic rather than an established bug.
+
+## Follow-up camp/night
+
+The isolated save resumed before the hunt, so I played a shorter natural loop at Rocky Hills. A 30-minute forage reported “a rich patch” but yielded no items and immediately followed with “Traces of what was here. Nearly spent.” I set up camp (45 minutes), then tried to sleep. The game gave a strong, useful warning that no fire would freeze me; I cancelled, started a hand-drill fire, failed once while wasting tinder, then succeeded on the second attempt and added a birch log. Sleeping 8 hours still warned that the fire would die 6 hours before wake-up. I accepted the risk: at 23:36 I woke alive with vitality 95.6%, energy full, but temperature 95°F and a “Getting cold” warning. That felt like a concrete overnight consequence and a clear motivation to improve fuel/fire planning. I saved at this map decision.
+
+Other observations: the hazardous crossings created meaningful route decisions and costs. The discovery and hunt prompts gave good anticipation. The hunt did not produce meat because the chase never reached a resolution, so I did not get to camp/night. CLI has no visual pacing or map art, so this only assesses text-facing interaction and underlying flow.

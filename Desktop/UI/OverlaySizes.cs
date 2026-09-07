@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using Raylib_cs;
 using System.Numerics;
@@ -34,8 +35,8 @@ public static class OverlaySizes
     /// </summary>
     public static void SetupStandard()
     {
-        int screenWidth = Raylib.GetScreenWidth();
-        int screenHeight = Raylib.GetScreenHeight();
+        int screenWidth = ImGui.ScreenWidth;
+        int screenHeight = ImGui.ScreenHeight;
 
         ImGui.SetNextWindowPos(new Vector2(screenWidth * 0.5f, screenHeight * 0.5f),
             ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
@@ -50,8 +51,8 @@ public static class OverlaySizes
     /// </summary>
     public static void SetupWide()
     {
-        int screenWidth = Raylib.GetScreenWidth();
-        int screenHeight = Raylib.GetScreenHeight();
+        int screenWidth = ImGui.ScreenWidth;
+        int screenHeight = ImGui.ScreenHeight;
 
         ImGui.SetNextWindowPos(new Vector2(screenWidth * 0.5f, screenHeight * 0.5f),
             ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
@@ -66,8 +67,8 @@ public static class OverlaySizes
     /// </summary>
     public static void SetupDialog()
     {
-        int screenWidth = Raylib.GetScreenWidth();
-        int screenHeight = Raylib.GetScreenHeight();
+        int screenWidth = ImGui.ScreenWidth;
+        int screenHeight = ImGui.ScreenHeight;
 
         ImGui.SetNextWindowPos(new Vector2(screenWidth * 0.5f, screenHeight * 0.5f),
             ImGuiCond.Always, new Vector2(0.5f, 0.5f));
@@ -81,8 +82,8 @@ public static class OverlaySizes
     /// </summary>
     public static void SetupSmallDialog()
     {
-        int screenWidth = Raylib.GetScreenWidth();
-        int screenHeight = Raylib.GetScreenHeight();
+        int screenWidth = ImGui.ScreenWidth;
+        int screenHeight = ImGui.ScreenHeight;
 
         ImGui.SetNextWindowPos(new Vector2(screenWidth * 0.5f, screenHeight * 0.5f),
             ImGuiCond.Always, new Vector2(0.5f, 0.5f));

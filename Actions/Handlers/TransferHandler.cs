@@ -19,12 +19,14 @@ public static class TransferHandler
     public static TransferResult TransferResource(
         Inventory source, Inventory dest, Resource resource, string direction)
     {
-        if (source.Count(resource) <= 0)
+        int count = source.Count(resource);
+        if (count <= 0)
             return new TransferResult(false, $"No {resource} to transfer.");
 
-        double weight = source.Pop(resource);
-        dest.Add(resource, weight);
-        return new TransferResult(true, $"Moved {resource} {direction}");
+        // Preserve individual unit weights instead of merging them into one oversized unit.
+        for (int i = 0; i < count; i++)
+            dest.Add(resource, source.Pop(resource));
+        return new TransferResult(true, $"Moved {resource} x{count} {direction}");
     }
 
     /// <summary>

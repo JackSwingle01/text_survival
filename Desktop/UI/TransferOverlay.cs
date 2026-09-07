@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
@@ -142,7 +143,7 @@ public class TransferOverlay
                 if (ImGui.IsItemHovered())
                 {
                     string direction = isPlayerInventory ? _storageName : "your inventory";
-                    UiText.Tooltip($"Click to move to {direction}");
+                    UiText.Tooltip($"Click to move all {count} to {direction}");
                 }
             }
         }

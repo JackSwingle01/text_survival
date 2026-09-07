@@ -287,10 +287,9 @@ public static class SurvivalProcessor
     }
 
     /// <summary>
-    /// Calculate temperature change per hour for given conditions.
-    /// Positive = warming, negative = cooling. Units: °F/hour.
+    /// The heat balance for these conditions, in kcal/hr terms. Positive net = warming.
     /// </summary>
-    public static double CalculateTemperatureChangePerHour(Body body, SurvivalContext context)
+    public static HeatBalance CalculateHeatBalance(Body body, SurvivalContext context)
     {
         // heat_capacity = mass * specific heat
         // dT/dt = (heat_in - heat_out) / heat_capacity
@@ -325,12 +324,42 @@ public static class SurvivalProcessor
         double evaporativeLossHr = GetSweatResponse(body, context).CoolingKcalPerHour;
 
         double netHeatHr = heatGainHr - sensibleLossHr - evaporativeLossHr;
-        return netHeatHr / heatCapacity; // °F/hr
+        return new HeatBalance(heatGainHr, sensibleLossHr, evaporativeLossHr, heatCapacity);
     }
+
+    /// <summary>
+    /// The heat balance behind a body temperature, kept as its three terms rather than the
+    /// one number they add up to, so "why am I freezing" can be answered with the same
+    /// arithmetic that froze you.
+    /// </summary>
+    public readonly record struct HeatBalance(
+        double MetabolismKcalHr,
+        double SensibleLossKcalHr,
+        double EvaporativeLossKcalHr,
+        double HeatCapacityKcalPerF)
+    {
+        public double DegreesFPerHour =>
+            (MetabolismKcalHr - SensibleLossKcalHr - EvaporativeLossKcalHr) / HeatCapacityKcalPerF;
+
+        /// <summary>The same terms in °F/hr, signed, summing to <see cref="DegreesFPerHour"/>.</summary>
+        public Dictionary<string, double> AsContributions() => new()
+        {
+            ["Metabolism"] = MetabolismKcalHr / HeatCapacityKcalPerF,
+            ["Heat loss to air"] = -SensibleLossKcalHr / HeatCapacityKcalPerF,
+            ["Evaporation"] = -EvaporativeLossKcalHr / HeatCapacityKcalPerF,
+        };
+    }
+
+    /// <summary>
+    /// Temperature change per hour. Positive = warming, negative = cooling. Units: °F/hour.
+    /// </summary>
+    public static double CalculateTemperatureChangePerHour(Body body, SurvivalContext context) =>
+        CalculateHeatBalance(body, context).DegreesFPerHour;
 
     public static SurvivalProcessorResult ProcessTemperature(Body body, SurvivalContext context, int minutes)
     {
-        double tempChange = CalculateTemperatureChangePerHour(body, context);
+        var balance = CalculateHeatBalance(body, context);
+        double tempChange = balance.DegreesFPerHour;
 
         // Clothing thermal mass buffer
         double clothingCapacityF = context.ClothingWeightKg * ThermalMassFactorFPerKg;
@@ -399,7 +428,7 @@ public static class SurvivalProcessor
                 HydrationDelta = sweatHydrationDelta,
             },
             ClothingHeatBufferDelta = bufferDelta,
-            Effects = GetTemperatureEffects(body, context),
+            Effects = GetTemperatureEffects(body, context, balance, bodyTempDelta / Math.Max(minutes, 1) * 60),
         };
     }
 
@@ -666,13 +695,14 @@ public static class SurvivalProcessor
         bmr *= 0.7 + (0.3 * organCondition);
         return bmr * activityLevel;
     }
-    private static List<Effect> GetTemperatureEffects(Body body, SurvivalContext context)
+    private static List<Effect> GetTemperatureEffects(
+        Body body, SurvivalContext context, HeatBalance balance, double appliedFPerHour)
     {
         List<Effect> effects = [];
         var stage = GetTemperatureStage(body.BodyTemperature);
 
         if (stage == TemperatureStage.Cold || stage == TemperatureStage.Freezing)
-            effects.AddRange(GetColdEffects(body));
+            effects.AddRange(GetColdEffects(body, balance, appliedFPerHour));
         else if (stage == TemperatureStage.Hot)
         {
             double severity = Math.Clamp((body.BodyTemperature - HyperthermiaThreshold) / 10.0, 0.01, 1.0);
@@ -688,9 +718,16 @@ public static class SurvivalProcessor
         return effects;
     }
 
-    private static List<Effect> GetColdEffects(Body body)
+    private static List<Effect> GetColdEffects(Body body, HeatBalance balance, double appliedFPerHour)
     {
         List<Effect> effects = [];
+        var terms = balance.AsContributions();
+
+        // What the clothing's thermal mass is currently soaking up on your behalf. It is the
+        // difference between the balance and what actually reached the body, so the terms
+        // still sum to the temperature change the player is living through.
+        double buffered = appliedFPerHour - balance.DegreesFPerHour;
+        if (Math.Abs(buffered) > 0.001) terms["Clothing buffer"] = buffered;
 
         if (body.BodyTemperature < ShiveringThreshold)
         {
@@ -710,6 +747,12 @@ public static class SurvivalProcessor
             // Single consolidated frostbite effect with escalating messages
             effects.Add(EffectFactory.Frostbite(severity));
         }
+
+        // Every cold effect has the same answer to "why": this is the heat balance that put
+        // the body where it is, so they all carry it rather than one of them owning it.
+        foreach (var effect in effects)
+            foreach (var (name, value) in terms)
+                effect.Contributions[name] = value;
 
         return effects;
     }
@@ -779,6 +822,7 @@ public static class SurvivalProcessor
 
         // Calculate wetness accumulation per minute
         double wetnessDelta = 0;
+        var terms = new Dictionary<string, double>();
         double exposureFactor = 1 - context.OverheadCoverLevel;
 
         // Apply waterproofing reduction (resin-treated equipment)
@@ -792,21 +836,31 @@ public static class SurvivalProcessor
                 wetnessDelta = 0.005 * context.PrecipitationPct * exposureFactor * waterproofReduction;
             else if (context.IsSnowing)
                 wetnessDelta = 0.003 * context.PrecipitationPct * exposureFactor * waterproofReduction;
+
+            if (wetnessDelta > 0) terms["Precipitation"] = wetnessDelta * 60;
         }
 
         // Sweat that could not evaporate soaks the clothing. This is the classic way to
         // die in the cold: work hard, soak your layers, then stop moving and freeze in them.
-        wetnessDelta += GetSweatResponse(body, context).SoakedMlPerHour / 60.0 / MlPerFullSoak;
+        double sweat = GetSweatResponse(body, context).SoakedMlPerHour / 60.0 / MlPerFullSoak;
+        wetnessDelta += sweat;
+        if (sweat > 0) terms["Sweat"] = sweat * 60;
 
         // The ground you are standing in. No overhead-cover term: a roof does not drain the
         // puddle, and the surface already accounted for whatever the canopy kept off it.
-        wetnessDelta += context.GroundContactWettingPct
+        double ground = context.GroundContactWettingPct
             * (1 - context.GroundContactProtectionLevel)
             * waterproofReduction;
+        wetnessDelta += ground;
+        if (ground > 0) terms["Ground"] = ground * 60;
 
         // Calculate drying (reduction in wetness per minute)
         double dryingRate = CalculateDryingRate(context);
         double dryingDelta = (dryingRate / 60.0) * minutesElapsed; // Convert hourly rate to per-minute
+        if (dryingRate > 0)
+            terms[context.FireProximityBonus > 0 ? "Drying (fire)" : "Drying (air)"] = -dryingRate;
+        else if (context.CurrentWetnessPct > 0)
+            terms["Frozen - only a fire dries you"] = 0;
 
         // Calculate new severity (accumulation - drying)
         double newSeverity = Math.Clamp(
@@ -824,7 +878,10 @@ public static class SurvivalProcessor
         // below 0.05, which is where that threshold belongs.
         if (newSeverity > 0)
         {
-            result.Effects.Add(EffectFactory.Wet(newSeverity));
+            var wet = EffectFactory.Wet(newSeverity);
+            wet.Contributions.Clear();
+            foreach (var (name, value) in terms) wet.Contributions[name] = value;
+            result.Effects.Add(wet);
         }
 
         return result;

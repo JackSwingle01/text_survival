@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using Raylib_cs;
 using System.Numerics;
@@ -105,15 +106,15 @@ public static class UiIcons
     }
 
     // The whole icon + label is one native button, preserving hover, keyboard, and IDs.
-    public static bool Button(string icon, string label, string id, Vector2 size = default)
+    public static bool Button(string icon, string label, string id, Vector2 size = default, bool? selected = null)
     {
-        if (!Textures.ContainsKey(icon)) return ImGui.Button($"{label}##{id}", size);
+        if (!Textures.ContainsKey(icon)) return ImGui.Button($"{label}##{id}", size, selected);
         var textSize = ImGui.CalcTextSize(label);
-        var padding = ImGui.GetStyle().FramePadding;
+        var padding = ImGui.FramePadding;
         float contentWidth = 16 + 6 + textSize.X;
         if (size.X == 0) size.X = contentWidth + padding.X * 2;
         if (size.Y == 0) size.Y = Math.Max(16, textSize.Y) + padding.Y * 2;
-        bool clicked = ImGui.Button($"##{id}", size);
+        bool clicked = ImGui.Button($"##{id}", size, selected);
         var min = ImGui.GetItemRectMin();
         var actualSize = ImGui.GetItemRectSize();
         var start = min + new Vector2(Math.Max(padding.X, (actualSize.X - contentWidth) / 2), 0);

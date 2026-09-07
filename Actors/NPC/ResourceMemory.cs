@@ -24,16 +24,22 @@ public class ResourceMemory
     {
         _lastVisitedTick[location] = ++_visitCounter;
 
-        // store resources
-        foreach (var resource in location.ListResourcesHere())
+        // Refresh, not append: a tile foraged to depletion has to drop out of memory, or
+        // GetClosestKnownResource keeps sending the NPC back to it - and two stale tiles
+        // next to each other are each the other's nearest "known" source, which is a loop.
+        var here = location.ListResourcesHere();
+        foreach (var (resource, locations) in _resourceLocations)
         {
-            if (!_resourceLocations.TryGetValue(resource, out var locations))
+            if (here.Contains(resource))
             {
-                locations = [];
-                _resourceLocations[resource] = locations;
+                if (!locations.Contains(location)) locations.Add(location);
             }
-            if (!locations.Contains(location))
-                locations.Add(location);
+            else locations.Remove(location);
+        }
+        foreach (var resource in here)
+        {
+            if (!_resourceLocations.ContainsKey(resource))
+                _resourceLocations[resource] = [location];
         }
         // store fire
         if (location.HasFeature<HeatSourceFeature>())

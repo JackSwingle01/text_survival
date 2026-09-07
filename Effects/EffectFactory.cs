@@ -60,6 +60,7 @@ public static class EffectFactory
     public static Effect Shivering(double intensity) => new()
     {
         EffectKind = "Shivering",
+        ContributionUnit = "\u00b0F/hr",
         Severity = intensity,
         HourlySeverityChange = -2,
         StatsDelta = new() { TemperatureDelta = 3.0 / 60.0 },
@@ -69,6 +70,7 @@ public static class EffectFactory
     public static Effect Hypothermia(double severity) => new()
     {
         EffectKind = "Hypothermia",
+        ContributionUnit = "\u00b0F/hr",
         Severity = severity,
         HourlySeverityChange = -0.5,
         CapacityModifiers = Capacities(
@@ -87,6 +89,7 @@ public static class EffectFactory
     public static Effect Frostbite(BodyTarget bodyPart, double severity) => new()
     {
         EffectKind = "Frostbite",
+        ContributionUnit = "\u00b0F/hr",
         TargetBodyPart = bodyPart,
         Severity = severity,
         HourlySeverityChange = -0.02,
@@ -454,6 +457,7 @@ public static class EffectFactory
     {
         EffectKind = "Wet",
         Severity = severity,
+        ContributionUnit = "soak/hr",
         HourlySeverityChange = 0, // Drying handled by SurvivalProcessor
         StatsDelta = new() { TemperatureDelta = -1.0 / 60.0 },  // Mild direct cooling
         ApplicationMessage = "You're getting wet. Your clothing clings to your skin.",

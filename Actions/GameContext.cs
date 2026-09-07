@@ -128,6 +128,16 @@ public class GameContext(Player player, Location camp, Weather weather)
     }
 
     public static DateTime StartTime => new DateTime(2025, 7, 1, 9, 0, 0);
+
+    /// <summary>
+    /// Days of world simulated before the player's first turn. Long enough for herd
+    /// traffic to wear trails in - thresholds are 5/14/35 wear and linear in head count,
+    /// so a dozen caribou reach Path in ~8 days and Trail in ~19. Everything else a
+    /// settling pass leaves behind - footprints, carcasses, grazed forage - decays or
+    /// regrows before day 0, so a longer pass would simulate state the player never sees.
+    /// </summary>
+    private const int SettleDays = 30;
+    private const int MinutesPerDay = 24 * 60;
     public int DaysSurvived => (int)(GameTime - StartTime).TotalDays;
 
     // Tension system for tracking building threats/opportunities
@@ -357,14 +367,12 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         // Clear event cooldowns for fresh game
         GameEventRegistry.ClearTriggerTimes();
-        Weather weather = new Weather(-10, StartTime);
+        Weather weather = new Weather(-10, StartTime.AddDays(-SettleDays));
 
         // Generate the west-to-east valley world with an eastern mountain crossing.
         var worldGen = new GridWorldGenerator();
 
         var (map, camp) = worldGen.Generate(weather, seed);
-
-        weather.Update(StartTime);
 
         // Add campfire (unlit - player must start it)
         HeatSourceFeature campfire = new HeatSourceFeature();
@@ -384,6 +392,9 @@ public class GameContext(Player player, Location camp, Weather weather)
         ctx.Discoveries.InitializeStartingKnowledge();
 
         HerdPopulator.Populate(ctx.Herds, map!, seed);
+
+        ctx.GameTime = StartTime.AddDays(-SettleDays);
+        Settle(ctx);
 
         var startingAlly = NPCFactory.SpawnNearCamp(map, camp);
         if (startingAlly != null) ctx.NPCs.Add(startingAlly);
@@ -405,6 +416,46 @@ public class GameContext(Player player, Location camp, Weather weather)
         ctx.Inventory.Add(Resource.Tinder, 0.04);
 
         return ctx;
+    }
+
+    /// <summary>
+    /// Run the world forward before the player's first turn, so day 1 opens on ground that
+    /// has already been walked. Ends with <see cref="GameTime"/> exactly on
+    /// <see cref="StartTime"/>.
+    ///
+    /// Only herds and the ground run: the player does not exist yet, NPCs would have to
+    /// survive thirty days of autonomy to reach day 0, and the event/tension machinery has
+    /// nobody to talk to. Herd results are discarded, so an <c>EncounterRequest</c> raised
+    /// against the camp tile can never become a real encounter.
+    /// </summary>
+    private static void Settle(GameContext ctx)
+    {
+        // Measured knee. TryPatrolTerritory completes at most one crossing per call and
+        // Weather.Update advances at most one front, so a coarse tick silently costs trail
+        // wear - the whole point of the pass. At 90+ minutes the network loses a fifth of
+        // its edges; at 30 it costs twice as long for five percent more. Shortening the
+        // pass instead is worse than coarsening the tick: wear is an equilibrium between
+        // daily traffic and daily decay, so it needs the days more than the resolution.
+        const int TickMinutes = 60;
+
+        for (int day = 0; day < SettleDays; day++)
+        {
+            for (int tick = 0; tick < MinutesPerDay / TickMinutes; tick++)
+            {
+                ctx.GameTime = ctx.GameTime.AddMinutes(TickMinutes);
+                ctx.Weather.Update(ctx.GameTime);
+                ctx.Map!.AdvanceGround(TickMinutes, ctx.Weather);
+                ctx.UpdateHerds(TickMinutes);
+            }
+
+            // Grazing has to recover or the herds strip their own territories bare over a
+            // month. Only forage needs it: a full Location.Update would also run ground
+            // surface physics on all nine thousand tiles, which costs seconds to produce
+            // snowpack history the player never sees - the ground the player walks on is
+            // whatever day 1's weather makes of it.
+            foreach (var pos in ctx.Herds.SelectMany(h => h.HomeTerritory).Distinct())
+                ctx.Map!.GetLocationAt(pos)?.GetFeature<ForageFeature>()?.Update(MinutesPerDay);
+        }
     }
 
     /// <summary>

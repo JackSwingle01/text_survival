@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using System.Numerics;
 
@@ -23,7 +24,7 @@ public static class UiText
 
     public static void Disabled(string text)
     {
-        ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
+        ImGui.PushStyleColor(ImGuiCol.Text, ImGui.StyleColor(ImGuiCol.TextDisabled));
         ImGui.TextUnformatted(text);
         ImGui.PopStyleColor();
     }

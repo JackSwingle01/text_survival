@@ -217,8 +217,14 @@ public sealed partial class GroundSurface
     /// Wetness (0-1 of a full soak) picked up per minute by whoever is in contact with the
     /// ground, before clothing, waterproofing or bedding get a say. Frozen ground has no
     /// liquid to give, however hazardous it is to stand on.
+    ///
+    /// The ground wets what touches it and no more: wading soaks your legs, not your hood,
+    /// so each contact has a ceiling on how wet it can get you and the rate falls to zero as
+    /// you approach it. Without that ceiling, crossing damp ground below freezing - where
+    /// nothing dries but a fire - drove everyone to a full soak, because even a trickle
+    /// outran the fastest drying in the game.
     /// </summary>
-    public double GetContactWettingRate(SurfaceContact contact)
+    public double GetContactWettingRate(SurfaceContact contact, double currentWetnessPct = 0)
     {
         // Ankle-deep is already as wet as walking through it gets.
         double pond = Math.Clamp(StandingLiquidDepthM / 0.15, 0, 1);
@@ -228,15 +234,46 @@ public sealed partial class GroundSurface
         double source = Math.Clamp(pond + slush + damp, 0, 1);
         if (source <= 0) return 0;
 
-        double coefficient = contact switch
+        double rate = contact switch
         {
             SurfaceContact.Walking => 0.12,
             SurfaceContact.RestingOnGround => 0.10,
             SurfaceContact.WorkingOnGround => 0.06,
             _ => 0
         };
+        if (rate <= 0) return 0;
 
-        return source * coefficient;
+        double ceiling = ContactCeiling(contact);
+        if (currentWetnessPct >= ceiling) return 0;
+
+        return source * rate;
+    }
+
+    /// <summary>
+    /// How wet this contact can leave you: how far up you the wet stuff reaches.
+    ///
+    /// Walking, that is geometry - ankle-deep water wets you to the ankles, and only
+    /// hip-deep wets all of you. Lying in it, geometry is no help at all: two centimetres
+    /// of meltwater soaks your whole back, which is what bedding is for. Kneeling sits
+    /// between the two.
+    ///
+    /// Depth is what this reads; whether the depth is wet at all is the caller's source
+    /// term, so dry powder has a high ceiling and no rate to reach it with.
+    /// </summary>
+    private double ContactCeiling(SurfaceContact contact)
+    {
+        const double SoakedDepthM = 0.9;  // hip-deep - above this you are wet all over
+
+        if (contact != SurfaceContact.Walking) return contact switch
+        {
+            SurfaceContact.RestingOnGround => 0.7,
+            SurfaceContact.WorkingOnGround => 0.4,
+            _ => 0
+        };
+
+        double depth = Math.Max(StandingLiquidDepthM, SnowDepthM);
+        // Wet ground with nothing standing on it still gets into your boots.
+        return Math.Clamp(depth / SoakedDepthM, 0.1, 1);
     }
 
     /// <summary>What the ground is like right now, or null if it is unremarkable.</summary>

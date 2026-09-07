@@ -1,3 +1,4 @@
+using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using Raylib_cs;
 using System.Numerics;
@@ -95,7 +96,7 @@ public class ForageOverlay
         _justOpened = false;
 
         // [Esc] - Cancel
-        if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+        if (ImGui.IsKeyPressed(KeyboardKey.Escape))
         {
             _result = new ForageResult(null, 0);
             IsOpen = false;
@@ -103,7 +104,7 @@ public class ForageOverlay
         }
 
         // [F] - Confirm (start foraging)
-        if (!skipConfirm && Raylib.IsKeyPressed(KeyboardKey.F))
+        if (!skipConfirm && ImGui.IsKeyPressed(KeyboardKey.F))
         {
             if (_selectedFocusId != null && _selectedMinutes > 0)
             {
@@ -115,15 +116,15 @@ public class ForageOverlay
         }
 
         // [1], [2], [3] - Time selection
-        if (Raylib.IsKeyPressed(KeyboardKey.One) || Raylib.IsKeyPressed(KeyboardKey.Kp1))
+        if (ImGui.IsKeyPressed(KeyboardKey.One) || ImGui.IsKeyPressed(KeyboardKey.Kp1))
             _selectedMinutes = 15;
-        if (Raylib.IsKeyPressed(KeyboardKey.Two) || Raylib.IsKeyPressed(KeyboardKey.Kp2))
+        if (ImGui.IsKeyPressed(KeyboardKey.Two) || ImGui.IsKeyPressed(KeyboardKey.Kp2))
             _selectedMinutes = 30;
-        if (Raylib.IsKeyPressed(KeyboardKey.Three) || Raylib.IsKeyPressed(KeyboardKey.Kp3))
+        if (ImGui.IsKeyPressed(KeyboardKey.Three) || ImGui.IsKeyPressed(KeyboardKey.Kp3))
             _selectedMinutes = 60;
 
         // [Tab] - Cycle focus options
-        if (Raylib.IsKeyPressed(KeyboardKey.Tab))
+        if (ImGui.IsKeyPressed(KeyboardKey.Tab))
             CycleFocus();
 
         return null;
@@ -266,7 +267,7 @@ public class ForageOverlay
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.55f, 0.75f, 1f));
             }
 
-            if (UiIcons.Button(UiIcons.ForCategory(focus.Id), focus.Label, focus.Id, new Vector2(buttonWidth, 28)))
+            if (UiIcons.Button(UiIcons.ForCategory(focus.Id), focus.Label, focus.Id, new Vector2(buttonWidth, 28), selected: isSelected))
             {
                 _selectedFocusId = focus.Id;
             }
@@ -318,7 +319,7 @@ public class ForageOverlay
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.55f, 0.75f, 1f));
             }
 
-            if (ImGui.Button($"{hotkeyLabel}##{time.Id}", new Vector2(timeButtonWidth, 28)))
+            if (ImGui.Button($"{hotkeyLabel}##{time.Id}", new Vector2(timeButtonWidth, 28), selected: isSelected))
             {
                 _selectedMinutes = time.Minutes;
             }

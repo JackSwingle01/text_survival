@@ -26,7 +26,9 @@ public static class Pacing
     {
         if (minutes <= 0) return (0, false);
 
-        var run = new TimedRun(minutes, ProgressSeconds(minutes));
+        float seconds = ProgressSeconds(minutes);
+        if (activity == ActivityType.Sleeping) seconds /= 4f;
+        var run = new TimedRun(minutes, seconds);
 
         if (view != null)
             view.TotalMinutes = minutes;

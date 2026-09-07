@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+cli_dll="$repo_dir/tools/GameCli/bin/Debug/net10.0/GameCli.dll"
+if [[ ! -f "$cli_dll" ]]; then
+    echo 'Build the CLI first: dotnet build tools/GameCli' >&2
+    exit 1
+fi
+cd "$repo_dir"
+exec dotnet "$cli_dll" "$@"

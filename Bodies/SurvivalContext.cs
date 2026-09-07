@@ -86,7 +86,7 @@ public record SurvivalContext
         bool isNight = timeOfDay == TimeOfDay.Night;
 
         var contact = GroundContactFor(activity);
-        double groundWetting = actor.CurrentLocation.Surface.GetContactWettingRate(contact);
+        double groundWetting = actor.CurrentLocation.Surface.GetContactWettingRate(contact, currentWetness);
         double groundProtection = 0;
         if (contact == SurfaceContact.RestingOnGround)
         {

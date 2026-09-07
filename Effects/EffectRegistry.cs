@@ -35,6 +35,7 @@ public class EffectRegistry
                     // Take the more severe of the two - natural decay handles reduction
                     existingEffect.Severity = Math.Max(existingEffect.Severity, effect.Severity);
                 }
+                CopyContributions(effect, existingEffect);
                 return null;
             }
         }
@@ -59,6 +60,7 @@ public class EffectRegistry
         {
             double oldSeverity = existingEffect.Severity;
             existingEffect.Severity = effect.Severity;
+            CopyContributions(effect, existingEffect);
 
             // Return threshold message if severity changed
             return GetThresholdMessage(existingEffect, oldSeverity);
@@ -70,6 +72,18 @@ public class EffectRegistry
             effect.IsActive = true;
             return effect.Severity > .05 ? effect.ApplicationMessage : null; // only return if the severity is significant to avoid spam at threshold
         }
+    }
+
+    /// <summary>
+    /// The living effect keeps the freshest explanation. The incoming effect is this tick's
+    /// recomputation and is thrown away; its breakdown is the only part worth keeping, and
+    /// it has to travel with the severity or the tooltip explains last hour's weather.
+    /// </summary>
+    private static void CopyContributions(Effect from, Effect to)
+    {
+        if (from.Contributions.Count == 0) return;
+        to.Contributions.Clear();
+        foreach (var (name, value) in from.Contributions) to.Contributions[name] = value;
     }
 
     public string? RemoveEffect(Effect effect)
