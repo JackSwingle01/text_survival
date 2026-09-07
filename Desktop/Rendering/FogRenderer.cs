@@ -39,6 +39,12 @@ public sealed class FogRenderer : IDisposable
     {
         Raylib.EndTextureMode();
         Raylib.BeginScissorMode(camera.ScreenOffsetX, camera.ScreenOffsetY, camera.GridWidth, camera.GridHeight);
+
+        // One pass per visibility state, not per tile. A shader switch flushes the batch
+        // and stalls the driver; at 289 visible tiles that alone cost ~40ms a frame.
+        var unexplored = new List<Rectangle>();
+        var visible = new List<Rectangle>();
+        var explored = new List<Rectangle>();
         foreach (var (x, y) in camera.GetVisibleTiles())
         {
             var position = camera.WorldToScreen(x, y);
@@ -48,20 +54,32 @@ public sealed class FogRenderer : IDisposable
             int right = (int)MathF.Floor(position.X + camera.TileSize + camera.TileGap / 2f);
             int bottom = (int)MathF.Floor(position.Y + camera.TileSize + camera.TileGap / 2f);
             var destination = new Rectangle(left, top, right - left, bottom - top);
-            var visibility = map.GetVisibility(x, y);
-            if (visibility == TileVisibility.Unexplored)
+            switch (map.GetVisibility(x, y))
             {
-                Raylib.DrawRectangleRec(destination, new Color(8, 10, 12, 255));
-                continue;
+                case TileVisibility.Unexplored: unexplored.Add(destination); break;
+                case TileVisibility.Explored: explored.Add(destination); break;
+                default: visible.Add(destination); break;
             }
+        }
 
-            if (visibility == TileVisibility.Explored) Raylib.BeginShaderMode(_grey);
-            // Render textures have an inverted Y axis.
-            var source = new Rectangle(left, _scene.Texture.Height - bottom, right - left, -(bottom - top));
-            Raylib.DrawTexturePro(_scene.Texture, source, destination, Vector2.Zero, 0, Color.White);
-            if (visibility == TileVisibility.Explored) Raylib.EndShaderMode();
+        foreach (var rect in unexplored)
+            Raylib.DrawRectangleRec(rect, new Color(8, 10, 12, 255));
+        foreach (var rect in visible) Blit(rect);
+        if (explored.Count > 0)
+        {
+            Raylib.BeginShaderMode(_grey);
+            foreach (var rect in explored) Blit(rect);
+            Raylib.EndShaderMode();
         }
         Raylib.EndScissorMode();
+    }
+
+    // Render textures have an inverted Y axis.
+    private void Blit(Rectangle destination)
+    {
+        var source = new Rectangle(destination.X, _scene.Texture.Height - (destination.Y + destination.Height),
+            destination.Width, -destination.Height);
+        Raylib.DrawTexturePro(_scene.Texture, source, destination, Vector2.Zero, 0, Color.White);
     }
 
     public void Dispose()
