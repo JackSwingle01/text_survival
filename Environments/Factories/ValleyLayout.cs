@@ -260,58 +260,92 @@ internal sealed class ValleyLayout
         return [];
     }
 
+    // Three to six cave systems: mostly two-mouth tunnels, often a blind shelter,
+    // occasionally a three-mouth warren. Mouths always open onto reachable ground.
     private void GenerateCaves()
     {
         var boundary = Positions().Where(p => Inside(p) && p.X < _east - 5 && Terrain[p.X, p.Y] == TerrainType.Mountain && Neighbors(p).Any(Reachable.Contains)).ToList();
         if (boundary.Count < 2) return;
-        int id = 0;
-        for (int attempt = 0; attempt < 250 && id < 3; attempt++)
+        int target = _rng.Next(3, 7), id = 0;
+        for (int cave = 0; cave < target; cave++)
         {
-            var a = Pick(boundary);
-            var options = boundary.Where(p => p.ManhattanDistance(a) is >= 10 and <= 30).ToList();
-            if (options.Count == 0) continue;
-            var b = Pick(options);
-            bool Rock(GridPosition p) => Inside(p) && p.X < _east - 5 && Terrain[p.X, p.Y] == TerrainType.Mountain &&
-                !Neighbors(p).Any(n => CaveIds[n.X, n.Y].HasValue);
-            if (!Rock(a) || !Rock(b)) continue;
-            var tunnel = Path(a, b, Rock, 42);
-            if (tunnel.Count < 11) continue;
-            var aa = Neighbors(a).First(Reachable.Contains); var bb = Neighbors(b).First(Reachable.Contains);
-            var outside = Path(aa, bb, Reachable.Contains, _width * _height);
-            if (outside.Count < tunnel.Count + 8) continue;
-            foreach (var p in tunnel)
-            { Terrain[p.X, p.Y] = TerrainType.Rock; Structures[p.X, p.Y] = TileStructure.CaveFloor; CaveIds[p.X, p.Y] = id; }
-            Structures[a.X, a.Y] = Structures[b.X, b.Y] = TileStructure.CaveEntrance;
-            var tip = tunnel[tunnel.Count / 2];
-            for (int step = 0; step < _rng.Next(4, 9); step++)
-            {
-                var choices = Neighbors(tip).Where(p => Inside(p) && p.X < _east - 5 && Terrain[p.X, p.Y] == TerrainType.Mountain &&
-                    Neighbors(p).All(n => n == tip || !Open(n) && !CaveIds[n.X, n.Y].HasValue)).ToList();
-                if (choices.Count == 0) break;
-                tip = Pick(choices); Terrain[tip.X, tip.Y] = TerrainType.Rock;
-                Structures[tip.X, tip.Y] = TileStructure.CaveFloor; CaveIds[tip.X, tip.Y] = id;
-            }
-            id++;
+            double roll = _rng.NextDouble();
+            int mouths = roll < .40 ? 1 : roll < .90 ? 2 : 3;
+            // Each cave keeps the shape it rolled for a full attempt budget - tunnels
+            // are far pickier than dead ends, and re-rolling on failure buries them.
+            for (int attempt = 0; attempt < 120; attempt++)
+                if (mouths == 1 ? CarveBlind(boundary, id) : CarveTunnel(boundary, id, mouths == 3)) { id++; break; }
         }
-        // A blind cave still offers shelter and a reason to investigate a dead end.
-        for (int attempt = 0; attempt < 100 && id < 2; attempt++)
+    }
+
+    private bool Diggable(GridPosition p) => Inside(p) && p.X < _east - 5 &&
+        Terrain[p.X, p.Y] == TerrainType.Mountain && !Neighbors(p).Any(n => CaveIds[n.X, n.Y].HasValue);
+
+    private void Carve(IEnumerable<GridPosition> cells, int id)
+    {
+        foreach (var p in cells)
+        { Terrain[p.X, p.Y] = TerrainType.Rock; Structures[p.X, p.Y] = TileStructure.CaveFloor; CaveIds[p.X, p.Y] = id; }
+    }
+
+    private bool CarveTunnel(List<GridPosition> boundary, int id, bool thirdMouth)
+    {
+        var a = Pick(boundary);
+        var options = boundary.Where(p => p.ManhattanDistance(a) is >= 10 and <= 30).ToList();
+        if (options.Count == 0) return false;
+        var b = Pick(options);
+        if (!Diggable(a) || !Diggable(b)) return false;
+        var tunnel = Path(a, b, Diggable, 42);
+        if (tunnel.Count < 11) return false;
+        var aa = Neighbors(a).First(Reachable.Contains); var bb = Neighbors(b).First(Reachable.Contains);
+        // A shortcut is only worth digging for if the way around is meaningfully longer.
+        var outside = Path(aa, bb, Reachable.Contains, _width * _height);
+        if (outside.Count < tunnel.Count + 8) return false;
+        Carve(tunnel, id);
+        Structures[a.X, a.Y] = Structures[b.X, b.Y] = TileStructure.CaveEntrance;
+        if (thirdMouth) CarveThirdMouth(boundary, tunnel, id);
+        var tip = tunnel[tunnel.Count / 2];
+        for (int step = 0; step < _rng.Next(4, 9); step++)
+        {
+            var choices = Neighbors(tip).Where(p => Inside(p) && p.X < _east - 5 && Terrain[p.X, p.Y] == TerrainType.Mountain &&
+                Neighbors(p).All(n => n == tip || !Open(n) && !CaveIds[n.X, n.Y].HasValue)).ToList();
+            if (choices.Count == 0) break;
+            tip = Pick(choices); Carve([tip], id);
+        }
+        return true;
+    }
+
+    private void CarveThirdMouth(List<GridPosition> boundary, List<GridPosition> tunnel, int id)
+    {
+        for (int attempt = 0; attempt < 40; attempt++)
         {
             var mouth = Pick(boundary);
-            if (Terrain[mouth.X, mouth.Y] != TerrainType.Mountain || CaveIds[mouth.X, mouth.Y].HasValue) continue;
-            var candidates = Positions().Where(p => Inside(p) && p.ManhattanDistance(mouth) is >= 8 and <= 16 &&
-                Terrain[p.X, p.Y] == TerrainType.Mountain && Neighbors(p).All(n => !Open(n))).ToList();
-            if (candidates.Count == 0) continue;
-            var path = Path(mouth, Pick(candidates), p => Inside(p) && p.X < _east - 5 && Terrain[p.X, p.Y] == TerrainType.Mountain &&
-                !Neighbors(p).Any(n => CaveIds[n.X, n.Y].HasValue), 22);
-            if (path.Count < 8 || Neighbors(mouth).Any(n => CaveIds[n.X, n.Y].HasValue)) continue;
-            foreach (var p in path)
-            {
-                Terrain[p.X, p.Y] = TerrainType.Rock;
-                Structures[p.X, p.Y] = p == mouth ? TileStructure.CaveEntrance : TileStructure.CaveFloor;
-                CaveIds[p.X, p.Y] = id;
-            }
-            id++;
+            if (!Diggable(mouth)) continue;
+            var junction = tunnel[_rng.Next(2, tunnel.Count - 2)];
+            // Everything but the junction itself must stay clear of carved rock, so the
+            // spur meets the tunnel once instead of running alongside it.
+            bool Allowed(GridPosition p) => p == junction || Inside(p) && p.X < _east - 5 &&
+                Terrain[p.X, p.Y] == TerrainType.Mountain && Neighbors(p).All(n => n == junction || !CaveIds[n.X, n.Y].HasValue);
+            var spur = Path(mouth, junction, Allowed, 30);
+            if (spur.Count < 5) continue;
+            Carve(spur[..^1], id);
+            Structures[mouth.X, mouth.Y] = TileStructure.CaveEntrance;
+            return;
         }
+    }
+
+    // A blind cave still offers shelter and a reason to investigate a dead end.
+    private bool CarveBlind(List<GridPosition> boundary, int id)
+    {
+        var mouth = Pick(boundary);
+        if (!Diggable(mouth)) return false;
+        var candidates = Positions().Where(p => Inside(p) && p.ManhattanDistance(mouth) is >= 8 and <= 16 &&
+            Terrain[p.X, p.Y] == TerrainType.Mountain && Neighbors(p).All(n => !Open(n))).ToList();
+        if (candidates.Count == 0) return false;
+        var path = Path(mouth, Pick(candidates), Diggable, 22);
+        if (path.Count < 8) return false;
+        Carve(path, id);
+        Structures[mouth.X, mouth.Y] = TileStructure.CaveEntrance;
+        return true;
     }
 
     private void GeneratePass(GridPosition last)
