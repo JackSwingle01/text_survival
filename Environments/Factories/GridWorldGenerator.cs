@@ -227,6 +227,7 @@ public class GridWorldGenerator
 
         // Step 6: Place named locations across the map (replaces terrain locations)
         PlaceNamedLocations(map, weather, campPos);
+        PlaceCaveLocations(map, weather);
 
         // Step 7: Name the stages of the crossing along the pass corridor
         PlacePassLocations(map, weather);
@@ -255,14 +256,14 @@ public class GridWorldGenerator
                 var positionSeed = unchecked(x * 374761393 + y * 668265263 + Width * 1274126177);
                 var structure = _layout.Structures[x, y];
                 var location = structure is TileStructure.CaveFloor or TileStructure.CaveEntrance
-                    ? LocationFactory.MakeCaveTile(weather, structure == TileStructure.CaveEntrance)
+                    ? LocationFactory.MakeCaveTile(weather, structure == TileStructure.CaveEntrance, positionSeed)
                     : LocationFactory.MakeTerrainLocation(terrain, weather, positionSeed);
                 location.Structure = structure;
                 location.CaveId = _layout.CaveIds[x, y];
 
                 // Add river water access to adjacent tiles (not water tiles - they have their own water)
                 var pos = new GridPosition(x, y);
-                if (_riverAdjacentPositions.Contains(pos) && terrain != TerrainType.Water)
+                if (_riverAdjacentPositions.Contains(pos) && terrain != TerrainType.Water && !location.IsCaveInterior)
                 {
                     var riverAccess = new WaterFeature("river", "River")
                         .WithDescription("A river flows past here.")
@@ -695,6 +696,32 @@ public class GridWorldGenerator
     /// Locations are matched to their preferred terrain types.
     /// Elite locations spawn farther east, away from the starting camp.
     /// </summary>
+    private void PlaceCaveLocations(GameMap map, Weather weather)
+    {
+        Func<Weather, Location>[] factories =
+        [
+            CaveLocationFactory.MakeDryChamber, CaveLocationFactory.MakeDampPassage,
+            CaveLocationFactory.MakeRubblePassage, CaveLocationFactory.MakeMineralPocket
+        ];
+        factories = factories.OrderBy(_ => _rng.Next()).ToArray();
+        int next = 0;
+        foreach (var cave in map.AllLocations.Where(l => l.IsCaveInterior && l.CaveId.HasValue)
+                     .GroupBy(l => l.CaveId).ToList())
+        {
+            // Keep most tiles ordinary passages. Larger systems have a second landmark.
+            var floors = cave.OrderBy(_ => _rng.Next()).ToList();
+            int count = Math.Min(2, Math.Max(1, floors.Count / 8));
+            foreach (var floor in floors.Take(count))
+            {
+                var site = factories[next++ % factories.Length](weather);
+                site.CaveId = floor.CaveId;
+                site.HiddenFeatures.AddRange(floor.HiddenFeatures.Where(h =>
+                    !site.Features.Any(f => f.Name == h.Feature.Name)));
+                map.SetLocation(map.GetPosition(floor).X, map.GetPosition(floor).Y, site);
+            }
+        }
+    }
+
     private void PlaceNamedLocations(GameMap map, Weather weather, GridPosition campPos)
     {
         var placedPositions = new List<GridPosition> { campPos };

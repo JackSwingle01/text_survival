@@ -41,7 +41,13 @@ public class DiscoveryGenerator
     /// </summary>
     public List<HiddenFeature> GenerateFor(TerrainType terrain)
     {
-        var pool = GetPoolForTerrain(terrain);
+        return GenerateFrom(GetPoolForTerrain(terrain));
+    }
+
+    public List<HiddenFeature> GenerateForCave() => GenerateFrom(CavePool);
+
+    private List<HiddenFeature> GenerateFrom(IEnumerable<DiscoveryTemplate> pool)
+    {
         var results = new List<HiddenFeature>();
 
         foreach (var template in pool)
@@ -94,6 +100,18 @@ public class DiscoveryGenerator
         TerrainType.Water => WaterPool,
         _ => []
     };
+
+    private static readonly List<DiscoveryTemplate> CavePool =
+    [
+        new(DiscoveryFeatureFactory.CreateFlintOutcrop, 0.12, 0.8, DiscoveryCategory.Minor),
+        new(DiscoveryFeatureFactory.CreatePyriteSeam, 0.06, 1.2, DiscoveryCategory.Minor),
+        new(DiscoveryFeatureFactory.CreateBonePile, 0.16, 0.5, DiscoveryCategory.Minor),
+        new(DiscoveryFeatureFactory.CreateCharDeposit, 0.06, 0.6, DiscoveryCategory.Minor),
+        new(DiscoveryFeatureFactory.CreateKnappingScatter, 0.05, 0.8, DiscoveryCategory.Minor),
+        new(CaveLocationFactory.CreateSeep, 0.06, 0.7, DiscoveryCategory.Minor),
+        new(CaveLocationFactory.CreateSleepingRecess, 0.05, 1.0, DiscoveryCategory.Minor),
+        new(CaveLocationFactory.CreateLooseShale, 0.12, 0.4, DiscoveryCategory.Minor)
+    ];
 
     #region Terrain Pools
 

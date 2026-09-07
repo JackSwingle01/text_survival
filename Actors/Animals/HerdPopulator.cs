@@ -49,8 +49,54 @@ public static class HerdPopulator
         PopulateHyenas(registry, availablePositions, 1 + _rng.Next(2), map); // 1-2 packs
         PopulateMammoths(registry, map); // Single herd centered on Bone Hollow
 
+        PopulateCaves(registry, map, _rng);
+
         // Add environmental details based on territories
         AddTerritoryDetails(registry, map);
+    }
+
+    /// <summary>One occupancy roll per system, independent of its number of entrances.</summary>
+    internal static void PopulateCaves(List<Herd> registry, GameMap map, Random rng)
+    {
+        foreach (var cave in map.AllLocations.Where(l => l.CaveId.HasValue &&
+                     l.Structure is TileStructure.CaveFloor or TileStructure.CaveEntrance)
+                     .GroupBy(l => l.CaveId))
+        {
+            var floors = cave.Where(l => l.IsCaveInterior).ToList();
+            if (floors.Count == 0) continue;
+            double roll = rng.NextDouble();
+            if (roll < 0.5) continue;
+
+            var type = roll < 0.8 ? AnimalType.CaveBear : AnimalType.Hyena;
+            // Prefer a chamber to a narrow passage, while allowing any cave to be occupied.
+            var chambers = floors.Where(l => l.Name == "Dry Cave Chamber").ToList();
+            var candidates = chambers.Count > 0 ? chambers : floors;
+            var den = candidates[rng.Next(candidates.Count)];
+            var start = map.GetPosition(den);
+
+            // Grow through actual travel connections so no territory crosses a cave wall.
+            var territory = new List<GridPosition> { start };
+            var reached = new HashSet<GridPosition> { start };
+            var queue = new Queue<text_survival.Environments.Location>();
+            queue.Enqueue(den);
+            while (queue.TryDequeue(out var current))
+                foreach (var neighbor in map.GetTravelOptionsFrom(current))
+                    if (neighbor.CaveId == cave.Key && reached.Add(map.GetPosition(neighbor)))
+                    {
+                        territory.Add(map.GetPosition(neighbor));
+                        queue.Enqueue(neighbor);
+                    }
+
+            var herd = Herd.Create(type, den, map, territory);
+            int count = type == AnimalType.CaveBear ? 1 : rng.Next(2, 5);
+            for (int i = 0; i < count; i++)
+                herd.AddMember(AnimalFactory.FromType(type, den, map));
+            registry.Add(herd);
+
+            den.Features.Add(EnvironmentalDetail.ScatteredBones());
+            foreach (var mouth in cave.Where(l => l.Structure == TileStructure.CaveEntrance))
+                mouth.Features.Add(EnvironmentalDetail.AnimalTracks(type));
+        }
     }
 
     /// <summary>
