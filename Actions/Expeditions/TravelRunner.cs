@@ -1,3 +1,4 @@
+using text_survival.Bodies;
 using text_survival.Actions.Handlers;
 using text_survival.Environments;
 using text_survival.Environments.Grid;
@@ -38,7 +39,7 @@ public class TravelRunner(GameContext ctx)
     {
         double moving = _ctx.player.GetCapacities().Moving;
 
-        if (moving <= 0.1)
+        if (AbilityCalculator.IsIncapacitated(moving))
         {
             await _ctx.Ui.ShowMessage("Cannot travel", "You can barely move at all. Your injuries prevent travel.");
             return false;

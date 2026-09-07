@@ -241,6 +241,9 @@ public static class AbilityCalculator
     // Moving impairment check - used for limping effects
     public static bool IsMovingImpaired(double moving) => moving < 0.5;
 
+    /// <summary>Can't walk at all: travel is refused and the only thing left is to wait.</summary>
+    public static bool IsIncapacitated(double moving) => moving <= 0.1;
+
     // Manipulation impairment check - used for clumsy/fumbling effects
     public static bool IsManipulationImpaired(double manipulation) => manipulation < 0.5;
 

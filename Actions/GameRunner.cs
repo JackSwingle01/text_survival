@@ -1,3 +1,4 @@
+using text_survival.Bodies;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.Actions.Expeditions;
@@ -58,6 +59,7 @@ public class GameRunner(GameContext ctx)
     /// <summary>Serialising the world costs a visible hitch, so it happens on a clock, not per action.</summary>
     private const double SaveIntervalSeconds = 120;
     private DateTime _lastSaveUtc = DateTime.UtcNow;
+    private bool _saidImmobile;
 
     /// <summary>Returns true if the player asked to start a new run.</summary>
     public async Task<bool> RunAsync()
@@ -76,7 +78,7 @@ public class GameRunner(GameContext ctx)
                 continue;
             }
 
-            if (ctx.player.GetCapacities().Moving <= 0)
+            if (AbilityCalculator.IsIncapacitated(ctx.player.GetCapacities().Moving))
             {
                 await HandleIncapacitation();
                 continue;
@@ -361,21 +363,29 @@ public class GameRunner(GameContext ctx)
 
     private async Task HandleIncapacitation()
     {
-        GameDisplay.AddNarrative(ctx, "You cannot move. All you can do now is wait.");
+        if (!_saidImmobile)
+        {
+            GameDisplay.AddNarrative(ctx, "You cannot move. All you can do now is wait.");
+            _saidImmobile = true;
+        }
 
         const int chunkMinutes = 5;
-        const double recoveryThreshold = 0.01;  // >1% moving capacity to recover
 
         while (ctx.player.IsAlive)
         {
-            if (ctx.player.GetCapacities().Moving > recoveryThreshold)
+            if (!AbilityCalculator.IsIncapacitated(ctx.player.GetCapacities().Moving))
             {
                 GameDisplay.AddNarrative(ctx, "You can move again.");
+                _saidImmobile = false;
                 return;
             }
 
-            using var view = ctx.Ui.BeginProgress(ProgressKind.Activity, "Incapacitated");
-            await Pacing.PassTime(ctx, chunkMinutes, ActivityType.Incapacitated, view);
+            using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, "Incapacitated"))
+                await Pacing.PassTime(ctx, chunkMinutes, ActivityType.Incapacitated, view);
+
+            // Encounters and notices are the outer loop's job - staying here would spin
+            // forever on a predator that arrived while the player was down.
+            if (ctx.HasPendingEncounter || ctx.Notices.Count > 0) return;
         }
     }
 }
