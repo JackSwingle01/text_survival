@@ -44,6 +44,7 @@ public static class TopBar
         {
             if (ImGui.MenuItem(AudioManager.IsMuted ? "Unmute music" : "Mute music")) AudioManager.ToggleMute();
             if (ImGui.MenuItem($"Follow player {HotkeyRegistry.GetTip(HotkeyAction.FollowPlayer)}", "", world.Camera.IsFollowingPlayer, interactive)) world.RecenterOnPlayer(ctx);
+            if (ImGui.MenuItem("New game...", "", false, interactive)) result = new PlayerAction.NewGame();
             ImGui.Separator();
             UiText.Text("CONTROLS");
             UiText.Text("WASD: move · Click: inspect tile");
