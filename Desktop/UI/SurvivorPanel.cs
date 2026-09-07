@@ -29,6 +29,11 @@ public static class SurvivorPanel
     private const string ArrowUp = " ↑";
     private const string ArrowDown = " ↓";
 
+    // Vitality has no delta field on SurvivalStatsDelta - track frame-to-frame ourselves.
+    private static double? _lastVitalityPct;
+
+    private static string TrendArrow(double rate) => rate > 0.01 ? ArrowUp : rate < -0.01 ? ArrowDown : "";
+
     /// <summary>
     /// Render the stats panel.
     /// </summary>
@@ -66,13 +71,22 @@ public static class SurvivorPanel
         return result;
     }
 
-    private static void RenderSurvivalStats(Actor actor, double tempRatePerHour)
+    private static void RenderSurvivalStats(Actors.Player.Player actor, double tempRatePerHour)
     {
         double bodyTemp = actor.Body.BodyTemperature;
         int energyPct = (int)(actor.Body.EnergyPct * 100);
         int caloriesPct = (int)(actor.Body.FullPct * 100);
         int hydrationPct = (int)(actor.Body.HydratedPct * 100);
-        int vitalityPct = (int)(actor.Vitality * 100);
+        double vitalityPctRaw = actor.Vitality * 100;
+        int vitalityPct = (int)vitalityPctRaw;
+
+        double minutes = actor.LastUpdateMinutes;
+        var delta = actor.LastSurvivalDelta;
+        string energyTrend = minutes > 0 && delta != null ? TrendArrow(delta.EnergyDelta / minutes) : "";
+        string foodTrend = minutes > 0 && delta != null ? TrendArrow(delta.CalorieDelta / minutes) : "";
+        string waterTrend = minutes > 0 && delta != null ? TrendArrow(delta.HydrationDelta / minutes) : "";
+        string vitalityTrend = _lastVitalityPct is double prevVitality ? TrendArrow(vitalityPctRaw - prevVitality) : "";
+        _lastVitalityPct = vitalityPctRaw;
 
         if (ImGui.BeginTable("survival_stats", 2))
         {
@@ -85,27 +99,27 @@ public static class SurvivorPanel
             ImGui.TableNextColumn();
             ImGui.PushStyleColor(ImGuiCol.PlotHistogram, bodyTemp < 95 ? ColorCold : bodyTemp < 97 ? ColorWarning : ColorGood);
             ImGui.ProgressBar((float)Math.Clamp((bodyTemp - 90) / 9.0, 0, 1), new Vector2(-1, 18),
-                $"{bodyTemp:F1}°F{(tempRatePerHour < -.5 ? ArrowDown : tempRatePerHour > .5 ? ArrowUp : "")}");
+                $"{bodyTemp:F1}°F{TrendArrow(tempRatePerHour)}");
             ImGui.PopStyleColor();
 
-            RenderStatRow("Energy", energyPct, GetStatColor(energyPct));
-            RenderStatRow("Food", caloriesPct, GetStatColor(caloriesPct));
-            RenderStatRow("Water", hydrationPct, GetStatColor(hydrationPct));
-            RenderStatRow("Vitality", vitalityPct, GetStatColor(vitalityPct));
+            RenderStatRow("Energy", energyPct, GetStatColor(energyPct), energyTrend);
+            RenderStatRow("Food", caloriesPct, GetStatColor(caloriesPct), foodTrend);
+            RenderStatRow("Water", hydrationPct, GetStatColor(hydrationPct), waterTrend);
+            RenderStatRow("Vitality", vitalityPct, GetStatColor(vitalityPct), vitalityTrend);
 
             ImGui.EndTable();
         }
     }
 
     // Row helpers - caller manages table begin/end
-    private static void RenderStatRow(string label, int percent, Vector4 color)
+    private static void RenderStatRow(string label, int percent, Vector4 color, string trend = "")
     {
         percent = Math.Clamp(percent, 0, 100);
         ImGui.TableNextColumn();
         UiIcons.Label(label == "Food" ? "food" : label.ToLowerInvariant(), label);
         ImGui.TableNextColumn();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
-        ImGui.ProgressBar(percent / 100f, new Vector2(-1, 18), $"{percent}%");
+        ImGui.ProgressBar(percent / 100f, new Vector2(-1, 18), $"{percent}%{trend}");
         ImGui.PopStyleColor();
     }
 
@@ -456,7 +470,7 @@ public static class SurvivorPanel
                         if (Math.Abs(modifier) > 0.01)
                         {
                             hasModifiers = true;
-                            int pctChange = (int)(modifier * 100);
+                            int pctChange = (int)(modifier * effect.Severity * 100);
                             Vector4 modColor = pctChange >= 0 ? ColorGood : ColorDanger;
                             UiText.Colored(modColor, $"{capacity}: {pctChange:+0;-0}%");
                         }
@@ -466,7 +480,14 @@ public static class SurvivorPanel
                     if (effect.Damage != null)
                     {
                         hasModifiers = true;
-                        UiText.Colored(ColorDanger, $"Damage: {effect.Damage.PerHour:F0}/hr ({effect.Damage.Type})");
+                        UiText.Colored(ColorDanger, $"Damage: {effect.Damage.PerHour * effect.Severity:F0}/hr ({effect.Damage.Type})");
+                    }
+
+                    if (Math.Abs(effect.StatsDelta.TemperatureDelta) > 0.0001)
+                    {
+                        hasModifiers = true;
+                        double perHour = effect.StatsDelta.TemperatureDelta * 60;
+                        UiText.Colored(perHour >= 0 ? ColorGood : ColorDanger, $"Body temp: {perHour:+0.0;-0.0}°F/hr");
                     }
 
                     // Show if treatment required
@@ -478,7 +499,7 @@ public static class SurvivorPanel
 
                     if (!hasModifiers)
                     {
-                        UiText.Disabled("No direct capacity effects");
+                        UiText.Disabled("Feeds into survival math elsewhere (no isolated effect)");
                     }
 
                     RenderContributions(effect);

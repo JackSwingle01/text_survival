@@ -178,7 +178,11 @@ public class NPCChopWood : NPCAction
 public class NPCStartFire() : NPCAction("Starting Fire", 10, ActivityType.TendingFire)
 {
     public override string LogMessage => "Starting fire";
-    protected override void OnComplete(NPC npc) => FireHandler.StartFire(npc, npc.Inventory!, npc.CurrentLocation);
+    protected override void OnComplete(NPC npc)
+    {
+        if (FireHandler.StartFire(npc, npc.Inventory!, npc.CurrentLocation))
+            RelationshipEvents.TendedFire(npc.Game, npc);
+    }
 }
 public class NPCTendFire() : NPCAction("Tending Fire", 1, ActivityType.TendingFire)
 {
@@ -191,6 +195,7 @@ public class NPCTendFire() : NPCAction("Tending Fire", 1, ActivityType.TendingFi
             return;
         }
         FireHandler.TendFire(npc.Inventory!, npc.CurrentLocation.GetFeature<HeatSourceFeature>()!);
+        RelationshipEvents.TendedFire(npc.Game, npc);
     }
 }
 public class NPCRest(int minutes) : NPCAction("Resting", minutes, ActivityType.Resting)

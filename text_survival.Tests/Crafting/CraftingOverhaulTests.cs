@@ -47,14 +47,40 @@ public class CraftingOverhaulTests
         };
         var inputs = CraftInputs.Resolve(option, inv);
         Assert.False(inputs.Ready);
+        Assert.Equal(1, inputs.Requirements.Single(r => r.Requirement.Material is MaterialSpecifier.Specific).Available);
+        Assert.Equal(0, inputs.Requirements.Single(r => r.Requirement.Material is MaterialSpecifier.Category).Available);
         Assert.Throws<InvalidOperationException>(() => inputs.Consume(inv));
         Assert.Equal(1, inv.Count(Resource.Pine));
         Supply(inv, Resource.Birch, 1);
         inputs = CraftInputs.Resolve(option, inv);
         Assert.True(inputs.Ready);
+        Assert.All(inputs.Requirements, r => Assert.Equal(r.Requirement.Count, r.Available));
         inputs.Consume(inv);
         Assert.Equal(0, inv.GetCount(ResourceCategory.Log));
         Assert.Throws<InvalidOperationException>(() => inputs.Consume(inv));
+    }
+
+    [Fact]
+    public void MissingSupplyNavigationReturnsToTheOriginalRecipe()
+    {
+        var ctx = GameContext.CreateNewGame(seed: 1234);
+        var overlay = new text_survival.Desktop.UI.CraftingOverlay { IsOpen = true };
+        text_survival.Desktop.UI.TextFrame Render(string? activate = null)
+        {
+            var frame = new text_survival.Desktop.UI.TextFrame(activate);
+            text_survival.Desktop.UI.GameGui.Capture = frame;
+            try { overlay.Render(ctx, _crafting, 0); }
+            finally { text_survival.Desktop.UI.GameGui.Capture = null; }
+            return frame;
+        }
+        var recipes = Render();
+        Render(recipes.Controls.Single(c => c.Kind == "select" && c.Label.StartsWith("Stone Knife")).Id);
+        var details = Render();
+        Assert.False(details.Controls.Single(c => c.Label == "Make Stone Knife").Enabled);
+        Render(details.Controls.Single(c => c.Label == "View Knapping Stone").Id);
+        Assert.Contains(Render().Controls, c => c.Label == "Make Knapping Stone");
+        Render(Render().Controls.Single(c => c.Label == "Back to your recipe").Id);
+        Assert.Contains(Render().Controls, c => c.Label == "Make Stone Knife");
     }
 
     [Fact]

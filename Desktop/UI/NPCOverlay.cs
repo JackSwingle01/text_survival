@@ -76,6 +76,8 @@ public class NPCOverlay
                     MemoryType.SavedMe => "You helped save them",
                     MemoryType.AbandonedMe => "You abandoned them",
                     MemoryType.SharedFood => "You shared needed supplies",
+                    MemoryType.WarmedMe => "You kept the fire up when they were cold",
+                    MemoryType.SmallKindness => "You handed over supplies",
                     MemoryType.FoughtTogether => "You fought together",
                     MemoryType.PressuredMe => "You pressured them to stay",
                     MemoryType.TimeTogether => "Familiarity from time together (limited influence)",
@@ -115,7 +117,13 @@ public class NPCOverlay
                 ImGui.PushID(resource.ToString());
                 UiText.Text($"{resource.ToDisplayName()}: you {ours:F1}, {npc.Name} {theirs:F1} kg");
                 if (ours > 0 && ImGui.SmallButton("Give up to 0.5 kg"))
-                    _feedback = CompanionInteractions.Give(ctx.player, npc, resource, Math.Min(0.5, ours), ctx.TotalMinutesElapsed) ? "Supplies given." : "They cannot take that right now.";
+                {
+                    bool needed = CompanionInteractions.Needs(npc, resource);
+                    _feedback = !CompanionInteractions.Give(ctx.player, npc, resource, Math.Min(0.5, ours), ctx.TotalMinutesElapsed)
+                        ? "They cannot take that right now."
+                        : needed ? "Supplies given. They needed that."
+                        : "Supplies given. They did not need them, but they noticed.";
+                }
                 if (ours > 0) ImGui.SameLine();
                 if (theirs > 0 && ImGui.SmallButton("Ask for up to 0.5 kg"))
                     _feedback = CompanionInteractions.RequestResource(ctx.player, npc, resource, Math.Min(0.5, theirs), ctx.TotalMinutesElapsed);

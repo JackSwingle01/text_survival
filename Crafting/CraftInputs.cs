@@ -8,6 +8,7 @@ public sealed class CraftInputs
     public Dictionary<Resource, int> Materials { get; } = [];
     public List<(Gear Tool, int Wear)> Tools { get; } = [];
     public List<string> Missing { get; } = [];
+    public List<(MaterialRequirement Requirement, int Available)> Requirements { get; } = [];
     public bool Ready => Missing.Count == 0;
     private bool _consumed;
 
@@ -31,6 +32,7 @@ public sealed class CraftInputs
                 if (take > 0) result.Materials[resource] = result.Materials.GetValueOrDefault(resource) + take;
                 remaining -= take;
             }
+            result.Requirements.Add((req, req.Count - remaining));
             if (remaining > 0) result.Missing.Add($"{remaining} {MaterialName(req.Material)}");
         }
         foreach (var type in option.RequiredTools.Distinct())

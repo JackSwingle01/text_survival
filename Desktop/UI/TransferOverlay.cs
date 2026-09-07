@@ -143,7 +143,7 @@ public class TransferOverlay
                 if (ImGui.IsItemHovered())
                 {
                     string direction = isPlayerInventory ? _storageName : "your inventory";
-                    UiText.Tooltip($"Click to move all {count} to {direction}");
+                    UiText.Tooltip($"Click to move 1 to {direction}");
                 }
             }
         }

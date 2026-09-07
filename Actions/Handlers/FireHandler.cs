@@ -434,15 +434,21 @@ public static class FireHandler
             case FireAction.StartFire when request.Tool != null && request.Tinder != null:
                 {
                     var attempt = await ProcessStartFire(ctx, request.Tool, request.Tinder.Value, fire);
+                    if (attempt.Success) RelationshipEvents.TendedFire(ctx, ctx.player);
                     return new FireFeedback(attempt.Message, attempt.Success);
                 }
             case FireAction.StartFromEmber when request.EmberCarrier != null:
                 {
                     var attempt = await ProcessStartFromEmber(ctx, request.EmberCarrier, fire);
+                    if (attempt.Success) RelationshipEvents.TendedFire(ctx, ctx.player);
                     return new FireFeedback(attempt.Message, attempt.Success);
                 }
             case FireAction.AddFuel when request.FuelResource != null:
-                return new FireFeedback(AddFuelWithResult(ctx.Inventory, fire, request.FuelResource.Value).Message);
+                {
+                    var result = AddFuelWithResult(ctx.Inventory, fire, request.FuelResource.Value);
+                    if (result.Success) RelationshipEvents.TendedFire(ctx, ctx.player);
+                    return new FireFeedback(result.Message);
+                }
             case FireAction.CollectCharcoal:
                 return new FireFeedback(CollectCharcoal(fire, ctx.Inventory).Message);
             case FireAction.LightTorch:

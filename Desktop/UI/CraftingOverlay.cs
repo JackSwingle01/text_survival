@@ -5,11 +5,10 @@ using text_survival.Actions;
 using text_survival.Crafting;
 using text_survival.Desktop.Input;
 using text_survival.Items;
-using text_survival.UI;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>Choose a purpose, compare concrete methods, then commit a fully evaluated action.</summary>
+/// <summary>Browse recipes, inspect their costs, and commit a fully evaluated action.</summary>
 public class CraftingOverlay
 {
     public bool IsOpen { get; set; }
@@ -19,22 +18,19 @@ public class CraftingOverlay
     private int _section;
     private string _search = "";
     private bool _readyOnly;
-    private bool _repairOnly;
-    private string? _familyId;
     private string? _optionId;
     private Gear? _comparison;
-    private int _mode;
-    private Guid? _targetId;
-    private static readonly string[] Modes = ["Make", "Improve", "Maintain"];
-    private readonly Stack<(string Family, string Option)> _back = new();
+    private readonly Stack<string> _back = new();
     private static readonly Vector4 Accent = new(0.9f, 0.85f, 0.7f, 1);
+    private static readonly Vector4 Ready = new(0.4f, 0.9f, 0.5f, 1);
+    private static readonly Vector4 Missing = new(1f, 0.4f, 0.4f, 1);
     private static readonly Vector4 Warning = new(1, 0.65f, 0.4f, 1);
 
     public void Render(GameContext ctx, NeedCraftingSystem crafting, float deltaTime)
     {
         if (!IsOpen) return;
         var options = crafting.AllOptions.Where(o => !o.IsMendingRecipe)
-            .Concat(GearCrafting.Options(ctx.Inventory, crafting)).ToList();
+            .Concat(GearCrafting.Options(ctx.Inventory, crafting).Where(o => o.TargetBlocker?.Invoke() == null)).ToList();
         var evaluations = new Dictionary<string, CraftEvaluation>();
         CraftEvaluation Evaluate(CraftOption o)
         {
@@ -47,110 +43,82 @@ public class CraftingOverlay
         if (ImGui.Begin("Crafting", ref open, ImGuiWindowFlags.NoCollapse))
         {
             ImGui.SetNextItemWidth(-1);
-            ImGui.InputTextWithHint("##search", "Search plans, items, or purposes", ref _search, 150);
-            RenderTabs("Sections", CraftFamilies.Sections, ref _section);
-            ImGui.Checkbox("Ready only", ref _readyOnly);
-            ImGui.SameLine();
-            if (ImGui.Checkbox("Repair only", ref _repairOnly)) { _mode = _repairOnly ? 2 : 0; _optionId = null; }
-            if (_back.Count > 0 && ImGui.Button("Back to your plan"))
+            ImGui.InputTextWithHint("##search", "Search recipes or items", ref _search, 150);
+            float rowWidth = ImGui.GetContentRegionAvail().X;
+            float usedWidth = 0;
+            for (int i = 0; i < CraftFamilies.Sections.Length; i++)
             {
-                (_familyId, _optionId) = _back.Pop();
-                _section = Array.IndexOf(CraftFamilies.Sections, CraftFamilies.Get(_familyId).Section);
-                _search = "";
-                _readyOnly = false;
-                _repairOnly = false;
+                string section = CraftFamilies.Sections[i];
+                float width = ImGui.CalcTextSize(section).X + 22 + ImGui.FramePadding.X * 2;
+                if (usedWidth > 0 && usedWidth + 8 + width <= rowWidth)
+                {
+                    ImGui.SameLine(0, 8);
+                    usedWidth += 8;
+                }
+                else usedWidth = 0;
+                bool active = i == _section;
+                if (active) ImGui.PushStyleColor(ImGuiCol.Button, ImGui.StyleColor(ImGuiCol.TabSelected));
+                if (UiIcons.Button(SectionIcon(section), section, $"section-{i}", new Vector2(width, 0), selected: active))
+                { _section = i; _optionId = null; }
+                if (active) ImGui.PopStyleColor();
+                usedWidth += width;
+            }
+            ImGui.Checkbox("Ready only", ref _readyOnly);
+            if (_back.Count > 0 && ImGui.SmallButton("Back to your recipe"))
+            {
+                var previousId = _back.Pop();
+                var previous = options.FirstOrDefault(o => o.Id == previousId);
+                if (previous != null) Navigate(previous);
             }
             ImGui.Separator();
 
-            bool Matches(CraftOption o) => (!_readyOnly || Evaluate(o).Ready) &&
-                (!_repairOnly || o.Method == "Maintain") &&
-                (string.IsNullOrWhiteSpace(_search) || $"{o.Name} {CraftFamilies.Get(o.FamilyId).Name} {CraftFamilies.Get(o.FamilyId).Purpose}"
-                    .Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase));
-            var matching = options.Where(Matches).ToList();
-            var families = CraftFamilies.All.Where(f =>
-                (!string.IsNullOrWhiteSpace(_search) || f.Section == CraftFamilies.Sections[_section]) &&
-                matching.Any(o => o.FamilyId == f.Id)).ToList();
+            var matching = options.Where(o =>
+                (!_readyOnly || Evaluate(o).Ready) &&
+                (string.IsNullOrWhiteSpace(_search)
+                    ? CraftFamilies.Get(o.FamilyId).Section == CraftFamilies.Sections[_section]
+                    : $"{o.Name} {CraftFamilies.Get(o.FamilyId).Name} {CraftFamilies.Get(o.FamilyId).Purpose}"
+                        .Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase))).ToList();
+            var selected = matching.FirstOrDefault(o => o.Id == _optionId);
+            if (selected == null)
+            {
+                selected = matching.FirstOrDefault(o => Evaluate(o).Ready) ?? matching.FirstOrDefault();
+                Select(selected?.Id);
+            }
 
-            float height = Math.Max(150, ImGui.GetContentRegionAvail().Y - 36);
-            bool narrow = ImGui.GetContentRegionAvail().X < 600;
+            float height = Math.Max(100, ImGui.GetContentRegionAvail().Y - 36);
+            bool narrow = ImGui.GetContentRegionAvail().X < 650;
             if (narrow)
             {
-                if (ImGui.BeginCombo("Purpose", _familyId == null ? "Choose a purpose" : CraftFamilies.Get(_familyId).Name))
+                ImGui.SetNextItemWidth(-1);
+                if (ImGui.BeginCombo("##recipe", selected?.Name ?? "No matching recipes"))
                 {
-                    foreach (var family in families)
-                        if (ImGui.Selectable(family.Name, family.Id == _familyId)) SelectFamily(family.Id);
+                    RenderRecipes(matching, Evaluate);
                     ImGui.EndCombo();
                 }
             }
             else
             {
-                ImGui.BeginChild("Families", new Vector2(210, height), ImGuiChildFlags.Borders);
-                foreach (var family in families)
-                {
-                    bool ready = matching.Any(o => o.FamilyId == family.Id && Evaluate(o).Ready);
-                    if (ImGui.Selectable($"{(ready ? "+ " : "")}{family.Name}", family.Id == _familyId)) SelectFamily(family.Id);
-                }
-                if (families.Count == 0) UiText.Wrapped("No matching plans. Try All or another search.");
+                ImGui.BeginChild("Recipes", new Vector2(ImGui.GetContentRegionAvail().X * 0.43f, height), ImGuiChildFlags.Borders);
+                RenderRecipes(matching, Evaluate);
                 ImGui.EndChild();
                 ImGui.SameLine();
             }
-            ImGui.BeginChild("Plan", new Vector2(0, narrow ? Math.Max(100, ImGui.GetContentRegionAvail().Y - 36) : height), ImGuiChildFlags.Borders);
-            if (_familyId == null)
-                UiText.Wrapped("Choose what you need. Compare methods and materials before you spend time on work.");
-            else
+            selected = matching.FirstOrDefault(o => o.Id == _optionId);
+            ImGui.BeginChild("Recipe", new Vector2(0, narrow ? Math.Max(100, ImGui.GetContentRegionAvail().Y - 36) : height), ImGuiChildFlags.Borders);
+            if (selected != null)
             {
-                var family = CraftFamilies.Get(_familyId);
-                UiText.Colored(Accent, family.Name);
-                UiText.Wrapped(family.Purpose);
-                var familyOptions = matching.Where(o => o.FamilyId == family.Id).ToList();
-                if (_optionId != null && familyOptions.FirstOrDefault(o => o.Id == _optionId) is { } chosen)
-                {
-                    _mode = Mode(chosen);
-                    _targetId = chosen.TargetGear?.InstanceId;
-                }
-                if (RenderTabs("Actions", Modes, ref _mode)) _optionId = null;
-                var variants = familyOptions.Where(o => Mode(o) == _mode).ToList();
-                if (_mode > 0)
-                {
-                    var targets = variants.Select(o => o.TargetGear).OfType<Gear>().Distinct().ToList();
-                    if (!targets.Any(g => g.InstanceId == _targetId)) _targetId = targets.FirstOrDefault()?.InstanceId;
-                    var target = targets.FirstOrDefault(g => g.InstanceId == _targetId);
-                    ImGui.SetNextItemWidth(-1);
-                    if (ImGui.BeginCombo("##target", target == null ? "No eligible equipment owned" : $"{target.Name} ({target.ConditionPct:P0})"))
-                    {
-                        for (int index = 0; index < targets.Count; index++)
-                        {
-                            var gear = targets[index];
-                            if (ImGui.Selectable($"{gear.Name} ({gear.ConditionPct:P0}) - item {index + 1}##{gear.InstanceId}", gear == target))
-                            {
-                                _targetId = gear.InstanceId;
-                                _optionId = null;
-                            }
-                        }
-                        ImGui.EndCombo();
-                    }
-                    variants = variants.Where(o => o.TargetGear?.InstanceId == _targetId).ToList();
-                }
-                // Preserve the selected variant across filtering and inventory updates.
-                var selected = options.FirstOrDefault(o => o.Id == _optionId);
-                if (selected == null || selected.FamilyId != family.Id || Mode(selected) != _mode || (_mode > 0 && selected.TargetGear?.InstanceId != _targetId))
-                {
-                    selected = variants.FirstOrDefault(o => Evaluate(o).Ready) ?? variants.FirstOrDefault();
-                    _optionId = selected?.Id;
-                }
-                var familiar = variants.Where(o => o.TargetGear != null || o == selected ||
-                    ctx.Discoveries.HasDiscoveredAllRequirements(o.Requirements)).ToList();
-                RenderVariants(familiar, Evaluate);
-                var other = variants.Except(familiar).ToList();
-                if (other.Count > 0 && ImGui.TreeNode($"Other plans and materials ({other.Count})"))
-                {
-                    RenderVariants(other, Evaluate);
-                    ImGui.TreePop();
-                }
-                selected = options.FirstOrDefault(o => o.Id == _optionId);
-                if (selected != null) RenderDetails(ctx, crafting, selected, Evaluate(selected));
-                else UiText.Wrapped("No matching actions. Clear filters to browse all plans.");
+                var e = Evaluate(selected);
+                // Keep the action outside the scrolling details.
+                ImGui.BeginChild("Details", new Vector2(0, Math.Max(40, ImGui.GetContentRegionAvail().Y - 65)));
+                RenderDetails(ctx, crafting, selected, e);
+                ImGui.EndChild();
+                UiText.Colored(e.Ready ? Ready : Missing, e.Ready ? "Ready to craft" : "Missing requirements");
+                ImGui.BeginDisabled(!e.Ready);
+                string verb = selected.TargetGear != null ? selected.Name : selected.ProjectWorkMinutes > 0 ? "Start project" : $"Make {selected.Name}";
+                if (ImGui.Button(verb, new Vector2(-1, 32))) SelectedRecipe = selected;
+                ImGui.EndDisabled();
             }
+            else UiText.Wrapped("No matching recipes. Clear your search or turn off Ready only.");
             ImGui.EndChild();
             if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.Cancel)}", new Vector2(-1, 0))) open = false;
         }
@@ -158,122 +126,168 @@ public class CraftingOverlay
         IsOpen = open && SelectedRecipe == null;
     }
 
-    private static bool RenderTabs(string id, string[] labels, ref int selected)
+    private void Select(string? id)
     {
-        int before = selected;
-        for (int i = 0; i < labels.Length; i++)
-        {
-            if (i > 0) ImGui.SameLine();
-            bool active = i == selected;
-            if (active) ImGui.PushStyleColor(ImGuiCol.Button, ImGui.StyleColor(ImGuiCol.TabSelected));
-            if (ImGui.Button($"{labels[i]}##{id}{i}", selected: active)) selected = i;
-            if (active) ImGui.PopStyleColor();
-        }
-        return before != selected;
-    }
-
-    private static int Mode(CraftOption option) => option.TargetGear == null ? 0 : option.Method == "Maintain" ? 2 : 1;
-
-    private void SelectFamily(string id)
-    {
-        if (_familyId == id) return;
-        _familyId = id;
-        _optionId = null;
+        if (_optionId == id) return;
+        _optionId = id;
         _comparison = null;
-        _mode = _repairOnly ? 2 : 0;
-        _targetId = null;
     }
 
-    private static string VariantName(CraftOption option) => option.TargetGear == null ? option.Name :
-        option.Id.StartsWith("refit:") ? option.Name.Split(": ").Last() :
-        option.Id.StartsWith("point:") ? option.Name.Split(": ").Last() :
-        option.Id.StartsWith("handle:") ? "Add a handle" :
-        option.Id.StartsWith("sharpen:") ? "Sharpen edge" : "Mend garment";
-
-    private void RenderVariants(List<CraftOption> variants, Func<CraftOption, CraftEvaluation> evaluate)
+    private void Navigate(CraftOption option)
     {
-        foreach (var group in variants.GroupBy(o => o.Method))
+        Select(option.Id);
+        _section = Array.IndexOf(CraftFamilies.Sections, CraftFamilies.Get(option.FamilyId).Section);
+        _search = "";
+        _readyOnly = false;
+    }
+
+    private static string SectionIcon(string section) => section switch
+    {
+        "Tools" => "gear", "Fire & light" => "fire", "Food gathering" => "food",
+        "Clothing & carrying" => "clothing", "Camp" => "shelter", _ => "materials"
+    };
+
+    private static string RecipeIcon(CraftOption option, CraftEvaluation e) => e.Output is { } gear ? UiIcons.ForGear(gear)
+        : option.MaterialOutputs?.FirstOrDefault() is { } output && Enum.TryParse<Resource>(output.Material, out var resource)
+            ? UiIcons.ForResource(resource) : SectionIcon(CraftFamilies.Get(option.FamilyId).Section);
+
+    private void RenderRecipes(List<CraftOption> options, Func<CraftOption, CraftEvaluation> evaluate)
+    {
+        foreach (var family in options.GroupBy(o => o.FamilyId))
         {
-            UiText.Text(group.Key);
-            foreach (var option in group)
+            UiText.Disabled(CraftFamilies.Get(family.Key).Name);
+            foreach (var option in family.OrderBy(o => o.TargetGear != null))
             {
                 var e = evaluate(option);
-                string state = e.Ready ? "Ready" : e.Blockers.FirstOrDefault() ?? "Unavailable";
-                if (ImGui.Selectable($"{VariantName(option)}##{option.Id}", _optionId == option.Id))
-                {
-                    _optionId = option.Id;
-                    _comparison = null;
-                }
-                UiText.Wrapped($"  {e.Minutes} min{(e.LaterWorkMinutes > 0 ? " setup + later work" : "")} | {state}");
+                if (e.Ready) ImGui.PushStyleColor(ImGuiCol.Text, Ready);
+                string label = $"{option.Name}  ·  {e.Minutes}m{(e.LaterWorkMinutes > 0 ? "+" : "")}  ·  {(e.Ready ? "Ready" : "Missing")}";
+                if (RecipeRow(option, e, label)) Select(option.Id);
+                if (e.Ready) ImGui.PopStyleColor();
+                if (ImGui.IsItemHovered()) UiText.Tooltip($"{option.Name}\n{e.Minutes} min{(e.LaterWorkMinutes > 0 ? $" setup + about {e.LaterWorkMinutes} min work" : "")}\n{(e.Ready ? "Ready" : string.Join("\n", e.Blockers))}");
             }
+            ImGui.Spacing();
         }
+        if (options.Count == 0) UiText.Wrapped("No matching recipes.");
+    }
+
+    private bool RecipeRow(CraftOption option, CraftEvaluation e, string label)
+    {
+        if (ImGui.Capture != null)
+            return UiIcons.Selectable(RecipeIcon(option, e), label, option.Id, _optionId == option.Id);
+        var position = ImGui.GetCursorScreenPos();
+        var size = new Vector2(ImGui.GetContentRegionAvail().X, Math.Max(24, ImGui.GetTextLineHeight() + 8));
+        bool clicked = ImGui.Selectable($"##{option.Id}", _optionId == option.Id, ImGuiSelectableFlags.None, size);
+        var draw = ImGui.GetWindowDrawList();
+        float y = (size.Y - ImGui.GetTextLineHeight()) / 2;
+        string status = $"{e.Minutes}m{(e.LaterWorkMinutes > 0 ? "+" : "")}  {(e.Ready ? "Ready" : "Missing")}";
+        float statusWidth = ImGui.CalcTextSize(status).X;
+        float nameEnd = Math.Max(24, size.X - statusWidth - 12);
+        UiIcons.Draw(RecipeIcon(option, e), position + new Vector2(2, (size.Y - 16) / 2));
+        draw.PushClipRect(position + new Vector2(24, 0), position + new Vector2(nameEnd, size.Y), true);
+        draw.AddText(position + new Vector2(24, y), ImGui.GetColorU32(ImGuiCol.Text), option.Name);
+        draw.PopClipRect();
+        draw.AddText(position + new Vector2(size.X - statusWidth, y),
+            ImGui.ColorConvertFloat4ToU32(e.Ready ? Ready : Missing), status);
+        return clicked;
     }
 
     private void RenderDetails(GameContext ctx, NeedCraftingSystem crafting, CraftOption option, CraftEvaluation e)
     {
-        ImGui.Separator();
-        UiText.Colored(Accent, option.Name);
-        UiText.Wrapped(option.Description);
+        UiIcons.LabelColored(RecipeIcon(option, e), Accent, option.Name);
+        if (option.TargetGear is { } target)
+            UiText.Wrapped($"{(option.Method == "Maintain" ? "Repair" : "Improve")}: {target.Name} ({target.ConditionPct:P0} condition)");
         if (e.Output is { } output)
+            UiText.Wrapped(CraftEvaluation.Describe(output).FirstOrDefault() ?? option.Description);
+        else UiText.Wrapped(option.ProducesMaterials ? $"Produces {option.GetOutputDescription()}" : option.Description);
+        UiText.Text(e.LaterWorkMinutes > 0 ? $"{e.Minutes} min setup + about {e.LaterWorkMinutes} min later work" : $"{e.Minutes} minutes");
+        foreach (string warning in e.Warnings) UiText.Colored(Warning, warning);
+        ImGui.Separator();
+        UiText.Text("Materials");
+        if (e.Inputs.Requirements.Count == 0) UiText.Disabled("None needed");
+        foreach (var (req, available) in e.Inputs.Requirements)
         {
-            UiText.Text("Result");
-            foreach (string line in CraftEvaluation.Describe(output)) UiText.Wrapped(line);
-            var comparisons = CraftEvaluation.Comparisons(ctx.Inventory, output).ToList();
+            string icon = req.Material is MaterialSpecifier.Specific(var resource) ? UiIcons.ForResource(resource) : "materials";
+            UiIcons.LabelColored(icon, available >= req.Count ? Ready : Missing, $"{CraftInputs.MaterialName(req.Material)} · {req.Count} needed");
+            UiText.Colored(available > 0 || req.Count == 0 ? Ready : Missing, $"Have {available}/{req.Count}");
+            if (available < req.Count)
+            {
+                ImGui.SameLine(0, 12);
+                UiText.Colored(Missing, $"Missing {req.Count - available}");
+            }
+        }
+        if (option.RequiredTools.Count > 0)
+        {
+            ImGui.Spacing();
+            UiText.Text("Tools · kept after crafting");
+            foreach (var type in option.RequiredTools.Distinct())
+            {
+                var resolved = e.Inputs.Tools.FirstOrDefault(t => t.Tool.ToolType == type);
+                if (resolved.Tool is { } tool)
+                    UiIcons.LabelColored(UiIcons.ForGear(tool), Ready, $"Have {tool.Name}");
+                else UiIcons.LabelColored("gear", Missing, $"Need usable {System.Text.RegularExpressions.Regex.Replace(type.ToString(), "([a-z])([A-Z])", "$1 $2")}");
+            }
+        }
+        foreach (string blocker in e.Blockers.Except(e.Inputs.Missing))
+            UiText.Colored(Missing, blocker);
+        // Tool condition failures carry information beyond the generic missing tool row.
+        foreach (string blocker in e.Inputs.Missing.Where(b => b.Contains("condition remaining")))
+            UiText.Colored(Missing, blocker);
+
+        if (!e.Ready)
+        {
+            var producers = crafting.AllOptions.Where(o => o.Id != option.Id && (
+                o.GearFactory != null && option.RequiredTools.Contains(o.GearFactory(o.Durability).ToolType ?? ToolType.Unarmed) &&
+                    !e.Inputs.Tools.Any(t => t.Tool.ToolType == o.GearFactory(o.Durability).ToolType) ||
+                o.MaterialOutputs?.Any(m => e.Inputs.Requirements.Any(r => r.Available < r.Requirement.Count &&
+                    Enum.TryParse<Resource>(m.Material, out var resource) && (r.Requirement.Material switch
+                    {
+                        MaterialSpecifier.Specific(var specific) => specific == resource,
+                        MaterialSpecifier.Category(var category) => ResourceCategories.Items[category].Contains(resource),
+                        _ => false
+                    }))) == true)).ToList();
+            if (producers.Count > 0 && ImGui.TreeNode("Craft missing supplies"))
+            {
+                foreach (var producer in producers)
+                    if (ImGui.SmallButton($"View {producer.Name}##link-{producer.Id}"))
+                    {
+                        _back.Push(option.Id);
+                        Navigate(producer);
+                    }
+                ImGui.TreePop();
+            }
+        }
+        ImGui.Spacing();
+        if (ImGui.TreeNode($"More details##{option.Id}"))
+        {
+            UiText.Wrapped(option.Description);
+            if (e.Output is { } result)
+                foreach (string line in CraftEvaluation.Describe(result)) UiText.Wrapped(line);
+            if (e.Inputs.Materials.Count > 0)
+                UiText.Wrapped("Will use: " + string.Join(", ", e.Inputs.Materials.Select(m => $"{m.Value} {m.Key.ToDisplayName()}")));
+            foreach (var (tool, wear) in e.Inputs.Tools)
+                UiText.Wrapped(tool.Durability == -1 ? $"{tool.Name}: no wear" : $"{tool.Name}: {tool.Durability} -> {tool.Durability - wear} condition");
+            if (e.LaterWorkMinutes > 0) UiText.Wrapped("Later work can be split into sessions; conditions can change its duration.");
+            ImGui.TreePop();
+        }
+        if (e.Output is { } comparable)
+        {
+            var comparisons = CraftEvaluation.Comparisons(ctx.Inventory, comparable).ToList();
             if (option.TargetGear != null) _comparison = option.TargetGear;
             else if (_comparison == null || !comparisons.Contains(_comparison)) _comparison = comparisons.FirstOrDefault();
-            if (_comparison != null)
+            if (_comparison != null && ImGui.TreeNode($"Compare equipment##{option.Id}"))
             {
-                ImGui.Spacing();
                 if (option.TargetGear == null && comparisons.Count > 1 && ImGui.BeginCombo("Compare with", _comparison.Name))
                 {
                     foreach (var gear in comparisons)
                         if (ImGui.Selectable($"{gear.Name} ({gear.ConditionPct:P0})##{gear.InstanceId}", gear == _comparison)) _comparison = gear;
                     ImGui.EndCombo();
                 }
+                UiText.Text($"Result: {comparable.Name}");
+                foreach (string line in CraftEvaluation.Describe(comparable)) UiText.Wrapped(line);
                 UiText.Text($"Yours: {_comparison.Name}");
                 foreach (string line in CraftEvaluation.Describe(_comparison)) UiText.Wrapped(line);
-            }
-            else UiText.Wrapped("You do not currently own comparable equipment.");
-        }
-        if (option.ProducesMaterials) UiText.Text($"Produces: {option.GetOutputDescription()}");
-        ImGui.Separator();
-        UiText.Text(e.LaterWorkMinutes > 0 ? $"Setup: {e.Minutes} min; later work: about {e.LaterWorkMinutes} min" : $"Time now: {e.Minutes} minutes");
-        if (e.LaterWorkMinutes > 0) UiText.Wrapped($"About {e.Minutes + e.LaterWorkMinutes} minutes of active work in total. Later work can be split into sessions; conditions can change its duration.");
-        foreach (string warning in e.Warnings) UiText.Colored(Warning, warning);
-        UiText.Text("Consumed materials");
-        if (option.Requirements.Count == 0) UiText.Text("None");
-        foreach (var req in option.Requirements)
-            UiText.Text($"{req.Count} {CraftInputs.MaterialName(req.Material)}");
-        if (e.Inputs.Materials.Count > 0)
-            UiText.Wrapped("Will use: " + string.Join(", ", e.Inputs.Materials.Select(m => $"{m.Value} {m.Key.ToDisplayName()}")));
-        foreach (var (tool, wear) in e.Inputs.Tools)
-            UiText.Wrapped(tool.Durability == -1 ? $"Working tool: {tool.Name} (no wear)" : $"Working tool: {tool.Name}, {tool.Durability} -> {tool.Durability - wear} condition");
-        if (option.TargetGear != null) UiText.Wrapped($"Work on your {option.TargetGear.Name}; no second item is created.");
-        foreach (string blocker in e.Blockers) UiText.Colored(Warning, $"Need: {blocker}");
-        if (!e.Ready)
-        {
-            var producers = crafting.AllOptions.Where(o => o.Id != option.Id && (
-                o.GearFactory != null && option.RequiredTools.Contains(o.GearFactory(o.Durability).ToolType ?? ToolType.Unarmed) &&
-                    !CraftInputs.OwnedGear(ctx.Inventory).Any(g => g.ToolType == o.GearFactory(o.Durability).ToolType && g.Works) ||
-                o.MaterialOutputs?.Any(m => option.Requirements.Any(r => r.Material is MaterialSpecifier.Specific(var resource) &&
-                    resource.ToString() == m.Material && ctx.Inventory.Count(resource) < r.Count)) == true)).ToList();
-            if (producers.Count > 0 && ImGui.TreeNode("Plans for missing supplies"))
-            {
-                foreach (var producer in producers)
-                    if (ImGui.SmallButton($"View {producer.Name}##link-{producer.Id}"))
-                    {
-                        _back.Push((option.FamilyId, option.Id));
-                        SelectFamily(producer.FamilyId);
-                        _optionId = producer.Id;
-                        _section = Array.IndexOf(CraftFamilies.Sections, CraftFamilies.Get(producer.FamilyId).Section);
-                        _readyOnly = false; _repairOnly = false; _search = "";
-                    }
                 ImGui.TreePop();
             }
         }
-        ImGui.BeginDisabled(!e.Ready);
-        string verb = option.TargetGear != null ? option.Name : option.ProjectWorkMinutes > 0 ? "Start project" : $"Make {option.Name}";
-        if (ImGui.Button(verb, new Vector2(-1, 32))) SelectedRecipe = option;
-        ImGui.EndDisabled();
     }
 }

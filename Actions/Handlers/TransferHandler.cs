@@ -14,19 +14,16 @@ public static class TransferHandler
     public record TransferResult(bool Success, string Message);
 
     /// <summary>
-    /// Transfer a resource stack from source to destination.
+    /// Transfer a single unit of a resource from source to destination.
     /// </summary>
     public static TransferResult TransferResource(
         Inventory source, Inventory dest, Resource resource, string direction)
     {
-        int count = source.Count(resource);
-        if (count <= 0)
+        if (source.Count(resource) <= 0)
             return new TransferResult(false, $"No {resource} to transfer.");
 
-        // Preserve individual unit weights instead of merging them into one oversized unit.
-        for (int i = 0; i < count; i++)
-            dest.Add(resource, source.Pop(resource));
-        return new TransferResult(true, $"Moved {resource} x{count} {direction}");
+        dest.Add(resource, source.Pop(resource));
+        return new TransferResult(true, $"Moved {resource} {direction}");
     }
 
     /// <summary>

@@ -19,10 +19,18 @@ public class RelationshipMemory
         for (int i = 0; i < MemoryEvents.Count; i++)
         {
             if (MemoryEvents[i].Subject == actor)
-                sum += GetMemoryImpact(MemoryEvents[i].Type) * (MemoryEvents[i].Type == MemoryType.TimeTogether ? Math.Min(200, MemoryEvents[i].Count) : MemoryEvents[i].Count);
+                sum += GetMemoryImpact(MemoryEvents[i].Type) * Math.Min(MaxCount(MemoryEvents[i].Type), MemoryEvents[i].Count);
         }
         return sum;
     }
+
+    /// <summary>Cheap, repeatable kindnesses stop counting - you cannot buy a friend one handful at a time.</summary>
+    private static int MaxCount(MemoryType memoryType) => memoryType switch
+    {
+        MemoryType.TimeTogether => 200,
+        MemoryType.SmallKindness => 20,
+        _ => int.MaxValue,
+    };
 
     private static double GetMemoryImpact(MemoryType memoryType)
     {
@@ -32,6 +40,8 @@ public class RelationshipMemory
             MemoryType.AbandonedMe => -.5,
             MemoryType.PressuredMe => -.05,
             MemoryType.SharedFood => .05,
+            MemoryType.WarmedMe => .05,
+            MemoryType.SmallKindness => .01,
             MemoryType.FoughtTogether => .1,
             MemoryType.TimeTogether => .001,
             _ => throw new NotImplementedException(),
@@ -61,6 +71,8 @@ public enum MemoryType
     SavedMe,
     AbandonedMe,
     SharedFood,
+    WarmedMe,
+    SmallKindness,
     // StoleFrom,
     FoughtTogether,
     // BuiltTogether,

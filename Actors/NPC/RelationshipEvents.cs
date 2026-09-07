@@ -61,6 +61,22 @@ public static class RelationshipEvents
     }
 
     /// <summary>
+    /// Called when anyone starts or feeds a fire. Whoever is cold at that fire remembers who
+    /// kept it burning - the same kindness as handing them what they needed, on the same
+    /// cooldown, so care is remembered rather than counted.
+    /// </summary>
+    public static void TendedFire(Actions.GameContext ctx, Actor tender)
+    {
+        foreach (var npc in ctx.NPCs)
+        {
+            if (npc == tender || !npc.IsAlive || npc.CurrentLocation != tender.CurrentLocation) continue;
+            if (npc.Body.WarmPct >= 0.5 || ctx.TotalMinutesElapsed < npc.Social.NextGiftMemoryMinute) continue;
+            npc.Relationships.AddMemory(MemoryType.WarmedMe, tender);
+            npc.Social.NextGiftMemoryMinute = ctx.TotalMinutesElapsed + 360;
+        }
+    }
+
+    /// <summary>
     /// Called when an NPC is saved from death/danger by another actor.
     /// </summary>
     public static void SavedMe(NPC npc, Actor savior)

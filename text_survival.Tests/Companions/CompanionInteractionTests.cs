@@ -59,13 +59,63 @@ public class CompanionInteractionTests
         var world = new CompanionWorld();
         var giver = world.AddNpc("Giver");
         var npc = world.AddNpc("Thirsty");
-        giver.Inventory.Add(Resource.Water, 2);
+        giver.Inventory.Add(Resource.Water, 20);
         npc.Body.Hydration = SurvivalProcessor.MAX_HYDRATION * 0.3;
-        for (int i = 0; i < 5; i++) CompanionInteractions.Give(giver, npc, Resource.Water, 0.01, i);
-        Assert.Empty(npc.Relationships.MemoryEvents);
-        CompanionInteractions.Give(giver, npc, Resource.Water, 0.5, 5);
-        CompanionInteractions.Give(giver, npc, Resource.Water, 0.5, 6);
-        Assert.Equal(1, Assert.Single(npc.Relationships.MemoryEvents).Count);
+        // A token gift is noticed once an hour, and stops counting long before it buys a friend.
+        for (int i = 0; i < 300; i++) CompanionInteractions.Give(giver, npc, Resource.Water, 0.01, i);
+        var token = Assert.Single(npc.Relationships.MemoryEvents);
+        Assert.Equal(MemoryType.SmallKindness, token.Type);
+        Assert.Equal(5, token.Count);
+        Assert.Equal(0.05, npc.Relationships.GetOpinion(giver), 3);
+        for (int i = 0; i < 100; i++) CompanionInteractions.Give(giver, npc, Resource.Water, 0.01, 300 + i * 60);
+        Assert.Equal(0.2, npc.Relationships.GetOpinion(giver), 3);
+    }
+
+    [Fact]
+    public void NeededGiftsAreWorthMoreThanTokensAndHaveTheirOwnCooldown()
+    {
+        var world = new CompanionWorld();
+        var giver = world.AddNpc("Giver");
+        var npc = world.AddNpc("Thirsty");
+        giver.Inventory.Add(Resource.Water, 5);
+        npc.Body.Hydration = SurvivalProcessor.MAX_HYDRATION * 0.3;
+        CompanionInteractions.Give(giver, npc, Resource.Water, 0.5, 0);
+        CompanionInteractions.Give(giver, npc, Resource.Water, 0.5, 1);
+        var shared = Assert.Single(npc.Relationships.MemoryEvents, m => m.Type == MemoryType.SharedFood);
+        Assert.Equal(1, shared.Count);
+        CompanionInteractions.Give(giver, npc, Resource.Water, 0.5, 400);
+        Assert.Equal(2, shared.Count);
+    }
+
+    [Fact]
+    public void KeepingTheFireUpIsRememberedOnlyByCompanionsWhoAreCold()
+    {
+        var world = new CompanionWorld();
+        var cold = world.AddNpc("Cold", 0, 0);
+        var warm = world.AddNpc("Warm", 0, 0);
+        var elsewhere = world.AddNpc("Elsewhere", 3, 1);
+        cold.Body.BodyTemperature = 92;
+        elsewhere.Body.BodyTemperature = 92;
+        Assert.True(cold.Body.WarmPct < 0.5 && warm.Body.WarmPct >= 0.5);
+        RelationshipEvents.TendedFire(world.Game, world.Game.player);
+        RelationshipEvents.TendedFire(world.Game, world.Game.player);
+        Assert.Empty(warm.Relationships.MemoryEvents);
+        Assert.Empty(elsewhere.Relationships.MemoryEvents);
+        var memory = Assert.Single(cold.Relationships.MemoryEvents);
+        Assert.Equal(MemoryType.WarmedMe, memory.Type);
+        Assert.Equal(1, memory.Count);
+    }
+
+    [Fact]
+    public void AnNpcTendingTheFireEarnsTheSameCreditAsThePlayer()
+    {
+        var world = new CompanionWorld();
+        var tender = world.AddNpc("Tender");
+        var cold = world.AddNpc("Cold");
+        cold.Body.BodyTemperature = 92;
+        RelationshipEvents.TendedFire(world.Game, tender);
+        Assert.Same(tender, Assert.Single(cold.Relationships.MemoryEvents).Subject);
+        Assert.Empty(tender.Relationships.MemoryEvents);
     }
 
     [Fact]

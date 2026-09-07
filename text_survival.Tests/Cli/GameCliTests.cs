@@ -247,7 +247,7 @@ public class GameCliTests
     }
 
     [Fact]
-    public async Task TransferAndCrafting_UseScreenCallbacks()
+    public async Task Transfer_UseScreenCallbacks()
     {
         var ctx = World(); var ui = new CliUi(ctx); ctx.Ui = ui;
         ctx.Inventory.Add(Resource.Stone, 1);
@@ -266,13 +266,21 @@ public class GameCliTests
         Assert.Equal(stoneCount, ctx.Inventory.Count(Resource.Stone));
         Assert.Equal(stoneWeight, ctx.Inventory.Weight(Resource.Stone));
         ui.Close(); await transfer;
+    }
+
+    [Fact]
+    public async Task Crafting_UseScreenCallbacks()
+    {
+        var ctx = World(); var ui = new CliUi(ctx); ctx.Ui = ui;
         var crafting = ui.ShowCrafting();
         ui.Render(ui.Render().Controls.Single(c => c.Kind == "text").Id, "knife");
-        var family = ui.Render().Controls.First(c => c.Kind == "select" && c.Label.Contains("Cutting", StringComparison.OrdinalIgnoreCase));
-        ui.Render(family.Id);
+        var recipe = ui.Render().Controls.First(c => c.Kind == "select" && c.Label.StartsWith("Stone Knife"));
+        ui.Render(recipe.Id);
         Assert.Contains(ui.Render().Lines, l => l.Contains("Stone", StringComparison.OrdinalIgnoreCase));
         // Supplying resources exposes the real readiness check and commit control.
         foreach (var r in Enum.GetValues<Resource>()) ctx.Inventory.Add(r, 5);
+        var knapping = new text_survival.Crafting.NeedCraftingSystem().AllOptions.Single(o => o.Id == "knapping-stone");
+        ctx.Inventory.Tools.Add(knapping.GearFactory!(knapping.Durability));
         var ready = ui.Render().Controls.First(c => c.Enabled && c.Label.StartsWith("Make" ) && !c.Id.Contains("Actions"));
         ui.Render(ready.Id);
         Assert.True(crafting.IsCompleted);

@@ -10,6 +10,7 @@ public sealed class CompanionSocialState
     public double NextItemRequestMinute { get; set; }
     public double NextNeedRequestMinute { get; set; }
     public double NextGiftMemoryMinute { get; set; }
+    public double NextTokenGiftMinute { get; set; }
     public double StayUntilMinute { get; set; }
     public CompanionNeedRequest? PendingNeed { get; set; }
 }
@@ -103,17 +104,30 @@ public static class CompanionInteractions
     {
         if (!CanTalk(giver, recipient) || giver.Inventory == null || recipient.Inventory == null ||
             !double.IsFinite(amount) || amount <= 0 || giver.Inventory.Weight(resource) < amount || !recipient.Inventory.CanCarry(amount)) return false;
-        bool useful = resource == Resource.Water ? recipient.Body.HydratedPct < 0.5 :
-            resource.GetCategory() == ResourceCategory.Food && recipient.Body.FullPct < 0.3;
+        bool useful = Needs(recipient, resource);
         var transferred = giver.Inventory.ConsumeByWeight(resource, amount);
         recipient.Inventory.Add(resource, transferred);
-        if (useful && transferred >= 0.25 && recipient is NPC npc && minute >= npc.Social.NextGiftMemoryMinute)
+        if (transferred > 0 && recipient is NPC npc)
         {
-            npc.Relationships.AddMemory(MemoryType.SharedFood, giver);
-            npc.Social.NextGiftMemoryMinute = minute + 360;
+            if (useful && transferred >= 0.25 && minute >= npc.Social.NextGiftMemoryMinute)
+            {
+                npc.Relationships.AddMemory(MemoryType.SharedFood, giver);
+                npc.Social.NextGiftMemoryMinute = minute + 360;
+            }
+            else if (minute >= npc.Social.NextTokenGiftMinute)
+            {
+                // Anything handed over is noticed, but a token gift is worth a fifth of one they needed.
+                npc.Relationships.AddMemory(MemoryType.SmallKindness, giver);
+                npc.Social.NextTokenGiftMinute = minute + 60;
+            }
         }
         return transferred > 0;
     }
+
+    /// <summary>A gift only counts if it answers a need they actually have.</summary>
+    public static bool Needs(Actor recipient, Resource resource) => resource == Resource.Water
+        ? recipient.Body.HydratedPct < 0.5
+        : resource.GetCategory() == ResourceCategory.Food && recipient.Body.FullPct < 0.3;
 
     public static NPCAction ConsiderNeed(NPC npc, NPCAction action, double minute)
     {

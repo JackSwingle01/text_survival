@@ -1,3 +1,4 @@
+using System.Linq;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions.WorkStrategies;
 using text_survival.Actions.Handlers;
@@ -26,7 +27,8 @@ public static class HudActions
         Add(CampAction.Inventory, "Inventory", HudActionGroup.Navigation, HotkeyAction.Inventory);
         Add(CampAction.Crafting, "Crafting", HudActionGroup.Navigation, HotkeyAction.Crafting);
         Add(CampAction.DiscoveryLog, "Discoveries", HudActionGroup.Navigation, HotkeyAction.DiscoveryLog);
-        Add(CampAction.NPCs, "People", HudActionGroup.People, HotkeyAction.NPCs);
+        Add(CampAction.NPCs, "People", HudActionGroup.People, HotkeyAction.NPCs, reason:
+            ctx.NPCs.Any(n => n.CurrentLocation == ctx.CurrentLocation) ? null : "No one is here.");
         Add(CampAction.Wait, "Wait · 5 min", HudActionGroup.Wait, HotkeyAction.Wait);
         var location = ctx.CurrentLocation;
         var fire = location.GetFeature<HeatSourceFeature>();
