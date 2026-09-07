@@ -15,7 +15,6 @@ public class GameEventOverlay
 
     private EventDto? _currentEvent;
     private EventOutcomeDto? _outcome;
-    private string? _selectedChoiceId;
 
     /// <summary>
     /// Show an event with choices.
@@ -24,7 +23,6 @@ public class GameEventOverlay
     {
         _currentEvent = eventData;
         _outcome = eventData.Outcome;
-        _selectedChoiceId = null;
         IsOpen = true;
     }
 
@@ -35,7 +33,6 @@ public class GameEventOverlay
     {
         _currentEvent = null;
         _outcome = outcome;
-        _selectedChoiceId = null;
         IsOpen = true;
     }
 
@@ -99,23 +96,18 @@ public class GameEventOverlay
 
         foreach (var choice in evt.Choices)
         {
-            bool isSelected = _selectedChoiceId == choice.Id;
             bool isAvailable = choice.IsAvailable;
 
-            // Choice button
             if (!isAvailable)
             {
                 ImGui.BeginDisabled();
             }
 
-            Vector4 buttonColor = isSelected
-                ? new Vector4(0.3f, 0.5f, 0.7f, 1f)
-                : new Vector4(0.2f, 0.2f, 0.25f, 1f);
-            ImGui.PushStyleColor(ImGuiCol.Button, buttonColor);
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.25f, 1f));
 
             if (ImGui.Button(choice.Label, new Vector2(-1, 28)))
             {
-                _selectedChoiceId = choice.Id;
+                choiceResult = choice.Id;
             }
 
             ImGui.PopStyleColor();
@@ -134,26 +126,6 @@ public class GameEventOverlay
             }
             ImGui.Unindent();
             ImGui.Spacing();
-        }
-
-        ImGui.Spacing();
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        // Confirm button (only enabled when a choice is selected)
-        if (_selectedChoiceId != null)
-        {
-            if (ImGui.Button("Confirm", new Vector2(-1, 30)))
-            {
-                choiceResult = _selectedChoiceId;
-            }
-        }
-        else
-        {
-            ImGui.BeginDisabled();
-            ImGui.Button("Select an option", new Vector2(-1, 30));
-            ImGui.EndDisabled();
         }
 
         return choiceResult;
