@@ -1,6 +1,20 @@
+> September 6, 2026 revision: preserve authored content. The event-removal/consolidation approach in the original plan below has been superseded. Original scenes and choices are restored, with explicit source/situation gating and physical response actions. See `content-coverage.md` and the current context/tasks for verified status. The three retired predator meters remain removed.
+
 # Predator state migration
 
-Status: proposed implementation plan, 2026-09-06. No gameplay changes made.
+Status: implemented and verified, 2026-09-06.
+
+## Implementation result
+
+- The three generic predator meters and their factories, conditions, outcome helpers, and stage events are removed. Obsolete names remain only in legacy-save cleanup and its creation guard/tests.
+- Herds own target/location/time memory and following/searching intent. Actual position, line of sight, local food/blood cues, hunger, fear, and game time drive behavior. Existing species behavior retains kill/den defense and NPC hunting.
+- Source-bound responses support watching, stopping work, intimidation, real torch lighting, dropping meat into ground storage, ordinary neighboring-tile travel, and combat with an existing herd member. Work/travel stop for pending encounters.
+- Shared predator scenes replace the old pack/stalker escalations and contextual fishing, camp, trap-line, and post-hunt variants. Unsupported weighted outcome branches were retired; see `retired-outcomes.md`. This intentionally reduces scripted branching rather than preserving its arbitrary probabilities behind a compatibility API.
+- Player observations persist separately and display the last seen behavior, place, and elapsed minutes. Queued scenes and encounters revalidate their source. Old saves discard unsupported meters without spawning animals.
+- Verification: baseline 545 tests passed; final full suite 571 passed, including 32 predator migration cases. Production HUD and response overlay were rendered with `tools/HudPreview` and visually inspected. A scripted UI test exercises the complete leave-meat / same-pack travel / feeding loop; a separate test executes real retreat travel.
+- Remaining limits: food/blood detection is local, not a wind-driven scent field; pursuit uses traversable adjacent steps toward remembered contact, not a new long-range path planner. Dedicated saber-tooth/scavenger arcs and other tensions are intentionally outside this migration. The desktop verification used rendered production screens plus scripted UI execution, not manual mouse/keyboard play.
+
+The sections below retain the implementation design and acceptance criteria.
 
 ## Outcome and scope
 

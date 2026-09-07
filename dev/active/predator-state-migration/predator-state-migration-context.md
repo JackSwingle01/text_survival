@@ -1,10 +1,20 @@
 # Predator state migration context
 
-## Session progress — 2026-09-06
+## Authored-content repair — September 6, 2026
 
-Planning complete. Implementation not started. User requested a plan for the first migration discussed: derive predator content from simulation instead of tension severity.
+User rejected generic-menu consolidation and authorized restoring authored content while requiring plausible situations. Original catalog restored, including Pack.cs and removed stalker/spatial scenes. 91 of the 95 archived outcome declarations are verbatim; four use corrected wording. Do not continue the old broad deletion/deferral strategy.
 
-Read `predator-state-migration-plan.md` for decisions and acceptance gates; use the tasks file during implementation.
+`Actions/Events/AuthoredPredatorScenes.cs` defines explicit scene kinds, source/feature eligibility, and shared physical action binding. Authored observations/follow/withdraw replace the three retired predator meter operations. Event execution revalidates sources; actual movement, fire, bait, and carcass harvesting replace text-only consequences. Observation selects the original scene before falling back to the generic responder. Other tension migrations remain plans only.
+
+Current coverage: [content-coverage.md](content-coverage.md). Rendered and inspected original camp/carcass menus in `/tmp/authored-predator-preview/`. Final validation: all 619 tests pass, including end-to-end harvest-then-travel and source/situation/content coverage. `git diff --check` passes. No commit was created. Separate valley/map/rendering changes were preserved; two xUnit assertion forms in ValleyWorldTests were mechanically corrected to unblock compilation.
+
+## Original migration progress — 2026-09-06
+
+Implementation complete. User authorized the change after reviewing the plan.
+
+Validation: all 571 tests pass (baseline 545); 32 predator migration cases cover identity, perception, search, food, deterrence, retreat, interruptions, old/new saves, and species defense. The production HUD and response overlay were rendered and visually inspected at `/tmp/predator-hud-preview/hud-7.png` and `/tmp/predator-hud-preview/predator-response.png`.
+
+Main additions: `Actors/Animals/PredatorInteraction.cs`, `Actions/Events/PredatorEventFactory.cs`, and `text_survival.Tests/Animals/PredatorInteractionTests.cs`. The old pack event file was removed; shared responses now serve pack/stalker and contextual scenes. See `retired-outcomes.md` for deleted unsupported weighted branches.
 
 ## Key files
 
@@ -18,17 +28,28 @@ Read `predator-state-migration-plan.md` for decisions and acceptance gates; use 
 - `Actions/Events/Variants/TrailSignVariant.cs`, `Environments/Features/EnvironmentalDetail.cs`: inspection currently creates predator tensions.
 - `Combat/CombatOrchestrator.cs`, `Combat/CombatAftermath.cs`: real herd participants and persistent consequences.
 - `Environments/Features/{CacheFeature,CarcassFeature,PlacedNet}.cs`: food representations and indirect consumers.
-- `Desktop/UI/StatsPanel.cs`, `Desktop/UI/EventOverlay.cs`: tension presentation.
+- `Desktop/UI/SurvivorPanel.cs`, `Desktop/UI/EventOverlay.cs`: tension presentation.
 - `Persistence/SaveManager.cs`, `Persistence/GameInitializer.cs`: reference-preserving save graph and load initialization.
 
-## Constraints
+## Constraints and follow-up boundaries
 
-Only planning was authorized in this turn. No gameplay implementation or test execution was done.
+The worktree was clean at implementation start; the earlier surface and HUD work had become the current baseline. Changes preserve those systems and use their perception, surface accessibility, traversal, ground-item storage, and HUD layout.
 
-The workspace already contains user changes in `Actions/GameContext.cs`, `Bodies/SurvivalContext.cs`, `Environments/Grid/GameMap.cs`, `Environments/Grid/TerrainType.cs`, `Environments/Location.cs`, `Environments/TravelProcessor.cs`, `Survival/SurvivalProcessor.cs`, and untracked surface implementation/tests. Preserve these and reread current files before editing.
+Dedicated saber-tooth/scavenger tensions remain outside this pass. Common predator encounter admission nevertheless requires a real source and prevents duplicate pending combat. Other prey, cold, shelter, and disease tensions remain.
 
-Do not interpret the historical tension arc plan as an instruction to retain severity stages. Keep dedicated saber-tooth/scavenger tensions outside this pass, while migrating every use of the three generic predator tensions. Avoid source overlap creating duplicate combat.
+Detection uses existing sight and adjacent food/blood cues. Search expires after 20 game minutes without contact, and approach decisions use game-time intervals. Numbers represent concrete animal behavior; no generic threat severity survives.
+
+## Verification commands
+
+- `dotnet test text_survival.Tests/text_survival.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false` — 571 passed.
+- `dotnet run --project tools/HudPreview --no-build -- /tmp/predator-hud-preview` — production screenshots rendered and inspected. The preview was built with the game changes and now includes a predator scenario; it disables ImGui settings persistence.
+- `git diff --check` — clean.
+
+The .NET test runner required local socket access; the HUD preview required the local window service. Both ran successfully with tool-reviewed escalation. No gameplay save was loaded or modified by the preview.
 
 ## Resume
 
-Start Phase 1 with a fresh call-site inventory and baseline build/tests. Resolve detection distance units and typed event source plumbing before converting narrative. There are no unanswered user decisions blocking the proposed approach.
+No implementation work remains for this migration. Future work can migrate dedicated species arcs or enrich perception/food behavior. Read the implementation result in the plan before extending it; do not restore compatibility severity meters.
+# Content preservation follow-up — September 6, 2026
+
+Mechanical completion does not establish narrative equivalence. User raised lost flavor; [content-restoration-plan.md](content-restoration-plan.md) now maps scene families and all 12 named staged scenes to grounded replacements or explicit dependencies. The first contextual restoration slice and per-entry coverage assessment are now implemented; specialized scenes remain deferred. Do not expand generic-menu consolidation to other tensions without the new content preservation requirement.
