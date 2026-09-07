@@ -608,7 +608,7 @@ public class GridWorldGenerator
     /// </summary>
     private (GridPosition CampPos, Location Camp) PlaceCamp(GameMap map, Weather weather)
     {
-        var campPos = _layout.Camp;
+        var campPos = FindCampSite();
 
         // Create camp location
         var camp = CreateCampLocation(weather);
@@ -618,6 +618,25 @@ public class GridWorldGenerator
         map.SetLocation(campPos.X, campPos.Y, camp);
 
         return (campPos, camp);
+    }
+
+    /// <summary>
+    /// Camp opens in woods with room to move: the nearest forest tile to the middle of the
+    /// starting basin that is not hemmed in by water, rock or a barrier edge.
+    /// </summary>
+    private GridPosition FindCampSite()
+    {
+        var start = _layout.Camp;
+        bool Open(GridPosition p) => _paintable.Contains(p)
+            && _terrain[p.X, p.Y] is not (TerrainType.Water or TerrainType.Marsh);
+        int Room(GridPosition p) => p.GetCardinalNeighbors().Count(n => Open(n)
+            && !_layout.Barriers.ContainsKey((p.X < n.X || p.X == n.X && p.Y < n.Y) ? (p, n) : (n, p)));
+
+        var sites = _paintable.Where(p => p.ManhattanDistance(start) <= 12 && Open(p) && Room(p) == 4).ToList();
+        var forest = sites.Where(p => _terrain[p.X, p.Y] == TerrainType.Forest).ToList();
+        return (forest.Count > 0 ? forest : sites)
+            .OrderBy(p => p.ManhattanDistance(start))
+            .Cast<GridPosition?>().FirstOrDefault() ?? start;
     }
 
     /// <summary>

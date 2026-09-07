@@ -110,7 +110,8 @@ internal sealed class ValleyLayout
             }
         }
         // Each lake drains locally, toward the nearest north/south boundary.
-        var lakes = _basins.OrderBy(_ => _rng.Next()).Take(Math.Min(_basins.Count - 1, _rng.Next(2, 5))).ToList();
+        // The starting basin never floods: camp opens in woods, not on a lake shore.
+        var lakes = _basins.Skip(1).OrderBy(_ => _rng.Next()).Take(Math.Min(_basins.Count - 1, _rng.Next(2, 5))).ToList();
         foreach (var basin in lakes)
         {
             var river = Curve(basin.Center, Clamp(basin.Center.X + Jitter(7), basin.Center.Y < _height / 2 ? 2 : _height - 3), 4);
@@ -119,7 +120,7 @@ internal sealed class ValleyLayout
             foreach (var p in river)
                 Terrain[p.X, p.Y] = TerrainType.DeepWater;
         }
-        foreach (var basin in _basins.Except(lakes).OrderBy(_ => _rng.Next()).Take(5))
+        foreach (var basin in _basins.Skip(1).Except(lakes).OrderBy(_ => _rng.Next()).Take(5))
         {
             double angle = _rng.NextDouble() * Math.Tau, length = Math.Min(basin.Rx, basin.Ry) * .7;
             var cut = Curve(Clamp(basin.Center.X - Math.Cos(angle) * length, basin.Center.Y - Math.Sin(angle) * length),

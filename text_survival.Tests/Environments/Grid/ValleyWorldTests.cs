@@ -20,6 +20,10 @@ public class ValleyWorldTests
         Assert.True(map.GetPosition(camp).X < map.Width / 5);
         var exit = Assert.Single(map.AllLocations, l => l.IsCrossingExit);
         Assert.Equal(map.Width - 1, map.GetPosition(exit).X);
+        var campPos = map.GetPosition(camp);
+        Assert.Equal(TerrainType.Forest, camp.Terrain);
+        Assert.All(campPos.GetCardinalNeighbors(), n =>
+            Assert.False(map.IsEdgeBlocked(campPos, n, map.Weather.CurrentSeason)));
         var reached = Reachable(map, camp);
         Assert.All(map.AllLocations.Where(l => l.IsPassable), l => Assert.Contains(l, reached));
         string[] stages = ["Pass Approach", "Lower Pass", "The Pass Proper", "Upper Descent", "Lower Descent"];
