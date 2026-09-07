@@ -171,9 +171,10 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public EventResult Escalate(string type, double amount) { EscalateTension = (type, amount); return this; }
 
     // Encounter spawning
-    public EventResult Encounter(AnimalType animal, int distance, double boldness)
+    public EventResult Encounter(AnimalType animal, int distance, double boldness,
+        text_survival.Combat.EncounterOpening opening = text_survival.Combat.EncounterOpening.CloseEncounter)
     {
-        SpawnEncounter = new EncounterConfig(animal, distance, boldness);
+        SpawnEncounter = new EncounterConfig(animal, distance, boldness, Opening: opening);
         return this;
     }
 

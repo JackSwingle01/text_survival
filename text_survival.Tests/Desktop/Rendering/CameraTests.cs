@@ -84,7 +84,7 @@ public class CameraTests
         Assert.True(camera.ZoomWheel(-1));
         Assert.Equal(5, camera.ViewSize);
         camera.Zoom(int.MinValue);
-        Assert.Equal(15, camera.ViewSize);
+        Assert.Equal(31, camera.ViewSize);
         Assert.True(camera.IsFollowingPlayer);
         camera.ResetZoom();
         Assert.Equal(7, camera.ViewSize);

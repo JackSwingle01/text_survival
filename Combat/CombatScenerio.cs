@@ -26,6 +26,7 @@ public class CombatScenario
     public List<Unit> Units = new();
     public bool IsOver = false;
     public EncounterPurpose Purpose { get; set; }
+    public EncounterFormation? Formation { get; set; }
     public int ElapsedRounds { get; set; }
     public bool AftermathApplied { get; set; }
     public HashSet<Actor> ConsideredHelpers { get; } = [];
@@ -38,7 +39,12 @@ public class CombatScenario
         var opposing = teamOne ? Team2 : Team1;
         var anchor = own.FirstOrDefault(u => Units.Contains(u));
         if (anchor == null) return false;
-        var unit = new Unit(actor, new GridPosition(anchor.Position.X, teamOne ? 1 : MAP_SIZE - 2)) { Awareness = AwarenessState.Engaged };
+        var occupied = Units.Select(u => u.Position).ToHashSet();
+        var entry = Enumerable.Range(1, MAP_SIZE - 2)
+            .SelectMany(i => new[] { new GridPosition(i, 1), new GridPosition(i, MAP_SIZE - 2), new GridPosition(1, i), new GridPosition(MAP_SIZE - 2, i) })
+            .Where(p => !occupied.Contains(p)).OrderBy(p => p.DistanceTo(anchor.Position)).Cast<GridPosition?>().FirstOrDefault();
+        if (entry == null) return false;
+        var unit = new Unit(actor, entry.Value) { Awareness = AwarenessState.Engaged };
         own.Add(unit);
         unit.allies = own.Where(Units.Contains).ToList();
         unit.enemies = opposing.Where(Units.Contains).ToList();
@@ -96,7 +102,8 @@ public class CombatScenario
     public const double STONE_BASE_ACCURACY = 0.90;
 
     /// <summary>
-    /// The one way to build a fight. Team A clusters at the bottom of the grid, team B
+    /// Build a fight, optionally using a centered animal-encounter formation. Otherwise team A
+    /// clusters at the bottom of the grid, team B
     /// startDistanceM up from them. Awareness is set per team: a hunt is an Engaged player
     /// against Unaware prey, an ambush is the reverse, a brawl is Engaged on both sides.
     /// </summary>
@@ -107,7 +114,8 @@ public class CombatScenario
         int startDistanceM,
         AwarenessState teamAAwareness,
         AwarenessState teamBAwareness,
-        Actor? player = null)
+        Actor? player = null,
+        EncounterOpening? opening = null)
     {
         if (teamA.Count == 0 || teamB.Count == 0)
             throw new ArgumentException("Combat needs at least one actor on each side");
@@ -126,7 +134,9 @@ public class CombatScenario
                 ?? throw new ArgumentException("The player must be on one of the teams");
         }
 
-        return new CombatScenario(a, b, playerUnit, location);
+        var scenario = new CombatScenario(a, b, playerUnit, location);
+        if (opening != null) EncounterPlacement.Apply(scenario, opening.Value, startDistanceM);
+        return scenario;
     }
 
     private static GridPosition ClusterPosition(int centerX, int baseY, int index)
@@ -193,7 +203,8 @@ public class CombatScenario
         else if (action == CombatActions.Move)
         {
             var oldPos = unit.Position;
-            var newPosition = CombatAI.DetermineMovePosition(unit);
+            var pursuitTarget = CombatMovement.PursuitTarget(unit, this);
+            var newPosition = CombatAI.DetermineMovePosition(unit, this);
             Move(unit, newPosition);
             var nearestEnemy = GetNearestEnemy(unit);
             if (nearestEnemy != null)
@@ -207,6 +218,12 @@ public class CombatScenario
             else
             {
                 narrative = $"The {unit.actor.Name.ToLower()} moves.";
+            }
+            if (pursuitTarget != null && Units.Contains(pursuitTarget) && Units.Contains(unit) &&
+                oldPos != unit.Position && unit.Position.DistanceTo(pursuitTarget.Position) <= 1.5)
+            {
+                var strike = Attack(unit, pursuitTarget);
+                narrative += " " + CombatNarrator.DescribeAttack(unit.actor, pursuitTarget.actor, strike);
             }
         }
         else if (action == CombatActions.Shove)

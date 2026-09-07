@@ -182,7 +182,7 @@ public sealed class CombatPanel
 
             // Speed and Strength as numbers
             ImGui.Spacing();
-            UiText.Disabled($"Speed: {displayTarget.actor.Speed:F2}  Strength: {displayTarget.actor.Strength:F2}");
+            UiText.Disabled($"Movement: {CombatMovement.Allowance(displayTarget)}m/action  Strength: {displayTarget.actor.Strength:F2}");
 
             // Injuries section - show damaged body parts
             var damagedParts = displayTarget.actor.Body.Parts

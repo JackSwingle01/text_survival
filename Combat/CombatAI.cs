@@ -5,7 +5,6 @@ using text_survival.Environments.Grid;
 
 public static class CombatAI
 {
-    private const int MOVE_DIST = 3;
     private const int WANDER_DIST = 2;
 
     public static CombatActions DetermineAction(Unit unit, CombatScenario scenario)
@@ -96,13 +95,16 @@ public static class CombatAI
             return DetermineWanderPosition(unit, scenario);
         }
 
-        // Engaged units use tactical movement
+        if (scenario != null && CombatMovement.PursuitTarget(unit, scenario) is { } target)
+            return CombatMovement.Pursue(unit, target, scenario);
+
+        // Morale-driven withdrawal and human movement retain their existing steering.
         var movement = unit.GetMovementVector();
         if (movement == Vector2.Zero) return unit.Position;
 
-        // Cap movement to MOVE_DIST like player
+        // Species allowance bounds morale-driven movement.
         var direction = Vector2.Normalize(movement);
-        var cappedMagnitude = Math.Min(movement.Length(), MOVE_DIST);
+        var cappedMagnitude = Math.Min(movement.Length(), CombatMovement.Allowance(unit));
         return unit.Position.Move(direction, (float)cappedMagnitude);
     }
 

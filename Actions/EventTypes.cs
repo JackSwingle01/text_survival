@@ -20,7 +20,7 @@ public record TensionCreation(
 /// <summary>
 /// Configuration for spawning a predator encounter.
 /// </summary>
-/// <param name="InitialDistance">Metres between the animal and the player when combat opens.</param>
+/// <param name="InitialDistance">Requested opening metres for close encounters; approaches use the perimeter.</param>
 /// <param name="InitialBoldness">
 /// Engage chance (0-1) that brought the animal here. Herd encounters compute it with
 /// <see cref="Actors.Animals.Herd.BoldnessToward"/>; event outcomes author it. It seeds the animal's morale.
@@ -32,7 +32,8 @@ public record EncounterConfig(
     double InitialBoldness,
     Animal? Animal = null,
     bool RequiresPursuit = false,
-    bool IsDefending = false
+    bool IsDefending = false,
+    text_survival.Combat.EncounterOpening Opening = text_survival.Combat.EncounterOpening.CloseEncounter
 );
 
 /// <summary>

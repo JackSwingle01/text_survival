@@ -249,7 +249,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         var predator = config.Animal ?? AnimalFactory.FromType(config.AnimalType, CurrentLocation, map)
             ?? throw new InvalidOperationException($"No animal for encounter type {config.AnimalType}");
 
-        await CombatOrchestrator.RunEncounter(this, predator, (int)config.InitialDistance, config.InitialBoldness);
+        await CombatOrchestrator.RunEncounter(this, predator, (int)config.InitialDistance, config.InitialBoldness, config.Opening);
         LastEventAborted = true;  // Encounters abort the current action
     }
 
@@ -385,8 +385,9 @@ public class GameContext(Player player, Location camp, Weather weather)
 
         HerdPopulator.Populate(ctx.Herds, map!, seed);
 
-        var testNPC = NPCFactory.SpawnNearCamp(map, camp);
-        if (testNPC != null) ctx.NPCs.Add(testNPC);
+        var startingAlly = NPCFactory.SpawnNearCamp(map, camp);
+        if (startingAlly != null) ctx.NPCs.Add(startingAlly);
+        ctx.NPCs.AddRange(NPCFactory.PopulateGroups(map, camp, seed));
 
         ctx.Inventory.Equip(Gear.WornFurChestWrap());
         ctx.Inventory.Equip(Gear.FurLegWraps(durability: 60));
@@ -620,7 +621,8 @@ public class GameContext(Player player, Location camp, Weather weather)
                         InitialBoldness: encounterHerd.BoldnessToward(player, this, result.EncounterRequest.IsDefendingKill),
                         Animal: predator,
                         RequiresPursuit: encounterHerd.Pursuit?.Target == player,
-                        IsDefending: result.EncounterRequest.IsDefendingKill
+                        IsDefending: result.EncounterRequest.IsDefendingKill,
+                        Opening: result.EncounterRequest.IsDefendingKill ? EncounterOpening.CloseEncounter : EncounterOpening.Approach
                     ));
                 }
             }
@@ -718,7 +720,7 @@ public class GameContext(Player player, Location camp, Weather weather)
         }
     }
 
-    private List<HerdUpdateResult> UpdateHerds(int minutes)
+    internal List<HerdUpdateResult> UpdateHerds(int minutes)
     {
         var results = new List<HerdUpdateResult>();
 

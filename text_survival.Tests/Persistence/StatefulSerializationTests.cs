@@ -155,8 +155,8 @@ public class StatefulSerializationTests
         game.Tensions.AddTension(ActiveTension.Infested(0.55, game.Camp));
         game.player.Skills.Foraging.LevelUp();
 
-        var npc = Assert.Single(game.NPCs);
-        npc.Relationships.AddMemory(MemoryType.SavedMe, game.player);
+        int npcIndex = 0;
+        game.NPCs[npcIndex].Relationships.AddMemory(MemoryType.SavedMe, game.player);
 
         var loaded = RoundTrip(game);
         var loadedTerritory = loaded.Camp.Features.OfType<SmallGameFeature>().Last();
@@ -169,7 +169,7 @@ public class StatefulSerializationTests
         Assert.Same(loadedWater, loadedNetFishing._water);
         Assert.Same(loaded.Camp, loaded.Tensions.GetTension("Infested")!.RelevantLocation);
         Assert.Equal(1, loaded.player.Skills.Foraging.Level);
-        Assert.Same(loaded.player, Assert.Single(Assert.Single(loaded.NPCs).Relationships.MemoryEvents).Subject);
+        Assert.Same(loaded.player, Assert.Single(loaded.NPCs[npcIndex].Relationships.MemoryEvents).Subject);
     }
 
     private static T RoundTrip<T>(T value)

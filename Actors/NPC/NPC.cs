@@ -29,6 +29,16 @@ public class NPC : Actor
 #pragma warning restore CS8765
 
     public Personality Personality { get; set; }
+
+    /// <summary>Shared by everyone who started out together. 0 means no group.</summary>
+    public int GroupId { get; set; }
+    public const double GroupBaseline = 0.5;
+
+    /// <summary>
+    /// Opinion of anyone outside the group before any memories exist. Negative: strangers
+    /// are a threat until they prove otherwise. 0 for NPCs created without a roll.
+    /// </summary>
+    public double StrangerDisposition { get; set; }
     public RelationshipMemory Relationships { get; set; } = new();
     public ResourceMemory ResourceMemory { get; set; } = new();
     public Location? Camp { get; set; }
@@ -1628,8 +1638,16 @@ public class NPC : Actor
 
     public double GetRelationship(Actor other)
     {
-        return Math.Clamp(Relationships.GetOpinion(other), -1, 1);
+        return Math.Clamp(BaselineToward(other) + Relationships.GetOpinion(other), -1, 1);
     }
+
+    /// <summary>
+    /// Where opinion starts before anything has happened. Own group is family; everyone
+    /// else - the player included - is a stranger, and how warily this one meets strangers
+    /// is a fixed trait of theirs.
+    /// </summary>
+    private double BaselineToward(Actor other) =>
+        other is NPC npc && npc.GroupId != 0 && npc.GroupId == GroupId ? GroupBaseline : StrangerDisposition;
 
     #region Unified Actor Assessment
 

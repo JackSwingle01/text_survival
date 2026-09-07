@@ -19,7 +19,7 @@ public class Camera
     /// <summary>Zoom in odd tile-count steps, retaining a tile at the centre of the view.</summary>
     public bool Zoom(int steps)
     {
-        int size = (int)Math.Clamp((long)ViewSize - 2L * steps, 3, 15);
+        int size = (int)Math.Clamp((long)ViewSize - 2L * steps, 3, 31);
         if (size == ViewSize) return false;
         ViewSize = size;
         if (_viewport is { } rect)

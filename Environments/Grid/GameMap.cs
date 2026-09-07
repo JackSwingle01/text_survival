@@ -129,7 +129,7 @@ public class GameMap
             FlushBackground();
     }
 
-    private void FlushBackground()
+    internal void FlushBackground()
     {
         int due = PendingBackgroundMinutes;
         if (due <= 0) return;

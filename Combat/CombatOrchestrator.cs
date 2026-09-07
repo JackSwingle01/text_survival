@@ -51,16 +51,18 @@ public static class CombatOrchestrator
     /// A predator comes for the player: both sides Engaged, opened at the encounter's distance.
     /// </summary>
     /// <param name="engageChance">The boldness (0-1) that brought the predator here; seeds its morale.</param>
-    public static Task<CombatResult> RunEncounter(GameContext ctx, Animal predator, int startDistanceM, double engageChance)
+    public static Task<CombatResult> RunEncounter(GameContext ctx, Animal predator, int startDistanceM, double engageChance, EncounterOpening opening = EncounterOpening.Approach)
     {
         var scenario = CombatScenario.Create(
             PlayerSide(ctx, predator), AnimalSide(ctx, predator), ctx.CurrentLocation, startDistanceM,
-            AwarenessState.Engaged, AwarenessState.Engaged, ctx.player);
+            AwarenessState.Engaged, AwarenessState.Engaged, ctx.player, opening);
 
         foreach (var unit in scenario.Team2)
             unit.BoldnessModifier += engageChance - 0.5;
 
         GameDisplay.AddWarning(ctx, $"A {predator.Name.ToLower()} attacks!");
+        if (scenario.Team2.Count > 1 && scenario.Formation is { } formation)
+            GameDisplay.AddNarrative(ctx, EncounterPlacement.Describe(formation));
 
         return RunWithPlayer(ctx, scenario, ActivityType.Fighting, result => result switch
         {
