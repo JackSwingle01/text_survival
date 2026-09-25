@@ -1,5 +1,6 @@
 using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
+using Raylib_cs;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Crafting;
@@ -11,7 +12,13 @@ namespace text_survival.Desktop.UI;
 /// <summary>Browse recipes, inspect their costs, and commit a fully evaluated action.</summary>
 public class CraftingOverlay
 {
-    public bool IsOpen { get; set; }
+    private bool _isOpen;
+    private bool _initialFocus = true;
+    public bool IsOpen
+    {
+        get => _isOpen;
+        set { if (value && !_isOpen) _initialFocus = true; _isOpen = value; }
+    }
     public CraftOption? SelectedRecipe { get; private set; }
     public void ClearSelectedRecipe() => SelectedRecipe = null;
 
@@ -20,7 +27,7 @@ public class CraftingOverlay
     private bool _readyOnly;
     private string? _optionId;
     private Gear? _comparison;
-    private readonly Stack<string> _back = new();
+    private readonly Stack<(string Id, int Section, string Search, bool ReadyOnly)> _back = new();
     private static readonly Vector4 Accent = new(0.9f, 0.85f, 0.7f, 1);
     private static readonly Vector4 Ready = new(0.4f, 0.9f, 0.5f, 1);
     private static readonly Vector4 Missing = new(1f, 0.4f, 0.4f, 1);
@@ -42,14 +49,18 @@ public class CraftingOverlay
         bool open = IsOpen;
         if (ImGui.Begin("Crafting", ref open, ImGuiWindowFlags.NoCollapse))
         {
+            UiText.Wrapped("Ctrl/Cmd+F: search · F2: categories · F3: recipes · F4: craft · Tab: details");
             ImGui.SetNextItemWidth(-1);
+            if (GameGui.Capture == null && text_survival.Desktop.Input.UiInput.SearchRequested) ImGui.SetKeyboardFocusHere();
             ImGui.InputTextWithHint("##search", "Search recipes or items", ref _search, 150);
             float rowWidth = ImGui.GetContentRegionAvail().X;
             float usedWidth = 0;
+            UiNavigation.Initial(ref _initialFocus);
+            UiNavigation.Region(KeyboardKey.F2);
             for (int i = 0; i < CraftFamilies.Sections.Length; i++)
             {
                 string section = CraftFamilies.Sections[i];
-                float width = ImGui.CalcTextSize(section).X + 22 + ImGui.FramePadding.X * 2;
+                float width = UiIcons.ButtonWidth(section);
                 if (usedWidth > 0 && usedWidth + 8 + width <= rowWidth)
                 {
                     ImGui.SameLine(0, 8);
@@ -64,11 +75,15 @@ public class CraftingOverlay
                 usedWidth += width;
             }
             ImGui.Checkbox("Ready only", ref _readyOnly);
-            if (_back.Count > 0 && ImGui.SmallButton("Back to your recipe"))
+            if (_back.Count > 0 && UiIcons.Button("back", "Back to your recipe", "recipe-back"))
             {
-                var previousId = _back.Pop();
-                var previous = options.FirstOrDefault(o => o.Id == previousId);
-                if (previous != null) Navigate(previous);
+                var previousState = _back.Pop();
+                var previous = options.FirstOrDefault(o => o.Id == previousState.Id);
+                if (previous != null)
+                {
+                    Select(previous.Id);
+                    _section = previousState.Section; _search = previousState.Search; _readyOnly = previousState.ReadyOnly;
+                }
             }
             ImGui.Separator();
 
@@ -85,11 +100,12 @@ public class CraftingOverlay
                 Select(selected?.Id);
             }
 
-            float height = Math.Max(100, ImGui.GetContentRegionAvail().Y - 36);
+            float height = Math.Max(100, ImGui.GetContentRegionAvail().Y - 60 * UiStyle.Scale);
             bool narrow = ImGui.GetContentRegionAvail().X < 650;
             if (narrow)
             {
                 ImGui.SetNextItemWidth(-1);
+                UiNavigation.Region(KeyboardKey.F3);
                 if (ImGui.BeginCombo("##recipe", selected?.Name ?? "No matching recipes"))
                 {
                     RenderRecipes(matching, Evaluate);
@@ -99,12 +115,13 @@ public class CraftingOverlay
             else
             {
                 ImGui.BeginChild("Recipes", new Vector2(ImGui.GetContentRegionAvail().X * 0.43f, height), ImGuiChildFlags.Borders);
+                UiNavigation.Region(KeyboardKey.F3);
                 RenderRecipes(matching, Evaluate);
                 ImGui.EndChild();
                 ImGui.SameLine();
             }
             selected = matching.FirstOrDefault(o => o.Id == _optionId);
-            ImGui.BeginChild("Recipe", new Vector2(0, narrow ? Math.Max(100, ImGui.GetContentRegionAvail().Y - 36) : height), ImGuiChildFlags.Borders);
+            ImGui.BeginChild("Recipe", new Vector2(0, narrow ? Math.Max(100, ImGui.GetContentRegionAvail().Y - 60 * UiStyle.Scale) : height), ImGuiChildFlags.Borders);
             if (selected != null)
             {
                 var e = Evaluate(selected);
@@ -113,14 +130,13 @@ public class CraftingOverlay
                 RenderDetails(ctx, crafting, selected, e);
                 ImGui.EndChild();
                 UiText.Colored(e.Ready ? Ready : Missing, e.Ready ? "Ready to craft" : "Missing requirements");
-                ImGui.BeginDisabled(!e.Ready);
+                UiNavigation.Region(KeyboardKey.F4);
                 string verb = selected.TargetGear != null ? selected.Name : selected.ProjectWorkMinutes > 0 ? "Start project" : $"Make {selected.Name}";
-                if (ImGui.Button(verb, new Vector2(-1, 32))) SelectedRecipe = selected;
-                ImGui.EndDisabled();
+                if (UiControls.Button(new("craft", verb, "gear", DisabledReason: e.Ready ? null : "Missing requirements; review the recipe details."), size: new Vector2(-1, 0))) SelectedRecipe = selected;
             }
             else UiText.Wrapped("No matching recipes. Clear your search or turn off Ready only.");
             ImGui.EndChild();
-            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.Cancel)}", new Vector2(-1, 0))) open = false;
+            if (UiIcons.Button("back", $"Close {HotkeyRegistry.GetTip(HotkeyAction.Cancel)}", "close", new Vector2(-1, 0))) open = false;
         }
         ImGui.End();
         IsOpen = open && SelectedRecipe == null;
@@ -248,9 +264,9 @@ public class CraftingOverlay
             if (producers.Count > 0 && ImGui.TreeNode("Craft missing supplies"))
             {
                 foreach (var producer in producers)
-                    if (ImGui.SmallButton($"View {producer.Name}##link-{producer.Id}"))
+                    if (UiIcons.Button("continue", $"View {producer.Name}", $"link-{producer.Id}"))
                     {
-                        _back.Push(option.Id);
+                        _back.Push((option.Id, _section, _search, _readyOnly));
                         Navigate(producer);
                     }
                 ImGui.TreePop();

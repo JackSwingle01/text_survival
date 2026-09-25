@@ -22,6 +22,7 @@ public sealed class HudController
     public void Update(GameContext ctx, WorldRenderer world, float dt)
     {
         State.Update(ctx, dt);
+        if (ctx.ActiveCombat is { } combat) State.Combat.Update(combat);
         Layout = HudLayout.Calculate(Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), ImGui.GetFontSize(), State.HistoryExpanded);
         world.SetViewport(Layout.Map);
         _actions = HudActions.Build(ctx);
@@ -37,11 +38,14 @@ public sealed class HudController
         if (ctx.ActiveCombat != null)
         {
             ImGui.BeginDisabled(!combatInteractive);
-            var combat = _combat.Render(ctx, Layout.Inspector, world.HoveredCombatUnit);
+            var combat = _combat.Render(ctx, Layout.Inspector, world.HoveredCombatUnit, State.Combat, combatInteractive);
             ImGui.EndDisabled();
-            if (combatInteractive && combat.HasValue) _combatInput = new CombatInput(combat, null);
+            if (combatInteractive && combat != null) _combatInput = combat;
             if (combatInteractive && _combatInput == null && !ImGui.GetIO().WantCaptureMouse && world.HandleCombatClick() is { } cell)
-                _combatInput = new CombatInput(null, new Environments.Grid.GridPosition(cell.x, cell.y));
+                {
+                if (world.HoveredCombatUnit is { } unit) State.Combat.Select(ctx.ActiveCombat, unit);
+                else if (!State.Combat.Inspecting) _combatInput = new CombatInput(null, new Environments.Grid.GridPosition(cell.x, cell.y));
+            }
         }
         else
         {

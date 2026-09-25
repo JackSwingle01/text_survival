@@ -19,6 +19,6 @@ public sealed class LogFollowState
     public void UpdateViewport(bool atBottom, bool userScrolling, bool incoming)
     {
         if (userScrolling) ReadOlder();
-        else if (atBottom && !incoming) JumpToLatest();
+        // Only the explicit Latest command resumes following.
     }
 }

@@ -14,6 +14,7 @@ public class GameEventOverlay
 {
     public bool IsOpen { get; set; }
 
+    private bool _initialFocus;
     private EventDto? _currentEvent;
     private EventOutcomeDto? _outcome;
 
@@ -24,7 +25,7 @@ public class GameEventOverlay
     {
         _currentEvent = eventData;
         _outcome = eventData.Outcome;
-        IsOpen = true;
+        IsOpen = true; _initialFocus = true;
     }
 
     /// <summary>
@@ -34,7 +35,7 @@ public class GameEventOverlay
     {
         _currentEvent = null;
         _outcome = outcome;
-        IsOpen = true;
+        IsOpen = true; _initialFocus = true;
     }
 
     /// <summary>
@@ -61,7 +62,8 @@ public class GameEventOverlay
                 RenderOutcome(_outcome);
 
                 ImGui.Separator();
-                if (ImGui.Button("Continue [Enter]", new Vector2(-1, 30)) || ImGui.IsKeyPressed(KeyboardKey.Enter))
+                UiNavigation.Initial(ref _initialFocus);
+                if (UiIcons.Button("continue", "Continue [Enter]", "continue", new Vector2(-1, 0)) || ImGui.IsKeyPressed(KeyboardKey.Enter))
                 {
                     IsOpen = false;
                     _currentEvent = null;
@@ -95,35 +97,21 @@ public class GameEventOverlay
         UiText.Text("What do you do?");
         ImGui.Spacing();
 
-        foreach (var choice in evt.Choices)
+        UiText.Disabled("1-9: choose · Tab / arrows · Enter: select");
+        for (int i = 0; i < evt.Choices.Count; i++)
         {
-            bool isAvailable = choice.IsAvailable;
-
-            if (!isAvailable)
-            {
-                ImGui.BeginDisabled();
-            }
-
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.25f, 1f));
-
-            if (ImGui.Button(choice.Label, new Vector2(-1, 28)))
-            {
-                choiceResult = choice.Id;
-            }
-
-            ImGui.PopStyleColor();
-
-            if (!isAvailable)
-            {
-                ImGui.EndDisabled();
-            }
+            var choice = evt.Choices[i];
+            if (choice.IsAvailable) UiNavigation.Initial(ref _initialFocus);
+            bool clicked = UiControls.Button(new(choice.Id, UiNavigation.Numbered(choice.Label, i), "continue",
+                DisabledReason: choice.IsAvailable ? null : "Requirements are not met."), size: new(-1, 0));
+            if (choice.IsAvailable && (clicked || UiNavigation.Number(i))) choiceResult = choice.Id;
 
             // Always show description
             ImGui.Indent();
-            UiText.Disabled(choice.Description);
+            UiText.Wrapped(choice.Description);
             if (choice.Cost != null)
             {
-                UiText.Colored(new Vector4(1f, 0.7f, 0.3f, 1f), $"Cost: {choice.Cost}");
+                UiIcons.LabelWrapped("cost", UiStyle.Caution, $"Cost: {choice.Cost}");
             }
             ImGui.Unindent();
             ImGui.Spacing();
@@ -142,7 +130,7 @@ public class GameEventOverlay
         // Time cost
         if (outcome.TimeAddedMinutes > 0)
         {
-            UiText.Disabled($"(+{outcome.TimeAddedMinutes} minutes)");
+            UiIcons.Label("clock", $"(+{outcome.TimeAddedMinutes} minutes)");
         }
 
         ImGui.Spacing();
@@ -152,7 +140,7 @@ public class GameEventOverlay
         {
             foreach (var item in outcome.ItemsGained)
             {
-                UiText.Colored(new Vector4(0.4f, 0.9f, 0.4f, 1f), $"+ {item}");
+                UiIcons.LabelWrapped("give", UiStyle.Success, $"+ {item}");
             }
         }
 
@@ -161,7 +149,7 @@ public class GameEventOverlay
         {
             foreach (var item in outcome.ItemsLost)
             {
-                UiText.Colored(new Vector4(0.9f, 0.5f, 0.4f, 1f), $"- {item}");
+                UiIcons.LabelWrapped("drop", UiStyle.Caution, $"- {item}");
             }
         }
 
@@ -170,7 +158,7 @@ public class GameEventOverlay
         {
             foreach (var damage in outcome.DamageTaken)
             {
-                UiText.Colored(new Vector4(1f, 0.4f, 0.4f, 1f), $"! {damage}");
+                UiIcons.LabelWrapped("blood", UiStyle.Danger, $"! {damage}");
             }
         }
 
@@ -179,7 +167,7 @@ public class GameEventOverlay
         {
             foreach (var effect in outcome.EffectsApplied)
             {
-                UiText.Colored(new Vector4(1f, 0.8f, 0.3f, 1f), $"* {effect}");
+                UiIcons.LabelWrapped("effects", UiStyle.Caution, $"* {effect}");
             }
         }
 
@@ -193,7 +181,7 @@ public class GameEventOverlay
                     : tension.StartsWith("-")
                         ? new Vector4(0.5f, 0.8f, 0.5f, 1f)
                         : new Vector4(0.8f, 0.8f, 0.5f, 1f);
-                UiText.Colored(color, $"  {tension}");
+                UiIcons.LabelWrapped("warning", color, tension);
             }
         }
     }

@@ -7,7 +7,7 @@ namespace text_survival.Desktop.UI;
 public static class HudWidgets
 {
     public static readonly Vector4 Heading = new(.45f, .7f, .9f, 1);
-    public static readonly Vector4 Warning = new(1, .7f, .3f, 1);
+    public static readonly Vector4 Warning = UiStyle.Caution;
     public const ImGuiWindowFlags PanelFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove |
         ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings |
         ImGuiWindowFlags.NoBringToFrontOnFocus;
@@ -28,21 +28,19 @@ public static class HudWidgets
 
     public static bool Action(HudAction action, bool enabled = true)
     {
-        ImGui.PushID(action.Id);
-        ImGui.BeginDisabled(!enabled || !action.Enabled);
-        string label = action.Label + (action.Shortcut.HasValue ? " " + Input.HotkeyRegistry.GetTip(action.Shortcut.Value) : "");
-        // Wrap labels instead of clipping durations and resource counts off the end.
-        float width = ImGui.GetContentRegionAvail().X;
-        var size = ImGui.CalcTextSize(label, false, Math.Max(1, width - 16));
-        bool clicked = ImGui.Button("##action", new Vector2(width, Math.Max(ImGui.GetFrameHeight(), size.Y + 10)));
-        var min = ImGui.GetItemRectMin();
-        ImGui.GetWindowDrawList().AddText(ImGui.GetFont(), ImGui.GetFontSize(), min + new Vector2(8, 5),
-            ImGui.GetColorU32(ImGuiCol.Text), label, Math.Max(1, width - 16));
-        ImGui.EndDisabled();
-        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled) && action.DisabledReason != null)
-            UiText.Tooltip(action.DisabledReason);
-        ImGui.PopID();
-        return clicked;
+        // Global commands remain owned by MapInputRouter; this renders the same key hint.
+        var control = action.Control with { Label = action.Control.DisplayLabel, Shortcut = null };
+        return UiControls.Button(control, enabled, new Vector2(-1, 0));
+    }
+
+    public static void VitalBar(float fraction, Vector4 color, string label, bool warning)
+    {
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(color));
+        ImGui.ProgressBar(fraction, new Vector2(-1, UiStyle.BarHeight), label);
+        ImGui.PopStyleColor();
+        if (warning && GameGui.Capture == null)
+            ImGuiNET.ImGui.GetWindowDrawList().AddRect(ImGui.GetItemRectMin(),
+                ImGui.GetItemRectMin() + ImGui.GetItemRectSize(), ImGui.GetColorU32(color), 0, ImDrawFlags.None, 2);
     }
 
     public static string Duration(int minutes) => minutes >= 60

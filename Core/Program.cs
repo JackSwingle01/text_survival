@@ -77,7 +77,7 @@ public static class Program
         };
 
         rlImGui.Setup(true);
-        ImGui.GetIO().FontGlobalScale = 1.25f;  // Scale up default font for readability
+        UiStyle.Initialize();
 
         // Load game (reuses existing save system)
         GameContext? ctx = null;

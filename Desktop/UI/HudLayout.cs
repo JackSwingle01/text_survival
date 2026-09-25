@@ -16,12 +16,12 @@ public sealed record HudLayout(HudRect Top, HudRect Survivor, HudRect Map, HudRe
     {
         float scale = Math.Max(1, fontSize / 16.25f);
         float gap = 6;
-        float top = Math.Max(42, fontSize + 24);
+        float top = 2 * Math.Max(scale > 1 ? 32 : 16, fontSize) + 56 * scale;
         float left = Math.Min(290 * scale, width * .25f);
         float right = Math.Min(320 * scale, width * .27f);
         float body = Math.Max(1, height - top - gap * 2);
         float center = Math.Max(1, width - left - right - gap * 4);
-        float log = historyExpanded ? Math.Min(body * .45f, 340 * scale) : (height < 800 ? 76 : 112) * scale;
+        float log = historyExpanded ? Math.Min(body * .45f, 340 * scale) : 140 * scale;
         log = Math.Min(log, body * .45f);
         return new(new(0, 0, width, top), new(gap, top + gap, left, body),
             new(left + gap * 2, top + gap, center, Math.Max(1, body - log - gap)),

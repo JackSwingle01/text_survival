@@ -231,3 +231,12 @@ dotnet test text_survival.Tests --filter FullyQualifiedName~text_survival.Tests.
 No new NuGet dependencies are required. When building offline with cached packages,
 `-p:NuGetAudit=false` avoids a network-only vulnerability metadata lookup; it is a local
 build option, not a repository policy change.
+
+Transfers require selecting an item row, setting the Amount number control, then clicking “Transfer selected amount”. Selecting a row alone never moves supplies. The result reports the direction and number moved.
+
+Combat observations now expose fixed action slots with key hints and availability. Attack commands from the panel retain the selected target; omitted targets in existing commands keep nearest-enemy behavior. The Throw control opens explicit weapon/stone choices.
+
+Phase 5 renders event choice labels with stable 1-9 prefixes; use the emitted
+control IDs for automation. Work results retain separate narrative, warning and
+reward lines and use `Continue [Enter]`. Companion and discovery controls share
+the production icon/control renderers and preserve selection while open.

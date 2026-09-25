@@ -61,12 +61,14 @@ public class Camera
     public int ScreenOffsetY { get; set; } = 50;
 
     /// <summary>Total grid width in pixels.</summary>
-    public int GridWidth => ViewSize * TileSize + (ViewSize - 1) * TileGap;
+    public int GridWidth => _viewport is { } rect ? Math.Max(1, (int)rect.width) : ViewSize * TileSize + (ViewSize - 1) * TileGap;
 
     /// <summary>Total grid height in pixels.</summary>
-    public int GridHeight => GridWidth;  // Square grid
+    public int GridHeight => _viewport is { } rect ? Math.Max(1, (int)rect.height) : GridWidth;
 
     private float Pitch => TileSize + TileGap;
+    private float CenterOffsetX => (GridWidth - TileSize) / 2f;
+    private float CenterOffsetY => (GridHeight - TileSize) / 2f;
 
     public Camera(float centerX = 0, float centerY = 0)
     {
@@ -121,10 +123,11 @@ public class Camera
     /// </summary>
     public Vector2 WorldToScreen(float worldX, float worldY)
     {
-        float viewX = worldX - Center.X + ViewSize / 2;
-        float viewY = worldY - Center.Y + ViewSize / 2;
+        float viewX = worldX - Center.X;
+        float viewY = worldY - Center.Y;
 
-        return new Vector2(ScreenOffsetX + viewX * Pitch, ScreenOffsetY + viewY * Pitch);
+        return new Vector2(ScreenOffsetX + CenterOffsetX + viewX * Pitch,
+            ScreenOffsetY + CenterOffsetY + viewY * Pitch);
     }
 
     /// <summary>
@@ -137,8 +140,8 @@ public class Camera
             screenPos.X >= ScreenOffsetX + GridWidth || screenPos.Y >= ScreenOffsetY + GridHeight)
             return null;
 
-        float viewX = (screenPos.X - ScreenOffsetX) / Pitch + Center.X - ViewSize / 2;
-        float viewY = (screenPos.Y - ScreenOffsetY) / Pitch + Center.Y - ViewSize / 2;
+        float viewX = (screenPos.X - ScreenOffsetX - CenterOffsetX) / Pitch + Center.X;
+        float viewY = (screenPos.Y - ScreenOffsetY - CenterOffsetY) / Pitch + Center.Y;
 
         int worldX = (int)MathF.Floor(viewX);
         int worldY = (int)MathF.Floor(viewY);
@@ -157,13 +160,14 @@ public class Camera
     /// </summary>
     public IEnumerable<(int x, int y)> GetVisibleTiles()
     {
-        int half = ViewSize / 2 + 1;
-        int centerX = (int)MathF.Round(Center.X);
-        int centerY = (int)MathF.Round(Center.Y);
+        int minX = (int)MathF.Floor(Center.X - CenterOffsetX / Pitch) - 1;
+        int minY = (int)MathF.Floor(Center.Y - CenterOffsetY / Pitch) - 1;
+        int maxX = (int)MathF.Floor(Center.X + (GridWidth - CenterOffsetX) / Pitch) + 1;
+        int maxY = (int)MathF.Floor(Center.Y + (GridHeight - CenterOffsetY) / Pitch) + 1;
 
-        for (int y = centerY - half; y <= centerY + half; y++)
+        for (int y = minY; y <= maxY; y++)
         {
-            for (int x = centerX - half; x <= centerX + half; x++)
+            for (int x = minX; x <= maxX; x++)
             {
                 yield return (x, y);
             }
@@ -177,13 +181,13 @@ public class Camera
         return new Vector2(topLeft.X + TileSize / 2f, topLeft.Y + TileSize / 2f);
     }
 
-    /// <summary>Fit the square grid into an explicit HUD-owned viewport.</summary>
+    /// <summary>Fill the HUD viewport with square tiles, sizing zoom against its shorter edge.</summary>
     public void ConfigureForViewport(float x, float y, float width, float height)
     {
         _viewport = (x, y, width, height);
         int available = Math.Max(1, (int)Math.Min(width, height));
         TileSize = Math.Max(1, (available - (ViewSize - 1) * TileGap) / ViewSize);
-        ScreenOffsetX = (int)(x + (width - GridWidth) / 2);
-        ScreenOffsetY = (int)(y + (height - GridHeight) / 2);
+        ScreenOffsetX = (int)x;
+        ScreenOffsetY = (int)y;
     }
 }

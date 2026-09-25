@@ -15,9 +15,12 @@ public static class MapInputRouter
         var io = ImGui.GetIO();
         if (!io.WantCaptureMouse && world.HandleClick() is { } tile)
             state.Select(ctx, tile.x, tile.y);
-        if (io.WantTextInput || ImGui.IsPopupOpen("", ImGuiPopupFlags.AnyPopupId)) return null;
+        if (!UiInput.GameCommandsAllowed) return null;
         if (HotkeyRegistry.IsPressed(HotkeyAction.Cancel)) { state.ClearSelection(); return null; }
         if (io.WantCaptureKeyboard) return null;
+        if (UiInput.Pressed(KeyboardKey.X)) { state.BeginInspection(ctx); return null; }
+        if (state.Inspecting && UiInput.Pressed(KeyboardKey.Enter))
+        { state.ConfirmTravel = true; return null; }
         if (Raylib.IsKeyPressed(KeyboardKey.F12))
         {
             GameMap.RevealAll = !GameMap.RevealAll;
@@ -28,6 +31,20 @@ public static class MapInputRouter
         (int x, int y)? step = Raylib.IsKeyPressed(KeyboardKey.W) ? (0, -1) :
             Raylib.IsKeyPressed(KeyboardKey.S) ? (0, 1) : Raylib.IsKeyPressed(KeyboardKey.A) ? (-1, 0) :
             Raylib.IsKeyPressed(KeyboardKey.D) ? (1, 0) : null;
+        if (state.Inspecting)
+        {
+            if (step is { } inspectStep)
+            {
+                state.StepInspection(ctx, inspectStep.x, inspectStep.y);
+                if (state.SelectedTile is { } cursor && ctx.Map is { } inspectMap &&
+                    !world.Camera.ContainsScreenPoint(world.Camera.GetTileCenter(cursor.x, cursor.y)))
+                {
+                    var center = world.Camera.IsFollowingPlayer ? world.Camera.Center : world.Camera.Target;
+                    world.Camera.Pan(new System.Numerics.Vector2(cursor.x, cursor.y) - center, inspectMap.Width, inspectMap.Height);
+                }
+            }
+            return null;
+        }
         if (step is { } delta && ctx.Map is { } map)
         {
             var target = new GridPosition(map.CurrentPosition.X + delta.x, map.CurrentPosition.Y + delta.y);
@@ -39,7 +56,7 @@ public static class MapInputRouter
         foreach (var action in actions)
         {
             if (action.Shortcut is not { } key || !HotkeyRegistry.IsPressed(key)) continue;
-            if (action.Enabled) return action.Payload;
+            if (action.Control.CanActivate(UiInput.GameCommandsAllowed, true)) return action.Payload;
             state.ShowFeedback(action.DisabledReason!);
             return null;
         }

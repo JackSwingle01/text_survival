@@ -36,7 +36,8 @@ public class HudTests
         {
             var viewport = HudLayout.Calculate(width, height, font, history).Map;
             camera.ConfigureForViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
-            Assert.True(camera.GridWidth <= viewport.Width && camera.GridHeight <= viewport.Height);
+            Assert.Equal((int)viewport.Width, camera.GridWidth);
+            Assert.Equal((int)viewport.Height, camera.GridHeight);
             Assert.Equal((12, 12), camera.ScreenToWorld(camera.GetTileCenter(12, 12)));
             Assert.False(camera.IsFollowingPlayer);
             Assert.Null(camera.ScreenToWorld(layout.Survivor.Position));
@@ -140,6 +141,38 @@ public class HudTests
             Assert.False(action.Enabled);
             Assert.False(string.IsNullOrWhiteSpace(action.DisabledReason));
         }
+    }
+
+    [Fact]
+    public void CoreSlotsKeepIdentityAcrossWoundsAndCampChanges()
+    {
+        var ctx = Context();
+        var before = HudActions.CoreSlots(HudActions.Build(ctx)).ToArray();
+        Assert.False(before.Single(a => a.Id == "TreatWounds").Enabled);
+        ctx.player.EffectRegistry.AddEffect(text_survival.Effects.EffectFactory.Bleeding(.3));
+        var fire = new text_survival.Environments.Features.HeatSourceFeature();
+        fire.AddFuel(1, text_survival.Items.FuelType.Kindling);
+        fire.IgniteAll();
+        ctx.CurrentLocation.AddFeature(fire);
+        var after = HudActions.CoreSlots(HudActions.Build(ctx)).ToArray();
+        Assert.Equal(before.Select(a => a.Id), after.Select(a => a.Id));
+        Assert.Equal(new PlayerAction.Camp(text_survival.Actions.CampAction.TendFire), after.Single(a => a.Id == "fire").Payload);
+        Assert.All(after, a => Assert.False(string.IsNullOrWhiteSpace(a.Icon)));
+        Assert.Contains("supplies", after.Single(a => a.Id == "TreatWounds").DisabledReason!);
+    }
+
+    [Fact]
+    public void DisappearingWorkRetainsIdentityAndCannotActivateUntilAvailableAgain()
+    {
+        var ctx = Context();
+        var state = new HudWorkState();
+        var work = new HudAction("work:test", "Gather", HudActionGroup.Resources, new PlayerAction.Camp(text_survival.Actions.CampAction.Wait));
+        state.Observe(ctx.CurrentLocation, [work]);
+        var depleted = Assert.Single(state.Observe(ctx.CurrentLocation, []));
+        Assert.Equal(work.Id, depleted.Id);
+        Assert.False(depleted.Control.CanActivate(true, true));
+        Assert.True(Assert.Single(state.Observe(ctx.CurrentLocation, [work])).Enabled);
+        Assert.Empty(state.Observe(ctx.Map!.GetLocationAt(1, 0)!, []));
     }
 
     [Fact]

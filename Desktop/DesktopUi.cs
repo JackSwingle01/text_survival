@@ -1,4 +1,5 @@
 using ImGuiNET;
+using text_survival.Desktop.Input;
 using Raylib_cs;
 using rlImGui_cs;
 using System.Numerics;
@@ -9,7 +10,6 @@ using text_survival.Actions.Variants;
 using text_survival.Core;
 using text_survival.Crafting;
 using text_survival.Desktop.Audio;
-using text_survival.Desktop.Input;
 using text_survival.Desktop.Rendering;
 using text_survival.Desktop.UI;
 using text_survival.Environments.Features;
@@ -48,6 +48,8 @@ public sealed class DesktopUi : IGameUi, IDisposable
     private readonly ForageOverlay _forage = new();
 
     private readonly List<Modal> _stack = [];
+    private readonly InputGate _inputGate = new();
+    private int _hudPanel = -1;
     private readonly List<TaskCompletionSource<float>> _frameWaiters = [];
     private readonly List<TimeWaiter> _timeWaiters = [];
 
@@ -74,11 +76,28 @@ public sealed class DesktopUi : IGameUi, IDisposable
         if (_scheduler.IsPumping)
             throw new InvalidOperationException("DesktopUi.Frame ran inside a scheduler pump. Rendering must never nest in game logic.");
 
+        UiStyle.ApplyPending();
+        object owner = (object?)_stack.LastOrDefault() ?? this;
+        UiInput.Ready = _inputGate.Enter(owner, UiInput.AnyKeyDown());
+        bool modalOpen = _stack.Any(m => m.DimsWorld);
+        UiInput.Context = modalOpen ? InputContext.Dialog : ctx.ActiveCombat != null ? InputContext.Combat : InputContext.Exploration;
+        var inputIo = ImGui.GetIO();
+        if (modalOpen) { _hudPanel = -1; UiInput.HudFocused = false; }
+        bool popupOpen = ImGui.IsPopupOpen("", ImGuiPopupFlags.AnyPopupId);
+        if (!modalOpen && !popupOpen && UiInput.Ready && !inputIo.WantTextInput)
+        {
+            if (Raylib.IsKeyPressed(KeyboardKey.F6)) { _hudPanel = (_hudPanel + 1) % 4; UiInput.HudFocused = true; }
+            else if (Raylib.IsKeyPressed(KeyboardKey.Tab) && !UiInput.HudFocused) { _hudPanel = 0; UiInput.HudFocused = true; }
+            else if (Raylib.IsKeyPressed(KeyboardKey.Escape) && UiInput.HudFocused)
+            { UiInput.HudFocused = false; _hudPanel = -1; UiInput.Ready = false; }
+        }
+        if (modalOpen || UiInput.HudFocused || popupOpen) inputIo.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
+        else inputIo.ConfigFlags &= ~ImGuiConfigFlags.NavEnableKeyboard;
         ResolveTimeWaiters(dt);
 
         AudioManager.Update();
         _hud.Update(ctx, _world, dt);
-        if (!_stack.Any(m => m.DimsWorld))
+        if (!modalOpen && UiInput.Ready && !UiInput.HudFocused && !popupOpen)
         {
             var io = ImGui.GetIO();
             _world.HandleCameraInput(ctx, dt, io.WantCaptureMouse, io.WantCaptureKeyboard);
@@ -94,16 +113,33 @@ public sealed class DesktopUi : IGameUi, IDisposable
             Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), Dim);
 
         rlImGui.Begin();
+        if (ImGui.GetIO().WantTextInput) UiInput.Context = InputContext.TextEntry;
+        else if (ImGui.IsPopupOpen("", ImGuiPopupFlags.AnyPopupId)) UiInput.Context = InputContext.Popup;
+
+        if (!modalOpen && UiInput.HudFocused &&
+            (Raylib.IsKeyPressed(KeyboardKey.F6) || Raylib.IsKeyPressed(KeyboardKey.Tab) && _hudPanel == 0))
+            ImGui.SetWindowFocus(_hudPanel switch { 0 => "##TopBar", 1 => "##Survivor", 2 => ctx.ActiveCombat != null ? "##Combat" : "##LocationInspector", _ => "##Events" });
 
         bool mapInteractive = _stack.LastOrDefault() is Prompt<PlayerAction> && !_stack[^1].Finished;
         bool combatInteractive = _stack.LastOrDefault() is Prompt<CombatInput?> && !_stack[^1].Finished;
-        _hud.Render(ctx, _world, mapInteractive, combatInteractive);
+        ImGui.BeginDisabled(modalOpen || !UiInput.Ready);
+        _hud.Render(ctx, _world, mapInteractive && UiInput.Ready, combatInteractive && UiInput.Ready);
+        ImGui.EndDisabled();
+        if (UiSettingsDialog.Requested && !modalOpen)
+        {
+            UiSettingsDialog.Requested = false;
+            var settings = new UiSettingsDialog();
+            Push(new Prompt<bool>((self, _, _, active) => { if (settings.Render(active)) self.Finish(true); }));
+        }
         for (int i = 0; i < _stack.Count; i++)
         {
             bool isTop = i == _stack.Count - 1;
-            ImGui.BeginDisabled(!isTop);
-            _stack[i].Render(ctx, dt, isTop);
+            bool ready = UiInput.Ready;
+            UiInput.Ready = ready && isTop && ReferenceEquals(owner, _stack[i]);
+            ImGui.BeginDisabled(!UiInput.Ready);
+            _stack[i].Render(ctx, dt, UiInput.Ready);
             ImGui.EndDisabled();
+            UiInput.Ready = ready;
         }
 
         rlImGui.End();
@@ -229,112 +265,83 @@ public sealed class DesktopUi : IGameUi, IDisposable
         if (choices.Count == 0)
             throw new ArgumentException($"Select was given no choices for prompt: {prompt}", nameof(choices));
 
+        int safe = choices.ToList().FindIndex(c => c is ValueTuple<string, string> pair && pair.Item1 is "cancel" or "back" or "no");
+        bool focus = true;
         return Push(new Prompt<T>((self, _, _, _) =>
         {
-            OverlaySizes.SetupDialog();
+            OverlaySizes.SetupStandard();
             ImGui.Begin("Select", DialogFlags);
-
             UiText.Wrapped(prompt);
+            UiText.Disabled("1-9: choose · Tab / arrows · Enter: select");
             ImGui.Separator();
-            ImGui.Spacing();
-
-            foreach (var choice in choices)
+            for (int i = 0; i < choices.Count; i++)
             {
-                string label = display(choice);
+                var choice = choices[i];
                 bool disabled = isDisabled?.Invoke(choice) ?? false;
-
-                if (disabled)
-                {
-                    ImGui.BeginDisabled();
-                    ImGui.Button(label, new Vector2(-1, 0));
-                    ImGui.EndDisabled();
-                }
-                else if (ImGui.Button(label, new Vector2(-1, 0)))
-                {
+                if (!disabled && (safe < 0 || i == safe)) UiNavigation.Initial(ref focus);
+                if (UiControls.Button(new($"choice-{i}", UiNavigation.Numbered(display(choice), i), "continue",
+                    DisabledReason: disabled ? "Unavailable for this choice." : null), size: new Vector2(-1, 0)) || !disabled && UiNavigation.Number(i))
                     self.Finish(choice);
-                }
             }
-
+            if (safe >= 0 && !(isDisabled?.Invoke(choices[safe]) ?? false) && UiNavigation.Key(ImGuiKey.Escape)) self.Finish(choices[safe]);
             ImGui.End();
         }));
     }
 
-    public Task<bool> Confirm(string prompt) =>
-        Push(new Prompt<bool>((self, _, _, _) =>
+    public Task<bool> Confirm(string prompt)
+    {
+        var dialog = new ConfirmationDialog(prompt);
+        return Push(new Prompt<bool>((self, _, _, _) =>
         {
-            OverlaySizes.SetupSmallDialog();
-            ImGui.Begin("Confirm", DialogFlags);
-
-            UiText.Wrapped(prompt);
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            float buttonWidth = (ImGui.GetContentRegionAvail().X - 10) / 2;
-
-            if (ImGui.Button("Yes", new Vector2(buttonWidth, 30))) self.Finish(true);
-            ImGui.SameLine();
-            if (ImGui.Button("No", new Vector2(buttonWidth, 30))) self.Finish(false);
-
-            ImGui.End();
+            if (dialog.Render() is { } answer) self.Finish(answer);
         }));
+    }
 
     public Task<string> Choose(string message, IReadOnlyList<(string id, string label)> buttons)
     {
         if (buttons.Count == 0)
             throw new ArgumentException($"Choose was given no buttons for: {message}", nameof(buttons));
-
+        bool focus = true;
+        int safeIndex = buttons.ToList().FindIndex(b => b.id is "cancel" or "no" or "back");
+        int initialIndex = safeIndex >= 0 ? safeIndex : 0;
         return Push(new Prompt<string>((self, _, _, _) =>
         {
-            CenterDialog(650);
-            ImGui.Begin("Confirm", DialogFlags);
-
+            OverlaySizes.SetupStandard();
+            ImGui.Begin("Choose", DialogFlags);
             UiText.Wrapped(message);
-            ImGui.Spacing();
+            UiText.Disabled("1-9: choose · Tab / arrows · Enter: select");
             ImGui.Separator();
-            ImGui.Spacing();
-
-            foreach (var (id, label) in buttons)
+            for (int i = 0; i < buttons.Count; i++)
             {
-                if (ImGui.Button(label, new Vector2(-1, 30)))
-                    self.Finish(id);
+                var (id, label) = buttons[i];
+                if (i == initialIndex) UiNavigation.Initial(ref focus);
+                if (UiIcons.Button(i == safeIndex ? "back" : "continue", UiNavigation.Numbered(label, i), id, new Vector2(-1, 0)) || UiNavigation.Number(i)) self.Finish(id);
             }
-
+            if (safeIndex >= 0 && UiNavigation.Key(ImGuiKey.Escape)) self.Finish(buttons[safeIndex].id);
             ImGui.End();
         }));
     }
 
     public Task<int> ReadInt(string prompt, int min, int max, bool allowCancel = false)
     {
+        if (min > max) throw new ArgumentException("Minimum must not exceed maximum.");
         int value = min;
-
+        bool focus = true;
         return Push(new Prompt<int>((self, _, _, _) =>
         {
             OverlaySizes.SetupSmallDialog();
             ImGui.Begin("Input", DialogFlags);
-
             UiText.Wrapped(prompt);
-            ImGui.Spacing();
-
-            ImGui.SliderInt("##value", ref value, min, max);
             UiText.Text($"Range: {min} - {max}");
-
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            float buttonWidth = allowCancel ? (ImGui.GetContentRegionAvail().X - 10) / 2 : -1;
-
-            if (ImGui.Button("OK", new Vector2(buttonWidth, 30)))
+            UiNavigation.Initial(ref focus);
+            // Enter commits the edited number; out-of-range input stays visible for correction.
+            bool submitted = UiControls.InputIntSubmitted("Amount", ref value);
+            bool valid = value >= min && value <= max;
+            UiText.Colored(valid ? UiStyle.Supporting : UiStyle.Caution,
+                valid ? "Enter: confirm amount" : "Enter an amount within the range.");
+            if (UiControls.Button(new("amount-ok", "OK", "confirm", DisabledReason: valid ? null : "Amount is outside the range."), size: new Vector2(-1, 0)) || submitted && valid && UiInput.Ready)
                 self.Finish(value);
-
-            if (allowCancel)
-            {
-                ImGui.SameLine();
-                if (ImGui.Button("Cancel", new Vector2(buttonWidth, 30)))
-                    self.Finish(-1);
-            }
-
+            if (allowCancel && (UiIcons.Button("cancel", "Cancel [Esc]", "amount-cancel", new Vector2(-1, 0)) || UiNavigation.Key(ImGuiKey.Escape))) self.Finish(-1);
             ImGui.End();
         }));
     }
@@ -350,7 +357,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("Continue [Enter]", new Vector2(-1, 30)) || (isTop && Raylib.IsKeyPressed(KeyboardKey.Enter)))
+            if (UiIcons.Button("continue", "Continue [Enter]", "continue", new Vector2(-1, 0)) || (isTop && UiInput.Pressed(KeyboardKey.Enter)))
                 self.Finish(true);
 
             ImGui.End();
@@ -358,35 +365,8 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
     public Task ShowWorkResult(WorkResultView view)
     {
-        var text = new System.Text.StringBuilder();
-
-        if (view.Narrative is { Count: > 0 })
-        {
-            foreach (var line in view.Narrative)
-                text.AppendLine(line);
-            text.AppendLine();
-        }
-
-        text.Append(view.Message);
-
-        if (view.Warnings is { Count: > 0 })
-        {
-            text.AppendLine();
-            text.AppendLine();
-            foreach (var warning in view.Warnings)
-                text.AppendLine($"⚠ {warning}");
-        }
-
-        if (view.ItemsGained.Count > 0)
-        {
-            text.AppendLine();
-            text.AppendLine();
-            text.AppendLine("Gained:");
-            foreach (var item in view.ItemsGained)
-                text.AppendLine($"  - {item}");
-        }
-
-        return ShowMessage(view.Title, text.ToString().TrimEnd());
+        var dialog = new WorkResultDialog(view);
+        return Push(new Prompt<bool>((self, _, _, _) => { if (dialog.Render()) self.Finish(true); }));
     }
 
     public Task<string> ShowEventChoices(EventDto evt)
@@ -468,7 +448,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
         return Push(new Prompt<bool>((self, ctx, dt, isTop) =>
         {
-            if (isTop && Raylib.IsKeyPressed(KeyboardKey.Escape)) _inventory.IsOpen = false;
+            if (isTop && UiInput.Pressed(KeyboardKey.Escape)) _inventory.IsOpen = false;
             if (_inventory.IsOpen) _inventory.Render(ctx, dt);
             if (!_inventory.IsOpen) self.Finish(true);
         }));
@@ -481,7 +461,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
         return Push(new Prompt<bool>((self, _, dt, isTop) =>
         {
-            if (isTop && Raylib.IsKeyPressed(KeyboardKey.Escape)) _discoveryLog.IsOpen = false;
+            if (isTop && UiInput.Pressed(KeyboardKey.Escape)) _discoveryLog.IsOpen = false;
             if (_discoveryLog.IsOpen) _discoveryLog.Render(dt);
             if (!_discoveryLog.IsOpen) self.Finish(true);
         }));
@@ -493,7 +473,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
         return Push(new Prompt<bool>((self, ctx, dt, isTop) =>
         {
-            if (isTop && Raylib.IsKeyPressed(KeyboardKey.Escape)) _npcs.IsOpen = false;
+            if (isTop && UiInput.Pressed(KeyboardKey.Escape)) _npcs.IsOpen = false;
             if (_npcs.IsOpen) _npcs.Render(ctx, dt);
             if (!_npcs.IsOpen) self.Finish(true);
         }));
@@ -505,7 +485,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
         return Push(new Prompt<bool>((self, ctx, dt, isTop) =>
         {
-            if (isTop && Raylib.IsKeyPressed(KeyboardKey.Escape)) _transfer.IsOpen = false;
+            if (isTop && UiInput.Pressed(KeyboardKey.Escape)) _transfer.IsOpen = false;
 
             if (_transfer.IsOpen)
             {
@@ -520,21 +500,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
     private void ApplyTransfer(GameContext ctx, TransferResult move, Inventory storage)
     {
-        var source = move.FromPlayer ? ctx.Inventory : storage;
-        var dest = move.FromPlayer ? storage : ctx.Inventory;
-        string direction = move.FromPlayer ? "to storage" : "to inventory";
-
-        TransferHandler.TransferResult result = move switch
-        {
-            { Resource: { } r } => TransferHandler.TransferResource(source, dest, r, direction),
-            { Tool: { } t } => TransferHandler.TransferTool(source, dest, t, direction),
-            { Equipment: { } e } => TransferHandler.TransferEquipment(source, dest, e, direction),
-            { Accessory: { } a } => TransferHandler.TransferAccessory(source, dest, a, direction),
-            _ => throw new InvalidOperationException("The transfer screen returned a move with nothing in it.")
-        };
-
-        if (result.Success)
-            _transfer.SetMessage(result.Message);
+        _transfer.SetMessage(move.Apply(ctx.Inventory, storage));
     }
 
     public Task<CraftOption?> ShowCrafting()
@@ -543,7 +509,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
         return Push(new Prompt<CraftOption?>((self, ctx, dt, isTop) =>
         {
-            if (isTop && Raylib.IsKeyPressed(KeyboardKey.Escape)) _crafting.IsOpen = false;
+            if (isTop && UiInput.Pressed(KeyboardKey.Escape)) _crafting.IsOpen = false;
 
             if (_crafting.IsOpen)
                 _crafting.Render(ctx, _craftingSystem, dt);
@@ -575,7 +541,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
         return Push(new Prompt<FireOverlayResult?>((self, ctx, dt, isTop) =>
         {
-            if (isTop && Raylib.IsKeyPressed(KeyboardKey.Escape)) _fire.IsOpen = false;
+            if (isTop && UiInput.Pressed(KeyboardKey.Escape)) _fire.IsOpen = false;
 
             if (_fire.IsOpen)
             {
@@ -597,7 +563,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
         return Push(new Prompt<PendingFoodAction?>((self, ctx, dt, isTop) =>
         {
-            if (isTop && Raylib.IsKeyPressed(KeyboardKey.Escape)) _food.IsOpen = false;
+            if (isTop && UiInput.Pressed(KeyboardKey.Escape)) _food.IsOpen = false;
 
             if (_food.IsOpen) _food.Render(ctx, dt);
 
@@ -659,9 +625,9 @@ public sealed class DesktopUi : IGameUi, IDisposable
             OverlaySizes.SetupDialog();
             ImGui.Begin(Title(kind), DialogFlags);
 
-            UiText.Wrapped(_view.Status);
+            UiIcons.LabelWrapped(kind == ProgressKind.Forage ? "foraging" : kind == ProgressKind.Crafting ? "project" : "clock", UiStyle.Text, _view.Status);
             ImGui.Spacing();
-            ImGui.ProgressBar(Math.Clamp(_view.Progress, 0f, 1f), new Vector2(-1, 20),
+            ImGui.ProgressBar(Math.Clamp(_view.Progress, 0f, 1f), new Vector2(-1, UiStyle.BarHeight),
                 $"{_view.SimulatedMinutes}/{_view.TotalMinutes} min");
 
             foreach (var section in _view.Sections)
@@ -671,7 +637,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
-                UiText.Text(section.Header);
+                UiIcons.Label("journal", section.Header);
 
                 foreach (var line in section.Lines)
                 {
@@ -690,7 +656,7 @@ public sealed class DesktopUi : IGameUi, IDisposable
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                if (ImGui.Button("Continue [Enter]", new Vector2(-1, 30)) || (isTop && Raylib.IsKeyPressed(KeyboardKey.Enter)))
+                if (UiIcons.Button("continue", "Continue [Enter]", "continue", new Vector2(-1, 0)) || (isTop && UiInput.Pressed(KeyboardKey.Enter)))
                 {
                     var waiter = _continue;
                     _continue = null;
@@ -713,8 +679,8 @@ public sealed class DesktopUi : IGameUi, IDisposable
 
     private static Vector4 ToneColor(ProgressTone tone) => tone switch
     {
-        ProgressTone.Muted => new Vector4(0.5f, 0.5f, 0.5f, 0.6f),
-        ProgressTone.Done => new Vector4(0.5f, 0.7f, 0.5f, 0.7f),
+        ProgressTone.Muted => UiStyle.Supporting,
+        ProgressTone.Done => UiStyle.Success,
         ProgressTone.Discovery => new Vector4(0.9f, 0.7f, 0.3f, 1f),
         ProgressTone.Fuel => new Vector4(0.8f, 0.6f, 0.4f, 1f),
         ProgressTone.Food => new Vector4(0.5f, 0.8f, 0.5f, 1f),

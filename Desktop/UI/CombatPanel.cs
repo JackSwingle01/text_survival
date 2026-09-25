@@ -1,5 +1,7 @@
 using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
+using text_survival.UI;
+using text_survival.Environments.Grid;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Actions.Handlers;
@@ -16,9 +18,9 @@ namespace text_survival.Desktop.UI;
 
 public sealed class CombatPanel
 {
-    public CombatActions? Render(GameContext ctx, HudRect rect, text_survival.Combat.Unit? hoveredUnit)
+    public CombatInput? Render(GameContext ctx, HudRect rect, text_survival.Combat.Unit? hoveredUnit, CombatUiState state, bool interactive)
     {
-        CombatActions? clickedAction = null;
+        CombatInput? result = null;
 
         HudWidgets.Begin("##Combat", rect);
 
@@ -30,48 +32,93 @@ public sealed class CombatPanel
         }
 
         var playerUnit = combat.Player;
-        var nearest = combat.GetNearestEnemy(playerUnit);
+        state.Update(combat);
+        bool commands = interactive && UiInput.Context == InputContext.Combat && !UiInput.HudFocused;
+        bool Key(ImGuiKey key) => commands && GameGui.Capture == null && UiNavigation.Key(key);
+        if (Key(ImGuiKey.Escape)) state.Cancel();
+        if (Key(ImGuiKey.X)) state.Inspect(combat);
+        if (Key(ImGuiKey.Q)) state.Cycle(combat, -1);
+        if (Key(ImGuiKey.E)) state.Cycle(combat, 1);
+        if (Key(ImGuiKey.W)) state.Step(combat, 0, -1);
+        if (Key(ImGuiKey.S)) state.Step(combat, 0, 1);
+        if (Key(ImGuiKey.A)) state.Step(combat, -1, 0);
+        if (Key(ImGuiKey.D)) state.Step(combat, 1, 0);
+        if (Key(ImGuiKey.Enter) && state.Cursor != null)
+        {
+            state.Feedback = state.MoveReason(combat);
+            if (state.Feedback == null) { result = new(null, state.Cursor); state.Cancel(); }
+        }
+        var nearest = state.Target;
 
-        // Get display target: hovered unit or nearest enemy
-        var displayTarget = hoveredUnit ?? nearest;
+        // Inspection is separate from the explicitly selected attack target.
+        var displayTarget = state.Inspecting ? combat.Units.FirstOrDefault(u => u.actor.IsAlive && u.Position == state.Cursor) : hoveredUnit ?? nearest;
 
         // Determine if we're in stealth mode (target not engaged)
         bool inStealth = nearest != null && nearest.Awareness != AwarenessState.Engaged;
         int huntingSkill = ctx.player.Skills.GetSkill("Hunting")?.Level ?? 0;
 
-        // Combat header
+        ImGui.BeginChild("combat-status", new Vector2(0, Math.Min(ImGui.GetFontSize() * 10, rect.Height * .32f)));
         string headerText = inStealth ? "STALKING" : "COMBAT";
-        UiText.Colored(new Vector4(1f, 0.5f, 0.3f, 1f), headerText);
-        ImGui.Separator();
+        double targetDistance = nearest == null ? 0 : playerUnit.Position.DistanceTo(nearest.Position);
+        var targetZone = CombatScenario.GetZone(targetDistance);
+        UiText.Colored(targetZone is Zone.close or Zone.near ? UiStyle.Caution : HudWidgets.Heading,
+            nearest == null ? headerText : $"{headerText} · {targetDistance:F0}m · {targetZone.ToString().ToUpperInvariant()}");
+        UiText.Wrapped("WASD → Enter move · Q/E target · X inspect · Esc cancel");
+        UiIcons.LabelColored(state.Inspecting ? "inspect" : "target", HudWidgets.Heading,
+            state.Inspecting ? "INSPECTING · No time passes" : $"TARGET: {nearest?.actor.Name ?? "None"}");
+        UiText.Wrapped(state.Cursor is { } cursor
+            ? $"({cursor.X}, {cursor.Y}) · {state.MoveReason(combat) ?? $"Move: 1 action · allowance {CombatMovement.Allowance(playerUnit)}m"}"
+            : "Choose a target or preview a move.");
+        UiText.Wrapped(state.Feedback ?? " ");
+        ImGui.EndChild();
+        bool openThrow = false;
+        ImGui.BeginChild("combat-actions", new Vector2(0, Math.Max(ImGui.GetFontSize() * 10, 4 * (UiStyle.IconSize + 16 * UiStyle.Scale) + 12)));
 
-        // Distance display (to nearest enemy for tactical relevance)
-        if (nearest != null)
+        void Action(CombatActions action, string label, string icon, ImGuiKey key, bool shift = false)
         {
-            double distance = playerUnit.Position.DistanceTo(nearest.Position);
-            var zone = CombatScenario.GetZone(distance);
-
-            string zoneText = zone switch
-            {
-                Zone.close => "CLOSE (0-1m)",
-                Zone.near => "NEAR (1-3m)",
-                Zone.mid => "MID (3-15m)",
-                Zone.far => "FAR (15-25m)",
-                _ => "UNKNOWN"
-            };
-
-            Vector4 zoneColor = zone switch
-            {
-                Zone.close => new Vector4(1f, 0.2f, 0.2f, 1f),   // Red - danger
-                Zone.near => new Vector4(1f, 0.5f, 0.2f, 1f),    // Orange
-                Zone.mid => new Vector4(1f, 0.8f, 0.3f, 1f),     // Yellow
-                Zone.far => new Vector4(0.6f, 0.8f, 0.6f, 1f),   // Green - safer
-                _ => new Vector4(0.7f, 0.7f, 0.7f, 1f)
-            };
-
-            UiText.Text($"Distance: {distance:F0}m");
-            UiText.Colored(zoneColor, zoneText);
+            string? reason = CombatUiState.Reason(ctx, nearest, action);
+            bool clicked = UiControls.Button(new($"combat-{action}", label, icon, DisabledReason: reason, Tone: action == CombatActions.Flee ? UiTone.Caution : UiTone.Normal), interactive, new(-1, 0));
+            bool pressed = Key(key) && ImGuiNET.ImGui.GetIO().KeyShift == shift && !state.Inspecting;
+            if (pressed && reason != null) state.Feedback = reason;
+            if ((clicked || pressed) && reason == null && result == null) { result = new(action, null, nearest); state.Cancel(); }
         }
-
+        Action(CombatActions.Attack, "Attack [F]", ctx.Inventory.Weapon is { } weapon ? UiIcons.ForGear(weapon) : "shove", ImGuiKey.F);
+        Action(CombatActions.Block, "Block [R]", "block", ImGuiKey.R);
+        Action(CombatActions.Dodge, "Dodge [C]", "dodge", ImGuiKey.C);
+        Action(CombatActions.Flee, "Flee [Shift+F]", "flee", ImGuiKey.F, true);
+        Action(CombatActions.Shove, "Shove [V]", "shove", ImGuiKey.V);
+        if (UiControls.Button(new("combat-throw", "Throw… [T]", "throw"), interactive, new(-1, 0)) || Key(ImGuiKey.T))
+        {
+            openThrow = true;
+            if (GameGui.Capture != null) state.Throwing = true;
+        }
+        Action(CombatActions.Wait, "Wait [Space]", "clock", ImGuiKey.Space);
+        Action(CombatActions.Assess, "Assess [Z]", "inspect", ImGuiKey.Z);
+        Action(CombatActions.Intimidate, "Intimidate [B]", "intimidate", ImGuiKey.B);
+        Action(CombatActions.CallHelp, "Call for help [H]", "call-help", ImGuiKey.H);
+        Action(CombatActions.CallRetreat, "Call for retreat [J]", "call-retreat", ImGuiKey.J);
+        ImGui.EndChild();
+        if (openThrow && GameGui.Capture == null) ImGuiNET.ImGui.OpenPopup("Choose throwable");
+        if (GameGui.Capture != null ? state.Throwing : ImGuiNET.ImGui.BeginPopup("Choose throwable"))
+        {
+            if (GameGui.Capture == null && ImGuiNET.ImGui.IsKeyPressed(ImGuiKey.Escape, false)) ImGuiNET.ImGui.CloseCurrentPopup();
+            UiText.Wrapped("Select a throwable · Tab / arrows · Enter · Esc cancel");
+            foreach (var action in new[] { CombatActions.Throw, CombatActions.ThrowStone })
+            {
+                string label = action == CombatActions.Throw ? ctx.Inventory.Weapon?.Name ?? "Weapon" : $"Stone ×{ctx.Inventory.Count(Resource.Stone)}";
+                double distance = nearest == null ? 0 : playerUnit.Position.DistanceTo(nearest.Position);
+                double chance = CombatFormulas.CalculateThrownAccuracy(distance,
+                    action == CombatActions.ThrowStone ? CombatScenario.STONE_RANGE_M : ctx.Inventory.Weapon?.Name.Contains("Stone") == true ? 25 : 20,
+                    action == CombatActions.ThrowStone ? CombatScenario.STONE_BASE_ACCURACY : ctx.Inventory.Weapon?.Name.Contains("Stone") == true ? .75 : .70,
+                    nearest?.actor is Animal animal && animal.Size == AnimalSize.Small);
+                if (UiControls.Button(new($"throw-{action}", $"{label} · {chance:P0} hit", "throw", DisabledReason: CombatUiState.Reason(ctx, nearest, action)), interactive, new(-1, 0)))
+                { result = new(action, null, nearest); state.Cancel(); if (GameGui.Capture == null) ImGuiNET.ImGui.CloseCurrentPopup(); }
+                if (action == CombatActions.Throw && GameGui.Capture == null) ImGuiNET.ImGui.SetItemDefaultFocus();
+            }
+            if (UiControls.Button(new("throw-cancel", "Cancel [Esc]", "back"), interactive, new(-1, 0))) { state.Throwing = false; if (GameGui.Capture == null) ImGuiNET.ImGui.CloseCurrentPopup(); }
+            if (GameGui.Capture == null) ImGuiNET.ImGui.EndPopup();
+        }
+        ImGui.BeginChild("combat-details", new Vector2(0, 0));
         // Target stats section
         if (displayTarget != null)
         {
@@ -133,7 +180,7 @@ public sealed class CombatPanel
                 >= 0.4f => new Vector4(1f, 0.8f, 0.3f, 1f),
                 _ => new Vector4(1f, 0.3f, 0.3f, 1f)
             };
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, vitalityColor);
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(vitalityColor));
             ImGui.ProgressBar(vitalityVal, new Vector2(-1, 0), $"Vitality: {vitalityVal * 100:F0}%");
             ImGui.PopStyleColor();
 
@@ -150,7 +197,7 @@ public sealed class CombatPanel
                     >= 0.3f => new Vector4(1f, 1f, 0.4f, 1f),     // Yellow - wary
                     _ => new Vector4(0.6f, 0.6f, 0.6f, 1f)         // Gray - cautious
                 };
-                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, boldnessColor);
+                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(boldnessColor));
                 ImGui.ProgressBar(boldnessDisplay, new Vector2(-1, 0), $"Boldness: {boldnessVal * 100:F0}%");
                 ImGui.PopStyleColor();
 
@@ -163,7 +210,7 @@ public sealed class CombatPanel
                     >= 0.3f => new Vector4(0.9f, 0.5f, 0.3f, 1f), // Orange
                     _ => new Vector4(0.6f, 0.7f, 0.6f, 1f)         // Muted green - low threat
                 };
-                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, threatColor);
+                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(threatColor));
                 ImGui.ProgressBar(threatDisplay, new Vector2(-1, 0), $"Threat: {threatVal * 100:F0}%");
                 ImGui.PopStyleColor();
 
@@ -176,7 +223,7 @@ public sealed class CombatPanel
                     >= 0.4f => new Vector4(1f, 0.6f, 0.2f, 1f),   // Orange
                     _ => new Vector4(0.7f, 0.7f, 0.5f, 1f)         // Muted
                 };
-                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, aggressionColor);
+                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(aggressionColor));
                 ImGui.ProgressBar(aggressionDisplay, new Vector2(-1, 0), $"Aggression: {aggressionVal * 100:F0}%");
                 ImGui.PopStyleColor();
             }
@@ -188,7 +235,7 @@ public sealed class CombatPanel
             // Injuries section - show damaged body parts
             var damagedParts = displayTarget.actor.Body.Parts
                 .Where(p => p.Condition < 1.0)
-                .OrderBy(p => p.Condition)
+                .OrderBy(p => p.Name)
                 .Take(4)  // Limit to 4 to save space
                 .ToList();
 
@@ -205,120 +252,16 @@ public sealed class CombatPanel
                         >= 0.4f => new Vector4(1f, 0.7f, 0.3f, 1f),    // Moderate
                         _ => new Vector4(1f, 0.3f, 0.3f, 1f)            // Severe
                     };
-                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, injuryColor);
-                    ImGui.ProgressBar(condition, new Vector2(-1, 12), $"{part.Name}: {condition * 100:F0}%");
+                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(injuryColor));
+                    UiText.Text(part.Name);
+                    ImGui.ProgressBar(1 - condition, new Vector2(-1, 0), $"Damage: {(1 - condition) * 100:F0}%");
                     ImGui.PopStyleColor();
                 }
             }
         }
 
-        ImGui.Separator();
-
-        // Combat actions based on zone and stealth state
-        UiText.Text("Actions:");
-        ImGui.Spacing();
-
-        if (nearest != null)
-        {
-            double distance = playerUnit.Position.DistanceTo(nearest.Position);
-            var zone = CombatScenario.GetZone(distance);
-            var weapon = ctx.Inventory.Weapon;
-            bool hasWeapon = weapon != null;
-            bool isSmall = nearest.actor is Animal a && a.Size == AnimalSize.Small;
-
-            // Stealth actions (Wait and Assess) when target is unaware/alert
-            if (inStealth)
-            {
-                if (ImGui.Button("Wait", new Vector2(-1, 0)))
-                    clickedAction = CombatActions.Wait;
-                if (ImGui.Button("Assess", new Vector2(-1, 0)))
-                    clickedAction = CombatActions.Assess;
-                ImGui.Separator();
-            }
-
-            switch (zone)
-            {
-                case Zone.close:
-                    if (ImGui.Button("Attack", new Vector2(-1, 0)))
-                        clickedAction = CombatActions.Attack;
-                    if (ImGui.Button("Block", new Vector2(-1, 0)))
-                        clickedAction = CombatActions.Block;
-                    if (ImGui.Button("Shove", new Vector2(-1, 0)))
-                        clickedAction = CombatActions.Shove;
-                    break;
-
-                case Zone.near:
-                    if (ImGui.Button("Attack", new Vector2(-1, 0)))
-                        clickedAction = CombatActions.Attack;
-                    if (ImGui.Button("Dodge", new Vector2(-1, 0)))
-                        clickedAction = CombatActions.Dodge;
-                    if (ImGui.Button("Block", new Vector2(-1, 0)))
-                        clickedAction = CombatActions.Block;
-                    break;
-
-                case Zone.mid:
-                    // Throw weapon with hit chance
-                    if (hasWeapon)
-                    {
-                        double maxRange = weapon!.Name.Contains("Stone") ? 25.0 : 20.0;
-                        double baseAccuracy = weapon.Name.Contains("Stone") ? 0.75 : 0.70;
-                        double hitChance = CombatFormulas.CalculateThrownAccuracy(distance, maxRange, baseAccuracy, isSmall);
-
-                        if (ImGui.Button($"Throw {weapon.Name} ({hitChance:P0})", new Vector2(-1, 0)))
-                            clickedAction = CombatActions.Throw;
-                    }
-
-                    // Throw stone with hit chance
-                    int stones = ctx.Inventory.Count(Resource.Stone);
-                    if (stones > 0)
-                    {
-                        double hitChance = CombatFormulas.CalculateThrownAccuracy(
-                            distance, CombatScenario.STONE_RANGE_M, CombatScenario.STONE_BASE_ACCURACY, isSmall);
-
-                        if (ImGui.Button($"Throw Stone x{stones} ({hitChance:P0})", new Vector2(-1, 0)))
-                            clickedAction = CombatActions.ThrowStone;
-                    }
-
-                    if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
-                        clickedAction = CombatActions.Intimidate;
-                    break;
-
-                case Zone.far:
-                    // Throw weapon at far range
-                    if (hasWeapon)
-                    {
-                        double maxRange = weapon!.Name.Contains("Stone") ? 25.0 : 20.0;
-                        double baseAccuracy = weapon.Name.Contains("Stone") ? 0.75 : 0.70;
-                        double hitChance = CombatFormulas.CalculateThrownAccuracy(distance, maxRange, baseAccuracy, isSmall);
-
-                        if (hitChance > 0)
-                        {
-                            if (ImGui.Button($"Throw {weapon.Name} ({hitChance:P0})", new Vector2(-1, 0)))
-                                clickedAction = CombatActions.Throw;
-                        }
-                    }
-
-                    if (ImGui.Button("Intimidate", new Vector2(-1, 0)))
-                        clickedAction = CombatActions.Intimidate;
-                    break;
-            }
-        }
-
-        if (ImGui.Button("Call for help", new Vector2(-1, 0))) clickedAction = CombatActions.CallHelp;
-        if (ImGui.Button("Call for retreat", new Vector2(-1, 0))) clickedAction = CombatActions.CallRetreat;
-
-        // Flee option - available when near any edge
-        if (CombatScenario.CanFlee(playerUnit.Position))
-        {
-            ImGui.Separator();
-            int dist = CombatScenario.GetDistanceFromEdge(playerUnit.Position);
-            string label = dist == 0 ? "Flee! (at edge)" : $"Flee ({dist}m to edge)";
-            if (ImGui.Button(label, new Vector2(-1, 0)))
-                clickedAction = CombatActions.Flee;
-        }
-
+        ImGui.EndChild();
         ImGui.End();
-
-        return clickedAction;
+        return result;
     }
 }

@@ -20,9 +20,9 @@ public sealed record TravelInspection(string? Reason, IReadOnlyList<HudAction> A
             map.IsEdgeBlocked(map.CurrentPosition, target, ctx.Weather.CurrentSeason) ? "The way is blocked." : null;
         if (reason != null) return new(reason, []);
         var preview = TravelProcessor.PreviewCrossing(ctx.CurrentLocation, location!, ctx.player, ctx.Weather, ctx.Inventory, map!);
-        HudAction Travel(string id, string label, string? pace) => new(id, label, HudActionGroup.Other, new PlayerAction.Travel(tile.x, tile.y, pace));
+        HudAction Travel(string id, string label, string? pace) => new(id, label, HudActionGroup.Other, new PlayerAction.Travel(tile.x, tile.y, pace), Icon: pace == "quick" ? "warning" : pace == "careful" ? "block" : "continue");
         return preview.IsHazardous
-            ? new("Hazardous crossing", [Travel("travel-careful", $"Travel carefully · {preview.CarefulMinutes} min", "careful"),
+            ? new("Hazardous crossing · careful avoids terrain injury.", [Travel("travel-careful", $"Travel carefully · {preview.CarefulMinutes} min", "careful"),
                 Travel("travel-quick", $"Travel quickly · {preview.QuickMinutes} min · {preview.RiskLevel:P0} risk", "quick")])
             : new(null, [Travel("travel", $"Travel here · {preview.QuickMinutes} min", null)]);
     }

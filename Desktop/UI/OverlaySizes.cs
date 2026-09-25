@@ -27,7 +27,7 @@ public static class OverlaySizes
     // Compact bar sizes for SurvivorPanel effects and capacities
     // Uses -1 width to auto-fill remaining space (matches main stat bar alignment)
     public const float EffectBarStart = 110;
-    public const float CompactBarHeight = 16;
+    public static float CompactBarHeight => UiStyle.BarHeight;
 
     /// <summary>
     /// Set up a centered overlay with standard dimensions (65% × 75%).

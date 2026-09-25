@@ -1,0 +1,22 @@
+SIZE 16x16
+PALETTE
+. = #00000000
+o = #292832
+b = #36718e
+B = #70b7ce
+w = #d5ece4
+g = #50724d
+G = #8ea766
+y = #e9b65e
+r = #b45b4e
+s = #795a48
+
+RECT 1 6 4 5 o
+RECT 2 7 3 3 B
+LINE 4 6 8 2 o
+LINE 8 2 8 14 o
+LINE 8 14 4 10 o
+RECT 5 5 3 7 B
+LINE 10 4 13 7 w
+LINE 13 7 13 9 w
+LINE 13 9 10 12 w

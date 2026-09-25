@@ -266,7 +266,7 @@ public class WorldRenderer : IDisposable
         if (_selectedTile is { } selected)
         {
             var selectedPosition = Camera.WorldToScreen(selected.x, selected.y);
-            var outline = new Color(235, 180, 75, 255);
+            var outline = _hud.Inspecting ? new Color(110, 210, 240, 255) : new Color(235, 180, 75, 255);
             Raylib.DrawRectangleLinesEx(new Rectangle(selectedPosition.X + 2, selectedPosition.Y + 2,
                 Camera.TileSize - 4, Camera.TileSize - 4), 2, outline);
             var destination = new GridPosition(selected.x, selected.y);
@@ -679,6 +679,15 @@ public class WorldRenderer : IDisposable
             }
         }
 
+        void Marker(GridPosition position, Color color, string label, bool circle)
+        {
+            int x = offsetX + position.X * cellSize, y = offsetY + position.Y * cellSize;
+            if (circle) Raylib.DrawCircleLines(x + cellSize / 2, y + cellSize / 2, cellSize * .8f, color);
+            else Raylib.DrawRectangleLinesEx(new Rectangle(x - 2, y - 2, cellSize + 4, cellSize + 4), 2, color);
+            Raylib.DrawText(label, x + cellSize + 3, y, 14, color);
+        }
+        if (_hud.Combat.Target is { } target) Marker(target.Position, new Color(245, 185, 75, 255), "TARGET", true);
+        if (_hud.Combat.Cursor is { } cursor) Marker(cursor, new Color(110, 210, 240, 255), _hud.Combat.Inspecting ? "INSPECT" : "MOVE?", false);
         // Draw grid border
         Raylib.DrawRectangleLines(offsetX, offsetY, gridPixelWidth, gridPixelHeight, new Color(100, 100, 110, 255));
     }

@@ -74,13 +74,11 @@ public class GameCliTests
         var head = ctx.player.Body.Parts.Single(p => p.Name == BodyRegionNames.Head);
         head.Organs.Single(o => o.Name == OrganNames.Brain).Condition = 0;
         var lines = ((TextFrame)Observations.Status(ctx)).Lines;
-        int headIndex = lines.FindIndex(l => l.Trim() == "Head");
-        int brainIndex = lines.FindIndex(l => l.Trim() == "Brain");
+        int headIndex = lines.FindIndex(l => l.Trim() == "Head · Healthy");
+        int brainIndex = lines.FindIndex(l => l.Trim() == "Brain · Destroyed");
         Assert.True(headIndex >= 0 && brainIndex >= 0);
         Assert.Equal("0% damage", lines[headIndex + 1]);
-        Assert.Equal("Healthy", lines[headIndex + 2]);
         Assert.Equal("100% damage", lines[brainIndex + 1]);
-        Assert.Equal("Destroyed", lines[brainIndex + 2]);
     }
 
     [Fact]
@@ -155,9 +153,9 @@ public class GameCliTests
         var evt = new EventDto("Test event", "Description", [new("no", "Unavailable", "Needs supplies", false), new("yes", "Proceed", "Costs time", true, "5 minutes")]);
         var task = ui.ShowEventChoices(evt);
         Assert.Contains("Description", ui.Render().Lines);
-        Assert.Throws<ArgumentException>(() => Click(ui, "Unavailable"));
+        Assert.Throws<ArgumentException>(() => Click(ui, "1. Unavailable"));
         Assert.False(task.IsCompleted);
-        Click(ui, "Proceed"); Assert.Equal("yes", (await task));
+        Click(ui, "2. Proceed"); Assert.Equal("yes", (await task));
         var outcome = ui.ShowEventOutcome(evt with { Choices = [], Outcome = new("Outcome", 5, ["effect"], ["damage"], ["gain"], ["loss"], ["tension"]) });
         foreach (var word in new[] { "Outcome", "effect", "damage", "gain", "loss", "tension" })
             Assert.Contains(ui.Render().Lines, l => l.Contains(word));
@@ -194,8 +192,9 @@ public class GameCliTests
         Assert.Equal(false, ui.Render().Controls.Single(c => c.Id.EndsWith("/30")).Value);
         ui.Close(); Assert.Equal(0, (await forage).minutes);
         var message = ui.ShowWorkResult(new("Work", "Done", ["Stone"], ["Narrative"], ["Warning"]));
-        Assert.Contains(ui.Render().Lines, s => s.Contains("Warning") && s.Contains("Stone"));
-        Click(ui, "Continue"); Assert.True(message.IsCompleted);
+        Assert.Contains("Warning", ui.Render().Lines);
+        Assert.Contains("+ Stone", ui.Render().Lines);
+        Click(ui, "Continue [Enter]"); Assert.True(message.IsCompleted);
     }
 
     [Fact]
@@ -222,10 +221,10 @@ public class GameCliTests
         var wolf = AnimalFactory.FromType(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map!)!;
         ctx.ActiveCombat = CombatScenario.Create([ctx.player], [wolf], ctx.CurrentLocation, 1, AwarenessState.Engaged, AwarenessState.Engaged, ctx.player);
         var input = ui.WaitForCombatAction();
-        Assert.Contains("Attack", ui.Render().Controls.Select(c => c.Label));
+        Assert.Contains("Attack [F]", ui.Render().Controls.Select(c => c.Label));
         Assert.Contains("Wolf", JsonSerializer.Serialize(Observations.Combat(ctx)));
         Assert.Contains("WOLF", JsonSerializer.Serialize(Observations.Unit(ctx, 1)));
-        Click(ui, "Attack"); Assert.Equal(CombatActions.Attack, (await input)!.Action);
+        Click(ui, "Attack [F]"); Assert.Equal(CombatActions.Attack, (await input)!.Action);
         var move = ui.WaitForCombatAction(); ui.Render(); ui.MoveCombat(new(null, new(5, 6)));
         Assert.Equal(new GridPosition(5, 6), (await move)!.MoveTarget);
     }
@@ -258,11 +257,19 @@ public class GameCliTests
         var storage = new Inventory();
         var transfer = ui.ShowTransfer(storage, "Test cache");
         var stone = ui.Render().Controls.Single(c => c.Id.Contains("PlayerInv/") && c.Label.Contains("Stone"));
-        ui.Render(stone.Id); Assert.Equal(stoneCount, storage.Count(Resource.Stone));
+        ui.Render(stone.Id);
+        Assert.Equal(0, storage.Count(Resource.Stone)); // Selection alone must never transfer.
+        ui.Render(ui.Render().Controls.Single(c => c.Kind == "number").Id, stoneCount.ToString());
+        Click(ui, "Transfer selected amount");
+        Assert.Equal(stoneCount, storage.Count(Resource.Stone));
         Assert.Equal(0, ctx.Inventory.Count(Resource.Stone));
         Assert.Equal(stoneWeight, storage.Weight(Resource.Stone));
         var back = ui.Render().Controls.Single(c => !c.Id.Contains("PlayerInv/") && c.Label.Contains("Stone"));
-        ui.Render(back.Id); Assert.Equal(0, storage.Count(Resource.Stone));
+        ui.Render(back.Id);
+        Assert.Equal(stoneCount, storage.Count(Resource.Stone));
+        ui.Render(ui.Render().Controls.Single(c => c.Kind == "number").Id, stoneCount.ToString());
+        Click(ui, "Transfer selected amount");
+        Assert.Equal(0, storage.Count(Resource.Stone));
         Assert.Equal(stoneCount, ctx.Inventory.Count(Resource.Stone));
         Assert.Equal(stoneWeight, ctx.Inventory.Weight(Resource.Stone));
         ui.Close(); await transfer;

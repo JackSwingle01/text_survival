@@ -10,9 +10,14 @@ namespace text_survival.Desktop.UI;
 public static class GameGui
 {
     [ThreadStatic] public static TextFrame? Capture;
-    public static int ScreenWidth => Capture != null ? 1600 : Raylib.GetScreenWidth();
-    public static int ScreenHeight => Capture != null ? 1000 : Raylib.GetScreenHeight();
-    public static bool IsKeyPressed(KeyboardKey key) => Capture == null && Raylib.IsKeyPressed(key);
+    public static int ScreenWidth => Capture != null ? 1600 : (int)Native.GetIO().DisplaySize.X;
+    public static int ScreenHeight => Capture != null ? 1000 : (int)Native.GetIO().DisplaySize.Y;
+    public static bool IsKeyPressed(KeyboardKey key) => Capture == null && Input.UiInput.Pressed(key);
+    public static bool IsItemFocused() => Capture == null && Native.IsItemFocused();
+    public static bool WantTextInput => Capture == null && Native.GetIO().WantTextInput;
+    public static bool AnyPopupOpen => Capture == null && Native.IsPopupOpen("", ImGuiPopupFlags.AnyPopupId);
+    public static void SetKeyboardFocusHere() { if (Capture == null) Native.SetKeyboardFocusHere(); }
+    public static void SetItemDefaultFocus() { if (Capture == null) Native.SetItemDefaultFocus(); }
     public static Vector4 StyleColor(ImGuiCol color) => Capture != null ? Vector4.One : Native.GetStyle().Colors[(int)color];
     public static Vector2 FramePadding => Capture != null ? new(4, 4) : Native.GetStyle().FramePadding;
     public static GameDrawList GetWindowDrawList() => new(Capture == null ? Native.GetWindowDrawList() : default);
@@ -33,6 +38,13 @@ public static class GameGui
     public static bool Selectable(string label, bool selected = false, ImGuiSelectableFlags flags = 0, Vector2 size = default) => Capture is { } c ? c.Control(label, "select", selected) : Native.Selectable(label, selected, flags, size);
     public static bool Checkbox(string label, ref bool value) { if (Capture is not { } c) return Native.Checkbox(label, ref value); if (!c.Control(label, "checkbox", value)) return false; value = !value; return true; }
     public static bool RadioButton(string label, ref int value, int buttonValue) { if (Capture is not { } c) return Native.RadioButton(label, ref value, buttonValue); if (!c.Control(label, "radio", value == buttonValue)) return false; value = buttonValue; return true; }
+    public static bool InputInt(string label, ref int value)
+    {
+        if (Capture is not { } c) return Native.InputInt(label, ref value, 0, 0);
+        if (!c.Control(label, "number", value)) return false;
+        if (!int.TryParse(c.Input, out var parsed)) throw new ArgumentException("Enter a whole number.");
+        value = parsed; return true;
+    }
     public static bool InputTextWithHint(string label, string hint, ref string value, uint maxLength) { if (Capture is not { } c) return Native.InputTextWithHint(label, hint, ref value, maxLength); if (value.Length == 0) c.Text(hint); if (!c.Control(label, "text", value)) return false; if (c.Input == null || c.Input.Length >= maxLength) throw new ArgumentException($"Input must be shorter than {maxLength} characters."); value = c.Input; return true; }
     public static bool IsItemHovered(ImGuiHoveredFlags flags = 0) => Capture != null || Native.IsItemHovered(flags);
     public static bool IsItemClicked(ImGuiMouseButton button = 0) => Capture is { } c ? c.ClickText() : Native.IsItemClicked(button);

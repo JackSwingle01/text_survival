@@ -133,8 +133,11 @@ public sealed class CliUi(GameContext ctx) : IGameUi
         Gui.TextUnformatted(title); Gui.TextUnformatted(message);
         if (Gui.Button("Continue")) finish(true);
     });
-    public Task ShowWorkResult(WorkResultView view) => ShowMessage(view.Title,
-        string.Join('\n', (view.Narrative ?? []).Append(view.Message).Concat(view.Warnings ?? []).Concat(view.ItemsGained)));
+    public Task ShowWorkResult(WorkResultView view)
+    {
+        var dialog = new WorkResultDialog(view);
+        return Prompt<bool>("result", finish => { if (dialog.Render()) finish(true); });
+    }
     public Task<string> ShowEventChoices(EventDto evt)
     {
         var overlay = new GameEventOverlay(); overlay.ShowEvent(evt);
@@ -187,16 +190,7 @@ public sealed class CliUi(GameContext ctx) : IGameUi
         {
             if (_transfer.Render(ctx, 0) is { } move)
             {
-                var source = move.FromPlayer ? ctx.Inventory : storage;
-                var dest = move.FromPlayer ? storage : ctx.Inventory;
-                string direction = move.FromPlayer ? "to storage" : "to inventory";
-                var result = move switch {
-                    { Resource: { } r } => TransferHandler.TransferResource(source, dest, r, direction),
-                    { Tool: { } t } => TransferHandler.TransferTool(source, dest, t, direction),
-                    { Equipment: { } e } => TransferHandler.TransferEquipment(source, dest, e, direction),
-                    { Accessory: { } a } => TransferHandler.TransferAccessory(source, dest, a, direction),
-                    _ => throw new InvalidOperationException("Transfer returned an empty move.") };
-                _transfer.SetMessage(result.Message);
+                _transfer.SetMessage(move.Apply(ctx.Inventory, storage));
             }
             if (!_transfer.IsOpen) finish(true);
         }, () => { _transfer.IsOpen = false; return true; });
@@ -243,10 +237,11 @@ public sealed class CliUi(GameContext ctx) : IGameUi
             Gui.EndDisabled();
         }
     });
+    private readonly CombatUiState _combatState = new();
     public Task<CombatInput?> WaitForCombatAction() => Prompt<CombatInput?>("combat", finish =>
     {
         _combatAction = finish;
-        if (_combat.Render(ctx, Rect, null) is { } action) finish(new(action, null));
+        if (_combat.Render(ctx, Rect, null, _combatState, true) is { } action) finish(action);
     });
     public ProgressView BeginProgress(ProgressKind kind, string status)
     {

@@ -2,117 +2,48 @@ using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.UI;
-using text_survival.Desktop.Input;
+using Raylib_cs;
 
 namespace text_survival.Desktop.UI;
 
-/// <summary>
-/// ImGui overlay for viewing the Discovery Log.
-/// Shows 5 categories: The Land, Beasts, Provisions, Medicine, Works.
-/// </summary>
 public class DiscoveryLogOverlay
 {
-    public bool IsOpen { get; set; }
-
+    private bool _open, _initialFocus;
+    public bool IsOpen { get => _open; set { if (value && !_open) _initialFocus = true; _open = value; } }
     private DiscoveryLogDto? _data;
-    private int _selectedTab;
-
-    /// <summary>
-    /// Set the discovery log data to display.
-    /// </summary>
-    public void SetData(DiscoveryLogDto data)
-    {
-        _data = data;
-    }
-
-    /// <summary>
-    /// Render the discovery log overlay. Returns true if overlay should close.
-    /// </summary>
+    public int SelectedCategory { get; private set; }
+    public void SetData(DiscoveryLogDto data) => _data = data;
     public bool Render(float deltaTime)
     {
         if (!IsOpen || _data == null) return false;
-
-        bool shouldClose = false;
-
         OverlaySizes.SetupWide();
-
         bool open = IsOpen;
         if (ImGui.Begin("Discovery Log", ref open, ImGuiWindowFlags.NoCollapse))
         {
-            // Tab bar for categories
-            if (ImGui.BeginTabBar("DiscoveryTabs"))
+            UiText.Wrapped("F2 categories · F3 entries · arrows / Page Up / Page Down scroll · Esc close");
+            ImGui.BeginChild("categories", new Vector2(ImGui.GetContentRegionAvail().X * .28f, -60 * UiStyle.Scale));
+            UiNavigation.Initial(ref _initialFocus); UiNavigation.Region(KeyboardKey.F2);
+            for (int i = 0; i < _data.Categories.Count; i++)
             {
-                for (int i = 0; i < _data.Categories.Count; i++)
-                {
-                    var category = _data.Categories[i];
-                    string tabLabel = $"{category.Name}";
-
-                    if (ImGui.BeginTabItem(tabLabel))
-                    {
-                        _selectedTab = i;
-                        RenderCategory(category);
-                        ImGui.EndTabItem();
-                    }
-                }
-                ImGui.EndTabBar();
+                var category = _data.Categories[i];
+                if (UiIcons.Button(CategoryIcon(i), category.Name, $"category-{i}", new(-1, 0), selected: i == SelectedCategory)) SelectedCategory = i;
             }
-
-            // Close button
-            ImGui.Separator();
-            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.DiscoveryLog)}", new Vector2(-1, 0)))
+            ImGui.EndChild(); ImGui.SameLine();
+            ImGui.BeginChild("discovery-entries", new Vector2(0, -60 * UiStyle.Scale));
+            UiNavigation.ScrollRegion(KeyboardKey.F3);
+            if (_data.Categories.Count > 0)
             {
-                shouldClose = true;
+                SelectedCategory = Math.Clamp(SelectedCategory, 0, _data.Categories.Count - 1);
+                var category = _data.Categories[SelectedCategory];
+                UiIcons.LabelColored(CategoryIcon(SelectedCategory), HudWidgets.Heading, category.CountDisplay);
+                foreach (var item in category.Discovered) UiText.Wrapped(item);
+                if (category.RemainingCount > 0) UiText.Disabled($"{category.RemainingCount} undiscovered");
+                if (category.Discovered.Count == 0 && category.RemainingCount == 0) UiText.Disabled("Nothing to discover in this category.");
             }
+            ImGui.EndChild();
+            if (UiIcons.Button("back", "Close [Esc]", "close", new(-1, 0)) || UiNavigation.Key(ImGuiKey.Escape)) open = false;
         }
-        ImGui.End();
-
-        if (!open) shouldClose = true;
-        if (shouldClose) IsOpen = false;
-
-        return shouldClose;
+        ImGui.End(); IsOpen = open; return !open;
     }
-
-    private void RenderCategory(DiscoveryLogCategoryDto category)
-    {
-        // Category count header
-        UiText.Colored(new Vector4(0.7f, 0.8f, 0.9f, 1f), category.CountDisplay);
-        ImGui.Separator();
-
-        // Scrollable content area
-        ImGui.BeginChild("CategoryContent", new Vector2(0, -35), ImGuiChildFlags.Borders);
-
-        // Discovered items
-        foreach (var item in category.Discovered)
-        {
-            UiText.Colored(new Vector4(0.9f, 0.9f, 0.8f, 1f), item);
-        }
-
-        // Undiscovered placeholders
-        if (category.RemainingCount > 0)
-        {
-            ImGui.Spacing();
-
-            // Show up to 20 placeholders to avoid visual overload
-            int placeholdersToShow = Math.Min(category.RemainingCount, 20);
-
-            for (int i = 0; i < placeholdersToShow; i++)
-            {
-                UiText.Disabled("???");
-            }
-
-            // If there are more than we're showing, indicate that
-            if (category.RemainingCount > placeholdersToShow)
-            {
-                UiText.Disabled($"... and {category.RemainingCount - placeholdersToShow} more");
-            }
-        }
-
-        // If nothing discovered and nothing remaining, show empty message
-        if (category.Discovered.Count == 0 && category.RemainingCount == 0)
-        {
-            UiText.Disabled("Nothing to discover in this category.");
-        }
-
-        ImGui.EndChild();
-    }
+    public static string CategoryIcon(int index) => index switch { 0 => "location", 1 => "beasts", 2 => "food", 3 => "medicine", _ => "project" };
 }

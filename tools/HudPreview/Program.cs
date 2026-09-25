@@ -22,13 +22,15 @@ Raylib.InitWindow(1600, 900, "HUD Preview");
 Raylib.SetTargetFPS(60);
 rlImGui.Setup(true);
 unsafe { ImGui.GetIO().NativePtr->IniFilename = null; } // Preview must not rewrite the player's UI settings.
-ImGui.GetIO().FontGlobalScale = 1.25f;
+UiStyle.Initialize(new UiSettings());
 TileRenderer.LoadSprites();
 UiIcons.Load();
 var ctx = GameContext.CreateNewGame(seed: 1234);
 var hud = new HudController();
 var world = new WorldRenderer(hud.State);
 world.RecenterOnPlayer(ctx);
+if (!args.Contains("--phase5-only"))
+{
 for (int scenario = 0; scenario < 8; scenario++)
 {
     if (scenario == 1)
@@ -41,7 +43,13 @@ for (int scenario = 0; scenario < 8; scenario++)
     if (scenario == 2)
     {
         hud.State.ClearSelection();
-        ctx.player.Body.BodyTemperature = 96.5;
+        ctx.player.Body.BodyTemperature = 94.5;
+        ctx.player.Body.Energy = 50;
+        ctx.player.Body.Hydration = 100;
+        ctx.player.Body.CalorieStore = 100;
+        ctx.player.Body.Parts.Single(p => p.Name == "Left Arm").Skin.Condition = .7;
+        ctx.player.Body.Parts.Single(p => p.Name == "Right Leg").Skin.Condition = .3;
+        hud.State.ShowFeedback("Cannot move there.");
         ctx.player.EffectRegistry.AddEffect(EffectFactory.Bleeding(.3));
         ctx.player.EffectRegistry.AddEffect(EffectFactory.Pain(.5));
         ctx.player.EffectRegistry.AddEffect(EffectFactory.Fear(.7));
@@ -54,11 +62,11 @@ for (int scenario = 0; scenario < 8; scenario++)
         hud.State.HistoryExpanded = true;
     }
     if (scenario == 3) { Raylib.SetWindowSize(1280, 720); hud.State.HistoryExpanded = false; }
-    if (scenario == 4) { ImGui.GetIO().FontGlobalScale = 1.5f; }
+    if (scenario == 4) { UiStyle.Apply(new UiSettings(UiScale.Large)); }
     if (scenario == 5)
     {
         ctx = GameContext.CreateNewGame(seed: 1234);
-        ImGui.GetIO().FontGlobalScale = 1.25f;
+        UiStyle.Apply(new UiSettings());
         Raylib.SetWindowSize(1600, 900);
         ctx.CurrentLocation.AddFeature(new CuringRackFeature());
         if (ctx.CurrentLocation.GetFeature<ForageFeature>() is { } oldForage) ctx.CurrentLocation.RemoveFeature(oldForage);
@@ -102,6 +110,31 @@ for (int scenario = 0; scenario < 8; scenario++)
     var screenshot = Raylib.LoadImageFromScreen();
     Raylib.ExportImage(screenshot, Path.Combine(output, $"hud-{scenario}.png"));
     Raylib.UnloadImage(screenshot);
+    if (scenario is 0 or 1 or 2 or 5 or 6)
+    {
+        foreach (var preset in Enum.GetValues<UiScale>())
+        {
+            Raylib.SetWindowSize(1280, 720);
+            UiStyle.Apply(new UiSettings(preset));
+            for (int frame = 0; frame < 15; frame++)
+            {
+                hud.Update(ctx, world, 1f / 60);
+                world.Update(ctx, 1f / 60);
+                Raylib.BeginDrawing();
+                Raylib.ClearBackground(new Color(20,25,30,255));
+                world.Render(ctx);
+                rlImGui.Begin();
+                hud.Render(ctx, world, scenario != 6, scenario == 6);
+                rlImGui.End();
+                Raylib.EndDrawing();
+            }
+            var small = Raylib.LoadImageFromScreen();
+            Raylib.ExportImage(small, Path.Combine(output, $"hud-{scenario}-720-{preset}.png"));
+            Raylib.UnloadImage(small);
+        }
+        Raylib.SetWindowSize(1600, 900);
+        UiStyle.Apply(new UiSettings());
+    }
 }
 world.Dispose();
 ctx.ActiveCombat = null;
@@ -116,6 +149,18 @@ using (var ui = new DesktopUi(ctx, scheduler))
     Raylib.ExportImage(screenshot, Path.Combine(output, "hud-7-modal.png"));
     Raylib.UnloadImage(screenshot);
 }
+foreach (var scale in Enum.GetValues<UiScale>())
+{
+    UiStyle.Apply(new UiSettings(scale));
+    using var settingsUi = new DesktopUi(ctx, new FrameScheduler());
+    _ = settingsUi.WaitForPlayerAction();
+    UiSettingsDialog.Requested = true;
+    for (int frame = 0; frame < 15; frame++) settingsUi.Frame(ctx, 1f/60);
+    var capture = Raylib.LoadImageFromScreen();
+    Raylib.ExportImage(capture, Path.Combine(output, $"settings-{scale}.png"));
+    Raylib.UnloadImage(capture);
+}
+UiStyle.Apply(new UiSettings());
 var predatorScheduler = new FrameScheduler();
 using (var ui = new DesktopUi(ctx, predatorScheduler))
 {
@@ -147,6 +192,71 @@ foreach (var title in new[] { "Rustle at Camp Edge", "Wolves Smell Blood" })
     var screenshot = Raylib.LoadImageFromScreen();
     Raylib.ExportImage(screenshot, Path.Combine(output, title == "Wolves Smell Blood" ? "authored-carcass.png" : "authored-camp.png"));
     Raylib.UnloadImage(screenshot);
+}
+// Phase 3: production everyday overlays at two practical sizes.
+ctx = GameContext.CreateNewGame(42);
+ctx.Inventory.Add(Resource.CookedMeat, 1);
+ctx.Inventory.Add(Resource.Water, 1);
+ctx.Inventory.Add(Resource.Stone, 1);
+var cache = new Inventory(); cache.Add(Resource.Stick, 1);
+foreach (var (width, height, preset) in new[] { (1600, 900, UiScale.Comfortable), (1280, 720, UiScale.Large) })
+{
+    Raylib.SetWindowSize(width, height);
+    UiStyle.Apply(new UiSettings(preset));
+    foreach (string screen in new[] { "food", "fire", "inventory", "crafting", "transfer", "amount", "confirm" })
+    {
+        using var ui = new DesktopUi(ctx, new FrameScheduler());
+        ctx.Ui = ui;
+        _ = screen switch
+        {
+            "food" => (Task)ui.ShowFood(), "fire" => ui.ShowFire(null),
+            "inventory" => ui.ShowInventory(), "crafting" => ui.ShowCrafting(),
+            "transfer" => ui.ShowTransfer(cache, "Camp cache"),
+            "amount" => ui.ReadInt("How many minutes would you like to rest?", 1, 480, true),
+            _ => ui.Confirm("Set up camp here? This takes 30 minutes.")
+        };
+        for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f / 60);
+        var capture = Raylib.LoadImageFromScreen();
+        Raylib.ExportImage(capture, Path.Combine(output, $"phase3-{screen}-{width}.png"));
+        Raylib.UnloadImage(capture);
+    }
+}
+}
+// Phase 5: remaining production overlays; fixtures do not advance the world.
+ctx = GameContext.CreateNewGame(42);
+ctx.NPCs.Clear();
+ctx.NPCs.Add(new text_survival.Actors.NPC("Rowan", new text_survival.Actors.Personality(), ctx.CurrentLocation, ctx.Map!));
+ctx.NPCs.Add(new text_survival.Actors.NPC("Ash", new text_survival.Actors.Personality(), ctx.CurrentLocation, ctx.Map!));
+foreach (var (width, height, preset) in new[] { (1600, 900, UiScale.Comfortable), (1280, 720, UiScale.Large) })
+{
+    Raylib.SetWindowSize(width, height); UiStyle.Apply(new UiSettings(preset));
+    foreach (string screen in new[] { "people", "discoveries", "event", "result", "amount" })
+    {
+        using var ui = new DesktopUi(ctx, new FrameScheduler()); ctx.Ui = ui;
+        _ = screen switch
+        {
+            "people" => (Task)ui.ShowNPCs(), "discoveries" => ui.ShowDiscoveryLog(),
+            "amount" => ui.ReadInt("Choose a duration", 1, 480, true),
+            "event" => ui.ShowEventChoices(new("A crossing", "Choose how to approach the crossing.", [new("careful", "Move carefully", "Take time to find secure footing.", true, "10 minutes"), new("quick", "Hurry across", "Risk injury on uneven ground.", true, "5 minutes")])),
+            _ => ui.ShowWorkResult(new("Gathering", "You return to camp.", ["Three sticks"], ["Snow drifts around the trees."], ["Your hands are getting cold."]))
+        };
+        for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f / 60);
+        var capture = Raylib.LoadImageFromScreen(); Raylib.ExportImage(capture, Path.Combine(output, $"phase5-{screen}-{width}.png")); Raylib.UnloadImage(capture);
+    }
+    ctx.Log.Add("You gathered sticks for the fire.", LogLevel.Success, "9:05");
+    ctx.Log.Add("Your hands are getting cold.", LogLevel.Warning, "9:06");
+    ctx.Log.Add("You found a sheltered clearing.", LogLevel.Discovery, "9:07");
+    var historyHud = new HudController(); historyHud.State.HistoryExpanded = true;
+    using var historyWorld = new WorldRenderer(historyHud.State);
+    text_survival.Desktop.Input.UiInput.Context = text_survival.Desktop.Input.InputContext.Exploration;
+    for (int frame = 0; frame < 15; frame++)
+    {
+        historyHud.Update(ctx, historyWorld, 1f / 60); historyWorld.Update(ctx, 1f / 60);
+        Raylib.BeginDrawing(); Raylib.ClearBackground(new Color(20, 25, 30, 255)); historyWorld.Render(ctx);
+        rlImGui.Begin(); historyHud.Render(ctx, historyWorld, true, false); rlImGui.End(); Raylib.EndDrawing();
+    }
+    var historyCapture = Raylib.LoadImageFromScreen(); Raylib.ExportImage(historyCapture, Path.Combine(output, $"phase5-history-{width}.png")); Raylib.UnloadImage(historyCapture);
+
 }
 UiIcons.Unload();
 TerrainRenderer.Unload();

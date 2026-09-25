@@ -6,6 +6,22 @@ namespace text_survival.Desktop.UI;
 public sealed class HudState
 {
     public (int x, int y)? SelectedTile { get; private set; }
+    public CombatUiState Combat { get; } = new();
+    public bool Inspecting { get; private set; }
+    public bool ConfirmTravel { get; set; }
+    public void BeginInspection(GameContext ctx)
+    {
+        if (ctx.Map is not { } map) return;
+        Inspecting = true;
+        SelectedTile = (map.CurrentPosition.X, map.CurrentPosition.Y);
+    }
+    public void StepInspection(GameContext ctx, int dx, int dy)
+    {
+        if (SelectedTile is not { } p || ctx.Map is not { } map) return;
+        int x = p.x + dx, y = p.y + dy;
+        if (map.IsValidPosition(x, y) && map.GetVisibility(x, y) != TileVisibility.Unexplored)
+            SelectedTile = (x, y);
+    }
     public bool HistoryExpanded { get; set; }
     public string? Feedback { get; private set; }
     private float _feedbackSeconds;
@@ -18,10 +34,10 @@ public sealed class HudState
         if (map == null || !map.IsValidPosition(x, y)) return;
         var location = map.GetLocationAt(x, y);
         if (location == null || map.GetVisibility(x, y) == TileVisibility.Unexplored) return;
-        SelectedTile = map.CurrentPosition.X == x && map.CurrentPosition.Y == y ? null : (x, y);
+        SelectedTile = !Inspecting && map.CurrentPosition.X == x && map.CurrentPosition.Y == y ? null : (x, y);
     }
 
-    public void ClearSelection() => SelectedTile = null;
+    public void ClearSelection() { SelectedTile = null; Inspecting = false; ConfirmTravel = false; }
     public void ShowFeedback(string message) { Feedback = message; _feedbackSeconds = 4; }
 
     public void Update(GameContext ctx, float dt)

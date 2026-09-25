@@ -188,7 +188,7 @@ public static class CombatOrchestrator
         if (input.MoveTarget != null)
             actionResult = ExecuteMoveTo(scenario, playerUnit, input.MoveTarget.Value);
         else if (input.Action != null)
-            actionResult = await ExecutePlayerChoice(scenario, playerUnit, input.Action.Value, ctx);
+            actionResult = await ExecutePlayerChoice(scenario, playerUnit, input.Action.Value, ctx, input.Target);
         else
             throw new InvalidOperationException("Combat input carried neither an action nor a move target.");
 
@@ -254,17 +254,24 @@ public static class CombatOrchestrator
 
     #region Player Actions
 
-    private static async Task<PlayerActionResult> ExecutePlayerChoice(CombatScenario scenario, Unit playerUnit, CombatActions action, GameContext ctx)
+    private static async Task<PlayerActionResult> ExecutePlayerChoice(CombatScenario scenario, Unit playerUnit, CombatActions action, GameContext ctx, Unit? target = null)
     {
-        var nearest = scenario.GetNearestEnemy(playerUnit);
+        if (target != null && (!scenario.Units.Contains(target) || !target.actor.IsAlive || !playerUnit.enemies.Contains(target)))
+            return new PlayerActionResult(false, "That target is no longer available.");
+        var nearest = target ?? scenario.GetNearestEnemy(playerUnit);
         if (nearest == null) return new PlayerActionResult(false, null);
+
+        if (CombatActionRules.Reason(ctx, nearest, action) is { } reason)
+            return new PlayerActionResult(false, reason);
 
         if (action is CombatActions.CallHelp or CombatActions.CallRetreat)
             return new PlayerActionResult(CompanionCombat.Signal(scenario, playerUnit.actor, action == CombatActions.CallRetreat, ctx.TotalMinutesElapsed),
                 action == CombatActions.CallRetreat ? "You call for everyone to retreat!" : "You call for help!");
 
         if (action == CombatActions.Wait)
-            return await ExecuteWait(scenario, playerUnit, ctx);
+            return playerUnit.enemies.Any(e => e.Awareness == AwarenessState.Engaged)
+                ? new PlayerActionResult(true, "You wait.")
+                : await ExecuteWait(scenario, playerUnit, ctx);
 
         return action switch
         {

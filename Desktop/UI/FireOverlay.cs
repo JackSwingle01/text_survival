@@ -1,5 +1,6 @@
 using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
+using Raylib_cs;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Actions.Handlers;
@@ -11,10 +12,18 @@ namespace text_survival.Desktop.UI;
 
 public class FireOverlay
 {
-    public bool IsOpen { get; set; }
+    private bool _isOpen;
+    private bool _initialFocus = true;
+    public bool IsOpen
+    {
+        get => _isOpen;
+        set { if (value && !_isOpen) _initialFocus = true; _isOpen = value; }
+    }
 
     // Starting mode state
     private int _selectedToolIndex = 0;
+    private Gear? _tool;
+    private Resource? _tinder;
     private int _selectedTinderIndex = 0;
     private string? _lastAttemptMessage;
     private bool _lastAttemptSuccess;
@@ -55,6 +64,10 @@ public class FireOverlay
         bool open = IsOpen;
         if (ImGui.Begin("Fire Management", ref open, ImGuiWindowFlags.NoCollapse))
         {
+            UiText.Wrapped("F2: tabs · F3: tools / fuel · F4: tinder · Tab / Enter: choose");
+            UiText.Colored(UiStyle.Supporting, _tendMessage ?? _lastAttemptMessage ?? " ");
+            UiNavigation.Initial(ref _initialFocus);
+            UiNavigation.Region(KeyboardKey.F2);
             // Mode tabs
             if (ImGui.BeginTabBar("FireTabs"))
             {
@@ -78,6 +91,7 @@ public class FireOverlay
 
                 ImGui.EndTabBar();
             }
+            if (UiIcons.Button("back", "Done [Esc]", "done", new Vector2(-1, 0))) IsOpen = false;
         }
         ImGui.End();
 
@@ -144,15 +158,18 @@ public class FireOverlay
             return null;
         }
 
+        _selectedToolIndex = Math.Max(0, materials.Tools.FindIndex(t => t == _tool));
+        _selectedTinderIndex = Math.Max(0, materials.Tinders.FindIndex(t => t == _tinder));
         // Tool selection
         UiIcons.Label("fire", "Fire-Starting Tool:");
+        UiNavigation.Region(KeyboardKey.F3);
         for (int i = 0; i < materials.Tools.Count; i++)
         {
             var tool = materials.Tools[i];
             double baseChance = FireHandler.GetToolBaseChance(tool);
             string label = $"{tool.Name} (base: {baseChance:P0})";
 
-            if (ImGui.RadioButton(label, ref _selectedToolIndex, i))
+            if (ImGui.RadioButton(label + $"###tool-{tool.InstanceId}", ref _selectedToolIndex, i))
             {
                 // Selection changed
             }
@@ -164,6 +181,8 @@ public class FireOverlay
 
         // Tinder selection
         UiIcons.Label("tinder", "Tinder:");
+        _tool = materials.Tools[_selectedToolIndex];
+        UiNavigation.Region(KeyboardKey.F4);
         for (int i = 0; i < materials.Tinders.Count; i++)
         {
             var tinder = materials.Tinders[i];
@@ -182,7 +201,7 @@ public class FireOverlay
 
             string label = $"{tinderName} x{count} (+{bonus:P0})";
 
-            if (ImGui.RadioButton(label, ref _selectedTinderIndex, i))
+            if (ImGui.RadioButton(label + $"###tinder-{tinder}", ref _selectedTinderIndex, i))
             {
                 // Selection changed
             }
@@ -192,6 +211,7 @@ public class FireOverlay
         ImGui.Separator();
         ImGui.Spacing();
 
+        _tinder = materials.Tinders[_selectedTinderIndex];
         // Kindling status
         int kindlingCount = inv.Count(Resource.Stick);
         UiIcons.Label("sticks", $"Kindling: {kindlingCount} sticks");
@@ -255,19 +275,6 @@ public class FireOverlay
         }
 
         // Show last attempt message
-        if (_lastAttemptMessage != null)
-        {
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            Vector4 msgColor = _lastAttemptSuccess
-                ? new Vector4(0.4f, 0.9f, 0.4f, 1f)
-                : new Vector4(1f, 0.5f, 0.3f, 1f);
-
-            UiText.Colored(msgColor, _lastAttemptMessage);
-        }
-
         return null;
     }
 
@@ -338,6 +345,7 @@ public class FireOverlay
         UiIcons.Label("fuel", "Add Fuel:");
 
         var fuels = GetAvailableFuels(inv);
+        UiNavigation.Region(KeyboardKey.F3);
         foreach (var (resource, fuelType, count, weight) in fuels)
         {
             bool canAdd = fire.CanAddFuel(fuelType);
@@ -347,28 +355,10 @@ public class FireOverlay
             string buttonLabel = $"{fuelName} x{count} ({weight:F1}kg)";
             string icon = FuelIcon(resource);
 
-            if (!canAdd)
-            {
-                ImGui.BeginDisabled();
-                UiIcons.Button(icon, buttonLabel, $"fuel_{resource}", new Vector2(-1, 0));
-                ImGui.EndDisabled();
+            if (UiControls.Button(new($"fuel_{resource}", buttonLabel, icon,
+                DisabledReason: canAdd ? null : $"Fire needs {props.MinFireTemperature:F0}°F to add this fuel."), size: new Vector2(-1, 0)))
+                return new FireOverlayResult { Action = FireAction.AddFuel, FuelResource = resource };
 
-                if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                {
-                    UiText.Tooltip($"Fire needs {props.MinFireTemperature:F0}°F to add this fuel");
-                }
-            }
-            else
-            {
-                if (UiIcons.Button(icon, buttonLabel, $"fuel_{resource}", new Vector2(-1, 0)))
-                {
-                    return new FireOverlayResult
-                    {
-                        Action = FireAction.AddFuel,
-                        FuelResource = resource
-                    };
-                }
-            }
         }
 
         if (fuels.Count == 0)
@@ -412,14 +402,6 @@ public class FireOverlay
         }
 
         // Show tending message
-        if (_tendMessage != null)
-        {
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-            UiText.Colored(new Vector4(0.5f, 0.8f, 1f, 1f), _tendMessage);
-        }
-
         return null;
     }
 

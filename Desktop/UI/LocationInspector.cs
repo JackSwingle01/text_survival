@@ -13,69 +13,80 @@ namespace text_survival.Desktop.UI;
 /// <summary>Inspects a live location. Selection belongs to HudState, never to this renderer.</summary>
 public sealed class LocationInspector
 {
+    private readonly HudWorkState _work = new();
+    private bool _travelReleased, _trackDetails;
     public PlayerAction? Render(GameContext ctx, HudRect rect, HudState state, IReadOnlyList<HudAction> actions, bool interactive)
     {
         PlayerAction? result = null;
+        var localWork = _work.Observe(ctx.CurrentLocation, actions);
         HudWidgets.Begin("##LocationInspector", rect);
+        if (state.ConfirmTravel && GameGui.Capture == null)
+        {
+            ImGuiNET.ImGui.OpenPopup("Travel confirmation");
+            state.ConfirmTravel = false;
+            _travelReleased = false;
+        }
+        if (GameGui.Capture == null && ImGuiNET.ImGui.BeginPopupModal("Travel confirmation", ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            bool justReleased = !_travelReleased && !ImGuiNET.ImGui.IsKeyDown(ImGuiKey.Enter);
+            _travelReleased |= justReleased;
+            var travel = state.SelectedTile is { } destination ? TravelInspection.Build(ctx, destination) : new TravelInspection("No destination selected.", []);
+            UiText.Wrapped(state.SelectedTile is { } selectedTile ? ctx.Map?.GetLocationAt(selectedTile.x, selectedTile.y)?.Name ?? "Destination" : "Destination");
+            if (travel.Reason != null) UiText.Wrapped(travel.Reason);
+            foreach (var choice in travel.Actions)
+                if (HudWidgets.Action(choice, interactive && _travelReleased)) { result = choice.Payload; state.ClearSelection(); ImGuiNET.ImGui.CloseCurrentPopup(); }
+            if (justReleased) ImGuiNET.ImGui.SetKeyboardFocusHere();
+            if (UiControls.Button(new("cancel-travel", "Cancel [Esc]", "back"), interactive && _travelReleased, new(-1, 0)) || ImGuiNET.ImGui.IsKeyPressed(ImGuiKey.Escape, false))
+                ImGuiNET.ImGui.CloseCurrentPopup();
+            ImGuiNET.ImGui.SetItemDefaultFocus();
+            ImGuiNET.ImGui.EndPopup();
+        }
+        // These slots describe the player's location even while inspecting a destination.
+        UiIcons.LabelColored(state.Inspecting ? "inspect" : "location", HudWidgets.Heading, state.Inspecting ? "INSPECTING · No time passes" : "AT YOUR LOCATION");
+        UiText.Text(ctx.CurrentLocation.Name);
+        ImGui.Separator();
+        foreach (var action in HudActions.CoreSlots(actions))
+            if (HudWidgets.Action(action, interactive)) result = action.Payload;
+        ImGui.Separator();
+        ImGui.BeginChild("location-content", new Vector2(0, 0));
         var selected = state.SelectedTile;
         var location = selected is { } tile ? ctx.Map?.GetLocationAt(tile.x, tile.y) : ctx.CurrentLocation;
-        if (location == null) { ImGui.End(); return null; }
-        bool destination = selected.HasValue;
-        UiText.Colored(HudWidgets.Heading, destination ? "SELECTED DESTINATION" : "YOU ARE HERE");
-        bool concealed = ctx.Map?.IsCaveConcealed(location) == true;
-        UiText.Wrapped(concealed ? "Mountain" : location.Name);
-        UiText.Disabled(concealed ? "Mountain" : location.Terrain.ToString());
-        ImGui.Separator();
-        float footer = ImGui.GetFrameHeight() + ImGui.GetTextLineHeightWithSpacing() * 2 + 20;
-        ImGui.BeginChild("location-content", new Vector2(0, Math.Max(30, ImGui.GetContentRegionAvail().Y - footer)));
-        ImGui.PushTextWrapPos(0);
-        if (destination)
+        if (location != null)
         {
-            if (!concealed && location.Visibility == TileVisibility.Visible)
+            bool destination = selected.HasValue;
+            bool concealed = ctx.Map?.IsCaveConcealed(location) == true;
+            UiIcons.LabelColored("location", HudWidgets.Heading, destination ? "DESTINATION" : "LOCAL DETAILS & WORK");
+            ImGui.PushTextWrapPos(0);
+            if (destination)
             {
+                UiText.Wrapped(concealed ? "Mountain" : location.Name);
+                var travel = TravelInspection.Build(ctx, selected!.Value);
+                if (travel.Reason != null) UiText.Wrapped(travel.Reason);
+                foreach (var action in travel.Actions)
+                    if (HudWidgets.Action(action, interactive)) result = action.Payload;
+                if (UiControls.Button(new("current-location", "Current location [Esc]", "back"), interactive, new(-1, 0))) state.ClearSelection();
+                if (!concealed && location.Visibility == TileVisibility.Visible)
+                {
+                    RenderGround(location);
+                    RenderFeatures(ctx, location);
+                    RenderTracks(ctx, selected!.Value);
+                    RenderNPCs(ctx, location, false);
+                }
+            }
+            else
+            {
+                // Actions precede variable feature descriptions, with stable domain identities.
+                foreach (var action in localWork)
+                    if (HudWidgets.Action(action, interactive)) result = action.Payload;
+                HudWidgets.Section("Conditions here");
                 RenderGround(location);
                 RenderFeatures(ctx, location);
-                RenderTracks(ctx, selected!.Value);
-                RenderNPCs(ctx, location, false);
+                if (ctx.Map is { } map) RenderTracks(ctx, (map.CurrentPosition.X, map.CurrentPosition.Y));
+                RenderNPCs(ctx, location, true);
             }
-            else UiText.Disabled("Explored · outside your sight");
-            HudWidgets.Section("Travel");
-            var travel = TravelInspection.Build(ctx, selected!.Value);
-            if (travel.Reason != null) UiText.Wrapped(travel.Reason);
-            foreach (var action in travel.Actions)
-                if (HudWidgets.Action(action, interactive)) result = action.Payload;
-            ImGui.BeginDisabled(!interactive);
-            if (ImGui.Button("Current location [Esc]", new Vector2(-1, 0))) state.ClearSelection();
-            ImGui.EndDisabled();
+            ImGui.PopTextWrapPos();
         }
-        else
-        {
-            RenderGround(location);
-            foreach (var group in new[] { HudActionGroup.Personal, HudActionGroup.Fire, HudActionGroup.Shelter, HudActionGroup.Resources, HudActionGroup.Storage, HudActionGroup.People, HudActionGroup.Other })
-            {
-                var grouped = actions.Where(a => a.Group == group).ToList();
-                bool hasResourceInfo = group == HudActionGroup.Resources &&
-                    (location.Features.Any(f => f is ForageFeature or SmallGameFeature or WaterFeature or SnareLineFeature) ||
-                     (ctx.Map is { } currentMap && currentMap.Tracks.At(currentMap.CurrentPosition).Count > 0));
-                if (grouped.Count == 0 && !hasResourceInfo) continue;
-                HudWidgets.Section(group switch {
-                    HudActionGroup.Personal => "Personal", HudActionGroup.Shelter => "Shelter & rest", HudActionGroup.Resources => "Resources & work",
-                    HudActionGroup.Storage => "Storage & processing", HudActionGroup.Other => "Other work", _ => group.ToString() });
-                RenderFeatures(ctx, location, group);
-                if (group == HudActionGroup.Resources && ctx.Map is { } map)
-                    RenderTracks(ctx, (map.CurrentPosition.X, map.CurrentPosition.Y));
-                if (group == HudActionGroup.People) RenderNPCs(ctx, location, true);
-                foreach (var action in grouped)
-                    if (HudWidgets.Action(action, interactive)) result = action.Payload;
-            }
-        }
-        ImGui.PopTextWrapPos();
         ImGui.EndChild();
-        ImGui.Separator();
-        UiText.Disabled("AT YOUR LOCATION");
-        UiText.Text(ctx.CurrentLocation.Name);
-        var wait = actions.First(a => a.Group == HudActionGroup.Wait);
-        if (HudWidgets.Action(wait, interactive)) result = wait.Payload;
         ImGui.End();
         return result;
     }
@@ -132,11 +143,11 @@ public sealed class LocationInspector
                 // told the player their fire was minutes from out with an hour of wood on it.
                 int minutes = (int)((fire.UnburnedMassKg > 0.1 ? fire.TotalHoursRemaining : fire.BurningHoursRemaining) * 60);
                 Vector4 color = minutes <= 5
-                    ? new Vector4(1f, 0.3f, 0.3f, 1f)
+                    ? UiStyle.Danger
                     : minutes <= 15
-                        ? new Vector4(1f, 0.7f, 0.3f, 1f)
+                        ? UiStyle.Caution
                         : new Vector4(1f, 0.6f, 0.2f, 1f);
-                UiText.Colored(color, $"Fire: {phase} ({HudWidgets.Duration(minutes)})");
+                UiIcons.LabelColored(minutes <= 15 ? "warning" : "fire", color, $"Fire: {phase} ({HudWidgets.Duration(minutes)})");
                 RenderFuelBar(fire, color);
             }
             else if (fire.HasEmbers)
@@ -153,7 +164,7 @@ public sealed class LocationInspector
             hasFeatures = true;
             int insulation = (int)Math.Round(shelter.TemperatureInsulation * 100);
             int wind = (int)Math.Round(shelter.WindCoverage * 100);
-            UiText.Wrapped($"Shelter: {insulation}% insulation, {wind}% wind block");
+            UiIcons.LabelWrapped("shelter", UiStyle.Text, $"Shelter: {insulation}% insulation, {wind}% wind block");
         }
 
         // Forage
@@ -208,11 +219,11 @@ public sealed class LocationInspector
             hasFeatures = true;
             if (traps.HasCatchWaiting)
             {
-                UiText.Colored(new Vector4(0.4f, 0.9f, 0.4f, 1f), $"Traps: {traps.CatchCount} catch ready!");
+                UiIcons.LabelColored("trap", UiStyle.Success, $"Traps: {traps.CatchCount} catch ready!");
             }
             else
             {
-                UiText.Text($"Traps: {traps.SnareCount} active");
+                UiIcons.LabelWrapped("trap", UiStyle.Text, $"Traps: {traps.SnareCount} active");
             }
         }
 
@@ -223,11 +234,11 @@ public sealed class LocationInspector
             hasFeatures = true;
             if (rack.HasReadyItems)
             {
-                UiText.Colored(new Vector4(0.4f, 0.9f, 0.4f, 1f), $"Curing rack: items ready!");
+                UiIcons.LabelColored("curing", UiStyle.Success, $"Curing rack: items ready!");
             }
             else
             {
-                UiText.Text($"Curing rack: {rack.ItemCount} curing");
+                UiIcons.LabelWrapped("curing", UiStyle.Text, $"Curing rack: {rack.ItemCount} curing");
             }
         }
 
@@ -237,7 +248,7 @@ public sealed class LocationInspector
         {
             hasFeatures = true;
             string decay = carcass.GetDecayDescription();
-            UiText.Text($"Carcass: {carcass.AnimalName} ({decay})");
+            UiIcons.LabelWrapped("decay", UiStyle.Text, $"Carcass: {carcass.AnimalName} ({decay})");
         }
 
         // Cache/Storage
@@ -261,7 +272,7 @@ public sealed class LocationInspector
         if (bedding != null && (group == null || group == HudActionGroup.Shelter))
         {
             hasFeatures = true;
-            UiText.Text($"Bedding: {bedding.Quality} quality");
+            UiIcons.LabelWrapped("bedding", UiStyle.Text, $"Bedding: {bedding.Quality} quality");
         }
 
         if (!hasFeatures && group == null)
@@ -276,7 +287,7 @@ public sealed class LocationInspector
     /// situations, and the player should be able to tell them apart before deciding
     /// whether to follow.
     /// </summary>
-    private static void RenderTracks(GameContext ctx, (int x, int y) tile)
+    private void RenderTracks(GameContext ctx, (int x, int y) tile)
     {
         if (ctx.Map == null) return;
 
@@ -286,6 +297,7 @@ public sealed class LocationInspector
 
         ImGui.Spacing();
 
+        if (UiIcons.Button("inspect", "Track details", "track-details")) _trackDetails = !_trackDetails;
         foreach (var (track, freshness) in tracks)
         {
             int count = ctx.Map.Tracks.TrafficOf(position, track.Maker);
@@ -317,9 +329,13 @@ public sealed class LocationInspector
 
             string tally = count > 1 ? $" x{count}" : "";
             string direction = DirectionSummary(track, freshness);
-            UiText.Colored(color, $"{what}{tally} - {age}, {direction}");
+            UiIcons.LabelWrapped("tracks", color, $"{what}{tally} - {age}, {direction}");
 
-            if (ImGui.IsItemHovered())
+            if (_trackDetails)
+            {
+                UiText.Wrapped($"Net movement · N/S traffic: {Readable(track.NorthSouthTraffic, freshness)} · E/W traffic: {Readable(track.EastWestTraffic, freshness)}");
+            }
+            else if (ImGui.IsItemHovered())
             {
                 ImGui.BeginTooltip();
                 UiText.Text("Direction is based on net movement");

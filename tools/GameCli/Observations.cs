@@ -90,6 +90,6 @@ public static class Observations
     {
         var combat = ctx.ActiveCombat ?? throw new ArgumentException("No active combat.");
         if (index < 0 || index >= combat.Units.Count) throw new ArgumentException("Unit index is out of range.");
-        return Capture(() => new CombatPanel().Render(ctx, CliUi.Rect, combat.Units[index]));
+        return Capture(() => new CombatPanel().Render(ctx, CliUi.Rect, combat.Units[index], new CombatUiState(), false));
     }
 }

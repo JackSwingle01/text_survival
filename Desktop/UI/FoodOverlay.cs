@@ -1,5 +1,6 @@
 using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
+using Raylib_cs;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Actions.Handlers;
@@ -16,7 +17,13 @@ namespace text_survival.Desktop.UI;
 /// </summary>
 public class FoodOverlay
 {
-    public bool IsOpen { get; set; }
+    private bool _isOpen;
+    private bool _initialFocus = true;
+    public bool IsOpen
+    {
+        get => _isOpen;
+        set { if (value && !_isOpen) _initialFocus = true; _isOpen = value; }
+    }
 
     /// <summary>
     /// Pending cooking/melting action to be processed outside the ImGui frame.
@@ -33,7 +40,7 @@ public class FoodOverlay
     public void Open()
     {
         IsOpen = true;
-        _selectedItem = null;
+
         _lastMessage = null;
         PendingAction = null;
     }
@@ -55,6 +62,7 @@ public class FoodOverlay
         bool open = IsOpen;
         if (ImGui.Begin("Food & Water", ref open, ImGuiWindowFlags.NoCollapse))
         {
+            UiText.Wrapped("F2: items · F3: actions · Tab / arrows: navigate · Enter: activate");
             // Stats bars at top
             RenderStatsBars(ctx);
 
@@ -62,23 +70,15 @@ public class FoodOverlay
             ImGui.Separator();
             ImGui.Spacing();
 
-            // Show message if any
-            if (_lastMessage != null)
-            {
-                Vector4 msgColor = _lastMessageIsWarning
-                    ? new Vector4(1f, 0.6f, 0.3f, 1f)
-                    : new Vector4(0.5f, 0.9f, 0.5f, 1f);
-                UiText.Colored(msgColor, _lastMessage);
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.Spacing();
-            }
+            UiText.Colored(_lastMessageIsWarning ? UiStyle.Caution : UiStyle.Success, _lastMessage ?? " ");
 
             // Main content area - two columns
-            float contentHeight = ImGui.GetContentRegionAvail().Y - 35;
+            float contentHeight = ImGui.GetContentRegionAvail().Y - 60 * UiStyle.Scale;
 
             // Left: Item list
-            ImGui.BeginChild("ItemList", new Vector2(280, contentHeight), ImGuiChildFlags.Borders);
+            ImGui.BeginChild("ItemList", new Vector2(ImGui.GetContentRegionAvail().X * .38f, contentHeight), ImGuiChildFlags.Borders);
+            UiNavigation.Initial(ref _initialFocus);
+            UiNavigation.Region(KeyboardKey.F2);
             RenderItemList(ctx);
             ImGui.EndChild();
 
@@ -86,11 +86,12 @@ public class FoodOverlay
 
             // Right: Details panel
             ImGui.BeginChild("Details", new Vector2(0, contentHeight), ImGuiChildFlags.Borders);
+            UiNavigation.Region(KeyboardKey.F3);
             RenderDetailsPanel(ctx);
             ImGui.EndChild();
 
             // Close button
-            if (ImGui.Button($"Done {HotkeyRegistry.GetTip(HotkeyAction.Cancel)}", new Vector2(-1, 30)))
+            if (UiIcons.Button("back", $"Done {HotkeyRegistry.GetTip(HotkeyAction.Cancel)}", "done", new Vector2(-1, 30)))
             {
                 IsOpen = false;
             }
@@ -144,6 +145,14 @@ public class FoodOverlay
         var consumables = ConsumptionHandler.GetAvailableConsumables(ctx);
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>();
         bool hasActiveFire = fire != null && fire.IsActive;
+        if (_selectedItem is FoodItem.Consumable old)
+        {
+            var current = consumables.FirstOrDefault(c => c.Id == old.Info.Id);
+            _selectedItem = current == null ? null : new FoodItem.Consumable(current);
+        }
+        if (_selectedItem is FoodItem.MeltSnow && !hasActiveFire) _selectedItem = null;
+        _selectedItem ??= consumables.Count > 0 ? new FoodItem.Consumable(consumables[0]) :
+            hasActiveFire ? new FoodItem.MeltSnow() : null;
 
         if (consumables.Count == 0 && !hasActiveFire)
         {
@@ -315,12 +324,12 @@ public class FoodOverlay
         // Action buttons
         if (item.Id == "water")
         {
-            if (ImGui.Button($"Drink ({ConsumptionHandler.DrinkTimeMinutes} min)", new Vector2(-1, 30)))
+            if (UiIcons.Button("water", $"Drink ({ConsumptionHandler.DrinkTimeMinutes} min)", "drink", new Vector2(-1, 30)))
                 Queue(FoodAction.Drink, item.Id, ConsumptionHandler.DrinkTimeMinutes);
         }
         else if (item.Id == "wash_blood")
         {
-            if (ImGui.Button($"Wash ({ConsumptionHandler.WashTimeMinutes} min)", new Vector2(-1, 30)))
+            if (UiIcons.Button("water", $"Wash ({ConsumptionHandler.WashTimeMinutes} min)", "wash", new Vector2(-1, 30)))
                 Queue(FoodAction.Drink, item.Id, ConsumptionHandler.WashTimeMinutes);
         }
         else
@@ -335,7 +344,7 @@ public class FoodOverlay
             }
 
             string eatLabel = isRaw ? "Eat (risky)" : "Eat";
-            if (ImGui.Button($"{eatLabel} ({ConsumptionHandler.EatTimeMinutes} min)", new Vector2(-1, 30)))
+            if (UiIcons.Button("food", $"{eatLabel} ({ConsumptionHandler.EatTimeMinutes} min)", "eat", new Vector2(-1, 30)))
                 Queue(FoodAction.Eat, item.Id, ConsumptionHandler.EatTimeMinutes);
 
             if (isRaw && item.Warning != null)
@@ -359,7 +368,7 @@ public class FoodOverlay
                 ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.5f, 0.3f, 1f));
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.6f, 0.4f, 1f));
 
-                if (ImGui.Button($"Cook ({cookTime} min)", new Vector2(-1, 30)))
+                if (UiIcons.Button("fire", $"Cook ({cookTime} min)", "cook", new Vector2(-1, 30)))
                 {
                     // Store pending action and close overlay
                     PendingAction = new PendingFoodAction
@@ -406,7 +415,7 @@ public class FoodOverlay
         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.5f, 0.6f, 1f));
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.6f, 0.7f, 1f));
 
-        if (ImGui.Button($"Melt ({CookingHandler.MeltSnowTimeMinutes} min)", new Vector2(-1, 30)))
+        if (UiIcons.Button("water", $"Melt ({CookingHandler.MeltSnowTimeMinutes} min)", "melt", new Vector2(-1, 30)))
         {
             // Store pending action and close overlay
             PendingAction = new PendingFoodAction

@@ -1,5 +1,6 @@
 using ImGui = text_survival.Desktop.UI.GameGui;
 using ImGuiNET;
+using Raylib_cs;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Actions.Handlers;
@@ -34,7 +35,13 @@ public abstract record InventoryItem(string Name, double WeightKg)
 /// </summary>
 public class InventoryOverlay
 {
-    public bool IsOpen { get; set; }
+    private bool _isOpen;
+    private bool _initialFocus = true;
+    public bool IsOpen
+    {
+        get => _isOpen;
+        set { if (value && !_isOpen) _initialFocus = true; _isOpen = value; }
+    }
 
     private string _selectedCategory = "All";
     private InventoryItem? _selectedItem;
@@ -67,26 +74,25 @@ public class InventoryOverlay
         {
             var inv = ctx.Inventory;
 
+            UiText.Wrapped("F2: categories · F3: items · F4: actions · Tab / Enter: choose");
             // Header with weight info
             RenderWeightBar(inv);
             ImGui.Separator();
 
             // Category buttons in a row
+            UiNavigation.Initial(ref _initialFocus);
+            UiNavigation.Region(KeyboardKey.F2);
             RenderCategoryButtons(inv);
             ImGui.Separator();
 
-            // Show message if any
-            if (_message != null)
-            {
-                UiText.Colored(new Vector4(0.3f, 1f, 0.5f, 1f), _message);
-                ImGui.Separator();
-            }
+            UiText.Colored(UiStyle.Success, _message ?? " ");
 
             // Main content area - two columns
-            float contentHeight = ImGui.GetContentRegionAvail().Y - 30;
+            float contentHeight = ImGui.GetContentRegionAvail().Y - 60 * UiStyle.Scale;
 
             // Left: Item tiles
-            ImGui.BeginChild("ItemGrid", new Vector2(280, contentHeight), ImGuiChildFlags.Borders);
+            ImGui.BeginChild("ItemGrid", new Vector2(ImGui.GetContentRegionAvail().X * .38f, contentHeight), ImGuiChildFlags.Borders);
+            UiNavigation.Region(KeyboardKey.F3);
             RenderItemGrid(ctx, inv);
             ImGui.EndChild();
 
@@ -94,11 +100,12 @@ public class InventoryOverlay
 
             // Right: Selected item details
             ImGui.BeginChild("ItemDetails", new Vector2(0, contentHeight), ImGuiChildFlags.Borders);
+            UiNavigation.Region(KeyboardKey.F4);
             RenderItemDetails(ctx, inv);
             ImGui.EndChild();
 
             // Close button
-            if (ImGui.Button($"Close {HotkeyRegistry.GetTip(HotkeyAction.Cancel)}", new Vector2(-1, 0)))
+            if (UiIcons.Button("back", $"Close {HotkeyRegistry.GetTip(HotkeyAction.Cancel)}", "close", new Vector2(-1, 0)))
             {
                 shouldClose = true;
             }
@@ -126,11 +133,18 @@ public class InventoryOverlay
 
     private void RenderCategoryButtons(Inventory inv)
     {
-        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6, 3));
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4, 4));
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6, 3) * UiStyle.Scale);
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4, 4) * UiStyle.Scale);
 
+        float usedWidth = 0;
+        float availableWidth = ImGui.GetContentRegionAvail().X;
         foreach (var category in Categories)
         {
+            float width = UiIcons.ButtonWidth(category);
+            if (usedWidth > 0 && usedWidth + 4 * UiStyle.Scale + width <= availableWidth)
+            { ImGui.SameLine(); usedWidth += 4 * UiStyle.Scale; }
+            else usedWidth = 0;
+            usedWidth += width;
             bool selected = _selectedCategory == category;
             int count = GetCategoryItemCount(inv, category);
 
@@ -151,7 +165,6 @@ public class InventoryOverlay
             }
 
             ImGui.PopStyleColor();
-            ImGui.SameLine();
         }
 
         ImGui.PopStyleVar(2);
@@ -184,6 +197,8 @@ public class InventoryOverlay
     private void RenderItemGrid(GameContext ctx, Inventory inv)
     {
         var items = GetItemsForCategory(inv, _selectedCategory);
+
+        _selectedItem = items.FirstOrDefault(i => _selectedItem != null && GetItemId(i) == GetItemId(_selectedItem)) ?? items.FirstOrDefault();
 
         if (items.Count == 0)
         {
@@ -375,10 +390,10 @@ public class InventoryOverlay
     private static string GetItemId(InventoryItem item) => item switch
     {
         InventoryItem.ResourceItem r => $"res_{r.Resource}",
-        InventoryItem.ToolItem t => $"tool_{t.Tool.Name}_{t.Tool.GetHashCode()}",
-        InventoryItem.EquipmentItem e => $"equip_{e.Slot}",
-        InventoryItem.AccessoryItem a => $"acc_{a.Accessory.Name}_{a.Accessory.GetHashCode()}",
-        InventoryItem.WeaponItem w => $"weapon_{w.Weapon.Name}",
+        InventoryItem.ToolItem t => $"gear_{t.Tool.InstanceId}",
+        InventoryItem.EquipmentItem e => $"gear_{e.Equipment.InstanceId}",
+        InventoryItem.AccessoryItem a => $"gear_{a.Accessory.InstanceId}",
+        InventoryItem.WeaponItem w => $"gear_{w.Weapon.InstanceId}",
         _ => "unknown"
     };
 
@@ -483,7 +498,7 @@ public class InventoryOverlay
 
         // Drop action
         ImGui.Spacing();
-        if (ImGui.Button("Drop 1", new Vector2(ImGui.GetContentRegionAvail().X / 2 - 4, 28)))
+        if (UiIcons.Button("drop", "Drop 1", "Drop 1", new Vector2(ImGui.GetContentRegionAvail().X / 2 - 4, 28)))
         {
             inv.Remove(item.Resource, 1);
             _message = $"Dropped 1 {item.Resource.ToDisplayName()}";
@@ -492,7 +507,7 @@ public class InventoryOverlay
                 _selectedItem = null;
         }
         ImGui.SameLine();
-        if (ImGui.Button("Drop All", new Vector2(-1, 28)))
+        if (UiIcons.Button("drop", "Drop All", "Drop All", new Vector2(-1, 28)))
         {
             inv.Remove(item.Resource, item.Count);
             _message = $"Dropped all {item.Resource.ToDisplayName()}";
@@ -563,7 +578,7 @@ public class InventoryOverlay
             // Equip as weapon option
             if (inv.Weapon != tool)
             {
-                if (ImGui.Button("Equip as Weapon", new Vector2(-1, 28)))
+                if (UiIcons.Button("equip", "Equip as Weapon", "Equip as Weapon", new Vector2(-1, 28)))
                 {
                     inv.Tools.Remove(tool);
                     var previous = inv.EquipWeapon(tool);
@@ -578,7 +593,7 @@ public class InventoryOverlay
         ImGui.Separator();
 
         // Drop action
-        if (ImGui.Button("Drop", new Vector2(-1, 28)))
+        if (UiIcons.Button("drop", "Drop", "Drop", new Vector2(-1, 28)))
         {
             inv.Tools.Remove(tool);
             _message = $"Dropped {tool.Name}";
@@ -626,14 +641,13 @@ public class InventoryOverlay
         ImGui.Separator();
 
         // Unequip action
-        if (ImGui.Button("Unequip", new Vector2(-1, 28)))
+        if (UiIcons.Button("unequip", "Unequip", "Unequip", new Vector2(-1, 28)))
         {
             var unequipped = inv.Unequip(item.Slot);
             if (unequipped != null)
                 inv.Tools.Add(unequipped);
             _message = $"Unequipped {gear.Name}";
             _messageTimer = 2f;
-            _selectedItem = null;
         }
     }
 
@@ -664,7 +678,7 @@ public class InventoryOverlay
         ImGui.Separator();
 
         // Remove action
-        if (ImGui.Button("Remove", new Vector2(-1, 28)))
+        if (UiIcons.Button("unequip", "Remove", "Remove", new Vector2(-1, 28)))
         {
             inv.Accessories.Remove(acc);
             _message = $"Removed {acc.Name}";
@@ -710,14 +724,13 @@ public class InventoryOverlay
         ImGui.Separator();
 
         // Unequip action
-        if (ImGui.Button("Unequip Weapon", new Vector2(-1, 28)))
+        if (UiIcons.Button("unequip", "Unequip Weapon", "Unequip Weapon", new Vector2(-1, 28)))
         {
             var unequipped = inv.UnequipWeapon();
             if (unequipped != null)
                 inv.Tools.Add(unequipped);
             _message = $"Unequipped {weapon.Name}";
             _messageTimer = 2f;
-            _selectedItem = null;
         }
     }
 

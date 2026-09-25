@@ -8,6 +8,9 @@ namespace text_survival.Desktop.Input;
 /// </summary>
 public enum HotkeyAction
 {
+    Food,
+    Rest,
+    Treatment,
     Inventory,
     Crafting,
     Fire,
@@ -28,6 +31,9 @@ public static class HotkeyRegistry
 {
     private static readonly Dictionary<HotkeyAction, KeyboardKey> _bindings = new()
     {
+        { HotkeyAction.Food, KeyboardKey.E },
+        { HotkeyAction.Rest, KeyboardKey.B },
+        { HotkeyAction.Treatment, KeyboardKey.H },
         { HotkeyAction.Inventory, KeyboardKey.I },
         { HotkeyAction.Crafting, KeyboardKey.C },
         { HotkeyAction.Fire, KeyboardKey.R },
@@ -43,8 +49,9 @@ public static class HotkeyRegistry
     /// <summary>
     /// Check if an action's key was pressed this frame.
     /// </summary>
-    public static bool IsPressed(HotkeyAction action) =>
-        Raylib.IsKeyPressed(_bindings[action]);
+    public static KeyboardKey KeyFor(HotkeyAction action) => _bindings[action];
+
+    public static bool IsPressed(HotkeyAction action) => UiInput.Pressed(KeyFor(action));
 
     /// <summary>
     /// Get display tip like "[C]" for button labels.

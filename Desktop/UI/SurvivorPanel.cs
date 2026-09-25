@@ -16,11 +16,11 @@ namespace text_survival.Desktop.UI;
 public static class SurvivorPanel
 {
     // Color constants
-    private static readonly Vector4 ColorGood = new(0.4f, 0.9f, 0.4f, 1f);
-    private static readonly Vector4 ColorWarning = new(1f, 0.8f, 0.3f, 1f);
-    private static readonly Vector4 ColorDanger = new(1f, 0.3f, 0.3f, 1f);
-    private static readonly Vector4 ColorCritical = new(1f, 0.1f, 0.1f, 1f);
-    private static readonly Vector4 ColorMuted = new(0.6f, 0.6f, 0.6f, 1f);
+    private static readonly Vector4 ColorGood = UiStyle.Success;
+    private static readonly Vector4 ColorWarning = UiStyle.Caution;
+    private static readonly Vector4 ColorDanger = UiStyle.Danger;
+    private static readonly Vector4 ColorCritical = UiStyle.Danger;
+    private static readonly Vector4 ColorMuted = UiStyle.Supporting;
     private static readonly Vector4 ColorHeader = new(0.9f, 0.85f, 0.7f, 1f);
     private static readonly Vector4 ColorCold = new(0.5f, 0.7f, 1f, 1f);
     private static readonly Vector4 ColorWarm = new(1f, 0.6f, 0.3f, 1f);
@@ -41,7 +41,7 @@ public static class SurvivorPanel
     {
         text_survival.UI.PlayerAction? result = null;
         HudWidgets.Begin("##Survivor", rect);
-        UiText.Colored(HudWidgets.Heading, "SURVIVOR");
+        UiIcons.LabelColored("person", HudWidgets.Heading, "SURVIVOR");
         ImGui.Separator();
         var body = ctx.player.Body;
         double rate = ctx.player.LastUpdateMinutes > 0 && ctx.player.LastSurvivalDelta?.TemperatureDelta is double delta
@@ -50,21 +50,13 @@ public static class SurvivorPanel
         UiText.Disabled($"{rate:+0.0;-0.0;0.0}°F/hr · Feels {ctx.CurrentLocation.GetTemperatureBreakdown(ctx.CurrentActivity).FinalTemp:F0}°F");
         ImGui.Separator();
         RenderInventorySummary(ctx);
-        var warnings = SurvivorWarnings.Build(ctx);
-        if (warnings.Count > 0)
-        {
-            // One fixed-height summary. Full warnings remain accessible in the details below.
-            UiText.Colored(ColorDanger, warnings.Count == 1 ? warnings[0] : $"{warnings[0]} (+{warnings.Count - 1})");
-            if (ImGui.IsItemHovered()) UiText.Tooltip(string.Join("\n", warnings));
-        }
         ImGui.Separator();
         ImGui.BeginChild("survivor-details", new Vector2(0, 0), ImGuiChildFlags.None, ImGuiWindowFlags.AlwaysVerticalScrollbar);
-        UiText.Colored(HudWidgets.Heading, "CONDITION");
-        foreach (var warning in warnings) { ImGui.PushTextWrapPos(0); UiText.Colored(ColorWarning, warning); ImGui.PopTextWrapPos(); }
+        UiIcons.LabelColored("medicine", HudWidgets.Heading, "CONDITION");
         RenderBodyCondition(ctx, body);
         RenderEffects(ctx);
         RenderTensions(ctx);
-        if (ImGui.CollapsingHeader("Temperature & clothing"))
+        if (ImGui.CollapsingHeader("Warmth & clothing"))
             RenderTemperature(ctx, body, ctx.CurrentLocation, ctx.CurrentLocation.Weather);
         ImGui.EndChild();
         ImGui.End();
@@ -95,12 +87,12 @@ public static class SurvivorPanel
 
             // Body temp is not a 0-100 stat: 90-99F spans collapse to death and normal.
             ImGui.TableNextColumn();
-            UiIcons.Label("temperature", "Warmth");
+            UiIcons.LabelColored("temperature", bodyTemp < 95 ? ColorDanger : bodyTemp < 97 ? ColorWarning : UiStyle.Text, "Warmth");
             ImGui.TableNextColumn();
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, bodyTemp < 95 ? ColorCold : bodyTemp < 97 ? ColorWarning : ColorGood);
-            ImGui.ProgressBar((float)Math.Clamp((bodyTemp - 90) / 9.0, 0, 1), new Vector2(-1, 18),
-                $"{bodyTemp:F1}°F{TrendArrow(tempRatePerHour)}");
-            ImGui.PopStyleColor();
+            HudWidgets.VitalBar((float)Math.Clamp((bodyTemp - 90) / 9.0, 0, 1),
+                bodyTemp < 95 ? ColorDanger : bodyTemp < 97 ? ColorWarning : ColorGood,
+                $"{(bodyTemp < 97 ? "! " : "")}{bodyTemp:F1}°F{TrendArrow(tempRatePerHour)}", bodyTemp < 97);
+
 
             RenderStatRow("Energy", energyPct, GetStatColor(energyPct), energyTrend);
             RenderStatRow("Food", caloriesPct, GetStatColor(caloriesPct), foodTrend);
@@ -116,11 +108,9 @@ public static class SurvivorPanel
     {
         percent = Math.Clamp(percent, 0, 100);
         ImGui.TableNextColumn();
-        UiIcons.Label(label == "Food" ? "food" : label.ToLowerInvariant(), label);
+        UiIcons.LabelColored(label == "Food" ? "food" : label.ToLowerInvariant(), percent <= 50 ? color : UiStyle.Text, label);
         ImGui.TableNextColumn();
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
-        ImGui.ProgressBar(percent / 100f, new Vector2(-1, 18), $"{percent}%{trend}");
-        ImGui.PopStyleColor();
+        HudWidgets.VitalBar(percent / 100f, color, $"{(percent <= 30 ? "! " : "")}{percent}%{trend}", percent <= 50);
     }
 
     private static void RenderEffectRow(string label, int percent, Vector4 color, string trend)
@@ -129,7 +119,7 @@ public static class SurvivorPanel
         ImGui.TableNextColumn();
         UiText.Text($"  {label}");
         ImGui.TableNextColumn();
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(color));
         ImGui.ProgressBar(percent / 100f, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{percent}%{trend}");
         ImGui.PopStyleColor();
     }
@@ -140,7 +130,7 @@ public static class SurvivorPanel
         ImGui.TableNextColumn();
         UiText.Text($"  {label}");
         ImGui.TableNextColumn();
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, GetCapacityColor(value));
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(GetCapacityColor(value)));
         ImGui.ProgressBar((float)value, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{pct}%");
         ImGui.PopStyleColor();
     }
@@ -164,7 +154,7 @@ public static class SurvivorPanel
 
         string trendArrow = trendPerHour > 0.5 ? ArrowUp : trendPerHour < -0.5 ? ArrowDown : "";
         double tempPct = Math.Clamp((bodyTemp - 90) / 9.0, 0, 1);
-        Vector4 tempColor = bodyTemp < 95 ? ColorCold : bodyTemp < 97 ? ColorWarning : ColorGood;
+        Vector4 tempColor = bodyTemp < 95 ? ColorDanger : bodyTemp < 97 ? ColorWarning : ColorGood;
         Vector4 feelsLikeColor = breakdown.FinalTemp < 20 ? ColorCold : breakdown.FinalTemp < 40 ? ColorMuted : ColorWarm;
         int warmthPct = (int)(body.ClothingHeatBufferPct * 100);
 
@@ -178,9 +168,8 @@ public static class SurvivorPanel
             ImGui.TableNextColumn();
             UiIcons.Label("temperature", "Body Temp");
             ImGui.TableNextColumn();
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, tempColor);
-            ImGui.ProgressBar((float)tempPct, new Vector2(-1, 18), $"{bodyTemp:F1}°F{trendArrow}");
-            ImGui.PopStyleColor();
+            HudWidgets.VitalBar((float)tempPct, tempColor,
+                $"{(bodyTemp < 97 ? "! " : "")}{bodyTemp:F1}°F{trendArrow}", bodyTemp < 97);
 
             // Show rate per hour if significant
             if (Math.Abs(trendPerHour) > 0.5)
@@ -202,8 +191,8 @@ public static class SurvivorPanel
             ImGui.TableNextColumn();
             UiIcons.Label("clothing", "Clothing Warmth");
             ImGui.TableNextColumn();
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, ColorWarning);
-            ImGui.ProgressBar(warmthPct / 100f, new Vector2(-1, 18), $"{warmthPct}%");
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(ColorWarning));
+            ImGui.ProgressBar(warmthPct / 100f, new Vector2(-1, UiStyle.BarHeight), $"{warmthPct}%");
             ImGui.PopStyleColor();
 
             ImGui.EndTable();
@@ -211,33 +200,8 @@ public static class SurvivorPanel
 
         // The breakdown is the whole point of opening this section - a second collapse
         // hid the numbers that explain the Feels Like figure above.
+        // Wind/precip/front conditions themselves are shown in the top bar.
         {
-            if (ImGui.BeginTable("temp_breakdown", 2))
-            {
-                ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
-                ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
-
-                ImGui.TableNextColumn();
-                UiIcons.LabelColored("wind", ImGui.StyleColor(ImGuiCol.TextDisabled), "Wind");
-                ImGui.TableNextColumn();
-                UiText.Disabled($"{weather.WindSpeedMPH:F0} mph {weather.CurrentWindDirection}");
-
-                ImGui.TableNextColumn();
-                UiIcons.LabelColored("precipitation", ImGui.StyleColor(ImGuiCol.TextDisabled), "Precip");
-                ImGui.TableNextColumn();
-                UiText.Disabled(weather.PrecipitationPct < 0.1 ? "None" : weather.PrecipitationPct < 0.3 ? "Light"
-                    : weather.PrecipitationPct < 0.6 ? "Moderate" : "Heavy");
-
-                if (weather.GetFrontLabel() is { Length: > 0 } front)
-                {
-                    ImGui.TableNextColumn();
-                    UiText.Disabled("Front");
-                    ImGui.TableNextColumn();
-                    UiText.Disabled(front);
-                }
-
-                ImGui.EndTable();
-            }
             if (ImGui.BeginTable("temp_contributions", 2))
             {
                 ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed);
@@ -315,7 +279,7 @@ public static class SurvivorPanel
         bool hasCapacityIssues = capacities.Moving < 0.9 || capacities.Manipulation < 0.9 || capacities.Consciousness < 0.9;
         var injuredParts = body.Parts
             .Where(p => p.Condition <= 0.995 || p.Organs.Any(o => o.Condition <= 0.995))
-            .OrderBy(p => p.Condition)
+            .OrderBy(p => p.Name, StringComparer.Ordinal)
             .ToList();
         bool hasInjuries = injuredParts.Count > 0;
 
@@ -328,37 +292,17 @@ public static class SurvivorPanel
         {
             UiIcons.LabelColored("bandage", ColorHeader, "Injuries");
 
-            if (ImGui.BeginTable("injuries", 3))
+            foreach (var part in injuredParts)
             {
-                ImGui.TableSetupColumn("Part", ImGuiTableColumnFlags.WidthFixed, 80);
-                ImGui.TableSetupColumn("Bar", ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Severity", ImGuiTableColumnFlags.WidthFixed, 60);
-
-                foreach (var part in injuredParts)
-                {
-                    RenderInjuryRow(part.Name, part.Condition);
-                    var damagedOrgans = part.Organs.Where(o => o.Condition <= 0.995).OrderBy(o => o.Condition);
-                    foreach (var organ in damagedOrgans)
-                    {
-                        RenderInjuryRow(organ.Name, organ.Condition);
-                    }
-                }
-
-                // Blood loss display - shown with injuries since bleeding is injury-related
-                if (hasBloodIssue)
-                {
-                    int bloodPct = (int)(body.Blood.Condition * 100);
-                    ImGui.TableNextColumn();
-                    UiText.Text("  Blood");
-                    ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, GetCapacityColor(body.Blood.Condition));
-                    ImGui.ProgressBar((float)body.Blood.Condition, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{bloodPct}%");
-                    ImGui.PopStyleColor();
-                    ImGui.TableNextColumn();
-                    UiText.Text("");  // Empty third column to match table format
-                }
-
-                ImGui.EndTable();
+                RenderInjuryRow(part.Name, part.Condition);
+                foreach (var organ in part.Organs.Where(o => o.Condition <= 0.995).OrderBy(o => o.Name, StringComparer.Ordinal))
+                    RenderInjuryRow(organ.Name, organ.Condition);
+            }
+            if (hasBloodIssue)
+            {
+                UiIcons.Label("blood", "Blood");
+                HudWidgets.VitalBar((float)body.Blood.Condition, GetCapacityColor(body.Blood.Condition),
+                    $"{body.Blood.Condition:P0}", body.Blood.Condition <= .7);
             }
         }
 
@@ -367,7 +311,7 @@ public static class SurvivorPanel
         {
             if (hasInjuries || hasBloodIssue)
                 ImGui.Spacing();
-            UiText.Colored(ColorHeader, "Capacities");
+            UiIcons.LabelColored("capacities", ColorHeader, "Capacities");
 
             if (ImGui.BeginTable("body_condition", 2))
             {
@@ -393,16 +337,11 @@ public static class SurvivorPanel
         string severity = GetDamageDescription(condition);
         Vector4 color = GetInjuryColor(condition);
 
-        ImGui.TableNextColumn();
-        UiText.Text($"  {partName}");
+        ImGui.PushTextWrapPos(0);
+        UiText.Colored(color, $"{partName} · {severity}");
+        ImGui.PopTextWrapPos();
+        HudWidgets.VitalBar((float)damage, color, $"{damagePct}% damage", condition < .6);
 
-        ImGui.TableNextColumn();
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
-        ImGui.ProgressBar((float)damage, new Vector2(-1, OverlaySizes.CompactBarHeight), $"{damagePct}% damage");
-        ImGui.PopStyleColor();
-
-        ImGui.TableNextColumn();
-        UiText.Colored(color, severity);
     }
 
     private static string GetDamageDescription(double condition)
@@ -429,7 +368,7 @@ public static class SurvivorPanel
 
     private static void RenderEffects(GameContext ctx)
     {
-        var effects = ctx.player.EffectRegistry.GetAll().ToList();
+        var effects = ctx.player.EffectRegistry.GetAll().OrderBy(e => e.EffectKind, StringComparer.Ordinal).ToList();
         if (effects.Count == 0) return;
 
         ImGui.Separator();
@@ -459,7 +398,7 @@ public static class SurvivorPanel
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.BeginTooltip();
-                    UiText.Colored(ColorHeader, effect.EffectKind);
+                    UiIcons.LabelColored("effects", ColorHeader, effect.EffectKind);
                     ImGui.Separator();
 
                     // Show capacity modifiers
@@ -584,8 +523,8 @@ public static class SurvivorPanel
             ImGui.TableNextColumn();
             UiIcons.Label("backpack", "Carry");
             ImGui.TableNextColumn();
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, weightColor);
-            ImGui.ProgressBar((float)pct, new Vector2(-1, 18), $"{current:F1}/{max:F1} kg");
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, UiStyle.BarFill(weightColor));
+            ImGui.ProgressBar((float)pct, new Vector2(-1, UiStyle.BarHeight), $"{(pct > 1 ? "! " : "")}{current:F1}/{max:F1} kg");
             ImGui.PopStyleColor();
 
             ImGui.EndTable();

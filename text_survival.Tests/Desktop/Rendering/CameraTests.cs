@@ -5,6 +5,45 @@ namespace text_survival.Tests.Desktop.Rendering;
 
 public class CameraTests
 {
+    [Theory]
+    [InlineData(900, 320)]
+    [InlineData(320, 900)]
+    [InlineData(703, 701)]
+    public void RectangularViewportFillsBothAxesThroughPanZoomAndResize(int width, int height)
+    {
+        var camera = new Camera(20, 20);
+        camera.Pan(new Vector2(.37f, -.29f), 40, 40, immediate: true);
+        foreach (int zoom in new[] { 0, 2, -4 })
+        {
+            camera.Zoom(zoom);
+            foreach (int inset in new[] { 0, 73 })
+            {
+                camera.ConfigureForViewport(300, 100, width - inset, height - inset);
+                Assert.Equal(width - inset, camera.GridWidth);
+                Assert.Equal(height - inset, camera.GridHeight);
+                Assert.Equal(300, camera.ScreenOffsetX);
+                Assert.Equal(100, camera.ScreenOffsetY);
+                Assert.Equal(new Vector2(300 + camera.GridWidth / 2f, 100 + camera.GridHeight / 2f),
+                    camera.GetTileCenter(camera.Center.X, camera.Center.Y));
+                var visible = camera.GetVisibleTiles().ToHashSet();
+                foreach (float x in new[] { 300.5f, 300 + camera.GridWidth / 2f, 300 + camera.GridWidth - .5f })
+                foreach (float y in new[] { 100.5f, 100 + camera.GridHeight / 2f, 100 + camera.GridHeight - .5f })
+                {
+                    var point = new Vector2(x, y);
+                    Assert.True(camera.ContainsScreenPoint(point));
+                    var tile = camera.ScreenToWorld(point);
+                    Assert.NotNull(tile);
+                    Assert.Contains(tile.Value, visible);
+                    var origin = camera.WorldToScreen(tile.Value.x, tile.Value.y);
+                    Assert.InRange(point.X - origin.X, 0, camera.TileSize);
+                    Assert.InRange(point.Y - origin.Y, 0, camera.TileSize);
+                }
+                Assert.Null(camera.ScreenToWorld(new Vector2(300 + camera.GridWidth, 100)));
+                Assert.Null(camera.ScreenToWorld(new Vector2(300, 100 + camera.GridHeight)));
+            }
+        }
+    }
+
     [Fact]
     public void ManualPanStaysIndependentOfPlayerUntilRecentered()
     {

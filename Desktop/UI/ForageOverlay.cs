@@ -16,7 +16,13 @@ namespace text_survival.Desktop.UI;
 /// </summary>
 public class ForageOverlay
 {
-    public bool IsOpen { get; set; }
+    private bool _isOpen;
+    private bool _initialFocus = true;
+    public bool IsOpen
+    {
+        get => _isOpen;
+        set { if (value && !_isOpen) _initialFocus = true; _isOpen = value; }
+    }
 
     private GameContext? _ctx;
     private ForageFeature? _feature;
@@ -103,6 +109,13 @@ public class ForageOverlay
             return _result;
         }
 
+        if (UiNavigation.Key(ImGuiKey.K))
+        {
+            _result = new ForageResult(null, -1);
+            IsOpen = false;
+            return _result;
+        }
+
         // [F] - Confirm (start foraging)
         if (!skipConfirm && ImGui.IsKeyPressed(KeyboardKey.F))
         {
@@ -123,8 +136,8 @@ public class ForageOverlay
         if (ImGui.IsKeyPressed(KeyboardKey.Three) || ImGui.IsKeyPressed(KeyboardKey.Kp3))
             _selectedMinutes = 60;
 
-        // [Tab] - Cycle focus options
-        if (ImGui.IsKeyPressed(KeyboardKey.Tab))
+        // [F4] - Cycle focus options
+        if (ImGui.IsKeyPressed(KeyboardKey.F4))
             CycleFocus();
 
         return null;
@@ -172,7 +185,7 @@ public class ForageOverlay
         if (_clues.Count > 0)
         {
             ImGui.Separator();
-            UiText.Colored(new Vector4(0.7f, 0.8f, 0.9f, 1f), "You notice:");
+            UiIcons.LabelColored("inspect", HudWidgets.Heading, "You notice:");
             ImGui.Spacing();
 
             for (int i = 0; i < _clues.Count; i++)
@@ -183,30 +196,8 @@ public class ForageOverlay
                 // Make clues clickable if they suggest a focus
                 if (!string.IsNullOrEmpty(suggestedFocusId))
                 {
-                    // Clickable clue - highlight on hover
-                    ImGui.Bullet();
-                    ImGui.SameLine();
-
-                    // Wrapped text still registers as an item, so hover/click still work
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.8f, 1f, 1f));
-                    UiText.Wrapped(clue.Description);
-                    ImGui.PopStyleColor();
-
-                    if (ImGui.IsItemClicked())
-                    {
+                    if (UiIcons.Button("inspect", clue.Description, $"clue-{i}", new Vector2(-1, 0)))
                         _selectedFocusId = suggestedFocusId;
-                    }
-
-                    // Tooltip explaining the click
-                    if (ImGui.IsItemHovered())
-                    {
-                        var tooltipFocusOptions = _feature.GetAvailableFocusOptions();
-                        var suggestedFocus = tooltipFocusOptions.FirstOrDefault(f => f.Id == suggestedFocusId);
-                        if (suggestedFocus != default)
-                        {
-                            UiText.Tooltip($"Click to focus on {suggestedFocus.Label}");
-                        }
-                    }
                 }
                 else
                 {
@@ -233,7 +224,7 @@ public class ForageOverlay
                     ? new Vector4(1f, 0.7f, 0.3f, 1f)  // Orange for negative
                     : new Vector4(0.5f, 0.9f, 0.5f, 1f); // Green for positive (tool bonuses)
 
-                UiText.Colored(color, $"  {warning}");
+                UiIcons.LabelWrapped("warning", color, warning);
             }
             ImGui.Spacing();
         }
@@ -241,7 +232,7 @@ public class ForageOverlay
         // Focus section - query feature directly
         ImGui.Separator();
         ImGui.Spacing();
-        UiText.Colored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "What do you focus on? [Tab]");
+        UiText.Colored(new Vector4(0.8f, 0.8f, 0.9f, 1f), "What do you focus on? [F4]");
         ImGui.Spacing();
 
         var focusOptions = _feature.GetAvailableFocusOptions();
@@ -267,6 +258,7 @@ public class ForageOverlay
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.55f, 0.75f, 1f));
             }
 
+            UiNavigation.Initial(ref _initialFocus);
             if (UiIcons.Button(UiIcons.ForCategory(focus.Id), focus.Label, focus.Id, new Vector2(buttonWidth, 28), selected: isSelected))
             {
                 _selectedFocusId = focus.Id;
@@ -319,7 +311,7 @@ public class ForageOverlay
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.55f, 0.75f, 1f));
             }
 
-            if (ImGui.Button($"{hotkeyLabel}##{time.Id}", new Vector2(timeButtonWidth, 28), selected: isSelected))
+            if (UiIcons.Button("clock", hotkeyLabel, time.Id, new Vector2(timeButtonWidth, 28), selected: isSelected))
             {
                 _selectedMinutes = time.Minutes;
             }
@@ -349,7 +341,7 @@ public class ForageOverlay
             ImGui.BeginDisabled();
         }
 
-        if (ImGui.Button("Search [F]", new Vector2(-1, 32)))
+        if (UiIcons.Button("foraging", "Search [F]", "search", new Vector2(-1, 32)))
         {
             var focus = ParseFocus(_selectedFocusId!);
             _result = new ForageResult(focus, _selectedMinutes);
@@ -367,7 +359,7 @@ public class ForageOverlay
         // Bottom row: Cancel and Keep Walking
         float halfWidth = (ImGui.GetContentRegionAvail().X - 8) / 2;
 
-        if (ImGui.Button("Cancel [Esc]", new Vector2(halfWidth, 28)))
+        if (UiIcons.Button("back", "Cancel [Esc]", "cancel", new Vector2(halfWidth, 28)))
         {
             _result = new ForageResult(null, 0);
             IsOpen = false;
@@ -378,7 +370,7 @@ public class ForageOverlay
 
         // Keep Walking button
         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.25f, 0.3f, 0.35f, 1f));
-        if (ImGui.Button("Keep Walking (5 min)", new Vector2(halfWidth, 28)))
+        if (UiIcons.Button("continue", "Keep Walking (5 min) [K]", "walk", new Vector2(halfWidth, 28)))
         {
             ImGui.PopStyleColor();
             _result = new ForageResult(null, -1); // -1 signals keep walking
