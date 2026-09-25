@@ -88,3 +88,26 @@ public class FireHandlerTests
         EmberBurnHoursRemaining = 8.0
     };
 }
+
+/// <summary>
+/// The odds the fire screen shows have to be the odds that get rolled. The roll used to
+/// ignore darkness and wetness, so at night the screen said 23% and the roll used 47%.
+/// </summary>
+public class FireChanceTests
+{
+    [Theory]
+    [InlineData(3)]
+    [InlineData(14)]
+    public void AttemptStartFire_RollsTheChanceTheScreenShows(int hour)
+    {
+        var ctx = GameContext.CreateNewGame();
+        var drill = Gear.HandDrill();
+        ctx.Inventory.Add(Resource.Tinder, 0.05);
+        ctx.Inventory.Add(Resource.Stick, 0.3);
+
+        double shown = FireHandler.CalculateFireChance(ctx.player, drill, Resource.Tinder, 0, ctx.CurrentLocation, hour);
+        var result = FireHandler.AttemptStartFire(ctx.player, ctx.Inventory, ctx.CurrentLocation, drill, Resource.Tinder, 0, hour);
+
+        Assert.Equal(shown, result.ChanceUsed);
+    }
+}

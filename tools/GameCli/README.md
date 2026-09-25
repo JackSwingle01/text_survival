@@ -149,7 +149,7 @@ Never blindly continue a scripted route through unexpected event prompts.
 `ok:true` means the command was handled, not that the character successfully performed
 work. Check the returned screen, progress, and `log` for gameplay outcomes and unmet
 requirements (for example, chopping without an axe). Both snapshot `log` and `log [count]`
-return entries shaped like `{"text":"You need an axe to fell trees.","level":"Warning","timestamp":"9:00"}`.
+return entries shaped like `{"text":"You need an axe to fell trees.","level":"Warning","timestamp":"9:00 AM"}`.
 Unsuccessful megafauna searches report their outcome here; a search without a discovery
 does not add a discovery-log entry. Injury bars report **percent damage** (100% means
 destroyed). Resource storage buttons transfer the entire displayed quantity in one click.

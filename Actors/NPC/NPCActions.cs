@@ -180,7 +180,7 @@ public class NPCStartFire() : NPCAction("Starting Fire", 10, ActivityType.Tendin
     public override string LogMessage => "Starting fire";
     protected override void OnComplete(NPC npc)
     {
-        if (FireHandler.StartFire(npc, npc.Inventory!, npc.CurrentLocation))
+        if (FireHandler.StartFire(npc, npc.Inventory!, npc.CurrentLocation, npc.Game.GameTime.Hour))
             RelationshipEvents.TendedFire(npc.Game, npc);
     }
 }

@@ -139,6 +139,8 @@ public class GameContext(Player player, Location camp, Weather weather)
     private const int SettleDays = 30;
     private const int MinutesPerDay = 24 * 60;
     public int DaysSurvived => (int)(GameTime - StartTime).TotalDays;
+    /// <summary>Calendar day of the run, starting at 1; rolls over at midnight, not at the start hour.</summary>
+    public int DayNumber => (GameTime.Date - StartTime.Date).Days + 1;
 
     // Tension system for tracking building threats/opportunities
     public TensionRegistry Tensions { get; set; } = new();
@@ -559,10 +561,12 @@ public class GameContext(Player player, Location camp, Weather weather)
         if (Map != null)
             Map.RevealedNewLocations = false;
 
-        // Tutorial: afternoon fuel warning on Day 1
-        if (DaysSurvived == 0 && GetTimeOfDay() == TimeOfDay.Afternoon)
+        // Tutorial: fuel warning in the last hours of daylight on Day 1. It is about the camp
+        // fire, not whatever tile the player happens to be standing on.
+        int sunsetHour = Weather.GetSunsetHour();
+        if (DaysSurvived == 0 && GameTime.Hour >= sunsetHour - 3 && GameTime.Hour < sunsetHour)
         {
-            var fire = CurrentLocation.GetFeature<HeatSourceFeature>();
+            var fire = Camp.GetFeature<HeatSourceFeature>();
             double fuelKg = fire != null ? fire.TotalMassKg : 0;
 
             if (fuelKg < 6.0 && TryShowTutorial("afternoon_fuel_warning"))

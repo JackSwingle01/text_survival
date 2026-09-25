@@ -18,7 +18,7 @@ public static class Observations
         return frame;
     }
     public static object Summary(GameContext ctx) => new {
-        time = ctx.GameTime, day = ctx.DaysSurvived + 1,
+        time = ctx.GameTime, day = ctx.DayNumber,
         position = Position(ctx.Map!.CurrentPosition), location = ctx.CurrentLocation.Name,
         alive = ctx.player.IsAlive, vitality = ctx.player.Vitality,
         energy = ctx.player.Body.EnergyPct, food = ctx.player.Body.FullPct, water = ctx.player.Body.HydratedPct,

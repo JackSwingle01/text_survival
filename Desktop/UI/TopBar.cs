@@ -13,7 +13,7 @@ public static class TopBar
     {
         PlayerAction? result = null;
         HudWidgets.Begin("##TopBar", rect);
-        int day = (ctx.GameTime - GameContext.StartTime).Days + 1;
+        int day = ctx.DayNumber;
         var weather = ctx.CurrentLocation.Weather;
         string clock = $"Day {day}  {ctx.GameTime:h:mm tt}";
         UiIcons.Label("clock", clock);

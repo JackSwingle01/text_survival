@@ -9,7 +9,7 @@ public static class GameDisplay
     /// </summary>
     public static void AddNarrative(GameContext ctx, string text, LogLevel level = LogLevel.Normal)
     {
-        var timestamp = ctx.GameTime.ToString("h:mm");
+        var timestamp = ctx.GameTime.ToString("h:mm tt");
         ctx.Log.Add(text, level, timestamp);
 
     }
@@ -17,7 +17,7 @@ public static class GameDisplay
     /// <summary>Record several lines of narrative at once.</summary>
     public static void AddNarrative(GameContext ctx, IEnumerable<string> texts, LogLevel level = LogLevel.Normal)
     {
-        var timestamp = ctx.GameTime.ToString("h:mm");
+        var timestamp = ctx.GameTime.ToString("h:mm tt");
         ctx.Log.AddRange(texts, level, timestamp);
 
     }

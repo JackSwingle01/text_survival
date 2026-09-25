@@ -166,18 +166,6 @@ public static class FireHandler
         return CalculateFireChance(tool, tinder, skillLevel, consciousnessImpaired, dexterity);
     }
 
-    /// <summary>
-    /// Calculate fire chance for an actor (backward compatible, uses default context).
-    /// </summary>
-    public static double CalculateFireChance(Actor actor, Gear tool, Resource tinder, int skillLevel = 0)
-    {
-        var capacities = actor.GetCapacities();
-        bool consciousnessImpaired = AbilityCalculator.IsConsciousnessImpaired(capacities.Consciousness);
-        double dexterity = actor.Dexterity; // Uses default context
-
-        return CalculateFireChance(tool, tinder, skillLevel, consciousnessImpaired, dexterity);
-    }
-
     // ============================================
     // Pure Game Logic - Fire Execution
     // ============================================
@@ -192,7 +180,8 @@ public static class FireHandler
         Location location,
         Gear tool,
         Resource tinder,
-        int skillLevel = 0,
+        int skillLevel,
+        int hourOfDay,
         HeatSourceFeature? existingFire = null)
     {
         // Validate materials
@@ -202,7 +191,7 @@ public static class FireHandler
             return new FireStartResult(false, "No kindling available.", 0);
 
         // Calculate success chance
-        double chance = CalculateFireChance(actor, tool, tinder, skillLevel);
+        double chance = CalculateFireChance(actor, tool, tinder, skillLevel, location, hourOfDay);
 
         // Consume tinder
         double tinderWeight = inv.Pop(tinder);
@@ -320,7 +309,7 @@ public static class FireHandler
     /// NPC fire starting - auto-selects best tool and tinder.
     /// Returns true if fire was started.
     /// </summary>
-    public static bool StartFire(Actor actor, Inventory inv, Location location)
+    public static bool StartFire(Actor actor, Inventory inv, Location location, int hourOfDay)
     {
         var materials = GetFireMaterials(inv);
         var existingFire = location.GetFeature<HeatSourceFeature>();
@@ -338,7 +327,7 @@ public static class FireHandler
         if (tool == null || tinder == null || !materials.HasKindling)
             return false;
 
-        var result = AttemptStartFire(actor, inv, location, tool, tinder.Value, skillLevel: 0, existingFire);
+        var result = AttemptStartFire(actor, inv, location, tool, tinder.Value, skillLevel: 0, hourOfDay, existingFire);
         return result.Success;
     }
 
@@ -520,7 +509,7 @@ public static class FireHandler
     {
         int skillLevel = ctx.player.Skills.GetSkill("Firecraft").Level;
         var result = AttemptStartFire(ctx.player, ctx.Inventory, ctx.CurrentLocation,
-            tool, tinder, skillLevel, existingFire);
+            tool, tinder, skillLevel, ctx.GameTime.Hour, existingFire);
 
         using (var view = ctx.Ui.BeginProgress(ProgressKind.Activity, "Working the tinder..."))
         {

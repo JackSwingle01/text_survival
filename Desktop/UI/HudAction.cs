@@ -60,6 +60,12 @@ public static class HudActions
             result.Add(new($"work:{option.Id}", option.Label + "...", GroupFor(strategy), new PlayerAction.Work(strategy),
                 strategy is ForageStrategy ? HotkeyAction.Forage : null, Icon: IconFor(strategy)));
         }
+        if (location.GetFeature<ForageFeature>()?.CanForage() == false)
+        {
+            var forage = new ForageStrategy();
+            result.Add(new("work:forage", "Forage...", GroupFor(forage), new PlayerAction.Work(forage), HotkeyAction.Forage,
+                "Picked clean. It will recover with time.", IconFor(forage)));
+        }
         return result;
     }
 

@@ -212,6 +212,39 @@ public class WarmthTests
     }
 
     /// <summary>
+    /// Stored clothing warmth delays chilling. It must not spend itself holding an
+    /// overheated body up - that pinned players at 100F by the fire, sweating all night.
+    /// </summary>
+    [Fact]
+    public void ClothingBuffer_DoesNotHoldAnOverheatedBodyUp()
+    {
+        var context = StillAir(2.0) with { LocationTemperature = 40, ClothingWeightKg = 3, ClothingHeatBuffer = 0.5 };
+        var hot = new Body(Body.BaselineHumanStats) { BodyTemperature = 100.5 };
+
+        var result = SurvivalProcessor.ProcessTemperature(hot, context, 60);
+
+        Assert.True(result.StatsDelta.TemperatureDelta < 0,
+            $"An overheated body should cool, got {result.StatsDelta.TemperatureDelta:F2}F.");
+        Assert.True(result.ClothingHeatBufferDelta >= 0, "The buffer should not drain to stop a fever breaking.");
+    }
+
+    /// <summary>
+    /// A fire keeps topping up the buffer even while the body is losing heat; the cooling
+    /// branch used to overwrite the fill, so sitting by a fire drained it like open cold.
+    /// </summary>
+    [Fact]
+    public void ClothingBuffer_FireFillIsNotOverwrittenByCooling()
+    {
+        var cold = StillAir(0.5) with { LocationTemperature = 0, ClothingWeightKg = 3, ClothingHeatBuffer = 0.5 };
+        var body = new Body(Body.BaselineHumanStats) { BodyTemperature = 98.0 };
+
+        double awayFromFire = SurvivalProcessor.ProcessTemperature(body, cold, 10).ClothingHeatBufferDelta;
+        double byFire = SurvivalProcessor.ProcessTemperature(body, cold with { FireProximityBonus = 20 }, 10).ClothingHeatBufferDelta;
+
+        Assert.True(byFire > awayFromFire, $"Fire should add to the buffer: {byFire:F3} vs {awayFromFire:F3}.");
+    }
+
+    /// <summary>
     /// Area weighting: a chest wrap covers 40% of the body and handwraps 10%, so the same
     /// garment quality has to be worth four times as much on the chest. The old model summed
     /// slot values, which made these identical.

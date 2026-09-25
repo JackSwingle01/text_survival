@@ -182,7 +182,7 @@ public static class AuthoredPredatorScenes
                     {
                         var started = Handlers.FireHandler.AttemptStartFire(c.player, c.Inventory, c.CurrentLocation,
                             Handlers.FireHandler.GetBestTool(c.Inventory)!, Handlers.FireHandler.GetBestTinder(c.Inventory)!.Value,
-                            c.player.Skills.GetSkill("Firecraft").Level, c.CurrentLocation.GetFeature<HeatSourceFeature>());
+                            c.player.Skills.GetSkill("Firecraft").Level, c.GameTime.Hour, c.CurrentLocation.GetFeature<HeatSourceFeature>());
                         attempt = started.Message;
                     }
                     if (c.Inventory.HasLitTorch || c.CurrentLocation.HasActiveHeatSource()) PredatorInteractions.Deter(c, source!, fire: true);

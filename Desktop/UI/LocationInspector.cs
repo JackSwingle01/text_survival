@@ -173,7 +173,7 @@ public sealed class LocationInspector
         {
             hasFeatures = true;
             var resources = forage.GetAvailableResourceTypes();
-            if (resources.Count > 0)
+            if (resources.Count > 0 && forage.CanForage())
             {
                 string resourceList = string.Join(", ", resources.Take(3));
                 UiText.Text($"Forage: {resourceList}");
@@ -187,12 +187,12 @@ public sealed class LocationInspector
             double explorationPct = location.GetExplorationPct();
             if (explorationPct >= 1.0)
             {
-                UiText.Colored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "  Fully explored");
+                UiText.Colored(new Vector4(0.5f, 0.8f, 0.5f, 1f), "  Hidden finds: none left");
             }
             else
             {
                 int pctDisplay = (int)(explorationPct * 100);
-                UiText.Colored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"  {pctDisplay}% explored");
+                UiText.Colored(new Vector4(0.6f, 0.7f, 0.8f, 1f), $"  Hidden finds: {pctDisplay}% searched");
             }
         }
 

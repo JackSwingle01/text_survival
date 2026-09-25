@@ -364,6 +364,7 @@ public static class SurvivalProcessor
         // Clothing thermal mass buffer
         double clothingCapacityF = context.ClothingWeightKg * ThermalMassFactorFPerKg;
         double bufferDelta = 0;
+        double fireFillDelta = 0;
         double bodyTempDelta = tempChange / 60 * minutes;
 
         if (clothingCapacityF > 0)
@@ -373,11 +374,12 @@ public static class SurvivalProcessor
                 // NEAR FIRE: Fill buffer based on fire intensity
                 // Physics: 6.0 * FireProximityBonus kcal/hr heat transfer, 2% efficiency
                 double fillRate = (context.FireProximityBonus / 150.0) / clothingCapacityF;
-                bufferDelta = Math.Min(fillRate * minutes, 1.0 - context.ClothingHeatBuffer);
+                fireFillDelta = Math.Min(fillRate * minutes, 1.0 - context.ClothingHeatBuffer);
                 // bodyTempDelta unchanged (fire already reduces heat loss)
             }
 
-            if (bodyTempDelta < 0)  // COOLING
+            // The buffer delays chilling; it does not hold an overheated body above its setpoint.
+            if (bodyTempDelta < 0 && body.BodyTemperature <= BaseBodyTemperature)  // COOLING
             {
                 if (context.ClothingHeatBuffer > 0)
                 {
@@ -427,7 +429,7 @@ public static class SurvivalProcessor
                 TemperatureDelta = bodyTempDelta,
                 HydrationDelta = sweatHydrationDelta,
             },
-            ClothingHeatBufferDelta = bufferDelta,
+            ClothingHeatBufferDelta = bufferDelta + fireFillDelta,
             Effects = GetTemperatureEffects(body, context, balance, bodyTempDelta / Math.Max(minutes, 1) * 60),
         };
     }
