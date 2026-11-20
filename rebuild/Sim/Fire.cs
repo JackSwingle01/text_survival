@@ -143,27 +143,21 @@ public static class Fire
     public static Warmth WarmthFor(World world, AgentId who)
     {
         var tile = world.Agent(who).Tile;
-        double ambientF = world.Weather.TemperatureC * 9 / 5 + 32;
         // ponytail: tile insulation is 0 until phase 2 brings shelters; then factor = Clamp(insulation + 0.4, 0.4, 1).
         const double OpenAirHeatPct = 0.4;
-        double airHeatF = 0, torchHeatF = 0, windProtection = 0;
+        double torchHeatF = 0;
         var pits = new List<FireState>();
         foreach (var (id, f) in world.Fires)
         {
             if (f.CarriedBy == who) { RequireCurrent(world, id, f); torchHeatF += HeatOutputF(f, 0); }
-            else if (f.CarriedBy == null && f.Tile == tile)
-            {
-                RequireCurrent(world, id, f);
-                airHeatF += HeatOutputF(f, ambientF) * OpenAirHeatPct;
-                pits.Add(f);
-            }
+            else if (f.CarriedBy == null && f.Tile == tile) { RequireCurrent(world, id, f); pits.Add(f); }
         }
-        double pitHeatF = 0;
-        foreach (var f in pits.Where(IsActive))
-        {
-            pitHeatF += HeatOutputF(f, ambientF + airHeatF);
-            windProtection = Math.Max(windProtection, WindProtectionLevel(f.Pit));
-        }
+        var burning = pits.Where(IsActive).ToList();
+        double windProtection = burning.Count == 0 ? 0 : burning.Max(f => WindProtectionLevel(f.Pit));
+        // Heat is felt against the air as weather leaves it, wind chill included (old Location.GetTemperatureBreakdown).
+        double ambientF = Weather.ExposedAirF(Weather.At(world, world.Minute), windProtection);
+        double airHeatF = pits.Sum(f => HeatOutputF(f, ambientF) * OpenAirHeatPct);
+        double pitHeatF = burning.Sum(f => HeatOutputF(f, ambientF + airHeatF));
         return new Warmth(airHeatF, pitHeatF, torchHeatF, windProtection);
     }
 

@@ -8,7 +8,8 @@ public class CoreTests
         Sim.Step(world, new Wait(AgentId.Player), 600);
         Sim.Step(world, new Rest(AgentId.Player), 120);
         world.Rng("test").NextUlong(); // stand-in for a system drawing from its stream
-        Sim.Step(world, new Wait(AgentId.Player), 900);
+        // Real weather can kill an unsheltered agent with no fire; determinism holds either way.
+        if (Body.IsAlive(world.Agent(AgentId.Player).Body)) Sim.Step(world, new Wait(AgentId.Player), 900);
         return world;
     }
 
@@ -57,6 +58,7 @@ public class CoreTests
     public void WaitingTooLong_EmitsTiredThenInterruptsOnExhaustion()
     {
         var world = World.New(1);
+        world.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North); // mild: this is about sleep, not cold
         var result = Sim.Step(world, new Wait(AgentId.Player), 24 * 60);
 
         Assert.Equal("exhausted", result.InterruptedReason);
@@ -103,9 +105,9 @@ public class CoreTests
     public void Cold_ReachesTheBodyThroughWeather()
     {
         var warm = World.New(1);
-        warm.Weather = new Weather(TemperatureC: 20, WindMps: 0);
+        warm.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, 20, 0, 0, 0, WindDirection.North);
         var cold = World.New(1);
-        cold.Weather = new Weather(TemperatureC: -30, WindMps: 10);
+        cold.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -30, 0.5, 0, 0, WindDirection.North);
         Sim.Step(warm, new Wait(AgentId.Player), 120);
         Sim.Step(cold, new Wait(AgentId.Player), 120);
         Assert.True(cold.Agent(AgentId.Player).Body.CoreTempF < warm.Agent(AgentId.Player).Body.CoreTempF);

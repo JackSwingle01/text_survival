@@ -21,35 +21,48 @@ public static class Sim
             if (Fire.Refusal(world, activity) is string refused) return new StepResult(events, 0, refused);
             acted = Fire.Act(world, activity, events); // a failed ignition still costs its minute
         }
+        else if (activity is Travel travel)
+        {
+            if (Traversal.Refusal(world, travel) is string refused) return new StepResult(events, 0, refused);
+            Traversal.Begin(world, travel);
+        }
         else if (activity is not (Wait or Rest or Sleep))
             throw new NotSupportedException($"No step rule for activity {activity.GetType().Name}");
 
+        if (activity is not Travel) agent.Crossing = null; // turned back: it never left its tile
         for (int elapsed = 1; elapsed <= minutes; elapsed++)
         {
             world.Minute++;
             Fire.CatchUpAround(world, agent, events); // before anything reads the fire this minute
-            string? interrupt = Body.Tick(world, agent, Surroundings(world, agent, activity), events) ?? acted;
+            string? interrupt = Body.Tick(world, agent, Surroundings(world, agent, activity), events);
+            if (activity is Travel && interrupt != "died") interrupt = Traversal.Advance(world, agent, events) ?? interrupt;
+            interrupt ??= acted;
             if (interrupt != null) return new StepResult(events, elapsed, interrupt);
         }
         return new StepResult(events, minutes, null);
     }
 
     /// What the world and this activity do to the agent's body this minute.
-    static SurvivalContext Surroundings(World world, Agent agent, Activity activity)
+    internal static SurvivalContext Surroundings(World world, Agent agent, Activity activity)
     {
         // Every activity so far keeps the agent put beside whatever fire there is: full radiant heat.
         var (activityFactor, fireProximityFactor, sleeping) = activity switch
         {
             Sleep => (0.5, 2.0, true),
             Wait or Rest or StartFire or AddFuel or LightTorch => (1.0, 2.0, false),
+            Travel => (1.5, 0.0, false), // walking: away from the fire's radiant heat
+
             _ => throw new NotSupportedException($"No survival profile for activity {activity.GetType().Name}"),
         };
         var warmth = Fire.WarmthFor(world, agent.Id);
+        var sky = Weather.At(world, world.Minute);
+        // ponytail: exposed tile (no cover, shelter or terrain wind factor) until the map supplies them.
         return new SurvivalContext
         {
-            // ponytail: no NWS wind chill on the air yet (old Location.CalculateWindChillNWS); Phase 2 Weather owns it.
-            AirTempF = world.Weather.TemperatureC * 9 / 5 + 32 + warmth.AirHeatF,
-            WindLevel = Math.Clamp(world.Weather.WindMps / MaxWindMps, 0, 1) * (1 - warmth.WindProtectionLevel),
+            AirTempF = Weather.ExposedAirF(sky, warmth.WindProtectionLevel) + warmth.AirHeatF,
+            WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel),
+            Precipitation = sky.Precipitation,
+            PrecipitationPct = sky.PrecipitationPct,
             FireBonusF = warmth.PitHeatF * fireProximityFactor,
             TorchHeatF = warmth.TorchHeatF,
             ClothingClo = agent.ClothingClo,
@@ -58,7 +71,4 @@ public static class Sim
             IsSleeping = sleeping,
         };
     }
-
-    /// A 45 mph gale: WindLevel 1.
-    const double MaxWindMps = 20.1;
 }

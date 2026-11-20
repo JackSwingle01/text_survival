@@ -11,3 +11,6 @@ public sealed record Sleep(AgentId Who) : Activity(Who);
 public sealed record StartFire(AgentId Who, FireStarter Tool, Fuel Tinder, double TinderKg, double KindlingKg, PitType Pit = PitType.Open) : Activity(Who);
 public sealed record AddFuel(AgentId Who, Fuel Fuel, double Kg) : Activity(Who);
 public sealed record LightTorch(AgentId Who) : Activity(Who);
+
+/// One tile north, east, south or west. Repeating it continues a crossing cut short; anything else abandons it.
+public sealed record Travel(AgentId Who, Direction Dir, Pace Pace = Pace.Quick) : Activity(Who);

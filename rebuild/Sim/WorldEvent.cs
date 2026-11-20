@@ -18,3 +18,9 @@ public sealed record FuelAdded(long Minute, FireId Fire, AgentId By, Fuel Fuel, 
 public sealed record FireBurnedToEmbers(long Minute, FireId Fire, TileId Tile) : WorldEvent(Minute);
 /// Embers gone cold, or a torch burned out.
 public sealed record FireDied(long Minute, FireId Fire, TileId Tile) : WorldEvent(Minute);
+
+/// A crossing completed: the agent now stands on To. Tracks and trail wear will read this.
+public sealed record Moved(long Minute, AgentId Who, TileId From, TileId To) : WorldEvent(Minute);
+public sealed record Injured(long Minute, AgentId Who, TileId Tile, string Region, DamageType Type, double Amount) : WorldEvent(Minute);
+/// Reached the far side of the mountain pass: the run is won.
+public sealed record CrossedThePass(long Minute, AgentId Who) : WorldEvent(Minute);

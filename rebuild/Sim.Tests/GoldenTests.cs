@@ -80,16 +80,16 @@ public class GoldenTests
         Assert.True(Math.Abs(expected[4] - wet) < 1e-6, $"{name}: wetness {wet} vs old {expected[4]}");
     }
 
-    /// Old effective temperature at a camp fire: Location.GetTemperature added the pit's heat at
-    /// 40% (open air), then SurvivalContext added it again at FireProximity 2, measured against that
-    /// warmed air. Open pit, bark + kindling + 3 kg birch, 30 minutes, -10°C. The fire's heat output was
-    /// captured from old HeatSourceFeature; the 0.4 and x2 combination was re-typed from the old source
-    /// (insulation 0), and old Location's NWS wind chill is deliberately omitted (see Sim.Surroundings).
+    /// Old effective temperature at a camp fire, through the whole old path: Location.GetTemperatureBreakdown
+    /// on an exposed tile (NWS wind chill, sun, then the pit's heat at 40% for open air), then SurvivalContext
+    /// adding the pit again at FireProximity 2 against that warmed air. Open pit, bark + kindling + 3 kg birch,
+    /// 30 minutes of burning, -10°C clear, wind 0.149, cloud 0.3, at 09:00 July 1 (world minute 0). Captured from the old code.
     [Fact]
     public void EffectiveHeatAtCamp_MatchesOld()
     {
-        const double OldWarmedAirF = 25.491729333120148, OldEffectiveF = 82.10284697892465;
+        const double OldExposedF = 11.814825831857966, OldWarmedAirF = 23.338787015679152, OldEffectiveF = 80.10868677678457;
         var world = World.New(1);
+        world.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -10, 3 / 20.1, 0, 0.3, WindDirection.North);
         var f = new FireState { Tile = world.CampTile, LastUpdatedMinute = 0, Pit = PitType.Open };
         Fire.AddFuel(f, Fuel.BirchBark, 0.05);
         Fire.AddFuel(f, Fuel.Kindling, 1.0);
@@ -101,8 +101,12 @@ public class GoldenTests
         world.Minute = f.LastUpdatedMinute;
 
         var w = Fire.WarmthFor(world, AgentId.Player);
-        double airF = world.Weather.TemperatureC * 9 / 5 + 32;
+        double airF = Weather.ExposedAirF(Weather.At(world, world.Minute), w.WindProtectionLevel);
+        Assert.Equal(OldExposedF, airF, Digits);
         Assert.Equal(OldWarmedAirF, airF + w.AirHeatF, Digits);
         Assert.Equal(OldEffectiveF, airF + w.AirHeatF + 2.0 * w.PitHeatF, Digits);
+        var ctx = Sim.Surroundings(world, world.Agent(AgentId.Player), new Wait(AgentId.Player));
+        Assert.Equal(OldWarmedAirF, ctx.AirTempF, Digits);
+        Assert.Equal(OldEffectiveF, ctx.AirTempF + ctx.FireBonusF, Digits);
     }
 }

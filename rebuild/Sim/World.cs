@@ -5,8 +5,15 @@ public sealed class World
 {
     public required int Seed { get; init; }
     public long Minute { get; set; }
-    public required Weather Weather { get; set; }
+    /// Tests pin the sky here; null (the game) means Weather.At derives it from Seed and the minute.
+    public WeatherSample? FixedWeather { get; set; }
+    /// Derived from Seed alone, so never saved (internal: the serializer skips it).
+    internal WeatherTimeline? WeatherCache;
     public required TileId CampTile { get; set; }
+    /// Generated from Seed alone, so never saved (internal: the serializer skips it). See Map.Of.
+    internal GeneratedMap? GeneratedMap;
+    /// Only tiles that differ from generation (plan decision 1). Ground and tracks write here.
+    public Dictionary<TileId, TileState> Tiles { get; init; } = [];
     public Dictionary<AgentId, Agent> Agents { get; init; } = [];
     /// One RNG stream per system, keyed by system name. Lives here so a load resumes every stream exactly.
     public Dictionary<string, Rng> Rngs { get; init; } = [];
@@ -16,8 +23,9 @@ public sealed class World
 
     public static World New(int seed)
     {
-        var camp = new TileId(48, 48); // ponytail: fixed camp until the phase-2 map generator picks one
-        var world = new World { Seed = seed, Weather = new Weather(TemperatureC: -10, WindMps: 3), CampTile = camp };
+        var map = Map.Generate(seed);
+        var camp = map.Camp;
+        var world = new World { Seed = seed, CampTile = camp, GeneratedMap = map };
         world.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = camp };
         return world;
     }
@@ -32,17 +40,4 @@ public sealed class World
             Rngs[system] = rng = Survival.Rng.ForSystem(Seed, system);
         return rng;
     }
-}
-
-/// Placeholder until phase 2 makes weather real.
-public sealed record Weather(double TemperatureC, double WindMps);
-
-public sealed class Agent
-{
-    public required AgentId Id { get; init; }
-    public required TileId Tile { get; set; }
-    public BodyState Body { get; init; } = BodyState.BaselineHuman();
-    /// Whole-body clothing insulation and its weight. ponytail: two numbers until items exist; then derive from worn gear.
-    public double ClothingClo { get; set; } = 2.0;
-    public double ClothingWeightKg { get; set; } = 3.0;
 }
