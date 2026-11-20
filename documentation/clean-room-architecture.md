@@ -28,8 +28,7 @@ Eight decisions, each removing one of the problems above. Together they make the
 ```csharp
 record World(int Seed, long Minute, WeatherState Weather,
              Dictionary<TileId, TileState> Tiles,   // only tiles that differ from generation
-             Dictionary<AgentId, Agent> Agents,     // the player is Agents[PlayerId]
-             Dictionary<HerdId, Herd> Herds,
+             Dictionary<AgentId, Agent> Agents,     // the player, NPCs and herds alike
              List<Tension> Tensions);
 ```
 
@@ -37,16 +36,26 @@ record World(int Seed, long Minute, WeatherState Weather,
 - Terrain regenerates from `Seed`; saves hold only deltas, so hundreds of KB, not 28MB.
 - Systems are static modules over this data: `Fire`, `Body`, `Ground`, `Weather`, `Fauna`, `Narrative`.
 
-### 2. One activity model for player and NPCs
+### 2. One agent model and one activity model for player, NPCs and herds
 
 ```csharp
-abstract record Activity(AgentId Who, int Minutes);  // Forage, Chop, Travel, TendFire, Sleep, Craft...
+class Agent {
+    AgentId Id; TileId Tile; Species Species;
+    List<BodyState> Members;   // player and NPCs: one; a herd: many
+    Mind Mind;                 // PlayerMind | NpcMind | HerdMind(Territory, State, Hunger, Fear)
+    BodyState Body => Members.Single();   // derived, for one-body agents
+}
+abstract record Activity(AgentId Who);  // Forage, Chop, Travel, TendFire, Sleep, Graze, Patrol...
 static StepResult Step(World w, Activity a, int minutes);
 ```
 
-- The UI and the NPC utility AI both just choose the next `Activity`. Everything after that is shared.
-- `Step` returns `Interrupted(reason)`: the player gets an event, an NPC re-plans.
+- An agent is one or more bodies that move and decide as a unit. A herd is an agent with many members; there is no separate herd type.
+- The UI, the NPC utility AI and the herd behaviors (prey, pack, solitary) all just choose the next `Activity`. Everything after that — travel, tracks, trail wear, lazy catch-up, combat entry — is shared.
+- `Step` returns `Interrupted(reason)`: the player gets an event, an NPC or herd re-plans.
 - Threat response and cooperation come almost free, because NPCs run the player's code.
+- Splitting falls out: a wounded animal leaving its herd is a new agent with one member; a herd sends members, not itself, into a fight.
+- Kind-specific state lives in the `Mind` record, never as optional fields on `Agent`; shared code touches only `Tile` and `Members`.
+- Animal members do not run the full human survival model. They take damage, bleed and die; hunger and fear are herd-level on `HerdMind`, as in the old game. Thermoregulation, wetness and needs are for human members.
 
 ### 3. Lazy catch-up instead of batch scheduling
 
@@ -83,7 +92,7 @@ record Tension(string Type, double Delta) : Effect;
 
 ### 7. One knowledge model per agent
 
-- Player map memory, discovered features, readable tracks and NPC `ResourceMemory` are one thing: an agent's beliefs.
+- Player map memory, discovered features, readable tracks, NPC `ResourceMemory` and a herd's learned fear are one thing: an agent's beliefs.
 - The UI renders the player's beliefs, not the truth. NPCs can be wrong.
 
 ### 8. Deterministic and headless by default
@@ -101,7 +110,7 @@ Dependencies point down only: front ends know the core, the core never knows a f
 flowchart TD
     UI["Desktop UI<br/>awaits the player"] -->|Activity| Step
     CLI["CLI and bots<br/>scripted actions"] -->|Activity| Step
-    NPC["NPC utility AI<br/>same choices"] -->|Activity| Step
+    NPC["NPC utility AI and herd minds<br/>same choices"] -->|Activity| Step
     Step["Step(World, Activity, minutes)<br/>one code path for every agent<br/>lazy catch-up of whatever it touches"]
     Step -->|emits| Stream["WorldEvent stream<br/>log, notices, tensions,<br/>NPC memory, event triggers"]
     Step -->|runs| Systems
@@ -135,6 +144,7 @@ Port the tuned formulas and the authoring vocabulary; drop distinctions the play
 | Cut | Serpentine, arachnid and flying bodies | An Ice Age game needs humans and quadrupeds |
 | Cut | `TorchHandler` as its own system | A torch is a carried heat-and-light source in `Fire` |
 | Merge | Harvestable, Forage, WoodedArea, Salvage, EnvironmentalDetail | All are a pool on a tile that work draws from, with different parameters |
+| Merge | `Herd` into `Agent` | A herd is an agent with many members; one Step, travel and tracks path instead of two |
 
 ---
 
@@ -146,7 +156,7 @@ Build a fresh `Core` project beside the old one and stop at any gate with a play
 | --- | --- | --- |
 | 1. Core skeleton | `World`, `Activity`, `Step`, `WorldEvent` stream; Fire and Body ported; player at camp in the CLI | Ported fire and heat tests pass; save round-trips under 1 MB |
 | 2. Map and travel | Seeded grid, Ground, Weather, lazy catch-up; hazardous travel; tracks and trails | 30-day headless run completes; same seed + actions = same world |
-| 3. Fauna and NPCs | Herds and predators on `Step`; NPC utility AI; combat grid on the shared `Body` | An NPC survives 14 days alone; a pack hunt resolves headless |
+| 3. Fauna and NPCs | Herd minds (prey, pack, solitary) and NPC utility AI choosing activities for multi-member agents; combat grid on the shared `Body` | An NPC survives 14 days alone; a pack hunt resolves headless; a wounded animal splits into its own agent |
 | 4. Events and content | `Effect` records, Situations, Tensions; tables moved to data files; events ported | Every content reference resolves; every event has 2+ choices |
 | 5. Desktop front end | Async driver over `Step`; pixel-art renderers; UI draws the player's knowledge, not the truth | Feature-parity checklist done; old project retired |
 
