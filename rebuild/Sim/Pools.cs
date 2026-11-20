@@ -570,6 +570,14 @@ public static class Pools
         var def = (StockPool)Def(world, id);
         var now = UnitsNow(world, id);
         var s = StateFor(world, id, () => new StockState { Units = (int[])now.Clone(), LastTakenMinute = new long[def.Items.Count] });
+        // Regrowth UnitsNow counted goes into Units, and its clock moves past it, so it counts once.
+        for (int i = 0; i < now.Length; i++)
+        {
+            if (now[i] == s.Units[i]) continue;
+            s.LastTakenMinute[i] = now[i] >= def.Items[i].Units ? world.Minute
+                : s.LastTakenMinute[i] + (long)Math.Round((now[i] - s.Units[i]) * def.Items[i].RespawnHoursPerUnit * 60);
+            s.Units[i] = now[i];
+        }
         var got = new Inventory();
         s.MinutesWorked += minutes;
         while (s.MinutesWorked >= def.MinutesPerUnit - 1e-9 && now.Any(u => u > 0))

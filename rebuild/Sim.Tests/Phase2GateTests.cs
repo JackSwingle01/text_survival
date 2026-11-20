@@ -28,37 +28,45 @@ public class Phase2GateTests(ITestOutputHelper output)
         void Note(string what) => Log?.Invoke($"day {day} {what} @{Weather.MinuteOfDay(w.Minute) / 60:00}h: core {w.Agent(P).Body.CoreTempF:0.0} wet {Effects.Severity(w.Agent(P).Body, EffectKind.Wet):0.00} energy {w.Agent(P).Body.EnergyPct:0.00} stash {Items.Describe(w.Tiles.GetValueOrDefault(camp)?.Stash ?? new Inventory())} pack {Items.Describe(Items.Pack(w, P))} fire {(Fire.PitAt(w, camp) is FireId f ? Fire.Phase(w.Fires[f]) + " " + Fire.TotalKg(w.Fires[f]).ToString("0.0") : "none")} sky {Weather.At(w, w.Minute).Condition} {Weather.At(w, w.Minute).TemperatureC:0}C");
         Note("wake");
         for (int i = 0; i < 6 && Alive(w) && w.Agent(P).Body.CoreTempF < 98.0; i++) { TendFire(w); S(w, new Rest(P), 30); }
-        t.Injuries += Walk(w, Direction.West, 1, Pace.Quick); // one hazardous segment a day, risk 0.3-0.5
-        t.Injuries += Walk(w, Direction.East, 1);
-        // Foraging walks while there is energy for them: out to a route's start, three tiles
-        // worked on the way, and back. Twelve routes, so a tile gets days to regrow between visits.
-        // Firewood: fell a tree in the wood east of camp, carry it home in loads (what the pack
-        // cannot hold drops on that tile's stash and is fetched on the next load).
-        if (Alive(w))
+        // Days run short of 24 h, so some start in the dark, when felling is refused: it waits for
+        // light by the fire, fed as through the evening.
+        for (int i = 0; i < 5 && Alive(w) && Weather.MinuteOfDay(w.Minute) / 60 is < 5 or >= 21; i++) { TendFire(w); S(w, new Rest(P), 120); }
+        // A foul morning with wood at camp is spent by the fire: one cold excursion below 95F core is
+        // enough to kill (hypothermia works on the brain), and the walks below turn home only once out.
+        bool stormDay = Foul(w) && !NoWood(w);
+        if (stormDay)
+            for (int i = 0; i < 2 && Alive(w); i++) { TendFire(w); S(w, new Rest(P), 120); }
+        else
         {
+            t.Injuries += Walk(w, Direction.West, 1, Pace.Quick); // one hazardous segment a day, risk 0.3-0.5
             t.Injuries += Walk(w, Direction.East, 1);
-            var wood = w.Agent(P).Tile;
-            int trees = Pools.At(w, wood).ToList().FindIndex(p => p is TreePool);
-            for (int i = 0; i < 4 && Alive(w) && S(w, new Gather(P, trees), 60).InterruptedReason != "tree felled"; i++) { }
-            for (int load = 0; load < 3 && Alive(w); load++)
+            // Foraging walks while there is energy for them: out to a route's start, three tiles
+            // worked on the way, and back. Twelve routes, so a tile gets days to regrow between visits.
+            // Firewood: fell a tree in the wood east of camp, carry it home in loads (what the pack
+            // cannot hold drops on that tile's stash and is fetched on the next load).
+            if (Alive(w))
             {
-                if (load > 0)
+                t.Injuries += Walk(w, Direction.East, 1);
+                var wood = w.Agent(P).Tile;
+                int trees = Pools.At(w, wood).ToList().FindIndex(p => p is TreePool);
+                for (int i = 0; i < 4 && Alive(w) && S(w, new Gather(P, trees), 60).InterruptedReason != "tree felled"; i++) { }
+                for (int load = 0; load < 3 && Alive(w); load++)
                 {
-                    t.Injuries += Walk(w, Direction.East, 1);
-                    var pile = Items.StashAt(w, wood);
-                    foreach (var r in pile.Kg.Keys.ToList()) S(w, new Unstash(P, r, 99), 1);
+                    if (load > 0)
+                    {
+                        t.Injuries += Walk(w, Direction.East, 1);
+                        var pile = Items.StashAt(w, wood);
+                        foreach (var r in pile.Kg.Keys.ToList()) S(w, new Unstash(P, r, 99), 1);
+                    }
+                    t.Injuries += Walk(w, Direction.West, 1);
+                    StashWood(w, t);
+                    if (Items.StashAt(w, wood).Kg.Count == 0) break;
                 }
-                t.Injuries += Walk(w, Direction.West, 1);
-                StashWood(w, t);
-                if (Items.StashAt(w, wood).Kg.Count == 0) break;
             }
         }
 
         // A cold camper turns for home: with 1.33 clo and no shelter the fire is the only warmth.
-        var stash = Items.StashAt(w, camp);
-        bool NoWood() => new[] { Resource.Pine, Resource.Birch, Resource.Oak, Resource.Kindling }.Sum(r => Items.Have(stash, r)) < 9;
-        bool Foul() => Weather.At(w, w.Minute) is var sky && (sky.Precipitation != Precipitation.None || sky.TemperatureC < -8);
-        bool Chilled() => (w.Agent(P).Body.CoreTempF < 97.5 || Foul()) && !NoWood();
+        bool Chilled() => (w.Agent(P).Body.CoreTempF < 97.5 || Foul(w)) && !NoWood(w);
         for (int trip = 0; trip < 2 && Alive(w) && w.Agent(P).Body.EnergyPct > 0.45 && !Chilled(); trip++)
         {
             // From the clock, not a counter: the script reads only world state, so a load resumes it exactly.
@@ -67,7 +75,9 @@ public class Phase2GateTests(ITestOutputHelper output)
             int walked = 0;
             for (; walked < path.Count && !Chilled(); walked++)
             {
+                var from = w.Agent(P).Tile;
                 t.Injuries += Walk(w, path[walked], 1);
+                if (w.Agent(P).Tile == from) break; // refused (water, a cliff): this route ends here
                 if (walked >= lead) ForageHere(w, 45);
             }
             for (int i = walked - 1; i >= 0; i--) t.Injuries += Walk(w, Opposite(path[i]), 1);
@@ -110,6 +120,10 @@ public class Phase2GateTests(ITestOutputHelper output)
             TendFire(w);
         }
     }
+
+    static bool NoWood(World w) =>
+        new[] { Resource.Pine, Resource.Birch, Resource.Oak, Resource.Kindling }.Sum(r => Items.Have(Items.StashAt(w, Map.Of(w).Camp), r)) < 9;
+    static bool Foul(World w) => Weather.At(w, w.Minute) is var sky && (sky.Precipitation != Precipitation.None || sky.TemperatureC < -8);
 
     static readonly Direction[][] BaseRoutes =
     [
@@ -170,6 +184,8 @@ public class Phase2GateTests(ITestOutputHelper output)
             {
                 var r = S(w, leg, 180);
                 injuries += r.Events.OfType<Injured>().Count();
+                // Too hurt to walk: rest it off, and try again.
+                if (r.InterruptedReason == "you can barely move") { S(w, new Rest(P), 120); continue; }
                 if (r.InterruptedReason is "arrived" or "died" || r.MinutesElapsed == 0) break;
             }
         }
@@ -256,10 +272,12 @@ public class Phase2GateTests(ITestOutputHelper output)
         output.WriteLine($"save {json.Length} bytes");
         Assert.True(json.Length < 1_000_000, $"save is {json.Length} bytes");
         Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed.TotalSeconds:F1}s");
-        // Walked out and back daily for a month: the first leg out of camp has worn into at least a Path.
+        // Walked to the wood and back several times a day for a month: that first leg out of camp
+        // has worn into at least a Path (a Trail on this seed).
         var camp = Map.Of(w).Camp;
         var tier = Tracks.TierOf(w, camp, new TileId(camp.X + 1, camp.Y));
-        Assert.True(tier >= TrailTier.Trace, $"daily route is only {tier}");
+        output.WriteLine($"camp to the wood: {tier}");
+        Assert.True(tier >= TrailTier.Path, $"daily route is only {tier}");
     }
 
     [Fact]

@@ -35,6 +35,10 @@ public sealed class TileState
     public Inventory? Stash { get; set; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public List<Carcass>? Carcasses { get; set; }
+    /// Nothing here differs from generation, so the tile can leave World.Tiles. Each owner sets its
+    /// field back to null when it has nothing left to keep.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsEmpty => Tracks == null && Ground == null && Pools == null && Stash == null && Carcasses == null;
 }
 
 public static class TerrainProps

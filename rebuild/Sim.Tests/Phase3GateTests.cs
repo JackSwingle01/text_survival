@@ -1,0 +1,138 @@
+using Survival;
+using Xunit;
+
+/// Phase 3a/3c gate: everything phase 3 added, mixed in one run (foraging, felling, a fire fed
+/// three woods, travel, butchering, the player's fights, a headless pack hunt that empties a herd,
+/// a herd member leaving), saved and loaded every few steps, comes out byte-identical to the same
+/// run straight through. A Dictionary walked after Remove-then-Add, or one object reachable from
+/// two places, is what this catches.
+public class Phase3GateTests
+{
+    static readonly AgentId P = AgentId.Player;
+    const int Steps = 160;
+
+    internal sealed class Tally { public int Felled, Butchered, PlayerFights, HerdsEmptied, Splits; public HashSet<Resource> Fuels = []; public int Moves; }
+
+    /// Reads only world state, so a load resumes it exactly. Seed 17: the tile east of camp is forest.
+    static void Play(World w, int i, Tally t)
+    {
+        var me = w.Agent(P);
+        if (!Body.IsAlive(me.Body)) me.Members[0] = BodyState.BaselineHuman();
+        Body.Eat(me.Body, 2000);
+        me.Body.HydrationMl = Body.MaxHydrationMl;
+        me.Body.EnergyMinutes = Body.MaxEnergyMinutes;
+        var pack = Items.Pack(w, P);
+        var tile = me.Tile;
+        void S(Survival.Activity a, int minutes)
+        {
+            var r = Sim.Step(w, a, minutes);
+            t.Felled += r.Events.OfType<TreeFelled>().Count();
+            t.Butchered += r.Events.OfType<Butchered>().Count();
+            t.PlayerFights += r.Events.OfType<FightEnded>().Count(f => f.Agent == P);
+            t.Moves += r.Events.OfType<Moved>().Count();
+            foreach (var f in r.Events.OfType<FuelAdded>().Where(f => f.Kg > 0)) t.Fuels.Add(f.Fuel);
+        }
+
+        if (Combat.EncounterOf(w, P) is Encounter enc)
+        {
+            var acts = Combat.Actions(w, enc, Combat.UnitOf(enc, P));
+            S(new Fight(P, acts.Contains(CombatAction.Attack) ? CombatAction.Attack : acts.Contains(CombatAction.Advance) ? CombatAction.Advance : CombatAction.Wait), 1);
+            return;
+        }
+        switch (i % 10)
+        {
+            case 0: S(new Gather(P, 0), 30); break;
+            case 1:
+            {
+                bool Burning() => Fire.PitAt(w, tile) is FireId f && Fire.IsActive(w.Fires[f]);
+                if (!Burning())
+                {
+                    if (Items.Have(pack, Resource.Tinder) < 0.05) Items.Add(pack, Resource.Tinder, 0.2);
+                    if (Items.Have(pack, Resource.Kindling) < 0.5) Items.Add(pack, Resource.Kindling, 1);
+                    S(new StartFire(P, ToolType.FireStriker, Resource.Tinder, 0.05, 0.3), 3);
+                }
+                if (Burning())
+                    foreach (var r in new[] { Resource.Kindling, Resource.Pine, Resource.Birch, Resource.Oak })
+                    {
+                        if (Items.Have(pack, r) <= 0) Items.Add(pack, r, 2);
+                        S(new AddFuel(P, r, 1.0), 2);
+                    }
+                break;
+            }
+            case 2:
+            {
+                var wolves = Agents.Spawn(w, Species.Wolf, tile, 2);
+                Combat.Create(w, [new Fighter(P) { Weapon = Items.Tool(pack, ToolType.Spear) }], [new Fighter(wolves, 0)], tile, 8, Awareness.Engaged, Awareness.Engaged);
+                break;
+            }
+            case 4:
+            {
+                // A pack of five loses one to wandering off, then four ambush a lone caribou. The
+                // caribou comes first, so the agent its death removes is not the newest one.
+                var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
+                var wolves = Agents.Spawn(w, Species.Wolf, tile, 5);
+                Agents.SplitOff(w, wolves, 4);
+                t.Splits++;
+                var hunt = Combat.Create(w, [.. Enumerable.Range(0, 4).Select(k => new Fighter(wolves, k))], [new Fighter(caribou)], tile, 5, Awareness.Engaged, Awareness.Unaware);
+                Combat.ResolveHeadless(w, hunt, []);
+                if (!w.Agents.ContainsKey(caribou)) t.HerdsEmptied++;
+                break;
+            }
+            case 5:
+            {
+                var carcasses = w.Tiles.GetValueOrDefault(tile)?.Carcasses;
+                if (carcasses is { Count: > 0 }) S(new Butcher(P, carcasses[0].Id), 90);
+                else S(new Rest(P), 5);
+                break;
+            }
+            case 6:
+            {
+                // Out to the wood east of camp and back on alternate visits, felling while there.
+                var camp = Map.Of(w).Camp;
+                int trees = Pools.At(w, tile).ToList().FindIndex(p => p is TreePool);
+                if (trees >= 0 && !Work.TooDarkToWork(w, me)) S(new Gather(P, trees), 120);
+                foreach (var (r, kg) in pack.Kg.ToList())
+                    if (r is not (Resource.Tinder or Resource.Kindling) && Items.Resources[r].Category != ResourceCategory.Food) S(new Stash(P, r, kg), 1);
+                var dir = tile == camp ? Direction.East : Direction.West;
+                for (int tries = 0; tries < 5 && w.Agent(P).Tile == tile && Combat.EncounterOf(w, P) == null; tries++)
+                    S(new Travel(P, dir, Pace.Careful), 30);
+                break;
+            }
+            case 8:
+                if (pack.Kg.Keys.FirstOrDefault(r => Items.Resources[r].Category == ResourceCategory.Food, Resource.Water) is var food && food != Resource.Water)
+                    S(new Eat(P, food, 0.5), 10);
+                S(new Sleep(P), 60);
+                break;
+            default: S(new Wait(P), 10); break;
+        }
+    }
+
+    internal static (World World, Tally Tally) Run(int steps, int saveEvery = 0)
+    {
+        var w = World.New(17);
+        var pack = Items.Pack(w, P);
+        foreach (var g in new[] { "stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));
+        var t = new Tally();
+        for (int i = 0; i < steps; i++)
+        {
+            if (saveEvery > 0 && i % saveEvery == 0) w = Save.FromJson(Save.ToJson(w));
+            Play(w, i, t);
+        }
+        return (w, t);
+    }
+
+    [Fact]
+    public void MixedRun_SavedAndLoadedEveryFewSteps_IsByteIdenticalToAStraightRun()
+    {
+        var (straight, t) = Run(Steps);
+        var (resumed, _) = Run(Steps, saveEvery: 3);
+        // It did what it is here to cover.
+        Assert.True(t.Felled > 0, "no tree felled");
+        Assert.True(t.Butchered > 0, "nothing butchered");
+        Assert.True(t.PlayerFights > 0, "the player never fought");
+        Assert.True(t.HerdsEmptied > 0, "no herd was emptied by a hunt");
+        Assert.True(t.Splits > 0 && t.Moves > 0);
+        Assert.True(t.Fuels.Count >= 3, $"fed only {string.Join(", ", t.Fuels)}");
+        Assert.Equal(Save.ToJson(straight), Save.ToJson(resumed));
+    }
+}

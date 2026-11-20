@@ -130,6 +130,26 @@ public class CarcassTests
         Assert.Equal(2000 / 60.0 * Carcasses.DecayFactor(Weather.AirAtF(a, Map.Of(a).Camp, Mild, 0)), ca.EffectiveHours, 9);
     }
 
+    /// The same with the seed's own weather, which changes within the hour: each hour is read at
+    /// the top of the hour, not at whatever minute someone last looked.
+    [Theory, InlineData(17), InlineData(3), InlineData(9), InlineData(21)]
+    public void Decay_InRealWeather_DoesNotDependOnHowOftenYouLook(int seed)
+    {
+        var a = World.New(seed);
+        var b = World.New(seed);
+        var tile = Map.Of(a).Camp;
+        var body = BodyState.Create(BodyKind.Quadruped, 120, 0.15, 0.6);
+        var once = Carcasses.Create(a, tile, "Caribou", body, 0);
+        var often = Carcasses.Create(b, tile, "Caribou", body, 0);
+        const long End = 14 * 1440;
+        for (long m = 0; m < End; m += 37) { b.Minute = m; Carcasses.CatchUp(b, tile, often); }
+        a.Minute = b.Minute = End;
+        Carcasses.CatchUp(a, tile, once);
+        Carcasses.CatchUp(b, tile, often);
+        Assert.Equal(once.EffectiveHours, often.EffectiveHours, 9);
+        Assert.Equal(once.LastKnownTempF, often.LastKnownTempF);
+    }
+
     // ---- through Sim.Step ----
 
     [Fact]
@@ -140,10 +160,11 @@ public class CarcassTests
         var r = Sim.Step(w, new Butcher(P, c.Id), 120);
         Assert.Equal(("butchered", 34), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Contains(r.Events, e => e is Butchered { Finished: true });
-        // All of it, less the 34 minutes' decay at the camp's air (decay costs meat only).
-        double decay = Carcasses.DecayLevel(34 / 60.0 * Carcasses.DecayFactor(Weather.AirAtF(w, Map.Of(w).Camp, Mild, 0)));
-        Assert.Equal(0.6703585854625697 * (1 - decay * 0.8), Items.Have(Items.Pack(w, P), Resource.RawMeat), 9);
-        Assert.Empty(w.Tiles[Map.Of(w).Camp].Carcasses!);
+        // All of it, less the decay at the camp's air when each minute's cut came off: the setup
+        // takes the first 30 minutes, the cutting the last 4 (decay costs meat only).
+        double Meat(int minute) => 0.6703585854625697 * (1 - 0.8 * Carcasses.DecayLevel(minute / 60.0 * Carcasses.DecayFactor(Weather.AirAtF(w, Map.Of(w).Camp, Mild, 0))));
+        Assert.InRange(Items.Have(Items.Pack(w, P), Resource.RawMeat), Meat(34), Meat(30));
+        Assert.Null(w.Tiles[Map.Of(w).Camp].Carcasses); // the emptied list goes, so the tile can clean up
         Assert.True(Effects.Severity(w.Agent(P).Body, EffectKind.Bloody) > 0);
         Assert.Equal("no such carcass here", Sim.Step(w, new Butcher(P, c.Id), 10).InterruptedReason);
     }
@@ -180,6 +201,8 @@ public class CarcassTests
         (World, Carcass) Session(bool frozen)
         {
             var (w, c) = Make("Caribou");
+            // Decay reads the air every hour, so a frozen carcass needs frozen air to stay frozen.
+            if (frozen) w.FixedWeather = Mild with { TemperatureC = -20 };
             Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
             Items.Pack(w, P).Gear.Add(Items.Make("large_bag"));
             w.Minute = 3 * 60;
@@ -190,9 +213,97 @@ public class CarcassTests
         }
         var (fw, frozenC) = Session(true);
         var (tw, thawedC) = Session(false);
-        Sim.Step(fw, new Butcher(P, frozenC.Id), 30);
-        Sim.Step(tw, new Butcher(P, thawedC.Id), 30);
+        Sim.Step(fw, new Butcher(P, frozenC.Id), 90); // past the setup, paid once per carcass
+        Sim.Step(tw, new Butcher(P, thawedC.Id), 90);
         Assert.True(Carcasses.TotalRemainingKg(frozenC) > Carcasses.TotalRemainingKg(thawedC));
+    }
+
+    /// A pack with room for everything, for sessions that must not be cut short by it.
+    static void BigPack(World w)
+    {
+        var pack = Items.Pack(w, P);
+        pack.Gear.Add(Items.Make("flint_knife"));
+        for (int i = 0; i < 10; i++) pack.Gear.Add(Items.Make("large_bag"));
+    }
+
+    static void Refresh(World w)
+    {
+        var body = w.Agent(P).Body;
+        body.EnergyMinutes = Body.MaxEnergyMinutes;
+        body.CaloriesKcal = 1500;
+        body.HydrationMl = 3000;
+    }
+
+    /// The world's results do not depend on how a caller chunks the work: one long butchering
+    /// session and the same minutes in hours take the same time, yield the same, bloody you the
+    /// same and leave the same scent. Old ButcherStrategy charged the setup, the scent and the
+    /// blood once per session, and read decay once per session.
+    [Fact]
+    public void Butchering_InOneSessionOrInHours_ComesOutTheSame()
+    {
+        var (one, c1) = Make("Caribou");
+        var (hours, c2) = Make("Caribou");
+        BigPack(one);
+        BigPack(hours);
+        Assert.Equal(267, Carcasses.RemainingMinutes(c1, ButcherMode.Careful));
+
+        Assert.Null(Sim.Step(one, new Butcher(P, c1.Id), 180).InterruptedReason);
+        for (int i = 0; i < 3; i++) Assert.Null(Sim.Step(hours, new Butcher(P, c2.Id), 60).InterruptedReason);
+        Assert.Equal(Carcasses.TotalRemainingKg(c1), Carcasses.TotalRemainingKg(c2), 9);
+        Assert.Equal(c1.ScentBonus, c2.ScentBonus, 12);
+        Assert.Equal(Effects.Severity(one.Agent(P).Body, EffectKind.Bloody), Effects.Severity(hours.Agent(P).Body, EffectKind.Bloody), 12);
+        Assert.True(Effects.Severity(one.Agent(P).Body, EffectKind.Bloody) > 0.3); // three hours elbow-deep
+
+        var a = Sim.Step(one, new Butcher(P, c1.Id), 600);
+        int minutes = 180 + a.MinutesElapsed, chunked = 180;
+        while (Carcasses.Find(hours, Map.Of(hours).Camp, c2.Id) != null) chunked += Sim.Step(hours, new Butcher(P, c2.Id), 60).MinutesElapsed;
+        Assert.Equal(("butchered", 267, 267), (a.InterruptedReason, minutes, chunked));
+        var p1 = Items.Pack(one, P);
+        var p2 = Items.Pack(hours, P);
+        foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat })
+            Assert.Equal(Items.Have(p1, r), Items.Have(p2, r), 9);
+    }
+
+    /// What a full pack could not hold goes back on the carcass as the share of it it was cut from,
+    /// so two sessions with a small pack yield what one does with a big one.
+    [Fact]
+    public void AFullPack_OverTwoSessions_YieldsWhatOneBigPackDoes()
+    {
+        var (big, c1) = Make("Caribou");
+        BigPack(big);
+        Assert.Equal("butchered", Sim.Step(big, new Butcher(P, c1.Id, ButcherMode.QuickStrip), 24 * 60).InterruptedReason);
+        var bigPack = Items.Pack(big, P);
+
+        var (small, c2) = Make("Caribou");
+        Items.Pack(small, P).Gear.Add(Items.Make("flint_knife"));
+        var stash = new Inventory();
+        for (int session = 0; session < 20 && Carcasses.Find(small, Map.Of(small).Camp, c2.Id) != null; session++)
+        {
+            Sim.Step(small, new Butcher(P, c2.Id, ButcherMode.QuickStrip), 24 * 60);
+            var pack = Items.Pack(small, P);
+            foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.RawFat }) Items.Add(stash, r, Items.Take(pack, r, 999));
+            Refresh(small);
+        }
+        Assert.Null(Carcasses.Find(small, Map.Of(small).Camp, c2.Id));
+        // Bone and fat are cut at half weight in a quick strip, and do not rot: what was put back
+        // must not be halved again. (Meat rots in the hours between, so it is not compared.)
+        Assert.Equal(Items.Have(bigPack, Resource.Bone), Items.Have(stash, Resource.Bone), 9);
+        Assert.Equal(Items.Have(bigPack, Resource.RawFat), Items.Have(stash, Resource.RawFat), 9);
+    }
+
+    /// A carcass keeps the mode it was first butchered in; asking for another is refused, not swapped.
+    [Fact]
+    public void Butcher_InAnotherModeThanTheCarcasss_IsRefused()
+    {
+        var (w, c) = Make("Caribou");
+        BigPack(w);
+        Sim.Step(w, new Butcher(P, c.Id, ButcherMode.Careful), 5);
+        string before = Save.ToJson(w);
+        var r = Sim.Step(w, new Butcher(P, c.Id, ButcherMode.QuickStrip), 5);
+        Assert.Equal((0, "this carcass is being butchered Careful, not QuickStrip"), (r.MinutesElapsed, r.InterruptedReason));
+        Assert.Equal(before, Save.ToJson(w));
+        Assert.Null(Sim.Step(w, new Butcher(P, c.Id), 5).InterruptedReason);
+        Assert.Null(Sim.Step(w, new Butcher(P, c.Id, ButcherMode.Careful), 5).InterruptedReason);
     }
 
     [Fact]

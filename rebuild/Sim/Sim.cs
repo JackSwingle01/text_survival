@@ -57,7 +57,7 @@ public static class Sim
             interrupt ??= acted;
             if (interrupt != null)
             {
-                if (work != null && interrupt != "died") Work.End(world, agent, work, events);
+                if (work != null) Work.End(world, agent, work, events); // death too: a carcass cut a minute at a time must not lose the cut
                 return new StepResult(events, elapsed, interrupt);
             }
         }

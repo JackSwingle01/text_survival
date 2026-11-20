@@ -8,9 +8,6 @@ public enum ForageFocus { General, Fuel, Food, Medicine, Materials }
 public sealed class WorkSession
 {
     public required Activity Activity { get; init; }
-    /// Old AbilityCalculator.GetWorkImpairments, fixed for the session as the old game fixed it.
-    public double ImpairmentFactor { get; init; } = 1.0;
-    public double EffectiveMinutes { get; set; }
     public int Minutes { get; set; }
     public Inventory Got { get; } = new();
     /// What did not fit in the pack and went on the tile's stash.
@@ -20,6 +17,9 @@ public sealed class WorkSession
     public double Perception { get; init; } = 1.0;
     public double TargetMinutes { get; init; }
     public double DoneKg { get; set; }
+    /// Butchering: what came off the carcass this step, and what it yields, before Finish rounds it.
+    public SortedDictionary<Resource, double> CutRaw { get; } = [];
+    public SortedDictionary<Resource, double> CutYield { get; } = [];
 }
 
 /// Work activities, shared by the player and NPCs: gathering from pools, butchering, eating,
@@ -29,25 +29,12 @@ public static class Work
     public const double MaxDrinkLiters = 1.0;
     public const int EatMinutes = 10, DrinkMinutes = 2, MeltSnowMinutes = 10, CookMeatMinutesPerKg = 15, CookFishMinutesPerKg = 12;
     public const double MeltSnowLiters = 1.0;
+    /// One use of the axe per hour of chopping (old: one per session, and its sessions ran 30-120 minutes).
+    public const double ChopMinutesPerAxeUse = 60;
 
     public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or Stash or Unstash or Wear;
 
     // ---- light and ability ----
-
-    /// Old AbilityContext.CalculateDarkness: by the hour, whatever the season; caves are always dark.
-    public static double DarknessLevel(World world, TileId tile)
-    {
-        if (Map.Of(world).CaveAt(tile) == Cave.Floor) return 1.0;
-        return (Weather.MinuteOfDay(world.Minute) / 60) switch
-        {
-            < 5 => 1.0,
-            < 6 => 0.5,
-            < 17 => 0.0,
-            < 20 => 0.2,
-            < 21 => 0.6,
-            _ => 1.0,
-        };
-    }
 
     /// Old WorkRunner.CheckDarknessBlocking: night (old TimeOfDay.Night) or a cave, with no flame or torch.
     public static bool TooDarkToWork(World world, Agent agent)
@@ -57,11 +44,26 @@ public static class Work
         return dark && !Fire.HasLight(world, agent.Id);
     }
 
-    /// Old AbilityContext.FromFullContext. Fires around the agent must be caught up.
-    public static AbilityContext AbilityContextFor(World world, Agent agent) =>
-        new(Items.EncumbrancePct(agent), DarknessLevel(world, agent.Tile), Fire.HasLight(world, agent.Id));
+    /// Old GetWorkImpairments: bad legs +20%, bad lungs +15%, bad hands +25% time; a frozen carcass
+    /// +50%. Read every minute, not fixed for the session as the old game did, so how the work is
+    /// split into steps cannot change what it gets done.
+    static double ImpairmentFactor(World world, Agent agent, Activity activity)
+    {
+        var body = agent.Body;
+        return activity switch
+        {
+            Gather g => Pools.Def(world, new PoolId(agent.Tile, g.Pool)) switch
+            {
+                ForagePool => ImpairmentFactor(body, moving: true, breathing: true),
+                TreePool => ImpairmentFactor(body, moving: true, manipulation: true),
+                StockPool { Kind: StockKind.Salvage } => ImpairmentFactor(body, moving: true),
+                _ => 1.0,
+            },
+            Butcher b => ImpairmentFactor(body, manipulation: true) * (Carcasses.IsFrozen(world, Carcasses.Find(world, agent.Tile, b.Carcass)!) ? 1.5 : 1.0),
+            _ => 1.0,
+        };
+    }
 
-    /// Old GetWorkImpairments: bad legs +20%, bad lungs +15%, bad hands +25% time.
     static double ImpairmentFactor(BodyState body, bool moving = false, bool breathing = false, bool manipulation = false)
     {
         var c = Body.GetCapacities(body);
@@ -106,6 +108,8 @@ public static class Work
                 var c = Carcasses.Find(world, agent.Tile, b.Carcass);
                 if (c == null) return "no such carcass here";
                 if (Carcasses.IsButchered(c)) return "there's nothing left to butcher";
+                if (b.Mode is ButcherMode asked && c.Mode is ButcherMode started && asked != started)
+                    return $"this carcass is being butchered {started}, not {asked}";
                 return TooDarkToWork(world, agent) ? "too dark to work" : null;
             }
             case Eat e:
@@ -166,36 +170,18 @@ public static class Work
             case Gather g:
             {
                 var id = new PoolId(agent.Tile, g.Pool);
-                var def = Pools.Def(world, id);
-                if (def is TreePool) Items.Use(Items.Tool(pack, ToolType.Axe)!); // once a session, as old ChoppingStrategy
-                double perception = Body.Perception(body, AbilityContextFor(world, agent));
+                double perception = Body.Perception(body, Fire.AbilityContextFor(world, agent));
                 // old game: the axe and shovel bonuses were applied only when the total multiplier came out
                 // below 1, so a healthy forager with an axe never got the +10% it was promised (bug, fixed).
                 double yieldFactor = Math.Min(perception, 1.0)
                     * (Items.Tool(pack, ToolType.Axe) != null ? 1.10 : 1.0) * (Items.Tool(pack, ToolType.Shovel) != null ? 1.10 : 1.0);
-                return new WorkSession
-                {
-                    Activity = activity, Pool = id, Perception = perception, ForageYieldFactor = yieldFactor,
-                    ImpairmentFactor = def switch
-                    {
-                        ForagePool => ImpairmentFactor(body, moving: true, breathing: true),
-                        TreePool => ImpairmentFactor(body, moving: true, manipulation: true),
-                        StockPool { Kind: StockKind.Salvage } => ImpairmentFactor(body, moving: true),
-                        _ => 1.0,
-                    },
-                };
+                return new WorkSession { Activity = activity, Pool = id, Perception = perception, ForageYieldFactor = yieldFactor };
             }
             case Butcher b:
             {
                 var c = Carcasses.Find(world, agent.Tile, b.Carcass)!;
-                Carcasses.CatchUp(world, agent.Tile, c);
                 c.Mode ??= b.Mode ?? ButcherMode.Careful;
-                return new WorkSession
-                {
-                    Activity = activity,
-                    ImpairmentFactor = ImpairmentFactor(body, manipulation: true) * (Carcasses.IsFrozen(world, c) ? 1.5 : 1.0),
-                    TargetMinutes = Carcasses.RemainingMinutes(c, c.Mode.Value),
-                };
+                return new WorkSession { Activity = activity };
             }
             case Eat e:
             {
@@ -224,9 +210,8 @@ public static class Work
                 return new WorkSession { Activity = activity };
             case Unstash u:
             {
-                var stash = Items.StashAt(world, agent.Tile);
-                double kg = Math.Min(Math.Min(u.Kg, Items.Have(stash, u.Resource)), Items.CapacityKg(pack) - Items.CarriedKg(agent));
-                Items.Add(pack, u.Resource, Items.Take(stash, u.Resource, kg));
+                double kg = Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent));
+                Items.Add(pack, u.Resource, Items.TakeFromStash(world, agent.Tile, u.Resource, kg));
                 return new WorkSession { Activity = activity };
             }
             case Wear w:
@@ -253,8 +238,7 @@ public static class Work
     public static string? Minute(World world, Agent agent, WorkSession s, List<WorldEvent> events)
     {
         s.Minutes++;
-        double effective = 1.0 / s.ImpairmentFactor;
-        s.EffectiveMinutes += effective;
+        double effective = 1.0 / ImpairmentFactor(world, agent, s.Activity);
         var pack = Items.PackOf(agent)!;
         switch (s.Activity)
         {
@@ -272,6 +256,8 @@ public static class Work
                         Pools.Search(world, agent, s.Perception / 60.0, events);
                         return null;
                     case TreePool:
+                        if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
+                        Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
                         if (Pools.Chop(world, id, effective, world.Rng("work")) is not { } tree) return null;
                         Keep(world, agent, s, tree, events);
                         events.Add(new TreeFelled(world.Minute, agent.Id, id));
@@ -283,8 +269,8 @@ public static class Work
                         throw new NotSupportedException("Unknown pool kind");
                 }
             }
-            case Butcher:
-                return s.EffectiveMinutes >= s.TargetMinutes - 1e-9 ? "butchered" : null;
+            case Butcher b:
+                return CutMinute(world, agent, b, s, effective);
             case Eat:
                 return s.Minutes >= s.TargetMinutes ? "ate" : null;
             case Drink:
@@ -324,25 +310,36 @@ public static class Work
             events.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Dropped)));
     }
 
-    /// Old ButcherStrategy.Execute for the minutes this step lasted: the yield, the blood on your
-    /// hands, the scent on the carcass. What the pack cannot hold stays on the carcass.
+    /// A minute of old ButcherStrategy: the setup once per carcass, then the cutting, at this
+    /// minute's decay and hands. The blood on you and the scent on the carcass build with the
+    /// minutes worked. What comes off waits in the session for EndButcher.
+    static string? CutMinute(World world, Agent agent, Butcher b, WorkSession s, double effective)
+    {
+        var c = Carcasses.Find(world, agent.Tile, b.Carcass)!;
+        Carcasses.CatchUp(world, agent.Tile, c);
+        var mode = c.Mode!.Value;
+        var props = Carcasses.ModeProps(mode);
+        bool handsImpaired = Body.Dexterity(agent.Body, Fire.AbilityContextFor(world, agent)) < 0.7;
+        Carcasses.Cut(c, Carcasses.Prepare(c, effective, mode), Items.HasCuttingTool(Items.PackOf(agent)!), handsImpaired, mode, s.CutRaw, s.CutYield);
+        // Old: BloodySeverity an hour, at most 0.5 from butchering; ScentIncrease a session, now an hour.
+        double bloody = Effects.Severity(agent.Body, EffectKind.Bloody);
+        if (bloody < 0.5) Effects.Set(agent.Body, EffectKind.Bloody, Math.Min(0.5, bloody + props.BloodySeverity / 60));
+        c.ScentBonus += props.ScentIncrease / 60;
+        return Carcasses.IsButchered(c) ? "butchered" : null;
+    }
+
+    /// The step is over: the session's cut goes in the pack, and what the pack cannot hold goes
+    /// back on the carcass.
     static void EndButcher(World world, Agent agent, Butcher b, WorkSession s, List<WorldEvent> events)
     {
         if (s.Minutes == 0) return;
         var c = Carcasses.Find(world, agent.Tile, b.Carcass)!;
-        Carcasses.CatchUp(world, agent.Tile, c);
-        var pack = Items.PackOf(agent)!;
-        var mode = Carcasses.ModeProps(c.Mode!.Value);
-        bool handsImpaired = Body.Dexterity(agent.Body, AbilityContextFor(world, agent)) < 0.7;
-        var yield = Carcasses.Harvest(c, s.EffectiveMinutes, Items.HasCuttingTool(pack), handsImpaired, c.Mode.Value);
-        double bloody = Math.Min(0.5, mode.BloodySeverity * (s.Minutes / 60.0));
-        if (bloody > 0.05) Effects.Add(agent.Body, EffectKind.Bloody, bloody);
-        c.ScentBonus += mode.ScentIncrease;
-        var leftovers = Items.Receive(world, agent, yield, events, dropExcess: false);
-        Carcasses.Restore(c, leftovers);
-        foreach (var (r, kg) in yield.Kg) Items.Add(s.Got, r, kg - Items.Have(leftovers, r));
+        var got = Carcasses.Finish(c, s.CutRaw, s.CutYield);
+        var leftovers = Items.Receive(world, agent, got, events, dropExcess: false);
+        Carcasses.Restore(c, leftovers, got, s.CutRaw);
+        foreach (var (r, kg) in got.Kg) Items.Add(s.Got, r, kg - Items.Have(leftovers, r));
         bool finished = Carcasses.IsButchered(c);
-        if (finished) world.Tiles[agent.Tile].Carcasses!.Remove(c);
+        if (finished) Carcasses.Remove(world, agent.Tile, c);
         events.Add(new Butchered(world.Minute, agent.Id, c.Id, finished));
     }
 

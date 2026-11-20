@@ -137,6 +137,21 @@ public static class Weather
         return byTime * (1 - cloudCoverPct * 0.9) * (1 - conditionReduction);
     }
 
+    /// Old AbilityContext.CalculateDarkness: by the hour, whatever the season; caves are always dark.
+    public static double DarknessLevel(World world, TileId tile)
+    {
+        if (Map.Of(world).CaveAt(tile) == Cave.Floor) return 1.0;
+        return (MinuteOfDay(world.Minute) / 60) switch
+        {
+            < 5 => 1.0,
+            < 6 => 0.5,
+            < 17 => 0.0,
+            < 20 => 0.2,
+            < 21 => 0.6,
+            _ => 1.0,
+        };
+    }
+
     // ---- what a person feels ----
 
     /// NWS wind chill (old Location.CalculateWindChillNWS). Only valid at or below 50 °F and 3 mph or more.

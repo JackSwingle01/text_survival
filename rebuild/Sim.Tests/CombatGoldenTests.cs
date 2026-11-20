@@ -86,7 +86,7 @@ public class CombatGoldenTests
     {
         var (w, t) = Field();
         var wolf = Herd(w, Species.Wolf, 1, t);
-        var e = Combat.Create(w, [new(AgentId.Player) { Weapon = Items.Make("wooden_spear") }], [new(wolf)], t, 5, Awareness.Engaged, Awareness.Engaged);
+        var e = Combat.Create(w, [new(AgentId.Player) { Weapon = CombatTests.Spear(w) }], [new(wolf)], t, 5, Awareness.Engaged, Awareness.Engaged);
         var (amount, type) = Combat.AverageBlow(w, e.Units[0]);
         Assert.Equal(7.908999999999999, amount, Digits);
         Assert.Equal(DamageType.Pierce, type);
@@ -208,7 +208,7 @@ public class CombatGoldenTests
     {
         var (w, t) = Field();
         var wolf = Herd(w, Species.Wolf, 1, t);
-        var e = Combat.Create(w, [new(AgentId.Player) { Weapon = Items.Make("wooden_spear") }], [new(wolf)], t, 10, Awareness.Engaged, Awareness.Engaged);
+        var e = Combat.Create(w, [new(AgentId.Player) { Weapon = CombatTests.Spear(w) }], [new(wolf)], t, 10, Awareness.Engaged, Awareness.Engaged);
         Assert.Equal(0.7, Combat.IntimidationChance(w, e.Units[1], e.Units[0]), Digits);
         // Old harness: mean boldness drop 0.2251 over 20000 shouts (0.3 on success, 0.05 on failure).
         double drop = 0;
@@ -313,7 +313,15 @@ public class CombatGoldenTests
             {
                 var id = Herd(w, s, n, t);
                 if (s == Species.Human) foreach (var m in w.Agent(id).Members) m.Worn.Clear();
-                return [.. Enumerable.Range(0, n).Select(k => new Fighter(id, k) { Weapon = spear ? Items.Make("wooden_spear") : null })];
+                Inventory? pack = null;
+                if (spear)
+                {
+                    // A spear is wielded out of a pack, so these people carry one.
+                    var herd = w.Agent(id);
+                    pack = new Inventory { Gear = [.. Enumerable.Range(0, n).Select(_ => Items.Make("wooden_spear"))] };
+                    w.Agents[id] = new Agent { Id = id, Tile = herd.Tile, Species = herd.Species, Members = herd.Members, Mind = new PlayerMind { Pack = pack } };
+                }
+                return [.. Enumerable.Range(0, n).Select(k => new Fighter(id, k) { Weapon = pack?.Gear[k] })];
             }
             var (a, b, d, aa, ba) = scenario switch
             {

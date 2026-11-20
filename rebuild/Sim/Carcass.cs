@@ -21,6 +21,8 @@ public sealed class Carcass
     public Dictionary<Resource, double> Remaining { get; init; } = [];
     public ButcherMode? Mode { get; set; }
     public double ScentBonus { get; set; }
+    /// Minutes of the setup done, before the mode's time factor. Setup is paid once per carcass.
+    public double SetupMinutes { get; set; }
 }
 
 /// Port of old CarcassFeature: decay by temperature, butchering yields and times.
@@ -81,6 +83,14 @@ public static class Carcasses
         return c;
     }
 
+    /// Takes a carcass off its tile; an emptied list goes back to null, so the tile can clean up.
+    public static void Remove(World world, TileId tile, Carcass c)
+    {
+        var state = world.Tiles.GetValueOrDefault(tile);
+        if (state?.Carcasses?.Remove(c) != true) throw new InvalidOperationException($"Carcass {c.Id} is not on {tile}");
+        if (state.Carcasses.Count == 0) state.Carcasses = null;
+    }
+
     public static Carcass? Find(World world, TileId tile, int id) =>
         world.Tiles.TryGetValue(tile, out var t) ? t.Carcasses?.FirstOrDefault(c => c.Id == id) : null;
 
@@ -117,7 +127,7 @@ public static class Carcasses
         return Math.Min(1.0, baseScent + c.ScentBonus);
     }
 
-    /// Ages the carcass to world.Minute in clock-hour chunks, each at the tile's air at its start,
+    /// Ages the carcass to world.Minute in clock-hour chunks, each at the tile's air at the top of its hour,
     /// so how often anyone looks cannot change how fast it rots.
     // ponytail: the old Location.GetTemperature it read included a fire on the tile; the air here does not.
     public static void CatchUp(World world, TileId tile, Carcass c)
@@ -125,7 +135,7 @@ public static class Carcasses
         while (c.LastUpdatedMinute < world.Minute)
         {
             long next = Math.Min(world.Minute, (c.LastUpdatedMinute / 60 + 1) * 60);
-            double tempF = Weather.AirAtF(world, tile, Weather.At(world, c.LastUpdatedMinute), 0);
+            double tempF = Weather.AirAtF(world, tile, Weather.At(world, c.LastUpdatedMinute / 60 * 60), 0);
             c.LastKnownTempF = tempF;
             c.EffectiveHours += (next - c.LastUpdatedMinute) / 60.0 * DecayFactor(tempF);
             c.LastUpdatedMinute = next;
@@ -137,17 +147,38 @@ public static class Carcasses
     public static double TotalRemainingKg(Carcass c) => c.Remaining.Values.Sum();
     public static bool IsButchered(Carcass c) => TotalRemainingKg(c) < 0.01;
 
-    /// Old GetRemainingMinutes(mode): setup plus 2.75 minutes a kilo, scaled by the mode.
+    /// Old GetRemainingMinutes(mode): setup plus 2.75 minutes a kilo, scaled by the mode. The setup
+    /// is charged once per carcass, not once per session (Prepare).
     public static int RemainingMinutes(Carcass c, ButcherMode mode) =>
-        (int)Math.Ceiling((BaseButcheringMinutes + TotalRemainingKg(c) * MinutesPerKgYield) * ModeProps(mode).TimeFactor);
+        (int)Math.Ceiling((Math.Max(0, BaseButcheringMinutes - c.SetupMinutes) + TotalRemainingKg(c) * MinutesPerKgYield) * ModeProps(mode).TimeFactor);
 
-    /// Old CarcassFeature.Harvest for one session of effective minutes: that share of everything
-    /// left comes off, yields scaled by mode, steady hands and (meat only) decay. Without a blade
-    /// you tear off half the meat and some bone and ruin the rest.
+    /// Effective minutes of butchering go to the setup first, until it is done; returns what is left for cutting.
+    public static double Prepare(Carcass c, double minutes, ButcherMode mode)
+    {
+        double tf = ModeProps(mode).TimeFactor;
+        double setup = Math.Min(minutes, Math.Max(0, BaseButcheringMinutes - c.SetupMinutes) * tf);
+        c.SetupMinutes = BaseButcheringMinutes - c.SetupMinutes - setup / tf < 1e-9 ? BaseButcheringMinutes : c.SetupMinutes + setup / tf;
+        return minutes - setup;
+    }
+
+    /// Old CarcassFeature.Harvest for one session of effective minutes (no setup in it, as the old
+    /// one had none): Cut, then Finish.
     public static Inventory Harvest(Carcass c, double minutes, bool hasCuttingTool, bool handsImpaired, ButcherMode mode)
     {
-        var got = new Inventory();
-        if (IsButchered(c)) return got;
+        var raw = new SortedDictionary<Resource, double>();
+        var yield = new SortedDictionary<Resource, double>();
+        Cut(c, minutes, hasCuttingTool, handsImpaired, mode, raw, yield);
+        return Finish(c, raw, yield);
+    }
+
+    /// Effective minutes of cutting: that share of everything left comes off the carcass (into raw)
+    /// and yields (into yield) by mode, steady hands and (meat only) decay. Without a blade you tear
+    /// off half the meat and some bone and ruin the rest. Kilograms removed are linear in minutes,
+    /// so cutting a minute at a time takes what one long cut does; Finish rounds a session's yield.
+    public static void Cut(Carcass c, double minutes, bool hasCuttingTool, bool handsImpaired, ButcherMode mode,
+        SortedDictionary<Resource, double> raw, SortedDictionary<Resource, double> yield)
+    {
+        if (minutes <= 0 || IsButchered(c)) return;
         var props = ModeProps(mode);
         double fraction = Math.Min(1.0, minutes / (TotalRemainingKg(c) * MinutesPerKgYield * props.TimeFactor));
         double yieldFactor = handsImpaired ? 0.8 : 1.0;
@@ -160,10 +191,22 @@ public static class Carcasses
             double kg = !hasCuttingTool
                 ? r switch { Resource.RawMeat => take * 0.5 * yieldFactor * meatDecay, Resource.Bone => take * yieldFactor * 0.67, _ => 0 }
                 : take * yieldFactor * props.YieldFactor.GetValueOrDefault(r, 1) * (r == Resource.RawMeat ? meatDecay : 1);
-            // Old floor: a little meat even from a ptarmigan.
-            if (r == Resource.RawMeat && kg > 0 && kg < 0.1 && c.Remaining[r] >= 0.1) kg = 0.1;
-            if (kg >= MinimumKg(r)) Items.Add(got, r, kg);
+            raw[r] = raw.GetValueOrDefault(r) + take;
+            yield[r] = yield.GetValueOrDefault(r) + kg;
             c.Remaining[r] = Math.Max(0, c.Remaining[r] - take);
+        }
+    }
+
+    /// A session's cut, as pieces: the old meat floor, and scraps too small to keep dropped.
+    public static Inventory Finish(Carcass c, IReadOnlyDictionary<Resource, double> raw, IReadOnlyDictionary<Resource, double> yield)
+    {
+        var got = new Inventory();
+        foreach (var (r, y) in yield)
+        {
+            double kg = y;
+            // Old floor: a little meat even from a ptarmigan, if there was that much to begin with.
+            if (r == Resource.RawMeat && kg > 0 && kg < 0.1 && raw[r] + c.Remaining.GetValueOrDefault(r) >= 0.1) kg = 0.1;
+            if (kg >= MinimumKg(r)) Items.Add(got, r, kg);
         }
         return got;
     }
@@ -179,10 +222,13 @@ public static class Carcasses
         _ => 1e-12,
     };
 
-    /// What would not fit in the pack goes back on the carcass (old RestoreYields).
-    public static void Restore(Carcass c, Inventory leftovers)
+    /// What would not fit in the pack goes back on the carcass (old RestoreYields), as the share of
+    /// what was cut it came from, so the next session's factors apply to it once.
+    /// Old game: it put back the yield itself, already scaled by mode, decay and hands, and scaled it
+    /// again when cut a second time (bug, fixed).
+    public static void Restore(Carcass c, Inventory leftovers, Inventory got, IReadOnlyDictionary<Resource, double> raw)
     {
         foreach (var (r, kg) in leftovers.Kg)
-            if (c.Remaining.ContainsKey(r)) c.Remaining[r] += kg;
+            if (c.Remaining.ContainsKey(r)) c.Remaining[r] += raw[r] * kg / Items.Have(got, r);
     }
 }

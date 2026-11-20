@@ -14,9 +14,10 @@ public sealed class FireState
     public required TileId Tile { get; set; }
     public required long LastUpdatedMinute { get; set; }
     public PitType Pit { get; init; }
-    // Two-mass model: fuel waiting to catch, and fuel burning. Masses are the sums.
-    public Dictionary<Resource, double> UnburnedKg { get; init; } = [];
-    public Dictionary<Resource, double> BurningKg { get; init; } = [];
+    // Two-mass model: fuel waiting to catch, and fuel burning. Masses are the sums. Sorted, so the
+    // sums add up in one order however the fuels came and went (see World.Tiles).
+    public SortedDictionary<Resource, double> UnburnedKg { get; init; } = [];
+    public SortedDictionary<Resource, double> BurningKg { get; init; } = [];
     public bool HasEmbers { get; set; }
     public double EmberDurationHours { get; set; }
     public double EmberHoursRemaining { get; set; }
@@ -174,6 +175,12 @@ public static class Fire
         }
         return lit;
     }
+
+    /// Old AbilityContext.FromFullContext: the load, the dark, and whether a flame lights the work.
+    /// Here, beside HasLight, so work and fire both read it without depending on each other.
+    /// Fires around the agent must be caught up.
+    public static AbilityContext AbilityContextFor(World world, Agent agent) =>
+        new(Items.EncumbrancePct(agent), Weather.DarknessLevel(world, agent.Tile), HasLight(world, agent.Id));
 
     public static FireId? PitAt(World world, TileId tile)
     {
@@ -414,7 +421,7 @@ public static class Fire
         var body = agent.Body;
         double chance = StartChancePct(a.Tool, a.Tinder,
             consciousnessImpaired: Body.GetCapacities(body).Consciousness < 0.5,
-            dexterityPct: Body.Dexterity(body, Work.AbilityContextFor(world, agent)));
+            dexterityPct: Body.Dexterity(body, AbilityContextFor(world, agent)));
         Items.Take(pack, a.Tinder, a.TinderKg);
         Items.Use(Items.Tool(pack, a.Tool)!);
         if (world.Rng("fire").NextDouble() >= chance)
@@ -424,8 +431,10 @@ public static class Fire
         }
         var id = PitAt(world, tile) ?? NewFire(world, new FireState { Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit });
         var f = world.Fires[id];
-        AddFuel(f, a.Tinder, a.TinderKg);
-        if (a.KindlingKg > 0) AddFuel(f, Resource.Kindling, Items.Take(pack, Resource.Kindling, a.KindlingKg));
+        // What the pit has no room for stays in the pack, as Feed does. Old game: it popped the
+        // kindling and tinder and the pit's capacity cap destroyed what did not fit (bug, fixed).
+        Items.Add(pack, a.Tinder, a.TinderKg - AddFuel(f, a.Tinder, a.TinderKg));
+        if (a.KindlingKg > 0) Items.Take(pack, Resource.Kindling, AddFuel(f, Resource.Kindling, a.KindlingKg));
         IgniteAll(f);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
         return null;

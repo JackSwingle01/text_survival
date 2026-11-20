@@ -111,17 +111,9 @@ public static partial class Combat
         if (teamB.Any(f => f.Agent == AgentId.Player)) throw new ArgumentException("The player fights on team A: results are from team A's side");
         var all = teamA.Concat(teamB).ToList();
         if (all.Select(f => (f.Agent, f.Member)).Distinct().Count() != all.Count) throw new ArgumentException("A member cannot fight twice");
-        foreach (var f in all)
-        {
-            var agent = world.Agent(f.Agent);
-            if (f.Member < 0 || f.Member >= agent.Members.Count)
-                throw new ArgumentOutOfRangeException(nameof(teamA), f.Member, $"{f.Agent} has {agent.Members.Count} members");
-            if (!Body.IsAlive(agent.Members[f.Member])) throw new ArgumentException($"{f.Agent} member {f.Member} is dead");
-            if (agent.Tile != tile) throw new ArgumentException($"{f.Agent} is on {agent.Tile}, not {tile}");
-            if (world.Encounters.Any(e => e.Units.Any(u => u.Agent == f.Agent && u.Member == f.Member)))
-                throw new InvalidOperationException($"{f.Agent} member {f.Member} is already fighting");
-            if (f.Weapon != null && Items.Def(f.Weapon).Weapon == null) throw new ArgumentException($"{Items.Def(f.Weapon).Name} is not a weapon");
-        }
+        var weapons = all.Where(f => f.Weapon != null).Select(f => f.Weapon!).ToList();
+        if (weapons.Distinct().Count() != weapons.Count) throw new ArgumentException("One weapon cannot be wielded twice");
+        foreach (var f in all) Admit(world, f, tile, into: null);
 
         int aY = MapSize / 6, bY = Math.Clamp(aY + distanceM, aY + 1, MapSize - 2);
         var enc = new Encounter { Tile = tile };
@@ -130,7 +122,7 @@ public static partial class Combat
             for (int i = 0; i < team.Count; i++)
             {
                 var f = team[i];
-                if (f.Weapon != null) Items.PackOf(world.Agent(f.Agent))?.Gear.Remove(f.Weapon);
+                if (f.Weapon != null) Items.PackOf(world.Agent(f.Agent))!.Gear.Remove(f.Weapon);
                 enc.Units.Add(new CombatUnit
                 {
                     Agent = f.Agent, Member = f.Member, Team = side, Awareness = awareness,
@@ -153,16 +145,14 @@ public static partial class Combat
         if (IsOver(enc)) throw new InvalidOperationException("The fight is over");
         if (team == 1 && f.Agent == AgentId.Player) throw new ArgumentException("The player fights on team A");
         var agent = world.Agent(f.Agent);
-        if (agent.Tile != enc.Tile) throw new ArgumentException($"{f.Agent} is not on {enc.Tile}");
-        if (world.Encounters.Any(e => e.Units.Any(u => u.Agent == f.Agent && u.Member == f.Member)))
-            throw new InvalidOperationException($"{f.Agent} member {f.Member} is already fighting");
+        Admit(world, f, enc.Tile, into: enc);
         var anchor = Field(enc).FirstOrDefault(u => u.Team == team) ?? throw new InvalidOperationException($"Team {team} has nobody left to join");
         var occupied = Field(enc).Select(u => u.Position).ToHashSet();
         var entry = Enumerable.Range(1, MapSize - 2)
             .SelectMany(i => new[] { new Cell(i, 1), new Cell(i, MapSize - 2), new Cell(1, i), new Cell(MapSize - 2, i) })
             .Where(p => !occupied.Contains(p)).OrderBy(p => p.DistanceTo(anchor.Position))
             .Cast<Cell?>().FirstOrDefault() ?? throw new InvalidOperationException("No free edge to enter from");
-        if (f.Weapon != null) Items.PackOf(agent)?.Gear.Remove(f.Weapon);
+        if (f.Weapon != null) Items.PackOf(agent)!.Gear.Remove(f.Weapon);
         var unit = new CombatUnit
         {
             Agent = f.Agent, Member = f.Member, Team = team, Position = entry, Awareness = Awareness.Engaged,
@@ -170,6 +160,25 @@ public static partial class Combat
         };
         enc.Units.Add(unit);
         return unit;
+    }
+
+    /// Who may go into a fight: a living member, on the tile, of an agent in no other fight (units
+    /// name members by index, and one fight's aftermath reorders them), wielding a weapon from its own pack.
+    static void Admit(World world, Fighter f, TileId tile, Encounter? into)
+    {
+        var agent = world.Agent(f.Agent);
+        if (f.Member < 0 || f.Member >= agent.Members.Count)
+            throw new ArgumentOutOfRangeException(nameof(f), f.Member, $"{f.Agent} has {agent.Members.Count} members");
+        if (!Body.IsAlive(agent.Members[f.Member])) throw new ArgumentException($"{f.Agent} member {f.Member} is dead");
+        if (agent.Tile != tile) throw new ArgumentException($"{f.Agent} is on {agent.Tile}, not {tile}");
+        if (world.Encounters.Any(e => e != into && e.Units.Any(u => u.Agent == f.Agent)))
+            throw new InvalidOperationException($"{f.Agent} is already in another fight");
+        if (into != null && into.Units.Any(u => u.Agent == f.Agent && u.Member == f.Member))
+            throw new InvalidOperationException($"{f.Agent} member {f.Member} is already fighting");
+        if (f.Weapon is not Gear weapon) return;
+        if (Items.Def(weapon).Weapon == null) throw new ArgumentException($"{Items.Def(weapon).Name} is not a weapon");
+        if (Items.PackOf(agent)?.Gear.Contains(weapon) != true)
+            throw new ArgumentException($"{Items.Def(weapon).Name} is not in {f.Agent}'s pack");
     }
 
     /// The lead plus a random handful (0 to maxExtra) of its living herd mates (old AnimalSide).
@@ -477,7 +486,8 @@ public static partial class Combat
     }
 
     /// AI rounds for everyone in the field. After each unit acts, enemies still Unaware or Alert get
-    /// a chance to notice it, so an ambushed herd wakes up as the pack closes in.
+    /// a chance to notice it, so an ambushed herd wakes up as the pack closes in. A round is a
+    /// minute: wounds work in it as they do in the player's rounds, so the unwatched bleed too.
     static void RunRounds(World world, Encounter enc, List<WorldEvent> events, int maxRounds)
     {
         for (int round = 0; round < maxRounds && !IsOver(enc); round++)
@@ -489,6 +499,8 @@ public static partial class Combat
                 AiTurn(world, enc, unit, events);
                 if (unit.InField) RunDetection(world, enc, unit, huntingSkill: 0, ExposureMeters(before, unit.Position));
             }
+            foreach (var u in Field(enc).ToList()) Body.TickWounds(BodyOf(world, u), world.Rng("body"));
+            Sweep(world, enc, events, by: null);
             enc.Rounds++;
         }
     }

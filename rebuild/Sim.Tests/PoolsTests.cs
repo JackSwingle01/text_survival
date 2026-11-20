@@ -172,6 +172,26 @@ public class PoolsTests
         Assert.Equal(5, Pools.UnitsNow(w, id)[0]); // never above its max
     }
 
+    /// Regrowth is counted once: worked a minute at a time a week after it was picked clean, the
+    /// bush gives the one unit that grew back, not that unit again every minute it is worked.
+    [Fact]
+    public void Stock_RegrowthIsCountedOnce_HoweverManyMinutesItIsWorked()
+    {
+        var w = WithPools(Bush());
+        var id = Camp(w);
+        Pools.WorkStock(w, id, 25);
+        Assert.False(Pools.HasStock(w, id));
+        w.Minute += 168 * 60;
+        Assert.Equal(1, Pools.UnitsNow(w, id)[0]);
+        var got = new Inventory();
+        for (int minute = 0; minute < 30; minute++) Items.AddAll(got, Pools.WorkStock(w, id, 1));
+        Assert.Equal(0.4, Items.Have(got, Resource.Berries), 9);
+        Assert.False(Pools.HasStock(w, id));
+        // And the clock still runs: two more weeks, two more units.
+        w.Minute += 2 * 168 * 60;
+        Assert.Equal(2, Pools.UnitsNow(w, id)[0]);
+    }
+
     /// old game: a respawn time of 0 was meant as "never" but refilled the stock every tick (bug, fixed).
     [Fact]
     public void Stock_ThatNeverRegrows_StaysEmpty()

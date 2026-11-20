@@ -223,6 +223,27 @@ public class FireTests
         return world;
     }
 
+    /// A pit with little room left takes what it can hold; the rest stays in the pack, as AddFuel does.
+    [Fact]
+    public void StartFire_KeepsWhatThePitHasNoRoomFor()
+    {
+        var world = World.New(1);
+        TestKit.Supply(world);
+        var pit = new FireState { Tile = Map.Of(world).Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
+        Fire.AddFuel(pit, Resource.Kindling, Fire.MaxFuelKg(PitType.Open) - 0.03); // cold, and nearly full
+        world.Fires[new FireId(world.NextFireId++)] = pit;
+        var pack = Items.Pack(world, P);
+        double kindling = Items.Have(pack, Resource.Kindling), bark = 0;
+        for (int i = 0; i < 20 && !Fire.IsActive(pit); i++)
+        {
+            bark = Items.Have(pack, Resource.BirchBark);
+            Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
+        }
+        Assert.True(Fire.IsActive(pit));
+        Assert.Equal(bark - 0.03, Items.Have(pack, Resource.BirchBark), 9); // 0.03 of the 0.05 fit
+        Assert.Equal(kindling, Items.Have(pack, Resource.Kindling), 9);     // none of it did
+    }
+
     [Fact]
     public void StartFire_ThenAddFuel_ThenTheFireWarmsTheTile()
     {

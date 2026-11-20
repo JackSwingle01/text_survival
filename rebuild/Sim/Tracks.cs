@@ -177,7 +177,7 @@ public static class Tracks
             if (state.Tracks.Count > 0) continue;
             state.Tracks = null;
             // Ground never lets go of a tile it has observed; pools, stashes and carcasses are kept too.
-            if (state is { Ground: null, Pools: null, Stash: null, Carcasses: null }) world.Tiles.Remove(tile);
+            if (state.IsEmpty) world.Tiles.Remove(tile);
         }
         foreach (var (edge, _) in world.Trails.ToList())
             if (WearAt(world, edge, now, erosion) <= 0) world.Trails.Remove(edge);

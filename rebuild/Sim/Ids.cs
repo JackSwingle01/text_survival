@@ -5,8 +5,9 @@ namespace Survival;
 
 /// IDs, never object references, link entities in the World.
 [JsonConverter(typeof(AgentIdConverter))]
-public readonly record struct AgentId(int Value)
+public readonly record struct AgentId(int Value) : IComparable<AgentId>
 {
+    public int CompareTo(AgentId o) => Value.CompareTo(o.Value);
     public static readonly AgentId Player = new(0);
     public override string ToString() => $"agent{Value}";
 }

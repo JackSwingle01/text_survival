@@ -53,6 +53,40 @@ public class WorkTests
         Assert.Equal(before, Save.ToJson(w));
     }
 
+    /// The axe wears by the hour of chopping, not by the step: felling a tree in one go or in
+    /// quarter hours takes the same time, gives the same wood and costs the axe the same.
+    /// Old ChoppingStrategy charged one use a session, however short.
+    [Fact]
+    public void Chopping_InOneStepOrInQuarterHours_CostsTheAxeTheSame()
+    {
+        var one = WithPools(Trees);
+        var quarters = WithPools(Trees);
+        Items.Pack(one, P).Gear.Add(Items.Make("stone_axe", durability: 10)); // stone axes never wear; this one does
+        Items.Pack(quarters, P).Gear.Add(Items.Make("stone_axe", durability: 10));
+        var r = Sim.Step(one, new Gather(P, 0), 300);
+        int chunked = 0;
+        string? last = null;
+        while (last != "tree felled") { var q = Sim.Step(quarters, new Gather(P, 0), 15); chunked += q.MinutesElapsed; last = q.InterruptedReason; }
+        Assert.Equal(("tree felled", 100, 100), (r.InterruptedReason, r.MinutesElapsed, chunked));
+        var axe1 = Items.Tool(Items.Pack(one, P), ToolType.Axe)!;
+        var axe2 = Items.Tool(Items.Pack(quarters, P), ToolType.Axe)!;
+        Assert.Equal(axe1.Durability, axe2.Durability);
+        Assert.Equal(axe1.MaxDurability - 1, axe1.Durability); // one use for 100 minutes: one per hour
+        Assert.Equal(Items.Have(Items.Pack(one, P), Resource.Birch), Items.Have(Items.Pack(quarters, P), Resource.Birch), 9);
+    }
+
+    /// A stash emptied goes back to null, so a tile with nothing else on it can leave World.Tiles.
+    [Fact]
+    public void AnEmptiedStash_IsGone()
+    {
+        var w = WithPools(Forage);
+        var camp = Map.Of(w).Camp;
+        Sim.Step(w, new Stash(P, Resource.Kindling, 99), 1);
+        Assert.NotNull(w.Tiles[camp].Stash);
+        Sim.Step(w, new Unstash(P, Resource.Kindling, 99), 1);
+        Assert.Null(w.Tiles[camp].Stash);
+    }
+
     // ---- gathering ----
 
     [Fact]

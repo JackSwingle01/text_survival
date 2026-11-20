@@ -28,7 +28,7 @@ public sealed class World
     // freshly loaded, so a save, loaded and run on, came out with the same state in another order.
     /// Only tiles that differ from generation (plan decision 1). Ground and tracks write here.
     public SortedDictionary<TileId, TileState> Tiles { get; init; } = [];
-    public Dictionary<AgentId, Agent> Agents { get; init; } = [];
+    public SortedDictionary<AgentId, Agent> Agents { get; init; } = [];
     /// One RNG stream per system, keyed by system name. Lives here so a load resumes every stream exactly.
     public Dictionary<string, Rng> Rngs { get; init; } = [];
     /// Fire pits and carried torches. Owned by the Fire system.

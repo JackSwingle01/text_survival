@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Survival;
@@ -75,10 +76,15 @@ public static class Agents
         if (world.Encounters.Any(e => e.Units.Any(u => u.Agent == from)))
             throw new InvalidOperationException($"{from} is in a fight; its members cannot be reordered until it ends");
         if (source.Members.Count == 1) return from;
+        // A person is one body; splitting a pack would mint what is in it.
+        if (source.Mind is PersonMind) throw new InvalidOperationException($"{from} is a person and cannot split");
         var body = source.Members[memberIndex];
         source.Members.RemoveAt(memberIndex);
         var id = NewId(world);
-        world.Agents[id] = new Agent { Id = id, Tile = source.Tile, Species = source.Species, Mind = source.Mind, Members = [body] };
+        // Its own copy of what the herd knew, not the herd's: one mind shared by two agents would
+        // change both whenever either learned anything, and a save would load them as two.
+        var mind = JsonSerializer.Deserialize<Mind>(JsonSerializer.Serialize(source.Mind))!;
+        world.Agents[id] = new Agent { Id = id, Tile = source.Tile, Species = source.Species, Mind = mind, Members = [body] };
         return id;
     }
 

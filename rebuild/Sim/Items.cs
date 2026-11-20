@@ -49,6 +49,9 @@ public sealed class Gear
     public required string Kind { get; init; }
     public int Durability { get; set; } = -1;
     public int MaxDurability { get; init; } = -1;
+    /// Minutes of use not yet charged to Durability (Items.UseFor).
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public double UseMinutes { get; set; }
 }
 
 /// What one agent carries, or a stash on a tile. Plain data: resources by kg, gear by instance.
@@ -180,6 +183,18 @@ public static class Items
         return g.Durability > 0;
     }
 
+    /// Wear by time in use: one Use every minutesPerUse, however the minutes come, so how a job is
+    /// split into sessions cannot change what it costs the tool.
+    public static void UseFor(Gear g, double minutes, double minutesPerUse)
+    {
+        g.UseMinutes += minutes;
+        while (g.UseMinutes >= minutesPerUse - 1e-9)
+        {
+            g.UseMinutes -= minutesPerUse;
+            Use(g);
+        }
+    }
+
     /// Local clo of one garment (old Gear.CloValue).
     public static double CloValue(Gear g) => Def(g).Insulation * CloPerInsulationPoint * ConditionPct(g);
 
@@ -276,6 +291,16 @@ public static class Items
     {
         if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
         return state.Stash ??= new Inventory();
+    }
+
+    /// Takes up to kg from the tile's stash; an emptied stash goes back to null, so the tile can clean up.
+    public static double TakeFromStash(World world, TileId tile, Resource r, double kg)
+    {
+        var state = world.Tiles.GetValueOrDefault(tile);
+        if (state?.Stash is not Inventory stash) return 0;
+        double taken = Take(stash, r, kg);
+        if (stash.Kg.Count == 0 && stash.Gear.Count == 0) state.Stash = null;
+        return taken;
     }
 
     public static string Describe(Inventory inv) =>

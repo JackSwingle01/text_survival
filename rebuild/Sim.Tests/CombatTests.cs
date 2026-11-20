@@ -26,7 +26,13 @@ public class CombatTests
             agent.Members[i] = row.IsAnimal ? BodyState.Create(row.Body, row.WeightKg, row.FatPct, row.MusclePct) : BodyState.BaselineHuman();
     }
 
-    static Gear Spear() => Items.Make("wooden_spear");
+    /// A spear in the player's pack, to wield: a fighter's weapon comes out of its own pack.
+    internal static Gear Spear(World world)
+    {
+        var spear = Items.Make("wooden_spear");
+        Items.Pack(world, AgentId.Player).Gear.Add(spear);
+        return spear;
+    }
     static Fighter Player(Gear? weapon = null) => new(AgentId.Player) { Weapon = weapon };
     static CombatUnit B(Encounter e, int i = 0) => e.Units.Where(u => u.Team == 1).ElementAt(i);
     static CombatUnit Me(Encounter e) => Combat.UnitOf(e, AgentId.Player);
@@ -74,6 +80,60 @@ public class CombatTests
         Assert.Throws<ArgumentOutOfRangeException>(() => Combat.Create(w, [Player()], [new(wolf, 2)], t, 5, Awareness.Engaged, Awareness.Engaged));
         Combat.Create(w, [Player()], [new(wolf, 0)], t, 5, Awareness.Engaged, Awareness.Engaged);
         Assert.Throws<InvalidOperationException>(() => Combat.Create(w, [new(wolf, 1)], [new(wolf, 0)], t, 5, Awareness.Engaged, Awareness.Engaged));
+    }
+
+    /// Units name members by index, and one fight's aftermath reorders its agents' members: a herd
+    /// with members in two fights had the second fight's units pointing at the wrong bodies.
+    [Fact]
+    public void AnAgentFightsOneFightAtATime()
+    {
+        var (w, t) = Field();
+        var wolves = Herd(w, Species.Wolf, 4, t);
+        var caribou = Herd(w, Species.Caribou, 1, t);
+        var hunt = Combat.Create(w, [new(caribou)], [new(wolves, 0)], t, 10, Awareness.Engaged, Awareness.Engaged);
+        Assert.Throws<InvalidOperationException>(() => Combat.Create(w, [Player()], [new(wolves, 3)], t, 10, Awareness.Engaged, Awareness.Engaged));
+        var other = Combat.Create(w, [Player()], [new(Herd(w, Species.Wolf, 1, t))], t, 10, Awareness.Engaged, Awareness.Engaged);
+        Assert.Throws<InvalidOperationException>(() => Combat.Join(w, other, new Fighter(wolves, 2), 1));
+        Combat.Join(w, hunt, new Fighter(wolves, 2), 1); // its own fight it may join
+        Assert.Equal(2, w.Encounters.Count);
+    }
+
+    /// A weapon is wielded out of the fighter's own pack, and goes back to it: a weapon from
+    /// nowhere would be minted into the pack when the fight ended.
+    [Fact]
+    public void AWeaponComesOutOfTheWieldersPack()
+    {
+        var (w, t) = Field();
+        var wolf = Herd(w, Species.Wolf, 1, t);
+        Assert.Throws<ArgumentException>(() => Combat.Create(w, [Player(Items.Make("wooden_spear"))], [new(wolf)], t, 5, Awareness.Engaged, Awareness.Engaged));
+        Assert.Throws<ArgumentException>(() => Combat.Create(w, [Player()], [new(wolf) { Weapon = Items.Make("wooden_spear") }], t, 5, Awareness.Engaged, Awareness.Engaged));
+        var spear = Spear(w);
+        Assert.Throws<ArgumentException>(() => Combat.Create(w, [Player(spear), new(Herd(w, Species.Human, 1, t)) { Weapon = spear }], [new(wolf)], t, 5, Awareness.Engaged, Awareness.Engaged));
+        Assert.Empty(w.Encounters);
+        var e = Combat.Create(w, [Player()], [new(wolf)], t, 5, Awareness.Engaged, Awareness.Engaged);
+        var friend = Herd(w, Species.Human, 1, t);
+        Assert.Throws<ArgumentException>(() => Combat.Join(w, e, new Fighter(friend) { Weapon = Items.Make("wooden_spear") }, 0));
+        var striker = Items.Make("fire_striker");
+        Items.Pack(w, AgentId.Player).Gear.Add(striker);
+        Assert.Throws<ArgumentException>(() => Combat.Join(w, e, new Fighter(friend) { Weapon = striker }, 0)); // not a weapon
+        Assert.Single(e.Units, u => u.Team == 0);
+    }
+
+    /// The unwatched bleed too: a round of a headless fight is a minute of wounds, as a round of the player's is.
+    [Fact]
+    public void AWoundedAnimalBleedsOutInAHeadlessFight()
+    {
+        var (w, t) = Field();
+        var wolf = Herd(w, Species.Wolf, 1, t);
+        var caribou = Herd(w, Species.Caribou, 1, t);
+        var e = Combat.Create(w, [new(wolf)], [new(caribou)], t, 30, Awareness.Engaged, Awareness.Unaware);
+        var body = Combat.BodyOf(w, B(e));
+        body.BloodPct = 0.5005;
+        Effects.Add(body, EffectKind.Bleeding, 1.0);
+        var events = new List<WorldEvent>();
+        Assert.Equal(CombatResult.Victory, Combat.ResolveHeadless(w, e, events));
+        Assert.Null(events.OfType<Killed>().Single().By);
+        Assert.Equal(1, e.Rounds);
     }
 
     [Fact]
@@ -413,7 +473,7 @@ public class CombatTests
     public void AFightEndsInTheStepThatEndsIt()
     {
         var (w, t) = Field();
-        var e = PlayerVs(w, t, Species.Rabbit, 2, weapon: Spear());
+        var e = PlayerVs(w, t, Species.Rabbit, 2, weapon: Spear(w));
         var rabbit = B(e).Agent;
         StepResult r = null!;
         for (int i = 0; i < 40 && w.Encounters.Count > 0; i++)
@@ -422,7 +482,7 @@ public class CombatTests
         Assert.Equal("fight over", r.InterruptedReason);
         Assert.Contains(r.Events, ev => ev is FightEnded f && f.Agent == AgentId.Player);
         Assert.True(w.Agents.ContainsKey(rabbit) || r.Events.OfType<Killed>().Any());
-        Assert.Contains(Spear().Kind, Items.Pack(w, AgentId.Player).Gear.Select(g => g.Kind)); // the wielded spear went back in the pack
+        Assert.Contains("wooden_spear", Items.Pack(w, AgentId.Player).Gear.Select(g => g.Kind)); // the wielded spear went back in the pack
     }
 
     [Fact]
@@ -449,7 +509,7 @@ public class CombatTests
     {
         var (w, t) = Field();
         Items.Add(Items.Pack(w, AgentId.Player), Resource.Stone, 1.0);
-        var e = PlayerVs(w, t, Species.Wolf, distance, weapon: Spear());
+        var e = PlayerVs(w, t, Species.Wolf, distance, weapon: Spear(w));
         Assert.Equal(expected.Order(), Combat.Actions(w, e, Me(e)).Order());
         Assert.Equal("Move nearer an edge to flee.", Combat.Refusal(w, e, Me(e), CombatAction.Flee));
         Assert.Equal("That's too far to move in one action.", Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 4, Me(e).Position.Y)));
@@ -462,7 +522,7 @@ public class CombatTests
         var (w, t) = Field();
         var pack = Items.Pack(w, AgentId.Player);
         Items.Add(pack, Resource.Stone, 0.5);
-        var spear = Spear();
+        var spear = Spear(w);
         var e = PlayerVs(w, t, Species.Bison, 10, weapon: spear);
         Assert.DoesNotContain(spear, pack.Gear); // wielded, not packed
         Assert.Null(Combat.Apply(w, e, Me(e), CombatAction.Throw, []).Refused);
@@ -547,7 +607,7 @@ public class CombatTests
         var (w, t) = Field();
         var pack = Herd(w, Species.Wolf, 8, t);
         var stayed = w.Agent(pack).Members.Skip(3).ToList();
-        var e = Combat.Create(w, [Player(Spear())], [new(pack, 0), new(pack, 1), new(pack, 2)], t, 5, Awareness.Engaged, Awareness.Engaged);
+        var e = Combat.Create(w, [Player(Spear(w))], [new(pack, 0), new(pack, 1), new(pack, 2)], t, 5, Awareness.Engaged, Awareness.Engaged);
         Assert.Equal(3, e.Units.Count(u => u.Agent == pack));
         // Two of the three fall; the fight ends when the last runs.
         Combat.BodyOf(w, B(e, 0)).BloodPct = 0;
@@ -634,7 +694,7 @@ public class CombatTests
     public void SaveAndLoadMidFightResumesIt()
     {
         var (w, t) = Field(4);
-        PlayerVs(w, t, Species.Wolf, 6, count: 2, weapon: Spear());
+        PlayerVs(w, t, Species.Wolf, 6, count: 2, weapon: Spear(w));
         Sim.Step(w, new Fight(AgentId.Player, CombatAction.Wait), 1);
         Assert.Single(w.Encounters);
         var loaded = Save.FromJson(Save.ToJson(w));
