@@ -29,8 +29,22 @@ foreach (string line in commands)
             case "wait": Run(new Wait(AgentId.Player), Minutes(parts)); break;
             case "rest": Run(new Rest(AgentId.Player), Minutes(parts)); break;
             case "sleep": Run(new Sleep(AgentId.Player), Minutes(parts)); break;
-            case "fire": Run(new StartFire(AgentId.Player, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1); break;
-            case "fuel": Run(new AddFuel(AgentId.Player, Enum.Parse<Fuel>(parts[1], ignoreCase: true), double.Parse(parts[2])), 1); break;
+            case "fire": Run(LightFire(world), 1); break;
+            case "charcoal": Run(new GatherCharcoal(AgentId.Player), 1); break;
+            case "look": Look(world); continue;
+            case "inv" or "inventory": Inv(world); continue;
+            case "forage": Run(new Gather(AgentId.Player, 0, parts.Length > 2 ? Enum.Parse<ForageFocus>(parts[2], ignoreCase: true) : ForageFocus.General), MinutesOr(parts, 60)); break;
+            case "gather" or "harvest" or "chop" or "salvage": Run(new Gather(AgentId.Player, int.Parse(parts[1])), parts.Length > 2 ? int.Parse(parts[2]) : 240); break;
+            case "drink": Run(new Drink(AgentId.Player), Work.DrinkMinutes); break;
+            case "eat": Run(new Eat(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), Work.EatMinutes); break;
+            case "cook": Run(new Cook(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), 600); break;
+            case "melt": Run(new MeltSnow(AgentId.Player), Work.MeltSnowMinutes); break;
+            case "butcher":
+                Run(new Butcher(AgentId.Player, int.Parse(parts[1]), parts.Length > 2 ? Enum.Parse<ButcherMode>(parts[2], ignoreCase: true) : null), 24 * 60); break;
+            case "stash": Run(new Stash(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), 1); break;
+            case "take": Run(new Unstash(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), 1); break;
+            case "wear": Run(new Wear(AgentId.Player, parts[1]), 1); break;
+            case "fuel": Run(new AddFuel(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), double.Parse(parts[2])), 1); break;
             case "torch": Run(new LightTorch(AgentId.Player), 1); break;
             case "n" or "s" or "e" or "w" or "north" or "south" or "east" or "west":
                 Run(new Travel(AgentId.Player, Heading(parts[0]), Pace(parts)), 24 * 60); break; // a crossing stops itself on arrival
@@ -43,7 +57,11 @@ foreach (string line in commands)
                 world = Save.FromJson(File.ReadAllText(Path(parts)));
                 Console.WriteLine($"Loaded {Path(parts)}");
                 break;
-            default: Console.WriteLine("Commands: wait N, rest N, sleep N, fire, fuel KIND KG, torch, n/s/e/w [careful], go DIR [careful], status, save [file], load [file], quit"); continue;
+            default:
+                Console.WriteLine("Commands: wait N, rest N, sleep N, fire, fuel KIND KG, torch, charcoal, n/s/e/w [careful], go DIR [careful], " +
+                                  "look, inv, forage [MIN] [FOCUS], gather POOL [MIN], drink, eat KIND [KG], cook KIND [KG], melt, " +
+                                  "butcher ID [MODE], stash KIND [KG], take KIND [KG], wear GEAR, status, save [file], load [file], quit");
+                continue;
         }
     }
     catch (Exception e) when (e is FormatException or IndexOutOfRangeException or IOException or ArgumentException)
@@ -65,6 +83,53 @@ void Run(Activity activity, int minutes)
 }
 
 static int Minutes(string[] parts) => int.Parse(parts[1]);
+static int MinutesOr(string[] parts, int fallback) => parts.Length > 1 ? int.Parse(parts[1]) : fallback;
+static double Kg(string[] parts) => parts.Length > 2 ? double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture) : 99;
+
+/// The best fire starter and tinder in the pack, and up to a kilo of kindling.
+static Activity LightFire(World w)
+{
+    var pack = Items.Pack(w, AgentId.Player);
+    var tool = new[] { ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill }.FirstOrDefault(t => Items.Tool(pack, t) != null, ToolType.HandDrill);
+    var tinder = new[] { Resource.BirchBark, Resource.Amadou, Resource.Usnea, Resource.Chaga, Resource.Tinder }
+        .FirstOrDefault(r => Items.Have(pack, r) >= 0.05, Resource.Tinder);
+    return new StartFire(AgentId.Player, tool, tinder, 0.05, Math.Min(1.0, Items.Have(pack, Resource.Kindling)));
+}
+
+static void Look(World w)
+{
+    var p = w.Agent(AgentId.Player);
+    var pools = Pools.At(w, p.Tile);
+    for (int i = 0; i < pools.Count; i++)
+    {
+        var id = new PoolId(p.Tile, i);
+        if (!Pools.Knows(w, AgentId.Player, id)) continue; // what you have not found, you cannot see
+        Console.WriteLine(pools[i] switch
+        {
+            ForagePool => $"  [{i}] forage, density {Pools.ForageDensity(w, id):0.00}",
+            TreePool t => $"  [{i}] {t.Name} ({(Pools.HasTrees(w, id) ? $"{Pools.ChopProgressPct(w, id):P0} cut" : "cleared")})",
+            StockPool s => $"  [{i}] {s.Name}: " + string.Join(", ", s.Items.Zip(Pools.UnitsNow(w, id)).Select(x => $"{x.First.Resource} {x.Second}/{x.First.Units}")),
+            _ => $"  [{i}] {pools[i].Name}",
+        });
+    }
+    var tile = w.Tiles.GetValueOrDefault(p.Tile);
+    foreach (var c in tile?.Carcasses ?? [])
+    {
+        Carcasses.CatchUp(w, p.Tile, c);
+        Console.WriteLine($"  carcass {c.Id}: {c.Animal}, decay {Carcasses.DecayLevel(c):P0}, {Carcasses.TotalRemainingKg(c):0.0} kg left");
+    }
+    if (tile?.Stash is { } stash && (stash.Kg.Count > 0 || stash.Gear.Count > 0)) Console.WriteLine($"  stash: {Items.Describe(stash)}");
+    if (Work.HasOpenWater(w, p.Tile)) Console.WriteLine("  open water");
+}
+
+static void Inv(World w)
+{
+    var p = w.Agent(AgentId.Player);
+    var pack = Items.Pack(w, AgentId.Player);
+    Console.WriteLine($"  pack: {Items.Describe(pack)}");
+    Console.WriteLine($"  worn: {string.Join(", ", p.Body.Worn.Select(g => Items.Def(g).Name))} ({p.Body.ClothingClo:0.00} clo)");
+    Console.WriteLine($"  carrying {Items.CarriedKg(p):0.0}/{Items.CapacityKg(pack):0} kg");
+}
 static Direction Heading(string word) => word.ToLowerInvariant() switch
 {
     "n" or "north" => Direction.North, "e" or "east" => Direction.East,

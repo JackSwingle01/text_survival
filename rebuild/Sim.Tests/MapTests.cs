@@ -271,11 +271,13 @@ public class MapTests
         // Agent carries no human-only fields: a herd's members wear nothing, a person wears their own.
         Assert.Null(typeof(Agent).GetProperty("ClothingClo"));
         Assert.Null(typeof(Agent).GetProperty("ClothingWeightKg"));
+        // Clothing is what each body wears, and its clo is derived from that, never stored.
         var herd = new Agent { Id = new AgentId(9), Tile = world.Agent(AgentId.Player).Tile, Members = [BodyState.BaselineHuman(), BodyState.BaselineHuman()] };
-        herd.Members[1].ClothingClo = 0.5;
-        Assert.Equal([2.0, 0.5], herd.Members.Select(b => b.ClothingClo));
+        herd.Members[1].Worn.RemoveAll(g => Items.Def(g).Slot != EquipSlot.Chest);
+        Assert.Equal([1.33, 0.8], herd.Members.Select(b => Math.Round(b.ClothingClo, 2)));
         world.Agents[herd.Id] = herd;
-        Assert.Equal(0.5, Save.FromJson(Save.ToJson(world)).Agent(herd.Id).Members[1].ClothingClo);
+        Assert.Equal(0.8, Save.FromJson(Save.ToJson(world)).Agent(herd.Id).Members[1].ClothingClo, 9);
+        Assert.DoesNotContain("ClothingClo", Save.ToJson(world));
     }
 
     [Fact]
@@ -300,7 +302,7 @@ public class MapTests
         Assert.Equal(Map.Of(world).Camp, player.Tile);
 
         string json = Save.ToJson(world);
-        Assert.Contains("\"Mind\":{\"kind\":\"player\"}", json);
+        Assert.Contains("\"Mind\":{\"kind\":\"player\",\"Pack\":", json);
         Assert.DoesNotContain("\"Body\":", json); // derived, never saved twice
         Assert.IsType<PlayerMind>(Save.FromJson(json).Agent(AgentId.Player).Mind);
 

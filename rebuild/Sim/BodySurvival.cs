@@ -428,6 +428,15 @@ public static partial class Body
         Apply(body, d, rng);
     }
 
+    /// One minute for a body outside the human survival model (an animal member, plan decision 2):
+    /// effects fade and wounds bleed, as Update does it, and nothing else.
+    public static void TickWounds(BodyState body, Rng rng)
+    {
+        Effects.Decay(body, 1);
+        double bleedMl = Effects.BleedMlPerHour(body) / 60;
+        if (bleedMl > 0) Damage(body, new DamageInfo(bleedMl, DamageType.Bleed, BodyTarget.Blood), rng);
+    }
+
     /// Advances one agent one minute and reports what happened. Returns the reason to stop, if any.
     public static string? Tick(World world, Agent agent, SurvivalContext ctx, List<WorldEvent> events)
     {

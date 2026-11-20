@@ -8,8 +8,9 @@ public class StepRulesTests
     static World LitCamp(int seed = 1)
     {
         var world = World.New(seed);
+        TestKit.Supply(world);
         for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
-            Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
+            Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
         Assert.NotNull(Fire.PitAt(world, Map.Of(world).Camp));
         return world;
     }
@@ -28,7 +29,7 @@ public class StepRulesTests
     {
         var world = LitCamp();
         string before = Save.ToJson(world);
-        var r = Sim.Step(world, new AddFuel(P, Fuel.Bone, 1), 5);
+        var r = Sim.Step(world, new AddFuel(P, Resource.Bone, 1), 5);
         Assert.Equal("the fire is not hot enough for Bone", r.InterruptedReason);
         Assert.Equal(0, r.MinutesElapsed);
         Assert.Empty(r.Events);
@@ -36,7 +37,7 @@ public class StepRulesTests
 
         var empty = World.New(1);
         before = Save.ToJson(empty);
-        r = Sim.Step(empty, new AddFuel(P, Fuel.Kindling, 1), 1);
+        r = Sim.Step(empty, new AddFuel(P, Resource.Kindling, 1), 1);
         Assert.Equal(("no fire here", 0), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Equal(before, Save.ToJson(empty));
     }
@@ -45,11 +46,12 @@ public class StepRulesTests
     public void FailedIgnition_CostsItsMinute_AndTheBodyLivesIt()
     {
         var world = World.New(3);
+        Items.Add(Items.Pack(world, P), Resource.Tinder, 5);
         for (int i = 0; i < 50; i++)
         {
             double kcal = world.Agent(P).Body.CaloriesKcal;
             long minute = world.Minute;
-            var r = Sim.Step(world, new StartFire(P, FireStarter.HandDrill, Fuel.Tinder, 0.05, 0), 1);
+            var r = Sim.Step(world, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0), 1);
             if (r.InterruptedReason != "fire did not catch") continue;
             Assert.Equal(1, r.MinutesElapsed);
             Assert.Equal(minute + 1, world.Minute);
@@ -103,7 +105,7 @@ public class StepRulesTests
         Assert.False(Body.IsAlive(world.Agent(P).Body));
         string before = Save.ToJson(world);
         Assert.Throws<InvalidOperationException>(() => Sim.Step(world, new Wait(P), 10));
-        Assert.Throws<InvalidOperationException>(() => Sim.Step(world, new AddFuel(P, Fuel.Kindling, 1), 1));
+        Assert.Throws<InvalidOperationException>(() => Sim.Step(world, new AddFuel(P, Resource.Kindling, 1), 1));
         Assert.Equal(before, Save.ToJson(world));
     }
 
@@ -129,7 +131,7 @@ public class StepRulesTests
     public void StartFire_OnAPitOfAnotherType_IsRefused()
     {
         var world = LitCamp();
-        var r = Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0, PitType.Stone), 1);
+        var r = Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0, PitType.Stone), 1);
         Assert.Equal("the pit here is Open, not Stone", r.InterruptedReason);
         Assert.Equal(0, r.MinutesElapsed);
         Assert.Equal(PitType.Open, world.Fires[Fire.PitAt(world, Map.Of(world).Camp)!.Value].Pit);
@@ -140,7 +142,7 @@ public class StepRulesTests
     {
         var world = LitCamp();
         string before = Save.ToJson(world);
-        var r = Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
+        var r = Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
         Assert.Equal("the fire is already burning", r.InterruptedReason);
         Assert.Equal(0, r.MinutesElapsed);
         Assert.DoesNotContain(r.Events, e => e is FireLit);
@@ -152,9 +154,9 @@ public class StepRulesTests
     {
         var world = LitCamp();
         var f = world.Fires[Fire.PitAt(world, Map.Of(world).Camp)!.Value];
-        Fire.AddFuel(f, Fuel.Kindling, 50);
+        Fire.AddFuel(f, Resource.Kindling, 50);
         Assert.Equal(Fire.MaxFuelKg(f.Pit), Fire.TotalKg(f), 9);
-        var r = Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
+        var r = Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
         Assert.Equal("the fire is full", r.InterruptedReason);
         Assert.DoesNotContain(r.Events, e => e is FireLit);
     }

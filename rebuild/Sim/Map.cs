@@ -23,10 +23,18 @@ public sealed class TileState
 {
     /// Footprints, one sign per kind of maker. Owned by Tracks; null when the ground is clean.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<TrackMaker, Track>? Tracks { get; set; }
+    public SortedDictionary<TrackMaker, Track>? Tracks { get; set; }
     /// Snow, water and ice on the ground. Owned by Ground; null until the tile is first observed.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public GroundState? Ground { get; set; }
+    /// Pools something has drawn from, by index into Pools.At. Owned by Pools.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<int, PoolState>? Pools { get; set; }
+    /// Things left here: camp storage and whatever a full pack dropped. Unlimited. Owned by Items.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Inventory? Stash { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<Carcass>? Carcasses { get; set; }
 }
 
 public static class TerrainProps

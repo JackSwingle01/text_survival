@@ -12,7 +12,10 @@ public readonly record struct AgentId(int Value)
 }
 
 [JsonConverter(typeof(TileIdConverter))]
-public readonly record struct TileId(int X, int Y);
+public readonly record struct TileId(int X, int Y) : IComparable<TileId>
+{
+    public int CompareTo(TileId o) => (X, Y).CompareTo((o.X, o.Y));
+}
 
 /// TileId keys World.Tiles, so it serializes as "x,y" everywhere, key or value.
 sealed class TileIdConverter : JsonConverter<TileId>
@@ -42,7 +45,10 @@ sealed class AgentIdConverter : JsonConverter<AgentId>
 }
 
 [JsonConverter(typeof(FireIdConverter))]
-public readonly record struct FireId(int Value);
+public readonly record struct FireId(int Value) : IComparable<FireId>
+{
+    public int CompareTo(FireId o) => Value.CompareTo(o.Value);
+}
 
 /// FireId keys World.Fires; same reason as AgentIdConverter.
 sealed class FireIdConverter : JsonConverter<FireId>
@@ -57,8 +63,9 @@ sealed class FireIdConverter : JsonConverter<FireId>
 
 /// The unordered edge between two adjacent tiles: both directions of travel are one edge.
 [JsonConverter(typeof(EdgeIdConverter))]
-public readonly record struct EdgeId
+public readonly record struct EdgeId : IComparable<EdgeId>
 {
+    public int CompareTo(EdgeId o) => A.CompareTo(o.A) is int c && c != 0 ? c : B.CompareTo(o.B);
     public TileId A { get; }
     public TileId B { get; }
     public EdgeId(TileId a, TileId b) => (A, B) = MapGen.EdgeKey(a, b);
@@ -77,5 +84,28 @@ sealed class EdgeIdConverter : JsonConverter<EdgeId>
         var parts = (s ?? throw new JsonException("EdgeId is null")).Split('|');
         if (parts.Length != 2) throw new JsonException($"EdgeId '{s}' is not x,y|x,y");
         return new(TileIdConverter.Parse(parts[0]), TileIdConverter.Parse(parts[1]));
+    }
+}
+
+/// A resource pool on a tile: the Index-th pool generation puts there (Pools.At).
+[JsonConverter(typeof(PoolIdConverter))]
+public readonly record struct PoolId(TileId Tile, int Index) : IComparable<PoolId>
+{
+    public int CompareTo(PoolId o) => Tile.CompareTo(o.Tile) is int c && c != 0 ? c : Index.CompareTo(o.Index);
+    public override string ToString() => $"{TileIdConverter.Format(Tile)}#{Index}";
+}
+
+/// PoolId keys Knowledge.SearchHours, so it serializes as "x,y#i".
+sealed class PoolIdConverter : JsonConverter<PoolId>
+{
+    public override PoolId Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => Parse(r.GetString());
+    public override void Write(Utf8JsonWriter w, PoolId id, JsonSerializerOptions o) => w.WriteStringValue(id.ToString());
+    public override PoolId ReadAsPropertyName(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => Parse(r.GetString());
+    public override void WriteAsPropertyName(Utf8JsonWriter w, PoolId id, JsonSerializerOptions o) => w.WritePropertyName(id.ToString());
+    static PoolId Parse(string? s)
+    {
+        var parts = (s ?? throw new JsonException("PoolId is null")).Split('#');
+        if (parts.Length != 2) throw new JsonException($"PoolId '{s}' is not x,y#i");
+        return new(TileIdConverter.Parse(parts[0]), int.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture));
     }
 }

@@ -9,11 +9,12 @@ public class FireBodyTests
     static World LitCamp(int seed, WeatherSample? sky = null)
     {
         var world = World.New(seed);
+        TestKit.Supply(world);
         world.FixedWeather = sky;
         for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
-            Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
+            Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
         Assert.NotNull(Fire.PitAt(world, Map.Of(world).Camp));
-        Sim.Step(world, new AddFuel(P, Fuel.Birch, 3.0), 1);
+        Sim.Step(world, new AddFuel(P, Resource.Birch, 3.0), 1);
         return world;
     }
 

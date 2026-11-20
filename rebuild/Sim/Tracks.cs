@@ -169,17 +169,17 @@ public static class Tracks
     // ponytail: a full sweep per crossing, O(tiles + edges). Sweep on a clock if phase-3 herds make moves frequent.
     static void Sweep(World world, long now, double erosion)
     {
-        foreach (var (tile, state) in world.Tiles)
+        foreach (var (tile, state) in world.Tiles.ToList())
         {
             if (state.Tracks == null) continue;
-            foreach (var (maker, t) in state.Tracks)
+            foreach (var (maker, t) in state.Tracks.ToList())
                 if (Freshness(world, t, erosion) <= 0) state.Tracks.Remove(maker);
             if (state.Tracks.Count > 0) continue;
             state.Tracks = null;
-            // The only place a tile can become clean: Ground never lets go of a tile it has observed.
-            if (state.Ground == null) world.Tiles.Remove(tile);
+            // Ground never lets go of a tile it has observed; pools, stashes and carcasses are kept too.
+            if (state is { Ground: null, Pools: null, Stash: null, Carcasses: null }) world.Tiles.Remove(tile);
         }
-        foreach (var (edge, _) in world.Trails)
+        foreach (var (edge, _) in world.Trails.ToList())
             if (WearAt(world, edge, now, erosion) <= 0) world.Trails.Remove(edge);
     }
 

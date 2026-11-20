@@ -22,15 +22,15 @@ public class GoldenTests
     public void Fire_MatchesOldTrajectory(int minute, double tempF, double burningKg, double unburnedKg, double charcoalKg, string phase)
     {
         var f = new FireState { Tile = new TileId(0, 0), LastUpdatedMinute = 0, Pit = PitType.Stone };
-        Fire.AddFuel(f, Fuel.BirchBark, 0.05);
-        Fire.AddFuel(f, Fuel.Kindling, 1.0);
+        Fire.AddFuel(f, Resource.BirchBark, 0.05);
+        Fire.AddFuel(f, Resource.Kindling, 1.0);
         Fire.IgniteAll(f);
         var events = new List<WorldEvent>();
         for (int m = 1; m <= minute; m++)
         {
-            if (m == 8) Fire.AddFuel(f, Fuel.Pine, 3.0);
-            if (m == 40) Fire.AddFuel(f, Fuel.Birch, 4.0);
-            if (m == 90) Fire.AddFuel(f, Fuel.Oak, 3.0);
+            if (m == 8) Fire.AddFuel(f, Resource.Pine, 3.0);
+            if (m == 40) Fire.AddFuel(f, Resource.Birch, 4.0);
+            if (m == 90) Fire.AddFuel(f, Resource.Oak, 3.0);
             Fire.Tick(f, new FireId(0), m, events);
         }
         Assert.Equal(tempF, Fire.TemperatureF(f), Digits);
@@ -91,10 +91,10 @@ public class GoldenTests
         var world = World.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -10, 3 / 20.1, 0, 0.3, WindDirection.North);
         var f = new FireState { Tile = Map.Of(world).Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
-        Fire.AddFuel(f, Fuel.BirchBark, 0.05);
-        Fire.AddFuel(f, Fuel.Kindling, 1.0);
+        Fire.AddFuel(f, Resource.BirchBark, 0.05);
+        Fire.AddFuel(f, Resource.Kindling, 1.0);
         Fire.IgniteAll(f);
-        Fire.AddFuel(f, Fuel.Birch, 3.0);
+        Fire.AddFuel(f, Resource.Birch, 3.0);
         var events = new List<WorldEvent>();
         for (int m = 1; m <= 30; m++) Fire.Tick(f, new FireId(0), m, events);
         world.Fires[new FireId(world.NextFireId++)] = f;
@@ -126,10 +126,10 @@ public class GoldenTests
         Assert.Equal(OldPassProperAirF, Weather.AirAtF(world, pass, sky, 0), Digits);
 
         var f = new FireState { Tile = m.Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
-        Fire.AddFuel(f, Fuel.BirchBark, 0.05);
-        Fire.AddFuel(f, Fuel.Kindling, 1.0);
+        Fire.AddFuel(f, Resource.BirchBark, 0.05);
+        Fire.AddFuel(f, Resource.Kindling, 1.0);
         Fire.IgniteAll(f);
-        Fire.AddFuel(f, Fuel.Birch, 3.0);
+        Fire.AddFuel(f, Resource.Birch, 3.0);
         var events = new List<WorldEvent>();
         for (int i = 1; i <= 30; i++) Fire.Tick(f, new FireId(0), i, events);
         world.Fires[new FireId(world.NextFireId++)] = f;

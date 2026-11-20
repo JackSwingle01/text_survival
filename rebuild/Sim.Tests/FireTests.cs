@@ -6,10 +6,10 @@ public class FireTests
     const double AmbientF = 32.0;
     static readonly AgentId P = AgentId.Player;
 
-    static FireState Lit(double kg = 0, Fuel? fuel = null, PitType pit = PitType.Open)
+    static FireState Lit(double kg = 0, Resource? fuel = null, PitType pit = PitType.Open)
     {
         var f = new FireState { Tile = new TileId(0, 0), LastUpdatedMinute = 0, Pit = pit };
-        if (kg > 0 && fuel is Fuel type) { Fire.AddFuel(f, type, kg); Fire.IgniteAll(f); }
+        if (kg > 0 && fuel is Resource type) { Fire.AddFuel(f, type, kg); Fire.IgniteAll(f); }
         return f;
     }
 
@@ -28,7 +28,7 @@ public class FireTests
     [Fact]
     public void ActiveFire_HasRealisticTemperature()
     {
-        var f = Lit(3.0, Fuel.Kindling);
+        var f = Lit(3.0, Resource.Kindling);
         Burn(f, 15);
         double t = Fire.TemperatureF(f);
         Assert.InRange(t, 1, 999);
@@ -37,10 +37,10 @@ public class FireTests
     [Fact]
     public void Hardwood_BurnsHotterThanTinder()
     {
-        var tinder = Lit(3.0, Fuel.Tinder);
-        var oak = Lit(4.0, Fuel.Kindling);
+        var tinder = Lit(3.0, Resource.Tinder);
+        var oak = Lit(4.0, Resource.Kindling);
         Burn(oak, 10);
-        Assert.True(Fire.AddFuel(oak, Fuel.Oak, 5.0) > 0, "kindling fire should be hot enough for oak");
+        Assert.True(Fire.AddFuel(oak, Resource.Oak, 5.0) > 0, "kindling fire should be hot enough for oak");
         Burn(tinder, 10);
         Burn(oak, 30);
         Assert.True(Fire.TemperatureF(oak) > Fire.TemperatureF(tinder));
@@ -49,8 +49,8 @@ public class FireTests
     [Fact]
     public void SmallFire_IsCoolerThanIdeal()
     {
-        var small = Lit(0.5, Fuel.Kindling);
-        var ideal = Lit(3.0, Fuel.Kindling);
+        var small = Lit(0.5, Resource.Kindling);
+        var ideal = Lit(3.0, Resource.Kindling);
         Burn(small, 15); Burn(ideal, 15);
         Assert.True(Fire.TemperatureF(small) < Fire.TemperatureF(ideal));
     }
@@ -58,8 +58,8 @@ public class FireTests
     [Fact]
     public void LargeFire_IsHotterThanIdeal()
     {
-        var ideal = Lit(3.0, Fuel.Kindling);
-        var large = Lit(9.0, Fuel.Kindling);
+        var ideal = Lit(3.0, Resource.Kindling);
+        var large = Lit(9.0, Resource.Kindling);
         Burn(ideal, 15); Burn(large, 15);
         Assert.True(Fire.TemperatureF(large) > Fire.TemperatureF(ideal));
     }
@@ -67,8 +67,8 @@ public class FireTests
     [Fact]
     public void LowFuel_IsCooler()
     {
-        var full = Lit(6.0, Fuel.Kindling);
-        var low = Lit(2.0, Fuel.Kindling);
+        var full = Lit(6.0, Resource.Kindling);
+        var low = Lit(2.0, Resource.Kindling);
         Burn(full, 15); Burn(low, 15);
         Assert.True(Fire.TemperatureF(low) < Fire.TemperatureF(full));
     }
@@ -78,7 +78,7 @@ public class FireTests
     [Fact]
     public void FuelDepleted_TransitionsToEmbers()
     {
-        var f = Lit(1.0, Fuel.Tinder);
+        var f = Lit(1.0, Resource.Tinder);
         var events = Burn(f, 25); // tinder 3kg/h x 0.9 small-fire factor: ~22 min
         Assert.False(Fire.IsActive(f));
         Assert.True(f.HasEmbers);
@@ -90,7 +90,7 @@ public class FireTests
     [Fact]
     public void Embers_AreCoolerThanActiveFire_ButWarm()
     {
-        var f = Lit(3.0, Fuel.Kindling);
+        var f = Lit(3.0, Resource.Kindling);
         Burn(f, 15);
         double active = Fire.TemperatureF(f);
         Burn(f, 110);
@@ -102,7 +102,7 @@ public class FireTests
     [Fact]
     public void Embers_DecayThenDie_AndLeaveCharcoal()
     {
-        var f = Lit(3.0, Fuel.Kindling);
+        var f = Lit(3.0, Resource.Kindling);
         while (!f.HasEmbers) Burn(f, 1);
         double before = f.EmberHoursRemaining;
         Burn(f, 5);
@@ -121,10 +121,10 @@ public class FireTests
     [Fact]
     public void AddFuel_ToEmbers_Relights()
     {
-        var f = Lit(1.0, Fuel.Tinder);
+        var f = Lit(1.0, Resource.Tinder);
         Burn(f, 25);
         Assert.True(f.HasEmbers);
-        Fire.AddFuel(f, Fuel.Kindling, 2.0);
+        Fire.AddFuel(f, Resource.Kindling, 2.0);
         Assert.True(Fire.IsActive(f));
         Assert.False(f.HasEmbers);
     }
@@ -137,8 +137,8 @@ public class FireTests
     [Fact]
     public void ActiveFire_GivesHeat_AndBiggerGivesMore()
     {
-        var small = Lit(1.0, Fuel.Kindling);
-        var large = Lit(5.0, Fuel.Kindling);
+        var small = Lit(1.0, Resource.Kindling);
+        var large = Lit(5.0, Resource.Kindling);
         Burn(small, 15); Burn(large, 15);
         Assert.True(Fire.HeatOutputF(small, AmbientF) > 0);
         Assert.True(Fire.HeatOutputF(large, AmbientF) > Fire.HeatOutputF(small, AmbientF));
@@ -149,7 +149,7 @@ public class FireTests
     [Fact]
     public void ConsumesFuelOverTime()
     {
-        var f = Lit(3.0, Fuel.Kindling);
+        var f = Lit(3.0, Resource.Kindling);
         double before = Fire.BurningKg(f);
         Burn(f, 30);
         Assert.InRange(Fire.BurningKg(f), double.Epsilon, before - double.Epsilon);
@@ -159,14 +159,14 @@ public class FireTests
     public void BurningHoursRemaining_MatchesBurnRate()
     {
         // kindling 1.5 kg/h; 1.5 kg sits in the 1.0 size band
-        Assert.InRange(Fire.BurningHoursRemaining(Lit(1.5, Fuel.Kindling)), 0.9, 1.1);
+        Assert.InRange(Fire.BurningHoursRemaining(Lit(1.5, Resource.Kindling)), 0.9, 1.1);
     }
 
     [Fact]
     public void StonePit_BurnsSlowerThanOpen()
     {
-        var open = Lit(3.0, Fuel.Kindling);
-        var stone = Lit(3.0, Fuel.Kindling, PitType.Stone);
+        var open = Lit(3.0, Resource.Kindling);
+        var stone = Lit(3.0, Resource.Kindling, PitType.Stone);
         Burn(open, 30); Burn(stone, 30);
         Assert.True(Fire.BurningKg(stone) > Fire.BurningKg(open));
     }
@@ -176,26 +176,26 @@ public class FireTests
     [Fact]
     public void Hardwood_NeedsAHotFire()
     {
-        var f = Lit(0.5, Fuel.Tinder);
-        Assert.False(Fire.CanAddFuel(f, Fuel.Oak));
-        Assert.Equal(0.0, Fire.AddFuel(f, Fuel.Oak, 1.0));
-        Assert.True(Fire.CanAddFuel(f, Fuel.Kindling));
+        var f = Lit(0.5, Resource.Tinder);
+        Assert.False(Fire.CanAddFuel(f, Resource.Oak));
+        Assert.Equal(0.0, Fire.AddFuel(f, Resource.Oak, 1.0));
+        Assert.True(Fire.CanAddFuel(f, Resource.Kindling));
     }
 
     [Fact]
     public void AddFuel_IsCappedByPitCapacity()
     {
-        var f = Lit(10.0, Fuel.Kindling);
-        Assert.Equal(2.0, Fire.AddFuel(f, Fuel.Kindling, 5.0), 6);
-        Assert.False(Fire.CanAddFuel(f, Fuel.Kindling));
+        var f = Lit(10.0, Resource.Kindling);
+        Assert.Equal(2.0, Fire.AddFuel(f, Resource.Kindling, 5.0), 6);
+        Assert.False(Fire.CanAddFuel(f, Resource.Kindling));
     }
 
     [Fact]
     public void UnburnedFuel_CatchesOverTime()
     {
-        var f = Lit(2.0, Fuel.Kindling);
+        var f = Lit(2.0, Resource.Kindling);
         Burn(f, 10);
-        Fire.AddFuel(f, Fuel.Pine, 3.0);
+        Fire.AddFuel(f, Resource.Pine, 3.0);
         Assert.Equal(FirePhase.Building, Fire.Phase(f));
         double unburned = Fire.UnburnedKg(f);
         Burn(f, 10);
@@ -205,9 +205,9 @@ public class FireTests
     [Fact]
     public void StartChance_MatchesOldTable()
     {
-        Assert.Equal(0.35 + 0.25, Fire.StartChancePct(FireStarter.HandDrill, Fuel.BirchBark), 9);
-        Assert.Equal(0.95, Fire.StartChancePct(FireStarter.FireStriker, Fuel.BirchBark));
-        Assert.Equal(0.05, Fire.StartChancePct(FireStarter.HandDrill, Fuel.Tinder, consciousnessImpaired: true, dexterityPct: 0));
+        Assert.Equal(0.35 + 0.25, Fire.StartChancePct(ToolType.HandDrill, Resource.BirchBark), 9);
+        Assert.Equal(0.95, Fire.StartChancePct(ToolType.FireStriker, Resource.BirchBark));
+        Assert.Equal(0.05, Fire.StartChancePct(ToolType.HandDrill, Resource.Tinder, consciousnessImpaired: true, dexterityPct: 0));
     }
 
     // ---- world wiring ----
@@ -215,9 +215,10 @@ public class FireTests
     static World LitCamp(int seed = 1)
     {
         var world = World.New(seed);
+        TestKit.Supply(world);
         // Striker with birch bark is 95%; retry so the test never depends on one roll.
         for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
-            Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
+            Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
         Assert.NotNull(Fire.PitAt(world, Map.Of(world).Camp));
         return world;
     }
@@ -226,9 +227,9 @@ public class FireTests
     public void StartFire_ThenAddFuel_ThenTheFireWarmsTheTile()
     {
         var world = LitCamp();
-        var r = Sim.Step(world, new AddFuel(P, Fuel.Kindling, 2.0), 15);
+        var r = Sim.Step(world, new AddFuel(P, Resource.Kindling, 2.0), 15);
         Assert.Null(r.InterruptedReason);
-        Assert.Contains(r.Events, e => e is FuelAdded { Fuel: Fuel.Kindling });
+        Assert.Contains(r.Events, e => e is FuelAdded { Fuel: Resource.Kindling });
         Assert.True(Fire.WarmthFor(world, P).PitHeatF > 0);
         Assert.True(Fire.HasLight(world, P));
         world.Agent(P).Tile = new TileId(0, 0);
@@ -239,9 +240,9 @@ public class FireTests
     public void AddFuel_RefusesBoneOnASmallFire_AndNoFireAtAll()
     {
         var world = LitCamp();
-        Assert.Equal("the fire is not hot enough for Bone", Sim.Step(world, new AddFuel(P, Fuel.Bone, 1), 1).InterruptedReason);
+        Assert.Equal("the fire is not hot enough for Bone", Sim.Step(world, new AddFuel(P, Resource.Bone, 1), 1).InterruptedReason);
         var empty = World.New(1);
-        Assert.Equal("no fire here", Sim.Step(empty, new AddFuel(P, Fuel.Kindling, 1), 1).InterruptedReason);
+        Assert.Equal("no fire here", Sim.Step(empty, new AddFuel(P, Resource.Kindling, 1), 1).InterruptedReason);
     }
 
     [Fact]
@@ -268,7 +269,7 @@ public class FireTests
     public void Torch_LightsFromFire_WarmsItsCarrier_AndBurnsOutInAnHour()
     {
         var world = LitCamp();
-        Sim.Step(world, new AddFuel(P, Fuel.Kindling, 2.0), 5);
+        Sim.Step(world, new AddFuel(P, Resource.Kindling, 2.0), 5);
         Assert.Equal(0.0, Fire.WarmthFor(world, P).TorchHeatF);
         Assert.Null(Sim.Step(world, new LightTorch(P), 1).InterruptedReason);
         // A fresh torch adds 5°F to its carrier only, not to the tile. (One minute burned since lighting.)
@@ -289,8 +290,8 @@ public class FireTests
         static string Play()
         {
             var world = LitCamp(9);
-            Sim.Step(world, new AddFuel(P, Fuel.Kindling, 3.0), 20);
-            Sim.Step(world, new AddFuel(P, Fuel.Pine, 2.0), 30);
+            Sim.Step(world, new AddFuel(P, Resource.Kindling, 3.0), 20);
+            Sim.Step(world, new AddFuel(P, Resource.Pine, 2.0), 30);
             Sim.Step(world, new LightTorch(P), 10);
             return Save.ToJson(world);
         }

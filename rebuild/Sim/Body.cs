@@ -76,10 +76,11 @@ public sealed class BodyState
     /// Warmth stored in clothing's thermal mass, 0-1 of what it can hold.
     public double ClothingHeatBufferPct { get; set; } = 0.3;
     public List<BodyEffect> Effects { get; init; } = [];
-    /// Whole-body clothing insulation and its weight; nothing for a bare animal.
-    /// ponytail: two numbers until items exist; then derive from this member's worn gear.
-    public double ClothingClo { get; set; }
-    public double ClothingWeightKg { get; set; }
+    /// What this member wears; nothing for a bare animal. Clothing belongs to the body it is on.
+    public List<Gear> Worn { get; init; } = [];
+    /// Whole-body clothing insulation and its weight, derived from what is worn.
+    [JsonIgnore] public double ClothingClo => Items.ClothingClo(Worn);
+    [JsonIgnore] public double ClothingWeightKg => Items.ClothingWeightKg(Worn);
 
     [JsonIgnore] public double WeightKg => StructuralKg + FatKg + MuscleKg;
     [JsonIgnore] public double FatPct => FatKg / WeightKg;
@@ -97,12 +98,11 @@ public sealed class BodyState
         StructuralKg = weightKg * (1 - fatPct - musclePct),
     };
 
-    /// A dressed adult: the old starting furs, about 2 clo and 3 kg.
+    /// A dressed adult in the old starting furs and boots: 1.33 clo, 3.05 kg.
     public static BodyState BaselineHuman()
     {
         var b = Create(BodyKind.Human, Body.BaselineWeightKg, Body.BaselineFatPct, Body.BaselineMusclePct);
-        b.ClothingClo = 2.0;
-        b.ClothingWeightKg = 3.0;
+        b.Worn.AddRange(Items.StartingClothes());
         return b;
     }
 }

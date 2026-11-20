@@ -24,16 +24,25 @@ public sealed class World
     internal ErosionTimeline? ErosionCache;
     /// Generated from Seed alone, so never saved (internal: the serializer skips it). See Map.Of.
     internal GeneratedMap? GeneratedMap;
+    // Keyed world state is sorted: a Dictionary's order after Remove-then-Add differs from its order
+    // freshly loaded, so a save, loaded and run on, came out with the same state in another order.
     /// Only tiles that differ from generation (plan decision 1). Ground and tracks write here.
-    public Dictionary<TileId, TileState> Tiles { get; init; } = [];
+    public SortedDictionary<TileId, TileState> Tiles { get; init; } = [];
     public Dictionary<AgentId, Agent> Agents { get; init; } = [];
     /// One RNG stream per system, keyed by system name. Lives here so a load resumes every stream exactly.
     public Dictionary<string, Rng> Rngs { get; init; } = [];
     /// Fire pits and carried torches. Owned by the Fire system.
-    public Dictionary<FireId, FireState> Fires { get; init; } = [];
+    public SortedDictionary<FireId, FireState> Fires { get; init; } = [];
     public int NextFireId { get; set; }
+    /// Ids for agents made after the start (herds, split-off members). The player is 0.
+    public int NextAgentId { get; set; } = 1;
+    /// Fights under way. Owned by Combat; a fight stays here from Combat.Create until its aftermath.
+    public List<Encounter> Encounters { get; init; } = [];
     /// Desire-path wear per edge, only edges something has walked. Owned by Tracks.
-    public Dictionary<EdgeId, TrailWear> Trails { get; init; } = [];
+    public SortedDictionary<EdgeId, TrailWear> Trails { get; init; } = [];
+    public int NextCarcassId { get; set; }
+    /// The pools generation put on each tile looked at so far; derived from Seed, never saved. Owned by Pools.
+    internal Dictionary<TileId, IReadOnlyList<PoolDef>>? PoolCache;
 
     public static World New(int seed)
     {

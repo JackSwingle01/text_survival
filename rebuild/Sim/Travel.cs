@@ -51,7 +51,7 @@ public static class Traversal
             From = from,
             Dir = t.Dir,
             Pace = t.Pace,
-            TotalMinutes = CrossingMinutes(world, agent.Body, from, to, t.Pace, sky),
+            TotalMinutes = CrossingMinutes(world, agent.Body, from, to, t.Pace, sky, Items.EncumbrancePct(agent)),
             OriginRiskPct = quick ? InjuryRiskPct(world, from, agent.Body, sky) : 0,
             DestRiskPct = quick ? InjuryRiskPct(world, to, agent.Body, sky) : 0,
         };
@@ -91,10 +91,11 @@ public static class Traversal
     /// Old TravelProcessor.GetTraversalMinutes with the pace applied as TravelRunner applied it,
     /// and the surface excess in: this is the time the crossing actually lasts.
     /// old game: TravelRunner walked GetTraversalMinutes, which left the surface excess out (bug, fixed).
-    public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky)
+    /// encumbrancePct is carried weight over capacity (Items.EncumbrancePct): past half, a load slows you.
+    public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky, double encumbrancePct = 0)
     {
         var m = Map.Of(world);
-        double speed = Body.Speed(body); // ponytail: no encumbrance until inventory exists
+        double speed = Body.Speed(body, new AbilityContext(EncumbrancePct: encumbrancePct));
         int exit = SegmentMinutes(m, from, speed, sky);
         int entry = SegmentMinutes(m, to, speed, sky);
         double surface = SurfaceExcessMinutes(world, from, exit) + SurfaceExcessMinutes(world, to, entry);
