@@ -38,6 +38,12 @@
     <None Include="tools/**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Exclude the clean-room rebuild (its own projects) from main project compilation -->
+    <Compile Remove="rebuild/**" />
+    <None Include="rebuild/**" />
+  </ItemGroup>
+
   <!-- Desktop rendering packages -->
   <ItemGroup>
     <PackageReference Include="Raylib-cs" Version="7.0.2" />
