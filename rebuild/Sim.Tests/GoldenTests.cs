@@ -82,7 +82,9 @@ public class GoldenTests
 
     /// Old effective temperature at a camp fire: Location.GetTemperature added the pit's heat at
     /// 40% (open air), then SurvivalContext added it again at FireProximity 2, measured against that
-    /// warmed air. Open pit, bark + kindling + 3 kg birch, 30 minutes, -10°C, captured from the old code.
+    /// warmed air. Open pit, bark + kindling + 3 kg birch, 30 minutes, -10°C. The fire's heat output was
+    /// captured from old HeatSourceFeature; the 0.4 and x2 combination was re-typed from the old source
+    /// (insulation 0), and old Location's NWS wind chill is deliberately omitted (see Sim.Surroundings).
     [Fact]
     public void EffectiveHeatAtCamp_MatchesOld()
     {

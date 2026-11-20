@@ -1,6 +1,9 @@
 namespace Survival;
 
 /// A fact the simulation emits. Log, notices, tensions and NPC memory all read the same stream.
+/// Minute is the instant it happened: an agent's action (lighting, adding fuel) happens at the
+/// step's starting world.Minute, before that step's first minute is lived. Consumers should rely
+/// on stream order, not on Minute being strictly greater than the previous step's last minute.
 public abstract record WorldEvent(long Minute);
 
 public sealed record EffectStarted(long Minute, AgentId Who, EffectKind Kind) : WorldEvent(Minute);

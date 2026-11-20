@@ -136,6 +136,18 @@ public class StepRulesTests
     }
 
     [Fact]
+    public void StartFire_OnABurningPit_IsRefused_AndDrawsNoRoll()
+    {
+        var world = LitCamp();
+        string before = Save.ToJson(world);
+        var r = Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
+        Assert.Equal("the fire is already burning", r.InterruptedReason);
+        Assert.Equal(0, r.MinutesElapsed);
+        Assert.DoesNotContain(r.Events, e => e is FireLit);
+        Assert.Equal(before, Save.ToJson(world));
+    }
+
+    [Fact]
     public void StartFire_OnAFullPit_IsRefused_AndLightsNothing()
     {
         var world = LitCamp();

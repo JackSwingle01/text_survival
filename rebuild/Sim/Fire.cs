@@ -361,7 +361,8 @@ public static class Fire
                 if (Props[a.Tinder].MinFireTempF != 0) throw new ArgumentException($"{a.Tinder} cannot light from cold", nameof(activity));
                 if (pit == null) return null;
                 if (pit.Pit != a.Pit) return $"the pit here is {pit.Pit}, not {a.Pit}";
-                return CanAddFuel(pit, a.Tinder) ? null : "the fire is full";
+                if (!CanAddFuel(pit, a.Tinder)) return "the fire is full";
+                return IsActive(pit) ? "the fire is already burning" : null;
             case AddFuel a:
                 if (pit == null) return "no fire here";
                 if (CanAddFuel(pit, a.Fuel)) return null;
