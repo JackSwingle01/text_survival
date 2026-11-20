@@ -34,13 +34,13 @@ public readonly record struct WeatherSample(
 
     public double SunlightLevel => Weather.Sunlight(Minute, Condition, CloudCoverPct);
 
-    /// What falls on a person, as old SurvivalContext read it. HeavySnow and FreezingRain never
-    /// wetted anyone in the old game; kept for parity, almost certainly an oversight there.
+    /// What falls on a person. Old SurvivalContext left HeavySnow and FreezingRain out, so they
+    /// never wetted anyone; fixed here: heavy snow wets as snow, freezing rain as rain.
     public Precipitation Precipitation => Condition switch
     {
-        WeatherCondition.Rainy or WeatherCondition.Stormy => Precipitation.Rain,
+        WeatherCondition.Rainy or WeatherCondition.Stormy or WeatherCondition.FreezingRain => Precipitation.Rain,
         WeatherCondition.Blizzard => Precipitation.Blizzard,
-        WeatherCondition.LightSnow => Precipitation.Snow,
+        WeatherCondition.LightSnow or WeatherCondition.HeavySnow => Precipitation.Snow,
         _ => Precipitation.None,
     };
 

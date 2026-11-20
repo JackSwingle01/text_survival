@@ -257,15 +257,27 @@ public class WeatherTests
     [InlineData(WeatherCondition.Stormy, Precipitation.Rain)]
     [InlineData(WeatherCondition.Blizzard, Precipitation.Blizzard)]
     [InlineData(WeatherCondition.LightSnow, Precipitation.Snow)]
-    [InlineData(WeatherCondition.HeavySnow, Precipitation.None)]    // old SurvivalContext quirk, kept
-    [InlineData(WeatherCondition.FreezingRain, Precipitation.None)] // likewise
-    public void Precipitation_MapsAsOldSurvivalContext(WeatherCondition cond, Precipitation expected)
+    [InlineData(WeatherCondition.HeavySnow, Precipitation.Snow)]    // old game: None (bug, fixed)
+    [InlineData(WeatherCondition.FreezingRain, Precipitation.Rain)] // old game: None (bug, fixed)
+    [InlineData(WeatherCondition.Clear, Precipitation.None)]
+    public void Precipitation_MapsWhatFallsOnAPerson(WeatherCondition cond, Precipitation expected)
     {
         var world = World.New(1);
         world.FixedWeather = Sky(0, -10, 0.2, 0.6, 1, cond);
         var ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P));
         Assert.Equal(expected, ctx.Precipitation);
         Assert.Equal(0.6, ctx.PrecipitationPct);
+    }
+
+    [Theory]
+    [InlineData(WeatherCondition.HeavySnow)]
+    [InlineData(WeatherCondition.FreezingRain)]
+    public void HeavySnowAndFreezingRain_WetAnExposedPerson(WeatherCondition cond)
+    {
+        var world = World.New(1);
+        world.FixedWeather = Sky(0, -1, 0.2, 0.8, 1, cond);
+        Sim.Step(world, new Wait(P), 60);
+        Assert.True(Effects.Severity(world.Agent(P).Body, EffectKind.Wet) > 0, $"{cond} should wet");
     }
 
     [Fact]
