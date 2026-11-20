@@ -351,13 +351,11 @@ public static class DiscoveryEventFactory
                         .WithEffects(EffectFactory.Nauseous(0.5, 90))
                 ])
             .Choice("Leave It",
-                "Come back with proper preparation.",
+                "Not without smoke.",
                 [
-                    new EventResult("You note the tree's location. Return with fire and this will be easy.", 0.90, 2)
-                        .CreateTension("MarkedDiscovery", 0.4, description: "beehive location"),
+                    new EventResult("You leave the bees to their tree.", 0.90, 2),
                     new EventResult("Getting too close, a few guard bees find you.", 0.10, 3)
                         .Damage(0.04, DamageType.Pierce, BodyTarget.AnyArm)
-                        .CreateTension("MarkedDiscovery", 0.4, description: "beehive location")
                 ]);
     }
 
@@ -586,14 +584,6 @@ public static class DiscoveryEventFactory
                     new EventResult("Following the tracks, you find something else found them first.", 0.10, 12)
                         .ObservesPredator()
                 ])
-            .Choice("Mark the Location",
-                "Note where you found these. Return prepared for a proper hunt.",
-                [
-                    new EventResult("You memorize the landmarks. Good hunting ground.", 0.80, 3)
-                        .CreateTension("MarkedDiscovery", 0.3, description: $"{animalDisplay.ToLower()} trail spotted"),
-                    new EventResult("You break some branches to mark the spot.", 0.20, 5)
-                        .CreateTension("MarkedDiscovery", 0.4, description: $"Marked {animalDisplay.ToLower()} trail")
-                ])
             .Choice("Keep Working",
                 "Note the tracks and continue what you were doing.",
                 [
@@ -799,11 +789,10 @@ public static class DiscoveryEventFactory
                         .FindsFish(1),
                     new EventResult("You took too long. The run has moved on.", 0.05, 20)
                 ])
-            .Choice("Mark for Later",
-                "Remember this spot. Runs tend to recur.",
+            .Choice("Let It Pass",
+                "You have other work. The run won't wait for you.",
                 [
-                    new EventResult("You note the location and timing. Next time you'll be ready.", 1.0, 5)
-                        .CreateTension("MarkedDiscovery", 0.4, description: "fish run location")
+                    new EventResult("You leave the fish to their run.", 1.0, 0)
                 ]);
     }
 }

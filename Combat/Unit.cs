@@ -1,5 +1,6 @@
 using System.Numerics;
 using text_survival.Actors;
+using text_survival.Actors.Animals;
 using text_survival.Environments.Grid;
 using text_survival.Items;
 
@@ -27,6 +28,17 @@ public class Unit(Actor actor, GridPosition position)
 
     public GridPosition Position = position;
 
+    /// <summary>How readily this unit notices movement (1 = baseline). A grazing animal is below 1, a wary one above.</summary>
+    public double DetectionFactor = 1.0;
+
+    /// <summary>
+    /// Prey and small scavengers run once they know you are there. Fighting is what a
+    /// predator does; a rabbit that holds its ground is a bug, not a behaviour.
+    /// </summary>
+    public bool IsSkittish => actor is Animal a &&
+        (a.BehaviorType == AnimalBehaviorType.Prey ||
+         a.BehaviorType == AnimalBehaviorType.Scavenger && a.Size == AnimalSize.Small);
+
     /// <summary>
     /// Current awareness state. Defaults to Engaged for backwards compatibility.
     /// </summary>
@@ -34,7 +46,8 @@ public class Unit(Actor actor, GridPosition position)
 
     // primary stats    
     public double Threat => actor.BaseThreat * actor.Vitality;
-    public double Boldness => actor.StartingBoldness + GetBonusBoldnessFromAllies() + BoldnessModifier + (InitialOptimism ? 1.0 : 0) - GetHealthPenalty();
+    // Opening courage is proportional to the animal's own: a flat bonus made rabbits as brave as wolves.
+    public double Boldness => actor.StartingBoldness + GetBonusBoldnessFromAllies() + BoldnessModifier + (InitialOptimism ? Math.Min(1.0, actor.StartingBoldness) : 0) - GetHealthPenalty();
     private double GetHealthPenalty()
     {
         // 0 = healthy, scales up as actor gets injured

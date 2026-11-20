@@ -218,7 +218,7 @@ public static class ConsumptionHandler
         double eaten = inv.Pop(resource);
 
         // Record food discovery
-        ctx.RecordFoodEaten(resource.ToString());
+        ctx.RecordFoodEaten(resource.ToDisplayName());
 
         return resource switch
         {

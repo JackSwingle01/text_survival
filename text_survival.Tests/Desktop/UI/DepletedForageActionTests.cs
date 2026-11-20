@@ -1,3 +1,4 @@
+using text_survival.Tests.TestHelpers;
 using text_survival.Actions;
 using text_survival.Desktop.UI;
 using text_survival.Environments.Features;
@@ -13,7 +14,7 @@ public class DepletedForageActionTests
     [Fact]
     public void DepletedForage_IsShownDisabledWithAReason()
     {
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.CreateWithStartingEquipment();
         var location = ctx.CurrentLocation;
         foreach (var existing in location.Features.OfType<ForageFeature>().ToList())
             location.RemoveFeature(existing);

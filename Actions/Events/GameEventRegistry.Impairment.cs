@@ -16,7 +16,7 @@ public static partial class GameEventRegistry
             "You stop. Which way were you heading? The trees all look the same.", 1.0)
             .Requires(EventCondition.IsExpedition)
             // CognitivelyImpaired: clumsy, foggy, or impaired - mental/physical coordination breakdown causes disorientation
-            .WithSituationFactor(Situations.CognitivelyImpaired, 2.0)
+            .RequiresSituation(Situations.CognitivelyImpaired)
             .Choice("Backtrack Carefully",
                 "Retrace your steps slowly.",
                 [
@@ -51,7 +51,7 @@ public static partial class GameEventRegistry
             "Your fingers won't cooperate. Simple tasks become frustrating puzzles as you drop things and fumble with every motion.", 1.0)
             .Requires(EventCondition.IsCampWork)
             // CognitivelyImpaired: clumsy, foggy, or impaired - fine motor control suffers under mental/physical compromise
-            .WithSituationFactor(Situations.CognitivelyImpaired, 2.0)
+            .RequiresSituation(Situations.CognitivelyImpaired)
             .Choice("Work Slowly",
                 "Take your time, move deliberately, don't fight it.",
                 [
@@ -85,7 +85,7 @@ public static partial class GameEventRegistry
             "Everything feels distant and muffled. Your exhausted eyes struggle to focus, and sounds seem to come from far away.", 1.0)
             .Requires(EventCondition.IsExpedition)
             // CognitivelyImpaired: clumsy, foggy, or impaired - sensory processing degrades under mental fatigue
-            .WithSituationFactor(Situations.CognitivelyImpaired, 2.0)
+            .RequiresSituation(Situations.CognitivelyImpaired)
             .Choice("Stay Alert",
                 "Force yourself to pay attention. It takes effort, but you can't afford to miss something.",
                 [

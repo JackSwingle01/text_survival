@@ -1,3 +1,4 @@
+using text_survival.Tests.TestHelpers;
 using System.Text.Json;
 using text_survival.Actions;
 using text_survival.Actions.Handlers;
@@ -63,7 +64,7 @@ public class CraftingOverhaulTests
     [Fact]
     public void MissingSupplyNavigationReturnsToTheOriginalRecipe()
     {
-        var ctx = GameContext.CreateNewGame(seed: 1234);
+        var ctx = SmallGame.CreateWithStartingEquipment();
         var overlay = new text_survival.Desktop.UI.CraftingOverlay { IsOpen = true };
         text_survival.Desktop.UI.TextFrame Render(string? activate = null)
         {
@@ -119,7 +120,7 @@ public class CraftingOverhaulTests
     [Fact]
     public async Task ExistingShelterBlocksBeforeWorkAndLeavesMaterialsUntouched()
     {
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.CreateWithStartingEquipment();
         ctx.Camp.AddFeature(ShelterFeature.CreateBranchFrame());
         Supply(ctx.Inventory, Resource.Stick, 4);
         ctx.Ui = new ScriptedUi();
@@ -134,7 +135,7 @@ public class CraftingOverhaulTests
     [Fact]
     public void ProjectPreviewIncludesLaterWorkAndWorkingShovelBonus()
     {
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.CreateWithStartingEquipment();
         ctx.Inventory.Tools.Clear();
         ctx.Inventory.UnequipWeapon();
         var project = Recipe("stone-fire-pit");

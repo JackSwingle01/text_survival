@@ -23,12 +23,11 @@ public static partial class GameEventRegistry
     public static GameEvent? FirstVisitLookout(GameContext ctx)
     {
         return new GameEvent("Vantage Point",
-            "From this height, the landscape unfolds below. The mountain pass is visible to the east — snow-choked but there. Smoke rises in the distance. Another fire, or another survivor?", 0.9)
+            "From this height, the landscape unfolds below. The mountain pass is visible to the north — snow-choked but there. Smoke rises in the distance. Another fire, or another survivor?", 0.9)
             .Choice("Study the smoke",
                 "You memorize the direction. It's far, but reachable.",
                 [
-                    new EventResult("A new possibility — or a new danger. You mark the direction.", weight: 0.7, minutes: 8)
-                        .CreateTension("MarkedDiscovery", 0.3),
+                    new EventResult("A new possibility — or a new danger. You mark the direction.", weight: 0.7, minutes: 8),
                     new EventResult("The smoke fades as you watch. Wind scatters it. The source could be anywhere.", weight: 0.3, minutes: 5)
                 ])
             .Choice("Focus on the terrain",
@@ -203,8 +202,7 @@ public static partial class GameEventRegistry
             .Choice("Examine the fresh bones",
                 "What killed it? How long ago?",
                 [
-                    new EventResult("Weeks, not months. No wounds — it came here to die. Like the others. Something draws them.", weight: 0.7, minutes: 15)
-                        .CreateTension("MegafaunaTerritory", 0.3),
+                    new EventResult("Weeks, not months. No wounds — it came here to die. Like the others. Something draws them.", weight: 0.7, minutes: 15),
                     new EventResult("Tooth marks on the bones. Wolves found it after. But the mammoth died on its own terms.", weight: 0.3, minutes: 12)
                         .CreateTension("PredatorTerritory", 0.2)
                 ])

@@ -11,27 +11,6 @@ public static partial class GameEventRegistry
     // These only trigger while foraging and create meaningful mid-activity decisions.
 
     /// <summary>
-    /// Lucky Find - Early game windfall. A frozen ptarmigan.
-    /// Breaks the "all stick" pattern with a positive surprise that teaches exploration is rewarded.
-    /// </summary>
-    private static GameEvent LuckyFind(GameContext ctx)
-    {
-        return new GameEvent("Something Catches Your Eye",
-            "Feathers in the snow. You brush away the powder carefully.\n\nA ptarmigan, frozen solid. Must have been caught by a hawk and dropped. The meat is still good.", 8.0)  // High weight for early game
-            .Requires(EventCondition.Foraging, EventCondition.Awake)
-            .RequiresSituation(ctx => ctx.TotalMinutesElapsed < 45)  // Only in first 45 minutes
-            .WithCooldown(999999)  // One-time only
-            .Choice("Take It",
-                "The world just gave you a gift.",
-                [
-                    new EventResult(@"You tuck the bird into your pack. Meat, feathers, bone — all useful.
-
-Sometimes fortune smiles.", 1.0, 3)
-                        .Rewards(RewardPool.FrozenBirdFind)
-                ]);
-    }
-
-    /// <summary>
     /// Find a squirrel's winter cache. Time vs yield tradeoff.
     /// </summary>
     private static GameEvent SquirrelCache(GameContext ctx)
@@ -80,6 +59,7 @@ Sometimes fortune smiles.", 1.0, 3)
         return new GameEvent("Beehive Spotted",
             "Movement catches your eye - bees entering a hollow in an old tree. Where there are bees, there's honey.", 0.7)
             .Requires(EventCondition.Foraging)
+            .RequiresSituation(c => c.Weather.BaseTemperature >= 10)  // Bees stay in the hive below ~10°C
             .WithConditionFactor(EventCondition.IsForest, 1.5)
             .WithConditionFactor(EventCondition.IsDaytime, 1.3)
             .Choice("Smoke Them Out",
@@ -116,13 +96,11 @@ Sometimes fortune smiles.", 1.0, 3)
                         .DrainsStats(calories: 300)
                 ])
             .Choice("Leave It",
-                "Note the location. Come back with proper preparation.",
+                "Not without smoke.",
                 [
-                    new EventResult("You memorize the tree's location. Return with fire and this will be easy.", 0.90, 2)
-                        .CreateTension("MarkedDiscovery", 0.4, description: "Beehive location"),
-                    new EventResult("You get too close looking for landmarks. A few guard bees find you.", 0.10, 3)
+                    new EventResult("You leave the bees to their tree.", 0.90, 2),
+                    new EventResult("You linger too close. A few guard bees find you.", 0.10, 3)
                         .Damage(0.05, DamageType.Pierce, BodyTarget.AnyArm)
-                        .CreateTension("MarkedDiscovery", 0.4, description: "Beehive location")
                 ]);
     }
 }

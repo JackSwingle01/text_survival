@@ -419,7 +419,7 @@ public static class SurvivorPanel
                     if (effect.Damage != null)
                     {
                         hasModifiers = true;
-                        UiText.Colored(ColorDanger, $"Damage: {effect.Damage.PerHour * effect.Severity:F0}/hr ({effect.Damage.Type})");
+                        UiText.Colored(ColorDanger, $"Ongoing {effect.Damage.Type.ToString().ToLowerInvariant()} damage while it lasts");
                     }
 
                     if (Math.Abs(effect.StatsDelta.TemperatureDelta) > 0.0001)
@@ -433,7 +433,7 @@ public static class SurvivorPanel
                     if (effect.RequiresTreatment)
                     {
                         hasModifiers = true;
-                        UiText.Colored(ColorWarning, "Requires treatment");
+                        UiText.Colored(ColorWarning, effect.EffectKind == "Bloody" ? "Wash it off with water. Predators smell it." : "Requires treatment");
                     }
 
                     if (!hasModifiers)

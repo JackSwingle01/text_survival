@@ -94,15 +94,12 @@ public static partial class GameEventRegistry
                     new EventResult($"It catches your scent. Turns toward your hiding spot.", 0.10, 10)
                         .Terrifying()
                         .Encounter(predator, 15, 0.6)
-                ])
+                ],
+                action: SceneAction.Wait)
             .Choice("Retreat",
                 "Not worth the risk. Come back later.",
-                [
-                    new EventResult("You slip away unseen. The trap line can wait.", 0.70, 0),
-                    new EventResult($"A branch snaps. The {predator.DisplayName()} looks up, ears forward.", 0.30, 0)
-                        .PredatorFollows()
-                        .Unsettling()
-                ]);
+                [new EventResult("You slip away from the traps.")],
+                action: SceneAction.Retreat);
     }
 
     /// <summary>

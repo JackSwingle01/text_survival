@@ -155,15 +155,13 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("Their trail leads toward wolf territory. They're following a pack.", weight: 0.5, minutes: 25)
                         .CreateTension("FreshTrail", 0.4, animalType: AnimalType.Wolf),
-                    new EventResult("You find where they're denning. Good to know.", weight: 0.3, minutes: 30)
-                        .MarksDiscovery("Hyena den location", 0.4),
+                    new EventResult("You find where they're denning. Good to know.", weight: 0.3, minutes: 30),
                     new EventResult("Lost the trail. They move fast.", weight: 0.2, minutes: 20)
                 ])
-            .Choice("Mark Location and Leave",
-                "Remember this. Carcasses attract scavengers.",
+            .Choice("Leave It",
+                "Carcasses draw scavengers. Don't linger.",
                 [
-                    new EventResult("You note the location. Hyena territory.", weight: 1.0, minutes: 3)
-                        .MarksDiscovery("Hyena feeding ground", 0.3)
+                    new EventResult("You leave the carcass to the hyenas.", weight: 1.0, minutes: 3)
                 ]);
     }
 
@@ -269,7 +267,8 @@ public static partial class GameEventRegistry
                         .When(c => c.Herds.Count(h => h.AnimalType == AnimalType.Wolf && PredatorInteractions.CanObserve(c, h)) >= 2)
                         .PredatorFollows()
                         .EscalatesScavengers(0.2)
-                ])
+                ],
+                action: SceneAction.Wait)
             .Choice("Spook the Wolves",
                 "Make noise. Maybe they'll abandon the kill.",
                 [
@@ -304,13 +303,11 @@ public static partial class GameEventRegistry
                         .Frightening()
                         .PredatorFollows()
                         .EscalatesScavengers(0.2)
-                ])
+                ],
+                action: SceneAction.HarvestAndRun)
             .Choice("Let Them Have It",
                 "Not worth the risk. Leave them to fight over it.",
-                [
-                    new EventResult("You fade back. The natural order continues without you.", weight: 1.0, minutes: 5)
-                        .PredatorWithdraws()
-                        .ResolvesScavengers()
-                ]);
+                [new EventResult("You fade back and leave them to it.")],
+                action: SceneAction.Retreat);
     }
 }

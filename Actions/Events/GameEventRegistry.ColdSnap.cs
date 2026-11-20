@@ -88,7 +88,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.4, 90)),
                     new EventResult("You stumble. Rest might be worse.", weight: 0.20, minutes: 15)
                         .Escalate("DeadlyCold", 0.15)
-                        .Damage(2, DamageType.Blunt)
+                        .Damage(0.02, DamageType.Blunt)
                 ])
             .Choice("Warm Hands in Armpits",
                 "Stop. Tuck hands under arms. Restore circulation.",
@@ -145,12 +145,12 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You stop caring about your fingers. Faster now. Core temperature stabilizing.", weight: 0.60, minutes: 10)
                         .Escalate("DeadlyCold", -0.2)
-                        .WithFrostbite(8, 0.6),
+                        .WithFrostbite(0.08, 0.6),
                     new EventResult("The sacrifice buys you time. Your hands may never fully recover.", weight: 0.30, minutes: 8)
                         .Escalate("DeadlyCold", -0.25)
-                        .WithFrostbite(12, 0.8),
+                        .WithFrostbite(0.12, 0.8),
                     new EventResult("Too late. The cold has you.", weight: 0.10, minutes: 10)
-                        .WithFrostbite(15, 0.7)
+                        .WithFrostbite(0.15, 0.7)
                         .WithEffects(EffectFactory.Hypothermia(0.5))
                 ])
             .Choice("Emergency Bivouac",
@@ -163,7 +163,7 @@ public static partial class GameEventRegistry
                         .ResolveTension("DeadlyCold")
                         .WithEffects(EffectFactory.Frostbite(0.2), EffectFactory.Exhausted(0.5, 120)),
                     new EventResult("Not deep enough. Cold seeping in. This might be the end.", weight: 0.20, minutes: 90)
-                        .WithFrostbite(10, 0.5)
+                        .WithFrostbite(0.1, 0.5)
                         .WithEffects(EffectFactory.Hypothermia(0.6))
                 ])
             .Choice("Final Push",
@@ -178,10 +178,10 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.8, 180), EffectFactory.Frostbite(0.4))
                         .Aborts(),
                     new EventResult("You collapse in the snow. So close. So cold.", weight: 0.20, minutes: 20)
-                        .WithFrostbite(15, 0.5)
+                        .WithFrostbite(0.15, 0.5)
                         .WithEffects(EffectFactory.Hypothermia(0.7)),
                     new EventResult("You fall. The snow is surprisingly warm. That's bad. Very bad.", weight: 0.10, minutes: 15)
-                        .WithFrostbite(20, 0.6)
+                        .WithFrostbite(0.2, 0.6)
                         .WithEffects(EffectFactory.Hypothermia(0.9))
                 ]);
     }

@@ -269,26 +269,27 @@ public class GameContext(Player player, Location camp, Weather weather)
     public bool EventOccurredLastUpdate { get; private set; } = false;
     public bool LastEventAborted { get; private set; } = false;
 
-    private HashSet<string> _shownTutorials = new();
+    // Saved with the game, so a one-time message or windfall stays one-time across loads.
+    public HashSet<string> ShownTutorials { get; set; } = new();
 
     // Discovery Log - tracks player discoveries for progression display
     public DiscoveryLog Discoveries { get; set; } = new();
 
     public void ShowTutorialOnce(string message)
     {
-        if (_shownTutorials.Contains(message))
+        if (ShownTutorials.Contains(message))
             return;
 
-        _shownTutorials.Add(message);
+        ShownTutorials.Add(message);
         GameDisplay.AddNarrative(this, message);
     }
 
     public bool TryShowTutorial(string key)
     {
-        if (_shownTutorials.Contains(key))
+        if (ShownTutorials.Contains(key))
             return false;
 
-        _shownTutorials.Add(key);
+        ShownTutorials.Add(key);
         return true;
     }
 
@@ -416,6 +417,13 @@ public class GameContext(Player player, Location camp, Weather weather)
         ctx.Inventory.Add(Resource.Tinder, 0.04);
         ctx.Inventory.Add(Resource.Tinder, 0.05);
         ctx.Inventory.Add(Resource.Tinder, 0.04);
+
+        // The goal, shown once before survival pressure hits.
+        ctx.Notices.Enqueue(new Notice("A Break in the Clouds",
+            "Through a break in the clouds, the mountain pass is visible. Snow-choked. Impossible. " +
+            "But beyond it: your people. Your life.\n\n" +
+            "When the pass clears in midsummer, or when you're strong enough to try it early, you'll be ready.\n\n" +
+            "First: survive. Then: prepare. Then: climb."));
 
         return ctx;
     }
@@ -604,12 +612,9 @@ public class GameContext(Player player, Location camp, Weather weather)
         var context = SurvivalContext.GetSurvivalContext(player, Inventory, CurrentActivity, GetTimeOfDay());
         player.Update(minutes, context);
 
-        // Check survival thresholds and queue events for crossings
+        // Warn on survival threshold crossings
         foreach (var thresholdChange in player.Body.CheckThresholds())
-        {
-            var thresholdEvent = ThresholdEventFactory.ForThresholdChange(thresholdChange, this);
-            EventQueue.Enqueue(thresholdEvent);
-        }
+            ThresholdWarnings.Apply(thresholdChange, this);
 
         // Update zone weather and all named locations (terrain-only don't need updates)
         Weather.Update(GameTime);
@@ -638,7 +643,7 @@ public class GameContext(Player player, Location camp, Weather weather)
             if (Weather.CurrentFront?.Type == FrontType.ProlongedBlizzard &&
                 Weather.CurrentFront.CurrentStateIndex == 0)
             {
-                EventQueue.Enqueue(WeatherEventFactory.OnCalmBeforeStorm(this));
+                Notices.Enqueue(WeatherEventFactory.CalmBeforeStormNotice);
             }
         }
 

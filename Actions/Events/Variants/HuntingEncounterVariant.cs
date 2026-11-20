@@ -7,7 +7,7 @@ namespace text_survival.Actions.Variants;
 /// and offer appropriate approach options.
 /// </summary>
 public record HuntingSighting(
-    string Description,           // "Head down in the grass, oblivious"
+    string Description,           // "Head down, feeding, oblivious"
     HuntingBehavior Behavior,     // What the animal is doing
     ApproachOption[] Options,     // Valid approaches for this behavior
     double DetectionModifier      // Multiplier on base detection chance
@@ -69,7 +69,7 @@ public static class HuntingSightings
             ],
             0.75),
 
-        new("Grazing at the edge of cover",
+        new("Feeding at the edge of cover",
             HuntingBehavior.Grazing,
             [
                 new("Creep Through Brush", "Use the vegetation to hide", 20, 1.35,
@@ -84,7 +84,7 @@ public static class HuntingSightings
     // Animal is nervous, scanning, very difficult to approach
     public static readonly HuntingSighting[] AlertEncounters =
     [
-        new("Ears up, scanning. Something has it nervous.",
+        new("Head up, scanning. Something has it nervous.",
             HuntingBehavior.Alert,
             [
                 new("Freeze", "Don't move. Wait for it to relax.", 10, 0.6,
@@ -119,7 +119,7 @@ public static class HuntingSightings
     // Animal is bedded down, relaxed but not oblivious
     public static readonly HuntingSighting[] RestingEncounters =
     [
-        new("Bedded down, chewing cud.",
+        new("Bedded down, still.",
             HuntingBehavior.Resting,
             [
                 new("Patient Approach", "Let it settle deeper into rest", 30, 1.4,

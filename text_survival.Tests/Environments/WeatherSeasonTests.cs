@@ -63,7 +63,9 @@ public class WeatherSeasonTests
         var offenders = new List<string>();
         for (int hour = 0; hour < 72; hour++)
         {
-            ctx.UpdateWithoutEvents(60, ActivityType.Idle);
+            // Only weather is under test; advancing NPCs, herds and every tile adds no coverage.
+            for (int minute = 0; minute < 60; minute++)
+                ctx.Weather.Update(ctx.Weather.Time.AddMinutes(1));
             double c = ctx.Weather.BaseTemperature;
             if (c < min - ToleranceC || c > max + ToleranceC)
                 offenders.Add($"hour {hour}: {c:F1}C ({ctx.Weather.TemperatureInFahrenheit:F1}F)");

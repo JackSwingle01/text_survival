@@ -42,12 +42,6 @@ public static partial class GameEventRegistry
                         .AddsShelter(temp: 0.4, overhead: 0.6, wind: 0.7)
                         .Chain(ClaimingTheDen)
                 ])
-            .Choice("Mark It and Leave",
-                "Blaze a nearby tree. Come back prepared.",
-                [
-                    new EventResult("You mark the location. Worth returning with preparation.", weight: 1.0, minutes: 10)
-                        .CreateTension("MarkedDiscovery", 0.6, description: "potential shelter den", location: ctx.CurrentLocation)
-                ])
             .Choice("Move On",
                 "Not worth the risk. Keep looking.",
                 [

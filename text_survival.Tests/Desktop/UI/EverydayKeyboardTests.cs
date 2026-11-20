@@ -1,3 +1,4 @@
+using text_survival.Tests.TestHelpers;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Desktop.Input;
@@ -63,7 +64,7 @@ public class EverydayKeyboardTests
     {
         Native((frame, key) =>
         {
-            var ctx = GameContext.CreateNewGame(42);
+            var ctx = SmallGame.CreateWithStartingEquipment();
             var storage = new Inventory();
             storage.Add(Resource.Stone, 1);
             storage.Add(Resource.Stone, 1);
@@ -97,7 +98,7 @@ public class EverydayKeyboardTests
     {
         Native((frame, key) =>
         {
-            var ctx = GameContext.CreateNewGame(42);
+            var ctx = SmallGame.CreateWithStartingEquipment();
             ctx.Inventory.Add(Resource.CookedMeat, 1);
             var food = new FoodOverlay(); food.Open();
             void Render() => food.Render(ctx, 0);
@@ -119,7 +120,7 @@ public class EverydayKeyboardTests
     {
         Native((frame, key) =>
         {
-            var ctx = GameContext.CreateNewGame(42);
+            var ctx = SmallGame.CreateWithStartingEquipment();
             var source = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()!;
             source.AddFuel(1, FuelType.Kindling); source.IgniteAll();
             ctx.Inventory.Add(Resource.Stick, 1);
@@ -143,7 +144,7 @@ public class EverydayKeyboardTests
     {
         Native((frame, key) =>
         {
-            var ctx = GameContext.CreateNewGame(42);
+            var ctx = SmallGame.CreateWithStartingEquipment();
             var feature = new ForageFeature().AddSticks();
             var forage = new ForageOverlay(); forage.Open(ctx, feature, []);
             ForageResult? result = null;
@@ -162,7 +163,7 @@ public class EverydayKeyboardTests
         var bindings = Enum.GetValues<HotkeyAction>().Select(HotkeyRegistry.KeyFor).ToArray();
         Assert.Equal(bindings.Length, bindings.Distinct().Count());
         Assert.DoesNotContain(bindings, k => k is Raylib_cs.KeyboardKey.W or Raylib_cs.KeyboardKey.A or Raylib_cs.KeyboardKey.S or Raylib_cs.KeyboardKey.D);
-        var actions = HudActions.Build(GameContext.CreateNewGame(42));
+        var actions = HudActions.Build(SmallGame.CreateWithStartingEquipment());
         Assert.Equal("Food", actions.Single(a => a.Shortcut == HotkeyAction.Food).Id);
         Assert.Equal("rest", actions.Single(a => a.Shortcut == HotkeyAction.Rest).Id);
         Assert.Equal("TreatWounds", actions.Single(a => a.Shortcut == HotkeyAction.Treatment).Id);

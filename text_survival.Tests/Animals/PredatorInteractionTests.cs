@@ -230,8 +230,8 @@ public class PredatorInteractionTests
     public void LegacyMetersCannotBeCreatedAndLoadCleanupIsIdempotent(string type)
     {
         var ctx = World();
-        ctx.Tensions.AddTension(ActiveTension.Custom(type, 0.8, 0, false));
-        ctx.Tensions.EscalateTension(type, 0.5);
+        Assert.Throws<InvalidOperationException>(() => ctx.Tensions.AddTension(ActiveTension.Custom(type, 0.8, 0, false)));
+        Assert.Throws<InvalidOperationException>(() => ctx.Tensions.EscalateTension(type, 0.5));
         Assert.False(ctx.Tensions.HasTension(type));
         // Simulate an old save: serializer restores the private list without AddTension.
         var other = new TensionRegistry(); other.AddTension(ActiveTension.SmokeSpotted(0.8));
@@ -564,7 +564,7 @@ public class PredatorInteractionTests
         var result = Authored(ctx, "Wolves Smell Blood").GetAvailableChoices(ctx)
             .First(c => c.Label == "Work Faster, Grab What You Can").Results[0];
         var before = carcass.MeatRemainingKg;
-        Assert.Equal(text_survival.Items.RewardPool.None, result.RewardPool);
+        Assert.Empty(result.RewardPools);
         result.AfterTimeAction!(ctx);
         Assert.True(carcass.MeatRemainingKg < before);
         Assert.True(ctx.Inventory.Weight(Resource.RawMeat) > 0);

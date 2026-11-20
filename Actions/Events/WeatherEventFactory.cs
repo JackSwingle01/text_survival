@@ -1,4 +1,5 @@
 using static Weather;
+using text_survival.UI;
 
 namespace text_survival.Actions.Events;
 
@@ -52,10 +53,11 @@ public static class WeatherEventFactory
     /// Create an event for the "Calm Before The Storm" phase of prolonged blizzards.
     /// Called separately from OnWeatherChange when front type indicates it.
     /// </summary>
-    public static GameEvent? OnCalmBeforeStorm(GameContext ctx)
-    {
-        return GameEventRegistry.GetMassiveStormApproaching(ctx);
-    }
+    public static readonly Notice CalmBeforeStormNotice = new("The Calm",
+        "The wind dies. The sky clears to an unnatural brightness. " +
+        "To the north, a band of grey-white stretches across the horizon. " +
+        "The trees have gone silent. The birds have fled.\n\n" +
+        "A storm unlike any you've seen is building. You have perhaps a day before it arrives in earnest.");
 
     private static bool IsFromDangerousCondition(WeatherCondition? previous)
     {

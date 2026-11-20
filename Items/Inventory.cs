@@ -717,7 +717,7 @@ public static class InventoryExtensions
             if (count > 0)
             {
                 string name = type.ToDisplayName();
-                parts.Add(count > 1 ? $"{count} {name}s" : $"{count} {name}");
+                parts.Add(count > 1 && !name.EndsWith('s') ? $"{count} {name}s" : $"{count} {name}");
             }
         }
 

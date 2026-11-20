@@ -48,12 +48,36 @@ public sealed class CliSession : IDisposable
     private object[] LogEntries(int count) => Context.Log.Entries.TakeLast(count)
         .Select(entry => (object)new { entry.Text, entry.Level, entry.Timestamp }).ToArray();
 
-    public object Look() => new {
-        session = Context.SessionId, screen = _game.IsCompleted ? "ended" : Ui.Screen,
-        status = Observations.Summary(Context), view = Ui.Render(),
-        progress = Ui.Progress.Select(p => new { p.Kind, p.Status, p.Progress, p.SimulatedMinutes, p.TotalMinutes, p.Sections }),
-        completed = Ui.CompletedProgress.ToArray(), log = LogEntries(8)
-    };
+    private long _logMark;
+    public object Look()
+    {
+        var view = Ui.Render();
+        var progress = Ui.Progress.Select(p => new { p.Kind, p.Status, p.Progress, p.SimulatedMinutes, p.TotalMinutes, p.Sections }).ToArray();
+        int fresh = (int)Math.Min(Context.Log.Revision - _logMark, 12);
+        return new {
+            screen = _game.IsCompleted ? "ended" : Ui.Screen, status = Observations.Summary(Context),
+            lines = view.Lines, controls = view.Controls.Select(Compact).ToArray(),
+            progress = progress.Length == 0 ? null : progress,
+            completed = Ui.CompletedProgress.Count == 0 ? null : Ui.CompletedProgress.ToArray(),
+            log = fresh > 0 ? LogEntries(fresh) : null
+        };
+    }
+    // "#3 Stick [x3 0.9kg] *": index for click #3, * selected, (off) disabled. Full IDs stay clickable.
+    private static string Compact(TextControl c, int i)
+    {
+        var details = c.Details.Where(d => d != c.Label).ToArray();
+        return $"#{i} {c.Label}" + (details.Length > 0 ? $" [{string.Join("; ", details)}]" : "")
+            + (c.Value is true ? " *" : c.Value is string v ? $" ={v}" : "") + (c.Enabled ? "" : " (off)");
+    }
+    private TextControl Find(string text, Func<TextControl, bool>? filter = null)
+    {
+        var controls = Ui.Render().Controls;
+        if (text.StartsWith('#') && int.TryParse(text[1..], out int index))
+            return index >= 0 && index < controls.Count ? controls[index] : throw new ArgumentException("Control index out of range. Use look.");
+        var matches = controls.Where(c => c.Id == text || c.Label == text).Where(filter ?? (_ => true)).ToArray();
+        return matches.Length == 1 ? matches[0] : throw new ArgumentException(matches.Length == 0
+            ? "Unknown control. Use #N, an ID, or an exact label from look." : "Ambiguous label; use #N.");
+    }
     public object Execute(string command, string? input = null)
     {
         var parts = command.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -81,20 +105,17 @@ public sealed class CliSession : IDisposable
                 return new { saved = Context.SessionId };
             case "quit": Exiting = true; return new { ended = true, saved = false };
         }
-        Ui.CompletedProgress.Clear();
+        if (parts[0] != "step") { Ui.CompletedProgress.Clear(); _logMark = Context.Log.Revision; }
         switch (parts[0].ToLowerInvariant())
         {
             case "click": case "choose":
-                var frame = Ui.Render();
-                var matches = frame.Controls.Where(c => c.Id == rest || c.Label == rest).ToArray();
-                if (matches.Length != 1) throw new ArgumentException(matches.Length == 0 ? "Unknown control. Use an ID or exact label from look." : "Ambiguous label; use the full control ID.");
-                if (!matches[0].Enabled) throw new ArgumentException("That control is disabled.");
-                Ui.Render(matches[0].Id, input); break;
+                var control = Find(rest);
+                if (!control.Enabled) throw new ArgumentException("That control is disabled.");
+                Ui.Render(control.Id, input); break;
             case "set":
                 if (input == null) throw new ArgumentException("Use JSON: {\"command\":\"set CONTROL_ID\",\"value\":\"text\"}");
-                var fields = Ui.Render().Controls.Where(c => c.Id == rest || c.Label == rest).ToArray();
-                if (fields.Length != 1 || fields[0].Kind != "text") throw new ArgumentException("Unknown or ambiguous text field; use its ID.");
-                var field = fields[0];
+                var field = Find(rest, c => c.Kind == "text");
+                if (field.Kind != "text") throw new ArgumentException("That control is not a text field.");
                 Ui.Render(field.Id, input); break;
             case "close": Ui.Close(); break;
             case "act":

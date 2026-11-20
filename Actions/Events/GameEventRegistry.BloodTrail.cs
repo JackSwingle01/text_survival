@@ -23,7 +23,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Blood in the Snow",
             $"The trail continues. {trailDescription} You're getting further from camp...", 1.5)
-            .Requires(EventCondition.WoundedPrey)
+            .Requires(EventCondition.WoundedPrey, EventCondition.IsExpedition)
             // SupplyPressure: low food, fuel, or water - desperate enough to push further
             .WithSituationFactor(Situations.SupplyPressure, 2.0)
             // Vulnerable: injured, slow, impaired - less likely to push when compromised
@@ -41,17 +41,6 @@ public static partial class GameEventRegistry
                         .ObservesPredator()
                         .ResolveTension("WoundedPrey")
                 ])
-            .Choice("Set Snare on Trail",
-                "Rig a snare where the animal will pass. Come back later.",
-                [
-                    new EventResult("Snare set on the blood trail. Maybe it'll work.", weight: 0.70, minutes: 15)
-                        .Costs(ResourceType.PlantFiber, 2)
-                        .CreateTension("MarkedDiscovery", 0.5, description: "snare on blood trail")
-                        .ResolveTension("WoundedPrey"),
-                    new EventResult("Ground's too hard. Can't set the snare properly.", weight: 0.30, minutes: 10)
-                        .Costs(ResourceType.PlantFiber, 1)
-                ],
-                [EventCondition.HasPlantFiber])
             .Choice("Turn Back",
                 "You've come far enough. The risk isn't worth it.",
                 [
@@ -78,7 +67,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent("The Dying Animal",
             $"You find the {animal.DisplayName()}. It's down, breathing shallow, too weak to run. {scavengerDesc}", 2.0)
-            .Requires(EventCondition.WoundedPreyHigh)
+            .Requires(EventCondition.WoundedPreyHigh, EventCondition.IsExpedition)
             .Choice("Finish It Quickly",
                 "End it fast. Take the meat before competition arrives.",
                 [
@@ -154,7 +143,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Scavengers Converge",
             $"Too late. {predator.DisplayName()}s have found the blood trail. They're between you and the {animal.DisplayName()}.", 3.0)
-            .Requires(EventCondition.WoundedPreyCritical, EventCondition.HasPredators)
+            .Requires(EventCondition.WoundedPreyCritical, EventCondition.HasPredators, EventCondition.IsExpedition)
             .Choice("Fight for Your Kill",
                 "You tracked it. You wounded it. It's YOUR meat.",
                 [
@@ -176,14 +165,14 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You throw your meat. They take the bait. You grab what you can.", weight: 0.50, minutes: 12)
                         .ResolveTension("WoundedPrey")
-                        .Costs(ResourceType.Food, 2)
+                        .Costs(ResourceType.Meat, 2)
                         .FindsMeat(),
                     new EventResult("They grab your offering AND circle back.", weight: 0.30, minutes: 10)
                         .ResolveTension("WoundedPrey")
-                        .Costs(ResourceType.Food, 2),
+                        .Costs(ResourceType.Meat, 2),
                     new EventResult("It works perfectly. Full access to the kill.", weight: 0.20, minutes: 15)
                         .ResolveTension("WoundedPrey")
-                        .Costs(ResourceType.Food, 1)
+                        .Costs(ResourceType.Meat, 1)
                         .FindsLargeMeat()
                 ],
                 [EventCondition.HasMeat]);

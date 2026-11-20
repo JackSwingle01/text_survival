@@ -115,7 +115,6 @@ public static partial class GameEventRegistry
     /// </summary>
     internal static GameEvent TheBull(GameContext ctx)
     {
-        var mammothTension = ctx.Tensions.GetTension("MammothTracked");
         var hasWeapon = ctx.Inventory.Weapon != null;
 
         var readinessDescription = hasWeapon
@@ -146,19 +145,19 @@ public static partial class GameEventRegistry
                 "Use meat to lure it into position. Ambush from the rocks. (~30 min wait, costs meat)",
                 [
                     new EventResult("The trap works. It approaches the bait, head down, distracted. Perfect.", weight: 0.70, minutes: 35)
-                        .Costs(ResourceType.Food, 4)
+                        .Costs(ResourceType.Meat, 4)
                         .Encounter(AnimalType.Mammoth, distance: 25, boldness: 0.4)
                         .ResolveTension("MammothTracked"),
                     new EventResult("It approaches cautiously, stops short of the bait. Wary. You attack from position anyway.", weight: 0.20, minutes: 30)
-                        .Costs(ResourceType.Food, 4)
+                        .Costs(ResourceType.Meat, 4)
                         .Encounter(AnimalType.Mammoth, distance: 35, boldness: 0.5)
                         .ResolveTension("MammothTracked"),
                     new EventResult("It ignores the bait entirely. The meat is wasted. You approach openly instead.", weight: 0.10, minutes: 25)
-                        .Costs(ResourceType.Food, 4)
+                        .Costs(ResourceType.Meat, 4)
                         .Encounter(AnimalType.Mammoth, distance: 40, boldness: 0.6)
                         .ResolveTension("MammothTracked")
                 ],
-                [EventCondition.HasCookedMeat])
+                [EventCondition.HasMeat])
             .Choice("Withdraw",
                 "This is suicide. You're not ready yet.",
                 [
@@ -241,7 +240,8 @@ public static partial class GameEventRegistry
                         .ObservesPredator(AnimalType.Wolf),
                     new EventResult("Too slow. They're here. You drop everything and run.", weight: 0.15, minutes: 5)
                         .ObservesPredator(AnimalType.Wolf)
-                ])
+                ],
+                action: SceneAction.HarvestAndRun)
             .Choice("Defend the Kill",
                 "This is YOUR kill. Stand your ground.",
                 [
@@ -292,8 +292,7 @@ public static partial class GameEventRegistry
                 "Watch. Learn their patterns. Stay hidden.",
                 [
                     new EventResult("You observe for hours. Their routes, their habits. Knowledge for the hunt.", weight: 0.6, minutes: 60)
-                        .MammothTracked(0.5)
-                        .MarksDiscovery("Mammoth grazing patterns", 0.6),
+                        .MammothTracked(0.5),
                     new EventResult("A young one wanders close. The matriarch watches, but you stay still.", weight: 0.3, minutes: 45)
                         .MammothTracked(0.6)
                         .AlertsHerd(0.3),
@@ -320,7 +319,6 @@ public static partial class GameEventRegistry
                 [
                     new EventResult("You note the terrain, the approaches. A hunt begins in the mind.", weight: 1.0, minutes: 10)
                         .MammothTracked(0.3)
-                        .MarksDiscovery("Mammoth herd location", 0.5)
                 ]);
     }
 
@@ -403,13 +401,11 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.2, 35)),
                     new EventResult("Perfect tracking. You find their new grazing ground.", weight: 0.2, minutes: 40)
                         .MammothTracked(0.6)
-                        .MarksDiscovery("Mammoth migration route", 0.5)
                 ])
             .Choice("Let Them Go",
                 "They'll return. Or you'll find them again.",
                 [
                     new EventResult("The herd disappears over the horizon. You note their heading.", weight: 1.0, minutes: 5)
-                        .MarksDiscovery("Mammoth migration direction", 0.3)
                 ]);
     }
 
@@ -469,7 +465,6 @@ public static partial class GameEventRegistry
                     new EventResult("Your courage impresses even a mammoth. It stops, snorts, retreats.", weight: 0.2, minutes: 2)
                         .TriggersHerdFlee()
                         .Frightening()
-                        .MarksDiscovery("Survived mammoth charge", 0.7)
                 ]);
     }
 }

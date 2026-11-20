@@ -1,3 +1,4 @@
+using text_survival.Tests.TestHelpers;
 using text_survival.Actions;
 using text_survival.Actions.Handlers;
 using text_survival.Environments.Features;
@@ -17,7 +18,7 @@ public class FireHandlerTests
     [Fact]
     public async Task ManageFire_StartingFromEmber_PutsTheFireOnTheLocation()
     {
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.CreateWithStartingEquipment();
         var ui = new ScriptedUi { AutoResolveEvents = true };
         ctx.Ui = ui;
 
@@ -45,7 +46,7 @@ public class FireHandlerTests
     [Fact]
     public async Task ManageFire_AddingFuel_ReachesTheLocationFire()
     {
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.CreateWithStartingEquipment();
         var ui = new ScriptedUi { AutoResolveEvents = true };
         ctx.Ui = ui;
 
@@ -100,7 +101,7 @@ public class FireChanceTests
     [InlineData(14)]
     public void AttemptStartFire_RollsTheChanceTheScreenShows(int hour)
     {
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.CreateWithStartingEquipment();
         var drill = Gear.HandDrill();
         ctx.Inventory.Add(Resource.Tinder, 0.05);
         ctx.Inventory.Add(Resource.Stick, 0.3);

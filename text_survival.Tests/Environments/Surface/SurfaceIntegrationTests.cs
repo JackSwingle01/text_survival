@@ -4,6 +4,7 @@ using text_survival.Environments;
 using text_survival.Environments.Features;
 using text_survival.Environments.Grid;
 using text_survival.Environments.Surface;
+using text_survival.Tests.TestHelpers;
 
 namespace text_survival.Tests.Environments.Surface;
 
@@ -23,7 +24,7 @@ public class SurfaceIntegrationTests
     [Fact]
     public void DeepSnowSlowsACrossingOnceAndOnlyOnce()
     {
-        var ctx = GameContext.CreateNewGame(seed: 7);
+        var ctx = SmallGame.Create();
         var map = ctx.Map!;
         var here = ctx.CurrentLocation;
         var there = map.GetTravelOptions().First();
@@ -50,7 +51,7 @@ public class SurfaceIntegrationTests
     [Fact]
     public void ATrailBonusDoesNotQuietlyDiscountABlizzard()
     {
-        var ctx = GameContext.CreateNewGame(seed: 11);
+        var ctx = SmallGame.Create();
         var map = ctx.Map!;
         var here = ctx.CurrentLocation;
         var there = map.GetTravelOptions().First();
@@ -93,7 +94,7 @@ public class SurfaceIntegrationTests
     [Fact]
     public void WadingWetsYou_AndBeddingKeepsYouOffIt()
     {
-        var ctx = GameContext.CreateNewGame(seed: 21);
+        var ctx = SmallGame.Create();
         var here = ctx.CurrentLocation;
         here.Surface.AddWater(0.3);
 
@@ -153,7 +154,7 @@ public class SurfaceIntegrationTests
     [Fact]
     public void EveryTileGetsEveryMinuteExactlyOnce_ForegroundChangesIncluded()
     {
-        var ctx = GameContext.CreateNewGame(seed: 33);
+        var ctx = SmallGame.Create();
         var map = ctx.Map!;
         var weather = ctx.Weather;
 
@@ -182,7 +183,7 @@ public class SurfaceIntegrationTests
     [Fact]
     public void ForageRegrowsOnPlainTerrainToo_NotJustOnNamedLocations()
     {
-        var ctx = GameContext.CreateNewGame(seed: 44);
+        var ctx = SmallGame.Create();
         var map = ctx.Map!;
 
         var terrainTile = map.AllLocations
@@ -195,8 +196,8 @@ public class SurfaceIntegrationTests
         Assert.True(forage.IsDepleted());
 
         // Terrain-only tiles were never ticked before, so a plain foraged flat stayed flat
-        // for the rest of the run.
-        for (int i = 0; i < 60 * 24 * 14; i++)
+        // for the rest of the run. One background sweep must already show recovery.
+        for (int i = 0; i < GameMap.BackgroundStepMinutes; i++)
             map.AdvanceWorld(1, ctx.Weather, map.CurrentLocation);
 
         Assert.True(forage.CurrentDensity > depleted,
@@ -206,7 +207,7 @@ public class SurfaceIntegrationTests
     [Fact]
     public void FootprintsAgeOnTheWorldClock()
     {
-        var ctx = GameContext.CreateNewGame(seed: 55);
+        var ctx = SmallGame.Create();
         var map = ctx.Map!;
 
         double before = map.Tracks.Erosion;

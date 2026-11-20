@@ -36,7 +36,7 @@ public static class SurvivalProcessor
     public const double HypothermiaThreshold = 95.0;
     private const double ShiveringThreshold = 97.0;
     private const double HyperthermiaThreshold = 100.0;
-    private const double SweatingThreshold = 99.0;
+    public const double SweatingThreshold = 99.0;
 
     private const double MIN_FAT_PERCENT = 0.03;
     private const double MIN_MUSCLE_PERCENT = 0.15;

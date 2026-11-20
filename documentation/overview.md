@@ -485,6 +485,8 @@ Two triggering paths:
 
 Adding a new system (e.g., wetness) means updating Situations once — all events using that situation automatically respond. New injury types get one variant pool — all accident events can use it. Common outcome patterns get one template — consistent behavior across events.
 
+An event must offer at least two choices (`EventChoiceTests` enforces this for the registry). Anything with nothing to decide is not an event: warnings go to the log (`GameDisplay.AddWarning`, e.g. `ThresholdWarnings`), and moments worth stopping for go to `ctx.Notices`.
+
 Event organization — narrative arcs: Weather, Expedition, Camp, Threat, Herd, Trapping, Location-specific, and multi-stage arcs (Cold Snap, Wound/Infection, Disturbed, Den claim, Pack hunting, Fever).
 
 ### Situations

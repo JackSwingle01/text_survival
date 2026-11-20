@@ -59,14 +59,15 @@ public static class OutcomeTemplates
     public static EventResult SeriousFall(this EventResult r)
         => r.Damage(0.25, DamageType.Blunt);
 
-    public static EventResult MinorFrostbite(this EventResult r)
-        => r.Damage(0.12, DamageType.Internal);
+    // Frostbite takes the extremities. Internal damage aimed at a random part would reach organs.
+    public static EventResult MinorFrostbite(this EventResult r, BodyTarget target = BodyTarget.AnyArm)
+        => r.Damage(0.12, DamageType.Internal, target);
 
-    public static EventResult ModerateFrostbite(this EventResult r)
-        => r.Damage(0.25, DamageType.Internal);
+    public static EventResult ModerateFrostbite(this EventResult r, BodyTarget target = BodyTarget.AnyArm)
+        => r.Damage(0.25, DamageType.Internal, target);
 
-    public static EventResult SevereFrostbite(this EventResult r)
-        => r.Damage(0.40, DamageType.Internal);
+    public static EventResult SevereFrostbite(this EventResult r, BodyTarget target = BodyTarget.AnyArm)
+        => r.Damage(0.40, DamageType.Internal, target);
 
     public static EventResult MinorBite(this EventResult r)
         => r.Damage(0.15, DamageType.Sharp)
@@ -138,9 +139,6 @@ public static class OutcomeTemplates
         return r;
     }
 
-    public static EventResult MarksDiscovery(this EventResult r, string description, double severity = 0.5)
-        => r.CreateTension("MarkedDiscovery", severity, description: description);
-
     /// <summary>
     /// Create a frozen traveler salvage feature at current location for later return.
     /// </summary>
@@ -153,17 +151,14 @@ public static class OutcomeTemplates
     public static EventResult MarksHiddenCache(this EventResult r)
         => r.CreatesSalvage("hidden_cache");
 
-    public static EventResult MarksAnimalSign(this EventResult r, AnimalType animal, double severity = 0.4)
-        => r.CreateTension("MarkedDiscovery", severity, animalType: animal, description: $"{animal.DisplayName().ToLower()} territory");
-
     public static EventResult ColdAndFear(this EventResult r, double coldDegrees = -12, int coldMinutes = 45, double fear = 0.3)
         => r.WithEffects(EffectFactory.Cold(coldDegrees, coldMinutes), EffectFactory.Fear(fear));
 
     public static EventResult InjuredRetreat(this EventResult r, double damage = 0.10)
         => r.Damage(damage, DamageType.Blunt).Aborts();
 
-    public static EventResult WithFrostbite(this EventResult r, double damage, double effectSeverity)
-        => r.Damage(damage, DamageType.Internal)
+    public static EventResult WithFrostbite(this EventResult r, double damage, double effectSeverity, BodyTarget target = BodyTarget.AnyArm)
+        => r.Damage(damage, DamageType.Internal, target)
            .WithEffects(EffectFactory.Frostbite(effectSeverity));
 
     public static EventResult StormExposure(this EventResult r)

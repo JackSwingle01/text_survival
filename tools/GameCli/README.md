@@ -3,6 +3,28 @@
 A persistent, windowless player interface to the real `GameRunner`. It emits JSON Lines;
 there is no ASCII map, terminal redraw, graphics context, or automated choice selection.
 
+## Quick path for agents: `do`
+
+```sh
+dotnet build tools/GameCli
+./scripts/gamecli start --seed 42 --session cli_run      # wait ~3s for world generation
+./scripts/gamecli do cli_run look
+./scripts/gamecli do cli_run "act Inventory" "click #7" "close"   # runs in order, stops at first error
+./scripts/gamecli do cli_run "map 6"
+./scripts/gamecli stop cli_run
+```
+
+`do` queues each command, waits for it (up to 90s, then returns `pending` with a request ID
+to `poll`), and prints the game's response flat: `{"ok":true,"screen":...,"rev":N}` or
+`{"ok":false,"error":...,"failed":"click #99"}`. One call per decision; no send/poll loop.
+
+Screens list controls as compact strings - `"#6 Stick [x3 0.9kg] *"` (`*` selected,
+`=v` value, `(off)` disabled). `click #6` / `set #3` target them by index; indexes are only
+valid for the screen they came from. `log` in a snapshot holds only entries added by the
+last action; use `log N` for history. `map` returns an ASCII `grid` (rows prefixed with y,
+columns from `x0`), a `places` list of camp, uniquely named tiles, icons, people and
+animals, and a `legend`.
+
 ## Non-blocking agent mode
 
 Build once, then use the one-shot wrapper from the repository root:
@@ -124,7 +146,7 @@ commits a numeric prompt. Checkboxes toggle with `click`.
 | `status` | Complete survivor panel, including expanded condition, temperature, and clothing details |
 | `weather` | Weather, front, wind, precipitation, temperature breakdown |
 | `log [count]` | Last 30 entries by default, including severity and timestamps |
-| `map [radius\|all]` | Coordinate rows with a columns schema; radius defaults to 3 |
+| `map [radius\|all]` | ASCII grid, notable places and legend; radius defaults to 3 |
 | `inspect x,y [x,y ...]` | Multiple location inspectors, travel options, boundaries, trails, people, animal markers |
 | `actions` | Map action IDs and disabled reasons; `availableNow` accounts for pending decisions |
 | `act ID` | Perform a listed map action, including work and screen navigation |
@@ -154,7 +176,7 @@ Unsuccessful megafauna searches report their outcome here; a search without a di
 does not add a discovery-log entry. Injury bars report **percent damage** (100% means
 destroyed). Resource storage buttons transfer the entire displayed quantity in one click.
 
-Map rows omit unexplored tiles. Coordinates are zero-based, with north at `y-1`. Explored
+Unexplored tiles are blank on the map. Coordinates are zero-based, with north at `y-1`. Explored
 terrain remains inspectable; current features, tracks, people, and animal markers follow
 player visibility. Concealed cave interiors remain mountain. `map all` lists known tiles
 across the world; it does not reveal the map. Combat uses a separate coordinate system.

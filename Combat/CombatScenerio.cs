@@ -59,8 +59,9 @@ public class CombatScenario
         foreach (var unit in Units.ToList())
         {
             if (IsOver) break;
+            var before = unit.Position;
             ProcessSingleAITurn(unit);
-            if (Units.Contains(unit)) RunDetectionChecks(unit);
+            if (Units.Contains(unit)) RunDetectionChecks(unit, exposureMeters: ExposureMeters(before, unit.Position));
         }
     }
 
@@ -157,9 +158,10 @@ public class CombatScenario
             foreach (var unit in Units.ToList())
             {
                 if (IsOver) break;
+                var before = unit.Position;
                 ProcessSingleAITurn(unit);
                 if (Units.Contains(unit))
-                    RunDetectionChecks(unit);
+                    RunDetectionChecks(unit, exposureMeters: ExposureMeters(before, unit.Position));
             }
         }
 
@@ -652,6 +654,10 @@ public class CombatScenario
         return Math.Min(Math.Min(distLeft, distRight), Math.Min(distTop, distBottom));
     }
 
+    /// <summary>Ground covered this turn; any other action is as noticeable as a stalking step.</summary>
+    public static double ExposureMeters(GridPosition before, GridPosition after)
+        => before == after ? CombatFormulas.StalkStepMeters : before.DistanceTo(after);
+
     public static bool CanFlee(GridPosition pos) => GetDistanceFromEdge(pos) <= FLEE_THRESHOLD;
 
     public bool ExecuteFlee(Unit unit)
@@ -669,7 +675,8 @@ public class CombatScenario
     /// Call after any action when enemies are Unaware or Alert.
     /// Returns list of units whose awareness changed.
     /// </summary>
-    public List<(Unit unit, AwarenessState oldState, AwarenessState newState)> RunDetectionChecks(Unit actingUnit, int huntingSkill = 0)
+    public List<(Unit unit, AwarenessState oldState, AwarenessState newState)> RunDetectionChecks(
+        Unit actingUnit, int huntingSkill = 0, double exposureMeters = CombatFormulas.StalkStepMeters)
     {
         var changes = new List<(Unit, AwarenessState, AwarenessState)>();
 
@@ -679,7 +686,7 @@ public class CombatScenario
             if (!Units.Contains(enemy)) continue;
 
             var oldState = enemy.Awareness;
-            var newState = CheckDetection(actingUnit, enemy, huntingSkill);
+            var newState = CheckDetection(actingUnit, enemy, huntingSkill, exposureMeters);
 
             if (newState != oldState)
             {
@@ -692,30 +699,12 @@ public class CombatScenario
     }
 
     /// <summary>
-    /// Check if a detector (enemy) detects the mover.
+    /// Check if a detector (enemy) notices the mover covering exposureMeters of ground.
     /// Returns the new awareness state.
     /// </summary>
-    private AwarenessState CheckDetection(Unit mover, Unit detector, int huntingSkill)
+    private AwarenessState CheckDetection(Unit mover, Unit detector, int huntingSkill, double exposureMeters)
     {
-        double distance = mover.Position.DistanceTo(detector.Position);
-
-        double detectionChance = CombatFormulas.CalculateDetectionChance(
-            distance,
-            detector.Awareness,
-            huntingSkill,
-            0 // failedAttempts - could track this per unit if desired
-        );
-
-        // Location visibility reduces detection (good cover = lower detection)
-        if (Location != null)
-        {
-            // VisibilityFactor: 0 = deep cave/thick forest (good cover), 2 = open plain/overlook (no cover)
-            // Lower visibility = more cover = lower detection
-            double visibilityNormalized = Location.VisibilityFactor / 2.0; // 0-1 scale
-            double coverBonus = (1.0 - visibilityNormalized) * 0.3; // Up to 30% reduction in detection
-            detectionChance *= (1.0 - coverBonus);
-        }
-
+        double detectionChance = DetectionChance(mover, detector, huntingSkill, exposureMeters);
         double roll = Utils.Rng.NextDouble();
 
         if (roll < detectionChance)
@@ -735,28 +724,27 @@ public class CombatScenario
     }
 
     /// <summary>
-    /// Calculate detection chance for Assess action (shows risk without rolling).
+    /// Detection risk for one normal stalking step, as shown to the player.
     /// </summary>
     public double CalculateDetectionRisk(Unit mover, Unit detector, int huntingSkill)
+        => DetectionChance(mover, detector, huntingSkill, CombatFormulas.StalkStepMeters);
+
+    private double DetectionChance(Unit mover, Unit detector, int huntingSkill, double exposureMeters)
     {
         double distance = mover.Position.DistanceTo(detector.Position);
+        double chance = CombatFormulas.CalculateDetectionChance(distance, detector.Awareness, huntingSkill, 0);
+        chance *= detector.DetectionFactor;
 
-        double detectionChance = CombatFormulas.CalculateDetectionChance(
-            distance,
-            detector.Awareness,
-            huntingSkill,
-            0
-        );
-
-        // Apply location visibility modifier
+        // Location visibility reduces detection (good cover = lower detection)
         if (Location != null)
         {
+            // VisibilityFactor: 0 = deep cave/thick forest (good cover), 2 = open plain/overlook (no cover)
             double visibilityNormalized = Location.VisibilityFactor / 2.0; // 0-1 scale
-            double coverBonus = (1.0 - visibilityNormalized) * 0.3; // Up to 30% reduction
-            detectionChance *= (1.0 - coverBonus);
+            double coverBonus = (1.0 - visibilityNormalized) * 0.3; // Up to 30% reduction in detection
+            chance *= (1.0 - coverBonus);
         }
 
-        return Math.Clamp(detectionChance, 0.05, 0.95);
+        return CombatFormulas.StepDetectionChance(Math.Clamp(chance, 0.05, 0.95), exposureMeters);
     }
 
     /// <summary>

@@ -19,7 +19,6 @@ public static partial class GameEventRegistry
 
         // Pack animals coordinate better - higher risk of being detected
         bool isPackAnimal = AnimalSelector.IsPredatorPackAnimal(variant);
-        double chaseTriggeredWeight = isPackAnimal ? 0.15 : 0.05;
 
         return new GameEvent("Pack Signs",
             $"Multiple tracks, recent. {(isPackAnimal ? "Coordinated movement patterns." : "Scattered, but recent.")} This isn't a lone hunter — it's a pack of {predator.DisplayName()}s.", 0.8)
@@ -36,15 +35,9 @@ public static partial class GameEventRegistry
                         .ObservesPredator(predator)
                 ])
             .Choice("Pick Up Pace Toward Camp",
-                $"Get back to fire. {(variant.FireEffectiveness > 0.6 ? "Packs fear fire." : "Move!")}",
-                [
-                    new EventResult("You move quickly. Something is definitely following.", weight: 0.55, minutes: 8)
-                        .ObservesPredator(predator),
-                    new EventResult("Fast movement. Can't see them but you hear them in the brush.", weight: 0.30, minutes: 10)
-                        .ObservesPredator(predator),
-                    new EventResult($"Your haste triggers their chase instinct. {(isPackAnimal ? "They coordinate." : "One pursues.")}", weight: chaseTriggeredWeight, minutes: 5)
-                        .ObservesPredator(predator)
-                ])
+                "Get back toward camp and fire. Move!",
+                [new EventResult("You move fast, toward camp.")],
+                action: SceneAction.RetreatTowardCamp)
             .Choice("Hold Position and Assess",
                 "Stop. Watch. Know what you're dealing with.",
                 [
@@ -53,7 +46,8 @@ public static partial class GameEventRegistry
                     new EventResult("The ground is churned with prints. You take your time studying them.", weight: 0.30, minutes: 12)
                         .ObservesPredator(predator),
                     new EventResult("Old tracks. They passed hours ago. You're probably fine.", weight: 0.20, minutes: 10)
-                ]);
+                ],
+                action: SceneAction.Wait);
     }
 
     /// <summary>
@@ -70,8 +64,6 @@ public static partial class GameEventRegistry
         bool isPackAnimal = AnimalSelector.IsPredatorPackAnimal(variant);
         double noiseRetreatWeight = 0.25 + variant.NoiseEffectiveness * 0.25;  // 0.25-0.50
         double noiseProvokeWeight = 0.15 + (1 - variant.NoiseEffectiveness) * 0.15;  // 0.15-0.30
-        double fireRetreatWeight = 0.50 + variant.FireEffectiveness * 0.30;  // 0.50-0.80
-        double chaseWeight = variant.ChaseThreshold * 0.3;  // 0.0-0.30
 
         return new GameEvent("Eyes in the Treeline",
             $"Glimpses of movement. The {predator.DisplayName()}s are paralleling you. Not attacking yet — {(isPackAnimal ? "coordinating, probing." : "watching, testing.")}", 1.5)
@@ -82,14 +74,8 @@ public static partial class GameEventRegistry
             .WithSituationFactor(Situations.PackThreat, 1.5)
             .Choice("Keep Moving Steadily",
                 "Don't run. Don't stop. Steady pace. Show no weakness.",
-                [
-                    new EventResult("They match your pace. Watching. Waiting.", weight: 0.40, minutes: 10),
-                    new EventResult("One peels off. Then another. Losing interest?", weight: 0.25, minutes: 8)
-                        .PredatorWithdraws(),
-                    new EventResult("They're getting closer.", weight: 0.25, minutes: 8)
-                        .PredatorFollows(),
-                    new EventResult("Still there. Neither closing nor leaving.", weight: 0.10, minutes: 12)
-                ])
+                [new EventResult("You keep walking. Steady. No running.")],
+                action: SceneAction.Retreat)
             .Choice("Make Yourself Large, Shout",
                 $"Posturing. Show them you're not prey. {(variant.NoiseEffectiveness > 0.6 ? "Should work." : "Risky.")}",
                 [
@@ -101,42 +87,9 @@ public static partial class GameEventRegistry
                         .Unsettling()
                 ])
             .Choice("Light a Torch",
-                $"Fire. {(variant.FireEffectiveness > 0.7 ? "The ultimate deterrent." : "Worth a try.")}",
-                [
-                    new EventResult("Flame catches. The pack retreats to the shadows.", weight: fireRetreatWeight, minutes: 10)
-                        .Costs(ResourceType.Tinder, 1)
-                        .PredatorWithdraws(),
-                    new EventResult("Torch lit. They keep their distance but don't leave.", weight: 0.90 - fireRetreatWeight - 0.10, minutes: 10)
-                        .Costs(ResourceType.Tinder, 1)
-                        .PredatorWithdraws(),
-                    new EventResult("Won't light. Tinder's damp. They see you struggling.", weight: 0.10, minutes: 8)
-                        .Costs(ResourceType.Tinder, 1)
-                        .PredatorFollows()
-                ],
-                [EventCondition.HasTinder, EventCondition.HasFuel])
-            .Choice("Flee",
-                "Sprint. Outrun them or outmaneuver them.",
-                [
-                    new EventResult("You run. They give chase. You're faster.", weight: 0.40 - chaseWeight, minutes: 8)
-                        .PredatorFollows()
-                        .Aborts(),
-                    new EventResult($"Chase instinct triggered. {(isPackAnimal ? "They are closing fast." : "They're closing fast.")}", weight: chaseWeight + 0.30, minutes: 5)
-                        .PredatorFollows()
-                        .Frightening(),
-                    new EventResult("Too slow. They cut you off.", weight: chaseWeight + 0.15, minutes: 5)
-                        .PredatorFollows()
-                        .Terrifying()
-                ])
-            .Choice("Back Away Slowly",
-                "Maintain eye contact. Don't turn your back. Slow retreat.",
-                [
-                    new EventResult("Slow and steady. They watch but don't follow.", weight: AnimalSelector.SlowRetreatSuccessWeight(variant) * 0.4 + 0.25, minutes: 15)
-                        .PredatorWithdraws(),
-                    new EventResult($"One circles. {(isPackAnimal ? "They're testing your flanks." : "It's testing you.")}", weight: 0.35, minutes: 12)
-                        .PredatorFollows(),
-                    new EventResult("Your caution is working. Distance growing.", weight: 0.20, minutes: 20)
-                        .PredatorWithdraws()
-                ]);
+                "Fire. Most animals keep their distance from it.",
+                [new EventResult("You reach for your torch.")],
+                action: SceneAction.LightTorch);
     }
 
     /// <summary>
@@ -149,24 +102,12 @@ public static partial class GameEventRegistry
         var predator = packTension?.AnimalType ?? AnimalType.Wolf;
         var variant = AnimalSelector.GetVariant(predator);
 
-        bool isPackAnimal = AnimalSelector.IsPredatorPackAnimal(variant);
-        double fireSuccessWeight = 0.25 + variant.FireEffectiveness * 0.35;  // 0.25-0.60
 
         return new GameEvent("Circling",
             $"{variant.CirclingDescription} You need defensible ground — NOW.", 2.0)
             .ForPredatorScene(PredatorSceneKind.Circling)
             .Requires(EventCondition.PredatorWithinReach, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.PackThreat, 2.0)
-            .Choice("Find Defensible Ground",
-                $"High ground. Choke point. {(isPackAnimal ? "Break their coordination." : "Limit angles.")}",
-                [
-                    new EventResult("Rocky outcrop. Back to stone. They can only come from one direction.", weight: 0.50, minutes: 15)
-                        .PredatorWithdraws(),
-                    new EventResult($"Dense thicket. Hard to move but {(isPackAnimal ? "harder for them to coordinate." : "gives you cover.")}", weight: 0.30, minutes: 12),
-                    new EventResult("Nothing. Open ground. You're exposed.", weight: 0.20, minutes: 10)
-                        .PredatorFollows()
-                        .Frightening()
-                ])
             .Choice("Back Against Tree or Cliff",
                 "Limit attack angles. Nothing behind you.",
                 [
@@ -177,32 +118,13 @@ public static partial class GameEventRegistry
                         .PredatorFollows()
                 ])
             .Choice("Start Fire Here",
-                $"Right here. Right now. {(variant.FireEffectiveness > 0.7 ? "Fire is your salvation." : "Worth a try.")}",
-                [
-                    new EventResult("Fire catches. Flames push them back. A circle of safety.", weight: fireSuccessWeight, minutes: 15)
-                        .Costs(ResourceType.Tinder, 1)
-                        .BurnsFuel(3)
-                        .PredatorWithdraws(),
-                    new EventResult("Small fire. Not enough. But it's something.", weight: 0.90 - fireSuccessWeight - 0.20, minutes: 12)
-                        .Costs(ResourceType.Tinder, 1)
-                        .BurnsFuel(2)
-                        .PredatorWithdraws(),
-                    new EventResult("Won't catch. Hands shaking. They're getting closer.", weight: 0.20, minutes: 10)
-                        .Costs(ResourceType.Tinder, 1)
-                        .PredatorFollows()
-                        .Terrifying()
-                ],
-                [EventCondition.HasTinder, EventCondition.HasFuel])
+                "Right here. Right now. Fire is worth a try.",
+                [new EventResult("You drop to your knees and work your fire kit.")],
+                action: SceneAction.StartFire)
             .Choice("Break and Run",
                 "All-out sprint. Succeed or fail.",
-                [
-                    new EventResult("You run. Legs pumping. You break free.", weight: 0.40 - variant.ChaseThreshold * 0.2, minutes: 10)
-                        .Aborts(),
-                    new EventResult($"Almost made it. {(isPackAnimal ? "They cut you off." : "It cuts you off.")}", weight: 0.30 + variant.ChaseThreshold * 0.1, minutes: 8)
-                        .ConfrontPredator(predator, 10, 0.7),
-                    new EventResult($"Too slow. {(isPackAnimal ? "They drag you down." : "It drags you down.")}", weight: 0.30, minutes: 5)
-                        .ConfrontPredator(predator, 5, 0.9)
-                ]);
+                [new EventResult("You run.")],
+                action: SceneAction.Retreat);
     }
 
     /// <summary>
@@ -216,7 +138,6 @@ public static partial class GameEventRegistry
         var variant = AnimalSelector.GetVariant(predator);
 
         bool isPackAnimal = AnimalSelector.IsPredatorPackAnimal(variant);
-        double fireSuccessWeight = 0.30 + variant.FireEffectiveness * 0.35;  // 0.30-0.65
 
         string commitDesc = isPackAnimal
             ? $"They've decided. This is happening. The {predator.DisplayName()}s move as one."
@@ -233,32 +154,14 @@ public static partial class GameEventRegistry
                         .ConfrontPredator(predator, 5, 0.85)
                 ])
             .Choice("Feed the Fire",
-                $"Everything on the flames. {(variant.FireEffectiveness > 0.7 ? "Make it roar." : "Hope it's enough.")}",
-                [
-                    new EventResult($"Fire blazes high. {(isPackAnimal ? "They stop, blinded. The pack retreats." : "It backs away, snarling.")}", weight: fireSuccessWeight, minutes: 5)
-                        .BurnsFuel(4)
-                        .PredatorWithdraws(),
-                    new EventResult($"Fire grows but {(isPackAnimal ? "they circle." : "it circles.")} Waiting for it to die.", weight: 0.85 - fireSuccessWeight - 0.15, minutes: 10)
-                        .BurnsFuel(3)
-                        .PredatorWithdraws(),
-                    new EventResult($"Not enough fuel. Fire sputters. {(isPackAnimal ? "They see weakness." : "It sees weakness.")}", weight: 0.15, minutes: 5)
-                        .BurnsFuel(2)
-                        .ConfrontPredator(predator, 10, 0.75)
-                ],
-                [EventCondition.NearFire, EventCondition.HasFuel])
+                "Everything on the flames. Make it roar.",
+                [new EventResult("You pile fuel on the flames.").FeedsFire(4)],
+                requires: [EventCondition.NearFire, EventCondition.HasFuel],
+                action: SceneAction.BuildUpFire)
             .Choice("Drop All Meat and Flee",
                 "Give them what they want. Food. Not you.",
-                [
-                    new EventResult($"You throw everything and run. {(isPackAnimal ? "They take the bait." : "It goes for the meat.")}", weight: 0.65, minutes: 5)
-                        .PredatorWithdraws()
-                        .Costs(ResourceType.Food, 5),
-                    new EventResult($"{(isPackAnimal ? "Most go for the meat. One still chases." : "It grabs the meat but doesn't stop.")}", weight: 0.25, minutes: 5)
-                        .Costs(ResourceType.Food, 5)
-                        .ObservesPredator(predator),
-                    new EventResult($"{(isPackAnimal ? "They take the food AND you." : "It takes the food AND you.")}", weight: 0.10, minutes: 3)
-                        .Costs(ResourceType.Food, 3)
-                        .ConfrontPredator(predator, 8, 0.8)
-                ],
-                [EventCondition.HasMeat]);
+                [new EventResult("You throw down your meat and go.")],
+                requires: [EventCondition.HasMeat],
+                action: SceneAction.DropMeatAndRun);
     }
 }

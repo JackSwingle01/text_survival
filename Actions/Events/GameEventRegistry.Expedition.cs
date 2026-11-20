@@ -67,12 +67,6 @@ public static partial class GameEventRegistry
                     new EventResult("A cache, deliberately hidden. Whoever left this isn't coming back.", 0.1, 10)
                         .FindsCache()
                 ])
-            .Choice("Mark It For Later",
-                "You note the location but stay focused on your current task.",
-                [
-                    new EventResult("You file it away mentally and return to work.", 1.0, 2)
-                        .CreateTension("MarkedDiscovery", 0.5, description: "something interesting")
-                ])
             .Choice("Ignore It",
                 "Probably nothing. You have work to do.",
                 [
@@ -520,6 +514,13 @@ public static partial class GameEventRegistry
                         .FindsSupplies()
                         .WithEffects(EffectFactory.Shaken(0.3))
                         .Escalate("Disturbed", 0.15)
+                ])
+            .Choice("Get Out of Here",
+                "This place is in your head. Drop the work and go.",
+                [
+                    new EventResult("Half an hour gone, at least. You gather your things and leave. It helps, a little.", 1.0, 30)
+                        .Aborts()
+                        .Escalate("Disturbed", -0.1)
                 ]);
     }
 
@@ -531,6 +532,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Facing the Source",
             $"You're back. Where you found {source}. Your heart pounds, but you're here.", 3.0)
             .Requires(EventCondition.Working, EventCondition.AtDisturbedSource)
+            .RequiresSituation(c => Situations.TensionOlderThan(c, "Disturbed", 6 * 60))  // "You're back": not the same visit
             .Choice("Bury the Remains",
                 "Give them what peace you can. Mark the place.",
                 [
@@ -716,7 +718,7 @@ public static partial class GameEventRegistry
         return new GameEvent("Exposed on the Ridge",
             "The terrain opens up. You can see for miles — which means anything for miles can see you.",
             Situations.TerrainHazardWeight(ctx))
-            .Requires(EventCondition.HighVisibility)
+            .Requires(EventCondition.HighVisibility, EventCondition.Traveling)
             .WithConditionFactor(EventCondition.HighWind, 1.5)
             .WithSituationFactor(Situations.RemoteAndVulnerable, 1.5)  // Far + weak = worse exposure
             .Choice("Move Fast",
@@ -764,7 +766,7 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Ambush Opportunity",
             $"Dense cover conceals you. Fresh {animalName} sign everywhere. Perfect hunting ground — or perfect place for something to hunt YOU.", 0.8)
-            .Requires(EventCondition.LowVisibility, EventCondition.InAnimalTerritory, EventCondition.Working)
+            .Requires(EventCondition.LowVisibility, EventCondition.InAnimalTerritory, EventCondition.Working, EventCondition.IsExpedition)
             .WithSituationFactor(Situations.HuntingAdvantage, 1.5)  // Weapon + stealth = better odds
             .WithSituationFactor(Situations.GoodForStealth, 1.3)  // Good conditions amplify opportunity
             .Choice("Set Up an Ambush",
@@ -806,36 +808,17 @@ public static partial class GameEventRegistry
                 ]);
     }
 
-    private static GameEvent DistantSmoke(GameContext ctx)
-    {
-        return new GameEvent("Distant Smoke",
-            "From this vantage, you can see farther. There — in the distance. Smoke. A thin column rising through still air. Too controlled to be wildfire. Another camp? Another survivor?", 0.9)
-            .Requires(EventCondition.JustRevealedLocation, EventCondition.HighVisibility)
-            .Choice("Mark the location",
-                "You memorize the direction. It's far, but reachable.",
-                [
-                    new EventResult("You mark the bearing. The smoke is real — you know where to look now.", 1.0, 5)
-                        .CreateTension("MarkedDiscovery", 0.4, description: "distant smoke column")
-                ])
-            .Choice("Keep moving",
-                "Smoke could mean anything. Best to stay focused on what's in front of you.",
-                [
-                    new EventResult("You note it and move on. If it's real, it'll still be there.", 1.0, 0)
-                ]);
-    }
-
     private static GameEvent EdgeOfTheIce(GameContext ctx)
     {
         return new GameEvent("Edge of the Ice",
             "The forest ends abruptly. Ahead — nothing but white. A frozen lake stretches out, pristine and treacherous. The ice could hold. Or it could drop you into black water.", 0.8)
-            .Requires(EventCondition.OnBoundary, EventCondition.SurroundedByWater)
+            .Requires(EventCondition.OnBoundary, EventCondition.SurroundedByWater, EventCondition.Traveling)
             .WithConditionFactor(EventCondition.LowTemperature, 1.5)  // Thick ice makes crossing viable
             .Choice("Test the ice carefully",
                 "Tap ahead with a stick. Listen for cracks.",
                 [
                     new EventResult("The ice is thick. Safe enough to cross — if you're careful.", 0.6, 10),
                     new EventResult("Your test probe punches through. The ice is thin. One wrong step and you're in.", 0.4, 5)
-                        .CreateTension("ThinIce", 0.4, description: "dangerous frozen water ahead")
                 ])
             .Choice("Go around",
                 "Not worth the risk. The long way is the safe way.",
@@ -896,7 +879,6 @@ public static partial class GameEventRegistry
                         new EventResult("You file the warning away and continue more carefully.", 0.7, 3)
                             .WithEffects(EffectFactory.Focused(0.1, 30)),
                         new EventResult("Your caution pays off — you spot more signs ahead.", 0.3, 5)
-                            .CreateTension(sign.TensionToCreate ?? "Stalked", Math.Max(0.1, sign.TensionSeverity - 0.1))
                     ])
                    .Choice("Leave the Area",
                     "This isn't worth the risk.",
@@ -978,13 +960,10 @@ public static partial class GameEventRegistry
         if (sign.Age == SignAge.Fresh)
         {
             results.Add(new EventResult($"The sign is {ageDesc}. Whatever left this is close.", 0.5, 8)
-                .CreateTension(sign.TensionToCreate ?? "Stalked", sign.TensionSeverity)
                 .Unsettling());
             results.Add(new EventResult("You study the sign. Knowledge is survival.", 0.35, 10)
-                .CreateTension(sign.TensionToCreate ?? "Stalked", Math.Max(0.1, sign.TensionSeverity - 0.1))
                 .WithEffects(EffectFactory.Focused(0.1, 30)));
             results.Add(new EventResult("As you crouch to examine it, movement in your peripheral vision.", 0.15, 5)
-                .CreateTension(sign.TensionToCreate ?? "Stalked", sign.TensionSeverity + 0.1)
                 .Frightening());
         }
         else
@@ -992,8 +971,7 @@ public static partial class GameEventRegistry
             results.Add(new EventResult($"The sign is {ageDesc}. Older, but worth noting.", 0.6, 5)
                 .WithEffects(EffectFactory.Focused(0.05, 20)));
             results.Add(new EventResult("You learn something about what lives here.", 0.3, 8));
-            results.Add(new EventResult($"The {ageDesc} sign tells a story. Predators use this route.", 0.1, 10)
-                .CreateTension(sign.TensionToCreate ?? "Stalked", Math.Max(0.1, sign.TensionSeverity - 0.15)));
+            results.Add(new EventResult($"The {ageDesc} sign tells a story. Predators use this route.", 0.1, 10));
         }
 
         return results;
@@ -1044,13 +1022,10 @@ public static partial class GameEventRegistry
         else
         {
             results.Add(new EventResult($"The {ageDesc} site holds useful materials.", 0.4, 15)
-                .CreateTension(sign.TensionToCreate ?? "MarkedDiscovery", sign.TensionSeverity)
                 .FindsSupplies());
             results.Add(new EventResult("You search the area. Worth the time.", 0.35, 20)
-                .CreateTension(sign.TensionToCreate ?? "MarkedDiscovery", sign.TensionSeverity)
                 .Rewards(RewardPool.AbandonedCamp));
-            results.Add(new EventResult("Old sign. You piece together what happened here.", 0.25, 12)
-                .CreateTension(sign.TensionToCreate ?? "MarkedDiscovery", sign.TensionSeverity));
+            results.Add(new EventResult("Old sign. You piece together what happened here.", 0.25, 12));
         }
 
         return results;
@@ -1084,7 +1059,6 @@ One mammoth could change everything. Hide for warmth. Bone for tools. Fat for fu
 But a mammoth hunt means preparation. Weapons. Allies, maybe. A plan.
 
 Something to think about.", 1.0, 8)
-                        .CreateTension("MarkedDiscovery", 0.3, description: "Mammoth tracks")
                 ])
             .Choice("Note and Move On",
                 "Good to know they're in the area.",

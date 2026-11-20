@@ -178,7 +178,7 @@ namespace text_survival.Actors.Animals
         {
             return CurrentActivity switch
             {
-                AnimalActivity.Grazing => "grazing, head down",
+                AnimalActivity.Grazing => "feeding, head down",
                 AnimalActivity.Moving => "on the move",
                 AnimalActivity.Resting => "resting, but watchful",
                 AnimalActivity.Alert => "alert, scanning the area",

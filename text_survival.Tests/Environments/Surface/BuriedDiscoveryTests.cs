@@ -1,3 +1,4 @@
+using text_survival.Tests.TestHelpers;
 using System.Text.Json;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions.WorkStrategies;
@@ -255,9 +256,11 @@ public class BuriedDiscoveryTests
     [Fact]
     public void SurfaceAndDiggingStateSurviveASaveAndLoad()
     {
-        var ctx = GameContext.CreateNewGame(seed: 99);
+        var ctx = SmallGame.Create();
         var here = ctx.CurrentLocation;
         var stash = DropSomething(here);
+        here.HiddenFeatures.Add(new HiddenFeature(
+            new EnvironmentalDetail("bones", "Scattered Bones", "Old bones."), 4.0, DiscoveryCategory.Minor));
 
         here.Surface.Advance(60 * 12, HeavySnow);
         here.Surface.ApplyExcavation(stash.Placement, 8);
@@ -266,7 +269,8 @@ public class BuriedDiscoveryTests
         double snow = here.Surface.SnowDepthM;
         double water = here.Surface.StoredWaterM;
         double cover = here.Surface.GetBlockingCoverM(stash.Placement);
-        double effort = here.HiddenFeatures.FirstOrDefault()?.EffectiveSearchHours ?? -1;
+        double effort = Assert.Single(here.HiddenFeatures).EffectiveSearchHours;
+        Assert.True(effort > 0);
         int layers = here.Surface.Layers.Count;
 
         string json = JsonSerializer.Serialize(ctx, SaveManager.Options);
@@ -279,7 +283,7 @@ public class BuriedDiscoveryTests
         Assert.Equal(water, reloaded.Surface.StoredWaterM, 6);
         Assert.Equal(layers, reloaded.Surface.Layers.Count);
         Assert.Equal(cover, reloaded.Surface.GetBlockingCoverM(reloadedStash.Placement), 6);
-        Assert.Equal(effort, reloaded.HiddenFeatures.FirstOrDefault()?.EffectiveSearchHours ?? -1, 6);
+        Assert.Equal(effort, Assert.Single(reloaded.HiddenFeatures).EffectiveSearchHours, 6);
         Assert.True(reloaded.SearchEffortMigrated);
     }
 

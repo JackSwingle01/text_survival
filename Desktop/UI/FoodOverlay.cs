@@ -109,7 +109,7 @@ public class FoodOverlay
         var body = ctx.player.Body;
 
         // Calories bar
-        float calPct = (float)(body.CalorieStore / 2000.0);
+        float calPct = (float)(body.CalorieStore / SurvivalProcessor.MAX_CALORIES);
         Vector4 calColor = calPct switch
         {
             < 0.15f => new Vector4(1f, 0.3f, 0.3f, 1f),
@@ -118,7 +118,7 @@ public class FoodOverlay
             _ => new Vector4(0.5f, 0.8f, 0.5f, 1f)
         };
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, calColor);
-        ImGui.ProgressBar(calPct, new Vector2(-1, 0), $"Calories: {body.CalorieStore:F0} / 2000");
+        ImGui.ProgressBar(calPct, new Vector2(-1, 0), $"Calories: {body.CalorieStore:F0} / {SurvivalProcessor.MAX_CALORIES:F0}");
         ImGui.PopStyleColor();
 
         // Hydration bar
@@ -315,6 +315,14 @@ public class FoodOverlay
         {
             ImGui.Spacing();
             UiText.Colored(new Vector4(1f, 0.6f, 0.3f, 1f), item.Warning);
+        }
+        double roomCalories = SurvivalProcessor.MAX_CALORIES - ctx.player.Body.CalorieStore;
+        if (item.Calories > roomCalories)
+        {
+            ImGui.Spacing();
+            UiText.Colored(new Vector4(1f, 0.6f, 0.3f, 1f), roomCalories < 50
+                ? "You're full. Eating this now wastes it."
+                : $"You only have room for about {roomCalories:F0} calories. The rest goes to waste.");
         }
 
         ImGui.Spacing();

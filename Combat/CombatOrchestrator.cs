@@ -19,7 +19,6 @@ public record PlayerActionResult(bool ActionTaken, string? Narrative);
 /// </summary>
 public static class CombatOrchestrator
 {
-    private const int MOVE_DIST = 3;
     private const int HUNT_START_DISTANCE_M = 34;
     private const int MAX_PACK_MEMBERS = 3;
 
@@ -28,11 +27,14 @@ public static class CombatOrchestrator
     /// <summary>
     /// The player stalks prey: player Engaged, prey Unaware, opened at stalking distance.
     /// </summary>
-    public static Task<CombatResult> RunHunt(GameContext ctx, Animal prey)
+    /// <param name="detectionFactor">How watchful the prey is as sighted: grazing below 1, alert above.</param>
+    public static Task<CombatResult> RunHunt(GameContext ctx, Animal prey, double detectionFactor = 1.0)
     {
         var scenario = CombatScenario.Create(
             PlayerSide(ctx, prey, EncounterPurpose.Hunt), AnimalSide(ctx, prey), ctx.CurrentLocation, HUNT_START_DISTANCE_M,
             AwarenessState.Engaged, AwarenessState.Unaware, ctx.player);
+        foreach (var unit in scenario.Team2)
+            unit.DetectionFactor = detectionFactor;
 
         scenario.Purpose = EncounterPurpose.Hunt;
         GameDisplay.AddNarrative(ctx, $"You begin stalking the {prey.Name.ToLower()}...");
@@ -184,6 +186,7 @@ public static class CombatOrchestrator
         ActivityType activityType,
         CombatInput input)
     {
+        var startPosition = playerUnit.Position;
         PlayerActionResult actionResult;
         if (input.MoveTarget != null)
             actionResult = ExecuteMoveTo(scenario, playerUnit, input.MoveTarget.Value);
@@ -197,8 +200,14 @@ public static class CombatOrchestrator
 
         if (!actionResult.ActionTaken) return;
 
+        var livingBefore = scenario.Units.Where(u => u != playerUnit && u.actor.IsAlive).ToList();
         await ctx.Update(1, activityType);
-        ProcessDetectionChanges(ctx, scenario, playerUnit, huntingSkill);
+        // Wounds keep working between blows; say so, or the kill reads as coming from a blocked strike.
+        foreach (var fallen in livingBefore.Where(u => !u.actor.IsAlive))
+            GameDisplay.AddNarrative(ctx, $"The {fallen.actor.Name.ToLower()} collapses from its wounds.");
+        bool keptStill = input.MoveTarget == null && input.Action is CombatActions.Wait or CombatActions.Assess;
+        double exposure = keptStill ? 0 : CombatScenario.ExposureMeters(startPosition, playerUnit.Position);
+        ProcessDetectionChanges(ctx, scenario, playerUnit, huntingSkill, exposure);
 
         if (scenario.IsOver) return;
 
@@ -232,9 +241,10 @@ public static class CombatOrchestrator
         GameContext ctx,
         CombatScenario scenario,
         Unit playerUnit,
-        int huntingSkill)
+        int huntingSkill,
+        double exposureMeters)
     {
-        var awarenessChanges = scenario.RunDetectionChecks(playerUnit, huntingSkill);
+        var awarenessChanges = scenario.RunDetectionChecks(playerUnit, huntingSkill, exposureMeters);
         foreach (var (unit, oldState, newState) in awarenessChanges)
         {
             string? detectionMsg = newState switch
@@ -297,8 +307,7 @@ public static class CombatOrchestrator
             Math.Pow(dest.X - playerUnit.Position.X, 2) +
             Math.Pow(dest.Y - playerUnit.Position.Y, 2));
 
-        // Validate: within movement range (max 3m - same as MOVE_DIST)
-        if (distance > MOVE_DIST)
+        if (distance > CombatMovement.Allowance(playerUnit))
             return new PlayerActionResult(false, "That's too far to move in one action.");
 
         // Can't move to current position
@@ -312,14 +321,14 @@ public static class CombatOrchestrator
 
     private static PlayerActionResult ExecuteAdvance(CombatScenario scenario, Unit playerUnit, Unit nearest)
     {
-        var dest = playerUnit.Position.MoveToward(nearest.Position, MOVE_DIST);
+        var dest = playerUnit.Position.MoveToward(nearest.Position, CombatMovement.Allowance(playerUnit));
         scenario.Move(playerUnit, dest);
         return new PlayerActionResult(true, "You advance.");
     }
 
     private static PlayerActionResult ExecuteRetreat(CombatScenario scenario, Unit playerUnit, Unit nearest)
     {
-        var dest = playerUnit.Position.MoveAway(nearest.Position, MOVE_DIST);
+        var dest = playerUnit.Position.MoveAway(nearest.Position, CombatMovement.Allowance(playerUnit));
         scenario.Move(playerUnit, dest);
         return new PlayerActionResult(true, "You back away.");
     }

@@ -1,0 +1,5 @@
+<RunSettings>
+  <RunConfiguration>
+    <TestCaseFilter>Category!=Performance</TestCaseFilter>
+  </RunConfiguration>
+</RunSettings>

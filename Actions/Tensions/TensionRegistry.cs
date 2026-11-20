@@ -59,7 +59,8 @@ public class TensionRegistry
     /// </summary>
     public TensionStageChange? AddTension(ActiveTension tension)
     {
-        if (Actors.Animals.PredatorInteractions.IsLegacyTension(tension.Type)) return null;
+        if (Actors.Animals.PredatorInteractions.IsLegacyTension(tension.Type))
+            throw new InvalidOperationException($"'{tension.Type}' is a retired tension; predator pursuit lives on the herd now.");
         var existing = GetTension(tension.Type);
         if (existing != null)
         {
@@ -127,6 +128,8 @@ public class TensionRegistry
 
         foreach (var tension in _tensions)
         {
+            tension.AgeMinutes += minutes;
+
             // Only decay if: tension decays at camp, OR player is not at camp
             if (tension.DecaysAtCamp || !atCamp)
             {

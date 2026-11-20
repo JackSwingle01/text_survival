@@ -105,6 +105,7 @@ public sealed class CombatPanel
             UiText.Wrapped("Select a throwable · Tab / arrows · Enter · Esc cancel");
             foreach (var action in new[] { CombatActions.Throw, CombatActions.ThrowStone })
             {
+                if (action == CombatActions.ThrowStone && ctx.Inventory.Count(Resource.Stone) == 0) continue;
                 string label = action == CombatActions.Throw ? ctx.Inventory.Weapon?.Name ?? "Weapon" : $"Stone ×{ctx.Inventory.Count(Resource.Stone)}";
                 double distance = nearest == null ? 0 : playerUnit.Position.DistanceTo(nearest.Position);
                 double chance = CombatFormulas.CalculateThrownAccuracy(distance,

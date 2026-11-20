@@ -1,5 +1,6 @@
 using System.Numerics;
 using text_survival;
+using text_survival.Actors.Animals;
 using text_survival.Combat;
 using text_survival.Environments.Grid;
 
@@ -54,6 +55,7 @@ public static class CombatAI
     {
         Unit? nearestEnemy = scenario.GetNearestEnemy(unit);
         if (nearestEnemy == null) return CombatActions.Move;
+        if (unit.IsSkittish) return CombatActions.Move; // runs; Move flees it off the map edge
 
         var distance = unit.Position.DistanceTo(nearestEnemy.Position);
         bool wantsToAttack = unit.DetermineAttack(nearestEnemy);
@@ -63,12 +65,12 @@ public static class CombatAI
         {
             case Zone.close:
                 if (wantsToAttack) return CombatActions.Attack;
-                // 50% block, 25% shove or move
-                else return Utils.FlipCoin() ? CombatActions.Block : Utils.FlipCoin() ? CombatActions.Shove : CombatActions.Move;
+                // 50% guard, 25% shove or move
+                else return Utils.FlipCoin() ? Guard(unit) : Utils.FlipCoin() ? CombatActions.Shove : CombatActions.Move;
             case Zone.near:
                 if (wantsToAttack) return CombatActions.Attack;
-                // 50% move, 25% block or dodge
-                else return Utils.FlipCoin() ? CombatActions.Move : Utils.FlipCoin() ? CombatActions.Block : CombatActions.Dodge;
+                // 50% move, 25% guard or dodge
+                else return Utils.FlipCoin() ? CombatActions.Move : Utils.FlipCoin() ? Guard(unit) : CombatActions.Dodge;
             case Zone.mid:
                 return CombatActions.Move;
             case Zone.far:
@@ -76,6 +78,9 @@ public static class CombatAI
         }
         return CombatActions.Move;
     }
+
+    /// <summary>Blocking needs something to block with; an animal sidesteps instead.</summary>
+    private static CombatActions Guard(Unit unit) => unit.actor is Animal ? CombatActions.Dodge : CombatActions.Block;
 
     public static Unit? DetermineTarget(Unit unit, CombatScenario scenario)
     {
@@ -94,6 +99,9 @@ public static class CombatAI
         {
             return DetermineWanderPosition(unit, scenario);
         }
+
+        if (scenario != null && unit.IsSkittish && scenario.GetNearestEnemy(unit) is { } threat)
+            return unit.Position.MoveAway(threat.Position, CombatMovement.Allowance(unit));
 
         if (scenario != null && CombatMovement.PursuitTarget(unit, scenario) is { } target)
             return CombatMovement.Pursue(unit, target, scenario);

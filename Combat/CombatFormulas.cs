@@ -37,6 +37,23 @@ public static class CombatFormulas
         return Math.Clamp(baseDetectionChance, 0.05, 0.95);
     }
 
+    /// <summary>Metres of movement over which <see cref="CalculateDetectionChance"/> applies in full.</summary>
+    public const double DetectionReferenceMeters = 20.0; // tuned: feeding ~70% of stalks reach 8m, alert ~10%
+
+    /// <summary>A normal stalking step: what "detection risk" is quoted per.</summary>
+    public const double StalkStepMeters = 3.0;
+
+    /// <summary>
+    /// The chance to be noticed while covering <paramref name="metres"/> at that range. The base
+    /// chance is a hazard spread over the approach, not a roll per step; rolled whole on every
+    /// 3m step, ten steps from 34m got you seen almost every time. Standing still is free.
+    /// </summary>
+    public static double StepDetectionChance(double detectionChance, double metres)
+    {
+        if (metres <= 0) return 0;
+        return 1 - Math.Pow(1 - Math.Clamp(detectionChance, 0, 0.99), metres / DetectionReferenceMeters);
+    }
+
     /// <summary>
     /// A roll within 20% of the detection threshold is a near miss: the animal becomes alert without spotting you.
     /// </summary>

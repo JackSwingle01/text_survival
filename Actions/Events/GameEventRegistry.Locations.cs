@@ -37,11 +37,8 @@ public static partial class GameEventRegistry
                 ])
             .Choice("Back Away Slowly",
                 "Create distance. Don't run.",
-                [
-                    new EventResult("You retreat step by step. It doesn't follow. Yet.", weight: 0.70, minutes: 15),
-                    new EventResult($"Your movement triggers something. The {predator.DisplayName()} starts toward you.", weight: 0.30, minutes: 5)
-                        .PredatorFollows()
-                ])
+                [new EventResult("You retreat step by step, facing it.")],
+                action: SceneAction.Retreat)
             .Choice("Use the Visibility",
                 "If you can see it, you can prepare.",
                 [
@@ -142,11 +139,8 @@ public static partial class GameEventRegistry
                 ])
             .Choice("Descend Carefully",
                 "You can't stay up here forever.",
-                [
-                    new EventResult($"You descend the far side. The {predator.DisplayName()} loses sight of you.", weight: 0.50, minutes: 12),
-                    new EventResult($"It tracks your descent. When you reach the bottom, it's waiting.", weight: 0.50, minutes: 15)
-                        .PredatorFollows()
-                ])
+                [new EventResult("You climb down the far side of the rock.")],
+                action: SceneAction.Retreat)
             .Choice("Throw Something",
                 "Maybe you can drive it off.",
                 [
@@ -241,11 +235,8 @@ public static partial class GameEventRegistry
             .WithCooldown(4)
             .Choice("Push Deeper",
                 "Put more brush between you.",
-                [
-                    new EventResult($"Branches tear at you, but the {predator.DisplayName()} falls back. You're safe.", weight: 0.85, minutes: 15)
-                        .PredatorWithdraws(),
-                    new EventResult("The thicket is impassable here. You have to go around.", weight: 0.15, minutes: 20)
-                ])
+                [new EventResult("You force your way through the brush.")],
+                action: SceneAction.Retreat)
             .Choice("Wait It Out",
                 "It has to give up eventually.",
                 [
@@ -253,7 +244,8 @@ public static partial class GameEventRegistry
                         .PredatorWithdraws(),
                     new EventResult($"It's patient. The {predator.DisplayName()} settles in to wait. So are you.", weight: 0.30, minutes: 45)
                         .PredatorWithdraws()
-                ]);
+                ],
+                action: SceneAction.Wait);
     }
 
     /// <summary>
@@ -571,7 +563,6 @@ public static partial class GameEventRegistry
                     new EventResult("Wolves, a pack of them, moving through the valley below. They haven't seen you. Yet.", weight: 0.30, minutes: 8)
                         .PredatorFollows(),
                     new EventResult("Dark clouds building on the horizon. Storm coming.", weight: 0.20, minutes: 5)
-                        .CreateTension("StormApproaching", 0.5)
                 ])
             .Choice("Descend Quickly",
                 "You've seen enough. Get down before conditions change.",

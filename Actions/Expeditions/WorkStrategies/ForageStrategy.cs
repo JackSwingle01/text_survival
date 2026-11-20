@@ -201,8 +201,9 @@ public class ForageStrategy : IWorkStrategy
 
                 var (found, luck) = feature.Forage(1.0 / 60.0);
 
-                // First notable stroke of luck colours the status line.
-                if (notableLuck == null && luck != LuckTier.Normal)
+                // First notable stroke of luck colours the status line; good luck only counts once it finds something.
+                bool luckShows = luck == LuckTier.Lean || (luck != LuckTier.Normal && !found.IsEmpty);
+                if (notableLuck == null && luckShows)
                 {
                     notableLuck = luck;
                     var flavorText = luck.GetFlavorText();
@@ -232,6 +233,15 @@ public class ForageStrategy : IWorkStrategy
 
             view.Progress = run.Progress;
             view.SimulatedMinutes = run.SimulatedMinutes;
+            RenderFindings(findings, accumulated);
+            RenderDiscoveries(discoveries, _discoveries);
+        }
+
+        // One early windfall per run: teaches that searching pays off beyond sticks.
+        if (!aborted && ctx.player.IsAlive && ctx.DaysSurvived == 0 && ctx.TryShowTutorial("lucky_find"))
+        {
+            accumulated.Combine(RewardGenerator.Generate(RewardPool.FrozenBirdFind));
+            _discoveries.Add("Feathers in the snow. A ptarmigan, frozen solid, dropped by a hawk. The meat is still good.");
             RenderFindings(findings, accumulated);
             RenderDiscoveries(discoveries, _discoveries);
         }

@@ -90,7 +90,7 @@ public static partial class GameEventRegistry
                         .ModifiesFeature(typeof(ShelterFeature), 0.2),
                     new EventResult("You brace it successfully and spot a weakness to reinforce later.", 0.10, 12),
                     new EventResult("It comes down on you.", 0.05, 5)
-                        .DebrisDamage(8)
+                        .DebrisDamage(0.08)
                         .HarshCold()
                         .ModifiesFeature(typeof(ShelterFeature), 0.7)
                 ])
@@ -115,7 +115,7 @@ public static partial class GameEventRegistry
                         .ModerateCold()
                         .RemovesFeature(typeof(ShelterFeature)),
                     new EventResult("Almost clear. Debris catches you.", 0.30, 5)
-                        .DebrisDamage(5)
+                        .DebrisDamage(0.05)
                         .ModerateCold()
                         .RemovesFeature(typeof(ShelterFeature))
                 ]);
@@ -145,7 +145,7 @@ public static partial class GameEventRegistry
                     new EventResult("You redirect the smoke. Much better.", 0.15, 20)
                         .WithEffects(EffectFactory.Coughing(0.2, 30)),
                     new EventResult("You pass out briefly from the smoke.", 0.05, 10)
-                        .Damage(5, DamageType.Internal)
+                        .Damage(0.05, DamageType.Internal, BodyTarget.Lungs)
                         .WithEffects(EffectFactory.Coughing(0.7, 120))
                 ])
             .Choice("Evacuate Temporarily",
@@ -315,12 +315,12 @@ public static partial class GameEventRegistry
                 "No more sleep tonight. Tend the fire.",
                 [
                     new EventResult("You feed the fire and watch the darkness. No more dreams.", 0.70, 90)
-                        .Costs(ResourceType.Fuel, 1)
+                        .FeedsFire(1)
                         .Escalate("Disturbed", -0.05),
                     new EventResult("The night stretches on. You're exhausted but won't risk sleeping.", 0.30, 120)
                         .WithEffects(EffectFactory.Exhausted(0.4, 180))
                 ],
-                requires: [EventCondition.HasFuel])
+                requires: [EventCondition.HasFuel, EventCondition.NearFire])
             .Choice("Move Around",
                 "Walk it off. Get your blood moving.",
                 [
@@ -347,16 +347,16 @@ public static partial class GameEventRegistry
                 "Light drives back the dark. And whatever's in it.",
                 [
                     new EventResult("The fire blazes. The circle of light expands. Nothing there.", 0.70, 10)
-                        .BurnsFuel(2)
+                        .FeedsFire(2)
                         .Escalate("Disturbed", -0.05),
                     new EventResult("The flames reveal nothing. But you're not convinced.", 0.25, 10)
-                        .BurnsFuel(2)
+                        .FeedsFire(2)
                         .WithEffects(EffectFactory.Paranoid(0.15)),
                     new EventResult("In the flickering light, you see movement. Real this time.", 0.05, 5)
-                        .BurnsFuel(2)
+                        .FeedsFire(2)
                         .ObservesPredator()
                 ],
-                requires: [EventCondition.HasFuel])
+                requires: [EventCondition.HasFuel, EventCondition.NearFire])
             .Choice("Investigate",
                 "Know for certain. Even if it kills you.",
                 [
@@ -427,33 +427,6 @@ public static partial class GameEventRegistry
                     new EventResult("Something hardens inside you. Not healthy, but effective.", 0.15, 5)
                         .Escalate("Disturbed", -0.15)
                         .WithEffects(EffectFactory.Hardened(0.1, 120))
-                ]);
-    }
-
-    /// <summary>
-    /// Mountain Glimpse - One-time early game event showing the goal.
-    /// Establishes the mountain pass as the win condition before survival pressure hits.
-    /// </summary>
-    private static GameEvent MountainGlimpse(GameContext ctx)
-    {
-        return new GameEvent("A Break in the Clouds", @"
-You pause. Through a break in the clouds, the mountain pass is visible.
-
-Snow-choked. Impossible. But beyond it... your people. Your life.
-
-That's where you're going. The question is how.", 10.0)  // High weight to ensure it triggers
-            .Requires(EventCondition.AtCamp, EventCondition.Awake)
-            .RequiresSituation(ctx => ctx.TotalMinutesElapsed < 15)  // Only in first 15 minutes
-            .WithCooldown(999999)  // Effectively one-time only
-            .Choice("Remember Why You're Here",
-                "The pass. That's the goal.",
-                [
-                    new EventResult(@"
-The clouds close. The pass vanishes.
-
-But you know it's there now. When the pass clears in midsummer — or when you're strong enough to attempt the crossing early — you'll be ready.
-
-First: survive. Then: prepare. Then: climb.", 1.0, 0)
                 ]);
     }
 }

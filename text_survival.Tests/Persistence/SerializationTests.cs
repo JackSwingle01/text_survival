@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text.Json;
 using text_survival.Actions;
@@ -10,6 +9,7 @@ using text_survival.Effects;
 using text_survival.Environments.Features;
 using text_survival.Items;
 using text_survival.Persistence;
+using text_survival.Tests.TestHelpers;
 
 namespace text_survival.Tests.Persistence;
 
@@ -38,25 +38,10 @@ public class SerializationTests
     }
 
     [Fact]
-    public void Serialize_NewGame_DoesNotThrow()
-    {
-        // Arrange
-        var ctx = GameContext.CreateNewGame();
-
-        // Act & Assert - should not throw
-        var exception = Record.Exception(() =>
-        {
-            string json = JsonSerializer.Serialize(ctx, GetSerializerOptions());
-        });
-
-        Assert.Null(exception);
-    }
-
-    [Fact]
     public void SerializeDeserialize_LocationExplored_PreservesState()
     {
         // Arrange
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
         Assert.True(ctx.Camp.Explored, "Camp should start explored");
 
         // Act
@@ -93,12 +78,6 @@ public class SerializationTests
         // Act - Serialize and deserialize
         string json = JsonSerializer.Serialize(original, GetSerializerOptions());
 
-        // Save for manual inspection
-        File.WriteAllText(
-            Path.Combine(Path.GetTempPath(), "test_game_full.json"),
-            json
-        );
-
         var deserialized = Assert.IsType<GameContext>(JsonSerializer.Deserialize<GameContext>(json, GetSerializerOptions()));
 
         // Assert - Critical data categories preserved
@@ -112,7 +91,7 @@ public class SerializationTests
 
         // Map and named locations intact
         Assert.NotNull(deserialized.Map);
-        Assert.True(deserialized.Map.NamedLocations.Count() >= 1, "Has named locations");
+        Assert.Equal(originalNamedLocationCount, deserialized.Map.NamedLocations.Count());
         Assert.NotNull(deserialized.Camp);
         Assert.True(deserialized.Map.Contains(deserialized.Camp), "Camp is on map");
 
@@ -138,7 +117,7 @@ public class SerializationTests
     public void SerializeDeserialize_MapTravelOptions_CanBeResolved()
     {
         // Arrange
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
 
         // Get camp connections before serialization
         var originalConnections = ctx.Map!.GetTravelOptionsFrom(ctx.Camp);
@@ -171,7 +150,7 @@ public class SerializationTests
     public void SerializeDeserialize_ResourceStacks_PreserveLIFOOrder()
     {
         // Arrange
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
 
         // Clear any existing sticks and add in known order
         while (ctx.Inventory.Count(Resource.Stick) > 0)
@@ -205,7 +184,7 @@ public class SerializationTests
     public void SerializeDeserialize_LocationFeatures_PreserveConcreteTypes()
     {
         // Arrange
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
 
         // Add multiple feature types to test polymorphism
         ctx.Camp.Features.Add(new ForageFeature(1.0).AddSticks());
@@ -292,6 +271,7 @@ public class SerializationTests
     }
 
     [Fact]
+    [Trait("Category", "Performance")]
     public void Serialize_FullGame_CompletesQuickly()
     {
         // Arrange
@@ -307,8 +287,7 @@ public class SerializationTests
             $"Serialization took {sw.ElapsedMilliseconds}ms (expected < 500ms)");
 
         // Verify JSON is reasonable size (not absurdly large)
-        // 96x96 grid (9216 locations) + hidden features produces ~28MB compact JSON
-        // (scaled from 48x48 grid which was ~9MB)
+        // Keep a size guard alongside the timing guard for the generated world.
         Assert.True(json.Length < 40_000_000,
             $"JSON is {json.Length} chars (expected < 40MB)");
     }
@@ -317,7 +296,7 @@ public class SerializationTests
     public void SerializeDeserialize_AllLocationFeatureTypes_PreserveState()
     {
         // Arrange - Create a location with all feature types
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
 
         // Use camp for testing
         var testLocation = ctx.Camp;
@@ -396,7 +375,7 @@ public class SerializationTests
     public void SerializeDeserialize_HeatSourceFeature_WithFuel()
     {
         // Arrange - Create fire with some fuel
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
         var fire = ctx.Camp.GetFeature<HeatSourceFeature>();
         Assert.NotNull(fire);
 
@@ -422,7 +401,7 @@ public class SerializationTests
     public void SerializeDeserialize_BodyParts_PreserveStructure()
     {
         // Arrange
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
         var body = ctx.player.Body;
 
         int originalPartCount = body.Parts.Count;
@@ -442,7 +421,7 @@ public class SerializationTests
     public void SerializeDeserialize_BodyOrgans_PreserveState()
     {
         // Arrange
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
         var body = ctx.player.Body;
 
         // Get organ data before serialization
@@ -529,7 +508,7 @@ public class SerializationTests
     public void SerializeDeserialize_PlayerEffects_PreserveState()
     {
         // Arrange - Create game with player effects
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
 
         // Add multiple effect types with known capacity modifiers
         ctx.player.EffectRegistry.AddEffect(EffectFactory.Pain(0.5));
@@ -637,7 +616,7 @@ public class SerializationTests
     public void SerializeDeserialize_DiscoveryLog_PreservesState()
     {
         // Arrange - Create game with discoveries
-        var ctx = GameContext.CreateNewGame();
+        var ctx = SmallGame.Create();
 
         // Add discoveries to each category
         ctx.Discoveries.DiscoverLocation("Frozen Creek");

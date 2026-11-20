@@ -23,7 +23,14 @@ public class Weather
     public WeatherFront? NextFront { get; set; }
 
     // Wind direction system
-    public WindDirection CurrentWindDirection { get; set; } = WindDirection.Calm;
+    // Calm is derived from speed: wind speed changes in many places, and a stored Calm went stale.
+    private WindDirection _windHeading = WindDirection.North;
+    public WindDirection CurrentWindDirection
+    {
+        get => WindSpeedMPH < CalmWindMph ? WindDirection.Calm : _windHeading;
+        set { if (value != WindDirection.Calm) _windHeading = value; }
+    }
+    private const double CalmWindMph = 3.0;
 
     // Helper properties for other systems to query
     public double VisibilityFactor => CurrentCondition switch
@@ -156,8 +163,8 @@ public class Weather
         // Calculate angle for sine function (0 to π over the day)
         double angle = (minutesSinceSunrise / dayLengthMinutes) * Math.PI;
 
-        // Sine wave peaks at noon (6 hours after sunrise)
-        return Math.Sin(angle);
+        // Sine wave peaks at noon (6 hours after sunrise); summer daylight runs past 18:00, where it would go negative
+        return Math.Max(0, Math.Sin(angle));
     }
 
     // Time and update tracking (public for serialization)
@@ -568,11 +575,7 @@ public class Weather
         CurrentCondition = state.Condition;
         _weatherDuration = state.Duration;
 
-        // Set wind direction based on wind speed
-        if (WindSpeedPct < 0.2)
-            CurrentWindDirection = WindDirection.Calm;
-        else
-            CurrentWindDirection = (WindDirection)Utils.Roll(8);  // 8 cardinal/intercardinal directions
+        CurrentWindDirection = (WindDirection)Utils.Rng.Next(8);  // 8 cardinal/intercardinal directions
     }
 
     /// <summary>

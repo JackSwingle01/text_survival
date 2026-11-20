@@ -15,9 +15,13 @@ namespace text_survival.Actions;
 /// Resource types that can be consumed by event outcomes.
 /// Maps to high-level inventory categories.
 /// </summary>
-public enum ResourceType { Fuel, Tinder, Food, Water, PlantFiber, Medicine }
+public enum ResourceType { Fuel, Tinder, Food, Water, PlantFiber, Medicine, Meat, Fish }
 
-public record ResourceCost(ResourceType Type, int Amount);
+/// <summary>What happens to a spent resource. Food that is eaten feeds you; fuel fed to the
+/// fire here burns in it; anything else is simply gone.</summary>
+public enum CostUse { Lost, Eaten, Drunk, FedToFire }
+
+public record ResourceCost(ResourceType Type, int Amount, CostUse Use = CostUse.Lost);
 
 /// <summary>
 /// Configuration for creating a carcass at the current location.
@@ -66,9 +70,8 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public bool AbortsAction;
     public List<Effect> Effects = [];
     public DamageInfo? NewDamage;
-    public RewardPool RewardPool = RewardPool.None;
-    public double RewardDensity = 1.0;
-    public ResourceCost? Cost;  // Resources consumed by this outcome
+    public List<(RewardPool Pool, double Density)> RewardPools = [];
+    public List<ResourceCost> ResourceCosts = [];
 
     // Tension fields
     public TensionCreation? CreatesTension;
@@ -120,11 +123,16 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     public EventResult Aborts() { AbortsAction = true; return this; }
     public EventResult Rewards(RewardPool pool, double density = 1.0)
     {
-        RewardPool = pool;
-        RewardDensity = density;
+        RewardPools.Add((pool, density));
         return this;
     }
-    public EventResult Costs(ResourceType type, int amount) { Cost = new ResourceCost(type, amount); return this; }
+    public EventResult Costs(ResourceType type, int amount) { ResourceCosts.Add(new ResourceCost(type, amount)); return this; }
+    /// <summary>Eat this many portions of the best food carried. Calories and hydration apply.</summary>
+    public EventResult Eats(int portions = 1) { ResourceCosts.Add(new ResourceCost(ResourceType.Food, portions, CostUse.Eaten)); return this; }
+    /// <summary>Drink this many quarter-litres of water, no more than the body has room for.</summary>
+    public EventResult Drinks(int quarterLiters = 2) { ResourceCosts.Add(new ResourceCost(ResourceType.Water, quarterLiters, CostUse.Drunk)); return this; }
+    /// <summary>Put this many pieces of carried fuel on the fire here. What the fire cannot take stays in the pack.</summary>
+    public EventResult FeedsFire(int pieces) { ResourceCosts.Add(new ResourceCost(ResourceType.Fuel, pieces, CostUse.FedToFire)); return this; }
 
     public EventResult WithEffects(params Effect[] effects) { Effects.AddRange(effects); return this; }
     /// <summary>
@@ -132,6 +140,8 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     /// </summary>
     public EventResult Damage(double amount, DamageType type, BodyTarget target = BodyTarget.Random)
     {
+        if (amount is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Event damage is on a 0-1 scale (1.0 destroys a tissue layer).");
         NewDamage = new DamageInfo(amount, type, target);
         return this;
     }
@@ -154,7 +164,7 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
     /// </summary>
     public EventResult WithDiscovery(DiscoveryVariant variant)
     {
-        RewardPool = variant.Pool;
+        RewardPools.Add((variant.Pool, 1.0));
         if (variant.TimeMinutes > 0)
             TimeAddedMinutes += variant.TimeMinutes;
         return this;
@@ -305,9 +315,10 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     private void ApplyRewards(GameContext ctx, OutcomeSummary summary)
     {
-        if (RewardPool != RewardPool.None)
+        foreach (var (pool, density) in RewardPools)
         {
-            var resources = RewardGenerator.Generate(RewardPool, RewardDensity);
+            if (pool == RewardPool.None) continue;
+            var resources = RewardGenerator.Generate(pool, density);
             if (!resources.IsEmpty)
             {
                 var desc = resources.GetDescription();
@@ -320,10 +331,24 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
     private void ApplyCosts(GameContext ctx, OutcomeSummary summary)
     {
-        if (Cost is not null)
+        foreach (var cost in ResourceCosts)
         {
-            DeductResources(ctx.Inventory, Cost);
-            summary.ItemsLost.Add($"{Cost.Amount} {Cost.Type}");
+            switch (cost.Use)
+            {
+                case CostUse.Eaten:
+                    EatFood(ctx, cost.Amount, summary);
+                    break;
+                case CostUse.Drunk:
+                    DrinkWater(ctx, cost.Amount, summary);
+                    break;
+                case CostUse.FedToFire:
+                    FeedFire(ctx, cost.Amount, summary);
+                    break;
+                default:
+                    DeductResources(ctx.Inventory, cost);
+                    summary.ItemsLost.Add($"{cost.Amount} {cost.Type}");
+                    break;
+            }
         }
     }
 
@@ -693,7 +718,6 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
             "WoundUntreated" => ActiveTension.WoundUntreated(tc.Severity, tc.Description),
             "ShelterWeakened" => ActiveTension.ShelterWeakened(tc.Severity, tc.RelevantLocation),
             "FoodScentStrong" => ActiveTension.FoodScentStrong(tc.Severity),
-            "MarkedDiscovery" => ActiveTension.MarkedDiscovery(tc.Severity, tc.RelevantLocation, tc.Description),
             "Disturbed" => ActiveTension.Disturbed(tc.Severity, tc.RelevantLocation, tc.Description),
             "WoundedPrey" => ActiveTension.WoundedPrey(tc.Severity, tc.AnimalType, tc.RelevantLocation),
             "ClaimedTerritory" => ActiveTension.ClaimedTerritory(tc.Severity, tc.AnimalType, tc.RelevantLocation),
@@ -742,6 +766,50 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         return null;
     }
 
+    // Best food first: what you would reach for if you had to eat right now.
+    private static readonly Resource[] EatingOrder =
+    [
+        Resource.CookedMeat, Resource.DriedMeat, Resource.CookedFish, Resource.DriedFish, Resource.Nuts,
+        Resource.Honey, Resource.DriedBerries, Resource.Berries, Resource.Roots, Resource.RawMeat, Resource.RawFish
+    ];
+
+    private static void EatFood(GameContext ctx, int portions, OutcomeSummary summary)
+    {
+        for (int i = 0; i < portions; i++)
+        {
+            var food = EatingOrder.FirstOrDefault(r => ctx.Inventory.Count(r) > 0);
+            if (ctx.Inventory.Count(food) == 0) return;
+            var result = Handlers.ConsumptionHandler.Consume(ctx, food.ToString());
+            summary.ItemsLost.Add(result.Message);
+        }
+    }
+
+    private static void DrinkWater(GameContext ctx, int quarterLiters, OutcomeSummary summary)
+    {
+        var body = ctx.player.Body;
+        double room = (Survival.SurvivalProcessor.MAX_HYDRATION - body.Hydration) / Handlers.ConsumptionHandler.WaterHydrationPerLiter;
+        double liters = Math.Max(0, Math.Min(quarterLiters * 0.25, room));
+        double drunk = ctx.Inventory.ConsumeByWeight(Resource.Water, liters);
+        if (drunk <= 0) return;
+        body.AddHydration(drunk * Handlers.ConsumptionHandler.WaterHydrationPerLiter);
+        summary.ItemsLost.Add($"Drank {drunk:0.##}L water");
+    }
+
+    private static void FeedFire(GameContext ctx, int pieces, OutcomeSummary summary)
+    {
+        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()
+            ?? throw new InvalidOperationException("An outcome fed a fire where there is none. Gate the choice on NearFire.");
+        int fed = 0;
+        foreach (var fuel in new[] { Resource.Stick, Resource.Pine, Resource.Birch, Resource.Oak })
+        {
+            int before = ctx.Inventory.Count(fuel);
+            Handlers.FireHandler.AddFuel(ctx.Inventory, fire, fuel, pieces - fed);
+            fed += before - ctx.Inventory.Count(fuel);
+            if (fed >= pieces) break;
+        }
+        if (fed > 0) summary.ItemsLost.Add($"{fed} fuel onto the fire");
+    }
+
     /// <summary>
     /// Deduct resources from inventory based on cost type.
     /// </summary>
@@ -780,6 +848,20 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
 
                 case ResourceType.PlantFiber:
                     inv.Pop(Resource.PlantFiber);
+                    break;
+
+                case ResourceType.Meat:
+                    if (inv.Count(Resource.RawMeat) > 0)
+                        inv.Pop(Resource.RawMeat);
+                    else if (inv.Count(Resource.CookedMeat) > 0)
+                        inv.Pop(Resource.CookedMeat);
+                    break;
+
+                case ResourceType.Fish:
+                    if (inv.Count(Resource.RawFish) > 0)
+                        inv.Pop(Resource.RawFish);
+                    else if (inv.Count(Resource.CookedFish) > 0)
+                        inv.Pop(Resource.CookedFish);
                     break;
 
                 case ResourceType.Medicine:
@@ -821,24 +903,26 @@ public class EventResult(string message, double weight = 1, int minutes = 0)
         public bool HasContent => ItemsGained.Count + ItemsLost.Count + EffectsApplied.Count + DamageTaken.Count + TensionsChanged.Count > 0;
     }
 }
-public class EventChoice(string label, string description, List<EventResult> results, List<EventCondition>? conditions = null)
+public class EventChoice(string label, string description, List<EventResult> results, List<EventCondition>? conditions = null,
+    SceneAction action = SceneAction.None)
 {
     public string Label = label;
+    /// <summary>What this choice physically does in a predator scene. See <see cref="AuthoredPredatorScenes"/>.</summary>
+    public readonly SceneAction Action = action;
     public string Description = description;
     public readonly List<EventCondition> RequiredConditions = conditions ?? [];
     public List<EventResult> Results = results;
     public EventResult DetermineResult() => Utils.GetRandomWeighted(Results.ToDictionary(x => x, x => x.Weight));
 
     /// <summary>
-    /// Gets the maximum cost among all possible outcomes for this choice.
-    /// Returns null if no outcomes have costs.
+    /// The most of each resource any outcome of this choice can spend. Empty if the choice is free.
     /// </summary>
-    public ResourceCost? GetMaxCost() =>
+    public List<ResourceCost> GetMaxCosts() =>
         Results
-            .Where(r => r.Cost != null)
-            .GroupBy(r => r.Cost!.Type)
-            .Select(g => new ResourceCost(g.Key, g.Max(r => r.Cost!.Amount)))
-            .MaxBy(c => c.Amount);
+            .SelectMany(r => r.ResourceCosts.GroupBy(c => c.Type).Select(g => (Type: g.Key, Amount: g.Sum(c => c.Amount))))
+            .GroupBy(c => c.Type)
+            .Select(g => new ResourceCost(g.Key, g.Max(c => c.Amount)))
+            .ToList();
 }
 
 public class GameEvent(string name, string description, double weight)
@@ -965,9 +1049,9 @@ public class GameEvent(string name, string description, double weight)
     public GameEvent OnlyAt(string locationName) => WithLocationNameRequirement(locationName);
 
     public GameEvent Choice(string label, string description, List<EventResult> results,
-        List<EventCondition>? requires = null)
+        List<EventCondition>? requires = null, SceneAction action = SceneAction.None)
     {
-        _choices.Add(new EventChoice(label, description, results, requires));
+        _choices.Add(new EventChoice(label, description, results, requires, action));
         return this;
     }
 

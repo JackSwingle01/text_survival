@@ -150,7 +150,8 @@ public static class ConditionChecker
             EventCondition.IsCampWork => ctx.CurrentActivity is ActivityType.TendingFire or ActivityType.Eating or ActivityType.Cooking or ActivityType.Crafting,
             EventCondition.IsExpedition => !ctx.IsAtCamp,
             EventCondition.Eating => ctx.CurrentActivity == ActivityType.Eating,
-            EventCondition.FieldWork => (ctx.CurrentActivity is ActivityType.Traveling or ActivityType.Foraging or ActivityType.Hunting or ActivityType.Exploring),
+            // Any work that keeps you moving outdoors: butchering, chopping, tracking and fishing too.
+            EventCondition.FieldWork => !ActivityConfig.IsStationary(ctx.CurrentActivity),
             EventCondition.Working => Check(ctx, EventCondition.IsCampWork) || Check(ctx, EventCondition.FieldWork),
             EventCondition.Foraging => ctx.CurrentActivity == ActivityType.Foraging,
 

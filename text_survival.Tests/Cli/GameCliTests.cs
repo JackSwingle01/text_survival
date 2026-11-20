@@ -1,3 +1,4 @@
+using text_survival.Tests.TestHelpers;
 using System.Text.Json;
 using text_survival.Actions;
 using text_survival.Actions.Expeditions.WorkStrategies;
@@ -18,7 +19,7 @@ namespace text_survival.Tests.Cli;
 public class GameCliTests
 {
     private static string Id() => "cli_test_" + Guid.NewGuid().ToString("N");
-    private static GameContext World() => GameContext.CreateNewGame(42);
+    private static GameContext World() { var ctx = GameContext.CreateNewGame(42); ctx.Notices.Clear(); return ctx; } // skip the opening intro notice
     private static TextControl Control(CliUi ui, string label) => Assert.Single(ui.Render().Controls, c => c.Label == label);
     private static void Click(CliUi ui, string label) => ui.Render(Control(ui, label).Id);
 
@@ -27,7 +28,7 @@ public class GameCliTests
     [Fact]
     public void Logs_SerializeNamedFieldsInCommandsAndSnapshots()
     {
-        using var session = new CliSession(World(), Id());
+        using var session = new CliSession(SmallGame.CreateWithStartingEquipment(), Id());
         session.Context.Log.Add("A test warning", LogLevel.Warning, "12:34");
         foreach (var entries in new[] { Wire(session.Execute("log 1")), Wire(session.Look()).GetProperty("log") })
         {
@@ -41,7 +42,7 @@ public class GameCliTests
     [Fact]
     public void ChoppingWithoutAnAxe_ReportsWhyNoWorkWasDone()
     {
-        using var session = new CliSession(World(), Id());
+        using var session = new CliSession(SmallGame.CreateWithStartingEquipment(), Id());
         var ctx = session.Context;
         ctx.Inventory.Tools.Clear();
         ctx.CurrentLocation.AddFeature(new WoodedAreaFeature("Test trees", Resource.Birch, 60));
@@ -58,7 +59,7 @@ public class GameCliTests
     [InlineData(30)]
     public void MammothScouting_UnsuccessfulSearchReportsAnOutcome(int minutes)
     {
-        using var session = new CliSession(World(), Id());
+        using var session = new CliSession(SmallGame.CreateWithStartingEquipment(), Id());
         // Seed 0's first draw is above the 40% discovery threshold.
         text_survival.Utils.Seed(0);
         var task = new MegafaunaStrategy(AnimalType.Mammoth).Execute(session.Context, session.Context.CurrentLocation, minutes);
@@ -70,7 +71,7 @@ public class GameCliTests
     [Fact]
     public void InjuryRows_LabelDamageAndDistinguishHealthyTissueFromDestroyedOrgans()
     {
-        var ctx = World();
+        var ctx = SmallGame.CreateWithStartingEquipment();
         var head = ctx.player.Body.Parts.Single(p => p.Name == BodyRegionNames.Head);
         head.Organs.Single(o => o.Name == OrganNames.Brain).Condition = 0;
         var lines = ((TextFrame)Observations.Status(ctx)).Lines;
@@ -111,7 +112,7 @@ public class GameCliTests
     [Fact]
     public void Inventory_UsesActualItemDetailsAndDropBehavior()
     {
-        using var session = new CliSession(World(), Id());
+        using var session = new CliSession(SmallGame.CreateWithStartingEquipment(), Id());
         var ctx = session.Context;
         ctx.Inventory.Add(Resource.Stone, 1);
         int before = ctx.Inventory.Count(Resource.Stone);
@@ -130,7 +131,7 @@ public class GameCliTests
     [Fact]
     public async Task Prompts_RejectDisabledChoicesAndInvalidNumbers_KeepDecisionPending()
     {
-        var ui = new CliUi(World());
+        var ui = new CliUi(SmallGame.CreateWithStartingEquipment());
         var select = ui.Select("Pick", new[] { "locked", "open" }, s => s, s => s == "locked");
         Assert.Throws<ArgumentException>(() => Click(ui, "locked"));
         Assert.False(select.IsCompleted);
@@ -149,7 +150,7 @@ public class GameCliTests
     [Fact]
     public async Task EventsAndProgress_ExposeOutcomesAndRequireExplicitAcknowledgment()
     {
-        var ui = new CliUi(World());
+        var ui = new CliUi(SmallGame.CreateWithStartingEquipment());
         var evt = new EventDto("Test event", "Description", [new("no", "Unavailable", "Needs supplies", false), new("yes", "Proceed", "Costs time", true, "5 minutes")]);
         var task = ui.ShowEventChoices(evt);
         Assert.Contains("Description", ui.Render().Lines);
@@ -172,7 +173,7 @@ public class GameCliTests
     [Fact]
     public async Task EveryOverlayRendersWithoutNativeLibrariesAndCanClose()
     {
-        var ctx = World(); var ui = new CliUi(ctx); ctx.Ui = ui;
+        var ctx = SmallGame.CreateWithStartingEquipment(); var ui = new CliUi(ctx); ctx.Ui = ui;
         ctx.Inventory.Add(Resource.RawMeat, 1);
         ctx.Inventory.Add(Resource.Water, 1);
         ctx.NPCs.Add(NPCFactory.CreateTestNPC(ctx.CurrentLocation, ctx.Map!, ctx.Camp));
@@ -200,7 +201,7 @@ public class GameCliTests
     [Fact]
     public async Task FoodAndFire_CommitRealScreenResults()
     {
-        var ctx = World(); var ui = new CliUi(ctx); ctx.Ui = ui;
+        var ctx = SmallGame.CreateWithStartingEquipment(); var ui = new CliUi(ctx); ctx.Ui = ui;
         ctx.Inventory.Add(Resource.Water, 1);
         var food = ui.ShowFood();
         var water = ui.Render().Controls.First(c => c.Id.EndsWith("/Water") || c.Id.EndsWith("/water") || c.Label.Contains("Water"));
@@ -217,7 +218,7 @@ public class GameCliTests
     [Fact]
     public async Task Combat_ProvidesUnitCoordinatesDetailsAndActualControls()
     {
-        var ctx = World(); var ui = new CliUi(ctx); ctx.Ui = ui;
+        var ctx = SmallGame.CreateWithStartingEquipment(); var ui = new CliUi(ctx); ctx.Ui = ui;
         var wolf = AnimalFactory.FromType(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map!)!;
         ctx.ActiveCombat = CombatScenario.Create([ctx.player], [wolf], ctx.CurrentLocation, 1, AwarenessState.Engaged, AwarenessState.Engaged, ctx.player);
         var input = ui.WaitForCombatAction();
@@ -232,7 +233,7 @@ public class GameCliTests
     [Fact]
     public async Task EmberFire_DoesNotLoseTheStartingTabAction()
     {
-        var ctx = World(); var ui = new CliUi(ctx); ctx.Ui = ui;
+        var ctx = SmallGame.CreateWithStartingEquipment(); var ui = new CliUi(ctx); ctx.Ui = ui;
         var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>()!;
         fire.AddFuel(0.01, FuelType.Kindling); fire.IgniteAll();
         for (int i = 0; i < 100 && !fire.HasEmbers; i++) fire.Update(1);
@@ -248,7 +249,7 @@ public class GameCliTests
     [Fact]
     public async Task Transfer_UseScreenCallbacks()
     {
-        var ctx = World(); var ui = new CliUi(ctx); ctx.Ui = ui;
+        var ctx = SmallGame.CreateWithStartingEquipment(); var ui = new CliUi(ctx); ctx.Ui = ui;
         ctx.Inventory.Add(Resource.Stone, 1);
         ctx.Inventory.Add(Resource.Stone, 0.5);
         ctx.Inventory.Add(Resource.Stone, 2);
@@ -278,7 +279,7 @@ public class GameCliTests
     [Fact]
     public async Task Crafting_UseScreenCallbacks()
     {
-        var ctx = World(); var ui = new CliUi(ctx); ctx.Ui = ui;
+        var ctx = SmallGame.CreateWithStartingEquipment(); var ui = new CliUi(ctx); ctx.Ui = ui;
         var crafting = ui.ShowCrafting();
         ui.Render(ui.Render().Controls.Single(c => c.Kind == "text").Id, "knife");
         var recipe = ui.Render().Controls.First(c => c.Kind == "select" && c.Label.StartsWith("Stone Knife"));
@@ -297,7 +298,7 @@ public class GameCliTests
     [Fact]
     public async Task Butchering_RequiresACuttingToolForFullProcessing()
     {
-        var ctx = World(); var ui = new CliUi(ctx);
+        var ctx = SmallGame.CreateWithStartingEquipment(); var ui = new CliUi(ctx);
         var animal = AnimalFactory.FromType(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map!)!;
         var task = ui.SelectButcherMode(new CarcassFeature(animal), ["A warning"], false);
         Assert.DoesNotContain(ui.Render().Controls, c => c.Label.StartsWith("Full Processing"));

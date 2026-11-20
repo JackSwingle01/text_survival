@@ -1,3 +1,4 @@
+using text_survival.Survival;
 using text_survival.Actions;
 using text_survival.Actors;
 using text_survival.Environments.Features;
@@ -95,11 +96,14 @@ public record SurvivalContext
                 groundProtection = Math.Clamp(0.5 + bedding.Quality * 0.4, 0, 0.95);
         }
 
-        // Calculate fire proximity bonus if there's an active fire
-        // Skip if hyperthermic - player would back away from fire
+        // Radiant heat from an active fire. Anyone too warm shifts back from it - a sleeper
+        // rolls away, throws off a cover - long before they would sweat through the night.
+        // Gating at the sweating threshold, not at Hyperthermia, keeps a camp fire from
+        // costing litres of water: the old gate let the body sit a degree above where
+        // sweating starts, burning up to 250ml/hr all night.
         double fireProximityBonus = 0;
         var fire = actor.CurrentLocation.GetFeature<HeatSourceFeature>();
-        if (fire != null && fire.IsActive && !actor.EffectRegistry.HasEffect("Hyperthermia"))
+        if (fire != null && fire.IsActive && actor.Body.BodyTemperature < SurvivalProcessor.SweatingThreshold)
         {
             double fireHeat = fire.GetEffectiveHeatOutput(actor.CurrentLocation.GetTemperature(activity));
             double fireProximityMultiplier = activityConfig.FireProximity;

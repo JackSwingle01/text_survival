@@ -8,12 +8,17 @@ namespace text_survival.Combat;
 public static class CombatNarrator
 {
 
-    private static readonly Dictionary<DamageType, List<string>> AttackVerbs = new()
+    // Verbs by damage type and weight of the hit: light, solid, heavy. A random verb from one
+    // list gave "smashes your abdomen, a glancing blow".
+    private static readonly Dictionary<DamageType, string[][]> AttackVerbs = new()
     {
-        { DamageType.Sharp, new List<string> { "slashes", "cuts", "slices", "carves" } },
-        { DamageType.Blunt, new List<string> { "bashes", "strikes", "smashes", "cracks" } },
-        { DamageType.Pierce, new List<string> { "stabs", "pierces", "impales", "punctures" } }
+        { DamageType.Sharp, [["nicks", "scratches"], ["cuts", "slashes"], ["slices", "carves"]] },
+        { DamageType.Blunt, [["grazes", "clips"], ["strikes", "bashes"], ["smashes", "cracks"]] },
+        { DamageType.Pierce, [["pricks", "nicks"], ["stabs", "pierces"], ["impales", "punctures"]] }
     };
+
+    private const double SolidHitDamage = 0.05;
+    private const double HeavyHitDamage = 0.15;
 
     /// <summary>
     /// Unified method for describing any attack outcome.
@@ -69,9 +74,8 @@ public static class CombatNarrator
     private static string DescribeHit(Actor attacker, Actor target, DamageResult damageResult)
     {
         DamageType damageType = attacker.AttackType;
-        string attackVerb = GetAttackVerb(damageType);
+        string attackVerb = GetAttackVerb(damageType, damageResult.TotalDamageDealt);
         string partName = FormatBodyPartName(damageResult.HitPartName);
-        string damageDesc = GetDamageSeverity(damageResult.TotalDamageDealt);
 
         var sb = new StringBuilder();
 
@@ -85,12 +89,7 @@ public static class CombatNarrator
         }
 
         // Add severity description
-        if (damageResult.TotalDamageDealt > 0.15)
-            sb.Append(" hard!");
-        else if (damageResult.TotalDamageDealt > 0.05)
-            sb.Append(".");
-        else
-            sb.Append(", a glancing blow.");
+        sb.Append(damageResult.TotalDamageDealt > HeavyHitDamage ? "!" : ".");
 
         // Organ damage (critical info)
         if (damageResult.OrganHit && damageResult.OrganHitName != null)
@@ -163,24 +162,13 @@ public static class CombatNarrator
         return partName.ToLower();
     }
 
-    public static string GetAttackVerb(DamageType damageType)
+    public static string GetAttackVerb(DamageType damageType, double damage)
     {
-        if (AttackVerbs.TryGetValue(damageType, out var verbs))
-            return verbs[Utils.Rng.Next(verbs.Count)];
-        return "strikes";
-    }
-
-    public static string GetDamageSeverity(double damage)
-    {
-        return damage switch
-        {
-            <= 0.05 => "minimal",
-            <= 0.1 => "light",
-            <= 0.25 => "moderate",
-            <= 0.5 => "severe",
-            <= 1 => "critical",
-            _ => "devastating"
-        };
+        if (!AttackVerbs.TryGetValue(damageType, out var tiers))
+            return "strikes";
+        int tier = damage > HeavyHitDamage ? 2 : damage > SolidHitDamage ? 1 : 0;
+        var verbs = tiers[tier];
+        return verbs[Utils.Rng.Next(verbs.Length)];
     }
 
     #endregion

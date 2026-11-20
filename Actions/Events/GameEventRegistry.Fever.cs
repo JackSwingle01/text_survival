@@ -135,14 +135,14 @@ public static partial class GameEventRegistry
                 isReal
                     ? [
                         new EventResult("The fire WAS dying. Your instinct saved you.", weight: 1.0, minutes: 10)
-                            .BurnsFuel(2)
+                            .FeedsFire(2)
                             .WithEffects(EffectFactory.Exhausted(0.2, 30))
                     ]
                     : [
                         new EventResult("You rush over. The fire is fine. The fever lied.", weight: 0.80, minutes: 8)
                             .WithEffects(EffectFactory.Exhausted(0.15, 20), EffectFactory.Shaken(0.15)),
                         new EventResult("You feed a healthy fire. Wasted fuel, but no harm done.", weight: 0.20, minutes: 8)
-                            .BurnsFuel(1)
+                            .FeedsFire(1)
                     ])
             .Choice("Ignore It",
                 "It's the fever. Trust nothing.",
@@ -163,7 +163,7 @@ public static partial class GameEventRegistry
                 isReal
                     ? [
                         new EventResult("You look carefully. It IS low. You add fuel in time.", weight: 1.0, minutes: 5)
-                            .BurnsFuel(1)
+                            .FeedsFire(1)
                     ]
                     : [
                         new EventResult("Careful observation. Fire is fine. The fever lied.", weight: 0.85, minutes: 5)

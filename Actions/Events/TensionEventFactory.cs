@@ -1,6 +1,7 @@
 using text_survival.Actions.Tensions;
 using text_survival.Actors.Animals;
 using text_survival.Effects;
+using text_survival.UI;
 
 namespace text_survival.Actions.Events;
 
@@ -70,6 +71,12 @@ public static class TensionEventFactory
                 [
                     new EventResult("You ignore the warning signs. For now.", 1.0, 2)
                         .WithEffects(EffectFactory.Exhausted(0.15, 60))
+                ])
+            .Choice("Rest Now",
+                "Stop before it takes hold. It costs you the hour.",
+                [
+                    new EventResult("You sit still and let your body fight. The chill eases a little.", 1.0, 60)
+                        .Escalate("FeverRising", -0.1)
                 ]);
     }
 
@@ -82,10 +89,18 @@ public static class TensionEventFactory
                     "The chills are getting worse. Your hands shake. The infection is spreading.",
                     0)
                     .Choice("Rest",
-                        "You need to stop.",
+                        "You need to stop. Hours, not minutes.",
                         [
-                            new EventResult("You curl up by the fire, shivering.", 1.0, 15)
+                            new EventResult("You curl up and shiver it out. It's not gone, but it's not winning.", 1.0, 90)
                                 .WithEffects(EffectFactory.Fever(0.3))
+                                .Escalate("FeverRising", -0.15)
+                        ])
+                    .Choice("Keep Going",
+                        "There's no time to be sick.",
+                        [
+                            new EventResult("You keep moving. The shaking gets worse.", 1.0, 2)
+                                .WithEffects(EffectFactory.Fever(0.4))
+                                .Escalate("FeverRising", 0.1)
                         ]),
 
             (TensionStage.Escalating, TensionStage.Critical) =>
@@ -97,6 +112,13 @@ public static class TensionEventFactory
                         [
                             new EventResult("Everything becomes a blur of heat and cold.", 1.0, 5)
                                 .WithEffects(EffectFactory.Fever(0.6))
+                        ])
+                    .Choice("Lie Down",
+                        "Ride it out where you are. Hope nothing finds you.",
+                        [
+                            new EventResult("You lose hours to sweat and shivering. When it breaks, you're weak but clear.", 1.0, 120)
+                                .WithEffects(EffectFactory.Fever(0.5))
+                                .Escalate("FeverRising", -0.2)
                         ]),
 
             _ => null
@@ -111,16 +133,7 @@ public static class TensionEventFactory
         var prey = tension.AnimalType ?? AnimalType.Caribou;
 
         if (change.IsDeescalation && change.Current == TensionStage.Building)
-        {
-            return new GameEvent("Trail Going Cold",
-                $"The blood trail is thinning. The {prey.DisplayName()} is getting away.",
-                0)
-                .Choice("Hurry",
-                    "You need to move faster.",
-                    [
-                        new EventResult("You quicken your pace, following what signs remain.", 1.0, 2)
-                    ]);
-        }
+            GameDisplay.AddWarning(ctx, $"The blood trail is thinning. The {prey.DisplayName().ToLower()} is getting away.");
 
         return null;
     }
@@ -129,15 +142,9 @@ public static class TensionEventFactory
 
     private static GameEvent? DeadlyColdCreated(ActiveTension tension, GameContext ctx)
     {
-        return new GameEvent("Deadly Cold",
-            "The cold is no longer discomfort. It's becoming dangerous. You need fire. Now.",
-            0)
-            .Choice("Acknowledge",
-                "This is life or death.",
-                [
-                    new EventResult("Every minute matters now.", 1.0, 1)
-                        .WithEffects(EffectFactory.Fear(0.2))
-                ]);
+        GameDisplay.AddWarning(ctx, "The cold is no longer discomfort. It's becoming dangerous. You need fire. Now.");
+        ctx.player.EffectRegistry.AddEffect(EffectFactory.Fear(0.2));
+        return null;
     }
 
     private static GameEvent? DeadlyColdStageEvent(TensionStageChange change, GameContext ctx)
@@ -152,6 +159,13 @@ public static class TensionEventFactory
                     [
                         new EventResult("Every step is an act of will.", 1.0, 2)
                             .WithEffects(EffectFactory.Frostbite(0.3), EffectFactory.Shaken(0.3))
+                    ])
+                .Choice("Save Your Hands",
+                    "Stop. Hands in your armpits until they burn. The cold gets more time with the rest of you.",
+                    [
+                        new EventResult("Feeling comes back, painful and slow. You've lost ground to the cold.", 1.0, 10)
+                            .WithEffects(EffectFactory.Frostbite(0.15))
+                            .Escalate("DeadlyCold", 0.1)
                     ]);
         }
 

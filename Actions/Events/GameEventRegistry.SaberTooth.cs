@@ -29,22 +29,18 @@ public static partial class GameEventRegistry
                 "Learn what you're dealing with. Knowledge is survival.",
                 [
                     new EventResult("The paw prints are enormous. Cat, but massive. A saber-tooth.", weight: 0.5, minutes: 10)
-                        .BecomeSaberToothStalked(0.3)
-                        .MarksDiscovery("Saber-tooth territory", 0.5),
+                        .BecomeSaberToothStalked(0.3),
                     new EventResult("Fresh scat. Hair in it — caribou. This predator is active, hunting.", weight: 0.3, minutes: 10)
-                        .BecomeSaberToothStalked(0.4)
-                        .MarksDiscovery("Saber-tooth territory", 0.5),
+                        .BecomeSaberToothStalked(0.4),
                     new EventResult("You find a kill site. The prey was large. Dragged away effortlessly.", weight: 0.2, minutes: 15)
                         .BecomeSaberToothStalked(0.5)
                         .Frightening()
-                        .MarksDiscovery("Saber-tooth hunting ground", 0.6)
                 ])
             .Choice("Mark the Location and Leave",
                 "You don't want to meet what made these marks.",
                 [
                     new EventResult("You note the boundary. This is its territory now.", weight: 0.7, minutes: 5)
-                        .BecomeSaberToothStalked(0.2)
-                        .MarksDiscovery("Saber-tooth territory edge", 0.4),
+                        .BecomeSaberToothStalked(0.2),
                     new EventResult("As you leave, the feeling of being watched settles over you.", weight: 0.3, minutes: 5)
                         .BecomeSaberToothStalked(0.3)
                         .Unsettling()
@@ -140,7 +136,6 @@ public static partial class GameEventRegistry
     /// </summary>
     internal static GameEvent TheAmbush(GameContext ctx)
     {
-        var tension = ctx.Tensions.GetTension("SaberToothStalked");
         bool isDistracted = ctx.CurrentActivity != ActivityType.Traveling &&
                            ctx.CurrentActivity != ActivityType.Resting;
         var workingClause = isDistracted
@@ -169,7 +164,6 @@ public static partial class GameEventRegistry
                     new EventResult("Massive. Terrifying. But it sees you won't run. Respect, predator to predator.", weight: 0.1, minutes: 5)
                         .ResolvesSaberTooth()
                         .Terrifying()
-                        .MarksDiscovery("Saber-tooth confrontation site", 0.6)
                 ])
             .Choice("Drop and Roll",
                 "Get low. Break its line of attack. Don't be where it expects.",

@@ -14,6 +14,7 @@ try
         Environment.ExitCode = new BackgroundCli(args[1]).RunWorker(args[2], args[3]);
         return;
     }
+    if (args.Length > 0 && args[0] == "do") { Write(new BackgroundCli(BackgroundCli.DefaultRoot).Dispatch(args)); return; }
     if (args.Length > 0 && args[0] is "start" or "send" or "poll" or "peek" or "stop")
     {
         Write(new { ok = true, result = new BackgroundCli(BackgroundCli.DefaultRoot).Dispatch(args) });

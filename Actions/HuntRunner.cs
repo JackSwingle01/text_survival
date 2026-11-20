@@ -14,13 +14,14 @@ public static class HuntRunner
 {
     public static async Task<CombatResult> Run(Animal target, GameContext ctx)
     {
-        if (!await PromptApproach(target, ctx))
+        var sighting = HuntingSightingSelector.SelectForAnimal(target, ctx);
+        if (!await PromptApproach(target, sighting, ctx))
             return CombatResult.Fled;
 
         ctx.RecordAnimalEncounter(target.AnimalType);
         await ReadySpear(ctx);
 
-        return await CombatOrchestrator.RunHunt(ctx, target);
+        return await CombatOrchestrator.RunHunt(ctx, target, sighting.DetectionModifier);
     }
 
     /// <summary>
@@ -49,18 +50,14 @@ public static class HuntRunner
             inv.Tools.Add(previous);
     }
 
-    private static async Task<bool> PromptApproach(Animal target, GameContext ctx)
+    private static async Task<bool> PromptApproach(Animal target, HuntingSighting sighting, GameContext ctx)
     {
-        var sighting = HuntingSightingSelector.SelectForAnimal(target, ctx);
         var behavior = HuntingSightingSelector.MapActivityToBehavior(target);
         string hint = HuntingSightingSelector.GetBehaviorHint(behavior);
 
-        GameDisplay.AddNarrative(ctx, $"{sighting.Description}. {hint}");
+        GameDisplay.AddNarrative(ctx, $"{sighting.Description.TrimEnd('.')}. {hint}");
 
-        string traitDesc = target.GetTraitDescription();
-        string message = string.IsNullOrEmpty(traitDesc)
-            ? $"You spot a {target.Name.ToLower()}. Approach?"
-            : $"You spot a {target.Name.ToLower()} ({traitDesc}). Approach?";
+        string message = $"You spot {target.GetTraitDescription()}. Approach?";
 
         var choices = new List<string> { "Approach", "Let it go" };
         string choice = await ctx.Ui.Select(message, choices, label => label);

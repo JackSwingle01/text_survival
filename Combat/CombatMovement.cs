@@ -5,20 +5,25 @@ namespace text_survival.Combat;
 
 public static class CombatMovement
 {
-    // Tactical metres per action, not a conversion from world-time seconds.
-    public static int Allowance(Unit unit) => unit.actor is Animal animal ? animal.AnimalType switch
+    // Tactical metres per action, not a conversion from world-time seconds. Wounded legs slow
+    // everyone the same way, so a crippled animal can be run down and a mauled player can't sprint.
+    public static int Allowance(Unit unit)
     {
-        AnimalType.CaveBear => 4,
-        AnimalType.Bear => 5,
-        AnimalType.Wolf or AnimalType.Hyena => 6,
-        AnimalType.SaberTooth => 7,
-        _ => 3
-    } : 3;
+        int full = unit.actor is Animal animal ? animal.AnimalType switch
+        {
+            AnimalType.CaveBear => 4,
+            AnimalType.Bear => 5,
+            AnimalType.Wolf or AnimalType.Hyena => 6,
+            AnimalType.SaberTooth => 7,
+            _ => 3
+        } : 3;
+        double moving = Math.Clamp(unit.actor.GetCapacities().Moving, 0, 1);
+        return Math.Max(1, (int)Math.Round(full * moving));
+    }
 
     public static Unit? PursuitTarget(Unit unit, CombatScenario scenario)
     {
-        if (unit.Awareness != AwarenessState.Engaged || unit.actor is not Animal animal ||
-            animal.BehaviorType == AnimalBehaviorType.Prey) return null;
+        if (unit.Awareness != AwarenessState.Engaged || unit.actor is not Animal || unit.IsSkittish) return null;
         var target = scenario.GetNearestEnemy(unit);
         return target != null && unit.DetermineAttack(target) && unit.Boldness > unit.PerceivedThreat(target)
             ? target : null;

@@ -112,15 +112,15 @@ public static class TrailSigns
     ];
 
     // ============ HUMAN SIGNS ============
-    // Creates MarkedDiscovery or Disturbed tension, rare encounters
+    // Recent human sign creates Disturbed tension
     public static readonly TrailSign[] HumanSigns =
     [
         new("Stone chips around a flat rock",
-            SignCategory.Human, SignAge.Ancient, "MarkedDiscovery", 0.3,
+            SignCategory.Human, SignAge.Ancient, null, 0.3,
             "Knapping site"),
 
         new("Fire-blackened stones in a ring",
-            SignCategory.Human, SignAge.Old, "MarkedDiscovery", 0.4,
+            SignCategory.Human, SignAge.Old, null, 0.4,
             "Old camp"),
 
         new("Cut marks on a long bone",
@@ -132,11 +132,11 @@ public static class TrailSigns
             "Someone else survives"),
 
         new("Sharpened stake driven into the ground",
-            SignCategory.Human, SignAge.Old, "MarkedDiscovery", 0.35,
+            SignCategory.Human, SignAge.Old, null, 0.35,
             "Trap site or marker"),
 
         new("Charcoal drawing on rock — animals",
-            SignCategory.Human, SignAge.Ancient, "MarkedDiscovery", 0.5,
+            SignCategory.Human, SignAge.Ancient, null, 0.5,
             "Hunting record"),
     ];
 

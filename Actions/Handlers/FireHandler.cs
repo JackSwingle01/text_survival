@@ -211,7 +211,7 @@ public static class FireHandler
                 existingFire.AddFuel(tinderWeight, tinderFuelType);
                 existingFire.AddFuel(kindlingWeight, FuelType.Kindling);
                 existingFire.IgniteAll();
-                return new FireStartResult(true, $"Fire relit! ({chance:P0} chance)", chance);
+                return new FireStartResult(true, $"Fire started! ({chance:P0} chance)", chance);
             }
             else
             {

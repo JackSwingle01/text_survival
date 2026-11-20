@@ -14,7 +14,7 @@ public record TemperatureBreakdown(
     double LocationMod,        // Location's inherent modifier
     double WindChill,          // Wind chill effect (negative)
     double SunWarming,         // Sun warming effect (positive)
-    double PrecipCooling,      // Precipitation cooling (negative)
+    double PrecipCooling,      // Precipitation cooling (positive, subtracted)
     double ShelterBonus,       // Shelter insulation bonus (positive)
     double FireBonus,          // Heat source bonus (positive)
     double FinalTemp           // Final calculated temperature
@@ -496,7 +496,7 @@ public class Location
             // Start with minimum temperature a shelter can maintain (in °F)
             double minShelterTemp = 40; // About 4.4°C, what a good shelter can maintain from body heat
             // Calculate warming effect based on insulation quality
-            double tempDifference = minShelterTemp - locationTemp;
+            double tempDifference = Math.Max(0, minShelterTemp - locationTemp); // holds a floor; never cools a warm day
             insulation = Math.Clamp(shelter.TemperatureInsulation, 0, .9); // cap at 90%
             insulation *= 1 - (precipitation * .3); // precipitation can reduce insulation up to 30%
             // Use normalized wind (0-1) for insulation calculation, not MPH

@@ -44,8 +44,9 @@ public class ActiveTension
             _stageTracker.Update(_severity);
         }
     }
+    /// <summary>Game minutes since the tension began. Advanced by <see cref="TensionRegistry.Update"/>.</summary>
     [System.Text.Json.Serialization.JsonInclude]
-    public DateTime CreatedAt { get; private set; }
+    public int AgeMinutes { get; internal set; }
     [System.Text.Json.Serialization.JsonInclude]
     public Location? RelevantLocation { get; private set; }
     [System.Text.Json.Serialization.JsonInclude]
@@ -101,7 +102,6 @@ public class ActiveTension
     {
         Type = type;
         _severity = Math.Clamp(severity, 0.0, 1.0);
-        CreatedAt = DateTime.Now;
         DecayPerHour = decayPerHour;
         DecaysAtCamp = decaysAtCamp;
         RelevantLocation = relevantLocation;
@@ -168,15 +168,6 @@ public class ActiveTension
         severity: severity,
         decayPerHour: 0.10,
         decaysAtCamp: true
-    );
-
-    public static ActiveTension MarkedDiscovery(double severity, Location? location = null, string? description = null) => new(
-        type: "MarkedDiscovery",
-        severity: severity,
-        decayPerHour: 0.02,
-        decaysAtCamp: false,
-        relevantLocation: location,
-        description: description
     );
 
     public static ActiveTension Disturbed(double severity, Location? sourceLocation = null, string? description = null) => new(

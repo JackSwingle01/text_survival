@@ -92,7 +92,7 @@ public static partial class GameEventRegistry
                         .ModerateCold()
                         .WithEffects(EffectFactory.Clumsy(0.4, 60)),
                     new EventResult("Frostnip. Your fingertips are white and painful.", 0.15, 0)
-                        .WithFrostbite(4, 0.3)
+                        .WithFrostbite(0.04, 0.3)
                 ],
                 requires: [EventCondition.LowTemperature])
             .Choice("Take a Break",
@@ -132,7 +132,7 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Exhausted(0.25, 45))
                         .DamagesTool(variant.Tool ?? ToolType.Knife, 3),
                     new EventResult("The blade slips. A cut across your hand.", 0.20, 0)
-                        .Damage(5, DamageType.Sharp, BodyTarget.AnyArm)
+                        .Damage(0.05, DamageType.Sharp, BodyTarget.AnyArm)
                         .DamagesTool(variant.Tool ?? ToolType.Knife, 4)
                 ])
             .Choice("Switch Tasks",

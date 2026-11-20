@@ -32,15 +32,17 @@ public static class CapacityCalculator
         const double primaryLimbWeight = 0.45;  // per limb (2 limbs = 90%)
         const double otherWeight = 0.02;        // split remaining 10% among 5 other regions
 
-        // Moving: 90% legs, 10% other (destroyed legs = can only crawl/drag)
-        result.Moving = WeightedCapacity(regions, CapacityNames.Moving,
-            (BodyRegionNames.LeftLeg, primaryLimbWeight),
-            (BodyRegionNames.RightLeg, primaryLimbWeight),
-            (BodyRegionNames.Head, otherWeight),
-            (BodyRegionNames.Chest, otherWeight),
-            (BodyRegionNames.Abdomen, otherWeight),
-            (BodyRegionNames.LeftArm, otherWeight),
-            (BodyRegionNames.RightArm, otherWeight));
+        // Moving: 90% legs, 10% other (destroyed legs = can only crawl/drag). Legs are found by
+        // name so four-legged bodies ("Front Left Leg") count too; matching only the human names
+        // left every quadruped at 2% movement.
+        var legs = regions.Keys.Where(n => n.Contains("Leg")).ToList();
+        var others = regions.Keys.Except(legs).ToList();
+        result.Moving = legs.Count == 0
+            ? regions.Values.Average(r => r.Moving)
+            : WeightedCapacity(regions, CapacityNames.Moving,
+                legs.Select(n => (n, 0.9 / legs.Count))
+                    .Concat(others.Select(n => (n, 0.1 / others.Count)))
+                    .ToArray());
 
         // Manipulation: 90% arms, 10% other
         result.Manipulation = WeightedCapacity(regions, CapacityNames.Manipulation,

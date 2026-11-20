@@ -38,6 +38,9 @@ public static class Situations
     public static bool IsFollowingAnimalSigns(GameContext ctx) =>
         ctx.CurrentActivity == ActivityType.Tracking;
 
+    public static bool TensionOlderThan(GameContext ctx, string type, int minutes) =>
+        ctx.Tensions.GetTension(type) is { } tension && tension.AgeMinutes >= minutes;
+
     public static bool HasFreshTrail(GameContext ctx) =>
         ctx.Tensions.HasTension("FreshTrail");
 

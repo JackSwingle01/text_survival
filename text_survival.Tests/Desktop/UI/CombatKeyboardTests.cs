@@ -1,3 +1,4 @@
+using text_survival.Tests.TestHelpers;
 using ImGuiNET;
 using System.Numerics;
 using text_survival.Actions;
@@ -14,7 +15,7 @@ public class CombatKeyboardTests
 {
     private static GameContext World()
     {
-        var ctx = GameContext.CreateNewGame(42);
+        var ctx = SmallGame.CreateWithStartingEquipment();
         var wolves = Enumerable.Range(0, 2).Select(_ => AnimalFactory.FromType(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map!)!).ToList();
         ctx.ActiveCombat = CombatScenario.Create([ctx.player], [.. wolves], ctx.CurrentLocation, 1, AwarenessState.Engaged, AwarenessState.Engaged, ctx.player);
         ctx.ActiveCombat.Player!.Position = new(25, 25);

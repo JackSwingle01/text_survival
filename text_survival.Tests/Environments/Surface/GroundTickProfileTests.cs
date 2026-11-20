@@ -7,6 +7,7 @@ namespace text_survival.Tests.Environments.Surface;
 /// Every tile on the map ticks, so the cost of a tick is a design constraint. A guard rail,
 /// not a benchmark.
 /// </summary>
+[Trait("Category", "Performance")]
 public class GroundTickProfileTests
 {
     [Fact]

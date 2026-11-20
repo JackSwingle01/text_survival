@@ -77,7 +77,7 @@ public static class GameGui
     public static void Separator() { if (Capture == null) Native.Separator(); }
     public static void Spacing() { if (Capture == null) Native.Spacing(); }
     public static void NewLine() { if (Capture == null) Native.NewLine(); }
-    public static void Bullet() { if (Capture == null) Native.Bullet(); }
+    public static void Bullet() { if (Capture is { } c) c.Text("•"); else Native.Bullet(); }
     public static void SameLine(float offset = 0, float spacing = -1) { if (Capture is { } c) c.Join(); else Native.SameLine(offset, spacing); }
     public static void Dummy(Vector2 size) { if (Capture == null) Native.Dummy(size); }
     public static void Indent(float width = 0) { if (Capture == null) Native.Indent(width); }

@@ -8,6 +8,38 @@ public enum PredatorSceneKind { PackSigns, EyesInTreeline, Circling, ThePackComm
 
 public enum PredatorReaction { Observe, Follow, Withdraw }
 
+/// <summary>
+/// A predator-scene choice that is resolved by the world rather than by its authored outcome
+/// weights: walking away, dropping food, making or using fire, taking meat, or waiting.
+/// Choices that move you or light something should author a single lead-in result; the
+/// binder appends what actually happened.
+/// </summary>
+public enum SceneAction
+{
+    None,
+    /// <summary>Walk to the neighbouring tile farthest from the animals.</summary>
+    Retreat,
+    /// <summary>Walk to the neighbouring tile closest to camp.</summary>
+    RetreatTowardCamp,
+    /// <summary>Put all carried fish on the ground, then retreat.</summary>
+    DropFishAndRun,
+    /// <summary>Put all carried meat on the ground, then retreat.</summary>
+    DropMeatAndRun,
+    /// <summary>Put all carried meat on the ground and stay.</summary>
+    LeaveMeat,
+    /// <summary>Try to start a fire here with your own tools.</summary>
+    StartFire,
+    LightTorch,
+    /// <summary>Threaten with a torch or the fire already here.</summary>
+    UseFire,
+    /// <summary>Feed the fire here, then threaten with it.</summary>
+    BuildUpFire,
+    /// <summary>Cut meat from the carcass for the outcome's time, then retreat.</summary>
+    HarvestAndRun,
+    /// <summary>Stay put and watch; time passes as rest.</summary>
+    Wait
+}
+
 /// <summary>Source and situation rules for authored wildlife scenes. No progression meter.</summary>
 public static class AuthoredPredatorScenes
 {
@@ -83,7 +115,7 @@ public static class AuthoredPredatorScenes
                 result.Validate = c => (valid?.Invoke(c) ?? true) && c.CurrentLocation == location && PredatorInteractions.CanObserve(c, source) &&
                     (result.PredatorSpecies == null || source?.AnimalType == result.PredatorSpecies) &&
                     (result.NewDamage == null || evt.PredatorScene == PredatorSceneKind.WolvesSmellBlood || PredatorInteractions.WithinReach(c, source)) &&
-                    (result.Cost?.Type != ResourceType.Food || PredatorInteractions.WithinReach(c, source));
+                    (!result.ResourceCosts.Any(cost => cost.Type is ResourceType.Food or ResourceType.Meat or ResourceType.Fish) || PredatorInteractions.WithinReach(c, source));
             }
         BindActions(ctx, evt, source);
     }
@@ -93,26 +125,19 @@ public static class AuthoredPredatorScenes
         foreach (var choice in evt.AuthoredChoices)
         foreach (var result in choice.Results)
         {
-            var label = choice.Label;
-            bool retreat = label is "Back Away Slowly" or "Calculated Retreat" or "Fall Back" or "Flee" or "Break and Run" or
-                "Create Distance" or "Retreat" or "Abandon the Nets" or "Let Them Have It" or "Backtrack" or
-                "Pick Up Pace Toward Camp" or "Keep Moving Steadily" or "Keep Moving, Stay Alert" or "Move Quickly, Stay Alert" or
-                "Descend Carefully" or "Push Deeper" or "Find Defensible Ground" or "Finish and Leave";
-            bool drop = label is "Drop Fish and Run" or "Drop All Meat and Flee" or "Leave Some Meat Behind";
-            bool fire = label is "Light a Fire" or "Start Fire Here";
-            bool torch = label == "Light a Torch";
-            bool useFire = label is "Fire Drives Them Off" or "Build Up Fire" or "Build Up the Fire";
-            if (useFire)
+            var action = choice.Action;
+            string lead = result.Message + " ";
+            if (action is SceneAction.UseFire or SceneAction.BuildUpFire)
             {
                 var prior = result.Validate;
                 result.Validate = c => (prior?.Invoke(c) ?? true) && (c.Inventory.HasLitTorch || c.CurrentLocation.HasActiveHeatSource()) &&
                     PredatorInteractions.WithinReach(c, source);
                 result.PredatorReaction = null;
-                int fuelCount = result.Cost?.Amount ?? 1;
-                result.Cost = null;
+                int fuelCount = result.ResourceCosts.FirstOrDefault(cost => cost.Type == ResourceType.Fuel)?.Amount ?? 1;
+                result.ResourceCosts.Clear();
                 result.WorldAction = c =>
                 {
-                    if (label is "Build Up Fire" or "Build Up the Fire" && c.CurrentLocation.GetFeature<HeatSourceFeature>() is { } existing)
+                    if (action == SceneAction.BuildUpFire && c.CurrentLocation.GetFeature<HeatSourceFeature>() is { } existing)
                     {
                         foreach (var fuel in new[] { Resource.Stick, Resource.Pine, Resource.Birch, Resource.Oak, Resource.Charcoal })
                             if (c.Inventory.Count(fuel) > 0)
@@ -121,50 +146,51 @@ public static class AuthoredPredatorScenes
                     PredatorInteractions.Deter(c, source!, fire: true);
                     return Task.CompletedTask;
                 };
-                result.DescribeAfterAction = c => "You use the flame to keep the animals back. " + Events.PredatorEventFactory.ObserveResult(c, source);
+                result.DescribeAfterAction = c => lead + Events.PredatorEventFactory.ObserveResult(c, source);
             }
-            bool harvest = label is "Work Faster, Grab What You Can" or "Steal While They're Distracted";
-            bool wait = label is "Wait Them Out" or "Wait It Out" or "Wait for Wolves to Leave" or "Hold Position and Assess" or "Stop and Observe";
-            if (wait) result.TimeActivity = ActivityType.Resting;
-            if (retreat || drop)
+            if (action == SceneAction.Wait) result.TimeActivity = ActivityType.Resting;
+            bool dropFish = action == SceneAction.DropFishAndRun;
+            bool dropMeat = action is SceneAction.DropMeatAndRun or SceneAction.LeaveMeat;
+            bool moves = action is SceneAction.Retreat or SceneAction.RetreatTowardCamp or SceneAction.DropFishAndRun or SceneAction.DropMeatAndRun;
+            if (moves || dropMeat)
             {
                 var origin = ctx.CurrentLocation;
-                var destination = ctx.Map == null || source == null ? null : ctx.Map.CurrentPosition.GetCardinalNeighbors()
-                    .Where(p => ctx.Map.GetLocationAt(p)?.IsPassable == true && !ctx.Map.IsEdgeBlocked(ctx.Map.CurrentPosition, p, ctx.Weather.CurrentSeason))
-                    .OrderByDescending(p => p.ManhattanDistance(source.Position)).Select(p => ctx.Map.GetLocationAt(p)).FirstOrDefault();
+                var destination = moves ? RetreatDestination(ctx, source, towardCamp: action == SceneAction.RetreatTowardCamp) : null;
                 var old = result.Validate;
-                result.Validate = c => (old?.Invoke(c) ?? true) && (!retreat || destination != null) &&
-                    (!drop || (label == "Drop Fish and Run" ? c.Inventory.HasFish : c.Inventory.Weight(Resource.RawMeat) + c.Inventory.Weight(Resource.CookedMeat) > 0));
+                result.Validate = c => (old?.Invoke(c) ?? true) && (!moves || dropFish || dropMeat || destination != null) &&
+                    (!dropFish || c.Inventory.HasFish) &&
+                    (!dropMeat || c.Inventory.Weight(Resource.RawMeat) + c.Inventory.Weight(Resource.CookedMeat) > 0);
                 // A moving response is resolved by travel/AI, never by a scripted escape or attack.
                 result.PredatorReaction = null;
                 result.SpawnEncounter = null;
-                result.Cost = null;
+                result.ResourceCosts.Clear();
                 result.TimeAddedMinutes = 0;
                 result.AbortsAction = true;
                 result.WorldAction = async c =>
                 {
-                    if (drop)
+                    if (dropFish || dropMeat)
                     {
                         var food = new Inventory();
-                        var resources = label == "Drop Fish and Run" ? new[] { Resource.RawFish, Resource.CookedFish } :
+                        var resources = dropFish ? new[] { Resource.RawFish, Resource.CookedFish } :
                             new[] { Resource.RawMeat, Resource.CookedMeat };
                         foreach (var resource in resources)
                             while (c.Inventory.Count(resource) > 0) food.Add(resource, c.Inventory.Pop(resource));
                         origin.AddGroundItems(food);
                     }
-                    if (destination != null && (retreat || label != "Leave Some Meat Behind"))
+                    if (destination != null)
                         await new Expeditions.TravelRunner(c).TravelToLocation(destination);
                 };
-                result.DescribeAfterAction = c => (drop ? "You leave food on the ground. " : "") +
-                    (c.CurrentLocation != origin ? $"You reach {c.CurrentLocation.Name}. " : "You are still on the same ground. ") +
+                result.DescribeAfterAction = c => lead + (dropFish || dropMeat ? "You leave food on the ground. " : "") +
+                    (!moves ? "" : c.CurrentLocation != origin ? $"You reach {c.CurrentLocation.Name}. " : "You are still on the same ground. ") +
                     Events.PredatorEventFactory.ObserveResult(c, source);
             }
-            if (fire || torch)
+            if (action is SceneAction.StartFire or SceneAction.LightTorch)
             {
+                bool torch = action == SceneAction.LightTorch;
                 var old = result.Validate;
                 result.Validate = c => (old?.Invoke(c) ?? true) && (torch ? Handlers.TorchHandler.CanLightTorch(c) :
                     Handlers.FireHandler.GetBestTool(c.Inventory) != null && Handlers.FireHandler.GetBestTinder(c.Inventory) != null && c.Inventory.Count(Resource.Stick) > 0);
-                result.Cost = null;
+                result.ResourceCosts.Clear();
                 result.PredatorReaction = null;
                 result.SpawnEncounter = null;
                 result.NewDamage = null;
@@ -187,14 +213,15 @@ public static class AuthoredPredatorScenes
                     }
                     if (c.Inventory.HasLitTorch || c.CurrentLocation.HasActiveHeatSource()) PredatorInteractions.Deter(c, source!, fire: true);
                 };
-                result.DescribeAfterAction = c => attempt + " " + Events.PredatorEventFactory.ObserveResult(c, source);
+                result.DescribeAfterAction = c => lead + attempt + " " + Events.PredatorEventFactory.ObserveResult(c, source);
             }
-            if (harvest || evt.PredatorScene == PredatorSceneKind.WolvesSmellBlood && result.RewardPool != Items.RewardPool.None)
+            bool harvest = action == SceneAction.HarvestAndRun;
+            if (harvest || evt.PredatorScene == PredatorSceneKind.WolvesSmellBlood && result.RewardPools.Count > 0)
             {
                 var carcass = Carcass(ctx);
                 var old = result.Validate;
                 result.Validate = c => (old?.Invoke(c) ?? true) && carcass != null && ReferenceEquals(Carcass(c), carcass);
-                result.RewardPool = Items.RewardPool.None;
+                result.RewardPools.Clear();
                 result.TimeActivity = ActivityType.Butchering;
                 result.AfterTimeAction = c =>
                 {
@@ -204,11 +231,7 @@ public static class AuthoredPredatorScenes
                 };
                 if (harvest)
                 {
-                    var origin = ctx.CurrentLocation;
-                    var destination = ctx.Map!.CurrentPosition.GetCardinalNeighbors()
-                        .Where(p => ctx.Map.GetLocationAt(p)?.IsPassable == true && !ctx.Map.IsEdgeBlocked(ctx.Map.CurrentPosition, p, ctx.Weather.CurrentSeason))
-                        .OrderByDescending(p => source == null ? 0 : p.ManhattanDistance(source.Position))
-                        .Select(p => ctx.Map.GetLocationAt(p)).FirstOrDefault();
+                    var destination = RetreatDestination(ctx, source, towardCamp: false);
                     var allowed = result.Validate;
                     result.Validate = c => (allowed?.Invoke(c) ?? true) && destination != null;
                     result.AbortsAction = true;
@@ -218,6 +241,20 @@ public static class AuthoredPredatorScenes
                     (harvest ? $"You are now at {c.CurrentLocation.Name}. " : "") + Events.PredatorEventFactory.ObserveResult(c, source);
             }
         }
+    }
+
+    /// <summary>The passable neighbour to walk to: farthest from the animals, or closest to camp.</summary>
+    private static Environments.Location? RetreatDestination(GameContext ctx, Herd? source, bool towardCamp)
+    {
+        if (ctx.Map == null || source == null) return null;
+        var map = ctx.Map;
+        var campPos = map.GetPosition(ctx.Camp);
+        var options = map.CurrentPosition.GetCardinalNeighbors()
+            .Where(p => map.GetLocationAt(p)?.IsPassable == true && !map.IsEdgeBlocked(map.CurrentPosition, p, ctx.Weather.CurrentSeason));
+        var ordered = towardCamp
+            ? options.OrderBy(p => p.ManhattanDistance(campPos)).ThenByDescending(p => p.ManhattanDistance(source.Position))
+            : options.OrderByDescending(p => p.ManhattanDistance(source.Position));
+        return ordered.Select(p => map.GetLocationAt(p)).FirstOrDefault();
     }
 
     public static void ApplyReaction(GameContext ctx, EventResult result)

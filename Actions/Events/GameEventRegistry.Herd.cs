@@ -120,12 +120,11 @@ public static partial class GameEventRegistry
                         .ResolveTension("HerdNearby")
                         .Encounter(predator, 20, 0.5)
                 ])
-            .Choice("Observe Migration Route",
-                "Learn for next time. Mark the path they take.",
+            .Choice("Let Them Pass",
+                "Not today. Watch them go.",
                 [
-                    new EventResult("You note the route. They'll pass again next season.", weight: 1.0, minutes: 20)
+                    new EventResult("You stay back and let the herd flow past.", weight: 1.0, minutes: 5)
                         .ResolveTension("HerdNearby")
-                        .CreateTension("MarkedDiscovery", 0.6, description: "herd migration route")
                 ]);
     }
 
@@ -218,32 +217,16 @@ public static partial class GameEventRegistry
             .WithSituationFactor(Situations.AttractiveToPredators, 3.0)
             .Choice("Move Quickly, Stay Alert",
                 "Get the meat back to camp. Stay vigilant.",
-                [
-                    new EventResult("A lone wolf peels off from the pack. It's following.", weight: 0.45, minutes: 10)
-                        .ObservesPredator(AnimalType.Wolf),
-                    new EventResult("Three shapes detach from the herd's shadow. They're coordinating.", weight: 0.35, minutes: 10)
-                        .ObservesPredator(AnimalType.Wolf),
-                    new EventResult("They don't follow. Too busy with their own kills.", weight: 0.20, minutes: 10)
-                ])
+                [new EventResult("You pick up the pace toward camp.")],
+                action: SceneAction.RetreatTowardCamp)
             .Choice("Create Distance",
                 "Detour. Lose them in the terrain.",
-                [
-                    new EventResult("Long way around. But you lose the followers.", weight: 0.60, minutes: 30)
-                        .Escalate("FoodScentStrong", -0.2),
-                    new EventResult("They're persistent. Still behind you.", weight: 0.30, minutes: 25)
-                        .ObservesPredator(AnimalType.Wolf),
-                    new EventResult("Detour leads you somewhere unfamiliar.", weight: 0.10, minutes: 35)
-                        .Shaken()
-                ])
+                [new EventResult("You break away through the terrain.")],
+                action: SceneAction.Retreat)
             .Choice("Leave Some Meat Behind",
-                "Sacrifice a portion. Maybe they'll be satisfied.",
-                [
-                    new EventResult("They take the offering. Don't follow further.", weight: 0.70, minutes: 10)
-                        .Costs(ResourceType.Food, 2),
-                    new EventResult("They take it AND keep following. Want more.", weight: 0.30, minutes: 10)
-                        .Costs(ResourceType.Food, 2)
-                        .ObservesPredator(AnimalType.Wolf)
-                ],
-                [EventCondition.HasMeat]);
+                "Put your meat down. Maybe that is all they want.",
+                [new EventResult("You set your meat on the snow.")],
+                requires: [EventCondition.HasMeat],
+                action: SceneAction.LeaveMeat);
     }
 }

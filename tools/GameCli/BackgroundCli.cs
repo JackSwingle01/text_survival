@@ -153,6 +153,35 @@ public sealed class BackgroundCli(string root)
             outcomeUnknown = ended && running };
     }
 
+    /// <summary>Queue each command in turn and wait for it; stops at the first rejected one.
+    /// Returns just the game response plus revision, or the receipt if a command outlives the timeout.</summary>
+    public object Do(string session, IEnumerable<string> commands, TimeSpan timeout)
+    {
+        object? last = null;
+        foreach (var line in commands)
+        {
+            var (command, value) = CliProtocol.Parse(line);
+            string id = Guid.NewGuid().ToString("N");
+            Send(session, command, value, id);
+            var clock = Stopwatch.StartNew();
+            JsonElement result;
+            while ((result = JsonSerializer.SerializeToElement(Poll(session, id), CliProtocol.Json)).GetProperty("status").GetString() is "queued" or "running")
+            {
+                if (clock.Elapsed > timeout) return new { pending = true, requestId = id, hint = "Still running; use poll." };
+                Thread.Sleep(20);
+            }
+            if (!result.TryGetProperty("response", out var response)) return result; // interrupted
+            // Flatten to the game's own response, tagged with the revision for --revision checks.
+            var flat = System.Text.Json.Nodes.JsonNode.Parse(response.GetRawText())!.AsObject();
+            if (flat["result"] is System.Text.Json.Nodes.JsonObject body) { flat.Remove("result"); foreach (var (k, v) in body.ToArray()) { body.Remove(k); flat[k] = v; } }
+            else if (flat["result"] is { } other) { flat.Remove("result"); flat["value"] = other; }
+            flat["rev"] = result.GetProperty("revision").GetInt64();
+            last = flat;
+            if (!response.GetProperty("ok").GetBoolean()) { flat["failed"] = line; break; }
+        }
+        return last ?? throw new ArgumentException("do needs at least one command.");
+    }
+
     // Called only by the detached worker. All simulation and JSON snapshot serialization
     // stay on this thread; clients never touch the live context or its synchronization queue.
     public int RunWorker(string sessionId, string run)
@@ -239,6 +268,7 @@ public sealed class BackgroundCli(string root)
         {
             case "peek" when args.Length == 2: return Peek(session);
             case "poll" when args.Length is 3 or 4: return Poll(session, args[2], args.Length == 4 ? args[3] : null);
+            case "do" when args.Length >= 3: return Do(session, args[2..], TimeSpan.FromSeconds(90));
             case "stop" when args.Length == 2: return Send(session, "quit", requestId: "stop");
             case "send" when args.Length >= 3:
                 var (command, value) = CliProtocol.Parse(args[2]);
@@ -255,7 +285,7 @@ public sealed class BackgroundCli(string root)
                     }
                 }
                 return Send(session, command, value, id, revision);
-            default: throw new ArgumentException("Usage: start [options] | send SESSION \"command\" [--value TEXT] [--request ID] [--revision N] | poll SESSION ID [RUN] | peek SESSION | stop SESSION");
+            default: throw new ArgumentException("Usage: start [options] | do SESSION \"command\" [\"command\" ...] | send SESSION \"command\" [--value TEXT] [--request ID] [--revision N] | poll SESSION ID [RUN] | peek SESSION | stop SESSION");
         }
     }
 }

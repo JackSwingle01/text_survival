@@ -73,14 +73,8 @@ public static partial class GameEventRegistry
             .WithSituationFactor(Situations.AttractiveToPredators, 1.5)
             .Choice("Back Away Slowly",
                 "No sudden movements. Give it space.",
-                [
-                    new EventResult("You retreat step by step. The bear claims the fishing hole and ignores you.", 0.60, 15),
-                    new EventResult("It watches you go, then returns to sniffing the ice. Your catch is safe.", 0.25, 20),
-                    new EventResult("It follows your movement. You keep backing up until it loses interest.", 0.10, 25)
-                        .Frightening(),
-                    new EventResult("It charges. You barely make it to cover.", 0.05, 5)
-                        .Encounter(AnimalType.Bear, 20, 0.6)
-                ])
+                [new EventResult("You back away from the hole. No sudden movements.")],
+                action: SceneAction.Retreat)
             .Choice("Make Noise",
                 "Assert yourself. Scare it off.",
                 [
@@ -96,15 +90,8 @@ public static partial class GameEventRegistry
                 ])
             .Choice("Drop Fish and Run",
                 "Give it what it wants. Get out alive.",
-                [
-                    new EventResult("You drop your catch and back away fast. The bear goes for the fish, not you.", 0.90, 10)
-                        .LosesFish(),
-                    new EventResult("It takes the fish but still seems interested in you. You keep moving.", 0.08, 15)
-                        .LosesFish()
-                        .ObservesPredator(AnimalType.Bear),
-                    new EventResult("It ignores the fish and comes for you.", 0.02, 5)
-                        .Encounter(AnimalType.Bear, 20, 0.7)
-                ]);
+                [new EventResult("You drop your catch and back away fast.")],
+                action: SceneAction.DropFishAndRun);
     }
 
     /// <summary>
@@ -112,8 +99,6 @@ public static partial class GameEventRegistry
     /// </summary>
     private static GameEvent WolvesCirclingNets(GameContext ctx)
     {
-        bool hasFire = ctx.CurrentLocation.HasActiveHeatSource() || ctx.Inventory.HasLitTorch;
-        string fireOption = hasFire ? "Use fire to drive them off." : "You'd need fire for this.";
 
         return new GameEvent("Wolves at the Nets",
             "They appear at the edge of the ice — three, maybe four wolves. " +
@@ -127,22 +112,9 @@ public static partial class GameEventRegistry
             .WithConditionFactor(EventCondition.HasMeat, 2.0)
             .WithSituationFactor(Situations.Vulnerable, 1.5)
             .Choice("Fire Drives Them Off",
-                fireOption,
-                hasFire ?
-                [
-                    new EventResult("You wave the torch. The wolves retreat into the trees.", 0.70, 10)
-                        .BurnsFuel(1)
-                        .PredatorWithdraws(),
-                    new EventResult("They back off but don't leave. Watching, waiting.", 0.25, 15)
-                        .BurnsFuel(1),
-                    new EventResult("One is braver than the others. It snaps at you before retreating.", 0.05, 8)
-                        .BurnsFuel(1)
-                        .PredatorFollows()
-                ] :
-                [
-                    new EventResult("You have nothing to threaten them with. The standoff continues.", 1.0, 0)
-                        .PredatorFollows()
-                ])
+                "Wave a torch or a burning brand at them.",
+                [new EventResult("You swing the flame toward them.")],
+                action: SceneAction.UseFire)
             .Choice("Wait Them Out",
                 "Stay still. They might lose interest.",
                 [
@@ -157,18 +129,12 @@ public static partial class GameEventRegistry
                         .PredatorFollows(),
                     new EventResult("They grow bolder. This isn't working.", 0.05, 30)
                         .Encounter(AnimalType.Wolf, 25, 0.4)
-                ])
+                ],
+                action: SceneAction.Wait)
             .Choice("Abandon the Nets",
                 "The catch isn't worth your life.",
-                [
-                    new EventResult("You back away carefully. The wolves investigate the nets as you leave.", 0.85, 5)
-                        .LosesFish(),
-                    new EventResult("They let you go. One follows for a while, then gives up.", 0.12, 10)
-                        .LosesFish()
-                        .ObservesPredator(),
-                    new EventResult("They cut you off. You have to go through them.", 0.03, 3)
-                        .Encounter(AnimalType.Wolf, 20, 0.5)
-                ]);
+                [new EventResult("You leave the nets and back away.")],
+                action: SceneAction.Retreat);
     }
 
     /// <summary>
@@ -221,52 +187,50 @@ public static partial class GameEventRegistry
     {
         bool hasRod = ctx.Inventory.GetTool(ToolType.FishingRod)?.Works == true;
         var water = ctx.CurrentLocation.GetFeature<WaterFeature>();
-        double abundance = water?.FishAbundance ?? 0.5;
 
         return new GameEvent("Lucky Catch",
             "The water churns with activity. Fish are running — more than you've seen in weeks. " +
             "This is the moment to capitalize.",
             0.6)
-            .Requires(EventCondition.FieldWork)
-            .WithSituationFactor(Situations.Fishing, 2.0)
+            .RequiresSituation(Situations.Fishing)
             .WithConditionFactor(EventCondition.HasFuel, 1.2) // Prepared fishermen rewarded
             .Choice("Fish Fast",
                 "Work quickly while they're running. Push your limits.",
                 hasRod ?
                 [
                     new EventResult("Your rod bends again and again. Three good fish in quick succession.", 0.45, 20)
-                        .Rewards(RewardPool.SmallGame)
-                        .Rewards(RewardPool.SmallGame)
-                        .Rewards(RewardPool.SmallGame),
+                        .Rewards(RewardPool.FishCatch)
+                        .Rewards(RewardPool.FishCatch)
+                        .Rewards(RewardPool.FishCatch),
                     new EventResult("An incredible run. Four fish, maybe more. Your arms burn from the effort.", 0.25, 25)
-                        .Rewards(RewardPool.SmallGame)
-                        .Rewards(RewardPool.SmallGame)
-                        .Rewards(RewardPool.SmallGame)
-                        .Rewards(RewardPool.SmallGame)
+                        .Rewards(RewardPool.FishCatch)
+                        .Rewards(RewardPool.FishCatch)
+                        .Rewards(RewardPool.FishCatch)
+                        .Rewards(RewardPool.FishCatch)
                         .WithEffects(EffectFactory.Exhausted(0.25)),
                     new EventResult("Good catch, but you pushed too hard. Exhausted.", 0.20, 30)
-                        .Rewards(RewardPool.SmallGame)
-                        .Rewards(RewardPool.SmallGame)
+                        .Rewards(RewardPool.FishCatch)
+                        .Rewards(RewardPool.FishCatch)
                         .WithEffects(EffectFactory.Exhausted(0.4)),
                     new EventResult("The line snaps. You lose the fish AND damage your rod.", 0.10, 15)
                         .DamagesTool(ToolType.FishingRod, 5)
                 ] :
                 [
                     new EventResult("Without proper gear, you do what you can. Two fish is still good.", 0.60, 25)
-                        .Rewards(RewardPool.SmallGame)
-                        .Rewards(RewardPool.SmallGame),
+                        .Rewards(RewardPool.FishCatch)
+                        .Rewards(RewardPool.FishCatch),
                     new EventResult("You miss more than you catch. Still, one good fish.", 0.30, 20)
-                        .Rewards(RewardPool.SmallGame),
+                        .Rewards(RewardPool.FishCatch),
                     new EventResult("The fish are too fast. You grab at shadows.", 0.10, 15)
                 ])
             .Choice("Take What You Can Carry",
                 "Don't get greedy. Secure what you can.",
                 [
                     new EventResult("Two solid catches. No risks, no regrets.", 0.70, 15)
-                        .Rewards(RewardPool.SmallGame)
-                        .Rewards(RewardPool.SmallGame),
+                        .Rewards(RewardPool.FishCatch)
+                        .Rewards(RewardPool.FishCatch),
                     new EventResult("One good fish, properly handled. Quality over quantity.", 0.25, 12)
-                        .Rewards(RewardPool.SmallGame),
+                        .Rewards(RewardPool.FishCatch),
                     new EventResult("The run ends before you're ready. Still, one fish is better than none.", 0.05, 10)
                 ])
             .Choice("Watch and Learn",
@@ -289,7 +253,6 @@ public static class FishingOutcomeTemplates
     /// </summary>
     public static EventResult LosesFish(this EventResult result)
     {
-        // Cost 1 fish from inventory if player has any
-        return result.Costs(ResourceType.Food, 1);
+        return result.Costs(ResourceType.Fish, 1);
     }
 }

@@ -32,6 +32,8 @@ public sealed class BackgroundCliTests
             worker = cli.Start(new(session, 42));
             Assert.True(Json(cli.Peek(session)).GetProperty("alive").GetBoolean());
             Assert.Throws<ArgumentException>(() => cli.Start(new(session, 42)));
+            cli.Send(session, "click Continue", requestId: "intro"); // a new game opens on the intro notice
+            Assert.True((await Result(cli, session, "intro")).GetProperty("response").GetProperty("ok").GetBoolean());
             var watch = Stopwatch.StartNew();
             Assert.Equal("queued", Status(cli.Send(session, "act Inventory", requestId: "inventory")));
             Assert.True(watch.Elapsed < TimeSpan.FromSeconds(1), "Submission waited for world generation or gameplay.");
@@ -55,7 +57,10 @@ public sealed class BackgroundCliTests
             var waited = await Result(cli, session, "wait");
             Assert.True(waited.GetProperty("response").GetProperty("ok").GetBoolean());
             var newTime = waited.GetProperty("response").GetProperty("result").GetProperty("status").GetProperty("time").GetString();
-            Assert.Equal(DateTime.Parse(time!).AddMinutes(5), DateTime.Parse(newTime!));
+            Assert.Equal(TimeSpan.FromMinutes(5), TimeSpan.Parse(newTime!.Split(' ')[^1]) - TimeSpan.Parse(time!.Split(' ')[^1]));
+            var viaDo = Json(cli.Do(session, ["act Inventory", "click #0", "close"], TimeSpan.FromSeconds(40)));
+            Assert.Equal("map", viaDo.GetProperty("screen").GetString());
+            Assert.False(Json(cli.Do(session, ["click #999"], TimeSpan.FromSeconds(40))).GetProperty("ok").GetBoolean());
             cli.Send(session, "act Wait", requestId: "wait");
             Assert.Equal(newTime, Json(cli.Peek(session)).GetProperty("state").GetProperty("snapshot").GetProperty("status").GetProperty("time").GetString());
             Assert.Throws<ArgumentException>(() => cli.Poll(session, "missing"));

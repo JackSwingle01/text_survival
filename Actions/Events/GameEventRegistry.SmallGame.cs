@@ -83,12 +83,10 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Focused(0.15, 45)),
                     new EventResult("Something else in the trees spooks them.", 0.05, 8)
                 ])
-            .Choice("Note the Location",
-                "Mark this spot. Come back prepared.",
+            .Choice("Let Them Be",
+                "Not worth the time.",
                 [
-                    new EventResult("You memorize the perch. They use it regularly.", 0.80, 2)
-                        .MarksDiscovery("bird roosting spot", 0.4),
-                    new EventResult("They're already gone when you look again.", 0.20, 2)
+                    new EventResult("You leave them roosting.", 1.0, 0)
                 ]);
     }
 
@@ -99,39 +97,40 @@ public static partial class GameEventRegistry
         bool hasIceHole = waterFeature?.HasIceHole ?? false;
 
         return new GameEvent("Fish Visible",
-            "Movement beneath the surface. Fish, schooling in the shallows.", 0.6)
+            hasIceHole && waterFeature!.IsFrozen
+                ? "Movement in the dark water under your ice hole. Fish, drifting close."
+                : "Movement beneath the surface. Fish, schooling in the shallows.", 0.6)
             .Requires(EventCondition.NearWater, EventCondition.IsDaytime)
+            .RequiresSituation(c => c.CurrentLocation.GetFeature<WaterFeature>() is { } w && (!w.IsFrozen || w.HasIceHole))
             .WithConditionFactor(EventCondition.IsClear, 1.5) // Clear weather helps visibility
             .WithCooldown(8)
             .Choice("Spear Fish",
                 "Quick thrust. Test your aim.",
                 [
                     new EventResult("The spear finds its mark. Fresh fish.", hasSpear ? 0.40 : 0.15, 5)
-                        .Rewards(RewardPool.SmallGame),
+                        .Rewards(RewardPool.FishCatch),
                     new EventResult("Water distorts the position. You miss.", 0.35, 5),
                     new EventResult("A glancing blow. It escapes, wounded.", 0.20, 5)
                         .CreateTension("WoundedPrey", 0.2, animalType: AnimalType.Fish),
                     new EventResult("Two fish! They were closer together than you thought.", hasSpear ? 0.08 : 0.02, 5)
-                        .Rewards(RewardPool.SmallGame)
-                        .Rewards(RewardPool.SmallGame)
+                        .Rewards(RewardPool.FishCatch)
+                        .Rewards(RewardPool.FishCatch)
                 ])
             .Choice("Wait for Better Shot",
                 "Patience. Let them settle. Study the refraction.",
                 [
                     new EventResult("You learn their patterns. Clean strike.", 0.50, 20)
-                        .Rewards(RewardPool.SmallGame),
+                        .Rewards(RewardPool.FishCatch),
                     new EventResult("They drift deeper. Opportunity passes.", 0.30, 15),
                     new EventResult("Multiple passes later, you've got the technique.", 0.15, 25)
-                        .Rewards(RewardPool.SmallGame)
+                        .Rewards(RewardPool.FishCatch)
                         .WithEffects(EffectFactory.Focused(0.2, 60)),
                     new EventResult("Something larger scatters them. The fish are gone.", 0.05, 10)
                 ])
-            .Choice("Remember This Spot",
-                "Mark it for when you're better prepared.",
+            .Choice("Let Them Be",
+                "Not worth the time.",
                 [
-                    new EventResult("Good fishing spot noted. The fish are here regularly.", 0.85, 2)
-                        .MarksDiscovery("fish spawning area", 0.5),
-                    new EventResult("By the time you mark it, they've moved on.", 0.15, 2)
+                    new EventResult("You leave the fish to the shallows.", 1.0, 0)
                 ]);
     }
 
@@ -142,7 +141,6 @@ public static partial class GameEventRegistry
 
         return new GameEvent("Track Intersection",
             $"Fresh tracks converge here. {smallGame.TacticsDescription}", 0.7)
-            .Requires(EventCondition.Foraging)
             .RequiresSituation(Situations.IsFollowingAnimalSigns)
             .WithSituationFactor(Situations.GoodForStealth, 1.4)
             .WithSituationFactor(Situations.HasFreshTrail, 1.4)  // Recent sign examination helps
@@ -168,13 +166,10 @@ public static partial class GameEventRegistry
                         .WithEffects(EffectFactory.Focused(0.15, 30)),
                     new EventResult("You complete the circle. It's not there.", 0.10, 15)
                 ])
-            .Choice("Mark for Later",
-                "This is a game trail. Worth remembering.",
+            .Choice("Move On",
+                "You have other work.",
                 [
-                    new EventResult("You mark the intersection. These tracks will be here again.", 0.75, 3)
-                        .MarksAnimalSign(smallGame.AnimalType, 0.5),
-                    new EventResult("Rain will wash these tracks away. But the path remains.", 0.25, 3)
-                        .MarksDiscovery("game trail", 0.3)
+                    new EventResult("You leave the tracks behind.", 1.0, 0)
                 ]);
     }
 
@@ -204,17 +199,14 @@ public static partial class GameEventRegistry
                         .Rewards(RewardPool.SmallGame),
                     new EventResult("They fly further than expected. Lost in the brush.", 0.35, 8),
                     new EventResult("Two landed separately. You get one.", 0.20, 15)
-                        .Rewards(RewardPool.SmallGame)
-                        .MarksDiscovery("grouse territory", 0.3),
+                        .Rewards(RewardPool.SmallGame),
                     new EventResult("They double back. One lands right next to you.", 0.05, 5)
                         .Rewards(RewardPool.SmallGame)
                 ])
             .Choice("Let Them Go",
                 "They're gone. Continue on.",
                 [
-                    new EventResult("Heart still pounding. You move on.", 0.90, 0),
-                    new EventResult("But you remember this spot. They nest here.", 0.10, 0)
-                        .MarksDiscovery("grouse nesting area", 0.4)
+                    new EventResult("Heart still pounding. You move on.", 1.0, 0)
                 ]);
     }
 }

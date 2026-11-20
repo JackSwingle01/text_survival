@@ -51,7 +51,7 @@ public static partial class GameEventRegistry
     public static List<Func<GameContext, GameEvent>> AllEventFactories { get; } =
     [
         // Weather events (GameEventRegistry.Weather.cs)
-        // Note: Whiteout, LostInFog, SuddenClearing, MassiveStormApproaching
+        // Note: Whiteout, LostInFog, SuddenClearing
         // are now intentional triggers via WeatherEventFactory (fire on transitions)
         StormApproaching,
         ColdExposure,  // Unified: FrostbiteWarning, ColdRainSoaking, BitterWind
@@ -77,7 +77,6 @@ public static partial class GameEventRegistry
         // Environmental signs
         TrailSignEvent,
         // Spatial discovery events
-        DistantSmoke,
         EdgeOfTheIce,
         // Early game aspiration
         TrackingSomething,
@@ -93,7 +92,6 @@ public static partial class GameEventRegistry
         EmbersScatter,
         RustleAtCampEdge,
         MeltingReveal,
-        MountainGlimpse,  // Early game goal-setting event
 
         // Threat events
         // Wildlife
@@ -206,7 +204,6 @@ public static partial class GameEventRegistry
         BaitedTrapAttention,
 
         // Foraging events
-        LuckyFind,
         BeehiveSpotted,
 
         // Equipment wear events (GameEventRegistry.Equipment.cs)
@@ -470,9 +467,9 @@ public static partial class GameEventRegistry
     /// </summary>
     private static EventChoiceDto BuildChoiceDto(GameContext ctx, EventChoice choice, int index)
     {
-        var maxCost = choice.GetMaxCost();
-        var costString = maxCost != null ? FormatCost(maxCost) : null;
-        var hasResources = maxCost == null || HasSufficientResources(ctx.Inventory, maxCost);
+        var maxCosts = choice.GetMaxCosts();
+        var costString = maxCosts.Count > 0 ? string.Join(", ", maxCosts.Select(FormatCost)) : null;
+        var hasResources = maxCosts.All(c => HasSufficientResources(ctx.Inventory, c));
 
         return new EventChoiceDto(
             SemanticId(choice.Label, index),
@@ -525,6 +522,8 @@ public static partial class GameEventRegistry
             ResourceType.Water => inv.Weight(Resource.Water) >= cost.Amount * 0.25,
             ResourceType.PlantFiber => inv.Count(Resource.PlantFiber) >= cost.Amount,
             ResourceType.Medicine => inv.GetCount(ResourceCategory.Medicine) >= cost.Amount,
+            ResourceType.Meat => inv.Count(Resource.RawMeat) + inv.Count(Resource.CookedMeat) >= cost.Amount,
+            ResourceType.Fish => inv.Count(Resource.RawFish) + inv.Count(Resource.CookedFish) >= cost.Amount,
             _ => true
         };
     }

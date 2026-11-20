@@ -35,7 +35,7 @@ public static partial class GameEventRegistry
                         .FindsSupplies(),
                     new EventResult("The shelter collapses under the wind. Worse than being outside.", 0.05, 35)
                         .WithCold(-12, 40)
-                        .DebrisDamage(5)
+                        .DebrisDamage(0.05)
                 ])
             .Choice("Head Back Now",
                 "Abort the expedition and get back to camp before the storm hits.",
@@ -159,7 +159,7 @@ public static partial class GameEventRegistry
                 new EventResult("It takes longer than expected, but the feeling returns.", 0.30, 20)
                     .WithCold(-5, 20),
                 new EventResult("Despite your efforts, the damage was already done. Your fingertips are numb.", 0.15, 15)
-                    .WithFrostbite(5, 0.3)
+                    .WithFrostbite(0.05, 0.3)
             ])
         .Choice("Push On",
             "You'll deal with it at camp. Just need to get back.",
@@ -186,7 +186,7 @@ public static partial class GameEventRegistry
                     .ModerateFrostbite()
                     .BurnsFuel(2),
                 new EventResult("The attempt makes things worse. Wet hands in extreme cold.", 0.05, 20)
-                    .Damage(10, DamageType.Internal)
+                    .Damage(0.1, DamageType.Internal, BodyTarget.AnyArm)
                     .BurnsFuel(1)
             ]);
     }
@@ -213,7 +213,7 @@ public static partial class GameEventRegistry
                     .WithCold(-8, 25),
                 new EventResult("Exhaustion plus cold. You're in serious trouble.", 0.35, 20)
                     .WithCold(-18, 50)
-                    .ExposureDamage(3),
+                    .ExposureDamage(0.03),
                 new EventResult("You find shelter faster than expected.", 0.20, 10)
                     .WithCold(-3, 15),
                 new EventResult("You push through successfully. Cold but alive.", 0.10, 5)
@@ -354,27 +354,6 @@ public static partial class GameEventRegistry
                         .Shaken(),
                     new EventResult("Nothing special visible. At least you know your surroundings now.", 0.05, 10)
                 ]);
-    }
-
-    /// <summary>
-    /// Prolonged Blizzard Warning - triggers during the calm phase before a massive blizzard
-    /// Now triggered intentionally via WeatherEventFactory when front enters calm phase.
-    /// </summary>
-    public static GameEvent GetMassiveStormApproaching(GameContext ctx) => MassiveStormApproaching(ctx);
-
-    private static GameEvent MassiveStormApproaching(GameContext ctx)
-    {
-        return new GameEvent("The Calm",
-            "The wind dies. The sky clears to an unnatural brightness. " +
-            "To the north, a band of grey-white stretches across the horizon. " +
-            "The trees have gone silent. The birds have fled.\n\n" +
-            "This is going to be bad. A storm unlike any you've seen is building. " +
-            "You have perhaps a day before it arrives in earnest.",
-            10.0)  // Very high weight to guarantee trigger
-            .Requires(EventCondition.CalmBeforeTheStorm)
-            .Choice("Continue",
-                "You make note of the warning signs.",
-                [new EventResult("You will need to prepare.", 1.0, 0)]);
     }
 
     /// <summary>

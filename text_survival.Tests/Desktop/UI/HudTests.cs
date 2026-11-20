@@ -1,3 +1,4 @@
+using text_survival.Tests.TestHelpers;
 using System.Numerics;
 using text_survival.Actions;
 using text_survival.Actors.Player;
@@ -124,9 +125,11 @@ public class HudTests
     [Fact]
     public void WorkOptionsKeepDomainIdsAndEveryOptionIsRepresented()
     {
-        var ctx = GameContext.CreateNewGame(seed: 1234);
+        var ctx = SmallGame.CreateWithStartingEquipment();
         var actions = HudActions.Build(ctx);
-        foreach (var option in ctx.CurrentLocation.GetWorkOptions(ctx))
+        var options = ctx.CurrentLocation.GetWorkOptions(ctx).ToList();
+        Assert.NotEmpty(options);
+        foreach (var option in options)
             Assert.Contains(actions, a => a.Id == $"work:{option.Id}" && a.Payload is PlayerAction.Work);
         Assert.Equal(actions.Count, actions.Select(a => a.Id).Distinct().Count());
     }
