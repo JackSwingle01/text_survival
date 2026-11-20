@@ -133,35 +133,52 @@ public static class Fire
 
     // ---- world queries ----
 
-    /// Radiant heat from the fire pits on a tile, as a °C rise over world.Weather.TemperatureC.
-    /// Torches are excluded: they warm only their carrier (HeatFor).
-    public static double HeatOutputAt(World world, TileId tile)
+    /// Everything fire does for one agent this minute, in °F (the old SurvivalContext and
+    /// Location.GetTemperature rules). AirHeatF warms the tile's air, embers included, damped
+    /// because open air carries heat away. PitHeatF is the radiant heat of flames on the tile,
+    /// felt against that warmed air, before the activity's proximity. TorchHeatF warms only
+    /// the carrier. A pit's walls cut the wind only while it burns.
+    public readonly record struct Warmth(double AirHeatF, double PitHeatF, double TorchHeatF, double WindProtectionLevel);
+
+    public static Warmth WarmthFor(World world, AgentId who)
     {
+        var tile = world.Agent(who).Tile;
         double ambientF = world.Weather.TemperatureC * 9 / 5 + 32;
-        double heatF = 0;
+        // ponytail: tile insulation is 0 until phase 2 brings shelters; then factor = Clamp(insulation + 0.4, 0.4, 1).
+        const double OpenAirHeatPct = 0.4;
+        double airHeatF = 0, torchHeatF = 0, windProtection = 0;
+        var pits = new List<FireState>();
         foreach (var (id, f) in world.Fires)
         {
-            if (f.CarriedBy != null || f.Tile != tile) continue;
-            RequireCurrent(world, id, f);
-            heatF += HeatOutputF(f, ambientF);
+            if (f.CarriedBy == who) { RequireCurrent(world, id, f); torchHeatF += HeatOutputF(f, 0); }
+            else if (f.CarriedBy == null && f.Tile == tile)
+            {
+                RequireCurrent(world, id, f);
+                airHeatF += HeatOutputF(f, ambientF) * OpenAirHeatPct;
+                pits.Add(f);
+            }
         }
-        return heatF * 5 / 9;
-    }
-
-    /// Everything warming one agent: pits on its tile plus torches it carries, °C rise.
-    public static double HeatFor(World world, AgentId who)
-    {
-        double torchF = 0;
-        foreach (var (id, f) in world.Fires)
-            if (f.CarriedBy == who) { RequireCurrent(world, id, f); torchF += HeatOutputF(f, 0); }
-        return HeatOutputAt(world, world.Agent(who).Tile) + torchF * 5 / 9;
+        double pitHeatF = 0;
+        foreach (var f in pits.Where(IsActive))
+        {
+            pitHeatF += HeatOutputF(f, ambientF + airHeatF);
+            windProtection = Math.Max(windProtection, WindProtectionLevel(f.Pit));
+        }
+        return new Warmth(airHeatF, pitHeatF, torchHeatF, windProtection);
     }
 
     /// Light enough to work by: flames on the tile, or a lit torch in hand. Embers are not light.
     public static bool HasLight(World world, AgentId who)
     {
         var tile = world.Agent(who).Tile;
-        return world.Fires.Values.Any(f => (f.CarriedBy == who || (f.CarriedBy == null && f.Tile == tile)) && IsActive(f));
+        bool lit = false;
+        foreach (var (id, f) in world.Fires)
+        {
+            if (f.CarriedBy != who && (f.CarriedBy != null || f.Tile != tile)) continue;
+            RequireCurrent(world, id, f);
+            lit |= IsActive(f);
+        }
+        return lit;
     }
 
     public static FireId? PitAt(World world, TileId tile)
@@ -332,18 +349,46 @@ public static class Fire
         return Math.Clamp(chance, 0.05, 0.95);
     }
 
-    /// Runs the one-shot part of a fire activity. Returns an interrupt reason when it could not be done.
-    public static string? Act(World world, Activity activity, List<WorldEvent> events) => activity switch
+    /// Why this fire activity cannot be done right now, or null. Checked before any time passes
+    /// or anything changes, so a refusal costs nothing. Fires around the agent must be caught up.
+    public static string? Refusal(World world, Activity activity)
     {
-        StartFire a => Start(world, a, events),
-        AddFuel a => Feed(world, a, events),
-        LightTorch a => Torch(world, a, events),
-        _ => throw new NotSupportedException($"{activity.GetType().Name} is not a fire activity"),
-    };
+        var tile = world.Agent(activity.Who).Tile;
+        var pit = PitAt(world, tile) is FireId id ? world.Fires[id] : null;
+        switch (activity)
+        {
+            case StartFire a:
+                if (Props[a.Tinder].MinFireTempF != 0) throw new ArgumentException($"{a.Tinder} cannot light from cold", nameof(activity));
+                if (pit == null) return null;
+                if (pit.Pit != a.Pit) return $"the pit here is {pit.Pit}, not {a.Pit}";
+                return CanAddFuel(pit, a.Tinder) ? null : "the fire is full";
+            case AddFuel a:
+                if (pit == null) return "no fire here";
+                if (CanAddFuel(pit, a.Fuel)) return null;
+                return TotalKg(pit) >= MaxFuelKg(pit.Pit) ? "the fire is full" : $"the fire is not hot enough for {a.Fuel}";
+            case LightTorch a:
+                return HasLight(world, a.Who) ? null : "no flame to light a torch from";
+            default:
+                throw new NotSupportedException($"{activity.GetType().Name} is not a fire activity");
+        }
+    }
+
+    /// Does the one-shot part of a fire activity Refusal allowed. Returns "fire did not catch"
+    /// when the ignition roll fails: the attempt still happened and cost its minute.
+    public static string? Act(World world, Activity activity, List<WorldEvent> events)
+    {
+        if (Refusal(world, activity) is string refused) throw new InvalidOperationException($"Fire.Act on a refused activity: {refused}");
+        return activity switch
+        {
+            StartFire a => Start(world, a, events),
+            AddFuel a => Feed(world, a, events),
+            LightTorch a => Torch(world, a, events),
+            _ => throw new NotSupportedException($"{activity.GetType().Name} is not a fire activity"),
+        };
+    }
 
     static string? Start(World world, StartFire a, List<WorldEvent> events)
     {
-        if (Props[a.Tinder].MinFireTempF != 0) throw new ArgumentException($"{a.Tinder} cannot light from cold", nameof(a));
         var tile = world.Agent(a.Who).Tile;
         // ponytail: dexterity and skill are 1.0 and 0 until Body exposes them
         double chance = StartChancePct(a.Tool, a.Tinder);
@@ -364,12 +409,10 @@ public static class Fire
     static string? Feed(World world, AddFuel a, List<WorldEvent> events)
     {
         var tile = world.Agent(a.Who).Tile;
-        if (PitAt(world, tile) is not FireId id) return "no fire here";
+        var id = PitAt(world, tile)!.Value;
         var f = world.Fires[id];
         bool wasEmbers = f.HasEmbers;
         double added = AddFuel(f, a.Fuel, a.Kg);
-        if (added <= 0)
-            return TotalKg(f) >= MaxFuelKg(f.Pit) ? "the fire is full" : $"the fire is not hot enough for {a.Fuel}";
         events.Add(new FuelAdded(world.Minute, id, a.Who, a.Fuel, added));
         if (wasEmbers && !f.HasEmbers) events.Add(new FireLit(world.Minute, id, tile, a.Who));
         return null;
@@ -379,7 +422,6 @@ public static class Fire
     static string? Torch(World world, LightTorch a, List<WorldEvent> events)
     {
         var tile = world.Agent(a.Who).Tile;
-        if (!HasLight(world, a.Who)) return "no flame to light a torch from";
         foreach (var (old, f) in world.Fires.ToList())
             if (f.CarriedBy == a.Who) world.Fires.Remove(old);
         // ponytail: torches are not consumed from an inventory until items are ported

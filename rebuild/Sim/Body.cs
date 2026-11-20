@@ -606,18 +606,19 @@ public static partial class Body
 
     // ---- healing ----
 
-    /// Mends the worst-hurt region first: its layers, then its organs.
+    /// Mends the worst-hurt region first: its layers, then its organs. A destroyed organ
+    /// (condition 0) is gone for good and is neither mended nor counted as hurt.
     public static void Heal(BodyState body, double amount)
     {
         var worst = body.Regions
-            .Select(r => (Region: r, Worst: r.Organs.Select(o => o.Condition).Append(r.Condition).Min()))
+            .Select(r => (Region: r, Worst: r.Organs.Where(o => o.Condition > 0).Select(o => o.Condition).Append(r.Condition).Min()))
             .Where(x => x.Worst < 1.0)
             .OrderBy(x => x.Worst)
             .Select(x => x.Region)
             .FirstOrDefault();
         if (worst == null) return;
 
-        foreach (var tissue in worst.Layers.Concat(worst.Organs))
+        foreach (var tissue in worst.Layers.Concat(worst.Organs.Where(o => o.Condition > 0)))
         {
             if (amount <= 0) return;
             if (tissue.Condition >= 1.0) continue;

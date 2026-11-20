@@ -229,9 +229,10 @@ public class FireTests
         var r = Sim.Step(world, new AddFuel(P, Fuel.Kindling, 2.0), 15);
         Assert.Null(r.InterruptedReason);
         Assert.Contains(r.Events, e => e is FuelAdded { Fuel: Fuel.Kindling });
-        Assert.True(Fire.HeatOutputAt(world, world.CampTile) > 0);
+        Assert.True(Fire.WarmthFor(world, P).PitHeatF > 0);
         Assert.True(Fire.HasLight(world, P));
-        Assert.Equal(0.0, Fire.HeatOutputAt(world, new TileId(0, 0)));
+        world.Agent(P).Tile = new TileId(0, 0);
+        Assert.Equal(default, Fire.WarmthFor(world, P));
     }
 
     [Fact]
@@ -251,7 +252,8 @@ public class FireTests
         world.Agent(P).Tile = new TileId(0, 0); // walk away; Step no longer touches the fire
         Sim.Step(world, new Wait(P), 180);
         Assert.True(world.Fires[id].LastUpdatedMinute < world.Minute);
-        Assert.Throws<InvalidOperationException>(() => Fire.HeatOutputAt(world, world.CampTile));
+        world.Agent(P).Tile = world.CampTile; // back, but nothing has caught the fire up
+        Assert.Throws<InvalidOperationException>(() => Fire.WarmthFor(world, P));
 
         var events = new List<WorldEvent>();
         Fire.CatchUp(world, id, events);
@@ -267,10 +269,10 @@ public class FireTests
     {
         var world = LitCamp();
         Sim.Step(world, new AddFuel(P, Fuel.Kindling, 2.0), 5);
-        Assert.Equal(Fire.HeatOutputAt(world, world.CampTile), Fire.HeatFor(world, P));
+        Assert.Equal(0.0, Fire.WarmthFor(world, P).TorchHeatF);
         Assert.Null(Sim.Step(world, new LightTorch(P), 1).InterruptedReason);
-        // A fresh torch adds 5°F to its carrier only, not to the tile.
-        Assert.Equal(5.0 * 5 / 9, Fire.HeatFor(world, P) - Fire.HeatOutputAt(world, world.CampTile), 6);
+        // A fresh torch adds 5°F to its carrier only, not to the tile. (One minute burned since lighting.)
+        Assert.Equal(3.0 + 2.0 * 59 / 60, Fire.WarmthFor(world, P).TorchHeatF, 6);
 
         world.Agent(P).Tile = new TileId(0, 0);
         Assert.True(Fire.HasLight(world, P));

@@ -29,6 +29,9 @@ foreach (string line in commands)
             case "wait": Run(new Wait(AgentId.Player), Minutes(parts)); break;
             case "rest": Run(new Rest(AgentId.Player), Minutes(parts)); break;
             case "sleep": Run(new Sleep(AgentId.Player), Minutes(parts)); break;
+            case "fire": Run(new StartFire(AgentId.Player, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1); break;
+            case "fuel": Run(new AddFuel(AgentId.Player, Enum.Parse<Fuel>(parts[1], ignoreCase: true), double.Parse(parts[2])), 1); break;
+            case "torch": Run(new LightTorch(AgentId.Player), 1); break;
             case "save":
                 File.WriteAllText(Path(parts), Save.ToJson(world));
                 Console.WriteLine($"Saved to {Path(parts)}");
@@ -37,10 +40,10 @@ foreach (string line in commands)
                 world = Save.FromJson(File.ReadAllText(Path(parts)));
                 Console.WriteLine($"Loaded {Path(parts)}");
                 break;
-            default: Console.WriteLine("Commands: wait N, rest N, sleep N, status, save [file], load [file], quit"); continue;
+            default: Console.WriteLine("Commands: wait N, rest N, sleep N, fire, fuel KIND KG, torch, status, save [file], load [file], quit"); continue;
         }
     }
-    catch (Exception e) when (e is FormatException or IndexOutOfRangeException or IOException)
+    catch (Exception e) when (e is FormatException or IndexOutOfRangeException or IOException or ArgumentException)
     {
         if (!interactive) throw; // a broken script should fail, not limp on
         Console.WriteLine($"Error: {e.Message}");
@@ -69,8 +72,11 @@ void PrintStatus(World w)
     string effects = string.Join(", ", b.Effects.Select(e => $"{e.Kind} {e.Severity:P0}"));
     Console.WriteLine($"{Clock(w.Minute)} | {w.Weather.TemperatureC:0}C wind {w.Weather.WindMps:0}m/s | " +
                       $"core {b.CoreTempF:0.0}F energy {b.EnergyPct:P0} food {b.CaloriesKcal:0}kcal water {b.HydrationMl:0}ml " +
-                      $"vitality {Body.Vitality(b):P0} | tile {p.Tile.X},{p.Tile.Y}" + (effects.Length > 0 ? $" | {effects}" : ""));
+                      $"vitality {Body.Vitality(b):P0} | tile {p.Tile.X},{p.Tile.Y}" + FireStatus(w, p.Tile) + (effects.Length > 0 ? $" | {effects}" : ""));
 }
+
+static string FireStatus(World w, TileId tile) =>
+    Fire.PitAt(w, tile) is FireId id ? $" | fire {Fire.Phase(w.Fires[id])} {Fire.TemperatureF(w.Fires[id]):0}F" : "";
 
 IEnumerable<string> ReadStdin()
 {

@@ -12,6 +12,8 @@ public sealed record SurvivalContext
     /// Radiant heat reaching this agent, °F added to the air. Withheld once the body is warm
     /// enough to sweat: anyone that hot shifts back from the fire long before sweating through a night.
     public double FireBonusF { get; init; }
+    /// A carried torch's heat, °F. Not withheld when sweating: you cannot step back from a torch in your hand.
+    public double TorchHeatF { get; init; }
     /// Whole-body clothing insulation, area-weighted.
     public double ClothingClo { get; init; }
     /// Thermal mass that stores warmth (the clothing heat buffer).
@@ -100,7 +102,7 @@ public static partial class Body
     public static double SkinTemperatureF(double coreF) =>
         coreF - (ConstrictedGradientF + VasomotorTone(coreF) * (DilatedGradientF - ConstrictedGradientF));
 
-    static double FireF(BodyState body, SurvivalContext ctx) => body.CoreTempF < SweatingThresholdF ? ctx.FireBonusF : 0;
+    static double FireF(BodyState body, SurvivalContext ctx) => (body.CoreTempF < SweatingThresholdF ? ctx.FireBonusF : 0) + ctx.TorchHeatF;
 
     static double ConvectiveCoefficient(SurvivalContext ctx) => 5.0 * (1.0 + ctx.WindLevel * 2.0);
 

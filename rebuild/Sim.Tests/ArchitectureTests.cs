@@ -9,6 +9,8 @@ public class ArchitectureTests
     [
         @"\bRaylib", @"\bImGui", @"\brlImGui", @"\bSystem\.Threading\b", @"\basync\b", @"\bawait\b",
         @"\bTask\b", @"\bValueTask\b", @"\bThread\b", @"\bParallel\b", @"\bDateTime\b", @"\bEnvironment\.TickCount",
+        // Determinism: every random draw goes through World.Rng, and nothing hashes by process-random seeds.
+        @"\bSystem\.Random\b", @"\bnew Random\b", @"\bRandom\.Shared\b", @"\bGuid\.NewGuid\b", @"\.GetHashCode\(",
     ];
 
     static string SimSourceDir()

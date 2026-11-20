@@ -113,7 +113,8 @@ public static class Effects
     {
         foreach (var e in body.Effects)
         {
-            double floor = e.RequiresTreatment ? TreatmentFloorPct : 0;
+            // The floor stops decay; it never raises a faint effect up to it.
+            double floor = e.RequiresTreatment ? Math.Min(TreatmentFloorPct, e.Severity) : 0;
             e.Severity = Math.Clamp(e.Severity + DefOf(e.Kind).SeverityPerHour / 60 * minutes, floor, 1);
         }
         body.Effects.RemoveAll(e => e.Severity <= 0);

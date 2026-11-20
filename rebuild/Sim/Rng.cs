@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// SplitMix64. Chosen over System.Random because its whole state is one serializable ulong.
+/// SplitMix64. Chosen over the BCL's Random because its whole state is one serializable ulong.
 public sealed class Rng
 {
     public ulong State { get; set; }
