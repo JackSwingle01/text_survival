@@ -29,8 +29,8 @@
   color-scheme: dark;
 }
 html, body { height: 100%; }
-body { background: var(--night); color: var(--bone); font: 500 15px/1.35 var(--f-body); overflow: hidden; }
-* { box-sizing: border-box; }
+body { background: var(--night); color: var(--bone); font: 500 15px/1.35 var(--f-body); overflow: hidden; font-variant-ligatures: none; }
+* { box-sizing: border-box; font-feature-settings: "liga" 0, "clig" 0, "calt" 0; }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--ochre); outline-offset: 2px; }
 
@@ -71,7 +71,7 @@ button { font: inherit; color: inherit; }
 
 /* ---------- top strip ---------- */
 .top { grid-area: top; display: flex; align-items: stretch; gap: 0; background: var(--ink-2); border-bottom: 2px solid var(--seam); padding-top: env(safe-area-inset-top, 0px); overflow-x: auto; }
-.top > div { padding: 8px 16px; display: flex; align-items: center; gap: 12px; border-right: 1px solid var(--seam); flex: none; }
+.top > div { padding: 8px 16px; display: flex; align-items: center; gap: 12px; border-right: 1px solid var(--seam); flex: none; white-space: nowrap; }
 .clock { display: grid !important; gap: 6px; min-width: 240px; }
 .clock-row { display: flex; align-items: baseline; gap: 10px; }
 .clock-time { font: 600 26px/1 var(--f-num); font-variant-numeric: tabular-nums; }
@@ -295,7 +295,7 @@ button { font: inherit; color: inherit; }
 /* receipt */
 .veil { position: absolute; inset: 0; background: rgba(8,10,12,.55); display: grid; place-items: center; z-index: 5; padding: 16px; }
 .receipt { width: min(460px, 100%); max-height: 100%; overflow: auto; display: grid; animation: drop .35s steps(4); }
-@keyframes drop { from { transform: translateY(-12px); opacity: 0; } }
+@keyframes drop { from { transform: translateY(-12px); } }
 .receipt header { padding: 14px 18px 12px; background: var(--ink-2); border-bottom: 2px solid var(--seam); display: grid; gap: 6px; }
 .receipt h3 { margin: 0; font: 500 21px/1 var(--f-pixel); }
 .receipt .span { display: flex; gap: 8px; align-items: center; color: var(--bone-2); font-size: 14px; }
@@ -332,6 +332,7 @@ button { font: inherit; color: inherit; }
   .side-head, .side-body, .survivor, .dock, .top { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .top > div { padding-left: 0; padding-right: 14px; margin-right: 14px; }
   .clock { min-width: 0; }
+  .tab .key { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
@@ -517,12 +518,12 @@ function capacities() {
   const shiver = effects().find(e => e.name === 'Shivering')?.sev || 0;
   return [
     { name: 'Manipulation', v: 1 - shiver * .06 - .06 - (S.damp > .2 ? .04 : 0) },
-    { name: 'Moving', v: 1 - .04 - .03 - Math.max(0, load() - 12) * .02 },
+    { name: 'Moving', v: 1 - .04 - .03 - Math.max(0, carryKg() - 12) * .02 },
     { name: 'Consciousness', v: S.vit.water < 50 ? .98 : 1 },
     { name: 'Breathing', v: 1 }, { name: 'Sight', v: ((S.now % DAY) / 60 > 18 || (S.now % DAY) / 60 < 7) ? .7 : 1 },
   ];
 }
-function load() { const i = S.inv; return i.birch * .05 + i.grass * .03 + i.sticks * .3 + i.pine * 1.2 + i.birchlog * 1.5 + i.meat + i.water + i.stone * .4 + i.fiber * .05 + i.usnea * .03 + 3.1; }
+function carryKg() { const i = S.inv; return i.birch * .05 + i.grass * .03 + i.sticks * .3 + i.pine * 1.2 + i.birchlog * 1.5 + i.meat + i.water + i.stone * .4 + i.fiber * .05 + i.usnea * .03 + 3.1; }
 
 // ---------------------------------------------------------------- time passes
 function advance(mins) {
@@ -786,7 +787,7 @@ function verbs() {
 const busy = () => S.walking || S.fireTry.running || S.forage.running;
 function renderDock() {
   $('dock').innerHTML = verbs().map(v => `<button class="verb" data-verb="${v.id}" aria-pressed="${S.panel === v.id}" ${busy() ? 'disabled' : ''}>
-      <img src="img/${v.icon}.png" alt=""><span class="vn">${v.name} <span class="key">${v.key}</span></span><span class="vt">${v.sub}</span></button>`).join('');
+      <img src="img/${v.icon}.png" alt=""><span class="vn">${px(v.name)} <span class="key">${v.key}</span></span><span class="vt">${v.sub}</span></button>`).join('');
 }
 function renderTabs() {
   const tabs = [['here', 'ui/location', 'Here', '1'], ['pack', 'ui/backpack', 'Pack', '2'], ['log', 'ui/journal', 'Journal', '3']];
@@ -804,8 +805,9 @@ function doVerb(v) {
 }
 
 // ---------------------------------------------------------------- right panel pieces
+const px = s => String(s).replace(/f(?=[il])/g, 'f\u200C'); // the pixel face draws "fi" as one glyph
 function head(icon, title, extra) {
-  $('sideHead').innerHTML = `<img class="ico x2" src="img/${icon}.png" alt=""><h2>${title}</h2>${extra || ''}`;
+  $('sideHead').innerHTML = `<img class="ico x2" src="img/${icon}.png" alt=""><h2>${px(title)}</h2>${extra || ''}`;
 }
 const cost = c => `<span class="cost"><img class="ico" src="img/ui/clock.png" alt="">${c}</span>`;
 function skillRow(name, fresh = 0, up = false) {
@@ -875,7 +877,7 @@ function renderHere() {
 
 // ----- pack
 function renderPack() {
-  const l = load(), i = S.inv;
+  const l = carryKg(), i = S.inv;
   head('ui/backpack', 'Pack', `<span class="cost num">${l.toFixed(1)} / 15 kg</span>`);
   const row = (icon, name, n, kg, tipL) => `<div class="it" ${tipL ? tipAttr(name, tipL) : ''}><img class="ico" src="img/ui/${icon}.png" alt=""><span>${name}</span><span class="n">${n}</span><span class="kg">${kg}</span></div>`;
   $('sideBody').innerHTML = `
@@ -1218,6 +1220,18 @@ addEventListener('keydown', e => {
   await Promise.all(Object.entries(SRC).map(async ([k, list]) => { IMG[k] = (await Promise.all(list.map(load))).filter(Boolean); }));
   await Promise.all(SPRITES.map(async s => { IMG[s] = await load(`img/${s}.png`); }));
   resize(); render(); requestAnimationFrame(frame);
+  // Local screenshot hook (?shot=name): drives the page into one state so it can be checked headless.
+  const shot = new URLSearchParams(location.search).get('shot');
+  if (shot === 'fire') doVerb('fire');
+  if (shot === 'fail') { doVerb('fire'); const r = Math.random; Math.random = () => .99; attemptFire(); Math.random = r; }
+  if (shot === 'forage') { doVerb('forage'); runForage(); }
+  if (shot === 'camp') walkTo(CAMP);
+  if (shot === 'tend') { S.player = { ...CAMP }; S.drawPos = { ...CAMP }; exploreAround(); arrive(S.seenCamp.at); closeReceipt(); doVerb('fire'); }
+  if (shot === 'sleep') { S.player = { ...CAMP }; S.drawPos = { ...CAMP }; exploreAround(); arrive(S.seenCamp.at); closeReceipt(); doVerb('sleep'); }
+  if (shot === 'failed') { doVerb('fire'); Object.assign(S.fireTry, { hist: [false, false], result: 'fail', stop: .87, fresh: 1 }); S.inv.birch -= 2; render(); }
+  if (shot === 'foraged') { doVerb('forage'); Object.assign(S.forage, { done: true, mood: 'good', found: { Sticks: { n: 7, icon: 'sticks', kg: .3 }, Tinder: { n: 3, icon: 'tinder', kg: .06 }, 'Birch bark': { n: 2, icon: 'tinder', kg: .06 } }, rare: ['Frozen ptarmigan', 'meat'], fresh: 4 }); render(); }
+  if (shot === 'receipt') { S.now += 16; S.player = { ...CAMP }; S.drawPos = { ...CAMP }; exploreAround(); render(); arrive(T(1, 10, 50)); }
+  if (shot === 'pack') { S.panel = 'pack'; render(); }  if (shot === 'log') { S.panel = 'log'; render(); }
 })();
 })();
 </script>
