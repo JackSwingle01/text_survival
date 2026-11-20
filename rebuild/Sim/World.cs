@@ -10,6 +10,9 @@ public sealed class World
     public Dictionary<AgentId, Agent> Agents { get; init; } = [];
     /// One RNG stream per system, keyed by system name. Lives here so a load resumes every stream exactly.
     public Dictionary<string, Rng> Rngs { get; init; } = [];
+    /// Fire pits and carried torches. Owned by the Fire system.
+    public Dictionary<FireId, FireState> Fires { get; init; } = [];
+    public int NextFireId { get; set; }
 
     public static World New(int seed)
     {
@@ -38,7 +41,8 @@ public sealed class Agent
 {
     public required AgentId Id { get; init; }
     public required TileId Tile { get; set; }
-    // Placeholder needs; the Body port replaces these.
-    public double EnergyPct { get; set; } = 1.0;
-    public double CaloriesKcal { get; set; } = 1500;
+    public BodyState Body { get; init; } = BodyState.BaselineHuman();
+    /// Whole-body clothing insulation and its weight. ponytail: two numbers until items exist; then derive from worn gear.
+    public double ClothingClo { get; set; } = 2.0;
+    public double ClothingWeightKg { get; set; } = 3.0;
 }

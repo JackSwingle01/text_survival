@@ -5,3 +5,9 @@ public abstract record Activity(AgentId Who);
 
 public sealed record Wait(AgentId Who) : Activity(Who);
 public sealed record Rest(AgentId Who) : Activity(Who);
+public sealed record Sleep(AgentId Who) : Activity(Who);
+
+// Fire activities act on the first minute; the agent stays by the fire for the rest.
+public sealed record StartFire(AgentId Who, FireStarter Tool, Fuel Tinder, double TinderKg, double KindlingKg, PitType Pit = PitType.Open) : Activity(Who);
+public sealed record AddFuel(AgentId Who, Fuel Fuel, double Kg) : Activity(Who);
+public sealed record LightTorch(AgentId Who) : Activity(Who);

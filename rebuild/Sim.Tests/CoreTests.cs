@@ -35,7 +35,7 @@ public class CoreTests
         Assert.Equal(json, Save.ToJson(loaded));
         Assert.True(json.Length < 1_000_000, $"Save is {json.Length} bytes");
         Assert.Equal(world.Rng("test").NextUlong(), loaded.Rng("test").NextUlong());
-        Assert.Equal(world.Agent(AgentId.Player).EnergyPct, loaded.Agent(AgentId.Player).EnergyPct);
+        Assert.Equal(world.Agent(AgentId.Player).Body.CoreTempF, loaded.Agent(AgentId.Player).Body.CoreTempF);
     }
 
     [Fact]
@@ -47,8 +47,10 @@ public class CoreTests
         Assert.Equal(60, world.Minute);
         Assert.Equal(60, result.MinutesElapsed);
         Assert.Null(result.InterruptedReason);
-        Assert.True(world.Agent(AgentId.Player).EnergyPct < 1);
-        Assert.True(world.Agent(AgentId.Player).CaloriesKcal < 1500);
+        var body = world.Agent(AgentId.Player).Body;
+        Assert.True(body.EnergyMinutes < 900);
+        Assert.True(body.CaloriesKcal < 1500);
+        Assert.True(body.HydrationMl < 3000);
     }
 
     [Fact]
@@ -58,22 +60,55 @@ public class CoreTests
         var result = Sim.Step(world, new Wait(AgentId.Player), 24 * 60);
 
         Assert.Equal("exhausted", result.InterruptedReason);
-        Assert.Equal(16 * 60, result.MinutesElapsed);
-        Assert.Collection(result.Events,
-            e => Assert.IsType<BecameTired>(e),
-            e => Assert.IsType<Exhausted>(e));
+        Assert.Equal(900, result.MinutesElapsed); // starts with 900 waking minutes left
+        int tired = result.Events.FindIndex(e => e is EffectStarted { Kind: EffectKind.Tired });
+        Assert.True(tired >= 0, "Tired should start before exhaustion");
+        Assert.IsType<Exhausted>(result.Events[^1]);
     }
 
     [Fact]
-    public void Rest_StopsWhenFullyRested()
+    public void Sleep_StopsWhenFullyRested()
     {
         var world = World.New(1);
-        Sim.Step(world, new Wait(AgentId.Player), 120);
-        var result = Sim.Step(world, new Rest(AgentId.Player), 600);
+        Sim.Step(world, new Wait(AgentId.Player), 120); // 780 of 960 left; sleep refills 2/min
+        var result = Sim.Step(world, new Sleep(AgentId.Player), 600);
 
         Assert.Equal("fully rested", result.InterruptedReason);
-        Assert.IsType<FullyRested>(Assert.Single(result.Events));
-        Assert.Equal(1.0, world.Agent(AgentId.Player).EnergyPct);
+        Assert.Equal(90, result.MinutesElapsed);
+        Assert.IsType<FullyRested>(result.Events[^1]);
+        Assert.Equal(1.0, world.Agent(AgentId.Player).Body.EnergyPct);
+    }
+
+    [Fact]
+    public void Rest_DoesNotRestoreEnergy_OnlySleepDoes()
+    {
+        var world = World.New(1);
+        Sim.Step(world, new Rest(AgentId.Player), 60);
+        Assert.Equal(840, world.Agent(AgentId.Player).Body.EnergyMinutes);
+    }
+
+    [Fact]
+    public void BleedingOut_EmitsDiedAndInterrupts_ThenTheDeadCannotAct()
+    {
+        var world = World.New(1);
+        Effects.Add(world.Agent(AgentId.Player).Body, EffectKind.Bleeding, 1.0);
+        var result = Sim.Step(world, new Wait(AgentId.Player), 600);
+
+        Assert.Equal("died", result.InterruptedReason);
+        Assert.IsType<Died>(result.Events[^1]);
+        Assert.Throws<InvalidOperationException>(() => Sim.Step(world, new Wait(AgentId.Player), 1));
+    }
+
+    [Fact]
+    public void Cold_ReachesTheBodyThroughWeather()
+    {
+        var warm = World.New(1);
+        warm.Weather = new Weather(TemperatureC: 20, WindMps: 0);
+        var cold = World.New(1);
+        cold.Weather = new Weather(TemperatureC: -30, WindMps: 10);
+        Sim.Step(warm, new Wait(AgentId.Player), 120);
+        Sim.Step(cold, new Wait(AgentId.Player), 120);
+        Assert.True(cold.Agent(AgentId.Player).Body.CoreTempF < warm.Agent(AgentId.Player).Body.CoreTempF);
     }
 
     [Fact]

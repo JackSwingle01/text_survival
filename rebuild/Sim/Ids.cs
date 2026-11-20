@@ -23,3 +23,17 @@ sealed class AgentIdConverter : JsonConverter<AgentId>
     public override void WriteAsPropertyName(Utf8JsonWriter w, AgentId id, JsonSerializerOptions o) =>
         w.WritePropertyName(id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
 }
+
+[JsonConverter(typeof(FireIdConverter))]
+public readonly record struct FireId(int Value);
+
+/// FireId keys World.Fires; same reason as AgentIdConverter.
+sealed class FireIdConverter : JsonConverter<FireId>
+{
+    public override FireId Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => new(r.GetInt32());
+    public override void Write(Utf8JsonWriter w, FireId id, JsonSerializerOptions o) => w.WriteNumberValue(id.Value);
+    public override FireId ReadAsPropertyName(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) =>
+        new(int.Parse(r.GetString() ?? throw new JsonException("FireId key is null")));
+    public override void WriteAsPropertyName(Utf8JsonWriter w, FireId id, JsonSerializerOptions o) =>
+        w.WritePropertyName(id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+}

@@ -28,6 +28,7 @@ foreach (string line in commands)
             case "status": break;
             case "wait": Run(new Wait(AgentId.Player), Minutes(parts)); break;
             case "rest": Run(new Rest(AgentId.Player), Minutes(parts)); break;
+            case "sleep": Run(new Sleep(AgentId.Player), Minutes(parts)); break;
             case "save":
                 File.WriteAllText(Path(parts), Save.ToJson(world));
                 Console.WriteLine($"Saved to {Path(parts)}");
@@ -36,7 +37,7 @@ foreach (string line in commands)
                 world = Save.FromJson(File.ReadAllText(Path(parts)));
                 Console.WriteLine($"Loaded {Path(parts)}");
                 break;
-            default: Console.WriteLine("Commands: wait N, rest N, status, save [file], load [file], quit"); continue;
+            default: Console.WriteLine("Commands: wait N, rest N, sleep N, status, save [file], load [file], quit"); continue;
         }
     }
     catch (Exception e) when (e is FormatException or IndexOutOfRangeException or IOException)
@@ -64,8 +65,11 @@ static string Clock(long minute) => $"day {minute / 1440 + 1} {minute % 1440 / 6
 void PrintStatus(World w)
 {
     var p = w.Agent(AgentId.Player);
+    var b = p.Body;
+    string effects = string.Join(", ", b.Effects.Select(e => $"{e.Kind} {e.Severity:P0}"));
     Console.WriteLine($"{Clock(w.Minute)} | {w.Weather.TemperatureC:0}C wind {w.Weather.WindMps:0}m/s | " +
-                      $"energy {p.EnergyPct:P0} calories {p.CaloriesKcal:0} | tile {p.Tile.X},{p.Tile.Y}");
+                      $"core {b.CoreTempF:0.0}F energy {b.EnergyPct:P0} food {b.CaloriesKcal:0}kcal water {b.HydrationMl:0}ml " +
+                      $"vitality {Body.Vitality(b):P0} | tile {p.Tile.X},{p.Tile.Y}" + (effects.Length > 0 ? $" | {effects}" : ""));
 }
 
 IEnumerable<string> ReadStdin()
