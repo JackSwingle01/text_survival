@@ -401,7 +401,8 @@ public static partial class Body
     }
 
     /// One minute of living: survival, sleep healing, effects starting and fading, bleeding.
-    public static void Update(BodyState body, SurvivalContext ctx, Rng rng)
+    /// woundsLived: a headless fight already lived this minute's bleeding and fading (BodyState.WoundsLivedThroughMinute).
+    public static void Update(BodyState body, SurvivalContext ctx, Rng rng, bool woundsLived = false)
     {
         var d = Process(body, ctx, 1, rng);
 
@@ -419,10 +420,10 @@ public static partial class Body
             if (kind is EffectKind.Wet or EffectKind.Bloody) Effects.Set(body, kind, severity);
             else Effects.Add(body, kind, severity);
         }
-        Effects.Decay(body, 1);
+        if (!woundsLived) Effects.Decay(body, 1);
 
         d.CoreTempDeltaF += Effects.CoreTempFPerHour(body) / 60;
-        double bleedMl = Effects.BleedMlPerHour(body) / 60;
+        double bleedMl = woundsLived ? 0 : Effects.BleedMlPerHour(body) / 60;
         if (bleedMl > 0) d.Damage.Add(new DamageInfo(bleedMl, DamageType.Bleed, BodyTarget.Blood));
 
         Apply(body, d, rng);
@@ -445,7 +446,7 @@ public static partial class Body
         var kindsBefore = body.Effects.Select(e => e.Kind).ToList();
         double energyBefore = body.EnergyMinutes;
 
-        Update(body, ctx, world.Rng("body"));
+        Update(body, ctx, world.Rng("body"), woundsLived: world.Minute <= body.WoundsLivedThroughMinute);
 
         var kindsAfter = body.Effects.Select(e => e.Kind).ToList();
         foreach (var k in kindsAfter.Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, k));

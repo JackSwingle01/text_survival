@@ -76,6 +76,10 @@ public sealed class BodyState
     /// Warmth stored in clothing's thermal mass, 0-1 of what it can hold.
     public double ClothingHeatBufferPct { get; set; } = 0.3;
     public List<BodyEffect> Effects { get; init; } = [];
+    /// A headless fight ticks its fighters' wounds round by round without moving the clock: the
+    /// world minutes up to this one have already been lived by this body's wounds (0: none).
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long WoundsLivedThroughMinute { get; set; }
     /// What this member wears; nothing for a bare animal. Clothing belongs to the body it is on.
     public List<Gear> Worn { get; init; } = [];
     /// Whole-body clothing insulation and its weight, derived from what is worn.

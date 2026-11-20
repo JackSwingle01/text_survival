@@ -32,7 +32,7 @@ public static class Traversal
     public static string? Refusal(World world, Travel t)
     {
         var agent = world.Agent(t.Who);
-        if (Body.GetCapacities(agent.Body).Moving <= 0.1) return "you can barely move";
+        if (agent.Members.Where(Body.IsAlive).Min(m => Body.GetCapacities(m).Moving) <= 0.1) return "you can barely move";
         return Map.Blocked(Map.Of(world), agent.Tile, Map.Step(agent.Tile, t.Dir));
     }
 
@@ -45,6 +45,8 @@ public static class Traversal
         var from = agent.Tile;
         var to = Map.Step(from, t.Dir);
         var sky = Weather.At(world, world.Minute);
+        if (agent.Mind is HerdMind)
+            return agent.Crossing = new Crossing { From = from, Dir = t.Dir, Pace = t.Pace, TotalMinutes = HerdCrossingMinutes(world, agent, from, to, sky) };
         bool quick = t.Pace == Pace.Quick;
         return agent.Crossing = new Crossing
         {
@@ -78,7 +80,7 @@ public static class Traversal
             if (riskPct <= 0 || world.Rng("travel").NextDouble() >= riskPct) continue;
             if (Injure(world, agent, tile, events) is string stop) return stop;
         }
-        if (to == Map.Of(world).Exit)
+        if (to == Map.Of(world).Exit && agent.Mind is PersonMind)
         {
             events.Add(new CrossedThePass(world.Minute, agent.Id));
             return "crossed the pass";
@@ -105,6 +107,18 @@ public static class Traversal
             if (IsHazardous(world, to)) entry = (int)Math.Ceiling(entry * CarefulFactor);
         }
         return Math.Max(MinimumCrossingMinutes, (int)Math.Ceiling(exit + entry + EdgeMinutes(world, from, to) + surface));
+    }
+
+    /// A herd moves at its slowest member's pace over the shape of the ground and the edge, and
+    /// does not stumble (no injury roll).
+    // ponytail: herds ignore today's snow and mud. Reading it would catch up the ground on every tile
+    // a herd crosses (a month of history each, and a ground state in the save); add it if herds in
+    // deep snow should visibly slow.
+    public static int HerdCrossingMinutes(World world, Agent herd, TileId from, TileId to, WeatherSample sky)
+    {
+        var m = Map.Of(world);
+        double speed = herd.Members.Where(Body.IsAlive).Min(b => Body.Speed(b));
+        return Math.Max(MinimumCrossingMinutes, SegmentMinutes(m, from, speed, sky) + SegmentMinutes(m, to, speed, sky) + EdgeMinutes(world, from, to));
     }
 
     /// Leaving or entering one tile: its base minutes, slowed by the shape of the ground, by a

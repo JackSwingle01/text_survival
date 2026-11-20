@@ -1,6 +1,32 @@
+using System.Text.Json.Serialization;
+
 namespace Survival;
 
 /// What an agent is doing. The player's UI and NPC AI both just pick one of these; Sim.Step runs it.
+/// Saved while an NPC or herd is part-way through one (Agent.Doing): a new activity type needs its
+/// line here, or saving a world where someone is doing it throws.
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+[JsonDerivedType(typeof(Wait), "wait")]
+[JsonDerivedType(typeof(Rest), "rest")]
+[JsonDerivedType(typeof(Sleep), "sleep")]
+[JsonDerivedType(typeof(StartFire), "startfire")]
+[JsonDerivedType(typeof(AddFuel), "addfuel")]
+[JsonDerivedType(typeof(LightTorch), "lighttorch")]
+[JsonDerivedType(typeof(GatherCharcoal), "gathercharcoal")]
+[JsonDerivedType(typeof(Gather), "gather")]
+[JsonDerivedType(typeof(Butcher), "butcher")]
+[JsonDerivedType(typeof(Eat), "eat")]
+[JsonDerivedType(typeof(Drink), "drink")]
+[JsonDerivedType(typeof(Cook), "cook")]
+[JsonDerivedType(typeof(MeltSnow), "meltsnow")]
+[JsonDerivedType(typeof(Stash), "stash")]
+[JsonDerivedType(typeof(Unstash), "unstash")]
+[JsonDerivedType(typeof(Wear), "wear")]
+[JsonDerivedType(typeof(Fight), "fight")]
+[JsonDerivedType(typeof(Travel), "travel")]
+[JsonDerivedType(typeof(Graze), "graze")]
+[JsonDerivedType(typeof(Feed), "feed")]
+[JsonDerivedType(typeof(Hunt), "hunt")]
 public abstract record Activity(AgentId Who);
 
 public sealed record Wait(AgentId Who) : Activity(Who);

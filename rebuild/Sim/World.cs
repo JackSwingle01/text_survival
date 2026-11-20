@@ -40,6 +40,8 @@ public sealed class World
     public List<Encounter> Encounters { get; init; } = [];
     /// Desire-path wear per edge, only edges something has walked. Owned by Tracks.
     public SortedDictionary<EdgeId, TrailWear> Trails { get; init; } = [];
+    /// The clock hour of the last sweep of faded tracks. Owned by Tracks.
+    public long TracksSweptHour { get; set; } = -1;
     public int NextCarcassId { get; set; }
     /// The pools generation put on each tile looked at so far; derived from Seed, never saved. Owned by Pools.
     internal Dictionary<TileId, IReadOnlyList<PoolDef>>? PoolCache;
@@ -49,6 +51,7 @@ public sealed class World
         var map = Map.Generate(seed);
         var world = new World { Seed = seed, GeneratedMap = map };
         world.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = map.Camp };
+        Fauna.Populate(world);
         return world;
     }
 

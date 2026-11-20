@@ -4,14 +4,14 @@ namespace Survival;
 public enum ForageFocus { General, Fuel, Food, Medicine, Materials }
 
 /// One step of work in progress: what Begin worked out, and what the minutes have added up to.
-/// Transient: lives for one Sim.Step, never saved.
+/// The player's lives for one Sim.Step; an NPC's is saved with what it is doing (Agent.Doing).
 public sealed class WorkSession
 {
     public required Activity Activity { get; init; }
     public int Minutes { get; set; }
-    public Inventory Got { get; } = new();
+    public Inventory Got { get; init; } = new();
     /// What did not fit in the pack and went on the tile's stash.
-    public Inventory Dropped { get; } = new();
+    public Inventory Dropped { get; init; } = new();
     public PoolId? Pool { get; init; }
     public double TargetMinutes { get; init; }
     public double DoneKg { get; set; }

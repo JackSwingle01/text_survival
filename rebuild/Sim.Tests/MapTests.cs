@@ -250,7 +250,10 @@ public class MapTests
         var world = World.New(17);
         string json = Save.ToJson(world);
         Assert.True(json.Length < 1_000_000, $"Save is {json.Length} bytes");
-        Assert.True(json.Length < 10_000, $"Save is {json.Length} bytes: generated terrain leaked into it?");
+        // The valley's herds are real state (their bodies and land); everything else must be tiny.
+        var bare = Save.FromJson(json);
+        foreach (var id in bare.Agents.Keys.Where(id => id != AgentId.Player).ToList()) bare.Agents.Remove(id);
+        Assert.True(Save.ToJson(bare).Length < 10_000, $"Save is {Save.ToJson(bare).Length} bytes without its herds: generated terrain leaked into it?");
         Assert.DoesNotContain("Mountain", json);
         Assert.Contains("\"Tiles\":{}", json);
 

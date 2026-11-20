@@ -24,9 +24,6 @@ public sealed record PlayerMind : PersonMind;
 /// The NPC utility AI picks the activities (phase 3d; state and decider live in Npc.cs).
 public sealed partial record NpcMind : PersonMind;
 
-/// A herd: carries nothing. Empty until phase 3b gives it territory, state, hunger and fear.
-public sealed record HerdMind : Mind;
-
 /// An agent's beliefs about the world (plan decision 7), kept minimal: which hidden pools it has
 /// found, and the search effort it has put into the ones it has not found yet.
 public sealed class Knowledge
@@ -49,6 +46,10 @@ public sealed class Agent
     [JsonIgnore] public BodyState Body => Members.Single();
     /// A tile crossing under way; the agent stays on Tile until it completes. Owned by Travel.
     public Crossing? Crossing { get; set; }
+    /// What an NPC or herd is doing until its mind decides again (Scheduler). Null for the player,
+    /// whose activities live inside one Sim.Step, and for an agent about to decide.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Doing? Doing { get; set; }
 }
 
 /// Making and splitting agents. A herd sends members, not itself, into a fight; a wounded member
@@ -56,14 +57,15 @@ public sealed class Agent
 public static class Agents
 {
     /// A new herd of this species on this tile, each member at its own random size (Species.NewBody).
-    public static AgentId Spawn(World world, Species species, TileId tile, int members)
+    /// Its territory is the tiles it patrols and grazes, its den first; by default just this tile.
+    public static AgentId Spawn(World world, Species species, TileId tile, int members, List<TileId>? territory = null)
     {
         if (members < 1) throw new ArgumentOutOfRangeException(nameof(members), members, "An agent has at least one member");
         var rng = world.Rng("fauna");
         var id = NewId(world);
         world.Agents[id] = new Agent
         {
-            Id = id, Tile = tile, Species = species, Mind = new HerdMind(),
+            Id = id, Tile = tile, Species = species, Mind = Fauna.NewMind(world, species, territory ?? [tile]),
             Members = Enumerable.Range(0, members).Select(_ => SpeciesTable.NewBody(species, rng)).ToList(),
         };
         return id;

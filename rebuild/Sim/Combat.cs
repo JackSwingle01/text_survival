@@ -194,8 +194,8 @@ public static partial class Combat
 
     /// How readily a herd comes at a target (old Herd.BoldnessToward): species temperament, pack size,
     /// the target's wounds, the night. It decides whether a predator engages and seeds its morale
-    /// (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear belong to phase 3b's HerdMind;
-    /// until then they are parameters, neutral by default.
+    /// (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear live on HerdMind (Fauna);
+    /// callers pass them in (neutral by default).
     public static double Boldness(World world, AgentId herd, BodyState target, bool defending = false,
         double hunger = 0, double fear = 0, bool targetCarriesMeat = false)
     {
@@ -500,8 +500,13 @@ public static partial class Combat
                 if (unit.InField) RunDetection(world, enc, unit, huntingSkill: 0, ExposureMeters(before, unit.Position));
             }
             // Each round's wounds tick without world.Minute moving: a headless fight spends no world time.
-            // A future per-agent catch-up must not re-apply these minutes to the fighters' bodies.
-            foreach (var u in Field(enc).ToList()) Body.TickWounds(BodyOf(world, u), world.Rng("body"));
+            // The round is that body's next minute of bleeding, so whoever lives that minute must not bleed it again.
+            foreach (var u in Field(enc).ToList())
+            {
+                var body = BodyOf(world, u);
+                Body.TickWounds(body, world.Rng("body"));
+                body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute + round + 1);
+            }
             Sweep(world, enc, events, by: null);
             enc.Rounds++;
         }

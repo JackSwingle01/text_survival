@@ -65,7 +65,12 @@ public static class Tracks
             throw new ArgumentOutOfRangeException(nameof(individuals), $"{individuals} x {individualDepth}: a move needs feet");
         long now = world.Minute;
         double erosion = ErosionAt(world, now);
-        Sweep(world, now, erosion);
+        // Once a clock hour at most: with herds walking, a sweep per crossing was most of the cost of a month.
+        if (now / 60 != world.TracksSweptHour)
+        {
+            world.TracksSweptHour = now / 60;
+            Sweep(world, now, erosion);
+        }
 
         var heading = HeadingOf(from, to);
         Stamp(world, from, maker, heading, individuals, individualDepth, now, erosion);
@@ -166,7 +171,7 @@ public static class Tracks
 
     /// Drop signs and wear the weather has finished with, so the save holds only what is there.
     /// Erosion only rises, so dead stays dead and dropping it changes no reading.
-    // ponytail: a full sweep per crossing, O(tiles + edges). Sweep on a clock if phase-3 herds make moves frequent.
+    // ponytail: a full sweep, O(tiles + edges), at most hourly; index tracks by expiry if the save grows large.
     static void Sweep(World world, long now, double erosion)
     {
         foreach (var (tile, state) in world.Tiles.ToList())
@@ -226,19 +231,18 @@ public static class Tracks
 
     // ---- who leaves what ----
 
-    // ponytail: humans only until phase 3 species. Then Paw for predators, Hoof for the rest, and depth
-    // Math.Clamp(Math.Sqrt(weightKg / 70), 0.4, 3.0) per member (old AnimalType.Tracks / IndividualTrackDepth).
-    public static TrackMaker MakerOf(Species species) => species switch
+    /// What shape of print a species leaves (old AnimalType.Tracks): people, pads, hooves.
+    public static TrackMaker MakerOf(Species species) => SpeciesTable.Of(species).Role switch
     {
-        Species.Human => TrackMaker.Human,
-        _ => throw new ArgumentOutOfRangeException(nameof(species), species, "No track maker"),
+        Role.Human => TrackMaker.Human,
+        Role.Predator or Role.Scavenger => TrackMaker.Paw,
+        _ => TrackMaker.Hoof,
     };
 
-    public static double IndividualDepth(Species species) => species switch
-    {
-        Species.Human => 1.0,
-        _ => throw new ArgumentOutOfRangeException(nameof(species), species, "No track depth"),
-    };
+    /// How heavily one of them marks the ground, an adult human at 1 (old IndividualTrackDepth):
+    /// with the square root of body mass, so a mammoth prints far deeper than a fox, not seventy times.
+    public static double IndividualDepth(Species species) =>
+        species == Species.Human ? 1.0 : Math.Clamp(Math.Sqrt(SpeciesTable.Of(species).WeightKg / 70.0), 0.4, 3.0);
 }
 
 /// Prefix sums of erosion over the seed's front states, which hold the sky constant from one
