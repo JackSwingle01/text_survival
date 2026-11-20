@@ -131,9 +131,14 @@ public class Phase2GateTests(ITestOutputHelper output)
         Assert.True(File.Exists(cli), $"no CLI build at {cli}");
         string dotnet = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
 
-        string RunCli(string save)
+        // A fresh directory and bare file names: the CLI splits commands on spaces, so a temp path
+        // with a space in it would save somewhere else and leave nothing to compare.
+        string work = Path.Combine(Path.GetTempPath(), "cli-determinism-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(work);
+
+        string? RunCli(string save)
         {
-            var psi = new ProcessStartInfo(dotnet) { RedirectStandardOutput = true, RedirectStandardError = true };
+            var psi = new ProcessStartInfo(dotnet) { RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = work };
             foreach (string arg in new[] { cli, "--seed", "17", "wait 30", "fire", "fuel birch 3", "w", "e careful",
                          "e", "rest 120", "w careful", "sleep 480", $"save {save}" })
                 psi.ArgumentList.Add(arg);
@@ -142,23 +147,24 @@ public class Phase2GateTests(ITestOutputHelper output)
             catch (System.ComponentModel.Win32Exception e)
             {
                 output.WriteLine($"SKIPPED: cannot start '{dotnet}' ({e.Message}); cross-process determinism not checked");
-                return "";
+                return null;
             }
             string stdout = p.StandardOutput.ReadToEnd(), stderr = p.StandardError.ReadToEnd();
             p.WaitForExit();
             Assert.True(p.ExitCode == 0, $"CLI failed ({p.ExitCode}): {stderr}\n{stdout}");
-            return File.ReadAllText(save);
+            string path = Path.Combine(work, save);
+            Assert.True(File.Exists(path), $"the CLI wrote no save at {path}");
+            return File.ReadAllText(path);
         }
 
-        string a = Path.GetTempFileName(), b = Path.GetTempFileName();
         try
         {
-            string first = RunCli(a);
-            if (first == "") return;
-            string second = RunCli(b);
+            string? first = RunCli("a.json");
+            if (first == null) return; // only when the process cannot be started at all
+            string? second = RunCli("b.json");
             Assert.True(first.Length > 1000, "the save should hold a world");
             Assert.Equal(first, second);
         }
-        finally { File.Delete(a); File.Delete(b); }
+        finally { Directory.Delete(work, recursive: true); }
     }
 }

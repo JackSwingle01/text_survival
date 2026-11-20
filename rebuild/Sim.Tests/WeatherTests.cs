@@ -466,4 +466,15 @@ public class WeatherTests
         Assert.Equal(0, Sky(0, -5, 0, 0.5, 1, WeatherCondition.Whiteout).SnowfallWeMPerMinute);
         Assert.Equal(0.5 * 0.010 / 60, Sky(0, 1, 0, 0.5, 1, WeatherCondition.FreezingRain).RainfallMPerMinute, 15);
     }
+
+    [Fact]
+    public void Condition_FollowsTemperature_EvenAfterAWith()
+    {
+        // Regression: Condition was stored at construction, so `with { TemperatureC = … }` kept a stale phase.
+        var warmSnow = Sky(0, 5, 0, 0.5, 1, WeatherCondition.LightSnow);
+        Assert.Equal(WeatherCondition.Rainy, warmSnow.Condition);
+        Assert.Equal(WeatherCondition.LightSnow, (warmSnow with { TemperatureC = -10 }).Condition);
+        var coldSnow = Sky(0, -10, 0, 0.5, 1, WeatherCondition.LightSnow);
+        Assert.Equal(WeatherCondition.Rainy, (coldSnow with { TemperatureC = 10 }).Condition);
+    }
 }

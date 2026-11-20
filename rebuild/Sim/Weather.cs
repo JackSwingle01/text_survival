@@ -13,12 +13,13 @@ public enum FrontType { ClearSpell, StormSystem, ColdSnap, Warming, UnsettledPer
 /// old fronts had no diurnal curve); the day/night swing reaches a person through the sun term
 /// of Weather.ExposedAirF.
 public readonly record struct WeatherSample(
-    long Minute, WeatherCondition Condition, double TemperatureC, double WindLevel,
+    long Minute, WeatherCondition Rolled, double TemperatureC, double WindLevel,
     double PrecipitationPct, double CloudCoverPct, WindDirection Heading, FrontType Front = FrontType.ClearSpell)
 {
-    /// What is actually falling: the rolled condition with its phase set by the air temperature
-    /// (Weather.PhaseOf). Everything below (wetting, ground, visibility, sun) reads this one value.
-    public WeatherCondition Condition { get; init; } = Weather.PhaseOf(Condition, TemperatureC);
+    /// What is actually falling: the front's rolled condition with its phase set by the air temperature
+    /// (Weather.PhaseOf). Derived, never stored, so a `with` on TemperatureC can't leave it stale.
+    /// Everything below (wetting, ground, visibility, sun) reads this one value.
+    [System.Text.Json.Serialization.JsonIgnore] public WeatherCondition Condition => Weather.PhaseOf(Rolled, TemperatureC);
 
     public double TemperatureF => TemperatureC * 9 / 5 + 32;
     /// WindLevel 1 is a 45 mph gale.
