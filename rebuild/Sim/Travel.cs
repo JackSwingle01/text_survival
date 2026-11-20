@@ -8,6 +8,8 @@ public enum Pace { Quick, Careful }
 /// Risks are fixed when the crossing starts, as the old TravelRunner fixed them before the walk.
 public sealed class Crossing
 {
+    /// Where the crossing started. Only resumed from this tile: an agent moved by anything else starts afresh.
+    public required TileId From { get; init; }
     public required Direction Dir { get; init; }
     public required Pace Pace { get; init; }
     public required int TotalMinutes { get; init; }
@@ -34,18 +36,19 @@ public static class Traversal
         return Map.Blocked(Map.Of(world), agent.Tile, Map.Step(agent.Tile, t.Dir));
     }
 
-    /// The crossing this activity continues, or a fresh one. A crossing in another direction, or
-    /// at another pace, is abandoned: the agent never left its tile.
+    /// The crossing this activity continues, or a fresh one. A crossing in another direction, at
+    /// another pace, or from a tile the agent is no longer on, is abandoned.
     public static Crossing Begin(World world, Travel t)
     {
         var agent = world.Agent(t.Who);
-        if (agent.Crossing is { } c && c.Dir == t.Dir && c.Pace == t.Pace) return c;
+        if (agent.Crossing is { } c && c.Dir == t.Dir && c.Pace == t.Pace && c.From == agent.Tile) return c;
         var from = agent.Tile;
         var to = Map.Step(from, t.Dir);
         var sky = Weather.At(world, world.Minute);
         bool quick = t.Pace == Pace.Quick;
         return agent.Crossing = new Crossing
         {
+            From = from,
             Dir = t.Dir,
             Pace = t.Pace,
             TotalMinutes = CrossingMinutes(world, agent.Body, from, to, t.Pace, sky),
@@ -61,7 +64,8 @@ public static class Traversal
         var c = agent.Crossing ?? throw new InvalidOperationException($"{agent.Id} is not crossing");
         if (++c.ElapsedMinutes < c.TotalMinutes) return null;
 
-        var from = agent.Tile;
+        if (c.From != agent.Tile) throw new InvalidOperationException($"{agent.Id} is crossing from {c.From} but stands on {agent.Tile}");
+        var from = c.From;
         var to = Map.Step(from, c.Dir);
         agent.Tile = to;
         agent.Crossing = null;
@@ -84,7 +88,9 @@ public static class Traversal
 
     // ---- cost ----
 
-    /// Old TravelProcessor.GetTraversalMinutes with the pace applied as TravelRunner applied it.
+    /// Old TravelProcessor.GetTraversalMinutes with the pace applied as TravelRunner applied it,
+    /// and the surface excess in: this is the time the crossing actually lasts.
+    /// old game: TravelRunner walked GetTraversalMinutes, which left the surface excess out (bug, fixed).
     public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky)
     {
         var m = Map.Of(world);
@@ -185,7 +191,8 @@ public static class Traversal
     ];
 
     /// Old VariantSelector.SelectTravelInjuryVariant: ice slips beside a river, otherwise worse
-    /// pools as the ground gets worse.
+    /// pools as the ground gets worse. Every question is asked of the injured segment's own tile.
+    /// old game: InjuryVariant.HasIce read the destination's river for the origin's injury too (bug, fixed).
     static (Accident[] Pool, double Weight)[] AccidentPools(GeneratedMap m, TileId tile)
     {
         double severity = Map.TerrainHazardLevel(m, tile);

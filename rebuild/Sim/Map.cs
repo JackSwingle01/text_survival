@@ -24,7 +24,7 @@ public sealed class TileState
     /// Footprints, one sign per kind of maker. Owned by Tracks; null when the ground is clean.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<TrackMaker, Track>? Tracks { get; set; }
-    /// Snow, water and ice on the ground. Owned by Ground; null until the tile has lived past minute 0.
+    /// Snow, water and ice on the ground. Owned by Ground; null until the tile is first observed.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public GroundState? Ground { get; set; }
 }
@@ -184,7 +184,7 @@ public static class Map
         return Math.Max(1, (int)Math.Round((terrainBase + hazardBonus) * TraversalModifier(m, t)));
     }
 
-    /// How much of the wind reaches this tile. For Weather to scale wind by; travel does not read it yet.
+    /// How much of the wind reaches this tile: what a person feels (wind chill) and the ground.
     public static double WindFactor(GeneratedMap m, TileId t) =>
         m.StageAt(t)?.WindFactor ?? (t == m.Camp ? 0.4 : m.CaveAt(t) switch
         {
@@ -193,7 +193,24 @@ public static class Map
             _ => m.TerrainAt(t).BaseWindFactor(),
         });
 
-    /// How much colder this tile is than the regional air (the pass stages). For Weather to apply.
+    static readonly double[] StageCover = [0.05, 0.0, 0.0, 0.0, 0.1, 0.3];
+
+    /// Overhead cover 0-1: canopy, rock overhang, cave roof. Old terrain BaseOverheadCover and the
+    /// camp, cave and pass-stage factories. What keeps sun, rain and snow off both the ground and a person.
+    // ponytail: camp's old Overhang shelter (insulation 0.55, its own overhead coverage) is named-location content, phase 4.
+    public static double OverheadCover(GeneratedMap m, TileId t)
+    {
+        if (m.PassStageIndex.TryGetValue(t, out int stage)) return StageCover[stage];
+        if (t == m.Camp) return 0.3;
+        return m.CaveAt(t) switch
+        {
+            Cave.Entrance => 0.6,
+            Cave.Floor => 1.0,
+            _ => m.TerrainAt(t) switch { Terrain.Forest => 0.5, Terrain.Clearing or Terrain.Rock => 0.1, _ => 0 },
+        };
+    }
+
+    /// How much colder this tile is than the regional air (the pass stages).
     public static double TemperatureDeltaF(GeneratedMap m, TileId t) => m.StageAt(t)?.TemperatureDeltaF ?? 0;
 
     public static string Describe(GeneratedMap m, TileId t) =>

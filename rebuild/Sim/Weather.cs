@@ -16,6 +16,10 @@ public readonly record struct WeatherSample(
     long Minute, WeatherCondition Condition, double TemperatureC, double WindLevel,
     double PrecipitationPct, double CloudCoverPct, WindDirection Heading, FrontType Front = FrontType.ClearSpell)
 {
+    /// What is actually falling: the rolled condition with its phase set by the air temperature
+    /// (Weather.PhaseOf). Everything below (wetting, ground, visibility, sun) reads this one value.
+    public WeatherCondition Condition { get; init; } = Weather.PhaseOf(Condition, TemperatureC);
+
     public double TemperatureF => TemperatureC * 9 / 5 + 32;
     /// WindLevel 1 is a 45 mph gale.
     public double WindMph => WindLevel * Weather.MaxWindMph;
@@ -61,9 +65,32 @@ public static class Weather
 {
     public const double MaxWindMph = 45.0;
 
+    /// Snow above this falls as rain; rain below the matching low edge falls as snow. Between the
+    /// two either phase is plausible and the front's own choice stands.
+    public const double RainAboveC = 1.0, SnowBelowC = -1.0;
+
+    /// Old FrontPatterns rolled snow states across the whole seasonal range and had no rain state,
+    /// so July fronts snowed at +15 °C and summer storms rained at -10 °C.
+    /// old game: precipitation phase ignored temperature (bug, fixed).
+    public static WeatherCondition PhaseOf(WeatherCondition c, double temperatureC) => c switch
+    {
+        WeatherCondition.LightSnow or WeatherCondition.HeavySnow when temperatureC > RainAboveC => WeatherCondition.Rainy,
+        WeatherCondition.Blizzard when temperatureC > RainAboveC => WeatherCondition.Stormy,
+        // A whiteout is fallen snow blown about; above freezing nothing drifts, and the murk is fog.
+        WeatherCondition.Whiteout when temperatureC > RainAboveC => WeatherCondition.Misty,
+        WeatherCondition.Rainy when temperatureC < SnowBelowC => WeatherCondition.LightSnow,
+        WeatherCondition.Stormy when temperatureC < SnowBelowC => WeatherCondition.Blizzard,
+        _ => c,
+    };
+
     // ---- calendar: world minute 0 is July 1, 09:00 (the old GameContext.StartTime) ----
 
     const int StartDayOfYear = 182, StartMinuteOfDay = 9 * 60, DaysPerYear = 365; // ponytail: no leap years
+    /// The old game (GameContext.CreateNewGame) built its weather 30 days before the start and
+    /// ran it forward, so turn 1 opens a month into the fronts, long past the gentle Initial one.
+    /// The timeline starts here; world minute 0 is still July 1, 09:00.
+    public const long PreRollMinutes = 30 * 1440L;
+    /// Relative to game start, as old Weather.IsInGracePeriod: the whole pre-roll is inside it.
     const int GracePeriodMinutes = 7 * 1440;
 
     static long CalendarMinute(long minute) => minute + (StartDayOfYear - 1) * 1440L + StartMinuteOfDay;
@@ -119,22 +146,35 @@ public static class Weather
         return 35.74 + 0.6215 * temperatureF - 35.75 * v + 0.4275 * temperatureF * v;
     }
 
-    /// Air a person feels on an exposed tile before any fire: old Location.GetTemperatureBreakdown
-    /// steps 1-2 (wind chill, sun, precipitation cooling). Fire heat is measured against this.
-    // ponytail: exposed tile only (WindFactor 1, OverheadCover 0, TemperatureDeltaF 0, no shelter); the map supplies those next.
-    public static double ExposedAirF(WeatherSample s, double fireWindProtectionLevel)
+    /// Air a person feels before any fire: old Location.GetTemperatureBreakdown steps 1-2 (the
+    /// tile's own cold, wind chill through the tile's wind factor, sun and precipitation through
+    /// its cover). Fire heat is measured against this. The defaults are a fully exposed tile.
+    // ponytail: no shelter step until phase 4 shelters (old step 3, a 40 °F floor scaled by insulation).
+    public static double ExposedAirF(WeatherSample s, double fireWindProtectionLevel,
+        double windFactor = 1, double overheadCoverLevel = 0, double temperatureDeltaF = 0)
     {
-        double t = s.TemperatureF;
-        if (s.WindLevel > 0.1) t = WindChillF(t, s.WindMph * (1 - fireWindProtectionLevel));
-        t += s.SunlightLevel * 15 * Math.Clamp((50 - t) / 30, 0.5, 1); // sun is felt more in the cold
-        t -= s.PrecipitationPct * 5;
+        double t = s.TemperatureF + temperatureDeltaF;
+        // The threshold reads the regional wind, as old; the chill reads what reaches this tile.
+        if (s.WindLevel > 0.1) t = WindChillF(t, s.WindMph * windFactor * (1 - fireWindProtectionLevel));
+        double exposure = 1 - overheadCoverLevel;
+        t += s.SunlightLevel * exposure * 15 * Math.Clamp((50 - t) / 30, 0.5, 1); // sun is felt more in the cold
+        t -= s.PrecipitationPct * exposure * 5;
         return t;
+    }
+
+    /// ExposedAirF on a map tile, with that tile's wind factor, cover and cold.
+    public static double AirAtF(World world, TileId tile, WeatherSample s, double fireWindProtectionLevel)
+    {
+        var m = Map.Of(world);
+        return ExposedAirF(s, fireWindProtectionLevel, Map.WindFactor(m, tile), Map.OverheadCover(m, tile), Map.TemperatureDeltaF(m, tile));
     }
 
     // ---- the weather at a minute ----
 
     public static WeatherSample At(World world, long minute)
     {
+        // Negative minutes are the pre-roll: the month of weather the world has already lived.
+        if (minute < -PreRollMinutes) throw new ArgumentOutOfRangeException(nameof(minute), minute, "Weather starts with the pre-roll");
         if (world.FixedWeather is WeatherSample fixedSky) return fixedSky with { Minute = minute };
         return Timeline(world).At(minute);
     }
@@ -165,7 +205,7 @@ public static class Weather
     }
 
     /// Front k's pattern. The old game drew each front one ahead, when the front before it began,
-    /// so season and grace period are read at that minute.
+    /// so season and grace period are read at that minute (negative during the pre-roll).
     static (FrontType Type, List<State> States) Generate(Rng r, int k, long generatedAtMinute)
     {
         var season = SeasonAt(generatedAtMinute);
@@ -353,11 +393,14 @@ internal sealed class WeatherTimeline(int seed)
 {
     readonly List<Weather.Spell> spells = [];
     int nextFront;
-    long nextStart, nextGeneratedAt; // the old game drew front k when front k-1 began
+    // The old game drew front k when front k-1 began; front 0 and 1 both at the pre-roll start.
+    long nextStart = -Weather.PreRollMinutes, nextGeneratedAt = -Weather.PreRollMinutes;
 
+    /// Any minute from the start of the pre-roll; the world itself only lives minutes from 0.
     public WeatherSample At(long minute)
     {
-        if (minute < 0) throw new ArgumentOutOfRangeException(nameof(minute), minute, "Weather starts at minute 0");
+        if (minute < -Weather.PreRollMinutes)
+            throw new ArgumentOutOfRangeException(nameof(minute), minute, "Weather starts with the pre-roll");
         while (nextStart <= minute) ExtendOneFront();
         int lo = 0, hi = spells.Count - 1;
         while (lo < hi) // last spell starting at or before minute

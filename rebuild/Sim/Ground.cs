@@ -127,29 +127,13 @@ public static class Ground
     public static SubstrateProfile Substrate(GeneratedMap m, TileId t) =>
         m.StageAt(t) != null || m.CaveAt(t) != Cave.None ? SubstrateProfile.Rock : SubstrateProfile.For(m.TerrainAt(t));
 
-    static readonly double[] StageCover = [0.05, 0.0, 0.0, 0.0, 0.1, 0.3];
-
-    /// Overhead cover 0-1: canopy, rock overhang, cave roof. Old terrain BaseOverheadCover and the
-    /// camp, cave and pass-stage factories.
-    public static double OverheadCover(GeneratedMap m, TileId t)
-    {
-        if (m.PassStageIndex.TryGetValue(t, out int stage)) return StageCover[stage];
-        if (t == m.Camp) return 0.3;
-        return m.CaveAt(t) switch
-        {
-            Cave.Entrance => 0.6,
-            Cave.Floor => 1.0,
-            _ => m.TerrainAt(t) switch { Terrain.Forest => 0.5, Terrain.Clearing or Terrain.Rock => 0.1, _ => 0 },
-        };
-    }
-
     /// Old Location.GetSurfaceWeather: the regional sky with this tile's cover, wind and cold
     /// applied exactly once. A whiteout deposits nothing (WeatherSample's snowfall is zero).
     public static SurfaceWeather WeatherAt(World world, TileId tile, long minute)
     {
         var m = Map.Of(world);
         var s = Weather.At(world, minute);
-        double exposure = 1 - OverheadCover(m, tile);
+        double exposure = 1 - Map.OverheadCover(m, tile);
         return new SurfaceWeather(
             AirTemperatureF: s.TemperatureF + Map.TemperatureDeltaF(m, tile),
             WindLevel: Math.Clamp(s.WindLevel * Map.WindFactor(m, tile), 0, 1),
@@ -173,8 +157,12 @@ public static class Ground
     // ---- lazy catch-up ----
 
     /// The tile's ground as of the latest StepMinutes boundary at or before world.Minute,
-    /// simulated forward from wherever it was last left (minute 0 baseline if never). Stored in
-    /// World.Tiles once it has lived any time; before the first boundary it is the unsaved baseline.
+    /// simulated forward from wherever it was last left. A tile never observed starts frozen
+    /// through at HistoryStartMinute and lives every minute since, so in the game it has the month
+    /// of weather before minute 0 behind it, as the old Settle pass would have if ground had been
+    /// cheap enough to run on every tile: here only observed tiles pay, about 2 ms each. Stored in
+    /// World.Tiles once it has lived any time; until then it is the unsaved baseline.
+    /// old game: day 1 opened on ground frozen through in July, whatever the weather (bug, fixed).
     public static GroundState CatchUp(World world, TileId tile)
     {
         long target = world.Minute / StepMinutes * StepMinutes;
@@ -183,8 +171,9 @@ public static class Ground
         var state = ts?.Ground;
         if (state == null)
         {
-            if (target <= 0) return Baseline(sub);
             state = Baseline(sub);
+            state.LastUpdatedMinute = HistoryStartMinute(world);
+            if (target <= state.LastUpdatedMinute) return state;
             if (ts == null) world.Tiles[tile] = ts = new TileState();
             ts.Ground = state;
         }
@@ -196,6 +185,10 @@ public static class Ground
         state.LastUpdatedMinute = Math.Max(state.LastUpdatedMinute, target);
         return state;
     }
+
+    /// When the ground's history begins: the weather pre-roll for a seeded world. A pinned test sky
+    /// has no past, so its ground starts at minute 0 as generated.
+    public static long HistoryStartMinute(World world) => world.FixedWeather == null ? -Weather.PreRollMinutes : 0;
 
     // ---- world queries (each one is an observation: it catches the tile up) ----
 

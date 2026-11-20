@@ -8,9 +8,9 @@ public class StepRulesTests
     static World LitCamp(int seed = 1)
     {
         var world = World.New(seed);
-        for (int i = 0; i < 20 && Fire.PitAt(world, world.CampTile) == null; i++)
+        for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
             Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
-        Assert.NotNull(Fire.PitAt(world, world.CampTile));
+        Assert.NotNull(Fire.PitAt(world, Map.Of(world).Camp));
         return world;
     }
 
@@ -68,7 +68,7 @@ public class StepRulesTests
         var embers = World.New(1);
         PlacePit(embers, new FireState
         {
-            Tile = embers.CampTile, LastUpdatedMinute = 0,
+            Tile = Map.Of(embers).Camp, LastUpdatedMinute = 0,
             HasEmbers = true, EmberDurationHours = 2, EmberHoursRemaining = 2, EmberStartTempF = 800,
         });
         Sim.Step(cold, new Rest(P), 60);
@@ -86,7 +86,7 @@ public class StepRulesTests
     {
         var none = World.New(1);
         var pit = World.New(1);
-        PlacePit(pit, new FireState { Tile = pit.CampTile, LastUpdatedMinute = 0, Pit = PitType.Stone });
+        PlacePit(pit, new FireState { Tile = Map.Of(pit).Camp, LastUpdatedMinute = 0, Pit = PitType.Stone });
         Sim.Step(none, new Rest(P), 120);
         Sim.Step(pit, new Rest(P), 120);
         Assert.Equal(none.Agent(P).Body.CoreTempF, pit.Agent(P).Body.CoreTempF, 12);
@@ -116,7 +116,7 @@ public class StepRulesTests
         {
             var w = World.New(1);
             w.Agent(P).Body.CoreTempF = 99.5; // above the sweating threshold
-            if (torch) PlacePit(w, new FireState { Tile = w.CampTile, LastUpdatedMinute = 0, CarriedBy = P, TorchMinutesLeft = Fire.TorchBurnMinutes });
+            if (torch) PlacePit(w, new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, CarriedBy = P, TorchMinutesLeft = Fire.TorchBurnMinutes });
             Sim.Step(w, new Rest(P), 1);
             return w;
         }
@@ -132,7 +132,7 @@ public class StepRulesTests
         var r = Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0, PitType.Stone), 1);
         Assert.Equal("the pit here is Open, not Stone", r.InterruptedReason);
         Assert.Equal(0, r.MinutesElapsed);
-        Assert.Equal(PitType.Open, world.Fires[Fire.PitAt(world, world.CampTile)!.Value].Pit);
+        Assert.Equal(PitType.Open, world.Fires[Fire.PitAt(world, Map.Of(world).Camp)!.Value].Pit);
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public class StepRulesTests
     public void StartFire_OnAFullPit_IsRefused_AndLightsNothing()
     {
         var world = LitCamp();
-        var f = world.Fires[Fire.PitAt(world, world.CampTile)!.Value];
+        var f = world.Fires[Fire.PitAt(world, Map.Of(world).Camp)!.Value];
         Fire.AddFuel(f, Fuel.Kindling, 50);
         Assert.Equal(Fire.MaxFuelKg(f.Pit), Fire.TotalKg(f), 9);
         var r = Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
@@ -167,7 +167,7 @@ public class StepRulesTests
         var world = LitCamp();
         world.Agent(P).Tile = new TileId(0, 0);
         Sim.Step(world, new Wait(P), 30);
-        world.Agent(P).Tile = world.CampTile; // back, but nothing has caught the fire up
+        world.Agent(P).Tile = Map.Of(world).Camp; // back, but nothing has caught the fire up
         Assert.Throws<InvalidOperationException>(() => Fire.HasLight(world, P));
     }
 

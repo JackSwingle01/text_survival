@@ -80,17 +80,17 @@ public class GoldenTests
         Assert.True(Math.Abs(expected[4] - wet) < 1e-6, $"{name}: wetness {wet} vs old {expected[4]}");
     }
 
-    /// Old effective temperature at a camp fire, through the whole old path: Location.GetTemperatureBreakdown
+    /// Old effective temperature at a fire, through the whole old path: Location.GetTemperatureBreakdown
     /// on an exposed tile (NWS wind chill, sun, then the pit's heat at 40% for open air), then SurvivalContext
     /// adding the pit again at FireProximity 2 against that warmed air. Open pit, bark + kindling + 3 kg birch,
     /// 30 minutes of burning, -10°C clear, wind 0.149, cloud 0.3, at 09:00 July 1 (world minute 0). Captured from the old code.
     [Fact]
-    public void EffectiveHeatAtCamp_MatchesOld()
+    public void EffectiveHeatOnAnExposedTile_MatchesOld()
     {
         const double OldExposedF = 11.814825831857966, OldWarmedAirF = 23.338787015679152, OldEffectiveF = 80.10868677678457;
         var world = World.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -10, 3 / 20.1, 0, 0.3, WindDirection.North);
-        var f = new FireState { Tile = world.CampTile, LastUpdatedMinute = 0, Pit = PitType.Open };
+        var f = new FireState { Tile = Map.Of(world).Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
         Fire.AddFuel(f, Fuel.BirchBark, 0.05);
         Fire.AddFuel(f, Fuel.Kindling, 1.0);
         Fire.IgniteAll(f);
@@ -100,13 +100,42 @@ public class GoldenTests
         world.Fires[new FireId(world.NextFireId++)] = f;
         world.Minute = f.LastUpdatedMinute;
 
+        // An exposed tile: ExposedAirF's defaults. (The camp tile's own air is the next test.)
         var w = Fire.WarmthFor(world, AgentId.Player);
         double airF = Weather.ExposedAirF(Weather.At(world, world.Minute), w.WindProtectionLevel);
         Assert.Equal(OldExposedF, airF, Digits);
-        Assert.Equal(OldWarmedAirF, airF + w.AirHeatF, Digits);
-        Assert.Equal(OldEffectiveF, airF + w.AirHeatF + 2.0 * w.PitHeatF, Digits);
+        double warmedF = airF + Fire.HeatOutputF(f, airF) * 0.4; // open air carries 60% of the heat away
+        Assert.Equal(OldWarmedAirF, warmedF, Digits);
+        Assert.Equal(OldEffectiveF, warmedF + 2.0 * Fire.HeatOutputF(f, warmedF), Digits);
+    }
+
+    /// The same fire and sky at the camp tile itself (old Location with WindFactor 0.4 and
+    /// OverheadCoverLevel 0.3, no shelter), and the open air there and at The Pass Proper (wind 2,
+    /// -15 °F). Captured from the old Location.GetTemperatureBreakdown (tmp harness p2fix/oldcamp).
+    [Fact]
+    public void EffectiveHeatAtTheCampTile_MatchesOld()
+    {
+        const double OldCampAirF = 19.419973477794883, OldPassProperAirF = -11.959482811492297;
+        const double OldCampWarmedAirF = 30.831756883269172, OldCampEffectiveF = 87.04904100027493;
+        var world = World.New(1);
+        world.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -10, 3 / 20.1, 0, 0.3, WindDirection.North);
+        var m = Map.Of(world);
+        var sky = Weather.At(world, 0);
+        Assert.Equal(OldCampAirF, Weather.AirAtF(world, m.Camp, sky, 0), Digits);
+        var pass = m.PassStageIndex.Single(kv => Map.PassStages[kv.Value].Name == "The Pass Proper").Key;
+        Assert.Equal(OldPassProperAirF, Weather.AirAtF(world, pass, sky, 0), Digits);
+
+        var f = new FireState { Tile = m.Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
+        Fire.AddFuel(f, Fuel.BirchBark, 0.05);
+        Fire.AddFuel(f, Fuel.Kindling, 1.0);
+        Fire.IgniteAll(f);
+        Fire.AddFuel(f, Fuel.Birch, 3.0);
+        var events = new List<WorldEvent>();
+        for (int i = 1; i <= 30; i++) Fire.Tick(f, new FireId(0), i, events);
+        world.Fires[new FireId(world.NextFireId++)] = f;
+        world.Minute = f.LastUpdatedMinute;
         var ctx = Sim.Surroundings(world, world.Agent(AgentId.Player), new Wait(AgentId.Player));
-        Assert.Equal(OldWarmedAirF, ctx.AirTempF, Digits);
-        Assert.Equal(OldEffectiveF, ctx.AirTempF + ctx.FireBonusF, Digits);
+        Assert.Equal(OldCampWarmedAirF, ctx.AirTempF, Digits);
+        Assert.Equal(OldCampEffectiveF, ctx.AirTempF + ctx.FireBonusF, Digits);
     }
 }

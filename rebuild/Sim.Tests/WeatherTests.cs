@@ -125,6 +125,33 @@ public class WeatherTests
     }
 
     [Fact]
+    public void FixedWeather_CannotChangeOnceTheClockMoves()
+    {
+        var world = World.New(1);
+        var sky = Sky(0, -10, 0.15, 0, 0.3, WeatherCondition.Clear);
+        world.FixedWeather = sky;
+        world.FixedWeather = sky with { TemperatureC = 5 }; // still minute 0: fine
+        world.Minute = 1;
+        world.FixedWeather = sky with { TemperatureC = 5 }; // the same pin again: fine
+        Assert.Throws<InvalidOperationException>(() => world.FixedWeather = sky);
+        Assert.Throws<InvalidOperationException>(() => world.FixedWeather = null);
+        // and a save made mid-run still loads its pin
+        Assert.Equal(5, Weather.At(Save.FromJson(Save.ToJson(world)), 9).TemperatureC);
+    }
+
+    /// The old cold snap's last state could be skipped, and AdvanceFront then indexed past the end
+    /// (ArgumentOutOfRange; the next minute moved on). The port ends the front after its second state.
+    [Fact]
+    public void ColdSnapThatSkipsItsLastState_EndsEarly()
+    {
+        var spells = new WeatherTimeline(6).SpellsUntil(40000).ToList();
+        var front = spells.Where(s => s.FrontIndex == 55).ToList();
+        Assert.All(front, s => Assert.Equal(FrontType.ColdSnap, s.Front));
+        Assert.Equal([(37128L, WeatherCondition.Clear), (37688L, WeatherCondition.Clear)], front.Select(s => (s.Start, s.Condition)));
+        Assert.Equal(38688, spells.First(s => s.FrontIndex == 56).Start); // straight after the second state's 1000 minutes
+    }
+
+    [Fact]
     public void Seeds_GiveDifferentWeather()
     {
         var a = Enumerable.Range(0, 50).Select(i => Weather.At(World.New(1), i * 600L).TemperatureC);
@@ -140,7 +167,45 @@ public class WeatherTests
     }
 
     [Fact]
-    public void NegativeMinute_Throws() => Assert.Throws<ArgumentOutOfRangeException>(() => Weather.At(World.New(1), -1));
+    public void BeforeThePreRoll_Throws() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => Weather.At(World.New(1), -Weather.PreRollMinutes - 1));
+
+    // ---- the pre-roll: turn 1 opens a month into the fronts, as old CreateNewGame + Settle did ----
+
+    [Fact]
+    public void Seed17_DoesNotOpenInTheInitialFront()
+    {
+        var opening = new WeatherTimeline(17).SpellsUntil(0).Last();
+        Assert.NotEqual(0, opening.FrontIndex);
+        Assert.True(opening.Start < 0 || opening.FrontIndex > 1, $"opening spell {opening}");
+    }
+
+    // Old: 2000 seeds of new Weather(-10, StartTime - 30 d) ticked hourly to StartTime, as Settle did
+    // (tmp harness p2fix/oldopen). Initial front still active 0; Clear+Cloudy 0.788; ClearSpell 0.529,
+    // StormSystem 0.276, Warming 0.195; mean 5.75 °C.
+    [Fact]
+    public void Opening_DistributionMatchesOldSettledStart()
+    {
+        const int Seeds = 200;
+        int dry = 0, clearSpell = 0, storm = 0, initial = 0;
+        double sumC = 0;
+        for (int seed = 0; seed < Seeds; seed++)
+        {
+            var timeline = new WeatherTimeline(seed);
+            var spell = timeline.SpellsUntil(0).Last();
+            var s = timeline.At(0);
+            if (spell.FrontIndex == 0) initial++;
+            if (s.Condition is WeatherCondition.Clear or WeatherCondition.Cloudy) dry++;
+            if (spell.Front == FrontType.ClearSpell) clearSpell++;
+            if (spell.Front == FrontType.StormSystem) storm++;
+            sumC += s.TemperatureC;
+        }
+        Assert.Equal(0, initial);
+        Assert.InRange(dry / (double)Seeds, 0.788 - 0.08, 0.788 + 0.08);
+        Assert.InRange(clearSpell / (double)Seeds, 0.529 - 0.09, 0.529 + 0.09);
+        Assert.InRange(storm / (double)Seeds, 0.276 - 0.08, 0.276 + 0.08);
+        Assert.InRange(sumC / Seeds, 5.75 - 1.5, 5.75 + 1.5);
+    }
 
     // ---- ported from old WeatherSeasonTests ----
 
@@ -204,7 +269,7 @@ public class WeatherTests
             int lastFront = -1;
             foreach (var sp in timeline.SpellsUntil(Year - 1))
             {
-                if (sp.FrontIndex == lastFront) continue;
+                if (sp.FrontIndex == lastFront || sp.Start < 0) continue; // the pre-roll is not the year
                 lastFront = sp.FrontIndex;
                 var a = acc[Weather.SeasonAt(sp.Start)];
                 a[5]++;
@@ -232,12 +297,65 @@ public class WeatherTests
     public void Surroundings_AppliesWindChill()
     {
         var world = World.New(1);
-        world.Minute = 960; // Jul 2 01:00: no sun
         world.FixedWeather = Sky(0, -10, 0.5, 0, 0.3, WeatherCondition.Clear);
+        world.Minute = 960; // Jul 2 01:00: no sun
+        // Camp lets 0.4 of the wind through; open plain 1.2 (old Location.WindFactor inside the chill).
         var ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P));
-        Assert.Equal(Weather.WindChillF(14, 22.5), ctx.AirTempF, Digits);
+        Assert.Equal(Weather.WindChillF(14, 22.5 * 0.4), ctx.AirTempF, Digits);
+        world.Agent(P).Tile = TileOf(Map.Of(world), Terrain.Plain);
+        ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P));
+        Assert.Equal(Weather.WindChillF(14, 22.5 * 1.2), ctx.AirTempF, Digits);
         Assert.True(ctx.AirTempF < 14 - 15);
-        Assert.Equal(0.5, ctx.WindLevel, Digits);
+        Assert.Equal(0.5, ctx.WindLevel, Digits); // old: the body's convective wind is regional, not the tile's
+    }
+
+    /// An ordinary tile of this terrain: not camp, a cave, a pass stage or beside a river.
+    static TileId TileOf(GeneratedMap m, Terrain terrain) =>
+        (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+         let t = new TileId(x, y)
+         where m.TerrainAt(t) == terrain && t != m.Camp && m.CaveAt(t) == Cave.None && m.StageAt(t) == null && !m.BesideRiver(t)
+         select t).First();
+
+    // ---- the tile reaches the body. old game: Location.GetTemperatureBreakdown applied it; the port had every tile open ----
+
+    [Fact]
+    public void ThePassProper_FeelsMuchColderThanCamp_UnderTheSameSky()
+    {
+        var world = World.New(17);
+        world.FixedWeather = Sky(0, -10, 0.5, 0.3, 0.8, WeatherCondition.Cloudy);
+        var m = Map.Of(world);
+        var pass = m.PassStageIndex.Single(kv => Map.PassStages[kv.Value].Name == "The Pass Proper").Key;
+        double campF = Sim.Surroundings(world, world.Agent(P), new Wait(P)).AirTempF;
+        world.Agent(P).Tile = pass;
+        double passF = Sim.Surroundings(world, world.Agent(P), new Wait(P)).AirTempF;
+        // -15 °F of its own, and twice the wind through the chill against camp's 0.4.
+        Assert.Equal(Weather.ExposedAirF(Weather.At(world, 0), 0, 2.0, 0, -15), passF, Digits);
+        Assert.True(passF < campF - 25, $"pass {passF:F1} F vs camp {campF:F1} F");
+    }
+
+    [Fact]
+    public void ForestCover_WetsLessThanOpenPlain_AndKeepsTheSunOff()
+    {
+        var world = World.New(17);
+        world.FixedWeather = Sky(0, 3, 0.2, 0.8, 1, WeatherCondition.Rainy);
+        var m = Map.Of(world);
+        var forest = TileOf(m, Terrain.Forest);
+        var plain = TileOf(m, Terrain.Plain);
+        double Wetness(TileId at)
+        {
+            var w = World.New(17);
+            w.FixedWeather = world.FixedWeather;
+            w.Agent(P).Tile = at;
+            Assert.Equal(Map.OverheadCover(m, at), Sim.Surroundings(w, w.Agent(P), new Wait(P)).OverheadCoverLevel);
+            Sim.Step(w, new Wait(P), 60);
+            return Effects.Severity(w.Agent(P).Body, EffectKind.Wet);
+        }
+        double underTrees = Wetness(forest), inTheOpen = Wetness(plain);
+        Assert.True(underTrees < inTheOpen - 0.1, $"forest {underTrees:F3} vs plain {inTheOpen:F3}");
+        // The canopy (0.5) halves the precipitation's cooling and the sun's warming; forest wind 0.3.
+        var sky = Weather.At(world, 0);
+        Assert.Equal(Weather.ExposedAirF(sky, 0, 0.3, 0.5, 0), Weather.AirAtF(world, forest, sky, 0), Digits);
+        Assert.NotEqual(Weather.ExposedAirF(sky, 0), Weather.AirAtF(world, forest, sky, 0));
     }
 
     [Fact]
@@ -263,7 +381,7 @@ public class WeatherTests
     public void Precipitation_MapsWhatFallsOnAPerson(WeatherCondition cond, Precipitation expected)
     {
         var world = World.New(1);
-        world.FixedWeather = Sky(0, -10, 0.2, 0.6, 1, cond);
+        world.FixedWeather = Sky(0, 0, 0.2, 0.6, 1, cond); // 0 °C: either phase can fall, so the condition decides
         var ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P));
         Assert.Equal(expected, ctx.Precipitation);
         Assert.Equal(0.6, ctx.PrecipitationPct);
@@ -289,9 +407,56 @@ public class WeatherTests
         dry.FixedWeather = Sky(0, 2, 0.2, 0, 1, WeatherCondition.Cloudy);
         Sim.Step(rain, new Wait(P), 60);
         Sim.Step(dry, new Wait(P), 60);
-        // Not zero for the dry control: thawing ground under it is damp, and that wets too (Ground).
-        Assert.True(Effects.Severity(rain.Agent(P).Body, EffectKind.Wet) > 0.1);
-        Assert.True(Effects.Severity(dry.Agent(P).Body, EffectKind.Wet) < 0.02);
+        // Not zero for the dry control: thawed ground under it is damp, and that wets too (Ground),
+        // but only as far as your boots.
+        double wetInRain = Effects.Severity(rain.Agent(P).Body, EffectKind.Wet), wetDry = Effects.Severity(dry.Agent(P).Body, EffectKind.Wet);
+        Assert.True(wetDry <= 0.1 + 1e-9, $"dry {wetDry}");
+        Assert.True(wetInRain > wetDry + 0.1, $"rain {wetInRain} vs dry {wetDry}");
+    }
+
+    // ---- precipitation phase follows temperature. old game: July fronts snowed at +15 °C (bug, fixed) ----
+
+    [Theory]
+    [InlineData(WeatherCondition.LightSnow, 10, WeatherCondition.Rainy)]
+    [InlineData(WeatherCondition.HeavySnow, 1.5, WeatherCondition.Rainy)]
+    [InlineData(WeatherCondition.Blizzard, 8, WeatherCondition.Stormy)]
+    [InlineData(WeatherCondition.Whiteout, 8, WeatherCondition.Misty)]
+    [InlineData(WeatherCondition.Stormy, -10, WeatherCondition.Blizzard)]
+    [InlineData(WeatherCondition.LightSnow, 0.5, WeatherCondition.LightSnow)] // the band near 0: the front decides
+    [InlineData(WeatherCondition.Stormy, -0.5, WeatherCondition.Stormy)]
+    [InlineData(WeatherCondition.FreezingRain, -1, WeatherCondition.FreezingRain)]
+    public void Phase_FollowsTemperature(WeatherCondition rolled, double c, WeatherCondition falls)
+    {
+        var s = Sky(0, c, 0.5, 0.6, 1, rolled);
+        Assert.Equal(falls, s.Condition);
+        bool rain = falls is WeatherCondition.Rainy or WeatherCondition.Stormy or WeatherCondition.FreezingRain;
+        bool snow = falls is WeatherCondition.LightSnow or WeatherCondition.HeavySnow or WeatherCondition.Blizzard;
+        Assert.Equal(rain, s.Precipitation == Precipitation.Rain);  // the body
+        Assert.Equal(rain, s.RainfallMPerMinute > 0);                // the ground
+        Assert.Equal(snow, s.SnowfallWeMPerMinute > 0);
+        if (rain) Assert.Equal(1.0, s.VisibilityFactor);              // and how far you see
+        if (falls == WeatherCondition.Misty) Assert.Equal(0.5, s.VisibilityFactor);
+    }
+
+    [Fact]
+    public void SeededYear_NeverSnowsAboveFreezingOrRainsInHardFrost()
+    {
+        var world = World.New(17);
+        int rainMinutes = 0;
+        for (long m = 0; m < 365 * 1440L; m += 30)
+        {
+            var s = Weather.At(world, m);
+            if (s.TemperatureC > Weather.RainAboveC)
+                Assert.False(s.Condition is WeatherCondition.LightSnow or WeatherCondition.HeavySnow or WeatherCondition.Blizzard or WeatherCondition.Whiteout,
+                    $"minute {m}: {s.Condition} at {s.TemperatureC:F1} C");
+            if (s.TemperatureC < Weather.SnowBelowC)
+                Assert.False(s.Condition is WeatherCondition.Rainy or WeatherCondition.Stormy, $"minute {m}: {s.Condition} at {s.TemperatureC:F1} C");
+            if (s.Precipitation == Precipitation.Rain) rainMinutes += 30;
+        }
+        Assert.True(rainMinutes > 0, "a year with no rain at all");
+        // Erosion reads the same sky: a pinned rainy sky and the same sky rolled as snow erode alike.
+        Assert.Equal(Tracks.ErosionPerMinute(Sky(0, 10, 0.5, 0.6, 1, WeatherCondition.LightSnow)),
+            Tracks.ErosionPerMinute(Sky(0, 10, 0.5, 0.6, 1, WeatherCondition.Rainy)));
     }
 
     [Fact]

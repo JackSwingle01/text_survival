@@ -385,7 +385,7 @@ public class GroundTests
 
     static World World17(WeatherSample? sky = null, TileId? at = null)
     {
-        var world = new World { Seed = 17, CampTile = Seed17.Camp, GeneratedMap = Seed17, FixedWeather = sky };
+        var world = new World { Seed = 17, GeneratedMap = Seed17, FixedWeather = sky };
         world.Agents[P] = new Agent { Id = P, Tile = at ?? Seed17.Camp };
         return world;
     }
@@ -439,13 +439,25 @@ public class GroundTests
     [Fact]
     public void BeforeTheFirstSubStep_NothingIsStored()
     {
-        var world = World17();
+        var world = World17(Sky(WeatherCondition.Clear, -10, 0)); // a pinned sky has no history before minute 0
         world.Minute = Ground.StepMinutes - 1;
         Ground.TraversalFactor(world, OpenTile(Terrain.Plain));
         Assert.Empty(world.Tiles);
         world.Minute = Ground.StepMinutes;
         Ground.TraversalFactor(world, OpenTile(Terrain.Plain));
         Assert.Equal(Ground.StepMinutes, Assert.Single(world.Tiles).Value.Ground!.LastUpdatedMinute);
+    }
+
+    [Fact]
+    public void SeededWorld_OpensOnAMonthOfGround_NotFrozenThroughInJuly()
+    {
+        var world = World17(); // seeded: the ground has lived the June pre-roll
+        var camp = Seed17.Camp;
+        var ground = Ground.CatchUp(world, camp);
+        Assert.Equal(0, ground.LastUpdatedMinute);
+        Assert.Same(ground, world.Tiles[camp].Ground); // a month lived is worth keeping
+        Assert.True(ground.Layers[0].FrozenFractionPct < 0.5, $"camp ground {ground.Layers[0].FrozenFractionPct:P0} frozen on July 1");
+        AssertConserved(ground, Ground.Substrate(Seed17, camp));
     }
 
     [Fact]
@@ -476,10 +488,10 @@ public class GroundTests
         var sub = Ground.Substrate(Seed17, tile);
         var reference = Ground.Baseline(sub);
         double maxSnowM = 0, maxWaterM = 0, maxTf = 0, maxHd = 0, maxWet = 0, peakSnowM = 0;
-        for (long m = 1; m <= 60 * 1440; m++)
+        for (long m = 1 + Ground.HistoryStartMinute(world); m <= 60 * 1440; m++) // the lazy tile lives the pre-roll too
         {
             Ground.Advance(reference, sub, 1, Ground.WeatherAt(world, tile, m));
-            if (m % 1440 != 0) continue;
+            if (m % 1440 != 0 || m <= 0) continue;
             world.Minute = m;
             var lazy = Ground.CatchUp(world, tile);
             peakSnowM = Math.Max(peakSnowM, Ground.SnowDepthM(reference, sub));
@@ -496,7 +508,7 @@ public class GroundTests
         // threshold effects (a crust forming a sub-step earlier flips hazard by its whole 0.1), so
         // they are bounded by what a threshold flip costs, not by the integration error.
         Assert.True(maxSnowM < 0.03 && maxWaterM < 0.01, report);
-        Assert.True(maxTf < 0.6 && maxHd < 0.15 && maxWet < 0.07, report);
+        Assert.True(maxTf < 0.6 && maxHd <= 0.15 + 1e-9 && maxWet < 0.07, report); // hazard: crust (0.1) and first snow (0.05) can flip together
     }
 
     [Fact]
@@ -516,6 +528,24 @@ public class GroundTests
             + Traversal.SegmentMinutes(Seed17, to, Body.Speed(body), calm) * (Ground.TraversalFactor(snowy, to) - 1);
         int unfloored = Traversal.SegmentMinutes(Seed17, from, Body.Speed(body), calm) + Traversal.SegmentMinutes(Seed17, to, Body.Speed(body), calm);
         Assert.InRange(snowMinutes - unfloored, expected - 1, expected + 1);
+    }
+
+    /// old game: TravelRunner walked GetTraversalMinutes, which left the surface excess out, so snow
+    /// slowed the preview but not the walk (bug, fixed). The walk lasts what the crossing costs.
+    [Fact]
+    public void ACrossingOverSnow_TakesItsCrossingMinutes_SurfaceIncluded()
+    {
+        var from = new TileId(2, 51);
+        var to = new TileId(2, 52);
+        var world = World17(Sky(WeatherCondition.HeavySnow, -10, 1), from);
+        world.Minute = 2 * 1440;
+        var body = world.Agent(P).Body;
+        var sky = Weather.At(world, world.Minute);
+        int expected = Traversal.CrossingMinutes(world, body, from, to, Pace.Careful, sky);
+        double excess = Traversal.SurfaceExcessMinutes(world, from, Traversal.SegmentMinutes(Seed17, from, Body.Speed(body), sky));
+        Assert.True(excess > 2, $"snow adds only {excess:F1} min");
+        var r = Sim.Step(world, new Travel(P, Direction.South, Pace.Careful), 600);
+        Assert.Equal(("arrived", expected), (r.InterruptedReason, r.MinutesElapsed));
     }
 
     [Fact]
@@ -574,12 +604,15 @@ public class GroundTests
     [Fact]
     public void GroundState_SurvivesSaveAndLoad_AndCarriesOnTheSame()
     {
+        // Observed directly: seed 17 opens in heavy snow, and an agent with no fire would not live the days.
         var world = World.New(17);
-        Sim.Step(world, new Wait(P), 3 * 1440);
+        var tiles = Enumerable.Range(0, 5).Select(i => new TileId(Seed17.Camp.X + i, Seed17.Camp.Y)).ToList();
+        world.Minute = 3 * 1440;
+        foreach (var t in tiles) Ground.CatchUp(world, t);
         Assert.Contains(world.Tiles.Values, t => t.Ground != null);
         var loaded = Save.FromJson(Save.ToJson(world));
-        Sim.Step(world, new Wait(P), 1440);
-        Sim.Step(loaded, new Wait(P), 1440);
+        world.Minute = loaded.Minute = 4 * 1440 + 7;
+        foreach (var t in tiles) { Ground.CatchUp(world, t); Ground.CatchUp(loaded, t); }
         Assert.Equal(Save.ToJson(world), Save.ToJson(loaded));
     }
 
@@ -612,7 +645,7 @@ public class GroundTests
         Console.WriteLine($"wait: {result.MinutesElapsed} min ({result.InterruptedReason}) in {watch.ElapsedMilliseconds} ms, save {Save.ToJson(world).Length / 1024} KB");
         Assert.True(result.MinutesElapsed > 60, "the agent should live long enough to watch the ground");
         // The agent's own tile is observed every minute it stands there.
-        Assert.Equal(world.Minute / Ground.StepMinutes * Ground.StepMinutes, world.Tiles[world.CampTile].Ground!.LastUpdatedMinute);
+        Assert.Equal(world.Minute / Ground.StepMinutes * Ground.StepMinutes, world.Tiles[Map.Of(world).Camp].Ground!.LastUpdatedMinute);
     }
 
     /// Output of the old-code harness (golden-ground/Program.cs).

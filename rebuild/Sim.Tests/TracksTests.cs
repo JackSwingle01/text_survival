@@ -9,7 +9,7 @@ public class TracksTests
     static readonly WeatherSample Blizzard = new(0, WeatherCondition.Blizzard, -15, 0.8, 0.9, 1, WindDirection.North);
     static readonly WeatherSample SteadySnow = new(0, WeatherCondition.HeavySnow, -10, 0.5, 0.5, 1, WindDirection.North);
 
-    static World Ground(WeatherSample? sky = null, int seed = 17) => new() { Seed = seed, CampTile = default, FixedWeather = sky ?? CalmCold };
+    static World Ground(WeatherSample? sky = null, int seed = 17) => new() { Seed = seed, FixedWeather = sky ?? CalmCold };
 
     static readonly TileId A = new(3, 3), B = new(4, 3);
 
@@ -105,7 +105,7 @@ public class TracksTests
         Assert.Empty(Tracks.Read(w, A));
         Assert.Equal(0, FreshnessOf(w, A));
         Tracks.RecordMove(w, new(50, 50), new(51, 50), TrackMaker.Human);
-        Assert.Null(w.Tiles[A].Tracks);
+        Assert.False(w.Tiles.ContainsKey(A)); // nothing else on it: the tile is pruned whole
         Assert.DoesNotContain(new EdgeId(A, B), w.Trails.Keys);
     }
 
@@ -348,7 +348,7 @@ public class TracksTests
     [InlineData(2048)]
     public void Erosion_DerivedEqualsThePerMinuteSum_Over30SeededDays(int seed)
     {
-        var w = new World { Seed = seed, CampTile = default };
+        var w = new World { Seed = seed };
         double sum = 0;
         for (long t = 1; t <= 30 * 1440; t++)
         {
@@ -357,7 +357,7 @@ public class TracksTests
         }
         Assert.Equal(sum, Tracks.ErosionAt(w, 30 * 1440), 1e-6);
         // Asked in any order, from a fresh cache, it answers the same.
-        var fresh = new World { Seed = seed, CampTile = default };
+        var fresh = new World { Seed = seed };
         Assert.Equal(Tracks.ErosionAt(w, 12345), Tracks.ErosionAt(fresh, 12345));
         Assert.Equal(0, Tracks.ErosionAt(fresh, 0));
     }
@@ -376,7 +376,7 @@ public class TracksTests
     static World Walker(WeatherSample? sky = null)
     {
         var map = Map.Generate(17);
-        var w = new World { Seed = 17, CampTile = map.Camp, GeneratedMap = map, FixedWeather = sky ?? CalmCold with { TemperatureC = 5 } };
+        var w = new World { Seed = 17, GeneratedMap = map, FixedWeather = sky ?? CalmCold with { TemperatureC = 5 } };
         w.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = new TileId(2, 33) }; // Forest, Rock to the south: 7 minutes
         return w;
     }
@@ -417,12 +417,31 @@ public class TracksTests
     }
 
     [Fact]
+    public void ATileWithNothingLeftOnIt_LeavesTheSave()
+    {
+        var w = new World { Seed = 17, FixedWeather = CalmCold };
+        TileId a = new(4, 4), b = new(5, 4), c = new(10, 10), d = new(11, 10);
+        Tracks.RecordMove(w, a, b, TrackMaker.Human);
+        Assert.True(w.Tiles.ContainsKey(a));
+        w.Minute = 10_000; // calm cold: one person's prints are gone after 5760 minutes
+        Tracks.RecordMove(w, c, d, TrackMaker.Human);
+        Assert.False(w.Tiles.ContainsKey(a), "a clean tile is generation again: nothing to save");
+        Assert.False(w.Tiles.ContainsKey(b));
+        // Ground the tile has lived keeps it, prints or not.
+        Survival.Ground.CatchUp(w, c);
+        w.Minute = 20_000;
+        Tracks.RecordMove(w, a, b, TrackMaker.Human);
+        Assert.True(w.Tiles.ContainsKey(c));
+        Assert.Null(w.Tiles[c].Tracks);
+    }
+
+    [Fact]
     public void AHerdAgent_StampsAllItsMembers()
     {
         var w = Walker();
         var herd = w.Agent(AgentId.Player);
         herd.Members.AddRange([BodyState.BaselineHuman(), BodyState.BaselineHuman()]);
-        herd.Crossing = new Crossing { Dir = Direction.South, Pace = Pace.Quick, TotalMinutes = 1 };
+        herd.Crossing = new Crossing { From = herd.Tile, Dir = Direction.South, Pace = Pace.Quick, TotalMinutes = 1 };
         Traversal.Advance(w, herd, []);
         Assert.Equal(3, Sign(w, new(2, 34))!.Value.Traffic);
         Assert.Equal(3.0, Tracks.WearAt(w, new(2, 33), new(2, 34)));
@@ -431,7 +450,7 @@ public class TracksTests
     [Fact]
     public void SaveMidRun_RoundTripsTracksAndWear_AndSavesNoErosion()
     {
-        var w = new World { Seed = 17, CampTile = default };
+        var w = new World { Seed = 17 };
         for (int i = 0; i < 30; i++) { w.Minute = i * 97; Tracks.RecordMove(w, A, B, TrackMaker.Human); Tracks.RecordMove(w, B, new(4, 4), TrackMaker.Paw, 5, 0.76); }
         w.Minute += 500;
         string json = Save.ToJson(w);
@@ -452,22 +471,24 @@ public class TracksGoldenTests
     const int Digits = 6;
     static readonly WeatherSample CalmCold = new(0, WeatherCondition.Clear, -10, 0, 0, 0, WindDirection.North);
     static readonly WeatherSample Blizzard = new(0, WeatherCondition.Blizzard, -15, 0.8, 0.9, 1, WindDirection.North);
-    static World Ground(WeatherSample? sky) => new() { Seed = 17, CampTile = default, FixedWeather = sky };
+    static World Ground(WeatherSample? sky) => new() { Seed = 17, FixedWeather = sky };
     static WeatherSample? Sky(string name) => name switch { "calm" => CalmCold, "blizzard" => Blizzard, _ => null };
 
     [Theory]
-    [InlineData(17, 183249.64118459652)]
-    [InlineData(42, 150784.2166046917)]
-    [InlineData(2048, 143386.3138479603)]
+    // Re-captured after the weather pre-roll and phase fix moved every seed's sky (old accumulator
+    // fed the rebuild's sky, tmp harness p2fix/golden-tracks); the derivation still matches it to 1e-7.
+    [InlineData(17, 137185.90247788394)]
+    [InlineData(42, 161908.29485801823)]
+    [InlineData(2048, 163690.55805103504)]
     public void Erosion_After30SeededDays_MatchesTheOldAccumulator(int seed, double old) =>
-        Assert.Equal(old, Tracks.ErosionAt(new World { Seed = seed, CampTile = default }, 30 * 1440), 1e-6);
+        Assert.Equal(old, Tracks.ErosionAt(new World { Seed = seed }, 30 * 1440), 1e-6);
 
     // One person's prints: the minute they are gone, and freshness at 1 h, 6 h, 1 day, 2 days.
     // The overview's "~4 days calm, ~6 h blizzard" is 96.0 h and 5.8 h.
     [Theory]
     [InlineData("calm", 5760, 0.9895833333333334, 0.9375, 0.75, 0.5)]
     [InlineData("blizzard", 347, 0.8270833333333332, 0, 0, 0)]
-    [InlineData("seed17", 694, 0.9134386559113116, 0.4806319354678693, 0, 0)]
+    [InlineData("seed17", 715, 0.9386756453640829, 0.5072435461692317, 0, 0)] // re-captured: seed 17's sky moved
     public void OnePersonsPrints_FadeAsOld(string sky, int diesAt, double h1, double h6, double d1, double d2)
     {
         var w = Ground(Sky(sky));
@@ -525,11 +546,12 @@ public class TracksGoldenTests
     // a lone bear never) come from how often real herds cross an edge, which arrives with phase 3.
     [Theory]
     [InlineData("human daily", 1, 1.0, 1440, -1, -1, -1, 1.0)]
-    [InlineData("human twice a day", 1, 1.0, 720, 6480, 20160, 47520, 50)]
-    [InlineData("12 caribou every 4 days", 12, 1.3093073414159542, 5760, 8568, 5760, 17280, 50)]
-    [InlineData("wolf pack of 5 every 2 days", 5, 0.7559289460184544, 2880, 5760, 20160, 51840, 50)]
-    [InlineData("wolf pack of 5 every 3 days", 5, 0.7559289460184544, 4320, 12960, 51840, -1, 23.042237342191036)]
-    [InlineData("lone bear daily", 1, 1.889822365046136, 1440, 7200, 21600, 51840, 50)]
+    // Re-captured after the weather pre-roll and phase fix moved seed 17's sky (p2fix/golden-tracks).
+    [InlineData("human twice a day", 1, 1.0, 720, 5760, 16560, 42480, 50)]
+    [InlineData("12 caribou every 4 days", 12, 1.3093073414159542, 5760, 9120, 5760, 17280, 50)]
+    [InlineData("wolf pack of 5 every 2 days", 5, 0.7559289460184544, 2880, 5760, 17280, 46080, 50)]
+    [InlineData("wolf pack of 5 every 3 days", 5, 0.7559289460184544, 4320, 8640, 43200, -1, 27.729504770880077)]
+    [InlineData("lone bear daily", 1, 1.889822365046136, 1440, 5760, 18720, 46080, 50)]
     public void TrailTimelines_MatchOld(string who, double n, double depth, int every, int trace, int path, int trail, double day60)
     {
         _ = who;

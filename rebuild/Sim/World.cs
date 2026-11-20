@@ -4,14 +4,24 @@ namespace Survival;
 public sealed class World
 {
     public required int Seed { get; init; }
-    public long Minute { get; set; }
     /// Tests pin the sky here; null (the game) means Weather.At derives it from Seed and the minute.
-    public WeatherSample? FixedWeather { get; set; }
+    /// Fixed before the clock starts: Ground and Tracks derive the past from the sky, so changing it
+    /// later would rewrite history. Declared before Minute so a load sets it while Minute is still 0.
+    public WeatherSample? FixedWeather
+    {
+        get;
+        set
+        {
+            if (Minute != 0 && !Nullable.Equals(field, value))
+                throw new InvalidOperationException($"FixedWeather changed at minute {Minute}: the sky is pinned before the clock starts");
+            field = value;
+        }
+    }
+    public long Minute { get; set; }
     /// Derived from Seed alone, so never saved (internal: the serializer skips it).
     internal WeatherTimeline? WeatherCache;
     /// Erosion prefix sums over the seed's weather; derived, never saved. Owned by Tracks.
     internal ErosionTimeline? ErosionCache;
-    public required TileId CampTile { get; set; }
     /// Generated from Seed alone, so never saved (internal: the serializer skips it). See Map.Of.
     internal GeneratedMap? GeneratedMap;
     /// Only tiles that differ from generation (plan decision 1). Ground and tracks write here.
@@ -28,9 +38,8 @@ public sealed class World
     public static World New(int seed)
     {
         var map = Map.Generate(seed);
-        var camp = map.Camp;
-        var world = new World { Seed = seed, CampTile = camp, GeneratedMap = map };
-        world.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = camp };
+        var world = new World { Seed = seed, GeneratedMap = map };
+        world.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = map.Camp };
         return world;
     }
 

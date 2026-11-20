@@ -216,9 +216,9 @@ public class FireTests
     {
         var world = World.New(seed);
         // Striker with birch bark is 95%; retry so the test never depends on one roll.
-        for (int i = 0; i < 20 && Fire.PitAt(world, world.CampTile) == null; i++)
+        for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
             Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
-        Assert.NotNull(Fire.PitAt(world, world.CampTile));
+        Assert.NotNull(Fire.PitAt(world, Map.Of(world).Camp));
         return world;
     }
 
@@ -248,11 +248,11 @@ public class FireTests
     public void UnattendedFire_CatchesUpLazily_WithEventsAtTheRightMinute()
     {
         var world = LitCamp();
-        var id = Fire.PitAt(world, world.CampTile)!.Value;
+        var id = Fire.PitAt(world, Map.Of(world).Camp)!.Value;
         world.Agent(P).Tile = new TileId(0, 0); // walk away; Step no longer touches the fire
         Sim.Step(world, new Wait(P), 180);
         Assert.True(world.Fires[id].LastUpdatedMinute < world.Minute);
-        world.Agent(P).Tile = world.CampTile; // back, but nothing has caught the fire up
+        world.Agent(P).Tile = Map.Of(world).Camp; // back, but nothing has caught the fire up
         Assert.Throws<InvalidOperationException>(() => Fire.WarmthFor(world, P));
 
         var events = new List<WorldEvent>();

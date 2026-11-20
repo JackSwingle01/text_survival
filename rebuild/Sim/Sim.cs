@@ -64,17 +64,19 @@ public static class Sim
             _ => SurfaceContact.Walking,
         };
         double groundWetting = Ground.ContactWettingRate(world, agent.Tile, contact, Effects.Severity(agent.Body, EffectKind.Wet));
-        // ponytail: exposed tile (no cover, shelter or terrain wind factor) until the map supplies them.
         return new SurvivalContext
         {
-            AirTempF = Weather.ExposedAirF(sky, warmth.WindProtectionLevel) + warmth.AirHeatF,
+            AirTempF = Weather.AirAtF(world, agent.Tile, sky, warmth.WindProtectionLevel) + warmth.AirHeatF,
+            // Old CalculateEffectiveWindSpeed: the regional wind less the pit's walls; the tile's
+            // wind factor reaches the body only through the wind chill above.
             WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel),
             Precipitation = sky.Precipitation,
             PrecipitationPct = sky.PrecipitationPct,
+            OverheadCoverLevel = Map.OverheadCover(Map.Of(world), agent.Tile),
             FireBonusF = warmth.PitHeatF * fireProximityFactor,
             TorchHeatF = warmth.TorchHeatF,
-            ClothingClo = agent.ClothingClo,
-            ClothingWeightKg = agent.ClothingWeightKg,
+            ClothingClo = agent.Body.ClothingClo,
+            ClothingWeightKg = agent.Body.ClothingWeightKg,
             ActivityFactor = activityFactor,
             IsSleeping = sleeping,
             GroundWettingPctPerMinute = groundWetting,

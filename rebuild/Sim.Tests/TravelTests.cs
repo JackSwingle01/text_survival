@@ -14,7 +14,7 @@ public class TravelTests
     /// A seed-17 world with the player placed at a tile and the sky pinned. Shares one generated map.
     static World At(int x, int y, WeatherSample? sky = null, string? travelRngSeed = null)
     {
-        var world = new World { Seed = 17, CampTile = Seed17.Camp, GeneratedMap = Seed17, FixedWeather = sky ?? Calm };
+        var world = new World { Seed = 17, GeneratedMap = Seed17, FixedWeather = sky ?? Calm };
         world.Agents[P] = new Agent { Id = P, Tile = new TileId(x, y) };
         if (travelRngSeed != null) world.Rngs["travel"] = Rng.ForSystem(17, travelRngSeed);
         return world;
@@ -108,6 +108,59 @@ public class TravelTests
         Assert.Equal(("arrived", 10), Done(Sim.Step(world, new Travel(P, Direction.South, Pace.Careful), 600)));
 
         static (string?, int) Done(StepResult r) => (r.InterruptedReason, r.MinutesElapsed);
+    }
+
+    [Fact]
+    public void ACrossingStartedElsewhere_IsNotResumed()
+    {
+        var world = At(2, 33);
+        Sim.Step(world, new Travel(P, Direction.South, Pace.Careful), 4);
+        var agent = world.Agent(P);
+        // Something else moved the agent (a fall, a drag, a load): the half-walk belonged to another tile.
+        TileId elsewhere = new(2, 51), beyond = new(2, 52);
+        agent.Tile = elsewhere;
+        var r = Sim.Step(world, new Travel(P, Direction.South, Pace.Careful), 600);
+        int fresh = Traversal.CrossingMinutes(world, agent.Body, elsewhere, beyond, Pace.Careful, Calm);
+        Assert.Equal(("arrived", fresh), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal(beyond, agent.Tile);
+        Assert.Equal((elsewhere, beyond), (Assert.Single(r.Events.OfType<Moved>()).From, agent.Tile));
+    }
+
+    /// old game: InjuryVariant.HasIce read the destination's river even for the origin's injury
+    /// (bug, fixed): each segment draws from its own tile's pools.
+    [Fact]
+    public void EachSegmentsInjury_ComesFromItsOwnTilesPools()
+    {
+        var m = Seed17;
+        // A river tile beside a dry one whose pools hold sharp hazards; river pools are blunt only.
+        var (river, dry, dir) = (from x in Enumerable.Range(0, m.Width)
+                                 from y in Enumerable.Range(0, m.Height)
+                                 let t = new TileId(x, y)
+                                 where m.BesideRiver(t) && m.CaveAt(t) == Cave.None && t != m.Camp
+                                 from d in Enum.GetValues<Direction>()
+                                 let n = Map.Step(t, d)
+                                 where m.InBounds(n) && Map.Blocked(m, t, n) == null && !m.BesideRiver(n) && m.StageAt(n) == null
+                                     && n != m.Camp && m.CaveAt(n) == Cave.None && Map.TerrainHazardLevel(m, n) < 0.5
+                                 select (t, n, d)).First();
+        var opposite = (Direction)(((int)dir + 2) % 4);
+        foreach (var (from, to, way, originRisk) in new[] { (river, dry, dir, 1.0), (dry, river, opposite, 0.0) })
+        {
+            var world = At(from.X, from.Y);
+            var hits = new List<Injured>();
+            for (int i = 0; i < 200; i++)
+            {
+                var agent = world.Agent(P);
+                agent.Tile = from;
+                agent.Members[0] = BodyState.BaselineHuman();
+                agent.Crossing = new Crossing { From = from, Dir = way, Pace = Pace.Quick, TotalMinutes = 1, OriginRiskPct = originRisk, DestRiskPct = 1 - originRisk };
+                var events = new List<WorldEvent>();
+                Traversal.Advance(world, agent, events);
+                hits.AddRange(events.OfType<Injured>());
+            }
+            Assert.Equal(200, hits.Count);
+            Assert.All(hits, h => Assert.Equal(river, h.Tile));
+            Assert.All(hits, h => Assert.Equal(DamageType.Blunt, h.Type)); // ice slips and stumbles, never the dry tile's sharp hazards
+        }
     }
 
     [Fact]

@@ -6,12 +6,13 @@ public class FireBodyTests
 {
     static readonly AgentId P = AgentId.Player;
 
-    static World LitCamp(int seed)
+    static World LitCamp(int seed, WeatherSample? sky = null)
     {
         var world = World.New(seed);
-        for (int i = 0; i < 20 && Fire.PitAt(world, world.CampTile) == null; i++)
+        world.FixedWeather = sky;
+        for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
             Sim.Step(world, new StartFire(P, FireStarter.FireStriker, Fuel.BirchBark, 0.05, 1.0), 1);
-        Assert.NotNull(Fire.PitAt(world, world.CampTile));
+        Assert.NotNull(Fire.PitAt(world, Map.Of(world).Camp));
         Sim.Step(world, new AddFuel(P, Fuel.Birch, 3.0), 1);
         return world;
     }
@@ -19,8 +20,11 @@ public class FireBodyTests
     [Fact]
     public void RestingByAFire_StaysWarmerThanRestingWithout()
     {
+        // -10 °C pinned: the seeded sky on July 1 may be mild, and this is about the fire's heat.
+        var sky = new WeatherSample(0, WeatherCondition.Clear, -10, 0.15, 0, 0.3, WindDirection.North);
         var cold = World.New(1);
-        var warm = LitCamp(1);
+        cold.FixedWeather = sky;
+        var warm = LitCamp(1, sky);
         double coldStartF = cold.Agent(P).Body.CoreTempF;
         Sim.Step(cold, new Rest(P), 240);
         Sim.Step(warm, new Rest(P), 240);

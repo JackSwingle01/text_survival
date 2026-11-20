@@ -5,11 +5,12 @@ public class CoreTests
     static World Play(int seed)
     {
         var world = World.New(seed);
-        Sim.Step(world, new Wait(AgentId.Player), 600);
-        Sim.Step(world, new Rest(AgentId.Player), 120);
-        world.Rng("test").NextUlong(); // stand-in for a system drawing from its stream
         // Real weather can kill an unsheltered agent with no fire; determinism holds either way.
-        if (Body.IsAlive(world.Agent(AgentId.Player).Body)) Sim.Step(world, new Wait(AgentId.Player), 900);
+        bool Alive() => Body.IsAlive(world.Agent(AgentId.Player).Body);
+        Sim.Step(world, new Wait(AgentId.Player), 600);
+        if (Alive()) Sim.Step(world, new Rest(AgentId.Player), 120);
+        world.Rng("test").NextUlong(); // stand-in for a system drawing from its stream
+        if (Alive()) Sim.Step(world, new Wait(AgentId.Player), 900);
         return world;
     }
 

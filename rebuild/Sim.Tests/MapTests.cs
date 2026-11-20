@@ -47,6 +47,36 @@ public class MapTests
         Assert.Equal(new TileId(223, exitY), m.Exit);
     }
 
+    // Old GridWorldGenerator.Generate, hashed in the same encoding (tmp harness p2fix/oldmaphash):
+    // caves (structure, cave id + 1), the generated edge east and south of every tile (type + 1, 0 none),
+    // and the river set (the old _riverAdjacentPositions less lakes, cave floors and the pass stages).
+    public static readonly TheoryData<int, string, string, string> OldStructure = new()
+    {
+        { 1, "1f22870bc0d34cb7", "f86435bc99f5b763", "5d9aa28d57116876" },
+        { 17, "706ec701d2f818f7", "732b886ecc984665", "b1f1b7bd164715d2" },
+        { 2048, "9ebe6b834dcb340e", "cefc6f4c68f71bb0", "a24b4d3803325642" },
+        { 91237, "4f786a6614ea03db", "6b05e07e2fdf75d8", "cbb364bdecfc50de" },
+    };
+
+    [Theory, MemberData(nameof(OldStructure))]
+    public void Generate_CavesEdgesAndRiversMatchOldExactly(int seed, string caves, string edges, string river)
+    {
+        var m = Map.Generate(seed);
+        ulong c = 14695981039346656037, e = c, r = c;
+        static void Mix(ref ulong h, ulong v) { h ^= v; h *= 1099511628211; }
+        for (int x = 0; x < m.Width; x++)
+            for (int y = 0; y < m.Height; y++)
+            {
+                var t = new TileId(x, y);
+                Mix(ref c, (ulong)m.CaveAt(t));
+                Mix(ref c, (ulong)((m.CaveIdAt(t) ?? -1) + 1));
+                Mix(ref r, m.BesideRiver(t) ? 1UL : 0UL);
+                foreach (var n in new[] { new TileId(x + 1, y), new TileId(x, y + 1) })
+                    if (m.InBounds(n)) Mix(ref e, m.EdgeBetween(t, n) is EdgeType type ? (ulong)type + 1 : 0UL);
+            }
+        Assert.Equal((caves, edges, river), (c.ToString("x"), e.ToString("x"), r.ToString("x")));
+    }
+
     [Fact]
     public void Generate_TerrainCountsMatchOld_Seed17()
     {
@@ -228,7 +258,24 @@ public class MapTests
         Assert.Null(loaded.GeneratedMap); // rebuilt lazily, not read from the file
         var m = Map.Of(loaded);
         Assert.Equal(TerrainHash(Map.Of(world)), TerrainHash(m));
-        Assert.Equal(world.CampTile, m.Camp);
+        Assert.Equal(Map.Of(world).Camp, m.Camp);
+    }
+
+    [Fact]
+    public void Save_HoldsNoCampTile_AndClothingBelongsToEachBody()
+    {
+        var world = World.New(17);
+        string json = Save.ToJson(world);
+        Assert.DoesNotContain("CampTile", json); // derived from the seed's map, as terrain is
+        Assert.Equal(Map.Generate(17).Camp, Map.Of(Save.FromJson(json)).Camp);
+        // Agent carries no human-only fields: a herd's members wear nothing, a person wears their own.
+        Assert.Null(typeof(Agent).GetProperty("ClothingClo"));
+        Assert.Null(typeof(Agent).GetProperty("ClothingWeightKg"));
+        var herd = new Agent { Id = new AgentId(9), Tile = world.Agent(AgentId.Player).Tile, Members = [BodyState.BaselineHuman(), BodyState.BaselineHuman()] };
+        herd.Members[1].ClothingClo = 0.5;
+        Assert.Equal([2.0, 0.5], herd.Members.Select(b => b.ClothingClo));
+        world.Agents[herd.Id] = herd;
+        Assert.Equal(0.5, Save.FromJson(Save.ToJson(world)).Agent(herd.Id).Members[1].ClothingClo);
     }
 
     [Fact]
@@ -250,14 +297,14 @@ public class MapTests
         var player = world.Agent(AgentId.Player);
         Assert.Same(player.Members.Single(), player.Body);
         Assert.IsType<PlayerMind>(player.Mind);
-        Assert.Equal(world.CampTile, player.Tile);
+        Assert.Equal(Map.Of(world).Camp, player.Tile);
 
         string json = Save.ToJson(world);
         Assert.Contains("\"Mind\":{\"kind\":\"player\"}", json);
         Assert.DoesNotContain("\"Body\":", json); // derived, never saved twice
         Assert.IsType<PlayerMind>(Save.FromJson(json).Agent(AgentId.Player).Mind);
 
-        var herd = new Agent { Id = new AgentId(5), Tile = world.CampTile, Members = [BodyState.BaselineHuman(), BodyState.BaselineHuman()] };
+        var herd = new Agent { Id = new AgentId(5), Tile = Map.Of(world).Camp, Members = [BodyState.BaselineHuman(), BodyState.BaselineHuman()] };
         Assert.Throws<InvalidOperationException>(() => herd.Body);
     }
 }

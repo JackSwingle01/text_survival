@@ -24,7 +24,4 @@ public sealed class Agent
     [JsonIgnore] public BodyState Body => Members.Single();
     /// A tile crossing under way; the agent stays on Tile until it completes. Owned by Travel.
     public Crossing? Crossing { get; set; }
-    /// Whole-body clothing insulation and its weight. ponytail: two numbers until items exist; then derive from worn gear.
-    public double ClothingClo { get; set; } = 2.0;
-    public double ClothingWeightKg { get; set; } = 3.0;
 }

@@ -155,7 +155,7 @@ public static class Fire
         var burning = pits.Where(IsActive).ToList();
         double windProtection = burning.Count == 0 ? 0 : burning.Max(f => WindProtectionLevel(f.Pit));
         // Heat is felt against the air as weather leaves it, wind chill included (old Location.GetTemperatureBreakdown).
-        double ambientF = Weather.ExposedAirF(Weather.At(world, world.Minute), windProtection);
+        double ambientF = Weather.AirAtF(world, tile, Weather.At(world, world.Minute), windProtection);
         double airHeatF = pits.Sum(f => HeatOutputF(f, ambientF) * OpenAirHeatPct);
         double pitHeatF = burning.Sum(f => HeatOutputF(f, ambientF + airHeatF));
         return new Warmth(airHeatF, pitHeatF, torchHeatF, windProtection);

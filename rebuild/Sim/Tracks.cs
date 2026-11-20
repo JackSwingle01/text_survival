@@ -48,8 +48,7 @@ public static class Tracks
     public static double ErosionAt(World world, long minute)
     {
         if (minute < 0) throw new ArgumentOutOfRangeException(nameof(minute), minute, "Erosion starts at minute 0");
-        // ponytail: a pinned sky erodes at its rate all the way back to minute 0, so changing FixedWeather
-        // mid-test rewrites history. Tests only; the game always derives from the seed.
+        // A pinned sky has been the sky since minute 0: World refuses to change it once the clock moves.
         if (world.FixedWeather is WeatherSample sky) return ErosionPerMinute(sky) * minute;
         return (world.ErosionCache ??= new ErosionTimeline()).At(world, minute);
     }
@@ -170,12 +169,15 @@ public static class Tracks
     // ponytail: a full sweep per crossing, O(tiles + edges). Sweep on a clock if phase-3 herds make moves frequent.
     static void Sweep(World world, long now, double erosion)
     {
-        foreach (var state in world.Tiles.Values)
+        foreach (var (tile, state) in world.Tiles)
         {
             if (state.Tracks == null) continue;
             foreach (var (maker, t) in state.Tracks)
                 if (Freshness(world, t, erosion) <= 0) state.Tracks.Remove(maker);
-            if (state.Tracks.Count == 0) state.Tracks = null;
+            if (state.Tracks.Count > 0) continue;
+            state.Tracks = null;
+            // The only place a tile can become clean: Ground never lets go of a tile it has observed.
+            if (state.Ground == null) world.Tiles.Remove(tile);
         }
         foreach (var (edge, _) in world.Trails)
             if (WearAt(world, edge, now, erosion) <= 0) world.Trails.Remove(edge);
@@ -244,16 +246,17 @@ public static class Tracks
 internal sealed class ErosionTimeline
 {
     readonly List<long> starts = [];
-    readonly List<double> before = []; // erosion over minutes [0, start)
+    // Erosion from the start of the weather pre-roll to each start. Only differences are ever read,
+    // so the origin (Weather.PreRollMinutes before minute 0) cancels out.
+    readonly List<double> before = [];
     readonly List<double> rates = [];
     long coveredThrough = -1;
 
     public double At(World world, long minute) => Before(world, minute + 1) - Before(world, 1);
 
-    /// Erosion over minutes [0, n).
+    /// Erosion over minutes [pre-roll start, n).
     double Before(World world, long n)
     {
-        if (n <= 0) return 0;
         long last = n - 1;
         if (last > coveredThrough)
         {
