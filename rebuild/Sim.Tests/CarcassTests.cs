@@ -53,6 +53,14 @@ public class CarcassTests
         Assert.Equal(minutes, new[] { ButcherMode.QuickStrip, ButcherMode.Careful, ButcherMode.FullProcessing }.Select(m => Carcasses.RemainingMinutes(c, m)));
     }
 
+    /// Old CarcassFeature.Harvest had no setup in it: the cut alone, all of it in one go, read off the
+    /// carcass's yield ledger (what Sim.Step carries off a minute at a time).
+    static Inventory CutAll(Carcass c, double minutes, bool knife, bool handsImpaired, ButcherMode mode)
+    {
+        Carcasses.Cut(c, minutes, knife, handsImpaired, mode);
+        return Carcasses.TakeReady(c);
+    }
+
     // Old CarcassFeature.Harvest(all of it, careful) by decay stage, with a knife and without:
     // effective hours, knife, meat, bone, hide, then decay level.
     public static readonly TheoryData<string, double, bool, double, double, double> Butchering = new()
@@ -73,7 +81,7 @@ public class CarcassTests
     public void Butchering_ByDecayAndBlade_MatchesOld(string animal, double hours, bool knife, double meat, double bone, double hide)
     {
         var (_, c) = Make(animal, hours);
-        var got = Carcasses.Harvest(c, Carcasses.RemainingMinutes(c, ButcherMode.Careful), knife, false, ButcherMode.Careful);
+        var got = CutAll(c, Carcasses.RemainingMinutes(c, ButcherMode.Careful), knife, false, ButcherMode.Careful);
         // Old meat came off in random portions and dropped a last scrap of up to 0.05 kg; stacks by weight keep it.
         Assert.InRange(Items.Have(got, Resource.RawMeat), meat - 1e-9, meat + 0.05);
         Assert.Equal(bone, Items.Have(got, Resource.Bone), Digits);
@@ -84,20 +92,20 @@ public class CarcassTests
     public void ModesAndPartialSessions_MatchOld()
     {
         var (_, quick) = Make("Caribou");
-        var q = Carcasses.Harvest(quick, Carcasses.RemainingMinutes(quick, ButcherMode.QuickStrip), true, true, ButcherMode.QuickStrip);
+        var q = CutAll(quick, Carcasses.RemainingMinutes(quick, ButcherMode.QuickStrip), true, true, ButcherMode.QuickStrip);
         Assert.Equal(31.0618670286773, Items.Have(q, Resource.RawMeat), Digits);
         Assert.Equal(3.111164566173607, Items.Have(q, Resource.Bone), Digits);
         Assert.Equal(0, Items.Have(q, Resource.Hide));
         Assert.Equal(4.480076975289995, Items.Have(q, Resource.RawFat), Digits);
 
         var (_, full) = Make("Caribou");
-        var f = Carcasses.Harvest(full, 30, true, false, ButcherMode.FullProcessing);
+        var f = CutAll(full, 30, true, false, ButcherMode.FullProcessing);
         Assert.Equal(4.505415162454874, Items.Have(f, Resource.RawMeat), Digits);
         Assert.Equal(0.6301279947489334, Items.Have(f, Resource.Sinew), Digits);
         Assert.Equal(78.90653121028166, Carcasses.TotalRemainingKg(full), Digits);
 
         var (_, mammoth) = Make("Mammoth");
-        Carcasses.Harvest(mammoth, Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful), false, false, ButcherMode.Careful);
+        CutAll(mammoth, Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful), false, false, ButcherMode.Careful);
         Assert.Equal(19, Carcasses.TotalRemainingKg(mammoth), Digits); // ivory and the great hide wait for a blade
     }
 
@@ -178,10 +186,13 @@ public class CarcassTests
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         double total = Carcasses.TotalRemainingKg(c);
         var r = Sim.Step(w, new Butcher(P, c.Id), 24 * 60);
-        Assert.Equal("butchered", r.InterruptedReason);
+        Assert.Equal(Work.PackFull, r.InterruptedReason); // all cut, not all carried: the carcass is not done
+        Assert.Contains(r.Events, e => e is Butchered { Finished: false });
         Assert.Equal(Items.CapacityKg(Items.Pack(w, P)), Items.CarriedKg(w.Agent(P)), 6);
-        Assert.InRange(Carcasses.TotalRemainingKg(c), total - 20, total - 9); // ~10 kg taken, the rest of the meat's loss is decay
+        Assert.Equal(0, Carcasses.TotalRemainingKg(c));
+        Assert.InRange(c.Pending.Values.Sum(), total - 20, total - 9); // ~10 kg taken, the rest of the meat's loss is decay
         Assert.Contains(c, w.Tiles[Map.Of(w).Camp].Carcasses!);
+        Assert.Equal(Work.PackFull, Sim.Step(w, new Butcher(P, c.Id), 60).InterruptedReason); // refused: no room, nothing to cut
         for (int i = 0; i < 40 && !Carcasses.IsButchered(c); i++)
         {
             Sim.Step(w, new Stash(P, Resource.RawMeat, 99), 1);
@@ -262,6 +273,74 @@ public class CarcassTests
         var p2 = Items.Pack(hours, P);
         foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat })
             Assert.Equal(Items.Have(p1, r), Items.Have(p2, r), 9);
+    }
+
+    /// One step, an hour at a time, or a minute at a time: the same pack, the same carcass, the same
+    /// world, exactly. Old (and before this fix): the scrap minimum and the meat floor were applied to
+    /// each step's cut, so a caribou butchered a minute at a time gave meat and nothing else, and a
+    /// rabbit nothing at all but floored meat.
+    [Theory, InlineData("Caribou"), InlineData("Rabbit")]
+    public void Butchering_InOneStepHoursOrMinutes_YieldsExactlyTheSame(string animal)
+    {
+        (World, Carcass) Start() { var (w, c) = Make(animal); BigPack(w); return (w, c); }
+        string Run(int chunk, int upTo)
+        {
+            var (w, c) = Start();
+            for (int done = 0; done < upTo && Carcasses.Find(w, Map.Of(w).Camp, c.Id) != null;)
+                done += Sim.Step(w, new Butcher(P, c.Id), Math.Min(chunk, upTo - done)).MinutesElapsed;
+            return Save.ToJson(w);
+        }
+        foreach (int upTo in new[] { 20, 33, 100, 600 }) // in the setup, just past it, part-cut, all of it
+        {
+            string one = Run(upTo, upTo);
+            Assert.Equal(one, Run(60, upTo));
+            Assert.Equal(one, Run(1, upTo));
+        }
+        var (whole, wc) = Start();
+        Assert.Equal("butchered", Sim.Step(whole, new Butcher(P, wc.Id), 600).InterruptedReason);
+        var pack = Items.Pack(whole, P);
+        foreach (var r in new[] { Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat })
+            Assert.True(Items.Have(pack, r) > 0, $"no {r}");
+    }
+
+    /// Nothing is minted or lost but what the rules say: every kg off the carcass is still on it or
+    /// in the cut ledger, and every kg the cut yielded is in the pack or waiting on the carcass -
+    /// through a save in the middle, and through a pack too small for it.
+    [Theory, InlineData("Caribou", true), InlineData("Caribou", false), InlineData("Rabbit", true)]
+    public void Butchering_ConservesWhatTheCarcassHad_ThroughASave(string animal, bool bigPack)
+    {
+        var (w, c) = Make(animal);
+        if (bigPack) BigPack(w); else Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
+        var start = new Dictionary<Resource, double>(c.Remaining);
+        double packBefore = Items.CarriedKg(w.Agent(P));
+        for (int i = 0; i < 40; i++)
+        {
+            w = Save.FromJson(Save.ToJson(w));
+            var cc = Carcasses.Find(w, Map.Of(w).Camp, c.Id);
+            if (cc == null) break;
+            c = cc;
+            Sim.Step(w, new Butcher(P, c.Id), 15);
+            foreach (var (r, kg) in start) Assert.Equal(kg, c.Remaining[r] + c.CutKg.GetValueOrDefault(r), 9);
+            double carried = Items.CarriedKg(w.Agent(P)) - packBefore;
+            Assert.Equal(c.YieldKg.Values.Sum(), carried + c.Pending.Values.Sum(), 9);
+            if (!bigPack && Sim.Step(w, new Butcher(P, c.Id), 15).InterruptedReason == "your pack is full") break;
+        }
+        if (bigPack) Assert.Null(Carcasses.Find(w, Map.Of(w).Camp, c.Id));
+        else Assert.True(c.Pending.Values.Sum() > 1); // all cut; what would not fit waits on the carcass
+    }
+
+    /// The carcass is caught up before its frozen state slows the minute (old order read the air it
+    /// felt an hour ago for the first minute of the step).
+    [Fact]
+    public void AFreshlyFrozenCarcass_SlowsTheFirstMinuteToo()
+    {
+        var (w, c) = Make("Caribou");
+        w.FixedWeather = Mild with { TemperatureC = -20 };
+        BigPack(w);
+        w.Minute = 3 * 60;
+        c.LastKnownTempF = 41; // the last air it felt was warm; the hours since have been freezing
+        Sim.Step(w, new Butcher(P, c.Id), 1);
+        Assert.Equal(1 / 1.5, c.SetupMinutes, 9);
     }
 
     /// What a full pack could not hold goes back on the carcass as the share of it it was cut from,

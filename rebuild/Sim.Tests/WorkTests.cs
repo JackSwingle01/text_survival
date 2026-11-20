@@ -84,7 +84,7 @@ public class WorkTests
         Sim.Step(w, new Stash(P, Resource.Kindling, 99), 1);
         Assert.NotNull(w.Tiles[camp].Stash);
         Sim.Step(w, new Unstash(P, Resource.Kindling, 99), 1);
-        Assert.Null(w.Tiles[camp].Stash);
+        Assert.False(w.Tiles.ContainsKey(camp)); // nothing else differs here, so the tile goes too
     }
 
     // ---- gathering ----
@@ -216,6 +216,70 @@ public class WorkTests
         Assert.Null(Sim.Step(w, new Gather(P, 0), 5).InterruptedReason);
         LightAPit(w);
         Assert.NotEqual("too dark to work", Sim.Step(w, new Gather(P, 1), 10).InterruptedReason);
+    }
+
+    /// Darkness is checked every minute of the work, not only when it begins: one long step from
+    /// 20:30 stops at 21:00 as half-hour steps do (old: a long session chopped on into the night).
+    [Fact]
+    public void ChoppingIntoTheNight_StopsAtDark_HoweverTheStepsAreCut()
+    {
+        World Start()
+        {
+            var w = WithPools(Trees);
+            Axe(w);
+            while (Weather.MinuteOfDay(w.Minute) != 20 * 60 + 30) w.Minute++;
+            return w;
+        }
+        var one = Start();
+        var r = Sim.Step(one, new Gather(P, 0), 300);
+        Assert.Equal(("too dark to work", 30), (r.InterruptedReason, r.MinutesElapsed));
+        foreach (int chunk in new[] { 1, 7, 30 })
+        {
+            var w = Start();
+            int minutes = 0;
+            string? last = null;
+            for (int i = 0; i < 400 && last != "too dark to work"; i++)
+            {
+                var q = Sim.Step(w, new Gather(P, 0), chunk);
+                (minutes, last) = (minutes + q.MinutesElapsed, q.InterruptedReason);
+            }
+            Assert.Equal(("too dark to work", 30), (last, minutes));
+            Assert.Equal(Save.ToJson(one), Save.ToJson(w));
+        }
+    }
+
+    /// Perception, light and tools are read every minute of foraging, as impairment is: two hours
+    /// from 16:00 or into the dusk from 19:00 come out the same in one step, four, or a hundred and twenty.
+    [Theory, InlineData(16), InlineData(19)]
+    public void Foraging_InOneStepOrMany_ComesOutTheSame(int startHour)
+    {
+        World Start()
+        {
+            var w = WithPools(Forage);
+            while (Weather.MinuteOfDay(w.Minute) != startHour * 60) w.Minute++;
+            return w;
+        }
+        var one = Start();
+        Sim.Step(one, new Gather(P, 0), 120);
+        foreach (int chunk in new[] { 30, 1 })
+        {
+            var w = Start();
+            for (int i = 0; i < 120 / chunk; i++) Sim.Step(w, new Gather(P, 0), chunk);
+            Assert.Equal(Save.ToJson(one), Save.ToJson(w));
+        }
+    }
+
+    /// A tile whose last carcass goes, with nothing else on it, leaves World.Tiles (old: only a
+    /// track sweep removed it, so it stayed as an empty {} in the save).
+    [Fact]
+    public void ATileWhoseLastCarcassGoes_IsGone()
+    {
+        var w = World.New(17);
+        var tile = new TileId(3, 3);
+        Assert.False(w.Tiles.ContainsKey(tile));
+        var c = Carcasses.Create(w, tile, "Rabbit", BodyState.Create(BodyKind.Quadruped, 2, 0.1, 0.5), 0);
+        Carcasses.Remove(w, tile, c);
+        Assert.False(w.Tiles.ContainsKey(tile));
     }
 
     // ---- eating, drinking, cooking ----

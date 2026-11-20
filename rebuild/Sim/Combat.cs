@@ -499,6 +499,8 @@ public static partial class Combat
                 AiTurn(world, enc, unit, events);
                 if (unit.InField) RunDetection(world, enc, unit, huntingSkill: 0, ExposureMeters(before, unit.Position));
             }
+            // Each round's wounds tick without world.Minute moving: a headless fight spends no world time.
+            // A future per-agent catch-up must not re-apply these minutes to the fighters' bodies.
             foreach (var u in Field(enc).ToList()) Body.TickWounds(BodyOf(world, u), world.Rng("body"));
             Sweep(world, enc, events, by: null);
             enc.Rounds++;

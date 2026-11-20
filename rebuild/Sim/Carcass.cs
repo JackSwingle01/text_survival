@@ -23,6 +23,12 @@ public sealed class Carcass
     public double ScentBonus { get; set; }
     /// Minutes of the setup done, before the mode's time factor. Setup is paid once per carcass.
     public double SetupMinutes { get; set; }
+    /// Kg cut off Remaining so far, by resource, before the yield factors.
+    public SortedDictionary<Resource, double> CutKg { get; init; } = [];
+    /// Kg that cutting has yielded so far, by resource: what the scrap minimum and meat floor judge.
+    public SortedDictionary<Resource, double> YieldKg { get; init; } = [];
+    /// Kg cut and yielded but not yet carried off: under the minimum so far, or no room in the pack.
+    public SortedDictionary<Resource, double> Pending { get; init; } = [];
 }
 
 /// Port of old CarcassFeature: decay by temperature, butchering yields and times.
@@ -83,12 +89,14 @@ public static class Carcasses
         return c;
     }
 
-    /// Takes a carcass off its tile; an emptied list goes back to null, so the tile can clean up.
+    /// Takes a carcass off its tile; a tile left with nothing on it leaves World.Tiles.
     public static void Remove(World world, TileId tile, Carcass c)
     {
         var state = world.Tiles.GetValueOrDefault(tile);
         if (state?.Carcasses?.Remove(c) != true) throw new InvalidOperationException($"Carcass {c.Id} is not on {tile}");
-        if (state.Carcasses.Count == 0) state.Carcasses = null;
+        if (state.Carcasses.Count > 0) return;
+        state.Carcasses = null;
+        Map.Tidy(world, tile);
     }
 
     public static Carcass? Find(World world, TileId tile, int id) =>
@@ -144,8 +152,11 @@ public static class Carcasses
 
     // ---- butchering ----
 
+    /// Kg still uncut on the carcass.
     public static double TotalRemainingKg(Carcass c) => c.Remaining.Values.Sum();
-    public static bool IsButchered(Carcass c) => TotalRemainingKg(c) < 0.01;
+    public static bool AllCut(Carcass c) => TotalRemainingKg(c) < 0.01;
+    /// Nothing left on it: all cut, and every cut piece carried off.
+    public static bool IsButchered(Carcass c) => AllCut(c) && c.Pending.Count == 0;
 
     /// Old GetRemainingMinutes(mode): setup plus 2.75 minutes a kilo, scaled by the mode. The setup
     /// is charged once per carcass, not once per session (Prepare).
@@ -161,24 +172,14 @@ public static class Carcasses
         return minutes - setup;
     }
 
-    /// Old CarcassFeature.Harvest for one session of effective minutes (no setup in it, as the old
-    /// one had none): Cut, then Finish.
-    public static Inventory Harvest(Carcass c, double minutes, bool hasCuttingTool, bool handsImpaired, ButcherMode mode)
+    /// Effective minutes of cutting: that share of everything left comes off the carcass (CutKg)
+    /// and yields (YieldKg, Pending) by mode, steady hands and (meat only) decay. Without a blade you
+    /// tear off half the meat and some bone and ruin the rest. Kilograms removed are linear in
+    /// minutes, so cutting a minute at a time takes what one long cut does. Once it is all cut,
+    /// Settle applies the meat floor and drops what was too little to keep.
+    public static void Cut(Carcass c, double minutes, bool hasCuttingTool, bool handsImpaired, ButcherMode mode)
     {
-        var raw = new SortedDictionary<Resource, double>();
-        var yield = new SortedDictionary<Resource, double>();
-        Cut(c, minutes, hasCuttingTool, handsImpaired, mode, raw, yield);
-        return Finish(c, raw, yield);
-    }
-
-    /// Effective minutes of cutting: that share of everything left comes off the carcass (into raw)
-    /// and yields (into yield) by mode, steady hands and (meat only) decay. Without a blade you tear
-    /// off half the meat and some bone and ruin the rest. Kilograms removed are linear in minutes,
-    /// so cutting a minute at a time takes what one long cut does; Finish rounds a session's yield.
-    public static void Cut(Carcass c, double minutes, bool hasCuttingTool, bool handsImpaired, ButcherMode mode,
-        SortedDictionary<Resource, double> raw, SortedDictionary<Resource, double> yield)
-    {
-        if (minutes <= 0 || IsButchered(c)) return;
+        if (minutes <= 0 || AllCut(c)) return;
         var props = ModeProps(mode);
         double fraction = Math.Min(1.0, minutes / (TotalRemainingKg(c) * MinutesPerKgYield * props.TimeFactor));
         double yieldFactor = handsImpaired ? 0.8 : 1.0;
@@ -191,24 +192,57 @@ public static class Carcasses
             double kg = !hasCuttingTool
                 ? r switch { Resource.RawMeat => take * 0.5 * yieldFactor * meatDecay, Resource.Bone => take * yieldFactor * 0.67, _ => 0 }
                 : take * yieldFactor * props.YieldFactor.GetValueOrDefault(r, 1) * (r == Resource.RawMeat ? meatDecay : 1);
-            raw[r] = raw.GetValueOrDefault(r) + take;
-            yield[r] = yield.GetValueOrDefault(r) + kg;
+            c.CutKg[r] = c.CutKg.GetValueOrDefault(r) + take;
             c.Remaining[r] = Math.Max(0, c.Remaining[r] - take);
+            if (kg <= 0) continue;
+            c.YieldKg[r] = c.YieldKg.GetValueOrDefault(r) + kg;
+            c.Pending[r] = c.Pending.GetValueOrDefault(r) + kg;
+        }
+        if (AllCut(c)) Settle(c);
+    }
+
+    /// The whole carcass is cut: the old meat floor, and scraps too small to keep dropped. Both are
+    /// judged on everything the carcass gave, never on one session's share of it, so how the work
+    /// was split cannot change what it yields.
+    static void Settle(Carcass c)
+    {
+        // Old floor: a little meat even from a ptarmigan, if there was that much to begin with.
+        double meat = c.YieldKg.GetValueOrDefault(Resource.RawMeat);
+        if (meat > 0 && meat < 0.1 && c.CutKg.GetValueOrDefault(Resource.RawMeat) >= 0.1)
+        {
+            c.Pending[Resource.RawMeat] = c.Pending.GetValueOrDefault(Resource.RawMeat) + 0.1 - meat;
+            c.YieldKg[Resource.RawMeat] = 0.1;
+        }
+        foreach (var (r, kg) in c.YieldKg.ToList())
+        {
+            if (kg >= MinimumKg(r)) continue;
+            c.YieldKg.Remove(r);
+            c.Pending.Remove(r);
         }
     }
 
-    /// A session's cut, as pieces: the old meat floor, and scraps too small to keep dropped.
-    public static Inventory Finish(Carcass c, IReadOnlyDictionary<Resource, double> raw, IReadOnlyDictionary<Resource, double> yield)
+    /// What is cut and may go in a pack now: a resource waits on the carcass until the carcass has
+    /// given a keepable piece of it (or Settle dropped it). Taken out of Pending; what the pack cannot
+    /// hold goes back with PutBack.
+    public static Inventory TakeReady(Carcass c)
     {
-        var got = new Inventory();
-        foreach (var (r, y) in yield)
+        var ready = new Inventory();
+        foreach (var (r, kg) in c.Pending.ToList())
         {
-            double kg = y;
-            // Old floor: a little meat even from a ptarmigan, if there was that much to begin with.
-            if (r == Resource.RawMeat && kg > 0 && kg < 0.1 && raw[r] + c.Remaining.GetValueOrDefault(r) >= 0.1) kg = 0.1;
-            if (kg >= MinimumKg(r)) Items.Add(got, r, kg);
+            if (c.YieldKg[r] < MinimumKg(r)) continue;
+            Items.Add(ready, r, kg);
+            c.Pending.Remove(r);
         }
-        return got;
+        return ready;
+    }
+
+    /// Cut pieces a full pack could not take wait on the carcass, already yielded: the next session
+    /// carries them without cutting them again. Old game: RestoreYields put the yield back as uncut
+    /// carcass and scaled it by mode, decay and hands a second time (bug, fixed).
+    // ponytail: waiting cut meat does not rot further; decay was charged when it was cut.
+    public static void PutBack(Carcass c, Inventory leftovers)
+    {
+        foreach (var (r, kg) in leftovers.Kg) c.Pending[r] = c.Pending.GetValueOrDefault(r) + kg;
     }
 
     /// Old Add* helpers dropped pieces too small to keep.
@@ -221,14 +255,4 @@ public static class Carcasses
         Resource.RawFat => 0.1,
         _ => 1e-12,
     };
-
-    /// What would not fit in the pack goes back on the carcass (old RestoreYields), as the share of
-    /// what was cut it came from, so the next session's factors apply to it once.
-    /// Old game: it put back the yield itself, already scaled by mode, decay and hands, and scaled it
-    /// again when cut a second time (bug, fixed).
-    public static void Restore(Carcass c, Inventory leftovers, Inventory got, IReadOnlyDictionary<Resource, double> raw)
-    {
-        foreach (var (r, kg) in leftovers.Kg)
-            if (c.Remaining.ContainsKey(r)) c.Remaining[r] += raw[r] * kg / Items.Have(got, r);
-    }
 }

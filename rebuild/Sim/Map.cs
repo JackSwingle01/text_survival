@@ -121,6 +121,13 @@ public static class Map
 {
     public const int DefaultWidth = 224, DefaultHeight = 82; // the old game's valley world; 100 m tiles
 
+    /// A tile whose owners have all let go of it leaves World.Tiles, so the save holds only what differs.
+    /// Each owner calls this when it sets its field back to null.
+    public static void Tidy(World world, TileId tile)
+    {
+        if (world.Tiles.TryGetValue(tile, out var state) && state.IsEmpty) world.Tiles.Remove(tile);
+    }
+
     /// West to east along the pass row: six stages, the last one the exit.
     public static readonly PassStage[] PassStages =
     [

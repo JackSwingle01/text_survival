@@ -293,13 +293,17 @@ public static class Items
         return state.Stash ??= new Inventory();
     }
 
-    /// Takes up to kg from the tile's stash; an emptied stash goes back to null, so the tile can clean up.
+    /// Takes up to kg from the tile's stash; a tile left with nothing on it leaves World.Tiles.
     public static double TakeFromStash(World world, TileId tile, Resource r, double kg)
     {
         var state = world.Tiles.GetValueOrDefault(tile);
         if (state?.Stash is not Inventory stash) return 0;
         double taken = Take(stash, r, kg);
-        if (stash.Kg.Count == 0 && stash.Gear.Count == 0) state.Stash = null;
+        if (stash.Kg.Count == 0 && stash.Gear.Count == 0)
+        {
+            state.Stash = null;
+            Map.Tidy(world, tile);
+        }
         return taken;
     }
 
