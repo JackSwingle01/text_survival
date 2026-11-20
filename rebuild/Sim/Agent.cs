@@ -6,6 +6,7 @@ namespace Survival;
 /// Who decides an agent's next activity. Kind-specific state lives here, never as optional fields on Agent.
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(PlayerMind), "player")]
+[JsonDerivedType(typeof(NpcMind), "npc")]
 [JsonDerivedType(typeof(HerdMind), "herd")]
 public abstract record Mind;
 
@@ -19,6 +20,9 @@ public abstract record PersonMind : Mind
 
 /// The UI picks the activities.
 public sealed record PlayerMind : PersonMind;
+
+/// The NPC utility AI picks the activities (phase 3d; state and decider live in Npc.cs).
+public sealed partial record NpcMind : PersonMind;
 
 /// A herd: carries nothing. Empty until phase 3b gives it territory, state, hunger and fear.
 public sealed record HerdMind : Mind;
