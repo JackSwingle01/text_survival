@@ -289,8 +289,9 @@ public class WeatherTests
         dry.FixedWeather = Sky(0, 2, 0.2, 0, 1, WeatherCondition.Cloudy);
         Sim.Step(rain, new Wait(P), 60);
         Sim.Step(dry, new Wait(P), 60);
+        // Not zero for the dry control: thawing ground under it is damp, and that wets too (Ground).
         Assert.True(Effects.Severity(rain.Agent(P).Body, EffectKind.Wet) > 0.1);
-        Assert.Equal(0, Effects.Severity(dry.Agent(P).Body, EffectKind.Wet));
+        Assert.True(Effects.Severity(dry.Agent(P).Body, EffectKind.Wet) < 0.02);
     }
 
     [Fact]

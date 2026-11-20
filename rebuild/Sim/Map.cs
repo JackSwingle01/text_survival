@@ -19,7 +19,15 @@ public enum Direction { North, East, South, West }
 public sealed record PassStage(string Name, double HazardLevel, double WindFactor, double TemperatureDeltaF, bool IsCrossingExit = false);
 
 /// What a tile is now, where that differs from generation. Ground and tracks add fields here.
-public sealed class TileState;
+public sealed class TileState
+{
+    /// Footprints, one sign per kind of maker. Owned by Tracks; null when the ground is clean.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<TrackMaker, Track>? Tracks { get; set; }
+    /// Snow, water and ice on the ground. Owned by Ground; null until the tile has lived past minute 0.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public GroundState? Ground { get; set; }
+}
 
 public static class TerrainProps
 {

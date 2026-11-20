@@ -56,6 +56,14 @@ public static class Sim
         };
         var warmth = Fire.WarmthFor(world, agent.Id);
         var sky = Weather.At(world, world.Minute);
+        // Old SurvivalContext.GroundContactFor: idle and walking both go through the ground on foot.
+        var contact = activity switch
+        {
+            Sleep or Rest => SurfaceContact.RestingOnGround,
+            StartFire or AddFuel or LightTorch => SurfaceContact.WorkingOnGround,
+            _ => SurfaceContact.Walking,
+        };
+        double groundWetting = Ground.ContactWettingRate(world, agent.Tile, contact, Effects.Severity(agent.Body, EffectKind.Wet));
         // ponytail: exposed tile (no cover, shelter or terrain wind factor) until the map supplies them.
         return new SurvivalContext
         {
@@ -69,6 +77,9 @@ public static class Sim
             ClothingWeightKg = agent.ClothingWeightKg,
             ActivityFactor = activityFactor,
             IsSleeping = sleeping,
+            GroundWettingPctPerMinute = groundWetting,
+            // ponytail: no bedding yet; old protection was 0.5 + quality * 0.4 when resting on a BeddingFeature.
+            GroundProtectionLevel = 0,
         };
     }
 }

@@ -66,7 +66,8 @@ public static class Traversal
         agent.Tile = to;
         agent.Crossing = null;
         events.Add(new Moved(world.Minute, agent.Id, from, to));
-        // ponytail: Ground/Tracks hook here - this is the old GameMap.RecordMove seam (prints, trail wear).
+        // The old GameMap.RecordMove seam: every agent's completed crossing marks the ground, a herd with all its feet.
+        Tracks.RecordMove(world, from, to, Tracks.MakerOf(agent.Species), agent.Members.Count, Tracks.IndividualDepth(agent.Species));
 
         foreach (var (tile, riskPct) in new[] { (from, c.OriginRiskPct), (to, c.DestRiskPct) })
         {
@@ -109,19 +110,20 @@ public static class Traversal
         return (int)Math.Ceiling(Map.BaseTraversalMinutes(m, tile) * (1 + multiplier) / Math.Max(0.1, speed));
     }
 
-    /// Minutes the edge between two tiles adds. Generated edges only ever block, so this is 0 until
-    /// trail wear and authored edges arrive. Tracks (desire paths) add their tier bonus here.
+    /// Minutes the edge between two tiles adds (old GameMap.GetEdgeTraversalModifier): authored
+    /// edges, plus however far the route has been beaten in by use.
     public static int EdgeMinutes(World world, TileId from, TileId to) =>
-        Map.Of(world).EdgeBetween(from, to)?.TraversalMinutes() ?? 0;
+        (Map.Of(world).EdgeBetween(from, to)?.TraversalMinutes() ?? 0) + Tracks.TrailMinutes(world, from, to);
 
-    /// Hook for Ground (phase 2c): what today's snow and mud add to a segment of segmentMinutes,
+    /// What today's snow, water and mud add to a segment of segmentMinutes,
     /// old segmentMinutes * (Surface.TraversalFactor - 1). Added after the edge bonus, from the
     /// baseline segment: a worn path is bare earth under the snow, not a cleared lane through it.
-    public static double SurfaceExcessMinutes(World world, TileId tile, int segmentMinutes) => 0;
+    public static double SurfaceExcessMinutes(World world, TileId tile, int segmentMinutes) =>
+        segmentMinutes * (Ground.TraversalFactor(world, tile) - 1);
 
-    /// Hook for Ground (phase 2c): old Location.GetSurfaceHazardDelta. Zero beside a river, whose
+    /// Old Location.GetSurfaceHazardDelta. Zero beside a river, whose
     /// ice already owns the hazard.
-    public static double SurfaceHazardDelta(World world, TileId tile) => 0;
+    public static double SurfaceHazardDelta(World world, TileId tile) => Ground.HazardDelta(world, tile);
 
     // ---- hazard ----
 

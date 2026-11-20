@@ -136,8 +136,14 @@ public static class Weather
     public static WeatherSample At(World world, long minute)
     {
         if (world.FixedWeather is WeatherSample fixedSky) return fixedSky with { Minute = minute };
-        return (world.WeatherCache ??= new WeatherTimeline(world.Seed)).At(minute);
+        return Timeline(world).At(minute);
     }
+
+    /// The seed's front states in order, through the one holding minute. For systems that
+    /// integrate over the sky (erosion), which is piecewise constant per state.
+    internal static IEnumerable<Spell> SpellsUntil(World world, long minute) => Timeline(world).SpellsUntil(minute);
+
+    static WeatherTimeline Timeline(World world) => world.WeatherCache ??= new WeatherTimeline(world.Seed);
 
     /// One realised state of a front: its values hold from Start until the next state's Start.
     internal readonly record struct Spell(long Start, int FrontIndex, FrontType Front, WeatherCondition Condition,

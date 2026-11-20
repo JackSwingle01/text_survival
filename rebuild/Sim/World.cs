@@ -9,6 +9,8 @@ public sealed class World
     public WeatherSample? FixedWeather { get; set; }
     /// Derived from Seed alone, so never saved (internal: the serializer skips it).
     internal WeatherTimeline? WeatherCache;
+    /// Erosion prefix sums over the seed's weather; derived, never saved. Owned by Tracks.
+    internal ErosionTimeline? ErosionCache;
     public required TileId CampTile { get; set; }
     /// Generated from Seed alone, so never saved (internal: the serializer skips it). See Map.Of.
     internal GeneratedMap? GeneratedMap;
@@ -20,6 +22,8 @@ public sealed class World
     /// Fire pits and carried torches. Owned by the Fire system.
     public Dictionary<FireId, FireState> Fires { get; init; } = [];
     public int NextFireId { get; set; }
+    /// Desire-path wear per edge, only edges something has walked. Owned by Tracks.
+    public Dictionary<EdgeId, TrailWear> Trails { get; init; } = [];
 
     public static World New(int seed)
     {

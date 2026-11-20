@@ -21,8 +21,8 @@ sealed class TileIdConverter : JsonConverter<TileId>
     public override void Write(Utf8JsonWriter w, TileId id, JsonSerializerOptions o) => w.WriteStringValue(Format(id));
     public override TileId ReadAsPropertyName(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => Parse(r.GetString());
     public override void WriteAsPropertyName(Utf8JsonWriter w, TileId id, JsonSerializerOptions o) => w.WritePropertyName(Format(id));
-    static string Format(TileId id) => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{id.X},{id.Y}");
-    static TileId Parse(string? s)
+    internal static string Format(TileId id) => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{id.X},{id.Y}");
+    internal static TileId Parse(string? s)
     {
         var parts = (s ?? throw new JsonException("TileId is null")).Split(',');
         if (parts.Length != 2) throw new JsonException($"TileId '{s}' is not x,y");
@@ -53,4 +53,29 @@ sealed class FireIdConverter : JsonConverter<FireId>
         new(int.Parse(r.GetString() ?? throw new JsonException("FireId key is null")));
     public override void WriteAsPropertyName(Utf8JsonWriter w, FireId id, JsonSerializerOptions o) =>
         w.WritePropertyName(id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+}
+
+/// The unordered edge between two adjacent tiles: both directions of travel are one edge.
+[JsonConverter(typeof(EdgeIdConverter))]
+public readonly record struct EdgeId
+{
+    public TileId A { get; }
+    public TileId B { get; }
+    public EdgeId(TileId a, TileId b) => (A, B) = MapGen.EdgeKey(a, b);
+}
+
+/// EdgeId keys World.Trails, so it serializes as "x,y|x,y".
+sealed class EdgeIdConverter : JsonConverter<EdgeId>
+{
+    public override EdgeId Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => Parse(r.GetString());
+    public override void Write(Utf8JsonWriter w, EdgeId id, JsonSerializerOptions o) => w.WriteStringValue(Format(id));
+    public override EdgeId ReadAsPropertyName(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => Parse(r.GetString());
+    public override void WriteAsPropertyName(Utf8JsonWriter w, EdgeId id, JsonSerializerOptions o) => w.WritePropertyName(Format(id));
+    static string Format(EdgeId id) => $"{TileIdConverter.Format(id.A)}|{TileIdConverter.Format(id.B)}";
+    static EdgeId Parse(string? s)
+    {
+        var parts = (s ?? throw new JsonException("EdgeId is null")).Split('|');
+        if (parts.Length != 2) throw new JsonException($"EdgeId '{s}' is not x,y|x,y");
+        return new(TileIdConverter.Parse(parts[0]), TileIdConverter.Parse(parts[1]));
+    }
 }
