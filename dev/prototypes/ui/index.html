@@ -24,6 +24,7 @@
   --night: #0d1216;
   --f-pixel: "Pixelify Sans", "Courier New", monospace;
   --f-body: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-num: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; /* numbers: legible, tabular */
   --notch: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
   --notch-s: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px);
   color-scheme: dark;
@@ -55,7 +56,7 @@ button { font: inherit; color: inherit; }
 }
 .px { font-family: var(--f-pixel); letter-spacing: .02em; }
 .label { font: 500 11px/1 var(--f-pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--bone-3); }
-.num { font-family: var(--f-pixel); font-variant-numeric: tabular-nums; }
+.num { font-family: var(--f-num); font-weight: 600; font-variant-numeric: tabular-nums; }
 .ico { width: 16px; height: 16px; image-rendering: pixelated; flex: none; }
 .ico.x2 { width: 32px; height: 32px; }
 .key {
@@ -72,7 +73,8 @@ button { font: inherit; color: inherit; }
 .sky > * { pointer-events: auto; }
 .clock { padding: 8px 12px; display: grid; gap: 6px; min-width: 260px; }
 .clock-row { display: flex; align-items: baseline; gap: 10px; }
-.clock-time { font: 500 24px/1 var(--f-pixel); }
+.clock-time { font: 600 28px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.clock-ampm { font: 600 14px/1 var(--f-num); color: var(--bone-2); margin-left: 4px; letter-spacing: .04em; }
 .clock-day { color: var(--bone-2); }
 .dayband { position: relative; height: 10px; background: linear-gradient(90deg,
   #1a2230 0%, #1a2230 22%, #5d4d63 27%, #b9c6cc 34%, #d7e1e4 50%, #b9c6cc 66%, #8a5a48 73%, #2a2433 79%, #1a2230 84%, #1a2230 100%);
@@ -139,7 +141,7 @@ button { font: inherit; color: inherit; }
 /* odds sheet */
 .odds { display: grid; gap: 8px; }
 .odds-top { display: flex; align-items: baseline; justify-content: space-between; }
-.odds-total { font: 600 40px/0.9 var(--f-pixel); font-variant-numeric: tabular-nums; }
+.odds-total { font: 600 42px/0.9 var(--f-num); font-variant-numeric: tabular-nums; }
 .odds-total small { font-size: 20px; color: var(--bone-2); }
 .oddsbar { position: relative; height: 14px; background: var(--ink-3); clip-path: var(--notch-s); overflow: hidden; }
 .oddsbar .seg { position: absolute; top: 0; bottom: 0; }
@@ -149,7 +151,7 @@ button { font: inherit; color: inherit; }
 .oddsbar .seg + .seg { box-shadow: inset 2px 0 0 var(--ink); }
 .factors { display: grid; gap: 2px; font-size: 14px; }
 .factor { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: center; padding: 3px 0; }
-.factor .v { font-family: var(--f-pixel); font-variant-numeric: tabular-nums; text-align: right; min-width: 3ch; }
+.factor .v { font-family: var(--f-num); font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; text-align: right; min-width: 3ch; }
 .factor.plus .v { color: var(--lichen); }
 .factor.minus .v { color: var(--minus); }
 .factor.base .v { color: var(--bone); }
@@ -216,13 +218,13 @@ button { font: inherit; color: inherit; }
 .ring { width: 34px; height: 34px; position: relative; display: grid; place-items: center; }
 .ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
 .job.done { box-shadow: inset 0 0 0 2px var(--ochre); }
-.job .state { font: 500 12px/1 var(--f-pixel); color: var(--bone-2); }
+.job .state { font: 600 14px/1 var(--f-num); color: var(--bone-2); }
 .job.done .state { color: var(--ochre); }
 
 /* forage */
 .found { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; min-height: 52px; }
 .item { display: grid; grid-template-columns: 16px 1fr; gap: 2px 6px; align-items: center; padding: 6px 8px; background: var(--ink-2); clip-path: var(--notch-s); font-size: 13px; }
-.item .n { grid-column: 2; font: 500 12px/1 var(--f-pixel); color: var(--bone-2); font-variant-numeric: tabular-nums; }
+.item .n { grid-column: 2; font: 600 13px/1 var(--f-num); color: var(--bone-2); font-variant-numeric: tabular-nums; }
 .item.bump { animation: bump .35s steps(3); }
 @keyframes bump { 0% { background: #3d2a14; } 100% { background: var(--ink-2); } }
 .item.rare { grid-column: 1 / -1; background: #2c2210; box-shadow: inset 0 0 0 2px var(--ochre); color: var(--ochre); }
@@ -254,14 +256,14 @@ button { font: inherit; color: inherit; }
 .receipt .span { display: flex; gap: 8px; align-items: center; color: var(--bone-2); font-size: 14px; }
 .receipt .span .num { color: var(--bone); }
 .lines { display: grid; padding: 8px 18px; }
-.line { display: grid; grid-template-columns: 44px 22px 1fr auto; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--seam); font-size: 15px; }
+.line { display: grid; grid-template-columns: 62px 22px 1fr auto; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--seam); font-size: 15px; }
 .line:last-child { border-bottom: 0; }
-.line .t { font: 500 12px/1 var(--f-pixel); color: var(--bone-3); font-variant-numeric: tabular-nums; }
+.line .t { font: 600 14px/1 var(--f-num); color: var(--bone-3); font-variant-numeric: tabular-nums; }
 .line .who { width: 22px; height: 22px; image-rendering: pixelated; }
 .line.bad { color: var(--minus); }
 .line.good { color: var(--bone); }
 .line.rare { color: var(--ochre); }
-.line .amt { font: 500 13px/1 var(--f-pixel); color: var(--bone-2); }
+.line .amt { font: 600 14px/1 var(--f-num); color: var(--bone-2); }
 .collected { padding: 10px 18px 12px; background: var(--ink-2); border-top: 2px solid var(--seam); display: grid; gap: 8px; }
 .receipt footer { padding: 12px 18px 16px; display: flex; justify-content: flex-end; }
 
@@ -313,7 +315,7 @@ button { font: inherit; color: inherit; }
     <canvas id="world"></canvas>
     <div class="sky">
       <div class="plate clock">
-        <div class="clock-row"><span class="clock-time num" id="clockTime">13:05</span><span class="clock-day" id="clockDay">Day 2 · midwinter</span></div>
+        <div class="clock-row"><span class="clock-time num" id="clockTime">1:05<span class="clock-ampm">PM</span></span><span class="clock-day" id="clockDay">Day 2 · midwinter</span></div>
         <div class="dayband" aria-hidden="true"><b id="daySpan"></b><i id="dayMark"></i></div>
       </div>
       <div class="plate weather">
@@ -446,7 +448,7 @@ function campFireTruth(t = S.now) {
   return { phase: 'Out', until: null };
 }
 const phaseSprite = p => p === 'Embers' ? 'embers' : p === 'Out' ? null : 'fire';
-const fmt = t => { const m = ((t % DAY) + DAY) % DAY; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+const fmt = t => { const m = ((t % DAY) + DAY) % DAY, h = Math.floor(m / 60); return `${h % 12 || 12}:${String(m % 60).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
 const dur = m => m >= 60 ? `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, '0')}m` : `${Math.round(m)}m`;
 const ago = m => m < 60 ? `${Math.round(m)}m ago` : `${Math.round(m / 60)}h ago`;
 
@@ -477,7 +479,7 @@ new ResizeObserver(resize).observe(cv);
 
 function drawSprite(name, px, py, size, alpha = 1) { const im = IMG[name]; if (!im) return; ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = false; ctx.drawImage(im, px, py, size, size); ctx.globalAlpha = 1; }
 function label(text, px, py, color = '#eadfc8', bg = 'rgba(22,17,13,.88)') {
-  ctx.font = '500 11px "Pixelify Sans", monospace';
+  ctx.font = '600 12px "Barlow Semi Condensed", "Arial Narrow", sans-serif';
   const w = ctx.measureText(text).width + 8;
   ctx.fillStyle = bg; ctx.fillRect(Math.round(px - w / 2), Math.round(py - 8), Math.round(w), 15);
   ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, Math.round(px), Math.round(py));
@@ -607,7 +609,7 @@ cv.addEventListener('pointerleave', () => { hover = null; tip.hidden = true; });
 // ---------------------------------------------------------------- HUD
 const $ = id => document.getElementById(id);
 function renderClock() {
-  $('clockTime').textContent = fmt(S.now);
+  { const [hm, ap] = fmt(S.now).split(' '); $('clockTime').innerHTML = `${hm}<span class="clock-ampm">${ap}</span>`; }
   $('clockDay').textContent = `Day ${Math.floor(S.now / DAY) + 1} · midwinter`;
   $('dayMark').style.left = `${(S.now % DAY) / DAY * 100}%`;
   const out = atCamp() || !campFireTruth().until ? null : campFireTruth().until;
