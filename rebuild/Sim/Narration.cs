@@ -81,7 +81,6 @@ public static class Narration
         return line is { } l ? new Narrated(e.Minute, l.Text, l.Tone, e) : null;
     }
 
-    /// One change a receipt found, in words: "The fire was roaring. Now it is embers."
     public static string Change(Change c) => c.Kind switch
     {
         ChangeKind.Fire => c.Now == null ? "The fire pit is gone."
@@ -95,7 +94,6 @@ public static class Narration
         _ => throw new ArgumentOutOfRangeException(nameof(c), c.Kind, null),
     };
 
-    /// Prints a receipt or a look reads: "Paw prints, heading north, fresh."
     public static string Sign(TrackSign s) => $"{Names.Title(s.Maker)} prints, {Reading(s)}.";
 
     /// What prints say, without the maker: "heading north, fresh".

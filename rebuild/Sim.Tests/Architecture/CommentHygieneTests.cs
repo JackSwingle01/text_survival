@@ -79,7 +79,6 @@ public class CommentHygieneTests
         ["Make.cs"] = 18,
         ["Map.cs"] = 28,
         ["Names.cs"] = 23,
-        ["Narration.cs"] = 11,
         ["Nearby.cs"] = 21,
         ["Npc.cs"] = 37,
         ["Odds.cs"] = 24,
