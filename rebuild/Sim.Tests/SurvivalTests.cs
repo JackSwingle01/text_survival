@@ -83,6 +83,33 @@ public class SurvivalTests
         Assert.True(b.FatKg < fatBefore);
     }
 
+    /// Old game: food never became fat - eating past a full store threw the surplus away (bug, fixed).
+    [Fact]
+    public void Eat_PastAFullStore_BecomesFat_NothingLost()
+    {
+        var b = Baseline();
+        b.CaloriesKcal = 1500;
+        double fatBefore = b.FatKg;
+        Body.Eat(b, 3000);
+        Assert.Equal(Body.MaxCaloriesKcal, b.CaloriesKcal, 9);
+        Assert.Equal(2500 / Body.KcalPerKgFat, b.FatKg - fatBefore, 9); // kcal in = kcal stored + kcal laid down
+    }
+
+    /// A lean person eating more than they burn puts fat back on over days.
+    [Fact]
+    public void WellFed_RegainsFatOverDays()
+    {
+        var b = Baseline();
+        b.FatKg = 7.5;
+        var rng = TestRng();
+        for (int minute = 0; minute < 3 * 1440; minute++)
+        {
+            if (minute % 1440 == 720) Body.Eat(b, 4500); // one big meal a day, well over a day's burn
+            Body.Update(b, Room(), rng);
+        }
+        Assert.True(b.FatKg > 7.5 + 0.2, $"fat {b.FatKg:0.000} kg after three well-fed days");
+    }
+
     [Fact]
     public void Starvation_ThenMuscle_ThenOrgans()
     {

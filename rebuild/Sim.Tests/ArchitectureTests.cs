@@ -56,6 +56,18 @@ public class ArchitectureTests
         Assert.True(uses.Count == 0, string.Join("\n", uses));
     }
 
+    /// Review 9: a herd's feeding wrote the carcass's meat directly. What is left on a carcass changes
+    /// only through Carcasses, so butchering's ledgers and anything else it keeps cannot be skipped.
+    [Fact]
+    public void OnlyCarcasses_ChangesWhatIsLeftOnACarcass()
+    {
+        var writes = Directory.GetFiles(SimSourceDir(), "*.cs").Where(f => Path.GetFileName(f) != "Carcass.cs")
+            .SelectMany(f => File.ReadLines(f).Select((line, i) => (f, line, i)))
+            .Where(x => !x.line.TrimStart().StartsWith("//") && Regex.IsMatch(x.line, @"\.Remaining(\[[^\]]*\]\s*[-+*/]?=[^=]|\.(Add|Remove|Clear|TryAdd)\()"))
+            .Select(x => $"{Path.GetFileName(x.f)}:{x.i + 1}: {x.line.Trim()}").ToList();
+        Assert.True(writes.Count == 0, string.Join("\n", writes));
+    }
+
     // ---- the save graph (plan: entities are referenced by id, never by object) ----
 
     /// Nothing in a saved world is reachable twice. An object shared by two owners (one Mind for
@@ -65,6 +77,10 @@ public class ArchitectureTests
     public void ABusyWorld_HasNoObjectReachableTwice()
     {
         var (world, _) = Phase3GateTests.Run(160);
+        // The NPC is in it, caught with work in hand: its mind and its work session are walked too.
+        var npc = world.Agents.Values.Single(a => a.Mind is NpcMind);
+        for (int i = 0; i < 24 * 60 && npc.Doing?.Work == null; i++) Sim.Advance(world, 1);
+        Assert.NotNull(npc.Doing?.Work);
         string json = JsonSerializer.Serialize(world, new JsonSerializerOptions { ReferenceHandler = ReferenceHandler.Preserve });
         int at = json.IndexOf("\"$ref\"", StringComparison.Ordinal);
         Assert.True(at < 0, at < 0 ? "" : $"an object reachable twice: ...{json.Substring(Math.Max(0, at - 300), 400)}...");
@@ -99,6 +115,9 @@ public class ArchitectureTests
         }
         Assert.Contains(typeof(Carcass), seen); // the walk reached the tiles' contents
         Assert.Contains(typeof(HerdMind), seen); // and through the polymorphic mind
+        Assert.Contains(typeof(NpcMind), seen);
+        Assert.Contains(typeof(Doing), seen); // and what an agent is doing, work in hand and all
+        Assert.Contains(typeof(WorkSession), seen);
         Assert.True(violations.Count == 0, string.Join("\n", violations));
     }
 }

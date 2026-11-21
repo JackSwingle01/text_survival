@@ -92,7 +92,9 @@ public class Phase2GateTests(ITestOutputHelper output)
         foreach (var food in pack.Kg.Keys.Where(r => Items.Resources[r].Category == ResourceCategory.Food).ToList())
             gathered += S(w, new Eat(P, food, 99), Work.EatMinutes).Events.OfType<Ate>().Sum(a => a.Kcal);
         t.GatheredKcal += gathered;
-        double handFed = Math.Max(0, DailyKcal - gathered);
+        // Topped up to a full store, not past it: surplus became fat once food could (Body.Eat), and this
+        // camper is fed to live, not to fatten - as before that fix, when the surplus was thrown away.
+        double handFed = Math.Clamp(DailyKcal - gathered, 0, Body.MaxCaloriesKcal - w.Agent(P).Body.CaloriesKcal);
         t.HandFedKcal += handFed;
         Body.Eat(w.Agent(P).Body, handFed);
 

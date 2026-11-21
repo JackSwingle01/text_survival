@@ -150,6 +150,15 @@ public static class Carcasses
         }
     }
 
+    /// An animal eats raw meat straight off the carcass, uncut: up to kg of it. Returns the kg eaten.
+    public static double EatMeat(Carcass c, double kg)
+    {
+        if (kg < 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Cannot eat a negative amount");
+        double meat = c.Remaining.GetValueOrDefault(Resource.RawMeat), bite = Math.Min(meat, kg);
+        if (bite > 0) c.Remaining[Resource.RawMeat] = meat - bite;
+        return bite;
+    }
+
     // ---- butchering ----
 
     /// Kg still uncut on the carcass.

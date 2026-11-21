@@ -653,7 +653,8 @@ public class CombatTests
         Assert.Equal(4, w.Agent(herd).Members.Count);
         Assert.Same(wounded, w.Agent(escaped.Agent).Body);
         Assert.Equal(Species.Caribou, w.Agent(escaped.Agent).Species);
-        Assert.Equal(0.3 + 0.4 * 0.5, escaped.Severity, 9);
+        // It lived the round's minute before it got away: one minute of mending off the wound.
+        Assert.Equal(0.3 + (0.4 - Fauna.MendPctPerMinute) * 0.5, escaped.Severity, 9);
         Assert.Equal(CombatResult.AnimalFled, r.Events.OfType<FightEnded>().Single(f => f.Agent == AgentId.Player).Result);
     }
 

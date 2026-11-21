@@ -35,7 +35,7 @@ public static class Sim
         if (!IsAlive(agent)) throw new InvalidOperationException($"{agent.Id} is dead and cannot act");
         var events = new List<WorldEvent>();
         // A fight holds every agent with a member still in it: no walking off without fleeing.
-        if (activity is not Fight && Combat.EncounterOf(world, agent.Id) is Encounter fighting && fighting.Units.Any(u => u.Agent == agent.Id && u.InField))
+        if (activity is not Fight && Held(world, agent.Id))
             return new StepResult(events, 0, "You are in a fight.");
         if (agent.Doing != null) // told to do something else: what it was doing ends here
         {
@@ -67,7 +67,8 @@ public static class Sim
     internal const string Done = "done";
 
     /// Lets the world's clock run with nobody acting for the player: NPCs and herds live these
-    /// minutes and the player does not (a headless simulation, or a world with no one in it to play).
+    /// minutes on their own minds, and a living player lives them waiting where they stand (a
+    /// headless simulation, or a player who has stepped away). The world lives either way.
     public static List<WorldEvent> Advance(World world, int minutes)
     {
         if (minutes <= 0) throw new ArgumentOutOfRangeException(nameof(minutes), minutes, "Advance needs at least one minute");
@@ -76,9 +77,15 @@ public static class Sim
         {
             world.Minute++;
             Scheduler.Minute(world, null, events);
+            if (world.Agents.TryGetValue(AgentId.Player, out var player) && IsAlive(player))
+                LiveBodies(world, player, Held(world, player.Id) ? new Fight(player.Id, CombatAction.Wait) : new Wait(player.Id), events);
         }
         return events;
     }
+
+    /// Whether a fight holds this agent: it has a member still in the field. A fled member is out.
+    internal static bool Held(World world, AgentId id) =>
+        world.Encounters.Count > 0 && world.Encounters.Any(e => e.Units.Any(u => u.Agent == id && u.InField));
 
     /// Whether any body of the agent still lives.
     public static bool IsAlive(Agent agent) => agent.Members.Any(Body.IsAlive);
@@ -136,20 +143,32 @@ public static class Sim
         if (agent.Mind is HerdMind)
         {
             // Animals live outside the human survival model (plan decision 2): Fauna ticks their wounds and hunger.
-            interrupt = Fauna.Tick(world, agent, events);
+            interrupt = LiveBodies(world, agent, activity, events);
             if (interrupt == null && activity is Travel) interrupt = Traversal.Advance(world, agent, events);
             if (interrupt == null && Fauna.Handles(activity)) interrupt = Fauna.Minute(world, agent, activity, events);
         }
         else
         {
-            Fire.CatchUpAround(world, agent, events); // before anything reads the fire this minute
-            interrupt = Body.Tick(world, agent, Surroundings(world, agent, activity), events);
+            interrupt = LiveBodies(world, agent, activity, events);
             if (activity is Travel && interrupt != "died") interrupt = Traversal.Advance(world, agent, events) ?? interrupt;
             if (d.Work != null && interrupt != "died") interrupt = Work.Minute(world, agent, d.Work, events) ?? interrupt;
             if (activity is Fight round) interrupt = Combat.EndRound(world, round, events) ?? interrupt; // also when the minute killed you: the fight ends
         }
         interrupt ??= d.Acted;
         if (interrupt == null && --d.MinutesLeft <= 0) interrupt = Done;
+        return interrupt;
+    }
+
+    /// The agent's bodies live this minute, and nothing else: hunger, cold, wounds. Every body lives
+    /// every minute exactly once, through here or a headless fight's rounds (WoundsLivedThroughMinute).
+    /// A fight holds its fighters' activities, never their bodies.
+    internal static string? LiveBodies(World world, Agent agent, Activity activity, List<WorldEvent> events)
+    {
+        if (agent.Mind is HerdMind) return Fauna.Tick(world, agent, events);
+        Fire.CatchUpAround(world, agent, events); // before anything reads the fire this minute
+        var body = agent.Body;
+        var interrupt = Body.Tick(world, agent, Surroundings(world, agent, activity), events);
+        body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute);
         return interrupt;
     }
 
@@ -229,8 +248,9 @@ public static class Scheduler
             if (id == actor || !world.Agents.TryGetValue(id, out var agent) || agent.Mind is PlayerMind) continue;
             // A herd's dead leave it as they fall (Fauna.Tick, the fight's aftermath): no body to examine.
             if (agent.Mind is not HerdMind && !Sim.IsAlive(agent)) continue;
-            // A fight holds its fighters; the fight ticks their wounds round by round.
-            if (world.Encounters.Count > 0 && Combat.EncounterOf(world, id) != null) continue;
+            // A fight holds its fighters' activities (the player's rounds move them), not their bodies:
+            // they live the minute where they stand. A fled fighter is out of it and lives on its own mind.
+            if (Sim.Held(world, id)) { Sim.LiveBodies(world, agent, new Fight(id, CombatAction.Wait), events); continue; }
             if (agent.Doing == null && !Plan(world, agent, events)) continue;
             var doing = agent.Doing!;
             if (Sim.Live(world, agent, doing, events) == null) continue;

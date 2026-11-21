@@ -110,6 +110,8 @@ public class Phase3GateTests
     internal static (World World, Tally Tally) Run(int steps, int saveEvery = 0)
     {
         var w = World.New(17);
+        // An NPC living on its own mind beside all this: its mind, memory and work in hand are saved state too.
+        Npc.Spawn(w, Map.Of(w).Camp);
         var pack = Items.Pack(w, P);
         foreach (var g in new[] { "stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));
         var t = new Tally();

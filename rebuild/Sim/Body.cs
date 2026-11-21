@@ -76,8 +76,9 @@ public sealed class BodyState
     /// Warmth stored in clothing's thermal mass, 0-1 of what it can hold.
     public double ClothingHeatBufferPct { get; set; } = 0.3;
     public List<BodyEffect> Effects { get; init; } = [];
-    /// A headless fight ticks its fighters' wounds round by round without moving the clock: the
-    /// world minutes up to this one have already been lived by this body's wounds (0: none).
+    /// The last world minute this body's wounds have lived (0: none yet). The scheduler moves it on
+    /// every minute; a headless fight's rounds move it ahead of the clock. A minute up to this one
+    /// is not lived again, so every body lives every minute exactly once.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long WoundsLivedThroughMinute { get; set; }
     /// What this member wears; nothing for a bare animal. Clothing belongs to the body it is on.
@@ -644,9 +645,15 @@ public static partial class Body
 
     // ---- eating and drinking ----
 
-    /// A damaged gut absorbs half as much at worst.
-    public static void Eat(BodyState body, double kcal) =>
-        body.CaloriesKcal = Math.Min(MaxCaloriesKcal, body.CaloriesKcal + kcal * (0.5 + 0.5 * GetCapacitiesWithoutEffects(body).Digestion));
+    /// A damaged gut absorbs half as much at worst. What the store cannot hold is laid down as fat:
+    /// every kilocalorie absorbed is either in the store or on the body.
+    /// Old game: food never became fat - the surplus was discarded (bug, fixed).
+    public static void Eat(BodyState body, double kcal)
+    {
+        double stored = body.CaloriesKcal + kcal * (0.5 + 0.5 * GetCapacitiesWithoutEffects(body).Digestion);
+        body.CaloriesKcal = Math.Min(MaxCaloriesKcal, stored);
+        body.FatKg += Math.Max(0, stored - MaxCaloriesKcal) / KcalPerKgFat;
+    }
 
     public static void Drink(BodyState body, double ml) =>
         body.HydrationMl = Math.Min(MaxHydrationMl, body.HydrationMl + ml);

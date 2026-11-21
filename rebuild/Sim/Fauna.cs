@@ -28,6 +28,8 @@ public sealed record HerdMind : Mind
     public long LastFightMinute { get; set; } = Never;
     /// Where the threat was, while fleeing.
     public TileId? FleeFrom { get; set; }
+    /// Where a starving pack is ranging to, off its land (Fauna.Foray); cleared when it eats.
+    public TileId? Foray { get; set; }
 }
 
 // Herd activities. Travel, Rest and Wait are the shared ones.
@@ -88,6 +90,9 @@ public static partial class Fauna
     const double PreyGrazePerMinute = 0.008, SolitaryForagePerMinute = 0.003, FearDecayPerMinute = 0.015;
     const double GrazingRatePerKgPerHour = 0.0001;
     const int PackPatrolEveryMinutes = 30, PackPatrolTimeoutMinutes = 120;
+    /// Judgment, not in the old game: past this hunger a pack ranges wider and faster (DecidePack).
+    const double StarvingHunger = 0.8;
+    const int StarvingPatrolEveryMinutes = 5, ForayRadiusTiles = 40;
     const int CarcassSearchRadius = 8, CarcassSearchEveryMinutes = 10;
     /// Long enough for any crossing: a crossing ends itself on arrival.
     const int UntilArrived = int.MaxValue;
@@ -127,32 +132,76 @@ public static partial class Fauna
 
     // ---- one minute of a herd's bodies and appetite (Sim.Live calls this instead of Body.Tick) ----
 
-    /// Hunger grows and fear fades; wounds bleed. A member that bleeds out is a carcass where it
-    /// fell; a herd with nobody left is gone. Returns "died" then.
+    /// Old PreyBehavior: a wounded herd's WoundSeverity fell 0.0002 a minute, whole in about three
+    /// and a half days. Here it is every hurt tissue and the blood that mend at that rate, so the
+    /// wound level (Combat.WoundLevel) falls exactly as the old severity did.
+    public const double MendPctPerMinute = 0.0002;
+
+    /// Hunger grows and fear fades; wounds bleed and mend. A member that bleeds out is a carcass
+    /// where it fell; a herd with nobody left is gone. Returns "died" then. While any of its members
+    /// is in a fight the dead stay where they are (units name members by index): the aftermath takes them.
     public static string? Tick(World world, Agent herd, List<WorldEvent> events)
     {
         var mind = MindOf(herd);
         // old game: hunger stood still while a herd was walking, so a herd on the move never got hungrier (bug, fixed).
         mind.Hunger = Math.Min(1, mind.Hunger + HungerPerMinute(BehaviorOf(herd.Species)));
         mind.Fear = Math.Max(0, mind.Fear - FearDecayPerMinute);
-        bool anyDied = false;
+        bool anyDied = false, anyHurt = false;
         foreach (var body in herd.Members)
         {
-            // Nothing to fade or bleed (skipping it changes nothing), or a headless fight already lived this minute of it.
-            if (body.Effects.Count == 0 || world.Minute <= body.WoundsLivedThroughMinute) continue;
-            Body.TickWounds(body, world.Rng("body"));
-            anyDied |= !Body.IsAlive(body);
+            // A headless fight already lived this minute of it.
+            if (world.Minute <= body.WoundsLivedThroughMinute) continue;
+            body.WoundsLivedThroughMinute = world.Minute;
+            if (body.Effects.Count > 0) Body.TickWounds(body, world.Rng("body")); // nothing to fade or bleed: skipping it changes nothing
+            // old game: only prey herds split off wounded healed, and only their severity number; a predator's wounds and every
+            // body's tissue stayed as they were, so one lame member pinned its herd for good (bug, fixed).
+            if (!Hurt(body)) continue;
+            anyHurt = true;
+            if (Body.IsAlive(body)) Mend(body);
+            else anyDied = true;
         }
-        if (!anyDied) return null;
-        foreach (var body in herd.Members.Where(b => !Body.IsAlive(b)).ToList())
+        if (!anyHurt || Combat.EncounterOf(world, herd.Id) != null) return null;
+        if (anyDied)
         {
-            Combat.LeaveCarcass(world, herd.Tile, herd.Species, body);
-            events.Add(new Killed(world.Minute, herd.Id, herd.Species, body.WeightKg, herd.Tile, By: null));
-            herd.Members.Remove(body);
+            foreach (var body in herd.Members.Where(b => !Body.IsAlive(b)).ToList())
+            {
+                Combat.LeaveCarcass(world, herd.Tile, herd.Species, body);
+                events.Add(new Killed(world.Minute, herd.Id, herd.Species, body.WeightKg, herd.Tile, By: null));
+                herd.Members.Remove(body);
+            }
+            if (herd.Members.Count == 0)
+            {
+                world.Agents.Remove(herd.Id);
+                return "died";
+            }
         }
-        if (herd.Members.Count > 0) return null;
-        world.Agents.Remove(herd.Id);
-        return "died";
+        LeaveBehindTheLame(world, herd);
+        return null;
+    }
+
+    /// A member too lame to walk (Traversal.Refusal's threshold) drops out of its herd as a herd of
+    /// one, where it stands, to mend or die; the rest go on at the pace of whoever can still walk.
+    /// It has lived this minute with them, so it starts on the next. Not in the old game, where a
+    /// herd moved at its first member's pace however hurt the others were (judgment: realistic, and
+    /// one lame member can no longer hold a herd still).
+    // ponytail: a member that mends never rejoins; it lives on as its own herd on a copy of their land.
+    static void LeaveBehindTheLame(World world, Agent herd)
+    {
+        for (int i = herd.Members.Count - 1; i >= 0 && herd.Members.Count > 1; i--)
+            if (Hurt(herd.Members[i]) && !Mobile(herd.Members[i])) Agents.SplitOff(world, herd.Id, i);
+    }
+
+    static bool Mobile(BodyState body) => Body.GetCapacities(body).Moving > 0.1;
+
+    static bool Hurt(BodyState body) => body.BloodPct < 1 || body.Regions.Any(r => r.Condition < 1 || r.Organs.Any(o => o.Condition is > 0 and < 1));
+
+    /// One minute of a living animal's mending: every hurt layer, every organ not destroyed, and the blood.
+    static void Mend(BodyState body)
+    {
+        if (body.BloodPct < 1) body.BloodPct = Math.Min(1, body.BloodPct + MendPctPerMinute);
+        foreach (var region in body.Regions)
+            foreach (var t in region.Layers.Concat(region.Organs.Where(o => o.Condition > 0)))
+                if (t.Condition < 1) t.Condition = Math.Min(1, t.Condition + MendPctPerMinute);
     }
 
     // ---- herd activities ----
@@ -228,25 +277,23 @@ public static partial class Fauna
         double mealKg = Math.Max(1, MassKg(herd) * 0.03);
         double want = Math.Min(mealKg * mind.Hunger, 0.1 * herd.Members.Count), eaten = 0;
         foreach (var c in world.Tiles.GetValueOrDefault(herd.Tile)?.Carcasses ?? [])
-        {
-            double meat = c.Remaining.GetValueOrDefault(Resource.RawMeat), bite = Math.Min(meat, want - eaten);
-            if (bite <= 0) continue;
-            c.Remaining[Resource.RawMeat] = meat - bite;
-            eaten += bite;
-        }
+            if (want > eaten) eaten += Carcasses.EatMeat(c, want - eaten);
         mind.Hunger = Math.Max(0, mind.Hunger - eaten / mealKg);
     }
 
     // ---- pack hunts (old PackPredatorBehavior.AttemptNpcHunt, HerdVigilance) ----
 
-    /// The pack goes for the weakest few; vigilance decides how the fight opens: noticed prey
+    /// The pack singles out the weakest; vigilance decides how the fight opens: noticed prey
     /// start alert at range, surprised prey are ambushed. Returns the fight's length in minutes.
+    /// Old game: the pack went for the weakest three at once. Judgment: one, as wolves cut one animal
+    /// out of a herd. Against three, a pack that ranged far enough to meet bison killed two or three of
+    /// them and was wiped out in its first week; against one it lives and the valley's prey thin slowly.
     static int PackHunt(World world, Agent pack, Agent prey, List<WorldEvent> events)
     {
         Become(world, MindOf(pack), HerdState.Hunting);
         var targets = Enumerable.Range(0, prey.Members.Count).Where(i => Body.IsAlive(prey.Members[i]))
             .OrderBy(i => Body.Speed(prey.Members[i]) * Body.Vitality(prey.Members[i])).ThenBy(i => Body.Vitality(prey.Members[i]))
-            .Take(3).Select(i => new Fighter(prey.Id, i)).ToList();
+            .Take(1).Select(i => new Fighter(prey.Id, i)).ToList();
         var hunters = Enumerable.Range(0, pack.Members.Count).Where(i => Body.IsAlive(pack.Members[i]))
             .Take(6).Select(i => new Fighter(pack.Id, i)).ToList();
         bool noticed = PreyNotices(world, pack, prey);
@@ -294,7 +341,11 @@ public static partial class Fauna
         mind.LastFightMinute = world.Minute;
         bool predator = IsPredator(herd.Species);
         // old game: a kill set the pack's hunger to 0 before it ate, so it fed on nothing and left the carcass whole (judgment: it eats now).
-        if (predator && killedOne) Become(world, mind, HerdState.Feeding);
+        if (predator && killedOne)
+        {
+            Become(world, mind, HerdState.Feeding);
+            mind.Foray = null;
+        }
         else if (mind.State == HerdState.Hunting) Become(world, mind, HerdState.Patrolling);
         mind.Fear = Math.Max(mind.Fear, Combat.FearAfter(own));
         bool scattered = own is CombatResult.Fled or CombatResult.AnimalDisengaged;
@@ -370,20 +421,25 @@ public static partial class Fauna
                 if (mind.Hunger > 0.6) Become(world, mind, HerdState.Patrolling);
                 return Rest(herd);
             case HerdState.Patrolling:
+                // Judgment (not in the old game, whose pack fed an hour and left the rest): a pack goes
+                // back to the meat on its tile before it hunts again, so a kill feeds it for days, not one meal.
+                if (MeatHere(world, herd.Tile) > 0) { Become(world, mind, HerdState.Feeding); return (new Feed(herd.Id), 1); }
                 // A frightened pack (it just lost a fight) leaves prey alone.
                 if (mind.Hunger > 0.4 && mind.Fear <= 0.5 && PreyHere(world, herd) is Agent prey) return (new Hunt(herd.Id, prey.Id), 1);
-                if (t > PackPatrolTimeoutMinutes)
+                // A starving pack does not go home empty: it ranges on (judgment, below).
+                if (t > PackPatrolTimeoutMinutes && mind.Hunger <= StarvingHunger)
                 {
                     Become(world, mind, HerdState.Resting);
                     mind.TerritoryIndex = 0;
                     return Toward(world, herd, mind, mind.Territory[0]) ?? Rest(herd);
                 }
                 if (mind.Hunger < 0.3) { Become(world, mind, HerdState.Resting); return Rest(herd); }
-                if (t > 0 && t % PackPatrolEveryMinutes == 0)
+                if (t > 0 && t % (mind.Hunger > StarvingHunger ? StarvingPatrolEveryMinutes : PackPatrolEveryMinutes) == 0)
                 {
                     // Judgment (not in the old game): a hungry pack follows the scent of prey it can sense
                     // (old BaseDetectionRange) instead of walking its round, so packs and herds actually meet.
-                    if (mind.Hunger > 0.6 && NearestPrey(world, herd) is TileId scent && Toward(world, herd, mind, scent) is { } stalk) return stalk;
+                    if (mind.Hunger > 0.6 && TowardNearest(world, herd, PreySensed(world, herd)) is { } stalk) return stalk;
+                    if (mind.Hunger > StarvingHunger && Foray(world, herd, mind) is { } range) return range;
                     if (PatrolStep(world, herd, mind) is { } walk) return walk;
                 }
                 return Wait(herd);
@@ -394,6 +450,40 @@ public static partial class Fauna
                 Become(world, mind, HerdState.Patrolling);
                 return Wait(herd);
         }
+    }
+
+    /// Judgment, not in the old game (whose packs walked only their own few dozen tiles and starved
+    /// beside a valley full of prey): a starving pack trots off its land toward a far point within
+    /// ForayRadiusTiles of its den, and on to another when it gets there or finds no way, until it
+    /// picks up a scent. Real wolves range tens of kilometres a day when hungry. Eating ends it.
+    static (Activity, int)? Foray(World world, Agent herd, HerdMind mind)
+    {
+        for (int tries = 0; tries < 2; tries++)
+        {
+            if (mind.Foray is not TileId target || target == herd.Tile)
+            {
+                mind.Foray = ForayTarget(world, mind.Territory[0]);
+                if (mind.Foray == null) return null;
+                target = mind.Foray.Value;
+            }
+            if (Toward(world, herd, mind, target) is { } step) return step;
+            if (!CanMove(herd)) return null;
+            mind.Foray = null; // no way there: somewhere else
+        }
+        return null;
+    }
+
+    /// A random open tile within ForayRadiusTiles of the den, off any cave floor. Null after a few misses.
+    static TileId? ForayTarget(World world, TileId den)
+    {
+        var m = Map.Of(world);
+        var rng = world.Rng("herds");
+        for (int i = 0; i < 8; i++)
+        {
+            var t = new TileId(den.X + rng.NextInt(2 * ForayRadiusTiles + 1) - ForayRadiusTiles, den.Y + rng.NextInt(2 * ForayRadiusTiles + 1) - ForayRadiusTiles);
+            if (m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && t != den) return t;
+        }
+        return null;
     }
 
     static (Activity, int) DecideSolitary(World world, Agent herd, HerdMind mind)
@@ -431,7 +521,7 @@ public static partial class Fauna
                 return Rest(herd);
             case HerdState.Patrolling:
                 if (MeatHere(world, herd.Tile) > 0) { Become(world, mind, HerdState.Feeding); return (new Feed(herd.Id), 1); }
-                if (t % CarcassSearchEveryMinutes == 0 && NearestMeat(world, herd.Tile) is TileId food && Toward(world, herd, mind, food) is { } go) return go;
+                if (t % CarcassSearchEveryMinutes == 0 && TowardNearest(world, herd, MeatSensed(world, herd.Tile)) is { } go) return go;
                 if (mind.Hunger < 0.3 && t > 60) { Become(world, mind, HerdState.Resting); return Rest(herd); }
                 // ponytail: old hyenas also shadowed feeding predators and wolf packs; carcasses alone draw them here.
                 if (Roll(world, 0.04) && PatrolStep(world, herd, mind) is { } walk) return walk;
@@ -474,7 +564,7 @@ public static partial class Fauna
 
     static bool Roll(World world, double chance) => world.Rng("herds").NextDouble() < chance;
 
-    static bool CanMove(Agent herd) => herd.Members.Min(b => Body.GetCapacities(b).Moving) > 0.1;
+    static bool CanMove(Agent herd) => herd.Members.All(Mobile);
 
     /// One step on toward the tile of its land it is making for (old TryPatrolTerritory); once
     /// there, it makes for another anywhere on its land.
@@ -484,31 +574,34 @@ public static partial class Fauna
     {
         if (mind.Territory.Count < 2) return null;
         if (herd.Tile == mind.Territory[mind.TerritoryIndex]) mind.TerritoryIndex = world.Rng("herds").NextInt(mind.Territory.Count);
-        return Toward(world, herd, mind, mind.Territory[mind.TerritoryIndex]);
+        var walk = Toward(world, herd, mind, mind.Territory[mind.TerritoryIndex]);
+        if (walk != null || !CanMove(herd)) return walk;
+        // No way there from here (walled off): it makes for somewhere else on its land next time.
+        mind.TerritoryIndex = world.Rng("herds").NextInt(mind.Territory.Count);
+        return null;
     }
 
     /// One step toward a tile: the shortest way through its own land when there is one (old
-    /// Navigation.FindRoute, kept to the territory so it stays cheap), else whichever open
-    /// neighbour is nearer. Null when already there or nothing is open.
+    /// Navigation.FindRoute, kept to the territory so it stays cheap), else the shortest way over
+    /// open ground (Route). Null when already there, lame, or there is no way.
     static (Activity, int)? Toward(World world, Agent herd, HerdMind mind, TileId target)
     {
         if (herd.Tile == target || !CanMove(herd)) return null;
         var m = Map.Of(world);
         var land = mind.Territory.ToHashSet();
-        if (land.Contains(target) && land.Contains(herd.Tile) && FirstStep(m, herd.Tile, target, land) is Direction routed)
-            return (new Travel(herd.Id, routed), UntilArrived);
-        Direction? greedy = null;
-        int bestDistance = MapGen.Manhattan(herd.Tile, target);
-        foreach (var d in Enum.GetValues<Direction>())
-        {
-            var next = Map.Step(herd.Tile, d);
-            if (Map.Blocked(m, herd.Tile, next) != null || MapGen.Manhattan(next, target) >= bestDistance) continue;
-            greedy = d;
-            bestDistance = MapGen.Manhattan(next, target);
-        }
-        return greedy is Direction g ? (new Travel(herd.Id, g), UntilArrived) : null;
+        var step = land.Contains(target) && land.Contains(herd.Tile) ? FirstStep(m, herd.Tile, target, land) : null;
+        step ??= Route(m, herd.Tile, [target]);
+        return step is Direction d ? (new Travel(herd.Id, d), UntilArrived) : null;
     }
 
+    /// One step toward whichever of these tiles is nearest by the way there, not as the crow flies.
+    static (Activity, int)? TowardNearest(World world, Agent herd, HashSet<TileId> goals)
+    {
+        if (goals.Count == 0 || goals.Contains(herd.Tile) || !CanMove(herd)) return null;
+        return Route(Map.Of(world), herd.Tile, goals) is Direction d ? (new Travel(herd.Id, d), UntilArrived) : null;
+    }
+
+    /// Breadth-first through its own land, in Direction order: deterministic.
     static Direction? FirstStep(GeneratedMap m, TileId from, TileId to, HashSet<TileId> land)
     {
         var firstDir = new Dictionary<TileId, Direction>();
@@ -526,6 +619,42 @@ public static partial class Fauna
         return null;
     }
 
+    /// Tiles a route may search before it gives up: a goal walled off from the herd is not worth the whole map.
+    const int MaxRouteTiles = 4000;
+
+    /// The first step of a shortest way over open ground to the nearest of the goals (A*, guided by
+    /// the distance to the nearest goal), or null when none turns up within MaxRouteTiles (old
+    /// Navigation.FindRoute). Not a greedy step to the nearer neighbour, which a mountain between a herd
+    /// and its target holds still for good; and not a shortest way inside a box around the two ends,
+    /// which moves with the herd, so the next box's way can turn it back and it walks to and fro for
+    /// days. On one fixed map every step along a shortest way brings it strictly nearer.
+    static Direction? Route(GeneratedMap m, TileId from, IReadOnlyCollection<TileId> goals)
+    {
+        int Guess(TileId t) => goals.Min(g => MapGen.Manhattan(t, g));
+        var cost = new Dictionary<TileId, int> { [from] = 0 };
+        var first = new Dictionary<TileId, Direction>();
+        var done = new HashSet<TileId>();
+        var open = new PriorityQueue<TileId, (int Total, int Left)>();
+        open.Enqueue(from, (Guess(from), Guess(from)));
+        while (open.TryDequeue(out var at, out _))
+        {
+            if (!done.Add(at)) continue;
+            if (at != from && goals.Contains(at)) return first[at];
+            if (done.Count > MaxRouteTiles) return null;
+            foreach (var d in Enum.GetValues<Direction>())
+            {
+                var next = Map.Step(at, d);
+                int g = cost[at] + 1;
+                if (done.Contains(next) || (cost.TryGetValue(next, out var known) && known <= g) || Map.Blocked(m, at, next) != null) continue;
+                cost[next] = g;
+                first[next] = at == from ? d : first[at];
+                int left = Guess(next);
+                open.Enqueue(next, (g + left, left));
+            }
+        }
+        return null;
+    }
+
     /// A prey herd on this tile, not already in a fight.
     static Agent? PreyHere(World world, Agent predator) =>
         HerdsAt(world, predator.Tile).FirstOrDefault(h => h.Id != predator.Id && !IsPredator(h.Species) && Sim.IsAlive(h)
@@ -534,29 +663,28 @@ public static partial class Fauna
     /// Old AnimalType.BaseDetectionRange, in tiles.
     public static int DetectionRangeTiles(Species s) => s is Species.Wolf or Species.SaberTooth ? 12 : 8;
 
-    /// Where the nearest prey herd within the predator's senses stands, if any.
-    static TileId? NearestPrey(World world, Agent predator)
+    /// Where the prey herds within the predator's senses stand.
+    static HashSet<TileId> PreySensed(World world, Agent predator)
     {
         int range = DetectionRangeTiles(predator.Species);
         return world.Agents.Values
             .Where(h => h.Mind is HerdMind && !IsPredator(h.Species) && MapGen.Manhattan(h.Tile, predator.Tile) <= range)
-            .OrderBy(h => MapGen.Manhattan(h.Tile, predator.Tile)).Select(h => (TileId?)h.Tile).FirstOrDefault();
+            .Select(h => h.Tile).ToHashSet();
     }
 
-    /// The nearest tile with meat on it within the scavenger's nose (old CarcassSearchRadius).
-    static TileId? NearestMeat(World world, TileId from)
+    /// The tiles with meat on them within the scavenger's nose (old CarcassSearchRadius).
+    static HashSet<TileId> MeatSensed(World world, TileId from)
     {
-        TileId? best = null;
-        int bestDistance = int.MaxValue;
+        var found = new HashSet<TileId>();
         for (int dx = -CarcassSearchRadius; dx <= CarcassSearchRadius; dx++)
             for (int dy = -CarcassSearchRadius; dy <= CarcassSearchRadius; dy++)
             {
                 var t = new TileId(from.X + dx, from.Y + dy);
                 int d = Math.Abs(dx) + Math.Abs(dy);
-                if (d == 0 || d > CarcassSearchRadius || d >= bestDistance) continue;
-                if (world.Tiles.TryGetValue(t, out var s) && s.Carcasses != null && MeatHere(world, t) > 0) { best = t; bestDistance = d; }
+                if (d == 0 || d > CarcassSearchRadius) continue;
+                if (world.Tiles.TryGetValue(t, out var s) && s.Carcasses != null && MeatHere(world, t) > 0) found.Add(t);
             }
-        return best;
+        return found;
     }
 
     // ---- the player's hunt ----

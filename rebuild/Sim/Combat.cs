@@ -87,7 +87,8 @@ public sealed record ActionResult(string? Refused = null, bool Hit = false, bool
 /// the mechanical half of CompanionCombat. The AI is in CombatAI.cs, the aftermath in CombatAftermath.cs.
 ///
 /// Time: one round is one minute. The player's rounds are Fight activities, so Sim.Step lives the
-/// minute (the player's body, everyone's wounds) between the player's action and the others' turns.
+/// minute (every body in the fight: the others on the scheduler, then the player's) between the
+/// player's action and the others' turns.
 /// A headless fight resolves within one instant of world time; Encounter.Rounds says how many
 /// minutes it took, for the caller (a herd's or NPC's own catch-up) to charge.
 public static partial class Combat
@@ -446,8 +447,7 @@ public static partial class Combat
     {
         var enc = EncounterOf(world, fight.Who) ?? throw new InvalidOperationException($"{fight.Who} has no fight to finish");
         var me = UnitOf(enc, fight.Who);
-        // ponytail: an NPC fighter gets only its wounds ticked here; its full survival minute comes with phase 3d's NPC stepping.
-        foreach (var u in Field(enc).Where(u => !IsPlayer(u)).ToList()) Body.TickWounds(BodyOf(world, u), world.Rng("body"));
+        // Everyone else in the field lived this minute already, on the scheduler (Sim.LiveBodies), before the player's.
         // Old game: a fighter that bled out between blows stayed on the field, so the fight never ended (bug, fixed).
         Sweep(world, enc, events, by: null);
         foreach (var u in enc.Units.Where(u => u.SignalModifier != 0 && world.Minute >= u.SignalExpiresMinute))
@@ -500,12 +500,15 @@ public static partial class Combat
                 if (unit.InField) RunDetection(world, enc, unit, huntingSkill: 0, ExposureMeters(before, unit.Position));
             }
             // Each round's wounds tick without world.Minute moving: a headless fight spends no world time.
-            // The round is that body's next minute of bleeding, so whoever lives that minute must not bleed it again.
+            // A round is each body's next minute not yet lived: the minute under way for a fighter the
+            // scheduler has not reached yet, the one after for a fighter that has lived it. Whoever
+            // lives those minutes later skips their wounds (WoundsLivedThroughMinute), so every body
+            // lives every minute once, whatever order the fighters were scheduled in.
             foreach (var u in Field(enc).ToList())
             {
                 var body = BodyOf(world, u);
                 Body.TickWounds(body, world.Rng("body"));
-                body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute + round + 1);
+                body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute - 1) + 1;
             }
             Sweep(world, enc, events, by: null);
             enc.Rounds++;

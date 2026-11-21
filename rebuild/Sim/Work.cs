@@ -365,6 +365,13 @@ public static class Work
         Items.AddAll(s.Dropped, Items.Receive(world, agent, got, events: null));
     }
 
+    /// What a focused search finds of what it looks for, over a general one: each such find comes with
+    /// another like it on these odds. Old FocusProcessor only filtered, so focus cost the rest of the haul
+    /// and bought nothing - a focused food search fed no better than a general one (2026-11-20 forage retune).
+    /// Grounding: the eyes and hours a general search spends on sticks and stones go on the berries and roots.
+    /// Sized so a person who works food all day, moving on as ground thins, about breaks even in forest.
+    public const double FocusGain = 1.3;
+
     /// Old FocusProcessor.ApplyFocus: each find outside the focus survives on a 40-60% roll.
     static IEnumerable<(Resource, double)> Focus(List<(Resource Resource, double Kg)> finds, ForageFocus focus, Rng rng)
     {
@@ -379,7 +386,15 @@ public static class Work
         var kept = new List<(Resource, double)>();
         foreach (var group in finds.GroupBy(f => f.Resource))
         {
-            if (Items.Resources[group.Key].Category == target) { kept.AddRange(group.Select(f => (f.Resource, f.Kg))); continue; }
+            if (Items.Resources[group.Key].Category == target)
+            {
+                foreach (var f in group)
+                {
+                    kept.Add(f);
+                    if (rng.NextDouble() < FocusGain - 1) kept.Add(f);
+                }
+                continue;
+            }
             double keepPct = 0.4 + rng.NextDouble() * 0.2;
             foreach (var f in group) if (rng.NextDouble() < keepPct) kept.Add((f.Resource, f.Kg));
         }
