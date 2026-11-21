@@ -51,6 +51,22 @@ code { font-size: 14px; color: var(--fg); }
   </header>
 
   <section style="display:grid;gap:10px">
+    <h2>In the game now</h2>
+    <p>The game's own tiles and border blending on the same valley, 48 px per cell. Left: before. Right: the new tiles, with borders that pick one terrain per pixel instead of mixing colours.</p>
+    <div class="cmp" id="cmp2" style="--x:50%;aspect-ratio:1440/960">
+      <img src="game_after.png" alt="New in-game terrain: dark forest masses, shaded snow, dithered borders">
+      <img class="top" src="game_before.png" alt="Previous in-game terrain: pale haze with small specks">
+      <div class="bar"></div>
+      <span class="tag l">Before</span><span class="tag r">After</span>
+    </div>
+    <label for="slider2" style="color:var(--dim);font-size:14px">Split position</label>
+    <input id="slider2" type="range" min="0" max="100" value="50">
+    <p>Rendered by the game's compositor (<code>tools/TerrainPreview</code>): hard borders on the left, the new dithered borders on the right.</p>
+    <div class="full"><img src="game_borders.png" alt="Game compositor output: hard tile borders beside dithered borders"></div>
+  </section>
+
+  <section style="display:grid;gap:10px">
+    <h2>The original test</h2>
     <div class="cmp" id="cmp" style="--x:50%">
       <img src="new_crop.png" alt="Test terrain: dark spruce stands, shaded snow, a continuous frozen creek">
       <img class="top" src="old_crop.png" alt="Current terrain: pale tiles with small scattered trees">
@@ -111,12 +127,14 @@ const PAIRS = [
 document.getElementById('pairs').innerHTML = PAIRS.map(([name, bg, oldf, newf, verdict, worse]) =>
   `<div class="pair ${bg}"><div class="row"><img src="icons_old/${oldf}.png" alt="${name}, current"><img src="icons/${newf}.png" alt="${name}, test"></div>` +
   `<span>${name}</span><span class="verdict${worse ? ' worse' : ''}">${verdict}</span></div>`).join('');
-const cmp = document.getElementById('cmp'), slider = document.getElementById('slider');
-const set = pct => { pct = Math.max(0, Math.min(100, pct)); cmp.style.setProperty('--x', pct + '%'); slider.value = pct; };
-const fromEvent = e => { const r = cmp.getBoundingClientRect(); set((e.clientX - r.left) / r.width * 100); };
-let drag = false;
-cmp.addEventListener('pointerdown', e => { drag = true; cmp.setPointerCapture(e.pointerId); fromEvent(e); });
-cmp.addEventListener('pointermove', e => { if (drag) fromEvent(e); });
-cmp.addEventListener('pointerup', () => { drag = false; });
-slider.addEventListener('input', () => set(+slider.value));
+[['cmp', 'slider'], ['cmp2', 'slider2']].forEach(([c, s]) => {
+  const cmp = document.getElementById(c), slider = document.getElementById(s);
+  const set = pct => { pct = Math.max(0, Math.min(100, pct)); cmp.style.setProperty('--x', pct + '%'); slider.value = pct; };
+  const fromEvent = e => { const r = cmp.getBoundingClientRect(); set((e.clientX - r.left) / r.width * 100); };
+  let drag = false;
+  cmp.addEventListener('pointerdown', e => { drag = true; cmp.setPointerCapture(e.pointerId); fromEvent(e); });
+  cmp.addEventListener('pointermove', e => { if (drag) fromEvent(e); });
+  cmp.addEventListener('pointerup', () => { drag = false; });
+  slider.addEventListener('input', () => set(+slider.value));
+});
 </script>
