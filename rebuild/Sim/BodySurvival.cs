@@ -127,7 +127,10 @@ public static partial class Body
         double wetness = Effects.Severity(body, EffectKind.Wet);
         double clo = ctx.ClothingClo * Math.Clamp(1 - wetness * 0.7, 0.1, 1.0); // soaked layers lose their air
         double sealedLevel = Math.Clamp(ctx.WaterproofingLevel, 0, 1);
-        clo *= Math.Clamp(1 - ctx.WindLevel * (1 - sealedLevel) * 0.4, 0.2, 1.0); // wind pushes through the unsealed
+        // Wind pushes through the unsealed, on the same curve as it strips the boundary layer (ConvectiveWind): one wind
+        // response for convection and clothing alike. Old (this rebuild): linear in the wind, so past a gale it hit its
+        // floor and a Wind Gap storm (2.5) took twice a gale's heat, not the square root's 1.4x.
+        clo *= Math.Clamp(1 - ConvectiveWind(ctx.WindLevel) * (1 - sealedLevel) * 0.4, 0.2, 1.0);
         double naturalClo = Math.Clamp(ColdResistance(body), 0, 1) * 1.5;
         return (clo + naturalClo) * M2KPerWattPerClo + 1.0 / ConvectiveCoefficient(ctx);
     }
@@ -237,8 +240,52 @@ public static partial class Body
         return d;
     }
 
+    /// Minute by minute: whether the clothing pays for a chill (core at or under its setpoint), whether a fire's heat is
+    /// withheld (sweating), the skin's tone and the buffer's fill all change as the core and the buffer do, so one long
+    /// step is the same minutes lived one at a time, not the first minute's rates held. Old (this rebuild): decided once
+    /// at the start, so a seven-minute step from 98.77F asleep in a cold rain took -1.40F where seven one-minute steps
+    /// took -0.20F. Effects are judged by the core as the step began, as before.
     static void ProcessTemperature(BodyState body, SurvivalContext ctx, int minutes, SurvivalDelta d)
     {
+        double startCoreF = body.CoreTempF, startBufferPct = body.ClothingHeatBufferPct;
+        double sweatSeverity = Sweat(body, ctx).Severity;
+        try
+        {
+            for (int i = 0; i < minutes; i++)
+            {
+                var minute = new SurvivalDelta();
+                ProcessTemperatureMinute(body, ctx, minute);
+                d.CoreTempDeltaF += minute.CoreTempDeltaF;
+                d.HydrationDeltaMl += minute.HydrationDeltaMl;
+                d.ClothingHeatBufferDeltaPct += minute.ClothingHeatBufferDeltaPct;
+                // The next minute starts where this one left the body (the delta's own sum, as Apply will make it).
+                body.CoreTempF = startCoreF + d.CoreTempDeltaF;
+                body.ClothingHeatBufferPct = startBufferPct + d.ClothingHeatBufferDeltaPct;
+            }
+        }
+        finally
+        {
+            body.CoreTempF = startCoreF;
+            body.ClothingHeatBufferPct = startBufferPct;
+        }
+
+        double core = startCoreF;
+        if (core < ShiveringThresholdF)
+            d.Effects.Add((EffectKind.Shivering, Math.Clamp((ShiveringThresholdF - core) / 5.0, 0.01, 1.0)));
+        if (core < HypothermiaThresholdF)
+            d.Effects.Add((EffectKind.Hypothermia, Math.Clamp((HypothermiaThresholdF - core) / 10.0, 0.01, 1.0)));
+        if (core < SevereHypothermiaThresholdF)
+            d.Effects.Add((EffectKind.Frostbite, Math.Clamp((SevereHypothermiaThresholdF - core) / 10.0, 0.01, 1.0)));
+        if (core > HyperthermiaThresholdF)
+            d.Effects.Add((EffectKind.Hyperthermia, Math.Clamp((core - HyperthermiaThresholdF) / 10.0, 0.01, 1.0)));
+        if (sweatSeverity > 0.01)
+            d.Effects.Add((EffectKind.Sweating, sweatSeverity));
+    }
+
+    /// One minute of ProcessTemperature, from the body as it stands.
+    static void ProcessTemperatureMinute(BodyState body, SurvivalContext ctx, SurvivalDelta d)
+    {
+        const int minutes = 1;
         var balance = CalculateHeatBalance(body, ctx);
         double coreDeltaF = balance.DegreesFPerHour / 60 * minutes;
         double capacityF = ctx.ClothingWeightKg * ThermalMassFPerKg;
@@ -275,18 +322,6 @@ public static partial class Body
         d.CoreTempDeltaF += coreDeltaF;
         d.HydrationDeltaMl -= sweat.ProducedMlPerHour / 60.0 * minutes;
         d.ClothingHeatBufferDeltaPct += bufferDelta + fireFill;
-
-        double core = body.CoreTempF;
-        if (core < ShiveringThresholdF)
-            d.Effects.Add((EffectKind.Shivering, Math.Clamp((ShiveringThresholdF - core) / 5.0, 0.01, 1.0)));
-        if (core < HypothermiaThresholdF)
-            d.Effects.Add((EffectKind.Hypothermia, Math.Clamp((HypothermiaThresholdF - core) / 10.0, 0.01, 1.0)));
-        if (core < SevereHypothermiaThresholdF)
-            d.Effects.Add((EffectKind.Frostbite, Math.Clamp((SevereHypothermiaThresholdF - core) / 10.0, 0.01, 1.0)));
-        if (core > HyperthermiaThresholdF)
-            d.Effects.Add((EffectKind.Hyperthermia, Math.Clamp((core - HyperthermiaThresholdF) / 10.0, 0.01, 1.0)));
-        if (sweat.Severity > 0.01)
-            d.Effects.Add((EffectKind.Sweating, sweat.Severity));
     }
 
     /// Drying is paid for in latent heat: soaked clothing (2000ml) needs ~1160 kcal to dry, half a
@@ -294,11 +329,12 @@ public static partial class Body
     /// Returns wetness per hour.
     static double DryingPctPerHour(BodyState body, SurvivalContext ctx)
     {
+        // A fire's radiant heat and warm air each supply it; the faster wins. Not their sum: the air already holds the
+        // fire's warming of it (Exposure.AirF), so adding both would count that heat twice. Old (this rebuild): any fire
+        // heat replaced warm-air drying, so above about 62F a small fire or a torch dried slower than none.
         double fireF = FireF(body, ctx);
-        double kcalPerHour;
-        if (fireF > 0) kcalPerHour = 300 + fireF * 25;
-        else if (ctx.AirTempF > 32) kcalPerHour = (ctx.AirTempF - 32) * 10;
-        else return 0; // frozen wet
+        double kcalPerHour = Math.Max(fireF > 0 ? 300 + fireF * 25 : 0, ctx.AirTempF > 32 ? (ctx.AirTempF - 32) * 10 : 0);
+        if (kcalPerHour <= 0) return 0; // frozen wet
 
         // Wind speeds evaporation; it cannot create it. Beside a pit it is the wind past the pit's walls
         // (old game parity), whether or not its heat is withheld for sweating; anywhere else, a torch in
@@ -340,7 +376,9 @@ public static partial class Body
     static void ProcessBloody(BodyState body, int minutes, SurvivalDelta d)
     {
         double bleeding = Effects.Severity(body, EffectKind.Bleeding);
-        if (bleeding <= 0) return; // existing blood dries on its own
+        // Nothing new. What is on you fades, for now only to the treatment floor (Effects.TreatmentFloorPct, 0.05); it is to
+        // fade away on its own (documentation/decisions/2026-11-21-no-effect-needs-a-missing-treatment.md, body fixes A5).
+        if (bleeding <= 0) return;
         // Always set, however faint: gating at 5% meant it restarted from zero every minute and never built up.
         d.Effects.Add((EffectKind.Bloody, Math.Clamp(Effects.Severity(body, EffectKind.Bloody) + 0.15 / 60.0 * bleeding * minutes, 0, 1)));
     }

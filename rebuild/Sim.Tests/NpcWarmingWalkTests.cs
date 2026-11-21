@@ -35,7 +35,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     /// minutes (every crossing off the tile averaged; the step home is 36) and its core judged against the critical
     /// line, so it made camp where it stood and died making a fire there. Out to day 23, it never moves camp while
     /// the camp it leaves, two tiles off or less, has a fire burning or in embers.
-    [Trait("Category", "Slow")]
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void Seed7_NeverMakesCampBesideTheFireItLeft()
     {
@@ -184,7 +184,9 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     /// a pinch of tinder too small to strike, and the camp it moved from - tinder and nine kilos of birch on its
     /// stash - next door. The trip budget refused the walk (core under the wanted line, energy under the rested
     /// one) and it groped the bare camp ground. It goes back to its makings, and home is there. (Kindling on that
-    /// stash since the Light fix: tinder and birch alone are not makings, a tinder fire never takes birch.)
+    /// stash since the Light fix: tinder and birch alone are not makings, a tinder fire never takes birch.) Its camp
+    /// is an overhang: the makings are fetched home and the fire made under it (Npc.FireMakings), not home moved to
+    /// a bare tile next door.
     [Theory]
     [InlineData(0.10, 96.3, false)]
     [InlineData(0.45, 96.5, false)]
@@ -207,18 +209,21 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         output.WriteLine($"energy {energyPct} core {coreF} {(day ? "day" : "night")}: {a} x{n}, camp {mind.Camp}");
         var step = Assert.IsType<Travel>(a);
         Assert.Equal(next, Map.Step(camp, step.Dir));
-        Assert.Equal(next, mind.Camp);
-        // And it gets there and has a fire going within the hour.
+        Assert.Equal(camp, mind.Camp);
+        // And it gets there, carries them home and has a fire going under the overhang within the hour.
         bool lit = false;
-        for (int i = 0; i < 60 && !lit; i++) lit = Sim.Advance(w, 1).OfType<FireLit>().Any(f => f.Tile == next);
-        Assert.True(lit, "no fire lit at the makings within the hour");
+        for (int i = 0; i < 60 && !lit; i++) lit = Sim.Advance(w, 1).OfType<FireLit>().Any(f => f.Tile == camp);
+        Assert.True(lit, "no fire lit at home within the hour");
+        Assert.Equal(camp, mind.Camp);
     }
 
     /// Seed 7, day 29 (the reviewer's trace): at a cold camp at night with a hand drill, 0.21 kg of tinder of its own
     /// and no kindling, 5.33 kg of tinder on the camp's stash but no wood, and a woodpile one tile off - 31 kg of oak,
     /// kindling, and a pinch of tinder. Makings were judged by the woodpile's stash alone, so it walked off with its
     /// 0.21, struck at the odds' floor until that was gone, and froze. It takes the camp's tinder (and kindling) for
-    /// the walk first: it reaches the woodpile with a kilo of tinder counting the pinch it remembers there.
+    /// the walk first: it reaches the woodpile with a kilo of tinder counting the pinch it remembers there. Two tiles
+    /// off, past fetching reach (Npc.FetchMakingsTiles); one tile off an overhang, it fetches them home instead
+    /// (DeadCamp_MakingsNextDoor_GoesToThem).
     [Fact]
     public void WalkToMakings_TakesTheCampsTinderFirst()
     {
@@ -227,9 +232,9 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         mind.Pack.Kg[Resource.Tinder] = 0.21;
         mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 5.3 } };
         var m = Map.Of(w);
-        var dir = Enum.GetValues<Direction>().First(d => m.InBounds(Map.Step(camp, d)) && m.TerrainAt(Map.Step(camp, d)).IsPassable()
-                                                          && Traversal.Refusal(w, new Travel(npc, d)) == null);
-        var next = Map.Step(camp, dir);
+        var next = MapGen.Neighbors(camp).Where(n => m.InBounds(n) && m.TerrainAt(n).IsPassable() && Map.Blocked(m, camp, n) == null)
+            .SelectMany(n => MapGen.Neighbors(n).Where(f => MapGen.Manhattan(f, camp) == 2 && m.InBounds(f) && m.TerrainAt(f).IsPassable() && Map.Blocked(m, n, f) == null))
+            .OrderBy(t => t).First();
         var pile = new Inventory();
         Items.Add(pile, Resource.Oak, 31);
         Items.Add(pile, Resource.Kindling, 1.5);
@@ -258,7 +263,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     /// it knows, a tile off (it sees it from camp), whatever stand further off it is told of. Followed for five hours:
     /// it reaches standing timber without once turning back to the dead camp empty-handed, has a fire going - there,
     /// or, the camp being an overhang with the trees in hauling reach, back under it - and is alive.
-    [Trait("Category", "Slow")]
+    [Trait("Category", TestCategories.Slow)]
     [Theory]
     [InlineData(false, 0.20, 96.5, 3)]
     [InlineData(false, 0.45, 96.5, 3)]
@@ -294,7 +299,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     /// legs to spare - it goes, never turns back to the camp it left, gets there, lights a fire at the trees and is
     /// alive at the end. If it does not fit, it does not set out. On the bitter day it does not: twelve tiles of
     /// snow take 70 minutes, and the core is at the lethal line in 52.
-    [Trait("Category", "Slow")]
+    [Trait("Category", TestCategories.Slow)]
     [Theory]
     [InlineData(false, 96.5, 0.6)]
     [InlineData(false, 96.5, 0.25)]

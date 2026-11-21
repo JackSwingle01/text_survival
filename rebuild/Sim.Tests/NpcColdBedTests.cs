@@ -15,12 +15,12 @@ public class NpcColdBedTests(ITestOutputHelper output)
 
     /// Seed 11's state at 00:03 on day 30: at camp beside a cold pit, a hand drill and a pinch of
     /// tinder too small to strike with, nothing on the stash, core 96.3, spent.
-    static (World World, AgentId Npc, NpcMind Mind) ColdCamp(WeatherSample sky, double energyPct = 0.10, double coreF = 96.3)
+    static (World World, AgentId Npc, NpcMind Mind) ColdCamp(WeatherSample sky, double energyPct = 0.10, double coreF = 96.3, long? minute = null)
     {
         var w = World.New(11);
         w.FixedWeather = sky;
         foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => a.Id).ToList()) w.Agents.Remove(h);
-        w.Minute = At(30, 0, 3);
+        w.Minute = minute ?? At(30, 0, 3);
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp);
         var mind = (NpcMind)w.Agent(npc).Mind;
@@ -68,7 +68,8 @@ public class NpcColdBedTests(ITestOutputHelper output)
     }
 
     /// The makings of a fire left one tile off (seed 11 moved camp a tile from its own stash of tinder and
-    /// wood): with the legs and the warmth for the walk, it goes back to them, and home is there again.
+    /// wood): with the legs and the warmth for the walk, it goes back to them. Its camp is an overhang, so it
+    /// fetches them home and makes the fire there, rather than move home off the shelter (Npc.FireMakings).
     [Fact]
     public void ColdPit_NothingToLight_GoesBackToTheTinderAndWoodItLeft()
     {
@@ -88,6 +89,55 @@ public class NpcColdBedTests(ITestOutputHelper output)
         var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a} for {minutes} min; camp {mind.Camp}");
         Assert.Equal(new Travel(npc, dir, Traversal.IsHazardous(w, camp) || Traversal.IsHazardous(w, next) ? Pace.Careful : Pace.Quick), a);
-        Assert.Equal(next, mind.Camp);
+        Assert.Equal(camp, mind.Camp);
+        Assert.Equal(next, mind.WoodGoal);
+        Assert.NotNull(mind.Knows.Places[camp].Shelter);
+        // There and back with the makings, and a fire going under the overhang within the hour.
+        var lit = NpcDriver.Live(w, npc, w.Minute + 60).OfType<FireLit>().Where(f => f.By == npc).Select(f => f.Tile).ToList();
+        output.WriteLine($"fires lit at {string.Join(", ", lit)}; camp {mind.Camp}");
+        Assert.Contains(camp, lit);
+    }
+
+    /// Freezing (warmth Critical, over rest's Critical in the hierarchy) and spent, at a cold pit with nothing to light
+    /// and no makings anywhere: Warm groped the camp ground for fuel at any energy, where ColdBed lies down once spent
+    /// (RestCriticalPct). The grope is held to the legs in both: it sleeps, waking before the cold has its core at the line.
+    [Fact]
+    public void Freezing_AndSpent_ColdPit_DoesNotGrope()
+    {
+        var (w, npc, mind) = ColdCamp(FrostyNight, energyPct: 0.05, coreF: 94.8);
+        var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
+        output.WriteLine($"{a} for {minutes} min, seeing to {mind.SeeingTo}");
+        Assert.IsNotType<Gather>(a);
+        Assert.IsType<Sleep>(a);
+    }
+
+    /// Traced (seed 11, day 13): home at dusk to a cold pit with tinder, 0.6 kg of kindling and a stash of oak. It lit
+    /// the kindling, then fed the rest on to get the oak going - but a kindling fire that small never gets hot enough
+    /// for oak - and groped the dark camp the rest of the night with tinder and oak and nothing to light from, core
+    /// 98 to 92 by two in the morning. The kindling a fire is lit with is kept for lighting: by dawn there is still
+    /// enough to light from.
+    [Fact(Skip = "Waits on the fire model decision (Q9) and the oak-camp kindling design; dev/active/rebuild-deferred.md")]
+    public void ColdPit_TinderOakAndAlittleKindling_KeepsKindlingToLightFromAtDawn()
+    {
+        var (w, npc, mind) = ColdCamp(FrostyNight, energyPct: 0.25, coreF: 98.0, minute: At(13, 20));
+        mind.Pack.Kg[Resource.Tinder] = 0.3;
+        mind.Pack.Kg[Resource.Kindling] = 0.6;
+        var camp = mind.Camp;
+        Items.Add(Items.StashAt(w, camp), Resource.Oak, 4.2);
+        PickedBare(w, camp);
+        long dawn = At(14, Weather.SunriseHour(At(14, 0)));
+        var log = NpcDriver.Live(w, npc, dawn);
+        double kindling = mind.Pack.Kg.GetValueOrDefault(Resource.Kindling) + Items.Have(Items.StashAt(w, camp), Resource.Kindling);
+        output.WriteLine($"fires lit {log.OfType<FireLit>().Count(l => l.By == npc)}, kindling fed {log.OfType<FuelAdded>().Where(f => f.By == npc && f.Fuel == Resource.Kindling).Sum(f => f.Kg):0.00} kg, "
+                         + $"kindling at dawn {kindling:0.00} kg, core {w.Agent(npc).Body.CoreTempF:0.0}, alive {Body.IsAlive(w.Agent(npc).Body)}");
+        Assert.True(kindling >= 0.3, $"{kindling:0.00} kg of kindling left at dawn: not a light's worth");
+    }
+
+    /// Every forage pool on a tile picked over to nothing, for now.
+    static void PickedBare(World w, TileId tile)
+    {
+        var ts = w.Tiles.TryGetValue(tile, out var t) ? t : w.Tiles[tile] = new TileState();
+        ts.Pools = Enumerable.Range(0, Pools.At(w, tile).Count).Where(i => Pools.At(w, tile)[i] is ForagePool)
+            .ToDictionary(i => i, i => (PoolState)new ForageState { HoursForaged = 1000, LastForagedMinute = w.Minute });
     }
 }

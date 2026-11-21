@@ -37,9 +37,14 @@ public static class Traversal
     public static string? Refusal(World world, Travel t)
     {
         var agent = world.Agent(t.Who);
-        if (agent.Members.Where(Body.IsAlive).Min(m => Body.GetCapacities(m).Moving) <= 0.1) return "you can barely move";
-        return Map.Blocked(Map.Of(world), agent.Tile, Map.Step(agent.Tile, t.Dir));
+        return CannotWalk(agent) ?? Map.Blocked(Map.Of(world), agent.Tile, Map.Step(agent.Tile, t.Dir));
     }
+
+    /// Why this agent cannot walk on, or null: checked when a walk starts and every minute of it
+    /// (Advance), so a crossing stops at the same minute however its minutes are cut into steps.
+    /// The map's blocks are fixed at generation and need no re-check.
+    static string? CannotWalk(Agent agent) =>
+        agent.Members.Where(Body.IsAlive).Min(m => Body.GetCapacities(m).Moving) <= 0.1 ? "you can barely move" : null;
 
     /// The crossing this activity continues, or a fresh one. A crossing in another direction, at
     /// another pace, or from a tile the agent is no longer on, is abandoned.
@@ -65,11 +70,13 @@ public static class Traversal
     }
 
     /// One minute of walking lived. On the last one the agent arrives, and quick hazardous
-    /// segments roll for injury, origin first. Returns why to stop, if anything.
+    /// segments roll for injury, origin first. Returns why to stop, if anything. A minute that leaves
+    /// the agent too lame to go on (CannotWalk) is walked, and stops it short of the far side, on its
+    /// tile with the crossing kept, as a step that ends there and a refused next Start would.
     public static string? Advance(World world, Agent agent, List<WorldEvent> events)
     {
         var c = agent.Crossing ?? throw new InvalidOperationException($"{agent.Id} is not crossing");
-        if (++c.ElapsedMinutes < c.TotalMinutes) return null;
+        if (++c.ElapsedMinutes < c.TotalMinutes) return CannotWalk(agent);
 
         if (c.From != agent.Tile) throw new InvalidOperationException($"{agent.Id} is crossing from {c.From} but stands on {agent.Tile}");
         var from = c.From;
@@ -133,7 +140,7 @@ public static class Traversal
     public static int SegmentMinutes(GeneratedMap m, TileId tile, double speed, WeatherSample sky)
     {
         double multiplier = Map.TravelHazardLevel(m, tile);
-        if (sky.WindLevel > 0.5) multiplier *= 1 + sky.WindLevel * 0.3 * Map.WindFactor(m, tile);
+        if (sky.WindLevel > 0.5) multiplier *= 1 + Exposure.OpenWindLevel(m, tile, sky) * 0.3;
         if (sky.PrecipitationPct > 0.5) multiplier *= 1 + sky.PrecipitationPct * 0.2;
         return (int)Math.Ceiling(Map.BaseTraversalMinutes(m, tile) * (1 + multiplier) / Math.Max(0.1, speed));
     }

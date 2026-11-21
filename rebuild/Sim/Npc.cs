@@ -27,6 +27,11 @@ public sealed partial record NpcMind
     /// The ground it is walking to forage, kept from step to step until it gets there or something
     /// clearly better turns up (Npc.ForageTarget), so it does not turn back at every tile.
     public TileId? ForageGoal { get; set; }
+    /// The trees or woodpile a wood trip set out for, kept from step to step while the trip budget still covers going
+    /// on (Npc.Wood), and what it picks up there before turning home (Npc.GoHome). Old (this rebuild): the trip was
+    /// picked afresh at every step, so one tile out something else won and it walked home with nothing done, and out
+    /// again - up to 520 such reversals a seed in 60 days.
+    public TileId? WoodGoal { get; set; }
     /// Old RelationshipMemory reduced to an opinion per agent, -1..1; strangers are 0.
     // Nothing writes this yet; the WorldEvent stream will feed it (plan decision 4) when consumers subscribe.
     public SortedDictionary<AgentId, double> Opinions { get; init; } = [];
@@ -109,9 +114,12 @@ public static partial class Npc
         // Away from the fire it judges the core it will have when it gets home: the walk back is cold too
         // (old: a fixed 97.5F away, so a two-tile trip through deep snow at -15C came home hypothermic - bug, fixed).
         double coreAtHomeF = CoreAtHomeF(me);
-        // Tonight's wood is reckoned by day; the evening's own errand (Night) fetches what is short by dark.
-        bool byDay = me.Hour >= 5 && me.Hour < HomeByHour;
-        double fuelHours = byDay ? CampFuelHours(me) : double.PositiveInfinity, tonightHours = HoursToDawn(me) + MorningFireHours;
+        // Tonight's wood is reckoned at every hour: the night, when the fire runs out, is when it matters most. In the
+        // dark, Wood answers it with what works in the dark (Me.Lit). Old (this rebuild): only 05:00-19:00, so in winter
+        // the dark hours either side counted fuel and the night itself had no fuel tier at all.
+        double fuelHours = CampFuelHours(me), tonightHours = HoursToDawn(me) + MorningFireHours;
+        // A wood trip's goal is for the trip out: home, it is over.
+        if (me.AtCamp) mind.WoodGoal = null;
         var cold = CoreTier(coreAtHomeF, mind.SeeingTo == Stat.Warmth);
         var warmth = WarmthTier(coreAtHomeF, mind.SeeingTo == Stat.Warmth, fuelHours, tonightHours);
         var water = WaterTier(b.HydrationPct, mind.SeeingTo == Stat.Water, WaterToHandL(me), HoursLeftToday(me));
@@ -155,11 +163,11 @@ public static partial class Npc
             (hungry && ReadyFood(me) != null ? Rank(Tier.Need, -1) : 0, null, true, me => Eat(me, ReadyFood(me)!.Value)),
             // Warmth: a cold core is seen to at the fire (Warm); a warm one short of wood fetches it (Wood). Wood fetched
             // for tonight is held to the evening, as the evening's own fetch is (StaysOut).
-            (Rank(warmth, (double)Stat.Warmth), cold > Tier.None ? Stat.Warmth : null, cold > Tier.None, cold > Tier.None ? Warm : me => Wood(me)),
+            (Rank(warmth, (double)Stat.Warmth), cold > Tier.None ? Stat.Warmth : null, cold > Tier.None, cold > Tier.None ? Warm : Fuel),
             (water >= Tier.Need ? Rank(water, (double)Stat.Water) : 0, Stat.Water, true, Water),
             // Evening and night are for being home, with the fire lit while there is light to light it by: after the
             // Needs of warmth and water, before those of food and rest (neither is seen to after dark).
-            (me.Hour >= HomeByHour || me.Hour < 5 ? EveningRank : 0, null, false, Night),
+            (Evening(me) ? EveningRank : 0, null, false, Night),
             (food >= Tier.Need ? Rank(food, (double)Stat.Food) : 0, Stat.Food, food == Tier.Critical, me => Food(me, starving: food == Tier.Critical)),
             (rest >= Tier.Need ? Rank(rest, (double)Stat.Rest) : 0, Stat.Rest, rest == Tier.Critical, Tired),
             // The Wants of water, food and rest: a day's water carried, food and fuel stockpiled, the rest topped up at night.
@@ -171,7 +179,16 @@ public static partial class Npc
         {
             me.Forget();
             me.StaysOut = o.StaysOut && o.Rank > EveningRank;
-            if (o.Act(me) is not { } plan) continue;
+            if (o.Act(me) is not { } plan)
+            {
+                // Nothing it can do about the stat it is seeing to: the hold lets go, so a stat held at Need only by the
+                // hysteresis does not outrank, decision after decision, what it can do (old, this rebuild: water held at
+                // Need with nothing to drink and no fire to melt snow on, so it walked out for wood and was called home
+                // by water's fallback, 98 times - seed 17, day 1.96). Food keeps its hold: it has no plan in the dark by
+                // choice (Food), and has one again at first light.
+                if (o.Sees is Stat s && s == mind.SeeingTo && s != Stat.Food) mind.SeeingTo = null;
+                continue;
+            }
             // Going out, the fire is banked first so it is still in when the walk home is cold (judgment
             // call: food trips range further than wood trips, and a cold NPC with a hand drill cannot relight).
             // The trip is not started, so nothing it would have kept in mind is (old: the forage ground or
@@ -340,8 +357,21 @@ public static partial class Npc
         public Inventory Pack => Mind.Pack;
         public bool AtCamp => Agent.Tile == Mind.Camp;
         public int Hour => Weather.MinuteOfDay(World.Minute) / 60;
-        /// Work.TooDarkToWork's night.
+        /// Work.TooDarkToWork's night: the rule for working without a flame, not when the sun is down (Daylight).
         public bool Night => Hour < 5 || Hour >= NightHour;
+        /// The sun is up (Weather.IsDaytime): what "by day" means wherever the NPC plans by it.
+        public bool Daylight => Weather.IsDaytime(World.Minute);
+        /// Light to walk out and fetch by, and to work by when it gets there: the sun up and out of Work's night, or a
+        /// torch in hand. A fire lights only its own tile, where work is judged by Work's rules (Dark). Old (this
+        /// rebuild, briefly): the sun alone, so in summer it walked to the trees at four, could not fell before five,
+        /// and walked home again.
+        public bool Lit => Daylight && !Night || World.Fires.Values.Any(f => f.CarriedBy == Id && Fire.IsActive(f));
+        /// The sky now, read once for the decision's planning (crossing times, the cooling forecast).
+        public WeatherSample Sky => sky ??= Weather.At(World, World.Minute);
+        WeatherSample? sky;
+        /// Walking cooling by tile, worked out once a decision (Npc.TileCoolingFPerHour), and the walking surroundings it starts from.
+        public Dictionary<TileId, double> CoolingByTile { get; } = [];
+        public SurvivalContext? Walking { get; set; }
         /// Work.TooDarkToWork without the flame: too dark to fell or butcher unless a fire is lit here.
         public bool Dark => Night || Map.IsDark(Map.Of(World), Tile);
         /// The pit here, as last caught up. Decide has no event stream to catch it up into, so it
@@ -378,8 +408,10 @@ public static partial class Npc
     {
         // Out for the wood its fire is short of: get it while the trip budget allows (Afford: work out here is
         // cut to what it can do and still come home warm enough), then go home (Wood turns for home).
-        bool fetching = !me.Night && CampFuelHours(me) < LowFuelHours;
+        bool fetching = me.Lit && CampFuelHours(me) < LowFuelHours;
         if (!me.AtCamp && fetching && Wood(me, warming: ColdCamp(me)) is { } wood) return wood;
+        // At the end of a trip for wood or makings (WoodGoal), home with what it came for, to make the fire there.
+        if (!me.AtCamp && me.Mind.WoodGoal == me.Tile && GoHome(me) is { } back) return back;
         // Home, if there is a fire to be had there: one burning, or the means to light one. Walking back to a
         // cold pit with nothing to light it is no use.
         if (!me.AtCamp && (CanLight(me) || CampFireBurning(me)) && MapGen.Manhattan(me.Tile, me.Mind.Camp) <= 12 && GoHome(me) is { } home) return home;
@@ -391,16 +423,26 @@ public static partial class Npc
                 // the walk: what Wood does when it cannot go (groping the camp ground for half an hour) is no way to
                 // get warm beside a fire (old, this rebuild: four hours groping, core 96.7 to 95.8, and the fire died - seed 17).
                 ?? (me.AtCamp && fetching ? WalkFor(me, Wood(me)) : null)
-                ?? (Fire.TotalKg(me.Pit!) < 1.5 ? Forage(me, minutes: 15, wander: false, ForageFocus.Fuel) : null) // feed it or lose it
+                ?? (Fire.TotalKg(me.Pit!) < 1.5 ? Grope(me) : null) // feed it or lose it
                 ?? AtFire(me) ?? (new Rest(me.Id), 20);
         if (KeepFire(me, 3) is { } fire) return fire;
         // Nothing to light here: the makings it left somewhere near, then by day go and get some (working warms
-        // you; a walk from a camp with no fire is held to the warming lines, Afford), by night grope for it here.
+        // you; a walk from a camp with no fire is held to the warming lines, Afford), by night grope for it here,
+        // while it has the legs to (Grope).
         // Old (this rebuild): the makings were only thought of in bed, so a cold NPC groped a bare camp one
         // tile from its own stash of tinder and wood until it died (seed 11).
         if (FireMakings(me) is { } makings) return makings;
-        return (me.Night ? null : Wood(me, warming: ColdCamp(me))) ?? Forage(me, minutes: 15, wander: false, ForageFocus.Fuel);
+        return (me.Lit ? Wood(me, warming: ColdCamp(me)) : null) ?? Grope(me);
     }
+
+    /// A quarter-hour groping the ground here for anything to burn, while it has the legs for it: spent (RestCriticalPct)
+    /// it lies down instead, as ColdBed does. Old (this rebuild): Warm groped at any energy, ColdBed only with the legs.
+    static Plan? Grope(Me me) =>
+        me.Agent.Body.EnergyPct >= RestCriticalPct ? Forage(me, minutes: 15, wander: false, ForageFocus.Fuel) : null;
+
+    /// Tonight's fuel, the core warm: wood (Wood), and from a camp with no fire to be had, first the makings it left a
+    /// step or two off (FireMakings), as ColdBed goes to them before lying down.
+    static Plan? Fuel(Me me) => (me.AtCamp && ColdCamp(me) ? FireMakings(me, NearMakingsTiles) : null) ?? Wood(me);
 
     /// The plan only if it is a walk: anything else it would have done instead is forgotten with what it would keep in mind.
     static Plan? WalkFor(Me me, Plan? plan)
@@ -419,21 +461,33 @@ public static partial class Npc
         // Old DetermineGetResource(Water): the nearest open water it knows of.
         var river = me.Mind.Knows.Places.Where(p => p.Value.Water && MapGen.Manhattan(p.Key, me.Tile) <= MaxWoodTiles).Select(p => p.Key)
             .OrderBy(t => MapGen.Manhattan(me.Tile, t)).ThenBy(t => t).Cast<TileId?>().FirstOrDefault();
-        return (river is TileId r ? Go(me, r, Work.DrinkMinutes) : null) ?? GoHome(me);
+        if (river is TileId r && Go(me, r, Work.DrinkMinutes) is { } go) return go;
+        // Home only if there is water to be had there: some left on the stash, or a fire burning or to be lit to melt
+        // snow on. Old (this rebuild): home whatever was there, so from one tile out this fallback outranked every
+        // lower plan and walked it back to a camp with nothing to drink, and out, and back (seed 17, day 1.96).
+        return !me.AtCamp && WaterAtHome(me) ? GoHome(me) : null;
     }
+
+    /// Water to be had at home, as far as it can tell: some on the stash as it left it, or a fire there burning or to
+    /// be lit, what it carries included (CampStock), to melt snow on.
+    static bool WaterAtHome(Me me) =>
+        me.Mind.Knows.Places.GetValueOrDefault(me.Mind.Camp)?.Stash?.GetValueOrDefault(Resource.Water) > 0
+        || CampFireBurning(me) || CanLight(me) && Makings(CampStock(me));
 
     static Plan? Tired(Me me) => me.AtCamp ? Bed(me)
         : GoHome(me) ?? (me.Agent.Body.EnergyPct < 0.1 ? (new Sleep(me.Id), 60) : null); // too spent to walk home: sleep where it stands
 
+    /// Evening and night: from the hour it must be home by (HomeMinuteOfDay) until the sun is up.
+    static bool Evening(Me me)
+    {
+        int now = Weather.MinuteOfDay(me.World.Minute);
+        return now >= HomeMinuteOfDay(me) || now < Weather.SunriseHour(me.World.Minute) * 60;
+    }
+
+    /// Home for the night. Wood short of tonight is warmth's (WarmthTier, at every hour), and outranks this.
+    // Old (this rebuild): its own evening fetch, while warmth's fuel tier ran 05:00-19:00 only.
     static Plan? Night(Me me)
     {
-        // Too little for the night, and light enough left to get more: get it (old: home at seven with an
-        // hour of wood, it slept beside the fire until it went out). A walk out is held to the same
-        // home-by hour as any other (Go, Afford); work here must be done by dark (old: the evening fetch went
-        // by 21:00 alone, so in winter it walked out for wood three hours after sunset - bug, fixed).
-        if (!me.Dark && CampFuelHours(me) < HoursToDawn(me) && Wood(me) is { } wood
-            && (wood.Activity is Travel || Weather.MinuteOfDay(me.World.Minute) + wood.Minutes <= NightHour * 60)) return wood;
-        me.Forget();
         if (!me.AtCamp) return GoHome(me);
         // Old DetermineIdle: at night, sleep unless well rested.
         if (me.Agent.Body.EnergyPct < 0.8) return Bed(me);
@@ -458,7 +512,7 @@ public static partial class Npc
         // cool never catch (old: Fire.FuelHours, so beside a kindling fire and five kilos of oak it slept two
         // hours and woke to a cold pit and the oak unburned).
         double minutesLeft = pit!.HasEmbers ? 0 : Fire.HoursItWillBurn(pit) * 60;
-        if (minutesLeft < WakeBeforeOutMinutes && Forage(me, minutes: 15, wander: false, ForageFocus.Fuel) is { } grope) return grope;
+        if (minutesLeft < WakeBeforeOutMinutes && Grope(me) is { } grope) return grope;
         return (new Sleep(me.Id), (int)Math.Clamp(minutesLeft - WakeBeforeOutMinutes, WakeBeforeOutMinutes, SleepMinutes));
     }
 
@@ -484,9 +538,8 @@ public static partial class Npc
         double safeMinutes = MinutesUntilCoreF(me, HypothermiaCoreF + ColdSleepMarginF, CoolingFPerHour(me, new Sleep(me.Id)));
         if (safeMinutes >= SleepMinutes) return (new Sleep(me.Id), SleepMinutes);
         if (FireMakings(me) is { } go) return go;
-        if (!me.Night && Wood(me, warming: true) is { } wood) return wood;
-        if (safeMinutes < MinColdSleepMinutes && me.Agent.Body.EnergyPct >= RestCriticalPct
-            && Forage(me, minutes: 15, wander: false, ForageFocus.Fuel) is { } grope) return grope;
+        if (me.Lit && Wood(me, warming: true) is { } wood) return wood;
+        if (safeMinutes < MinColdSleepMinutes && Grope(me) is { } grope) return grope;
         return (new Sleep(me.Id), (int)Math.Clamp(safeMinutes, WakeBeforeOutMinutes, SleepMinutes));
     }
 
@@ -525,6 +578,17 @@ public static partial class Npc
             // Not from a camp worth keeping to a bare tile: its kindling is fetched instead (Wood's round trip).
             if (keep && !Sheltered(me, t)) continue;
             var there = me.Mind.Knows.Places[t].Stash!;
+            // Home under a shelter, the makings a step off on a bare tile: fetched home, not moved to (old, this rebuild:
+            // home moved to a woodpile one tile off the overhang whenever the overhang's stash fell short of a morning
+            // fire, and back to the overhang once it was lit - 26 shelter, bare, shelter loops on the 16 seeds; seed 256,
+            // day 8.69). The trip's goal is the woodpile, and the walk home picks the makings up (GoHome).
+            if (me.AtCamp && Sheltered(me, me.Tile) && !Sheltered(me, t) && MapGen.Manhattan(t, me.Tile) <= FetchMakingsTiles)
+            {
+                var home = ToHand(me);
+                if (!Makings(Lighting.ToDictionary(r => r, r => home[r] + there.GetValueOrDefault(r))) || FetchWalk(me, t) is not { } fetch) continue;
+                me.Commits.Add(() => me.Mind.WoodGoal = t);
+                return fetch;
+            }
             var take = Provision(me, there);
             if (!Makings(Lighting.ToDictionary(r => r, r => me.Has(r) + there.GetValueOrDefault(r) + take.Where(x => x.Resource == r).Sum(x => x.Kg)))) continue;
             if (WarmingWalk(me, t) is not { } go) continue;
@@ -534,6 +598,19 @@ public static partial class Npc
             return go;
         }
         return null;
+    }
+
+    /// Makings this close to a sheltered home are fetched, not moved to (FireMakings).
+    const int FetchMakingsTiles = 1;
+
+    /// The first step of a walk to fetch something and carry it home: there and back with the legs left for a fire
+    /// (WarmingReserveMinutes) and short of lasting harm (LethalCoreF), as a warming walk is, the walk back included.
+    static Plan? FetchWalk(Me me, TileId target)
+    {
+        if (RouteMinutes(me, target) is not double walk) return null;
+        if (me.Agent.Body.EnergyMinutes < 2 * walk + WarmingReserveMinutes
+            || CoreAfterF(me, 2 * walk, TripCoolingFPerHour(me, target, walk, 0, me.Mind.Camp, walk)) < LethalCoreF) return null;
+        return Step(me, target);
     }
 
     /// What it takes off the stash here before walking to makings elsewhere, counting what it carries and what waits
@@ -581,7 +658,11 @@ public static partial class Npc
     {
         double carried = Woods.Sum(me.Has) + me.Has(Resource.Kindling);
         if (me.AtCamp) { if (Unload(me) is { } stash) return stash; }
-        else if (carried >= 5 || me.RoomKg < 1.5) return GoHome(me);
+        // A load turns it home: its pack full, or LoadKg in hand off a trip of no goal. On a trip to a goal (WoodGoal) the
+        // pack is the measure, so wood it set out holding does not turn it round at the first step (old, this rebuild:
+        // it kept a bank's worth in hand by the fire, set out with it, and at the first step had "a load" and turned
+        // home - 59 reversals in a row, seed 3, day 11.97).
+        else if (carried >= LoadKg && me.Mind.WoodGoal == null || me.RoomKg < 1.5) return GoHome(me);
         // No room for a load: a walk out would turn straight back (old: with a pack full of food it walked
         // camp to trees and back, again and again).
         bool room = me.RoomKg >= 1.5;
@@ -606,11 +687,18 @@ public static partial class Npc
         // held to the warming lines, the walk back reckoned, and the fire is made back under the shelter (old, this
         // rebuild: home moved to the trees on every warming walk, even one tile off the overhang - 115 of 117 moves to
         // a bare tile on the review seeds).
-        if (axe && room && (NearestTrees(me, me.Tile, MaxWoodTiles) ?? (home != me.Mind.Camp ? home : null)) is TileId t
+        // Walks out need light to see by (Me.Lit): in the dark, only what can be done here, by the fire's light or by feel.
+        bool walk = axe && room && me.Lit;
+        // A trip under way goes on to the trees it set out for while the budget covers going on, not to whatever looks
+        // nearest from each step (WoodGoal).
+        if (walk && !me.AtCamp && me.Mind.WoodGoal is TileId goal && goal != me.Tile && me.Mind.Knows.Places.GetValueOrDefault(goal)?.Trees == true
+            && Go(me, goal, WoodTripWorkMinutes, me.Mind.Camp, warming) is { } on) return on;
+        if (walk && (NearestTrees(me, me.Tile, MaxWoodTiles) ?? (home != me.Mind.Camp ? home : null)) is TileId t
             && (warming && home == me.Mind.Camp && (Sheltered(me, t) || !KeepCamp(me) && !(Sheltered(me, home) && MapGen.Manhattan(home, t) <= NearTimberTiles)) ? t : home) is var bound
             && Go(me, t, WoodTripWorkMinutes, bound, warming) is { } go)
         {
             if (bound != me.Mind.Camp) me.Commits.Add(() => me.Mind.Camp = bound);
+            me.Commits.Add(() => me.Mind.WoodGoal = t);
             return go;
         }
         // No timber known: look for some - past carrying reach, since a stand found there moves the camp - then fallen wood.
@@ -618,8 +706,15 @@ public static partial class Npc
         // ordinary budget turns it home (old, this rebuild, briefly: warming everywhere, so seed 5 groped the open
         // grassland five tiles out until it froze on its first evening).
         bool atTrees = me.Mind.Knows.Places.GetValueOrDefault(me.Tile)?.Trees == true;
-        return (axe && room ? Explore(me, TimberSearchTiles) : null) ?? Forage(me, minutes: 30, wander: room, ForageFocus.Fuel, warming && atTrees);
+        // In the dark, groping here for fuel is worth it only while an hour of it finds more than an hour of fire (birch the
+        // yardstick): ground picked over gives up less than the fire burns while it looks, and the night is better slept.
+        bool worthGroping = me.Lit || ForageHere(me, ForageFocus.Fuel) * Fire.FuelHours(Resource.Birch, 1) >= 1;
+        return (walk ? Explore(me, TimberSearchTiles) : null)
+            ?? (worthGroping ? Forage(me, minutes: 30, wander: room && me.Lit, ForageFocus.Fuel, warming && atTrees) : null);
     }
+
+    /// A load of wood to carry home (Wood turns for home with it).
+    const double LoadKg = 5;
 
     /// What it takes of the wood and tinder lying away from home (Wood): what home lacks to light a fire, and only that
     /// while home lacks it; otherwise wood, heaviest first.
@@ -843,7 +938,10 @@ public static partial class Npc
         double spare = me.Has(Resource.Kindling) + me.Stashed(Resource.Kindling) - reserve;
         if (spare <= 0.1) return null;
         if (me.Has(Resource.Kindling) - reserve > 0.1) return Try(me, new AddFuel(me.Id, Resource.Kindling, Math.Min(kg, me.Has(Resource.Kindling) - reserve)), 1);
-        return me.Stashed(Resource.Kindling) > 0 ? Try(me, new Unstash(me.Id, Resource.Kindling, Math.Min(kg + reserve, me.Stashed(Resource.Kindling))), 1) : null;
+        // Off the stash no more than the pack keeps (CarriedKindlingKg): more, and unloading at camp put it straight back
+        // before it reached the fire (old, this rebuild: seed 17, day 4, 1.7 kg off the stash and 0.7 back, three rounds).
+        double take = Math.Min(Math.Min(kg + reserve, CarriedKindlingKg) - me.Has(Resource.Kindling), me.Stashed(Resource.Kindling));
+        return take > 0.05 ? Try(me, new Unstash(me.Id, Resource.Kindling, take), 1) : null;
     }
 
     /// Old FireHandler: the best working fire starter, the best tinder, a handful of kindling.
@@ -1083,7 +1181,7 @@ public static partial class Npc
     /// The crossings off a tile to its passable neighbours, averaged (careful where a quick step could hurt).
     static double MinutesOff(Me me, TileId tile)
     {
-        var sky = Weather.At(me.World, me.World.Minute);
+        var sky = me.Sky;
         var steps = MapGen.Neighbors(tile).Where(n => Map.Of(me.World).InBounds(n) && Passable(me, tile, n)).ToList();
         if (steps.Count == 0) return MinutesPerTile;
         return steps.Average(n => (double)Traversal.CrossingMinutes(me.World, me.Agent.Body, tile, n,
@@ -1102,7 +1200,7 @@ public static partial class Npc
 
     /// How much better an hour elsewhere must be to be worth leaving for (old: within 80%, stay).
     const double MoveMarginFactor = 1.25;
-    /// Core temperature over the wanted level it reckons on coming home with, setting out to forage.
+    /// Core temperature over the trip line (TripHomeCoreF) it reckons on coming home with, setting out from camp.
     const double SetOutMarginF = 0.3;
 
     /// A rough tile crossing for planning a hunt (flat ground is one minute, rough two); and how long a
@@ -1166,19 +1264,17 @@ public static partial class Npc
     // ---- hunting and threats ----
 
     /// Core temperature on reaching camp, walking home from here at today's going (WalkMinutes) through the
-    /// open air as it is now (CoreAfterF). At camp, the core itself. The warmth need and the trip budget
-    /// read the same reckoning, so a trip it set out on warm enough does not look too cold one tile out
+    /// open air of the tiles it crosses (WalkCoolingFPerHour). At camp, the core itself. The warmth need and the
+    /// trip budget read the same reckoning, so a trip it set out on warm enough does not look too cold one tile out
     /// (old: the walk home's chill without the heat the clothes had stored, so one tile out it was "cold",
     /// turned home, was warm again at camp and set out again - ten times in an afternoon, seed 17 day 16).
-    static double CoreAtHomeF(Me me) => CoreAfterF(me, WalkMinutes(me, me.Tile, me.Mind.Camp));
+    static double CoreAtHomeF(Me me) =>
+        CoreAfterF(me, WalkMinutes(me, me.Tile, me.Mind.Camp), WalkCoolingFPerHour(me, me.Tile, me.Mind.Camp));
 
-    /// Core temperature after this many minutes walking in the open air as it is now: the core gives up
-    /// its heat above the setpoint first, then the clothes theirs (Body.ClothingHeatStoredF), then the
-    /// core again - ProcessTemperature's order. A straight line from the rate now (the rate falls a
-    /// little as the skin cools, so it errs cold).
-    static double CoreAfterF(Me me, double minutes) => CoreAfterF(me, minutes, WalkingCoolingFPerHour(me));
-
-    /// The same, at a cooling rate of its own (°F an hour; 0 when it warms).
+    /// Core temperature after this many minutes cooling at this rate (°F an hour; 0 when it warms): the core gives up
+    /// its heat above the setpoint first, then the clothes theirs (Body.ClothingHeatStoredF), then the core again -
+    /// ProcessTemperature's order. A straight line from the rate now (the rate falls a little as the skin cools, so
+    /// it errs cold).
     static double CoreAfterF(Me me, double minutes, double coolingFPerHour)
     {
         var body = me.Agent.Body;
@@ -1187,9 +1283,7 @@ public static partial class Npc
         return body.CoreTempF - Math.Min(chillF, aboveF) - Math.Max(0, chillF - aboveF - Body.ClothingHeatStoredF(body));
     }
 
-    /// CoreAfterF the other way round: how many minutes out in the open before the core is down to lineF.
-    static double MinutesUntilCoreF(Me me, double lineF) => MinutesUntilCoreF(me, lineF, WalkingCoolingFPerHour(me));
-
+    /// CoreAfterF the other way round: how many minutes at this rate before the core is down to lineF.
     static double MinutesUntilCoreF(Me me, double lineF, double rateFPerHour)
     {
         var body = me.Agent.Body;
@@ -1203,27 +1297,83 @@ public static partial class Npc
         return chillF / rateFPerHour * 60;
     }
 
-    /// How fast the open air cools it walking, in °F an hour (0 when it warms): as it does now, less any
-    /// fire's warmth in this tile's air, which it walks out of at the first step. Judged the same from
-    /// camp and from out in the cold, so a trip planned by the fire is the trip it finds outside.
-    static double WalkingCoolingFPerHour(Me me, Pace pace = Pace.Quick)
+    /// How fast a walk from one tile to another cools it, in °F an hour (0 when it warms): the tiles it crosses, each
+    /// for a crossing's share of the walk. A crossing is lived on the tile it leaves (Traversal.Advance moves it on
+    /// the last minute), so the tiles counted are the ones left, the start among them and the end not. The way is the
+    /// straight staircase between them, not Route's search: a forecast is asked for every tile a trip is weighed
+    /// against, and in open country the two agree. A walk of no tiles cools as the tile it stands on.
+    // Old (this rebuild): the tile it stood on for the whole walk, which it claimed matched the trip outside; from a
+    // camp at a quarter of a plain's wind (0.4 against 1.2) it forecast -3.93 F/h for a walk that cooled it -8.04.
+    static double WalkCoolingFPerHour(Me me, TileId from, TileId to)
     {
-        var walking = Sim.Surroundings(me.World, me.Agent, new Travel(me.Id, Direction.North, pace), me.Events);
-        // Walking is never stationary, so no shelter cover: the air before any fire, in the open.
-        walking = walking with { AirTempF = Exposure.At(me.World, me.Tile, Cover.Open(me.Id)).AirBeforeFireF };
-        return -Math.Min(0, Body.TemperatureChangeFPerHour(me.Agent.Body, walking));
+        double sum = 0, weight = 0;
+        AddWalk(me, from, to, WalkMinutes(me, from, to), ref sum, ref weight);
+        return weight > 0 ? sum / weight : TileCoolingFPerHour(me, from);
     }
+
+    /// A trip's cooling (Afford): the walk out, the work at the far end at that tile's walking rate, and the walk home.
+    static double TripCoolingFPerHour(Me me, TileId to, double outMinutes, int workMinutes, TileId home, double backMinutes)
+    {
+        double sum = 0, weight = 0;
+        AddWalk(me, me.Tile, to, outMinutes, ref sum, ref weight);
+        if (workMinutes > 0) { sum += workMinutes * TileCoolingFPerHour(me, to); weight += workMinutes; }
+        AddWalk(me, to, home, backMinutes, ref sum, ref weight);
+        return weight > 0 ? sum / weight : TileCoolingFPerHour(me, me.Tile);
+    }
+
+    static void AddWalk(Me me, TileId from, TileId to, double minutes, ref double sum, ref double weight)
+    {
+        int tiles = MapGen.Manhattan(from, to);
+        if (tiles == 0 || minutes <= 0) return;
+        double each = minutes / tiles;
+        for (var at = from; at != to; at = StepToward(at, to))
+        {
+            sum += each * TileCoolingFPerHour(me, at);
+            weight += each;
+        }
+    }
+
+    /// One tile along the staircase toward a tile, the longer way first.
+    static TileId StepToward(TileId at, TileId to)
+    {
+        int dx = to.X - at.X, dy = to.Y - at.Y;
+        return Math.Abs(dx) >= Math.Abs(dy) ? new TileId(at.X + Math.Sign(dx), at.Y) : new TileId(at.X, at.Y + Math.Sign(dy));
+    }
+
+    /// How fast walking across a tile cools it, in °F an hour (0 when it warms): that tile's open air and wind
+    /// (Exposure.Walking), no fire's warmth and no shelter, on its own body, clothes and pace now. Once a decision.
+    static double TileCoolingFPerHour(Me me, TileId t)
+    {
+        if (me.CoolingByTile.TryGetValue(t, out double known)) return known;
+        me.Walking ??= Surroundings(me, new Travel(me.Id, Direction.North, Pace.Quick));
+        var (airF, windLevel) = Exposure.Walking(me.World, t, me.Sky);
+        double rate = -Math.Min(0, Body.TemperatureChangeFPerHour(me.Agent.Body, me.Walking with { AirTempF = airF, WindLevel = windLevel }));
+        return me.CoolingByTile[t] = rate;
+    }
+
+    /// For a test: the cooling an NPC forecasts for a walk from where it stands to a tile, °F an hour.
+    internal static double ForecastWalkCoolingFPerHour(World world, Agent agent, TileId to) =>
+        WalkCoolingFPerHour(new Me(world, agent, (NpcMind)agent.Mind!, []), agent.Tile, to);
 
     /// How fast doing this here, keeping still or not, cools it, in °F an hour (0 when it warms): shelter,
     /// bedding and any fire here as they are now.
     static double CoolingFPerHour(Me me, Activity a) =>
-        -Math.Min(0, Body.TemperatureChangeFPerHour(me.Agent.Body, Sim.Surroundings(me.World, me.Agent, a, me.Events)));
+        -Math.Min(0, Body.TemperatureChangeFPerHour(me.Agent.Body, Surroundings(me, a)));
+
+    /// What doing this here would surround it with, the fires here caught up to now first: a forecast reads a fire as
+    /// it is, wherever the forecast is asked from. Old (this rebuild): it read the pit as last caught up, and a forecast
+    /// asked outside a decision (ForageTripFits) threw on a fire minutes behind.
+    static SurvivalContext Surroundings(Me me, Activity a)
+    {
+        Fire.CatchUpAround(me.World, me.Agent, me.Events);
+        return Sim.Surroundings(me.World, me.Agent, a, me.Events);
+    }
 
     // ---- the trip budget ----
 
     /// The one budget every trip is held to - wood, forage, water, exploring, a hunt, and work away from
-    /// camp (Try): the walk out, the work there and the walk home must have it home warm enough (Level's
-    /// wanted warmth, plus marginF), rested enough (wanted rest) and, unless what it is for outranks the
+    /// camp (Try): the walk out, the work there and the walk home must have it home warm enough (TripHomeCoreF,
+    /// plus marginF, at the cooling of the tiles the trip crosses), rested enough (wanted rest) and, unless what it is for outranks the
     /// evening, by HomeMinuteOfDay. The minutes of work there it can afford, up to workMinutes; null when
     /// it cannot afford the walks, or affords too little work to be worth them. Old: only a wood trip from
     /// camp was checked for cold, by the walks alone, against freezing; the forage trip by the walks
@@ -1237,20 +1387,32 @@ public static partial class Npc
     // or tired. The trees are home on a warming trip (Wood), so there is no walk back to reckon.
     static int? Afford(Me me, TileId to, int workMinutes, TileId home, double marginF, bool warming = false)
     {
-        double spare = BudgetMinutes(me, marginF, warming) - WalkMinutes(me, me.Tile, to) - WalkMinutes(me, to, home);
+        double outMinutes = WalkMinutes(me, me.Tile, to), backMinutes = WalkMinutes(me, to, home);
+        double cooling = TripCoolingFPerHour(me, to, outMinutes, workMinutes, home, backMinutes);
+        double spare = BudgetMinutes(me, marginF, warming, cooling) - outMinutes - backMinutes;
         if (spare < 0) return null;
         int work = (int)Math.Min(workMinutes, Math.Floor(spare));
         return work < Math.Min(workMinutes, MinWorkMinutes) ? null : work;
     }
 
-    /// Minutes from now it can be out before it must be home (Afford).
-    static double BudgetMinutes(Me me, double marginF, bool warming = false)
+    /// Minutes from now it can be out, cooling at this rate, before it must be home (Afford). Before sunrise there is
+    /// no light to be out by, short of what outranks the evening (StaysOut).
+    static double BudgetMinutes(Me me, double marginF, bool warming, double coolingFPerHour)
     {
-        double warm = MinutesUntilCoreF(me, warming ? LethalCoreF : WarmNeedCoreF + marginF);
+        double warm = MinutesUntilCoreF(me, warming ? LethalCoreF : TripHomeCoreF + marginF, coolingFPerHour);
         double rested = me.Agent.Body.EnergyMinutes - (warming ? WarmingReserveMinutes : RestNeedPct * Body.MaxEnergyMinutes);
-        double light = me.StaysOut ? double.PositiveInfinity : HomeMinuteOfDay(me) - Weather.MinuteOfDay(me.World.Minute);
+        int now = Weather.MinuteOfDay(me.World.Minute);
+        double light = me.StaysOut ? double.PositiveInfinity
+            : now < Weather.SunriseHour(me.World.Minute) * 60 ? -1 : HomeMinuteOfDay(me) - now;
         return Math.Min(warm, Math.Min(rested, light));
     }
+
+    /// The core a trip must bring it home above (Afford), before any setting-out margin: the old wanted line, inside
+    /// warmth's Need (WarmNeedCoreF). Need means what it takes to get through the day, and a wood trip is exactly
+    /// that, so trips are not held to the line where Need begins. Old (this rebuild, briefly): WarmNeedCoreF, which
+    /// left a blizzard-bound NPC 0.17F of budget at its fire, so no wood trip ever fit, its fire died and it froze on
+    /// day 16 (seed 17); at this line it lives the 60 days.
+    const double TripHomeCoreF = 96.8;
 
     /// For a test: whether a food forage stint on this ground, from where it stands now, still fits the trip budget.
     internal static bool ForageTripFits(World world, Agent agent, TileId ground) =>
@@ -1279,7 +1441,7 @@ public static partial class Npc
         if (me.AtCamp || MapGen.Manhattan(me.Tile, me.Mind.Camp) <= NeverStrandedTiles || !CanMakeFireHere(me)) return false;
         double walk = RouteMinutes(me, me.Mind.Camp) ?? double.PositiveInfinity;
         if (me.Agent.Body.EnergyMinutes < walk) return true;
-        return !CampHasWarmth(me) && CoreAfterF(me, walk) < LethalCoreF;
+        return !CampHasWarmth(me) && CoreAfterF(me, walk, WalkCoolingFPerHour(me, me.Tile, me.Mind.Camp)) < LethalCoreF;
     }
 
     /// This close to camp it always walks home (Stranded).
@@ -1308,7 +1470,7 @@ public static partial class Npc
     static Plan? WarmingWalk(Me me, TileId target)
     {
         if (RouteMinutes(me, target) is not double walk) return null;
-        if (me.Agent.Body.EnergyMinutes < walk + WarmingReserveMinutes || CoreAfterF(me, walk) < LethalCoreF) return null;
+        if (me.Agent.Body.EnergyMinutes < walk + WarmingReserveMinutes || CoreAfterF(me, walk, WalkCoolingFPerHour(me, me.Tile, target)) < LethalCoreF) return null;
         return Step(me, target);
     }
 
@@ -1435,11 +1597,16 @@ public static partial class Npc
 
     // ---- moving ----
 
-    /// Home, giving up any ground it was walking to forage (ForageGoal): it chooses again from there.
+    /// Home, giving up any ground it was walking to forage (ForageGoal): it chooses again from there. At the end of a
+    /// wood trip (WoodGoal), what it came for is picked up first, what home lacks to make a fire before the rest
+    /// (LyingOrder), whatever plan turns it for home: the trip is what brought it here.
     static Plan? GoHome(Me me)
     {
-        if (me.AtCamp || Go(me, me.Mind.Camp) is not { } go) return null;
-        me.Commits.Add(() => me.Mind.ForageGoal = null);
+        if (me.AtCamp) return null;
+        if (me.Mind.WoodGoal == me.Tile && me.RoomKg >= 1 && First(LyingOrder(me), r => me.Stashed(r) > 0) is Resource lying
+            && Try(me, new Unstash(me.Id, lying, Math.Min(me.RoomKg, me.Stashed(lying))), 1) is { } pick) return pick;
+        if (Go(me, me.Mind.Camp) is not { } go) return null;
+        me.Commits.Add(() => (me.Mind.ForageGoal, me.Mind.WoodGoal) = (null, null));
         return go;
     }
 
@@ -1472,7 +1639,7 @@ public static partial class Npc
     {
         if (target == me.Tile) return 0;
         if (Route(me, target) is not { } route) return null;
-        var sky = Weather.At(me.World, me.World.Minute);
+        var sky = me.Sky;
         double encumbrancePct = Items.EncumbrancePct(me.Agent), minutes = 0;
         var from = me.Tile;
         foreach (var to in route)

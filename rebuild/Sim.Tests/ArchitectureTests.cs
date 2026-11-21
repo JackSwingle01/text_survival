@@ -70,35 +70,92 @@ public class ArchitectureTests
 
     /// One exposure calculation (decision 2026-11-21, emergent-world-design §3.4): only Exposure.cs
     /// combines the sky with a tile's wind, cover or cold, a pit's walls or a shelter's, or computes the
-    /// wind chill. Each rule names the files that may still say it and why; anything else that does
-    /// is a second exposure model, the class of bug this replaced (tile wind reached only the chill).
-    static readonly (string Pattern, string What, string[] Allowed)[] ExposureRules =
+    /// wind chill. Each rule names the members (file and member, not the whole file) that may still say it and
+    /// why; anything else that does is a second exposure model, the class of bug this replaced (tile wind reached
+    /// only the chill). Old (this rebuild): allowances by file, so anything new in Ground.cs or Travel.cs passed.
+    static readonly (string Pattern, string What, (string File, string Member, string Why)[] Allowed)[] ExposureRules =
     [
         (@"\bMap\.WindFactor\(", "reads a tile's wind factor",
-            ["Map.cs", // its definition
-             "Ground.cs", // the key of a never-observed tile's ground class, not a wind
-             "Travel.cs"]), // walking pace against the wind (rebuild-deferred: route through Exposure)
-        (@"\bMap\.OverheadCover\(", "reads a tile's overhead cover", ["Map.cs", "Ground.cs"]),
+            [("Map.cs", "WindFactor", "its definition"),
+             ("Ground.cs", "Unobserved", "the key of a never-observed tile's ground class, not a wind")]),
+        (@"\bMap\.OverheadCover\(", "reads a tile's overhead cover",
+            [("Map.cs", "OverheadCover", "its definition"),
+             ("Ground.cs", "Unobserved", "the ground class key")]),
         (@"\bMap\.TemperatureDeltaF\(", "reads a tile's own cold",
-            ["Map.cs", "Ground.cs", "Remains.cs", "Carcass.cs"]), // keys handed on to Exposure.SiteAirF
-        (@"\.TemperatureF\s*[-+]", "adds to the sky's air", ["Weather.cs"]),
-        (@"\bWindChillF\(", "computes a wind chill", ["Weather.cs"]),
-        (@"\.WindMph\b", "reads the wind in mph", ["Weather.cs"]),
-        (@"\(1 - [^)]*(WindProtectionLevel|WallsLevel|\.WindLevel)\)", "cuts a wind by walls or shelter", []),
-        (@"\b(FeltAirF|ShelterStep|SiteAirF|WindAt|OpenAirF)\(", "calls exposure's parts directly", ["Remains.cs"]),
+            [("Map.cs", "TemperatureDeltaF", "its definition"),
+             ("Ground.cs", "Unobserved", "the ground class key"),
+             ("Remains.cs", "EffectiveHours", "a key handed on to Exposure.SiteAirF"),
+             ("Carcass.cs", "CatchUp", "a key handed on to Exposure.SiteAirF")]),
+        (@"\.TemperatureF\s*[-+]", "adds to the sky's air", []),
+        (@"[-+]\s*[\w.]*\.TemperatureF\b(?!\s*\()", "adds to the sky's air", []),
+        (@"\bWindChillF\(", "computes a wind chill", [("Weather.cs", "WindChillF", "its definition")]),
+        (@"\.WindMph\b", "reads the wind in mph", []),
+        (@"\(1 - [^()]*(WindProtectionLevel|WallsLevel|\.WindLevel)\)", "cuts a wind by walls or shelter", []),
+        (@"(?i)\.WindLevel\s*\*[^;]*(WindFactor|tileWind)|(WindFactor|tileWind)\w*\s*(\([^)]*\))?\s*\*[^;]*\.WindLevel\b",
+            "scales the sky's wind by a tile's", []),
+        (@"\b(FeltAirF|ShelterStep|SiteAirF|WindAt|OpenAirF)\(", "calls exposure's parts directly",
+            [("Remains.cs", "At", "rot's hourly air: the sky's air with the tile's cold, nothing more"),
+             ("Remains.cs", "TempF", "the same, for one hour")]),
+        // Planning reads of the sky are allowed where listed: they ask what the weather will do to a walk or a
+        // rot, through Exposure, and routing them through Exposure.At would build a whole exposure per question.
+        (@"\bWeather\.At\(", "reads the sky directly",
+            [("Npc.cs", "Sky", "the NPC's planning, once a decision: crossing times and the cooling forecast (Exposure.Walking)"),
+             ("Travel.cs", "Begin", "a crossing's pace and injury risk against the sky (Traversal.CrossingMinutes)"),
+             ("Remains.cs", "At", "rot's hourly air, through Exposure.SiteAirF"),
+             ("Remains.cs", "TempF", "the same, for one hour")]),
     ];
+
+    /// A member declaration: modifiers, a type (a tuple included), a name, its parameters. Not a statement or a call.
+    static readonly Regex MemberDeclaration = new(
+        @"^\s*(?!(?:if|else|while|for|foreach|switch|return|using|catch|lock|new|throw|yield|case|await)\b)" +
+        @"(?:(?:public|internal|private|protected|static|readonly|override|sealed|partial|virtual|abstract)\s+)*" +
+        @"(?:[\w<>\[\],.?]+|\([^)]*\)\??)\s+(\w+)\s*(?:<[^>]*>)?\s*(?:\(|=>)");
+
+    /// The rule breaches in one file's lines, each with the member it is in (the nearest declaration at or above it).
+    internal static List<string> ExposureViolations(string file, IEnumerable<string> lines)
+    {
+        var violations = new List<string>();
+        string member = "";
+        int i = 0;
+        foreach (var line in lines)
+        {
+            i++;
+            if (MemberDeclaration.Match(line) is { Success: true } decl) member = decl.Groups[1].Value;
+            if (line.TrimStart().StartsWith("//")) continue;
+            foreach (var r in ExposureRules)
+                if (Regex.IsMatch(line, r.Pattern) && !r.Allowed.Any(a => a.File == file && a.Member == member))
+                    violations.Add($"{file}:{i} ({member}) {r.What}: {line.Trim()}");
+        }
+        return violations;
+    }
 
     [Fact]
     public void OnlyExposure_CombinesSkyTileShelterAndFire()
     {
         var violations = Directory.GetFiles(SimSourceDir(), "*.cs")
             .Where(f => Path.GetFileName(f) != "Exposure.cs")
-            .SelectMany(f => File.ReadLines(f).Select((line, i) => (File: Path.GetFileName(f), line, i)))
-            .Where(x => !x.line.TrimStart().StartsWith("//"))
-            .SelectMany(x => ExposureRules.Where(r => !r.Allowed.Contains(x.File) && Regex.IsMatch(x.line, r.Pattern))
-                .Select(r => $"{x.File}:{x.i + 1} {r.What}: {x.line.Trim()}"))
+            .SelectMany(f => ExposureViolations(Path.GetFileName(f), File.ReadLines(f)))
             .ToList();
         Assert.True(violations.Count == 0, string.Join("\n", violations));
+    }
+
+    /// The rules catch a second exposure model however it is written, and an allowance covers only its own member.
+    [Theory]
+    [InlineData("        double t = deltaF + sky.TemperatureF;")]
+    [InlineData("        double t = sky.TemperatureF + deltaF;")]
+    [InlineData("        if (sky.WindLevel > 0.5) multiplier *= 1 + sky.WindLevel * 0.3 * Map.WindFactor(m, tile);")]
+    [InlineData("        double wind = tileWind * sky.WindLevel;")]
+    [InlineData("        double wind = Map.WindFactor(m, tile) * s.WindLevel;")]
+    [InlineData("        double w = s.WindLevel * (1 - pit.WallsLevel);")]
+    [InlineData("        var sky = Weather.At(world, world.Minute);")]
+    public void ExposureRules_CatchASecondModel(string body)
+    {
+        string[] lines = ["    static double Forecast(World world, TileId tile)", "    {", body, "    }"];
+        Assert.NotEmpty(ExposureViolations("Npc.cs", lines));
+        // Allowed in Remains.At, which reads rot's hourly sky; not in another member of the same file.
+        string[] remains = ["    double At(World world, long minute)", "    {", "        var sky = Weather.At(world, minute);", "    }",
+                            "    static double Other(World world)", "    {", "        var sky = Weather.At(world, 0);", "    }"];
+        Assert.Equal(["Remains.cs:7 (Other) reads the sky directly: var sky = Weather.At(world, 0);"], ExposureViolations("Remains.cs", remains));
     }
 
     // ---- world events: every one names its tile, and every one can be filed ----

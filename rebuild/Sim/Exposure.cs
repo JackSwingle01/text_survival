@@ -134,11 +134,20 @@ public sealed record Exposure(
     }
 
     /// FeltAirF on a map tile for a body in the open with no fire about: the tile's wind, cover and cold.
-    public static double OpenAirF(World world, TileId tile, WeatherSample s)
+    public static double OpenAirF(World world, TileId tile, WeatherSample s) => Walking(world, tile, s).AirF;
+
+    /// The air and the wind a body walking across a tile is in: the tile's own wind, cover and cold, and no fire or
+    /// shelter (a walker keeps still under neither, and walks out of a fire's warmth at the first step). What an NPC
+    /// forecasts a walk by, tile by tile.
+    public static (double AirF, double WindLevel) Walking(World world, TileId tile, WeatherSample s)
     {
         var m = Map.Of(world);
-        return FeltAirF(s, WindAt(s, Map.WindFactor(m, tile), 0, 0), Map.OverheadCover(m, tile), Map.TemperatureDeltaF(m, tile));
+        double wind = OpenWindLevel(m, tile, s);
+        return (FeltAirF(s, wind, Map.OverheadCover(m, tile), Map.TemperatureDeltaF(m, tile)), wind);
     }
+
+    /// The wind on open ground on a tile (WindAt with no walls): what a walker leans into, and what slows the walk (Traversal).
+    public static double OpenWindLevel(GeneratedMap m, TileId tile, WeatherSample s) => WindAt(s, Map.WindFactor(m, tile), 0, 0);
 
     /// Old Location.GetTemperatureBreakdown step 3: a shelter holds the air toward a 40 °F floor (what
     /// body heat keeps a good shelter at), by its insulation (capped at 0.9), less up to 30% for the

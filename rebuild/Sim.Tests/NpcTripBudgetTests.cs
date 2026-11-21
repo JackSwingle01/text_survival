@@ -34,7 +34,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
     /// chill was reckoned without the heat its clothes had stored, so one tile out it was "cold" and turned
     /// home, and at camp, warm again by its own core, it set out again. Out from camp and straight back,
     /// having done nothing, because it turned cold on the way, no longer happens.
-    [Trait("Category", "Slow")]
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void Seed17_NoLongerShuttlesOutAndBackFromCampInTheCold()
     {
@@ -64,9 +64,14 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
 
     /// Seed 7, day 22: wanting wood, one tile from camp at the trees, core 98.1 in a hard frost, it chopped
     /// for an hour and came home at 93.4 (the away branch of Warm checked nothing). Work out here is held
-    /// to the trip budget: it comes home warm enough.
-    [Fact]
-    public void Seed7_WorkAtTheTreesInAFrost_ComesHomeWarmEnough()
+    /// to the trip budget: it comes home warm enough. With the makings of a fire at home (campMakings), the trip is an
+    /// ordinary one, held to Npc.TripHomeCoreF (96.8F) less the forecast's slack. With none - nothing at home will
+    /// light, so felling on is what makes the fire (Npc.ColdCamp) - once it is cold out there the work is a warming
+    /// trip, held to the lethal line (93.5F) and the legs: it comes home above that.
+    [Theory]
+    [InlineData(true, 96.3)]
+    [InlineData(false, 93.5)]
+    public void Seed7_WorkAtTheTreesInAFrost_ComesHomeWarmEnough(bool campMakings, double homeAtLeastF)
     {
         var frost = new WeatherSample(0, WeatherCondition.Cloudy, -30, 0.8, 0, 0.8, WindDirection.North);
         var camp = new TileId(7, 42);
@@ -77,15 +82,21 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var body = w.Agent(npc).Body;
         body.CoreTempF = 98.1;
         mind.Pack.Kg.Remove(Resource.Kindling); // the camp short of fuel: what it is out here for
+        if (campMakings)
+        {
+            var stock = new Dictionary<Resource, double> { [Resource.Kindling] = 1.0, [Resource.Birch] = 1.5 };
+            foreach (var (r, kg) in stock) Items.Add(Items.StashAt(w, camp), r, kg);
+            mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new(stock) };
+        }
         var (first, minutes) = Npc.Decide(w, w.Agent(npc), []);
-        output.WriteLine($"chose {first} x{minutes}");
+        output.WriteLine($"chose {first} x{minutes}; camp fuel {Npc.BelievedCampFuelHours(w, w.Agent(npc)):0.0} h");
         double? homeCoreF = null;
         while (w.Minute < At(22, 18) && homeCoreF == null && Body.IsAlive(body))
             foreach (var e in Sim.Advance(w, 1))
                 if (e is Moved m && m.Who == npc && m.To == camp) homeCoreF = body.CoreTempF;
         output.WriteLine($"home at minute {w.Minute} with core {homeCoreF:0.00}");
         Assert.NotNull(homeCoreF);
-        Assert.True(homeCoreF >= 96.3, $"came home at {homeCoreF:0.00}F");
+        Assert.True(homeCoreF >= homeAtLeastF, $"came home at {homeCoreF:0.00}F");
     }
 
     // ---- 2. a far trip budgets the walk back ----
@@ -93,7 +104,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
     /// Seed 5, day 2: looking for timber, it walked out to 27 tiles from camp with its energy running out
     /// (0.63 to 0), then gathered fuel for a camp it could not reach until ten at night, lighting nothing.
     /// Every walk out now budgets the walk back: it is never out at nightfall far from camp, nor spent away from it.
-    [Trait("Category", "Slow")]
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void Seed5_ExploringForTimber_IsNeverStrandedFarFromCamp()
     {
@@ -156,6 +167,73 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var (a, n) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{hour}:{minute:00} (sunset {Weather.SunsetHour(at)}): {a} x{n}, need {mind.SeeingTo}");
         Assert.Equal(travels, a is Travel);
+    }
+
+    /// Winter: dark from four in the afternoon until eight in the morning. Fuel counted toward warmth only 05:00-19:00,
+    /// so the night, when the fire runs out, had no fuel tier at all: at four in the morning, with an hour of fire and
+    /// nothing on the stash, it slept beside it. Short of tonight is warmth's Need at any hour, answered in the dark by
+    /// what works in the dark - the fire fed from what is here, the camp ground gathered by its light.
+    [Theory]
+    [InlineData(18)]
+    [InlineData(28)] // 04:00 the next morning
+    public void NightFireShortOfTonight_TheNpcAnswersIt(int hour)
+    {
+        long at = At(180, hour);
+        Assert.Equal(Season.Winter, Weather.SeasonAt(at));
+        Assert.False(Weather.IsDaytime(at));
+        var frost = new WeatherSample(0, WeatherCondition.Clear, -10, 0.2, 0, 0, WindDirection.North);
+        var (w, npc, mind) = Setup(17, frost, at);
+        var agent = w.Agent(npc);
+        mind.Pack.Kg.Clear();
+        mind.Pack.Kg[Resource.Kindling] = 0.6; // its reserve
+        mind.Pack.Kg[Resource.Water] = 3;
+        agent.Body.EnergyMinutes = 0.6 * Body.MaxEnergyMinutes;
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = mind.Camp, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.Birch] = 1.0 } };
+        var (a, n) = Npc.Decide(w, agent, []);
+        output.WriteLine($"{Weather.MinuteOfDay(at) / 60:00}:00 (sunrise {Weather.SunriseHour(at)}, sunset {Weather.SunsetHour(at)}): {a} x{n}, fuel {Npc.BelievedCampFuelHours(w, agent):0.0} h");
+        Assert.True(a is Gather { Focus: not ForageFocus.Food } or AddFuel or Unstash, $"chose {a}");
+        Assert.IsNotType<Travel>(a); // no walk out in the dark
+    }
+
+    /// A walk out of camp across open plain cools it at the plain's wind, not the camp's: the forecast is the tiles it
+    /// crosses, each for its share of the walk, and within about 15% of what the walk does to it. Old (this rebuild):
+    /// the tile it stood on for the whole walk - at camp, a quarter of the plain's wind (0.4 against 1.2) - so it
+    /// forecast -3.93 F/h for a walk that cooled it -8.04.
+    [Fact]
+    public void WalkAcrossOpenPlain_ForecastMatchesTheWalk()
+    {
+        var windy = new WeatherSample(0, WeatherCondition.Cloudy, -10, 0.6, 0, 0.8, WindDirection.North);
+        const int Tiles = 5;
+        // The first seed whose camp, sheltered from the wind, has a straight walk of open plain out of it.
+        static List<TileId> Line(TileId from, Direction d)
+        {
+            var line = new List<TileId> { from };
+            for (int k = 0; k < Tiles; k++) line.Add(Map.Step(line[^1], d));
+            return line;
+        }
+        static bool Plain(GeneratedMap m, List<TileId> l) => l.Skip(1).All(t => m.InBounds(t) && m.TerrainAt(t) == Terrain.Plain)
+                                                             && l.Zip(l.Skip(1)).All(p => Map.Blocked(m, p.First, p.Second) == null);
+        var (seed, dir) = Enumerable.Range(1, 200).SelectMany(sd => Enum.GetValues<Direction>().Select(d => (sd, d)))
+            .First(x => World.New(x.sd) is var w1 && Line(Map.Of(w1).Camp, x.d) is var l && Plain(Map.Of(w1), l)
+                        && Exposure.Walking(w1, l[0], windy).WindLevel < 0.75 * Exposure.Walking(w1, l[1], windy).WindLevel);
+        var (w, npc, _) = Setup(seed, windy, At(2, 11));
+        var agent = w.Agent(npc);
+        var camp = Map.Of(w).Camp;
+        var to = Line(camp, dir)[^1];
+        double forecast = Npc.ForecastWalkCoolingFPerHour(w, agent, to);
+        double sum = 0;
+        int minutes = 0;
+        var travel = new Travel(npc, dir, Pace.Quick);
+        while (agent.Tile != to && minutes < 600)
+        {
+            sum += -Math.Min(0, Body.TemperatureChangeFPerHour(agent.Body, Sim.Surroundings(w, agent, travel, [])));
+            Sim.Step(w, travel, 1);
+            minutes++;
+        }
+        double realised = sum / minutes;
+        output.WriteLine($"seed {seed}, {Tiles} tiles {dir} across plain in {minutes} min: forecast {forecast:0.00} F/h, realised {realised:0.00} F/h ({forecast / realised:0.00}x)");
+        Assert.Equal(to, agent.Tile);
+        Assert.InRange(forecast / realised, 0.85, 1.15);
     }
 
     // ---- 4. bed beside logs that will never catch ----
@@ -284,5 +362,24 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         Assert.False(Journal.IsNotable(w, entry));
         mind.Camp = new TileId(camp.X + 5, camp.Y);
         Assert.False(Journal.IsNotable(w, entry), "its own chore became a theft when its camp moved");
+    }
+
+    // ---- 6. reading the world as it is now ----
+
+    /// A forecast asked outside a decision (ForageTripFits, as NpcTests.LookingForFood_ItNeverTurnsStraightBack
+    /// asks it) read the pit underfoot as last caught up, and threw on a fire minutes behind. It reads the fire as
+    /// it is now: the same forecast as with the fire caught up first.
+    [Fact]
+    public void WalkForecast_BesideAFireMinutesBehind_ReadsItCaughtUp()
+    {
+        var (w, npc, mind) = Setup(17, Mild, At(2, 12));
+        var a = w.Agent(npc);
+        var id = new FireId(w.NextFireId++);
+        w.Fires[id] = new FireState { Tile = mind.Camp, LastUpdatedMinute = w.Minute - 4, Pit = PitType.Open, BurningKg = { [Resource.Birch] = 3 } };
+        var m = Map.Of(w);
+        var to = Map.Step(mind.Camp, Enum.GetValues<Direction>().First(d => m.InBounds(Map.Step(mind.Camp, d)) && m.TerrainAt(Map.Step(mind.Camp, d)).IsPassable()));
+        double behind = Npc.ForecastWalkCoolingFPerHour(w, a, to);
+        Assert.Equal(w.Minute, w.Fires[id].LastUpdatedMinute);
+        Assert.Equal(Npc.ForecastWalkCoolingFPerHour(w, a, to), behind);
     }
 }

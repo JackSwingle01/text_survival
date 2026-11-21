@@ -196,6 +196,38 @@ public class TravelTests
         Assert.Equal(("you can barely move", 0), (r.InterruptedReason, r.MinutesElapsed));
     }
 
+    /// A walker bled nearly white and still bleeding, setting out on the 34-minute careful crossing onto The Pass Proper.
+    static World Failing()
+    {
+        var world = At(211, 43);
+        var body = world.Agent(P).Body;
+        body.BloodPct = 0.57; // circulation 0.14: Moving falls to 0.1 at 0.55
+        Assert.InRange(Body.GetCapacities(body).Moving, 0.1001, 0.2);
+        Effects.Add(body, EffectKind.Bleeding, 1.0);
+        return world;
+    }
+
+    /// Found by ActionSequenceTests: "you can barely move" was checked only when a step started, so a walker
+    /// worn down mid-crossing finished it in one long step but was stopped short when the minutes were
+    /// cut up. Now every minute asks: the walk stops at the same minute, on the origin with the crossing kept.
+    [Fact]
+    public void WornDownMidCrossing_StopsAtTheSameMinute_HoweverStepped()
+    {
+        var whole = Failing();
+        var walk = new Travel(P, Direction.East, Pace.Careful);
+        var r = Sim.Step(whole, walk, 600);
+        Assert.Equal("you can barely move", r.InterruptedReason);
+        Assert.InRange(r.MinutesElapsed, 1, 33); // stopped part way across, not refused at the start
+        Assert.Equal(new TileId(211, 43), whole.Agent(P).Tile);
+        Assert.Equal(r.MinutesElapsed, whole.Agent(P).Crossing!.ElapsedMinutes);
+
+        var chunked = Failing();
+        string? reason = null;
+        while (reason == null) reason = Sim.Step(chunked, walk, 7).InterruptedReason;
+        Assert.Equal("you can barely move", reason);
+        Assert.Equal(Save.ToJson(whole), Save.ToJson(chunked));
+    }
+
     [Fact]
     public void QuickHazardousCrossings_InjureAtTheOldRate_CarefulNever()
     {
