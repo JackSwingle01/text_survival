@@ -20,6 +20,12 @@ public sealed class Beliefs
     /// The last place each animal group or person was seen (old PredatorObservations, for every
     /// agent, not only predators). Forgotten after Knowledge.SightingMemoryMinutes.
     public SortedDictionary<AgentId, Sighting> Sightings { get; init; } = [];
+    /// Every tile ever in view (Sight.Visible), whether or not anything was there: what the map
+    /// draws as known rather than unexplored. Null until the first look. Only grows.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public TileSet? Explored { get; set; }
+    /// Where and with what budget the last look explored from: the same again adds nothing, so it is
+    /// skipped. Never saved: after a load the first look is made in full and adds nothing new.
+    internal (TileId Tile, double BudgetTiles)? LastExplored;
 }
 
 /// What one tile looked like when last seen. From a distance a person sees the trees, open water,
@@ -82,14 +88,19 @@ public sealed record Receipt(AgentId Who, TileId Tile, long? SinceMinute, bool F
     [JsonIgnore] public bool IsEmpty => Happened.Count == 0 && Changes.Count == 0 && Signs.Count == 0;
 }
 
-/// What a person can see from where they stand. A fixed radius for now; the old sight rays
-/// (terrain, weather, hills) replace it here, behind this one function.
+/// What a person can see from where they stand.
+/// Visible: the sight rays (port of the old Perception.Sight), what is in view now from a tile.
+/// Around and InSight: the fixed glance radius that memory, sightings and NPC decisions still read.
+/// Moving those onto the rays changes what NPCs and the player remember, and so results: a
+/// deliberate step of its own, not part of recording the ground seen.
 public static class Sight
 {
     public const int RadiusTiles = 5;
+    /// The sight budget over open ground, in tiles; a vantage adds up to MaxVantageBonusTiles more.
+    public const int OpenGroundTiles = 11, MaxVantageBonusTiles = 8, CaveTiles = 6;
 
-    /// Every tile in sight, the agent's own included, in a fixed order.
-    public static IEnumerable<TileId> Visible(World world, Agent agent)
+    /// The old glance diamond: every tile within RadiusTiles steps, the agent's own included, in a fixed order.
+    public static IEnumerable<TileId> Around(World world, Agent agent)
     {
         var m = Map.Of(world);
         var at = agent.Tile;
@@ -103,6 +114,93 @@ public static class Sight
 
     public static bool InSight(World world, Agent agent, TileId tile) =>
         MapGen.Manhattan(agent.Tile, tile) <= RadiusTiles && Map.Of(world).InBounds(tile);
+
+    /// The sight budget from a tile on a clear day with sound eyes: 6 in a cave, otherwise open
+    /// ground plus the tile's vantage (its own visibility, or the hills' if it stands on hills).
+    // Regional weather elevation is not a heightmap, so it gives no local vantage (old comment).
+    public static int RangeTiles(GeneratedMap m, TileId from, double sightCapacity = 1)
+    {
+        if (m.CaveAt(from) == Cave.Floor) return (int)Math.Round(CaveTiles * Math.Clamp(sightCapacity, 0, 1));
+        double hills = m.TerrainAt(from) == Terrain.Hills ? Terrain.Hills.Row().Visibility : 0;
+        return VantageRangeTiles(Math.Max(Map.Visibility(m, from), hills), sightCapacity);
+    }
+
+    /// Open ground's budget, plus (vantage - 1.3) x 20 tiles for a high place, at most 8 more.
+    public static int VantageRangeTiles(double vantageVisibility, double sightCapacity = 1)
+    {
+        double bonus = Math.Clamp((vantageVisibility - 1.3) * 20, 0, MaxVantageBonusTiles);
+        return (int)Math.Round((OpenGroundTiles + bonus) * Math.Clamp(sightCapacity, 0, 1));
+    }
+
+    /// The budget now: the range, cut by the weather's visibility.
+    public static double BudgetTiles(World world, TileId from, double sightCapacity = 1) =>
+        RangeTiles(Map.Of(world), from, sightCapacity) * Weather.At(world, world.Minute).VisibilityFactor;
+
+    /// Every tile in view from here now, by column then row. sightCapacity is the eyes' (Capacity.Sight).
+    public static IReadOnlyList<TileId> Visible(World world, TileId from, double sightCapacity = 1)
+    {
+        var m = Map.Of(world);
+        double budget = BudgetTiles(world, from, sightCapacity);
+        int range = (int)Math.Ceiling(budget);
+        var seen = new List<TileId>();
+        for (int x = Math.Max(0, from.X - range); x <= Math.Min(m.Width - 1, from.X + range); x++)
+            for (int y = Math.Max(0, from.Y - range); y <= Math.Min(m.Height - 1, from.Y + range); y++)
+            {
+                var t = new TileId(x, y);
+                if (CanSee(m, from, t, budget)) seen.Add(t);
+            }
+        return seen;
+    }
+
+    static bool InCave(GeneratedMap m, TileId t) => m.CaveAt(t) == Cave.Floor;
+
+    /// Budget a tile takes per tile-length of ray: infinite through a mountain, through nothing to see
+    /// through, and through another cave's floor; otherwise 1/visibility², and never less than 1.
+    static double Absorption(GeneratedMap m, TileId t, int? caveId)
+    {
+        double v = Map.Visibility(m, t);
+        return m.TerrainAt(t) == Terrain.Mountain || v <= 0 || InCave(m, t) && m.CaveIdAt(t) != caveId
+            ? double.PositiveInfinity
+            : Math.Max(1, 1 / (v * v));
+    }
+
+    static bool Opaque(GeneratedMap m, TileId t, int? caveId) => !m.InBounds(t) || double.IsPositiveInfinity(Absorption(m, t, caveId));
+
+    /// Walks every cell a centre-to-centre ray crosses, charging each its exact segment length; the
+    /// target itself is never charged, so a wall is seen though nothing behind it is.
+    static bool CanSee(GeneratedMap m, TileId from, TileId to, double budget)
+    {
+        if (to == from) return true;
+        int? caveId = m.CaveIdAt(from);
+        if (InCave(m, to) && m.CaveIdAt(to) != caveId) return false; // a cave's floor is seen only from that cave, its mouth included
+        int dx = to.X - from.X, dy = to.Y - from.Y;
+        double distance = Math.Sqrt(dx * dx + dy * dy);
+        if (budget <= 0 || distance > budget) return false;
+
+        int stepX = Math.Sign(dx), stepY = Math.Sign(dy);
+        double strideX = dx == 0 ? double.PositiveInfinity : distance / Math.Abs(dx);
+        double strideY = dy == 0 ? double.PositiveInfinity : distance / Math.Abs(dy);
+        double nextX = strideX / 2, nextY = strideY / 2, travelled = 0;
+        int x = from.X, y = from.Y;
+        while (x != to.X || y != to.Y)
+        {
+            var here = new TileId(x, y);
+            double exit = Math.Min(nextX, nextY);
+            budget -= (exit - travelled) * Absorption(m, here, caveId);
+            if (budget <= 0) return false;
+            travelled = exit;
+            bool crossX = nextX <= exit + 1e-9, crossY = nextY <= exit + 1e-9;
+            // A diagonal cannot peek through the seam between two opaque tiles.
+            if (crossX && crossY && Opaque(m, new TileId(x + stepX, y), caveId) && Opaque(m, new TileId(x, y + stepY), caveId)) return false;
+            if (crossX) { x += stepX; nextX += strideX; }
+            if (crossY) { y += stepY; nextY += strideY; }
+            var entered = new TileId(x, y);
+            // Out of a cave's floor, sight goes only along that cave's floor and to its mouth.
+            if (InCave(m, here) && m.TerrainAt(entered).IsPassable() && (m.CaveIdAt(entered) != m.CaveIdAt(here) || m.CaveAt(entered) == Cave.None))
+                return false;
+        }
+        return true;
+    }
 }
 
 /// The one set of rules every person's beliefs are kept by. Memory changes only by looking: the
@@ -157,6 +255,7 @@ public static class Knowledge
         var beliefs = Of(agent);
         var m = Map.Of(world);
         long now = world.Minute;
+        Explore(world, agent, beliefs);
         var pits = new Dictionary<TileId, FireId>();
         foreach (var (id, f) in world.Fires.ToList())
             if (f.CarriedBy == null && f.Tile != agent.Tile && Sight.InSight(world, agent, f.Tile))
@@ -165,7 +264,7 @@ public static class Knowledge
                 pits.TryAdd(f.Tile, id);
             }
         var dens = Dens(world);
-        foreach (var t in Sight.Visible(world, agent))
+        foreach (var t in Sight.Around(world, agent))
         {
             if (t == agent.Tile) continue;
             bool trees = Trees(world, t), water = m.TerrainAt(t).IsPassable() && Work.HasOpenWater(world, t), den = dens.Contains(t);
@@ -187,6 +286,19 @@ public static class Knowledge
         }
         foreach (var (id, s) in beliefs.Sightings.ToList())
             if (now - s.Minute > SightingMemoryMinutes) beliefs.Sightings.Remove(id);
+    }
+
+    /// Every tile in view is explored. Seen from the same tile with the same budget, the view is the
+    /// same (the terrain never changes), so there is nothing to add.
+    static void Explore(World world, Agent agent, Beliefs beliefs)
+    {
+        double sight = Body.GetCapacities(agent.Body).Sight;
+        double budget = Sight.BudgetTiles(world, agent.Tile, sight);
+        if (beliefs.LastExplored == (agent.Tile, budget)) return;
+        var m = Map.Of(world);
+        beliefs.Explored ??= new TileSet(m.Width, m.Height);
+        foreach (var t in Sight.Visible(world, agent.Tile, sight)) beliefs.Explored.Add(t);
+        beliefs.LastExplored = (agent.Tile, budget);
     }
 
     /// What changed on this tile since the person last stood on it, and then their memory of it,

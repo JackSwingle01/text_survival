@@ -65,7 +65,7 @@ public class KnowledgeTests
     {
         var w = World.New(17);
         var me = w.Agent(P);
-        var seen = Sight.Visible(w, me).ToList();
+        var seen = Sight.Around(w, me).ToList();
         Assert.Contains(me.Tile, seen);
         Assert.All(seen, t => Assert.True(MapGen.Manhattan(t, me.Tile) <= Sight.RadiusTiles));
         Assert.Equal(seen.Count, seen.Distinct().Count());
@@ -86,6 +86,83 @@ public class KnowledgeTests
         Assert.All(places.Where(p => p.Key != camp), p => Assert.True(p.Value.Trees || p.Value.Water || p.Value.Fire != null || p.Value.Shelter != null || p.Value.Danger != Danger.None));
         string json = Save.ToJson(w);
         Assert.Equal(json, Save.ToJson(Save.FromJson(json)));
+    }
+
+    // ---- the ground explored (Beliefs.Explored) ----
+
+    static TileSet Explored(World w, AgentId who) => ((PersonMind)w.Agent(who).Mind).Knows.Explored!;
+
+    static double Eyes(World w, AgentId who) => Body.GetCapacities(w.Agent(who).Body).Sight;
+
+    /// Everything in view is explored, bare ground too, which Places leaves out.
+    [Fact]
+    public void Looking_ExploresEveryTileInView_BareGroundToo()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        Sim.Step(w, new Wait(P), 1);
+        var inView = Sight.Visible(w, camp, Eyes(w, P));
+        Assert.True(inView.Count > ((PersonMind)w.Agent(P).Mind).Knows.Places.Count);
+        Assert.Equal(inView.Count, Explored(w, P).Count);
+        Assert.All(inView, t => Assert.True(Explored(w, P).Contains(t), $"{t} in view but not explored"));
+    }
+
+    /// Ground once seen stays explored when it is out of view; "visible" is only what is in view now.
+    [Fact]
+    public void ExploredGround_StaysExplored_AfterWalkingAway()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        Sim.Step(w, new Wait(P), 1);
+        var atCamp = Sight.Visible(w, camp, Eyes(w, P));
+        var far = Away(w, camp, 3 * Sight.OpenGroundTiles);
+        Put(w, P, far);
+        Sim.Step(w, new Wait(P), 1);
+        var there = Sight.Visible(w, far, Eyes(w, P));
+        Assert.DoesNotContain(camp, there);
+        Assert.All(atCamp.Concat(there), t => Assert.True(Explored(w, P).Contains(t)));
+        Assert.Equal(atCamp.Union(there).Count(), Explored(w, P).Count);
+    }
+
+    /// Asleep, nobody looks: nothing new is explored.
+    [Fact]
+    public void Asleep_NothingIsExplored()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        Sim.Step(w, new Wait(P), 1);
+        int before = Explored(w, P).Count;
+        Put(w, P, Away(w, camp, 3 * Sight.OpenGroundTiles));
+        Sim.Step(w, new Sleep(P), 60);
+        Assert.Equal(before, Explored(w, P).Count);
+    }
+
+    /// Saved, and the same however the steps are cut and wherever a save and load falls.
+    [Fact]
+    public void Explored_IsSaved_AndTheSameHoweverTheWalkIsStepped()
+    {
+        World Walk(int chunk, bool reload)
+        {
+            var w = World.New(17);
+            foreach (var dir in new[] { Direction.East, Direction.East, Direction.South, Direction.East })
+            {
+                for (int done = 0; done < 90; done += chunk)
+                {
+                    if (Sim.Step(w, new Travel(P, dir), chunk).InterruptedReason is "arrived") break;
+                    if (reload) w = Save.FromJson(Save.ToJson(w));
+                }
+                Sim.Step(w, new Wait(P), 30);
+            }
+            return w;
+        }
+        var whole = Walk(90, false);
+        Assert.True(Explored(whole, P).Count > 0);
+        string json = Save.ToJson(whole);
+        Assert.Equal(json, Save.ToJson(Walk(1, false)));
+        Assert.Equal(json, Save.ToJson(Walk(7, true)));
+        var loaded = Save.FromJson(json);
+        Assert.Equal(Explored(whole, P).Count, Explored(loaded, P).Count);
+        Assert.Equal(json, Save.ToJson(loaded));
     }
 
     // ---- the receipt done-when tests (feature 4) ----

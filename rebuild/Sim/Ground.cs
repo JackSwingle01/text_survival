@@ -228,8 +228,17 @@ public static class Ground
 
     /// Footing hazard the surface adds: slick ice, a crust, mud. Zero beside a river, whose own
     /// ice (Map.TravelHazardLevel) already owns the hazard, as the old WaterFeature did.
-    public static double HazardDelta(World world, TileId tile) =>
-        Map.Of(world).BesideRiver(tile) ? 0 : new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).HazardDelta;
+    public static double HazardDelta(World world, TileId tile) => HazardDelta(world, tile, CatchUp);
+
+    // ---- the same, read without writing (Peek): looking at a tile from a list or a preview ----
+
+    public static double TraversalFactorNow(World world, TileId tile) =>
+        new Column(Peek(world, tile), Substrate(Map.Of(world), tile)).TraversalFactor;
+
+    public static double HazardDeltaNow(World world, TileId tile) => HazardDelta(world, tile, Peek);
+
+    static double HazardDelta(World world, TileId tile, Func<World, TileId, GroundState> ground) =>
+        Map.Of(world).BesideRiver(tile) ? 0 : new Column(ground(world, tile), Substrate(Map.Of(world), tile)).HazardDelta;
 
     /// Wetness picked up per minute by whoever is in this contact with the ground.
     public static double ContactWettingRate(World world, TileId tile, SurfaceContact contact, double currentWetnessPct) =>

@@ -43,7 +43,7 @@ public static class Sim
         if (agent.Id == AgentId.Player && Crossed(world)) return new StepResult(events, 0, RunOver);
         // A fight holds every agent with a member still in it: no walking off without fleeing.
         if (activity is not Fight && Held(world, agent.Id))
-            return new StepResult(events, 0, "You are in a fight.");
+            return new StepResult(events, 0, InAFight);
         if (agent.Doing != null) // told to do something else: what it was doing ends here
         {
             Stop(world, agent, agent.Doing, events);
@@ -147,45 +147,50 @@ public static class Sim
         doing = null!;
         string? acted = null;
         WorkSession? work = null;
+        // Fire, work and building read the fire as it is now: its light, its heat, the pit to tend.
+        if (ReadsTheFire(activity)) Fire.CatchUpAround(world, agent, events);
+        if (ActivityRefusal(world, activity) is string refused) return refused;
         if (activity is StartFire or AddFuel or LightTorch or GatherCharcoal)
-        {
-            Fire.CatchUpAround(world, agent, events); // the refusal reads the fire as it is now
-            if (Fire.Refusal(world, activity) is string refused) return refused;
             acted = Fire.Act(world, activity, events); // a failed ignition still costs its minute
-        }
-        else if (activity is Travel travel)
-        {
-            if (Traversal.Refusal(world, travel) is string refused) return refused;
-            Traversal.Begin(world, travel);
-        }
-        else if (Work.Handles(activity))
-        {
-            Fire.CatchUpAround(world, agent, events); // light, and the fire to cook on, as they are now
-            if (Work.Refusal(world, activity) is string refused) return refused;
-            work = Work.Begin(world, activity, events);
-        }
-        else if (Shelters.Handles(activity))
-        {
-            Fire.CatchUpAround(world, agent, events); // light to work by, as it is now
-            if (Shelters.Refusal(world, activity) is string refused) return refused;
-            Shelters.Begin(world, activity);
-        }
-        else if (activity is Fight fight)
-        {
-            if (Combat.Refusal(world, fight) is string refused) return refused;
-        }
-        else if (Fauna.Handles(activity))
-        {
-            if (Fauna.Refusal(world, activity) is string refused) return refused;
-            if (Fauna.Begin(world, activity, events) is int fought) minutes = fought; // a hunt lasts as long as its fight
-        }
-        else if (activity is not (Wait or Rest or Sleep))
-            throw new NotSupportedException($"No step rule for activity {activity.GetType().Name}");
+        else if (activity is Travel travel) Traversal.Begin(world, travel);
+        else if (Work.Handles(activity)) work = Work.Begin(world, activity, events);
+        else if (Shelters.Handles(activity)) Shelters.Begin(world, activity);
+        else if (Fauna.Handles(activity) && Fauna.Begin(world, activity, events) is int fought) minutes = fought; // a hunt lasts as long as its fight
 
         if (activity is not Travel) agent.Crossing = null; // turned back: it never left its tile
         doing = new Doing { Plain = work == null ? activity : null, Work = work, MinutesLeft = minutes, Acted = acted };
         return null;
     }
+
+    /// Why this activity cannot start now, or null: the refusal Step would give, without a minute
+    /// passing or anything changing. Fires around the agent must be caught up (they are after any
+    /// step: every minute lived catches them up).
+    public static string? Refusal(World world, Activity activity)
+    {
+        var agent = world.Agent(activity.Who);
+        if (!IsAlive(agent)) return "dead";
+        if (agent.Id == AgentId.Player && Crossed(world)) return RunOver;
+        if (activity is not Fight && Held(world, agent.Id)) return InAFight;
+        return ActivityRefusal(world, activity);
+    }
+
+    public const string InAFight = "You are in a fight.";
+
+    static bool ReadsTheFire(Activity activity) =>
+        activity is StartFire or AddFuel or LightTorch or GatherCharcoal || Work.Handles(activity) || Shelters.Handles(activity);
+
+    /// The owning system's refusal for this activity: the one dispatch Start and Refusal share.
+    static string? ActivityRefusal(World world, Activity activity) => activity switch
+    {
+        StartFire or AddFuel or LightTorch or GatherCharcoal => Fire.Refusal(world, activity),
+        Travel travel => Traversal.Refusal(world, travel),
+        _ when Work.Handles(activity) => Work.Refusal(world, activity),
+        _ when Shelters.Handles(activity) => Shelters.Refusal(world, activity),
+        Fight fight => Combat.Refusal(world, fight),
+        _ when Fauna.Handles(activity) => Fauna.Refusal(world, activity),
+        Wait or Rest or Sleep => null,
+        _ => throw new NotSupportedException($"No step rule for activity {activity.GetType().Name}"),
+    };
 
     /// One minute lived by the agent doing this, after world.Minute moved on. Returns why to stop:
     /// an interruption, or "done" when the minutes given ran out.

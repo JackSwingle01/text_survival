@@ -32,10 +32,19 @@ foreach (string line in commands)
             case "sleep": Run(new Sleep(AgentId.Player), Minutes(parts)); break;
             case "fire":
             {
-                var light = (StartFire)LightFire(world);
-                if (Items.Tool(Items.Pack(world, AgentId.Player), light.Tool) != null)
-                    PrintOdds(Fire.StartOdds(world, world.Agent(AgentId.Player), light.Tool, light.Tinder));
-                Run(light, 1);
+                // Lighting a fire is the verb Verbs offers: the tile's, or the pit's own once there is one.
+                var light = Verbs.At(world, AgentId.Player).All.FirstOrDefault(v => v.Activity is StartFire);
+                if (light == null) { Console.WriteLine("  Nothing to light: the fire here is burning."); continue; }
+                if (light.Odds != null) PrintOdds(light.Odds);
+                Run(light.Activity, light.Minutes);
+                break;
+            }
+            case "verbs": PrintVerbs(Verbs.At(world, AgentId.Player)); continue;
+            case "do":
+            {
+                var verb = Numbered(Verbs.At(world, AgentId.Player))[int.Parse(parts[1]) - 1];
+                if (verb.Odds != null) PrintOdds(verb.Odds);
+                Run(verb.Activity, verb.Minutes);
                 break;
             }
             case "charcoal": Run(new GatherCharcoal(AgentId.Player), 1); break;
@@ -69,7 +78,7 @@ foreach (string line in commands)
                 Console.WriteLine($"Loaded {Path(parts)}");
                 break;
             default:
-                Console.WriteLine("Commands: wait N, rest N, sleep N, fire, fuel KIND KG, torch, charcoal, n/s/e/w [careful], go DIR [careful], " +
+                Console.WriteLine("Commands: verbs, do N, wait N, rest N, sleep N, fire, fuel KIND KG, torch, charcoal, n/s/e/w [careful], go DIR [careful], " +
                                   "look, inv, forage [MIN] [FOCUS], gather POOL [MIN], drink, eat KIND [KG], cook KIND [KG], melt, " +
                                   "butcher ID [MODE], stash KIND [KG], take KIND [KG], wear GEAR, status, save [file], load [file], quit");
                 continue;
@@ -106,14 +115,23 @@ static int Minutes(string[] parts) => int.Parse(parts[1]);
 static int MinutesOr(string[] parts, int fallback) => parts.Length > 1 ? int.Parse(parts[1]) : fallback;
 static double Kg(string[] parts) => parts.Length > 2 ? double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture) : 99;
 
-/// The best fire starter and tinder in the pack, and up to a kilo of kindling.
-static Activity LightFire(World w)
+/// Every verb Verbs.At lists, in the order `verbs` numbers them: each thing's menu, the walks, the tile's.
+static List<Verb> Numbered(Here here) => [.. here.All];
+
+/// What can be done here, numbered for `do N`: each thing with its conditions and the action shown
+/// for it (or Interact, with its menu beneath), then the walks and the tile's own verbs.
+static void PrintVerbs(Here here)
 {
-    var pack = Items.Pack(w, AgentId.Player);
-    var tool = new[] { ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill }.FirstOrDefault(t => Items.Tool(pack, t) != null, ToolType.HandDrill);
-    var tinder = new[] { Resource.BirchBark, Resource.Amadou, Resource.Usnea, Resource.Chaga, Resource.Tinder }
-        .FirstOrDefault(r => Items.Have(pack, r) >= 0.05, Resource.Tinder);
-    return new StartFire(AgentId.Player, tool, tinder, 0.05, Math.Min(1.0, Items.Have(pack, Resource.Kindling)));
+    int n = 0;
+    string Line(Verb v) => $"{++n,3}. {v.Label}{(v.Refused != null ? $" (refused: {v.Refused})" : "")}{(v.Odds != null ? $" [{v.Odds.TotalPct:P0}]" : "")}{(v.Trip != null ? $" [{v.Trip.TotalMinutes} min]" : "")}";
+    foreach (var t in here.Things)
+    {
+        string conditions = t.Conditions.Count > 0 ? $" ({string.Join(", ", t.Conditions.Select(c => c.Name))})" : "";
+        string shown = t.Action?.Label ?? (t.Interact ? "Interact" : "nothing to do");
+        Console.WriteLine($"  [{t.Name}{conditions}] - {shown}");
+        foreach (var v in t.Menu) Console.WriteLine($"     {Line(v)}");
+    }
+    foreach (var v in here.Walk.Concat(here.Tile)) Console.WriteLine($"  {Line(v)}");
 }
 
 /// What changed at a remembered tile while you were away or asleep: a camp tells you everything

@@ -35,22 +35,33 @@ public static class Access
         Refusal(world, who, t, world.AccessGates, confronting);
 
     /// As Refusal, with these conditions in force instead of the wired ones.
-    public static string? Refusal(World world, AgentId who, ThingRef t, Gate gates, bool confronting = false)
+    public static string? Refusal(World world, AgentId who, ThingRef t, Gate gates, bool confronting = false) =>
+        Blocker(world, who, t, gates, confronting)?.Reason;
+
+    /// What stands between who and t: the condition (Gate.None for plain distance) and its reason.
+    public readonly record struct Block(Gate Gate, string Reason);
+
+    /// The first condition in force that bars who from t now, or null: the condition behind Refusal,
+    /// for whatever shows it (Verbs.At). The thing must be there.
+    public static Block? Blocker(World world, AgentId who, ThingRef t, bool confronting = false) =>
+        Blocker(world, who, t, world.AccessGates, confronting);
+
+    public static Block? Blocker(World world, AgentId who, ThingRef t, Gate gates, bool confronting = false)
     {
         Things.Require(world, t);
         var actor = world.Agent(who);
         if (actor.Tile != t.Tile)
         {
             // Only a neighbour can be reached at all, and not across water.
-            if (MapGen.Manhattan(actor.Tile, t.Tile) != 1) return OutOfReach;
-            if (gates.HasFlag(Gate.AcrossWater) && AcrossWater(world, actor.Tile, t.Tile)) return AcrossWaterReason;
+            if (MapGen.Manhattan(actor.Tile, t.Tile) != 1) return new Block(Gate.None, OutOfReach);
+            if (gates.HasFlag(Gate.AcrossWater) && AcrossWater(world, actor.Tile, t.Tile)) return new Block(Gate.AcrossWater, AcrossWaterReason);
         }
         if ((gates & (Gate.Buried | Gate.Guarded | Gate.FrozenIn)) == 0) return null;
         var tags = Tags.Of(world, t, who);
         var caps = Items.PackOf(actor) is { } pack ? Capabilities.Of(pack) : Capability.None;
-        if (gates.HasFlag(Gate.Buried) && tags.HasFlag(Tag.Buried) && !caps.HasFlag(Capability.Digging)) return BuriedReason;
-        if (gates.HasFlag(Gate.Guarded) && !confronting && tags.HasFlag(Tag.Guarded)) return GuardedReason(world, t, who);
-        if (gates.HasFlag(Gate.FrozenIn) && tags.HasFlag(Tag.FrozenIn) && (caps & (Capability.Striking | Capability.Cutting)) == 0) return FrozenInReason;
+        if (gates.HasFlag(Gate.Buried) && tags.HasFlag(Tag.Buried) && !caps.HasFlag(Capability.Digging)) return new Block(Gate.Buried, BuriedReason);
+        if (gates.HasFlag(Gate.Guarded) && !confronting && tags.HasFlag(Tag.Guarded)) return new Block(Gate.Guarded, GuardedReason(world, t, who));
+        if (gates.HasFlag(Gate.FrozenIn) && tags.HasFlag(Tag.FrozenIn) && (caps & (Capability.Striking | Capability.Cutting)) == 0) return new Block(Gate.FrozenIn, FrozenInReason);
         return null;
     }
 
