@@ -53,13 +53,16 @@ per tile. A pixel reads only its cell's 5 x 5 neighbourhood, and unknown cells r
 terrain, so the ground never shows what the player has not seen.
 
 Tiles supply only texture, painted by `scripts/build-terrain-layers.py` into `assets/icons/terrain/`.
-The ground state per cell and for the world is an input (`stateAt`, `world`, `groundKey` in
-`terrain.js`); the page passes winter everywhere until it is wired to `MapDto.Surface`
-(`dev/active/terrain-art-seasons.md`).
+Each cell's snow, mud and ice come from `MapDto.Surface` (`wwwroot/ground-state.js`, which holds
+every threshold in `GROUND`); the date sets only the palette and the mountain snowline (`SEASONS`).
+The view carries the ground in sight only, so the page keeps the ground as it last saw it; a tile not
+in sight since the page loaded is drawn bare. Art not painted yet (`PAINTED` in `terrain-core.js`)
+is drawn with the closest that is, and the console says so once per asset.
 
 ```bash
+node --test tools/terrain.test.mjs                                               # ground follows the Sim, art matches PAINTED
 node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/ground.png      # winter
-node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/thaw.png --state '{"snow":0.5,"dust":false,"mud":0,"ice":"thin"}'
+node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/thaw.png --state '{"snow":0.5,"dust":false,"laden":false,"mud":0,"ice":"thin"}'
 ```
 
 ## Building

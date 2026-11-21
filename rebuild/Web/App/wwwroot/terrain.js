@@ -2,9 +2,9 @@
 // per art pixel. Baking is spread over frames, nearest the camera first; a chunk keeps showing its
 // last image until its new one is done.
 //
-// Ground state: draw() takes stateAt(x, y) (a cell's snow, dust, mud and ice), world (palette and
-// mountain snowline) and groundKey, a string that changes whenever either does, so chunks rebake.
-// The page passes winter everywhere for now (WINTER, WINTER_WORLD in terrain-core.js).
+// Ground state: draw() takes ground (ground-state.js's memory: each cell's state and its key) and
+// world (palette and snowline). A chunk rebakes only when the states or terrain it can see change,
+// so snow settling on one tile does not redraw the screen.
 import { src } from './util.js';
 import { createBaker, textureNames, CELL } from './terrain-core.js';
 
@@ -16,7 +16,7 @@ const BUDGET_MS = 6;      // baking per frame
 
 export function createTerrain() {
   const textures = new Map();
-  let wanted = null;
+  let wanted = null, wantedFor = null;
   const chunks = new Map(); // "cx,cy" -> { canvas, sig, job }
   let baker = null, bakerFor = null;
 
@@ -36,6 +36,7 @@ export function createTerrain() {
       im.src = src(name);
     }
     wanted = textureNames(world);
+    wantedFor = world.key;
   }
   const ready = () => wanted.every(n => textures.get(n));
   const tex = name => {
@@ -45,32 +46,36 @@ export function createTerrain() {
   };
 
   /** The known codes of a chunk and the two cells around it: what its pixels can depend on. */
-  function signature(m, cx0, cy0, groundKey) {
+  function signature(m, cx0, cy0, ground, world) {
     const xa = Math.max(0, cx0 - 2), xb = Math.min(m.width, cx0 + CHUNK + 2);
-    let sig = groundKey;
-    for (let y = Math.max(0, cy0 - 2); y < Math.min(m.height, cy0 + CHUNK + 2); y++) sig += m.known.slice(y * m.width + xa, y * m.width + xb);
+    let sig = world.key;
+    for (let y = Math.max(0, cy0 - 2); y < Math.min(m.height, cy0 + CHUNK + 2); y++) {
+      sig += m.known.slice(y * m.width + xa, y * m.width + xb);
+      for (let x = xa; x < xb; x++) sig += ground.keyAt(y * m.width + x);
+    }
     return sig;
   }
 
   /**
    * Draws the ground of cells [x0..x1] x [y0..y1] with the map's origin at (ox, oy), one cell CELL
-   * pixels wide. m: MapDto (width, height, known); camera: cell the camera centres on.
+   * pixels wide. m: MapDto (width, height, known); camera: cell the camera centres on;
+   * ground: { stateAt(x, y), keyAt(i), version }; world: { palette, snowline, key }.
    */
-  function draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera, stateAt, world, groundKey }) {
-    if (!wanted) load(world);
+  function draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera, ground, world }) {
+    if (wantedFor !== world.key) load(world);
     if (!ready()) return;
-    const key = `${groundKey}|${m.known.length}|${m.width}`;
+    const key = `${world.key}|${ground.version}|${m.width}`;
     if (!baker || bakerFor !== m.known + key) {
       baker = createBaker({ width: m.width, height: m.height, terrainAt: (x, y) => {
         const c = m.known[y * m.width + x];
         return c === '.' ? null : TERRAIN[c];
-      } }, stateAt, world, tex);
+      } }, ground.stateAt, world, tex);
       bakerFor = m.known + key;
     }
     const todo = [];
     for (let cy0 = Math.floor(y0 / CHUNK) * CHUNK; cy0 <= y1; cy0 += CHUNK)
       for (let cx0 = Math.floor(x0 / CHUNK) * CHUNK; cx0 <= x1; cx0 += CHUNK) {
-        const id = `${cx0},${cy0}`, sig = signature(m, cx0, cy0, groundKey);
+        const id = `${cx0},${cy0}`, sig = signature(m, cx0, cy0, ground, world);
         let ch = chunks.get(id);
         if (!ch) chunks.set(id, ch = { canvas: null, sig: null, job: null });
         if (ch.sig !== sig && ch.job?.sig !== sig) {

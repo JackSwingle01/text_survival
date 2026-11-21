@@ -17,10 +17,13 @@ so nothing repeats per tile. `rebuild/Web/README.md` has the details and the pre
 The renderer takes the ground state as input, and every state below already draws (try them with
 `tools/terrain-preview.mjs --state`):
 
-- per cell: `{ snow: 0..1 cover, dust: bool, mud: 0..1, ice: 'none' | 'thin' | 'thick' }`;
+- per cell: `{ snow: 0..1 cover, dust: bool, laden: bool, mud: 0..1, ice: 'none' | 'thin' | 'thick' }`;
 - per world: `{ palette, snowline }` (mountain height above which snow lies, 0..1).
 
-The page passes `WINTER` and `WINTER_WORLD` everywhere (`map.js`).
+The page derives both from the view (`wwwroot/ground-state.js`): cells from `MapDto.Surface`, the
+world from `ClockDto.Season`. Missing art falls back to the closest painted art (`PAINTED`,
+`resolveArt` in `terrain-core.js`); `tools/terrain.test.mjs` fails when `PAINTED` and the files
+disagree, so add a palette or `mud` there when its art lands.
 
 ## To wire next
 
@@ -29,12 +32,7 @@ The page passes `WINTER` and `WINTER_WORLD` everywhere (`map.js`).
    (`sprites(snowed=False)`). Mud needs a texture, `terrain/mud_<n>_<palette>`, which the renderer
    already looks for when `mud > 0`; the prototype's `mud()` painter is in the art branch
    (`dev/prototypes/art/seasons/build_seasons.py` on `worktree-short-loop-plan`).
-2. **`stateAt` from `MapDto.Surface`.** Snow depth to cover (a few cm is `dust`, about 15 cm and
-   more is full cover), `MudLevel` to `mud`, ice to `none`, `thin` or `thick`. `groundKey` must
-   change whenever any of it does.
-3. **`world` from the date.** Palette by season (dead autumn grass in a spring thaw), and the
-   snowline: about 0.8 in summer, 0.34 in winter.
-4. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness, and only tiles in sight have a
+2. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness, and only tiles in sight have a
    surface, so remembered tiles need the ground as last seen. Deep water is impassable and skipped,
    and lake and river ice is static (`SiteWater`) until it grows and thaws.
 

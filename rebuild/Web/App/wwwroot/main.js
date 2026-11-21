@@ -656,6 +656,7 @@ async function loadBytes(bytes, note) {
     const v = await client.load(bytes);
     $('veil').hidden = true; $('veil').dataset.kind = '';
     S.strikes = [];
+    map.forgetGround();
     apply(v);
     openDrawer({ kind: 'save', note });
   } catch (e) { toast('ui/warning', `Could not load: ${e.message}`); }
@@ -671,6 +672,7 @@ function render() {
 async function newGame(seed) {
   $('veil').hidden = true; $('veil').dataset.kind = '';
   S.drawer = null; S.strikes = []; S.selected = null;
+  map.forgetGround();
   apply(await client.newGame(seed));
 }
 
@@ -679,7 +681,7 @@ async function start() {
   const t0 = performance.now();
   try {
     S.view = await client.newGame(seed);
-    if (params.get('scenario')) S.view = await client.scenario(params.get('scenario'));
+    if (params.get('scenario')) { S.view = await client.scenario(params.get('scenario')); map.forgetGround(); }
     S.drawPos = { x: S.view.place.x, y: S.view.place.y };
     render();
     $('loading').hidden = true;

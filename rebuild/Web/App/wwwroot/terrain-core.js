@@ -16,14 +16,52 @@
 // Unknown neighbours are read as the cell's own terrain: the renderer never shows what the
 // player has not seen.
 //
-// Ground state per cell (stateAt) and for the world (world) select what is drawn:
-//   cell:  { snow: 0..1 cover, dust: bool, mud: 0..1, ice: 'none' | 'thin' | 'thick' }
-//   world: { palette: 'winter' | ..., snowline: 0..1 mountain height that holds snow }
-// Only the winter palette is painted so far; WINTER and WINTER_WORLD are what the page passes.
+// Ground state per cell (stateAt) and for the world (world) select what is drawn; ground-state.js
+// derives both from the view:
+//   cell:  { snow: 0..1 cover, dust: bool, laden: bool (plants carry snow), mud: 0..1 (wet ground;
+//            frozen where ice is not 'none'), ice: 'none' | 'thin' | 'thick' }
+//   world: { palette: 'winter' | 'summer' | 'autumn', snowline: 0..1 mountain height that holds snow }
+// The palette sets colour only; every snow, mud and ice layer follows the cell.
 
 export const CELL = 48, SRC = 96, VARIANTS = 4, STEP = 6;
-export const WINTER = Object.freeze({ snow: 1, dust: false, mud: 0, ice: 'thick' });
+export const WINTER = Object.freeze({ snow: 1, dust: false, laden: true, mud: 0, ice: 'thick' });
 export const WINTER_WORLD = Object.freeze({ palette: 'winter', snowline: 0.34 });
+
+// ---------------------------------------------------------------- the art that exists
+/**
+ * What scripts/build-terrain-layers.py has painted. The art is still being drawn, so a layer or
+ * palette not listed is drawn with the closest art that is, and said once on the console.
+ * tools/terrain.test.mjs fails when this list and assets/icons/terrain disagree.
+ */
+export const PAINTED = Object.freeze({ palettes: ['winter'], layers: ['ground', 'snow', 'sprites'] });
+const PALETTES = ['winter', 'summer', 'autumn'];
+/** The nearest painted palette, nearest first. */
+const NEAR_PALETTE = { winter: ['autumn', 'summer'], summer: ['autumn', 'winter'], autumn: ['summer', 'winter'] };
+/** An unpainted layer's nearest art: mud is wet ground, so the marsh's. */
+const NEAR_LAYER = { mud: name => name.replace(/^terrain\/mud_/, 'terrain/ground/marsh_') };
+
+const layerOf = name => name.startsWith('terrain/') ? name.slice(8).split(/[/_]/)[0] : null;
+const paletteOf = name => { const p = name.slice(name.lastIndexOf('_') + 1); return PALETTES.includes(p) ? p : null; };
+const warned = new Set();
+
+/** The painted art drawn for `name`: itself, or the closest that exists (said once per asset, all variants together). */
+export function resolveArt(name, warn = console.warn) {
+  let art = name;
+  for (;;) {
+    const layer = layerOf(art), pal = paletteOf(art);
+    if (layer && !PAINTED.layers.includes(layer)) {
+      if (!NEAR_LAYER[layer]) throw new Error(`no terrain art for layer "${layer}" (${name}) and nothing close to draw instead`);
+      art = NEAR_LAYER[layer](art);
+    } else if (pal && !PAINTED.palettes.includes(pal)) {
+      const near = NEAR_PALETTE[pal].find(p => PAINTED.palettes.includes(p));
+      if (!near) throw new Error(`no painted palette near "${pal}" (${name})`);
+      art = art.slice(0, art.lastIndexOf('_') + 1) + near;
+    } else break;
+  }
+  const asset = name.replace(/_\d+(?=_|$)/, '_*');
+  if (art !== name && !warned.has(asset)) { warned.add(asset); warn(`Missing terrain art ${asset}: drawing ${art.replace(/_\d+(?=_|$)/, '_*')}`); }
+  return art;
+}
 
 const WET = t => t === 'water' || t === 'deepwater';
 const FLAVOUR = { hills: 'rugged', rock: 'crag' };
@@ -72,17 +110,27 @@ export function variant(sx, sy, count) {
 
 // ---------------------------------------------------------------- textures
 /** Texture names a world state draws from. */
-export function textureNames(world) {
+/** Art names a world state asks for, before resolveArt. */
+export function wantedArt(world) {
   const p = world.palette, names = [];
   for (let n = 1; n <= VARIANTS; n++) {
     for (const t of ['forest', 'clearing', 'plain', 'hills', 'rock', 'marsh', 'water', 'deepwater']) names.push(`terrain/ground/${t}_${n}_${p}`);
     for (const f of ['flat', 'rugged', 'crag']) names.push(`terrain/snow/full_${f}_${n}`);
+    names.push(`terrain/mud_${n}_${p}`);
   }
   for (let k = 0; k < 8; k++) names.push(`cavefloor_tile${k === 0 ? '' : k + 1}`);
-  for (const s of SPRITE_NAMES) names.push(`terrain/sprites/${s}_${p}`);
+  for (const s of SPRITE_NAMES) for (const laden of [true, false]) names.push(spriteArt(s, p, laden));
   return names;
 }
+/** Texture files a world state draws from. */
+export const textureNames = world => [...new Set(wantedArt(world).map(n => resolveArt(n)))];
 const SPRITE_NAMES = ['spruce_l', 'spruce_m', 'spruce_s', 'shrub', 'boulder', 'reed_2', 'reed_3', 'reed_4'];
+/**
+ * The winter sprites are painted carrying snow, so a laden plant draws them in any season; a bare one
+ * draws its palette's, and bare in a winter palette is the dead autumn look.
+ */
+const BARE_SPRITES = { winter: 'autumn', summer: 'summer', autumn: 'autumn' };
+const spriteArt = (name, palette, laden) => `terrain/sprites/${name}_${laden ? 'winter' : BARE_SPRITES[palette]}`;
 
 // ---------------------------------------------------------------- the map
 /**
@@ -222,8 +270,10 @@ export function createBaker(map, stateAt, world, tex) {
     return { kind, water, bank, mountain: mountain && !water, h, h1, h2, state: c.state };
   }
 
+  const art = new Map();
+  const texture = name => { let a = art.get(name); if (!a) art.set(name, a = tex(resolveArt(name))); return a; };
   function sample(name, px, py) {
-    const t = tex(name), sx = Math.floor(px / SRC), sy = Math.floor(py / SRC);
+    const t = texture(name), sx = Math.floor(px / SRC), sy = Math.floor(py / SRC);
     const x = Math.floor((px - sx * SRC) * t.w / SRC), y = Math.floor((py - sy * SRC) * t.h / SRC);
     const i = (y * t.w + x) * 4;
     return t.data[i + 3] ? [t.data[i], t.data[i + 1], t.data[i + 2]] : null;
@@ -243,7 +293,7 @@ export function createBaker(map, stateAt, world, tex) {
       const band = Math.floor(p.h * 9) !== Math.floor(p.h1 * 9) || Math.floor(p.h * 9) !== Math.floor(p.h2 * 9);
       if (band && shade < -0.15 && vnoise(px, py, 12, 29) > 0.45) rock = C.r4;
       if (holds) return ramp(SNOW, 1.2 - shade * 1.7, px, py, 2);
-      if (p.h < 0.2 && hash01(px, py, 6) < 0.25) return pal === 'winter' ? C.s3 : C.sc; // scree
+      if (p.h < 0.2 && hash01(px, py, 6) < 0.25) return snowed(px, py, s.snow) ? C.s3 : C.sc; // scree
       return rock;
     }
     if (WET(p.kind)) {
@@ -257,14 +307,16 @@ export function createBaker(map, stateAt, world, tex) {
     }
     let col = sample(`terrain/ground/${p.kind}_${n}_${pal}`, px, py);
     const flav = FLAVOUR[p.kind] ?? 'flat';
-    if (s.mud > 0) {
+    if (s.mud > 0) { // wet ground; where its water has frozen, ice
       const mud = vnoise(px, py, 34, 41) * 0.65 + vnoise(px, py, 11, 42) * 0.35;
-      if (mud > 1 - s.mud * 0.5 && !snowed(px, py, s.snow)) col = sample(`terrain/mud_${n}_${pal}`, px, py) ?? col;
+      if (mud > 1 - s.mud * 0.5 && !snowed(px, py, s.snow))
+        col = (s.ice === 'none' ? sample(`terrain/mud_${n}_${pal}`, px, py) : ice(px, py, s.ice)) ?? col;
     }
     if (s.dust || fringe(px, py, s.snow)) col = dust(px, py) ?? col;
     if (snowed(px, py, s.snow)) col = sample(`terrain/snow/full_${flav}_${n}`, px, py) ?? col;
     if (p.bank) {
-      if (pal === 'winter' ? hash01(px, py, 5) < 0.8 : hash01(px, py, 5) < 0.75) col = pal === 'winter' ? C.s4 : C.e3;
+      const white = snowed(px, py, s.snow);
+      if (hash01(px, py, 5) < (white ? 0.8 : 0.75)) col = white ? C.s4 : C.e3;
     }
     return col;
   }
@@ -311,7 +363,7 @@ export function createBaker(map, stateAt, world, tex) {
 
   function bakeSprites(out, x0, y0, x1, y1) {
     const stride = (x1 - x0) * CELL, X0 = x0 * CELL, Y0 = y0 * CELL, X1 = x1 * CELL, Y1 = y1 * CELL;
-    const MW = W * CELL, MH = H * CELL, pal = world.palette, snowed = pal === 'winter';
+    const MW = W * CELL, MH = H * CELL, pal = world.palette;
     const put = (x, y, col) => {
       if (x < X0 || x >= X1 || y < Y0 || y >= Y1) return;
       const i = ((y - Y0) * stride + (x - X0)) * 4;
@@ -328,7 +380,7 @@ export function createBaker(map, stateAt, world, tex) {
       const dens = vnoise(ax, ay, 40, 105) * 0.7 + vnoise(ax, ay, 12, 106) * 0.3;
       const p = classify(ax, ay);
       if (!p || p.water || p.mountain) continue;
-      const t = p.kind;
+      const t = p.kind, laden = p.state.laden;
       let what = null;
       if (t === 'forest' && dens > 0.2 && roll < 0.92) what = 'LLMMS'[Math.floor(r * 5)];
       else if (t === 'clearing' && dens > 0.6 && roll < 0.14) what = 'MSS'[Math.floor(r * 3)];
@@ -337,18 +389,17 @@ export function createBaker(map, stateAt, world, tex) {
       else if ((t === 'plain' || t === 'hills') && dens > 0.5 && roll >= 0.06 && roll < 0.16) what = 'H';
       else if (t === 'rock' && roll < 0.3) what = 'B';
       else if (t === 'hills' && roll >= 0.16 && roll < 0.24) what = 'B';
-      else if (t === 'marsh' && roll < (snowed ? 0.45 : 1) && dens > 0.25) what = 'R';
-      if (what) found.push([ay, ax, what]);
+      else if (t === 'marsh' && roll < (laden ? 0.45 : 1) && dens > 0.25) what = 'R'; // snow buries reeds
+      if (what) found.push([ay, ax, what, laden]);
     }
     found.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    const shadowTones = snowed ? [C.s4, C.s3] : [C.sh];
-    for (const [y, x, what] of found) {
+    for (const [y, x, what, laden] of found) {
       let name, shadow;
       if ('LMS'.includes(what)) { name = `spruce_${what.toLowerCase()}`; shadow = true; }
       else if (what === 'B') { name = 'boulder'; shadow = false; }
-      else if (what === 'H') { name = 'shrub'; shadow = !snowed; }
+      else if (what === 'H') { name = 'shrub'; shadow = !laden; }
       else { name = `reed_${2 + (x * 7 + y * 3) % 3}`; shadow = false; }
-      const sp = tex(`terrain/sprites/${name}_${pal}`);
+      const sp = texture(spriteArt(name, pal, laden)), shadowTones = laden ? [C.s4, C.s3] : [C.sh];
       if (shadow) for (let xx = 0; xx < Math.floor(sp.w / 2) + 2; xx++) shadowTones.forEach((tone, yy) => {
         const sx = x + xx - 1, sy = y + yy;
         if (sx >= 0 && sx < MW && sy >= 0 && sy < MH && sx >= X0 && sx < X1 && sy >= Y0 && sy < Y1 && !blocked(sx, sy)) put(sx, sy, tone);

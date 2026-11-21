@@ -5,16 +5,14 @@
 // screen and stay crisp at a device pixel ratio of 1 or 2.
 import { icon, ago } from './util.js';
 import { createTerrain, TERRAIN } from './terrain.js';
-import { CELL, WINTER, WINTER_WORLD } from './terrain-core.js';
-
-// Every cell is drawn as winter until the ground state is wired to the view (MapDto.Surface).
-const winterAt = () => WINTER;
+import { CELL } from './terrain-core.js';
+import { createGroundMemory, worldState } from './ground-state.js';
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** state(): { view, drawPos: {x,y}, drawerOpen, selected: {x,y}|null }. */
 export function createMap(canvas, state, { onHover, onClick }) {
   const ctx = canvas.getContext('2d');
-  const TS = CELL, terrain = createTerrain();
+  const TS = CELL, terrain = createTerrain(), ground = createGroundMemory(code => TERRAIN[code]);
   let dpr = 1, cam = null, hover = null, flakes = [], last = performance.now();
   let visible = new Set(), visibleFor = null;
 
@@ -68,7 +66,8 @@ export function createMap(canvas, state, { onHover, onClick }) {
     frame.ox = ox; frame.oy = oy; frame.TS = TS;
 
     // ground: only what is known is drawn at all
-    terrain.draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera: cam, stateAt: winterAt, world: WINTER_WORLD, groundKey: 'winter' });
+    ground.see(m);
+    terrain.draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera: cam, ground, world: worldState(v.clock) });
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++)
       if (m.known[y * W + x] === 'e') { const [px, py] = at(x, y); sprite('cave_entrance', px + TS / 8, py + TS / 8, TS * 0.75); }
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -171,5 +170,7 @@ export function createMap(canvas, state, { onHover, onClick }) {
     known: (x, y) => { const m = state().view.map; return m.known.charCodeAt(y * m.width + x) !== 46; },
     inSight: (x, y) => visible.has(y * state().view.map.width + x),
     terrainName: code => TERRAIN[code],
+    /** A new game or a loaded save: the ground seen before belongs to another world. */
+    forgetGround: () => ground.forget(),
   };
 }
