@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Text Survival</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&family=Pixelify+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="icons/fire.png">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="top" id="top"></header>
+    <section class="map" id="mapArea" aria-label="The valley">
+      <canvas id="world"></canvas>
+      <canvas id="grid" hidden></canvas>
+      <div class="status" id="status"></div>
+      <aside class="drawer plate" id="drawer" hidden>
+        <div class="side-head" id="sideHead"></div>
+        <div class="side-body" id="sideBody" aria-live="polite"></div>
+      </aside>
+      <aside class="fightside plate" id="fightside" hidden></aside>
+      <div class="plate tip" id="tip" hidden></div>
+      <div class="veil" id="veil" hidden></div>
+      <div class="plate toast" id="toast" hidden></div>
+      <div class="loading" id="loading"><div class="plate"><img class="ico x2" src="icons/fire.png" alt=""><b>Kindling the world</b><span class="muted" id="loadingNote">Starting the game</span></div></div>
+    </section>
+    <nav class="dock" id="dock" aria-label="Actions"></nav>
+  </div>
+  <div class="plate ftip" id="ftip" hidden></div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
