@@ -6,7 +6,7 @@ namespace Survival;
 /// What a find is, for the distribution targets (emergent-world-design §8).
 public enum FindCategory { DeadMatter, Resource, Structure, Sign, Agent }
 
-/// One thing a player could find in the world today. Cause is null until things carry one (build step 2).
+/// One thing a player could find in the world today. Cause is the sign's (Signs.At), null where none is kept.
 public sealed record FindRow(TileId Tile, int RegionX, int RegionY, string Kind, FindCategory Category, long? AgeMinutes, string? Cause, string Text);
 
 /// One region's finds by category and whether its survival floors hold.
@@ -45,8 +45,8 @@ public static class Report
     {
         var m = Map.Of(w);
         var rows = new List<FindRow>();
-        void Add(TileId t, string kind, FindCategory cat, long? age, string text) =>
-            rows.Add(new FindRow(t, t.X / RegionTiles, t.Y / RegionTiles, kind, cat, age, null, text));
+        void Add(TileId t, string kind, FindCategory cat, long? age, string text, Cause? cause = null) =>
+            rows.Add(new FindRow(t, t.X / RegionTiles, t.Y / RegionTiles, kind, cat, age, cause?.ToString(), text));
 
         for (int x = 0; x < m.Width; x++)
             for (int y = 0; y < m.Height; y++)
@@ -88,41 +88,60 @@ public static class Report
                         default: throw new InvalidOperationException($"Report has no row for pool {pools[i].GetType().Name}");
                     }
                 }
-                foreach (var sign in Tracks.Read(w, t))
-                    Add(t, "tracks", FindCategory.Sign, sign.AgeMinutes,
-                        Invariant($"{sign.Maker} prints, traffic {sign.Traffic}, {sign.Pattern} {sign.Heading}, {sign.FreshnessPct:P0} fresh"));
+                foreach (var sign in Signs.At(w, t)) AddSign(t, sign);
             }
 
-        foreach (var (t, state) in w.Tiles)
+        // The signs, as finds. What a pool shows of being worked is its pool row's business, above.
+        void AddSign(TileId t, Sign sign)
         {
-            foreach (var c in state.Carcasses ?? [])
-                Add(t, "carcass", FindCategory.DeadMatter, w.Minute - c.DiedMinute,
-                    Invariant($"{c.Animal} carcass, {Carcasses.TotalRemainingKg(c):0.0} kg left, decay {Carcasses.DecayLevelNow(w, t, c):P0}"));
-            if (state.Stash is { } stash && (stash.Kg.Count > 0 || stash.Gear.Count > 0))
-                Add(t, "stash", FindCategory.Resource, null, "stash: " + string.Join(", ",
-                    stash.Kg.Select(kv => Invariant($"{kv.Key} {kv.Value:0.##}kg")).Concat(stash.Gear.Select(g => Items.Def(g).Name))));
+            long? age = sign.MadeMinute is long made ? w.Minute - made : null;
+            switch (sign.Kind)
+            {
+                case SignKind.Body when sign.Thing.Index != AgentId.Player.Value: // the player is not a find
+                    var dead = w.Agent(new AgentId(sign.Thing.Index));
+                    Add(t, "body", FindCategory.DeadMatter, age, $"dead {dead.Species} ({dead.Id})", sign.Cause);
+                    break;
+                case SignKind.Carcass:
+                    var c = Carcasses.Find(w, t, sign.Thing.Index)!;
+                    Add(t, "carcass", FindCategory.DeadMatter, age,
+                        Invariant($"{c.Animal} carcass, {Carcasses.TotalRemainingKg(c):0.0} kg left, decay {Carcasses.DecayLevelNow(w, t, c):P0}"), sign.Cause);
+                    break;
+                case SignKind.Stash:
+                    var stash = w.Tiles[t].Stash!;
+                    Add(t, "stash", FindCategory.Resource, age, "stash: " + string.Join(", ",
+                        stash.Kg.Select(kv => Invariant($"{kv.Key} {kv.Value:0.##}kg")).Concat(stash.Gear.Select(g => Items.Def(g).Name))), sign.Cause);
+                    break;
+                case SignKind.FirePit:
+                    var f = w.Fires[new FireId(sign.Thing.Index)];
+                    Add(t, "fire pit", FindCategory.Structure, age, Invariant($"{f.Pit} pit, {Fire.Phase(f)}, charcoal {f.CharcoalKg:0.0} kg"), sign.Cause);
+                    break;
+                case SignKind.Shelter:
+                    var s = Shelters.Peek(w, t)!; // melted as of now, on a copy: a thawed snow shelter is gone
+                    Add(t, "shelter", FindCategory.Structure, age, Invariant($"{s.Name} ({s.Kind}), quality {Shelters.Quality(s):P0}"), sign.Cause);
+                    break;
+                case SignKind.Prints:
+                    var p = Tracks.Read(w, t).First(x => (int)x.Maker == sign.Thing.Index);
+                    Add(t, "tracks", FindCategory.Sign, age,
+                        Invariant($"{p.Maker} prints, traffic {p.Traffic}, {p.Pattern} {p.Heading}, {p.FreshnessPct:P0} fresh"), sign.Cause);
+                    break;
+                // An edge's row goes on its first tile (EdgeId.A), whose other end is east or south.
+                case SignKind.Trail when sign.Thing.TrailDirection is Direction.East or Direction.South:
+                    var to = Map.Step(t, sign.Thing.TrailDirection.Value);
+                    Add(t, "trail", FindCategory.Sign, age, $"{Tracks.TierOf(w, t, to)} to {TileIdConverter.Format(to)}", sign.Cause);
+                    break;
+                case SignKind.Body or SignKind.Trail: break; // the player; a trail's other end
+                case SignKind.WorkedGround or SignKind.Grazed or SignKind.Felled or SignKind.Picked: break; // the pool rows, above
+                default: throw new InvalidOperationException($"Report has no row for sign {sign.Kind}");
+            }
         }
-        foreach (var (_, f) in w.Fires)
-            if (f.CarriedBy == null)
-                Add(f.Tile, "fire pit", FindCategory.Structure, null, Invariant($"{f.Pit} pit, {Fire.Phase(f)}, charcoal {f.CharcoalKg:0.0} kg"));
-        foreach (var t in w.Shelters.Keys)
-            if (Shelters.Peek(w, t) is { } s) // melted as of now, on a copy: a thawed snow shelter is gone
-                Add(t, "shelter", FindCategory.Structure, null, Invariant($"{s.Name} ({s.Kind}), quality {Shelters.Quality(s):P0}"));
+
         foreach (var (t, b) in w.Beddings)
             Add(t, "bedding", FindCategory.Structure, null, Shelters.Beddings[b].Name);
-        foreach (var (edge, wear) in w.Trails)
-            if (Tracks.TierOf(w, edge.A, edge.B) is var tier and not TrailTier.None)
-                Add(edge.A, "trail", FindCategory.Sign, w.Minute - wear.Minute,
-                    $"{tier} to {TileIdConverter.Format(edge.B)}");
         foreach (var (id, a) in w.Agents)
         {
             if (id == AgentId.Player) continue;
             int alive = a.Members.Count(Body.IsAlive);
-            if (alive == 0)
-            {
-                Add(a.Tile, "body", FindCategory.DeadMatter, null, $"dead {a.Species} ({id})");
-                continue;
-            }
+            if (alive == 0) continue; // a body: a sign, above
             string state = a.Mind is HerdMind h ? h.State.ToString() : a.Mind.GetType().Name;
             Add(a.Tile, a.Mind is HerdMind ? "herd" : "person", FindCategory.Agent, null, $"{a.Species} x{alive}, {state} ({id})");
         }

@@ -57,6 +57,9 @@ public sealed class World
     public SortedDictionary<TileId, List<WorldEvent>> Journal { get; init; } = [];
     /// The pools generation put on each tile looked at so far; derived from Seed, never saved. Owned by Pools.
     internal Dictionary<TileId, IReadOnlyList<PoolDef>>? PoolCache;
+    /// The access conditions in force (Access.Wired), never saved. Tests switch on the ones not wired
+    /// yet, to show every refusal that reaches a thing asks Access.
+    internal Access.Gate AccessGates = Access.Wired;
 
     public static World New(int seed)
     {

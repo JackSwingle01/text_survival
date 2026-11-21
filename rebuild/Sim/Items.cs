@@ -37,8 +37,9 @@ public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0
 
 /// One row of the gear table (Content/items.json): the authored design. Instances carry only their kind and wear.
 /// Insulation is the old BaseInsulation (tenths of a clo over the covered part of the body).
+/// Capabilities is what carrying it lets someone do to a thing (Survival.Capabilities), stated on every row.
 public sealed record GearDef(
-    string Name, GearCategory Category, double BaseWeightKg, int MaxDurability,
+    string Name, GearCategory Category, double BaseWeightKg, int MaxDurability, IReadOnlyList<Capability> Capabilities,
     ToolType? Tool = null, Weapon? Weapon = null, EquipSlot? Slot = null,
     double Insulation = 0, double Cushioning = 0, double Toughness = 0, double WaterproofLevel = 0,
     double CapacityBonusKg = 0);
@@ -206,13 +207,23 @@ public static class Items
         }
         if (dropExcess && (dropped.Kg.Count > 0 || dropped.Gear.Count > 0))
         {
-            AddAll(StashAt(world, agent.Tile), dropped);
+            AddAll(StashAt(world, agent.Tile, new Cause(agent.Id, $"dropped by {Cause.Describe(world, agent.Id)}, pack full")), dropped);
             events?.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Describe(dropped)));
         }
         return dropped;
     }
 
     /// The tile's stash, created on first use. Camp storage and dropped things are the same pile: unlimited.
+    /// made is who is putting something down, kept as the stash's cause if this makes it.
+    public static Inventory StashAt(World world, TileId tile, Cause made)
+    {
+        var stash = StashAt(world, tile);
+        if (stash.Kg.Count == 0 && stash.Gear.Count == 0) world.Tiles[tile].StashCause = made;
+        return stash;
+    }
+
+    /// The tile's stash, created with no cause if there is none: for setting a scene (tests). The game
+    /// puts things down through StashAt with a cause.
     public static Inventory StashAt(World world, TileId tile)
     {
         if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
@@ -228,6 +239,7 @@ public static class Items
         if (stash.Kg.Count == 0 && stash.Gear.Count == 0)
         {
             state.Stash = null;
+            state.StashCause = null;
             Map.Tidy(world, tile);
         }
         return taken;

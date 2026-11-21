@@ -159,3 +159,24 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   a quarter to a third of regions fail it (seed 17: 26 of 115; 22 if trees counted), open steppe, rock and fringe
   squares with little deadfall.
   Upgrade: tune against playtests, or weigh a region by its passable tiles if fringe squares should not count.
+
+## Emergent-world substrate (build step 2)
+
+- `Access.cs:27` - `Access.Wired` is `Gate.None`: buried (no Digging), guarded (a predator herd on the tile, unless
+  confronting), frozen in (no Striking or Cutting) and across water are implemented and tested with `Gate.All`, but
+  none was enforced before, so none is on. Only "out of reach" (anything not on your tile or a neighbour) always
+  applies, and no caller passes another tile yet. Upgrade: switch a gate on in `Access.Wired` with the step that
+  wants it (guarded carcasses, digging out a stash), and re-baseline its pins.
+- `Tags.cs:49` - tags with no state to read yet: Sealed, FrozenIn, Elevated, Unstable (moves to edges), Beacon
+  (scavengers, step 3), Occupied by small game (not a density yet), Buried for a carcass, stash or body (no
+  placement elevation on TileState). Upgrade: derive each in `Tags.Of` when its system lands.
+- `Tags.cs:29` - capabilities come only from working gear rows. A burning torch (a fire carried, not gear) gives no
+  Light, meat gives no Bait, nothing gives Smoke. Upgrade: add those sources when the first verb needs them (step 4).
+- `Things.cs:8` - `ThingKind.Sign` and `ThingKind.Item` are reserved: no stored signs exist, and carried gear has no
+  id (a list position shifts). Upgrade: ids for stored signs (step 3/5) and for gear (step 4's first item verb).
+- `Signs.cs:10` - a stash, fire pit, shelter, body or felled stand keeps no minute of its making, so its sign's
+  `MadeMinute` is null; a body has no Cause (who killed a person is not kept). Upgrade: a made minute beside each
+  Cause, and a body's cause, with the body pipeline (step 3).
+- `CombatAftermath.cs:76` - a side's dead are put down to the other side's first fighter (and the weapon in its
+  hands then), not to whoever struck the last blow, which nothing keeps; a weapon thrown before the kill is not named.
+  An animal that bleeds out after a fight is "its wounds", with no one named.

@@ -171,14 +171,50 @@ public static class Ground
             if (ts == null) world.Tiles[tile] = ts = new TileState();
             ts.Ground = state;
         }
+        StepTo(world, tile, state, sub, target);
+        return state;
+    }
+
+    static void StepTo(World world, TileId tile, GroundState state, SubstrateProfile sub, long target)
+    {
         var column = new Column(state, sub);
         for (long start = state.LastUpdatedMinute; start < target; start += StepMinutes)
             // Midpoint sample: weather holds for whole front states (two hours or more); only
             // sunlight moves within a sub-step, and the midpoint is its average to first order.
             column.Step(StepMinutes, WeatherAt(world, tile, start + StepMinutes / 2 + 1));
         state.LastUpdatedMinute = Math.Max(state.LastUpdatedMinute, target);
+    }
+
+    /// The tile's ground as CatchUp would leave it now, without writing anything: a copy is caught
+    /// up, so looking (Tags) changes nothing. A tile never observed lives its whole history on the
+    /// copy, so this costs what a first CatchUp does.
+    public static GroundState Peek(World world, TileId tile)
+    {
+        long target = world.Minute / StepMinutes * StepMinutes;
+        var sub = Substrate(Map.Of(world), tile);
+        GroundState state;
+        if (world.Tiles.GetValueOrDefault(tile)?.Ground is { } stored)
+            state = new GroundState
+            {
+                Layers = [.. stored.Layers.Select(l => new SurfaceLayer
+                {
+                    Material = l.Material, ThicknessM = l.ThicknessM, CompactionPct = l.CompactionPct,
+                    WaterSaturationPct = l.WaterSaturationPct, FrozenFractionPct = l.FrozenFractionPct,
+                })],
+                WaterAddedM = stored.WaterAddedM, WaterDrainedM = stored.WaterDrainedM, WaterEvaporatedM = stored.WaterEvaporatedM,
+                WaterOverflowedM = stored.WaterOverflowedM, LastUpdatedMinute = stored.LastUpdatedMinute,
+            };
+        else
+        {
+            state = Baseline(sub);
+            state.LastUpdatedMinute = HistoryStartMinute(world);
+        }
+        StepTo(world, tile, state, sub, target);
         return state;
     }
+
+    /// Snow on the tile now, read without writing (Peek).
+    public static double SnowDepthNowM(World world, TileId tile) => SnowDepthM(Peek(world, tile), Substrate(Map.Of(world), tile));
 
     /// When the ground's history begins: the weather pre-roll for a seeded world. A pinned test sky
     /// has no past, so its ground starts at minute 0 as generated.

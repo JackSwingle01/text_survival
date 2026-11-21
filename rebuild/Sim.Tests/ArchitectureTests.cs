@@ -16,7 +16,7 @@ public class ArchitectureTests
         @"\bSystem\.Random\b", @"\bnew Random\b", @"\bRandom\.Shared\b", @"\bGuid\.NewGuid\b", @"\.GetHashCode\(",
     ];
 
-    static string SimSourceDir()
+    internal static string SimSourceDir()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
         {

@@ -258,6 +258,8 @@ public static partial class Content
                 if (v is < 0 or > 1) yield return $"{at}: {name} {v} is not in 0-1";
             if (g.CapacityBonusKg < 0) yield return $"{at}: capacityBonusKg {g.CapacityBonusKg}";
             if (g.Weapon is { } w && (w.Damage <= 0 || w.BlockChance is < 0 or > 1)) yield return $"{at}: weapon damage {w.Damage}, blockChance {w.BlockChance}";
+            if (g.Capabilities.Contains(Capability.None)) yield return $"{at}: capabilities names None (an empty list is nothing)";
+            if (g.Capabilities.Distinct().Count() != g.Capabilities.Count) yield return $"{at}: a capability listed twice";
         }
         foreach (var (slot, share) in slots) if (share <= 0) yield return $"items.json: slotCoverage {slot} {share}";
         if (Math.Abs(slots.Values.Sum() - 1) > 1e-9) yield return $"items.json: slotCoverage sums to {slots.Values.Sum()}, not 1";

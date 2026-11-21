@@ -35,6 +35,9 @@ public sealed class FireState
     /// is paid then (Fire.PayLighter), so a fire that never got past its kindling teaches only a miss's worth.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public AgentId? LitBy { get; set; }
+    /// A pit: who made it, by lighting the first fire in it. Null on a carried torch.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Cause? Cause { get; init; }
 }
 
 public static class Fire
@@ -406,7 +409,10 @@ public static class Fire
     {
         var tile = world.Agent(activity.Who).Tile;
         var pack = Items.Pack(world, activity.Who);
-        var pit = PitAt(world, tile) is FireId id ? world.Fires[id] : null;
+        var pitId = PitAt(world, tile);
+        var pit = pitId is FireId id ? world.Fires[id] : null;
+        // The pit is the thing reached: asked first, once it is there.
+        string? Reach() => Access.Refusal(world, activity.Who, new ThingRef(ThingKind.Fire, tile, pitId!.Value.Value));
         switch (activity)
         {
             case StartFire a:
@@ -414,6 +420,7 @@ public static class Fire
                 if (a.TinderKg <= 0 || a.KindlingKg < 0) throw new ArgumentOutOfRangeException(nameof(activity), "Tinder must be positive and kindling not negative");
                 if (pit != null)
                 {
+                    if (Reach() is string barred) return barred;
                     if (pit.Pit != a.Pit) return $"the pit here is {pit.Pit}, not {a.Pit}";
                     if (!CanAddFuel(pit, a.Tinder)) return "the fire is full";
                     if (IsActive(pit)) return "the fire is already burning";
@@ -426,6 +433,7 @@ public static class Fire
                 if (!IsFuel(a.Fuel)) return $"{a.Fuel} does not burn";
                 if (a.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), a.Kg, "Fuel mass must be positive");
                 if (pit == null) return "no fire here";
+                if (Reach() is string fuelBarred) return fuelBarred;
                 if (Items.Have(pack, a.Fuel) <= 0) return $"no {a.Fuel} to add";
                 if (CanAddFuel(pit, a.Fuel)) return null;
                 return TotalKg(pit) >= MaxFuelKg(pit.Pit) ? "the fire is full" : $"the fire is not hot enough for {a.Fuel}";
@@ -433,7 +441,8 @@ public static class Fire
                 if (!HasLight(world, a.Who)) return "no flame to light a torch from";
                 return Items.Tool(pack, ToolType.Torch) == null ? "no torch to light" : null;
             case GatherCharcoal:
-                return pit is { CharcoalKg: > 0 } ? null : "no charcoal here";
+                if (pit == null) return "no charcoal here";
+                return Reach() ?? (pit.CharcoalKg > 0 ? null : "no charcoal here");
             default:
                 throw new NotSupportedException($"{activity.GetType().Name} is not a fire activity");
         }
@@ -464,14 +473,19 @@ public static class Fire
         // Old FireHandler passed the Firecraft level; the port had dropped it (bug, fixed).
         double chance = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
         Items.Take(pack, a.Tinder, a.TinderKg);
-        Items.Use(Items.Tool(pack, a.Tool)!);
+        var tool = Items.Tool(pack, a.Tool)!;
+        Items.Use(tool);
         if (world.Rng("fire", a.Who).NextDouble() >= chance)
         {
             events.Add(new FireStartFailed(world.Minute, a.Who, tile, chance));
             Skills.Award(world, agent, Skill.Firecraft, Skills.FireFailureXp, events);
             return "fire did not catch";
         }
-        var id = PitAt(world, tile) ?? NewFire(world, new FireState { Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit });
+        var id = PitAt(world, tile) ?? NewFire(world, new FireState
+        {
+            Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit,
+            Cause = new Cause(a.Who, $"lit by {Cause.Describe(world, a.Who)} with a {Items.Def(tool).Name.ToLowerInvariant()}"),
+        });
         var f = world.Fires[id];
         // What the pit has no room for stays in the pack, as Feed does. Old game: it popped the
         // kindling and tinder and the pit's capacity cap destroyed what did not fit (bug, fixed).

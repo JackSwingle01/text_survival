@@ -371,6 +371,8 @@ public static partial class Combat
         }
         target ??= NearestEnemy(enc, unit);
         if (target == null || !target.InField || target.Team == unit.Team) return "No available target.";
+        // The fight is the confrontation: whatever guards the target does not bar striking at it.
+        if (Access.Refusal(world, unit.Agent, Things.OfAgent(world, target.Agent), confronting: true) is string barred) return barred;
         double distance = unit.Position.DistanceTo(target.Position);
         var zone = ZoneOf(distance);
         var nearestZone = ZoneOf(unit.Position.DistanceTo((NearestEnemy(enc, unit) ?? target).Position));
@@ -583,7 +585,7 @@ public static partial class Combat
         double chance = ThrownAccuracy(attacker.Position.DistanceTo(target.Position), rangeM, accuracy, StatsOf(world, target).IsSmall);
         var result = world.Rng("combat", attacker.Agent).NextDouble() < chance ? Strike(world, enc, attacker, target, events) : new ActionResult();
         attacker.Weapon = null; // after the strike: its damage came from the weapon
-        Items.StashAt(world, enc.Tile).Gear.Add(weapon);
+        Items.StashAt(world, enc.Tile, new Cause(attacker.Agent, $"thrown by {Cause.Describe(world, attacker.Agent)}")).Gear.Add(weapon);
         return result;
     }
 

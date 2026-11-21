@@ -13,6 +13,9 @@ public sealed class Carcass
     public required string Animal { get; init; }
     public required double BodyWeightKg { get; init; }
     public required long DiedMinute { get; init; }
+    /// Who killed it and how ("a wolf pack", "the player's wooden spear", "its wounds").
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Cause? Cause { get; init; }
     /// Temperature-weighted hours since death, as of LastUpdatedMinute (old EffectiveHoursSinceDeath).
     public double EffectiveHours { get; set; }
     public required long LastUpdatedMinute { get; set; }
@@ -59,7 +62,8 @@ public static class Carcasses
 
     /// Old CarcassFeature.InitializeYieldsFromAnimal, from the body that died. Phase 3b kills call this.
     public static Carcass Create(World world, TileId tile, string animal, BodyState body, long diedMinute,
-        bool isBird = false, bool isMegafauna = false, double harvestedPct = 0, IReadOnlyDictionary<Resource, double>? special = null)
+        bool isBird = false, bool isMegafauna = false, double harvestedPct = 0, IReadOnlyDictionary<Resource, double>? special = null,
+        Cause? cause = null)
     {
         var y = new Dictionary<Resource, double>();
         bool specialHide = special?.ContainsKey(Resource.MammothHide) == true;
@@ -90,7 +94,7 @@ public static class Carcasses
         var c = new Carcass
         {
             Id = world.NextCarcassId++, Animal = animal, BodyWeightKg = body.WeightKg,
-            DiedMinute = diedMinute, LastUpdatedMinute = diedMinute, Remaining = y,
+            DiedMinute = diedMinute, LastUpdatedMinute = diedMinute, Remaining = y, Cause = cause,
         };
         if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
         (state.Carcasses ??= []).Add(c);

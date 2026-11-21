@@ -7,7 +7,9 @@
 //   Which resources burn, and how, is fire.json's; which build shelters is shelters.json's.
 // gear: the authored design, by kind id (old Gear factory methods). An item carries only its kind and
 //   wear. maxDurability is stated on every kind; -1 never wears out. insulation is tenths of a clo over the slot's share of the
-//   body (old BaseInsulation). A tent's shelter values are shelters.json's.
+//   body (old BaseInsulation). A tent's shelter values are shelters.json's. capabilities is stated on every
+//   kind: what carrying it lets someone do to a thing (Capability names, each once; [] for none). An unlit
+//   torch gives no Light: a burning one is a fire, not gear.
 // slotCoverage: the fraction of body surface each slot covers (old Inventory.SlotCoverage). Sums to 1.
 // startingPack, startingClothes: the old starting kit (GameContext.CreateNewGame). Pack kilos are
 //   listed piece by piece and summed in order, as the old kit added them up.
@@ -62,33 +64,33 @@
  },
 
  "gear": {
-  "stone_axe": { "name": "Stone Axe", "category": "Tool", "baseWeightKg": 1.5, "maxDurability": -1, "tool": "Axe", "weapon": { "damage": 12, "class": "Blade", "blockChance": 0.05 } },
-  "flint_knife": { "name": "Flint Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
-  "worn_knife": { "name": "Worn Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 3, "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
-  "bone_knife": { "name": "Bone Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 5, "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
-  "wooden_spear": { "name": "Wooden Spear", "category": "Tool", "baseWeightKg": 2.0, "maxDurability": -1, "tool": "Spear", "weapon": { "damage": 8, "class": "Pierce", "blockChance": 0.12 } },
-  "fire_striker": { "name": "Fire Striker", "category": "Tool", "baseWeightKg": 0.2, "maxDurability": -1, "tool": "FireStriker" },
-  "hand_drill": { "name": "Hand Drill", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "tool": "HandDrill" },
-  "bow_drill": { "name": "Bow Drill", "category": "Tool", "baseWeightKg": 0.5, "maxDurability": -1, "tool": "BowDrill" },
-  "waterskin": { "name": "Waterskin", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "tool": "WaterContainer" },
-  "torch": { "name": "Torch", "category": "Tool", "baseWeightKg": 0.5, "maxDurability": 1, "tool": "Torch" },
-  "bone_needle": { "name": "Bone Needle", "category": "Tool", "baseWeightKg": 0.05, "maxDurability": 20, "tool": "Needle" },
-  "worn_fur_chest_wrap": { "name": "Worn Fur Chest Wrap", "category": "Clothing", "baseWeightKg": 1.5, "maxDurability": 50, "slot": "Chest", "insulation": 0.20, "cushioning": 0.12, "toughness": 0.04, "waterproofLevel": 0.1 },
-  "fur_chest_wrap": { "name": "Fur Chest Wrap", "category": "Clothing", "baseWeightKg": 1.8, "maxDurability": 100, "slot": "Chest", "insulation": 0.30, "cushioning": 0.20, "toughness": 0.08, "waterproofLevel": 0.1 },
-  "fur_leg_wraps": { "name": "Fur Leg Wraps", "category": "Clothing", "baseWeightKg": 1.0, "maxDurability": 100, "slot": "Legs", "insulation": 0.15, "cushioning": 0.15, "toughness": 0.06, "waterproofLevel": 0.1 },
-  "worn_hide_boots": { "name": "Worn Hide Boots", "category": "Clothing", "baseWeightKg": 0.4, "maxDurability": 30, "slot": "Feet", "insulation": 0.05, "cushioning": 0.06, "toughness": 0.08, "waterproofLevel": 0.1 },
-  "hide_handwraps": { "name": "Hide Handwraps", "category": "Clothing", "baseWeightKg": 0.15, "maxDurability": 50, "slot": "Hands", "insulation": 0.03, "cushioning": 0.05, "toughness": 0.10, "waterproofLevel": 0.1 },
-  "bear_hide_chest": { "name": "Bear Hide Chest", "category": "Clothing", "baseWeightKg": 3.0, "maxDurability": 150, "slot": "Chest", "insulation": 0.35, "cushioning": 0.18, "toughness": 0.30, "waterproofLevel": 0.2 },
-  "mammoth_hide_chest": { "name": "Mammoth Hide Chest", "category": "Clothing", "baseWeightKg": 4.5, "maxDurability": 200, "slot": "Chest", "insulation": 0.45, "cushioning": 0.25, "toughness": 0.38, "waterproofLevel": 0.25 },
-  "mammoth_hide_legs": { "name": "Mammoth Hide Legs", "category": "Clothing", "baseWeightKg": 2.5, "maxDurability": 200, "slot": "Legs", "insulation": 0.30, "cushioning": 0.22, "toughness": 0.35, "waterproofLevel": 0.25 },
-  "worn_coat": { "name": "Worn Coat", "category": "Clothing", "baseWeightKg": 2.0, "maxDurability": 50, "slot": "Chest", "insulation": 0.15 },
-  "small_pouch": { "name": "Small Pouch", "category": "Accessory", "baseWeightKg": 0.1, "maxDurability": 100, "capacityBonusKg": 0.5 },
-  "rope_belt": { "name": "Rope Belt", "category": "Accessory", "baseWeightKg": 0.4, "maxDurability": 100, "capacityBonusKg": 3.0 },
-  "proper_belt": { "name": "Proper Belt", "category": "Accessory", "baseWeightKg": 0.3, "maxDurability": 150, "capacityBonusKg": 4.0 },
-  "bone_shovel": { "name": "Bone Shovel", "category": "Tool", "baseWeightKg": 1.2, "maxDurability": 15, "tool": "Shovel" },
-  "hide_tent": { "name": "Hide Tent", "category": "Tool", "baseWeightKg": 3.0, "maxDurability": 50, "tool": "Tent" },
-  "mammoth_hide_tent": { "name": "Mammoth Hide Tent", "category": "Tool", "baseWeightKg": 5.0, "maxDurability": 80, "tool": "Tent" },
-  "large_bag": { "name": "Large Bag", "category": "Accessory", "baseWeightKg": 0.8, "maxDurability": 100, "capacityBonusKg": 10.0 }
+  "stone_axe": { "name": "Stone Axe", "category": "Tool", "baseWeightKg": 1.5, "maxDurability": -1, "capabilities": ["Cutting", "Striking"], "tool": "Axe", "weapon": { "damage": 12, "class": "Blade", "blockChance": 0.05 } },
+  "flint_knife": { "name": "Flint Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
+  "worn_knife": { "name": "Worn Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 3, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
+  "bone_knife": { "name": "Bone Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 5, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
+  "wooden_spear": { "name": "Wooden Spear", "category": "Tool", "baseWeightKg": 2.0, "maxDurability": -1, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 8, "class": "Pierce", "blockChance": 0.12 } },
+  "fire_striker": { "name": "Fire Striker", "category": "Tool", "baseWeightKg": 0.2, "maxDurability": -1, "capabilities": ["Spark"], "tool": "FireStriker" },
+  "hand_drill": { "name": "Hand Drill", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "capabilities": ["Spark"], "tool": "HandDrill" },
+  "bow_drill": { "name": "Bow Drill", "category": "Tool", "baseWeightKg": 0.5, "maxDurability": -1, "capabilities": ["Spark"], "tool": "BowDrill" },
+  "waterskin": { "name": "Waterskin", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "capabilities": ["Carrying"], "tool": "WaterContainer" },
+  "torch": { "name": "Torch", "category": "Tool", "baseWeightKg": 0.5, "maxDurability": 1, "capabilities": [], "tool": "Torch" },
+  "bone_needle": { "name": "Bone Needle", "category": "Tool", "baseWeightKg": 0.05, "maxDurability": 20, "capabilities": ["Binding"], "tool": "Needle" },
+  "worn_fur_chest_wrap": { "name": "Worn Fur Chest Wrap", "category": "Clothing", "baseWeightKg": 1.5, "maxDurability": 50, "capabilities": [], "slot": "Chest", "insulation": 0.20, "cushioning": 0.12, "toughness": 0.04, "waterproofLevel": 0.1 },
+  "fur_chest_wrap": { "name": "Fur Chest Wrap", "category": "Clothing", "baseWeightKg": 1.8, "maxDurability": 100, "capabilities": [], "slot": "Chest", "insulation": 0.30, "cushioning": 0.20, "toughness": 0.08, "waterproofLevel": 0.1 },
+  "fur_leg_wraps": { "name": "Fur Leg Wraps", "category": "Clothing", "baseWeightKg": 1.0, "maxDurability": 100, "capabilities": [], "slot": "Legs", "insulation": 0.15, "cushioning": 0.15, "toughness": 0.06, "waterproofLevel": 0.1 },
+  "worn_hide_boots": { "name": "Worn Hide Boots", "category": "Clothing", "baseWeightKg": 0.4, "maxDurability": 30, "capabilities": [], "slot": "Feet", "insulation": 0.05, "cushioning": 0.06, "toughness": 0.08, "waterproofLevel": 0.1 },
+  "hide_handwraps": { "name": "Hide Handwraps", "category": "Clothing", "baseWeightKg": 0.15, "maxDurability": 50, "capabilities": [], "slot": "Hands", "insulation": 0.03, "cushioning": 0.05, "toughness": 0.10, "waterproofLevel": 0.1 },
+  "bear_hide_chest": { "name": "Bear Hide Chest", "category": "Clothing", "baseWeightKg": 3.0, "maxDurability": 150, "capabilities": [], "slot": "Chest", "insulation": 0.35, "cushioning": 0.18, "toughness": 0.30, "waterproofLevel": 0.2 },
+  "mammoth_hide_chest": { "name": "Mammoth Hide Chest", "category": "Clothing", "baseWeightKg": 4.5, "maxDurability": 200, "capabilities": [], "slot": "Chest", "insulation": 0.45, "cushioning": 0.25, "toughness": 0.38, "waterproofLevel": 0.25 },
+  "mammoth_hide_legs": { "name": "Mammoth Hide Legs", "category": "Clothing", "baseWeightKg": 2.5, "maxDurability": 200, "capabilities": [], "slot": "Legs", "insulation": 0.30, "cushioning": 0.22, "toughness": 0.35, "waterproofLevel": 0.25 },
+  "worn_coat": { "name": "Worn Coat", "category": "Clothing", "baseWeightKg": 2.0, "maxDurability": 50, "capabilities": [], "slot": "Chest", "insulation": 0.15 },
+  "small_pouch": { "name": "Small Pouch", "category": "Accessory", "baseWeightKg": 0.1, "maxDurability": 100, "capabilities": ["Carrying"], "capacityBonusKg": 0.5 },
+  "rope_belt": { "name": "Rope Belt", "category": "Accessory", "baseWeightKg": 0.4, "maxDurability": 100, "capabilities": ["Carrying", "Binding"], "capacityBonusKg": 3.0 },
+  "proper_belt": { "name": "Proper Belt", "category": "Accessory", "baseWeightKg": 0.3, "maxDurability": 150, "capabilities": ["Carrying"], "capacityBonusKg": 4.0 },
+  "bone_shovel": { "name": "Bone Shovel", "category": "Tool", "baseWeightKg": 1.2, "maxDurability": 15, "capabilities": ["Digging"], "tool": "Shovel" },
+  "hide_tent": { "name": "Hide Tent", "category": "Tool", "baseWeightKg": 3.0, "maxDurability": 50, "capabilities": [], "tool": "Tent" },
+  "mammoth_hide_tent": { "name": "Mammoth Hide Tent", "category": "Tool", "baseWeightKg": 5.0, "maxDurability": 80, "capabilities": [], "tool": "Tent" },
+  "large_bag": { "name": "Large Bag", "category": "Accessory", "baseWeightKg": 0.8, "maxDurability": 100, "capabilities": ["Carrying"], "capacityBonusKg": 10.0 }
  },
 
  "slotCoverage": { "Head": 0.1, "Chest": 0.4, "Legs": 0.3, "Hands": 0.1, "Feet": 0.1 },

@@ -798,7 +798,7 @@ public class HerdTests(ITestOutputHelper output)
         foreach (var id in w.Agents.Values.Where(x => x.Mind is HerdMind).Select(x => x.Id).ToList()) w.Agents.Remove(id);
         var wolves = Agents.Spawn(w, Species.Wolf, tile, 3);
         var mind = Fauna.MindOf(w.Agent(wolves));
-        Combat.LeaveCarcass(w, tile, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 100, 0.1, 0.4));
+        Combat.LeaveCarcass(w, tile, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 100, 0.1, 0.4), new Cause(null, "a test"));
         mind.Hunger = 0.95;
         mind.Foray = new TileId(tile.X + 10, tile.Y);
         mind.State = HerdState.Patrolling;

@@ -143,7 +143,7 @@ public static partial class Fauna
         {
             foreach (var body in herd.Members.Where(b => !Body.IsAlive(b)).ToList())
             {
-                Combat.LeaveCarcass(world, herd.Tile, herd.Species, body);
+                Combat.LeaveCarcass(world, herd.Tile, herd.Species, body, new Cause(null, "its wounds"));
                 events.Add(new Killed(world.Minute, herd.Id, herd.Species, body.WeightKg, herd.Tile, By: null));
                 herd.Members.Remove(body);
             }
@@ -193,6 +193,7 @@ public static partial class Fauna
         if (activity is not Hunt h) return null;
         if (h.Prey == h.Who || !world.Agents.TryGetValue(h.Prey, out var prey) || prey.Tile != agent.Tile || !Sim.IsAlive(prey))
             return "no such prey here";
+        if (Access.Refusal(world, h.Who, Things.OfAgent(world, h.Prey), confronting: true) is string barred) return barred;
         if (Combat.EncounterOf(world, h.Prey) != null || Combat.EncounterOf(world, h.Who) != null) return "already fighting";
         return null;
     }

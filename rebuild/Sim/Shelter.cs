@@ -39,6 +39,9 @@ public sealed class ShelterState
     /// A find standing: the index of its pool on this tile (Pools.At), which is what it is, whatever it is called.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? FromFind { get; init; }
+    /// Who built or pitched it, or natural (content, a find, the camp's overhang).
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Cause? Cause { get; init; }
 }
 
 /// What a shelter does for someone keeping still in it this minute. Default: nothing, which is
@@ -95,13 +98,16 @@ public static class Shelters
 
     // ---- placing and reading ----
 
-    /// Puts a shelter on a tile: natural ones from content, built ones when their work is done.
-    public static ShelterState Place(World world, TileId tile, ShelterDef def) => Place(world, tile, def, null);
+    /// Puts a natural shelter on a tile, from content (a site's, the camp's overhang). Built ones are
+    /// placed when their work is done, with who built them.
+    public static ShelterState Place(World world, TileId tile, ShelterDef def) => Place(world, tile, def, null, NaturalCause);
 
-    static ShelterState Place(World world, TileId tile, ShelterDef def, Gear? tent, int? fromFind = null)
+    static readonly Cause NaturalCause = new(null, Cause.Natural);
+
+    static ShelterState Place(World world, TileId tile, ShelterDef def, Gear? tent, Cause cause, int? fromFind = null)
     {
         if (world.Shelters.ContainsKey(tile)) throw new InvalidOperationException($"{tile} already has a shelter");
-        var s = New(world, def, tent, fromFind);
+        var s = New(world, def, tent, cause, fromFind);
         world.Shelters[tile] = s;
         // A shelter here for good (a frame finished over a find): the find will never have the tile.
         if (!IsTemporary(s)) world.WaitingShelters.Remove(tile);
@@ -111,14 +117,14 @@ public static class Shelters
     /// A tent comes down when packed and snow melts; everything else stands for good.
     static bool IsTemporary(ShelterState s) => s.Tent != null || Kinds[s.Kind].IsSnow;
 
-    static ShelterState New(World world, ShelterDef def, Gear? tent, int? fromFind = null)
+    static ShelterState New(World world, ShelterDef def, Gear? tent, Cause cause, int? fromFind = null)
     {
         var k = Kinds[def.Kind];
         // A tent pitched again stands as it was packed, improvements and all.
         var levels = tent?.TentLevels ?? new ShelterCover(def.Insulation ?? k.Insulation, def.Overhead ?? k.Overhead, def.Wind ?? k.Wind);
         var s = new ShelterState
         {
-            Name = def.Name, Kind = def.Kind, Tent = tent, FromFind = fromFind,
+            Name = def.Name, Kind = def.Kind, Tent = tent, FromFind = fromFind, Cause = cause,
             InsulationLevel = levels.InsulationLevel, OverheadLevel = levels.OverheadLevel, WindLevel = levels.WindLevel,
             InsulationCap = def.InsulationCap ?? k.InsulationCap, OverheadCap = def.OverheadCap ?? k.OverheadCap, WindCap = def.WindCap ?? k.WindCap,
             // Melting counts whole clock hours from the first one it stands through.
@@ -152,12 +158,12 @@ public static class Shelters
         if (s.MeltedToHour == null) return s;
         var copy = new ShelterState
         {
-            Name = s.Name, Kind = s.Kind, Tent = s.Tent, MeltedToHour = s.MeltedToHour, FromFind = s.FromFind,
+            Name = s.Name, Kind = s.Kind, Tent = s.Tent, MeltedToHour = s.MeltedToHour, FromFind = s.FromFind, Cause = s.Cause,
             InsulationLevel = s.InsulationLevel, OverheadLevel = s.OverheadLevel, WindLevel = s.WindLevel,
             InsulationCap = s.InsulationCap, OverheadCap = s.OverheadCap, WindCap = s.WindCap,
         };
         if (Melt(world, tile, copy) == null) return copy;
-        return Waiting(world, tile) is var (def, index) ? New(world, def, null, index) : null;
+        return Waiting(world, tile) is var (def, index) ? New(world, def, null, NaturalCause, index) : null;
     }
 
     public static ShelterState? Remove(World world, TileId tile)
@@ -178,7 +184,7 @@ public static class Shelters
         var standing = At(world, id.Tile, events);
         if (standing?.FromFind == id.Index) return;
         bool building = BuildingShelter(world, id.Tile);
-        if (standing == null && !building) Place(world, id.Tile, find.Shelter, null, id.Index);
+        if (standing == null && !building) Place(world, id.Tile, find.Shelter, null, NaturalCause, id.Index);
         else if (building || IsTemporary(standing!)) world.WaitingShelters.TryAdd(id.Tile, id.Index);
     }
 
@@ -195,7 +201,7 @@ public static class Shelters
     {
         if (Waiting(world, tile) is not var (def, index)) return null;
         world.WaitingShelters.Remove(tile);
-        return Place(world, tile, def, null, index);
+        return Place(world, tile, def, null, NaturalCause, index);
     }
 
     public static double Quality(ShelterState s) => (s.InsulationLevel + s.OverheadLevel + s.WindLevel) / 3.0;
@@ -336,13 +342,15 @@ public static class Shelters
             {
                 if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
                 if (Peek(world, tile) is not { } s || IsDestroyed(s)) return "there's no shelter here to improve";
+                if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Shelter, tile, 0)) is string barred) return barred;
                 if (!ShelterMaterials.Contains(i.Material)) return $"{i.Material} is no use on a shelter";
                 if (Items.Have(pack, i.Material) <= 0) return $"you have no {i.Material}";
                 if (Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9) return $"this {s.Name}'s {i.Stat} can't be improved further";
                 return null;
             }
             case PackTent:
-                return Peek(world, tile)?.Tent == null ? "there's no tent to pack up here" : null;
+                if (Peek(world, tile)?.Tent == null) return "there's no tent to pack up here";
+                return Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Shelter, tile, 0));
             default: throw new NotSupportedException(activity.GetType().Name);
         }
     }
@@ -409,13 +417,13 @@ public static class Shelters
                 if (p.MinutesDone < r.Minutes - 1e-9) return null;
                 world.Projects.Remove(tile);
                 if (r.Bedding is BeddingKind bed) PlaceBedding(world, tile, bed);
-                else if (p.Tent is Gear tent) Place(world, tile, Tents[tent.Kind], tent);
+                else if (p.Tent is Gear tent) Place(world, tile, Tents[tent.Kind], tent, new Cause(agent.Id, $"pitched by {Cause.Describe(world, agent.Id)}"));
                 else Place(world, tile, new ShelterDef(r.Shelter!.Value switch
                 {
                     ShelterKind.BranchFrame => "Branch Frame Shelter",
                     ShelterKind.LogFrame => "Log Frame Shelter",
                     _ => "Snow shelter",
-                }, r.Shelter.Value));
+                }, r.Shelter.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"));
                 events.Add(new Built(world.Minute, agent.Id, tile, b.What));
                 return "built";
             }
