@@ -26,8 +26,9 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 | Authored-content catalog (301 entries: 244 replaced, 17 left, 40 cut) | a6aad25 | done: `documentation/authored-content-catalog.md`; design refinements folded in |
 | Merge of `worktree-short-loop-plan` (short-loop plan, UI design, terrain art) | 11aee1a | done, at your request |
 | Short-loop plan's "Asks of the Rebuild" (event tiles, historical minutes, chance factors, skills, place memory) | feac1de | committed |
-| Asks review fixes (NPC fire from memory, butchering conservation, NPC turn-backs, XP farming, journal) | 501856a | committed; second review running |
-| Existing tables to data files | | |
+| Asks review fixes (NPC fire from memory, butchering conservation, NPC turn-backs, XP farming, journal) | 501856a | committed |
+| Second asks-review fixes + NPC fire-keeping (short sleeps by a dying fire, earlier relights, kindling for oak, camp moves to timber) | 65d7a62 | committed; review running alongside the next step |
+| Existing tables to data files | | in progress |
 | Emergent step 2: substrate (ThingRef, Cause, Signs, Access) | | |
 | Emergent step 3: kill chain, renewal, settling pass | | |
 | Emergent step 4: affordances, moments, catalog paper exercise | | |
@@ -165,10 +166,12 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
   Hyena 4 (ravine and cliff pockets elsewhere). Not on the pass any more; logged in
   `rebuild-deferred.md`.
 
-- **NPC 30-day survival, 10 seeds:** 6 of 10 live (was 5). Seeds 17, 99 and 2025 now live; 42 now
-  dies late. Food trips that turned straight back went from 154-807 per run to 0. Seeds 5 and 123
-  still die around day 5, and 42 late, all of cold: the NPC loses its fire and a hand drill with
-  freezing hands relights about 5% of the time. Being traced in the second review.
+- **NPC 30-day survival, 10 seeds: 9 of 10** (was 5 at the start of the night). The cold deaths
+  were competence bugs, now fixed: sleeping two hours at a time beside a fire it couldn't bank,
+  waiting until its hands were too cold to relight, never building kindling up hot enough for its
+  oak, and staying at a camp with no timber within 15 tiles (seed 5 now moves camp and lives).
+  Seed 123 still dies on day 5 in a mammoth hunt it chose while only "wanting" food: the hunt
+  scoring doesn't weigh danger enough. Logged for the hunting work.
 - **Butchering yields changed slightly:** the old game's full processing produced 107% of what was
   cut (it minted mass). Fixed; full processing now recovers its old share of a ledger that holds
   what thorough work can get. Butchering times are unchanged.
