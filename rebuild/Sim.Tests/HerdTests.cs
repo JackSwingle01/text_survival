@@ -141,6 +141,54 @@ public class HerdTests(ITestOutputHelper output)
         Assert.NotNull(w.Tiles[death.Tile].Carcasses);
     }
 
+    /// An agent's own streams, by exact name: "body:1" is agent 1's, "body:10" is not.
+    static List<string> StreamsOf(World w, AgentId id) =>
+        w.Rngs.Keys.Select(k => k.Value).Where(k => k.Split(':') is [_, var who] && who == id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+
+    /// A herd that is gone takes its streams with it (they used to stay in every save for good),
+    /// both ways a herd goes: its last member bleeding out (Fauna) and its last falling in a fight
+    /// (the aftermath). Its id is never made again, so nothing could roll on them.
+    [Fact]
+    public void AGoneHerd_TakesItsStreamsWithIt()
+    {
+        var w = World.New(1);
+        var tile = Quiet(w);
+        var lone = Agents.Spawn(w, Species.Caribou, tile, 1);
+        Mind(w, lone).State = HerdState.Resting;
+        w.Agent(lone).Members[0].BloodPct = 0.52;
+        Effects.Add(w.Agent(lone).Members[0], EffectKind.Bleeding, 1.0);
+        Sim.Advance(w, 1);
+        Assert.True(w.Agents.ContainsKey(lone));
+        Assert.NotEmpty(StreamsOf(w, lone)); // its wounds roll on its own body stream
+        Sim.Advance(w, 239);
+        Assert.False(w.Agents.ContainsKey(lone));
+        Assert.Empty(StreamsOf(w, lone));
+        Assert.True(Agents.Spawn(w, Species.Caribou, tile, 1).Value > lone.Value, "a gone herd's id was made again");
+
+        int pulledDown = 0;
+        for (int seed = 1; seed <= 6; seed++)
+        {
+            var v = World.New(seed);
+            var (_, caribou, _) = PackAndPrey(v, caribou: 1);
+            var events = Idle(v, 120);
+            if (!events.OfType<Killed>().Any(k => k.Agent == caribou)) continue;
+            pulledDown++;
+            Assert.False(v.Agents.ContainsKey(caribou));
+            Assert.Empty(StreamsOf(v, caribou));
+            Assert.Throws<InvalidOperationException>(() => v.Rng("combat", caribou));
+        }
+        Assert.True(pulledDown > 0, "no pack pulled its lone caribou down: the aftermath's removal is untested");
+    }
+
+    [Fact]
+    public void AStreamName_IsForExactlyOneAgent()
+    {
+        Assert.True(StreamName.Of("travel", new AgentId(1)).IsFor(new AgentId(1)));
+        Assert.False(StreamName.Of("travel", new AgentId(10)).IsFor(new AgentId(1)));
+        Assert.False(StreamName.Of("travel", new AgentId(1)).IsFor(new AgentId(10)));
+        Assert.False(new StreamName("herds").IsFor(new AgentId(0)));
+    }
+
     // ---- gate: the scheduler is independent of step granularity and of saving ----
 
     static World Planted(int seed)
@@ -368,10 +416,49 @@ public class HerdTests(ITestOutputHelper output)
 
     // ---- the player's hunt ----
 
+    /// Old RunHunt took the sighting's DetectionModifier as every stalked animal's DetectionFactor:
+    /// 0.45-0.9 for wounded, grazing or resting prey, 2.0-2.5 for alert prey (old HuntRunner.Run,
+    /// HuntingSightings). One sighting of the behaviour's pool was picked at random.
+    [Theory]
+    [InlineData("grazing", 0.7, 0.75, 0.65)]
+    [InlineData("feeding", 0.7, 0.75, 0.65)]
+    [InlineData("resting", 0.9, 0.85)]
+    [InlineData("wounded", 0.5, 0.45)]
+    [InlineData("fleeing", 2.0, 2.5, 2.2)]
+    [InlineData("fearful", 2.0, 2.5, 2.2)]
+    [InlineData("patrolling", 1.2, 1.3)]
+    public void Hunt_StalkedAnimalsWatchAsTheOldSightingsDid(string doing, params double[] oldPool)
+    {
+        var seen = new HashSet<double>();
+        for (int seed = 1; seed <= 24; seed++)
+        {
+            var w = World.New(seed);
+            var tile = Quiet(w);
+            w.Agent(P).Tile = tile;
+            var herd = Agents.Spawn(w, doing == "patrolling" ? Species.Wolf : Species.Caribou, tile, 4);
+            Mind(w, herd).State = doing switch
+            {
+                "grazing" => HerdState.Grazing, "feeding" => HerdState.Feeding, "fleeing" => HerdState.Fleeing,
+                "patrolling" => HerdState.Patrolling, _ => HerdState.Resting,
+            };
+            if (doing == "fearful") Mind(w, herd).Fear = 0.8;
+            if (doing == "wounded") w.Agent(herd).Members[0].BloodPct = 0.9;
+            var enc = Fauna.BeginHunt(w, P, herd, 0);
+            var animals = enc.Units.Where(u => u.Agent == herd).ToList();
+            Assert.NotEmpty(animals);
+            Assert.All(animals, u => Assert.Equal(animals[0].DetectionFactor, u.DetectionFactor));
+            Assert.Contains(animals[0].DetectionFactor, oldPool);
+            Assert.Equal(1.0, Combat.UnitOf(enc, P).DetectionFactor);
+            seen.Add(animals[0].DetectionFactor);
+        }
+        Assert.Equal(oldPool.Length, seen.Count); // every sighting of the pool turns up
+    }
+
     [Fact]
     // The naive stalk below (advance to throwing range on open plain) kills about one hunt in fifty, so
-    // this walks seeds until one does: seed 3 did with shared streams, seed 43 since each agent rolls
-    // on its own (re-pinned 2026-11-20). The stalk's odds are a balance question, not this test's.
+    // this walks seeds until one does: seed 3 did with shared streams, seed 43 once each agent rolled
+    // on its own, seed 15 since resting prey watches as the old sightings did (re-pinned 2026-11-21).
+    // The stalk's odds are a balance question, not this test's.
     public void ThePlayer_CanHuntAHerdMember_ButcherItAndEat()
     {
         for (int seed = 1; seed <= 60; seed++)
@@ -393,13 +480,12 @@ public class HerdTests(ITestOutputHelper output)
                 var me = Combat.UnitOf(enc, P);
                 var acts = Combat.Actions(w, enc, me);
                 var target = Combat.NearestEnemy(enc, me);
-                // Stalk in short steps to throwing range, throw, then close and strike.
+                // Advance to throwing range, throw, then close and strike.
                 double gap = target == null ? 0 : me.Position.DistanceTo(target.Position);
-                var (act, to) = acts.Contains(CombatAction.Attack) ? (CombatAction.Attack, (Cell?)null)
-                    : gap <= 10 && acts.Contains(CombatAction.Throw) ? (CombatAction.Throw, null)
-                    : acts.Contains(CombatAction.Move) && target != null ? (CombatAction.Move, StepToward(me.Position, target.Position))
-                    : acts.Contains(CombatAction.Advance) ? (CombatAction.Advance, null) : (CombatAction.Wait, null);
-                var r = Sim.Step(w, new Fight(P, act, target == null ? null : enc.Units.IndexOf(target), to), 1);
+                var act = acts.Contains(CombatAction.Attack) ? CombatAction.Attack
+                    : gap <= 10 && acts.Contains(CombatAction.Throw) ? CombatAction.Throw
+                    : acts.Contains(CombatAction.Advance) ? CombatAction.Advance : CombatAction.Wait;
+                var r = Sim.Step(w, new Fight(P, act, target == null ? null : enc.Units.IndexOf(target)), 1);
                 result = r.Events.OfType<FightEnded>().FirstOrDefault(f => f.Agent == P)?.Result;
             }
             output.WriteLine($"seed {seed}: {result}");
@@ -446,7 +532,8 @@ public class HerdTests(ITestOutputHelper output)
                 events.AddRange(Sim.Step(w, new Wait(P), 30).Events);
             }
             var mine = events.OfType<Injured>().Where(e => e.Who == P).Select(e => $"{e.Minute} {e.Region} {e.Type} {e.Amount}");
-            var streams = w.Rngs.Where(kv => kv.Key.Value.EndsWith(":0", StringComparison.Ordinal)).Select(kv => $"{kv.Key}={kv.Value.State}");
+            // The player's own streams, by exact name ("travel:0" and not "travel:10").
+            var streams = w.Rngs.Where(kv => kv.Key == StreamName.Of(kv.Key.Value.Split(':')[0], P)).Select(kv => $"{kv.Key}={kv.Value.State}");
             string body = System.Text.Json.JsonSerializer.Serialize(w.Agent(P).Body);
             return (string.Join("\n", mine.Concat(streams)) + "\n" + body, mine.Count(), events.OfType<Injured>().Count(e => e.Who != P));
         }
@@ -456,9 +543,6 @@ public class HerdTests(ITestOutputHelper output)
         Assert.True(alone.Mine > 0, "thirty quick steps onto rock and never hurt: nothing tested");
         Assert.Equal(alone.Rolls, beside.Rolls);
     }
-
-    static Cell StepToward(Cell from, Cell to) =>
-        new(from.X + Math.Sign(to.X - from.X), from.Y + Math.Sign(to.Y - from.Y));
 
     // ---- saves ----
 

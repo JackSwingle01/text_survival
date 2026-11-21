@@ -68,10 +68,10 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Shelter.cs:94` - the camp's Overhang and bedding are placed from code by `World.New`; the camp is not a content site.
   Upgrade: make the starting camp a `Content/locations.json` site, so `Map.PlaceSiteShelters` places them.
 - `Sim.cs:254` - a known physics question: a shelter's wind cover cuts both the wind chill and the body's own wind
-  (convection, wind through clothing, drying), as a fire pit's walls do, but a tile's wind factor reaches only the
-  chill (old game). One of them is wrong. The cover also slows drying by a fire (wind speeds evaporation): over
-  twelve camper runs with reseeded forage, two died wet in a blizzard with the cover on the body's wind, none without.
-  Upgrade: decide what a tile's wind factor does to a body, and whether drying under a roof should read the open wind.
+  (convection, wind through clothing, ambient drying), as a fire pit's walls do, but a tile's wind factor reaches
+  only the chill (old game). One of them is wrong. Drying by a fire is decided: it reads the open wind less the
+  pit's walls, never the shelter's (old game parity, `SurvivalContext.FireDryingWindLevel`).
+  Upgrade: decide what a tile's wind factor does to a body.
 
 ## Performance and portability
 
@@ -84,6 +84,9 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 - `Report.cs:41` - a region with fewer than a third of the median finds fails; the design doc gives only the 3x ceiling.
   Upgrade: tune against playtests.
-- `Report.cs:231` - the fuel floor is 12 hours of fire from an hour's work on every tile of a region (a night at about
-  a kilo an hour); about a fifth of regions fail it, open steppe, rock and fringe squares with no stand of trees.
+- `Report.cs:239` - the fuel floor is 12 hours of fire from an hour's work by hand on every tile of a region (a night
+  at about a kilo an hour). Standing trees, and stock that needs a tool, are felled fuel: counted apart (`fuel_h`
+  vs `felled_h`) and not toward the floor, since the floor is about surviving and nobody starts with an axe. About
+  a quarter to a third of regions fail it (seed 17: 26 of 115; 22 if trees counted), open steppe, rock and fringe
+  squares with little deadfall.
   Upgrade: tune against playtests, or weigh a region by its passable tiles if fringe squares should not count.

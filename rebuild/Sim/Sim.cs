@@ -249,9 +249,11 @@ public static class Sim
             AirTempF = Weather.ShelteredAirF(world, agent.Tile, sky, warmth.WindProtectionLevel, cover).AirF + warmth.AirHeatF
                 + (sleeping ? bedding?.WarmthBonusF ?? 0 : 0),
             // Old CalculateEffectiveWindSpeed: the regional wind less the pit's walls. A shelter's walls
-            // cut it the same way - the wind through your clothes and drying you, as well as the chill
-            // above - as the pit's walls cut both. The tile's wind factor reaches only the chill (old game).
+            // cut it the same way - the wind through your clothes, as well as the chill above - as the
+            // pit's walls cut both; drying by a fire is the exception below. The tile's wind factor reaches only the chill (old game).
             WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel) * (1 - cover.WindLevel),
+            // Drying at a fire reads the open wind less the pit's walls, not the shelter's (old game parity).
+            FireDryingWindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel),
             Precipitation = sky.Precipitation,
             PrecipitationPct = sky.PrecipitationPct,
             // Old SurvivalContext: a roof over someone keeping still, or the sky's own cover, whichever is more.

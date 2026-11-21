@@ -41,7 +41,7 @@ public static partial class Combat
                 agent.Members.Remove(body);
             }
             // An agent is one or more bodies; with none left there is nothing to move or decide.
-            if (agent.Members.Count == 0) world.Agents.Remove(id);
+            if (agent.Members.Count == 0) Agents.Remove(world, id);
         }
 
         if (escaped != null)

@@ -171,7 +171,7 @@ public static partial class Fauna
             }
             if (herd.Members.Count == 0)
             {
-                world.Agents.Remove(herd.Id);
+                Agents.Remove(world, herd.Id);
                 return "died";
             }
         }
@@ -703,7 +703,36 @@ public static partial class Fauna
         var hunterAgent = world.Agent(hunter);
         if (hunterAgent.Tile != prey.Tile) throw new ArgumentException($"{herd} is on {prey.Tile}, not {hunterAgent.Tile}");
         var awareness = mind.State == HerdState.Fleeing ? Awareness.Alert : Awareness.Unaware;
-        return Combat.Create(world, [new Fighter(hunter) { Weapon = weapon }], Combat.SendMembers(world, herd, member),
+        double watchfulness = SightingDetectionFactor(world, hunter, herd, member);
+        var animals = Combat.SendMembers(world, herd, member).Select(f => f with { DetectionFactor = watchfulness }).ToList();
+        return Combat.Create(world, [new Fighter(hunter) { Weapon = weapon }], animals,
             prey.Tile, HuntStartDistanceM, Awareness.Engaged, awareness);
     }
+
+    /// How watchful the stalked animals are, from what the herd is doing (old HuntRunner passed the
+    /// sighting's DetectionModifier to RunHunt as every animal's DetectionFactor). Old
+    /// HuntingSightingSelector read the animal's wounds first, then nervousness over 0.7 as alert,
+    /// then its activity, and picked one sighting of that behaviour's pool at random; here the
+    /// herd's state stands for the activity and its learned fear for the nervousness.
+    public static double SightingDetectionFactor(World world, AgentId hunter, AgentId herd, int member)
+    {
+        var agent = world.Agent(herd);
+        var mind = (HerdMind)agent.Mind;
+        double[] pool = Combat.WoundLevel(agent.Members[member]) > 0.05 ? WoundedSightings
+            : mind.State == HerdState.Fleeing || mind.Fear > 0.7 ? AlertSightings
+            : mind.State switch
+            {
+                HerdState.Grazing or HerdState.Feeding => GrazingSightings,
+                HerdState.Resting => RestingSightings,
+                _ => MovingSightings, // patrolling, hunting: on the move
+            };
+        return pool[world.Rng("combat", hunter).NextInt(pool.Length)];
+    }
+
+    // Old HuntingSightings' DetectionModifier values, pool by pool, in their order.
+    internal static readonly double[] GrazingSightings = [0.7, 0.75, 0.65];
+    internal static readonly double[] RestingSightings = [0.9, 0.85];
+    internal static readonly double[] WoundedSightings = [0.5, 0.45];
+    internal static readonly double[] AlertSightings = [2.0, 2.5, 2.2];
+    internal static readonly double[] MovingSightings = [1.2, 1.3];
 }

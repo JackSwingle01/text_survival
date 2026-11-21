@@ -112,6 +112,29 @@ public class ReportTests
         Assert.True(Now().Fuel);
     }
 
+    /// The fuel floor is about surviving, and a player starts with no axe: standing trees are felled
+    /// fuel, counted apart, and a region that would pass only on its trees fails (third review: the
+    /// floor counted every tree's fire whether or not anyone could fell it).
+    [Fact]
+    public void Fuel_floor_counts_what_hands_gather_and_trees_apart()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        var forest = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+                      let t = new TileId(x, y)
+                      where Pools.At(w, t).Any(p => p is TreePool) && Pools.At(w, t).Any(p => p is ForagePool)
+                      select t).First();
+        var (byHand, withAxe) = Report.FuelFireHoursPerWorkHour(w, forest);
+        Assert.True(withAxe > Report.MinFuelFireHours / 10, $"a stand of trees gave {withAxe:0.0} h of felled fire an hour");
+        Assert.True(byHand > 0 && byHand < withAxe, $"by hand {byHand:0.00} h, felled {withAxe:0.0} h");
+
+        var d = Report.Distribution(w);
+        var onTrees = d.Regions.Where(r => r.FuelFireHours < Report.MinFuelFireHours && r.FuelFireHours + r.FelledFireHours >= Report.MinFuelFireHours).ToList();
+        Assert.NotEmpty(onTrees);
+        Assert.All(onTrees, r => Assert.False(r.Fuel, $"region {r.X},{r.Y} passes the floor on trees no one can fell bare-handed"));
+        Assert.All(d.Regions, r => Assert.Equal(r.FuelFireHours >= Report.MinFuelFireHours, r.Fuel));
+    }
+
     /// What the CLI's look prints reads the world and writes nothing (it once settled a snow
     /// shelter's melt and a carcass's decay, so "look; save" saved a different world from "save").
     [Fact]

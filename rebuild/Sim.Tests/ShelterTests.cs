@@ -81,8 +81,8 @@ public class ShelterTests
     }
 
     /// old game: wind coverage was improved with materials and shown, and nothing read it (bug, fixed).
-    /// Walls cut the wind as a fire pit's do: the chill, and the wind through your clothes and drying
-    /// you. Sealed in a snow shelter, the body has next to no wind; walking out, it has the sky's.
+    /// Walls cut the wind as a fire pit's do: the chill, and the wind through your clothes (drying by a
+    /// fire is the exception: see ShelterWalls_DoNotSlowDryingByAFire). Sealed in a snow shelter, the body has next to no wind; walking out, it has the sky's.
     [Fact]
     public void WindCoverage_SealedSnowShelter_LeavesTheBodyNoWind()
     {
@@ -98,6 +98,41 @@ public class ShelterTests
         Assert.Equal(0.6 * (1 - Overhang.WindLevel), Sim.Surroundings(w, w.Agent(P), new Wait(P)).WindLevel, Digits);
         var s = Weather.At(w, 0);
         Assert.True(Weather.ShelteredAirF(w, camp, s, 0, Overhang).AirF > Weather.ShelteredAirF(w, camp, s, 0, Overhang with { WindLevel = 0 }).AirF);
+    }
+
+    /// Old game parity: drying at a fire read the open wind less the pit's walls (old SurvivalContext
+    /// CalculateEffectiveWindSpeed into SurvivalProcessor's drying), never a shelter's walls. With no
+    /// fire, ambient drying reads the sheltered wind, so walls slow it.
+    [Fact]
+    public void ShelterWalls_DoNotSlowDryingByAFire_ButSlowAmbientDrying()
+    {
+        // Ten minutes from soaked: part dried, so the rate shows (a fire dries soaked clothing in about an hour).
+        static double WetAfter(SurvivalContext ctx)
+        {
+            var b = BodyState.BaselineHuman();
+            Effects.Set(b, EffectKind.Wet, 1.0);
+            double wet = Body.Process(b, ctx, 10, Rng.ForSystem(1, "test")).Effects.Single(e => e.Kind == EffectKind.Wet).Severity;
+            Assert.InRange(wet, 0.01, 0.999);
+            return wet;
+        }
+        var w = At(Calm with { TemperatureC = 8 }); // above freezing, so ambient drying runs too
+        var camp = Map.Of(w).Camp;
+        Assert.NotNull(Shelters.At(w, camp));
+        double openWind = Weather.At(w, w.Minute).WindLevel;
+
+        // No fire: the walls cut the drying wind.
+        var still = Sim.Surroundings(w, w.Agent(P), new Wait(P));
+        Assert.True(still.FireBonusF == 0 && still.WindLevel < openWind - 1e-6);
+        Assert.True(WetAfter(still) > WetAfter(still with { WindLevel = openWind }) + 1e-6, "walls should slow ambient drying");
+
+        // By a fire: the walls cut the chill (WindLevel) and not the drying.
+        LightCampFire(w);
+        var byFire = Sim.Surroundings(w, w.Agent(P), new Wait(P));
+        var warmth = Fire.WarmthFor(w, P, Shelters.CoverFor(w, camp, stationary: true));
+        Assert.True(byFire.FireBonusF > 0);
+        Assert.Equal(openWind * (1 - warmth.WindProtectionLevel), byFire.FireDryingWindLevel!.Value, Digits);
+        Assert.True(byFire.WindLevel < byFire.FireDryingWindLevel.Value - 1e-6);
+        Assert.Equal(WetAfter(byFire with { WindLevel = byFire.FireDryingWindLevel.Value }), WetAfter(byFire), Digits);
     }
 
     /// Old SurvivalContext: a roof over someone keeping still, else the sky's own cover. The ground
@@ -465,7 +500,8 @@ public class ShelterTests
     /// old game (and the rebuild until now): a find placed under a half-built frame stranded it - the
     /// frame could not be resumed ("already a shelter"), and nothing else could be built there, ever;
     /// found by someone else mid-build, the frame's completion threw. The frame is finished; the find
-    /// is remembered and waits for the tile.
+    /// waits while it is being built, and once the frame stands for good it is only discovered: a
+    /// waiting entry behind a shelter that never comes down waited forever (third review).
     [Fact]
     public void Find_UnderAHalfBuiltFrame_Waits_AndTheFrameIsFinished()
     {
@@ -476,11 +512,13 @@ public class ShelterTests
         Pools.Search(w, w.Agent(P), 1000, events);
         Assert.Contains(events, e => e is PoolDiscovered d && d.Pool == new PoolId(tile, pool));
         Assert.Null(Shelters.Peek(w, tile));
+        Assert.Equal(pool, w.WaitingShelters[tile]); // while the frame is going up
+        Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find" && f.Text.Contains("waiting"));
         var r = Sim.Step(w, new Build(P, Structure.BranchFrame), 60);
         Assert.Equal("built", r.InterruptedReason);
         Assert.Equal(ShelterKind.BranchFrame, Shelters.At(w, tile)!.Kind);
-        Assert.Equal(pool, w.WaitingShelters[tile]);
-        Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find" && f.Text.Contains("waiting"));
+        Assert.Empty(w.WaitingShelters);
+        Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find" && f.Text.EndsWith("the Branch Frame Shelter stands in its place"));
         // And the tile is not shut to other work: bedding goes down beside the frame.
         Assert.Equal("built", Sim.Step(w, new Build(P, Structure.MakeshiftBedding), 60).InterruptedReason);
     }
@@ -525,6 +563,54 @@ public class ShelterTests
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Text.EndsWith("hidden"));
         Pools.Search(w, w.Agent(P), 1000, []);
         Assert.DoesNotContain(Report.Finds(w), f => f.Tile == tile && f.Text.EndsWith("hidden"));
+    }
+
+    /// Third review: a second person finding a find that already stands added a waiting entry for
+    /// it, which stood it again (throwing "already has a shelter") once the tile came free. A find
+    /// knows itself by its pool, not its name.
+    [Fact]
+    public void Find_FoundAgainByASecondPerson_AddsNothing()
+    {
+        var (w, tile, pool) = FindTile(Mild);
+        Pools.Search(w, w.Agent(P), 1000, []);
+        var standing = Shelters.At(w, tile)!;
+        Assert.Equal(pool, standing.FromFind);
+        var npc = Npc.Spawn(w, tile);
+        string before = System.Text.Json.JsonSerializer.Serialize(w.Shelters) + System.Text.Json.JsonSerializer.Serialize(w.WaitingShelters);
+        Pools.Search(w, w.Agent(npc), 1000, []);
+        Assert.Contains(new PoolId(tile, pool), ((PersonMind)w.Agent(npc).Mind).Knows.Discovered);
+        Assert.Empty(w.WaitingShelters);
+        Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(w.Shelters) + System.Text.Json.JsonSerializer.Serialize(w.WaitingShelters));
+        Assert.DoesNotContain(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find");
+    }
+
+    /// Behind a shelter that stands for good (natural, or a finished frame) a find is only
+    /// discovered: there is nothing for it to wait for. Behind a tent or snow it waits.
+    [Theory]
+    [InlineData(ShelterKind.RockOverhang, false)]
+    [InlineData(ShelterKind.BranchFrame, false)]
+    [InlineData(ShelterKind.SnowShelter, true)]
+    public void Find_WaitsOnlyBehindAShelterThatWillGo(ShelterKind kind, bool waits)
+    {
+        var (w, tile, pool) = FindTile(Mild);
+        Shelters.Place(w, tile, new ShelterDef("In the way", kind));
+        Pools.Search(w, w.Agent(P), 1000, []);
+        Assert.Equal(waits, w.WaitingShelters.ContainsKey(tile));
+        Assert.Equal("In the way", Shelters.Peek(w, tile)!.Name);
+        Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find"
+            && f.Text.EndsWith(waits ? "waiting for the tile" : "the In the way stands in its place"));
+    }
+
+    /// Report.cs used to hide a waiting find whose name matched the standing shelter's, as if it
+    /// stood: a find named like the tent in its way vanished from the report while it waited.
+    [Fact]
+    public void Report_KnowsAWaitingFindByItsPool_NotItsName()
+    {
+        var (w, tile, pool) = FindTile(Mild);
+        Shelters.Place(w, tile, new ShelterDef(FindName(w, tile, pool), ShelterKind.SnowShelter)); // same name, another shelter
+        Pools.Search(w, w.Agent(P), 1000, []);
+        Assert.Equal(pool, w.WaitingShelters[tile]);
+        Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find" && f.Text.EndsWith("waiting for the tile"));
     }
 
     /// The frost a snow shelter needs is the tile's surface air, the air that melts one: in the cold

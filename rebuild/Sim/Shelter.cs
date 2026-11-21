@@ -36,6 +36,9 @@ public sealed class ShelterState
     /// Snow only: the clock hours before this one have been melted (Shelters.Melt).
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? MeltedToHour { get; set; }
+    /// A find standing: the index of its pool on this tile (Pools.At), which is what it is, whatever it is called.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? FromFind { get; init; }
 }
 
 /// What a shelter does for someone keeping still in it this minute. Default: nothing, which is
@@ -105,22 +108,27 @@ public static class Shelters
     /// Puts a shelter on a tile: natural ones from content, built ones when their work is done.
     public static ShelterState Place(World world, TileId tile, ShelterDef def) => Place(world, tile, def, null);
 
-    static ShelterState Place(World world, TileId tile, ShelterDef def, Gear? tent)
+    static ShelterState Place(World world, TileId tile, ShelterDef def, Gear? tent, int? fromFind = null)
     {
         if (world.Shelters.ContainsKey(tile)) throw new InvalidOperationException($"{tile} already has a shelter");
-        var s = New(world, def, tent);
+        var s = New(world, def, tent, fromFind);
         world.Shelters[tile] = s;
+        // A shelter here for good (a frame finished over a find): the find will never have the tile.
+        if (!IsTemporary(s)) world.WaitingShelters.Remove(tile);
         return s;
     }
 
-    static ShelterState New(World world, ShelterDef def, Gear? tent)
+    /// A tent comes down when packed and snow melts; everything else stands for good.
+    static bool IsTemporary(ShelterState s) => s.Tent != null || Kinds[s.Kind].IsSnow;
+
+    static ShelterState New(World world, ShelterDef def, Gear? tent, int? fromFind = null)
     {
         var k = Kinds[def.Kind];
         // A tent pitched again stands as it was packed, improvements and all.
         var levels = tent?.TentLevels ?? new ShelterCover(def.Insulation ?? k.Insulation, def.Overhead ?? k.Overhead, def.Wind ?? k.Wind);
         var s = new ShelterState
         {
-            Name = def.Name, Kind = def.Kind, Tent = tent,
+            Name = def.Name, Kind = def.Kind, Tent = tent, FromFind = fromFind,
             InsulationLevel = levels.InsulationLevel, OverheadLevel = levels.OverheadLevel, WindLevel = levels.WindLevel,
             InsulationCap = def.InsulationCap ?? k.InsulationCap, OverheadCap = def.OverheadCap ?? k.OverheadCap, WindCap = def.WindCap ?? k.WindCap,
             // Melting counts whole clock hours from the first one it stands through.
@@ -151,12 +159,12 @@ public static class Shelters
         if (s.MeltedToHour == null) return s;
         var copy = new ShelterState
         {
-            Name = s.Name, Kind = s.Kind, Tent = s.Tent, MeltedToHour = s.MeltedToHour,
+            Name = s.Name, Kind = s.Kind, Tent = s.Tent, MeltedToHour = s.MeltedToHour, FromFind = s.FromFind,
             InsulationLevel = s.InsulationLevel, OverheadLevel = s.OverheadLevel, WindLevel = s.WindLevel,
             InsulationCap = s.InsulationCap, OverheadCap = s.OverheadCap, WindCap = s.WindCap,
         };
         if (Melt(world, tile, copy)) return copy;
-        return Waiting(world, tile) is { } def ? New(world, def, null) : null;
+        return Waiting(world, tile) is var (def, index) ? New(world, def, null, index) : null;
     }
 
     public static ShelterState? Remove(World world, TileId tile)
@@ -167,29 +175,34 @@ public static class Shelters
     }
 
     /// A shelter find, found: it stands on the tile for everyone. One shelter to a tile, and nothing
-    /// is pushed off it: while a shelter stands or one is being built here, the find waits
+    /// is pushed off it. Behind a tent, a snow shelter or one being built here, the find waits
     /// (World.WaitingShelters) and stands once the tile is free - a tent packed, snow melted. A
-    /// half-built frame is finished, never stranded. A second find while one waits adds nothing.
+    /// half-built frame is finished, never stranded; finished, it stands for good, and so does a
+    /// natural shelter: behind one the find is only discovered, with nothing to wait for. A second
+    /// find while one waits adds nothing, and a second discoverer of a find standing adds nothing.
     public static void Found(World world, PoolId id, ShelterFind find)
     {
-        if (At(world, id.Tile) == null && !BuildingShelter(world, id.Tile)) Place(world, id.Tile, find.Shelter);
-        else world.WaitingShelters.TryAdd(id.Tile, id.Index);
+        var standing = At(world, id.Tile);
+        if (standing?.FromFind == id.Index) return;
+        bool building = BuildingShelter(world, id.Tile);
+        if (standing == null && !building) Place(world, id.Tile, find.Shelter, null, id.Index);
+        else if (building || IsTemporary(standing!)) world.WaitingShelters.TryAdd(id.Tile, id.Index);
     }
 
     static bool BuildingShelter(World world, TileId tile) =>
         world.Projects.TryGetValue(tile, out var p) && Recipes[p.Building].Shelter != null;
 
-    /// The find waiting for this tile, if the tile is free for it now.
-    static ShelterDef? Waiting(World world, TileId tile) =>
+    /// The find waiting for this tile and its pool index, if the tile is free for it now.
+    static (ShelterDef Def, int Index)? Waiting(World world, TileId tile) =>
         world.WaitingShelters.TryGetValue(tile, out int index) && !BuildingShelter(world, tile)
-            ? ((ShelterFind)Pools.At(world, tile)[index]).Shelter : null;
+            ? (((ShelterFind)Pools.At(world, tile)[index]).Shelter, index) : null;
 
     /// The tile has just come free: a find waiting for it stands now.
     static ShelterState? StandWaiting(World world, TileId tile)
     {
-        if (Waiting(world, tile) is not { } def) return null;
+        if (Waiting(world, tile) is not var (def, index)) return null;
         world.WaitingShelters.Remove(tile);
-        return Place(world, tile, def);
+        return Place(world, tile, def, null, index);
     }
 
     public static double Quality(ShelterState s) => (s.InsulationLevel + s.OverheadLevel + s.WindLevel) / 3.0;

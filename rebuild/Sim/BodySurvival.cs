@@ -9,6 +9,10 @@ public sealed record SurvivalContext
     public double AirTempF { get; init; } = 70;
     /// 0-1, where 1 is a 45 mph gale.
     public double WindLevel { get; init; }
+    /// The wind drying you at a fire: the open wind less the pit's walls only, as the old game read
+    /// it (old game parity: old SurvivalContext.CalculateEffectiveWindSpeed fed SurvivalProcessor's
+    /// drying). Null when nothing sets it apart: the same as WindLevel.
+    public double? FireDryingWindLevel { get; init; }
     /// Radiant heat reaching this agent, °F added to the air. Withheld once the body is warm
     /// enough to sweat: anyone that hot shifts back from the fire long before sweating through a night.
     public double FireBonusF { get; init; }
@@ -288,8 +292,10 @@ public static partial class Body
         else if (ctx.AirTempF > 32) kcalPerHour = (ctx.AirTempF - 32) * 10;
         else return 0; // frozen wet
 
-        // Wind speeds evaporation; it cannot create it.
-        if (ctx.Precipitation == Precipitation.None) kcalPerHour *= 1 + ctx.WindLevel * 1.5;
+        // Wind speeds evaporation; it cannot create it. At a fire it is the wind past the pit's walls
+        // (old game parity); with no fire, the sheltered wind.
+        double windLevel = fireF > 0 ? ctx.FireDryingWindLevel ?? ctx.WindLevel : ctx.WindLevel;
+        if (ctx.Precipitation == Precipitation.None) kcalPerHour *= 1 + windLevel * 1.5;
         return kcalPerHour / (MlPerFullSoak * EvaporativeKcalPerMl);
     }
 

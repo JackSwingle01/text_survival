@@ -94,6 +94,14 @@ public static class Agents
         return id;
     }
 
+    /// The agent leaves the world, and every stream it rolled on with it: ids are never made twice
+    /// (NewId), so nothing will roll on those streams again, and a save need not carry them.
+    public static void Remove(World world, AgentId id)
+    {
+        if (!world.Agents.Remove(id)) throw new InvalidOperationException($"No agent {id} to remove");
+        foreach (var name in world.Rngs.Keys.Where(k => k.IsFor(id)).ToList()) world.Rngs.Remove(name);
+    }
+
     static AgentId NewId(World world)
     {
         var id = new AgentId(world.NextAgentId++);

@@ -96,6 +96,12 @@ public readonly record struct StreamName(string Value) : IComparable<StreamName>
     public int CompareTo(StreamName o) => string.CompareOrdinal(Value, o.Value);
     public static implicit operator StreamName(string system) => new(system);
     public static StreamName Of(string system, AgentId who) => new(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{system}:{who.Value}"));
+    /// Whether this is one of the agent's own streams (Of(any system, who)): "travel:1" is agent 1's, "travel:10" is not.
+    public bool IsFor(AgentId who)
+    {
+        int colon = Value.LastIndexOf(':');
+        return colon >= 0 && Value.AsSpan(colon + 1).SequenceEqual(who.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
     public override string ToString() => Value;
 }
 

@@ -83,7 +83,9 @@ public sealed class World
 
     /// This agent's own stream for the system, so one agent's rolls never hang on another's: a herd
     /// across the valley bleeding, fighting or wandering leaves the player's injuries as they were.
-    public Rng Rng(string system, AgentId who) => Rng(StreamName.Of(system, who));
+    /// Only an agent in the world rolls: one removed (Agents.Remove) took its streams with it.
+    public Rng Rng(string system, AgentId who) =>
+        Agents.ContainsKey(who) ? Rng(StreamName.Of(system, who)) : throw new InvalidOperationException($"{who} is not in the world to roll on {system}");
 
     /// A stream used once, as an agent is made (its bodies, its temper): derived from Seed and the
     /// agent, never saved, since no id is made twice. Named apart from the agent's own streams.
