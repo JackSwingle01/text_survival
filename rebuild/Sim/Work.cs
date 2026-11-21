@@ -139,15 +139,14 @@ public static class Work
                 return HasCookingFire(world, agent.Tile) ? null : "no fire to melt snow on";
             case Stash s:
                 if (s.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), s.Kg, "Stash a positive amount");
-                // A stash already here is a thing to reach; putting the first thing down makes one.
-                var stashHere = new ThingRef(ThingKind.Stash, agent.Tile, 0);
-                if (Things.Exists(world, stashHere) && Access.Refusal(world, agent.Id, stashHere) is string stashBarred) return stashBarred;
+                // Putting down, on a stash already here or the first thing that makes one: one gate.
+                if (Access.PutDownRefusal(world, agent.Id, agent.Tile) is string stashBarred) return stashBarred;
                 return Items.Have(pack, s.Resource) > 0 ? null : $"no {s.Resource} to stash";
             case Unstash u:
                 if (u.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), u.Kg, "Take a positive amount");
                 var stash = world.Tiles.GetValueOrDefault(agent.Tile)?.Stash;
                 if (stash == null || Items.Have(stash, u.Resource) <= 0) return $"no {u.Resource} stashed here";
-                if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Stash, agent.Tile, 0)) is string unstashBarred) return unstashBarred;
+                if (Access.Refusal(world, agent.Id, Things.StashAt(world, agent.Tile)!.Value) is string unstashBarred) return unstashBarred;
                 return Items.CarriedKg(agent) >= Items.CapacityKg(pack) ? "your pack is full" : null;
             case Wear w:
                 var gear = pack.Gear.FirstOrDefault(x => x.Kind == w.Gear);
@@ -359,7 +358,8 @@ public static class Work
     /// minutes worked. What is ready goes in the pack now; the rest waits on the carcass.
     static string? CutMinute(World world, Agent agent, Butcher b, WorkSession s, List<WorldEvent> events)
     {
-        var c = Carcasses.Find(world, agent.Tile, b.Carcass)!;
+        // Old bones can weather away under the knife (Remains.Hour settles them before this minute).
+        if (Carcasses.Find(world, agent.Tile, b.Carcass) is not Carcass c) return "there's nothing left to butcher";
         Carcasses.CatchUp(world, agent.Tile, c); // before anything reads whether it is frozen
         double effective = 1.0 / ImpairmentFactor(world, agent, b);
         var mode = c.Mode!.Value;

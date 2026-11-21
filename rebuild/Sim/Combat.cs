@@ -602,7 +602,7 @@ public static partial class Combat
         var (amount, type) = AttackDamage(world, attacker, rng);
         amount *= 0.25 * AwarenessDamageFactor(target.Awareness);
         target.Awareness = Awareness.Engaged;
-        var damage = Hurt(world, enc, target, amount, type, events);
+        var damage = Hurt(world, enc, target, amount, type, StrikerOf(world, attacker, thrown: "thrown stone"), events);
         AfterHit(world, enc, attacker, target, events);
         return new ActionResult(Hit: true, Damage: damage);
     }
@@ -617,7 +617,7 @@ public static partial class Combat
         amount *= AwarenessDamageFactor(defender.Awareness);
         bool blocked = defender.Awareness == Awareness.Engaged && defender.BlockSet;
         if (blocked) amount = ResolveBlock(defender, amount, rng);
-        var damage = Hurt(world, enc, defender, amount, type, events);
+        var damage = Hurt(world, enc, defender, amount, type, StrikerOf(world, attacker), events);
         defender.Awareness = Awareness.Engaged;
         AfterHit(world, enc, attacker, defender, events);
         return new ActionResult(Hit: true, Blocked: blocked, Damage: damage);
@@ -657,11 +657,22 @@ public static partial class Combat
         return ((weapon?.Damage ?? stats.AttackDamage) * (Body.Strength(body) / 2 + 0.5) * (0.7 + 0.3 * Body.Vitality(body)), type);
     }
 
-    /// Through what the member wears (old Inventory.TotalCushioning/TotalToughness: summed, not worn down).
-    static DamageResult Hurt(World world, Encounter enc, CombatUnit target, double amount, DamageType type, List<WorldEvent> events)
+    /// Who struck a blow and with what, as the body it lands on names it: "the player's wooden spear",
+    /// "a wolf pack". Read as the blow lands, so a thrown weapon is named before it leaves the hand.
+    static Cause StrikerOf(World world, CombatUnit attacker, string? thrown = null)
+    {
+        string who = Cause.Describe(world, attacker.Agent);
+        string? with = thrown ?? (attacker.Weapon is { } w ? Items.Def(w).Name.ToLowerInvariant() : null);
+        return new Cause(attacker.Agent, with == null ? who : $"{who}'s {with}");
+    }
+
+    /// Through what the member wears (old Inventory.TotalCushioning/TotalToughness: summed, not worn
+    /// down). The body keeps who hurt it (BodyState.WoundedBy): whatever it dies of later names them.
+    static DamageResult Hurt(World world, Encounter enc, CombatUnit target, double amount, DamageType type, Cause by, List<WorldEvent> events)
     {
         var body = BodyOf(world, target);
         double cushioning = body.Worn.Sum(g => Items.Def(g).Cushioning), toughness = body.Worn.Sum(g => Items.Def(g).Toughness);
+        body.WoundedBy = by;
         var result = Body.Damage(body, new DamageInfo(amount, type, BodyTarget.Random, cushioning, toughness), world.Rng("body", target.Agent));
         events.Add(new Injured(world.Minute, target.Agent, enc.Tile, result.HitRegion, type, amount));
         return result;
@@ -745,10 +756,14 @@ public static partial class Combat
             foreach (var ally in Allies(enc, unit).ToList()) Morale(world, enc, ally, MoraleEvent.AllyKilled, unit);
             unit.InField = false;
             var agent = world.Agent(unit.Agent);
+            var body = BodyOf(world, unit);
             if (StatsOf(world, unit).IsAnimal)
-                events.Add(new Killed(world.Minute, unit.Agent, agent.Species, BodyOf(world, unit).WeightKg, enc.Tile, by));
-            else if (!events.Any(e => e is Died d && d.Who == unit.Agent))
-                events.Add(new Died(world.Minute, unit.Agent, enc.Tile));
+                events.Add(new Killed(world.Minute, unit.Agent, agent.Species, body.WeightKg, enc.Tile, body.WoundedBy?.Who ?? by));
+            else
+            {
+                Body.MarkDead(body, world.Minute, Body.CauseOfDeath(body));
+                if (!events.Any(e => e is Died d && d.Who == unit.Agent)) events.Add(new Died(world.Minute, unit.Agent, enc.Tile));
+            }
         }
     }
 

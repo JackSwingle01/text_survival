@@ -54,11 +54,24 @@ public static class Access
         return null;
     }
 
-    static string GuardedReason(World world, ThingRef t, AgentId who)
+    static string GuardedReason(World world, ThingRef t, AgentId who) =>
+        $"{Cause.Describe(world, Tags.Guards(world, t, who).Min())} guards it";
+
+    /// Why who cannot put something down on this tile now, or null. One rule whether or not a stash
+    /// lies there yet: only a guard holding the ground bars it, by the same exemptions as reaching what
+    /// lies there (a pile of the putter's own is never held against them). What is put down lies on
+    /// top, so snow or ice over a stash does not bar adding to it; taking from one is the full gate
+    /// (Refusal). Before, adding to a stash went through every gate and starting one through none.
+    public static string? PutDownRefusal(World world, AgentId who, TileId tile) => PutDownRefusal(world, who, tile, world.AccessGates);
+
+    public static string? PutDownRefusal(World world, AgentId who, TileId tile, Gate gates)
     {
-        var guard = world.Agents.Values.First(a => a.Id != who && a.Mind is HerdMind && Fauna.IsPredator(a.Species) && Sim.IsAlive(a)
-            && MapGen.Manhattan(a.Tile, t.Tile) <= Tags.GuardRadiusTiles);
-        return $"{Cause.Describe(world, guard.Id)} guards it";
+        if (world.Agent(who).Tile != tile) return OutOfReach;
+        if (!gates.HasFlag(Gate.Guarded)) return null;
+        // A new pile is the putter's own: it is guarded against them only as their own would be.
+        var pile = Things.StashAt(world, tile);
+        if (pile == null) return null;
+        return Tags.Guards(world, pile.Value, who).Count > 0 ? GuardedReason(world, pile.Value, who) : null;
     }
 
     /// Open water between two neighbours: either is a lake or deep water, a river runs along both,

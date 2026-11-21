@@ -214,11 +214,16 @@ public static class Items
     }
 
     /// The tile's stash, created on first use. Camp storage and dropped things are the same pile: unlimited.
-    /// made is who is putting something down, kept as the stash's cause if this makes it.
+    /// made is who is putting something down: putting the first thing on an empty pile begins a new
+    /// stash, with this cause and an id of its own.
     public static Inventory StashAt(World world, TileId tile, Cause made)
     {
-        var stash = StashAt(world, tile);
-        if (stash.Kg.Count == 0 && stash.Gear.Count == 0) world.Tiles[tile].StashCause = made;
+        var stash = Pile(world, tile, out var state);
+        if (stash.Kg.Count == 0 && stash.Gear.Count == 0)
+        {
+            state.StashCause = made;
+            state.StashId = world.NextStashId++;
+        }
         return stash;
     }
 
@@ -226,7 +231,14 @@ public static class Items
     /// puts things down through StashAt with a cause.
     public static Inventory StashAt(World world, TileId tile)
     {
-        if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
+        var stash = Pile(world, tile, out var state);
+        state.StashId ??= world.NextStashId++;
+        return stash;
+    }
+
+    static Inventory Pile(World world, TileId tile, out TileState state)
+    {
+        if (!world.Tiles.TryGetValue(tile, out state!)) world.Tiles[tile] = state = new TileState();
         return state.Stash ??= new Inventory();
     }
 
@@ -240,6 +252,7 @@ public static class Items
         {
             state.Stash = null;
             state.StashCause = null;
+            state.StashId = null;
             Map.Tidy(world, tile);
         }
         return taken;

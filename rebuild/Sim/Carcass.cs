@@ -22,6 +22,10 @@ public sealed class Carcass
     public double LastKnownTempF { get; set; } = 32;
     /// Kg of RawMeat, Bone, Hide, Sinew, RawFat, Feather, Ivory and MammothHide left on it.
     public Dictionary<Resource, double> Remaining { get; init; } = [];
+    /// The ledger's meat and fat when it died (Carcasses.FleshKg): how stripped it is now is the share
+    /// of this left, and a stripped carcass goes to bones sooner (Remains).
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public double FleshAtDeathKg { get; init; }
     public ButcherMode? Mode { get; set; }
     public double ScentBonus { get; set; }
     /// Minutes of the setup done, before the mode's time factor. Setup is paid once per carcass.
@@ -95,10 +99,44 @@ public static class Carcasses
         {
             Id = world.NextCarcassId++, Animal = animal, BodyWeightKg = body.WeightKg,
             DiedMinute = diedMinute, LastUpdatedMinute = diedMinute, Remaining = y, Cause = cause,
+            FleshAtDeathKg = y[Resource.RawMeat] + y[Resource.RawFat],
         };
+        return Put(world, tile, c);
+    }
+
+    /// Bones and nothing else, already this far gone (effective hours of rot since death): what a
+    /// scattered skeleton leaves (Remains). Old bones carry the cause their owner died of.
+    public static Carcass Bones(World world, TileId tile, string animal, double bodyWeightKg, double boneKg, long diedMinute, Cause cause, double effectiveHours) =>
+        Put(world, tile, new Carcass
+        {
+            Id = world.NextCarcassId++, Animal = animal, BodyWeightKg = bodyWeightKg, DiedMinute = diedMinute, Cause = cause,
+            EffectiveHours = effectiveHours, LastUpdatedMinute = world.Minute, Remaining = new() { [Resource.Bone] = boneKg },
+        });
+
+    static Carcass Put(World world, TileId tile, Carcass c)
+    {
         if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
         (state.Carcasses ??= []).Add(c);
         return c;
+    }
+
+    /// Everything that rots: what is left of a carcass once its flesh is gone is bone (and ivory).
+    static readonly Resource[] SoftTissue = [Resource.RawMeat, Resource.RawFat, Resource.Hide, Resource.Sinew, Resource.Feather, Resource.MammothHide];
+
+    /// The ledger's meat and fat left on it.
+    public static double FleshKg(Carcass c) => c.Remaining.GetValueOrDefault(Resource.RawMeat) + c.Remaining.GetValueOrDefault(Resource.RawFat);
+
+    public static bool HasSoftTissue(Carcass c) =>
+        SoftTissue.Any(r => c.Remaining.GetValueOrDefault(r) > 0 || c.Pending.GetValueOrDefault(r) > 0);
+
+    /// The flesh has rotted off (Remains.Hour): every soft tissue goes, cut pieces left waiting on it too.
+    public static void RotAway(Carcass c)
+    {
+        foreach (var r in SoftTissue)
+        {
+            if (c.Remaining.ContainsKey(r)) c.Remaining[r] = 0;
+            c.Pending.Remove(r);
+        }
     }
 
     /// Takes a carcass off its tile; a tile left with nothing on it leaves World.Tiles.
@@ -137,18 +175,13 @@ public static class Carcasses
 
     public static double DecayLevel(Carcass c) => DecayLevel(c.EffectiveHours);
 
-    /// How far gone it is now, without settling the decay owed: a copy is caught up, so looking at
-    /// a carcass changes nothing.
-    public static double DecayLevelNow(World world, TileId tile, Carcass c)
-    {
-        var copy = new Carcass
-        {
-            Id = c.Id, Animal = c.Animal, BodyWeightKg = c.BodyWeightKg, DiedMinute = c.DiedMinute,
-            EffectiveHours = c.EffectiveHours, LastUpdatedMinute = c.LastUpdatedMinute, LastKnownTempF = c.LastKnownTempF,
-        };
-        CatchUp(world, tile, copy);
-        return DecayLevel(copy);
-    }
+    /// How far gone it is now, without settling the decay owed: reading it changes nothing.
+    public static double DecayLevelNow(World world, TileId tile, Carcass c) => DecayLevel(EffectiveHoursNow(world, tile, c));
+
+    /// Temperature-weighted hours since death as of now, without settling them (Remains.EffectiveHours).
+    public static double EffectiveHoursNow(World world, TileId tile, Carcass c) =>
+        c.EffectiveHours + Remains.EffectiveHours(world, tile, c.LastUpdatedMinute, world.Minute);
+
     public static double RawHours(World world, Carcass c) => (world.Minute - c.DiedMinute) / 60.0;
     public static bool IsFrozen(World world, Carcass c) => c.LastKnownTempF < 15 && RawHours(world, c) > 2;
 
@@ -160,21 +193,18 @@ public static class Carcasses
         return Math.Min(1.0, baseScent + c.ScentBonus);
     }
 
-    /// Ages the carcass to world.Minute in clock-hour chunks, each at the tile's air at the top of its hour,
-    /// so how often anyone looks cannot change how fast it rots. The air is what reaches the surface
+    /// Ages the carcass to world.Minute, each clock hour at the tile's air at the top of that hour (the
+    /// rot timeline, Remains.EffectiveHours), so how often anyone looks cannot change how fast it rots. The air is what reaches the surface
     /// (Ground.WeatherAt): old game: decay read the air a person feels, wind chill and all, so a windy
     /// thaw kept meat as if it were freezing (bug, fixed). The old reading also included a fire on the
     /// tile; this one does not.
     public static void CatchUp(World world, TileId tile, Carcass c)
     {
-        while (c.LastUpdatedMinute < world.Minute)
-        {
-            long next = Math.Min(world.Minute, (c.LastUpdatedMinute / 60 + 1) * 60);
-            double tempF = Ground.WeatherAt(world, tile, c.LastUpdatedMinute / 60 * 60).AirTemperatureF;
-            c.LastKnownTempF = tempF;
-            c.EffectiveHours += (next - c.LastUpdatedMinute) / 60.0 * DecayFactor(tempF);
-            c.LastUpdatedMinute = next;
-        }
+        if (c.LastUpdatedMinute >= world.Minute) return;
+        double deltaF = Map.TemperatureDeltaF(Map.Of(world), tile);
+        c.LastKnownTempF = DecayTimeline.TempF(world, world.Minute - 1, deltaF); // the last hour charged
+        c.EffectiveHours = EffectiveHoursNow(world, tile, c);
+        c.LastUpdatedMinute = world.Minute;
     }
 
     /// An animal eats raw meat straight off the carcass, uncut: up to kg of it. Returns the kg eaten.

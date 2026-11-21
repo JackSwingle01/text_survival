@@ -15,7 +15,9 @@ public readonly record struct AgentId(int Value) : IComparable<AgentId>
 [JsonConverter(typeof(TileIdConverter))]
 public readonly record struct TileId(int X, int Y) : IComparable<TileId>
 {
-    public int CompareTo(TileId o) => (X, Y).CompareTo((o.X, o.Y));
+    // x-major, then y: the order every sorted tile collection is in. Compared field by field, not as a
+    // tuple, which went through the generic comparers on every lookup of World.Tiles.
+    public int CompareTo(TileId o) => X != o.X ? (X < o.X ? -1 : 1) : Y < o.Y ? -1 : Y > o.Y ? 1 : 0;
 }
 
 /// TileId keys World.Tiles, so it serializes as "x,y" everywhere, key or value.

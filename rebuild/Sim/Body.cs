@@ -81,6 +81,19 @@ public sealed class BodyState
     /// is not lived again, so every body lives every minute exactly once.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long WoundsLivedThroughMinute { get; set; }
+    /// Who last hurt this body in a fight, and with what ("the player's wooden spear"): what an
+    /// animal that bleeds out later, or a person, died of. Cleared on an animal once it has mended.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Cause? WoundedBy { get; set; }
+    /// When and of what it died (Body.MarkDead): a dead person's body is a sign with this cause.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? DiedMinute { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Cause? DeathCause { get; set; }
+    /// Kg of flesh scavengers have picked off it since it died (Remains.Pick): a picked body goes to
+    /// bones sooner.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double PickedKg { get; set; }
     /// What this member wears; nothing for a bare animal. Clothing belongs to the body it is on.
     public List<Gear> Worn { get; init; } = [];
     /// Whole-body clothing insulation and its weight, derived from what is worn.
@@ -321,6 +334,27 @@ public static partial class Body
     static double Vitality(Capacities c) => Math.Min(c.Breathing, Math.Min(c.BloodPumping, c.Consciousness));
 
     public static bool IsAlive(BodyState body) => Vitality(body) > 0;
+
+    /// The body has died now, of this: its time and cause are kept (once: a body dies only once).
+    public static void MarkDead(BodyState body, long minute, Cause cause)
+    {
+        if (body.DiedMinute != null) return;
+        body.DiedMinute = minute;
+        body.DeathCause = cause;
+    }
+
+    /// What killed a body that has just died, read off it: wounds deep enough to kill name whoever
+    /// gave them; otherwise the cold, thirst or hunger that brought it down. Judgment: the first of
+    /// these that holds, in that order.
+    public static Cause CauseOfDeath(BodyState body)
+    {
+        bool mortal = body.BloodPct < 0.5 || body.Regions.Any(r => r.Condition <= 0) || Combat.WoundLevel(body) > 0.5;
+        if (mortal && body.WoundedBy is Cause w) return w;
+        if (body.CoreTempF < SevereHypothermiaThresholdF) return new Cause(null, "the cold");
+        if (body.HydrationMl <= 0) return new Cause(null, "thirst");
+        if (body.CaloriesKcal <= 0) return new Cause(null, "starvation");
+        return body.WoundedBy ?? new Cause(null, "its injuries");
+    }
 
     /// Power output from composition, scaled by vitality: dying is weak, whatever the muscles.
     public static double Strength(BodyState body)

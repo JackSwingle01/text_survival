@@ -14,6 +14,7 @@ public sealed class World
         {
             if (Minute != 0 && !Nullable.Equals(field, value))
                 throw new InvalidOperationException($"FixedWeather changed at minute {Minute}: the sky is pinned before the clock starts");
+            if (!Nullable.Equals(field, value)) (DecayCache, GroundCache) = (null, null); // derived from the sky
             field = value;
         }
     }
@@ -44,6 +45,10 @@ public sealed class World
     /// The clock hour of the last sweep of faded tracks. Owned by Tracks.
     public long TracksSweptHour { get; set; } = -1;
     public int NextCarcassId { get; set; }
+    /// Ids for stashes and shelters, never reused, so a ref held to one never points at a later one
+    /// on the same tile (ThingRef). Owned by Items and Shelters.
+    public int NextStashId { get; set; }
+    public int NextShelterId { get; set; }
     /// Shelters standing, natural or built, by tile. Owned by Shelters.
     public SortedDictionary<TileId, ShelterState> Shelters { get; init; } = [];
     /// Bedding laid down, by tile. Owned by Shelters.
@@ -60,6 +65,14 @@ public sealed class World
     /// The access conditions in force (Access.Wired), never saved. Tests switch on the ones not wired
     /// yet, to show every refusal that reaches a thing asks Access.
     internal Access.Gate AccessGates = Access.Wired;
+    /// Rot over clock hours per tile cold (Remains.EffectiveHours); derived from the sky, never saved.
+    internal Dictionary<double, DecayTimeline>? DecayCache;
+    /// Ground nobody has observed, by the inputs that alone decide it (Ground.Peek); derived, never saved.
+    internal Dictionary<GroundClass, GroundState>? GroundCache;
+    /// Everything each diet eats on the valley's open land as generated (Fauna.ValleyCapacity); never saved.
+    internal Dictionary<Diet, double>? ValleyForageCache;
+    /// Which agents stand where (Nearby); never saved, rebuilt when agents are made or removed.
+    internal NearbyIndex? Nearby;
 
     public static World New(int seed)
     {

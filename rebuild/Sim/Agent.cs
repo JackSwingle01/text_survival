@@ -32,7 +32,20 @@ public sealed partial record NpcMind : PersonMind;
 public sealed class Agent
 {
     public required AgentId Id { get; init; }
-    public required TileId Tile { get; set; }
+    /// Where it stands. A move is reported to the Nearby index that holds it, so the index stays exact.
+    public required TileId Tile
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            var from = field;
+            field = value;
+            Index?.Moved(Id, from, value);
+        }
+    }
+    /// The Nearby index this agent was last put in; never saved.
+    [JsonIgnore] internal NearbyIndex? Index { get; set; }
     public Species Species { get; init; } = Species.Human;
     public List<BodyState> Members { get; init; } = [BodyState.BaselineHuman()];
     public Mind Mind { get; init; } = new PlayerMind();

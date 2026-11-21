@@ -42,6 +42,10 @@ public sealed class GroundState
     public long LastUpdatedMinute { get; set; }
 }
 
+/// Everything a never-observed tile's ground history depends on besides the sky (Ground.WeatherAt
+/// and Ground.Substrate): tiles that share these have the same ground until something observes one.
+internal readonly record struct GroundClass(SubstrateProfile Substrate, double CoverLevel, double TemperatureDeltaF, double WindFactor);
+
 /// The ground under a tile before anything falls on it (Content/terrain.json substrates). Derived from terrain, never saved.
 public sealed record SubstrateProfile(
     double ThicknessM,
@@ -161,16 +165,15 @@ public static class Ground
         long target = world.Minute / StepMinutes * StepMinutes;
         var sub = Substrate(Map.Of(world), tile);
         world.Tiles.TryGetValue(tile, out var ts);
-        var state = ts?.Ground;
-        if (state == null)
+        if (ts?.Ground is { } state)
         {
-            state = Baseline(sub);
-            state.LastUpdatedMinute = HistoryStartMinute(world);
-            if (target <= state.LastUpdatedMinute) return state;
-            if (ts == null) world.Tiles[tile] = ts = new TileState();
-            ts.Ground = state;
+            StepTo(world, tile, state, sub, target);
+            return state;
         }
-        StepTo(world, tile, state, sub, target);
+        if (target <= HistoryStartMinute(world)) return Unobserved(world, tile, sub, target);
+        state = Unobserved(world, tile, sub, target);
+        if (ts == null) world.Tiles[tile] = ts = new TileState();
+        ts.Ground = state;
         return state;
     }
 
@@ -185,32 +188,50 @@ public static class Ground
     }
 
     /// The tile's ground as CatchUp would leave it now, without writing anything: a copy is caught
-    /// up, so looking (Tags) changes nothing. A tile never observed lives its whole history on the
-    /// copy, so this costs what a first CatchUp does.
+    /// up, so looking (Tags) changes nothing.
     public static GroundState Peek(World world, TileId tile)
     {
         long target = world.Minute / StepMinutes * StepMinutes;
         var sub = Substrate(Map.Of(world), tile);
+        if (world.Tiles.GetValueOrDefault(tile)?.Ground is not { } stored) return Unobserved(world, tile, sub, target);
+        var state = Copy(stored);
+        StepTo(world, tile, state, sub, target);
+        return state;
+    }
+
+    /// The ground of a tile nobody has observed, as of target: frozen through at HistoryStartMinute
+    /// and lived every sub-step since. That history depends on nothing but the sky and the four
+    /// things the tile's weather and substrate are made of (GroundClass), so every tile of a class
+    /// has the same ground, and the class's latest is kept (World.GroundCache, never saved) to be
+    /// carried on from: a whole-map pass pays for each class once, not for each tile from the start
+    /// of history, and the result is the one the long way gives, sub-step for sub-step.
+    static GroundState Unobserved(World world, TileId tile, SubstrateProfile sub, long target)
+    {
+        var m = Map.Of(world);
+        var key = new GroundClass(sub, Map.OverheadCover(m, tile), Map.TemperatureDeltaF(m, tile), Map.WindFactor(m, tile));
+        var cache = world.GroundCache ??= [];
         GroundState state;
-        if (world.Tiles.GetValueOrDefault(tile)?.Ground is { } stored)
-            state = new GroundState
-            {
-                Layers = [.. stored.Layers.Select(l => new SurfaceLayer
-                {
-                    Material = l.Material, ThicknessM = l.ThicknessM, CompactionPct = l.CompactionPct,
-                    WaterSaturationPct = l.WaterSaturationPct, FrozenFractionPct = l.FrozenFractionPct,
-                })],
-                WaterAddedM = stored.WaterAddedM, WaterDrainedM = stored.WaterDrainedM, WaterEvaporatedM = stored.WaterEvaporatedM,
-                WaterOverflowedM = stored.WaterOverflowedM, LastUpdatedMinute = stored.LastUpdatedMinute,
-            };
+        if (cache.TryGetValue(key, out var known) && known.LastUpdatedMinute <= target) state = Copy(known);
         else
         {
             state = Baseline(sub);
             state.LastUpdatedMinute = HistoryStartMinute(world);
         }
         StepTo(world, tile, state, sub, target);
+        if (known == null || known.LastUpdatedMinute < state.LastUpdatedMinute) cache[key] = Copy(state);
         return state;
     }
+
+    static GroundState Copy(GroundState s) => new()
+    {
+        Layers = [.. s.Layers.Select(l => new SurfaceLayer
+        {
+            Material = l.Material, ThicknessM = l.ThicknessM, CompactionPct = l.CompactionPct,
+            WaterSaturationPct = l.WaterSaturationPct, FrozenFractionPct = l.FrozenFractionPct,
+        })],
+        WaterAddedM = s.WaterAddedM, WaterDrainedM = s.WaterDrainedM, WaterEvaporatedM = s.WaterEvaporatedM,
+        WaterOverflowedM = s.WaterOverflowedM, LastUpdatedMinute = s.LastUpdatedMinute,
+    };
 
     /// Snow on the tile now, read without writing (Peek).
     public static double SnowDepthNowM(World world, TileId tile) => SnowDepthM(Peek(world, tile), Substrate(Map.Of(world), tile));

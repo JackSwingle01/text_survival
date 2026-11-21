@@ -91,6 +91,9 @@ public static class Report
                 foreach (var sign in Signs.At(w, t)) AddSign(t, sign);
             }
 
+        // The carrion flock circling flesh on the tile (Tags.Beacon), as the find's text says it.
+        string Circled(TileId t) => Fauna.FlockAt(w, t) != null ? ", ravens circling" : "";
+
         // The signs, as finds. What a pool shows of being worked is its pool row's business, above.
         void AddSign(TileId t, Sign sign)
         {
@@ -99,12 +102,20 @@ public static class Report
             {
                 case SignKind.Body when sign.Thing.Index != AgentId.Player.Value: // the player is not a find
                     var dead = w.Agent(new AgentId(sign.Thing.Index));
-                    Add(t, "body", FindCategory.DeadMatter, age, $"dead {dead.Species} ({dead.Id})", sign.Cause);
+                    Add(t, "body", FindCategory.DeadMatter, age,
+                        $"dead {dead.Species} ({dead.Id}), {Remains.StageOf(w, dead).ToString().ToLowerInvariant()}{Circled(t)}", sign.Cause);
                     break;
                 case SignKind.Carcass:
                     var c = Carcasses.Find(w, t, sign.Thing.Index)!;
                     Add(t, "carcass", FindCategory.DeadMatter, age,
-                        Invariant($"{c.Animal} carcass, {Carcasses.TotalRemainingKg(c):0.0} kg left, decay {Carcasses.DecayLevelNow(w, t, c):P0}"), sign.Cause);
+                        Invariant($"{c.Animal} carcass, {Carcasses.TotalRemainingKg(c):0.0} kg left, decay {Carcasses.DecayLevelNow(w, t, c):P0}{Circled(t)}"), sign.Cause);
+                    break;
+                case SignKind.Bones:
+                    var b = Carcasses.Find(w, t, sign.Thing.Index)!;
+                    Add(t, "bones", FindCategory.DeadMatter, age, Invariant($"{b.Animal} bones, {Carcasses.TotalRemainingKg(b):0.0} kg"), sign.Cause);
+                    break;
+                case SignKind.RavensOver:
+                    Add(t, "ravens", FindCategory.Sign, age, $"ravens over {sign.Cause?.What ?? "something"}", sign.Cause);
                     break;
                 case SignKind.Stash:
                     var stash = w.Tiles[t].Stash!;
@@ -124,12 +135,12 @@ public static class Report
                     Add(t, "tracks", FindCategory.Sign, age,
                         Invariant($"{p.Maker} prints, traffic {p.Traffic}, {p.Pattern} {p.Heading}, {p.FreshnessPct:P0} fresh"), sign.Cause);
                     break;
-                // An edge's row goes on its first tile (EdgeId.A), whose other end is east or south.
-                case SignKind.Trail when sign.Thing.TrailDirection is Direction.East or Direction.South:
-                    var to = Map.Step(t, sign.Thing.TrailDirection.Value);
+                // An edge's one ref is named from its first tile (EdgeId.A), whose other end is east or south.
+                case SignKind.Trail:
+                    var to = Map.Step(t, sign.Thing.TrailDirection!.Value);
                     Add(t, "trail", FindCategory.Sign, age, $"{Tracks.TierOf(w, t, to)} to {TileIdConverter.Format(to)}", sign.Cause);
                     break;
-                case SignKind.Body or SignKind.Trail: break; // the player; a trail's other end
+                case SignKind.Body: break; // the player
                 case SignKind.WorkedGround or SignKind.Grazed or SignKind.Felled or SignKind.Picked: break; // the pool rows, above
                 default: throw new InvalidOperationException($"Report has no row for sign {sign.Kind}");
             }
@@ -271,9 +282,7 @@ public static class Report
             switch (pools[i])
             {
                 case ForagePool f:
-                    double density = Pools.ForageDensity(w, id);
-                    foreach (var item in f.Items.Where(x => Fire.IsFuel(x.Resource)))
-                        hours += density * item.Abundance * (item.MinKg + item.MaxKg) / 2 / Fire.Props[item.Resource].BurnRateKgPerHour;
+                    hours += Pools.ForageDensity(w, id) * FireHoursPerDensity(f);
                     break;
                 case TreePool tree when Pools.HasTrees(w, id):
                     felled += TreeFireHours(tree.Wood) / (tree.MinutesToFell / 60.0);
@@ -291,6 +300,15 @@ public static class Report
         }
         return (hours, felled);
     }
+
+    /// A forage pool's fire per unit of density: what its fuel items burn for, by abundance and their
+    /// middle weight. Fixed by content, so worked out once per pool row (a whole-map pass asked it of
+    /// every tile).
+    static double FireHoursPerDensity(ForagePool f) =>
+        FireFactors.GetValue(f, p => new(p.Items.Where(x => Fire.IsFuel(x.Resource))
+            .Sum(item => item.Abundance * (item.MinKg + item.MaxKg) / 2 / Fire.Props[item.Resource].BurnRateKgPerHour))).Value;
+
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForagePool, System.Runtime.CompilerServices.StrongBox<double>> FireFactors = new();
 
     /// One felled tree's fire: Pools.Chop's yield at the middle of each of its draws (Pools.Felled).
     internal static double TreeFireHours(Resource? wood)

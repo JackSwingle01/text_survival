@@ -27,7 +27,8 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Npc.cs:48`, `Npc.cs:519` - NPCs spawn with an axe and knife and cannot make a fire starter, standing in
   for the old NPC's crafting. Upgrade: once crafting exists, shrink the kit to the player's and craft at these points.
 - `Shelter.cs:81` - old `CacheFeature` (capacity, predator/weather protection, food preservation) not ported;
-  no branch-to-log frame rebuild (old 60% salvage), no reclaim from an abandoned project. Upgrade: port with scavengers that raid stashes.
+  no branch-to-log frame rebuild (old 60% salvage), no reclaim from an abandoned project. The carrion flock raids
+  unwatched stashes now (`Carrion.cs`), so a cache's protection has something to protect against. Upgrade: port it.
 - `Content/loot.json:16` - the old ancient cache's fishing rod or net is left out. Upgrade: add with fishing.
 - `Content.cs:61`, `Pools.cs:162` - a site's small game, caches, `FirstVisitEvent` and `SiteEvent` are carried as data only.
   Upgrade: small game as a density to hunt in; events fire on arrival and in `Pools.Search` when found (emergent-world moments).
@@ -53,12 +54,15 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   Upgrade: encounters through `Combat.Boldness`, which is ready for them.
 - `Fauna.cs:165` - a lame member that mends never rejoins its herd; it lives on as its own herd.
 - `Fauna.cs:281` - old hungry wolves chased escaping prey 40% of the time; here they patrol on.
-- `Fauna.cs:505` - old hyenas shadowed feeding predators and wolf packs; only carcasses draw them here.
+- `Fauna.cs:505` - old hyenas shadowed feeding predators and wolf packs; only carcasses draw them here. The carrion
+  flock (`Carrion.cs`) is the one that follows predators. Hyenas stay the old scavenger: they fight, and never starve
+  (`Renewal.cs`, judgment: the old hyena never went hungry).
 - `Populate.cs:8` - old territory details (tracks, droppings, bones as pools) not ported; herds leave real prints instead.
   Upgrade: emergent-world signs.
 - `Body.cs:523` - the inner-organ hit threshold (5) predates the 0-1 damage scale, so only huge hits reach organs.
   Upgrade: rescale when combat damage is tuned.
-- `Carcass.cs:298` - cut meat left waiting on a carcass does not rot further.
+- `Carcass.cs:298` - cut meat left waiting on a carcass does not rot further until the carcass goes to bones, when
+  it rots away with the rest (`Carcasses.RotAway`).
 
 ## Combat and NPCs
 
@@ -152,6 +156,8 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 ## Performance and portability
 
 - `Sim.cs:279` - every agent steps every minute. Upgrade: distant agents step hourly at hour-aligned minutes (plan decision 3).
+  Build step 3 part B. A populated year is about 23 s on seed 17 (1.9 s a sim month, up from 1.2: more herds live,
+  since prey renew instead of dying out, plus the carrion flocks).
 - `Tracks.cs:174` - fading tracks are swept by a full pass, at most hourly. Upgrade: index by expiry if saves grow.
 - `MapGen.cs:8` - `Math.Sin/Cos/Pow` are libm calls, so terrain is exact per platform, not across platforms.
   Upgrade: a portable sin if saves must move between operating systems.
@@ -174,16 +180,42 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   none was enforced before, so none is on. Only "out of reach" (anything not on your tile or a neighbour) always
   applies, and no caller passes another tile yet. Upgrade: switch a gate on in `Access.Wired` with the step that
   wants it (guarded carcasses, digging out a stash), and re-baseline its pins.
-- `Tags.cs:49` - tags with no state to read yet: Sealed, FrozenIn, Elevated, Unstable (moves to edges), Beacon
-  (scavengers, step 3), Occupied by small game (not a density yet), Buried for a carcass, stash or body (no
-  placement elevation on TileState). Upgrade: derive each in `Tags.Of` when its system lands.
+- `Tags.cs:49` - tags with no state to read yet: Sealed, FrozenIn, Elevated, Unstable (moves to edges), Occupied by
+  small game (not a density yet), Buried for a carcass, stash or body (no placement elevation on TileState).
+  Upgrade: derive each in `Tags.Of` when its system lands.
 - `Tags.cs:29` - capabilities come only from working gear rows. A burning torch (a fire carried, not gear) gives no
   Light, meat gives no Bait, nothing gives Smoke. Upgrade: add those sources when the first verb needs them (step 4).
 - `Things.cs:8` - `ThingKind.Sign` and `ThingKind.Item` are reserved: no stored signs exist, and carried gear has no
   id (a list position shifts). Upgrade: ids for stored signs (step 3/5) and for gear (step 4's first item verb).
-- `Signs.cs:10` - a stash, fire pit, shelter, body or felled stand keeps no minute of its making, so its sign's
-  `MadeMinute` is null; a body has no Cause (who killed a person is not kept). Upgrade: a made minute beside each
-  Cause, and a body's cause, with the body pipeline (step 3).
-- `CombatAftermath.cs:76` - a side's dead are put down to the other side's first fighter (and the weapon in its
-  hands then), not to whoever struck the last blow, which nothing keeps; a weapon thrown before the kill is not named.
-  An animal that bleeds out after a fight is "its wounds", with no one named.
+- `Signs.cs:10` - a stash, fire pit, shelter or felled stand keeps no minute of its making, so its sign's
+  `MadeMinute` is null (a body now has its death minute and cause). Upgrade: a made minute beside each Cause.
+- `CombatAftermath.cs:76` - the side's-first-fighter cause is only the fallback now, for a body no blow of the fight
+  landed on (each body keeps its last striker and weapon, `BodyState.WoundedBy`). A wounder is forgotten once the
+  animal has mended; a person keeps theirs for good, and it names their death only if the wounds were mortal.
+
+## Emergent-world kill chain (build step 3, part A)
+
+- `Tags.cs` (Beacon) - the carrion flock circling flesh sets `Tag.Beacon`, read by `Report` ("ravens circling"),
+  but nothing reveals a beacon at range yet: `Knowledge.Glance` sees a 5-tile diamond. Upgrade: part B's computed
+  reveal reads `Beacon` (and `Fauna.CarrionRangeTiles`) for the find's vantage term.
+- `Renewal.cs` - every renewal number is a judgment (the old game had no calving, recruitment, arrivals or starving
+  herds): seasons, birth rates, capacity per forage score or prey kg, valley capacity, starvation after 14 days for
+  wolves, arrivals at 5% a day at the full deficit. Tuned on five seeds over two years. Newborns are full-grown
+  bodies (no growth model). Capacity reads generation's forage, not today's grazing. Saber-tooths neither breed nor
+  starve (they forage); cave bears breed but never arrive; mammoths breed slowly and never arrive.
+- `Renewal.cs` (Arrive) - arrivals land anywhere on open land outside camp's safe zone, packs over other packs'
+  land included, not at the valley's edge or along a migration route. Upgrade: arrive from the map's edge and walk in.
+- `Remains.cs` - skeletal at 240 effective hours for 70 kg (cube root of mass), scatter after 240 more, bones gone at
+  1440 effective hours from death: judgments (the old body was skeletal at 72 and nothing ever went). Bones in a hard
+  frost last up to ~600 days. A grave (no burial yet) should be skipped in `Remains.Hour`.
+- `Remains.cs` (Scatter) - a dead person's kit goes into the tile's stash when the skeleton scatters, not strewn by
+  whatever ate them (interaction table: "pack eats a body, scatters its kit", step 5).
+- `Signs.cs` - bones that weather away leave nothing: no kill site sign yet (step 5's stored signs).
+- `Carrion.cs` - the flock's members are small quadrupeds (no bird body plan) and leave no prints or wear (it flies).
+  It raids at most about once per eight unwatched hours, 0.05 kg a member. Upgrade: split ravens (beacon) from
+  wolverines (raiders) if the information side needs separate tuning (design open question 4).
+- `Nearby.cs` - the index cannot see an agent replaced by hand in `World.Agents` under the same id (count and next
+  id unchanged); every path in the sim makes or removes agents through `Agents`, which it does see.
+- `Report.cs` - a day-10 report is about 17 ms (min of 15 runs, seed 17; HEAD before this step 15.7 ms by the same
+  measure), not the 9 ms target: `Things.At` and `Signs.At` over every tile are most of it. Upgrade: skip tiles with
+  no state, agents, fire, shelter or walked edge, if part B's validation runs it per settle.

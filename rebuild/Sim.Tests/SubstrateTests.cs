@@ -93,7 +93,11 @@ public class SubstrateTests
         var trail = ThingRef.Trail(camp, Direction.East);
         Assert.Equal(Direction.East, trail.TrailDirection);
         Assert.Contains(trail, Things.At(w, camp));
-        Assert.Contains(ThingRef.Trail(east, Direction.West), Things.At(w, east));
+        // One edge is one ref (review): named from either end it is the same thing, listed once, on its west end.
+        Assert.Equal(trail, ThingRef.Trail(east, Direction.West));
+        Assert.DoesNotContain(Things.At(w, east), t => t.TrailDirection != null);
+        Assert.True(Things.Exists(w, trail));
+        Assert.False(Things.Exists(w, new ThingRef(ThingKind.Track, east, ThingRef.TrailIndexBase + (int)Direction.West)));
         Assert.Contains(new ThingRef(ThingKind.Track, camp, (int)TrackMaker.Human), Things.At(w, camp));
     }
 
@@ -263,9 +267,10 @@ public class SubstrateTests
         Assert.False(tags.HasFlag(Tag.Guarded));
 
         var wolves = Herd(w, Species.Wolf, 3, camp);
-        var guarded = Tags.Of(w, t, P);
+        var guarded = Tags.Of(w, t);
         Assert.True(guarded.HasFlag(Tag.Guarded | Tag.Contested), guarded.ToString());
         Assert.False(Tags.Of(w, t, wolves).HasFlag(Tag.Guarded), "a pack does not guard its kill against itself");
+        Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Guarded), "nor the player's kill against the player (an exemption)");
 
         w.Minute += 3 * 24 * 60; // days later, in the cold or not, it is no longer fresh
         Assert.False(Tags.Of(w, t).HasFlag(Tag.Fresh));
@@ -379,16 +384,22 @@ public class SubstrateTests
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3), 1);
         Midday(w);
         foreach (var (id, _) in w.Fires.ToList()) Fire.CatchUp(w, id, []);
+        Assert.False(Fire.Burns(Fire.Phase(w.Fires[Fire.PitAt(w, camp)!.Value])), "the fire is down by noon: no fire to defend the tile");
+        // Everything here is the player's, and nothing is held against the one who made or killed it
+        // (Tags.Guards): the one reaching for it is someone else, who made none of it.
+        var npc = Npc.Spawn(w, camp);
+        TestKit.Supply(w, npc);
+        Items.Pack(w, npc).Gear.Add(Items.Make("flint_knife"));
         var refusals = new (string Name, Func<string?> Refusal)[]
         {
-            ("butcher", () => Work.Refusal(w, new Butcher(P, c.Id))),
-            ("unstash", () => Work.Refusal(w, new Unstash(P, Resource.Pine, 1))),
-            ("stash", () => Work.Refusal(w, new Stash(P, Resource.Birch, 1))),
-            ("gather", () => Work.Refusal(w, new Gather(P, 0))),
-            ("add fuel", () => Fire.Refusal(w, new AddFuel(P, Resource.Birch, 1))),
-            ("charcoal", () => Fire.Refusal(w, new GatherCharcoal(P))),
-            ("start fire", () => Fire.Refusal(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3))),
-            ("improve shelter", () => Shelters.Refusal(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Pine))),
+            ("butcher", () => Work.Refusal(w, new Butcher(npc, c.Id))),
+            ("unstash", () => Work.Refusal(w, new Unstash(npc, Resource.Pine, 1))),
+            ("stash", () => Work.Refusal(w, new Stash(npc, Resource.Birch, 1))),
+            ("gather", () => Work.Refusal(w, new Gather(npc, 0))),
+            ("add fuel", () => Fire.Refusal(w, new AddFuel(npc, Resource.Birch, 1))),
+            ("charcoal", () => Fire.Refusal(w, new GatherCharcoal(npc))),
+            ("start fire", () => Fire.Refusal(w, new StartFire(npc, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3))),
+            ("improve shelter", () => Shelters.Refusal(w, new ImproveShelter(npc, ShelterStat.Insulation, Resource.Pine))),
         };
         var unguarded = refusals.Select(r => r.Refusal()).ToList();
         var wolves = Herd(w, Species.Wolf, 3, camp);
@@ -399,6 +410,40 @@ public class SubstrateTests
         // A fight is the confrontation: a guard does not bar striking at it.
         var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 2, Awareness.Engaged, Awareness.Engaged);
         Assert.Null(Combat.Refusal(w, enc, Combat.UnitOf(enc, P), CombatAction.Attack));
+    }
+
+    /// The guard's exemptions (implemented with the gate, wired with it): a guard does not hold what
+    /// the viewer made or killed, a fire burning on the tile keeps it off, and a pack that is afraid,
+    /// running, or busy fighting someone else holds nothing.
+    [Fact]
+    public void Guarded_HasItsExemptions()
+    {
+        var w = Camp(out var camp);
+        var npc = Npc.Spawn(w, camp);
+        var theirs = Carcasses.Create(w, camp, "Caribou", SpeciesTable.NewBody(Species.Caribou, w.Rng("test")), w.Minute, cause: new Cause(npc, "a person"));
+        var t = new ThingRef(ThingKind.Carcass, camp, theirs.Id);
+        var wolves = Herd(w, Species.Wolf, 3, camp);
+        Assert.True(Tags.Of(w, t, P).HasFlag(Tag.Guarded), "someone else's kill, with a pack on it");
+        Assert.False(Tags.Of(w, t, npc).HasFlag(Tag.Guarded), "what the viewer killed");
+
+        var mind = Fauna.MindOf(w.Agent(wolves));
+        mind.Fear = 0.9;
+        Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Guarded), "an afraid pack");
+        mind.Fear = 0;
+        mind.State = HerdState.Fleeing;
+        Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Guarded), "a running pack");
+        mind.State = HerdState.Patrolling;
+        var enc = Combat.Create(w, [new Fighter(npc)], [new Fighter(wolves, 0)], camp, 8, Awareness.Engaged, Awareness.Engaged);
+        Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Guarded), "a pack fighting someone else");
+        w.Encounters.Remove(enc);
+        Assert.True(Tags.Of(w, t, P).HasFlag(Tag.Guarded));
+
+        TestKit.Supply(w);
+        Midday(w);
+        for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.Burns(Fire.Phase(w.Fires[f]))); i++)
+            Fire.Act(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), []);
+        Assert.True(Fire.Burns(Fire.Phase(w.Fires[Fire.PitAt(w, camp)!.Value])));
+        Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Guarded), "a fire burning on the tile");
     }
 
     [Fact]
@@ -415,7 +460,10 @@ public class SubstrateTests
         Herd(w, Species.Bear, 1, east);
         Assert.Null(Shelters.Refusal(w, new PackTent(P)));
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("a bear guards it", Shelters.Refusal(w, new PackTent(P)));
+        // The player's own tent is not held against them (Guarded_HasItsExemptions); someone else's is.
+        Assert.Null(Shelters.Refusal(w, new PackTent(P)));
+        var npc = Npc.Spawn(w, east);
+        Assert.Equal("a bear guards it", Shelters.Refusal(w, new PackTent(npc)));
     }
 
     /// The things' own wording, from before the gate: unchanged.
@@ -506,12 +554,14 @@ public class SubstrateTests
     public void EveryThingRefusal_CallsAccess_InTheSource()
     {
         var dir = ArchitectureTests.SimSourceDir();
-        foreach (var (file, calls) in new[] { ("Work.cs", 4), ("Fire.cs", 1), ("Shelter.cs", 2), ("Combat.cs", 1), ("Fauna.cs", 1) })
+        // Work's put-down (Stash) asks Access.PutDownRefusal; herds' Feed, Graze and Raid ask it too.
+        foreach (var (file, calls) in new[] { ("Work.cs", 3), ("Fire.cs", 1), ("Shelter.cs", 2), ("Combat.cs", 1), ("Fauna.cs", 4), ("Carrion.cs", 1) })
         {
             int n = Regex.Matches(File.ReadAllText(Path.Combine(dir, file)), @"Access\.Refusal\(").Count;
             Assert.True(n >= calls, $"{file} asks Access {n} times, not {calls}");
         }
         Assert.Contains("confronting: true", File.ReadAllText(Path.Combine(dir, "Combat.cs")));
         Assert.Contains("confronting: true", File.ReadAllText(Path.Combine(dir, "Fauna.cs")));
+        Assert.Contains("Access.PutDownRefusal(", File.ReadAllText(Path.Combine(dir, "Work.cs")));
     }
 }

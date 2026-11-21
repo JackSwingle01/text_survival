@@ -13,7 +13,8 @@ public static partial class Combat
         world.Encounters.Remove(enc); // first: members may be reordered from here on
         // A released unit's agent settled out of this fight already and may be in another now.
         var units = enc.Units.Where(u => !u.Released).ToList();
-        // What each side's dead fell to, read before weapons go home and the dead leave their herds.
+        // What each side's dead fell to when no blow of this fight is on them (they bled out of an
+        // earlier one): read before weapons go home and the dead leave their herds.
         var fellTo = new[] { KilledBy(world, enc, units, 0), KilledBy(world, enc, units, 1) };
 
         foreach (var u in units.Where(u => u.Weapon != null))
@@ -39,7 +40,8 @@ public static partial class Combat
             if (!SpeciesTable.Of(agent.Species).IsAnimal) continue;
             foreach (var body in units.Where(u => u.Agent == id).Select(u => BodyOf(world, u)).Where(b => !Body.IsAlive(b)).ToList())
             {
-                LeaveCarcass(world, enc.Tile, agent.Species, body, fellTo[units.First(u => u.Agent == id).Team]);
+                // Whoever struck it last, with what was in their hands then (a throw included).
+                LeaveCarcass(world, enc.Tile, agent.Species, body, body.WoundedBy ?? fellTo[units.First(u => u.Agent == id).Team]);
                 agent.Members.Remove(body);
             }
             // An agent is one or more bodies; with none left there is nothing to move or decide.
@@ -70,9 +72,9 @@ public static partial class Combat
             special: species == Species.Mammoth ? new Dictionary<Resource, double> { [Resource.Ivory] = 4, [Resource.MammothHide] = 15 } : null,
             cause: cause);
 
-    /// Who a side's dead fell to: the other side, named by its first fighter still listed (its first
-    /// at all, if every one was released), with the weapon in that fighter's hands. Who struck the
-    /// last blow is not kept, and a side fights as one.
+    /// Who a side's dead fell to when no blow names anyone (BodyState.WoundedBy): the other side, named
+    /// by its first fighter still listed (its first at all, if every one was released), with the
+    /// weapon in that fighter's hands.
     static Cause KilledBy(World world, Encounter enc, List<CombatUnit> units, int team)
     {
         var killer = units.FirstOrDefault(u => u.Team != team) ?? enc.Units.FirstOrDefault(u => u.Team != team);

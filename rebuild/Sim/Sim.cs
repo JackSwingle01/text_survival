@@ -310,6 +310,10 @@ public static class Scheduler
     /// An agent made this minute (a wounded animal splitting off) starts on the next one.
     public static void Minute(World world, AgentId? actor, List<WorldEvent> events)
     {
+        // What lies dead goes on rotting, and herds renew toward what their land carries: settled on
+        // the clock, before anyone lives the minute, so every way of stepping the world agrees.
+        Remains.Hour(world);
+        Fauna.Renew(world, events);
         foreach (var id in world.Agents.Keys.ToList())
         {
             if (id == actor || !world.Agents.TryGetValue(id, out var agent) || agent.Mind is PlayerMind) continue;

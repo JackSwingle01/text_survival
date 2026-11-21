@@ -33,12 +33,15 @@ public sealed class TileState
     /// Who made the stash: whoever first put something down here. Goes with the stash. Owned by Items.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Cause? StashCause { get; set; }
+    /// The stash's own id (World.NextStashId): a new one each time a stash is begun here. Goes with the stash. Owned by Items.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? StashId { get; set; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public List<Carcass>? Carcasses { get; set; }
     /// Nothing here differs from generation, so the tile can leave World.Tiles. Each owner sets its
     /// field back to null when it has nothing left to keep.
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsEmpty => Tracks == null && Ground == null && Pools == null && Stash == null && StashCause == null && Carcasses == null;
+    public bool IsEmpty => Tracks == null && Ground == null && Pools == null && Stash == null && StashCause == null && StashId == null && Carcasses == null;
 }
 
 /// One terrain as generated (Content/terrain.json). A wall has no traversal, forage or trees.

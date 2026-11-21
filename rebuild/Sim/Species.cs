@@ -2,7 +2,9 @@ namespace Survival;
 
 /// What kind of bodies an agent is made of. Ptarmigan, rat and fish are cut: birds have no body
 /// plan any more (plan: Keep/Port/Cut), and the others are small-game pools, not fighters.
-public enum Species { Human, Wolf, Bear, CaveBear, SaberTooth, Hyena, Caribou, Megaloceros, Bison, Mammoth, Rabbit, Fox }
+/// Raven is the folded scavenger kind (emergent-world-design §4): ravens, a fox and a wolverine as one
+/// flock that lives on what others kill. Birds have no body plan, so its members are small quadrupeds.
+public enum Species { Human, Wolf, Bear, CaveBear, SaberTooth, Hyena, Caribou, Megaloceros, Bison, Mammoth, Rabbit, Fox, Raven }
 
 /// How an animal meets a threat (old AnimalBehaviorType). Humans are their own row: they never bolt by instinct.
 public enum Role { Human, Prey, DangerousPrey, Predator, Scavenger }

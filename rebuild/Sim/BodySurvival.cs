@@ -464,6 +464,7 @@ public static partial class Body
 
         if (!IsAlive(body))
         {
+            MarkDead(body, world.Minute, CauseOfDeath(body));
             events.Add(new Died(world.Minute, agent.Id, agent.Tile));
             return "died";
         }

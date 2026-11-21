@@ -45,11 +45,11 @@ public static class Capabilities
 /// lying there) and Contested (a guarded carcass someone else is at too), Buried (a hidden stock or shelter find under snow deeper than it stands), ScentSource,
 /// Edible, Harvestable, Sheltering, Burnable, Fresh (a carcass under 4 effective hours, prints at
 /// least half fresh), Depleted, Hostile (the other side of the viewer's fight), Unaware (a herd as a
-/// hunt or ambush would open on it), Wounded.
+/// hunt or ambush would open on it), Wounded, Beacon (the carrion flock on the tile of flesh: a
+/// carcass or a dead person not yet a skeleton). Bones are only Harvestable while bone is left.
 /// Not derivable yet: Sealed (no lids, lodges or dens to force), FrozenIn (Ground has no ice that
 /// holds a thing; a frozen carcass is frozen meat, which butchering already charges), Elevated (no
-/// vantage), Unstable (thin ice is a tile's, and moves to edges), Beacon (no scavengers circling,
-/// build step 3), Occupied by small game (small game is not a density yet), Buried for a carcass,
+/// vantage), Unstable (thin ice is a tile's, and moves to edges), Occupied by small game (small game is not a density yet), Buried for a carcass,
 /// stash or body (no placement elevation: the snow they lie on and the snow on them are one depth).
 public static class Tags
 {
@@ -73,7 +73,7 @@ public static class Tags
         var tags = t.Kind switch
         {
             ThingKind.Agent => OfAgent(world, world.Agent(new AgentId(t.Index)), viewer),
-            ThingKind.Body => Tag.ScentSource, // a dead person: kit and burial wait for the body pipeline
+            ThingKind.Body => OfBody(world, world.Agent(new AgentId(t.Index))),
             ThingKind.Carcass => OfCarcass(world, t.Tile, Carcasses.Find(world, t.Tile, t.Index)!, viewer),
             ThingKind.Pool => OfPool(world, new PoolId(t.Tile, t.Index)),
             ThingKind.Stash => OfInventory(state!.Stash!) | OwnedBy(world, state.StashCause, viewer),
@@ -92,8 +92,15 @@ public static class Tags
             ThingKind.Sign => true,
             ThingKind.Item => false, // carried: held by whoever carries it
         };
-        if (holdable && Guards(world, t.Tile, viewer).Count > 0) tags |= Tag.Guarded;
+        if (holdable && Guards(world, t, viewer).Count > 0) tags |= Tag.Guarded;
         return tags;
+    }
+
+    /// A dead person: scent while there is flesh on them, and a beacon while the carrion flock circles.
+    static Tag OfBody(World world, Agent dead)
+    {
+        if (Remains.StageOf(world, dead) != RemainsStage.Flesh) return Tag.None;
+        return Tag.ScentSource | (Fauna.FlockAt(world, dead.Tile) != null ? Tag.Beacon : Tag.None);
     }
 
     static Tag OfAgent(World world, Agent a, AgentId? viewer)
@@ -121,24 +128,61 @@ public static class Tags
 
     static Tag OfCarcass(World world, TileId tile, Carcass c, AgentId? viewer)
     {
-        var tags = Tag.ScentSource | OwnedBy(world, c.Cause, viewer);
+        var tags = OwnedBy(world, c.Cause, viewer);
+        if (Remains.StageOf(world, tile, c) != RemainsStage.Flesh)
+            return tags | (Carcasses.AllCut(c) ? Tag.None : Tag.Harvestable); // bones: no scent, nothing to eat
+        tags |= Tag.ScentSource;
         if (Carcasses.MeatKg(c) > 0) tags |= Tag.Edible;
         if (!Carcasses.AllCut(c)) tags |= Tag.Harvestable;
         if (Carcasses.DecayLevelNow(world, tile, c) < FreshDecayLevel) tags |= Tag.Fresh;
+        // The carrion flock circling flesh: findable from far off (emergent-world-design §4).
+        if (Fauna.FlockAt(world, tile) != null) tags |= Tag.Beacon;
         // Guarded (Of), and someone else wants it too: another predator herd or a person on the tile,
         // the viewer included.
-        var guards = Guards(world, tile, viewer);
-        if (guards.Count > 0 && world.Agents.Values.Any(a => !guards.Contains(a.Id) && a.Tile == tile && Sim.IsAlive(a)
+        var guards = Guards(world, new ThingRef(ThingKind.Carcass, tile, c.Id), viewer);
+        if (guards.Count > 0 && Nearby.At(world, tile).Select(id => world.Agents[id]).Any(a => !guards.Contains(a.Id) && Sim.IsAlive(a)
                 && (a.Mind is PersonMind || a.Mind is HerdMind && Fauna.IsPredator(a.Species))))
             tags |= Tag.Contested;
         return tags;
     }
 
-    /// The living predator herds within guard radius of a tile, the viewer left out.
-    static HashSet<AgentId> Guards(World world, TileId tile, AgentId? viewer) =>
-        world.Agents.Values.Where(a => a.Id != viewer && a.Mind is HerdMind && Fauna.IsPredator(a.Species) && Sim.IsAlive(a)
-                && MapGen.Manhattan(a.Tile, tile) <= GuardRadiusTiles)
+    /// The living predator herds within guard radius of a thing that hold their ground against the
+    /// viewer (left out itself). None hold it against the viewer (the exemptions are implemented,
+    /// as the gate is, and wired with it): over what the viewer made or killed; on a tile where a fire
+    /// burns, or when the viewer carries a burning torch (fire as defence); and a herd that is afraid,
+    /// running, or whose attention is elsewhere (in a fight, or on a hunt) holds nothing.
+    internal static HashSet<AgentId> Guards(World world, ThingRef t, AgentId? viewer)
+    {
+        if (viewer is AgentId v && (CauseOf(world, t)?.Who == v || FireDefends(world, t.Tile, v))) return [];
+        return Nearby.Within(world, t.Tile, GuardRadiusTiles)
+            .Where(a => a.Id != viewer && a.Mind is HerdMind mind && Fauna.IsPredator(a.Species) && Sim.IsAlive(a) && Attending(world, a, mind))
             .Select(a => a.Id).ToHashSet();
+    }
+
+    /// Learned fear past this and a herd holds nothing.
+    public const double AfraidLevel = 0.5;
+
+    static bool Attending(World world, Agent a, HerdMind mind) =>
+        mind.Fear <= AfraidLevel && mind.State is not (HerdState.Fleeing or HerdState.Hunting) && Combat.EncounterOf(world, a.Id) == null;
+
+    /// A fire burning on the tile, or a torch burning in the viewer's hand.
+    static bool FireDefends(World world, TileId tile, AgentId viewer) =>
+        world.Fires.Values.Any(f => (f.CarriedBy == viewer || f.CarriedBy == null && f.Tile == tile) && Fire.Burns(Fire.Phase(f)));
+
+    /// Who made or killed a thing, as it keeps it.
+    static Cause? CauseOf(World world, ThingRef t) => t.Kind switch
+    {
+        ThingKind.Agent => null, // a living agent is met, not made
+        ThingKind.Body => world.Agent(new AgentId(t.Index)).Members[0].DeathCause,
+        ThingKind.Carcass => Carcasses.Find(world, t.Tile, t.Index)?.Cause,
+        ThingKind.Pool => null, // the land's own
+        ThingKind.Stash => world.Tiles.GetValueOrDefault(t.Tile)?.StashCause,
+        ThingKind.Fire => world.Fires.GetValueOrDefault(new FireId(t.Index))?.Cause,
+        ThingKind.Shelter => Shelters.Peek(world, t.Tile)?.Cause,
+        ThingKind.Track => null, // prints are no one's work
+        ThingKind.Sign => null, // none stored yet
+        ThingKind.Item => null, // none named yet
+    };
 
     static Tag OfPool(World world, PoolId id)
     {
@@ -194,7 +238,7 @@ public static class Tags
     static Tag OfShelter(World world, TileId tile, ShelterState s, AgentId? viewer)
     {
         var tags = OwnedBy(world, s.Cause, viewer) | (Shelters.IsDestroyed(s) ? Tag.Depleted : Tag.Sheltering);
-        if (world.Agents.Values.Any(a => a.Id != viewer && a.Tile == tile && Sim.IsAlive(a))) tags |= Tag.Occupied;
+        if (Nearby.At(world, tile).Any(id => id != viewer && Sim.IsAlive(world.Agents[id]))) tags |= Tag.Occupied;
         return tags;
     }
 

@@ -1049,8 +1049,7 @@ public static partial class Npc
     static bool Unengaged(Me me, Agent herd) => !Sim.Held(me.World, herd.Id) && Combat.EncounterOf(me.World, herd.Id) == null;
 
     static IEnumerable<Agent> Herds(Me me, int withinTiles, Func<Agent, bool> kind) =>
-        me.World.Agents.Values.Where(a => a.Mind is HerdMind && MapGen.Manhattan(a.Tile, me.Tile) <= withinTiles
-                                          && a.Members.Any(Body.IsAlive) && kind(a));
+        Nearby.Within(me.World, me.Tile, withinTiles).Where(a => a.Mind is HerdMind && a.Members.Any(Body.IsAlive) && kind(a));
 
     /// Someone else on this tile fighting predators, whom this NPC would stand by (old WouldDefend).
     static (Encounter Fight, int Team)? AllyInFight(Me me)

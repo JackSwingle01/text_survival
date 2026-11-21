@@ -389,7 +389,7 @@ public class HerdTests(ITestOutputHelper output)
             var (min, max) = h.Species switch
             {
                 Species.Wolf => (3, 80), Species.Bear or Species.CaveBear => (3, 128), Species.Caribou => (6, 192),
-                Species.Megaloceros => (3, 96), Species.Bison => (3, 400), Species.SaberTooth => (4, 160), _ => (3, 112),
+                Species.Megaloceros => (3, 96), Species.Bison => (3, 400), Species.SaberTooth => (4, 160), Species.Raven => (3, 250), _ => (3, 112),
             };
             Assert.InRange(land.Count, min, max);
             Assert.InRange(h.Members.Count, 1, 15);
@@ -461,7 +461,9 @@ public class HerdTests(ITestOutputHelper output)
     // The stalk's odds are a balance question, not this test's.
     public void ThePlayer_CanHuntAHerdMember_ButcherItAndEat()
     {
-        for (int seed = 1; seed <= 60; seed++)
+        // Kills are rare (2-3% of stalks, rebuild-combat-balance.md), so this looks until one comes: a
+        // fixed handful of seeds broke whenever anything else shifted an agent id or a tile.
+        for (int seed = 1; seed <= 200; seed++)
         {
             var w = World.New(seed);
             var tile = Quiet(w);
@@ -500,7 +502,7 @@ public class HerdTests(ITestOutputHelper output)
             output.WriteLine($"seed {seed}: killed, butchered {meat:F1} kg of meat, ate {ate.Kcal:F0} kcal");
             return;
         }
-        Assert.Fail("sixty stalks with a spear and never a kill");
+        Assert.Fail("two hundred stalks with a spear and never a kill");
     }
 
     /// Every agent rolls on its own streams: a pack pulling down caribou across the valley, bleeding
@@ -958,7 +960,7 @@ public class TerritorySweepTests(ITestOutputHelper output)
     static readonly IReadOnlyDictionary<Species, int> Floor = new Dictionary<Species, int>
     {
         [Species.Bison] = 80, [Species.Megaloceros] = 40, [Species.Caribou] = 100, [Species.SaberTooth] = 80,
-        [Species.Wolf] = 20, [Species.Bear] = 40, [Species.Mammoth] = 150, [Species.CaveBear] = 3, [Species.Hyena] = 3,
+        [Species.Wolf] = 20, [Species.Bear] = 40, [Species.Mammoth] = 150, [Species.CaveBear] = 3, [Species.Hyena] = 3, [Species.Raven] = 100,
     };
 
     [Fact]

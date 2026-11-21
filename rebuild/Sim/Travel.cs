@@ -78,7 +78,9 @@ public static class Traversal
         agent.Crossing = null;
         events.Add(new Moved(world.Minute, agent.Id, from, to));
         // The old GameMap.RecordMove seam: every agent's completed crossing marks the ground, a herd with all its feet.
-        Tracks.RecordMove(world, from, to, Tracks.MakerOf(agent.Species), agent.Members.Count, Tracks.IndividualDepth(agent.Species));
+        // The carrion flock is mostly on the wing, and the fox in it too light to mark the ground (judgment).
+        if (Fauna.BehaviorOf(agent.Species) != HerdBehavior.Carrion)
+            Tracks.RecordMove(world, from, to, Tracks.MakerOf(agent.Species), agent.Members.Count, Tracks.IndividualDepth(agent.Species));
 
         foreach (var (tile, riskPct) in new[] { (from, c.OriginRiskPct), (to, c.DestRiskPct) })
         {
@@ -215,6 +217,7 @@ public static class Traversal
         foreach (var k in body.Effects.Select(e => e.Kind).Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, agent.Tile, k));
 
         if (Body.IsAlive(body)) return null;
+        Body.MarkDead(body, world.Minute, new Cause(null, "a fall"));
         events.Add(new Died(world.Minute, agent.Id, agent.Tile));
         return "died";
     }

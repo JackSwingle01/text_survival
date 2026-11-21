@@ -318,10 +318,12 @@ public static partial class Content
     }
 
     /// A herd lives as its role meets a threat: prey graze and flee, predators hunt in a pack or alone,
-    /// scavengers scavenge. People, rabbits and foxes never form herds of their own and keep the default.
+    /// scavengers scavenge, and a small scavenger may be the carrion flock. People, rabbits and foxes
+    /// never form herds of their own and keep the default.
     static string? HerdBehaviorProblem(SpeciesRow r)
     {
-        bool agrees = r.Role == Role.Human || r.IsSmall ? r.Behavior == HerdBehavior.Prey
+        bool agrees = r.Role == Role.Scavenger && r.IsSmall ? r.Behavior is HerdBehavior.Prey or HerdBehavior.Carrion // a fox, or the flock
+            : r.Role == Role.Human || r.IsSmall ? r.Behavior == HerdBehavior.Prey
             : r.Role switch
             {
                 Role.Prey or Role.DangerousPrey => r.Behavior == HerdBehavior.Prey,

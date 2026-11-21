@@ -3,8 +3,8 @@ namespace Survival;
 /// Filling the valley with herds when the world is made (port of old HerdPopulator). Seeded by its
 /// own stream, so the same seed gives the same herds on the same land.
 // Dens are authored sites (Content): the Wolf Den's pack, the Bear Cave's bear and Bone Hollow's
-// mammoths are herds anchored on them, as the old HerdPopulator anchored them. Nothing repopulates
-// the valley, so a herd killed off stays dead for the run.
+// mammoths are herds anchored on them, as the old HerdPopulator anchored them. Herds renew toward what
+// their land carries (Renewal.cs); a megafauna herd killed off stays dead for the run.
 // Old territory details (tracks, droppings, bones as pools) are not ported: the herds leave real prints now.
 public static partial class Fauna
 {
@@ -15,14 +15,7 @@ public static partial class Fauna
     {
         var m = Map.Of(world);
         var rng = world.Rng("populate");
-        // Interior tiles: off the map's edge, above ground, off the whole pass corridor (old: off only its far side).
-        var interior = new List<TileId>();
-        for (int x = 2; x < m.Width - 2; x++)
-            for (int y = 2; y < m.Height - 2; y++)
-            {
-                var t = new TileId(x, y);
-                if (m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && !m.OnPass(t)) interior.Add(t);
-            }
+        var interior = InteriorTiles(m);
         // Predators keep out of each other's land; prey graze anywhere outside the safe zone.
         var available = interior.Where(p => MapGen.Manhattan(p, m.Camp) > SafeZoneTiles).ToList();
         // old game: prey drew their land from what the wolf packs had left, so no prey herd ever lived on a
@@ -114,6 +107,35 @@ public static partial class Fauna
             Herd(Species.Mammoth, hollow, land.Count < 8 ? [hollow] : land, 8 + rng.NextInt(5));
         }
         PopulateCaves(world, m, rng);
+        PopulateCarrion(world, m, interior);
+    }
+
+    /// The carrion flocks (judgment: the old game had none): one for about every 1,500 open tiles of
+    /// the valley, 3-6 strong, each ranging over 150-250 tiles. Drawn on their own stream after every
+    /// other herd, so adding them moved nothing that was already placed.
+    static void PopulateCarrion(World world, GeneratedMap m, List<TileId> interior)
+    {
+        var rng = world.Rng("populate carrion");
+        for (int i = 0, flocks = Math.Max(2, interior.Count / 1500); i < flocks && interior.Count > 0; i++)
+        {
+            var start = interior[rng.NextInt(interior.Count)];
+            var land = Territory(m, start, interior, 150 + rng.NextInt(101), rng);
+            if (land.Count >= 3) Agents.Spawn(world, Species.Raven, start, 3 + rng.NextInt(4), land);
+        }
+    }
+
+    /// Interior tiles, x-major: off the map's edge, above ground, off the whole pass corridor (old:
+    /// off only its far side). Where herds are put, and where they arrive (Arrive).
+    static List<TileId> InteriorTiles(GeneratedMap m)
+    {
+        var interior = new List<TileId>();
+        for (int x = 2; x < m.Width - 2; x++)
+            for (int y = 2; y < m.Height - 2; y++)
+            {
+                var t = new TileId(x, y);
+                if (m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && !m.OnPass(t)) interior.Add(t);
+            }
+        return interior;
     }
 
     /// Tiles holding this site, x-major (old FindLocations scanned by name).

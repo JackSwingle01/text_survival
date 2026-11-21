@@ -1,7 +1,8 @@
 namespace Survival;
 
 /// What a sign is evidence of.
-public enum SignKind { Body, Carcass, Stash, FirePit, Shelter, Prints, Trail, WorkedGround, Grazed, Felled, Picked }
+/// RavensOver: the carrion flock over a predator herd (no flesh on the tile), its cause the predator.
+public enum SignKind { Body, Carcass, Stash, FirePit, Shelter, Prints, Trail, WorkedGround, Grazed, Felled, Picked, Bones, RavensOver }
 
 /// One piece of evidence on a tile (emergent-world-design §3.2): the thing it is, what kind of sign,
 /// when it was made and by what. MadeMinute is null where the thing keeps no clock of its making
@@ -11,8 +12,7 @@ public sealed record Sign(ThingRef Thing, SignKind Kind, long? MadeMinute, Cause
 
 /// Signs are a projection over state that already exists; none is stored (no thing has its home
 /// here yet). Reads only: age and fading come from the clocks the things keep, as Report's do.
-// Kill sites (a carcass gone to bones and taken) and stored signs (scat, claw marks) wait for
-// build steps 3 and 5.
+// Kill sites (bones taken or weathered away) and stored signs (scat, claw marks) wait for build step 5.
 public static class Signs
 {
     public static IEnumerable<Sign> At(World world, TileId tile)
@@ -22,9 +22,9 @@ public static class Signs
         foreach (var t in Things.At(world, tile))
             signs.AddRange(t.Kind switch
             {
-                ThingKind.Agent => [], // the living are not signs: they are there
-                ThingKind.Body => [new Sign(t, SignKind.Body, null, null)],
-                ThingKind.Carcass => [Of(t, Carcasses.Find(world, tile, t.Index)!)],
+                ThingKind.Agent => OfAgent(world, t), // the living are there, not signs: but ravens over a pack point to it
+                ThingKind.Body => [OfBody(world.Agent(new AgentId(t.Index)).Body, t)],
+                ThingKind.Carcass => [Of(world, t, Carcasses.Find(world, tile, t.Index)!)],
                 ThingKind.Pool => OfPool(world, t),
                 ThingKind.Stash => [new Sign(t, SignKind.Stash, null, state!.StashCause)],
                 ThingKind.Fire => [new Sign(t, SignKind.FirePit, null, world.Fires[new FireId(t.Index)].Cause)],
@@ -36,7 +36,20 @@ public static class Signs
         return signs;
     }
 
-    static Sign Of(ThingRef t, Carcass c) => new(t, SignKind.Carcass, c.DiedMinute, c.Cause);
+    static Sign Of(World world, ThingRef t, Carcass c) =>
+        new(t, Remains.StageOf(world, t.Tile, c) == RemainsStage.Flesh ? SignKind.Carcass : SignKind.Bones, c.DiedMinute, c.Cause);
+
+    static Sign OfBody(BodyState body, ThingRef t) => new(t, SignKind.Body, body.DiedMinute, body.DeathCause);
+
+    /// The carrion flock over a predator herd, where there is no flesh to hold it: the sign is the
+    /// flock, its cause the predator it follows (the lowest id, if more than one).
+    static IEnumerable<Sign> OfAgent(World world, ThingRef t)
+    {
+        var a = world.Agent(new AgentId(t.Index));
+        if (Fauna.BehaviorOf(a.Species) != HerdBehavior.Carrion || Fauna.MeatHere(world, t.Tile) > 0) yield break;
+        var followed = Fauna.HerdsAt(world, t.Tile).FirstOrDefault(h => Fauna.IsPredator(h.Species) && Sim.IsAlive(h));
+        if (followed != null) yield return new Sign(t, SignKind.RavensOver, null, Cause.By(world, followed.Id));
+    }
 
     static Sign OfTrack(World world, ThingRef t)
     {
