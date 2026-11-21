@@ -27,6 +27,7 @@ For the clean-room rebuild (`rebuild/`):
 - Wait for long runs with `run_in_background` and its completion notice, not `until ...; do sleep`
   polling. A poll that greps for its own pattern (`pgrep -f "X"` from a shell whose command line
   contains "X") never ends, and leftover pollers outlive the agent that started them.
+- For long-running agent work (e.g. overnight), schedule an hourly check for stalled agents and leftover processes.
 ## Domain Language and Decisions
 
 - `GLOSSARY.md` defines the project's terms (stat tiers, effects, conditions, contest...). Use them.
