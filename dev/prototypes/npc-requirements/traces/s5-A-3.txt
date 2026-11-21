@@ -1,0 +1,26 @@
+## 3 snowy night (plain, trees 3 off) - forecasts A (crude)
+start 15:00, LightSnow -16F wind 11 mph, camp Plain, sunrise 8:00, pack Tinder0.18 Kindling0.9 +axe
+   ++ goal: fire until 08:00, need 17.0 fuel-h, forecast 275 min, budget 413
+      list: Forage@(+3,0) kindling 0.1 (3m) | Chop@(+3,0) fuel 7.67 (100m)   [stash mem: ; true: -]
+15:00 (+1,0)   to Forage@(+3,0) kindling 0.1 (3m) [2 leaves] (Careful 26m, risk 0%) -> Finished | no fire | core 98.6 | Tinder0.18 Kindling0.9 +axe
+      list: Forage@(+3,0) kindling 0.1 (3m) | Chop@(+3,0) fuel 7.67 (100m)   [stash mem: ; true: -]
+15:26 (+2,0)   to Forage@(+3,0) kindling 0.1 (3m) [2 leaves] (Careful 46m, risk 0%) -> Finished | no fire | core 95.8 | Tinder0.18 Kindling0.9 +axe
+      list: Forage@(+3,0) kindling+fuel 7.77 (50m)   [stash mem: ; true: -]
+16:12 (+3,0)   to Forage@(+3,0) kindling+fuel 7.77 (50m) [1 leaves] (Careful 46m, risk 0%) -> Finished | no fire | core 93.4 | Tinder0.18 Kindling0.9 +axe
+   -- goal dropped: way home dangerous
+   ++ goal: fire until 08:00, need 15.0 fuel-h, forecast 97 min, budget 145
+      list: Forage@(+3,0) tinder+kindling+fuel 7.77 (54m)   [stash mem: ; true: -]
+16:58 (+3,0)   forage Forage@(+3,0) tinder+kindling+fuel 7.77 (54m)       -> Finished | no fire | core 93.0 | Tinder0.26 Kindling1.05 Pine3.94 Oak3.33 Stone0.27 +axe
+      list:    [stash mem: ; true: -]
+17:28 (+2,0)   home: pack full (Careful 79m, risk 0%)                     -> Finished | no fire | core 91.5 | Tinder0.26 Kindling1.05 Pine3.94 Oak3.33 Stone0.27 +axe
+      list:    [stash mem: ; true: -]
+18:47 (+1,0)   home: pack full (Careful 92m, risk 0%)                     -> Finished | no fire | core 85.6 | Tinder0.26 Kindling1.05 Pine3.94 Oak3.33 Stone0.27 +axe
+   -- goal dropped: time budget
+   ++ goal: fire until 08:00, need 11.7 fuel-h, forecast 0 min, budget 60
+      list:    [stash mem: ; true: -]
+20:19 (+1,0)   home: pack full (Careful 130m, risk 0%)                    -> Interrupted (died) | no fire | core 79.9 | Tinder0.26 Kindling1.05 Pine3.94 Oak3.33 Stone0.27 +axe
+RESULT 3 snowy night (plain, trees 3 off) / A (crude): fire-site=home(0,0) alive=False fire-at-sunrise=NO fire-out-min-after-first-lit=0 night-out=83 death=(the cold, hyd 58%, energy 52%) first-lit=never trips=1 reversals=0 goals=3 drops=[way home dangerous:1, time budget:1] flips=0 minCore=79.9 plan=26945us avg/65811us max over 7
+  refusals: 
+  interruptions: died x1
+  rules fired: R19 careful pace x6; R8 chop needs light by dark hours x10
+

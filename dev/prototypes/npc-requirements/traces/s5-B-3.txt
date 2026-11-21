@@ -1,0 +1,101 @@
+## 3 snowy night (plain, trees 3 off) - forecasts B (Sim forecasts)
+start 15:00, LightSnow -16F wind 11 mph, camp Plain, sunrise 8:00, pack Tinder0.18 Kindling0.9 +axe
+   >> fire site: (+1,+2) (walk 78 + plan 217, home 793) instead of home (home(0,0)): home moves
+   ++ goal: fire until 08:00, need 17.0 fuel-h, forecast 217 min, budget 325
+      list: Forage@home(+1,+2) kindling 0.1 (8m) | Chop@home(+1,+2) fuel 8.18 (100m)   [stash mem: ; true: -]
+15:00 (0,+1)   to Forage@home(+1,+2) kindling 0.1 (8m) [2 leaves] (Careful 26m, risk 0%) -> Finished | no fire | core 98.6 | Tinder0.18 Kindling0.9 +axe
+      list: Forage@home(+1,+2) kindling 0.1 (8m) | Chop@home(+1,+2) fuel 8.18 (100m)   [stash mem: ; true: -]
+15:26 (0,+2)   to Forage@home(+1,+2) kindling 0.1 (8m) [2 leaves] (Careful 26m, risk 0%) -> Finished | no fire | core 97.1 | Tinder0.18 Kindling0.9 +axe
+      list: Forage@home(+1,+2) kindling 0.1 (8m) | Chop@home(+1,+2) fuel 8.18 (100m)   [stash mem: ; true: -]
+15:52 home(+1,+2) to Forage@home(+1,+2) kindling 0.1 (8m) [2 leaves] (Careful 26m, risk 0%) -> Finished | no fire | core 95.4 | Tinder0.18 Kindling0.9 +axe
+      list: Forage@home(+1,+2) kindling 0.1 (8m) | Chop@home(+1,+2) fuel 8.18 (100m)   [stash mem: ; true: -]
+16:18 home(+1,+2) light (46%)                                                -> Finished | no fire | core 95.3 | Tinder0.13 Kindling0.9 +axe
+      list: Forage@home(+1,+2) tinder+kindling 0.13 (43m) | Chop@home(+1,+2) fuel 8.19 (100m)   [stash mem: ; true: -]
+16:19 home(+1,+2) light (46%)                                                -> Finished | no fire | core 95.3 | Tinder0.08 Kindling0.9 +axe
+      list: Chop@home(+1,+2) tinder+fuel 8.28 (100m) | Forage@home(+1,+2) kindling 0.1 (8m)   [stash mem: ; true: -]
+16:20 home(+1,+2) light (46%)                                                -> Finished | fire 0.7h/0.9kg | core 95.3 | Tinder0.03 +axe
+      list: Chop@home(+1,+2) fuel 9.4 (100m)   [stash mem: ; true: -]
+16:21 home(+1,+2) chop Chop@home(+1,+2) fuel 9.4 (100m)                      -> Finished | fire out | core 93.0 | Tinder0.17 Kindling1.87 Pine6.81 +axe
+      list: Chop@home(+1,+2) tinder 0.08 (100m) | CampStash@home(+1,+2) fuel:Pine 8.3 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:01 home(+1,+2) light (30%)                                                -> Finished | fire out | core 93.0 | Tinder0.12 Kindling1.87 Pine6.81 +axe
+      list: Chop@home(+1,+2) tinder 0.13 (100m) | CampStash@home(+1,+2) fuel:Pine 8.28 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:02 home(+1,+2) light (30%)                                                -> Finished | fire 0.8h/1.0kg | core 93.0 | Tinder0.07 Kindling0.87 Pine6.81 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 7.49 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:03 home(+1,+2) stoke Pine                                                 -> Finished | fire 1.6h/2.0kg | core 93.0 | Tinder0.07 Kindling0.87 Pine5.81 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 7.35 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:04 home(+1,+2) stoke Pine                                                 -> Finished | fire 2.5h/3.0kg | core 93.0 | Tinder0.07 Kindling0.87 Pine4.81 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 7.27 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:05 home(+1,+2) stoke Pine                                                 -> Finished | fire 3.3h/4.0kg | core 93.0 | Tinder0.07 Kindling0.87 Pine3.81 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 7.2 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:06 home(+1,+2) stoke Pine                                                 -> Finished | fire 4.1h/4.9kg | core 93.1 | Tinder0.07 Kindling0.87 Pine2.81 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 7.16 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:07 home(+1,+2) stoke Pine                                                 -> Finished | fire 4.8h/5.9kg | core 93.1 | Tinder0.07 Kindling0.87 Pine1.81 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 7.15 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:08 home(+1,+2) stoke Pine                                                 -> Finished | fire 5.5h/6.9kg | core 93.1 | Tinder0.07 Kindling0.87 Pine0.81 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 7.15 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:09 home(+1,+2) stoke Pine                                                 -> Finished | fire 6.1h/7.7kg | core 93.2 | Tinder0.07 Kindling0.87 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 7.15 (1m)   [stash mem: Pine15.7; true: Pine15.65]
+18:10 home(+1,+2) unstash Pine                                               -> Finished | fire 6.1h/7.7kg | core 93.2 | Tinder0.07 Kindling0.87 Pine3.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 4.88 (1m)   [stash mem: Pine12.7; true: Pine12.65]
+18:11 home(+1,+2) stoke Pine                                                 -> Finished | fire 6.8h/8.6kg | core 93.2 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 4.94 (1m)   [stash mem: Pine12.7; true: Pine12.65]
+18:12 home(+1,+2) stoke Pine                                                 -> Finished | fire 7.5h/9.6kg | core 93.2 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 4.99 (1m)   [stash mem: Pine12.7; true: Pine12.65]
+18:13 home(+1,+2) stoke Pine                                                 -> Finished | fire 8.2h/10.6kg | core 93.3 | Tinder0.07 Kindling0.87 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 5.05 (1m)   [stash mem: Pine12.7; true: Pine12.65]
+18:14 home(+1,+2) unstash Pine                                               -> Finished | fire 8.2h/10.6kg | core 93.3 | Tinder0.07 Kindling0.87 Pine3.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.78 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+18:15 home(+1,+2) stoke Pine                                                 -> Finished | fire 8.8h/11.5kg | core 93.3 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.84 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+18:16 home(+1,+2) sleep 24m (fire 8.8h, Warmth Critical)                     -> Finished | fire 8.4h/11.0kg | core 94.1 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.84 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+18:40 home(+1,+2) sleep 15m (fire 8.4h, Warmth Critical)                     -> Finished | fire 8.2h/10.6kg | core 94.7 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.84 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+18:55 home(+1,+2) stoke Pine                                                 -> Finished | fire 8.9h/11.6kg | core 94.7 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.91 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+18:56 home(+1,+2) sleep 25m (fire 8.9h, Warmth Critical)                     -> Finished | fire 8.4h/11.0kg | core 95.8 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.91 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+19:21 home(+1,+2) sleep 15m (fire 8.4h, Warmth Need)                         -> Finished | fire 8.2h/10.6kg | core 96.3 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.91 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+19:36 home(+1,+2) stoke Pine                                                 -> Finished | fire 8.9h/11.6kg | core 96.3 | Tinder0.07 Kindling0.87 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.97 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+19:37 home(+1,+2) sleep 25m (fire 8.9h, Warmth Need)                         -> Finished | fire 8.5h/11.0kg | core 97.0 | Tinder0.07 Kindling0.87 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.97 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+20:02 home(+1,+2) sleep 15m (fire 8.5h, Warmth Need)                         -> Finished | fire 8.2h/10.7kg | core 97.4 | Tinder0.07 Kindling0.87 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 2.97 (1m)   [stash mem: Pine9.7; true: Pine9.65]
+20:17 home(+1,+2) unstash Pine                                               -> Finished | fire 8.2h/10.6kg | core 97.4 | Tinder0.07 Kindling0.87 Pine3.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 0.69 (1m)   [stash mem: Pine6.7; true: Pine6.65]
+20:18 home(+1,+2) stoke Pine                                                 -> Finished | fire 8.9h/11.6kg | core 97.4 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+      list: CampStash@home(+1,+2) fuel:Pine 0.75 (1m)   [stash mem: Pine6.7; true: Pine6.65]
+20:19 home(+1,+2) sleep 24m (fire 8.9h, Warmth Need)                         -> Finished | fire 8.7h/11.3kg | core 97.7 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+   -- goal dropped: time budget
+   ++ goal: fire until 08:00, need 2.8 fuel-h, forecast 1 min, budget 60
+      list: CampStash@home(+1,+2) fuel:Pine 0.75 (1m)   [stash mem: Pine6.7; true: Pine6.65]
+20:30 home(+1,+2) sleep 15m (fire 8.7h, Warmth Need)                         -> Finished | fire 8.4h/11.0kg | core 98.1 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+   -- goal dropped: done
+20:45 home(+1,+2) stoke Pine                                                 -> Finished | fire 9.1h/11.9kg | core 98.1 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+20:46 home(+1,+2) sleep 38m (fire 9.1h, Warmth Want)                         -> Finished | fire 9.1h/11.9kg | core 98.1 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+20:47 home(+1,+2) sleep 37m (fire 9.1h, Warmth Want)                         -> Finished | fire 8.5h/11.0kg | core 99.0 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+21:24 home(+1,+2) sleep 15m (fire 8.5h, Warmth Want)                         -> Finished | fire 8.2h/10.7kg | core 99.0 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+21:39 home(+1,+2) stoke Pine                                                 -> Finished | fire 8.9h/11.6kg | core 99.0 | Tinder0.07 Kindling0.87 +axe
+21:40 home(+1,+2) sleep 26m (fire 8.9h, Warmth Want)                         -> Finished | fire 8.9h/11.6kg | core 99.0 | Tinder0.07 Kindling0.87 +axe
+21:41 home(+1,+2) sleep 25m (fire 8.9h, Warmth Want)                         -> Finished | fire 8.5h/11.0kg | core 99.0 | Tinder0.07 Kindling0.87 +axe
+22:06 home(+1,+2) sleep 15m (fire 8.5h, Warmth Want)                         -> Finished | fire 8.2h/10.6kg | core 99.0 | Tinder0.07 Kindling0.87 +axe
+22:21 home(+1,+2) unstash Pine                                               -> Finished | fire 8.2h/10.6kg | core 99.0 | Tinder0.07 Kindling0.87 Pine3.0 +axe
+22:22 home(+1,+2) stoke Pine                                                 -> Finished | fire 8.9h/11.6kg | core 99.0 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+22:23 home(+1,+2) sleep 24m (fire 8.9h, Warmth Want)                         -> Finished | fire 8.9h/11.6kg | core 99.0 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+22:24 home(+1,+2) sleep 23m (fire 8.9h, Warmth Want)                         -> Finished | fire 8.5h/11.0kg | core 99.0 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+22:47 home(+1,+2) sleep 15m (fire 8.5h, Warmth Want)                         -> Finished | fire 8.2h/10.6kg | core 99.0 | Tinder0.07 Kindling0.87 Pine2.0 +axe
+23:02 home(+1,+2) stoke Pine                                                 -> Finished | fire 8.9h/11.6kg | core 99.0 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+23:03 home(+1,+2) sleep 25m (fire 8.9h, Warmth Want)                         -> Finished | fire 8.9h/11.6kg | core 99.0 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+23:04 home(+1,+2) sleep 24m (fire 8.9h, Warmth Want)                         -> Finished | fire 8.5h/11.0kg | core 99.0 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+23:28 home(+1,+2) sleep 15m (fire 8.5h, Warmth Want)                         -> Finished | fire 8.3h/10.7kg | core 99.0 | Tinder0.07 Kindling0.87 Pine1.0 +axe
+23:43 home(+1,+2) stoke Pine                                                 -> Finished | fire 8.9h/11.6kg | core 99.0 | Tinder0.07 Kindling0.87 +axe
+23:44 home(+1,+2) sleep 480m (fire 8.9h, Warmth Want)                        -> Finished | fire 8.9h/11.6kg | core 99.0 | Tinder0.07 Kindling0.87 +axe
+23:45 home(+1,+2) sleep 480m (fire 8.9h, Warmth Want)                        -> Finished | fire 0.9h/1.0kg | core 98.6 | Tinder0.07 Kindling0.87 +axe
+07:45 home(+1,+2) sleep 15m (fire 0.9h, Water Need)                          -> Finished | fire 0.7h/0.7kg | core 98.6 | Tinder0.07 Kindling0.87 +axe
+RESULT 3 snowy night (plain, trees 3 off) / B (Sim forecasts): fire-site=home(+1,+2) alive=True fire-at-sunrise=yes fire-out-min-after-first-lit=101 night-out=0 first-lit=16:20 trips=1 reversals=0 goals=2 drops=[time budget:1, done:1] flips=0 minCore=93.0 plan=14375us avg/69887us max over 55
+  refusals: 
+  interruptions: 
+  rules fired: R10 sleep timed to the fire x23; R14 light early: cold now x5; R19 careful pace x3; R8 chop needs light by dark hours x20; SITE camp moves to the fire's site x1
+

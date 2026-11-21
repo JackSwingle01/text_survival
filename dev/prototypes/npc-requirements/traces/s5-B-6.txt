@@ -1,0 +1,60 @@
+## 6 no tinder or kindling, 8 kg birch stashed - forecasts B (Sim forecasts)
+start 15:00, Clear 4F wind 21 mph, camp Forest, sunrise 6:00, pack  +axe
+   ++ goal: fire until 06:00, need 15.0 fuel-h, forecast 193 min, budget 289
+      list: Chop@home(0,0) tinder+fuel 7.06 (100m) | Forage@home(0,0) tinder+kindling 1.01 (92m) | CampStash@home(0,0) fuel:Birch 8.08 (1m)   [stash mem: Birch8; true: Birch8.0]
+15:00 home(0,0) chop Chop@home(0,0) tinder+fuel 7.06 (100m)                -> Finished | no fire | core 97.9 | Tinder0.14 Kindling1.87 Pine6.84 +axe
+   -- goal dropped: done
+16:40 home(0,0) wait: no fire, no plan                                     -> Finished | no fire | core 97.2 | Tinder0.14 Kindling1.87 Pine6.84 +axe
+   ++ goal: fire until 06:00, need 13.1 fuel-h, forecast 5 min, budget 60
+      list: Forage@home(0,0) tinder 0.01 (4m) | CampStash@home(0,0) fuel:Birch 7.37 (1m)   [stash mem: Pine15.6,Birch8; true: Pine15.62 Birch8.0]
+16:55 home(0,0) light (50%)                                                -> Finished | no fire | core 97.2 | Tinder0.09 Kindling1.87 Pine6.84 +axe
+      list: Forage@home(0,0) tinder 0.06 (35m) | CampStash@home(0,0) fuel:Birch 7.36 (1m)   [stash mem: Pine15.6,Birch8; true: Pine15.62 Birch8.0]
+16:56 home(0,0) light (50%)                                                -> Finished | no fire | core 97.2 | Tinder0.04 Kindling1.87 Pine6.84 +axe
+      list: Forage@home(0,0) tinder 0.11 (91m) | CampStash@home(0,0) fuel:Birch 7.34 (1m)   [stash mem: Pine15.6,Birch8; true: Pine15.62 Birch8.0]
+16:57 home(0,0) unload Pine before the trip                                -> Finished | no fire | core 97.1 | Tinder0.04 Kindling1.87 +axe
+      list: Forage@home(0,0) tinder 0.11 (91m) | CampStash@home(0,0) fuel:Birch 8.08 (1m) | CampStash@home(0,0) fuel:Pine 4.42 (1m)   [stash mem: Pine22.5,Birch8; true: Pine22.46 Birch8.0]
+16:58 home(0,0) forage Forage@home(0,0) tinder 0.11 (91m)                  -> Finished | no fire | core 96.3 | Tinder0.04 Kindling2.28 Birch4.4 Oak1.78 Stone0.36 +axe
+      list: CampStash@home(0,0) tinder:Tinder 0.1 (1m) | Forage@home(0,0) tinder 0.03 (20m) | CampStash@home(0,0) fuel:Birch 4.62 (1m)   [stash mem: Tinder0.1,Pine22.5,Birch9.7; true: Tinder0.05 Pine22.46 Birch9.68]
+17:28 home(0,0) unload Birch before the trip                               -> Finished | no fire | core 96.2 | Tinder0.04 Kindling2.28 Oak1.78 Stone0.36 +axe
+      list: CampStash@home(0,0) tinder:Tinder 0.1 (1m) | Forage@home(0,0) tinder 0.03 (20m) | CampStash@home(0,0) fuel:Birch 9.05 (1m)   [stash mem: Tinder0.1,Pine22.5,Birch14.1; true: Tinder0.05 Pine22.46 Birch14.08]
+17:29 home(0,0) unstash Tinder for tinder:Tinder                           -> Finished | no fire | core 96.2 | Tinder0.09 Kindling2.28 Oak1.78 Stone0.36 +axe
+      list: Forage@home(0,0) tinder 0.08 (78m) | CampStash@home(0,0) fuel:Birch 9.03 (1m)   [stash mem: Pine22.5,Birch14.1; true: Pine22.46 Birch14.08]
+17:30 home(0,0) light (44%)                                                -> Finished | fire 0.8h/1.0kg | core 96.2 | Tinder0.04 Kindling1.28 Oak1.78 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 8.25 (1m)   [stash mem: Pine22.5,Birch14.1; true: Pine22.46 Birch14.08]
+17:31 home(0,0) stoke Oak                                                  -> Finished | fire 2.6h/2.0kg | core 96.2 | Tinder0.04 Kindling1.28 Oak0.78 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 7.95 (1m)   [stash mem: Pine22.5,Birch14.1; true: Pine22.46 Birch14.08]
+17:32 home(0,0) stoke Oak                                                  -> Finished | fire 3.9h/2.8kg | core 96.2 | Tinder0.04 Kindling1.28 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 7.79 (1m)   [stash mem: Pine22.5,Birch14.1; true: Pine22.46 Birch14.08]
+17:33 home(0,0) unstash Birch                                              -> Finished | fire 3.9h/2.7kg | core 96.2 | Tinder0.04 Kindling1.28 Birch3.0 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 4.76 (1m)   [stash mem: Pine22.5,Birch11.1; true: Pine22.46 Birch11.08]
+17:34 home(0,0) stoke Birch                                                -> Finished | fire 4.9h/3.7kg | core 96.2 | Tinder0.04 Kindling1.28 Birch2.0 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 4.69 (1m)   [stash mem: Pine22.5,Birch11.1; true: Pine22.46 Birch11.08]
+17:35 home(0,0) stoke Birch                                                -> Finished | fire 6.0h/4.7kg | core 96.2 | Tinder0.04 Kindling1.28 Birch1.0 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 4.63 (1m)   [stash mem: Pine22.5,Birch11.1; true: Pine22.46 Birch11.08]
+17:36 home(0,0) stoke Birch                                                -> Finished | fire 7.0h/5.7kg | core 96.2 | Tinder0.04 Kindling1.28 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 4.64 (1m)   [stash mem: Pine22.5,Birch11.1; true: Pine22.46 Birch11.08]
+17:37 home(0,0) unstash Birch                                              -> Finished | fire 6.9h/5.7kg | core 96.2 | Tinder0.04 Kindling1.28 Birch3.0 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 1.61 (1m)   [stash mem: Pine22.5,Birch8.1; true: Pine22.46 Birch8.08]
+17:38 home(0,0) stoke Birch                                                -> Finished | fire 7.9h/6.6kg | core 96.2 | Tinder0.04 Kindling1.28 Birch2.0 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 1.62 (1m)   [stash mem: Pine22.5,Birch8.1; true: Pine22.46 Birch8.08]
+17:39 home(0,0) stoke Birch                                                -> Finished | fire 8.9h/7.6kg | core 96.2 | Tinder0.04 Kindling1.28 Birch1.0 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 1.63 (1m)   [stash mem: Pine22.5,Birch8.1; true: Pine22.46 Birch8.08]
+17:40 home(0,0) stoke Birch                                                -> Finished | fire 9.8h/8.6kg | core 96.3 | Tinder0.04 Kindling1.28 Stone0.36 +axe
+      list: CampStash@home(0,0) fuel:Birch 1.73 (1m)   [stash mem: Pine22.5,Birch8.1; true: Pine22.46 Birch8.08]
+17:41 home(0,0) unstash Birch                                              -> Finished | fire 9.8h/8.6kg | core 96.3 | Tinder0.04 Kindling1.28 Birch3.0 Stone0.36 +axe
+      list:    [stash mem: Pine22.5,Birch5.1; true: Pine22.46 Birch5.08]
+17:42 home(0,0) stoke Birch                                                -> Finished | fire 10.7h/9.6kg | core 96.3 | Tinder0.04 Kindling1.28 Birch2.0 Stone0.36 +axe
+      list:    [stash mem: Pine22.5,Birch5.1; true: Pine22.46 Birch5.08]
+17:43 home(0,0) stoke Birch                                                -> Finished | fire 11.6h/10.5kg | core 96.3 | Tinder0.04 Kindling1.28 Birch1.0 Stone0.36 +axe
+      list:    [stash mem: Pine22.5,Birch5.1; true: Pine22.46 Birch5.08]
+17:44 home(0,0) stoke Birch                                                -> Finished | fire 12.5h/11.5kg | core 96.3 | Tinder0.04 Kindling1.28 Stone0.36 +axe
+      list:    [stash mem: Pine22.5,Birch5.1; true: Pine22.46 Birch5.08]
+17:45 home(0,0) sleep 480m (fire 12.5h, Warmth Need)                       -> Finished | fire 10.6h/9.5kg | core 99.0 | Tinder0.04 Kindling1.28 Stone0.36 +axe
+   -- goal dropped: time budget
+19:38 home(0,0) sleep 480m (fire 10.6h, Water Want)                        -> Finished | fire 2.6h/1.9kg | core 98.6 | Tinder0.04 Kindling1.28 Stone0.36 +axe
+03:38 home(0,0) sleep 142m (fire 2.6h, Water Need)                         -> Finished | fire 0.3h/0.2kg | core 98.6 | Tinder0.04 Kindling1.28 Stone0.36 +axe
+RESULT 6 no tinder or kindling, 8 kg birch stashed / B (Sim forecasts): fire-site=home(0,0) alive=True fire-at-sunrise=yes fire-out-min-after-first-lit=0 night-out=0 first-lit=17:30 trips=0 reversals=0 goals=2 drops=[done:1, time budget:1] flips=0 minCore=96.2 plan=13216us avg/64483us max over 26
+  refusals: your pack is full x1
+  interruptions: 
+  rules fired: R10 sleep timed to the fire x3; R13 unload before a trip x2; R14 light early: cold now x3; R8 chop needs light by dark hours x15
+

@@ -1,0 +1,104 @@
+## 1b forest camp, no axe - forecasts B (Sim forecasts)
+start 15:00, Clear 4F wind 21 mph, camp Forest, sunrise 6:00, pack Tinder0.18 Kindling0.9
+   ++ goal: fire until 06:00, need 15.0 fuel-h, forecast 331 min, budget 496
+      list: Forage@home(0,0) kindling+fuel 8.5 (195m)   [stash mem: ; true: -]
+15:00 home(0,0) forage Forage@home(0,0) kindling+fuel 8.5 (195m)           -> Finished | no fire | core 98.6 | Tinder0.18 Kindling1.84 Stone0.31
+      list: Forage@(0,+1) fuel 7.35 (145m)   [stash mem: ; true: -]
+15:30 (0,+1)   to Forage@(0,+1) fuel 7.35 (145m) [1 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 98.6 | Tinder0.18 Kindling1.84 Stone0.31
+      list: Forage@(0,+1) fuel 7.35 (145m)   [stash mem: ; true: -]
+15:48 (0,+1)   forage Forage@(0,+1) fuel 7.35 (145m)                      -> Finished | no fire | core 98.0 | Tinder0.18 Kindling1.84 Pine3.43 Birch4.59 Stone0.31
+      list:    [stash mem: ; true: -]
+16:18 home(0,0) home: pack full (Careful 18m, risk 0%)                     -> Finished | no fire | core 97.5 | Tinder0.18 Kindling1.84 Pine3.43 Birch4.59 Stone0.31
+      list: Forage@home(0,0) fuel 5.64 (146m)   [stash mem: ; true: -]
+16:36 home(0,0) light (50%)                                                -> Finished | no fire | core 97.4 | Tinder0.13 Kindling1.84 Pine3.43 Birch4.59 Stone0.31
+      list: Forage@home(0,0) tinder+fuel 5.66 (157m)   [stash mem: ; true: -]
+16:37 home(0,0) light (50%)                                                -> Finished | no fire | core 97.4 | Tinder0.08 Kindling1.84 Pine3.43 Birch4.59 Stone0.31
+      list: Stash@(0,+1) tinder+fuel 5.59 (14m) | Forage@(0,+1) fuel 0.1 (1m)   [stash mem: ; true: -]
+16:38 home(0,0) light (50%)                                                -> Finished | fire 0.8h/1.0kg | core 97.4 | Tinder0.03 Kindling0.84 Pine3.43 Birch4.59 Stone0.31
+      list: Forage@home(0,0) fuel 4.84 (121m)   [stash mem: ; true: -]
+16:39 home(0,0) stoke Birch                                                -> Finished | fire 1.9h/2.0kg | core 97.4 | Tinder0.03 Kindling0.84 Pine3.43 Birch3.59 Stone0.31
+      list: Forage@home(0,0) fuel 4.65 (116m)   [stash mem: ; true: -]
+16:40 home(0,0) stoke Birch                                                -> Finished | fire 3.1h/3.0kg | core 97.4 | Tinder0.03 Kindling0.84 Pine3.43 Birch2.59 Stone0.31
+      list: Forage@home(0,0) fuel 4.53 (113m)   [stash mem: ; true: -]
+16:41 home(0,0) stoke Birch                                                -> Finished | fire 4.2h/4.0kg | core 97.3 | Tinder0.03 Kindling0.84 Pine3.43 Birch1.59 Stone0.31
+      list: Forage@home(0,0) fuel 4.42 (111m)   [stash mem: ; true: -]
+16:42 home(0,0) stoke Birch                                                -> Finished | fire 5.2h/4.9kg | core 97.3 | Tinder0.03 Kindling0.84 Pine3.43 Birch0.59 Stone0.31
+      list: Forage@home(0,0) fuel 4.35 (109m)   [stash mem: ; true: -]
+16:43 home(0,0) stoke Birch                                                -> Finished | fire 5.8h/5.5kg | core 97.3 | Tinder0.03 Kindling0.84 Pine3.43 Stone0.31
+      list: Forage@home(0,0) fuel 4.35 (109m)   [stash mem: ; true: -]
+16:44 home(0,0) stoke Pine                                                 -> Finished | fire 6.5h/6.5kg | core 97.3 | Tinder0.03 Kindling0.84 Pine2.43 Stone0.31
+      list: Forage@home(0,0) fuel 4.39 (110m)   [stash mem: ; true: -]
+16:45 home(0,0) stoke Pine                                                 -> Finished | fire 7.2h/7.5kg | core 97.3 | Tinder0.03 Kindling0.84 Pine1.43 Stone0.31
+      list: Forage@home(0,0) fuel 4.41 (110m)   [stash mem: ; true: -]
+16:46 home(0,0) stoke Pine                                                 -> Finished | fire 7.9h/8.4kg | core 97.3 | Tinder0.03 Kindling0.84 Pine0.43 Stone0.31
+      list: Forage@home(0,0) fuel 4.49 (112m)   [stash mem: ; true: -]
+16:47 home(0,0) stoke Pine                                                 -> Finished | fire 8.2h/8.9kg | core 97.3 | Tinder0.03 Kindling0.84 Stone0.31
+      list: Forage@home(0,0) fuel 4.53 (113m)   [stash mem: ; true: -]
+16:48 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 8.6h/9.7kg | core 97.3 | Tinder0.03 Stone0.31
+      list: Forage@home(0,0) fuel 4.59 (114m)   [stash mem: ; true: -]
+16:49 home(0,0) forage Forage@home(0,0) fuel 4.59 (114m)                   -> Finished | fire 8.1h/9.0kg | core 97.3 | Tinder0.07 Kindling3.74 Oak1.64 Stone0.31 PlantFiber0.07
+      list:    [stash mem: ; true: -]
+17:19 home(0,0) stoke Oak                                                  -> Finished | fire 9.6h/10.0kg | core 97.4 | Tinder0.07 Kindling3.74 Oak0.64 Stone0.31 PlantFiber0.07
+      list:    [stash mem: ; true: -]
+17:20 home(0,0) stoke Oak                                                  -> Finished | fire 10.5h/10.6kg | core 97.4 | Tinder0.07 Kindling3.74 Stone0.31 PlantFiber0.07
+      list:    [stash mem: ; true: -]
+17:21 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 11.0h/11.6kg | core 97.5 | Tinder0.07 Kindling2.74 Stone0.31 PlantFiber0.07
+      list:    [stash mem: ; true: -]
+17:22 home(0,0) sleep 26m (fire 11.0h, Warmth Need)                        -> Finished | fire 10.6h/11.0kg | core 98.4 | Tinder0.07 Kindling2.74 Stone0.31 PlantFiber0.07
+   -- goal dropped: done
+17:48 home(0,0) sleep 15m (fire 10.6h, Warmth Want)                        -> Finished | fire 10.3h/10.7kg | core 99.0 | Tinder0.07 Kindling2.74 Stone0.31 PlantFiber0.07
+18:03 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 10.8h/11.7kg | core 99.0 | Tinder0.07 Kindling1.74 Stone0.31 PlantFiber0.07
+18:04 home(0,0) sleep 31m (fire 10.8h, Warmth Want)                        -> Finished | fire 10.3h/11.0kg | core 99.0 | Tinder0.07 Kindling1.74 Stone0.31 PlantFiber0.07
+18:35 home(0,0) sleep 15m (fire 10.3h, Warmth Want)                        -> Finished | fire 10.1h/10.7kg | core 99.0 | Tinder0.07 Kindling1.74 Stone0.31 PlantFiber0.07
+18:50 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 10.6h/11.7kg | core 99.0 | Tinder0.07 Kindling0.74 Stone0.31 PlantFiber0.07
+18:51 home(0,0) sleep 29m (fire 10.6h, Warmth Want)                        -> Finished | fire 10.3h/11.3kg | core 99.0 | Tinder0.07 Kindling0.74 Stone0.31 PlantFiber0.07
+19:06 home(0,0) sleep 15m (fire 10.3h, Warmth Want)                        -> Finished | fire 10.1h/11.0kg | core 99.0 | Tinder0.07 Kindling0.74 Stone0.31 PlantFiber0.07
+19:21 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 10.5h/11.7kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+19:22 home(0,0) sleep 30m (fire 10.5h, Warmth Want)                        -> Finished | fire 10.5h/11.7kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+19:23 home(0,0) sleep 29m (fire 10.5h, Warmth Want)                        -> Finished | fire 10.0h/11.0kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+19:52 home(0,0) sleep 15m (fire 10.0h, Warmth Want)                        -> Finished | fire 9.7h/10.7kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+20:07 home(0,0) sleep 15m (fire 9.7h, Warmth Want)                         -> Finished | fire 9.5h/10.3kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+20:22 home(0,0) sleep 15m (fire 9.5h, Warmth Want)                         -> Finished | fire 9.2h/10.0kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+20:37 home(0,0) sleep 15m (fire 9.2h, Warmth Want)                         -> Finished | fire 9.0h/9.6kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+20:52 home(0,0) sleep 15m (fire 9.0h, Warmth Want)                         -> Finished | fire 8.7h/9.3kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+21:07 home(0,0) sleep 15m (fire 8.7h, Warmth Want)                         -> Finished | fire 8.5h/9.0kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+21:22 home(0,0) sleep 15m (fire 8.5h, Warmth Want)                         -> Finished | fire 8.2h/8.6kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+21:37 home(0,0) sleep 15m (fire 8.2h, Warmth Want)                         -> Finished | fire 8.0h/8.3kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+21:52 home(0,0) sleep 15m (fire 8.0h, Warmth Want)                         -> Finished | fire 7.7h/8.0kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+22:07 home(0,0) sleep 15m (fire 7.7h, Warmth Want)                         -> Finished | fire 7.5h/7.6kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+22:22 home(0,0) sleep 15m (fire 7.5h, Warmth Want)                         -> Finished | fire 7.2h/7.3kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+22:37 home(0,0) sleep 15m (fire 7.2h, Warmth Want)                         -> Finished | fire 7.0h/7.0kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+22:52 home(0,0) sleep 15m (fire 7.0h, Warmth Want)                         -> Finished | fire 6.7h/6.7kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+23:07 home(0,0) sleep 15m (fire 6.7h, Warmth Want)                         -> Finished | fire 6.5h/6.4kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+23:22 home(0,0) sleep 15m (fire 6.5h, Warmth Want)                         -> Finished | fire 6.2h/6.1kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+23:37 home(0,0) sleep 15m (fire 6.2h, Warmth Want)                         -> Finished | fire 6.0h/5.8kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+23:52 home(0,0) sleep 15m (fire 6.0h, Warmth Want)                         -> Finished | fire 5.7h/5.5kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+00:07 home(0,0) sleep 15m (fire 5.7h, Warmth Want)                         -> Finished | fire 5.5h/5.2kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+00:22 home(0,0) sleep 15m (fire 5.5h, Warmth Want)                         -> Finished | fire 5.2h/4.9kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+00:37 home(0,0) sleep 15m (fire 5.2h, Warmth Want)                         -> Finished | fire 5.0h/4.6kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+00:52 home(0,0) sleep 15m (fire 5.0h, Warmth Want)                         -> Finished | fire 4.7h/4.3kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+01:07 home(0,0) sleep 15m (fire 4.7h, Warmth Want)                         -> Finished | fire 4.5h/4.0kg | core 99.0 | Tinder0.07 Stone0.31 PlantFiber0.07
+01:22 home(0,0) sleep 15m (fire 4.5h, Warmth Want)                         -> Finished | fire 4.2h/3.8kg | core 98.9 | Tinder0.07 Stone0.31 PlantFiber0.07
+01:37 home(0,0) sleep 15m (fire 4.2h, Warmth Want)                         -> Finished | fire 4.0h/3.5kg | core 98.7 | Tinder0.07 Stone0.31 PlantFiber0.07
+01:52 home(0,0) sleep 15m (fire 4.0h, Warmth Want)                         -> Finished | fire 3.7h/3.3kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+02:07 home(0,0) sleep 15m (fire 3.7h, Warmth Want)                         -> Finished | fire 3.5h/3.0kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+02:22 home(0,0) sleep 15m (fire 3.5h, Warmth Want)                         -> Finished | fire 3.2h/2.7kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+02:37 home(0,0) sleep 15m (fire 3.2h, Warmth Want)                         -> Finished | fire 3.0h/2.5kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+02:52 home(0,0) sleep 15m (fire 3.0h, Warmth Want)                         -> Finished | fire 2.7h/2.2kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+03:07 home(0,0) sleep 15m (fire 2.7h, Warmth Want)                         -> Finished | fire 2.5h/2.0kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+03:22 home(0,0) sleep 15m (fire 2.5h, Warmth Want)                         -> Finished | fire 2.2h/1.8kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+03:37 home(0,0) sleep 15m (fire 2.2h, Water Need)                          -> Finished | fire 2.0h/1.5kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+03:52 home(0,0) sleep 15m (fire 2.0h, Water Need)                          -> Finished | fire 1.7h/1.3kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+04:07 home(0,0) sleep 15m (fire 1.7h, Water Need)                          -> Finished | fire 1.5h/1.1kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+04:22 home(0,0) sleep 15m (fire 1.5h, Water Need)                          -> Finished | fire 1.2h/0.9kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+04:37 home(0,0) sleep 15m (fire 1.2h, Water Need)                          -> Finished | fire 1.0h/0.7kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+04:52 home(0,0) sleep 15m (fire 1.0h, Water Need)                          -> Finished | fire 0.7h/0.5kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+05:07 home(0,0) sleep 15m (fire 0.7h, Water Need)                          -> Finished | fire 0.5h/0.3kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+05:22 home(0,0) sleep 15m (fire 0.5h, Water Need)                          -> Finished | fire 0.2h/0.1kg | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+05:37 home(0,0) sleep 15m (fire 0.2h, Water Need)                          -> Finished | fire out | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+05:52 home(0,0) wait: no fire, no plan                                     -> Finished | fire out | core 98.6 | Tinder0.07 Stone0.31 PlantFiber0.07
+RESULT 1b forest camp, no axe / B (Sim forecasts): fire-site=home(0,0) alive=True fire-at-sunrise=NO fire-out-min-after-first-lit=23 night-out=23 first-lit=16:38 trips=1 reversals=0 goals=1 drops=[done:1] flips=1 minCore=97.3 plan=10732us avg/57527us max over 73
+  refusals: 
+  interruptions: 
+  rules fired: R10 sleep timed to the fire x48; R14 light early: cold now x3; R19 careful pace x2
+

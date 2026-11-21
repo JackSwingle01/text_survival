@@ -1,0 +1,89 @@
+## 5 picked-over forest, no axe - forecasts B (Sim forecasts)
+start 15:00, Clear 4F wind 21 mph, camp Forest, sunrise 6:00, pack Tinder0.18 Kindling0.9
+   ++ goal: fire until 06:00, need 15.0 fuel-h, forecast 347 min, budget 521
+      list: Forage@(0,+1) kindling+fuel 8.5 (169m)   [stash mem: ; true: -]
+15:00 (0,+1)   to Forage@(0,+1) kindling+fuel 8.5 (169m) [1 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 98.6 | Tinder0.18 Kindling0.9
+      list: Forage@(+1,+1) kindling+fuel 8.5 (176m)   [stash mem: ; true: -]
+15:18 (+1,+1)  to Forage@(+1,+1) kindling+fuel 8.5 (176m) [1 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 98.6 | Tinder0.18 Kindling0.9
+      list: Forage@(+1,0) kindling+fuel 8.5 (182m)   [stash mem: ; true: -]
+15:36 (+1,0)   to Forage@(+1,0) kindling+fuel 8.5 (182m) [1 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 98.6 | Tinder0.18 Kindling0.9
+      list: Forage@(+2,0) kindling+fuel 8.5 (213m)   [stash mem: ; true: -]
+15:54 (+2,0)   to Forage@(+2,0) kindling+fuel 8.5 (213m) [1 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 98.2 | Tinder0.18 Kindling0.9
+      list: Forage@(+3,0) kindling+fuel 8.42 (184m)   [stash mem: ; true: -]
+16:12 (+3,0)   to Forage@(+3,0) kindling+fuel 8.42 (184m) [1 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 97.6 | Tinder0.18 Kindling0.9
+      list: Forage@(+3,0) kindling+fuel 8.42 (184m)   [stash mem: ; true: -]
+16:30 (+3,0)   forage Forage@(+3,0) kindling+fuel 8.42 (184m)             -> Finished | no fire | core 96.7 | Tinder0.18 Kindling1.56 PineNeedles0.04
+      list: Forage@(+3,0) fuel 7.85 (204m)   [stash mem: ; true: -]
+17:00 (+3,0)   forage Forage@(+3,0) fuel 7.85 (204m)                      -> Finished | no fire | core 96.0 | Tinder0.24 Kindling3.98 Birch3.72 Berries0.3 PlantFiber0.05 PineNeedles0.04
+   -- goal dropped: way home dangerous
+   ++ goal: fire until 06:00, need 12.5 fuel-h, forecast 181 min, budget 271
+      list: Forage@(+3,0) fuel 1.87 (54m)   [stash mem: ; true: -]
+17:30 (+3,0)   forage Forage@(+3,0) fuel 1.87 (54m)                       -> Finished | no fire | core 95.4 | Tinder0.24 Kindling5.71 Birch3.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@(+3,0) fuel 0.25 (8m)   [stash mem: ; true: -]
+18:00 (+2,0)   home: pack full (Careful 18m, risk 0%)                     -> Finished | no fire | core 95.1 | Tinder0.24 Kindling5.71 Birch3.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@(+1,-1) fuel 0.25 (6m)   [stash mem: ; true: -]
+18:18 (+1,0)   home: pack full (Careful 18m, risk 0%)                     -> Finished | no fire | core 94.9 | Tinder0.24 Kindling5.71 Birch3.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@(+1,-1) fuel 0.25 (6m)   [stash mem: ; true: -]
+18:36 home(0,0) home: pack full (Careful 18m, risk 0%)                     -> Finished | no fire | core 94.7 | Tinder0.24 Kindling5.71 Birch3.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@(-1,+1) fuel 3.66 (87m)   [stash mem: ; true: -]
+18:54 home(0,0) light (40%)                                                -> Finished | no fire | core 94.6 | Tinder0.19 Kindling5.71 Birch3.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@(-1,+1) fuel 3.71 (88m)   [stash mem: ; true: -]
+18:55 home(0,0) light (40%)                                                -> Finished | no fire | core 94.6 | Tinder0.14 Kindling5.71 Birch3.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@(-1,+1) tinder+fuel 3.76 (117m)   [stash mem: ; true: -]
+18:56 home(0,0) light (40%)                                                -> Finished | fire 0.8h/1.0kg | core 94.6 | Tinder0.09 Kindling4.71 Birch3.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.66 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+18:57 home(0,0) stoke Birch                                                -> Finished | fire 1.9h/2.0kg | core 94.6 | Tinder0.09 Kindling4.71 Birch2.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.47 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+18:58 home(0,0) stoke Birch                                                -> Finished | fire 3.1h/3.0kg | core 94.7 | Tinder0.09 Kindling4.71 Birch1.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.35 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+18:59 home(0,0) stoke Birch                                                -> Finished | fire 4.2h/4.0kg | core 94.7 | Tinder0.09 Kindling4.71 Birch0.72 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.24 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+19:00 home(0,0) stoke Birch                                                -> Finished | fire 4.9h/4.7kg | core 94.7 | Tinder0.09 Kindling4.71 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.18 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+19:01 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 5.5h/5.6kg | core 94.7 | Tinder0.09 Kindling3.71 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.22 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+19:02 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 6.0h/6.6kg | core 94.7 | Tinder0.09 Kindling2.71 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.26 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+19:03 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 6.6h/7.6kg | core 94.8 | Tinder0.09 Kindling1.71 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.27 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+19:04 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 7.1h/8.6kg | core 94.8 | Tinder0.09 Kindling0.71 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.36 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+19:05 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 7.5h/9.3kg | core 94.8 | Tinder0.09 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   !! no source for: fuel 3.41 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+19:06 home(0,0) sleep 15m (fire 7.5h, Warmth Critical)                     -> Finished | fire 7.2h/8.9kg | core 95.2 | Tinder0.09 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   ++ goal: fire until 06:00, need 3.4 fuel-h, forecast 512 min, budget 768
+      list: Forage@home(0,0) fuel 3.41 (512m)   [stash mem: ; true: -]
+19:21 home(0,0) forage Forage@home(0,0) fuel 3.41 (512m)                   -> Finished | fire 6.7h/8.2kg | core 95.6 | Tinder0.09 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@home(0,0) fuel 3.41 (511m)   [stash mem: ; true: -]
+19:51 home(0,0) forage Forage@home(0,0) fuel 3.41 (511m)                   -> Finished | fire 6.2h/7.4kg | core 96.0 | Tinder0.09 Birch1.58 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@home(0,0) fuel 1.81 (274m)   [stash mem: ; true: -]
+20:21 home(0,0) stoke Birch                                                -> Finished | fire 7.2h/8.4kg | core 96.0 | Tinder0.09 Birch0.58 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@home(0,0) fuel 1.85 (277m)   [stash mem: ; true: -]
+20:22 home(0,0) stoke Birch                                                -> Finished | fire 7.7h/8.9kg | core 96.1 | Tinder0.09 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@home(0,0) fuel 1.87 (279m)   [stash mem: ; true: -]
+20:23 home(0,0) forage Forage@home(0,0) fuel 1.87 (279m)                   -> Finished | fire 7.2h/8.2kg | core 96.3 | Tinder0.09 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list: Forage@home(0,0) fuel 1.87 (278m)   [stash mem: ; true: -]
+20:53 home(0,0) forage Forage@home(0,0) fuel 1.87 (278m)                   -> Finished | fire 6.7h/7.5kg | core 96.5 | Tinder0.09 Oak3.28 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list:    [stash mem: ; true: -]
+21:23 home(0,0) stoke Oak                                                  -> Finished | fire 8.2h/8.5kg | core 96.5 | Tinder0.09 Oak2.28 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list:    [stash mem: ; true: -]
+21:24 home(0,0) stoke Oak                                                  -> Finished | fire 9.7h/9.5kg | core 96.5 | Tinder0.09 Oak1.28 Berries0.3 PlantFiber0.05 PineNeedles0.06
+      list:    [stash mem: ; true: -]
+21:25 home(0,0) sleep 480m (fire 9.7h, Warmth Need)                        -> Finished | fire 6.4h/5.5kg | core 99.0 | Tinder0.09 Oak1.28 Berries0.3 PlantFiber0.05 PineNeedles0.06
+   -- goal dropped: done
+00:45 home(0,0) sleep 315m (fire 6.4h, Warmth Want)                        -> Finished | fire 1.1h/0.7kg | core 98.6 | Tinder0.09 Oak1.28 Berries0.3 PlantFiber0.05 PineNeedles0.06
+RESULT 5 picked-over forest, no axe / B (Sim forecasts): fire-site=home(0,0) alive=True fire-at-sunrise=yes fire-out-min-after-first-lit=0 night-out=0 first-lit=18:56 trips=1 reversals=0 goals=3 drops=[way home dangerous:1, step impossible:1, done:1] flips=4 minCore=94.6 plan=17029us avg/64683us max over 34
+  refusals: 
+  interruptions: 
+  rules fired: R10 sleep timed to the fire x3; R14 light early: cold now x3; R19 careful pace x8
+
