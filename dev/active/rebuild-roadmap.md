@@ -271,3 +271,30 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - A fighter standing off or giving ground that is 30 m or more from every enemy has broken off.
   This replaces leaving by the grid edge.
 - The tuning harness is being built now, ahead of the combat rules.
+
+**Combat round 4 and weapons, all yes**
+- Fire in a fight: deterrence = fire-fear × intensity × min(1, (6 m/d)²), from the predator's
+  distance to the fire. Fire-fear is one base value for animals, 2.0. A torch counts 0.25 and
+  moves with its holder.
+- The hold: in Standoff the step is proportional to the margin, with a deadband. An animal
+  never comes inside the larger reach + 0.5 m and can circle sideways. At tile level, a predator
+  enters your tile only if its margin at your position, fire included, reaches the Pressing entry.
+- Reach per weapon and animal. A spear held in Standoff or while giving ground is braced
+  automatically and strikes first.
+- One 0–1 damage scale. A hit of 0.5 or more reaches an organ; an unaware target takes ×1.5.
+
+| Weapon | Hand damage | Reach | Thrown: range / accuracy / damage |
+|---|---|---|---|
+| Hands | 0.10 Blunt | 0.8 m | — |
+| Staff (one stick, new) | 0.12 Blunt | 1.5 m | — |
+| Stone (new, also thrown) | 0.15 Blunt | 0.8 m | 15 m / 0.50 / 0.15 |
+| Crude spear (sharpened stick) | 0.22 Pierce | 2.5 m | 15 m / 0.55 / 0.22 |
+| Knife | 0.25–0.30 Sharp | 0.8 m | 10 m / 0.40 / 0.25 |
+| Wooden spear (fire-hardened) | 0.30 Pierce | 2.5 m | 20 m / 0.70 / 0.30 |
+| Heavy spear | 0.35 Pierce | 2.5 m | 15 m / 0.60 / 0.35 |
+| Axe | 0.40–0.45 Sharp | 1.2 m | 10 m / 0.45 / 0.35 |
+| Stone-tipped spear (crafting) | 0.40 Pierce | 2.5 m | 20 m / 0.70 / 0.40 |
+| Ivory-tipped spear (crafting) | 0.45 Pierce | 2.5 m | 20 m / 0.70 / 0.45 |
+
+  These are starting values for the tuning tool, keeping spear > axe > knife > stone > staff > hands.
+- Glance moves onto the sight rays: one sight model for noticing and the explored map.
