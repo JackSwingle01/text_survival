@@ -9,8 +9,8 @@
 //     each wet side, as a quarter arc when they turn; the rest of a water cell is its nearest land;
 //   - mountains: ridged, domain-warped height scaled by how deep into the range a pixel is, lit
 //     from the top left, with snow above a snowline;
-//   - snow: a dusting, then patches lingering in shade and hollows, then full cover shown through a
-//     world-noise mask, so cover is continuous;
+//   - snow: a dusting, then patches spreading over it, then full cover over the patches, each by the
+//     cell's depth through one world-noise mask, interpolated between cells so depth changes smoothly;
 //   - mud, and standing water on land: mud art through one world-noise mask that grows with how much
 //     of each the cell has; standing water that has frozen is ice;
 //   - ice, on water and on frozen standing water: tone, cracks, leads and clear windows from world noise;
@@ -21,13 +21,15 @@
 //
 // Ground state per cell (stateAt) and for the world (world) select what is drawn; ground-state.js
 // derives both from the view:
-//   cell:  { snow: 0..1 cover, dust: bool, laden: bool (plants carry snow), mud: 0..1 (wet ground),
+//   cell:  { dust: 0 | 1 (where patches are not), patches: 0..1 of the ground under patches, snow: 0..1 under full cover,
+//            laden: bool (plants carry snow), mud: 0..1 (wet ground),
 //            water: 0..1 (standing water's extent; frozen where ice is not 'none'), ice: 'none' | 'thin' | 'thick' }
 //   world: { palette: 'winter' | 'summer' | 'autumn', snowline: 0..1 mountain height that holds snow }
-// The palette sets colour only; every snow, mud and ice layer follows the cell.
+// The palette sets colour only; every snow, mud and ice layer follows the cell, except the mountains'
+// snow, which follows the season's snowline because the Sim keeps no snow on them.
 
 export const CELL = 48, SRC = 96, VARIANTS = 4, STEP = 6;
-export const WINTER = Object.freeze({ snow: 1, dust: false, laden: true, mud: 0, water: 0, ice: 'thick' });
+export const WINTER = Object.freeze({ dust: 0, patches: 1, snow: 1, laden: true, mud: 0, water: 0, ice: 'thick' });
 export const WINTER_WORLD = Object.freeze({ palette: 'winter', snowline: 0.34 });
 
 // ---------------------------------------------------------------- the art that exists
@@ -66,6 +68,7 @@ const C = Object.fromEntries(Object.entries({
 }).map(([k, v]) => [k, hex(v)]));
 /** A sprite's shadow on bare ground, by palette (the build script's `sh`; winter's bare ground is autumn's). */
 const SHADOW = { summer: hex('#323d2b'), autumn: hex('#3a3126'), winter: hex('#3a3126') };
+const SNOW_LAYERS = ['dust', 'patches', 'snow'];
 const SNOW = ['s0', 's1', 's2', 's3', 's4', 's5'].map(k => C[k]);
 const ROCK = ['r0', 'r1', 'r2', 'r3', 'r4'].map(k => C[k]);
 const ICE = ['i0', 'i1', 'i2', 'i3'].map(k => C[k]);
@@ -93,6 +96,8 @@ function ramp(cols, v, px, py, salt) {
   const lo = Math.floor(v);
   return cols[Math.min(cols.length - 1, lo + (v - lo > t ? 1 : 0))];
 }
+/** The world mask snow lies by: where it is high, snow lies first and longest. */
+export const snowField = (px, py) => vnoise(px, py, 60, 31) * 0.55 + vnoise(px, py, 22, 32) * 0.3 + vnoise(px, py, 7, 33) * 0.15;
 /** Which of `count` texture variants a 96px source square uses (same hash as the old TileRenderer). */
 export function variant(sx, sy, count) {
   let h = Math.imul(sx, 73856093) ^ Math.imul(sy, 19349663);
@@ -140,8 +145,9 @@ export function wantedArt(world) {
 export const textureNames = world => [...new Set(wantedArt(world).map(n => resolveArt(n)))];
 const SPRITE_NAMES = ['spruce_l', 'spruce_m', 'spruce_s', 'shrub', 'boulder', 'reed_2', 'reed_3', 'reed_4'];
 /**
- * The winter sprites are painted carrying snow, so a laden plant draws them in any season; a bare one
- * draws its palette's, and bare in a winter palette is the dead autumn look.
+ * A bare plant draws its season's palette. Winter's palette is autumn's colours (dead needles and
+ * grass), and the files named winter are painted carrying snow, so a bare winter plant draws the
+ * autumn file. Snow on a plant follows the cell (laden), not the season.
  */
 const BARE_SPRITES = { winter: 'autumn', summer: 'summer', autumn: 'autumn' };
 const spriteArt = (name, palette, laden) => `terrain/sprites/${name}_${laden ? 'winter' : BARE_SPRITES[palette]}`;
@@ -312,7 +318,7 @@ export function createBaker(map, stateAt, world, tex) {
       const band = Math.floor(p.h * 9) !== Math.floor(p.h1 * 9) || Math.floor(p.h * 9) !== Math.floor(p.h2 * 9);
       if (band && shade < -0.15 && vnoise(px, py, 12, 29) > 0.45) rock = C.r4;
       if (holds) return ramp(SNOW, 1.2 - shade * 1.7, px, py, 2);
-      if (p.h < 0.2 && hash01(px, py, 6) < 0.25) return s.snow >= 1 ? C.s3 : C.sc; // scree, buried only under full cover
+      if (p.h < 0.2 && hash01(px, py, 6) < 0.25) return between(px, py, ['snow'])[0] >= 1 ? C.s3 : C.sc; // scree, buried only under full cover
       return rock;
     }
     if (WET(p.kind)) {
@@ -324,7 +330,8 @@ export function createBaker(map, stateAt, world, tex) {
       return sample(`cavefloor_tile${k === 0 ? '' : k + 1}`, px, py);
     }
     let col = sample(`terrain/ground/${p.kind}_${n}_${pal}`, px, py);
-    const flav = FLAVOUR[p.kind] ?? 'flat', lies = snowed(px, py, s.snow);
+    const flav = FLAVOUR[p.kind] ?? 'flat', [dust, patches, cover] = between(px, py, SNOW_LAYERS);
+    const lies = snowed(px, py, cover);
     // Mud, and standing water in the wettest of it: wet ground while liquid, ice where it has frozen.
     // One mask for both, so water lies in the lowest of the mud. Its noise lies almost wholly within
     // 0.15..0.85, so its threshold spans that range: the least wetness shows, and a soaked cell shows
@@ -333,20 +340,38 @@ export function createBaker(map, stateAt, world, tex) {
     const shows = level => level > 0 && !lies && wet > 0.85 - level * 0.7;
     if (shows(s.mud)) col = sample(`terrain/mud_${n}_${pal}`, px, py) ?? col;
     if (shows(s.water)) col = (s.ice === 'none' ? null : ice(px, py, s.ice)) ?? sample(`terrain/mud_${n}_${pal}`, px, py) ?? col;
-    if (s.dust) col = sample(`terrain/snow/dust_${flav}_${n}`, px, py) ?? col;
-    if (s.snow > 0 && !lies) col = sample(`terrain/snow/patchy_${flav}_${n}`, px, py) ?? col;
-    if (fringe(px, py, s.snow)) col = sample(`terrain/snow/dust_${flav}_${n}`, px, py) ?? col;
+    const patched = snowed(px, py, patches);
+    if (snowed(px, py, dust) && !patched) col = sample(`terrain/snow/dust_${flav}_${n}`, px, py) ?? col;
+    if (patched && !lies) col = sample(`terrain/snow/patchy_${flav}_${n}`, px, py) ?? col;
     if (lies) col = sample(`terrain/snow/full_${flav}_${n}`, px, py) ?? col;
     // Banks: a dark wet edge, or a shadowed snow lip where the ground is covered.
-    if (p.bank && hash01(px, py, 5) < (s.snow >= 1 ? 0.8 : 0.75)) col = s.snow >= 1 ? C.s4 : C.e3;
+    if (p.bank && hash01(px, py, 5) < (cover >= 1 ? 0.8 : 0.75)) col = cover >= 1 ? C.s4 : C.e3;
     return col;
   }
 
-  // One world mask decides where full cover lies; more snow lowers its threshold.
-  const snowField = (px, py) => vnoise(px, py, 60, 31) * 0.55 + vnoise(px, py, 22, 32) * 0.3 + vnoise(px, py, 7, 33) * 0.15;
-  const snowed = (px, py, cover) => cover >= 1 || (cover > 0 && snowField(px, py) > 1 - cover);
-  // Partial cover's edge is ragged: a dusting just outside it.
-  const fringe = (px, py, cover) => cover > 0 && cover < 1 && !snowed(px, py, cover) && snowField(px, py) > 1 - cover - 0.035 && hash01(px, py, 3) < 0.5;
+  /**
+   * Cell state numbers at a pixel, interpolated between cell centres, so snow deepens smoothly from
+   * cell to cell rather than stepping at their borders.
+   */
+  function between(px, py, keys) {
+    const cx = Math.floor(px / CELL), cy = Math.floor(py / CELL), st = cell(cx, cy).st;
+    const fx = (px + 0.5) / CELL - cx - 0.5, fy = (py + 0.5) / CELL - cy - 0.5;
+    const ox = Math.floor(fx), oy = Math.floor(fy), tx = fx - ox, ty = fy - oy;
+    return keys.map(key => {
+      const v = (dx, dy) => {
+        const x = st[(oy + dy + 2) * 5 + ox + dx + 2][key];
+        if (!Number.isFinite(x)) throw new Error(`cell state near (${cx}, ${cy}) has no number "${key}": ${x}`);
+        return x;
+      };
+      return (v(0, 0) * (1 - tx) + v(1, 0) * tx) * (1 - ty) + (v(0, 1) * (1 - tx) + v(1, 1) * tx) * ty;
+    });
+  }
+
+  // One world mask decides where the dusting, patches and full cover lie, so deeper snow grows from
+  // the same hollows. Its noise lies almost wholly within 0.2..0.8, so a cover's threshold spans that range:
+  // a little snow shows a little, and half cover is world.py's half.
+  const threshold = cover => 0.8 - cover * 0.6;
+  const snowed = (px, py, cover) => cover >= 1 || (cover > 0 && snowField(px, py) > threshold(cover));
 
   /**
    * Bakes the pixels of cells [x0, x1) x [y0, y1) into out (RGBA, (x1 - x0) * CELL wide), then the

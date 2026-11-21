@@ -66,7 +66,7 @@ page keeps no ground of its own and a save loads with its snow. Every layer and 
 ```bash
 node --test tools/terrain.test.mjs                                               # ground follows the Sim, art matches PAINTED
 node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/ground.png      # winter
-node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/thaw.png --state '{"snow":0.5,"dust":false,"laden":false,"mud":0,"water":0.4,"ice":"thin"}'
+node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/thaw.png --state '{"dust":0,"patches":1,"snow":0.5,"laden":false,"mud":0,"water":0.4,"ice":"thin"}'
 ```
 
 ## Building

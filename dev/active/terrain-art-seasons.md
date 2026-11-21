@@ -21,8 +21,9 @@ the details and the preview tool.
 The renderer takes the ground state as input, and every state below already draws (try them with
 `tools/terrain-preview.mjs --state`):
 
-- per cell: `{ snow: 0..1 cover, dust: bool, laden: bool, mud: 0..1, water: 0..1 standing water's
-  extent, ice: 'none' | 'thin' | 'thick' }` (pond ice covers the standing water only, not the mud);
+- per cell: `{ dust: 0 | 1, patches: 0..1 of the ground under patches, snow: 0..1 under full
+  cover, laden: bool, mud: 0..1, water: 0..1 standing water's extent, ice: 'none' | 'thin' |
+  'thick' }` (pond ice covers the standing water only, not the mud);
 - per world: `{ palette, snowline }` (mountain height above which snow lies, 0..1).
 
 The page derives both from the view (`wwwroot/ground-state.js`): cells from `MapDto.Surface`, the
@@ -31,13 +32,9 @@ in `terrain-core.js`); `tools/terrain.test.mjs` fails when `PAINTED` and the fil
 
 ## To wire next
 
-1. **Partial snow's edge.** The renderer draws world.py's ragged dusting just outside partial
-   cover, but `cellState` sets `dust` whenever there is any snow below full cover, so partial
-   cover is dusted all over and the edge never shows. Dust should mean a dusting only
-   (`snow === 0`).
-2. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness. Deep water is impassable and
+1. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness. Deep water is impassable and
    skipped, and lake and river ice is static (`SiteWater`) until it grows and thaws.
-3. **Crust art.** `SurfaceDto.Crust` (snow whose top has refrozen) reaches the page, but nothing
+2. **Crust art.** `SurfaceDto.Crust` (snow whose top has refrozen) reaches the page, but nothing
    draws it: it needs an overlay, crust over full and patchy snow.
 
 ## Today

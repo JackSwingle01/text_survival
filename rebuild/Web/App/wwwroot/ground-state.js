@@ -6,10 +6,10 @@
 
 /** Every threshold between the Sim's numbers and the art. */
 export const GROUND = Object.freeze({
-  dustCm: 0.5,          // less than this reads as bare ground
-  patchyCm: 5,          // up to here a dusting; from here snow lies in patches
+  dustCm: 0.5,          // less than this reads as bare ground; from here a dusting
+  patchyCm: 5,          // from here patches spread, and the dusting lies only between them
+  patchedCm: 10,        // patches lie everywhere, so no dusting; from here full cover spreads over them
   fullCm: 15,           // from here the ground is covered
-  patchyCover: 0.25,    // cover where patches begin, rising to 1 at fullCm
   ladenCm: 5,           // trees and shrubs carry snow from this depth
   wetFullCm: 5,         // standing water this deep wets the whole cell
   wetMin: 0.1,          // mud or standing water below this does not show
@@ -23,39 +23,44 @@ export const GROUND = Object.freeze({
  */
 export const FROZEN_TERRAIN = Object.freeze({ water: 'thick', deepwater: 'thick' });
 
-/** Palette and mountain snowline by season (ClockDto.Season). A spring thaw shows last autumn's dead grass. */
+/**
+ * Palette, for the ground and the plants, and mountain snowline by season (ClockDto.Season). Spring has
+ * no palette of its own: the melt shows last autumn's dead grass. Mountains carry no snow of their
+ * own in the Sim, so their snowline follows the season.
+ */
 export const SEASONS = Object.freeze({
   winter: { palette: 'winter', snowline: 0.34 },
-  spring: { palette: 'autumn', snowline: 0.55 },
+  spring: { palette: 'autumn', snowline: 0.62 },
   summer: { palette: 'summer', snowline: 0.8 },
-  fall: { palette: 'autumn', snowline: 0.55 },
+  fall: { palette: 'autumn', snowline: 0.74 },
 });
 
 const ICE_RANK = { none: 0, thin: 1, thick: 2 };
 const quantise = v => Math.round(Math.min(1, Math.max(0, v)) * GROUND.steps) / GROUND.steps;
 const states = new Map();
-function intern(snow, dust, laden, mud, water, ice) {
-  const key = `${snow.toFixed(2)}${dust ? 'd' : ''}${laden ? 'l' : ''}m${mud.toFixed(2)}w${water.toFixed(2)}${ice}`;
+function intern(patches, snow, dust, laden, mud, water, ice) {
+  const key = `d${dust}p${patches.toFixed(2)}s${snow.toFixed(2)}${laden ? 'l' : ''}m${mud.toFixed(2)}w${water.toFixed(2)}${ice}`;
   let s = states.get(key);
-  if (!s) states.set(key, s = Object.freeze({ snow, dust, laden, mud, water, ice, key }));
+  if (!s) states.set(key, s = Object.freeze({ patches, snow, dust, laden, mud, water, ice, key }));
   return s;
 }
 
 /**
  * A cell's drawn state from its SurfaceDto (null: in sight with nothing on it) and terrain name:
- * { snow: 0..1 cover, dust, laden, mud: 0..1, water: 0..1 standing water's extent, ice: 'none' | 'thin' | 'thick'
- * (the standing water's, or the lake's), key }. Mud and standing water are apart, so a film of ice
- * on soaked ground covers only as much as the film does.
+ * { dust: 0 | 1 (a dusting lies where patches do not), patches: 0..1 of the ground under patches,
+ * snow: 0..1 under full cover, laden, mud: 0..1, water: 0..1 standing water's extent,
+ * ice: 'none' | 'thin' | 'thick' (the standing water's, or the lake's), key }. Mud and standing water are apart, so a film of ice on soaked ground covers only as
+ * much as the film does.
  */
 export function cellState(surface, terrain) {
   const snowCm = surface?.snowCm ?? 0, waterCm = surface?.waterCm ?? 0, mudLevel = surface?.mudLevel ?? 0;
-  const patch = (snowCm - GROUND.patchyCm) / (GROUND.fullCm - GROUND.patchyCm);
-  const snow = snowCm < GROUND.patchyCm ? 0 : quantise(GROUND.patchyCover + (1 - GROUND.patchyCover) * patch);
-  const dust = snowCm >= GROUND.dustCm && snow < 1;
+  const patches = quantise((snowCm - GROUND.patchyCm) / (GROUND.patchedCm - GROUND.patchyCm));
+  const snow = quantise((snowCm - GROUND.patchedCm) / (GROUND.fullCm - GROUND.patchedCm));
+  const dust = snowCm >= GROUND.dustCm && snowCm < GROUND.patchedCm ? 1 : 0;
   const shown = v => { const q = quantise(v); return q < GROUND.wetMin ? 0 : q; };
   const pond = surface?.ice ? (waterCm >= GROUND.thickIceCm ? 'thick' : 'thin') : 'none';
   const lake = FROZEN_TERRAIN[terrain] ?? 'none';
-  return intern(snow, dust, snowCm >= GROUND.ladenCm, shown(mudLevel), shown(waterCm / GROUND.wetFullCm), ICE_RANK[pond] > ICE_RANK[lake] ? pond : lake);
+  return intern(patches, snow, dust, snowCm >= GROUND.ladenCm, shown(mudLevel), shown(waterCm / GROUND.wetFullCm), ICE_RANK[pond] > ICE_RANK[lake] ? pond : lake);
 }
 
 export const BARE = cellState(null, null);
