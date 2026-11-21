@@ -456,22 +456,22 @@ public static partial class Body
         Update(body, ctx, world.Rng("body", agent.Id), woundsLived: world.Minute <= body.WoundsLivedThroughMinute);
 
         var kindsAfter = body.Effects.Select(e => e.Kind).ToList();
-        foreach (var k in kindsAfter.Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, k));
-        foreach (var k in kindsBefore.Except(kindsAfter)) events.Add(new EffectEnded(world.Minute, agent.Id, k));
+        foreach (var k in kindsAfter.Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, agent.Tile, k));
+        foreach (var k in kindsBefore.Except(kindsAfter)) events.Add(new EffectEnded(world.Minute, agent.Id, agent.Tile, k));
 
         if (!IsAlive(body))
         {
-            events.Add(new Died(world.Minute, agent.Id));
+            events.Add(new Died(world.Minute, agent.Id, agent.Tile));
             return "died";
         }
         if (!ctx.IsSleeping && energyBefore > 0 && body.EnergyMinutes == 0)
         {
-            events.Add(new Exhausted(world.Minute, agent.Id));
+            events.Add(new Exhausted(world.Minute, agent.Id, agent.Tile));
             return "exhausted";
         }
         if (ctx.IsSleeping && energyBefore < MaxEnergyMinutes && body.EnergyMinutes == MaxEnergyMinutes)
         {
-            events.Add(new FullyRested(world.Minute, agent.Id));
+            events.Add(new FullyRested(world.Minute, agent.Id, agent.Tile));
             return "fully rested";
         }
         return null;

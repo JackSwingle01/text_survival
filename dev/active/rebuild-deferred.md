@@ -55,9 +55,30 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Combat.cs:724`, `CombatAI.cs:37`, `Npc.cs:34` - relationship opinions are never written, so companions'
   help and pack cohesion ignore them. Upgrade: feed `Opinions` from the `WorldEvent` stream (plan decision 4).
 - `Npc.cs:475` - camp fuel hours ignore a stone pit's efficiency and a small fire's slower burn (both under 15%).
-- `Npc.cs:621`, `Npc.cs:673`, `Map.cs:128` - no sight rays or fog of war: NPC sight is a fixed radius and reads
-  herds' true positions. Upgrade: port old `GameMap.UpdateVisibility` into agent knowledge (plan decision 7).
+- `Knowledge.cs:84`, `Npc.cs:638`, `Map.cs:128` - no sight rays or fog of war: everyone's sight is `Sight.Visible`, a fixed
+  5-tile radius blind to terrain, weather and dark, and NPC threat checks read herds' true positions.
+  Upgrade: port old `GameMap.UpdateVisibility` behind `Sight.Visible`; nothing else needs to change.
 - `Travel.cs:201` - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.
+
+## Knowledge, receipts and skills
+
+- `Knowledge.cs:18` - a bare tile seen from a distance is not remembered (only tiles stood on or with something notable),
+  so memory cannot draw "explored but empty" ground. Upgrade: a seen-tiles bitset per person when the map needs fog.
+- `Knowledge.cs:232` - receipts leave out human prints: yours and another person's are the same mark.
+  Upgrade: remember a tile's human traffic as of the visit and report only what was added since.
+- `Knowledge.cs:119` - the player's camp, where a receipt tells everything, is the generated camp; moving camp does not move it.
+  Upgrade: a camp the player chooses (a tent pitched, a shelter built) once camps can move.
+- `Knowledge.cs:142` - an NPC's receipts are computed and dropped; the old `WitnessedTheft` / `StoleFrom` memories wait on them.
+  Allies do not share beliefs yet (short-loop step 8). Herds keep their learned fear on `HerdMind`, outside `Beliefs`.
+- `Knowledge.cs:55` - `Danger` has Hurt and Den; no thin ice, since Ground models no ice thickness yet.
+- `Npc.cs:33` - an NPC's last close threat (`ThreatTile`) stays its own decision state, not a `Sighting`: it keeps the
+  flight logic exactly as tuned. Upgrade: derive it from `Beliefs.Sightings` if the two should agree.
+- `Shelter.cs:459`, `Skills.cs:62` - Crafting teaches but pays nothing (crafting has no failures to spare yet); Cooking pays
+  in speed only (cooking has no bad results yet). Upgrade: crafting luck and cooking quality (short-loop feature 8).
+- `Odds.cs` - odds come as factors for fire-starting, throws, injury on hazardous ground and forage yield. Not yet:
+  stalking detection (`Combat.DetectionChance`, a power curve the stalk redesign replaces), dodge, shove and the flat
+  90% blow (no player choice rides on them yet), butchering yield (one product per resource; a sheet when butchering
+  becomes a trickle bar), a forage find's own chance (it hangs on a luck roll made inside the minute).
 
 ## Shelter and bedding
 

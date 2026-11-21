@@ -68,9 +68,9 @@ public enum BeddingKind { Camp, Makeshift, Padded, MossPadded, SleepingBag }
 public sealed record BeddingProps(string Name, double QualityPct, double WarmthBonusF);
 
 /// The Build activity finished something on this tile.
-public sealed record Built(long Minute, AgentId Who, TileId Tile, Structure What) : WorldEvent(Minute);
+public sealed record Built(long Minute, AgentId Who, TileId Tile, Structure What) : WorldEvent(Minute, Tile);
 /// A snow shelter melted away.
-public sealed record ShelterCollapsed(long Minute, TileId Tile, string Name) : WorldEvent(Minute);
+public sealed record ShelterCollapsed(long Minute, TileId Tile, string Name) : WorldEvent(Minute, Tile);
 
 /// Shelters, bedding and the work that makes them. Port of old ShelterFeature, BeddingFeature, the
 /// shelter and bedding parts of CampHandler and NeedCraftingSystem, and ShelterImprovementStrategy.
@@ -141,12 +141,15 @@ public static class Shelters
     }
 
     /// The shelter on this tile as it is now, or null. Settles any melting owed, so it writes to the
-    /// world: reads that must not (refusals, reports) use Peek.
-    public static ShelterState? At(World world, TileId tile)
+    /// world: reads that must not (refusals, reports) use Peek. A snow shelter that melted away while
+    /// nobody looked is reported at the hour it went, not the minute it was found gone.
+    public static ShelterState? At(World world, TileId tile, List<WorldEvent> events)
     {
         if (!world.Shelters.TryGetValue(tile, out var s)) return null;
-        if (Melt(world, tile, s)) return s;
+        if (Melt(world, tile, s) is not long goneHour) return s;
         world.Shelters.Remove(tile);
+        // Old game: snow shelters never melted, and the rebuild melted them without a word (bug, fixed).
+        events.Add(new ShelterCollapsed(goneHour * 60, tile, s.Name));
         return StandWaiting(world, tile);
     }
 
@@ -163,7 +166,7 @@ public static class Shelters
             InsulationLevel = s.InsulationLevel, OverheadLevel = s.OverheadLevel, WindLevel = s.WindLevel,
             InsulationCap = s.InsulationCap, OverheadCap = s.OverheadCap, WindCap = s.WindCap,
         };
-        if (Melt(world, tile, copy)) return copy;
+        if (Melt(world, tile, copy) == null) return copy;
         return Waiting(world, tile) is var (def, index) ? New(world, def, null, index) : null;
     }
 
@@ -180,9 +183,9 @@ public static class Shelters
     /// half-built frame is finished, never stranded; finished, it stands for good, and so does a
     /// natural shelter: behind one the find is only discovered, with nothing to wait for. A second
     /// find while one waits adds nothing, and a second discoverer of a find standing adds nothing.
-    public static void Found(World world, PoolId id, ShelterFind find)
+    public static void Found(World world, PoolId id, ShelterFind find, List<WorldEvent> events)
     {
-        var standing = At(world, id.Tile);
+        var standing = At(world, id.Tile, events);
         if (standing?.FromFind == id.Index) return;
         bool building = BuildingShelter(world, id.Tile);
         if (standing == null && !building) Place(world, id.Tile, find.Shelter, null, id.Index);
@@ -209,8 +212,8 @@ public static class Shelters
     public static bool IsDestroyed(ShelterState s) => Quality(s) <= 0.05;
 
     /// What the shelter here does for someone; nothing unless they keep still (old IsStationary).
-    public static ShelterCover CoverFor(World world, TileId tile, bool stationary) =>
-        stationary && At(world, tile) is { } s ? new(s.InsulationLevel, s.OverheadLevel, s.WindLevel) : default;
+    public static ShelterCover CoverFor(World world, TileId tile, bool stationary, List<WorldEvent> events) =>
+        stationary && At(world, tile, events) is { } s ? new(s.InsulationLevel, s.OverheadLevel, s.WindLevel) : default;
 
     // ---- wear and work ----
 
@@ -263,19 +266,20 @@ public static class Shelters
     const double MeltPerHourPerF = 0.01;
 
     /// Melts s to the current hour. The air is what reaches the surface (Ground.WeatherAt): wind chill
-    /// is felt by a body, it does not melt snow. False when it melted away; the caller removes it.
-    static bool Melt(World world, TileId tile, ShelterState s)
+    /// is felt by a body, it does not melt snow. When it melted away, the clock hour it was gone by;
+    /// the caller removes it. Null while it stands.
+    static long? Melt(World world, TileId tile, ShelterState s)
     {
-        if (s.MeltedToHour is not long hour) return true;
+        if (s.MeltedToHour is not long hour) return null;
         long now = world.Minute / 60;
         for (; hour < now; hour++)
         {
             double airF = Ground.WeatherAt(world, tile, hour * 60).AirTemperatureF;
             if (airF > 32) Damage(s, MeltPerHourPerF * (airF - 32));
-            if (IsDestroyed(s)) return false;
+            if (IsDestroyed(s)) return hour + 1;
         }
         s.MeltedToHour = hour;
-        return true;
+        return null;
     }
 
     // ---- materials (old MaterialProperties) ----
@@ -452,6 +456,8 @@ public static class Shelters
                 var p = world.Projects[tile];
                 bool shovel = r.ShovelHelps && Items.Tool(Items.Pack(world, agent.Id), ToolType.Shovel) != null;
                 p.MinutesDone += (shovel ? 2.0 : 1.0) / ImpairmentFactor(agent.Body);
+                // Crafting has no failures yet for practice to spare; it is learned, and waits for crafting luck to pay.
+                Skills.Award(world, agent, Skill.Crafting, Skills.CraftXpPerHour / 60, events);
                 if (p.MinutesDone < r.Minutes - 1e-9) return null;
                 world.Projects.Remove(tile);
                 if (r.Bedding is BeddingKind bed) PlaceBedding(world, tile, bed);
@@ -468,7 +474,7 @@ public static class Shelters
             case ImproveShelter i:
             {
                 if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
-                if (At(world, tile) is not { } s) return "the shelter is gone";
+                if (At(world, tile, events) is not { } s) return "the shelter is gone";
                 // Old: ten minutes a piece, longer when impaired; here a tenth of a piece a minute.
                 var pack = Items.Pack(world, agent.Id);
                 double pieces = Items.Take(pack, i.Material, Materials[i.Material].PieceKg / 10 / ImpairmentFactor(agent.Body)) / Materials[i.Material].PieceKg;

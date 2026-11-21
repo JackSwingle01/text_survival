@@ -765,7 +765,7 @@ public static class Pools
                 mind.Knows.SearchHours.Remove(id);
                 mind.Knows.Discovered.Add(id);
                 events.Add(new PoolDiscovered(world.Minute, agent.Id, id, pools[i].Name));
-                if (pools[i] is ShelterFind find) Shelters.Found(world, id, find);
+                if (pools[i] is ShelterFind find) Shelters.Found(world, id, find, events);
             }
             else mind.Knows.SearchHours[id] = hours;
         }

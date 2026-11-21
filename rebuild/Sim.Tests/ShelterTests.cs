@@ -65,11 +65,11 @@ public class ShelterTests
     public void CampOverhang_ThroughSurroundings_MatchesOldWithWindCoverageRead(string sky, double idleF, double movingF, double effectiveF)
     {
         var w = At(sky == "calm" ? Calm : Snowy);
-        Assert.NotNull(Shelters.At(w, Map.Of(w).Camp));
-        Assert.Equal(idleF, Sim.Surroundings(w, w.Agent(P), new Wait(P)).AirTempF, Digits);
-        Assert.Equal(movingF, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North)).AirTempF, Digits);
+        Assert.NotNull(Shelters.At(w, Map.Of(w).Camp, []));
+        Assert.Equal(idleF, Sim.Surroundings(w, w.Agent(P), new Wait(P), []).AirTempF, Digits);
+        Assert.Equal(movingF, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North), []).AirTempF, Digits);
         LightCampFire(w);
-        var ctx = Sim.Surroundings(w, w.Agent(P), new Wait(P));
+        var ctx = Sim.Surroundings(w, w.Agent(P), new Wait(P), []);
         Assert.Equal(effectiveF, ctx.AirTempF + ctx.FireBonusF, Digits);
     }
 
@@ -90,12 +90,12 @@ public class ShelterTests
         var tile = Open(w);
         w.Agent(P).Tile = tile;
         Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter, Wind: 1.0, WindCap: 1.0));
-        Assert.True(Sim.Surroundings(w, w.Agent(P), new Wait(P)).WindLevel < 0.01);
-        Assert.Equal(0.6, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North)).WindLevel, Digits);
+        Assert.True(Sim.Surroundings(w, w.Agent(P), new Wait(P), []).WindLevel < 0.01);
+        Assert.Equal(0.6, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North), []).WindLevel, Digits);
 
         var camp = Map.Of(w).Camp;
         w.Agent(P).Tile = camp;
-        Assert.Equal(0.6 * (1 - Overhang.WindLevel), Sim.Surroundings(w, w.Agent(P), new Wait(P)).WindLevel, Digits);
+        Assert.Equal(0.6 * (1 - Overhang.WindLevel), Sim.Surroundings(w, w.Agent(P), new Wait(P), []).WindLevel, Digits);
         var s = Weather.At(w, 0);
         Assert.True(Weather.ShelteredAirF(w, camp, s, 0, Overhang).AirF > Weather.ShelteredAirF(w, camp, s, 0, Overhang with { WindLevel = 0 }).AirF);
     }
@@ -117,18 +117,18 @@ public class ShelterTests
         }
         var w = At(Calm with { TemperatureC = 8 }); // above freezing, so ambient drying runs too
         var camp = Map.Of(w).Camp;
-        Assert.NotNull(Shelters.At(w, camp));
+        Assert.NotNull(Shelters.At(w, camp, []));
         double openWind = Weather.At(w, w.Minute).WindLevel;
 
         // No fire: the walls cut the drying wind.
-        var still = Sim.Surroundings(w, w.Agent(P), new Wait(P));
+        var still = Sim.Surroundings(w, w.Agent(P), new Wait(P), []);
         Assert.True(still.FireBonusF == 0 && still.WindLevel < openWind - 1e-6);
         Assert.True(WetAfter(still) > WetAfter(still with { WindLevel = openWind }) + 1e-6, "walls should slow ambient drying");
 
         // By a fire: the walls cut the chill (WindLevel) and not the drying.
         LightCampFire(w);
-        var byFire = Sim.Surroundings(w, w.Agent(P), new Wait(P));
-        var warmth = Fire.WarmthFor(w, P, Shelters.CoverFor(w, camp, stationary: true));
+        var byFire = Sim.Surroundings(w, w.Agent(P), new Wait(P), []);
+        var warmth = Fire.WarmthFor(w, P, Shelters.CoverFor(w, camp, stationary: true, events: []));
         Assert.True(byFire.FireBonusF > 0);
         Assert.Equal(openWind * (1 - warmth.WindProtectionLevel), byFire.FireDryingWindLevel!.Value, Digits);
         Assert.True(byFire.WindLevel < byFire.FireDryingWindLevel.Value - 1e-6);
@@ -144,8 +144,8 @@ public class ShelterTests
         var tile = Open(w);
         w.Agent(P).Tile = tile;
         Shelters.Place(w, tile, new ShelterDef("Rock Overhang", ShelterKind.RockOverhang));
-        Assert.Equal(0.7, Sim.Surroundings(w, w.Agent(P), new Wait(P)).OverheadCoverLevel, Digits);
-        Assert.Equal(0.0, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North)).OverheadCoverLevel, Digits);
+        Assert.Equal(0.7, Sim.Surroundings(w, w.Agent(P), new Wait(P), []).OverheadCoverLevel, Digits);
+        Assert.Equal(0.0, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North), []).OverheadCoverLevel, Digits);
         Assert.Equal(0.0, Map.OverheadCover(Map.Of(w), tile));
     }
 
@@ -159,7 +159,7 @@ public class ShelterTests
         LightCampFire(w);
         var warmth = Fire.WarmthFor(w, P, Overhang);
         Assert.True(warmth.ShelterHeatF > 10);
-        var ctx = Sim.Surroundings(w, w.Agent(P), new Sleep(P));
+        var ctx = Sim.Surroundings(w, w.Agent(P), new Sleep(P), []);
         double open = Weather.ShelteredAirF(w, Map.Of(w).Camp, Weather.At(w, w.Minute), 0, Overhang).AirF + warmth.AirHeatF;
         Assert.Equal(open, ctx.AirTempF, Digits);
         Assert.Equal(warmth.PitHeatF * 2 + warmth.ShelterHeatF, ctx.FireBonusF, Digits);
@@ -171,12 +171,12 @@ public class ShelterTests
     public void CampBedding_SleepsAtFullQuality_AndKeepsTheGroundOff()
     {
         var w = At(Mild);
-        var sleep = Sim.Surroundings(w, w.Agent(P), new Sleep(P));
+        var sleep = Sim.Surroundings(w, w.Agent(P), new Sleep(P), []);
         Assert.Equal(1.0, sleep.BeddingQualityPct);
         Assert.Equal(0.9, sleep.GroundProtectionLevel, Digits); // old 0.5 + quality * 0.4
-        Assert.Equal(0.0, Sim.Surroundings(w, w.Agent(P), new Wait(P)).GroundProtectionLevel); // on your feet
+        Assert.Equal(0.0, Sim.Surroundings(w, w.Agent(P), new Wait(P), []).GroundProtectionLevel); // on your feet
         w.Agent(P).Tile = Open(w);
-        sleep = Sim.Surroundings(w, w.Agent(P), new Sleep(P));
+        sleep = Sim.Surroundings(w, w.Agent(P), new Sleep(P), []);
         Assert.Equal(SurvivalContext.NoBeddingQualityPct, sleep.BeddingQualityPct);
         Assert.Equal(0.0, sleep.GroundProtectionLevel);
     }
@@ -191,7 +191,7 @@ public class ShelterTests
             Body.Damage(body, new DamageInfo(10, DamageType.Blunt, BodyTarget.LeftLeg), w.Rng("test"));
             double Condition() => body.Regions.Sum(r => r.Layers.Sum(l => l.Condition));
             double before = Condition();
-            var ctx = Sim.Surroundings(w, w.Agent(P), new Sleep(P)) with { BeddingQualityPct = quality };
+            var ctx = Sim.Surroundings(w, w.Agent(P), new Sleep(P), []) with { BeddingQualityPct = quality };
             for (int i = 0; i < 10; i++) Body.Update(body, ctx, w.Rng("test"));
             return Condition() - before;
         }
@@ -204,8 +204,8 @@ public class ShelterTests
     {
         var w = At(Mild);
         Shelters.PlaceBedding(w, Map.Of(w).Camp, BeddingKind.SleepingBag);
-        double awake = Sim.Surroundings(w, w.Agent(P), new Rest(P)).AirTempF;
-        Assert.Equal(awake + 5, Sim.Surroundings(w, w.Agent(P), new Sleep(P)).AirTempF, Digits);
+        double awake = Sim.Surroundings(w, w.Agent(P), new Rest(P), []).AirTempF;
+        Assert.Equal(awake + 5, Sim.Surroundings(w, w.Agent(P), new Sleep(P), []).AirTempF, Digits);
     }
 
     /// Old MakeCamp was offered only where there was no bedding: a bed no better than the one there
@@ -259,7 +259,7 @@ public class ShelterTests
         Assert.Equal(30, r.MinutesElapsed);
         Assert.Contains(r.Events, e => e is Built { What: Structure.BranchFrame });
         Assert.Equal(sticks - 4 * 0.3, Items.Have(pack, Resource.Kindling), Digits);
-        var s = Shelters.At(w, tile)!;
+        var s = Shelters.At(w, tile, [])!;
         Assert.Equal((0.15, 0.25, 0.20), (s.InsulationLevel, s.OverheadLevel, s.WindLevel));
         Assert.Contains("already a shelter", Sim.Step(w, new Build(P, Structure.LogFrame), 10).InterruptedReason);
     }
@@ -372,10 +372,10 @@ public class ShelterTests
         var r = Sim.Step(w, new Build(P, Structure.Tent), 60);
         Assert.Equal(("built", 10), (r.InterruptedReason, r.MinutesElapsed));
         Assert.DoesNotContain(Items.Pack(w, P).Gear, g => g.Kind == "hide_tent");
-        Assert.Equal(0.9, Shelters.At(w, tile)!.OverheadLevel);
+        Assert.Equal(0.9, Shelters.At(w, tile, [])!.OverheadLevel);
         w = Save.FromJson(Save.ToJson(w));
         Assert.Equal("packed", Sim.Step(w, new PackTent(P), 5).InterruptedReason);
-        Assert.Null(Shelters.At(w, tile));
+        Assert.Null(Shelters.At(w, tile, []));
         Assert.Contains(Items.Pack(w, P).Gear, g => g.Kind == "hide_tent");
         Assert.Contains("no tent", Sim.Step(w, new PackTent(P), 5).InterruptedReason);
     }
@@ -389,14 +389,14 @@ public class ShelterTests
         Sim.Step(w, new Build(P, Structure.Tent), 10);
         Items.Add(Items.Pack(w, P), Resource.Hide, 2);
         Sim.Step(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 10);
-        var improved = Shelters.At(w, tile)!;
+        var improved = Shelters.At(w, tile, [])!;
         double insulation = improved.InsulationLevel;
         Assert.True(insulation > 0.5);
         Sim.Step(w, new PackTent(P), 1);
         w = Save.FromJson(Save.ToJson(w)); // packed through a save too
         w.Agent(P).Tile = tile;
         Assert.Equal("built", Sim.Step(w, new Build(P, Structure.Tent), 10).InterruptedReason);
-        var again = Shelters.At(w, tile)!;
+        var again = Shelters.At(w, tile, [])!;
         Assert.Equal((insulation, 0.9, 0.7), (again.InsulationLevel, again.OverheadLevel, again.WindLevel));
         Assert.Equal((0.6, 0.95, 0.8), (again.InsulationCap, again.OverheadCap, again.WindCap));
     }
@@ -425,7 +425,7 @@ public class ShelterTests
                 Assert.NotNull(Shelters.Peek(w, tile));
                 w.Agent(P).Tile = camp;
             }
-            if (settle) Shelters.At(w, tile);
+            if (settle) Shelters.At(w, tile, []);
             return w;
         }
         Assert.Equal(Save.ToJson(Thaw(true, settle: false)), Save.ToJson(Thaw(false, settle: false)));
@@ -436,7 +436,7 @@ public class ShelterTests
         // Left to the thaw long enough it is gone.
         var b = Thaw(false, settle: true);
         b.Minute += 3 * 24 * 60;
-        Assert.Null(Shelters.At(b, Open(b)));
+        Assert.Null(Shelters.At(b, Open(b), []));
     }
 
     /// Snow melts at the air that reaches it: a gale at 37 °F chills a person below freezing but
@@ -449,7 +449,7 @@ public class ShelterTests
         Assert.True(Weather.AirAtF(w, tile, Weather.At(w, 0), 0) < 32);
         var s = Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
         w.Minute += 10 * 60;
-        Assert.Same(s, Shelters.At(w, tile));
+        Assert.Same(s, Shelters.At(w, tile, []));
         Assert.Equal(0.6 - 10 * 0.01 * (37.4 - 32), s.InsulationLevel, Digits);
     }
 
@@ -460,7 +460,7 @@ public class ShelterTests
         var tile = Open(w);
         var s = Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
         w.Minute += 24 * 60;
-        Assert.Same(s, Shelters.At(w, tile));
+        Assert.Same(s, Shelters.At(w, tile, []));
         Assert.Equal(0.6, s.InsulationLevel);
     }
 
@@ -474,7 +474,7 @@ public class ShelterTests
         w.Agent(P).Body.CoreTempF = 98.6;
         var r = Sim.Step(w, new Build(P, Structure.SnowShelter), 200);
         Assert.Equal(("built", 68), (r.InterruptedReason, r.MinutesElapsed)); // 135 minutes, doubled
-        Assert.Equal(ShelterKind.SnowShelter, Shelters.At(w, tile)!.Kind);
+        Assert.Equal(ShelterKind.SnowShelter, Shelters.At(w, tile, [])!.Kind);
     }
 
     // ---- shelter finds and the tile they stand on ----
@@ -516,7 +516,7 @@ public class ShelterTests
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find" && f.Text.Contains("waiting"));
         var r = Sim.Step(w, new Build(P, Structure.BranchFrame), 60);
         Assert.Equal("built", r.InterruptedReason);
-        Assert.Equal(ShelterKind.BranchFrame, Shelters.At(w, tile)!.Kind);
+        Assert.Equal(ShelterKind.BranchFrame, Shelters.At(w, tile, [])!.Kind);
         Assert.Empty(w.WaitingShelters);
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find" && f.Text.EndsWith("the Branch Frame Shelter stands in its place"));
         // And the tile is not shut to other work: bedding goes down beside the frame.
@@ -531,9 +531,9 @@ public class ShelterTests
         Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
         Assert.Equal("built", Sim.Step(w, new Build(P, Structure.Tent), 30).InterruptedReason);
         Pools.Search(w, w.Agent(P), 1000, []);
-        Assert.Equal("Hide Tent", Shelters.At(w, tile)!.Name);
+        Assert.Equal("Hide Tent", Shelters.At(w, tile, [])!.Name);
         Sim.Step(w, new PackTent(P), 1);
-        Assert.Equal(FindName(w, tile, pool), Shelters.At(w, tile)!.Name);
+        Assert.Equal(FindName(w, tile, pool), Shelters.At(w, tile, [])!.Name);
         Assert.Empty(w.WaitingShelters);
     }
 
@@ -550,7 +550,7 @@ public class ShelterTests
         string before = Save.ToJson(w);
         Assert.Equal(FindName(w, tile, pool), Shelters.Peek(w, tile)!.Name);
         Assert.Equal(before, Save.ToJson(w));
-        Assert.Equal(FindName(w, tile, pool), Shelters.At(w, tile)!.Name);
+        Assert.Equal(FindName(w, tile, pool), Shelters.At(w, tile, [])!.Name);
         Assert.Empty(w.WaitingShelters);
     }
 
@@ -573,7 +573,7 @@ public class ShelterTests
     {
         var (w, tile, pool) = FindTile(Mild);
         Pools.Search(w, w.Agent(P), 1000, []);
-        var standing = Shelters.At(w, tile)!;
+        var standing = Shelters.At(w, tile, [])!;
         Assert.Equal(pool, standing.FromFind);
         var npc = Npc.Spawn(w, tile);
         string before = System.Text.Json.JsonSerializer.Serialize(w.Shelters) + System.Text.Json.JsonSerializer.Serialize(w.WaitingShelters);
@@ -627,7 +627,7 @@ public class ShelterTests
         Assert.Null(Shelters.Refusal(w, new Build(P, Structure.SnowShelter)));
         var s = Shelters.Place(w, proper, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
         w.Minute += 24 * 60;
-        Assert.Same(s, Shelters.At(w, proper));
+        Assert.Same(s, Shelters.At(w, proper, []));
         Assert.Equal(0.6, s.InsulationLevel);
 
         w.Agent(P).Tile = Open(w); // open ground at the regional air: a thaw

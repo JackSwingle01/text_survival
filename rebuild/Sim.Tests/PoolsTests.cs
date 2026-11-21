@@ -45,11 +45,11 @@ public class PoolsTests
         Assert.Equal(kind, find.Shelter.Kind);
         Assert.True(Pools.IsHidden(find));
         w.Agent(P).Tile = tile;
-        Assert.Equal(default, Shelters.CoverFor(w, tile, stationary: true));
+        Assert.Equal(default, Shelters.CoverFor(w, tile, stationary: true, events: []));
         var events = new List<WorldEvent>();
         Pools.Search(w, w.Agent(P), 1000, events);
         Assert.Contains(events, e => e is PoolDiscovered d && d.Name == name);
-        var s = Assert.IsType<ShelterState>(Shelters.At(w, tile));
+        var s = Assert.IsType<ShelterState>(Shelters.At(w, tile, []));
         Assert.Equal((name, kind), (s.Name, s.Kind));
         // The old values: an overhang's insulation 0.3-0.6 and wind 0.4-0.7 under a 0.8 roof; an ice
         // cave's 0.25-0.40 and 0.7-0.9 under 0.95; the recess the cave's own levels.
@@ -458,11 +458,11 @@ public class SitePoolsTests
         foreach (var (t, site) in m.Sites)
             if (site.All.OfType<SiteShelter>().FirstOrDefault() is { } s)
             {
-                var placed = Shelters.At(w, t);
+                var placed = Shelters.At(w, t, []);
                 Assert.NotNull(placed);
                 Assert.Equal((s.Name, s.Type, s.Insulation), (placed!.Name, placed.Kind, placed.InsulationLevel));
             }
-            else Assert.Null(Shelters.At(w, t));
-        Assert.Equal("Overhang", Shelters.At(w, m.Camp)!.Name);
+            else Assert.Null(Shelters.At(w, t, []));
+        Assert.Equal("Overhang", Shelters.At(w, m.Camp, [])!.Name);
     }
 }

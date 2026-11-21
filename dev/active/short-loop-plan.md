@@ -294,6 +294,13 @@ Cheap now, expensive later. These should land during the rebuild, not after.
 | Skills on `Agent` | Phase 3 | Feature 3; NPCs learn too |
 | Knowledge model scoped as in feature 4 | Phase 3 (the NPC AI needs it when `ResourceMemory` ports) | Receipts and the map from beliefs |
 
+**Landed (rebuild phase 4).** Events carry `Tile`; catch-up stamps the minute things happened (fires,
+melting snow shelters); `Odds` breaks out fire, throw, injury and forage-yield chances; the fire roll reads
+Firecraft and dexterity. Skills live on `PersonMind`, not `Agent` as the row above says: only a person learns,
+and kind-specific state lives in the mind (clean-room decision 2). Place memory (`Beliefs`), tile journals and
+`Knowledge.Receipt` are in `rebuild/Sim/Knowledge.cs`, and the NPC's old memory now uses them. What is left out
+is in `dev/active/rebuild-deferred.md` under "Knowledge, receipts and skills".
+
 ---
 
 ## Build Order (After the Rebuild)

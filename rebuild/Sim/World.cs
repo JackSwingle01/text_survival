@@ -53,6 +53,8 @@ public sealed class World
     /// A shelter find that was found while the tile was taken, by tile: the index of its pool
     /// (Pools.At). It stands once the tile is free. Owned by Shelters.
     public SortedDictionary<TileId, int> WaitingShelters { get; init; } = [];
+    /// What happened on each tile someone has a stake in, oldest first and bounded. Owned by Journal.
+    public SortedDictionary<TileId, List<WorldEvent>> Journal { get; init; } = [];
     /// The pools generation put on each tile looked at so far; derived from Seed, never saved. Owned by Pools.
     internal Dictionary<TileId, IReadOnlyList<PoolDef>>? PoolCache;
 

@@ -82,7 +82,7 @@ public static class Traversal
         }
         if (to == Map.Of(world).Exit && agent.Mind is PersonMind)
         {
-            events.Add(new CrossedThePass(world.Minute, agent.Id));
+            events.Add(new CrossedThePass(world.Minute, agent.Id, to));
             return "crossed the pass";
         }
         return "arrived";
@@ -154,14 +154,21 @@ public static class Traversal
     public static bool IsHazardous(World world, TileId tile) => EffectiveHazardLevel(world, tile) >= HazardousLevel;
 
     /// Old TravelProcessor.GetInjuryRisk: chance a quick crossing of this tile injures you.
-    public static double InjuryRiskPct(World world, TileId tile, BodyState body, WeatherSample sky)
+    public static double InjuryRiskPct(World world, TileId tile, BodyState body, WeatherSample sky) =>
+        InjuryOdds(world, tile, body, sky).TotalPct;
+
+    /// The injury risk as its terms, for the trip preview: the ground's hazard, the weather, bad legs;
+    /// at most MaxInjuryRiskPct. Ground below HazardousLevel carries no risk at all (a zero base).
+    public static Odds InjuryOdds(World world, TileId tile, BodyState body, WeatherSample sky)
     {
         double baseRisk = EffectiveHazardLevel(world, tile);
-        if (baseRisk < HazardousLevel) return 0;
+        if (baseRisk < HazardousLevel) return new Odds("Safe ground", 0, []);
         double weather = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? 0.25
             : sky.PrecipitationPct > 0.3 || sky.Condition == WeatherCondition.LightSnow ? 0.15 : 0;
         double impaired = (1 - Body.GetCapacities(body).Moving) * 0.3;
-        return Math.Min(MaxInjuryRiskPct, baseRisk + weather + impaired);
+        return new Odds("Hazardous ground", baseRisk, Odds.Moving(
+            OddsTerm.Add(sky.Condition.ToString(), weather),
+            OddsTerm.Add("Bad legs", impaired)), MinPct: 0, MaxPct: MaxInjuryRiskPct);
     }
 
     /// One accident's mechanics, from the old AccidentVariants (their text is not ported).
@@ -231,10 +238,10 @@ public static class Traversal
         var hit = Body.Damage(body, new DamageInfo(accident.Amount, accident.Type, accident.Target), world.Rng("body", agent.Id));
         if (accident.Effect is EffectKind kind) Effects.Add(body, kind, accident.Severity);
         events.Add(new Injured(world.Minute, agent.Id, tile, hit.HitRegion, accident.Type, accident.Amount));
-        foreach (var k in body.Effects.Select(e => e.Kind).Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, k));
+        foreach (var k in body.Effects.Select(e => e.Kind).Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, agent.Tile, k));
 
         if (Body.IsAlive(body)) return null;
-        events.Add(new Died(world.Minute, agent.Id));
+        events.Add(new Died(world.Minute, agent.Id, agent.Tile));
         return "died";
     }
 }

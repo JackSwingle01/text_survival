@@ -201,7 +201,8 @@ public static class Carcasses
     /// tear off half the meat and some bone and ruin the rest. Kilograms removed are linear in
     /// minutes, so cutting a minute at a time takes what one long cut does. Once it is all cut,
     /// Settle applies the meat floor and drops what was too little to keep.
-    public static void Cut(Carcass c, double minutes, bool hasCuttingTool, bool handsImpaired, ButcherMode mode)
+    /// skillFactor is the butcher's practice (Skills.ButcherYieldFactor): less left on the bone.
+    public static void Cut(Carcass c, double minutes, bool hasCuttingTool, bool handsImpaired, ButcherMode mode, double skillFactor = 1.0)
     {
         if (minutes <= 0 || AllCut(c)) return;
         var props = ModeProps(mode);
@@ -216,6 +217,7 @@ public static class Carcasses
             double kg = !hasCuttingTool
                 ? r switch { Resource.RawMeat => take * 0.5 * yieldFactor * meatDecay, Resource.Bone => take * yieldFactor * 0.67, _ => 0 }
                 : take * yieldFactor * props.YieldFactor.GetValueOrDefault(r, 1) * (r == Resource.RawMeat ? meatDecay : 1);
+            kg *= skillFactor;
             c.CutKg[r] = c.CutKg.GetValueOrDefault(r) + take;
             c.Remaining[r] = Math.Max(0, c.Remaining[r] - take);
             if (kg <= 0) continue;

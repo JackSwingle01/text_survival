@@ -301,10 +301,10 @@ public class WeatherTests
         world.Minute = 960; // Jul 2 01:00: no sun
         Shelters.Remove(world, Map.Of(world).Camp); // the open camp tile; its overhang is ShelterTests'
         // Camp lets 0.4 of the wind through; open plain 1.2 (old Location.WindFactor inside the chill).
-        var ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P));
+        var ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P), []);
         Assert.Equal(Weather.WindChillF(14, 22.5 * 0.4), ctx.AirTempF, Digits);
         world.Agent(P).Tile = TileOf(Map.Of(world), Terrain.Plain);
-        ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P));
+        ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P), []);
         Assert.Equal(Weather.WindChillF(14, 22.5 * 1.2), ctx.AirTempF, Digits);
         Assert.True(ctx.AirTempF < 14 - 15);
         Assert.Equal(0.5, ctx.WindLevel, Digits); // old: the body's convective wind is regional, not the tile's
@@ -326,9 +326,9 @@ public class WeatherTests
         world.FixedWeather = Sky(0, -10, 0.5, 0.3, 0.8, WeatherCondition.Cloudy);
         var m = Map.Of(world);
         var pass = m.PassStageIndex.Single(kv => Map.PassStages[kv.Value].Name == "The Pass Proper").Key;
-        double campF = Sim.Surroundings(world, world.Agent(P), new Wait(P)).AirTempF;
+        double campF = Sim.Surroundings(world, world.Agent(P), new Wait(P), []).AirTempF;
         world.Agent(P).Tile = pass;
-        double passF = Sim.Surroundings(world, world.Agent(P), new Wait(P)).AirTempF;
+        double passF = Sim.Surroundings(world, world.Agent(P), new Wait(P), []).AirTempF;
         // -15 °F of its own, and twice the wind through the chill against camp's 0.4.
         Assert.Equal(Weather.ExposedAirF(Weather.At(world, 0), 0, 2.0, 0, -15), passF, Digits);
         Assert.True(passF < campF - 25, $"pass {passF:F1} F vs camp {campF:F1} F");
@@ -347,7 +347,7 @@ public class WeatherTests
             var w = World.New(17);
             w.FixedWeather = world.FixedWeather;
             w.Agent(P).Tile = at;
-            Assert.Equal(Map.OverheadCover(m, at), Sim.Surroundings(w, w.Agent(P), new Wait(P)).OverheadCoverLevel);
+            Assert.Equal(Map.OverheadCover(m, at), Sim.Surroundings(w, w.Agent(P), new Wait(P), []).OverheadCoverLevel);
             Sim.Step(w, new Wait(P), 60);
             return Effects.Severity(w.Agent(P).Body, EffectKind.Wet);
         }
@@ -383,7 +383,7 @@ public class WeatherTests
     {
         var world = World.New(1);
         world.FixedWeather = Sky(0, 0, 0.2, 0.6, 1, cond); // 0 °C: either phase can fall, so the condition decides
-        var ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P));
+        var ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P), []);
         Assert.Equal(expected, ctx.Precipitation);
         Assert.Equal(0.6, ctx.PrecipitationPct);
     }

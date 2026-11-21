@@ -20,7 +20,7 @@ public sealed class Doing
 
 /// A non-player agent's mind turned an activity down this minute: the activity was refused. It
 /// waits a minute and decides again.
-public sealed record PlanRefused(long Minute, AgentId Who, string Activity, string Reason) : WorldEvent(Minute);
+public sealed record PlanRefused(long Minute, AgentId Who, TileId Tile, string Activity, string Reason) : WorldEvent(Minute, Tile);
 
 public static class Sim
 {
@@ -34,6 +34,12 @@ public static class Sim
         var agent = world.Agent(activity.Who);
         if (!IsAlive(agent)) throw new InvalidOperationException($"{agent.Id} is dead and cannot act");
         var events = new List<WorldEvent>();
+        int filed = 0; // how far into events the tile journals have read (Journal.File)
+        StepResult Result(int elapsed, string? reason)
+        {
+            Journal.File(world, events, ref filed);
+            return new StepResult(events, elapsed, reason);
+        }
         if (agent.Id == AgentId.Player && Crossed(world)) return new StepResult(events, 0, RunOver);
         // A fight holds every agent with a member still in it: no walking off without fleeing.
         if (activity is not Fight && Held(world, agent.Id))
@@ -43,7 +49,7 @@ public static class Sim
             Stop(world, agent, agent.Doing, events);
             agent.Doing = null;
         }
-        if (Start(world, activity, minutes, events, out var doing) is string refused) return new StepResult(events, 0, refused);
+        if (Start(world, activity, minutes, events, out var doing) is string refused) return Result(0, refused);
 
         for (int elapsed = 1; elapsed <= minutes; elapsed++)
         {
@@ -51,17 +57,28 @@ public static class Sim
             if (activity is Fight act && Combat.Act(world, act, events) is string stale)
             {
                 Stop(world, agent, doing, events);
-                return new StepResult(events, elapsed - 1, stale);
+                return Result(elapsed - 1, stale);
             }
             world.Minute++;
             Scheduler.Minute(world, activity.Who, events);
-            if (Live(world, agent, doing, events) is string interrupt)
+            var interrupt = Live(world, agent, doing, events);
+            EndMinute(world, agent, activity, events, ref filed);
+            if (interrupt != null)
             {
                 Stop(world, agent, doing, events); // death too: what was gathered is reported
-                return new StepResult(events, elapsed, interrupt == Done ? null : interrupt);
+                return Result(elapsed, interrupt == Done ? null : interrupt);
             }
         }
         throw new InvalidOperationException("An activity outlived the minutes it was given");
+    }
+
+    /// The close of every minute the world lives: the player, awake, takes in what is around them
+    /// (Knowledge.Witness), and the minute's events go into the tile journals. Asleep is away.
+    static void EndMinute(World world, Agent? player, Activity activity, List<WorldEvent> events, ref int filed)
+    {
+        if (player is { Mind: PlayerMind } && activity is not Sleep && IsAlive(player) && world.Agents.ContainsKey(player.Id))
+            Knowledge.Witness(world, player, events, ref filed);
+        Journal.File(world, events, ref filed);
     }
 
     /// What Live returns when the minutes given ran out with nothing else to stop for.
@@ -85,6 +102,7 @@ public static class Sim
     {
         if (minutes <= 0) throw new ArgumentOutOfRangeException(nameof(minutes), minutes, "Advance needs at least one minute");
         var events = new List<WorldEvent>();
+        int filed = 0;
         for (int i = 0; i < minutes; i++)
         {
             world.Agents.TryGetValue(AgentId.Player, out var player);
@@ -94,16 +112,21 @@ public static class Sim
                 if (!IsAlive(player)) Combat.Finish(world, fight, events);
                 else
                 {
-                    var round = Step(world, new Fight(player.Id, CombatAction.Wait), 1);
+                    Journal.File(world, events, ref filed);
+                    var round = Step(world, new Fight(player.Id, CombatAction.Wait), 1); // files its own
                     events.AddRange(round.Events);
+                    filed = events.Count;
                     if (round.MinutesElapsed != 1) throw new InvalidOperationException($"A waiting round was refused: {round.InterruptedReason}");
                     continue;
                 }
             }
             world.Minute++;
             Scheduler.Minute(world, null, events);
-            if (player != null && IsAlive(player)) LiveBodies(world, player, new Wait(player.Id), events);
+            bool living = player != null && IsAlive(player);
+            if (living) LiveBodies(world, player!, new Wait(player!.Id), events);
+            EndMinute(world, living ? player : null, new Wait(AgentId.Player), events, ref filed);
         }
+        Journal.File(world, events, ref filed);
         return events;
     }
 
@@ -198,7 +221,7 @@ public static class Sim
         if (agent.Mind is HerdMind) return Fauna.Tick(world, agent, events);
         Fire.CatchUpAround(world, agent, events); // before anything reads the fire this minute
         var body = agent.Body;
-        var interrupt = Body.Tick(world, agent, Surroundings(world, agent, activity), events);
+        var interrupt = Body.Tick(world, agent, Surroundings(world, agent, activity, events), events);
         body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute);
         return interrupt;
     }
@@ -210,7 +233,8 @@ public static class Sim
     }
 
     /// What the world and this activity do to the agent's body this minute.
-    internal static SurvivalContext Surroundings(World world, Agent agent, Activity activity)
+    /// Events take a snow shelter melting away under someone keeping still (Shelters.At).
+    internal static SurvivalContext Surroundings(World world, Agent agent, Activity activity, List<WorldEvent> events)
     {
         // Every activity so far keeps the agent put beside whatever fire there is: full radiant heat.
         // Old ActivityConfig: metabolic factor and how close to the fire the activity keeps you.
@@ -230,7 +254,7 @@ public static class Sim
 
             _ => throw new NotSupportedException($"No survival profile for activity {activity.GetType().Name}"),
         };
-        var cover = Shelters.CoverFor(world, agent.Tile, stationary);
+        var cover = Shelters.CoverFor(world, agent.Tile, stationary, events);
         var warmth = Fire.WarmthFor(world, agent.Id, cover);
         var bedding = Shelters.BeddingAt(world, agent.Tile);
         var sky = Weather.At(world, world.Minute);
@@ -316,7 +340,7 @@ public static class Scheduler
         if (Sim.Start(world, activity, minutes, events, out var doing) is string refused)
         {
             if (agent.Mind is HerdMind) throw new InvalidOperationException($"Herd {agent.Id} chose a refused {activity}: {refused}");
-            events.Add(new PlanRefused(world.Minute, agent.Id, activity.GetType().Name, refused));
+            events.Add(new PlanRefused(world.Minute, agent.Id, agent.Tile, activity.GetType().Name, refused));
             Sim.Start(world, new Wait(agent.Id), 1, events, out doing);
         }
         // Starting may have ended it: a hunt that killed every hunter.

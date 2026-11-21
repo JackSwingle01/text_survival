@@ -10,12 +10,16 @@ namespace Survival;
 [JsonDerivedType(typeof(HerdMind), "herd")]
 public abstract record Mind;
 
-/// A person: carries a pack and knows what they have found. The player and (phase 3d) NPCs share
-/// this, so every work activity runs the same code for both. A herd's mind carries nothing.
+/// A person: carries a pack, knows what they have seen, and gets better at what they do. The
+/// player and NPCs share this, so every work activity, memory and skill runs the same code for
+/// both. A herd's mind carries nothing.
 public abstract record PersonMind : Mind
 {
     public Inventory Pack { get; init; } = Items.StartingPack();
-    public Knowledge Knows { get; init; } = new();
+    public Beliefs Knows { get; init; } = new();
+    /// Only the skills practised so far (Skills). The short-loop plan put these on Agent; they live
+    /// here because only a person learns, and kind-specific state lives in the mind (plan decision 2).
+    public SortedDictionary<Skill, SkillProgress> Skills { get; init; } = [];
 }
 
 /// The UI picks the activities.
@@ -23,16 +27,6 @@ public sealed record PlayerMind : PersonMind;
 
 /// The NPC utility AI picks the activities (phase 3d; state and decider live in Npc.cs).
 public sealed partial record NpcMind : PersonMind;
-
-/// An agent's beliefs about the world (plan decision 7), kept minimal: which hidden pools it has
-/// found, and the search effort it has put into the ones it has not found yet.
-public sealed class Knowledge
-{
-    public List<PoolId> Discovered { get; init; } = [];
-    /// Perception-weighted hours spent searching for each hidden pool still unfound.
-    /// Sorted for the same reason as Inventory.Kg: found pools are removed from it.
-    public SortedDictionary<PoolId, double> SearchHours { get; init; } = [];
-}
 
 /// One or more bodies that move and decide as a unit: the player, an NPC, a herd (plan decision 2).
 public sealed class Agent

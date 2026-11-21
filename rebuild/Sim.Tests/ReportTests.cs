@@ -46,7 +46,7 @@ public class ReportTests
         var w = Lived();
         var m = Map.Of(w);
         var tile = Map.Step(m.Camp, Direction.East);
-        if (Shelters.At(w, tile) == null) Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
+        if (Shelters.At(w, tile, []) == null) Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
         Sim.Advance(w, 5 * 60); // hours of melt and decay owed, unsettled
         string before = Save.ToJson(w);
         var finds = Report.Finds(w);

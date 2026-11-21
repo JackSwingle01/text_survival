@@ -68,6 +68,44 @@ public class ArchitectureTests
         Assert.True(writes.Count == 0, string.Join("\n", writes));
     }
 
+    // ---- world events: every one names its tile, and every one can be filed ----
+
+    static IReadOnlyList<Type> EventTypes() =>
+        typeof(WorldEvent).Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(WorldEvent)) && !t.IsAbstract).OrderBy(t => t.Name).ToList();
+
+    /// Every WorldEvent has a Tile, so it can be filed in a tile journal (short-loop plan, Asks of
+    /// the Rebuild). The base record demands one; this checks each event is given it, from a
+    /// TileId or a PoolId of its own, never left to default.
+    [Fact]
+    public void EveryWorldEvent_IsGivenItsTile()
+    {
+        Assert.True(EventTypes().Count >= 30);
+        var missing = EventTypes()
+            .Where(t => !t.GetConstructors().Any(c => c.GetParameters().Any(p => p.ParameterType == typeof(TileId) || p.ParameterType == typeof(PoolId))))
+            .Select(t => t.Name).ToList();
+        Assert.True(missing.Count == 0, "no tile given: " + string.Join(", ", missing));
+    }
+
+    /// Journals are saved: an event type with no JsonDerivedType line would throw the first time one is filed.
+    [Fact]
+    public void EveryWorldEvent_IsRegisteredForTheSave()
+    {
+        var registered = typeof(WorldEvent).GetCustomAttributes<JsonDerivedTypeAttribute>().Select(a => a.DerivedType).ToHashSet();
+        var missing = EventTypes().Where(t => !registered.Contains(t)).Select(t => t.Name).ToList();
+        Assert.True(missing.Count == 0, "not registered: " + string.Join(", ", missing));
+    }
+
+    /// In a busy run every event raised carries a real tile on the map: none left at its default.
+    [Fact]
+    public void ABusyRun_RaisesNoEventWithoutATile()
+    {
+        var events = Phase3GateTests.RunCollecting(200);
+        var m = Map.Of(World.New(17));
+        Assert.True(events.Select(e => e.GetType()).Distinct().Count() >= 12, string.Join(", ", events.Select(e => e.GetType().Name).Distinct()));
+        var bad = events.Where(e => e.Tile == default || !m.InBounds(e.Tile)).Select(e => e.ToString()).Take(5).ToList();
+        Assert.True(bad.Count == 0, string.Join("\n", bad));
+    }
+
     // ---- the save graph (plan: entities are referenced by id, never by object) ----
 
     /// Nothing in a saved world is reachable twice. An object shared by two owners (one Mind for

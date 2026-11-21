@@ -383,6 +383,18 @@ public static partial class Body
         return c.Manipulation * (1 - darknessPenalty) * (1 - wetnessPenalty) * (0.7 + Vitality(c) * 0.3);
     }
 
+    /// What is costing Dexterity, by name, in its order: the factors below whole. For an odds sheet's label.
+    public static IReadOnlyList<string> DexterityCosts(BodyState body, AbilityContext context = default)
+    {
+        var c = GetCapacities(body);
+        var costs = new List<string>();
+        if (c.Manipulation < 1) costs.Add("hurt or cold hands");
+        if (!context.HasLightSource && context.DarknessLevel > 0) costs.Add("dark");
+        if (Effects.Severity(body, EffectKind.Wet) > 0.3) costs.Add("wet");
+        if (Vitality(c) < 1) costs.Add("weak");
+        return costs;
+    }
+
     /// Insulation from body fat, 0-1, diminishing past normal levels - you are not a walrus.
     public static double ColdResistance(BodyState body)
     {

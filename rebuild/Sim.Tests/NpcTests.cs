@@ -56,7 +56,7 @@ public class NpcTests(ITestOutputHelper output)
         output.WriteLine($"seed {seed}: alive {Body.IsAlive(b)} at minute {w.Minute}; vitality {Body.Vitality(b):0.00}, fat {b.FatKg:0.0} kg " +
                          $"(from {Body.BaselineWeightKg * Body.BaselineFatPct:0.0}), calories {b.CaloriesKcal:0}, hydration {b.HydrationPct:0.00}, " +
                          $"energy {b.EnergyPct:0.00}, core {b.CoreTempF:0.0}F; ate {ate:0} kcal, fires lit {log.OfType<FireLit>().Count(f => f.By == npc)}, " +
-                         $"trees felled {log.OfType<TreeFelled>().Count()}, places known {((NpcMind)w.Agent(npc).Mind).Places.Count}, camp wood {CampWoodKg(w, npc):0} kg");
+                         $"trees felled {log.OfType<TreeFelled>().Count()}, places known {((NpcMind)w.Agent(npc).Mind).Knows.Places.Count}, camp wood {CampWoodKg(w, npc):0} kg");
         Assert.True(Body.IsAlive(b), $"seed {seed}: the NPC died at minute {w.Minute}");
         Assert.True(w.Minute >= 14 * 1440L);
         Assert.True(ate > 0, "two weeks and it never ate");
@@ -208,7 +208,7 @@ public class NpcTests(ITestOutputHelper output)
         var mind = (NpcMind)w.Agent(npc).Mind;
         var stoodOn = log.OfType<Moved>().Where(m => m.Who == npc).Select(m => m.To).Append(Map.Of(w).Camp).ToHashSet();
         Assert.True(log.OfType<Moved>().Count(m => m.Who == npc && m.To == Map.Of(w).Camp) > 1, "it should have come home more than once");
-        Assert.Equal(stoodOn.OrderBy(t => t), mind.Places.Where(p => p.Value.Visited).Select(p => p.Key));
+        Assert.Equal(stoodOn.OrderBy(t => t), mind.Knows.Places.Where(p => p.Value.Visited).Select(p => p.Key));
     }
 
     // ---- food by fat (Npc.TargetFatKg) ----

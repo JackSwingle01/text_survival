@@ -347,20 +347,38 @@ public static class Fire
 
     // ---- activities ----
 
-    /// Fire-start odds. Dexterity folds in manipulation, wetness, darkness and vitality.
-    public static double StartChancePct(ToolType tool, Resource tinder, int skillLevel = 0, bool consciousnessImpaired = false, double dexterityPct = 1.0)
+    /// Fire-start odds as their terms (old FireHandler.CalculateFireChance, in its order): the tool's
+    /// base, the skill, the tinder, -20% with consciousness impaired, and up to -50% for clumsy
+    /// hands; clamped to 5-95%. Dexterity folds in manipulation, wetness, darkness and vitality;
+    /// handsWhy names which of those are costing it, for the sheet.
+    public static Odds StartOdds(ToolType tool, Resource tinder, int skillLevel = 0, bool consciousnessImpaired = false, double dexterityPct = 1.0, string handsWhy = "")
     {
-        double chance = tool switch
+        double basePct = tool switch
         {
             ToolType.FireStriker => 0.90,
             ToolType.BowDrill => 0.50,
             ToolType.HandDrill => 0.35,
             _ => throw new ArgumentOutOfRangeException(nameof(tool), tool, "Not a fire starter"),
         };
-        chance += skillLevel * 0.1 + Props[tinder].IgnitionBonusPct;
-        if (consciousnessImpaired) chance -= 0.2;
-        chance -= (1.0 - dexterityPct) * 0.5;
-        return Math.Clamp(chance, 0.05, 0.95);
+        return new Odds(tool.ToString(), basePct, Odds.Moving(
+            OddsTerm.Add("Firecraft", Skills.FirecraftPct(skillLevel)),
+            OddsTerm.Add(tinder.ToString(), Props[tinder].IgnitionBonusPct),
+            OddsTerm.Add("Dazed", consciousnessImpaired ? -0.2 : 0),
+            OddsTerm.Add(handsWhy.Length > 0 ? $"Hands ({handsWhy})" : "Hands", -(1.0 - dexterityPct) * 0.5)), MinPct: 0.05, MaxPct: 0.95);
+    }
+
+    public static double StartChancePct(ToolType tool, Resource tinder, int skillLevel = 0, bool consciousnessImpaired = false, double dexterityPct = 1.0) =>
+        StartOdds(tool, tinder, skillLevel, consciousnessImpaired, dexterityPct).TotalPct;
+
+    /// This person's odds of lighting a fire here, now: their skill, their head, their hands, the dark.
+    /// Fires around the agent must be caught up (the light they work by).
+    public static Odds StartOdds(World world, Agent agent, ToolType tool, Resource tinder)
+    {
+        var body = agent.Body;
+        var context = AbilityContextFor(world, agent);
+        return StartOdds(tool, tinder, Skills.Level(agent, Skill.Firecraft),
+            consciousnessImpaired: Body.GetCapacities(body).Consciousness < 0.5,
+            dexterityPct: Body.Dexterity(body, context), handsWhy: string.Join(", ", Body.DexterityCosts(body, context)));
     }
 
     /// Why this fire activity cannot be done right now, or null. Checked before any time passes
@@ -425,15 +443,14 @@ public static class Fire
         var agent = world.Agent(a.Who);
         var tile = agent.Tile;
         var pack = Items.Pack(world, a.Who);
-        var body = agent.Body;
-        double chance = StartChancePct(a.Tool, a.Tinder,
-            consciousnessImpaired: Body.GetCapacities(body).Consciousness < 0.5,
-            dexterityPct: Body.Dexterity(body, AbilityContextFor(world, agent)));
+        // Old FireHandler passed the Firecraft level; the port had dropped it (bug, fixed).
+        double chance = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
         Items.Take(pack, a.Tinder, a.TinderKg);
         Items.Use(Items.Tool(pack, a.Tool)!);
         if (world.Rng("fire", a.Who).NextDouble() >= chance)
         {
             events.Add(new FireStartFailed(world.Minute, a.Who, tile, chance));
+            Skills.Award(world, agent, Skill.Firecraft, Skills.FireFailureXp, events);
             return "fire did not catch";
         }
         var id = PitAt(world, tile) ?? NewFire(world, new FireState { Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit });
@@ -444,6 +461,7 @@ public static class Fire
         if (a.KindlingKg > 0) Items.Take(pack, Resource.Kindling, AddFuel(f, Resource.Kindling, a.KindlingKg));
         IgniteAll(f);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
+        Skills.Award(world, agent, Skill.Firecraft, Skills.FireSuccessXp, events);
         return null;
     }
 
@@ -457,7 +475,7 @@ public static class Fire
         bool wasEmbers = f.HasEmbers;
         double added = AddFuel(f, a.Fuel, Math.Min(a.Kg, Items.Have(pack, a.Fuel)));
         Items.Take(pack, a.Fuel, added);
-        events.Add(new FuelAdded(world.Minute, id, a.Who, a.Fuel, added));
+        events.Add(new FuelAdded(world.Minute, id, tile, a.Who, a.Fuel, added));
         if (wasEmbers && !f.HasEmbers) events.Add(new FireLit(world.Minute, id, tile, a.Who));
         return null;
     }

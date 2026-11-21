@@ -11,7 +11,7 @@ public class Phase3GateTests
     static readonly AgentId P = AgentId.Player;
     const int Steps = 160;
 
-    internal sealed class Tally { public int Felled, Butchered, PlayerFights, HerdsEmptied, Splits; public HashSet<Resource> Fuels = []; public int Moves; }
+    internal sealed class Tally { public int Felled, Butchered, PlayerFights, HerdsEmptied, Splits; public HashSet<Resource> Fuels = []; public int Moves; public List<WorldEvent> Events = []; }
 
     /// Reads only world state, so a load resumes it exactly. Seed 17: the tile east of camp is forest.
     static void Play(World w, int i, Tally t)
@@ -28,6 +28,7 @@ public class Phase3GateTests
             // A player who died in an earlier call of this step waits for the next step to be revived.
             if (!Body.IsAlive(w.Agent(P).Body)) return;
             var r = Sim.Step(w, a, minutes);
+            t.Events.AddRange(r.Events);
             t.Felled += r.Events.OfType<TreeFelled>().Count();
             t.Butchered += r.Events.OfType<Butchered>().Count();
             t.PlayerFights += r.Events.OfType<FightEnded>().Count(f => f.Agent == P);
@@ -123,6 +124,18 @@ public class Phase3GateTests
             Play(w, i, t);
         }
         return (w, t);
+    }
+
+    /// The mixed run's events, every one the player's steps raised, with the herds' and the NPC's.
+    internal static List<WorldEvent> RunCollecting(int steps)
+    {
+        var w = World.New(17);
+        Npc.Spawn(w, Map.Of(w).Camp);
+        var pack = Items.Pack(w, P);
+        foreach (var g in new[] { "stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));
+        var t = new Tally();
+        for (int i = 0; i < steps; i++) Play(w, i, t);
+        return t.Events;
     }
 
     [Fact]

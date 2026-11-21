@@ -633,7 +633,7 @@ public static partial class Combat
     }
 
     /// Base attack (weapon or species) scaled by strength 50-100%, vitality 70-100% and luck 50-150%.
-    // Old Player added Fighting skill level to every blow; there are no skills yet.
+    // Old Player added Fighting skill level to every blow; Fighting is not one of the skills yet (Skills).
     static (double Amount, DamageType Type) AttackDamage(World world, CombatUnit attacker, Rng rng)
     {
         var (amount, type) = AverageBlow(world, attacker);
@@ -746,7 +746,7 @@ public static partial class Combat
             if (StatsOf(world, unit).IsAnimal)
                 events.Add(new Killed(world.Minute, unit.Agent, agent.Species, BodyOf(world, unit).WeightKg, enc.Tile, by));
             else if (!events.Any(e => e is Died d && d.Who == unit.Agent))
-                events.Add(new Died(world.Minute, unit.Agent));
+                events.Add(new Died(world.Minute, unit.Agent, enc.Tile));
         }
     }
 
@@ -777,13 +777,18 @@ public static partial class Combat
         metres <= 0 ? 0 : 1 - Math.Pow(1 - Math.Clamp(detectionChance, 0, 0.99), metres / DetectionReferenceMeters);
 
     /// Hit chance for a thrown spear or stone: linear falloff to the weapon's range; small game x0.66.
-    public static double ThrownAccuracy(double distanceM, double maxRangeM, double baseAccuracy, bool targetIsSmall, double manipulationPenalty = 0)
+    public static double ThrownAccuracy(double distanceM, double maxRangeM, double baseAccuracy, bool targetIsSmall, double manipulationPenalty = 0) =>
+        ThrownOdds(distanceM, maxRangeM, baseAccuracy, targetIsSmall, manipulationPenalty).TotalPct;
+
+    /// The throw's odds as their terms, in the old order: the weapon's accuracy, scaled down with
+    /// distance and for a small target, less any penalty for the hands; 5-95%. Out of range is 0.
+    public static Odds ThrownOdds(double distanceM, double maxRangeM, double baseAccuracy, bool targetIsSmall, double manipulationPenalty = 0)
     {
-        if (distanceM > maxRangeM) return 0;
-        double accuracy = baseAccuracy * (1.0 - distanceM / maxRangeM);
-        if (targetIsSmall) accuracy *= 0.66;
-        accuracy -= manipulationPenalty;
-        return Math.Clamp(accuracy, 0.05, 0.95);
+        if (distanceM > maxRangeM) return new Odds("Out of range", 0, [], MinPct: 0, MaxPct: 0);
+        return new Odds("Weapon", baseAccuracy, Odds.Moving(
+            OddsTerm.Scale("Distance", 1.0 - distanceM / maxRangeM),
+            OddsTerm.Scale("Small target", targetIsSmall ? 0.66 : 1.0),
+            OddsTerm.Add("Hands", -manipulationPenalty)), MinPct: 0.05, MaxPct: 0.95);
     }
 
     /// Risk of one normal stalking step being noticed, as shown to the player (old Assess).

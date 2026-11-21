@@ -5,14 +5,6 @@ namespace Survival;
 /// The need an NPC is working on (old NeedType). Ordered as the old hierarchy: Warmth first.
 public enum Need { Warmth, Water, Rest, Food }
 
-/// What one tile offered when this NPC last saw it (old ResourceMemory, per tile). Standing on it
-/// tells how picked-over its ground is; from a distance only whether trees stand there or water
-/// runs open. A belief, not the truth: it goes stale while the NPC is elsewhere (plan decision 7).
-public sealed record Place(long SeenMinute, bool Trees, double? ForageDensity = null, bool Water = false)
-{
-    [System.Text.Json.Serialization.JsonIgnore] public bool Visited => ForageDensity != null;
-}
-
 /// An NPC's own state. Everything it acts on is in the same pack and knowledge the player has.
 public sealed partial record NpcMind
 {
@@ -27,9 +19,6 @@ public sealed partial record NpcMind
     public Need? Need { get; set; }
     /// Where it is walking to look around, so a search keeps one direction from step to step.
     public TileId? Heading { get; set; }
-    /// Old ResourceMemory: every tile it has stood on. Depleted tiles stay, as "nothing here", so an
-    /// exploring NPC does not go back to them.
-    public SortedDictionary<TileId, Place> Places { get; init; } = [];
     /// Old RelationshipMemory reduced to an opinion per agent, -1..1; strangers are 0.
     // Nothing writes this yet; the WorldEvent stream will feed it (plan decision 4) when consumers subscribe.
     public SortedDictionary<AgentId, double> Opinions { get; init; } = [];
@@ -72,7 +61,6 @@ public static partial class Npc
         world.Agents[id] = new Agent { Id = id, Tile = tile, Mind = mind };
         mind.TargetFatMinute = world.Minute;
         mind.TargetFatKg = Math.Clamp(world.Agents[id].Body.FatKg, FatFloorKg(world.Agents[id].Body), Body.BaselineFatPct * world.Agents[id].Body.WeightKg);
-        Remember(world, world.Agents[id], mind);
         return id;
     }
 
@@ -98,7 +86,9 @@ public static partial class Npc
         var mind = agent.Mind as NpcMind ?? throw new ArgumentException($"{agent.Id} has no NPC mind", nameof(agent));
         if (!Body.IsAlive(agent.Body)) throw new InvalidOperationException($"{agent.Id} is dead and cannot decide");
         var me = new Me(world, agent, mind, events);
-        Remember(world, agent, mind);
+        // Old ResourceMemory.RememberLocation: every tile it stands on, and what it can see, in the
+        // shared memory the player's map is drawn from. Depleted tiles stay, as "nothing here".
+        Knowledge.Observe(world, agent, events);
         AdaptTargetFat(mind, agent.Body, world.Minute);
 
         // In a fight someone else is running (the player's): its rounds move this NPC, not its own steps.
@@ -191,7 +181,7 @@ public static partial class Npc
     /// How far it runs from a predator, and how long it keeps one in mind.
     const int FleeTiles = 3;
     public const int ThreatMemoryMinutes = 120;
-    const int SightTiles = 5;
+    const int SightTiles = Sight.RadiusTiles;
     const double MinLightChance = 0.2;
     /// Critical cold (old WarmPct 0.25): any chance of a fire beats none.
     const double FreezingCoreF = 95.9, DesperateLightChance = 0.02;
@@ -280,7 +270,7 @@ public static partial class Npc
         if (me.Burning) return Try(me, new MeltSnow(me.Id), Work.MeltSnowMinutes);
         if (me.AtCamp && KeepFire(me, 3) is { } fire) return fire;
         // Old DetermineGetResource(Water): the nearest open water it knows of.
-        var river = me.Mind.Places.Where(p => p.Value.Water && MapGen.Manhattan(p.Key, me.Tile) <= MaxWoodTiles).Select(p => p.Key)
+        var river = me.Mind.Knows.Places.Where(p => p.Value.Water && MapGen.Manhattan(p.Key, me.Tile) <= MaxWoodTiles).Select(p => p.Key)
             .OrderBy(t => MapGen.Manhattan(me.Tile, t)).ThenBy(t => t).Cast<TileId?>().FirstOrDefault();
         return (river is TileId r ? Go(me, r) : null) ?? GoHome(me);
     }
@@ -314,7 +304,7 @@ public static partial class Npc
             return Try(me, new Unstash(me.Id, lying, me.RoomKg), 1);
         bool axe = Items.Tool(me.Pack, ToolType.Axe) != null;
         if (TreesHere(me) is int trees && axe) return Try(me, new Gather(me.Id, trees), 60);
-        TileId? Nearest(TileId from) => me.Mind.Places.Where(p => p.Value.Trees && MapGen.Manhattan(p.Key, from) <= MaxWoodTiles).Select(p => p.Key)
+        TileId? Nearest(TileId from) => me.Mind.Knows.Places.Where(p => p.Value.Trees && MapGen.Manhattan(p.Key, from) <= MaxWoodTiles).Select(p => p.Key)
             .OrderBy(t => MapGen.Manhattan(from, t)).ThenBy(t => t).Cast<TileId?>().FirstOrDefault();
         // A camp with no timber near it is not worth hauling to: home moves to the trees, and what was
         // stashed at the old one stays there (old design: depletion forces camp relocation).
@@ -449,9 +439,9 @@ public static partial class Npc
         if (tinder == null) return null;
         // Not worth the tinder in the dark with a poor drill: wait for light, or for better tinder - unless
         // freezing, when waiting is what kills (old behavior: it hauled wood to a fire it would not try to light).
-        var hands = new AbilityContext(Items.EncumbrancePct(me.Agent), Weather.DarknessLevel(me.World, me.Tile));
         double minChance = me.Agent.Body.CoreTempF < FreezingCoreF ? DesperateLightChance : MinLightChance;
-        if (Fire.StartChancePct(tool.Value, tinder.Value, dexterityPct: Body.Dexterity(me.Agent.Body, hands)) < minChance) return null;
+        // The odds the strike will roll on: the same sheet the player sees (old: hands in the dark and nothing else).
+        if (Fire.StartOdds(me.World, me.Agent, tool.Value, tinder.Value).TotalPct < minChance) return null;
         double kindling = Math.Min(0.3, me.Has(Resource.Kindling) - (tinder == Resource.Kindling ? 0.05 : 0));
         if (kindling < 0) return null;
         return Try(me, new StartFire(me.Id, tool.Value, tinder.Value, 0.05, kindling), 1);
@@ -540,12 +530,12 @@ public static partial class Npc
         double Expect(TileId t)
         {
             if (ForagePoolAt(me, t) is not { } def) return 0;
-            double density = me.Mind.Places.TryGetValue(t, out var p) && p.ForageDensity is double d
-                ? Math.Min(def.Density, d + (me.World.Minute - p.SeenMinute) / 60.0 / Pools.ForageRespawnHours * def.Density) : def.Density;
+            double density = me.Mind.Knows.Places.TryGetValue(t, out var p) && p.ForageDensity is double d && p.VisitedMinute is long seen
+                ? Math.Min(def.Density, d + (me.World.Minute - seen) / 60.0 / Pools.ForageRespawnHours * def.Density) : def.Density;
             return Value(def, density, focus);
         }
-        var candidates = me.Mind.Places.Where(p => p.Value.Visited && p.Key != me.Tile && InRange(me, p.Key)).Select(p => p.Key)
-            .Concat(MapGen.Neighbors(me.Tile).Where(t => Passable(me, me.Tile, t) && InRange(me, t) && me.Mind.Places.GetValueOrDefault(t)?.Visited != true));
+        var candidates = me.Mind.Knows.Places.Where(p => p.Value.Visited && p.Key != me.Tile && InRange(me, p.Key)).Select(p => p.Key)
+            .Concat(MapGen.Neighbors(me.Tile).Where(t => Passable(me, me.Tile, t) && InRange(me, t) && me.Mind.Knows.Places.GetValueOrDefault(t)?.Visited != true));
         // The walk at today's going, not a flat rate (old: two minutes a tile, so in deep snow it set off
         // three tiles for fresh ground, took an hour a tile, and froze walking home): the first step's
         // crossing toward it, once per tile of distance.
@@ -580,7 +570,7 @@ public static partial class Npc
     static Plan? Explore(Me me, int radius)
     {
         if (me.Hour >= HomeByHour - 2) return null;
-        var visited = me.Mind.Places.Where(p => p.Value.Visited).Select(p => p.Key).ToList();
+        var visited = me.Mind.Knows.Places.Where(p => p.Value.Visited).Select(p => p.Key).ToList();
         int Seen(TileId t) => visited.Count(v => MapGen.Manhattan(v, t) <= SightTiles - 2);
         var m = Map.Of(me.World);
         const int Leg = 6;
@@ -616,32 +606,6 @@ public static partial class Npc
         Starters.Any(t => Items.Tool(me.Pack, t) != null)
         && (Tinders.Any(r => me.Has(r) >= 0.05) || me.Has(Resource.Kindling) >= 0.5);
 
-    /// Old ResourceMemory.RememberLocation: refreshed, not appended, on every visit. A stand of trees
-    /// is plain to see from a distance, so tiles in sight are remembered for their trees too.
-    // Sight is a fixed SightTiles; it should be the player's sight rays (terrain, weather) once those are ported.
-    static void Remember(World world, Agent agent, NpcMind mind)
-    {
-        bool Trees(TileId t)
-        {
-            var pools = Pools.At(world, t);
-            return Enumerable.Range(0, pools.Count).Any(i => pools[i] is TreePool && Pools.HasTrees(world, new PoolId(t, i)));
-        }
-        var here = Pools.At(world, agent.Tile);
-        double forage = here.Count > 0 && here[0] is ForagePool ? Pools.ForageDensity(world, new PoolId(agent.Tile, 0)) : 0;
-        mind.Places[agent.Tile] = new Place(world.Minute, Trees(agent.Tile), forage, Work.HasOpenWater(world, agent.Tile));
-        var m = Map.Of(world);
-        for (int dx = -SightTiles; dx <= SightTiles; dx++)
-            for (int dy = Math.Abs(dx) - SightTiles; dy <= SightTiles - Math.Abs(dx); dy++)
-            {
-                var t = new TileId(agent.Tile.X + dx, agent.Tile.Y + dy);
-                if (t == agent.Tile || !m.InBounds(t)) continue;
-                bool trees = Trees(t), water = m.TerrainAt(t).IsPassable() && Work.HasOpenWater(world, t);
-                var seen = mind.Places.GetValueOrDefault(t);
-                if (seen == null ? trees || water : seen.Trees != trees || seen.Water != water)
-                    mind.Places[t] = (seen ?? new Place(world.Minute, false)) with { SeenMinute = world.Minute, Trees = trees, Water = water };
-            }
-    }
-
     /// Old IsBeyondExploreLeash: bolder NPCs range further from camp, about 2-10 tiles.
     static bool InRange(Me me, TileId t) => MapGen.Manhattan(t, me.Mind.Camp) <= (int)(2 + me.Mind.Boldness * 8);
 
@@ -660,7 +624,7 @@ public static partial class Npc
         var pace = Traversal.IsHazardous(me.World, me.Tile) || Traversal.IsHazardous(me.World, toward) ? Pace.Careful : Pace.Quick;
         double minutes = MapGen.Manhattan(me.Tile, camp)
                          * Traversal.CrossingMinutes(me.World, body, me.Tile, toward, pace, Weather.At(me.World, me.World.Minute), Items.EncumbrancePct(me.Agent));
-        var walking = Sim.Surroundings(me.World, me.Agent, new Travel(me.Id, Direction.North, pace));
+        var walking = Sim.Surroundings(me.World, me.Agent, new Travel(me.Id, Direction.North, pace), me.Events);
         return body.CoreTempF + Math.Min(0, Body.TemperatureChangeFPerHour(body, walking)) * minutes / 60;
     }
 
@@ -671,7 +635,7 @@ public static partial class Npc
     /// Old GetPriorityThreat, reaching one tile further: the biggest, healthiest predator here or
     /// next door, not already in a fight.
     // Threat, FindFood's prey and AllyInFight read herds' true tiles and bodies from world.Agents, gated
-    // only by a fixed radius (1 and 3 tiles, inside SightTiles, as Remember is); use sight rays when those are ported.
+    // only by a fixed radius (1 and 3 tiles, inside SightTiles, as Knowledge's sight is); use sight rays when those are ported.
     static Agent? Threat(Me me) =>
         Herds(me, 1, h => Fauna.IsPredator(h.Species) && Unengaged(me, h))
             .OrderByDescending(h => h.Members.Where(Body.IsAlive).Max(m => m.WeightKg * Body.Vitality(m))).ThenBy(h => h.Id).FirstOrDefault();
