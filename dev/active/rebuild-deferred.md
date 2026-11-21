@@ -114,7 +114,29 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Npc.cs:957` - a warming walk (to makings, or from a camp with no fire to the trees) is judged against a lethal core
   line (`LethalCoreF` 93.5) and the energy the walk takes, not the critical lines (`FreezingCoreF`, `RestCriticalPct`)
   the review suggested: seed 11's state is at the critical rest line exactly (0.10), and an NPC already under the
-  freezing line by a dead camp is the one most in need of the walk. Revisit with playtests.
+  freezing line by a dead camp is the one most in need of the walk. Revisit with playtests. Since the walk-to-the-
+  trees fix it also keeps `WarmingReserveMinutes` (45) of energy in hand on arrival: a judgment, under the critical
+  rest line, which would refuse seed 11's walk next door to its own makings at energy 0.10.
+- `Npc.cs` (`Wood`, warming) - a warming walk to the trees moves home to them, the nearest stand it knows, even one
+  tile off, as a walk to makings does. The old camp's stash and any shelter stay behind. On the 16 review seeds camp
+  moves rose from 0-14 to 1-17 a run, nearly all one- or two-tile hops from a cold camp with no wood on its stash to
+  the next standing timber; ABA (back to the camp before last) 0 -> 1 (seed 2024). Upgrade, if the hopping reads
+  badly in play: keep camp where a shelter is and walk back with the fire's makings instead.
+- `Npc.cs` (`Light`, `Makings`) - what follows a struck tinder is a threshold, not the fire's own ladder: 0.1 kg of
+  kindling in hand, or any pine (a tinder fire peaks near 225F, which takes pine at 150 but not birch at 250 or oak at
+  500; birch wants about 0.3 kg of kindling under it, oak about 1 kg). So 0.1 kg of kindling and oak still counts as
+  makings, and is still struck. Upgrade: ask `Fire` what the fire that would be built catches.
+- `Npc.cs` (`CampFireBurning`) - out of sight it still reads the remembered phase without ageing it, unlike
+  `CampHasWarmth`, which now goes by `CampFireHours`. It gates a cold NPC's walk home (`Warm`) and the flee rule's camp
+  move; a fire remembered burning days ago still sends a cold NPC within 12 tiles home when it cannot light one itself.
+- Seed 5 (no timber within 24 tiles, almost no tinder or kindling on its grassland) is a knife edge: the NPC lives on
+  0.05-0.1 kg of tinder for days, and a few strikes decide whether it lasts until the search finds timber. After the
+  Light fix it dies on day 4.6 (from 22.9); `NoTimberInReach_MovesCampToTimber` now starts it with a kilo of birch bark
+  and two of kindling, with which it lives after the fix and dies on 9cbe8cc. Upgrade: a tinder and kindling income on
+  open ground (dry grass, dung), or camp placement nearer timber.
+- `Npc.cs` (`Warm`) - on a bitter day (-30, a strong wind) at a dead camp with the nearest timber twelve tiles off, the
+  walk does not fit (70 minutes of snow, lethal core in 52) and it gropes the camp ground until it dies. Nothing it has
+  saves it; a fire's makings carried out of every camp it leaves would.
 - `Knowledge.cs:315` - a carcass going (butchered away) is not a notable journal entry: `Butchered` is a step's tally and
   is not filed. Upgrade: a once-only `CarcassGone` event when one leaves its tile.
 - `Content/accidents.json` (Sprains) - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.
@@ -203,8 +225,22 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   wolves, arrivals at 5% a day at the full deficit. Tuned on five seeds over two years. Newborns are full-grown
   bodies (no growth model). Capacity reads generation's forage, not today's grazing. Saber-tooths neither breed nor
   starve (they forage); cave bears breed but never arrive; mammoths breed slowly and never arrive.
-- `Renewal.cs` (Arrive) - arrivals land anywhere on open land outside camp's safe zone, packs over other packs'
-  land included, not at the valley's edge or along a migration route. Upgrade: arrive from the map's edge and walk in.
+- `Renewal.cs` (Arrive) - arrivals land anywhere on open land outside camp's safe zone, off the packs' land for a
+  predator, out of everyone's sight (twice `Sight.RadiusTiles`), sized to the room left on that land; not at the
+  valley's edge or along a migration route. Upgrade: arrive from the map's edge and walk in.
+- `Renewal.cs` (Thin, CurrentOn) - what lives on kills (packs, hyenas, the carrion flock) loses members to hunger
+  over its land's capacity at the birth rate run backwards, all year; grazers, browsers and bears only stop breeding
+  (Populate puts some herds on land far below their size, and a cave bear's cave floor carries nothing). Overlapping
+  herds share capacity by the share of each one's land inside the other's; for meat-eaters, by the overlap of their
+  dens' hunting ranges as open-ground diamonds (edges and walls ignored). All judgments. No old age.
+- `Fauna.cs` (Rest, Wait) - every herd idle is still one minute, so every herd re-decides every minute. Multi-minute
+  idles that end on a hunger threshold are exact in the world they make, but a herd's long `Doing` is saved where
+  the one-minute one is not, so saves would differ from today's mid-idle. Not needed for the year's budget (seed 17
+  12.7 s after the pristine-capacity and carcass-index changes, 22.6 s at 9cbe8cc on the same machine). Upgrade:
+  take it if a populated settle needs it, with the save difference accepted.
+- `Carcass.cs` (Remove) - cut pieces waiting on a carcass (`Pending`) stay until the carcass itself is gone (1440
+  effective hours), and go with it. Upgrade: leave them as a stash, or rot them by their own clock, once item decay
+  exists.
 - `Remains.cs` - skeletal at 240 effective hours for 70 kg (cube root of mass), scatter after 240 more, bones gone at
   1440 effective hours from death: judgments (the old body was skeletal at 72 and nothing ever went). Bones in a hard
   frost last up to ~600 days. A grave (no burial yet) should be skipped in `Remains.Hour`.

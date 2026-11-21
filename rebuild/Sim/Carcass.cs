@@ -117,8 +117,15 @@ public static class Carcasses
     {
         if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
         (state.Carcasses ??= []).Add(c);
+        world.CarcassTiles?.Add(tile);
         return c;
     }
+
+    /// The tiles that hold a carcass, in tile order: an index over World.Tiles, built on the first
+    /// question after a load and kept by Put and Remove, the only ways a carcass comes or goes. What
+    /// looks for meat across many tiles (Fauna.MeatSensed, Remains.Hour) walks this, not the map.
+    public static IReadOnlyCollection<TileId> TilesWith(World world) =>
+        world.CarcassTiles ??= [.. world.Tiles.Where(t => t.Value.Carcasses != null).Select(t => t.Key)];
 
     /// Everything that rots: what is left of a carcass once its flesh is gone is bone (and ivory).
     static readonly Resource[] SoftTissue = [Resource.RawMeat, Resource.RawFat, Resource.Hide, Resource.Sinew, Resource.Feather, Resource.MammothHide];
@@ -126,17 +133,22 @@ public static class Carcasses
     /// The ledger's meat and fat left on it.
     public static double FleshKg(Carcass c) => c.Remaining.GetValueOrDefault(Resource.RawMeat) + c.Remaining.GetValueOrDefault(Resource.RawFat);
 
-    public static bool HasSoftTissue(Carcass c) =>
-        SoftTissue.Any(r => c.Remaining.GetValueOrDefault(r) > 0 || c.Pending.GetValueOrDefault(r) > 0);
+    /// The ledger's meat and fat cut off it so far (CutKg, before the yield factors).
+    public static double CutFleshKg(Carcass c) => c.CutKg.GetValueOrDefault(Resource.RawMeat) + c.CutKg.GetValueOrDefault(Resource.RawFat);
 
-    /// The flesh has rotted off (Remains.Hour): every soft tissue goes, cut pieces left waiting on it too.
+    /// Anything on it that rots, uncut or cut and waiting.
+    public static bool HasSoftTissue(Carcass c) => HasUncutSoftTissue(c) || SoftTissue.Any(r => c.Pending.GetValueOrDefault(r) > 0);
+
+    public static bool HasUncutSoftTissue(Carcass c) => SoftTissue.Any(r => c.Remaining.GetValueOrDefault(r) > 0);
+
+    /// The flesh has rotted off (Remains.Hour): every uncut soft tissue goes. Cut pieces waiting on it
+    /// are already someone's yield, charged their decay when they were cut (PutBack), so they stay
+    /// until the carcass itself is gone. Old (this rebuild): they rotted with it, while YieldKg still
+    /// counted them (bug, fixed).
     public static void RotAway(Carcass c)
     {
         foreach (var r in SoftTissue)
-        {
             if (c.Remaining.ContainsKey(r)) c.Remaining[r] = 0;
-            c.Pending.Remove(r);
-        }
     }
 
     /// Takes a carcass off its tile; a tile left with nothing on it leaves World.Tiles.
@@ -146,6 +158,7 @@ public static class Carcasses
         if (state?.Carcasses?.Remove(c) != true) throw new InvalidOperationException($"Carcass {c.Id} is not on {tile}");
         if (state.Carcasses.Count > 0) return;
         state.Carcasses = null;
+        world.CarcassTiles?.Remove(tile);
         Map.Tidy(world, tile);
     }
 

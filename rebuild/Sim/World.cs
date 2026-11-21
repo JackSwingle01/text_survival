@@ -71,6 +71,10 @@ public sealed class World
     internal Dictionary<GroundClass, GroundState>? GroundCache;
     /// Everything each diet eats on the valley's open land as generated (Fauna.ValleyCapacity); never saved.
     internal Dictionary<Diet, double>? ValleyForageCache;
+    /// The open land herds live on and arrive on (Fauna.OpenLand), fixed at generation; never saved.
+    internal List<TileId>? OpenLandCache;
+    /// The tiles holding a carcass (Carcasses.TilesWith), kept as they come and go; never saved.
+    internal SortedSet<TileId>? CarcassTiles;
     /// Which agents stand where (Nearby); never saved, rebuilt when agents are made or removed.
     internal NearbyIndex? Nearby;
 

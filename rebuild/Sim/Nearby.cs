@@ -6,9 +6,9 @@ namespace Survival;
 /// without it walked every agent for every tile.
 ///
 /// It is kept exactly: an agent indexed here reports each move (Agent.Tile), and any agent made or
-/// removed changes the count or the next id, which throws the index away. Replacing an agent in
-/// World.Agents by hand under the same id (tests setting a scene) is the one change it cannot see;
-/// Agents.Remove and the spawners also drop it outright.
+/// removed changes the count or the next id (Fits), so the next question builds it again. Replacing
+/// an agent in World.Agents by hand under the same id (tests setting a scene) is the one change it
+/// cannot see.
 internal sealed class NearbyIndex
 {
     readonly Dictionary<TileId, List<AgentId>> byTile = [];
@@ -74,7 +74,4 @@ public static class Nearby
                 if (MapGen.Manhattan(a.Tile, tile) <= radius) found.Add(a);
         return found;
     }
-
-    /// The index no longer fits: an agent was made or removed.
-    internal static void Forget(World world) => world.Nearby = null;
 }

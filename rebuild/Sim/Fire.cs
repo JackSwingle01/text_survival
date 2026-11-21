@@ -283,6 +283,15 @@ public static class Fire
         if (f.CarriedBy != null && f.TorchMinutesLeft <= 0) world.Fires.Remove(id); // a spent torch is ash
     }
 
+    /// Torches whose carrier has died or left the world go out where they fell (Remains.Hour): no one
+    /// carries them on, and nothing else would ever catch them up or take them away.
+    internal static void PutOutDroppedTorches(World world)
+    {
+        foreach (var (id, f) in world.Fires.ToList())
+            if (f.CarriedBy is AgentId carrier && !(world.Agents.TryGetValue(carrier, out var a) && Sim.IsAlive(a)))
+                world.Fires.Remove(id);
+    }
+
     /// Catches up the pits on the agent's tile and the torches it carries.
     public static void CatchUpAround(World world, Agent agent, List<WorldEvent> events)
     {

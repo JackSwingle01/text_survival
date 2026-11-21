@@ -47,15 +47,25 @@ public static class Remains
 
     // ---- carcasses ----
 
-    /// How much of the flesh it died with is left: eaten, cut or rotted, 0-1.
-    public static double FleshLeftPct(Carcass c) =>
-        c.FleshAtDeathKg <= 0 ? (Carcasses.FleshKg(c) > 0 ? 1 : 0) : Math.Clamp(Carcasses.FleshKg(c) / c.FleshAtDeathKg, 0, 1);
+    /// How much of the flesh it died with nothing has eaten, 0-1: what is still on it and what was cut
+    /// off it. Eating strips a carcass for the rot; cutting does not, because the flesh still on it
+    /// rots no faster for what a butcher took away. Review: counting cut flesh as stripped sent an
+    /// older carcass to bones half-way through the butchering, and the rot took the uncut hide and
+    /// the cut pieces waiting on it (bug, fixed).
+    public static double FleshLeftPct(Carcass c)
+    {
+        double uneaten = Carcasses.FleshKg(c) + Carcasses.CutFleshKg(c);
+        return c.FleshAtDeathKg <= 0 ? (uneaten > 0 ? 1 : 0) : Math.Clamp(uneaten / c.FleshAtDeathKg, 0, 1);
+    }
 
+    /// Bones once its time is up, sooner the more of it was eaten; bones at once when it was eaten to
+    /// nothing, or once nothing that rots is left on it (cut clean and carried off).
     public static RemainsStage StageOf(World world, TileId tile, Carcass c)
     {
         double hours = Carcasses.EffectiveHoursNow(world, tile, c);
         if (hours >= GoneHours) return RemainsStage.Gone;
-        if (Carcasses.FleshKg(c) <= 0 || hours >= SkeletalHours(c.BodyWeightKg) * Math.Max(StrippedFloorPct, FleshLeftPct(c)))
+        double left = FleshLeftPct(c);
+        if (left <= 0 || !Carcasses.HasSoftTissue(c) || hours >= SkeletalHours(c.BodyWeightKg) * Math.Max(StrippedFloorPct, left))
             return RemainsStage.Bones;
         return RemainsStage.Flesh;
     }
@@ -98,19 +108,21 @@ public static class Remains
     /// At the top of every clock hour: flesh past its time rots off the ledger, bones past theirs
     /// leave, and a skeleton past its time scatters: the person leaves the world's agents, their
     /// bones lie as remains with the cause they died of, and what they carried and wore lies beside
-    /// them as a stash. The player's body stays (the run is over; Map.Outcome reads it).
+    /// them as a stash. The player's body stays (the run is over; Map.Outcome reads it). A torch the
+    /// dead were carrying goes out.
     public static void Hour(World world)
     {
         if (world.Minute % 60 != 0) return;
-        foreach (var (tile, state) in world.Tiles.Where(t => t.Value.Carcasses != null).ToList())
-            foreach (var c in state.Carcasses!.ToList())
+        foreach (var tile in Carcasses.TilesWith(world).ToList())
+            foreach (var c in world.Tiles[tile].Carcasses!.ToList())
                 switch (StageOf(world, tile, c))
                 {
                     case RemainsStage.Gone: Carcasses.Remove(world, tile, c); break;
-                    case RemainsStage.Bones when Carcasses.FleshKg(c) > 0 || Carcasses.HasSoftTissue(c): Carcasses.RotAway(c); break;
+                    case RemainsStage.Bones when Carcasses.HasUncutSoftTissue(c): Carcasses.RotAway(c); break;
                 }
         foreach (var dead in world.Agents.Values.Where(a => a.Id != AgentId.Player && a.Mind is PersonMind && !Sim.IsAlive(a)).ToList())
             if (Combat.EncounterOf(world, dead.Id) == null && StageOf(world, dead) == RemainsStage.Bones) Scatter(world, dead);
+        Fire.PutOutDroppedTorches(world);
     }
 
     static void Scatter(World world, Agent dead)

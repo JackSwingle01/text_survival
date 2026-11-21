@@ -148,12 +148,14 @@ public static class Tags
 
     /// The living predator herds within guard radius of a thing that hold their ground against the
     /// viewer (left out itself). None hold it against the viewer (the exemptions are implemented,
-    /// as the gate is, and wired with it): over what the viewer made or killed; on a tile where a fire
-    /// burns, or when the viewer carries a burning torch (fire as defence); and a herd that is afraid,
-    /// running, or whose attention is elsewhere (in a fight, or on a hunt) holds nothing.
+    /// as the gate is, and wired with it): over what the viewer made (MadeBy: a fire, a stash, a
+    /// shelter); on a tile where a fire burns, or when the viewer carries a burning torch (fire as
+    /// defence); and a herd that is afraid, running, or whose attention is elsewhere (in a fight, or on
+    /// a hunt) holds nothing. A kill is not made: a pack on the viewer's kill guards it (the wolves
+    /// took my kill).
     internal static HashSet<AgentId> Guards(World world, ThingRef t, AgentId? viewer)
     {
-        if (viewer is AgentId v && (CauseOf(world, t)?.Who == v || FireDefends(world, t.Tile, v))) return [];
+        if (viewer is AgentId v && (MadeBy(world, t) == v || FireDefends(world, t.Tile, v))) return [];
         return Nearby.Within(world, t.Tile, GuardRadiusTiles)
             .Where(a => a.Id != viewer && a.Mind is HerdMind mind && Fauna.IsPredator(a.Species) && Sim.IsAlive(a) && Attending(world, a, mind))
             .Select(a => a.Id).ToHashSet();
@@ -169,16 +171,16 @@ public static class Tags
     static bool FireDefends(World world, TileId tile, AgentId viewer) =>
         world.Fires.Values.Any(f => (f.CarriedBy == viewer || f.CarriedBy == null && f.Tile == tile) && Fire.Burns(Fire.Phase(f)));
 
-    /// Who made or killed a thing, as it keeps it.
-    static Cause? CauseOf(World world, ThingRef t) => t.Kind switch
+    /// Who made a thing, as it keeps it: someone's work, not what they killed.
+    static AgentId? MadeBy(World world, ThingRef t) => t.Kind switch
     {
         ThingKind.Agent => null, // a living agent is met, not made
-        ThingKind.Body => world.Agent(new AgentId(t.Index)).Members[0].DeathCause,
-        ThingKind.Carcass => Carcasses.Find(world, t.Tile, t.Index)?.Cause,
+        ThingKind.Body => null, // a death, not a making
+        ThingKind.Carcass => null, // a kill, which a pack takes from its killer
         ThingKind.Pool => null, // the land's own
-        ThingKind.Stash => world.Tiles.GetValueOrDefault(t.Tile)?.StashCause,
-        ThingKind.Fire => world.Fires.GetValueOrDefault(new FireId(t.Index))?.Cause,
-        ThingKind.Shelter => Shelters.Peek(world, t.Tile)?.Cause,
+        ThingKind.Stash => world.Tiles.GetValueOrDefault(t.Tile)?.StashCause?.Who,
+        ThingKind.Fire => world.Fires.GetValueOrDefault(new FireId(t.Index))?.Cause?.Who,
+        ThingKind.Shelter => Shelters.Peek(world, t.Tile)?.Cause?.Who,
         ThingKind.Track => null, // prints are no one's work
         ThingKind.Sign => null, // none stored yet
         ThingKind.Item => null, // none named yet

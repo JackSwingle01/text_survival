@@ -357,24 +357,44 @@ public static partial class Body
         deficit -= muscleKg * KcalPerKgMuscle;
 
         if (deficit > 0) // nothing left to burn: ~10 hours to death
-            d.Damage.Add(new DamageInfo(0.5 / 60.0 * minutes, DamageType.Internal,
+            d.Damage.Add(new DamageInfo(StarvingDamagePerHour / 60.0 * minutes, DamageType.Internal,
                 Pick(rng, BodyTarget.Heart, BodyTarget.Liver, BodyTarget.Brain, BodyTarget.Lungs)));
     }
+
+    /// Organ damage an hour once fat and muscle are spent, and once the body is dry.
+    const double StarvingDamagePerHour = 0.5, DehydratedDamagePerHour = 1.0;
+
+    /// What fat and muscle the body can still burn, in kcal (ProcessStarvation's floors).
+    static double ReservesKcal(BodyState body) =>
+        Math.Max(0, body.FatKg - MinFatPct * body.WeightKg) * KcalPerKgFat + Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg) * KcalPerKgMuscle;
+
+    /// The organ damage an hour that hunger, thirst and the cold are each doing to this body now: what
+    /// the survival step charges (ProcessStarvation, ProcessDehydration, ProcessHypothermia).
+    /// Hunger does none while there is fat or muscle to burn (within a few minutes' burning of the floors).
+    public static (double ColdPerHour, double ThirstPerHour, double HungerPerHour) LethalRates(BodyState body) => (
+        HypothermiaDamagePerHour(body.CoreTempF),
+        body.HydrationMl > 0 ? 0 : DehydratedDamagePerHour,
+        body.CaloriesKcal > 0 || ReservesKcal(body) >= 10 ? 0 : StarvingDamagePerHour);
 
     static void ProcessDehydration(double hydration, int minutes, Rng rng, SurvivalDelta d)
     {
         if (hydration > 0) return; // ~5 hours to death once dry
-        d.Damage.Add(new DamageInfo(1.0 / 60.0 * minutes, DamageType.Internal,
+        d.Damage.Add(new DamageInfo(DehydratedDamagePerHour / 60.0 * minutes, DamageType.Internal,
             Pick(rng, BodyTarget.Brain, BodyTarget.Heart, BodyTarget.Liver)));
     }
 
     /// Below 95F the core organs take damage, worsening toward ~80F.
+    static double HypothermiaDamagePerHour(double coreF)
+    {
+        if (coreF >= HypothermiaThresholdF) return 0;
+        double severity = Math.Min(1.0, (HypothermiaThresholdF - coreF) / 15.0);
+        return severity < 0.5 ? 0.1 + 0.4 * severity : 0.5 + 0.5 * (severity - 0.5);
+    }
+
     static void ProcessHypothermia(double coreF, int minutes, Rng rng, SurvivalDelta d)
     {
         if (coreF >= HypothermiaThresholdF) return;
-        double severity = Math.Min(1.0, (HypothermiaThresholdF - coreF) / 15.0);
-        double perHour = severity < 0.5 ? 0.1 + 0.4 * severity : 0.5 + 0.5 * (severity - 0.5);
-        d.Damage.Add(new DamageInfo(perHour / 60.0 * minutes, DamageType.Internal,
+        d.Damage.Add(new DamageInfo(HypothermiaDamagePerHour(coreF) / 60.0 * minutes, DamageType.Internal,
             Pick(rng, BodyTarget.Heart, BodyTarget.Brain, BodyTarget.Lungs)));
     }
 

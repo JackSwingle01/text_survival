@@ -270,7 +270,7 @@ public class SubstrateTests
         var guarded = Tags.Of(w, t);
         Assert.True(guarded.HasFlag(Tag.Guarded | Tag.Contested), guarded.ToString());
         Assert.False(Tags.Of(w, t, wolves).HasFlag(Tag.Guarded), "a pack does not guard its kill against itself");
-        Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Guarded), "nor the player's kill against the player (an exemption)");
+        Assert.True(Tags.Of(w, t, P).HasFlag(Tag.Guarded), "a pack on the player's kill holds it against the player too");
 
         w.Minute += 3 * 24 * 60; // days later, in the cold or not, it is no longer fresh
         Assert.False(Tags.Of(w, t).HasFlag(Tag.Fresh));
@@ -413,8 +413,9 @@ public class SubstrateTests
     }
 
     /// The guard's exemptions (implemented with the gate, wired with it): a guard does not hold what
-    /// the viewer made or killed, a fire burning on the tile keeps it off, and a pack that is afraid,
-    /// running, or busy fighting someone else holds nothing.
+    /// the viewer made (a stash, a fire, a shelter), a fire burning on the tile keeps it off, and a pack
+    /// that is afraid, running, or busy fighting someone else holds nothing. What the viewer killed is
+    /// not exempt: a pack can take your kill.
     [Fact]
     public void Guarded_HasItsExemptions()
     {
@@ -424,7 +425,12 @@ public class SubstrateTests
         var t = new ThingRef(ThingKind.Carcass, camp, theirs.Id);
         var wolves = Herd(w, Species.Wolf, 3, camp);
         Assert.True(Tags.Of(w, t, P).HasFlag(Tag.Guarded), "someone else's kill, with a pack on it");
-        Assert.False(Tags.Of(w, t, npc).HasFlag(Tag.Guarded), "what the viewer killed");
+        Assert.True(Tags.Of(w, t, npc).HasFlag(Tag.Guarded), "the viewer's own kill: the wolves have taken it");
+        var stash = Items.StashAt(w, camp, new Cause(npc, "stashed by a person"));
+        Items.Add(stash, Resource.Pine, 1);
+        var pile = Things.StashAt(w, camp)!.Value;
+        Assert.False(Tags.Of(w, pile, npc).HasFlag(Tag.Guarded), "what the viewer made");
+        Assert.True(Tags.Of(w, pile, P).HasFlag(Tag.Guarded), "what someone else made");
 
         var mind = Fauna.MindOf(w.Agent(wolves));
         mind.Fear = 0.9;

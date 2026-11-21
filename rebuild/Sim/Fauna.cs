@@ -59,8 +59,15 @@ public static partial class Fauna
     /// nothing and is no one's quarry.
     public static bool IsPredator(Species s) => BehaviorOf(s) is not (HerdBehavior.Prey or HerdBehavior.Carrion);
 
-    /// What a pack hunts: a prey herd.
+    /// What lives as prey: grazes, flees, and is hunted by people.
     public static bool IsPrey(Species s) => BehaviorOf(s) == HerdBehavior.Prey;
+
+    /// What a pack hunts and lives on: prey, but not a mammoth, which no pack in the valley brings down.
+    /// The one rule for which herds a pack goes for (PreyHere), follows (PreySensed) and counts as its
+    /// food (PreyKgNear, ValleyScore). Old game: packs hunted any herd that was not a predator, mammoths
+    /// too, but drew their land apart from the prey's, so they seldom met (judgment: here they share
+    /// land, and seed 123's packs ate its mammoths out in a year and a half).
+    public static bool IsQuarry(Species s) => IsPrey(s) && !IsMegafauna(s);
 
     public static Diet DietOf(Species s) => SpeciesTable.Of(s).Diet;
 
@@ -183,7 +190,16 @@ public static partial class Fauna
 
     static bool Mobile(BodyState body) => Body.GetCapacities(body).Moving > 0.1;
 
-    static bool Hurt(BodyState body) => body.BloodPct < 1 || body.Regions.Any(r => r.Condition < 1 || r.Organs.Any(o => o.Condition is > 0 and < 1));
+    static bool Hurt(BodyState body)
+    {
+        if (body.BloodPct < 1) return true;
+        foreach (var r in body.Regions)
+        {
+            if (r.Condition < 1) return true;
+            foreach (var o in r.Organs) if (o.Condition is > 0 and < 1) return true;
+        }
+        return false;
+    }
 
     /// One minute of a living animal's mending: every hurt layer, every organ not destroyed, and the blood.
     internal static void Mend(BodyState body)
@@ -681,33 +697,31 @@ public static partial class Fauna
         return null;
     }
 
-    /// A prey herd on this tile, not already in a fight.
+    /// A herd of its quarry on this tile, not already in a fight.
     static Agent? PreyHere(World world, Agent predator) =>
-        HerdsAt(world, predator.Tile).FirstOrDefault(h => h.Id != predator.Id && IsPrey(h.Species) && Sim.IsAlive(h)
+        HerdsAt(world, predator.Tile).FirstOrDefault(h => h.Id != predator.Id && IsQuarry(h.Species) && Sim.IsAlive(h)
             && Combat.EncounterOf(world, h.Id) == null);
 
     /// Old AnimalType.BaseDetectionRange, in tiles.
     public static int DetectionRangeTiles(Species s) => s is Species.Wolf or Species.SaberTooth ? 12 : 8;
 
-    /// Where the prey herds within the predator's senses stand.
+    /// Where the herds of its quarry within the predator's senses stand.
     static HashSet<TileId> PreySensed(World world, Agent predator)
     {
         return Nearby.Within(world, predator.Tile, DetectionRangeTiles(predator.Species))
-            .Where(h => h.Mind is HerdMind && IsPrey(h.Species)).Select(h => h.Tile).ToHashSet();
+            .Where(h => h.Mind is HerdMind && IsQuarry(h.Species)).Select(h => h.Tile).ToHashSet();
     }
 
-    /// The tiles with meat on them within the scavenger's nose (old CarcassSearchRadius).
+    /// The tiles with meat on them within the scavenger's nose (old CarcassSearchRadius), its own left
+    /// out: found among the tiles that hold a carcass (Carcasses.TilesWith).
     static HashSet<TileId> MeatSensed(World world, TileId from, int radius = CarcassSearchRadius)
     {
         var found = new HashSet<TileId>();
-        for (int dx = -radius; dx <= radius; dx++)
-            for (int dy = -radius; dy <= radius; dy++)
-            {
-                var t = new TileId(from.X + dx, from.Y + dy);
-                int d = Math.Abs(dx) + Math.Abs(dy);
-                if (d == 0 || d > radius) continue;
-                if (world.Tiles.TryGetValue(t, out var s) && s.Carcasses != null && MeatHere(world, t) > 0) found.Add(t);
-            }
+        foreach (var t in Carcasses.TilesWith(world))
+        {
+            int d = MapGen.Manhattan(t, from);
+            if (d > 0 && d <= radius && MeatHere(world, t) > 0) found.Add(t);
+        }
         return found;
     }
 

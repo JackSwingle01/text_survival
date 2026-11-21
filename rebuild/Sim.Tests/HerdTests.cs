@@ -461,8 +461,10 @@ public class HerdTests(ITestOutputHelper output)
     // The stalk's odds are a balance question, not this test's.
     public void ThePlayer_CanHuntAHerdMember_ButcherItAndEat()
     {
-        // Kills are rare (2-3% of stalks, rebuild-combat-balance.md), so this looks until one comes: a
-        // fixed handful of seeds broke whenever anything else shifted an agent id or a tile.
+        // Kills are rare (rebuild-combat-balance.md; the first one comes at seed 80 today), so this looks
+        // until one comes: a fixed handful of seeds broke whenever anything else shifted an agent id or a
+        // tile. How rare is held by ThePlayersStalks_KillAtTheirRate, so a drop in the odds shows there
+        // instead of being hidden by a longer search here.
         for (int seed = 1; seed <= 200; seed++)
         {
             var w = World.New(seed);
@@ -504,6 +506,52 @@ public class HerdTests(ITestOutputHelper output)
         }
         Assert.Fail("two hundred stalks with a spear and never a kill");
     }
+
+    /// The player's stalks of a resting caribou with a wooden spear and a knife, in one valley, kill at
+    /// the rate the combat balance gives: a floor under the odds that the search in
+    /// ThePlayer_CanHuntAHerdMember_ButcherItAndEat would otherwise hide.
+    [Fact]
+    public void ThePlayersStalks_KillAtTheirRate()
+    {
+        var w = World.New(17);
+        var tile = Quiet(w);
+        w.Agent(P).Tile = tile;
+        int kills = 0, stalks = 1000;
+        for (int i = 0; i < stalks; i++)
+        {
+            var player = w.Agent(P);
+            player.Members[0] = BodyState.BaselineHuman(); // whole again for every stalk
+            var pack = Items.Pack(w, P);
+            pack.Gear.RemoveAll(g => g.Kind == "wooden_spear");
+            var spear = Items.Make("wooden_spear");
+            pack.Gear.Add(spear);
+            var herd = Agents.Spawn(w, Species.Caribou, tile, 4);
+            Mind(w, herd).State = HerdState.Resting;
+            Fauna.BeginHunt(w, P, herd, 0, spear);
+            for (int round = 0; round < 200 && Combat.EncounterOf(w, P) is { } enc; round++)
+            {
+                var me = Combat.UnitOf(enc, P);
+                var acts = Combat.Actions(w, enc, me);
+                var target = Combat.NearestEnemy(enc, me);
+                double gap = target == null ? 0 : me.Position.DistanceTo(target.Position);
+                var act = acts.Contains(CombatAction.Attack) ? CombatAction.Attack
+                    : gap <= 10 && acts.Contains(CombatAction.Throw) ? CombatAction.Throw
+                    : acts.Contains(CombatAction.Advance) ? CombatAction.Advance : CombatAction.Wait;
+                Sim.Step(w, new Fight(P, act, target == null ? null : enc.Units.IndexOf(target)), 1);
+            }
+            if (w.Tiles.GetValueOrDefault(tile)?.Carcasses is { Count: > 0 } carcasses)
+            {
+                kills++;
+                foreach (var c in carcasses.ToList()) Carcasses.Remove(w, tile, c);
+            }
+            foreach (var id in Herds(w).Select(h => h.Id).ToList()) Agents.Remove(w, id);
+        }
+        output.WriteLine($"{kills} kills in {stalks} stalks");
+        Assert.True(kills >= KillFloor, $"{kills} kills in {stalks} stalks");
+    }
+
+    /// About half today's rate (21 kills in 1,000 stalks, 2.1%): a fall to half or less fails.
+    const int KillFloor = 10;
 
     /// Every agent rolls on its own streams: a pack pulling down caribou across the valley, bleeding
     /// and fighting, leaves the player's injuries and body as they were without it. (Shared streams

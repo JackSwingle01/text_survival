@@ -156,7 +156,41 @@ public class KillChainTests
         Assert.Equal("the cold", Body.CauseOfDeath(cold).What);
         var starved = BodyState.BaselineHuman();
         starved.CaloriesKcal = 0;
+        double spentKg = starved.StructuralKg / 0.82; // fat and muscle burned down to their floors (3% and 15%)
+        (starved.FatKg, starved.MuscleKg) = (0.03 * spentKg, 0.15 * spentKg);
         Assert.Equal("starvation", Body.CauseOfDeath(starved).What);
+    }
+
+    /// Review: seed 99's NPC froze carrying six kilograms of fat at a core of 92.5 °F and was said to
+    /// have starved, because its day's calories were gone. The cause is what crossed a lethal line.
+    [Fact]
+    public void A_Death_IsNamedForWhatKilled_NotForAnEmptyStomach()
+    {
+        BodyState Seed99()
+        {
+            var b = BodyState.BaselineHuman();
+            (b.CoreTempF, b.FatKg, b.MuscleKg, b.HydrationMl, b.CaloriesKcal, b.EnergyMinutes) = (92.5, 6.38, 22.5, 1923, 0, 20);
+            Effects.Add(b, EffectKind.Hypothermia, 0.24);
+            Effects.Add(b, EffectKind.Hungry, 0.98);
+            Effects.Add(b, EffectKind.Tired, 0.98);
+            return b;
+        }
+        Assert.Equal("the cold", Body.CauseOfDeath(Seed99()).What);
+
+        var living = Seed99();
+        living.CoreTempF = Body.BaseCoreTempF;
+        Assert.NotEqual("starvation", Body.CauseOfDeath(living).What); // fat left to burn: hunger is not killing it
+        living.EnergyMinutes = 0;
+        Assert.Equal("exhaustion", Body.CauseOfDeath(living).What);
+
+        var dry = Seed99();
+        dry.HydrationMl = 0; // thirst does more harm an hour than mild cold
+        Assert.Equal("thirst", Body.CauseOfDeath(dry).What);
+
+        var bled = Seed99();
+        bled.CoreTempF = Body.BaseCoreTempF;
+        bled.BloodPct = 0.4;
+        Assert.Equal("blood loss", Body.CauseOfDeath(bled).What);
     }
 
     // ---- the body and carcass pipeline ----
@@ -218,6 +252,41 @@ public class KillChainTests
         Sim.Advance(w, 3 * 1440);
         Assert.Equal(RemainsStage.Flesh, StageAt(w, camp, whole.Id));
         Assert.Equal(RemainsStage.Bones, StageAt(w, camp, stripped.Id));
+    }
+
+    /// Review: cutting lowered the flesh left, which aged a two-day-old carcass to bones half-way
+    /// through the butchering; the rot then took the uncut hide and sinew and the cut pieces waiting on
+    /// it, about twenty kilograms, while YieldKg still counted them. Cutting is not stripping: every
+    /// kilogram the carcass yields is in the pack or still waiting on it, and nothing rots uncut.
+    [Fact]
+    public void Butchering_AnOlderCarcass_KeepsEverythingItCut()
+    {
+        var w = Bare(); // 41 °F: an effective hour an hour
+        w.Minute = Days(2);
+        var camp = Map.Of(w).Camp;
+        var player = w.Agent(P);
+        var pack = Items.Pack(w, P);
+        pack.Gear.Add(Items.Make("flint_knife"));
+        var c = Carcasses.Create(w, camp, "Caribou", SpeciesTable.NewBody(Species.Caribou, w.Rng("test")), w.Minute - Days(2));
+        var onIt = new Dictionary<Resource, double>(c.Remaining);
+        var before = Enum.GetValues<Resource>().ToDictionary(r => r, r => Items.Have(pack, r));
+        string? stopped = null;
+        for (int i = 0; i < 60 && Carcasses.Find(w, camp, c.Id) != null && stopped != Work.PackFull; i++)
+        {
+            (player.Body.HydrationMl, player.Body.CaloriesKcal, player.Body.EnergyMinutes) = (3000, 2000, 900);
+            stopped = Sim.Step(w, new Butcher(P, c.Id, ButcherMode.Careful), 15).InterruptedReason;
+        }
+        Assert.True(Carcasses.AllCut(c), $"stopped: {stopped}");
+        foreach (var (r, kg) in onIt)
+            Assert.True(Math.Abs(c.CutKg.GetValueOrDefault(r) - kg) < 1e-6, $"{r}: {kg:0.00} kg on it, {c.CutKg.GetValueOrDefault(r):0.00} cut; the rest rotted uncut");
+        foreach (var (r, kg) in c.YieldKg)
+            Assert.Equal(kg, Items.Have(pack, r) - before[r] + c.Pending.GetValueOrDefault(r), 6);
+        Assert.True(c.YieldKg.GetValueOrDefault(Resource.Hide) > 0);
+        // What waits on the carcass is the butcher's, however long it waits and however far it rots.
+        var waiting = new Dictionary<Resource, double>(c.Pending);
+        Sim.Advance(w, (int)(Remains.SkeletalHours(c.BodyWeightKg) * 60));
+        Assert.Equal(RemainsStage.Bones, StageAt(w, camp, c.Id));
+        Assert.Equal(waiting, c.Pending);
     }
 
     [Fact]
@@ -354,19 +423,161 @@ public class KillChainTests
         Assert.Contains(w.Tiles.Values.SelectMany(t => t.Carcasses ?? []), c => c.Animal == "Wolf" && c.Cause?.What == "starvation");
     }
 
+    /// Arrivals come where the valley is empty, never megafauna, outside camp's safe zone and out of
+    /// everyone's sight, no bigger than the land they come to carries, and no pack on another's land.
+    /// Review: an arrival was sized from its row alone (caribou twelve strong on land carrying four, a
+    /// wolf pack of ten on land carrying two), and a pack could come in on top of another's land.
     [Fact]
-    public void Herds_ArriveWhereTheValleyIsEmpty_ButNeverMegafauna()
+    public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight()
     {
         var w = Bare(seed: 123); // a valley with mammoths, all taken out
+        var camp = Map.Of(w).Camp;
         Assert.True(Fauna.ValleyCapacity(w, Species.Caribou) > 0);
         Assert.Equal(0, Fauna.ValleyCapacity(w, Species.Mammoth));
-        Sim.Advance(w, 120 * 1440);
-        var herds = w.Agents.Values.Where(a => a.Mind is HerdMind).ToList();
-        Assert.Contains(herds, h => h.Species == Species.Caribou);
-        Assert.DoesNotContain(herds, h => Fauna.IsMegafauna(h.Species));
+        // The player out on the open land, where arrivals could otherwise land in plain view.
+        var open = Fauna.MindOf(World.New(123).Agents.Values.First(a => a.Species == Species.Bison)).Territory[0];
+        w.Agent(P).Tile = open;
+        var seen = new HashSet<AgentId>(w.Agents.Keys);
+        int arrivals = 0;
+        // Each day's look is the minute after midnight, when the day's arrivals came in (Fauna.Renew).
+        Sim.Advance(w, 1440 - Weather.MinuteOfDay(w.Minute));
+        for (int day = 0; day < 200; day++)
+        {
+            var lands = w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => Fauna.MindOf(a).Territory.ToList()).ToList();
+            var body = w.Agent(P).Body;
+            (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // alive, and so someone to be seen by
+            Sim.Advance(w, 1440);
+            Assert.True(Body.IsAlive(body));
+            var newcomers = w.Agents.Values.Where(a => a.Mind is HerdMind && !seen.Contains(a.Id)).ToList();
+            var packLand = w.Agents.Values.Where(a => a.Species == Species.Wolf && seen.Contains(a.Id)).SelectMany(a => Fauna.MindOf(a).Territory).ToHashSet();
+            foreach (var herd in newcomers)
+            {
+                seen.Add(herd.Id);
+                var land = Fauna.MindOf(herd).Territory;
+                // A cub on its mother's land, or a lame member left behind on its herd's: born here, not arrived.
+                if (lands.Concat(w.Agents.Values.Where(o => o.Id != herd.Id && o.Mind is HerdMind).Select(o => Fauna.MindOf(o).Territory)).Any(l => l.SequenceEqual(land)))
+                    continue;
+                arrivals++;
+                Assert.False(Fauna.IsMegafauna(herd.Species));
+                Assert.True(MapGen.Manhattan(land[0], camp) > Fauna.SafeZoneTiles, $"{herd.Species} came in at {land[0]}, inside camp's safe zone");
+                Assert.True(MapGen.Manhattan(land[0], open) > Fauna.ArrivalClearanceTiles, $"{herd.Species} came in at {land[0]}, in sight of the player at {open}");
+                Assert.True(herd.Members.Count <= Fauna.CapacityOf(w, herd) + 1e-9,
+                    $"{herd.Species} came in {herd.Members.Count} strong on land carrying {Fauna.CapacityOf(w, herd):0.0}");
+                if (herd.Species == Species.Wolf) Assert.DoesNotContain(land, packLand.Contains);
+            }
+        }
+        Assert.True(arrivals > 0, "nothing came into an empty valley in two hundred days");
+        Assert.Contains(w.Agents.Values, h => h.Species == Species.Caribou);
+        // Capacity is derived, never saved: a loaded world reads the same capacities off the same land.
+        var loaded = Save.FromJson(Save.ToJson(w));
+        foreach (var herd in w.Agents.Values.Where(a => a.Mind is HerdMind))
+            Assert.Equal(Fauna.CapacityOf(w, herd), Fauna.CapacityOf(loaded, loaded.Agent(herd.Id)));
+    }
+
+    /// Herds of a kind whose land overlaps share what it carries: two caribou herds put on one land
+    /// have the young of one between them, not one each.
+    [Fact]
+    public void Herds_SharingLand_ShareWhatItCarries()
+    {
+        var w = Bare();
+        w.Minute = MinuteOfDayOfYear(140);
+        var a = CaribouHerd(w, 1);
+        int full = (int)Math.Floor(Fauna.CapacityOf(w, w.Agent(a)));
+        Assert.True(full >= 4, $"capacity {full}");
+        w.Agent(a).Members.AddRange(Enumerable.Range(0, full / 2 - 1).Select(_ => SpeciesTable.NewBody(Species.Caribou, w.Rng("test"))));
+        var b = CaribouHerd(w, full - full / 2);
+        Sim.Advance(w, 50 * 1440);
+        int together = w.Agent(a).Members.Count + w.Agent(b).Members.Count;
+        Assert.True(together <= full, $"{together} caribou on land carrying {full}");
+    }
+
+    /// Review: no pack would hunt a mammoth to keep it (IsQuarry), but every pack hunted one anyway
+    /// (PreyHere, PreySensed asked IsPrey), and seed 123's packs ate its mammoths out by day 540. One
+    /// rule now: a pack neither goes for nor follows a mammoth.
+    [Fact]
+    public void A_Pack_LeavesMammothsAlone()
+    {
+        var w = Bare(seed: 123);
+        var land = Fauna.MindOf(World.New(123).Agents.Values.First(a => a.Species == Species.Mammoth)).Territory;
+        var mammoths = Agents.Spawn(w, Species.Mammoth, land[0], 6, [.. land]);
+        var wolves = Agents.Spawn(w, Species.Wolf, land[0], 6, [land[0]]);
+        Fauna.MindOf(w.Agent(wolves)).Hunger = 0.95;
+        Assert.False(Fauna.IsQuarry(Species.Mammoth));
+        Assert.True(Fauna.IsQuarry(Species.Caribou) && Fauna.IsQuarry(Species.Bison));
+        var events = new List<WorldEvent>();
+        for (int i = 0; i < 3 * 1440 && w.Agents.ContainsKey(wolves); i++)
+        {
+            Fauna.MindOf(w.Agent(wolves)).Hunger = 0.95; // starving the whole time, on the mammoths' land
+            events.AddRange(Sim.Advance(w, 1));
+        }
+        Assert.DoesNotContain(events.OfType<FightEnded>(), f => f.Agent == mammoths);
+        Assert.True(w.Agents.ContainsKey(wolves), "the pack went for the mammoths and died of it");
+        Assert.True(w.Agent(mammoths).Members.Count >= 6);
+    }
+
+    /// Review: hyenas and the carrion flock never died but in a fight, and a pack only after fourteen
+    /// days unfed, so they followed nothing down. What lives on kills thins toward what its land
+    /// carries: a fed pack, hyenas and a flock on land with no prey near and little growing all lose
+    /// members, and the herd that is left is no bigger than before.
+    [Fact]
+    public void What_LivesOnKills_ThinsWhenTheLandCannotFeedIt()
+    {
+        var w = Bare();
+        var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Wolf)).Territory;
+        var wolves = Agents.Spawn(w, Species.Wolf, land[0], 8, [.. land]);
+        var hyenas = Agents.Spawn(w, Species.Hyena, land[0], 6, [.. land]);
+        var flock = Agents.Spawn(w, Species.Raven, land[0], 6, [land[0]]);
+        Assert.Equal(0, Fauna.CapacityOf(w, w.Agent(wolves))); // no prey left in the valley
+        double flockRoom = Fauna.CapacityOf(w, w.Agent(flock));
+        Assert.True(flockRoom < 6, $"the flock's land carries {flockRoom:0.0}");
+        for (int d = 0; d < 60; d++)
+        {
+            Fauna.MindOf(w.Agent(wolves)).LastFedMinute = w.Minute; // fed (scavenging), never past StarveDays
+            Sim.Advance(w, 1440);
+        }
+        Assert.True(!w.Agents.ContainsKey(wolves) || w.Agent(wolves).Members.Count < 8, "a pack on land with no prey lost no one");
+        Assert.True(!w.Agents.ContainsKey(hyenas) || w.Agent(hyenas).Members.Count < 6, "hyenas on land with no prey lost no one");
+        Assert.True(!w.Agents.ContainsKey(flock) || w.Agent(flock).Members.Count < 6, "a flock over what its land carries lost no one");
+        Assert.Contains(w.Tiles.Values.SelectMany(t => t.Carcasses ?? []), c => c.Animal == "Hyena" && c.Cause?.What == "starvation");
+    }
+
+    /// The wolves took my kill: a pack on the player's own kill holds it against the player (the gate
+    /// is unwired; the rule is what it will be). What the player made is still the player's.
+    [Fact]
+    public void A_Pack_OnYourKill_GuardsIt()
+    {
+        var w = Bare();
         var camp = Map.Of(w).Camp;
-        // Arrivals come in outside the safe zone; where they have walked since is their own business.
-        Assert.DoesNotContain("apacity", Save.ToJson(w)); // capacity is derived, never saved
+        Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
+        var kill = Caribou(w, camp, new Cause(P, "the player's wooden spear"));
+        Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), Resource.Pine, 2);
+        Agents.Spawn(w, Species.Wolf, camp, 3);
+        w.AccessGates = Access.Gate.All;
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Butcher(P, kill.Id)));
+        Assert.Null(Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
+    }
+
+    /// Review: an NPC that died holding a lit torch left it burning in the world's fires for good.
+    /// A dropped torch goes out within the hour.
+    [Fact]
+    public void A_TorchInADeadHand_GoesOut()
+    {
+        var w = Bare();
+        var camp = Map.Of(w).Camp;
+        var npc = Npc.Spawn(w, camp);
+        var torch = new FireId(w.NextFireId++);
+        w.Fires[torch] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, CarriedBy = npc, TorchMinutesLeft = 600 };
+        w.Agent(npc).Body.BloodPct = 0;
+        Body.MarkDead(w.Agent(npc).Body, w.Minute, new Cause(null, "the cold"));
+        Sim.Advance(w, 61);
+        Assert.False(w.Fires.ContainsKey(torch), "the dead carry no torch");
+
+        var gone = Npc.Spawn(w, camp); // carried off the map: an agent that has left the world
+        var second = new FireId(w.NextFireId++);
+        w.Fires[second] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, CarriedBy = gone, TorchMinutesLeft = 600 };
+        Agents.Remove(w, gone);
+        Sim.Advance(w, 61);
+        Assert.False(w.Fires.ContainsKey(second));
     }
 
     // ---- the carrion flock ----
@@ -515,6 +726,47 @@ public class KillChainTests
         Ground.CatchUp(fresh, plain[2]);
         static string Json(GroundState g) => System.Text.Json.JsonSerializer.Serialize(g);
         Assert.Equal(Json(fresh.Tiles[plain[2]].Ground!), Json(w.Tiles[plain[2]].Ground!));
+    }
+
+    /// The ground cache shares one state among every unobserved tile of a class (Ground.Peek): read
+    /// warm, tile after tile, a sample from across the map is the ground each tile gives on its own
+    /// with the cache thrown away. A per-tile input the class leaves out (a tile's own weather) would
+    /// hand a tile another's ground here, and this fails.
+    [Fact]
+    public void Ground_FromTheCache_IsEachTilesOwn_AcrossTheMap()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        static string Json(GroundState g) => System.Text.Json.JsonSerializer.Serialize(g);
+        foreach (int day in new[] { 3, 40, 150 })
+        {
+            w.Minute = day * 1440L + 7 * day;
+            var sample = Enumerable.Range(0, m.Width * m.Height).Where(i => i % 101 == day % 101)
+                .Select(i => new TileId(i / m.Height, i % m.Height))
+                .Where(t => m.TerrainAt(t).IsPassable() && w.Tiles.GetValueOrDefault(t)?.Ground == null).ToList();
+            Assert.True(sample.Count > 40, $"{sample.Count} tiles sampled");
+            w.GroundCache = null;
+            var warm = sample.Select(t => Json(Ground.Peek(w, t))).ToList();
+            for (int i = 0; i < sample.Count; i++)
+            {
+                w.GroundCache = null;
+                Assert.True(warm[i] == Json(Ground.Peek(w, sample[i])), $"day {day}: {sample[i]} read another tile's ground from the cache");
+            }
+        }
+    }
+
+    /// A bench's NPC has the same id whatever generation populated (NpcBench), and the herds born
+    /// after it come after it.
+    [Fact]
+    public void A_BenchNpc_KeepsItsId_WhateverTheValleyHolds()
+    {
+        var a = World.New(17);
+        var b = World.New(5);
+        Assert.NotEqual(a.Agents.Count, b.Agents.Count);
+        Assert.Equal(new AgentId(NpcBench.FirstId), NpcBench.Spawn(a, Map.Of(a).Camp));
+        Assert.Equal(new AgentId(NpcBench.FirstId), NpcBench.Spawn(b, Map.Of(b).Camp));
+        Assert.Equal(new AgentId(NpcBench.FirstId + 1), NpcBench.Spawn(b, Map.Of(b).Camp));
+        Assert.True(Agents.Spawn(b, Species.Caribou, Map.Of(b).Camp, 1).CompareTo(new AgentId(NpcBench.FirstId + 1)) > 0);
     }
 
     /// The Nearby index answers as a walk over every agent would, as herds walk, are born and die.
