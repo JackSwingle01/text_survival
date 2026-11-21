@@ -30,7 +30,8 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 | Second asks-review fixes + NPC fire-keeping (short sleeps by a dying fire, earlier relights, kindling for oak, camp moves to timber) | 65d7a62 | committed; review running alongside the next step |
 | Existing tables to data files (12 JSON files; behaviour byte-identical) | f5a8350 | committed; review confirmed byte-identical, found 2 loader holes |
 | NPC review fixes: one trip budget (warmth, energy, home-by), stranded NPCs camp, bed counts burnable hours, no hunting prey it would flee | 45c7916 | committed |
-| Loader fixes (strict enum names, required struct fields, explicit flags, ranges, dead rows, immutability), felling-yield report bug, NPC cold-pit bed | | in progress |
+| Loader fixes (strict enum names, required struct fields, explicit flags, ranges, dead rows, immutability), felling-yield report bug, NPC cold-pit bed | 12933a4 | committed; review running |
+| Emergent step 2: substrate (ThingRef, Cause, Signs.At, Access.Refusal, tags and capabilities) | | in progress |
 | Emergent step 2: substrate (ThingRef, Cause, Signs, Access) | | |
 | Emergent step 3: kill chain, renewal, settling pass | | |
 | Emergent step 4: affordances, moments, catalog paper exercise | | |
@@ -122,6 +123,13 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
   starving. In practice the NPC hunted once in 960 NPC-days before this change (the fatal mammoth).
   If caribou should be huntable when food is merely wanted, scale "theirs" by species threat; it is
   a one-line change. Left conservative pending the hunting work (`rebuild-npc-hunting.md`).
+
+**Loader round**
+- Four substrate display names changed to equal their keys ("bare rock" → `rock` and so on); nothing
+  in the sim read them. Mineral Spring's small game listed no animals (an old-game bug); it now has
+  the common rabbit and ptarmigan mix. Small game has no system yet, so no sim effect.
+- The report's felled-tree fire hours were about 5.7% high (it assumed more logs per tree than
+  chopping gives). Corrected; chopping itself is unchanged.
 
 ## Open questions
 
