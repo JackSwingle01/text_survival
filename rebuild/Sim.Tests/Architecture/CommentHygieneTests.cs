@@ -48,8 +48,66 @@ public class CommentHygieneTests
         ("parity with the old code", new(@"\bparity\b", RegexOptions.IgnoreCase)),
     ];
 
-    /// Above this share of non-blank lines in comments, a file is worth a look: a warning, not a failure.
-    const double CommentShareWarningPct = 0.10;
+    /// Comment lines over non-blank lines a file may reach.
+    const double CommentShareLimitPct = 0.10;
+
+    /// The ratchet: files over the limit today, each held at its current share (whole percent). A file
+    /// may only go down; the ratchet task takes one off at a time and brings it under the limit.
+    static readonly Dictionary<string, int> OverCommentLimit = new()
+    {
+        ["Access.cs"] = 31,
+        ["Activity.cs"] = 33,
+        ["Agent.cs"] = 25,
+        ["Body.cs"] = 16,
+        ["BodyMotion.cs"] = 33,
+        ["BodySurvival.cs"] = 24,
+        ["Carcass.cs"] = 27,
+        ["Carrion.cs"] = 27,
+        ["Combat.cs"] = 22,
+        ["CombatAI.cs"] = 25,
+        ["CombatAftermath.cs"] = 26,
+        ["CombatFlight.cs"] = 25,
+        ["CombatObserver.cs"] = 25,
+        ["Content.cs"] = 15,
+        ["Effects.cs"] = 16,
+        ["Exposure.cs"] = 34,
+        ["Fauna.cs"] = 21,
+        ["Fire.cs"] = 19,
+        ["Ground.cs"] = 18,
+        ["Ids.cs"] = 11,
+        ["Items.cs"] = 26,
+        ["Knowledge.cs"] = 24,
+        ["Make.cs"] = 18,
+        ["Map.cs"] = 28,
+        ["Names.cs"] = 23,
+        ["Narration.cs"] = 11,
+        ["Nearby.cs"] = 21,
+        ["Npc.cs"] = 37,
+        ["Odds.cs"] = 24,
+        ["Pools.cs"] = 18,
+        ["Populate.cs"] = 16,
+        ["Remains.cs"] = 31,
+        ["Renewal.cs"] = 34,
+        ["Report.cs"] = 14,
+        ["Rng.cs"] = 18,
+        ["Save.cs"] = 20,
+        ["Shelter.cs"] = 23,
+        ["Signs.cs"] = 20,
+        ["Sim.cs"] = 29,
+        ["Skills.cs"] = 36,
+        ["Species.cs"] = 33,
+        ["Tags.cs"] = 26,
+        ["Things.cs"] = 34,
+        ["Tiers.cs"] = 35,
+        ["Tracks.cs"] = 25,
+        ["Travel.cs"] = 27,
+        ["Trip.cs"] = 28,
+        ["Verbs.cs"] = 22,
+        ["Weather.cs"] = 18,
+        ["Work.cs"] = 13,
+        ["World.cs"] = 39,
+        ["WorldEvent.cs"] = 27,
+    };
 
     [Fact]
     public void SimComments_RecordNoHistory()
@@ -91,40 +149,36 @@ public class CommentHygieneTests
         Assert.Empty(HistoryIn("Sample.cs", src));
     }
 
-    /// A warning, not a failure: a heavily commented file is a refactor candidate, not a defect. The
-    /// list is the skipped test's display name and its skip reason (CommentShareWarningAttribute), so
-    /// a plain `dotnet test` prints it on the skip line; with no file over the line the test runs and passes.
-    [CommentShareWarning]
-    public void SimComments_WarnWhereHeavy() => Assert.Empty(HeavyFiles());
-
-    /// Every swept file whose comment lines pass CommentShareWarningPct of its non-blank lines, heaviest first.
-    internal static List<(string File, double Pct)> HeavyFiles() => SweptFiles()
-        .Select(f => (File: Path.GetFileName(f), Pct: CommentShare(File.ReadAllText(f))))
-        .Where(x => x.Pct > CommentShareWarningPct)
-        .OrderByDescending(x => x.Pct).ThenBy(x => x.File, StringComparer.Ordinal)
-        .ToList();
-
-    /// Skips its test with the heavy files as its name and reason: in xunit 2 a passing run's console
-    /// output at the default verbosity shows neither ITestOutputHelper lines nor skip reasons, only the
-    /// names of skipped tests.
-    sealed class CommentShareWarningAttribute : FactAttribute
+    /// Every Sim file is at or under the limit, or under its ratchet ceiling; a listed file that has come
+    /// under the limit must leave the list, so the list only shrinks.
+    [Fact]
+    public void SimComments_StayUnderTheRatchet()
     {
-        public CommentShareWarningAttribute()
+        var problems = new List<string>();
+        var shares = SimFiles().ToDictionary(f => Path.GetFileName(f), f => CommentShare(File.ReadAllText(f)));
+        foreach (var (file, share) in shares.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
-            var heavy = HeavyFiles();
-            if (heavy.Count == 0) return;
-            Skip = $"warning: {heavy.Count} files are over {CommentShareWarningPct:P0} comments (comment lines / non-blank lines): "
-                 + string.Join(", ", heavy.Select(h => $"{h.File} {h.Pct:P0}"));
-            DisplayName = "Comment share " + Skip;
+            int pct = (int)Math.Ceiling(share * 100 - 1e-9);
+            if (OverCommentLimit.TryGetValue(file, out int ceiling))
+            {
+                if (share <= CommentShareLimitPct) problems.Add($"{file} is at {pct}%, under the limit: take it off OverCommentLimit");
+                else if (pct > ceiling) problems.Add($"{file} is at {pct}%, above its ratchet ceiling of {ceiling}%");
+            }
+            else if (share > CommentShareLimitPct)
+                problems.Add($"{file} is at {pct}%, over the {CommentShareLimitPct:P0} limit (comment lines / non-blank lines)");
         }
+        foreach (var gone in OverCommentLimit.Keys.Where(k => !shares.ContainsKey(k)))
+            problems.Add($"{gone} no longer exists: take it off OverCommentLimit");
+        Assert.True(problems.Count == 0, string.Join("\n", problems));
     }
 
-    static IEnumerable<string> SweptFiles() =>
+    static IEnumerable<string> SimFiles() =>
         Directory.EnumerateFiles(ArchitectureTests.SimSourceDir(), "*.cs", SearchOption.AllDirectories)
             .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
-                     && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")
-                     && !NotYetSwept.ContainsKey(Path.GetFileName(f)))
+                     && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
             .Order(StringComparer.Ordinal);
+
+    static IEnumerable<string> SweptFiles() => SimFiles().Where(f => !NotYetSwept.ContainsKey(Path.GetFileName(f)));
 
     static IEnumerable<string> HistoryIn(string file, string src)
     {
