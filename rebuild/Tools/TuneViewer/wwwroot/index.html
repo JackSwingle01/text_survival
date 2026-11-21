@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tune viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="title-block">
+    <h1 id="run-name">Loading run</h1>
+    <p id="run-meta" class="meta"></p>
+  </div>
+  <div class="status-block">
+    <span id="status" class="status">connecting</span>
+    <p id="headline" class="headline"></p>
+  </div>
+</header>
+
+<main>
+  <p id="notice" class="notice" hidden></p>
+
+  <section class="panel" id="fitness-panel" aria-labelledby="fitness-h">
+    <div class="panel-head">
+      <h2 id="fitness-h">Fitness by generation</h2>
+      <p class="hint">Lower is better: summed distance outside every scored band. Log scale.</p>
+    </div>
+    <div class="fitness-row">
+      <figure class="chart" id="fitness-chart"></figure>
+      <figure class="chart small" id="sigma-chart"></figure>
+    </div>
+  </section>
+
+  <section class="scrubber" id="scrubber" aria-label="Generation">
+    <label for="gen">Generation <output id="gen-out">-</output></label>
+    <input type="range" id="gen" min="1" max="1" value="1">
+    <label class="follow"><input type="checkbox" id="follow" checked> Follow the newest</label>
+  </section>
+
+  <section class="panel" id="scenario-panel" aria-labelledby="scen-h">
+    <div class="panel-head">
+      <h2 id="scen-h">Scenarios, as the best candidate fought them</h2>
+      <div class="legend" id="ending-legend"></div>
+    </div>
+    <div class="grid" id="scenarios"></div>
+    <div id="orders" class="orders"></div>
+  </section>
+
+  <section class="panel" id="param-panel" aria-labelledby="param-h">
+    <div class="panel-head">
+      <h2 id="param-h">Parameters: the search's mean</h2>
+      <p class="hint">Each line is the mean across its range, bottom to top. Shaded strips are the outer 2%.</p>
+    </div>
+    <table class="params" id="params"></table>
+  </section>
+
+  <section class="panel" id="replay-panel" aria-labelledby="replay-h">
+    <div class="panel-head">
+      <h2 id="replay-h">Replay a fight</h2>
+      <p class="hint">Fought again now, on the seed the tuner used. Refused when the code here is not the run's code.</p>
+    </div>
+    <div class="replay-controls">
+      <label>Scenario <select id="r-scenario"></select></label>
+      <label>Candidate <select id="r-candidate"></select></label>
+      <label>Fight <input type="number" id="r-fight" min="0" value="0"></label>
+      <button id="r-go" type="button">Fight it again</button>
+    </div>
+    <div id="r-strip" class="strip-wrap"></div>
+    <p id="r-message" class="r-message"></p>
+    <div class="replay-body" id="r-body" hidden>
+      <div class="arena">
+        <canvas id="r-canvas" width="500" height="500" aria-label="Fight grid"></canvas>
+        <div class="playback">
+          <button id="r-back" type="button" aria-label="Step back">Back</button>
+          <button id="r-play" type="button">Play</button>
+          <button id="r-step" type="button" aria-label="Step forward">Step</button>
+          <input type="range" id="r-frame" min="0" max="0" value="0" aria-label="Round">
+          <output id="r-round">round 0</output>
+        </div>
+      </div>
+      <div class="units">
+        <table id="r-units"></table>
+        <ul id="r-events" class="events"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

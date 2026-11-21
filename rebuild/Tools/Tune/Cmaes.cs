@@ -23,6 +23,9 @@ public sealed class Cmaes
     /// The covariance's largest over smallest axis: a search that has learned a valley stretches this.
     public double AxisRatio => d.Max() / Math.Max(1e-300, d.Min());
 
+    /// Hansen's default population size for a dimension.
+    public static int DefaultLambda(int n) => 4 + (int)Math.Floor(3 * Math.Log(n));
+
     public Cmaes(IReadOnlyList<double> mean, double sigma, ulong seed, int? lambda = null)
     {
         n = mean.Count;
@@ -30,7 +33,7 @@ public sealed class Cmaes
         Mean = [.. mean];
         Sigma = sigma;
         rng = new Rng { State = seed };
-        Lambda = lambda ?? 4 + (int)Math.Floor(3 * Math.Log(n));
+        Lambda = lambda ?? DefaultLambda(n);
         if (Lambda < 2) throw new ArgumentException("lambda must be at least 2");
         Mu = Lambda / 2;
         var raw = Enumerable.Range(1, Mu).Select(i => Math.Log(Mu + 0.5) - Math.Log(i)).ToArray();

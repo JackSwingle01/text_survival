@@ -27,6 +27,26 @@ public sealed record FightOutcome(string Result, bool ADied, bool BKilled, bool 
     };
 
     public static readonly string[] Metrics = ["aDies", "bKilled", "aFled", "bFled", "aWinsOrDrivesOff", "bLeaves", "rounds"];
+
+    /// The ending as one letter, for the run log: V Victory, D Defeat, F Fled, A AnimalFled,
+    /// X AnimalDisengaged, U Unfinished, ? none recorded.
+    public static readonly IReadOnlyDictionary<string, char> EndingCodes = new Dictionary<string, char>
+    {
+        [nameof(CombatResult.Victory)] = 'V', [nameof(CombatResult.Defeat)] = 'D', [nameof(CombatResult.Fled)] = 'F',
+        [nameof(CombatResult.AnimalFled)] = 'A', [nameof(CombatResult.AnimalDisengaged)] = 'X', ["Unfinished"] = 'U', ["?"] = '?',
+    };
+
+    /// One fight in a few characters: ending letter, a digit of flags (1 A died, 2 B killed, 4 A fled),
+    /// a dot and the rounds. "D1.12" is a defeat in which A died, after 12 rounds.
+    public string Code() => $"{EndingCodes[Result]}{(ADied ? 1 : 0) + (BKilled ? 2 : 0) + (AFled ? 4 : 0)}.{Rounds}";
+
+    public static FightOutcome Parse(string code)
+    {
+        string result = EndingCodes.Single(kv => kv.Value == code[0]).Key;
+        int flags = code[1] - '0', dot = code.IndexOf('.');
+        if (dot != 2 || flags is < 0 or > 7) throw new FormatException($"Not a fight code: '{code}'");
+        return new(result, (flags & 1) != 0, (flags & 2) != 0, (flags & 4) != 0, int.Parse(code[(dot + 1)..], System.Globalization.CultureInfo.InvariantCulture));
+    }
 }
 
 /// Runs single fights, each in a world of its own made from one shared map: nothing carries from one
@@ -39,7 +59,10 @@ public sealed class Fights
     readonly GeneratedMap map;
     readonly TileId tile;
 
-    public Fights(int mapSeed = 1000)
+    /// The map every fight is fought on, unless a caller asks for another.
+    public const int DefaultMapSeed = 1000;
+
+    public Fights(int mapSeed = DefaultMapSeed)
     {
         map = Map.Generate(mapSeed);
         tile = Quiet(map);
@@ -73,15 +96,22 @@ public sealed class Fights
         if (headless && s.Policy != "ai") throw new ArgumentException($"{s}: an animal or NPC-only fight is fought by the AI");
     }
 
-    public FightOutcome Run(Scenario s, int seed)
+    /// One fight. A watcher, if given, sees the grid at the opening and after every round of a fight
+    /// this harness drives round by round (Watchable); it only reads, so a watched fight is the same
+    /// fight. Headless fights resolve inside Sim and are not seen until Sim offers a round observer.
+    public FightOutcome Run(Scenario s, int seed, Action<TraceFrame>? watch = null)
     {
         var w = new World { Seed = seed, GeneratedMap = map };
         w.Agents[P] = new Agent { Id = P, Tile = tile };
-        return new OneFight(w, tile, s).Go();
+        return new OneFight(w, tile, s, watch).Go();
     }
 
+    /// Whether Run can show this scenario's rounds: the fights the harness drives through Sim.Step.
+    public static bool Watchable(Scenario s) => s.Setup.StartsWith("hunt_")
+        || !s.Setup.Contains("_vs_") && s.Policy != "ai";
+
     /// One fight in its world. Drivers and policies follow the probe line for line.
-    sealed class OneFight(World w, TileId tile, Scenario c)
+    sealed class OneFight(World w, TileId tile, Scenario c, Action<TraceFrame>? watch)
     {
         int frozen;
 
@@ -153,19 +183,62 @@ public sealed class Fights
         {
             var person = Combat.UnitOf(enc, P);
             var events = new List<WorldEvent>();
+            watch?.Invoke(Frame(enc, 0, null, null, []));
             for (int round = 0; round < 300 && w.Encounters.Contains(enc); round++)
             {
                 var (act, target, to) = policy(enc, person);
+                int seen = events.Count;
                 var r = Sim.Step(w, new Fight(P, act, target == null ? null : enc.Units.IndexOf(target), to), 1);
                 events.AddRange(r.Events);
+                string action = act.ToString();
                 if (r.InterruptedReason != null && r.InterruptedReason != "fight over" && r.InterruptedReason != "died" && w.Encounters.Contains(enc))
+                {
                     events.AddRange(Sim.Step(w, new Fight(P, CombatAction.Wait), 1).Events); // a refused action: wait instead
+                    action = $"{act} (refused: {r.InterruptedReason}), Wait";
+                }
+                watch?.Invoke(Frame(enc, round + 1, action, target == null ? null : enc.Units.IndexOf(target), events.Skip(seen)));
             }
             if (w.Encounters.Contains(enc)) return new("Unfinished", !Body.IsAlive(w.Agent(P).Body), BKilled(enc, events), false, enc.Rounds);
             var result = events.OfType<FightEnded>().LastOrDefault(f => f.Agent == P)?.Result.ToString() ?? "?";
             bool dead = !Body.IsAlive(w.Agent(P).Body);
             return new(result, dead, BKilled(enc, events), !dead && result == nameof(CombatResult.Fled), enc.Rounds);
         }
+
+        /// The grid as it stands, read without drawing a random number or changing a thing. Only the
+        /// driven person's action is known here; the others act inside Sim.Step.
+        TraceFrame Frame(Encounter enc, int round, string? action, int? target, IEnumerable<WorldEvent> events)
+        {
+            var units = enc.Units.Select((u, i) =>
+            {
+                // A herd that has lost its last member leaves the world: what it was is remembered.
+                w.Agents.TryGetValue(u.Agent, out var agent);
+                if (agent != null) species[u.Agent] = agent.Species.ToString();
+                var body = agent != null && u.Member < agent.Members.Count ? agent.Members[u.Member] : null;
+                bool alive = body != null && Body.IsAlive(body);
+                string state = !alive ? "Down" : !u.InField ? "Gone" : u.Awareness.ToString();
+                var foe = u.InField && body != null ? Combat.NearestEnemy(enc, u) : null;
+                bool foeReadable = foe != null && w.Agents.TryGetValue(foe.Agent, out var fa) && foe.Member < fa.Members.Count;
+                double? bold = alive && u.InField ? Combat.UnitBoldness(w, enc, u) : null;
+                return new TraceUnit(i, u.Team, species.GetValueOrDefault(u.Agent, "?"), u.Member, u.Position.X, u.Position.Y, state,
+                    u.Agent == P ? action : null, u.Agent == P ? target : null,
+                    bold is double b && foeReadable ? b - Combat.PerceivedThreat(w, u, foe!) : null, bold,
+                    body == null ? null : Body.Vitality(body), body?.BloodPct, body == null ? null : Body.SprintReservePct(body),
+                    body == null ? null : Combat.WoundLevel(body));
+            }).ToList();
+            var lines = events.Select(e => e switch
+            {
+                Injured i => $"{Name(i.Who)} hurt: {i.Region}, {i.Type} {i.Amount:0.00}",
+                Killed k => $"{k.Species} killed",
+                Died d => $"{Name(d.Who)} died",
+                FightEnded f when f.Agent == P => $"fight over: {f.Result}",
+                _ => null,
+            }).OfType<string>().ToList();
+            return new TraceFrame(round, units, null, lines);
+        }
+
+        readonly Dictionary<AgentId, string> species = [];
+
+        string Name(AgentId id) => w.Agents.TryGetValue(id, out var a) ? a.Species.ToString() : species.GetValueOrDefault(id, id.ToString());
 
         static bool BKilled(Encounter enc, List<WorldEvent> events)
         {

@@ -10,12 +10,20 @@ using Survival.Tune;
 //       Measures the band spec once, with today's content or with an override file.
 //   worker JOB OUT
 //       One candidate's fights (internal: the tuner starts these).
+//   replay JOB OUT
+//       One fight again, watched where it can be (internal: the viewer starts these).
+// A combat run writes progress.jsonl into its folder as it goes (Progress.cs), for the viewer.
 // Nothing here writes a content file: results are override files, applied by hand after review.
 
 // The worker must set its overrides before anything touches Content, so it goes first.
 if (args.Length == 3 && args[0] == "worker")
 {
     File.WriteAllText(args[2], Specs.Write(Workers.RunInProcess(Specs.Read<Job>(File.ReadAllText(args[1])))));
+    return 0;
+}
+if (args.Length == 3 && args[0] == "replay")
+{
+    File.WriteAllText(args[2], Specs.Write(Replays.RunInProcess(Specs.Read<ReplayJob>(File.ReadAllText(args[1])))));
     return 0;
 }
 
@@ -76,12 +84,17 @@ var files = Specs.EmbeddedContent();
 var ps = Specs.LoadParameters(File.ReadAllText(paramsPath), files);
 var today = ps.Select(p => Specs.Current(files, p.Paths[0])).ToArray();
 Console.WriteLine($"{ps.Count} parameters, {scenarios.Count} scenarios, budget {budget}, seed {seed}, {workers} workers -> {outDir}");
-var wall = System.Diagnostics.Stopwatch.StartNew();
-var result = Tuner.Run(ps, spec, today, options, scratch, Console.WriteLine);
+string command = "dotnet run -c Release --project rebuild/Tools/Tune -- " + string.Join(' ', args);
 Directory.CreateDirectory(outDir);
+var progress = new ProgressLog(Path.Combine(outDir, ProgressLog.FileName));
+if (File.Exists(progress.Path)) throw new IOException($"{progress.Path} exists: give a new --out");
+progress.Write(ProgressLog.Header(ps, today, spec, options, Tuner.Lambda(ps.Count, options), command,
+    Provenance.Current(Provenance.RepoRoot(project)), File.ReadAllText(bandsPath), File.ReadAllText(paramsPath)));
+var wall = System.Diagnostics.Stopwatch.StartNew();
+var result = Tuner.Run(ps, spec, today, options, scratch, Console.WriteLine, progress);
 File.Copy(paramsPath, Path.Combine(outDir, "params.json"), overwrite: true);
 File.Copy(bandsPath, Path.Combine(outDir, "bands.json"), overwrite: true);
-Tuner.Write(outDir, result, spec, options, "dotnet run -c Release --project rebuild/Tools/Tune -- " + string.Join(' ', args), wall.Elapsed.TotalSeconds);
+Tuner.Write(outDir, result, spec, options, command, wall.Elapsed.TotalSeconds);
 Console.WriteLine($"fitness {result.FitnessBefore:F4} -> {result.FitnessAfter:F4}; wrote {outDir}");
 Directory.Delete(scratch, recursive: true);
 return 0;

@@ -8,9 +8,10 @@ namespace Survival.Tune;
 public sealed record Job(IReadOnlyDictionary<string, double> Overrides, IReadOnlyDictionary<string, Scenario> Scenarios,
     int Fights, ulong SeedBase, int Threads);
 
-/// Per scenario, the mean of each metric over its fights, and how its fights ended.
+/// Per scenario, the mean of each metric over its fights, how its fights ended, and every fight in
+/// order as FightOutcome.Code, space-separated (fight i is the i-th).
 public sealed record JobResult(IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> Means,
-    IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> Results);
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> Results, IReadOnlyDictionary<string, string>? Fights = null);
 
 public static class Seeds
 {
@@ -51,6 +52,7 @@ public static class Workers
         var fights = new Fights();
         var means = new Dictionary<string, IReadOnlyDictionary<string, double>>();
         var results = new Dictionary<string, IReadOnlyDictionary<string, int>>();
+        var each = new Dictionary<string, string>();
         foreach (var (name, s) in job.Scenarios)
         {
             var outs = new FightOutcome[job.Fights];
@@ -58,40 +60,50 @@ public static class Workers
                 i => outs[i] = fights.Run(s, Seeds.Fight(job.SeedBase, name, i)));
             means[name] = FightOutcome.Metrics.ToDictionary(m => m, m => outs.Average(o => o.Metric(m)));
             results[name] = outs.GroupBy(o => o.Result).OrderBy(g => g.Key, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count());
+            each[name] = string.Join(' ', outs.Select(o => o.Code()));
         }
-        return new JobResult(means, results);
+        return new JobResult(means, results, each);
     }
 
     /// Runs every job in its own worker process, at most `parallel` at once, and returns their
     /// results in job order. A worker that fails fails the call, with its error output.
     public static JobResult[] Run(IReadOnlyList<Job> jobs, int parallel, string scratchDir)
     {
-        Directory.CreateDirectory(scratchDir);
-        // The tool itself, whoever called: its apphost beside Tune.dll, else the dll under dotnet.
-        string dll = typeof(Workers).Assembly.Location, host = Path.ChangeExtension(dll, OperatingSystem.IsWindows() ? ".exe" : null);
         var results = new JobResult[jobs.Count];
         try
         {
-            Parallel.For(0, jobs.Count, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, parallel) }, k =>
-            {
-                string jobPath = Path.Combine(scratchDir, $"job{k}.json"), outPath = Path.Combine(scratchDir, $"out{k}.json");
-                File.WriteAllText(jobPath, Specs.Write(jobs[k]));
-                var psi = new ProcessStartInfo(File.Exists(host) ? host : "dotnet") { RedirectStandardError = true, RedirectStandardOutput = true, UseShellExecute = false };
-                if (!File.Exists(host)) psi.ArgumentList.Add(dll);
-                foreach (var a in new[] { "worker", jobPath, outPath }) psi.ArgumentList.Add(a);
-                using var p = Process.Start(psi) ?? throw new InvalidOperationException("Could not start a worker");
-                var errTask = p.StandardError.ReadToEndAsync();
-                p.StandardOutput.ReadToEnd();
-                p.WaitForExit();
-                string err = errTask.Result;
-                if (p.ExitCode != 0) throw new InvalidOperationException($"Worker {k} failed ({p.ExitCode}):\n{err}");
-                results[k] = Specs.Read<JobResult>(File.ReadAllText(outPath));
-                File.Delete(jobPath);
-                File.Delete(outPath);
-            });
+            Parallel.For(0, jobs.Count, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, parallel) },
+                k => results[k] = InProcess<Job, JobResult>("worker", jobs[k], scratchDir, $"{k}"));
         }
         // One failed worker is the error, not a wrapper around it.
         catch (AggregateException e) when (e.InnerExceptions.Count >= 1) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e.InnerExceptions[0]).Throw(); }
         return results;
+    }
+
+    /// One fight fought again in a process of its own, so its overrides load fresh.
+    public static ReplayResult Replay(ReplayJob job, string scratchDir) =>
+        InProcess<ReplayJob, ReplayResult>("replay", job, scratchDir, Guid.NewGuid().ToString("N"));
+
+    /// Runs `Tune <command> JOB OUT` and reads OUT back. A worker that fails fails the call, with its error output.
+    static TOut InProcess<TIn, TOut>(string command, TIn job, string scratchDir, string tag)
+    {
+        Directory.CreateDirectory(scratchDir);
+        // The tool itself, whoever called: its apphost beside Tune.dll, else the dll under dotnet.
+        string dll = typeof(Workers).Assembly.Location, host = Path.ChangeExtension(dll, OperatingSystem.IsWindows() ? ".exe" : null);
+        string jobPath = Path.Combine(scratchDir, $"job{tag}.json"), outPath = Path.Combine(scratchDir, $"out{tag}.json");
+        File.WriteAllText(jobPath, Specs.Write(job));
+        var psi = new ProcessStartInfo(File.Exists(host) ? host : "dotnet") { RedirectStandardError = true, RedirectStandardOutput = true, UseShellExecute = false };
+        if (!File.Exists(host)) psi.ArgumentList.Add(dll);
+        foreach (var a in new[] { command, jobPath, outPath }) psi.ArgumentList.Add(a);
+        using var p = Process.Start(psi) ?? throw new InvalidOperationException("Could not start a worker");
+        var errTask = p.StandardError.ReadToEndAsync();
+        p.StandardOutput.ReadToEnd();
+        p.WaitForExit();
+        string err = errTask.Result;
+        if (p.ExitCode != 0) throw new InvalidOperationException($"Worker {tag} failed ({p.ExitCode}):\n{err}");
+        var result = Specs.Read<TOut>(File.ReadAllText(outPath));
+        File.Delete(jobPath);
+        File.Delete(outPath);
+        return result;
     }
 }

@@ -39,8 +39,13 @@ public static class Tuner
     /// The fitness of a measured candidate under a spec.
     public static double Score(BandSpec spec, JobResult r) => spec.Fitness(r.Means);
 
+    /// The CMA-ES population size this run will use (Cmaes's default for the dimension, unless given).
+    public static int Lambda(int dimension, TuneOptions opt) => opt.Lambda ?? Cmaes.DefaultLambda(dimension);
+
+    /// Runs the search. A progress log, if given, gets one line per generation from results already
+    /// computed; it never changes what is fought or chosen.
     public static TuneResult Run(IReadOnlyList<Parameter> ps, BandSpec spec, double[] today, TuneOptions opt, string scratch,
-        Action<string>? log = null)
+        Action<string>? log = null, ProgressLog? progress = null)
     {
         int workers = opt.Workers > 0 ? opt.Workers : Environment.ProcessorCount;
         int fights = opt.Fights ?? spec.Fights;
@@ -57,7 +62,8 @@ public static class Tuner
         {
             var xs = es.Ask();
             ulong seedBase = Seeds.Mix(opt.Seed, (ulong)es.Generation + 1);
-            var jobs = xs.Select(x => new Job(Overrides(ps, Values(ps, x)), scenarios, fights, seedBase, threads)).ToList();
+            var values = xs.Select(x => Values(ps, x)).ToArray();
+            var jobs = values.Select(v => new Job(Overrides(ps, v), scenarios, fights, seedBase, threads)).ToList();
             var results = Workers.Run(jobs, workers, Path.Combine(scratch, "jobs"));
             var f = xs.Select((x, k) => Score(spec, results[k]) + OutsidePenalty * Outside(x)).ToArray();
             evals += xs.Length;
@@ -67,6 +73,8 @@ public static class Tuner
             var sorted = f.OrderBy(v => v).ToArray();
             var g = new Generation(es.Generation, evals, f[best], sorted[sorted.Length / 2], bestSoFar, es.Sigma, es.AxisRatio, clock.Elapsed.TotalSeconds);
             history.Add(g);
+            progress?.Write(ProgressLog.Generation(g.Index, g.Evaluations, g.Seconds, seedBase, spec, xs, values, f, best, bestSoFar,
+                es.Sigma, es.AxisRatio, [.. es.Mean], Values(ps, es.Mean), results[best]));
             log?.Invoke($"gen {g.Index,3}  evals {g.Evaluations,5}  best {g.Best:F4}  median {g.Median:F4}  best so far {g.BestSoFar:F4}  sigma {g.Sigma:F4}  {g.Seconds:F0}s");
         }
 
