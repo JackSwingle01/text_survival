@@ -25,7 +25,7 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 | Feature-parity checklist (237 rows) | c02e851 | done: `documentation/feature-parity-checklist.md` |
 | Authored-content catalog (301 entries: 244 replaced, 17 left, 40 cut) | a6aad25 | done: `documentation/authored-content-catalog.md`; design refinements folded in |
 | Merge of `worktree-short-loop-plan` (short-loop plan, UI design, terrain art) | 11aee1a | done, at your request |
-| Short-loop plan's "Asks of the Rebuild" (event tiles, historical minutes, chance factors, skills, place memory) | | in progress |
+| Short-loop plan's "Asks of the Rebuild" (event tiles, historical minutes, chance factors, skills, place memory) | feac1de | committed; review running |
 | Existing tables to data files | | |
 | Emergent step 2: substrate (ThingRef, Cause, Signs, Access) | | |
 | Emergent step 3: kill chain, renewal, settling pass | | |
@@ -89,6 +89,19 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 - "Scattered Bones" / "Old Bones" stocks (287 on seed 17) count as resources, not dead matter.
 - Region floor: a region under 1/3 of the median count is "too few" (the doc only gave the 3x
   ceiling).
+
+**Short-loop asks**
+- Skills live on `PersonMind`, not `Agent` (plan decision 2: kind-specific state in the mind).
+  Noted in `short-loop-plan.md`.
+- Skill curve: XP to next level = 5 x (level + 1), max level 20. Firecraft adds +2% per level to the
+  fire odds (the old +10% per level and a long curve can't both hold). Foraging +1.5% yield per
+  level, cooking +2% speed, butchering +1% yield. Crafting has no bonus until crafting exists.
+- Sight for memory is a 5-tile diamond behind one function (`Sight.Visible`) until sight rays port.
+- The fire's flame counts as visible from a distance, so your map updates about 5 tiles from camp
+  on the way home; the camp receipt still lists the fire's death at its real minute.
+- Field receipts leave out human prints (yours and another person's are the same mark).
+- Odds not yet broken into terms: stalking detection, dodge, shove, the flat 90% blow, butchering
+  yield, a single forage find (reasons in `rebuild-deferred.md`).
 
 ## Open questions
 
