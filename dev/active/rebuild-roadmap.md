@@ -298,3 +298,12 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 
   These are starting values for the tuning tool, keeping spear > axe > knife > stone > staff > hands.
 - Glance moves onto the sight rays: one sight model for noticing and the explored map.
+- Progress (2026-11-21):
+  - MVP 1 done.
+  - MVP 5 core done (Verbs, sight and explored tiles, trip terms, versioned saves, shared tiers).
+  - MVP 4 crafting core done (24 recipes).
+  - Tuning tool built.
+  - Combat salvage is in stages, stage 1 running.
+  - The web UI slice has started.
+  - MVP 2 (predators engage) goes to the combat agent after its stage 3, because it works in the
+    same files.
