@@ -337,3 +337,9 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
     asleep where you are for 15–90 minutes;
   - effects stack with diminishing returns, so hunger, thirst and tiredness together never take
     Moving below about 0.2 while there's fat in reserve.
+- Giving ground: the AI may strike when the enemy is in reach (one action per round). When it
+  should is a tunable threshold in the priority list, learned by the tuner rather than fixed by
+  hand. A "fighting retreat" combined action can come later, only if play needs it.
+- Well fed: +5% to the body's own metabolic heat and to healing. Capacities stay capped at 1.
+- The stacked-discomfort floor (Moving about 0.2) holds even after fat is gone; heart damage from
+  starvation can still take the body to zero.
