@@ -221,3 +221,14 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   kindling to light it, computed from the fire model. Short of kindling is a Need, restocked on
   wood trips. The NPC's lasting-harm line follows the body's cold-harm onset (95 °F): one source of
   truth.
+- Endurance hunting runs on three scales:
+  - the fight on the combat grid;
+  - a flight that leaves the grid resolves by the catch-up calculation and moves both sides
+    across tiles;
+  - a persistence hunt is repeated flushes on the map, where each drains the animal and its
+    recovery slows with heat and exhaustion. Deep crusted snow favours a person, more again
+    on snowshoes.
+
+  For the player it is one action, Pursue. You see its odds before committing, and it stops only
+  for real decisions (the same rules that interrupt any long action). It comes after the MVP; the
+  MVP keeps the catch-up inside fights. (Proposed; awaiting the user's yes.)
