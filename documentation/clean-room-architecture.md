@@ -28,8 +28,7 @@ Eight decisions, each removing one of the problems above. Together they make the
 ```csharp
 record World(int Seed, long Minute, WeatherState Weather,
              Dictionary<TileId, TileState> Tiles,   // only tiles that differ from generation
-             Dictionary<AgentId, Agent> Agents,     // the player, NPCs and herds alike
-             List<Tension> Tensions);
+             Dictionary<AgentId, Agent> Agents);    // the player, NPCs and herds alike
 ```
 
 - References are IDs, never object pointers. The save is the `World`.
@@ -69,26 +68,23 @@ static StepResult Step(World w, Activity a, int minutes);
 abstract record WorldEvent;  // FireDied, Injured, Witnessed, TrackLeft, ...
 ```
 
-- `Step` returns `List<WorldEvent>`. Log, notices, tensions, relationship memory, toasts and event triggers all read the same stream.
+- `Step` returns `List<WorldEvent>`. Log, notices, relationship memory, toasts and moments all read the same stream.
 - Replaces `ctx.Notices`, `NarrativeLog` plumbing and `RelationshipEvents` routing. Replays and debug traces come with it.
 
-### 5. Event effects are small composable records
+### 5. Content emerges from the simulation; tensions are derived, not tracked
 
-```csharp
-abstract record Effect { public abstract void Apply(World w, AgentId who, Outcome o); }
-record AddCondition(EffectKind Kind, double Severity) : Effect;
-record Damage(double Amount, DamageType Type, BodyTarget Target) : Effect;
-record Tension(string Type, double Delta) : Effect;
-```
+**Superseded design (2026-11-20): see [emergent-world-design.md](emergent-world-design.md).**
 
-- A new effect is one new type; nothing central changes. Outcome templates like `.Frightening()` stay as sugar.
-- Events stay in C#, because their conditions really are code.
+- Tensions are not stored. Each old tension (Stalked, WoundedPrey, FoodScentStrong...) is real state: a pack whose mind follows you, a split-off wounded animal, meat in your pack. What the player feels is their *belief* about it (decision 7).
+- Authored events become **moments**: a real dynamic crosses a threshold the player can perceive, and the choices are verbs derived from what is present (thing tags x carried capabilities), emitted as ordinary `Activity` records.
+- Discovery content comes from a **settling pass** at world generation: the real sim run forward a year or two, leaving signs with one hop of cause.
+- Rule: any event or discovery this system can replace, it replaces. What is left is catalogued and migrated later as authored content.
 
 ### 6. Tables become data; logic stays code
 
 - Items, recipes, terrain, animals, named locations and loot or discovery pools load from JSON or TOML.
 - One test loads all content and checks every reference resolves: "never fail silently" enforced in one place.
-- No event scripting language. It would grow into a bad programming language.
+- No event or rules scripting language. It would grow into a bad programming language. The one data-driven rule set is the small affordance table (emergent-world-design.md §3.4).
 
 ### 7. One knowledge model per agent
 
@@ -112,7 +108,7 @@ flowchart TD
     CLI["CLI and bots<br/>scripted actions"] -->|Activity| Step
     NPC["NPC utility AI and herd minds<br/>same choices"] -->|Activity| Step
     Step["Step(World, Activity, minutes)<br/>one code path for every agent<br/>lazy catch-up of whatever it touches"]
-    Step -->|emits| Stream["WorldEvent stream<br/>log, notices, tensions,<br/>NPC memory, event triggers"]
+    Step -->|emits| Stream["WorldEvent stream<br/>log, notices,<br/>NPC memory, moments"]
     Step -->|runs| Systems
     subgraph Systems["Systems: static functions over World data"]
         Fire["Fire<br/>fuel, heat, torches"]
@@ -120,7 +116,7 @@ flowchart TD
         Ground["Ground<br/>snow, water, tracks, trails"]
         Weather["Weather<br/>fronts, temperature, wind"]
         Fauna["Fauna<br/>herds, predators, small game"]
-        Events["Events<br/>situations, tensions, effects"]
+        Events["Signs and moments<br/>derived signs, affordances, director"]
     end
     Systems -->|reads| Content["Content tables<br/>items, recipes, terrain, animals"]
     Systems -->|reads and writes| World["World state<br/>plain data, IDs; seed + deltas = the save"]
@@ -137,7 +133,7 @@ Port the tuned formulas and the authoring vocabulary; drop distinctions the play
 | Decision | What | Why |
 | --- | --- | --- |
 | Keep | Async/await control flow (`await ui.Select(...)`) | Already the right shape; becomes the thin layer that picks `Activity` |
-| Keep | Situations, Tensions, Variants, outcome templates | Good authoring vocabulary; re-targeted at `Effect` records |
+| Cut | Tensions, most authored events, outcome templates | Replaced by derived state, signs and moments ([emergent-world-design.md](emergent-world-design.md)); leftovers catalogued for later migration |
 | Keep | `.pxa` pixel-art pipeline | Independent and working |
 | Port | Two-mass fire, heat transfer, `GroundSurface` layers, track and trail wear | Tuned physics; move formulas and their tests, not the classes |
 | Port | Tactical combat grid | Same mode, built on shared `Body` and `Activity` |
@@ -157,7 +153,7 @@ Build a fresh `Core` project beside the old one and stop at any gate with a play
 | 1. Core skeleton | `World`, `Activity`, `Step`, `WorldEvent` stream; Fire and Body ported; player at camp in the CLI | Ported fire and heat tests pass; save round-trips under 1 MB |
 | 2. Map and travel | Seeded grid, Ground, Weather, lazy catch-up; hazardous travel; tracks and trails | 30-day headless run completes; same seed + actions = same world |
 | 3. Fauna and NPCs | Herd minds (prey, pack, solitary) and NPC utility AI choosing activities for multi-member agents; combat grid on the shared `Body` | An NPC survives 14 days alone; a pack hunt resolves headless; a wounded animal splits into its own agent |
-| 4. Events and content | `Effect` records, Situations, Tensions; tables moved to data files; events ported | Every content reference resolves; every event has 2+ choices |
+| 4. World content | Named places, the crossing, shelters and bedding; tables moved to data files; then the emergent-world build order ([emergent-world-design.md](emergent-world-design.md) §9): tools, substrate, kill chain and settling pass, affordances and moments, full interaction table, travellers | Every content reference resolves; a settled valley meets the find-distribution targets; no find offers zero verbs; leftover authored content catalogued |
 | 5. Desktop front end | Async driver over `Step`; pixel-art renderers; UI draws the player's knowledge, not the truth | Feature-parity checklist done; old project retired |
 
 The CLI is the first front end, so every phase is playable and testable before any rendering exists. Durations are open: size each phase after phase 1 shows the real porting speed.
