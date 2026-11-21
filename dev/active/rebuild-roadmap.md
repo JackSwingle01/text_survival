@@ -307,3 +307,8 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   - The web UI slice has started.
   - MVP 2 (predators engage) goes to the combat agent after its stage 3, because it works in the
     same files.
+- People start well fed for autumn: body fat drawn per person at 15–18%, deterministic from the
+  world seed. Fat lost over the winter is part of the run. NPC foraging is retuned later, with the
+  food-balance item.
+- Running numbers (speeds, sprint, running cost, grazing intake) live in `species.json`, where the
+  tuner can reach them.
