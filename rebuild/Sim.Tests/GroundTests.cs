@@ -105,6 +105,32 @@ public class GroundTests
         AssertConserved(s, peat);
     }
 
+    /// The footing is the top of the ground: ice under a foot of snow is not underfoot, while a
+    /// dusting over it hides it and leaves it slippery.
+    [Fact]
+    public void IceBuriedUnderSnow_IsNotUnderfoot()
+    {
+        var peat = SubstrateProfile.Peat;
+        GroundState Glazed()
+        {
+            var g = Fresh(peat);
+            Ground.AddWater(g, peat, 0.05);
+            Ground.Advance(g, peat, 60 * 10, new SurfaceWeather(15, 0.1, 0, 0, 0));
+            return g;
+        }
+        var buried = Glazed();
+        Ground.Advance(buried, peat, 60 * 6, Snowing());
+        Assert.True(Ground.SnowDepthM(buried, peat) > 0.2, "deep snow over the pond");
+        var snowOnly = Fresh(peat, frozen: 1);
+        Ground.Advance(snowOnly, peat, 60 * 6, Snowing());
+        Assert.Equal(Ground.HazardDelta(snowOnly, peat), Ground.HazardDelta(buried, peat), 12);
+
+        var dusted = Glazed();
+        Ground.Advance(dusted, peat, 30, Snowing());
+        Assert.InRange(Ground.SnowDepthM(dusted, peat), 0.005, 0.05);
+        Assert.True(Ground.HazardDelta(dusted, peat) >= 0.35, "ice under a dusting is still slippery");
+    }
+
     [Fact]
     public void Peat_PondsAtOnceWhilePermeableGroundSoaksItUp()
     {

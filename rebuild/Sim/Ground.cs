@@ -111,6 +111,8 @@ public static class Ground
     const double WindPhaseChangeFactor = 0.8;
     const double BaseEvaporationMPerMinute = 1.0e-7;
     const double SnowInsulationPerMetre = 12;
+    /// Snow deeper than this is what a foot stands on, hiding the footing of whatever is under it.
+    const double SnowFootingDepthM = 0.05;
     /// Deepest liquid water modelled; the excess leaves through the overflow sink.
     public const double MaxStandingWaterDepthM = 0.3048;
     const int MaxSnowLayers = 3;
@@ -410,7 +412,7 @@ public static class Ground
         public double StandingWaterDepthM => Pond is { } p ? PhysicalThicknessM(p) : 0;
         public double StandingLiquidDepthM => Pond is { } p ? p.ThicknessM * (1 - p.FrozenFractionPct) : 0;
 
-        public SurfaceSummary Summary => new(SnowDepthM, SnowDepthM > 0.05 && TopSnowFrozenLiquid > 0.25, MudLevel, StandingWaterDepthM,
+        public SurfaceSummary Summary => new(SnowDepthM, SnowDepthM > SnowFootingDepthM && TopSnowFrozenLiquid > 0.25, MudLevel, StandingWaterDepthM,
             Pond is { } p && p.FrozenFractionPct > 0.5);
 
         public double TraversalFactor
@@ -436,8 +438,9 @@ public static class Ground
             get
             {
                 double hazard = 0;
-                if (Pond is { } pond && pond.FrozenFractionPct > 0.02) hazard += 0.35 * Math.Min(1, pond.FrozenFractionPct * 3);
-                if (SnowDepthM > 0.05)
+                bool snowIsFooting = SnowDepthM > SnowFootingDepthM;
+                if (!snowIsFooting && Pond is { } pond && pond.FrozenFractionPct > 0.02) hazard += 0.35 * Math.Min(1, pond.FrozenFractionPct * 3);
+                if (snowIsFooting)
                 {
                     hazard += 0.05;
                     if (TopSnowFrozenLiquid > 0.25) hazard += 0.10; // refrozen crust

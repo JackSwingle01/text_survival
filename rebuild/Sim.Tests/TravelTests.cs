@@ -49,6 +49,49 @@ public class TravelTests
         Assert.Equal(risk, Math.Max(Traversal.InjuryRiskPct(world, a, body, s), Traversal.InjuryRiskPct(world, b, body, s)), 12);
     }
 
+    /// A December afternoon of falling snow on seed 5: deep snow over puddles that froze in autumn.
+    static World SnowyDecemberAfternoon()
+    {
+        const int december15 = 349, afternoonMinuteOfDay = 15 * 60;
+        var world = World.New(5);
+        long first = Enumerable.Range(0, 400).Select(d => d * 1440L).First(t => Weather.DayOfYear(t) == december15);
+        long afternoon = first + afternoonMinuteOfDay - Weather.MinuteOfDay(first);
+        world.Minute = Enumerable.Range(0, 60).Select(d => afternoon + d * 1440L)
+            .First(t => Weather.At(world, t) is { Condition: WeatherCondition.LightSnow or WeatherCondition.HeavySnow, TemperatureF: < 25 });
+        return world;
+    }
+
+    [Fact]
+    public void QuickCrossingInDecemberSnow_IsRiskyOnlyWhereTheGroundIs()
+    {
+        var world = SnowyDecemberAfternoon();
+        var m = Map.Of(world);
+        var me = world.Agent(P);
+        bool Open(TileId t) => m.SiteAt(t) == null && m.CaveAt(t) == Cave.None && t != m.Camp && m.TerrainAt(t).Row().Passable
+            && Map.Blocked(m, t, Map.Step(t, Direction.North)) == null;
+        var valley = Enumerable.Range(30, m.Height - 35).SelectMany(y => Enumerable.Range(5, m.Width - 10).Select(x => new TileId(x, y))).Where(Open).ToList();
+
+        var plain = valley.First(t => m.TerrainAt(t) == Terrain.Plain && m.TerrainAt(Map.Step(t, Direction.North)) == Terrain.Plain
+            && Ground.SurfaceNow(world, t) is { Iced: true, SnowDepthM: > 0.3 });
+        me.Tile = plain;
+        Assert.Equal(0, Trip.Risk(world, P, Direction.North, Pace.Quick).AnyPct);
+        Assert.Equal(Trip.Time(world, P, Direction.North, Pace.Careful), Trip.Time(world, P, Direction.North, Pace.Quick));
+
+        var rock = valley.First(t => m.TerrainAt(t) == Terrain.Rock && m.TerrainAt(Map.Step(t, Direction.North)) == Terrain.Rock);
+        me.Tile = rock;
+        var quick = Trip.Risk(world, P, Direction.North, Pace.Quick);
+        Assert.True(quick.AnyPct > 0, "rock is hazardous at a quick pace");
+        Assert.Equal(0, Trip.Risk(world, P, Direction.North, Pace.Careful).AnyPct);
+        Assert.True(Trip.Time(world, P, Direction.North, Pace.Careful).TotalMinutes > Trip.Time(world, P, Direction.North, Pace.Quick).TotalMinutes,
+            "careful pays for its safety in minutes");
+
+        bool Gentle(TileId t) => Map.TravelHazardLevel(m, t) <= 0.1 && Ground.SurfaceNow(world, t).SnowDepthM > 0.3;
+        var gentle = valley.Where(t => Gentle(t) && Gentle(Map.Step(t, Direction.North))).ToList();
+        Assert.True(gentle.Count > 500, $"only {gentle.Count} gentle snowy crossings");
+        var risky = gentle.Where(t => { me.Tile = t; return Trip.Risk(world, P, Direction.North, Pace.Quick).AnyPct > 0; }).ToList();
+        Assert.True(risky.Count == 0, $"{risky.Count} of {gentle.Count} gentle snowy crossings risk an injury, first {risky.FirstOrDefault()}");
+    }
+
     [Fact]
     public void InjuryRisk_RisesWithImpairedMovement()
     {
