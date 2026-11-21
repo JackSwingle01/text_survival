@@ -35,6 +35,7 @@ def sprites(img):
     return img
 
 sprites(old); sprites(new)
+old.save(J + 'old_crop.png'); new.save(J + 'new_crop.png')
 gap = 24
 out = Image.new('RGB', (old.width, old.height * 2 + gap * 3), (24, 26, 30))
 out.paste(old, (0, gap)); out.paste(new, (0, old.height + gap * 3))
