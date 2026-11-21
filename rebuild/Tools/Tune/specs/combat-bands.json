@@ -32,6 +32,10 @@
   "bear_attack": { "setup": "bear_close", "weapon": "wooden_spear", "policy": "aggressive" },
   "bear_run":    { "setup": "bear_close", "weapon": "wooden_spear", "policy": "run" },
   "bear_hands":  { "setup": "bear_close", "weapon": "none", "policy": "aggressive" },
+  "bear_hands_stand": { "setup": "bear_close", "weapon": "none", "policy": "stand_intimidate" },
+  "bear_den_stand":  { "setup": "bear_den", "weapon": "wooden_spear", "policy": "stand_intimidate" },
+  "bear_den_attack": { "setup": "bear_den", "weapon": "wooden_spear", "policy": "aggressive" },
+  "bear_den_run":    { "setup": "bear_den", "weapon": "wooden_spear", "policy": "run" },
 
   "wolves_vs_caribou": { "setup": "wolves4_vs_caribou1_noticed" }
  },
@@ -47,13 +51,23 @@
 
   { "name": "Pack of 3 in the open, armed: deaths", "scenario": "pack3_spear", "metric": "aDies", "min": 0.45, "max": 0.55, "note": "about 50%" },
 
-  { "name": "Bear, stand and intimidate: bear leaves", "scenario": "bear_stand", "metric": "bLeaves", "min": 0.45, "max": 0.55, "scored": false,
-   "note": "Today Intimidate is refused within 3 m and there is no standoff state, so standing your ground up close can only Block. Score it once the state rules give a stance." },
-  { "name": "Bear, stand and intimidate: deaths", "scenario": "bear_stand", "metric": "aDies", "min": 0.10, "max": 0.20, "scored": false,
-   "note": "As above: the stance does not exist today." },
+  // Combat round 6 (2026-11-21): a healthy adult with a spear meets a surprised bear at 8 m, no cubs, no kill;
+  // the bear opens in Standoff, a bluff.
+  { "name": "Bear, stand and intimidate: bear leaves", "scenario": "bear_stand", "metric": "bLeaves", "min": 0.45, "max": 0.55 },
+  { "name": "Bear, stand and intimidate: bear killed", "scenario": "bear_stand", "metric": "bKilled", "max": 0.05 },
+  { "name": "Bear, stand and intimidate: deaths", "scenario": "bear_stand", "metric": "aDies", "min": 0.10, "max": 0.20 },
+  { "name": "Bear, attack: bear leaves", "scenario": "bear_attack", "metric": "bLeaves", "max": 0.10 },
+  { "name": "Bear, attack: bear killed", "scenario": "bear_attack", "metric": "bKilled", "min": 0.10, "max": 0.20 },
   { "name": "Bear, attack: deaths", "scenario": "bear_attack", "metric": "aDies", "min": 0.35, "max": 0.50 },
+  { "name": "Bear, run: bear leaves", "scenario": "bear_run", "metric": "bLeaves", "max": 0.10 },
+  { "name": "Bear, run: bear killed", "scenario": "bear_run", "metric": "bKilled", "max": 0.0 },
   { "name": "Bear, run: deaths", "scenario": "bear_run", "metric": "aDies", "min": 0.50, "max": 0.65,
-   "note": "Running means making for the grid edge (22 m) and fleeing there: today's only way out." }
+   "note": "Running is Flee, at any distance; until the catch-up (combat round 3) it leaves the grid at once." },
+  { "name": "Bear, unarmed and standing: deaths", "scenario": "bear_hands_stand", "metric": "aDies", "min": 0.25, "max": 0.35 },
+  // Defending a kill or its den: 15 points more deaths in every row.
+  { "name": "Bear at its den, stand: deaths", "scenario": "bear_den_stand", "metric": "aDies", "min": 0.25, "max": 0.35 },
+  { "name": "Bear at its den, attack: deaths", "scenario": "bear_den_attack", "metric": "aDies", "min": 0.50, "max": 0.65 },
+  { "name": "Bear at its den, run: deaths", "scenario": "bear_den_run", "metric": "aDies", "min": 0.65, "max": 0.80 }
  ],
 
  "orders": [

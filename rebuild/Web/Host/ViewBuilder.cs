@@ -318,15 +318,23 @@ sealed class ViewBuilder(World world, int gen)
             var body = Combat.BodyOf(world, u);
             string name = u.Agent == AgentId.Player ? "You" : Words.Cap(Words.Of(agent.Species));
             return new UnitDto(i, u.Team, Words.SpeciesIcon(agent.Species), name, u.Position.X, u.Position.Y, u.InField, Combat.IsPlayer(u),
-                Words.Of(u.Awareness), Condition(body), u.Weapon is { } w ? Items.Def(w).Name : null);
+                Words.Of(Combat.StateOf(world, u)), Condition(body), u.Weapon is { } w ? Items.Def(w).Name : null);
         }).ToList();
-        var nearest = Combat.NearestEnemy(enc, me);
-        double distance = nearest != null ? me.Position.DistanceTo(nearest.Position) : 0;
-        int? target = nearest != null ? enc.Units.IndexOf(nearest) : null;
+        var facing = Combat.TargetOf(enc, me);
+        double distance = facing != null ? me.Position.DistanceTo(facing.Position) : 0;
+        int? target = facing != null ? enc.Units.IndexOf(facing) : null;
         var actions = new List<VerbDto>();
+        var targets = new List<TargetDto>();
+        foreach (var t in Combat.Targets(world, enc, me))
+        {
+            string tid = $"{gen}.{_n++}";
+            Fights.Add((tid, new FightVerb(CombatAction.Turn, t.Index)));
+            var verb = new VerbDto(tid, $"Face {units[t.Index].Name.ToLowerInvariant()}", "fight", 1, t.Facing ? "You are already facing them." : t.TurnRefusal);
+            targets.Add(new TargetDto(t.Index, units[t.Index].Name, Math.Round(t.DistanceM, 1), t.Facing, verb));
+        }
         foreach (var a in Enum.GetValues<CombatAction>())
         {
-            if (a == CombatAction.Move) continue; // it needs a cell: listed below, refused until one is chosen
+            if (a is CombatAction.Move or CombatAction.Turn) continue; // a cell, a target: Move is listed below, Turn with each target
             string id = $"{gen}.{_n++}";
             Fights.Add((id, new FightVerb(a, null)));
             actions.Add(new VerbDto(id, Words.Cap(Words.Of(a)), "fight", 1, Combat.Refusal(world, enc, me, a)));
@@ -334,7 +342,8 @@ sealed class ViewBuilder(World world, int gen)
         string moveId = $"{gen}.{_n++}";
         Fights.Add((moveId, new FightVerb(CombatAction.Move, null)));
         actions.Add(new VerbDto(moveId, "Move", "fight-move", 1, me.InField ? null : "You are out of the fight."));
-        return new CombatDto(Combat.MapSize, enc.Rounds, units, actions, Words.Of(Combat.ZoneOf(distance)), Math.Round(distance, 1), target, MoveAllowance(enc, me));
+        return new CombatDto(Combat.MapSize, enc.Rounds, units, actions, Words.Of(Combat.ZoneOf(distance)), Math.Round(distance, 1), target,
+            MoveAllowance(enc, me), targets);
     }
 
     /// How far a Move may go: the largest whole distance Combat.Refusal accepts, probed along the row.

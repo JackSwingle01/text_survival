@@ -17,6 +17,9 @@ public static partial class Combat
         // earlier one): read before weapons go home and the dead leave their herds.
         var fellTo = new[] { KilledBy(world, enc, units, 0), KilledBy(world, enc, units, 1) };
 
+        // What was thrown and never picked up lies where the fight was.
+        foreach (var d in enc.Dropped ?? [])
+            Items.StashAt(world, enc.Tile, new Cause(d.ThrownBy, $"thrown by {Cause.Describe(world, d.ThrownBy)}")).Gear.Add(d.Weapon);
         foreach (var u in units.Where(u => u.Weapon != null))
         {
             var pack = Items.PackOf(world.Agent(u.Agent));

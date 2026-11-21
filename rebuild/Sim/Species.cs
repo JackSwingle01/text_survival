@@ -31,6 +31,8 @@ public sealed record SpeciesStats(
     Motion Motion,
     /// What a member eats a minute grazing; 0 for what never grazes.
     double GrazeKcalPerMinute,
+    /// Giving ground with the enemy in reach, it strikes instead of backing off at this margin or above.
+    double StrikeBackMargin,
     /// People only: the range a person's starting fat is drawn from, well fed for the autumn.
     FatRange? AutumnFatPct,
     /// People only: a woman's build, running and autumn fat, where they differ from a man's (the row's own).

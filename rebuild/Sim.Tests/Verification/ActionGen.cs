@@ -190,8 +190,8 @@ static class ActionGen
 
     static readonly CombatAction[] Rounds =
     [
-        CombatAction.Attack, CombatAction.Attack, CombatAction.Attack, CombatAction.Advance, CombatAction.Retreat, CombatAction.Block,
-        CombatAction.Dodge, CombatAction.Intimidate, CombatAction.Throw, CombatAction.ThrowStone, CombatAction.Shove, CombatAction.Flee,
+        CombatAction.Attack, CombatAction.Attack, CombatAction.Attack, CombatAction.Advance, CombatAction.Retreat, CombatAction.PickUp,
+        CombatAction.Turn, CombatAction.Intimidate, CombatAction.Throw, CombatAction.ThrowStone, CombatAction.Shove, CombatAction.Flee,
         CombatAction.Wait, CombatAction.Move, CombatAction.CallHelp, CombatAction.CallRetreat,
     ];
 

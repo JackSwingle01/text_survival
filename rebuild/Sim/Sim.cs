@@ -291,6 +291,7 @@ public static class Sim
             // Basal only: a fight's strikes, dodges, steps and sprints pay their own work as they happen (Body.Burst,
             // Body.Cover, Body.Sprint). Old (old ActivityType.Fighting): a flat 2.0, which those would double-charge.
             Fight => (1.0, 0.0, false, true),
+            Hunt => (1.0, 0.0, false, true), // a person setting out on a stalk: its rounds are Fight activities
             Gather when gathering is TreePool => (1.8, 0.0, false, false), // chopping
             Gather when gathering is StockPool { Kind: StockKind.Detail } => (1.0, 2.0, false, true), // old ExamineStrategy: Resting
             Gather or Butcher => (1.5, 0.0, false, false), // foraging, harvesting, salvaging, butchering

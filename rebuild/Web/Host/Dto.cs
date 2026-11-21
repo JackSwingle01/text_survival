@@ -118,11 +118,15 @@ public sealed record TrackDto(int X, int Y, string Maker, string Reading, long A
 public sealed record NamedDto(int X, int Y, string Name);
 
 /// The fight the player is in. Grid cells are metres, 0..Size-1. Actions: every round action with its
-/// refusal (Combat.Refusal); Move takes a cell.
+/// refusal (Combat.Refusal); Move takes a cell. Target is the unit faced; Targets every enemy that could
+/// be, nearest first, each with the verb that turns to face it (turning costs the round).
 public sealed record CombatDto(int Size, int Round, IReadOnlyList<UnitDto> Units, IReadOnlyList<VerbDto> Actions, string Zone,
-    double NearestM, int? Target, double MoveM);
+    double TargetM, int? Target, double MoveM, IReadOnlyList<TargetDto> Targets);
+/// An enemy the player could face: its unit index, how far, whether it is faced now, and the Turn verb.
+public sealed record TargetDto(int Index, string Name, double DistanceM, bool Facing, VerbDto Turn);
+/// State is Combat.StateOf: Unaware, Wary, Pressing, Standoff, Giving ground, Fleeing, Gone or Down.
 public sealed record UnitDto(int Index, int Team, string Species, string Name, int X, int Y, bool InField, bool IsPlayer,
-    string Awareness, string Condition, string? Weapon);
+    string State, string Condition, string? Weapon);
 public sealed record CellDto(int X, int Y);
 
 /// A timed action under way: what it is, how far along. Finished once it stopped. Outcome, once

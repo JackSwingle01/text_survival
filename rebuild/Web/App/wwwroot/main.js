@@ -511,11 +511,11 @@ function renderFight() {
   $('world').hidden = !!c; $('grid').hidden = !c; $('fightside').hidden = !c;
   if (!c) return;
   const units = c.units.map(u => `<div class="unit ${u.inField ? '' : 'out'} ${u.index === c.target ? 'target' : ''}"><img src="${src(u.isPlayer ? 'player' : u.species)}" alt="">
-    <span><b>${esc(u.name)}</b><small>${esc(u.condition)}${u.isPlayer ? '' : ` · ${esc(u.awareness)}`}${u.weapon ? ` · ${esc(u.weapon)}` : ''}${u.inField ? '' : ' · out of the fight'}</small></span>
+    <span><b>${esc(u.name)}</b><small>${esc(u.condition)}${u.isPlayer ? '' : ` · ${esc(u.state)}`}${u.weapon ? ` · ${esc(u.weapon)}` : ''}${u.inField ? '' : ' · out of the fight'}</small></span>
     <span class="c">${u.team === 0 ? '' : u.index === c.target ? 'target' : ''}</span></div>`).join('');
   const recent = S.view.log.slice(-5).reverse();
   $('fightside').innerHTML = `<div class="side-head">${img('ui/target', 'ico x2')}<h2>Fight</h2><span class="cost num">round ${c.round}</span></div>
-    <div class="side-body"><div class="sec"><div class="sec-h"><span class="label">Range</span><span class="zone">${esc(c.zone)} · ${c.nearestM} m</span></div>
+    <div class="side-body"><div class="sec"><div class="sec-h"><span class="label">Range</span><span class="zone">${esc(c.zone)} · ${c.targetM} m</span></div>
       <p class="note">Click the ground to move, up to ${c.moveM} m a round.</p></div>
       ${section('On the ground', `<div class="place-feats">${units}</div>`)}
       ${recent.length ? section('Just now', `<div class="factors">${recent.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}</div>`;

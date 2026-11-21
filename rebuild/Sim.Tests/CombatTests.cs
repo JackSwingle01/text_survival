@@ -194,13 +194,12 @@ public class CombatTests
         Assert.Equal(vitality, Body.Vitality(w.Agent(AgentId.Player).Body));
     }
 
+    /// Block and Dodge are no longer actions (combat round 1): every aware fighter defends itself when struck.
     [Fact]
-    public void AnimalsNeverBlock()
+    public void NoFighterChoosesToBlockOrDodge()
     {
-        var (w, t) = Field();
-        var e = PlayerVs(w, t, Species.Wolf, 1);
-        B(e).BoldnessModifier = -10; // won't attack, so it picks a defensive action
-        for (int i = 0; i < 200; i++) Assert.NotEqual(CombatAction.Block, Combat.ChooseAction(w, e, B(e)));
+        Assert.DoesNotContain("Block", Enum.GetNames<CombatAction>());
+        Assert.DoesNotContain("Dodge", Enum.GetNames<CombatAction>());
     }
 
     [Fact]
@@ -240,8 +239,10 @@ public class CombatTests
     public void StalkingAFeedingAnimalUsuallyWorksAndAnAlertOneRarelyDoes()
     {
         double feeding = StalkSuccess(0.7), alert = StalkSuccess(2.0);
-        Assert.InRange(feeding, 0.5, 0.9);
-        Assert.InRange(alert, 0.0, 0.25);
+        // Alertness that fades between notices (round 2) lets more stalks through than the old one-way escalation
+        // (feeding about 0.70 → 0.91, alert 0.10 → 0.34); the outcome bands are the tuner's to meet.
+        Assert.InRange(feeding, 0.8, 0.97);
+        Assert.InRange(alert, 0.0, 0.45);
         Assert.True(feeding > alert + 0.3);
     }
 
@@ -251,7 +252,7 @@ public class CombatTests
         var (w, t) = Field();
         var e = PlayerVs(w, t, Species.Rabbit, 5, Awareness.Unaware);
         for (int i = 0; i < 200; i++) Combat.RunDetection(w, e, Me(e), 0, exposureMeters: 0);
-        Assert.Equal(Awareness.Unaware, B(e).Awareness);
+        Assert.Equal(Awareness.Unaware, B(e).Awareness); // nothing moving, nothing to notice
     }
 
     // ---- placement and pursuit (old EncounterTacticsTests) ----
@@ -337,7 +338,7 @@ public class CombatTests
     }
 
     [Fact]
-    public void PursuitClosesAtFullSpeedAndRespectsMorale()
+    public void APressingWolf_ClosesAtFullSpeed_AndAFrightenedOne_GivesGround()
     {
         var (w, e) = Tactics();
         Normalize(w, B(e).Agent);
@@ -345,10 +346,14 @@ public class CombatTests
         Me(e).Position = new Cell(25, 25);
         wolf.Position = new Cell(25, 45);
         wolf.BoldnessModifier = 10;
-        Assert.Equal(new Cell(25, 39), Combat.MovePosition(w, e, wolf));
-        wolf.BoldnessModifier = -100;
-        Assert.Null(Combat.PursuitTarget(w, e, wolf));
-        Assert.True(Combat.MovePosition(w, e, wolf).Y > wolf.Position.Y);
+        Combat.AiTurn(w, e, wolf, []);
+        Assert.Equal(FighterState.Pressing, wolf.State);
+        Assert.Equal(new Cell(25, 39), wolf.Position);
+        wolf.BoldnessModifier = -2.0; // a margin of about -0.7: past giving ground's -0.3, short of running's -0.8
+        int y = wolf.Position.Y;
+        Combat.AiTurn(w, e, wolf, []);
+        Assert.Equal(FighterState.GivingGround, wolf.State);
+        Assert.True(wolf.Position.Y > y);
     }
 
     [Fact]
@@ -369,7 +374,7 @@ public class CombatTests
     [Theory]
     [InlineData(0, -3)]
     [InlineData(-2, -2)]
-    public void CommittedWolfAttemptsAttackBeforeContinuouslyRetreatingPlayerEscapes(int dx, int dy)
+    public void APressingWolf_StrikesAPlayerWhoKeepsBackingAway(int dx, int dy)
     {
         var (w, e) = Tactics();
         var me = Me(e);
@@ -378,17 +383,15 @@ public class CombatTests
         wolf.Position = new Cell(25, 45);
         wolf.BoldnessModifier = 10;
         bool struck = false;
-        for (int round = 0; round < 12 && !Combat.CanFlee(me.Position); round++)
+        for (int round = 0; round < 12 && Combat.DistanceFromEdge(me.Position) > 3; round++)
         {
             Combat.Move(w, e, me, new Cell(me.Position.X + dx, me.Position.Y + dy));
             var rngBefore = w.Rng("combat", wolf.Agent).State;
-            var from = wolf.Position;
             Combat.AiTurn(w, e, wolf, []);
-            // A pursuit strike is the only thing in a Move turn that rolls: it ends within 1.5 m.
-            if (from != wolf.Position && wolf.Position.DistanceTo(me.Position) <= 1.5 && w.Rng("combat", wolf.Agent).State != rngBefore) { struck = true; break; }
+            // Pressing, the wolf rolls only to strike: closing in and pathfinding draw nothing.
+            if (wolf.Position.DistanceTo(me.Position) <= 3 && w.Rng("combat", wolf.Agent).State != rngBefore) { struck = true; break; }
         }
         Assert.True(struck);
-        Assert.False(Combat.CanFlee(me.Position));
     }
 
     [Theory]
@@ -413,18 +416,15 @@ public class CombatTests
     [Theory]
     [InlineData(Awareness.Unaware)]
     [InlineData(Awareness.Alert)]
-    public void UnawareAndAlertAnimalsCannotUsePursuitAttack(Awareness awareness)
+    public void UnawareAndWaryAnimals_NeverStrike(Awareness awareness)
     {
-        var (w, e) = Tactics();
+        var (w, t) = Field();
+        var e = PlayerVs(w, t, Species.Wolf, 4, awareness);
         var wolf = B(e);
-        wolf.Awareness = awareness;
         wolf.BoldnessModifier = 10;
-        wolf.Position = new Cell(Me(e).Position.X, Me(e).Position.Y + 4);
-        Assert.Null(Combat.PursuitTarget(w, e, wolf));
         var events = new List<WorldEvent>();
-        Combat.AiTurn(w, e, wolf, events);
+        for (int i = 0; i < 20; i++) Combat.AiTurn(w, e, wolf, events);
         Assert.Empty(events.OfType<Injured>());
-        Assert.False(wolf.JustDamaged);
     }
 
     // ---- companions (old CompanionCombatTests, the mechanical part) ----
@@ -478,7 +478,7 @@ public class CombatTests
         var rabbit = B(e).Agent;
         StepResult r = null!;
         for (int i = 0; i < 40 && w.Encounters.Count > 0; i++)
-            r = Sim.Step(w, new Fight(AgentId.Player, Combat.CanFlee(Me(e).Position) ? CombatAction.Flee : CombatAction.Retreat), 1);
+            r = Sim.Step(w, new Fight(AgentId.Player, CombatAction.Flee), 1);
         Assert.Empty(w.Encounters);
         Assert.Equal("fight over", r.InterruptedReason);
         Assert.Contains(r.Events, ev => ev is FightEnded f && f.Agent == AgentId.Player);
@@ -502,17 +502,17 @@ public class CombatTests
     }
 
     [Theory]
-    [InlineData(1, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Block, CombatAction.Shove, CombatAction.CallHelp, CombatAction.CallRetreat })]
-    [InlineData(2, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Dodge, CombatAction.Block, CombatAction.CallHelp, CombatAction.CallRetreat })]
-    [InlineData(10, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Throw, CombatAction.ThrowStone, CombatAction.Intimidate, CombatAction.CallHelp, CombatAction.CallRetreat })]
-    [InlineData(22, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Intimidate, CombatAction.CallHelp, CombatAction.CallRetreat })]
+    // Flee at any distance, and Intimidate from Near out (combat round 1).
+    [InlineData(1, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Shove, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
+    [InlineData(2, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Intimidate, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
+    [InlineData(10, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Throw, CombatAction.ThrowStone, CombatAction.Intimidate, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
+    [InlineData(22, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Intimidate, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
     public void ActionsDependOnTheZone(int distance, CombatAction[] expected)
     {
         var (w, t) = Field();
         Items.Add(Items.Pack(w, AgentId.Player), Resource.Stone, 1.0);
         var e = PlayerVs(w, t, Species.Wolf, distance, weapon: Spear(w));
         Assert.Equal(expected.Order(), Combat.Actions(w, e, Me(e)).Order());
-        Assert.Equal("Move nearer an edge to flee.", Combat.Refusal(w, e, Me(e), CombatAction.Flee));
         Assert.Equal("That's too far to move in one action.", Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 4, Me(e).Position.Y)));
         Assert.Null(Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 3, Me(e).Position.Y)));
     }
@@ -528,7 +528,7 @@ public class CombatTests
         Assert.DoesNotContain(spear, pack.Gear); // wielded, not packed
         Assert.Null(Combat.Apply(w, e, Me(e), CombatAction.Throw, []).Refused);
         Assert.Null(Me(e).Weapon);
-        Assert.Contains(spear, Items.StashAt(w, t).Gear);
+        Assert.Contains(e.Dropped!, d => d.Weapon == spear && d.At == B(e).Position); // where it was thrown at
         Assert.Equal("No weapon to throw.", Combat.Refusal(w, e, Me(e), CombatAction.Throw));
         Assert.Null(Combat.Apply(w, e, Me(e), CombatAction.ThrowStone, []).Refused);
         Assert.Equal(0.2, Items.Have(pack, Resource.Stone), 9);
@@ -536,11 +536,11 @@ public class CombatTests
     }
 
     [Fact]
-    public void FleeingNeedsAnEdgeAndCostsBreath()
+    public void FleeingWorksAnywhere_AndCostsBreath()
     {
         var (w, t) = Field();
         var e = PlayerVs(w, t, Species.Wolf, 20);
-        Me(e).Position = new Cell(2, 25);
+        Me(e).Position = new Cell(25, 25); // the middle of the field: no edge needed (combat round 1)
         var body = w.Agent(AgentId.Player).Body;
         double energy = body.EnergyMinutes, kcal = body.CaloriesKcal;
         Combat.Apply(w, e, Me(e), CombatAction.Flee, []);
@@ -721,12 +721,9 @@ public class CombatTests
         var (w, t) = Field();
         var e = PlayerVs(w, t, Species.Wolf, 1);
         Normalize(w, B(e).Agent);
-        Assert.Equal(1.3 + 1.0, Combat.UnitBoldness(w, e, B(e)), 9);
-        Me(e).BlockSet = false;
-        Combat.Apply(w, e, Me(e), CombatAction.Attack, []);
-        if (Combat.BodyOf(w, B(e)).Regions.Any(r => r.Condition < 1)) Assert.Equal(-0.1, B(e).BoldnessModifier, 9);
+        Assert.Equal(1.3, Combat.UnitBoldness(w, e, B(e)), 9); // no opening optimism (round 2)
         var pack = PlayerVsPack(3);
-        Assert.Equal(1.3 + 1.0 + 0.15 * 2 * (0.7 * 2), Combat.UnitBoldness(pack.W, pack.E, B(pack.E)), 9);
+        Assert.Equal(1.3 + 0.15 * 2 * (0.7 * 2), Combat.UnitBoldness(pack.W, pack.E, B(pack.E)), 9);
     }
 
     static (World W, Encounter E) PlayerVsPack(int count)
@@ -735,18 +732,6 @@ public class CombatTests
         var e = PlayerVs(w, t, Species.Wolf, 5, count: count);
         Normalize(w, B(e).Agent);
         return (w, e);
-    }
-
-    [Fact]
-    public void APlayersGuardLastsOneRound()
-    {
-        // Old game never cleared the player's stances: one Block guarded every later blow.
-        var (w, t) = Field();
-        var e = PlayerVs(w, t, Species.Wolf, 1);
-        Assert.Null(Combat.Apply(w, e, Me(e), CombatAction.Block, []).Refused);
-        Assert.True(Me(e).BlockSet);
-        Combat.Apply(w, e, Me(e), CombatAction.Wait, []);
-        Assert.False(Me(e).BlockSet);
     }
 
     [Fact]

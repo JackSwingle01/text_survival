@@ -52,7 +52,12 @@ public class ProgressTests
                 Assert.True(frames.Count >= 2, $"{name} seed {seed}: {frames.Count} frames");
                 Assert.All(frames, f => Assert.Contains(f.Units, u => u.Team == 0));
             }
-        Assert.False(Fights.Watchable(Two["pack_vs_caribou"]));
+        // Headless fights too, now that Sim reports its rounds (Combat.Watch).
+        Assert.True(Fights.Watchable(Two["pack_vs_caribou"]));
+        var pack = new List<TraceFrame>();
+        Assert.Equal(fights.Run(Two["pack_vs_caribou"], 1), fights.Run(Two["pack_vs_caribou"], 1, pack.Add));
+        Assert.Equal(Enumerable.Range(0, pack.Count), pack.Select(f => f.Round));
+        Assert.True(pack.Count >= 2);
     }
 
     [Fact]

@@ -40,7 +40,9 @@ public sealed record HerdMind : Mind
 public sealed record Graze(AgentId Who) : Activity(Who);
 /// Eats from a carcass on the tile, for one minute.
 public sealed record Feed(AgentId Who) : Activity(Who);
-/// Goes for a prey herd on the same tile: the fight is fought headless at once (Combat).
+/// Goes for a herd on the same tile. A pack's hunt is fought headless at once; a person stalks the herd's
+/// weakest member with the best weapon in the pack: the player's rounds are then Fight activities, and
+/// anyone else's fight is fought headless at once (Combat).
 public sealed record Hunt(AgentId Who, AgentId Prey) : Activity(Who);
 /// Takes food from the tile's stash, for one minute (the carrion flock at an unwatched camp).
 public sealed record Raid(AgentId Who) : Activity(Who);
@@ -243,6 +245,7 @@ public static partial class Fauna
     public static string? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
+        if (activity is Hunt hunt && agent.Mind is PersonMind) return PersonHuntRefusal(world, agent, hunt);
         if (agent.Mind is not HerdMind) return "only a herd does that";
         if (activity is Graze) return GrazeRefusal(world, agent);
         if (activity is Feed) return CanFeed(world, agent) ? null : "nothing here it can reach to eat";
@@ -257,8 +260,37 @@ public static partial class Fauna
 
     /// Starts a herd activity. A hunt is fought here, headless, and takes as many minutes as it
     /// had rounds: those are returned, to be the activity's length.
-    internal static int? Begin(World world, Activity activity, List<WorldEvent> events) =>
-        activity is Hunt h ? PackHunt(world, world.Agent(h.Who), world.Agent(h.Prey), events) : null;
+    internal static int? Begin(World world, Activity activity, List<WorldEvent> events) => activity is not Hunt h ? null
+        : world.Agent(h.Who).Mind is PersonMind ? PersonHunt(world, h, events)
+        : PackHunt(world, world.Agent(h.Who), world.Agent(h.Prey), events);
+
+    /// Why a person cannot start this stalk: the herd must be here, alive, and in no fight, and nothing
+    /// may guard it (Access, as a confrontation).
+    static string? PersonHuntRefusal(World world, Agent hunter, Hunt h)
+    {
+        if (!world.Agents.TryGetValue(h.Prey, out var prey) || prey.Mind is not HerdMind || prey.Tile != hunter.Tile || !Sim.IsAlive(prey))
+            return "No such herd here.";
+        if (Combat.EncounterOf(world, h.Prey) != null) return "They are already fighting.";
+        return Access.Refusal(world, h.Who, Things.OfAgent(world, h.Prey), confronting: true);
+    }
+
+    /// A person's stalk, with the hardest-hitting working weapon in the pack, at the herd's weakest member.
+    /// The player's lasts this one minute of setting out (their Fight rounds are the stalk); anyone
+    /// else's is fought out headless and lasts as many minutes as it had rounds.
+    static int PersonHunt(World world, Hunt h, List<WorldEvent> events)
+    {
+        var hunter = world.Agent(h.Who);
+        var weapon = Items.PackOf(hunter)!.Gear.Where(g => Items.Def(g).Weapon != null && Items.Works(g))
+            .OrderByDescending(g => Items.Def(g).Weapon!.Damage).FirstOrDefault();
+        var enc = BeginHunt(world, h.Who, h.Prey, Weakest(world.Agent(h.Prey)), weapon);
+        if (h.Who == AgentId.Player) return 1;
+        Combat.ResolveHeadless(world, enc, events);
+        return Math.Max(1, enc.Rounds);
+    }
+
+    /// The member a hunter singles out: the slowest and least alive.
+    static int Weakest(Agent prey) => Enumerable.Range(0, prey.Members.Count).Where(i => Body.IsAlive(prey.Members[i]))
+        .OrderBy(i => Body.Speed(prey.Members[i]) * Body.Vitality(prey.Members[i])).ThenBy(i => Body.Vitality(prey.Members[i])).First();
 
     /// One minute of a herd activity, after the herd's Tick.
     internal static string? Minute(World world, Agent herd, Activity activity, List<WorldEvent> events)
@@ -369,9 +401,7 @@ public static partial class Fauna
     static int PackHunt(World world, Agent pack, Agent prey, List<WorldEvent> events)
     {
         Become(world, MindOf(pack), HerdState.Hunting);
-        var targets = Enumerable.Range(0, prey.Members.Count).Where(i => Body.IsAlive(prey.Members[i]))
-            .OrderBy(i => Body.Speed(prey.Members[i]) * Body.Vitality(prey.Members[i])).ThenBy(i => Body.Vitality(prey.Members[i]))
-            .Take(1).Select(i => new Fighter(prey.Id, i)).ToList();
+        var targets = new List<Fighter> { new(prey.Id, Weakest(prey)) };
         var hunters = Enumerable.Range(0, pack.Members.Count).Where(i => Body.IsAlive(pack.Members[i]))
             .Take(6).Select(i => new Fighter(pack.Id, i)).ToList();
         bool noticed = PreyNotices(world, pack, prey);
@@ -614,7 +644,9 @@ public static partial class Fauna
                     StartFleeing(world, mind, herd.Tile); // something bigger wants the kill
                     return Flee(world, herd, mind, HerdBehavior.Scavenger);
                 }
-                if (!CanFeed(world, herd) || t > 45 || hunger < 0.1) { Become(world, mind, HerdState.Patrolling); return Wait(herd); }
+                // Sated, it lies up beside what is left rather than patrolling straight back onto it to feed again.
+                if (hunger < 0.1) { Become(world, mind, HerdState.Resting); return Rest(herd); }
+                if (!CanFeed(world, herd) || t > 45) { Become(world, mind, HerdState.Patrolling); return Wait(herd); }
                 return (new Feed(herd.Id), 1);
             default:
                 Become(world, mind, HerdState.Patrolling);

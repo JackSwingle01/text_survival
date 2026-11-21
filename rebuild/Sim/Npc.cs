@@ -1563,36 +1563,26 @@ public static partial class Npc
             return (new Wait(me.Id), 1); // the fight's rounds move it from here
         }
         var threat = Threat(me);
-        if (threat != null && threat.Tile == me.Tile && FightOrFlight(me, threat))
+        var self = new Fighter(me.Id) { Weapon = Weapon(me), BoldnessDelta = me.Mind.Boldness - 0.5 };
+        if (threat != null && threat.Tile == me.Tile && StandsAgainst(me, self, threat))
         {
             var lead = threat.Members.FindIndex(Body.IsAlive);
-            var enc = Combat.Create(me.World, [new Fighter(me.Id) { Weapon = Weapon(me) }], Combat.SendMembers(me.World, threat.Id, lead),
-                me.Tile, 8, Awareness.Engaged, Awareness.Engaged);
+            var enc = Combat.Create(me.World, [self], Combat.SendMembers(me.World, threat.Id, lead),
+                me.Tile, ThreatMetFromM, Awareness.Engaged, Awareness.Engaged);
             return Fought(me, enc);
         }
         return Flee(me, threat?.Tile ?? FreshThreat(me)!.Value);
     }
 
-    /// Old DecideFlightOrFight: boldness, armed and whole, and the size of the thing, as odds.
-    static bool FightOrFlight(Me me, Agent threat)
-    {
-        var body = me.Agent.Body;
-        bool armed = Weapon(me) != null, hurt = Body.Vitality(body) < 0.7;
-        double fight = me.Mind.Boldness + (armed && !hurt ? 0.2 : 0) - (hurt ? 0.2 : 0);
-        var (mine, theirs) = Sizes(me, threat);
-        if (theirs > mine * 1.5) fight -= 0.3;
-        if (theirs < mine * 0.5) fight += 0.3;
-        return me.World.Rng("npc", me.Agent.Id).NextDouble() < Math.Clamp(fight, 0.1, 0.9);
-    }
+    /// A threat on its own tile is met at a few metres (old RespondToThreat's 8 m).
+    const int ThreatMetFromM = 8;
 
-    /// FightOrFlight's measure of the two sides: its vitality, doubled armed, against the biggest of
-    /// theirs, vitality times weight over 30 kg.
-    static (double Mine, double Theirs) Sizes(Me me, Agent herd)
-    {
-        var body = me.Agent.Body;
-        var biggest = herd.Members.Where(Body.IsAlive).MaxBy(m => m.WeightKg * Body.Vitality(m))!;
-        return (Body.Vitality(body) * (Weapon(me) != null ? 2.0 : 1.0), Body.Vitality(biggest) * biggest.WeightKg / 30.0);
-    }
+    /// Fight or flight, from the fight's own state machine (combat round 2): it stands if its margin at
+    /// the distance the threat is met from leaves it pressing or standing off, its nature (Boldness, 0.3-0.7)
+    /// in its courage, and runs if it would give ground. Old: DecideFlightOrFight's dice roll on boldness,
+    /// being armed and the threat's size.
+    static bool StandsAgainst(Me me, Fighter self, Agent threat) =>
+        Combat.WouldStand(me.World, self, threat, ThreatMetFromM) is FighterState.Pressing or FighterState.Standoff;
 
     /// A fight this NPC started, resolved headless (as herds fight), then a minute to catch its breath.
     // Combat.Refusal lets only the player fight round by round, so an NPC's own fight resolves at once, its

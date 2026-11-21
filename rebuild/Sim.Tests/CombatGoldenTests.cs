@@ -102,96 +102,15 @@ public class CombatGoldenTests
         Assert.Equal(DamageType.Pierce, type);
     }
 
-    // ---- morale and steering (old Unit, exact; self-as-ally patched out) ----
-
-    [Fact]
-    public void LoneWolfAndHuman_MatchOld()
-    {
-        var (w, t) = Field();
-        var wolf = Herd(w, Species.Wolf, 1, t);
-        Normalize(w, wolf);
-        var e = Combat.Create(w, [new(AgentId.Player)], [new(wolf)], t, 5, Awareness.Engaged, Awareness.Engaged);
-        var (me, it) = (e.Units[0], e.Units[1]);
-        Assert.Equal(new Cell(23, 8), me.Position);
-        Assert.Equal(new Cell(23, 13), it.Position);
-        Assert.Equal(2.3, Combat.UnitBoldness(w, e, it), Digits);
-        Assert.Equal(2.0, Combat.UnitBoldness(w, e, me), Digits);
-        Assert.Equal(0.7, Combat.Threat(w, it), Digits);
-        Assert.Equal(0.6499999999999999, Combat.PerceivedThreat(w, it, me), Digits);
-        Assert.Equal(0.4549999999999999, Combat.PerceivedThreat(w, me, it), Digits);
-        Assert.True(Combat.WantsToAttack(w, e, it, me));
-        Assert.True(Combat.WantsToAttack(w, e, me, it));
-        AssertVector(0, -5.55, Combat.MovementVector(w, e, it));
-        AssertVector(0, 5.2349997, Combat.MovementVector(w, e, me));
-    }
-
-    [Fact]
-    public void PackOfThree_MatchesOld()
-    {
-        var (w, t) = Field();
-        var pack = Herd(w, Species.Wolf, 3, t);
-        Normalize(w, pack);
-        var e = Combat.Create(w, [new(AgentId.Player)], [new(pack, 0), new(pack, 1), new(pack, 2)], t, 5, Awareness.Engaged, Awareness.Engaged);
-        var wolves = e.Units.Skip(1).ToList();
-        Assert.Equal([new Cell(23, 13), new Cell(25, 13), new Cell(27, 13)], wolves.Select(u => u.Position));
-        Assert.All(wolves, u => Assert.Equal(2.7199999999999998, Combat.UnitBoldness(w, e, u), Digits));
-        AssertVector(6, -6.8100004, Combat.MovementVector(w, e, wolves[0]));
-        AssertVector(-2.6021242, -6.505311, Combat.MovementVector(w, e, wolves[1]));
-        AssertVector(-10.936438, -6.1705465, Combat.MovementVector(w, e, wolves[2]));
-    }
-
-    // boldness, movement vector, wants to attack, where it moves (as Combat.MovePosition)
-    public static readonly TheoryData<Species, double, double, double, bool, int, int> LoneAnimals = new()
-    {
-        { Species.Bear, 2.6, 0, -6.45, true, 23, 9 },
-        { Species.Caribou, 0.6, 0, -1.5, false, 23, 16 }, // skittish: bolts its full 3 m
-        { Species.Bison, 1.0, 0, -1.5975, true, 23, 10 },
-        { Species.Mammoth, 2.0, 0, -3.5475001, true, 23, 10 },
-    };
-
-    [Theory, MemberData(nameof(LoneAnimals))]
-    public void LoneAnimals_MatchOld(Species species, double boldness, double vx, double vy, bool attacks, int toX, int toY)
-    {
-        var (w, t) = Field();
-        var id = Herd(w, species, 1, t);
-        Normalize(w, id);
-        var e = Combat.Create(w, [new(AgentId.Player)], [new(id)], t, 5, Awareness.Engaged, Awareness.Engaged);
-        var it = e.Units[1];
-        Assert.Equal(boldness, Combat.UnitBoldness(w, e, it), Digits);
-        AssertVector(vx, vy, Combat.MovementVector(w, e, it));
-        Assert.Equal(attacks, Combat.WantsToAttack(w, e, it, e.Units[0]));
-        Assert.Equal(new Cell(toX, toY), Combat.MovePosition(w, e, it));
-    }
-
-    [Fact]
-    public void HurtWolf_MatchesOld()
-    {
-        var (w, t) = Field();
-        var wolf = Herd(w, Species.Wolf, 1, t);
-        Normalize(w, wolf);
-        var body = w.Agent(wolf).Body;
-        body.Regions.First(r => r.Name.Contains("Leg")).Muscle.Condition = 0.5;
-        body.BloodPct = 0.8;
-        Effects.Add(body, EffectKind.Bleeding, 0.4);
-        var e = Combat.Create(w, [new(AgentId.Player)], [new(wolf)], t, 5, Awareness.Engaged, Awareness.Engaged);
-        var it = e.Units[1];
-        Assert.Equal(0.6000000000000001, Body.Vitality(body), Digits);
-        Assert.Equal(1.0499999999999998, Combat.UnitBoldness(w, e, it), Digits);
-        Assert.Equal(3, Combat.Allowance(w, it));
-        AssertVector(0, -1.8, Combat.MovementVector(w, e, it));
-        Assert.True(Combat.WantsToAttack(w, e, it, e.Units[0]));
-    }
-
-    static void AssertVector(double x, double y, System.Numerics.Vector2 v)
-    {
-        Assert.Equal(x, v.X, 4);
-        Assert.Equal(y, v.Y, 4);
-    }
+    // The old Unit's steering goldens (morale vectors, WantsToAttack, PursuitTarget, MovePosition) went with the
+    // steering itself: the fighter state machine replaced it (combat round 1). Its bands are pinned in
+    // CombatStateTests.
 
     // ---- shove, dodge, block, intimidate ----
 
+    /// Shoving reads weight and how well each body moves now (Running.SpeedPct), not Body.Strength (B11).
     [Fact]
-    public void ShoveAndDodge_MatchOld()
+    public void ShoveOdds_AreWeightAndFitness()
     {
         var (w, t) = Field();
         var wolf = Herd(w, Species.Wolf, 1, t);
@@ -199,14 +118,11 @@ public class CombatGoldenTests
         Normalize(w, wolf);
         Normalize(w, bear);
         var (h, wb, bb) = (w.Agent(AgentId.Player).Body, w.Agent(wolf).Body, w.Agent(bear).Body);
-        // Species round bodies. Old → new: shoves 0.964 / 4.932, 0.259 / 3.478, 2.123 / 6.881 → 0.902 / 4.898,
-        // 0.277 / 3.338, 1.863 / 6.703; dodges 0.510, 0.963, 0.837 → 0.595, 0.726, 0.606.
-        AssertShove(Combat.ShoveOdds(h, wb), 0.901633477894951, 4.897787964362452);
-        AssertShove(Combat.ShoveOdds(wb, h), 0.2772745313136292, 3.3377352062669563);
-        AssertShove(Combat.ShoveOdds(bb, h), 1.8628273815470062, 6.703226779358436);
-        Assert.Equal(0.595044628001389, Combat.DodgeChance(h), Digits);
-        Assert.Equal(0.7257672929958251, Combat.DodgeChance(wb), Digits);
-        Assert.Equal(0.6059763147536831, Combat.DodgeChance(bb), Digits);
+        Running R(Species s, BodyState b) => SpeciesTable.Running(s, b);
+        // 68 kg against 45 kg, all fresh: a ratio of 1.511.
+        AssertShove(Combat.ShoveOdds(h, R(Species.Human, h), wb, R(Species.Wolf, wb)), 0.5 * 68 / 45.0, 1 + 3 * 68 / 45.0);
+        AssertShove(Combat.ShoveOdds(wb, R(Species.Wolf, wb), h, R(Species.Human, h)), 0.5 * 45 / 68.0, 1 + 3 * 45 / 68.0);
+        AssertShove(Combat.ShoveOdds(bb, R(Species.Bear, bb), h, R(Species.Human, h)), 0.95, 10); // capped
     }
 
     static void AssertShove((double Chance, double PushM) odds, double chance, double push)
@@ -221,8 +137,9 @@ public class CombatGoldenTests
         var (w, t) = Field();
         var wolf = Herd(w, Species.Wolf, 1, t);
         var e = Combat.Create(w, [new(AgentId.Player) { Weapon = CombatTests.Spear(w) }], [new(wolf)], t, 10, Awareness.Engaged, Awareness.Engaged);
-        Assert.Equal(0.7, Combat.IntimidationChance(w, e.Units[1], e.Units[0]), Digits);
-        // Old harness: mean boldness drop 0.2251 over 20000 shouts (0.3 on success, 0.05 on failure).
+        // No weapon term: animals do not fear weapons (round 2). Old: 0.7 with the spear.
+        Assert.Equal(0.5, Combat.IntimidationChance(w, e.Units[1], e.Units[0]), Digits);
+        // A mean drop of 0.5 x 0.3 + 0.5 x 0.05 = 0.175 (old harness, at 0.7: 0.2251).
         double drop = 0;
         for (int i = 0; i < 20000; i++)
         {
@@ -232,27 +149,24 @@ public class CombatGoldenTests
         }
         // Within 0.003 (about 3.5 standard errors), not rounded to two places: the mean is 0.225, on
         // the rounding boundary, so a two-place check passed or failed on which way the stream fell.
-        Assert.Equal(0.2251, drop / 20000, 0.003);
+        Assert.Equal(0.175, drop / 20000, 0.003);
     }
 
     [Fact]
     public void BlocksAndBlows_MatchOldOdds()
     {
         var rng = Rng.ForSystem(1, "test");
-        var bare = new CombatUnit { Agent = AgentId.Player, Member = 0, Team = 0 };
-        var armed = new CombatUnit { Agent = AgentId.Player, Member = 0, Team = 0, Weapon = Items.Make("wooden_spear") };
-        double bareMean = Enumerable.Range(0, 20000).Average(_ => Combat.ResolveBlock(bare, 1.0, rng));
-        double armedMean = Enumerable.Range(0, 20000).Average(_ => Combat.ResolveBlock(armed, 1.0, rng));
-        Assert.Equal(0.725, bareMean, 2); // uniform 0.5-0.95
+        var spear = Items.Make("wooden_spear", durability: 100_000);
+        double armedMean = Enumerable.Range(0, 20000).Average(_ => Combat.ResolveBlock(spear, 1.0, rng));
         Assert.Equal(0.35, armedMean, 2); // uniform 0-0.7
 
-        // A melee attack lands 90% of the time against a target that is not dodging.
+        // A melee attack lands 90% of the time against a target that does not defend itself (an unaware one).
         var (w, t) = Field();
         int hits = 0, tries = 2000;
         for (int i = 0; i < tries; i++)
         {
             var bison = Herd(w, Species.Bison, 1, t);
-            var e = Combat.Create(w, [new(AgentId.Player)], [new(bison)], t, 1, Awareness.Engaged, Awareness.Engaged);
+            var e = Combat.Create(w, [new(AgentId.Player)], [new(bison)], t, 1, Awareness.Engaged, Awareness.Unaware);
             if (Combat.Apply(w, e, e.Units[0], CombatAction.Attack, []).Hit) hits++;
             w.Encounters.Clear();
             w.Agents.Remove(bison);
@@ -312,23 +226,24 @@ public class CombatGoldenTests
     //   wolf vs spear   [0.082, 0.388, 0.213, 0.269, 0.049, 11.24] → [0.140, 0.411, 0.145, 0.242, 0.062, 11.53]
     //   wolf vs unarmed [0.007, 0.797, 0.171, 0.000, 0.025, 11.05] → [0.005, 0.861, 0.105, 0.000, 0.029, 11.49]
     //   bear vs spear   [0.032, 0.720, 0.176, 0.063, 0.009, 9.48]  → [0.073, 0.762, 0.112, 0.031, 0.022, 9.72]
-    // Species round (2026-11-21): realistic builds, the sprint reserve, dodges paid from it. Every row is now this
-    // rebuild's, 1000 fights each. The wolf, at a realistic 48% muscle, is slower by Body.Speed (1.60 → 1.21), so it
-    // dodges a spear less (0.96 → 0.73) and stays to die instead of breaking off. Old → new:
-    //   wolf vs spear       [0.140, 0.411, 0.145, 0.242, 0.062, 11.53] → [0.333, 0.421, 0.116, 0.057, 0.073, 11.54]
-    //   wolf vs unarmed     [0.005, 0.861, 0.105, 0.000, 0.029, 11.49] → [0.007, 0.876, 0.083, 0.000, 0.034, 11.80]
-    //   3 wolves vs spear   [0.000, 1.000, 0.000, 0.001, 0.000, 4.95]  → [0.000, 0.999, 0.000, 0.000, 0.001, 5.18]
-    //   4 wolves ambush 2   [1.000, 0.000, 0.000, 0.000, 0.000, 4.24]  → [1.000, 0.000, 0.000, 0.000, 0.000, 4.30]
-    //   4 wolves noticed    [0.949, 0.000, 0.000, 0.051, 0.000, 8.14]  → [0.955, 0.000, 0.000, 0.045, 0.000, 8.37]
-    //   bear vs spear       [0.073, 0.762, 0.112, 0.031, 0.022, 9.72]  → [0.101, 0.778, 0.090, 0.011, 0.020, 9.94]
+    // Stage 2 (combat rounds 1, 2 and 6, 2026-11-21): the fighter state machine, the automatic defence roll,
+    // flight at any distance. 1000 fights each. The AI person now stands off, presses or gives ground by its
+    // margin; giving ground it backs away and no longer blocks, so a lone wolf wears it down, and against a
+    // bear at 5 m its margin sends it running at once (until the catch-up of round 3). Old (stage 1) → new:
+    //   wolf vs spear       [0.333, 0.421, 0.116, 0.057, 0.073, 11.54] → [0.097, 0.743, 0.016, 0.009, 0.135, 12.89]
+    //   wolf vs unarmed     [0.007, 0.876, 0.083, 0.000, 0.034, 11.80] → [0.006, 0.893, 0.026, 0.000, 0.075, 13.04]
+    //   3 wolves vs spear   [0.000, 0.999, 0.000, 0.000, 0.001, 5.18]  → [0.000, 0.606, 0.356, 0.038, 0.000, 4.61]
+    //   4 wolves ambush 2   [1.000, 0.000, 0.000, 0.000, 0.000, 4.30]  → [1.000, 0.000, 0.000, 0.000, 0.000, 4.24]
+    //   4 wolves noticed    [0.955, 0.000, 0.000, 0.045, 0.000, 8.37]  → [1.000, 0.000, 0.000, 0.000, 0.000, 7.39]
+    //   bear vs spear       [0.101, 0.778, 0.090, 0.011, 0.020, 9.94]  → [0.000, 0.000, 1.000, 0.000, 0.000, 2.00]
     public static readonly TheoryData<string, double[]> Headless = new()
     {
-        { "wolf vs spear", [0.333, 0.421, 0.116, 0.057, 0.073, 11.54] },
-        { "wolf vs unarmed", [0.007, 0.876, 0.083, 0.000, 0.034, 11.80] },
-        { "3 wolves vs spear", [0.000, 0.999, 0.000, 0.000, 0.001, 5.18] },
-        { "4 wolves ambush 2 caribou", [1.000, 0.000, 0.000, 0.000, 0.000, 4.30] },
-        { "4 wolves noticed by 2 caribou", [0.955, 0.000, 0.000, 0.045, 0.000, 8.37] },
-        { "bear vs spear", [0.101, 0.778, 0.090, 0.011, 0.020, 9.94] },
+        { "wolf vs spear", [0.097, 0.743, 0.016, 0.009, 0.135, 12.89] },
+        { "wolf vs unarmed", [0.006, 0.893, 0.026, 0.000, 0.075, 13.04] },
+        { "3 wolves vs spear", [0.000, 0.606, 0.356, 0.038, 0.000, 4.61] },
+        { "4 wolves ambush 2 caribou", [1.000, 0.000, 0.000, 0.000, 0.000, 4.24] },
+        { "4 wolves noticed by 2 caribou", [1.000, 0.000, 0.000, 0.000, 0.000, 7.39] },
+        { "bear vs spear", [0.000, 0.000, 1.000, 0.000, 0.000, 2.00] },
     };
 
     [Trait("Category", TestCategories.Slow)]

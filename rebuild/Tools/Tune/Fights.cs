@@ -75,7 +75,7 @@ public sealed class Fights
                 && MapGen.Neighbors(t).All(nb => Map.Blocked(m, t, nb) == null));
 
     public static readonly string[] Setups = ["hunt_caribou_resting", "hunt_caribou_grazing", "hunt_bison_resting",
-        "wolf1_ambush", "wolf1_aware", "pack3_aware", "pack3_ambush", "pack5_aware", "pack5_ambush", "bear_close",
+        "wolf1_ambush", "wolf1_aware", "pack3_aware", "pack3_ambush", "pack5_aware", "pack5_ambush", "bear_close", "bear_den",
         "wolves4_vs_caribou1_noticed", "wolves4_vs_caribou1_unnoticed", "wolves4_vs_caribou3_noticed", "wolves4_vs_bison1_noticed",
         "two_people_vs_wolves4", "one_person_vs_wolves4"];
     public static readonly string[] Policies = ["ai", "aggressive", "cautious", "stand_intimidate", "run",
@@ -96,9 +96,8 @@ public sealed class Fights
         if (headless && s.Policy != "ai") throw new ArgumentException($"{s}: an animal or NPC-only fight is fought by the AI");
     }
 
-    /// One fight. A watcher, if given, sees the grid at the opening and after every round of a fight
-    /// this harness drives round by round (Watchable); it only reads, so a watched fight is the same
-    /// fight. Headless fights resolve inside Sim and are not seen until Sim offers a round observer.
+    /// One fight. A watcher, if given, sees the grid at the opening and after every round, through Sim's
+    /// round observer (Combat.Watch), headless fights too; it only reads, so a watched fight is the same fight.
     public FightOutcome Run(Scenario s, int seed, Action<TraceFrame>? watch = null)
     {
         var w = new World { Seed = seed, GeneratedMap = map };
@@ -106,9 +105,8 @@ public sealed class Fights
         return new OneFight(w, tile, s, watch).Go();
     }
 
-    /// Whether Run can show this scenario's rounds: the fights the harness drives through Sim.Step.
-    public static bool Watchable(Scenario s) => s.Setup.StartsWith("hunt_")
-        || !s.Setup.Contains("_vs_") && s.Policy != "ai";
+    /// Whether Run can show this scenario's rounds: every fight, now that Sim reports its rounds.
+    public static bool Watchable(Scenario s) => true;
 
     /// One fight in its world. Drivers and policies follow the probe line for line.
     sealed class OneFight(World w, TileId tile, Scenario c, Action<TraceFrame>? watch)
@@ -183,20 +181,13 @@ public sealed class Fights
         {
             var person = Combat.UnitOf(enc, P);
             var events = new List<WorldEvent>();
-            watch?.Invoke(Frame(enc, 0, null, null, []));
             for (int round = 0; round < 300 && w.Encounters.Contains(enc); round++)
             {
                 var (act, target, to) = policy(enc, person);
-                int seen = events.Count;
                 var r = Sim.Step(w, new Fight(P, act, target == null ? null : enc.Units.IndexOf(target), to), 1);
                 events.AddRange(r.Events);
-                string action = act.ToString();
                 if (r.InterruptedReason != null && r.InterruptedReason != "fight over" && r.InterruptedReason != "died" && w.Encounters.Contains(enc))
-                {
                     events.AddRange(Sim.Step(w, new Fight(P, CombatAction.Wait), 1).Events); // a refused action: wait instead
-                    action = $"{act} (refused: {r.InterruptedReason}), Wait";
-                }
-                watch?.Invoke(Frame(enc, round + 1, action, target == null ? null : enc.Units.IndexOf(target), events.Skip(seen)));
             }
             if (w.Encounters.Contains(enc)) return new("Unfinished", !Body.IsAlive(w.Agent(P).Body), BKilled(enc, events), false, enc.Rounds);
             var result = events.OfType<FightEnded>().LastOrDefault(f => f.Agent == P)?.Result.ToString() ?? "?";
@@ -204,36 +195,30 @@ public sealed class Fights
             return new(result, dead, BKilled(enc, events), !dead && result == nameof(CombatResult.Fled), enc.Rounds);
         }
 
-        /// The grid as it stands, read without drawing a random number or changing a thing. Only the
-        /// driven person's action is known here; the others act inside Sim.Step.
-        TraceFrame Frame(Encounter enc, int round, string? action, int? target, IEnumerable<WorldEvent> events)
+        /// Shows the fight to the watcher, round by round, through Sim's observer.
+        void Observe(Encounter enc)
         {
-            var units = enc.Units.Select((u, i) =>
+            if (watch != null) Combat.Watch(w, enc, new Watcher(watch, this));
+        }
+
+        /// Sim's rounds as the trace's frames: plain lines for the events, names for the species.
+        sealed class Watcher(Action<TraceFrame> watch, OneFight fight) : ICombatObserver
+        {
+            public void Round(CombatRoundView round)
             {
-                // A herd that has lost its last member leaves the world: what it was is remembered.
-                w.Agents.TryGetValue(u.Agent, out var agent);
-                if (agent != null) species[u.Agent] = agent.Species.ToString();
-                var body = agent != null && u.Member < agent.Members.Count ? agent.Members[u.Member] : null;
-                bool alive = body != null && Body.IsAlive(body);
-                string state = !alive ? "Down" : !u.InField ? "Gone" : u.Awareness.ToString();
-                var foe = u.InField && body != null ? Combat.NearestEnemy(enc, u) : null;
-                bool foeReadable = foe != null && w.Agents.TryGetValue(foe.Agent, out var fa) && foe.Member < fa.Members.Count;
-                double? bold = alive && u.InField ? Combat.UnitBoldness(w, enc, u) : null;
-                return new TraceUnit(i, u.Team, species.GetValueOrDefault(u.Agent, "?"), u.Member, u.Position.X, u.Position.Y, state,
-                    u.Agent == P ? action : null, u.Agent == P ? target : null,
-                    bold is double b && foeReadable ? b - Combat.PerceivedThreat(w, u, foe!) : null, bold,
-                    body == null ? null : Body.Vitality(body), body?.BloodPct, body == null ? null : Body.SprintReservePct(body),
-                    body == null ? null : Combat.WoundLevel(body));
-            }).ToList();
-            var lines = events.Select(e => e switch
-            {
-                Injured i => $"{Name(i.Who)} hurt: {i.Region}, {i.Type} {i.Amount:0.00}",
-                Killed k => $"{k.Species} killed",
-                Died d => $"{Name(d.Who)} died",
-                FightEnded f when f.Agent == P => $"fight over: {f.Result}",
-                _ => null,
-            }).OfType<string>().ToList();
-            return new TraceFrame(round, units, null, lines);
+                foreach (var f in round.Fighters) fight.species[f.Agent] = f.Species.ToString();
+                var units = round.Fighters.Select(f => new TraceUnit(f.Index, f.Team, f.Species.ToString(), f.Member, f.Position.X, f.Position.Y,
+                    f.State.ToString(), f.Action?.ToString(), f.Target, f.Margin, f.Boldness, f.Vitality, f.BloodPct, f.SprintReservePct, f.WoundLevel)).ToList();
+                var lines = round.Events.Select(e => e switch
+                {
+                    Injured i => $"{fight.Name(i.Who)} hurt: {i.Region}, {i.Type} {i.Amount:0.00}",
+                    Killed k => $"{k.Species} killed",
+                    Died d => $"{fight.Name(d.Who)} died",
+                    FightEnded f when f.Agent == P => $"fight over: {f.Result}",
+                    _ => null,
+                }).OfType<string>().ToList();
+                watch(new TraceFrame(round.Round, units, round.Fire is Cell c ? new TraceCell(c.X, c.Y) : null, lines));
+            }
         }
 
         readonly Dictionary<AgentId, string> species = [];
@@ -251,7 +236,7 @@ public sealed class Fights
         (CombatAction, CombatUnit?, Cell?) HuntPolicy(Encounter e, CombatUnit me)
         {
             var acts = Combat.Actions(w, e, me);
-            var target = Combat.NearestEnemy(e, me);
+            var target = Combat.TargetOf(e, me); // the one faced: naming another would spend the round turning
             if (target == null) return (CombatAction.Wait, null, null);
             double gap = me.Position.DistanceTo(target.Position);
             bool throws = c.Policy.EndsWith("throw");
@@ -261,7 +246,7 @@ public sealed class Fights
             if (c.Policy.StartsWith("careful"))
             {
                 if (target.Awareness == Awareness.Engaged) return (CombatAction.Advance, target, null); // it bolted: chase
-                // freeze while any is alert, at most 3 rounds running (Alert never lapses)
+                // freeze while any is wary, at most 3 rounds running
                 if (e.Units.Any(u => u.Team == 1 && u.InField && u.Awareness == Awareness.Alert) && frozen < frozenCap) { frozen++; return (CombatAction.Wait, null, null); }
                 frozen = 0;
                 var step = me.Position.Toward(target.Position, 1);
@@ -271,38 +256,24 @@ public sealed class Fights
             return (CombatAction.Advance, target, null);
         }
 
-        (CombatAction, CombatUnit?, Cell?) TowardEdge(Encounter e, CombatUnit me, CombatUnit target)
-        {
-            var acts = Combat.Actions(w, e, me);
-            if (acts.Contains(CombatAction.Flee)) return (CombatAction.Flee, null, null);
-            var p = me.Position;
-            int left = p.X, right = Combat.MapSize - 1 - p.X, down = p.Y, up = Combat.MapSize - 1 - p.Y;
-            int min = Math.Min(Math.Min(left, right), Math.Min(down, up));
-            int a = Combat.Allowance(w, me);
-            var to = min == left ? new Cell(p.X - a, p.Y) : min == right ? new Cell(p.X + a, p.Y) : min == down ? new Cell(p.X, p.Y - a) : new Cell(p.X, p.Y + a);
-            to = new Cell(Math.Clamp(to.X, 0, Combat.MapSize - 1), Math.Clamp(to.Y, 0, Combat.MapSize - 1));
-            if (to != p && Combat.Refusal(w, e, me, CombatAction.Move, null, to) == null) return (CombatAction.Move, null, to);
-            return (CombatAction.Retreat, target, null);
-        }
-
         (CombatAction, CombatUnit?, Cell?) FightPolicy(Encounter e, CombatUnit me)
         {
             var acts = Combat.Actions(w, e, me);
-            var target = Combat.NearestEnemy(e, me);
+            var target = Combat.TargetOf(e, me);
             if (target == null) return (CombatAction.Wait, null, null);
             switch (c.Policy)
             {
                 case "cautious":
                     var body = Combat.BodyOf(w, me);
                     if (Combat.WoundLevel(body) > 0.3 || body.BloodPct < 0.85 || Effects.Severity(body, EffectKind.Bleeding) > 0.4)
-                        return TowardEdge(e, me, target);
+                        return (CombatAction.Flee, null, null);
                     break;
-                case "run": return TowardEdge(e, me, target);
-                // Stand your ground and shout. Today's rules refuse Intimidate within 3 m, so up close
-                // this stance can only guard.
+                // Running for it: Flee works at any distance (combat round 1).
+                case "run": return (CombatAction.Flee, null, null);
+                // Stand your ground and shout (Standoff): Intimidate from Near out, keep still up close.
+                // Every aware fighter defends itself when struck, so standing is a stance of its own.
                 case "stand_intimidate":
                     if (acts.Contains(CombatAction.Intimidate)) return (CombatAction.Intimidate, null, null);
-                    if (acts.Contains(CombatAction.Block)) return (CombatAction.Block, null, null);
                     return (CombatAction.Wait, null, null);
             }
             if (acts.Contains(CombatAction.Attack)) return (CombatAction.Attack, target, null);
@@ -316,6 +287,7 @@ public sealed class Fights
             var herd = Agents.Spawn(w, species, tile, 4);
             ((HerdMind)w.Agent(herd).Mind).State = c.Setup.Contains("grazing") ? HerdState.Grazing : HerdState.Resting;
             var enc = Fauna.BeginHunt(w, P, herd, 0, g);
+            Observe(enc);
             return DrivePlayer(enc, HuntPolicy);
         }
 
@@ -328,22 +300,28 @@ public sealed class Fights
             "pack5_aware" => (5, Species.Wolf, Opening.Approach, 0, Awareness.Engaged),
             "pack5_ambush" => (5, Species.Wolf, Opening.Ambush, 4, Awareness.Unaware),
             "bear_close" => (1, Species.Bear, Opening.CloseEncounter, 8, Awareness.Engaged),
+            "bear_den" => (1, Species.Bear, Opening.CloseEncounter, 8, Awareness.Engaged),
             _ => throw new ArgumentException(sc),
         };
+
+        /// A bear defending a kill or its den (bear_den) comes with its temperament's defending boldness.
+        double OpeningBoldness(string sc, Species s) => sc == "bear_den" ? SpeciesTable.Of(s).Temperament.DefendBonus : 0;
 
         FightOutcome PersonVsAnimal()
         {
             var (count, s, o, dist, aw) = AnimalSetup(c.Setup);
             var herd = Agents.Spawn(w, s, tile, count);
-            var animals = Enumerable.Range(0, count).Select(i => new Fighter(herd, i)).ToList();
+            var animals = Enumerable.Range(0, count).Select(i => new Fighter(herd, i) { BoldnessDelta = OpeningBoldness(c.Setup, s) }).ToList();
             if (c.Policy != "ai")
             {
                 var weapon = ArmPlayer();
                 var enc = Combat.Create(w, [new Fighter(P) { Weapon = weapon }], animals, tile, dist, aw, Awareness.Engaged, o);
+                Observe(enc);
                 return DrivePlayer(enc, FightPolicy);
             }
             var pid = Person(out var g);
             var headless = Combat.Create(w, [new Fighter(pid) { Weapon = g }], animals, tile, dist, aw, Awareness.Engaged, o);
+            Observe(headless);
             var events = new List<WorldEvent>();
             var r = Combat.ResolveHeadless(w, headless, events);
             bool dead = !Body.IsAlive(w.Agent(pid).Members[0]);
@@ -361,6 +339,7 @@ public sealed class Fights
                 [.. Enumerable.Range(0, preyCount).Select(i => new Fighter(prey, i))], tile,
                 noticed ? 15 : 5, Awareness.Engaged, noticed ? Awareness.Alert : Awareness.Unaware);
             var events = new List<WorldEvent>();
+            Observe(enc);
             var r = Combat.ResolveHeadless(w, enc, events);
             bool wolfDied = events.OfType<Killed>().Any(k => k.Agent == pack);
             return new(r.ToString(), wolfDied, BKilled(enc, events), r == CombatResult.Fled, enc.Rounds);
@@ -375,6 +354,7 @@ public sealed class Fights
             var enc = Combat.Create(w, ids, [.. Enumerable.Range(0, 4).Select(i => new Fighter(pack, i))], tile, 0,
                 Awareness.Engaged, Awareness.Engaged, Opening.Approach);
             var events = new List<WorldEvent>();
+            Observe(enc);
             var r = Combat.ResolveHeadless(w, enc, events);
             bool dead = events.OfType<Died>().Any();
             return new(r.ToString(), dead, BKilled(enc, events), r == CombatResult.Fled, enc.Rounds);

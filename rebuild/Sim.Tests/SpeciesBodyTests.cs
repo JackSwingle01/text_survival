@@ -242,7 +242,6 @@ public class SpeciesBodyTests
         int dodged = 0;
         for (int i = 0; i < 40 && dodged == 0; i++)
         {
-            e.Units[0].DodgeSet = true;
             if (Combat.Apply(w, e, e.Units[1], CombatAction.Attack, []).Dodged) dodged++;
             Combat.BodyOf(w, e.Units[0]).Regions.ForEach(r => { r.Skin.Condition = r.Muscle.Condition = r.Bone.Condition = 1; });
             me.BloodPct = 1;
@@ -261,7 +260,6 @@ public class SpeciesBodyTests
         for (int i = 0; i < 100; i++)
         {
             me.SprintSpentLevel = 1;
-            e.Units[0].DodgeSet = true;
             Assert.False(Combat.Apply(w, e, e.Units[1], CombatAction.Attack, []).Dodged);
             Combat.BodyOf(w, e.Units[0]).Regions.ForEach(r => { r.Skin.Condition = r.Muscle.Condition = r.Bone.Condition = 1; });
             me.BloodPct = 1;
