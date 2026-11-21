@@ -157,3 +157,13 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   simulated battles, and it extends naturally to fights with three or more sides. What needs fixing:
   the clunky movement and the 1v1 balance. Today the outcome is set in advance, and an animal
   that's going to run away takes several turns to do it. Targets: next grilling round.
+- Combat design: continuous values (positions, morale, stamina, damage) plus a small explicit
+  state per fighter, with hysteresis. Allowed actions are state ∩ the existing distance-zone lists.
+  A closed-form catch-up calculation ends a flight that can't be caught at once; chasing one that
+  can is the player's choice, shown with odds. One 0–1 damage scale, tuned by sweeps. Rounds of
+  30 s. Watching other fights: CLI `--watch` only, for testing.
+- Outcome targets to start: careful hunt 50–70% meat; quick ≤20%; armed vs a lone wolf 70–85%
+  won, ≤5% dead; unarmed vs a lone wolf about 30% dead; pack of 3 in the open about 50% dead. The
+  bear is more dangerous than first proposed. Weapon order: spear > axe > knife > hands.
+- The state machine is written up in `documentation/combat-states.md` for the user to review before
+  any code.
