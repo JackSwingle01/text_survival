@@ -145,3 +145,11 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - Saves: versioned from now, plain data records, and a fixture test loads a fixed sample save so
   any format change is deliberate. Migration code comes once saves must survive between builds.
 - UI: leaning web; how to host it is being decided.
+- Fire burn: the fire sets the total kg/h as today, and the burning fuels share it out by table
+  rate × mass, so tinder goes first and a single-fuel fire is unchanged. Keep it simple.
+- UI host: start with in-browser WebAssembly and measure (spike in `rebuild/Web.Spike/`). The UI
+  talks to the game only through a narrow host boundary: new game, act, view, save and load, with
+  views as plain data. That way it can move behind a server later without changing the UI.
+- Fire at the edge is meant at tile level first: a strong fire keeps a predator off your tile, so
+  most of the time there is no encounter at all, only eyes on the neighbouring tile. The same
+  falloff holds within a fight if one starts.
