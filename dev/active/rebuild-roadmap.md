@@ -133,3 +133,9 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   The rebuild CLI replaces GameCli and the other tools retire; `--shot` gives headless screenshots.
   Retirement tags the last old-game commit, deletes the old code, moves `rebuild/` to the root and
   rewrites the docs.
+- Fire's deterrence depends on the predator's distance from the fire: fire-fear × intensity ×
+  inverse-square falloff, capped at 1 near the fire. A predator closes in while boldness minus
+  deterrence beats the target's threat, and holds where they balance. So it circles at the edge of
+  the light and closes in as the fire dies or you step away from it. On the map this shows as a
+  predator holding at a neighbouring tile at night. Within a tile it needs the combat model to
+  give the fire a position (decided with the combat survey).
