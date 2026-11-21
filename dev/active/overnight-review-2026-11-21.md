@@ -19,7 +19,10 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 | Design doc + plan | 2e91fad | done |
 | 4a named places, crossing, den herds; 4b shelters, bedding, building | dc15566, 1c4c825 | committed |
 | Emergent step 1: find dump, distribution report, population curves | 2af01d6 | committed |
-| Review fixes for the two rows above (13 findings, regression tests; markers converted) | 6f4ef1b | committed; second review running |
+| Review fixes for the two rows above (13 findings, regression tests; markers converted) | 6f4ef1b | committed |
+| Second-review fixes (9 findings), wind revert, per-agent random streams | 53e232d | committed; focused third review running (the stream change is broad) |
+| Feature-parity checklist (237 rows) | c02e851 | done: `documentation/feature-parity-checklist.md` |
+| Authored-content catalog (301 entries: 244 replaced, 17 left, 40 cut) | a6aad25 | done: `documentation/authored-content-catalog.md`; design refinements folded in |
 | Merge of `worktree-short-loop-plan` (short-loop plan, UI design, terrain art) | 11aee1a | done, at your request |
 | Short-loop plan's "Asks of the Rebuild" (event tiles, historical minutes, chance factors, skills, place memory) | | after the phase 4 fix round |
 | Existing tables to data files | | |
@@ -125,6 +128,20 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
   food 10,954 → 7,301 kcal). Explained by the second review: all the food drop came from the
   wind-cover change (reverted, above) and all the injuries from herds sharing the player's random
   streams (now per agent). Final numbers after the second fix round are in the status table.
+
+- **The camper is less robust with the wind revert.** It passes on its pinned seed. Reseeded 12
+  ways, it died 2 times (wet and hypothermic in a blizzard), against 0 without the revert. Likely
+  cause: drying reads the body's wind, so a shelter that cuts wind also slows drying by the fire.
+  The third review is checking the physics and will recommend a rule.
+- **Phase 2 camper after the second fix round:** 14 injuries, gathered 3,189 kcal (94% hand-fed).
+  Most of the drop on seed 17 is the new per-agent streams: across 12 reseeded runs survivors
+  gathered 5.4-9.2k kcal against 5.2-12.1k before.
+- **Player hunting looks nearly impossible.** A naive stalk kills about 1 caribou in 50-200 tries.
+  The test was only passing on a lucky seed; it now searches seeds 1-60 for a kill. Being
+  measured in the third review; likely the known combat balance issue.
+- **Smallest territories after the pass fix** (80 seeds): Bison 93 tiles (target range 240+),
+  Hyena 4 (ravine and cliff pockets elsewhere). Not on the pass any more; logged in
+  `rebuild-deferred.md`.
 
 ## Deliberately left for you
 - Retiring the old project (Phase 5's last step), unless parity is reached overnight.
