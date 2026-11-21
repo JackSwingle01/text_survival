@@ -166,12 +166,17 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
   Hyena 4 (ravine and cliff pockets elsewhere). Not on the pass any more; logged in
   `rebuild-deferred.md`.
 
-- **NPC 30-day survival, 10 seeds: 9 of 10** (was 5 at the start of the night). The cold deaths
-  were competence bugs, now fixed: sleeping two hours at a time beside a fire it couldn't bank,
-  waiting until its hands were too cold to relight, never building kindling up hot enough for its
-  oak, and staying at a camp with no timber within 15 tiles (seed 5 now moves camp and lives).
-  Seed 123 still dies on day 5 in a mammoth hunt it chose while only "wanting" food: the hunt
-  scoring doesn't weigh danger enough. Logged for the hunting work.
+- **NPC survival: improved on some seeds, not overall (correcting an earlier claim).** On the ten
+  review seeds 9 of 10 reach day 30, but two of them pass the cutoff by 6 and 65 minutes. A
+  60-day review run on 16 seeds found every NPC dies within 60 days, on this commit and the one
+  before it. Mean death day is 35.3 against 33.7 before, or 35.4 against 35.7 leaving out seed 5,
+  which was the one clear win: it now moves camp to timber and lives to day 33 instead of day 5.
+  Three new seeds (7, 31, 1000) die earlier than before. The common end: fat falls about
+  0.12-0.15 kg a day to the 10% floor, then leanness costs cold resistance and the NPC freezes
+  striking at 5% odds. That is the deferred food and daily-schedule item, not fire-keeping. Four
+  NPC bugs the review confirmed (cold trips not guarded on every path, exploring 30 tiles out
+  without budgeting the walk home, evening wood fetches after a winter sunset, sleeping beside
+  logs too cool to catch) and seed 123's mammoth hunt are being fixed next.
 - **Butchering yields changed slightly:** the old game's full processing produced 107% of what was
   cut (it minted mass). Fixed; full processing now recovers its old share of a ledger that holds
   what thorough work can get. Butchering times are unchanged.
