@@ -126,18 +126,135 @@ public class SurvivalTests
         Assert.Equal(DamageType.Internal, hit.Type);
     }
 
+    /// Lives a body minute by minute until it dies or the minutes run out. each runs before every minute.
+    static int MinutesToDeath(BodyState b, SurvivalContext ctx, int maxMinutes, Action<BodyState>? each = null)
+    {
+        var rng = TestRng();
+        for (int m = 0; m < maxMinutes; m++)
+        {
+            each?.Invoke(b);
+            Body.Update(b, ctx, rng);
+            if (!Body.IsAlive(b)) return m + 1;
+        }
+        return -1;
+    }
+
+    /// Body review B4 (decided 2026-11-21): about three days without water at rest. Old (pinned here as
+    /// 15-120 minutes from dry): thirst's harm was divided by the brain's toughness and ran away as it
+    /// failed, so a dry body died within the hour, about 29 hours after its last drink.
     [Fact]
-    public void Dehydration_KillsWithinAnHourOrSo()
+    public void Dehydration_KillsInAboutThreeDays_AtRest()
     {
         var b = Baseline();
-        b.HydrationMl = 0;
-        int minutes = 0;
-        var rng = TestRng();
-        while (Body.IsAlive(b) && minutes < 24 * 60) { Body.Update(b, Room(), rng); minutes++; }
-        Assert.False(Body.IsAlive(b));
-        // The old comment promised ~5 hours, but 1.0/hr internal damage divided by the brain's
-        // toughness of 0.25, accelerating as protection falls, kills in well under an hour.
-        Assert.InRange(minutes, 15, 120);
+        b.HydrationMl = Body.MaxHydrationMl;
+        int minutes = MinutesToDeath(b, Room(), 10 * 1440);
+        Assert.InRange(minutes / 1440.0, 2.5, 3.5);
+        Assert.Equal("thirst", Body.CauseOfDeath(b).What);
+
+        var dry = Baseline();
+        dry.HydrationMl = 0;
+        Assert.InRange(MinutesToDeath(dry, Room(), 10 * 1440) / 60.0, 24, 48); // from dry: a day and a half
+    }
+
+    /// Body review B4: starving takes weeks, through the fat, then the muscle, then the heart. Old:
+    /// once both were spent an organ drawn at random failed within a couple of hours.
+    [Fact]
+    public void Starvation_TakesWeeks_FatThenMuscleThenTheHeart()
+    {
+        var b = Baseline();
+        b.CaloriesKcal = 0;
+        double? fatSpentDay = null, muscleSpentDay = null;
+        int minute = 0;
+        int minutes = MinutesToDeath(b, Room(), 100 * 1440, body =>
+        {
+            if (minute++ % 60 == 0) Body.Drink(body, 200);
+            if (fatSpentDay == null && body.FatKg <= 0.03 * body.WeightKg + 1e-6) fatSpentDay = minute / 1440.0;
+            if (muscleSpentDay == null && body.MuscleKg <= 0.15 * body.WeightKg + 1e-6) muscleSpentDay = minute / 1440.0;
+        });
+        Assert.InRange(minutes / 1440.0, 40, 75);
+        Assert.Equal("starvation", Body.CauseOfDeath(b).What);
+        Assert.NotNull(fatSpentDay);
+        Assert.NotNull(muscleSpentDay);
+        Assert.True(fatSpentDay < muscleSpentDay && muscleSpentDay < minutes / 1440.0, $"fat spent day {fatSpentDay:0.0}, muscle day {muscleSpentDay:0.0}, dead day {minutes / 1440.0:0.0}");
+        Assert.InRange(minutes / 1440.0 - muscleSpentDay!.Value, 0.5, 2); // the heart lasts about a day
+    }
+
+    /// Body review B4: the cold harms from 95 °F core and kills around 82 °F, within hours. Old: mild
+    /// cold killed at 94 °F through the brain, 5.5 hours after crossing 95.
+    [Theory]
+    [InlineData(-40, 2.5, false)]
+    [InlineData(-40, 0, true)]
+    [InlineData(-10, 0.5, false)]
+    public void Cold_KillsAroundEightyTwo_WithinHoursOfNinetyFive(double airF, double wind, bool asleep)
+    {
+        var b = Baseline();
+        var ctx = Room() with { AirTempF = airF, WindLevel = wind, IsSleeping = asleep, ActivityFactor = asleep ? 0.5 : 1.0 };
+        int? crossed = null, minute = 0;
+        int minutes = MinutesToDeath(b, ctx, 2 * 1440, body => { if (crossed == null && body.CoreTempF < 95) crossed = minute; minute++; });
+        Assert.True(minutes > 0, "lived two days naked in the cold");
+        Assert.Equal("the cold", Body.CauseOfDeath(b).What);
+        Assert.InRange(b.CoreTempF, 74, 86);
+        Assert.InRange((minutes - crossed!.Value) / 60.0, 0.5, 8);
+    }
+
+    /// The harm is the core's, not the clock's: held at 90 °F a body lasts days, at 84 °F hours.
+    [Theory]
+    [InlineData(94, 7 * 24, double.MaxValue)]
+    [InlineData(90, 24, 96)]
+    [InlineData(86, 3, 10)]
+    [InlineData(84, 1, 5)]
+    [InlineData(80, 0.25, 1.5)]
+    public void Cold_HeldAtACore_KillsInItsTime(double coreF, double minHours, double maxHours)
+    {
+        var b = Baseline();
+        int minutes = MinutesToDeath(b, Room(), 7 * 1440, body => { body.CoreTempF = coreF; body.HydrationMl = 3000; body.CaloriesKcal = 1500; });
+        double hours = minutes < 0 ? double.MaxValue : minutes / 60.0;
+        Assert.InRange(hours, minHours, maxHours);
+    }
+
+    /// Body review A13: the cold's harm rises continuously as the core falls, with no jump (old: from
+    /// 0.30 to 0.50 an hour at 87.5 °F), and is nothing at or above 95 °F.
+    [Fact]
+    public void ColdHarm_IsContinuous_AndRisesAsTheCoreFalls()
+    {
+        var b = Baseline();
+        double previous = 0;
+        for (double core = 99; core > 70; core -= 0.01)
+        {
+            b.CoreTempF = core;
+            double rate = Body.LethalRates(b).ColdPerHour;
+            if (core >= 95) Assert.Equal(0, rate);
+            Assert.True(rate >= previous, $"harm fell from {previous} to {rate} at {core:0.00} °F");
+            Assert.True(rate - previous < 0.02, $"harm jumped from {previous} to {rate} at {core:0.00} °F");
+            previous = rate;
+        }
+    }
+
+    /// Body review A8: what LethalRates says a body is suffering is exactly what the next minute charges,
+    /// including the minute the core crosses 95 °F. Old: the cold was charged off the core the minute
+    /// would end at.
+    [Fact]
+    public void LethalRates_AreWhatTheNextMinuteCharges()
+    {
+        var crossing = Baseline();
+        crossing.CoreTempF = 95.001;
+        var bitter = Room() with { AirTempF = -40, WindLevel = 2.5 };
+        crossing.ClothingHeatBufferPct = 0;
+        Assert.True(crossing.CoreTempF + Body.Process(crossing, bitter, 1, TestRng()).CoreTempDeltaF < 95);
+        Assert.Empty(Body.Process(crossing, bitter, 1, TestRng()).Damage);
+
+        foreach (var (core, ml, kcal, fatKg) in new[] { (93.0, 3000.0, 1500.0, 11.25), (98.6, 0.0, 1500.0, 11.25), (85.0, 0.0, 0.0, 0.0) })
+        {
+            var b = Baseline();
+            (b.CoreTempF, b.HydrationMl, b.CaloriesKcal, b.FatKg) = (core, ml, kcal, fatKg);
+            if (fatKg == 0) b.MuscleKg = 0;
+            var (cold, thirst, hunger) = Body.LethalRates(b);
+            var d = Body.Process(b, Room(), 1, TestRng());
+            double Charged(string what) => d.Damage.Where(x => x.By?.What == what).Sum(x => x.Amount) * 60;
+            Assert.Equal(cold, Charged("the cold"), 12);
+            Assert.Equal(thirst, Charged("thirst"), 12);
+            Assert.Equal(hunger, Charged("starvation"), 12);
+        }
     }
 
     [Fact]
@@ -155,8 +272,11 @@ public class SurvivalTests
         Assert.Equal(0, Body.Process(b, Room(), 60, TestRng()).HealAmount);
     }
 
+    /// Body review A1. Sleep heals faster than waking rest, but through the same gates: fed, watered and
+    /// warm. Old (pinned here only as "sleep heals faster"): sleep healed on a channel of its own that
+    /// checked nothing, organs included, so a cold, dry or starving sleeper mended anyway.
     [Fact]
-    public void SleepHeals_FasterThanRegenerationAlone()
+    public void SleepHeals_FasterThanWaking_ButOnlyFedWateredAndWarm()
     {
         var asleep = Baseline();
         var awake = Baseline();
@@ -164,6 +284,115 @@ public class SurvivalTests
         Live(asleep, Asleep(), 60);
         Live(awake, Room(), 60);
         Assert.True(asleep.Regions[3].Skin.Condition > awake.Regions[3].Skin.Condition);
+
+        foreach (var (why, spoil) in new (string, Action<BodyState>)[]
+        {
+            ("cold", b => b.CoreTempF = 93),
+            ("dry", b => b.HydrationMl = 100),
+            ("hungry", b => b.CaloriesKcal = 100),
+        })
+        {
+            var b = Baseline();
+            b.Regions[3].Skin.Condition = 0.5;
+            spoil(b);
+            Assert.Equal(0, Body.Process(b, Asleep(), 60, TestRng()).HealAmount);
+        }
+    }
+
+    /// Body review A1: no healing outpaces the harm of the cold, thirst or hunger, asleep or awake. Old: a
+    /// naked sleeper at -40 °F in a gale was alive after 24 hours at a core of -3 °F, brain whole.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NoHealing_OutpacesTheColdThirstOrHunger(bool asleep)
+    {
+        var naked = Baseline();
+        var bitter = Room() with { AirTempF = -40, WindLevel = 2.5, IsSleeping = asleep, ActivityFactor = asleep ? 0.5 : 1.0 };
+        Assert.InRange(MinutesToDeath(naked, bitter, 24 * 60), 1, 6 * 60);
+
+        var ctx = Room() with { IsSleeping = asleep, ActivityFactor = asleep ? 0.5 : 1.0 };
+        foreach (var (why, spoil) in new (string, Action<BodyState>)[]
+        {
+            ("cold", b => b.CoreTempF = 90),
+            ("dry", b => b.HydrationMl = 0),
+            ("starving", b => { b.CaloriesKcal = 0; b.FatKg = 0; b.MuscleKg = 0; }),
+        })
+        {
+            var b = Baseline();
+            b.Regions[3].Skin.Condition = 0.5;
+            var rng = TestRng();
+            double vital() => b.Regions.SelectMany(r => r.Organs).Where(o => o.Name is "Heart" or "Brain").Sum(o => o.Condition);
+            double previous = vital();
+            for (int m = 0; m < 6 * 60 && Body.IsAlive(b); m++)
+            {
+                spoil(b);
+                Body.Update(b, ctx, rng);
+                Assert.True(vital() <= previous + 1e-12, $"{why}: the heart and brain mended at minute {m}");
+                previous = vital();
+            }
+            Assert.True(vital() < 2, $"{why}: nothing harmed");
+        }
+    }
+
+    /// Body review A9: food counts once in healing, tissue and blood alike. Old: tissue healed by
+    /// nutrition squared.
+    [Fact]
+    public void Healing_IsLinearInFood()
+    {
+        BodyState Hurt(double kcal)
+        {
+            var b = Baseline();
+            b.CaloriesKcal = kcal;
+            b.Regions[3].Skin.Condition = 0.5;
+            b.BloodPct = 0.9;
+            return b;
+        }
+        // Nutrition is the store as the step leaves it.
+        var lean = Body.Process(Hurt(500), Room(), 60, TestRng());
+        var fed = Body.Process(Hurt(1000), Room(), 60, TestRng());
+        double ratio = (1000 + fed.CaloriesDeltaKcal) / (500 + lean.CaloriesDeltaKcal);
+        Assert.True(lean.HealAmount > 0 && lean.BloodHealedPct > 0);
+        Assert.Equal(ratio * lean.HealAmount, fed.HealAmount, 12);
+        Assert.Equal(ratio * lean.BloodHealedPct, fed.BloodHealedPct, 12);
+    }
+
+    /// Body review A7: once a person has mended, whoever hurt them no longer counts, and a death with no
+    /// mortal wound is never theirs. Old: a person bitten once and frozen days later was killed by the
+    /// wolf pack.
+    [Fact]
+    public void APersonWhoMends_ForgetsWhoHurtThem_AndFreezesOfTheCold()
+    {
+        var wolf = new Cause(new AgentId(999), "a wolf pack");
+        var mended = Baseline();
+        mended.WoundedBy = wolf;
+        mended.Regions[3].Skin.Condition = 0.99;
+        Live(mended, Asleep(), 60);
+        Assert.Null(mended.WoundedBy);
+
+        var bitten = Baseline();
+        bitten.WoundedBy = wolf;
+        var leg = bitten.Regions.Single(r => r.Name == "Left Leg");
+        leg.Skin.Condition = leg.Muscle.Condition = leg.Bone.Condition = 0; // a lost leg, not bleeding
+        Assert.True(MinutesToDeath(bitten, Room() with { AirTempF = -40, WindLevel = 2.5 }, 24 * 60) > 0);
+        Assert.Equal(wolf, bitten.WoundedBy);
+        Assert.Equal("the cold", Body.CauseOfDeath(bitten).What);
+    }
+
+    /// A wound someone gave bleeds in their name; an unnamed bleed is blood loss.
+    [Fact]
+    public void BleedingOut_NamesWhoeverGaveTheWound()
+    {
+        var spear = new Cause(new AgentId(3), "a person's stone spear");
+        var named = Baseline();
+        named.WoundedBy = spear;
+        Effects.Add(named, EffectKind.Bleeding, 1.0);
+        Assert.True(MinutesToDeath(named, Room(), 240) > 0);
+        Assert.Equal(spear, Body.CauseOfDeath(named));
+
+        var unnamed = Baseline();
+        Effects.Add(unnamed, EffectKind.Bleeding, 1.0);
+        Assert.True(MinutesToDeath(unnamed, Room(), 240) > 0);
+        Assert.Equal("blood loss", Body.CauseOfDeath(unnamed).What);
     }
 
     [Fact]
@@ -448,15 +677,50 @@ public class SurvivalTests
         Assert.Equal(0.05, Effects.Severity(b, EffectKind.Frostbite), 9);
     }
 
+    /// Body review A5 and decisions/2026-11-21-no-effect-needs-a-missing-treatment.md: no treatment
+    /// exists, so severe shock fades away on its own. Old (pinned here): shock above 0.5 needed treatment
+    /// and stopped at a 5% floor for good.
     [Fact]
-    public void Shock_NeedsTreatmentOnlyWhenSevere()
+    public void Shock_FadesAwayUntreated_HoweverSevere()
     {
         var b = Baseline();
-        Effects.Add(b, EffectKind.Shock, 0.3);
+        Effects.Add(b, EffectKind.Shock, 0.7);
         Assert.False(b.Effects.Single().RequiresTreatment);
+        Effects.Decay(b, 15 * 60);
+        Assert.False(Effects.Has(b, EffectKind.Shock));
+    }
+
+    /// Body review A5 and the decision record: blood on you dries away on its own over a few hours, faster
+    /// by a fire. Old: it faded at 0.02 an hour to a 5% floor only a missing washing cleared, so one
+    /// butchering made a person a scent source for the rest of the run.
+    [Fact]
+    public void Bloody_DriesAwayOnItsOwn_FasterByAFire()
+    {
+        BodyState Butchered() { var b = Baseline(); Effects.Set(b, EffectKind.Bloody, 0.5); return b; }
+        var open = Butchered();
+        var byFire = Butchered();
+        Live(open, Room() with { AirTempF = 20 }, 3 * 60);
+        Live(byFire, Room() with { AirTempF = 20, FireBonusF = 20 }, 3 * 60);
+        Assert.True(Effects.Has(open, EffectKind.Bloody), "three hours in the cold and dry already");
+        Assert.False(Effects.Has(byFire, EffectKind.Bloody), "three hours by a fire and still bloody");
+        Live(open, Room() with { AirTempF = 20 }, 3 * 60);
+        Assert.False(Effects.Has(open, EffectKind.Bloody), "six hours and still bloody");
+    }
+
+    /// Body review A6: a level set this minute reads as computed: at 96.9 °F, Shivering is (97 - 96.9)/5.
+    /// Old: it was set, then faded a minute, and so absent until 96.83 °F.
+    [Fact]
+    public void ALevelSetThisMinute_ReadsAsTheStepComputedIt()
+    {
+        var b = Baseline();
+        b.CoreTempF = 96.9;
+        Live(b, Room(), 1);
+        Assert.Equal((97 - 96.9) / 5, Effects.Severity(b, EffectKind.Shivering), 9);
         var c = Baseline();
-        Effects.Add(c, EffectKind.Shock, 0.7);
-        Assert.True(c.Effects.Single().RequiresTreatment);
+        c.CaloriesKcal = 300;
+        Live(c, Room(), 1);
+        double pct = (300 - Body.MetabolismKcalPerDay(c, 1.0) / 1440) / Body.MaxCaloriesKcal;
+        Assert.Equal((0.3 - pct) / 0.3, Effects.Severity(c, EffectKind.Hungry), 2);
     }
 
     [Fact]

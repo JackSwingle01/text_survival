@@ -250,15 +250,16 @@ public class EffectsPropertyTests
         }
     }
 
-    /// Regression: a shock that worsened past the threshold never needed treatment, while one that
-    /// started there did, so the same two injuries decided treatment by the order they landed in.
+    /// Regression: a shock that worsened past its threshold (then 0.5) never needed treatment, while one
+    /// that started there did. Shock has no threshold now (no treatment exists: body review A5), so
+    /// however it worsens it needs none; worsening past a threshold is Add_RequiresTreatment's law.
     [Fact]
-    public void Add_ShockWorsenedPastTheThreshold_NeedsTreatment()
+    public void Add_ShockWorsened_NeedsNoTreatment()
     {
         var b = BodyState.BaselineHuman();
         Effects.Add(b, EffectKind.Shock, 0.3);
         Effects.Add(b, EffectKind.Shock, 0.8);
-        Assert.True(b.Effects.Single().RequiresTreatment);
+        Assert.False(b.Effects.Single().RequiresTreatment);
     }
 
     /// Regression: NaN passed straight through the clamp and poisoned the severity for good.

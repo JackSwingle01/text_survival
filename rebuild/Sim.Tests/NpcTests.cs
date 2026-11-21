@@ -651,6 +651,7 @@ public class NpcTests(ITestOutputHelper output)
         var npc = Npc.Spawn(w, camp, boldness: 0.5);
         var mind = (NpcMind)w.Agent(npc).Mind;
         Items.Add(Items.StashAt(w, camp), Resource.Oak, 40);
+        Items.Add(Items.StashAt(w, camp), Resource.Kindling, 2); // and the kindling to light it (Npc.Lit)
         w.Agent(npc).Body.FatKg = mind.TargetFatKg - 0.5;
         (w.Tiles.TryGetValue(camp, out var ts) ? ts : w.Tiles[camp] = new TileState()).Pools = new() { [0] = new ForageState { HoursForaged = 1000, LastForagedMinute = minute } };
         var near = Enumerable.Range(-6, 13).SelectMany(dx => Enumerable.Range(-6, 13).Select(dy => new TileId(camp.X + dx, camp.Y + dy)))
@@ -661,7 +662,7 @@ public class NpcTests(ITestOutputHelper output)
             mind.Knows.Places[t] = new TileMemory
             {
                 SeenMinute = minute, VisitedMinute = minute, ForageDensity = t == ground ? ((ForagePool)Pools.At(w, t)[0]).Density : 0,
-                Stash = t == camp ? new() { [Resource.Oak] = 40 } : null,
+                Stash = t == camp ? new() { [Resource.Oak] = 40, [Resource.Kindling] = 2 } : null,
             };
         return (w, npc, ground);
     }

@@ -154,13 +154,21 @@ public static class Weather
 
     // ---- what a person feels ----
 
-    /// NWS wind chill (old Location.CalculateWindChillNWS). Only valid at or below 50 °F and 3 mph or more.
+    /// NWS wind chill (old Location.CalculateWindChillNWS), defined at or below 50 °F and 3 mph or more.
+    /// Above 50 °F the chill fades out by 60 °F rather than vanishing.
+    /// Old (this rebuild, old game): it stopped dead at 50 °F, so in a gale 49.9 °F felt like 40 °F and
+    /// 50.1 °F like 50.1 °F (bug, fixed; body review A10).
     public static double WindChillF(double temperatureF, double windSpeedMph)
     {
-        if (temperatureF > 50 || windSpeedMph < 3) return temperatureF;
+        if (temperatureF >= WindChillGoneF || windSpeedMph < 3) return temperatureF;
         double v = Math.Pow(windSpeedMph, 0.16);
-        return 35.74 + 0.6215 * temperatureF - 35.75 * v + 0.4275 * temperatureF * v;
+        double feltF = 35.74 + 0.6215 * temperatureF - 35.75 * v + 0.4275 * temperatureF * v;
+        if (temperatureF <= 50) return feltF;
+        // Never a warming: past 50 °F the formula can rise above the air in a light wind.
+        return temperatureF - Math.Max(0, temperatureF - feltF) * (WindChillGoneF - temperatureF) / (WindChillGoneF - 50);
     }
+
+    const double WindChillGoneF = 60;
 
     // Everything the sky does at a tile to a body or thing, wind chill read at the body's wind
     // included, is Exposure's (Exposure.cs).

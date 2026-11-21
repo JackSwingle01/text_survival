@@ -305,7 +305,9 @@ public class CarcassTests
         Assert.Equal(Carcasses.TotalRemainingKg(c1), Carcasses.TotalRemainingKg(c2), 9);
         Assert.Equal(c1.ScentBonus, c2.ScentBonus, 12);
         Assert.Equal(Effects.Severity(one.Agent(P).Body, EffectKind.Bloody), Effects.Severity(hours.Agent(P).Body, EffectKind.Bloody), 12);
-        Assert.True(Effects.Severity(one.Agent(P).Body, EffectKind.Bloody) > 0.3); // three hours elbow-deep
+        // Three hours elbow-deep. Blood on you now dries as you go (body review A5, 2026-11-21), so careful
+        // butchering's 0.15 an hour settles near 0.15 rather than piling up: was > 0.3.
+        Assert.True(Effects.Severity(one.Agent(P).Body, EffectKind.Bloody) > 0.1);
 
         var a = Sim.Step(one, new Butcher(P, c1.Id), 600);
         int minutes = 180 + a.MinutesElapsed, chunked = 180;

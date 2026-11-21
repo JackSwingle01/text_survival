@@ -471,7 +471,8 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         var npc = Npc.Spawn(w, camp, camp, boldness: 0.5);
         var mind = (NpcMind)w.Agent(npc).Mind;
         Items.Add(Items.StashAt(w, camp), Resource.Oak, 40); // firewood is not what it worries about
-        mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 40 } };
+        Items.Add(Items.StashAt(w, camp), Resource.Kindling, 2); // nor the kindling to light it (Npc.Lit)
+        mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 40, [Resource.Kindling] = 2 } };
         var body = w.Agent(npc).Body;
         // Wanting food: half a kilo short of its fat, not hungry for what it carries. Starving (food Critical, the stat
         // tiers): fat down to the floor the body burns to, the stomach empty.

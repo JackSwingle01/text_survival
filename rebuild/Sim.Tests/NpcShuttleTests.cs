@@ -187,4 +187,33 @@ public class NpcShuttleTests(ITestOutputHelper output)
         Assert.Equal(camp, agent.Tile);
         Assert.DoesNotContain(walked, t => MapGen.Manhattan(t, wolf) < 3);
     }
+
+    /// Seed 2024, day 21: 0.094 kg of kindling on the camp stash, remembered as 0.1 (memory keeps a tenth of a kilo).
+    /// At camp that is too little to follow the tinder, so home had no fire to be had and tonight's wood was short; a
+    /// tile out the remembered 0.1 was enough, so home had sixteen kilos of oak to burn and the wood trip was done. It
+    /// walked camp, trees, camp, trees: sixty-six reversals. Home is judged the same from camp and from a tile out.
+    [Fact]
+    public void KindlingJustUnderTheLine_HomeJudgedAlikeFromCampAndATileOut()
+    {
+        var w = World.New(2024);
+        foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => a.Id).ToList()) w.Agents.Remove(h);
+        var camp = new TileId(6, 45);
+        var npc = NpcBench.Spawn(w, camp);
+        var agent = w.Agent(npc);
+        var mind = (NpcMind)agent.Mind;
+        mind.Pack.Kg.Clear();
+        mind.Pack.Kg[Resource.Tinder] = 0.3;
+        var stash = Items.StashAt(w, camp);
+        Items.Add(stash, Resource.Tinder, 2.86);
+        Items.Add(stash, Resource.Kindling, 0.094);
+        Items.Add(stash, Resource.Oak, 16.2);
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute };
+        Knowledge.Observe(w, agent, []);
+        Assert.Equal(0.1, mind.Knows.Places[camp].Stash![Resource.Kindling]);
+        double atCamp = Npc.ReckonedCampFuelHours(w, agent);
+        agent.Tile = new TileId(5, 45);
+        double aTileOut = Npc.ReckonedCampFuelHours(w, agent);
+        output.WriteLine($"camp fuel reckoned at camp {atCamp:0.0} h, a tile out {aTileOut:0.0} h");
+        Assert.Equal(atCamp > 0, aTileOut > 0);
+    }
 }

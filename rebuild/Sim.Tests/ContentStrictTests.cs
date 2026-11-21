@@ -62,7 +62,7 @@ public class ContentStrictTests
     [InlineData("terrain.json", "\"Cliff\": { \"traversalMinutes\": 0, \"blocking\": true }", "\"Cliff\": { \"traversalMinutes\": 0 }", "blocking")]
     [InlineData("terrain.json", "\"softnessLevel\": 0.0, \"holdsStandingWater\": false }", "\"softnessLevel\": 0.0 }", "holdsStandingWater")]
     [InlineData("shelters.json", "\"isNatural\": false, \"isSnow\": true", "\"isNatural\": false", "isSnow")]
-    [InlineData("effects.json", "\"treatmentAboveSeverity\": 0.5, ", "", "treatmentAboveSeverity")]
+    [InlineData("effects.json", "\"treatmentAboveSeverity\": 0, ", "", "treatmentAboveSeverity")]
     [InlineData("items.json", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000 }", "\"Water\": { \"category\": \"Water\" }", "water Water needs its hydrationMlPerKg")]
     [InlineData("items.json", "\"maxDurability\": 3, ", "", "maxDurability")]
     [InlineData("discoveries.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "a harvest's item needs respawnHoursPerUnit")]

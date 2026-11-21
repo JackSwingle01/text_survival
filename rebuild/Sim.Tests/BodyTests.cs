@@ -39,9 +39,9 @@ public class BodyTests
     public void Protection_IsToughnessTimesCondition()
     {
         var t = new Tissue { Name = "Test", Kind = TissueKind.Muscle, Toughness = 10 };
-        Assert.Equal(10.0, Body.Protection(t, DamageType.Blunt), 6);
+        Assert.Equal(10.0, Body.Protection(t), 6);
         t.Condition = 0.5;
-        Assert.Equal(5.0, Body.Protection(t, DamageType.Blunt), 6);
+        Assert.Equal(5.0, Body.Protection(t), 6);
     }
 
     [Theory]
@@ -94,15 +94,79 @@ public class BodyTests
         Assert.True(c.Breathing < 1.0 && c.BloodPumping < 1.0, c.ToString());
     }
 
+    /// Body review A2. An organ supplies its capacity in proportion to its own condition, and a region
+    /// does its work only as far as its weakest layer lets it. Old (pinned here as a "known weakness"):
+    /// every tissue in a region was averaged, so both lungs destroyed left breathing at 0.6-0.7, a
+    /// brain at 0.02 left 0.88 consciousness, and a leg with no bone still walked at 0.55.
     [Fact]
-    public void LostLungs_AreDilutedByAveraging()
+    public void LostOrgans_TakeTheirCapacityWithThem()
     {
-        // Known weakness, kept from the old model: an organ's condition is averaged with every
-        // other tissue in its region, so losing both lungs leaves two-thirds of your breathing.
+        var lungs = Baseline();
+        OrganOf(lungs, "Left Lung").Condition = 0;
+        OrganOf(lungs, "Right Lung").Condition = 0;
+        Assert.Equal(0, Body.GetCapacities(lungs).Breathing);
+        Assert.False(Body.IsAlive(lungs));
+
+        var eyes = Baseline();
+        OrganOf(eyes, "Left Eye").Condition = 0;
+        OrganOf(eyes, "Right Eye").Condition = 0;
+        Assert.Equal(0, Body.GetCapacities(eyes).Sight);
+
+        var brain = Baseline();
+        OrganOf(brain, "Brain").Condition = 0.5;
+        Assert.Equal(0.5, Body.GetCapacities(brain).Consciousness, 9);
+
+        var heart = Baseline();
+        OrganOf(heart, "Heart").Condition = 0.02;
+        Assert.Equal(0.02, Body.GetCapacities(heart).BloodPumping, 9);
+
+        var gut = Baseline();
+        OrganOf(gut, "Liver").Condition = 0;
+        OrganOf(gut, "Stomach").Condition = 0;
+        Assert.Equal(0, Body.GetCapacities(gut).Digestion);
+
+        var leg = RegionOf(Baseline(), "Left Leg");
+        leg.Bone.Condition = 0.2;
+        Assert.Equal(0.04, Body.RegionCapacities(leg)[(int)Capacity.Moving], 9); // a shattered bone stops the leg
+    }
+
+    /// Body review A2b: hurting any one tissue never makes any capacity better.
+    [Fact]
+    public void LoweringAnyTissue_NeverRaisesAnyCapacity()
+    {
+        foreach (var kind in Enum.GetValues<BodyKind>())
+        {
+            var tissues = BodyState.Create(kind, 60, 0.15, 0.3).Regions
+                .SelectMany((r, ri) => r.Layers.Concat(r.Organs).Select((_, ti) => (ri, ti))).ToList();
+            var rng = Rng.ForSystem(7, "monotone");
+            for (int trial = 0; trial < 300; trial++)
+            {
+                var b = BodyState.Create(kind, 60, 0.15, 0.3);
+                foreach (var r in b.Regions)
+                    foreach (var t in r.Layers.Concat(r.Organs))
+                        t.Condition = rng.NextDouble() < 0.5 ? 1 : rng.NextDouble();
+                var (ri, ti) = tissues[rng.NextInt(tissues.Count)];
+                var tissue = b.Regions[ri].Layers.Concat(b.Regions[ri].Organs).ElementAt(ti);
+                var before = Body.GetCapacities(b);
+                tissue.Condition *= rng.NextDouble();
+                var after = Body.GetCapacities(b);
+                double[] x = [before.Moving, before.Manipulation, before.Breathing, before.BloodPumping, before.Consciousness, before.Sight, before.Hearing, before.Digestion];
+                double[] y = [after.Moving, after.Manipulation, after.Breathing, after.BloodPumping, after.Consciousness, after.Sight, after.Hearing, after.Digestion];
+                for (int i = 0; i < x.Length; i++)
+                    Assert.True(y[i] <= x[i] + 1e-12, $"{kind}: lowering {b.Regions[ri].Name} {tissue.Name} raised {(Capacity)i} {x[i]} -> {y[i]}");
+            }
+        }
+    }
+
+    /// A scalp wound does not dim the eyes: skin carries a limb's work, not the organs'.
+    [Fact]
+    public void ASkinWound_DoesNotDimTheOrgans()
+    {
         var b = Baseline();
-        OrganOf(b, "Left Lung").Condition = 0;
-        OrganOf(b, "Right Lung").Condition = 0;
-        Assert.InRange(Body.GetCapacities(b).Breathing, 0.6, 0.7);
+        RegionOf(b, "Head").Skin.Condition = 0.3;
+        var c = Body.GetCapacities(b);
+        Assert.Equal(1.0, c.Consciousness, 9);
+        Assert.Equal(1.0, c.Sight, 9);
     }
 
     [Fact]
@@ -202,6 +266,44 @@ public class BodyTests
         Assert.True(Body.Speed(b, new AbilityContext(EncumbrancePct: 1.0)) < Body.Speed(b));
     }
 
+    /// Body review B5 (decided 2026-11-21): effects disable but never kill. Old: Tired, Thirsty and
+    /// Hungry at full brought consciousness to 0 and killed a body with water left and no organ harmed.
+    [Fact]
+    public void Effects_DisableButNeverKill()
+    {
+        var b = Baseline();
+        foreach (var kind in new[] { EffectKind.Tired, EffectKind.Thirsty, EffectKind.Hungry, EffectKind.Hypothermia })
+            Effects.Add(b, kind, 1.0);
+        foreach (var kind in new[] { EffectKind.Shock, EffectKind.Pain, EffectKind.Dazed })
+            Effects.Add(b, kind, 0.8);
+        Assert.Equal(0, Body.Vitality(b));
+        Assert.Equal(0, Body.GetCapacities(b).Consciousness);
+        Assert.True(Body.IsAlive(b));
+    }
+
+    /// Body review B5: a body that dies is named after the damage that took it over the line, as it
+    /// landed; a cause no damage named is the body's injuries, and a living body has no cause.
+    [Fact]
+    public void ADeath_IsNamedForTheDamageThatCrossedTheLine()
+    {
+        var b = Baseline();
+        Assert.Throws<InvalidOperationException>(() => Body.CauseOfDeath(b));
+        var spear = new Cause(new AgentId(7), "a person's stone spear");
+        Body.Damage(b, new DamageInfo(0.4, DamageType.Internal, BodyTarget.Heart, By: new Cause(null, "the cold")), TestRng());
+        Assert.True(Body.IsAlive(b));
+        Assert.Null(b.DeathCause);
+        Body.Damage(b, new DamageInfo(0.6, DamageType.Internal, BodyTarget.Heart, By: spear), TestRng());
+        Assert.False(Body.IsAlive(b));
+        Assert.Equal(spear, Body.CauseOfDeath(b));
+        Body.Damage(b, new DamageInfo(0.5, DamageType.Internal, BodyTarget.Brain, By: new Cause(null, "thirst")), TestRng());
+        Assert.Equal(spear, Body.CauseOfDeath(b)); // the dead die once
+
+        var unnamed = Baseline();
+        unnamed.BloodPct = 0.51;
+        Body.Damage(unnamed, new DamageInfo(100, DamageType.Bleed, BodyTarget.Blood), TestRng());
+        Assert.Equal(Body.UnnamedInjuries, Body.CauseOfDeath(unnamed));
+    }
+
     [Fact]
     public void Vitality_HealthyIsOne_AndConsciousnessEffectsDragItDown()
     {
@@ -216,13 +318,24 @@ public class BodyTests
         Assert.True(Body.Vitality(b) < 0.20, $"Vitality {Body.Vitality(b):P0}");
     }
 
+    /// Body review A3. Sight and hearing are half each, and darkness takes sight's half away. Old (pinned
+    /// here): hearing's weight grew as sight's fell, so the healthy perceived as well in pitch dark (1.0)
+    /// as at noon, and worse at dusk (0.875) than in either.
     [Fact]
-    public void Perception_FullInDaylight_HearingCarriesItInTheDark()
+    public void Perception_FallsWithDarkness_HearingKeepsItsHalf()
     {
         var b = Baseline();
         Assert.Equal(1.0, Body.Perception(b), 2);
+        double previous = double.MaxValue;
+        for (double d = 0; d <= 1.0001; d += 0.05)
+        {
+            double p = Body.Perception(b, new AbilityContext(DarknessLevel: d));
+            Assert.True(p <= previous + 1e-12, $"perception rose from {previous} to {p} at darkness {d:0.00}");
+            previous = p;
+        }
         double dark = Body.Perception(b, new AbilityContext(DarknessLevel: 1.0));
-        Assert.Equal(1.0, dark, 2); // full darkness: hearing is all of it
+        Assert.Equal(0.5, dark, 2); // full darkness: hearing's half
+        Assert.Equal(Body.Perception(b), Body.Perception(b, new AbilityContext(DarknessLevel: 1.0, HasLightSource: true)), 9);
         OrganOf(b, "Left Ear").Condition = 0;
         OrganOf(b, "Right Ear").Condition = 0;
         double deafInDark = Body.Perception(b, new AbilityContext(DarknessLevel: 1.0));
@@ -329,7 +442,44 @@ public class BodyTests
 
         var b = Baseline();
         Body.Damage(b, new DamageInfo(0.5, DamageType.Internal, BodyTarget.Heart, ArmorCushioningLevel: 0.8), TestRng());
-        Assert.Equal(0.9, OrganOf(b, "Heart").Condition, 6); // 0.5 / toughness 5, unarmored
+        // Unarmored, and taken as condition directly: internal harm ignores toughness (body review B4;
+        // was 0.9, divided by the heart's toughness of 5).
+        Assert.Equal(0.5, OrganOf(b, "Heart").Condition, 6);
+    }
+
+    /// Body review B4: internal harm takes condition at its rate, whatever the organ's toughness or what
+    /// it has already lost, so a failing organ does not fail faster. Old: divided by toughness times
+    /// condition, so the brain (0.25) took four times a hit, and more as it failed.
+    [Fact]
+    public void InternalHarm_TakesConditionDirectly()
+    {
+        var b = Baseline();
+        foreach (var name in new[] { "Brain", "Heart", "Liver" })
+        {
+            Body.Damage(b, new DamageInfo(0.1, DamageType.Internal, Enum.Parse<BodyTarget>(name)), TestRng());
+            Assert.Equal(0.9, OrganOf(b, name).Condition, 9);
+        }
+        OrganOf(b, "Brain").Condition = 0.2;
+        Body.Damage(b, new DamageInfo(0.1, DamageType.Internal, BodyTarget.Brain), TestRng());
+        Assert.Equal(0.1, OrganOf(b, "Brain").Condition, 9);
+    }
+
+    /// Body review A4: a deep wound to the head can reach the brain. Old: any eye or ear came first, so
+    /// 2,000 head stabs never touched it. A shallow wound still reaches no inner organ.
+    [Fact]
+    public void ADeepHeadWound_CanReachTheBrain_AShallowOneCannot()
+    {
+        int brain = 0, external = 0;
+        for (int seed = 0; seed < 200; seed++)
+        {
+            var hit = Body.Damage(Baseline(), new DamageInfo(9, DamageType.Pierce, BodyTarget.Head), Rng.ForSystem(seed, "head"));
+            if (hit.OrganHit == "Brain") brain++;
+            else if (hit.OrganHit != null) external++;
+            var graze = Body.Damage(Baseline(), new DamageInfo(0.5, DamageType.Pierce, BodyTarget.Head), Rng.ForSystem(seed, "head"));
+            Assert.NotEqual("Brain", graze.OrganHit);
+        }
+        Assert.InRange(brain, 100, 180);  // about 70%
+        Assert.InRange(external, 20, 100); // about 30%
     }
 
     [Fact]

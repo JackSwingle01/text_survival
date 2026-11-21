@@ -157,7 +157,9 @@ public class ExposureTests
     /// shelter, with and without an open pit burning beside you. Where the tile lets the whole wind
     /// through, tile wind reaching the body changes nothing.
     [Theory]
-    [InlineData(false, -8.243078392479587, 0.6, 0.6, 0, -3.645589109217371, 91.5126325335029, 0.3240000000000002)]
+    // rebuild: body fix A6 (2026-11-21): a level set this minute is read before it fades, so Shivering's heat counts in
+    // full. Old → new core after 4 h: 91.5126325335029 → 91.682412006698769. The rest of the row is still the old wiring's.
+    [InlineData(false, -8.243078392479587, 0.6, 0.6, 0, -3.645589109217371, 91.682412006698769, 0.3240000000000002)]
     // rebuild: shared burn (2026-11-21): the bark and kindling go first, so a little more birch burns at minute
     // 30 and this row is no longer the old wiring's. Old → new: air 3.576741759363495 → 3.6852252553580183, fire
     // 58.22737464236477 → 58.758882665518485, rate -0.21952233102853913 → -0.1882198115126869, core

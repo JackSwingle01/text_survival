@@ -68,8 +68,8 @@ static class Gens
     // ---- the body the survival step reads ----
 
     /// What the survival step reads off a body, kept to states a living person passes through.
-    /// Calories, water and energy stay above zero so the rng-driven organ damage never fires and
-    /// every output is a pure function of the input. An injury, when there is one, is a blunt blow
+    /// Calories, water and energy stay above zero so hunger and thirst never harm the organs, and
+    /// every output is a pure function of the input (the cold's harm below 95 °F is one too). An injury, when there is one, is a blunt blow
     /// to the left leg, so there is something for sleep and regeneration to heal.
     public sealed record BodyInput(double CoreTempF, double WetPct, double ClothingHeatBufferPct,
         double CaloriesKcal, double HydrationMl, double EnergyMinutes, double InjuryAmount)

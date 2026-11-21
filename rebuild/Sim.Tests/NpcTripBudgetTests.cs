@@ -295,6 +295,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var (w, npc, mind) = Setup(17, Mild, At(0, 11));
         var camp = mind.Camp;
         Items.Add(Items.StashAt(w, camp), Resource.Oak, 40); // firewood is not what it worries about
+        Items.Add(Items.StashAt(w, camp), Resource.Kindling, 2); // nor the kindling to light it (Npc.Lit)
         mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 40 } };
         var body = w.Agent(npc).Body;
         body.FatKg = mind.TargetFatKg - shortKg;
@@ -399,6 +400,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         a.Body.FatKg = 0.5 * mind.TargetFatKg; // wanting food, and nothing else: a fire with a day of wood, water
         w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = mind.Camp, LastUpdatedMinute = w.Minute, Pit = PitType.Stone, BurningKg = { [Resource.Oak] = 10 } };
         Items.Add(Items.StashAt(w, mind.Camp), Resource.Oak, 40);
+        Items.Add(Items.StashAt(w, mind.Camp), Resource.Kindling, 2); // and the kindling to light it (Npc.Lit)
         Items.Add(Items.StashAt(w, mind.Camp), Resource.Water, 5);
         var body = BodyState.Create(BodyKind.Quadruped, 40, 0.1, 0.4);
         var c = Carcasses.Create(w, mind.Camp, "Wolf", body, w.Minute, special: new Dictionary<Resource, double> { [Resource.Ivory] = 0.5 });
@@ -416,5 +418,30 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         Assert.DoesNotContain(log, e => e is PlanRefused r && r.Who == npc);
         if (knife) Assert.Contains(chose, x => x is Butcher);
         else Assert.Contains(chose, x => x is Gather { Focus: ForageFocus.Food }); // off to find food, not stood by the tusk
+    }
+
+    /// Seed 5, day 6-7: water Critical, no fire to melt snow on and no tinder to make one, a stream it knew two tiles
+    /// from camp, and it never set out: spent and chilled, the walk was held to the wanted lines (Afford), so it lay at
+    /// camp and died of thirst. Critical, the walk to water is held only to the legs and lasting harm, as a warming
+    /// walk is: it goes, and drinks.
+    [Fact]
+    public void WaterCritical_SpentAtACampWithNoFire_WalksToTheStreamItKnows()
+    {
+        var (w, npc, mind) = Setup(5, Mild, At(6, 11));
+        var a = w.Agent(npc);
+        var m = Map.Of(w);
+        var camp = mind.Camp;
+        var stream = Enumerable.Range(-4, 9).SelectMany(dx => Enumerable.Range(-4, 9).Select(dy => new TileId(camp.X + dx, camp.Y + dy)))
+            .Where(t => m.InBounds(t) && Work.HasOpenWater(w, t)).OrderBy(t => MapGen.Manhattan(t, camp)).ThenBy(t => t).First();
+        Assert.InRange(MapGen.Manhattan(stream, camp), 1, 3);
+        mind.Knows.Places[stream] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Water = true };
+        foreach (var r in mind.Pack.Kg.Keys.Where(r => r == Resource.Water || r is Resource.Tinder or Resource.Kindling or Resource.BirchBark or Resource.Amadou or Resource.Usnea or Resource.Chaga).ToList())
+            mind.Pack.Kg.Remove(r);
+        a.Body.HydrationMl = 0.05 * Body.MaxHydrationMl; // Critical
+        a.Body.EnergyMinutes = 0.12 * Body.MaxEnergyMinutes; // spent: under the wanted rest line, legs for a short walk
+        var log = new List<WorldEvent>();
+        for (int i = 0; i < 60 && !log.Any(e => e is Drank d && d.Who == npc); i++) log.AddRange(Sim.Advance(w, 1));
+        output.WriteLine(string.Join(", ", log.Where(e => e is Moved mv && mv.Who == npc || e is Drank d && d.Who == npc)));
+        Assert.Contains(log, e => e is Drank d && d.Who == npc);
     }
 }

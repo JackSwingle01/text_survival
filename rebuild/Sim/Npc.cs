@@ -164,7 +164,7 @@ public static partial class Npc
             // Warmth: a cold core is seen to at the fire (Warm); a warm one short of wood fetches it (Wood). Wood fetched
             // for tonight is held to the evening, as the evening's own fetch is (StaysOut).
             (Rank(warmth, (double)Stat.Warmth), cold > Tier.None ? Stat.Warmth : null, cold > Tier.None, cold > Tier.None ? Warm : Fuel),
-            (water >= Tier.Need ? Rank(water, (double)Stat.Water) : 0, Stat.Water, true, Water),
+            (water >= Tier.Need ? Rank(water, (double)Stat.Water) : 0, Stat.Water, true, me => Water(me, critical: water == Tier.Critical)),
             // Evening and night are for being home, with the fire lit while there is light to light it by: after the
             // Needs of warmth and water, before those of food and rest (neither is seen to after dark).
             (Evening(me) ? EveningRank : 0, null, false, Night),
@@ -454,7 +454,7 @@ public static partial class Npc
         return null;
     }
 
-    static Plan? Water(Me me)
+    static Plan? Water(Me me, bool critical = false)
     {
         if (me.Has(Resource.Water) >= 0.1 || Work.HasOpenWater(me.World, me.Tile)) return Try(me, new Drink(me.Id), Work.DrinkMinutes);
         if (me.Stashed(Resource.Water) > 0) return Try(me, new Unstash(me.Id, Resource.Water, 1), 1);
@@ -463,7 +463,10 @@ public static partial class Npc
         // Old DetermineGetResource(Water): the nearest open water it knows of.
         var river = me.Mind.Knows.Places.Where(p => p.Value.Water && MapGen.Manhattan(p.Key, me.Tile) <= MaxWoodTiles).Select(p => p.Key)
             .OrderBy(t => MapGen.Manhattan(me.Tile, t)).ThenBy(t => t).Cast<TileId?>().FirstOrDefault();
-        if (river is TileId r && Go(me, r, Work.DrinkMinutes) is { } go) return go;
+        // Critical, the walk to it is held only to the legs and to lasting harm, as a warming walk is (Afford): dying of
+        // thirst two tiles from a stream is not saved by staying home rested. Old (this rebuild): the wanted lines, so
+        // spent and cold it never set out, and died of thirst two tiles from water (seed 5, day 7).
+        if (river is TileId r && Go(me, r, Work.DrinkMinutes, warming: critical) is { } go) return go;
         // Home only if there is water to be had there: some left on the stash, or a fire burning or to be lit to melt
         // snow on. Old (this rebuild): home whatever was there, so from one tile out this fallback outranked every
         // lower plan and walked it back to a camp with nothing to drink, and out, and back (seed 17, day 1.96).
@@ -579,7 +582,9 @@ public static partial class Npc
         {
             // Not from a camp worth keeping to a bare tile: its kindling is fetched instead (Wood's round trip).
             if (keep && !Sheltered(me, t)) continue;
-            var there = me.Mind.Knows.Places[t].Stash!;
+            // The least it may find there (AtLeast), as home is judged from away. Old (this rebuild): as remembered, so a
+            // pinch remembered at the line was makings from here and not on arrival.
+            var there = AtLeast(me.Mind.Knows.Places[t].Stash)!;
             // Home under a shelter, the makings a step off on a bare tile: fetched home, not moved to (old, this rebuild:
             // home moved to a woodpile one tile off the overhang whenever the overhang's stash fell short of a morning
             // fire, and back to the overhang once it was lit - 26 shelter, bare, shelter loops on the 16 seeds; seed 256,
@@ -646,9 +651,39 @@ public static partial class Npc
     static bool Follows(IReadOnlyDictionary<Resource, double> s) =>
         s.GetValueOrDefault(Resource.Kindling) >= MinLightKindlingKg || s.GetValueOrDefault(Resource.Pine) > 0;
 
-    /// MorningFireHours of fuel to keep it.
-    static bool Keeps(IReadOnlyDictionary<Resource, double> s) =>
-        Woods.Append(Resource.Kindling).Sum(r => Fire.FuelHours(r, s.GetValueOrDefault(r))) >= MorningFireHours;
+    /// MorningFireHours of fuel it can keep burning (FireHours).
+    static bool Keeps(IReadOnlyDictionary<Resource, double> s) => FireHours(s) >= MorningFireHours;
+
+    /// Hours of fire in this stock that it can keep burning from cold: its kindling, and the wood a fire built from it
+    /// takes (Lit). Wood its kindling cannot get going is no fire. Old (this rebuild): every kilo of wood counted, so a
+    /// camp of tinder, oak and half a kilo of kindling - a fire too small ever to take oak - was a night's fire, and it
+    /// went cold beside the oak (seeds 7 and 2024; seed 11, day 13).
+    static double FireHours(IReadOnlyDictionary<Resource, double> s) =>
+        Fire.FuelHours(Resource.Kindling, s.GetValueOrDefault(Resource.Kindling)) + Lit(s).Sum(r => Fire.FuelHours(r, s.GetValueOrDefault(r)));
+
+    /// The wood in this stock a fire lit from it would take, by the fire's own catch rule (Fire.CanAddFuel): struck with
+    /// tinder, all the kindling on it, then each wood that catches added to it, until no more will. So oak counts with the
+    /// kindling, or the pine or birch, to make a fire hot enough for it, and not otherwise; how much that is is the fire
+    /// model's, not a number here.
+    static List<Resource> Lit(IReadOnlyDictionary<Resource, double> s)
+    {
+        var fire = new FireState { Tile = default, LastUpdatedMinute = 0 };
+        fire.BurningKg[Resource.Tinder] = StrikeTinderKg;
+        if (s.GetValueOrDefault(Resource.Kindling) > 0) fire.BurningKg[Resource.Kindling] = s.GetValueOrDefault(Resource.Kindling);
+        var lit = new List<Resource>();
+        for (bool caught = true; caught;)
+        {
+            caught = false;
+            foreach (var r in Woods)
+            {
+                if (lit.Contains(r) || s.GetValueOrDefault(r) <= 0 || !Fire.CanAddFuel(fire, r)) continue;
+                fire.BurningKg[r] = Math.Min(s.GetValueOrDefault(r), Math.Max(0, Fire.MaxFuelKg(fire.Pit) - Fire.TotalKg(fire)));
+                lit.Add(r);
+                caught = true;
+            }
+        }
+        return lit;
+    }
 
     /// Daytime: keep the camp in firewood. Fell a tree, carry it home a load at a time. Warming: the walk to
     /// the trees leaves a camp with no fire to be had, and is held to the warming lines (Afford); the trees are
@@ -718,15 +753,16 @@ public static partial class Npc
     /// A load of wood to carry home (Wood turns for home with it).
     const double LoadKg = 5;
 
-    /// What it takes of the wood and tinder lying away from home (Wood): what home lacks to light a fire, and only that
-    /// while home lacks it; otherwise wood, heaviest first.
+    /// What it takes of the wood and tinder lying away from home (Wood): what home lacks to light a fire and keep it
+    /// (Makings), and only that while home lacks it; otherwise wood, heaviest first.
     static IEnumerable<Resource> LyingOrder(Me me)
     {
         var stock = CampStock(me);
         var lacking = new List<Resource>();
         if (!Lights(stock)) lacking.AddRange(Tinders);
         if (!Follows(stock)) lacking.AddRange([Resource.Kindling, Resource.Pine]);
-        if (!Keeps(stock)) lacking.AddRange(Woods);
+        // Short of a fire it can keep: kindling first, which lights the wood home has, then what catches soonest.
+        if (!Keeps(stock)) lacking.AddRange(Woods.Prepend(Resource.Kindling).OrderBy(r => r == Resource.Kindling ? -1 : Fire.Props[r].MinFireTempF));
         return lacking.Count > 0 && Keeps(stock) ? lacking : lacking.Concat(Woods.Append(Resource.Kindling).OrderByDescending(me.Stashed).ThenBy(r => r)).Distinct();
     }
 
@@ -772,16 +808,34 @@ public static partial class Npc
     {
         if (!Sheltered(me, me.Mind.Camp)) return false;
         var s = CampStock(me);
-        return Lights(s) && Keeps(s);
+        // Wood of any kind: a shelter with the wood for a morning fire is worth keeping while it fetches the kindling to
+        // light it (FireHours is what it can burn now).
+        return Lights(s) && Woods.Append(Resource.Kindling).Sum(r => Fire.FuelHours(r, s.GetValueOrDefault(r))) >= MorningFireHours;
     }
 
     /// What it will have to make a fire with at home: ToHand there, or from away the pack and the stash as it left it.
+    /// Away, the stash is read as the least memory allows: it keeps a stash to the nearest StashMemoryKg (Knowledge.Observe),
+    /// so a remembered amount may be up to half of that more than is there. Old (this rebuild): read as remembered, so
+    /// 0.094 kg of kindling, remembered as 0.1, was enough to follow the tinder from a tile out (MinLightKindlingKg) and
+    /// not at camp: warm a tile out, short of fuel at home, it walked to the trees and home and back, sixty-six times
+    /// (seed 2024, day 21).
     static Dictionary<Resource, double> CampStock(Me me)
     {
         if (me.AtCamp) return ToHand(me);
-        var stash = me.Mind.Knows.Places.GetValueOrDefault(me.Mind.Camp)?.Stash;
+        var stash = AtLeast(me.Mind.Knows.Places.GetValueOrDefault(me.Mind.Camp)?.Stash);
         return Lighting.ToDictionary(r => r, r => me.Has(r) + (stash?.GetValueOrDefault(r) ?? 0));
     }
+
+    /// A remembered stash, read as the least it may hold: memory keeps it to the nearest StashMemoryKg.
+    static Dictionary<Resource, double>? AtLeast(IReadOnlyDictionary<Resource, double>? remembered) =>
+        remembered?.ToDictionary(x => x.Key, x => Math.Max(0, x.Value - StashMemoryKg / 2));
+
+    /// The resolution an NPC remembers a stash at (Knowledge.Observe rounds to a tenth of a kilo).
+    const double StashMemoryKg = 0.1;
+
+    /// For a test: the fuel hours an NPC reckons its camp holds, from where it stands (CampFuelHours).
+    internal static double ReckonedCampFuelHours(World world, Agent agent) =>
+        CampFuelHours(new Me(world, agent, (NpcMind)agent.Mind!, []));
 
     /// Home has no fire to be had: none burning or in embers there, as far as it can tell, and not the makings of one,
     /// what it carries included. A trip for wood from such a camp is a warming trip, held to the warming lines (Afford),
@@ -1044,15 +1098,15 @@ public static partial class Npc
 
     /// Hours of fire in the camp's wood, the pit's and the pack's, as the NPC believes them (plan
     /// decision 7): the stash as it stands in camp, or as it left it; the pit as seen (Fire.FuelHours).
-    /// Wood it cannot light is no fire: none at a cold camp (ColdCamp), so tonight's fuel is short until it has the
-    /// makings, and the wood plan fetches them. Old (this rebuild): eighteen hours of oak with no kindling to follow the
+    /// Wood it cannot light is no fire: none at a cold camp (ColdCamp), and only the wood its kindling can get going
+    /// (FireHours), so tonight's fuel is short - warmth's Need - until it has the kindling, and the wood plan fetches it. Old (this rebuild): eighteen hours of oak with no kindling to follow the
     /// tinder counted as a night's fire, so nothing went for kindling and it froze beside the oak (seed 99, day 22).
     static double CampFuelHours(Me me)
     {
         if (ColdCamp(me)) return 0;
         var mem = me.Mind.Knows.Places.GetValueOrDefault(me.Mind.Camp);
-        double Stashed(Resource r) => me.AtCamp ? me.Stashed(r) : mem?.Stash?.GetValueOrDefault(r) ?? 0;
-        return Woods.Append(Resource.Kindling).Sum(r => Fire.FuelHours(r, Stashed(r) + me.Has(r))) + CampFireHours(me, mem);
+        IReadOnlyDictionary<Resource, double>? stash = me.AtCamp ? me.Stash?.Kg : AtLeast(mem?.Stash);
+        return FireHours(Lighting.ToDictionary(r => r, r => me.Has(r) + (stash?.GetValueOrDefault(r) ?? 0))) + CampFireHours(me, mem);
     }
 
     /// Hours of fire on the camp's pit while it burns. Standing beside it, the pit as it is now (Knowledge.Observe
@@ -1497,10 +1551,11 @@ public static partial class Npc
     /// none, harmless while a warming walk lasted one step and live once it carries on to the trees.
     const double WarmingReserveMinutes = 45;
 
-    /// Under this core a walk does lasting harm: past HypothermiaThresholdF (95) the organs are already taking
-    /// damage, and here about 0.2 of a condition point an hour, climbing. Judgment call, between that line and
-    /// the deep cold (SevereHypothermiaThresholdF).
-    const double LethalCoreF = 93.5;
+    /// Under this core a walk does lasting harm: where the body's cold harm begins (Body.HypothermiaThresholdF, the
+    /// start of BodySurvival's cold curve). Old (this rebuild): 93.5F, a judgment call under that line from when the
+    /// old body killed fast below it; with a core that can now fall to 85F alive, every walk was barred for hours
+    /// below 93.5 while the cold was already doing harm above it.
+    const double LethalCoreF = Body.HypothermiaThresholdF;
 
     /// When it must be home by: the evening (HomeByHour), or sunset if that comes first.
     static int HomeMinuteOfDay(Me me) => Math.Min(HomeByHour, Weather.SunsetHour(me.World.Minute)) * 60;

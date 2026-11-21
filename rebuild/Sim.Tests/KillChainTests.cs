@@ -152,17 +152,30 @@ public class KillChainTests
         Assert.Equal(body.DiedMinute, sign.MadeMinute);
 
         var cold = BodyState.BaselineHuman();
-        cold.CoreTempF = 80;
+        LiveUntilDead(cold, b => b.CoreTempF = 80);
         Assert.Equal("the cold", Body.CauseOfDeath(cold).What);
         var starved = BodyState.BaselineHuman();
-        starved.CaloriesKcal = 0;
         double spentKg = starved.StructuralKg / 0.82; // fat and muscle burned down to their floors (3% and 15%)
         (starved.FatKg, starved.MuscleKg) = (0.03 * spentKg, 0.15 * spentKg);
+        LiveUntilDead(starved, b => b.CaloriesKcal = 0);
         Assert.Equal("starvation", Body.CauseOfDeath(starved).What);
     }
 
+    /// Lives a body in a mild room, minute by minute, until it dies: each runs before every minute.
+    static void LiveUntilDead(BodyState body, Action<BodyState> each)
+    {
+        var rng = Rng.ForSystem(1, "body");
+        for (int m = 0; m < 10 * 1440 && Body.IsAlive(body); m++)
+        {
+            each(body);
+            Body.Update(body, new SurvivalContext { AirTempF = 70 }, rng);
+        }
+        Assert.False(Body.IsAlive(body), "lived ten days");
+    }
+
     /// Review: seed 99's NPC froze carrying six kilograms of fat at a core of 92.5 °F and was said to
-    /// have starved, because its day's calories were gone. The cause is what crossed a lethal line.
+    /// have starved, because its day's calories were gone. The cause is the damage that crossed the line
+    /// (body review B5): exhaustion is not one, since effects never kill.
     [Fact]
     public void A_Death_IsNamedForWhatKilled_NotForAnEmptyStomach()
     {
@@ -175,21 +188,30 @@ public class KillChainTests
             Effects.Add(b, EffectKind.Tired, 0.98);
             return b;
         }
-        Assert.Equal("the cold", Body.CauseOfDeath(Seed99()).What);
+        var cold = Seed99();
+        LiveUntilDead(cold, b => { b.CoreTempF = 86; b.CaloriesKcal = 0; });
+        Assert.Equal("the cold", Body.CauseOfDeath(cold).What); // fat left to burn: hunger is not killing it
 
-        var living = Seed99();
-        living.CoreTempF = Body.BaseCoreTempF;
-        Assert.NotEqual("starvation", Body.CauseOfDeath(living).What); // fat left to burn: hunger is not killing it
-        living.EnergyMinutes = 0;
-        Assert.Equal("exhaustion", Body.CauseOfDeath(living).What);
+        var spent = Seed99();
+        spent.CoreTempF = Body.BaseCoreTempF;
+        spent.EnergyMinutes = 0;
+        var rng = Rng.ForSystem(1, "body");
+        for (int m = 0; m < 6 * 60; m++)
+        {
+            spent.EnergyMinutes = 0;
+            Body.Update(spent, new SurvivalContext { AirTempF = 70 }, rng);
+        }
+        Assert.True(Body.IsAlive(spent)); // worn out on its feet, not dead of it
 
         var dry = Seed99();
-        dry.HydrationMl = 0; // thirst does more harm an hour than mild cold
+        LiveUntilDead(dry, b => { b.CoreTempF = 92.5; b.HydrationMl = 0; }); // thirst does more harm an hour than mild cold
         Assert.Equal("thirst", Body.CauseOfDeath(dry).What);
 
         var bled = Seed99();
         bled.CoreTempF = Body.BaseCoreTempF;
-        bled.BloodPct = 0.4;
+        bled.BloodPct = 0.55;
+        Effects.Add(bled, EffectKind.Bleeding, 0.5);
+        LiveUntilDead(bled, _ => { });
         Assert.Equal("blood loss", Body.CauseOfDeath(bled).What);
     }
 

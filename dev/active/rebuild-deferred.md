@@ -166,14 +166,13 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Knowledge.cs:315` - a carcass going (butchered away) is not a notable journal entry: `Butchered` is a step's tally and
   is not filed. Upgrade: a once-only `CarcassGone` event when one leaves its tile.
 - `Content/accidents.json` (Sprains) - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.
-- `Npc.cs` (`Stoke`, `Light`, `Makings`) - oak camps: oak catches at 500F, which a kindling fire reaches only with
-  about 1 kg burning at once, so the 0.6 kg `KindlingReserveKg` can never relight an oak camp, and with logs waiting
-  `Stoke` spends the reserve on fires too small to take them (seed 11, day 13: tinder and oak, nothing to light from by
-  dawn). Three open questions, waiting on the fire model decision (Q9): what kindling an oak camp must hold to relight
-  (the 0.9 kg starting kit is below the 1 kg oak needs); how the reserve is restocked once spent (gathering aims at
-  `CarriedKindlingKg`, and nothing aims at the reserve); and whether `Makings` should require a fire that lasts, so
-  that `ColdCamp` and `Light` agree (a reserve rule in `Light` alone shuttled seed 7 between camp and its wood).
-  Kept, skipped: `NpcColdBedTests.ColdPit_TinderOakAndAlittleKindling_KeepsKindlingToLightFromAtDawn`.
+- `Npc.cs` (`Stoke`, `KindlingReserveKg`) - oak camps. Decided and done: wood counts as fire only with the kindling
+  to light it, by the fire's own catch rule (`Npc.Lit`, through `Fire.CanAddFuel`), in `Makings`, `ColdCamp` and the
+  fuel-hours reckoning alike, so being short of kindling is warmth's Need and a wood trip brings kindling first
+  (`LyingOrder`). Still open: `Stoke` spends the 0.6 kg reserve on fires too small to take the logs waiting, and the
+  reserve itself is below what lights oak (about 1 kg burning, the 0.9 kg starting kit included), so a camp that has
+  lit and lost its fire can be left without the kindling to relight. Nothing aims gathering at the reserve; the
+  shortfall now shows as fuel short of tonight instead.
 
 ## Knowledge, receipts and skills
 

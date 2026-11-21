@@ -13,7 +13,8 @@ public enum DamageType
     Blunt, Sharp, Pierce, Poison,
     /// Blood loss in ml; only Blood takes it.
     Bleed,
-    /// Starvation, dehydration, cold: bypasses armor and natural absorption.
+    /// Starvation, dehydration, cold: bypasses armor and natural absorption, and takes condition
+    /// directly, whatever the tissue's toughness or what it has already lost.
     Internal,
     Burn,
 }
@@ -85,7 +86,8 @@ public sealed class BodyState
     /// animal that bleeds out later, or a person, died of. Cleared on an animal once it has mended.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Cause? WoundedBy { get; set; }
-    /// When and of what it died (Body.MarkDead): a dead person's body is a sign with this cause.
+    /// When it died (Body.MarkDead), and of what: the cause of the damage that took it over the line,
+    /// kept the moment that damage lands (Body.Damage). A dead person's body is a sign with this cause.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? DiedMinute { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -133,9 +135,11 @@ public readonly record struct Capacities(
 /// Situation that changes abilities but is not the body: load carried and how dark it is.
 public readonly record struct AbilityContext(double EncumbrancePct = 0, double DarknessLevel = 0, bool HasLightSource = false);
 
+/// By: what this damage is, as the death it causes would be named ("the cold", "the player's wooden
+/// spear"). Null names nothing in particular: "its injuries".
 public sealed record DamageInfo(
     double Amount, DamageType Type = DamageType.Blunt, BodyTarget Target = BodyTarget.Random,
-    double ArmorCushioningLevel = 0, double ArmorToughnessLevel = 0);
+    double ArmorCushioningLevel = 0, double ArmorToughnessLevel = 0, Cause? By = null);
 
 public sealed class DamageResult
 {
@@ -220,7 +224,8 @@ public static partial class Body
 
     public static Capacities GetCapacities(BodyState body) => GetCapacities(body, Effects.CapacityDeltas(body));
 
-    /// Capacities from tissue alone, as digestion uses: being hungry does not slow absorbing food.
+    /// Capacities from tissue and blood alone, as digestion and life use: being hungry does not slow
+    /// absorbing food, and no effect stops a heart.
     static Capacities GetCapacitiesWithoutEffects(BodyState body) => GetCapacities(body, new double[CapacityCount]);
 
     static Capacities GetCapacities(BodyState body, double[] effectDeltas)
@@ -298,8 +303,11 @@ public static partial class Body
         return c;
     }
 
-    /// One region's contribution: what its organs and muscle supply, scaled by the average
-    /// condition multiplier of every tissue in it.
+    /// One region's contribution: what each organ supplies in proportion to its own condition, plus
+    /// the muscle's work, limited by the region's weakest layer for that capacity.
+    /// Old (this rebuild, old game): every capacity was scaled by the average multiplier of every
+    /// tissue in the region, so both lungs destroyed left two-thirds of the breathing, a brain at 0.02
+    /// left 0.88 consciousness and a leg with no bone still walked at 0.55 (bug, fixed; body review A2).
     public static double[] RegionCapacities(Region region)
     {
         var result = new double[CapacityCount];
@@ -307,27 +315,24 @@ public static partial class Body
 
         foreach (var organ in region.Organs)
             if (organ.Provides is Capacity p)
-                result[(int)p] = Clamp01(result[(int)p] + organ.ProvidesAmount);
-        result[(int)Capacity.Moving] = Clamp01(result[(int)Capacity.Moving] + 1);       // muscle
-        result[(int)Capacity.Manipulation] = Clamp01(result[(int)Capacity.Manipulation] + 1);
+                result[(int)p] += organ.ProvidesAmount * organ.Condition;
+        result[(int)Capacity.Moving] += 1;       // muscle
+        result[(int)Capacity.Manipulation] += 1;
 
-        var parts = region.Layers.Concat(region.Organs).ToList();
         for (int i = 0; i < CapacityCount; i++)
-            result[i] = Clamp01(result[i] * parts.Average(t => ConditionMultiplier(t, (Capacity)i)));
-
-        // A destroyed organ that supplied all of a capacity takes it to zero, averaging notwithstanding.
-        foreach (var organ in region.Organs)
-            if (organ.Condition <= 0 && organ.Provides is Capacity p && organ.ProvidesAmount >= 1.0)
-                result[(int)p] = 0;
+            result[i] = Clamp01(result[i]) * region.Layers.Min(t => LayerMultiplier(t, (Capacity)i));
         return result;
     }
 
-    static double ConditionMultiplier(Tissue t, Capacity cap)
+    /// How far one layer of a region lets it do its work, 1 where the layer plays no part. Skin carries
+    /// a limb's work, not the organs': a scalp wound does not dim the eyes (judgment, body review A2:
+    /// the old 1.0-for-skin-everywhere was harmless only while it was averaged away).
+    static double LayerMultiplier(Tissue t, Capacity cap)
     {
         double c = t.Condition;
         return t.Kind switch
         {
-            TissueKind.Skin => c,
+            TissueKind.Skin => cap is Capacity.Moving or Capacity.Manipulation ? c : 1.0,
             TissueKind.Muscle => cap switch
             {
                 Capacity.Moving or Capacity.Manipulation => c,
@@ -343,8 +348,7 @@ public static partial class Body
                 Capacity.BloodPumping => 0.8 + 0.2 * c,
                 _ => 1.0,
             },
-            TissueKind.Organ => t.Provides == cap && t.ProvidesAmount > 0 ? c : 1.0,
-            _ => throw new ArgumentOutOfRangeException(nameof(t), t.Kind, "Unknown tissue kind"),
+            _ => throw new ArgumentOutOfRangeException(nameof(t), t.Kind, "Not a layer"),
         };
     }
 
@@ -356,34 +360,47 @@ public static partial class Body
     public static double Vitality(BodyState body) => Vitality(GetCapacities(body));
     static double Vitality(Capacities c) => Math.Min(c.Breathing, Math.Min(c.BloodPumping, c.Consciousness));
 
-    public static bool IsAlive(BodyState body) => Vitality(body) > 0;
+    /// Life is tissue and blood: breathing, a pumping heart and a working brain, before any effect.
+    /// Effects disable (consciousness can fall to nothing and leave you unable to act) but never kill.
+    /// Old (this rebuild): effects counted, so Tired, Thirsty and Hungry together killed a body with
+    /// water left and no organ harmed, and it was said to have died of "exhaustion" (bug, fixed; body
+    /// review B5, decided 2026-11-21).
+    public static bool IsAlive(BodyState body) => Vitality(GetCapacitiesWithoutEffects(body)) > 0;
 
-    /// The body has died now, of this: its time and cause are kept (once: a body dies only once).
+    /// The body has died now: its time is kept, and its cause if no damage already named one
+    /// (Body.Damage keeps the cause of the damage that killed). Once: a body dies only once.
     public static void MarkDead(BodyState body, long minute, Cause cause)
     {
         if (body.DiedMinute != null) return;
         body.DiedMinute = minute;
-        body.DeathCause = cause;
+        body.DeathCause ??= cause;
     }
 
-    /// What killed a body that has just died, read off it: what had crossed a lethal line. Wounds
-    /// deep enough to kill name whoever gave them, and blood lost without a name is blood loss. Then
-    /// whichever of the cold, thirst and hunger was wearing the organs down fastest (LethalRates):
-    /// the cold below 95 °F, thirst once dry, hunger only once fat and muscle are spent. Then
-    /// exhaustion, a body worn out on its feet. Ties go in that order (judgment).
-    /// Old (this rebuild): the cold was named only below 89.6 °F and hunger whenever the day's
-    /// calories were gone, which they are every day a body lives off its fat, so people who froze
-    /// carrying six kilograms of fat were said to have starved (bug, fixed).
+    public static readonly Cause UnnamedInjuries = new(null, "its injuries");
+
+    /// What killed a body that has just died: the cause of the damage that took a vital organ or the
+    /// blood over the line, kept as it landed (DamageInfo.By). Its blood ran out from wounds someone
+    /// gave it (the bleeding names them), its heart stopped in the cold, its brain failed of thirst.
+    /// Old (this rebuild): read off the dead body afterwards, by which lethal process was running
+    /// fastest and whether any wound looked mortal, so a person who froze two days after a wolf bite
+    /// was "killed by a wolf pack" (bug, fixed; body review A7 and B5).
     public static Cause CauseOfDeath(BodyState body)
     {
-        bool mortal = body.BloodPct < 0.5 || body.Regions.Any(r => r.Condition <= 0) || Combat.WoundLevel(body) > 0.5;
-        if (mortal && body.WoundedBy is Cause w) return w;
-        if (body.BloodPct < 0.5) return new Cause(null, "blood loss");
-        var (cold, thirst, hunger) = LethalRates(body);
-        double worst = Math.Max(cold, Math.Max(thirst, hunger));
-        if (worst > 0) return new Cause(null, worst == cold ? "the cold" : worst == thirst ? "thirst" : "starvation");
-        if (body.EnergyMinutes <= 0) return new Cause(null, "exhaustion");
-        return body.WoundedBy ?? new Cause(null, "its injuries");
+        if (IsAlive(body)) throw new InvalidOperationException("This body is alive: it has no cause of death");
+        return body.DeathCause ?? UnnamedInjuries; // made dead by setting its state, not by damage: nothing to name
+    }
+
+    /// Whole again: every layer, every organ not lost for good, and the blood. Whoever hurt a body that
+    /// has mended no longer counts.
+    public static bool IsMended(BodyState body)
+    {
+        if (body.BloodPct < 1) return false;
+        foreach (var r in body.Regions)
+        {
+            if (r.Condition < 1) return false;
+            foreach (var o in r.Organs) if (o.Condition is > 0 and < 1) return false;
+        }
+        return true;
     }
 
     /// Power output from composition, scaled by vitality: dying is weak, whatever the muscles.
@@ -428,13 +445,15 @@ public static partial class Body
     }
 
     /// Awareness. Consciousness counts twice, once through vitality: being dazed tanks it.
-    /// In the dark, hearing carries what sight cannot.
+    /// Sight and hearing are half each; darkness takes away what sight gives, so the healthy perceive
+    /// half as much in pitch dark as at noon.
+    /// Old (this rebuild, old game): hearing's weight grew as sight's fell, so a healthy body in pitch
+    /// dark perceived exactly as well as at noon, and better than at dusk (bug, fixed; body review A3).
     public static double Perception(BodyState body, AbilityContext context = default)
     {
         var c = GetCapacities(body);
         double darkness = context.HasLightSource ? 0 : context.DarknessLevel;
-        double sightWeight = 0.5 * (1 - darkness);
-        double perceived = c.Sight * (1 - darkness) * sightWeight + c.Hearing * (1 - sightWeight);
+        double perceived = c.Sight * 0.5 * (1 - darkness) + c.Hearing * 0.5;
         return perceived * c.Consciousness * (0.7 + Vitality(c) * 0.3);
     }
 
@@ -473,8 +492,17 @@ public static partial class Body
     // ---- damage ----
 
     /// The one way anything hurts a body. Applies armor, picks the region, penetrates the layers,
-    /// and adds the processes the wound sets off (bleeding, pain, shock, dazed).
+    /// and adds the processes the wound sets off (bleeding, pain, shock, dazed). Damage is the only
+    /// thing that kills (IsAlive), so the damage that takes a body over the line names its death.
     public static DamageResult Damage(BodyState body, DamageInfo hit, Rng rng)
+    {
+        bool wasAlive = body.DeathCause == null && IsAlive(body);
+        var result = Wound(body, hit, rng);
+        if (wasAlive && !IsAlive(body)) body.DeathCause = hit.By ?? UnnamedInjuries;
+        return result;
+    }
+
+    static DamageResult Wound(BodyState body, DamageInfo hit, Rng rng)
     {
         double amount = hit.Amount * (1 - ArmorReduction(hit));
         var result = new DamageResult();
@@ -565,7 +593,7 @@ public static partial class Body
             foreach (var layer in region.Layers)
             {
                 if (remaining <= 0) break;
-                double absorbed = Math.Min(remaining * 0.7, Protection(layer, type));
+                double absorbed = Math.Min(remaining * 0.7, Protection(layer));
                 if (absorbed > 0)
                 {
                     double lost = DamageTissue(layer, absorbed, type);
@@ -590,29 +618,41 @@ public static partial class Body
         }
     }
 
-    /// Eyes and ears are hit by anything that gets through; internal organs need a deep wound.
+    /// What gets through reaches an inner organ only through a deep wound; a shallow one finds an eye or
+    /// an ear if the region has one. A deep wound still lands on an eye or an ear some of the time.
+    /// Old (this rebuild, old game): any eye or ear came first, so no blow to the head ever reached the
+    /// brain (bug, fixed; body review A4). The depth line is still the old weapon-scale 5, which only
+    /// weapons clear: putting it on one 0-1 scale is body review B9, not decided.
     static Tissue? OrganToHit(Region region, double amount, Rng rng)
     {
         var external = region.Organs.Where(o => o.IsExternal).ToList();
-        if (external.Count > 0 && amount > 0) return external[rng.NextInt(external.Count)];
         var inner = region.Organs.Where(o => !o.IsExternal).ToList();
-        // The old threshold 5 predates the 0-1 damage scale, so in practice only huge hits reach inner organs.
-        if (inner.Count > 0 && amount > 5) return inner[rng.NextInt(inner.Count)];
+        bool deep = inner.Count > 0 && amount > InnerOrganDepth;
+        if (external.Count > 0 && amount > 0 && (!deep || rng.NextDouble() < DeepWoundExternalPct))
+            return external[rng.NextInt(external.Count)];
+        if (deep) return inner[rng.NextInt(inner.Count)];
         return null;
     }
 
-    /// Returns the condition lost.
+    const double InnerOrganDepth = 5, DeepWoundExternalPct = 0.3;
+
+    /// Returns the condition lost. A blow is divided by what the tissue has left to resist it; internal
+    /// harm (hunger, thirst, cold) takes condition directly, so its rates are what they say.
+    /// Old (this rebuild, old game): internal harm was divided too, by toughness times condition, so it
+    /// ran away as an organ failed and the brain's toughness of 0.25 made every such death brain death,
+    /// thirst killing in half an hour and mild cold in hours (body review B4, decided 2026-11-21).
     static double DamageTissue(Tissue tissue, double amount, DamageType type)
     {
         if (type != DamageType.Internal) amount -= NaturalAbsorption(tissue, type);
         if (amount <= 0) return 0;
         double before = tissue.Condition;
-        tissue.Condition = Math.Max(0, before - amount / Protection(tissue, type));
+        tissue.Condition = Math.Max(0, before - (type == DamageType.Internal ? amount : amount / Protection(tissue)));
         return before - tissue.Condition;
     }
 
-    /// Protection a tissue gives, and the divisor for damage it takes: toughness, worn down by damage.
-    public static double Protection(Tissue tissue, DamageType type) => tissue.Toughness * tissue.Condition;
+    /// Protection a tissue gives, and the divisor for a blow it takes: toughness, worn down by damage.
+    /// Old: it took a damage type it never read (body review A12).
+    public static double Protection(Tissue tissue) => tissue.Toughness * tissue.Condition;
 
     /// What a tissue shrugs off before it loses any condition. Organs, being inside, shrug off more.
     public static double NaturalAbsorption(Tissue tissue, DamageType type)

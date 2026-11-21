@@ -194,8 +194,9 @@ public static partial class Body
 
     // ---- the survival step ----
 
-    /// What `minutes` of these conditions would do to this body. Pure apart from drawing the rng
-    /// (which organ starvation or cold attacks); Apply makes it so.
+    /// What `minutes` of these conditions would do to this body; Apply makes it so. Pure: the rng is
+    /// not drawn here (the lethal processes stopped picking an organ at random, body review B4) and
+    /// is kept for the callers that pass one.
     public static SurvivalDelta Process(BodyState body, SurvivalContext ctx, int minutes, Rng rng)
     {
         var d = new SurvivalDelta();
@@ -207,16 +208,14 @@ public static partial class Body
 
         ProcessTemperature(body, ctx, minutes, d);
         ProcessWetness(body, ctx, minutes, d);
-        ProcessBloody(body, minutes, d);
+        ProcessBloody(body, ctx, minutes, d);
 
         double calories = body.CaloriesKcal + d.CaloriesDeltaKcal;
         double hydration = body.HydrationMl + d.HydrationDeltaMl;
-        double coreF = body.CoreTempF + d.CoreTempDeltaF;
 
-        ProcessStarvation(body, calories, minutes, rng, d);
-        ProcessDehydration(hydration, minutes, rng, d);
-        ProcessHypothermia(coreF, minutes, rng, d);
-        ProcessRegeneration(body, calories, hydration, minutes, d);
+        ProcessStarvation(body, calories, d);
+        ProcessLethal(body, minutes, d);
+        ProcessRegeneration(body, ctx, calories, hydration, minutes, d);
 
         double energy = body.EnergyMinutes + d.EnergyDeltaMinutes;
         AddBelowThreshold(d, EffectKind.Hungry, calories / MaxCaloriesKcal);
@@ -373,18 +372,29 @@ public static partial class Body
         d.Effects.Add((EffectKind.Wet, next)); // Set: zero dries you off
     }
 
-    static void ProcessBloody(BodyState body, int minutes, SurvivalDelta d)
+    /// Blood on you, a level like wetness: a wound adds to it, and it dries away on its own over a few
+    /// hours, the more of it the faster, and twice as fast by a fire. No washing, and no floor: what
+    /// the game cannot treat must not need treating
+    /// (documentation/decisions/2026-11-21-no-effect-needs-a-missing-treatment.md).
+    /// Old (this rebuild): it faded at 0.02 an hour to a floor only a missing treatment cleared, so one
+    /// butchering left a person a scent source for the whole run (bug, fixed; body review A5).
+    static void ProcessBloody(BodyState body, SurvivalContext ctx, int minutes, SurvivalDelta d)
     {
-        double bleeding = Effects.Severity(body, EffectKind.Bleeding);
-        // Nothing new. What is on you fades, for now only to the treatment floor (Effects.TreatmentFloorPct, 0.05); it is to
-        // fade away on its own (documentation/decisions/2026-11-21-no-effect-needs-a-missing-treatment.md, body fixes A5).
-        if (bleeding <= 0) return;
+        double bloody = Effects.Severity(body, EffectKind.Bloody), bleeding = Effects.Severity(body, EffectKind.Bleeding);
+        if (bloody <= 0 && bleeding <= 0) return;
+        // Drying in proportion runs out to nothing only slowly; the last smear dries at a steady rate.
+        double dryingPerHour = Math.Max(bloody * BloodyDryingPctPerHour, BloodyLastSmearDryingPerHour) * (FireF(body, ctx) > 0 ? 2 : 1);
         // Always set, however faint: gating at 5% meant it restarted from zero every minute and never built up.
-        d.Effects.Add((EffectKind.Bloody, Math.Clamp(Effects.Severity(body, EffectKind.Bloody) + 0.15 / 60.0 * bleeding * minutes, 0, 1)));
+        d.Effects.Add((EffectKind.Bloody, Math.Clamp(bloody + (BloodyPerBleedingHour * bleeding - dryingPerHour) / 60.0 * minutes, 0, 1)));
     }
 
-    /// Fat first, down to 3% of body weight; then muscle, down to 15%; then the organs.
-    static void ProcessStarvation(BodyState body, double calories, int minutes, Rng rng, SurvivalDelta d)
+    /// A full bleed's blood on you an hour; the share of the blood on you that dries an hour, and the
+    /// least that does: from butchering's 0.5, gone in about five hours, two and a half by a fire.
+    const double BloodyPerBleedingHour = 0.15, BloodyDryingPctPerHour = 1.0, BloodyLastSmearDryingPerHour = 0.01;
+
+    /// Fat first, down to 3% of body weight; then muscle, down to 15%. What is still short once both
+    /// are spent harms the heart (ProcessLethal).
+    static void ProcessStarvation(BodyState body, double calories, SurvivalDelta d)
     {
         if (calories >= 0) return;
         double deficit = -calories;
@@ -396,69 +406,95 @@ public static partial class Body
         deficit -= fatKg * KcalPerKgFat;
 
         double muscleKg = Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg);
-        if (muscleKg * KcalPerKgMuscle >= deficit) { d.MuscleBurnedKg = deficit / KcalPerKgMuscle; return; }
-        d.MuscleBurnedKg = muscleKg;
-        deficit -= muscleKg * KcalPerKgMuscle;
-
-        if (deficit > 0) // nothing left to burn: ~10 hours to death
-            d.Damage.Add(new DamageInfo(StarvingDamagePerHour / 60.0 * minutes, DamageType.Internal,
-                Pick(rng, BodyTarget.Heart, BodyTarget.Liver, BodyTarget.Brain, BodyTarget.Lungs)));
+        d.MuscleBurnedKg = Math.Min(muscleKg, deficit / KcalPerKgMuscle);
     }
 
-    /// Organ damage an hour once fat and muscle are spent, and once the body is dry.
-    const double StarvingDamagePerHour = 0.5, DehydratedDamagePerHour = 1.0;
+    /// Condition lost an hour by the organ each process fails (they are internal harm, so these are the
+    /// rates; Body.DamageTissue). Thirst fails the brain in about a day and a half once the body is
+    /// dry, so at rest a person with full water lives about three days without more. Starving fails
+    /// the heart in about a day once fat and muscle are spent, weeks into a fast. The cold fails the
+    /// heart from 95 °F, harmlessly at first and then steeply: ColdHeartFailurePerHour at 82 °F, where
+    /// a cooling body dies within hours (HypothermiaDamagePerHour). Targets: body review B4, decided
+    /// 2026-11-21. Old (this rebuild, old game): 1.0 and 0.5 an hour to an organ drawn at random,
+    /// divided by its toughness, so every such death was brain death, thirst killed half an hour after
+    /// the body ran dry, and mild cold killed at 94 °F (bug, fixed).
+    const double DehydratedDamagePerHour = 0.03, StarvingDamagePerHour = 1 / 24.0;
+    const double ColdHeartFailurePerHour = 0.8, ColdHeartFailureF = 82.0;
+
+    static readonly Cause TheCold = new(null, "the cold"), Thirst = new(null, "thirst"), Starvation = new(null, "starvation"),
+        BloodLoss = new(null, "blood loss");
 
     /// What fat and muscle the body can still burn, in kcal (ProcessStarvation's floors).
     static double ReservesKcal(BodyState body) =>
         Math.Max(0, body.FatKg - MinFatPct * body.WeightKg) * KcalPerKgFat + Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg) * KcalPerKgMuscle;
 
-    /// The organ damage an hour that hunger, thirst and the cold are each doing to this body now: what
-    /// the survival step charges (ProcessStarvation, ProcessDehydration, ProcessHypothermia).
+    /// The organ damage an hour that hunger, thirst and the cold are each doing to this body now, read
+    /// off the body as the minute begins: exactly what the survival step charges (ProcessLethal).
     /// Hunger does none while there is fat or muscle to burn (within a few minutes' burning of the floors).
+    /// Old (this rebuild): the cold was charged off the core the minute would end at, so on the minute
+    /// the core crossed 95 °F the step charged what this said was nothing (bug, fixed; body review A8).
     public static (double ColdPerHour, double ThirstPerHour, double HungerPerHour) LethalRates(BodyState body) => (
         HypothermiaDamagePerHour(body.CoreTempF),
         body.HydrationMl > 0 ? 0 : DehydratedDamagePerHour,
         body.CaloriesKcal > 0 || ReservesKcal(body) >= 10 ? 0 : StarvingDamagePerHour);
 
-    static void ProcessDehydration(double hydration, int minutes, Rng rng, SurvivalDelta d)
-    {
-        if (hydration > 0) return; // ~5 hours to death once dry
-        d.Damage.Add(new DamageInfo(DehydratedDamagePerHour / 60.0 * minutes, DamageType.Internal,
-            Pick(rng, BodyTarget.Brain, BodyTarget.Heart, BodyTarget.Liver)));
-    }
-
-    /// Below 95F the core organs take damage, worsening toward ~80F.
+    /// Below 95 °F the cold harms the heart, by the fourth power of how far the core has fallen toward
+    /// 82 °F: negligible in mild hypothermia (a core held at 90 °F takes days), hours at 85 °F, and past
+    /// 82 °F a heart that fails within the hour. One continuous curve, rising as the core falls.
+    /// Old (this rebuild, old game): two lines that jumped at 87.5 °F and topped out at 0.75 an hour,
+    /// against a comment promising 8 (bug, fixed; body review A13).
     static double HypothermiaDamagePerHour(double coreF)
     {
         if (coreF >= HypothermiaThresholdF) return 0;
-        double severity = Math.Min(1.0, (HypothermiaThresholdF - coreF) / 15.0);
-        return severity < 0.5 ? 0.1 + 0.4 * severity : 0.5 + 0.5 * (severity - 0.5);
+        double fallen = (HypothermiaThresholdF - coreF) / (HypothermiaThresholdF - ColdHeartFailureF);
+        return ColdHeartFailurePerHour * Math.Pow(fallen, 4);
     }
 
-    static void ProcessHypothermia(double coreF, int minutes, Rng rng, SurvivalDelta d)
+    /// Each process harms its one organ at its fixed rate, named for what the death would be.
+    static void ProcessLethal(BodyState body, int minutes, SurvivalDelta d)
     {
-        if (coreF >= HypothermiaThresholdF) return;
-        d.Damage.Add(new DamageInfo(HypothermiaDamagePerHour(coreF) / 60.0 * minutes, DamageType.Internal,
-            Pick(rng, BodyTarget.Heart, BodyTarget.Brain, BodyTarget.Lungs)));
+        var (cold, thirst, hunger) = LethalRates(body);
+        if (cold > 0) d.Damage.Add(new DamageInfo(cold / 60.0 * minutes, DamageType.Internal, BodyTarget.Heart, By: TheCold));
+        if (thirst > 0) d.Damage.Add(new DamageInfo(thirst / 60.0 * minutes, DamageType.Internal, BodyTarget.Brain, By: Thirst));
+        if (hunger > 0) d.Damage.Add(new DamageInfo(hunger / 60.0 * minutes, DamageType.Internal, BodyTarget.Heart, By: Starvation));
     }
 
-    /// Healing needs food, water and rest, and is paced by how well the gut works.
-    static void ProcessRegeneration(BodyState body, double calories, double hydration, int minutes, SurvivalDelta d)
+    /// Healing needs food, water, warmth and rest (sleep is rest), and is paced by how well the gut
+    /// works. So nothing heals while hunger, thirst or the cold is harming the organs: none of them
+    /// runs while the body is fed, watered and warm (LethalRates).
+    /// Old (this rebuild, old game): sleep healed on its own channel past every gate, organs included,
+    /// at up to 4 condition an hour, so a naked sleeper at -40 °F lived through a night at a core below
+    /// zero °F (bug, fixed; body review A1). Old: nutrition counted twice for tissue and once for
+    /// blood (bug, fixed; A9).
+    static void ProcessRegeneration(BodyState body, SurvivalContext ctx, double calories, double hydration, int minutes, SurvivalDelta d)
     {
         bool fed = calories > MaxCaloriesKcal * RegenMinCaloriesPct;
         bool watered = hydration > MaxHydrationMl * RegenMinHydrationPct;
-        bool rested = body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
+        bool warm = body.CoreTempF >= HypothermiaThresholdF;
+        bool rested = ctx.IsSleeping || body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
         bool healed = body.Regions.All(r => r.Condition >= 1.0 && r.Organs.All(o => o.Condition >= 1.0));
         bool bloodFull = body.BloodPct >= 1.0;
-        if (!fed || !watered || !rested || (healed && bloodFull)) return;
+        if (!fed || !watered || !warm || !rested || (healed && bloodFull)) return;
 
         double nutritionPct = Math.Min(1.0, calories / MaxCaloriesKcal);
         double amount = BaseHealingPerHour / 60.0 * minutes * nutritionPct * GetCapacitiesWithoutEffects(body).Digestion;
         if (!bloodFull) d.BloodHealedPct = amount * 0.5;
-        if (!healed) d.HealAmount = amount * nutritionPct;
+        if (!healed) d.HealAmount = amount * (ctx.IsSleeping ? SleepHealingFactor(body, ctx) : 1);
     }
 
-    static BodyTarget Pick(Rng rng, params BodyTarget[] targets) => targets[rng.NextInt(targets.Length)];
+    /// How many times faster sleep mends tissue than waking rest. Exhausted sleep is deeper; wet sleep
+    /// is miserable; a proper bed beats the bare ground. At full food and a whole gut this is the old
+    /// sleep healing (0.1 x quality a minute, old Body.Rest); how fast bodies should heal is body
+    /// review B3, not decided.
+    static double SleepHealingFactor(BodyState body, SurvivalContext ctx)
+    {
+        double quality = (body.EnergyMinutes <= 0 ? 1.0 : 0.7) * ctx.BeddingQualityPct;
+        double wetness = Effects.Severity(body, EffectKind.Wet);
+        if (wetness > 0.2) quality *= 1 - wetness * 0.5;
+        return SleepHealingPerHour / BaseHealingPerHour * quality;
+    }
+
+    const double SleepHealingPerHour = 6.0;
 
     public static void Apply(BodyState body, SurvivalDelta d, Rng rng)
     {
@@ -474,34 +510,34 @@ public static partial class Body
         if (d.HealAmount > 0) Heal(body, d.HealAmount);
     }
 
-    /// One minute of living: survival, sleep healing, effects starting and fading, bleeding.
+    /// One minute of living: survival and healing, effects fading and starting, bleeding.
     /// woundsLived: a headless fight already lived this minute's bleeding and fading (BodyState.WoundsLivedThroughMinute).
     public static void Update(BodyState body, SurvivalContext ctx, Rng rng, bool woundsLived = false)
     {
         var d = Process(body, ctx, 1, rng);
 
-        if (ctx.IsSleeping)
-        {
-            // Sleep heals in step with the clock. Exhausted sleep is deeper; wet sleep is miserable.
-            double quality = (body.EnergyMinutes <= 0 ? 1.0 : 0.7) * ctx.BeddingQualityPct;
-            double wetness = Effects.Severity(body, EffectKind.Wet);
-            if (wetness > 0.2) quality *= 1 - wetness * 0.5;
-            Heal(body, 1 / 10.0 * quality);
-        }
-
+        // Fade first, then this minute's levels: a level set this minute reads as the step computed it.
+        // Old (this rebuild): levels were set and then faded a minute, so Shivering was absent until
+        // 96.83 °F and Sweating until 99.13 °F (bug, fixed; body review A6).
+        if (!woundsLived) Effects.Decay(body, 1);
         foreach (var (kind, severity) in d.Effects)
         {
             if (kind is EffectKind.Wet or EffectKind.Bloody) Effects.Set(body, kind, severity);
             else Effects.Add(body, kind, severity);
         }
-        if (!woundsLived) Effects.Decay(body, 1);
 
         d.CoreTempDeltaF += Effects.CoreTempFPerHour(body) / 60;
         double bleedMl = woundsLived ? 0 : Effects.BleedMlPerHour(body) / 60;
-        if (bleedMl > 0) d.Damage.Add(new DamageInfo(bleedMl, DamageType.Bleed, BodyTarget.Blood));
+        if (bleedMl > 0) d.Damage.Add(Bleed(body, bleedMl));
 
         Apply(body, d, rng);
+        // Old (this rebuild): only an animal forgot who hurt it, so a person bitten once and frozen days
+        // later was killed by the wolf pack (bug, fixed; body review A7).
+        if (body.WoundedBy != null && IsMended(body)) body.WoundedBy = null;
     }
+
+    /// A minute's bleeding: the blood lost to wounds someone gave is theirs to answer for.
+    static DamageInfo Bleed(BodyState body, double ml) => new(ml, DamageType.Bleed, BodyTarget.Blood, By: body.WoundedBy ?? BloodLoss);
 
     /// One minute for a body outside the human survival model (an animal member, plan decision 2):
     /// effects fade and wounds bleed, as Update does it, and nothing else.
@@ -509,7 +545,7 @@ public static partial class Body
     {
         Effects.Decay(body, 1);
         double bleedMl = Effects.BleedMlPerHour(body) / 60;
-        if (bleedMl > 0) Damage(body, new DamageInfo(bleedMl, DamageType.Bleed, BodyTarget.Blood), rng);
+        if (bleedMl > 0) Damage(body, Bleed(body, bleedMl), rng);
     }
 
     /// Advances one agent one minute and reports what happened. Returns the reason to stop, if any.

@@ -111,33 +111,50 @@ public class NpcColdBedTests(ITestOutputHelper output)
         Assert.IsType<Sleep>(a);
     }
 
-    /// Traced (seed 11, day 13): home at dusk to a cold pit with tinder, 0.6 kg of kindling and a stash of oak. It lit
-    /// the kindling, then fed the rest on to get the oak going - but a kindling fire that small never gets hot enough
-    /// for oak - and groped the dark camp the rest of the night with tinder and oak and nothing to light from, core
-    /// 98 to 92 by two in the morning. The kindling a fire is lit with is kept for lighting: by dawn there is still
-    /// enough to light from.
-    [Fact(Skip = "Waits on the fire model decision (Q9) and the oak-camp kindling design; dev/active/rebuild-deferred.md")]
-    public void ColdPit_TinderOakAndAlittleKindling_KeepsKindlingToLightFromAtDawn()
+    /// Traced (seed 11, day 13; seeds 7 and 2024 on the body-fix tree): a cold camp with tinder, oak and half a kilo of
+    /// kindling - a fire too small ever to take oak - counted its oak as a night's fire, so nothing went for kindling,
+    /// and the night came with nothing it could keep burning. Wood counts as fire only with the kindling to light it, by
+    /// the fire's own catch rule (Npc.Lit): short of it, tonight's fuel is short (warmth's Need) until it fetches some.
+    [Theory]
+    [InlineData(0.6, false)]
+    [InlineData(2.0, true)]
+    public void ColdPit_Oak_CountsAsFuelOnlyWithTheKindlingToLightIt(double kindlingKg, bool oakCounts)
     {
-        var (w, npc, mind) = ColdCamp(FrostyNight, energyPct: 0.25, coreF: 98.0, minute: At(13, 20));
+        var (w, npc, mind) = ColdCamp(Mild, energyPct: 0.8, coreF: 98.6, minute: At(13, 11));
         mind.Pack.Kg[Resource.Tinder] = 0.3;
-        mind.Pack.Kg[Resource.Kindling] = 0.6;
-        var camp = mind.Camp;
-        Items.Add(Items.StashAt(w, camp), Resource.Oak, 4.2);
-        PickedBare(w, camp);
-        long dawn = At(14, Weather.SunriseHour(At(14, 0)));
-        var log = NpcDriver.Live(w, npc, dawn);
-        double kindling = mind.Pack.Kg.GetValueOrDefault(Resource.Kindling) + Items.Have(Items.StashAt(w, camp), Resource.Kindling);
-        output.WriteLine($"fires lit {log.OfType<FireLit>().Count(l => l.By == npc)}, kindling fed {log.OfType<FuelAdded>().Where(f => f.By == npc && f.Fuel == Resource.Kindling).Sum(f => f.Kg):0.00} kg, "
-                         + $"kindling at dawn {kindling:0.00} kg, core {w.Agent(npc).Body.CoreTempF:0.0}, alive {Body.IsAlive(w.Agent(npc).Body)}");
-        Assert.True(kindling >= 0.3, $"{kindling:0.00} kg of kindling left at dawn: not a light's worth");
+        mind.Pack.Kg[Resource.Kindling] = kindlingKg;
+        Items.Add(Items.StashAt(w, mind.Camp), Resource.Oak, 20);
+        double hours = Npc.ReckonedCampFuelHours(w, w.Agent(npc));
+        double kindlingHours = Fire.FuelHours(Resource.Kindling, kindlingKg), oakHours = Fire.FuelHours(Resource.Oak, 20);
+        output.WriteLine($"{kindlingKg} kg of kindling: camp fuel reckoned {hours:0.0} h (kindling {kindlingHours:0.0} h, oak {oakHours:0.0} h)");
+        Assert.Equal(oakCounts, hours >= oakHours);
+        var lit = new FireState { Tile = default, LastUpdatedMinute = 0, BurningKg = { [Resource.Tinder] = 0.05, [Resource.Kindling] = kindlingKg } };
+        Assert.Equal(oakCounts, Fire.CanAddFuel(lit, Resource.Oak)); // the fire model's own answer
     }
 
-    /// Every forage pool on a tile picked over to nothing, for now.
-    static void PickedBare(World w, TileId tile)
+    /// The same stash next door holding 0.094 kg of kindling, remembered as 0.1 (memory keeps a tenth of a kilo): from
+    /// camp the remembered 0.1 followed the tinder (MinLightKindlingKg), so it set out for the makings, and on arrival
+    /// the 0.094 there did not. A remembered stash is read as the least it may hold, so it does not set out for them.
+    [Fact]
+    public void ColdPit_MakingsNextDoorOnlyAsRemembered_DoesNotSetOutForThem()
     {
-        var ts = w.Tiles.TryGetValue(tile, out var t) ? t : w.Tiles[tile] = new TileState();
-        ts.Pools = Enumerable.Range(0, Pools.At(w, tile).Count).Where(i => Pools.At(w, tile)[i] is ForagePool)
-            .ToDictionary(i => i, i => (PoolState)new ForageState { HoursForaged = 1000, LastForagedMinute = w.Minute });
+        var (w, npc, mind) = ColdCamp(BitterNight, energyPct: 0.45, coreF: 98.2);
+        var camp = mind.Camp;
+        var m = Map.Of(w);
+        var dir = Enum.GetValues<Direction>().First(d => m.InBounds(Map.Step(camp, d)) && m.TerrainAt(Map.Step(camp, d)).IsPassable()
+                                                          && Traversal.Refusal(w, new Travel(npc, d)) == null);
+        var next = Map.Step(camp, dir);
+        var stash = new Inventory();
+        Items.Add(stash, Resource.Tinder, 2);
+        Items.Add(stash, Resource.Kindling, 0.094);
+        Items.Add(stash, Resource.Birch, 9);
+        (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = stash;
+        Knowledge.Observe(w, w.Agent(npc), []);
+        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 0.1, [Resource.Birch] = 9 } };
+        mind.SeeingTo = Stat.Rest;
+        var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
+        output.WriteLine($"{a} for {minutes} min; wood goal {mind.WoodGoal}");
+        Assert.NotEqual(next, mind.WoodGoal);
+        Assert.False(a is Travel t && t.Dir == dir, $"set out for makings it only remembers: {a}");
     }
 }

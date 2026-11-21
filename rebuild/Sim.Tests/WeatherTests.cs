@@ -19,10 +19,28 @@ public class WeatherTests
     [InlineData(-20, 45, -58.144996326070746)]
     [InlineData(32, 3, 29.316734684752944)]
     [InlineData(40, 2.9, 40)]   // below 3 mph: no chill
-    [InlineData(51, 30, 51)]    // above 50 °F: no chill
+    [InlineData(60, 30, 60)]    // at 60 °F and above: no chill (was 50 °F, a cliff; body review A10)
     [InlineData(23, 13.5, 10.729616789111176)]
     public void WindChill_MatchesOld(double tempF, double mph, double expected) =>
         Assert.Equal(expected, Weather.WindChillF(tempF, mph), Digits);
+
+    /// Body review A10: the chill fades out between 50 and 60 °F, never jumping and never warming. Old:
+    /// in a gale 49.9 °F felt like about 40 °F and 50.1 °F like 50.1 °F.
+    [Theory]
+    [InlineData(3)]
+    [InlineData(10)]
+    [InlineData(45)]
+    [InlineData(70)]
+    public void WindChill_IsContinuousInTheAir_AndNeverWarms(double mph)
+    {
+        for (double t = 30; t < 70; t += 0.01)
+        {
+            double here = Weather.WindChillF(t, mph), next = Weather.WindChillF(t + 0.01, mph);
+            Assert.True(Math.Abs(next - here) < 0.1, $"{mph} mph: {t:0.00} °F feels {here:0.00}, {t + 0.01:0.00} °F feels {next:0.00}");
+            Assert.True(here <= t, $"{mph} mph: {t:0.00} °F feels warmer, {here:0.00}");
+        }
+        if (mph >= 10) Assert.True(Weather.WindChillF(55, mph) < 55, "a stiff wind still chills a little past 50 °F");
+    }
 
     // ---- exact: old Location.GetTemperatureBreakdown(Idle) on an exposed tile, no features ----
     // Minutes are counted from the old GameContext.StartTime (July 1, 09:00).

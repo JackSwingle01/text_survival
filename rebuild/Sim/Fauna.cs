@@ -190,16 +190,7 @@ public static partial class Fauna
 
     static bool Mobile(BodyState body) => Body.GetCapacities(body).Moving > 0.1;
 
-    static bool Hurt(BodyState body)
-    {
-        if (body.BloodPct < 1) return true;
-        foreach (var r in body.Regions)
-        {
-            if (r.Condition < 1) return true;
-            foreach (var o in r.Organs) if (o.Condition is > 0 and < 1) return true;
-        }
-        return false;
-    }
+    static bool Hurt(BodyState body) => !Body.IsMended(body);
 
     /// One minute of a living animal's mending: every hurt layer, every organ not destroyed, and the blood.
     internal static void Mend(BodyState body)

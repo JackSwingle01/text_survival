@@ -310,7 +310,7 @@ public class ContentTests
     [InlineData("fire.json", "\"minFireTempF\": 500,", "\"minFireTempF\": 5000,", "is not below peakTempF")]
     [InlineData("items.json", "\"Head\": 0.1,", "\"Head\": 0.2,", "slotCoverage sums to")]
     [InlineData("species.json", "\"weightKg\": 75,", "\"weightKg\": 80,", "the build is Body's baseline adult")]
-    [InlineData("effects.json", "\"treatmentAboveSeverity\": 0.5", "\"treatmentAboveSeverity\": 1.5", "is not in 0-1")]
+    [InlineData("effects.json", "\"treatmentAboveSeverity\": 0, ", "\"treatmentAboveSeverity\": 1.5, ", "is not in 0-1")]
     [InlineData("shelters.json", "\"insulation\": 0.60, \"overhead\": 0.90, \"wind\": 0.80, \"insulationCap\": 0.60", "\"insulation\": 0.70, \"overhead\": 0.90, \"wind\": 0.80, \"insulationCap\": 0.60", "insulation 0.7 is above its cap 0.6")]
     [InlineData("butchering.json", "\"RawMeat\": 0.8", "\"RawMeat\": 1.5", "RawMeat above full processing's")]
     [InlineData("terrain.json", "\"visibility\": 1.5,", "\"visibility\": 2.5,", "visibility 2.5 is not in 0-2")]

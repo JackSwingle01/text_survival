@@ -292,14 +292,22 @@ public class CombatGoldenTests
 
     // Old harness, 2000 fights each, unarmored human (old Player: unarmed 0.15), self-as-ally patched out:
     // Victory, Defeat, Fled, AnimalFled, AnimalDisengaged rates and mean rounds.
+    // rebuild: body fixes A2/A4/B5 (2026-11-21); combat is being redesigned, so old-game parity is not a target.
+    // The three rows marked are this rebuild's own numbers, 1000 fights each. Toggling the fixes one at a time,
+    // A2 moves them (a region works only as far as its weakest layer, so a bitten leg no longer runs as well
+    // and fewer fighters get away); A4 adds a few victories (a spear can reach a head's brain); B5 changes
+    // nothing measurable. Old (the old game's) → new:
+    //   wolf vs spear   [0.082, 0.388, 0.213, 0.269, 0.049, 11.24] → [0.140, 0.411, 0.145, 0.242, 0.062, 11.53]
+    //   wolf vs unarmed [0.007, 0.797, 0.171, 0.000, 0.025, 11.05] → [0.005, 0.861, 0.105, 0.000, 0.029, 11.49]
+    //   bear vs spear   [0.032, 0.720, 0.176, 0.063, 0.009, 9.48]  → [0.073, 0.762, 0.112, 0.031, 0.022, 9.72]
     public static readonly TheoryData<string, double[]> Headless = new()
     {
-        { "wolf vs spear", [0.082, 0.388, 0.213, 0.269, 0.049, 11.24] },
-        { "wolf vs unarmed", [0.007, 0.797, 0.171, 0.000, 0.025, 11.05] },
+        { "wolf vs spear", [0.140, 0.411, 0.145, 0.242, 0.062, 11.53] }, // rebuild, body fixes
+        { "wolf vs unarmed", [0.005, 0.861, 0.105, 0.000, 0.029, 11.49] }, // rebuild, body fixes
         { "3 wolves vs spear", [0.000, 1.000, 0.000, 0.001, 0.000, 4.95] },
         { "4 wolves ambush 2 caribou", [1.000, 0.000, 0.000, 0.000, 0.000, 4.24] },
         { "4 wolves noticed by 2 caribou", [0.949, 0.000, 0.000, 0.051, 0.000, 8.14] },
-        { "bear vs spear", [0.032, 0.720, 0.176, 0.063, 0.009, 9.48] },
+        { "bear vs spear", [0.073, 0.762, 0.112, 0.031, 0.022, 9.72] }, // rebuild, body fixes
     };
 
     [Trait("Category", TestCategories.Slow)]

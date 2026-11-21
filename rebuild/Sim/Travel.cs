@@ -208,6 +208,8 @@ public static class Traversal
         return [(TripStumble, 1.5), (SharpHazards, 0.8), (RockyTerrain, 0.6)];
     }
 
+    static readonly Cause Fall = new(null, "a fall");
+
     static string? Injure(World world, Agent agent, TileId tile, List<WorldEvent> events)
     {
         var weighted = AccidentPools(Map.Of(world), tile).SelectMany(p => p.Pool.Select(a => (a, p.Weight))).ToList();
@@ -218,13 +220,13 @@ public static class Traversal
 
         var body = agent.Body;
         var kindsBefore = body.Effects.Select(e => e.Kind).ToList();
-        var hit = Body.Damage(body, new DamageInfo(accident.Amount, accident.Type, accident.Target), world.Rng("body", agent.Id));
+        var hit = Body.Damage(body, new DamageInfo(accident.Amount, accident.Type, accident.Target, By: Fall), world.Rng("body", agent.Id));
         if (accident.Effect is EffectKind kind) Effects.Add(body, kind, accident.Severity);
         events.Add(new Injured(world.Minute, agent.Id, tile, hit.HitRegion, accident.Type, accident.Amount));
         foreach (var k in body.Effects.Select(e => e.Kind).Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, agent.Tile, k));
 
         if (Body.IsAlive(body)) return null;
-        Body.MarkDead(body, world.Minute, new Cause(null, "a fall"));
+        Body.MarkDead(body, world.Minute, Fall);
         events.Add(new Died(world.Minute, agent.Id, agent.Tile));
         return "died";
     }

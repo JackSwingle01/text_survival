@@ -673,7 +673,7 @@ public static partial class Combat
         var body = BodyOf(world, target);
         double cushioning = body.Worn.Sum(g => Items.Def(g).Cushioning), toughness = body.Worn.Sum(g => Items.Def(g).Toughness);
         body.WoundedBy = by;
-        var result = Body.Damage(body, new DamageInfo(amount, type, BodyTarget.Random, cushioning, toughness), world.Rng("body", target.Agent));
+        var result = Body.Damage(body, new DamageInfo(amount, type, BodyTarget.Random, cushioning, toughness, by), world.Rng("body", target.Agent));
         events.Add(new Injured(world.Minute, target.Agent, enc.Tile, result.HitRegion, type, amount));
         return result;
     }
