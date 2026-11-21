@@ -473,6 +473,9 @@ public class PredatorInteractionTests
         var ctx = World(); var h = Pack(ctx);
         h.Hunger = 0;
         h.Fear = 0.9;
+        // On the player's tile the pack rolls to engage every minute (ShouldEngagePlayer has no fear
+        // gate), which made this test flaky; its post-fight cooldown keeps the five minutes uninterrupted.
+        h.LastCombatMinutes = ctx.TotalMinutesElapsed;
         ctx.UpdateWithoutEvents(0, ActivityType.Fishing);
         var watch = Choice(ctx, h, "Watch");
         var before = ctx.TotalMinutesElapsed;
