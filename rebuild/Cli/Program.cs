@@ -26,7 +26,6 @@ foreach (string line in commands)
         {
             case "quit": return 0;
             case "status": break;
-            case "report": ReportCommand.Run(world, parts); break;
             case "wait": Run(new Wait(AgentId.Player), Minutes(parts)); break;
             case "rest": Run(new Rest(AgentId.Player), Minutes(parts)); break;
             case "sleep": Run(new Sleep(AgentId.Player), Minutes(parts)); break;
