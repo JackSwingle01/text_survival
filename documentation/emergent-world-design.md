@@ -242,7 +242,60 @@ load, legs. Outcomes: **dry**, **wet** (feet and legs soaked, heavy cooling) or 
 soaked, cold shock, injury chance on thin ice). Open water can't come out dry. Better crossing
 places are real tile content, found by searching the bank.
 
-### 3.7 Indexes that are never saved
+### 3.7 Making things: recipes and projects (decided 2026-11-21)
+
+One kind of recipe and one Make activity cover crafting and building; NPCs use the same ones.
+
+```
+recipe "stone_tipped_spear"
+  category   HuntingWeapon                         # menu grouping
+  inputs     wooden_spear x1 (consumed), flint 0.2 kg, sinew|cordage 0.05 kg
+  tools      Cutting (required), Striking (faster)  # capabilities, never named items
+  requires   Light                                  # closed list: Light, Fire, Frost, Shelter, Dry
+  work       40 min, skill Crafting
+  result     stone_tipped_spear x1                  # what the menu shows
+  outcomes   fail=.05                               # time lost
+             fail:waste_material:flint:.5=.08       # half the flint wasted
+             succeed:save_material:sinew:1.0=.10    # the sinew comes back
+             succeed:injury:left_hand|right_hand:.2=.04
+             fail:break_tool:Cutting=.02            # the cutting tool breaks outright
+```
+
+- **Recipes are data** behind the strict loader. Logic stays in code.
+- **Inputs** are resources by kg (`a|b` for alternatives) or items. An item input is `consumed` or
+  the `target` (repairs: the same item comes out improved). Repair, sharpening and fitting a point
+  are ordinary recipes.
+- **Tools are capabilities.** A required capability gates the recipe; better tools (tool tiers)
+  make it faster.
+- **`requires` gates; conditions slow.** Light, Fire within reach, Frost, Shelter, Dry must hold to
+  start. Wet or cold hands and impairment never block; they worsen time and odds.
+- **Result and outcomes are separate.** The result is always present and is what the menu shows.
+  Outcomes are optional departures from it, written `succeed|fail[:effect:params...]=<base odds>`.
+  One is rolled when the work finishes; the odds left over are the plain result.
+- **Effects** are a closed list and can stack on one outcome: `waste_material:<res>:<share>`,
+  `save_material:<res>:<share>`, `extra_product:<item or res>:<n>`, `injury:<region>:<damage>`
+  (through `Body.Damage`, as a cut), `break_tool:<capability>[:<uses lost>]` (whole uses of
+  durability; no amount breaks it outright, and what is left falls out of the tool's recorded
+  materials). A new kind is a code and loader change.
+- **`|` in any parameter** lists alternatives with the outcome's odds split evenly between them.
+- **Skill:** each level multiplies failure-like weights (fail, injury, break_tool) by
+  (1 - 0.04 x level) and success-bonus weights by (1 + 0.04 x level), in one tunable place. Tools,
+  dark and cold hands shift them the other way through the odds terms fire uses. The odds sheet shows
+  the table before you commit. Crafting never changes an item's stats (short-loop plan); quality can
+  be added later as a new effect kind.
+- **Items record what they are made of**, merged from the inputs, so decay, salvage and repair read
+  real parts. Raw resources stay simple stacks.
+- **Projects:** any recipe can be interrupted and resumed. Materials go in at the start; progress
+  stays on the tile for a placed build, or as an unfinished item in the pack. Abandoning returns
+  about 80% of the materials (the old value, never wired in the old game).
+- **Every recipe is visible from the start**, showing what is had and missing and jumping to the
+  recipe for a missing tool or material. No unlock gating.
+- **Content:** the old game's 71 recipes are ported as data, minus the 10 treatments and the ember
+  carriers until their systems exist, with the old bugs fixed (render fat needs a fire, scraping a
+  hide needs a cutting tool, mammoth gear durability made sensible). Bear and mammoth chest pieces
+  get recipes.
+
+### 3.8 Indexes that are never saved
 
 - **Nearby:** `TileId → sorted agent ids`, rebuilt lazily when agents move. A year-long settle is
   mostly "what is within r tiles" queries.

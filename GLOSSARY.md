@@ -62,3 +62,25 @@ Contest, toward an ally: the same claim, answered by that person's mind and thei
 The single action shown for a thing that has several actions (a fire, a carcass, a stash, a
 shelter); it opens that thing's menu.
 _Avoid_: use, open
+
+## Making things
+
+**Recipe**:
+How one thing is made: what goes in, the tools by capability, what the place must have, the work, the
+result, and what can go differently. Crafting and building are both recipes.
+_Avoid_: blueprint, formula, craft option
+
+**Result**:
+What a recipe makes when nothing goes differently: the thing the menu shows.
+_Avoid_: output, product
+
+**Outcome**:
+One way a finished piece of work can turn out besides the plain result, with its base odds: a
+success or failure, plus any effects (wasted or saved material, an extra product, an injury, a broken
+tool). One outcome is rolled per finished piece of work; whatever odds are left are the plain result.
+_Avoid_: roll, event
+
+**Project**:
+Work on a recipe that is not finished yet, keeping its progress: on the tile for something placed, as
+an unfinished item in the pack for something carried.
+_Avoid_: job, task, build in progress
