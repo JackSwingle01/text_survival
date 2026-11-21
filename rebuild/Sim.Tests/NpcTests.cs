@@ -132,7 +132,7 @@ public class NpcTests(ITestOutputHelper output)
             w.Fires[pit] = new FireState { Tile = camp, LastUpdatedMinute = 0, BurningKg = { [Resource.Birch] = 1 } };
             var phase = Fire.Phase(w.Fires[pit]);
             Sim.Advance(w, 5 * 60); // the fire burns out with nobody to see it
-            var far = Enumerable.Range(Sight.RadiusTiles + 2, 10).Select(d => new TileId(camp.X + d, camp.Y))
+            var far = Enumerable.Range(Sight.MaxTiles + 1, 10).Select(d => new TileId(camp.X + d, camp.Y))
                 .First(t => Map.Of(w).TerrainAt(t).IsPassable());
             var npc = Npc.Spawn(w, far, camp);
             var mind = (NpcMind)w.Agent(npc).Mind;

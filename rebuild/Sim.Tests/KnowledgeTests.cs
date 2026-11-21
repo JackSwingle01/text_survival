@@ -60,16 +60,34 @@ public class KnowledgeTests
 
     // ---- sight and memory ----
 
-    [Fact]
-    public void Sight_IsAFixedRadius_AroundTheAgent()
+    /// A tile out of anyone's view of here: beyond the farthest anyone can see.
+    static TileId OutOfView(World w, TileId from) => Away(w, from, Sight.MaxTiles + 1);
+
+    /// The nearest tile, two or more steps off, from which target is in view.
+    static TileId InViewOf(World w, TileId target)
     {
-        var w = World.New(17);
+        var m = Map.Of(w);
+        for (int r = 2; r < Sight.MaxTiles; r++)
+            for (int dx = -r; dx <= r; dx++)
+                foreach (int dy in new[] { r - Math.Abs(dx), Math.Abs(dx) - r })
+                {
+                    var t = new TileId(target.X + dx, target.Y + dy);
+                    if (m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.SiteAt(t) == null && Sight.Visible(w, t).Contains(target)) return t;
+                }
+        throw new InvalidOperationException($"Nowhere two tiles or more from {target} has it in view");
+    }
+
+    /// One sight model: what a glance takes in is what the rays show (Sight.Visible), no more.
+    [Fact]
+    public void AGlance_SeesWhatTheRaysShow()
+    {
+        var w = Mild17();
         var me = w.Agent(P);
-        var seen = Sight.Around(w, me).ToList();
-        Assert.Contains(me.Tile, seen);
-        Assert.All(seen, t => Assert.True(MapGen.Manhattan(t, me.Tile) <= Sight.RadiusTiles));
-        Assert.Equal(seen.Count, seen.Distinct().Count());
-        Assert.Equal(2 * Sight.RadiusTiles * (Sight.RadiusTiles + 1) + 1, seen.Count); // camp is not at the map's edge
+        Sim.Step(w, new Wait(P), 1);
+        var view = Sight.Visible(w, me.Tile, Body.GetCapacities(me.Body).Sight);
+        Assert.All(w.Agents.Values.Where(a => a.Id != P), a => Assert.Equal(view.Contains(a.Tile), Sight.InSight(w, me, a.Tile)));
+        var places = ((PersonMind)me.Mind).Knows.Places;
+        Assert.All(places.Keys, t => Assert.Contains(t, view));
     }
 
     /// Only what was seen, and only tiles with something worth remembering (or stood on).
@@ -82,7 +100,7 @@ public class KnowledgeTests
         var places = ((PersonMind)w.Agent(P).Mind).Knows.Places;
         Assert.True(places.ContainsKey(camp) && places[camp].Visited);
         Assert.Equal("Overhang", places[camp].Shelter);
-        Assert.All(places, p => Assert.True(MapGen.Manhattan(p.Key, camp) <= Sight.RadiusTiles));
+        Assert.All(places, p => Assert.Contains(p.Key, Sight.Visible(w, camp)));
         Assert.All(places.Where(p => p.Key != camp), p => Assert.True(p.Value.Trees || p.Value.Water || p.Value.Fire != null || p.Value.Shelter != null || p.Value.Danger != Danger.None));
         string json = Save.ToJson(w);
         Assert.Equal(json, Save.ToJson(Save.FromJson(json)));
@@ -182,7 +200,7 @@ public class KnowledgeTests
         Sim.Step(w, new Wait(P), 1); // the player sees the fire burning
         Assert.Equal(FirePhase.Dying, Memory(w, P, camp)!.Fire);
         long left = w.Minute;
-        var far = Away(w, camp, Sight.RadiusTiles + 3);
+        var far = OutOfView(w, camp);
         Put(w, P, far);
         Sim.Step(w, new Wait(P), 30);
 
@@ -217,7 +235,7 @@ public class KnowledgeTests
         Put(w, P, field);
         Sim.Step(w, new Wait(P), 1);
         Assert.True(Memory(w, P, field)!.Visited);
-        Put(w, P, Away(w, field, Sight.RadiusTiles + 3));
+        Put(w, P, OutOfView(w, field));
         Sim.Step(w, new Wait(P), 1);
         return (w, field);
     }
@@ -273,7 +291,7 @@ public class KnowledgeTests
         var camp = Map.Of(w).Camp;
         var pit = PlacePit(w, camp, 1.5);
         long died = DiesAt(w, pit);
-        Put(w, P, Away(w, camp, Sight.RadiusTiles + 3));
+        Put(w, P, OutOfView(w, camp));
         var events = new List<WorldEvent>();
         while (w.Minute < awayMinutes) events.AddRange(Sim.Step(w, new Wait(P), (int)Math.Min(chunk, awayMinutes - w.Minute)).Events);
         Assert.DoesNotContain(events, e => e is FireDied); // nobody saw it go
@@ -326,13 +344,13 @@ public class KnowledgeTests
         long left = w.Minute;
         long died = DiesAt(w, pit);
 
-        Put(w, P, Away(w, camp, Sight.RadiusTiles + 2));
+        Put(w, P, OutOfView(w, camp));
         while (w.Minute <= died + 60) Sim.Step(w, new Wait(P), 60);
         Assert.Equal(FirePhase.Roaring, Memory(w, P, camp)!.Fire);
         Assert.Equal(left, Memory(w, P, camp)!.SeenMinute);
 
         // Back in sight of camp, not yet on it: the fire is seen to be out.
-        Put(w, P, Away(w, camp, Sight.RadiusTiles - 1));
+        Put(w, P, InViewOf(w, camp));
         Sim.Step(w, new Wait(P), 1);
         Assert.Equal(FirePhase.Cold, Memory(w, P, camp)!.Fire);
         Assert.Equal(w.Minute, Memory(w, P, camp)!.SeenMinute);
@@ -352,7 +370,7 @@ public class KnowledgeTests
         Assert.True(hours > 3);
         long died = DiesAt(w, pit);
 
-        Put(w, P, Away(w, camp, Sight.RadiusTiles - 1)); // in sight of camp, not on it
+        Put(w, P, InViewOf(w, camp)); // in sight of camp, not on it
         Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes);
         Assert.True(Fire.Burns(Memory(w, P, camp)!.Fire));
         Assert.Equal(hours, Memory(w, P, camp)!.FireHours);
@@ -388,7 +406,7 @@ public class KnowledgeTests
         Items.Add(Items.StashAt(w, camp), Resource.DriedMeat, 2);
         Sim.Step(w, new Wait(P), 1);
         Assert.Equal(2, Memory(w, P, camp)!.Stash![Resource.DriedMeat]);
-        Put(w, P, Away(w, camp, Sight.RadiusTiles + 3));
+        Put(w, P, OutOfView(w, camp));
         Sim.Step(w, new Wait(P), 30);
         var npc = Npc.Spawn(w, camp, camp: Away(w, camp, 25));
         Sim.Step(w, new Unstash(npc, Resource.DriedMeat, 1), 1);
@@ -549,7 +567,7 @@ public class KnowledgeTests
             var camp = Map.Of(w).Camp;
             Npc.Spawn(w, camp);
             PlacePit(w, camp, 2);
-            var far = Away(w, camp, Sight.RadiusTiles + 2);
+            var far = OutOfView(w, camp);
             void Do(Func<Activity> make, int total)
             {
                 for (int done = 0; done < total;)

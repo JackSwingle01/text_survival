@@ -1,7 +1,6 @@
 namespace Survival;
 
-/// A crossing's minutes as the terms that make them, in the order Traversal.CrossingMinutes builds
-/// them, so they add up to its total exactly (ui-design: every time in the dock equals the preview).
+/// A crossing's minutes as the terms that make them, adding up to the crossing's total exactly (ui-design: every time in the dock equals the preview).
 /// Each slowing is the extra minutes over the stage before it, per segment, rounded as the crossing
 /// rounds them:
 /// - Walking: the two tiles' base minutes; Terrain: the shape of the ground; Weather: strong wind and
@@ -27,8 +26,7 @@ public sealed record TripTime(int WalkingMinutes, int TerrainMinutes, int Weathe
 
 /// A crossing as seen before it is made: for verb lists and the trip preview. Reads only: the
 /// ground is looked at (Ground.Peek), never observed, so asking changes nothing in the world.
-// Traversal.CrossingMinutes has its own copy of the formula, and TripTests holds the two equal across
-// the valley. When Travel.cs is free, CrossingMinutes becomes Terms(..., observe: true).TotalMinutes.
+// The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(..., observe: true).TotalMinutes.
 public static class Trip
 {
     /// The crossing this agent would make now, one tile this way at this pace.
@@ -77,5 +75,5 @@ public static class Trip
 
     /// Traversal.IsHazardous, without observing the ground.
     public static bool IsHazardousNow(World world, TileId tile) =>
-        Math.Min(1.0, Map.TravelHazardLevel(Map.Of(world), tile) + Ground.HazardDeltaNow(world, tile)) >= Traversal.HazardousLevel;
+        Traversal.HazardLevel(Map.Of(world), tile, Ground.HazardDeltaNow(world, tile)) >= Traversal.HazardousLevel;
 }

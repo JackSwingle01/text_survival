@@ -136,9 +136,10 @@ public static partial class Fauna
 
     // ---- arrivals ----
 
-    /// An arrival comes in at least this far from every living person: out of sight, so nobody sees a
-    /// herd appear from nothing (judgment: twice the sight radius).
-    public const int ArrivalClearanceTiles = 2 * Sight.RadiusTiles;
+    /// An arrival comes in at least this far from every living person: beyond the farthest anyone can
+    /// see (Sight.MaxTiles), so nobody sees a herd appear from nothing. Before the sight rays it was
+    /// twice the old five-tile glance.
+    public const int ArrivalClearanceTiles = Sight.MaxTiles;
 
     /// For each species that comes from outside, in species order: with the day's chance ArrivalsPerDay
     /// x the valley's deficit, a herd comes in somewhere on the open land, out of everyone's sight, and

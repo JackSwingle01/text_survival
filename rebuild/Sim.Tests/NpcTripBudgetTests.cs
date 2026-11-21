@@ -444,4 +444,48 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         output.WriteLine(string.Join(", ", log.Where(e => e is Moved mv && mv.Who == npc || e is Drank d && d.Who == npc)));
         Assert.Contains(log, e => e is Drank d && d.Who == npc);
     }
+
+    /// Seed 5, day 8 (sight rays): its only timber lay past a mountain it walked beside, and the search counted any tile
+    /// within three of a place it had stood as looked at, so the ground behind the ridge it never saw was never gone to.
+    /// The search goes to what it has not seen (Beliefs.Explored): here every tile but one, beside where it stood.
+    [Fact]
+    public void Explore_HeadsForGroundItHasNotSeen_NotJustGroundItWalkedBeside()
+    {
+        var (w, npc, mind) = Setup(17, Mild, At(1, 10));
+        var a = w.Agent(npc);
+        var m = Map.Of(w);
+        var camp = mind.Camp;
+        var unseen = Enumerable.Range(-6, 13).Select(dx => new TileId(camp.X + dx, camp.Y + (6 - Math.Abs(dx))))
+            .Where(t => m.InBounds(t) && m.TerrainAt(t).IsPassable()).OrderBy(t => t).First();
+        var stood = MapGen.Neighbors(unseen).First(t => m.InBounds(t) && MapGen.Manhattan(t, camp) == 5);
+        mind.Knows.Explored = new TileSet(m.Width, m.Height);
+        for (int x = 0; x < m.Width; x++)
+            for (int y = 0; y < m.Height; y++)
+                if (new TileId(x, y) != unseen) mind.Knows.Explored.Add(new TileId(x, y));
+        mind.Knows.Places[stood] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute };
+        var heading = Npc.ExploreHeading(w, a, 12);
+        output.WriteLine($"unseen {unseen}, stood beside it at {stood}: heads for {heading}");
+        Assert.Equal(unseen, heading);
+    }
+
+    /// Seed 5, days 8.5-10.7: no fire from 8.5, no tinder to make one, so no snow to melt; no water it knew of, and
+    /// nothing sent it to look: it foraged at a treeless camp until it died of thirst. With water wanted and no way to
+    /// melt snow, it goes looking for water.
+    [Fact]
+    public void WaterCritical_NoFireToMeltSnowAndNoWaterKnown_GoesLookingForWater()
+    {
+        var (w, npc, mind) = Setup(17, Mild, At(1, 10));
+        var a = w.Agent(npc);
+        foreach (var r in mind.Pack.Kg.Keys.Where(r => r is Resource.Water or Resource.Tinder or Resource.Kindling or Resource.BirchBark
+                     or Resource.Amadou or Resource.Usnea or Resource.Chaga).ToList()) mind.Pack.Kg.Remove(r);
+        foreach (var p in mind.Knows.Places.Values) p.Water = false;
+        mind.Knows.Explored = new TileSet(Map.Of(w).Width, Map.Of(w).Height);
+        mind.Knows.Explored.Add(mind.Camp);
+        a.Body.HydrationMl = 0.1 * Body.MaxHydrationMl; // water Critical: over warmth's Need, which a camp with no fire to be had always is
+        var (act, _) = Npc.Decide(w, a, []);
+        output.WriteLine($"{act}; seeing to {mind.SeeingTo}, heading {mind.Heading}");
+        Assert.IsType<Travel>(act);
+        Assert.Equal(Stat.Water, mind.SeeingTo);
+        Assert.NotNull(mind.Heading);
+    }
 }

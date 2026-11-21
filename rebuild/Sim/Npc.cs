@@ -295,7 +295,6 @@ public static partial class Npc
     /// How far it runs from a predator, and how long it keeps one in mind.
     const int FleeTiles = 3;
     public const int ThreatMemoryMinutes = 120;
-    const int SightTiles = Sight.RadiusTiles;
     const double MinLightChance = 0.2;
     /// Warmth's lines (CoreTier): Critical at the hypothermia line, where cold damage starts (any chance of a fire
     /// beats none); Need under 97.5F; warm again over WarmAgainCoreF.
@@ -461,7 +460,10 @@ public static partial class Npc
         if (me.Burning) return Try(me, new MeltSnow(me.Id), Work.MeltSnowMinutes);
         if (me.AtCamp && KeepFire(me, 3) is { } fire) return fire;
         // Old DetermineGetResource(Water): the nearest open water it knows of.
-        var river = me.Mind.Knows.Places.Where(p => p.Value.Water && MapGen.Manhattan(p.Key, me.Tile) <= MaxWoodTiles).Select(p => p.Key)
+        // Water to be had at home (WaterAtHome: some stashed, or a fire to melt snow on) keeps the walk to known water short;
+        // without it, any water it knows of within a search's reach.
+        bool melting = WaterAtHome(me);
+        var river = me.Mind.Knows.Places.Where(p => p.Value.Water && MapGen.Manhattan(p.Key, me.Tile) <= (melting ? MaxWoodTiles : TimberSearchTiles)).Select(p => p.Key)
             .OrderBy(t => MapGen.Manhattan(me.Tile, t)).ThenBy(t => t).Cast<TileId?>().FirstOrDefault();
         // Critical, the walk to it is held only to the legs and to lasting harm, as a warming walk is (Afford): dying of
         // thirst two tiles from a stream is not saved by staying home rested. Old (this rebuild): the wanted lines, so
@@ -470,7 +472,11 @@ public static partial class Npc
         // Home only if there is water to be had there: some left on the stash, or a fire burning or to be lit to melt
         // snow on. Old (this rebuild): home whatever was there, so from one tile out this fallback outranked every
         // lower plan and walked it back to a camp with nothing to drink, and out, and back (seed 17, day 1.96).
-        return !me.AtCamp && WaterAtHome(me) ? GoHome(me) : null;
+        if (melting) return !me.AtCamp ? GoHome(me) : null;
+        // Nothing to drink and no way to melt snow: it goes looking for water, by day, as for timber (Explore). Old (this
+        // rebuild): nothing, so with no fire from day 8.5 and no water it knew of, seed 5 foraged on at a treeless camp
+        // until it died of thirst (day 10.7).
+        return Explore(me, TimberSearchTiles, warming: critical);
     }
 
     /// Water to be had at home, as far as it can tell: some on the stash as it left it, or a fire there burning or to
@@ -836,6 +842,15 @@ public static partial class Npc
     /// For a test: the fuel hours an NPC reckons its camp holds, from where it stands (CampFuelHours).
     internal static double ReckonedCampFuelHours(World world, Agent agent) =>
         CampFuelHours(new Me(world, agent, (NpcMind)agent.Mind!, []));
+
+    /// For a test: where a search from here would head (Explore), within radius of camp; null when nowhere is left unseen.
+    internal static TileId? ExploreHeading(World world, Agent agent, int radius)
+    {
+        var me = new Me(world, agent, (NpcMind)agent.Mind!, []);
+        if (Explore(me, radius) is not { } plan) return null;
+        me.Commit(plan);
+        return me.Mind.Heading;
+    }
 
     /// Home has no fire to be had: none burning or in embers there, as far as it can tell, and not the makings of one,
     /// what it carries included. A trip for wood from such a camp is a warming trip, held to the warming lines (Afford),
@@ -1279,14 +1294,17 @@ public static partial class Npc
     const double MinutesPerTile = 2, ForageStintHours = 1;
 
     /// Six tiles on, toward ground it has seen least of, within radius of camp; null once there is
-    /// nowhere left it has not had a look at.
-    static Plan? Explore(Me me, int radius)
+    /// nowhere left it has not had a look at. Looked at is what it has seen (Beliefs.Explored, the sight rays). Old (this
+    /// rebuild): any tile within three of a place it stood, so ground behind a ridge beside its path counted as seen and
+    /// was never gone to look at (seed 5, day 8: the only timber, five tiles past a mountain it had walked beside).
+    static Plan? Explore(Me me, int radius, bool warming = false)
     {
         if (me.Hour >= HomeByHour - 2) return null;
         var visited = me.Mind.Knows.Places.Where(p => p.Value.Visited).Select(p => p.Key).ToList();
-        int Seen(TileId t) => visited.Count(v => MapGen.Manhattan(v, t) <= SightTiles - 2);
+        var explored = me.Mind.Knows.Explored;
+        bool Seen(TileId t) => explored?.Contains(t) == true;
         var m = Map.Of(me.World);
-        if (me.Mind.Heading is TileId heading && heading != me.Tile && Seen(heading) == 0 && Go(me, heading) is { } onward) return onward;
+        if (me.Mind.Heading is TileId heading && heading != me.Tile && !Seen(heading) && Go(me, heading, warming: warming) is { } onward) return onward;
         // The nearest ring with ground on it it has not had a look at. Old: only the ring six tiles out,
         // so once the ground around camp was seen it never looked further (seed 5: 0 trees within 15 of camp).
         for (int leg = ExploreLegTiles; leg <= radius + MapGen.Manhattan(me.Tile, me.Mind.Camp); leg += ExploreLegTiles)
@@ -1294,13 +1312,13 @@ public static partial class Npc
             int l = leg;
             var ring = Enumerable.Range(-l, 2 * l + 1)
                 .SelectMany(dx => new[] { new TileId(me.Tile.X + dx, me.Tile.Y + (l - Math.Abs(dx))), new TileId(me.Tile.X + dx, me.Tile.Y - (l - Math.Abs(dx))) })
-                .Distinct().Where(t => m.InBounds(t) && m.TerrainAt(t).IsPassable() && MapGen.Manhattan(t, me.Mind.Camp) <= radius && Seen(t) == 0)
+                .Distinct().Where(t => m.InBounds(t) && m.TerrainAt(t).IsPassable() && MapGen.Manhattan(t, me.Mind.Camp) <= radius && !Seen(t))
                 // Toward the ground it has seen least of: nearest camp first, then the fewest places visited around it
                 // (old, this rebuild: then by tile id, so every search swept west and south first - seed 5's only
                 // timber is 24 tiles east).
                 .OrderBy(t => MapGen.Manhattan(t, me.Mind.Camp)).ThenBy(t => visited.Count(v => MapGen.Manhattan(v, t) <= 2 * ExploreLegTiles)).ThenBy(t => t).ToList();
             foreach (var t in ring.Take(3))
-                if (Go(me, t) is { } go)
+                if (Go(me, t, warming: warming) is { } go)
                 {
                     me.Commits.Add(() => me.Mind.Heading = t);
                     return go;
@@ -1567,7 +1585,7 @@ public static partial class Npc
     /// Old GetPriorityThreat, reaching one tile further: the biggest, healthiest predator here or
     /// next door, not already in a fight.
     // Threat, FindFood's prey and AllyInFight read herds' true tiles and bodies from world.Agents, gated
-    // only by a fixed radius (1 and 3 tiles, inside SightTiles, as Knowledge's sight is); use sight rays when those are ported.
+    // only by a fixed radius (1 and 3 tiles); use the sight rays (Sight.InSight) for them too.
     static Agent? Threat(Me me) =>
         Herds(me, 1, h => Fauna.IsPredator(h.Species) && Unengaged(me, h))
             .OrderByDescending(h => h.Members.Where(Body.IsAlive).Max(m => m.WeightKg * Body.Vitality(m))).ThenBy(h => h.Id).FirstOrDefault();

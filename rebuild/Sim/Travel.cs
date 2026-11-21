@@ -108,20 +108,9 @@ public static class Traversal
     /// and the surface excess in: this is the time the crossing actually lasts.
     /// old game: TravelRunner walked GetTraversalMinutes, which left the surface excess out (bug, fixed).
     /// encumbrancePct is carried weight over capacity (Items.EncumbrancePct): past half, a load slows you.
-    public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky, double encumbrancePct = 0)
-    {
-        var m = Map.Of(world);
-        double speed = Body.Speed(body, new AbilityContext(EncumbrancePct: encumbrancePct));
-        int exit = SegmentMinutes(m, from, speed, sky);
-        int entry = SegmentMinutes(m, to, speed, sky);
-        double surface = SurfaceExcessMinutes(world, from, exit) + SurfaceExcessMinutes(world, to, entry);
-        if (pace == Pace.Careful)
-        {
-            if (IsHazardous(world, from)) exit = (int)Math.Ceiling(exit * CarefulFactor);
-            if (IsHazardous(world, to)) entry = (int)Math.Ceiling(entry * CarefulFactor);
-        }
-        return Math.Max(MinimumCrossingMinutes, (int)Math.Ceiling(exit + entry + EdgeMinutes(world, from, to) + surface));
-    }
+    /// The formula and its terms live in one place, Trip.Terms, which the trip preview reads too.
+    public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky, double encumbrancePct = 0) =>
+        Trip.Terms(world, body, from, to, pace, sky, encumbrancePct, observe: true).TotalMinutes;
 
     /// A herd moves at its slowest member's pace over the shape of the ground and the edge, and
     /// does not stumble (no injury roll).
@@ -162,8 +151,11 @@ public static class Traversal
 
     // ---- hazard ----
 
-    public static double EffectiveHazardLevel(World world, TileId tile) =>
-        Math.Min(1.0, Map.TravelHazardLevel(Map.Of(world), tile) + SurfaceHazardDelta(world, tile));
+    public static double EffectiveHazardLevel(World world, TileId tile) => HazardLevel(Map.Of(world), tile, SurfaceHazardDelta(world, tile));
+
+    /// The ground's shape plus what its surface adds, at most 1: one rule whether the surface was
+    /// observed (EffectiveHazardLevel) or only looked at (Trip.IsHazardousNow).
+    internal static double HazardLevel(GeneratedMap m, TileId tile, double surfaceDelta) => Math.Min(1.0, Map.TravelHazardLevel(m, tile) + surfaceDelta);
 
     public static bool IsHazardous(World world, TileId tile) => EffectiveHazardLevel(world, tile) >= HazardousLevel;
 
