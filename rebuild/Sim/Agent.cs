@@ -79,7 +79,7 @@ public static class Agents
         var source = world.Agent(from);
         if (memberIndex < 0 || memberIndex >= source.Members.Count)
             throw new ArgumentOutOfRangeException(nameof(memberIndex), memberIndex, $"{from} has {source.Members.Count} members");
-        if (world.Encounters.Any(e => e.Units.Any(u => u.Agent == from)))
+        if (Combat.EncounterOf(world, from) != null)
             throw new InvalidOperationException($"{from} is in a fight; its members cannot be reordered until it ends");
         if (source.Members.Count == 1) return from;
         // A person is one body; splitting a pack would mint what is in it.

@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Text.Json.Serialization;
 
 namespace Survival;
 
@@ -67,6 +68,10 @@ public sealed class CombatUnit
     public double SignalModifier { get; set; }
     public long SignalExpiresMinute { get; set; }
     public long? LastSignalMinute { get; set; }
+    /// Fled, and its agent has since gone into another fight (Combat.Admit): its part here is settled,
+    /// its weapon back in its pack, and nothing here reads its body again (the other fight may reorder
+    /// or remove it). It stays listed so Fight.Target indexes keep pointing at the same units.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Released { get; set; }
 }
 
 /// A fight under way on one tile. Lives in World.Encounters from Combat.Create to its aftermath,
@@ -163,8 +168,11 @@ public static partial class Combat
         return unit;
     }
 
-    /// Who may go into a fight: a living member, on the tile, of an agent in no other fight (units
-    /// name members by index, and one fight's aftermath reorders them), wielding a weapon from its own pack.
+    /// Who may go into a fight: a living member, on the tile, of an agent no other fight holds
+    /// (Sim.Held: nobody of it in that field), wielding a weapon from its own pack. Units name members
+    /// by index and one fight's aftermath reorders them, so an agent that fled another fight still
+    /// under way is released from it first (CombatUnit.Released); one that also lost a member there
+    /// stays that fight's until its aftermath has taken the dead.
     static void Admit(World world, Fighter f, TileId tile, Encounter? into)
     {
         var agent = world.Agent(f.Agent);
@@ -172,10 +180,17 @@ public static partial class Combat
             throw new ArgumentOutOfRangeException(nameof(f), f.Member, $"{f.Agent} has {agent.Members.Count} members");
         if (!Body.IsAlive(agent.Members[f.Member])) throw new ArgumentException($"{f.Agent} member {f.Member} is dead");
         if (agent.Tile != tile) throw new ArgumentException($"{f.Agent} is on {agent.Tile}, not {tile}");
-        if (world.Encounters.Any(e => e != into && e.Units.Any(u => u.Agent == f.Agent)))
+        var left = world.Encounters.Where(e => e != into).SelectMany(e => e.Units).Where(u => u.Agent == f.Agent && !u.Released).ToList();
+        if (left.Any(u => u.InField || !Alive(world, u)))
             throw new InvalidOperationException($"{f.Agent} is already in another fight");
         if (into != null && into.Units.Any(u => u.Agent == f.Agent && u.Member == f.Member))
             throw new InvalidOperationException($"{f.Agent} member {f.Member} is already fighting");
+        foreach (var u in left) // fled and alive: settled out of that fight, with the weapon it ran off with
+        {
+            if (u.Weapon != null) Items.PackOf(agent)!.Gear.Add(u.Weapon);
+            u.Weapon = null;
+            u.Released = true;
+        }
         if (f.Weapon is not Gear weapon) return;
         if (Items.Def(weapon).Weapon == null) throw new ArgumentException($"{Items.Def(weapon).Name} is not a weapon");
         if (Items.PackOf(agent)?.Gear.Contains(weapon) != true)
@@ -292,9 +307,10 @@ public static partial class Combat
         Enemies(enc, u).OrderBy(e => u.Position.DistanceTo(e.Position)).FirstOrDefault();
     /// Over when one side has nobody left in the field.
     public static bool IsOver(Encounter enc) => !Field(enc).Any(u => u.Team == 0) || !Field(enc).Any(u => u.Team == 1);
-    public static Encounter? EncounterOf(World world, AgentId who) => world.Encounters.FirstOrDefault(e => e.Units.Any(u => u.Agent == who));
+    /// The fight that lists this agent (in the field, fallen or fled), unless it has been released from it.
+    public static Encounter? EncounterOf(World world, AgentId who) => world.Encounters.FirstOrDefault(e => e.Units.Any(u => u.Agent == who && !u.Released));
     public static CombatUnit UnitOf(Encounter enc, AgentId who) =>
-        enc.Units.FirstOrDefault(u => u.Agent == who) ?? throw new KeyNotFoundException($"{who} is not in this fight");
+        enc.Units.FirstOrDefault(u => u.Agent == who && !u.Released) ?? throw new KeyNotFoundException($"{who} is not in this fight");
 
     public static BodyState BodyOf(World world, CombatUnit u)
     {
@@ -323,8 +339,9 @@ public static partial class Combat
         var player = enc.Units.FirstOrDefault(IsPlayer);
         if (player != null && !Alive(world, player)) return CombatResult.Defeat;
         if (player != null && !player.InField) return CombatResult.Fled;
-        if (!enc.Units.Any(u => u.Team == 1 && Alive(world, u))) return CombatResult.Victory;
-        if (!enc.Units.Any(u => u.Team == 0 && Alive(world, u))) return CombatResult.Defeat;
+        var listed = enc.Units.Where(u => !u.Released).ToList();
+        if (!listed.Any(u => u.Team == 1 && Alive(world, u))) return CombatResult.Victory;
+        if (!listed.Any(u => u.Team == 0 && Alive(world, u))) return CombatResult.Defeat;
         if (!Field(enc).Any(u => u.Team == 0)) return CombatResult.Fled;
         if (!Field(enc).Any(u => u.Team == 1)) return CombatResult.AnimalFled;
         return CombatResult.AnimalDisengaged;
@@ -464,13 +481,18 @@ public static partial class Combat
             }
         enc.Rounds++;
         if (me.InField && !IsOver(enc)) return null;
-
-        // The player is out (fled or fell): whoever is left fights it out unwatched.
-        // ponytail: old game ran the remainder as a background fight, one round a minute; here it resolves at once.
-        RunRounds(world, enc, events, HeadlessRoundCap);
-        var result = Result(world, enc);
-        Aftermath(world, enc, result, events);
+        Finish(world, enc, events);
         return Alive(world, me) ? "fight over" : "died";
+    }
+
+    /// The player is out (fled or fell, in a round or not): whoever is left fights it out unwatched,
+    /// and the fight leaves the world. No fight outlives the player's part in it.
+    // ponytail: old game ran the remainder as a background fight, one round a minute; here it resolves at once.
+    internal static void Finish(World world, Encounter enc, List<WorldEvent> events)
+    {
+        Sweep(world, enc, events, by: null);
+        RunRounds(world, enc, events, HeadlessRoundCap);
+        Aftermath(world, enc, Result(world, enc), events);
     }
 
     /// A fight with no player in it, to the end or the round cap. Same grid, same AI, same aftermath.
@@ -508,6 +530,7 @@ public static partial class Combat
             {
                 var body = BodyOf(world, u);
                 Body.TickWounds(body, world.Rng("body"));
+                if (world.Agent(u.Agent).Mind is HerdMind && Body.IsAlive(body)) Fauna.Mend(body); // an animal mends in the minute it bleeds (Fauna.Tick)
                 body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute - 1) + 1;
             }
             Sweep(world, enc, events, by: null);

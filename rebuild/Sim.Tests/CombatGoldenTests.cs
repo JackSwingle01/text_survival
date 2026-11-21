@@ -314,14 +314,15 @@ public class CombatGoldenTests
                 var id = Herd(w, s, n, t);
                 if (s == Species.Human) foreach (var m in w.Agent(id).Members) m.Worn.Clear();
                 Inventory? pack = null;
-                if (spear)
+                if (s == Species.Human)
                 {
+                    // People, not a herd: a herd mends as its rounds bleed it, and old people did not.
                     // A spear is wielded out of a pack, so these people carry one.
                     var herd = w.Agent(id);
-                    pack = new Inventory { Gear = [.. Enumerable.Range(0, n).Select(_ => Items.Make("wooden_spear"))] };
+                    pack = new Inventory { Gear = spear ? [.. Enumerable.Range(0, n).Select(_ => Items.Make("wooden_spear"))] : [] };
                     w.Agents[id] = new Agent { Id = id, Tile = herd.Tile, Species = herd.Species, Members = herd.Members, Mind = new PlayerMind { Pack = pack } };
                 }
-                return [.. Enumerable.Range(0, n).Select(k => new Fighter(id, k) { Weapon = pack?.Gear[k] })];
+                return [.. Enumerable.Range(0, n).Select(k => new Fighter(id, k) { Weapon = spear ? pack!.Gear[k] : null })];
             }
             var (a, b, d, aa, ba) = scenario switch
             {

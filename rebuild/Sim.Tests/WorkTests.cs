@@ -137,6 +137,27 @@ public class WorkTests
         Assert.True(foodFocused < fuelFocused * 0.75, $"fuel kept {fuelFocused:0.0} kg under a fuel focus, {foodFocused:0.0} under a food focus");
     }
 
+    /// balance: forage retuned (2026-11-20). Old FocusProcessor only filtered, so a food search fed no
+    /// better than a general one; focus now buys Work.FocusGain of what it looks for.
+    [Fact]
+    public void AFocusedSearch_FindsMoreOfWhatItLooksFor_ThanAGeneralOne()
+    {
+        double FoodKcal(ForageFocus focus)
+        {
+            double sum = 0;
+            for (int i = 0; i < 60; i++)
+            {
+                var w = WithPools(new ForagePool("forage", 1.0, Pools.MixedForest));
+                w.Rngs["work"] = Rng.ForSystem(i, "work");
+                Sim.Step(w, new Gather(P, 0, focus), 60);
+                sum += Items.Pack(w, P).Kg.Sum(kv => kv.Value * Items.Resources[kv.Key].KcalPerKg);
+            }
+            return sum;
+        }
+        double general = FoodKcal(ForageFocus.General), food = FoodKcal(ForageFocus.Food);
+        Assert.InRange(food / general, 1.1, 1.6);
+    }
+
     [Fact]
     public void Chopping_NeedsAnAxe_PersistsAcrossSteps_AndStopsWhenTheTreeFalls()
     {

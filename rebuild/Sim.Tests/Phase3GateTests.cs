@@ -25,6 +25,8 @@ public class Phase3GateTests
         var tile = me.Tile;
         void S(Survival.Activity a, int minutes)
         {
+            // A player who died in an earlier call of this step waits for the next step to be revived.
+            if (!Body.IsAlive(w.Agent(P).Body)) return;
             var r = Sim.Step(w, a, minutes);
             t.Felled += r.Events.OfType<TreeFelled>().Count();
             t.Butchered += r.Events.OfType<Butchered>().Count();
@@ -136,5 +138,13 @@ public class Phase3GateTests
         Assert.True(t.Splits > 0 && t.Moves > 0);
         Assert.True(t.Fuels.Count >= 3, $"fed only {string.Join(", ", t.Fuels)}");
         Assert.Equal(Save.ToJson(straight), Save.ToJson(resumed));
+    }
+
+    /// Review 2: cases that step several times in a row must not step a player who died in one of them.
+    [Fact]
+    public void ALongMixedRun_NeverStepsADeadPlayer()
+    {
+        var (w, t) = Run(1500);
+        Assert.True(t.PlayerFights > 0 && w.Minute > 0);
     }
 }

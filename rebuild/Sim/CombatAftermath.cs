@@ -11,8 +11,10 @@ public static partial class Combat
     static void Aftermath(World world, Encounter enc, CombatResult result, List<WorldEvent> events)
     {
         world.Encounters.Remove(enc); // first: members may be reordered from here on
+        // A released unit's agent settled out of this fight already and may be in another now.
+        var units = enc.Units.Where(u => !u.Released).ToList();
 
-        foreach (var u in enc.Units.Where(u => u.Weapon != null))
+        foreach (var u in units.Where(u => u.Weapon != null))
         {
             var pack = Items.PackOf(world.Agent(u.Agent));
             (pack != null && Alive(world, u) ? pack : Items.StashAt(world, enc.Tile)).Gear.Add(u.Weapon!);
@@ -20,20 +22,20 @@ public static partial class Combat
         }
 
         // Only a wounded animal the player watched get away leaves a trail (old TrackWoundedPrey).
-        var escaped = result == CombatResult.AnimalFled && enc.Units.Any(IsPlayer)
-            ? enc.Units.Where(u => u.Team == 1 && StatsOf(world, u).IsAnimal && Alive(world, u) && WoundLevel(BodyOf(world, u)) > 0.05)
+        var escaped = result == CombatResult.AnimalFled && units.Any(IsPlayer)
+            ? units.Where(u => u.Team == 1 && StatsOf(world, u).IsAnimal && Alive(world, u) && WoundLevel(BodyOf(world, u)) > 0.05)
                 .OrderByDescending(u => WoundLevel(BodyOf(world, u))).FirstOrDefault()
             : null;
         var escapedBody = escaped != null ? BodyOf(world, escaped) : null;
 
         // Which sides lost someone, before the dead leave their herds.
-        var fell = enc.Units.Where(u => !Alive(world, u)).Select(u => u.Team).ToHashSet();
-        var fought = enc.Units.Select(u => u.Agent).Distinct().ToList();
+        var fell = units.Where(u => !Alive(world, u)).Select(u => u.Team).ToHashSet();
+        var fought = units.Select(u => u.Agent).Distinct().ToList();
         foreach (var id in fought)
         {
             var agent = world.Agent(id);
             if (!SpeciesTable.Of(agent.Species).IsAnimal) continue;
-            foreach (var body in enc.Units.Where(u => u.Agent == id).Select(u => BodyOf(world, u)).Where(b => !Body.IsAlive(b)).ToList())
+            foreach (var body in units.Where(u => u.Agent == id).Select(u => BodyOf(world, u)).Where(b => !Body.IsAlive(b)).ToList())
             {
                 LeaveCarcass(world, enc.Tile, agent.Species, body);
                 agent.Members.Remove(body);
@@ -52,7 +54,7 @@ public static partial class Combat
 
         foreach (var id in fought)
         {
-            var side = enc.Units.First(u => u.Agent == id).Team;
+            var side = units.First(u => u.Agent == id).Team;
             var own = side == 0 ? result : Mirror(result);
             events.Add(new FightEnded(world.Minute, id, enc.Tile, own, enc.Rounds));
             Fauna.AfterFight(world, id, own, killedOne: fell.Contains(1 - side), enc.Tile);

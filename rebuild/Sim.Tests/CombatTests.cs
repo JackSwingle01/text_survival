@@ -776,4 +776,108 @@ public class CombatTests
         Assert.False(runner.InField);
         Assert.NotEqual(new Cell(25, 40), hunter.Position);
     }
+
+    // ---- review 2: fled fighters, and fights that outlive their player ----
+
+    /// Review 2 J1: a fight holds only who is in its field (Sim.Held), so an NPC that fled the
+    /// player's fight lives on its own mind; when that mind hunts, the hunt admits it and releases it
+    /// from the fight it ran from (old: "already in another fight" thrown from the scheduler).
+    [Fact]
+    public void AFledNpc_CanHuntElsewhere_AndBothFightsResolve()
+    {
+        var w = World.New(17);
+        Sim.Advance(w, 60);
+        w.Agent(AgentId.Player).Members[0] = BodyState.BaselineHuman();
+        var tile = w.Agent(AgentId.Player).Tile;
+        var npc = Npc.Spawn(w, tile);
+        Items.Pack(w, npc).Gear.Add(Items.Make("wooden_spear"));
+        var wolves = Agents.Spawn(w, Species.Wolf, tile, 2);
+        var enc = Combat.Create(w, [new Fighter(AgentId.Player), new Fighter(npc)], [new Fighter(wolves, 0)], tile, 20, Awareness.Engaged, Awareness.Engaged);
+        var fled = enc.Units.Single(u => u.Agent == npc);
+        fled.InField = false; // it fled; the player fights on
+        var bison = Agents.Spawn(w, Species.Bison, tile, 3);
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        var b = w.Agent(npc).Body;
+        b.FatKg = mind.TargetFatKg - 1.5; b.CaloriesKcal = 100; b.CoreTempF = 98.6;
+        Items.Add(Items.StashAt(w, tile), Resource.Birch, 60);
+
+        var events = new List<WorldEvent>();
+        for (int i = 0; i < 30; i++) events.AddRange(Sim.Advance(w, 1));
+        Assert.Contains(events, e => e is FightEnded f && f.Agent == bison); // the NPC's hunt was fought out
+        Assert.True(fled.Released);
+        // The player's fight goes on (or ended) without reading the NPC again: it hears nothing of it.
+        for (int i = 0; i < 600 && w.Encounters.Contains(enc); i++) events.AddRange(Sim.Advance(w, 1));
+        Assert.DoesNotContain(w.Encounters, e => e == enc);
+        Assert.Single(events.OfType<FightEnded>(), f => f.Agent == AgentId.Player);
+    }
+
+    /// Releasing a fled fighter settles it out of the old fight: its weapon comes back to its pack,
+    /// and the old fight's aftermath leaves its body alone (it may be dead, or reordered, by then).
+    [Fact]
+    public void AdmittingAFledFighter_ReleasesItFromTheFightItRanFrom()
+    {
+        var (w, tile) = Field();
+        var npc = Npc.Spawn(w, tile);
+        var spear = Items.Make("wooden_spear");
+        Items.Pack(w, npc).Gear.Add(spear);
+        var wolves = Herd(w, Species.Wolf, 2, tile);
+        var old = Combat.Create(w, [new Fighter(AgentId.Player), new Fighter(npc) { Weapon = spear }], [new Fighter(wolves, 0)], tile, 20, Awareness.Engaged, Awareness.Engaged);
+        var fled = old.Units.Single(u => u.Agent == npc);
+        // Still in the field: held, and refused elsewhere.
+        var bear = Herd(w, Species.Bear, 1, tile);
+        Assert.Throws<InvalidOperationException>(() => Combat.Create(w, [new Fighter(npc)], [new Fighter(bear, 0)], tile, 20, Awareness.Engaged, Awareness.Engaged));
+        fled.InField = false;
+        var other = Combat.Create(w, [new Fighter(npc) { Weapon = spear }], [new Fighter(bear, 0)], tile, 20, Awareness.Engaged, Awareness.Engaged);
+        Assert.True(fled.Released);
+        Assert.Null(fled.Weapon);
+        Assert.Same(other, Combat.EncounterOf(w, npc));
+        w.Agent(npc).Body.BloodPct = 0; // dies in the new fight
+        Combat.ResolveHeadless(w, other, []);
+        // The old fight ends without the NPC: no carcass, no fall, no report of it.
+        var events = new List<WorldEvent>();
+        Combat.Finish(w, old, events);
+        Assert.DoesNotContain(events, e => e is FightEnded f && f.Agent == npc);
+        Assert.Contains(events, e => e is FightEnded f && f.Agent == wolves);
+        Assert.Empty(w.Encounters);
+    }
+
+    /// Review 2 F1: Advance while the player is in a fight waits it out round by round, so the
+    /// fight goes on: a bleeding player dies in it and the wolves are free again (old: no round ran,
+    /// the fight never ended and held the wolves for good).
+    [Fact]
+    public void AdvanceWhileInAFight_FightsWaitingRounds_UntilItEnds()
+    {
+        var w = World.New(17);
+        var camp = Map.Of(w).Camp;
+        var wolves = Agents.Spawn(w, Species.Wolf, camp, 3);
+        var enc = Combat.Create(w, [new Fighter(AgentId.Player)], [new Fighter(wolves, 0)], camp, 8, Awareness.Engaged, Awareness.Engaged);
+        Effects.Add(w.Agent(AgentId.Player).Body, EffectKind.Bleeding, 1.0);
+        var events = new List<WorldEvent>();
+        for (int i = 0; i < 1440 && w.Encounters.Count > 0; i++) events.AddRange(Sim.Advance(w, 1));
+        Assert.Empty(w.Encounters);
+        Assert.Contains(events, e => e is FightEnded f && f.Agent == AgentId.Player);
+        Assert.True(enc.Rounds > 0);
+        Assert.Contains(events, e => e is Died d && d.Who == AgentId.Player);
+        Assert.False(Sim.Held(w, wolves));
+        // Their mind decides again: a kill with no carcass to it feeds nobody, so they lie up.
+        Assert.Equal(HerdState.Feeding, Fauna.MindOf(w.Agent(wolves)).State);
+        Sim.Advance(w, 5);
+        Assert.NotEqual(HerdState.Feeding, Fauna.MindOf(w.Agent(wolves)).State);
+    }
+
+    /// However the player dies outside a round, the next minute ends the fight and frees its sides.
+    [Fact]
+    public void AFightWhosePlayerDiedOutsideARound_EndsOnTheNextMinute()
+    {
+        var w = World.New(17);
+        var camp = Map.Of(w).Camp;
+        var wolves = Agents.Spawn(w, Species.Wolf, camp, 3);
+        Combat.Create(w, [new Fighter(AgentId.Player)], [new Fighter(wolves, 0)], camp, 8, Awareness.Engaged, Awareness.Engaged);
+        w.Agent(AgentId.Player).Body.BloodPct = 0;
+        Assert.False(Body.IsAlive(w.Agent(AgentId.Player).Body));
+        var events = Sim.Advance(w, 1);
+        Assert.Empty(w.Encounters);
+        Assert.Contains(events, e => e is FightEnded f && f.Agent == wolves && f.Result == CombatResult.Victory);
+        Assert.False(Sim.Held(w, wolves));
+    }
 }

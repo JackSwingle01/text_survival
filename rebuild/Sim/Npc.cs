@@ -352,17 +352,9 @@ public static partial class Npc
         if (Carcass(me) != null && me.RoomKg < 1) return GoHome(me);
         // No foraging or stalking blind (judgment call: the night is for the fire and sleep, even hungry).
         if (me.Dark) return null;
-        // A pack full of the logs a food search turns up: they go down here, not home (old: it walked back
-        // to camp to unload every hour or two, and spent the day carrying wood instead of looking for food).
-        if (me.RoomKg < 1) return DropLogs(me) ?? GoHome(me);
+        if (me.RoomKg < 1) return GoHome(me);
         return FindFood(me);
     }
-
-    /// Logs off the pack onto this tile's stash, heaviest load first; never onto a woodpile, which Wood
-    /// would only pick up again (that is wood on its way home, and goes home).
-    static Plan? DropLogs(Me me) =>
-        Woods.Any(r => me.Stashed(r) > 0) ? null
-        : First(Woods.OrderByDescending(me.Has), r => me.Has(r) > 0) is Resource log ? Try(me, new Stash(me.Id, log, me.Has(log)), 1) : null;
 
     /// Where the next meal is likeliest to come from, by expected kilocalories an hour, best first.
     static Plan? FindFood(Me me)
@@ -372,7 +364,7 @@ public static partial class Npc
         if (ForageTarget(me, ForageFocus.Food, wander) is { } ground)
             options.Add((ground.PerHour * 1000, () => Forage(me, minutes: 45, wander, ForageFocus.Food)));
         if (Weapon(me) != null && Body.Vitality(me.Agent.Body) >= 0.7)
-            foreach (var prey in Herds(me, 3, h => Fauna.BehaviorOf(h.Species) == HerdBehavior.Prey).OrderBy(h => h.Id))
+            foreach (var prey in Herds(me, 3, h => Fauna.BehaviorOf(h.Species) == HerdBehavior.Prey && Unengaged(me, h)).OrderBy(h => h.Id))
                 options.Add((HuntKcalPerHour(me, prey), () => Hunt(me, prey)));
         foreach (var o in options.Where(o => o.KcalPerHour > 0).OrderByDescending(o => o.KcalPerHour))
             if (o.Act() is { } plan) return plan;
@@ -552,10 +544,26 @@ public static partial class Npc
                 ? Math.Min(def.Density, d + (me.World.Minute - p.SeenMinute) / 60.0 / Pools.ForageRespawnHours * def.Density) : def.Density;
             return Value(def, density, focus);
         }
-        // Ground it has worked, and ground it has only seen (trees or water in sight), within its range.
         var candidates = me.Mind.Places.Where(p => p.Value.Visited && p.Key != me.Tile && InRange(me, p.Key)).Select(p => p.Key)
             .Concat(MapGen.Neighbors(me.Tile).Where(t => Passable(me, me.Tile, t) && InRange(me, t) && me.Mind.Places.GetValueOrDefault(t)?.Visited != true));
-        var best = candidates.Select(t => (Tile: t, PerHour: Expect(t) * ForageStintHours / (ForageStintHours + MapGen.Manhattan(me.Tile, t) * MinutesPerTile / 60.0)))
+        // The walk at today's going, not a flat rate (old: two minutes a tile, so in deep snow it set off
+        // three tiles for fresh ground, took an hour a tile, and froze walking home): the first step's
+        // crossing toward it, once per tile of distance.
+        var sky = Weather.At(me.World, me.World.Minute);
+        var stepMinutes = new Dictionary<TileId, int>();
+        double WalkHours(TileId t)
+        {
+            var step = MapGen.Neighbors(me.Tile).Where(n => Passable(me, me.Tile, n))
+                .OrderBy(n => MapGen.Manhattan(n, t)).ThenBy(n => n).Cast<TileId?>().FirstOrDefault();
+            if (step is not TileId first) return double.PositiveInfinity;
+            if (!stepMinutes.TryGetValue(first, out int minutes))
+            {
+                var pace = Traversal.IsHazardous(me.World, me.Tile) || Traversal.IsHazardous(me.World, first) ? Pace.Careful : Pace.Quick;
+                stepMinutes[first] = minutes = Traversal.CrossingMinutes(me.World, me.Agent.Body, me.Tile, first, pace, sky, Items.EncumbrancePct(me.Agent));
+            }
+            return MapGen.Manhattan(me.Tile, t) * minutes / 60.0;
+        }
+        var best = candidates.Select(t => (Tile: t, PerHour: Expect(t) * ForageStintHours / (ForageStintHours + WalkHours(t))))
             .OrderByDescending(x => x.PerHour).ThenBy(x => x.Tile).FirstOrDefault();
         // Somewhere new has to be clearly better to be worth the walk.
         if (here > 0 && here >= best.PerHour * 0.8) return (me.Tile, here);
@@ -563,8 +571,8 @@ public static partial class Npc
         return here > 0 ? (me.Tile, here) : null;
     }
 
-    /// A rough tile crossing for planning (flat ground is one minute, rough two); and how long a stint
-    /// of foraging the walk is weighed against.
+    /// A rough tile crossing for planning a hunt (flat ground is one minute, rough two); and how long a
+    /// stint of foraging a walk is weighed against.
     const double MinutesPerTile = 2, ForageStintHours = 1;
 
     /// Six tiles on, toward ground it has seen least of, within radius of camp; null once there is
@@ -665,8 +673,13 @@ public static partial class Npc
     // ponytail: Threat, FindFood's prey and AllyInFight read herds' true tiles and bodies from world.Agents, gated
     // only by a fixed radius (1 and 3 tiles, inside SightTiles, as Remember is); use sight rays when those are ported.
     static Agent? Threat(Me me) =>
-        Herds(me, 1, h => Fauna.IsPredator(h.Species) && Combat.EncounterOf(me.World, h.Id) == null)
+        Herds(me, 1, h => Fauna.IsPredator(h.Species) && Unengaged(me, h))
             .OrderByDescending(h => h.Members.Where(Body.IsAlive).Max(m => m.WeightKg * Body.Vitality(m))).ThenBy(h => h.Id).FirstOrDefault();
+
+    /// A herd no fight has hold of (in the field or listed at all): one already fighting someone is
+    /// neither prey to start a hunt on nor a threat to start a fight with - Combat.Create would refuse
+    /// it (old: a hungry NPC beside the player's bison fight called BeginHunt on that bison and threw).
+    static bool Unengaged(Me me, Agent herd) => !Sim.Held(me.World, herd.Id) && Combat.EncounterOf(me.World, herd.Id) == null;
 
     static IEnumerable<Agent> Herds(Me me, int withinTiles, Func<Agent, bool> kind) =>
         me.World.Agents.Values.Where(a => a.Mind is HerdMind && MapGen.Manhattan(a.Tile, me.Tile) <= withinTiles

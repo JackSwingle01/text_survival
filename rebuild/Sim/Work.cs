@@ -369,7 +369,13 @@ public static class Work
     /// another like it on these odds. Old FocusProcessor only filtered, so focus cost the rest of the haul
     /// and bought nothing - a focused food search fed no better than a general one (2026-11-20 forage retune).
     /// Grounding: the eyes and hours a general search spends on sticks and stones go on the berries and roots.
-    /// Sized so a person who works food all day, moving on as ground thins, about breaks even in forest.
+    /// Why this lever: per hour, fresh forest gives ~170 kcal of food (berries 75%), thinning as 1/(1+2h);
+    /// kcal per kg are already realistic (berries 500, nuts 6000), and density and depletion are shared
+    /// with fuel and are what pushes a forager outward. Measured (14 days, six gate seeds, a scripted
+    /// player foraging food 06-18h from camp within six tiles, moving on when ground thins): forest fat
+    /// went from -0.06..-0.13 kg/day to -0.00..-0.06; open plain stays near -0.18 and one worked-over
+    /// tile near -0.12..-0.20 - poor country and staying put still starve you, and a general search
+    /// (the old yield) still runs a deficit.
     public const double FocusGain = 1.3;
 
     /// Old FocusProcessor.ApplyFocus: each find outside the focus survives on a 40-60% roll.

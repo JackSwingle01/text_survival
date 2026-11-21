@@ -401,4 +401,79 @@ public class NpcTests(ITestOutputHelper output)
         Assert.True(a is Sleep or AddFuel or Unstash or StartFire, $"chose {a}"); // bed: the fire banked, then sleep
         Assert.Equal(Need.Rest, mind.Need);
     }
+
+    // ---- foraging ----
+
+    /// A food search weighs fresh ground against the walk at today's going. On a forest tile worked to
+    /// about two thirds of the best fresh ground next door, it moves on over bare ground; with
+    /// everything buried in drifts the walk costs more than the difference and it works what is here
+    /// (old: two minutes a tile whatever the snow, so it set off through drifts for fresh ground and
+    /// froze walking home).
+    [Fact]
+    public void FoodSearch_PricesTheWalkToFreshGround_AtTodaysGoing()
+    {
+        (Activity Activity, double WalkMinutes) Decide(bool drifts)
+        {
+            var w = World.New(17);
+            w.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, -5, 0.1, 0, 0.8, WindDirection.North);
+            var m = Map.Of(w);
+            double Fresh(TileId t) => ((ForagePool)Pools.At(w, t)[0]).Density;
+            // A forest tile among forest, richer than 0.7 of its best neighbour, so it can be worked down to 0.65 of it.
+            var here = Enumerable.Range(-15, 31).SelectMany(dx => Enumerable.Range(-15, 31).Select(dy => new TileId(m.Camp.X + dx, m.Camp.Y + dy)))
+                .Where(t => t != m.Camp && m.InBounds(t) && m.TerrainAt(t) == Terrain.Forest
+                            && MapGen.Neighbors(t).All(n => n != m.Camp && m.InBounds(n) && m.TerrainAt(n) == Terrain.Forest && Map.Blocked(m, t, n) == null)
+                            && Fresh(t) > 0.7 * MapGen.Neighbors(t).Max(Fresh))
+                .OrderBy(t => MapGen.Manhattan(t, m.Camp)).ThenBy(t => t).First();
+            double target = 0.65 * MapGen.Neighbors(here).Max(Fresh);
+            w.Tiles[here] = new TileState { Pools = new() { [0] = new ForageState { HoursForaged = (Fresh(here) / target - 1) / 2 } } };
+            if (drifts)
+                foreach (var t in MapGen.Neighbors(here).Append(here))
+                {
+                    var sub = Ground.Substrate(m, t);
+                    var g = Ground.Baseline(sub);
+                    Ground.Advance(g, sub, 60 * 48, new SurfaceWeather(15, 0.2, 0, 5e-3 / 60, 0));
+                    g.LastUpdatedMinute = 0;
+                    (w.Tiles.TryGetValue(t, out var ts) ? ts : w.Tiles[t] = new TileState()).Ground = g;
+                }
+            var npc = Npc.Spawn(w, here);
+            Items.Add(Items.StashAt(w, here), Resource.Birch, 40);
+            var agent = w.Agent(npc);
+            agent.Body.FatKg = ((NpcMind)agent.Mind).TargetFatKg - 0.5;
+            var (a, _) = Npc.Decide(w, agent, []);
+            return (a, Traversal.CrossingMinutes(w, agent.Body, here, MapGen.Neighbors(here).First(), Pace.Quick, Weather.At(w, 0)));
+        }
+        var bare = Decide(drifts: false);
+        var deep = Decide(drifts: true);
+        output.WriteLine($"bare: {bare}; drifts: {deep}");
+        Assert.True(deep.WalkMinutes > bare.WalkMinutes * 3, "the drifts should make the walk slow");
+        Assert.IsType<Travel>(bare.Activity);
+        Assert.Equal(new Gather(deep.Activity.Who, 0, ForageFocus.Food), deep.Activity);
+    }
+
+    /// Review finding H1: a hungry, armed NPC on the tile where the player is fighting a bison took
+    /// that bison for prey and called BeginHunt on it, which threw "already in another fight".
+    [Fact]
+    public void HungryNpc_DoesNotHuntPreyAlreadyInAFight()
+    {
+        var w = World.New(17);
+        var camp = Map.Of(w).Camp;
+        var npc = Npc.Spawn(w, camp);
+        Items.Pack(w, npc).Gear.Add(Items.Make("wooden_spear"));
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        Items.Add(Items.StashAt(w, camp), Resource.Birch, 60);
+        Sim.Advance(w, 60);
+        var tile = w.Agent(npc).Tile;
+        var bison = Agents.Spawn(w, Species.Bison, tile, 3);
+        w.Agent(AgentId.Player).Tile = tile;
+        w.Agent(AgentId.Player).Members[0] = BodyState.BaselineHuman();
+        Combat.Create(w, [new Fighter(AgentId.Player)], [new Fighter(bison, 0)], tile, 20, Awareness.Engaged, Awareness.Unaware);
+        var body = w.Agent(npc).Body;
+        w.Agent(npc).Doing = null;
+        (body.CoreTempF, body.EnergyMinutes, body.HydrationMl, body.CaloriesKcal) = (98.6, Body.MaxEnergyMinutes, Body.MaxHydrationMl, 100);
+        body.FatKg = mind.TargetFatKg - 1.5;
+        var (a, _) = Npc.Decide(w, w.Agent(npc), []);
+        output.WriteLine($"{a}, need {mind.Need}");
+        Assert.Single(w.Encounters);
+        Assert.DoesNotContain(w.Encounters[0].Units, u => u.Agent == npc);
+    }
 }

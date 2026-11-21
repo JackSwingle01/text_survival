@@ -638,6 +638,48 @@ public class HerdTests(ITestOutputHelper output)
         AssertEachLivedOnce([b], 30, "player");
         Assert.True(b.CaloriesKcal < kcal && b.HydrationMl < water);
     }
+
+    // ---- review 2 ----
+
+    /// A headless fight's rounds are minutes each body lives once: an animal mends in them as it
+    /// bleeds in them (Fauna.Tick skips them after), so no lived minute goes unmended.
+    [Fact]
+    public void AHeadlessFightsRounds_MendAnimalsAsWellAsBleedThem()
+    {
+        var w = World.New(1);
+        var tile = Quiet(w);
+        Sim.Advance(w, 1); // off minute zero, where the first round's minute is clamped
+        var a = Agents.Spawn(w, Species.Caribou, tile, 1);
+        var b = Agents.Spawn(w, Species.Caribou, tile, 1);
+        var body = w.Agent(a).Members[0];
+        body.BloodPct = 0.8;
+        var fight = Combat.Create(w, [new Fighter(a)], [new Fighter(b)], tile, 40, Awareness.Unaware, Awareness.Unaware);
+        var events = new List<WorldEvent>();
+        Combat.ResolveHeadless(w, fight, events);
+        Assert.DoesNotContain(events, e => e is Injured);
+        long lived = body.WoundsLivedThroughMinute - (w.Minute - 1);
+        Assert.True(lived > 0);
+        Assert.Equal(0.8 + lived * Fauna.MendPctPerMinute, body.BloodPct, 9);
+    }
+
+    /// A starving pack's foray ends when it eats, whatever it eats: a carcass it found, not only its own kill.
+    [Fact]
+    public void AForayEnds_WhenThePackScavenges()
+    {
+        var w = World.New(1);
+        var tile = Quiet(w);
+        foreach (var id in w.Agents.Values.Where(x => x.Mind is HerdMind).Select(x => x.Id).ToList()) w.Agents.Remove(id);
+        var wolves = Agents.Spawn(w, Species.Wolf, tile, 3);
+        var mind = Fauna.MindOf(w.Agent(wolves));
+        Combat.LeaveCarcass(w, tile, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 100, 0.1, 0.4));
+        mind.Hunger = 0.95;
+        mind.Foray = new TileId(tile.X + 10, tile.Y);
+        mind.State = HerdState.Patrolling;
+        Sim.Advance(w, 3);
+        Assert.Equal(HerdState.Feeding, mind.State);
+        Assert.Null(mind.Foray);
+    }
+
 }
 
 /// Months of the populated valley: nothing in it gets stuck. One class per seed, so they run side by side.

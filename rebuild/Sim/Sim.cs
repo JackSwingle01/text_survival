@@ -68,17 +68,30 @@ public static class Sim
 
     /// Lets the world's clock run with nobody acting for the player: NPCs and herds live these
     /// minutes on their own minds, and a living player lives them waiting where they stand (a
-    /// headless simulation, or a player who has stepped away). The world lives either way.
+    /// headless simulation, or a player who has stepped away). The world lives either way. A player
+    /// in a fight waits it out round by round (Fight Wait): the fight goes on around them. A fight
+    /// whose player died outside a round ends here, before the minute.
     public static List<WorldEvent> Advance(World world, int minutes)
     {
         if (minutes <= 0) throw new ArgumentOutOfRangeException(nameof(minutes), minutes, "Advance needs at least one minute");
         var events = new List<WorldEvent>();
         for (int i = 0; i < minutes; i++)
         {
+            world.Agents.TryGetValue(AgentId.Player, out var player);
+            if (player != null && Combat.EncounterOf(world, player.Id) is Encounter fight)
+            {
+                if (!IsAlive(player)) Combat.Finish(world, fight, events);
+                else
+                {
+                    var round = Step(world, new Fight(player.Id, CombatAction.Wait), 1);
+                    events.AddRange(round.Events);
+                    if (round.MinutesElapsed != 1) throw new InvalidOperationException($"A waiting round was refused: {round.InterruptedReason}");
+                    continue;
+                }
+            }
             world.Minute++;
             Scheduler.Minute(world, null, events);
-            if (world.Agents.TryGetValue(AgentId.Player, out var player) && IsAlive(player))
-                LiveBodies(world, player, Held(world, player.Id) ? new Fight(player.Id, CombatAction.Wait) : new Wait(player.Id), events);
+            if (player != null && IsAlive(player)) LiveBodies(world, player, new Wait(player.Id), events);
         }
         return events;
     }

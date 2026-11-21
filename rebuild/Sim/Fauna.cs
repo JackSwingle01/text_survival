@@ -196,7 +196,7 @@ public static partial class Fauna
     static bool Hurt(BodyState body) => body.BloodPct < 1 || body.Regions.Any(r => r.Condition < 1 || r.Organs.Any(o => o.Condition is > 0 and < 1));
 
     /// One minute of a living animal's mending: every hurt layer, every organ not destroyed, and the blood.
-    static void Mend(BodyState body)
+    internal static void Mend(BodyState body)
     {
         if (body.BloodPct < 1) body.BloodPct = Math.Min(1, body.BloodPct + MendPctPerMinute);
         foreach (var region in body.Regions)
@@ -279,6 +279,7 @@ public static partial class Fauna
         foreach (var c in world.Tiles.GetValueOrDefault(herd.Tile)?.Carcasses ?? [])
             if (want > eaten) eaten += Carcasses.EatMeat(c, want - eaten);
         mind.Hunger = Math.Max(0, mind.Hunger - eaten / mealKg);
+        if (eaten > 0) mind.Foray = null; // scavenged or its own kill: it has found food
     }
 
     // ---- pack hunts (old PackPredatorBehavior.AttemptNpcHunt, HerdVigilance) ----
