@@ -111,3 +111,25 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   moving and working noise, scent (blood, bleeding, meat carried or stashed, a carcass), and the
   fire's light. A healthy, clean sleeper gives off almost nothing. A death in your sleep should
   need a cause you could have read or avoided.
+
+**Round 2 answers**
+- Engagement is a threshold, not a roll: a predator commits when its boldness toward a person beats
+  that person's threat as it judges it (the comparison `CombatAI.WantsToAttack` already makes).
+- Predators notice people by the signals the person gives off (movement and noise, scent, fire light).
+  Fire also lowers boldness. Activity pattern per species: proposed, see the next round.
+- The herd starts the fight inside the step, and the step returns why it stopped. No queue of
+  pending encounters. Night reads the weather's real sunset and sunrise.
+- UI: one frame loop calls `Sim.Step` for paced minutes, with no async `IGameUi` layer. The
+  framework is open (ImGui doubted).
+- `Verbs.At(world, who)` in Sim is the one source of "what can I do here", in design §3.5's shape.
+- Core additions before the UI: an explored-tile record with sight rays behind `Sight.Visible`, a
+  breakdown of trip time, and the stat tiers shared between player and NPCs.
+- Save compatibility starts with the first build someone else plays. Until then saves may break,
+  but the format is designed now so that isn't a big refactor later.
+- Settle: one year, every agent stepped every minute, opt-in through a saved flag that stays off
+  until §8 passes. Only hard floors reject a world. Reveal thresholds are computed from the find,
+  in the same step.
+- Parity means every row of a fresh checklist is Done, Cut, or Replaced by something that exists.
+  The rebuild CLI replaces GameCli and the other tools retire; `--shot` gives headless screenshots.
+  Retirement tags the last old-game commit, deletes the old code, moves `rebuild/` to the root and
+  rewrites the docs.
