@@ -11,9 +11,12 @@ The tile-per-cell approach below was replaced. `rebuild/Web/App/wwwroot/terrain-
 ground per pixel in world space, and tiles supply only texture (`scripts/build-terrain-layers.py`
 -> `assets/icons/terrain/`): ground per terrain and palette (winter, summer, autumn), mud per
 palette, snow at three levels (dust, patchy, full) in three flavours (flat; rugged for hills; crag
-for rock, which keeps bare faces), thin and thick ice, and sprites (spruce, shrub, boulder, reeds).
-Mountains, rivers, lake shores, the masks that spread snow and mud cover, and sprite placement are
-computed in world space. `rebuild/Web/README.md` has the details and the preview tool.
+for rock, which keeps bare faces), and sprites (spruce, shrub, boulder, reeds). Mountains, rivers,
+lake shores, thin and thick ice (on lakes, rivers and frozen wet ground), the masks that spread
+snow and mud cover, and sprite placement are computed in world space: a lake spans many textures,
+and any period in its ice would show. The renderer is a port of the approved prototype,
+`dev/prototypes/art/seasons/world.py` on `worktree-short-loop-plan`. `rebuild/Web/README.md` has
+the details and the preview tool.
 
 The renderer takes the ground state as input, and every state below already draws (try them with
 `tools/terrain-preview.mjs --state`):
@@ -28,9 +31,10 @@ in `terrain-core.js`); `tools/terrain.test.mjs` fails when `PAINTED` and the fil
 
 ## To wire next
 
-1. **Ice art repeats.** The ice textures' cracks, leads and windows near a 96 px tile's edge are
-   shared by every variant, so a large frozen lake shows them on a 96 px grid. Repaint them with
-   features that fade out at the tile edge, or draw lake ice in world space.
+1. **Partial snow's edge.** The renderer draws world.py's ragged dusting just outside partial
+   cover, but `cellState` sets `dust` whenever there is any snow below full cover, so partial
+   cover is dusted all over and the edge never shows. Dust should mean a dusting only
+   (`snow === 0`).
 2. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness. Deep water is impassable and
    skipped, and lake and river ice is static (`SiteWater`) until it grows and thaws.
 3. **Crust art.** `SurfaceDto.Crust` (snow whose top has refrozen) reaches the page, but nothing

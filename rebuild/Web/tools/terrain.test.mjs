@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createBaker, wantedArt, resolveArt, PAINTED, CELL, SRC, VARIANTS, variant } from '../App/wwwroot/terrain-core.js';
+import { createBaker, wantedArt, resolveArt, ice, PAINTED, CELL, SRC, VARIANTS, variant } from '../App/wwwroot/terrain-core.js';
 import { cellState, worldState, createGround, GROUND, SEASONS, BARE } from '../App/wwwroot/ground-state.js';
 import { decodePng } from './png.mjs';
 
@@ -74,8 +74,8 @@ function layers(m, cx, cy, world) {
   return { snow, bare, pixels: CELL * CELL };
 }
 
-/** Of the pixels of cell (cx, cy) where `art` is opaque and differs from the bare ground, the share baked as `art`. */
-function shownShare(m, cx, cy, world, art) {
+/** Of the pixels of cell (cx, cy) where `paint(n, px, py)` gives a colour that differs from the bare ground, the share baked in it. */
+function shownShare(m, cx, cy, world, paint) {
   const ground = createGround(c => TERRAIN[c]);
   ground.see(m);
   const baker = createBaker({ width: m.width, height: m.height, terrainAt: (x, y) => TERRAIN[m.known[y * m.width + x]] },
@@ -86,7 +86,7 @@ function shownShare(m, cx, cy, world, art) {
   for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) {
     const px = cx * CELL + x, py = cy * CELL + y, i = (y * CELL + x) * 4;
     const n = variant(Math.floor(px / SRC), Math.floor(py / SRC), VARIANTS) + 1;
-    const a = sampleOf(art(n), px, py), g = sampleOf(`terrain/ground/${terrain}_${n}_${world.palette}`, px, py);
+    const a = paint(n, px, py), g = sampleOf(`terrain/ground/${terrain}_${n}_${world.palette}`, px, py);
     if (!a || String(a) === String(g)) continue;
     total++;
     if (String(a) === String([out[i], out[i + 1], out[i + 2]])) shown++;
@@ -117,42 +117,105 @@ test('a tile under deep snow draws the snow layer, never bare ground, in summer 
   }
 });
 
+const art = name => (n, px, py) => sampleOf(name(n), px, py);
+
 test('dust, patches, mud and pond ice each draw their own art', () => {
   const [x, y] = openLand('plain').concat(openLand('forest'))[0];
   const cases = [
-    ['dusting', { ...dry, snowCm: 2 }, n => `terrain/snow/dust_flat_${n}`, 0.95],
-    ['patchy snow', { ...dry, snowCm: 6 }, n => `terrain/snow/patchy_flat_${n}`, 0.8],
-    ['soaked ground', { ...dry, mudLevel: 1 }, n => `terrain/mud_${n}_summer`, 0.95],
-    ['thick pond ice', { ...dry, waterCm: 5, ice: true }, n => `terrain/ice/thick_${n}`, 0.95],
-    ['thin ice on a flooded cell', { ...dry, waterCm: GROUND.thickIceCm - 0.1, ice: true }, n => `terrain/ice/thin_${n}`, 0.95],
+    ['dusting', { ...dry, snowCm: 2 }, art(n => `terrain/snow/dust_flat_${n}`), 0.95],
+    ['patchy snow', { ...dry, snowCm: 6 }, art(n => `terrain/snow/patchy_flat_${n}`), 0.8],
+    ['soaked ground', { ...dry, mudLevel: 1 }, art(n => `terrain/mud_${n}_summer`), 0.95],
+    ['thick pond ice', { ...dry, waterCm: 5, ice: true }, (n, px, py) => ice(px, py, 'thick'), 0.95],
+    ['thin ice on a flooded cell', { ...dry, waterCm: GROUND.thickIceCm - 0.1, ice: true }, (n, px, py) => ice(px, py, 'thin'), 0.95],
   ];
-  for (const [what, surface, art, share] of cases) {
-    const got = shownShare(mapDto((cx, cy) => cx === x && cy === y ? surface : null), x, y, SUMMER_WORLD, art);
+  // Every cell carries the surface: a pixel shows the state of the cell whose terrain it shows.
+  for (const [what, surface, paint, share] of cases) {
+    const got = shownShare(mapDto(() => surface), x, y, SUMMER_WORLD, paint);
     assert.ok(got >= share, `${what} showed only ${(got * 100).toFixed(0)}% of its art`);
   }
 });
 
 test('saturated mud under a thin frozen film draws mostly mud, not a sheet of ice', () => {
   const [x, y] = openLand('plain').concat(openLand('forest'))[0];
-  const m = mapDto((cx, cy) => cx === x && cy === y ? { ...dry, mudLevel: 1, waterCm: 1, ice: true } : null);
-  const ice = shownShare(m, x, y, SUMMER_WORLD, n => `terrain/ice/thin_${n}`), mud = shownShare(m, x, y, SUMMER_WORLD, n => `terrain/mud_${n}_summer`);
+  const m = mapDto(() => ({ ...dry, mudLevel: 1, waterCm: 1, ice: true }));
+  const film = shownShare(m, x, y, SUMMER_WORLD, (n, px, py) => ice(px, py, 'thin')), mud = shownShare(m, x, y, SUMMER_WORLD, art(n => `terrain/mud_${n}_summer`));
   assert.ok(mud > 0.6, `the soaked ground showed only ${(mud * 100).toFixed(0)}% of its mud`);
-  assert.ok(ice > 0 && ice < 0.4, `a 1 cm frozen film covered ${(ice * 100).toFixed(0)}% of the ice art`);
+  assert.ok(film > 0 && film < 0.4, `a 1 cm frozen film covered ${(film * 100).toFixed(0)}% of the ice`);
 });
 
-test('lake ice carries snow only as a dusting', () => {
-  const lake = [];
-  for (let y = 0; y < fixture.H; y++) for (let x = 0; x < fixture.W; x++) if (fixture.terrain[y][x] === 'deepwater') lake.push([x, y]);
-  const [x, y] = lake.find(([x, y]) => [[-1, 0], [1, 0], [0, -1], [0, 1]].every(([dx, dy]) => fixture.terrain[y + dy]?.[x + dx] === 'deepwater'));
-  const got = shownShare(mapDto((cx, cy) => cx === x && cy === y ? deep : null), x, y, WINTER_WORLD, n => `terrain/snow/dust_flat_${n}`);
-  assert.ok(got >= 0.95, `snow on lake ice showed only ${(got * 100).toFixed(0)}% of the dusting`);
+test('ice is painted pixel for pixel as the reference painter paints it', () => {
+  // fixtures/ice-<level>.png: dev/prototypes/art/seasons/world.py's ice() on worktree-short-loop-plan, over
+  // world pixels (2000, 1100) to (2128, 1228); clear where open water shows.
+  for (const level of ['thin', 'thick']) {
+    const ref = decodePng(path.join(here, `fixtures/ice-${level}.png`));
+    for (let y = 0; y < ref.h; y++) for (let x = 0; x < ref.w; x++) {
+      const i = (y * ref.w + x) * 4, want = ref.data[i + 3] ? String(ref.data.subarray(i, i + 3)) : 'null';
+      const got = ice(2000 + x, 1100 + y, level);
+      assert.equal(got ? String(got) : 'null', want, `${level} ice at (${2000 + x}, ${1100 + y})`);
+    }
+  }
+});
+
+test('a lake reaching into a land cell freezes with the lake', () => {
+  const m = mapDto(() => null), ground = createGround(c => TERRAIN[c]);
+  ground.see(m);
+  const baker = createBaker({ width: m.width, height: m.height, terrainAt: (x, y) => TERRAIN[m.known[y * m.width + x]] },
+    ground.stateAt, WINTER_WORLD, n => tex(n));
+  const out = new Uint8ClampedArray(CELL * CELL * 4);
+  let shore = 0;
+  for (let cy = 0; cy < fixture.H; cy++) for (let cx = 0; cx < fixture.W; cx++) {
+    if (['water', 'deepwater', 'mountain'].includes(fixture.terrain[cy][cx])) continue;
+    baker.bakeCell(out, cx, cy, cx + 1, cx, cy);
+    for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) {
+      const px = cx * CELL + x, py = cy * CELL + y, p = baker.classify(px, py), want = ice(px, py, 'thick');
+      if (!p.water || !want) continue;
+      shore++;
+      const i = (y * CELL + x) * 4;
+      assert.equal(String(out.subarray(i, i + 3)), String(want), `open water at (${px}, ${py}) in a ${fixture.terrain[cy][cx]} cell beside a frozen lake`);
+    }
+  }
+  assert.ok(shore > 100, `fixture has ${shore} lake pixels in land cells`);
+});
+
+test('lake ice does not repeat with the textures\' period', () => {
+  const map = { width: fixture.W, height: fixture.H, terrainAt: (x, y) => fixture.terrain[y][x] };
+  for (const level of ['thin', 'thick']) {
+    const state = { snow: 0, dust: true, laden: false, mud: 0, water: 0, ice: level };
+    const baker = createBaker(map, () => state, WINTER_WORLD, n => tex(n));
+    const out = new Uint8ClampedArray(fixture.W * CELL * fixture.H * CELL * 4);
+    for (let cy = 0; cy < fixture.H; cy++) for (let cx = 0; cx < fixture.W; cx++)
+      if (fixture.terrain[cy][cx] === 'deepwater') baker.bakeCell(out, 0, 0, fixture.W, cx, cy);
+    const PW = fixture.W * CELL, water = new Uint8Array(PW * fixture.H * CELL);
+    for (let cy = 0; cy < fixture.H; cy++) for (let cx = 0; cx < fixture.W; cx++) if (fixture.terrain[cy][cx] === 'deepwater')
+      for (let py = cy * CELL; py < (cy + 1) * CELL; py++) for (let px = cx * CELL; px < (cx + 1) * CELL; px++) water[py * PW + px] = baker.classify(px, py).water ? 1 : 0;
+    const lake = (px, py) => water[py * PW + px];
+    const at = (px, py) => String(out.subarray((py * fixture.W * CELL + px) * 4, (py * fixture.W * CELL + px) * 4 + 3));
+    // Pixels a texture period apart against pixels unrelated distances apart, along both axes: art
+    // that repeats matches far more often at the period. The shapes of the pairs that fall inside the
+    // lake move the match rate a few points from shift to shift, so the control is a mean.
+    const same = (sx, sy) => {
+      let eq = 0, n = 0;
+      for (let py = 0; py + sy < fixture.H * CELL; py += 2) for (let px = 0; px + sx < fixture.W * CELL; px += 2) {
+        if (!lake(px, py) || !lake(px + sx, py + sy)) continue;
+        n++;
+        if (at(px, py) === at(px + sx, py + sy)) eq++;
+      }
+      assert.ok(n > 2000, `fixture has ${n} lake pixel pairs (${sx}, ${sy}) px apart`);
+      return eq / n;
+    };
+    const unrelated = [61, 83, 107, 131];
+    for (const [axis, shift] of [['x', d => [d, 0]], ['y', d => [0, d]]]) {
+      const period = same(...shift(SRC)), control = unrelated.reduce((sum, d) => sum + same(...shift(d)), 0) / unrelated.length;
+      assert.ok(period < control + 0.15, `${level} lake ice matches itself ${SRC} px away along ${axis} on ${(period * 100).toFixed(0)}% of pixels, against ${(control * 100).toFixed(0)}% at unrelated distances`);
+    }
+  }
 });
 
 test('wetter ground shows more mud, from the least wetness that shows', () => {
   const cells = openLand('plain').concat(openLand('forest')).slice(0, 8);
   const share = mudLevel => {
     const m = mapDto(() => ({ ...dry, mudLevel }));
-    return cells.reduce((sum, [x, y]) => sum + shownShare(m, x, y, SUMMER_WORLD, n => `terrain/mud_${n}_summer`), 0) / cells.length;
+    return cells.reduce((sum, [x, y]) => sum + shownShare(m, x, y, SUMMER_WORLD, art(n => `terrain/mud_${n}_summer`)), 0) / cells.length;
   };
   const shares = [GROUND.wetMin, 0.3, 0.5, 0.7, 1].map(share);
   assert.ok(shares[0] > 0, `wetness ${GROUND.wetMin} drew no mud`);

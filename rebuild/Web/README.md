@@ -47,11 +47,14 @@ file with `fetch` calls to the same five operations.
 `wwwroot/terrain-core.js` draws the ground per pixel from known terrain and world pixel coordinates;
 `wwwroot/terrain.js` bakes it into 8 x 8 cell chunks, a few milliseconds a frame, nearest the camera
 first. Cells are 48 CSS px everywhere (one art pixel each: crisp at a device pixel ratio of 1 or 2).
-Rivers are one channel through their cells, lakes have round shores, mountains are lit ridged
-height with a snowline, and where snow and mud lie and where every tree stands come from world
-noise. Snow, mud and ice themselves are painted 96 px textures shown through those masks. A pixel
-reads only its cell's 5 x 5 neighbourhood, and unknown cells read as the cell's own terrain, so
-the ground never shows what the player has not seen.
+Rivers are one channel through their cells, lakes have round shores, and mountains are lit ridged
+height with a snowline. Ice, where snow and mud lie, and where every tree stands come from world
+noise; snow and mud are painted 96 px textures shown through those masks. A pixel takes the ground
+state of the cell whose terrain it shows, so state follows the same organic borders as the ground.
+A pixel reads only its cell's 5 x 5 neighbourhood, and unknown cells read as the cell's own terrain,
+so the ground never shows what the player has not seen. The renderer ports
+`dev/prototypes/art/seasons/world.py` on `worktree-short-loop-plan`; `tools/terrain.test.mjs` holds
+its ice to that reference pixel for pixel.
 
 Tiles supply only texture, painted by `scripts/build-terrain-layers.py` into `assets/icons/terrain/`.
 Each cell's snow, mud and ice come from `MapDto.Surface` (`wwwroot/ground-state.js`, which holds

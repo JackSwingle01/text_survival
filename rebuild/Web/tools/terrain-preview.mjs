@@ -4,8 +4,9 @@
 //   node terrain-preview.mjs <map.json> <out.png> [--state <json>] [--world <json>]
 //
 // map.json: { "W": width, "H": height, "terrain": [[ "forest", "deepwater", ... ], ...] } (one row
-// per y, lower-case terrain names; null for unknown). --state is one cell state for every cell and
-// --world the world state (terrain-core.js); both default to winter.
+// per y, lower-case terrain names; null for unknown). --state is one cell state for every cell, or
+// states by terrain name with "*" for the rest; --world is the world state (terrain-core.js). Both
+// default to winter.
 // fixtures/seed17.json is a 64 x 32 crop of the world that seed 17 generates.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,7 +38,10 @@ const state = opt('--state', WINTER), world = opt('--world', WINTER_WORLD);
 const textures = new Map(textureNames(world).map(n => [n, decodePng(path.join(icons, `${n}.png`))]));
 const tex = name => { const t = textures.get(name); if (!t) throw new Error(`missing terrain texture ${name}`); return t; };
 const map = { width: M.W, height: M.H, terrainAt: (x, y) => M.terrain[y][x] };
-const baker = createBaker(map, () => state, world, tex);
+const byTerrain = Object.values(state).some(v => typeof v === 'object');
+if (byTerrain && !('*' in state)) throw new Error('--state by terrain needs a "*" entry for the rest');
+const stateAt = byTerrain ? (x, y) => state[M.terrain[y][x]] ?? state['*'] : () => state;
+const baker = createBaker(map, stateAt, world, tex);
 const out = new Uint8Array(M.W * CELL * M.H * CELL * 4);
 const t0 = performance.now();
 for (let cy = 0; cy < M.H; cy++) for (let cx = 0; cx < M.W; cx++) baker.bakeCell(out, 0, 0, M.W, cx, cy);

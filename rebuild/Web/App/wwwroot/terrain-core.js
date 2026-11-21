@@ -11,8 +11,9 @@
 //     from the top left, with snow above a snowline;
 //   - snow: a dusting, then patches lingering in shade and hollows, then full cover shown through a
 //     world-noise mask, so cover is continuous;
-//   - mud, and standing water on land (ice where it has frozen): their textures through one world-noise
-//     mask that grows with how much of each the cell has; lake ice covers the whole water cell;
+//   - mud, and standing water on land: mud art through one world-noise mask that grows with how much
+//     of each the cell has; standing water that has frozen is ice;
+//   - ice, on water and on frozen standing water: tone, cracks, leads and clear windows from world noise;
 //   - sprites: trees, shrubs, boulders and reeds on a jittered world grid.
 // A pixel needs only its cell's 5x5 neighbourhood, so the map can be baked a cell at a time.
 // Unknown neighbours are read as the cell's own terrain: the renderer never shows what the
@@ -36,7 +37,7 @@ export const WINTER_WORLD = Object.freeze({ palette: 'winter', snowline: 0.34 })
  */
 export const PAINTED = Object.freeze({
   palettes: ['winter', 'summer', 'autumn'],
-  layers: ['ground', 'mud', 'snow', 'ice', 'sprites'],
+  layers: ['ground', 'mud', 'snow', 'sprites'],
 });
 
 const layerOf = name => name.startsWith('terrain/') ? name.slice(8).split(/[/_]/)[0] : null;
@@ -59,10 +60,16 @@ const hex = s => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), pars
 const C = Object.fromEntries(Object.entries({
   s0: '#f4f6f4', s1: '#e3eaec', s2: '#ccd7dd', s3: '#b0c0ca', s4: '#8fa3b2', s5: '#6c8193',
   r0: '#b6b8b5', r1: '#8a8d8d', r2: '#646a6e', r3: '#454b52', r4: '#2b3037',
-  e3: '#463a2c', sc: '#7d7a6b', sh: '#323d2b',
+  e3: '#463a2c', sc: '#7d7a6b',
+  i0: '#cfe4ea', i1: '#aecfda', i2: '#89b3c4', i3: '#5f8ea3', i4: '#3f6f86',
+  ti0: '#9db4bc', ti1: '#7f9aa6', ti2: '#647f8d', ti3: '#4f6a7a',
 }).map(([k, v]) => [k, hex(v)]));
+/** A sprite's shadow on bare ground, by palette (the build script's `sh`; winter's bare ground is autumn's). */
+const SHADOW = { summer: hex('#323d2b'), autumn: hex('#3a3126'), winter: hex('#3a3126') };
 const SNOW = ['s0', 's1', 's2', 's3', 's4', 's5'].map(k => C[k]);
 const ROCK = ['r0', 'r1', 'r2', 'r3', 'r4'].map(k => C[k]);
+const ICE = ['i0', 'i1', 'i2', 'i3'].map(k => C[k]);
+const THIN = ['ti0', 'ti1', 'ti2', 'ti3'].map(k => C[k]);
 
 // ---------------------------------------------------------------- world noise
 // 32-bit integer hashes, so every platform draws the same pixels.
@@ -93,6 +100,29 @@ export function variant(sx, sy, count) {
   return (h >>> 0) % count;
 }
 
+// ---------------------------------------------------------------- ice
+/**
+ * Ice at a world pixel, or null where open water shows through. Painted in world space because a
+ * lake spans many textures and any period in its ice would show: cracks follow contours of
+ * domain-warped noise, open water shows through leads and clear windows, and thick ice carries a
+ * powdering of snow, thicker where the wind drops it.
+ */
+export function ice(px, py, level) {
+  const X = px + (vnoise(px, py, 50, 81) - 0.5) * 60, Y = py + (vnoise(px, py, 50, 82) - 0.5) * 60;
+  if (level === 'thin') {
+    if (Math.abs(vnoise(X, Y, 40, 83) - 0.5) < 0.016 || Math.abs(vnoise(Y, X, 15, 84) - 0.5) < 0.01) return null;
+    if (vnoise(px, py, 90, 85) * 0.7 + vnoise(px, py, 30, 86) * 0.3 > 0.66) return null;
+    if (hash01(px, py, 89) < 0.012) return C.s1; // frost
+    return ramp(THIN, 1.4 + (vnoise(px, py, 55, 87) - 0.5) * 2.4 + (vnoise(px, py, 18, 88) - 0.5) * 0.6, px, py, 3);
+  }
+  if (level !== 'thick') throw new Error(`no ice "${level}"`);
+  const drift = vnoise(px, py, 70, 95) * 0.6 + vnoise(px, py, 22, 96) * 0.4;
+  if (hash01(px, py, 97) < 0.06 + Math.max(0, Math.min(1, drift - 0.5)) * 0.9) return C.s1;
+  if (vnoise(px, py, 80, 90) * 0.7 + vnoise(px, py, 26, 91) * 0.3 > 0.72) return null;
+  if (Math.abs(vnoise(X, Y, 45, 94) - 0.5) < 0.012) return C.i4;
+  return ramp(ICE, 1.1 + (vnoise(px, py, 60, 92) - 0.5) * 1.6 + (vnoise(px, py, 20, 93) - 0.5) * 0.5, px, py, 4);
+}
+
 // ---------------------------------------------------------------- textures
 /** Art names a world state draws from. */
 export function wantedArt(world) {
@@ -100,7 +130,6 @@ export function wantedArt(world) {
   for (let n = 1; n <= VARIANTS; n++) {
     for (const t of ['forest', 'clearing', 'plain', 'hills', 'rock', 'marsh', 'water', 'deepwater']) names.push(`terrain/ground/${t}_${n}_${p}`);
     for (const level of ['dust', 'patchy', 'full']) for (const f of ['flat', 'rugged', 'crag']) names.push(`terrain/snow/${level}_${f}_${n}`);
-    for (const level of ['thin', 'thick']) names.push(`terrain/ice/${level}_${n}`);
     names.push(`terrain/mud_${n}_${p}`);
   }
   for (let k = 0; k < 8; k++) names.push(`cavefloor_tile${k === 0 ? '' : k + 1}`);
@@ -126,22 +155,23 @@ export function createBaker(map, stateAt, world, tex) {
   const { width: W, height: H } = map;
   const cells = new Map();
 
-  /** A cell's 5x5 neighbourhood with unknown terrain read as the cell's own. */
+  /** A cell's 5x5 neighbourhood, terrain and ground state, with unknown cells read as the cell's own. */
   function cell(cx, cy) {
     const key = cy * W + cx;
     let c = cells.get(key);
     if (c) return c;
     const own = map.terrainAt(cx, cy);
-    const nb = new Array(25);
+    const nb = new Array(25), st = new Array(25), mine = own ? stateAt(cx, cy) : null;
     let wet = false, mtn = false;
     for (let oy = -2; oy <= 2; oy++) for (let ox = -2; ox <= 2; ox++) {
       const x = Math.min(W - 1, Math.max(0, cx + ox)), y = Math.min(H - 1, Math.max(0, cy + oy));
-      const t = map.terrainAt(x, y) ?? own;
-      nb[(oy + 2) * 5 + ox + 2] = t;
-      if (WET(t)) wet = true;
-      if (t === 'mountain') mtn = true;
+      const t = map.terrainAt(x, y);
+      nb[(oy + 2) * 5 + ox + 2] = t ?? own;
+      st[(oy + 2) * 5 + ox + 2] = t ? stateAt(x, y) : mine;
+      if (WET(t ?? own)) wet = true;
+      if ((t ?? own) === 'mountain') mtn = true;
     }
-    c = { own, nb, wet, mtn, state: own ? stateAt(cx, cy) : null };
+    c = { own, nb, st, wet, mtn };
     cells.set(key, c);
     return c;
   }
@@ -170,7 +200,11 @@ export function createBaker(map, stateAt, world, tex) {
     return [lift * (0.25 + 0.5 * r1 + 0.2 * r2 + 0.05 * r3 + crag), m];
   }
 
-  /** What is at a pixel: { kind, water, bank, mountain, h, h1, h2 }, or null in an unknown cell. */
+  /**
+   * What is at a pixel: { kind, water, bank, mountain, h, h1, h2, state }, or null in an unknown cell.
+   * The state is that of the cell whose terrain the pixel shows, so a lake reaching into a land cell is
+   * frozen with the lake and snow follows the same organic borders as the ground under it.
+   */
   function classify(px, py) {
     const cx = Math.floor(px / CELL), cy = Math.floor(py / CELL);
     const c = cell(cx, cy);
@@ -182,7 +216,7 @@ export function createBaker(map, stateAt, world, tex) {
     const lx = Math.min(1, Math.max(-1, Math.floor(fxc + dx) - cx)), ly = Math.min(1, Math.max(-1, Math.floor(fyc + dy) - cy));
     const pick = at(c, lx, ly);
 
-    let water = false, bank = false, kind = pick;
+    let water = false, bank = false, kind = pick, sx = lx, sy = ly;
     // The meandered position relative to the cell centre, shared by water and the land fallback.
     const mx = (vnoise(px, py, 40, 11) - 0.5) * 0.24 + (vnoise(px, py, 13, 12) - 0.5) * 0.06;
     const my = (vnoise(px, py, 40, 13) - 0.5) * 0.24 + (vnoise(px, py, 13, 14) - 0.5) * 0.06;
@@ -190,7 +224,7 @@ export function createBaker(map, stateAt, world, tex) {
     if (c.wet) {
       const w5 = (ox, oy) => WET(at(c, ox, oy));
       const wobble = (vnoise(px, py, 30, 15) - 0.5) * 0.08;
-      let sdist = 9, wtype = 'water', kb = 0, kn = 1e-6, kbest = 0, btype = 'deepwater';
+      let sdist = 9, wtype = 'water', wx = 0, wy = 0, kb = 0, kn = 1e-6, kbest = 0, btype = 'deepwater', bx = 0, by = 0;
       for (let coy = -1; coy <= 1; coy++) for (let cox = -1; cox <= 1; cox++) {
         const here = w5(cox, coy);
         let body = false;
@@ -200,7 +234,7 @@ export function createBaker(map, stateAt, world, tex) {
         const kc = Math.max(0, Math.min(1, 1 - (rx * rx + ry * ry) / 1.5)) ** 2;
         if (body) kb += kc;
         kn += kc;
-        if (body && kc > kbest) { kbest = kc; btype = at(c, cox, coy); }
+        if (body && kc > kbest) { kbest = kc; btype = at(c, cox, coy); bx = cox; by = coy; }
         if (!here || body) continue;
         const conn = { e: w5(cox + 1, coy), w: w5(cox - 1, coy), s: w5(cox, coy + 1), n: w5(cox, coy - 1) };
         const count = conn.e + conn.w + conn.s + conn.n;
@@ -219,21 +253,21 @@ export function createBaker(map, stateAt, world, tex) {
         }
         const kindC = at(c, cox, coy);
         const s = chan - ((kindC === 'deepwater' ? 0.19 : 0.14) + wobble);
-        if (s < sdist) { sdist = s; wtype = kindC; }
+        if (s < sdist) { sdist = s; wtype = kindC; wx = cox; wy = coy; }
       }
       const lake = kb / kn + (vnoise(px, py, 20, 16) - 0.5) * 0.25 + (vnoise(px, py, 6, 17) - 0.5) * 0.08;
       const sLake = (0.5 - lake) * 0.7;
-      if (sLake < sdist) { wtype = btype; sdist = sLake; }
+      if (sLake < sdist) { wtype = btype; wx = bx; wy = by; sdist = sLake; }
       water = sdist < 0;
       bank = sdist >= 0 && sdist < 2.5 / CELL;
-      if (water) kind = wtype;
+      if (water) { kind = wtype; sx = wx; sy = wy; }
     }
     if (!water && WET(pick)) {
       // Land the lookup gave to a water cell belongs to the nearest land cell instead.
       let best = 9; kind = null;
       for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
         const t = at(c, ox, oy), d = Math.hypot(qx - ox, qy - oy);
-        if (!WET(t) && d < best) { best = d; kind = t; }
+        if (!WET(t) && d < best) { best = d; kind = t; sx = ox; sy = oy; }
       }
       kind ??= 'marsh'; // a cell wholly surrounded by water
     }
@@ -248,11 +282,11 @@ export function createBaker(map, stateAt, world, tex) {
         let best = 9; kind = 'plain';
         for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
           const t = at(c, ox, oy), d = Math.hypot(qx - ox, qy - oy);
-          if (t !== 'mountain' && !WET(t) && d < best) { best = d; kind = t; }
+          if (t !== 'mountain' && !WET(t) && d < best) { best = d; kind = t; sx = ox; sy = oy; }
         }
       }
     }
-    return { kind, water, bank, mountain: mountain && !water, h, h1, h2, state: c.state };
+    return { kind, water, bank, mountain: mountain && !water, h, h1, h2, state: c.st[(sy + 2) * 5 + sx + 2] };
   }
 
   const art = new Map();
@@ -278,16 +312,12 @@ export function createBaker(map, stateAt, world, tex) {
       const band = Math.floor(p.h * 9) !== Math.floor(p.h1 * 9) || Math.floor(p.h * 9) !== Math.floor(p.h2 * 9);
       if (band && shade < -0.15 && vnoise(px, py, 12, 29) > 0.45) rock = C.r4;
       if (holds) return ramp(SNOW, 1.2 - shade * 1.7, px, py, 2);
-      if (p.h < 0.2 && hash01(px, py, 6) < 0.25) return snowed(px, py, s.snow) ? C.s3 : C.sc; // scree
+      if (p.h < 0.2 && hash01(px, py, 6) < 0.25) return s.snow >= 1 ? C.s3 : C.sc; // scree, buried only under full cover
       return rock;
     }
     if (WET(p.kind)) {
       let col = sample(`terrain/ground/${p.kind}_${n}_${pal}`, px, py);
-      if (s.ice === 'none') return col;
-      col = sample(`terrain/ice/${s.ice}_${n}`, px, py) ?? col;
-      // Wind scours lake ice, so any snow the cell holds lies on it only as a dusting.
-      if (s.dust || s.snow > 0) col = sample(`terrain/snow/dust_flat_${n}`, px, py) ?? col;
-      return col;
+      return (s.ice === 'none' ? null : ice(px, py, s.ice)) ?? col;
     }
     if (p.kind === 'cavefloor') { // caves keep the old per-tile art: they have no seasons
       const k = variant(Math.floor(px / SRC), Math.floor(py / SRC), 8);
@@ -302,17 +332,21 @@ export function createBaker(map, stateAt, world, tex) {
     const wet = vnoise(px, py, 34, 41) * 0.65 + vnoise(px, py, 11, 42) * 0.35;
     const shows = level => level > 0 && !lies && wet > 0.85 - level * 0.7;
     if (shows(s.mud)) col = sample(`terrain/mud_${n}_${pal}`, px, py) ?? col;
-    if (shows(s.water)) col = sample(s.ice === 'none' ? `terrain/mud_${n}_${pal}` : `terrain/ice/${s.ice}_${n}`, px, py) ?? col;
+    if (shows(s.water)) col = (s.ice === 'none' ? null : ice(px, py, s.ice)) ?? sample(`terrain/mud_${n}_${pal}`, px, py) ?? col;
     if (s.dust) col = sample(`terrain/snow/dust_${flav}_${n}`, px, py) ?? col;
     if (s.snow > 0 && !lies) col = sample(`terrain/snow/patchy_${flav}_${n}`, px, py) ?? col;
+    if (fringe(px, py, s.snow)) col = sample(`terrain/snow/dust_${flav}_${n}`, px, py) ?? col;
     if (lies) col = sample(`terrain/snow/full_${flav}_${n}`, px, py) ?? col;
-    if (p.bank && hash01(px, py, 5) < (lies ? 0.8 : 0.75)) col = lies ? C.s4 : C.e3;
+    // Banks: a dark wet edge, or a shadowed snow lip where the ground is covered.
+    if (p.bank && hash01(px, py, 5) < (s.snow >= 1 ? 0.8 : 0.75)) col = s.snow >= 1 ? C.s4 : C.e3;
     return col;
   }
 
   // One world mask decides where full cover lies; more snow lowers its threshold.
   const snowField = (px, py) => vnoise(px, py, 60, 31) * 0.55 + vnoise(px, py, 22, 32) * 0.3 + vnoise(px, py, 7, 33) * 0.15;
   const snowed = (px, py, cover) => cover >= 1 || (cover > 0 && snowField(px, py) > 1 - cover);
+  // Partial cover's edge is ragged: a dusting just outside it.
+  const fringe = (px, py, cover) => cover > 0 && cover < 1 && !snowed(px, py, cover) && snowField(px, py) > 1 - cover - 0.035 && hash01(px, py, 3) < 0.5;
 
   /**
    * Bakes the pixels of cells [x0, x1) x [y0, y1) into out (RGBA, (x1 - x0) * CELL wide), then the
@@ -366,7 +400,7 @@ export function createBaker(map, stateAt, world, tex) {
       else if (what === 'B') { name = 'boulder'; shadow = false; }
       else if (what === 'H') { name = 'shrub'; shadow = !laden; }
       else { name = `reed_${2 + (x * 7 + y * 3) % 3}`; shadow = false; }
-      const sp = texture(spriteArt(name, pal, laden)), shadowTones = laden ? [C.s4, C.s3] : [C.sh];
+      const sp = texture(spriteArt(name, pal, laden)), shadowTones = laden ? [C.s4, C.s3] : [SHADOW[pal]];
       if (shadow) for (let xx = 0; xx < Math.floor(sp.w / 2) + 2; xx++) shadowTones.forEach((tone, yy) => {
         const sx = x + xx - 1, sy = y + yy;
         if (sx >= 0 && sx < MW && sy >= 0 && sy < MH && sx >= X0 && sx < X1 && sy >= Y0 && sy < Y1 && !blocked(sx, sy)) put(sx, sy, tone);

@@ -46,14 +46,17 @@ export function createTerrain() {
     return t;
   };
 
-  /** The known codes of a chunk and the two cells around it: what its pixels can depend on. */
+  /**
+   * What a chunk's pixels can depend on: ground state two cells around it, and terrain three (a
+   * sprite anchored in the next cell reads that cell's 5x5 neighbourhood).
+   */
   function signature(m, cx0, cy0, ground, world) {
-    const xa = Math.max(0, cx0 - 2), xb = Math.min(m.width, cx0 + CHUNK + 2);
     let sig = world.key;
-    for (let y = Math.max(0, cy0 - 2); y < Math.min(m.height, cy0 + CHUNK + 2); y++) {
-      sig += m.known.slice(y * m.width + xa, y * m.width + xb);
+    for (let y = Math.max(0, cy0 - 3); y < Math.min(m.height, cy0 + CHUNK + 3); y++)
+      sig += m.known.slice(y * m.width + Math.max(0, cx0 - 3), y * m.width + Math.min(m.width, cx0 + CHUNK + 3));
+    const xa = Math.max(0, cx0 - 2), xb = Math.min(m.width, cx0 + CHUNK + 2);
+    for (let y = Math.max(0, cy0 - 2); y < Math.min(m.height, cy0 + CHUNK + 2); y++)
       for (let x = xa; x < xb; x++) sig += ground.keyAt(y * m.width + x);
-    }
     return sig;
   }
 

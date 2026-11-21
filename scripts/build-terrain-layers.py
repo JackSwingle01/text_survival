@@ -2,19 +2,18 @@
 Run with Python 3; no dependencies. Writes PNGs to assets/icons/terrain/ and sources to
 assets/pixelart/terrain/.
 
-The renderer draws land as ground, then mud (or ice where its water froze) through a world-noise
-mask, then a dusting, patches and full snow cover; water as ground then ice; then mountains, and
-sprites placed on a world grid. Tiles only supply texture, so this script paints:
+The renderer draws land as ground, then mud through a world-noise mask, then a dusting, patches
+and full snow cover. Mountains, sprite placement, and ice on lakes, rivers and frozen standing
+water it computes in world space. Tiles only supply texture, so this script paints:
   ground/<terrain>_<n>_<palette>   bare ground per terrain, 4 variants, one per palette;
   mud_<n>_<palette>                wet earth and puddles, drawn over any ground;
   snow/<level>_<flavour>_<n>       snow lit by the same height field as the ground: a dusting
                                    (dust), what lingers in shade and hollows (patchy), and full
                                    cover (full); flat, rugged for hills, crag for rock, where
                                    full cover keeps bare faces;
-  ice/<thin|thick>_<n>             ice over water and frozen wet ground, cracks and leads left clear;
   sprites/<kind>_<palette>         spruce, shrub, boulder and reed sprites.
-Palettes share one pixel grid per layer, so a season is a palette swap. Snow and ice colours do
-not change with the season.
+Palettes share one pixel grid per layer, so a season is a palette swap. Snow colours do not change
+with the season.
 Every 96px layer is periodic; variants differ only in the faded interior.
 """
 from pathlib import Path
@@ -37,8 +36,7 @@ FLAVOUR_AMP = dict(flat=.1, rugged=.4, crag=.45)
 SCOUR = dict(flat=None, rugged=-.16, crag=-.02)
 
 FIXED = dict(bt.OUTDOOR)
-FIXED.update(ti0='#9db4bc', ti1='#7f9aa6', ti2='#647f8d', ti3='#4f6a7a',
-             rw1='#6e5f40', rw2='#c2a96e')
+FIXED.update(rw1='#6e5f40', rw2='#c2a96e')
 SEASONS = {
     'summer': dict(
         g0='#bcc28c', g1='#a1ad76', g2='#879661', g3='#6e7e4f', g4='#576640', g5='#404d32',
@@ -225,26 +223,6 @@ def mud(variant):
     return px
 
 
-def ice(level, variant):
-    """Thin ice is dark and cracked with open leads; thick ice is pale with a few clear windows."""
-    cv, px = Canvas(0, variant, OVERLAY_BAND), blank()
-    for y in range(SIZE):
-        for x in range(SIZE):
-            if level == 'thin':
-                crack = abs(pnoise(x, y, 9, 60) - .5) < .018 or abs(pnoise(x, y, 17, 61) - .5) < .012
-                lead = cv.field(x, y, 5, 62) > .7
-                if crack or lead: continue
-                px[y][x] = cv.ramp(['ti0', 'ti1', 'ti2', 'ti3'], 1.4 + (pnoise(x, y, 6, 63) - .5) * 2.4
-                                   + (pnoise(x, y, 24, 64) - .5) * .6, x, y)
-                if hash01(x, y, 65) < .012: px[y][x] = 's1'
-            else:
-                if cv.field(x, y, 7, 66) > .74: continue
-                iv = 1.1 + (pnoise(x, y, 6, 15) - .5) * 1.6 + (pnoise(x, y, 24, 16) - .5) * .5
-                px[y][x] = cv.ramp(['i0', 'i1', 'i2', 'i3'], iv, x, y)
-                if abs(pnoise(x, y, 10, 17) - .5) < .012: px[y][x] = 'i4'
-    return px
-
-
 def png(path, names, season):
     rgb = {}
     def get(n):
@@ -301,8 +279,6 @@ def main():
         for level in ('dust', 'patchy', 'full'):
             for flavour in ('flat', 'rugged', 'crag'):
                 write(f'snow/{level}_{flavour}_{n}', snow(level, flavour, v), 'winter')
-        for level in ('thin', 'thick'):
-            write(f'ice/{level}_{n}', ice(level, v), 'winter')
     for kind, names in sprites(snowed=True).items():
         write(f'sprites/{kind}_winter', names, 'winter')
     for kind, names in sprites(snowed=False).items():
