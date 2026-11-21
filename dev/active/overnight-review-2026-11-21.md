@@ -50,11 +50,16 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
   they sleep on a tile that has them.
 
 **Phase 4 review round**
-- Shelter wind cover was cutting the wind twice: the body's convective wind and the wind chill.
-  It now counts once, through the wind chill, the same rule tile wind follows. This roughly halves
-  how much a good shelter helped. The review measured a snow shelter at -1.34 °F/h body cooling
-  with both cuts against -2.32 with one. If you want shelters warmer, raise their insulation; don't
-  restore the second cut.
+- **Shelter wind cover (decided twice; final below).** The first review called "cover cuts both the
+  body's wind and the wind chill" a double count, and the first fix round made it count once,
+  through the chill. The second review showed why that is wrong: inside a sealed snow shelter the
+  body then still had the full outside wind through its clothing and drying. **Final default:**
+  cover cuts both (the original 4b behaviour, the same as the fire pit). Tile wind factor still
+  reaches the body only through the chill, for old-game parity; that inconsistency is logged in
+  `rebuild-deferred.md` as a physics question for you.
+- **Random streams are per agent** for body, combat and travel rolls. Before, herds shared the
+  player's streams, so moving a herd changed the player's injury rolls (it was why the 30-day
+  camper went from 10 to 17 injuries). Now one agent's rolls never depend on another's existence.
 - Once the player stands on the far side of the pass, the run is over: the core refuses further
   player activities, instead of letting the player walk back and "un-win". `Advance` keeps running
   the world but the crossed player lives no more minutes.
@@ -116,10 +121,10 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 
 ## Shortfalls (what didn't meet its gate, honestly)
 
-- **The Phase 2 camper got harder after the phase 4 fixes**: 10 → 17 injuries, food it gathered
-  10,954 → 7,301 kcal, the hand-fed share 80% → 86%. It still survives 30 days. The second review
-  is checking what changed its path (likely the shelter-find draws or den territories shifting
-  what is near camp).
+- **The Phase 2 camper got harder after the first phase 4 fix round** (10 → 17 injuries, gathered
+  food 10,954 → 7,301 kcal). Explained by the second review: all the food drop came from the
+  wind-cover change (reverted, above) and all the injuries from herds sharing the player's random
+  streams (now per agent). Final numbers after the second fix round are in the status table.
 
 ## Deliberately left for you
 - Retiring the old project (Phase 5's last step), unless parity is reached overnight.
