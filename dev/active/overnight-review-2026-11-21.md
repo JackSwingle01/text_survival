@@ -33,7 +33,9 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 | Loader fixes (strict enum names, required struct fields, explicit flags, ranges, dead rows, immutability), felling-yield report bug, NPC cold-pit bed | 12933a4 | committed; review found two NPC rules from 45c7916 causing the earliest deaths |
 | Emergent step 2: substrate (ThingRef, Cause, Signs.At, Access.Refusal, tags and capabilities); byte-identical apart from saved causes | 11cedc4 | committed; review confirmed byte-identical; its findings folded into step 3 |
 | NPC fixes: `Stranded` camp moves, warming walks judged by arrival, mammoth hunts, caribou huntable by role | e020f93 | committed; review running |
-| Emergent step 3a: renewal, scavengers, body and bone pipeline, kill attribution, stable ids, speed caches | | in progress |
+| Emergent step 3a: renewal, scavengers, body and bone pipeline, kill attribution, stable ids, speed caches | 9cbe8cc | committed; review running |
+| NPC fixes: warming walks that continue, aged fire memory, carry tinder to makings | | in progress |
+| Emergent step 3b: settling pass, hourly distant stepping, computed reveal | | next |
 | Emergent step 2: substrate (ThingRef, Cause, Signs, Access) | | |
 | Emergent step 3: kill chain, renewal, settling pass | | |
 | Emergent step 4: affordances, moments, catalog paper exercise | | |
@@ -146,6 +148,22 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
   them on is a gameplay change for you to approve, most likely alongside moments (step 4).
 - Kills are attributed to the other side's first fighter and its weapon (nothing records the last
   blow). A dead person's body has no cause yet.
+
+**Step 3a (kill chain)**
+- Herds renew toward a carrying capacity derived from their land: births in season, wolf packs
+  starving after 14 days unfed, and arrivals from outside the valley when it holds fewer than it
+  carries. The old game had no renewal values, so every number is a judgment (in `RenewalOf`).
+  Over a year on 5 seeds populations stay bounded; seed 7 runs low in year two.
+- Hyenas and ravens never starve (they starved out within 60 days otherwise).
+- Ravens are a new kind (separate from hyenas): they never fight, circle carcasses and bodies
+  (derived Beacon tag: findable at range once the reveal reads it), pick them toward bones, and
+  raid unwatched stashes a little.
+- Carcasses go to bones and then vanish; a dead person goes skeletal, then bones, and their kit
+  ends up in a stash naming them. A hard frost slows it tenfold (the frozen traveller). All
+  timings are judgments.
+- A year of simulation now takes about 23 s (was 14 s): more herds stay alive.
+- NPC 60-day mean moved 42.0 → 39.5 with 3 survivors (was 1). About one standard error on 16
+  seeds; under review.
 
 ## Open questions
 
