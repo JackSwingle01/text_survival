@@ -27,8 +27,8 @@ public sealed class FireState
     public double CharcoalKg { get; set; }
     public AgentId? CarriedBy { get; set; }
     public double TorchMinutesLeft { get; set; }
-    /// Who struck this fire, until it takes its first log or goes out: their Firecraft for lighting it
-    /// is paid when it takes the log (Fire.Feed), so a fire that never got past its kindling teaches only a miss's worth.
+    /// Who struck this fire, until it is sure to take a log or goes out: their Firecraft for lighting it
+    /// is paid then (Fire.PayLighter), so a fire that never got past its kindling teaches only a miss's worth.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public AgentId? LitBy { get; set; }
 }
@@ -489,10 +489,11 @@ public static class Fire
         if (a.KindlingKg > 0) Items.Take(pack, Resource.Kindling, AddFuel(f, Resource.Kindling, a.KindlingKg));
         IgniteAll(f);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
-        // A strike that catches is worth a miss now; the rest when the fire takes wood (Feed). Old game:
+        // A strike that catches is worth a miss now; the rest when the fire takes wood (PayLighter). Old game:
         // a full success for any flame, so tinder and a pinch of kindling, with no fuel to follow, farmed levels (bug, fixed).
         Skills.Award(world, agent, Skill.Firecraft, Skills.FireFailureXp, events);
         f.LitBy = a.Who;
+        PayLighter(world, f, events); // struck onto logs already in the pit
         return null;
     }
 
@@ -507,15 +508,43 @@ public static class Fire
         double added = AddFuel(f, a.Fuel, Math.Min(a.Kg, Items.Have(pack, a.Fuel)));
         Items.Take(pack, a.Fuel, added);
         events.Add(new FuelAdded(world.Minute, id, tile, a.Who, a.Fuel, added));
-        // The first log on a fire someone struck: it has caught, and it was their doing.
-        if (f.LitBy is AgentId lighter && added > 0 && Props[a.Fuel].MinFireTempF > 0 && IsActive(f))
-        {
-            f.LitBy = null;
-            if (world.Agents.TryGetValue(lighter, out var who))
-                Skills.Award(world, who, Skill.Firecraft, Skills.FireSuccessXp - Skills.FireFailureXp, events);
-        }
+        if (added > 0) PayLighter(world, f, events);
         if (wasEmbers && !f.HasEmbers) events.Add(new FireLit(world.Minute, id, tile, a.Who));
         return null;
+    }
+
+    /// The rest of a strike's Firecraft, to whoever struck it, once the fire is sure to take a log: it has
+    /// caught, and it was their doing. Decided at the action that makes it so (a strike onto logs, a log
+    /// onto a strike), never by the catch-up that sees the log take, which runs whenever someone looks.
+    static void PayLighter(World world, FireState f, List<WorldEvent> events)
+    {
+        if (f.LitBy is not AgentId lighter || !WillTakeALog(f)) return;
+        f.LitBy = null;
+        if (world.Agents.TryGetValue(lighter, out var who))
+            Skills.Award(world, who, Skill.Firecraft, Skills.FireSuccessXp - Skills.FireFailureXp, events);
+    }
+
+    /// Whether, left as it is, the fire will have a log burning before it goes out: a copy burned forward
+    /// a minute at a time. The burn has no weather and no dice in it, and fuel put on later only helps
+    /// a log catch, so the answer at the action is the answer the catch-up will find.
+    static bool WillTakeALog(FireState f)
+    {
+        static bool LogBurning(FireState x) => x.BurningKg.Keys.Any(r => Props[r].MinFireTempF > 0);
+        if (LogBurning(f)) return true;
+        if (!f.UnburnedKg.Keys.Any(r => Props[r].MinFireTempF > 0)) return false;
+        var copy = new FireState
+        {
+            Tile = f.Tile, LastUpdatedMinute = f.LastUpdatedMinute, Pit = f.Pit,
+            UnburnedKg = new(f.UnburnedKg), BurningKg = new(f.BurningKg), HasEmbers = f.HasEmbers,
+            EmberDurationHours = f.EmberDurationHours, EmberHoursRemaining = f.EmberHoursRemaining, EmberStartTempF = f.EmberStartTempF,
+        };
+        while (BurningKg(copy) > 0)
+        {
+            Catch(copy);
+            if (LogBurning(copy)) return true;
+            Consume(copy);
+        }
+        return false;
     }
 
     /// From flames on the tile, or from the torch already in hand (which it replaces). Uses up a torch from the pack.

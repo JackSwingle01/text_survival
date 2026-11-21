@@ -301,24 +301,35 @@ public static class Journal
             if (!Files(e) || !Staked(world, e.Tile)) continue;
             if (!world.Journal.TryGetValue(e.Tile, out var list)) world.Journal[e.Tile] = list = [];
             list.Add(e);
-            if (list.Count > MaxEntriesPerTile) list.RemoveAt(Evicted(list));
+            if (list.Count > MaxEntriesPerTile) list.RemoveAt(Evicted(world, list));
         }
         if (world.Minute % 1440 == 0 && world.Journal.Count > 0) Forget(world);
     }
 
-    /// Chores: what someone does at a fire or a stash over and over through a night. They make
-    /// way for anything else, so a night of feeding the fire cannot push out the fire going out.
-    public static bool IsRoutine(WorldEvent e) => e is FuelAdded or Stashed or Unstashed;
+    /// What a place's story is made of: its fire going out, its shelter coming down, a death, a wound,
+    /// a kill (a carcass appearing), a fight, a wounded animal getting away, something built, the pass
+    /// crossed, and its stash taken by someone whose camp it is not. Everything else - feeding the fire,
+    /// stashing, eating, cooking, strikes that failed, a fire lit - makes way for these, so no amount of
+    /// it can push out the fire going out. Old routine list (fuel, stash) was too narrow: 31 failed
+    /// strikes or meals evicted a FireDied (bug, fixed).
+    // A carcass going (butchered away) has no filed event: Butchered is a step's tally (Files).
+    public static bool IsNotable(World world, WorldEvent e) => e switch
+    {
+        FireDied or FireBurnedToEmbers or ShelterCollapsed or Died or Injured or Killed or FightEnded or WoundedEscaped
+            or Built or CrossedThePass => true,
+        Unstashed u => !world.Agents.TryGetValue(u.Who, out var who) || who.Mind is not PersonMind || Knowledge.CampOf(world, who) != u.Tile,
+        _ => false,
+    };
 
-    /// Which entry a full journal lets go: the earliest-happened chore, or failing that the
-    /// earliest-happened entry. By minute, not by filing order: catch-up files what happened
+    /// Which entry a full journal lets go: the earliest-happened entry that is not notable, or failing
+    /// that the earliest-happened entry. By minute, not by filing order: catch-up files what happened
     /// hours ago after what happened just now. Ties go to the first filed.
-    static int Evicted(List<WorldEvent> list)
+    static int Evicted(World world, List<WorldEvent> list)
     {
         int oldest = -1;
-        bool routine = list.Any(IsRoutine);
+        bool ordinary = list.Any(e => !IsNotable(world, e));
         for (int i = 0; i < list.Count; i++)
-            if ((!routine || IsRoutine(list[i])) && (oldest < 0 || list[i].Minute < list[oldest].Minute)) oldest = i;
+            if ((!ordinary || !IsNotable(world, list[i])) && (oldest < 0 || list[i].Minute < list[oldest].Minute)) oldest = i;
         return oldest;
     }
 

@@ -435,4 +435,30 @@ public class CarcassTests
         Assert.Equal(c.Remaining, lc.Remaining);
         Assert.Equal(1, loaded.NextCarcassId);
     }
+
+    /// Review: after the ledger was scaled up to full processing's (ThoroughFactor), scavengers ate off the
+    /// scaled ledger: a carcass fed wolves 10% longer, and each kilo a wolf ate cost a careful butcher 1/1.1
+    /// of a kilo. Animals eat in careful kilograms, so both are as they were before the rescale.
+    [Fact]
+    public void Scavengers_EatWhatACarefulButcherWouldCut()
+    {
+        var w = World.New(17);
+        var camp = Map.Of(w).Camp;
+        var body = BodyState.Create(BodyKind.Quadruped, 120, 0.15, 0.6);
+        var c = Carcasses.Create(w, camp, "Caribou", body, 0);
+        double before = body.MuscleKg * 0.65; // the old ledger's meat: a careful butcher's
+        Assert.Equal(before, Fauna.MeatHere(w, camp), 9);
+        Assert.Equal(before * Carcasses.ThoroughFactor(Resource.RawMeat), c.Remaining[Resource.RawMeat], 9);
+        Assert.Equal(5, Carcasses.EatMeat(c, 5), 12);
+        Assert.Equal(before - 5, Fauna.MeatHere(w, camp), 9);
+        Assert.Equal((before - 5) * Carcasses.ThoroughFactor(Resource.RawMeat), c.Remaining[Resource.RawMeat], 9); // a careful cut has 5 kg less
+        // Bites of 0.3 kg, as a pack feeds: as many as the old ledger held, and then nothing.
+        int bites = 0;
+        double eaten = 5;
+        while (Fauna.MeatHere(w, camp) > 0) { eaten += Carcasses.EatMeat(c, 0.3); bites++; }
+        Assert.Equal((int)Math.Ceiling((before - 5) / 0.3), bites);
+        Assert.Equal(before, eaten, 9);
+        Assert.Equal(0, c.Remaining[Resource.RawMeat]);
+        Assert.Equal(0, Carcasses.EatMeat(c, 1));
+    }
 }

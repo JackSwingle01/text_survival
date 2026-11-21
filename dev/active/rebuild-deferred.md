@@ -10,7 +10,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   Upgrade: move the plain rows to `Content/*.json` beside locations and loot, checked by `Content.Parse`.
 - `Shelter.cs:58` - only the simplest camp recipes exist (bedding, frames, snow shelter, pitching a tent);
   no general crafting, no hide tent recipe. Upgrade: port `NeedCraftingSystem` as its own system; `Recipe` becomes a content row.
-- `Npc.cs:48`, `Npc.cs:439` - NPCs spawn with an axe and knife and cannot make a fire starter, standing in
+- `Npc.cs:48`, `Npc.cs:516` - NPCs spawn with an axe and knife and cannot make a fire starter, standing in
   for the old NPC's crafting. Upgrade: once crafting exists, shrink the kit to the player's and craft at these points.
 - `Shelter.cs:74` - old `CacheFeature` (capacity, predator/weather protection, food preservation) not ported;
   no branch-to-log frame rebuild (old 60% salvage), no reclaim from an abandoned project. Upgrade: port with scavengers that raid stashes.
@@ -48,7 +48,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 ## Combat and NPCs
 
-- `Combat.cs:436`, `Npc.cs:771` - only the player fights round by round; an NPC's own fight resolves at once,
+- `Combat.cs:436`, `Npc.cs:902` - only the player fights round by round; an NPC's own fight resolves at once,
   its rounds lived by its wounds alone. Upgrade: let other agents step `Fight` when combat allows it.
 - `Combat.cs:490` - the remainder of a fight the player left resolves at once (old: a background fight, a round a minute).
 - `Combat.cs:636` - no Fighting skill added to blows. Upgrade: with progression.
@@ -56,18 +56,26 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   help and pack cohesion ignore them. Upgrade: feed `Opinions` from the `WorldEvent` stream (plan decision 4).
 - `Fire.cs:137` - fuel hours as a person reckons them (`Fire.FuelHours`, the NPC's camp fuel and remembered fire hours)
   ignore a stone pit's efficiency and a small fire's slower burn (both under 15%).
-- `Knowledge.cs:89`, `Npc.cs:699`, `Map.cs:128` - no sight rays or fog of war: everyone's sight is `Sight.Visible`, a fixed
+- `Knowledge.cs:89`, `Npc.cs:830`, `Map.cs:128` - no sight rays or fog of war: everyone's sight is `Sight.Visible`, a fixed
   5-tile radius blind to terrain, weather and dark, and NPC threat checks read herds' true positions.
   Upgrade: port old `GameMap.UpdateVisibility` behind `Sight.Visible`; nothing else needs to change.
 - What an NPC still reads from the world rather than its beliefs, deliberately (plan decision 7; the camp's fire
-  and stash now come from memory out of sight, `Npc.CampFuelHours`): `Npc.cs:597` the forage pool kind and full
-  density of a remembered tile (the land itself, fixed content: "the look of the country"); `Npc.cs:806` passability
+  and stash now come from memory out of sight, `Npc.CampFuelHours`): `Npc.cs:712` the forage pool kind and full
+  density of a remembered tile (the land itself, fixed content: "the look of the country"); `Npc.cs:938` passability
   for its walks (terrain, cliffs and ravines, which never change and every map shows); the crossing off its own tile
+  and off camp, snow and mud included (`Npc.MinutesOff`: felt underfoot, and camp's ground is the ground it lives on),
   and the weather overhead (felt, not seen); herds within 1-3 tiles (the sight-rays entry above).
   Upgrade: route the first two through `Beliefs` once fog of war means a person can not know the ground.
-- `Npc.cs:570` - the NPC's foraging trip is weighed for cold by its walking chill at the tile it decides on
-  (`WalkingCoolingFPerHour`); out and back for food, it can still turn home because the walk tired or chilled it more
-  than reckoned (seed 17: 3 such trips in 30 days). Upgrade: reckon the trip's chill along the path, not the first tile.
+- `Npc.cs:667` - the NPC's trips (forage cold check, `TooLateToSetOut`, the evening wood fetch) are reckoned by its walking
+  chill where it stands (`WalkingCoolingFPerHour`) and a walk of the first crossing off its own tile, the rest at the
+  going off camp (`Npc.WalkMinutes`), not along the path. The forage cold check runs at every step with a 0.3F margin
+  for setting out, so a trip reckoned too cold part way is given up. Upgrade: reckon time and chill along the path.
+- `Npc.cs:442` - `HuntKcalPerHour` lets a lone NPC with an axe take on a mammoth herd once food is wanted: danger
+  scales the value by (1 - urgency) only, and meat is capped by pack room, so a 12-mammoth herd still outscores
+  foraging (seed 123 dies on day 5 in a hunt it started, FightEnded Defeat). Upgrade: with NPC hunting
+  (`rebuild-npc-hunting.md`), weigh the odds of losing the fight, not just its cost to the meal.
+- `Knowledge.cs:315` - a carcass going (butchered away) is not a notable journal entry: `Butchered` is a step's tally and
+  is not filed. Upgrade: a once-only `CarcassGone` event when one leaves its tile.
 - `Travel.cs:201` - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.
 
 ## Knowledge, receipts and skills

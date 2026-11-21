@@ -32,6 +32,13 @@ NPC results on the full tree: 14-day gate 6/6; 20-seed 14-day sweep 18/20 (seeds
 no timber nearby); 30 days on the six gate seeds 3/6 (1, 42, 777 live; 17 dies day 27.8 at 6.9 kg
 fat; 2024 day 28.6; 3 day 15.2 at 9.3 kg fat, so cold or fire, not hunger).
 
+**Update 2026-11-21 (asks review, second round):** items 4 and 6 below are fixed as competence bugs, not
+balance: a camp with no timber within 15 tiles now explores up to 30 for a stand and moves camp to it (seed 5 lives
+30 days), and a small fire is built up with kindling, the reserve included, until the logs it has will go on.
+Also fixed: strike odds the NPC will accept fall as it gets colder, it sleeps short beside a fire it cannot bank,
+and from camp it does not set off for wood it would come home freezing from. Forage numbers and the daily schedule
+are unchanged. NPC 30-day survival on the ten review seeds: 9/10 (seed 123 dies in a mammoth hunt it started).
+
 ## To review
 
 1. **Focus gain size.** At 1.3 a focused forest forager ends about -0.04 kg/day. At 1.5 about

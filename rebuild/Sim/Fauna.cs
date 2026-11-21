@@ -265,9 +265,9 @@ public static partial class Fauna
         return here.Count == 0 ? 1.0 : here.Average(r => Pools.GrazedLevel(world, id, r));
     }
 
-    /// Meat on the tile's carcasses, kg.
+    /// Meat on the tile's carcasses an animal could eat, kg (Carcasses.MeatKg).
     public static double MeatHere(World world, TileId tile) =>
-        world.Tiles.GetValueOrDefault(tile)?.Carcasses?.Sum(c => c.Remaining.GetValueOrDefault(Resource.RawMeat)) ?? 0;
+        world.Tiles.GetValueOrDefault(tile)?.Carcasses?.Sum(Carcasses.MeatKg) ?? 0;
 
     /// Old PredatorInteraction's feeding: a meal is 3% of the group's mass, eaten no faster than
     /// 0.1 kg a minute a head, and hunger falls only for what was eaten.

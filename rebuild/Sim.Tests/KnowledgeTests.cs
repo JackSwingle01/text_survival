@@ -358,24 +358,59 @@ public class KnowledgeTests
     }
 
     /// A full journal lets go of what happened longest ago, not what was filed first: catch-up files
-    /// the fire that died in the night after the morning's news (review).
+    /// the fire that died in the night after the morning's news (review). Among notable entries alike.
     [Fact]
     public void AFullJournal_EvictsTheEarliestHappened_NotTheFirstFiled()
     {
         var w = Mild17();
         var camp = Map.Of(w).Camp;
         var events = new List<WorldEvent>();
-        for (int i = 0; i < Journal.MaxEntriesPerTile; i++) events.Add(new FireStartFailed(600 + i, P, camp, 0.5));
+        for (int i = 0; i < Journal.MaxEntriesPerTile; i++) events.Add(new FireDied(600 + i, new FireId(i + 1), camp));
         events.Add(new FireDied(300, new FireId(0), camp)); // found late: it went out at minute 300
-        events.Add(new FireStartFailed(700, P, camp, 0.5));
+        events.Add(new FireDied(700, new FireId(99), camp));
         int filed = 0;
         Journal.File(w, events, ref filed);
         var kept = w.Journal[camp];
         Assert.Equal(Journal.MaxEntriesPerTile, kept.Count);
-        Assert.DoesNotContain(kept, e => e is FireDied); // the earliest-happened went, though it was filed late
+        Assert.DoesNotContain(kept, e => e.Minute == 300); // the earliest-happened went, though it was filed late
         Assert.DoesNotContain(kept, e => e.Minute == 600); // then the next earliest made room for minute 700
         Assert.Contains(kept, e => e.Minute == 601);
         Assert.Contains(kept, e => e.Minute == 700);
+    }
+
+    /// Review: only fuel and stash chores made way, so 31 failed strikes, meals or cooked meat pushed
+    /// out the fire going out. Everything not notable goes before anything notable: the fire dying, a
+    /// shelter down, a wound, a kill, and the stash taken by someone whose camp it is not.
+    [Fact]
+    public void ADayOfMealsAndMisses_KeepsWhatMattered_InTheJournal()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        var stranger = Npc.Spawn(w, camp, Away(w, camp, 12));
+        var events = new List<WorldEvent>
+        {
+            new FireDied(100, new FireId(0), camp),
+            new Injured(101, P, camp, "Left Leg", DamageType.Pierce, 1),
+            new Unstashed(102, stranger, camp, Resource.Birch, 3), // someone else's camp is not theirs to take from
+            new Killed(103, new AgentId(99), Species.Caribou, 100, camp, P),
+        };
+        for (int i = 0; i < 3 * Journal.MaxEntriesPerTile; i++)
+            events.Add((i % 4) switch
+            {
+                0 => new FireStartFailed(200 + i, P, camp, 0.1),
+                1 => new Ate(200 + i, P, camp, Resource.Berries, 0.1, 50),
+                2 => new FireLit(200 + i, new FireId(1), camp, P),
+                _ => new Unstashed(200 + i, P, camp, Resource.Birch, 1), // their own camp: a chore
+            });
+        int filed = 0;
+        Journal.File(w, events, ref filed);
+        var kept = w.Journal[camp];
+        Assert.Equal(Journal.MaxEntriesPerTile, kept.Count);
+        Assert.Contains(kept, e => e is FireDied);
+        Assert.Contains(kept, e => e is Injured);
+        Assert.Contains(kept, e => e is Unstashed u && u.Who == stranger);
+        Assert.Contains(kept, e => e is Killed);
+        Assert.Equal(200 + 3 * Journal.MaxEntriesPerTile - 1, kept[^1].Minute); // and the latest of the rest
     }
 
     /// Chores make way first: a night of feeding the fire and fetching from the stash cannot push out

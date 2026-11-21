@@ -187,13 +187,20 @@ public static class Carcasses
     }
 
     /// An animal eats raw meat straight off the carcass, uncut: up to kg of it. Returns the kg eaten.
+    /// An animal tears off what a careful butcher would cut, not what full processing scrapes from the
+    /// bone, so it eats in careful kilograms: each one takes ThoroughFactor of the ledger. Scaling the
+    /// ledger up to full processing's changed nothing about how long a carcass feeds a pack, or what a
+    /// kilo a wolf eats costs whoever butchers what is left.
     public static double EatMeat(Carcass c, double kg)
     {
         if (kg < 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Cannot eat a negative amount");
-        double meat = c.Remaining.GetValueOrDefault(Resource.RawMeat), bite = Math.Min(meat, kg);
-        if (bite > 0) c.Remaining[Resource.RawMeat] = meat - bite;
+        double meat = MeatKg(c), bite = Math.Min(meat, kg);
+        if (bite > 0) c.Remaining[Resource.RawMeat] = bite >= meat ? 0 : c.Remaining[Resource.RawMeat] - bite * ThoroughFactor(Resource.RawMeat);
         return bite;
     }
+
+    /// The raw meat left on the carcass for an animal to eat, in careful kilograms (EatMeat).
+    public static double MeatKg(Carcass c) => c.Remaining.GetValueOrDefault(Resource.RawMeat) / ThoroughFactor(Resource.RawMeat);
 
     // ---- butchering ----
 

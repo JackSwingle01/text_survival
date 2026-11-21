@@ -130,6 +130,41 @@ public class SkillsTests
         Assert.Fail("no seed lit the fire");
     }
 
+    /// Review: the rest of a strike's Firecraft was paid only when someone fed the fire a log (Feed), so a
+    /// strike onto a pit already laid with logs never earned it. It is paid when the fire is sure to take
+    /// a log, at the strike itself, whoever looks at the fire afterwards and whenever.
+    [Fact]
+    public void AStrikeOntoLaidLogs_TeachesThree_AtTheStrike()
+    {
+        for (int seed = 0; seed < 60; seed++)
+        {
+            string? Run(bool look)
+            {
+                var w = World.New(3);
+                var tile = w.Agent(P).Tile;
+                Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
+                Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
+                var pit = new FireId(w.NextFireId++);
+                w.Fires[pit] = new FireState { Tile = tile, LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.Pine] = 3 } };
+                w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
+                if (!Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1).Events.Any(e => e is FireLit)) return null;
+                Assert.Equal(Skills.FireSuccessXp, Xp(w, Skill.Firecraft));
+                for (int i = 0; i < 30; i++)
+                {
+                    Sim.Step(w, new Wait(P), 1);
+                    if (look) Fire.CatchUp(w, pit, []);
+                }
+                Assert.True(w.Fires[pit].BurningKg.ContainsKey(Resource.Pine), "the pine should have caught");
+                Assert.Equal(Skills.FireSuccessXp, Xp(w, Skill.Firecraft)); // once
+                return Save.ToJson(w);
+            }
+            if (Run(look: false) is not string unseen) continue;
+            Assert.Equal(unseen, Run(look: true));
+            return;
+        }
+        Assert.Fail("no seed lit the fire");
+    }
+
     [Fact]
     public void Foraging_TeachesByTheHour()
     {
