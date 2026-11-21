@@ -165,8 +165,8 @@ on bodies and things; Bleeding, Pain, Shivering and the rest on bodies only.
   averages by weight; splitting copies.
 - **Carried things follow their carrier:** packed, they take the carrier's exposure under pack
   cover; worn, they are the body's. Things on the ground or in a stash evolve from their tile's
-  exposure. Whether that is a per-minute tick or lazy catch-up from exposure history is decided by
-  measurement (open question 6).
+  exposure. Every stack ticks every world minute, in one pass at the start of the minute (never
+  inside an agent's turn, so a stack handed over mid-minute is ticked exactly once).
 - **Where an effect's consequences live:** in the system that reads it (fire odds read wet tinder,
   butchering reads spoilage). An effect two systems share has one function, owned by the effect's
   physics, that both call.
@@ -453,6 +453,6 @@ save" make it nearly free once step 6 exists.
 4. Scavenger granularity: one folded kind first; split ravens (beacon) from wolverines (raiders)
    only if the information side needs separate tuning.
 5. Grave permanence: forever, or eventually claimed by sediment?
-6. Things' effects: a per-minute tick for every stack, or lazy catch-up from exposure history?
-   Being benchmarked (2026-11-21); decide on the numbers.
+6. ~~Things' effects: per-minute tick or lazy catch-up?~~ Decided: every stack ticks every minute
+   until that is a slowdown problem (decision record "Item effects tick every minute").
 7. World-density checks: which measures and floors (parked by the user).
