@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// Old ForageFocus: a focused search keeps what it looks for and drops about half of the rest.
+/// A focused search keeps what it looks for and drops about half of the rest.
 public enum ForageFocus { General, Fuel, Food, Medicine, Materials }
 
 /// One step of work in progress: what Begin worked out, and what the minutes have added up to.
@@ -18,13 +18,13 @@ public sealed class WorkSession
 }
 
 /// Work activities, shared by the player and NPCs: gathering from pools, butchering, eating,
-/// drinking, cooking, the stash. Port of the old WorkStrategies, ConsumptionHandler and CookingHandler.
+/// drinking, cooking, the stash.
 public static class Work
 {
     public const double MaxDrinkLiters = 1.0;
     public const int EatMinutes = 10, DrinkMinutes = 2, MeltSnowMinutes = 10, CookMeatMinutesPerKg = 15, CookFishMinutesPerKg = 12;
     public const double MeltSnowLiters = 1.0;
-    /// One use of the axe per hour of chopping (old: one per session, and its sessions ran 30-120 minutes).
+    /// One use of the axe per hour of chopping.
     public const double ChopMinutesPerAxeUse = 60;
 
     public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or Stash or Unstash or Wear or TakeOff;
@@ -37,7 +37,7 @@ public static class Work
     /// down, the carcass cut up.
     public const string Ate = "ate", Drank = "drank", CookedReason = "cooked", Melted = "melted", TreeFelled = "tree felled", ButcheredReason = "butchered";
 
-    /// Old WorkRunner.CheckDarknessBlocking: night (old TimeOfDay.Night) or a cave, with no flame or torch.
+    /// Night or a cave, with no flame or torch.
     public static bool TooDarkToWork(World world, Agent agent)
     {
         int hour = Weather.MinuteOfDay(world.Minute) / 60;
@@ -45,7 +45,7 @@ public static class Work
         return dark && !Fire.HasLight(world, agent.Id);
     }
 
-    /// Work that needs to see: everything but foraging (old: foraging by feel was allowed in the dark).
+    /// Work that needs to see: everything but foraging, which can be done by feel.
     static bool NeedsLight(World world, Agent agent, Activity activity) => activity switch
     {
         Butcher => true,
@@ -53,9 +53,8 @@ public static class Work
         _ => false,
     };
 
-    /// Old GetWorkImpairments: bad legs +20%, bad lungs +15%, bad hands +25% time; a frozen carcass
-    /// +50%. Read every minute, not fixed for the session as the old game did, so how the work is
-    /// split into steps cannot change what it gets done.
+    /// Bad legs +20%, bad lungs +15%, bad hands +25% time; a frozen carcass +50%. Read every minute,
+    /// so how the work is split into steps cannot change what it gets done.
     static double ImpairmentFactor(World world, Agent agent, Activity activity)
     {
         var body = agent.Body;
@@ -110,7 +109,7 @@ public static class Work
                     TreePool => Items.Tool(pack, ToolType.Axe) == null ? "you need an axe to fell trees" : null,
                     ShelterFind f => $"the {f.Name} is shelter, not something to gather",
                     StockPool s when !Pools.HasStock(world, id) => $"the {s.Name} is picked clean",
-                    // old game: the player's harvest never checked the tool a harvestable required; only NPCs did (bug, fixed).
+                    // The tool a harvestable requires is checked for everyone.
                     StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => $"you need {Names.A(Names.Of(t))}",
                     _ => null,
                 };
@@ -165,8 +164,8 @@ public static class Work
         }
     }
 
-    /// Rivers run open and lakes give water here. A frozen lake should need a hole cut (old
-    /// IceCuttingStrategy); that needs ice thickness, which Ground does not model yet.
+    /// Rivers run open and lakes give water here. A frozen lake should need a hole cut; that needs ice
+    /// thickness, which Ground does not model yet.
     public static bool HasOpenWater(World world, TileId tile)
     {
         var m = Map.Of(world);
@@ -212,7 +211,7 @@ public static class Work
                 double liters = Math.Round(Math.Min(Math.Min(d.Liters, MaxDrinkLiters), room), 2);
                 if (Items.Have(pack, Resource.Water) > 0) liters = Items.Take(pack, Resource.Water, liters);
                 Body.Drink(body, liters * 1000);
-                // Old ConsumptionHandler: cold water takes the edge off overheating.
+                // Cold water takes the edge off overheating.
                 if (body.Effects.FirstOrDefault(x => x.Kind == EffectKind.Hyperthermia) is { } hot)
                     hot.Severity = Math.Max(0, hot.Severity - 0.15 * (liters / 0.25));
                 events.Add(new Drank(world.Minute, agent.Id, agent.Tile, liters));
@@ -317,7 +316,7 @@ public static class Work
             case Cook c:
             {
                 if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
-                // Old CookingHandler: a piece (about a kilo) of meat in 15 minutes, of fish in 12.
+                // A piece (about a kilo) of meat in 15 minutes, of fish in 12.
                 // A practised cook turns it sooner: less time over the fire (Skills).
                 double perMinute = 1.0 / (c.Raw == Resource.RawFish ? CookFishMinutesPerKg : CookMeatMinutesPerKg)
                     * Skills.CookSpeedFactor(Skills.Level(agent, Skill.Cooking));
@@ -330,7 +329,7 @@ public static class Work
             case MeltSnow:
                 if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
                 if (s.Minutes < MeltSnowMinutes) return null;
-                // Old game: snow "is assumed freely available", even in July. Ground knows the real depth; melting does not read it yet.
+                // Snow is assumed freely available, even in July. Ground knows the real depth; melting does not read it yet.
                 var water = new Inventory();
                 Items.Add(water, Resource.Water, MeltSnowLiters);
                 Keep(world, agent, s, water, events);
@@ -343,9 +342,7 @@ public static class Work
     }
 
     /// What a minute of foraging brings in, against an unhindered search: eyes and light (no better
-    /// than whole), an axe and a shovel +10% each, and practice (old ForageStrategy, in its order).
-    /// old game: the axe and shovel bonuses were applied only when the total multiplier came out
-    /// below 1, so a healthy forager with an axe never got the +10% it was promised (bug, fixed).
+    /// than whole), an axe and a shovel +10% each, and practice, in that order.
     public static Odds ForageYield(Agent agent, Inventory pack, double perceptionPct) =>
         new("Search", 1.0, Odds.Moving(
             OddsTerm.Scale("Eyes", Math.Min(perceptionPct, 1.0)),
@@ -368,9 +365,9 @@ public static class Work
             events.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Dropped)));
     }
 
-    /// A minute of old ButcherStrategy: the setup once per carcass, then the cutting, at this
-    /// minute's decay and hands. The blood on you and the scent on the carcass build with the
-    /// minutes worked. What is ready goes in the pack now; the rest waits on the carcass.
+    /// A minute of butchering: the setup once per carcass, then the cutting, at this minute's decay and
+    /// hands. The blood on you and the scent on the carcass build with the minutes worked. What is ready
+    /// goes in the pack now; the rest waits on the carcass.
     static string? CutMinute(World world, Agent agent, Butcher b, WorkSession s, List<WorldEvent> events)
     {
         // Old bones can weather away under the knife (Remains.Hour settles them before this minute).
@@ -388,7 +385,7 @@ public static class Work
         var leftovers = Items.Receive(world, agent, ready, events, dropExcess: false);
         Carcasses.PutBack(c, leftovers);
         foreach (var (r, kg) in ready.Kg) if (kg - Items.Have(leftovers, r) > 0) Items.Add(s.Got, r, kg - Items.Have(leftovers, r));
-        // Old: BloodySeverity an hour, at most 0.5 from butchering; ScentIncrease a session, now an hour.
+        // Blood on you an hour, at most 0.5 from butchering; scent on the carcass an hour.
         double bloody = Effects.Severity(agent.Body, EffectKind.Bloody);
         if (bloody < 0.5) Effects.Set(agent.Body, EffectKind.Bloody, Math.Min(0.5, bloody + props.BloodySeverity / 60));
         c.ScentBonus += props.ScentIncrease / 60;
@@ -416,19 +413,15 @@ public static class Work
     }
 
     /// What a focused search finds of what it looks for, over a general one: each such find comes with
-    /// another like it on these odds. Old FocusProcessor only filtered, so focus cost the rest of the haul
-    /// and bought nothing - a focused food search fed no better than a general one (2026-11-20 forage retune).
-    /// Grounding: the eyes and hours a general search spends on sticks and stones go on the berries and roots.
-    /// Why this lever: per hour, fresh forest gives ~170 kcal of food (berries 75%), thinning as 1/(1+2h);
-    /// kcal per kg are already realistic (berries 500, nuts 6000), and density and depletion are shared
-    /// with fuel and are what pushes a forager outward. Measured (14 days, six gate seeds, a scripted
-    /// player foraging food 06-18h from camp within six tiles, moving on when ground thins): forest fat
-    /// went from -0.06..-0.13 kg/day to -0.00..-0.06; open plain stays near -0.18 and one worked-over
-    /// tile near -0.12..-0.20 - poor country and staying put still starve you, and a general search
-    /// (the old yield) still runs a deficit.
+    /// another like it on these odds, because the eyes and hours a general search spends on sticks and
+    /// stones go on the berries and roots. Filtering alone would make focus cost the rest of the haul and
+    /// buy nothing. Why this lever: per hour, fresh forest gives ~170 kcal of food (berries 75%), thinning
+    /// as 1/(1+2h); kcal per kg are already realistic (berries 500, nuts 6000), and density and depletion
+    /// are shared with fuel and are what pushes a forager outward. Tuned so a food forager in fresh forest
+    /// about holds their weight, while poor country, staying put and a general search still run a deficit.
     public const double FocusGain = 1.3;
 
-    /// Old FocusProcessor.ApplyFocus: each find outside the focus survives on a 40-60% roll.
+    /// Each find outside the focus survives on a 40-60% roll.
     static IEnumerable<(Resource, double)> Focus(List<(Resource Resource, double Kg)> finds, ForageFocus focus, Rng rng)
     {
         if (focus == ForageFocus.General) return finds;

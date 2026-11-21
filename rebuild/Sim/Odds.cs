@@ -10,10 +10,10 @@ public readonly record struct OddsTerm(string Factor, OddsOp Op, double Value)
     public static OddsTerm Scale(string factor, double multiplier) => new(factor, OddsOp.Scale, multiplier);
 }
 
-/// A chance (or a yield multiplier) as its factors, for the odds sheet (short-loop plan, feature 1).
-/// The value is a fold: start at BasePct and apply each term in order, adding or multiplying, then
-/// clamp to [MinPct, MaxPct]. TotalPct is computed from the terms by that one fold, so the terms
-/// always add up to the total exactly; it is the formula itself, in the order the old code wrote it.
+/// A chance (or a yield multiplier) as its factors, for the odds sheet. The value is a fold: start
+/// at BasePct and apply each term in order, adding or multiplying, then clamp to [MinPct, MaxPct].
+/// TotalPct is computed from the terms by that one fold, so the terms always add up to the total
+/// exactly; it is the formula itself, in its own order.
 /// Terms that change nothing (adding 0, multiplying by 1) are left out by the builders.
 public sealed record Odds(string Base, double BasePct, IReadOnlyList<OddsTerm> Terms, double MinPct = 0, double MaxPct = 1)
 {

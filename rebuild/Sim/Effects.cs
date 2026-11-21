@@ -1,7 +1,7 @@
 namespace Survival;
 
 /// The effects the body itself produces: survival thresholds, temperature, wetness, wounds.
-/// Event-only effects (fear, fever, sprains...) arrive with the events port as new rows.
+/// Event-only effects (fear, fever, sprains...) arrive with events, as new rows.
 public enum EffectKind
 {
     Hungry, Thirsty, Tired,

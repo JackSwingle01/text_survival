@@ -23,16 +23,14 @@ public sealed record TrailWear(double Wear, long Minute);
 public readonly record struct TrackSign(TrackMaker Maker, double FreshnessPct, int Traffic, TrafficPattern Pattern,
     Direction Heading, long AgeMinutes, double Depth, int NorthSouthTraffic, int EastWestTraffic);
 
-/// Footprints and desire paths: the ground remembers who walked on it, on two clocks. A port of
-/// the old TrackRegistry, TrailWear and GameMap.RecordMove / AdvanceGround / GetEdgeTraversalModifier.
+/// Footprints and desire paths: the ground remembers who walked on it, on two clocks.
 ///
-/// Both age against erosion. The old game kept one accumulator advanced every minute; here the sky
-/// is a pure function of (seed, minute), so erosion at any minute is derived from it (ErosionAt)
-/// and nothing is ticked or saved. Tracks and wear store the minute they were last added to and
-/// catch up on read (plan decision 3).
+/// Both age against erosion. The sky is a pure function of (seed, minute), so erosion at any minute
+/// is derived from it (ErosionAt) and nothing is ticked or saved. Tracks and wear store the minute
+/// they were last added to and catch up on read.
 public static class Tracks
 {
-    // ---- erosion (old TrackRegistry.ErosionPerMinute) ----
+    // ---- erosion ----
 
     /// Erosion units a Depth-1 track survives.
     public const double BaseLifespanUnits = 2880;
@@ -53,7 +51,7 @@ public static class Tracks
         return (world.ErosionCache ??= new ErosionTimeline()).At(world, minute);
     }
 
-    // ---- footprints (old TrackRegistry) ----
+    // ---- footprints ----
 
     /// The single seam for a completed crossing, whoever made it: prints on both tiles, wear on the
     /// edge between them. individuals is head count (a herd agent's Members.Count); individualDepth
@@ -113,8 +111,7 @@ public static class Tracks
         double traffic = individuals, heaviest = individualDepth, dx = 0, dy = 0, ns = 0, ew = 0;
         // Whatever the weather has left of the earlier sign carries over, so a route in daily use
         // reads busier than one crossed once - and nothing piles up forever, because it has faded.
-        // old game: a dead but not-yet-pruned sign still passed on its heaviest walker, so Depth
-        // depended on when the prune last ran (bug, fixed: a dead sign is no sign).
+        // A dead sign is no sign, whether or not the sweep has dropped it yet.
         if (state.Tracks.TryGetValue(maker, out var old) && Freshness(world, old, erosion) is var f && f > 0)
         {
             traffic += old.Traffic * f;
@@ -140,7 +137,7 @@ public static class Tracks
         return dy >= 0 ? Direction.South : Direction.North;
     }
 
-    /// Old Track.DominantHeading: strongest net movement; the last heading when it cancels out.
+    /// Strongest net movement; the last heading when it cancels out.
     static Direction DominantHeading(Track t)
     {
         if (Math.Abs(t.DirectionX) < double.Epsilon && Math.Abs(t.DirectionY) < double.Epsilon) return t.Heading;
@@ -150,8 +147,7 @@ public static class Tracks
 
     static int Readable(double traffic, double freshness) => traffic * freshness <= 0 ? 0 : Math.Max(1, (int)Math.Round(traffic * freshness));
 
-    /// Old LocationInspector.DirectionSummary, as data: an axis dominates at 1.5x the other, and
-    /// within it the leading way dominates at 1.5x the opposing.
+    /// An axis dominates at 1.5x the other, and within it the leading way dominates at 1.5x the opposing.
     static TrackSign Sign(TrackMaker maker, Track t, double f, long now)
     {
         double ns = t.NorthSouthTraffic * f, ew = t.EastWestTraffic * f;
@@ -188,7 +184,7 @@ public static class Tracks
             if (WearAt(world, edge, now, erosion) <= 0) world.Trails.Remove(edge);
     }
 
-    // ---- desire paths (old TrailWear) ----
+    // ---- desire paths ----
 
     /// Wear for each tier. One adult human crossing adds 1, so these read roughly as net crossings.
     public const double TraceAt = 5, PathAt = 14, TrailAt = 35;
@@ -231,7 +227,7 @@ public static class Tracks
 
     // ---- who leaves what ----
 
-    /// What shape of print a species leaves (old AnimalType.Tracks): people, pads, hooves.
+    /// What shape of print a species leaves: people, pads, hooves.
     public static TrackMaker MakerOf(Species species) => SpeciesTable.Of(species).Role switch
     {
         Role.Human => TrackMaker.Human,
@@ -239,8 +235,8 @@ public static class Tracks
         _ => TrackMaker.Hoof,
     };
 
-    /// How heavily one of them marks the ground, an adult human at 1 (old IndividualTrackDepth):
-    /// with the square root of body mass, so a mammoth prints far deeper than a fox, not seventy times.
+    /// How heavily one of them marks the ground, an adult human at 1: with the square root of body
+    /// mass, so a mammoth prints far deeper than a fox, not seventy times.
     public static double IndividualDepth(Species species) =>
         species == Species.Human ? 1.0 : Math.Clamp(Math.Sqrt(SpeciesTable.Of(species).WeightKg / 70.0), 0.4, 3.0);
 }

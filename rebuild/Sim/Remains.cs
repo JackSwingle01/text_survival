@@ -6,22 +6,21 @@ namespace Survival;
 public enum RemainsStage { Flesh, Skeletal, Bones, Gone }
 
 /// The body and carcass pipeline (emergent-world-design §5). Everything is derived from the rot clock
-/// (DecayTimeline: Carcasses.DecayFactor at each clock hour's air, the clock the old carcass already
-/// kept) and from how much flesh is left, so a read changes nothing. What a stage change does to the
-/// world (the flesh rotting off the ledger, the bones taken away, a skeleton scattering) is settled
-/// at the top of every clock hour (Hour), which every minute the world lives passes through, so it
-/// happens at the same minute however the clock is stepped and whoever looks.
+/// (DecayTimeline: Carcasses.DecayFactor at each clock hour's air) and from how much flesh is left, so
+/// a read changes nothing. What a stage change does to the world (the flesh rotting off the ledger, the
+/// bones taken away, a skeleton scattering) is settled at the top of every clock hour (Hour), which
+/// every minute the world lives passes through, so it happens at the same minute however the clock is
+/// stepped and whoever looks.
 /// Cold all but stops the clock (DecayFactor 0.1 below 0 °F): a body kept frozen by the local air
 /// lasts ten times as long (the frozen traveller). Scavengers speed it by eating: a carcass is
 /// stripped through Carcasses.EatMeat, a body through Pick.
-// A grave (not built yet) is exempt: Hour skips it once burial exists (old NPCBodyFeature.IsBuried).
+// A grave (not built yet) is exempt: Hour skips it once burial exists.
 public static class Remains
 {
     /// Effective hours to bones for a 70 kg body left whole: ten days at a cool thaw, five in summer
-    /// heat, a hundred deep frozen. Old NPCBodyFeature called a body skeletal at 72 effective hours,
-    /// but that was text for a body nobody could eat; carrion that lasts three days leaves the
-    /// scavengers nothing (judgment). Larger animals take longer, with the cube root of their mass
-    /// (a mammoth about four times a man).
+    /// heat, a hundred deep frozen. Carrion that lasts only three days leaves the scavengers nothing
+    /// (judgment). Larger animals take longer, with the cube root of their mass (a mammoth about four
+    /// times a man).
     public const double SkeletalHours70Kg = 240;
     /// However stripped, the last of the flesh takes this share of the full time (judgment).
     public const double StrippedFloorPct = 0.1;
@@ -49,9 +48,7 @@ public static class Remains
 
     /// How much of the flesh it died with nothing has eaten, 0-1: what is still on it and what was cut
     /// off it. Eating strips a carcass for the rot; cutting does not, because the flesh still on it
-    /// rots no faster for what a butcher took away. Review: counting cut flesh as stripped sent an
-    /// older carcass to bones half-way through the butchering, and the rot took the uncut hide and
-    /// the cut pieces waiting on it (bug, fixed).
+    /// rots no faster for what a butcher took away.
     public static double FleshLeftPct(Carcass c)
     {
         double uneaten = Carcasses.FleshKg(c) + Carcasses.CutFleshKg(c);

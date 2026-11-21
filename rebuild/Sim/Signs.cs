@@ -12,7 +12,7 @@ public sealed record Sign(ThingRef Thing, SignKind Kind, long? MadeMinute, Cause
 
 /// Signs are a projection over state that already exists; none is stored (no thing has its home
 /// here yet). Reads only: age and fading come from the clocks the things keep, as Report's do.
-// Kill sites (bones taken or weathered away) and stored signs (scat, claw marks) wait for build step 5.
+// Kill sites (bones taken or weathered away) and stored signs (scat, claw marks) are not built yet.
 public static class Signs
 {
     public static IEnumerable<Sign> At(World world, TileId tile)

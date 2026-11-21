@@ -15,7 +15,7 @@ public sealed record Verb(string Label, Activity Activity, int Minutes, string? 
 
 /// What an action sees about a thing: a fact read off its effects and its place, never stored
 /// (GLOSSARY: Condition). A blocking one stands in front of the thing's verbs; Clear is the verb that
-/// changes the world so it stops being true (none exists yet: Dig, Contest and the rest are step 4.4).
+/// changes the world so it stops being true (none exists yet: Dig, Contest and the rest).
 public sealed record Condition(string Name, bool Blocking, Verb? Clear = null);
 
 /// One thing here as the person sees it: what it is, its conditions (outermost first), and every
@@ -35,8 +35,8 @@ public sealed record ThingVerbs(ThingRef Thing, string Name, IReadOnlyList<Condi
 /// Pack: what can be done with what is carried - eat each food, put down each thing, wear each
 /// garment in the pack, take off each one worn.
 /// Make: every recipe, in menu order (none is hidden: a refused one says what it lacks), then every
-/// structure to build here (shelters, bedding, the tent: Shelters, until Make takes building over in
-/// roadmap 8), then abandoning each unfinished thing in the pack.
+/// structure to build here (shelters, bedding, the tent: Shelters, until Make takes building over),
+/// then abandoning each unfinished thing in the pack.
 public sealed record Here(AgentId Who, TileId At, IReadOnlyList<ThingVerbs> Things, IReadOnlyList<Verb> Walk, IReadOnlyList<Verb> Tile,
     IReadOnlyList<Verb> Pack, IReadOnlyList<Verb> Make)
 {
@@ -240,7 +240,7 @@ public static class Verbs
 
     /// The conditions on a thing, outermost first. Today the only ones are the access gates in force
     /// (Access.Blocker), and none has a clearing verb yet; modifying conditions (wet, spoiled) arrive
-    /// with the effects kernel and step 4.4.
+    /// with the effects kernel.
     static List<Condition> Conditions(World world, AgentId who, ThingRef t) =>
         Access.Blocker(world, who, t) is { Gate: not Access.Gate.None } b ? [new Condition(ConditionName(b.Gate), Blocking: true)] : [];
 

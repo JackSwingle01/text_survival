@@ -5,7 +5,7 @@ namespace Survival;
 public enum Pace { Quick, Careful }
 
 /// A crossing under way. The agent stays on its tile until ElapsedMinutes reaches TotalMinutes.
-/// Risks are fixed when the crossing starts, as the old TravelRunner fixed them before the walk.
+/// Risks are fixed when the crossing starts, before the walk.
 public sealed class Crossing
 {
     /// Where the crossing started. Only resumed from this tile: an agent moved by anything else starts afresh.
@@ -18,12 +18,12 @@ public sealed class Crossing
     public double DestRiskPct { get; init; }
 }
 
-/// One accident's mechanics, from the old AccidentVariants (their text is not ported; Content/accidents.json):
-/// a hit of Amount and Type on Target, and an effect it may start at Severity. A class, not a struct, so
-/// the reader requires Target, Type and Amount (a struct row would default them).
+/// One accident's mechanics (Content/accidents.json): a hit of Amount and Type on Target, and an
+/// effect it may start at Severity. A class, not a struct, so the reader requires Target, Type and
+/// Amount (a struct row would default them).
 public sealed record Accident(BodyTarget Target, DamageType Type, double Amount, EffectKind? Effect = null, double Severity = 0);
 
-/// Walking one tile north, east, south or west. Port of the old TravelProcessor and TravelRunner.
+/// Walking one tile north, east, south or west.
 public static class Traversal
 {
     /// Effective hazard at or above which a segment is hazardous: pace matters and quick risks injury.
@@ -84,8 +84,8 @@ public static class Traversal
         agent.Tile = to;
         agent.Crossing = null;
         events.Add(new Moved(world.Minute, agent.Id, from, to));
-        // The old GameMap.RecordMove seam: every agent's completed crossing marks the ground, a herd with all its feet.
-        // The carrion flock is mostly on the wing, and the fox in it too light to mark the ground (judgment).
+        // Every agent's completed crossing marks the ground, a herd with all its feet. The carrion flock
+        // is mostly on the wing, and the fox in it too light to mark the ground (judgment).
         if (Fauna.BehaviorOf(agent.Species) != HerdBehavior.Carrion)
             Tracks.RecordMove(world, from, to, Tracks.MakerOf(agent.Species), agent.Members.Count, Tracks.IndividualDepth(agent.Species));
 
@@ -107,9 +107,7 @@ public static class Traversal
 
     // ---- cost ----
 
-    /// Old TravelProcessor.GetTraversalMinutes with the pace applied as TravelRunner applied it,
-    /// and the surface excess in: this is the time the crossing actually lasts.
-    /// old game: TravelRunner walked GetTraversalMinutes, which left the surface excess out (bug, fixed).
+    /// The time the crossing actually lasts: the ground, the pace and the surface excess.
     /// encumbrancePct is carried weight over capacity (Items.EncumbrancePct): past half, a load slows you.
     /// The formula and its terms live in one place, Trip.Terms, which the trip preview reads too.
     public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky, double encumbrancePct = 0) =>
@@ -137,19 +135,18 @@ public static class Traversal
         return (int)Math.Ceiling(Map.BaseTraversalMinutes(m, tile) * (1 + multiplier) / Math.Max(0.1, speed));
     }
 
-    /// Minutes the edge between two tiles adds (old GameMap.GetEdgeTraversalModifier): authored
-    /// edges, plus however far the route has been beaten in by use.
+    /// Minutes the edge between two tiles adds: authored edges, plus however far the route has been
+    /// beaten in by use.
     public static int EdgeMinutes(World world, TileId from, TileId to) =>
         (Map.Of(world).EdgeBetween(from, to)?.TraversalMinutes() ?? 0) + Tracks.TrailMinutes(world, from, to);
 
-    /// What today's snow, water and mud add to a segment of segmentMinutes,
-    /// old segmentMinutes * (Surface.TraversalFactor - 1). Added after the edge bonus, from the
-    /// baseline segment: a worn path is bare earth under the snow, not a cleared lane through it.
+    /// What today's snow, water and mud add to a segment of segmentMinutes: segmentMinutes x
+    /// (TraversalFactor - 1). Added after the edge bonus, from the baseline segment: a worn path is
+    /// bare earth under the snow, not a cleared lane through it.
     public static double SurfaceExcessMinutes(World world, TileId tile, int segmentMinutes) =>
         segmentMinutes * (Ground.TraversalFactor(world, tile) - 1);
 
-    /// Old Location.GetSurfaceHazardDelta. Zero beside a river, whose
-    /// ice already owns the hazard.
+    /// Zero beside a river, whose ice already owns the hazard.
     public static double SurfaceHazardDelta(World world, TileId tile) => Ground.HazardDelta(world, tile);
 
     // ---- hazard ----
@@ -162,7 +159,7 @@ public static class Traversal
 
     public static bool IsHazardous(World world, TileId tile) => EffectiveHazardLevel(world, tile) >= HazardousLevel;
 
-    /// Old TravelProcessor.GetInjuryRisk: chance a quick crossing of this tile injures you.
+    /// Chance a quick crossing of this tile injures you.
     public static double InjuryRiskPct(World world, TileId tile, BodyState body, WeatherSample sky) =>
         InjuryOdds(world, tile, body, sky).TotalPct;
 
@@ -189,16 +186,15 @@ public static class Traversal
             OddsTerm.Add("Bad legs", impaired)), MinPct: 0, MaxPct: MaxInjuryRiskPct);
     }
 
-    // The old AccidentVariants' mechanics, pool by pool (Content/accidents.json).
+    // Accident mechanics, pool by pool (Content/accidents.json).
     static readonly IReadOnlyList<Accident> TripStumble = Accidents("TripStumble"), SharpHazards = Accidents("SharpHazards"),
         IceSlip = Accidents("IceSlip"), RockyTerrain = Accidents("RockyTerrain"), FallImpact = Accidents("FallImpact"), Sprains = Accidents("Sprains");
 
     static IReadOnlyList<Accident> Accidents(string pool) =>
         Content.Tables.Accidents.TryGetValue(pool, out var a) ? a : throw new KeyNotFoundException($"No accident pool '{pool}'");
 
-    /// Old VariantSelector.SelectTravelInjuryVariant: ice slips beside a river, otherwise worse
-    /// pools as the ground gets worse. Every question is asked of the injured segment's own tile.
-    /// old game: InjuryVariant.HasIce read the destination's river for the origin's injury too (bug, fixed).
+    /// Ice slips beside a river, otherwise worse pools as the ground gets worse. Every question is
+    /// asked of the injured segment's own tile.
     static (IReadOnlyList<Accident> Pool, double Weight)[] AccidentPools(GeneratedMap m, TileId tile)
     {
         double severity = Map.TerrainHazardLevel(m, tile);

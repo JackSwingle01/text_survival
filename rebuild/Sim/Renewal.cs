@@ -20,8 +20,7 @@ public sealed record ArrivalRow(double ValleyPerScore, int MinMembers, int MaxMe
 
 public static partial class Fauna
 {
-    /// The old game had no calving, recruitment, arrivals or starving herds at all: every number here
-    /// is a judgment, set by running the year on five seeds and reading the curves. Calving runs from
+    /// Every number here is a judgment, read off the curves of a simulated year. Calving runs from
     /// mid-May to midsummer, pups and cubs come in spring. Births are many for real herds because the
     /// valley's prey are a few dozen head under one or two packs; arrivals keep a species from dying out
     /// between seasons, as migrating herds and dispersing wolves would.
@@ -33,8 +32,8 @@ public static partial class Fauna
         Species.Mammoth => new(120, 200, 0.004, 0.032, null, null),
         Species.Wolf => new(110, 150, 0.020, 1.0 / 700, 14, new(1.0 / 3500, 3, 8, 48, 80)),
         // Hyenas and the carrion flock find something (bones, small game, berries) when no kill is
-        // near, so no stretch unfed starves them (judgment: the old hyena only scavenged and never went
-        // hungry); they thin only when their land holds more of them than it carries (Thin).
+        // near, so no stretch unfed starves them; they thin only when their land holds more of them than
+        // it carries (Thin).
         Species.Hyena => new(110, 170, 0.015, 1.0 / 850, null, new(1.0 / 3200, 3, 6, 64, 112)),
         Species.Raven => new(100, 180, 0.020, 0.05, null, new(0.0040, 3, 6, 150, 250)),
         // A bear's cub leaves as a herd of its own on its mother's land (Born).
@@ -137,8 +136,7 @@ public static partial class Fauna
     // ---- arrivals ----
 
     /// An arrival comes in at least this far from every living person: beyond the farthest anyone can
-    /// see (Sight.MaxTiles), so nobody sees a herd appear from nothing. Before the sight rays it was
-    /// twice the old five-tile glance.
+    /// see (Sight.MaxTiles), so nobody sees a herd appear from nothing.
     public const int ArrivalClearanceTiles = Sight.MaxTiles;
 
     /// For each species that comes from outside, in species order: with the day's chance ArrivalsPerDay
@@ -232,11 +230,10 @@ public static partial class Fauna
 
     /// The species on this land, as its capacity counts it: every herd of the species, each with its
     /// living members times the share of its own land that lies in this one. Herds whose land overlaps
-    /// share what it carries; a herd alone on its land counts only its own; a bear's cub, on a copy of
-    /// its mother's land, counts as a whole bear there. A meat-eater's land is the ground within
-    /// PreyRangeTiles of its den, so two packs count each other by how far their dens' ranges overlap.
-    /// Old (this rebuild): each herd counted only its own members, and a solitary animal whoever stood
-    /// on its land, so overlapping herds each filled the same land to its capacity (bug, fixed).
+    /// share what it carries, rather than each filling it to capacity; a herd alone on its land counts
+    /// only its own; a bear's cub, on a copy of its mother's land, counts as a whole bear there. A
+    /// meat-eater's land is the ground within PreyRangeTiles of its den, so two packs count each other
+    /// by how far their dens' ranges overlap.
     static double CurrentOn(World world, Species species, IReadOnlyList<TileId> land)
     {
         bool meat = DietOf(species) == Diet.Carnivore;

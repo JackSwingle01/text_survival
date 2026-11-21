@@ -21,9 +21,8 @@ public static class Access
         All = Buried | Guarded | FrozenIn | AcrossWater,
     }
 
-    /// The conditions in force. None of the four was enforced before this gate existed, and this
-    /// step changes no behaviour, so none is wired: each is implemented and available (Refusal with
-    /// gates) until the step that wants it switches it on here.
+    /// The conditions in force. None is wired yet: each is implemented and available (Refusal with
+    /// gates) until the work that wants it switches it on here.
     public const Gate Wired = Gate.None;
 
     public const string BuriedReason = "it is buried under the snow", FrozenInReason = "it is frozen in",
@@ -72,7 +71,7 @@ public static class Access
     /// lies there yet: only a guard holding the ground bars it, by the same exemptions as reaching what
     /// lies there (a pile of the putter's own is never held against them). What is put down lies on
     /// top, so snow or ice over a stash does not bar adding to it; taking from one is the full gate
-    /// (Refusal). Before, adding to a stash went through every gate and starting one through none.
+    /// (Refusal).
     public static string? PutDownRefusal(World world, AgentId who, TileId tile) => PutDownRefusal(world, who, tile, world.AccessGates);
 
     public static string? PutDownRefusal(World world, AgentId who, TileId tile, Gate gates)

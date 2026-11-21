@@ -107,7 +107,7 @@ public static class TerrainProps
     /// Minutes an edge adds to a crossing (negative saves time).
     public static int TraversalMinutes(this EdgeType e) => Edges[(int)e].TraversalMinutes;
 
-    /// Whether an edge stops a crossing outright. No seasons yet: the old River could flood in spring.
+    /// Whether an edge stops a crossing outright. No seasons yet, so no river floods in spring.
     public static bool IsBlocking(this EdgeType e) => Edges[(int)e].Blocking;
 }
 
@@ -133,8 +133,7 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
     public Terrain TerrainAt(TileId t) => terrain[t.X, t.Y];
     public Cave CaveAt(TileId t) => caves[t.X, t.Y];
     public int? CaveIdAt(TileId t) => caveIds[t.X, t.Y];
-    /// Beside a river: the old game gave these tiles a thin-ice WaterFeature, which named sites
-    /// (the pass stages) did not inherit.
+    /// Beside a river: these tiles carry the river's thin ice, which named sites (the pass stages) do not.
     public bool BesideRiver(TileId t) => river.Contains(t) && !passStages.ContainsKey(t);
     public LocationDef? StageAt(TileId t) => passStages.TryGetValue(t, out int i) ? Map.PassStages[i] : null;
     /// The whole corridor through the mountains, its six stages and the rock between them.
@@ -147,12 +146,11 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
     public EdgeType? EdgeBetween(TileId a, TileId b) => edges.TryGetValue(MapGen.EdgeKey(a, b), out var e) ? e : null;
 }
 
-/// The world's terrain and how tiles connect. Terrain is a pure function of the seed (plan decision 1).
-// No tile visibility / fog of war yet. That is the player's knowledge (plan decision 7), not
-// map truth; port old GameMap.UpdateVisibility + Sight rays into the agent-knowledge step, not here.
+/// The world's terrain and how tiles connect. Terrain is a pure function of the seed.
+// Visibility is the player's knowledge (Sight, Knowledge), not map truth, so it is not here.
 public static class Map
 {
-    public const int DefaultWidth = 224, DefaultHeight = 82; // the old game's valley world; 100 m tiles
+    public const int DefaultWidth = 224, DefaultHeight = 82; // 100 m tiles
 
     /// A tile whose owners have all let go of it leaves World.Tiles, so the save holds only what differs.
     /// Each owner calls this when it sets its field back to null.
@@ -164,8 +162,8 @@ public static class Map
     /// West to east along the pass row: six stages (Content/locations.json), the last one the exit.
     public static readonly LocationDef[] PassStages = [.. Content.PassStages];
 
-    /// Derived, never stored (old GameRunner looped while alive and not on the crossing exit): a
-    /// living player standing on the far side has won, a dead one has lost, and nothing to keep in sync.
+    /// Derived, never stored: a living player standing on the far side has won, a dead one has lost,
+    /// and nothing to keep in sync.
     public static RunOutcome Outcome(World world)
     {
         var player = world.Agent(AgentId.Player);
@@ -205,20 +203,19 @@ public static class Map
         };
     }
 
-    // ---- per-tile ground, as the old terrain Location carried it ----
+    // ---- per-tile ground ----
 
     /// Base injury risk and slowness of the ground's shape: terrain, cave, stage or camp, plus thin river ice.
     public static double TerrainHazardLevel(GeneratedMap m, TileId t) =>
         m.SiteAt(t)?.Hazard ?? (t == m.Camp ? 0 : m.CaveAt(t) is var c and not Cave.None ? c.Row().Hazard : m.TerrainAt(t).BaseHazardLevel());
 
-    /// Old Location.GetTravelHazardLevel: the ground plus frozen water. River ice is thin (0.3):
-    /// 0.15 for any ice, 0.2 more for thin. A site with water of its own has that water instead of
-    /// the river (old named sites inherited the river's only when they had none).
-    /// Static ice: a site's water ice does not grow or thaw with Ground yet.
+    /// The ground plus frozen water. River ice is thin (0.3): 0.15 for any ice, 0.2 more for thin. A
+    /// site with water of its own has that water instead of the river. Static ice: a site's water ice
+    /// does not grow or thaw with Ground yet.
     public static double TravelHazardLevel(GeneratedMap m, TileId t) =>
         Math.Min(1.0, TerrainHazardLevel(m, t) + (m.SiteAt(t)?.Water is { } w ? w.HazardDelta : m.BesideRiver(t) ? 0.15 + 0.20 : 0));
 
-    /// Random 0.8-1.2 per terrain tile, from the old position seed; a named site has its own (mostly 1),
+    /// Random 0.8-1.2 per terrain tile, from the position seed; a named site has its own (mostly 1),
     /// and the camp and caves are 1.
     public static double TraversalModifier(GeneratedMap m, TileId t)
     {
@@ -228,7 +225,7 @@ public static class Map
         return 0.8 + new LegacyRng(positionSeed).NextDouble() * 0.4;
     }
 
-    /// Old Location.BaseTraversalMinutes: terrain minutes plus a hazard bonus, scaled by the modifier.
+    /// Terrain minutes plus a hazard bonus, scaled by the modifier.
     public static int BaseTraversalMinutes(GeneratedMap m, TileId t)
     {
         int terrainBase = m.TerrainAt(t).BaseTraversalMinutes();
@@ -240,8 +237,8 @@ public static class Map
     public static double WindFactor(GeneratedMap m, TileId t) =>
         m.SiteAt(t)?.Wind ?? (t == m.Camp ? 0.4 : m.CaveAt(t) is var c and not Cave.None ? c.Row().Wind : m.TerrainAt(t).BaseWindFactor());
 
-    /// Overhead cover 0-1: canopy, rock overhang, cave roof. Old terrain BaseOverheadCover and the
-    /// camp, cave and pass-stage factories. What keeps sun, rain and snow off both the ground and a person.
+    /// Overhead cover 0-1: canopy, rock overhang, cave roof. What keeps sun, rain and snow off both the
+    /// ground and a person.
     public static double OverheadCover(GeneratedMap m, TileId t)
     {
         if (m.SiteAt(t) is { } site) return site.Cover;
@@ -252,8 +249,7 @@ public static class Map
     /// How much colder this tile is than the regional air (the pass stages).
     public static double TemperatureDeltaF(GeneratedMap m, TileId t) => m.SiteAt(t)?.TemperatureDeltaF ?? 0;
 
-    /// How far you can see from here, 0-2: old Location.VisibilityFactor (terrain BaseVisibility,
-    /// the camp's 0.8, a cave's, or the named site's own).
+    /// How far you can see from here, 0-2: the terrain's, the camp's 0.8, a cave's, or the named site's own.
     public static double Visibility(GeneratedMap m, TileId t)
     {
         if (m.SiteAt(t) is { } site) return site.Visibility;
@@ -261,8 +257,8 @@ public static class Map
         return m.CaveAt(t) is var c and not Cave.None ? c.Row().Visibility : m.TerrainAt(t).Row().Visibility;
     }
 
-    /// No light to work by without fire or torch: underground, and the old dark sites (a bear's cave,
-    /// an ice crevasse). Night is the clock's business, not the map's.
+    /// No light to work by without fire or torch: underground, and the dark sites (a bear's cave, an
+    /// ice crevasse). Night is the clock's business, not the map's.
     public static bool IsDark(GeneratedMap m, TileId t) => m.SiteAt(t)?.Dark ?? m.CaveAt(t) == Cave.Floor;
 
     /// The site's features this tile really has: each on its chance, rolled once per tile on its own
@@ -275,8 +271,8 @@ public static class Map
         return [.. site.All.Where(f => f.Chance >= 1 || rng.NextDouble() < f.Chance)];
     }
 
-    /// Puts every named site's shelter on its tile (old ShelterFeature on the site's Location). Natural
-    /// shelters are world state from the start, since work improves them and weather wears them.
+    /// Puts every named site's shelter on its tile. Natural shelters are world state from the start,
+    /// since work improves them and weather wears them.
     public static void PlaceSiteShelters(World world)
     {
         var m = Of(world);
@@ -285,7 +281,7 @@ public static class Map
                 Shelters.Place(world, tile, new ShelterDef(s.Name, s.Type, s.Insulation, s.Overhead, s.Wind, s.InsulationCap, s.OverheadCap, s.WindCap));
     }
 
-    /// What a person reads arriving here: the site's old DiscoveryText, its story drawn once per tile.
+    /// What a person reads arriving here: the site's discovery text, its story drawn once per tile.
     public static string? DiscoveryText(World world, TileId t)
     {
         var site = Of(world).SiteAt(t);

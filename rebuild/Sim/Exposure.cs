@@ -79,21 +79,19 @@ public sealed record Exposure(
             AirBeforeFireF: beforeFireF,
             AirF: beforeFireF + warmth.AirHeatF,
             WindLevel: wind,
-            // Drying at a fire reads the wind past the pit's walls, not the shelter's (old game parity:
-            // old SurvivalContext.CalculateEffectiveWindSpeed fed SurvivalProcessor's drying).
+            // Drying at a fire reads the wind past the pit's walls, not the shelter's.
             FireDryingWindLevel: WindAt(sky, tileWind, fires.WallsLevel, 0),
             Warmth: warmth,
             ShelterInsulationLevel: insulation,
-            // Old SurvivalContext: a roof over someone keeping still, or the sky's own cover, whichever is more.
+            // A roof over someone keeping still, or the sky's own cover, whichever is more.
             OverheadCoverLevel: Math.Max(overhead, cover.Shelter.OverheadLevel),
             SunlightLevel: sky.SunlightLevel * (1 - overhead),
             GroundWettingPctPerMinute: contact is SurfaceContact c ? Ground.ContactWettingRate(world, tile, c, wetnessPct) : 0);
     }
 
     /// The one wind at a body or thing: the regional wind, as much of it as reaches this tile, less a
-    /// burning pit's walls and a shelter's. 1 is a 45 mph gale; a funnelled tile can exceed it.
-    /// Rebuild: tile wind reaches the body (decision 2026-11-21). Old game: the tile's factor reached
-    /// only the wind chill, and the convection and drying read the regional wind.
+    /// burning pit's walls and a shelter's. 1 is a 45 mph gale; a funnelled tile can exceed it. The
+    /// tile's wind reaches the body's convection and drying, not only its wind chill.
     public static double WindAt(WeatherSample sky, double tileWindFactor, double pitWallsLevel, double shelterWindLevel) =>
         sky.WindLevel * tileWindFactor * (1 - pitWallsLevel) * (1 - shelterWindLevel);
 
@@ -101,11 +99,10 @@ public sealed record Exposure(
     /// shelter and a carcass feel. The one place the two are added.
     public static double SiteAirF(WeatherSample sky, double temperatureDeltaF) => sky.TemperatureF + temperatureDeltaF;
 
-    /// The open surface of a tile at any minute (old Location.GetSurfaceWeather): the regional sky
-    /// with the tile's cover, wind and cold applied exactly once. Minute-addressable, so the lazy
-    /// catch-ups (ground, snow shelter melt) read the same weather however often they are run. A
-    /// whiteout deposits nothing (WeatherSample's snowfall is zero). The ground's wind is capped at a
-    /// gale; a body's (WindAt) is not.
+    /// The open surface of a tile at any minute: the regional sky with the tile's cover, wind and cold
+    /// applied exactly once. Minute-addressable, so the lazy catch-ups (ground, snow shelter melt) read
+    /// the same weather however often they are run. A whiteout deposits nothing (WeatherSample's snowfall
+    /// is zero). The ground's wind is capped at a gale; a body's (WindAt) is not.
     public static SurfaceWeather Surface(World world, TileId tile, long minute)
     {
         var m = Map.Of(world);
@@ -119,13 +116,13 @@ public sealed record Exposure(
             RainfallMPerMinute: s.RainfallMPerMinute * exposure);
     }
 
-    /// Air a body feels before any shelter or fire: old Location.GetTemperatureBreakdown steps 1-2 (the
-    /// tile's own cold, wind chill at the wind on the body, sun and precipitation through the tile's
-    /// cover). windLevel is WindAt's. The defaults are a fully exposed tile.
+    /// Air a body feels before any shelter or fire: the tile's own cold, wind chill at the wind on the
+    /// body, sun and precipitation through the tile's cover. windLevel is WindAt's. The defaults are a
+    /// fully exposed tile.
     public static double FeltAirF(WeatherSample s, double windLevel, double overheadCoverLevel = 0, double temperatureDeltaF = 0)
     {
         double t = SiteAirF(s, temperatureDeltaF);
-        // The threshold reads the regional wind, as old; the chill reads what reaches the body.
+        // The threshold reads the regional wind; the chill reads what reaches the body.
         if (s.WindLevel > 0.1) t = Weather.WindChillF(t, windLevel * Weather.MaxWindMph);
         double exposure = 1 - overheadCoverLevel;
         t += s.SunlightLevel * exposure * 15 * Math.Clamp((50 - t) / 30, 0.5, 1); // sun is felt more in the cold
@@ -149,10 +146,10 @@ public sealed record Exposure(
     /// The wind on open ground on a tile (WindAt with no walls): what a walker leans into, and what slows the walk (Traversal).
     public static double OpenWindLevel(GeneratedMap m, TileId tile, WeatherSample s) => WindAt(s, Map.WindFactor(m, tile), 0, 0);
 
-    /// Old Location.GetTemperatureBreakdown step 3: a shelter holds the air toward a 40 °F floor (what
-    /// body heat keeps a good shelter at), by its insulation (capped at 0.9), less up to 30% for the
-    /// rain or snow reaching the tile and 30% for the wind at the body. Never cools a warm day. Returns
-    /// the air and the insulation that is left, which also keeps a fire's heat in (Fire.WarmthAgainst).
+    /// A shelter holds the air toward a 40 °F floor (what body heat keeps a good shelter at), by its
+    /// insulation (capped at 0.9), less up to 30% for the rain or snow reaching the tile and 30% for the
+    /// wind at the body. Never cools a warm day. Returns the air and the insulation that is left, which
+    /// also keeps a fire's heat in (Fire.WarmthAgainst).
     public static (double AirF, double InsulationLevel) ShelterStep(double airF, WeatherSample s, double insulationLevel,
         double windLevel, double overheadCoverLevel)
     {

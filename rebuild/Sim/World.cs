@@ -26,8 +26,8 @@ public sealed class World
     /// Generated from Seed alone, so never saved (internal: the serializer skips it). See Map.Of.
     internal GeneratedMap? GeneratedMap;
     // Keyed world state is sorted: a Dictionary's order after Remove-then-Add differs from its order
-    // freshly loaded, so a save, loaded and run on, came out with the same state in another order.
-    /// Only tiles that differ from generation (plan decision 1). Ground and tracks write here.
+    // freshly loaded, so a loaded save would run on with the same state in another order.
+    /// Only tiles that differ from generation. Ground and tracks write here.
     public SortedDictionary<TileId, TileState> Tiles { get; init; } = [];
     public SortedDictionary<AgentId, Agent> Agents { get; init; } = [];
     /// RNG streams by name: world-making systems by system name, everything an agent rolls by system
@@ -86,7 +86,7 @@ public sealed class World
         {
             Id = AgentId.Player, Tile = map.Camp, Members = [SpeciesTable.NewBody(Species.Human, world.Birth("person", AgentId.Player))],
         };
-        // The old camp's Overhang and bedding (old GridWorldGenerator.CreateCampLocation).
+        // The camp's overhang and bedding.
         Survival.Shelters.Place(world, map.Camp, Survival.Shelters.CampOverhang);
         Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);
         Map.PlaceSiteShelters(world);

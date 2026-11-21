@@ -9,9 +9,9 @@ public enum Season { Winter, Spring, Summer, Fall }
 public enum WindDirection { North, Northeast, East, Southeast, South, Southwest, West, Northwest, Calm }
 public enum FrontType { ClearSpell, StormSystem, ColdSnap, Warming, UnsettledPeriod, ProlongedBlizzard, IceStorm }
 
-/// The regional sky at one minute. Air temperature is the same all through a front state (the
-/// old fronts had no diurnal curve); the day/night swing reaches a person through the sun term
-/// of Exposure.FeltAirF.
+/// The regional sky at one minute. Air temperature is the same all through a front state (fronts
+/// have no diurnal curve); the day/night swing reaches a person through the sun term of
+/// Exposure.FeltAirF.
 public readonly record struct WeatherSample(
     long Minute, WeatherCondition Rolled, double TemperatureC, double WindLevel,
     double PrecipitationPct, double CloudCoverPct, WindDirection Heading, FrontType Front = FrontType.ClearSpell)
@@ -24,7 +24,7 @@ public readonly record struct WeatherSample(
     public double TemperatureF => TemperatureC * 9 / 5 + 32;
     /// WindLevel 1 is a 45 mph gale.
     public double WindMph => WindLevel * Weather.MaxWindMph;
-    /// Calm is derived from speed, never stored: a stored Calm went stale in the old game.
+    /// Calm is derived from speed, never stored, so it cannot go stale.
     public WindDirection WindDirection => WindMph < 3.0 ? WindDirection.Calm : Heading;
 
     public double VisibilityFactor => Condition switch
@@ -39,8 +39,7 @@ public readonly record struct WeatherSample(
 
     public double SunlightLevel => Weather.Sunlight(Minute, Condition, CloudCoverPct);
 
-    /// What falls on a person. Old SurvivalContext left HeavySnow and FreezingRain out, so they
-    /// never wetted anyone; fixed here: heavy snow wets as snow, freezing rain as rain.
+    /// What falls on a person: heavy snow wets as snow, freezing rain as rain.
     public Precipitation Precipitation => Condition switch
     {
         WeatherCondition.Rainy or WeatherCondition.Stormy or WeatherCondition.FreezingRain => Precipitation.Rain,
@@ -49,8 +48,8 @@ public readonly record struct WeatherSample(
         _ => Precipitation.None,
     };
 
-    /// Snow reaching open ground, metres water-equivalent per minute (old Location.GetSurfaceWeather).
-    /// Ground multiplies by its own exposure (1 - overhead cover). A whiteout is snow already down, blown about.
+    /// Snow reaching open ground, metres water-equivalent per minute. Ground multiplies by its own
+    /// exposure (1 - overhead cover). A whiteout is snow already down, blown about.
     public double SnowfallWeMPerMinute => Condition is WeatherCondition.LightSnow or WeatherCondition.HeavySnow or WeatherCondition.Blizzard
         ? PrecipitationPct * 0.005 / 60 : 0;
     /// Rain reaching open ground, metres per minute.
@@ -60,8 +59,7 @@ public readonly record struct WeatherSample(
 
 /// Weather is a pure function of (seed, minute): fronts are generated in order from per-front
 /// seed-derived streams, so any past minute answers the same no matter when or in what order
-/// it is asked, and nothing about the weather is saved. A port of the old Weather, WeatherFront
-/// and FrontPatterns: same patterns, ranges, durations, skips, grace period and calendar.
+/// it is asked, and nothing about the weather is saved.
 public static class Weather
 {
     public const double MaxWindMph = 45.0;
@@ -70,9 +68,8 @@ public static class Weather
     /// two either phase is plausible and the front's own choice stands.
     public const double RainAboveC = 1.0, SnowBelowC = -1.0;
 
-    /// Old FrontPatterns rolled snow states across the whole seasonal range and had no rain state,
-    /// so July fronts snowed at +15 °C and summer storms rained at -10 °C.
-    /// old game: precipitation phase ignored temperature (bug, fixed).
+    /// Front patterns roll snow states across the whole seasonal range and have no rain state, so the
+    /// phase follows the air: a July front rains at +15 °C, a winter storm snows at -10 °C.
     public static WeatherCondition PhaseOf(WeatherCondition c, double temperatureC) => c switch
     {
         WeatherCondition.LightSnow or WeatherCondition.HeavySnow when temperatureC > RainAboveC => WeatherCondition.Rainy,
@@ -84,20 +81,19 @@ public static class Weather
         _ => c,
     };
 
-    // ---- calendar: world minute 0 is July 1, 09:00 (the old GameContext.StartTime) ----
+    // ---- calendar: world minute 0 is July 1, 09:00 ----
 
     const int StartDayOfYear = 182, StartMinuteOfDay = 9 * 60, DaysPerYear = 365; // no leap years
-    /// The old game (GameContext.CreateNewGame) built its weather 30 days before the start and
-    /// ran it forward, so turn 1 opens a month into the fronts, long past the gentle Initial one.
-    /// The timeline starts here; world minute 0 is still July 1, 09:00.
+    /// The weather is built 30 days before the start and run forward, so turn 1 opens a month into the
+    /// fronts, long past the gentle Initial one. The timeline starts here; world minute 0 is still July 1, 09:00.
     public const long PreRollMinutes = 30 * 1440L;
-    /// Relative to game start, as old Weather.IsInGracePeriod: the whole pre-roll is inside it.
+    /// Relative to game start: the whole pre-roll is inside it.
     const int GracePeriodMinutes = 7 * 1440;
 
     static long CalendarMinute(long minute) => minute + (StartDayOfYear - 1) * 1440L + StartMinuteOfDay;
     /// 1-based: January 1 is day 1.
     public static int DayOfYear(long minute) => (int)(CalendarMinute(minute) / 1440 % DaysPerYear) + 1;
-    /// Day 1 is the first day of the game, as the old GameContext.DayNumber.
+    /// Day 1 is the first day of the game.
     public static int DayNumber(long minute) => (int)(CalendarMinute(minute) / 1440 - (StartDayOfYear - 1)) + 1;
     public static int MinuteOfDay(long minute) => (int)(CalendarMinute(minute) % 1440);
 
@@ -119,7 +115,7 @@ public static class Weather
         return hour >= SunriseHour(minute) && hour < SunsetHour(minute);
     }
 
-    /// 0-1 sunlight on open ground. The sine is anchored at 06:00-18:00 whatever the season, as in the old game.
+    /// 0-1 sunlight on open ground. The sine is anchored at 06:00-18:00 whatever the season.
     public static double Sunlight(long minute, WeatherCondition condition, double cloudCoverPct)
     {
         if (!IsDaytime(minute)) return 0;
@@ -137,7 +133,7 @@ public static class Weather
         return byTime * (1 - cloudCoverPct * 0.9) * (1 - conditionReduction);
     }
 
-    /// Old AbilityContext.CalculateDarkness: by the hour, whatever the season; caves are always dark.
+    /// By the hour, whatever the season; caves are always dark.
     public static double DarknessLevel(World world, TileId tile)
     {
         if (Map.Of(world).CaveAt(tile) == Cave.Floor) return 1.0;
@@ -154,10 +150,8 @@ public static class Weather
 
     // ---- what a person feels ----
 
-    /// NWS wind chill (old Location.CalculateWindChillNWS), defined at or below 50 °F and 3 mph or more.
-    /// Above 50 °F the chill fades out by 60 °F rather than vanishing.
-    /// Old (this rebuild, old game): it stopped dead at 50 °F, so in a gale 49.9 °F felt like 40 °F and
-    /// 50.1 °F like 50.1 °F (bug, fixed; body review A10).
+    /// NWS wind chill, defined at or below 50 °F and 3 mph or more. Above 50 °F the chill fades out by
+    /// 60 °F rather than vanishing, so a gale at 49.9 °F and at 50.1 °F feel alike.
     public static double WindChillF(double temperatureF, double windSpeedMph)
     {
         if (temperatureF >= WindChillGoneF || windSpeedMph < 3) return temperatureF;
@@ -193,7 +187,7 @@ public static class Weather
     internal readonly record struct Spell(long Start, int FrontIndex, FrontType Front, WeatherCondition Condition,
         double TemperatureC, double WindLevel, double PrecipitationPct, double CloudCoverPct, WindDirection Heading);
 
-    /// A front pattern's state before its values are rolled (old WeatherState).
+    /// A front pattern's state before its values are rolled.
     readonly record struct State(WeatherCondition Condition, (double Min, double Max) Temp, (double Min, double Max) Wind,
         (double Min, double Max) Precip, (double Min, double Max) Cloud, int DurationMinutes, double SkipPct = 0);
 
@@ -201,15 +195,15 @@ public static class Weather
     internal static Rng FrontRng(int seed, int k)
     {
         // Hash the seed before mixing in k: ForSystem only XORs the seed into the low bits, so
-        // seed ^ k alone would hand seed 1's front 0 to seed 0's front 1.
+        // seed ^ k alone would hand one seed's front 0 to the next seed's front 1.
         var r = Rng.ForSystem(seed, "weather");
         r.State = r.NextUlong() ^ (ulong)k;
         r.State = r.NextUlong();
         return r;
     }
 
-    /// Front k's pattern. The old game drew each front one ahead, when the front before it began,
-    /// so season and grace period are read at that minute (negative during the pre-roll).
+    /// Front k's pattern. Each front is drawn one ahead, when the front before it begins, so season and
+    /// grace period are read at that minute (negative during the pre-roll).
     static (FrontType Type, List<State> States) Generate(Rng r, int k, long generatedAtMinute)
     {
         var season = SeasonAt(generatedAtMinute);
@@ -218,8 +212,7 @@ public static class Weather
     }
 
     /// Realises front k from its start: skips rolled at each transition, values rolled per state.
-    /// Returns the minute the front ends. A skip past the last state ends the front early (the old
-    /// code threw ArgumentOutOfRange there, and the next minute moved on to the next front).
+    /// Returns the minute the front ends. A skip past the last state ends the front early.
     internal static long Realise(int seed, int k, long start, long generatedAt, List<Spell> into)
     {
         var r = FrontRng(seed, k);
@@ -258,7 +251,7 @@ public static class Weather
         _ => (-10, 5, 0.7), // Fall
     };
 
-    // ---- front patterns (old FrontPatterns) ----
+    // ---- front patterns ----
 
     static (FrontType, List<State>) Any(Rng r, Season season)
     {
@@ -397,7 +390,7 @@ internal sealed class WeatherTimeline(int seed)
 {
     readonly List<Weather.Spell> spells = [];
     int nextFront;
-    // The old game drew front k when front k-1 began; front 0 and 1 both at the pre-roll start.
+    // Front k is drawn when front k-1 begins; fronts 0 and 1 both at the pre-roll start.
     long nextStart = -Weather.PreRollMinutes, nextGeneratedAt = -Weather.PreRollMinutes;
 
     /// Any minute from the start of the pre-roll; the world itself only lives minutes from 0.

@@ -1,7 +1,7 @@
 namespace Survival;
 
-/// Running and the fight energy model (documentation/species-stats-research.md §5; species round,
-/// decided 2026-11-21). A body has one stored value, its sprint reserve (BodyState.SprintSpentLevel):
+/// Running and the fight energy model (documentation/species-stats-research.md §5). A body has one
+/// stored value, its sprint reserve (BodyState.SprintSpentLevel):
 /// sprinting above endurance speed drains it, every strike, dodge or shove takes a slice, and it
 /// refills every minute lived over a recovery time that grows with the body's weight. Wounds,
 /// fatigue and load cut a body's speeds and stretch what each burst costs (Running.SpeedPct). What

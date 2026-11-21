@@ -17,18 +17,18 @@ public abstract record PersonMind : Mind
 {
     public Inventory Pack { get; init; } = Items.StartingPack();
     public Beliefs Knows { get; init; } = new();
-    /// Only the skills practised so far (Skills). The short-loop plan put these on Agent; they live
-    /// here because only a person learns, and kind-specific state lives in the mind (plan decision 2).
+    /// Only the skills practised so far (Skills). They live here because only a person learns, and
+    /// kind-specific state lives in the mind.
     public SortedDictionary<Skill, SkillProgress> Skills { get; init; } = [];
 }
 
 /// The UI picks the activities.
 public sealed record PlayerMind : PersonMind;
 
-/// The NPC utility AI picks the activities (phase 3d; state and decider live in Npc.cs).
+/// The NPC utility AI picks the activities (state and decider live in Npc.cs).
 public sealed partial record NpcMind : PersonMind;
 
-/// One or more bodies that move and decide as a unit: the player, an NPC, a herd (plan decision 2).
+/// One or more bodies that move and decide as a unit: the player, an NPC, a herd.
 public sealed class Agent
 {
     public required AgentId Id { get; init; }
@@ -60,7 +60,7 @@ public sealed class Agent
 }
 
 /// Making and splitting agents. A herd sends members, not itself, into a fight; a wounded member
-/// that leaves becomes an agent of its own (plan decision 2).
+/// that leaves becomes an agent of its own.
 public static class Agents
 {
     /// A new herd of this species on this tile, each member at its own random size (Species.NewBody).

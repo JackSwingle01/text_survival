@@ -234,7 +234,7 @@ public static class Sim
         string? interrupt;
         if (agent.Mind is HerdMind)
         {
-            // Animals live outside the human survival model (plan decision 2): Fauna ticks their wounds and hunger.
+            // Animals live outside the human survival model: Fauna ticks their wounds and hunger.
             interrupt = LiveBodies(world, agent, activity, events);
             if (interrupt == null && activity is Travel) interrupt = Traversal.Advance(world, agent, events);
             if (interrupt == null && Fauna.Handles(activity)) interrupt = Fauna.Minute(world, agent, activity, events);
@@ -272,9 +272,8 @@ public static class Sim
         if (d.Work != null) Work.End(world, agent, d.Work, events);
     }
 
-    /// How an activity holds the body (old ActivityConfig): its metabolic factor, how close to the fire
-    /// it keeps you, whether it is sleep, whether it keeps you put long enough for a shelter to help
-    /// (old ActivityConfig.IsStationary), and how it touches the ground.
+    /// How an activity holds the body: its metabolic factor, how close to the fire it keeps you, whether
+    /// it is sleep, whether it keeps you put long enough for a shelter to help, and how it touches the ground.
     readonly record struct Hold(double ActivityFactor, double FireProximityFactor, bool Sleeping, bool Stationary, SurfaceContact Contact);
 
     static Hold HoldOf(World world, Agent agent, Activity activity)
@@ -286,19 +285,19 @@ public static class Sim
             Sleep => (0.5, 2.0, true, true),
             Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or Stash or Unstash or Wear or TakeOff => (1.0, 2.0, false, true),
             Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, tending the fire
-            Build or ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // old ActivityType.Crafting
+            Build or ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // crafting
             Travel => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
             // Basal only: a fight's strikes, dodges, steps and sprints pay their own work as they happen (Body.Burst,
-            // Body.Cover, Body.Sprint). Old (old ActivityType.Fighting): a flat 2.0, which those would double-charge.
+            // Body.Cover, Body.Sprint); a flat factor would charge them twice.
             Fight => (1.0, 0.0, false, true),
             Hunt => (1.0, 0.0, false, true), // a person setting out on a stalk: its rounds are Fight activities
             Gather when gathering is TreePool => (1.8, 0.0, false, false), // chopping
-            Gather when gathering is StockPool { Kind: StockKind.Detail } => (1.0, 2.0, false, true), // old ExamineStrategy: Resting
+            Gather when gathering is StockPool { Kind: StockKind.Detail } => (1.0, 2.0, false, true), // examining: resting
             Gather or Butcher => (1.5, 0.0, false, false), // foraging, harvesting, salvaging, butchering
 
             _ => throw new NotSupportedException($"No survival profile for activity {activity.GetType().Name}"),
         };
-        // Old SurvivalContext.GroundContactFor: idle and walking both go through the ground on foot.
+        // Idle and walking both go through the ground on foot.
         var contact = activity switch
         {
             Sleep or Rest => SurfaceContact.RestingOnGround,
@@ -313,7 +312,7 @@ public static class Sim
     /// heat a shelter holds, which rides with it (withheld once you sweat, by the body).
     static double FireBonusF(Fire.Warmth warmth, Hold hold) => warmth.PitHeatF * hold.FireProximityFactor + warmth.ShelterHeatF;
 
-    /// Bedding's warmth is felt asleep in it (old WarmthBonus: authored, never read - bug, fixed).
+    /// Bedding's warmth is felt asleep in it.
     static double BeddingF(BeddingProps? bedding, Hold hold) => hold.Sleeping ? bedding?.WarmthBonusF ?? 0 : 0;
 
     /// What the world and this activity do to the agent's body this minute.
@@ -328,14 +327,14 @@ public static class Sim
         return new SurvivalContext
         {
             AirTempF = exposure.AirF + BeddingF(bedding, hold),
-            // The one wind at the body (Exposure.WindAt): the wind chill in AirTempF read it too.
+            // The one wind at the body (Exposure.WindAt).
             WindLevel = exposure.WindLevel,
             FireDryingWindLevel = exposure.FireDryingWindLevel,
             Precipitation = exposure.Precipitation,
             PrecipitationPct = exposure.PrecipitationPct,
             OverheadCoverLevel = exposure.OverheadCoverLevel,
-            // The shelter's held fire heat rides with the radiant heat: withheld once you sweat (old: it was
-            // in the air, so a sheltered sleeper by a big fire sweated through every litre - bug, fixed).
+            // The shelter's held fire heat rides with the radiant heat, so it is withheld once you sweat; in the
+            // air, it would sweat a sheltered sleeper by a big fire dry.
             FireBonusF = FireBonusF(warmth, hold),
             TorchHeatF = warmth.TorchHeatF,
             ClothingClo = agent.Body.ClothingClo,
@@ -386,8 +385,8 @@ public sealed record Feeling(double FeltF, IReadOnlyList<(string Factor, double 
 /// player step and many short ones, or a save and load between them, give the same world.
 /// Each agent runs its current activity through the same Start/Live/Stop the player's step uses;
 /// when the activity ends or is interrupted its mind (Minds.Decide) picks the next one.
-// Every agent steps every minute. Plan decision 3 lets distant ones step hourly; do that
-// (at hour-aligned world minutes, never by when the player looked) if a populated month gets slow.
+// Every agent steps every minute. Distant ones could step hourly (at hour-aligned world minutes,
+// never by when the player looked) if a populated month gets slow.
 public static class Scheduler
 {
     /// One minute for every scheduled agent but the one whose step is living it, in id order.

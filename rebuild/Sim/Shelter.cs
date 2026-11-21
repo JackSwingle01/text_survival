@@ -2,18 +2,18 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-/// Old ShelterType. Natural ones are found in the world; the rest are built or carried.
+/// Natural ones are found in the world; the rest are built or carried.
 public enum ShelterKind { BranchFrame, LogFrame, RockOverhang, Cave, DenseThicket, FallenTree, SnowShelter, HideTent, NaturalShelter }
 
-/// The three things a shelter does (old ShelterImprovementType).
+/// The three things a shelter does.
 public enum ShelterStat { Insulation, Overhead, Wind }
 
-/// Old ShelterTypeConfig: a kind's starting levels and how far work can take them.
+/// A kind's starting levels and how far work can take them.
 public sealed record ShelterKindProps(double Insulation, double Overhead, double Wind,
     double InsulationCap, double OverheadCap, double WindCap, bool IsNatural, bool IsSnow);
 
-/// What to put on a tile. Levels and caps left null are the kind's (old ShelterFeature constructors).
-/// Content (named locations) authors these; Shelters.Place puts one down.
+/// What to put on a tile. Levels and caps left null are the kind's. Content (named locations)
+/// authors these; Shelters.Place puts one down.
 public sealed record ShelterDef(string Name, ShelterKind Kind,
     double? Insulation = null, double? Overhead = null, double? Wind = null,
     double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null);
@@ -34,8 +34,7 @@ public sealed class ShelterState
     public required double InsulationCap { get; init; }
     public required double OverheadCap { get; init; }
     public required double WindCap { get; init; }
-    /// A pitched tent: the item it packs back into. Saved with the shelter (old: [JsonIgnore], so a
-    /// load stranded a pitched tent as a shelter that could never be packed - bug, fixed).
+    /// A pitched tent: the item it packs back into. Saved with the shelter, so a loaded tent can still be packed.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Gear? Tent { get; init; }
     /// Snow only: the clock hours before this one have been melted (Shelters.Melt).
@@ -50,11 +49,11 @@ public sealed class ShelterState
 }
 
 /// What a shelter does for someone keeping still in it this minute. Default: nothing, which is
-/// also what it does for someone walking about (old IsStationary).
+/// also what it does for someone walking about.
 public readonly record struct ShelterCover(double InsulationLevel, double OverheadLevel, double WindLevel);
 
 /// A shelter under construction, or a tent being pitched. Owned by Shelters. The placed half of a
-/// Project (GLOSSARY) until building folds into Make (roadmap 8); carried things are MakeProject.
+/// Project (GLOSSARY) until building folds into Make; carried things are MakeProject.
 public sealed class StructureProject
 {
     public required Structure Building { get; init; }
@@ -63,21 +62,21 @@ public sealed class StructureProject
     public Gear? Tent { get; init; }
 }
 
-/// Things built on a tile with the Build activity (old camp-infrastructure recipes and MakeCamp).
+/// Things built on a tile with the Build activity.
 public enum Structure { MakeshiftBedding, PaddedBedding, MossBedding, SleepingBag, BranchFrame, LogFrame, SnowShelter, Tent }
 
 /// One recipe (Content/shelters.json). Materials are (any of these, kg); taken when the work starts.
 /// The simplest camp recipes only. Carried things are made from Content/recipes.json (Make.cs);
-/// these fold into that one recipe shape with roadmap 8.
+/// these fold into that one recipe shape.
 public sealed record StructureRecipe(int Minutes, IReadOnlyList<(IReadOnlyList<Resource> AnyOf, double Kg)> Materials, bool NeedsLight = true,
     bool NeedsShovel = false, bool ShovelHelps = false, bool NeedsFrost = false, ShelterKind? Shelter = null, BeddingKind? Bedding = null);
 
 public enum BeddingKind { Camp, Makeshift, Padded, MossPadded, SleepingBag }
 
-/// Old BeddingFeature. Quality is sleep efficiency and keeps you off wet ground; warmth is felt asleep.
+/// Quality is sleep efficiency and keeps you off wet ground; warmth is felt asleep.
 public sealed record BeddingProps(string Name, double QualityPct, double WarmthBonusF);
 
-/// Old MaterialProperties: a nominal piece's kilos, and how much one does for each shelter stat.
+/// A nominal piece's kilos, and how much one does for each shelter stat.
 /// Shelter false is a material recipes use that cannot be worked into a shelter (sinew: sewing only).
 public sealed record ShelterMaterial(double PieceKg, double Insulating, double Waterproof, double Structural, bool Shelter = true);
 
@@ -86,21 +85,19 @@ public sealed record Built(long Minute, AgentId Who, TileId Tile, Structure What
 /// A snow shelter melted away.
 public sealed record ShelterCollapsed(long Minute, TileId Tile, string Name) : WorldEvent(Minute, Tile);
 
-/// Shelters, bedding and the work that makes them. Port of old ShelterFeature, BeddingFeature, the
-/// shelter and bedding parts of CampHandler and NeedCraftingSystem, and ShelterImprovementStrategy.
-// Old CacheFeature (capacity, predator and weather protection, food preservation) is not ported: the
-// tile stash is unlimited, unprotected storage. No rebuilding a branch frame into a log frame (old 60%
-// salvage), no reclaim from an abandoned project.
+/// Shelters, bedding and the work that makes them.
+// No caches yet: the tile stash is unlimited, unprotected storage. No rebuilding a branch frame
+// into a log frame, no reclaim from an abandoned project.
 public static class Shelters
 {
     /// Every shelter kind's levels and caps (Content/shelters.json).
     public static readonly IReadOnlyDictionary<ShelterKind, ShelterKindProps> Kinds = Content.Tables.ShelterKinds;
 
-    /// The old starting camp's Overhang (GridWorldGenerator.CreateCampLocation), placed by World.New.
+    /// The starting camp's overhang, placed by World.New.
     // The camp is not a content site yet, so its shelter and bedding are code (see rebuild-deferred.md).
     public static readonly ShelterDef CampOverhang = new("Overhang", ShelterKind.NaturalShelter, 0.55, 0.3, 0.4, 0.70, 0.50, 0.55);
 
-    /// Pitched tents by gear kind (old Gear.HideTent, MammothHideTent shelter values; Content/shelters.json).
+    /// Pitched tents by gear kind (Content/shelters.json).
     public static readonly IReadOnlyDictionary<string, ShelterDef> Tents = Content.Tables.Tents;
 
     // ---- placing and reading ----
@@ -152,7 +149,7 @@ public static class Shelters
         if (!world.Shelters.TryGetValue(tile, out var s)) return null;
         if (Melt(world, tile, s) is not long goneHour) return s;
         world.Shelters.Remove(tile);
-        // Old game: snow shelters never melted, and the rebuild melted them without a word (bug, fixed).
+        // A snow shelter that melts away says so.
         events.Add(new ShelterCollapsed(goneHour * 60, tile, s.Name));
         return StandWaiting(world, tile);
     }
@@ -215,7 +212,7 @@ public static class Shelters
     public static double Quality(ShelterState s) => (s.InsulationLevel + s.OverheadLevel + s.WindLevel) / 3.0;
     public static bool IsDestroyed(ShelterState s) => Quality(s) <= 0.05;
 
-    /// What the shelter here does for someone; nothing unless they keep still (old IsStationary).
+    /// What the shelter here does for someone; nothing unless they keep still.
     public static ShelterCover CoverFor(World world, TileId tile, bool stationary, List<WorldEvent> events) =>
         stationary && At(world, tile, events) is { } s ? CoverOf(s) : default;
 
@@ -227,7 +224,7 @@ public static class Shelters
 
     // ---- wear and work ----
 
-    /// Old Damage: every level down by amount.
+    /// Every level down by amount.
     public static void Damage(ShelterState s, double amount)
     {
         s.InsulationLevel = Math.Max(0, s.InsulationLevel - amount);
@@ -235,7 +232,7 @@ public static class Shelters
         s.WindLevel = Math.Max(0, s.WindLevel - amount);
     }
 
-    /// Old Repair: every level up by amount, to its cap.
+    /// Every level up by amount, to its cap.
     public static void Repair(ShelterState s, double amount)
     {
         s.InsulationLevel = Math.Min(s.InsulationCap, s.InsulationLevel + amount);
@@ -253,8 +250,8 @@ public static class Shelters
         ShelterStat.Insulation => s.InsulationCap, ShelterStat.Overhead => s.OverheadCap, _ => s.WindCap,
     };
 
-    /// Old Improve, for a fraction of a piece of material: 0.05 x effectiveness x the room left
-    /// under the cap. Returns the gain.
+    /// For a fraction of a piece of material: 0.05 x effectiveness x the room left under the cap.
+    /// Returns the gain.
     public static double Improve(ShelterState s, ShelterStat stat, Resource material, double pieces)
     {
         double cur = Level(s, stat), cap = Cap(s, stat);
@@ -271,8 +268,8 @@ public static class Shelters
 
     /// Snow melts on its own clock: each whole clock hour, at the tile's open air at the top of
     /// that hour, so how often anyone looks cannot change how fast it goes. Gone when destroyed.
-    // Old snow shelters never melted (the hook was a stub). 0.01 of every level per hour per °F above
-    // freezing is invented: about a day at 35 °F, an afternoon at 50 °F. A fire inside does not melt it.
+    // 0.01 of every level per hour per °F above freezing is invented: about a day at 35 °F, an
+    // afternoon at 50 °F. A fire inside does not melt it.
     const double MeltPerHourPerF = 0.01;
 
     /// Melts s to the current hour. The air is what reaches the surface (Exposure.Surface): wind chill
@@ -292,9 +289,9 @@ public static class Shelters
         return null;
     }
 
-    // ---- materials (old MaterialProperties) ----
+    // ---- materials ----
 
-    /// Old item counts become kilos through a nominal piece: a stick, a log, a hide (Content/shelters.json).
+    /// Item counts become kilos through a nominal piece: a stick, a log, a hide (Content/shelters.json).
     public static readonly IReadOnlyDictionary<Resource, ShelterMaterial> Materials = Content.Tables.ShelterMaterials;
 
     static readonly Resource[] ShelterMaterials = [.. Materials.Where(m => m.Value.Shelter).Select(m => m.Key)];
@@ -305,21 +302,20 @@ public static class Shelters
         return stat switch { ShelterStat.Insulation => m.Insulating, ShelterStat.Overhead => m.Waterproof, _ => m.Structural };
     }
 
-    /// Old NeedCraftingSystem camp recipes and CampHandler.MakeCamp (Content/shelters.json). A project's
-    /// setup time is folded into its minutes, and the shovel speeds all of it.
+    /// Camp recipes (Content/shelters.json). A project's setup time is folded into its minutes, and the
+    /// shovel speeds all of it.
     public static readonly IReadOnlyDictionary<Structure, StructureRecipe> Recipes = Content.Tables.Recipes;
 
     public static readonly IReadOnlyDictionary<BeddingKind, BeddingProps> Beddings = Content.Tables.Beddings;
-    // Old HasWindProtection and HasGroundInsulation were flags nothing read (ground
-    // protection came from quality alone); dropped until a sleeper's wind has a number to give them.
+    // Bedding has no wind or ground flags: ground protection comes from quality alone, until a
+    // sleeper's wind has a number to give them.
 
-    /// Bedding here replaces what was there (old: a second BeddingFeature was added behind the first,
-    /// and GetFeature found the first, so the new bed did nothing - bug, fixed).
+    /// Bedding here replaces what was there.
     public static void PlaceBedding(World world, TileId tile, BeddingKind kind) => world.Beddings[tile] = kind;
     public static BeddingProps? BeddingAt(World world, TileId tile) =>
         world.Beddings.TryGetValue(tile, out var k) ? Beddings[k] : null;
 
-    /// Old SurvivalContext: bedding under someone resting on the ground keeps most of the wet off.
+    /// Bedding under someone resting on the ground keeps most of the wet off.
     public static double GroundProtectionLevel(BeddingProps? bedding) => bedding == null ? 0 : Math.Clamp(0.5 + bedding.QualityPct * 0.4, 0, 0.95);
 
     // ---- the activities: Build, ImproveShelter, PackTent ----
@@ -343,7 +339,7 @@ public static class Shelters
                 world.Projects.TryGetValue(tile, out var p);
                 if (p != null && p.Building != b.What) return $"a {Names.Of(p.Building)} is half-built here";
                 if (r.Shelter != null && Peek(world, tile) is { } s) return $"there is already a shelter here ({s.Name})";
-                // Old MakeCamp was offered only where there was no bedding; here any better bed may replace one.
+                // Any better bed may replace the one here.
                 if (r.Bedding is BeddingKind bed && BeddingAt(world, tile) is { } there
                     && there.QualityPct >= Beddings[bed].QualityPct && there.WarmthBonusF >= Beddings[bed].WarmthBonusF)
                     return $"the {there.Name.ToLowerInvariant()} here is as good as a {Beddings[bed].Name.ToLowerInvariant()}";
@@ -401,14 +397,14 @@ public static class Shelters
         }
         else if (activity is PackTent)
         {
-            // old game: packing kept the tent item as it was pitched, so improvements were lost (bug, fixed).
+            // The tent packs back up with its improvements.
             var s = Remove(world, agent.Tile)!;
             s.Tent!.TentLevels = new ShelterCover(s.InsulationLevel, s.OverheadLevel, s.WindLevel);
             pack.Gear.Add(s.Tent);
         }
     }
 
-    /// Old GetWorkImpairments for building and improving: bad legs +20%, bad hands +25%.
+    /// Building and improving: bad legs +20%, bad hands +25%.
     static double ImpairmentFactor(BodyState body)
     {
         var c = Body.GetCapacities(body);
@@ -448,7 +444,7 @@ public static class Shelters
             {
                 if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
                 if (At(world, tile, events) is not { } s) return "the shelter is gone";
-                // Old: ten minutes a piece, longer when impaired; here a tenth of a piece a minute.
+                // A tenth of a piece a minute.
                 var pack = Items.Pack(world, agent.Id);
                 double pieces = Items.Take(pack, i.Material, Materials[i.Material].PieceKg / 10 / ImpairmentFactor(agent.Body)) / Materials[i.Material].PieceKg;
                 Improve(s, i.Stat, i.Material, pieces);

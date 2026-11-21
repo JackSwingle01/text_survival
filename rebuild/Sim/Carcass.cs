@@ -1,12 +1,12 @@
 namespace Survival;
 
-/// Old ButcheringMode: quick and messy, careful, or slow and thorough.
+/// Quick and messy, careful, or slow and thorough.
 public enum ButcherMode { QuickStrip, Careful, FullProcessing }
 
-/// Old ButcheringModeConfig (Content/butchering.json). Yield factors per resource; anything not named takes 1.
+/// Authored in Content/butchering.json. Yield factors per resource; anything not named takes 1.
 public sealed record ButcherModeProps(double TimeFactor, IReadOnlyDictionary<Resource, double> YieldFactor, double ScentIncrease, double BloodySeverity);
 
-/// A dead animal on a tile, as a tile delta (old CarcassFeature). Its yields are what is left of it.
+/// A dead animal on a tile, as a tile delta. Its yields are what is left of it.
 public sealed class Carcass
 {
     public required int Id { get; init; }
@@ -16,7 +16,7 @@ public sealed class Carcass
     /// Who killed it and how ("a wolf pack", "the player's wooden spear", "its wounds").
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Cause? Cause { get; init; }
-    /// Temperature-weighted hours since death, as of LastUpdatedMinute (old EffectiveHoursSinceDeath).
+    /// Temperature-weighted hours since death, as of LastUpdatedMinute.
     public double EffectiveHours { get; set; }
     public required long LastUpdatedMinute { get; set; }
     public double LastKnownTempF { get; set; } = 32;
@@ -38,16 +38,14 @@ public sealed class Carcass
     public SortedDictionary<Resource, double> Pending { get; init; } = [];
 }
 
-/// Port of old CarcassFeature: decay by temperature, butchering yields and times.
+/// Decay by temperature, butchering yields and times.
 public static class Carcasses
 {
     const double BaseButcheringMinutes = 30.0, MinutesPerKgYield = 2.75;
 
-    /// Old ButcheringModeConfig, by mode (Content/butchering.json): yield factors relative to a careful
-    /// butcher's yield. Old game: the carcass's ledger was the careful yield, so a full cut gave 107% of
-    /// the kilograms it took off the carcass (bug, fixed): the ledger now holds what full processing
-    /// recovers (Create scales it by ThoroughFactor), and every mode recovers its old yield as a share of
-    /// it, never more than was cut.
+    /// By mode (Content/butchering.json): yield factors relative to a careful butcher's yield. The
+    /// ledger holds what full processing recovers (Create scales it by ThoroughFactor), and every mode
+    /// recovers its yield as a share of it, never more than was cut.
     static readonly IReadOnlyDictionary<ButcherMode, ButcherModeProps> Rows = Content.Tables.Butchering;
 
     /// How much more of a resource full processing recovers than careful work: the ledger's scale.
@@ -64,7 +62,7 @@ public static class Carcasses
     public static ButcherModeProps ModeProps(ButcherMode mode) =>
         Modes.TryGetValue(mode, out var props) ? props : throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
 
-    /// Old CarcassFeature.InitializeYieldsFromAnimal, from the body that died. Phase 3b kills call this.
+    /// From the body that died.
     public static Carcass Create(World world, TileId tile, string animal, BodyState body, long diedMinute,
         bool isBird = false, bool isMegafauna = false, double harvestedPct = 0, IReadOnlyDictionary<Resource, double>? special = null,
         Cause? cause = null)
@@ -143,8 +141,7 @@ public static class Carcasses
 
     /// The flesh has rotted off (Remains.Hour): every uncut soft tissue goes. Cut pieces waiting on it
     /// are already someone's yield, charged their decay when they were cut (PutBack), so they stay
-    /// until the carcass itself is gone. Old (this rebuild): they rotted with it, while YieldKg still
-    /// counted them (bug, fixed).
+    /// until the carcass itself is gone.
     public static void RotAway(Carcass c)
     {
         foreach (var r in SoftTissue)
@@ -167,7 +164,7 @@ public static class Carcasses
 
     // ---- decay ----
 
-    /// Old GetDecayMultiplier: cold all but stops the clock.
+    /// Cold all but stops the clock.
     public static double DecayFactor(double temperatureF) => temperatureF switch
     {
         < 0 => 0.1,
@@ -177,7 +174,7 @@ public static class Carcasses
         _ => 2.0,
     };
 
-    /// Old DecayLevel: 0 fresh, 1 spoiled.
+    /// 0 fresh, 1 spoiled.
     public static double DecayLevel(double effectiveHours) => effectiveHours switch
     {
         <= 4 => effectiveHours * 0.05,
@@ -198,7 +195,7 @@ public static class Carcasses
     public static double RawHours(World world, Carcass c) => (world.Minute - c.DiedMinute) / 60.0;
     public static bool IsFrozen(World world, Carcass c) => c.LastKnownTempF < 15 && RawHours(world, c) > 2;
 
-    /// Old ScentIntensity: fresh blood carries furthest.
+    /// Fresh blood carries furthest.
     public static double Scent(World world, Carcass c)
     {
         double h = RawHours(world, c);
@@ -207,10 +204,9 @@ public static class Carcasses
     }
 
     /// Ages the carcass to world.Minute, each clock hour at the tile's air at the top of that hour (the
-    /// rot timeline, Remains.EffectiveHours), so how often anyone looks cannot change how fast it rots. The air is what reaches the surface
-    /// (Exposure.Surface): old game: decay read the air a person feels, wind chill and all, so a windy
-    /// thaw kept meat as if it were freezing (bug, fixed). The old reading also included a fire on the
-    /// tile; this one does not.
+    /// rot timeline, Remains.EffectiveHours), so how often anyone looks cannot change how fast it rots.
+    /// The air is what reaches the surface (Exposure.Surface), not what a person feels: wind chill does
+    /// not keep meat, and nor does a fire on the tile.
     public static void CatchUp(World world, TileId tile, Carcass c)
     {
         if (c.LastUpdatedMinute >= world.Minute) return;
@@ -222,9 +218,9 @@ public static class Carcasses
 
     /// An animal eats raw meat straight off the carcass, uncut: up to kg of it. Returns the kg eaten.
     /// An animal tears off what a careful butcher would cut, not what full processing scrapes from the
-    /// bone, so it eats in careful kilograms: each one takes ThoroughFactor of the ledger. Scaling the
-    /// ledger up to full processing's changed nothing about how long a carcass feeds a pack, or what a
-    /// kilo a wolf eats costs whoever butchers what is left.
+    /// bone, so it eats in careful kilograms: each one takes ThoroughFactor of the ledger. The ledger's
+    /// scale changes nothing about how long a carcass feeds a pack, or what a kilo a wolf eats costs
+    /// whoever butchers what is left.
     public static double EatMeat(Carcass c, double kg)
     {
         if (kg < 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Cannot eat a negative amount");
@@ -246,21 +242,19 @@ public static class Carcasses
     /// Trophy materials are not torn off by hand: they wait for a blade.
     public static bool CanCut(Resource r, bool hasCuttingTool) => hasCuttingTool || r is not (Resource.Ivory or Resource.MammothHide);
 
-    /// Everything this butcher can cut is cut. What is left waits on the carcass for someone with a
-    /// blade. Old game: bare hands on a mammoth never finished, its tusks and hide forever uncut (bug, fixed).
+    /// Everything this butcher can cut is cut. What is left waits on the carcass for someone with a blade.
     public static bool AllCut(Carcass c, bool hasCuttingTool) =>
         c.Remaining.Where(x => CanCut(x.Key, hasCuttingTool)).Sum(x => x.Value) < 0.01;
     /// Nothing left on it: all cut, and every cut piece carried off.
     public static bool IsButchered(Carcass c) => AllCut(c) && c.Pending.Count == 0;
 
-    /// Old GetRemainingMinutes(mode): setup plus 2.75 minutes a kilo, scaled by the mode. The setup
-    /// is charged once per carcass, not once per session (Prepare).
+    /// Setup plus 2.75 minutes a kilo, scaled by the mode. The setup is charged once per carcass, not
+    /// once per session (Prepare).
     public static int RemainingMinutes(Carcass c, ButcherMode mode, bool hasCuttingTool = true) =>
         (int)Math.Ceiling((Math.Max(0, BaseButcheringMinutes - c.SetupMinutes) + WorkKg(c, hasCuttingTool) * MinutesPerKgYield) * ModeProps(mode).TimeFactor);
 
-    /// The kilograms the butchering time is charged on: the ledger at a careful butcher's yield, as the
-    /// old game charged it, so scaling the ledger up to full processing's (ThoroughFactor) took no longer.
-    /// Only what this butcher can cut (CanCut) is work for them.
+    /// The kilograms the butchering time is charged on: the ledger at a careful butcher's yield, so the
+    /// ledger's scale (ThoroughFactor) takes no longer. Only what this butcher can cut (CanCut) is work for them.
     static double WorkKg(Carcass c, bool hasCuttingTool) =>
         c.Remaining.Where(x => CanCut(x.Key, hasCuttingTool)).Sum(x => x.Value / ThoroughFactor(x.Key));
 
@@ -292,10 +286,8 @@ public static class Carcasses
         {
             if (!CanCut(r, hasCuttingTool)) continue;
             double take = c.Remaining[r] * fraction;
-            // What the method recovers from this cut with steady hands and fresh meat (old ButcheringModeConfig),
-            // less the bare-handed tear on top of it: a blade never wastes more than hands in the same mode.
-            // Old game: the tear ignored the mode, so a QuickStrip with a knife kept 50% of the bone and
-            // bare hands 67% (bug, fixed). Careful work tears exactly as the old game did.
+            // What the method recovers from this cut with steady hands and fresh meat, less the bare-handed
+            // tear on top of it: a blade never wastes more than hands in the same mode.
             double clean = take * props.YieldFactor.GetValueOrDefault(r, 1) * (hasCuttingTool ? 1 : BareHandsPct(r));
             // ...and what the hands and the rot cost of it, some of which practice wins back.
             double penaltyPct = handsPct * (r == Resource.RawMeat ? meatDecayPct : 1);
@@ -309,16 +301,15 @@ public static class Carcasses
         if (AllCut(c, hasCuttingTool)) Settle(c);
     }
 
-    /// What tearing by hand keeps of what the mode would (old HarvestWithoutKnife): half the meat,
-    /// two thirds of the bone, nothing else.
+    /// What tearing by hand keeps of what the mode would: half the meat, two thirds of the bone, nothing else.
     static double BareHandsPct(Resource r) => r switch { Resource.RawMeat => 0.5, Resource.Bone => 0.67, _ => 0 };
 
-    /// The whole carcass is cut: the old meat floor, and scraps too small to keep dropped. Both are
+    /// The whole carcass is cut: the meat floor, and scraps too small to keep dropped. Both are
     /// judged on everything the carcass gave, never on one session's share of it, so how the work
     /// was split cannot change what it yields.
     static void Settle(Carcass c)
     {
-        // Old floor: a little meat even from a ptarmigan, if there was that much to begin with.
+        // A little meat even from a ptarmigan, if there was that much to begin with.
         double meat = c.YieldKg.GetValueOrDefault(Resource.RawMeat);
         if (meat > 0 && meat < 0.1 && c.CutKg.GetValueOrDefault(Resource.RawMeat) >= 0.1)
         {
@@ -349,15 +340,14 @@ public static class Carcasses
     }
 
     /// Cut pieces a full pack could not take wait on the carcass, already yielded: the next session
-    /// carries them without cutting them again. Old game: RestoreYields put the yield back as uncut
-    /// carcass and scaled it by mode, decay and hands a second time (bug, fixed).
+    /// carries them without cutting them again, or scaling them a second time.
     // Waiting cut meat does not rot further; decay was charged when it was cut.
     public static void PutBack(Carcass c, Inventory leftovers)
     {
         foreach (var (r, kg) in leftovers.Kg) c.Pending[r] = c.Pending.GetValueOrDefault(r) + kg;
     }
 
-    /// Old Add* helpers dropped pieces too small to keep.
+    /// Pieces too small to keep are dropped.
     static double MinimumKg(Resource r) => r switch
     {
         Resource.RawMeat or Resource.Bone => 0.05,

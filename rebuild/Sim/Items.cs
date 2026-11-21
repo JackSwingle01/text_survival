@@ -4,7 +4,7 @@ namespace Survival;
 /// so a log is one thing whether it is in a pack, on a stash or on the fire.
 public enum Resource
 {
-    // tinders and fuel (old FuelType and the matching old Resource values, one list)
+    // tinders and fuel
     Tinder, BirchBark, Amadou, Usnea, Chaga, Kindling, Pine, Birch, Oak, Bone, Peat,
     // food
     RawMeat, CookedMeat, DriedMeat, RawFish, CookedFish, DriedFish, Berries, DriedBerries, Nuts, Roots, Honey,
@@ -16,27 +16,27 @@ public enum Resource
     BirchPolypore, RoseHip, JuniperBerry, WillowBark, PineNeedles, PineResin, SphagnumMoss,
 }
 
-/// Old ResourceCategories, one category per resource (old Fuel/Tinder/Log overlaps are Fire.Props now).
+/// One category per resource (fuel and tinder overlaps are Fire.Props).
 public enum ResourceCategory { Fuel, Food, Water, Medicine, Material }
 
-/// Old Gear categories. Clothing is worn on a body; accessories add carrying capacity.
+/// Clothing is worn on a body; accessories add carrying capacity.
 public enum GearCategory { Tool, Clothing, Accessory }
 
 public enum ToolType { Axe, Knife, FireStriker, HandDrill, BowDrill, WaterContainer, Spear, Club, Torch, Needle, Shovel, Tent, Hammerstone }
 
-/// Body surface a garment covers. Old Inventory.SlotCoverage.
+/// Body surface a garment covers.
 public enum EquipSlot { Head, Chest, Legs, Feet, Hands }
 
 public enum WeaponClass { Blade, Blunt, Pierce, Claw, Unarmed }
 
-/// What a weapon does in a fight. Read by combat; old Gear.Damage / WeaponClass / BlockChance.
+/// What a weapon does in a fight. Read by combat.
 public sealed record Weapon(double Damage, WeaponClass Class, double BlockChance);
 
-/// One row of the resource table (Content/items.json). Kcal and water per kg of food (old ConsumptionHandler).
+/// One row of the resource table (Content/items.json). Kcal and water per kg of food.
 public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0, double HydrationMlPerKg = 0);
 
 /// One row of the gear table (Content/items.json): the authored design. Instances carry only their kind and wear.
-/// Insulation is the old BaseInsulation (tenths of a clo over the covered part of the body).
+/// Insulation is in tenths of a clo over the covered part of the body.
 /// Capabilities is what carrying it lets someone do to a thing (Survival.Capabilities), stated on every row.
 public sealed record GearDef(
     string Name, GearCategory Category, double BaseWeightKg, int MaxDurability, IReadOnlyList<Capability> Capabilities,
@@ -85,21 +85,20 @@ public sealed class Inventory
     public List<MakeProject>? Projects { get; set; }
 }
 
-/// Items, inventories and what they weigh. Port of old Items/Gear.cs and Items/Inventory.cs.
+/// Items, inventories and what they weigh.
 public static class Items
 {
-    /// Base carrying capacity of a person before accessories (old Player and NPCFactory: 15 kg).
+    /// Base carrying capacity of a person before accessories.
     public const double BaseCapacityKg = 15;
-    /// Old Gear.CloPerInsulationPoint.
     const double CloPerInsulationPoint = 10.0;
 
     /// Every resource's row (Content/items.json).
     public static readonly IReadOnlyDictionary<Resource, ResourceDef> Resources = Content.Tables.Resources;
 
-    /// The gear designs, by kind (Content/items.json; old Gear factory methods).
+    /// The gear designs, by kind (Content/items.json).
     public static readonly IReadOnlyDictionary<string, GearDef> GearKinds = Content.Tables.Gear;
 
-    /// Old Inventory.SlotCoverage: the fraction of body surface each slot covers. Sums to 1.
+    /// The fraction of body surface each slot covers. Sums to 1.
     public static readonly IReadOnlyDictionary<EquipSlot, double> SlotCoverage = Content.Tables.SlotCoverage;
 
     public static GearDef Def(Gear g) =>
@@ -117,9 +116,9 @@ public static class Items
 
     public static double ConditionPct(Gear g) => g.MaxDurability <= 0 ? 1.0 : g.Durability <= 0 ? 0.0 : (double)g.Durability / g.MaxDurability;
     public static bool Works(Gear g) => g.Durability != 0;
-    /// Old Gear.Weight: worn things lose a quarter of their weight as they fall apart.
+    /// Worn things lose a quarter of their weight as they fall apart.
     public static double WeightKg(Gear g) => Def(g).BaseWeightKg * (0.75 + 0.25 * ConditionPct(g));
-    /// One use. Returns whether the tool still works afterwards (old Gear.Use).
+    /// One use. Returns whether the tool still works afterwards.
     public static bool Use(Gear g)
     {
         if (g.Durability == -1) return true;
@@ -140,12 +139,12 @@ public static class Items
         }
     }
 
-    /// Local clo of one garment (old Gear.CloValue).
+    /// Local clo of one garment.
     public static double CloValue(Gear g) => Def(g).Insulation * CloPerInsulationPoint * ConditionPct(g);
 
-    /// Whole-body clo, area-weighted: a bare slot costs its share (old Inventory.ClothingClo).
+    /// Whole-body clo, area-weighted: a bare slot costs its share.
     public static double ClothingClo(IEnumerable<Gear> worn) => worn.Sum(g => SlotCoverage[Def(g).Slot!.Value] * CloValue(g));
-    /// Old Inventory.TotalEquipmentWeightKg: the thermal mass that holds warmth.
+    /// The thermal mass that holds warmth.
     public static double ClothingWeightKg(IEnumerable<Gear> worn) => worn.Sum(WeightKg);
 
     // ---- stacks ----
@@ -164,8 +163,7 @@ public static class Items
     public const double SliverKg = 1e-9;
 
     /// Takes up to kg; returns what was taken. A sliver left behind is taken too, so the returned mass
-    /// may exceed kg by up to SliverKg. Old Inventory.ConsumeByWeight; old (this rebuild): the sliver
-    /// was removed but not returned (bug, fixed).
+    /// may exceed kg by up to SliverKg.
     public static double Take(Inventory inv, Resource r, double kg)
     {
         if (kg < 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Cannot take a negative amount");
@@ -184,11 +182,10 @@ public static class Items
         if (from.Projects is { Count: > 0 } projects) (to.Projects ??= []).AddRange(projects);
     }
 
-    /// First working tool of this type, or null (old Inventory.GetTool).
+    /// First working tool of this type, or null.
     public static Gear? Tool(Inventory inv, ToolType type) =>
         inv.Gear.FirstOrDefault(g => Def(g).Tool == type && Works(g));
 
-    /// Old Inventory.HasCuttingTool.
     public static bool HasCuttingTool(Inventory inv) => Tool(inv, ToolType.Knife) != null || Tool(inv, ToolType.Axe) != null;
 
     /// Stacks, gear and the materials in unfinished things.
@@ -203,21 +200,20 @@ public static class Items
     public static Inventory Pack(World world, AgentId who) =>
         PackOf(world.Agent(who)) ?? throw new InvalidOperationException($"{who} carries nothing");
 
-    /// Capacity with accessories in the pack (old Inventory.MaxWeightKg).
+    /// Capacity with accessories in the pack.
     public static double CapacityKg(Inventory pack) =>
         BaseCapacityKg + pack.Gear.Where(g => Def(g).Category == GearCategory.Accessory).Sum(g => Def(g).CapacityBonusKg);
 
-    /// Everything on the agent, worn clothing included (old Inventory.CurrentWeightKg).
+    /// Everything on the agent, worn clothing included.
     public static double CarriedKg(Agent agent) =>
         (PackOf(agent) is { } pack ? WeightKg(pack) : 0) + agent.Members.Sum(b => ClothingWeightKg(b.Worn));
 
-    /// Old AbilityContext.FromFullContext: carried weight over capacity. Zero for an agent that carries nothing.
+    /// Carried weight over capacity. Zero for an agent that carries nothing.
     public static double EncumbrancePct(Agent agent) =>
         PackOf(agent) is { } pack ? CarriedKg(agent) / CapacityKg(pack) : 0;
 
     /// Puts what was gained in the pack, up to capacity; the rest drops on the tile's ground stash,
-    /// or with dropExcess false is only handed back. A null events list reports nothing. Returns what did not fit (old
-    /// InventoryCapacityHelper.CombineAndReport).
+    /// or with dropExcess false is only handed back. A null events list reports nothing. Returns what did not fit.
     public static Inventory Receive(World world, Agent agent, Inventory gained, List<WorldEvent>? events, bool dropExcess = true)
     {
         var pack = PackOf(agent) ?? throw new InvalidOperationException($"{agent.Id} carries nothing");
@@ -226,7 +222,7 @@ public static class Items
         {
             double room = Math.Max(0, CapacityKg(pack) - CarriedKg(agent));
             double kept = Math.Min(kg, room);
-            if (kg - kept <= SliverKg) kept = kg; // a sliver over capacity rides with the rest; old (this rebuild): it was dropped (bug, fixed)
+            if (kg - kept <= SliverKg) kept = kg; // a sliver over capacity rides with the rest
             Add(pack, r, kept);
             if (kg - kept > 0) Add(dropped, r, kg - kept);
         }
@@ -292,15 +288,14 @@ public static class Items
         string.Join(", ", inv.Kg.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key} {kv.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}kg")
             .Concat(inv.Gear.Select(g => Def(g).Name)));
 
-    /// The old starting kit (GameContext.CreateNewGame): worn furs and boots. New items each call.
+    /// The starting kit: worn furs and boots. New items each call.
     public static List<Gear> StartingClothes() => [.. Content.Tables.StartingClothes.Select(Make)];
 
-    /// The old starting pack: a hand drill, 0.9 kg of sticks, four pinches of tinder. New each call.
+    /// The starting pack: a hand drill, 0.9 kg of sticks, four pinches of tinder. New each call.
     public static Inventory StartingPack()
     {
         var kit = Content.Tables.StartingPack;
         var pack = new Inventory { Gear = [.. kit.Gear.Select(Make)] };
-        // Summed piece by piece, in order, as the old kit added them up.
         foreach (var (r, pieces) in kit.Kg) pack.Kg[r] = pieces.Aggregate(0.0, (kg, piece) => kg + piece);
         return pack;
     }

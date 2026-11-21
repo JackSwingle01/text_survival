@@ -127,8 +127,8 @@ public sealed class BodyState
         StructuralKg = weightKg * (1 - fatPct - musclePct),
     };
 
-    /// A dressed adult in the old starting furs and boots: 1.33 clo, 3.05 kg. A man unless told otherwise,
-    /// a woman at the species row's female build.
+    /// A dressed adult in furs and boots: 1.33 clo, 3.05 kg. A man unless told otherwise, a woman at
+    /// the species row's female build.
     public static BodyState BaselineHuman(Sex sex = Sex.Male)
     {
         var row = SpeciesTable.Of(Species.Human);
@@ -171,8 +171,7 @@ public static partial class Body
 {
     /// The reference man the body's scales are measured from (the calorie store's 2,000 kcal, the
     /// reserve's six minutes): an Upper Palaeolithic man (documentation/species-stats-research.md §2.1).
-    /// The body a person is born with is the species row's (BodyState.BaselineHuman). Old (this rebuild,
-    /// old game): 75 kg, 15% fat, 30% muscle.
+    /// The body a person is born with is the species row's (BodyState.BaselineHuman).
     public const double BaselineWeightKg = 68, BaselineFatPct = 0.12, BaselineMusclePct = 0.38;
     public const double BloodVolumeMl = 5000;
 
@@ -321,10 +320,8 @@ public static partial class Body
     }
 
     /// One region's contribution: what each organ supplies in proportion to its own condition, plus
-    /// the muscle's work, limited by the region's weakest layer for that capacity.
-    /// Old (this rebuild, old game): every capacity was scaled by the average multiplier of every
-    /// tissue in the region, so both lungs destroyed left two-thirds of the breathing, a brain at 0.02
-    /// left 0.88 consciousness and a leg with no bone still walked at 0.55 (bug, fixed; body review A2).
+    /// the muscle's work, limited by the region's weakest layer for that capacity. Not an average over
+    /// the region's tissues, which leaves two-thirds of the breathing with both lungs destroyed.
     public static double[] RegionCapacities(Region region)
     {
         var result = new double[CapacityCount];
@@ -342,8 +339,7 @@ public static partial class Body
     }
 
     /// How far one layer of a region lets it do its work, 1 where the layer plays no part. Skin carries
-    /// a limb's work, not the organs': a scalp wound does not dim the eyes (judgment, body review A2:
-    /// the old 1.0-for-skin-everywhere was harmless only while it was averaged away).
+    /// a limb's work, not the organs': a scalp wound does not dim the eyes.
     static double LayerMultiplier(Tissue t, Capacity cap)
     {
         double c = t.Condition;
@@ -379,9 +375,6 @@ public static partial class Body
 
     /// Life is tissue and blood: breathing, a pumping heart and a working brain, before any effect.
     /// Effects disable (consciousness can fall to nothing and leave you unable to act) but never kill.
-    /// Old (this rebuild): effects counted, so Tired, Thirsty and Hungry together killed a body with
-    /// water left and no organ harmed, and it was said to have died of "exhaustion" (bug, fixed; body
-    /// review B5, decided 2026-11-21).
     public static bool IsAlive(BodyState body) => Vitality(GetCapacitiesWithoutEffects(body)) > 0;
 
     /// The body has died now: its time is kept, and its cause if no damage already named one
@@ -398,9 +391,8 @@ public static partial class Body
     /// What killed a body that has just died: the cause of the damage that took a vital organ or the
     /// blood over the line, kept as it landed (DamageInfo.By). Its blood ran out from wounds someone
     /// gave it (the bleeding names them), its heart stopped in the cold, its brain failed of thirst.
-    /// Old (this rebuild): read off the dead body afterwards, by which lethal process was running
-    /// fastest and whether any wound looked mortal, so a person who froze two days after a wolf bite
-    /// was "killed by a wolf pack" (bug, fixed; body review A7 and B5).
+    /// Kept as it lands, not read off the dead body afterwards, so a person who freezes days after a
+    /// wolf bite died of the cold.
     public static Cause CauseOfDeath(BodyState body)
     {
         if (IsAlive(body)) throw new InvalidOperationException("This body is alive: it has no cause of death");
@@ -436,8 +428,8 @@ public static partial class Body
         return (0.30 + muscle + fat) * (0.50 + 0.50 * c.Moving) * (0.80 + 0.20 * c.Manipulation) * Vitality(c);
     }
 
-    /// The build Speed's terms are measured from: the old game's baseline adult, which its numbers were
-    /// tuned around. Not the baseline man: moving the baseline does not re-tune the formula.
+    /// The build Speed's terms are measured from, which its numbers were tuned around. Not the baseline
+    /// man: moving the baseline does not re-tune the formula.
     const double SpeedReferenceWeightKg = 75, SpeedReferenceFatPct = 0.15, SpeedReferenceMusclePct = 0.30;
 
     /// Movement rate. Strength modulates load: a strong person feels 30kg less than a weak one.
@@ -468,8 +460,6 @@ public static partial class Body
     /// Awareness. Consciousness counts twice, once through vitality: being dazed tanks it.
     /// Sight and hearing are half each; darkness takes away what sight gives, so the healthy perceive
     /// half as much in pitch dark as at noon.
-    /// Old (this rebuild, old game): hearing's weight grew as sight's fell, so a healthy body in pitch
-    /// dark perceived exactly as well as at noon, and better than at dusk (bug, fixed; body review A3).
     public static double Perception(BodyState body, AbilityContext context = default)
     {
         var c = GetCapacities(body);
@@ -640,10 +630,9 @@ public static partial class Body
     }
 
     /// What gets through reaches an inner organ only through a deep wound; a shallow one finds an eye or
-    /// an ear if the region has one. A deep wound still lands on an eye or an ear some of the time.
-    /// Old (this rebuild, old game): any eye or ear came first, so no blow to the head ever reached the
-    /// brain (bug, fixed; body review A4). The depth line is still the old weapon-scale 5, which only
-    /// weapons clear: putting it on one 0-1 scale is body review B9, not decided.
+    /// an ear if the region has one. A deep wound still lands on an eye or an ear some of the time, so a
+    /// blow to the head can reach the brain. The depth line is on the weapon scale (5), which only weapons
+    /// clear; putting it on one 0-1 scale is not decided.
     static Tissue? OrganToHit(Region region, double amount, Rng rng)
     {
         var external = region.Organs.Where(o => o.IsExternal).ToList();
@@ -659,9 +648,6 @@ public static partial class Body
 
     /// Returns the condition lost. A blow is divided by what the tissue has left to resist it; internal
     /// harm (hunger, thirst, cold) takes condition directly, so its rates are what they say.
-    /// Old (this rebuild, old game): internal harm was divided too, by toughness times condition, so it
-    /// ran away as an organ failed and the brain's toughness of 0.25 made every such death brain death,
-    /// thirst killing in half an hour and mild cold in hours (body review B4, decided 2026-11-21).
     static double DamageTissue(Tissue tissue, double amount, DamageType type)
     {
         if (type != DamageType.Internal) amount -= NaturalAbsorption(tissue, type);
@@ -672,7 +658,6 @@ public static partial class Body
     }
 
     /// Protection a tissue gives, and the divisor for a blow it takes: toughness, worn down by damage.
-    /// Old: it took a damage type it never read (body review A12).
     public static double Protection(Tissue tissue) => tissue.Toughness * tissue.Condition;
 
     /// What a tissue shrugs off before it loses any condition. Organs, being inside, shrug off more.
@@ -784,7 +769,6 @@ public static partial class Body
 
     /// A damaged gut absorbs half as much at worst. What the store cannot hold is laid down as fat:
     /// every kilocalorie absorbed is either in the store or on the body.
-    /// Old game: food never became fat - the surplus was discarded (bug, fixed).
     public static void Eat(BodyState body, double kcal)
     {
         double stored = body.CaloriesKcal + kcal * (0.5 + 0.5 * GetCapacitiesWithoutEffects(body).Digestion);

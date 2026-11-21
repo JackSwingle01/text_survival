@@ -27,7 +27,7 @@ public enum ThingKind { Agent, Body, Carcass, Pool, Stash, Fire, Shelter, Track,
 /// - Sign: reserved. No stored signs exist yet (scat, claw marks); when they do they need ids of
 ///   their own, since a position in a pruned list shifts.
 /// - Item: reserved. Carried gear has no id, and a position in a pack or stash shifts on removal;
-///   gear gets ids when the first verb acts on an item (build step 4).
+///   gear gets ids when the first verb acts on an item.
 public readonly record struct ThingRef(ThingKind Kind, TileId Tile, int Index) : IComparable<ThingRef>
 {
     public const int TrailIndexBase = 16;

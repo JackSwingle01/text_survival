@@ -1,8 +1,8 @@
 namespace Survival;
 
-/// The closed vocabulary of what a thing is, for access and (build step 4) verbs
-/// (emergent-world-design §3.3, with the catalog's refinements: Ripe folds into Harvestable,
-/// Crossing moves to edges, Hostile, Unaware and Wounded are added). Computed, never stored.
+/// The closed vocabulary of what a thing is, for access and verbs (emergent-world-design §3.3, with
+/// the catalog's refinements: Ripe folds into Harvestable, Crossing moves to edges, Hostile, Unaware
+/// and Wounded are added). Computed, never stored.
 /// Adding a tag for one situation is the failure mode; adding one at all is a visible code change.
 [Flags]
 public enum Tag : ulong
@@ -27,7 +27,7 @@ public static class Capabilities
 {
     /// Everything the working gear in the pack can do, OR'd over its gear rows. Broken gear does nothing.
     // Light from a burning torch and Bait from meat in the pack are not gear rows; they join when
-    // verbs need them (build step 4). Smoke has no source yet.
+    // verbs need them. Smoke has no source yet.
     public static Capability Of(Inventory pack)
     {
         var caps = Capability.None;
@@ -55,7 +55,7 @@ public static class Tags
 {
     /// How far a guard holds its ground around what it guards, in tiles (0: its own tile).
     public const int GuardRadiusTiles = 0;
-    /// A carcass is fresh through the old "fresh" band: decay under 0.2, the first four effective hours.
+    /// A carcass is fresh while its decay is under 0.2, the first four effective hours.
     public const double FreshDecayLevel = 0.2;
     /// Prints read as fresh while at least this much of them is left.
     public const double FreshPrintsPct = 0.5;

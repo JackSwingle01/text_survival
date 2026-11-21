@@ -1,14 +1,14 @@
 namespace Survival;
 
-/// Filling the valley with herds when the world is made (port of old HerdPopulator). Seeded by its
-/// own stream, so the same seed gives the same herds on the same land.
+/// Filling the valley with herds when the world is made. Seeded by its own stream, so the same seed
+/// gives the same herds on the same land.
 // Dens are authored sites (Content): the Wolf Den's pack, the Bear Cave's bear and Bone Hollow's
-// mammoths are herds anchored on them, as the old HerdPopulator anchored them. Herds renew toward what
-// their land carries (Renewal.cs); a megafauna herd killed off stays dead for the run.
-// Old territory details (tracks, droppings, bones as pools) are not ported: the herds leave real prints now.
+// mammoths are herds anchored on them. Herds renew toward what their land carries (Renewal.cs); a
+// megafauna herd killed off stays dead for the run. Herds leave real prints, so no territory
+// details (tracks, droppings, bones) are placed as pools.
 public static partial class Fauna
 {
-    /// Old safeZone: herds start more than 2.4 km from camp.
+    /// Herds start more than 2.4 km from camp.
     public const int SafeZoneTiles = 24;
 
     public static void Populate(World world)
@@ -18,8 +18,7 @@ public static partial class Fauna
         var interior = InteriorTiles(m);
         // Predators keep out of each other's land; prey graze anywhere outside the safe zone.
         var available = interior.Where(p => MapGen.Manhattan(p, m.Camp) > SafeZoneTiles).ToList();
-        // old game: prey drew their land from what the wolf packs had left, so no prey herd ever lived on a
-        // pack's land and a pack met prey only when one strayed through (judgment: prey land may overlap a pack's).
+        // Prey land may overlap a pack's, so packs meet prey on their own land, not only when one strays through.
         var preyLand = available.ToList();
         var wolfLand = new HashSet<TileId>();
 
@@ -110,9 +109,9 @@ public static partial class Fauna
         PopulateCarrion(world, m, interior);
     }
 
-    /// The carrion flocks (judgment: the old game had none): one for about every 1,500 open tiles of
-    /// the valley, 3-6 strong, each ranging over 150-250 tiles. Drawn on their own stream after every
-    /// other herd, so adding them moved nothing that was already placed.
+    /// The carrion flocks: one for about every 1,500 open tiles of the valley, 3-6 strong, each ranging
+    /// over 150-250 tiles (judgment). Drawn on their own stream after every other herd, so they move
+    /// nothing else's placement.
     static void PopulateCarrion(World world, GeneratedMap m, List<TileId> interior)
     {
         var rng = world.Rng("populate carrion");
@@ -124,8 +123,8 @@ public static partial class Fauna
         }
     }
 
-    /// Interior tiles, x-major: off the map's edge, above ground, off the whole pass corridor (old:
-    /// off only its far side). Where herds are put, and where they arrive (Arrive).
+    /// Interior tiles, x-major: off the map's edge, above ground, off the whole pass corridor. Where
+    /// herds are put, and where they arrive (Arrive).
     static List<TileId> InteriorTiles(GeneratedMap m)
     {
         var interior = new List<TileId>();
@@ -138,13 +137,11 @@ public static partial class Fauna
         return interior;
     }
 
-    /// Tiles holding this site, x-major (old FindLocations scanned by name).
+    /// Tiles holding this site, x-major.
     static List<TileId> SitesNamed(GeneratedMap m, string id) =>
         [.. m.Sites.Where(s => s.Value.Id == id).Select(s => s.Key).OrderBy(t => t)];
 
-    /// Old GetPositionsInRadius: open ground within a square around a den, off caves and the pass.
-    /// old game: only the far side was left out, so a den near the mountains could range up the
-    /// pass (bug, fixed).
+    /// Open ground within a square around a den, off caves and the whole pass, so no den ranges up it.
     static List<TileId> Around(GeneratedMap m, TileId center, int radius)
     {
         var tiles = new List<TileId>();
@@ -157,8 +154,8 @@ public static partial class Fauna
         return tiles;
     }
 
-    /// Old PopulateCaves: one roll per cave system. Half stand empty; of the rest, most hold a cave
-    /// bear and some a few hyenas, denned on a floor tile and ranging only where the cave connects.
+    /// One roll per cave system. Half stand empty; of the rest, most hold a cave bear and some a few
+    /// hyenas, denned on a floor tile and ranging only where the cave connects.
     static void PopulateCaves(World world, GeneratedMap m, Rng rng)
     {
         var caves = new SortedDictionary<int, List<TileId>>();
@@ -187,10 +184,8 @@ public static partial class Fauna
         }
     }
 
-    /// Old CreateContiguousTerritory: a random flood fill from the start through the allowed tiles,
-    /// up to the target size, across only the edges a herd can walk. old game: the fill went by
-    /// adjacency alone, so a territory could take in land beyond a ravine or cliff its herd could
-    /// never reach (bug, fixed).
+    /// A random flood fill from the start through the allowed tiles, up to the target size, across only
+    /// the edges a herd can walk, so no territory takes in land beyond a ravine or cliff its herd cannot reach.
     static List<TileId> Territory(GeneratedMap m, TileId start, List<TileId> allowed, int targetSize, Rng rng)
     {
         var open = allowed.ToHashSet();

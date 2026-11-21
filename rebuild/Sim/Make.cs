@@ -143,7 +143,7 @@ public static class Outcomes
 
 // ---- recipes ----
 
-/// Menu grouping (old NeedCategory, the families ported so far).
+/// Menu grouping.
 public enum MakeCategory { FireStarting, CuttingTool, HuntingWeapon, Lighting, Processing, Clothing }
 
 /// What the place must have for the work to start, and to go on: a closed list. Wet or cold hands
@@ -201,16 +201,16 @@ public sealed record ProjectAbandoned(long Minute, AgentId Who, TileId Tile, str
 
 /// One Make activity for everything carried (emergent-world-design §3.7), shared by the player and
 /// NPCs: start or go on with a recipe's project, and when its work is done roll one outcome.
-/// Building on a tile is still Shelters' Build until it folds in (roadmap 8).
+/// Building on a tile is still Shelters' Build.
 public static class Making
 {
     /// Each Crafting level: failure-like weights x(1 - this), success bonuses x(1 + this).
     public const double SkillPctPerLevel = 0.04;
-    /// What abandoning a project gives back of its materials' kilos (old ReclaimPct, never wired).
+    /// What abandoning a project gives back of its materials' kilos.
     public const double AbandonReclaimPct = 0.8;
     /// How much more work a minute does with each faster tool carried.
     public const double FasterToolFactor = 1.5;
-    /// Old CraftingEffort: below this dexterity the work slows, by up to half again at none.
+    /// Below this dexterity the work slows, by up to half again at none.
     const double DexterityThreshold = 0.7, MaxDexterityPenaltyPct = 0.5;
 
     public const string MadeIt = "made", Spoiled = "spoiled";
@@ -409,9 +409,8 @@ public static class Making
     }
 
     /// The recipe's minutes this minute does: more with faster tools, less with bad hands, a fogged
-    /// head or clumsy fingers (old CraftingEffort, which counted bad hands both through manipulation
-    /// and through the dexterity built on it; kept as ported). Read every minute, so how the work is split into
-    /// steps cannot change when it finishes.
+    /// head or clumsy fingers. Bad hands count twice, through manipulation and through the dexterity
+    /// built on it. Read every minute, so how the work is split into steps cannot change when it finishes.
     public static double WorkPerMinute(World world, Agent agent, Inventory pack, Recipe r)
     {
         double work = 1.0;
