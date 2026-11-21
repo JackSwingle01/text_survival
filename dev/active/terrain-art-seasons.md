@@ -18,7 +18,8 @@ computed in world space. `rebuild/Web/README.md` has the details and the preview
 The renderer takes the ground state as input, and every state below already draws (try them with
 `tools/terrain-preview.mjs --state`):
 
-- per cell: `{ snow: 0..1 cover, dust: bool, laden: bool, mud: 0..1, ice: 'none' | 'thin' | 'thick' }`;
+- per cell: `{ snow: 0..1 cover, dust: bool, laden: bool, mud: 0..1, water: 0..1 standing water's
+  extent, ice: 'none' | 'thin' | 'thick' }` (pond ice covers the standing water only, not the mud);
 - per world: `{ palette, snowline }` (mountain height above which snow lies, 0..1).
 
 The page derives both from the view (`wwwroot/ground-state.js`): cells from `MapDto.Surface`, the
@@ -30,12 +31,10 @@ in `terrain-core.js`); `tools/terrain.test.mjs` fails when `PAINTED` and the fil
 1. **Ice art repeats.** The ice textures' cracks, leads and windows near a 96 px tile's edge are
    shared by every variant, so a large frozen lake shows them on a 96 px grid. Repaint them with
    features that fade out at the tile edge, or draw lake ice in world space.
-2. **Pond extent.** Ice on land is drawn through the wetness mask, so 1 cm of frozen water on
-   saturated mud draws as a sheet of ice. The cell state needs the standing water's extent apart
-   from the mud's.
-3. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness, and only tiles in sight have a
-   surface, so remembered tiles need the ground as last seen. Deep water is impassable and skipped,
-   and lake and river ice is static (`SiteWater`) until it grows and thaws.
+2. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness. Deep water is impassable and
+   skipped, and lake and river ice is static (`SiteWater`) until it grows and thaws.
+3. **Crust art.** `SurfaceDto.Crust` (snow whose top has refrozen) reaches the page, but nothing
+   draws it: it needs an overlay, crust over full and patchy snow.
 
 ## Today
 
@@ -74,6 +73,7 @@ That's 7 new base sets. Four variants each is plenty, since the overlays add var
 | Forest snow | Snow held on the canopy. Trees hold snow differently from open ground, so forest may need its own |
 | Mud or wet | Thawing, soaked ground |
 | Ice on water | Thin ice, then thick ice, over the open-water tiles |
+| Snow crust | Snow whose top has refrozen hard (`SurfaceDto.Crust`) |
 
 ### Seasonal colour by palette swap
 

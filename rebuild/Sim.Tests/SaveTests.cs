@@ -51,7 +51,7 @@ public class SaveFixtureTests
     }
 
     /// A small world with a bit of most of what a save holds: a fire burning, a stash, a shelter and
-    /// bedding, a crossing made, an NPC, a wolf pack, the player's memory and explored ground, rng
+    /// bedding, a crossing made, an NPC, a wolf pack, the player's memory, explored and remembered ground, rng
     /// streams, a journal, a made thing's parts and an unfinished one in the pack. Not World.New: its two dozen herds would make the fixture half a megabyte.
     internal static World SampleWorld()
     {

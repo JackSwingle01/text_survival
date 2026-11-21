@@ -5,7 +5,10 @@ namespace Survival.Web;
 /// of the boundary a player's client uses; the page calls it only for ?scenario=.
 public static class Scenarios
 {
-    public static readonly IReadOnlyList<string> Names = ["supplied", "fight", "dead", "won"];
+    public static readonly IReadOnlyList<string> Names = ["supplied", "fight", "dead", "won", "winter"];
+
+    /// 15 January, 09:00: the clock's start (1 July) plus 198 days.
+    const long WinterMinute = 198 * 1440;
 
     public static string Apply(GameHost host, string name)
     {
@@ -40,6 +43,16 @@ public static class Scenarios
             case "won":
                 p.Tile = Map.Of(w).Exit;
                 break;
+            // A new game's clock moved on to mid-January before anything has happened: the ground has
+            // lived the autumn and winter (Ground catches a tile up from the sky alone), and the player
+            // takes a look at it.
+            case "winter":
+            {
+                if (w.Minute != 0) throw new InvalidOperationException($"The winter scenario moves a new game's clock, not one at minute {w.Minute}");
+                w.Minute = WinterMinute;
+                Sim.Step(w, new Wait(AgentId.Player), 1);
+                break;
+            }
             default:
                 throw new ArgumentException($"No scenario '{name}'; there are {string.Join(", ", Names)}");
         }

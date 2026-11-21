@@ -28,7 +28,7 @@ default" attribute leaves old saves byte-identical, and the test stays green.
 5. Commit the version, the fixture and the change together.
 
 The sample world has a little of most saved state: a fire, a stash, a shelter and bedding, a
-crossing, an NPC, a wolf pack, memory and explored ground, rng streams, a journal, a made spear
+crossing, an NPC, a wolf pack, memory, explored and remembered ground, rng streams, a journal, a made spear
 with its recorded parts and an unfinished one in the pack.
 
 Version 2 (MVP 4, making things) added `Gear.MadeOf`, `Inventory.Projects`, the `make` and
@@ -38,7 +38,12 @@ dropped `HerdMind.Hunger`, since a herd's hunger is now its members' calorie sto
 state machine) gave a fight's units a `State`, an `AlertnessLevel`, a `Target` and `HasRun` in place of
 `Awareness`, `JustDamaged`, `InitialOptimism`, `DodgeSet` and `BlockSet`, and an encounter its `Dropped`
 weapons. Version 5 (flight and catch-up) added a fight's `PendingFlight`, its units' `FledHeading`, `FledTiles`,
-`LeftChasing` and `RunDown`, and `WoundedEscaped.Heading`, all skipped at their defaults. When you add
+`LeftChasing` and `RunDown`, and `WoundedEscaped.Heading`, all skipped at their defaults. Version 6
+(remembered ground) made `Beliefs.Explored` a `GroundMemory`: every tile seen, with its ground as last
+seen and the minute, saved as `"WxH:seen:records"`, a base64 bitset of the tiles seen and then ten bytes
+per tile seen (minute, snow and standing water in millimetres, mud in hundredths, crust and ice flags),
+13 characters per tile seen on top of the bitset. A look also catches up the kept ground in view, so the
+sample's ground numbers moved forward. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands.

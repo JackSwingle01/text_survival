@@ -227,7 +227,9 @@ public class GameHostTests
 
         var won = new GameHost();
         won.NewGame(Seed);
-        Assert.Equal("crossed", Parse(Scenarios.Apply(won, "won")).Outcome);
+        var w = Parse(Scenarios.Apply(won, "won"));
+        Assert.Equal("crossed", w.Outcome);
+        Assert.All(w.Map.Surface, s => Assert.NotEqual('.', w.Map.Known[s.I])); // in sight from a tile never looked around: no ground for the unknown
     }
 
     [Fact]
@@ -250,7 +252,91 @@ public class GameHostTests
         var after = Run(h, go, chunk: 3);
         Assert.Contains(after.Log, l => l.Text.StartsWith("You reach ", StringComparison.Ordinal) && l.Icon == "ui/follow");
         Assert.All(after.Log, l => Assert.DoesNotMatch("[a-z][A-Z]", l.Text));
-        Assert.All(after.Map.Surface, s => Assert.Contains(s.I, after.Map.Visible));
+        Assert.All(after.Map.Surface, s => Assert.NotEqual('.', after.Map.Known[s.I]));
         Assert.Equal(after.Map.Surface.OrderBy(s => s.I).Select(s => s.I), after.Map.Surface.Select(s => s.I));
+    }
+
+    // ---- the ground on the map: in sight as it is, out of sight as last seen ----
+
+    static void Snow(World w, TileId t, double depthM) =>
+        Ground.CatchUp(w, t).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 });
+
+    static TileId InSightOfPlayer(World w)
+    {
+        var p = w.Agent(AgentId.Player);
+        return Sight.InView(w, p).First(t => t != p.Tile && Map.Of(w).TerrainAt(t).IsPassable() && Map.Of(w).SiteAt(t) == null);
+    }
+
+    static int Index(World w, TileId t) => t.Y * Map.Of(w).Width + t.X;
+
+    /// Regression: a tile seen under snow, then out of sight while the snow went, still shows that
+    /// snow after a save and load (the page keeps nothing across a load), not the bare ground there now.
+    [Fact]
+    public void Ground_out_of_sight_is_as_last_seen_after_a_save_and_load_not_as_it_is_now()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var p = w.Agent(AgentId.Player);
+        var t = InSightOfPlayer(w);
+        Sim.Step(w, new Wait(AgentId.Player), Knowledge.GlanceMinutes); // ground is kept once it has lived any time
+        Snow(w, t, 0.4);
+        Sim.Step(w, new Wait(AgentId.Player), Knowledge.GlanceMinutes); // the next look sees it
+        double seenCm = Math.Round(Ground.SurfaceNow(w, t).SnowDepthM * 100, 1);
+        Assert.True(seenCm > 30, $"{seenCm} cm");
+
+        var m = Map.Of(w);
+        p.Tile = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .First(f => m.TerrainAt(f).IsPassable() && m.SiteAt(f) == null && Math.Abs(f.X - t.X) + Math.Abs(f.Y - t.Y) > 2 * Sight.MaxTiles);
+        p.Crossing = null;
+        Sim.Step(w, new Wait(AgentId.Player), 1);
+        Ground.CatchUp(w, t).Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow); // gone while nobody looked
+
+        var loaded = new GameHost();
+        var v = Parse(loaded.Load(h.Save()));
+        Assert.DoesNotContain(Index(w, t), v.Map.Visible);
+        Assert.Equal(0, Ground.SurfaceNow(loaded.World, t).SnowDepthM);
+        var remembered = v.Map.Surface.Single(s => s.I == Index(w, t));
+        Assert.Equal(seenCm, remembered.SnowCm);
+    }
+
+    /// The winter scenario opens in mid-January on snow.
+    [Fact]
+    public void The_winter_scenario_opens_on_snow()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var v = Parse(Scenarios.Apply(h, "winter"));
+        Assert.Equal("Winter", v.Clock.Season);
+        var inSight = v.Map.Visible.ToHashSet();
+        Assert.True(v.Map.Surface.Count(s => inSight.Contains(s.I) && s.SnowCm >= 15) > inSight.Count / 2,
+            $"{v.Map.Surface.Count(s => inSight.Contains(s.I) && s.SnowCm >= 15)} of {inSight.Count} in sight under full snow");
+    }
+
+    /// A tile in sight shows its ground as it is now, not as the last look left it.
+    [Fact]
+    public void Ground_in_sight_is_the_ground_as_it_is_now()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var t = InSightOfPlayer(w);
+        Sim.Step(w, new Wait(AgentId.Player), Knowledge.GlanceMinutes);
+        var remembered = Knowledge.Of(w.Agent(AgentId.Player)).Explored!.At(t)!.Value;
+        Assert.Equal(w.Minute, remembered.SeenMinute);
+        Snow(w, t, 0.4); // after the look: memory says otherwise
+        Assert.True(remembered.Surface.SnowDepthM < 0.1);
+
+        var v = Parse(h.View());
+        Assert.Contains(Index(w, t), v.Map.Visible);
+        Assert.Equal(Math.Round(Ground.SurfaceNow(w, t).SnowDepthM * 100, 1), v.Map.Surface.Single(s => s.I == Index(w, t)).SnowCm);
+        int width = Map.Of(w).Width;
+        foreach (var i in v.Map.Visible)
+        {
+            var g = Ground.SurfaceNow(w, new TileId(i % width, i / width));
+            var s = v.Map.Surface.SingleOrDefault(x => x.I == i);
+            Assert.Equal(Math.Round(g.SnowDepthM * 100, 1), s?.SnowCm ?? 0);
+            Assert.Equal(Math.Round(g.WaterDepthM * 100, 1), s?.WaterCm ?? 0);
+        }
     }
 }

@@ -58,7 +58,35 @@ const STATES = {
   'fight-round': { scenario: 'fight', steps: [page.run(`v.label === 'Advance'`), page.idle, page.run(`v.label === 'Advance'`), page.idle] },
   dead: { scenario: 'dead', steps: [] },
   won: { scenario: 'won', steps: [] },
+  winter: { scenario: 'winter', steps: [] },
+  // Mid-January, walked away from camp and the game saved and loaded: the ground behind, out of
+  // sight, is the Sim's memory of it.
+  remembered: { scenario: 'winter', steps: ['away', `window.ui.doSave().then(() => true)`, `window.ui.doLoad().then(() => true)`, page.idle, 'remembered', page.key('Escape')] },
 };
+
+// Up to eight tiles away from camp: on in one direction while it is open, never straight back.
+const AWAY = `(async () => {
+  const back = { north: 'south', south: 'north', east: 'west', west: 'east' };
+  let dir = null;
+  for (let i = 0; i < 8; i++) {
+    const open = window.ui.S.view.walk.filter(w => !w.careful && !w.refused);
+    const go = open.find(w => w.dir === dir) ?? open.find(w => w.dir !== back[dir]);
+    if (!go && i >= 3) break; // deep snow wears a person out: three tiles is far enough
+    if (!go) throw new Error('nowhere to walk after ' + i + ' tiles');
+    dir = go.dir;
+    await window.ui.run(go.id);
+    await ${page.idle};
+  }
+  return true;
+})()`;
+
+// Snow out of sight in the view: what the Sim remembers, since the page keeps nothing across a load.
+const REMEMBERED = `(() => {
+  const m = window.ui.S.view.map, inSight = new Set(m.visible);
+  const n = m.surface.filter(s => !inSight.has(s.i) && s.snowCm > 0).length;
+  if (!n) throw new Error('no remembered snow out of sight');
+  return n;
+})()`;
 
 // Strike until the fire catches (each failed strike is a minute; the odds sheet says how likely).
 const STRIKE = `(async () => {
@@ -131,7 +159,7 @@ async function shot(cdp, name) {
   console.log(`  ${file}`);
 }
 
-async function step(cdp, s) { return cdp.evaluate(s === 'strike' ? STRIKE : s); }
+async function step(cdp, s) { return cdp.evaluate(s === 'strike' ? STRIKE : s === 'remembered' ? REMEMBERED : s === 'away' ? AWAY : s); }
 
 // ---- modes ----
 

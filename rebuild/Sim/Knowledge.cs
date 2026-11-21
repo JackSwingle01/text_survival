@@ -20,15 +20,14 @@ public sealed class Beliefs
     /// The last place each animal group or person was seen (old PredatorObservations, for every
     /// agent, not only predators). Forgotten after Knowledge.SightingMemoryMinutes.
     public SortedDictionary<AgentId, Sighting> Sightings { get; init; } = [];
-    /// Every tile ever in view (Sight.Visible), whether or not anything was there: what the map
-    /// draws as known rather than unexplored. Null until the first look. Only grows.
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public TileSet? Explored { get; set; }
+    /// Every tile ever in view (Sight.Visible), whether or not anything was there, with its ground as
+    /// last seen: what the map draws as known rather than unexplored, and the snow, mud and ice it
+    /// draws there out of sight. Null until the first look. Only grows.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public GroundMemory? Explored { get; set; }
     /// What is in view from where the person stands, with the budget it was cast with: the same tile
     /// and budget give the same view (terrain never changes), so it is cast again only when either
     /// moves. Never saved: after a load the first look casts it afresh, to the same tiles.
     internal SightView? View;
-    /// The view whose tiles are already in Explored: looking again from it adds nothing.
-    internal SightView? ExploredView;
 }
 
 /// The tiles in view from one tile with one budget (Sight.ViewOf), and the ones among them that a
@@ -315,14 +314,14 @@ public static class Knowledge
             if (now - s.Minute > SightingMemoryMinutes) beliefs.Sightings.Remove(id);
     }
 
-    /// Every tile in view is explored; a view already explored adds nothing.
+    /// Every tile in view is explored, and its ground as it is now remembered.
     static void Explore(World world, Beliefs beliefs, SightView view)
     {
-        if (beliefs.ExploredView == view) return;
         var m = Map.Of(world);
-        beliefs.Explored ??= new TileSet(m.Width, m.Height);
-        foreach (var t in view.Tiles) beliefs.Explored.Add(t);
-        beliefs.ExploredView = view;
+        beliefs.Explored ??= new GroundMemory(m.Width, m.Height);
+        if ((beliefs.Explored.Width, beliefs.Explored.Height) != (m.Width, m.Height))
+            throw new InvalidOperationException($"Explored ground is {beliefs.Explored.Width}x{beliefs.Explored.Height}, the map {m.Width}x{m.Height}");
+        foreach (var t in view.Tiles) beliefs.Explored.Remember(t, Ground.Look(world, t), world.Minute);
     }
 
     /// What changed on this tile since the person last stood on it, and then their memory of it,

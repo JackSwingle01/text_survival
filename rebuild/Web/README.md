@@ -23,8 +23,8 @@ file with `fetch` calls to the same five operations.
 - **Views are plain data**, rebuilt on every call from the player's side of the world: `Verbs.At`, the
   player's beliefs (explored tiles, remembered places, sightings), `Sight` for what is in view now,
   `Tiers.Of` for the vitals and alerts, the clock and sky, the fire on the tile, trip terms and odds.
-  The map never reads the truth of a tile out of sight; the ground it carries (`Ground.SurfaceNow`) is
-  the ground in sight now.
+  The map never reads the truth of a tile out of sight: the ground it carries is `Ground.SurfaceNow` in
+  sight and the player's memory of it (`Beliefs.Explored`) out of sight.
 - **The words are Sim's.** Names come from `Names` (`Sim/Content/names.json`), journal and receipt lines
   from `Narration`, odds factors and make outcomes are already in words, and a job's end is Sim's
   `StepOutcome` (finished, refused, interrupted) with its reason. The host adds only icons
@@ -39,7 +39,7 @@ file with `fetch` calls to the same five operations.
   (foraging, butchering, cooking) is one Sim step, which the page plays out on the clock.
 - **Saves** are Sim's versioned JSON as bytes: kept in IndexedDB (one slot), and downloadable and
   uploadable as a file.
-- `Scenario(name)` is development only (`Host/Scenarios.cs`: `supplied`, `fight`, `dead`, `won`), for
+- `Scenario(name)` is development only (`Host/Scenarios.cs`: `supplied`, `fight`, `dead`, `won`, `winter`), for
   screenshots and tests; the page uses it only for `?scenario=`.
 
 ## The map's ground
@@ -56,14 +56,14 @@ the ground never shows what the player has not seen.
 Tiles supply only texture, painted by `scripts/build-terrain-layers.py` into `assets/icons/terrain/`.
 Each cell's snow, mud and ice come from `MapDto.Surface` (`wwwroot/ground-state.js`, which holds
 every threshold in `GROUND`); the date sets only the palette and the mountain snowline (`SEASONS`).
-The view carries the ground in sight only, so the page keeps the ground as it last saw it; a tile not
-in sight since the page loaded is drawn bare. Every layer and palette is painted (`PAINTED` in `terrain-core.js`);
-asking for art that is not throws.
+The view carries the ground of every known tile, live in sight and as last seen out of sight, so the
+page keeps no ground of its own and a save loads with its snow. Every layer and palette is painted
+(`PAINTED` in `terrain-core.js`); asking for art that is not throws.
 
 ```bash
 node --test tools/terrain.test.mjs                                               # ground follows the Sim, art matches PAINTED
 node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/ground.png      # winter
-node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/thaw.png --state '{"snow":0.5,"dust":false,"laden":false,"mud":0,"ice":"thin"}'
+node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/thaw.png --state '{"snow":0.5,"dust":false,"laden":false,"mud":0,"water":0.4,"ice":"thin"}'
 ```
 
 ## Building
@@ -86,7 +86,7 @@ tools/publish.sh /tmp/text-survival-web -p:Aot=false       # interpreter (about 
 node tools/serve.mjs /tmp/text-survival-web/wwwroot 8183   # then open http://127.0.0.1:8183/
 ```
 
-`?seed=N` picks the world; `?scenario=fight` (or `supplied`, `dead`, `won`) starts in a prepared state.
+`?seed=N` picks the world; `?scenario=fight` (or `supplied`, `dead`, `won`, `winter`) starts in a prepared state.
 
 The host and its tests need no workload: `dotnet test rebuild/Web/Host.Tests`.
 
@@ -117,4 +117,4 @@ node tools/shots.mjs /tmp/text-survival-web/wwwroot --all --phone  # every state
 ```
 
 States: `start here trip walk fire lit forage make made body pack log save receipt sleep fight
-fight-round dead won`. Look at the screenshots, not only the exit code.
+fight-round dead won winter remembered`. Look at the screenshots, not only the exit code.

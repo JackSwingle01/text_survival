@@ -11,8 +11,8 @@
 //     from the top left, with snow above a snowline;
 //   - snow: a dusting, then patches lingering in shade and hollows, then full cover shown through a
 //     world-noise mask, so cover is continuous;
-//   - mud, and ice on wet land: their textures through a world-noise mask that grows with how wet the
-//     cell is; lake ice covers the whole water cell;
+//   - mud, and standing water on land (ice where it has frozen): their textures through one world-noise
+//     mask that grows with how much of each the cell has; lake ice covers the whole water cell;
 //   - sprites: trees, shrubs, boulders and reeds on a jittered world grid.
 // A pixel needs only its cell's 5x5 neighbourhood, so the map can be baked a cell at a time.
 // Unknown neighbours are read as the cell's own terrain: the renderer never shows what the
@@ -20,13 +20,13 @@
 //
 // Ground state per cell (stateAt) and for the world (world) select what is drawn; ground-state.js
 // derives both from the view:
-//   cell:  { snow: 0..1 cover, dust: bool, laden: bool (plants carry snow), mud: 0..1 (wet ground;
-//            frozen where ice is not 'none'), ice: 'none' | 'thin' | 'thick' }
+//   cell:  { snow: 0..1 cover, dust: bool, laden: bool (plants carry snow), mud: 0..1 (wet ground),
+//            water: 0..1 (standing water's extent; frozen where ice is not 'none'), ice: 'none' | 'thin' | 'thick' }
 //   world: { palette: 'winter' | 'summer' | 'autumn', snowline: 0..1 mountain height that holds snow }
 // The palette sets colour only; every snow, mud and ice layer follows the cell.
 
 export const CELL = 48, SRC = 96, VARIANTS = 4, STEP = 6;
-export const WINTER = Object.freeze({ snow: 1, dust: false, laden: true, mud: 0, ice: 'thick' });
+export const WINTER = Object.freeze({ snow: 1, dust: false, laden: true, mud: 0, water: 0, ice: 'thick' });
 export const WINTER_WORLD = Object.freeze({ palette: 'winter', snowline: 0.34 });
 
 // ---------------------------------------------------------------- the art that exists
@@ -295,12 +295,14 @@ export function createBaker(map, stateAt, world, tex) {
     }
     let col = sample(`terrain/ground/${p.kind}_${n}_${pal}`, px, py);
     const flav = FLAVOUR[p.kind] ?? 'flat', lies = snowed(px, py, s.snow);
-    // Wet ground, and where its water has frozen, ice. The mask's noise lies almost wholly within
+    // Mud, and standing water in the wettest of it: wet ground while liquid, ice where it has frozen.
+    // One mask for both, so water lies in the lowest of the mud. Its noise lies almost wholly within
     // 0.15..0.85, so its threshold spans that range: the least wetness shows, and a soaked cell shows
     // all of the (itself sparse) mud art.
     const wet = vnoise(px, py, 34, 41) * 0.65 + vnoise(px, py, 11, 42) * 0.35;
-    if (s.mud > 0 && !lies && wet > 0.85 - s.mud * 0.7)
-      col = sample(s.ice === 'none' ? `terrain/mud_${n}_${pal}` : `terrain/ice/${s.ice}_${n}`, px, py) ?? col;
+    const shows = level => level > 0 && !lies && wet > 0.85 - level * 0.7;
+    if (shows(s.mud)) col = sample(`terrain/mud_${n}_${pal}`, px, py) ?? col;
+    if (shows(s.water)) col = sample(s.ice === 'none' ? `terrain/mud_${n}_${pal}` : `terrain/ice/${s.ice}_${n}`, px, py) ?? col;
     if (s.dust) col = sample(`terrain/snow/dust_${flav}_${n}`, px, py) ?? col;
     if (s.snow > 0 && !lies) col = sample(`terrain/snow/patchy_${flav}_${n}`, px, py) ?? col;
     if (lies) col = sample(`terrain/snow/full_${flav}_${n}`, px, py) ?? col;

@@ -221,6 +221,13 @@ public static class Ground
     /// The tile's ground as a view draws it, read without writing (Peek).
     public static SurfaceSummary SurfaceNow(World world, TileId tile) => new Column(Peek(world, tile), Substrate(Map.Of(world), tile)).Summary;
 
+    /// The tile's ground as a person looking at it sees it now. Ground already kept is caught up in
+    /// place, so the next look carries on from here instead of re-living the same days; ground never
+    /// kept is read without writing, its history shared with its class (Unobserved). Either way the
+    /// same sub-steps, so what is seen does not depend on when anyone looked before.
+    public static SurfaceSummary Look(World world, TileId tile) =>
+        world.Tiles.GetValueOrDefault(tile)?.Ground != null ? new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).Summary : SurfaceNow(world, tile);
+
     /// Snow on the tile now, read without writing (Peek).
     public static double SnowDepthNowM(World world, TileId tile) => SnowDepthM(Peek(world, tile), Substrate(Map.Of(world), tile));
 

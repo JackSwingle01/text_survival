@@ -458,10 +458,10 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var unseen = Enumerable.Range(-6, 13).Select(dx => new TileId(camp.X + dx, camp.Y + (6 - Math.Abs(dx))))
             .Where(t => m.InBounds(t) && m.TerrainAt(t).IsPassable()).OrderBy(t => t).First();
         var stood = MapGen.Neighbors(unseen).First(t => m.InBounds(t) && MapGen.Manhattan(t, camp) == 5);
-        mind.Knows.Explored = new TileSet(m.Width, m.Height);
+        mind.Knows.Explored = new GroundMemory(m.Width, m.Height);
         for (int x = 0; x < m.Width; x++)
             for (int y = 0; y < m.Height; y++)
-                if (new TileId(x, y) != unseen) mind.Knows.Explored.Add(new TileId(x, y));
+                if (new TileId(x, y) != unseen) mind.Knows.Explored.Remember(new TileId(x, y), default, w.Minute);
         mind.Knows.Places[stood] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute };
         var heading = Npc.ExploreHeading(w, a, 12);
         output.WriteLine($"unseen {unseen}, stood beside it at {stood}: heads for {heading}");
@@ -479,8 +479,8 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         foreach (var r in mind.Pack.Kg.Keys.Where(r => r is Resource.Water or Resource.Tinder or Resource.Kindling or Resource.BirchBark
                      or Resource.Amadou or Resource.Usnea or Resource.Chaga).ToList()) mind.Pack.Kg.Remove(r);
         foreach (var p in mind.Knows.Places.Values) p.Water = false;
-        mind.Knows.Explored = new TileSet(Map.Of(w).Width, Map.Of(w).Height);
-        mind.Knows.Explored.Add(mind.Camp);
+        mind.Knows.Explored = new GroundMemory(Map.Of(w).Width, Map.Of(w).Height);
+        mind.Knows.Explored.Remember(mind.Camp, default, w.Minute);
         a.Body.HydrationMl = 0.1 * Body.MaxHydrationMl; // water Critical: over warmth's Need, which a camp with no fire to be had always is
         var (act, _) = Npc.Decide(w, a, []);
         output.WriteLine($"{act}; seeing to {mind.SeeingTo}, heading {mind.Heading}");

@@ -99,15 +99,21 @@ public sealed record SkillDto(string Name, int Level);
 /// The map as the player knows it. Known: one character per tile, row by row (Width per row): '.'
 /// for never seen, otherwise the terrain's code (TerrainCodes). Visible: indices (y*Width+x) in sight now.
 /// Everything else is memory: places as last seen, sightings with their minute. Surface: the ground of
-/// each tile in sight now with anything on it (Ground.SurfaceNow); a tile in sight that is not listed is
-/// bare, dry ground. Out of sight the ground is not known (nobody remembers yesterday's snow depth).
+/// each known tile with anything on it, in tile order: in sight, as it is now (Ground.SurfaceNow); out
+/// of sight, as last seen (Beliefs.Explored). A known tile that is not listed is bare, dry ground.
 public sealed record MapDto(int Width, int Height, string Known, IReadOnlyList<int> Visible, int CampX, int CampY,
     IReadOnlyList<PlaceMarkDto> Places, IReadOnlyList<SightingDto> Sightings, IReadOnlyList<TrackDto> Tracks,
     IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface);
 
-/// One tile's ground in sight. I: its index (y*Width+x). SnowCm: lying snow; Crust: its top refrozen;
+/// One known tile's ground. I: its index (y*Width+x). SnowCm: lying snow; Crust: its top refrozen;
 /// MudLevel: 0-1 on bare ground; WaterCm: standing water (ice included); Ice: that water mostly frozen.
-public sealed record SurfaceDto(int I, double SnowCm, bool Crust, double MudLevel, double WaterCm, bool Ice);
+/// Zeros and falses are left out: every view lists every known tile's ground, mostly snow alone.
+public sealed record SurfaceDto(int I,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double SnowCm,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Crust,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double MudLevel,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double WaterCm,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Ice);
 
 /// A remembered tile with something on it. Fire: the phase as last seen. FireHoursLeft: the fuel
 /// reckoned when last beside it, aged to now (null when not known to be burning). SeenMinute: when.

@@ -108,7 +108,7 @@ public class KnowledgeTests
 
     // ---- the ground explored (Beliefs.Explored) ----
 
-    static TileSet Explored(World w, AgentId who) => ((PersonMind)w.Agent(who).Mind).Knows.Explored!;
+    static GroundMemory Explored(World w, AgentId who) => ((PersonMind)w.Agent(who).Mind).Knows.Explored!;
 
     static double Eyes(World w, AgentId who) => Body.GetCapacities(w.Agent(who).Body).Sight;
 
@@ -194,6 +194,85 @@ public class KnowledgeTests
         var loaded = Save.FromJson(json);
         Assert.Equal(Explored(whole, P).Count, Explored(loaded, P).Count);
         Assert.Equal(json, Save.ToJson(loaded));
+    }
+
+    // ---- the ground as last seen (Beliefs.Explored) ----
+
+    static readonly WeatherSample Cold = new(0, WeatherCondition.Cloudy, -10, 0.1, 0, 0.8, WindDirection.North);
+
+    static void Snow(World w, TileId t, double depthM) =>
+        Ground.CatchUp(w, t).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 });
+
+    /// The first passable tile in view from here, other than here.
+    static TileId InViewFrom(World w, TileId from) =>
+        Sight.Visible(w, from, Eyes(w, P)).First(t => t != from && Map.Of(w).TerrainAt(t).IsPassable() && Map.Of(w).SiteAt(t) == null);
+
+    /// Snow seen on a tile, which then goes while the player is out of sight of it, is still snow in
+    /// their memory, after a save and load too: memory, not the ground as it is now.
+    [Fact]
+    public void GroundOutOfSight_IsTheGroundAsLastSeen_AfterASaveAndLoad()
+    {
+        var w = World.New(17);
+        w.FixedWeather = Cold;
+        var camp = Map.Of(w).Camp;
+        var t = InViewFrom(w, camp);
+        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes); // ground is kept once it has lived any time (Ground.CatchUp)
+        Snow(w, t, 0.4);
+        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes); // the clock's next look sees it
+        double seenM = Ground.SurfaceNow(w, t).SnowDepthM;
+        Assert.True(seenM > 0.35);
+        Assert.Equal(seenM, Explored(w, P).At(t)!.Value.Surface.SnowDepthM, 3);
+
+        Put(w, P, OutOfView(w, t));
+        Sim.Step(w, new Wait(P), 1);
+        Assert.False(Sight.InSight(w, w.Agent(P), t));
+        Ground.CatchUp(w, t).Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow); // gone while nobody looked
+        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes);
+
+        var loaded = Save.FromJson(Save.ToJson(w));
+        var remembered = Explored(loaded, P).At(t)!.Value;
+        Assert.Equal(seenM, remembered.Surface.SnowDepthM, 3);
+        Assert.Equal(2 * Knowledge.GlanceMinutes, remembered.SeenMinute);
+        Assert.Equal(0, Ground.SurfaceNow(loaded, t).SnowDepthM, 3);
+    }
+
+    /// Every tile in view has its ground remembered, with the minute of the look.
+    [Fact]
+    public void Looking_RemembersTheGroundOfEveryTileInView()
+    {
+        var w = Mild17();
+        Sim.Step(w, new Wait(P), 1);
+        var inView = Sight.Visible(w, Map.Of(w).Camp, Eyes(w, P));
+        Assert.All(inView, t => Assert.Equal(1, Explored(w, P).At(t)!.Value.SeenMinute));
+        var far = Away(w, Map.Of(w).Camp, 3 * Sight.OpenGroundTiles);
+        Assert.Null(Explored(w, P).At(far));
+    }
+
+    /// Kept to the millimetre and the hundredth, as a view shows it; refused, not clipped, out of range.
+    [Fact]
+    public void GroundMemory_HoldsMillimetresAndHundredths_AndRefusesWhatItCannotHold()
+    {
+        var g = new GroundMemory(4, 3);
+        var t = new TileId(2, 1);
+        g.Remember(t, new SurfaceSummary(0.12345, true, 0.456, 0.0071, true), 1234567);
+        Assert.Equal(new RememberedGround(new SurfaceSummary(0.123, true, 0.46, 0.007, true), 1234567), g.At(t));
+        var loaded = GroundMemory.Parse(g.Format());
+        Assert.Equal(g.At(t), loaded.At(t));
+        Assert.Equal(1, loaded.Count);
+        Assert.Null(loaded.At(new TileId(0, 0)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SurfaceSummary(-0.01, false, 0, 0, false), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SurfaceSummary(0, false, 1.2, 0, false), 0));
+        Assert.Equal(new RememberedGround(new SurfaceSummary(0.123, true, 0.46, 0.007, true), 1234567), g.At(t)); // a refused value leaves the tile as it was
+        Assert.Equal(1, g.Count);
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse("4x3:AA==:"));
+        var one = g.Format();
+        var records = one[(one.LastIndexOf(':') + 1)..];
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse(one[..one.LastIndexOf(':')] + ":")); // a seen tile with no record
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse(one + "AAAAAAAAAAAAAA==")); // not base64 at that length
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse("4xthree:AAA=:" + records));
+        var badFlags = Convert.FromBase64String(records);
+        badFlags[9] = 0;
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse(one[..one.LastIndexOf(':')] + ":" + Convert.ToBase64String(badFlags)));
     }
 
     // ---- the receipt done-when tests (feature 4) ----

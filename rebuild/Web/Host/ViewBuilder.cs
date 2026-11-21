@@ -287,15 +287,19 @@ sealed class ViewBuilder(World world, int gen)
         foreach (var (t, i) in m.PassStageIndex) if (Explored(t)) named.Add(new NamedDto(t.X, t.Y, Map.PassStages[i].Name));
         named.Add(new NamedDto(m.Camp.X, m.Camp.Y, Map.Describe(m, m.Camp)));
 
+        // In sight, the ground as it is; out of sight, as the player last saw it.
+        var inSight = visible.ToHashSet();
         var surface = new List<SurfaceDto>();
-        foreach (var t in visible)
-        {
-            if (!m.TerrainAt(t).IsPassable()) continue;
-            var g = Ground.SurfaceNow(world, t);
-            double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
-            if (snowCm > 0 || waterCm > 0 || mud > 0) surface.Add(new SurfaceDto(t.Y * m.Width + t.X, snowCm, g.Crusted, mud, waterCm, g.Iced));
-        }
-        surface.Sort((a, b) => a.I.CompareTo(b.I));
+        for (int y = 0; y < m.Height; y++)
+            for (int x = 0; x < m.Width; x++)
+            {
+                var t = new TileId(x, y);
+                if (!m.TerrainAt(t).IsPassable() || !Explored(t)) continue;
+                var g = inSight.Contains(t) ? Ground.SurfaceNow(world, t)
+                    : beliefs.Explored?.At(t)?.Surface ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
+                double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
+                if (snowCm > 0 || waterCm > 0 || mud > 0) surface.Add(new SurfaceDto(y * m.Width + x, snowCm, g.Crusted, mud, waterCm, g.Iced));
+            }
         return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
             places, sightings, tracks, named, surface);
     }

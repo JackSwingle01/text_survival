@@ -6,13 +6,13 @@
 import { icon, ago } from './util.js';
 import { createTerrain, TERRAIN } from './terrain.js';
 import { CELL } from './terrain-core.js';
-import { createGroundMemory, worldState } from './ground-state.js';
+import { createGround, worldState } from './ground-state.js';
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** state(): { view, drawPos: {x,y}, drawerOpen, selected: {x,y}|null }. */
 export function createMap(canvas, state, { onHover, onClick }) {
   const ctx = canvas.getContext('2d');
-  const TS = CELL, terrain = createTerrain(), ground = createGroundMemory(code => TERRAIN[code]);
+  const TS = CELL, terrain = createTerrain(), ground = createGround(code => TERRAIN[code]);
   let dpr = 1, cam = null, hover = null, flakes = [], last = performance.now();
   let visible = new Set(), visibleFor = null;
 
@@ -170,7 +170,5 @@ export function createMap(canvas, state, { onHover, onClick }) {
     known: (x, y) => { const m = state().view.map; return m.known.charCodeAt(y * m.width + x) !== 46; },
     inSight: (x, y) => visible.has(y * state().view.map.width + x),
     terrainName: code => TERRAIN[code],
-    /** A new game or a loaded save: the ground seen before belongs to another world. */
-    forgetGround: () => ground.forget(),
   };
 }
