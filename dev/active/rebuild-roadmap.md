@@ -139,3 +139,9 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   the light and closes in as the fire dies or you step away from it. On the map this shows as a
   predator holding at a neighbouring tile at night. Within a tile it needs the combat model to
   give the fire a position (decided with the combat survey).
+- Activity patterns: each species is diurnal, nocturnal or crepuscular, in data. Outside its
+  active hours a herd rests unless hungry or threatened, and is less watchful. It is bolder in its
+  active hours and warier outside them. People are diurnal. This replaces the flat night bonus.
+- Saves: versioned from now, plain data records, and a fixture test loads a fixed sample save so
+  any format change is deliberate. Migration code comes once saves must survive between builds.
+- UI: leaning web; how to host it is being decided.
