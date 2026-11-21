@@ -38,11 +38,11 @@ public sealed record FindDef(string Name, StockKind? Work = null, int Minutes = 
     double? Wind = null, double WindSpread = 0, double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null);
 
 /// One item of a find, rolled in order: chance, units in [Units, UnitsMax], each unit's kg in
-/// [KgPerUnit, KgPerUnitMax]. Exactly one of Resource, AnyOf (drawn after every count), Gear or Shuffle
+/// [KgPerUnit, KgPerUnitMax]. A harvest's items state RespawnHoursPerUnit (0 never regrows); no other's do. Exactly one of Resource, AnyOf (drawn after every count), Gear or Shuffle
 /// (Take to TakeMax of these, shuffled first).
 public sealed record FindItem(Resource? Resource = null, IReadOnlyList<Resource>? AnyOf = null, string? Gear = null,
     IReadOnlyList<FindItem>? Shuffle = null, int Take = 0, int? TakeMax = null, double Chance = 1,
-    int Units = 1, int? UnitsMax = null, double KgPerUnit = 0, double? KgPerUnitMax = null, double RespawnHoursPerUnit = 0);
+    int Units = 1, int? UnitsMax = null, double KgPerUnit = 0, double? KgPerUnitMax = null, double? RespawnHoursPerUnit = null);
 
 /// One entry of a discovery draw: a find, or a place held for a system not built yet (WaitsFor).
 public sealed record DiscoveryDraw(double SpawnChance, double ExpectedHours, string? Find = null, string? WaitsFor = null);
@@ -320,7 +320,7 @@ public static class Pools
             if (i.AnyOf != null) choices.Add((items.Count, i.AnyOf));
             var resource = i.Resource ?? i.AnyOf![0]; // drawn below, after every count
             // Old salvage and details: everything comes at once, after the minutes.
-            items.Add(work == StockKind.Harvest ? new StockItem(resource, units, i.KgPerUnit, i.RespawnHoursPerUnit)
+            items.Add(work == StockKind.Harvest ? new StockItem(resource, units, i.KgPerUnit, i.RespawnHoursPerUnit!.Value)
                 : All(resource, i.KgPerUnitMax is double hi ? Pieces(rng, units, i.KgPerUnit, hi) : units * i.KgPerUnit));
         }
         foreach (var i in d.Items ?? []) Take(i);
@@ -451,6 +451,9 @@ public static class Pools
     public static double ChopProgressPct(World world, PoolId id) =>
         (StateOf(world, id) as TreeState)?.MinutesWorked / ((TreePool)Def(world, id)).MinutesToFell ?? 0;
 
+    /// What every felled tree gives (Content/terrain.json felling).
+    public static readonly Felling Felled = Content.Tables.Felling;
+
     /// Adds chopping minutes; returns the tree's yield if it came down (old FellTree).
     public static Inventory? Chop(World world, PoolId id, double minutes, Rng rng)
     {
@@ -459,15 +462,17 @@ public static class Pools
         s.MinutesWorked += minutes;
         if (s.MinutesWorked < def.MinutesToFell - 1e-9) return null;
 
-        var log = def.Wood ?? rng.NextDouble() switch { < 0.4 => Resource.Pine, < 0.75 => Resource.Birch, _ => Resource.Oak };
-        double logKg = log == Resource.Oak ? 4.0 : log == Resource.Pine ? 2.5 : 2.0;
+        var f = Felled;
+        var log = def.Wood ?? f.MixedWoodAt(rng.NextDouble());
+        double logKg = f.LogKg[log], spread = f.LogKgSpreadPct;
         var y = new Inventory();
-        int logs = Between(rng, 8, 11);
-        for (int i = 0; i < logs; i++) Items.Add(y, log, logKg * (0.9 + rng.NextDouble() * 0.2));
-        int sticks = Between(rng, 4, 7);
-        for (int i = 0; i < sticks; i++) Items.Add(y, Resource.Kindling, 0.2 + rng.NextDouble() * 0.3);
-        int tinder = Between(rng, 2, 4);
-        for (int i = 0; i < tinder; i++) Items.Add(y, Resource.Tinder, 0.03 + rng.NextDouble() * 0.05);
+        int logs = Between(rng, f.Logs.Count[0], f.Logs.Count[1] + 1);
+        for (int i = 0; i < logs; i++) Items.Add(y, log, logKg * ((1 - spread) + rng.NextDouble() * (2 * spread)));
+        foreach (var (resource, pieces) in new[] { (Resource.Kindling, f.Kindling), (Resource.Tinder, f.Tinder) })
+        {
+            int n = Between(rng, pieces.Count[0], pieces.Count[1] + 1);
+            for (int i = 0; i < n; i++) Items.Add(y, resource, pieces.Kg![0] + rng.NextDouble() * (pieces.Kg[1] - pieces.Kg[0]));
+        }
 
         s.MinutesWorked = 0;
         if (def.Trees is int max)

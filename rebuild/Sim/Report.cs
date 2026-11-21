@@ -240,7 +240,7 @@ public static class Report
 
     /// Hours of fire an hour's work here brings in now: forage by today's density, a standing tree
     /// by its felling time, stock by what is left (all of it, if it takes under an hour). Mixed
-    /// forest is the felling's own 40/35/25 draw. By hand: forage and stock anyone can take; with an
+    /// forest is the felling's own draw (Pools.Felled's mixed wood). By hand: forage and stock anyone can take; with an
     /// axe: the trees, and stock that needs a tool (content's only one is an axe).
     public static (double ByHand, double WithAxe) FuelFireHoursPerWorkHour(World w, TileId t)
     {
@@ -273,12 +273,14 @@ public static class Report
         return (hours, felled);
     }
 
-    /// One felled tree's fire (Pools.Chop's yield at its middle): 9.5 logs, 5.5 sticks, 3 pinches of tinder.
-    static double TreeFireHours(Resource? wood)
+    /// One felled tree's fire: Pools.Chop's yield at the middle of each of its draws (Pools.Felled).
+    internal static double TreeFireHours(Resource? wood)
     {
-        static double Logs(Resource r) => 9.5 * (r == Resource.Oak ? 4.0 : r == Resource.Pine ? 2.5 : 2.0) / Fire.Props[r].BurnRateKgPerHour;
-        double logs = wood is Resource r ? Logs(r) : 0.4 * Logs(Resource.Pine) + 0.35 * Logs(Resource.Birch) + 0.25 * Logs(Resource.Oak);
-        return logs + 5.5 * 0.35 / Fire.Props[Resource.Kindling].BurnRateKgPerHour + 3 * 0.055 / Fire.Props[Resource.Tinder].BurnRateKgPerHour;
+        var f = Pools.Felled;
+        double Logs(Resource r) => f.Logs.MiddleCount() * f.LogKg[r] / Fire.Props[r].BurnRateKgPerHour;
+        double logs = wood is Resource r ? Logs(r) : f.MixedWood.Sum(m => m.Share * Logs(m.Wood));
+        return logs + f.Kindling.MiddleCount() * f.Kindling.MiddleKg() / Fire.Props[Resource.Kindling].BurnRateKgPerHour
+            + f.Tinder.MiddleCount() * f.Tinder.MiddleKg() / Fire.Props[Resource.Tinder].BurnRateKgPerHour;
     }
 
     static double Median(IEnumerable<double> values)

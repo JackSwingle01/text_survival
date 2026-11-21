@@ -167,4 +167,33 @@ public class ReportTests
         Assert.Equal([2, 4], curve.Select(p => p.Day));
         Assert.Throws<ArgumentException>(() => Report.Curve(w, 5, 2));
     }
+
+    /// The report's felled fire is what Pools.Chop really gives, at its middle: the logs, sticks and
+    /// tinder a tree comes down with, by its wood, burned. (It once took 9.5 logs, 5.5 sticks and 3
+    /// pinches for the middles of draws that are 8-10, 4-6 and 2-3, and overstated every stand by ~5%.)
+    [Theory]
+    [InlineData(null)]
+    [InlineData(Resource.Pine)]
+    [InlineData(Resource.Birch)]
+    [InlineData(Resource.Oak)]
+    public void TreeFireHours_IsTheMiddleOfWhatChopGives(Resource? wood)
+    {
+        var w = World.New(1);
+        var camp = Map.Of(w).Camp;
+        w.PoolCache = new() { [camp] = [new TreePool("Trees", wood, 10)] };
+        var id = new PoolId(camp, 0);
+        var rng = Rng.ForSystem(7, "felling");
+        const int trees = 20_000;
+        double fire = 0;
+        for (int i = 0; i < trees; i++)
+        {
+            var tree = Pools.Chop(w, id, 10, rng)!;
+            fire += tree.Kg.Sum(x => x.Value / Fire.Props[x.Key].BurnRateKgPerHour);
+        }
+        double mean = fire / trees;
+        // Private on the old build, so reached by name; the same call either way.
+        var reported = (double)typeof(Report).GetMethod("TreeFireHours", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .Invoke(null, [wood])!;
+        Assert.True(Math.Abs(reported / mean - 1) < 0.01, $"report says {reported:0.00} h a tree, chopping gave {mean:0.00} h");
+    }
 }

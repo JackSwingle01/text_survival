@@ -5,8 +5,9 @@ public enum PitType { Open, Mound, Stone }
 /// Derived from FireState, never stored.
 public enum FirePhase { Cold, Igniting, Building, Roaring, Steady, Dying, Embers }
 
-/// Temperatures in °F, as tuned in the old game. One row of Content/fire.json fuels.
-public readonly record struct FuelProps(double PeakTempF, double BurnRateKgPerHour, double MinFireTempF, double IgnitionBonusPct);
+/// Temperatures in °F, as tuned in the old game. One row of Content/fire.json fuels. A class, not a struct:
+/// the reader builds a struct row from its parameterless constructor and would take a missing field as 0.
+public sealed record FuelProps(double PeakTempF, double BurnRateKgPerHour, double MinFireTempF, double IgnitionBonusPct);
 
 /// One row of Content/fire.json pits: what a pit holds, how much wind it keeps off, how long fuel lasts in it.
 public sealed record PitProps(double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);

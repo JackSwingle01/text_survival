@@ -20,7 +20,8 @@ public sealed record LocationDef(
     double TemperatureDeltaF = 0, double Traversal = 1, bool Dark = false, bool Escape = false, bool Vantage = false,
     EdgeType? Edges = null, bool IsCrossingExit = false, IReadOnlyList<SiteFeature>? Features = null)
 {
-    public IReadOnlyList<SiteFeature> All => Features ?? [];
+    public IReadOnlyList<SiteFeature> All => Features ?? NoFeatures;
+    static readonly IReadOnlyList<SiteFeature> NoFeatures = Array.AsReadOnly(Array.Empty<SiteFeature>());
     /// The site's own water (old Location.GetFeature<WaterFeature>: the first one).
     public SiteWater? Water => All.OfType<SiteWater>().FirstOrDefault();
 }
@@ -48,7 +49,7 @@ public sealed record SiteTrees(string Name, double MinutesToFell, Resource? Wood
 public sealed record SiteStock(string Name, StockKind Work, int Minutes, IReadOnlyList<SiteStockItem>? Items = null,
     string? Loot = null, ToolType? RequiresTool = null, string? Description = null) : SiteFeature;
 /// UnitsMax: units drawn in [Units, UnitsMax] when generated.
-public sealed record SiteStockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit = 0, int? UnitsMax = null);
+public sealed record SiteStockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit, int? UnitsMax = null);
 
 /// Old WaterFeature. Open water is a source to draw from; ice adds to the ground's hazard.
 // Frozen, Ice and Fish wait for ice holes, fishing and ice that grows and thaws (Ground).
@@ -62,7 +63,7 @@ public sealed record SiteWater(string Name, bool Frozen, double Fish, double Ice
 // density to hunt in, remote storage - see Shelters' note on old CacheFeature - and moments).
 public enum SmallGame { Rabbit, Ptarmigan, Fox }
 public sealed record SmallGameEntry(SmallGame Animal, double Weight);
-public sealed record SiteSmallGame(double Density, IReadOnlyList<SmallGameEntry> Animals, int[]? PeakHours = null, double PeakFactor = 1) : SiteFeature;
+public sealed record SiteSmallGame(double Density, IReadOnlyList<SmallGameEntry> Animals, IReadOnlyList<int>? PeakHours = null, double PeakFactor = 1) : SiteFeature;
 public sealed record SiteCache(string Name, double CapacityKg, bool ProtectsFromPredators = false, bool ProtectsFromWeather = false, bool PreservesFood = false) : SiteFeature;
 public sealed record SiteEvent(string Event) : SiteFeature;
 /// Old ShelterFeature: what it gives now and the most it can be improved to; a cap left out is the
@@ -71,8 +72,8 @@ public sealed record SiteShelter(string Name, ShelterKind Type, double Insulatio
     double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null) : SiteFeature;
 
 /// One step of a loot table (Content/loot.json says what each field means).
-public sealed record LootRoll(double Chance = 1, Resource? Resource = null, double[]? Kg = null, int[]? Pieces = null,
-    IReadOnlyList<string>? Gear = null, double[]? DurabilityPct = null, int[]? Pick = null, IReadOnlyList<LootRoll>? Of = null);
+public sealed record LootRoll(double Chance = 1, Resource? Resource = null, IReadOnlyList<double>? Kg = null, IReadOnlyList<int>? Pieces = null,
+    IReadOnlyList<string>? Gear = null, IReadOnlyList<double>? DurabilityPct = null, IReadOnlyList<int>? Pick = null, IReadOnlyList<LootRoll>? Of = null);
 
 /// The game's tables, loaded once from the JSON embedded beside this assembly and checked on load:
 /// a bad name or a broken reference throws here, not when a player happens to walk onto it.
@@ -89,8 +90,59 @@ public static partial class Content
         RespectNullableAnnotations = true,
         RespectRequiredConstructorParameters = true,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-        Converters = { new JsonStringEnumConverter(allowIntegerValues: false) },
+        Converters = { new StrictEnumConverter(), new ReadOnlyListConverter() },
     };
+
+    /// Every list in a file is read into an array behind a read-only view: nothing outside can cast a
+    /// table's list back to List and change it.
+    sealed class ReadOnlyListConverter : JsonConverterFactory
+    {
+        public override bool CanConvert(Type type) => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>);
+
+        public override JsonConverter CreateConverter(Type type, JsonSerializerOptions options) =>
+            (JsonConverter)Activator.CreateInstance(typeof(Frozen<>).MakeGenericType(type.GetGenericArguments()[0]))!;
+
+        sealed class Frozen<T> : JsonConverter<IReadOnlyList<T>>
+        {
+            public override IReadOnlyList<T> Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) =>
+                Array.AsReadOnly(JsonSerializer.Deserialize<T[]>(ref reader, options) ?? throw new JsonException("a list is null"));
+
+            public override void Write(Utf8JsonWriter writer, IReadOnlyList<T> value, JsonSerializerOptions options) =>
+                JsonSerializer.Serialize(writer, value.ToArray(), options);
+        }
+    }
+
+    /// Every enum in a file is written as one of its names, exactly as the enum spells it. The stock
+    /// string-enum reader would take "chest" for Chest, OR "Prey, Predator" together, and turn
+    /// "SphagnumMoss, Usnea" into a value no kind has; this one refuses all of those, and numbers.
+    sealed class StrictEnumConverter : JsonConverterFactory
+    {
+        public override bool CanConvert(Type type) => type.IsEnum;
+
+        public override JsonConverter CreateConverter(Type type, JsonSerializerOptions options) =>
+            (JsonConverter)Activator.CreateInstance(typeof(Strict<>).MakeGenericType(type))!;
+
+        sealed class Strict<TEnum> : JsonConverter<TEnum> where TEnum : struct, Enum
+        {
+            static readonly Dictionary<string, TEnum> ByName = Enum.GetValues<TEnum>().ToDictionary(v => v.ToString(), StringComparer.Ordinal);
+
+            static TEnum Named(string? name) =>
+                name != null && ByName.TryGetValue(name, out var value) ? value
+                : throw new JsonException($"no {typeof(TEnum).Name} '{name}' (one of {string.Join(", ", ByName.Keys)})");
+
+            public override TEnum Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) =>
+                reader.TokenType == JsonTokenType.String ? Named(reader.GetString())
+                : throw new JsonException($"a {typeof(TEnum).Name} is written as its name, not {reader.TokenType}");
+
+            public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options) =>
+                writer.WriteStringValue(Enum.IsDefined(value) ? value.ToString() : throw new JsonException($"no {typeof(TEnum).Name} {value}"));
+
+            public override TEnum ReadAsPropertyName(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) => Named(reader.GetString());
+
+            public override void WriteAsPropertyName(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options) =>
+                writer.WritePropertyName(Enum.IsDefined(value) ? value.ToString() : throw new JsonException($"no {typeof(TEnum).Name} {value}"));
+        }
+    }
 
     sealed record LocationsFile(IReadOnlyList<LocationDef> Locations);
 
@@ -117,9 +169,9 @@ public static partial class Content
         Tables = Parse(EmbeddedFiles());
         LoadMilliseconds = clock.Elapsed.TotalMilliseconds;
         (Locations, Loot) = (Tables.Locations, Tables.Loot);
-        ById = Locations.ToDictionary(l => l.Id);
-        PassStages = Locations.Where(l => l.Placement == Placement.Pass).ToList();
-        CaveSites = Locations.Where(l => l.Placement == Placement.Cave).ToList();
+        ById = Locations.ToDictionary(l => l.Id).AsReadOnly();
+        PassStages = Locations.Where(l => l.Placement == Placement.Pass).ToList().AsReadOnly();
+        CaveSites = Locations.Where(l => l.Placement == Placement.Cave).ToList().AsReadOnly();
     }
 
     internal static string Embedded(string file)
@@ -197,6 +249,8 @@ public static partial class Content
         foreach (var l in locations)
         {
             string at = $"location {l.Id}";
+            if (Ground(l.Hazard, l.Wind, l.Cover, l.Visibility, maxWind: 3) is string ground) yield return $"{at}: {ground}";
+            if (l.Traversal <= 0) yield return $"{at}: traversal {l.Traversal}";
             if (l.Placement == Placement.Named)
             {
                 if (l.Weight <= 0) yield return $"{at}: weight {l.Weight}";
@@ -225,8 +279,19 @@ public static partial class Content
                         yield return $"{at}: shelter {s.Name} is placed when the world is made, so always and in sight"; break;
                     case SiteShelter s when ShelterLevelProblem(s, shelterKinds) is string bad:
                         yield return $"{at}: shelter {s.Name}: {bad}"; break;
-                    case SiteForage s when s.Items.Any(i => i.MinKg > i.MaxKg || i.Abundance <= 0):
-                        yield return $"{at}: forage has a bad item"; break;
+                    case SiteForage s when s.Density <= 0 || s.Items.Count == 0 || s.Items.Any(i => i.MinKg <= 0 || i.MinKg > i.MaxKg || i.Abundance <= 0):
+                        yield return $"{at}: forage needs a density and good items"; break;
+                    case SiteStock s when s.Minutes <= 0 || s.Items?.Any(i => i.RespawnHoursPerUnit < 0) == true:
+                        yield return $"{at}: {s.Name} needs minutes, and items that regrow in 0 hours (never) or more"; break;
+                    case SiteTrees t when t.MinutesToFell <= 0 || t.Trees <= 0 || t.RespawnHoursPerTree <= 0:
+                        yield return $"{at}: trees {t.Name} need minutesToFell, trees and respawnHoursPerTree above 0"; break;
+                    case SiteWater w when w.Fish is < 0 or > 1 || w.Ice < 0 || (!w.Frozen && w.Ice > 0):
+                        yield return $"{at}: water {w.Name}: fish in 0-1, and ice only on frozen water"; break;
+                    case SiteSmallGame g when g.Density <= 0 || g.Animals.Count == 0 || g.Animals.Any(a => a.Weight <= 0) || g.PeakFactor < 1
+                        || g.PeakHours is not (null or [>= 0 and < 24, >= 0 and < 24]):
+                        yield return $"{at}: small game needs a density, animals of weight above 0, peak hours [from, to] in 0-23 and a peak factor of 1 or more"; break;
+                    case SiteCache c when c.CapacityKg <= 0:
+                        yield return $"{at}: cache {c.Name} capacity {c.CapacityKg}"; break;
                 }
             }
         }

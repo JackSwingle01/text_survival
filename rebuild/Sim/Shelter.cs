@@ -10,7 +10,7 @@ public enum ShelterStat { Insulation, Overhead, Wind }
 
 /// Old ShelterTypeConfig: a kind's starting levels and how far work can take them.
 public sealed record ShelterKindProps(double Insulation, double Overhead, double Wind,
-    double InsulationCap, double OverheadCap, double WindCap, bool IsNatural, bool IsSnow = false);
+    double InsulationCap, double OverheadCap, double WindCap, bool IsNatural, bool IsSnow);
 
 /// What to put on a tile. Levels and caps left null are the kind's (old ShelterFeature constructors).
 /// Content (named locations) authors these; Shelters.Place puts one down.
@@ -59,7 +59,7 @@ public enum Structure { MakeshiftBedding, PaddedBedding, MossBedding, SleepingBa
 
 /// One recipe (Content/shelters.json). Materials are (any of these, kg); taken when the work starts.
 /// The simplest camp recipes only; full crafting (and the hide tent recipe) is not ported.
-public sealed record Recipe(int Minutes, (Resource[] AnyOf, double Kg)[] Materials, bool NeedsLight = true,
+public sealed record Recipe(int Minutes, IReadOnlyList<(IReadOnlyList<Resource> AnyOf, double Kg)> Materials, bool NeedsLight = true,
     bool NeedsShovel = false, bool ShovelHelps = false, bool NeedsFrost = false, ShelterKind? Shelter = null, BeddingKind? Bedding = null);
 
 public enum BeddingKind { Camp, Makeshift, Padded, MossPadded, SleepingBag }

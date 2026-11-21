@@ -3,26 +3,27 @@
 // ContentTests checks every name in here resolves.
 //
 // kinds: every ShelterKind: its starting levels, how far work can take them (caps), whether it is
-//   found in the world (isNatural) and whether it melts (isSnow). Levels and caps are 0-1.
+//   found in the world (isNatural) and whether it melts (isSnow), both stated. Levels and caps are 0-1.
 // tents: pitched tents by gear kind (items.json); a cap left out is the kind's.
 // materials: old item counts become kilos through a nominal piece (pieceKg: a stick, a log, a hide);
 //   insulating, waterproof and structural say how much one does for each shelter stat. shelter false
 //   is a material recipes use that cannot be worked into a shelter.
-// recipes: every Structure. minutes includes any setup; materials are taken when the work starts,
-//   each one of anyOf for pieces of the first one's pieceKg. A recipe makes a shelter or a bedding.
+// recipes: every Structure. minutes includes any setup; needsLight (stated on each) whether it needs
+//   light; materials are taken when the work starts, each one of anyOf for pieces of the first one's
+//   pieceKg. A recipe makes a shelter or a bedding.
 // beddings: every BeddingKind. qualityPct is sleep efficiency and keeps you off wet ground;
 //   warmthBonusF is felt asleep.
 {
  "kinds": {
-  "BranchFrame": { "insulation": 0.15, "overhead": 0.25, "wind": 0.20, "insulationCap": 0.50, "overheadCap": 0.50, "windCap": 0.50, "isNatural": false },
-  "LogFrame": { "insulation": 0.25, "overhead": 0.35, "wind": 0.30, "insulationCap": 0.80, "overheadCap": 0.80, "windCap": 0.80, "isNatural": false },
-  "RockOverhang": { "insulation": 0.10, "overhead": 0.70, "wind": 0.30, "insulationCap": 0.40, "overheadCap": 0.80, "windCap": 0.40, "isNatural": true },
-  "Cave": { "insulation": 0.25, "overhead": 0.90, "wind": 0.20, "insulationCap": 0.60, "overheadCap": 0.95, "windCap": 0.40, "isNatural": true },
-  "DenseThicket": { "insulation": 0.15, "overhead": 0.50, "wind": 0.60, "insulationCap": 0.40, "overheadCap": 0.60, "windCap": 0.70, "isNatural": true },
-  "FallenTree": { "insulation": 0.10, "overhead": 0.40, "wind": 0.50, "insulationCap": 0.30, "overheadCap": 0.50, "windCap": 0.60, "isNatural": true },
+  "BranchFrame": { "insulation": 0.15, "overhead": 0.25, "wind": 0.20, "insulationCap": 0.50, "overheadCap": 0.50, "windCap": 0.50, "isNatural": false, "isSnow": false },
+  "LogFrame": { "insulation": 0.25, "overhead": 0.35, "wind": 0.30, "insulationCap": 0.80, "overheadCap": 0.80, "windCap": 0.80, "isNatural": false, "isSnow": false },
+  "RockOverhang": { "insulation": 0.10, "overhead": 0.70, "wind": 0.30, "insulationCap": 0.40, "overheadCap": 0.80, "windCap": 0.40, "isNatural": true, "isSnow": false },
+  "Cave": { "insulation": 0.25, "overhead": 0.90, "wind": 0.20, "insulationCap": 0.60, "overheadCap": 0.95, "windCap": 0.40, "isNatural": true, "isSnow": false },
+  "DenseThicket": { "insulation": 0.15, "overhead": 0.50, "wind": 0.60, "insulationCap": 0.40, "overheadCap": 0.60, "windCap": 0.70, "isNatural": true, "isSnow": false },
+  "FallenTree": { "insulation": 0.10, "overhead": 0.40, "wind": 0.50, "insulationCap": 0.30, "overheadCap": 0.50, "windCap": 0.60, "isNatural": true, "isSnow": false },
   "SnowShelter": { "insulation": 0.60, "overhead": 0.90, "wind": 0.80, "insulationCap": 0.60, "overheadCap": 0.90, "windCap": 0.80, "isNatural": false, "isSnow": true },
-  "HideTent": { "insulation": 0.50, "overhead": 0.90, "wind": 0.70, "insulationCap": 0.60, "overheadCap": 0.95, "windCap": 0.80, "isNatural": false },
-  "NaturalShelter": { "insulation": 0.20, "overhead": 0.50, "wind": 0.40, "insulationCap": 0.80, "overheadCap": 0.90, "windCap": 0.80, "isNatural": true }
+  "HideTent": { "insulation": 0.50, "overhead": 0.90, "wind": 0.70, "insulationCap": 0.60, "overheadCap": 0.95, "windCap": 0.80, "isNatural": false, "isSnow": false },
+  "NaturalShelter": { "insulation": 0.20, "overhead": 0.50, "wind": 0.40, "insulationCap": 0.80, "overheadCap": 0.90, "windCap": 0.80, "isNatural": true, "isSnow": false }
  },
 
  "tents": {
@@ -55,14 +56,14 @@
 
  "recipes": {
   "MakeshiftBedding": { "minutes": 45, "materials": [], "needsLight": false, "shovelHelps": true, "bedding": "Makeshift" },
-  "PaddedBedding": { "minutes": 45, "materials": [ { "anyOf": ["PlantFiber"], "pieces": 10 }, { "anyOf": ["Hide"], "pieces": 1 } ], "bedding": "Padded" },
-  "MossBedding": { "minutes": 50, "materials": [ { "anyOf": ["SphagnumMoss"], "pieces": 6 }, { "anyOf": ["PineNeedles"], "pieces": 4 }, { "anyOf": ["Hide"], "pieces": 1 } ], "bedding": "MossPadded" },
+  "PaddedBedding": { "minutes": 45, "materials": [ { "anyOf": ["PlantFiber"], "pieces": 10 }, { "anyOf": ["Hide"], "pieces": 1 } ], "bedding": "Padded", "needsLight": true },
+  "MossBedding": { "minutes": 50, "materials": [ { "anyOf": ["SphagnumMoss"], "pieces": 6 }, { "anyOf": ["PineNeedles"], "pieces": 4 }, { "anyOf": ["Hide"], "pieces": 1 } ], "bedding": "MossPadded", "needsLight": true },
   // 15 minutes' setup and three hours' sewing.
-  "SleepingBag": { "minutes": 195, "materials": [ { "anyOf": ["CuredHide"], "pieces": 4 }, { "anyOf": ["Sinew"], "pieces": 6 } ], "bedding": "SleepingBag" },
-  "BranchFrame": { "minutes": 30, "materials": [ { "anyOf": ["Kindling"], "pieces": 4 } ], "shelter": "BranchFrame" },
-  "LogFrame": { "minutes": 45, "materials": [ { "anyOf": ["Pine", "Birch", "Oak"], "pieces": 3 } ], "shelter": "LogFrame" },
+  "SleepingBag": { "minutes": 195, "materials": [ { "anyOf": ["CuredHide"], "pieces": 4 }, { "anyOf": ["Sinew"], "pieces": 6 } ], "bedding": "SleepingBag", "needsLight": true },
+  "BranchFrame": { "minutes": 30, "materials": [ { "anyOf": ["Kindling"], "pieces": 4 } ], "shelter": "BranchFrame", "needsLight": true },
+  "LogFrame": { "minutes": 45, "materials": [ { "anyOf": ["Pine", "Birch", "Oak"], "pieces": 3 } ], "shelter": "LogFrame", "needsLight": true },
   // 15 minutes' setup and two hours' digging.
-  "SnowShelter": { "minutes": 135, "materials": [], "needsShovel": true, "shovelHelps": true, "needsFrost": true, "shelter": "SnowShelter" },
+  "SnowShelter": { "minutes": 135, "materials": [], "needsShovel": true, "shovelHelps": true, "needsFrost": true, "shelter": "SnowShelter", "needsLight": true },
   "Tent": { "minutes": 10, "materials": [], "needsLight": false, "shelter": "HideTent" }
  },
 

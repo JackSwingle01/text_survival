@@ -83,6 +83,9 @@ public class ContentTests
         foreach (var table in new object[] { Items.Resources, Items.GearKinds, Fire.Props, Shelters.Kinds, Shelters.Recipes, Shelters.Beddings,
             Content.Tables.Effects, Content.Tables.Species, Content.Tables.Terrains, Content.Tables.Forage })
             Assert.True(((System.Collections.IDictionary)table).IsReadOnly, $"{table.GetType().Name} can be written");
+        // And everything inside them, however deep: no list or dictionary in a table can be cast back and written to.
+        var writable = ContentStrictTests.WritableCollections(Content.Tables, "tables", new(ReferenceEqualityComparer.Instance)).ToList();
+        Assert.True(writable.Count == 0, string.Join("\n", writable.Take(40)));
     }
 
     /// A table keyed by an enum is built in the enum's order, whatever order the file lists it in.
@@ -256,7 +259,7 @@ public class ContentTests
     [InlineData("effects.json", "\"Wet\": { \"severityPerHour\": 0,", "\"Wet\": { \"severityPerHour\": 0, \"itch\": 1,", "itch")]
     [InlineData("shelters.json", "\"name\": \"Sleeping area\",", "\"name\": \"Sleeping area\", \"soft\": true,", "soft")]
     [InlineData("butchering.json", "\"timeFactor\": 0.5,", "\"timeFactor\": 0.5, \"mess\": 1,", "mess")]
-    [InlineData("terrain.json", "\"traversalMinutes\": 4 }", "\"traversalMinutes\": 4, \"fish\": 1 }", "fish")]
+    [InlineData("terrain.json", "\"traversalMinutes\": 4, \"blocking\": false }", "\"traversalMinutes\": 4, \"blocking\": false, \"fish\": 1 }", "fish")]
     [InlineData("forage.json", "\"resource\": \"WillowBark\", \"abundance\": 0.25,", "\"resource\": \"WillowBark\", \"abundance\": 0.25, \"colour\": 1,", "colour")]
     [InlineData("discoveries.json", "\"name\": \"Wild Berry Bush\",", "\"name\": \"Wild Berry Bush\", \"thorns\": true,", "thorns")]
     [InlineData("accidents.json", "\"effect\": \"Dazed\", \"severity\": 0.2", "\"effect\": \"Dazed\", \"severity\": 0.2, \"ouch\": 1", "ouch")]
@@ -297,7 +300,7 @@ public class ContentTests
     [InlineData("forage.json", "\"Rocky\": [", "\"Rocky\": [ null,", "forage.json.Rocky[0] is null")]
     [InlineData("items.json", "\"startingClothes\": [", "\"startingClothes\": [ null,", "items.json.startingClothes[0] is null")]
     [InlineData("discoveries.json", "\"Water\": [ \"frozen_puddle\"", "\"Water\": [ null, \"frozen_puddle\"", "discoveries.json.detailDraws.Water[0] is null")]
-    [InlineData("effects.json", "\"Sweating\": { \"severityPerHour\": -2 }", "\"Sweating\": null", "effects.json.Sweating is null")]
+    [InlineData("effects.json", "\"Sweating\": { \"severityPerHour\": -2, \"treatmentAboveSeverity\": null }", "\"Sweating\": null", "effects.json.Sweating is null")]
     [InlineData("discoveries.json", "\"shuffle\": [", "\"shuffle\": [ null,", "discoveries.json.finds.MedicineStash.items[1].shuffle[0] is null")]
     public void Loader_RefusesANullElement_InEveryFile(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));

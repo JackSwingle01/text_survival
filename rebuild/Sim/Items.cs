@@ -38,7 +38,7 @@ public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0
 /// One row of the gear table (Content/items.json): the authored design. Instances carry only their kind and wear.
 /// Insulation is the old BaseInsulation (tenths of a clo over the covered part of the body).
 public sealed record GearDef(
-    string Name, GearCategory Category, double BaseWeightKg, int MaxDurability = -1,
+    string Name, GearCategory Category, double BaseWeightKg, int MaxDurability,
     ToolType? Tool = null, Weapon? Weapon = null, EquipSlot? Slot = null,
     double Insulation = 0, double Cushioning = 0, double Toughness = 0, double WaterproofLevel = 0,
     double CapacityBonusKg = 0);

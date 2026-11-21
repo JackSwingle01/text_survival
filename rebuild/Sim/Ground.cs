@@ -53,7 +53,7 @@ public sealed record SubstrateProfile(
     double RunoffPerMinute,
     double InitialSaturationPct,
     double SoftnessLevel,
-    bool HoldsStandingWater = true)
+    bool HoldsStandingWater)
 {
     public double PoreVolumeM => ThicknessM * PoreCapacityPct;
 

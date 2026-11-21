@@ -39,16 +39,42 @@ public sealed class TileState
 }
 
 /// One terrain as generated (Content/terrain.json). A wall has no traversal, forage or trees.
+/// Trees is stated on every row, null where none stand, so a forest cannot lose its timber to a typo.
 public sealed record TerrainRow(bool Passable, double Hazard, double Wind, double Cover, double Visibility, string Substrate,
-    int? TraversalMinutes = null, ForageRef? Forage = null, TreeRow? Trees = null);
+    TreeRow? Trees, int? TraversalMinutes = null, ForageRef? Forage = null);
 /// A cave tile as generated (Content/terrain.json caves); its substrate is bare rock.
 public sealed record CaveRow(double Hazard, double Wind, double Cover, double Visibility, ForageRef Forage);
 /// Which forage table (Content/forage.json) a place has, and the density drawn around.
 public sealed record ForageRef(string Table, double Density);
 /// Standing timber: mixed forest, unlimited.
 public sealed record TreeRow(string Name, double MinutesToFell);
+
+/// What a felled tree gives (Content/terrain.json felling), wherever it stood: a count of logs of
+/// its wood, each about LogKg (within LogKgSpreadPct either way), some sticks and pinches of tinder.
+/// A mixed stand's tree is one wood, drawn by MixedWood's shares in order. Pools.Chop rolls it;
+/// Report reckons its middle.
+public sealed record Felling(Pieces Logs, IReadOnlyDictionary<Resource, double> LogKg, double LogKgSpreadPct,
+    IReadOnlyList<(Resource Wood, double Share)> MixedWood, Pieces Kindling, Pieces Tinder)
+{
+    /// The wood a mixed stand's tree turns out to be, from a roll in [0, 1).
+    public Resource MixedWoodAt(double roll)
+    {
+        double below = 0;
+        for (int i = 0; i < MixedWood.Count - 1; i++)
+            if (roll < (below += MixedWood[i].Share)) return MixedWood[i].Wood;
+        return MixedWood[^1].Wood;
+    }
+}
+
+/// A count in [Count[0], Count[1]], both inclusive, and (where pieces weigh) each one's kg drawn
+/// uniformly in [Kg[0], Kg[1]].
+public sealed record Pieces(IReadOnlyList<int> Count, IReadOnlyList<double>? Kg = null)
+{
+    public double MiddleCount() => (Count[0] + Count[1]) / 2.0;
+    public double MiddleKg() => Kg is [var lo, var hi] ? (lo + hi) / 2 : throw new InvalidOperationException("these pieces have no weight");
+}
 /// Minutes an edge adds to a crossing (negative saves time), and whether it stops one outright.
-public sealed record EdgeRow(int TraversalMinutes, bool Blocking = false);
+public sealed record EdgeRow(int TraversalMinutes, bool Blocking);
 
 public static class TerrainProps
 {

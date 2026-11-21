@@ -341,21 +341,63 @@ public static partial class Npc
     {
         if (KeepFire(me, BankKg) is { } bank) return bank;
         var pit = me.Pit;
-        bool short_ = pit != null && (Fire.IsActive(pit) || pit.HasEmbers) && Fire.TotalKg(pit) < BankKg - 0.5;
+        if (pit == null || !Fire.IsActive(pit) && !pit.HasEmbers) return ColdBed(me);
+        bool short_ = Fire.TotalKg(pit) < BankKg - 0.5;
         // Logs that will not go on a fire this cool yet: sit up with it until it catches, unless too spent to.
         if (short_ && Fire.IsActive(pit!) && me.Agent.Body.EnergyPct > 0.15 && Woods.Any(r => me.Has(r) + me.Stashed(r) > 0)) return (new Rest(me.Id), 15);
-        if (!short_) return (new Sleep(me.Id), 120);
+        if (!short_) return (new Sleep(me.Id), SleepMinutes);
         // Nothing to bank it with. Going out, or in embers: find it something while it will still take it.
         // The fire's own reckoning of how long it will burn, not the fuel on it: logs too big for a fire this
         // cool never catch (old: Fire.FuelHours, so beside a kindling fire and five kilos of oak it slept two
         // hours and woke to a cold pit and the oak unburned).
         double minutesLeft = pit!.HasEmbers ? 0 : Fire.HoursItWillBurn(pit) * 60;
         if (minutesLeft < WakeBeforeOutMinutes && Forage(me, minutes: 15, wander: false, ForageFocus.Fuel) is { } grope) return grope;
-        return (new Sleep(me.Id), (int)Math.Clamp(minutesLeft - WakeBeforeOutMinutes, WakeBeforeOutMinutes, 120));
+        return (new Sleep(me.Id), (int)Math.Clamp(minutesLeft - WakeBeforeOutMinutes, WakeBeforeOutMinutes, SleepMinutes));
     }
 
     /// How long before its fire is out a sleeper with nothing to bank it wakes: under the shortest embers (Fire.ToEmbers).
     const int WakeBeforeOutMinutes = 15;
+
+    /// No fire here and nothing to light one (KeepFire found nothing). Where a stretch asleep here would
+    /// not take its core under the freezing line - a mild night, a shelter, a bed - it sleeps as by a fire.
+    /// Otherwise it does not lie still in the cold for long: it goes where it left tinder and wood if the
+    /// trip budget allows (Afford; that place is home now), or fetches wood by day; failing those it
+    /// sleeps only as long as the cold allows, and with too little of that to be worth lying down for,
+    /// keeps moving here groping for tinder and fuel while it has the legs. Old (this rebuild): two hours
+    /// beside a cold pit whatever the cold (seed 11: core 96.3 to 93.8 asleep at two in the morning, dead by four).
+    static Plan? ColdBed(Me me)
+    {
+        double safeMinutes = MinutesUntilCoreF(me, FreezingCoreF, CoolingFPerHour(me, new Sleep(me.Id)));
+        if (safeMinutes >= SleepMinutes) return (new Sleep(me.Id), SleepMinutes);
+        if (FireMakings(me) is { } go) return go;
+        if (!me.Night && Wood(me) is { } wood) return wood;
+        if (safeMinutes < MinColdSleepMinutes && me.Agent.Body.EnergyPct >= RestCriticalPct
+            && Forage(me, minutes: 15, wander: false, ForageFocus.Fuel) is { } grope) return grope;
+        return (new Sleep(me.Id), (int)Math.Clamp(safeMinutes, WakeBeforeOutMinutes, SleepMinutes));
+    }
+
+    /// A night's stretch of sleep by a banked fire, or anywhere the cold allows it.
+    const int SleepMinutes = 120;
+    /// Less sleep than this before the cold has it at the freezing line is not worth lying down for, unless spent.
+    const int MinColdSleepMinutes = 30;
+
+    /// The nearest place it remembers leaving the makings of a fire - tinder to light it and wood to keep
+    /// it - and the walk there, if the trip budget will stretch to it with that place as home (Afford).
+    static Plan? FireMakings(Me me)
+    {
+        static bool Makings(IReadOnlyDictionary<Resource, double> s) =>
+            (Tinders.Any(r => s.GetValueOrDefault(r) >= 0.05) || s.GetValueOrDefault(Resource.Kindling) >= 0.5)
+            && Woods.Append(Resource.Kindling).Sum(r => Fire.FuelHours(r, s.GetValueOrDefault(r))) >= MorningFireHours;
+        var near = me.Mind.Knows.Places.Where(p => p.Key != me.Tile && p.Value.Stash is { } s && Makings(s) && MapGen.Manhattan(p.Key, me.Tile) <= MaxWoodTiles)
+            .Select(p => p.Key).OrderBy(t => MapGen.Manhattan(t, me.Tile)).ThenBy(t => t);
+        foreach (var t in near)
+            if (Go(me, t, 0, home: t) is { } go)
+            {
+                me.Commits.Add(() => me.Mind.Camp = t);
+                return go;
+            }
+        return null;
+    }
 
     /// Daytime: keep the camp in firewood. Fell a tree, carry it home a load at a time.
     static Plan? Wood(Me me)
@@ -790,21 +832,25 @@ public static partial class Npc
     /// its heat above the setpoint first, then the clothes theirs (Body.ClothingHeatStoredF), then the
     /// core again - ProcessTemperature's order. A straight line from the rate now (the rate falls a
     /// little as the skin cools, so it errs cold).
-    static double CoreAfterF(Me me, double minutes)
+    static double CoreAfterF(Me me, double minutes) => CoreAfterF(me, minutes, WalkingCoolingFPerHour(me));
+
+    /// The same, at a cooling rate of its own (°F an hour; 0 when it warms).
+    static double CoreAfterF(Me me, double minutes, double coolingFPerHour)
     {
         var body = me.Agent.Body;
-        double chillF = WalkingCoolingFPerHour(me) * minutes / 60;
+        double chillF = coolingFPerHour * minutes / 60;
         double aboveF = Math.Max(0, body.CoreTempF - Body.BaseCoreTempF);
         return body.CoreTempF - Math.Min(chillF, aboveF) - Math.Max(0, chillF - aboveF - Body.ClothingHeatStoredF(body));
     }
 
     /// CoreAfterF the other way round: how many minutes out in the open before the core is down to lineF.
-    static double MinutesUntilCoreF(Me me, double lineF)
+    static double MinutesUntilCoreF(Me me, double lineF) => MinutesUntilCoreF(me, lineF, WalkingCoolingFPerHour(me));
+
+    static double MinutesUntilCoreF(Me me, double lineF, double rateFPerHour)
     {
         var body = me.Agent.Body;
         double dropF = body.CoreTempF - lineF;
         if (dropF < 0) return -1;
-        double rateFPerHour = WalkingCoolingFPerHour(me);
         if (rateFPerHour <= 0) return double.PositiveInfinity;
         double aboveF = Math.Max(0, body.CoreTempF - Body.BaseCoreTempF);
         double chillF = dropF <= aboveF ? dropF : dropF + Body.ClothingHeatStoredF(body);
@@ -821,6 +867,11 @@ public static partial class Npc
         walking = walking with { AirTempF = walking.AirTempF - Fire.WarmthFor(me.World, me.Id).AirHeatF };
         return -Math.Min(0, Body.TemperatureChangeFPerHour(me.Agent.Body, walking));
     }
+
+    /// How fast doing this here, keeping still or not, cools it, in °F an hour (0 when it warms): shelter,
+    /// bedding and any fire here as they are now.
+    static double CoolingFPerHour(Me me, Activity a) =>
+        -Math.Min(0, Body.TemperatureChangeFPerHour(me.Agent.Body, Sim.Surroundings(me.World, me.Agent, a, me.Events)));
 
     // ---- the trip budget ----
 

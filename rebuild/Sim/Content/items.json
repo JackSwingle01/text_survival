@@ -2,10 +2,11 @@
 // Loaded once by Content; ContentTests checks every name in here resolves.
 //
 // resources: every Resource has one row. category is its one category (old ResourceCategories);
-//   kcalPerKg and hydrationMlPerKg are what eating a kilo gives (old ConsumptionHandler), 0 if left out.
+//   kcalPerKg and hydrationMlPerKg are what eating a kilo gives (old ConsumptionHandler), 0 if left out;
+//   water must state its hydrationMlPerKg, and only food and water give either.
 //   Which resources burn, and how, is fire.json's; which build shelters is shelters.json's.
 // gear: the authored design, by kind id (old Gear factory methods). An item carries only its kind and
-//   wear. maxDurability -1 never wears out. insulation is tenths of a clo over the slot's share of the
+//   wear. maxDurability is stated on every kind; -1 never wears out. insulation is tenths of a clo over the slot's share of the
 //   body (old BaseInsulation). A tent's shelter values are shelters.json's.
 // slotCoverage: the fraction of body surface each slot covers (old Inventory.SlotCoverage). Sums to 1.
 // startingPack, startingClothes: the old starting kit (GameContext.CreateNewGame). Pack kilos are
@@ -61,15 +62,15 @@
  },
 
  "gear": {
-  "stone_axe": { "name": "Stone Axe", "category": "Tool", "baseWeightKg": 1.5, "tool": "Axe", "weapon": { "damage": 12, "class": "Blade", "blockChance": 0.05 } },
-  "flint_knife": { "name": "Flint Knife", "category": "Tool", "baseWeightKg": 0.3, "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
+  "stone_axe": { "name": "Stone Axe", "category": "Tool", "baseWeightKg": 1.5, "maxDurability": -1, "tool": "Axe", "weapon": { "damage": 12, "class": "Blade", "blockChance": 0.05 } },
+  "flint_knife": { "name": "Flint Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
   "worn_knife": { "name": "Worn Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 3, "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
   "bone_knife": { "name": "Bone Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 5, "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
-  "wooden_spear": { "name": "Wooden Spear", "category": "Tool", "baseWeightKg": 2.0, "tool": "Spear", "weapon": { "damage": 8, "class": "Pierce", "blockChance": 0.12 } },
-  "fire_striker": { "name": "Fire Striker", "category": "Tool", "baseWeightKg": 0.2, "tool": "FireStriker" },
-  "hand_drill": { "name": "Hand Drill", "category": "Tool", "baseWeightKg": 0.3, "tool": "HandDrill" },
-  "bow_drill": { "name": "Bow Drill", "category": "Tool", "baseWeightKg": 0.5, "tool": "BowDrill" },
-  "waterskin": { "name": "Waterskin", "category": "Tool", "baseWeightKg": 0.3, "tool": "WaterContainer" },
+  "wooden_spear": { "name": "Wooden Spear", "category": "Tool", "baseWeightKg": 2.0, "maxDurability": -1, "tool": "Spear", "weapon": { "damage": 8, "class": "Pierce", "blockChance": 0.12 } },
+  "fire_striker": { "name": "Fire Striker", "category": "Tool", "baseWeightKg": 0.2, "maxDurability": -1, "tool": "FireStriker" },
+  "hand_drill": { "name": "Hand Drill", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "tool": "HandDrill" },
+  "bow_drill": { "name": "Bow Drill", "category": "Tool", "baseWeightKg": 0.5, "maxDurability": -1, "tool": "BowDrill" },
+  "waterskin": { "name": "Waterskin", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "tool": "WaterContainer" },
   "torch": { "name": "Torch", "category": "Tool", "baseWeightKg": 0.5, "maxDurability": 1, "tool": "Torch" },
   "bone_needle": { "name": "Bone Needle", "category": "Tool", "baseWeightKg": 0.05, "maxDurability": 20, "tool": "Needle" },
   "worn_fur_chest_wrap": { "name": "Worn Fur Chest Wrap", "category": "Clothing", "baseWeightKg": 1.5, "maxDurability": 50, "slot": "Chest", "insulation": 0.20, "cushioning": 0.12, "toughness": 0.04, "waterproofLevel": 0.1 },

@@ -48,10 +48,10 @@ public static class Carcasses
 
     static IReadOnlyDictionary<Resource, double> Recovered(IReadOnlyDictionary<Resource, double> careful) =>
         Enum.GetValues<Resource>().Where(r => careful.ContainsKey(r) || Rows[ButcherMode.FullProcessing].YieldFactor.ContainsKey(r))
-            .ToDictionary(r => r, r => careful.GetValueOrDefault(r, 1) / ThoroughFactor(r));
+            .ToDictionary(r => r, r => careful.GetValueOrDefault(r, 1) / ThoroughFactor(r)).AsReadOnly();
 
     static readonly IReadOnlyDictionary<ButcherMode, ButcherModeProps> Modes =
-        Enum.GetValues<ButcherMode>().ToDictionary(m => m, m => Rows[m] with { YieldFactor = Recovered(Rows[m].YieldFactor) });
+        Enum.GetValues<ButcherMode>().ToDictionary(m => m, m => Rows[m] with { YieldFactor = Recovered(Rows[m].YieldFactor) }).AsReadOnly();
 
     /// YieldFactor is the share of each resource's ledger the mode recovers, at most 1; anything not named takes 1.
     public static ButcherModeProps ModeProps(ButcherMode mode) =>

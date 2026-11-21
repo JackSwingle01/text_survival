@@ -8,13 +8,20 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 - `Shelter.cs:90`, `Pools.cs:121`, `Map.cs:208` - the camp's tile (its Overhang, bedding, thin forage, wind, cover,
   visibility, name) is code, not content: it moves when the camp becomes a content site (below).
-- `Pools.cs:463`, `Report.cs:279` - a felled tree's yield (8-10 logs of 4.0/2.5/2.0 kg oak/pine/birch, the 40/35/25 mixed
-  draw, sticks, tinder) is code, and `Report` repeats the log weights. Upgrade: a per-wood row in `Content/terrain.json`
-  trees, read by both.
+- `Content/terrain.json` felling, `shelters.json` materials, `discoveries.json` (Dry Wood Stack, deadfall), `forage.json` -
+  a "log" weighs five ways: 2.0 kg as a shelter piece, 2.0-4.0 kg felled (by wood), 1.5 kg in a Dry Wood Stack, 2.5 kg
+  in deadfall, 1.5-3.5 kg foraged. Values kept as ported. Upgrade: one log weight per wood (the felling row's `logKg`)
+  that shelter pieces, stocks and forage read, re-baselined in one step with its pins listed.
+- `Content/locations.json` (Deep Woods and the other named sites) - a site's forage lists its items inline rather than
+  naming a `forage.json` table, so the every-row-is-used check (`Content.DeadRows`) does not reach them and two sites
+  with the same forage repeat it. Upgrade: let a site's forage name a table (and a density), inline items only for a
+  site whose forage is its own.
 - `Content/forage.json` - the old `Barren` forage table (density 0.32) was only the default arm for impassable terrain,
   which never forages; it was not carried over. Upgrade: add a table and a terrain row if a barren passable terrain appears.
 - `Content/species.json` - rabbits and foxes have the old defaults, herd behaviour Prey and diet Carnivore (they never form
-  herds yet). Upgrade: give them real rows with small game.
+  herds yet), and the role-and-behaviour check (`Content.HerdBehaviorProblem`) exempts small game and people for it.
+  Upgrade: make `behavior` and `diet` optional (null for a species that never forms a herd, refused for one that does),
+  then give rabbits and foxes real rows with small game.
 - `Shelter.cs:60` - only the simplest camp recipes exist (bedding, frames, snow shelter, pitching a tent; `Content/shelters.json`);
   no general crafting, no hide tent recipe. Upgrade: port `NeedCraftingSystem` as its own system, its recipes born as content rows.
 - `Npc.cs:48`, `Npc.cs:519` - NPCs spawn with an axe and knife and cannot make a fire starter, standing in
@@ -85,10 +92,18 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   bigger than a rabbit until food is critical. Starving, it still takes on a mammoth herd (seed 123 dies on day 34.9
   in one, FightEnded Defeat, at 6.9 kg fat). Upgrade: with NPC hunting (`rebuild-npc-hunting.md`), a kill-odds
   estimate from the combat model in place of both.
-- `Npc.cs:340` - `Bed` sleeps two hours beside a cold pit with nothing left to light or feed it, whatever the cold
-  (seed 11: core 98.5 to 89.9 in two hours asleep, dead by morning). Nothing else it can do helps much; walking keeps
-  a body warmer than lying still. Upgrade: when the fuel runs out at night in a hard frost, stay up and moving, or
-  move camp to the fuel.
+- `Npc.cs:368` (`ColdBed`) - beside a cold pit with nothing to light it, an NPC sleeps a full stretch only if the
+  cold will not take its core under the freezing line, but it reckons that from the weather now: seed 11 (day 30)
+  lay down at 00:46 judging 120 minutes safe, a cold rain front came through 25 minutes later (14.8 to 8.4 C, wet
+  0.6 to 1.0, -0.9 to -4.5 F/h asleep) and it slept through it, core 96.4 to 91.7, dead by 04:30. Awake it cooled
+  at -3.1 F/h too, so only fire or shelter would have saved it. Two causes upstream: `Npc.cs:915` `Stranded` moved its
+  camp one tile (3,38 to 3,39, day 29 14:41) off its own overhang and a stash of 4.5 kg tinder and 17 kg wood, because
+  its core (95.7) was already under the freezing line though the 77-minute walk home would have warmed it; and the
+  trip budget (`Afford`) refuses every walk, even one tile back to those makings, while the core is under wanted
+  warmth or energy under wanted rest - which is exactly when `ColdBed` needs it. Upgrade: `Stranded` by cold only
+  when the walk home cools it (`CoreAfterF(walk) < Min(FreezingCoreF, core now)`); a one-way move of home judged by
+  arriving (energy for the walk, the walk not colder than staying) rather than the round-trip budget; wake from a
+  fireless sleep when the weather turns (re-decide hourly).
 - `Knowledge.cs:315` - a carcass going (butchered away) is not a notable journal entry: `Butchered` is a step's tally and
   is not filed. Upgrade: a once-only `CarcassGone` event when one leaves its tile.
 - `Content/accidents.json` (Sprains) - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.

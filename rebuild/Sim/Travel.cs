@@ -19,8 +19,9 @@ public sealed class Crossing
 }
 
 /// One accident's mechanics, from the old AccidentVariants (their text is not ported; Content/accidents.json):
-/// a hit of Amount and Type on Target, and an effect it may start at Severity.
-public readonly record struct Accident(BodyTarget Target, DamageType Type, double Amount, EffectKind? Effect = null, double Severity = 0);
+/// a hit of Amount and Type on Target, and an effect it may start at Severity. A class, not a struct, so
+/// the reader requires Target, Type and Amount (a struct row would default them).
+public sealed record Accident(BodyTarget Target, DamageType Type, double Amount, EffectKind? Effect = null, double Severity = 0);
 
 /// Walking one tile north, east, south or west. Port of the old TravelProcessor and TravelRunner.
 public static class Traversal
