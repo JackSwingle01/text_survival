@@ -9,85 +9,84 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="masthead">
-  <div class="title-block">
+<!-- Every region has a fixed size and scrolls inside itself, so nothing a click or a new
+     generation changes can move anything else (tools/layout-check.mjs holds it to that). -->
+<header class="topbar" id="topbar">
+  <div class="run">
     <h1 id="run-name">Loading run</h1>
     <p id="run-meta" class="meta"></p>
   </div>
-  <div class="status-block">
+  <div class="live">
     <span id="status" class="status">connecting</span>
     <p id="headline" class="headline"></p>
   </div>
+  <div class="scrubber" id="scrubber" aria-label="Generation">
+    <button type="button" id="gen-prev" class="icon-btn" aria-label="Previous generation" title="Previous generation ([)">&#x2039;</button>
+    <label for="gen">Generation <output id="gen-out">-</output><span class="of" id="gen-of"></span></label>
+    <input type="range" id="gen" min="1" max="1" value="1">
+    <button type="button" id="gen-next" class="icon-btn" aria-label="Next generation" title="Next generation (])">&#x203a;</button>
+    <label class="follow"><input type="checkbox" id="follow" checked> Follow the newest</label>
+  </div>
 </header>
 
-<main>
-  <p id="notice" class="notice" hidden></p>
+<p id="notice" class="notice" hidden></p>
 
-  <section class="panel" id="fitness-panel" aria-labelledby="fitness-h">
-    <div class="panel-head">
-      <h2 id="fitness-h">Fitness by generation</h2>
+<div class="layout">
+  <aside class="pane left" id="left-pane" aria-label="Search">
+    <section class="block" id="fitness-panel" aria-labelledby="fitness-h">
+      <h2 id="fitness-h">Fitness</h2>
       <p class="hint">Lower is better: summed distance outside every scored band. Log scale.</p>
-    </div>
-    <div class="fitness-row">
       <figure class="chart" id="fitness-chart"></figure>
-      <figure class="chart small" id="sigma-chart"></figure>
-    </div>
-  </section>
+      <figure class="chart sigma" id="sigma-chart"></figure>
+    </section>
+    <section class="block params-block" id="param-panel" aria-labelledby="param-h">
+      <h2 id="param-h">Parameters</h2>
+      <p class="hint">The search's mean across each range, bottom to top. Shaded strips are the outer 2%.</p>
+      <div class="scroll" id="params-scroll"><table class="params" id="params"></table></div>
+    </section>
+  </aside>
 
-  <section class="scrubber" id="scrubber" aria-label="Generation">
-    <label for="gen">Generation <output id="gen-out">-</output></label>
-    <input type="range" id="gen" min="1" max="1" value="1">
-    <label class="follow"><input type="checkbox" id="follow" checked> Follow the newest</label>
-  </section>
-
-  <section class="panel" id="scenario-panel" aria-labelledby="scen-h">
-    <div class="panel-head">
+  <main class="pane center" id="center-pane" aria-labelledby="scen-h">
+    <div class="center-head">
       <h2 id="scen-h">Scenarios, as the best candidate fought them</h2>
       <div class="legend" id="ending-legend"></div>
+      <p id="orders" class="orders"></p>
     </div>
-    <div class="grid" id="scenarios"></div>
-    <div id="orders" class="orders"></div>
-  </section>
+    <div class="scroll" id="scenarios-scroll"><div class="cards" id="scenarios"></div></div>
+  </main>
 
-  <section class="panel" id="param-panel" aria-labelledby="param-h">
-    <div class="panel-head">
-      <h2 id="param-h">Parameters: the search's mean</h2>
-      <p class="hint">Each line is the mean across its range, bottom to top. Shaded strips are the outer 2%.</p>
+  <aside class="pane dock" id="dock" aria-labelledby="dock-h">
+    <div class="dock-head" id="dock-head">
+      <h2 id="dock-h">Pick a scenario</h2>
+      <p class="meta" id="dock-setup"></p>
     </div>
-    <table class="params" id="params"></table>
-  </section>
-
-  <section class="panel" id="replay-panel" aria-labelledby="replay-h">
-    <div class="panel-head">
-      <h2 id="replay-h">Replay a fight</h2>
-      <p class="hint">Fought again now, on the seed the tuner used. Refused when the code here is not the run's code.</p>
-    </div>
-    <div class="replay-controls">
-      <label>Scenario <select id="r-scenario"></select></label>
+    <div class="replay-controls" id="replay-controls">
       <label>Candidate <select id="r-candidate"></select></label>
       <label>Fight <input type="number" id="r-fight" min="0" value="0"></label>
       <button id="r-go" type="button">Fight it again</button>
     </div>
-    <div id="r-strip" class="strip-wrap"></div>
-    <p id="r-message" class="r-message"></p>
-    <div class="replay-body" id="r-body" hidden>
-      <div class="arena">
-        <canvas id="r-canvas" width="500" height="500" aria-label="Fight grid"></canvas>
-        <div class="playback">
-          <button id="r-back" type="button" aria-label="Step back">Back</button>
-          <button id="r-play" type="button">Play</button>
-          <button id="r-step" type="button" aria-label="Step forward">Step</button>
-          <input type="range" id="r-frame" min="0" max="0" value="0" aria-label="Round">
-          <output id="r-round">round 0</output>
-        </div>
-      </div>
-      <div class="units">
-        <table id="r-units"></table>
-        <ul id="r-events" class="events"></ul>
-      </div>
+    <div class="strip-box" id="r-strip-box">
+      <p class="strip-note" id="r-strip-note"></p>
+      <div class="strip" id="r-strip"></div>
     </div>
-  </section>
-</main>
+    <p id="r-message" class="r-message">Pick a fight from the strip, or a fight number, and fight it again.</p>
+    <div class="stage">
+      <div class="arena" id="arena">
+        <canvas id="r-canvas" width="500" height="500" aria-label="Fight grid"></canvas>
+        <p class="arena-state" id="arena-state">No fight loaded.</p>
+      </div>
+      <ul id="r-events" class="events scroll" aria-label="This round's events"></ul>
+    </div>
+    <div class="playback" id="playback">
+      <button id="r-back" type="button" class="icon-btn" aria-label="Step back" title="Step back (left arrow)">&#x2039;</button>
+      <button id="r-play" type="button" class="play" title="Play or pause (space)">Play</button>
+      <button id="r-step" type="button" class="icon-btn" aria-label="Step forward" title="Step forward (right arrow)">&#x203a;</button>
+      <input type="range" id="r-frame" min="0" max="0" value="0" aria-label="Round">
+      <output id="r-round" class="round">round -</output>
+    </div>
+    <div class="units scroll" id="units-box"><table id="r-units"></table></div>
+  </aside>
+</div>
 <script src="app.js"></script>
 </body>
 </html>

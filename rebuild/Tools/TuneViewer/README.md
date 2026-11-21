@@ -16,6 +16,33 @@ candidate's endings over generations and each band's metric against its target; 
 normalised to its range, with the outer 2% flagged; a generation scrubber that drives all of it; and
 replays.
 
+## Layout
+
+One window, nothing on the page scrolls: a top bar (run, provenance, live status, the generation
+scrubber), a left column (fitness, sigma, then the parameters, which scroll), the scenarios as a grid of
+same-sized cards (which scroll), and a dock on the right for the selected scenario: candidate and fight,
+the fight strip, the replay's summary, the grid with that round's events beside it, playback, and the
+fighters. Every box has a fixed size, and loading, refused and no-rounds states show inside the box they
+replace, so a click, a step or a new generation never moves anything else. Below 1100 px the panes stack
+and the page scrolls. Keys: space plays or pauses a replay, the arrow keys step it, `[` and `]` change the
+generation.
+
+Sides are named from the scenario (`you (spear)` against `wolf`, `pack of 4 wolves` against `caribou`), and
+endings read from the first side's point of view (`you killed it`, `it fled`, `the pack made a kill`). Each
+ending keeps one colour everywhere. The names are derived from the setup in the log's header; a scenario that
+carries `sides: { a: { name, the, obj, subj, you }, b: {...} }` in the header uses those instead.
+
+`tools/layout-check.mjs` holds the page to this. It measures every region, then picks a scenario, picks a
+fight, plays ten rounds, steps with the keys and buttons, scrubs the generation, opens a headless scenario
+and the mean (no strip), re-follows the newest and, with `--append FROM TO`, copies the next generation line
+of FROM onto the log the viewer reads and waits for it to arrive. After each it fails if any region moved or
+resized by more than 1 px, if the page or a pane scrolled by itself, or if the page text labels a side
+"A" or "B"; it saves a screenshot per step:
+
+```
+node tools/layout-check.mjs http://127.0.0.1:5177/ /tmp/shots [width] [height] [light|dark] [--append FROM TO]
+```
+
 ## Replays
 
 A replay is fought again on request, by `Tune replay` in a process of its own (overrides load once per
@@ -32,10 +59,8 @@ For the best candidate the log has every fight's outcome, so the page shows them
 and a replay says whether it matches. The mean is never fought during the search; replaying it fights it
 now, on that generation's seeds, and says so.
 
-Round-by-round playback exists today only for fights the harness drives through `Sim.Step` (hunts, and a
-person against animals with a scripted policy): `Fights` reads the grid between steps. Headless fights
-(`Combat.ResolveHeadless`: packs against prey, AI people) show their outcome and a note until Sim has the
-hook below.
+Every fight plays back round by round: `Fights` watches it through Sim's round observer
+(`Combat.Watch`, below), the headless ones (`Combat.ResolveHeadless`: packs against prey, AI people) too.
 
 ## The progress log (`progress.jsonl`, schema 1)
 
@@ -102,7 +127,7 @@ then one frame per round (round 0 is the opening placement):
 
 Grid y runs north (up). Numbers a fighter no longer has (a herd member removed when it died) are null.
 
-## The combat trace hook Sim needs
+## The combat trace hook (in Sim: `rebuild/Sim/CombatObserver.cs`)
 
 One observer on the encounter, called once at placement and once at the end of every round, by every fight
 loop (headless and stepped). Used for replays only, never in tuning or play.
@@ -133,9 +158,9 @@ public sealed record FighterView(int Index, AgentId Agent, int Member, int Team,
 
 Where it attaches and is called:
 
-- `Encounter.Observer` — `[JsonIgnore] public ICombatObserver? Observer { get; set; }`. Set after
-  `Combat.Create`, before the first round; not saved.
-- Call with round 0 when the observer is set (or at the end of `Create`/`Place` if it is passed in).
+- `Encounter.Observer` — `[JsonIgnore] public ICombatObserver? Observer { get; set; }`, attached by
+  `Combat.Watch(world, enc, observer)` after `Combat.Create` and before the first round, which reports
+  round 0 at once; not saved.
 - Call at the end of each round in `RunRounds` (after wounds tick and the sweep, before `enc.Rounds++`
   or right after it, with Round = rounds completed) and at the end of each stepped round
   (`Sim.Step`'s fight path), so headless and player fights report alike.
@@ -146,11 +171,11 @@ Where it attaches and is called:
 Test with it: a fight with an observer attached has the same outcome, rounds and events as without, for a
 headless fight and a stepped one; frames are 0..Rounds.
 
-When it exists, `Fights.Run` sets `enc.Observer` from its `watch` argument and maps `FighterView` to
-`TraceUnit`, and `Frame` in `Fights.cs` (today's between-steps reader) goes.
+`Fights.Run` attaches its `watch` argument through `Combat.Watch` and maps `FighterView` to `TraceUnit`.
 
 ## Files
 
 `Program.cs` (the server), `wwwroot/` (the page), `tools/shot.mjs` (headless Chrome screenshots:
-`node tools/shot.mjs URL out.png [width] [height] [script] [waitMs] [light|dark] [full|view]`).
+`node tools/shot.mjs URL out.png [width] [height] [script] [waitMs] [light|dark] [full|view]`),
+`tools/layout-check.mjs` (the layout-shift check above).
 The log and replay types are in `rebuild/Tools/Tune/Progress.cs`, `Trace.cs` and `Provenance.cs`.
