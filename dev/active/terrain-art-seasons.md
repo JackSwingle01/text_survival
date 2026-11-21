@@ -1,9 +1,42 @@
 # Terrain art for the seasons
 
-*Status: art to author. The map should show the ground as it is: bare in July, snow arriving in
-autumn, mud in a thaw, ice on the ponds. The simulation already tracks every tile's snow depth,
-wetness and mud, and ice on water (`rebuild/Sim/Ground.cs`). The UI draws from that ground state,
-not from the calendar.*
+*Status: the renderer and the winter art are done; the other states need art and wiring. The map
+should show the ground as it is: bare in July, snow arriving in autumn, mud in a thaw, ice on the
+ponds. The simulation already tracks every tile's snow depth, wetness and mud, and ice on water
+(`rebuild/Sim/Ground.cs`). The UI draws from that ground state, not from the calendar.*
+
+## Done: the world-space renderer, winter only
+
+The tile-per-cell approach below was replaced. `rebuild/Web/App/wwwroot/terrain-core.js` draws the
+ground per pixel in world space, and tiles supply only texture (`scripts/build-terrain-layers.py`
+-> `assets/icons/terrain/`): ground per terrain and palette, full snow in three flavours (flat;
+rugged for hills; crag for rock, which keeps bare faces), and sprites (spruce, shrub, boulder,
+reeds). Mountains, rivers, lake shores, ice, snow and mud cover, and sprite placement are computed,
+so nothing repeats per tile. `rebuild/Web/README.md` has the details and the preview tool.
+
+The renderer takes the ground state as input, and every state below already draws (try them with
+`tools/terrain-preview.mjs --state`):
+
+- per cell: `{ snow: 0..1 cover, dust: bool, mud: 0..1, ice: 'none' | 'thin' | 'thick' }`;
+- per world: `{ palette, snowline }` (mountain height above which snow lies, 0..1).
+
+The page passes `WINTER` and `WINTER_WORLD` everywhere (`map.js`).
+
+## To wire next
+
+1. **Art for the other palettes.** `build-terrain-layers.py` emits only `winter`. Add `summer` and
+   `autumn` to its `main` (the colours are in `SEASONS`): ground, plus bare and autumn sprites
+   (`sprites(snowed=False)`). Mud needs a texture, `terrain/mud_<n>_<palette>`, which the renderer
+   already looks for when `mud > 0`; the prototype's `mud()` painter is in the art branch
+   (`dev/prototypes/art/seasons/build_seasons.py` on `worktree-short-loop-plan`).
+2. **`stateAt` from `MapDto.Surface`.** Snow depth to cover (a few cm is `dust`, about 15 cm and
+   more is full cover), `MudLevel` to `mud`, ice to `none`, `thin` or `thick`. `groundKey` must
+   change whenever any of it does.
+3. **`world` from the date.** Palette by season (dead autumn grass in a spring thaw), and the
+   snowline: about 0.8 in summer, 0.34 in winter.
+4. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness, and only tiles in sight have a
+   surface, so remembered tiles need the ground as last seen. Deep water is impassable and skipped,
+   and lake and river ice is static (`SiteWater`) until it grows and thaws.
 
 ## Today
 
