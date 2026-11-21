@@ -44,28 +44,38 @@ public class CombatGoldenTests
         Assert.Equal(Zone.Far, Combat.ZoneOf(15.01));
     }
 
-    // ---- species (old AnimalFactory bodies, exact) ----
+    // ---- species bodies (exact) ----
 
     // weight kg, strength, speed, vitality, combat allowance m, average blow (before luck)
+    // Species round (2026-11-21): realistic builds (species-stats-research.md), the 68 kg man, Homotherium for the
+    // sabre-tooth. Old (the old game's AnimalFactory bodies) → new, weight / strength / speed / blow:
+    //   Wolf 40 / 0.950 / 1.605 / 0.439 → 45 / 0.895 / 1.210 / 0.426; Bear 250 / 1.245 / 1.395 / 0.673 → 250 / 1.082 / 1.010 / 0.625
+    //   CaveBear 350 / 1.400 / 1.392 / 0.960 → 400 / 1.249 / 0.981 / 0.900; SaberTooth 300 / 1.492 / 1.678 / 1.122 → Homotherium 190 / 1.083 / 1.129 / 0.937
+    //   Hyena 70 / 1.028 / 1.684 / 0.406 → 85 / 0.947 / 1.183 / 0.389; Caribou 120 / 1.080 / 1.524 / 0.260 → 110 / 0.972 / 1.121 / 0.247
+    //   Megaloceros 600 / 1.864 / 1.481 / 0.716 → 550 / 1.498 / 1.092 / 0.625; Bison 800 / 2.069 / 1.336 / 0.844 → 600 / 1.559 / 1.092 / 0.704
+    //   Mammoth 6000 / 9.222 / 0.624 / 6.133 → 5000 / 6.244 / 1.227 / 4.347; Rabbit 2 / 0.847 / 1.415 / 0.018 → 3 / 0.848 / 1.303 / 0.018
+    //   Fox 6 / 0.873 / 1.586 / 0.112 → 6 / 0.831 / 1.232 / 0.110; Human 75 / 0.977 / 0.849 / 0.148 → 68 / 1.068 / 0.992 / 0.155
+    // Speed's kilogram terms are a person's (body review B11): the mammoth's doubles. Combat reads speed only as a
+    // share of a fresh body of its kind (SpeciesTable.Running), so the allowances do not move.
     public static readonly TheoryData<Species, double, double, double, double, int, double> SpeciesBodies = new()
     {
-        { Species.Wolf, 40, 0.9500064, 1.6046454955963703, 1, 6, 0.43875144 },
-        { Species.Bear, 250, 1.24486, 1.3952516265968218, 1, 5, 0.673458 },
-        { Species.CaveBear, 350, 1.3998979999999999, 1.3920369107804034, 1, 4, 0.9599592 },
-        { Species.SaberTooth, 300.00000000000006, 1.4922240000000002, 1.6777226530718914, 1, 7, 1.1215008000000002 },
-        { Species.Hyena, 70, 1.0281284, 1.6837407993867033, 1, 6, 0.40562568 },
-        { Species.Caribou, 120, 1.0802544, 1.523673389593941, 1, 3, 0.26003180000000004 },
-        { Species.Megaloceros, 600, 1.8636719999999998, 1.4808537256011423, 1, 3, 0.7159179999999999 },
-        { Species.Bison, 800, 2.069228, 1.336430935458896, 1, 3, 0.8440377 },
-        { Species.Mammoth, 6000, 9.22188, 0.6238583406370034, 1, 3, 6.133128 },
-        { Species.Rabbit, 2, 0.84691216, 1.4145840534090237, 1, 3, 0.0184691216 },
-        { Species.Fox, 6, 0.8733369599999999, 1.5856874045352152, 1, 3, 0.1124002176 },
+        { Species.Wolf, 45, 0.8947715999999999, 1.2096121549930419, 1, 6, 0.42632360999999996 },
+        { Species.Bear, 250, 1.08205, 1.0099605245894718, 1, 5, 0.6246149999999999 },
+        { Species.CaveBear, 400, 1.2488800000000002, 0.9813297123518419, 1, 4, 0.8995520000000001 },
+        { Species.Homotherium, 190, 1.08302016, 1.1286958123788615, 1, 7, 0.9373590720000001 },
+        { Species.Hyena, 85, 0.9468708, 1.182606086953345, 1, 6, 0.38937416 },
+        { Species.Caribou, 110, 0.9721110399999999, 1.1214800761239843, 1, 3, 0.24651388 },
+        { Species.Megaloceros, 550, 1.4980128000000001, 1.0920166381655916, 1, 3, 0.6245032 },
+        { Species.Bison, 600, 1.5592776000000002, 1.0922935825680593, 1, 3, 0.70380134 },
+        { Species.Mammoth, 5000, 6.2444, 1.2274532803110698, 1, 3, 4.34664 },
+        { Species.Rabbit, 3, 0.8482441199999999, 1.3033011900540226, 1, 3, 0.0184824412 },
+        { Species.Fox, 6, 0.83143248, 1.2321723978837684, 1, 3, 0.10988594880000001 },
         // Old Player: unarmed 0.15.
-        { Species.Human, 75, 0.9772499999999998, 0.8491860359604892, 1, 3, 0.15 * (0.9772499999999998 / 2 + 0.5) },
+        { Species.Human, 68, 1.0677653333333335, 0.9917410466689817, 1, 3, 0.1550824 },
     };
 
     [Theory, MemberData(nameof(SpeciesBodies))]
-    public void SpeciesBodies_MatchOld(Species species, double weightKg, double strength, double speed, double vitality, int allowance, double blow)
+    public void SpeciesBodies_AreAsMeasured(Species species, double weightKg, double strength, double speed, double vitality, int allowance, double blow)
     {
         var (w, t) = Field();
         var id = Herd(w, species, 1, t);
@@ -88,7 +98,7 @@ public class CombatGoldenTests
         var wolf = Herd(w, Species.Wolf, 1, t);
         var e = Combat.Create(w, [new(AgentId.Player) { Weapon = CombatTests.Spear(w) }], [new(wolf)], t, 5, Awareness.Engaged, Awareness.Engaged);
         var (amount, type) = Combat.AverageBlow(w, e.Units[0]);
-        Assert.Equal(7.908999999999999, amount, Digits);
+        Assert.Equal(8.271061333333334, amount, Digits); // the 68 kg man; the old 75 kg player's was 7.909
         Assert.Equal(DamageType.Pierce, type);
     }
 
@@ -189,12 +199,14 @@ public class CombatGoldenTests
         Normalize(w, wolf);
         Normalize(w, bear);
         var (h, wb, bb) = (w.Agent(AgentId.Player).Body, w.Agent(wolf).Body, w.Agent(bear).Body);
-        AssertShove(Combat.ShoveOdds(h, wb), 0.9643849504592806, 4.932354560979799);
-        AssertShove(Combat.ShoveOdds(wb, h), 0.2592325812228192, 3.4775776925044775);
-        AssertShove(Combat.ShoveOdds(bb, h), 2.1230664279014246, 6.881013046815043);
-        Assert.Equal(0.5095116215762935, Combat.DodgeChance(h), Digits);
-        Assert.Equal(0.9627872973578226, Combat.DodgeChance(wb), Digits);
-        Assert.Equal(0.8371509759580931, Combat.DodgeChance(bb), Digits);
+        // Species round bodies. Old → new: shoves 0.964 / 4.932, 0.259 / 3.478, 2.123 / 6.881 → 0.902 / 4.898,
+        // 0.277 / 3.338, 1.863 / 6.703; dodges 0.510, 0.963, 0.837 → 0.595, 0.726, 0.606.
+        AssertShove(Combat.ShoveOdds(h, wb), 0.901633477894951, 4.897787964362452);
+        AssertShove(Combat.ShoveOdds(wb, h), 0.2772745313136292, 3.3377352062669563);
+        AssertShove(Combat.ShoveOdds(bb, h), 1.8628273815470062, 6.703226779358436);
+        Assert.Equal(0.595044628001389, Combat.DodgeChance(h), Digits);
+        Assert.Equal(0.7257672929958251, Combat.DodgeChance(wb), Digits);
+        Assert.Equal(0.6059763147536831, Combat.DodgeChance(bb), Digits);
     }
 
     static void AssertShove((double Chance, double PushM) odds, double chance, double push)
@@ -258,7 +270,7 @@ public class CombatGoldenTests
         { Species.Wolf, 6, 0.5, 0.9, 0.65 },
         { Species.Bear, 1, 0.15, 0.7000000000000001, 0.3 },
         { Species.Hyena, 4, 0.42000000000000004, 0.5700000000000001, 0.5700000000000001 },
-        { Species.SaberTooth, 1, 0.25, 0.75, 0.4 },
+        { Species.Homotherium, 1, 0.25, 0.75, 0.4 },
         { Species.Caribou, 5, 0, 0, 0 },
     };
 
@@ -267,8 +279,8 @@ public class CombatGoldenTests
     {
         var (w, t) = Field();
         var herd = Herd(w, species, count, t);
-        var person = BodyState.BaselineHuman();
-        var hurt = BodyState.BaselineHuman();
+        var person = TestKit.OldBaselineHuman();
+        var hurt = TestKit.OldBaselineHuman();
         Effects.Add(hurt, EffectKind.Bleeding, 0.5);
         Assert.Equal(healthy, Combat.Boldness(w, herd, person), Digits);
         Assert.Equal(defending, Combat.Boldness(w, herd, person, defending: true), Digits);
@@ -280,7 +292,7 @@ public class CombatGoldenTests
     {
         var (w, t) = Field();
         var herd = Herd(w, Species.Wolf, 1, t);
-        var person = BodyState.BaselineHuman();
+        var person = TestKit.OldBaselineHuman();
         Assert.Equal(0.45, Combat.Boldness(w, herd, person, hunger: 0.8), Digits);
         Assert.Equal(0.65, Combat.Boldness(w, herd, person, hunger: 0.95), Digits);
         Assert.Equal(0.125, Combat.Boldness(w, herd, person, fear: 0.5), Digits);
@@ -300,14 +312,23 @@ public class CombatGoldenTests
     //   wolf vs spear   [0.082, 0.388, 0.213, 0.269, 0.049, 11.24] → [0.140, 0.411, 0.145, 0.242, 0.062, 11.53]
     //   wolf vs unarmed [0.007, 0.797, 0.171, 0.000, 0.025, 11.05] → [0.005, 0.861, 0.105, 0.000, 0.029, 11.49]
     //   bear vs spear   [0.032, 0.720, 0.176, 0.063, 0.009, 9.48]  → [0.073, 0.762, 0.112, 0.031, 0.022, 9.72]
+    // Species round (2026-11-21): realistic builds, the sprint reserve, dodges paid from it. Every row is now this
+    // rebuild's, 1000 fights each. The wolf, at a realistic 48% muscle, is slower by Body.Speed (1.60 → 1.21), so it
+    // dodges a spear less (0.96 → 0.73) and stays to die instead of breaking off. Old → new:
+    //   wolf vs spear       [0.140, 0.411, 0.145, 0.242, 0.062, 11.53] → [0.333, 0.421, 0.116, 0.057, 0.073, 11.54]
+    //   wolf vs unarmed     [0.005, 0.861, 0.105, 0.000, 0.029, 11.49] → [0.007, 0.876, 0.083, 0.000, 0.034, 11.80]
+    //   3 wolves vs spear   [0.000, 1.000, 0.000, 0.001, 0.000, 4.95]  → [0.000, 0.999, 0.000, 0.000, 0.001, 5.18]
+    //   4 wolves ambush 2   [1.000, 0.000, 0.000, 0.000, 0.000, 4.24]  → [1.000, 0.000, 0.000, 0.000, 0.000, 4.30]
+    //   4 wolves noticed    [0.949, 0.000, 0.000, 0.051, 0.000, 8.14]  → [0.955, 0.000, 0.000, 0.045, 0.000, 8.37]
+    //   bear vs spear       [0.073, 0.762, 0.112, 0.031, 0.022, 9.72]  → [0.101, 0.778, 0.090, 0.011, 0.020, 9.94]
     public static readonly TheoryData<string, double[]> Headless = new()
     {
-        { "wolf vs spear", [0.140, 0.411, 0.145, 0.242, 0.062, 11.53] }, // rebuild, body fixes
-        { "wolf vs unarmed", [0.005, 0.861, 0.105, 0.000, 0.029, 11.49] }, // rebuild, body fixes
-        { "3 wolves vs spear", [0.000, 1.000, 0.000, 0.001, 0.000, 4.95] },
-        { "4 wolves ambush 2 caribou", [1.000, 0.000, 0.000, 0.000, 0.000, 4.24] },
-        { "4 wolves noticed by 2 caribou", [0.949, 0.000, 0.000, 0.051, 0.000, 8.14] },
-        { "bear vs spear", [0.073, 0.762, 0.112, 0.031, 0.022, 9.72] }, // rebuild, body fixes
+        { "wolf vs spear", [0.333, 0.421, 0.116, 0.057, 0.073, 11.54] },
+        { "wolf vs unarmed", [0.007, 0.876, 0.083, 0.000, 0.034, 11.80] },
+        { "3 wolves vs spear", [0.000, 0.999, 0.000, 0.000, 0.001, 5.18] },
+        { "4 wolves ambush 2 caribou", [1.000, 0.000, 0.000, 0.000, 0.000, 4.30] },
+        { "4 wolves noticed by 2 caribou", [0.955, 0.000, 0.000, 0.045, 0.000, 8.37] },
+        { "bear vs spear", [0.101, 0.778, 0.090, 0.011, 0.020, 9.94] },
     };
 
     [Trait("Category", TestCategories.Slow)]

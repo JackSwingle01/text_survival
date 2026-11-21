@@ -42,7 +42,7 @@ public static partial class Fauna
         Species.CaveBear => new(100, 140, 0.004, 0.022, null, null), // its den is a cave
         // A dead megafauna hunter stays dead and none arrive (overview: megafauna herds); saber-tooths
         // forage, so they never starve either. People and small game are not herds.
-        Species.SaberTooth or Species.Human or Species.Rabbit or Species.Fox => null,
+        Species.Homotherium or Species.Human or Species.Rabbit or Species.Fox => null,
     };
 
     /// Within this many tiles of its den a meat-eater counts the living prey it lives on.
@@ -208,7 +208,7 @@ public static partial class Fauna
     // ---- capacity ----
 
     /// The megafauna: a dead herd of them stays dead and none arrive (overview: megafauna herds).
-    public static bool IsMegafauna(Species s) => s is Species.Mammoth or Species.SaberTooth;
+    public static bool IsMegafauna(Species s) => s is Species.Mammoth or Species.Homotherium;
 
     /// Members the herd's land carries now, derived from its pools and never saved (CapacityOn).
     public static double CapacityOf(World world, Agent herd) => CapacityOn(world, herd.Species, MindOf(herd).Territory);

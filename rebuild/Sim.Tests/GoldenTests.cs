@@ -79,7 +79,7 @@ public class GoldenTests
     [Theory, MemberData(nameof(ProcessCases))]
     public void BodyProcess_MatchesOld(string name, double[] input, bool sleeping, double[] expected)
     {
-        var b = BodyState.BaselineHuman();
+        var b = TestKit.OldBaselineHuman();
         b.CoreTempF = input[5];
         b.ClothingHeatBufferPct = input[7];
         if (input[6] > 0) Effects.Set(b, EffectKind.Wet, input[6]);

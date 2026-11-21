@@ -80,7 +80,7 @@ public class ItemsTests
     [InlineData(1.0, 0.5016951158969504)]
     [InlineData(1.5, 0.15811244867308313)]
     public void Speed_UnderLoad_MatchesOld(double encumbrancePct, double oldSpeed) =>
-        Assert.Equal(oldSpeed, Body.Speed(BodyState.BaselineHuman(), new AbilityContext(EncumbrancePct: encumbrancePct)), 9);
+        Assert.Equal(oldSpeed, Body.Speed(TestKit.OldBaselineHuman(), new AbilityContext(EncumbrancePct: encumbrancePct)), 9);
 
     [Fact]
     public void AHeavyPack_SlowsTheCrossing()

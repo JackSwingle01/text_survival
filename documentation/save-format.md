@@ -32,7 +32,9 @@ crossing, an NPC, a wolf pack, memory and explored ground, rng streams, a journa
 with its recorded parts and an unfinished one in the pack.
 
 Version 2 (MVP 4, making things) added `Gear.MadeOf`, `Inventory.Projects`, the `make` and
-`abandon` activities, and the `made` and `projectabandoned` events. When you add
+`abandon` activities, and the `made` and `projectabandoned` events. Version 3 (the species round)
+dropped `HerdMind.Hunger`, since a herd's hunger is now its members' calorie stores, and added
+`BodyState.SprintSpentLevel` and `BodyState.Sex`, both skipped at their defaults. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it.
 
 ## After the first release

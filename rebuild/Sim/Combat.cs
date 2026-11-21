@@ -100,7 +100,7 @@ public static partial class Combat
 {
     public const int MapSize = 50; // old MAP_SIZE; the overview's "25x25" is stale
     public const int HeadlessRoundCap = 20;
-    const int FleeEdgeM = 3, FleeEnergyMinutes = 20, DodgeEnergyMinutes = 10, SignalCooldownMinutes = 5, SignalMinutes = 5;
+    const int FleeEdgeM = 3, SignalCooldownMinutes = 5, SignalMinutes = 5;
     const double StoneRangeM = 15, StoneAccuracy = 0.90;
     /// Old inventories counted stones as items; resources are kilograms now, so one throw is a typical stone.
     public const double StoneKg = 0.3;
@@ -319,6 +319,13 @@ public static partial class Combat
         return members[u.Member];
     }
     static SpeciesStats StatsOf(World world, CombatUnit u) => SpeciesTable.Of(world.Agent(u.Agent).Species);
+
+    /// How this fighter runs now: its kind's running, cut by its wounds, tiredness and what it carries.
+    public static Running RunningOf(World world, CombatUnit u)
+    {
+        var agent = world.Agent(u.Agent);
+        return SpeciesTable.Running(agent.Species, BodyOf(world, u), new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)), Items.CarriedKg(agent));
+    }
     static bool Alive(World world, CombatUnit u) => Body.IsAlive(BodyOf(world, u));
 
     public static Zone ZoneOf(double distanceM) => distanceM switch
@@ -405,9 +412,9 @@ public static partial class Combat
         switch (action)
         {
             case CombatAction.Wait: break;
-            case CombatAction.Move: Move(world, enc, unit, to!.Value); break;
-            case CombatAction.Advance: Move(world, enc, unit, unit.Position.Toward(target!.Position, Allowance(world, unit))); break;
-            case CombatAction.Retreat: Move(world, enc, unit, unit.Position.Away(target!.Position, Allowance(world, unit))); break;
+            case CombatAction.Move: Walk(world, enc, unit, to!.Value); break;
+            case CombatAction.Advance: Walk(world, enc, unit, unit.Position.Toward(target!.Position, Allowance(world, unit))); break;
+            case CombatAction.Retreat: Walk(world, enc, unit, unit.Position.Away(target!.Position, Allowance(world, unit))); break;
             case CombatAction.Attack: result = Attack(world, enc, unit, target!, events); break;
             case CombatAction.Throw: result = Throw(world, enc, unit, target!, events); break;
             case CombatAction.ThrowStone:
@@ -419,8 +426,9 @@ public static partial class Combat
             case CombatAction.Shove: result = Shove(world, enc, unit, target!); break;
             case CombatAction.Intimidate: Intimidate(world, enc, unit); break;
             case CombatAction.Flee:
+                // Running for it: flat out until the reserve is spent (the flight itself is not modelled yet).
                 var body = BodyOf(world, unit);
-                body.EnergyMinutes = Math.Max(0, body.EnergyMinutes - FleeEnergyMinutes);
+                Body.SprintUntilSpent(body, RunningOf(world, unit));
                 Flee(world, enc, unit);
                 break;
             case CombatAction.CallHelp or CombatAction.CallRetreat: Signal(world, enc, unit, action == CombatAction.CallRetreat); break;
@@ -532,7 +540,8 @@ public static partial class Combat
             {
                 var body = BodyOf(world, u);
                 Body.TickWounds(body, world.Rng("body", u.Agent));
-                if (world.Agent(u.Agent).Mind is HerdMind && Body.IsAlive(body)) Fauna.Mend(body); // an animal mends in the minute it bleeds (Fauna.Tick)
+                // An animal burns and mends in the minute it bleeds (Fauna.Tick).
+                if (world.Agent(u.Agent).Mind is HerdMind && Body.IsAlive(body)) { Fauna.Burn(body); Fauna.Mend(body); }
                 body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute - 1) + 1;
             }
             Sweep(world, enc, events, by: null);
@@ -544,6 +553,15 @@ public static partial class Combat
 
     /// Steps to a cell (or a free one beside it), tells the enemies whether that was an advance or
     /// a retreat, and leaves the field past its edge.
+    /// A step the fighter takes on its own legs: Move, paid for as metabolic work. A shove or a dodge's
+    /// metre is not walked (the dodge's burst pays for it).
+    internal static void Walk(World world, Encounter enc, CombatUnit unit, Cell destination)
+    {
+        var from = unit.Position;
+        Move(world, enc, unit, destination);
+        Body.Cover(BodyOf(world, unit), RunningOf(world, unit), from.DistanceTo(unit.Position));
+    }
+
     internal static void Move(World world, Encounter enc, CombatUnit unit, Cell destination)
     {
         destination = ResolveDestination(world, enc, destination, unit);
@@ -574,13 +592,20 @@ public static partial class Combat
         return free.Count == 0 ? mover.Position : free[world.Rng("combat", mover.Agent).NextInt(free.Count)];
     }
 
-    static ActionResult Attack(World world, Encounter enc, CombatUnit attacker, CombatUnit defender, List<WorldEvent> events) =>
-        world.Rng("combat", attacker.Agent).NextDouble() < 0.9 ? Strike(world, enc, attacker, defender, events) : new ActionResult();
+    static ActionResult Attack(World world, Encounter enc, CombatUnit attacker, CombatUnit defender, List<WorldEvent> events)
+    {
+        Exert(world, attacker);
+        return world.Rng("combat", attacker.Agent).NextDouble() < 0.9 ? Strike(world, enc, attacker, defender, events) : new ActionResult();
+    }
+
+    /// A strike, throw, shove or dodge: its slice of the sprint reserve and its seconds of hard work.
+    static void Exert(World world, CombatUnit u) => Body.Burst(BodyOf(world, u), RunningOf(world, u));
 
     /// A thrown weapon: closer is surer, small targets are harder, and the weapon lands on the ground.
     static ActionResult Throw(World world, Encounter enc, CombatUnit attacker, CombatUnit target, List<WorldEvent> events)
     {
         var weapon = attacker.Weapon ?? throw new InvalidOperationException("No weapon to throw");
+        Exert(world, attacker);
         var (rangeM, accuracy) = Throwing(weapon);
         double chance = ThrownAccuracy(attacker.Position.DistanceTo(target.Position), rangeM, accuracy, StatsOf(world, target).IsSmall);
         var result = world.Rng("combat", attacker.Agent).NextDouble() < chance ? Strike(world, enc, attacker, target, events) : new ActionResult();
@@ -596,6 +621,7 @@ public static partial class Combat
     /// A quarter of a blow, no dodging or blocking it. Needs no weapon.
     static ActionResult ThrowStone(World world, Encounter enc, CombatUnit attacker, CombatUnit target, List<WorldEvent> events)
     {
+        Exert(world, attacker);
         var rng = world.Rng("combat", attacker.Agent);
         double chance = ThrownAccuracy(attacker.Position.DistanceTo(target.Position), StoneRangeM, StoneAccuracy, StatsOf(world, target).IsSmall);
         if (rng.NextDouble() >= chance) return new ActionResult();
@@ -681,12 +707,15 @@ public static partial class Combat
     /// Unaware targets take double: the ambush.
     public static double AwarenessDamageFactor(Awareness a) => a == Awareness.Unaware ? 2.0 : 1.0;
 
-    /// 60% at full speed. A dodge costs breath and gives a metre.
+    /// 60% at full speed. A dodge is a burst out of the sprint reserve and gives a metre; a fighter with
+    /// no breath left for one cannot dodge at all. Old: it cost ten minutes of sleep (EnergyMinutes).
     static bool ResolveDodge(World world, Encounter enc, CombatUnit defender, CombatUnit attacker)
     {
         var body = BodyOf(world, defender);
+        var running = RunningOf(world, defender);
+        if (!Body.CanBurst(body, running)) return false;
         if (world.Rng("combat", defender.Agent).NextDouble() >= DodgeChance(body)) return false;
-        body.EnergyMinutes = Math.Max(0, body.EnergyMinutes - DodgeEnergyMinutes);
+        Body.Burst(body, running);
         Move(world, enc, defender, defender.Position.Move(attacker.Position.DirectionTo(defender.Position), 1.0f));
         return true;
     }
@@ -704,6 +733,7 @@ public static partial class Combat
     /// Strength and weight against strength and weight; a guarded target is half as easy to move.
     static ActionResult Shove(World world, Encounter enc, CombatUnit attacker, CombatUnit target)
     {
+        Exert(world, attacker);
         var rng = world.Rng("combat", attacker.Agent);
         var (chance, pushM) = ShoveOdds(BodyOf(world, attacker), BodyOf(world, target));
         if (target.BlockSet) chance /= 2;

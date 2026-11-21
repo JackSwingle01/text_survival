@@ -62,6 +62,9 @@ public sealed class Region
 public sealed class BodyState
 {
     public required BodyKind Kind { get; init; }
+    /// A person's sex: a woman is built and runs as the species row's female build says.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Sex Sex { get; init; }
     public required List<Region> Regions { get; init; }
     /// Blood is 5000ml at 1.0; circulation collapses at 0.5.
     public double BloodPct { get; set; } = 1.0;
@@ -76,6 +79,11 @@ public sealed class BodyState
     public double HydrationMl { get; set; } = 3000;
     /// Warmth stored in clothing's thermal mass, 0-1 of what it can hold.
     public double ClothingHeatBufferPct { get; set; } = 0.3;
+    /// How much of the sprint reserve is spent, 0 full to 1 empty (Body.SprintReservePct): running
+    /// above endurance speed and every strike or dodge spend it, and it refills every minute lived.
+    /// The one stored value of the fight energy model; everything else is derived.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double SprintSpentLevel { get; set; }
     public List<BodyEffect> Effects { get; init; } = [];
     /// The last world minute this body's wounds have lived (0: none yet). The scheduler moves it on
     /// every minute; a headless fight's rounds move it ahead of the clock. A minute up to this one
@@ -106,22 +114,27 @@ public sealed class BodyState
     [JsonIgnore] public double FatPct => FatKg / WeightKg;
     [JsonIgnore] public double MusclePct => MuscleKg / WeightKg;
     [JsonIgnore] public double EnergyPct => EnergyMinutes / Body.MaxEnergyMinutes;
-    [JsonIgnore] public double CaloriesPct => CaloriesKcal / Body.MaxCaloriesKcal;
+    [JsonIgnore] public double CaloriesPct => CaloriesKcal / Body.CaloriesCapacityKcal(this);
     [JsonIgnore] public double HydrationPct => HydrationMl / Body.MaxHydrationMl;
 
-    public static BodyState Create(BodyKind kind, double weightKg, double fatPct, double musclePct) => new()
+    public static BodyState Create(BodyKind kind, double weightKg, double fatPct, double musclePct, Sex sex = Sex.Male) => new()
     {
         Kind = kind,
+        Sex = sex,
         Regions = kind == BodyKind.Human ? Body.HumanRegions() : Body.QuadrupedRegions(),
         FatKg = weightKg * fatPct,
         MuscleKg = weightKg * musclePct,
         StructuralKg = weightKg * (1 - fatPct - musclePct),
     };
 
-    /// A dressed adult in the old starting furs and boots: 1.33 clo, 3.05 kg.
-    public static BodyState BaselineHuman()
+    /// A dressed adult in the old starting furs and boots: 1.33 clo, 3.05 kg. A man unless told otherwise,
+    /// a woman at the species row's female build.
+    public static BodyState BaselineHuman(Sex sex = Sex.Male)
     {
-        var b = Create(BodyKind.Human, Body.BaselineWeightKg, Body.BaselineFatPct, Body.BaselineMusclePct);
+        var female = SpeciesTable.Of(Species.Human).Female;
+        var b = sex == Sex.Female && female != null
+            ? Create(BodyKind.Human, female.WeightKg, female.FatPct, female.MusclePct, sex)
+            : Create(BodyKind.Human, Body.BaselineWeightKg, Body.BaselineFatPct, Body.BaselineMusclePct);
         b.Worn.AddRange(Items.StartingClothes());
         return b;
     }
@@ -156,7 +169,9 @@ public sealed class DamageResult
 
 public static partial class Body
 {
-    public const double BaselineWeightKg = 75, BaselineFatPct = 0.15, BaselineMusclePct = 0.30;
+    /// The baseline adult: an Upper Palaeolithic man (documentation/species-stats-research.md §2.1), the
+    /// species row's build. Old (this rebuild, old game): 75 kg, 15% fat, 30% muscle.
+    public const double BaselineWeightKg = 68, BaselineFatPct = 0.12, BaselineMusclePct = 0.38;
     public const double BloodVolumeMl = 5000;
 
     // ---- body plans ----
@@ -419,22 +434,26 @@ public static partial class Body
         return (0.30 + muscle + fat) * (0.50 + 0.50 * c.Moving) * (0.80 + 0.20 * c.Manipulation) * Vitality(c);
     }
 
+    /// The build Speed's terms are measured from: the old game's baseline adult, which its numbers were
+    /// tuned around. Not the baseline man: moving the baseline does not re-tune the formula.
+    const double SpeedReferenceWeightKg = 75, SpeedReferenceFatPct = 0.15, SpeedReferenceMusclePct = 0.30;
+
     /// Movement rate. Strength modulates load: a strong person feels 30kg less than a weak one.
     public static double Speed(BodyState body, AbilityContext context = default)
     {
         var c = GetCapacities(body);
         double fatPct = body.FatPct;
 
-        double muscleModifier = (body.MusclePct - BaselineMusclePct) / 1.5 + body.MuscleKg / 20 / 100;
+        double muscleModifier = (body.MusclePct - SpeedReferenceMusclePct) / 1.5 + body.MuscleKg / 20 / 100;
 
         double fatPenalty = fatPct < 0.10 ? -0.01
-            : fatPct <= BaselineFatPct ? (fatPct - 0.10) * 0.20 - 0.01
-            : (fatPct - BaselineFatPct) * 1.5;
+            : fatPct <= SpeedReferenceFatPct ? (fatPct - 0.10) * 0.20 - 0.01
+            : (fatPct - SpeedReferenceFatPct) * 1.5;
         fatPenalty += body.FatKg / 10 / 100;
 
         double structuralRatio = body.StructuralKg / body.WeightKg / 0.45;
         double weightEffect = -(Math.Pow(structuralRatio, 0.7) - 1.0);
-        double sizeModifier = 1 - 0.03 * Math.Log2(body.WeightKg / BaselineWeightKg);
+        double sizeModifier = 1 - 0.03 * Math.Log2(body.WeightKg / SpeedReferenceWeightKg);
 
         double baseSpeed = c.Moving * (1 + muscleModifier - fatPenalty + weightEffect) * sizeModifier;
 
@@ -767,8 +786,9 @@ public static partial class Body
     public static void Eat(BodyState body, double kcal)
     {
         double stored = body.CaloriesKcal + kcal * (0.5 + 0.5 * GetCapacitiesWithoutEffects(body).Digestion);
-        body.CaloriesKcal = Math.Min(MaxCaloriesKcal, stored);
-        body.FatKg += Math.Max(0, stored - MaxCaloriesKcal) / KcalPerKgFat;
+        double capacity = CaloriesCapacityKcal(body);
+        body.CaloriesKcal = Math.Min(capacity, stored);
+        body.FatKg += Math.Max(0, stored - capacity) / KcalPerKgFat;
     }
 
     public static void Drink(BodyState body, double ml) =>

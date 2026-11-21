@@ -524,13 +524,13 @@ public class KillChainTests
         var land = Fauna.MindOf(World.New(123).Agents.Values.First(a => a.Species == Species.Mammoth)).Territory;
         var mammoths = Agents.Spawn(w, Species.Mammoth, land[0], 6, [.. land]);
         var wolves = Agents.Spawn(w, Species.Wolf, land[0], 6, [land[0]]);
-        Fauna.MindOf(w.Agent(wolves)).Hunger = 0.95;
+        TestKit.SetHunger(w.Agent(wolves), 0.95);
         Assert.False(Fauna.IsQuarry(Species.Mammoth));
         Assert.True(Fauna.IsQuarry(Species.Caribou) && Fauna.IsQuarry(Species.Bison));
         var events = new List<WorldEvent>();
         for (int i = 0; i < 3 * 1440 && w.Agents.ContainsKey(wolves); i++)
         {
-            Fauna.MindOf(w.Agent(wolves)).Hunger = 0.95; // starving the whole time, on the mammoths' land
+            TestKit.SetHunger(w.Agent(wolves), 0.95); // starving the whole time, on the mammoths' land
             events.AddRange(Sim.Advance(w, 1));
         }
         Assert.DoesNotContain(events.OfType<FightEnded>(), f => f.Agent == mammoths);
@@ -621,7 +621,7 @@ public class KillChainTests
         Assert.Equal(tile, w.Agent(flock).Tile);
         Assert.True(Tags.Of(w, new ThingRef(ThingKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon), "circling flesh: a beacon");
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "carcass" && f.Text.Contains("ravens circling"));
-        Fauna.MindOf(w.Agent(flock)).Hunger = 1;
+        TestKit.SetHunger(w.Agent(flock), 1);
         Sim.Advance(w, 60);
         Assert.True(Carcasses.MeatKg(c) < meat, "the flock ate nothing");
     }
@@ -652,7 +652,7 @@ public class KillChainTests
         var tile = Map.Step(camp, Direction.West);
         Items.Add(Items.StashAt(w, tile, new Cause(P, "stashed by the player")), Resource.RawMeat, 5);
         var flock = Agents.Spawn(w, Species.Raven, tile, 4, [tile]);
-        Fauna.MindOf(w.Agent(flock)).Hunger = 0.2; // not hungry enough to forage: only the stash tempts it
+        TestKit.SetHunger(w.Agent(flock), 0.2); // not hungry enough to forage: only the stash tempts it
         Assert.Null(Fauna.Refusal(w, new Raid(flock)));
         w.Agent(P).Tile = tile;
         Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(flock)));

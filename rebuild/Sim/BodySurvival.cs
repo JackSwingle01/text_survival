@@ -63,7 +63,14 @@ public static partial class Body
 {
     public const double MaxEnergyMinutes = 960;
     public const double MaxHydrationMl = 4000;
+    /// The baseline man's calorie store; every body's scales from it with mass (CaloriesCapacityKcal).
     public const double MaxCaloriesKcal = 2000;
+
+    /// What the calorie store holds before fat is touched: gut contents and glycogen, about a day of rest.
+    /// It scales with mass as metabolism does (Kleiber's M^0.75), from the baseline man's 2,000 kcal, so a
+    /// hare's and a mammoth's both last about a day. Old (this rebuild, old game): 2,000 kcal for every
+    /// body, which a mammoth emptied in under an hour (species round, decided 2026-11-21).
+    public static double CaloriesCapacityKcal(BodyState body) => MaxCaloriesKcal * Math.Pow(body.WeightKg / BaselineWeightKg, 0.75);
 
     /// Urine, breath and insensible skin loss: everything but sweat, which is modelled on its own.
     /// (4000 is a real adult's total turnover and already includes sweat; using it double-counted.)
@@ -148,13 +155,21 @@ public static partial class Body
         return neutralSkinF - sensibleLossW / 1.8 * TotalThermalResistance(body, ctx) * 9.0 / 5.0;
     }
 
-    /// Katch-McArdle on lean body mass (everything not fat), in kcal/day. Damaged organs run less
-    /// efficiently. Metabolism is also the body's only heat source.
+    /// Basal metabolism in kcal/day: a person's by Katch-McArdle on lean mass (everything not fat), an
+    /// animal's by Kleiber's 70 M^0.75 (species round, decided 2026-11-21: Katch-McArdle gave a mammoth
+    /// 84,600 kcal a day for Kleiber's 47,700). Damaged organs run less efficiently. Metabolism is also
+    /// the body's only heat source.
     public static double MetabolismKcalPerDay(BodyState body, double activityFactor)
     {
-        double leanKg = Math.Max(0, body.WeightKg - body.FatKg);
-        double bmr = 370 + 21.6 * leanKg;
-        bmr *= 0.7 + 0.3 * body.Regions.SelectMany(r => r.Organs).Average(o => o.Condition);
+        double bmr = body.Kind == BodyKind.Human
+            ? 370 + 21.6 * Math.Max(0, body.WeightKg - body.FatKg)
+            : 70 * Math.Pow(body.WeightKg, 0.75);
+        double organs = 0;
+        int count = 0;
+        foreach (var r in body.Regions)
+            foreach (var o in r.Organs) { organs += o.Condition; count++; }
+        if (count == 0) throw new InvalidOperationException("A body with no organs has no metabolism");
+        bmr *= 0.7 + 0.3 * organs / count;
         return bmr * activityFactor;
     }
 
@@ -218,7 +233,7 @@ public static partial class Body
         ProcessRegeneration(body, ctx, calories, hydration, minutes, d);
 
         double energy = body.EnergyMinutes + d.EnergyDeltaMinutes;
-        AddBelowThreshold(d, EffectKind.Hungry, calories / MaxCaloriesKcal);
+        AddBelowThreshold(d, EffectKind.Hungry, calories / CaloriesCapacityKcal(body));
         AddBelowThreshold(d, EffectKind.Thirsty, hydration / MaxHydrationMl);
         AddBelowThreshold(d, EffectKind.Tired, energy / MaxEnergyMinutes);
         return d;
@@ -397,16 +412,19 @@ public static partial class Body
     static void ProcessStarvation(BodyState body, double calories, SurvivalDelta d)
     {
         if (calories >= 0) return;
-        double deficit = -calories;
-        d.CaloriesDeltaKcal += deficit;
+        d.CaloriesDeltaKcal += -calories;
+        (d.FatBurnedKg, d.MuscleBurnedKg, _) = ReserveBurn(body, -calories);
+    }
 
-        double fatKg = Math.Max(0, body.FatKg - MinFatPct * body.WeightKg);
-        if (fatKg * KcalPerKgFat >= deficit) { d.FatBurnedKg = deficit / KcalPerKgFat; return; }
-        d.FatBurnedKg = fatKg;
-        deficit -= fatKg * KcalPerKgFat;
-
-        double muscleKg = Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg);
-        d.MuscleBurnedKg = Math.Min(muscleKg, deficit / KcalPerKgMuscle);
+    /// What covering a deficit takes from the body's reserves, in the one order they burn: fat down to
+    /// 3% of body weight, then muscle down to 15%. UnpaidKcal is what both floors leave short: for a
+    /// person, the heart answers for it (ProcessLethal reads the spent reserves).
+    internal static (double FatKg, double MuscleKg, double UnpaidKcal) ReserveBurn(BodyState body, double deficitKcal)
+    {
+        double fatKg = Math.Min(Math.Max(0, body.FatKg - MinFatPct * body.WeightKg), deficitKcal / KcalPerKgFat);
+        double left = deficitKcal - fatKg * KcalPerKgFat;
+        double muscleKg = Math.Min(Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg), left / KcalPerKgMuscle);
+        return (fatKg, muscleKg, Math.Max(0, left - muscleKg * KcalPerKgMuscle));
     }
 
     /// Condition lost an hour by the organ each process fails (they are internal harm, so these are the
@@ -468,7 +486,7 @@ public static partial class Body
     /// blood (bug, fixed; A9).
     static void ProcessRegeneration(BodyState body, SurvivalContext ctx, double calories, double hydration, int minutes, SurvivalDelta d)
     {
-        bool fed = calories > MaxCaloriesKcal * RegenMinCaloriesPct;
+        bool fed = calories > CaloriesCapacityKcal(body) * RegenMinCaloriesPct;
         bool watered = hydration > MaxHydrationMl * RegenMinHydrationPct;
         bool warm = body.CoreTempF >= HypothermiaThresholdF;
         bool rested = ctx.IsSleeping || body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
@@ -476,7 +494,7 @@ public static partial class Body
         bool bloodFull = body.BloodPct >= 1.0;
         if (!fed || !watered || !warm || !rested || (healed && bloodFull)) return;
 
-        double nutritionPct = Math.Min(1.0, calories / MaxCaloriesKcal);
+        double nutritionPct = Math.Min(1.0, calories / CaloriesCapacityKcal(body));
         double amount = BaseHealingPerHour / 60.0 * minutes * nutritionPct * GetCapacitiesWithoutEffects(body).Digestion;
         if (!bloodFull) d.BloodHealedPct = amount * 0.5;
         if (!healed) d.HealAmount = amount * (ctx.IsSleeping ? SleepHealingFactor(body, ctx) : 1);
@@ -519,7 +537,11 @@ public static partial class Body
         // Fade first, then this minute's levels: a level set this minute reads as the step computed it.
         // Old (this rebuild): levels were set and then faded a minute, so Shivering was absent until
         // 96.83 °F and Sweating until 99.13 °F (bug, fixed; body review A6).
-        if (!woundsLived) Effects.Decay(body, 1);
+        if (!woundsLived)
+        {
+            Effects.Decay(body, 1);
+            Recover(body, 60);
+        }
         foreach (var (kind, severity) in d.Effects)
         {
             if (kind is EffectKind.Wet or EffectKind.Bloody) Effects.Set(body, kind, severity);
@@ -540,10 +562,11 @@ public static partial class Body
     static DamageInfo Bleed(BodyState body, double ml) => new(ml, DamageType.Bleed, BodyTarget.Blood, By: body.WoundedBy ?? BloodLoss);
 
     /// One minute for a body outside the human survival model (an animal member, plan decision 2):
-    /// effects fade and wounds bleed, as Update does it, and nothing else.
+    /// effects fade, wounds bleed and the sprint reserve refills, as Update does it, and nothing else.
     public static void TickWounds(BodyState body, Rng rng)
     {
         Effects.Decay(body, 1);
+        Recover(body, 60);
         double bleedMl = Effects.BleedMlPerHour(body) / 60;
         if (bleedMl > 0) Damage(body, Bleed(body, bleedMl), rng);
     }

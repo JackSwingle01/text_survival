@@ -83,7 +83,7 @@ public static partial class Fauna
             var start = valid[rng.NextInt(valid.Count)];
             var land = Territory(m, start, available, 96 + rng.NextInt(65), rng);
             if (land.Count < 4) continue;
-            Herd(Species.SaberTooth, start, land, 1);
+            Herd(Species.Homotherium, start, land, 1);
             available.RemoveAll(land.ToHashSet().Contains);
         }
         // Hyenas: 1-2 packs of 3-6 on 64-112 tiles, starting just outside a wolf pack's land.

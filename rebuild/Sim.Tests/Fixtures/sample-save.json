@@ -1,5 +1,5 @@
 {
-  "Version": 2,
+  "Version": 3,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -12,22 +12,22 @@
               "Material": 0,
               "ThicknessM": 0.35,
               "CompactionPct": 0,
-              "WaterSaturationPct": 0.4479691892215511,
-              "FrozenFractionPct": 0.029948099545201688
+              "WaterSaturationPct": 0.44849538257205207,
+              "FrozenFractionPct": 0.028438072295413126
             },
             {
               "Material": 1,
-              "ThicknessM": 0.02590720405735768,
-              "CompactionPct": 0.03876556117837314,
+              "ThicknessM": 0.02465735366590601,
+              "CompactionPct": 0.03677807951611821,
               "WaterSaturationPct": 0,
               "FrozenFractionPct": 0
             }
           ],
-          "WaterAddedM": 0.204367694774504,
-          "WaterDrainedM": 0.11550514361529604,
-          "WaterEvaporatedM": 0.00616375644788165,
+          "WaterAddedM": 0.20419664191594453,
+          "WaterDrainedM": 0.11542226816259214,
+          "WaterEvaporatedM": 0.006161509692953861,
           "WaterOverflowedM": 0.00910195829115138,
-          "LastUpdatedMinute": 120
+          "LastUpdatedMinute": 105
         }
       },
       "6,42": {
@@ -42,17 +42,17 @@
             },
             {
               "Material": 1,
-              "ThicknessM": 0.04672418574141968,
-              "CompactionPct": 0.03880410724537094,
+              "ThicknessM": 0.044471207111045415,
+              "CompactionPct": 0.03681470779631854,
               "WaterSaturationPct": 0,
               "FrozenFractionPct": 0
             }
           ],
-          "WaterAddedM": 0.2695968505941065,
+          "WaterAddedM": 0.26928895544869946,
           "WaterDrainedM": 0.10513107335515694,
-          "WaterEvaporatedM": 0.009322653625365966,
+          "WaterEvaporatedM": 0.009319147017962087,
           "WaterOverflowedM": 0.14844441990301938,
-          "LastUpdatedMinute": 120
+          "LastUpdatedMinute": 105
         }
       },
       "7,40": {
@@ -62,34 +62,34 @@
               "Material": 0,
               "ThicknessM": 0.35,
               "CompactionPct": 0,
-              "WaterSaturationPct": 0.4479691892215511,
-              "FrozenFractionPct": 0.029948099545201688
+              "WaterSaturationPct": 0.44849538257205207,
+              "FrozenFractionPct": 0.028438072295413126
             },
             {
               "Material": 1,
-              "ThicknessM": 0.02590720405735768,
-              "CompactionPct": 0.03876556117837314,
+              "ThicknessM": 0.02465735366590601,
+              "CompactionPct": 0.03677807951611821,
               "WaterSaturationPct": 0,
               "FrozenFractionPct": 0
             }
           ],
-          "WaterAddedM": 0.204367694774504,
-          "WaterDrainedM": 0.11550514361529604,
-          "WaterEvaporatedM": 0.00616375644788165,
+          "WaterAddedM": 0.20419664191594453,
+          "WaterDrainedM": 0.11542226816259214,
+          "WaterEvaporatedM": 0.006161509692953861,
           "WaterOverflowedM": 0.00910195829115138,
-          "LastUpdatedMinute": 120
+          "LastUpdatedMinute": 105
         }
       },
       "7,41": {
         "Tracks": {
           "Human": {
-            "Minute": 125,
+            "Minute": 123,
             "Heading": 2,
-            "Traffic": 3.863781213338087,
+            "Traffic": 3.8670965839756692,
             "HeaviestIndividual": 1,
             "DirectionX": 0,
-            "DirectionY": 0.11265807400798233,
-            "NorthSouthTraffic": 3.863781213338087,
+            "DirectionY": 0.11093372751074759,
+            "NorthSouthTraffic": 3.8670965839756692,
             "EastWestTraffic": 0
           }
         },
@@ -126,7 +126,7 @@
         },
         "Stash": {
           "Kg": {
-            "Oak": 24.588877354992643
+            "Oak": 24.604203770142746
           },
           "Gear": []
         },
@@ -139,14 +139,14 @@
       "7,42": {
         "Tracks": {
           "Human": {
-            "Minute": 125,
+            "Minute": 123,
             "Heading": 2,
-            "Traffic": 5.77430136871265,
+            "Traffic": 5.779912140321684,
             "HeaviestIndividual": 1,
-            "DirectionX": -0.04422939207947575,
-            "DirectionY": 0.09559335153208426,
-            "NorthSouthTraffic": 3.8844058127849914,
-            "EastWestTraffic": 1.8898955559276576
+            "DirectionX": -0.04429643041840325,
+            "DirectionY": 0.09422764821254692,
+            "NorthSouthTraffic": 3.8871520761369793,
+            "EastWestTraffic": 1.892760064184705
           }
         },
         "Ground": {
@@ -201,22 +201,22 @@
               "Material": 0,
               "ThicknessM": 0.35,
               "CompactionPct": 0,
-              "WaterSaturationPct": 0.4479691892215511,
-              "FrozenFractionPct": 0.029948099545201688
+              "WaterSaturationPct": 0.44849538257205207,
+              "FrozenFractionPct": 0.028438072295413126
             },
             {
               "Material": 1,
-              "ThicknessM": 0.02590720405735768,
-              "CompactionPct": 0.03876556117837314,
+              "ThicknessM": 0.02465735366590601,
+              "CompactionPct": 0.03677807951611821,
               "WaterSaturationPct": 0,
               "FrozenFractionPct": 0
             }
           ],
-          "WaterAddedM": 0.204367694774504,
-          "WaterDrainedM": 0.11550514361529604,
-          "WaterEvaporatedM": 0.00616375644788165,
+          "WaterAddedM": 0.20419664191594453,
+          "WaterDrainedM": 0.11542226816259214,
+          "WaterEvaporatedM": 0.006161509692953861,
           "WaterOverflowedM": 0.00910195829115138,
-          "LastUpdatedMinute": 120
+          "LastUpdatedMinute": 105
         }
       },
       "8,41": {
@@ -226,22 +226,22 @@
               "Material": 0,
               "ThicknessM": 0.35,
               "CompactionPct": 0,
-              "WaterSaturationPct": 0.4479691892215511,
-              "FrozenFractionPct": 0.029948099545201688
+              "WaterSaturationPct": 0.44849538257205207,
+              "FrozenFractionPct": 0.028438072295413126
             },
             {
               "Material": 1,
-              "ThicknessM": 0.02590720405735768,
-              "CompactionPct": 0.03876556117837314,
+              "ThicknessM": 0.02465735366590601,
+              "CompactionPct": 0.03677807951611821,
               "WaterSaturationPct": 0,
               "FrozenFractionPct": 0
             }
           ],
-          "WaterAddedM": 0.204367694774504,
-          "WaterDrainedM": 0.11550514361529604,
-          "WaterEvaporatedM": 0.00616375644788165,
+          "WaterAddedM": 0.20419664191594453,
+          "WaterDrainedM": 0.11542226816259214,
+          "WaterEvaporatedM": 0.006161509692953861,
           "WaterOverflowedM": 0.00910195829115138,
-          "LastUpdatedMinute": 120
+          "LastUpdatedMinute": 105
         }
       },
       "8,42": {
@@ -263,22 +263,22 @@
               "Material": 0,
               "ThicknessM": 0.35,
               "CompactionPct": 0,
-              "WaterSaturationPct": 0.4479691892215511,
-              "FrozenFractionPct": 0.029948099545201688
+              "WaterSaturationPct": 0.44849538257205207,
+              "FrozenFractionPct": 0.028438072295413126
             },
             {
               "Material": 1,
-              "ThicknessM": 0.02590720405735768,
-              "CompactionPct": 0.03876556117837314,
+              "ThicknessM": 0.02465735366590601,
+              "CompactionPct": 0.03677807951611821,
               "WaterSaturationPct": 0,
               "FrozenFractionPct": 0
             }
           ],
-          "WaterAddedM": 0.204367694774504,
-          "WaterDrainedM": 0.11550514361529604,
-          "WaterEvaporatedM": 0.00616375644788165,
+          "WaterAddedM": 0.20419664191594453,
+          "WaterDrainedM": 0.11542226816259214,
+          "WaterEvaporatedM": 0.006161509692953861,
           "WaterOverflowedM": 0.00910195829115138,
-          "LastUpdatedMinute": 120
+          "LastUpdatedMinute": 105
         }
       }
     },
@@ -628,18 +628,18 @@
               }
             ],
             "BloodPct": 1,
-            "StructuralKg": 41.25,
-            "FatKg": 11.25,
-            "MuscleKg": 22.5,
-            "CoreTempF": 99.01320633030294,
-            "CaloriesKcal": 1267.0666666666611,
+            "StructuralKg": 34,
+            "FatKg": 8.16,
+            "MuscleKg": 25.84,
+            "CoreTempF": 99.01911921765473,
+            "CaloriesKcal": 1278.327466666679,
             "EnergyMinutes": 730,
-            "HydrationMl": 2703.0576305260693,
+            "HydrationMl": 2702.896000157296,
             "ClothingHeatBufferPct": 1,
             "Effects": [
               {
                 "Kind": 8,
-                "Severity": 0.0016871746745788579,
+                "Severity": 0.00169578678244192,
                 "RequiresTreatment": false
               }
             ],
@@ -792,7 +792,7 @@
                 "VisitedMinute": 170,
                 "ForageDensity": 0.38,
                 "Fire": 4,
-                "FireHours": 3.9,
+                "FireHours": 3.8,
                 "Stash": {
                   "Kindling": 1.9,
                   "Pine": 2
@@ -1230,13 +1230,13 @@
               }
             ],
             "BloodPct": 1,
-            "StructuralKg": 41.25,
-            "FatKg": 11.25,
-            "MuscleKg": 22.5,
-            "CoreTempF": 98.99364042719615,
-            "CaloriesKcal": 1183.3562500000066,
+            "StructuralKg": 34,
+            "FatKg": 8.16,
+            "MuscleKg": 25.84,
+            "CoreTempF": 99.01087930872248,
+            "CaloriesKcal": 1199.8184444444519,
             "EnergyMinutes": 730,
-            "HydrationMl": 2703.734431270615,
+            "HydrationMl": 2703.6355094039654,
             "ClothingHeatBufferPct": 1,
             "Effects": [],
             "WoundsLivedThroughMinute": 170,
@@ -1273,15 +1273,15 @@
           "ForageGoal": null,
           "WoodGoal": null,
           "Opinions": {},
-          "TargetFatKg": 11.25,
-          "TargetFatMinute": 157,
+          "TargetFatKg": 8.16,
+          "TargetFatMinute": 155,
           "ThreatTile": null,
           "ThreatMinute": 0,
           "Pack": {
             "Kg": {
               "Tinder": 0.30817460870774116,
               "Kindling": 1,
-              "Oak": 7.968057839702847
+              "Oak": 7.977760304016053
             },
             "Gear": [
               {
@@ -1307,72 +1307,72 @@
             "SearchHours": {},
             "Places": {
               "3,42": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "4,41": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "4,42": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "4,43": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "5,39": {
-                "SeenMinute": 120,
+                "SeenMinute": 119,
                 "Trees": true
               },
               "5,40": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "5,41": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "5,43": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "5,44": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "6,39": {
-                "SeenMinute": 120,
+                "SeenMinute": 119,
                 "Trees": true
               },
               "6,40": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "6,41": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "6,43": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "6,44": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "7,39": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "7,40": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "7,41": {
-                "SeenMinute": 157,
-                "VisitedMinute": 120,
+                "SeenMinute": 155,
+                "VisitedMinute": 119,
                 "Trees": true,
                 "ForageDensity": 1.013609329260508,
                 "Stash": {
@@ -1380,8 +1380,8 @@
                 }
               },
               "7,42": {
-                "SeenMinute": 157,
-                "VisitedMinute": 157,
+                "SeenMinute": 155,
+                "VisitedMinute": 155,
                 "ForageDensity": 0.38,
                 "Fire": 4,
                 "FireHours": 4.1,
@@ -1392,63 +1392,63 @@
                 "Shelter": "Overhang"
               },
               "7,43": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "7,44": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "7,45": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "8,39": {
-                "SeenMinute": 120,
+                "SeenMinute": 119,
                 "Trees": true
               },
               "8,40": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "8,41": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "8,42": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "8,43": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "8,44": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "9,39": {
-                "SeenMinute": 120,
+                "SeenMinute": 119,
                 "Trees": true
               },
               "9,40": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "9,41": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "9,42": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "9,43": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               },
               "9,44": {
-                "SeenMinute": 157,
+                "SeenMinute": 155,
                 "Trees": true
               }
             },
@@ -1457,7 +1457,7 @@
                 "Tile": "7,42",
                 "Species": 0,
                 "Count": 1,
-                "Minute": 157
+                "Minute": 155
               }
             },
             "Explored": "224x82:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4AMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\u002BAcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
@@ -1471,7 +1471,7 @@
             "Who": 1
           },
           "Work": null,
-          "MinutesLeft": 16,
+          "MinutesLeft": 14,
           "Acted": null
         }
       },
@@ -1769,11 +1769,11 @@
               }
             ],
             "BloodPct": 1,
-            "StructuralKg": 8.005636236088138,
-            "FatKg": 8.005636236088135,
-            "MuscleKg": 24.016908708264406,
+            "StructuralKg": 18.913315607758218,
+            "FatKg": 4.503170382799576,
+            "MuscleKg": 21.61521783743796,
             "CoreTempF": 98.6,
-            "CaloriesKcal": 1500,
+            "CaloriesKcal": 981.0428540345893,
             "EnergyMinutes": 900,
             "HydrationMl": 3000,
             "ClothingHeatBufferPct": 0.3,
@@ -2070,11 +2070,11 @@
               }
             ],
             "BloodPct": 1,
-            "StructuralKg": 7.914292233592385,
-            "FatKg": 7.914292233592383,
-            "MuscleKg": 23.74287670077715,
+            "StructuralKg": 18.09177644117437,
+            "FatKg": 4.307565819327231,
+            "MuscleKg": 20.67631593277071,
             "CoreTempF": 98.6,
-            "CaloriesKcal": 1500,
+            "CaloriesKcal": 1014.11733358722,
             "EnergyMinutes": 900,
             "HydrationMl": 3000,
             "ClothingHeatBufferPct": 0.3,
@@ -2091,7 +2091,6 @@
           "TerritoryIndex": 0,
           "State": 0,
           "StateSinceMinute": 1,
-          "Hunger": 0.21898741383553394,
           "Fear": 0,
           "LastFightMinute": -1000000,
           "FleeFrom": null,
@@ -2125,17 +2124,17 @@
         "Pit": 0,
         "UnburnedKg": {},
         "BurningKg": {
-          "BirchBark": 0.001335085402040917,
-          "Kindling": 0.114900227846526,
-          "Birch": 0.6253664190534335,
-          "Oak": 2.0927728914138797
+          "BirchBark": 0.0013663711873062455,
+          "Kindling": 0.11649336470484972,
+          "Birch": 0.6305261002241958,
+          "Oak": 2.06187990219673
         },
         "HasEmbers": false,
         "EmberDurationHours": 0,
         "EmberHoursRemaining": 0,
         "EmberStartTempF": 0,
-        "LastBurningTempF": 913.4415641843115,
-        "BurnedSinceLitKg": 2.6378953569394463,
+        "LastBurningTempF": 912.7393170714879,
+        "BurnedSinceLitKg": 2.636975362878927,
         "CharcoalKg": 0,
         "CarriedBy": null,
         "TorchMinutesLeft": 0,
@@ -2150,8 +2149,8 @@
     "Encounters": [],
     "Trails": {
       "7,41|7,42": {
-        "Wear": 3.9337147927377685,
-        "Minute": 125
+        "Wear": 3.934819546192139,
+        "Minute": 123
       },
       "7,42|8,42": {
         "Wear": 1.9712764101863662,
@@ -2196,9 +2195,9 @@
           "kind": "unstashed",
           "Who": 1,
           "Resource": 8,
-          "Kg": 3.73823875181105,
+          "Kg": 3.722912336660947,
           "Taken": true,
-          "Minute": 119,
+          "Minute": 118,
           "Tile": "7,41"
         }
       ],
@@ -2232,8 +2231,8 @@
           "Fire": 0,
           "By": 1,
           "Fuel": 8,
-          "Kg": 1.8485024290659113,
-          "Minute": 112,
+          "Kg": 1.8331760139158084,
+          "Minute": 111,
           "Tile": "7,42"
         },
         {
@@ -2241,7 +2240,7 @@
           "Who": 1,
           "Resource": 5,
           "Kg": 1.8897363227451383,
-          "Minute": 113,
+          "Minute": 112,
           "Tile": "7,42"
         },
         {
@@ -2249,8 +2248,8 @@
           "Fire": 0,
           "By": 1,
           "Fuel": 8,
-          "Kg": 0.5737675515894116,
-          "Minute": 156,
+          "Kg": 0.5640650872762052,
+          "Minute": 154,
           "Tile": "7,42"
         },
         {

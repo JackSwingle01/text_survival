@@ -402,7 +402,7 @@ public class TracksTests
         TileId forest = new(2, 33), rock = new(2, 34);
         var body = w.Agent(AgentId.Player).Body;
         int fresh = Traversal.CrossingMinutes(w, body, forest, rock, Pace.Quick, CalmCold);
-        Assert.Equal(7, fresh);
+        Assert.Equal(6, fresh); // the 68 kg man; the old 75 kg traveller took 7
         for (int i = 0; i < 40; i++)
         {
             var dir = w.Agent(AgentId.Player).Tile == forest ? Direction.South : Direction.North;

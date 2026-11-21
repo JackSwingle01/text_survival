@@ -255,7 +255,9 @@ public static class Sim
             Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, tending the fire
             Build or ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // old ActivityType.Crafting
             Travel => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
-            Fight => (2.0, 0.0, false, true), // old ActivityType.Fighting, which was stationary
+            // Basal only: a fight's strikes, dodges, steps and sprints pay their own work as they happen (Body.Burst,
+            // Body.Cover, Body.Sprint). Old (old ActivityType.Fighting): a flat 2.0, which those would double-charge.
+            Fight => (1.0, 0.0, false, true),
             Gather when gathering is TreePool => (1.8, 0.0, false, false), // chopping
             Gather when gathering is StockPool { Kind: StockKind.Detail } => (1.0, 2.0, false, true), // old ExamineStrategy: Resting
             Gather or Butcher => (1.5, 0.0, false, false), // foraging, harvesting, salvaging, butchering

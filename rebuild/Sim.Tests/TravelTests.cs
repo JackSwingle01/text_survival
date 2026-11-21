@@ -42,7 +42,7 @@ public class TravelTests
     {
         var s = sky switch { "blizzard" => Blizzard, "lightsnow" => LightSnow, _ => Calm };
         var world = At(ax, ay, s);
-        var body = world.Agent(P).Body;
+        var body = TestKit.OldBaselineHuman(); // the old game's traveller
         TileId a = new(ax, ay), b = new(bx, by);
         Assert.Equal(quick, Traversal.CrossingMinutes(world, body, a, b, Pace.Quick, s));
         Assert.Equal(careful, Traversal.CrossingMinutes(world, body, a, b, Pace.Careful, s));
@@ -93,7 +93,8 @@ public class TravelTests
         Assert.Equal(4, world.Agent(P).Crossing!.ElapsedMinutes);
 
         r = Sim.Step(world, new Travel(P, Direction.South, Pace.Careful), 600);
-        Assert.Equal(("arrived", 6), (r.InterruptedReason, r.MinutesElapsed)); // 10 in all
+        // 8 in all for the 68 kg man (species round); 10 for the old game's 75 kg traveller.
+        Assert.Equal(("arrived", 4), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Equal(new TileId(2, 34), world.Agent(P).Tile);
     }
 
@@ -105,7 +106,7 @@ public class TravelTests
         Sim.Step(world, new Wait(P), 1);
         Assert.Null(world.Agent(P).Crossing);
         Assert.Equal(new TileId(2, 33), world.Agent(P).Tile);
-        Assert.Equal(("arrived", 10), Done(Sim.Step(world, new Travel(P, Direction.South, Pace.Careful), 600)));
+        Assert.Equal(("arrived", 8), Done(Sim.Step(world, new Travel(P, Direction.South, Pace.Careful), 600))); // old 75 kg traveller: 10
 
         static (string?, int) Done(StepResult r) => (r.InterruptedReason, r.MinutesElapsed);
     }
@@ -151,7 +152,7 @@ public class TravelTests
             {
                 var agent = world.Agent(P);
                 agent.Tile = from;
-                agent.Members[0] = BodyState.BaselineHuman();
+                agent.Members[0] = TestKit.OldBaselineHuman();
                 agent.Crossing = new Crossing { From = from, Dir = way, Pace = Pace.Quick, TotalMinutes = 1, OriginRiskPct = originRisk, DestRiskPct = 1 - originRisk };
                 var events = new List<WorldEvent>();
                 Traversal.Advance(world, agent, events);

@@ -18,7 +18,7 @@ public class HerdGoldenTests
         var tile = new TileId(5, 5);
         var pack = w.Agent(Agents.Spawn(w, pred, tile, packSize));
         var prey = w.Agent(Agents.Spawn(w, preySpecies, tile, herdSize));
-        ((HerdMind)pack.Mind).Hunger = hunger;
+        TestKit.SetHunger(pack, hunger);
         w.Minute = 1000;
         ((HerdMind)prey.Mind).State = state;
         ((HerdMind)prey.Mind).StateSinceMinute = w.Minute - stateMinutes;

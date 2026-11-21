@@ -60,7 +60,7 @@ public class ConservationCaloriesTests
                     Assert.True(got >= op.Kcal * 0.5 - 1e-6 && got <= op.Kcal + 1e-6, $"op {i}: ate {op.Kcal:R} kcal, absorbed {got:R}");
                     // A whole gut, effects and all (effects only lower a capacity): starvation and blows wear it too.
                     if (wholeGut) Assert.True(Math.Abs(got - op.Kcal) <= 1e-6, $"op {i}: a whole gut absorbed {got:R} of {op.Kcal:R} kcal");
-                    Assert.True(b.CaloriesKcal <= Body.MaxCaloriesKcal + 1e-9, $"op {i}: store {b.CaloriesKcal:R} over its cap");
+                    Assert.True(b.CaloriesKcal <= Body.CaloriesCapacityKcal(b) + 1e-9, $"op {i}: store {b.CaloriesKcal:R} over its cap");
                     absorbed += got;
                     break;
                 }

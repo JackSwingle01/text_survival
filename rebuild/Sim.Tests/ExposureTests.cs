@@ -172,6 +172,7 @@ public class ExposureTests
         var rock = Ordinary(w, Terrain.Rock);
         Assert.Equal(1.0, Map.WindFactor(Map.Of(w), rock));
         w.Agent(P).Tile = rock;
+        w.Agent(P).Members[0] = TestKit.OldBaselineHuman(); // the old wiring's body
         if (fire)
         {
             var f = new FireState { Tile = rock, LastUpdatedMinute = 0, Pit = PitType.Open };

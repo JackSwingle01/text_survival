@@ -395,7 +395,7 @@ public class CombatTests
     [InlineData(Species.Bear, 5)]
     [InlineData(Species.Hyena, 6)]
     [InlineData(Species.Wolf, 6)]
-    [InlineData(Species.SaberTooth, 7)]
+    [InlineData(Species.Homotherium, 7)]
     public void SpeciesMovementAndDiagonalPursuitStayWithinBudget(Species species, int expected)
     {
         var (w, t) = Field();
@@ -540,10 +540,15 @@ public class CombatTests
         var (w, t) = Field();
         var e = PlayerVs(w, t, Species.Wolf, 20);
         Me(e).Position = new Cell(2, 25);
-        double energy = w.Agent(AgentId.Player).Body.EnergyMinutes;
+        var body = w.Agent(AgentId.Player).Body;
+        double energy = body.EnergyMinutes, kcal = body.CaloriesKcal;
         Combat.Apply(w, e, Me(e), CombatAction.Flee, []);
         Assert.False(Me(e).InField);
-        Assert.Equal(energy - 20, w.Agent(AgentId.Player).Body.EnergyMinutes, 9);
+        // Running for it empties the sprint reserve, which costs a little sleep and the run's calories.
+        // Old: a flat twenty minutes of sleep, and nothing else.
+        Assert.Equal(0, Body.SprintReservePct(body), 9);
+        Assert.Equal(energy - Body.SpentReserveEnergyMinutes, body.EnergyMinutes, 9);
+        Assert.True(body.CaloriesKcal < kcal - 3, $"the run cost {kcal - body.CaloriesKcal:0.0} kcal");
         Assert.Equal(CombatResult.Fled, Combat.Result(w, e));
     }
 

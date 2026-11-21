@@ -44,7 +44,7 @@ public static partial class Fauna
         if (mind.State != HerdState.Patrolling) Become(world, mind, HerdState.Patrolling);
         if (Roll(world, herd, CarrionDriftChance) && PatrolStep(world, herd, mind) is { } drift) return drift;
         // Nothing dead or killing in range: it forages where it is (berries, fungi, a fox's mice).
-        return mind.Hunger > ForageWhenHungrier && GrazeRefusal(world, herd) == null ? (new Graze(herd.Id), 1) : Wait(herd);
+        return Hunger(herd) > ForageWhenHungrier && GrazeRefusal(world, herd) == null ? (new Graze(herd.Id), 1) : Wait(herd);
     }
 
     /// Held where it is by what it follows: it perches (Resting) and waits, looking again on its round.
@@ -102,11 +102,16 @@ public static partial class Fauna
     static void RaidMinute(World world, Agent herd)
     {
         var mind = MindOf(herd);
-        double want = RaidKgPerMember * herd.Members.Count, taken = 0;
+        double want = RaidKgPerMember * herd.Members.Count, taken = 0, kcal = 0;
         foreach (var r in RaidFood)
-            if (want > taken) taken += Items.TakeFromStash(world, herd.Tile, r, want - taken);
+            if (want > taken)
+            {
+                double kg = Items.TakeFromStash(world, herd.Tile, r, want - taken);
+                taken += kg;
+                kcal += kg * Items.Resources[r].KcalPerKg;
+            }
         if (taken <= 0) return;
-        mind.Hunger = Math.Max(0, mind.Hunger - taken / Math.Max(1, MassKg(herd) * 0.03));
+        Nourish(herd, kcal); // what it carries off beyond its room is spoiled and scattered
         mind.LastFedMinute = world.Minute;
     }
 }

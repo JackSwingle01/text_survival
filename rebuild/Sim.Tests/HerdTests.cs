@@ -28,7 +28,7 @@ public class HerdTests(ITestOutputHelper output)
         var prey = Agents.Spawn(w, Species.Caribou, tile, caribou);
         var pack = Agents.Spawn(w, Species.Wolf, tile, wolves);
         var mind = Mind(w, pack);
-        mind.Hunger = 0.9;
+        TestKit.SetHunger(w.Agent(pack), 0.9);
         mind.State = HerdState.Patrolling;
         return (pack, prey, tile);
     }
@@ -72,9 +72,9 @@ public class HerdTests(ITestOutputHelper output)
             var eaten = w.Tiles[tile].Carcasses!.Where(c => c.Animal == "Caribou")
                 .MinBy(c => c.Remaining[Resource.RawMeat] / (c.BodyWeightKg * 0.60 * 0.65))!;
             double meatLeft = eaten.Remaining[Resource.RawMeat], whole = eaten.BodyWeightKg;
-            output.WriteLine($"seed {seed}: kill at minute {kill.Minute}, meat left {meatLeft:F1} kg of {whole:F0} kg, pack {Mind(w, wolves).State} hunger {Mind(w, wolves).Hunger:F2}");
+            output.WriteLine($"seed {seed}: kill at minute {kill.Minute}, meat left {meatLeft:F1} kg of {whole:F0} kg, pack {Mind(w, wolves).State} hunger {Fauna.Hunger(w.Agent(wolves)):F2}");
             Assert.True(meatLeft < whole * 0.60 * 0.65 - 0.5, "the pack never ate");
-            Assert.True(Mind(w, wolves).Hunger < 0.9, "feeding did not ease the pack's hunger");
+            Assert.True(Fauna.Hunger(w.Agent(wolves)) < 0.9, "feeding did not ease the pack's hunger");
         }
         Assert.True(kills >= 3, $"only {kills} of 6 packs made a kill in two hours beside the prey");
     }
@@ -302,7 +302,7 @@ public class HerdTests(ITestOutputHelper output)
         var tile = Quiet(w, Terrain.Forest);
         var bison = Agents.Spawn(w, Species.Bison, tile, 6);
         var deer = Agents.Spawn(w, Species.Caribou, tile, 6);
-        foreach (var id in new[] { bison, deer }) { Mind(w, id).Hunger = 1.0; Mind(w, id).State = HerdState.Grazing; }
+        foreach (var id in new[] { bison, deer }) { TestKit.SetHunger(w.Agent(id), 1.0); Mind(w, id).State = HerdState.Grazing; }
         Sim.Advance(w, 30);
         var pool = new PoolId(tile, 0);
         Assert.True(Pools.GrazedLevel(w, pool, Resource.Tinder) > 0);   // bison: grass
@@ -311,6 +311,10 @@ public class HerdTests(ITestOutputHelper output)
     }
 
     // ---- old bugs fixed ----
+
+    /// What the herd's members hold in their calorie stores, and burn a minute.
+    static double Held(World w, AgentId herd) => w.Agent(herd).Members.Sum(b => b.CaloriesKcal);
+    static double Burn(World w, AgentId herd) => w.Agent(herd).Members.Sum(Fauna.BurnKcalPerMinute);
 
     [Fact]
     public void AHerdOnTheMove_StillGetsHungrier()
@@ -321,12 +325,12 @@ public class HerdTests(ITestOutputHelper output)
         var herd = Agents.Spawn(w, Species.Caribou, tile, 3);
         Mind(w, herd).State = HerdState.Fleeing;
         Mind(w, herd).FleeFrom = tile;
-        double before = Mind(w, herd).Hunger;
+        double before = Held(w, herd), burn = Burn(w, herd);
         Sim.Advance(w, 1);
         Assert.NotNull(w.Agent(herd).Crossing);
         Sim.Advance(w, 2);
         Assert.NotNull(w.Agent(herd).Crossing); // still on the way
-        Assert.Equal(before + 3 * 0.003, Mind(w, herd).Hunger, 9);
+        Assert.Equal(before - 3 * burn, Held(w, herd), 9);
     }
 
     [Fact]
@@ -375,7 +379,7 @@ public class HerdTests(ITestOutputHelper output)
         Assert.InRange(Count(Species.Wolf), 1, 2);
         Assert.InRange(Count(Species.Caribou), 2, 3);
         Assert.InRange(Count(Species.Megaloceros) + Count(Species.Bison), 8, 15);
-        Assert.InRange(Count(Species.SaberTooth), 1, 2);
+        Assert.InRange(Count(Species.Homotherium), 1, 2);
         Assert.InRange(Count(Species.Hyena), 1, 2 + m.Width * m.Height); // the old 1-2 packs, plus cave clans
         Assert.InRange(herds.Count(h => h.Species is Species.Bear or Species.CaveBear && m.CaveAt(h.Tile) == Cave.None), 3, 5);
         foreach (var h in herds)
@@ -389,7 +393,7 @@ public class HerdTests(ITestOutputHelper output)
             var (min, max) = h.Species switch
             {
                 Species.Wolf => (3, 80), Species.Bear or Species.CaveBear => (3, 128), Species.Caribou => (6, 192),
-                Species.Megaloceros => (3, 96), Species.Bison => (3, 400), Species.SaberTooth => (4, 160), Species.Raven => (3, 250), _ => (3, 112),
+                Species.Megaloceros => (3, 96), Species.Bison => (3, 400), Species.Homotherium => (4, 160), Species.Raven => (3, 250), _ => (3, 112),
             };
             Assert.InRange(land.Count, min, max);
             Assert.InRange(h.Members.Count, 1, 15);
@@ -571,7 +575,7 @@ public class HerdTests(ITestOutputHelper output)
                     .First(t => m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && !m.OnPass(t));
                 Agents.Spawn(w, Species.Caribou, far, 3);
                 var pack = Agents.Spawn(w, Species.Wolf, far, 5);
-                Mind(w, pack).Hunger = 0.9;
+                TestKit.SetHunger(w.Agent(pack), 0.9);
                 Mind(w, pack).State = HerdState.Patrolling;
             }
             // Seed 17: forest at (2,33), rock below it, so every quick step south rolls for an injury.
@@ -725,11 +729,13 @@ public class HerdTests(ITestOutputHelper output)
         var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(herd, 0)], tile, 40, Awareness.Engaged, Awareness.Unaware);
         var bodies = w.Agent(herd).Members.Append(w.Agent(P).Body).ToList();
         foreach (var b in bodies) Trace(b);
-        double hunger = Mind(w, herd).Hunger;
+        double held = Held(w, herd), burn = Burn(w, herd);
         for (int i = 0; i < 10; i++) Sim.Step(w, new Fight(P, CombatAction.Wait), 1);
         Assert.Contains(enc, w.Encounters);
         AssertEachLivedOnce(bodies, 10, "player's hunt");
-        Assert.Equal(hunger + 10 * 0.003, Mind(w, herd).Hunger, 9); // the herd lives on beside its member's fight
+        // The herd lives on beside its member's fight, every member burning each minute once; the one in it
+        // also pays for the steps it wandered.
+        Assert.InRange(Held(w, herd), held - 10 * burn - 0.5, held - 10 * burn + 1e-6);
     }
 
     [Fact]
@@ -858,7 +864,7 @@ public class HerdTests(ITestOutputHelper output)
         var wolves = Agents.Spawn(w, Species.Wolf, tile, 3);
         var mind = Fauna.MindOf(w.Agent(wolves));
         Combat.LeaveCarcass(w, tile, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 100, 0.1, 0.4), new Cause(null, "a test"));
-        mind.Hunger = 0.95;
+        TestKit.SetHunger(w.Agent(wolves), 0.95);
         mind.Foray = new TileId(tile.X + 10, tile.Y);
         mind.State = HerdState.Patrolling;
         Sim.Advance(w, 3);
@@ -1019,7 +1025,7 @@ public class TerritorySweepTests(ITestOutputHelper output)
 {
     static readonly IReadOnlyDictionary<Species, int> Floor = new Dictionary<Species, int>
     {
-        [Species.Bison] = 80, [Species.Megaloceros] = 40, [Species.Caribou] = 100, [Species.SaberTooth] = 80,
+        [Species.Bison] = 80, [Species.Megaloceros] = 40, [Species.Caribou] = 100, [Species.Homotherium] = 80,
         [Species.Wolf] = 20, [Species.Bear] = 40, [Species.Mammoth] = 150, [Species.CaveBear] = 3, [Species.Hyena] = 3, [Species.Raven] = 100,
     };
 

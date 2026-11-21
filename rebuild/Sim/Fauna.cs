@@ -12,7 +12,8 @@ public enum HerdBehavior { Prey, Pack, Solitary, Scavenger, Carrion }
 public enum Diet { Carnivore, Omnivore, Browser, Grazer }
 
 /// A herd's mind (plan decisions 2 and 7): its land, what it is doing and since when, and the
-/// hunger and learned fear its members share. Everything a herd knows is here.
+/// learned fear its members share. Everything a herd knows is here; its hunger is its members'
+/// calorie stores (Fauna.Hunger), never stored apart from them.
 public sealed record HerdMind : Mind
 {
     public const long Never = -1_000_000;
@@ -22,8 +23,6 @@ public sealed record HerdMind : Mind
     public HerdState State { get; set; }
     /// When it entered State; how long it has been in it is derived from this.
     public long StateSinceMinute { get; set; }
-    /// 0 fed, 1 starving.
-    public double Hunger { get; set; }
     /// Learned fear 0-1: scales boldness down, and a frightened pack will not hunt.
     public double Fear { get; set; }
     public long LastFightMinute { get; set; } = Never;
@@ -75,13 +74,10 @@ public static partial class Fauna
     public static IReadOnlyList<Resource> Eats(Diet d) => Content.Tables.Diets[d];
 
     // Old behavior constants, per minute.
-    static double HungerPerMinute(HerdBehavior b) => b switch
-    {
-        HerdBehavior.Prey => 0.003, // about five and a half hours to get hungry
-        HerdBehavior.Solitary => 0.0008,
-        _ => 0.001,
-    };
-    const double PreyGrazePerMinute = 0.008, SolitaryForagePerMinute = 0.003, FearDecayPerMinute = 0.015;
+    const double FearDecayPerMinute = 0.015;
+    /// What a wild animal burns over its basal rate, day in, day out: field metabolism is 1.6-3 times
+    /// basal (research §1; Nagy 1999). The low end, since fights and flight charge their own work.
+    const double FieldMetabolismFactor = 1.6;
     const double GrazingRatePerKgPerHour = 0.0001;
     const int PackPatrolEveryMinutes = 30, PackPatrolTimeoutMinutes = 120;
     /// Judgment, not in the old game: past this hunger a pack ranges wider and faster (DecidePack).
@@ -105,7 +101,6 @@ public static partial class Fauna
             },
             StateSinceMinute = world.Minute,
             LastFedMinute = world.Minute,
-            Hunger = world.Birth("herds", id).NextDouble() * 0.3, // start slightly hungry
         };
     }
 
@@ -125,6 +120,46 @@ public static partial class Fauna
     static long StateMinutes(World world, HerdMind mind) => world.Minute - mind.StateSinceMinute;
     static double MassKg(Agent herd) => herd.Members.Sum(b => b.WeightKg);
 
+    /// How hungry the herd is, 0 fed to 1 starving: how far its living members' calorie stores are
+    /// from full (Body.CaloriesCapacityKcal). Derived, never stored: grazing and feeding fill the
+    /// stores, and every minute lived and every burst of a fight empties them (species round, decided
+    /// 2026-11-21). Old (this rebuild, old game): a unitless number that rose by a fixed amount a minute,
+    /// so fleeing and watching cost a herd nothing.
+    public static double Hunger(Agent herd)
+    {
+        double held = 0, capacity = 0;
+        foreach (var b in herd.Members)
+        {
+            if (!Body.IsAlive(b)) continue; // the dead in a fight stay listed until its aftermath
+            held += b.CaloriesKcal;
+            capacity += Body.CaloriesCapacityKcal(b);
+        }
+        return capacity <= 0 ? 0 : Math.Clamp(1 - held / capacity, 0, 1);
+    }
+
+    /// What an animal burns a minute, living: its field metabolism.
+    public static double BurnKcalPerMinute(BodyState body) => Body.MetabolismKcalPerDay(body, FieldMetabolismFactor) / 1440;
+
+    /// A minute of an animal's living: its burn, out of its calorie store (then its fat).
+    internal static void Burn(BodyState body) => Body.SpendKcal(body, BurnKcalPerMinute(body));
+
+    /// What a member can still eat: its calorie store's room, and the fat it has lost below its kind's
+    /// build (a starved wolf gorges, and the surplus goes back on as fat through Body.Eat). Old (this
+    /// rebuild, before review): only the store's room, so an animal's fat could only ever go down.
+    static double RoomKcal(Agent herd, BodyState b) =>
+        Math.Max(0, Body.CaloriesCapacityKcal(b) - b.CaloriesKcal) + Math.Max(0, SpeciesTable.Of(herd.Species).FatPct * b.WeightKg - b.FatKg) * Body.KcalPerKgFat;
+
+    static double RoomKcal(Agent herd) => herd.Members.Where(Body.IsAlive).Sum(b => RoomKcal(herd, b));
+
+    /// What the herd ate (no more than its room), shared among its living members by their room: none eats past full.
+    static void Nourish(Agent herd, double kcal)
+    {
+        double room = RoomKcal(herd);
+        if (kcal <= 0 || room <= 0) return;
+        kcal = Math.Min(kcal, room);
+        foreach (var b in herd.Members.Where(Body.IsAlive)) Body.Eat(b, kcal * RoomKcal(herd, b) / room);
+    }
+
     // ---- one minute of a herd's bodies and appetite (Sim.Live calls this instead of Body.Tick) ----
 
     /// Old PreyBehavior: a wounded herd's WoundSeverity fell 0.0002 a minute, whole in about three
@@ -132,14 +167,12 @@ public static partial class Fauna
     /// wound level (Combat.WoundLevel) falls exactly as the old severity did.
     public const double MendPctPerMinute = 0.0002;
 
-    /// Hunger grows and fear fades; wounds bleed and mend. A member that bleeds out is a carcass
+    /// The members burn their calories and fear fades; wounds bleed and mend. A member that bleeds out is a carcass
     /// where it fell; a herd with nobody left is gone. Returns "died" then. While any of its members
     /// is in a fight the dead stay where they are (units name members by index): the aftermath takes them.
     public static string? Tick(World world, Agent herd, List<WorldEvent> events)
     {
         var mind = MindOf(herd);
-        // old game: hunger stood still while a herd was walking, so a herd on the move never got hungrier (bug, fixed).
-        mind.Hunger = Math.Min(1, mind.Hunger + HungerPerMinute(BehaviorOf(herd.Species)));
         mind.Fear = Math.Max(0, mind.Fear - FearDecayPerMinute);
         bool anyDied = false, anyHurt = false;
         foreach (var body in herd.Members)
@@ -147,7 +180,9 @@ public static partial class Fauna
             // A headless fight already lived this minute of it.
             if (world.Minute <= body.WoundsLivedThroughMinute) continue;
             body.WoundsLivedThroughMinute = world.Minute;
-            if (body.Effects.Count > 0) Body.TickWounds(body, world.Rng("body", herd.Id)); // nothing to fade or bleed: skipping it changes nothing
+            // Nothing to fade, bleed or refill: skipping it changes nothing.
+            if (body.Effects.Count > 0 || body.SprintSpentLevel > 0) Body.TickWounds(body, world.Rng("body", herd.Id));
+            if (Body.IsAlive(body)) Burn(body);
             // old game: only prey herds split off wounded healed, and only their severity number; a predator's wounds and every
             // body's tissue stayed as they were, so one lame member pinned its herd for good (bug, fixed).
             if (!Hurt(body)) { body.WoundedBy = null; continue; } // mended: whoever hurt it no longer counts
@@ -234,14 +269,24 @@ public static partial class Fauna
         return null;
     }
 
-    /// Old Herd.GrazeHere and ForageFeature.Graze, a minute at a time: grazing eases hunger and
-    /// thins what this diet eats off the tile's forage, with diminishing returns.
+    /// Old Herd.GrazeHere and ForageFeature.Graze, a minute at a time: each member eats its species'
+    /// intake (to its room), and the herd thins what this diet eats off the tile's forage, with diminishing returns.
+    /// Only a grazing herd eats: fleeing and fighting forgo it.
+    // An eaten-out tile still feeds in full, as the old game's grazing eased hunger at one rate anywhere;
+    // research §5.5 would scale the intake by the forage left (it left the camper's herds wandering far more).
     static void GrazeMinute(World world, Agent herd)
     {
         var mind = MindOf(herd);
-        var behavior = BehaviorOf(herd.Species);
-        mind.Hunger = Math.Max(0, mind.Hunger - (behavior == HerdBehavior.Prey ? PreyGrazePerMinute : SolitaryForagePerMinute));
-        mind.LastFedMinute = world.Minute;
+        double intake = SpeciesTable.Of(herd.Species).GrazeKcalPerMinute;
+        bool ate = false;
+        foreach (var b in herd.Members.Where(Body.IsAlive))
+        {
+            double kcal = Math.Min(intake, RoomKcal(herd, b));
+            if (kcal <= 0) continue;
+            Body.Eat(b, kcal); // each member its own intake, no more than its room
+            ate = true;
+        }
+        if (ate) mind.LastFedMinute = world.Minute; // Renewal's starvation reads it: only food counts
         var diet = DietOf(herd.Species);
         if (ForageHere(world, herd.Tile) is not (PoolId id, ForagePool pool)) return;
         double dietFactor = diet == Diet.Omnivore ? 5.0 : 1.0; // bears are efficient foragers
@@ -277,27 +322,28 @@ public static partial class Fauna
     public static double MeatHere(World world, TileId tile) =>
         world.Tiles.GetValueOrDefault(tile)?.Carcasses?.Sum(c => Remains.MeatKg(world, tile, c)) ?? 0;
 
-    /// Old PredatorInteraction's feeding: a meal is 3% of the group's mass, eaten no faster than
-    /// 0.1 kg a minute a head, and hunger falls only for what was eaten. Each carcass is reached
+    /// Old PredatorInteraction's feeding, in calories: the herd eats what its stores have room for, no
+    /// faster than 0.1 kg a minute a head, and is fed only by what it ate. Each carcass is reached
     /// through Access (a guard on it bars the meal) and none is eaten once it is bones. The carrion
     /// flock picks at a dead person's body too, once the carcasses are bare (Remains.Pick).
     static void FeedMinute(World world, Agent herd)
     {
         var mind = MindOf(herd);
-        double mealKg = Math.Max(1, MassKg(herd) * 0.03);
-        double want = Math.Min(mealKg * mind.Hunger, 0.1 * herd.Members.Count), eaten = 0;
+        double want = Math.Min(RoomKcal(herd) / MeatKcalPerKg, 0.1 * herd.Members.Count), eaten = 0;
         foreach (var c in Edible(world, herd))
             if (want > eaten) eaten += Carcasses.EatMeat(c, want - eaten);
         if (want > eaten && BehaviorOf(herd.Species) == HerdBehavior.Carrion)
             foreach (var body in PickableBodies(world, herd))
                 if (want > eaten) eaten += Remains.Pick(world, body, want - eaten);
-        mind.Hunger = Math.Max(0, mind.Hunger - eaten / mealKg);
+        Nourish(herd, eaten * MeatKcalPerKg);
         if (eaten > 0)
         {
             mind.Foray = null; // scavenged or its own kill: it has found food
             mind.LastFedMinute = world.Minute;
         }
     }
+
+    static double MeatKcalPerKg => Items.Resources[Resource.RawMeat].KcalPerKg;
 
     /// The carcasses on the herd's tile with meat on them that it can reach (Access).
     static IEnumerable<Carcass> Edible(World world, Agent herd) =>
@@ -347,15 +393,14 @@ public static partial class Fauna
             _ => 1.0,
         };
         if (preyMind.State == HerdState.Resting && StateMinutes(world, preyMind) < 30) vigilance *= 1.4; // just stopped running
-        var predMind = MindOf(predator);
-        double stealth = 0.5 - predator.Members.Count * 0.02;
-        if (predMind.Hunger > 0.7) stealth += 0.15;
-        if (predMind.Hunger > 0.9) stealth += 0.15;
+        double stealth = 0.5 - predator.Members.Count * 0.02, hunger = Hunger(predator);
+        if (hunger > 0.7) stealth += 0.15;
+        if (hunger > 0.9) stealth += 0.15;
         stealth *= predator.Species switch
         {
             Species.Wolf => 1.2,
             Species.Bear or Species.CaveBear => 0.7,
-            Species.SaberTooth => 1.3,
+            Species.Homotherium => 1.3,
             Species.Hyena => 0.8,
             _ => 1.0,
         };
@@ -429,13 +474,14 @@ public static partial class Fauna
 
     static (Activity, int) DecidePrey(World world, Agent herd, HerdMind mind)
     {
+        double hunger = Hunger(herd);
         switch (mind.State)
         {
             case HerdState.Resting:
-                if (mind.Hunger > 0.5) Become(world, mind, HerdState.Grazing);
+                if (hunger > 0.5) Become(world, mind, HerdState.Grazing);
                 return Rest(herd);
             case HerdState.Grazing:
-                if (mind.Hunger < 0.2) { Become(world, mind, HerdState.Resting); return Rest(herd); }
+                if (hunger < 0.2) { Become(world, mind, HerdState.Resting); return Rest(herd); }
                 // Drifts across its land, faster where it is eaten out.
                 if (Roll(world, herd, 0.01 + 0.01 * GrazedLevelHere(world, herd)) && PatrolStep(world, herd, mind) is { } walk) return walk;
                 return GrazeRefusal(world, herd) == null ? (new Graze(herd.Id), 1) : Wait(herd);
@@ -447,32 +493,33 @@ public static partial class Fauna
 
     static (Activity, int) DecidePack(World world, Agent herd, HerdMind mind)
     {
+        double hunger = Hunger(herd);
         long t = StateMinutes(world, mind);
         switch (mind.State)
         {
             case HerdState.Resting:
-                if (mind.Hunger > 0.6) Become(world, mind, HerdState.Patrolling);
+                if (hunger > 0.6) Become(world, mind, HerdState.Patrolling);
                 return Rest(herd);
             case HerdState.Patrolling:
                 // Judgment (not in the old game, whose pack fed an hour and left the rest): a pack goes
                 // back to the meat on its tile before it hunts again, so a kill feeds it for days, not one meal.
                 if (CanFeed(world, herd)) { Become(world, mind, HerdState.Feeding); return (new Feed(herd.Id), 1); }
                 // A frightened pack (it just lost a fight) leaves prey alone.
-                if (mind.Hunger > 0.4 && mind.Fear <= 0.5 && PreyHere(world, herd) is Agent prey) return (new Hunt(herd.Id, prey.Id), 1);
+                if (hunger > 0.4 && mind.Fear <= 0.5 && PreyHere(world, herd) is Agent prey) return (new Hunt(herd.Id, prey.Id), 1);
                 // A starving pack does not go home empty: it ranges on (judgment, below).
-                if (t > PackPatrolTimeoutMinutes && mind.Hunger <= StarvingHunger)
+                if (t > PackPatrolTimeoutMinutes && hunger <= StarvingHunger)
                 {
                     Become(world, mind, HerdState.Resting);
                     mind.TerritoryIndex = 0;
                     return Toward(world, herd, mind, mind.Territory[0]) ?? Rest(herd);
                 }
-                if (mind.Hunger < 0.3) { Become(world, mind, HerdState.Resting); return Rest(herd); }
-                if (t > 0 && t % (mind.Hunger > StarvingHunger ? StarvingPatrolEveryMinutes : PackPatrolEveryMinutes) == 0)
+                if (hunger < 0.3) { Become(world, mind, HerdState.Resting); return Rest(herd); }
+                if (t > 0 && t % (hunger > StarvingHunger ? StarvingPatrolEveryMinutes : PackPatrolEveryMinutes) == 0)
                 {
                     // Judgment (not in the old game): a hungry pack follows the scent of prey it can sense
                     // (old BaseDetectionRange) instead of walking its round, so packs and herds actually meet.
-                    if (mind.Hunger > 0.6 && TowardNearest(world, herd, PreySensed(world, herd)) is { } stalk) return stalk;
-                    if (mind.Hunger > StarvingHunger && Foray(world, herd, mind) is { } range) return range;
+                    if (hunger > 0.6 && TowardNearest(world, herd, PreySensed(world, herd)) is { } stalk) return stalk;
+                    if (hunger > StarvingHunger && Foray(world, herd, mind) is { } range) return range;
                     if (PatrolStep(world, herd, mind) is { } walk) return walk;
                 }
                 return Wait(herd);
@@ -521,14 +568,15 @@ public static partial class Fauna
 
     static (Activity, int) DecideSolitary(World world, Agent herd, HerdMind mind)
     {
+        double hunger = Hunger(herd);
         long t = StateMinutes(world, mind);
         switch (mind.State)
         {
             case HerdState.Resting:
-                if (mind.Hunger > 0.5) Become(world, mind, HerdState.Grazing);
+                if (hunger > 0.5) Become(world, mind, HerdState.Grazing);
                 return Rest(herd);
             case HerdState.Grazing: // a bear forages, omnivore that it is
-                if (mind.Hunger < 0.3) { Become(world, mind, HerdState.Resting); return Rest(herd); }
+                if (hunger < 0.3) { Become(world, mind, HerdState.Resting); return Rest(herd); }
                 if (Roll(world, herd, 0.01 + 0.01 * GrazedLevelHere(world, herd)) && PatrolStep(world, herd, mind) is { } walk) return walk;
                 return GrazeRefusal(world, herd) == null ? (new Graze(herd.Id), 1) : Wait(herd);
             case HerdState.Patrolling:
@@ -546,26 +594,27 @@ public static partial class Fauna
 
     static (Activity, int) DecideScavenger(World world, Agent herd, HerdMind mind)
     {
+        double hunger = Hunger(herd);
         long t = StateMinutes(world, mind);
         switch (mind.State)
         {
             case HerdState.Resting:
-                if (mind.Hunger > 0.4) Become(world, mind, HerdState.Patrolling);
+                if (hunger > 0.4) Become(world, mind, HerdState.Patrolling);
                 return Rest(herd);
             case HerdState.Patrolling:
                 if (CanFeed(world, herd)) { Become(world, mind, HerdState.Feeding); return (new Feed(herd.Id), 1); }
                 if (t % CarcassSearchEveryMinutes == 0 && TowardNearest(world, herd, MeatSensed(world, herd.Tile)) is { } go) return go;
-                if (mind.Hunger < 0.3 && t > 60) { Become(world, mind, HerdState.Resting); return Rest(herd); }
+                if (hunger < 0.3 && t > 60) { Become(world, mind, HerdState.Resting); return Rest(herd); }
                 // Old hyenas also shadowed feeding predators and wolf packs; carcasses alone draw them here.
                 if (Roll(world, herd, 0.04) && PatrolStep(world, herd, mind) is { } walk) return walk;
                 return Wait(herd);
             case HerdState.Feeding:
-                if (HerdsAt(world, herd.Tile).Any(h => h.Id != herd.Id && h.Species is Species.Wolf or Species.Bear or Species.CaveBear or Species.SaberTooth))
+                if (HerdsAt(world, herd.Tile).Any(h => h.Id != herd.Id && h.Species is Species.Wolf or Species.Bear or Species.CaveBear or Species.Homotherium))
                 {
                     StartFleeing(world, mind, herd.Tile); // something bigger wants the kill
                     return Flee(world, herd, mind, HerdBehavior.Scavenger);
                 }
-                if (!CanFeed(world, herd) || t > 45 || mind.Hunger < 0.1) { Become(world, mind, HerdState.Patrolling); return Wait(herd); }
+                if (!CanFeed(world, herd) || t > 45 || hunger < 0.1) { Become(world, mind, HerdState.Patrolling); return Wait(herd); }
                 return (new Feed(herd.Id), 1);
             default:
                 Become(world, mind, HerdState.Patrolling);
@@ -694,7 +743,7 @@ public static partial class Fauna
             && Combat.EncounterOf(world, h.Id) == null);
 
     /// Old AnimalType.BaseDetectionRange, in tiles.
-    public static int DetectionRangeTiles(Species s) => s is Species.Wolf or Species.SaberTooth ? 12 : 8;
+    public static int DetectionRangeTiles(Species s) => s is Species.Wolf or Species.Homotherium ? 12 : 8;
 
     /// Where the herds of its quarry within the predator's senses stand.
     static HashSet<TileId> PreySensed(World world, Agent predator)

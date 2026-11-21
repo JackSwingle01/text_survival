@@ -377,10 +377,10 @@ public class NpcTests(ITestOutputHelper output)
     {
         var body = BodyState.BaselineHuman();
         var mind = new NpcMind { TargetFatKg = body.FatKg };
-        body.FatKg = 9.0;
+        body.FatKg = 7.0;
         Npc.AdaptTargetFat(mind, body, 7 * 1440);
-        output.WriteLine($"after a week at 9 kg: target {mind.TargetFatKg:0.000}");
-        Assert.InRange(mind.TargetFatKg, 9.0, 9.6); // 9 + 2.25 * 2^(-7/3)
+        output.WriteLine($"after a week at 7 kg: target {mind.TargetFatKg:0.000}");
+        Assert.InRange(mind.TargetFatKg, 7.0, 7.3); // 7 + 1.16 * 2^(-7/3), from the 68 kg man's 8.16
 
         body.FatKg = 5.0;
         Npc.AdaptTargetFat(mind, body, 14 * 1440);

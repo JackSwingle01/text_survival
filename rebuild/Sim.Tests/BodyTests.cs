@@ -18,10 +18,10 @@ public class BodyTests
     public void Composition_SumsAndPercentages()
     {
         var b = Baseline();
-        Assert.Equal(75.0, b.WeightKg, 6);
-        Assert.Equal(41.25, b.StructuralKg, 6);
-        Assert.Equal(0.15, b.FatPct, 6);
-        Assert.Equal(0.30, b.MusclePct, 6);
+        Assert.Equal(68.0, b.WeightKg, 6);
+        Assert.Equal(34.0, b.StructuralKg, 6);
+        Assert.Equal(0.12, b.FatPct, 6);
+        Assert.Equal(0.38, b.MusclePct, 6);
     }
 
     [Fact]
@@ -255,8 +255,8 @@ public class BodyTests
         double baseline = Body.Speed(Baseline());
         Assert.InRange(baseline, 0.7, 1.0);
         Assert.True(Body.Speed(Custom(100, 0.35, 0.20)) < 0.8, "Obesity slows");
-        Assert.True(Body.Speed(Custom(750, 0.15, 0.30)) < 1.0, "Large is slower");
-        Assert.True(Body.Speed(Custom(7.5, 0.15, 0.30)) > baseline, "Small is faster");
+        Assert.True(Body.Speed(Custom(680, 0.12, 0.38)) < baseline, "Large is slower");
+        Assert.True(Body.Speed(Custom(6.8, 0.12, 0.38)) > baseline, "Small is faster");
     }
 
     [Fact]

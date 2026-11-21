@@ -84,12 +84,13 @@ public static partial class Combat
 
     // ---- steering ----
 
-    /// Tactical metres per action, cut by wounded legs: a crippled animal can be run down and a
-    /// mauled person cannot sprint.
+    /// Tactical metres per action, cut as the body's speed is (RunningOf: wounds, tiredness, load): a
+    /// crippled animal can be run down and a mauled or laden person cannot sprint. Never more than
+    /// the species' own. Old: cut by Moving alone, so a load never slowed anyone in a fight.
     public static int Allowance(World world, CombatUnit u)
     {
-        double moving = Math.Clamp(Body.GetCapacities(BodyOf(world, u)).Moving, 0, 1);
-        return Math.Max(1, (int)Math.Round(StatsOf(world, u).MoveAllowanceM * moving));
+        double speedPct = Math.Clamp(RunningOf(world, u).SpeedPct, 0, 1);
+        return Math.Max(1, (int)Math.Round(StatsOf(world, u).MoveAllowanceM * speedPct));
     }
 
     /// Pull toward every enemy, pushed further by advantage or back by disadvantage (more so close
@@ -216,7 +217,7 @@ public static partial class Combat
             case CombatAction.Move:
                 var from = u.Position;
                 var pursued = PursuitTarget(world, enc, u);
-                Move(world, enc, u, MovePosition(world, enc, u));
+                Walk(world, enc, u, MovePosition(world, enc, u));
                 if (pursued != null && pursued.InField && u.InField && from != u.Position && u.Position.DistanceTo(pursued.Position) <= 1.5)
                     Attack(world, enc, u, pursued, events);
                 break;
