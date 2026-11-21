@@ -210,3 +210,6 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - Before any combat tuning (optimiser or learned): realistic body stats per species and a fight
   energy model (stamina, metabolic cost per round, recovery, load and wounds), from sourced data.
   Research: `documentation/species-stats-research.md`.
+- Prey earn calories per minute while unaware and grazing, so alertness and flight have an
+  opportunity cost (the landscape of fear). A big animal can rationally ignore a small predator
+  that's afraid of it. The term is part of the energy model and of the learned-behaviour fitness.
