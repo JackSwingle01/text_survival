@@ -18,6 +18,10 @@ public sealed class Crossing
     public double DestRiskPct { get; init; }
 }
 
+/// One accident's mechanics, from the old AccidentVariants (their text is not ported; Content/accidents.json):
+/// a hit of Amount and Type on Target, and an effect it may start at Severity.
+public readonly record struct Accident(BodyTarget Target, DamageType Type, double Amount, EffectKind? Effect = null, double Severity = 0);
+
 /// Walking one tile north, east, south or west. Port of the old TravelProcessor and TravelRunner.
 public static class Traversal
 {
@@ -174,51 +178,17 @@ public static class Traversal
             OddsTerm.Add("Bad legs", impaired)), MinPct: 0, MaxPct: MaxInjuryRiskPct);
     }
 
-    /// One accident's mechanics, from the old AccidentVariants (their text is not ported).
-    readonly record struct Accident(BodyTarget Target, DamageType Type, double Amount, EffectKind? Effect = null, double Severity = 0);
+    // The old AccidentVariants' mechanics, pool by pool (Content/accidents.json).
+    static readonly IReadOnlyList<Accident> TripStumble = Accidents("TripStumble"), SharpHazards = Accidents("SharpHazards"),
+        IceSlip = Accidents("IceSlip"), RockyTerrain = Accidents("RockyTerrain"), FallImpact = Accidents("FallImpact"), Sprains = Accidents("Sprains");
 
-    static readonly Accident[] TripStumble =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08), new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08),
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08), new(BodyTarget.AnyArm, DamageType.Blunt, 0.08),
-        new(BodyTarget.AnyArm, DamageType.Blunt, 0.05), new(BodyTarget.Abdomen, DamageType.Blunt, 0.10),
-        new(BodyTarget.Chest, DamageType.Blunt, 0.10),
-    ];
-    static readonly Accident[] SharpHazards =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Sharp, 0.08), new(BodyTarget.AnyArm, DamageType.Sharp, 0.05),
-        new(BodyTarget.AnyArm, DamageType.Sharp, 0.05), new(BodyTarget.Chest, DamageType.Sharp, 0.08),
-        new(BodyTarget.AnyLeg, DamageType.Sharp, 0.10),
-    ];
-    static readonly Accident[] IceSlip =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.10), new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08),
-        new(BodyTarget.Abdomen, DamageType.Blunt, 0.12), new(BodyTarget.AnyArm, DamageType.Blunt, 0.10),
-        new(BodyTarget.Head, DamageType.Blunt, 0.10, EffectKind.Dazed, 0.2),
-    ];
-    static readonly Accident[] RockyTerrain =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.10), new(BodyTarget.AnyArm, DamageType.Sharp, 0.08),
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08), new(BodyTarget.Chest, DamageType.Sharp, 0.08),
-        new(BodyTarget.Head, DamageType.Blunt, 0.12, EffectKind.Dazed, 0.3),
-    ];
-    static readonly Accident[] FallImpact =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.12), new(BodyTarget.Abdomen, DamageType.Blunt, 0.15),
-        new(BodyTarget.AnyArm, DamageType.Blunt, 0.12), new(BodyTarget.Chest, DamageType.Blunt, 0.15),
-        new(BodyTarget.Head, DamageType.Blunt, 0.12, EffectKind.Dazed, 0.4),
-    ];
-    // The old sprains also added SprainedAnkle / Clumsy effects, which the rebuild has no kinds for yet.
-    static readonly Accident[] Sprains =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08), new(BodyTarget.AnyLeg, DamageType.Blunt, 0.10),
-        new(BodyTarget.AnyArm, DamageType.Blunt, 0.08),
-    ];
+    static IReadOnlyList<Accident> Accidents(string pool) =>
+        Content.Tables.Accidents.TryGetValue(pool, out var a) ? a : throw new KeyNotFoundException($"No accident pool '{pool}'");
 
     /// Old VariantSelector.SelectTravelInjuryVariant: ice slips beside a river, otherwise worse
     /// pools as the ground gets worse. Every question is asked of the injured segment's own tile.
     /// old game: InjuryVariant.HasIce read the destination's river for the origin's injury too (bug, fixed).
-    static (Accident[] Pool, double Weight)[] AccidentPools(GeneratedMap m, TileId tile)
+    static (IReadOnlyList<Accident> Pool, double Weight)[] AccidentPools(GeneratedMap m, TileId tile)
     {
         double severity = Map.TerrainHazardLevel(m, tile);
         if (m.BesideRiver(tile))

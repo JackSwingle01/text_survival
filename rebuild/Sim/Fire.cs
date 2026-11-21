@@ -5,8 +5,11 @@ public enum PitType { Open, Mound, Stone }
 /// Derived from FireState, never stored.
 public enum FirePhase { Cold, Igniting, Building, Roaring, Steady, Dying, Embers }
 
-/// Temperatures in °F, as tuned in the old game.
+/// Temperatures in °F, as tuned in the old game. One row of Content/fire.json fuels.
 public readonly record struct FuelProps(double PeakTempF, double BurnRateKgPerHour, double MinFireTempF, double IgnitionBonusPct);
+
+/// One row of Content/fire.json pits: what a pit holds, how much wind it keeps off, how long fuel lasts in it.
+public sealed record PitProps(double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
 
 /// A fire pit on a tile, or a torch carried by an agent (CarriedBy set; the two-mass fields are then unused).
 public sealed class FireState
@@ -35,23 +38,9 @@ public sealed class FireState
 
 public static class Fire
 {
-    public static readonly IReadOnlyDictionary<Resource, FuelProps> Props = new Dictionary<Resource, FuelProps>
-    {
-        // Table in code; plain rows, so moving it to Content is mechanical.
-        [Resource.Tinder] = new(450, 3.0, 0, 0.15),
-        [Resource.BirchBark] = new(500, 2.5, 0, 0.25),
-        [Resource.Amadou] = new(490, 2.6, 0, 0.20),
-        [Resource.Usnea] = new(480, 2.8, 0, 0.18),
-        [Resource.Chaga] = new(470, 2.2, 0, 0.15),
-        [Resource.Kindling] = new(600, 1.5, 0, 0),
-        [Resource.Pine] = new(800, 1.2, 150, 0.05),
-        [Resource.Birch] = new(850, 0.9, 250, 0),
-        [Resource.Oak] = new(950, 0.6, 500, 0),
-        [Resource.Bone] = new(650, 0.5, 600, 0),
-        [Resource.Peat] = new(700, 0.8, 400, 0),
-        // Old FireHandler fed charcoal to the fire as kindling.
-        [Resource.Charcoal] = new(600, 1.5, 0, 0),
-    };
+    /// What burns and how (Content/fire.json).
+    public static readonly IReadOnlyDictionary<Resource, FuelProps> Props = Content.Tables.Fuels;
+    static readonly IReadOnlyDictionary<PitType, PitProps> Pits = Content.Tables.Pits;
 
     /// Which resources burn: the ones with fuel properties.
     public static bool IsFuel(Resource r) => Props.ContainsKey(r);
@@ -61,9 +50,9 @@ public static class Fire
     public const double TorchBurnMinutes = 60;
 
     // ---- pit properties ----
-    public static double MaxFuelKg(PitType pit) => pit switch { PitType.Mound => 15, PitType.Stone => 18, _ => 12 };
-    public static double WindProtectionLevel(PitType pit) => pit switch { PitType.Mound => 0.4, PitType.Stone => 0.7, _ => 0 };
-    static double FuelEfficiencyFactor(PitType pit) => pit == PitType.Stone ? 1.15 : 1.0;
+    public static double MaxFuelKg(PitType pit) => Pits[pit].MaxFuelKg;
+    public static double WindProtectionLevel(PitType pit) => Pits[pit].WindProtectionLevel;
+    static double FuelEfficiencyFactor(PitType pit) => Pits[pit].FuelEfficiencyFactor;
 
     // ---- derived state ----
     public static double UnburnedKg(FireState f) => f.UnburnedKg.Values.Sum();

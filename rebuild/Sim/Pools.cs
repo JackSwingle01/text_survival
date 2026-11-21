@@ -31,6 +31,27 @@ public sealed record ShelterFind(ShelterDef Shelter, double RevealAtHours, doubl
 /// How a stock is worked: harvest (no impairment check), salvage (slowed by bad legs), detail (a light look).
 public enum StockKind { Harvest, Salvage, Detail }
 
+/// What a discovery or detail makes (Content/discoveries.json): a stock (Work, Minutes, Items) or a
+/// natural shelter (Shelter, levels with spreads, caps).
+public sealed record FindDef(string Name, StockKind? Work = null, int Minutes = 0, IReadOnlyList<FindItem>? Items = null,
+    ShelterKind? Shelter = null, double? Insulation = null, double InsulationSpread = 0, double? Overhead = null, double OverheadSpread = 0,
+    double? Wind = null, double WindSpread = 0, double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null);
+
+/// One item of a find, rolled in order: chance, units in [Units, UnitsMax], each unit's kg in
+/// [KgPerUnit, KgPerUnitMax]. Exactly one of Resource, AnyOf (drawn after every count), Gear or Shuffle
+/// (Take to TakeMax of these, shuffled first).
+public sealed record FindItem(Resource? Resource = null, IReadOnlyList<Resource>? AnyOf = null, string? Gear = null,
+    IReadOnlyList<FindItem>? Shuffle = null, int Take = 0, int? TakeMax = null, double Chance = 1,
+    int Units = 1, int? UnitsMax = null, double KgPerUnit = 0, double? KgPerUnitMax = null, double RespawnHoursPerUnit = 0);
+
+/// One entry of a discovery draw: a find, or a place held for a system not built yet (WaitsFor).
+public sealed record DiscoveryDraw(double SpawnChance, double ExpectedHours, string? Find = null, string? WaitsFor = null);
+
+/// The discovery tables (Content/discoveries.json).
+public sealed record DiscoveryTables(IReadOnlyDictionary<string, FindDef> Finds, IReadOnlyDictionary<string, FindDef> Details,
+    IReadOnlyDictionary<Terrain, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave,
+    IReadOnlyDictionary<Terrain, IReadOnlyList<string>> DetailDraws, IReadOnlyList<string> ExamineOnly);
+
 /// What drawing from a pool has changed. Only pools something has worked are stored.
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(ForageState), "forage")]
@@ -114,12 +135,13 @@ public static class Pools
         // Old CaveLocationFactory.MakePassage: stone and bone underfoot, wind-blown sticks at the mouth.
         if (m.CaveAt(tile) != Cave.None)
         {
-            pools.Add(new ForagePool("forage", 0.52, m.CaveAt(tile) == Cave.Entrance ? CaveMouth : CaveFloor));
+            var forage = m.CaveAt(tile).Row().Forage;
+            pools.Add(new ForagePool("forage", forage.Density, ForageTables[forage.Table]));
             pools.AddRange(CaveDiscoveries(rng));
             return pools;
         }
         pools.Add(TerrainForage(terrain, rng));
-        if (terrain == Terrain.Forest) pools.Add(new TreePool("Forest Trees", null, 100));
+        if (terrain.Row().Trees is TreeRow trees) pools.Add(new TreePool(trees.Name, null, trees.MinutesToFell));
         pools.AddRange(Details(terrain, rng));
         pools.AddRange(Discoveries(terrain, rng));
         return pools;
@@ -128,19 +150,9 @@ public static class Pools
     /// Old FeatureFactory.CreateTerrainForage: a terrain's table at a density drawn around its base.
     static ForagePool TerrainForage(Terrain terrain, Rng rng)
     {
-        var (baseDensity, items) = terrain switch
-        {
-            Terrain.Forest => (1.0, MixedForest),
-            Terrain.Clearing => (0.72, MixedForest),
-            Terrain.Marsh => (0.52, Wetland),
-            Terrain.Water => (0.52, FrozenCreek),
-            Terrain.Plain => (0.52, Open),
-            Terrain.Hills => (0.40, Rocky),
-            Terrain.Rock => (0.52, Rocky),
-            _ => (0.32, Barren),
-        };
+        var forage = terrain.Row().Forage ?? throw new InvalidOperationException($"{terrain} has no forage");
         // old game: drew this from the process-wide RNG, so the same seed gave different tiles (bug, fixed: seeded by tile).
-        return new ForagePool("forage", Math.Clamp(Normal(rng, baseDensity, 0.32), 0.1, 2.0), items);
+        return new ForagePool("forage", Math.Clamp(Normal(rng, forage.Density, 0.32), 0.1, 2.0), ForageTables[forage.Table]);
     }
 
     /// A named site's features as pools, in order (Map.SiteFeatures has rolled their chances). Water that runs open is a
@@ -212,36 +224,10 @@ public static class Pools
         return mean + sd * Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
     }
 
-    static ForageItem F(Resource r, double abundance, double minKg, double maxKg) => new(r, abundance, minKg, maxKg);
-
-    // Old FeatureFactory forage tables. AddMixedWood splits 40/35/25 pine/birch/oak.
-    internal static readonly IReadOnlyList<ForageItem> MixedForest =
-    [
-        F(Resource.Pine, 1.5 * 0.4, 1.5, 3.5), F(Resource.Birch, 1.5 * 0.35, 1.5, 3.5), F(Resource.Oak, 1.5 * 0.25, 1.5, 3.5),
-        F(Resource.Kindling, 3.0, 0.2, 0.6), F(Resource.Tinder, 2.0, 0.02, 0.08), F(Resource.Berries, 0.6, 0.2, 0.6),
-        F(Resource.Nuts, 0.08, 0.03, 0.08), F(Resource.Roots, 0.15, 0.15, 0.3), F(Resource.PlantFiber, 0.5, 0.05, 0.15),
-        F(Resource.Stone, 0.3, 0.2, 0.4), F(Resource.BirchPolypore, 0.15, 0.05, 0.15), F(Resource.Chaga, 0.1, 0.05, 0.2),
-        F(Resource.Amadou, 0.12, 0.02, 0.08), F(Resource.PineNeedles, 0.25, 0.02, 0.1), F(Resource.PineResin, 0.1, 0.02, 0.1),
-        F(Resource.Usnea, 0.15, 0.02, 0.08),
-    ];
-    static readonly IReadOnlyList<ForageItem> Wetland =
-    [
-        F(Resource.Kindling, 2.0, 0.2, 0.5), F(Resource.Birch, 1.0, 1.0, 2.0), F(Resource.Stone, 0.6, 0.2, 0.5),
-        F(Resource.Roots, 0.4, 0.15, 0.3), F(Resource.WillowBark, 0.25, 0.02, 0.1), F(Resource.SphagnumMoss, 0.15, 0.1, 0.3),
-    ];
-    static readonly IReadOnlyList<ForageItem> Open =
-    [
-        F(Resource.Tinder, 0.7, 0.03, 0.1), F(Resource.Kindling, 0.2, 0.1, 0.3), F(Resource.Berries, 0.15, 0.12, 0.4),
-        F(Resource.Roots, 0.3, 0.1, 0.25), F(Resource.PlantFiber, 0.6, 0.05, 0.12),
-    ];
-    static readonly IReadOnlyList<ForageItem> Rocky =
-        [F(Resource.Stone, 2, 0.25, 0.7), F(Resource.Tinder, 0.2, 0.01, 0.04), F(Resource.Flint, 0.2, 0.1, 0.25)];
-    static readonly IReadOnlyList<ForageItem> FrozenCreek = [F(Resource.Kindling, 1.5, 0.15, 0.4), F(Resource.Stone, 0.3, 0.2, 0.4)];
-    // Old CaveLocationFactory.CreateForage; a mouth adds sticks and tinder blown in.
-    static readonly IReadOnlyList<ForageItem> CaveFloor =
-        [F(Resource.Stone, 1.0, 0.15, 0.45), F(Resource.Shale, 0.4, 0.15, 0.35), F(Resource.Flint, 0.15, 0.1, 0.25), F(Resource.Bone, 0.15, 0.1, 0.3), F(Resource.Pyrite, 0.03, 0.02, 0.08)];
-    static readonly IReadOnlyList<ForageItem> CaveMouth = [.. CaveFloor, F(Resource.Kindling, 0.3, 0.1, 0.25), F(Resource.Tinder, 0.4, 0.01, 0.04)];
-    static readonly IReadOnlyList<ForageItem> Barren = [F(Resource.Stone, 0.4, 0.1, 0.3), F(Resource.Tinder, 0.2, 0.01, 0.04)];
+    /// The forage tables, by name (Content/forage.json; old FeatureFactory forage tables).
+    static readonly IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> ForageTables = Content.Tables.Forage;
+    /// The camp's thin mixed forage, and the deep woods'.
+    internal static readonly IReadOnlyList<ForageItem> MixedForest = ForageTables["MixedForest"];
 
     /// Old GenerateRevealThreshold: exponential around the expected hours, capped at ten times.
     static double RevealAt(Rng rng, double expectedHours)
@@ -262,146 +248,40 @@ public static class Pools
         return kg;
     }
 
-    // ---- environmental details (old EnvironmentalDetailFactory): quick finds, 15-30 minutes ----
+    // ---- finds: discoveries and details (Content/discoveries.json) ----
 
-    /// The details with nothing to take (tracks, scat, burrows...) only ever told a story; they
-    /// are for moments (not built yet), so here they still take their turn in the draw but leave no pool.
+    static readonly DiscoveryTables Finds = Content.Tables.Discoveries;
+
+    /// Old EnvironmentalDetailFactory: quick finds, 15-30 minutes. The details with nothing to take
+    /// (tracks, scat, burrows...) only ever told a story; they are for moments (not built yet), so here
+    /// they still take their turn in the draw but leave no pool.
     static IEnumerable<PoolDef> Details(Terrain terrain, Rng rng)
     {
         if (rng.NextDouble() < 0.65) yield break;
-        string[] pool = terrain switch
-        {
-            Terrain.Forest => ["fallen_log", "hollow_tree", "bent_branches", "old_nest", "scattered_bones", "forest_puddle"],
-            Terrain.Clearing => ["fallen_log", "old_nest", "dry_grass", "bent_branches", "forest_puddle"],
-            Terrain.Plain => ["frozen_puddle", "dry_grass", "windswept_snow", "animal_burrow"],
-            Terrain.Hills => ["stone_pile", "bent_branches", "lichen_rocks", "animal_burrow"],
-            Terrain.Rock => ["stone_pile", "stone_pile", "lichen_rocks"],
-            Terrain.Marsh => ["frozen_puddle", "dead_reeds", "bent_branches"],
-            Terrain.Water => ["frozen_puddle", "dead_reeds", "ice_formation"],
-            _ => [],
-        };
-        if (pool.Length == 0) yield break;
+        var pool = Finds.DetailDraws.GetValueOrDefault(terrain) ?? [];
+        if (pool.Count == 0) yield break;
         int count = rng.NextDouble() < 0.5 ? 1 : 2;
         var shuffled = pool.ToList();
         for (int i = shuffled.Count - 1; i > 0; i--) { int j = rng.NextInt(i + 1); (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]); }
         foreach (var name in shuffled.Take(count))
         {
             double reveal = RevealAt(rng, 0.25 + rng.NextDouble() * 0.25);
-            StockPool D(string display, int minutes, params StockItem[] items) =>
-                new(display, StockKind.Detail, minutes, items, reveal, PlacementHeightM: 0.25);
-            var detail = name switch
-            {
-                "fallen_log" => D("Fallen Log", 3, new StockItem(Resource.Kindling, 1, Pieces(rng, Between(rng, 2, 5), 0.2, 0.4))),
-                "hollow_tree" => D("Hollow Tree", 4, new StockItem(Resource.Tinder, 1, Pieces(rng, Between(rng, 1, 3), 0.02, 0.05))),
-                "stone_pile" => D("Stone Pile", 5, new StockItem(Resource.Stone, 1, Pieces(rng, Between(rng, 1, 4), 0.3, 0.6))),
-                "scattered_bones" => D("Scattered Bones", 3, new StockItem(Resource.Bone, 1, Pieces(rng, Between(rng, 1, 3), 0.1, 0.3))),
-                "dry_grass" => D("Dry Grass Tussock", 2, new StockItem(Resource.PlantFiber, 1, Pieces(rng, Between(rng, 1, 3), 0.03, 0.07))),
-                "dead_reeds" => D("Dead Reeds", 3, new StockItem(Resource.PlantFiber, 1, Pieces(rng, Between(rng, 2, 4), 0.02, 0.05))),
-                "frozen_puddle" => D("Frozen Puddle", 5, new StockItem(Resource.Water, 1, Uniform(rng, 0.2, 0.5))),
-                "forest_puddle" => D("Forest Puddle", 3, new StockItem(Resource.Water, 1, Uniform(rng, 0.3, 0.7))),
-                "old_nest" => OldNest(rng, D),
-                _ => null, // examine-only: nothing to take
-            };
-            if (detail != null) yield return detail;
+            if (Finds.Details.TryGetValue(name, out var detail)) yield return Make(detail, rng, reveal);
         }
     }
 
-    static StockPool OldNest(Rng rng, Func<string, int, StockItem[], StockPool> d)
-    {
-        var items = new List<StockItem>();
-        if (rng.NextDouble() < 0.6) items.Add(new StockItem(Resource.Tinder, 1, Uniform(rng, 0.01, 0.03)));
-        items.Add(new StockItem(Resource.PlantFiber, 1, Uniform(rng, 0.02, 0.05)));
-        return d("Old Nest", 2, [.. items]);
-    }
+    static IEnumerable<PoolDef> CaveDiscoveries(Rng rng) => Roll(Finds.Cave, rng);
 
-    // ---- discoveries (old DiscoveryGenerator terrain pools) ----
+    static IEnumerable<PoolDef> Discoveries(Terrain terrain, Rng rng) => Roll(Finds.Terrains.GetValueOrDefault(terrain) ?? [], rng);
 
-    /// One template: spawn chance, expected hours to find, and the pool it makes.
-    sealed record Template(double SpawnChance, double ExpectedHours, Func<Rng, double, PoolDef>? Make);
-
-    /// Old pools in their order. Templates with a null Make are small game and event triggers, which
-    /// arrive with their systems; they still roll so the draw is the old one.
-    static IReadOnlyList<Template> DiscoveryTable(Terrain terrain) => terrain switch
-    {
-        Terrain.Forest =>
-        [
-            new(0.08, 1.0, BerryBush), new(0.06, 1.5, MixedDeadfall), new(0.04, 2.0, Cattails), new(0.06, 1.5, null),
-            new(0.03, 2.5, MedicinePatch), new(0.04, 1.5, ResinPocket), new(0.03, 2.0, AbandonedDen), new(0.03, 2.0, CharDeposit),
-            new(0.02, 2.0, AntlerShed), new(0.02, 2.5, OldButcheringSite), new(0.01, 3.0, TallowPot), new(0.02, 2.0, DryWoodStack),
-            new(0.02, 2.5, CordageBundle), new(0.02, 2.0, TinderCache), new(0.01, 3.5, MedicineStash), new(0.02, 3.0, MassiveDeadfall),
-            new(0.01, 4.0, RockOverhang), new(0.02, 3.5, AbandonedCamp), new(0.02, 4.0, TrapperStash), new(0.02, 3.0, HuntersBlind),
-            new(0.01, 4.0, null), new(0.02, 3.0, null), new(0.02, 3.0, null), new(0.02, 2.0, null), new(0.03, 2.0, null),
-        ],
-        Terrain.Clearing =>
-        [
-            new(0.09, 0.8, BerryBush), new(0.05, 1.2, MixedDeadfall), new(0.05, 1.2, null), new(0.03, 2.5, MedicinePatch),
-            new(0.03, 2.0, CharDeposit), new(0.01, 2.5, OldButcheringSite), new(0.02, 2.0, DryWoodStack),
-            new(0.02, 3.5, AbandonedCamp), new(0.02, 3.0, HuntersBlind),
-        ],
-        Terrain.Plain =>
-        [
-            new(0.04, 2.0, BonePile), new(0.03, 2.5, MeltwaterPool), new(0.05, 1.5, null), new(0.03, 2.0, CharDeposit),
-            new(0.02, 2.0, null), new(0.02, 2.5, OldButcheringSite), new(0.02, 3.0, HuntersBlind), new(0.02, 5.0, null), new(0.02, 3.0, null),
-        ],
-        Terrain.Hills =>
-        [
-            new(0.05, 2.5, FlintOutcrop), new(0.04, 2.0, null), new(0.03, 2.0, AbandonedDen), new(0.02, 2.0, null),
-            new(0.03, 1.5, AntlerShed), new(0.02, 2.0, KnappingScatter), new(0.01, 3.5, MedicineStash), new(0.03, 3.0, RockOverhang),
-            new(0.02, 3.5, IceCave), new(0.02, 4.0, PyriteSeam), new(0.02, 3.5, HiddenSpring), new(0.03, 4.0, null),
-            new(0.02, 5.0, null), new(0.02, 3.5, null),
-        ],
-        Terrain.Rock =>
-        [
-            new(0.06, 2.0, FlintOutcrop), new(0.03, 2.0, BonePile), new(0.03, 2.0, null), new(0.03, 2.0, AbandonedDen),
-            new(0.03, 2.0, KnappingScatter), new(0.02, 2.5, TallowPot), new(0.02, 2.0, TinderCache), new(0.03, 2.5, RockOverhang),
-            new(0.02, 3.5, IceCave), new(0.02, 3.5, HiddenSpring),
-        ],
-        Terrain.Marsh =>
-        [
-            new(0.08, 1.0, Cattails), new(0.06, 1.5, MarshWater), new(0.06, 1.0, null), new(0.03, 2.5, MedicinePatch),
-            new(0.02, 2.0, CordageBundle), new(0.01, 3.5, MedicineStash), new(0.02, 4.0, TrapperStash), new(0.02, 2.5, null),
-        ],
-        Terrain.Water => [new(0.08, 1.0, IceSource), new(0.04, 2.0, null), new(0.02, 4.0, HiddenSpring), new(0.02, 3.0, null)],
-        _ => [],
-    };
-
-    /// Old DiscoveryGenerator.CavePool.
-    static readonly IReadOnlyList<Template> CaveTable =
-    [
-        new(0.12, 0.8, FlintOutcrop), new(0.06, 1.2, PyriteSeam), new(0.16, 0.5, BonePile), new(0.06, 0.6, CharDeposit),
-        new(0.05, 0.8, KnappingScatter), new(0.06, 0.7, CaveSeep), new(0.05, 1.0, SleepingRecess), new(0.12, 0.4, LooseShale),
-    ];
-
-    // Old DiscoveryFeatureFactory natural shelters and CaveLocationFactory.CreateSleepingRecess. The old
-    // game drew their levels from the process-wide RNG; here they come from the tile's stream.
-    // The old rolls run past the RockOverhang kind's caps (0.40), so a find's caps are at least its
-    // own levels: work on it never clamps a good overhang down to the kind's.
-    static ShelterFind RockOverhang(Rng r, double _)
-    {
-        double insulation = 0.3 + r.NextDouble() * 0.3, wind = 0.4 + r.NextDouble() * 0.3;
-        var kind = Shelters.Kinds[ShelterKind.RockOverhang];
-        return new(new ShelterDef("Rock Overhang", ShelterKind.RockOverhang, insulation, 0.8, wind,
-            Math.Max(kind.InsulationCap, insulation), Math.Max(kind.OverheadCap, 0.8), Math.Max(kind.WindCap, wind)), 0);
-    }
-
-    static ShelterFind IceCave(Rng r, double _)
-    {
-        double insulation = 0.25 + r.NextDouble() * 0.15, wind = 0.7 + r.NextDouble() * 0.2;
-        return new(new ShelterDef("Ice Cave", ShelterKind.Cave, insulation, 0.95, wind, 0.45, 0.98, 0.95), 0);
-    }
-
-    static ShelterFind SleepingRecess(Rng r, double _) => new(new ShelterDef("Dry Sleeping Recess", ShelterKind.Cave), 0);
-
-    static IEnumerable<PoolDef> CaveDiscoveries(Rng rng) => Roll(CaveTable, rng);
-
-    static IEnumerable<PoolDef> Discoveries(Terrain terrain, Rng rng) => Roll(DiscoveryTable(terrain), rng);
-
-    static IEnumerable<PoolDef> Roll(IReadOnlyList<Template> table, Rng rng)
+    /// Old DiscoveryGenerator: each draw on its spawn chance, found after an exponential share of its
+    /// expected hours. A draw that waits for a system not built yet still rolls, so the draw is the old one.
+    static IEnumerable<PoolDef> Roll(IReadOnlyList<DiscoveryDraw> table, Rng rng)
     {
         foreach (var t in table)
         {
             if (rng.NextDouble() >= t.SpawnChance) continue;
-            var made = t.Make?.Invoke(rng, t.ExpectedHours);
+            var made = t.Find is string id ? Make(Finds.Finds[id], rng, 0) : null;
             double reveal = RevealAt(rng, t.ExpectedHours);
             switch (made)
             {
@@ -413,127 +293,55 @@ public static class Pools
         }
     }
 
-    static StockPool H(string name, int minutes, params StockItem[] items) => new(name, StockKind.Harvest, minutes, items, 0);
-    static StockPool S(string name, int minutes, IReadOnlyList<StockItem> items, IReadOnlyList<Gear>? gear = null) =>
-        new(name, StockKind.Salvage, minutes, items, 0, PlacementHeightM: 0.3, Gear: gear);
+    /// How high a find stands, for how far snow buries it: a bush, a salvage pile, a detail on the ground.
+    static double PlacementHeightM(StockKind kind) => kind switch { StockKind.Salvage => 0.3, StockKind.Detail => 0.25, _ => 0.6 };
 
-    // Old FeatureFactory and DiscoveryFeatureFactory harvestables.
-    static StockPool BerryBush(Rng r, double _) => H("Wild Berry Bush", 5, new StockItem(Resource.Berries, 5, 0.4, 168));
-    static StockPool Cattails(Rng r, double _) => H("Cattail Stand", 10, new StockItem(Resource.PlantFiber, 10, 0.1, 168), new StockItem(Resource.Tinder, 6, 0.03, 168));
-    static StockPool MixedDeadfall(Rng r, double _) =>
-        H("Fallen Tree", 10, new StockItem(Resource.Pine, 4, 2.5, 720), new StockItem(Resource.Kindling, 8, 0.3, 168), new StockItem(Resource.Tinder, 3, 0.05, 168));
-    static StockPool MassiveDeadfall(Rng r, double _) =>
-        H("Massive Fallen Pine", 20, new StockItem(Resource.Pine, 8, 2.5), new StockItem(Resource.Kindling, 15, 0.3), new StockItem(Resource.Tinder, 5, 0.05));
-    static StockPool MeltwaterPool(Rng r, double _) => H("Glacial Pool", 3, new StockItem(Resource.Water, 20, 1.0, 24));
-    static StockPool MarshWater(Rng r, double _) => H("Open Water", 3, new StockItem(Resource.Water, 30, 1.0, 6));
-    static StockPool IceSource(Rng r, double _) => H("Creek Ice", 5, new StockItem(Resource.Water, 20, 1.0, 48));
-    /// Old WaterFeature.AsOpenWater: water that never freezes. A source as generous as a river.
-    static StockPool HiddenSpring(Rng r, double _) => H("Hidden Spring", 1, new StockItem(Resource.Water, 100, 1.0, 0.1));
-    /// Old CaveLocationFactory.CreateSeep: open water, fishless, from deep in the rock.
-    static StockPool CaveSeep(Rng r, double _) => H("Cave Seep", 1, new StockItem(Resource.Water, 100, 1.0, 0.1));
-    static StockPool LooseShale(Rng r, double _) => H("Loose Shale", 5, new StockItem(Resource.Shale, 4, 0.25));
-    static StockPool FlintOutcrop(Rng r, double _) => H("Flint Outcrop", 5, new StockItem(Resource.Flint, 3 + r.NextInt(5), 0.15));
-    static StockPool PyriteSeam(Rng r, double _) => H("Iron Pyrite Seam", 8, new StockItem(Resource.Pyrite, 2 + r.NextInt(4), 0.08));
-    static StockPool BonePile(Rng r, double _) => H("Old Bones", 3, new StockItem(Resource.Bone, 2 + r.NextInt(4), 0.2));
-    static StockPool ResinPocket(Rng r, double _) => H("Resin-Weeping Pine", 5, new StockItem(Resource.PineResin, 2 + r.NextInt(4), 0.05, 168));
-    static StockPool CharDeposit(Rng r, double _) => H("Old Fire Scar", 5, new StockItem(Resource.Charcoal, 3 + r.NextInt(5), 0.08));
-    static StockPool AntlerShed(Rng r, double _) => H("Shed Antlers", 5, new StockItem(Resource.Bone, 2 + r.NextInt(3), 0.4));
-
-    static StockPool MedicinePatch(Rng r, double _)
+    /// One find made from its definition, its items rolled in order (Content/discoveries.json says how).
+    static PoolDef Make(FindDef d, Rng rng, double revealAtHours)
     {
-        var items = new List<StockItem> { new StockItem(Resource.BirchPolypore, 3 + r.NextInt(3), 0.1, 336) };
-        if (r.NextDouble() < 0.5) items.Add(new StockItem(Resource.WillowBark, 2 + r.NextInt(2), 0.08, 336));
-        if (r.NextDouble() < 0.4) items.Add(new StockItem(Resource.Usnea, 2 + r.NextInt(2), 0.05, 336));
-        return H("Herb Patch", 8, [.. items]);
+        if (d.Shelter is ShelterKind kind) return new ShelterFind(ShelterOf(d, kind, rng), revealAtHours);
+        var work = d.Work ?? throw new InvalidOperationException($"{d.Name} is neither stock nor shelter");
+        var items = new List<StockItem>();
+        var gear = new List<Gear>();
+        var choices = new List<(int Index, IReadOnlyList<Resource> AnyOf)>();
+        void Take(FindItem i)
+        {
+            if (i.Chance < 1 && rng.NextDouble() >= i.Chance) return;
+            if (i.Gear != null) { gear.Add(Items.Make(i.Gear)); return; }
+            if (i.Shuffle != null)
+            {
+                var of = i.Shuffle.ToList();
+                for (int k = of.Count - 1; k > 0; k--) { int j = rng.NextInt(k + 1); (of[k], of[j]) = (of[j], of[k]); }
+                int take = i.TakeMax is int most ? Between(rng, i.Take, most + 1) : i.Take;
+                foreach (var x in of.Take(take)) Take(x);
+                return;
+            }
+            int units = i.UnitsMax is int max ? Between(rng, i.Units, max + 1) : i.Units;
+            if (i.AnyOf != null) choices.Add((items.Count, i.AnyOf));
+            var resource = i.Resource ?? i.AnyOf![0]; // drawn below, after every count
+            // Old salvage and details: everything comes at once, after the minutes.
+            items.Add(work == StockKind.Harvest ? new StockItem(resource, units, i.KgPerUnit, i.RespawnHoursPerUnit)
+                : All(resource, i.KgPerUnitMax is double hi ? Pieces(rng, units, i.KgPerUnit, hi) : units * i.KgPerUnit));
+        }
+        foreach (var i in d.Items ?? []) Take(i);
+        foreach (var (index, anyOf) in choices) items[index] = items[index] with { Resource = anyOf[rng.NextInt(anyOf.Count)] };
+        return new StockPool(d.Name, work, d.Minutes, items, revealAtHours, PlacementHeightM(work), gear.Count > 0 ? gear : null);
     }
 
-    static StockPool AbandonedDen(Rng r, double _)
+    /// A natural shelter's levels: a level with a spread is rolled up to it. A cap left out is the kind's,
+    /// and a find's caps are at least its own levels (the old overhang rolls ran past the kind's caps),
+    /// so work on it never clamps a good one down.
+    static ShelterDef ShelterOf(FindDef d, ShelterKind kind, Rng rng)
     {
-        var items = new List<StockItem> { new StockItem(Resource.Bone, 2 + r.NextInt(3), 0.2) };
-        if (r.NextDouble() < 0.4) items.Add(new StockItem(Resource.Hide, 1, 0.15));
-        return H("Old Den", 10, [.. items]);
+        var k = Shelters.Kinds[kind];
+        double? Level(double? level, double spread) => level is double l && spread > 0 ? l + rng.NextDouble() * spread : level;
+        static double? Cap(double? level, double? cap, double kindCap) => level is double l ? Math.Max(cap ?? kindCap, l) : cap;
+        double? insulation = Level(d.Insulation, d.InsulationSpread), overhead = Level(d.Overhead, d.OverheadSpread), wind = Level(d.Wind, d.WindSpread);
+        return new ShelterDef(d.Name, kind, insulation, overhead, wind,
+            Cap(insulation, d.InsulationCap, k.InsulationCap), Cap(overhead, d.OverheadCap, k.OverheadCap), Cap(wind, d.WindCap, k.WindCap));
     }
 
-    static StockPool OldButcheringSite(Rng r, double _)
-    {
-        var items = new List<StockItem> { new StockItem(Resource.Bone, 2 + r.NextInt(2), 0.15) };
-        if (r.NextDouble() < 0.7) items.Add(new StockItem(Resource.Sinew, 1 + r.NextInt(2), 0.05));
-        if (r.NextDouble() < 0.4) items.Add(new StockItem(Resource.Hide, 1, 0.2));
-        return H("Old Kill Site", 8, [.. items]);
-    }
-
-    static StockPool KnappingScatter(Rng r, double _)
-    {
-        var items = new List<StockItem> { new StockItem(Resource.Flint, 2 + r.NextInt(4), 0.12) };
-        if (r.NextDouble() < 0.3) items.Add(new StockItem(Resource.Shale, 1, 0.2));
-        return H("Knapping Scatter", 4, [.. items]);
-    }
-
-    static StockPool DryWoodStack(Rng r, double _)
-    {
-        int logs = 3 + r.NextInt(4), sticks = 4 + r.NextInt(5);
-        var wood = r.NextInt(3) switch { 0 => Resource.Pine, 1 => Resource.Birch, _ => Resource.Oak };
-        return H("Dry Wood Stack", 4, new(wood, logs, 1.5), new StockItem(Resource.Kindling, sticks, 0.15));
-    }
-
-    // Old salvage: everything comes at once, after the minutes.
     static StockItem All(Resource r, double kg) => new(r, 1, kg);
-
-    static StockPool TallowPot(Rng r, double _) => S("Tallow Cache", 5, [All(Resource.Tallow, (1 + r.NextInt(3)) * 0.25)]);
-
-    static StockPool CordageBundle(Rng r, double _)
-    {
-        var items = new List<StockItem> { All(Resource.PlantFiber, (3 + r.NextInt(3)) * 0.08) };
-        if (r.NextDouble() < 0.7) items.Add(All(Resource.Rope, (1 + r.NextInt(2)) * 0.15));
-        return S("Cordage Bundle", 5, items);
-    }
-
-    static StockPool TinderCache(Rng r, double _)
-    {
-        var items = new List<StockItem> { All(Resource.BirchBark, (3 + r.NextInt(3)) * 0.03), All(Resource.PineResin, (2 + r.NextInt(2)) * 0.05) };
-        if (r.NextDouble() < 0.3) items.Add(All(Resource.Amadou, (1 + r.NextInt(2)) * 0.02));
-        return S("Tinder Cache", 5, items);
-    }
-
-    static StockPool MedicineStash(Rng r, double _)
-    {
-        var items = new List<StockItem> { All(Resource.BirchPolypore, (2 + r.NextInt(2)) * 0.08) };
-        var medicines = new List<(Resource, double)>
-        {
-            (Resource.WillowBark, 0.06), (Resource.Chaga, 0.1), (Resource.Usnea, 0.04),
-            (Resource.SphagnumMoss, 0.05), (Resource.RoseHip, 0.03), (Resource.JuniperBerry, 0.03),
-        };
-        for (int i = medicines.Count - 1; i > 0; i--) { int j = r.NextInt(i + 1); (medicines[i], medicines[j]) = (medicines[j], medicines[i]); }
-        int count = 2 + r.NextInt(2);
-        foreach (var (res, kg) in medicines.Take(count)) items.Add(All(res, (2 + r.NextInt(2)) * kg));
-        return S("Medicine Stash", 10, items);
-    }
-
-    static StockPool AbandonedCamp(Rng r, double _) =>
-        S("Abandoned Camp", 45, [All(Resource.Kindling, 0.6), All(Resource.Tinder, 0.05), All(Resource.PlantFiber, 0.1)],
-            r.NextDouble() < 0.5 ? [Items.Make("worn_knife")] : null);
-
-    static StockPool TrapperStash(Rng r, double _)
-    {
-        var items = new List<StockItem>
-        {
-            All(Resource.PlantFiber, Uniform(r, 0.15, 0.3)), All(Resource.Sinew, Uniform(r, 0.12, 0.25)), All(Resource.Kindling, Uniform(r, 0.5, 0.8)),
-        };
-        if (r.NextDouble() < 0.5) items.Add(All(Resource.Hide, Uniform(r, 0.3, 0.5)));
-        if (r.NextDouble() < 0.3) items.Add(All(Resource.Rope, Uniform(r, 0.1, 0.2)));
-        return S("Trapper's Stash", 25, items);
-    }
-
-    /// old game: the abandoned spear rolled its durability as 30-70% of an unlimited maximum (-1),
-    /// which always came out 0, so every one was found broken (bug, fixed: found whole).
-    static StockPool HuntersBlind(Rng r, double _)
-    {
-        var items = new List<StockItem> { All(Resource.Kindling, Uniform(r, 0.6, 1.0)) };
-        List<Gear>? gear = r.NextDouble() < 0.5 ? [Items.Make("wooden_spear")] : null;
-        if (r.NextDouble() < 0.5) items.Add(All(Resource.Bone, Uniform(r, 0.3, 0.5)));
-        if (r.NextDouble() < 0.4) items.Add(All(Resource.Tinder, Uniform(r, 0.15, 0.3)));
-        return S("Hunter's Blind", 20, items, gear);
-    }
 
     // ---- state: deltas, derived forward lazily ----
 

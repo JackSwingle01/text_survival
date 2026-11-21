@@ -82,7 +82,7 @@ Ranked by how much of the game is unplayable without it, then by how much else w
    The emergent design's replacement for Stalked/Hunted is exactly this: a pack mind that picks you
    as prey.
 4. **The knowledge model (§12), M.** There is no fog of war, explored versus visible tiles, sightings
-   or discovery log (`Map.cs:124`). The front end draws the player's beliefs (plan decision 7;
+   or discovery log (`Map.cs:114`). The front end draws the player's beliefs (plan decision 7;
    ui-design gate), so §26 cannot finish without it.
 5. **Moments: the replacement for events (§25), L.** Tensions and authored events are cut, but
    emergent steps 2 to 4 (substrate, kill chain, affordances and moments) are not built. Until they
@@ -133,7 +133,7 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 | Death ends the run | `GameRunner.HandleDeath` | Done | `Map.Outcome` returns `Died`; `CoreTests.BleedingOut_EmitsDiedAndInterrupts_ThenTheDeadCannotAct`, `CrossingTests.Outcome_IsDerived_SurvivingDeadOrAcross` | | |
 | Victory by crossing the pass | `GameRunner.HandleVictory`, `Location.IsCrossingExit` | Done | `Map.Outcome` returns `Crossed`; `Sim.Step` refuses the player afterwards; `CrossingTests.Crossed_TheRunIsOver`, `TravelTests.ReachingTheFarSide_CrossesThePass` | | |
 | Typed fact stream instead of notices and narrative plumbing | `ctx.Notices`, `NarrativeLog`, `RelationshipEvents` | Partial | `WorldEvent.cs` exists and every step returns events. Missing: the short-loop "Asks": not every event carries a tile (`FuelAdded` has none), and nothing consumes the stream yet (no log, no notices, no memory) | S | |
-| Tables as data files | `LocationFactory`, `NeedCraftingSystem`, `RewardGenerator` in code | Missing | Only locations and loot are JSON (`Content/locations.json`, `loot.json`; `ContentTests.AllContent_LoadsAndEveryReferenceResolves`). Items, gear, species, effects, shelter recipes are still code (`Items.cs:79` note). This is part of the Phase 4 gate | M | crafting recipes should be born as data |
+| Tables as data files | `LocationFactory`, `NeedCraftingSystem`, `RewardGenerator` in code | Done | Twelve files under `Content/`, one per table family: locations, loot, items (resources, gear, slot coverage, starting kit), fire (fuels, pits), species (rows, temperaments, diets, sightings), effects, shelters (kinds, tents, materials, recipes, beddings), butchering, terrain (terrains, caves, substrates, edges), forage, discoveries (finds, details, draws), accidents. `Content.Parse` checks them strictly; `ContentTests.AllContent_LoadsAndEveryReferenceResolves` and the `Loader_*_InEveryFile` theories. Kept as code: the camp tile, felling yields, carcass composition, body plans, the climate model (`rebuild-deferred.md`) | | crafting recipes should be born as data |
 | Web-mode session IDs | `SaveManager` `sessionId`, `Dockerfile`, `package.json` | Cut | A leftover of the web version; the target is the desktop app (plan Phase 5) | | |
 
 ## 2. Fire and torches
@@ -149,7 +149,7 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 | Fire warms the tile and the body; lazy catch-up while away | `HeatSourceFeature`, `Location.GetTemperature` | Done | `Fire.WarmthFor`, `Fire.CatchUp`; `FireTests.UnattendedFire_CatchesUpLazily_WithEventsAtTheRightMinute`, `FireBodyTests.RestingByAFire_StaysWarmerThanRestingWithout` | | |
 | Charcoal left by a dead fire | `FireHandler.CollectCharcoal` | Done | `GatherCharcoal`; CLI `charcoal`; `ItemsTests.GatherCharcoal_PutsWhatADeadFireLeftInThePack` | | |
 | Fire-starter tools wear out | `Gear.Use` | Done | `Items.Use` in `Fire.Start`; covered by `ItemsTests.StartFire_*` | | |
-| Pit types: open, mound, stone | `HeatSourceFeature` pit types | Done | `PitType`, wind and efficiency (`Fire.cs:60-62`); `FireTests.StonePit_BurnsSlowerThanOpen` | | |
+| Pit types: open, mound, stone | `HeatSourceFeature` pit types | Done | `PitType`, wind and efficiency (`Content/fire.json` pits); `FireTests.StonePit_BurnsSlowerThanOpen` | | |
 | Upgrading a pit costs a project | `FirePitUpgradeProject`, "Mound/Stone Fire Pit (Project)" recipes | Partial | `StartFire` takes any `PitType` for free on a new pit. Missing: the mound and stone projects (materials, time) | S | crafting |
 | Torch: light from a fire, carried heat and light, burns out | `TorchHandler.LightTorch`, `UpdateTorchBurnTime` | Done | `Fire.Torch`; CLI `torch`; `FireTests.Torch_LightsFromFire_WarmsItsCarrier_AndBurnsOutInAnHour`. As a system of its own it is Cut (below) | | |
 | Torch chains onto a fresh one automatically | `TorchHandler` chaining | Missing | Lighting a new torch from the one in hand works by hand; there is no automatic chain when one gutters away from a fire | S | |
@@ -264,7 +264,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 | Clothing: hide gloves, cap, wrap, leggings, boots; mammoth hide coat and hood | Equipment | Missing | Pull goal (principles.md "Megafauna hunts") has no payoff without it | S | engine, curing (§8) |
 | Lighting: simple, birch bark and resin torches; amadou and polypore ember carriers | Lighting | Missing | Torches today come only from loot | S | engine |
 | Carrying: small pouch, rope belt, proper belt, large bag, mammoth hide pack | Carrying | Missing | The accessories exist as gear (except the pack); none can be made | S | engine |
-| Camp projects not yet ported: curing rack, mound and stone pits, hide and mammoth hide tents, rebuilding a branch frame into a log frame, reclaiming an abandoned project | CampInfrastructure, `CraftingProjectFeature` | Missing | `Shelter.cs:72-74` records the rebuild and reclaim gap; tents can be pitched but not made | M | engine |
+| Camp projects not yet ported: curing rack, mound and stone pits, hide and mammoth hide tents, rebuilding a branch frame into a log frame, reclaiming an abandoned project | CampInfrastructure, `CraftingProjectFeature` | Missing | `Shelter.cs:79-83` records the rebuild and reclaim gap; tents can be pitched but not made | M | engine |
 | Mending: boots, gloves, cap, chest wrap, leggings | Mending | Missing | | S | engine |
 
 ## 11. Gathering work
@@ -276,7 +276,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 | Chop: progress persists, trees fell and regrow, needs an axe | `ChoppingStrategy`, `WoodedAreaFeature` | Done | `TreePool`; CLI `chop`; `WorkTests.Chopping_NeedsAnAxe_PersistsAcrossSteps_AndStopsWhenTheTreeFalls`, `PoolsTests.ALimitedStand_ClearsAndRegrowsOneTreeAWeek` | | |
 | Salvage: a loot table rolled once | `SalvageStrategy`, `SalvageFeature`, `RewardGenerator` | Done | `StockPool` Salvage, `Content/loot.json`; CLI `salvage`; `WorkTests.Salvage_ComesAllAtOnce_GearIncluded`, `PoolsTests.ASalvage_IsRolledOnce_FromTheSeedAndTile` | | |
 | Darkness blocks work; impairment slows it | `WorkRunner.CheckDarknessBlocking`, `GetWorkImpairments` | Done | `Work.TooDarkToWork`; `WorkTests.AtNight_OnlyForagingWorksWithoutLight`, `ImpairedChopping_IsSlower_AndInterruptedChoppingKeepsItsProgress` | | |
-| Examine environmental details | `ExamineStrategy`, `EnvironmentalDetail` | Partial | Details that yield something are `StockKind.Detail` pools (`Pools.cs:265`). Missing: the examine-only ones (tracks, scat, burrows), which told a story only; they become signs (emergent §3.2) | S | substrate (§25) |
+| Examine environmental details | `ExamineStrategy`, `EnvironmentalDetail` | Partial | Details that yield something are `StockKind.Detail` pools (`Content/discoveries.json` details). Missing: the examine-only ones (tracks, scat, burrows), which told a story only; they become signs (emergent §3.2) | S | substrate (§25) |
 | Harvest, forage, chop, salvage, detail as separate feature classes | five feature classes | Cut | Plan Keep/Port/Cut "Merge": one pool on a tile that work draws from | | |
 
 ## 12. Discovery and knowledge
@@ -286,7 +286,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 | Hidden features revealed by perception-weighted search hours | `HiddenFeature`, `DiscoveryGenerator` | Done | `Knowledge.SearchHours`, `Pools.Search`; `PoolsTests.Discoveries_SpawnAndRevealLikeTheOldPools`, `AHiddenPool_CannotBeWorkedUntilFound_AndOnlyItsFinderKnowsIt` | | |
 | Natural shelters found by searching | `DiscoveryFeatureFactory` | Done | `ShelterFind`; `PoolsTests.HiddenShelter_IsPlacedWhenFound` | | |
 | Snow over a find slows the search, earned effort kept | `HiddenFeature.EffectiveSearchHours` | Done | `PoolsTests.Snow_SlowsTheSearch_ButKeepsEffortAlreadySpent`, `GroundTests.BurialReducesNewSearchProgressToAFloorButNeverToNothing` | | |
-| Tile visibility: unexplored, explored, visible; sight rays | `TileVisibility`, `Perception/Sight.cs`, `GameMap.UpdateVisibility` | Missing | `Map.cs:124`: "No tile visibility / fog of war yet". Belongs in the agent knowledge model (plan decision 7) | M | |
+| Tile visibility: unexplored, explored, visible; sight rays | `TileVisibility`, `Perception/Sight.cs`, `GameMap.UpdateVisibility` | Missing | `Map.cs:114`: "No tile visibility / fog of war yet". Belongs in the agent knowledge model (plan decision 7) | M | |
 | Map memory: what a tile held when last seen | (old: implicit in explored state) | Missing | The short-loop "Ask" scopes it (feature 4, place memory). Needed for the ui-design gate test (the fire shows as last seen) | M | the row above |
 | Discovery log (locations, beasts, provisions, medicine, works) and recipe unlocking | `Discovery/DiscoveryLog.cs`, `DiscoveryLogOverlay` | Missing | | S | crafting (unlocks), front end |
 | Discovery events placed in the world (abandoned camps, frozen travellers, caches) | `EventTriggerFeature`, `DiscoveryEventFactory` | Replaced | emergent-world-design §6 (the settling pass produces these from the real sim), leftovers in `authored-content-catalog.md`. Not built: emergent step 3 | | settling pass (§25) |
@@ -298,7 +298,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 | Shelters: insulation, overhead, wind; natural and built | `ShelterFeature` | Done | `Shelter.cs`; `ShelterTests.ShelterStep_MatchesOld`, `WindCoverage_CutsTheChillOnce_NotTheBodysWindToo` | | |
 | Improve a shelter with materials | `ShelterImprovementStrategy` | Done | `ImproveShelter`; CLI `improve`; `ShelterTests.Improve_UsesAPieceInTenMinutes_WithDiminishingReturns` | | |
 | Snow shelters melt in warm air | `ShelterFeature` (stub in the old game) | Done | `Shelters.Melt`; `ShelterTests.SnowShelter_MeltsByTheHour_HoweverOftenItIsLookedAt` (rate invented, overnight review) | | |
-| Shelter damage and repair | `ShelterFeature.Damage/Repair` | Done | `Shelters.Damage/Repair` (`Shelter.cs:166`); only melting calls Damage, since the old callers were events | | |
+| Shelter damage and repair | `ShelterFeature.Damage/Repair` | Done | `Shelters.Damage/Repair` (`Shelter.cs:211`); only melting calls Damage, since the old callers were events | | |
 | Bedding: sleep quality, ground protection, warmth | `BeddingFeature` | Done | `ShelterTests.CampBedding_SleepsAtFullQuality_AndKeepsTheGroundOff`, `BetterBedding_HealsSleepFaster` (old bug fixed: warmth now read) | | |
 | Multi-session building projects | `CraftingProjectFeature`, `CraftingProjectStrategy` | Done | `Project`; `ShelterTests.Project_PersistsAcrossSteps_AndBlocksAnotherBuild` | | |
 | Tent: pitch anywhere, pack up, keep improvements | `CampHandler.DeployTent/PackTent` | Done | `Build(Tent)`, `PackTent`; CLI `build tent`, `pack`; `ShelterTests.Tent_PitchesAndPacks_ThroughASave`, `Tent_KeepsItsImprovements_WhenPackedAndPitchedAgain` | | |
@@ -313,7 +313,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 |---|---|---|---|---|---|
 | Camp storage (unlimited, at camp) | `CacheFeature.CreateCampCache`, `CampAction.Storage` | Done | Any tile's stash (`Items.StashAt`); CLI `stash`/`take`; `ItemsTests.StashAndUnstash_MoveThingsBetweenPackAndTile_AndSurviveASave` | | |
 | Drop and pick up on the ground | `GroundStashStrategy`, `GroundItemsFeature` | Done | Same stash; `WorkTests.AnEmptiedStash_IsGone` | | |
-| Remote caches with capacity, predator, weather and food protection | `CacheFeature`, `CacheStrategy` | Partial | Named sites carry `SiteCache` as data (`Content.cs`), unused. The stash is unlimited and unprotected by decision (`Shelter.cs:72`). Raids are an emergent-table row ("Pack or bear digs out a stash with meat") | S | predators acting on stashes |
+| Remote caches with capacity, predator, weather and food protection | `CacheFeature`, `CacheStrategy` | Partial | Named sites carry `SiteCache` as data (`Content.cs`), unused. The stash is unlimited and unprotected by decision (`Shelter.cs:81`). Raids are an emergent-table row ("Pack or bear digs out a stash with meat") | S | predators acting on stashes |
 
 ## 15. Map, locations and world generation
 
@@ -339,8 +339,8 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 | Impassable terrain and blocking edges (cliff, ravine) | `GameMap.CanMoveTo`, `IsEdgeBlocked` | Done | `TravelTests.ImpassableMove_IsRefusedAtNoCost`, `MapTests.Blocked_ByEdgeOfWorldImpassableTerrainAndBarriersBothWays` | | |
 | Cannot walk with a broken body | `TravelRunner` | Done | `TravelTests.Travel_IsRefusedWhenTheBodyCannotWalk` | | |
 | A half crossing can be continued or abandoned | (old: event continue/stop prompt) | Done | `TravelTests.Travel_StaysOnTheOriginUntilTheCrossingCompletes_AndCanBeContinued` | | |
-| Seasonal edges (rivers flooding in spring, frozen crossings) | `TileEdge.RequiredSeason`, `IsBlockedIn(season)` | Missing | `Map.cs:87`: "No seasons yet: the old River could flood in spring" | S | |
-| Trail marking and cutting by the player (blazes, cairns, cleared paths) | `TrailMarkingStrategy` | Missing | `EdgeType.TrailMarker` and `CutTrail` exist with their minutes (`Map.cs:82`); nothing makes them | S | |
+| Seasonal edges (rivers flooding in spring, frozen crossings) | `TileEdge.RequiredSeason`, `IsBlockedIn(season)` | Missing | `Map.cs:77`: "No seasons yet: the old River could flood in spring" | S | |
+| Trail marking and cutting by the player (blazes, cairns, cleared paths) | `TrailMarkingStrategy` | Missing | `EdgeType.TrailMarker` and `CutTrail` exist with their minutes (`Content/terrain.json` edges); nothing makes them | S | |
 | Travel interrupted by events | `TravelRunner` event interruption | Replaced | Events become moments (emergent-world-design §7); `Step` already returns `Interrupted(reason)` | | moments |
 
 ## 17. Ground surface
@@ -351,7 +351,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 | Surface slows travel and adds footing hazard | `TraversalFactor`, `HazardDelta` | Done | `GroundTests.DeepSnowSlowsTravelAndDeepWaterSlowsItFurther`, `IcedOverStandingWater_IsAFootingHazard_ButNotBesideARiver` | | |
 | Contact wetting from the ground | `GetContactWettingRate` | Done | `GroundTests.StandingWater_WetsWhoeverStandsInIt_UnderARoofToo` | | |
 | Lazy catch-up instead of quarter-hour batches | `GameMap.AdvanceWorld` | Done | `GroundTests.CatchUp_IsTheSameHoweverOftenTheTileIsLookedAt`, `LazySubSteps_StayCloseToPerMinuteStepping` (plan decision 3) | | |
-| Burial access and digging up (`Dig up X`, shovel doubles, holes refill) | `GroundSurface.Excavation`, `DigUpStrategy`, `SurfaceAccess` | Missing | `Ground.cs:214`: not ported; needs per-placement elevation, footprint and hole depth. Emergent `Access.Refusal` is the planned gate | M | substrate (§25) |
+| Burial access and digging up (`Dig up X`, shovel doubles, holes refill) | `GroundSurface.Excavation`, `DigUpStrategy`, `SurfaceAccess` | Missing | `Ground.cs:208`: not ported; needs per-placement elevation, footprint and hole depth. Emergent `Access.Refusal` is the planned gate | M | substrate (§25) |
 
 (Route-local snow packing was deferred in the old game too, so it is not a parity item.)
 
@@ -385,7 +385,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 | Valley population; dens and caves anchor packs, bears, mammoths | `HerdPopulator` | Done | `Populate.cs`; `HerdTests.TheValley_IsPopulatedLikeTheOldGame`, `EveryWolfDen_HasAPackLivingOnIt`, `TheBearCave_HasItsBear` | | |
 | Learned fear, starving packs range wider | `Herd` fear and hunger | Done | `HerdTests.AFrightenedPack_LeavesPreyAlone`, `AForayEnds_WhenThePackScavenges` | | |
 | Predators engage the player and NPCs (stalking, boldness to engage, ambush) | `PredatorInteraction`, `Herd.BoldnessToward`, `ShouldEngagePlayer`, `GameContext` pending encounter | Missing | `Fauna.cs:47`: "Herds never come for the player or an NPC yet". `Combat.Boldness` is ready (`CombatGoldenTests.HerdBoldness_MatchesOld`). This is also the emergent replacement for Stalked/Hunted | M | |
-| Meat, blood and scent draw predators | `Situations.AttractiveToPredators` | Partial | `Bloody` and carcass `Scent` are modelled (`Carcass.Scent`, `Work.cs:344`); scavengers smell carcasses (`Fauna.cs:676`). Missing: anything that smells the player | S | the row above |
+| Meat, blood and scent draw predators | `Situations.AttractiveToPredators` | Partial | `Bloody` and carcass `Scent` are modelled (`Carcass.Scent`, `Work.cs:344`); scavengers smell carcasses (`Fauna.cs:654`). Missing: anything that smells the player | S | the row above |
 | Ptarmigan, rat, fish as animal bodies | `AnimalType` | Cut | `Species.cs:3`: birds lost their body plan (plan Keep/Port/Cut); the others are small-game pools | | |
 
 ## 21. Hunting and combat
@@ -405,7 +405,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 
 | Feature | Old source | Status | Evidence or what is missing | Size | Depends on |
 |---|---|---|---|---|---|
-| Small game as a density: search, encounter, depletion, peak hours | `SmallGameFeature`, `AnimalPresence`, `HuntStrategy` (small game) | Missing | `SiteSmallGame` is carried as data (`Content.cs`); the terrain templates roll and leave nothing (`Pools.cs:322`). Rabbit and Fox bodies exist (`Species.cs`) and small game bolts in combat (`CombatTests.SpottedSmallGameRunsInsteadOfFighting`) | M | |
+| Small game as a density: search, encounter, depletion, peak hours | `SmallGameFeature`, `AnimalPresence`, `HuntStrategy` (small game) | Missing | `SiteSmallGame` is carried as data (`Content.cs`); the terrain draws that wait for it roll and leave nothing (`Content/discoveries.json`, `waitsFor`). Rabbit and Fox bodies exist (`Species.cs`) and small game bolts in combat (`CombatTests.SpottedSmallGameRunsInsteadOfFighting`) | M | |
 | Snares: set, bait, passive catch, states (active, catch ready, stolen, destroyed), durability | `TrapStrategy`, `SnareLineFeature`, `PlacedSnare` | Missing | | M | small game, crafting |
 | Ice holes: cut by thickness, refreeze | `IceCuttingStrategy`, `WaterFeature` | Missing | `Work.cs:155`: a frozen lake should need a hole; Ground does not model ice thickness on water yet | M | |
 | Rod fishing | `FishingStrategy` | Missing | `SiteWater.Fish` is carried; `RawFish` is food | S | ice holes, crafting |

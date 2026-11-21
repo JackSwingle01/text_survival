@@ -6,40 +6,47 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 ## Content and crafting
 
-- `Fire.cs:36`, `Items.cs:77`, `Species.cs:35` - fuel, resource, gear and species tables live in code.
-  Upgrade: move the plain rows to `Content/*.json` beside locations and loot, checked by `Content.Parse`.
-- `Shelter.cs:58` - only the simplest camp recipes exist (bedding, frames, snow shelter, pitching a tent);
-  no general crafting, no hide tent recipe. Upgrade: port `NeedCraftingSystem` as its own system; `Recipe` becomes a content row.
+- `Shelter.cs:90`, `Pools.cs:121`, `Map.cs:208` - the camp's tile (its Overhang, bedding, thin forage, wind, cover,
+  visibility, name) is code, not content: it moves when the camp becomes a content site (below).
+- `Pools.cs:463`, `Report.cs:279` - a felled tree's yield (8-10 logs of 4.0/2.5/2.0 kg oak/pine/birch, the 40/35/25 mixed
+  draw, sticks, tinder) is code, and `Report` repeats the log weights. Upgrade: a per-wood row in `Content/terrain.json`
+  trees, read by both.
+- `Content/forage.json` - the old `Barren` forage table (density 0.32) was only the default arm for impassable terrain,
+  which never forages; it was not carried over. Upgrade: add a table and a terrain row if a barren passable terrain appears.
+- `Content/species.json` - rabbits and foxes have the old defaults, herd behaviour Prey and diet Carnivore (they never form
+  herds yet). Upgrade: give them real rows with small game.
+- `Shelter.cs:60` - only the simplest camp recipes exist (bedding, frames, snow shelter, pitching a tent; `Content/shelters.json`);
+  no general crafting, no hide tent recipe. Upgrade: port `NeedCraftingSystem` as its own system, its recipes born as content rows.
 - `Npc.cs:48`, `Npc.cs:516` - NPCs spawn with an axe and knife and cannot make a fire starter, standing in
   for the old NPC's crafting. Upgrade: once crafting exists, shrink the kit to the player's and craft at these points.
-- `Shelter.cs:74` - old `CacheFeature` (capacity, predator/weather protection, food preservation) not ported;
+- `Shelter.cs:81` - old `CacheFeature` (capacity, predator/weather protection, food preservation) not ported;
   no branch-to-log frame rebuild (old 60% salvage), no reclaim from an abandoned project. Upgrade: port with scavengers that raid stashes.
 - `Content/loot.json:16` - the old ancient cache's fishing rod or net is left out. Upgrade: add with fishing.
-- `Content.cs:61`, `Pools.cs:150` - a site's small game, caches, `FirstVisitEvent` and `SiteEvent` are carried as data only.
+- `Content.cs:61`, `Pools.cs:162` - a site's small game, caches, `FirstVisitEvent` and `SiteEvent` are carried as data only.
   Upgrade: small game as a density to hunt in; events fire on arrival and in `Pools.Search` when found (emergent-world moments).
 - `Content.cs:12` - a site's `Edges` (old climb on all sides) is carried, not applied (the old game never read it);
   `Escape` and `Vantage` wait for combat escape terrain and scouting. Upgrade: apply in `Map.EdgeBetween` if climbing sites should cost.
 
 ## Water, ice and ground
 
-- `Content.cs:54`, `Map.cs:199`, `Work.cs:155` - site water ice is static: no ice holes, fishing, or ice that grows and thaws;
+- `Content.cs:54`, `Map.cs:184`, `Work.cs:155` - site water ice is static: no ice holes, fishing, or ice that grows and thaws;
   a frozen lake gives water without a hole. Upgrade: give Ground ice thickness, then port `IceCuttingStrategy`.
 - `Work.cs:306` - melting snow never checks there is snow (old: "assumed freely available", even in July).
   Upgrade: take it from `Ground`'s snow depth on the tile.
-- `Ground.cs:214` - burial access and digging (old `GroundSurface.Excavation`, `DigUpStrategy`) not ported.
+- `Ground.cs:208` - burial access and digging (old `GroundSurface.Excavation`, `DigUpStrategy`) not ported.
   Upgrade: per-placement elevation, footprint and hole depth on `TileState`.
-- `Ground.cs:216` - no route packing (`Compact` is ported, nothing calls it); the old game deferred it too.
-- `Map.cs:87` - no seasons on edges (the old river could flood in spring).
-- `Travel.cs:114` - herds ignore snow and mud when they walk. Upgrade: read the ground if deep snow should slow herds
+- `Ground.cs:210` - no route packing (`Compact` is ported, nothing calls it); the old game deferred it too.
+- `Map.cs:77` - no seasons on edges (the old river could flood in spring).
+- `Travel.cs:118` - herds ignore snow and mud when they walk. Upgrade: read the ground if deep snow should slow herds
   (costs a ground catch-up and save state on every tile a herd crosses).
 
 ## Animals
 
 - `Fauna.cs:47` - herds never come for the player or an NPC (old `ShouldEngagePlayer`, stalking, pack attacks on NPCs).
   Upgrade: encounters through `Combat.Boldness`, which is ready for them.
-- `Fauna.cs:187` - a lame member that mends never rejoins its herd; it lives on as its own herd.
-- `Fauna.cs:303` - old hungry wolves chased escaping prey 40% of the time; here they patrol on.
-- `Fauna.cs:527` - old hyenas shadowed feeding predators and wolf packs; only carcasses draw them here.
+- `Fauna.cs:165` - a lame member that mends never rejoins its herd; it lives on as its own herd.
+- `Fauna.cs:281` - old hungry wolves chased escaping prey 40% of the time; here they patrol on.
+- `Fauna.cs:505` - old hyenas shadowed feeding predators and wolf packs; only carcasses draw them here.
 - `Populate.cs:8` - old territory details (tracks, droppings, bones as pools) not ported; herds leave real prints instead.
   Upgrade: emergent-world signs.
 - `Body.cs:523` - the inner-organ hit threshold (5) predates the 0-1 damage scale, so only huge hits reach organs.
@@ -54,9 +61,9 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Combat.cs:636` - no Fighting skill added to blows. Upgrade: with progression.
 - `Combat.cs:724`, `CombatAI.cs:37`, `Npc.cs:26` - relationship opinions are never written, so companions'
   help and pack cohesion ignore them. Upgrade: feed `Opinions` from the `WorldEvent` stream (plan decision 4).
-- `Fire.cs:137` - fuel hours as a person reckons them (`Fire.FuelHours`, the NPC's camp fuel and remembered fire hours)
+- `Fire.cs:126` - fuel hours as a person reckons them (`Fire.FuelHours`, the NPC's camp fuel and remembered fire hours)
   ignore a stone pit's efficiency and a small fire's slower burn (both under 15%).
-- `Knowledge.cs:89`, `Npc.cs:830`, `Map.cs:128` - no sight rays or fog of war: everyone's sight is `Sight.Visible`, a fixed
+- `Knowledge.cs:89`, `Npc.cs:830`, `Map.cs:118` - no sight rays or fog of war: everyone's sight is `Sight.Visible`, a fixed
   5-tile radius blind to terrain, weather and dark, and NPC threat checks read herds' true positions.
   Upgrade: port old `GameMap.UpdateVisibility` behind `Sight.Visible`; nothing else needs to change.
 - What an NPC still reads from the world rather than its beliefs, deliberately (plan decision 7; the camp's fire
@@ -76,7 +83,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   (`rebuild-npc-hunting.md`), weigh the odds of losing the fight, not just its cost to the meal.
 - `Knowledge.cs:315` - a carcass going (butchered away) is not a notable journal entry: `Butchered` is a step's tally and
   is not filed. Upgrade: a once-only `CarcassGone` event when one leaves its tile.
-- `Travel.cs:201` - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.
+- `Content/accidents.json` (Sprains) - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.
 
 ## Knowledge, receipts and skills
 
@@ -91,7 +98,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Knowledge.cs:58` - `Danger` has Hurt and Den; no thin ice, since Ground models no ice thickness yet.
 - `Npc.cs:36` - an NPC's last close threat (`ThreatTile`) stays its own decision state, not a `Sighting`: it keeps the
   flight logic exactly as tuned. Upgrade: derive it from `Beliefs.Sightings` if the two should agree.
-- `Shelter.cs:459`, `Skills.cs:62` - Crafting teaches but pays nothing (crafting has no failures to spare yet); Cooking pays
+- `Shelter.cs:407`, `Skills.cs:62` - Crafting teaches but pays nothing (crafting has no failures to spare yet); Cooking pays
   in speed only (cooking has no bad results yet). Upgrade: crafting luck and cooking quality (short-loop feature 8).
 - `Odds.cs` - odds come as factors for fire-starting, throws, injury on hazardous ground and forage yield. Not yet:
   stalking detection (`Combat.DetectionChance`, a power curve the stalk redesign replaces), dodge, shove and the flat
@@ -100,11 +107,11 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 ## Shelter and bedding
 
-- `Shelter.cs:250` - snow shelter melt rate (0.01 of each level per hour per °F above freezing) is invented;
+- `Shelter.cs:240` - snow shelter melt rate (0.01 of each level per hour per °F above freezing) is invented;
   the old hook was a stub. Upgrade: tune in playtest.
-- `Shelter.cs:328` - old bedding `HasWindProtection` / `HasGroundInsulation` flags dropped (nothing read them).
+- `Shelter.cs:293` - old bedding `HasWindProtection` / `HasGroundInsulation` flags dropped (nothing read them).
   Upgrade: give them numbers when a sleeper's wind is modelled.
-- `Shelter.cs:94` - the camp's Overhang and bedding are placed from code by `World.New`; the camp is not a content site.
+- `Shelter.cs:90` - the camp's Overhang and bedding are placed from code by `World.New`; the camp is not a content site.
   Upgrade: make the starting camp a `Content/locations.json` site, so `Map.PlaceSiteShelters` places them.
 - `Sim.cs:254` - a known physics question: a shelter's wind cover cuts both the wind chill and the body's own wind
   (convection, wind through clothing, ambient drying), as a fire pit's walls do, but a tile's wind factor reaches

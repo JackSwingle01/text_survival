@@ -57,8 +57,8 @@ public sealed class Project
 /// Things built on a tile with the Build activity (old camp-infrastructure recipes and MakeCamp).
 public enum Structure { MakeshiftBedding, PaddedBedding, MossBedding, SleepingBag, BranchFrame, LogFrame, SnowShelter, Tent }
 
-/// One recipe. Materials are (any of these, kg); taken when the work starts.
-/// The simplest camp recipes only, in code; full crafting (and the hide tent recipe) is not ported.
+/// One recipe (Content/shelters.json). Materials are (any of these, kg); taken when the work starts.
+/// The simplest camp recipes only; full crafting (and the hide tent recipe) is not ported.
 public sealed record Recipe(int Minutes, (Resource[] AnyOf, double Kg)[] Materials, bool NeedsLight = true,
     bool NeedsShovel = false, bool ShovelHelps = false, bool NeedsFrost = false, ShelterKind? Shelter = null, BeddingKind? Bedding = null);
 
@@ -66,6 +66,10 @@ public enum BeddingKind { Camp, Makeshift, Padded, MossPadded, SleepingBag }
 
 /// Old BeddingFeature. Quality is sleep efficiency and keeps you off wet ground; warmth is felt asleep.
 public sealed record BeddingProps(string Name, double QualityPct, double WarmthBonusF);
+
+/// Old MaterialProperties: a nominal piece's kilos, and how much one does for each shelter stat.
+/// Shelter false is a material recipes use that cannot be worked into a shelter (sinew: sewing only).
+public sealed record ShelterMaterial(double PieceKg, double Insulating, double Waterproof, double Structural, bool Shelter = true);
 
 /// The Build activity finished something on this tile.
 public sealed record Built(long Minute, AgentId Who, TileId Tile, Structure What) : WorldEvent(Minute, Tile);
@@ -79,29 +83,15 @@ public sealed record ShelterCollapsed(long Minute, TileId Tile, string Name) : W
 // salvage), no reclaim from an abandoned project.
 public static class Shelters
 {
-    public static readonly IReadOnlyDictionary<ShelterKind, ShelterKindProps> Kinds = new Dictionary<ShelterKind, ShelterKindProps>
-    {
-        [ShelterKind.BranchFrame] = new(0.15, 0.25, 0.20, 0.50, 0.50, 0.50, IsNatural: false),
-        [ShelterKind.LogFrame] = new(0.25, 0.35, 0.30, 0.80, 0.80, 0.80, IsNatural: false),
-        [ShelterKind.RockOverhang] = new(0.10, 0.70, 0.30, 0.40, 0.80, 0.40, IsNatural: true),
-        [ShelterKind.Cave] = new(0.25, 0.90, 0.20, 0.60, 0.95, 0.40, IsNatural: true),
-        [ShelterKind.DenseThicket] = new(0.15, 0.50, 0.60, 0.40, 0.60, 0.70, IsNatural: true),
-        [ShelterKind.FallenTree] = new(0.10, 0.40, 0.50, 0.30, 0.50, 0.60, IsNatural: true),
-        [ShelterKind.SnowShelter] = new(0.60, 0.90, 0.80, 0.60, 0.90, 0.80, IsNatural: false, IsSnow: true),
-        [ShelterKind.HideTent] = new(0.50, 0.90, 0.70, 0.60, 0.95, 0.80, IsNatural: false),
-        [ShelterKind.NaturalShelter] = new(0.20, 0.50, 0.40, 0.80, 0.90, 0.80, IsNatural: true),
-    };
+    /// Every shelter kind's levels and caps (Content/shelters.json).
+    public static readonly IReadOnlyDictionary<ShelterKind, ShelterKindProps> Kinds = Content.Tables.ShelterKinds;
 
     /// The old starting camp's Overhang (GridWorldGenerator.CreateCampLocation), placed by World.New.
     // The camp is not a content site yet, so its shelter and bedding are code (see rebuild-deferred.md).
     public static readonly ShelterDef CampOverhang = new("Overhang", ShelterKind.NaturalShelter, 0.55, 0.3, 0.4, 0.70, 0.50, 0.55);
 
-    /// Pitched tents by gear kind (old Gear.HideTent, MammothHideTent shelter values).
-    public static readonly IReadOnlyDictionary<string, ShelterDef> Tents = new Dictionary<string, ShelterDef>
-    {
-        ["hide_tent"] = new("Hide Tent", ShelterKind.HideTent, 0.5, 0.9, 0.7),
-        ["mammoth_hide_tent"] = new("Mammoth Hide Tent", ShelterKind.HideTent, 0.6, 0.95, 0.85, WindCap: 0.85), // above the hide tent's cap
-    };
+    /// Pitched tents by gear kind (old Gear.HideTent, MammothHideTent shelter values; Content/shelters.json).
+    public static readonly IReadOnlyDictionary<string, ShelterDef> Tents = Content.Tables.Tents;
 
     // ---- placing and reading ----
 
@@ -284,31 +274,10 @@ public static class Shelters
 
     // ---- materials (old MaterialProperties) ----
 
-    /// Old item counts become kilos through a nominal piece: a stick, a log, a hide.
-    // One judged weight per material; recipes and improvement both read it.
-    public static readonly IReadOnlyDictionary<Resource, (double PieceKg, double Insulating, double Waterproof, double Structural)> Materials =
-        new Dictionary<Resource, (double, double, double, double)>
-        {
-            [Resource.SphagnumMoss] = (0.2, 0.8, 0.3, 0.1),
-            [Resource.PineNeedles] = (0.06, 0.5, 0.2, 0.1),
-            [Resource.PlantFiber] = (0.1, 0.6, 0.2, 0.1),
-            [Resource.Tinder] = (0.05, 0.5, 0.1, 0.1),
-            [Resource.BirchBark] = (0.05, 0.3, 0.8, 0.2),
-            [Resource.Kindling] = (0.3, 0.2, 0.3, 0.7), // old Stick
-            [Resource.Pine] = (2.0, 0.3, 0.5, 0.9),
-            [Resource.Birch] = (2.0, 0.3, 0.5, 0.9),
-            [Resource.Oak] = (2.0, 0.4, 0.5, 0.95),
-            [Resource.Hide] = (1.0, 0.9, 0.7, 0.4),
-            [Resource.CuredHide] = (1.0, 0.85, 0.75, 0.45),
-            [Resource.MammothHide] = (5.0, 0.95, 0.8, 0.5),
-            [Resource.Stone] = (0.3, 0.1, 0.6, 0.95),
-            [Resource.Bone] = (0.3, 0.1, 0.2, 0.6),
-            [Resource.PineResin] = (0.05, 0.1, 0.9, 0.1),
-            [Resource.Tallow] = (0.1, 0.1, 0.7, 0.1),
-            [Resource.Sinew] = (0.1, 0.1, 0.1, 0.1), // sewing only: not a shelter material
-        };
+    /// Old item counts become kilos through a nominal piece: a stick, a log, a hide (Content/shelters.json).
+    public static readonly IReadOnlyDictionary<Resource, ShelterMaterial> Materials = Content.Tables.ShelterMaterials;
 
-    static readonly Resource[] ShelterMaterials = Materials.Keys.Where(r => r != Resource.Sinew).ToArray();
+    static readonly Resource[] ShelterMaterials = [.. Materials.Where(m => m.Value.Shelter).Select(m => m.Key)];
 
     public static double Effectiveness(Resource r, ShelterStat stat)
     {
@@ -316,32 +285,11 @@ public static class Shelters
         return stat switch { ShelterStat.Insulation => m.Insulating, ShelterStat.Overhead => m.Waterproof, _ => m.Structural };
     }
 
-    static double Kg(Resource r, int pieces) => Materials[r].PieceKg * pieces;
-    static readonly Resource[] Logs = [Resource.Pine, Resource.Birch, Resource.Oak];
+    /// Old NeedCraftingSystem camp recipes and CampHandler.MakeCamp (Content/shelters.json). A project's
+    /// setup time is folded into its minutes, and the shovel speeds all of it.
+    public static readonly IReadOnlyDictionary<Structure, Recipe> Recipes = Content.Tables.Recipes;
 
-    /// Old NeedCraftingSystem camp recipes and CampHandler.MakeCamp. A project's setup time is folded
-    /// into its minutes, and the shovel speeds all of it.
-    public static readonly IReadOnlyDictionary<Structure, Recipe> Recipes = new Dictionary<Structure, Recipe>
-    {
-        [Structure.MakeshiftBedding] = new(45, [], NeedsLight: false, ShovelHelps: true, Bedding: BeddingKind.Makeshift),
-        [Structure.PaddedBedding] = new(45, [([Resource.PlantFiber], Kg(Resource.PlantFiber, 10)), ([Resource.Hide], Kg(Resource.Hide, 1))], Bedding: BeddingKind.Padded),
-        [Structure.MossBedding] = new(50, [([Resource.SphagnumMoss], Kg(Resource.SphagnumMoss, 6)), ([Resource.PineNeedles], Kg(Resource.PineNeedles, 4)),
-            ([Resource.Hide], Kg(Resource.Hide, 1))], Bedding: BeddingKind.MossPadded),
-        [Structure.SleepingBag] = new(15 + 180, [([Resource.CuredHide], Kg(Resource.CuredHide, 4)), ([Resource.Sinew], Kg(Resource.Sinew, 6))], Bedding: BeddingKind.SleepingBag),
-        [Structure.BranchFrame] = new(30, [([Resource.Kindling], Kg(Resource.Kindling, 4))], Shelter: ShelterKind.BranchFrame),
-        [Structure.LogFrame] = new(45, [(Logs, Kg(Resource.Pine, 3))], Shelter: ShelterKind.LogFrame),
-        [Structure.SnowShelter] = new(15 + 120, [], NeedsShovel: true, ShovelHelps: true, NeedsFrost: true, Shelter: ShelterKind.SnowShelter),
-        [Structure.Tent] = new(10, [], NeedsLight: false, Shelter: ShelterKind.HideTent),
-    };
-
-    public static readonly IReadOnlyDictionary<BeddingKind, BeddingProps> Beddings = new Dictionary<BeddingKind, BeddingProps>
-    {
-        [BeddingKind.Camp] = new("Sleeping area", 1.0, 0),
-        [BeddingKind.Makeshift] = new("Makeshift bed", 0.6, 0),
-        [BeddingKind.Padded] = new("Padded bedding", 0.8, 0),
-        [BeddingKind.MossPadded] = new("Moss-padded bedding", 0.9, 3.0),
-        [BeddingKind.SleepingBag] = new("Sleeping bag", 1.0, 5.0),
-    };
+    public static readonly IReadOnlyDictionary<BeddingKind, BeddingProps> Beddings = Content.Tables.Beddings;
     // Old HasWindProtection and HasGroundInsulation were flags nothing read (ground
     // protection came from quality alone); dropped until a sleeper's wind has a number to give them.
 

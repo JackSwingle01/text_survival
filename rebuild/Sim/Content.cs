@@ -66,7 +66,7 @@ public sealed record SiteSmallGame(double Density, IReadOnlyList<SmallGameEntry>
 public sealed record SiteCache(string Name, double CapacityKg, bool ProtectsFromPredators = false, bool ProtectsFromWeather = false, bool PreservesFood = false) : SiteFeature;
 public sealed record SiteEvent(string Event) : SiteFeature;
 /// Old ShelterFeature: what it gives now and the most it can be improved to; a cap left out is the
-/// kind's (Shelters.Kinds). Placed by Shelters.
+/// kind's (shelters.json kinds). Placed by Shelters.
 public sealed record SiteShelter(string Name, ShelterKind Type, double Insulation, double Overhead, double Wind,
     double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null) : SiteFeature;
 
@@ -76,7 +76,8 @@ public sealed record LootRoll(double Chance = 1, Resource? Resource = null, doub
 
 /// The game's tables, loaded once from the JSON embedded beside this assembly and checked on load:
 /// a bad name or a broken reference throws here, not when a player happens to walk onto it.
-public static class Content
+/// Content never lands in a save: the save holds kinds and ids, and the tables say what they are.
+public static partial class Content
 {
     static readonly JsonSerializerOptions Options = new()
     {
@@ -93,6 +94,16 @@ public static class Content
 
     sealed record LocationsFile(IReadOnlyList<LocationDef> Locations);
 
+    /// Every table file, one per family, under rebuild/Sim/Content/.
+    internal static readonly string[] Files =
+        ["locations.json", "loot.json", "items.json", "fire.json", "species.json", "effects.json", "shelters.json",
+         "butchering.json", "terrain.json", "forage.json", "discoveries.json", "accidents.json"];
+
+    /// Everything, as loaded. The systems that own a table read it from here once, into their own statics.
+    internal static ContentTables Tables { get; }
+    /// How long loading and checking every file took, the once it happens.
+    internal static double LoadMilliseconds { get; }
+
     public static IReadOnlyList<LocationDef> Locations { get; }
     public static IReadOnlyDictionary<string, LocationDef> ById { get; }
     public static IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> Loot { get; }
@@ -102,7 +113,10 @@ public static class Content
 
     static Content()
     {
-        (Locations, Loot) = Parse(Embedded("locations.json"), Embedded("loot.json"));
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        Tables = Parse(EmbeddedFiles());
+        LoadMilliseconds = clock.Elapsed.TotalMilliseconds;
+        (Locations, Loot) = (Tables.Locations, Tables.Loot);
         ById = Locations.ToDictionary(l => l.Id);
         PassStages = Locations.Where(l => l.Placement == Placement.Pass).ToList();
         CaveSites = Locations.Where(l => l.Placement == Placement.Cave).ToList();
@@ -116,17 +130,18 @@ public static class Content
         return reader.ReadToEnd();
     }
 
-    /// Reads and checks both tables; any problem throws InvalidDataException naming it. The game
-    /// loads the embedded files through here; tests hand it broken ones.
+    /// Every embedded file's text, by file name.
+    internal static Dictionary<string, string> EmbeddedFiles() => Files.ToDictionary(f => f, Embedded);
+
+    /// Reads and checks the location and loot tables against the rest as embedded; any problem throws
+    /// InvalidDataException naming it. Tests hand it broken ones.
     internal static (IReadOnlyList<LocationDef> Locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> Loot) Parse(string locationsJson, string lootJson)
     {
-        var locations = Deserialize<LocationsFile>(locationsJson, "locations.json").Locations;
-        var loot = Deserialize<Dictionary<string, IReadOnlyList<LootRoll>>>(lootJson, "loot.json");
-        // Nulls first: every later check would trip over one.
-        var problems = NullProblems(locations, loot).ToList();
-        if (problems.Count == 0) problems = Problems(locations, loot).ToList();
-        if (problems.Count > 0) throw new InvalidDataException("Content is broken:\n" + string.Join("\n", problems));
-        return (locations, loot);
+        var files = EmbeddedFiles();
+        files["locations.json"] = locationsJson;
+        files["loot.json"] = lootJson;
+        var t = Parse(files);
+        return (t.Locations, t.Loot);
     }
 
     static T Deserialize<T>(string json, string file)
@@ -137,7 +152,7 @@ public static class Content
 
     /// Nullable annotations cover properties, not the elements of a list: a stray null in an array
     /// is caught here, by name.
-    static IEnumerable<string> NullProblems(IReadOnlyList<LocationDef> locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot)
+    static IEnumerable<string> LocationNullProblems(IReadOnlyList<LocationDef> locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot)
     {
         for (int i = 0; i < locations.Count; i++)
         {
@@ -168,7 +183,9 @@ public static class Content
         rolls == null || rolls.Any(r => r == null || r.Gear?.Any(g => g == null) == true || r.Of != null && HasNullRoll(r.Of));
 
     /// Everything enums cannot check by themselves: cross-references, shapes and ranges.
-    static IEnumerable<string> Problems(IReadOnlyList<LocationDef> locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot)
+    static IEnumerable<string> LocationProblems(IReadOnlyList<LocationDef> locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot,
+        IReadOnlyDictionary<string, GearDef> gear, IReadOnlyDictionary<ShelterKind, ShelterKindProps> shelterKinds,
+        IReadOnlyDictionary<Terrain, TerrainRow> terrains)
     {
         var passStages = locations.Where(l => l.Placement == Placement.Pass).ToList();
         foreach (var dup in locations.GroupBy(l => l.Id).Where(g => g.Count() > 1)) yield return $"location id {dup.Key} is used {dup.Count()} times";
@@ -183,7 +200,7 @@ public static class Content
             if (l.Placement == Placement.Named)
             {
                 if (l.Weight <= 0) yield return $"{at}: weight {l.Weight}";
-                if (l.Terrain is not { Count: > 0 } || l.Terrain.Any(t => !t.IsPassable())) yield return $"{at}: needs passable terrain";
+                if (l.Terrain is not { Count: > 0 } || l.Terrain.Any(t => !terrains[t].Passable)) yield return $"{at}: needs passable terrain";
             }
             if (l.DiscoveryText?.Contains("{story}") == true && l.Stories is not { Count: > 0 }) yield return $"{at}: {{story}} with no stories";
             var features = l.All;
@@ -206,7 +223,7 @@ public static class Content
                         yield return $"{at}: {s.Name} has a bad item"; break;
                     case SiteShelter s when s.Chance < 1 || s.RevealAtHours > 0:
                         yield return $"{at}: shelter {s.Name} is placed when the world is made, so always and in sight"; break;
-                    case SiteShelter s when ShelterLevelProblem(s) is string bad:
+                    case SiteShelter s when ShelterLevelProblem(s, shelterKinds) is string bad:
                         yield return $"{at}: shelter {s.Name}: {bad}"; break;
                     case SiteForage s when s.Items.Any(i => i.MinKg > i.MaxKg || i.Abundance <= 0):
                         yield return $"{at}: forage has a bad item"; break;
@@ -214,13 +231,13 @@ public static class Content
             }
         }
         foreach (var (name, rolls) in loot)
-            foreach (var p in RollProblems(rolls)) yield return $"loot {name}: {p}";
+            foreach (var p in RollProblems(rolls, gear)) yield return $"loot {name}: {p}";
     }
 
     /// Levels and caps are fractions, and work improves a level up to its cap, never down to it.
-    static string? ShelterLevelProblem(SiteShelter s)
+    static string? ShelterLevelProblem(SiteShelter s, IReadOnlyDictionary<ShelterKind, ShelterKindProps> kinds)
     {
-        var k = Shelters.Kinds[s.Type];
+        var k = kinds[s.Type];
         foreach (var (stat, level, cap) in new[] { ("insulation", s.Insulation, s.InsulationCap ?? k.InsulationCap),
             ("overhead", s.Overhead, s.OverheadCap ?? k.OverheadCap), ("wind", s.Wind, s.WindCap ?? k.WindCap) })
         {
@@ -230,7 +247,7 @@ public static class Content
         return null;
     }
 
-    static IEnumerable<string> RollProblems(IReadOnlyList<LootRoll> rolls)
+    static IEnumerable<string> RollProblems(IReadOnlyList<LootRoll> rolls, IReadOnlyDictionary<string, GearDef> gear)
     {
         foreach (var r in rolls)
         {
@@ -239,13 +256,13 @@ public static class Content
             if (r.Chance is <= 0 or > 1) yield return $"chance {r.Chance}";
             if (r.Resource != null && (r.Kg is not [var lo, var hi] || lo <= 0 || hi < lo)) yield return $"{r.Resource}: kg is [min, max]";
             if (r.Pieces is not null and not [> 0, _] || r.Pieces is [var a, var b] && b < a) yield return "pieces is [min, max]";
-            foreach (var g in r.Gear ?? []) if (!Items.GearKinds.ContainsKey(g)) yield return $"no gear kind '{g}'";
+            foreach (var g in r.Gear ?? []) if (!gear.ContainsKey(g)) yield return $"no gear kind '{g}'";
             if (r.Gear is { Count: 0 }) yield return "gear names none";
             if (r.DurabilityPct is not null and not [>= 0, <= 1] || r.DurabilityPct is [var d0, var d1] && d1 < d0) yield return "durabilityPct is [min, max] in 0-1";
             if (r.Of != null)
             {
                 if (r.Pick is not [> 0, var most] || most < r.Pick[0]) yield return "pick is [min, max]";
-                foreach (var p in RollProblems(r.Of)) yield return p;
+                foreach (var p in RollProblems(r.Of, gear)) yield return p;
             }
         }
     }

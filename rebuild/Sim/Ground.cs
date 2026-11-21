@@ -42,7 +42,7 @@ public sealed class GroundState
     public long LastUpdatedMinute { get; set; }
 }
 
-/// The ground under a tile before anything falls on it. Derived from terrain, never saved.
+/// The ground under a tile before anything falls on it (Content/terrain.json substrates). Derived from terrain, never saved.
 public sealed record SubstrateProfile(
     string Name,
     double ThicknessM,
@@ -57,28 +57,22 @@ public sealed record SubstrateProfile(
 {
     public double PoreVolumeM => ThicknessM * PoreCapacityPct;
 
-    public static readonly SubstrateProfile Loam = new("loam", 0.30, 0.40, 0.00030, 0.00080, 0.35, 0.0006, 0.30, 0.50);
-    public static readonly SubstrateProfile ForestFloor = new("forest floor", 0.35, 0.45, 0.00050, 0.00100, 0.40, 0.0004, 0.35, 0.45);
-    public static readonly SubstrateProfile Slope = new("thin slope soil", 0.20, 0.30, 0.00040, 0.00250, 0.25, 0.0060, 0.20, 0.30);
+    // The profiles themselves are Content/terrain.json's substrates; these name the ones code and tests ask for.
+    public static SubstrateProfile Loam => Named("loam");
+    public static SubstrateProfile ForestFloor => Named("forestFloor");
+    public static SubstrateProfile Slope => Named("slope");
     /// Takes almost nothing in, so rain ponds at once and then runs off the tile.
-    public static readonly SubstrateProfile Rock = new("bare rock", 0.08, 0.12, 0.00003, 0.00300, 0.10, 0.0100, 0.10, 0.05);
+    public static SubstrateProfile Rock => Named("rock");
     /// Holds nearly everything and lets go of none of it: wet in any weather, ponds the moment it rains.
-    public static readonly SubstrateProfile Peat = new("peat", 0.50, 0.60, 0.00005, 0.00005, 0.85, 0.0001, 0.85, 1.00);
+    public static SubstrateProfile Peat => Named("peat");
     /// Lake ice. Inert here: standing water runs away.
-    public static readonly SubstrateProfile IceSheet = new("ice", 0.05, 0.0, 0.0, 0.0, 0.0, 0.0200, 0.0, 0.0, HoldsStandingWater: false);
-    public static readonly SubstrateProfile Impassable = new("impassable", 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, HoldsStandingWater: false);
+    public static SubstrateProfile IceSheet => Named("iceSheet");
+    public static SubstrateProfile Impassable => Named("impassable");
 
-    public static SubstrateProfile For(Terrain terrain) => terrain switch
-    {
-        Terrain.Forest => ForestFloor,
-        Terrain.Clearing or Terrain.Plain => Loam,
-        Terrain.Hills => Slope,
-        Terrain.Rock => Rock,
-        Terrain.Marsh => Peat,
-        Terrain.Water => IceSheet,
-        Terrain.Mountain or Terrain.DeepWater => Impassable,
-        _ => throw new ArgumentOutOfRangeException(nameof(terrain), terrain, null),
-    };
+    static SubstrateProfile Named(string id) =>
+        Content.Tables.Substrates.TryGetValue(id, out var s) ? s : throw new KeyNotFoundException($"No substrate '{id}'");
+
+    public static SubstrateProfile For(Terrain terrain) => Named(terrain.Row().Substrate);
 }
 
 /// Weather as the ground feels it at one tile. Deliberately not what a person feels: wind chill,

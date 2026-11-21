@@ -3,7 +3,7 @@ namespace Survival;
 /// Old ButcheringMode: quick and messy, careful, or slow and thorough.
 public enum ButcherMode { QuickStrip, Careful, FullProcessing }
 
-/// Old ButcheringModeConfig. Yield factors per resource; anything not named takes 1.
+/// Old ButcheringModeConfig (Content/butchering.json). Yield factors per resource; anything not named takes 1.
 public sealed record ButcherModeProps(double TimeFactor, IReadOnlyDictionary<Resource, double> YieldFactor, double ScentIncrease, double BloodySeverity);
 
 /// A dead animal on a tile, as a tile delta (old CarcassFeature). Its yields are what is left of it.
@@ -36,39 +36,26 @@ public static class Carcasses
 {
     const double BaseButcheringMinutes = 30.0, MinutesPerKgYield = 2.75;
 
-    /// Old ButcheringModeConfig's factors, relative to a careful butcher's yield. Full processing took
-    /// 110% of the meat and fat and 120% of the sinew and feathers. Old game: the carcass's ledger was the
-    /// careful yield, so a full cut gave 107% of the kilograms it took off the carcass (bug, fixed): the
-    /// ledger now holds what full processing recovers (Create scales it by ThoroughFactor), and every
-    /// mode recovers its old yield as a share of it, never more than was cut.
-    static readonly IReadOnlyDictionary<Resource, double> QuickStripFactors = new Dictionary<Resource, double>
-    {
-        [Resource.RawMeat] = 0.8, [Resource.Hide] = 0, [Resource.Bone] = 0.5, [Resource.Sinew] = 0, [Resource.RawFat] = 0.5, [Resource.Feather] = 0,
-    };
-    static readonly IReadOnlyDictionary<Resource, double> ThoroughFactors = new Dictionary<Resource, double>
-    {
-        [Resource.RawMeat] = 1.1, [Resource.Sinew] = 1.2, [Resource.RawFat] = 1.1, [Resource.Feather] = 1.2,
-    };
+    /// Old ButcheringModeConfig, by mode (Content/butchering.json): yield factors relative to a careful
+    /// butcher's yield. Old game: the carcass's ledger was the careful yield, so a full cut gave 107% of
+    /// the kilograms it took off the carcass (bug, fixed): the ledger now holds what full processing
+    /// recovers (Create scales it by ThoroughFactor), and every mode recovers its old yield as a share of
+    /// it, never more than was cut.
+    static readonly IReadOnlyDictionary<ButcherMode, ButcherModeProps> Rows = Content.Tables.Butchering;
 
     /// How much more of a resource full processing recovers than careful work: the ledger's scale.
-    public static double ThoroughFactor(Resource r) => ThoroughFactors.GetValueOrDefault(r, 1);
+    public static double ThoroughFactor(Resource r) => Rows[ButcherMode.FullProcessing].YieldFactor.GetValueOrDefault(r, 1);
 
     static IReadOnlyDictionary<Resource, double> Recovered(IReadOnlyDictionary<Resource, double> careful) =>
-        Enum.GetValues<Resource>().Where(r => careful.ContainsKey(r) || ThoroughFactors.ContainsKey(r))
+        Enum.GetValues<Resource>().Where(r => careful.ContainsKey(r) || Rows[ButcherMode.FullProcessing].YieldFactor.ContainsKey(r))
             .ToDictionary(r => r, r => careful.GetValueOrDefault(r, 1) / ThoroughFactor(r));
 
-    static readonly ButcherModeProps QuickStrip = new(0.5, Recovered(QuickStripFactors), 0.2, 0.3);
-    static readonly ButcherModeProps Careful = new(1.0, Recovered(new Dictionary<Resource, double>()), 0.1, 0.15);
-    static readonly ButcherModeProps FullProcessing = new(1.5, new Dictionary<Resource, double>(), 0.05, 0.1);
+    static readonly IReadOnlyDictionary<ButcherMode, ButcherModeProps> Modes =
+        Enum.GetValues<ButcherMode>().ToDictionary(m => m, m => Rows[m] with { YieldFactor = Recovered(Rows[m].YieldFactor) });
 
     /// YieldFactor is the share of each resource's ledger the mode recovers, at most 1; anything not named takes 1.
-    public static ButcherModeProps ModeProps(ButcherMode mode) => mode switch
-    {
-        ButcherMode.QuickStrip => QuickStrip,
-        ButcherMode.Careful => Careful,
-        ButcherMode.FullProcessing => FullProcessing,
-        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
-    };
+    public static ButcherModeProps ModeProps(ButcherMode mode) =>
+        Modes.TryGetValue(mode, out var props) ? props : throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
 
     /// Old CarcassFeature.InitializeYieldsFromAnimal, from the body that died. Phase 3b kills call this.
     public static Carcass Create(World world, TileId tile, string animal, BodyState body, long diedMinute,

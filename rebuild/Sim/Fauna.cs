@@ -48,37 +48,15 @@ public sealed record Hunt(AgentId Who, AgentId Prey) : Activity(Who);
 // the NPC attacks in PackPredatorBehavior). Combat.Boldness is ready for when they do.
 public static partial class Fauna
 {
-    public static HerdBehavior BehaviorOf(Species s) => s switch
-    {
-        Species.Wolf => HerdBehavior.Pack,
-        Species.Bear or Species.CaveBear or Species.SaberTooth => HerdBehavior.Solitary,
-        Species.Hyena => HerdBehavior.Scavenger,
-        _ => HerdBehavior.Prey,
-    };
+    public static HerdBehavior BehaviorOf(Species s) => SpeciesTable.Of(s).Behavior;
 
     /// Old AnimalType.IsPredator: everything that is not prey.
     public static bool IsPredator(Species s) => BehaviorOf(s) != HerdBehavior.Prey;
 
-    public static Diet DietOf(Species s) => s switch
-    {
-        Species.Bear or Species.CaveBear => Diet.Omnivore,
-        Species.Caribou or Species.Megaloceros or Species.Mammoth => Diet.Browser,
-        Species.Bison => Diet.Grazer,
-        _ => Diet.Carnivore,
-    };
+    public static Diet DietOf(Species s) => SpeciesTable.Of(s).Diet;
 
-    /// Old AnimalDietExtensions.GetConsumedResources: what each diet takes off a tile's forage.
-    public static IReadOnlyList<Resource> Eats(Diet d) => d switch
-    {
-        Diet.Omnivore => OmnivoreFood,
-        Diet.Browser => BrowserFood,
-        Diet.Grazer => GrazerFood,
-        _ => [],
-    };
-    static readonly Resource[] OmnivoreFood = [Resource.BirchPolypore, Resource.Chaga, Resource.Amadou, Resource.Berries,
-        Resource.RoseHip, Resource.JuniperBerry, Resource.Nuts, Resource.Roots, Resource.Honey];
-    static readonly Resource[] BrowserFood = [Resource.Usnea, Resource.Kindling, Resource.BirchPolypore]; // old Stick: twigs
-    static readonly Resource[] GrazerFood = [Resource.Tinder]; // grass, as dried plant matter
+    /// Old AnimalDietExtensions.GetConsumedResources: what each diet takes off a tile's forage (Content/species.json).
+    public static IReadOnlyList<Resource> Eats(Diet d) => Content.Tables.Diets[d];
 
     // Old behavior constants, per minute.
     static double HungerPerMinute(HerdBehavior b) => b switch
@@ -718,21 +696,21 @@ public static partial class Fauna
     {
         var agent = world.Agent(herd);
         var mind = (HerdMind)agent.Mind;
-        double[] pool = Combat.WoundLevel(agent.Members[member]) > 0.05 ? WoundedSightings
-            : mind.State == HerdState.Fleeing || mind.Fear > 0.7 ? AlertSightings
+        var pool = Combat.WoundLevel(agent.Members[member]) > 0.05 ? Sightings.Wounded
+            : mind.State == HerdState.Fleeing || mind.Fear > 0.7 ? Sightings.Alert
             : mind.State switch
             {
-                HerdState.Grazing or HerdState.Feeding => GrazingSightings,
-                HerdState.Resting => RestingSightings,
-                _ => MovingSightings, // patrolling, hunting: on the move
+                HerdState.Grazing or HerdState.Feeding => Sightings.Grazing,
+                HerdState.Resting => Sightings.Resting,
+                _ => Sightings.Moving, // patrolling, hunting: on the move
             };
-        return pool[world.Rng("combat", hunter).NextInt(pool.Length)];
+        return pool[world.Rng("combat", hunter).NextInt(pool.Count)];
     }
 
-    // Old HuntingSightings' DetectionModifier values, pool by pool, in their order.
-    internal static readonly double[] GrazingSightings = [0.7, 0.75, 0.65];
-    internal static readonly double[] RestingSightings = [0.9, 0.85];
-    internal static readonly double[] WoundedSightings = [0.5, 0.45];
-    internal static readonly double[] AlertSightings = [2.0, 2.5, 2.2];
-    internal static readonly double[] MovingSightings = [1.2, 1.3];
+    // Old HuntingSightings' DetectionModifier values, pool by pool (Content/species.json).
+    static readonly SightingPools Sightings = Content.Tables.Sightings;
 }
+
+/// How watchful a stalked animal is, by what its herd is doing: one factor of the pool is picked at random.
+public sealed record SightingPools(IReadOnlyList<double> Grazing, IReadOnlyList<double> Resting, IReadOnlyList<double> Wounded,
+    IReadOnlyList<double> Alert, IReadOnlyList<double> Moving);
