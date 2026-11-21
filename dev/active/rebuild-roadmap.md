@@ -259,3 +259,15 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - Alertness rises when you're noticed and fades when you aren't, scaled by how much you move.
   Freezing helps but is not a sure thing: a wary animal can still notice you or come to look.
   Balance it in the sweeps.
+
+**Combat round 3, all yes**
+- Catch-up: runners sprint until the reserve runs out, then hold endurance speed. A pursuer
+  catches if it closes the gap at one of the breakpoints. Odds come from about ±8% spread on
+  speeds, and the flight is rolled once.
+- Starting speeds are the research table, scaled by each body's own speed.
+- Fleeing resolves at once below a 5% chance of being caught. An AI chases at 25%+. The player
+  is offered the chase with its odds, time and distance. Caught: the fight resumes at contact.
+  Not caught: the chasers move 1 tile per 100 m, at most 5. The blood trail gets a heading.
+- A fighter standing off or giving ground that is 30 m or more from every enemy has broken off.
+  This replaces leaving by the grid edge.
+- The tuning harness is being built now, ahead of the combat rules.
