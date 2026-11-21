@@ -1,0 +1,242 @@
+using System.Text;
+using static System.FormattableString;
+
+namespace Survival;
+
+/// What a find is, for the distribution targets (emergent-world-design §8).
+public enum FindCategory { DeadMatter, Resource, Structure, Sign, Agent }
+
+/// One thing a player could find in the world today. Cause is null until things carry one (build step 2).
+public sealed record FindRow(TileId Tile, int RegionX, int RegionY, string Kind, FindCategory Category, long? AgeMinutes, string? Cause, string Text);
+
+/// One region's finds by category and whether its survival floors hold.
+public sealed record RegionRow(int X, int Y, int PassableTiles, int[] Counts, bool Water, bool Fuel, bool Shelter)
+{
+    public int Total => Counts.Sum();
+}
+
+public sealed record DistributionReport(IReadOnlyList<RegionRow> Regions, int[] Totals, double MedianFinds)
+{
+    public int Total => Totals.Sum();
+    public double Pct(FindCategory c) => Total == 0 ? 0 : (double)Totals[(int)c] / Total;
+    public bool DeadMatterOk => Pct(FindCategory.DeadMatter) <= Report.MaxDeadMatterPct;
+    public bool ResourceOk => Pct(FindCategory.Resource) >= Report.MinResourcePct;
+    public bool TooFew(RegionRow r) => r.Total < MedianFinds * Report.MinRegionFactor;
+    public bool TooMany(RegionRow r) => r.Total > MedianFinds * Report.MaxRegionFactor;
+}
+
+public sealed record PopulationRow(Species Species, int Herds, int Members);
+public sealed record CurvePoint(int Day, IReadOnlyList<PopulationRow> Populations);
+
+/// QA instruments over a world: the find dump, the distribution report and population curves
+/// (emergent-world-design §8). Reads only; Curve is the one thing here that runs the sim.
+/// Ambient forage and standing timber are on nearly every tile, so they are the survivable
+/// skeleton (the floors), not finds: they appear as rows only once something has worked them.
+public static class Report
+{
+    public const int RegionTiles = 10;
+    public const double MaxDeadMatterPct = 0.35, MinResourcePct = 0.25;
+    /// A region with finds outside [median x Min, median x Max] fails. ponytail: the doc gives only the
+    /// 3x ceiling; a third of the median as the floor is a starting guess.
+    public const double MinRegionFactor = 1.0 / 3, MaxRegionFactor = 3.0;
+
+    public static IReadOnlyList<FindRow> Finds(World w)
+    {
+        var m = Map.Of(w);
+        var rows = new List<FindRow>();
+        void Add(TileId t, string kind, FindCategory cat, long? age, string text) =>
+            rows.Add(new FindRow(t, t.X / RegionTiles, t.Y / RegionTiles, kind, cat, age, null, text));
+
+        for (int x = 0; x < m.Width; x++)
+            for (int y = 0; y < m.Height; y++)
+            {
+                var t = new TileId(x, y);
+                if (m.SiteAt(t) is { } site) Add(t, "place", FindCategory.Structure, null, site.Name);
+                var pools = Pools.At(w, t);
+                for (int i = 0; i < pools.Count; i++)
+                {
+                    var id = new PoolId(t, i);
+                    switch (pools[i])
+                    {
+                        case StockPool s:
+                            var units = Pools.UnitsNow(w, id);
+                            string left = string.Join(", ", s.Items.Zip(units).Select(p => Invariant($"{p.First.Resource} {p.Second}/{p.First.Units}")));
+                            Add(t, "stock", FindCategory.Resource, null, $"{s.Name} ({s.Kind}{(Pools.IsHidden(s) ? ", hidden" : "")}): {left}");
+                            break;
+                        case ForagePool f when Pools.StateOf(w, id) is ForageState:
+                            double grazed = f.Items.Max(it => Pools.GrazedLevel(w, id, it.Resource));
+                            Add(t, "worked forage", FindCategory.Resource, null,
+                                Invariant($"forage density {Pools.ForageDensity(w, id):0.00} of {f.Density:0.00}, grazed {grazed:P0}"));
+                            break;
+                        case TreePool tr when Pools.StateOf(w, id) is TreeState ts:
+                            Add(t, "worked trees", FindCategory.Resource, null,
+                                Invariant($"{tr.Name}: {ts.Felled} felled{(Pools.HasTrees(w, id) ? "" : ", cleared")}"));
+                            break;
+                        case ForagePool or TreePool: break; // the skeleton: see the class comment
+                        default: throw new InvalidOperationException($"Report has no row for pool {pools[i].GetType().Name}");
+                    }
+                }
+                foreach (var sign in Tracks.Read(w, t))
+                    Add(t, "tracks", FindCategory.Sign, sign.AgeMinutes,
+                        Invariant($"{sign.Maker} prints, traffic {sign.Traffic}, {sign.Pattern} {sign.Heading}, {sign.FreshnessPct:P0} fresh"));
+            }
+
+        foreach (var (t, state) in w.Tiles)
+        {
+            foreach (var c in state.Carcasses ?? [])
+            {
+                // Decay catches up only when looked at; age a copy so reading changes nothing.
+                var aged = new Carcass { Id = c.Id, Animal = c.Animal, BodyWeightKg = c.BodyWeightKg, DiedMinute = c.DiedMinute, EffectiveHours = c.EffectiveHours, LastUpdatedMinute = c.LastUpdatedMinute };
+                Carcasses.CatchUp(w, t, aged);
+                Add(t, "carcass", FindCategory.DeadMatter, w.Minute - c.DiedMinute,
+                    Invariant($"{c.Animal} carcass, {Carcasses.TotalRemainingKg(c):0.0} kg left, decay {Carcasses.DecayLevel(aged):P0}"));
+            }
+            if (state.Stash is { } stash && (stash.Kg.Count > 0 || stash.Gear.Count > 0))
+                Add(t, "stash", FindCategory.Resource, null, "stash: " + string.Join(", ",
+                    stash.Kg.Select(kv => Invariant($"{kv.Key} {kv.Value:0.##}kg")).Concat(stash.Gear.Select(g => Items.Def(g).Name))));
+        }
+        foreach (var (_, f) in w.Fires)
+            if (f.CarriedBy == null)
+                Add(f.Tile, "fire pit", FindCategory.Structure, null, Invariant($"{f.Pit} pit, {Fire.Phase(f)}, charcoal {f.CharcoalKg:0.0} kg"));
+        foreach (var (t, s) in w.Shelters)
+            Add(t, "shelter", FindCategory.Structure, null, Invariant($"{s.Name} ({s.Kind}), quality {Shelters.Quality(s):P0}"));
+        foreach (var (t, b) in w.Beddings)
+            Add(t, "bedding", FindCategory.Structure, null, Shelters.Beddings[b].Name);
+        foreach (var (edge, wear) in w.Trails)
+            if (Tracks.TierOf(w, edge.A, edge.B) is var tier and not TrailTier.None)
+                Add(edge.A, "trail", FindCategory.Sign, w.Minute - wear.Minute,
+                    $"{tier} to {TileIdConverter.Format(edge.B)}");
+        foreach (var (id, a) in w.Agents)
+        {
+            if (id == AgentId.Player) continue;
+            int alive = a.Members.Count(Body.IsAlive);
+            if (alive == 0)
+            {
+                Add(a.Tile, "body", FindCategory.DeadMatter, null, $"dead {a.Species} ({id})");
+                continue;
+            }
+            string state = a.Mind is HerdMind h ? h.State.ToString() : a.Mind.GetType().Name;
+            Add(a.Tile, a.Mind is HerdMind ? "herd" : "person", FindCategory.Agent, null, $"{a.Species} x{alive}, {state} ({id})");
+        }
+
+        rows.Sort((p, q) =>
+            p.Tile.CompareTo(q.Tile) is int c and not 0 ? c
+            : string.CompareOrdinal(p.Kind, q.Kind) is int k and not 0 ? k
+            : string.CompareOrdinal(p.Text, q.Text));
+        return rows;
+    }
+
+    public static string DumpText(World w) => DumpText(w, Finds(w));
+
+    public static string DumpText(World w, IReadOnlyList<FindRow> finds)
+    {
+        var sb = new StringBuilder();
+        sb.Append(Invariant($"# finds, seed {w.Seed}, minute {w.Minute} (day {w.Minute / 1440}), {finds.Count} rows\n"));
+        sb.Append("# tile\tregion\tcategory\tkind\tage_min\tcause\ttext\n");
+        foreach (var f in finds)
+            sb.Append(Invariant($"{TileIdConverter.Format(f.Tile)}\t{f.RegionX},{f.RegionY}\t{f.Category}\t{f.Kind}\t{(f.AgeMinutes is long a ? a.ToString(System.Globalization.CultureInfo.InvariantCulture) : "-")}\t{f.Cause ?? "-"}\t{f.Text}\n"));
+        return sb.ToString();
+    }
+
+    // ---- distribution ----
+
+    public static DistributionReport Distribution(World w) => Distribution(w, Finds(w));
+
+    /// Regions with no passable ground (the mountain wall) are left out: nothing can be there.
+    public static DistributionReport Distribution(World w, IReadOnlyList<FindRow> finds)
+    {
+        var m = Map.Of(w);
+        int rw = (m.Width + RegionTiles - 1) / RegionTiles, rh = (m.Height + RegionTiles - 1) / RegionTiles;
+        int cats = Enum.GetValues<FindCategory>().Length;
+        var counts = new int[rw, rh, cats];
+        foreach (var f in finds) counts[f.RegionX, f.RegionY, (int)f.Category]++;
+
+        var regions = new List<RegionRow>();
+        for (int ry = 0; ry < rh; ry++)
+            for (int rx = 0; rx < rw; rx++)
+            {
+                int passable = 0;
+                bool water = false, fuel = false, shelter = false;
+                for (int x = rx * RegionTiles; x < Math.Min(m.Width, (rx + 1) * RegionTiles); x++)
+                    for (int y = ry * RegionTiles; y < Math.Min(m.Height, (ry + 1) * RegionTiles); y++)
+                    {
+                        var t = new TileId(x, y);
+                        if (!m.TerrainAt(t).IsPassable()) continue;
+                        passable++;
+                        var pools = Pools.At(w, t);
+                        water |= Work.HasOpenWater(w, t) || pools.Any(p => p is StockPool s && s.Items.Any(i => i.Resource == Resource.Water));
+                        fuel |= pools.Any(p => p is TreePool || p is StockPool s && s.Items.Any(i => Fire.IsFuel(i.Resource)));
+                        shelter |= w.Shelters.ContainsKey(t) || m.CaveAt(t) != Cave.None;
+                    }
+                if (passable == 0) continue;
+                regions.Add(new RegionRow(rx, ry, passable, Enumerable.Range(0, cats).Select(c => counts[rx, ry, c]).ToArray(), water, fuel, shelter));
+            }
+        var totals = Enumerable.Range(0, cats).Select(c => regions.Sum(r => r.Counts[c])).ToArray();
+        if (totals.Sum() != finds.Count) throw new InvalidOperationException($"Distribution counted {totals.Sum()} of {finds.Count} finds");
+        return new DistributionReport(regions, totals, Median(regions.Select(r => (double)r.Total)));
+    }
+
+    static double Median(IEnumerable<double> values)
+    {
+        var v = values.OrderBy(x => x).ToList();
+        if (v.Count == 0) return 0;
+        return v.Count % 2 == 1 ? v[v.Count / 2] : (v[v.Count / 2 - 1] + v[v.Count / 2]) / 2;
+    }
+
+    public static string DistributionText(World w, DistributionReport d)
+    {
+        var sb = new StringBuilder();
+        var cats = Enum.GetValues<FindCategory>();
+        sb.Append(Invariant($"# distribution, seed {w.Seed}, day {w.Minute / 1440}, {d.Total} finds in {d.Regions.Count} regions of {RegionTiles}x{RegionTiles}\n"));
+        foreach (var c in cats) sb.Append(Invariant($"{c,-11} {d.Totals[(int)c],6}  {d.Pct(c),6:P1}\n"));
+        sb.Append(Invariant($"dead matter <= {MaxDeadMatterPct:P0}: {(d.DeadMatterOk ? "PASS" : "FAIL")}\n"));
+        sb.Append(Invariant($"resources >= {MinResourcePct:P0}: {(d.ResourceOk ? "PASS" : "FAIL")}\n"));
+        int few = d.Regions.Count(d.TooFew), many = d.Regions.Count(d.TooMany);
+        sb.Append(Invariant($"median finds/region {d.MedianFinds:0.#}: {few} below {MinRegionFactor:0.##}x, {many} above {MaxRegionFactor:0.#}x\n"));
+        sb.Append(Invariant($"floors failing: water {d.Regions.Count(r => !r.Water)}, fuel {d.Regions.Count(r => !r.Fuel)}, shelter {d.Regions.Count(r => !r.Shelter)} of {d.Regions.Count}\n"));
+        sb.Append(Invariant($"populations: {string.Join(", ", Populations(w).Select(p => $"{p.Species} {p.Members} in {p.Herds}"))}\n"));
+        sb.Append("\nregion  tiles " + string.Join(" ", cats.Select(c => Invariant($"{Short(c),5}"))) + " total  floors(water fuel shelter) count\n");
+        foreach (var r in d.Regions)
+            sb.Append(Invariant($"{r.X,2},{r.Y,-2}  {r.PassableTiles,5} ") + string.Join(" ", r.Counts.Select(n => Invariant($"{n,5}")))
+                + Invariant($" {r.Total,5}  {Flag(r.Water)} {Flag(r.Fuel)} {Flag(r.Shelter)}  {(d.TooFew(r) ? "LOW" : d.TooMany(r) ? "HIGH" : "ok")}\n"));
+        return sb.ToString();
+    }
+
+    static readonly string[] ShortNames = ["dead", "res", "struc", "sign", "agent"]; // FindCategory order
+    static string Short(FindCategory c) => ShortNames[(int)c];
+
+    static string Flag(bool ok) => ok ? "y" : "N";
+
+    // ---- populations ----
+
+    /// Living members per species, the player left out.
+    public static IReadOnlyList<PopulationRow> Populations(World w) =>
+        w.Agents.Values.Where(a => a.Id != AgentId.Player && Sim.IsAlive(a))
+            .GroupBy(a => a.Species).OrderBy(g => g.Key)
+            .Select(g => new PopulationRow(g.Key, g.Count(), g.Sum(a => a.Members.Count(Body.IsAlive))))
+            .ToList();
+
+    /// Runs the world on chunkDays at a time and records the populations after each chunk.
+    public static IReadOnlyList<CurvePoint> Curve(World w, int days, int chunkDays)
+    {
+        if (chunkDays <= 0 || days <= 0 || days % chunkDays != 0)
+            throw new ArgumentException($"Curve needs days ({days}) a positive multiple of chunkDays ({chunkDays})");
+        var points = new List<CurvePoint>();
+        int startDay = (int)(w.Minute / 1440);
+        for (int d = chunkDays; d <= days; d += chunkDays)
+        {
+            Sim.Advance(w, chunkDays * 1440);
+            points.Add(new CurvePoint(startDay + d, Populations(w)));
+        }
+        return points;
+    }
+
+    public static string CurveText(IReadOnlyList<CurvePoint> curve)
+    {
+        var species = curve.SelectMany(p => p.Populations.Select(r => r.Species)).Distinct().OrderBy(s => s).ToList();
+        var sb = new StringBuilder("day  " + string.Join(" ", species.Select(s => $"{s,11}")) + "\n");
+        foreach (var p in curve)
+            sb.Append(Invariant($"{p.Day,4} ") + string.Join(" ", species.Select(s => Invariant($"{p.Populations.FirstOrDefault(r => r.Species == s)?.Members ?? 0,11}"))) + "\n");
+        return sb.ToString();
+    }
+}
