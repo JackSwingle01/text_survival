@@ -171,6 +171,15 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
    20 predator events into one follower dynamic, so "distinct moment types" will be lower than the
    old event count. Measure it against an old-game baseline before using it as a floor.
 
+7. **Tonight's wood vs "critical" food at the fat floor (your design, not changed).** Your rule makes
+   food critical once fat is under the 10% floor, outranking everything but critical warmth and
+   water. At the floor the NPC still holds about 54,000 kcal, roughly 28 days at the observed loss,
+   while a night with no wood kills in hours. NPCs that stay put die 1.8-5.4 days after crossing
+   the floor: they forage all day, the camp runs dry, a cold night. (NPCs that keep moving camp
+   last 17-25 days past it.) Reviewer's recommendation: when food is critical only because of the
+   floor or shortfall, not acute starvation, rank tonight's wood just above it (about 11.75, under
+   critical rest); keep the top food score for real starvation. I left your rule as is.
+
 ## Findings worth knowing
 
 **Baseline from the tools (seed 17, before any emergent work):**
