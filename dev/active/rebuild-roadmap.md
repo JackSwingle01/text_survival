@@ -343,3 +343,16 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - Well fed: +5% to the body's own metabolic heat and to healing. Capacities stay capped at 1.
 - The stacked-discomfort floor (Moving about 0.2) holds even after fat is gone; heart damage from
   starvation can still take the body to zero.
+
+## NPC redesign decisions (2026-11-21, after the architecture audit)
+
+Audit: `dev/active/rebuild-architecture-audit-2026-11-21.md`. Npc.cs is a priority ladder with 86 one-failure rules, and it doesn't use the player's verbs.
+
+- NPCs exist for a living, harsh world. Most lone NPCs die, often; half dying is fine. Groups, or a player helping, let them last longer. Decisions must be reasonable and need no babysitting, and surviving must be possible.
+- NPCs act only through the player's actions (`Verbs.At` / `Sim.Refusal`). Nothing is NPC-only.
+- NPCs know what the player would know: the same sight (`Sight.Visible`, not only visited tiles) and the same memory (`Beliefs`).
+- Groups share things, not rules: one fire, a shared store, seeing others' current plans. There is no group planner.
+- No automated decision-pathology tests. We observe NPCs instead.
+- The bench reports and never gates. Use fixed seeds plus fresh random seeds each run, so no code is fitted to particular seeds.
+- No hard size cap. The code must be thought out and organized.
+- Comments follow principles-code.md ("Self-documenting"): only the why, never history.
