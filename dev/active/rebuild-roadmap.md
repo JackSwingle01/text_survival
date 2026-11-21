@@ -363,3 +363,4 @@ Audit: `dev/active/rebuild-architecture-audit-2026-11-21.md`. Npc.cs is a priori
 - Forecasts may be fuzzy: probable best steps, not perfect foresight. The bar is "the AI makes no obviously dumb choices". Improving the AI means improving the forecasts.
 - Requirements as a tree ("all of" / "one of", built fresh each step, at most 3 deep), proven by a throwaway prototype (`dev/prototypes/npc-requirements/`) before the rewrite.
 - Lake and river ice drawn seamlessly in world space; the ported ice art is for ponds on land. Standing water is reported separately from mud, so a frozen film on mud isn't drawn as a sheet.
+- NPC behaviour is hand-built (the ladder), not learned. After the rewrite, the existing Tune tool tunes its few numbers (tier lines, forecast fudge factors, the abort budget) against the bench, with fresh random seeds each generation. A learned NPC policy is an experiment for after the combat learning experiment.
