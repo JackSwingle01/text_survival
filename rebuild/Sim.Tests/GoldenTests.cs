@@ -8,14 +8,23 @@ public class GoldenTests
 
     // Old HeatSourceFeature(Stone): 0.05 kg birch bark + 1 kg kindling lit, 3 kg pine at minute 8,
     // 4 kg birch at 40, 3 kg oak at 90. (minute, temp °F, burning kg, unburned kg, charcoal kg, phase)
+    // rebuild: shared burn (2026-11-21). The fire burns at the old total rate, but shares it by table
+    // rate times mass, so the bark and kindling go first and the logs after (old game: every fuel lost
+    // the same fraction of itself, bug, fixed). Old → new:
+    //   5:   416.66666666666663, 0.9490683229813667, 0 → 416.87113450156596, 0.9491438760539646, 0
+    //   30:  756.0231788394849, 3.27360739715723, 0.1958767244131627 → 757.5941471958663, 3.2821297603885746, 0.18912503347923437
+    //   60:  886.2632512310101, 6.281187668023725, 0.6445010260952623 → 888.0666394361875, 6.294850290814674, 0.6347994162345516
+    //   120: 940.6311507693083, 8.924865237309938, 0 → 943.5819087525198, 8.935254359678337, 0
+    //   300: 940.6311507693083, 6.1430269918750895, 0 → 953.0003797064531, 6.216577564083412, 0
+    //   600: 726.8513437762837, 1.9768867460954702, 0 → 887.3577484492382, 2.342137603911451, 0 (charcoal 0, phases unchanged)
     public static readonly TheoryData<int, double, double, double, double, string> FireTrajectory = new()
     {
-        { 5, 416.66666666666663, 0.9490683229813667, 0, 0, "Dying" },
-        { 30, 756.0231788394849, 3.27360739715723, 0.1958767244131627, 0, "Steady" },
-        { 60, 886.2632512310101, 6.281187668023725, 0.6445010260952623, 0, "Roaring" },
-        { 120, 940.6311507693083, 8.924865237309938, 0, 0, "Roaring" },
-        { 300, 940.6311507693083, 6.1430269918750895, 0, 0, "Roaring" },
-        { 600, 726.8513437762837, 1.9768867460954702, 0, 0, "Steady" },
+        { 5, 416.87113450156596, 0.9491438760539646, 0, 0, "Dying" },
+        { 30, 757.5941471958663, 3.2821297603885746, 0.18912503347923437, 0, "Steady" },
+        { 60, 888.0666394361875, 6.294850290814674, 0.6347994162345516, 0, "Roaring" },
+        { 120, 943.5819087525198, 8.935254359678337, 0, 0, "Roaring" },
+        { 300, 953.0003797064531, 6.216577564083412, 0, 0, "Roaring" },
+        { 600, 887.3577484492382, 2.342137603911451, 0, 0, "Steady" },
     };
 
     [Theory, MemberData(nameof(FireTrajectory))]
@@ -87,7 +96,10 @@ public class GoldenTests
     [Fact]
     public void EffectiveHeatOnAnExposedTile_MatchesOld()
     {
-        const double OldExposedF = 11.814825831857966, OldWarmedAirF = 23.338787015679152, OldEffectiveF = 80.10868677678457;
+        // rebuild: shared burn (2026-11-21): the bark and kindling go first, so a little more birch is left
+        // at minute 30. Old → new: warmed 23.338787015679152 → 23.446292304447, effective 80.10868677678457
+        // → 80.74295357905072 (the exposed air does not involve the fire).
+        const double OldExposedF = 11.814825831857966, WarmedAirF = 23.446292304447, EffectiveF = 80.74295357905072;
         var world = World.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -10, 3 / 20.1, 0, 0.3, WindDirection.North);
         var f = new FireState { Tile = Map.Of(world).Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
@@ -106,8 +118,8 @@ public class GoldenTests
         double airF = Exposure.FeltAirF(sky, Exposure.WindAt(sky, 1, w.WindProtectionLevel, 0));
         Assert.Equal(OldExposedF, airF, Digits);
         double warmedF = airF + Fire.HeatOutputF(f, airF) * 0.4; // open air carries 60% of the heat away
-        Assert.Equal(OldWarmedAirF, warmedF, Digits);
-        Assert.Equal(OldEffectiveF, warmedF + 2.0 * Fire.HeatOutputF(f, warmedF), Digits);
+        Assert.Equal(WarmedAirF, warmedF, Digits);
+        Assert.Equal(EffectiveF, warmedF + 2.0 * Fire.HeatOutputF(f, warmedF), Digits);
     }
 
     /// The same fire and sky at the camp tile itself (old Location with WindFactor 0.4 and
@@ -117,7 +129,9 @@ public class GoldenTests
     public void EffectiveHeatAtTheCampTile_MatchesOld()
     {
         const double OldCampAirF = 19.419973477794883, OldPassProperAirF = -11.959482811492297;
-        const double OldCampWarmedAirF = 30.831756883269172, OldCampEffectiveF = 87.04904100027493;
+        // rebuild: shared burn (2026-11-21), as above. Old → new: warmed 30.831756883269172 → 30.93889127534193,
+        // effective 87.04904100027493 → 87.68113722097718 (the open air does not involve the fire).
+        const double CampWarmedAirF = 30.93889127534193, CampEffectiveF = 87.68113722097718;
         var world = World.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -10, 3 / 20.1, 0, 0.3, WindDirection.North);
         var m = Map.Of(world);
@@ -137,7 +151,7 @@ public class GoldenTests
         world.Fires[new FireId(world.NextFireId++)] = f;
         world.Minute = f.LastUpdatedMinute;
         var ctx = Sim.Surroundings(world, world.Agent(AgentId.Player), new Wait(AgentId.Player), []);
-        Assert.Equal(OldCampWarmedAirF, ctx.AirTempF, Digits);
-        Assert.Equal(OldCampEffectiveF, ctx.AirTempF + ctx.FireBonusF, Digits);
+        Assert.Equal(CampWarmedAirF, ctx.AirTempF, Digits);
+        Assert.Equal(CampEffectiveF, ctx.AirTempF + ctx.FireBonusF, Digits);
     }
 }

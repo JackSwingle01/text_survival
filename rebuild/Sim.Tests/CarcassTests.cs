@@ -462,4 +462,44 @@ public class CarcassTests
         Assert.Equal(0, c.Remaining[Resource.RawMeat]);
         Assert.Equal(0, Carcasses.EatMeat(c, 1));
     }
+
+    /// Bare hands finish what bare hands can cut: the tusks and the great hide are not torn off by
+    /// hand, so they wait on the carcass for a blade rather than keep the work from ever ending. Old
+    /// game: bare hands on a mammoth never finished (bug, fixed).
+    [Fact]
+    public void BareHands_FinishWhatTheyCanCut_AndTheTrophiesWaitForABlade()
+    {
+        var (_, mammoth) = Make("Mammoth");
+        int bare = Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful, hasCuttingTool: false);
+        Assert.True(bare < Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful)); // no time charged on what hands cannot cut
+        Carcasses.Cut(mammoth, Carcasses.Prepare(mammoth, bare, ButcherMode.Careful), false, false, ButcherMode.Careful);
+        Assert.True(Carcasses.AllCut(mammoth, hasCuttingTool: false));
+        Assert.False(Carcasses.AllCut(mammoth));
+        Assert.Equal(4, mammoth.Remaining[Resource.Ivory], Digits);
+        Assert.Equal(15, mammoth.Remaining[Resource.MammothHide], Digits);
+        Carcasses.Cut(mammoth, Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful), true, false, ButcherMode.Careful);
+        Assert.True(Carcasses.AllCut(mammoth));
+        Assert.Equal(4, mammoth.YieldKg[Resource.Ivory], Digits);
+    }
+
+    /// The same through the work: a bare-handed session ends, the carcass stays for someone with a knife,
+    /// and the knife finishes it.
+    [Fact]
+    public void BareHandedButchering_Ends_AndLeavesTheTuskForAKnife()
+    {
+        var w = World.New(17);
+        w.FixedWeather = Mild;
+        var (kg, muscle, fat, _, _) = Animals["Wolf"];
+        var body = BodyState.Create(BodyKind.Quadruped, kg, fat / kg, muscle / kg);
+        var c = Carcasses.Create(w, Map.Of(w).Camp, "Wolf", body, 0, special: new Dictionary<Resource, double> { [Resource.Ivory] = 0.5 });
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, Pit = PitType.Stone, BurningKg = { [Resource.Oak] = 10 } };
+        var r = Sim.Step(w, new Butcher(P, c.Id), 24 * 60);
+        Assert.Equal(Work.NeedsABlade, r.InterruptedReason);
+        Assert.Contains(c, w.Tiles[Map.Of(w).Camp].Carcasses!);
+        Assert.Equal(0.5, c.Remaining[Resource.Ivory], Digits);
+        Assert.Equal(Work.NeedsABlade, Sim.Step(w, new Butcher(P, c.Id), 60).InterruptedReason); // refused at once: nothing for hands
+        Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
+        Assert.Equal("butchered", Sim.Step(w, new Butcher(P, c.Id), 60).InterruptedReason);
+        Assert.True(Items.Have(Items.Pack(w, P), Resource.Ivory) > 0.4);
+    }
 }

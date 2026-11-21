@@ -131,4 +131,60 @@ public class NpcShuttleTests(ITestOutputHelper output)
         Assert.Equal([camp], camps);
         Assert.Contains(camp, lit);
     }
+
+    /// Seed 31, day 2.09: hungry, its stomach near empty, it walked to roots it had left on a stash a tile out, and
+    /// there food stopped being Need - food to hand - but nothing at Want eats off a stash, so it walked back to the
+    /// ground beside it, and on arriving food was Need again: thirteen times. Hungry beside food it can eat, on a
+    /// stash or in its pack, it eats it.
+    [Fact]
+    public void Hungry_BesideRootsOnAStash_EatsThem()
+    {
+        var w = World.New(31);
+        w.FixedWeather = new(0, WeatherCondition.Clear, 40, 0.2, 0, 1, WindDirection.North);
+        foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => a.Id).ToList()) w.Agents.Remove(h);
+        w.Minute = 2 * 1440L + 60; // day 2, 10:00
+        var m = Map.Of(w);
+        var camp = m.Camp;
+        var npc = NpcBench.Spawn(w, camp);
+        var agent = w.Agent(npc);
+        var mind = (NpcMind)agent.Mind;
+        var off = MapGen.Neighbors(camp).Where(t => m.TerrainAt(t).IsPassable() && Map.Blocked(m, camp, t) == null).OrderBy(t => t).First();
+        agent.Tile = off;
+        foreach (var r in mind.Pack.Kg.Keys.Where(r => Items.Resources[r].Category == ResourceCategory.Food).ToList()) mind.Pack.Kg.Remove(r);
+        Items.Add(Items.StashAt(w, off), Resource.Roots, 0.23);
+        agent.Body.CaloriesKcal = 0.1 * Body.MaxCaloriesKcal; // hungry
+        var log = new List<WorldEvent>();
+        for (int i = 0; i < 20 && !log.Any(e => e is Ate a && a.Who == npc); i++) log.AddRange(Sim.Advance(w, 1));
+        output.WriteLine(string.Join(", ", log.Where(e => e is Moved mv && mv.Who == npc || e is Unstashed u && u.Who == npc || e is Ate a && a.Who == npc)));
+        Assert.Contains(log, e => e is Ate { Food: Resource.Roots } a && a.Who == npc);
+    }
+
+    /// Seed 5, day 15.9: food's walk east stepped to two tiles off a wolf it had just fled, the flee took it back to
+    /// three (FleeTiles), and the walk stepped in again, nineteen times. A walk keeps out of the ground it would run
+    /// from: walking home past a predator two tiles off its way, it goes round.
+    [Fact]
+    public void WalkingHome_PastAPredatorItJustSaw_KeepsOutOfFleeingRange()
+    {
+        var w = World.New(17);
+        w.FixedWeather = new(0, WeatherCondition.Clear, 40, 0.2, 0, 1, WindDirection.North);
+        foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => a.Id).ToList()) w.Agents.Remove(h);
+        w.Minute = 10 * 60 + 30; // 19:30: evening, home is where it is going
+        var m = Map.Of(w);
+        var camp = m.Camp;
+        var start = new TileId(camp.X + 4, camp.Y);
+        var wolf = new TileId(camp.X + 2, camp.Y + 2);
+        for (int dx = 0; dx <= 4; dx++)
+            for (int dy = -1; dy <= 0; dy++)
+                Assert.True(m.TerrainAt(new TileId(camp.X + dx, camp.Y + dy)).IsPassable(), $"precondition: {camp.X + dx},{camp.Y + dy} passable");
+        var npc = NpcBench.Spawn(w, start, camp);
+        var agent = w.Agent(npc);
+        var mind = (NpcMind)agent.Mind;
+        (mind.ThreatTile, mind.ThreatMinute) = (wolf, w.Minute);
+        var walked = new List<TileId>();
+        for (int i = 0; i < 60 && agent.Tile != camp; i++)
+            walked.AddRange(Sim.Advance(w, 1).OfType<Moved>().Where(mv => mv.Who == npc).Select(mv => mv.To));
+        output.WriteLine(string.Join(" ", walked.Select(t => $"({t.X - camp.X},{t.Y - camp.Y})")));
+        Assert.Equal(camp, agent.Tile);
+        Assert.DoesNotContain(walked, t => MapGen.Manhattan(t, wolf) < 3);
+    }
 }

@@ -141,13 +141,20 @@ public static class Items
         inv.Kg[r] = Have(inv, r) + kg;
     }
 
-    /// Takes up to kg; returns what was taken. Old Inventory.ConsumeByWeight.
+    /// Below this, what is left of a stack or of a load is a rounding sliver, never a thing of its own:
+    /// it goes with the rest, so no sliver is ever lost.
+    public const double SliverKg = 1e-9;
+
+    /// Takes up to kg; returns what was taken. A sliver left behind is taken too, so the returned mass
+    /// may exceed kg by up to SliverKg. Old Inventory.ConsumeByWeight; old (this rebuild): the sliver
+    /// was removed but not returned (bug, fixed).
     public static double Take(Inventory inv, Resource r, double kg)
     {
         if (kg < 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Cannot take a negative amount");
         double have = Have(inv, r);
         double taken = Math.Min(have, kg);
-        if (have - taken <= 1e-9) inv.Kg.Remove(r); else inv.Kg[r] = have - taken;
+        if (have - taken <= SliverKg) { inv.Kg.Remove(r); return have; }
+        inv.Kg[r] = have - taken;
         return taken;
     }
 
@@ -197,8 +204,9 @@ public static class Items
         {
             double room = Math.Max(0, CapacityKg(pack) - CarriedKg(agent));
             double kept = Math.Min(kg, room);
+            if (kg - kept <= SliverKg) kept = kg; // a sliver over capacity rides with the rest; old (this rebuild): it was dropped (bug, fixed)
             Add(pack, r, kept);
-            if (kg - kept > 1e-9) Add(dropped, r, kg - kept);
+            if (kg - kept > 0) Add(dropped, r, kg - kept);
         }
         foreach (var g in gained.Gear)
         {

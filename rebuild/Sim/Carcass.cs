@@ -240,18 +240,29 @@ public static class Carcasses
 
     /// Kg still uncut on the carcass.
     public static double TotalRemainingKg(Carcass c) => c.Remaining.Values.Sum();
+    /// Nothing left on it for anyone to cut.
     public static bool AllCut(Carcass c) => TotalRemainingKg(c) < 0.01;
+
+    /// Trophy materials are not torn off by hand: they wait for a blade.
+    public static bool CanCut(Resource r, bool hasCuttingTool) => hasCuttingTool || r is not (Resource.Ivory or Resource.MammothHide);
+
+    /// Everything this butcher can cut is cut. What is left waits on the carcass for someone with a
+    /// blade. Old game: bare hands on a mammoth never finished, its tusks and hide forever uncut (bug, fixed).
+    public static bool AllCut(Carcass c, bool hasCuttingTool) =>
+        c.Remaining.Where(x => CanCut(x.Key, hasCuttingTool)).Sum(x => x.Value) < 0.01;
     /// Nothing left on it: all cut, and every cut piece carried off.
     public static bool IsButchered(Carcass c) => AllCut(c) && c.Pending.Count == 0;
 
     /// Old GetRemainingMinutes(mode): setup plus 2.75 minutes a kilo, scaled by the mode. The setup
     /// is charged once per carcass, not once per session (Prepare).
-    public static int RemainingMinutes(Carcass c, ButcherMode mode) =>
-        (int)Math.Ceiling((Math.Max(0, BaseButcheringMinutes - c.SetupMinutes) + WorkKg(c) * MinutesPerKgYield) * ModeProps(mode).TimeFactor);
+    public static int RemainingMinutes(Carcass c, ButcherMode mode, bool hasCuttingTool = true) =>
+        (int)Math.Ceiling((Math.Max(0, BaseButcheringMinutes - c.SetupMinutes) + WorkKg(c, hasCuttingTool) * MinutesPerKgYield) * ModeProps(mode).TimeFactor);
 
     /// The kilograms the butchering time is charged on: the ledger at a careful butcher's yield, as the
     /// old game charged it, so scaling the ledger up to full processing's (ThoroughFactor) took no longer.
-    static double WorkKg(Carcass c) => c.Remaining.Sum(x => x.Value / ThoroughFactor(x.Key));
+    /// Only what this butcher can cut (CanCut) is work for them.
+    static double WorkKg(Carcass c, bool hasCuttingTool) =>
+        c.Remaining.Where(x => CanCut(x.Key, hasCuttingTool)).Sum(x => x.Value / ThoroughFactor(x.Key));
 
     /// Effective minutes of butchering go to the setup first, until it is done; returns what is left for cutting.
     public static double Prepare(Carcass c, double minutes, ButcherMode mode)
@@ -264,28 +275,28 @@ public static class Carcasses
 
     /// Effective minutes of cutting: that share of everything left comes off the carcass (CutKg)
     /// and yields (YieldKg, Pending) by mode, steady hands and (meat only) decay. Without a blade you
-    /// tear off half the meat and some bone and ruin the rest. Kilograms removed are linear in
-    /// minutes, so cutting a minute at a time takes what one long cut does. Once it is all cut,
-    /// Settle applies the meat floor and drops what was too little to keep.
+    /// tear off half the meat and two thirds of the bone the mode would have kept, ruin the rest, and
+    /// leave the trophies (CanCut). Kilograms removed are linear in minutes, so cutting a minute at a
+    /// time takes what one long cut does. Once all this butcher can cut is cut, Settle applies the meat
+    /// floor and drops what was too little to keep.
     /// skillFactor is the butcher's practice (Skills.ButcherYieldFactor): it wins back what clumsy hands
     /// and spoiling meat would lose, never more than the method recovers clean, so never more than the cut.
     public static void Cut(Carcass c, double minutes, bool hasCuttingTool, bool handsImpaired, ButcherMode mode, double skillFactor = 1.0)
     {
-        if (minutes <= 0 || AllCut(c)) return;
+        if (minutes <= 0 || AllCut(c, hasCuttingTool)) return;
         var props = ModeProps(mode);
-        double fraction = Math.Min(1.0, minutes / (WorkKg(c) * MinutesPerKgYield * props.TimeFactor));
+        double fraction = Math.Min(1.0, minutes / (WorkKg(c, hasCuttingTool) * MinutesPerKgYield * props.TimeFactor));
         double handsPct = handsImpaired ? 0.8 : 1.0;
         double meatDecayPct = 1.0 - DecayLevel(c) * 0.8;
         foreach (var r in c.Remaining.Keys.ToList())
         {
-            // Trophy materials are not torn off by hand: they wait for a blade.
-            if (!hasCuttingTool && r is Resource.Ivory or Resource.MammothHide) continue;
+            if (!CanCut(r, hasCuttingTool)) continue;
             double take = c.Remaining[r] * fraction;
-            // What the method recovers from this cut with steady hands and fresh meat (old ButcheringModeConfig,
-            // and the old bare-handed tear: half the meat and two thirds of the bone)...
-            double clean = !hasCuttingTool
-                ? r switch { Resource.RawMeat => take / ThoroughFactor(r) * 0.5, Resource.Bone => take * 0.67, _ => 0 }
-                : take * props.YieldFactor.GetValueOrDefault(r, 1);
+            // What the method recovers from this cut with steady hands and fresh meat (old ButcheringModeConfig),
+            // less the bare-handed tear on top of it: a blade never wastes more than hands in the same mode.
+            // Old game: the tear ignored the mode, so a QuickStrip with a knife kept 50% of the bone and
+            // bare hands 67% (bug, fixed). Careful work tears exactly as the old game did.
+            double clean = take * props.YieldFactor.GetValueOrDefault(r, 1) * (hasCuttingTool ? 1 : BareHandsPct(r));
             // ...and what the hands and the rot cost of it, some of which practice wins back.
             double penaltyPct = handsPct * (r == Resource.RawMeat ? meatDecayPct : 1);
             double kg = Math.Min(clean, clean * penaltyPct * skillFactor);
@@ -295,8 +306,12 @@ public static class Carcasses
             c.YieldKg[r] = c.YieldKg.GetValueOrDefault(r) + kg;
             c.Pending[r] = c.Pending.GetValueOrDefault(r) + kg;
         }
-        if (AllCut(c)) Settle(c);
+        if (AllCut(c, hasCuttingTool)) Settle(c);
     }
+
+    /// What tearing by hand keeps of what the mode would (old HarvestWithoutKnife): half the meat,
+    /// two thirds of the bone, nothing else.
+    static double BareHandsPct(Resource r) => r switch { Resource.RawMeat => 0.5, Resource.Bone => 0.67, _ => 0 };
 
     /// The whole carcass is cut: the old meat floor, and scraps too small to keep dropped. Both are
     /// judged on everything the carcass gave, never on one session's share of it, so how the work

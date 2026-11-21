@@ -89,9 +89,21 @@ public static class Fire
     static double ActiveTemperatureF(FireState f)
     {
         double burning = BurningKg(f);
-        if (burning <= 0) return 0;
-        double sizeFactor = burning < 0.5 ? 0.5 : burning < 1.0 ? 0.7 : burning < 2.0 ? 0.85 : burning < 4.0 ? 1.0 : 1.1;
-        return Weighted(f, p => p.PeakTempF, fallback: 450) * sizeFactor;
+        return burning > 0 ? Weighted(f, p => p.PeakTempF, fallback: 450) * TempSizeFactor(burning) : 0;
+    }
+
+    static double TempSizeFactor(double burningKg) =>
+        burningKg < 0.5 ? 0.5 : burningKg < 1.0 ? 0.7 : burningKg < 2.0 ? 0.85 : burningKg < 4.0 ? 1.0 : 1.1;
+
+    /// How hot the hottest flame in the fire is: what new fuel must touch to catch. A log catches off
+    /// the burning oak beside it, not off the fire's average, so tinder thrown on a hot fire never
+    /// stops it taking bone. Embers are as hot as they are. Old game: fuel caught only off the mass-weighted
+    /// mean, so tinder cooled a fire below what its oak could light (bug, fixed).
+    public static double CatchTemperatureF(FireState f)
+    {
+        if (f.HasEmbers) return EmberTemperatureF(f);
+        double burning = BurningKg(f);
+        return burning > 0 ? f.BurningKg.Where(x => x.Value > 0).Max(x => Props[x.Key].PeakTempF) * TempSizeFactor(burning) : 0;
     }
 
     static double EmberTemperatureF(FireState f)
@@ -109,7 +121,8 @@ public static class Fire
 
     static double BurnSizeFactor(double burningKg) => burningKg < 1.5 ? 0.9 : burningKg < 4.0 ? 1.0 : burningKg < 7.0 ? 1.1 : 1.2;
 
-    /// Before the stone pit's efficiency, matching the old display figure.
+    /// The whole fire's burn, kg an hour, before the stone pit's efficiency: the burning fuels'
+    /// mass-weighted mean table rate at the fire's size, as the old game had it.
     public static double BurnRateKgPerHour(FireState f)
     {
         double burning = BurningKg(f);
@@ -236,7 +249,7 @@ public static class Fire
     // ---- fuel ----
 
     public static bool CanAddFuel(FireState f, Resource fuel) =>
-        TotalKg(f) < MaxFuelKg(f.Pit) && TemperatureF(f) >= Props[fuel].MinFireTempF;
+        TotalKg(f) < MaxFuelKg(f.Pit) && CatchTemperatureF(f) >= Props[fuel].MinFireTempF;
 
     /// Fuel goes on the unburned pile and catches over time. Hot embers relight at once.
     /// Returns the kg actually added (capped by pit capacity), or 0 when refused.
@@ -264,10 +277,15 @@ public static class Fire
             if (Props[fuel].MinFireTempF == 0 && kg > 0) Transfer(f, fuel, kg);
     }
 
+    /// Under this, a stack is dust: it goes with the rest of its fuel, never off the ledger.
+    const double DustKg = 0.001;
+
+    /// Catches kg of a fuel. A last gram left waiting catches with it. Old game: it was deleted (bug, fixed).
     static void Transfer(FireState f, Resource fuel, double kg)
     {
         double left = f.UnburnedKg.GetValueOrDefault(fuel) - kg;
-        if (left <= 0.001) f.UnburnedKg.Remove(fuel); else f.UnburnedKg[fuel] = left;
+        if (left <= DustKg) { f.UnburnedKg.Remove(fuel); kg += Math.Max(0, left); }
+        else f.UnburnedKg[fuel] = left;
         f.BurningKg[fuel] = f.BurningKg.GetValueOrDefault(fuel) + kg;
     }
 
@@ -349,30 +367,40 @@ public static class Fire
     {
         double burning = BurningKg(f);
         if (f.UnburnedKg.Count == 0 || burning <= 0) return;
-        double tempF = TemperatureF(f);
-        double tempFactor = Math.Max(0.5, tempF / 400.0);
+        double tempFactor = Math.Max(0.5, TemperatureF(f) / 400.0);
+        double catchF = CatchTemperatureF(f);
         double massFactor = 1.0 + burning * 0.15;
         foreach (var (fuel, kg) in f.UnburnedKg.ToList())
         {
             var p = Props[fuel];
-            if (kg <= 0 || tempF < p.MinFireTempF) continue;
+            if (kg <= 0 || catchF < p.MinFireTempF) continue;
             double catching = Math.Min(kg, BaseCatchRateKgPerMinute * tempFactor * massFactor * p.BurnRateKgPerHour);
             if (catching > 0) Transfer(f, fuel, catching);
         }
     }
 
+    /// The fire's burn this minute (BurnRateKgPerHour), shared out among the fuels by their table rates
+    /// times their masses, all read off the fire as it was at the start of the minute: a fast fuel goes
+    /// first and a slow one after it, and one fuel alone burns exactly as it always did. Old game: every
+    /// fuel lost the same fraction of itself, so tinder dragged an oak log down with it, and 2 kg of oak
+    /// with 0.5 kg of tinder flamed 149 min against 217 alone; now 226 (bug, fixed). A last gram burns
+    /// with its stack; old game: it was deleted uncounted, and made no charcoal (bug, fixed).
     static void Consume(FireState f)
     {
         double burning = BurningKg(f);
         f.LastBurningTempF = ActiveTemperatureF(f); // before consumption: the embers start from it
         double consumed = Math.Min(burning, BurnRateKgPerHour(f) / FuelEfficiencyFactor(f.Pit) / 60.0);
-        double keepPct = 1.0 - consumed / burning;
-        foreach (var fuel in f.BurningKg.Keys.ToList())
+        double weight = f.BurningKg.Sum(x => Props[x.Key].BurnRateKgPerHour * x.Value);
+        var shares = f.BurningKg.ToDictionary(x => x.Key, x => consumed * (Props[x.Key].BurnRateKgPerHour * x.Value / weight));
+        foreach (var (fuel, share) in shares)
         {
-            double left = f.BurningKg[fuel] * keepPct;
-            if (left < 0.001) f.BurningKg.Remove(fuel); else f.BurningKg[fuel] = left;
+            double kg = f.BurningKg[fuel];
+            double burned = Math.Min(kg, share);
+            double left = kg * (1.0 - burned / kg); // the old arithmetic, so one fuel burns bit for bit as it did
+            if (left < DustKg) { burned = kg; f.BurningKg.Remove(fuel); }
+            else f.BurningKg[fuel] = left;
+            f.BurnedSinceLitKg += burned;
         }
-        f.BurnedSinceLitKg += consumed;
     }
 
     static void ToEmbers(FireState f, FireId id, long minute, List<WorldEvent> events)
@@ -492,7 +520,7 @@ public static class Fire
         var pack = Items.Pack(world, a.Who);
         // Old FireHandler passed the Firecraft level; the port had dropped it (bug, fixed).
         double chance = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
-        Items.Take(pack, a.Tinder, a.TinderKg);
+        double tinderKg = Items.Take(pack, a.Tinder, a.TinderKg);
         var tool = Items.Tool(pack, a.Tool)!;
         Items.Use(tool);
         if (world.Rng("fire", a.Who).NextDouble() >= chance)
@@ -509,8 +537,8 @@ public static class Fire
         var f = world.Fires[id];
         // What the pit has no room for stays in the pack, as Feed does. Old game: it popped the
         // kindling and tinder and the pit's capacity cap destroyed what did not fit (bug, fixed).
-        Items.Add(pack, a.Tinder, a.TinderKg - AddFuel(f, a.Tinder, a.TinderKg));
-        if (a.KindlingKg > 0) Items.Take(pack, Resource.Kindling, AddFuel(f, Resource.Kindling, a.KindlingKg));
+        Items.Add(pack, a.Tinder, tinderKg - AddFuel(f, a.Tinder, tinderKg));
+        if (a.KindlingKg > 0) PutOn(f, pack, Resource.Kindling, a.KindlingKg);
         IgniteAll(f);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
         // A strike that catches is worth a miss now; the rest when the fire takes wood (PayLighter). Old game:
@@ -529,12 +557,23 @@ public static class Fire
         var id = PitAt(world, tile)!.Value;
         var f = world.Fires[id];
         bool wasEmbers = f.HasEmbers;
-        double added = AddFuel(f, a.Fuel, Math.Min(a.Kg, Items.Have(pack, a.Fuel)));
-        Items.Take(pack, a.Fuel, added);
+        double added = PutOn(f, pack, a.Fuel, a.Kg);
         events.Add(new FuelAdded(world.Minute, id, tile, a.Who, a.Fuel, added));
         if (added > 0) PayLighter(world, f, events);
         if (wasEmbers && !f.HasEmbers) events.Add(new FireLit(world.Minute, id, tile, a.Who));
         return null;
+    }
+
+    /// Up to kg from the pack onto the pit, as much as it has room for; returns what left the pack.
+    /// A sliver Items.Take takes with the rest goes on the fire with it, never nowhere.
+    static double PutOn(FireState f, Inventory pack, Resource fuel, double kg)
+    {
+        double offered = Math.Min(kg, Items.Have(pack, fuel));
+        double added = offered > 0 ? AddFuel(f, fuel, offered) : 0;
+        if (added <= 0) return 0;
+        double taken = Items.Take(pack, fuel, added);
+        if (taken > added) f.UnburnedKg[fuel] = f.UnburnedKg.GetValueOrDefault(fuel) + taken - added;
+        return taken;
     }
 
     /// The rest of a strike's Firecraft, to whoever struck it, once the fire is sure to take a log: it has

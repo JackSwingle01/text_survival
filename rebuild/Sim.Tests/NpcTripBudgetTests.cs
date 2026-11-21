@@ -382,4 +382,39 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         Assert.Equal(w.Minute, w.Fires[id].LastUpdatedMinute);
         Assert.Equal(Npc.ForecastWalkCoolingFPerHour(w, a, to), behind);
     }
+
+    /// Bare-handed and hungry beside a carcass with only tusk left on it - work only a blade can do (Work.NeedsABlade) -
+    /// food's plan was the butchering it could not start, so it did nothing about food at all. A carcass with nothing
+    /// left for its hands is not food to it, and it goes to look for some; with a knife it butchers.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Hungry_ACarcassOnlyABladeCanFinish_IsLeftForABlade(bool knife)
+    {
+        var (w, npc, mind) = Setup(17, Mild, At(2, 11));
+        var a = w.Agent(npc);
+        mind.Pack.Gear.RemoveAll(g => Items.Def(g).Tool is ToolType.Knife or ToolType.Axe);
+        if (knife) mind.Pack.Gear.Add(Items.Make("flint_knife"));
+        foreach (var r in mind.Pack.Kg.Keys.Where(r => Items.Resources[r].Category == ResourceCategory.Food).ToList()) mind.Pack.Kg.Remove(r);
+        a.Body.FatKg = 0.5 * mind.TargetFatKg; // wanting food, and nothing else: a fire with a day of wood, water
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = mind.Camp, LastUpdatedMinute = w.Minute, Pit = PitType.Stone, BurningKg = { [Resource.Oak] = 10 } };
+        Items.Add(Items.StashAt(w, mind.Camp), Resource.Oak, 40);
+        Items.Add(Items.StashAt(w, mind.Camp), Resource.Water, 5);
+        var body = BodyState.Create(BodyKind.Quadruped, 40, 0.1, 0.4);
+        var c = Carcasses.Create(w, mind.Camp, "Wolf", body, w.Minute, special: new Dictionary<Resource, double> { [Resource.Ivory] = 0.5 });
+        Carcasses.Cut(c, Carcasses.RemainingMinutes(c, ButcherMode.Careful, hasCuttingTool: false), false, false, ButcherMode.Careful);
+        Carcasses.TakeReady(c);
+        Assert.True(Carcasses.AllCut(c, hasCuttingTool: false) && c.Pending.Count == 0 && !Carcasses.AllCut(c));
+        var chose = new List<Activity>();
+        var log = new List<WorldEvent>();
+        for (int i = 0; i < 30; i++)
+        {
+            log.AddRange(NpcDriver.Live(w, npc, w.Minute + 1));
+            if (a.Doing?.Activity is { } act && (chose.Count == 0 || chose[^1] != act)) chose.Add(act);
+        }
+        output.WriteLine($"knife {knife}: {string.Join(", ", chose)}");
+        Assert.DoesNotContain(log, e => e is PlanRefused r && r.Who == npc);
+        if (knife) Assert.Contains(chose, x => x is Butcher);
+        else Assert.Contains(chose, x => x is Gather { Focus: ForageFocus.Food }); // off to find food, not stood by the tusk
+    }
 }

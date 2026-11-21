@@ -119,7 +119,9 @@ public static class Work
                 if (Carcasses.IsButchered(c)) return "there's nothing left to butcher";
                 if (b.Mode is ButcherMode asked && c.Mode is ButcherMode started && asked != started)
                     return $"this carcass is being butchered {started}, not {asked}";
-                if (Carcasses.AllCut(c) && Items.CarriedKg(agent) >= Items.CapacityKg(pack)) return PackFull;
+                bool blade = Items.HasCuttingTool(pack);
+                if (Carcasses.AllCut(c, blade) && c.Pending.Count == 0) return NeedsABlade;
+                if (Carcasses.AllCut(c, blade) && Items.CarriedKg(agent) >= Items.CapacityKg(pack)) return PackFull;
                 return NeedsLight(world, agent, activity) && TooDarkToWork(world, agent) ? TooDark : null;
             }
             case Eat e:
@@ -365,7 +367,8 @@ public static class Work
         var mode = c.Mode!.Value;
         var props = Carcasses.ModeProps(mode);
         bool handsImpaired = Body.Dexterity(agent.Body, Fire.AbilityContextFor(world, agent)) < 0.7;
-        Carcasses.Cut(c, Carcasses.Prepare(c, effective, mode), Items.HasCuttingTool(Items.PackOf(agent)!), handsImpaired, mode,
+        bool blade = Items.HasCuttingTool(Items.PackOf(agent)!);
+        Carcasses.Cut(c, Carcasses.Prepare(c, effective, mode), blade, handsImpaired, mode,
             Skills.ButcherYieldFactor(Skills.Level(agent, Skill.Butchering)));
         Skills.Award(world, agent, Skill.Butchering, Skills.ButcherXpPerHour / 60, events);
         var ready = Carcasses.TakeReady(c);
@@ -376,13 +379,15 @@ public static class Work
         double bloody = Effects.Severity(agent.Body, EffectKind.Bloody);
         if (bloody < 0.5) Effects.Set(agent.Body, EffectKind.Bloody, Math.Min(0.5, bloody + props.BloodySeverity / 60));
         c.ScentBonus += props.ScentIncrease / 60;
-        if (!Carcasses.AllCut(c)) return null;
-        if (!Carcasses.IsButchered(c)) return PackFull; // all cut; what the pack could not take waits on the carcass
+        if (!Carcasses.AllCut(c, blade)) return null;
+        if (c.Pending.Count > 0) return PackFull; // all cut; what the pack could not take waits on the carcass
+        if (!Carcasses.AllCut(c)) return NeedsABlade; // the tusks and the great hide wait on it for someone with one
         Carcasses.Remove(world, agent.Tile, c);
         return "butchered";
     }
 
     public const string PackFull = "your pack is full";
+    public const string NeedsABlade = "the rest needs a blade";
 
     static void EndButcher(World world, Agent agent, Butcher b, WorkSession s, List<WorldEvent> events)
     {

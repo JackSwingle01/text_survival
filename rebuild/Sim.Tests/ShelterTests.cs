@@ -60,8 +60,10 @@ public class ShelterTests
     /// Wind coverage cuts the wind that reaches you: the old step on a tile whose wind factor is the
     /// camp's 0.4 times what the walls let through. Moving forfeits the shelter (old IsStationary).
     [Theory]
-    [InlineData("calm", 30.617350893324215, 19.419973477794883, 111.43729522069367)]
-    [InlineData("snowy", 9.3047090110841, -22.3255645003846, 90.42666263762786)]
+    // rebuild: shared burn (2026-11-21): the camp fire (bark, kindling, birch, 30 min) has a little more birch
+    // burning. Old → new effective: calm 111.43729522069367 → 112.19672113057332, snowy 90.42666263762786 → 91.17567679136559.
+    [InlineData("calm", 30.617350893324215, 19.419973477794883, 112.19672113057332)]
+    [InlineData("snowy", 9.3047090110841, -22.3255645003846, 91.17567679136559)]
     public void CampOverhang_ThroughSurroundings_MatchesOldWithWindCoverageRead(string sky, double idleF, double movingF, double effectiveF)
     {
         var w = At(sky == "calm" ? Calm : Snowy);

@@ -160,7 +160,7 @@ public static partial class Npc
             (water == Tier.Critical && me.Has(Resource.Water) >= 0.1 ? Rank(Tier.Critical, -1) : 0, Stat.Water, true, me => Try(me, new Drink(me.Id), Work.DrinkMinutes)),
             // Ten minutes to eat what is in the pack is never the wrong time to be hungry, short of a Critical stat
             // (judgment call: the old hierarchy kept a cold NPC from eating the berries it carried).
-            (hungry && ReadyFood(me) != null ? Rank(Tier.Need, -1) : 0, null, true, me => Eat(me, ReadyFood(me)!.Value)),
+            (hungry && FoodToHand(me) ? Rank(Tier.Need, -1) : 0, null, true, EatToHand),
             // Warmth: a cold core is seen to at the fire (Warm); a warm one short of wood fetches it (Wood). Wood fetched
             // for tonight is held to the evening, as the evening's own fetch is (StaysOut).
             (Rank(warmth, (double)Stat.Warmth), cold > Tier.None ? Stat.Warmth : null, cold > Tier.None, cold > Tier.None ? Warm : Fuel),
@@ -280,9 +280,11 @@ public static partial class Npc
     static double WaterToHandL(Me me) =>
         Work.HasOpenWater(me.World, me.Tile) ? double.PositiveInfinity : me.Has(Resource.Water) + me.Stashed(Resource.Water);
 
-    /// Food it can eat without going for it: in the pack, or on the stash here.
-    static bool FoodToHand(Me me) =>
-        me.Pack.Kg.Concat(me.Stash?.Kg ?? []).Any(x => x.Value > 0 && Items.Resources[x.Key].Category == ResourceCategory.Food);
+    /// Food it can eat without going for it: fit to eat now, in the pack or on the stash here - what the hungry eat
+    /// (EatToHand). Old (this rebuild): any food at all, raw or not, while only the pack's was eaten, so beside roots
+    /// on a stash a tile out food was no longer Need, nothing ate them, and it walked off and back, the stash and the
+    /// ground next to it, thirteen times (seed 31, day 2).
+    static bool FoodToHand(Me me) => ReadyFood(me, me.Pack) != null || ReadyFood(me, me.Stash) != null;
 
     /// Hours until midnight.
     static double HoursLeftToday(Me me) => (1440 - Weather.MinuteOfDay(me.World.Minute)) / 60.0;
@@ -801,9 +803,18 @@ public static partial class Npc
 
     /// Food in the pack fit to eat now, richest first (old HandleFoodNeed: cooked before other food).
     /// Raw meat waits for a fire unless the NPC is starving.
-    static Resource? ReadyFood(Me me) => First(
-        me.Pack.Kg.Keys.Where(r => Items.Resources[r].Category == ResourceCategory.Food).OrderByDescending(r => Items.Resources[r].KcalPerKg).ThenBy(r => r),
+    static Resource? ReadyFood(Me me) => ReadyFood(me, me.Pack);
+
+    /// The same, in this inventory.
+    static Resource? ReadyFood(Me me, Inventory? inv) => inv == null ? null : First(
+        inv.Kg.Where(x => x.Value > 0 && Items.Resources[x.Key].Category == ResourceCategory.Food).Select(x => x.Key)
+            .OrderByDescending(r => Items.Resources[r].KcalPerKg).ThenBy(r => r),
         r => r is not (Resource.RawMeat or Resource.RawFish) || me.Agent.Body.FatPct < RawMeatFatPct);
+
+    /// Hungry, what it can eat without going for it (FoodToHand): from the pack, or off the stash here first.
+    static Plan? EatToHand(Me me) =>
+        ReadyFood(me) is Resource carried ? Eat(me, carried)
+        : ReadyFood(me, me.Stash) is Resource stashed ? Try(me, new Unstash(me.Id, stashed, Math.Min(2, me.Stashed(stashed))), 1) : null;
 
     /// As much as the stomach has room for, and as much again as the fat it is short of, up to a
     /// second store's worth at one sitting: what the store cannot hold goes on as fat (Body.Eat).
@@ -1103,8 +1114,14 @@ public static partial class Npc
         return null;
     }
 
-    static int? Carcass(Me me) =>
-        me.World.Tiles.GetValueOrDefault(me.Tile)?.Carcasses?.FirstOrDefault(c => !Carcasses.IsButchered(c))?.Id;
+    /// A carcass here with work left on it for this butcher: something it can cut, or cut pieces waiting to be carried.
+    /// Old (this rebuild): any carcass not yet butchered, so bare-handed it went back to tusks and hide only a blade
+    /// can take (Work.NeedsABlade) and was refused.
+    static int? Carcass(Me me)
+    {
+        bool blade = Items.HasCuttingTool(me.Pack);
+        return me.World.Tiles.GetValueOrDefault(me.Tile)?.Carcasses?.FirstOrDefault(c => !Carcasses.AllCut(c, blade) || c.Pending.Count > 0)?.Id;
+    }
 
     /// Forages here if it is worth it; otherwise (if it may wander) walks to the best ground it
     /// remembers or has not tried yet, within its range of camp. Old DetermineGetResource.
@@ -1659,7 +1676,9 @@ public static partial class Npc
         int margin = 8;
         int minX = Math.Min(me.Tile.X, target.X) - margin, maxX = Math.Max(me.Tile.X, target.X) + margin;
         int minY = Math.Min(me.Tile.Y, target.Y) - margin, maxY = Math.Max(me.Tile.Y, target.Y) + margin;
-        // Not past a predator it has just seen: no tile next to it, unless that is where it is going.
+        // Not past a predator it has just seen: no tile it would run from (FleeTiles, RespondToThreat), unless that is
+        // where it is going. Old (this rebuild): only the tiles next to it, so a forage walk stepped back to two tiles off,
+        // the flee took it back to three, and the walk stepped in again (seed 5, day 15.9: nineteen times).
         var threat = FreshThreat(me);
         var cameFrom = new Dictionary<TileId, TileId> { [target] = target };
         var queue = new Queue<TileId>([target]);
@@ -1671,7 +1690,7 @@ public static partial class Npc
             {
                 if (next.X < minX || next.X > maxX || next.Y < minY || next.Y > maxY || cameFrom.ContainsKey(next)) continue;
                 if (!Passable(me, next, at)) continue;
-                if (threat is TileId t && next != me.Tile && MapGen.Manhattan(next, t) <= 1) continue;
+                if (threat is TileId t && next != me.Tile && MapGen.Manhattan(next, t) < FleeTiles) continue;
                 cameFrom[next] = at;
                 if (next == me.Tile)
                 {
