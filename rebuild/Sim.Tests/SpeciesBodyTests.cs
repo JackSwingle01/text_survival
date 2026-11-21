@@ -229,6 +229,7 @@ public class SpeciesBodyTests
     {
         var (w, t) = CombatTests.Field();
         var wolf = CombatTests.Herd(w, Species.Wolf, 1, t);
+        w.Agent(AgentId.Player).Members[0] = BodyState.BaselineHuman(); // the reference man: running at exactly his kind's
         return (w, Combat.Create(w, [new Fighter(AgentId.Player)], [new Fighter(wolf)], t, distanceM, Awareness.Engaged, Awareness.Engaged));
     }
 
@@ -324,5 +325,34 @@ public class SpeciesBodyTests
         double kcal = me.CaloriesKcal, basal = Body.MetabolismKcalPerDay(me, 1.0) / 1440;
         Sim.Step(w, new Fight(AgentId.Player, CombatAction.Wait), 1);
         Assert.Equal(kcal - basal, me.CaloriesKcal, 9);
+    }
+
+    // ---- well fed for the autumn (decided 2026-11-21) ----
+
+    [Fact]
+    public void ThePlayerAndEveryNpc_StartWellFed_EachTheirOwn()
+    {
+        var fats = new List<double>();
+        foreach (int seed in new[] { 1, 2, 3, 4 })
+        {
+            var w = World.New(seed);
+            var npc = Npc.Spawn(w, Map.Of(w).Camp);
+            foreach (var body in new[] { w.Agent(AgentId.Player).Body, w.Agent(npc).Body })
+            {
+                Assert.InRange(body.FatPct, 0.15, 0.18);
+                Assert.Equal(59.84, body.StructuralKg + body.MuscleKg, 9); // the man's lean mass: the fat is laid on it
+                fats.Add(body.FatPct);
+            }
+        }
+        Assert.True(fats.Distinct().Count() == fats.Count, "two people drew the same fat");
+        Assert.Equal(World.New(3).Agent(AgentId.Player).Body.FatKg, World.New(3).Agent(AgentId.Player).Body.FatKg);
+    }
+
+    [Fact]
+    public void AWoman_StartsWellFedFromHerOwnBuild()
+    {
+        var woman = SpeciesTable.NewBody(Species.Human, Rng.ForSystem(9, "test"), Sex.Female);
+        Assert.Equal(Sex.Female, woman.Sex);
+        Assert.InRange(woman.FatPct, 0.25, 0.28);
     }
 }

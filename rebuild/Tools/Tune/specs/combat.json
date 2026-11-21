@@ -8,7 +8,8 @@
 //   integer  round to a whole number (the table reads an int)
 //   note     why it is here, or what to watch
 // To tune a new constant, put it in a content table and add an entry here: no tool code changes.
-// Every number below is in data today; combat constants still in code are not tuned yet.
+// Every number below is in data today; combat constants still in code are not tuned yet. The running ranges
+// keep each top speed above its endurance speed, which the content loader insists on.
 {
  "parameters": [
   { "name": "human.attackDamage", "path": "species.json:species.Human.attackDamage", "min": 0.02, "max": 1.5, "log": true, "note": "bare hands" },
@@ -30,6 +31,22 @@
 
   { "name": "caribou.threat", "path": "species.json:species.Caribou.threat", "min": 0.05, "max": 3, "log": true, "note": "what a wolf reads off a caribou" },
   { "name": "caribou.moveAllowanceM", "path": "species.json:species.Caribou.moveAllowanceM", "min": 2, "max": 10, "integer": true },
+
+  { "name": "human.topSpeedMps", "path": "species.json:species.Human.topSpeedMps", "min": 6, "max": 11, "note": "running: kept above endurance by the ranges" },
+  { "name": "human.enduranceSpeedMps", "path": "species.json:species.Human.enduranceSpeedMps", "min": 2, "max": 5 },
+  { "name": "human.sprintSeconds", "path": "species.json:species.Human.sprintSeconds", "min": 5, "max": 40, "log": true },
+  { "name": "human.burstPct", "path": "species.json:species.Human.burstPct", "min": 0.02, "max": 0.4, "log": true, "note": "the reserve one strike, dodge or shove takes" },
+  { "name": "wolf.topSpeedMps", "path": "species.json:species.Wolf.topSpeedMps", "min": 10, "max": 18 },
+  { "name": "wolf.enduranceSpeedMps", "path": "species.json:species.Wolf.enduranceSpeedMps", "min": 4, "max": 9.5 },
+  { "name": "wolf.sprintSeconds", "path": "species.json:species.Wolf.sprintSeconds", "min": 10, "max": 90, "log": true },
+  { "name": "wolf.burstPct", "path": "species.json:species.Wolf.burstPct", "min": 0.01, "max": 0.3, "log": true },
+  { "name": "bear.topSpeedMps", "path": "species.json:species.Bear.topSpeedMps", "min": 8, "max": 16 },
+  { "name": "bear.enduranceSpeedMps", "path": "species.json:species.Bear.enduranceSpeedMps", "min": 2, "max": 7.5 },
+  { "name": "bear.sprintSeconds", "path": "species.json:species.Bear.sprintSeconds", "min": 5, "max": 60, "log": true },
+  { "name": "bear.burstPct", "path": "species.json:species.Bear.burstPct", "min": 0.02, "max": 0.3, "log": true },
+  { "name": "caribou.topSpeedMps", "path": "species.json:species.Caribou.topSpeedMps", "min": 11, "max": 20 },
+  { "name": "caribou.enduranceSpeedMps", "path": "species.json:species.Caribou.enduranceSpeedMps", "min": 4, "max": 10.5 },
+  { "name": "caribou.sprintSeconds", "path": "species.json:species.Caribou.sprintSeconds", "min": 5, "max": 60, "log": true },
 
   { "name": "spear.damage", "path": "items.json:gear.wooden_spear.weapon.damage", "min": 0.1, "max": 15, "log": true },
   { "name": "axe.damage", "path": "items.json:gear.stone_axe.weapon.damage", "min": 0.1, "max": 15, "log": true },

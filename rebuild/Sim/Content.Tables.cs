@@ -54,7 +54,9 @@ public static partial class Content
         Dictionary<string, IReadOnlyList<Resource>> Diets, SightingPools Sightings);
     sealed record SpeciesRow(BodyKind Body, double WeightKg, double FatPct, double MusclePct, Role Role, bool IsSmall,
         double AttackDamage, DamageType AttackType, double Threat, double Boldness, double Aggression, double Cohesion,
-        int MoveAllowanceM, string Temperament, HerdBehavior Behavior, Diet Diet);
+        int MoveAllowanceM, string Temperament, HerdBehavior Behavior, Diet Diet,
+        double TopSpeedMps, double EnduranceSpeedMps, double SprintSeconds, double RunCostJPerKgM, double BurstPct, double GrazeKcalPerMinute,
+        FatRange? AutumnFatPct = null, PersonBuild? Female = null);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
         double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null);
     sealed record SheltersFile(Dictionary<string, ShelterKindProps> Kinds, Dictionary<string, ShelterDef> Tents,
@@ -233,7 +235,8 @@ public static partial class Content
 
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
-            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.MoveAllowanceM, t, r.Behavior, r.Diet);
+            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.MoveAllowanceM, t, r.Behavior, r.Diet,
+            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.AutumnFatPct, r.Female);
 
     /// A recipe's materials in kilos: pieces of the first material's nominal piece.
     static StructureRecipe ToRecipe(RecipeRow r, IReadOnlyDictionary<Resource, ShelterMaterial> materials) =>
@@ -377,6 +380,14 @@ public static partial class Content
             if (p.MaxFuelKg <= 0 || p.WindProtectionLevel is < 0 or > 1 || p.FuelEfficiencyFactor <= 0) yield return $"fire.json pits {pit}: out of range";
     }
 
+    static string? RunningProblem(double topSpeedMps, double enduranceSpeedMps) =>
+        enduranceSpeedMps <= 0 || topSpeedMps <= enduranceSpeedMps ? "a top speed above an endurance speed above 0" : null;
+
+    /// Autumn fat is drawn over a build's lean mass: above the build's own fat, and leaving room for its muscle.
+    static string? FatRangeProblem(FatRange fat, double fatPct, double musclePct) =>
+        fat.Min < fatPct || fat.Min > fat.Max || fat.Max + musclePct * (1 - fat.Max) / (1 - fatPct) >= 1
+            ? "a range from the build's fat up, min not above max, that leaves room for the muscle" : null;
+
     static IEnumerable<string> SpeciesProblems(SpeciesFile f, Dictionary<Species, SpeciesRow> rows)
     {
         foreach (var (s, r) in rows)
@@ -388,13 +399,22 @@ public static partial class Content
             if (r.AttackDamage <= 0 || r.Threat <= 0 || r.Boldness < 0 || r.Aggression is < 0 or > 1 || r.Cohesion < 0)
                 yield return $"{at}: attackDamage and threat above 0, boldness and cohesion not below, aggression in 0-1";
             if (HerdBehaviorProblem(r) is string bad) yield return $"{at}: {bad}";
+            if (RunningProblem(r.TopSpeedMps, r.EnduranceSpeedMps) is string slow) yield return $"{at}: {slow}";
+            if (r.SprintSeconds <= 0 || r.RunCostJPerKgM <= 0 || r.BurstPct is <= 0 or > 1 || r.GrazeKcalPerMinute < 0)
+                yield return $"{at}: sprintSeconds and runCostJPerKgM above 0, burstPct in 0-1, grazeKcalPerMinute not below 0";
+            bool person = s == Survival.Species.Human;
+            if (person != (r.AutumnFatPct != null) || person != (r.Female != null))
+                yield return $"{at}: autumnFatPct and female are a person's, and a person has both";
+            if (r.AutumnFatPct is FatRange fat && FatRangeProblem(fat, r.FatPct, r.MusclePct) is string lean) yield return $"{at} autumnFatPct: {lean}";
+            if (r.Female is PersonBuild woman)
+            {
+                if (woman.WeightKg <= 0 || woman.FatPct <= 0 || woman.MusclePct <= 0 || woman.FatPct + woman.MusclePct >= 1) yield return $"{at} female: build";
+                if (RunningProblem(woman.TopSpeedMps, woman.EnduranceSpeedMps) is string fslow) yield return $"{at} female: {fslow}";
+                if (FatRangeProblem(woman.AutumnFatPct, woman.FatPct, woman.MusclePct) is string flean) yield return $"{at} female autumnFatPct: {flean}";
+            }
             if ((r.Role == Role.Human) != (s == Survival.Species.Human) || (r.Body == BodyKind.Human) != (s == Survival.Species.Human))
                 yield return $"{at}: only a human has the human role and body";
         }
-        // A human's body is the dressed baseline adult, whatever the row says; the row may not disagree.
-        if (rows.TryGetValue(Survival.Species.Human, out var human)
-            && (human.WeightKg != Body.BaselineWeightKg || human.FatPct != Body.BaselineFatPct || human.MusclePct != Body.BaselineMusclePct))
-            yield return "species.json Human: the build is Body's baseline adult";
         foreach (var (name, t) in f.Temperaments)
         {
             if (t.Cap is < 0 or > 1 || t.HungryAt > t.StarvingAt || t.HungryAt <= 0) yield return $"species.json temperament {name}: out of range";

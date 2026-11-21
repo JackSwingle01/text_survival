@@ -28,11 +28,13 @@ public sealed record SpeciesStats(
     HerdBehavior Behavior,
     Diet Diet,
     /// How it runs, fresh and unladen (SpeciesTable.Running gives a body's own, cut by wounds and load).
-    Motion Motion = default,
-    /// What a member eats a minute grazing a tile nothing has eaten yet; 0 for what never grazes.
-    double GrazeKcalPerMinute = 0,
-    /// People only: a woman's build and running, where they differ from a man's (the row's own).
-    PersonBuild? Female = null)
+    Motion Motion,
+    /// What a member eats a minute grazing; 0 for what never grazes.
+    double GrazeKcalPerMinute,
+    /// People only: the range a person's starting fat is drawn from, well fed for the autumn.
+    FatRange? AutumnFatPct,
+    /// People only: a woman's build, running and autumn fat, where they differ from a man's (the row's own).
+    PersonBuild? Female)
 {
     public bool IsAnimal => Role != Role.Human;
     /// Prey and small scavengers run once they know you are there; fighting is what predators do.
@@ -44,8 +46,11 @@ public sealed record SpeciesStats(
 /// reserve, the net cost of running a metre, and the share of the reserve one strike, dodge or shove takes.
 public readonly record struct Motion(double TopSpeedMps, double EnduranceSpeedMps, double SprintSeconds, double RunCostJPerKgM, double BurstPct);
 
-/// A person's build and running where a woman's differ from a man's.
-public sealed record PersonBuild(double WeightKg, double FatPct, double MusclePct, double TopSpeedMps, double EnduranceSpeedMps);
+/// A person's build, running and autumn fat where a woman's differ from a man's.
+public sealed record PersonBuild(double WeightKg, double FatPct, double MusclePct, double TopSpeedMps, double EnduranceSpeedMps, FatRange AutumnFatPct);
+
+/// A range of body fat, as a share of the whole body.
+public sealed record FatRange(double Min, double Max);
 
 public enum Sex { Male, Female }
 
@@ -55,59 +60,27 @@ public readonly record struct Running(Motion Motion, double SpeedPct, double Car
 
 public static class SpeciesTable
 {
-    static readonly IReadOnlyDictionary<Species, SpeciesStats> Rows = Content.Tables.Species.ToDictionary(kv => kv.Key, kv =>
-    {
-        var (motion, graze) = MotionRow(kv.Key);
-        return kv.Value with { Motion = motion, GrazeKcalPerMinute = graze, Female = kv.Key == Species.Human ? WomanRow : null };
-    });
-
-    // Interim, until the content loader takes these columns in species.json (they are data, not code):
-    // research §5.3's running and §4.1's winter intake, each tagged V (read in a primary source), R
-    // (recalled: check before pinning a test to it) or D (derived or judged).
-    static (Motion Motion, double GrazeKcalPerMinute) MotionRow(Species species) => species switch
-    {
-        // Top speed R, endurance V (Liebenberg 2006), sprint seconds D, running cost R (Margaria 1963), burst D.
-        Species.Human => (new(8.5, 3.3, 15, 4.0, 0.12), 0),
-        // Top speed chosen above the clocked 12 m/s (V, Mech 1966), the chase pace D, sprint D, cost V (Taylor 1982), burst D.
-        Species.Wolf => (new(14, 8, 40, 3.3, 0.06), 0),
-        // Brown bear: top speed V (secondary), endurance R, the rest D. Intake D: the old forage-to-hunger ratio at Kleiber's burn.
-        Species.Bear => (new(13, 4, 20, 1.8, 0.08), 18),
-        // All D; intake the brown bear's, scaled by Kleiber.
-        Species.CaveBear => (new(11, 3.5, 20, 1.5, 0.08), 25),
-        // Speeds R (Barnett 2020: cursorial), a felid's short sprint D. Its "grazing" is the small game a lone cat
-        // lives on between kills (D: the old forage-to-hunger ratio at Kleiber's burn), as the old solitary forage was.
-        Species.Homotherium => (new(14, 4, 15, 2.0, 0.10), 15),
-        // Speeds R (Kruuk 1972), the rest D.
-        Species.Hyena => (new(15, 7, 40, 2.7, 0.06), 0),
-        // Top speed R, endurance and sprint D, cost V. Intake D from winter lichen.
-        Species.Caribou => (new(16, 7, 20, 2.4, 0.10), 13),
-        // All D, by red deer and elk.
-        Species.Megaloceros => (new(15, 6, 20, 1.4, 0.08), 20),
-        // Top speed R, the rest D. Intake D from V grams a minute (Hudson & Frank 1987; Raynor 2015).
-        Species.Bison => (new(15, 6, 25, 1.3, 0.08), 35),
-        // Top speed V (Hutchinson 2003, elephants), endurance R, sprint seconds a guess (D). Intake D, by elephants.
-        Species.Mammoth => (new(6.5, 3, 90, 0.7, 0.05), 90),
-        // The mountain hare: top speed R (unverified), the rest D.
-        Species.Rabbit => (new(17, 4, 10, 7.5, 0.15), 0.4),
-        // Top speed R, the rest D.
-        Species.Fox => (new(13.5, 5, 15, 6.0, 0.10), 0),
-        // The flock runs as its fox does (D); its foraging the old forage-to-hunger ratio at Kleiber's burn (D).
-        Species.Raven => (new(13.5, 5, 15, 6.0, 0.10), 0.53),
-        _ => throw new KeyNotFoundException($"No running for {species}"),
-    };
-
-    // Build R (Holt & Formicola 2008, Pontzer 2012, Janssen 2000), top speed R, endurance D.
-    static PersonBuild WomanRow => new(55, 0.22, 0.31, 7.3, 2.9);
+    static readonly IReadOnlyDictionary<Species, SpeciesStats> Rows = Content.Tables.Species;
 
     public static SpeciesStats Of(Species s) =>
         Rows.TryGetValue(s, out var row) ? row : throw new KeyNotFoundException($"No species row for {s}");
 
     /// A new member: the species' plan at a random size, most near average (old Animal.GenerateTraits).
-    /// A human is the dressed baseline adult.
     /// An animal starts its life a little hungry: its store 70-100% full (old Fauna.NewMind's 0-0.3 hunger).
-    public static BodyState NewBody(Species species, Rng rng)
+    /// A person is the dressed baseline adult, well fed for the autumn: fat drawn evenly from the row's
+    /// autumn range (decided 2026-11-21: the lean 12% left NPCs too little to winter on). Fat lost from
+    /// here is the run's. The rng is the person's own (World.Birth), so the draw is the seed's.
+    public static BodyState NewBody(Species species, Rng rng, Sex sex = Sex.Male)
     {
-        if (species == Species.Human) return BodyState.BaselineHuman();
+        if (species == Species.Human)
+        {
+            var person = BodyState.BaselineHuman(sex);
+            var range = sex == Sex.Female ? Of(Species.Human).Female!.AutumnFatPct : Of(Species.Human).AutumnFatPct!;
+            double fatPct = range.Min + rng.NextDouble() * (range.Max - range.Min);
+            double leanKg = person.StructuralKg + person.MuscleKg;
+            person.FatKg = leanKg * fatPct / (1 - fatPct);
+            return person;
+        }
         var row = Of(species);
         // Average of two uniforms: roughly normal around 1, spread 0.15, kept to 0.7-1.3.
         double size = Math.Clamp(1.0 + ((rng.NextDouble() + rng.NextDouble()) / 2 - 0.5) * 2 * 0.15, 0.7, 1.3);

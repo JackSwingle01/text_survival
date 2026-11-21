@@ -3,6 +3,15 @@ using Survival;
 /// Gives an agent the gear and fuel the fire tests used to take for granted.
 static class TestKit
 {
+    /// An NPC at the lean 12% baseline build, its fat target matched to it: the NPC food scenarios were
+    /// written against that body, before people started the run well fed for the autumn.
+    public static void Lean(World world, AgentId npc)
+    {
+        var agent = world.Agent(npc);
+        agent.Members[0] = BodyState.BaselineHuman();
+        ((NpcMind)agent.Mind).TargetFatKg = agent.Body.FatKg;
+    }
+
     /// Sets a herd's hunger (Fauna.Hunger) by emptying each member's calorie store that far.
     public static void SetHunger(Agent herd, double hunger)
     {

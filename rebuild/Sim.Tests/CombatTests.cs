@@ -12,6 +12,7 @@ public class CombatTests
         var tile = Enumerable.Range(0, map.Width).SelectMany(x => Enumerable.Range(0, map.Height).Select(y => new TileId(x, y)))
             .First(t => map.TerrainAt(t) == Terrain.Clearing && map.CaveAt(t) == Cave.None && t != map.Camp);
         world.Agent(AgentId.Player).Tile = tile;
+        world.Agent(AgentId.Player).Members[0] = BodyState.BaselineHuman(); // the reference man, not this seed's autumn draw
         return (world, tile);
     }
 

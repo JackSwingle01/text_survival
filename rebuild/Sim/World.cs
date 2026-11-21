@@ -82,7 +82,10 @@ public sealed class World
     {
         var map = Map.Generate(seed);
         var world = new World { Seed = seed, GeneratedMap = map };
-        world.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = map.Camp };
+        world.Agents[AgentId.Player] = new Agent
+        {
+            Id = AgentId.Player, Tile = map.Camp, Members = [SpeciesTable.NewBody(Species.Human, world.Birth("person", AgentId.Player))],
+        };
         // The old camp's Overhang and bedding (old GridWorldGenerator.CreateCampLocation).
         Survival.Shelters.Place(world, map.Camp, Survival.Shelters.CampOverhang);
         Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);

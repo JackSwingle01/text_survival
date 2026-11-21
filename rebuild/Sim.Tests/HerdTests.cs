@@ -231,6 +231,7 @@ public class HerdTests(ITestOutputHelper output)
         string straight = Save.ToJson(a);
 
         var b = Planted(5);
+        b.Agent(P).Members[0] = BodyState.BaselineHuman(); // as a's: the same player in both
         while (b.Minute < 3 * 1440)
         {
             Sim.Advance(b, (int)Math.Min(97, 3 * 1440 - b.Minute));

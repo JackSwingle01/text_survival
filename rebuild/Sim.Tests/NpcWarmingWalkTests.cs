@@ -469,6 +469,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         w.Minute = At(0, 11);
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp, camp, boldness: 0.5);
+        TestKit.Lean(w, npc);
         var mind = (NpcMind)w.Agent(npc).Mind;
         Items.Add(Items.StashAt(w, camp), Resource.Oak, 40); // firewood is not what it worries about
         Items.Add(Items.StashAt(w, camp), Resource.Kindling, 2); // nor the kindling to light it (Npc.Lit)

@@ -64,7 +64,7 @@ public static partial class Npc
             // Old NPCFactory: boldness 0.3-0.7.
             Boldness = boldness ?? 0.3 + world.Birth("npc", id).NextDouble() * 0.4,
         };
-        world.Agents[id] = new Agent { Id = id, Tile = tile, Mind = mind };
+        world.Agents[id] = new Agent { Id = id, Tile = tile, Mind = mind, Members = [SpeciesTable.NewBody(Species.Human, world.Birth("person", id))] };
         mind.TargetFatMinute = world.Minute;
         mind.TargetFatKg = Math.Clamp(world.Agents[id].Body.FatKg, FatFloorKg(world.Agents[id].Body), Body.BaselineFatPct * world.Agents[id].Body.WeightKg);
         return id;

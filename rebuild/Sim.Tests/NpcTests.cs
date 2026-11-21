@@ -343,6 +343,7 @@ public class NpcTests(ITestOutputHelper output)
         var w = World.New(17);
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp);
+        TestKit.Lean(w, npc);
         if (stashBirchKg > 0) Items.Add(Items.StashAt(w, camp), Resource.Birch, stashBirchKg);
         var mind = (NpcMind)w.Agent(npc).Mind;
         w.Agent(npc).Body.FatKg = mind.TargetFatKg - shortfallKg;
@@ -556,6 +557,7 @@ public class NpcTests(ITestOutputHelper output)
                     (w.Tiles.TryGetValue(t, out var ts) ? ts : w.Tiles[t] = new TileState()).Ground = g;
                 }
             var npc = Npc.Spawn(w, here);
+            TestKit.Lean(w, npc);
             Items.Add(Items.StashAt(w, here), Resource.Birch, 40);
             var agent = w.Agent(npc);
             agent.Body.FatKg = ((NpcMind)agent.Mind).TargetFatKg - 0.5;

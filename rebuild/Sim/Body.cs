@@ -131,10 +131,10 @@ public sealed class BodyState
     /// a woman at the species row's female build.
     public static BodyState BaselineHuman(Sex sex = Sex.Male)
     {
-        var female = SpeciesTable.Of(Species.Human).Female;
-        var b = sex == Sex.Female && female != null
+        var row = SpeciesTable.Of(Species.Human);
+        var b = sex == Sex.Female && row.Female is PersonBuild female
             ? Create(BodyKind.Human, female.WeightKg, female.FatPct, female.MusclePct, sex)
-            : Create(BodyKind.Human, Body.BaselineWeightKg, Body.BaselineFatPct, Body.BaselineMusclePct);
+            : Create(BodyKind.Human, row.WeightKg, row.FatPct, row.MusclePct);
         b.Worn.AddRange(Items.StartingClothes());
         return b;
     }
@@ -169,8 +169,10 @@ public sealed class DamageResult
 
 public static partial class Body
 {
-    /// The baseline adult: an Upper Palaeolithic man (documentation/species-stats-research.md §2.1), the
-    /// species row's build. Old (this rebuild, old game): 75 kg, 15% fat, 30% muscle.
+    /// The reference man the body's scales are measured from (the calorie store's 2,000 kcal, the
+    /// reserve's six minutes): an Upper Palaeolithic man (documentation/species-stats-research.md §2.1).
+    /// The body a person is born with is the species row's (BodyState.BaselineHuman). Old (this rebuild,
+    /// old game): 75 kg, 15% fat, 30% muscle.
     public const double BaselineWeightKg = 68, BaselineFatPct = 0.12, BaselineMusclePct = 0.38;
     public const double BloodVolumeMl = 5000;
 
