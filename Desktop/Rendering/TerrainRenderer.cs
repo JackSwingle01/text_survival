@@ -4,7 +4,7 @@ using text_survival.Environments.Grid;
 
 namespace text_survival.Desktop.Rendering;
 
-/// <summary>World-aligned terrain at twice the asset scale, with blended biome edges.</summary>
+/// <summary>World-aligned terrain at twice the asset scale, with dithered biome edges.</summary>
 public static class TerrainRenderer
 {
     // A 96px source spans two map cells: each cell draws a 48px quadrant.
@@ -137,33 +137,43 @@ public static class TerrainRenderer
             // The same continuous world-space displacement on both sides of an
             // edge prevents straight seams, including four-terrain junctions.
             float wx = (px+0.5f)/Resolution, wy = (py+0.5f)/Resolution;
-            float du = MathF.Sin(wy*11 + MathF.Sin(wx*7))*0.025f;
-            float dv = MathF.Sin(wx*13 + MathF.Sin(wy*5))*0.025f;
+            float du = MathF.Sin(wy*11 + MathF.Sin(wx*7))*0.07f;
+            float dv = MathF.Sin(wx*13 + MathF.Sin(wy*5))*0.07f;
             var (dx, ax) = EdgeWeight(u+du);
             var (dy, ay) = EdgeWeight(v+dv);
             if (!blend) ax = ay = 0;
-            var a = Sample(neighbors.At(0, 0), px, py, art);
-            var b = Sample(neighbors.At(dx, 0), px, py, art);
-            var c = Sample(neighbors.At(0, dy), px, py, art);
-            var d = Sample(neighbors.At(dx, dy), px, py, art);
-            pixels[y*Resolution+x] = Mix(Mix(a, b, ax), Mix(c, d, ax), ay);
+            // Each pixel takes one terrain's art, never a colour mix: a crossfade turns
+            // dark spruce on snow into grey haze, a dithered pick leaves scattered trees.
+            int nx = ax > Dither(px, py, 1) ? dx : 0;
+            int ny = ay > Dither(px, py, 2) ? dy : 0;
+            pixels[y*Resolution+x] = Sample(neighbors.At(nx, ny), px, py, art);
         }
         return pixels;
     }
 
+    // 0..1, stable per world pixel. Hashed grain plus a slow wave, so a border
+    // breaks into clumps rather than salt.
+    private static float Dither(int px, int py, int salt)
+    {
+        unchecked
+        {
+            uint h = (uint)(px*374761393 + py*668265263 + salt*982451653);
+            h = (h ^ (h >> 13))*1274126177u;
+            h ^= h >> 16;
+            float wx = px/(float)Resolution, wy = py/(float)Resolution;
+            float wave = 0.5f + 0.5f*MathF.Sin(wx*17 + MathF.Sin(wy*9 + salt))*MathF.Sin(wy*15 + MathF.Sin(wx*7));
+            return h/4294967296f*0.6f + wave*0.4f;
+        }
+    }
+
     private static (int Direction, float Weight) EdgeWeight(float position)
     {
-        const float width = 0.16f;
+        const float width = 0.22f;
         int direction = position < 0.5f ? -1 : 1;
         float distance = direction < 0 ? position : 1-position;
         float t = Math.Clamp((distance+width)/(2*width), 0, 1);
         return (direction, 1-t*t*(3-2*t));
     }
-
-    private static Color Mix(Color a, Color b, float weight) => new(
-        (byte)MathF.Round(a.R+(b.R-a.R)*weight),
-        (byte)MathF.Round(a.G+(b.G-a.G)*weight),
-        (byte)MathF.Round(a.B+(b.B-a.B)*weight), (byte)255);
 
     internal static Color Sample(TerrainType terrain, int px, int py, IReadOnlyDictionary<TerrainType, Art[]> art)
     {

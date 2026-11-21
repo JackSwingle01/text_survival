@@ -1,9 +1,10 @@
 """Author 96px terrain sources and PNGs. Run with Python 3; no dependencies.
 
-A tile covers approximately 100m. Trees have 4–9m crowns, rocks are small
-outcrops, and relief is ground shading rather than an oversized mountain icon.
-All variants share a periodic edge field and edge-crossing details. Only the
-interior changes, so any variant can neighbor any other without cut-off objects.
+A 96px source spans 2x2 map cells (~200m). Outdoor art is drawn for reading at
+map scale, not to true scale: spruce stands are dark masses on light snow, and
+slope light from the top-left gives relief. All variants share a periodic edge
+field and edge-crossing details. Only the interior changes, so any variant can
+neighbor any other without cut-off objects. Cave floor keeps its own art (make).
 """
 from pathlib import Path
 import math
@@ -28,6 +29,19 @@ PALETTE += [
     '#353934', '#44473f', '#515248', '#5e5f51', '#6b6c5b', '#7c7c68',
     '#222b2c', '#10191b', '#00000000',
 ]
+# Outdoor palette: cool snow lit from the top-left, dark spruce, grey rock, blue ice.
+OUTDOOR = dict(
+    s0='#f4f6f4', s1='#e3eaec', s2='#ccd7dd', s3='#b0c0ca', s4='#8fa3b2', s5='#6c8193',
+    i0='#cfe4ea', i1='#aecfda', i2='#89b3c4', i3='#5f8ea3', i4='#3f6f86',
+    d0='#365f78', d1='#2b5068', d2='#22435a', d3='#1a364b',
+    r0='#b6b8b5', r1='#8a8d8d', r2='#646a6e', r3='#454b52', r4='#2b3037',
+    to='#132420', td='#1d362e', tm='#2b4c40', tl='#5d8a6f', tt='#3b2b20',
+    w1='#6e5f40', w2='#c2a96e', mud='#a9b5b6',
+)
+C = {}
+for name, color in OUTDOOR.items():
+    C[name] = len(PALETTE)
+    PALETTE.append(color)
 RGB = [bytes.fromhex(c[1:]) + (b'\xff' if len(c) == 7 else b'') for c in PALETTE]
 SYMBOLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 
@@ -162,6 +176,144 @@ def make(terrain, variant):
     return pixels
 
 
+# ---------------------------------------------------------------- outdoor terrain
+# Readable at map scale rather than true to scale: dark spruce stands against light
+# snow, slope light from the top-left, rock and ice by value. Everything periodic in
+# SIZE so a field of one terrain tiles; only the faded interior differs by variant,
+# and objects in the border band are shared by every variant.
+SPRUCE = {
+    'L': ["....o....", "...oso...", "...sld...", "..osmdo..", "..ssldd..", ".olmmmdo.",
+          ".sssldd..", "olmmmmddo", "ssslmdddd", ".oddddoo.", "....t....", "....t...."],
+    'M': ["...o...", "..oso..", "..sld..", ".osmdo.", ".sslmd.", "olmmddo", "ssslmdd", ".odddo.", "...t..."],
+    'S': ["..o..", ".oso.", ".sld.", "osmdo", "slmdd", ".odo.", "..t.."],
+}
+SPRUCE_PAL = dict(o='to', s='s0', l='tl', m='tm', d='td', t='tt')
+BOULDER = ["..sss..", ".sss0o.", "s1112o.", "o12233o", ".o3344o", "..oooo."]
+BOULDER_PAL = {'s': 's0', '0': 's2', '1': 'r0', '2': 'r1', '3': 'r2', '4': 'r3', 'o': 'r4'}
+AMP = dict(plain=.12, clearing=.08, forest=.1, hills=.5, rock=.4, mountain=.55, marsh=.05, water=0, deepwater=0)
+_grids = {}
+
+
+def pnoise(x, y, cells, seed):
+    """Periodic value noise in 0..1 over SIZE."""
+    grid = _grids.get((cells, seed))
+    if grid is None:
+        r = random.Random(seed * 7919 + cells)
+        grid = _grids[(cells, seed)] = [[r.random() for _ in range(cells)] for _ in range(cells)]
+    px, py = x / SIZE * cells, y / SIZE * cells
+    ix, iy = math.floor(px), math.floor(py)
+    fx, fy = px - ix, py - iy
+    fx, fy = fx * fx * (3 - 2 * fx), fy * fy * (3 - 2 * fy)
+    a = grid[iy % cells][ix % cells] * (1 - fx) + grid[iy % cells][(ix + 1) % cells] * fx
+    b = grid[(iy + 1) % cells][ix % cells] * (1 - fx) + grid[(iy + 1) % cells][(ix + 1) % cells] * fx
+    return a * (1 - fy) + b * fy
+
+
+def paint(terrain, variant):
+    S = SIZE
+    dither_rng = random.Random(4049 + variant)
+    amp = AMP[terrain]
+
+    def fade(x, y):
+        """0 in the shared edge band, 1 in the variant's own interior."""
+        t = min(1., max(0., (min(x, y, S - 1 - x, S - 1 - y) - 3) / 34))
+        return t * t * (3 - 2 * t)
+
+    def field(x, y, cells, seed):
+        f = fade(x, y)
+        return pnoise(x, y, cells, seed) * (1 - f) + pnoise(x, y, cells, seed + 100 * (variant + 1)) * f
+
+    def height(x, y):
+        if terrain == 'mountain':
+            h = (1 - abs(field(x, y, 6, 4) - .5) * 2) * .6 + field(x, y, 12, 5) * .4
+        else:
+            h = pnoise(x, y, 3, 1) * .6 + pnoise(x, y, 6, 2) * .3 + pnoise(x, y, 12, 3) * .1
+        return h * amp
+
+    hf = [[height(x, y) for x in range(S)] for y in range(S)]
+    shade = [[-(hf[y][(x + 1) % S] - hf[y][x - 1] + hf[(y + 1) % S][x] - hf[y - 1][x]) * 9
+              for x in range(S)] for y in range(S)]
+
+    def ramp(names, v, x, y):
+        t = dither_rng.random() * .5 + pnoise(x, y, 48, 6) * .5
+        v = max(0., min(len(names) - 1., v))
+        lo = math.floor(v)
+        return C[names[min(len(names) - 1, lo + (1 if v - lo > t else 0))]]
+
+    snow = ['s0', 's1', 's2', 's3', 's4', 's5']
+    pixels, ground = [], []          # ground: 's' snow, 'r' rock, 'i' ice, 'm' mud
+    for y in range(S):
+        row, grow = [], []
+        for x in range(S):
+            u, v = x / S * math.tau, y / S * math.tau
+            sh = shade[y][x]
+            grain = (pnoise(x, y, 19, 7) - .5) * .5
+            c, g = ramp(snow, 1.3 - sh * 1.6 + grain, x, y), 's'
+            if terrain in ('plain', 'clearing', 'hills') and sh > -.02 \
+                    and math.sin(u * 8 + v * 13 + pnoise(x, y, 6, 8) * 9) > .93:
+                c = C['s0']
+            if terrain in ('rock', 'mountain'):
+                capped = sh > .03 + (pnoise(x, y, 10, 11) - .5) * .3
+                if terrain == 'rock': capped = capped or pnoise(x, y, 14, 12) > .5
+                if not capped:
+                    rv = 2.2 - sh * 2.6 + (pnoise(x, y, 12, 13) - .5) + (pnoise(x, y, 32, 14) - .5) * .4
+                    c, g = ramp(['r0', 'r1', 'r2', 'r3', 'r4'], rv, x, y), 'r'
+            elif terrain == 'water':
+                iv = 1.2 + (pnoise(x, y, 6, 15) - .5) * 1.6 + (pnoise(x, y, 24, 16) - .5) * .5
+                c, g = ramp(['i0', 'i1', 'i2', 'i3'], iv, x, y), 'i'
+                if abs(pnoise(x, y, 10, 17) - .5) < .012: c = C['i4']
+            elif terrain == 'deepwater':
+                dv = 1.5 + (pnoise(x, y, 4, 18) - .5) * 1.4 + (pnoise(x, y, 16, 19) - .5) * .6
+                c, g = ramp(['d0', 'd1', 'd2', 'd3'], dv, x, y), 'i'
+                if math.sin(u * 3 + v * 11 + pnoise(x, y, 6, 20) * 6) > .97: c = C['i3']
+            elif terrain == 'marsh' and field(x, y, 12, 21) > .64:
+                c, g = C['mud'], 'm'
+            row.append(c); grow.append(g)
+        pixels.append(row); ground.append(grow)
+
+    def dot(x, y, c):
+        pixels[y % S][x % S] = c
+
+    def stamp(rows, pal, cx, fy, shadow):
+        h, w = len(rows), len(rows[0])
+        if shadow:
+            for xx in range(w // 2 + 2):
+                for yy, tone in ((0, 's4'), (1, 's3')):
+                    X, Y = (cx + xx - 1) % S, (fy + yy) % S
+                    if ground[Y][X] == 's': pixels[Y][X] = C[tone]
+        for j, r in enumerate(rows):
+            for i, ch in enumerate(r):
+                if ch != '.': dot(cx - w // 2 + i, fy - h + 1 + j, C[pal[ch]])
+
+    objects, step, cells = [], 6, SIZE // 6
+    for gy in range(cells):
+        for gx in range(cells):
+            edge = gx < 2 or gx >= cells - 2 or gy < 2 or gy >= cells - 2
+            r = random.Random(TERRAINS.index(terrain) * 100003 + gy * 613 + gx * 103 + (0 if edge else (variant + 1) * 7919))
+            x, y = gx * step + r.randrange(step), gy * step + r.randrange(step)
+            roll, dens = r.random(), field(x, y, 4, 22)
+            if terrain == 'forest' and dens > .12 and roll < .92:
+                objects.append((y, x, r.choice('LLMMS')))
+            elif terrain == 'clearing' and dens > .55 and roll < .14:
+                objects.append((y, x, r.choice('MSS')))
+            elif terrain in ('plain', 'hills') and dens > .65 and roll < .06:
+                objects.append((y, x, r.choice('SM')))
+            elif terrain == 'rock' and roll < .3:
+                objects.append((y, x, 'B'))
+            elif terrain in ('hills', 'mountain') and roll < .1 and shade[y][x] < .05:
+                objects.append((y, x, 'B'))
+            elif terrain == 'marsh' and ground[y][x] != 'm':
+                for k in range(r.randrange(1, 4)):
+                    objects.append((y + r.randrange(-2, 3), x + r.randrange(-2, 3), 'R'))
+    for y, x, kind in sorted(objects):
+        if kind in SPRUCE: stamp(SPRUCE[kind], SPRUCE_PAL, x, y, True)
+        elif kind == 'B': stamp(BOULDER, BOULDER_PAL, x, y, False)
+        else:
+            h = 2 + (x * 7 + y * 3) % 3
+            for j in range(h): dot(x, y - j, C['w1'] if j < h - 1 else C['w2'])
+    return pixels
+
+
 def variant_index(x, y):
     # Same signed 32-bit hash as TileRenderer and PixelArtCli.
     def signed(n):
@@ -175,10 +327,13 @@ def variant_index(x, y):
 
 
 def write_source(stem, pixels):
+    used = sorted({c for row in pixels for c in row})
+    if len(used) > len(SYMBOLS): raise ValueError(f'{stem}: {len(used)} colours, more than {len(SYMBOLS)} symbols')
+    symbol = {c: SYMBOLS[i] for i, c in enumerate(used)}
     source = '// Generated by scripts/build-terrain.py; native terrain pixel art.\n'
     source += f'SIZE {len(pixels[0])}x{len(pixels)}\nPALETTE\n'
-    source += ''.join(f'{symbol} = {color}\n' for symbol, color in zip(SYMBOLS, PALETTE))
-    source += 'PIXELS\n' + '\n'.join(''.join(SYMBOLS[c] for c in row) for row in pixels) + '\n'
+    source += ''.join(f'{symbol[c]} = {PALETTE[c]}\n' for c in used)
+    source += 'PIXELS\n' + '\n'.join(''.join(symbol[c] for c in row) for row in pixels) + '\n'
     (ROOT / 'assets/pixelart' / f'{stem}.pxa').write_text(source)
     png(ROOT / 'assets/icons' / f'{stem}.png', pixels)
 
@@ -218,7 +373,8 @@ def main():
             continue
         if terrain not in TERRAINS: raise ValueError(f'Unknown terrain: {terrain}')
         for v in range(VARIANTS):
-            write_source(f'{terrain}_tile{v+1 if v else ""}', make(terrain, v))
+            art = make(terrain, v) if terrain == 'cavefloor' else paint(terrain, v)
+            write_source(f'{terrain}_tile{v+1 if v else ""}', art)
     print('Authored: ' + ', '.join(selected))
 
 
