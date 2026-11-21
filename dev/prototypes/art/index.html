@@ -32,13 +32,22 @@ input[type=range]:focus-visible { outline: 2px solid var(--ember); outline-offse
 .note h3 { margin: 0; font: 600 15px var(--body); letter-spacing: .06em; text-transform: uppercase; }
 .note ul { margin: 0; padding-left: 18px; color: var(--dim); display: grid; gap: 4px; }
 code { font-size: 14px; color: var(--fg); }
+.pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.pair { display: grid; gap: 6px; background: var(--plate); padding: 10px; min-width: 0; }
+.pair .row { display: flex; gap: 8px; justify-content: center; padding: 10px; }
+.pair.map .row { background: #dfe7ea; }
+.pair.hud .row { background: #11151a; }
+.pair img { width: 64px; height: 64px; image-rendering: pixelated; }
+.pair span { font-size: 14px; color: var(--dim); text-align: center; }
+.pair .verdict { color: var(--ice); }
+.pair .verdict.worse { color: var(--ember); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
 <main>
   <header>
     <h1>Valley terrain test</h1>
-    <p>The prototype's own 30 × 20 valley, at the game's 64 px per tile (100 m). Drag across the picture: left is the current per-tile art, right is the test. The fire, player and wolf are the existing sprites in both.</p>
+    <p>The prototype's own 30 × 20 valley, at the game's 64 px per tile (100 m). Drag across the picture: left is the current per-tile art, right is the test. Each side uses its own fire, shelter and player; the wolf is the existing portrait in both.</p>
   </header>
 
   <section style="display:grid;gap:10px">
@@ -58,6 +67,12 @@ code { font-size: 14px; color: var(--fg); }
     <div class="full"><img src="new_map.png" alt="The full 30 by 20 tile valley rendered in the test style"></div>
   </section>
 
+  <section style="display:grid;gap:14px">
+    <h2>Most-seen sprites and HUD icons</h2>
+    <p>Each pair is shown at 4× on the background it lives on. The left of each pair is current; the right is the test. One outline colour and one palette, shared with the terrain above, lit from the top left.</p>
+    <div class="pairs" id="pairs"></div>
+  </section>
+
   <section class="notes">
     <div class="note good"><h3>Works</h3><ul>
       <li>Forest, open snow, rock and ice read by brightness alone.</li>
@@ -65,7 +80,8 @@ code { font-size: 14px; color: var(--fg); }
       <li>The existing 16 px sprites sit in it without restyling.</li>
     </ul></div>
     <div class="note bad"><h3>Still rough</h3><ul>
-      <li>Trees crowd the fire and player; camp and features need a cleared ring.</li>
+      <li>Camp now gets a trampled clearing. The player still needs a ground shadow to stand out against spruce.</li>
+      <li>The new player sprite is the weakest piece; the current one reads better.</li>
       <li>The marsh grey reads like concrete.</li>
       <li>Engine cost: bake the map to a texture at world generation and redraw regions when snow or paths change.</li>
     </ul></div>
@@ -75,6 +91,26 @@ code { font-size: 14px; color: var(--fg); }
 </main>
 
 <script>
+const PAIRS = [
+  ['Campfire', 'map', 'fire', 'campfire', 'Better: hotter core, logs read'],
+  ['Shelter', 'map', 'shelter', 'shelter', 'Better: snow on the ridge'],
+  ['Embers', 'map', 'embers', 'embers', 'Better: you can see the glow'],
+  ['Player', 'map', 'player', 'player', 'Not yet: less contrast than current', true],
+  ['Fire', 'hud', 'ui_fire', 'hud_fire', 'Better'],
+  ['Body temp', 'hud', 'ui_temperature', 'hud_temperature', 'Better'],
+  ['Water', 'hud', 'ui_water', 'hud_water', 'Better'],
+  ['Food', 'hud', 'ui_food', 'hud_food', 'Different: roast haunch'],
+  ['Energy', 'hud', 'ui_energy', 'hud_energy', 'About even'],
+  ['Foraging', 'hud', 'ui_foraging', 'hud_foraging', 'Better: a find in the basket'],
+  ['Pack', 'hud', 'ui_backpack', 'hud_backpack', 'About even'],
+  ['Warning', 'hud', 'ui_warning', 'hud_warning', 'Better'],
+  ['Beasts', 'hud', 'ui_beasts', 'hud_beasts', 'About even'],
+  ['Day', 'hud', 'ui_sun', 'hud_sun', 'Better'],
+  ['Night', 'hud', 'ui_moon', 'hud_moon', 'Better: a star'],
+];
+document.getElementById('pairs').innerHTML = PAIRS.map(([name, bg, oldf, newf, verdict, worse]) =>
+  `<div class="pair ${bg}"><div class="row"><img src="icons_old/${oldf}.png" alt="${name}, current"><img src="icons/${newf}.png" alt="${name}, test"></div>` +
+  `<span>${name}</span><span class="verdict${worse ? ' worse' : ''}">${verdict}</span></div>`).join('');
 const cmp = document.getElementById('cmp'), slider = document.getElementById('slider');
 const set = pct => { pct = Math.max(0, Math.min(100, pct)); cmp.style.setProperty('--x', pct + '%'); slider.value = pct; };
 const fromEvent = e => { const r = cmp.getBoundingClientRect(); set((e.clientX - r.left) / r.width * 100); };

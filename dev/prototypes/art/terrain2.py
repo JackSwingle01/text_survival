@@ -184,6 +184,12 @@ scatter(.7, 'SM', lambda t, x, y: t in (0, 3) and dens[y, x] > .7)
 scatter(5, 'B', lambda t, x, y: t == 4)
 scatter(1.5, 'B', lambda t, x, y: t in (3, 5) and shade[y, x] < .05)
 scatter(30, 'R', lambda t, x, y: t == 7 and not wet[y, x])
+# camp: a trampled clearing so the fire and shelter read; features would get the same
+cx, cy = (M['CAMP']['x'] + .5) * P, (M['CAMP']['y'] + .5) * P
+objs = [o for o in objs if (o[1] - cx) ** 2 + (o[0] - cy) ** 2 > 24 ** 2]
+d2 = (xs - cx) ** 2 + (ys - cy) ** 2
+trampled = d2 < (17 + (vnoise(3, 50) - .5) * 6) ** 2
+img[trampled] = ramp(snow, 2.1 + grain * 1.5)[trampled]
 objs.sort()
 
 def blit(spr, pal, cx, fy, shadow=True):

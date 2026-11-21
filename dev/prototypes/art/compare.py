@@ -24,17 +24,21 @@ for j in range(CH):
 full = Image.open(J + 'new_map.png')            # already 64 px per tile
 new = full.crop((X0 * TS, Y0 * TS, (X0 + CW) * TS, (Y0 + CH) * TS))
 
-def sprites(img):
-    def put(name, tx, ty, s=3):
-        sp = Image.open(ICONS + name).convert('RGBA')
+def sprites(img, art):
+    def put(name, tx, ty, s=3, dx=0, dy=0):
+        sp = Image.open(art[name] if name in art else ICONS + name).convert('RGBA')
         sp = sp.resize((sp.width * s, sp.height * s), Image.NEAREST)
-        img.paste(sp, ((tx - X0) * TS + (TS - sp.width) // 2, (ty - Y0) * TS + (TS - sp.height) // 2), sp)
-    put('fire.png', M['CAMP']['x'], M['CAMP']['y'])
+        if art and name == 'player.png':   # ground shadow so the player reads against trees
+            ImageDraw.Draw(img).ellipse([(tx - X0) * TS + 14, (ty - Y0) * TS + TS // 2 + 18, (tx - X0) * TS + TS - 10, (ty - Y0) * TS + TS // 2 + 28], fill=(108, 129, 147))
+        img.paste(sp, ((tx - X0) * TS + (TS - sp.width) // 2 + dx, (ty - Y0) * TS + (TS - sp.height) // 2 + dy), sp)
+    put('shelter.png', M['CAMP']['x'], M['CAMP']['y'], dx=-30, dy=-22)
+    put('fire.png', M['CAMP']['x'], M['CAMP']['y'], dx=14, dy=10)
     put('player.png', M['BIRCH']['x'], M['BIRCH']['y'])
     put('animals/wolf.png', 13, 6)
     return img
 
-sprites(old); sprites(new)
+NEW_ART = {'fire.png': J + 'icons/campfire.png', 'player.png': J + 'icons/player.png', 'shelter.png': J + 'icons/shelter.png'}
+sprites(old, {}); sprites(new, NEW_ART)
 old.save(J + 'old_crop.png'); new.save(J + 'new_crop.png')
 gap = 24
 out = Image.new('RGB', (old.width, old.height * 2 + gap * 3), (24, 26, 30))
