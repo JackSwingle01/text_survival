@@ -24,6 +24,9 @@ For the clean-room rebuild (`rebuild/`):
   across parallel processes.
 - Skip the old suite (`text_survival.Tests`) and the full solution build unless files outside
   `rebuild/` changed.
+- Wait for long runs with `run_in_background` and its completion notice, not `until ...; do sleep`
+  polling. A poll that greps for its own pattern (`pgrep -f "X"` from a shell whose command line
+  contains "X") never ends, and leftover pollers outlive the agent that started them.
 ## Domain Language and Decisions
 
 - `GLOSSARY.md` defines the project's terms (stat tiers, effects, conditions, contest...). Use them.
