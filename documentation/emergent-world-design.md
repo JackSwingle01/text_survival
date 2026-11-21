@@ -26,11 +26,17 @@ The rebuild now has the state tensions only described:
 | PackNearby, HerdNearby | Agents within range |
 | WoundedPrey | The split-off wounded animal: its own agent, bleeding, leaving prints |
 | FoodScentStrong | Meat in your pack, blood on you, a carcass nearby |
-| WoundUntreated, FeverRising | Body effects |
+| WoundUntreated, FeverRising | Body effects; needs infection, fever and a Treat activity (not built yet) |
 | DeadlyCold | Core temperature and distance to a fire |
 | SmokeSpotted | A burning fire other agents can see |
-| ShelterWeakened, Infested | A camp structure's condition |
-| Disturbed, Shaken | Fear effects on your body, learned fear in a herd's mind |
+| ShelterWeakened | A camp structure's condition |
+| Infested | Vermin in the food stores: a small-game agent occupying a stash |
+| Disturbed, Shaken | A Fear effect that carries its cause; learned fear in a herd's mind |
+| ClaimedTerritory, PredatorTerritory | Scent posts and territory signs of a real pack or bear |
+| MammothTracked, FreshTrail | Prints the player has read and is following |
+| ScavengersWaiting | Scavengers tethered to a carcass or a weak body (Beacon) |
+| SaberToothStalked | A solitary predator's mind targeting you |
+| DamCollapsed | A dam's structure failing (beaver chain, step 5) |
 
 So tensions go. What they gave the player that raw state does not is kept, by other means:
 
@@ -79,7 +85,7 @@ anything derivable computed on read. No ECS, event bus, rules DSL or inheritance
 Signs, access checks, verbs and discovery all need to point at any kind of object:
 
 ```csharp
-public enum ThingKind { Agent, Carcass, Pool, Stash, Fire, Shelter, Track, Sign }
+public enum ThingKind { Agent, Body, Carcass, Pool, Stash, Fire, Shelter, Track, Sign, Item }
 public readonly record struct ThingRef(ThingKind Kind, TileId Tile, int Index);
 ```
 
@@ -119,7 +125,8 @@ public static class Signs
 [Flags] public enum Tag : ulong
 {
     Occupied, Owned, Guarded, Sealed, Buried, FrozenIn, Elevated, Unstable, ScentSource, Edible,
-    Harvestable, Sheltering, Burnable, Fresh, Contested, Ripe, Depleted, Beacon, Crossing  // ≤ 20, powers of two
+    Harvestable, Sheltering, Burnable, Fresh, Contested, Depleted, Beacon,
+    Hostile, Unaware, Wounded  // powers of two; Ripe folds into Harvestable, Crossing moves to edges
 }
 [Flags] public enum Capability
 {
@@ -132,6 +139,9 @@ public static Capability CapabilitiesOf(Inventory p);  // OR over the GearDefs i
 
 - The enum is the closed vocabulary. Adding a bespoke tag for one situation is the failure mode;
   adding one is a visible code change.
+- `Hostile` is an agent whose mind is targeting you (the commonest old situation: "the wolf",
+  not a thing); `Unaware` and `Wounded` are read off the agent's mind and body. `Occupied` can be
+  set by a small-game density (a hive, a burrow), not only by an agent.
 - Tags are never stored, so they cannot go stale and do not touch save determinism.
 
 ### 3.4 Verbs from a small affordance table
@@ -161,7 +171,10 @@ public static IEnumerable<(string Verb, Activity Act)> Verbs(World w, AgentId wh
 
 **Universal verbs, always present** (a find never offers zero verbs): investigate (surfaces `Cause`
 and connections), take / take some (taking less leaves less trace for an owner to notice),
-wait and watch, avoid, press on, detour.
+wait and watch, avoid, press on, detour, follow (prints, a herd, a person), intimidate (an agent).
+
+**Capability-free rows** are allowed where the body, not a tool, gates the verb: climb, wade, take
+shelter. The gate is `Access.Refusal` (legs, injuries, load), not a capability.
 
 The player's menu, a moment's choices and the NPC's options all come from `Verbs`, so they are
 always the same set. "Wave a torch at the wolf" exists only if you carry a burning torch.
@@ -307,8 +320,12 @@ year's settle would empty the valley. Flat respawn rates drift to extremes; tie 
   One lookup; the most valuable sentence the system produces.
 - **Moments** replace events. A moment fires when a real dynamic crosses a threshold the player can
   perceive: a pack closes to sight range, the fire dies with a predator near, a storm front reaches
-  you mid-crossing. Its choices are `Verbs` (§3.4) over what is present. Outcomes go through the
-  same activities and effects as everything else.
+  you mid-crossing. Its choices are `Verbs` (§3.4) over what is present, plus the actor's own
+  activities when the moment is about the body (eat, drink, rest, treat, warm your hands). Outcomes
+  go through the same activities and effects as everything else. The old `PredatorEventFactory`
+  is already this shape and is the template.
+- **Perception** is sight first; sound (a herd's thunder, a trumpet, a sudden silence) is a second
+  channel with its own range, added when a moment needs it.
 - **Director:** manages attention only. It may lower the reveal threshold of the next real thing
   after a dead stretch, or time a sound during a lull. It never creates a fact.
 - **Legibility:** packs and travellers get names and traits (the Limping pack), checked for

@@ -87,6 +87,20 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
    Tensions are now derived (emergent-world-design.md), so the alert will read the player's belief
    about a real pack following them instead. Same intent, different source; confirm it's fine.
 
+3. **False perception (from the content catalog).** Five old hallucination scenes can't be produced
+   by a sim that never invents facts. Recommendation: fever and fear add uncertainty to real
+   perceptions (a real fox heard as a wolf, a real shape mistaken) but never create things. That
+   moves most of them to "replaced". Until you decide, they stay in the left pile.
+4. **Static place text that can lie.** 11 `discoveryText` strings in `locations.json` assert live
+   facts ("Wolf tracks everywhere", "Ravens circle", "Fresh dung steams"). Recommendation: strip the
+   live claims from place text and let real signs say them. Not done overnight; it's content.
+5. **"Ghost camp" settling.** 24 discovery entries need NPC travellers (step 6), which needs NPCs
+   that survive a season. A cheaper settle could place camps and bodies with invented causes, but
+   that breaks "facts never lie". Recommendation: wait for real travellers. Not done.
+6. **Moment-type floor.** About 12 old body and weather events collapse into 5 moments, and about
+   20 predator events into one follower dynamic, so "distinct moment types" will be lower than the
+   old event count. Measure it against an old-game baseline before using it as a floor.
+
 ## Findings worth knowing
 
 **Baseline from the tools (seed 17, before any emergent work):**
