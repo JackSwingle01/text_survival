@@ -167,7 +167,7 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 
 ## Open questions
 
-1. **Branch.** Up to `2af01d6` went straight to main (pushes bypassed the "changes must be made
+1. **Branch and PR.** Draft PR: https://github.com/JackSwingle01/text_survival/pull/35. Up to `2af01d6` went straight to main (pushes bypassed the "changes must be made
    through a pull request" rule). From then on, at your request, everything is on branch
    `rebuild-phase4-overnight`, with a PR to main at the end of the night.
 
