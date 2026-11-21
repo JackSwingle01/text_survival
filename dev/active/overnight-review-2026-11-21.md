@@ -31,8 +31,9 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 | Existing tables to data files (12 JSON files; behaviour byte-identical) | f5a8350 | committed; review confirmed byte-identical, found 2 loader holes |
 | NPC review fixes: one trip budget (warmth, energy, home-by), stranded NPCs camp, bed counts burnable hours, no hunting prey it would flee | 45c7916 | committed |
 | Loader fixes (strict enum names, required struct fields, explicit flags, ranges, dead rows, immutability), felling-yield report bug, NPC cold-pit bed | 12933a4 | committed; review found two NPC rules from 45c7916 causing the earliest deaths |
-| Emergent step 2: substrate (ThingRef, Cause, Signs.At, Access.Refusal, tags and capabilities); byte-identical apart from saved causes | 11cedc4 | committed; review running |
-| NPC fixes: `Stranded` camp moves, warming walks refused, groping beside a lit fire, mammoth hunts, caribou huntable | | in progress |
+| Emergent step 2: substrate (ThingRef, Cause, Signs.At, Access.Refusal, tags and capabilities); byte-identical apart from saved causes | 11cedc4 | committed; review confirmed byte-identical; its findings folded into step 3 |
+| NPC fixes: `Stranded` camp moves, warming walks judged by arrival, mammoth hunts, caribou huntable by role | e020f93 | committed; review running |
+| Emergent step 3a: renewal, scavengers, body and bone pipeline, kill attribution, stable ids, speed caches | | in progress |
 | Emergent step 2: substrate (ThingRef, Cause, Signs, Access) | | |
 | Emergent step 3: kill chain, renewal, settling pass | | |
 | Emergent step 4: affordances, moments, catalog paper exercise | | |
@@ -118,7 +119,13 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
   forage table was unreachable and was dropped; rabbits and foxes take default behaviour (Prey)
   and diet (Carnivore).
 
-**NPC hunting threshold**
+**NPC hunting rule (supersedes the threshold below)**
+- Hunting is now by species role: plain prey (caribou) when food is wanted, dangerous prey (bison,
+  megaloceros) only when starving, nothing over 2,000 kg alone (mammoth). In 16 60-day runs the
+  NPC still hunted zero times: it only looks for herds within 3 tiles and none came that close.
+  That is the planned hunting work (`rebuild-npc-hunting.md`).
+
+**NPC hunting threshold (earlier, superseded)**
 - An NPC now hunts nothing it would flee in a fight (by the old size comparison) unless food is
   critical. By that scale a caribou counts too, so NPCs hunt nothing bigger than a rabbit until
   starving. In practice the NPC hunted once in 960 NPC-days before this change (the fatal mammoth).
@@ -215,6 +222,10 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
   mean death day 33.4 → 34.8, median 34.2 → 36.2: the worst seed improved (5.0 → 26.5), three seeds
   lost about 10 days each. Time out at night fell from 1,445 to 188 minutes. All still die, mostly
   of cold after fat reaches the 10% floor (the deferred food item).
+- **After the stranding fix (e020f93):** 60 days, 16 seeds, mean death day 35.2 → 42.0, median
+  36.8 → 37.7, worst 26.5 → 29.7, and one NPC (seed 2025) alive at day 60. The four earliest deaths
+  were the stranding bug; two of them moved a lot (1000: 26.5 → 53.9). The rest still die the
+  deferred way: critical food outranks wood all day, the camp runs dry, a cold morning.
 - **Butchering yields changed slightly:** the old game's full processing produced 107% of what was
   cut (it minted mass). Fixed; full processing now recovers its old share of a ledger that holds
   what thorough work can get. Butchering times are unchanged.
