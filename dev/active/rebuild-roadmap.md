@@ -167,3 +167,21 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   bear is more dangerous than first proposed. Weapon order: spear > axe > knife > hands.
 - The state machine is written up in `documentation/combat-states.md` for the user to review before
   any code.
+
+**Combat grilling, round 1 (2026-11-21)**
+- States: Unaware, Wary, Pressing, Standoff, Giving ground, Fleeing, Gone, Down. Clash is
+  Pressing with the target in reach. Down means dead or consciousness below 0.1.
+- Each fighter stores only its state toward its current target; everything else is derived. The
+  player's state follows from the action they choose.
+- One margin, boldness − fire deterrence − perceived threat, with hysteresis bands:
+  - Pressing: enter at +0.2, leave below 0;
+  - Giving ground: below −0.3, recover above −0.1;
+  - Fleeing: below −0.8, recover above −0.4;
+  - awareness: Wary at 0.3 / back below 0.1, commits at 0.7.
+
+  All are starting values, to be tuned.
+- Allowed actions = state ∩ the code's zone lists. Flee and Pick up are allowed at any distance.
+  Intimidate is also allowed at Near.
+- Skittish animals always flee once engaged. Bison, megaloceros and mammoth use the bands.
+- Block is no longer an action: it is an automatic defence roll when attacked.
+- Combat frontier (27 questions): `/Users/jackswingle/.claude/jobs/2c768bb5/tmp/combat-frontier.md`.
