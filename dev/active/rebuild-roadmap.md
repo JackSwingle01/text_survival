@@ -367,3 +367,13 @@ Audit: `dev/active/rebuild-architecture-audit-2026-11-21.md`. Npc.cs is a priori
 - After the MVP: lakes and rivers freeze and thaw with the weather. Ice thickness grows and melts per water tile in the Sim, which sets whether a crossing is safe and what the map draws: thin ice on the creek with the lake still open at first snow, ice going out in the thaw. Until then, water bodies are static thick ice (`FROZEN_TERRAIN`).
 - Combat balance (from the fire-deterrence survey): standing your ground with a spear against a bear (98% death) does worse than bare-handed (40%). That's a bug, being diagnosed. The high death rates themselves (bear 98%, pack of three 92% against a person standing their ground, no fire) are for combat stage 4 (reach, damage scale, weapon table) and the tuner. Hyenas never enter a lone person's tile; check when tuning.
 - Comment cleanup to 10% per file is deferred to after the MVP. The ratchet test keeps enforcing ceilings meanwhile, so nothing gets worse.
+
+## MVP order (2026-11-21, re-ordered; nothing dropped)
+1. Bugs: 75% injury on quick snow crossings; spear worse than bare hands.
+2. Body B12/B14 (hunger pang, Well fed, exhaustion sleep). The NPC seed-survival check that held it back is removed, since the bench reports and never gates.
+3. Combat stage 4 core (reach, damage scale, weapon table) plus a tuner run, so predator fights are playable.
+4. MVP 2: predators engage people on the map (fire deterrence done).
+5. MVP 3: hunting retune (stalking and throwing viable now that prey outrun people).
+6. Blind browser playtest end to end, then fix blockers.
+
+After the MVP, in this order: NPC step 1 (Sim forecasts and structured refusals from the prototype), NPC step 2 (rewrite on the tier ladder, then tune its numbers), the audit refactors (conditions replacing Tags and Access, split Fauna and move species data, effects kernel, Carcass from a clock, unified catch-up), water bodies freezing, the comment ratchet, then roadmap items 6-14.
