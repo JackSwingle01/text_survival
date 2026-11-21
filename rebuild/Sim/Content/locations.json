@@ -2829,7 +2829,7 @@
    "weight": 0.8,
    "terrain": [ "Forest" ],
    "tags": "[Forest] [Fire] [Landmark]",
-   "discoveryText": "Smoke rises from a massive tree, struck by lightning and still smoldering inside. The wood is charred but preserved. You could light a torch here without tools.",
+   "discoveryText": "A massive tree, split and charred by lightning. Its burned heart is thick with charcoal.",
    "hazard": 0.2,
    "wind": 0.7,
    "cover": 0.3,
@@ -2860,8 +2860,8 @@
     {
      "kind": "stock",
      "work": "Harvest",
-     "name": "Smoldering Tree",
-     "description": "Lightning-struck and still smoldering. Charcoal forms as it burns.",
+     "name": "Burned Tree",
+     "description": "Lightning-struck and burned hollow. Charcoal lines the heart of it.",
      "minutes": 15,
      "items": [
       { "resource": "Charcoal", "units": 10, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 }
@@ -2958,7 +2958,7 @@
    "name": "Far Side",
    "placement": "Pass",
    "tags": "[Valley] [Sheltered] [Victory]",
-   "discoveryText": "You made it. The valley stretches before you, green and sheltered.",
+   "discoveryText": "You made it. The valley stretches before you, sheltered, the first green ground past the pass.",
    "hazard": 0.3,
    "wind": 0.6,
    "cover": 0.3,
