@@ -798,23 +798,8 @@ public static partial class Combat
         return StepDetectionChance(Math.Clamp(chance, 0.05, 0.95), exposureMeters);
     }
 
-    /// Old terrain BaseVisibility (0-2), and the camp's 0.8.
-    // ponytail: named places (caves, the pass) had their own visibility; terrain stands in until phase 4's locations.
-    static double CoverVisibility(World world, TileId tile)
-    {
-        var map = Map.Of(world);
-        if (tile == map.Camp) return 0.8;
-        return map.TerrainAt(tile) switch
-        {
-            Terrain.Forest or Terrain.Mountain => 0.5,
-            Terrain.Marsh => 0.7,
-            Terrain.Plain => 1.2,
-            Terrain.Rock => 0.8,
-            Terrain.Water => 1.3,
-            Terrain.Hills => 1.5,
-            _ => 1.0,
-        };
-    }
+    /// Old Location.VisibilityFactor (0-2): terrain, camp, cave or named site (Map.Visibility).
+    static double CoverVisibility(World world, TileId tile) => Map.Visibility(Map.Of(world), tile);
 
     /// Enemies not yet engaged may notice the mover, escalating one step: Unaware to Alert to Engaged.
     // Old game also had a "near miss makes it alert" branch, but it tested roll < chance inside the

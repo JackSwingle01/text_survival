@@ -27,6 +27,9 @@ public sealed record SurvivalContext
     public double GroundWettingPctPerMinute { get; init; }
     /// Bedding between you and that ground, 0-1.
     public double GroundProtectionLevel { get; init; }
+    /// Sleep efficiency of the bed slept in (old BeddingFeature.Quality); the bare ground heals at 30% of a proper bed.
+    public double BeddingQualityPct { get; init; } = NoBeddingQualityPct;
+    public const double NoBeddingQualityPct = 0.3;
     /// Metabolic multiplier: 1 resting awake, 0.5 asleep, 1.5 walking, 1.8 chopping.
     public double ActivityFactor { get; init; } = 1.0;
     /// Sleep is the one activity that restores energy rather than spending it.
@@ -77,8 +80,6 @@ public static partial class Body
     const double RegenMinCaloriesPct = 0.10, RegenMinHydrationPct = 0.10, RegenMinEnergyPct = 0.50;
     const double BaseHealingPerHour = 0.1;
     const double SurvivalEffectThresholdPct = 0.30;
-    /// No bedding yet: sleeping on the bare ground heals at 30% of a proper bed.
-    const double NoBeddingQualityPct = 0.3; // ponytail: constant until bedding exists, then read it off the tile
 
     const double ThermalMassFPerKg = 2.0;
     const double MaxSweatMlPerHour = 1000;
@@ -409,7 +410,7 @@ public static partial class Body
         if (ctx.IsSleeping)
         {
             // Sleep heals in step with the clock. Exhausted sleep is deeper; wet sleep is miserable.
-            double quality = (body.EnergyMinutes <= 0 ? 1.0 : 0.7) * NoBeddingQualityPct;
+            double quality = (body.EnergyMinutes <= 0 ? 1.0 : 0.7) * ctx.BeddingQualityPct;
             double wetness = Effects.Severity(body, EffectKind.Wet);
             if (wetness > 0.2) quality *= 1 - wetness * 0.5;
             Heal(body, 1 / 10.0 * quality);

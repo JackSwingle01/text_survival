@@ -1,0 +1,80 @@
+namespace Survival.Tests;
+
+/// The content tables (rebuild/Sim/Content/*.json). Loading checks every reference; these pin what
+/// was ported and that nothing in it depends on load order or chance.
+public class ContentTests
+{
+    [Fact]
+    public void AllContent_LoadsAndEveryReferenceResolves()
+    {
+        // Content's type initializer throws on any broken name or reference; touching it is the check.
+        Assert.Equal(93, Content.Locations.Count);
+        // Old GridWorldGenerator.GetUniqueLocationCount: 83 distinct site factories, plus 4 cave sites and 6 stages.
+        Assert.Equal(83, Content.Locations.Count(l => l.Placement == Placement.Named));
+        Assert.Equal(4, Content.CaveSites.Count);
+        Assert.Equal(["Pass Approach", "Lower Pass", "The Pass Proper", "Upper Descent", "Lower Descent", "Far Side"],
+            Content.PassStages.Select(s => s.Name));
+        foreach (var l in Content.Locations)
+            foreach (var s in l.All.OfType<SiteStock>().Where(s => s.Loot != null))
+                Assert.True(Content.Loot.ContainsKey(s.Loot!), $"{l.Id}: no loot table {s.Loot}");
+        foreach (var rolls in Content.Loot.Values)
+            foreach (var g in rolls.SelectMany(Flatten).SelectMany(r => r.Gear ?? []))
+                Assert.True(Items.GearKinds.ContainsKey(g), $"no gear kind {g}");
+        Assert.Contains(Content.Locations, l => l.Id == "wolf_den");
+        Assert.Contains(Content.Locations, l => l.Id == "bear_cave");
+        Assert.Contains(Content.Locations, l => l.Id == "bone_hollow");
+    }
+
+    static IEnumerable<LootRoll> Flatten(LootRoll r) => [r, .. (r.Of ?? []).SelectMany(Flatten)];
+
+    [Fact]
+    public void EveryLootTable_RollsDeterministically_AndOnlyRealThings()
+    {
+        foreach (var (name, table) in Content.Loot.OrderBy(k => k.Key, StringComparer.Ordinal))
+            for (int i = 0; i < 50; i++)
+            {
+                var a = Pools.RollLoot(table, Rng.ForSystem(i, name));
+                var b = Pools.RollLoot(table, Rng.ForSystem(i, name));
+                Assert.Equal(a.Items, b.Items);
+                Assert.Equal(a.Gear.Select(g => (g.Kind, g.Durability)), b.Gear.Select(g => (g.Kind, g.Durability)));
+                Assert.All(a.Items, x => Assert.True(x.KgPerUnit > 0));
+                Assert.All(a.Gear, g => Assert.True(g.Durability != 0, $"{name} gave a broken {g.Kind}"));
+            }
+    }
+
+    /// old game: ScrapTool and the Rock Shelter's tool cache rolled 20-60% of an unlimited (-1)
+    /// maximum, which came out 0: every tool found broken (bug, fixed: unlimited stays whole,
+    /// limited ones keep at least one use).
+    [Fact]
+    public void ScrapTools_AreWornNotBroken()
+    {
+        for (int i = 0; i < 200; i++)
+        {
+            var g = Assert.Single(Pools.RollLoot(Content.Loot["ScrapTool"], Rng.ForSystem(i, "scrap")).Gear);
+            var max = Items.GearKinds[g.Kind].MaxDurability;
+            if (max <= 0) Assert.Equal(-1, g.Durability);
+            else Assert.InRange(g.Durability, 1, (int)(max * 0.6));
+        }
+    }
+
+    [Fact]
+    public void DeepWoods_HasItsBerryBushOnAboutThreeTilesInTen()
+    {
+        // Old MakeForest: Utils.DetermineSuccess(0.3) per site, from the process RNG, so a seed never
+        // gave the same woods twice (bug, fixed: rolled per tile from the seed).
+        int woods = 0, bushes = 0;
+        for (int seed = 1; seed <= 40; seed++)
+        {
+            var m = Map.Generate(seed);
+            foreach (var (t, site) in m.Sites.Where(s => s.Value.Id == "forest"))
+            {
+                woods++;
+                var f = Map.SiteFeatures(seed, m, t);
+                Assert.Equal(f, Map.SiteFeatures(seed, m, t));
+                if (f.Any(x => x is SiteStock { Name: "Wild Berry Bush" })) bushes++;
+            }
+        }
+        Assert.True(woods > 30, $"{woods} deep woods");
+        Assert.InRange(bushes / (double)woods, 0.15, 0.45);
+    }
+}

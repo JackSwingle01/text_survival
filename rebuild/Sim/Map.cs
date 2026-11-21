@@ -15,9 +15,6 @@ public enum EdgeType { River, Cliff, Climb, GameTrail, TrailMarker, CutTrail, Ra
 
 public enum Direction { North, East, South, West }
 
-/// One named stage of the mountain crossing. Hazard, wind and cold from the old LocationFactory.
-public sealed record PassStage(string Name, double HazardLevel, double WindFactor, double TemperatureDeltaF, bool IsCrossingExit = false);
-
 /// What a tile is now, where that differs from generation. Ground and tracks add fields here.
 public sealed class TileState
 {
@@ -91,10 +88,15 @@ public static class TerrainProps
     public static bool IsBlocking(this EdgeType e) => e is EdgeType.Ravine or EdgeType.Cliff;
 }
 
+/// How the run stands. Only death and the far side of the pass end it.
+public enum RunOutcome { Surviving, Died, Crossed }
+
 /// Terrain as generated from a seed. Never saved: Map.Of rebuilds it from World.Seed.
 public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave[,] caves, int?[,] caveIds,
-    Dictionary<(TileId, TileId), EdgeType> edges, HashSet<TileId> river, TileId camp, Dictionary<TileId, int> passStages)
+    Dictionary<(TileId, TileId), EdgeType> edges, HashSet<TileId> river, TileId camp, Dictionary<TileId, int> passStages,
+    Dictionary<TileId, LocationDef>? sites = null)
 {
+    readonly Dictionary<TileId, LocationDef> _sites = sites ?? [];
     public int Width { get; } = width;
     public int Height { get; } = height;
     public TileId Camp { get; } = camp;
@@ -110,7 +112,11 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
     /// Beside a river: the old game gave these tiles a thin-ice WaterFeature, which named sites
     /// (the pass stages) did not inherit.
     public bool BesideRiver(TileId t) => river.Contains(t) && !passStages.ContainsKey(t);
-    public PassStage? StageAt(TileId t) => passStages.TryGetValue(t, out int i) ? Map.PassStages[i] : null;
+    public LocationDef? StageAt(TileId t) => passStages.TryGetValue(t, out int i) ? Map.PassStages[i] : null;
+    /// The named place on this tile: a pass stage, a cave site or a site dealt onto open land.
+    public LocationDef? SiteAt(TileId t) => StageAt(t) ?? _sites.GetValueOrDefault(t);
+    /// Every named site off the pass, by tile.
+    public IReadOnlyDictionary<TileId, LocationDef> Sites => _sites;
     public EdgeType? EdgeBetween(TileId a, TileId b) => edges.TryGetValue(MapGen.EdgeKey(a, b), out var e) ? e : null;
 }
 
@@ -128,16 +134,17 @@ public static class Map
         if (world.Tiles.TryGetValue(tile, out var state) && state.IsEmpty) world.Tiles.Remove(tile);
     }
 
-    /// West to east along the pass row: six stages, the last one the exit.
-    public static readonly PassStage[] PassStages =
-    [
-        new("Pass Approach", 0.6, 1.3, -5),
-        new("Lower Pass", 0.8, 1.6, -10),
-        new("The Pass Proper", 1.0, 2.0, -15),
-        new("Upper Descent", 0.7, 1.5, -10),
-        new("Lower Descent", 0.5, 1.0, -5),
-        new("Far Side", 0.3, 0.6, 0, IsCrossingExit: true),
-    ];
+    /// West to east along the pass row: six stages (Content/locations.json), the last one the exit.
+    public static readonly LocationDef[] PassStages = [.. Content.PassStages];
+
+    /// Derived, never stored (old GameRunner looped while alive and not on the crossing exit): a
+    /// living player standing on the far side has won, a dead one has lost, and nothing to keep in sync.
+    public static RunOutcome Outcome(World world)
+    {
+        var player = world.Agent(AgentId.Player);
+        if (!Body.IsAlive(player.Body)) return RunOutcome.Died;
+        return player.Tile == Of(world).Exit ? RunOutcome.Crossed : RunOutcome.Surviving;
+    }
 
     public static GeneratedMap Generate(int seed, int width = DefaultWidth, int height = DefaultHeight) =>
         MapGen.Generate(seed, width, height);
@@ -175,7 +182,7 @@ public static class Map
 
     /// Base injury risk and slowness of the ground's shape: terrain, cave, stage or camp, plus thin river ice.
     public static double TerrainHazardLevel(GeneratedMap m, TileId t) =>
-        m.StageAt(t)?.HazardLevel ?? (t == m.Camp ? 0 : m.CaveAt(t) switch
+        m.SiteAt(t)?.Hazard ?? (t == m.Camp ? 0 : m.CaveAt(t) switch
         {
             Cave.Entrance => 0.2,
             Cave.Floor => 0.3,
@@ -183,14 +190,18 @@ public static class Map
         });
 
     /// Old Location.GetTravelHazardLevel: the ground plus frozen water. River ice is thin (0.3):
-    /// 0.15 for any ice, 0.2 more for thin. ponytail: static ice; Ground (phase 2c) owns ice that grows and thaws.
+    /// 0.15 for any ice, 0.2 more for thin. A site with water of its own has that water instead of
+    /// the river (old named sites inherited the river's only when they had none).
+    /// ponytail: static ice; Ground (phase 2c) owns ice that grows and thaws.
     public static double TravelHazardLevel(GeneratedMap m, TileId t) =>
-        Math.Min(1.0, TerrainHazardLevel(m, t) + (m.BesideRiver(t) ? 0.15 + 0.20 : 0));
+        Math.Min(1.0, TerrainHazardLevel(m, t) + (m.SiteAt(t)?.Water is { } w ? w.HazardDelta : m.BesideRiver(t) ? 0.15 + 0.20 : 0));
 
-    /// Random 0.8-1.2 per terrain tile, from the old position seed; named places and caves are 1.
+    /// Random 0.8-1.2 per terrain tile, from the old position seed; a named site has its own (mostly 1),
+    /// and the camp and caves are 1.
     public static double TraversalModifier(GeneratedMap m, TileId t)
     {
-        if (m.StageAt(t) != null || t == m.Camp || m.CaveAt(t) != Cave.None) return 1.0;
+        if (m.SiteAt(t) is { } site) return site.Traversal;
+        if (t == m.Camp || m.CaveAt(t) != Cave.None) return 1.0;
         int positionSeed = unchecked(t.X * 374761393 + t.Y * 668265263 + m.Width * 1274126177);
         return 0.8 + new LegacyRng(positionSeed).NextDouble() * 0.4;
     }
@@ -205,21 +216,18 @@ public static class Map
 
     /// How much of the wind reaches this tile: what a person feels (wind chill) and the ground.
     public static double WindFactor(GeneratedMap m, TileId t) =>
-        m.StageAt(t)?.WindFactor ?? (t == m.Camp ? 0.4 : m.CaveAt(t) switch
+        m.SiteAt(t)?.Wind ?? (t == m.Camp ? 0.4 : m.CaveAt(t) switch
         {
             Cave.Entrance => 0.3,
             Cave.Floor => 0,
             _ => m.TerrainAt(t).BaseWindFactor(),
         });
 
-    static readonly double[] StageCover = [0.05, 0.0, 0.0, 0.0, 0.1, 0.3];
-
     /// Overhead cover 0-1: canopy, rock overhang, cave roof. Old terrain BaseOverheadCover and the
     /// camp, cave and pass-stage factories. What keeps sun, rain and snow off both the ground and a person.
-    // ponytail: camp's old Overhang shelter (insulation 0.55, its own overhead coverage) is named-location content, phase 4.
     public static double OverheadCover(GeneratedMap m, TileId t)
     {
-        if (m.PassStageIndex.TryGetValue(t, out int stage)) return StageCover[stage];
+        if (m.SiteAt(t) is { } site) return site.Cover;
         if (t == m.Camp) return 0.3;
         return m.CaveAt(t) switch
         {
@@ -230,10 +238,67 @@ public static class Map
     }
 
     /// How much colder this tile is than the regional air (the pass stages).
-    public static double TemperatureDeltaF(GeneratedMap m, TileId t) => m.StageAt(t)?.TemperatureDeltaF ?? 0;
+    public static double TemperatureDeltaF(GeneratedMap m, TileId t) => m.SiteAt(t)?.TemperatureDeltaF ?? 0;
+
+    /// How far you can see from here, 0-2: old Location.VisibilityFactor (terrain BaseVisibility,
+    /// the camp's 0.8, a cave's, or the named site's own).
+    public static double Visibility(GeneratedMap m, TileId t)
+    {
+        if (m.SiteAt(t) is { } site) return site.Visibility;
+        if (t == m.Camp) return 0.8;
+        return m.CaveAt(t) switch
+        {
+            Cave.Entrance => 0.8,
+            Cave.Floor => 0.7,
+            _ => m.TerrainAt(t) switch
+            {
+                Terrain.Forest or Terrain.Mountain => 0.5,
+                Terrain.Marsh => 0.7,
+                Terrain.Plain => 1.2,
+                Terrain.Rock => 0.8,
+                Terrain.Water => 1.3,
+                Terrain.Hills => 1.5,
+                _ => 1.0,
+            },
+        };
+    }
+
+    /// No light to work by without fire or torch: underground, and the old dark sites (a bear's cave,
+    /// an ice crevasse). Night is the clock's business, not the map's.
+    public static bool IsDark(GeneratedMap m, TileId t) => m.SiteAt(t)?.Dark ?? m.CaveAt(t) == Cave.Floor;
+
+    /// The site's features this tile really has: each on its chance, rolled once per tile on its own
+    /// stream, so the pools and anything describing the place agree on what is there.
+    public static IReadOnlyList<SiteFeature> SiteFeatures(int seed, GeneratedMap m, TileId t)
+    {
+        if (m.SiteAt(t) is not { } site) return [];
+        if (site.All.All(f => f.Chance >= 1)) return site.All;
+        var rng = Survival.Rng.ForSystem(seed, $"site {TileIdConverter.Format(t)}");
+        return [.. site.All.Where(f => f.Chance >= 1 || rng.NextDouble() < f.Chance)];
+    }
+
+    /// Puts every named site's shelter on its tile (old ShelterFeature on the site's Location). Natural
+    /// shelters are world state from the start, since work improves them and weather wears them.
+    public static void PlaceSiteShelters(World world)
+    {
+        var m = Of(world);
+        foreach (var (tile, site) in m.Sites)
+            foreach (var s in site.All.OfType<SiteShelter>())
+                Shelters.Place(world, tile, new ShelterDef(s.Name, s.Type, s.Insulation, s.Overhead, s.Wind, s.InsulationCap, s.OverheadCap, s.WindCap));
+    }
+
+    /// What a person reads arriving here: the site's old DiscoveryText, its story drawn once per tile.
+    public static string? DiscoveryText(World world, TileId t)
+    {
+        var site = Of(world).SiteAt(t);
+        if (site?.DiscoveryText is not { } text) return null;
+        if (site.Stories is not { Count: > 0 } stories) return text;
+        var rng = Survival.Rng.ForSystem(world.Seed, $"story {TileIdConverter.Format(t)}");
+        return text.Replace("{story}", stories[rng.NextInt(stories.Count)]);
+    }
 
     public static string Describe(GeneratedMap m, TileId t) =>
-        m.StageAt(t)?.Name ?? (t == m.Camp ? "Forest Camp" : m.CaveAt(t) switch
+        m.SiteAt(t)?.Name ?? (t == m.Camp ? "Forest Camp" : m.CaveAt(t) switch
         {
             Cave.Entrance => "Cave Entrance",
             Cave.Floor => "Cave Passage",

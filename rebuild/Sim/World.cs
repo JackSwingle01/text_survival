@@ -43,6 +43,12 @@ public sealed class World
     /// The clock hour of the last sweep of faded tracks. Owned by Tracks.
     public long TracksSweptHour { get; set; } = -1;
     public int NextCarcassId { get; set; }
+    /// Shelters standing, natural or built, by tile. Owned by Shelters.
+    public SortedDictionary<TileId, ShelterState> Shelters { get; init; } = [];
+    /// Bedding laid down, by tile. Owned by Shelters.
+    public SortedDictionary<TileId, BeddingKind> Beddings { get; init; } = [];
+    /// Building under way, one per tile. Owned by Shelters.
+    public SortedDictionary<TileId, Project> Projects { get; init; } = [];
     /// The pools generation put on each tile looked at so far; derived from Seed, never saved. Owned by Pools.
     internal Dictionary<TileId, IReadOnlyList<PoolDef>>? PoolCache;
 
@@ -51,6 +57,10 @@ public sealed class World
         var map = Map.Generate(seed);
         var world = new World { Seed = seed, GeneratedMap = map };
         world.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = map.Camp };
+        // ponytail: the old camp's Overhang and bedding, here until named-location content places them.
+        Survival.Shelters.Place(world, map.Camp, Survival.Shelters.CampOverhang);
+        Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);
+        Map.PlaceSiteShelters(world);
         Fauna.Populate(world);
         return world;
     }

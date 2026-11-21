@@ -120,6 +120,7 @@ public class GoldenTests
         var world = World.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -10, 3 / 20.1, 0, 0.3, WindDirection.North);
         var m = Map.Of(world);
+        Shelters.Remove(world, m.Camp); // this pins the open tile; the sheltered camp is ShelterTests'
         var sky = Weather.At(world, 0);
         Assert.Equal(OldCampAirF, Weather.AirAtF(world, m.Camp, sky, 0), Digits);
         var pass = m.PassStageIndex.Single(kv => Map.PassStages[kv.Value].Name == "The Pass Proper").Key;

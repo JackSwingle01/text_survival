@@ -237,7 +237,7 @@ public static partial class Npc
         /// Work.TooDarkToWork's night.
         public bool Night => Hour < 5 || Hour >= 21;
         /// Work.TooDarkToWork without the flame: too dark to fell or butcher unless a fire is lit here.
-        public bool Dark => Night || Map.Of(World).CaveAt(Tile) == Cave.Floor;
+        public bool Dark => Night || Map.IsDark(Map.Of(World), Tile);
         /// The pit here, as last caught up. Decide has no event stream to catch it up into, so it
         /// can be a little behind; anything it gets wrong is refused at no cost and re-decided.
         public FireState? Pit => Fire.PitAt(World, Tile) is FireId f ? World.Fires[f] : null;

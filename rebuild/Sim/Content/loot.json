@@ -1,0 +1,65 @@
+// Loot tables: what a salvage holds, rolled once when generation puts it on a tile (old
+// RewardGenerator pools, and SalvageFeature.CreateAbandonedCamp). A table is a list of rolls, each
+// taken in order:
+//   chance           odds the roll happens at all (default 1)
+//   resource, kg     a resource, kg drawn uniform in [min, max] per piece; pieces [min, max] inclusive (default 1)
+//   gear             one of these gear kinds, uniform; durabilityPct [min, max] of its maximum (default whole)
+//   pick, of         [min, max] distinct rolls from "of", shuffled (old "roll 2-4 of these")
+// Kinds and resources must name real ones; ContentTests checks.
+{
+ "AbandonedCamp": [
+  { "resource": "Kindling", "kg": [0.3, 0.3], "pieces": [2, 2] },
+  { "resource": "Tinder", "kg": [0.05, 0.05] },
+  { "resource": "PlantFiber", "kg": [0.1, 0.1] },
+  { "chance": 0.5, "gear": ["worn_knife"] }
+ ],
+ // ponytail: old 40% fishing rod or net (60-90%) left out; there is no fishing gear or fishing yet.
+ "AncientCache": [
+  { "gear": ["bow_drill", "fire_striker", "flint_knife"], "durabilityPct": [0.8, 1.0] },
+  { "chance": 0.3, "gear": ["waterskin"], "durabilityPct": [0.7, 1.0] },
+  { "resource": "Tinder", "kg": [0.3, 0.6] },
+  { "resource": "BirchBark", "kg": [0.1, 0.2] },
+  { "chance": 0.5, "resource": "DriedMeat", "kg": [0.5, 1.0] }
+ ],
+ // Old Flint Axe is the stone axe here.
+ "EliteShelter": [
+  { "gear": ["flint_knife", "stone_axe", "wooden_spear"], "durabilityPct": [0.7, 1.0] },
+  { "resource": "DriedMeat", "kg": [0.8, 1.5] },
+  { "chance": 0.25, "gear": ["bear_hide_chest", "mammoth_hide_chest"], "durabilityPct": [0.7, 0.95] },
+  { "chance": 0.3, "gear": ["large_bag", "proper_belt"], "durabilityPct": [0.6, 0.9] },
+  { "resource": "CuredHide", "kg": [0.5, 1.0] },
+  { "chance": 0.5, "resource": "Sinew", "kg": [0.2, 0.4] }
+ ],
+ "MegafaunaGraveyard": [
+  { "resource": "Bone", "kg": [0.4, 0.8], "pieces": [3, 6] },
+  { "resource": "MammothHide", "kg": [1.5, 2.5] },
+  { "chance": 0.6, "resource": "Ivory", "kg": [0.5, 1.2] },
+  { "chance": 0.25, "gear": ["mammoth_hide_chest", "mammoth_hide_legs"], "durabilityPct": [0.5, 0.8] }
+ ],
+ // Old Worn Knife, Damaged Axe, Cracked Spear.
+ "ScrapTool": [
+  { "gear": ["worn_knife", "stone_axe", "wooden_spear"], "durabilityPct": [0.2, 0.6] }
+ ],
+ "BoneHarvest": [
+  { "resource": "Bone", "kg": [0.2, 0.5], "pieces": [1, 3] }
+ ],
+ "CraftingMaterials": [
+  { "pick": [2, 4], "of": [
+   { "resource": "Stone", "kg": [0.4, 0.7] },
+   { "resource": "Bone", "kg": [0.4, 0.8] },
+   { "resource": "PlantFiber", "kg": [0.2, 0.5] }
+  ] },
+  { "chance": 0.3, "resource": "Sinew", "kg": [0.1, 0.2] },
+  { "chance": 0.25, "resource": "Hide", "kg": [0.2, 0.4] }
+ ],
+ "MedicinalForage": [
+  { "pick": [2, 4], "of": [
+   { "resource": "BirchPolypore", "kg": [0.1, 0.2] },
+   { "resource": "Chaga", "kg": [0.1, 0.2] },
+   { "resource": "Amadou", "kg": [0.06, 0.16] },
+   { "resource": "RoseHip", "kg": [0.1, 0.2] },
+   { "resource": "WillowBark", "kg": [0.1, 0.2] },
+   { "resource": "Usnea", "kg": [0.06, 0.16] }
+  ] }
+ ]
+}

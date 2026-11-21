@@ -26,6 +26,7 @@ foreach (string line in commands)
         {
             case "quit": return 0;
             case "status": break;
+            case "report": ReportCommand.Run(world, parts); break;
             case "wait": Run(new Wait(AgentId.Player), Minutes(parts)); break;
             case "rest": Run(new Rest(AgentId.Player), Minutes(parts)); break;
             case "sleep": Run(new Sleep(AgentId.Player), Minutes(parts)); break;
@@ -46,6 +47,9 @@ foreach (string line in commands)
             case "wear": Run(new Wear(AgentId.Player, parts[1]), 1); break;
             case "fuel": Run(new AddFuel(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), double.Parse(parts[2])), 1); break;
             case "torch": Run(new LightTorch(AgentId.Player), 1); break;
+            case "build": Run(new Build(AgentId.Player, Enum.Parse<Structure>(parts[1], ignoreCase: true)), 24 * 60); break; // stops itself when built
+            case "improve": Run(new ImproveShelter(AgentId.Player, Enum.Parse<ShelterStat>(parts[1], ignoreCase: true), Enum.Parse<Resource>(parts[2], ignoreCase: true)), parts.Length > 3 ? int.Parse(parts[3]) : 10); break;
+            case "pack": Run(new PackTent(AgentId.Player), 1); break;
             case "n" or "s" or "e" or "w" or "north" or "south" or "east" or "west":
                 Run(new Travel(AgentId.Player, Heading(parts[0]), Pace(parts)), 24 * 60); break; // a crossing stops itself on arrival
             case "go": Run(new Travel(AgentId.Player, Heading(parts[1]), Pace(parts)), 24 * 60); break; // a crossing stops itself on arrival
@@ -71,6 +75,11 @@ foreach (string line in commands)
         continue;
     }
     PrintStatus(world);
+    if (Map.Outcome(world) is not RunOutcome.Surviving and var outcome)
+    {
+        Console.WriteLine(outcome == RunOutcome.Crossed ? $"You crossed the pass on {Clock(world.Minute)}. The run is won." : "You are dead. The run is over.");
+        break;
+    }
 }
 return 0;
 
@@ -99,6 +108,18 @@ static Activity LightFire(World w)
 static void Look(World w)
 {
     var p = w.Agent(AgentId.Player);
+    var m = Map.Of(w);
+    Console.WriteLine($"  {Map.Describe(m, p.Tile)}" + (Map.DiscoveryText(w, p.Tile) is { } text ? $": {text}" : ""));
+    foreach (var f in Map.SiteFeatures(w.Seed, m, p.Tile))
+        if (f.RevealAtHours == 0 && f is SiteWater { Frozen: true } or SiteSmallGame or SiteCache) // open water is a pool, below
+            Console.WriteLine(f switch
+            {
+                SiteWater x => $"  water: {x.Name}{(x.Frozen ? $", ice {x.Ice:0.0}" : "")}",
+                SiteSmallGame x => $"  small game: {string.Join(", ", x.Animals.Select(a => a.Animal))}",
+                SiteCache x => $"  cache: {x.Name}, holds {x.CapacityKg:0} kg",
+                _ => "",
+            });
+    if (Shelters.At(w, p.Tile) is { } shelter) Console.WriteLine($"  shelter: {shelter.Name}");
     var pools = Pools.At(w, p.Tile);
     for (int i = 0; i < pools.Count; i++)
     {

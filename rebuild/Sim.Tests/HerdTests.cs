@@ -721,3 +721,54 @@ public class HerdLongRunTests(ITestOutputHelper output)
         Assert.All(packs.Where(w.Agents.ContainsKey), p => Assert.True(hunts.GetValueOrDefault(p) > 0, $"pack {p} lived {Days} days and never hunted"));
     }
 }
+
+/// Den-anchored herds (old HerdPopulator's Wolf Den, Bear Cave and Bone Hollow).
+public class DenTests
+{
+    static IEnumerable<Agent> Herds(World w, Species s) => w.Agents.Values.Where(a => a.Mind is HerdMind && a.Species == s);
+    static List<TileId> Sites(World w, string id) => [.. Map.Of(w).Sites.Where(s => s.Value.Id == id).Select(s => s.Key)];
+
+    [Theory]
+    [InlineData(17)] // a Wolf Den at (42,53), as the old generator put it
+    [InlineData(30)] // three dens
+    [InlineData(19)] // a den nine tiles from camp, inside the safe zone
+    public void EveryWolfDen_HasAPackLivingOnIt(int seed)
+    {
+        var w = World.New(seed);
+        var dens = Sites(w, "wolf_den");
+        Assert.NotEmpty(dens);
+        foreach (var den in dens)
+        {
+            var pack = Assert.Single(Herds(w, Species.Wolf), a => ((HerdMind)a.Mind).Territory[0] == den);
+            Assert.Equal(den, pack.Tile);
+            Assert.InRange(pack.Members.Count, 3, 8);
+            Assert.All(((HerdMind)pack.Mind).Territory, t => Assert.True(Math.Abs(t.X - den.X) <= 10 && Math.Abs(t.Y - den.Y) <= 10));
+        }
+    }
+
+    [Fact]
+    public void TheBearCave_HasItsBear()
+    {
+        var w = World.New(53); // the first seed whose valley has a Bear Cave (elite: far east only)
+        var cave = Assert.Single(Sites(w, "bear_cave"));
+        var bear = Assert.Single(w.Agents.Values, a => a.Mind is HerdMind m && m.Territory[0] == cave);
+        Assert.Contains(bear.Species, new[] { Species.Bear, Species.CaveBear });
+        Assert.Single(bear.Members);
+    }
+
+    [Fact]
+    public void BoneHollow_HasTheMammoths_AndAKilledHerdStaysDead()
+    {
+        var w = World.New(91237);
+        var hollow = Sites(w, "bone_hollow")[0];
+        var herd = Assert.Single(Herds(w, Species.Mammoth));
+        Assert.Equal(hollow, herd.Tile);
+        Assert.InRange(herd.Members.Count, 8, 12);
+        Assert.InRange(((HerdMind)herd.Mind).Territory.Count, 8, 288);
+
+        w.Agents.Remove(herd.Id); // the herd hunted out
+        Sim.Step(w, new Wait(AgentId.Player), 6 * 60);
+        Assert.Empty(Herds(w, Species.Mammoth));
+        Assert.Empty(Herds(World.New(1), Species.Mammoth)); // and a valley with no Bone Hollow has none at all
+    }
+}

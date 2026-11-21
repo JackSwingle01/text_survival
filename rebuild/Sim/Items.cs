@@ -22,7 +22,7 @@ public enum ResourceCategory { Fuel, Food, Water, Medicine, Material }
 /// Old Gear categories. Clothing is worn on a body; accessories add carrying capacity.
 public enum GearCategory { Tool, Clothing, Accessory }
 
-public enum ToolType { Axe, Knife, FireStriker, HandDrill, BowDrill, WaterContainer, Spear, Club, Torch, Needle, Shovel }
+public enum ToolType { Axe, Knife, FireStriker, HandDrill, BowDrill, WaterContainer, Spear, Club, Torch, Needle, Shovel, Tent }
 
 /// Body surface a garment covers. Old Inventory.SlotCoverage.
 public enum EquipSlot { Head, Chest, Legs, Feet, Hands }
@@ -148,6 +148,9 @@ public static class Items
         ["small_pouch"] = new("Small Pouch", GearCategory.Accessory, 0.1, 100, CapacityBonusKg: 0.5),
         ["rope_belt"] = new("Rope Belt", GearCategory.Accessory, 0.4, 100, CapacityBonusKg: 3.0),
         ["proper_belt"] = new("Proper Belt", GearCategory.Accessory, 0.3, 150, CapacityBonusKg: 4.0),
+        ["bone_shovel"] = new("Bone Shovel", GearCategory.Tool, 1.2, 15, ToolType.Shovel),
+        ["hide_tent"] = new("Hide Tent", GearCategory.Tool, 3.0, 50, ToolType.Tent), // shelter values: Shelters.Tents
+        ["mammoth_hide_tent"] = new("Mammoth Hide Tent", GearCategory.Tool, 5.0, 80, ToolType.Tent),
         ["large_bag"] = new("Large Bag", GearCategory.Accessory, 0.8, 100, CapacityBonusKg: 10.0),
     };
 

@@ -165,7 +165,7 @@ public static class Weather
     /// Air a person feels before any fire: old Location.GetTemperatureBreakdown steps 1-2 (the
     /// tile's own cold, wind chill through the tile's wind factor, sun and precipitation through
     /// its cover). Fire heat is measured against this. The defaults are a fully exposed tile.
-    // ponytail: no shelter step until phase 4 shelters (old step 3, a 40 °F floor scaled by insulation).
+    /// The shelter step comes after (ShelteredAirF).
     public static double ExposedAirF(WeatherSample s, double fireWindProtectionLevel,
         double windFactor = 1, double overheadCoverLevel = 0, double temperatureDeltaF = 0)
     {
@@ -183,6 +183,31 @@ public static class Weather
     {
         var m = Map.Of(world);
         return ExposedAirF(s, fireWindProtectionLevel, Map.WindFactor(m, tile), Map.OverheadCover(m, tile), Map.TemperatureDeltaF(m, tile));
+    }
+
+    /// Old Location.GetTemperatureBreakdown step 3: a shelter holds the air toward a 40 °F floor (what
+    /// body heat keeps a good shelter at), by its insulation (capped at 0.9), less up to 30% for the
+    /// rain or snow reaching the tile and 30% for the wind. Never cools a warm day. Returns the air
+    /// and the insulation that is left, which also keeps a fire's heat in (Fire.WarmthFor).
+    public static (double AirF, double InsulationLevel) ShelterStep(double airF, WeatherSample s, double insulationLevel,
+        double windFactor, double overheadCoverLevel, double fireWindProtectionLevel)
+    {
+        double ins = Math.Clamp(insulationLevel, 0, 0.9);
+        ins *= 1 - s.PrecipitationPct * (1 - overheadCoverLevel) * 0.3;
+        ins *= 1 - s.WindLevel * windFactor * (1 - fireWindProtectionLevel) * 0.3;
+        return (airF + Math.Max(0, 40 - airF) * ins, ins);
+    }
+
+    /// The air a person keeping still feels on a tile, shelter included, before any fire's heat.
+    /// The shelter's walls cut the wind that reaches you, chill and all (old: WindCoverage was shown
+    /// and improved with materials but nothing read it - bug, fixed).
+    public static (double AirF, double InsulationLevel) ShelteredAirF(World world, TileId tile, WeatherSample s,
+        double fireWindProtectionLevel, ShelterCover cover)
+    {
+        var m = Map.Of(world);
+        double windFactor = Map.WindFactor(m, tile) * (1 - cover.WindLevel), overhead = Map.OverheadCover(m, tile);
+        double t = ExposedAirF(s, fireWindProtectionLevel, windFactor, overhead, Map.TemperatureDeltaF(m, tile));
+        return ShelterStep(t, s, cover.InsulationLevel, windFactor, overhead, fireWindProtectionLevel);
     }
 
     // ---- the weather at a minute ----

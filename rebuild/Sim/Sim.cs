@@ -130,6 +130,12 @@ public static class Sim
             if (Work.Refusal(world, activity) is string refused) return refused;
             work = Work.Begin(world, activity, events);
         }
+        else if (Shelters.Handles(activity))
+        {
+            Fire.CatchUpAround(world, agent, events); // light to work by, as it is now
+            if (Shelters.Refusal(world, activity) is string refused) return refused;
+            Shelters.Begin(world, activity);
+        }
         else if (activity is Fight fight)
         {
             if (Combat.Refusal(world, fight) is string refused) return refused;
@@ -165,6 +171,7 @@ public static class Sim
             interrupt = LiveBodies(world, agent, activity, events);
             if (activity is Travel && interrupt != "died") interrupt = Traversal.Advance(world, agent, events) ?? interrupt;
             if (d.Work != null && interrupt != "died") interrupt = Work.Minute(world, agent, d.Work, events) ?? interrupt;
+            if (Shelters.Handles(activity) && interrupt != "died") interrupt = Shelters.Minute(world, agent, activity, events) ?? interrupt;
             if (activity is Fight round) interrupt = Combat.EndRound(world, round, events) ?? interrupt; // also when the minute killed you: the fight ends
         }
         interrupt ??= d.Acted;
@@ -197,20 +204,24 @@ public static class Sim
         // Every activity so far keeps the agent put beside whatever fire there is: full radiant heat.
         // Old ActivityConfig: metabolic factor and how close to the fire the activity keeps you.
         var gathering = activity is Gather g ? Pools.Def(world, new PoolId(agent.Tile, g.Pool)) : null;
-        var (activityFactor, fireProximityFactor, sleeping) = activity switch
+        // Stationary: whether it keeps you put long enough for a shelter to help (old ActivityConfig.IsStationary).
+        var (activityFactor, fireProximityFactor, sleeping, stationary) = activity switch
         {
-            Sleep => (0.5, 2.0, true),
-            Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or Stash or Unstash or Wear => (1.0, 2.0, false),
-            Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false), // eating, tending the fire
-            Travel => (1.5, 0.0, false), // walking: away from the fire's radiant heat
-            Fight => (2.0, 0.0, false), // old ActivityType.Fighting
-            Gather when gathering is TreePool => (1.8, 0.0, false), // chopping
-            Gather when gathering is StockPool { Kind: StockKind.Detail } => (1.0, 2.0, false), // old ExamineStrategy: Resting
-            Gather or Butcher => (1.5, 0.0, false), // foraging, harvesting, salvaging, butchering
+            Sleep => (0.5, 2.0, true, true),
+            Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or Stash or Unstash or Wear => (1.0, 2.0, false, true),
+            Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, tending the fire
+            Build or ImproveShelter or PackTent => (1.0, 2.0, false, true), // old ActivityType.Crafting
+            Travel => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
+            Fight => (2.0, 0.0, false, true), // old ActivityType.Fighting, which was stationary
+            Gather when gathering is TreePool => (1.8, 0.0, false, false), // chopping
+            Gather when gathering is StockPool { Kind: StockKind.Detail } => (1.0, 2.0, false, true), // old ExamineStrategy: Resting
+            Gather or Butcher => (1.5, 0.0, false, false), // foraging, harvesting, salvaging, butchering
 
             _ => throw new NotSupportedException($"No survival profile for activity {activity.GetType().Name}"),
         };
-        var warmth = Fire.WarmthFor(world, agent.Id);
+        var cover = Shelters.CoverFor(world, agent.Tile, stationary);
+        var warmth = Fire.WarmthFor(world, agent.Id, cover);
+        var bedding = Shelters.BeddingAt(world, agent.Tile);
         var sky = Weather.At(world, world.Minute);
         // Old SurvivalContext.GroundContactFor: idle and walking both go through the ground on foot.
         var contact = activity switch
@@ -223,22 +234,27 @@ public static class Sim
         double groundWetting = Ground.ContactWettingRate(world, agent.Tile, contact, Effects.Severity(agent.Body, EffectKind.Wet));
         return new SurvivalContext
         {
-            AirTempF = Weather.AirAtF(world, agent.Tile, sky, warmth.WindProtectionLevel) + warmth.AirHeatF,
+            // Bedding's warmth is felt asleep in it (old WarmthBonus: authored, never read - bug, fixed).
+            AirTempF = Weather.ShelteredAirF(world, agent.Tile, sky, warmth.WindProtectionLevel, cover).AirF + warmth.AirHeatF
+                + (sleeping ? bedding?.WarmthBonusF ?? 0 : 0),
             // Old CalculateEffectiveWindSpeed: the regional wind less the pit's walls; the tile's
-            // wind factor reaches the body only through the wind chill above.
-            WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel),
+            // wind factor reaches the body only through the wind chill above. A shelter's walls cut it too.
+            WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel) * (1 - cover.WindLevel),
             Precipitation = sky.Precipitation,
             PrecipitationPct = sky.PrecipitationPct,
-            OverheadCoverLevel = Map.OverheadCover(Map.Of(world), agent.Tile),
-            FireBonusF = warmth.PitHeatF * fireProximityFactor,
+            // Old SurvivalContext: a roof over someone keeping still, or the sky's own cover, whichever is more.
+            OverheadCoverLevel = Math.Max(Map.OverheadCover(Map.Of(world), agent.Tile), cover.OverheadLevel),
+            // The shelter's held fire heat rides with the radiant heat: withheld once you sweat (old: it was
+            // in the air, so a sheltered sleeper by a big fire sweated through every litre - bug, fixed).
+            FireBonusF = warmth.PitHeatF * fireProximityFactor + warmth.ShelterHeatF,
             TorchHeatF = warmth.TorchHeatF,
             ClothingClo = agent.Body.ClothingClo,
             ClothingWeightKg = agent.Body.ClothingWeightKg,
             ActivityFactor = activityFactor,
             IsSleeping = sleeping,
             GroundWettingPctPerMinute = groundWetting,
-            // ponytail: no bedding yet; old protection was 0.5 + quality * 0.4 when resting on a BeddingFeature.
-            GroundProtectionLevel = 0,
+            GroundProtectionLevel = contact == SurfaceContact.RestingOnGround ? Shelters.GroundProtectionLevel(bedding) : 0,
+            BeddingQualityPct = bedding?.QualityPct ?? SurvivalContext.NoBeddingQualityPct,
         };
     }
 }

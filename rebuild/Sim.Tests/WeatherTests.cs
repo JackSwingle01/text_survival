@@ -299,6 +299,7 @@ public class WeatherTests
         var world = World.New(1);
         world.FixedWeather = Sky(0, -10, 0.5, 0, 0.3, WeatherCondition.Clear);
         world.Minute = 960; // Jul 2 01:00: no sun
+        Shelters.Remove(world, Map.Of(world).Camp); // the open camp tile; its overhang is ShelterTests'
         // Camp lets 0.4 of the wind through; open plain 1.2 (old Location.WindFactor inside the chill).
         var ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P));
         Assert.Equal(Weather.WindChillF(14, 22.5 * 0.4), ctx.AirTempF, Digits);

@@ -2,9 +2,10 @@ namespace Survival;
 
 /// Filling the valley with herds when the world is made (port of old HerdPopulator). Seeded by its
 /// own stream, so the same seed gives the same herds on the same land.
-// ponytail: no named Wolf Den, Bear Cave or Bone Hollow until phase 4 locations, so no den-anchored packs or bears
-// and no mammoth herd; cave occupants are the only anchored herds. Old territory details (tracks, droppings,
-// bones as pools) are phase 4 content: the herds leave real prints now.
+// Dens are authored sites (Content): the Wolf Den's pack, the Bear Cave's bear and Bone Hollow's
+// mammoths are herds anchored on them, as the old HerdPopulator anchored them. Nothing repopulates
+// the valley, so a herd killed off stays dead for the run.
+// ponytail: old territory details (tracks, droppings, bones as pools) are phase 4 content: the herds leave real prints now.
 public static partial class Fauna
 {
     /// Old safeZone: herds start more than 2.4 km from camp.
@@ -32,21 +33,29 @@ public static partial class Fauna
         void Herd(Species species, TileId start, List<TileId> territory, int members) =>
             Agents.Spawn(world, species, start, members, territory);
 
-        // Wolves: 1-2 packs of 3-8 on 48-80 tiles each, apart from one another.
-        for (int i = 0, packs = 1 + rng.NextInt(2); i < packs && available.Count > 0; i++)
+        // Wolves: 1-2 packs of 3-8 on 48-80 tiles each, apart from one another. Every Wolf Den has one,
+        // first, its land grown from the map around the den, so a den may sit inside camp's safe zone.
+        var wolfDens = SitesNamed(m, "wolf_den");
+        for (int i = 0, packs = Math.Max(1 + rng.NextInt(2), wolfDens.Count); i < packs; i++)
         {
-            var start = available[rng.NextInt(available.Count)];
-            var land = Territory(start, available, 48 + rng.NextInt(33), rng);
+            bool den = i < wolfDens.Count;
+            if (!den && available.Count == 0) break;
+            var start = den ? wolfDens[i] : available[rng.NextInt(available.Count)];
+            var land = Territory(start, den ? Around(m, start, 10) : available, 48 + rng.NextInt(33), rng);
             if (land.Count < 3) continue;
             Herd(Species.Wolf, start, land, 3 + rng.NextInt(6));
             wolfLand.UnionWith(land);
             available.RemoveAll(land.ToHashSet().Contains);
         }
         // Bears: 3-5 alone on 64-128 tiles; half are cave bears. Only the start is taken: bears overlap.
-        for (int i = 0, bears = 3 + rng.NextInt(3); i < bears && available.Count > 0; i++)
+        // Every Bear Cave holds one of them.
+        var bearCaves = SitesNamed(m, "bear_cave");
+        for (int i = 0, bears = Math.Max(3 + rng.NextInt(3), bearCaves.Count); i < bears; i++)
         {
-            var start = available[rng.NextInt(available.Count)];
-            var land = Territory(start, available, 64 + rng.NextInt(65), rng);
+            bool den = i < bearCaves.Count;
+            if (!den && available.Count == 0) break;
+            var start = den ? bearCaves[i] : available[rng.NextInt(available.Count)];
+            var land = Territory(start, den ? Around(m, start, 12) : available, 64 + rng.NextInt(65), rng);
             if (land.Count < 3) continue;
             Herd(rng.NextDouble() < 0.5 ? Species.CaveBear : Species.Bear, start, land, 1);
             available.Remove(start);
@@ -95,7 +104,30 @@ public static partial class Fauna
             Herd(Species.Hyena, start, land, 3 + rng.NextInt(4));
             hyenaZone.RemoveAll(land.ToHashSet().Contains);
         }
+        // Mammoths: one herd of 8-12 on 192-288 tiles around the first Bone Hollow, if the valley has one.
+        if (SitesNamed(m, "bone_hollow") is [var hollow, ..])
+        {
+            var land = Territory(hollow, Around(m, hollow, 40), 192 + rng.NextInt(97), rng);
+            Herd(Species.Mammoth, hollow, land.Count < 8 ? [hollow] : land, 8 + rng.NextInt(5));
+        }
         PopulateCaves(world, m, rng);
+    }
+
+    /// Tiles holding this site, x-major (old FindLocations scanned by name).
+    static List<TileId> SitesNamed(GeneratedMap m, string id) =>
+        [.. m.Sites.Where(s => s.Value.Id == id).Select(s => s.Key).OrderBy(t => t)];
+
+    /// Old GetPositionsInRadius: open ground within a square around a den, off caves and the far side.
+    static List<TileId> Around(GeneratedMap m, TileId center, int radius)
+    {
+        var tiles = new List<TileId>();
+        for (int dx = -radius; dx <= radius; dx++)
+            for (int dy = -radius; dy <= radius; dy++)
+            {
+                var t = new TileId(center.X + dx, center.Y + dy);
+                if (m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && t != m.Exit) tiles.Add(t);
+            }
+        return tiles;
     }
 
     /// Old PopulateCaves: one roll per cave system. Half stand empty; of the rest, most hold a cave

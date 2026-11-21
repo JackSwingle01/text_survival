@@ -312,3 +312,116 @@ public class PoolsTests
         Assert.Equal(earned, Hours(snowy), 12);
     }
 }
+
+/// Named sites (Content/locations.json) as pools: the old site's features on the old tile.
+public class SitePoolsTests
+{
+    static readonly AgentId P = AgentId.Player;
+
+    [Fact]
+    public void EverySite_PutsItsForageFirst_ItsVisibleStockInSight_AndKeepsTheTerrainsHiddenFinds()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        foreach (var (t, site) in m.Sites)
+        {
+            var pools = Pools.At(w, t);
+            var features = Map.SiteFeatures(w.Seed, m, t);
+            if (features.FirstOrDefault() is SiteForage f)
+            {
+                var forage = Assert.IsType<ForagePool>(pools[0]);
+                Assert.Equal(f.Density, forage.Density);
+                Assert.Equal(f.Items, forage.Items);
+            }
+            var inSight = features.OfType<SiteStock>().Where(s => s.RevealAtHours == 0).Select(s => s.Name).ToList();
+            for (int i = 0; i < pools.Count; i++)
+                if (pools[i] is StockPool s && inSight.Contains(s.Name))
+                    Assert.True(Pools.Knows(w, P, new PoolId(t, i)), $"{site.Name}: {s.Name} should be in plain sight");
+            Assert.Equal(inSight.Count, pools.OfType<StockPool>().Count(s => s.RevealAtHours == 0 && s.Name != "Cave Seep"
+                && features.OfType<SiteWater>().All(x => x.Name != s.Name)));
+        }
+    }
+
+    [Fact]
+    public void SearchingASite_FindsOnlyWhatWasHidden()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        var (tile, _) = m.Sites.First(s => Pools.At(w, s.Key).Any(p => p is StockPool { RevealAtHours: 0 }));
+        w.Agent(P).Tile = tile;
+        var events = new List<WorldEvent>();
+        Pools.Search(w, w.Agent(P), 1000, events);
+        var found = events.OfType<PoolDiscovered>().Select(e => Pools.Def(w, e.Pool)).ToList();
+        Assert.All(found, d => Assert.True(Pools.IsHidden(d)));
+        Assert.Equal(Pools.At(w, tile).Count(Pools.IsHidden), found.Count);
+    }
+
+    [Fact]
+    public void ASalvage_IsRolledOnce_FromTheSeedAndTile()
+    {
+        for (int seed = 1; seed <= 40; seed++)
+        {
+            var m = Map.Generate(seed);
+            if (m.Sites.FirstOrDefault(s => s.Value.All.Any(f => f is SiteStock { Work: StockKind.Salvage })) is not { Value: not null } hit) continue;
+            var a = Pools.At(World.New(seed), hit.Key).OfType<StockPool>().First(p => p.Kind == StockKind.Salvage);
+            var b = Pools.At(World.New(seed), hit.Key).OfType<StockPool>().First(p => p.Kind == StockKind.Salvage);
+            Assert.Equal(a.Items, b.Items);
+            Assert.Equal(a.Gear?.Select(g => g.Kind), b.Gear?.Select(g => g.Kind));
+            Assert.Equal(0, a.RevealAtHours);
+            return;
+        }
+        Assert.Fail("no salvage site in 40 seeds");
+    }
+
+    [Fact]
+    public void OpenWaterAtASite_IsASourceToDrawFrom()
+    {
+        for (int seed = 1; seed <= 40; seed++)
+        {
+            var m = Map.Generate(seed);
+            foreach (var (t, site) in m.Sites)
+                if (Map.SiteFeatures(seed, m, t).OfType<SiteWater>().FirstOrDefault(x => !x.Frozen) is { } water)
+                {
+                    var pool = Pools.At(World.New(seed), t).OfType<StockPool>().Single(p => p.Name == water.Name);
+                    Assert.Equal(Resource.Water, Assert.Single(pool.Items).Resource);
+                    Assert.False(Pools.IsHidden(pool));
+                    return;
+                }
+        }
+        Assert.Fail("no open water site in 40 seeds");
+    }
+
+    [Fact]
+    public void CavePassages_HaveTheOldCaveForage_AMouthCatchesSticks()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        var tiles = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y))).ToList();
+        var floor = tiles.First(t => m.CaveAt(t) == Cave.Floor && m.SiteAt(t) == null);
+        var mouth = tiles.First(t => m.CaveAt(t) == Cave.Entrance);
+        var f = Assert.IsType<ForagePool>(Pools.At(w, floor)[0]);
+        Assert.Equal(0.52, f.Density);
+        Assert.Contains(f.Items, i => i.Resource == Resource.Shale);
+        Assert.DoesNotContain(f.Items, i => i.Resource == Resource.Kindling);
+        Assert.Contains(((ForagePool)Pools.At(w, mouth)[0]).Items, i => i.Resource == Resource.Kindling);
+        Assert.DoesNotContain(Pools.At(w, floor), p => p is TreePool);
+        Assert.True(Map.IsDark(m, floor));
+        Assert.False(Map.IsDark(m, mouth));
+    }
+
+    [Fact]
+    public void SiteShelters_StandFromTheStart_CampKeepsOneOverhang()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        foreach (var (t, site) in m.Sites)
+            if (site.All.OfType<SiteShelter>().FirstOrDefault() is { } s)
+            {
+                var placed = Shelters.At(w, t);
+                Assert.NotNull(placed);
+                Assert.Equal((s.Name, s.Type, s.Insulation), (placed!.Name, placed.Kind, placed.InsulationLevel));
+            }
+            else Assert.Null(Shelters.At(w, t));
+        Assert.Equal("Overhang", Shelters.At(w, m.Camp)!.Name);
+    }
+}

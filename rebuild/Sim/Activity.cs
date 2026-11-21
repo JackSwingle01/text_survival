@@ -27,6 +27,9 @@ namespace Survival;
 [JsonDerivedType(typeof(Graze), "graze")]
 [JsonDerivedType(typeof(Feed), "feed")]
 [JsonDerivedType(typeof(Hunt), "hunt")]
+[JsonDerivedType(typeof(Build), "build")]
+[JsonDerivedType(typeof(ImproveShelter), "improveshelter")]
+[JsonDerivedType(typeof(PackTent), "packtent")]
 public abstract record Activity(AgentId Who);
 
 public sealed record Wait(AgentId Who) : Activity(Who);
@@ -66,3 +69,13 @@ public sealed record Fight(AgentId Who, CombatAction Action, int? Target = null,
 
 /// One tile north, east, south or west. Repeating it continues a crossing cut short; anything else abandons it.
 public sealed record Travel(AgentId Who, Direction Dir, Pace Pace = Pace.Quick) : Activity(Who);
+
+// Camp structures (Shelter.cs).
+
+/// Works on building this structure here: a new one takes its materials at the start; work left
+/// off is picked up again. A tent comes out of the pack and is pitched.
+public sealed record Build(AgentId Who, Structure What) : Activity(Who);
+/// Works a material from the pack into the shelter here, a tenth of a piece a minute, until stopped.
+public sealed record ImproveShelter(AgentId Who, ShelterStat Stat, Resource Material) : Activity(Who);
+/// Strikes the tent pitched here and puts it in the pack.
+public sealed record PackTent(AgentId Who) : Activity(Who);

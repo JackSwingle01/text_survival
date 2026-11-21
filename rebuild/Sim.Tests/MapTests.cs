@@ -77,6 +77,81 @@ public class MapTests
         Assert.Equal((caves, edges, river), (c.ToString("x"), e.ToString("x"), r.ToString("x")));
     }
 
+    // Old GridWorldGenerator.Generate's named places (tmp harness p4a/oldplace): every tile that is not
+    // plain terrain, the camp or a cave mouth, x-major, as "x,y,Name|" hashed FNV-1a by char - the open-land
+    // sites, the cave sites and the pass stages, each the old one on the old tile.
+    public static readonly TheoryData<int, int, string> OldSites = new()
+    {
+        { 1, 99, "1700e032cfe3c77b" },
+        { 17, 108, "c7f17a7897f594e1" },
+        { 2048, 102, "aed3846be36fb241" },
+        { 91237, 93, "81d4b0066110062c" },
+        { 42, 110, "b04bbb6ef5c90d08" },
+    };
+
+    [Theory, MemberData(nameof(OldSites))]
+    public void Generate_NamedPlacesMatchOldExactly(int seed, int count, string hash)
+    {
+        var m = Map.Generate(seed);
+        var rows = new List<string>();
+        for (int x = 0; x < m.Width; x++)
+            for (int y = 0; y < m.Height; y++)
+                if (m.SiteAt(new(x, y)) is { } site) rows.Add($"{x},{y},{site.Name}");
+        ulong h = 14695981039346656037;
+        foreach (char c in string.Concat(rows.Select(r => r + "|"))) { h ^= c; h *= 1099511628211; }
+        Assert.Equal((count, hash), (rows.Count, h.ToString("x")));
+    }
+
+    [Fact]
+    public void Generate_SitesKeepTheirSpacingAndTerrain_AndEliteOnesStayFar()
+    {
+        var m = Map.Generate(17);
+        var named = m.Sites.Where(s => s.Value.Placement == Placement.Named).ToList();
+        Assert.True(named.Count > 50, $"only {named.Count} named sites");
+        foreach (var (t, site) in named)
+        {
+            Assert.Contains(m.TerrainAt(t), site.Terrain!);
+            Assert.Equal(Cave.None, m.CaveAt(t));
+            Assert.True(MapGen.Manhattan(t, m.Camp) >= 10);
+            Assert.All(named.Where(o => o.Key != t), o => Assert.True(MapGen.Manhattan(o.Key, t) >= 10, $"{site.Name} at {t} crowds {o.Value.Name}"));
+            if (site.Elite) Assert.True(MapGen.Distance(t, m.Camp) >= m.Width * 0.65, $"elite {site.Name} at {t}");
+        }
+        Assert.All(m.Sites.Where(s => s.Value.Placement == Placement.Cave), s => Assert.Equal(Cave.Floor, m.CaveAt(s.Key)));
+    }
+
+    [Fact]
+    public void ANamedSite_SetsItsTilesGroundAndAir()
+    {
+        var m = Map.Generate(17);
+        var (t, site) = m.Sites.First(s => s.Value.Placement == Placement.Named && s.Value.Water == null && !m.BesideRiver(s.Key));
+        Assert.Equal(site.Name, Map.Describe(m, t));
+        Assert.Equal(site.Hazard, Map.TerrainHazardLevel(m, t));
+        Assert.Equal(site.Hazard, Map.TravelHazardLevel(m, t));
+        Assert.Equal(site.Wind, Map.WindFactor(m, t));
+        Assert.Equal(site.Cover, Map.OverheadCover(m, t));
+        Assert.Equal(site.Visibility, Map.Visibility(m, t));
+        Assert.Equal(site.Traversal, Map.TraversalModifier(m, t));
+        // Old Location.BaseTraversalMinutes: the tile's terrain plus the site's hazard, by its modifier.
+        Assert.Equal(Math.Max(1, (int)Math.Round((m.TerrainAt(t).BaseTraversalMinutes() + (int)Math.Floor(site.Hazard * 5)) * site.Traversal)),
+            Map.BaseTraversalMinutes(m, t));
+    }
+
+    [Fact]
+    public void ASitesOwnWater_TakesThePlaceOfTheRiversIce()
+    {
+        // Old Location.GetTravelHazardLevel read the site's first WaterFeature; the river's thin ice only when it had none.
+        var frozen = Content.ById["frozen_creek"].Water!;
+        Assert.Equal(0.15, frozen.HazardDelta, 12); // 0.7 thick: slippery, not thin
+        Assert.Equal(0.35, Content.ById["marsh"].Water!.HazardDelta, 12);
+        Assert.Equal(0, Content.ById["spring_seep"].Water!.HazardDelta);
+        foreach (int seed in new[] { 1, 17, 2048, 91237, 42 })
+        {
+            var m = Map.Generate(seed);
+            foreach (var (t, site) in m.Sites.Where(s => s.Value.Water != null))
+                Assert.Equal(Math.Min(1, site.Hazard + site.Water!.HazardDelta), Map.TravelHazardLevel(m, t), 12);
+        }
+    }
+
     [Fact]
     public void Generate_TerrainCountsMatchOld_Seed17()
     {

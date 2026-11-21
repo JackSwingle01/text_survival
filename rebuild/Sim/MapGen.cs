@@ -3,8 +3,8 @@ namespace Survival;
 /// The old game's world generator (ValleyLayout + GridWorldGenerator's terrain layers), ported
 /// draw for draw on LegacyRng so a seed gives the same terrain it gave the old game. Geography
 /// first - basins, winding valleys, lakes and their drainages, ravines, caves, the pass - then
-/// biomes painted on the open land. Named locations are not placed (phase 4); every random
-/// draw they made came after the terrain, so skipping them changes no tile.
+/// biomes painted on the open land, then the named places dealt onto it (old PlaceNamedLocations and
+/// PlaceCaveLocations), still on the same stream, so a seed names the same places the old game named.
 // ponytail: Math.Sin/Cos/Pow are libm calls, so seed -> terrain is exact per platform, not across
 // platforms. A save holds no terrain; if saves must move between OSes, swap these for a portable sin.
 static class MapGen
@@ -44,7 +44,72 @@ static class MapGen
             terrain[p.X, p.Y] = Terrain.Rock;
             stages[p] = j;
         }
-        return new GeneratedMap(width, height, terrain, layout.Structures, layout.CaveIds, barriers, river, camp, stages);
+        var sites = new Dictionary<TileId, LocationDef>();
+        PlaceNamedLocations(rng, land, terrain, camp, width, sites);
+        PlaceCaveSites(rng, layout.Structures, layout.CaveIds, width, height, sites);
+        return new GeneratedMap(width, height, terrain, layout.Structures, layout.CaveIds, barriers, river, camp, stages, sites);
+    }
+
+    const int TargetNamedLocations = 300, MinLocationSpacing = 10;
+
+    /// Old PlaceNamedLocations: random open tiles at least ten apart (Manhattan) and from camp, each
+    /// given a site weighted among those that prefer its terrain; elite ones only past 65% of the
+    /// map's width from camp. Draw for draw the old loop, so the old sites land on the old tiles.
+    static void PlaceNamedLocations(LegacyRng rng, List<TileId> land, Terrain[,] terrain, TileId camp, int width,
+        Dictionary<TileId, LocationDef> sites)
+    {
+        var placed = new List<TileId> { camp };
+        double minEliteDistance = width * 0.65;
+        var named = Content.Locations.Where(l => l.Placement == Placement.Named).ToList();
+        for (int attempts = 0; placed.Count <= TargetNamedLocations && attempts < TargetNamedLocations * 10; attempts++)
+        {
+            var p = land[rng.Next(land.Count)];
+            if (placed.Any(q => Manhattan(q, p) < MinLocationSpacing)) continue; // also keeps camp and placed sites
+            bool allowElite = Distance(p, camp) >= minEliteDistance;
+            var valid = named.Where(l => l.Terrain!.Contains(terrain[p.X, p.Y]) && (allowElite || !l.Elite)).ToList();
+            if (valid.Count == 0) continue;
+            double total = 0;
+            foreach (var l in valid) total += l.Weight;
+            double roll = rng.NextDouble() * total, cumulative = 0;
+            var site = valid[0];
+            foreach (var l in valid)
+            {
+                cumulative += l.Weight;
+                if (roll <= cumulative) { site = l; break; }
+            }
+            sites[p] = site;
+            placed.Add(p);
+        }
+    }
+
+    /// Old PlaceCaveLocations: the four cave sites in a shuffled order, dealt round-robin onto one
+    /// floor tile of each cave system, two for a system of sixteen floors or more.
+    static void PlaceCaveSites(LegacyRng rng, Cave[,] caves, int?[,] caveIds, int width, int height,
+        Dictionary<TileId, LocationDef> sites)
+    {
+        var order = Shuffled(Content.CaveSites.ToList(), rng);
+        var systems = new List<(int Id, List<TileId> Floors)>(); // in order of first floor, x-major, as old AllLocations
+        for (int x = 0; x < width; x++)
+            for (int y = 0; y < height; y++)
+                if (caves[x, y] == Cave.Floor && caveIds[x, y] is int id)
+                {
+                    int i = systems.FindIndex(s => s.Id == id);
+                    if (i < 0) systems.Add((id, [new(x, y)])); else systems[i].Floors.Add(new(x, y));
+                }
+        int next = 0;
+        foreach (var (_, floors) in systems)
+        {
+            var shuffled = Shuffled(floors, rng);
+            int count = Math.Min(2, Math.Max(1, shuffled.Count / 8));
+            foreach (var floor in shuffled.Take(count)) sites[floor] = order[next++ % order.Count];
+        }
+    }
+
+    /// Old OrderBy(_ => rng.Next()): one key per item in order, then a stable sort on the keys.
+    static List<T> Shuffled<T>(List<T> items, LegacyRng rng)
+    {
+        var keys = items.Select(_ => rng.Next()).ToList();
+        return Enumerable.Range(0, items.Count).OrderBy(i => keys[i]).Select(i => items[i]).ToList();
     }
 
     public static bool In(TileId p, int width, int height) => p.X >= 0 && p.X < width && p.Y >= 0 && p.Y < height;

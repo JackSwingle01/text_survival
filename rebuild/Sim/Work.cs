@@ -37,7 +37,7 @@ public static class Work
     public static bool TooDarkToWork(World world, Agent agent)
     {
         int hour = Weather.MinuteOfDay(world.Minute) / 60;
-        bool dark = Map.Of(world).CaveAt(agent.Tile) == Cave.Floor || hour < 5 || hour >= 21;
+        bool dark = Map.IsDark(Map.Of(world), agent.Tile) || hour < 5 || hour >= 21;
         return dark && !Fire.HasLight(world, agent.Id);
     }
 

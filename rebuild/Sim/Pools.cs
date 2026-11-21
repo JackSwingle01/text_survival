@@ -96,7 +96,23 @@ public static class Pools
             pools.Add(new ForagePool("forage", 0.38, MixedForest));
             return pools;
         }
-        // ponytail: caves and pass stages get plain terrain content; their own factories are phase 4 named locations.
+        // A named place carries its own content; open-land sites also keep the terrain's hidden finds
+        // (old PlaceNamedLocations ran the terrain's DiscoveryGenerator for them) and cave sites the
+        // passage's (old PlaceCaveLocations copied them across, skipping what the site already had).
+        if (m.SiteAt(tile) is LocationDef site)
+        {
+            pools.AddRange(SitePools(Map.SiteFeatures(seed, m, tile), rng));
+            if (site.Placement == Placement.Named) pools.AddRange(Discoveries(terrain, rng));
+            else if (site.Placement == Placement.Cave) pools.AddRange(CaveDiscoveries(rng).Where(d => pools.All(p => p.Name != d.Name)));
+            return pools;
+        }
+        // Old CaveLocationFactory.MakePassage: stone and bone underfoot, wind-blown sticks at the mouth.
+        if (m.CaveAt(tile) != Cave.None)
+        {
+            pools.Add(new ForagePool("forage", 0.52, m.CaveAt(tile) == Cave.Entrance ? CaveMouth : CaveFloor));
+            pools.AddRange(CaveDiscoveries(rng));
+            return pools;
+        }
         pools.Add(TerrainForage(terrain, rng));
         if (terrain == Terrain.Forest) pools.Add(new TreePool("Forest Trees", null, 100));
         pools.AddRange(Details(terrain, rng));
@@ -120,6 +136,69 @@ public static class Pools
         };
         // old game: drew this from the process-wide RNG, so the same seed gave different tiles (bug, fixed: seeded by tile).
         return new ForagePool("forage", Math.Clamp(Normal(rng, baseDensity, 0.32), 0.1, 2.0), items);
+    }
+
+    /// A named site's features as pools, in order (Map.SiteFeatures has rolled their chances). Water that runs open is a
+    /// source to draw from (old WaterFeature.AsOpenWater, as Hidden Spring); frozen water is hazard
+    /// (Map.TravelHazardLevel). Shelters, small game, caches and events are not pools.
+    // ponytail: a site's shelter waits for Shelters (phase 4b), its small game for hunting by density,
+    // and its event triggers (FirstVisitEvent, SiteEvent) for phase 4 moments: they would fire on
+    // arrival and in Search below, when the hidden one is found.
+    static IEnumerable<PoolDef> SitePools(IReadOnlyList<SiteFeature> features, Rng rng)
+    {
+        foreach (var f in features)
+        {
+            switch (f)
+            {
+                case SiteForage fo: yield return new ForagePool("forage", fo.Density, fo.Items); break;
+                case SiteTrees t: yield return new TreePool(t.Name, t.Wood, t.MinutesToFell, t.Trees, t.RespawnHoursPerTree); break;
+                case SiteStock { Work: StockKind.Salvage } s:
+                    var (items, gear) = RollLoot(Content.Loot[s.Loot!], rng);
+                    yield return new StockPool(s.Name, StockKind.Salvage, s.Minutes, items, f.RevealAtHours, PlacementHeightM: 0.3, Gear: gear.Count > 0 ? gear : null);
+                    break;
+                case SiteStock s:
+                    yield return new StockPool(s.Name, s.Work, s.Minutes,
+                        [.. s.Items!.Select(i => new StockItem(i.Resource, i.UnitsMax is int max ? Between(rng, i.Units, max + 1) : i.Units, i.KgPerUnit, i.RespawnHoursPerUnit))],
+                        f.RevealAtHours, RequiresTool: s.RequiresTool);
+                    break;
+                case SiteWater { Frozen: false } w:
+                    yield return new StockPool(w.Name, StockKind.Harvest, 1, [new StockItem(Resource.Water, 100, 1.0, 0.1)], f.RevealAtHours);
+                    break;
+            }
+        }
+    }
+
+    /// One loot table rolled (Content/loot.json): the resources as one salvage item each, and the gear.
+    internal static (List<StockItem> Items, List<Gear> Gear) RollLoot(IReadOnlyList<LootRoll> table, Rng rng)
+    {
+        var kg = new SortedDictionary<Resource, double>();
+        var gear = new List<Gear>();
+        void Take(LootRoll r)
+        {
+            if (r.Chance < 1 && rng.NextDouble() >= r.Chance) return;
+            if (r.Resource is Resource res)
+            {
+                int pieces = r.Pieces is [var lo, var hi] ? Between(rng, lo, hi + 1) : 1;
+                kg[res] = kg.GetValueOrDefault(res) + Pieces(rng, pieces, r.Kg![0], r.Kg[1]);
+            }
+            else if (r.Gear != null)
+            {
+                var g = Items.Make(r.Gear[rng.NextInt(r.Gear.Count)]);
+                // old game: rolled a share of an unlimited (-1) maximum, which came out 0, broken; unlimited stays whole (bug, fixed).
+                if (r.DurabilityPct is [var d0, var d1] && g.MaxDurability > 0)
+                    g.Durability = Math.Max(1, Between(rng, (int)(g.MaxDurability * d0), (int)(g.MaxDurability * d1) + 1));
+                gear.Add(g);
+            }
+            else
+            {
+                int count = Between(rng, r.Pick![0], r.Pick[1] + 1);
+                var of = r.Of!.ToList();
+                for (int i = of.Count - 1; i > 0; i--) { int j = rng.NextInt(i + 1); (of[i], of[j]) = (of[j], of[i]); }
+                foreach (var pick in of.Take(count)) Take(pick);
+            }
+        }
+        foreach (var r in table) Take(r);
+        return ([.. kg.Select(x => All(x.Key, x.Value))], gear);
     }
 
     static double Normal(Rng rng, double mean, double sd)
@@ -153,6 +232,10 @@ public static class Pools
     static readonly IReadOnlyList<ForageItem> Rocky =
         [F(Resource.Stone, 2, 0.25, 0.7), F(Resource.Tinder, 0.2, 0.01, 0.04), F(Resource.Flint, 0.2, 0.1, 0.25)];
     static readonly IReadOnlyList<ForageItem> FrozenCreek = [F(Resource.Kindling, 1.5, 0.15, 0.4), F(Resource.Stone, 0.3, 0.2, 0.4)];
+    // Old CaveLocationFactory.CreateForage; a mouth adds sticks and tinder blown in.
+    static readonly IReadOnlyList<ForageItem> CaveFloor =
+        [F(Resource.Stone, 1.0, 0.15, 0.45), F(Resource.Shale, 0.4, 0.15, 0.35), F(Resource.Flint, 0.15, 0.1, 0.25), F(Resource.Bone, 0.15, 0.1, 0.3), F(Resource.Pyrite, 0.03, 0.02, 0.08)];
+    static readonly IReadOnlyList<ForageItem> CaveMouth = [.. CaveFloor, F(Resource.Kindling, 0.3, 0.1, 0.25), F(Resource.Tinder, 0.4, 0.01, 0.04)];
     static readonly IReadOnlyList<ForageItem> Barren = [F(Resource.Stone, 0.4, 0.1, 0.3), F(Resource.Tinder, 0.2, 0.01, 0.04)];
 
     /// Old GenerateRevealThreshold: exponential around the expected hours, capped at ten times.
@@ -277,9 +360,20 @@ public static class Pools
         _ => [],
     };
 
-    static IEnumerable<PoolDef> Discoveries(Terrain terrain, Rng rng)
+    /// Old DiscoveryGenerator.CavePool. The sleeping recess is a shelter (phase 4b) and still rolls.
+    static readonly IReadOnlyList<Template> CaveTable =
+    [
+        new(0.12, 0.8, FlintOutcrop), new(0.06, 1.2, PyriteSeam), new(0.16, 0.5, BonePile), new(0.06, 0.6, CharDeposit),
+        new(0.05, 0.8, KnappingScatter), new(0.06, 0.7, CaveSeep), new(0.05, 1.0, null), new(0.12, 0.4, LooseShale),
+    ];
+
+    static IEnumerable<PoolDef> CaveDiscoveries(Rng rng) => Roll(CaveTable, rng);
+
+    static IEnumerable<PoolDef> Discoveries(Terrain terrain, Rng rng) => Roll(DiscoveryTable(terrain), rng);
+
+    static IEnumerable<PoolDef> Roll(IReadOnlyList<Template> table, Rng rng)
     {
-        foreach (var t in DiscoveryTable(terrain))
+        foreach (var t in table)
         {
             if (rng.NextDouble() >= t.SpawnChance) continue;
             var made = t.Make?.Invoke(rng, t.ExpectedHours);
@@ -304,6 +398,9 @@ public static class Pools
     static StockPool IceSource(Rng r, double _) => H("Creek Ice", 5, new StockItem(Resource.Water, 20, 1.0, 48));
     /// Old WaterFeature.AsOpenWater: water that never freezes. A source as generous as a river.
     static StockPool HiddenSpring(Rng r, double _) => H("Hidden Spring", 1, new StockItem(Resource.Water, 100, 1.0, 0.1));
+    /// Old CaveLocationFactory.CreateSeep: open water, fishless, from deep in the rock.
+    static StockPool CaveSeep(Rng r, double _) => H("Cave Seep", 1, new StockItem(Resource.Water, 100, 1.0, 0.1));
+    static StockPool LooseShale(Rng r, double _) => H("Loose Shale", 5, new StockItem(Resource.Shale, 4, 0.25));
     static StockPool FlintOutcrop(Rng r, double _) => H("Flint Outcrop", 5, new StockItem(Resource.Flint, 3 + r.NextInt(5), 0.15));
     static StockPool PyriteSeam(Rng r, double _) => H("Iron Pyrite Seam", 8, new StockItem(Resource.Pyrite, 2 + r.NextInt(4), 0.08));
     static StockPool BonePile(Rng r, double _) => H("Old Bones", 3, new StockItem(Resource.Bone, 2 + r.NextInt(4), 0.2));
@@ -603,8 +700,9 @@ public static class Pools
 
     // ---- discovery: the agent's knowledge, not the tile's ----
 
-    /// Whether this pool needs finding before it can be worked: stock pools are hidden, forage and timber are plain to see.
-    public static bool IsHidden(PoolDef def) => def is StockPool;
+    /// Whether this pool needs finding before it can be worked: forage, timber and a named site's
+    /// stock in plain sight (RevealAtHours 0) are there to see; every other stock is hidden.
+    public static bool IsHidden(PoolDef def) => def is StockPool { RevealAtHours: > 0 };
 
     public static bool Knows(World world, AgentId who, PoolId id) =>
         !IsHidden(Def(world, id)) || (world.Agent(who).Mind as PersonMind)?.Knows.Discovered.Contains(id) == true;
@@ -617,7 +715,8 @@ public static class Pools
         var pools = At(world, agent.Tile);
         for (int i = 0; i < pools.Count; i++)
         {
-            if (pools[i] is not StockPool stock) continue;
+            if (!IsHidden(pools[i])) continue;
+            var stock = (StockPool)pools[i];
             var id = new PoolId(agent.Tile, i);
             if (mind.Knows.Discovered.Contains(id)) continue;
             double hours = mind.Knows.SearchHours.GetValueOrDefault(id)
