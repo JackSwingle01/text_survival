@@ -29,7 +29,7 @@ public class NpcTierTests(ITestOutputHelper output)
     [InlineData(97.6, false, 30.0, Tier.None)]
     [InlineData(95.0, false, 30.0, Tier.Critical)]
     public void Warmth(double coreF, bool seeing, double fuelHours, Tier tier) =>
-        Assert.Equal(tier, Npc.WarmthTier(coreF, seeing, fuelHours, tonightHours: 16));
+        Assert.Equal(tier, Tiers.WarmthTier(coreF, seeing, fuelHours, tonightHours: 16));
 
     [Theory]
     [InlineData(0.15, false, 3.0, 2.0, Tier.Critical)]
@@ -39,7 +39,7 @@ public class NpcTierTests(ITestOutputHelper output)
     [InlineData(0.80, false, 1.0, 2.0, Tier.Want)]
     [InlineData(0.55, false, 0.0, 18.0, Tier.Need)] // nothing to hand and the evening's loss takes it to the line
     public void Water(double hydrationPct, bool seeing, double toHandL, double hoursLeft, Tier tier) =>
-        Assert.Equal(tier, Npc.WaterTier(hydrationPct, seeing, toHandL, hoursLeft));
+        Assert.Equal(tier, Tiers.WaterTier(hydrationPct, seeing, toHandL, hoursLeft));
 
     [Theory]
     [InlineData(0.10, false, Tier.Critical)]
@@ -47,24 +47,24 @@ public class NpcTierTests(ITestOutputHelper output)
     [InlineData(0.40, true, Tier.Need)]
     [InlineData(0.40, false, Tier.Want)]
     [InlineData(0.90, false, Tier.None)]
-    public void Rest(double energyPct, bool seeing, Tier tier) => Assert.Equal(tier, Npc.RestTier(energyPct, seeing));
+    public void Rest(double energyPct, bool seeing, Tier tier) => Assert.Equal(tier, Tiers.RestTier(energyPct, seeing));
 
     [Fact]
     public void Food_UnderTheFloorIsNeed_StarvingIsCritical()
     {
         var b = BodyState.BaselineHuman();
         double target = b.FatKg;
-        Assert.Equal(Tier.Want, Npc.FoodTier(b, target, false, foodToHand: true));
+        Assert.Equal(Tier.Want, Tiers.FoodTier(b, target, false, foodToHand: true));
         b.CaloriesKcal = 0;
-        Assert.Equal(Tier.Need, Npc.FoodTier(b, target, false, foodToHand: false)); // stomach empty, nothing for today
+        Assert.Equal(Tier.Need, Tiers.FoodTier(b, target, false, foodToHand: false)); // stomach empty, nothing for today
         b.CaloriesKcal = 1500;
         b.FatKg = 0.09 * b.WeightKg; // under the 10% floor: weeks of reserve, Need
-        Assert.Equal(Tier.Need, Npc.FoodTier(b, b.FatKg, false, foodToHand: true));
+        Assert.Equal(Tier.Need, Tiers.FoodTier(b, b.FatKg, false, foodToHand: true));
         b.FatKg = 0.025 * b.WeightKg; // the body's own floor, 3% of what it weighs now
-        Assert.Equal(Tier.Need, Npc.FoodTier(b, b.FatKg, false, foodToHand: true)); // still something in the stomach
+        Assert.Equal(Tier.Need, Tiers.FoodTier(b, b.FatKg, false, foodToHand: true)); // still something in the stomach
         b.CaloriesKcal = 0;
-        Assert.True(Npc.Starving(b));
-        Assert.Equal(Tier.Critical, Npc.FoodTier(b, b.FatKg, false, foodToHand: true));
+        Assert.True(Tiers.Starving(b));
+        Assert.Equal(Tier.Critical, Tiers.FoodTier(b, b.FatKg, false, foodToHand: true));
     }
 
     // ---- the tier rule in the decision (acceptance 4) ----

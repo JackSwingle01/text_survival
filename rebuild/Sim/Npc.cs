@@ -1,14 +1,7 @@
 using Plan = (Survival.Activity Activity, int Minutes);
+using static Survival.Tiers;
 
 namespace Survival;
-
-/// One of the four things a person must keep up (GLOSSARY: Stat). Ordered as the hierarchy that ranks
-/// stats within a tier: warmth, then water, then food, then rest.
-public enum Stat { Warmth, Water, Food, Rest }
-
-/// How urgent a stat is right now (GLOSSARY: Tier), least urgent first: a later tier outranks an earlier one.
-/// None is a stat with nothing to do about it, not even topping up.
-public enum Tier { None, Want, Need, Critical }
 
 /// An NPC's own state. Everything it acts on is in the same pack and knowledge the player has.
 public sealed partial record NpcMind
@@ -204,61 +197,7 @@ public static partial class Npc
         return me.Commit(me.AtCamp ? (new Rest(agent.Id), 30) : GoHome(me) ?? (new Rest(agent.Id), 30));
     }
 
-    // ---- the tiers: one small function per stat (GLOSSARY: Tier; decision record 2026-11-21-stat-tiers) ----
-
-    /// Warmth: the core's tier (CoreTier), or by day, a warm core short of wood: Need while the camp has less than
-    /// tonight takes (to dawn and a morning fire), Want while it has less than that and a spare half-day. Tonight's
-    /// fuel is warmth, not a stockpile: a night without it kills.
-    internal static Tier WarmthTier(double coreAtHomeF, bool seeingTo, double fuelHours, double tonightHours)
-    {
-        var core = CoreTier(coreAtHomeF, seeingTo);
-        if (core > Tier.None) return core;
-        if (fuelHours < tonightHours) return Tier.Need;
-        return fuelHours < tonightHours + SpareFireHours ? Tier.Want : Tier.None;
-    }
-
-    /// The core's part of warmth, judged by the core it will have at home: Critical at the hypothermia line, where
-    /// cold damage starts; Need under the need line, and while seeing to it, until back over WarmAgainCoreF.
-    internal static Tier CoreTier(double coreAtHomeF, bool seeingTo) =>
-        coreAtHomeF <= HypothermiaCoreF ? Tier.Critical
-        : coreAtHomeF < WarmNeedCoreF || seeingTo && coreAtHomeF < WarmAgainCoreF ? Tier.Need
-        : Tier.None;
-
-    /// Water: Critical at WaterCriticalPct; Need under WaterNeedPct (held to WaterAgainPct while seeing to it), or
-    /// with no water to hand and the rest of the day's loss taking it to the critical line; Want with less than a
-    /// day's water to hand.
-    internal static Tier WaterTier(double hydrationPct, bool seeingTo, double toHandL, double hoursLeftToday)
-    {
-        if (hydrationPct <= WaterCriticalPct) return Tier.Critical;
-        if (hydrationPct < WaterNeedPct || seeingTo && hydrationPct < WaterAgainPct) return Tier.Need;
-        double dayLossPct = Body.BaseWaterLossMlPerDay * hoursLeftToday / 24 / Body.MaxHydrationMl;
-        if (toHandL < 0.1 && hydrationPct - dayLossPct <= WaterCriticalPct) return Tier.Need;
-        return toHandL < Body.BaseWaterLossMlPerDay / 1000 ? Tier.Want : Tier.None;
-    }
-
-    /// Food: Critical only starving (Starving: the fat is down to what the body will burn and the muscle is going);
-    /// Need with the fat short of the target it is used to, or under the floor (held to SatisfiedShortfallKg while
-    /// seeing to it), or with the stomach low and no food to hand; otherwise Want, a stockpile. Fat under the floor
-    /// is Need, not Critical: at the floor a person holds weeks of reserve.
-    internal static Tier FoodTier(BodyState body, double targetFatKg, bool seeingTo, bool foodToHand)
-    {
-        if (Starving(body)) return Tier.Critical;
-        double shortfallKg = targetFatKg - body.FatKg;
-        if (body.FatKg < FatFloorKg(body) || shortfallKg >= WantedShortfallKg || seeingTo && shortfallKg > SatisfiedShortfallKg) return Tier.Need;
-        return body.CaloriesPct < HungryPct && !foodToHand ? Tier.Need : Tier.Want;
-    }
-
-    /// Rest: Critical at RestCriticalPct (collapse); Need under RestNeedPct (held to RestAgainPct while seeing to it);
-    /// Want short of RestedPct, topped up at night (Night).
-    internal static Tier RestTier(double energyPct, bool seeingTo) =>
-        energyPct <= RestCriticalPct ? Tier.Critical
-        : energyPct < RestNeedPct || seeingTo && energyPct < RestAgainPct ? Tier.Need
-        : energyPct < RestedPct ? Tier.Want : Tier.None;
-
-    /// Starving: the fat down to what the body will burn (ProcessStarvation's floor, StarvingFatPct) with nothing in
-    /// the stomach, so the muscle is what burns.
-    internal static bool Starving(BodyState body) =>
-        body.CaloriesKcal <= 0 && body.FatKg <= StarvingFatPct * body.WeightKg + StarvingMarginKg;
+    // ---- the tiers: Tiers, shared with the player; the hysteresis (SeeingTo, Satisfied) is the NPC's own ----
 
     /// The stat being seen to is back over its satisfied line (Decide's hysteresis).
     static bool Satisfied(Me me, Stat stat) => stat switch
@@ -269,8 +208,6 @@ public static partial class Npc
         _ => me.Agent.Body.EnergyPct >= RestAgainPct,
     };
 
-    /// Where an option stands: its tier first, then its place in the hierarchy (Stat's order).
-    static double Rank(Tier tier, double place) => tier == Tier.None ? 0 : (int)tier * 10 - place;
     /// A threat at hand: its own band, over every tier.
     const double ThreatRank = 100;
     /// The evening: in the Need tier, after warmth and water, before food and rest.
@@ -298,29 +235,27 @@ public static partial class Npc
     const double MinLightChance = 0.2;
     /// Warmth's lines (CoreTier): Critical at the hypothermia line, where cold damage starts (any chance of a fire
     /// beats none); Need under 97.5F; warm again over WarmAgainCoreF.
-    const double HypothermiaCoreF = Body.HypothermiaThresholdF, WarmNeedCoreF = 97.5, WarmAgainCoreF = 97.8;
+    const double HypothermiaCoreF = Tiers.HypothermiaCoreF, WarmNeedCoreF = Tiers.WarmNeedCoreF, WarmAgainCoreF = Tiers.WarmAgainCoreF;
     const double DesperateLightChance = 0.02;
     /// Water's lines (WaterTier), as fractions of a full body.
-    const double WaterCriticalPct = 0.15, WaterNeedPct = 0.5, WaterAgainPct = 0.9;
+    const double WaterCriticalPct = Tiers.WaterCriticalPct, WaterNeedPct = Tiers.WaterNeedPct, WaterAgainPct = Tiers.WaterAgainPct;
     /// Rest's lines (RestTier).
-    const double RestCriticalPct = 0.1, RestNeedPct = 0.3, RestAgainPct = 0.5, RestedPct = 0.8;
+    const double RestCriticalPct = Tiers.RestCriticalPct, RestNeedPct = Tiers.RestNeedPct, RestAgainPct = Tiers.RestAgainPct, RestedPct = Tiers.RestedPct;
     /// Wanting to be warm, any strike is worth the tinder but one at the 5% floor.
     const double WantedLightChance = 0.06;
     /// Raw meat is eaten raw below this.
     const double RawMeatFatPct = 0.06;
     /// Below this the body starts paying for leanness (Body.Speed, Body.ColdResistance); TargetFatKg never goes under it.
-    public const double FatFloorPct = 0.10;
-    /// The fat the body burns down to before it burns muscle (BodySurvival's MinFatPct), and how close to it counts.
-    const double StarvingFatPct = 0.03, StarvingMarginKg = 0.05;
+    public const double FatFloorPct = Tiers.FatFloorPct;
     public const double TargetFatHalfLifeDays = 3;
     /// Food's lines (FoodTier): fat short of its target by WantedShortfallKg is Need, held to SatisfiedShortfallKg.
     /// CriticalShortfallKg is where a hunt's danger stops counting against it (HuntKcalPerHour).
-    const double WantedShortfallKg = 0.3, CriticalShortfallKg = 1.0, SatisfiedShortfallKg = 0.1;
+    const double WantedShortfallKg = Tiers.WantedShortfallKg, CriticalShortfallKg = 1.0, SatisfiedShortfallKg = Tiers.SatisfiedShortfallKg;
     /// The stomach store below which it eats what it carries.
-    const double HungryPct = 0.3;
+    const double HungryPct = Tiers.HungryPct;
     /// Wood in before dark: enough to burn until dawn plus a morning fire, then a spare half-day
     /// (old FuelStockpileTargetKg was 40 kg; 30 here before these were hours).
-    const double MorningFireHours = 2, SpareFireHours = 12;
+    const double MorningFireHours = 2, SpareFireHours = Tiers.SpareFireHours;
     /// Fuel at camp below this, a cold NPC by its fire goes for wood rather than wait on the fire.
     const double LowFuelHours = 4;
     /// On the fire before sleeping: near a full open pit, a night of birch.
@@ -400,8 +335,6 @@ public static partial class Npc
             return plan;
         }
     }
-
-    static double FatFloorKg(BodyState b) => FatFloorPct * b.WeightKg;
 
     // ---- the plans: each returns an activity, or null when it can do nothing about its need ----
 
