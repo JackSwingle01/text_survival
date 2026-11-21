@@ -47,6 +47,16 @@ prey it would run from alone. Forage numbers and the daily schedule are unchange
 all still die; mean death day 33.4 -> 34.8, median 34.2 -> 36.2, worst 5.0 -> 26.5, best 52.0 -> 40.0. Most deaths
 are still fat at or under the 10% floor, then cold.
 
+**Update 2026-11-21 (review of the trip budget, fourth round):** competence fixes, no balance. A far-out NPC makes camp
+where it stands only beyond two tiles, carrying a fire's makings, the walk home reckoned along the path, and never while
+camp has a fire, embers or a shelter unless too spent to get there (`Npc.Stranded`); walks to makings are warming walks,
+judged by the legs and a lethal core line rather than the trip budget, and from a camp with no fire the walk to the trees
+is too (`Npc.WarmingWalk`, `Afford(warming)`); a full pack no longer stops it taking tinder off its own stash; a lone NPC
+hunts by species role and never a mammoth (`Npc.WouldHunt`). Forage numbers and the daily schedule are unchanged. 60 days
+on the 16 review seeds: mean death day 35.2 -> 42.0, median 36.8 -> 37.7, worst 26.5 -> 29.7, one survivor (2025). No NPC
+hunts at all (no caribou herd comes within the 3 tiles it looks). Most deaths are now the deferred day: food critical
+pre-empts wood, the camp runs out and a cold morning finds it groping a worked-out tile (seeds 7, 11).
+
 ## To review
 
 1. **Focus gain size.** At 1.3 a focused forest forager ends about -0.04 kg/day. At 1.5 about

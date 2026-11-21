@@ -54,8 +54,9 @@ public sealed record TreeRow(string Name, double MinutesToFell);
 
 /// What a felled tree gives (Content/terrain.json felling), wherever it stood: a count of logs of
 /// its wood, each about LogKg (within LogKgSpreadPct either way), some sticks and pinches of tinder.
-/// A mixed stand's tree is one wood, drawn by MixedWood's shares in order. Pools.Chop rolls it;
-/// Report reckons its middle.
+/// A mixed stand's tree is one wood, drawn by MixedWood's shares in Resource order (Pine, Birch, Oak) -
+/// the loader reads keyed tables in enum order, whatever order the file lists them in. Pools.Chop rolls
+/// it; Report reckons its middle.
 public sealed record Felling(Pieces Logs, IReadOnlyDictionary<Resource, double> LogKg, double LogKgSpreadPct,
     IReadOnlyList<(Resource Wood, double Share)> MixedWood, Pieces Kindling, Pieces Tinder)
 {

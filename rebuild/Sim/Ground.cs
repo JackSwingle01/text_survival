@@ -44,7 +44,6 @@ public sealed class GroundState
 
 /// The ground under a tile before anything falls on it (Content/terrain.json substrates). Derived from terrain, never saved.
 public sealed record SubstrateProfile(
-    string Name,
     double ThicknessM,
     double PoreCapacityPct,
     double PermeabilityMPerMinute,

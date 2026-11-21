@@ -80,30 +80,37 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   and off camp, snow and mud included (`Npc.MinutesOff`: felt underfoot, and camp's ground is the ground it lives on),
   and the weather overhead (felt, not seen); herds within 1-3 tiles (the sight-rays entry above).
   Upgrade: route the first two through `Beliefs` once fog of war means a person can not know the ground.
-- `Npc.cs:837` - every NPC trip and every stint of work away from camp is held to one budget (`Npc.Afford`: home
+- `Npc.cs:957` - every NPC trip and every stint of work away from camp is held to one budget (`Npc.Afford`: home
   warm enough, rested enough, by the home-by hour), but it is reckoned by its walking chill where it stands
   (`WalkingCoolingFPerHour`, work counted as walking, the clothes' stored heat in, a straight line from the rate
   now) and a walk of the first crossing off its own tile, the rest at the going off camp (`Npc.WalkMinutes`), not
   along the path. Rough ground between camp and the goal is only found on the way, so now and then a forage trip
-  set out on is given up one tile out (seed 17: once in 16 days). Upgrade: reckon time and chill along the path.
-- `Npc.cs:442` - `HuntKcalPerHour` uses a fixed 40% kill chance for any species and caps meat at pack room. Short
-  of starving, prey it would run from by `FightOrFlight`'s sizes is left alone (`Npc.Outsizes`) - which by those
-  sizes (vitality x weight / 30 kg against its vitality, doubled armed) includes a caribou, so an NPC hunts nothing
-  bigger than a rabbit until food is critical. Starving, it still takes on a mammoth herd (seed 123 dies on day 34.9
-  in one, FightEnded Defeat, at 6.9 kg fat). Upgrade: with NPC hunting (`rebuild-npc-hunting.md`), a kill-odds
-  estimate from the combat model in place of both.
-- `Npc.cs:368` (`ColdBed`) - beside a cold pit with nothing to light it, an NPC sleeps a full stretch only if the
-  cold will not take its core under the freezing line, but it reckons that from the weather now: seed 11 (day 30)
-  lay down at 00:46 judging 120 minutes safe, a cold rain front came through 25 minutes later (14.8 to 8.4 C, wet
-  0.6 to 1.0, -0.9 to -4.5 F/h asleep) and it slept through it, core 96.4 to 91.7, dead by 04:30. Awake it cooled
-  at -3.1 F/h too, so only fire or shelter would have saved it. Two causes upstream: `Npc.cs:915` `Stranded` moved its
-  camp one tile (3,38 to 3,39, day 29 14:41) off its own overhang and a stash of 4.5 kg tinder and 17 kg wood, because
-  its core (95.7) was already under the freezing line though the 77-minute walk home would have warmed it; and the
-  trip budget (`Afford`) refuses every walk, even one tile back to those makings, while the core is under wanted
-  warmth or energy under wanted rest - which is exactly when `ColdBed` needs it. Upgrade: `Stranded` by cold only
-  when the walk home cools it (`CoreAfterF(walk) < Min(FreezingCoreF, core now)`); a one-way move of home judged by
-  arriving (energy for the walk, the walk not colder than staying) rather than the round-trip budget; wake from a
-  fireless sleep when the weather turns (re-decide hourly).
+  set out on is given up one tile out (seed 17: once in 16 days). Only `Stranded` and the one-way warming walks
+  (`Npc.WarmingWalk`, to makings) go by the path (`Npc.RouteMinutes`, `Npc.cs:1177`). Upgrade: reckon every trip's
+  time and chill along the path (one BFS per candidate tile, so cache routes per decision first).
+- `Npc.cs:285` (`Warm`) - cold beside a small fire with no wood, tired, by day: the trip budget refuses the walk for
+  wood while its core is under the wanted line (the walk home would bring it home colder than it wants), so it keeps
+  the fire fed by groping the camp ground fifteen minutes at a time (seed 17 scenario: core 96.7 to 95.8 over four
+  hours, energy 0.35 to 0.10). The wood plan's half-hour fallback no longer stands in for the walk, but the outcome
+  over those hours is about the same. Upgrade: weigh the walk for wood against what staying costs (the fire's hours
+  left against the trip's), rather than against the wanted line alone; or warm first at a fire built up from the
+  reserve, then go.
+- `Npc.cs:517`, `Npc.cs:533` - `HuntKcalPerHour` uses a fixed 40% kill chance for any species and caps meat at pack
+  room; which herds a lone NPC takes on is by species role (`Npc.WouldHunt`: fleeing prey whenever food is wanted,
+  dangerous prey only starving, nothing over 2 t alone), not by odds. And it only looks 3 tiles out: on the 16 review
+  seeds no caribou herd ever comes that close (nearest 26-132 tiles over 30 days on seeds 17, 42, 123, 5), so in 60
+  days no NPC hunts at all. Upgrade: with NPC hunting (`rebuild-npc-hunting.md`), a kill-odds estimate from the
+  combat model, and tracking or remembered herds (`Sighting`s) to reach them.
+- `Npc.cs:389` (`ColdBed`) - beside a cold pit with nothing to light it, an NPC sleeps a full stretch only if the
+  cold will not take its core under the freezing line, but it reckons that from the weather now: seed 11 (day 30,
+  before round four) lay down at 00:46 judging 120 minutes safe, a cold rain front came through 25 minutes later and
+  it slept through it, core 96.4 to 91.7. Its two upstream causes are fixed (`Stranded` no longer moves camp a tile
+  from its own fire and shelter; the walk back to makings is a warming walk, not held to the trip budget). Upgrade:
+  wake from a fireless sleep when the weather turns (re-decide hourly).
+- `Npc.cs:957` - a warming walk (to makings, or from a camp with no fire to the trees) is judged against a lethal core
+  line (`LethalCoreF` 93.5) and the energy the walk takes, not the critical lines (`FreezingCoreF`, `RestCriticalPct`)
+  the review suggested: seed 11's state is at the critical rest line exactly (0.10), and an NPC already under the
+  freezing line by a dead camp is the one most in need of the walk. Revisit with playtests.
 - `Knowledge.cs:315` - a carcass going (butchered away) is not a notable journal entry: `Butchered` is a step's tally and
   is not filed. Upgrade: a once-only `CarcassGone` event when one leaves its tile.
 - `Content/accidents.json` (Sprains) - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.

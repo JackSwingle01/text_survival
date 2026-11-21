@@ -87,8 +87,6 @@ public class ContentStrictTests
     // Role and herd life agree: a caribou herd does not hunt as a pack.
     [InlineData("species.json", "\"temperament\": \"never\", \"behavior\": \"Prey\", \"diet\": \"Browser\"", "\"temperament\": \"never\", \"behavior\": \"Pack\", \"diet\": \"Browser\"", "species.json Caribou: role Prey does not live as a Pack herd")]
     [InlineData("species.json", "\"role\": \"Predator\"", "\"role\": \"Scavenger\"", "species.json Wolf: role Scavenger does not live as a Pack herd")]
-    // A substrate is named by its key: one that says otherwise is a copied row.
-    [InlineData("terrain.json", "\"loam\": { \"name\": \"loam\"", "\"loam\": { \"name\": \"peat\"", "substrates loam: name 'peat' is not its key")]
     public void Loader_RefusesAValueOutOfRange_OrRowsThatDisagree(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
 

@@ -294,9 +294,8 @@ public class NpcTests(ITestOutputHelper output)
         Assert.Equal(camp, Map.Step(wood, home.Dir));
     }
 
-    /// Starving, with wood enough at camp and a caribou on its tile in daylight: it goes after it. (Merely
-    /// wanting food, it leaves anything it would run from alone - by FightOrFlight's sizes a caribou is
-    /// one, 120 kg against an armed person: see WantingFood_LeavesAMammothHerdAlone.)
+    /// Starving, with wood enough at camp and a caribou on its tile in daylight: it goes after it. (Which herds
+    /// it takes on, wanting food or starving: NpcWarmingWalkTests.WhichHerdsALoneNpcHunts.)
     [Fact]
     public void HungryWithPreyHere_Hunts()
     {
@@ -477,6 +476,8 @@ public class NpcTests(ITestOutputHelper output)
     /// groped the bare camp ground for sticks (bug, fixed). By day it goes for wood while the fire lasts:
     /// once warm enough to come home warm (the trip budget), not while it still wants warming, when a
     /// walk out would bring it home colder than it wants to be (seed 7, day 22: out at 98.1, home at 93.4).
+    /// Then it warms at the fire, not groping the camp ground (old, this rebuild: the wood plan's fallback,
+    /// half an hour's fuel forage here, was taken for the walk it could not make).
     [Theory]
     [InlineData(97.6, true)]
     [InlineData(96.5, false)]
@@ -494,7 +495,7 @@ public class NpcTests(ITestOutputHelper output)
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a}");
         if (goes) Assert.True(a is Travel or Gather { Focus: not ForageFocus.Food } && a is not Gather { Pool: 0 }, $"chose {a}");
-        else Assert.IsNotType<Travel>(a);
+        else Assert.True(a is Rest or MeltSnow or Cook, $"chose {a}, not warming at the fire");
     }
 
     /// Old: freezing and parched, it fussed with its fire and died of thirst carrying three litres
@@ -714,7 +715,7 @@ public class NpcTests(ITestOutputHelper output)
     {
         var (w, npc, _) = ForagerAtCamp(At(0, 11));
         var mind = (NpcMind)w.Agent(npc).Mind;
-        w.Agent(npc).Body.FatKg = mind.TargetFatKg - 1.5; // starving: a caribou outsizes it (Npc.Outsizes), so only then does it hunt one
+        w.Agent(npc).Body.FatKg = mind.TargetFatKg - 1.5; // well short of fat: a caribou is worth a stalk (Npc.WouldHunt)
         var camp = mind.Camp;
         var next = MapGen.Neighbors(camp).Where(t => Map.Of(w).TerrainAt(t).IsPassable() && Map.Blocked(Map.Of(w), camp, t) == null).OrderBy(t => t).First();
         Agents.Spawn(w, Species.Caribou, next, 3);

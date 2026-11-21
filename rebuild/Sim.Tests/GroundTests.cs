@@ -274,6 +274,13 @@ public class GroundTests
 
     static string R(double d) => d.ToString("R", CultureInfo.InvariantCulture);
 
+    /// The substrates the golden script runs, by the names its tags carry (the old harness's profile names).
+    static readonly (string Name, SubstrateProfile Sub)[] GoldenSubstrates =
+    [
+        ("loam", SubstrateProfile.Loam), ("forestFloor", SubstrateProfile.ForestFloor), ("slope", SubstrateProfile.Slope),
+        ("rock", SubstrateProfile.Rock), ("peat", SubstrateProfile.Peat), ("iceSheet", SubstrateProfile.IceSheet),
+    ];
+
     static string Dump(string tag, GroundState g, SubstrateProfile sub)
     {
         var layers = string.Join(";", g.Layers.Select(l => $"{l.Material}:{R(l.ThicknessM)}:{R(l.CompactionPct)}:{R(l.WaterSaturationPct)}:{R(l.FrozenFractionPct)}"));
@@ -304,12 +311,12 @@ public class GroundTests
             Run(g, Loam, 2 * 1440, snow, pm); lines.Add(Dump($"{mode}-seq-snow", g, Loam));
             Run(g, Loam, 2 * 1440, thaw, pm); lines.Add(Dump($"{mode}-seq-thaw", g, Loam));
             Run(g, Loam, 1440, freeze, pm); lines.Add(Dump($"{mode}-seq-freeze", g, Loam));
-            foreach (var sub in new[] { SubstrateProfile.Loam, SubstrateProfile.ForestFloor, SubstrateProfile.Slope, SubstrateProfile.Rock, SubstrateProfile.Peat, SubstrateProfile.IceSheet })
+            foreach (var (name, sub) in GoldenSubstrates)
             {
                 var r = Ground.Baseline(sub, 0);
-                Run(r, sub, 1440, rain, pm); lines.Add(Dump($"{mode}-rain-{sub.Name}", r, sub));
-                Run(r, sub, 2 * 1440, dry, pm); lines.Add(Dump($"{mode}-dry-{sub.Name}", r, sub));
-                Run(r, sub, 720, freeze, pm); lines.Add(Dump($"{mode}-frz-{sub.Name}", r, sub));
+                Run(r, sub, 1440, rain, pm); lines.Add(Dump($"{mode}-rain-{name}", r, sub));
+                Run(r, sub, 2 * 1440, dry, pm); lines.Add(Dump($"{mode}-dry-{name}", r, sub));
+                Run(r, sub, 720, freeze, pm); lines.Add(Dump($"{mode}-frz-{name}", r, sub));
             }
         }
         var c = Ground.Baseline(Loam, 0);
@@ -360,8 +367,7 @@ public class GroundTests
             string tag = line.Split('|')[0];
             var sub = tag.Contains("seq") || tag == "compact" ? Loam
                 : tag is "flooded" or "glazed" ? SubstrateProfile.Peat
-                : new[] { SubstrateProfile.Loam, SubstrateProfile.ForestFloor, SubstrateProfile.Slope, SubstrateProfile.Rock, SubstrateProfile.Peat, SubstrateProfile.IceSheet }
-                    .Single(s => tag.EndsWith("-" + s.Name));
+                : GoldenSubstrates.Single(s => tag.EndsWith("-" + s.Name)).Sub;
             var fields = line.Split('|');
             var state = new GroundState
             {

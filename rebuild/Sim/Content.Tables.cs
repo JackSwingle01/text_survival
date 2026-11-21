@@ -431,8 +431,6 @@ public static partial class Content
             if (ForageRefProblem(r.Forage, forage) is string fb) yield return $"terrain.json caves {c}: {fb}";
         }
         foreach (var (name, s) in f.Substrates)
-            if (s.Name != name) yield return $"terrain.json substrates {name}: name '{s.Name}' is not its key";
-        foreach (var (name, s) in f.Substrates)
             if (s.ThicknessM <= 0 || new[] { s.PoreCapacityPct, s.RetentionPct, s.InitialSaturationPct, s.SoftnessLevel }.Any(v => v is < 0 or > 1)
                 || new[] { s.PermeabilityMPerMinute, s.DrainagePerMinute, s.RunoffPerMinute }.Any(v => v < 0))
                 yield return $"terrain.json substrates {name}: out of range";

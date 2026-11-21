@@ -114,8 +114,9 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         Assert.Equal(0, nightFar);
     }
 
-    /// Out of reach of home - too spent to walk it - it makes camp where it stands, and the fire there,
-    /// rather than gather fuel for a camp it cannot get to.
+    /// Out of reach of home - too spent to walk it - and carrying the makings of a fire, it makes camp where it
+    /// stands, and the fire there, rather than gather fuel for a camp it cannot get to. (Without fuel enough to keep
+    /// a fire it walks on: NpcWarmingWalkTests.FarOutAndCold_NothingToBurn_DoesNotMakeCampThere.)
     [Fact]
     public void TooSpentToWalkHome_MakesCampWhereItIs()
     {
@@ -123,6 +124,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var camp = Map.Of(w0).Camp;
         var far = Enumerable.Range(12, 10).Select(d => new TileId(camp.X + d, camp.Y)).First(t => Map.Of(w0).TerrainAt(t).IsPassable());
         var (w, npc, mind) = Setup(5, Mild, At(2, 15), far, camp);
+        Items.Add(mind.Pack, Resource.Birch, 4);
         var body = w.Agent(npc).Body;
         body.EnergyMinutes = 0.05 * Body.MaxEnergyMinutes;
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
@@ -202,10 +204,11 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
     // ---- 5. hunting what it would run from ----
 
     /// Seed 123, day 5: a lone NPC with an axe, food only wanted (fat 10.7 kg), started a hunt on a mammoth
-    /// herd and died in it. Short of starving, it leaves prey it would run from (FightOrFlight's sizes) alone.
+    /// herd and died in it; and on day 34.9, starving, again. A lone NPC never takes on a mammoth herd
+    /// (Npc.WouldHunt; the other species in NpcWarmingWalkTests.WhichHerdsALoneNpcHunts).
     [Theory]
     [InlineData(0.5, false)]
-    [InlineData(1.5, true)]
+    [InlineData(1.5, false)]
     public void WantingFood_LeavesAMammothHerdAlone(double shortKg, bool hunts)
     {
         var (w, npc, mind) = Setup(17, Mild, At(0, 11));
