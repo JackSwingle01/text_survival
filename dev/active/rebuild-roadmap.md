@@ -96,3 +96,18 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   muscle; hypothermia harms below about 95 °F core and kills around 82 °F, within hours.
 - Effects disable but never kill directly. Only tissue and blood decide life, and death is named
   after the damage that crossed the line.
+
+**Fire (round 2)**
+- Each fuel burns per kilogram at its own rate, sped up by fire temperature: tinder flashes,
+  oak smoulders, a mix burns between. Constants are calibrated so a typical single-fuel fire keeps
+  today's burn time. A waiting log catches from the hottest burning fuel, not the mean.
+- UI: the fire's time remaining shows as one bar, shaded by fuel.
+
+**Long actions and being noticed (round 2)**
+- Long actions stop when you notice a predator you didn't know about, or when a known one comes
+  within 3 tiles. Asleep, a predator within 3 tiles may wake you (noise, hearing, vigilance).
+  Nothing refuses to start.
+- Guard against random deaths: a predator notices a person through what they give off. That means
+  moving and working noise, scent (blood, bleeding, meat carried or stashed, a carcass), and the
+  fire's light. A healthy, clean sleeper gives off almost nothing. A death in your sleep should
+  need a cause you could have read or avoided.
