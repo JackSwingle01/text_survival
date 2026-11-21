@@ -204,12 +204,13 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
     // ---- 5. hunting what it would run from ----
 
     /// Seed 123, day 5: a lone NPC with an axe, food only wanted (fat 10.7 kg), started a hunt on a mammoth
-    /// herd and died in it; and on day 34.9, starving, again. A lone NPC never takes on a mammoth herd
-    /// (Npc.WouldHunt; the other species in NpcWarmingWalkTests.WhichHerdsALoneNpcHunts).
+    /// herd and died in it; and on day 34.9, starving, again. A lone NPC never takes on a mammoth herd, wanting
+    /// food (0.5 kg short) or starving (1.5 kg, past CriticalShortfallKg) (Npc.WouldHunt; the other species in
+    /// NpcWarmingWalkTests.WhichHerdsALoneNpcHunts).
     [Theory]
     [InlineData(0.5, false)]
     [InlineData(1.5, false)]
-    public void WantingFood_LeavesAMammothHerdAlone(double shortKg, bool hunts)
+    public void WantingOrStarving_LeavesAMammothHerdAlone(double shortKg, bool hunts)
     {
         var (w, npc, mind) = Setup(17, Mild, At(0, 11));
         var camp = mind.Camp;

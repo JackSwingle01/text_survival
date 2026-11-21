@@ -80,9 +80,10 @@ public class NpcColdBedTests(ITestOutputHelper output)
         var next = Map.Step(camp, dir);
         var stash = new Inventory();
         Items.Add(stash, Resource.Tinder, 2);
+        Items.Add(stash, Resource.Kindling, 1); // tinder and birch alone are not makings: a tinder fire never takes birch
         Items.Add(stash, Resource.Birch, 9);
         (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = stash;
-        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Birch] = 9 } };
+        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 1, [Resource.Birch] = 9 } };
         mind.Need = Need.Rest;
         var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a} for {minutes} min; camp {mind.Camp}");

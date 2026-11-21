@@ -226,6 +226,13 @@ public static partial class Npc
     const double BankKg = 9;
     /// Kept back from the fire so there is always something to light the next one with.
     const double KindlingReserveKg = 0.6;
+    /// Less kindling than this in hand and no pine, a struck tinder has nothing to catch (Light).
+    const double MinLightKindlingKg = 0.1;
+    /// Kept in the pack when it unloads at camp: kindling, and each kind of tinder.
+    const double CarriedKindlingKg = 1.0, CarriedTinderKg = 0.3;
+    /// Tinder it wants in hand, its own or waiting where it is going, setting off for makings away from a stash
+    /// that has more: twenty strikes, when cold hands have the odds down at the floor (FireMakings).
+    const double MakingsWalkTinderKg = 1.0;
     /// A fire burning less than this is still being built: it takes the quickest-catching fuel first.
     const double BuildUpKg = 1.5;
     /// Farther than this, timber is not worth carrying home.
@@ -411,30 +418,65 @@ public static partial class Npc
     /// it can make (WarmingWalk): that place is home once it sets out, so the walk is judged as a walk home is.
     /// Old (this rebuild): held to the whole trip budget, which refuses every walk while the core is under the
     /// wanted line or energy under the rested one - exactly when a cold NPC at a dead camp needs one (seed 11).
+    // The makings are what it will have there: what it carries, what it takes off the stash here first (Provision),
+    // and what it left there. Old (this rebuild): the stash there alone, so it walked off from five kilos of tinder
+    // with 0.2 of its own to a woodpile holding a pinch, struck at the odds' floor until the pinch was gone, and froze
+    // (seed 7, day 29).
     static Plan? FireMakings(Me me, int withinTiles = MaxWoodTiles)
     {
         if (!Starters.Any(t => Items.Tool(me.Pack, t) != null)) return null;
+        var lighting = Woods.Append(Resource.Kindling).Concat(Tinders).ToList();
         // Standing on makings already, lighting is what is wanted, not other makings (old, this rebuild: it walked
         // between two stashes all night, lighting neither - seed 11).
-        if (Makings(Woods.Append(Resource.Kindling).Concat(Tinders).ToDictionary(r => r, r => me.Has(r) + me.Stashed(r)))) return null;
-        var near = me.Mind.Knows.Places.Where(p => p.Key != me.Tile && p.Value.Stash is { } s && Makings(s) && MapGen.Manhattan(p.Key, me.Tile) <= withinTiles)
+        if (Makings(lighting.ToDictionary(r => r, r => me.Has(r) + me.Stashed(r)))) return null;
+        var near = me.Mind.Knows.Places.Where(p => p.Key != me.Tile && p.Value.Stash != null && MapGen.Manhattan(p.Key, me.Tile) <= withinTiles)
             .Select(p => p.Key).OrderBy(t => MapGen.Manhattan(t, me.Tile)).ThenBy(t => t);
         foreach (var t in near)
-            if (WarmingWalk(me, t) is { } go)
-            {
-                me.Commits.Add(() => me.Mind.Camp = t);
-                return go;
-            }
+        {
+            var there = me.Mind.Knows.Places[t].Stash!;
+            var take = Provision(me, there);
+            if (!Makings(lighting.ToDictionary(r => r, r => me.Has(r) + there.GetValueOrDefault(r) + take.Where(x => x.Resource == r).Sum(x => x.Kg)))) continue;
+            if (WarmingWalk(me, t) is not { } go) continue;
+            // What it takes is taken before it sets out; nothing is kept in mind until it does.
+            if (take.Count > 0 && TakeFromStash(me, take[0].Resource, take[0].Kg) is { } pick) return pick;
+            me.Commits.Add(() => me.Mind.Camp = t);
+            return go;
+        }
         return null;
     }
 
-    /// Tinder to light a fire and MorningFireHours of fuel to keep it.
+    /// What it takes off the stash here before walking to makings elsewhere, counting what it carries and what waits
+    /// there: tinder, best first, up to MakingsWalkTinderKg, and kindling up to what it carries (CarriedKindlingKg).
+    static List<(Resource Resource, double Kg)> Provision(Me me, IReadOnlyDictionary<Resource, double> there)
+    {
+        var take = new List<(Resource Resource, double Kg)>();
+        double tinder = Tinders.Sum(r => me.Has(r) + there.GetValueOrDefault(r));
+        foreach (var r in Tinders)
+        {
+            double kg = Math.Min(me.Stashed(r), MakingsWalkTinderKg - tinder);
+            if (kg < 0.05) continue;
+            take.Add((r, kg));
+            tinder += kg;
+        }
+        double kindling = Math.Min(me.Stashed(Resource.Kindling), CarriedKindlingKg - me.Has(Resource.Kindling) - there.GetValueOrDefault(Resource.Kindling));
+        if (kindling >= 0.1) take.Add((Resource.Kindling, kindling));
+        return take;
+    }
+
+    /// Tinder to light a fire, something a tinder fire catches to follow it (as Light asks), and MorningFireHours of
+    /// fuel to keep it. Old (this rebuild): tinder and wood of any kind, so tinder and oak counted, and a tinder fire
+    /// never takes oak (review probe P6).
     static bool Makings(IReadOnlyDictionary<Resource, double> s) =>
         (Tinders.Any(r => s.GetValueOrDefault(r) >= 0.05) || s.GetValueOrDefault(Resource.Kindling) >= 0.5)
+        && (s.GetValueOrDefault(Resource.Kindling) >= MinLightKindlingKg || s.GetValueOrDefault(Resource.Pine) > 0)
         && Woods.Append(Resource.Kindling).Sum(r => Fire.FuelHours(r, s.GetValueOrDefault(r))) >= MorningFireHours;
 
     /// Daytime: keep the camp in firewood. Fell a tree, carry it home a load at a time. Warming: the walk to
-    /// the trees leaves a camp with no fire to be had, and is held to the warming lines (Afford).
+    /// the trees leaves a camp with no fire to be had, and is held to the warming lines (Afford); the trees are
+    /// home once it sets out, as makings are (FireMakings), so every plan after the first step - the walk on, a
+    /// rest, the evening - takes it on to where the fire will be made, and work there is work at camp. Old (this
+    /// rebuild): the trip was judged afresh a tile out by the ordinary budget, which refused it, so rest won and
+    /// took it home - 32 walks of one tile and back in five hours, never reaching the trees (review probe P5).
     static Plan? Wood(Me me, bool warming = false)
     {
         double carried = Woods.Sum(me.Has) + me.Has(Resource.Kindling);
@@ -456,9 +498,10 @@ public static partial class Npc
         // with an axe it never used until it froze - seed 5, nearest stand 24 tiles off).
         var home = me.Mind.Camp;
         if (axe && Nearest(me.Mind.Camp, TimberSearchTiles) is TileId stand && MapGen.Manhattan(stand, me.Mind.Camp) > 2) home = stand;
-        if (axe && room && (Nearest(me.Tile, MaxWoodTiles) ?? (home != me.Mind.Camp ? home : null)) is TileId t && Go(me, t, WoodTripWorkMinutes, home, warming) is { } go)
+        if (axe && room && (Nearest(me.Tile, MaxWoodTiles) ?? (home != me.Mind.Camp ? home : null)) is TileId t
+            && (warming ? t : home) is var bound && Go(me, t, WoodTripWorkMinutes, bound, warming) is { } go)
         {
-            if (home != me.Mind.Camp) me.Commits.Add(() => me.Mind.Camp = home);
+            if (bound != me.Mind.Camp) me.Commits.Add(() => me.Mind.Camp = bound);
             return go;
         }
         // No timber known: look for some - past carrying reach, since a stand found there moves the camp - then fallen wood.
@@ -626,6 +669,10 @@ public static partial class Npc
         if (Fire.StartOdds(me.World, me.Agent, tool.Value, tinder.Value).TotalPct < minChance) return null;
         double kindling = Math.Min(0.3, me.Has(Resource.Kindling) - (tinder == Resource.Kindling ? 0.05 : 0));
         if (kindling < 0) return null;
+        // Tinder alone burns out in a minute or two and catches nothing but pine (Content/fire.json): without kindling
+        // or pine to follow it, a strike only spends the tinder. Old (this rebuild): it struck tinder over a camp with
+        // no wood, or over oak a tinder fire never takes, until the tinder was gone (seed 7, day 27; the review's day 29).
+        if (kindling < MinLightKindlingKg && me.Has(Resource.Pine) + me.Stashed(Resource.Pine) <= 0) return null;
         return Try(me, new StartFire(me.Id, tool.Value, tinder.Value, 0.05, kindling), 1);
     }
 
@@ -711,7 +758,7 @@ public static partial class Npc
         foreach (var (r, kg) in me.Pack.Kg)
         {
             double keep = Items.Resources[r].Category is ResourceCategory.Food or ResourceCategory.Water ? kg
-                : r == Resource.Kindling ? 1.0 : Tinders.Contains(r) ? 0.3 : 0;
+                : r == Resource.Kindling ? CarriedKindlingKg : Tinders.Contains(r) ? CarriedTinderKg : 0;
             if (kg - keep > 0.05) return Try(me, new Stash(me.Id, r, kg - keep), 1);
         }
         return null;
@@ -952,8 +999,9 @@ public static partial class Npc
     // Tried: energy budgeted down to critical rest rather than wanted; the 16-seed 60-day mean death day
     // fell from 34.8 to 31.6, seeds 5 and 7 dying out on long walks.
     // Warming: a walk from a camp with no fire to be had, for what will make one (Wood's warming trip). Staying
-    // is colder than going, so it is held to what WarmingWalk asks - home short of lasting harm (LethalCoreF), on
-    // the legs it has - not to the wanted lines, which refuse every walk to an NPC already cold or tired.
+    // is colder than going, so it is held to what WarmingWalk asks - there short of lasting harm (LethalCoreF), with
+    // WarmingReserveMinutes of legs left - not to the wanted lines, which refuse every walk to an NPC already cold
+    // or tired. The trees are home on a warming trip (Wood), so there is no walk back to reckon.
     static int? Afford(Me me, TileId to, int workMinutes, TileId home, double marginF, bool warming = false)
     {
         double spare = BudgetMinutes(me, marginF, warming) - WalkMinutes(me, me.Tile, to) - WalkMinutes(me, to, home);
@@ -966,7 +1014,7 @@ public static partial class Npc
     static double BudgetMinutes(Me me, double marginF, bool warming = false)
     {
         double warm = MinutesUntilCoreF(me, warming ? LethalCoreF : WantedCoreF + marginF);
-        double rested = me.Agent.Body.EnergyMinutes - (warming ? 0 : RestWantedPct) * Body.MaxEnergyMinutes;
+        double rested = me.Agent.Body.EnergyMinutes - (warming ? WarmingReserveMinutes : RestWantedPct * Body.MaxEnergyMinutes);
         double light = me.Weighing > NightScore ? double.PositiveInfinity : HomeMinuteOfDay(me) - Weather.MinuteOfDay(me.World.Minute);
         return Math.Min(warm, Math.Min(rested, light));
     }
@@ -975,14 +1023,18 @@ public static partial class Npc
     internal static bool ForageTripFits(World world, Agent agent, TileId ground) =>
         Afford(new Me(world, agent, (NpcMind)agent.Mind!, []), ground, FoodForageMinutes, ((NpcMind)agent.Mind!).Camp, 0) != null;
 
+    /// For a test: whether the warming trip to these trees (Wood's, the trees home once it sets out) fits the budget from here.
+    internal static bool WarmingTripFits(World world, Agent agent, TileId trees) =>
+        Afford(new Me(world, agent, (NpcMind)agent.Mind!, []), trees, WoodTripWorkMinutes, trees, 0, warming: true) != null;
+
     /// Less work than this is not worth a walk (Afford).
     const int MinWorkMinutes = 15;
 
     /// Out from camp, and the walk home - the way it would really go (RouteMinutes) - would have it spent, or past
     /// lasting harm (LethalCoreF), before it got there, and it carries what it takes to make a fire where it
     /// stands (CanMakeFireHere): then home is here. Never within NeverStrandedTiles of camp, and never while camp
-    /// has a fire burning, embers or a shelter, unless it is too spent to walk there at all: a fire there beats one
-    /// it has yet to make. Old (this rebuild): any walk home of an hour or more, reckoned by every crossing off the
+    /// has a fire burning or in embers (CampHasWarmth), unless it is too spent to walk there at all: a fire there
+    /// beats one it has yet to make. Old (this rebuild): any walk home of an hour or more, reckoned by every crossing off the
     /// tile averaged (63 minutes for a 36-minute step, seed 7) against the critical line, not a lethal one - so it
     /// moved camp a tile from its own roaring fire, shelter and stash, and died making a new one (seeds 1000, 31,
     /// 7, 11: the four earliest deaths, days 26.5-30.8).
@@ -1001,15 +1053,16 @@ public static partial class Npc
     static bool CanMakeFireHere(Me me) =>
         CanLight(me) && Woods.Append(Resource.Kindling).Sum(r => Fire.FuelHours(r, me.Has(r))) >= MorningFireHours;
 
-    /// Whether camp has warmth waiting, as far as the NPC can tell (plan decision 7): a fire burning or in embers -
-    /// as it is, in sight; as last seen, out of it - or a shelter it remembers there.
+    /// Whether camp has a fire waiting, as far as the NPC can tell (plan decision 7): in sight, burning or in embers
+    /// as it is; out of it, the fire it left reckoned burned down since (CampFireHours). A shelter is not warmth
+    /// against a lethal walk: without a fire it only slows the cooling at the end of it. Old (this rebuild): any
+    /// remembered phase but Cold, however long ago, or a remembered shelter, so a fire left roaring two days ago
+    /// sent it ten tiles home through -35 to a cold pit with the makings of a fire on its back (review probe P2b).
     static bool CampHasWarmth(Me me)
     {
-        var mem = me.Mind.Knows.Places.GetValueOrDefault(me.Mind.Camp);
-        bool fire = Sight.InSight(me.World, me.Agent, me.Mind.Camp)
-            ? Fire.CurrentPitAt(me.World, me.Mind.Camp) is { } pit && (Fire.IsActive(pit) || pit.HasEmbers)
-            : mem?.Fire is FirePhase phase && phase != FirePhase.Cold;
-        return fire || mem?.Shelter != null;
+        if (Sight.InSight(me.World, me.Agent, me.Mind.Camp))
+            return Fire.CurrentPitAt(me.World, me.Mind.Camp) is { } pit && (Fire.IsActive(pit) || pit.HasEmbers);
+        return CampFireHours(me, me.Mind.Knows.Places.GetValueOrDefault(me.Mind.Camp)) > 0;
     }
 
     /// The first step of a walk that ends at warmth - home, or makings it will light where it arrives - when it
@@ -1019,9 +1072,15 @@ public static partial class Npc
     static Plan? WarmingWalk(Me me, TileId target)
     {
         if (RouteMinutes(me, target) is not double walk) return null;
-        if (me.Agent.Body.EnergyMinutes < walk || CoreAfterF(me, walk) < LethalCoreF) return null;
+        if (me.Agent.Body.EnergyMinutes < walk + WarmingReserveMinutes || CoreAfterF(me, walk) < LethalCoreF) return null;
         return Step(me, target);
     }
+
+    /// Energy a warming walk keeps in hand on arrival, to strike, stoke or start felling (WarmingWalk, Afford(warming)):
+    /// a walk that ends spent ends with no fire made. Judgment call, under the critical rest line (RestCriticalPct,
+    /// 96 minutes), which would refuse the walk next door to a spent NPC's own makings (seed 11). Old (this rebuild):
+    /// none, harmless while a warming walk lasted one step and live once it carries on to the trees.
+    const double WarmingReserveMinutes = 45;
 
     /// Under this core a walk does lasting harm: past HypothermiaThresholdF (95) the organs are already taking
     /// damage, and here about 0.2 of a condition point an hour, climbing. Judgment call, between that line and

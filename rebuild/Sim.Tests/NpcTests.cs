@@ -881,13 +881,19 @@ public class NpcTests(ITestOutputHelper output)
 
     /// Traced (seed 5): no standing timber within 15 tiles of camp, only deadfall; it had an axe and never
     /// used it, and froze on day 4.8. A camp with no timber in reach is a reason to go and find some and
-    /// move camp to it.
+    /// move camp to it. A kilo of birch bark and two of kindling in the pack: seed 5's grassland gives almost no
+    /// tinder or kindling, and whether the starting pinch lasts until the search finds the stand 24 tiles east is a
+    /// matter of a few strikes - the search and the move are what this pins. (A single trajectory, and a knife-edge
+    /// one: from the starting pack it lived on 9cbe8cc and ran out of tinder on day 4.6 after the Light fix; with
+    /// these, it lives after the fix and dies on 9cbe8cc, as it does there with the birch bark alone, on day 3.9.)
     [Fact]
     public void NoTimberInReach_MovesCampToTimber()
     {
         var w = World.New(5);
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp);
+        Items.Add(((NpcMind)w.Agent(npc).Mind).Pack, Resource.BirchBark, 1);
+        Items.Add(((NpcMind)w.Agent(npc).Mind).Pack, Resource.Kindling, 2);
         NpcDriver.Live(w, npc, 6 * 1440L);
         var mind = (NpcMind)w.Agent(npc).Mind;
         var trees = mind.Knows.Places.Where(p => p.Value.Trees).Select(p => p.Key).ToList();

@@ -101,6 +101,58 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         Assert.NotEqual(far, mind.Camp);
     }
 
+    /// Review probe P2b: ten tiles out at -35 in a strong wind, clothed, core 94.6, carrying the makings of a fire. The
+    /// camp is cold, but it remembers leaving the fire roaring two days ago, with three hours on it (and, in the
+    /// second case, a shelter there). Old (this rebuild): any remembered phase but Cold, or a remembered shelter,
+    /// counted as warmth waiting, so it walked the ten tiles home through -35 to a cold pit. Neither is: the fire
+    /// burned out days ago, and a shelter without one does not stop a lethal walk. It makes camp where it stands and
+    /// has a fire going.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FarOutAndCold_FireRememberedLongAgo_MakesCampAndAFireWhereItStands(bool shelter)
+    {
+        var w = World.New(17);
+        w.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -35, 0.8, 0, 1, WindDirection.North);
+        NoHerds(w);
+        w.Minute = At(2, 11);
+        var camp = Map.Of(w).Camp;
+        var m = Map.Of(w);
+        const int tiles = 10;
+        var far = Enumerable.Range(-tiles, 2 * tiles + 1).Select(dx => new TileId(camp.X + dx, camp.Y + (tiles - Math.Abs(dx))))
+            .First(t => m.InBounds(t) && m.TerrainAt(t).IsPassable() && !Traversal.IsHazardous(w, t));
+        var npc = Npc.Spawn(w, far, camp, boldness: 0.5);
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        var body = w.Agent(npc).Body;
+        body.CoreTempF = 94.6;
+        Items.Add(mind.Pack, Resource.Birch, 4);
+        mind.Knows.Places[camp] = new TileMemory
+        {
+            SeenMinute = w.Minute - 2 * 1440, VisitedMinute = w.Minute - 2 * 1440, Fire = FirePhase.Roaring, FireHours = 3,
+            Shelter = shelter ? "a lean-to" : null,
+        };
+        var (a, _) = Npc.Decide(w, w.Agent(npc), []);
+        output.WriteLine($"shelter {shelter}: {a}, camp {(mind.Camp == far ? "here" : mind.Camp.ToString())}");
+        Assert.Equal(far, mind.Camp);
+        Assert.IsNotType<Travel>(a);
+        bool lit = false;
+        for (int i = 0; i < 120 && !lit && Body.IsAlive(body); i++) lit = Sim.Advance(w, 1).OfType<FireLit>().Any(f => f.Tile == far);
+        Assert.True(lit, "no fire made where it stands within two hours");
+    }
+
+    /// The camp it remembers: a fire seen burning an hour ago with three hours on it still counts as warmth waiting,
+    /// so the far-out NPC walks home to it (the ageing above does not make it strand beside a live fire).
+    [Fact]
+    public void FarOutAndCold_FireLeftAnHourAgo_WalksHome()
+    {
+        var (w, npc, mind, far) = FarOut(BitterDay, campFire: true);
+        mind.Knows.Places[mind.Camp] = new TileMemory { SeenMinute = w.Minute - 60, VisitedMinute = w.Minute - 60, Fire = FirePhase.Roaring, FireHours = 3 };
+        var (a, _) = Npc.Decide(w, w.Agent(npc), []);
+        output.WriteLine($"{a}, camp {mind.Camp}");
+        Assert.NotEqual(far, mind.Camp);
+        Assert.IsType<Travel>(a);
+    }
+
     static (World World, AgentId Npc, NpcMind Mind, TileId Far) FarOut(WeatherSample sky, bool campFire, bool carriesFuel = true, int tiles = 8)
     {
         var w = World.New(17);
@@ -130,7 +182,8 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     /// Seed 11's real state at a dead camp (the reviewer's trace): spent (energy 0.10), core 96.3, a frosty night,
     /// a pinch of tinder too small to strike, and the camp it moved from - tinder and nine kilos of birch on its
     /// stash - next door. The trip budget refused the walk (core under the wanted line, energy under the rested
-    /// one) and it groped the bare camp ground. It goes back to its makings, and home is there.
+    /// one) and it groped the bare camp ground. It goes back to its makings, and home is there. (Kindling on that
+    /// stash since the Light fix: tinder and birch alone are not makings, a tinder fire never takes birch.)
     [Theory]
     [InlineData(0.10, 96.3, false)]
     [InlineData(0.45, 96.5, false)]
@@ -145,9 +198,10 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         var next = Map.Step(camp, dir);
         var stash = new Inventory();
         Items.Add(stash, Resource.Tinder, 2);
+        Items.Add(stash, Resource.Kindling, 1);
         Items.Add(stash, Resource.Birch, 9);
         (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = stash;
-        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Birch] = 9 } };
+        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 1, [Resource.Birch] = 9 } };
         var (a, n) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"energy {energyPct} core {coreF} {(day ? "day" : "night")}: {a} x{n}, camp {mind.Camp}");
         var step = Assert.IsType<Travel>(a);
@@ -159,22 +213,161 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         Assert.True(lit, "no fire lit at the makings within the hour");
     }
 
-    /// By day at a dead camp, tired (energy 0.20, under the rested line every trip wanted) and a little cold, with
-    /// nothing to light and no makings anywhere, but timber three tiles off: the walk to the trees is the warming
-    /// move (felling gives tinder and logs), held to lasting harm and the legs it has, not the trip budget. Old: no
-    /// walk at all, so it groped the camp ground and napped in fifteen-minute stretches.
+    /// Seed 7, day 29 (the reviewer's trace): at a cold camp at night with a hand drill, 0.21 kg of tinder of its own
+    /// and no kindling, 5.33 kg of tinder on the camp's stash but no wood, and a woodpile one tile off - 31 kg of oak,
+    /// kindling, and a pinch of tinder. Makings were judged by the woodpile's stash alone, so it walked off with its
+    /// 0.21, struck at the odds' floor until that was gone, and froze. It takes the camp's tinder (and kindling) for
+    /// the walk first: it reaches the woodpile with a kilo of tinder counting the pinch it remembers there.
     [Fact]
-    public void DeadCamp_Tired_ByDay_WalksToTheTrees()
+    public void WalkToMakings_TakesTheCampsTinderFirst()
     {
-        var (w, npc, mind, camp) = DeadCamp(FrostyDay, At(30, 11), 0.20, 96.5);
+        var (w, npc, mind, camp) = DeadCamp(FrostyNight, At(29, 0, 3), 0.4, 96.3);
+        Items.Add(Items.StashAt(w, camp), Resource.Tinder, 5.33);
+        mind.Pack.Kg[Resource.Tinder] = 0.21;
+        mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 5.3 } };
         var m = Map.Of(w);
-        var tree = Enumerable.Range(-3, 7).Select(dx => new TileId(camp.X + dx, camp.Y + (3 - Math.Abs(dx))))
+        var dir = Enum.GetValues<Direction>().First(d => m.InBounds(Map.Step(camp, d)) && m.TerrainAt(Map.Step(camp, d)).IsPassable()
+                                                          && Traversal.Refusal(w, new Travel(npc, d)) == null);
+        var next = Map.Step(camp, dir);
+        var pile = new Inventory();
+        Items.Add(pile, Resource.Oak, 31);
+        Items.Add(pile, Resource.Kindling, 1.5);
+        Items.Add(pile, Resource.Tinder, 0.05);
+        (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = pile;
+        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 31, [Resource.Kindling] = 1.5, [Resource.Tinder] = 0.1 } };
+        double carried = 0;
+        for (int i = 0; i < 60 && Body.IsAlive(w.Agent(npc).Body); i++)
+        {
+            Sim.Advance(w, 1);
+            if (w.Agent(npc).Tile != next) continue;
+            carried = Items.Have(mind.Pack, Resource.Tinder);
+            break;
+        }
+        output.WriteLine($"reached the woodpile with {carried:0.00} kg of tinder; camp stash has {Items.Have(Items.StashAt(w, camp), Resource.Tinder):0.00} left; camp now {mind.Camp}");
+        Assert.Equal(next, mind.Camp);
+        Assert.True(carried >= 0.85, $"reached the woodpile with only {carried:0.00} kg of tinder");
+    }
+
+    /// By day at a dead camp, tired (under the rested line every trip wanted) and a little cold, with nothing to light
+    /// and no makings anywhere, but timber a few tiles off: the walk to the trees is the warming move (felling gives
+    /// tinder and logs), and it lasts until it gets there. Old (this rebuild, review probe P5): the first step was a
+    /// warming walk, the second was judged by the ordinary budget, which refused it, so rest won and took it home -
+    /// 32 walks of one tile and back in five hours, never reaching the trees, until it lit a fire back at the dead
+    /// camp at last; on a bitter day (probe P4) it died within three hours. The timber it walks to is the nearest
+    /// it knows, a tile off (it sees it from camp), whatever stand further off it is told of. Followed for five hours:
+    /// it reaches standing timber without once turning back to the dead camp, has a fire going there, and is alive.
+    [Theory]
+    [InlineData(false, 0.20, 96.5, 3)]
+    [InlineData(false, 0.45, 96.5, 3)]
+    [InlineData(false, 0.20, 96.5, 6)]
+    [InlineData(true, 0.60, 96.0, 12)]
+    [InlineData(true, 0.25, 95.5, 12)]
+    public void DeadCamp_Tired_ByDay_WalksToTheTreesAndMakesAFireThere(bool bitter, double energyPct, double coreF, int tiles)
+    {
+        var (w, npc, mind, camp) = DeadCamp(bitter ? BitterDay : FrostyDay, At(30, 11), energyPct, coreF);
+        var m = Map.Of(w);
+        var tree = Enumerable.Range(-tiles, 2 * tiles + 1).Select(dx => new TileId(camp.X + dx, camp.Y + (tiles - Math.Abs(dx))))
             .First(t => m.InBounds(t) && m.TerrainAt(t).IsPassable());
         mind.Knows.Places[tree] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Trees = true };
-        var (a, n) = Npc.Decide(w, w.Agent(npc), []);
-        output.WriteLine($"{a} x{n}, need {mind.Need}");
-        var step = Assert.IsType<Travel>(a);
-        Assert.True(MapGen.Manhattan(Map.Step(camp, step.Dir), tree) < MapGen.Manhattan(camp, tree), "the step should be toward the trees");
+        var (left, litAt, backAtCamp) = Follow(w, npc, camp, 300);
+        output.WriteLine($"left {left}, lit at {litAt?.ToString() ?? "-"} (trees there {(litAt is TileId l && HasTrees(w, l))}), back at the dead camp {backAtCamp} times, camp now {mind.Camp}");
+        Assert.True(left, "it never set out");
+        Assert.Equal(0, backAtCamp);
+        Assert.NotNull(litAt);
+        Assert.True(HasTrees(w, litAt!.Value), $"the fire at {litAt} is not at the trees");
+        Assert.True(Body.IsAlive(w.Agent(npc).Body));
+    }
+
+    /// A dead camp with no standing timber within seven tiles and some eight to twelve off, by day: frosty, and bitter
+    /// (-30, a strong wind). Old (this rebuild, review probe P4): a walk that set out and was judged afresh a tile on,
+    /// turned back. If the warming trip fits its own reckoning setting out - there short of the lethal line, with
+    /// legs to spare - it goes, never turns back to the camp it left, gets there, lights a fire at the trees and is
+    /// alive at the end. If it does not fit, it does not set out. On the bitter day it does not: twelve tiles of
+    /// snow take 70 minutes, and the core is at the lethal line in 52.
+    [Theory]
+    [InlineData(false, 96.5, 0.6)]
+    [InlineData(false, 96.5, 0.25)]
+    [InlineData(true, 96.0, 0.6)]
+    [InlineData(true, 95.5, 0.25)]
+    public void DeadCamp_FarTrees_GetsThereOrDoesNotSetOut(bool bitter, double coreF, double energyPct)
+    {
+        var (w, start, tree) = FarFromTrees();
+        w.FixedWeather = bitter ? BitterDay : FrostyDay;
+        NoHerds(w);
+        w.Minute = At(30, 10);
+        var npc = Npc.Spawn(w, start);
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        mind.Pack.Kg.Clear();
+        mind.Pack.Kg[Resource.Tinder] = 0.01;
+        mind.Pack.Kg[Resource.Water] = 2;
+        var body = w.Agent(npc).Body;
+        body.EnergyMinutes = energyPct * Body.MaxEnergyMinutes;
+        body.CoreTempF = coreF;
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = start, LastUpdatedMinute = w.Minute };
+        mind.Knows.Places[tree] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Trees = true };
+        bool fits = Npc.WarmingTripFits(w, w.Agent(npc), tree);
+        var (left, litAt, backAtCamp) = Follow(w, npc, start, 720);
+        output.WriteLine($"trees {MapGen.Manhattan(start, tree)} tiles off, {(bitter ? "bitter" : "frosty")}: fits {fits}, left {left}, lit at {litAt?.ToString() ?? "-"}, back {backAtCamp}, alive {Body.IsAlive(body)} core {body.CoreTempF:0.0} en {body.EnergyPct:0.00}");
+        if (bitter) Assert.False(fits, "the bitter-day walk was expected not to fit");
+        Assert.Equal(fits, left);
+        if (!fits) return;
+        Assert.Equal(0, backAtCamp);
+        Assert.True(Body.IsAlive(body), "it died after setting out");
+        Assert.NotNull(litAt);
+        Assert.True(HasTrees(w, litAt!.Value), $"the fire at {litAt} is not at the trees");
+    }
+
+    static bool HasTrees(World w, TileId t) =>
+        Pools.At(w, t).Select((p, i) => (p, i)).Any(x => x.p is TreePool && Pools.HasTrees(w, new PoolId(t, x.i)));
+
+    /// Lives the NPC on for this long or until it has a fire going away from the camp it started at: whether it left
+    /// that camp, where its fire is (null if none), and how many times it walked back onto the camp before then.
+    static (bool Left, TileId? LitAt, int BackAtCamp) Follow(World w, AgentId npc, TileId camp, int minutes)
+    {
+        long end = w.Minute + minutes;
+        bool left = false;
+        int back = 0;
+        var was = w.Agent(npc).Tile;
+        while (w.Minute < end && Body.IsAlive(w.Agent(npc).Body))
+        {
+            var lit = Sim.Advance(w, 1).OfType<FireLit>().FirstOrDefault(f => f.By == npc);
+            var at = w.Agent(npc).Tile;
+            if (at != camp) left = true;
+            else if (was != camp) back++;
+            was = at;
+            if (lit != null && lit.Tile != camp) return (left, lit.Tile, back);
+        }
+        return (left, null, back);
+    }
+
+    /// A passable, safe tile on the first of these worlds with no standing timber within seven tiles and some eight
+    /// to twelve off, and the nearest such stand.
+    static (World World, TileId Start, TileId Tree) FarFromTrees()
+    {
+        foreach (int seed in new[] { 42, 777, 5, 11 })
+        {
+            var w = World.New(seed);
+            var m = Map.Of(w);
+            var trees = new HashSet<TileId>();
+            for (int x = 0; x < m.Width; x++)
+                for (int y = 0; y < m.Height; y++)
+                    if (HasTrees(w, new TileId(x, y))) trees.Add(new TileId(x, y));
+            TileId? Nearest(TileId t, int within)
+            {
+                for (int d = 0; d <= within; d++)
+                    foreach (var c in Enumerable.Range(-d, 2 * d + 1).SelectMany(dx => new[] { new TileId(t.X + dx, t.Y + (d - Math.Abs(dx))), new TileId(t.X + dx, t.Y - (d - Math.Abs(dx))) }).OrderBy(c => c))
+                        if (trees.Contains(c)) return c;
+                return null;
+            }
+            for (int x = 0; x < m.Width; x++)
+                for (int y = 0; y < m.Height; y++)
+                {
+                    var t = new TileId(x, y);
+                    if (!m.TerrainAt(t).IsPassable() || Traversal.IsHazardous(w, t)) continue;
+                    if (Nearest(t, 12) is TileId nearest && MapGen.Manhattan(nearest, t) >= 8) return (w, t, nearest);
+                }
+        }
+        throw new InvalidOperationException("no world has a tile eight to twelve tiles from timber");
     }
 
     /// Seed 11, day 30: at camp beside a cold pit with a hand drill, a pinch of tinder too small to strike with and
