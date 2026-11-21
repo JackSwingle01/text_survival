@@ -68,6 +68,39 @@ public class ArchitectureTests
         Assert.True(writes.Count == 0, string.Join("\n", writes));
     }
 
+    /// One exposure calculation (decision 2026-11-21, emergent-world-design §3.4): only Exposure.cs
+    /// combines the sky with a tile's wind, cover or cold, a pit's walls or a shelter's, or computes the
+    /// wind chill. Each rule names the files that may still say it and why; anything else that does
+    /// is a second exposure model, the class of bug this replaced (tile wind reached only the chill).
+    static readonly (string Pattern, string What, string[] Allowed)[] ExposureRules =
+    [
+        (@"\bMap\.WindFactor\(", "reads a tile's wind factor",
+            ["Map.cs", // its definition
+             "Ground.cs", // the key of a never-observed tile's ground class, not a wind
+             "Travel.cs"]), // walking pace against the wind (rebuild-deferred: route through Exposure)
+        (@"\bMap\.OverheadCover\(", "reads a tile's overhead cover", ["Map.cs", "Ground.cs"]),
+        (@"\bMap\.TemperatureDeltaF\(", "reads a tile's own cold",
+            ["Map.cs", "Ground.cs", "Remains.cs", "Carcass.cs"]), // keys handed on to Exposure.SiteAirF
+        (@"\.TemperatureF\s*[-+]", "adds to the sky's air", ["Weather.cs"]),
+        (@"\bWindChillF\(", "computes a wind chill", ["Weather.cs"]),
+        (@"\.WindMph\b", "reads the wind in mph", ["Weather.cs"]),
+        (@"\(1 - [^)]*(WindProtectionLevel|WallsLevel|\.WindLevel)\)", "cuts a wind by walls or shelter", []),
+        (@"\b(FeltAirF|ShelterStep|SiteAirF|WindAt|OpenAirF)\(", "calls exposure's parts directly", ["Remains.cs"]),
+    ];
+
+    [Fact]
+    public void OnlyExposure_CombinesSkyTileShelterAndFire()
+    {
+        var violations = Directory.GetFiles(SimSourceDir(), "*.cs")
+            .Where(f => Path.GetFileName(f) != "Exposure.cs")
+            .SelectMany(f => File.ReadLines(f).Select((line, i) => (File: Path.GetFileName(f), line, i)))
+            .Where(x => !x.line.TrimStart().StartsWith("//"))
+            .SelectMany(x => ExposureRules.Where(r => !r.Allowed.Contains(x.File) && Regex.IsMatch(x.line, r.Pattern))
+                .Select(r => $"{x.File}:{x.i + 1} {r.What}: {x.line.Trim()}"))
+            .ToList();
+        Assert.True(violations.Count == 0, string.Join("\n", violations));
+    }
+
     // ---- world events: every one names its tile, and every one can be filed ----
 
     static IReadOnlyList<Type> EventTypes() =>

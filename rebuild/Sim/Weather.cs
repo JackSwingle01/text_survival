@@ -11,7 +11,7 @@ public enum FrontType { ClearSpell, StormSystem, ColdSnap, Warming, UnsettledPer
 
 /// The regional sky at one minute. Air temperature is the same all through a front state (the
 /// old fronts had no diurnal curve); the day/night swing reaches a person through the sun term
-/// of Weather.ExposedAirF.
+/// of Exposure.FeltAirF.
 public readonly record struct WeatherSample(
     long Minute, WeatherCondition Rolled, double TemperatureC, double WindLevel,
     double PrecipitationPct, double CloudCoverPct, WindDirection Heading, FrontType Front = FrontType.ClearSpell)
@@ -162,53 +162,8 @@ public static class Weather
         return 35.74 + 0.6215 * temperatureF - 35.75 * v + 0.4275 * temperatureF * v;
     }
 
-    /// Air a person feels before any fire: old Location.GetTemperatureBreakdown steps 1-2 (the
-    /// tile's own cold, wind chill through the tile's wind factor, sun and precipitation through
-    /// its cover). Fire heat is measured against this. The defaults are a fully exposed tile.
-    /// The shelter step comes after (ShelteredAirF).
-    public static double ExposedAirF(WeatherSample s, double fireWindProtectionLevel,
-        double windFactor = 1, double overheadCoverLevel = 0, double temperatureDeltaF = 0)
-    {
-        double t = s.TemperatureF + temperatureDeltaF;
-        // The threshold reads the regional wind, as old; the chill reads what reaches this tile.
-        if (s.WindLevel > 0.1) t = WindChillF(t, s.WindMph * windFactor * (1 - fireWindProtectionLevel));
-        double exposure = 1 - overheadCoverLevel;
-        t += s.SunlightLevel * exposure * 15 * Math.Clamp((50 - t) / 30, 0.5, 1); // sun is felt more in the cold
-        t -= s.PrecipitationPct * exposure * 5;
-        return t;
-    }
-
-    /// ExposedAirF on a map tile, with that tile's wind factor, cover and cold.
-    public static double AirAtF(World world, TileId tile, WeatherSample s, double fireWindProtectionLevel)
-    {
-        var m = Map.Of(world);
-        return ExposedAirF(s, fireWindProtectionLevel, Map.WindFactor(m, tile), Map.OverheadCover(m, tile), Map.TemperatureDeltaF(m, tile));
-    }
-
-    /// Old Location.GetTemperatureBreakdown step 3: a shelter holds the air toward a 40 °F floor (what
-    /// body heat keeps a good shelter at), by its insulation (capped at 0.9), less up to 30% for the
-    /// rain or snow reaching the tile and 30% for the wind. Never cools a warm day. Returns the air
-    /// and the insulation that is left, which also keeps a fire's heat in (Fire.WarmthFor).
-    public static (double AirF, double InsulationLevel) ShelterStep(double airF, WeatherSample s, double insulationLevel,
-        double windFactor, double overheadCoverLevel, double fireWindProtectionLevel)
-    {
-        double ins = Math.Clamp(insulationLevel, 0, 0.9);
-        ins *= 1 - s.PrecipitationPct * (1 - overheadCoverLevel) * 0.3;
-        ins *= 1 - s.WindLevel * windFactor * (1 - fireWindProtectionLevel) * 0.3;
-        return (airF + Math.Max(0, 40 - airF) * ins, ins);
-    }
-
-    /// The air a person keeping still feels on a tile, shelter included, before any fire's heat.
-    /// The shelter's walls cut the wind that reaches you, chill and all (old: WindCoverage was shown
-    /// and improved with materials but nothing read it - bug, fixed).
-    public static (double AirF, double InsulationLevel) ShelteredAirF(World world, TileId tile, WeatherSample s,
-        double fireWindProtectionLevel, ShelterCover cover)
-    {
-        var m = Map.Of(world);
-        double windFactor = Map.WindFactor(m, tile) * (1 - cover.WindLevel), overhead = Map.OverheadCover(m, tile);
-        double t = ExposedAirF(s, fireWindProtectionLevel, windFactor, overhead, Map.TemperatureDeltaF(m, tile));
-        return ShelterStep(t, s, cover.InsulationLevel, windFactor, overhead, fireWindProtectionLevel);
-    }
+    // Everything the sky does at a tile to a body or thing, wind chill read at the body's wind
+    // included, is Exposure's (Exposure.cs).
 
     // ---- the weather at a minute ----
 

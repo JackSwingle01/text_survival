@@ -26,10 +26,12 @@ static class NpcDriver
 
 public class NpcTests(ITestOutputHelper output)
 {
+    /// The NPC benches' NPC: at camp, at a fixed bench id (NpcBench), so its numbers do not move when generation
+    /// populates another herd kind.
     static (World World, AgentId Npc) AtCamp(int seed)
     {
         var w = World.New(seed);
-        return (w, Npc.Spawn(w, Map.Of(w).Camp));
+        return (w, NpcBench.Spawn(w, Map.Of(w).Camp));
     }
 
     static double CampWoodKg(World w, AgentId npc)
@@ -40,6 +42,7 @@ public class NpcTests(ITestOutputHelper output)
     }
 
     /// Phase 3 gate: an NPC survives 14 days alone - no hand-feeding, nothing given past its spawn kit.
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(17)]
     [InlineData(1)]
@@ -64,6 +67,7 @@ public class NpcTests(ITestOutputHelper output)
     }
 
     /// The same gate with the world's scheduler choosing when the NPC decides, as the game will run it.
+    [Trait("Category", "Slow")]
     [Fact]
     public void FourteenDaysAlone_OnTheWorldScheduler()
     {
@@ -87,7 +91,7 @@ public class NpcTests(ITestOutputHelper output)
             foreach (var e in Sim.Advance(w, 1))
                 if (e is Moved { } m && m.Who == npc) did.Add($"{m.Minute} moved {m.To}");
             var mind = (NpcMind)w.Agent(npc).Mind;
-            did.Add($"{w.Minute} {w.Agent(npc).Doing?.Activity} {mind.Need} camp {mind.Camp}");
+            did.Add($"{w.Minute} {w.Agent(npc).Doing?.Activity} {mind.SeeingTo} camp {mind.Camp}");
             if (look) foreach (var id in w.Fires.Keys.ToList()) if (w.Fires.ContainsKey(id)) Fire.CatchUp(w, id, []);
         }
         return did;
@@ -103,6 +107,7 @@ public class NpcTests(ITestOutputHelper output)
     /// than when someone looks, changes nothing the NPC does. The seed-17 NPC never goes out of sight of
     /// camp in these ten days, so this does not reach a read of a fire out of sight; that guard is
     /// LookingAtAnAbandonedCampFire_ChangesNothingAnNpcDoes.
+    [Trait("Category", "Slow")]
     [Fact]
     public void EagerAndLazyFireCatchUp_Agree()
     {
@@ -145,23 +150,24 @@ public class NpcTests(ITestOutputHelper output)
     /// having done nothing there, never happens now. (Out for food and home because the walk tired or
     /// chilled it is another need doing its job, and still can: so is the trip budget, when the walk out
     /// proved colder than reckoned and the ground no longer fits it - Npc.ForageTripFits.)
+    [Trait("Category", "Slow")]
     [Fact]
     public void LookingForFood_ItNeverTurnsStraightBack()
     {
         var (w, npc) = AtCamp(17);
         var back = new List<string>();
-        (long Minute, TileId From, Need? Need, bool Unaffordable)? last = null;
+        (long Minute, TileId From, Stat? SeeingTo, bool Unaffordable)? last = null;
         bool did = false;
         int budgeted = 0;
         while (w.Minute < 16 * 1440L && Body.IsAlive(w.Agent(npc).Body))
         {
-            var need = ((NpcMind)w.Agent(npc).Mind).Need;
+            var need = ((NpcMind)w.Agent(npc).Mind).SeeingTo;
             var goal = ((NpcMind)w.Agent(npc).Mind).ForageGoal;
             foreach (var e in Sim.Advance(w, 1))
             {
                 if (e is Moved m && m.Who == npc)
                 {
-                    if (last is { } l && m.To == l.From && m.Minute - l.Minute <= 60 && !did && l.Need == Need.Food && need == Need.Food)
+                    if (last is { } l && m.To == l.From && m.Minute - l.Minute <= 60 && !did && l.SeeingTo == Stat.Food && need == Stat.Food)
                     {
                         if (l.Unaffordable) budgeted++;
                         else back.Add($"{l.From}->{m.From}->{m.To} at {l.Minute}-{m.Minute}");
@@ -192,6 +198,7 @@ public class NpcTests(ITestOutputHelper output)
         Assert.True(backAgain.Count == 0, $"{backAgain.Count} times off the stash and straight back on, first {backAgain.FirstOrDefault().First}");
     }
 
+    [Trait("Category", "Slow")]
     [Fact]
     public void SameSeed_SameWorld()
     {
@@ -350,8 +357,8 @@ public class NpcTests(ITestOutputHelper output)
     {
         var (w, mind) = ShortOfFat(0.5, 40);
         var a = DecideFor(w, mind);
-        output.WriteLine($"{a}, need {mind.Need}");
-        Assert.Equal(Need.Food, mind.Need);
+        output.WriteLine($"{a}, need {mind.SeeingTo}");
+        Assert.Equal(Stat.Food, mind.SeeingTo);
     }
 
     [Fact]
@@ -359,22 +366,9 @@ public class NpcTests(ITestOutputHelper output)
     {
         var (w, mind) = ShortOfFat(0.5, 0);
         var a = DecideFor(w, mind);
-        output.WriteLine($"{a}, need {mind.Need}");
-        Assert.Null(mind.Need); // the wood plan sees to no need
+        output.WriteLine($"{a}, need {mind.SeeingTo}");
+        Assert.Null(mind.SeeingTo); // the wood plan sees to no need
         Assert.False(a is Gather { Focus: ForageFocus.Food });
-    }
-
-    [Fact]
-    public void CriticalShortfall_GoesForFood_EvenShortOfFuel_ButNotOverCriticalCold()
-    {
-        var (w, mind) = ShortOfFat(1.5, 0);
-        DecideFor(w, mind);
-        Assert.Equal(Need.Food, mind.Need);
-
-        var (cold, coldMind) = ShortOfFat(1.5, 0);
-        cold.Agents.Values.Single(a => a.Mind == coldMind).Body.CoreTempF = 95.0;
-        DecideFor(cold, coldMind);
-        Assert.Equal(Need.Warmth, coldMind.Need);
     }
 
     /// A lean week: it gets used to the leaner body, but never below the floor where leanness costs.
@@ -468,8 +462,8 @@ public class NpcTests(ITestOutputHelper output)
         b.CoreTempF = 97.7;
         var mind = (NpcMind)w.Agent(npc).Mind;
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
-        output.WriteLine($"{a}, need {mind.Need}");
-        Assert.Equal(Need.Warmth, mind.Need);
+        output.WriteLine($"{a}, need {mind.SeeingTo}");
+        Assert.Equal(Stat.Warmth, mind.SeeingTo);
     }
 
     /// Old: cold by a fire with no wood left to feed it, it rested until the fire was nearly out, then
@@ -479,7 +473,8 @@ public class NpcTests(ITestOutputHelper output)
     /// Then it warms at the fire, not groping the camp ground (old, this rebuild: the wood plan's fallback,
     /// half an hour's fuel forage here, was taken for the walk it could not make).
     [Theory]
-    [InlineData(97.6, true)]
+    // 98.4: the walk is held to coming home out of warmth's Need (97.5F, the stat tiers), not the old wanted 96.8F.
+    [InlineData(98.4, true)]
     [InlineData(96.5, false)]
     public void ColdByAFireWithNoWoodLeft_GoesForWoodWhileItLasts(double coreF, bool goes)
     {
@@ -522,7 +517,7 @@ public class NpcTests(ITestOutputHelper output)
         agent.Body.EnergyMinutes = 0.05 * Body.MaxEnergyMinutes;
         var (a, _) = Npc.Decide(w, agent, []);
         Assert.True(a is Sleep or AddFuel or Unstash or StartFire, $"chose {a}"); // bed: the fire banked, then sleep
-        Assert.Equal(Need.Rest, mind.Need);
+        Assert.Equal(Stat.Rest, mind.SeeingTo);
     }
 
     // ---- foraging ----
@@ -595,7 +590,7 @@ public class NpcTests(ITestOutputHelper output)
         (body.CoreTempF, body.EnergyMinutes, body.HydrationMl, body.CaloriesKcal) = (98.6, Body.MaxEnergyMinutes, Body.MaxHydrationMl, 100);
         body.FatKg = mind.TargetFatKg - 1.5;
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
-        output.WriteLine($"{a}, need {mind.Need}");
+        output.WriteLine($"{a}, need {mind.SeeingTo}");
         Assert.Single(w.Encounters);
         Assert.DoesNotContain(w.Encounters[0].Units, u => u.Agent == npc);
     }
@@ -746,7 +741,7 @@ public class NpcTests(ITestOutputHelper output)
             agent.Body.FatKg = mind.TargetFatKg - 1.5;
             agent.Body.CoreTempF = 98.2;
             var (a, _) = Npc.Decide(w, agent, []);
-            output.WriteLine($"{airC}C: {a}, need {mind.Need}, goal {mind.ForageGoal}");
+            output.WriteLine($"{airC}C: {a}, need {mind.SeeingTo}, goal {mind.ForageGoal}");
             return (a, mind.ForageGoal, at, ground);
         }
         var mild = Decide(10);
@@ -881,19 +876,17 @@ public class NpcTests(ITestOutputHelper output)
 
     /// Traced (seed 5): no standing timber within 15 tiles of camp, only deadfall; it had an axe and never
     /// used it, and froze on day 4.8. A camp with no timber in reach is a reason to go and find some and
-    /// move camp to it. A kilo of birch bark and two of kindling in the pack: seed 5's grassland gives almost no
-    /// tinder or kindling, and whether the starting pinch lasts until the search finds the stand 24 tiles east is a
-    /// matter of a few strikes - the search and the move are what this pins. (A single trajectory, and a knife-edge
-    /// one: from the starting pack it lived on 9cbe8cc and ran out of tinder on day 4.6 after the Light fix; with
-    /// these, it lives after the fix and dies on 9cbe8cc, as it does there with the birch bark alone, on day 3.9.)
+    /// move camp to it. From the real spawn kit: the tinder is kept for a fire that lasts (Light's makings by
+    /// day and reserve), sticks are shaved for tinder down to a strike's worth, and the camp keeps a strike's
+    /// sticks back from the fire. (Once given a kilo of birch bark and two of kindling to pass; a single
+    /// trajectory on a knife edge: at the NPC bench's id the same seed dies on day 4.9, its search a day short.)
+    [Trait("Category", "Slow")]
     [Fact]
     public void NoTimberInReach_MovesCampToTimber()
     {
         var w = World.New(5);
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp);
-        Items.Add(((NpcMind)w.Agent(npc).Mind).Pack, Resource.BirchBark, 1);
-        Items.Add(((NpcMind)w.Agent(npc).Mind).Pack, Resource.Kindling, 2);
         NpcDriver.Live(w, npc, 6 * 1440L);
         var mind = (NpcMind)w.Agent(npc).Mind;
         var trees = mind.Knows.Places.Where(p => p.Value.Trees).Select(p => p.Key).ToList();

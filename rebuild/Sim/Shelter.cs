@@ -267,7 +267,7 @@ public static class Shelters
     // freezing is invented: about a day at 35 °F, an afternoon at 50 °F. A fire inside does not melt it.
     const double MeltPerHourPerF = 0.01;
 
-    /// Melts s to the current hour. The air is what reaches the surface (Ground.WeatherAt): wind chill
+    /// Melts s to the current hour. The air is what reaches the surface (Exposure.Surface): wind chill
     /// is felt by a body, it does not melt snow. When it melted away, the clock hour it was gone by;
     /// the caller removes it. Null while it stands.
     static long? Melt(World world, TileId tile, ShelterState s)
@@ -276,7 +276,7 @@ public static class Shelters
         long now = world.Minute / 60;
         for (; hour < now; hour++)
         {
-            double airF = Ground.WeatherAt(world, tile, hour * 60).AirTemperatureF;
+            double airF = Exposure.Surface(world, tile, hour * 60).AirTemperatureF;
             if (airF > 32) Damage(s, MeltPerHourPerF * (airF - 32));
             if (IsDestroyed(s)) return hour + 1;
         }
@@ -366,7 +366,7 @@ public static class Shelters
     static string? Requirement(World world, TileId tile, Recipe r, Inventory pack)
     {
         if (r.NeedsShovel && Items.Tool(pack, ToolType.Shovel) == null) return "you need a shovel";
-        if (r.NeedsFrost && Ground.WeatherAt(world, tile, world.Minute).AirTemperatureF > 32) return "too warm to build in snow";
+        if (r.NeedsFrost && Exposure.Surface(world, tile, world.Minute).AirTemperatureF > 32) return "too warm to build in snow";
         return null;
     }
 

@@ -208,7 +208,7 @@ public static class Carcasses
 
     /// Ages the carcass to world.Minute, each clock hour at the tile's air at the top of that hour (the
     /// rot timeline, Remains.EffectiveHours), so how often anyone looks cannot change how fast it rots. The air is what reaches the surface
-    /// (Ground.WeatherAt): old game: decay read the air a person feels, wind chill and all, so a windy
+    /// (Exposure.Surface): old game: decay read the air a person feels, wind chill and all, so a windy
     /// thaw kept meat as if it were freezing (bug, fixed). The old reading also included a fire on the
     /// tile; this one does not.
     public static void CatchUp(World world, TileId tile, Carcass c)

@@ -428,14 +428,14 @@ public class GroundTests
         var sky = Weather.At(world, 0);
         var forest = OpenTile(Terrain.Forest);
         var plain = OpenTile(Terrain.Plain);
-        Assert.Equal(sky.SnowfallWeMPerMinute * 0.5, Ground.WeatherAt(world, forest, 0).SnowfallWeMPerMinute, 15);
-        Assert.Equal(sky.SnowfallWeMPerMinute, Ground.WeatherAt(world, plain, 0).SnowfallWeMPerMinute, 15);
-        Assert.Equal(0, Ground.WeatherAt(world, First(p => Seed17.CaveAt(p) == Cave.Floor), 0).SnowfallWeMPerMinute);
-        Assert.Equal(Math.Clamp(sky.WindLevel * 1.2, 0, 1), Ground.WeatherAt(world, plain, 0).WindLevel, 12);
+        Assert.Equal(sky.SnowfallWeMPerMinute * 0.5, Exposure.Surface(world, forest, 0).SnowfallWeMPerMinute, 15);
+        Assert.Equal(sky.SnowfallWeMPerMinute, Exposure.Surface(world, plain, 0).SnowfallWeMPerMinute, 15);
+        Assert.Equal(0, Exposure.Surface(world, First(p => Seed17.CaveAt(p) == Cave.Floor), 0).SnowfallWeMPerMinute);
+        Assert.Equal(Math.Clamp(sky.WindLevel * 1.2, 0, 1), Exposure.Surface(world, plain, 0).WindLevel, 12);
         // The regional air plus the tile's cold, never the person-felt wind chill.
         var proper = Seed17.PassStageIndex.Single(s => s.Value == 2).Key;
-        Assert.Equal(sky.TemperatureF - 15, Ground.WeatherAt(world, proper, 0).AirTemperatureF, 12);
-        Assert.Equal(sky.TemperatureF, Ground.WeatherAt(world, plain, 0).AirTemperatureF, 12);
+        Assert.Equal(sky.TemperatureF - 15, Exposure.Surface(world, proper, 0).AirTemperatureF, 12);
+        Assert.Equal(sky.TemperatureF, Exposure.Surface(world, plain, 0).AirTemperatureF, 12);
 
         world.FixedWeather = Sky(WeatherCondition.Whiteout, -10, 1, wind: 1);
         world.Minute = 1440;
@@ -496,7 +496,7 @@ public class GroundTests
         double maxSnowM = 0, maxWaterM = 0, maxTf = 0, maxHd = 0, maxWet = 0, peakSnowM = 0;
         for (long m = 1 + Ground.HistoryStartMinute(world); m <= 60 * 1440; m++) // the lazy tile lives the pre-roll too
         {
-            Ground.Advance(reference, sub, 1, Ground.WeatherAt(world, tile, m));
+            Ground.Advance(reference, sub, 1, Exposure.Surface(world, tile, m));
             if (m % 1440 != 0 || m <= 0) continue;
             world.Minute = m;
             var lazy = Ground.CatchUp(world, tile);

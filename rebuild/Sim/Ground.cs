@@ -42,7 +42,7 @@ public sealed class GroundState
     public long LastUpdatedMinute { get; set; }
 }
 
-/// Everything a never-observed tile's ground history depends on besides the sky (Ground.WeatherAt
+/// Everything a never-observed tile's ground history depends on besides the sky (Exposure.Surface
 /// and Ground.Substrate): tiles that share these have the same ground until something observes one.
 internal readonly record struct GroundClass(SubstrateProfile Substrate, double CoverLevel, double TemperatureDeltaF, double WindFactor);
 
@@ -77,11 +77,6 @@ public sealed record SubstrateProfile(
 
     public static SubstrateProfile For(Terrain terrain) => Named(terrain.Row().Substrate);
 }
-
-/// Weather as the ground feels it at one tile. Deliberately not what a person feels: wind chill,
-/// clothing and fire melt no snow.
-public readonly record struct SurfaceWeather(
-    double AirTemperatureF, double WindLevel, double SunlightLevel, double SnowfallWeMPerMinute, double RainfallMPerMinute);
 
 /// Snow accumulates, packs, melts and refreezes; rain and meltwater soak in until the ground will
 /// take no more and then stand on it; standing water freezes from the top down. Port of the old
@@ -123,21 +118,6 @@ public static class Ground
     /// What the ground is made of. Caves and the pass stages are rock, the camp is forest floor, as their old Locations were.
     public static SubstrateProfile Substrate(GeneratedMap m, TileId t) =>
         m.StageAt(t) != null || m.CaveAt(t) != Cave.None ? SubstrateProfile.Rock : SubstrateProfile.For(m.TerrainAt(t));
-
-    /// Old Location.GetSurfaceWeather: the regional sky with this tile's cover, wind and cold
-    /// applied exactly once. A whiteout deposits nothing (WeatherSample's snowfall is zero).
-    public static SurfaceWeather WeatherAt(World world, TileId tile, long minute)
-    {
-        var m = Map.Of(world);
-        var s = Weather.At(world, minute);
-        double exposure = 1 - Map.OverheadCover(m, tile);
-        return new SurfaceWeather(
-            AirTemperatureF: s.TemperatureF + Map.TemperatureDeltaF(m, tile),
-            WindLevel: Math.Clamp(s.WindLevel * Map.WindFactor(m, tile), 0, 1),
-            SunlightLevel: s.SunlightLevel * exposure,
-            SnowfallWeMPerMinute: s.SnowfallWeMPerMinute * exposure,
-            RainfallMPerMinute: s.RainfallMPerMinute * exposure);
-    }
 
     /// Ground as generated: the substrate at its starting saturation, frozen through (initial
     /// frozen fraction 1, the old default), with that water entered in the ledger.
@@ -183,7 +163,7 @@ public static class Ground
         for (long start = state.LastUpdatedMinute; start < target; start += StepMinutes)
             // Midpoint sample: weather holds for whole front states (two hours or more); only
             // sunlight moves within a sub-step, and the midpoint is its average to first order.
-            column.Step(StepMinutes, WeatherAt(world, tile, start + StepMinutes / 2 + 1));
+            column.Step(StepMinutes, Exposure.Surface(world, tile, start + StepMinutes / 2 + 1));
         state.LastUpdatedMinute = Math.Max(state.LastUpdatedMinute, target);
     }
 

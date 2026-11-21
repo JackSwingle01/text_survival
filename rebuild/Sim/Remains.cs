@@ -161,7 +161,7 @@ internal sealed class DecayTimeline(double deltaF, long historyStartMinute)
         if (i < 0) throw new ArgumentOutOfRangeException(nameof(minute), minute, "Rot starts with the weather's history");
         while (factors.Count <= i)
         {
-            double tempF = Weather.At(world, (firstHour + factors.Count) * 60).TemperatureF + deltaF;
+            double tempF = Exposure.SiteAirF(Weather.At(world, (firstHour + factors.Count) * 60), deltaF);
             factors.Add(Carcasses.DecayFactor(tempF));
             before.Add(before[^1] + factors[^1]);
         }
@@ -169,5 +169,5 @@ internal sealed class DecayTimeline(double deltaF, long historyStartMinute)
     }
 
     /// The air at the top of the clock hour holding this minute, as Carcasses.CatchUp last read it.
-    public static double TempF(World world, long minute, double deltaF) => Weather.At(world, FloorHour(minute) * 60).TemperatureF + deltaF;
+    public static double TempF(World world, long minute, double deltaF) => Exposure.SiteAirF(Weather.At(world, FloorHour(minute) * 60), deltaF);
 }

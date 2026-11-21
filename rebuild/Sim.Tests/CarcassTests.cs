@@ -115,6 +115,7 @@ public class CarcassTests
     /// spoiling, steady or clumsy, with a blade or without, at the most practice there is. Old game: full
     /// processing gave 107% of the careful ledger it cut (bug, fixed); the review found the skill factor
     /// lifting every yield past the cut as well (120% careful, 128.8% full at level 20).
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void Cutting_ConservesMass_AtMaxSkill_InEveryMode()
     {
@@ -159,7 +160,7 @@ public class CarcassTests
         Carcasses.CatchUp(a, Map.Of(a).Camp, ca);
         Carcasses.CatchUp(b, Map.Of(b).Camp, cb);
         Assert.Equal(ca.EffectiveHours, cb.EffectiveHours, 12);
-        Assert.Equal(2000 / 60.0 * Carcasses.DecayFactor(Ground.WeatherAt(a, Map.Of(a).Camp, 0).AirTemperatureF), ca.EffectiveHours, 9);
+        Assert.Equal(2000 / 60.0 * Carcasses.DecayFactor(Exposure.Surface(a, Map.Of(a).Camp, 0).AirTemperatureF), ca.EffectiveHours, 9);
     }
 
     /// old game: decay read the air a person feels, wind chill included, so a gale over a thaw kept
@@ -170,7 +171,7 @@ public class CarcassTests
         var w = World.New(17);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, 3, 0.6, 0, 0.9, WindDirection.North); // 37.4 °F, a 27 mph wind
         var tile = Map.Of(w).Camp;
-        Assert.True(Weather.AirAtF(w, tile, Weather.At(w, 0), 0) < 32);
+        Assert.True(Exposure.OpenAirF(w, tile, Weather.At(w, 0)) < 32);
         var c = Carcasses.Create(w, tile, "Caribou", BodyState.Create(BodyKind.Quadruped, 124, 0.15, 0.6), 0);
         w.Minute = 10 * 60;
         Carcasses.CatchUp(w, tile, c);
@@ -211,7 +212,7 @@ public class CarcassTests
         Assert.Contains(r.Events, e => e is Butchered { Finished: true });
         // All of it, less the decay at the camp's air when each minute's cut came off: the setup
         // takes the first 30 minutes, the cutting the last 4 (decay costs meat only).
-        double Meat(int minute) => 0.6703585854625697 * (1 - 0.8 * Carcasses.DecayLevel(minute / 60.0 * Carcasses.DecayFactor(Weather.AirAtF(w, Map.Of(w).Camp, Mild, 0))));
+        double Meat(int minute) => 0.6703585854625697 * (1 - 0.8 * Carcasses.DecayLevel(minute / 60.0 * Carcasses.DecayFactor(Exposure.OpenAirF(w, Map.Of(w).Camp, Mild))));
         Assert.InRange(Items.Have(Items.Pack(w, P), Resource.RawMeat), Meat(34), Meat(30));
         Assert.Null(w.Tiles[Map.Of(w).Camp].Carcasses); // the emptied list goes, so the tile can clean up
         Assert.True(Effects.Severity(w.Agent(P).Body, EffectKind.Bloody) > 0);

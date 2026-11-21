@@ -34,6 +34,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
     /// chill was reckoned without the heat its clothes had stored, so one tile out it was "cold" and turned
     /// home, and at camp, warm again by its own core, it set out again. Out from camp and straight back,
     /// having done nothing, because it turned cold on the way, no longer happens.
+    [Trait("Category", "Slow")]
     [Fact]
     public void Seed17_NoLongerShuttlesOutAndBackFromCampInTheCold()
     {
@@ -55,7 +56,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
                 }
                 else if (e is Gathered or Stashed or Unstashed or Ate or Drank or FuelAdded or TreeFelled or Dropped && e.ToString()!.Contains(npc + ",")) did = true;
             }
-            if (outStep != null && w.Agent(npc).Tile != mind.Camp && mind.Need == Need.Warmth) chilled = true;
+            if (outStep != null && w.Agent(npc).Tile != mind.Camp && mind.SeeingTo == Stat.Warmth) chilled = true;
         }
         output.WriteLine($"{loops.Count} out-and-back walks turned by the cold: {string.Join("; ", loops.Take(8))}");
         Assert.True(loops.Count <= 1, $"{loops.Count} out-and-back walks turned by the cold");
@@ -92,6 +93,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
     /// Seed 5, day 2: looking for timber, it walked out to 27 tiles from camp with its energy running out
     /// (0.63 to 0), then gathered fuel for a camp it could not reach until ten at night, lighting nothing.
     /// Every walk out now budgets the walk back: it is never out at nightfall far from camp, nor spent away from it.
+    [Trait("Category", "Slow")]
     [Fact]
     public void Seed5_ExploringForTimber_IsNeverStrandedFarFromCamp()
     {
@@ -152,7 +154,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         mind.Knows.Places[camp] = new TileMemory { SeenMinute = at, VisitedMinute = at };
         mind.Knows.Places[tree] = new TileMemory { SeenMinute = at, VisitedMinute = at, Trees = true };
         var (a, n) = Npc.Decide(w, w.Agent(npc), []);
-        output.WriteLine($"{hour}:{minute:00} (sunset {Weather.SunsetHour(at)}): {a} x{n}, need {mind.Need}");
+        output.WriteLine($"{hour}:{minute:00} (sunset {Weather.SunsetHour(at)}): {a} x{n}, need {mind.SeeingTo}");
         Assert.Equal(travels, a is Travel);
     }
 
@@ -222,7 +224,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var next = MapGen.Neighbors(camp).Where(t => Map.Of(w).TerrainAt(t).IsPassable() && Map.Blocked(Map.Of(w), camp, t) == null).OrderBy(t => t).First();
         var herd = Agents.Spawn(w, Species.Mammoth, next, 6);
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
-        output.WriteLine($"short {shortKg} kg: {a}, need {mind.Need}");
+        output.WriteLine($"short {shortKg} kg: {a}, need {mind.SeeingTo}");
         bool after = a is Travel t && Map.Step(camp, t.Dir) == next;
         Assert.Equal(hunts, after);
     }

@@ -84,7 +84,7 @@ public class NpcColdBedTests(ITestOutputHelper output)
         Items.Add(stash, Resource.Birch, 9);
         (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = stash;
         mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 1, [Resource.Birch] = 9 } };
-        mind.Need = Need.Rest;
+        mind.SeeingTo = Stat.Rest;
         var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a} for {minutes} min; camp {mind.Camp}");
         Assert.Equal(new Travel(npc, dir, Traversal.IsHazardous(w, camp) || Traversal.IsHazardous(w, next) ? Pace.Careful : Pace.Quick), a);

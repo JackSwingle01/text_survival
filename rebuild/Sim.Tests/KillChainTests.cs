@@ -427,6 +427,7 @@ public class KillChainTests
     /// everyone's sight, no bigger than the land they come to carries, and no pack on another's land.
     /// Review: an arrival was sized from its row alone (caribou twelve strong on land carrying four, a
     /// wolf pack of ten on land carrying two), and a pack could come in on top of another's land.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight()
     {
@@ -519,6 +520,7 @@ public class KillChainTests
     /// days unfed, so they followed nothing down. What lives on kills thins toward what its land
     /// carries: a fed pack, hyenas and a flock on land with no prey near and little growing all lose
     /// members, and the herd that is left is no bigger than before.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void What_LivesOnKills_ThinsWhenTheLandCannotFeedIt()
     {

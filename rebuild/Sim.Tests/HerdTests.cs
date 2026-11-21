@@ -419,6 +419,7 @@ public class HerdTests(ITestOutputHelper output)
     /// Old RunHunt took the sighting's DetectionModifier as every stalked animal's DetectionFactor:
     /// 0.45-0.9 for wounded, grazing or resting prey, 2.0-2.5 for alert prey (old HuntRunner.Run,
     /// HuntingSightings). One sighting of the behaviour's pool was picked at random.
+    [Trait("Category", TestCategories.Slow)]
     [Theory]
     [InlineData("grazing", 0.7, 0.75, 0.65)]
     [InlineData("feeding", 0.7, 0.75, 0.65)]
@@ -454,6 +455,7 @@ public class HerdTests(ITestOutputHelper output)
         Assert.Equal(oldPool.Length, seen.Count); // every sighting of the pool turns up
     }
 
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     // The naive stalk below (advance to throwing range on open plain) kills about one hunt in fifty, so
     // this walks seeds until one does: seed 3 did with shared streams, seed 43 once each agent rolled
@@ -860,11 +862,13 @@ public class HerdTests(ITestOutputHelper output)
 }
 
 /// Months of the populated valley: nothing in it gets stuck. One class per seed, so they run side by side.
+[Trait("Category", TestCategories.Slow)]
 public class HerdLongRunSeed5Tests(ITestOutputHelper output)
 {
     [Fact] public void SixtyDays_NoHerdStaysPut_AndPacksHunt() => HerdLongRunTests.Run(5, output);
 }
 
+[Trait("Category", TestCategories.Slow)]
 public class HerdLongRunTests(ITestOutputHelper output)
 {
     [Fact] public void SixtyDays_NoHerdStaysPut_AndPacksHunt() => Run(17, output);
@@ -1003,6 +1007,7 @@ public class DenTests
 /// (land grown through walkable edges is cut short by ravines and cliffs, so they are below the
 /// target sizes). Cave dens range only where their cave connects, and hyena packs start hard against
 /// a wolf pack's land, so those two keep the generator's own floor of three tiles.
+[Trait("Category", TestCategories.Slow)]
 public class TerritorySweepTests(ITestOutputHelper output)
 {
     static readonly IReadOnlyDictionary<Species, int> Floor = new Dictionary<Species, int>

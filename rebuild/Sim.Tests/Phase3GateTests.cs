@@ -6,6 +6,7 @@ using Xunit;
 /// a herd member leaving), saved and loaded every few steps, comes out byte-identical to the same
 /// run straight through. A Dictionary walked after Remove-then-Add, or one object reachable from
 /// two places, is what this catches.
+[Trait("Category", TestCategories.Slow)]
 public class Phase3GateTests
 {
     static readonly AgentId P = AgentId.Player;
@@ -114,7 +115,7 @@ public class Phase3GateTests
     {
         var w = World.New(17);
         // An NPC living on its own mind beside all this: its mind, memory and work in hand are saved state too.
-        Npc.Spawn(w, Map.Of(w).Camp);
+        NpcBench.Spawn(w, Map.Of(w).Camp);
         var pack = Items.Pack(w, P);
         foreach (var g in new[] { "stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));
         var t = new Tally();
@@ -130,7 +131,7 @@ public class Phase3GateTests
     internal static List<WorldEvent> RunCollecting(int steps)
     {
         var w = World.New(17);
-        Npc.Spawn(w, Map.Of(w).Camp);
+        NpcBench.Spawn(w, Map.Of(w).Camp);
         var pack = Items.Pack(w, P);
         foreach (var g in new[] { "stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));
         var t = new Tally();

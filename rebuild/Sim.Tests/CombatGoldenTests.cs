@@ -302,6 +302,7 @@ public class CombatGoldenTests
         { "bear vs spear", [0.032, 0.720, 0.176, 0.063, 0.009, 9.48] },
     };
 
+    [Trait("Category", TestCategories.Slow)]
     [Theory, MemberData(nameof(Headless))]
     public void HeadlessOutcomes_MatchOldStatistically(string scenario, double[] old)
     {

@@ -459,6 +459,7 @@ public class KnowledgeTests
 
     /// Memory, journals and skills learned along the way come out the same however the minutes are
     /// stepped, and through saves: a busy camp with an NPC, a fire, work, a walk out and back, a night.
+    [Trait("Category", TestCategories.Slow)]
     [Theory]
     [InlineData(1, false)]
     [InlineData(7, true)]

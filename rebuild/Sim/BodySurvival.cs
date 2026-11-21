@@ -7,11 +7,12 @@ public enum Precipitation { None, Snow, Rain, Blizzard }
 public sealed record SurvivalContext
 {
     public double AirTempF { get; init; } = 70;
-    /// 0-1, where 1 is a 45 mph gale.
+    /// The wind at the body (Exposure.WindLevel), where 1 is a 45 mph gale: convection, wind through
+    /// the clothing and drying read it, as the wind chill in AirTempF did.
     public double WindLevel { get; init; }
-    /// The wind drying you at a fire pit: the open wind less the pit's walls only, as the old game read
-    /// it (old game parity: old SurvivalContext.CalculateEffectiveWindSpeed fed SurvivalProcessor's
-    /// drying). Null when nothing sets it apart: the same as WindLevel.
+    /// The wind drying you at a fire pit: the wind at the body without the shelter's walls
+    /// (Exposure.FireDryingWindLevel; old game parity: old SurvivalContext.CalculateEffectiveWindSpeed
+    /// fed SurvivalProcessor's drying). Null when nothing sets it apart: the same as WindLevel.
     public double? FireDryingWindLevel { get; init; }
     /// Radiant heat reaching this agent, °F added to the air. Withheld once the body is warm
     /// enough to sweat: anyone that hot shifts back from the fire long before sweating through a night.
@@ -111,7 +112,12 @@ public static partial class Body
 
     static double FireF(BodyState body, SurvivalContext ctx) => (body.CoreTempF < SweatingThresholdF ? ctx.FireBonusF : 0) + ctx.TorchHeatF;
 
-    static double ConvectiveCoefficient(SurvivalContext ctx) => 5.0 * (1.0 + ctx.WindLevel * 2.0);
+    internal static double ConvectiveCoefficient(SurvivalContext ctx) => 5.0 * (1.0 + ConvectiveWind(ctx.WindLevel) * 2.0);
+
+    /// How hard the wind strips heat. Linear up to a 45 mph gale (1), where the old game's numbers were
+    /// tuned; past it, the square root: real convection grows with about the square root of wind speed,
+    /// so a Wind Gap storm (2.5) strips about 1.4x a gale's heat rather than 2x (decision 2026-11-21).
+    internal static double ConvectiveWind(double windLevel) => windLevel <= 1 ? windLevel : Math.Sqrt(windLevel);
 
     /// Clothing, fat and the air's boundary layer in series, the way real resistances add. Doubling
     /// clothing never halves heat loss, so returns diminish with no clamp. 1 clo keeps a resting

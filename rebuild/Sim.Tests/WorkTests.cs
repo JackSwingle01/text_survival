@@ -139,6 +139,7 @@ public class WorkTests
 
     /// balance: forage retuned (2026-11-20). Old FocusProcessor only filtered, so a food search fed no
     /// better than a general one; focus now buys Work.FocusGain of what it looks for.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void AFocusedSearch_FindsMoreOfWhatItLooksFor_ThanAGeneralOne()
     {

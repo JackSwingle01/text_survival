@@ -368,6 +368,7 @@ public class Phase2GateTests(ITestOutputHelper output)
         Assert.True(tier >= TrailTier.Trail, $"daily route is only {tier}");
     }
 
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void ThirtyDays_Headless_CompletesAliveAndSmall()
     {
@@ -389,6 +390,7 @@ public class Phase2GateTests(ITestOutputHelper output)
         Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed.TotalSeconds:F1}s");
     }
 
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void ThirtyDays_SameSeedAndActions_SameWorld()
     {
@@ -396,6 +398,7 @@ public class Phase2GateTests(ITestOutputHelper output)
         Assert.NotEqual(Save.ToJson(Run(17).World), Save.ToJson(Run(18).World));
     }
 
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void ThirtyDays_SaveAndLoadAtDay15_MatchesAStraightRun()
     {
@@ -460,6 +463,7 @@ public class Phase2GateTests(ITestOutputHelper output)
 }
 
 /// Its own class so its runs go alongside the gate's others (xUnit runs classes in parallel).
+[Trait("Category", TestCategories.Slow)]
 public class Phase2GateReseededTests
 {
     /// The same map lived with the player's dice re-seeded: the script survives the dice, not one

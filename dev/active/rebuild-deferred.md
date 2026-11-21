@@ -129,14 +129,27 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Npc.cs` (`CampFireBurning`) - out of sight it still reads the remembered phase without ageing it, unlike
   `CampHasWarmth`, which now goes by `CampFireHours`. It gates a cold NPC's walk home (`Warm`) and the flee rule's camp
   move; a fire remembered burning days ago still sends a cold NPC within 12 tiles home when it cannot light one itself.
-- Seed 5 (no timber within 24 tiles, almost no tinder or kindling on its grassland) is a knife edge: the NPC lives on
-  0.05-0.1 kg of tinder for days, and a few strikes decide whether it lasts until the search finds timber. After the
-  Light fix it dies on day 4.6 (from 22.9); `NoTimberInReach_MovesCampToTimber` now starts it with a kilo of birch bark
-  and two of kindling, with which it lives after the fix and dies on 9cbe8cc. Upgrade: a tinder and kindling income on
-  open ground (dry grass, dung), or camp placement nearer timber.
+- Seed 5 (no timber within 24 tiles, almost no tinder or kindling on its grassland) is still a knife edge after the
+  stat-tiers step. `NoTimberInReach_MovesCampToTimber` runs from the real spawn kit again (tinder kept for a fire that
+  lasts, sticks shaved for tinder down to 0.15 kg) and passes at the id `Npc.Spawn` gives it, so it is left there; at
+  the bench id (`NpcBench`) the same seed dies on day 5.5 with exposure in (day 60 alive on f0223c0's weather): its
+  timber search, a ring of day trips home to a dead camp each night, ends a day short. Upgrade: a tinder and kindling
+  income on open ground (dry grass, dung), camp placement nearer timber, or a timber search that carries its camp.
 - `Npc.cs` (`Warm`) - on a bitter day (-30, a strong wind) at a dead camp with the nearest timber twelve tiles off, the
   walk does not fit (70 minutes of snow, lethal core in 52) and it gropes the camp ground until it dies. Nothing it has
   saves it; a fire's makings carried out of every camp it leaves would.
+- `Npc.cs` (`StarvingFatPct`) - starving (food Critical, the stat tiers) reads the fat the body burns down to as its
+  own 3%, a copy of BodySurvival's private `MinFatPct`. Upgrade: make that one public and read it.
+- `Npc.cs` (trip budget) - trips are held to coming home out of warmth's Need (97.5F, plus 0.3 setting out), the
+  stat tiers' line, not the old wanted 96.8F; trips are about a quarter shorter. Revisit if NPCs forage too little.
+- `Npc.cs` (`StaysOut`) - only an option that outranks the evening and is not tonight's wood may keep it out past the
+  home-by hour; the Critical tier and threats always do. Tonight's wood is the evening's own errand (`Night`) after 19:00.
+- `Npc.cs` (`NewCamp`, `FireMakings`) - a camp move to a stash of makings a tile off a dead overhang still leaves the
+  shelter, and the next wood trip brings home back (on the 16 review seeds, 1-6 such round trips a run). Upgrade: carry
+  the makings back to the shelter instead of moving to them.
+- Food under the stat tiers: fat under the floor is Need, below tonight's wood, so on the 16 seeds most NPCs live to
+  day 60 at 2-5 kg of fat, near the floor the body burns to; past 60 days starving (food Critical) is the next death.
+  The forage economy (review item 2, `rebuild-npc-food-and-forage-review.md`) is what decides it now.
 - `Knowledge.cs:315` - a carcass going (butchered away) is not a notable journal entry: `Butchered` is a step's tally and
   is not filed. Upgrade: a once-only `CarcassGone` event when one leaves its tile.
 - `Content/accidents.json` (Sprains) - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.
@@ -255,3 +268,17 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Report.cs` - a day-10 report is about 17 ms (min of 15 runs, seed 17; HEAD before this step 15.7 ms by the same
   measure), not the 9 ms target: `Things.At` and `Signs.At` over every tile are most of it. Upgrade: skip tiles with
   no state, agents, fire, shelter or walked edge, if part B's validation runs it per settle.
+
+## Exposure (build step 4, first slice)
+
+- `Exposure.cs` - only bodies read `Exposure.At`; `Packed`, `Worn` and `UnderSnow` cover are
+  named and throw until things get effects. A body's wind is not capped at a gale (Wind Gap is 1.5, 67 mph, as the
+  chill already read it); the ground's still is (`SurfaceWeather.WindLevel`).
+- `Travel.cs` (pace in a gale) - reads `Map.WindFactor` against the sky's wind itself, outside `Exposure`
+  (ArchitectureTests allows it by name). Upgrade: read `Exposure.WindAt`; it moves travel minutes by rounding.
+- `Npc.cs` (WalkingCoolingFPerHour) - reads the open air from `Exposure.At(...).AirBeforeFireF` (stat-tiers step).
+  Its trip estimates read the wind of the tile it stands on, now that tile wind reaches the body: from camp (0.4) a
+  walk over open plain (1.2) is reckoned in camp's wind. Upgrade: sample the route's tiles through `Exposure.At`.
+- `Exposure.WindAt` multiplies in the spec's order, so with a shelter or walled pit on a factor-1 tile the chill's
+  mph can differ from the old `WindMph * windFactor * (1 - walls)` in the last bit. Probed: identical saves and
+  events on seeds 1, 7, 17, 42 over ten days with every wind factor forced to 1.

@@ -157,27 +157,38 @@ public static class Fire
     const double OpenAirHeatPct = 0.4;
 
     /// cover: the shelter around someone keeping still. Its insulation keeps the fire's heat in.
-    public static Warmth WarmthFor(World world, AgentId who, ShelterCover cover = default)
+    /// The fire's part of the agent's exposure (Exposure.At), which measures it against the air there.
+    public static Warmth WarmthFor(World world, AgentId who, ShelterCover cover = default) =>
+        Exposure.At(world, world.Agent(who).Tile, Cover.In(cover, who)).Warmth;
+
+    /// The fires reaching something on a tile: the pits on it, the heat of the holder's torches, and
+    /// how much wind the walls of the burning pits keep off (only while they burn). All caught up.
+    internal readonly record struct FiresAround(List<FireState> Pits, double TorchHeatF, double WallsLevel);
+
+    internal static FiresAround Around(World world, TileId tile, AgentId? holder)
     {
-        var tile = world.Agent(who).Tile;
         double torchHeatF = 0;
         var pits = new List<FireState>();
         foreach (var (id, f) in world.Fires)
         {
-            if (f.CarriedBy == who) { RequireCurrent(world, id, f); torchHeatF += HeatOutputF(f, 0); }
+            if (holder != null && f.CarriedBy == holder) { RequireCurrent(world, id, f); torchHeatF += HeatOutputF(f, 0); }
             else if (f.CarriedBy == null && f.Tile == tile) { RequireCurrent(world, id, f); pits.Add(f); }
         }
         var burning = pits.Where(IsActive).ToList();
-        double windProtection = burning.Count == 0 ? 0 : burning.Max(f => WindProtectionLevel(f.Pit));
-        // Heat is felt against the air as weather leaves it, wind chill included (old Location.GetTemperatureBreakdown).
-        var (ambientF, insulation) = Weather.ShelteredAirF(world, tile, Weather.At(world, world.Minute), windProtection, cover);
+        return new FiresAround(pits, torchHeatF, burning.Count == 0 ? 0 : burning.Max(f => WindProtectionLevel(f.Pit)));
+    }
+
+    /// The fires' heat, felt against the air as the weather and any shelter leave it, wind chill
+    /// included (old Location.GetTemperatureBreakdown); insulation is what of the shelter's is left.
+    internal static Warmth WarmthAgainst(FiresAround fires, double ambientF, double insulation)
+    {
         // Open air carries 60% of the heat away; a shelter's insulation keeps more of it in (old: the
         // fire's share was Clamp(insulation + 0.4, 0.4, 1)).
         double heldPct = Math.Clamp(insulation + OpenAirHeatPct, OpenAirHeatPct, 1.0);
-        double heatF = pits.Sum(f => HeatOutputF(f, ambientF));
+        double heatF = fires.Pits.Sum(f => HeatOutputF(f, ambientF));
         double airHeatF = heatF * OpenAirHeatPct, shelterHeatF = heatF * heldPct - airHeatF;
-        double pitHeatF = burning.Sum(f => HeatOutputF(f, ambientF + airHeatF + shelterHeatF));
-        return new Warmth(airHeatF, pitHeatF, torchHeatF, windProtection, shelterHeatF);
+        double pitHeatF = fires.Pits.Where(IsActive).Sum(f => HeatOutputF(f, ambientF + airHeatF + shelterHeatF));
+        return new Warmth(airHeatF, pitHeatF, fires.TorchHeatF, fires.WallsLevel, shelterHeatF);
     }
 
     /// Light enough to work by: flames on the tile, or a lit torch in hand. Embers are not light.

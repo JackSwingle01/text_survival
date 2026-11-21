@@ -134,6 +134,7 @@ public class ContentTests
         }
     }
 
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void DeepWoods_HasItsBerryBushOnAboutThreeTilesInTen()
     {

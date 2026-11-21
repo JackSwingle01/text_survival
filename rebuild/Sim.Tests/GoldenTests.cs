@@ -100,9 +100,10 @@ public class GoldenTests
         world.Fires[new FireId(world.NextFireId++)] = f;
         world.Minute = f.LastUpdatedMinute;
 
-        // An exposed tile: ExposedAirF's defaults. (The camp tile's own air is the next test.)
+        // An exposed tile: FeltAirF's defaults. (The camp tile's own air is the next test.)
         var w = Fire.WarmthFor(world, AgentId.Player);
-        double airF = Weather.ExposedAirF(Weather.At(world, world.Minute), w.WindProtectionLevel);
+        var sky = Weather.At(world, world.Minute);
+        double airF = Exposure.FeltAirF(sky, Exposure.WindAt(sky, 1, w.WindProtectionLevel, 0));
         Assert.Equal(OldExposedF, airF, Digits);
         double warmedF = airF + Fire.HeatOutputF(f, airF) * 0.4; // open air carries 60% of the heat away
         Assert.Equal(OldWarmedAirF, warmedF, Digits);
@@ -122,9 +123,9 @@ public class GoldenTests
         var m = Map.Of(world);
         Shelters.Remove(world, m.Camp); // this pins the open tile; the sheltered camp is ShelterTests'
         var sky = Weather.At(world, 0);
-        Assert.Equal(OldCampAirF, Weather.AirAtF(world, m.Camp, sky, 0), Digits);
+        Assert.Equal(OldCampAirF, Exposure.OpenAirF(world, m.Camp, sky), Digits);
         var pass = m.PassStageIndex.Single(kv => Map.PassStages[kv.Value].Name == "The Pass Proper").Key;
-        Assert.Equal(OldPassProperAirF, Weather.AirAtF(world, pass, sky, 0), Digits);
+        Assert.Equal(OldPassProperAirF, Exposure.OpenAirF(world, pass, sky), Digits);
 
         var f = new FireState { Tile = m.Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
         Fire.AddFuel(f, Resource.BirchBark, 0.05);

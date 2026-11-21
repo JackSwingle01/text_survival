@@ -798,7 +798,7 @@ public class CombatTests
         var bison = Agents.Spawn(w, Species.Bison, tile, 3);
         var mind = (NpcMind)w.Agent(npc).Mind;
         var b = w.Agent(npc).Body;
-        b.FatKg = mind.TargetFatKg - 1.5; b.CaloriesKcal = 100; b.CoreTempF = 98.6;
+        b.FatKg = 0.025 * b.WeightKg; b.CaloriesKcal = 0; b.CoreTempF = 98.6; // starving: a bison is worth the risk (Npc.WouldHunt)
         Items.Add(Items.StashAt(w, tile), Resource.Birch, 60);
 
         var events = new List<WorldEvent>();

@@ -35,6 +35,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     /// minutes (every crossing off the tile averaged; the step home is 36) and its core judged against the critical
     /// line, so it made camp where it stood and died making a fire there. Out to day 23, it never moves camp while
     /// the camp it leaves, two tiles off or less, has a fire burning or in embers.
+    [Trait("Category", "Slow")]
     [Fact]
     public void Seed7_NeverMakesCampBesideTheFireItLeft()
     {
@@ -255,7 +256,9 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     /// 32 walks of one tile and back in five hours, never reaching the trees, until it lit a fire back at the dead
     /// camp at last; on a bitter day (probe P4) it died within three hours. The timber it walks to is the nearest
     /// it knows, a tile off (it sees it from camp), whatever stand further off it is told of. Followed for five hours:
-    /// it reaches standing timber without once turning back to the dead camp, has a fire going there, and is alive.
+    /// it reaches standing timber without once turning back to the dead camp empty-handed, has a fire going - there,
+    /// or, the camp being an overhang with the trees in hauling reach, back under it - and is alive.
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(false, 0.20, 96.5, 3)]
     [InlineData(false, 0.45, 96.5, 3)]
@@ -269,12 +272,19 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         var tree = Enumerable.Range(-tiles, 2 * tiles + 1).Select(dx => new TileId(camp.X + dx, camp.Y + (tiles - Math.Abs(dx))))
             .First(t => m.InBounds(t) && m.TerrainAt(t).IsPassable());
         mind.Knows.Places[tree] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Trees = true };
-        var (left, litAt, backAtCamp) = Follow(w, npc, camp, 300);
+        // Seed 11's camp is an overhang with standing timber a tile off: a shelter is not left for a bare tile in hauling
+        // reach (Npc.Wood, the stat-tiers step), so the walk is a round trip and the fire is made back under the overhang.
+        bool sheltered = Shelters.Peek(w, camp) != null;
+        var (left, litAt, backAtCamp) = Follow(w, npc, camp, 300, litAtCampCounts: sheltered);
         output.WriteLine($"left {left}, lit at {litAt?.ToString() ?? "-"} (trees there {(litAt is TileId l && HasTrees(w, l))}), back at the dead camp {backAtCamp} times, camp now {mind.Camp}");
         Assert.True(left, "it never set out");
-        Assert.Equal(0, backAtCamp);
         Assert.NotNull(litAt);
-        Assert.True(HasTrees(w, litAt!.Value), $"the fire at {litAt} is not at the trees");
+        if (litAt == camp) Assert.True(sheltered && backAtCamp == 1, $"back at camp {backAtCamp} times before the fire");
+        else
+        {
+            Assert.Equal(0, backAtCamp);
+            Assert.True(HasTrees(w, litAt!.Value), $"the fire at {litAt} is not at the trees");
+        }
         Assert.True(Body.IsAlive(w.Agent(npc).Body));
     }
 
@@ -284,6 +294,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     /// legs to spare - it goes, never turns back to the camp it left, gets there, lights a fire at the trees and is
     /// alive at the end. If it does not fit, it does not set out. On the bitter day it does not: twelve tiles of
     /// snow take 70 minutes, and the core is at the lethal line in 52.
+    [Trait("Category", "Slow")]
     [Theory]
     [InlineData(false, 96.5, 0.6)]
     [InlineData(false, 96.5, 0.25)]
@@ -322,7 +333,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
 
     /// Lives the NPC on for this long or until it has a fire going away from the camp it started at: whether it left
     /// that camp, where its fire is (null if none), and how many times it walked back onto the camp before then.
-    static (bool Left, TileId? LitAt, int BackAtCamp) Follow(World w, AgentId npc, TileId camp, int minutes)
+    static (bool Left, TileId? LitAt, int BackAtCamp) Follow(World w, AgentId npc, TileId camp, int minutes, bool litAtCampCounts = false)
     {
         long end = w.Minute + minutes;
         bool left = false;
@@ -335,7 +346,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
             if (at != camp) left = true;
             else if (was != camp) back++;
             was = at;
-            if (lit != null && lit.Tile != camp) return (left, lit.Tile, back);
+            if (lit != null && (lit.Tile != camp || litAtCampCounts && left)) return (left, lit.Tile, back);
         }
         return (left, null, back);
     }
@@ -439,13 +450,13 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     /// FightOrFlight's size rule every herd animal outsized it (a caribou 4 to its 2), so it hunted nothing until
     /// starving and then anything, and a mammoth herd killed it (seed 123, day 34.9 at 6.9 kg fat).
     [Theory]
-    [InlineData(Species.Caribou, 0.5, true)]
-    [InlineData(Species.Caribou, 1.5, true)]
-    [InlineData(Species.Bison, 0.5, false)]
-    [InlineData(Species.Bison, 1.5, true)]
-    [InlineData(Species.Mammoth, 0.5, false)]
-    [InlineData(Species.Mammoth, 1.5, false)]
-    public void WhichHerdsALoneNpcHunts(Species species, double shortKg, bool hunts)
+    [InlineData(Species.Caribou, false, true)]
+    [InlineData(Species.Caribou, true, true)]
+    [InlineData(Species.Bison, false, false)]
+    [InlineData(Species.Bison, true, true)]
+    [InlineData(Species.Mammoth, false, false)]
+    [InlineData(Species.Mammoth, true, false)]
+    public void WhichHerdsALoneNpcHunts(Species species, bool starving, bool hunts)
     {
         var w = World.New(17);
         w.FixedWeather = Mild;
@@ -457,12 +468,14 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         Items.Add(Items.StashAt(w, camp), Resource.Oak, 40); // firewood is not what it worries about
         mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 40 } };
         var body = w.Agent(npc).Body;
-        body.FatKg = mind.TargetFatKg - shortKg;
-        body.CaloriesKcal = Body.MaxCaloriesKcal; // not hungry for what it carries: it is the fat it is short of
+        // Wanting food: half a kilo short of its fat, not hungry for what it carries. Starving (food Critical, the stat
+        // tiers): fat down to the floor the body burns to, the stomach empty.
+        body.FatKg = starving ? 0.025 * body.WeightKg : mind.TargetFatKg - 0.5;
+        body.CaloriesKcal = starving ? 0 : Body.MaxCaloriesKcal;
         var next = MapGen.Neighbors(camp).Where(t => Map.Of(w).TerrainAt(t).IsPassable() && Map.Blocked(Map.Of(w), camp, t) == null).OrderBy(t => t).First();
         Agents.Spawn(w, species, next, species == Species.Mammoth ? 6 : 3);
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
-        output.WriteLine($"{species} short {shortKg} kg: {a}, need {mind.Need}");
+        output.WriteLine($"{species} starving {starving}: {a}, need {mind.SeeingTo}");
         Assert.Equal(hunts, a is Travel t && Map.Step(camp, t.Dir) == next);
     }
 }

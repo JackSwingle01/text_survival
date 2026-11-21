@@ -196,6 +196,14 @@ protected it is: open, shelter, pack, worn, under snow.
   (wind chill, convection, drying) reads that one value. Drying beside a fire omits the shelter
   term. Today tile wind reaches only the chill; that is the bug this fixes.
 - No system computes exposure itself; an architecture test enforces it.
+- **The body's wind is not capped.** Exposed places push it past 1 (Plain 1.2, Hills 1.4, pass
+  stages up to 2.0, Wind Gap 2.5). Convection is linear in it up to 1, where the old values were
+  tuned, and grows with its square root above (real convection grows with about the square root of
+  wind speed), so a Wind Gap storm strips about 1.4x a gale's heat, not 2x.
+- **The ground's weather is Exposure's surface view** (`Exposure.Surface(world, tile, minute)`): the
+  open tile with no body, shelter or fire, addressable at any minute because ground, snow-shelter
+  melt and carcass rot catch up lazily. `Exposure.At` adds the body's side (wind chill at the body's
+  wind, the shelter step, the fire) to the same sky-and-tile terms in the same file.
 
 ### 3.5 Conditions and actions
 

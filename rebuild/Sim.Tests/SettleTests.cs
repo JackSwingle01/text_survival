@@ -2,6 +2,7 @@ using Survival;
 using Xunit;
 
 /// Whole-valley settles, years long: their own class, so they run beside the rest of the suite.
+[Trait("Category", TestCategories.Slow)]
 public class SettleTests
 {
     /// The valley over two years on the seed whose mammoths the packs ate out: they live.

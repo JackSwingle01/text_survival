@@ -255,9 +255,7 @@ public static class Sim
             _ => throw new NotSupportedException($"No survival profile for activity {activity.GetType().Name}"),
         };
         var cover = Shelters.CoverFor(world, agent.Tile, stationary, events);
-        var warmth = Fire.WarmthFor(world, agent.Id, cover);
         var bedding = Shelters.BeddingAt(world, agent.Tile);
-        var sky = Weather.At(world, world.Minute);
         // Old SurvivalContext.GroundContactFor: idle and walking both go through the ground on foot.
         var contact = activity switch
         {
@@ -266,22 +264,18 @@ public static class Sim
             StartFire or AddFuel or LightTorch or GatherCharcoal or Eat or Drink or Cook or MeltSnow or Butcher => SurfaceContact.WorkingOnGround,
             _ => SurfaceContact.Walking,
         };
-        double groundWetting = Ground.ContactWettingRate(world, agent.Tile, contact, Effects.Severity(agent.Body, EffectKind.Wet));
+        var exposure = Exposure.At(world, agent.Tile, Cover.In(cover, agent.Id), contact, Effects.Severity(agent.Body, EffectKind.Wet));
+        var warmth = exposure.Warmth;
         return new SurvivalContext
         {
             // Bedding's warmth is felt asleep in it (old WarmthBonus: authored, never read - bug, fixed).
-            AirTempF = Weather.ShelteredAirF(world, agent.Tile, sky, warmth.WindProtectionLevel, cover).AirF + warmth.AirHeatF
-                + (sleeping ? bedding?.WarmthBonusF ?? 0 : 0),
-            // Old CalculateEffectiveWindSpeed: the regional wind less the pit's walls. A shelter's walls
-            // cut it the same way - the wind through your clothes, as well as the chill above - as the
-            // pit's walls cut both; drying by a fire is the exception below. The tile's wind factor reaches only the chill (old game).
-            WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel) * (1 - cover.WindLevel),
-            // Drying at a fire reads the open wind less the pit's walls, not the shelter's (old game parity).
-            FireDryingWindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel),
-            Precipitation = sky.Precipitation,
-            PrecipitationPct = sky.PrecipitationPct,
-            // Old SurvivalContext: a roof over someone keeping still, or the sky's own cover, whichever is more.
-            OverheadCoverLevel = Math.Max(Map.OverheadCover(Map.Of(world), agent.Tile), cover.OverheadLevel),
+            AirTempF = exposure.AirF + (sleeping ? bedding?.WarmthBonusF ?? 0 : 0),
+            // The one wind at the body (Exposure.WindAt): the wind chill in AirTempF read it too.
+            WindLevel = exposure.WindLevel,
+            FireDryingWindLevel = exposure.FireDryingWindLevel,
+            Precipitation = exposure.Precipitation,
+            PrecipitationPct = exposure.PrecipitationPct,
+            OverheadCoverLevel = exposure.OverheadCoverLevel,
             // The shelter's held fire heat rides with the radiant heat: withheld once you sweat (old: it was
             // in the air, so a sheltered sleeper by a big fire sweated through every litre - bug, fixed).
             FireBonusF = warmth.PitHeatF * fireProximityFactor + warmth.ShelterHeatF,
@@ -290,7 +284,7 @@ public static class Sim
             ClothingWeightKg = agent.Body.ClothingWeightKg,
             ActivityFactor = activityFactor,
             IsSleeping = sleeping,
-            GroundWettingPctPerMinute = groundWetting,
+            GroundWettingPctPerMinute = exposure.GroundWettingPctPerMinute,
             GroundProtectionLevel = contact == SurfaceContact.RestingOnGround ? Shelters.GroundProtectionLevel(bedding) : 0,
             BeddingQualityPct = bedding?.QualityPct ?? SurvivalContext.NoBeddingQualityPct,
         };
