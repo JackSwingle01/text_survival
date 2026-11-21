@@ -232,3 +232,15 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   For the player it is one action, Pursue. You see its odds before committing, and it stops only
   for real decisions (the same rules that interrupt any long action). It comes after the MVP; the
   MVP keeps the catch-up inside fights. (Proposed; awaiting the user's yes.)
+- Species round (2026-11-21), all yes:
+  - real movement: per-species top speed, endurance speed, sprint time and a sprint reserve;
+  - fights cost metabolic calories, with strikes, dodges and sprints drawing on the reserve;
+  - a person can't outrun a predator, so survival comes from deterrence;
+  - the cave bear becomes a den defender, and the sabre-tooth becomes Homotherium (~190 kg);
+  - realistic body make-up, Kleiber scaling for animals, and a calorie store that scales with
+    mass;
+  - herds get a calorie budget (the landscape of fear).
+
+  Detection ranges and speeds start from the research's values but may be balanced for play.
+- Pursuit: yes, after the MVP. It must be shown playing out on the real map (both animals moving
+  tile by tile, tracks and blood visible), not as a bare progress bar.
