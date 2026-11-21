@@ -84,6 +84,16 @@ public class ConservationGroundTests
     [Trait("Category", TestCategories.Slow)]
     public void Ground_WaterIn_IsHeldOrGone_Many() => Scenes.Check(StateLevel, iter: 5000);
 
+    /// Seeds that caught the ledger losing water below NegligibleM, a trace at a time, until the
+    /// sum passed the tolerance: settling saturated snow squeezed out sub-nanometre drops that
+    /// were dropped rather than passed down. One per substrate it showed on.
+    [Theory]
+    [InlineData("9Tq5kYPuyrg1")] // lake ice: dense wet snow settling away, 7.8e-9 m lost
+    [InlineData("56EoPwFat2J1")] // rock
+    [InlineData("1qUzTAbM0Qe1")] // loam
+    [InlineData("eyMB1PE73A91")] // slope
+    public void Ground_WaterIn_IsHeldOrGone_FoundSeeds(string seed) => Scenes.Sample(StateLevel, seed: seed, iter: 1, threads: 1);
+
     /// The world's tiles, looked at whenever: an observed tile carried on from where it was left, an
     /// unobserved one from its class's cache. The ledger holds on every one.
     public sealed record WorldScene(int[] Tiles, int[] LookMinutes);

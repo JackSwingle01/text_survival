@@ -322,11 +322,15 @@ public static class Ground
         ? l.ThicknessM * (1 - l.FrozenFractionPct) + l.ThicknessM * l.FrozenFractionPct * IceExpansion
         : l.ThicknessM;
 
+    /// Callers pass at most the layer's pore volume, and a layer with no room holds nothing: the few
+    /// that can pass more (snow being packed or shrunk) take back the difference themselves.
+    /// A trace below NegligibleM is still water and stays in the ledger; zeroing it here deleted
+    /// up to a nanometre per call, which a long settle summed past the law (bug, fixed).
     static void SetStoredWaterM(SurfaceLayer l, SubstrateProfile sub, double waterM, double frozenM)
     {
         double capacity = PoreVolumeM(l, sub);
         double stored = Math.Max(0, waterM);
-        if (capacity <= NegligibleM || stored <= NegligibleM)
+        if (capacity <= NegligibleM || stored <= 0)
         {
             l.WaterSaturationPct = 0;
             l.FrozenFractionPct = 0;
@@ -611,18 +615,19 @@ public static class Ground
                     carried -= absorbed;
                 }
             }
-            if (carried > NegligibleM) AddToPond(carried);
+            if (carried > 0) AddToPond(carried);
         }
 
-        /// Water that reached the ground. On lake ice it runs away.
+        /// Water that reached the ground. On lake ice it runs away, and so does a film too thin to
+        /// stand as a pond of its own.
         void AddToPond(double liquidM)
         {
-            if (!sub.HoldsStandingWater)
+            var pond = Pond;
+            if (!sub.HoldsStandingWater || (pond == null && liquidM <= NegligibleM))
             {
                 state.WaterOverflowedM += liquidM;
                 return;
             }
-            var pond = Pond;
             if (pond == null)
             {
                 _layers.Insert(1, new SurfaceLayer { Material = SurfaceMaterial.Water, ThicknessM = liquidM, WaterSaturationPct = 1 });
@@ -753,23 +758,31 @@ public static class Ground
             layer.CompactionPct = target;
             layer.ThicknessM = skeletonM / SnowIceFraction(target);
             SetStoredWaterM(layer, sub, Math.Min(water, PoreVolumeM(layer, sub)), frozen);
-            double displaced = water - StoredLayerWaterM(layer, sub);
-            if (displaced > NegligibleM) _displacedWaterM += displaced;
+            Displace(water - StoredLayerWaterM(layer, sub));
         }
 
         /// Rebuild a snow layer around a new amount of skeleton ice, keeping its water.
+        /// A crumb of skeleton too small to keep as a layer melts into the water it leaves behind.
         void ResizeSnow(SurfaceLayer layer, double skeletonWeM, double waterM, double frozenM)
         {
-            layer.ThicknessM = skeletonWeM <= NegligibleM ? 0 : skeletonWeM * IceExpansion / SnowIceFraction(layer.CompactionPct);
+            bool crumb = skeletonWeM <= NegligibleM;
+            layer.ThicknessM = crumb ? 0 : skeletonWeM * IceExpansion / SnowIceFraction(layer.CompactionPct);
             double kept = Math.Min(waterM, PoreVolumeM(layer, sub));
             SetStoredWaterM(layer, sub, kept, Math.Min(frozenM, kept));
-            double displaced = waterM - kept;
-            if (displaced > NegligibleM) _displacedWaterM += displaced;
+            Displace(waterM - StoredLayerWaterM(layer, sub) + (crumb ? Math.Max(0, skeletonWeM) : 0));
+        }
+
+        /// Water a layer could no longer hold, in transit down. However little, it is never dropped:
+        /// the old threshold here deleted each sub-nanometre squeeze, and settling saturated snow
+        /// squeezes one every sub-step (bug, fixed).
+        void Displace(double waterM)
+        {
+            if (waterM > 0) _displacedWaterM += waterM;
         }
 
         void FlushDisplacedWater()
         {
-            if (_displacedWaterM <= NegligibleM) return;
+            if (_displacedWaterM <= 0) return;
             double displaced = _displacedWaterM;
             _displacedWaterM = 0;
             Percolate(displaced, MaxStepMinutes);
@@ -790,6 +803,7 @@ public static class Ground
                 double stranded = TotalWaterM(layer, sub);
                 _layers.RemoveAt(i);
                 if (stranded > NegligibleM) Percolate(stranded, MaxStepMinutes);
+                else if (stranded > 0) state.WaterOverflowedM += stranded; // too little to stand anywhere
             }
 
             for (int i = _layers.Count - 1; i >= 2; i--)
