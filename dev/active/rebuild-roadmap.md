@@ -312,3 +312,28 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   food-balance item.
 - Running numbers (speeds, sprint, running cost, grazing intake) live in `species.json`, where the
   tuner can reach them.
+
+**Combat round 6 and body B12/B14 (2026-11-21)**
+- Several enemies: perceived pressure = target's threat + 0.5 × the summed threat of other enemies
+  pressing within 5 m. The automatic defence roll guards only against your current target, so
+  flanking blows land unguarded.
+- Bear bands for a healthy adult with a spear, surprised bear at 8 m, no cubs, no kill:
+
+  | Your choice | Bear leaves | Bear killed | You die |
+  |---|---|---|---|
+  | Stand and intimidate | 45–55% | ≤5% | 10–20% |
+  | Attack | ≤10% | 10–20% | 35–50% |
+  | Run | ≤10% | 0 | 50–65% |
+
+  - Unarmed and standing: 25–35% die.
+  - A bear defending a kill or den: +15 points of deaths in every row.
+- B12, hunger follows reserves:
+  - an empty stomach is a mild penalty, about 5%;
+  - the strong penalty comes only as fat and muscle near their floors;
+  - Well fed is a small matching bonus (about +5%) when the last 24 hours' calorie balance is
+    positive. That balance is kept as one running value.
+- B14, exhaustion:
+  - at zero energy you don't fall asleep at once. Each minute there's about a 1% chance of falling
+    asleep where you are for 15–90 minutes;
+  - effects stack with diminishing returns, so hunger, thirst and tiredness together never take
+    Moving below about 0.2 while there's fat in reserve.
