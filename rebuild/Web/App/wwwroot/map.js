@@ -1,29 +1,27 @@
 // The map: drawn from what the player knows (view.map), never from the world. Explored ground in
 // colour where it is in sight now, desaturated where it is only remembered, dark where it was never
 // seen. Fires, shelters and animals are drawn as last seen, with their age when out of sight.
+// The ground itself is terrain.js: one art pixel per CSS pixel, so cells are CELL (48) wide on every
+// screen and stay crisp at a device pixel ratio of 1 or 2.
 import { icon, ago } from './util.js';
+import { createTerrain, TERRAIN } from './terrain.js';
+import { CELL, WINTER, WINTER_WORLD } from './terrain-core.js';
 
-const TERRAIN = { F: 'forest', C: 'clearing', P: 'plain', H: 'hills', W: 'water', M: 'marsh', R: 'rock', X: 'mountain', D: 'deepwater', c: 'cavefloor', e: 'rock' };
-const VARIANTS = 8;
-
-const hash = (x, y, s = 7) => { let h = x * 374761393 + y * 668265263 + s * 982451653; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-const tileImage = (code, x, y) => {
-  const k = Math.floor(hash(x, y, 11) * VARIANTS);
-  return icon(`${TERRAIN[code]}_tile${k === 0 ? '' : k + 1}`);
-};
+// Every cell is drawn as winter until the ground state is wired to the view (MapDto.Surface).
+const winterAt = () => WINTER;
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** state(): { view, drawPos: {x,y}, drawerOpen, selected: {x,y}|null }. */
 export function createMap(canvas, state, { onHover, onClick }) {
   const ctx = canvas.getContext('2d');
-  let TS = 64, dpr = 1, cam = null, hover = null, flakes = [], last = performance.now();
+  const TS = CELL, terrain = createTerrain();
+  let dpr = 1, cam = null, hover = null, flakes = [], last = performance.now();
   let visible = new Set(), visibleFor = null;
 
   function resize() {
     const r = canvas.getBoundingClientRect();
     dpr = Math.min(2, devicePixelRatio || 1);
     canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
-    TS = r.width < 600 ? 48 : 64;
     flakes = Array.from({ length: Math.round(r.width * r.height / 9000) }, () => ({ x: Math.random() * r.width, y: Math.random() * r.height, s: 1 + Math.random() * 1.5, v: 12 + Math.random() * 20 }));
   }
   new ResizeObserver(resize).observe(canvas);
@@ -70,14 +68,9 @@ export function createMap(canvas, state, { onHover, onClick }) {
     frame.ox = ox; frame.oy = oy; frame.TS = TS;
 
     // ground: only what is known is drawn at all
-    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const c = m.known[y * W + x];
-      if (c === '.') continue;
-      const im = tileImage(c, x, y), [px, py] = at(x, y);
-      if (im) ctx.drawImage(im, px, py, TS, TS);
-      if (c === 'e') sprite('cave_entrance', px + TS / 8, py + TS / 8, TS * 0.75);
-    }
+    terrain.draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera: cam, stateAt: winterAt, world: WINTER_WORLD, groundKey: 'winter' });
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++)
+      if (m.known[y * W + x] === 'e') { const [px, py] = at(x, y); sprite('cave_entrance', px + TS / 8, py + TS / 8, TS * 0.75); }
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const [px, py] = at(x, y);
       if (!known(x, y)) { ctx.fillStyle = 'rgba(13,18,22,.96)'; ctx.fillRect(px, py, TS, TS); }
@@ -102,7 +95,7 @@ export function createMap(canvas, state, { onHover, onClick }) {
       }
     }
 
-    const sp = TS * 0.75; // 16 px art at an exact 3x on 64 px tiles
+    const sp = 32; // 16 px art at an exact 2x on 48 px cells
     const onScreen = (x, y) => x >= x0 - 1 && x <= x1 + 1 && y >= y0 - 1 && y <= y1 + 1;
     for (const t of m.tracks) {
       if (!onScreen(t.x, t.y)) continue;

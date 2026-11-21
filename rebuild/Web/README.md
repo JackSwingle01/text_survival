@@ -9,7 +9,8 @@ and the crossing. Sim runs in-browser as AOT WebAssembly in a Web Worker (the de
 Host/        GameHost: NewGame, Act, View, Save, Load. Plain net10.0, no wasm. Views are DTOs (Dto.cs).
 Host.Tests/  The host, headless (xUnit).
 App/         The wasmbrowser app: a JSExport shim (Program.cs) and the page (wwwroot/).
-tools/       publish.sh, serve.mjs (static server), shots.mjs (headless Chrome checks).
+tools/       publish.sh, serve.mjs (static server), shots.mjs (headless Chrome checks),
+             terrain-preview.mjs (the map's ground to a PNG, no browser).
 shots/       Screenshots from shots.mjs (not committed).
 ```
 
@@ -40,6 +41,26 @@ file with `fetch` calls to the same five operations.
   uploadable as a file.
 - `Scenario(name)` is development only (`Host/Scenarios.cs`: `supplied`, `fight`, `dead`, `won`), for
   screenshots and tests; the page uses it only for `?scenario=`.
+
+## The map's ground
+
+`wwwroot/terrain-core.js` draws the ground per pixel from known terrain and world pixel coordinates;
+`wwwroot/terrain.js` bakes it into 8 x 8 cell chunks, a few milliseconds a frame, nearest the camera
+first. Cells are 48 CSS px everywhere (one art pixel each: crisp at a device pixel ratio of 1 or 2).
+Rivers are one channel through their cells, lakes have round shores, mountains are lit ridged
+height with a snowline, and snow, mud, ice and every tree come from world noise, so nothing repeats
+per tile. A pixel reads only its cell's 5 x 5 neighbourhood, and unknown cells read as the cell's own
+terrain, so the ground never shows what the player has not seen.
+
+Tiles supply only texture, painted by `scripts/build-terrain-layers.py` into `assets/icons/terrain/`.
+The ground state per cell and for the world is an input (`stateAt`, `world`, `groundKey` in
+`terrain.js`); the page passes winter everywhere until it is wired to `MapDto.Surface`
+(`dev/active/terrain-art-seasons.md`).
+
+```bash
+node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/ground.png      # winter
+node tools/terrain-preview.mjs tools/fixtures/seed17.json /tmp/thaw.png --state '{"snow":0.5,"dust":false,"mud":0,"ice":"thin"}'
+```
 
 ## Building
 
