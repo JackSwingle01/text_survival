@@ -30,8 +30,9 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 | Second asks-review fixes + NPC fire-keeping (short sleeps by a dying fire, earlier relights, kindling for oak, camp moves to timber) | 65d7a62 | committed; review running alongside the next step |
 | Existing tables to data files (12 JSON files; behaviour byte-identical) | f5a8350 | committed; review confirmed byte-identical, found 2 loader holes |
 | NPC review fixes: one trip budget (warmth, energy, home-by), stranded NPCs camp, bed counts burnable hours, no hunting prey it would flee | 45c7916 | committed |
-| Loader fixes (strict enum names, required struct fields, explicit flags, ranges, dead rows, immutability), felling-yield report bug, NPC cold-pit bed | 12933a4 | committed; review running |
-| Emergent step 2: substrate (ThingRef, Cause, Signs.At, Access.Refusal, tags and capabilities) | | in progress |
+| Loader fixes (strict enum names, required struct fields, explicit flags, ranges, dead rows, immutability), felling-yield report bug, NPC cold-pit bed | 12933a4 | committed; review found two NPC rules from 45c7916 causing the earliest deaths |
+| Emergent step 2: substrate (ThingRef, Cause, Signs.At, Access.Refusal, tags and capabilities); byte-identical apart from saved causes | 11cedc4 | committed; review running |
+| NPC fixes: `Stranded` camp moves, warming walks refused, groping beside a lit fire, mammoth hunts, caribou huntable | | in progress |
 | Emergent step 2: substrate (ThingRef, Cause, Signs, Access) | | |
 | Emergent step 3: kill chain, renewal, settling pass | | |
 | Emergent step 4: affordances, moments, catalog paper exercise | | |
@@ -130,6 +131,14 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
   the common rabbit and ptarmigan mix. Small game has no system yet, so no sim effect.
 - The report's felled-tree fire hours were about 5.7% high (it assumed more logs per tree than
   chopping gives). Corrected; chopping itself is unchanged.
+
+**Substrate**
+- `Access.Refusal` is the one gate for reaching a thing, and every thing refusal calls it. The new
+  conditions (buried, guarded, frozen in, across water) are implemented but not switched on,
+  because nothing enforced them before and this step was meant to change no behaviour. Switching
+  them on is a gameplay change for you to approve, most likely alongside moments (step 4).
+- Kills are attributed to the other side's first fighter and its weapon (nothing records the last
+  blow). A dead person's body has no cause yet.
 
 ## Open questions
 
