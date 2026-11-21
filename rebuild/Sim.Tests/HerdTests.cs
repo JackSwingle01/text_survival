@@ -616,13 +616,20 @@ public class HerdTests(ITestOutputHelper output)
     public void ThirtyPopulatedDays_StayCheap()
     {
         var w = World.New(17);
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var events = Sim.Advance(w, 30 * 1440);
         clock.Stop();
+        long allocatedMB = (GC.GetAllocatedBytesForCurrentThread() - allocatedBefore) / (1024 * 1024);
         int json = Save.ToJson(w).Length;
-        output.WriteLine($"30 days, {Herds(w).Count()} herds: {clock.Elapsed.TotalSeconds:F1}s, {events.OfType<Moved>().Count()} moves, " +
+        output.WriteLine($"30 days, {Herds(w).Count()} herds: {clock.Elapsed.TotalSeconds:F1}s, {allocatedMB} MB allocated, {events.OfType<Moved>().Count()} moves, " +
                          $"{events.OfType<FightEnded>().Count()} fight sides, {events.OfType<Killed>().Count()} killed; save {json / 1024} KB");
-        Assert.True(clock.Elapsed.TotalSeconds < 10, $"took {clock.Elapsed.TotalSeconds:F1}s");
+        // Cost is budgeted in bytes allocated, not seconds: the sim is single-threaded, so this thread's
+        // allocation is deterministic for a seed and blind to machine load, and it tracks the work done
+        // (about 2.1 GB in 2.5 s when this was written). Wall clock flaked at 13-21 s under parallel suites;
+        // the 60 s limit is only a backstop for a blow-up that does not allocate.
+        Assert.True(allocatedMB < 6000, $"allocated {allocatedMB} MB");
+        Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed.TotalSeconds:F1}s");
         Assert.True(json < 1_000_000, $"save is {json} bytes");
     }
 
