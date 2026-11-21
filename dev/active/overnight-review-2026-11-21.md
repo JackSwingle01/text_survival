@@ -9,16 +9,17 @@ second review.
 project is retired only once the rebuild reaches feature parity (Phase 5's gate), with the parity
 checklist recorded here. The other session's worktree under `.claude/worktrees/` is left alone.
 Design commitments are not reopened; balance and design calls default to old-game parity or the
-conservative option and are listed below. No new `ponytail:` markers (user preference); the
-existing 52 are being converted to plain notes and a dev doc.
+conservative option and are listed below. No `ponytail:` markers (user preference): all were
+converted to plain comments, and real deferrals are listed in `dev/active/rebuild-deferred.md`.
 
 ## Status by step
 
 | Step | Commit | Status |
 |---|---|---|
 | Design doc + plan | 2e91fad | done |
-| 4a named places, crossing, den herds; 4b shelters, bedding, building | dc15566, 1c4c825 | committed; review running |
-| Emergent step 1: find dump, distribution report, population curves | 2af01d6 | committed; in the same review |
+| 4a named places, crossing, den herds; 4b shelters, bedding, building | dc15566, 1c4c825 | committed |
+| Emergent step 1: find dump, distribution report, population curves | 2af01d6 | committed |
+| Review fixes for the two rows above (13 findings, regression tests; markers converted) | 6f4ef1b | committed; second review running |
 | Merge of `worktree-short-loop-plan` (short-loop plan, UI design, terrain art) | 11aee1a | done, at your request |
 | Short-loop plan's "Asks of the Rebuild" (event tiles, historical minutes, chance factors, skills, place memory) | | after the phase 4 fix round |
 | Existing tables to data files | | |
@@ -55,7 +56,19 @@ existing 52 are being converted to plain notes and a dev doc.
   with both cuts against -2.32 with one. If you want shelters warmer, raise their insulation; don't
   restore the second cut.
 - Once the player stands on the far side of the pass, the run is over: the core refuses further
-  player activities, instead of letting the player walk back and "un-win".
+  player activities, instead of letting the player walk back and "un-win". `Advance` keeps running
+  the world but the crossed player lives no more minutes.
+- Discoverable shelters (rock overhang, ice cave, cave sleeping recess) are now placed when found.
+  Their rolls come from the tile's own seeded stream; the old game used its process-wide RNG.
+- The effect of counting wind cover once, measured (core temperature drop with no fire, seed 17):
+
+  | Sky | Shelter | First hour, before → after | After 4 h, before → after |
+  |---|---|---|---|
+  | Snowy, -20 °C | Camp overhang | 0.47 → 1.00 °F | 4.66 → 5.45 °F |
+  | Snowy | Snow shelter | 0.005 → 0.89 °F | 3.28 → 4.86 °F |
+  | Snowy | Open | 2.92 °F | 10.40 °F |
+  | Calm, -10 °C | Overhang | 0 → 0 | 1.35 → 1.69 °F |
+  | Calm | Snow shelter | 0 → 0 | 0.75 → 1.44 °F |
 
 **Emergent step 1 (tools)**
 - Ambient forage and timber are not counted as finds (they are the survivable skeleton); they
@@ -88,6 +101,11 @@ existing 52 are being converted to plain notes and a dev doc.
   before hourly stepping for distant agents.
 
 ## Shortfalls (what didn't meet its gate, honestly)
+
+- **The Phase 2 camper got harder after the phase 4 fixes**: 10 → 17 injuries, food it gathered
+  10,954 → 7,301 kcal, the hand-fed share 80% → 86%. It still survives 30 days. The second review
+  is checking what changed its path (likely the shelter-find draws or den territories shifting
+  what is near camp).
 
 ## Deliberately left for you
 - Retiring the old project (Phase 5's last step), unless parity is reached overnight.
