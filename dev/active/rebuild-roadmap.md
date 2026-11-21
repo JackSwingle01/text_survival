@@ -185,3 +185,25 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - Skittish animals always flee once engaged. Bison, megaloceros and mammoth use the bands.
 - Block is no longer an action: it is an automatic defence roll when attacked.
 - Combat frontier (27 questions): `/Users/jackswingle/.claude/jobs/2c768bb5/tmp/combat-frontier.md`.
+- Targets: each fighter targets whoever it has the best margin against, weighted toward closer
+  ones. A predator goes for the most vulnerable, a defender for the biggest threat. Hostility is
+  derived from each fighter's boldness toward each other one, so fights with three or more sides
+  and packs ganging up on the weakest come from the same rule. Switching target is an action, open
+  in any state. It costs the round (turning to face), which also stops flip-flopping without a
+  separate rule. The player already names a target.
+- Defence: Block and Dodge are both folded into one automatic defence roll when attacked (a block
+  if armed, a dodge otherwise). It is higher in Giving ground and Standoff, lower in Pressing.
+- Tuning: a plain optimiser (an evolutionary search over the constants, scored against the
+  outcome bands, with a penalty for animals that die stupidly) is the MVP's balance tool.
+- Experiment, its own branch, after the combat state rules exist: learned behaviour.
+  - The rules stay hand-written; the policy chooses among allowed actions and state switches.
+  - Inputs are generic, never species ids. Animals have no input for weapons or thrown things.
+  - Fitness is survival plus calories, minus energy spent and injuries.
+  - Stage A co-evolves prey and predators and then freezes them. Stage B trains people against
+    the frozen animals and against each other.
+  - The policy starts as readable evolved weights over named inputs, and becomes a small network
+    only if that plateaus.
+  - The outcome bands are checks, not the reward. Unrealistic results are fixed by tuning stats
+    and rules, not behaviour. Policies are deterministic and ship as data.
+  - The report gives per-species strategies in plain words and outcomes against the hand-tuned
+    baseline. It is adopted only if it beats the baseline.
