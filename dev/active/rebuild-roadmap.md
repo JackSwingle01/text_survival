@@ -70,3 +70,29 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - **Combat balance retune:** folds into MVP step 3.
 - **World-density checks:** measures and floors (parked).
 - **The body review's design questions** (step 6).
+
+## Decided in the 2026-11-21 grilling
+
+**Predators and people (MVP 2)**
+- People are prey like any other. A predator herd's hunt choice includes every person in reach,
+  player and NPC alike, scored by its ordinary boldness against the risk. There is no separate
+  engage-the-player rule.
+- The approach is ordinary herd movement toward the target, tile by tile. You see it only if you
+  notice it. No stalking events and no warning text.
+- Fire lowers boldness through one base fire-fear value for animals; people are not deterred.
+  Tune per species later if needed.
+- Each other person on the target's tile lowers boldness, the mirror of the pack-size term. NPCs
+  help through their ordinary combat-help choice.
+- When the predator reaches the tile and still wants you, the fight opens: at a distance and
+  ready if you saw it coming, an ambush if you didn't. A predator whose boldness drops on the
+  way turns back.
+- Open: the rule for long actions stopping (round 2). Combat itself is under review: a headless
+  outcome survey is running, and fixing the grid versus an abstract model is to be decided
+  (`documentation/combat-survey-2026-11-21.md`).
+
+**Body (B4, B5)**
+- Cold, thirst and hunger damage organs at a fixed rate, not divided by toughness or condition.
+  Targets, to tune: about 3 days without water at rest; starvation over weeks, after fat then
+  muscle; hypothermia harms below about 95 °F core and kills around 82 °F, within hours.
+- Effects disable but never kill directly. Only tissue and blood decide life, and death is named
+  after the damage that crossed the line.
