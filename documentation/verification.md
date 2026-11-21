@@ -32,6 +32,7 @@ with `CsCheck_Seed=asQ2YGi3KzQ1 dotnet test ... --filter <name>` and it sees the
 - `rebuild/Sim.Tests/Verification/BodySurvivalPropertyTests.cs` has the laws for wetness, drying
   and core temperature in `BodySurvival.cs`, and the wetness reference model.
 - `rebuild/Sim.Tests/stryker-config.json` and `stryker-config.body.json` are the two Stryker runs.
+- `rebuild/Sim.Tests/mutation-paths.txt` lists what CI's mutation run depends on besides each config's `mutate` sources; each new Stryker config adds its tests and content data there.
 
 ## Generators and their ranges
 

@@ -2,8 +2,10 @@ name: Mutation
 
 # Stryker mutation testing for the rebuild's verified kernels (see documentation/verification.md).
 #
-# Runs at most once a day, and only when rebuild/ changed since the last run that actually mutated:
-# - push to main: runs unless a mutation job succeeded in the last 24 h, or nothing under rebuild/
+# Runs at most once a day, and only when something mutation testing depends on changed since the
+# last run that actually mutated. "Depends on" is each Stryker config's `mutate` sources plus
+# rebuild/Sim.Tests/mutation-paths.txt (tests, content data, the configs).
+# - push to main: runs unless a mutation job succeeded in the last 24 h, or none of those paths
 #   changed since that job's commit.
 # - schedule (daily, 04:17 UTC): picks up pushes the 24 h throttle skipped. Same two checks, with a
 #   23 h window so cron jitter does not push the daily run to every other day.
@@ -77,11 +79,32 @@ jobs:
             decide true "Last mutation commit $last_sha is not in history: running."
           fi
 
-          if git diff --quiet "$last_sha" HEAD -- rebuild/; then
-            decide false "No rebuild/ change since $last_sha: skipping."
+          # What mutation testing depends on: each config's `mutate` sources (globs relative to the
+          # project it mutates, Sim.csproj) plus the tests, data and configs in mutation-paths.txt.
+          paths=()
+          for cfg in rebuild/Sim.Tests/stryker-config*.json; do
+            project=$(jq -r '."stryker-config".project' "$cfg")
+            if [ "$project" != "Sim.csproj" ]; then
+              echo "::error::$cfg mutates $project; teach the gate where that project lives."; exit 1
+            fi
+            mutate=$(jq -r '."stryker-config".mutate // [] | .[] | select(startswith("!") | not)' "$cfg")
+            if [ -z "$mutate" ]; then paths+=("rebuild/Sim/"); fi
+            while IFS= read -r glob; do
+              [ -n "$glob" ] && paths+=(":(glob)rebuild/Sim/$glob")
+            done <<< "$mutate"
+          done
+          while IFS= read -r line; do
+            paths+=("$line")
+          done < <(grep -Ev '^[[:space:]]*(#|$)' rebuild/Sim.Tests/mutation-paths.txt)
+          printf 'Watched: %s\n' "${paths[@]}"
+
+          if git diff --quiet "$last_sha" HEAD -- "${paths[@]}"; then
+            decide false "No mutation-relevant change since $last_sha: skipping."
           fi
 
-          decide true "rebuild/ changed since $last_sha: running."
+          echo "Changed since $last_sha:"
+          git diff --name-only "$last_sha" HEAD -- "${paths[@]}"
+          decide true "Mutation-relevant files changed since $last_sha: running."
 
   mutation:
     name: mutation
@@ -96,22 +119,18 @@ jobs:
           global-json-file: global.json
       - run: dotnet tool restore
 
-      # The CLI --test-case-filter replaces the config's, so each one restates the config's name
-      # filter and adds Category!=Slow: coverage capture must never reach the 2-minute Slow tests.
+      # Each config's own test-case-filter carries Category!=Slow: coverage capture must never reach
+      # the 2-minute Slow tests.
       # Gated: stryker-config.json sets thresholds.break = 90, so a lower score exits non-zero.
       - name: Effects (Effects.cs, break at 90%)
         working-directory: rebuild/Sim.Tests
-        run: >-
-          dotnet stryker --config-file stryker-config.json
-          --test-case-filter "FullyQualifiedName~EffectsPropertyTests&Category!=Slow"
+        run: dotnet stryker --config-file stryker-config.json
 
       # Report only (break 0) until the exposure kernel replaces BodySurvival's wetness and drying.
       - name: Body survival (BodySurvival.cs, report only)
         if: ${{ !cancelled() }}
         working-directory: rebuild/Sim.Tests
-        run: >-
-          dotnet stryker --config-file stryker-config.body.json
-          --test-case-filter "FullyQualifiedName~Survival.Tests.Verification&Category!=Slow"
+        run: dotnet stryker --config-file stryker-config.body.json
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
