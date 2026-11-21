@@ -207,3 +207,6 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
     and rules, not behaviour. Policies are deterministic and ship as data.
   - The report gives per-species strategies in plain words and outcomes against the hand-tuned
     baseline. It is adopted only if it beats the baseline.
+- Before any combat tuning (optimiser or learned): realistic body stats per species and a fight
+  energy model (stamina, metabolic cost per round, recovery, load and wounds), from sourced data.
+  Research: `documentation/species-stats-research.md`.
