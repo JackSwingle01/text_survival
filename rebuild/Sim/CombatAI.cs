@@ -74,11 +74,38 @@ public static partial class Combat
 
     /// Up to 15% of each ally's threat, as far as this fighter trusts it.
     static double AllyBonus(World world, Encounter enc, CombatUnit u) =>
-        0.15 * Allies(enc, u).Sum(a => Math.Max(0, Threat(world, a) * Cohesion(world, u)));
+        AllyBonus(Cohesion(world, u), Allies(enc, u).Select(a => Threat(world, a)));
 
-    /// What a fire does to a predator's nerve where it stands. Fire on the grid is combat round 4; until
-    /// then nothing deters.
-    static double FireDeterrence(World world, Encounter enc, CombatUnit u) => 0;
+    static double AllyBonus(double cohesion, IEnumerable<double> allyThreats) => 0.15 * allyThreats.Sum(t => Math.Max(0, t * cohesion));
+
+    // ---- fire ----
+
+    /// What flame does to a fighter's nerve: fire-fear × each flame's intensity × the
+    /// falloff from where the fighter stands, min(1, (FullWithinM / d)²). The one formula: the grid
+    /// measures d from the pit's cell or the torch-bearer, the map from the person the predator would
+    /// come for. Fire-fear is one value for every animal; people are not deterred.
+    public static double FireDeterrence(SpeciesStats stats, IEnumerable<(double IntensityPct, double DistanceM)> flames)
+    {
+        if (!stats.IsAnimal) return 0;
+        var d = Fire.Deterrence;
+        return flames.Sum(f => d.FireFear * f.IntensityPct * (f.DistanceM <= d.FullWithinM ? 1 : Math.Pow(d.FullWithinM / f.DistanceM, 2)));
+    }
+
+    /// Pits stand at Encounter.FireCell, torches with their bearers; a torch out of the fight has no place on the grid.
+    static double FireDeterrence(World world, Encounter enc, CombatUnit u)
+    {
+        if (!StatsOf(world, u).IsAnimal || world.Fires.Count == 0) return 0;
+        var flames = new List<(double, double)>();
+        foreach (var f in Fire.FlamesOn(world, enc.Tile))
+        {
+            var at = f.Holder is AgentId holder ? Field(enc).FirstOrDefault(o => o.Agent == holder)?.Position : enc.FireCell;
+            if (at is Cell c) flames.Add((f.IntensityPct, u.Position.DistanceTo(c)));
+        }
+        return FireDeterrence(StatsOf(world, u), flames);
+    }
+
+    /// Brings the flames a fight reads up to this minute: once a round, before anyone weighs them.
+    static void CatchUpFlames(World world, Encounter enc, List<WorldEvent> events) => Fire.CatchUpOn(world, enc.Tile, events);
 
     /// Boldness, less fire's deterrence, less the threat seen in the other and in whoever else is
     /// pressing it: the one number the bands read.
@@ -259,6 +286,31 @@ public static partial class Combat
             - PerceivedThreat(worst, distanceM);
         return NextState(FighterState.Standoff, margin);
     }
+
+    /// The margin a herd would have toward the people on a tile were it at their position (the hold):
+    /// Margin's terms before any fight, and it must follow Margin when Margin changes. Its boldest member leads, its other members are its
+    /// allies, the person faced is the one it has the best margin against, every other person there presses
+    /// on it, and every flame on the tile is beside them. Null when nobody alive stands there. The tile's
+    /// flames must be caught up (Fire.CatchUpOn).
+    public static double? MarginOnTile(World world, Agent herd, TileId tile)
+    {
+        var people = Nearby.At(world, tile).Select(world.Agent).Where(a => a.Mind is PersonMind && Sim.IsAlive(a)).ToList();
+        if (people.Count == 0) return null;
+        var stats = SpeciesTable.Of(herd.Species);
+        var living = herd.Members.Where(Body.IsAlive).ToList();
+        if (living.Count == 0) throw new ArgumentException($"{herd.Id} has nobody alive to come on");
+        int lead = Enumerable.Range(0, living.Count).MaxBy(i => Courage(stats, 0, living[i]));
+        double nerve = Courage(stats, 0, living[lead]) + AllyBonus(stats.Cohesion, living.Where((_, i) => i != lead).Select(m => stats.Threat * Body.Vitality(m)));
+        double deterrence = FireDeterrence(stats, Fire.FlamesOn(world, tile).Select(f => (f.IntensityPct, 0.0)));
+        var threats = people.Select(p => SpeciesTable.Of(p.Species).Threat * Body.Vitality(p.Body)).ToList();
+        double all = threats.Sum();
+        return threats.Max(t => nerve - deterrence - PerceivedThreat(t, 0) - OtherPressureFactor * (all - t));
+    }
+
+    /// A herd steps onto a tile with people only if its margin there, fire included, reaches the Pressing
+    /// entry; short of that it holds where it is until the fire dies or the person steps away.
+    public static bool WouldEnter(World world, Agent herd, TileId tile) =>
+        MarginOnTile(world, herd, tile) is not double margin || margin >= PressingEnterMargin;
 
     // ---- targets ----
 

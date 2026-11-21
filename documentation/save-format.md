@@ -43,7 +43,9 @@ weapons. Version 5 (flight and catch-up) added a fight's `PendingFlight`, its un
 seen and the minute, saved as `"WxH:seen:records"`, a base64 bitset of the tiles seen and then ten bytes
 per tile seen (minute, snow and standing water in millimetres, mud in hundredths, crust and ice flags),
 13 characters per tile seen on top of the bitset. A look also catches up the kept ground in view, so the
-sample's ground numbers moved forward. When you add
+sample's ground numbers moved forward. Version 7 (fire deterrence) gave an encounter its `FireCell`, where the
+tile's fire pit stands on the grid: written always, since (0,0) is a cell, so a fight saved before it would put the
+pit in a corner. The sample has no fight in it, so only its version moved. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands.

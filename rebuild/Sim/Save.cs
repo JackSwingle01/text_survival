@@ -9,7 +9,7 @@ namespace Survival;
 public static class Save
 {
     /// The format this build writes and reads. Raise it with any change to what a save holds.
-    public const int FormatVersion = 6;
+    public const int FormatVersion = 7;
 
     static readonly JsonSerializerOptions Options = new() { WriteIndented = false };
 

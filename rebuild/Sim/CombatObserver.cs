@@ -9,8 +9,8 @@ public interface ICombatObserver
 }
 
 /// The grid at the end of a round. Round 0 is the placement, before anyone acts. Events are the
-/// WorldEvents this round raised (Injured, Killed, Died, FightEnded...). Fire is the fire's cell once
-/// fire on the grid lands (combat round 4); null until then.
+/// WorldEvents this round raised (Injured, Killed, Died, FightEnded...). Fire is the burning pit's cell
+/// (Encounter.FireCell), or null when no pit burns on the tile.
 public sealed record CombatRoundView(int Round, IReadOnlyList<FighterView> Fighters, Cell? Fire, IReadOnlyList<WorldEvent> Events);
 
 /// One unit of Encounter.Units, by its index there. Action and Target are what it did this round (null in
@@ -58,6 +58,6 @@ public static partial class Combat
                 body == null ? null : WoundLevel(body));
         }).ToList();
         foreach (var u in enc.Units) (u.RoundAction, u.RoundTarget) = (null, null);
-        observer.Round(new CombatRoundView(enc.Rounds, fighters, null, events));
+        observer.Round(new CombatRoundView(enc.Rounds, fighters, Fire.FlamesOn(world, enc.Tile).Any(f => f.Holder == null) ? enc.FireCell : null, events));
     }
 }

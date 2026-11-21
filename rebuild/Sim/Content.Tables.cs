@@ -15,6 +15,7 @@ internal sealed record ContentTables(
     IReadOnlyList<KitGear> StartingClothes,
     IReadOnlyDictionary<Resource, FuelProps> Fuels,
     IReadOnlyDictionary<PitType, PitProps> Pits,
+    DeterrenceProps Deterrence,
     IReadOnlyDictionary<Species, SpeciesStats> Species,
     IReadOnlyDictionary<Diet, IReadOnlyList<Resource>> Diets,
     SightingPools Sightings,
@@ -50,7 +51,7 @@ public static partial class Content
     sealed record ItemsFile(Dictionary<string, ResourceDef> Resources, Dictionary<string, GearDef> Gear,
         Dictionary<string, double> SlotCoverage, PackFile StartingPack, IReadOnlyList<KitGear> StartingClothes);
     sealed record PackFile(Dictionary<string, IReadOnlyList<double>> Kg, IReadOnlyList<KitGear> Gear);
-    sealed record FireFile(Dictionary<string, FuelProps> Fuels, Dictionary<string, PitProps> Pits);
+    sealed record FireFile(Dictionary<string, FuelProps> Fuels, Dictionary<string, PitProps> Pits, DeterrenceProps Deterrence);
     sealed record SpeciesFile(Dictionary<string, SpeciesRow> Species, Dictionary<string, Temperament> Temperaments,
         Dictionary<string, IReadOnlyList<Resource>> Diets, SightingPools Sightings);
     sealed record SpeciesRow(BodyKind Body, double WeightKg, double FatPct, double MusclePct, Role Role, bool IsSmall,
@@ -144,7 +145,7 @@ public static partial class Content
         // Then references, shapes and ranges.
         problems.AddRange(LocationProblems(locations, loot, items.Gear, kinds, terrains));
         problems.AddRange(ItemProblems(items, resources, slots, packKg));
-        problems.AddRange(FireProblems(fuels, pits));
+        problems.AddRange(FireProblems(fuels, pits, fire.Deterrence));
         problems.AddRange(SpeciesProblems(species, speciesRows));
         problems.AddRange(EffectProblems(effectRows, effectCaps));
         problems.AddRange(ShelterProblems(shelters, items.Gear, kinds, materials, recipes, beddings));
@@ -164,7 +165,7 @@ public static partial class Content
             locations, new ReadOnlyDictionary<string, IReadOnlyList<LootRoll>>(loot),
             ReadOnly(resources), new ReadOnlyDictionary<string, GearDef>(items.Gear), ReadOnly(slots),
             new StartingPackDef(ReadOnly(packKg), items.StartingPack.Gear), items.StartingClothes,
-            ReadOnly(fuels), ReadOnly(pits),
+            ReadOnly(fuels), ReadOnly(pits), fire.Deterrence,
             ReadOnly(speciesRows.ToDictionary(s => s.Key, s => ToStats(s.Value, species.Temperaments[s.Value.Temperament]))),
             ReadOnly(diets), species.Sightings,
             ReadOnly(effectRows.ToDictionary(e => e.Key, e => new EffectDef(e.Value.SeverityPerHour, e.Value.TreatmentAboveSeverity,
@@ -393,8 +394,10 @@ public static partial class Content
             yield return "items.json: two starting clothes on one slot";
     }
 
-    static IEnumerable<string> FireProblems(Dictionary<Resource, FuelProps> fuels, Dictionary<PitType, PitProps> pits)
+    static IEnumerable<string> FireProblems(Dictionary<Resource, FuelProps> fuels, Dictionary<PitType, PitProps> pits, DeterrenceProps deterrence)
     {
+        if (deterrence.FireFear < 0 || deterrence.TorchIntensityPct is < 0 or > 1 || deterrence.FullIntensityHeatF <= 0 || deterrence.FullWithinM <= 0)
+            yield return "fire.json deterrence: out of range";
         foreach (var (r, p) in fuels)
         {
             if (p.PeakTempF <= 0 || p.BurnRateKgPerHour <= 0 || p.MinFireTempF < 0) yield return $"fire.json fuels {r}: temperatures and burn rate";

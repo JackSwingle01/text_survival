@@ -63,6 +63,12 @@
   { "name": "knife.damage", "paths": ["items.json:gear.flint_knife.weapon.damage", "items.json:gear.bone_knife.weapon.damage", "items.json:gear.worn_knife.weapon.damage"],
    "min": 0.1, "max": 15, "log": true, "note": "every knife alike, as today" },
 
+  { "name": "fire.fireFear", "path": "fire.json:deterrence.fireFear", "min": 0.5, "max": 6, "log": true,
+   "note": "what a flame at full intensity, close by, takes off an animal's margin; people are not deterred" },
+  { "name": "fire.torchIntensityPct", "path": "fire.json:deterrence.torchIntensityPct", "min": 0.05, "max": 0.6, "note": "a lit torch against a campfire's 1" },
+  { "name": "fire.fullWithinM", "path": "fire.json:deterrence.fullWithinM", "min": 2, "max": 15, "log": true,
+   "note": "deters in full this close; inverse-square beyond" },
+
   { "name": "sightings.resting.0", "path": "species.json:sightings.resting.0", "min": 0.2, "max": 3, "log": true, "note": "how watchful a resting herd is when stalked" },
   { "name": "sightings.resting.1", "path": "species.json:sightings.resting.1", "min": 0.2, "max": 3, "log": true }
  ]

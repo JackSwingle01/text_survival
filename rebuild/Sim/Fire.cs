@@ -12,6 +12,9 @@ public sealed record FuelProps(double PeakTempF, double BurnRateKgPerHour, doubl
 /// One row of Content/fire.json pits: what a pit holds, how much wind it keeps off, how long fuel lasts in it.
 public sealed record PitProps(double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
 
+/// What flame does to an animal's nerve (Content/fire.json deterrence, read by Combat.FireDeterrence).
+public sealed record DeterrenceProps(double FireFear, double TorchIntensityPct, double FullIntensityHeatF, double FullWithinM);
+
 /// A fire pit on a tile, or a torch carried by an agent (CarriedBy set; the two-mass fields are then unused).
 public sealed class FireState
 {
@@ -45,6 +48,7 @@ public static class Fire
     /// What burns and how (Content/fire.json).
     public static readonly IReadOnlyDictionary<Resource, FuelProps> Props = Content.Tables.Fuels;
     static readonly IReadOnlyDictionary<PitType, PitProps> Pits = Content.Tables.Pits;
+    public static readonly DeterrenceProps Deterrence = Content.Tables.Deterrence;
 
     /// Which resources burn: the ones with fuel properties.
     public static bool IsFuel(Resource r) => Props.ContainsKey(r);
@@ -159,7 +163,41 @@ public static class Fire
         return differentialF / 50.0 * Math.Sqrt(Math.Max(BurningKg(f), 0.5));
     }
 
+    /// How fiercely a fire burns, 0-1, for what fears flame. A pit's heat is measured against 0 °F air, so it
+    /// is the flame's own, not the weather's. Embers give no flame.
+    public static double IntensityPct(FireState f) =>
+        !IsActive(f) || f.HasEmbers ? 0
+        : f.CarriedBy != null ? Deterrence.TorchIntensityPct
+        : Math.Min(1, HeatOutputF(f, ambientF: 0) / Deterrence.FullIntensityHeatF);
+
     // ---- world queries ----
+
+    /// A burning pit (Holder null) or torch on a tile, and how fiercely it burns.
+    public readonly record struct Flame(AgentId? Holder, double IntensityPct);
+
+    /// The flames on a tile, all caught up (CatchUpOn).
+    public static List<Flame> FlamesOn(World world, TileId tile)
+    {
+        var flames = new List<Flame>();
+        foreach (var (id, f) in world.Fires)
+        {
+            if (!OnTile(world, f, tile)) continue;
+            RequireCurrent(world, id, f);
+            if (IntensityPct(f) is double pct and > 0) flames.Add(new Flame(f.CarriedBy, pct));
+        }
+        return flames;
+    }
+
+    /// Catches up the flames FlamesOn reads: the tile's pits and the torches of whoever stands on it.
+    public static void CatchUpOn(World world, TileId tile, List<WorldEvent> events)
+    {
+        foreach (var (id, f) in world.Fires.ToList())
+            if (OnTile(world, f, tile)) CatchUp(world, id, events);
+    }
+
+    /// A torch's own Tile is only as fresh as its last catch-up, so it is placed by its living carrier.
+    static bool OnTile(World world, FireState f, TileId tile) =>
+        f.CarriedBy is AgentId carrier ? world.Agents.TryGetValue(carrier, out var a) && a.Tile == tile && Sim.IsAlive(a) : f.Tile == tile;
 
     /// Everything fire does for one agent this minute, in °F (the old SurvivalContext and
     /// Location.GetTemperature rules). AirHeatF warms the tile's air, embers included, damped

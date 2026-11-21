@@ -467,20 +467,31 @@ public static partial class Fauna
 
     // ---- the mind: one minute's choice ----
 
-    /// The herd's next activity (Minds.Decide), one minute's choice.
-    public static (Activity Activity, int Minutes) Decide(World world, Agent herd)
+    /// The herd's next activity (Minds.Decide), one minute's choice. A predator held off a tile with people
+    /// (Combat.WouldEnter) waits instead, and tries again when it next walks that way.
+    public static (Activity Activity, int Minutes) Decide(World world, Agent herd, List<WorldEvent> events)
     {
         var mind = MindOf(herd);
         var behavior = BehaviorOf(herd.Species);
-        if (mind.State == HerdState.Fleeing) return Flee(world, herd, mind, behavior);
-        return behavior switch
+        var choice = mind.State == HerdState.Fleeing ? Flee(world, herd, mind, behavior, events) : behavior switch
         {
             HerdBehavior.Prey => DecidePrey(world, herd, mind),
             HerdBehavior.Pack => DecidePack(world, herd, mind),
             HerdBehavior.Solitary => DecideSolitary(world, herd, mind),
-            HerdBehavior.Scavenger => DecideScavenger(world, herd, mind),
+            HerdBehavior.Scavenger => DecideScavenger(world, herd, mind, events),
             HerdBehavior.Carrion => DecideCarrion(world, herd, mind),
         };
+        if (choice.Item1 is not Travel t || mind.State == HerdState.Fleeing || !HeldOff(world, herd, Map.Step(herd.Tile, t.Dir), events)) return choice;
+        mind.Foray = null; // a starving pack held off one way ranges another, rather than waiting on a fire that is kept fed
+        return Wait(herd);
+    }
+
+    /// Whether people on that tile keep this predator off it, they and their fire weighed as in a fight there.
+    static bool HeldOff(World world, Agent herd, TileId to, List<WorldEvent> events)
+    {
+        if (!IsPredator(herd.Species) || !Nearby.At(world, to).Any(id => world.Agents[id] is { Mind: PersonMind } a && Sim.IsAlive(a))) return false;
+        Fire.CatchUpOn(world, to, events);
+        return !Combat.WouldEnter(world, herd, to);
     }
 
     static (Activity, int) Rest(Agent herd) => (new Rest(herd.Id), 1);
@@ -605,7 +616,7 @@ public static partial class Fauna
         }
     }
 
-    static (Activity, int) DecideScavenger(World world, Agent herd, HerdMind mind)
+    static (Activity, int) DecideScavenger(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
         double hunger = Hunger(herd);
         long t = StateMinutes(world, mind);
@@ -625,7 +636,7 @@ public static partial class Fauna
                 if (HerdsAt(world, herd.Tile).Any(h => h.Id != herd.Id && h.Species is Species.Wolf or Species.Bear or Species.CaveBear or Species.Homotherium))
                 {
                     StartFleeing(world, mind, herd.Tile); // something bigger wants the kill
-                    return Flee(world, herd, mind, HerdBehavior.Scavenger);
+                    return Flee(world, herd, mind, HerdBehavior.Scavenger, events);
                 }
                 // Sated, it lies up beside what is left rather than patrolling straight back onto it to feed again.
                 if (hunger < 0.1) { Become(world, mind, HerdState.Resting); return Rest(herd); }
@@ -639,19 +650,20 @@ public static partial class Fauna
 
     /// Bolts one tile away from the threat, then settles: prey and predators rest, scavengers prowl.
     /// One tile only: fleeing every minute from the threat's tile runs a herd to the edge of the map.
-    static (Activity, int) Flee(World world, Agent herd, HerdMind mind, HerdBehavior behavior)
+    static (Activity, int) Flee(World world, Agent herd, HerdMind mind, HerdBehavior behavior, List<WorldEvent> events)
     {
-        if (mind.FleeFrom is TileId from && herd.Tile == from && CanMove(herd) && FleeDirection(world, herd, from) is Direction away)
+        if (mind.FleeFrom is TileId from && herd.Tile == from && CanMove(herd) && FleeDirection(world, herd, from, events) is Direction away)
             return (new Travel(herd.Id, away), UntilArrived);
         mind.FleeFrom = null;
         Become(world, mind, behavior is HerdBehavior.Scavenger or HerdBehavior.Carrion ? HerdState.Patrolling : HerdState.Resting);
         return Rest(herd);
     }
 
-    static Direction? FleeDirection(World world, Agent herd, TileId threat)
+    static Direction? FleeDirection(World world, Agent herd, TileId threat, List<WorldEvent> events)
     {
         var m = Map.Of(world);
-        var options = Enum.GetValues<Direction>().Where(d => Map.Blocked(m, herd.Tile, Map.Step(herd.Tile, d)) == null).ToList();
+        var options = Enum.GetValues<Direction>().Where(d => Map.Blocked(m, herd.Tile, Map.Step(herd.Tile, d)) == null
+            && !HeldOff(world, herd, Map.Step(herd.Tile, d), events)).ToList();
         if (options.Count == 0) return null;
         int best = options.Max(d => MapGen.Manhattan(Map.Step(herd.Tile, d), threat));
         options = options.Where(d => MapGen.Manhattan(Map.Step(herd.Tile, d), threat) == best).ToList();

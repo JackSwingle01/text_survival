@@ -1,10 +1,12 @@
 namespace Survival.Tune;
 
 /// One way a fight is set up and fought: the setup (who meets whom, how it opens), the person's
-/// weapon and condition, and the policy that fights the person's side. Named in the band spec.
-public sealed record Scenario(string Setup, string Weapon = "none", string Cond = "healthy", string Policy = "ai")
+/// weapon and condition, the policy that fights the person's side, and any fire: a strong campfire on
+/// the tile (at Encounter.FireCell, where the person starts) or a lit torch in the person's
+/// hand. Named in the band spec.
+public sealed record Scenario(string Setup, string Weapon = "none", string Cond = "healthy", string Policy = "ai", string Fire = "none")
 {
-    public override string ToString() => $"{Setup}/{Weapon}/{Cond}/{Policy}";
+    public override string ToString() => $"{Setup}/{Weapon}/{Cond}/{Policy}" + (Fire == "none" ? "" : $"/{Fire}");
 }
 
 /// What one fight came to, from team A's side (the person, or the hunters in an animal-only fight).
@@ -82,6 +84,7 @@ public sealed class Fights
         "careful_melee", "careful_throw", "quick_melee", "quick_throw"];
     public static readonly string[] Weapons = ["none", "flint_knife", "wooden_spear", "stone_axe"];
     public static readonly string[] Conds = ["healthy", "tired", "hungry", "cold95", "cold92", "leg", "arm", "bleeding", "meat"];
+    public static readonly string[] Fires = ["none", "campfire", "torch"];
 
     /// Refuses a scenario this harness cannot run, before any fight does.
     public static void Check(Scenario s)
@@ -90,6 +93,7 @@ public sealed class Fights
         if (!Policies.Contains(s.Policy)) throw new ArgumentException($"{s}: no policy '{s.Policy}'");
         if (!Weapons.Contains(s.Weapon)) throw new ArgumentException($"{s}: no weapon '{s.Weapon}'");
         if (!Conds.Contains(s.Cond)) throw new ArgumentException($"{s}: no condition '{s.Cond}'");
+        if (!Fires.Contains(s.Fire)) throw new ArgumentException($"{s}: no fire '{s.Fire}' ({string.Join(", ", Fires)})");
         bool hunt = s.Setup.StartsWith("hunt_"), headless = s.Setup.Contains("wolves4");
         if (hunt != s.Policy is "careful_melee" or "careful_throw" or "quick_melee" or "quick_throw")
             throw new ArgumentException($"{s}: hunts take a careful_/quick_ policy, and only hunts do");
@@ -115,6 +119,7 @@ public sealed class Fights
 
         public FightOutcome Go()
         {
+            if (c.Fire == "campfire") Campfire();
             if (c.Setup.StartsWith("hunt_")) return Hunt();
             if (c.Setup.StartsWith("wolves4_vs_")) return PackVsPrey();
             if (c.Setup.EndsWith("_vs_wolves4")) return PeopleVsWolves();
@@ -157,11 +162,35 @@ public sealed class Fights
             return g;
         }
 
+        /// A strong fire on the fight's tile: kindling and pine, burned for half an hour so the pine has caught.
+        void Campfire()
+        {
+            const int LitMinutesBefore = 30;
+            var f = new FireState { Tile = tile, LastUpdatedMinute = w.Minute - LitMinutesBefore, Pit = PitType.Open };
+            if (Fire.AddFuel(f, Resource.Kindling, 1.0) < 1.0) throw new InvalidOperationException("the campfire's kindling was refused");
+            Fire.IgniteAll(f);
+            if (Fire.AddFuel(f, Resource.Pine, 5.0) < 5.0) throw new InvalidOperationException("the campfire's pine was refused");
+            var id = new FireId(w.NextFireId++);
+            while (f.LastUpdatedMinute < w.Minute) Fire.Tick(f, id, ++f.LastUpdatedMinute, []);
+            w.Fires[id] = f;
+        }
+
+        /// A freshly lit torch in this person's hand, when the scenario carries one.
+        void Torch(AgentId person)
+        {
+            if (c.Fire != "torch") return;
+            w.Fires[new FireId(w.NextFireId++)] = new FireState
+            {
+                Tile = tile, LastUpdatedMinute = w.Minute, CarriedBy = person, TorchMinutesLeft = Fire.TorchBurnMinutes,
+            };
+        }
+
         Gear? ArmPlayer()
         {
             var pack = Items.Pack(w, P);
             pack.Gear.Clear(); pack.Kg.Clear();
             w.Agent(P).Members[0] = Body_(c.Cond, pack);
+            Torch(P);
             return Arm(pack, c.Weapon);
         }
 
@@ -172,6 +201,7 @@ public sealed class Fights
             g = Arm(pack, c.Weapon);
             var id = new AgentId(w.NextAgentId++);
             w.Agents[id] = new Agent { Id = id, Tile = tile, Species = Species.Human, Members = [body], Mind = new PlayerMind { Pack = pack } };
+            Torch(id);
             return id;
         }
 

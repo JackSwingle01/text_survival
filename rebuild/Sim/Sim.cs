@@ -444,7 +444,7 @@ public static class Minds
     public static (Activity Activity, int Minutes) Decide(World world, Agent agent, List<WorldEvent> events) => agent.Mind switch
     {
         NpcMind => Npc.Decide(world, agent, events),
-        HerdMind => Fauna.Decide(world, agent),
+        HerdMind => Fauna.Decide(world, agent, events),
         PlayerMind => throw new InvalidOperationException("The player's activities come from the UI, not a mind"),
         _ => throw new NotSupportedException($"No decider for {agent.Mind.GetType().Name}"),
     };

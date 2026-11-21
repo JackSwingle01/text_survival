@@ -43,12 +43,15 @@ public class Phase3GateTests
             S(new Fight(P, acts.Contains(CombatAction.Attack) ? CombatAction.Attack : acts.Contains(CombatAction.Advance) ? CombatAction.Advance : CombatAction.Wait), 1);
             return;
         }
+        var camp = Map.Of(w).Camp;
+        bool Burning() => Fire.PitAt(w, tile) is FireId f && Fire.IsActive(w.Fires[f]);
         switch (i % 10)
         {
             case 0: S(new Gather(P, 0), 30); break;
             case 1:
             {
-                bool Burning() => Fire.PitAt(w, tile) is FireId f && Fire.IsActive(w.Fires[f]);
+                // The fire is kept at camp only: a predator stays clear of a burning fire, so the fights are out in the wood.
+                if (tile != camp) break;
                 if (!Burning())
                 {
                     if (Items.Have(pack, Resource.Tinder) < 0.05) Items.Add(pack, Resource.Tinder, 0.2);
@@ -65,6 +68,7 @@ public class Phase3GateTests
             }
             case 2:
             {
+                if (Burning()) break;
                 var wolves = Agents.Spawn(w, Species.Wolf, tile, 2);
                 Combat.Create(w, [new Fighter(P) { Weapon = Items.Tool(pack, ToolType.Spear) }], [new Fighter(wolves, 0)], tile, 8, Awareness.Engaged, Awareness.Engaged);
                 break;
@@ -92,7 +96,6 @@ public class Phase3GateTests
             case 6:
             {
                 // Out to the wood east of camp and back on alternate visits, felling while there.
-                var camp = Map.Of(w).Camp;
                 int trees = Pools.At(w, tile).ToList().FindIndex(p => p is TreePool);
                 if (trees >= 0 && !Work.TooDarkToWork(w, me)) S(new Gather(P, trees), 120);
                 foreach (var (r, kg) in pack.Kg.ToList())

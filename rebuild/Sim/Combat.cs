@@ -109,6 +109,9 @@ public sealed class Encounter
     public List<CombatUnit> Units { get; init; } = [];
     public int Rounds { get; set; }
     public Formation Formation { get; set; }
+    /// Where the tile's fire pit stands on the grid: where team A's lead started (the person, at the
+    /// middle in an opening), since a fire is where the people are. Nothing burns there unless a pit burns on the tile.
+    public Cell FireCell { get; set; }
     /// The unit that has just run from the player, waiting on whether the player gives chase.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? PendingFlight { get; set; }
     /// Weapons thrown and lying on the grid, to be picked up; the aftermath stashes whatever is left.
@@ -188,6 +191,7 @@ public static partial class Combat
         Add(teamB, 1, bY, awarenessB);
         if (opening is Opening o) Place(world, enc, o, distanceM, world.Rng("combat", teamA[0].Agent)); // whoever opened it
         foreach (var u in enc.Units) u.Target = enc.Units.IndexOf(NearestEnemy(enc, u)!);
+        enc.FireCell = (enc.Units.FirstOrDefault(IsPlayer) ?? enc.Units[0]).Position;
         world.Encounters.Add(enc);
         return enc;
     }
@@ -549,6 +553,7 @@ public static partial class Combat
         var unit = UnitOf(enc, fight.Who);
         var start = unit.Position;
         enc.RoundEventsFrom = events.Count;
+        CatchUpFlames(world, enc, events); // a flight resolves in the action, and its pursuers weigh the fire
         var action = RoundAction(enc, unit, fight);
         if (action != CombatAction.Chase) LetGo(world, enc); // doing anything else, the player lets the runner go
         Apply(world, enc, unit, action, events, action == CombatAction.Turn ? enc.Units[fight.Target!.Value] : null, fight.To);
@@ -571,6 +576,7 @@ public static partial class Combat
             u.BoldnessModifier -= u.SignalModifier;
             u.SignalModifier = 0;
         }
+        CatchUpFlames(world, enc, events);
         // Snapshot: old game indexed into a list that shrank as units fell, so one could lose its turn (bug, fixed).
         if (me.InField)
             foreach (var u in Field(enc).Where(u => !IsPlayer(u)).ToList())
@@ -619,6 +625,7 @@ public static partial class Combat
         for (int round = 0; round < maxRounds && !IsOver(enc); round++)
         {
             int from = events.Count;
+            CatchUpFlames(world, enc, events);
             foreach (var unit in Field(enc).ToList())
             {
                 if (IsOver(enc)) break;
