@@ -1,0 +1,121 @@
+name: Mutation
+
+# Stryker mutation testing for the rebuild's verified kernels (see documentation/verification.md).
+#
+# Runs at most once a day, and only when rebuild/ changed since the last run that actually mutated:
+# - push to main: runs unless a mutation job succeeded in the last 24 h, or nothing under rebuild/
+#   changed since that job's commit.
+# - schedule (daily, 04:17 UTC): picks up pushes the 24 h throttle skipped. Same two checks, with a
+#   23 h window so cron jitter does not push the daily run to every other day.
+# - workflow_dispatch: always runs.
+# "Last run" means the newest run on main whose `mutation` job concluded success. A run that the
+# gate skipped also ends green, so the workflow's own conclusion is not enough to tell them apart.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: mutation
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          decide() { echo "run=$1" >> "$GITHUB_OUTPUT"; echo "$2"; exit 0; }
+
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            decide true "Manual dispatch: running."
+          fi
+
+          window_h=24
+          if [ "$EVENT" = "schedule" ]; then window_h=23; fi
+
+          # Newest successful run on main whose mutation job ran (not skipped) and succeeded.
+          last_sha=""; last_done=""
+          for id in $(gh run list --workflow mutation.yml --branch main --status success \
+                        --limit 100 --json databaseId --jq '.[].databaseId'); do
+            job=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" \
+                    --jq '[.jobs[] | select(.name == "mutation" and .conclusion == "success")][0] // empty')
+            if [ -n "$job" ]; then
+              last_sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha')
+              last_done=$(echo "$job" | jq -r '.completed_at')
+              echo "Last mutation run: $id at $last_sha, finished $last_done"
+              break
+            fi
+          done
+
+          if [ -z "$last_sha" ]; then
+            decide true "No earlier mutation run: running."
+          fi
+
+          age_s=$(( $(date -u +%s) - $(date -u -d "$last_done" +%s) ))
+          if [ "$age_s" -lt $(( window_h * 3600 )) ]; then
+            decide false "Last mutation run finished $((age_s / 3600)) h ago (< $window_h h): skipping; the daily schedule picks up the change."
+          fi
+
+          if ! git cat-file -e "$last_sha^{commit}" 2>/dev/null; then
+            decide true "Last mutation commit $last_sha is not in history: running."
+          fi
+
+          if git diff --quiet "$last_sha" HEAD -- rebuild/; then
+            decide false "No rebuild/ change since $last_sha: skipping."
+          fi
+
+          decide true "rebuild/ changed since $last_sha: running."
+
+  mutation:
+    name: mutation
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - run: dotnet tool restore
+
+      # The CLI --test-case-filter replaces the config's, so each one restates the config's name
+      # filter and adds Category!=Slow: coverage capture must never reach the 2-minute Slow tests.
+      # Gated: stryker-config.json sets thresholds.break = 90, so a lower score exits non-zero.
+      - name: Effects (Effects.cs, break at 90%)
+        working-directory: rebuild/Sim.Tests
+        run: >-
+          dotnet stryker --config-file stryker-config.json
+          --test-case-filter "FullyQualifiedName~EffectsPropertyTests&Category!=Slow"
+
+      # Report only (break 0) until the exposure kernel replaces BodySurvival's wetness and drying.
+      - name: Body survival (BodySurvival.cs, report only)
+        if: ${{ !cancelled() }}
+        working-directory: rebuild/Sim.Tests
+        run: >-
+          dotnet stryker --config-file stryker-config.body.json
+          --test-case-filter "FullyQualifiedName~Survival.Tests.Verification&Category!=Slow"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: stryker-report
+          path: rebuild/Sim.Tests/StrykerOutput/*/reports/
+          if-no-files-found: warn

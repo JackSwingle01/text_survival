@@ -17,8 +17,11 @@ dotnet test
 
 For the clean-room rebuild (`rebuild/`):
 
-- While iterating: `dotnet test rebuild/Sim.Tests --filter "Category!=Slow"` (about 35 s). Run the
-  full `dotnet test rebuild/Sim.Tests` once before handing work back.
+- Each red-green cycle: only the test class or file in hand,
+  `dotnet test rebuild/Sim.Tests --filter "FullyQualifiedName~<ClassName>"`. Before each commit: the fast
+  suite, `--filter "Category!=Slow"` (about 35 s). Before handback or PR: the full
+  `dotnet test rebuild/Sim.Tests`. Stryker and long sims run in CI (`.github/workflows/mutation.yml`).
+- Agents choosing which checks to run or add use the `mp:verification` skill.
 - Tag any new test that takes 5 s or more with `[Trait("Category", TestCategories.Slow)]`.
 - Run long simulations, sweeps and probes in Release (`-c Release`), and split independent seeds
   across parallel processes.

@@ -1,5 +1,7 @@
 name: CI
 
+# The full suite, Slow tests included, on every push and PR. Mutation testing runs separately
+# (mutation.yml), at most daily.
 on:
   push:
   pull_request:
