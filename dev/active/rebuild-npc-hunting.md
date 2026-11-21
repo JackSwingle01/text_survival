@@ -22,6 +22,11 @@ A hungry, armed, fit NPC treats a herd it knows about as a food source it can tr
 - **Scoring.** Same scored list as foraging, in expected kcal per hour: kill odds x meat it can
   carry / (hours to find + stalk + kill + butcher + carry home). Risk weighted by the predator
   threat and the NPC's condition, accepting more risk the bigger its fat shortfall.
+- **Which animal is worth it is computed, not by species** (user, 2026-11-21). Today the NPC uses
+  a species-role rule (caribou when hungry, bison and megaloceros when starving, never a mammoth
+  alone). Replace it with odds worked out from the target animal's own stats and the hunter's:
+  size, condition, wounds, herd size, weapon. A wounded or small animal counts as easier; a healthy
+  bull as harder. The same estimate should feed the player's hunt odds sheet.
 - **The hunt itself** stays `Fauna.BeginHunt` -> combat -> carcass -> `Butcher`, the player's path.
 
 ## Why

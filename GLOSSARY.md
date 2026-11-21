@@ -28,13 +28,37 @@ _Avoid_: optional, luxury
 
 ## Things in the world
 
+**Exposure**:
+What the world is doing to a body or thing in one place right now: air temperature (fire
+included), wind at it, precipitation, ground wetting, sun, and how covered it is.
+_Avoid_: environment, weather effects
+
+**Effect**:
+A state that builds up and fades under exposure and time, on a body or a thing: wet, frozen,
+spoiling, and for bodies only bleeding, pain, shivering. One kind of thing for bodies and items.
+_Avoid_: status, debuff
+
 **Condition**:
-A state of a thing, read from the world rather than stored, that stands between a person and
-using it: buried under snow, frozen to the ground. It stops being true when the world changes
-(a thaw, a fire beside it, the snow blowing off), with no special action needed.
+What an action sees about a thing: a fact read from its effects and its place (frozen to the
+ground, buried under snow, occupied), never stored. A blocking condition stands in front of the
+thing's action and has its own clearing action; a modifying condition blocks nothing and only
+changes how the action goes.
 _Avoid_: tag, flag, status
 
 **Occupied**:
-The condition of a thing another actor is using right now: wolves feeding on a carcass, a bear
-in a den, another person at a fire. What happens if you use it too is up to that actor's mind.
+The blocking condition of a thing another actor is using right now: wolves feeding on a carcass,
+a bear in a den, another person at a fire.
 _Avoid_: guarded, claimed, owned
+
+**Contest**:
+The clearing action for an occupied thing: making a claim on it. The occupant's own mind answers:
+it yields, holds and threatens, or fights.
+_Avoid_: drive off, take, challenge
+
+**Ask**:
+Contest, toward an ally: the same claim, answered by that person's mind and their opinion of you.
+
+**Interact**:
+The single action shown for a thing that has several actions (a fire, a carcass, a stash, a
+shelter); it opens that thing's menu.
+_Avoid_: use, open
