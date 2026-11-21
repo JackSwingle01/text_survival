@@ -28,7 +28,8 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 | Short-loop plan's "Asks of the Rebuild" (event tiles, historical minutes, chance factors, skills, place memory) | feac1de | committed |
 | Asks review fixes (NPC fire from memory, butchering conservation, NPC turn-backs, XP farming, journal) | 501856a | committed |
 | Second asks-review fixes + NPC fire-keeping (short sleeps by a dying fire, earlier relights, kindling for oak, camp moves to timber) | 65d7a62 | committed; review running alongside the next step |
-| Existing tables to data files | | in progress |
+| Existing tables to data files (12 JSON files; behaviour byte-identical) | f5a8350 | committed; review running |
+| NPC review fixes (cold trips on every path, explore budget, winter evenings, logs too cool to catch, mammoth hunts) | | in progress |
 | Emergent step 2: substrate (ThingRef, Cause, Signs, Access) | | |
 | Emergent step 3: kill chain, renewal, settling pass | | |
 | Emergent step 4: affordances, moments, catalog paper exercise | | |
@@ -104,6 +105,15 @@ converted to plain comments, and real deferrals are listed in `dev/active/rebuil
 - Field receipts leave out human prints (yours and another person's are the same mark).
 - Odds not yet broken into terms: stalking detection, dodge, shove, the flat 90% blow, butchering
   yield, a single forage find (reasons in `rebuild-deferred.md`).
+
+**Content tables**
+- Kept in code, deliberately: the camp tile (moves with "camp as a content site"), felling yields,
+  carcass composition, body plans, the climate model, herd behaviour rates, NPC preference lists,
+  skill curves, draw rules and map-generation shapes. They are models or policy, not tables.
+- Inconsistencies found while moving, values unchanged: a "log" weighs 2.0 kg as shelter
+  material, 2.0-4.0 kg felled, 1.5 kg in a Dry Wood Stack, 1.5-3.5 kg foraged; the old Barren
+  forage table was unreachable and was dropped; rabbits and foxes take default behaviour (Prey)
+  and diet (Carnivore).
 
 ## Open questions
 
