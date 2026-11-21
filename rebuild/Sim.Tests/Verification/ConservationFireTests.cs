@@ -244,13 +244,19 @@ public class ConservationFireTests
     }
 
     /// (a) The old game's burn for one fuel, restated: the size factor's rate over the pit's
-    /// efficiency, the stack scaled down by that fraction, a last gram counted burned.
+    /// efficiency, the stack scaled down by that fraction, a last gram counted burned. A minute that
+    /// takes the fire down past a size band's edge (1.5, 4 or 7 kg) burns at the band it leaves until it
+    /// reaches the edge and at the next for the rest; the old game billed it all at the band it left.
     static (double Left, double Burned) OldMinute(Resource fuel, double kg, PitType pit)
     {
-        double size = kg < 1.5 ? 0.9 : kg < 4.0 ? 1.0 : kg < 7.0 ? 1.1 : 1.2;
+        static double Size(double kg) => kg < 1.5 ? 0.9 : kg < 4.0 ? 1.0 : kg < 7.0 ? 1.1 : 1.2;
         double efficiency = pit == PitType.Stone ? 1.15 : 1.0;
         double rate = Fire.Props[fuel].BurnRateKgPerHour * kg / kg; // the old mass-weighted mean, rounding and all
-        double consumed = Math.Min(kg, rate * size / efficiency / 60.0);
+        double PerMinute(double atKg) => rate * Size(atKg) / efficiency / 60.0;
+        double consumed = PerMinute(kg);
+        double edge = new[] { 7.0, 4.0, 1.5 }.FirstOrDefault(e => kg >= e && kg - consumed < e);
+        if (edge > 0) consumed = kg - edge + (1 - (kg - edge) / PerMinute(kg)) * PerMinute(edge - 1e-9);
+        consumed = Math.Min(kg, consumed);
         double left = kg * (1.0 - consumed / kg);
         return left < 0.001 ? (0, kg) : (left, consumed);
     }
@@ -277,6 +283,14 @@ public class ConservationFireTests
 
     [Fact]
     public void Fire_OneFuel_BurnsAsTheOldGameDid() => Singles.Check(SingleFuel, iter: 400);
+
+    /// A gram more Amadou on 5 kg of it in a mound flamed 117 min against 118 without it: the gram kept
+    /// the fire over 4 kg for one more minute, billed in full at the bigger band's rate, and it fell
+    /// behind (CsCheck seed 9E0gmYdnroU5, Fire_MoreOfTheSameFuel_NeverShortensTheBurn_Many).
+    [Fact]
+    public void Fire_AGramMore_AcrossASizeBand_NeverShortensTheBurn() =>
+        MoreFuel(new MoreScene(new FireScene(1, [.. FuelKinds.Select(r => r == Resource.Amadou ? 5.0 : 0)], new double[FuelKinds.Length], [], 1, [1]),
+            Array.IndexOf(FuelKinds, Resource.Amadou), 0.0011233327397750922), 1.0);
 
     /// One minute of a mix with nothing waiting: what each fuel lost, or null where a stack burned out
     /// or the fire burned everything (the share then is the stack, not the rate).

@@ -119,7 +119,10 @@ public static class Fire
         return mass > 0 ? sum / mass : fallback;
     }
 
-    static double BurnSizeFactor(double burningKg) => burningKg < 1.5 ? 0.9 : burningKg < 4.0 ? 1.0 : burningKg < 7.0 ? 1.1 : 1.2;
+    /// How much faster a bigger fire burns: each band from its lower edge up, largest first.
+    static readonly (double FromKg, double Factor)[] BurnSizeBands = [(7.0, 1.2), (4.0, 1.1), (1.5, 1.0), (0, 0.9)];
+
+    static double BurnSizeFactor(double burningKg) => BurnSizeBands.First(b => burningKg >= b.FromKg).Factor;
 
     /// The whole fire's burn, kg an hour, before the stone pit's efficiency: the burning fuels'
     /// mass-weighted mean table rate at the fire's size, as the old game had it.
@@ -389,7 +392,7 @@ public static class Fire
     {
         double burning = BurningKg(f);
         f.LastBurningTempF = ActiveTemperatureF(f); // before consumption: the embers start from it
-        double consumed = Math.Min(burning, BurnRateKgPerHour(f) / FuelEfficiencyFactor(f.Pit) / 60.0);
+        double consumed = MinuteBurnKg(burning, Weighted(f, p => p.BurnRateKgPerHour, fallback: 1.0), FuelEfficiencyFactor(f.Pit));
         double weight = f.BurningKg.Sum(x => Props[x.Key].BurnRateKgPerHour * x.Value);
         var shares = f.BurningKg.ToDictionary(x => x.Key, x => consumed * (Props[x.Key].BurnRateKgPerHour * x.Value / weight));
         foreach (var (fuel, share) in shares)
@@ -400,6 +403,28 @@ public static class Fire
             if (left < DustKg) { burned = kg; f.BurningKg.Remove(fuel); }
             else f.BurningKg[fuel] = left;
             f.BurnedSinceLitKg += burned;
+        }
+    }
+
+    /// Kg one minute burns off a fire of this burning mass and mean table rate. A minute that takes the
+    /// fire down past a size band burns at the bigger band's rate only until it gets there, then at the
+    /// smaller one's: billing the whole minute at the bigger rate let a fire with a gram more fuel fall
+    /// behind one without it and go out a minute sooner (old game, bug, fixed). Within a band, exactly
+    /// the old rate x one minute.
+    static double MinuteBurnKg(double burningKg, double meanRateKgPerHour, double efficiency)
+    {
+        double kg = burningKg, minutes = 1.0, burned = 0;
+        int band = Array.FindIndex(BurnSizeBands, b => kg >= b.FromKg);
+        while (true)
+        {
+            double perMinuteKg = meanRateKgPerHour * BurnSizeBands[band].Factor / efficiency / 60.0;
+            double toEdgeKg = kg - BurnSizeBands[band].FromKg;
+            if (band == BurnSizeBands.Length - 1 || perMinuteKg * minutes <= toEdgeKg)
+                return Math.Min(burningKg, burned + perMinuteKg * minutes);
+            burned += toEdgeKg;
+            minutes -= toEdgeKg / perMinuteKg;
+            kg = BurnSizeBands[band].FromKg;
+            band++;
         }
     }
 
