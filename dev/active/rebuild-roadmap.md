@@ -213,3 +213,11 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - Prey earn calories per minute while unaware and grazing, so alertness and flight have an
   opportunity cost (the landscape of fear). A big animal can rationally ignore a small predator
   that's afraid of it. The term is part of the energy model and of the learned-behaviour fitness.
+- Build order for now: MVP 5's core additions first, then MVP 4 crafting core, then MVP 2's
+  map-level predator engagement (fights open on today's grid until the salvage lands). One at a
+  time, each with review, regression tests and verification. The combat grilling and species
+  research run alongside, and MVP 3 waits on them.
+- NPC kindling at an oak camp: wood counts as fuel the NPC can keep burning only with enough
+  kindling to light it, computed from the fire model. Short of kindling is a Need, restocked on
+  wood trips. The NPC's lasting-harm line follows the body's cold-harm onset (95 °F): one source of
+  truth.
