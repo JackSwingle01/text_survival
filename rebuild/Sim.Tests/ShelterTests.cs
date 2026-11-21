@@ -322,7 +322,7 @@ public class ShelterTests
     {
         var w = Builder(out var tile); // 41 °F
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
-        w.Projects[tile] = new Project { Building = Structure.SnowShelter, MinutesDone = 60 };
+        w.Projects[tile] = new StructureProject { Building = Structure.SnowShelter, MinutesDone = 60 };
         var r = Sim.Step(w, new Build(P, Structure.SnowShelter), 30);
         Assert.Equal((0, "too warm to build in snow"), (r.MinutesElapsed, r.InterruptedReason));
         Assert.Equal("too warm to build in snow", Shelters.Minute(w, w.Agent(P), new Build(P, Structure.SnowShelter), []));

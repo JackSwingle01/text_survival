@@ -44,6 +44,7 @@ foreach (string line in commands)
             {
                 var verb = Numbered(Verbs.At(world, AgentId.Player))[int.Parse(parts[1]) - 1];
                 if (verb.Odds != null) PrintOdds(verb.Odds);
+                foreach (var o in verb.Outcomes?.Outcomes ?? []) PrintOdds(o.Odds);
                 Run(verb.Activity, verb.Minutes);
                 break;
             }
@@ -115,7 +116,7 @@ static int Minutes(string[] parts) => int.Parse(parts[1]);
 static int MinutesOr(string[] parts, int fallback) => parts.Length > 1 ? int.Parse(parts[1]) : fallback;
 static double Kg(string[] parts) => parts.Length > 2 ? double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture) : 99;
 
-/// Every verb Verbs.At lists, in the order `verbs` numbers them: each thing's menu, the walks, the tile's.
+/// Every verb Verbs.At lists, in the order `verbs` numbers them: each thing's menu, the walks, the tile's, making.
 static List<Verb> Numbered(Here here) => [.. here.All];
 
 /// What can be done here, numbered for `do N`: each thing with its conditions and the action shown
@@ -132,6 +133,9 @@ static void PrintVerbs(Here here)
         foreach (var v in t.Menu) Console.WriteLine($"     {Line(v)}");
     }
     foreach (var v in here.Walk.Concat(here.Tile)) Console.WriteLine($"  {Line(v)}");
+    Console.WriteLine("  [make]");
+    foreach (var v in here.Make)
+        Console.WriteLine($"     {Line(v)}{(v.Outcomes != null && v.Refused == null ? $" [{v.Outcomes.PlainPct:P0} as planned]" : "")}");
 }
 
 /// What changed at a remembered tile while you were away or asleep: a camp tells you everything

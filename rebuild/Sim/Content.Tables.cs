@@ -22,7 +22,7 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<ShelterKind, ShelterKindProps> ShelterKinds,
     IReadOnlyDictionary<string, ShelterDef> Tents,
     IReadOnlyDictionary<Resource, ShelterMaterial> ShelterMaterials,
-    IReadOnlyDictionary<Structure, Recipe> Recipes,
+    IReadOnlyDictionary<Structure, StructureRecipe> Recipes,
     IReadOnlyDictionary<BeddingKind, BeddingProps> Beddings,
     IReadOnlyDictionary<ButcherMode, ButcherModeProps> Butchering,
     IReadOnlyDictionary<Terrain, TerrainRow> Terrains,
@@ -32,7 +32,8 @@ internal sealed record ContentTables(
     Felling Felling,
     IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> Forage,
     DiscoveryTables Discoveries,
-    IReadOnlyDictionary<string, IReadOnlyList<Accident>> Accidents);
+    IReadOnlyDictionary<string, IReadOnlyList<Accident>> Accidents,
+    IReadOnlyList<Recipe> MakeRecipes);
 
 // ---- rows that have no home in a system's own file ----
 
@@ -69,6 +70,10 @@ public static partial class Content
     sealed record DiscoveriesFile(Dictionary<string, FindDef> Finds, Dictionary<string, FindDef> Details,
         Dictionary<string, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave,
         Dictionary<string, IReadOnlyList<string>> DetailDraws, IReadOnlyList<string> ExamineOnly);
+    sealed record RecipeFileRow(string Name, MakeCategory Category, IReadOnlyList<InputRow> Inputs, IReadOnlyList<Capability> Tools,
+        IReadOnlyList<Requirement> Requires, int Minutes, ResultRow Result, IReadOnlyList<string> Outcomes, IReadOnlyList<Capability>? Faster = null);
+    sealed record InputRow(string? Item = null, string? Of = null, double Kg = 0);
+    sealed record ResultRow(string? Gear = null, Resource? Resource = null, double Kg = 0);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
@@ -93,12 +98,13 @@ public static partial class Content
         var forage = Deserialize<Dictionary<string, IReadOnlyList<ForageItem>>>(Text("forage.json"), "forage.json");
         var discoveries = Deserialize<DiscoveriesFile>(Text("discoveries.json"), "discoveries.json");
         var accidents = Deserialize<Dictionary<string, IReadOnlyList<Accident>>>(Text("accidents.json"), "accidents.json");
+        var recipeRows = Deserialize<Dictionary<string, RecipeFileRow>>(Text("recipes.json"), "recipes.json");
 
         // Nulls first: every later check would trip over one.
         var problems = LocationNullProblems(locations, loot).ToList();
         foreach (var (file, root) in new (string, object)[] { ("items.json", items), ("fire.json", fire), ("species.json", species),
             ("effects.json", effects), ("shelters.json", shelters), ("butchering.json", butchering), ("terrain.json", terrain),
-            ("forage.json", forage), ("discoveries.json", discoveries), ("accidents.json", accidents) })
+            ("forage.json", forage), ("discoveries.json", discoveries), ("accidents.json", accidents), ("recipes.json", recipeRows) })
             problems.AddRange(NullsIn(root, file));
         Fail(problems);
 
@@ -142,6 +148,7 @@ public static partial class Content
         problems.AddRange(ForageProblems(forage));
         problems.AddRange(DiscoveryProblems(discoveries, draws, detailDraws, terrains, items.Gear));
         problems.AddRange(AccidentProblems(accidents));
+        var makeRecipes = MakeRecipes(recipeRows, items.Gear, problems);
         problems.AddRange(DeadRows(locations, loot, terrain, forage, discoveries, accidents));
         foreach (var kind in CodeGear) if (!items.Gear.ContainsKey(kind)) problems.Add($"items.json: no gear kind '{kind}', which the code names");
         foreach (var id in CodeLocations) if (!locations.Any(l => l.Id == id)) problems.Add($"locations.json: no location '{id}', which the code names");
@@ -166,7 +173,8 @@ public static partial class Content
             new ReadOnlyDictionary<string, IReadOnlyList<ForageItem>>(forage),
             new DiscoveryTables(new ReadOnlyDictionary<string, FindDef>(discoveries.Finds), new ReadOnlyDictionary<string, FindDef>(discoveries.Details),
                 ReadOnly(draws), discoveries.Cave, ReadOnly(detailDraws), discoveries.ExamineOnly),
-            new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents));
+            new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents),
+            makeRecipes);
     }
 
     static void Fail(List<string> problems)
@@ -228,11 +236,92 @@ public static partial class Content
             r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.MoveAllowanceM, t, r.Behavior, r.Diet);
 
     /// A recipe's materials in kilos: pieces of the first material's nominal piece.
-    static Recipe ToRecipe(RecipeRow r, IReadOnlyDictionary<Resource, ShelterMaterial> materials) =>
+    static StructureRecipe ToRecipe(RecipeRow r, IReadOnlyDictionary<Resource, ShelterMaterial> materials) =>
         new(r.Minutes, r.Materials.Select(m => (m.AnyOf, materials[m.AnyOf[0]].PieceKg * m.Pieces)).ToList().AsReadOnly(),
             r.NeedsLight, r.NeedsShovel, r.ShovelHelps, r.NeedsFrost, r.Shelter, r.Bedding);
 
     // ---- checks, one family at a time ----
+
+    /// The Make recipes, in file order, each checked: names resolve, outcomes parse and name only the
+    /// recipe's own inputs and tools, and the odds leave most of the work to the plain result.
+    static IReadOnlyList<Recipe> MakeRecipes(Dictionary<string, RecipeFileRow> rows, IReadOnlyDictionary<string, GearDef> gear, List<string> problems)
+    {
+        var recipes = new List<Recipe>();
+        foreach (var (id, row) in rows)
+        {
+            string at = $"recipes.json {id}";
+            int before = problems.Count;
+            var materials = new List<MaterialInput>();
+            var items = new List<string>();
+            foreach (var input in row.Inputs)
+            {
+                if ((input.Item != null) == (input.Of != null)) { problems.Add($"{at}: an input is an item or a material (of, kg), exactly one"); continue; }
+                if (input.Item != null)
+                {
+                    if (!gear.ContainsKey(input.Item)) problems.Add($"{at}: no gear kind '{input.Item}'");
+                    if (input.Kg != 0) problems.Add($"{at}: an item input {input.Item} has no kg");
+                    items.Add(input.Item);
+                    continue;
+                }
+                var anyOf = new List<Resource>();
+                foreach (var name in input.Of!.Split('|'))
+                    if (Enum.GetNames<Resource>().Contains(name, StringComparer.Ordinal)) anyOf.Add(Enum.Parse<Resource>(name));
+                    else problems.Add($"{at}: no Resource '{name}'");
+                if (input.Kg <= 0) problems.Add($"{at}: {input.Of} kg {input.Kg}");
+                materials.Add(new MaterialInput(anyOf.AsReadOnly(), input.Kg));
+            }
+            var inputResources = materials.SelectMany(m => m.AnyOf).ToList();
+            if (inputResources.Distinct().Count() != inputResources.Count) problems.Add($"{at}: a resource in two inputs");
+            if (row.Minutes <= 0) problems.Add($"{at}: minutes {row.Minutes}");
+            var r = row.Result;
+            if ((r.Gear != null) == (r.Resource != null)) problems.Add($"{at}: the result is a gear kind or a resource, exactly one");
+            else if (r.Gear != null && !gear.ContainsKey(r.Gear)) problems.Add($"{at}: no gear kind '{r.Gear}'");
+            else if (r.Gear != null && r.Kg != 0) problems.Add($"{at}: a gear result is one piece, with no kg");
+            else if (r.Resource != null && r.Kg <= 0) problems.Add($"{at}: result {r.Resource} kg {r.Kg}");
+            else if (r.Resource != null && items.Count > 0) problems.Add($"{at}: a resource result is worked from materials, not items");
+            var faster = row.Faster ?? Array.AsReadOnly(Array.Empty<Capability>());
+            foreach (var (name, caps) in new[] { ("tools", row.Tools), ("faster", faster) })
+                if (caps.Contains(Capability.None) || caps.Distinct().Count() != caps.Count) problems.Add($"{at}: {name} names None or a capability twice");
+            if (row.Requires.Distinct().Count() != row.Requires.Count) problems.Add($"{at}: a requirement listed twice");
+            var outcomes = new List<Outcome>();
+            foreach (var line in row.Outcomes)
+            {
+                try { outcomes.AddRange(Outcomes.Parse(line)); }
+                catch (FormatException e) { problems.Add($"{at}: {e.Message}"); }
+            }
+            foreach (var o in outcomes)
+                foreach (var e in o.Effects)
+                    switch (e)
+                    {
+                        case WasteMaterial w when !inputResources.Contains(w.Input): problems.Add($"{at}: {w.Input} is not an input"); break;
+                        case SaveMaterial s when !inputResources.Contains(s.Input): problems.Add($"{at}: {s.Input} is not an input"); break;
+                        case BreakTool b when !row.Tools.Contains(b.Capability) && !faster.Contains(b.Capability):
+                            problems.Add($"{at}: {b.Capability} is not a tool it uses"); break;
+                        case ExtraProduct x when !gear.ContainsKey(x.What) && !Enum.GetNames<Resource>().Contains(x.What, StringComparer.Ordinal):
+                            problems.Add($"{at}: extra_product {x.What} is no gear kind or resource"); break;
+                        case ExtraProduct x when gear.ContainsKey(x.What) && x.Amount != Math.Floor(x.Amount):
+                            problems.Add($"{at}: extra_product {x.What} is whole pieces"); break;
+                    }
+            // A resource result is worked from what is left after any saving: it never weighs more.
+            if (r.Resource != null && r.Kg > materials.Sum(m => m.Kg) + 1e-9) problems.Add($"{at}: {r.Kg} kg of {r.Resource} from {materials.Sum(m => m.Kg)} kg");
+            if (r.Resource != null)
+                foreach (var o in outcomes)
+                {
+                    double savedKg = o.Effects.OfType<SaveMaterial>().Sum(s => materials.First(m => m.AnyOf.Contains(s.Input)).Kg * s.SharePct);
+                    if (r.Kg > materials.Sum(m => m.Kg) - savedKg + 1e-9) problems.Add($"{at}: {r.Kg} kg of {r.Resource} from {materials.Sum(m => m.Kg) - savedKg} kg ({o.Text})");
+                }
+            double sum = outcomes.Sum(o => o.BasePct);
+            if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
+            if (problems.Count > before) continue;
+            recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
+                new RecipeResult(r.Gear, r.Resource, r.Kg), outcomes.AsReadOnly()));
+        }
+        return recipes.AsReadOnly();
+    }
+
+    /// The most a recipe's outcomes may take of the odds before skill and hands move them: the plain
+    /// result stays the likeliest thing by far.
+    internal const double MaxOutcomePct = 0.5;
 
     static IEnumerable<string> ItemProblems(ItemsFile f, Dictionary<Resource, ResourceDef> resources, Dictionary<EquipSlot, double> slots,
         Dictionary<Resource, IReadOnlyList<double>> packKg)

@@ -53,8 +53,9 @@ public sealed class ShelterState
 /// also what it does for someone walking about (old IsStationary).
 public readonly record struct ShelterCover(double InsulationLevel, double OverheadLevel, double WindLevel);
 
-/// A shelter under construction, or a tent being pitched. Owned by Shelters.
-public sealed class Project
+/// A shelter under construction, or a tent being pitched. Owned by Shelters. The placed half of a
+/// Project (GLOSSARY) until building folds into Make (roadmap 8); carried things are MakeProject.
+public sealed class StructureProject
 {
     public required Structure Building { get; init; }
     public double MinutesDone { get; set; }
@@ -66,8 +67,9 @@ public sealed class Project
 public enum Structure { MakeshiftBedding, PaddedBedding, MossBedding, SleepingBag, BranchFrame, LogFrame, SnowShelter, Tent }
 
 /// One recipe (Content/shelters.json). Materials are (any of these, kg); taken when the work starts.
-/// The simplest camp recipes only; full crafting (and the hide tent recipe) is not ported.
-public sealed record Recipe(int Minutes, IReadOnlyList<(IReadOnlyList<Resource> AnyOf, double Kg)> Materials, bool NeedsLight = true,
+/// The simplest camp recipes only. Carried things are made from Content/recipes.json (Make.cs);
+/// these fold into that one recipe shape with roadmap 8.
+public sealed record StructureRecipe(int Minutes, IReadOnlyList<(IReadOnlyList<Resource> AnyOf, double Kg)> Materials, bool NeedsLight = true,
     bool NeedsShovel = false, bool ShovelHelps = false, bool NeedsFrost = false, ShelterKind? Shelter = null, BeddingKind? Bedding = null);
 
 public enum BeddingKind { Camp, Makeshift, Padded, MossPadded, SleepingBag }
@@ -299,7 +301,7 @@ public static class Shelters
 
     /// Old NeedCraftingSystem camp recipes and CampHandler.MakeCamp (Content/shelters.json). A project's
     /// setup time is folded into its minutes, and the shovel speeds all of it.
-    public static readonly IReadOnlyDictionary<Structure, Recipe> Recipes = Content.Tables.Recipes;
+    public static readonly IReadOnlyDictionary<Structure, StructureRecipe> Recipes = Content.Tables.Recipes;
 
     public static readonly IReadOnlyDictionary<BeddingKind, BeddingProps> Beddings = Content.Tables.Beddings;
     // Old HasWindProtection and HasGroundInsulation were flags nothing read (ground
@@ -363,7 +365,7 @@ public static class Shelters
 
     /// The tool and weather a recipe needs, checked when work starts or resumes and every minute of it.
     /// Frost is the tile's surface air, the same air that melts a snow shelter (Melt).
-    static string? Requirement(World world, TileId tile, Recipe r, Inventory pack)
+    static string? Requirement(World world, TileId tile, StructureRecipe r, Inventory pack)
     {
         if (r.NeedsShovel && Items.Tool(pack, ToolType.Shovel) == null) return "you need a shovel";
         if (r.NeedsFrost && Exposure.Surface(world, tile, world.Minute).AirTemperatureF > 32) return "too warm to build in snow";
@@ -386,7 +388,7 @@ public static class Shelters
             }
             Gear? tent = b.What == Structure.Tent ? Tent(pack) : null;
             if (tent != null) pack.Gear.Remove(tent);
-            world.Projects[agent.Tile] = new Project { Building = b.What, Tent = tent };
+            world.Projects[agent.Tile] = new StructureProject { Building = b.What, Tent = tent };
         }
         else if (activity is PackTent)
         {

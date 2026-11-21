@@ -54,7 +54,7 @@ public sealed class World
     /// Bedding laid down, by tile. Owned by Shelters.
     public SortedDictionary<TileId, BeddingKind> Beddings { get; init; } = [];
     /// Building under way, one per tile. Owned by Shelters.
-    public SortedDictionary<TileId, Project> Projects { get; init; } = [];
+    public SortedDictionary<TileId, StructureProject> Projects { get; init; } = [];
     /// A shelter find that was found while the tile was taken, by tile: the index of its pool
     /// (Pools.At). It stands once the tile is free. Owned by Shelters.
     public SortedDictionary<TileId, int> WaitingShelters { get; init; } = [];

@@ -5,7 +5,9 @@ namespace Survival;
 /// gets a budget it never reaches. Refused is why it cannot start now, in the system's own words
 /// (Sim.Refusal); a refused verb is still listed, so the player sees why. Odds, for a bet; Trip, for
 /// a walk that can start: its minutes as their terms (Trip.Time), the one number dock and preview show.
-public sealed record Verb(string Label, Activity Activity, int Minutes, string? Refused, Odds? Odds = null, TripTime? Trip = null)
+/// Outcomes, for making: the recipe's odds table (Making.Odds), shown before the work is committed to.
+public sealed record Verb(string Label, Activity Activity, int Minutes, string? Refused, Odds? Odds = null, TripTime? Trip = null,
+    MakeOdds? Outcomes = null)
 {
     public bool Allowed => Refused == null;
 }
@@ -29,10 +31,13 @@ public sealed record ThingVerbs(ThingRef Thing, string Name, IReadOnlyList<Condi
 /// Things: what they can see on the tile, in Things.At's order, themselves left out.
 /// Walk: a crossing each way, then a careful one each way that has hazardous ground to take carefully.
 /// Tile: what needs nothing but the place - wait, rest, sleep, the fire verbs, drinking.
-public sealed record Here(AgentId Who, TileId At, IReadOnlyList<ThingVerbs> Things, IReadOnlyList<Verb> Walk, IReadOnlyList<Verb> Tile)
+/// Make: every recipe, in menu order (none is hidden: a refused one says what it lacks), then
+/// abandoning each unfinished thing in the pack.
+public sealed record Here(AgentId Who, TileId At, IReadOnlyList<ThingVerbs> Things, IReadOnlyList<Verb> Walk, IReadOnlyList<Verb> Tile,
+    IReadOnlyList<Verb> Make)
 {
-    /// Every verb listed: each thing's menu, then the walks, then the tile's.
-    public IEnumerable<Verb> All => Things.SelectMany(t => t.Menu).Concat(Walk).Concat(Tile);
+    /// Every verb listed: each thing's menu, then the walks, then the tile's, then making.
+    public IEnumerable<Verb> All => Things.SelectMany(t => t.Menu).Concat(Walk).Concat(Tile).Concat(Make);
 }
 
 /// The one source of "what can I do here" (emergent-world-design §3.5), for the player and NPCs
@@ -86,13 +91,21 @@ public static class Verbs
             if (Items.Tool(pack, ToolType.Torch) != null) tile.Add(("Light a torch", new LightTorch(who), 1));
             if (Items.Have(pack, Resource.Water) > 0 || Work.HasOpenWater(world, agent.Tile)) tile.Add(("Drink", new Drink(who), Work.DrinkMinutes));
         }
-        return new Here(who, agent.Tile, things, walk, [.. tile.Select(Ready)]);
+        var make = new List<(string, Activity, int)>();
+        if (pack != null)
+        {
+            foreach (var r in Recipes.All)
+                make.Add((Making.ProjectFor(pack, r.Id) != null ? $"Go on making {Lower(r.Name)}" : $"Make {Lower(r.Name)}", new Make(who, r.Id), UntilDoneMinutes));
+            foreach (var p in pack.Projects ?? []) make.Add(($"Abandon the unfinished {Lower(Recipes.Get(p.Recipe).Name)}", new Abandon(who, p.Recipe), 1));
+        }
+        return new Here(who, agent.Tile, things, walk, [.. tile.Select(Ready)], [.. make.Select(Ready)]);
 
         Verb Ready((string Label, Activity Activity, int Minutes) v)
         {
             var refused = Sim.Refusal(world, v.Activity);
             return new(v.Label, v.Activity, v.Minutes, refused, v.Activity is StartFire s ? StartOdds(world, agent, s) : null,
-                v.Activity is Travel go && refused == null ? Trip.Time(world, who, go.Dir, go.Pace) : null);
+                v.Activity is Travel go && refused == null ? Trip.Time(world, who, go.Dir, go.Pace) : null,
+                v.Activity is Make m ? Making.Odds(world, agent, Recipes.Get(m.Recipe)) : null);
         }
     }
 
@@ -214,6 +227,8 @@ public static class Verbs
     static readonly Direction[] Directions = [Direction.North, Direction.East, Direction.South, Direction.West];
 
     static string Name(Direction d) => d.ToString().ToLowerInvariant();
+
+    static string Lower(string name) => name.Length == 0 ? name : char.ToLowerInvariant(name[0]) + name[1..];
 
     /// "QuickStrip" as "quick strip".
     static string Words(string name) =>

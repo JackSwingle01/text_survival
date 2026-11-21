@@ -52,7 +52,7 @@ public class SaveFixtureTests
 
     /// A small world with a bit of most of what a save holds: a fire burning, a stash, a shelter and
     /// bedding, a crossing made, an NPC, a wolf pack, the player's memory and explored ground, rng
-    /// streams, a journal. Not World.New: its two dozen herds would make the fixture half a megabyte.
+    /// streams, a journal, a made thing's parts and an unfinished one in the pack. Not World.New: its two dozen herds would make the fixture half a megabyte.
     internal static World SampleWorld()
     {
         var map = Map.Generate(17);
@@ -73,6 +73,10 @@ public class SaveFixtureTests
         Sim.Step(w, new Wait(P), 30);
         Sim.Step(w, new Travel(P, Direction.West), 60);
         Sim.Step(w, new Rest(P), 60);
+        // A spear made, with what it is made of, and a second one half done in the pack.
+        Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
+        Sim.Step(w, new Make(P, "crude_spear"), Verbs.UntilDoneMinutes);
+        Sim.Step(w, new Make(P, "crude_spear"), 8);
         return w;
     }
 

@@ -74,7 +74,7 @@
   "bow_drill": { "name": "Bow Drill", "category": "Tool", "baseWeightKg": 0.5, "maxDurability": -1, "capabilities": ["Spark"], "tool": "BowDrill" },
   "waterskin": { "name": "Waterskin", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "capabilities": ["Carrying"], "tool": "WaterContainer" },
   "torch": { "name": "Torch", "category": "Tool", "baseWeightKg": 0.5, "maxDurability": 1, "capabilities": [], "tool": "Torch" },
-  "bone_needle": { "name": "Bone Needle", "category": "Tool", "baseWeightKg": 0.05, "maxDurability": 20, "capabilities": ["Binding"], "tool": "Needle" },
+  "bone_needle": { "name": "Bone Needle", "category": "Tool", "baseWeightKg": 0.05, "maxDurability": 20, "capabilities": ["Binding", "Sewing"], "tool": "Needle" },
   "worn_fur_chest_wrap": { "name": "Worn Fur Chest Wrap", "category": "Clothing", "baseWeightKg": 1.5, "maxDurability": 50, "capabilities": [], "slot": "Chest", "insulation": 0.20, "cushioning": 0.12, "toughness": 0.04, "waterproofLevel": 0.1 },
   "fur_chest_wrap": { "name": "Fur Chest Wrap", "category": "Clothing", "baseWeightKg": 1.8, "maxDurability": 100, "capabilities": [], "slot": "Chest", "insulation": 0.30, "cushioning": 0.20, "toughness": 0.08, "waterproofLevel": 0.1 },
   "fur_leg_wraps": { "name": "Fur Leg Wraps", "category": "Clothing", "baseWeightKg": 1.0, "maxDurability": 100, "capabilities": [], "slot": "Legs", "insulation": 0.15, "cushioning": 0.15, "toughness": 0.06, "waterproofLevel": 0.1 },
@@ -90,6 +90,21 @@
   "bone_shovel": { "name": "Bone Shovel", "category": "Tool", "baseWeightKg": 1.2, "maxDurability": 15, "capabilities": ["Digging"], "tool": "Shovel" },
   "hide_tent": { "name": "Hide Tent", "category": "Tool", "baseWeightKg": 3.0, "maxDurability": 50, "capabilities": [], "tool": "Tent" },
   "mammoth_hide_tent": { "name": "Mammoth Hide Tent", "category": "Tool", "baseWeightKg": 5.0, "maxDurability": 80, "capabilities": [], "tool": "Tent" },
+  // Made (Content/recipes.json). Weapon damage is today's scale (knife 6, wooden spear 8, axe 12) in the
+  // roadmap's order: staff < sharp rock < crude spear and stone knife < wooden < heavy < stone-tipped.
+  "sharp_rock": { "name": "Sharp Rock", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 3, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 4, "class": "Blade", "blockChance": 0.01 } },
+  "hammerstone": { "name": "Hammerstone", "category": "Tool", "baseWeightKg": 0.6, "maxDurability": 30, "capabilities": ["Striking"], "tool": "Hammerstone" },
+  "stone_knife": { "name": "Stone Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 10, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 6, "class": "Blade", "blockChance": 0.02 } },
+  "staff": { "name": "Staff", "category": "Tool", "baseWeightKg": 1.2, "maxDurability": 20, "capabilities": ["Reaching"], "tool": "Club", "weapon": { "damage": 3, "class": "Blunt", "blockChance": 0.10 } },
+  "crude_spear": { "name": "Crude Spear", "category": "Tool", "baseWeightKg": 1.3, "maxDurability": 8, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 6, "class": "Pierce", "blockChance": 0.10 } },
+  "heavy_spear": { "name": "Heavy Spear", "category": "Tool", "baseWeightKg": 2.5, "maxDurability": 15, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 9, "class": "Pierce", "blockChance": 0.12 } },
+  "stone_tipped_spear": { "name": "Stone-Tipped Spear", "category": "Tool", "baseWeightKg": 2.0, "maxDurability": 20, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 11, "class": "Pierce", "blockChance": 0.12 } },
+  // Old hide clothing recipes: cured hide, waterproofLevel 0.3.
+  "hide_gloves": { "name": "Hide Gloves", "category": "Clothing", "baseWeightKg": 0.3, "maxDurability": 80, "capabilities": [], "slot": "Hands", "insulation": 0.15, "waterproofLevel": 0.3 },
+  "hide_cap": { "name": "Hide Cap", "category": "Clothing", "baseWeightKg": 0.25, "maxDurability": 80, "capabilities": [], "slot": "Head", "insulation": 0.12, "waterproofLevel": 0.3 },
+  "hide_wrap": { "name": "Hide Wrap", "category": "Clothing", "baseWeightKg": 1.5, "maxDurability": 80, "capabilities": [], "slot": "Chest", "insulation": 0.25, "waterproofLevel": 0.3 },
+  "hide_leggings": { "name": "Hide Leggings", "category": "Clothing", "baseWeightKg": 1.0, "maxDurability": 80, "capabilities": [], "slot": "Legs", "insulation": 0.20, "waterproofLevel": 0.3 },
+  "hide_boots": { "name": "Hide Boots", "category": "Clothing", "baseWeightKg": 0.6, "maxDurability": 80, "capabilities": [], "slot": "Feet", "insulation": 0.18, "waterproofLevel": 0.3 },
   "large_bag": { "name": "Large Bag", "category": "Accessory", "baseWeightKg": 0.8, "maxDurability": 100, "capabilities": ["Carrying"], "capacityBonusKg": 10.0 }
  },
 

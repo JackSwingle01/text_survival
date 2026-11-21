@@ -1,9 +1,9 @@
 {
-  "Version": 1,
+  "Version": 2,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
-    "Minute": 142,
+    "Minute": 170,
     "Tiles": {
       "6,41": {
         "Ground": {
@@ -155,29 +155,38 @@
               "Material": 0,
               "ThicknessM": 0.35,
               "CompactionPct": 0,
-              "WaterSaturationPct": 0.5637210543890224,
-              "FrozenFractionPct": 0.12451811332265517
+              "WaterSaturationPct": 0.5609629230203321,
+              "FrozenFractionPct": 0.12724780714541864
             },
             {
               "Material": 1,
-              "ThicknessM": 0.03808289991326923,
-              "CompactionPct": 0.04079321767085298,
+              "ThicknessM": 0.041463514991129324,
+              "CompactionPct": 0.04474511829143293,
               "WaterSaturationPct": 0,
               "FrozenFractionPct": 0
             }
           ],
-          "WaterAddedM": 0.2643042466862885,
-          "WaterDrainedM": 0.11753009457464553,
-          "WaterEvaporatedM": 0.007230282010655402,
+          "WaterAddedM": 0.264783194690255,
+          "WaterDrainedM": 0.11796450026521424,
+          "WaterEvaporatedM": 0.007235458223766969,
           "WaterOverflowedM": 0.04625183344784298,
-          "LastUpdatedMinute": 135
+          "LastUpdatedMinute": 165
         },
         "Stash": {
           "Kg": {
             "Kindling": 1.8897363227451383,
             "Pine": 2
           },
-          "Gear": []
+          "Gear": [
+            {
+              "Kind": "crude_spear",
+              "Durability": 8,
+              "MaxDurability": 8,
+              "MadeOf": {
+                "Pine": 1.5
+              }
+            }
+          ]
         },
         "StashCause": {
           "Who": 0,
@@ -622,13 +631,19 @@
             "StructuralKg": 41.25,
             "FatKg": 11.25,
             "MuscleKg": 22.5,
-            "CoreTempF": 99.020630166668,
-            "CaloriesKcal": 1301.0361111111079,
-            "EnergyMinutes": 758,
-            "HydrationMl": 2752.9868853700727,
+            "CoreTempF": 99.01320633030294,
+            "CaloriesKcal": 1267.0666666666611,
+            "EnergyMinutes": 730,
+            "HydrationMl": 2703.0576305260693,
             "ClothingHeatBufferPct": 1,
-            "Effects": [],
-            "WoundsLivedThroughMinute": 142,
+            "Effects": [
+              {
+                "Kind": 8,
+                "Severity": 0.0016871746745788579,
+                "RequiresTreatment": false
+              }
+            ],
+            "WoundsLivedThroughMinute": 170,
             "Worn": [
               {
                 "Kind": "worn_fur_chest_wrap",
@@ -660,7 +675,6 @@
               "Tinder": 0.18000000000000002,
               "BirchBark": 0.95,
               "Kindling": 9.9,
-              "Pine": 3,
               "Birch": 8,
               "Bone": 2
             },
@@ -689,6 +703,23 @@
                 "Kind": "torch",
                 "Durability": 1,
                 "MaxDurability": 1
+              },
+              {
+                "Kind": "flint_knife",
+                "Durability": -1,
+                "MaxDurability": -1
+              }
+            ],
+            "Projects": [
+              {
+                "Recipe": "crude_spear",
+                "MinutesDone": 8,
+                "Materials": {
+                  "Kg": {
+                    "Pine": 1.5
+                  },
+                  "Gear": []
+                }
               }
             ]
           },
@@ -696,124 +727,72 @@
             "Discovered": [],
             "SearchHours": {},
             "Places": {
-              "2,42": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "3,41": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
               "3,42": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "3,43": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "4,40": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "4,41": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "4,42": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "4,43": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "4,44": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "5,39": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "5,40": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "5,41": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "5,43": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "5,44": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "5,45": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "6,38": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "6,39": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "6,40": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "6,41": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "6,43": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "6,44": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "6,45": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "6,46": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "7,37": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "7,38": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "7,39": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "7,40": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "7,41": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "7,42": {
-                "SeenMinute": 142,
-                "VisitedMinute": 142,
+                "SeenMinute": 170,
+                "VisitedMinute": 170,
                 "ForageDensity": 0.38,
                 "Fire": 4,
-                "FireHours": 3.4,
+                "FireHours": 3.9,
                 "Stash": {
                   "Kindling": 1.9,
                   "Pine": 2
@@ -821,120 +800,64 @@
                 "Shelter": "Overhang"
               },
               "7,43": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "7,44": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "7,45": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "7,46": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "7,47": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "8,38": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "8,39": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "8,40": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "8,41": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "8,42": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "VisitedMinute": 81,
                 "Trees": true,
                 "ForageDensity": 1.1294334018947862
               },
               "8,43": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "8,44": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "8,45": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "8,46": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "8,47": {
-                "SeenMinute": 75,
-                "Trees": true
-              },
-              "9,38": {
-                "SeenMinute": 75,
-                "Trees": true
-              },
-              "9,39": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "9,40": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "9,41": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "9,42": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "9,43": {
-                "SeenMinute": 135,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "9,44": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "9,45": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "9,46": {
-                "SeenMinute": 75,
-                "Trees": true
-              },
-              "10,39": {
-                "SeenMinute": 75,
+                "SeenMinute": 165,
                 "Trees": true
               },
               "10,40": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "10,41": {
-                "SeenMinute": 135,
-                "Trees": true
-              },
-              "10,45": {
                 "SeenMinute": 75,
                 "Trees": true
               },
-              "11,40": {
+              "10,41": {
                 "SeenMinute": 75,
                 "Trees": true
               }
@@ -944,7 +867,7 @@
                 "Tile": "7,42",
                 "Species": 0,
                 "Count": 1,
-                "Minute": 135
+                "Minute": 165
               }
             },
             "Explored": "224x82:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOAHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\u002BB8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgDwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
@@ -953,6 +876,10 @@
             "Firecraft": {
               "Level": 0,
               "Xp": 3
+            },
+            "Crafting": {
+              "Level": 0,
+              "Xp": 0.9333333333333332
             }
           }
         },
@@ -1306,13 +1233,13 @@
             "StructuralKg": 41.25,
             "FatKg": 11.25,
             "MuscleKg": 22.5,
-            "CoreTempF": 98.88256384749593,
-            "CaloriesKcal": 1217.3256944444533,
-            "EnergyMinutes": 758,
-            "HydrationMl": 2753.4722222221935,
+            "CoreTempF": 98.99364042719615,
+            "CaloriesKcal": 1183.3562500000066,
+            "EnergyMinutes": 730,
+            "HydrationMl": 2703.734431270615,
             "ClothingHeatBufferPct": 1,
             "Effects": [],
-            "WoundsLivedThroughMinute": 142,
+            "WoundsLivedThroughMinute": 170,
             "Worn": [
               {
                 "Kind": "worn_fur_chest_wrap",
@@ -1347,14 +1274,14 @@
           "WoodGoal": null,
           "Opinions": {},
           "TargetFatKg": 11.25,
-          "TargetFatMinute": 126,
+          "TargetFatMinute": 157,
           "ThreatTile": null,
           "ThreatMinute": 0,
           "Pack": {
             "Kg": {
               "Tinder": 0.30817460870774116,
               "Kindling": 1,
-              "Oak": 8.541825391292258
+              "Oak": 7.968057839702847
             },
             "Gear": [
               {
@@ -1379,140 +1306,72 @@
             "Discovered": [],
             "SearchHours": {},
             "Places": {
-              "2,41": {
-                "SeenMinute": 120,
-                "Trees": true
-              },
-              "2,42": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "3,40": {
-                "SeenMinute": 120,
-                "Trees": true
-              },
-              "3,41": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
               "3,42": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "3,43": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "4,39": {
-                "SeenMinute": 120,
-                "Trees": true
-              },
-              "4,40": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "4,41": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "4,42": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "4,43": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "4,44": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "5,38": {
-                "SeenMinute": 120,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "5,39": {
-                "SeenMinute": 126,
+                "SeenMinute": 120,
                 "Trees": true
               },
               "5,40": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "5,41": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "5,43": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "5,44": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "5,45": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "6,37": {
-                "SeenMinute": 120,
-                "Trees": true
-              },
-              "6,38": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "6,39": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "6,40": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "6,41": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "6,43": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "6,44": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "6,45": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "6,46": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "7,36": {
                 "SeenMinute": 120,
                 "Trees": true
               },
-              "7,37": {
-                "SeenMinute": 126,
+              "6,40": {
+                "SeenMinute": 157,
                 "Trees": true
               },
-              "7,38": {
-                "SeenMinute": 126,
+              "6,41": {
+                "SeenMinute": 157,
+                "Trees": true
+              },
+              "6,43": {
+                "SeenMinute": 157,
+                "Trees": true
+              },
+              "6,44": {
+                "SeenMinute": 157,
                 "Trees": true
               },
               "7,39": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "7,40": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "7,41": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "VisitedMinute": 120,
                 "Trees": true,
                 "ForageDensity": 1.013609329260508,
@@ -1521,11 +1380,11 @@
                 }
               },
               "7,42": {
-                "SeenMinute": 126,
-                "VisitedMinute": 126,
+                "SeenMinute": 157,
+                "VisitedMinute": 157,
                 "ForageDensity": 0.38,
                 "Fire": 4,
-                "FireHours": 3.7,
+                "FireHours": 4.1,
                 "Stash": {
                   "Kindling": 1.9,
                   "Pine": 2
@@ -1533,107 +1392,63 @@
                 "Shelter": "Overhang"
               },
               "7,43": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "7,44": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "7,45": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "7,46": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "7,47": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "8,38": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "8,39": {
-                "SeenMinute": 126,
+                "SeenMinute": 120,
                 "Trees": true
               },
               "8,40": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "8,41": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "8,42": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "8,43": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "8,44": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "8,45": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "8,46": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "9,38": {
-                "SeenMinute": 120,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "9,39": {
-                "SeenMinute": 126,
+                "SeenMinute": 120,
                 "Trees": true
               },
               "9,40": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "9,41": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "9,42": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "9,43": {
-                "SeenMinute": 126,
+                "SeenMinute": 157,
                 "Trees": true
               },
               "9,44": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "9,45": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "10,39": {
-                "SeenMinute": 120,
-                "Trees": true
-              },
-              "10,40": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "10,41": {
-                "SeenMinute": 126,
-                "Trees": true
-              },
-              "11,40": {
-                "SeenMinute": 120,
+                "SeenMinute": 157,
                 "Trees": true
               }
             },
@@ -1642,7 +1457,7 @@
                 "Tile": "7,42",
                 "Species": 0,
                 "Count": 1,
-                "Minute": 126
+                "Minute": 157
               }
             },
             "Explored": "224x82:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4AMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\u002BAcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
@@ -1656,7 +1471,7 @@
             "Who": 1
           },
           "Work": null,
-          "MinutesLeft": 13,
+          "MinutesLeft": 16,
           "Acted": null
         }
       },
@@ -1963,7 +1778,7 @@
             "HydrationMl": 3000,
             "ClothingHeatBufferPct": 0.3,
             "Effects": [],
-            "WoundsLivedThroughMinute": 142,
+            "WoundsLivedThroughMinute": 170,
             "Worn": []
           },
           {
@@ -2264,7 +2079,7 @@
             "HydrationMl": 3000,
             "ClothingHeatBufferPct": 0.3,
             "Effects": [],
-            "WoundsLivedThroughMinute": 142,
+            "WoundsLivedThroughMinute": 170,
             "Worn": []
           }
         ],
@@ -2276,7 +2091,7 @@
           "TerritoryIndex": 0,
           "State": 0,
           "StateSinceMinute": 1,
-          "Hunger": 0.19098741383553391,
+          "Hunger": 0.21898741383553394,
           "Fear": 0,
           "LastFightMinute": -1000000,
           "FleeFrom": null,
@@ -2296,6 +2111,9 @@
       "fire:0": {
         "State": 12312604483156130127
       },
+      "make:0": {
+        "State": 11656051548387474417
+      },
       "work:1": {
         "State": 11585691137858028565
       }
@@ -2303,21 +2121,21 @@
     "Fires": {
       "0": {
         "Tile": "7,42",
-        "LastUpdatedMinute": 142,
+        "LastUpdatedMinute": 170,
         "Pit": 0,
         "UnburnedKg": {},
         "BurningKg": {
-          "BirchBark": 0.002078571300549012,
-          "Kindling": 0.14972961255032366,
-          "Birch": 0.7328169771666303,
-          "Oak": 1.7132614439185088
+          "BirchBark": 0.001335085402040917,
+          "Kindling": 0.114900227846526,
+          "Birch": 0.6253664190534335,
+          "Oak": 2.0927728914138797
         },
         "HasEmbers": false,
         "EmberDurationHours": 0,
         "EmberHoursRemaining": 0,
         "EmberStartTempF": 0,
-        "LastBurningTempF": 901.1270068511509,
-        "BurnedSinceLitKg": 2.3006158241299017,
+        "LastBurningTempF": 913.4415641843115,
+        "BurnedSinceLitKg": 2.6378953569394463,
         "CharcoalKg": 0,
         "CarriedBy": null,
         "TorchMinutesLeft": 0,
@@ -2424,6 +2242,27 @@
           "Resource": 5,
           "Kg": 1.8897363227451383,
           "Minute": 113,
+          "Tile": "7,42"
+        },
+        {
+          "kind": "fueladded",
+          "Fire": 0,
+          "By": 1,
+          "Fuel": 8,
+          "Kg": 0.5737675515894116,
+          "Minute": 156,
+          "Tile": "7,42"
+        },
+        {
+          "kind": "made",
+          "Who": 0,
+          "Recipe": "crude_spear",
+          "Outcome": null,
+          "Succeeded": true,
+          "Spent": {},
+          "Produced": {},
+          "ExtraGear": [],
+          "Minute": 162,
           "Tile": "7,42"
         }
       ]

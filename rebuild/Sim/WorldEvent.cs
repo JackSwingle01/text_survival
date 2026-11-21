@@ -41,6 +41,8 @@ namespace Survival;
 [JsonDerivedType(typeof(PlanRefused), "planrefused")]
 [JsonDerivedType(typeof(SkillLeveledUp), "skillup")]
 [JsonDerivedType(typeof(Noticed), "noticed")]
+[JsonDerivedType(typeof(Made), "made")]
+[JsonDerivedType(typeof(ProjectAbandoned), "projectabandoned")]
 public abstract record WorldEvent(long Minute, TileId Tile);
 
 public sealed record EffectStarted(long Minute, AgentId Who, TileId Tile, EffectKind Kind) : WorldEvent(Minute, Tile);

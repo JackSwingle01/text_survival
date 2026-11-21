@@ -22,7 +22,7 @@ public enum ResourceCategory { Fuel, Food, Water, Medicine, Material }
 /// Old Gear categories. Clothing is worn on a body; accessories add carrying capacity.
 public enum GearCategory { Tool, Clothing, Accessory }
 
-public enum ToolType { Axe, Knife, FireStriker, HandDrill, BowDrill, WaterContainer, Spear, Club, Torch, Needle, Shovel, Tent }
+public enum ToolType { Axe, Knife, FireStriker, HandDrill, BowDrill, WaterContainer, Spear, Club, Torch, Needle, Shovel, Tent, Hammerstone }
 
 /// Body surface a garment covers. Old Inventory.SlotCoverage.
 public enum EquipSlot { Head, Chest, Legs, Feet, Hands }
@@ -56,6 +56,21 @@ public sealed class Gear
     /// A tent packed after pitching: the levels it stood at, so it pitches again as it was.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public ShelterCover? TentLevels { get; set; }
+    /// What a made thing is made of, kilos by resource, merged from its inputs (Making): what decay,
+    /// salvage and repair will read. Null for things found or brought, whose parts nobody recorded.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public SortedDictionary<Resource, double>? MadeOf { get; set; }
+}
+
+/// A recipe worked on and not finished (GLOSSARY: Project), carried as an unfinished item in the pack:
+/// its materials went in when the work began, and its progress waits here for the work to go on.
+public sealed class MakeProject
+{
+    public required string Recipe { get; init; }
+    /// Minutes of work done, as a whole, warm, dry person would count them (Recipe.Minutes is the total).
+    public double MinutesDone { get; set; }
+    /// The materials taken: kilos by resource and the items consumed.
+    public Inventory Materials { get; init; } = new();
 }
 
 /// What one agent carries, or a stash on a tile. Plain data: resources by kg, gear by instance.
@@ -65,6 +80,9 @@ public sealed class Inventory
     /// freshly loaded, and anything that walks the stacks would then act differently after a load.
     public SortedDictionary<Resource, double> Kg { get; init; } = [];
     public List<Gear> Gear { get; init; } = [];
+    /// Unfinished things (Making), one per recipe; null when there are none.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<MakeProject>? Projects { get; set; }
 }
 
 /// Items, inventories and what they weigh. Port of old Items/Gear.cs and Items/Inventory.cs.
@@ -162,6 +180,8 @@ public static class Items
     {
         foreach (var (r, kg) in from.Kg.OrderBy(kv => kv.Key)) Add(to, r, kg);
         to.Gear.AddRange(from.Gear);
+        // Unfinished things move with the rest: a dead person's half-made spear lies on their stash.
+        if (from.Projects is { Count: > 0 } projects) (to.Projects ??= []).AddRange(projects);
     }
 
     /// First working tool of this type, or null (old Inventory.GetTool).
@@ -171,7 +191,9 @@ public static class Items
     /// Old Inventory.HasCuttingTool.
     public static bool HasCuttingTool(Inventory inv) => Tool(inv, ToolType.Knife) != null || Tool(inv, ToolType.Axe) != null;
 
-    public static double WeightKg(Inventory inv) => inv.Kg.Values.Sum() + inv.Gear.Sum(WeightKg);
+    /// Stacks, gear and the materials in unfinished things.
+    public static double WeightKg(Inventory inv) =>
+        inv.Kg.Values.Sum() + inv.Gear.Sum(WeightKg) + (inv.Projects?.Sum(p => WeightKg(p.Materials)) ?? 0);
 
     // ---- carrying ----
 

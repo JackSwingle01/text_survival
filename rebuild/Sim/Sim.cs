@@ -155,6 +155,7 @@ public static class Sim
         else if (activity is Travel travel) Traversal.Begin(world, travel);
         else if (Work.Handles(activity)) work = Work.Begin(world, activity, events);
         else if (Shelters.Handles(activity)) Shelters.Begin(world, activity);
+        else if (Making.Handles(activity)) Making.Begin(world, activity, events);
         else if (Fauna.Handles(activity) && Fauna.Begin(world, activity, events) is int fought) minutes = fought; // a hunt lasts as long as its fight
 
         if (activity is not Travel) agent.Crossing = null; // turned back: it never left its tile
@@ -177,7 +178,7 @@ public static class Sim
     public const string InAFight = "You are in a fight.";
 
     static bool ReadsTheFire(Activity activity) =>
-        activity is StartFire or AddFuel or LightTorch or GatherCharcoal || Work.Handles(activity) || Shelters.Handles(activity);
+        activity is StartFire or AddFuel or LightTorch or GatherCharcoal || Work.Handles(activity) || Shelters.Handles(activity) || Making.Handles(activity);
 
     /// The owning system's refusal for this activity: the one dispatch Start and Refusal share.
     static string? ActivityRefusal(World world, Activity activity) => activity switch
@@ -186,6 +187,7 @@ public static class Sim
         Travel travel => Traversal.Refusal(world, travel),
         _ when Work.Handles(activity) => Work.Refusal(world, activity),
         _ when Shelters.Handles(activity) => Shelters.Refusal(world, activity),
+        _ when Making.Handles(activity) => Making.Refusal(world, activity),
         Fight fight => Combat.Refusal(world, fight),
         _ when Fauna.Handles(activity) => Fauna.Refusal(world, activity),
         Wait or Rest or Sleep => null,
@@ -211,6 +213,7 @@ public static class Sim
             if (activity is Travel && interrupt != "died") interrupt = Traversal.Advance(world, agent, events) ?? interrupt;
             if (d.Work != null && interrupt != "died") interrupt = Work.Minute(world, agent, d.Work, events) ?? interrupt;
             if (Shelters.Handles(activity) && interrupt != "died") interrupt = Shelters.Minute(world, agent, activity, events) ?? interrupt;
+            if (Making.Handles(activity) && interrupt != "died") interrupt = Making.Minute(world, agent, activity, events) ?? interrupt;
             if (activity is Fight round) interrupt = Combat.EndRound(world, round, events) ?? interrupt; // also when the minute killed you: the fight ends
         }
         interrupt ??= d.Acted;
@@ -250,7 +253,7 @@ public static class Sim
             Sleep => (0.5, 2.0, true, true),
             Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or Stash or Unstash or Wear => (1.0, 2.0, false, true),
             Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, tending the fire
-            Build or ImproveShelter or PackTent => (1.0, 2.0, false, true), // old ActivityType.Crafting
+            Build or ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // old ActivityType.Crafting
             Travel => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
             Fight => (2.0, 0.0, false, true), // old ActivityType.Fighting, which was stationary
             Gather when gathering is TreePool => (1.8, 0.0, false, false), // chopping

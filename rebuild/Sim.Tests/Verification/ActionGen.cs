@@ -8,7 +8,7 @@ namespace Survival.Tests.Verification;
 
 /// What the player means to do, before it meets the world: Resolve turns it into a real activity
 /// chosen from what is on the tile, in the pack and in the fire at that moment.
-public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, MeltSnow, Cook, Stash, Unstash, Butcher, Build, Improve, Fight }
+public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, MeltSnow, Cook, Stash, Unstash, Butcher, Build, Improve, Fight, Make, Abandon }
 
 /// One scripted activity. Pick chooses among the valid options (a pool, a direction, a fuel); it is
 /// a plain int so that shrinking it walks toward the first option.
@@ -57,7 +57,7 @@ static class ActionGen
         Act.Wait or Act.Rest => Gen.Int[1, Math.Max(1, (int)(180 * scale))],
         Act.Sleep => Gen.Int[1, Math.Max(1, (int)(480 * scale))],
         Act.Travel => Gen.Int[1, Math.Max(1, (int)(60 * scale))],
-        Act.Gather or Act.Butcher or Act.Build or Act.Improve => Gen.Int[1, Math.Max(1, (int)(150 * scale))],
+        Act.Gather or Act.Butcher or Act.Build or Act.Improve or Act.Make => Gen.Int[1, Math.Max(1, (int)(150 * scale))],
         Act.Fight => Gen.Const(1),
         _ => Gen.Int[1, 20], // fire acts and instant work: the act, then waiting it out
     };
@@ -68,7 +68,7 @@ static class ActionGen
             (4, Gen.Const(Act.Gather)), (2, Gen.Const(Act.StartFire)), (2, Gen.Const(Act.AddFuel)), (1, Gen.Const(Act.LightTorch)),
             (1, Gen.Const(Act.Eat)), (1, Gen.Const(Act.Drink)), (1, Gen.Const(Act.MeltSnow)), (1, Gen.Const(Act.Cook)),
             (1, Gen.Const(Act.Stash)), (1, Gen.Const(Act.Unstash)), (2, Gen.Const(Act.Butcher)), (1, Gen.Const(Act.Build)),
-            (1, Gen.Const(Act.Improve)), (1, Gen.Const(Act.Fight)))
+            (1, Gen.Const(Act.Improve)), (1, Gen.Const(Act.Fight)), (2, Gen.Const(Act.Make)), (1, Gen.Const(Act.Abandon)))
         .SelectMany(act => Gen.Select(Gen.Int[0, 63], MinutesFor(act, scale), (pick, minutes) => new Intent(act, pick, minutes)));
 
     public static Gen<Script> ScriptGen(int minIntents, int maxIntents, double scale) =>
@@ -176,6 +176,14 @@ static class ActionGen
                 return new ImproveShelter(P, (ShelterStat)(pick % 3), PickOf(materials, pick / 3, Resource.Hide));
             }
             case Act.Fight: return new Fight(P, CombatAction.Wait); // not in a fight: refused
+            case Act.Make:
+            {
+                // A project in the pack is the one to go on with; otherwise any recipe.
+                var projects = Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [];
+                return new Make(P, projects.Count > 0 && pick % 3 != 0 ? PickOf(projects, pick, "") : Recipes.All[pick % Recipes.All.Count].Id);
+            }
+            case Act.Abandon:
+                return new Abandon(P, PickOf(Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [], pick, Recipes.All[pick % Recipes.All.Count].Id));
             default: throw new NotSupportedException(i.Act.ToString());
         }
     }
@@ -203,7 +211,7 @@ static class ActionGen
     /// step left off. The others act once when they start (light, eat, stash, a round), so two steps
     /// of them are two acts, not one act cut in half; they always run as one step.
     /// A fight is splittable too: every minute of a Fight step is one round of the same action.
-    public static bool Splittable(Activity a) => a is Wait or Rest or Sleep or Travel or Gather or Butcher or Build or ImproveShelter or Fight;
+    public static bool Splittable(Activity a) => a is Wait or Rest or Sleep or Travel or Gather or Butcher or Build or ImproveShelter or Fight or Make;
 
     /// An intent turned into a round keeps its minutes, up to a few rounds.
     static int MinutesOf(Activity a, Intent i) => a is Fight ? Math.Min(i.Minutes, 5) : i.Minutes;

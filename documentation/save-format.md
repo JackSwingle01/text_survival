@@ -28,7 +28,11 @@ default" attribute leaves old saves byte-identical, and the test stays green.
 5. Commit the version, the fixture and the change together.
 
 The sample world has a little of most saved state: a fire, a stash, a shelter and bedding, a
-crossing, an NPC, a wolf pack, memory and explored ground, rng streams and a journal. When you add
+crossing, an NPC, a wolf pack, memory and explored ground, rng streams, a journal, a made spear
+with its recorded parts and an unfinished one in the pack.
+
+Version 2 (MVP 4, making things) added `Gear.MadeOf`, `Inventory.Projects`, the `make` and
+`abandon` activities, and the `made` and `projectabandoned` events. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it.
 
 ## After the first release

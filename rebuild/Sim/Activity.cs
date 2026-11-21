@@ -30,6 +30,8 @@ namespace Survival;
 [JsonDerivedType(typeof(Build), "build")]
 [JsonDerivedType(typeof(ImproveShelter), "improveshelter")]
 [JsonDerivedType(typeof(PackTent), "packtent")]
+[JsonDerivedType(typeof(Make), "make")]
+[JsonDerivedType(typeof(Abandon), "abandon")]
 public abstract record Activity(AgentId Who);
 
 public sealed record Wait(AgentId Who) : Activity(Who);
@@ -79,3 +81,11 @@ public sealed record Build(AgentId Who, Structure What) : Activity(Who);
 public sealed record ImproveShelter(AgentId Who, ShelterStat Stat, Resource Material) : Activity(Who);
 /// Strikes the tent pitched here and puts it in the pack.
 public sealed record PackTent(AgentId Who) : Activity(Who);
+
+// Making things (Make.cs).
+
+/// Works on this recipe (Content/recipes.json): a new project takes its materials at the start;
+/// one in the pack is picked up where it was left. Stops itself when the work is done.
+public sealed record Make(AgentId Who, string Recipe) : Activity(Who);
+/// Gives up the unfinished thing for this recipe in the pack: most of its materials come back.
+public sealed record Abandon(AgentId Who, string Recipe) : Activity(Who);

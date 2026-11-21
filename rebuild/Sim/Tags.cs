@@ -20,7 +20,7 @@ public enum Capability
 {
     None = 0,
     Cutting = 1 << 0, Striking = 1 << 1, Prying = 1 << 2, Digging = 1 << 3, Smoke = 1 << 4, Light = 1 << 5,
-    Reaching = 1 << 6, Bait = 1 << 7, Spark = 1 << 8, Binding = 1 << 9, Carrying = 1 << 10, Piercing = 1 << 11,
+    Reaching = 1 << 6, Bait = 1 << 7, Spark = 1 << 8, Binding = 1 << 9, Carrying = 1 << 10, Piercing = 1 << 11, Sewing = 1 << 12,
 }
 
 public static class Capabilities
