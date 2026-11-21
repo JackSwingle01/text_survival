@@ -112,9 +112,9 @@
      "description": "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
      "minutes": 20,
      "items": [
-      { "resource": "Pine", "units": 8, "kgPerUnit": 2.5 },
-      { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3 },
-      { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05 }
+      { "resource": "Pine", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
+      { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 }
      ]
     },
     {
@@ -308,9 +308,9 @@
      "description": "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
      "minutes": 20,
      "items": [
-      { "resource": "Pine", "units": 8, "kgPerUnit": 2.5 },
-      { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3 },
-      { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05 }
+      { "resource": "Pine", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
+      { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 }
      ]
     },
     { "kind": "shelter", "name": "Fallen Tree Shelter", "type": "FallenTree", "insulation": 0.1, "overhead": 0.4, "wind": 0.5, "insulationCap": 0.3, "overheadCap": 0.5, "windCap": 0.6 },
@@ -1235,8 +1235,8 @@
      "description": "Mammoth remains. Large bones for tools, ivory for crafting. The ground is thick with them.",
      "minutes": 15,
      "items": [
-      { "resource": "Bone", "units": 20, "kgPerUnit": 1.5 },
-      { "resource": "Ivory", "units": 8, "kgPerUnit": 2 }
+      { "resource": "Bone", "units": 20, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 },
+      { "resource": "Ivory", "units": 8, "kgPerUnit": 2, "respawnHoursPerUnit": 0 }
      ]
     },
     { "kind": "shelter", "name": "Rib Arch", "type": "NaturalShelter", "insulation": 0.35, "overhead": 0.4, "wind": 0.5, "insulationCap": 0.5, "overheadCap": 0.55, "windCap": 0.65 }
@@ -1311,7 +1311,7 @@
      "description": "Flat slabs of quality stone, fractured by freeze-thaw. Good for tools.",
      "minutes": 15,
      "items": [
-      { "resource": "Stone", "units": 6, "kgPerUnit": 1.5 }
+      { "resource": "Stone", "units": 6, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 }
      ]
     }
    ]
@@ -1393,7 +1393,7 @@
      "description": "Ancient bones eroding from stone. Dense and well-preserved.",
      "minutes": 15,
      "items": [
-      { "resource": "Bone", "units": 10, "kgPerUnit": 1.2 }
+      { "resource": "Bone", "units": 10, "kgPerUnit": 1.2, "respawnHoursPerUnit": 0 }
      ]
     }
    ]
@@ -1594,8 +1594,8 @@
      "description": "Woven branches packed with mud. Easy fuel — if you don't mind the consequences.",
      "minutes": 15,
      "items": [
-      { "resource": "Birch", "units": 12, "kgPerUnit": 2 },
-      { "resource": "Kindling", "units": 20, "kgPerUnit": 0.25 }
+      { "resource": "Birch", "units": 12, "kgPerUnit": 2, "respawnHoursPerUnit": 0 },
+      { "resource": "Kindling", "units": 20, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 }
      ]
     },
     {
@@ -1854,7 +1854,7 @@
      "description": "Dark compressed plant matter. Burns slow and hot — if you can dig it out.",
      "minutes": 20,
      "items": [
-      { "resource": "Peat", "units": 15, "kgPerUnit": 2 }
+      { "resource": "Peat", "units": 15, "kgPerUnit": 2, "respawnHoursPerUnit": 0 }
      ]
     },
     { "kind": "water", "name": "Bog Pools", "description": "Dark water between the mounds. Thin ice, uncertain depth.", "frozen": true, "ice": 0.15, "fish": 0.7 }
@@ -2454,10 +2454,12 @@
      ]
     },
     { "kind": "water", "name": "Mineral Spring", "description": "Iron-rich water. Medicinal, if you can stomach the taste.", "frozen": false, "fish": 0.7 },
+    // old game: this SmallGameFeature listed no animals, so nothing could ever be hunted here
+    // (bug, fixed): the common rabbit and ptarmigan.
     {
      "kind": "smallGame",
      "density": 1.3,
-     "animals": [],
+     "animals": [ { "animal": "Rabbit", "weight": 1.2 }, { "animal": "Ptarmigan", "weight": 1 } ],
      "peakHours": [ 5, 8 ],
      "peakFactor": 1.8
     }
@@ -2635,7 +2637,7 @@
      "description": "Jumbled bones from an ancient kill. Dense, quality material.",
      "minutes": 20,
      "items": [
-      { "resource": "Bone", "units": 15, "kgPerUnit": 1 }
+      { "resource": "Bone", "units": 15, "kgPerUnit": 1, "respawnHoursPerUnit": 0 }
      ]
     },
     {
@@ -2765,8 +2767,8 @@
      "description": "The edge where ice meets air. Ancient materials emerge as the glacier melts.",
      "minutes": 25,
      "items": [
-      { "resource": "Bone", "units": 8, "kgPerUnit": 1.5 },
-      { "resource": "Ivory", "units": 4, "kgPerUnit": 2 }
+      { "resource": "Bone", "units": 8, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 },
+      { "resource": "Ivory", "units": 4, "kgPerUnit": 2, "respawnHoursPerUnit": 0 }
      ]
     },
     { "kind": "water", "name": "Glacier Ice", "description": "Pure, ancient ice. Dense and cold.", "frozen": true, "ice": 0.7, "fish": 0.7 }
@@ -2804,9 +2806,9 @@
      "description": "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
      "minutes": 20,
      "items": [
-      { "resource": "Pine", "units": 8, "kgPerUnit": 2.5 },
-      { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3 },
-      { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05 }
+      { "resource": "Pine", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
+      { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 }
      ]
     },
     {
@@ -2862,7 +2864,7 @@
      "description": "Lightning-struck and still smoldering. Charcoal forms as it burns.",
      "minutes": 15,
      "items": [
-      { "resource": "Charcoal", "units": 10, "kgPerUnit": 0.3 }
+      { "resource": "Charcoal", "units": 10, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 }
      ]
     }
    ]
@@ -3048,7 +3050,7 @@
      "description": "Thin plates of shale have split from the cave wall. Usable pieces lie beneath the dust.",
      "minutes": 5,
      "items": [
-      { "resource": "Shale", "units": 4, "kgPerUnit": 0.25 }
+      { "resource": "Shale", "units": 4, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 }
      ]
     }
    ]
@@ -3084,7 +3086,7 @@
      "description": "Sharp flint nodules erode from the rock face here. Good for tools.",
      "minutes": 5,
      "items": [
-      { "resource": "Flint", "units": 3, "kgPerUnit": 0.15, "unitsMax": 7 }
+      { "resource": "Flint", "units": 3, "kgPerUnit": 0.15, "unitsMax": 7, "respawnHoursPerUnit": 0 }
      ]
     }
    ]

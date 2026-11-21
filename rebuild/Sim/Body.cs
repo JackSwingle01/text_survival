@@ -81,6 +81,19 @@ public sealed class BodyState
     /// is not lived again, so every body lives every minute exactly once.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long WoundsLivedThroughMinute { get; set; }
+    /// Who last hurt this body in a fight, and with what ("the player's wooden spear"): what an
+    /// animal that bleeds out later, or a person, died of. Cleared on an animal once it has mended.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Cause? WoundedBy { get; set; }
+    /// When and of what it died (Body.MarkDead): a dead person's body is a sign with this cause.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? DiedMinute { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Cause? DeathCause { get; set; }
+    /// Kg of flesh scavengers have picked off it since it died (Remains.Pick): a picked body goes to
+    /// bones sooner.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double PickedKg { get; set; }
     /// What this member wears; nothing for a bare animal. Clothing belongs to the body it is on.
     public List<Gear> Worn { get; init; } = [];
     /// Whole-body clothing insulation and its weight, derived from what is worn.
@@ -212,30 +225,7 @@ public static partial class Body
 
     static Capacities GetCapacities(BodyState body, double[] effectDeltas)
     {
-        var regions = body.Regions.Select(r => (r.Name, Caps: RegionCapacities(r))).ToList();
-        var c = new double[CapacityCount];
-
-        // Moving: 90% legs, 10% everything else. Legs are found by name so four-legged bodies count too.
-        var legs = regions.Where(r => r.Name.Contains("Leg")).ToList();
-        var others = regions.Where(r => !r.Name.Contains("Leg")).ToList();
-        c[(int)Capacity.Moving] = legs.Count == 0
-            ? regions.Average(r => r.Caps[(int)Capacity.Moving])
-            : legs.Sum(r => r.Caps[(int)Capacity.Moving] * 0.9 / legs.Count)
-              + others.Sum(r => r.Caps[(int)Capacity.Moving] * 0.1 / others.Count);
-
-        // Manipulation: 90% arms, 2% each from the other human regions.
-        double ManipWeight(string name) => name switch
-        {
-            "Left Arm" or "Right Arm" => 0.45,
-            "Head" or "Chest" or "Abdomen" or "Left Leg" or "Right Leg" => 0.02,
-            _ => 0,
-        };
-        c[(int)Capacity.Manipulation] = regions.Sum(r => r.Caps[(int)Capacity.Manipulation] * ManipWeight(r.Name));
-
-        // Everything else: organs add up wherever they sit.
-        foreach (var cap in new[] { Capacity.Breathing, Capacity.BloodPumping, Capacity.Consciousness, Capacity.Sight, Capacity.Hearing, Capacity.Digestion })
-            foreach (var (_, caps) in regions)
-                c[(int)cap] = Clamp01(c[(int)cap] + caps[(int)cap]);
+        var c = IsWhole(body) ? (double[])WholeTissueCapacities[(int)body.Kind].Clone() : TissueCapacities(body);
 
         for (int i = 0; i < CapacityCount; i++)
             c[i] = Clamp01(Clamp01(c[i]) + Math.Clamp(effectDeltas[i], -1, 1));
@@ -260,6 +250,52 @@ public static partial class Body
         }
 
         return new Capacities(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+    }
+
+    /// Every tissue and organ whole: such a body's tissues supply what any whole body of its kind does
+    /// (WholeTissueCapacities), the same numbers worked out once. Most animals, most of the time.
+    static bool IsWhole(BodyState body)
+    {
+        foreach (var r in body.Regions)
+        {
+            if (r.Skin.Condition != 1 || r.Muscle.Condition != 1 || r.Bone.Condition != 1) return false;
+            foreach (var o in r.Organs) if (o.Condition != 1) return false;
+        }
+        return true;
+    }
+
+    /// TissueCapacities of a whole body of each kind (by BodyKind), from the body plans.
+    static readonly double[][] WholeTissueCapacities =
+        [.. Enum.GetValues<BodyKind>().Select(k => TissueCapacities(BodyState.Create(k, BaselineWeightKg, BaselineFatPct, BaselineMusclePct)))];
+
+    /// What the tissues supply, each capacity 0-1, before effects and blood.
+    static double[] TissueCapacities(BodyState body)
+    {
+        var regions = body.Regions.Select(r => (r.Name, Caps: RegionCapacities(r))).ToList();
+        var c = new double[CapacityCount];
+
+        // Moving: 90% legs, 10% everything else. Legs are found by name so four-legged bodies count too.
+        var legs = regions.Where(r => r.Name.Contains("Leg")).ToList();
+        var others = regions.Where(r => !r.Name.Contains("Leg")).ToList();
+        c[(int)Capacity.Moving] = legs.Count == 0
+            ? regions.Average(r => r.Caps[(int)Capacity.Moving])
+            : legs.Sum(r => r.Caps[(int)Capacity.Moving] * 0.9 / legs.Count)
+              + others.Sum(r => r.Caps[(int)Capacity.Moving] * 0.1 / others.Count);
+
+        // Manipulation: 90% arms, 2% each from the other human regions.
+        double ManipWeight(string name) => name switch
+        {
+            "Left Arm" or "Right Arm" => 0.45,
+            "Head" or "Chest" or "Abdomen" or "Left Leg" or "Right Leg" => 0.02,
+            _ => 0,
+        };
+        c[(int)Capacity.Manipulation] = regions.Sum(r => r.Caps[(int)Capacity.Manipulation] * ManipWeight(r.Name));
+
+        // Everything else: organs add up wherever they sit.
+        foreach (var cap in new[] { Capacity.Breathing, Capacity.BloodPumping, Capacity.Consciousness, Capacity.Sight, Capacity.Hearing, Capacity.Digestion })
+            foreach (var (_, caps) in regions)
+                c[(int)cap] = Clamp01(c[(int)cap] + caps[(int)cap]);
+        return c;
     }
 
     /// One region's contribution: what its organs and muscle supply, scaled by the average
@@ -322,6 +358,34 @@ public static partial class Body
 
     public static bool IsAlive(BodyState body) => Vitality(body) > 0;
 
+    /// The body has died now, of this: its time and cause are kept (once: a body dies only once).
+    public static void MarkDead(BodyState body, long minute, Cause cause)
+    {
+        if (body.DiedMinute != null) return;
+        body.DiedMinute = minute;
+        body.DeathCause = cause;
+    }
+
+    /// What killed a body that has just died, read off it: what had crossed a lethal line. Wounds
+    /// deep enough to kill name whoever gave them, and blood lost without a name is blood loss. Then
+    /// whichever of the cold, thirst and hunger was wearing the organs down fastest (LethalRates):
+    /// the cold below 95 °F, thirst once dry, hunger only once fat and muscle are spent. Then
+    /// exhaustion, a body worn out on its feet. Ties go in that order (judgment).
+    /// Old (this rebuild): the cold was named only below 89.6 °F and hunger whenever the day's
+    /// calories were gone, which they are every day a body lives off its fat, so people who froze
+    /// carrying six kilograms of fat were said to have starved (bug, fixed).
+    public static Cause CauseOfDeath(BodyState body)
+    {
+        bool mortal = body.BloodPct < 0.5 || body.Regions.Any(r => r.Condition <= 0) || Combat.WoundLevel(body) > 0.5;
+        if (mortal && body.WoundedBy is Cause w) return w;
+        if (body.BloodPct < 0.5) return new Cause(null, "blood loss");
+        var (cold, thirst, hunger) = LethalRates(body);
+        double worst = Math.Max(cold, Math.Max(thirst, hunger));
+        if (worst > 0) return new Cause(null, worst == cold ? "the cold" : worst == thirst ? "thirst" : "starvation");
+        if (body.EnergyMinutes <= 0) return new Cause(null, "exhaustion");
+        return body.WoundedBy ?? new Cause(null, "its injuries");
+    }
+
     /// Power output from composition, scaled by vitality: dying is weak, whatever the muscles.
     public static double Strength(BodyState body)
     {
@@ -381,6 +445,18 @@ public static partial class Body
         double darknessPenalty = context.HasLightSource ? 0 : context.DarknessLevel * 0.5;
         double wetnessPenalty = Math.Max(0, (Effects.Severity(body, EffectKind.Wet) - 0.3) * 0.3);
         return c.Manipulation * (1 - darknessPenalty) * (1 - wetnessPenalty) * (0.7 + Vitality(c) * 0.3);
+    }
+
+    /// What is costing Dexterity, by name, in its order: the factors below whole. For an odds sheet's label.
+    public static IReadOnlyList<string> DexterityCosts(BodyState body, AbilityContext context = default)
+    {
+        var c = GetCapacities(body);
+        var costs = new List<string>();
+        if (c.Manipulation < 1) costs.Add("hurt or cold hands");
+        if (!context.HasLightSource && context.DarknessLevel > 0) costs.Add("dark");
+        if (Effects.Severity(body, EffectKind.Wet) > 0.3) costs.Add("wet");
+        if (Vitality(c) < 1) costs.Add("weak");
+        return costs;
     }
 
     /// Insulation from body fat, 0-1, diminishing past normal levels - you are not a walrus.
@@ -520,7 +596,7 @@ public static partial class Body
         var external = region.Organs.Where(o => o.IsExternal).ToList();
         if (external.Count > 0 && amount > 0) return external[rng.NextInt(external.Count)];
         var inner = region.Organs.Where(o => !o.IsExternal).ToList();
-        // ponytail: threshold 5 predates the 0-1 damage scale, so in practice only huge hits reach inner organs.
+        // The old threshold 5 predates the 0-1 damage scale, so in practice only huge hits reach inner organs.
         if (inner.Count > 0 && amount > 5) return inner[rng.NextInt(inner.Count)];
         return null;
     }

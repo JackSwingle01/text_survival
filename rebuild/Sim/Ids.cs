@@ -15,7 +15,9 @@ public readonly record struct AgentId(int Value) : IComparable<AgentId>
 [JsonConverter(typeof(TileIdConverter))]
 public readonly record struct TileId(int X, int Y) : IComparable<TileId>
 {
-    public int CompareTo(TileId o) => (X, Y).CompareTo((o.X, o.Y));
+    // x-major, then y: the order every sorted tile collection is in. Compared field by field, not as a
+    // tuple, which went through the generic comparers on every lookup of World.Tiles.
+    public int CompareTo(TileId o) => X != o.X ? (X < o.X ? -1 : 1) : Y < o.Y ? -1 : Y > o.Y ? 1 : 0;
 }
 
 /// TileId keys World.Tiles, so it serializes as "x,y" everywhere, key or value.
@@ -86,6 +88,31 @@ sealed class EdgeIdConverter : JsonConverter<EdgeId>
         if (parts.Length != 2) throw new JsonException($"EdgeId '{s}' is not x,y|x,y");
         return new(TileIdConverter.Parse(parts[0]), TileIdConverter.Parse(parts[1]));
     }
+}
+
+/// An RNG stream's name, keying World.Rngs: "body", or "body:12" for agent 12's own. Compared
+/// ordinally, so a save lists its streams in one order on any machine.
+[JsonConverter(typeof(StreamNameConverter))]
+public readonly record struct StreamName(string Value) : IComparable<StreamName>
+{
+    public int CompareTo(StreamName o) => string.CompareOrdinal(Value, o.Value);
+    public static implicit operator StreamName(string system) => new(system);
+    public static StreamName Of(string system, AgentId who) => new(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{system}:{who.Value}"));
+    /// Whether this is one of the agent's own streams (Of(any system, who)): "travel:1" is agent 1's, "travel:10" is not.
+    public bool IsFor(AgentId who)
+    {
+        int colon = Value.LastIndexOf(':');
+        return colon >= 0 && Value.AsSpan(colon + 1).SequenceEqual(who.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+    public override string ToString() => Value;
+}
+
+sealed class StreamNameConverter : JsonConverter<StreamName>
+{
+    public override StreamName Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => new(r.GetString() ?? throw new JsonException("StreamName is null"));
+    public override void Write(Utf8JsonWriter w, StreamName id, JsonSerializerOptions o) => w.WriteStringValue(id.Value);
+    public override StreamName ReadAsPropertyName(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => Read(ref r, t, o);
+    public override void WriteAsPropertyName(Utf8JsonWriter w, StreamName id, JsonSerializerOptions o) => w.WritePropertyName(id.Value);
 }
 
 /// A resource pool on a tile: the Index-th pool generation puts there (Pools.At).

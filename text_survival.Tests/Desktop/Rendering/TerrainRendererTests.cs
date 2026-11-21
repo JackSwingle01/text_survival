@@ -37,8 +37,11 @@ public class TerrainRendererTests
         Assert.Equal(plain, unknown);
         var mixed = TerrainRenderer.Neighborhood.Create(TerrainType.Plain, (_, _) => TerrainType.DeepWater);
         var pixels = TerrainRenderer.Rasterize(3, 5, mixed, art);
-        Assert.Equal(art[TerrainType.Plain][0].Pixels[0], pixels[24*48+24]);
-        Assert.NotEqual(pixels[24*48+24], pixels[0]);
+        var plainColor = art[TerrainType.Plain][0].Pixels[0];
+        var waterColor = art[TerrainType.DeepWater][0].Pixels[0];
+        Assert.Equal(plainColor, pixels[24*48+24]);
+        Assert.Contains(pixels.Take(48), p => p.Equals(waterColor));
+        Assert.All(pixels, p => Assert.True(p.Equals(plainColor) || p.Equals(waterColor)));
         Assert.Equal(pixels, TerrainRenderer.Rasterize(3, 5, mixed, art));
     }
 
@@ -46,19 +49,29 @@ public class TerrainRendererTests
     public void BothSidesOfBoundaryConvergeAndCornersIncludeDiagonalTerrain()
     {
         var art = FlatArt();
+        var forest = art[TerrainType.Forest][0].Pixels[0];
+        var water = art[TerrainType.DeepWater][0].Pixels[0];
         var left = TerrainRenderer.Neighborhood.Create(TerrainType.Forest,
             (dx, _) => dx == 1 ? TerrainType.DeepWater : TerrainType.Forest);
         var right = TerrainRenderer.Neighborhood.Create(TerrainType.DeepWater,
             (dx, _) => dx == -1 ? TerrainType.Forest : TerrainType.DeepWater);
         var a = TerrainRenderer.Rasterize(-1, 0, left, art);
         var b = TerrainRenderer.Rasterize(0, 0, right, art);
-        for (int y = 0; y < 48; y++)
-            Assert.InRange(Math.Abs(a[y*48+47].R-b[y*48].R), 0, 30);
+        // The pixels either side of the boundary are a similar mix of both terrains,
+        // so the edge is a scatter, not a step.
+        double aWater = Enumerable.Range(0, 48).Count(y => a[y*48+47].Equals(water))/48.0;
+        double bWater = Enumerable.Range(0, 48).Count(y => b[y*48].Equals(water))/48.0;
+        Assert.InRange(aWater, 0.2, 0.8);
+        Assert.InRange(bWater, 0.2, 0.8);
+        Assert.InRange(Math.Abs(aWater-bWater), 0, 0.3);
 
         var corner = TerrainRenderer.Neighborhood.Create(TerrainType.Forest,
             (dx, dy) => dx == 1 && dy == 1 ? TerrainType.DeepWater : TerrainType.Forest);
-        var pixels = TerrainRenderer.Rasterize(0, 0, corner, art);
-        Assert.True(pixels[^1].R > 10);
-        Assert.Equal(art[TerrainType.Forest][0].Pixels[0], pixels[24*48+24]);
+        // A diagonal-only neighbour shows through some corners; how much depends on
+        // where the edge wobble falls, so look across a run of tiles.
+        var tiles = Enumerable.Range(0, 8).Select(x => TerrainRenderer.Rasterize(x, 0, corner, art)).ToArray();
+        Assert.Contains(tiles, t => Enumerable.Range(36, 12)
+            .Any(y => Enumerable.Range(36, 12).Any(x => t[y*48+x].Equals(water))));
+        Assert.All(tiles, t => Assert.Equal(forest, t[24*48+24]));
     }
 }

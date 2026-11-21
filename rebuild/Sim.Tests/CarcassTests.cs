@@ -49,7 +49,8 @@ public class CarcassTests
     {
         var (_, c) = Make(animal);
         Resource[] order = [Resource.RawMeat, Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat, Resource.Feather];
-        for (int i = 0; i < order.Length; i++) Assert.Equal(kg[i], c.Remaining.GetValueOrDefault(order[i]), Digits);
+        // The old ledger was a careful butcher's yield; this one is full processing's (Carcasses.ThoroughFactor).
+        for (int i = 0; i < order.Length; i++) Assert.Equal(kg[i] * Carcasses.ThoroughFactor(order[i]), c.Remaining.GetValueOrDefault(order[i]), Digits);
         Assert.Equal(minutes, new[] { ButcherMode.QuickStrip, ButcherMode.Careful, ButcherMode.FullProcessing }.Select(m => Carcasses.RemainingMinutes(c, m)));
     }
 
@@ -102,11 +103,34 @@ public class CarcassTests
         var f = CutAll(full, 30, true, false, ButcherMode.FullProcessing);
         Assert.Equal(4.505415162454874, Items.Have(f, Resource.RawMeat), Digits);
         Assert.Equal(0.6301279947489334, Items.Have(f, Resource.Sinew), Digits);
-        Assert.Equal(78.90653121028166, Carcasses.TotalRemainingKg(full), Digits);
+        // Old 78.90653121028166 kg of the careful ledger; this ledger is full processing's (ThoroughFactor), cut at the old rate.
+        Assert.Equal(85.515309275547125, Carcasses.TotalRemainingKg(full), Digits);
 
         var (_, mammoth) = Make("Mammoth");
         CutAll(mammoth, Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful), false, false, ButcherMode.Careful);
         Assert.Equal(19, Carcasses.TotalRemainingKg(mammoth), Digits); // ivory and the great hide wait for a blade
+    }
+
+    /// Cutting never yields more than it takes off the carcass, by resource: in any mode, fresh or
+    /// spoiling, steady or clumsy, with a blade or without, at the most practice there is. Old game: full
+    /// processing gave 107% of the careful ledger it cut (bug, fixed); the review found the skill factor
+    /// lifting every yield past the cut as well (120% careful, 128.8% full at level 20).
+    [Fact]
+    public void Cutting_ConservesMass_AtMaxSkill_InEveryMode()
+    {
+        double maxSkill = Skills.ButcherYieldFactor(Skills.MaxLevel);
+        foreach (var animal in Animals.Keys)
+            foreach (var mode in Enum.GetValues<ButcherMode>())
+                foreach (double hours in new[] { 0.0, 8, 30 })
+                    foreach (bool knife in new[] { true, false })
+                        foreach (bool clumsy in new[] { false, true })
+                            foreach (double skill in new[] { 1.0, maxSkill })
+                            {
+                                var (_, c) = Make(animal, hours);
+                                for (int i = 0; i < 200 && !Carcasses.AllCut(c); i++) Carcasses.Cut(c, 7, knife, clumsy, mode, skill);
+                                foreach (var (r, kg) in c.YieldKg)
+                                    Assert.True(kg <= c.CutKg[r] + 1e-9, $"{animal} {mode} {hours}h knife={knife} clumsy={clumsy} skill {skill}: {r} yielded {kg} kg of {c.CutKg[r]} kg cut");
+                            }
     }
 
     /// Old DecayLevel through ApplyTemperatureDecay: 3 h at 60F, 10 h at 40F, 10 h at 20F, 20 h at 10F, 40 h at -5F.
@@ -135,7 +159,24 @@ public class CarcassTests
         Carcasses.CatchUp(a, Map.Of(a).Camp, ca);
         Carcasses.CatchUp(b, Map.Of(b).Camp, cb);
         Assert.Equal(ca.EffectiveHours, cb.EffectiveHours, 12);
-        Assert.Equal(2000 / 60.0 * Carcasses.DecayFactor(Weather.AirAtF(a, Map.Of(a).Camp, Mild, 0)), ca.EffectiveHours, 9);
+        Assert.Equal(2000 / 60.0 * Carcasses.DecayFactor(Ground.WeatherAt(a, Map.Of(a).Camp, 0).AirTemperatureF), ca.EffectiveHours, 9);
+    }
+
+    /// old game: decay read the air a person feels, wind chill included, so a gale over a thaw kept
+    /// meat as if it were freezing (bug, fixed): meat rots at the air that reaches it.
+    [Fact]
+    public void Decay_ReadsTheAirNotTheWindChill()
+    {
+        var w = World.New(17);
+        w.FixedWeather = new(0, WeatherCondition.Cloudy, 3, 0.6, 0, 0.9, WindDirection.North); // 37.4 °F, a 27 mph wind
+        var tile = Map.Of(w).Camp;
+        Assert.True(Weather.AirAtF(w, tile, Weather.At(w, 0), 0) < 32);
+        var c = Carcasses.Create(w, tile, "Caribou", BodyState.Create(BodyKind.Quadruped, 124, 0.15, 0.6), 0);
+        w.Minute = 10 * 60;
+        Carcasses.CatchUp(w, tile, c);
+        Assert.Equal(10.0 * Carcasses.DecayFactor(37.4), c.EffectiveHours, 9);
+        Assert.Equal(1.0, Carcasses.DecayFactor(37.4));
+        Assert.False(Carcasses.IsFrozen(w, c));
     }
 
     /// The same with the seed's own weather, which changes within the hour: each hour is read at
@@ -184,7 +225,7 @@ public class CarcassTests
     {
         var (w, c) = Make("Caribou");
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
-        double total = Carcasses.TotalRemainingKg(c);
+        double total = c.Remaining.Sum(x => x.Value / Carcasses.ThoroughFactor(x.Key)); // what careful work recovers of the ledger
         var r = Sim.Step(w, new Butcher(P, c.Id), 24 * 60);
         Assert.Equal(Work.PackFull, r.InterruptedReason); // all cut, not all carried: the carcass is not done
         Assert.Contains(r.Events, e => e is Butchered { Finished: false });
@@ -393,5 +434,31 @@ public class CarcassTests
         var lc = Carcasses.Find(loaded, Map.Of(loaded).Camp, c.Id)!;
         Assert.Equal(c.Remaining, lc.Remaining);
         Assert.Equal(1, loaded.NextCarcassId);
+    }
+
+    /// Review: after the ledger was scaled up to full processing's (ThoroughFactor), scavengers ate off the
+    /// scaled ledger: a carcass fed wolves 10% longer, and each kilo a wolf ate cost a careful butcher 1/1.1
+    /// of a kilo. Animals eat in careful kilograms, so both are as they were before the rescale.
+    [Fact]
+    public void Scavengers_EatWhatACarefulButcherWouldCut()
+    {
+        var w = World.New(17);
+        var camp = Map.Of(w).Camp;
+        var body = BodyState.Create(BodyKind.Quadruped, 120, 0.15, 0.6);
+        var c = Carcasses.Create(w, camp, "Caribou", body, 0);
+        double before = body.MuscleKg * 0.65; // the old ledger's meat: a careful butcher's
+        Assert.Equal(before, Fauna.MeatHere(w, camp), 9);
+        Assert.Equal(before * Carcasses.ThoroughFactor(Resource.RawMeat), c.Remaining[Resource.RawMeat], 9);
+        Assert.Equal(5, Carcasses.EatMeat(c, 5), 12);
+        Assert.Equal(before - 5, Fauna.MeatHere(w, camp), 9);
+        Assert.Equal((before - 5) * Carcasses.ThoroughFactor(Resource.RawMeat), c.Remaining[Resource.RawMeat], 9); // a careful cut has 5 kg less
+        // Bites of 0.3 kg, as a pack feeds: as many as the old ledger held, and then nothing.
+        int bites = 0;
+        double eaten = 5;
+        while (Fauna.MeatHere(w, camp) > 0) { eaten += Carcasses.EatMeat(c, 0.3); bites++; }
+        Assert.Equal((int)Math.Ceiling((before - 5) / 0.3), bites);
+        Assert.Equal(before, eaten, 9);
+        Assert.Equal(0, c.Remaining[Resource.RawMeat]);
+        Assert.Equal(0, Carcasses.EatMeat(c, 1));
     }
 }

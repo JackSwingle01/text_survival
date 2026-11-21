@@ -96,6 +96,7 @@ public static class Work
                 if (g.Pool < 0 || g.Pool >= pools.Count) return "nothing like that here";
                 var id = new PoolId(agent.Tile, g.Pool);
                 if (!Pools.Knows(world, agent.Id, id)) return "nothing like that here"; // a hidden pool names nothing yet
+                if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Pool, agent.Tile, g.Pool)) is string barred) return barred;
                 var def = pools[g.Pool];
                 if (NeedsLight(world, agent, activity) && TooDarkToWork(world, agent)) return TooDark;
                 return def switch
@@ -103,6 +104,7 @@ public static class Work
                     ForagePool => null,
                     TreePool when !Pools.HasTrees(world, id) => "all the trees here have been felled",
                     TreePool => Items.Tool(pack, ToolType.Axe) == null ? "you need an axe to fell trees" : null,
+                    ShelterFind f => $"the {f.Name} is shelter, not something to gather",
                     StockPool s when !Pools.HasStock(world, id) => $"the {s.Name} is picked clean",
                     // old game: the player's harvest never checked the tool a harvestable required; only NPCs did (bug, fixed).
                     StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => $"you need a {t}",
@@ -113,6 +115,7 @@ public static class Work
             {
                 var c = Carcasses.Find(world, agent.Tile, b.Carcass);
                 if (c == null) return "no such carcass here";
+                if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Carcass, agent.Tile, c.Id)) is string barred) return barred;
                 if (Carcasses.IsButchered(c)) return "there's nothing left to butcher";
                 if (b.Mode is ButcherMode asked && c.Mode is ButcherMode started && asked != started)
                     return $"this carcass is being butchered {started}, not {asked}";
@@ -136,11 +139,14 @@ public static class Work
                 return HasCookingFire(world, agent.Tile) ? null : "no fire to melt snow on";
             case Stash s:
                 if (s.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), s.Kg, "Stash a positive amount");
+                // Putting down, on a stash already here or the first thing that makes one: one gate.
+                if (Access.PutDownRefusal(world, agent.Id, agent.Tile) is string stashBarred) return stashBarred;
                 return Items.Have(pack, s.Resource) > 0 ? null : $"no {s.Resource} to stash";
             case Unstash u:
                 if (u.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), u.Kg, "Take a positive amount");
                 var stash = world.Tiles.GetValueOrDefault(agent.Tile)?.Stash;
                 if (stash == null || Items.Have(stash, u.Resource) <= 0) return $"no {u.Resource} stashed here";
+                if (Access.Refusal(world, agent.Id, Things.StashAt(world, agent.Tile)!.Value) is string unstashBarred) return unstashBarred;
                 return Items.CarriedKg(agent) >= Items.CapacityKg(pack) ? "your pack is full" : null;
             case Wear w:
                 var gear = pack.Gear.FirstOrDefault(x => x.Kind == w.Gear);
@@ -151,8 +157,8 @@ public static class Work
         }
     }
 
-    /// Rivers run open and lakes give water here. ponytail: a frozen lake should need a hole cut
-    /// (old IceCuttingStrategy); it needs ice thickness, which arrives with Ground's ice in phase 4.
+    /// Rivers run open and lakes give water here. A frozen lake should need a hole cut (old
+    /// IceCuttingStrategy); that needs ice thickness, which Ground does not model yet.
     public static bool HasOpenWater(World world, TileId tile)
     {
         var m = Map.Of(world);
@@ -189,7 +195,7 @@ public static class Work
                 double kcal = kg * def.KcalPerKg;
                 Body.Eat(body, kcal);
                 body.HydrationMl = Math.Clamp(body.HydrationMl + kg * def.HydrationMlPerKg, 0, Body.MaxHydrationMl);
-                events.Add(new Ate(world.Minute, agent.Id, e.Food, kg, kcal));
+                events.Add(new Ate(world.Minute, agent.Id, agent.Tile, e.Food, kg, kcal));
                 return new WorkSession { Activity = activity, TargetMinutes = EatMinutes };
             }
             case Drink d:
@@ -201,16 +207,22 @@ public static class Work
                 // Old ConsumptionHandler: cold water takes the edge off overheating.
                 if (body.Effects.FirstOrDefault(x => x.Kind == EffectKind.Hyperthermia) is { } hot)
                     hot.Severity = Math.Max(0, hot.Severity - 0.15 * (liters / 0.25));
-                events.Add(new Drank(world.Minute, agent.Id, liters));
+                events.Add(new Drank(world.Minute, agent.Id, agent.Tile, liters));
                 return new WorkSession { Activity = activity, TargetMinutes = DrinkMinutes };
             }
             case Stash s:
-                Items.Add(Items.StashAt(world, agent.Tile), s.Resource, Items.Take(pack, s.Resource, s.Kg));
+            {
+                double kg = Items.Take(pack, s.Resource, s.Kg);
+                Items.Add(Items.StashAt(world, agent.Tile, new Cause(agent.Id, $"stashed by {Cause.Describe(world, agent.Id)}")), s.Resource, kg);
+                events.Add(new Stashed(world.Minute, agent.Id, agent.Tile, s.Resource, kg));
                 return new WorkSession { Activity = activity };
+            }
             case Unstash u:
             {
-                double kg = Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent));
-                Items.Add(pack, u.Resource, Items.TakeFromStash(world, agent.Tile, u.Resource, kg));
+                double kg = Items.TakeFromStash(world, agent.Tile, u.Resource, Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent)));
+                Items.Add(pack, u.Resource, kg);
+                bool taken = agent.Mind is not PersonMind || Knowledge.CampOf(world, agent) != agent.Tile;
+                events.Add(new Unstashed(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken));
                 return new WorkSession { Activity = activity };
             }
             case Wear w:
@@ -257,24 +269,22 @@ public static class Work
                 {
                     case ForagePool:
                     {
-                        // This minute's eyes, light and tools, as impairment is: not fixed when the step began.
+                        // This minute's eyes, light, tools and skill, as impairment is: not fixed when the step began.
                         double perception = Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent));
-                        // old game: the axe and shovel bonuses were applied only when the total multiplier came out
-                        // below 1, so a healthy forager with an axe never got the +10% it was promised (bug, fixed).
-                        double yieldFactor = Math.Min(perception, 1.0)
-                            * (Items.Tool(pack, ToolType.Axe) != null ? 1.10 : 1.0) * (Items.Tool(pack, ToolType.Shovel) != null ? 1.10 : 1.0);
-                        var rng = world.Rng("work");
+                        double yieldFactor = ForageYield(agent, pack, perception).TotalPct;
+                        var rng = world.Rng("work", agent.Id);
                         var finds = Pools.Forage(world, id, effective / 60.0, rng);
                         var got = new Inventory();
                         foreach (var (r, kg) in Focus(finds, g.Focus, rng)) Items.Add(got, r, kg * yieldFactor);
                         Keep(world, agent, s, got, events);
                         Pools.Search(world, agent, perception / 60.0, events);
+                        Skills.Award(world, agent, Skill.Foraging, Skills.ForageXpPerHour / 60, events);
                         return null;
                     }
                     case TreePool:
                         if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
                         Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
-                        if (Pools.Chop(world, id, effective, world.Rng("work")) is not { } tree) return null;
+                        if (Pools.Chop(world, id, effective, world.Rng("work", agent.Id)) is not { } tree) return null;
                         Keep(world, agent, s, tree, events);
                         events.Add(new TreeFelled(world.Minute, agent.Id, id));
                         return "tree felled";
@@ -293,16 +303,19 @@ public static class Work
             {
                 if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
                 // Old CookingHandler: a piece (about a kilo) of meat in 15 minutes, of fish in 12.
-                double perMinute = 1.0 / (c.Raw == Resource.RawFish ? CookFishMinutesPerKg : CookMeatMinutesPerKg);
+                // A practised cook turns it sooner: less time over the fire (Skills).
+                double perMinute = 1.0 / (c.Raw == Resource.RawFish ? CookFishMinutesPerKg : CookMeatMinutesPerKg)
+                    * Skills.CookSpeedFactor(Skills.Level(agent, Skill.Cooking));
                 double kg = Items.Take(pack, c.Raw, Math.Min(perMinute, c.Kg - s.DoneKg));
                 Items.Add(pack, Cooked(c.Raw)!.Value, kg);
                 s.DoneKg += kg;
+                Skills.Award(world, agent, Skill.Cooking, kg * Skills.CookXpPerKg, events);
                 return s.DoneKg >= c.Kg - 1e-9 || Items.Have(pack, c.Raw) <= 0 ? "cooked" : null;
             }
             case MeltSnow:
                 if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
                 if (s.Minutes < MeltSnowMinutes) return null;
-                // ponytail: old game: snow "is assumed freely available", even in July; Ground knows the real depth now.
+                // Old game: snow "is assumed freely available", even in July. Ground knows the real depth; melting does not read it yet.
                 var water = new Inventory();
                 Items.Add(water, Resource.Water, MeltSnowLiters);
                 Keep(world, agent, s, water, events);
@@ -313,6 +326,22 @@ public static class Work
                 throw new NotSupportedException($"{s.Activity.GetType().Name} is not work");
         }
     }
+
+    /// What a minute of foraging brings in, against an unhindered search: eyes and light (no better
+    /// than whole), an axe and a shovel +10% each, and practice (old ForageStrategy, in its order).
+    /// old game: the axe and shovel bonuses were applied only when the total multiplier came out
+    /// below 1, so a healthy forager with an axe never got the +10% it was promised (bug, fixed).
+    public static Odds ForageYield(Agent agent, Inventory pack, double perceptionPct) =>
+        new("Search", 1.0, Odds.Moving(
+            OddsTerm.Scale("Eyes", Math.Min(perceptionPct, 1.0)),
+            OddsTerm.Scale("Axe", Items.Tool(pack, ToolType.Axe) != null ? 1.10 : 1.0),
+            OddsTerm.Scale("Shovel", Items.Tool(pack, ToolType.Shovel) != null ? 1.10 : 1.0),
+            OddsTerm.Scale("Foraging", Skills.ForageYieldFactor(Skills.Level(agent, Skill.Foraging)))), MinPct: 0, MaxPct: double.MaxValue);
+
+    /// This forager's yield odds here, now (the forage preview).
+    public static Odds ForageYield(World world, Agent agent) =>
+        ForageYield(agent, Items.PackOf(agent) ?? throw new InvalidOperationException($"{agent.Id} carries nothing"),
+            Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent)));
 
     /// The step is over, however it ended: what accrued to it is settled.
     public static void End(World world, Agent agent, WorkSession s, List<WorldEvent> events)
@@ -329,13 +358,16 @@ public static class Work
     /// minutes worked. What is ready goes in the pack now; the rest waits on the carcass.
     static string? CutMinute(World world, Agent agent, Butcher b, WorkSession s, List<WorldEvent> events)
     {
-        var c = Carcasses.Find(world, agent.Tile, b.Carcass)!;
+        // Old bones can weather away under the knife (Remains.Hour settles them before this minute).
+        if (Carcasses.Find(world, agent.Tile, b.Carcass) is not Carcass c) return "there's nothing left to butcher";
         Carcasses.CatchUp(world, agent.Tile, c); // before anything reads whether it is frozen
         double effective = 1.0 / ImpairmentFactor(world, agent, b);
         var mode = c.Mode!.Value;
         var props = Carcasses.ModeProps(mode);
         bool handsImpaired = Body.Dexterity(agent.Body, Fire.AbilityContextFor(world, agent)) < 0.7;
-        Carcasses.Cut(c, Carcasses.Prepare(c, effective, mode), Items.HasCuttingTool(Items.PackOf(agent)!), handsImpaired, mode);
+        Carcasses.Cut(c, Carcasses.Prepare(c, effective, mode), Items.HasCuttingTool(Items.PackOf(agent)!), handsImpaired, mode,
+            Skills.ButcherYieldFactor(Skills.Level(agent, Skill.Butchering)));
+        Skills.Award(world, agent, Skill.Butchering, Skills.ButcherXpPerHour / 60, events);
         var ready = Carcasses.TakeReady(c);
         var leftovers = Items.Receive(world, agent, ready, events, dropExcess: false);
         Carcasses.PutBack(c, leftovers);
@@ -355,7 +387,7 @@ public static class Work
     static void EndButcher(World world, Agent agent, Butcher b, WorkSession s, List<WorldEvent> events)
     {
         if (s.Minutes == 0) return;
-        events.Add(new Butchered(world.Minute, agent.Id, b.Carcass, Finished: Carcasses.Find(world, agent.Tile, b.Carcass) == null));
+        events.Add(new Butchered(world.Minute, agent.Id, agent.Tile, b.Carcass, Finished: Carcasses.Find(world, agent.Tile, b.Carcass) == null));
     }
 
     static void Keep(World world, Agent agent, WorkSession s, Inventory got, List<WorldEvent> events)

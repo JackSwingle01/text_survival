@@ -28,6 +28,6 @@ public sealed class Rng
     public int NextInt(int maxExclusive)
     {
         if (maxExclusive <= 0) throw new ArgumentOutOfRangeException(nameof(maxExclusive));
-        return (int)(NextUlong() % (ulong)maxExclusive); // ponytail: modulo bias, negligible for game-sized ranges
+        return (int)(NextUlong() % (ulong)maxExclusive); // modulo bias, negligible for game-sized ranges
     }
 }

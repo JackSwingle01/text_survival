@@ -19,61 +19,19 @@ public sealed class BodyEffect
     public bool RequiresTreatment { get; init; }
 }
 
+/// One effect's definition (Content/effects.json): its hourly drift, whether it needs treatment once it
+/// starts above a severity (null never), and what it does to the body at full severity.
+public sealed record EffectDef(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour, double BleedMlPerHour,
+    IReadOnlyList<(Capacity Capacity, double Delta)> Capacities);
+
 public static class Effects
 {
-    const double Always = -1, Never = 2; // TreatmentAboveSeverity sentinels
     const double TreatmentFloorPct = 0.05;
 
-    sealed record Def
-    {
-        public required double SeverityPerHour { get; init; }
-        public double TreatmentAboveSeverity { get; init; } = Never;
-        public double CoreTempFPerHour { get; init; }
-        public double BleedMlPerHour { get; init; }
-        public (Capacity Capacity, double Delta)[] Capacities { get; init; } = [];
-    }
+    /// Every effect's row (Content/effects.json).
+    static readonly IReadOnlyDictionary<EffectKind, EffectDef> Defs = Content.Tables.Effects;
 
-    static readonly Dictionary<EffectKind, Def> Defs = new()
-    {
-        [EffectKind.Hungry] = new() { SeverityPerHour = -1.0, Capacities = [(Capacity.Moving, -0.35), (Capacity.Manipulation, -0.35), (Capacity.Consciousness, -0.15)] },
-        [EffectKind.Thirsty] = new() { SeverityPerHour = -1.0, Capacities = [(Capacity.Moving, -0.40), (Capacity.Manipulation, -0.25), (Capacity.Consciousness, -0.45)] },
-        [EffectKind.Tired] = new()
-        {
-            SeverityPerHour = -1.0,
-            Capacities = [(Capacity.Moving, -0.45), (Capacity.Manipulation, -0.30), (Capacity.Consciousness, -0.45), (Capacity.Sight, -0.25), (Capacity.Hearing, -0.15)],
-        },
-        [EffectKind.Shivering] = new() { SeverityPerHour = -2, CoreTempFPerHour = 3.0, Capacities = [(Capacity.Manipulation, -0.2)] },
-        [EffectKind.Hypothermia] = new()
-        {
-            SeverityPerHour = -0.5,
-            Capacities = [(Capacity.Moving, -0.3), (Capacity.Manipulation, -0.3), (Capacity.Consciousness, -0.5), (Capacity.BloodPumping, -0.2)],
-        },
-        [EffectKind.Frostbite] = new()
-        {
-            SeverityPerHour = -0.02, TreatmentAboveSeverity = Always,
-            Capacities = [(Capacity.Manipulation, -0.5), (Capacity.Moving, -0.5), (Capacity.BloodPumping, -0.2)],
-        },
-        [EffectKind.Hyperthermia] = new() { SeverityPerHour = -0.5, Capacities = [(Capacity.Consciousness, -0.5), (Capacity.Moving, -0.3), (Capacity.BloodPumping, -0.2)] },
-        // A signal only: the cooling and water it costs live in the heat balance, which can see the clothing.
-        [EffectKind.Sweating] = new() { SeverityPerHour = -2 },
-        // Severity IS the stored wetness; the survival tick sets it directly and owns drying.
-        [EffectKind.Wet] = new() { SeverityPerHour = 0, CoreTempFPerHour = -1.0 },
-        [EffectKind.Bloody] = new() { SeverityPerHour = -0.02, TreatmentAboveSeverity = Always },
-        [EffectKind.Bleeding] = new() { SeverityPerHour = -0.1, BleedMlPerHour = 3000 },
-        [EffectKind.Pain] = new()
-        {
-            SeverityPerHour = -0.15,
-            Capacities = [(Capacity.Manipulation, -0.25), (Capacity.Consciousness, -0.15), (Capacity.Sight, -0.15), (Capacity.Hearing, -0.10)],
-        },
-        [EffectKind.Dazed] = new() { SeverityPerHour = -0.15, Capacities = [(Capacity.Sight, -0.4), (Capacity.Hearing, -0.3), (Capacity.Consciousness, -0.2)] },
-        [EffectKind.Shock] = new()
-        {
-            SeverityPerHour = -0.05, TreatmentAboveSeverity = 0.5,
-            Capacities = [(Capacity.Consciousness, -0.4), (Capacity.BloodPumping, -0.3), (Capacity.Moving, -0.2)],
-        },
-    };
-
-    static Def DefOf(EffectKind kind) =>
+    static EffectDef DefOf(EffectKind kind) =>
         Defs.TryGetValue(kind, out var def) ? def : throw new KeyNotFoundException($"No definition for effect {kind}");
 
     public static double Severity(BodyState body, EffectKind kind) =>
@@ -95,7 +53,7 @@ public static class Effects
             return;
         }
         if (severity <= 0) return;
-        body.Effects.Add(new BodyEffect { Kind = kind, Severity = severity, RequiresTreatment = severity > DefOf(kind).TreatmentAboveSeverity });
+        body.Effects.Add(new BodyEffect { Kind = kind, Severity = severity, RequiresTreatment = DefOf(kind).TreatmentAboveSeverity is double above && severity > above });
     }
 
     /// For effects whose severity is a level that rises and falls (wetness, blood on you). Zero removes.

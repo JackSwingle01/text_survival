@@ -42,9 +42,12 @@ public sealed class GroundState
     public long LastUpdatedMinute { get; set; }
 }
 
-/// The ground under a tile before anything falls on it. Derived from terrain, never saved.
+/// Everything a never-observed tile's ground history depends on besides the sky (Ground.WeatherAt
+/// and Ground.Substrate): tiles that share these have the same ground until something observes one.
+internal readonly record struct GroundClass(SubstrateProfile Substrate, double CoverLevel, double TemperatureDeltaF, double WindFactor);
+
+/// The ground under a tile before anything falls on it (Content/terrain.json substrates). Derived from terrain, never saved.
 public sealed record SubstrateProfile(
-    string Name,
     double ThicknessM,
     double PoreCapacityPct,
     double PermeabilityMPerMinute,
@@ -53,32 +56,26 @@ public sealed record SubstrateProfile(
     double RunoffPerMinute,
     double InitialSaturationPct,
     double SoftnessLevel,
-    bool HoldsStandingWater = true)
+    bool HoldsStandingWater)
 {
     public double PoreVolumeM => ThicknessM * PoreCapacityPct;
 
-    public static readonly SubstrateProfile Loam = new("loam", 0.30, 0.40, 0.00030, 0.00080, 0.35, 0.0006, 0.30, 0.50);
-    public static readonly SubstrateProfile ForestFloor = new("forest floor", 0.35, 0.45, 0.00050, 0.00100, 0.40, 0.0004, 0.35, 0.45);
-    public static readonly SubstrateProfile Slope = new("thin slope soil", 0.20, 0.30, 0.00040, 0.00250, 0.25, 0.0060, 0.20, 0.30);
+    // The profiles themselves are Content/terrain.json's substrates; these name the ones code and tests ask for.
+    public static SubstrateProfile Loam => Named("loam");
+    public static SubstrateProfile ForestFloor => Named("forestFloor");
+    public static SubstrateProfile Slope => Named("slope");
     /// Takes almost nothing in, so rain ponds at once and then runs off the tile.
-    public static readonly SubstrateProfile Rock = new("bare rock", 0.08, 0.12, 0.00003, 0.00300, 0.10, 0.0100, 0.10, 0.05);
+    public static SubstrateProfile Rock => Named("rock");
     /// Holds nearly everything and lets go of none of it: wet in any weather, ponds the moment it rains.
-    public static readonly SubstrateProfile Peat = new("peat", 0.50, 0.60, 0.00005, 0.00005, 0.85, 0.0001, 0.85, 1.00);
+    public static SubstrateProfile Peat => Named("peat");
     /// Lake ice. Inert here: standing water runs away.
-    public static readonly SubstrateProfile IceSheet = new("ice", 0.05, 0.0, 0.0, 0.0, 0.0, 0.0200, 0.0, 0.0, HoldsStandingWater: false);
-    public static readonly SubstrateProfile Impassable = new("impassable", 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, HoldsStandingWater: false);
+    public static SubstrateProfile IceSheet => Named("iceSheet");
+    public static SubstrateProfile Impassable => Named("impassable");
 
-    public static SubstrateProfile For(Terrain terrain) => terrain switch
-    {
-        Terrain.Forest => ForestFloor,
-        Terrain.Clearing or Terrain.Plain => Loam,
-        Terrain.Hills => Slope,
-        Terrain.Rock => Rock,
-        Terrain.Marsh => Peat,
-        Terrain.Water => IceSheet,
-        Terrain.Mountain or Terrain.DeepWater => Impassable,
-        _ => throw new ArgumentOutOfRangeException(nameof(terrain), terrain, null),
-    };
+    static SubstrateProfile Named(string id) =>
+        Content.Tables.Substrates.TryGetValue(id, out var s) ? s : throw new KeyNotFoundException($"No substrate '{id}'");
+
+    public static SubstrateProfile For(Terrain terrain) => Named(terrain.Row().Substrate);
 }
 
 /// Weather as the ground feels it at one tile. Deliberately not what a person feels: wind chill,
@@ -168,23 +165,76 @@ public static class Ground
         long target = world.Minute / StepMinutes * StepMinutes;
         var sub = Substrate(Map.Of(world), tile);
         world.Tiles.TryGetValue(tile, out var ts);
-        var state = ts?.Ground;
-        if (state == null)
+        if (ts?.Ground is { } state)
         {
-            state = Baseline(sub);
-            state.LastUpdatedMinute = HistoryStartMinute(world);
-            if (target <= state.LastUpdatedMinute) return state;
-            if (ts == null) world.Tiles[tile] = ts = new TileState();
-            ts.Ground = state;
+            StepTo(world, tile, state, sub, target);
+            return state;
         }
+        if (target <= HistoryStartMinute(world)) return Unobserved(world, tile, sub, target);
+        state = Unobserved(world, tile, sub, target);
+        if (ts == null) world.Tiles[tile] = ts = new TileState();
+        ts.Ground = state;
+        return state;
+    }
+
+    static void StepTo(World world, TileId tile, GroundState state, SubstrateProfile sub, long target)
+    {
         var column = new Column(state, sub);
         for (long start = state.LastUpdatedMinute; start < target; start += StepMinutes)
             // Midpoint sample: weather holds for whole front states (two hours or more); only
             // sunlight moves within a sub-step, and the midpoint is its average to first order.
             column.Step(StepMinutes, WeatherAt(world, tile, start + StepMinutes / 2 + 1));
         state.LastUpdatedMinute = Math.Max(state.LastUpdatedMinute, target);
+    }
+
+    /// The tile's ground as CatchUp would leave it now, without writing anything: a copy is caught
+    /// up, so looking (Tags) changes nothing.
+    public static GroundState Peek(World world, TileId tile)
+    {
+        long target = world.Minute / StepMinutes * StepMinutes;
+        var sub = Substrate(Map.Of(world), tile);
+        if (world.Tiles.GetValueOrDefault(tile)?.Ground is not { } stored) return Unobserved(world, tile, sub, target);
+        var state = Copy(stored);
+        StepTo(world, tile, state, sub, target);
         return state;
     }
+
+    /// The ground of a tile nobody has observed, as of target: frozen through at HistoryStartMinute
+    /// and lived every sub-step since. That history depends on nothing but the sky and the four
+    /// things the tile's weather and substrate are made of (GroundClass), so every tile of a class
+    /// has the same ground, and the class's latest is kept (World.GroundCache, never saved) to be
+    /// carried on from: a whole-map pass pays for each class once, not for each tile from the start
+    /// of history, and the result is the one the long way gives, sub-step for sub-step.
+    static GroundState Unobserved(World world, TileId tile, SubstrateProfile sub, long target)
+    {
+        var m = Map.Of(world);
+        var key = new GroundClass(sub, Map.OverheadCover(m, tile), Map.TemperatureDeltaF(m, tile), Map.WindFactor(m, tile));
+        var cache = world.GroundCache ??= [];
+        GroundState state;
+        if (cache.TryGetValue(key, out var known) && known.LastUpdatedMinute <= target) state = Copy(known);
+        else
+        {
+            state = Baseline(sub);
+            state.LastUpdatedMinute = HistoryStartMinute(world);
+        }
+        StepTo(world, tile, state, sub, target);
+        if (known == null || known.LastUpdatedMinute < state.LastUpdatedMinute) cache[key] = Copy(state);
+        return state;
+    }
+
+    static GroundState Copy(GroundState s) => new()
+    {
+        Layers = [.. s.Layers.Select(l => new SurfaceLayer
+        {
+            Material = l.Material, ThicknessM = l.ThicknessM, CompactionPct = l.CompactionPct,
+            WaterSaturationPct = l.WaterSaturationPct, FrozenFractionPct = l.FrozenFractionPct,
+        })],
+        WaterAddedM = s.WaterAddedM, WaterDrainedM = s.WaterDrainedM, WaterEvaporatedM = s.WaterEvaporatedM,
+        WaterOverflowedM = s.WaterOverflowedM, LastUpdatedMinute = s.LastUpdatedMinute,
+    };
+
+    /// Snow on the tile now, read without writing (Peek).
+    public static double SnowDepthNowM(World world, TileId tile) => SnowDepthM(Peek(world, tile), Substrate(Map.Of(world), tile));
 
     /// When the ground's history begins: the weather pre-roll for a seeded world. A pinned test sky
     /// has no past, so its ground starts at minute 0 as generated.
@@ -205,15 +255,15 @@ public static class Ground
     public static double ContactWettingRate(World world, TileId tile, SurfaceContact contact, double currentWetnessPct) =>
         new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).ContactWettingRate(contact, currentWetnessPct);
 
-    /// How well a thing here can be searched against bare ground. For discovery (phase 4).
+    /// How well a thing here can be searched against bare ground (Pools.Search).
     public static double SearchFactor(World world, TileId tile, double baseElevationM, double verticalExtentM) =>
         new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).SearchFactor(baseElevationM, verticalExtentM);
 
     public static double SnowDepthM(World world, TileId tile) => new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).SnowDepthM;
 
-    // ponytail: burial access and digging (old GroundSurface.Excavation, DigUpStrategy) wait for placed
-    // features (phase 4): they need a per-placement elevation, footprint and hole depth on TileState.
-    // ponytail: no route packing (Compact is ported but nothing calls it) - old game deferred it too.
+    // Burial access and digging (old GroundSurface.Excavation, DigUpStrategy) are not ported: they need a
+    // per-placement elevation, footprint and hole depth on TileState.
+    // No route packing (Compact is ported but nothing calls it); the old game deferred it too.
 
     // ---- state-level API: the old GroundSurface methods, for tests and the catch-up ----
 

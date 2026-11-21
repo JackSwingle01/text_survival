@@ -9,6 +9,10 @@ public sealed record SurvivalContext
     public double AirTempF { get; init; } = 70;
     /// 0-1, where 1 is a 45 mph gale.
     public double WindLevel { get; init; }
+    /// The wind drying you at a fire pit: the open wind less the pit's walls only, as the old game read
+    /// it (old game parity: old SurvivalContext.CalculateEffectiveWindSpeed fed SurvivalProcessor's
+    /// drying). Null when nothing sets it apart: the same as WindLevel.
+    public double? FireDryingWindLevel { get; init; }
     /// Radiant heat reaching this agent, °F added to the air. Withheld once the body is warm
     /// enough to sweat: anyone that hot shifts back from the fire long before sweating through a night.
     public double FireBonusF { get; init; }
@@ -82,6 +86,8 @@ public static partial class Body
     const double SurvivalEffectThresholdPct = 0.30;
 
     const double ThermalMassFPerKg = 2.0;
+    /// The chill the clothing's stored heat will take before the core falls under its setpoint (ProcessTemperature's buffer).
+    public static double ClothingHeatStoredF(BodyState body) => body.ClothingHeatBufferPct * body.ClothingWeightKg * ThermalMassFPerKg;
     const double MaxSweatMlPerHour = 1000;
     /// Water held by fully soaked clothing; shared by soaking and drying so they cannot drift apart.
     const double MlPerFullSoak = 2000;
@@ -288,8 +294,11 @@ public static partial class Body
         else if (ctx.AirTempF > 32) kcalPerHour = (ctx.AirTempF - 32) * 10;
         else return 0; // frozen wet
 
-        // Wind speeds evaporation; it cannot create it.
-        if (ctx.Precipitation == Precipitation.None) kcalPerHour *= 1 + ctx.WindLevel * 1.5;
+        // Wind speeds evaporation; it cannot create it. Beside a pit it is the wind past the pit's walls
+        // (old game parity), whether or not its heat is withheld for sweating; anywhere else, a torch in
+        // hand included, the sheltered wind.
+        double windLevel = ctx.FireBonusF > 0 ? ctx.FireDryingWindLevel ?? ctx.WindLevel : ctx.WindLevel;
+        if (ctx.Precipitation == Precipitation.None) kcalPerHour *= 1 + windLevel * 1.5;
         return kcalPerHour / (MlPerFullSoak * EvaporativeKcalPerMl);
     }
 
@@ -348,24 +357,44 @@ public static partial class Body
         deficit -= muscleKg * KcalPerKgMuscle;
 
         if (deficit > 0) // nothing left to burn: ~10 hours to death
-            d.Damage.Add(new DamageInfo(0.5 / 60.0 * minutes, DamageType.Internal,
+            d.Damage.Add(new DamageInfo(StarvingDamagePerHour / 60.0 * minutes, DamageType.Internal,
                 Pick(rng, BodyTarget.Heart, BodyTarget.Liver, BodyTarget.Brain, BodyTarget.Lungs)));
     }
+
+    /// Organ damage an hour once fat and muscle are spent, and once the body is dry.
+    const double StarvingDamagePerHour = 0.5, DehydratedDamagePerHour = 1.0;
+
+    /// What fat and muscle the body can still burn, in kcal (ProcessStarvation's floors).
+    static double ReservesKcal(BodyState body) =>
+        Math.Max(0, body.FatKg - MinFatPct * body.WeightKg) * KcalPerKgFat + Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg) * KcalPerKgMuscle;
+
+    /// The organ damage an hour that hunger, thirst and the cold are each doing to this body now: what
+    /// the survival step charges (ProcessStarvation, ProcessDehydration, ProcessHypothermia).
+    /// Hunger does none while there is fat or muscle to burn (within a few minutes' burning of the floors).
+    public static (double ColdPerHour, double ThirstPerHour, double HungerPerHour) LethalRates(BodyState body) => (
+        HypothermiaDamagePerHour(body.CoreTempF),
+        body.HydrationMl > 0 ? 0 : DehydratedDamagePerHour,
+        body.CaloriesKcal > 0 || ReservesKcal(body) >= 10 ? 0 : StarvingDamagePerHour);
 
     static void ProcessDehydration(double hydration, int minutes, Rng rng, SurvivalDelta d)
     {
         if (hydration > 0) return; // ~5 hours to death once dry
-        d.Damage.Add(new DamageInfo(1.0 / 60.0 * minutes, DamageType.Internal,
+        d.Damage.Add(new DamageInfo(DehydratedDamagePerHour / 60.0 * minutes, DamageType.Internal,
             Pick(rng, BodyTarget.Brain, BodyTarget.Heart, BodyTarget.Liver)));
     }
 
     /// Below 95F the core organs take damage, worsening toward ~80F.
+    static double HypothermiaDamagePerHour(double coreF)
+    {
+        if (coreF >= HypothermiaThresholdF) return 0;
+        double severity = Math.Min(1.0, (HypothermiaThresholdF - coreF) / 15.0);
+        return severity < 0.5 ? 0.1 + 0.4 * severity : 0.5 + 0.5 * (severity - 0.5);
+    }
+
     static void ProcessHypothermia(double coreF, int minutes, Rng rng, SurvivalDelta d)
     {
         if (coreF >= HypothermiaThresholdF) return;
-        double severity = Math.Min(1.0, (HypothermiaThresholdF - coreF) / 15.0);
-        double perHour = severity < 0.5 ? 0.1 + 0.4 * severity : 0.5 + 0.5 * (severity - 0.5);
-        d.Damage.Add(new DamageInfo(perHour / 60.0 * minutes, DamageType.Internal,
+        d.Damage.Add(new DamageInfo(HypothermiaDamagePerHour(coreF) / 60.0 * minutes, DamageType.Internal,
             Pick(rng, BodyTarget.Heart, BodyTarget.Brain, BodyTarget.Lungs)));
     }
 
@@ -447,25 +476,26 @@ public static partial class Body
         var kindsBefore = body.Effects.Select(e => e.Kind).ToList();
         double energyBefore = body.EnergyMinutes;
 
-        Update(body, ctx, world.Rng("body"), woundsLived: world.Minute <= body.WoundsLivedThroughMinute);
+        Update(body, ctx, world.Rng("body", agent.Id), woundsLived: world.Minute <= body.WoundsLivedThroughMinute);
 
         var kindsAfter = body.Effects.Select(e => e.Kind).ToList();
-        foreach (var k in kindsAfter.Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, k));
-        foreach (var k in kindsBefore.Except(kindsAfter)) events.Add(new EffectEnded(world.Minute, agent.Id, k));
+        foreach (var k in kindsAfter.Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, agent.Tile, k));
+        foreach (var k in kindsBefore.Except(kindsAfter)) events.Add(new EffectEnded(world.Minute, agent.Id, agent.Tile, k));
 
         if (!IsAlive(body))
         {
-            events.Add(new Died(world.Minute, agent.Id));
+            MarkDead(body, world.Minute, CauseOfDeath(body));
+            events.Add(new Died(world.Minute, agent.Id, agent.Tile));
             return "died";
         }
         if (!ctx.IsSleeping && energyBefore > 0 && body.EnergyMinutes == 0)
         {
-            events.Add(new Exhausted(world.Minute, agent.Id));
+            events.Add(new Exhausted(world.Minute, agent.Id, agent.Tile));
             return "exhausted";
         }
         if (ctx.IsSleeping && energyBefore < MaxEnergyMinutes && body.EnergyMinutes == MaxEnergyMinutes)
         {
-            events.Add(new FullyRested(world.Minute, agent.Id));
+            events.Add(new FullyRested(world.Minute, agent.Id, agent.Tile));
             return "fully rested";
         }
         return null;

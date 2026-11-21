@@ -13,7 +13,7 @@
   { "resource": "PlantFiber", "kg": [0.1, 0.1] },
   { "chance": 0.5, "gear": ["worn_knife"] }
  ],
- // ponytail: old 40% fishing rod or net (60-90%) left out; there is no fishing gear or fishing yet.
+ // Old 40% fishing rod or net (60-90%) left out; there is no fishing gear or fishing yet.
  "AncientCache": [
   { "gear": ["bow_drill", "fire_striker", "flint_knife"], "durabilityPct": [0.8, 1.0] },
   { "chance": 0.3, "gear": ["waterskin"], "durabilityPct": [0.7, 1.0] },

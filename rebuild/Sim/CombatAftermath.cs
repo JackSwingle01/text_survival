@@ -13,11 +13,14 @@ public static partial class Combat
         world.Encounters.Remove(enc); // first: members may be reordered from here on
         // A released unit's agent settled out of this fight already and may be in another now.
         var units = enc.Units.Where(u => !u.Released).ToList();
+        // What each side's dead fell to when no blow of this fight is on them (they bled out of an
+        // earlier one): read before weapons go home and the dead leave their herds.
+        var fellTo = new[] { KilledBy(world, enc, units, 0), KilledBy(world, enc, units, 1) };
 
         foreach (var u in units.Where(u => u.Weapon != null))
         {
             var pack = Items.PackOf(world.Agent(u.Agent));
-            (pack != null && Alive(world, u) ? pack : Items.StashAt(world, enc.Tile)).Gear.Add(u.Weapon!);
+            (pack != null && Alive(world, u) ? pack : Items.StashAt(world, enc.Tile, new Cause(u.Agent, $"dropped by {Cause.Describe(world, u.Agent)} in a fight"))).Gear.Add(u.Weapon!);
             u.Weapon = null;
         }
 
@@ -37,11 +40,12 @@ public static partial class Combat
             if (!SpeciesTable.Of(agent.Species).IsAnimal) continue;
             foreach (var body in units.Where(u => u.Agent == id).Select(u => BodyOf(world, u)).Where(b => !Body.IsAlive(b)).ToList())
             {
-                LeaveCarcass(world, enc.Tile, agent.Species, body);
+                // Whoever struck it last, with what was in their hands then (a throw included).
+                LeaveCarcass(world, enc.Tile, agent.Species, body, body.WoundedBy ?? fellTo[units.First(u => u.Agent == id).Team]);
                 agent.Members.Remove(body);
             }
             // An agent is one or more bodies; with none left there is nothing to move or decide.
-            if (agent.Members.Count == 0) world.Agents.Remove(id);
+            if (agent.Members.Count == 0) Agents.Remove(world, id);
         }
 
         if (escaped != null)
@@ -63,9 +67,21 @@ public static partial class Combat
 
     /// A carcass on the tile, ready to butcher (old CombatAftermath.LeaveRemains). Old Animal: over
     /// 500 kg is megafauna; a mammoth leaves its tusks and hide besides.
-    internal static void LeaveCarcass(World world, TileId tile, Species species, BodyState body) =>
+    internal static void LeaveCarcass(World world, TileId tile, Species species, BodyState body, Cause cause) =>
         Carcasses.Create(world, tile, species.ToString(), body, world.Minute, isMegafauna: body.WeightKg > 500,
-            special: species == Species.Mammoth ? new Dictionary<Resource, double> { [Resource.Ivory] = 4, [Resource.MammothHide] = 15 } : null);
+            special: species == Species.Mammoth ? new Dictionary<Resource, double> { [Resource.Ivory] = 4, [Resource.MammothHide] = 15 } : null,
+            cause: cause);
+
+    /// Who a side's dead fell to when no blow names anyone (BodyState.WoundedBy): the other side, named
+    /// by its first fighter still listed (its first at all, if every one was released), with the
+    /// weapon in that fighter's hands.
+    static Cause KilledBy(World world, Encounter enc, List<CombatUnit> units, int team)
+    {
+        var killer = units.FirstOrDefault(u => u.Team != team) ?? enc.Units.FirstOrDefault(u => u.Team != team);
+        if (killer == null) return new Cause(null, "a fight");
+        string who = Cause.Describe(world, killer.Agent);
+        return new Cause(killer.Agent, killer.Weapon is { } w ? $"{who}'s {Items.Def(w).Name.ToLowerInvariant()}" : who);
+    }
 
     /// How badly hurt (0-1): the worst tissue or the blood, whichever is worse.
     public static double WoundLevel(BodyState body) => Math.Max(1 - body.Regions.Min(r => r.Condition), 1 - body.BloodPct);

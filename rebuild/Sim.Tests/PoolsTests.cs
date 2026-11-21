@@ -27,6 +27,47 @@ public class PoolsTests
 
     // ---- generation ----
 
+    /// The old discovery tables' natural shelters (rock overhang, ice cave, a cave's sleeping recess):
+    /// hidden until searched for, doing nothing until then, and on the tile for good once found.
+    [Theory]
+    [InlineData("Rock Overhang", ShelterKind.RockOverhang)]
+    [InlineData("Ice Cave", ShelterKind.Cave)]
+    [InlineData("Dry Sleeping Recess", ShelterKind.Cave)]
+    public void HiddenShelter_IsPlacedWhenFound(string name, ShelterKind kind)
+    {
+        var w = New();
+        var m = Map.Of(w);
+        var tile = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+                    let t = new TileId(x, y)
+                    where !w.Shelters.ContainsKey(t) && Pools.At(w, t).Any(p => p is ShelterFind f && f.Name == name)
+                    select t).First();
+        var find = (ShelterFind)Pools.At(w, tile).First(p => p.Name == name);
+        Assert.Equal(kind, find.Shelter.Kind);
+        Assert.True(Pools.IsHidden(find));
+        w.Agent(P).Tile = tile;
+        Assert.Equal(default, Shelters.CoverFor(w, tile, stationary: true, events: []));
+        var events = new List<WorldEvent>();
+        Pools.Search(w, w.Agent(P), 1000, events);
+        Assert.Contains(events, e => e is PoolDiscovered d && d.Name == name);
+        var s = Assert.IsType<ShelterState>(Shelters.At(w, tile, []));
+        Assert.Equal((name, kind), (s.Name, s.Kind));
+        // The old values: an overhang's insulation 0.3-0.6 and wind 0.4-0.7 under a 0.8 roof; an ice
+        // cave's 0.25-0.40 and 0.7-0.9 under 0.95; the recess the cave's own levels.
+        var (ins, over, wind) = name switch
+        {
+            "Rock Overhang" => ((0.3, 0.6), (0.8, 0.8), (0.4, 0.7)),
+            "Ice Cave" => ((0.25, 0.40), (0.95, 0.95), (0.7, 0.9)),
+            _ => ((0.25, 0.25), (0.9, 0.9), (0.2, 0.2)),
+        };
+        Assert.InRange(s.InsulationLevel, ins.Item1, ins.Item2);
+        Assert.InRange(s.OverheadLevel, over.Item1, over.Item2);
+        Assert.InRange(s.WindLevel, wind.Item1, wind.Item2);
+        var gather = Sim.Step(w, new Gather(P, Pools.At(w, tile).ToList().IndexOf(find)), 10);
+        Assert.Equal(0, gather.MinutesElapsed); // underground it is too dark first; either way nothing to gather
+        Assert.Contains(gather.InterruptedReason, new[] { "the " + name + " is shelter, not something to gather", Work.TooDark });
+        Assert.Equal(Save.ToJson(w), Save.ToJson(Save.FromJson(Save.ToJson(w))));
+    }
+
     [Fact]
     public void Pools_AreAPureFunctionOfSeedAndTile_AndCostTheSaveNothingUntilDrawnFrom()
     {
@@ -417,11 +458,11 @@ public class SitePoolsTests
         foreach (var (t, site) in m.Sites)
             if (site.All.OfType<SiteShelter>().FirstOrDefault() is { } s)
             {
-                var placed = Shelters.At(w, t);
+                var placed = Shelters.At(w, t, []);
                 Assert.NotNull(placed);
                 Assert.Equal((s.Name, s.Type, s.Insulation), (placed!.Name, placed.Kind, placed.InsulationLevel));
             }
-            else Assert.Null(Shelters.At(w, t));
-        Assert.Equal("Overhang", Shelters.At(w, m.Camp)!.Name);
+            else Assert.Null(Shelters.At(w, t, []));
+        Assert.Equal("Overhang", Shelters.At(w, m.Camp, [])!.Name);
     }
 }

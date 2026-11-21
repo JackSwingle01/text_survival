@@ -32,13 +32,14 @@ public enum WeaponClass { Blade, Blunt, Pierce, Claw, Unarmed }
 /// What a weapon does in a fight. Read by combat; old Gear.Damage / WeaponClass / BlockChance.
 public sealed record Weapon(double Damage, WeaponClass Class, double BlockChance);
 
-/// One row of the resource table. Kcal and water per kg of food (old ConsumptionHandler).
+/// One row of the resource table (Content/items.json). Kcal and water per kg of food (old ConsumptionHandler).
 public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0, double HydrationMlPerKg = 0);
 
-/// One row of the gear table: the authored design. Instances carry only their kind and wear.
+/// One row of the gear table (Content/items.json): the authored design. Instances carry only their kind and wear.
 /// Insulation is the old BaseInsulation (tenths of a clo over the covered part of the body).
+/// Capabilities is what carrying it lets someone do to a thing (Survival.Capabilities), stated on every row.
 public sealed record GearDef(
-    string Name, GearCategory Category, double BaseWeightKg, int MaxDurability = -1,
+    string Name, GearCategory Category, double BaseWeightKg, int MaxDurability, IReadOnlyList<Capability> Capabilities,
     ToolType? Tool = null, Weapon? Weapon = null, EquipSlot? Slot = null,
     double Insulation = 0, double Cushioning = 0, double Toughness = 0, double WaterproofLevel = 0,
     double CapacityBonusKg = 0);
@@ -52,6 +53,9 @@ public sealed class Gear
     /// Minutes of use not yet charged to Durability (Items.UseFor).
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public double UseMinutes { get; set; }
+    /// A tent packed after pitching: the levels it stood at, so it pitches again as it was.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ShelterCover? TentLevels { get; set; }
 }
 
 /// What one agent carries, or a stash on a tile. Plain data: resources by kg, gear by instance.
@@ -71,94 +75,14 @@ public static class Items
     /// Old Gear.CloPerInsulationPoint.
     const double CloPerInsulationPoint = 10.0;
 
-    // ponytail: tables in code until phase 4 moves content to data files; plain rows so that move is mechanical.
-    public static readonly IReadOnlyDictionary<Resource, ResourceDef> Resources = new Dictionary<Resource, ResourceDef>
-    {
-        [Resource.Tinder] = new(ResourceCategory.Fuel),
-        [Resource.BirchBark] = new(ResourceCategory.Fuel),
-        [Resource.Kindling] = new(ResourceCategory.Fuel),
-        [Resource.Pine] = new(ResourceCategory.Fuel),
-        [Resource.Birch] = new(ResourceCategory.Fuel),
-        [Resource.Oak] = new(ResourceCategory.Fuel),
-        [Resource.Peat] = new(ResourceCategory.Fuel),
-        [Resource.CookedMeat] = new(ResourceCategory.Food, 2500),
-        [Resource.RawMeat] = new(ResourceCategory.Food, 1500),
-        [Resource.Berries] = new(ResourceCategory.Food, 500, 200),
-        [Resource.Honey] = new(ResourceCategory.Food, 3000),
-        [Resource.Nuts] = new(ResourceCategory.Food, 6000),
-        [Resource.Roots] = new(ResourceCategory.Food, 400, 100),
-        [Resource.DriedMeat] = new(ResourceCategory.Food, 3000, -50),
-        [Resource.DriedBerries] = new(ResourceCategory.Food, 2500),
-        [Resource.CookedFish] = new(ResourceCategory.Food, 1400),
-        [Resource.RawFish] = new(ResourceCategory.Food, 1200),
-        [Resource.DriedFish] = new(ResourceCategory.Food, 2800, -30),
-        [Resource.Water] = new(ResourceCategory.Water, 0, 1000),
-        [Resource.Stone] = new(ResourceCategory.Material),
-        [Resource.Bone] = new(ResourceCategory.Material),
-        [Resource.Hide] = new(ResourceCategory.Material),
-        [Resource.PlantFiber] = new(ResourceCategory.Material),
-        [Resource.Sinew] = new(ResourceCategory.Material),
-        [Resource.Shale] = new(ResourceCategory.Material),
-        [Resource.Flint] = new(ResourceCategory.Material),
-        [Resource.Pyrite] = new(ResourceCategory.Material),
-        [Resource.ScrapedHide] = new(ResourceCategory.Material),
-        [Resource.CuredHide] = new(ResourceCategory.Material),
-        [Resource.RawFat] = new(ResourceCategory.Material),
-        [Resource.Tallow] = new(ResourceCategory.Material),
-        [Resource.Charcoal] = new(ResourceCategory.Material),
-        [Resource.Rope] = new(ResourceCategory.Material),
-        [Resource.Ivory] = new(ResourceCategory.Material),
-        [Resource.MammothHide] = new(ResourceCategory.Material),
-        [Resource.Feather] = new(ResourceCategory.Material),
-        [Resource.BirchPolypore] = new(ResourceCategory.Medicine),
-        [Resource.Chaga] = new(ResourceCategory.Medicine),
-        [Resource.Amadou] = new(ResourceCategory.Medicine),
-        [Resource.RoseHip] = new(ResourceCategory.Medicine),
-        [Resource.JuniperBerry] = new(ResourceCategory.Medicine),
-        [Resource.WillowBark] = new(ResourceCategory.Medicine),
-        [Resource.PineNeedles] = new(ResourceCategory.Medicine),
-        [Resource.PineResin] = new(ResourceCategory.Medicine),
-        [Resource.Usnea] = new(ResourceCategory.Medicine),
-        [Resource.SphagnumMoss] = new(ResourceCategory.Medicine),
-    };
+    /// Every resource's row (Content/items.json).
+    public static readonly IReadOnlyDictionary<Resource, ResourceDef> Resources = Content.Tables.Resources;
 
-    /// Old Gear factory methods, by kind.
-    public static readonly IReadOnlyDictionary<string, GearDef> GearKinds = new Dictionary<string, GearDef>
-    {
-        ["stone_axe"] = new("Stone Axe", GearCategory.Tool, 1.5, Tool: ToolType.Axe, Weapon: new(12, WeaponClass.Blade, 0.05)),
-        ["flint_knife"] = new("Flint Knife", GearCategory.Tool, 0.3, Tool: ToolType.Knife, Weapon: new(6, WeaponClass.Blade, 0.02)),
-        ["worn_knife"] = new("Worn Knife", GearCategory.Tool, 0.3, 3, ToolType.Knife, new(6, WeaponClass.Blade, 0.02)),
-        ["bone_knife"] = new("Bone Knife", GearCategory.Tool, 0.3, 5, ToolType.Knife, new(6, WeaponClass.Blade, 0.02)),
-        ["wooden_spear"] = new("Wooden Spear", GearCategory.Tool, 2.0, Tool: ToolType.Spear, Weapon: new(8, WeaponClass.Pierce, 0.12)),
-        ["fire_striker"] = new("Fire Striker", GearCategory.Tool, 0.2, Tool: ToolType.FireStriker),
-        ["hand_drill"] = new("Hand Drill", GearCategory.Tool, 0.3, Tool: ToolType.HandDrill),
-        ["bow_drill"] = new("Bow Drill", GearCategory.Tool, 0.5, Tool: ToolType.BowDrill),
-        ["waterskin"] = new("Waterskin", GearCategory.Tool, 0.3, Tool: ToolType.WaterContainer),
-        ["torch"] = new("Torch", GearCategory.Tool, 0.5, 1, ToolType.Torch),
-        ["bone_needle"] = new("Bone Needle", GearCategory.Tool, 0.05, 20, ToolType.Needle),
-        ["worn_fur_chest_wrap"] = new("Worn Fur Chest Wrap", GearCategory.Clothing, 1.5, 50, Slot: EquipSlot.Chest, Insulation: 0.20, Cushioning: 0.12, Toughness: 0.04, WaterproofLevel: 0.1),
-        ["fur_chest_wrap"] = new("Fur Chest Wrap", GearCategory.Clothing, 1.8, 100, Slot: EquipSlot.Chest, Insulation: 0.30, Cushioning: 0.20, Toughness: 0.08, WaterproofLevel: 0.1),
-        ["fur_leg_wraps"] = new("Fur Leg Wraps", GearCategory.Clothing, 1.0, 100, Slot: EquipSlot.Legs, Insulation: 0.15, Cushioning: 0.15, Toughness: 0.06, WaterproofLevel: 0.1),
-        ["worn_hide_boots"] = new("Worn Hide Boots", GearCategory.Clothing, 0.4, 30, Slot: EquipSlot.Feet, Insulation: 0.05, Cushioning: 0.06, Toughness: 0.08, WaterproofLevel: 0.1),
-        ["hide_handwraps"] = new("Hide Handwraps", GearCategory.Clothing, 0.15, 50, Slot: EquipSlot.Hands, Insulation: 0.03, Cushioning: 0.05, Toughness: 0.10, WaterproofLevel: 0.1),
-        ["bear_hide_chest"] = new("Bear Hide Chest", GearCategory.Clothing, 3.0, 150, Slot: EquipSlot.Chest, Insulation: 0.35, Cushioning: 0.18, Toughness: 0.30, WaterproofLevel: 0.2),
-        ["mammoth_hide_chest"] = new("Mammoth Hide Chest", GearCategory.Clothing, 4.5, 200, Slot: EquipSlot.Chest, Insulation: 0.45, Cushioning: 0.25, Toughness: 0.38, WaterproofLevel: 0.25),
-        ["mammoth_hide_legs"] = new("Mammoth Hide Legs", GearCategory.Clothing, 2.5, 200, Slot: EquipSlot.Legs, Insulation: 0.30, Cushioning: 0.22, Toughness: 0.35, WaterproofLevel: 0.25),
-        ["worn_coat"] = new("Worn Coat", GearCategory.Clothing, 2.0, 50, Slot: EquipSlot.Chest, Insulation: 0.15),
-        ["small_pouch"] = new("Small Pouch", GearCategory.Accessory, 0.1, 100, CapacityBonusKg: 0.5),
-        ["rope_belt"] = new("Rope Belt", GearCategory.Accessory, 0.4, 100, CapacityBonusKg: 3.0),
-        ["proper_belt"] = new("Proper Belt", GearCategory.Accessory, 0.3, 150, CapacityBonusKg: 4.0),
-        ["bone_shovel"] = new("Bone Shovel", GearCategory.Tool, 1.2, 15, ToolType.Shovel),
-        ["hide_tent"] = new("Hide Tent", GearCategory.Tool, 3.0, 50, ToolType.Tent), // shelter values: Shelters.Tents
-        ["mammoth_hide_tent"] = new("Mammoth Hide Tent", GearCategory.Tool, 5.0, 80, ToolType.Tent),
-        ["large_bag"] = new("Large Bag", GearCategory.Accessory, 0.8, 100, CapacityBonusKg: 10.0),
-    };
+    /// The gear designs, by kind (Content/items.json; old Gear factory methods).
+    public static readonly IReadOnlyDictionary<string, GearDef> GearKinds = Content.Tables.Gear;
 
     /// Old Inventory.SlotCoverage: the fraction of body surface each slot covers. Sums to 1.
-    public static readonly IReadOnlyDictionary<EquipSlot, double> SlotCoverage = new Dictionary<EquipSlot, double>
-    {
-        [EquipSlot.Head] = 0.1, [EquipSlot.Chest] = 0.4, [EquipSlot.Legs] = 0.3, [EquipSlot.Hands] = 0.1, [EquipSlot.Feet] = 0.1,
-    };
+    public static readonly IReadOnlyDictionary<EquipSlot, double> SlotCoverage = Content.Tables.SlotCoverage;
 
     public static GearDef Def(Gear g) =>
         GearKinds.TryGetValue(g.Kind, out var d) ? d : throw new KeyNotFoundException($"No gear kind '{g.Kind}'");
@@ -283,16 +207,38 @@ public static class Items
         }
         if (dropExcess && (dropped.Kg.Count > 0 || dropped.Gear.Count > 0))
         {
-            AddAll(StashAt(world, agent.Tile), dropped);
+            AddAll(StashAt(world, agent.Tile, new Cause(agent.Id, $"dropped by {Cause.Describe(world, agent.Id)}, pack full")), dropped);
             events?.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Describe(dropped)));
         }
         return dropped;
     }
 
     /// The tile's stash, created on first use. Camp storage and dropped things are the same pile: unlimited.
+    /// made is who is putting something down: putting the first thing on an empty pile begins a new
+    /// stash, with this cause and an id of its own.
+    public static Inventory StashAt(World world, TileId tile, Cause made)
+    {
+        var stash = Pile(world, tile, out var state);
+        if (stash.Kg.Count == 0 && stash.Gear.Count == 0)
+        {
+            state.StashCause = made;
+            state.StashId = world.NextStashId++;
+        }
+        return stash;
+    }
+
+    /// The tile's stash, created with no cause if there is none: for setting a scene (tests). The game
+    /// puts things down through StashAt with a cause.
     public static Inventory StashAt(World world, TileId tile)
     {
-        if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
+        var stash = Pile(world, tile, out var state);
+        state.StashId ??= world.NextStashId++;
+        return stash;
+    }
+
+    static Inventory Pile(World world, TileId tile, out TileState state)
+    {
+        if (!world.Tiles.TryGetValue(tile, out state!)) world.Tiles[tile] = state = new TileState();
         return state.Stash ??= new Inventory();
     }
 
@@ -305,6 +251,8 @@ public static class Items
         if (stash.Kg.Count == 0 && stash.Gear.Count == 0)
         {
             state.Stash = null;
+            state.StashCause = null;
+            state.StashId = null;
             Map.Tidy(world, tile);
         }
         return taken;
@@ -314,14 +262,18 @@ public static class Items
         string.Join(", ", inv.Kg.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key} {kv.Value:0.##}kg")
             .Concat(inv.Gear.Select(g => Def(g).Name)));
 
-    /// The old starting kit (GameContext.CreateNewGame): worn furs and boots.
-    public static List<Gear> StartingClothes() =>
-        [Make("worn_fur_chest_wrap"), Make("fur_leg_wraps", 60), Make("worn_hide_boots"), Make("hide_handwraps")];
+    /// The old starting kit (GameContext.CreateNewGame): worn furs and boots. New items each call.
+    public static List<Gear> StartingClothes() => [.. Content.Tables.StartingClothes.Select(Make)];
 
-    /// The old starting pack: a hand drill, 0.9 kg of sticks, four pinches of tinder.
-    public static Inventory StartingPack() => new()
+    /// The old starting pack: a hand drill, 0.9 kg of sticks, four pinches of tinder. New each call.
+    public static Inventory StartingPack()
     {
-        Kg = { [Resource.Kindling] = 0.3 + 0.25 + 0.35, [Resource.Tinder] = 0.05 + 0.04 + 0.05 + 0.04 },
-        Gear = { Make("hand_drill") },
-    };
+        var kit = Content.Tables.StartingPack;
+        var pack = new Inventory { Gear = [.. kit.Gear.Select(Make)] };
+        // Summed piece by piece, in order, as the old kit added them up.
+        foreach (var (r, pieces) in kit.Kg) pack.Kg[r] = pieces.Aggregate(0.0, (kg, piece) => kg + piece);
+        return pack;
+    }
+
+    static Gear Make(KitGear k) => Make(k.Kind, k.Durability);
 }

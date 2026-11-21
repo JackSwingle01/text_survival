@@ -10,12 +10,16 @@ namespace Survival;
 [JsonDerivedType(typeof(HerdMind), "herd")]
 public abstract record Mind;
 
-/// A person: carries a pack and knows what they have found. The player and (phase 3d) NPCs share
-/// this, so every work activity runs the same code for both. A herd's mind carries nothing.
+/// A person: carries a pack, knows what they have seen, and gets better at what they do. The
+/// player and NPCs share this, so every work activity, memory and skill runs the same code for
+/// both. A herd's mind carries nothing.
 public abstract record PersonMind : Mind
 {
     public Inventory Pack { get; init; } = Items.StartingPack();
-    public Knowledge Knows { get; init; } = new();
+    public Beliefs Knows { get; init; } = new();
+    /// Only the skills practised so far (Skills). The short-loop plan put these on Agent; they live
+    /// here because only a person learns, and kind-specific state lives in the mind (plan decision 2).
+    public SortedDictionary<Skill, SkillProgress> Skills { get; init; } = [];
 }
 
 /// The UI picks the activities.
@@ -24,21 +28,24 @@ public sealed record PlayerMind : PersonMind;
 /// The NPC utility AI picks the activities (phase 3d; state and decider live in Npc.cs).
 public sealed partial record NpcMind : PersonMind;
 
-/// An agent's beliefs about the world (plan decision 7), kept minimal: which hidden pools it has
-/// found, and the search effort it has put into the ones it has not found yet.
-public sealed class Knowledge
-{
-    public List<PoolId> Discovered { get; init; } = [];
-    /// Perception-weighted hours spent searching for each hidden pool still unfound.
-    /// Sorted for the same reason as Inventory.Kg: found pools are removed from it.
-    public SortedDictionary<PoolId, double> SearchHours { get; init; } = [];
-}
-
 /// One or more bodies that move and decide as a unit: the player, an NPC, a herd (plan decision 2).
 public sealed class Agent
 {
     public required AgentId Id { get; init; }
-    public required TileId Tile { get; set; }
+    /// Where it stands. A move is reported to the Nearby index that holds it, so the index stays exact.
+    public required TileId Tile
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            var from = field;
+            field = value;
+            Index?.Moved(Id, from, value);
+        }
+    }
+    /// The Nearby index this agent was last put in; never saved.
+    [JsonIgnore] internal NearbyIndex? Index { get; set; }
     public Species Species { get; init; } = Species.Human;
     public List<BodyState> Members { get; init; } = [BodyState.BaselineHuman()];
     public Mind Mind { get; init; } = new PlayerMind();
@@ -61,11 +68,11 @@ public static class Agents
     public static AgentId Spawn(World world, Species species, TileId tile, int members, List<TileId>? territory = null)
     {
         if (members < 1) throw new ArgumentOutOfRangeException(nameof(members), members, "An agent has at least one member");
-        var rng = world.Rng("fauna");
         var id = NewId(world);
+        var rng = world.Birth("fauna", id);
         world.Agents[id] = new Agent
         {
-            Id = id, Tile = tile, Species = species, Mind = Fauna.NewMind(world, species, territory ?? [tile]),
+            Id = id, Tile = tile, Species = species, Mind = Fauna.NewMind(world, id, species, territory ?? [tile]),
             Members = Enumerable.Range(0, members).Select(_ => SpeciesTable.NewBody(species, rng)).ToList(),
         };
         return id;
@@ -92,6 +99,14 @@ public static class Agents
         var mind = JsonSerializer.Deserialize<Mind>(JsonSerializer.Serialize(source.Mind))!;
         world.Agents[id] = new Agent { Id = id, Tile = source.Tile, Species = source.Species, Mind = mind, Members = [body] };
         return id;
+    }
+
+    /// The agent leaves the world, and every stream it rolled on with it: ids are never made twice
+    /// (NewId), so nothing will roll on those streams again, and a save need not carry them.
+    public static void Remove(World world, AgentId id)
+    {
+        if (!world.Agents.Remove(id)) throw new InvalidOperationException($"No agent {id} to remove");
+        foreach (var name in world.Rngs.Keys.Where(k => k.IsFor(id)).ToList()) world.Rngs.Remove(name);
     }
 
     static AgentId NewId(World world)

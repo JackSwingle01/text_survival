@@ -30,7 +30,14 @@ foreach (string line in commands)
             case "wait": Run(new Wait(AgentId.Player), Minutes(parts)); break;
             case "rest": Run(new Rest(AgentId.Player), Minutes(parts)); break;
             case "sleep": Run(new Sleep(AgentId.Player), Minutes(parts)); break;
-            case "fire": Run(LightFire(world), 1); break;
+            case "fire":
+            {
+                var light = (StartFire)LightFire(world);
+                if (Items.Tool(Items.Pack(world, AgentId.Player), light.Tool) != null)
+                    PrintOdds(Fire.StartOdds(world, world.Agent(AgentId.Player), light.Tool, light.Tinder));
+                Run(light, 1);
+                break;
+            }
             case "charcoal": Run(new GatherCharcoal(AgentId.Player), 1); break;
             case "look": Look(world); continue;
             case "inv" or "inventory": Inv(world); continue;
@@ -86,7 +93,11 @@ return 0;
 void Run(Activity activity, int minutes)
 {
     var result = Sim.Step(world, activity, minutes);
-    foreach (var e in result.Events) Console.WriteLine($"  [{Clock(e.Minute)}] {e}");
+    foreach (var e in result.Events)
+    {
+        if (e is Noticed n) PrintReceipt(n.Receipt);
+        else Console.WriteLine($"  [{Clock(e.Minute)}] {e}");
+    }
     if (result.InterruptedReason != null)
         Console.WriteLine($"  Stopped after {result.MinutesElapsed} min: {result.InterruptedReason}");
 }
@@ -105,42 +116,28 @@ static Activity LightFire(World w)
     return new StartFire(AgentId.Player, tool, tinder, 0.05, Math.Min(1.0, Items.Have(pack, Resource.Kindling)));
 }
 
+/// What changed at a remembered tile while you were away or asleep: a camp tells you everything
+/// that happened, the field only what you can see for yourself.
+static void PrintReceipt(Receipt r)
+{
+    string since = r.SinceMinute is long s ? Clock(s) : "never";
+    Console.WriteLine($"  -- {(r.Full ? "at camp" : "here")}, since you last saw it ({since}) --");
+    foreach (var e in r.Happened) Console.WriteLine($"     [{Clock(e.Minute)}] {e}");
+    foreach (var c in r.Changes) Console.WriteLine($"     {c.Kind} {c.Subject}: {c.Was ?? "none"} -> {c.Now ?? "gone"}");
+    foreach (var t in r.Signs)
+        Console.WriteLine($"     {t.Maker} prints, {(t.Pattern == TrafficPattern.Heading ? $"heading {t.Heading}" : t.Pattern.ToString())}, {t.AgeMinutes / 60} h old");
+}
+
+/// An odds sheet: the base, each factor's signed share, the total.
+static void PrintOdds(Odds o)
+{
+    var terms = string.Join(" ", o.Contributions.Select(c => $"{(c.DeltaPct >= 0 ? "+" : "")}{c.DeltaPct:P0} {c.Factor}"));
+    Console.WriteLine($"  odds: {o.Base} {o.BasePct:P0} {terms} = {o.TotalPct:P0}{(o.Capped ? " (capped)" : "")}");
+}
+
 static void Look(World w)
 {
-    var p = w.Agent(AgentId.Player);
-    var m = Map.Of(w);
-    Console.WriteLine($"  {Map.Describe(m, p.Tile)}" + (Map.DiscoveryText(w, p.Tile) is { } text ? $": {text}" : ""));
-    foreach (var f in Map.SiteFeatures(w.Seed, m, p.Tile))
-        if (f.RevealAtHours == 0 && f is SiteWater { Frozen: true } or SiteSmallGame or SiteCache) // open water is a pool, below
-            Console.WriteLine(f switch
-            {
-                SiteWater x => $"  water: {x.Name}{(x.Frozen ? $", ice {x.Ice:0.0}" : "")}",
-                SiteSmallGame x => $"  small game: {string.Join(", ", x.Animals.Select(a => a.Animal))}",
-                SiteCache x => $"  cache: {x.Name}, holds {x.CapacityKg:0} kg",
-                _ => "",
-            });
-    if (Shelters.At(w, p.Tile) is { } shelter) Console.WriteLine($"  shelter: {shelter.Name}");
-    var pools = Pools.At(w, p.Tile);
-    for (int i = 0; i < pools.Count; i++)
-    {
-        var id = new PoolId(p.Tile, i);
-        if (!Pools.Knows(w, AgentId.Player, id)) continue; // what you have not found, you cannot see
-        Console.WriteLine(pools[i] switch
-        {
-            ForagePool => $"  [{i}] forage, density {Pools.ForageDensity(w, id):0.00}",
-            TreePool t => $"  [{i}] {t.Name} ({(Pools.HasTrees(w, id) ? $"{Pools.ChopProgressPct(w, id):P0} cut" : "cleared")})",
-            StockPool s => $"  [{i}] {s.Name}: " + string.Join(", ", s.Items.Zip(Pools.UnitsNow(w, id)).Select(x => $"{x.First.Resource} {x.Second}/{x.First.Units}")),
-            _ => $"  [{i}] {pools[i].Name}",
-        });
-    }
-    var tile = w.Tiles.GetValueOrDefault(p.Tile);
-    foreach (var c in tile?.Carcasses ?? [])
-    {
-        Carcasses.CatchUp(w, p.Tile, c);
-        Console.WriteLine($"  carcass {c.Id}: {c.Animal}, decay {Carcasses.DecayLevel(c):P0}, {Carcasses.TotalRemainingKg(c):0.0} kg left");
-    }
-    if (tile?.Stash is { } stash && (stash.Kg.Count > 0 || stash.Gear.Count > 0)) Console.WriteLine($"  stash: {Items.Describe(stash)}");
-    if (Work.HasOpenWater(w, p.Tile)) Console.WriteLine("  open water");
+    foreach (var line in Report.Look(w, AgentId.Player)) Console.WriteLine($"  {line}");
 }
 
 static void Inv(World w)
@@ -167,9 +164,11 @@ void PrintStatus(World w)
     var b = p.Body;
     string effects = string.Join(", ", b.Effects.Select(e => $"{e.Kind} {e.Severity:P0}"));
     var sky = Weather.At(w, w.Minute);
+    string skills = p.Mind is PersonMind mind ? string.Join(", ", mind.Skills.Where(k => k.Value.Level > 0).Select(k => $"{k.Key} {k.Value.Level}")) : "";
     Console.WriteLine($"{Clock(w.Minute)} | {sky.Condition} {sky.TemperatureC:0}C wind {sky.WindMph:0}mph {sky.WindDirection} | " +
                       $"core {b.CoreTempF:0.0}F energy {b.EnergyPct:P0} food {b.CaloriesKcal:0}kcal water {b.HydrationMl:0}ml " +
-                      $"vitality {Body.Vitality(b):P0} | tile {p.Tile.X},{p.Tile.Y} {Map.Describe(Map.Of(w), p.Tile)}" + FireStatus(w, p.Tile) + (effects.Length > 0 ? $" | {effects}" : ""));
+                      $"vitality {Body.Vitality(b):P0} | tile {p.Tile.X},{p.Tile.Y} {Map.Describe(Map.Of(w), p.Tile)}" + FireStatus(w, p.Tile)
+                      + (effects.Length > 0 ? $" | {effects}" : "") + (skills.Length > 0 ? $" | {skills}" : ""));
 }
 
 static string FireStatus(World w, TileId tile) =>

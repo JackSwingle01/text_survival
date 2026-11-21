@@ -127,7 +127,7 @@ public class WorkTests
             for (int i = 0; i < 20; i++)
             {
                 var w = WithPools(new ForagePool("forage", 1.0, Pools.MixedForest));
-                w.Rngs["work"] = Rng.ForSystem(i, "work");
+                w.Rngs[StreamName.Of("work", P)] = Rng.ForSystem(i, "work");
                 Sim.Step(w, new Gather(P, 0, focus), 60);
                 sum += Items.Pack(w, P).Kg.Where(kv => Items.Resources[kv.Key].Category == ResourceCategory.Fuel).Sum(kv => kv.Value);
             }
@@ -148,7 +148,7 @@ public class WorkTests
             for (int i = 0; i < 60; i++)
             {
                 var w = WithPools(new ForagePool("forage", 1.0, Pools.MixedForest));
-                w.Rngs["work"] = Rng.ForSystem(i, "work");
+                w.Rngs[StreamName.Of("work", P)] = Rng.ForSystem(i, "work");
                 Sim.Step(w, new Gather(P, 0, focus), 60);
                 sum += Items.Pack(w, P).Kg.Sum(kv => kv.Value * Items.Resources[kv.Key].KcalPerKg);
             }

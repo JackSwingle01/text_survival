@@ -31,3 +31,29 @@ Retune morale (boldness inputs, flee threshold) and/or the damage scales so the 
 lands where the design wants it, then re-pin `CombatGoldenTests` statistics with a note. The design
 target is a decision, not a port question: a lone wolf should be a dangerous but winnable fight for a
 prepared player (principles.md: preparation should matter).
+
+## Player hunting is nearly impossible (measured 2026-11-21)
+
+Same family, separate symptom. 500 hunts per policy (20 seeds x 25 re-seeded streams), a wooden spear
+against 4 resting caribou on open plain:
+
+| Policy | Immediate kills |
+|---|---|
+| Step to 10 m, throw, strike | 2.0% |
+| Advance strides | 3.0% |
+| Throw at 5 m | 2.2% |
+| Throw at 15 m | 1.4% |
+| Freeze while the target is alert | 2.2% |
+| With the old sighting factors (0.7 / 0.45) | 2.2% |
+
+- The prey notices the hunter in 496-500 of 500 hunts: the approach runs 34 m to 10 m, detection is a
+  hazard per 20 m, and up to 4 animals each roll.
+- Throws hit about 35% of the time at 10 m or less.
+- 41% of hunts leave a wounded animal that splits off; half of those die within 24 h (21% of hunts),
+  off the hunt tile, and the player has no way yet to follow the blood trail (parity checklist).
+- The formulas are the old ones (pinned by golden tests). There is no old-game harness for player
+  hunts, so the old rate is unmeasured.
+
+Retune together with the morale/damage items above: detection over the approach (per-animal rolls
+compound), spear lethality on a caribou, and following a wounded animal (prints and blood exist).
+The principle to hit: a prepared, careful hunter should usually get meat; a careless one shouldn't.

@@ -18,6 +18,11 @@ public sealed class Crossing
     public double DestRiskPct { get; init; }
 }
 
+/// One accident's mechanics, from the old AccidentVariants (their text is not ported; Content/accidents.json):
+/// a hit of Amount and Type on Target, and an effect it may start at Severity. A class, not a struct, so
+/// the reader requires Target, Type and Amount (a struct row would default them).
+public sealed record Accident(BodyTarget Target, DamageType Type, double Amount, EffectKind? Effect = null, double Severity = 0);
+
 /// Walking one tile north, east, south or west. Port of the old TravelProcessor and TravelRunner.
 public static class Traversal
 {
@@ -73,16 +78,18 @@ public static class Traversal
         agent.Crossing = null;
         events.Add(new Moved(world.Minute, agent.Id, from, to));
         // The old GameMap.RecordMove seam: every agent's completed crossing marks the ground, a herd with all its feet.
-        Tracks.RecordMove(world, from, to, Tracks.MakerOf(agent.Species), agent.Members.Count, Tracks.IndividualDepth(agent.Species));
+        // The carrion flock is mostly on the wing, and the fox in it too light to mark the ground (judgment).
+        if (Fauna.BehaviorOf(agent.Species) != HerdBehavior.Carrion)
+            Tracks.RecordMove(world, from, to, Tracks.MakerOf(agent.Species), agent.Members.Count, Tracks.IndividualDepth(agent.Species));
 
         foreach (var (tile, riskPct) in new[] { (from, c.OriginRiskPct), (to, c.DestRiskPct) })
         {
-            if (riskPct <= 0 || world.Rng("travel").NextDouble() >= riskPct) continue;
+            if (riskPct <= 0 || world.Rng("travel", agent.Id).NextDouble() >= riskPct) continue;
             if (Injure(world, agent, tile, events) is string stop) return stop;
         }
         if (to == Map.Of(world).Exit && agent.Mind is PersonMind)
         {
-            events.Add(new CrossedThePass(world.Minute, agent.Id));
+            events.Add(new CrossedThePass(world.Minute, agent.Id, to));
             return "crossed the pass";
         }
         return "arrived";
@@ -111,7 +118,7 @@ public static class Traversal
 
     /// A herd moves at its slowest member's pace over the shape of the ground and the edge, and
     /// does not stumble (no injury roll).
-    // ponytail: herds ignore today's snow and mud. Reading it would catch up the ground on every tile
+    // Herds ignore today's snow and mud. Reading it would catch up the ground on every tile
     // a herd crosses (a month of history each, and a ground state in the save); add it if herds in
     // deep snow should visibly slow.
     public static int HerdCrossingMinutes(World world, Agent herd, TileId from, TileId to, WeatherSample sky)
@@ -154,61 +161,37 @@ public static class Traversal
     public static bool IsHazardous(World world, TileId tile) => EffectiveHazardLevel(world, tile) >= HazardousLevel;
 
     /// Old TravelProcessor.GetInjuryRisk: chance a quick crossing of this tile injures you.
-    public static double InjuryRiskPct(World world, TileId tile, BodyState body, WeatherSample sky)
+    public static double InjuryRiskPct(World world, TileId tile, BodyState body, WeatherSample sky) =>
+        InjuryOdds(world, tile, body, sky).TotalPct;
+
+    /// The injury risk as its terms, for the trip preview: the ground's hazard, the weather, bad legs;
+    /// at most MaxInjuryRiskPct. Ground below HazardousLevel carries no risk at all (a zero base).
+    public static Odds InjuryOdds(World world, TileId tile, BodyState body, WeatherSample sky)
     {
         double baseRisk = EffectiveHazardLevel(world, tile);
-        if (baseRisk < HazardousLevel) return 0;
-        double weather = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? 0.25
-            : sky.PrecipitationPct > 0.3 || sky.Condition == WeatherCondition.LightSnow ? 0.15 : 0;
+        if (baseRisk < HazardousLevel) return new Odds("Safe ground", 0, []);
+        // Labelled by what earned it: a storm, light snow, or (whatever the sky is called) heavy precipitation.
+        var (weatherWhy, weather) = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? (sky.Condition.ToString(), 0.25)
+            : sky.Condition == WeatherCondition.LightSnow ? (sky.Condition.ToString(), 0.15)
+            : sky.PrecipitationPct > 0.3 ? (sky.Precipitation == Precipitation.None ? "Precipitation" : $"Heavy {sky.Precipitation.ToString().ToLowerInvariant()}", 0.15)
+            : (sky.Condition.ToString(), 0.0);
         double impaired = (1 - Body.GetCapacities(body).Moving) * 0.3;
-        return Math.Min(MaxInjuryRiskPct, baseRisk + weather + impaired);
+        return new Odds("Hazardous ground", baseRisk, Odds.Moving(
+            OddsTerm.Add(weatherWhy, weather),
+            OddsTerm.Add("Bad legs", impaired)), MinPct: 0, MaxPct: MaxInjuryRiskPct);
     }
 
-    /// One accident's mechanics, from the old AccidentVariants (text is phase 4 content).
-    readonly record struct Accident(BodyTarget Target, DamageType Type, double Amount, EffectKind? Effect = null, double Severity = 0);
+    // The old AccidentVariants' mechanics, pool by pool (Content/accidents.json).
+    static readonly IReadOnlyList<Accident> TripStumble = Accidents("TripStumble"), SharpHazards = Accidents("SharpHazards"),
+        IceSlip = Accidents("IceSlip"), RockyTerrain = Accidents("RockyTerrain"), FallImpact = Accidents("FallImpact"), Sprains = Accidents("Sprains");
 
-    static readonly Accident[] TripStumble =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08), new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08),
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08), new(BodyTarget.AnyArm, DamageType.Blunt, 0.08),
-        new(BodyTarget.AnyArm, DamageType.Blunt, 0.05), new(BodyTarget.Abdomen, DamageType.Blunt, 0.10),
-        new(BodyTarget.Chest, DamageType.Blunt, 0.10),
-    ];
-    static readonly Accident[] SharpHazards =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Sharp, 0.08), new(BodyTarget.AnyArm, DamageType.Sharp, 0.05),
-        new(BodyTarget.AnyArm, DamageType.Sharp, 0.05), new(BodyTarget.Chest, DamageType.Sharp, 0.08),
-        new(BodyTarget.AnyLeg, DamageType.Sharp, 0.10),
-    ];
-    static readonly Accident[] IceSlip =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.10), new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08),
-        new(BodyTarget.Abdomen, DamageType.Blunt, 0.12), new(BodyTarget.AnyArm, DamageType.Blunt, 0.10),
-        new(BodyTarget.Head, DamageType.Blunt, 0.10, EffectKind.Dazed, 0.2),
-    ];
-    static readonly Accident[] RockyTerrain =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.10), new(BodyTarget.AnyArm, DamageType.Sharp, 0.08),
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08), new(BodyTarget.Chest, DamageType.Sharp, 0.08),
-        new(BodyTarget.Head, DamageType.Blunt, 0.12, EffectKind.Dazed, 0.3),
-    ];
-    static readonly Accident[] FallImpact =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.12), new(BodyTarget.Abdomen, DamageType.Blunt, 0.15),
-        new(BodyTarget.AnyArm, DamageType.Blunt, 0.12), new(BodyTarget.Chest, DamageType.Blunt, 0.15),
-        new(BodyTarget.Head, DamageType.Blunt, 0.12, EffectKind.Dazed, 0.4),
-    ];
-    // ponytail: the old sprains also added SprainedAnkle / Clumsy effects, which the rebuild has no kinds for yet.
-    static readonly Accident[] Sprains =
-    [
-        new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08), new(BodyTarget.AnyLeg, DamageType.Blunt, 0.10),
-        new(BodyTarget.AnyArm, DamageType.Blunt, 0.08),
-    ];
+    static IReadOnlyList<Accident> Accidents(string pool) =>
+        Content.Tables.Accidents.TryGetValue(pool, out var a) ? a : throw new KeyNotFoundException($"No accident pool '{pool}'");
 
     /// Old VariantSelector.SelectTravelInjuryVariant: ice slips beside a river, otherwise worse
     /// pools as the ground gets worse. Every question is asked of the injured segment's own tile.
     /// old game: InjuryVariant.HasIce read the destination's river for the origin's injury too (bug, fixed).
-    static (Accident[] Pool, double Weight)[] AccidentPools(GeneratedMap m, TileId tile)
+    static (IReadOnlyList<Accident> Pool, double Weight)[] AccidentPools(GeneratedMap m, TileId tile)
     {
         double severity = Map.TerrainHazardLevel(m, tile);
         if (m.BesideRiver(tile))
@@ -221,20 +204,21 @@ public static class Traversal
     static string? Injure(World world, Agent agent, TileId tile, List<WorldEvent> events)
     {
         var weighted = AccidentPools(Map.Of(world), tile).SelectMany(p => p.Pool.Select(a => (a, p.Weight))).ToList();
-        double roll = world.Rng("travel").NextDouble() * weighted.Sum(x => x.Weight);
+        double roll = world.Rng("travel", agent.Id).NextDouble() * weighted.Sum(x => x.Weight);
         var accident = weighted[^1].a;
         foreach (var (a, weight) in weighted)
             if ((roll -= weight) < 0) { accident = a; break; }
 
         var body = agent.Body;
         var kindsBefore = body.Effects.Select(e => e.Kind).ToList();
-        var hit = Body.Damage(body, new DamageInfo(accident.Amount, accident.Type, accident.Target), world.Rng("body"));
+        var hit = Body.Damage(body, new DamageInfo(accident.Amount, accident.Type, accident.Target), world.Rng("body", agent.Id));
         if (accident.Effect is EffectKind kind) Effects.Add(body, kind, accident.Severity);
         events.Add(new Injured(world.Minute, agent.Id, tile, hit.HitRegion, accident.Type, accident.Amount));
-        foreach (var k in body.Effects.Select(e => e.Kind).Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, k));
+        foreach (var k in body.Effects.Select(e => e.Kind).Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, agent.Tile, k));
 
         if (Body.IsAlive(body)) return null;
-        events.Add(new Died(world.Minute, agent.Id));
+        Body.MarkDead(body, world.Minute, new Cause(null, "a fall"));
+        events.Add(new Died(world.Minute, agent.Id, agent.Tile));
         return "died";
     }
 }

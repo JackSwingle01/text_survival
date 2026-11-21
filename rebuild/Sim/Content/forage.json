@@ -1,0 +1,66 @@
+// What searching the ground turns up, by table (old FeatureFactory forage tables). A terrain or cave
+// names its table in terrain.json; a named place carries its own in locations.json. Finds per hour
+// are density x abundance; each find weighs between minKg and maxKg. Loaded once by Content.
+{
+ // Old AddMixedWood split 1.5 of wood 40/35/25 pine/birch/oak; the products are kept to the last bit.
+ "MixedForest": [
+  { "resource": "Pine", "abundance": 0.6000000000000001, "minKg": 1.5, "maxKg": 3.5 },
+  { "resource": "Birch", "abundance": 0.5249999999999999, "minKg": 1.5, "maxKg": 3.5 },
+  { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+  { "resource": "Kindling", "abundance": 3.0, "minKg": 0.2, "maxKg": 0.6 },
+  { "resource": "Tinder", "abundance": 2.0, "minKg": 0.02, "maxKg": 0.08 },
+  { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+  { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+  { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+  { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+  { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+  { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+  { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+  { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+  { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+  { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+  { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+ ],
+ "Wetland": [
+  { "resource": "Kindling", "abundance": 2.0, "minKg": 0.2, "maxKg": 0.5 },
+  { "resource": "Birch", "abundance": 1.0, "minKg": 1.0, "maxKg": 2.0 },
+  { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+  { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+  { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+  { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+ ],
+ "Open": [
+  { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
+  { "resource": "Kindling", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+  { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
+  { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+  { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
+ ],
+ "Rocky": [
+  { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
+  { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
+  { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+ ],
+ "FrozenCreek": [
+  { "resource": "Kindling", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
+  { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 }
+ ],
+ // Old CaveLocationFactory.CreateForage.
+ "CaveFloor": [
+  { "resource": "Stone", "abundance": 1.0, "minKg": 0.15, "maxKg": 0.45 },
+  { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
+  { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
+  { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
+  { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
+ ],
+ // The floor's, and sticks and tinder blown in at the mouth.
+ "CaveMouth": [
+  { "resource": "Stone", "abundance": 1.0, "minKg": 0.15, "maxKg": 0.45 },
+  { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
+  { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
+  { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
+  { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 },
+  { "resource": "Kindling", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+  { "resource": "Tinder", "abundance": 0.4, "minKg": 0.01, "maxKg": 0.04 }
+ ]
+}

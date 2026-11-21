@@ -147,7 +147,7 @@ public class ItemsTests
         Assert.Equal("carries nothing to work with", Sim.Step(w, new Gather(herd.Id, 0), 10).InterruptedReason);
     }
 
-    // ---- fire takes from the pack (the phase-1 ponytails) ----
+    // ---- fire takes from the pack ----
 
     [Fact]
     public void StartFire_WithoutTheTool_OrTheTinder_IsRefused_AndCostsNothing()

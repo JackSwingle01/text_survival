@@ -16,7 +16,7 @@ public class TravelTests
     {
         var world = new World { Seed = 17, GeneratedMap = Seed17, FixedWeather = sky ?? Calm };
         world.Agents[P] = new Agent { Id = P, Tile = new TileId(x, y) };
-        if (travelRngSeed != null) world.Rngs["travel"] = Rng.ForSystem(17, travelRngSeed);
+        if (travelRngSeed != null) world.Rngs[StreamName.Of("travel", P)] = Rng.ForSystem(17, travelRngSeed);
         return world;
     }
 

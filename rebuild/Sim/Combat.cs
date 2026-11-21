@@ -102,7 +102,7 @@ public static partial class Combat
     public const int HeadlessRoundCap = 20;
     const int FleeEdgeM = 3, FleeEnergyMinutes = 20, DodgeEnergyMinutes = 10, SignalCooldownMinutes = 5, SignalMinutes = 5;
     const double StoneRangeM = 15, StoneAccuracy = 0.90;
-    /// ponytail: old inventories counted stones as items; resources are kilograms now, so one throw is a typical stone.
+    /// Old inventories counted stones as items; resources are kilograms now, so one throw is a typical stone.
     public const double StoneKg = 0.3;
 
     // ---- setup ----
@@ -139,7 +139,7 @@ public static partial class Combat
         }
         Add(teamA, 0, aY, awarenessA);
         Add(teamB, 1, bY, awarenessB);
-        if (opening is Opening o) Place(world, enc, o, distanceM, world.Rng("combat"));
+        if (opening is Opening o) Place(world, enc, o, distanceM, world.Rng("combat", teamA[0].Agent)); // whoever opened it
         world.Encounters.Add(enc);
         return enc;
     }
@@ -201,7 +201,7 @@ public static partial class Combat
     public static List<Fighter> SendMembers(World world, AgentId herd, int lead, int maxExtra = 3)
     {
         var agent = world.Agent(herd);
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", herd);
         var others = Enumerable.Range(0, agent.Members.Count).Where(i => i != lead && Body.IsAlive(agent.Members[i])).ToList();
         int extra = Math.Min(others.Count, maxExtra) is int max and > 0 ? rng.NextInt(max + 1) : 0;
         for (int i = others.Count - 1; i > 0; i--) { int j = rng.NextInt(i + 1); (others[i], others[j]) = (others[j], others[i]); }
@@ -371,6 +371,8 @@ public static partial class Combat
         }
         target ??= NearestEnemy(enc, unit);
         if (target == null || !target.InField || target.Team == unit.Team) return "No available target.";
+        // The fight is the confrontation: whatever guards the target does not bar striking at it.
+        if (Access.Refusal(world, unit.Agent, Things.OfAgent(world, target.Agent), confronting: true) is string barred) return barred;
         double distance = unit.Position.DistanceTo(target.Position);
         var zone = ZoneOf(distance);
         var nearestZone = ZoneOf(unit.Position.DistanceTo((NearestEnemy(enc, unit) ?? target).Position));
@@ -433,7 +435,7 @@ public static partial class Combat
 
     internal static string? Refusal(World world, Fight fight)
     {
-        // ponytail: only the player picks rounds; phase 3d's NPCs fight through the AI (or Combat.Apply) until they step themselves.
+        // Only the player picks rounds; NPCs fight through the AI (or Combat.Apply) until they step themselves.
         if (fight.Who != AgentId.Player) return "Only the player fights round by round; others fight through the AI.";
         if (EncounterOf(world, fight.Who) is not Encounter enc) return "You are not in a fight.";
         CombatUnit? target = null;
@@ -487,7 +489,7 @@ public static partial class Combat
 
     /// The player is out (fled or fell, in a round or not): whoever is left fights it out unwatched,
     /// and the fight leaves the world. No fight outlives the player's part in it.
-    // ponytail: old game ran the remainder as a background fight, one round a minute; here it resolves at once.
+    // The old game ran the remainder as a background fight, one round a minute; here it resolves at once.
     internal static void Finish(World world, Encounter enc, List<WorldEvent> events)
     {
         Sweep(world, enc, events, by: null);
@@ -529,7 +531,7 @@ public static partial class Combat
             foreach (var u in Field(enc).ToList())
             {
                 var body = BodyOf(world, u);
-                Body.TickWounds(body, world.Rng("body"));
+                Body.TickWounds(body, world.Rng("body", u.Agent));
                 if (world.Agent(u.Agent).Mind is HerdMind && Body.IsAlive(body)) Fauna.Mend(body); // an animal mends in the minute it bleeds (Fauna.Tick)
                 body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute - 1) + 1;
             }
@@ -569,11 +571,11 @@ public static partial class Combat
                 var p = new Cell(destination.X + dx, destination.Y + dy);
                 if ((dx != 0 || dy != 0) && InBounds(p) && !Occupied(p)) free.Add(p);
             }
-        return free.Count == 0 ? mover.Position : free[world.Rng("combat").NextInt(free.Count)];
+        return free.Count == 0 ? mover.Position : free[world.Rng("combat", mover.Agent).NextInt(free.Count)];
     }
 
     static ActionResult Attack(World world, Encounter enc, CombatUnit attacker, CombatUnit defender, List<WorldEvent> events) =>
-        world.Rng("combat").NextDouble() < 0.9 ? Strike(world, enc, attacker, defender, events) : new ActionResult();
+        world.Rng("combat", attacker.Agent).NextDouble() < 0.9 ? Strike(world, enc, attacker, defender, events) : new ActionResult();
 
     /// A thrown weapon: closer is surer, small targets are harder, and the weapon lands on the ground.
     static ActionResult Throw(World world, Encounter enc, CombatUnit attacker, CombatUnit target, List<WorldEvent> events)
@@ -581,9 +583,9 @@ public static partial class Combat
         var weapon = attacker.Weapon ?? throw new InvalidOperationException("No weapon to throw");
         var (rangeM, accuracy) = Throwing(weapon);
         double chance = ThrownAccuracy(attacker.Position.DistanceTo(target.Position), rangeM, accuracy, StatsOf(world, target).IsSmall);
-        var result = world.Rng("combat").NextDouble() < chance ? Strike(world, enc, attacker, target, events) : new ActionResult();
+        var result = world.Rng("combat", attacker.Agent).NextDouble() < chance ? Strike(world, enc, attacker, target, events) : new ActionResult();
         attacker.Weapon = null; // after the strike: its damage came from the weapon
-        Items.StashAt(world, enc.Tile).Gear.Add(weapon);
+        Items.StashAt(world, enc.Tile, new Cause(attacker.Agent, $"thrown by {Cause.Describe(world, attacker.Agent)}")).Gear.Add(weapon);
         return result;
     }
 
@@ -594,13 +596,13 @@ public static partial class Combat
     /// A quarter of a blow, no dodging or blocking it. Needs no weapon.
     static ActionResult ThrowStone(World world, Encounter enc, CombatUnit attacker, CombatUnit target, List<WorldEvent> events)
     {
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", attacker.Agent);
         double chance = ThrownAccuracy(attacker.Position.DistanceTo(target.Position), StoneRangeM, StoneAccuracy, StatsOf(world, target).IsSmall);
         if (rng.NextDouble() >= chance) return new ActionResult();
         var (amount, type) = AttackDamage(world, attacker, rng);
         amount *= 0.25 * AwarenessDamageFactor(target.Awareness);
         target.Awareness = Awareness.Engaged;
-        var damage = Hurt(world, enc, target, amount, type, events);
+        var damage = Hurt(world, enc, target, amount, type, StrikerOf(world, attacker, thrown: "thrown stone"), events);
         AfterHit(world, enc, attacker, target, events);
         return new ActionResult(Hit: true, Damage: damage);
     }
@@ -610,12 +612,12 @@ public static partial class Combat
     {
         if (defender.Awareness == Awareness.Engaged && defender.DodgeSet && ResolveDodge(world, enc, defender, attacker))
             return new ActionResult(Dodged: true);
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", attacker.Agent);
         var (amount, type) = AttackDamage(world, attacker, rng);
         amount *= AwarenessDamageFactor(defender.Awareness);
         bool blocked = defender.Awareness == Awareness.Engaged && defender.BlockSet;
         if (blocked) amount = ResolveBlock(defender, amount, rng);
-        var damage = Hurt(world, enc, defender, amount, type, events);
+        var damage = Hurt(world, enc, defender, amount, type, StrikerOf(world, attacker), events);
         defender.Awareness = Awareness.Engaged;
         AfterHit(world, enc, attacker, defender, events);
         return new ActionResult(Hit: true, Blocked: blocked, Damage: damage);
@@ -633,7 +635,7 @@ public static partial class Combat
     }
 
     /// Base attack (weapon or species) scaled by strength 50-100%, vitality 70-100% and luck 50-150%.
-    // ponytail: old Player added Fighting skill level to every blow; skills arrive with progression.
+    // Old Player added Fighting skill level to every blow; Fighting is not one of the skills yet (Skills).
     static (double Amount, DamageType Type) AttackDamage(World world, CombatUnit attacker, Rng rng)
     {
         var (amount, type) = AverageBlow(world, attacker);
@@ -655,12 +657,23 @@ public static partial class Combat
         return ((weapon?.Damage ?? stats.AttackDamage) * (Body.Strength(body) / 2 + 0.5) * (0.7 + 0.3 * Body.Vitality(body)), type);
     }
 
-    /// Through what the member wears (old Inventory.TotalCushioning/TotalToughness: summed, not worn down).
-    static DamageResult Hurt(World world, Encounter enc, CombatUnit target, double amount, DamageType type, List<WorldEvent> events)
+    /// Who struck a blow and with what, as the body it lands on names it: "the player's wooden spear",
+    /// "a wolf pack". Read as the blow lands, so a thrown weapon is named before it leaves the hand.
+    static Cause StrikerOf(World world, CombatUnit attacker, string? thrown = null)
+    {
+        string who = Cause.Describe(world, attacker.Agent);
+        string? with = thrown ?? (attacker.Weapon is { } w ? Items.Def(w).Name.ToLowerInvariant() : null);
+        return new Cause(attacker.Agent, with == null ? who : $"{who}'s {with}");
+    }
+
+    /// Through what the member wears (old Inventory.TotalCushioning/TotalToughness: summed, not worn
+    /// down). The body keeps who hurt it (BodyState.WoundedBy): whatever it dies of later names them.
+    static DamageResult Hurt(World world, Encounter enc, CombatUnit target, double amount, DamageType type, Cause by, List<WorldEvent> events)
     {
         var body = BodyOf(world, target);
         double cushioning = body.Worn.Sum(g => Items.Def(g).Cushioning), toughness = body.Worn.Sum(g => Items.Def(g).Toughness);
-        var result = Body.Damage(body, new DamageInfo(amount, type, BodyTarget.Random, cushioning, toughness), world.Rng("body"));
+        body.WoundedBy = by;
+        var result = Body.Damage(body, new DamageInfo(amount, type, BodyTarget.Random, cushioning, toughness), world.Rng("body", target.Agent));
         events.Add(new Injured(world.Minute, target.Agent, enc.Tile, result.HitRegion, type, amount));
         return result;
     }
@@ -672,7 +685,7 @@ public static partial class Combat
     static bool ResolveDodge(World world, Encounter enc, CombatUnit defender, CombatUnit attacker)
     {
         var body = BodyOf(world, defender);
-        if (world.Rng("combat").NextDouble() >= DodgeChance(body)) return false;
+        if (world.Rng("combat", defender.Agent).NextDouble() >= DodgeChance(body)) return false;
         body.EnergyMinutes = Math.Max(0, body.EnergyMinutes - DodgeEnergyMinutes);
         Move(world, enc, defender, defender.Position.Move(attacker.Position.DirectionTo(defender.Position), 1.0f));
         return true;
@@ -691,7 +704,7 @@ public static partial class Combat
     /// Strength and weight against strength and weight; a guarded target is half as easy to move.
     static ActionResult Shove(World world, Encounter enc, CombatUnit attacker, CombatUnit target)
     {
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", attacker.Agent);
         var (chance, pushM) = ShoveOdds(BodyOf(world, attacker), BodyOf(world, target));
         if (target.BlockSet) chance /= 2;
         if (rng.NextDouble() >= chance) return new ActionResult();
@@ -721,7 +734,7 @@ public static partial class Combat
 
     /// A call to the human companions on this side: a morale nudge that replaces the last one and
     /// lapses after five minutes (old CompanionCombat.Signal).
-    // ponytail: old game skipped companions whose opinion of the caller was negative; relationships are phase 3d.
+    // The old game skipped companions whose opinion of the caller was negative; nothing writes opinions yet.
     static void Signal(World world, Encounter enc, CombatUnit caller, bool retreat)
     {
         caller.LastSignalMinute = world.Minute;
@@ -743,10 +756,14 @@ public static partial class Combat
             foreach (var ally in Allies(enc, unit).ToList()) Morale(world, enc, ally, MoraleEvent.AllyKilled, unit);
             unit.InField = false;
             var agent = world.Agent(unit.Agent);
+            var body = BodyOf(world, unit);
             if (StatsOf(world, unit).IsAnimal)
-                events.Add(new Killed(world.Minute, unit.Agent, agent.Species, BodyOf(world, unit).WeightKg, enc.Tile, by));
-            else if (!events.Any(e => e is Died d && d.Who == unit.Agent))
-                events.Add(new Died(world.Minute, unit.Agent));
+                events.Add(new Killed(world.Minute, unit.Agent, agent.Species, body.WeightKg, enc.Tile, body.WoundedBy?.Who ?? by));
+            else
+            {
+                Body.MarkDead(body, world.Minute, Body.CauseOfDeath(body));
+                if (!events.Any(e => e is Died d && d.Who == unit.Agent)) events.Add(new Died(world.Minute, unit.Agent, enc.Tile));
+            }
         }
     }
 
@@ -777,13 +794,18 @@ public static partial class Combat
         metres <= 0 ? 0 : 1 - Math.Pow(1 - Math.Clamp(detectionChance, 0, 0.99), metres / DetectionReferenceMeters);
 
     /// Hit chance for a thrown spear or stone: linear falloff to the weapon's range; small game x0.66.
-    public static double ThrownAccuracy(double distanceM, double maxRangeM, double baseAccuracy, bool targetIsSmall, double manipulationPenalty = 0)
+    public static double ThrownAccuracy(double distanceM, double maxRangeM, double baseAccuracy, bool targetIsSmall, double manipulationPenalty = 0) =>
+        ThrownOdds(distanceM, maxRangeM, baseAccuracy, targetIsSmall, manipulationPenalty).TotalPct;
+
+    /// The throw's odds as their terms, in the old order: the weapon's accuracy, scaled down with
+    /// distance and for a small target, less any penalty for the hands; 5-95%. Out of range is 0.
+    public static Odds ThrownOdds(double distanceM, double maxRangeM, double baseAccuracy, bool targetIsSmall, double manipulationPenalty = 0)
     {
-        if (distanceM > maxRangeM) return 0;
-        double accuracy = baseAccuracy * (1.0 - distanceM / maxRangeM);
-        if (targetIsSmall) accuracy *= 0.66;
-        accuracy -= manipulationPenalty;
-        return Math.Clamp(accuracy, 0.05, 0.95);
+        if (distanceM > maxRangeM) return new Odds("Out of range", 0, [], MinPct: 0, MaxPct: 0);
+        return new Odds("Weapon", baseAccuracy, Odds.Moving(
+            OddsTerm.Scale("Distance", 1.0 - distanceM / maxRangeM),
+            OddsTerm.Scale("Small target", targetIsSmall ? 0.66 : 1.0),
+            OddsTerm.Add("Hands", -manipulationPenalty)), MinPct: 0.05, MaxPct: 0.95);
     }
 
     /// Risk of one normal stalking step being noticed, as shown to the player (old Assess).
@@ -806,9 +828,8 @@ public static partial class Combat
     // roll >= chance branch, so it never fired. Kept dead (stalking odds are tuned without it).
     internal static void RunDetection(World world, Encounter enc, CombatUnit mover, int huntingSkill, double exposureMeters)
     {
-        var rng = world.Rng("combat");
         foreach (var enemy in Enemies(enc, mover).Where(e => e.Awareness != Awareness.Engaged).ToList())
-            if (rng.NextDouble() < ExposedDetectionChance(world, enc, mover, enemy, huntingSkill, exposureMeters))
+            if (world.Rng("combat", enemy.Agent).NextDouble() < ExposedDetectionChance(world, enc, mover, enemy, huntingSkill, exposureMeters))
                 enemy.Awareness = enemy.Awareness == Awareness.Unaware ? Awareness.Alert : Awareness.Engaged;
     }
 }

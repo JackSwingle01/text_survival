@@ -14,6 +14,7 @@ public sealed class World
         {
             if (Minute != 0 && !Nullable.Equals(field, value))
                 throw new InvalidOperationException($"FixedWeather changed at minute {Minute}: the sky is pinned before the clock starts");
+            if (!Nullable.Equals(field, value)) (DecayCache, GroundCache) = (null, null); // derived from the sky
             field = value;
         }
     }
@@ -29,8 +30,9 @@ public sealed class World
     /// Only tiles that differ from generation (plan decision 1). Ground and tracks write here.
     public SortedDictionary<TileId, TileState> Tiles { get; init; } = [];
     public SortedDictionary<AgentId, Agent> Agents { get; init; } = [];
-    /// One RNG stream per system, keyed by system name. Lives here so a load resumes every stream exactly.
-    public Dictionary<string, Rng> Rngs { get; init; } = [];
+    /// RNG streams by name: world-making systems by system name, everything an agent rolls by system
+    /// and agent (Rng(system, who)). Lives here so a load resumes every stream exactly.
+    public SortedDictionary<StreamName, Rng> Rngs { get; init; } = [];
     /// Fire pits and carried torches. Owned by the Fire system.
     public SortedDictionary<FireId, FireState> Fires { get; init; } = [];
     public int NextFireId { get; set; }
@@ -43,21 +45,45 @@ public sealed class World
     /// The clock hour of the last sweep of faded tracks. Owned by Tracks.
     public long TracksSweptHour { get; set; } = -1;
     public int NextCarcassId { get; set; }
+    /// Ids for stashes and shelters, never reused, so a ref held to one never points at a later one
+    /// on the same tile (ThingRef). Owned by Items and Shelters.
+    public int NextStashId { get; set; }
+    public int NextShelterId { get; set; }
     /// Shelters standing, natural or built, by tile. Owned by Shelters.
     public SortedDictionary<TileId, ShelterState> Shelters { get; init; } = [];
     /// Bedding laid down, by tile. Owned by Shelters.
     public SortedDictionary<TileId, BeddingKind> Beddings { get; init; } = [];
     /// Building under way, one per tile. Owned by Shelters.
     public SortedDictionary<TileId, Project> Projects { get; init; } = [];
+    /// A shelter find that was found while the tile was taken, by tile: the index of its pool
+    /// (Pools.At). It stands once the tile is free. Owned by Shelters.
+    public SortedDictionary<TileId, int> WaitingShelters { get; init; } = [];
+    /// What happened on each tile someone has a stake in, oldest first and bounded. Owned by Journal.
+    public SortedDictionary<TileId, List<WorldEvent>> Journal { get; init; } = [];
     /// The pools generation put on each tile looked at so far; derived from Seed, never saved. Owned by Pools.
     internal Dictionary<TileId, IReadOnlyList<PoolDef>>? PoolCache;
+    /// The access conditions in force (Access.Wired), never saved. Tests switch on the ones not wired
+    /// yet, to show every refusal that reaches a thing asks Access.
+    internal Access.Gate AccessGates = Access.Wired;
+    /// Rot over clock hours per tile cold (Remains.EffectiveHours); derived from the sky, never saved.
+    internal Dictionary<double, DecayTimeline>? DecayCache;
+    /// Ground nobody has observed, by the inputs that alone decide it (Ground.Peek); derived, never saved.
+    internal Dictionary<GroundClass, GroundState>? GroundCache;
+    /// Everything each diet eats on the valley's open land as generated (Fauna.ValleyCapacity); never saved.
+    internal Dictionary<Diet, double>? ValleyForageCache;
+    /// The open land herds live on and arrive on (Fauna.OpenLand), fixed at generation; never saved.
+    internal List<TileId>? OpenLandCache;
+    /// The tiles holding a carcass (Carcasses.TilesWith), kept as they come and go; never saved.
+    internal SortedSet<TileId>? CarcassTiles;
+    /// Which agents stand where (Nearby); never saved, rebuilt when agents are made or removed.
+    internal NearbyIndex? Nearby;
 
     public static World New(int seed)
     {
         var map = Map.Generate(seed);
         var world = new World { Seed = seed, GeneratedMap = map };
         world.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = map.Camp };
-        // ponytail: the old camp's Overhang and bedding, here until named-location content places them.
+        // The old camp's Overhang and bedding (old GridWorldGenerator.CreateCampLocation).
         Survival.Shelters.Place(world, map.Camp, Survival.Shelters.CampOverhang);
         Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);
         Map.PlaceSiteShelters(world);
@@ -68,11 +94,22 @@ public sealed class World
     public Agent Agent(AgentId id) =>
         Agents.TryGetValue(id, out var agent) ? agent : throw new KeyNotFoundException($"No agent {id} in world");
 
-    /// The named system's stream, created from Seed on first use.
-    public Rng Rng(string system)
+    /// The named system's stream, created from Seed on first use. For making the world; what an
+    /// agent rolls comes from its own stream.
+    public Rng Rng(StreamName system)
     {
         if (!Rngs.TryGetValue(system, out var rng))
-            Rngs[system] = rng = Survival.Rng.ForSystem(Seed, system);
+            Rngs[system] = rng = Survival.Rng.ForSystem(Seed, system.Value);
         return rng;
     }
+
+    /// This agent's own stream for the system, so one agent's rolls never hang on another's: a herd
+    /// across the valley bleeding, fighting or wandering leaves the player's injuries as they were.
+    /// Only an agent in the world rolls: one removed (Agents.Remove) took its streams with it.
+    public Rng Rng(string system, AgentId who) =>
+        Agents.ContainsKey(who) ? Rng(StreamName.Of(system, who)) : throw new InvalidOperationException($"{who} is not in the world to roll on {system}");
+
+    /// A stream used once, as an agent is made (its bodies, its temper): derived from Seed and the
+    /// agent, never saved, since no id is made twice. Named apart from the agent's own streams.
+    public Rng Birth(string system, AgentId who) => Survival.Rng.ForSystem(Seed, "born " + StreamName.Of(system, who).Value);
 }

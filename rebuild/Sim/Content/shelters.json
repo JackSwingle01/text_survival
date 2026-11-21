@@ -1,0 +1,77 @@
+// Shelters, bedding and the camp recipes that make them (old ShelterTypeConfig, Gear tents,
+// MaterialProperties, NeedCraftingSystem camp recipes and BeddingFeature). Loaded once by Content;
+// ContentTests checks every name in here resolves.
+//
+// kinds: every ShelterKind: its starting levels, how far work can take them (caps), whether it is
+//   found in the world (isNatural) and whether it melts (isSnow), both stated. Levels and caps are 0-1.
+// tents: pitched tents by gear kind (items.json); a cap left out is the kind's.
+// materials: old item counts become kilos through a nominal piece (pieceKg: a stick, a log, a hide);
+//   insulating, waterproof and structural say how much one does for each shelter stat. shelter false
+//   is a material recipes use that cannot be worked into a shelter.
+// recipes: every Structure. minutes includes any setup; needsLight (stated on each) whether it needs
+//   light; materials are taken when the work starts, each one of anyOf for pieces of the first one's
+//   pieceKg. A recipe makes a shelter or a bedding.
+// beddings: every BeddingKind. qualityPct is sleep efficiency and keeps you off wet ground;
+//   warmthBonusF is felt asleep.
+{
+ "kinds": {
+  "BranchFrame": { "insulation": 0.15, "overhead": 0.25, "wind": 0.20, "insulationCap": 0.50, "overheadCap": 0.50, "windCap": 0.50, "isNatural": false, "isSnow": false },
+  "LogFrame": { "insulation": 0.25, "overhead": 0.35, "wind": 0.30, "insulationCap": 0.80, "overheadCap": 0.80, "windCap": 0.80, "isNatural": false, "isSnow": false },
+  "RockOverhang": { "insulation": 0.10, "overhead": 0.70, "wind": 0.30, "insulationCap": 0.40, "overheadCap": 0.80, "windCap": 0.40, "isNatural": true, "isSnow": false },
+  "Cave": { "insulation": 0.25, "overhead": 0.90, "wind": 0.20, "insulationCap": 0.60, "overheadCap": 0.95, "windCap": 0.40, "isNatural": true, "isSnow": false },
+  "DenseThicket": { "insulation": 0.15, "overhead": 0.50, "wind": 0.60, "insulationCap": 0.40, "overheadCap": 0.60, "windCap": 0.70, "isNatural": true, "isSnow": false },
+  "FallenTree": { "insulation": 0.10, "overhead": 0.40, "wind": 0.50, "insulationCap": 0.30, "overheadCap": 0.50, "windCap": 0.60, "isNatural": true, "isSnow": false },
+  "SnowShelter": { "insulation": 0.60, "overhead": 0.90, "wind": 0.80, "insulationCap": 0.60, "overheadCap": 0.90, "windCap": 0.80, "isNatural": false, "isSnow": true },
+  "HideTent": { "insulation": 0.50, "overhead": 0.90, "wind": 0.70, "insulationCap": 0.60, "overheadCap": 0.95, "windCap": 0.80, "isNatural": false, "isSnow": false },
+  "NaturalShelter": { "insulation": 0.20, "overhead": 0.50, "wind": 0.40, "insulationCap": 0.80, "overheadCap": 0.90, "windCap": 0.80, "isNatural": true, "isSnow": false }
+ },
+
+ "tents": {
+  "hide_tent": { "name": "Hide Tent", "kind": "HideTent", "insulation": 0.5, "overhead": 0.9, "wind": 0.7 },
+  // Above the hide tent's wind cap.
+  "mammoth_hide_tent": { "name": "Mammoth Hide Tent", "kind": "HideTent", "insulation": 0.6, "overhead": 0.95, "wind": 0.85, "windCap": 0.85 }
+ },
+
+ "materials": {
+  "SphagnumMoss": { "pieceKg": 0.2, "insulating": 0.8, "waterproof": 0.3, "structural": 0.1 },
+  "PineNeedles": { "pieceKg": 0.06, "insulating": 0.5, "waterproof": 0.2, "structural": 0.1 },
+  "PlantFiber": { "pieceKg": 0.1, "insulating": 0.6, "waterproof": 0.2, "structural": 0.1 },
+  "Tinder": { "pieceKg": 0.05, "insulating": 0.5, "waterproof": 0.1, "structural": 0.1 },
+  "BirchBark": { "pieceKg": 0.05, "insulating": 0.3, "waterproof": 0.8, "structural": 0.2 },
+  // Old Stick.
+  "Kindling": { "pieceKg": 0.3, "insulating": 0.2, "waterproof": 0.3, "structural": 0.7 },
+  "Pine": { "pieceKg": 2.0, "insulating": 0.3, "waterproof": 0.5, "structural": 0.9 },
+  "Birch": { "pieceKg": 2.0, "insulating": 0.3, "waterproof": 0.5, "structural": 0.9 },
+  "Oak": { "pieceKg": 2.0, "insulating": 0.4, "waterproof": 0.5, "structural": 0.95 },
+  "Hide": { "pieceKg": 1.0, "insulating": 0.9, "waterproof": 0.7, "structural": 0.4 },
+  "CuredHide": { "pieceKg": 1.0, "insulating": 0.85, "waterproof": 0.75, "structural": 0.45 },
+  "MammothHide": { "pieceKg": 5.0, "insulating": 0.95, "waterproof": 0.8, "structural": 0.5 },
+  "Stone": { "pieceKg": 0.3, "insulating": 0.1, "waterproof": 0.6, "structural": 0.95 },
+  "Bone": { "pieceKg": 0.3, "insulating": 0.1, "waterproof": 0.2, "structural": 0.6 },
+  "PineResin": { "pieceKg": 0.05, "insulating": 0.1, "waterproof": 0.9, "structural": 0.1 },
+  "Tallow": { "pieceKg": 0.1, "insulating": 0.1, "waterproof": 0.7, "structural": 0.1 },
+  // Sewing only.
+  "Sinew": { "pieceKg": 0.1, "insulating": 0.1, "waterproof": 0.1, "structural": 0.1, "shelter": false }
+ },
+
+ "recipes": {
+  "MakeshiftBedding": { "minutes": 45, "materials": [], "needsLight": false, "shovelHelps": true, "bedding": "Makeshift" },
+  "PaddedBedding": { "minutes": 45, "materials": [ { "anyOf": ["PlantFiber"], "pieces": 10 }, { "anyOf": ["Hide"], "pieces": 1 } ], "bedding": "Padded", "needsLight": true },
+  "MossBedding": { "minutes": 50, "materials": [ { "anyOf": ["SphagnumMoss"], "pieces": 6 }, { "anyOf": ["PineNeedles"], "pieces": 4 }, { "anyOf": ["Hide"], "pieces": 1 } ], "bedding": "MossPadded", "needsLight": true },
+  // 15 minutes' setup and three hours' sewing.
+  "SleepingBag": { "minutes": 195, "materials": [ { "anyOf": ["CuredHide"], "pieces": 4 }, { "anyOf": ["Sinew"], "pieces": 6 } ], "bedding": "SleepingBag", "needsLight": true },
+  "BranchFrame": { "minutes": 30, "materials": [ { "anyOf": ["Kindling"], "pieces": 4 } ], "shelter": "BranchFrame", "needsLight": true },
+  "LogFrame": { "minutes": 45, "materials": [ { "anyOf": ["Pine", "Birch", "Oak"], "pieces": 3 } ], "shelter": "LogFrame", "needsLight": true },
+  // 15 minutes' setup and two hours' digging.
+  "SnowShelter": { "minutes": 135, "materials": [], "needsShovel": true, "shovelHelps": true, "needsFrost": true, "shelter": "SnowShelter", "needsLight": true },
+  "Tent": { "minutes": 10, "materials": [], "needsLight": false, "shelter": "HideTent" }
+ },
+
+ "beddings": {
+  "Camp": { "name": "Sleeping area", "qualityPct": 1.0, "warmthBonusF": 0 },
+  "Makeshift": { "name": "Makeshift bed", "qualityPct": 0.6, "warmthBonusF": 0 },
+  "Padded": { "name": "Padded bedding", "qualityPct": 0.8, "warmthBonusF": 0 },
+  "MossPadded": { "name": "Moss-padded bedding", "qualityPct": 0.9, "warmthBonusF": 3.0 },
+  "SleepingBag": { "name": "Sleeping bag", "qualityPct": 1.0, "warmthBonusF": 5.0 }
+ }
+}

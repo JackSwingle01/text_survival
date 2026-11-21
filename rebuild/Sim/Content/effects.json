@@ -1,0 +1,26 @@
+// The effects the body itself produces: survival thresholds, temperature, wetness, wounds. Every
+// EffectKind has one row. Loaded once by Content; ContentTests checks every name in here resolves.
+//
+// severityPerHour: how fast it drifts on its own: negative fades, 0 holds; nothing grows by itself.
+// treatmentAboveSeverity: an effect that starts above this severity needs treatment, and then fades
+//   only to a floor; 0 means any of it does; null, stated, never needs treatment.
+// coreTempFPerHour, bleedMlPerHour: what it does to the body each hour at full severity.
+// capacities: what it takes off each capacity at full severity; scaled by severity.
+{
+ "Hungry": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "capacities": { "Moving": -0.35, "Manipulation": -0.35, "Consciousness": -0.15 } },
+ "Thirsty": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "capacities": { "Moving": -0.40, "Manipulation": -0.25, "Consciousness": -0.45 } },
+ "Tired": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "capacities": { "Moving": -0.45, "Manipulation": -0.30, "Consciousness": -0.45, "Sight": -0.25, "Hearing": -0.15 } },
+ "Shivering": { "severityPerHour": -2, "treatmentAboveSeverity": null, "coreTempFPerHour": 3.0, "capacities": { "Manipulation": -0.2 } },
+ "Hypothermia": { "severityPerHour": -0.5, "treatmentAboveSeverity": null, "capacities": { "Moving": -0.3, "Manipulation": -0.3, "Consciousness": -0.5, "BloodPumping": -0.2 } },
+ "Frostbite": { "severityPerHour": -0.02, "treatmentAboveSeverity": 0, "capacities": { "Manipulation": -0.5, "Moving": -0.5, "BloodPumping": -0.2 } },
+ "Hyperthermia": { "severityPerHour": -0.5, "treatmentAboveSeverity": null, "capacities": { "Consciousness": -0.5, "Moving": -0.3, "BloodPumping": -0.2 } },
+ // A signal only: the cooling and water it costs live in the heat balance, which can see the clothing.
+ "Sweating": { "severityPerHour": -2, "treatmentAboveSeverity": null },
+ // Severity IS the stored wetness; the survival tick sets it directly and owns drying.
+ "Wet": { "severityPerHour": 0, "treatmentAboveSeverity": null, "coreTempFPerHour": -1.0 },
+ "Bloody": { "severityPerHour": -0.02, "treatmentAboveSeverity": 0 },
+ "Bleeding": { "severityPerHour": -0.1, "treatmentAboveSeverity": null, "bleedMlPerHour": 3000 },
+ "Pain": { "severityPerHour": -0.15, "treatmentAboveSeverity": null, "capacities": { "Manipulation": -0.25, "Consciousness": -0.15, "Sight": -0.15, "Hearing": -0.10 } },
+ "Dazed": { "severityPerHour": -0.15, "treatmentAboveSeverity": null, "capacities": { "Sight": -0.4, "Hearing": -0.3, "Consciousness": -0.2 } },
+ "Shock": { "severityPerHour": -0.05, "treatmentAboveSeverity": 0.5, "capacities": { "Consciousness": -0.4, "BloodPumping": -0.3, "Moving": -0.2 } }
+}

@@ -1,0 +1,49 @@
+// What a fall on bad ground does to a body, pool by pool (old AccidentVariants; their text is not
+// ported). Which pools a crossing draws from, and how heavily, is Travel's: ice beside a river, worse
+// pools as the ground gets worse. Each accident is one hit (amount, of type, on target) and an effect
+// it may start at a severity. Loaded once by Content; ContentTests checks every name in here resolves.
+{
+ "TripStumble": [
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.08 },
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.08 },
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.08 },
+  { "target": "AnyArm", "type": "Blunt", "amount": 0.08 },
+  { "target": "AnyArm", "type": "Blunt", "amount": 0.05 },
+  { "target": "Abdomen", "type": "Blunt", "amount": 0.10 },
+  { "target": "Chest", "type": "Blunt", "amount": 0.10 }
+ ],
+ "SharpHazards": [
+  { "target": "AnyLeg", "type": "Sharp", "amount": 0.08 },
+  { "target": "AnyArm", "type": "Sharp", "amount": 0.05 },
+  { "target": "AnyArm", "type": "Sharp", "amount": 0.05 },
+  { "target": "Chest", "type": "Sharp", "amount": 0.08 },
+  { "target": "AnyLeg", "type": "Sharp", "amount": 0.10 }
+ ],
+ "IceSlip": [
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.10 },
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.08 },
+  { "target": "Abdomen", "type": "Blunt", "amount": 0.12 },
+  { "target": "AnyArm", "type": "Blunt", "amount": 0.10 },
+  { "target": "Head", "type": "Blunt", "amount": 0.10, "effect": "Dazed", "severity": 0.2 }
+ ],
+ "RockyTerrain": [
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.10 },
+  { "target": "AnyArm", "type": "Sharp", "amount": 0.08 },
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.08 },
+  { "target": "Chest", "type": "Sharp", "amount": 0.08 },
+  { "target": "Head", "type": "Blunt", "amount": 0.12, "effect": "Dazed", "severity": 0.3 }
+ ],
+ "FallImpact": [
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.12 },
+  { "target": "Abdomen", "type": "Blunt", "amount": 0.15 },
+  { "target": "AnyArm", "type": "Blunt", "amount": 0.12 },
+  { "target": "Chest", "type": "Blunt", "amount": 0.15 },
+  { "target": "Head", "type": "Blunt", "amount": 0.12, "effect": "Dazed", "severity": 0.4 }
+ ],
+ // The old sprains also added SprainedAnkle / Clumsy effects, which the rebuild has no kinds for yet.
+ "Sprains": [
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.08 },
+  { "target": "AnyLeg", "type": "Blunt", "amount": 0.10 },
+  { "target": "AnyArm", "type": "Blunt", "amount": 0.08 }
+ ]
+}

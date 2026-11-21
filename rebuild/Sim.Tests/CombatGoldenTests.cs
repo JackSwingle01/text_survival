@@ -218,7 +218,9 @@ public class CombatGoldenTests
             Combat.Apply(w, e, e.Units[0], CombatAction.Intimidate, []);
             drop += before - e.Units[1].BoldnessModifier;
         }
-        Assert.Equal(0.2251, drop / 20000, 2);
+        // Within 0.003 (about 3.5 standard errors), not rounded to two places: the mean is 0.225, on
+        // the rounding boundary, so a two-place check passed or failed on which way the stream fell.
+        Assert.Equal(0.2251, drop / 20000, 0.003);
     }
 
     [Fact]

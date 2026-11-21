@@ -1,0 +1,31 @@
+// What burns and what it burns in. Temperatures in °F, as tuned in the old game (old FuelType).
+// Loaded once by Content; ContentTests checks every name in here resolves.
+//
+// fuels: the resources that burn; a resource with no row here does not. peakTempF is how hot it can
+//   make a fire; minFireTempF is how hot the fire must already be before it catches; ignitionBonusPct
+//   is what it adds to the odds of starting a fire as tinder.
+// pits: every PitType. maxFuelKg is what it holds; windProtectionLevel how much wind it keeps off the
+//   flames; fuelEfficiencyFactor how much longer fuel lasts in it.
+{
+ "fuels": {
+  "Tinder": { "peakTempF": 450, "burnRateKgPerHour": 3.0, "minFireTempF": 0, "ignitionBonusPct": 0.15 },
+  "BirchBark": { "peakTempF": 500, "burnRateKgPerHour": 2.5, "minFireTempF": 0, "ignitionBonusPct": 0.25 },
+  "Amadou": { "peakTempF": 490, "burnRateKgPerHour": 2.6, "minFireTempF": 0, "ignitionBonusPct": 0.20 },
+  "Usnea": { "peakTempF": 480, "burnRateKgPerHour": 2.8, "minFireTempF": 0, "ignitionBonusPct": 0.18 },
+  "Chaga": { "peakTempF": 470, "burnRateKgPerHour": 2.2, "minFireTempF": 0, "ignitionBonusPct": 0.15 },
+  "Kindling": { "peakTempF": 600, "burnRateKgPerHour": 1.5, "minFireTempF": 0, "ignitionBonusPct": 0 },
+  "Pine": { "peakTempF": 800, "burnRateKgPerHour": 1.2, "minFireTempF": 150, "ignitionBonusPct": 0.05 },
+  "Birch": { "peakTempF": 850, "burnRateKgPerHour": 0.9, "minFireTempF": 250, "ignitionBonusPct": 0 },
+  "Oak": { "peakTempF": 950, "burnRateKgPerHour": 0.6, "minFireTempF": 500, "ignitionBonusPct": 0 },
+  "Bone": { "peakTempF": 650, "burnRateKgPerHour": 0.5, "minFireTempF": 600, "ignitionBonusPct": 0 },
+  "Peat": { "peakTempF": 700, "burnRateKgPerHour": 0.8, "minFireTempF": 400, "ignitionBonusPct": 0 },
+  // Old FireHandler fed charcoal to the fire as kindling.
+  "Charcoal": { "peakTempF": 600, "burnRateKgPerHour": 1.5, "minFireTempF": 0, "ignitionBonusPct": 0 }
+ },
+
+ "pits": {
+  "Open": { "maxFuelKg": 12, "windProtectionLevel": 0, "fuelEfficiencyFactor": 1.0 },
+  "Mound": { "maxFuelKg": 15, "windProtectionLevel": 0.4, "fuelEfficiencyFactor": 1.0 },
+  "Stone": { "maxFuelKg": 18, "windProtectionLevel": 0.7, "fuelEfficiencyFactor": 1.15 }
+ }
+}

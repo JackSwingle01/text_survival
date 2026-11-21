@@ -135,7 +135,7 @@ public class GoldenTests
         for (int i = 1; i <= 30; i++) Fire.Tick(f, new FireId(0), i, events);
         world.Fires[new FireId(world.NextFireId++)] = f;
         world.Minute = f.LastUpdatedMinute;
-        var ctx = Sim.Surroundings(world, world.Agent(AgentId.Player), new Wait(AgentId.Player));
+        var ctx = Sim.Surroundings(world, world.Agent(AgentId.Player), new Wait(AgentId.Player), []);
         Assert.Equal(OldCampWarmedAirF, ctx.AirTempF, Digits);
         Assert.Equal(OldCampEffectiveF, ctx.AirTempF + ctx.FireBonusF, Digits);
     }

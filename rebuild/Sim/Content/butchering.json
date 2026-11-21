@@ -1,0 +1,18 @@
+// How a carcass is cut (old ButcheringModeConfig). What a body yields is arithmetic on the body
+// (Carcasses.Create); this says how each way of cutting it differs. Loaded once by Content.
+//
+// Every ButcherMode has one row. timeFactor scales the cutting time; scentIncrease and bloodySeverity
+// are what it leaves on the butcher. yieldFactors are the old factors relative to a careful butcher's
+// yield, per resource; anything not named takes 1.
+//
+// The old game gave full processing its factors on top of a carcass that held a careful yield, so a
+// full cut took off more than was there (bug, fixed): a carcass's ledger now holds what full
+// processing recovers, and each mode recovers its old yield as a share of that (its factor over full
+// processing's), never more than was cut.
+{
+ "QuickStrip": { "timeFactor": 0.5, "scentIncrease": 0.2, "bloodySeverity": 0.3,
+  "yieldFactors": { "RawMeat": 0.8, "Hide": 0, "Bone": 0.5, "Sinew": 0, "RawFat": 0.5, "Feather": 0 } },
+ "Careful": { "timeFactor": 1.0, "scentIncrease": 0.1, "bloodySeverity": 0.15, "yieldFactors": {} },
+ "FullProcessing": { "timeFactor": 1.5, "scentIncrease": 0.05, "bloodySeverity": 0.1,
+  "yieldFactors": { "RawMeat": 1.1, "Sinew": 1.2, "RawFat": 1.1, "Feather": 1.2 } }
+}

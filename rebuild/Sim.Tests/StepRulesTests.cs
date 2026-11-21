@@ -45,10 +45,12 @@ public class StepRulesTests
     [Fact]
     public void FailedIgnition_CostsItsMinute_AndTheBodyLivesIt()
     {
-        var world = World.New(3);
-        Items.Add(Items.Pack(world, P), Resource.Tinder, 5);
         for (int i = 0; i < 50; i++)
         {
+            // A fresh world each try: a fire that catches ends the tries in that world.
+            var world = World.New(3);
+            Items.Add(Items.Pack(world, P), Resource.Tinder, 5);
+            world.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(i, "ignition trial");
             double kcal = world.Agent(P).Body.CaloriesKcal;
             long minute = world.Minute;
             var r = Sim.Step(world, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0), 1);

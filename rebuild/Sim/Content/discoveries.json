@@ -1,0 +1,267 @@
+// What is hidden on a tile until someone searches for it (old DiscoveryGenerator, DiscoveryFeatureFactory,
+// FeatureFactory harvestables, salvage and EnvironmentalDetailFactory). Generated per tile from the
+// seed, never saved. Loaded once by Content; ContentTests checks every name in here resolves.
+//
+// finds: what a discovery makes, by id. Either a stock (work Harvest or Salvage, minutes per cycle,
+//   items) or a natural shelter (shelter: its kind; a level with a spread is level + up to spread;
+//   a cap left out is the kind's, and a find's caps are at least its own levels).
+// details: quick finds (work Detail), by the old detail ids.
+// An item, rolled in order: chance (default 1), then units [units, unitsMax], then each unit's kg in
+//   [kgPerUnit, kgPerUnitMax] when that is given. A harvest gives units of kgPerUnit, one a cycle,
+//   regrowing one per respawnHoursPerUnit (stated on every harvest item; 0 never). Salvage and details give everything at once, all
+//   the units' kilos together. anyOf: one of these, drawn after every item's counts. gear: a gear kind
+//   (items.json), whole. shuffle: these items shuffled, then take [take, takeMax] of them, each rolled.
+//
+// terrains, cave: the draws, in order. Each entry is there on its spawnChance and found after about
+//   expectedHours of searching. An entry that waitsFor a system not built yet (small game, events)
+//   still takes its turn, so the draw is the old one, and leaves nothing.
+// detailDraws: the details each terrain can have (a name twice is twice as likely); examineOnly are
+//   the ones with nothing to take, which only ever told a story and leave nothing.
+{
+ "finds": {
+  "BerryBush": { "name": "Wild Berry Bush", "work": "Harvest", "minutes": 5, "items": [
+   { "resource": "Berries", "units": 5, "kgPerUnit": 0.4, "respawnHoursPerUnit": 168 } ] },
+  "Cattails": { "name": "Cattail Stand", "work": "Harvest", "minutes": 10, "items": [
+   { "resource": "PlantFiber", "units": 10, "kgPerUnit": 0.1, "respawnHoursPerUnit": 168 },
+   { "resource": "Tinder", "units": 6, "kgPerUnit": 0.03, "respawnHoursPerUnit": 168 } ] },
+  "MixedDeadfall": { "name": "Fallen Tree", "work": "Harvest", "minutes": 10, "items": [
+   { "resource": "Pine", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 720 },
+   { "resource": "Kindling", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 168 },
+   { "resource": "Tinder", "units": 3, "kgPerUnit": 0.05, "respawnHoursPerUnit": 168 } ] },
+  "MassiveDeadfall": { "name": "Massive Fallen Pine", "work": "Harvest", "minutes": 20, "items": [
+   { "resource": "Pine", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
+   { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+   { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 } ] },
+  "MeltwaterPool": { "name": "Glacial Pool", "work": "Harvest", "minutes": 3, "items": [
+   { "resource": "Water", "units": 20, "kgPerUnit": 1.0, "respawnHoursPerUnit": 24 } ] },
+  "MarshWater": { "name": "Open Water", "work": "Harvest", "minutes": 3, "items": [
+   { "resource": "Water", "units": 30, "kgPerUnit": 1.0, "respawnHoursPerUnit": 6 } ] },
+  "IceSource": { "name": "Creek Ice", "work": "Harvest", "minutes": 5, "items": [
+   { "resource": "Water", "units": 20, "kgPerUnit": 1.0, "respawnHoursPerUnit": 48 } ] },
+  // Old WaterFeature.AsOpenWater: water that never freezes. A source as generous as a river.
+  "HiddenSpring": { "name": "Hidden Spring", "work": "Harvest", "minutes": 1, "items": [
+   { "resource": "Water", "units": 100, "kgPerUnit": 1.0, "respawnHoursPerUnit": 0.1 } ] },
+  // Old CaveLocationFactory.CreateSeep: open water, fishless, from deep in the rock.
+  "CaveSeep": { "name": "Cave Seep", "work": "Harvest", "minutes": 1, "items": [
+   { "resource": "Water", "units": 100, "kgPerUnit": 1.0, "respawnHoursPerUnit": 0.1 } ] },
+  "LooseShale": { "name": "Loose Shale", "work": "Harvest", "minutes": 5, "items": [
+   { "resource": "Shale", "units": 4, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 } ] },
+  "FlintOutcrop": { "name": "Flint Outcrop", "work": "Harvest", "minutes": 5, "items": [
+   { "resource": "Flint", "units": 3, "unitsMax": 7, "kgPerUnit": 0.15, "respawnHoursPerUnit": 0 } ] },
+  "PyriteSeam": { "name": "Iron Pyrite Seam", "work": "Harvest", "minutes": 8, "items": [
+   { "resource": "Pyrite", "units": 2, "unitsMax": 5, "kgPerUnit": 0.08, "respawnHoursPerUnit": 0 } ] },
+  "BonePile": { "name": "Old Bones", "work": "Harvest", "minutes": 3, "items": [
+   { "resource": "Bone", "units": 2, "unitsMax": 5, "kgPerUnit": 0.2, "respawnHoursPerUnit": 0 } ] },
+  "ResinPocket": { "name": "Resin-Weeping Pine", "work": "Harvest", "minutes": 5, "items": [
+   { "resource": "PineResin", "units": 2, "unitsMax": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 168 } ] },
+  "CharDeposit": { "name": "Old Fire Scar", "work": "Harvest", "minutes": 5, "items": [
+   { "resource": "Charcoal", "units": 3, "unitsMax": 7, "kgPerUnit": 0.08, "respawnHoursPerUnit": 0 } ] },
+  "AntlerShed": { "name": "Shed Antlers", "work": "Harvest", "minutes": 5, "items": [
+   { "resource": "Bone", "units": 2, "unitsMax": 4, "kgPerUnit": 0.4, "respawnHoursPerUnit": 0 } ] },
+  "MedicinePatch": { "name": "Herb Patch", "work": "Harvest", "minutes": 8, "items": [
+   { "resource": "BirchPolypore", "units": 3, "unitsMax": 5, "kgPerUnit": 0.1, "respawnHoursPerUnit": 336 },
+   { "chance": 0.5, "resource": "WillowBark", "units": 2, "unitsMax": 3, "kgPerUnit": 0.08, "respawnHoursPerUnit": 336 },
+   { "chance": 0.4, "resource": "Usnea", "units": 2, "unitsMax": 3, "kgPerUnit": 0.05, "respawnHoursPerUnit": 336 } ] },
+  "AbandonedDen": { "name": "Old Den", "work": "Harvest", "minutes": 10, "items": [
+   { "resource": "Bone", "units": 2, "unitsMax": 4, "kgPerUnit": 0.2, "respawnHoursPerUnit": 0 },
+   { "chance": 0.4, "resource": "Hide", "units": 1, "kgPerUnit": 0.15, "respawnHoursPerUnit": 0 } ] },
+  "OldButcheringSite": { "name": "Old Kill Site", "work": "Harvest", "minutes": 8, "items": [
+   { "resource": "Bone", "units": 2, "unitsMax": 3, "kgPerUnit": 0.15, "respawnHoursPerUnit": 0 },
+   { "chance": 0.7, "resource": "Sinew", "units": 1, "unitsMax": 2, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 },
+   { "chance": 0.4, "resource": "Hide", "units": 1, "kgPerUnit": 0.2, "respawnHoursPerUnit": 0 } ] },
+  "KnappingScatter": { "name": "Knapping Scatter", "work": "Harvest", "minutes": 4, "items": [
+   { "resource": "Flint", "units": 2, "unitsMax": 5, "kgPerUnit": 0.12, "respawnHoursPerUnit": 0 },
+   { "chance": 0.3, "resource": "Shale", "units": 1, "kgPerUnit": 0.2, "respawnHoursPerUnit": 0 } ] },
+  "DryWoodStack": { "name": "Dry Wood Stack", "work": "Harvest", "minutes": 4, "items": [
+   { "anyOf": ["Pine", "Birch", "Oak"], "units": 3, "unitsMax": 6, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 },
+   { "resource": "Kindling", "units": 4, "unitsMax": 8, "kgPerUnit": 0.15, "respawnHoursPerUnit": 0 } ] },
+
+  "TallowPot": { "name": "Tallow Cache", "work": "Salvage", "minutes": 5, "items": [
+   { "resource": "Tallow", "units": 1, "unitsMax": 3, "kgPerUnit": 0.25 } ] },
+  "CordageBundle": { "name": "Cordage Bundle", "work": "Salvage", "minutes": 5, "items": [
+   { "resource": "PlantFiber", "units": 3, "unitsMax": 5, "kgPerUnit": 0.08 },
+   { "chance": 0.7, "resource": "Rope", "units": 1, "unitsMax": 2, "kgPerUnit": 0.15 } ] },
+  "TinderCache": { "name": "Tinder Cache", "work": "Salvage", "minutes": 5, "items": [
+   { "resource": "BirchBark", "units": 3, "unitsMax": 5, "kgPerUnit": 0.03 },
+   { "resource": "PineResin", "units": 2, "unitsMax": 3, "kgPerUnit": 0.05 },
+   { "chance": 0.3, "resource": "Amadou", "units": 1, "unitsMax": 2, "kgPerUnit": 0.02 } ] },
+  "MedicineStash": { "name": "Medicine Stash", "work": "Salvage", "minutes": 10, "items": [
+   { "resource": "BirchPolypore", "units": 2, "unitsMax": 3, "kgPerUnit": 0.08 },
+   { "take": 2, "takeMax": 3, "shuffle": [
+    { "resource": "WillowBark", "units": 2, "unitsMax": 3, "kgPerUnit": 0.06 },
+    { "resource": "Chaga", "units": 2, "unitsMax": 3, "kgPerUnit": 0.1 },
+    { "resource": "Usnea", "units": 2, "unitsMax": 3, "kgPerUnit": 0.04 },
+    { "resource": "SphagnumMoss", "units": 2, "unitsMax": 3, "kgPerUnit": 0.05 },
+    { "resource": "RoseHip", "units": 2, "unitsMax": 3, "kgPerUnit": 0.03 },
+    { "resource": "JuniperBerry", "units": 2, "unitsMax": 3, "kgPerUnit": 0.03 } ] } ] },
+  "AbandonedCamp": { "name": "Abandoned Camp", "work": "Salvage", "minutes": 45, "items": [
+   { "resource": "Kindling", "kgPerUnit": 0.6 },
+   { "resource": "Tinder", "kgPerUnit": 0.05 },
+   { "resource": "PlantFiber", "kgPerUnit": 0.1 },
+   { "chance": 0.5, "gear": "worn_knife" } ] },
+  "TrapperStash": { "name": "Trapper's Stash", "work": "Salvage", "minutes": 25, "items": [
+   { "resource": "PlantFiber", "kgPerUnit": 0.15, "kgPerUnitMax": 0.3 },
+   { "resource": "Sinew", "kgPerUnit": 0.12, "kgPerUnitMax": 0.25 },
+   { "resource": "Kindling", "kgPerUnit": 0.5, "kgPerUnitMax": 0.8 },
+   { "chance": 0.5, "resource": "Hide", "kgPerUnit": 0.3, "kgPerUnitMax": 0.5 },
+   { "chance": 0.3, "resource": "Rope", "kgPerUnit": 0.1, "kgPerUnitMax": 0.2 } ] },
+  // Old game: the abandoned spear rolled its durability as 30-70% of an unlimited maximum (-1),
+  // which always came out 0, so every one was found broken (bug, fixed: found whole).
+  "HuntersBlind": { "name": "Hunter's Blind", "work": "Salvage", "minutes": 20, "items": [
+   { "resource": "Kindling", "kgPerUnit": 0.6, "kgPerUnitMax": 1.0 },
+   { "chance": 0.5, "gear": "wooden_spear" },
+   { "chance": 0.5, "resource": "Bone", "kgPerUnit": 0.3, "kgPerUnitMax": 0.5 },
+   { "chance": 0.4, "resource": "Tinder", "kgPerUnit": 0.15, "kgPerUnitMax": 0.3 } ] },
+
+  // Old DiscoveryFeatureFactory natural shelters and CaveLocationFactory.CreateSleepingRecess. The old
+  // game drew their levels from the process-wide RNG; here they come from the tile's stream. The old
+  // overhang rolls run past the RockOverhang kind's caps (0.40).
+  "RockOverhang": { "name": "Rock Overhang", "shelter": "RockOverhang",
+   "insulation": 0.3, "insulationSpread": 0.3, "overhead": 0.8, "wind": 0.4, "windSpread": 0.3 },
+  "IceCave": { "name": "Ice Cave", "shelter": "Cave",
+   "insulation": 0.25, "insulationSpread": 0.15, "overhead": 0.95, "wind": 0.7, "windSpread": 0.2,
+   "insulationCap": 0.45, "overheadCap": 0.98, "windCap": 0.95 },
+  "SleepingRecess": { "name": "Dry Sleeping Recess", "shelter": "Cave" }
+ },
+
+ "details": {
+  "fallen_log": { "name": "Fallen Log", "work": "Detail", "minutes": 3, "items": [
+   { "resource": "Kindling", "units": 2, "unitsMax": 4, "kgPerUnit": 0.2, "kgPerUnitMax": 0.4 } ] },
+  "hollow_tree": { "name": "Hollow Tree", "work": "Detail", "minutes": 4, "items": [
+   { "resource": "Tinder", "units": 1, "unitsMax": 2, "kgPerUnit": 0.02, "kgPerUnitMax": 0.05 } ] },
+  "stone_pile": { "name": "Stone Pile", "work": "Detail", "minutes": 5, "items": [
+   { "resource": "Stone", "units": 1, "unitsMax": 3, "kgPerUnit": 0.3, "kgPerUnitMax": 0.6 } ] },
+  "scattered_bones": { "name": "Scattered Bones", "work": "Detail", "minutes": 3, "items": [
+   { "resource": "Bone", "units": 1, "unitsMax": 2, "kgPerUnit": 0.1, "kgPerUnitMax": 0.3 } ] },
+  "dry_grass": { "name": "Dry Grass Tussock", "work": "Detail", "minutes": 2, "items": [
+   { "resource": "PlantFiber", "units": 1, "unitsMax": 2, "kgPerUnit": 0.03, "kgPerUnitMax": 0.07 } ] },
+  "dead_reeds": { "name": "Dead Reeds", "work": "Detail", "minutes": 3, "items": [
+   { "resource": "PlantFiber", "units": 2, "unitsMax": 3, "kgPerUnit": 0.02, "kgPerUnitMax": 0.05 } ] },
+  "frozen_puddle": { "name": "Frozen Puddle", "work": "Detail", "minutes": 5, "items": [
+   { "resource": "Water", "kgPerUnit": 0.2, "kgPerUnitMax": 0.5 } ] },
+  "forest_puddle": { "name": "Forest Puddle", "work": "Detail", "minutes": 3, "items": [
+   { "resource": "Water", "kgPerUnit": 0.3, "kgPerUnitMax": 0.7 } ] },
+  "old_nest": { "name": "Old Nest", "work": "Detail", "minutes": 2, "items": [
+   { "chance": 0.6, "resource": "Tinder", "kgPerUnit": 0.01, "kgPerUnitMax": 0.03 },
+   { "resource": "PlantFiber", "kgPerUnit": 0.02, "kgPerUnitMax": 0.05 } ] }
+ },
+
+ "terrains": {
+  "Forest": [
+   { "find": "BerryBush", "spawnChance": 0.08, "expectedHours": 1.0 },
+   { "find": "MixedDeadfall", "spawnChance": 0.06, "expectedHours": 1.5 },
+   { "find": "Cattails", "spawnChance": 0.04, "expectedHours": 2.0 },
+   { "waitsFor": "small game: forest game trail", "spawnChance": 0.06, "expectedHours": 1.5 },
+   { "find": "MedicinePatch", "spawnChance": 0.03, "expectedHours": 2.5 },
+   { "find": "ResinPocket", "spawnChance": 0.04, "expectedHours": 1.5 },
+   { "find": "AbandonedDen", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "find": "CharDeposit", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "find": "AntlerShed", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "find": "OldButcheringSite", "spawnChance": 0.02, "expectedHours": 2.5 },
+   { "find": "TallowPot", "spawnChance": 0.01, "expectedHours": 3.0 },
+   { "find": "DryWoodStack", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "find": "CordageBundle", "spawnChance": 0.02, "expectedHours": 2.5 },
+   { "find": "TinderCache", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "find": "MedicineStash", "spawnChance": 0.01, "expectedHours": 3.5 },
+   { "find": "MassiveDeadfall", "spawnChance": 0.02, "expectedHours": 3.0 },
+   { "find": "RockOverhang", "spawnChance": 0.01, "expectedHours": 4.0 },
+   { "find": "AbandonedCamp", "spawnChance": 0.02, "expectedHours": 3.5 },
+   { "find": "TrapperStash", "spawnChance": 0.02, "expectedHours": 4.0 },
+   { "find": "HuntersBlind", "spawnChance": 0.02, "expectedHours": 3.0 },
+   { "waitsFor": "event: old_campsite", "spawnChance": 0.01, "expectedHours": 4.0 },
+   { "waitsFor": "event: old_kill_site", "spawnChance": 0.02, "expectedHours": 3.0 },
+   { "waitsFor": "event: beehive", "spawnChance": 0.02, "expectedHours": 3.0 },
+   { "waitsFor": "event: squirrel_cache", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "waitsFor": "event: mushroom_patch", "spawnChance": 0.03, "expectedHours": 2.0 }
+  ],
+  "Clearing": [
+   { "find": "BerryBush", "spawnChance": 0.09, "expectedHours": 0.8 },
+   { "find": "MixedDeadfall", "spawnChance": 0.05, "expectedHours": 1.2 },
+   { "waitsFor": "small game: clearing game trail", "spawnChance": 0.05, "expectedHours": 1.2 },
+   { "find": "MedicinePatch", "spawnChance": 0.03, "expectedHours": 2.5 },
+   { "find": "CharDeposit", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "find": "OldButcheringSite", "spawnChance": 0.01, "expectedHours": 2.5 },
+   { "find": "DryWoodStack", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "find": "AbandonedCamp", "spawnChance": 0.02, "expectedHours": 3.5 },
+   { "find": "HuntersBlind", "spawnChance": 0.02, "expectedHours": 3.0 }
+  ],
+  "Plain": [
+   { "find": "BonePile", "spawnChance": 0.04, "expectedHours": 2.0 },
+   { "find": "MeltwaterPool", "spawnChance": 0.03, "expectedHours": 2.5 },
+   { "waitsFor": "small game: plain", "spawnChance": 0.05, "expectedHours": 1.5 },
+   { "find": "CharDeposit", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "waitsFor": "small game: frozen", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "find": "OldButcheringSite", "spawnChance": 0.02, "expectedHours": 2.5 },
+   { "find": "HuntersBlind", "spawnChance": 0.02, "expectedHours": 3.0 },
+   { "waitsFor": "event: frozen_traveler", "spawnChance": 0.02, "expectedHours": 5.0 },
+   { "waitsFor": "event: bone_scatter", "spawnChance": 0.02, "expectedHours": 3.0 }
+  ],
+  "Hills": [
+   { "find": "FlintOutcrop", "spawnChance": 0.05, "expectedHours": 2.5 },
+   { "waitsFor": "small game: hills", "spawnChance": 0.04, "expectedHours": 2.0 },
+   { "find": "AbandonedDen", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "waitsFor": "small game: frozen", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "find": "AntlerShed", "spawnChance": 0.03, "expectedHours": 1.5 },
+   { "find": "KnappingScatter", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "find": "MedicineStash", "spawnChance": 0.01, "expectedHours": 3.5 },
+   { "find": "RockOverhang", "spawnChance": 0.03, "expectedHours": 3.0 },
+   { "find": "IceCave", "spawnChance": 0.02, "expectedHours": 3.5 },
+   { "find": "PyriteSeam", "spawnChance": 0.02, "expectedHours": 4.0 },
+   { "find": "HiddenSpring", "spawnChance": 0.02, "expectedHours": 3.5 },
+   { "waitsFor": "event: hidden_cache", "spawnChance": 0.03, "expectedHours": 4.0 },
+   { "waitsFor": "event: frozen_traveler", "spawnChance": 0.02, "expectedHours": 5.0 },
+   { "waitsFor": "event: water_source", "spawnChance": 0.02, "expectedHours": 3.5 }
+  ],
+  "Rock": [
+   { "find": "FlintOutcrop", "spawnChance": 0.06, "expectedHours": 2.0 },
+   { "find": "BonePile", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "waitsFor": "small game: rocky", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "find": "AbandonedDen", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "find": "KnappingScatter", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "find": "TallowPot", "spawnChance": 0.02, "expectedHours": 2.5 },
+   { "find": "TinderCache", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "find": "RockOverhang", "spawnChance": 0.03, "expectedHours": 2.5 },
+   { "find": "IceCave", "spawnChance": 0.02, "expectedHours": 3.5 },
+   { "find": "HiddenSpring", "spawnChance": 0.02, "expectedHours": 3.5 }
+  ],
+  "Marsh": [
+   { "find": "Cattails", "spawnChance": 0.08, "expectedHours": 1.0 },
+   { "find": "MarshWater", "spawnChance": 0.06, "expectedHours": 1.5 },
+   { "waitsFor": "small game: marsh waterfowl", "spawnChance": 0.06, "expectedHours": 1.0 },
+   { "find": "MedicinePatch", "spawnChance": 0.03, "expectedHours": 2.5 },
+   { "find": "CordageBundle", "spawnChance": 0.02, "expectedHours": 2.0 },
+   { "find": "MedicineStash", "spawnChance": 0.01, "expectedHours": 3.5 },
+   { "find": "TrapperStash", "spawnChance": 0.02, "expectedHours": 4.0 },
+   { "waitsFor": "event: mushroom_patch", "spawnChance": 0.02, "expectedHours": 2.5 }
+  ],
+  "Water": [
+   { "find": "IceSource", "spawnChance": 0.08, "expectedHours": 1.0 },
+   { "waitsFor": "event: deep_hole", "spawnChance": 0.04, "expectedHours": 2.0 },
+   { "find": "HiddenSpring", "spawnChance": 0.02, "expectedHours": 4.0 },
+   { "waitsFor": "event: fish_run", "spawnChance": 0.02, "expectedHours": 3.0 }
+  ]
+ },
+
+ // Old DiscoveryGenerator.CavePool.
+ "cave": [
+  { "find": "FlintOutcrop", "spawnChance": 0.12, "expectedHours": 0.8 },
+  { "find": "PyriteSeam", "spawnChance": 0.06, "expectedHours": 1.2 },
+  { "find": "BonePile", "spawnChance": 0.16, "expectedHours": 0.5 },
+  { "find": "CharDeposit", "spawnChance": 0.06, "expectedHours": 0.6 },
+  { "find": "KnappingScatter", "spawnChance": 0.05, "expectedHours": 0.8 },
+  { "find": "CaveSeep", "spawnChance": 0.06, "expectedHours": 0.7 },
+  { "find": "SleepingRecess", "spawnChance": 0.05, "expectedHours": 1.0 },
+  { "find": "LooseShale", "spawnChance": 0.12, "expectedHours": 0.4 }
+ ],
+
+ "detailDraws": {
+  "Forest": [ "fallen_log", "hollow_tree", "bent_branches", "old_nest", "scattered_bones", "forest_puddle" ],
+  "Clearing": [ "fallen_log", "old_nest", "dry_grass", "bent_branches", "forest_puddle" ],
+  "Plain": [ "frozen_puddle", "dry_grass", "windswept_snow", "animal_burrow" ],
+  "Hills": [ "stone_pile", "bent_branches", "lichen_rocks", "animal_burrow" ],
+  "Rock": [ "stone_pile", "stone_pile", "lichen_rocks" ],
+  "Marsh": [ "frozen_puddle", "dead_reeds", "bent_branches" ],
+  "Water": [ "frozen_puddle", "dead_reeds", "ice_formation" ]
+ },
+ "examineOnly": [ "bent_branches", "windswept_snow", "animal_burrow", "lichen_rocks", "ice_formation" ]
+}

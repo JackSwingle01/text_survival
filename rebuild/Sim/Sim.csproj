@@ -5,6 +5,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Survival</RootNamespace>
+    <!-- A switch expression that misses a case does not build, whatever the solution's warning policy:
+         a new ThingKind fails everywhere it is not handled (emergent-world-design §3.1). CS8524, the
+         same warning for values outside the enum's names, stays quiet: those switches cover every
+         named kind and have no default arm on purpose. -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS8509</WarningsAsErrors>
+    <NoWarn>$(NoWarn);CS8524</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

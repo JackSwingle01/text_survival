@@ -56,7 +56,7 @@ public class NpcTests(ITestOutputHelper output)
         output.WriteLine($"seed {seed}: alive {Body.IsAlive(b)} at minute {w.Minute}; vitality {Body.Vitality(b):0.00}, fat {b.FatKg:0.0} kg " +
                          $"(from {Body.BaselineWeightKg * Body.BaselineFatPct:0.0}), calories {b.CaloriesKcal:0}, hydration {b.HydrationPct:0.00}, " +
                          $"energy {b.EnergyPct:0.00}, core {b.CoreTempF:0.0}F; ate {ate:0} kcal, fires lit {log.OfType<FireLit>().Count(f => f.By == npc)}, " +
-                         $"trees felled {log.OfType<TreeFelled>().Count()}, places known {((NpcMind)w.Agent(npc).Mind).Places.Count}, camp wood {CampWoodKg(w, npc):0} kg");
+                         $"trees felled {log.OfType<TreeFelled>().Count()}, places known {((NpcMind)w.Agent(npc).Mind).Knows.Places.Count}, camp wood {CampWoodKg(w, npc):0} kg");
         Assert.True(Body.IsAlive(b), $"seed {seed}: the NPC died at minute {w.Minute}");
         Assert.True(w.Minute >= 14 * 1440L);
         Assert.True(ate > 0, "two weeks and it never ate");
@@ -75,6 +75,121 @@ public class NpcTests(ITestOutputHelper output)
         Assert.True(Body.IsAlive(b), $"died at minute {w.Minute}");
         // A refused choice costs a minute; it is a stale read now and then, never a habit.
         Assert.True(log.OfType<PlanRefused>().Count(r => r.Who == npc) < 20);
+    }
+
+    /// What an NPC does, minute by minute: its activity, its need, its camp and its moves. With look,
+    /// every fire in the world is caught up after each minute: a pure observation.
+    static List<string> Lived(World w, AgentId npc, long untilMinute, bool look)
+    {
+        var did = new List<string>();
+        while (w.Minute < untilMinute && Body.IsAlive(w.Agent(npc).Body))
+        {
+            foreach (var e in Sim.Advance(w, 1))
+                if (e is Moved { } m && m.Who == npc) did.Add($"{m.Minute} moved {m.To}");
+            var mind = (NpcMind)w.Agent(npc).Mind;
+            did.Add($"{w.Minute} {w.Agent(npc).Doing?.Activity} {mind.Need} camp {mind.Camp}");
+            if (look) foreach (var id in w.Fires.Keys.ToList()) if (w.Fires.ContainsKey(id)) Fire.CatchUp(w, id, []);
+        }
+        return did;
+    }
+
+    static void AssertSameLives(List<string> unseen, List<string> seen)
+    {
+        int first = Enumerable.Range(0, Math.Min(unseen.Count, seen.Count)).FirstOrDefault(i => unseen[i] != seen[i], -1);
+        Assert.True(first < 0 && unseen.Count == seen.Count, first < 0 ? "one run lived longer" : $"first difference: {unseen[first]} | {seen[first]}");
+    }
+
+    /// Eager and lazy fire catch-up agree: catching up every fire in the world after each minute, rather
+    /// than when someone looks, changes nothing the NPC does. The seed-17 NPC never goes out of sight of
+    /// camp in these ten days, so this does not reach a read of a fire out of sight; that guard is
+    /// LookingAtAnAbandonedCampFire_ChangesNothingAnNpcDoes.
+    [Fact]
+    public void EagerAndLazyFireCatchUp_Agree()
+    {
+        List<string> Run(bool look) { var (w, npc) = AtCamp(17); return Lived(w, npc, 10 * 1440L, look); }
+        AssertSameLives(Run(false), Run(true));
+    }
+
+    /// The same, where it used to matter (review: the camp's fuel and the fled-camp check read the camp
+    /// pit from any distance, as whoever last looked left it). It fled a bear that settled beside camp,
+    /// leaving the fire burning; out of sight, the fire died. Whether anyone looks at that fire must not
+    /// decide whether it gives up its camp: it goes by the fire it saw.
+    [Fact]
+    public void LookingAtAnAbandonedCampFire_ChangesNothingAnNpcDoes()
+    {
+        List<string> Run(bool look)
+        {
+            var w = World.New(17);
+            w.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, -5, 0.1, 0, 0.8, WindDirection.North);
+            w.Agents.Remove(AgentId.Player); // nobody at camp to keep its fire caught up
+            var camp = Map.Of(w).Camp;
+            var pit = new FireId(w.NextFireId++);
+            w.Fires[pit] = new FireState { Tile = camp, LastUpdatedMinute = 0, BurningKg = { [Resource.Birch] = 1 } };
+            var phase = Fire.Phase(w.Fires[pit]);
+            Sim.Advance(w, 5 * 60); // the fire burns out with nobody to see it
+            var far = Enumerable.Range(Sight.RadiusTiles + 2, 10).Select(d => new TileId(camp.X + d, camp.Y))
+                .First(t => Map.Of(w).TerrainAt(t).IsPassable());
+            var npc = Npc.Spawn(w, far, camp);
+            var mind = (NpcMind)w.Agent(npc).Mind;
+            // It stood in camp at minute 0 with the fire burning, and fled the bear beside it a few minutes ago.
+            mind.Knows.Places[camp] = new TileMemory { SeenMinute = 0, VisitedMinute = 0, Fire = phase, FireHours = 1.0 };
+            (mind.ThreatTile, mind.ThreatMinute) = (new TileId(camp.X - 1, camp.Y), w.Minute - 5);
+            return Lived(w, npc, w.Minute + 3 * 60, look);
+        }
+        AssertSameLives(Run(false), Run(true));
+    }
+
+    /// Review: on seed 17 (dying on day 14.8), 832 of 1,182 moves were there-and-back within ten minutes,
+    /// the starving NPC walking between camp and the next tile because from each, the walk toward some far
+    /// ground looked better than the step it had just taken. Walking out for food and straight back again,
+    /// having done nothing there, never happens now. (Out for food and home because the walk tired or
+    /// chilled it is another need doing its job, and still can: so is the trip budget, when the walk out
+    /// proved colder than reckoned and the ground no longer fits it - Npc.ForageTripFits.)
+    [Fact]
+    public void LookingForFood_ItNeverTurnsStraightBack()
+    {
+        var (w, npc) = AtCamp(17);
+        var back = new List<string>();
+        (long Minute, TileId From, Need? Need, bool Unaffordable)? last = null;
+        bool did = false;
+        int budgeted = 0;
+        while (w.Minute < 16 * 1440L && Body.IsAlive(w.Agent(npc).Body))
+        {
+            var need = ((NpcMind)w.Agent(npc).Mind).Need;
+            var goal = ((NpcMind)w.Agent(npc).Mind).ForageGoal;
+            foreach (var e in Sim.Advance(w, 1))
+            {
+                if (e is Moved m && m.Who == npc)
+                {
+                    if (last is { } l && m.To == l.From && m.Minute - l.Minute <= 60 && !did && l.Need == Need.Food && need == Need.Food)
+                    {
+                        if (l.Unaffordable) budgeted++;
+                        else back.Add($"{l.From}->{m.From}->{m.To} at {l.Minute}-{m.Minute}");
+                    }
+                    // Arrived with ground in mind: does the stint there still fit, from here?
+                    (last, did) = ((m.Minute, m.From, need, goal is TileId g && g != m.To && !Npc.ForageTripFits(w, w.Agent(npc), g)), false);
+                }
+                else if (e is Stashed or Unstashed or Gathered or Ate or Drank or FuelAdded or FireLit or FireStartFailed or Butchered or TreeFelled or Dropped
+                         && e.ToString()!.Contains(npc.ToString() + ",")) did = true;
+            }
+        }
+        output.WriteLine($"turned back by the trip budget: {budgeted}");
+        Assert.True(back.Count == 0, $"{back.Count} trips out for food and straight back: {string.Join("; ", back.Take(5))}");
+        Assert.True(budgeted <= 3, $"turned back by the trip budget {budgeted} times: its reckoning setting out is too far off");
+    }
+
+    /// Old behavior: banking the fire before going out took wood off the stash, and the next choice
+    /// put it back on the stash before it went on the fire, two minutes a round, for most of an hour
+    /// (seed 17: 236 rounds in a run).
+    [Fact]
+    public void BankingTheFire_PutsTheWoodOnIt_NotBackOnTheStash()
+    {
+        var (w, npc) = AtCamp(17);
+        var log = NpcDriver.Live(w, npc, 8 * 1440L);
+        var handled = log.Where(e => e is Stashed s && s.Who == npc || e is Unstashed u && u.Who == npc).ToList();
+        var backAgain = handled.Zip(handled.Skip(1)).Where(p => p.First is Unstashed u && p.Second is Stashed s
+                                                               && u.Resource == s.Resource && s.Minute - u.Minute <= 1).ToList();
+        Assert.True(backAgain.Count == 0, $"{backAgain.Count} times off the stash and straight back on, first {backAgain.FirstOrDefault().First}");
     }
 
     [Fact]
@@ -179,7 +294,8 @@ public class NpcTests(ITestOutputHelper output)
         Assert.Equal(camp, Map.Step(wood, home.Dir));
     }
 
-    /// Hungry, with wood enough at camp and a caribou on its tile in daylight: it goes after it.
+    /// Starving, with wood enough at camp and a caribou on its tile in daylight: it goes after it. (Which herds
+    /// it takes on, wanting food or starving: NpcWarmingWalkTests.WhichHerdsALoneNpcHunts.)
     [Fact]
     public void HungryWithPreyHere_Hunts()
     {
@@ -188,7 +304,7 @@ public class NpcTests(ITestOutputHelper output)
         var npc = Npc.Spawn(w, camp);
         Items.Add(Items.StashAt(w, camp), Resource.Birch, 40); // so firewood is not what it worries about
         w.Agent(npc).Body.CaloriesKcal = 100;
-        w.Agent(npc).Body.FatKg -= 0.6; // short of the fat it is used to: food is wanted (Npc.TargetFatKg)
+        w.Agent(npc).Body.FatKg -= 1.5; // well short of the fat it is used to: food is critical (Npc.TargetFatKg)
         var caribou = Agents.Spawn(w, Species.Caribou, camp, 1);
 
         var events = new List<WorldEvent>();
@@ -208,7 +324,7 @@ public class NpcTests(ITestOutputHelper output)
         var mind = (NpcMind)w.Agent(npc).Mind;
         var stoodOn = log.OfType<Moved>().Where(m => m.Who == npc).Select(m => m.To).Append(Map.Of(w).Camp).ToHashSet();
         Assert.True(log.OfType<Moved>().Count(m => m.Who == npc && m.To == Map.Of(w).Camp) > 1, "it should have come home more than once");
-        Assert.Equal(stoodOn.OrderBy(t => t), mind.Places.Where(p => p.Value.Visited).Select(p => p.Key));
+        Assert.Equal(stoodOn.OrderBy(t => t), mind.Knows.Places.Where(p => p.Value.Visited).Select(p => p.Key));
     }
 
     // ---- food by fat (Npc.TargetFatKg) ----
@@ -357,9 +473,15 @@ public class NpcTests(ITestOutputHelper output)
     }
 
     /// Old: cold by a fire with no wood left to feed it, it rested until the fire was nearly out, then
-    /// groped the bare camp ground for sticks (bug, fixed). By day it goes for wood while the fire lasts.
-    [Fact]
-    public void ColdByAFireWithNoWoodLeft_GoesForWoodWhileItLasts()
+    /// groped the bare camp ground for sticks (bug, fixed). By day it goes for wood while the fire lasts:
+    /// once warm enough to come home warm (the trip budget), not while it still wants warming, when a
+    /// walk out would bring it home colder than it wants to be (seed 7, day 22: out at 98.1, home at 93.4).
+    /// Then it warms at the fire, not groping the camp ground (old, this rebuild: the wood plan's fallback,
+    /// half an hour's fuel forage here, was taken for the walk it could not make).
+    [Theory]
+    [InlineData(97.6, true)]
+    [InlineData(96.5, false)]
+    public void ColdByAFireWithNoWoodLeft_GoesForWoodWhileItLasts(double coreF, bool goes)
     {
         var w = World.New(17);
         var camp = Map.Of(w).Camp;
@@ -369,10 +491,11 @@ public class NpcTests(ITestOutputHelper output)
         Fire.IgniteAll(pit);
         w.Fires[new FireId(w.NextFireId++)] = pit;
         ((NpcMind)w.Agent(npc).Mind).Pack.Kg[Resource.Kindling] = 0.6; // its reserve: nothing to feed the fire
-        w.Agent(npc).Body.CoreTempF = 96.5;
+        w.Agent(npc).Body.CoreTempF = coreF;
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a}");
-        Assert.True(a is Travel or Gather { Focus: not ForageFocus.Food } && a is not Gather { Pool: 0 }, $"chose {a}");
+        if (goes) Assert.True(a is Travel or Gather { Focus: not ForageFocus.Food } && a is not Gather { Pool: 0 }, $"chose {a}");
+        else Assert.True(a is Rest or MeltSnow or Cook, $"chose {a}, not warming at the fire");
     }
 
     /// Old: freezing and parched, it fussed with its fire and died of thirst carrying three litres
@@ -475,5 +598,308 @@ public class NpcTests(ITestOutputHelper output)
         output.WriteLine($"{a}, need {mind.Need}");
         Assert.Single(w.Encounters);
         Assert.DoesNotContain(w.Encounters[0].Units, u => u.Agent == npc);
+    }
+
+    // ---- asks review, second round ----
+
+    static readonly WeatherSample Mild = new(0, WeatherCondition.Clear, 20, 0.0, 0, 1, WindDirection.North);
+
+    static void NoHerds(World w)
+    {
+        foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => a.Id).ToList()) w.Agents.Remove(h);
+    }
+
+    /// Review: in sight of camp but not on it, it read the camp pit's fuel exactly, from up to five
+    /// tiles away. From a distance a fire's flame shows, not how much is on it: it reckons the hours
+    /// from when it last stood beside it (TileMemory.FireHours), as it does out of sight.
+    [Fact]
+    public void InSightOfCamp_ItReckonsTheFireFromMemory_NotThePit()
+    {
+        var w = World.New(17);
+        w.FixedWeather = Mild;
+        var camp = Map.Of(w).Camp;
+        var pit = new FireId(w.NextFireId++);
+        w.Fires[pit] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.Birch] = 5 }, UnburnedKg = { [Resource.Birch] = 5 } };
+        var near = MapGen.Neighbors(camp).SelectMany(MapGen.Neighbors).Where(t => MapGen.Manhattan(t, camp) == 2 && Map.Of(w).TerrainAt(t).IsPassable())
+            .OrderBy(t => t).First();
+        var npc = Npc.Spawn(w, near, camp);
+        var agent = w.Agent(npc);
+        var mind = (NpcMind)agent.Mind;
+        mind.Pack.Kg.Remove(Resource.Kindling); // only the pit counts
+        // It stood by the fire an hour ago, when it had two hours on it; someone has fed it since.
+        Sim.Advance(w, 60);
+        agent.Tile = near;
+        mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute - 60, VisitedMinute = w.Minute - 60, Fire = FirePhase.Steady, FireHours = 2.0 };
+        Knowledge.Observe(w, agent, []);
+        Assert.True(Sight.InSight(w, agent, camp) && agent.Tile != camp);
+        Assert.True(Fire.FuelHours(w.Fires[pit]) > 5, "the pit should hold far more than it remembers");
+        Assert.Equal(1.0, Npc.BelievedCampFuelHours(w, agent), 6);
+        // Standing beside it, it judges the pit as it is.
+        agent.Tile = camp;
+        Knowledge.Observe(w, agent, []);
+        Assert.Equal(Fire.FuelHours(w.Fires[pit]), Npc.BelievedCampFuelHours(w, agent), 6);
+    }
+
+    /// An NPC at camp at this minute, short of food (wanted, not critical), with wood enough on the stash,
+    /// no herds about, and a memory of the country in which every tile in its range is picked bare but
+    /// one, five tiles out: a forage trip of the walk there, 45 minutes of work, and the walk home.
+    static (World World, AgentId Npc, TileId Ground) ForagerAtCamp(long minute, WeatherSample? sky = null)
+    {
+        var w = World.New(17);
+        w.FixedWeather = sky ?? Mild;
+        NoHerds(w);
+        w.Minute = minute;
+        var m = Map.Of(w);
+        var camp = m.Camp;
+        var npc = Npc.Spawn(w, camp, boldness: 0.5);
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        Items.Add(Items.StashAt(w, camp), Resource.Oak, 40);
+        w.Agent(npc).Body.FatKg = mind.TargetFatKg - 0.5;
+        (w.Tiles.TryGetValue(camp, out var ts) ? ts : w.Tiles[camp] = new TileState()).Pools = new() { [0] = new ForageState { HoursForaged = 1000, LastForagedMinute = minute } };
+        var near = Enumerable.Range(-6, 13).SelectMany(dx => Enumerable.Range(-6, 13).Select(dy => new TileId(camp.X + dx, camp.Y + dy)))
+            .Where(t => m.InBounds(t) && MapGen.Manhattan(t, camp) <= 6).ToList();
+        var ground = near.Where(t => MapGen.Manhattan(t, camp) == 5 && m.TerrainAt(t).IsPassable() && Pools.At(w, t) is [ForagePool { Density: > 0.2 }, ..])
+            .OrderBy(t => t).First();
+        foreach (var t in near)
+            mind.Knows.Places[t] = new TileMemory
+            {
+                SeenMinute = minute, VisitedMinute = minute, ForageDensity = t == ground ? ((ForagePool)Pools.At(w, t)[0]).Density : 0,
+                Stash = t == camp ? new() { [Resource.Oak] = 40 } : null,
+            };
+        return (w, npc, ground);
+    }
+
+    /// Minute of a day this many days after the start, at this hour.
+    static long At(int day, int hour, int minute = 0) => day * 1440L + (hour - 9) * 60 + minute;
+
+    /// Review: setting out was checked by its first crossing alone, against 19:00 whatever the season.
+    /// The whole trip - out, the work, home - must be in by evening, or by sunset if that is sooner.
+    [Fact]
+    public void ATripOut_MustBeHomeByEvening_OrSunsetInWinter()
+    {
+        Activity Decided(long minute)
+        {
+            var (w, npc, ground) = ForagerAtCamp(minute);
+            var (a, _) = Npc.Decide(w, w.Agent(npc), []);
+            output.WriteLine($"{Weather.SeasonAt(minute)} {Weather.MinuteOfDay(minute) / 60.0:0.00}h (sunset {Weather.SunsetHour(minute)}): {a}");
+            return a;
+        }
+        // Summer: at three the trip is in long before seven; a minute before six it would not be, though its first step would.
+        Assert.IsType<Travel>(Decided(At(0, 15)));
+        Assert.IsNotType<Travel>(Decided(At(0, 17, 59)));
+        // Winter: the sun is down at four, so at three an hour's trip waits for the morning.
+        int winterDay = 180; // late December
+        Assert.Equal(Season.Winter, Weather.SeasonAt(At(winterDay, 15)));
+        Assert.IsType<Travel>(Decided(At(winterDay, 11)));
+        Assert.IsNotType<Travel>(Decided(At(winterDay, 15)));
+    }
+
+    /// Review: a plan the decision refused still left its mark. A forage trip turned down as too late
+    /// kept the ground it would have walked to as ForageGoal, so the next choice walked on toward it.
+    /// Weighing a plan changes nothing; only the plan started is kept.
+    [Fact]
+    public void ARefusedTrip_LeavesNoGoalBehind()
+    {
+        var (w, npc, _) = ForagerAtCamp(At(0, 17, 59));
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        var (a, _) = Npc.Decide(w, w.Agent(npc), []);
+        Assert.IsNotType<Travel>(a);
+        Assert.Null(mind.ForageGoal);
+        Assert.Null(mind.Heading);
+    }
+
+    /// Review: FindFood scored foraging by working out where it would go, which set ForageGoal even
+    /// when hunting won. Hunting chosen, it has no forage ground in mind.
+    [Fact]
+    public void HuntingChosen_LeavesNoForageGoal()
+    {
+        var (w, npc, _) = ForagerAtCamp(At(0, 11));
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        w.Agent(npc).Body.FatKg = mind.TargetFatKg - 1.5; // well short of fat: a caribou is worth a stalk (Npc.WouldHunt)
+        var camp = mind.Camp;
+        var next = MapGen.Neighbors(camp).Where(t => Map.Of(w).TerrainAt(t).IsPassable() && Map.Blocked(Map.Of(w), camp, t) == null).OrderBy(t => t).First();
+        Agents.Spawn(w, Species.Caribou, next, 3);
+        var events = new List<WorldEvent>();
+        var (a, _) = Npc.Decide(w, w.Agent(npc), events);
+        output.WriteLine($"{a}");
+        var step = Assert.IsType<Travel>(a);
+        Assert.Equal(next, Map.Step(camp, step.Dir)); // after the caribou, not the forage ground
+        Assert.Null(mind.ForageGoal);
+    }
+
+    /// Review: ground already being walked to skipped the cold check, so a starving NPC walked on until
+    /// its warmth turned critical. The trip's chill is weighed again at every step: too cold to go on,
+    /// it gives the ground up.
+    [Fact]
+    public void WalkingToForage_TooColdToGoOn_GivesTheGroundUp()
+    {
+        (Activity Activity, TileId? Goal, TileId At, TileId Ground) Decide(double airC)
+        {
+            var (w, npc, ground) = ForagerAtCamp(At(0, 11), new WeatherSample(0, WeatherCondition.Cloudy, airC, 0.6, 0, 0.8, WindDirection.North));
+            var agent = w.Agent(npc);
+            var mind = (NpcMind)agent.Mind;
+            var camp = mind.Camp;
+            // One tile out along the way, starving, the ground still four tiles off.
+            var at = MapGen.Neighbors(camp).Where(t => MapGen.Manhattan(t, ground) == 4 && Map.Blocked(Map.Of(w), camp, t) == null).OrderBy(t => t).First();
+            agent.Tile = at;
+            mind.ForageGoal = ground;
+            agent.Body.FatKg = mind.TargetFatKg - 1.5;
+            agent.Body.CoreTempF = 98.2;
+            var (a, _) = Npc.Decide(w, agent, []);
+            output.WriteLine($"{airC}C: {a}, need {mind.Need}, goal {mind.ForageGoal}");
+            return (a, mind.ForageGoal, at, ground);
+        }
+        var mild = Decide(10);
+        Assert.Equal(mild.Ground, mild.Goal);
+        Assert.IsType<Travel>(mild.Activity); // on its way
+        // At -10C the nine tiles out and back would bring it home colder than it wants to be, though it is
+        // not cold yet: it gives the ground up rather than walk on until warmth is critical. (At freezing,
+        // before the trip budget counted the heat its clothes had stored, this was already too cold.)
+        var cold = Decide(-10);
+        Assert.Null(cold.Goal);
+        Assert.NotEqual(mild.Activity, cold.Activity); // not the step on toward it
+    }
+
+    // ---- fire keeping (traced: seed 5 died on day 4.8, seeds 42 and 2024 late, all of cold) ----
+
+    /// An NPC at camp at this minute, by a pit holding this fire, with nothing to burn in its pack or
+    /// on the stash (its reserve of kindling at most), tired.
+    static (World World, AgentId Npc, FireState Pit) ByAFire(long minute, FireState pit, double kindlingKg = 0, double tinderKg = 0)
+    {
+        var w = World.New(17);
+        w.FixedWeather = Mild;
+        NoHerds(w);
+        w.Minute = minute;
+        var camp = Map.Of(w).Camp;
+        var npc = Npc.Spawn(w, camp);
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        mind.Pack.Kg.Clear();
+        if (kindlingKg > 0) mind.Pack.Kg[Resource.Kindling] = kindlingKg;
+        if (tinderKg > 0) mind.Pack.Kg[Resource.Tinder] = tinderKg;
+        mind.Pack.Kg[Resource.Water] = 3;
+        w.Agent(npc).Body.EnergyMinutes = 0.4 * Body.MaxEnergyMinutes;
+        pit.Tile = camp;
+        pit.LastUpdatedMinute = minute;
+        w.Fires[new FireId(w.NextFireId++)] = pit;
+        return (w, npc, pit);
+    }
+
+    /// Traced (seed 5, day 4): with nothing to bank its fire, it slept two hours at a time beside it, and
+    /// woke to a cold pit and a hand drill. It sleeps only until the fire is nearly out.
+    [Fact]
+    public void NothingToBankTheFire_SleepsOnlyUntilItIsNearlyOut()
+    {
+        var pit = new FireState { Tile = default, LastUpdatedMinute = 0, BurningKg = { [Resource.Birch] = 0.8 } };
+        var (w, npc, _) = ByAFire(At(3, 23), pit);
+        double minutesLeft = Fire.FuelHours(pit) * 60;
+        var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
+        output.WriteLine($"{a} for {minutes} min; the fire has {minutesLeft:0} min");
+        Assert.IsType<Sleep>(a);
+        Assert.True(minutes < minutesLeft, $"slept {minutes} minutes beside a fire with {minutesLeft:0} left");
+    }
+
+    /// The same, woken with the fire in embers and nothing to feed them: it gropes about the camp for
+    /// something while they will still take it, rather than sleep on.
+    [Fact]
+    public void WokenToEmbers_WithNothingToFeedThem_LooksForSomething()
+    {
+        var pit = new FireState { Tile = default, LastUpdatedMinute = 0, HasEmbers = true, EmberDurationHours = 0.5, EmberHoursRemaining = 0.4, EmberStartTempF = 700 };
+        var (w, npc, _) = ByAFire(At(3, 23), pit);
+        var (a, _) = Npc.Decide(w, w.Agent(npc), []);
+        output.WriteLine($"{a}");
+        Assert.Equal(new Gather(npc, 0, ForageFocus.Fuel), a);
+    }
+
+    /// Home by evening with an hour of fire and timber next door: there is light to fetch some before
+    /// bed, and it does (old: to bed with what it had). After the hour it must be home by
+    /// (Npc.HomeMinuteOfDay), it gets what it can without leaving camp (see WinterEvening_NoTripForWoodAfterSunset).
+    [Theory]
+    [InlineData(17, 30, true)]
+    [InlineData(19, 0, false)]
+    public void ShortOfFuelAtDusk_FetchesSomeWhileThereIsLight(int hour, int minute, bool walks)
+    {
+        var pit = new FireState { Tile = default, LastUpdatedMinute = 0, BurningKg = { [Resource.Kindling] = 1.0 } };
+        var (w, npc, _) = ByAFire(At(0, hour, minute), pit, kindlingKg: 0.9, tinderKg: 0.2);
+        var chose = new List<Activity>();
+        for (int i = 0; i < 4; i++)
+        {
+            var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
+            chose.Add(a);
+            if (a is not (AddFuel or Stash or Unstash)) break; // a minute's tidying first: the fire fed, the pack unloaded
+            Sim.Step(w, a, minutes);
+        }
+        output.WriteLine(string.Join(", ", chose));
+        if (walks) Assert.True(chose[^1] is Travel || chose[^1] is Gather g && Pools.At(w, w.Agent(npc).Tile)[g.Pool] is TreePool, $"chose {chose[^1]}");
+        else Assert.DoesNotContain(chose, a => a is Travel);
+    }
+
+    /// Traced (seed 5): it would not strike under 20% until its core was critical, by when its cold hands
+    /// had the drill at 13%, then at the 5% floor. Wanting warmth, a strike at poor odds is worth the tinder.
+    [Fact]
+    public void WantingWarmth_StrikesAtOddsItWouldWaitOnWhenWarm()
+    {
+        (Activity Activity, double Odds) Decide(double coreF)
+        {
+            var pit = new FireState { Tile = default, LastUpdatedMinute = 0 };
+            var (w, npc, _) = ByAFire(At(3, 23, 30), pit, kindlingKg: 1.0, tinderKg: 0.3);
+            var agent = w.Agent(npc);
+            agent.Body.CoreTempF = coreF;
+            agent.Body.EnergyMinutes = Body.MaxEnergyMinutes; // awake: the night is for keeping warm, not sleep
+            Effects.Set(agent.Body, EffectKind.Wet, 1.0); // wet, shaking hands in the dark: a poor strike
+            Effects.Set(agent.Body, EffectKind.Shivering, 0.6);
+            Fire.CatchUpAround(w, agent, []);
+            double odds = Fire.StartOdds(w, agent, ToolType.HandDrill, Resource.Tinder).TotalPct;
+            var (a, _) = Npc.Decide(w, agent, []);
+            output.WriteLine($"core {coreF}: odds {odds:0.00}, {a}");
+            return (a, odds);
+        }
+        var warm = Decide(98.4);
+        Assert.InRange(warm.Odds, 0.07, 0.19);
+        Assert.IsNotType<StartFire>(warm.Activity);
+        Assert.IsType<StartFire>(Decide(96.6).Activity); // wanting warmth, not yet freezing
+    }
+
+    /// Traced (seed 5): it lit kindling, but the only logs it had were oak, which a kindling fire is too
+    /// cool to take; its last kindling was its reserve, so the fire died with the oak beside it. Logs
+    /// waiting on a fire too cool for them, the reserve goes on to build it up, and the oak goes on after.
+    [Fact]
+    public void AKindlingFire_WithOnlyOak_IsBuiltUpUntilTheOakGoesOn()
+    {
+        var pit = new FireState { Tile = default, LastUpdatedMinute = 0, BurningKg = { [Resource.Tinder] = 0.05, [Resource.Kindling] = 0.3 } };
+        var (w, npc, _) = ByAFire(At(0, 11), pit, kindlingKg: 0.6);
+        var agent = w.Agent(npc);
+        Items.Add(((NpcMind)agent.Mind).Pack, Resource.Oak, 6);
+        Items.Add(Items.StashAt(w, agent.Tile), Resource.Kindling, 0.8);
+        agent.Body.CoreTempF = 96.6; // it wants the fire
+        agent.Body.EnergyMinutes = Body.MaxEnergyMinutes;
+        Assert.False(Fire.CanAddFuel(pit, Resource.Oak));
+        var log = NpcDriver.Live(w, npc, w.Minute + 90);
+        var fed = log.OfType<FuelAdded>().Where(f => f.By == npc).Select(f => $"{f.Fuel} {f.Kg:0.00}").ToList();
+        output.WriteLine(string.Join(", ", fed));
+        Assert.Contains(log, e => e is FuelAdded { Fuel: Resource.Oak } f && f.By == npc);
+    }
+
+    /// Traced (seed 5): no standing timber within 15 tiles of camp, only deadfall; it had an axe and never
+    /// used it, and froze on day 4.8. A camp with no timber in reach is a reason to go and find some and
+    /// move camp to it. A kilo of birch bark and two of kindling in the pack: seed 5's grassland gives almost no
+    /// tinder or kindling, and whether the starting pinch lasts until the search finds the stand 24 tiles east is a
+    /// matter of a few strikes - the search and the move are what this pins. (A single trajectory, and a knife-edge
+    /// one: from the starting pack it lived on 9cbe8cc and ran out of tinder on day 4.6 after the Light fix; with
+    /// these, it lives after the fix and dies on 9cbe8cc, as it does there with the birch bark alone, on day 3.9.)
+    [Fact]
+    public void NoTimberInReach_MovesCampToTimber()
+    {
+        var w = World.New(5);
+        var camp = Map.Of(w).Camp;
+        var npc = Npc.Spawn(w, camp);
+        Items.Add(((NpcMind)w.Agent(npc).Mind).Pack, Resource.BirchBark, 1);
+        Items.Add(((NpcMind)w.Agent(npc).Mind).Pack, Resource.Kindling, 2);
+        NpcDriver.Live(w, npc, 6 * 1440L);
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        var trees = mind.Knows.Places.Where(p => p.Value.Trees).Select(p => p.Key).ToList();
+        output.WriteLine($"camp {camp} -> {mind.Camp}; alive {Body.IsAlive(w.Agent(npc).Body)} at minute {w.Minute}; nearest timber {trees.Min(t => MapGen.Manhattan(t, mind.Camp))}");
+        Assert.NotEqual(camp, mind.Camp);
+        Assert.True(trees.Min(t => MapGen.Manhattan(t, mind.Camp)) <= 2);
+        Assert.True(Body.IsAlive(w.Agent(npc).Body), $"died at minute {w.Minute}");
     }
 }

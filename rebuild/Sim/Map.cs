@@ -10,7 +10,7 @@ public enum Terrain
 public enum Cave { None, Floor, Entrance }
 
 /// Something between two adjacent tiles. Generation lays only Ravine and Cliff, both impassable;
-/// the rest are authored or player-built and arrive with phase 4 locations and trail work.
+/// the rest are authored or player-built; nothing lays them yet (no trail cutting or marking).
 public enum EdgeType { River, Cliff, Climb, GameTrail, TrailMarker, CutTrail, Ravine }
 
 public enum Direction { North, East, South, West }
@@ -30,62 +30,85 @@ public sealed class TileState
     /// Things left here: camp storage and whatever a full pack dropped. Unlimited. Owned by Items.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Inventory? Stash { get; set; }
+    /// Who made the stash: whoever first put something down here. Goes with the stash. Owned by Items.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Cause? StashCause { get; set; }
+    /// The stash's own id (World.NextStashId): a new one each time a stash is begun here. Goes with the stash. Owned by Items.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? StashId { get; set; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public List<Carcass>? Carcasses { get; set; }
     /// Nothing here differs from generation, so the tile can leave World.Tiles. Each owner sets its
     /// field back to null when it has nothing left to keep.
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsEmpty => Tracks == null && Ground == null && Pools == null && Stash == null && Carcasses == null;
+    public bool IsEmpty => Tracks == null && Ground == null && Pools == null && Stash == null && StashCause == null && StashId == null && Carcasses == null;
 }
+
+/// One terrain as generated (Content/terrain.json). A wall has no traversal, forage or trees.
+/// Trees is stated on every row, null where none stand, so a forest cannot lose its timber to a typo.
+public sealed record TerrainRow(bool Passable, double Hazard, double Wind, double Cover, double Visibility, string Substrate,
+    TreeRow? Trees, int? TraversalMinutes = null, ForageRef? Forage = null);
+/// A cave tile as generated (Content/terrain.json caves); its substrate is bare rock.
+public sealed record CaveRow(double Hazard, double Wind, double Cover, double Visibility, ForageRef Forage);
+/// Which forage table (Content/forage.json) a place has, and the density drawn around.
+public sealed record ForageRef(string Table, double Density);
+/// Standing timber: mixed forest, unlimited.
+public sealed record TreeRow(string Name, double MinutesToFell);
+
+/// What a felled tree gives (Content/terrain.json felling), wherever it stood: a count of logs of
+/// its wood, each about LogKg (within LogKgSpreadPct either way), some sticks and pinches of tinder.
+/// A mixed stand's tree is one wood, drawn by MixedWood's shares in Resource order (Pine, Birch, Oak) -
+/// the loader reads keyed tables in enum order, whatever order the file lists them in. Pools.Chop rolls
+/// it; Report reckons its middle.
+public sealed record Felling(Pieces Logs, IReadOnlyDictionary<Resource, double> LogKg, double LogKgSpreadPct,
+    IReadOnlyList<(Resource Wood, double Share)> MixedWood, Pieces Kindling, Pieces Tinder)
+{
+    /// The wood a mixed stand's tree turns out to be, from a roll in [0, 1).
+    public Resource MixedWoodAt(double roll)
+    {
+        double below = 0;
+        for (int i = 0; i < MixedWood.Count - 1; i++)
+            if (roll < (below += MixedWood[i].Share)) return MixedWood[i].Wood;
+        return MixedWood[^1].Wood;
+    }
+}
+
+/// A count in [Count[0], Count[1]], both inclusive, and (where pieces weigh) each one's kg drawn
+/// uniformly in [Kg[0], Kg[1]].
+public sealed record Pieces(IReadOnlyList<int> Count, IReadOnlyList<double>? Kg = null)
+{
+    public double MiddleCount() => (Count[0] + Count[1]) / 2.0;
+    public double MiddleKg() => Kg is [var lo, var hi] ? (lo + hi) / 2 : throw new InvalidOperationException("these pieces have no weight");
+}
+/// Minutes an edge adds to a crossing (negative saves time), and whether it stops one outright.
+public sealed record EdgeRow(int TraversalMinutes, bool Blocking);
 
 public static class TerrainProps
 {
-    public static bool IsPassable(this Terrain t) => t is not (Terrain.Mountain or Terrain.DeepWater);
+    // By enum value: MapGen asks these of every tile, many times over.
+    static readonly TerrainRow[] Rows = [.. Enum.GetValues<Terrain>().Select(t => Content.Tables.Terrains[t])];
+    static readonly EdgeRow[] Edges = [.. Enum.GetValues<EdgeType>().Select(e => Content.Tables.Edges[e])];
+
+    public static TerrainRow Row(this Terrain t) => Rows[(int)t];
+    public static CaveRow Row(this Cave c) =>
+        Content.Tables.Caves.TryGetValue(c, out var row) ? row : throw new KeyNotFoundException($"No cave row for {c}");
+
+    public static bool IsPassable(this Terrain t) => Rows[(int)t].Passable;
 
     /// Minutes to cross one 100 m tile of flat ground at a walk, before hazard and modifier.
-    public static int BaseTraversalMinutes(this Terrain t) => t switch
-    {
-        Terrain.Rock or Terrain.Hills or Terrain.Marsh => 2,
-        Terrain.Mountain or Terrain.DeepWater => int.MaxValue,
-        _ => 1,
-    };
+    public static int BaseTraversalMinutes(this Terrain t) => Rows[(int)t].TraversalMinutes ?? int.MaxValue;
 
     /// 0-1: chance of a slip or fall, and how much the ground slows you.
-    public static double BaseHazardLevel(this Terrain t) => t switch
-    {
-        Terrain.Clearing => 0.05,
-        Terrain.Forest => 0.1,
-        Terrain.Hills => 0.25,
-        Terrain.Rock or Terrain.Marsh => 0.3,
-        Terrain.Water => 0.4,
-        _ => 0,
-    };
+    public static double BaseHazardLevel(this Terrain t) => Rows[(int)t].Hazard;
 
     /// 0-2: how much of the wind reaches you here.
-    public static double BaseWindFactor(this Terrain t) => t switch
-    {
-        Terrain.Forest => 0.3,
-        Terrain.Clearing => 0.7,
-        Terrain.Marsh => 0.8,
-        Terrain.Plain => 1.2,
-        Terrain.Water => 1.3,
-        Terrain.Hills => 1.4,
-        Terrain.Mountain => 1.8,
-        _ => 1.0,
-    };
+    public static double BaseWindFactor(this Terrain t) => Rows[(int)t].Wind;
 
     /// Minutes an edge adds to a crossing (negative saves time).
-    public static int TraversalMinutes(this EdgeType e) => e switch
-    {
-        EdgeType.River => 4,
-        EdgeType.Climb => 6,
-        EdgeType.GameTrail or EdgeType.TrailMarker => -1,
-        EdgeType.CutTrail => -2,
-        _ => 0,
-    };
+    public static int TraversalMinutes(this EdgeType e) => Edges[(int)e].TraversalMinutes;
 
-    /// Whether an edge stops a crossing outright. ponytail: no seasons yet (old River could flood in spring).
-    public static bool IsBlocking(this EdgeType e) => e is EdgeType.Ravine or EdgeType.Cliff;
+    /// Whether an edge stops a crossing outright. No seasons yet: the old River could flood in spring.
+    public static bool IsBlocking(this EdgeType e) => Edges[(int)e].Blocking;
 }
 
 /// How the run stands. Only death and the far side of the pass end it.
@@ -94,9 +117,10 @@ public enum RunOutcome { Surviving, Died, Crossed }
 /// Terrain as generated from a seed. Never saved: Map.Of rebuilds it from World.Seed.
 public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave[,] caves, int?[,] caveIds,
     Dictionary<(TileId, TileId), EdgeType> edges, HashSet<TileId> river, TileId camp, Dictionary<TileId, int> passStages,
-    Dictionary<TileId, LocationDef>? sites = null)
+    Dictionary<TileId, LocationDef>? sites = null, IReadOnlyCollection<TileId>? pass = null)
 {
     readonly Dictionary<TileId, LocationDef> _sites = sites ?? [];
+    readonly HashSet<TileId> _pass = [.. pass ?? passStages.Keys, .. passStages.Keys];
     public int Width { get; } = width;
     public int Height { get; } = height;
     public TileId Camp { get; } = camp;
@@ -113,6 +137,9 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
     /// (the pass stages) did not inherit.
     public bool BesideRiver(TileId t) => river.Contains(t) && !passStages.ContainsKey(t);
     public LocationDef? StageAt(TileId t) => passStages.TryGetValue(t, out int i) ? Map.PassStages[i] : null;
+    /// The whole corridor through the mountains, its six stages and the rock between them.
+    public bool OnPass(TileId t) => _pass.Contains(t);
+    public IReadOnlyCollection<TileId> Pass => _pass;
     /// The named place on this tile: a pass stage, a cave site or a site dealt onto open land.
     public LocationDef? SiteAt(TileId t) => StageAt(t) ?? _sites.GetValueOrDefault(t);
     /// Every named site off the pass, by tile.
@@ -121,7 +148,7 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
 }
 
 /// The world's terrain and how tiles connect. Terrain is a pure function of the seed (plan decision 1).
-// ponytail: no tile visibility / fog of war yet. That is the player's knowledge (plan decision 7), not
+// No tile visibility / fog of war yet. That is the player's knowledge (plan decision 7), not
 // map truth; port old GameMap.UpdateVisibility + Sight rays into the agent-knowledge step, not here.
 public static class Map
 {
@@ -182,17 +209,12 @@ public static class Map
 
     /// Base injury risk and slowness of the ground's shape: terrain, cave, stage or camp, plus thin river ice.
     public static double TerrainHazardLevel(GeneratedMap m, TileId t) =>
-        m.SiteAt(t)?.Hazard ?? (t == m.Camp ? 0 : m.CaveAt(t) switch
-        {
-            Cave.Entrance => 0.2,
-            Cave.Floor => 0.3,
-            _ => m.TerrainAt(t).BaseHazardLevel(),
-        });
+        m.SiteAt(t)?.Hazard ?? (t == m.Camp ? 0 : m.CaveAt(t) is var c and not Cave.None ? c.Row().Hazard : m.TerrainAt(t).BaseHazardLevel());
 
     /// Old Location.GetTravelHazardLevel: the ground plus frozen water. River ice is thin (0.3):
     /// 0.15 for any ice, 0.2 more for thin. A site with water of its own has that water instead of
     /// the river (old named sites inherited the river's only when they had none).
-    /// ponytail: static ice; Ground (phase 2c) owns ice that grows and thaws.
+    /// Static ice: a site's water ice does not grow or thaw with Ground yet.
     public static double TravelHazardLevel(GeneratedMap m, TileId t) =>
         Math.Min(1.0, TerrainHazardLevel(m, t) + (m.SiteAt(t)?.Water is { } w ? w.HazardDelta : m.BesideRiver(t) ? 0.15 + 0.20 : 0));
 
@@ -216,12 +238,7 @@ public static class Map
 
     /// How much of the wind reaches this tile: what a person feels (wind chill) and the ground.
     public static double WindFactor(GeneratedMap m, TileId t) =>
-        m.SiteAt(t)?.Wind ?? (t == m.Camp ? 0.4 : m.CaveAt(t) switch
-        {
-            Cave.Entrance => 0.3,
-            Cave.Floor => 0,
-            _ => m.TerrainAt(t).BaseWindFactor(),
-        });
+        m.SiteAt(t)?.Wind ?? (t == m.Camp ? 0.4 : m.CaveAt(t) is var c and not Cave.None ? c.Row().Wind : m.TerrainAt(t).BaseWindFactor());
 
     /// Overhead cover 0-1: canopy, rock overhang, cave roof. Old terrain BaseOverheadCover and the
     /// camp, cave and pass-stage factories. What keeps sun, rain and snow off both the ground and a person.
@@ -229,12 +246,7 @@ public static class Map
     {
         if (m.SiteAt(t) is { } site) return site.Cover;
         if (t == m.Camp) return 0.3;
-        return m.CaveAt(t) switch
-        {
-            Cave.Entrance => 0.6,
-            Cave.Floor => 1.0,
-            _ => m.TerrainAt(t) switch { Terrain.Forest => 0.5, Terrain.Clearing or Terrain.Rock => 0.1, _ => 0 },
-        };
+        return m.CaveAt(t) is var c and not Cave.None ? c.Row().Cover : m.TerrainAt(t).Row().Cover;
     }
 
     /// How much colder this tile is than the regional air (the pass stages).
@@ -246,21 +258,7 @@ public static class Map
     {
         if (m.SiteAt(t) is { } site) return site.Visibility;
         if (t == m.Camp) return 0.8;
-        return m.CaveAt(t) switch
-        {
-            Cave.Entrance => 0.8,
-            Cave.Floor => 0.7,
-            _ => m.TerrainAt(t) switch
-            {
-                Terrain.Forest or Terrain.Mountain => 0.5,
-                Terrain.Marsh => 0.7,
-                Terrain.Plain => 1.2,
-                Terrain.Rock => 0.8,
-                Terrain.Water => 1.3,
-                Terrain.Hills => 1.5,
-                _ => 1.0,
-            },
-        };
+        return m.CaveAt(t) is var c and not Cave.None ? c.Row().Visibility : m.TerrainAt(t).Row().Visibility;
     }
 
     /// No light to work by without fire or torch: underground, and the old dark sites (a bear's cave,

@@ -1,0 +1,90 @@
+// Animals and people as bodies, fighters and herds (old AnimalFactory, AnimalType and the herd
+// behaviours). Loaded once by Content; ContentTests checks every name in here resolves.
+//
+// species: every Species has one row.
+//   body, weightKg, fatPct, musclePct: the body plan and its average build (members vary around it).
+//   role: how it meets a threat. isSmall: small game, which runs where a big one of its role would not.
+//   attackDamage, attackType: its unarmed attack. threat, boldness, aggression, cohesion: the morale
+//   numbers combat runs on. moveAllowanceM: metres covered in one combat action at full Moving.
+//   temperament: what makes its herd come at a target (a name in temperaments).
+//   behavior: how its herd lives (old HerdBehaviorType; Carrion is the folded scavenger flock). diet: what its herd grazes (a name in diets).
+//   Humans, rabbits and foxes never form herds of their own; theirs are the old defaults, Prey and Carnivore.
+// temperaments: base, a bonus per member, hunger (hungryAt, starvingAt, hungerBonus), defending a kill
+//   or den (defendBonus), and a ceiling (cap). Cap 0 never starts a fight.
+// diets: what each Diet takes off a tile's forage, in order (old AnimalDietExtensions.GetConsumedResources).
+// sightings: how watchful a stalked animal is, by what its herd is doing; one is picked at random
+//   (old HuntingSightings' DetectionModifier values, pool by pool, in their order).
+{
+ "species": {
+  // Old Player: unarmed 0.15 blunt. Old NPC punched for 0.1; one agent model means one number.
+  // The build is the dressed baseline adult (Body.BaselineWeightKg, BaselineFatPct, BaselineMusclePct).
+  "Human": { "body": "Human", "weightKg": 75, "fatPct": 0.15, "musclePct": 0.30, "role": "Human", "isSmall": false,
+   "attackDamage": 0.15, "attackType": "Blunt", "threat": 1.0, "boldness": 1.0, "aggression": 1.0, "cohesion": 0.5, "moveAllowanceM": 3,
+   "temperament": "never", "behavior": "Prey", "diet": "Carnivore" },
+  "Wolf": { "body": "Quadruped", "weightKg": 40, "fatPct": 0.20, "musclePct": 0.60, "role": "Predator", "isSmall": false,
+   "attackDamage": 0.45, "attackType": "Pierce", "threat": 0.7, "boldness": 1.3, "aggression": 0.8, "cohesion": 2, "moveAllowanceM": 6,
+   "temperament": "wolf", "behavior": "Pack", "diet": "Carnivore" },
+  "Bear": { "body": "Quadruped", "weightKg": 250, "fatPct": 0.30, "musclePct": 0.55, "role": "Predator", "isSmall": false,
+   "attackDamage": 0.60, "attackType": "Sharp", "threat": 2.5, "boldness": 1.6, "aggression": 0.4, "cohesion": 0, "moveAllowanceM": 5,
+   "temperament": "bear", "behavior": "Solitary", "diet": "Omnivore" },
+  "CaveBear": { "body": "Quadruped", "weightKg": 350, "fatPct": 0.35, "musclePct": 0.55, "role": "Predator", "isSmall": false,
+   "attackDamage": 0.80, "attackType": "Sharp", "threat": 3.0, "boldness": 1.8, "aggression": 0.4, "cohesion": 0, "moveAllowanceM": 4,
+   "temperament": "bear", "behavior": "Solitary", "diet": "Omnivore" },
+  "SaberTooth": { "body": "Quadruped", "weightKg": 300, "fatPct": 0.10, "musclePct": 0.70, "role": "Predator", "isSmall": false,
+   "attackDamage": 0.90, "attackType": "Pierce", "threat": 3.0, "boldness": 2.0, "aggression": 0.7, "cohesion": 0, "moveAllowanceM": 7,
+   "temperament": "saberTooth", "behavior": "Solitary", "diet": "Carnivore" },
+  "Hyena": { "body": "Quadruped", "weightKg": 70, "fatPct": 0.15, "musclePct": 0.65, "role": "Scavenger", "isSmall": false,
+   "attackDamage": 0.40, "attackType": "Blunt", "threat": 0.4, "boldness": 0.7, "aggression": 0.5, "cohesion": 2, "moveAllowanceM": 6,
+   "temperament": "hyena", "behavior": "Scavenger", "diet": "Carnivore" },
+  "Caribou": { "body": "Quadruped", "weightKg": 120, "fatPct": 0.15, "musclePct": 0.60, "role": "Prey", "isSmall": false,
+   "attackDamage": 0.25, "attackType": "Blunt", "threat": 0.3, "boldness": 0.3, "aggression": 0.05, "cohesion": 1, "moveAllowanceM": 3,
+   "temperament": "never", "behavior": "Prey", "diet": "Browser" },
+  "Megaloceros": { "body": "Quadruped", "weightKg": 600, "fatPct": 0.15, "musclePct": 0.60, "role": "DangerousPrey", "isSmall": false,
+   "attackDamage": 0.50, "attackType": "Blunt", "threat": 0.5, "boldness": 0.4, "aggression": 0.1, "cohesion": 1, "moveAllowanceM": 3,
+   "temperament": "never", "behavior": "Prey", "diet": "Browser" },
+  "Bison": { "body": "Quadruped", "weightKg": 800, "fatPct": 0.20, "musclePct": 0.55, "role": "DangerousPrey", "isSmall": false,
+   "attackDamage": 0.55, "attackType": "Pierce", "threat": 1.8, "boldness": 0.5, "aggression": 0.1, "cohesion": 2, "moveAllowanceM": 3,
+   "temperament": "never", "behavior": "Prey", "diet": "Grazer" },
+  // Old AnimalFactory's 6000 kg body; AnimalType.WeightKg said 5000 (tracks only).
+  "Mammoth": { "body": "Quadruped", "weightKg": 6000, "fatPct": 0.35, "musclePct": 0.50, "role": "DangerousPrey", "isSmall": false,
+   "attackDamage": 1.2, "attackType": "Pierce", "threat": 3.5, "boldness": 1.0, "aggression": 0.1, "cohesion": 2, "moveAllowanceM": 3,
+   "temperament": "never", "behavior": "Prey", "diet": "Browser" },
+  "Rabbit": { "body": "Quadruped", "weightKg": 2, "fatPct": 0.10, "musclePct": 0.50, "role": "Prey", "isSmall": true,
+   "attackDamage": 0.02, "attackType": "Blunt", "threat": 0.05, "boldness": 0.1, "aggression": 0.0, "cohesion": 1, "moveAllowanceM": 3,
+   "temperament": "never", "behavior": "Prey", "diet": "Carnivore" },
+  "Fox": { "body": "Quadruped", "weightKg": 6, "fatPct": 0.20, "musclePct": 0.55, "role": "Scavenger", "isSmall": true,
+   "attackDamage": 0.12, "attackType": "Pierce", "threat": 0.15, "boldness": 0.4, "aggression": 0.1, "cohesion": 0, "moveAllowanceM": 3,
+   "temperament": "never", "behavior": "Prey", "diet": "Carnivore" },
+  // The folded scavenger (Species.Raven): ravens, a fox, a wolverine as one flock, each member about
+  // a fox's build at a raven's weight (judgment). It never starts a fight and runs from one. Between
+  // kills it forages like a bear for berries, fungi and roots (Omnivore), so it never starves.
+  "Raven": { "body": "Quadruped", "weightKg": 3, "fatPct": 0.15, "musclePct": 0.50, "role": "Scavenger", "isSmall": true,
+   "attackDamage": 0.05, "attackType": "Pierce", "threat": 0.05, "boldness": 0.3, "aggression": 0.0, "cohesion": 1, "moveAllowanceM": 6,
+   "temperament": "never", "behavior": "Carrion", "diet": "Omnivore" }
+ },
+
+ "temperaments": {
+  "never": { "base": 0, "perMember": 0, "hungryAt": 1.1, "starvingAt": 1.1, "hungerBonus": 0, "defendBonus": 0, "cap": 0 },
+  "bear": { "base": 0.15, "perMember": 0, "hungryAt": 0.8, "starvingAt": 0.95, "hungerBonus": 0.3, "defendBonus": 0.55, "cap": 1.0 },
+  "wolf": { "base": 0.20, "perMember": 0.05, "hungryAt": 0.7, "starvingAt": 0.9, "hungerBonus": 0.2, "defendBonus": 0.6, "cap": 0.9 },
+  "saberTooth": { "base": 0.25, "perMember": 0, "hungryAt": 0.7, "starvingAt": 0.9, "hungerBonus": 0.3, "defendBonus": 0.5, "cap": 1.0 },
+  "hyena": { "base": 0.10, "perMember": 0.08, "hungryAt": 0.8, "starvingAt": 1.1, "hungerBonus": 0.2, "defendBonus": 0.15, "cap": 0.6 }
+ },
+
+ "diets": {
+  "Carnivore": [],
+  "Omnivore": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
+  // Old Stick: twigs.
+  "Browser": [ "Usnea", "Kindling", "BirchPolypore" ],
+  // Grass, as dried plant matter.
+  "Grazer": [ "Tinder" ]
+ },
+
+ "sightings": {
+  "grazing": [0.7, 0.75, 0.65],
+  "resting": [0.9, 0.85],
+  "wounded": [0.5, 0.45],
+  "alert": [2.0, 2.5, 2.2],
+  "moving": [1.2, 1.3]
+ }
+}

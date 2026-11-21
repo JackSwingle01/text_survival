@@ -34,7 +34,7 @@ public static partial class Combat
     static double Aggression(World world, CombatUnit u) => StatsOf(world, u).Aggression + (u.JustDamaged ? RetaliationBonus : 0);
 
     /// How much this fighter trusts its side.
-    // ponytail: old NPCs scaled cohesion by their opinion of each ally; relationships come with phase 3d.
+    // Old NPCs scaled cohesion by their opinion of each ally; nothing writes opinions yet (Npc Opinions).
     static double Cohesion(World world, CombatUnit u) => StatsOf(world, u).Cohesion;
 
     /// Threat seen from here: falls off 7% a metre, so nothing past 14 m frightens.
@@ -71,7 +71,7 @@ public static partial class Combat
     static double Intimidation(World world, CombatUnit target, CombatUnit shouter)
     {
         double effectiveness = IntimidationChance(world, target, shouter);
-        return world.Rng("combat").NextDouble() < effectiveness ? 0.3 : 0.05;
+        return world.Rng("combat", shouter.Agent).NextDouble() < effectiveness ? 0.3 : 0.05;
     }
 
     public static double IntimidationChance(World world, CombatUnit target, CombatUnit shouter) =>
@@ -164,7 +164,7 @@ public static partial class Combat
     /// steer by morale, as far as their legs allow.
     public static Cell MovePosition(World world, Encounter enc, CombatUnit u)
     {
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", u.Agent);
         if (u.Awareness != Awareness.Engaged)
         {
             if (rng.NextDouble() < 0.4) return u.Position;
@@ -185,7 +185,7 @@ public static partial class Combat
     /// What this unit does on its turn (old CombatAI.DetermineAction).
     public static CombatAction ChooseAction(World world, Encounter enc, CombatUnit u)
     {
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", u.Agent);
         if (u.Awareness == Awareness.Unaware) return rng.NextDouble() < 0.6 ? CombatAction.Wait : CombatAction.Move;
         if (u.Awareness == Awareness.Alert) return CombatAction.Move;
         var stats = StatsOf(world, u);

@@ -141,6 +141,54 @@ public class HerdTests(ITestOutputHelper output)
         Assert.NotNull(w.Tiles[death.Tile].Carcasses);
     }
 
+    /// An agent's own streams, by exact name: "body:1" is agent 1's, "body:10" is not.
+    static List<string> StreamsOf(World w, AgentId id) =>
+        w.Rngs.Keys.Select(k => k.Value).Where(k => k.Split(':') is [_, var who] && who == id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+
+    /// A herd that is gone takes its streams with it (they used to stay in every save for good),
+    /// both ways a herd goes: its last member bleeding out (Fauna) and its last falling in a fight
+    /// (the aftermath). Its id is never made again, so nothing could roll on them.
+    [Fact]
+    public void AGoneHerd_TakesItsStreamsWithIt()
+    {
+        var w = World.New(1);
+        var tile = Quiet(w);
+        var lone = Agents.Spawn(w, Species.Caribou, tile, 1);
+        Mind(w, lone).State = HerdState.Resting;
+        w.Agent(lone).Members[0].BloodPct = 0.52;
+        Effects.Add(w.Agent(lone).Members[0], EffectKind.Bleeding, 1.0);
+        Sim.Advance(w, 1);
+        Assert.True(w.Agents.ContainsKey(lone));
+        Assert.NotEmpty(StreamsOf(w, lone)); // its wounds roll on its own body stream
+        Sim.Advance(w, 239);
+        Assert.False(w.Agents.ContainsKey(lone));
+        Assert.Empty(StreamsOf(w, lone));
+        Assert.True(Agents.Spawn(w, Species.Caribou, tile, 1).Value > lone.Value, "a gone herd's id was made again");
+
+        int pulledDown = 0;
+        for (int seed = 1; seed <= 6; seed++)
+        {
+            var v = World.New(seed);
+            var (_, caribou, _) = PackAndPrey(v, caribou: 1);
+            var events = Idle(v, 120);
+            if (!events.OfType<Killed>().Any(k => k.Agent == caribou)) continue;
+            pulledDown++;
+            Assert.False(v.Agents.ContainsKey(caribou));
+            Assert.Empty(StreamsOf(v, caribou));
+            Assert.Throws<InvalidOperationException>(() => v.Rng("combat", caribou));
+        }
+        Assert.True(pulledDown > 0, "no pack pulled its lone caribou down: the aftermath's removal is untested");
+    }
+
+    [Fact]
+    public void AStreamName_IsForExactlyOneAgent()
+    {
+        Assert.True(StreamName.Of("travel", new AgentId(1)).IsFor(new AgentId(1)));
+        Assert.False(StreamName.Of("travel", new AgentId(10)).IsFor(new AgentId(1)));
+        Assert.False(StreamName.Of("travel", new AgentId(1)).IsFor(new AgentId(10)));
+        Assert.False(new StreamName("herds").IsFor(new AgentId(0)));
+    }
+
     // ---- gate: the scheduler is independent of step granularity and of saving ----
 
     static World Planted(int seed)
@@ -341,7 +389,7 @@ public class HerdTests(ITestOutputHelper output)
             var (min, max) = h.Species switch
             {
                 Species.Wolf => (3, 80), Species.Bear or Species.CaveBear => (3, 128), Species.Caribou => (6, 192),
-                Species.Megaloceros => (3, 96), Species.Bison => (3, 400), Species.SaberTooth => (4, 160), _ => (3, 112),
+                Species.Megaloceros => (3, 96), Species.Bison => (3, 400), Species.SaberTooth => (4, 160), Species.Raven => (3, 250), _ => (3, 112),
             };
             Assert.InRange(land.Count, min, max);
             Assert.InRange(h.Members.Count, 1, 15);
@@ -368,10 +416,56 @@ public class HerdTests(ITestOutputHelper output)
 
     // ---- the player's hunt ----
 
+    /// Old RunHunt took the sighting's DetectionModifier as every stalked animal's DetectionFactor:
+    /// 0.45-0.9 for wounded, grazing or resting prey, 2.0-2.5 for alert prey (old HuntRunner.Run,
+    /// HuntingSightings). One sighting of the behaviour's pool was picked at random.
+    [Theory]
+    [InlineData("grazing", 0.7, 0.75, 0.65)]
+    [InlineData("feeding", 0.7, 0.75, 0.65)]
+    [InlineData("resting", 0.9, 0.85)]
+    [InlineData("wounded", 0.5, 0.45)]
+    [InlineData("fleeing", 2.0, 2.5, 2.2)]
+    [InlineData("fearful", 2.0, 2.5, 2.2)]
+    [InlineData("patrolling", 1.2, 1.3)]
+    public void Hunt_StalkedAnimalsWatchAsTheOldSightingsDid(string doing, params double[] oldPool)
+    {
+        var seen = new HashSet<double>();
+        for (int seed = 1; seed <= 24; seed++)
+        {
+            var w = World.New(seed);
+            var tile = Quiet(w);
+            w.Agent(P).Tile = tile;
+            var herd = Agents.Spawn(w, doing == "patrolling" ? Species.Wolf : Species.Caribou, tile, 4);
+            Mind(w, herd).State = doing switch
+            {
+                "grazing" => HerdState.Grazing, "feeding" => HerdState.Feeding, "fleeing" => HerdState.Fleeing,
+                "patrolling" => HerdState.Patrolling, _ => HerdState.Resting,
+            };
+            if (doing == "fearful") Mind(w, herd).Fear = 0.8;
+            if (doing == "wounded") w.Agent(herd).Members[0].BloodPct = 0.9;
+            var enc = Fauna.BeginHunt(w, P, herd, 0);
+            var animals = enc.Units.Where(u => u.Agent == herd).ToList();
+            Assert.NotEmpty(animals);
+            Assert.All(animals, u => Assert.Equal(animals[0].DetectionFactor, u.DetectionFactor));
+            Assert.Contains(animals[0].DetectionFactor, oldPool);
+            Assert.Equal(1.0, Combat.UnitOf(enc, P).DetectionFactor);
+            seen.Add(animals[0].DetectionFactor);
+        }
+        Assert.Equal(oldPool.Length, seen.Count); // every sighting of the pool turns up
+    }
+
     [Fact]
+    // The naive stalk below (advance to throwing range on open plain) kills about one hunt in fifty, so
+    // this walks seeds until one does: seed 3 did with shared streams, seed 43 once each agent rolled
+    // on its own, seed 15 since resting prey watches as the old sightings did (re-pinned 2026-11-21).
+    // The stalk's odds are a balance question, not this test's.
     public void ThePlayer_CanHuntAHerdMember_ButcherItAndEat()
     {
-        for (int seed = 1; seed <= 10; seed++)
+        // Kills are rare (rebuild-combat-balance.md; the first one comes at seed 80 today), so this looks
+        // until one comes: a fixed handful of seeds broke whenever anything else shifted an agent id or a
+        // tile. How rare is held by ThePlayersStalks_KillAtTheirRate, so a drop in the odds shows there
+        // instead of being hidden by a longer search here.
+        for (int seed = 1; seed <= 200; seed++)
         {
             var w = World.New(seed);
             var tile = Quiet(w);
@@ -390,19 +484,18 @@ public class HerdTests(ITestOutputHelper output)
                 var me = Combat.UnitOf(enc, P);
                 var acts = Combat.Actions(w, enc, me);
                 var target = Combat.NearestEnemy(enc, me);
-                // Stalk in short steps to throwing range, throw, then close and strike.
+                // Advance to throwing range, throw, then close and strike.
                 double gap = target == null ? 0 : me.Position.DistanceTo(target.Position);
-                var (act, to) = acts.Contains(CombatAction.Attack) ? (CombatAction.Attack, (Cell?)null)
-                    : gap <= 10 && acts.Contains(CombatAction.Throw) ? (CombatAction.Throw, null)
-                    : acts.Contains(CombatAction.Move) && target != null ? (CombatAction.Move, StepToward(me.Position, target.Position))
-                    : acts.Contains(CombatAction.Advance) ? (CombatAction.Advance, null) : (CombatAction.Wait, null);
-                var r = Sim.Step(w, new Fight(P, act, target == null ? null : enc.Units.IndexOf(target), to), 1);
+                var act = acts.Contains(CombatAction.Attack) ? CombatAction.Attack
+                    : gap <= 10 && acts.Contains(CombatAction.Throw) ? CombatAction.Throw
+                    : acts.Contains(CombatAction.Advance) ? CombatAction.Advance : CombatAction.Wait;
+                var r = Sim.Step(w, new Fight(P, act, target == null ? null : enc.Units.IndexOf(target)), 1);
                 result = r.Events.OfType<FightEnded>().FirstOrDefault(f => f.Agent == P)?.Result;
             }
             output.WriteLine($"seed {seed}: {result}");
-            if (result != CombatResult.Victory) continue;
+            // A kill is a carcass, even when the rest of the herd ran (AnimalFled).
+            if (w.Tiles.GetValueOrDefault(tile)?.Carcasses is not [var carcass, ..]) continue;
 
-            var carcass = w.Tiles[tile].Carcasses!.First();
             var butchered = Sim.Step(w, new Butcher(P, carcass.Id), 240);
             double meat = Items.Have(pack, Resource.RawMeat);
             Assert.True(meat > 1, $"butchering a caribou gave {meat:F2} kg of meat ({butchered.InterruptedReason})");
@@ -411,11 +504,95 @@ public class HerdTests(ITestOutputHelper output)
             output.WriteLine($"seed {seed}: killed, butchered {meat:F1} kg of meat, ate {ate.Kcal:F0} kcal");
             return;
         }
-        Assert.Fail("ten stalks with a spear and never a kill");
+        Assert.Fail("two hundred stalks with a spear and never a kill");
     }
 
-    static Cell StepToward(Cell from, Cell to) =>
-        new(from.X + Math.Sign(to.X - from.X), from.Y + Math.Sign(to.Y - from.Y));
+    /// The player's stalks of a resting caribou with a wooden spear and a knife, in one valley, kill at
+    /// the rate the combat balance gives: a floor under the odds that the search in
+    /// ThePlayer_CanHuntAHerdMember_ButcherItAndEat would otherwise hide.
+    [Fact]
+    public void ThePlayersStalks_KillAtTheirRate()
+    {
+        var w = World.New(17);
+        var tile = Quiet(w);
+        w.Agent(P).Tile = tile;
+        int kills = 0, stalks = 1000;
+        for (int i = 0; i < stalks; i++)
+        {
+            var player = w.Agent(P);
+            player.Members[0] = BodyState.BaselineHuman(); // whole again for every stalk
+            var pack = Items.Pack(w, P);
+            pack.Gear.RemoveAll(g => g.Kind == "wooden_spear");
+            var spear = Items.Make("wooden_spear");
+            pack.Gear.Add(spear);
+            var herd = Agents.Spawn(w, Species.Caribou, tile, 4);
+            Mind(w, herd).State = HerdState.Resting;
+            Fauna.BeginHunt(w, P, herd, 0, spear);
+            for (int round = 0; round < 200 && Combat.EncounterOf(w, P) is { } enc; round++)
+            {
+                var me = Combat.UnitOf(enc, P);
+                var acts = Combat.Actions(w, enc, me);
+                var target = Combat.NearestEnemy(enc, me);
+                double gap = target == null ? 0 : me.Position.DistanceTo(target.Position);
+                var act = acts.Contains(CombatAction.Attack) ? CombatAction.Attack
+                    : gap <= 10 && acts.Contains(CombatAction.Throw) ? CombatAction.Throw
+                    : acts.Contains(CombatAction.Advance) ? CombatAction.Advance : CombatAction.Wait;
+                Sim.Step(w, new Fight(P, act, target == null ? null : enc.Units.IndexOf(target)), 1);
+            }
+            if (w.Tiles.GetValueOrDefault(tile)?.Carcasses is { Count: > 0 } carcasses)
+            {
+                kills++;
+                foreach (var c in carcasses.ToList()) Carcasses.Remove(w, tile, c);
+            }
+            foreach (var id in Herds(w).Select(h => h.Id).ToList()) Agents.Remove(w, id);
+        }
+        output.WriteLine($"{kills} kills in {stalks} stalks");
+        Assert.True(kills >= KillFloor, $"{kills} kills in {stalks} stalks");
+    }
+
+    /// About half today's rate (21 kills in 1,000 stalks, 2.1%): a fall to half or less fails.
+    const int KillFloor = 10;
+
+    /// Every agent rolls on its own streams: a pack pulling down caribou across the valley, bleeding
+    /// and fighting, leaves the player's injuries and body as they were without it. (Shared streams
+    /// let any herd's fight move the player's next injury.)
+    [Fact]
+    public void AFarFight_LeavesThePlayersRollsAlone()
+    {
+        (string Rolls, int Mine, int HerdInjuries) Run(bool farFight)
+        {
+            var w = World.New(17);
+            var m = Map.Of(w);
+            if (farFight)
+            {
+                var far = Enumerable.Range(0, m.Width / 2).Select(dx => m.Width - 30 - dx).SelectMany(x => Enumerable.Range(10, m.Height - 20).Select(y => new TileId(x, y)))
+                    .First(t => m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && !m.OnPass(t));
+                Agents.Spawn(w, Species.Caribou, far, 3);
+                var pack = Agents.Spawn(w, Species.Wolf, far, 5);
+                Mind(w, pack).Hunger = 0.9;
+                Mind(w, pack).State = HerdState.Patrolling;
+            }
+            // Seed 17: forest at (2,33), rock below it, so every quick step south rolls for an injury.
+            w.Agent(P).Tile = new TileId(2, 33);
+            var events = new List<WorldEvent>();
+            for (int i = 0; i < 30 && Body.IsAlive(w.Agent(P).Body); i++)
+            {
+                events.AddRange(Sim.Step(w, new Travel(P, Direction.South), 60).Events);
+                events.AddRange(Sim.Step(w, new Travel(P, Direction.North), 60).Events);
+                events.AddRange(Sim.Step(w, new Wait(P), 30).Events);
+            }
+            var mine = events.OfType<Injured>().Where(e => e.Who == P).Select(e => $"{e.Minute} {e.Region} {e.Type} {e.Amount}");
+            // The player's own streams, by exact name ("travel:0" and not "travel:10").
+            var streams = w.Rngs.Where(kv => kv.Key == StreamName.Of(kv.Key.Value.Split(':')[0], P)).Select(kv => $"{kv.Key}={kv.Value.State}");
+            string body = System.Text.Json.JsonSerializer.Serialize(w.Agent(P).Body);
+            return (string.Join("\n", mine.Concat(streams)) + "\n" + body, mine.Count(), events.OfType<Injured>().Count(e => e.Who != P));
+        }
+        var alone = Run(false);
+        var beside = Run(true);
+        Assert.True(beside.HerdInjuries > 0, "the far pack never drew blood: nothing tested");
+        Assert.True(alone.Mine > 0, "thirty quick steps onto rock and never hurt: nothing tested");
+        Assert.Equal(alone.Rolls, beside.Rolls);
+    }
 
     // ---- saves ----
 
@@ -671,7 +848,7 @@ public class HerdTests(ITestOutputHelper output)
         foreach (var id in w.Agents.Values.Where(x => x.Mind is HerdMind).Select(x => x.Id).ToList()) w.Agents.Remove(id);
         var wolves = Agents.Spawn(w, Species.Wolf, tile, 3);
         var mind = Fauna.MindOf(w.Agent(wolves));
-        Combat.LeaveCarcass(w, tile, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 100, 0.1, 0.4));
+        Combat.LeaveCarcass(w, tile, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 100, 0.1, 0.4), new Cause(null, "a test"));
         mind.Hunger = 0.95;
         mind.Foray = new TileId(tile.X + 10, tile.Y);
         mind.State = HerdState.Patrolling;
@@ -766,9 +943,86 @@ public class DenTests
         Assert.InRange(herd.Members.Count, 8, 12);
         Assert.InRange(((HerdMind)herd.Mind).Territory.Count, 8, 288);
 
-        w.Agents.Remove(herd.Id); // the herd hunted out
-        Sim.Step(w, new Wait(AgentId.Player), 6 * 60);
-        Assert.Empty(Herds(w, Species.Mammoth));
+        // Hunted out: every member dies of its wounds, the herd leaves the world the way the dead do
+        // (Fauna.Tick), and days on nothing has come back to the hollow.
+        foreach (var body in herd.Members) body.BloodPct = 0;
+        Sim.Advance(w, 60);
+        Assert.False(w.Agents.ContainsKey(herd.Id));
+        Sim.Advance(w, 3 * 1440);
+        Assert.DoesNotContain(w.Agents.Values, a => a.Species == Species.Mammoth);
         Assert.Empty(Herds(World.New(1), Species.Mammoth)); // and a valley with no Bone Hollow has none at all
+    }
+
+    /// old game: den land was any open tile in a square round the den bar the far side, grown by
+    /// adjacency alone, so a pack could hold pass stages and land across a ravine or cliff it could
+    /// never walk to (bug, fixed). Every herd's land is walkable from its start, and off the whole
+    /// pass corridor: the rock between the stages too, which once held herds penned in 3-tile pockets.
+    [Theory]
+    [InlineData(24)] // a wolf den under the mountains: its land took three pass stages
+    [InlineData(67)] // land beyond a blocking edge
+    [InlineData(80)]
+    [InlineData(63)] // six bison penned between two stages
+    [InlineData(1)] // megaloceros between stages
+    public void EveryTerritory_IsWalkableFromItsStart_AndOffThePass(int seed)
+    {
+        var w = World.New(seed);
+        var m = Map.Of(w);
+        // The corridor read off the terrain alone: from the exit back to the Pass Approach, every tile
+        // reached through a passage one tile wide. (West of the approach is the valley's own.)
+        int Open(TileId t) => MapGen.Neighbors(t).Count(n => m.InBounds(n) && m.TerrainAt(n).IsPassable());
+        int approachX = m.PassStageIndex.Single(s => s.Value == 0).Key.X;
+        var corridor = new HashSet<TileId> { m.Exit };
+        var walk = new Queue<TileId>(corridor);
+        while (walk.Count > 0)
+            foreach (var n in MapGen.Neighbors(walk.Dequeue()))
+                if (m.InBounds(n) && n.X >= approachX && m.TerrainAt(n).IsPassable() && Open(n) <= 2 && corridor.Add(n)) walk.Enqueue(n);
+        Assert.True(corridor.Count >= 12, $"corridor of only {corridor.Count} tiles");
+        Assert.All(corridor, t => Assert.True(m.OnPass(t), $"{t} is in the corridor but not on the map's pass"));
+        foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind))
+        {
+            var land = ((HerdMind)h.Mind).Territory;
+            var inLand = land.ToHashSet();
+            var reached = new HashSet<TileId> { land[0] };
+            var queue = new Queue<TileId>(reached);
+            while (queue.Count > 0)
+            {
+                var t = queue.Dequeue();
+                foreach (var n in MapGen.Neighbors(t))
+                    if (inLand.Contains(n) && Map.Blocked(m, t, n) == null && reached.Add(n)) queue.Enqueue(n);
+            }
+            Assert.True(reached.Count == land.Count, $"{h.Species} {h.Id}: {land.Count - reached.Count} of {land.Count} tiles cut off from its start");
+            Assert.DoesNotContain(land, t => m.StageAt(t) != null);
+            Assert.DoesNotContain(land, m.OnPass);
+            Assert.DoesNotContain(land, corridor.Contains);
+        }
+    }
+}
+
+/// Herd land across many valleys: every species' smallest territory is real range, not a pocket.
+/// The floors sit under the smallest seen in seeds 0-59 with the whole pass corridor left out
+/// (land grown through walkable edges is cut short by ravines and cliffs, so they are below the
+/// target sizes). Cave dens range only where their cave connects, and hyena packs start hard against
+/// a wolf pack's land, so those two keep the generator's own floor of three tiles.
+public class TerritorySweepTests(ITestOutputHelper output)
+{
+    static readonly IReadOnlyDictionary<Species, int> Floor = new Dictionary<Species, int>
+    {
+        [Species.Bison] = 80, [Species.Megaloceros] = 40, [Species.Caribou] = 100, [Species.SaberTooth] = 80,
+        [Species.Wolf] = 20, [Species.Bear] = 40, [Species.Mammoth] = 150, [Species.CaveBear] = 3, [Species.Hyena] = 3, [Species.Raven] = 100,
+    };
+
+    [Fact]
+    public void SmallestTerritory_PerSpecies_IsRealRange()
+    {
+        var smallest = new SortedDictionary<Species, (int Tiles, int Seed)>();
+        for (int seed = 0; seed < 60; seed++)
+            foreach (var h in World.New(seed).Agents.Values.Where(a => a.Mind is HerdMind))
+            {
+                int tiles = ((HerdMind)h.Mind).Territory.Count;
+                if (!smallest.TryGetValue(h.Species, out var s) || tiles < s.Tiles) smallest[h.Species] = (tiles, seed);
+            }
+        output.WriteLine(string.Join(", ", smallest.Select(s => $"{s.Key} {s.Value.Tiles} (seed {s.Value.Seed})")));
+        foreach (var (species, (tiles, seed)) in smallest)
+            Assert.True(tiles >= Floor[species], $"{species}: seed {seed} gave a territory of {tiles} tiles, under {Floor[species]}");
     }
 }

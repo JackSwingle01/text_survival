@@ -32,6 +32,31 @@ NPC results on the full tree: 14-day gate 6/6; 20-seed 14-day sweep 18/20 (seeds
 no timber nearby); 30 days on the six gate seeds 3/6 (1, 42, 777 live; 17 dies day 27.8 at 6.9 kg
 fat; 2024 day 28.6; 3 day 15.2 at 9.3 kg fat, so cold or fire, not hunger).
 
+**Update 2026-11-21 (asks review, second round):** items 4 and 6 below are fixed as competence bugs, not
+balance: a camp with no timber within 15 tiles now explores up to 30 for a stand and moves camp to it (seed 5 lives
+30 days), and a small fire is built up with kindling, the reserve included, until the logs it has will go on.
+Also fixed: strike odds the NPC will accept fall as it gets colder, it sleeps short beside a fire it cannot bank,
+and from camp it does not set off for wood it would come home freezing from. Forage numbers and the daily schedule
+are unchanged. NPC 30-day survival on the ten review seeds: 9/10 (seed 123 dies in a mammoth hunt it started).
+
+**Update 2026-11-21 (fire-keeping review, third round):** every NPC trip and every stint of work away from camp is
+held to one budget (`Npc.Afford`: home warm enough by the same reckoning the warmth need uses, the clothes' stored
+heat included; rested enough; home by `HomeMinuteOfDay`), a far-out NPC too spent or cold to walk home makes camp
+where it is, bed reckons by the hours the fire will burn (`Fire.HoursItWillBurn`), and short of starving it leaves
+prey it would run from alone. Forage numbers and the daily schedule are unchanged. 60 days on the 16 review seeds:
+all still die; mean death day 33.4 -> 34.8, median 34.2 -> 36.2, worst 5.0 -> 26.5, best 52.0 -> 40.0. Most deaths
+are still fat at or under the 10% floor, then cold.
+
+**Update 2026-11-21 (review of the trip budget, fourth round):** competence fixes, no balance. A far-out NPC makes camp
+where it stands only beyond two tiles, carrying a fire's makings, the walk home reckoned along the path, and never while
+camp has a fire, embers or a shelter unless too spent to get there (`Npc.Stranded`); walks to makings are warming walks,
+judged by the legs and a lethal core line rather than the trip budget, and from a camp with no fire the walk to the trees
+is too (`Npc.WarmingWalk`, `Afford(warming)`); a full pack no longer stops it taking tinder off its own stash; a lone NPC
+hunts by species role and never a mammoth (`Npc.WouldHunt`). Forage numbers and the daily schedule are unchanged. 60 days
+on the 16 review seeds: mean death day 35.2 -> 42.0, median 36.8 -> 37.7, worst 26.5 -> 29.7, one survivor (2025). No NPC
+hunts at all (no caribou herd comes within the 3 tiles it looks). Most deaths are now the deferred day: food critical
+pre-empts wood, the camp runs out and a cold morning finds it groping a worked-out tile (seeds 7, 11).
+
 ## To review
 
 1. **Focus gain size.** At 1.3 a focused forest forager ends about -0.04 kg/day. At 1.5 about

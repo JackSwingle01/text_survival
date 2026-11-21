@@ -1,0 +1,85 @@
+// The ground as generated: what each terrain, cave tile and edge is like before anything happens
+// on it. A named place (locations.json) overrides its tile's values; the camp's are code (Map, Pools).
+// Loaded once by Content; ContentTests checks every name in here resolves.
+//
+// terrains: every Terrain. passable false is a wall (no traversal, forage or finds).
+//   traversalMinutes: minutes to cross one 100 m tile of flat ground at a walk, before hazard and modifier.
+//   hazard 0-1: chance of a slip or fall, and how much the ground slows you. wind 0-2: how much of the
+//   wind reaches you. cover 0-1: canopy overhead. visibility 0-2: how far you can see.
+//   substrate: the ground under the snow (a name in substrates). forage: its table in forage.json and
+//   the density drawn around (old FeatureFactory.CreateTerrainForage). trees: standing timber, stated
+//   on every row, null where none stands (null wood is mixed forest). What is hidden there is discoveries.json's.
+// caves: the underground tiles, Entrance and Floor, as a terrain row (their substrate is bare rock).
+// substrates: the ground under a tile (old SubstrateProfile.For), named by their key. Thickness in metres;
+//   rates per minute. holdsStandingWater, stated on each: whether water can stand on it or runs away.
+// edges: every EdgeType: minutes it adds to a crossing (negative saves time), and whether it stops one
+//   (blocking, stated on each; a blocking edge adds no minutes).
+{
+ "terrains": {
+  "Forest": { "passable": true, "traversalMinutes": 1, "hazard": 0.1, "wind": 0.3, "cover": 0.5, "visibility": 0.5,
+   "substrate": "forestFloor", "forage": { "table": "MixedForest", "density": 1.0 }, "trees": { "name": "Forest Trees", "minutesToFell": 100 } },
+  "Clearing": { "passable": true, "traversalMinutes": 1, "hazard": 0.05, "wind": 0.7, "cover": 0.1, "visibility": 1.0,
+   "substrate": "loam", "forage": { "table": "MixedForest", "density": 0.72 }, "trees": null },
+  "Plain": { "passable": true, "traversalMinutes": 1, "hazard": 0, "wind": 1.2, "cover": 0, "visibility": 1.2,
+   "substrate": "loam", "forage": { "table": "Open", "density": 0.52 }, "trees": null },
+  "Hills": { "passable": true, "traversalMinutes": 2, "hazard": 0.25, "wind": 1.4, "cover": 0, "visibility": 1.5,
+   "substrate": "slope", "forage": { "table": "Rocky", "density": 0.40 }, "trees": null },
+  "Water": { "passable": true, "traversalMinutes": 1, "hazard": 0.4, "wind": 1.3, "cover": 0, "visibility": 1.3,
+   "substrate": "iceSheet", "forage": { "table": "FrozenCreek", "density": 0.52 }, "trees": null },
+  "Marsh": { "passable": true, "traversalMinutes": 2, "hazard": 0.3, "wind": 0.8, "cover": 0, "visibility": 0.7,
+   "substrate": "peat", "forage": { "table": "Wetland", "density": 0.52 }, "trees": null },
+  "Rock": { "passable": true, "traversalMinutes": 2, "hazard": 0.3, "wind": 1.0, "cover": 0.1, "visibility": 0.8,
+   "substrate": "rock", "forage": { "table": "Rocky", "density": 0.52 }, "trees": null },
+  "Mountain": { "passable": false, "hazard": 0, "wind": 1.8, "cover": 0, "visibility": 0.5, "substrate": "impassable", "trees": null },
+  "DeepWater": { "passable": false, "hazard": 0, "wind": 1.0, "cover": 0, "visibility": 1.0, "substrate": "impassable", "trees": null }
+ },
+
+ // Old CaveLocationFactory.MakePassage: stone and bone underfoot, wind-blown sticks at the mouth.
+ "caves": {
+  "Entrance": { "hazard": 0.2, "wind": 0.3, "cover": 0.6, "visibility": 0.8, "forage": { "table": "CaveMouth", "density": 0.52 } },
+  "Floor": { "hazard": 0.3, "wind": 0, "cover": 1.0, "visibility": 0.7, "forage": { "table": "CaveFloor", "density": 0.52 } }
+ },
+
+ "substrates": {
+  "loam": { "thicknessM": 0.30, "poreCapacityPct": 0.40, "permeabilityMPerMinute": 0.00030, "drainagePerMinute": 0.00080,
+   "retentionPct": 0.35, "runoffPerMinute": 0.0006, "initialSaturationPct": 0.30, "softnessLevel": 0.50, "holdsStandingWater": true },
+  "forestFloor": { "thicknessM": 0.35, "poreCapacityPct": 0.45, "permeabilityMPerMinute": 0.00050, "drainagePerMinute": 0.00100,
+   "retentionPct": 0.40, "runoffPerMinute": 0.0004, "initialSaturationPct": 0.35, "softnessLevel": 0.45, "holdsStandingWater": true },
+  "slope": { "thicknessM": 0.20, "poreCapacityPct": 0.30, "permeabilityMPerMinute": 0.00040, "drainagePerMinute": 0.00250,
+   "retentionPct": 0.25, "runoffPerMinute": 0.0060, "initialSaturationPct": 0.20, "softnessLevel": 0.30, "holdsStandingWater": true },
+  // Takes almost nothing in, so rain ponds at once and then runs off the tile.
+  "rock": { "thicknessM": 0.08, "poreCapacityPct": 0.12, "permeabilityMPerMinute": 0.00003, "drainagePerMinute": 0.00300,
+   "retentionPct": 0.10, "runoffPerMinute": 0.0100, "initialSaturationPct": 0.10, "softnessLevel": 0.05, "holdsStandingWater": true },
+  // Holds nearly everything and lets go of none of it: wet in any weather, ponds the moment it rains.
+  "peat": { "thicknessM": 0.50, "poreCapacityPct": 0.60, "permeabilityMPerMinute": 0.00005, "drainagePerMinute": 0.00005,
+   "retentionPct": 0.85, "runoffPerMinute": 0.0001, "initialSaturationPct": 0.85, "softnessLevel": 1.00, "holdsStandingWater": true },
+  // Lake ice. Inert here: standing water runs away.
+  "iceSheet": { "thicknessM": 0.05, "poreCapacityPct": 0.0, "permeabilityMPerMinute": 0.0, "drainagePerMinute": 0.0,
+   "retentionPct": 0.0, "runoffPerMinute": 0.0200, "initialSaturationPct": 0.0, "softnessLevel": 0.0, "holdsStandingWater": false },
+  "impassable": { "thicknessM": 0.05, "poreCapacityPct": 0.0, "permeabilityMPerMinute": 0.0, "drainagePerMinute": 0.0,
+   "retentionPct": 0.0, "runoffPerMinute": 0.0, "initialSaturationPct": 0.0, "softnessLevel": 0.0, "holdsStandingWater": false }
+ },
+
+ // What every felled tree gives, wherever it stood (old WoodedAreaFeature.FellTree): logs of its wood,
+ // each logKg within logKgSpreadPct either way; sticks and pinches of tinder, each kg in [min, max].
+ // Counts are [min, max], both inclusive. A mixed stand's tree is one wood, by mixedWood's shares,
+ //   drawn in Resource order (Pine, Birch, Oak), not the order written here.
+ "felling": {
+  "logs": { "count": [8, 10] },
+  "logKg": { "Pine": 2.5, "Birch": 2.0, "Oak": 4.0 },
+  "logKgSpreadPct": 0.1,
+  "mixedWood": { "Pine": 0.40, "Birch": 0.35, "Oak": 0.25 },
+  "kindling": { "count": [4, 6], "kg": [0.2, 0.5] },
+  "tinder": { "count": [2, 3], "kg": [0.03, 0.08] }
+ },
+
+ "edges": {
+  "River": { "traversalMinutes": 4, "blocking": false },
+  "Cliff": { "traversalMinutes": 0, "blocking": true },
+  "Climb": { "traversalMinutes": 6, "blocking": false },
+  "GameTrail": { "traversalMinutes": -1, "blocking": false },
+  "TrailMarker": { "traversalMinutes": -1, "blocking": false },
+  "CutTrail": { "traversalMinutes": -2, "blocking": false },
+  "Ravine": { "traversalMinutes": 0, "blocking": true }
+ }
+}

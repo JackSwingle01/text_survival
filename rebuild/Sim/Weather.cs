@@ -86,7 +86,7 @@ public static class Weather
 
     // ---- calendar: world minute 0 is July 1, 09:00 (the old GameContext.StartTime) ----
 
-    const int StartDayOfYear = 182, StartMinuteOfDay = 9 * 60, DaysPerYear = 365; // ponytail: no leap years
+    const int StartDayOfYear = 182, StartMinuteOfDay = 9 * 60, DaysPerYear = 365; // no leap years
     /// The old game (GameContext.CreateNewGame) built its weather 30 days before the start and
     /// ran it forward, so turn 1 opens a month into the fronts, long past the gentle Initial one.
     /// The timeline starts here; world minute 0 is still July 1, 09:00.
