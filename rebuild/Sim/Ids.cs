@@ -15,8 +15,7 @@ public readonly record struct AgentId(int Value) : IComparable<AgentId>
 [JsonConverter(typeof(TileIdConverter))]
 public readonly record struct TileId(int X, int Y) : IComparable<TileId>
 {
-    // x-major, then y: the order every sorted tile collection is in. Compared field by field, not as a
-    // tuple, which went through the generic comparers on every lookup of World.Tiles.
+    // x-major, then y; field by field, since a tuple compare goes through the generic comparers.
     public int CompareTo(TileId o) => X != o.X ? (X < o.X ? -1 : 1) : Y < o.Y ? -1 : Y > o.Y ? 1 : 0;
 }
 
@@ -53,7 +52,6 @@ public readonly record struct FireId(int Value) : IComparable<FireId>
     public int CompareTo(FireId o) => Value.CompareTo(o.Value);
 }
 
-/// FireId keys World.Fires; same reason as AgentIdConverter.
 sealed class FireIdConverter : JsonConverter<FireId>
 {
     public override FireId Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => new(r.GetInt32());
@@ -115,7 +113,6 @@ sealed class StreamNameConverter : JsonConverter<StreamName>
     public override void WriteAsPropertyName(Utf8JsonWriter w, StreamName id, JsonSerializerOptions o) => w.WritePropertyName(id.Value);
 }
 
-/// A resource pool on a tile: the Index-th pool generation puts there (Pools.At).
 [JsonConverter(typeof(PoolIdConverter))]
 public readonly record struct PoolId(TileId Tile, int Index) : IComparable<PoolId>
 {

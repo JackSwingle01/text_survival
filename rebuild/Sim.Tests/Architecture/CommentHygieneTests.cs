@@ -74,7 +74,6 @@ public class CommentHygieneTests
         ["Fauna.cs"] = 21,
         ["Fire.cs"] = 19,
         ["Ground.cs"] = 18,
-        ["Ids.cs"] = 11,
         ["Items.cs"] = 26,
         ["Knowledge.cs"] = 24,
         ["Make.cs"] = 18,
