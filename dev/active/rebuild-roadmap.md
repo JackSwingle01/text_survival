@@ -244,3 +244,18 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   Detection ranges and speeds start from the research's values but may be balanced for play.
 - Pursuit: yes, after the MVP. It must be shown playing out on the real map (both animals moving
   tile by tile, tracks and blood visible), not as a bare progress bar.
+
+**Combat round 2**
+- AI priority lists per state, as proposed, with two changes:
+  - a person throws only at a 50%+ hit chance;
+  - in Standoff an animal may move sideways around you, or stop; it doesn't only hold.
+- Morale cost of wounds is derived from vitality and blood loss, with no hard-coded per-hit
+  numbers.
+- Opening optimism is deleted (revisit only if the sweeps need it).
+- No weapon factor in perceived threat. Animals don't fear weapons; they learn through injury
+  (morale events and the herd's learned fear).
+- Morale reacts to the target's state as proposed: chase instinct, giving ground, pressing,
+  standoff cost, a smaller bonus for landing a hit, and the pack cascade kept.
+- Alertness rises when you're noticed and fades when you aren't, scaled by how much you move.
+  Freezing helps but is not a sure thing: a wary animal can still notice you or come to look.
+  Balance it in the sweeps.
