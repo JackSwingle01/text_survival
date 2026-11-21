@@ -380,11 +380,11 @@ public class CombatTests
         for (int round = 0; round < 12 && !Combat.CanFlee(me.Position); round++)
         {
             Combat.Move(w, e, me, new Cell(me.Position.X + dx, me.Position.Y + dy));
-            var rngBefore = w.Rng("combat").State;
+            var rngBefore = w.Rng("combat", wolf.Agent).State;
             var from = wolf.Position;
             Combat.AiTurn(w, e, wolf, []);
             // A pursuit strike is the only thing in a Move turn that rolls: it ends within 1.5 m.
-            if (from != wolf.Position && wolf.Position.DistanceTo(me.Position) <= 1.5 && w.Rng("combat").State != rngBefore) { struck = true; break; }
+            if (from != wolf.Position && wolf.Position.DistanceTo(me.Position) <= 1.5 && w.Rng("combat", wolf.Agent).State != rngBefore) { struck = true; break; }
         }
         Assert.True(struck);
         Assert.False(Combat.CanFlee(me.Position));

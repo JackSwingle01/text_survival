@@ -139,7 +139,7 @@ public static partial class Combat
         }
         Add(teamA, 0, aY, awarenessA);
         Add(teamB, 1, bY, awarenessB);
-        if (opening is Opening o) Place(world, enc, o, distanceM, world.Rng("combat"));
+        if (opening is Opening o) Place(world, enc, o, distanceM, world.Rng("combat", teamA[0].Agent)); // whoever opened it
         world.Encounters.Add(enc);
         return enc;
     }
@@ -201,7 +201,7 @@ public static partial class Combat
     public static List<Fighter> SendMembers(World world, AgentId herd, int lead, int maxExtra = 3)
     {
         var agent = world.Agent(herd);
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", herd);
         var others = Enumerable.Range(0, agent.Members.Count).Where(i => i != lead && Body.IsAlive(agent.Members[i])).ToList();
         int extra = Math.Min(others.Count, maxExtra) is int max and > 0 ? rng.NextInt(max + 1) : 0;
         for (int i = others.Count - 1; i > 0; i--) { int j = rng.NextInt(i + 1); (others[i], others[j]) = (others[j], others[i]); }
@@ -529,7 +529,7 @@ public static partial class Combat
             foreach (var u in Field(enc).ToList())
             {
                 var body = BodyOf(world, u);
-                Body.TickWounds(body, world.Rng("body"));
+                Body.TickWounds(body, world.Rng("body", u.Agent));
                 if (world.Agent(u.Agent).Mind is HerdMind && Body.IsAlive(body)) Fauna.Mend(body); // an animal mends in the minute it bleeds (Fauna.Tick)
                 body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute - 1) + 1;
             }
@@ -569,11 +569,11 @@ public static partial class Combat
                 var p = new Cell(destination.X + dx, destination.Y + dy);
                 if ((dx != 0 || dy != 0) && InBounds(p) && !Occupied(p)) free.Add(p);
             }
-        return free.Count == 0 ? mover.Position : free[world.Rng("combat").NextInt(free.Count)];
+        return free.Count == 0 ? mover.Position : free[world.Rng("combat", mover.Agent).NextInt(free.Count)];
     }
 
     static ActionResult Attack(World world, Encounter enc, CombatUnit attacker, CombatUnit defender, List<WorldEvent> events) =>
-        world.Rng("combat").NextDouble() < 0.9 ? Strike(world, enc, attacker, defender, events) : new ActionResult();
+        world.Rng("combat", attacker.Agent).NextDouble() < 0.9 ? Strike(world, enc, attacker, defender, events) : new ActionResult();
 
     /// A thrown weapon: closer is surer, small targets are harder, and the weapon lands on the ground.
     static ActionResult Throw(World world, Encounter enc, CombatUnit attacker, CombatUnit target, List<WorldEvent> events)
@@ -581,7 +581,7 @@ public static partial class Combat
         var weapon = attacker.Weapon ?? throw new InvalidOperationException("No weapon to throw");
         var (rangeM, accuracy) = Throwing(weapon);
         double chance = ThrownAccuracy(attacker.Position.DistanceTo(target.Position), rangeM, accuracy, StatsOf(world, target).IsSmall);
-        var result = world.Rng("combat").NextDouble() < chance ? Strike(world, enc, attacker, target, events) : new ActionResult();
+        var result = world.Rng("combat", attacker.Agent).NextDouble() < chance ? Strike(world, enc, attacker, target, events) : new ActionResult();
         attacker.Weapon = null; // after the strike: its damage came from the weapon
         Items.StashAt(world, enc.Tile).Gear.Add(weapon);
         return result;
@@ -594,7 +594,7 @@ public static partial class Combat
     /// A quarter of a blow, no dodging or blocking it. Needs no weapon.
     static ActionResult ThrowStone(World world, Encounter enc, CombatUnit attacker, CombatUnit target, List<WorldEvent> events)
     {
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", attacker.Agent);
         double chance = ThrownAccuracy(attacker.Position.DistanceTo(target.Position), StoneRangeM, StoneAccuracy, StatsOf(world, target).IsSmall);
         if (rng.NextDouble() >= chance) return new ActionResult();
         var (amount, type) = AttackDamage(world, attacker, rng);
@@ -610,7 +610,7 @@ public static partial class Combat
     {
         if (defender.Awareness == Awareness.Engaged && defender.DodgeSet && ResolveDodge(world, enc, defender, attacker))
             return new ActionResult(Dodged: true);
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", attacker.Agent);
         var (amount, type) = AttackDamage(world, attacker, rng);
         amount *= AwarenessDamageFactor(defender.Awareness);
         bool blocked = defender.Awareness == Awareness.Engaged && defender.BlockSet;
@@ -660,7 +660,7 @@ public static partial class Combat
     {
         var body = BodyOf(world, target);
         double cushioning = body.Worn.Sum(g => Items.Def(g).Cushioning), toughness = body.Worn.Sum(g => Items.Def(g).Toughness);
-        var result = Body.Damage(body, new DamageInfo(amount, type, BodyTarget.Random, cushioning, toughness), world.Rng("body"));
+        var result = Body.Damage(body, new DamageInfo(amount, type, BodyTarget.Random, cushioning, toughness), world.Rng("body", target.Agent));
         events.Add(new Injured(world.Minute, target.Agent, enc.Tile, result.HitRegion, type, amount));
         return result;
     }
@@ -672,7 +672,7 @@ public static partial class Combat
     static bool ResolveDodge(World world, Encounter enc, CombatUnit defender, CombatUnit attacker)
     {
         var body = BodyOf(world, defender);
-        if (world.Rng("combat").NextDouble() >= DodgeChance(body)) return false;
+        if (world.Rng("combat", defender.Agent).NextDouble() >= DodgeChance(body)) return false;
         body.EnergyMinutes = Math.Max(0, body.EnergyMinutes - DodgeEnergyMinutes);
         Move(world, enc, defender, defender.Position.Move(attacker.Position.DirectionTo(defender.Position), 1.0f));
         return true;
@@ -691,7 +691,7 @@ public static partial class Combat
     /// Strength and weight against strength and weight; a guarded target is half as easy to move.
     static ActionResult Shove(World world, Encounter enc, CombatUnit attacker, CombatUnit target)
     {
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", attacker.Agent);
         var (chance, pushM) = ShoveOdds(BodyOf(world, attacker), BodyOf(world, target));
         if (target.BlockSet) chance /= 2;
         if (rng.NextDouble() >= chance) return new ActionResult();
@@ -806,9 +806,8 @@ public static partial class Combat
     // roll >= chance branch, so it never fired. Kept dead (stalking odds are tuned without it).
     internal static void RunDetection(World world, Encounter enc, CombatUnit mover, int huntingSkill, double exposureMeters)
     {
-        var rng = world.Rng("combat");
         foreach (var enemy in Enemies(enc, mover).Where(e => e.Awareness != Awareness.Engaged).ToList())
-            if (rng.NextDouble() < ExposedDetectionChance(world, enc, mover, enemy, huntingSkill, exposureMeters))
+            if (world.Rng("combat", enemy.Agent).NextDouble() < ExposedDetectionChance(world, enc, mover, enemy, huntingSkill, exposureMeters))
                 enemy.Awareness = enemy.Awareness == Awareness.Unaware ? Awareness.Alert : Awareness.Engaged;
     }
 }

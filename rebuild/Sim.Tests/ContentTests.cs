@@ -137,6 +137,16 @@ public class ContentTests
         Assert.Contains("not in 0-1", Broken(Edit(Locations, "\"insulationCap\": 0.4, \"overheadCap\": 0.6", "\"insulationCap\": 1.4, \"overheadCap\": 0.6")));
     }
 
+    /// A cap left out is the kind's, and the level is checked against that: a Dense Thicket with no
+    /// caps of its own may not start above the kind's 0.7 wind.
+    [Fact]
+    public void Loader_ChecksALevel_AgainstTheKindsCap_WhenTheCapIsLeftOut()
+    {
+        const string thicket = "\"wind\": 0.6, \"insulationCap\": 0.4, \"overheadCap\": 0.6, \"windCap\": 0.7 }";
+        Content.Parse(Edit(Locations, thicket, "\"wind\": 0.6 }"), Loot);
+        Assert.Contains("Dense Thicket: wind 0.9 is above its cap 0.7", Broken(Edit(Locations, thicket, "\"wind\": 0.9 }")));
+    }
+
     [Fact]
     public void Loader_RefusesADanglingReference()
     {

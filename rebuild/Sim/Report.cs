@@ -10,7 +10,7 @@ public enum FindCategory { DeadMatter, Resource, Structure, Sign, Agent }
 public sealed record FindRow(TileId Tile, int RegionX, int RegionY, string Kind, FindCategory Category, long? AgeMinutes, string? Cause, string Text);
 
 /// One region's finds by category and whether its survival floors hold.
-public sealed record RegionRow(int X, int Y, int PassableTiles, int[] Counts, bool Water, bool Fuel, bool Shelter)
+public sealed record RegionRow(int X, int Y, int PassableTiles, int[] Counts, bool Water, bool Fuel, bool Shelter, double FuelFireHours)
 {
     public int Total => Counts.Sum();
 }
@@ -72,10 +72,13 @@ public static class Report
                             Add(t, "worked trees", FindCategory.Resource, null,
                                 Invariant($"{tr.Name}: {ts.Felled} felled{(Pools.HasTrees(w, id) ? "" : ", cleared")}"));
                             break;
-                        case ShelterFind sf when Shelters.Peek(w, t) is not { } standing || standing.Name != sf.Name:
+                        case ShelterFind sf when w.WaitingShelters.GetValueOrDefault(t, -1) == i && Shelters.Peek(w, t)?.Name != sf.Name:
+                            Add(t, "shelter find", FindCategory.Structure, null, $"{sf.Name} ({sf.Shelter.Kind}), found, waiting for the tile");
+                            break;
+                        case ShelterFind sf when !FoundByAnyone(w, id):
                             Add(t, "shelter find", FindCategory.Structure, null, $"{sf.Name} ({sf.Shelter.Kind}), hidden");
                             break;
-                        case ShelterFind: break; // found: the shelter's own row says so
+                        case ShelterFind: break; // found: standing, the shelter's own row says so
                         case ForagePool or TreePool: break; // the skeleton: see the class comment
                         default: throw new InvalidOperationException($"Report has no row for pool {pools[i].GetType().Name}");
                     }
@@ -88,13 +91,8 @@ public static class Report
         foreach (var (t, state) in w.Tiles)
         {
             foreach (var c in state.Carcasses ?? [])
-            {
-                // Decay catches up only when looked at; age a copy so reading changes nothing.
-                var aged = new Carcass { Id = c.Id, Animal = c.Animal, BodyWeightKg = c.BodyWeightKg, DiedMinute = c.DiedMinute, EffectiveHours = c.EffectiveHours, LastUpdatedMinute = c.LastUpdatedMinute };
-                Carcasses.CatchUp(w, t, aged);
                 Add(t, "carcass", FindCategory.DeadMatter, w.Minute - c.DiedMinute,
-                    Invariant($"{c.Animal} carcass, {Carcasses.TotalRemainingKg(c):0.0} kg left, decay {Carcasses.DecayLevel(aged):P0}"));
-            }
+                    Invariant($"{c.Animal} carcass, {Carcasses.TotalRemainingKg(c):0.0} kg left, decay {Carcasses.DecayLevelNow(w, t, c):P0}"));
             if (state.Stash is { } stash && (stash.Kg.Count > 0 || stash.Gear.Count > 0))
                 Add(t, "stash", FindCategory.Resource, null, "stash: " + string.Join(", ",
                     stash.Kg.Select(kv => Invariant($"{kv.Key} {kv.Value:0.##}kg")).Concat(stash.Gear.Select(g => Items.Def(g).Name))));
@@ -131,6 +129,9 @@ public static class Report
         return rows;
     }
 
+    static bool FoundByAnyone(World w, PoolId id) =>
+        w.Agents.Values.Any(a => (a.Mind as PersonMind)?.Knows.Discovered.Contains(id) == true);
+
     public static string DumpText(World w) => DumpText(w, Finds(w));
 
     public static string DumpText(World w, IReadOnlyList<FindRow> finds)
@@ -141,6 +142,44 @@ public static class Report
         foreach (var f in finds)
             sb.Append(Invariant($"{TileIdConverter.Format(f.Tile)}\t{f.RegionX},{f.RegionY}\t{f.Category}\t{f.Kind}\t{(f.AgeMinutes is long a ? a.ToString(System.Globalization.CultureInfo.InvariantCulture) : "-")}\t{f.Cause ?? "-"}\t{f.Text}\n"));
         return sb.ToString();
+    }
+
+    /// What someone standing here sees: the place, what is plainly there and what they have found.
+    /// Reads only, as the rest of Report: a snow shelter is melted and a carcass decayed on copies.
+    public static IReadOnlyList<string> Look(World w, AgentId who)
+    {
+        var p = w.Agent(who);
+        var m = Map.Of(w);
+        var lines = new List<string> { Map.Describe(m, p.Tile) + (Map.DiscoveryText(w, p.Tile) is { } text ? $": {text}" : "") };
+        foreach (var f in Map.SiteFeatures(w.Seed, m, p.Tile))
+            if (f.RevealAtHours == 0 && f is SiteWater { Frozen: true } or SiteSmallGame or SiteCache) // open water is a pool, below
+                lines.Add(f switch
+                {
+                    SiteWater x => Invariant($"water: {x.Name}{(x.Frozen ? Invariant($", ice {x.Ice:0.0}") : "")}"),
+                    SiteSmallGame x => $"small game: {string.Join(", ", x.Animals.Select(a => a.Animal))}",
+                    SiteCache x => Invariant($"cache: {x.Name}, holds {x.CapacityKg:0} kg"),
+                    _ => throw new InvalidOperationException($"Look has no line for {f.GetType().Name}"),
+                });
+        if (Shelters.Peek(w, p.Tile) is { } shelter) lines.Add($"shelter: {shelter.Name}");
+        var pools = Pools.At(w, p.Tile);
+        for (int i = 0; i < pools.Count; i++)
+        {
+            var id = new PoolId(p.Tile, i);
+            if (!Pools.Knows(w, who, id)) continue; // what you have not found, you cannot see
+            lines.Add(pools[i] switch
+            {
+                ForagePool => Invariant($"[{i}] forage, density {Pools.ForageDensity(w, id):0.00}"),
+                TreePool t => Invariant($"[{i}] {t.Name} ({(Pools.HasTrees(w, id) ? Invariant($"{Pools.ChopProgressPct(w, id):P0} cut") : "cleared")})"),
+                StockPool s => $"[{i}] {s.Name}: " + string.Join(", ", s.Items.Zip(Pools.UnitsNow(w, id)).Select(x => Invariant($"{x.First.Resource} {x.Second}/{x.First.Units}"))),
+                _ => $"[{i}] {pools[i].Name}",
+            });
+        }
+        var tile = w.Tiles.GetValueOrDefault(p.Tile);
+        foreach (var c in tile?.Carcasses ?? [])
+            lines.Add(Invariant($"carcass {c.Id}: {c.Animal}, decay {Carcasses.DecayLevelNow(w, p.Tile, c):P0}, {Carcasses.TotalRemainingKg(c):0.0} kg left"));
+        if (tile?.Stash is { } stash && (stash.Kg.Count > 0 || stash.Gear.Count > 0)) lines.Add($"stash: {Items.Describe(stash)}");
+        if (Work.HasOpenWater(w, p.Tile)) lines.Add("open water");
+        return lines;
     }
 
     // ---- distribution ----
@@ -161,7 +200,8 @@ public static class Report
             for (int rx = 0; rx < rw; rx++)
             {
                 int passable = 0;
-                bool water = false, fuel = false, shelter = false;
+                double fuelHours = 0;
+                bool water = false, shelter = false;
                 for (int x = rx * RegionTiles; x < Math.Min(m.Width, (rx + 1) * RegionTiles); x++)
                     for (int y = ry * RegionTiles; y < Math.Min(m.Height, (ry + 1) * RegionTiles); y++)
                     {
@@ -170,17 +210,64 @@ public static class Report
                         passable++;
                         var pools = Pools.At(w, t);
                         water |= Work.HasOpenWater(w, t) || pools.Any(p => p is StockPool s && s.Items.Any(i => i.Resource == Resource.Water));
-                        fuel |= pools.Any(p => p is TreePool
-                            || p is StockPool s && s.Items.Any(i => Fire.IsFuel(i.Resource))
-                            || p is ForagePool f && f.Items.Any(i => Fire.IsFuel(i.Resource)));
+                        fuelHours += FuelFireHoursPerWorkHour(w, t);
                         shelter |= Shelters.Peek(w, t) != null || m.CaveAt(t) != Cave.None || pools.Any(p => p is ShelterFind);
                     }
                 if (passable == 0) continue;
-                regions.Add(new RegionRow(rx, ry, passable, Enumerable.Range(0, cats).Select(c => counts[rx, ry, c]).ToArray(), water, fuel, shelter));
+                regions.Add(new RegionRow(rx, ry, passable, Enumerable.Range(0, cats).Select(c => counts[rx, ry, c]).ToArray(), water,
+                    fuelHours >= MinFuelFireHours, shelter, fuelHours));
             }
         var totals = Enumerable.Range(0, cats).Select(c => regions.Sum(r => r.Counts[c])).ToArray();
         if (totals.Sum() != finds.Count) throw new InvalidOperationException($"Distribution counted {totals.Sum()} of {finds.Count} finds");
         return new DistributionReport(regions, totals, Median(regions.Select(r => (double)r.Total)));
+    }
+
+    /// The fuel floor (§8 floors per region, as a minimum fuel-quality sum): a region passes when an
+    /// hour's work on each of its tiles would bring in at least this many hours of fire, every source
+    /// weighed by how long its wood burns (Fire.Props). A forest tile alone clears it many times over;
+    /// open plain gives about 0.02 an hour in tinder and twigs, rock and barren less, so a region of
+    /// open steppe or rock with no stand of trees and little deadfall falls under it.
+    // 12 is a night: a fire kept through twelve dark hours at about a kilo an hour.
+    public const double MinFuelFireHours = 12;
+
+    /// Hours of fire an hour's work here brings in now: forage by today's density, a standing tree
+    /// by its felling time, stock by what is left (all of it, if it takes under an hour). Mixed
+    /// forest is the felling's own 40/35/25 draw.
+    public static double FuelFireHoursPerWorkHour(World w, TileId t)
+    {
+        var pools = Pools.At(w, t);
+        double hours = 0;
+        for (int i = 0; i < pools.Count; i++)
+        {
+            var id = new PoolId(t, i);
+            switch (pools[i])
+            {
+                case ForagePool f:
+                    double density = Pools.ForageDensity(w, id);
+                    foreach (var item in f.Items.Where(x => Fire.IsFuel(x.Resource)))
+                        hours += density * item.Abundance * (item.MinKg + item.MaxKg) / 2 / Fire.Props[item.Resource].BurnRateKgPerHour;
+                    break;
+                case TreePool tree when Pools.HasTrees(w, id):
+                    hours += TreeFireHours(tree.Wood) / (tree.MinutesToFell / 60.0);
+                    break;
+                case StockPool s when s.Items.Any(x => Fire.IsFuel(x.Resource)):
+                    var units = Pools.UnitsNow(w, id);
+                    double fire = 0;
+                    for (int k = 0; k < s.Items.Count; k++)
+                        if (Fire.IsFuel(s.Items[k].Resource)) fire += units[k] * s.Items[k].KgPerUnit / Fire.Props[s.Items[k].Resource].BurnRateKgPerHour;
+                    hours += fire / Math.Max(1, s.Items.Max(x => x.Units) * s.MinutesPerUnit / 60.0); // a small stock gives all it has
+                    break;
+            }
+        }
+        return hours;
+    }
+
+    /// One felled tree's fire (Pools.Chop's yield at its middle): 9.5 logs, 5.5 sticks, 3 pinches of tinder.
+    static double TreeFireHours(Resource? wood)
+    {
+        static double Logs(Resource r) => 9.5 * (r == Resource.Oak ? 4.0 : r == Resource.Pine ? 2.5 : 2.0) / Fire.Props[r].BurnRateKgPerHour;
+        double logs = wood is Resource r ? Logs(r) : 0.4 * Logs(Resource.Pine) + 0.35 * Logs(Resource.Birch) + 0.25 * Logs(Resource.Oak);
+        return logs + 5.5 * 0.35 / Fire.Props[Resource.Kindling].BurnRateKgPerHour + 3 * 0.055 / Fire.Props[Resource.Tinder].BurnRateKgPerHour;
     }
 
     static double Median(IEnumerable<double> values)
@@ -200,12 +287,12 @@ public static class Report
         sb.Append(Invariant($"resources >= {MinResourcePct:P0}: {(d.ResourceOk ? "PASS" : "FAIL")}\n"));
         int few = d.Regions.Count(d.TooFew), many = d.Regions.Count(d.TooMany);
         sb.Append(Invariant($"median finds/region {d.MedianFinds:0.#}: {few} below {MinRegionFactor:0.##}x, {many} above {MaxRegionFactor:0.#}x\n"));
-        sb.Append(Invariant($"floors failing: water {d.Regions.Count(r => !r.Water)}, fuel {d.Regions.Count(r => !r.Fuel)}, shelter {d.Regions.Count(r => !r.Shelter)} of {d.Regions.Count}\n"));
+        sb.Append(Invariant($"floors failing: water {d.Regions.Count(r => !r.Water)}, fuel (under {MinFuelFireHours:0} h of fire) {d.Regions.Count(r => !r.Fuel)}, shelter {d.Regions.Count(r => !r.Shelter)} of {d.Regions.Count}\n"));
         sb.Append(Invariant($"populations: {string.Join(", ", Populations(w).Select(p => $"{p.Species} {p.Members} in {p.Herds}"))}\n"));
-        sb.Append("\nregion  tiles " + string.Join(" ", cats.Select(c => Invariant($"{Short(c),5}"))) + " total  floors(water fuel shelter) count\n");
+        sb.Append("\nregion  tiles " + string.Join(" ", cats.Select(c => Invariant($"{Short(c),5}"))) + " total  floors(water fuel shelter) fuel_h count\n");
         foreach (var r in d.Regions)
             sb.Append(Invariant($"{r.X,2},{r.Y,-2}  {r.PassableTiles,5} ") + string.Join(" ", r.Counts.Select(n => Invariant($"{n,5}")))
-                + Invariant($" {r.Total,5}  {Flag(r.Water)} {Flag(r.Fuel)} {Flag(r.Shelter)}  {(d.TooFew(r) ? "LOW" : d.TooMany(r) ? "HIGH" : "ok")}\n"));
+                + Invariant($" {r.Total,5}  {Flag(r.Water)} {Flag(r.Fuel)} {Flag(r.Shelter)} {r.FuelFireHours,7:0.0}  {(d.TooFew(r) ? "LOW" : d.TooMany(r) ? "HIGH" : "ok")}\n"));
         return sb.ToString();
     }
 

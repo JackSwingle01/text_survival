@@ -65,9 +65,10 @@ public sealed record SmallGameEntry(SmallGame Animal, double Weight);
 public sealed record SiteSmallGame(double Density, IReadOnlyList<SmallGameEntry> Animals, int[]? PeakHours = null, double PeakFactor = 1) : SiteFeature;
 public sealed record SiteCache(string Name, double CapacityKg, bool ProtectsFromPredators = false, bool ProtectsFromWeather = false, bool PreservesFood = false) : SiteFeature;
 public sealed record SiteEvent(string Event) : SiteFeature;
-/// Old ShelterFeature: what it gives now and the most it can be improved to. Placed by Shelters.
+/// Old ShelterFeature: what it gives now and the most it can be improved to; a cap left out is the
+/// kind's (Shelters.Kinds). Placed by Shelters.
 public sealed record SiteShelter(string Name, ShelterKind Type, double Insulation, double Overhead, double Wind,
-    double InsulationCap, double OverheadCap, double WindCap) : SiteFeature;
+    double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null) : SiteFeature;
 
 /// One step of a loot table (Content/loot.json says what each field means).
 public sealed record LootRoll(double Chance = 1, Resource? Resource = null, double[]? Kg = null, int[]? Pieces = null,
@@ -219,7 +220,9 @@ public static class Content
     /// Levels and caps are fractions, and work improves a level up to its cap, never down to it.
     static string? ShelterLevelProblem(SiteShelter s)
     {
-        foreach (var (stat, level, cap) in new[] { ("insulation", s.Insulation, s.InsulationCap), ("overhead", s.Overhead, s.OverheadCap), ("wind", s.Wind, s.WindCap) })
+        var k = Shelters.Kinds[s.Type];
+        foreach (var (stat, level, cap) in new[] { ("insulation", s.Insulation, s.InsulationCap ?? k.InsulationCap),
+            ("overhead", s.Overhead, s.OverheadCap ?? k.OverheadCap), ("wind", s.Wind, s.WindCap ?? k.WindCap) })
         {
             if (level is < 0 or > 1 || cap is < 0 or > 1) return $"{stat} {level} (cap {cap}) is not in 0-1";
             if (level > cap) return $"{stat} {level} is above its cap {cap}";

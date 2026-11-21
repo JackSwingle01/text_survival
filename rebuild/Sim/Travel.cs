@@ -77,7 +77,7 @@ public static class Traversal
 
         foreach (var (tile, riskPct) in new[] { (from, c.OriginRiskPct), (to, c.DestRiskPct) })
         {
-            if (riskPct <= 0 || world.Rng("travel").NextDouble() >= riskPct) continue;
+            if (riskPct <= 0 || world.Rng("travel", agent.Id).NextDouble() >= riskPct) continue;
             if (Injure(world, agent, tile, events) is string stop) return stop;
         }
         if (to == Map.Of(world).Exit && agent.Mind is PersonMind)
@@ -164,7 +164,7 @@ public static class Traversal
         return Math.Min(MaxInjuryRiskPct, baseRisk + weather + impaired);
     }
 
-    /// One accident's mechanics, from the old AccidentVariants (text is phase 4 content).
+    /// One accident's mechanics, from the old AccidentVariants (their text is not ported).
     readonly record struct Accident(BodyTarget Target, DamageType Type, double Amount, EffectKind? Effect = null, double Severity = 0);
 
     static readonly Accident[] TripStumble =
@@ -221,14 +221,14 @@ public static class Traversal
     static string? Injure(World world, Agent agent, TileId tile, List<WorldEvent> events)
     {
         var weighted = AccidentPools(Map.Of(world), tile).SelectMany(p => p.Pool.Select(a => (a, p.Weight))).ToList();
-        double roll = world.Rng("travel").NextDouble() * weighted.Sum(x => x.Weight);
+        double roll = world.Rng("travel", agent.Id).NextDouble() * weighted.Sum(x => x.Weight);
         var accident = weighted[^1].a;
         foreach (var (a, weight) in weighted)
             if ((roll -= weight) < 0) { accident = a; break; }
 
         var body = agent.Body;
         var kindsBefore = body.Effects.Select(e => e.Kind).ToList();
-        var hit = Body.Damage(body, new DamageInfo(accident.Amount, accident.Type, accident.Target), world.Rng("body"));
+        var hit = Body.Damage(body, new DamageInfo(accident.Amount, accident.Type, accident.Target), world.Rng("body", agent.Id));
         if (accident.Effect is EffectKind kind) Effects.Add(body, kind, accident.Severity);
         events.Add(new Injured(world.Minute, agent.Id, tile, hit.HitRegion, accident.Type, accident.Amount));
         foreach (var k in body.Effects.Select(e => e.Kind).Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, k));

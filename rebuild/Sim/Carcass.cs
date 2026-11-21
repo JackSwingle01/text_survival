@@ -124,6 +124,19 @@ public static class Carcasses
     };
 
     public static double DecayLevel(Carcass c) => DecayLevel(c.EffectiveHours);
+
+    /// How far gone it is now, without settling the decay owed: a copy is caught up, so looking at
+    /// a carcass changes nothing.
+    public static double DecayLevelNow(World world, TileId tile, Carcass c)
+    {
+        var copy = new Carcass
+        {
+            Id = c.Id, Animal = c.Animal, BodyWeightKg = c.BodyWeightKg, DiedMinute = c.DiedMinute,
+            EffectiveHours = c.EffectiveHours, LastUpdatedMinute = c.LastUpdatedMinute, LastKnownTempF = c.LastKnownTempF,
+        };
+        CatchUp(world, tile, copy);
+        return DecayLevel(copy);
+    }
     public static double RawHours(World world, Carcass c) => (world.Minute - c.DiedMinute) / 60.0;
     public static bool IsFrozen(World world, Carcass c) => c.LastKnownTempF < 15 && RawHours(world, c) > 2;
 

@@ -447,7 +447,7 @@ public static partial class Body
         var kindsBefore = body.Effects.Select(e => e.Kind).ToList();
         double energyBefore = body.EnergyMinutes;
 
-        Update(body, ctx, world.Rng("body"), woundsLived: world.Minute <= body.WoundsLivedThroughMinute);
+        Update(body, ctx, world.Rng("body", agent.Id), woundsLived: world.Minute <= body.WoundsLivedThroughMinute);
 
         var kindsAfter = body.Effects.Select(e => e.Kind).ToList();
         foreach (var k in kindsAfter.Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, k));

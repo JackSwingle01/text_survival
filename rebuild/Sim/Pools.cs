@@ -265,7 +265,7 @@ public static class Pools
     // ---- environmental details (old EnvironmentalDetailFactory): quick finds, 15-30 minutes ----
 
     /// The details with nothing to take (tracks, scat, burrows...) only ever told a story; they
-    /// arrive with events in phase 4, so here they still take their turn in the draw but leave no pool.
+    /// are for moments (not built yet), so here they still take their turn in the draw but leave no pool.
     static IEnumerable<PoolDef> Details(Terrain terrain, Rng rng)
     {
         if (rng.NextDouble() < 0.65) yield break;
@@ -300,7 +300,7 @@ public static class Pools
                 "frozen_puddle" => D("Frozen Puddle", 5, new StockItem(Resource.Water, 1, Uniform(rng, 0.2, 0.5))),
                 "forest_puddle" => D("Forest Puddle", 3, new StockItem(Resource.Water, 1, Uniform(rng, 0.3, 0.7))),
                 "old_nest" => OldNest(rng, D),
-                _ => null, // examine-only: phase 4 events
+                _ => null, // examine-only: nothing to take
             };
             if (detail != null) yield return detail;
         }
@@ -374,10 +374,14 @@ public static class Pools
 
     // Old DiscoveryFeatureFactory natural shelters and CaveLocationFactory.CreateSleepingRecess. The old
     // game drew their levels from the process-wide RNG; here they come from the tile's stream.
+    // The old rolls run past the RockOverhang kind's caps (0.40), so a find's caps are at least its
+    // own levels: work on it never clamps a good overhang down to the kind's.
     static ShelterFind RockOverhang(Rng r, double _)
     {
         double insulation = 0.3 + r.NextDouble() * 0.3, wind = 0.4 + r.NextDouble() * 0.3;
-        return new(new ShelterDef("Rock Overhang", ShelterKind.RockOverhang, insulation, 0.8, wind), 0);
+        var kind = Shelters.Kinds[ShelterKind.RockOverhang];
+        return new(new ShelterDef("Rock Overhang", ShelterKind.RockOverhang, insulation, 0.8, wind,
+            Math.Max(kind.InsulationCap, insulation), Math.Max(kind.OverheadCap, 0.8), Math.Max(kind.WindCap, wind)), 0);
     }
 
     static ShelterFind IceCave(Rng r, double _)
@@ -761,9 +765,7 @@ public static class Pools
                 mind.Knows.SearchHours.Remove(id);
                 mind.Knows.Discovered.Add(id);
                 events.Add(new PoolDiscovered(world.Minute, agent.Id, id, pools[i].Name));
-                // Found, the shelter is on the tile for everyone. One shelter to a tile: where one
-                // already stands (built, or found first), the find adds nothing.
-                if (pools[i] is ShelterFind find && Shelters.At(world, agent.Tile) == null) Shelters.Place(world, agent.Tile, find.Shelter);
+                if (pools[i] is ShelterFind find) Shelters.Found(world, id, find);
             }
             else mind.Knows.SearchHours[id] = hours;
         }

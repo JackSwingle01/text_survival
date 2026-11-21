@@ -431,7 +431,7 @@ public static class Fire
             dexterityPct: Body.Dexterity(body, AbilityContextFor(world, agent)));
         Items.Take(pack, a.Tinder, a.TinderKg);
         Items.Use(Items.Tool(pack, a.Tool)!);
-        if (world.Rng("fire").NextDouble() >= chance)
+        if (world.Rng("fire", a.Who).NextDouble() >= chance)
         {
             events.Add(new FireStartFailed(world.Minute, a.Who, tile, chance));
             return "fire did not catch";

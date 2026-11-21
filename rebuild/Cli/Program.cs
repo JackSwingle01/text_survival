@@ -107,40 +107,7 @@ static Activity LightFire(World w)
 
 static void Look(World w)
 {
-    var p = w.Agent(AgentId.Player);
-    var m = Map.Of(w);
-    Console.WriteLine($"  {Map.Describe(m, p.Tile)}" + (Map.DiscoveryText(w, p.Tile) is { } text ? $": {text}" : ""));
-    foreach (var f in Map.SiteFeatures(w.Seed, m, p.Tile))
-        if (f.RevealAtHours == 0 && f is SiteWater { Frozen: true } or SiteSmallGame or SiteCache) // open water is a pool, below
-            Console.WriteLine(f switch
-            {
-                SiteWater x => $"  water: {x.Name}{(x.Frozen ? $", ice {x.Ice:0.0}" : "")}",
-                SiteSmallGame x => $"  small game: {string.Join(", ", x.Animals.Select(a => a.Animal))}",
-                SiteCache x => $"  cache: {x.Name}, holds {x.CapacityKg:0} kg",
-                _ => "",
-            });
-    if (Shelters.At(w, p.Tile) is { } shelter) Console.WriteLine($"  shelter: {shelter.Name}");
-    var pools = Pools.At(w, p.Tile);
-    for (int i = 0; i < pools.Count; i++)
-    {
-        var id = new PoolId(p.Tile, i);
-        if (!Pools.Knows(w, AgentId.Player, id)) continue; // what you have not found, you cannot see
-        Console.WriteLine(pools[i] switch
-        {
-            ForagePool => $"  [{i}] forage, density {Pools.ForageDensity(w, id):0.00}",
-            TreePool t => $"  [{i}] {t.Name} ({(Pools.HasTrees(w, id) ? $"{Pools.ChopProgressPct(w, id):P0} cut" : "cleared")})",
-            StockPool s => $"  [{i}] {s.Name}: " + string.Join(", ", s.Items.Zip(Pools.UnitsNow(w, id)).Select(x => $"{x.First.Resource} {x.Second}/{x.First.Units}")),
-            _ => $"  [{i}] {pools[i].Name}",
-        });
-    }
-    var tile = w.Tiles.GetValueOrDefault(p.Tile);
-    foreach (var c in tile?.Carcasses ?? [])
-    {
-        Carcasses.CatchUp(w, p.Tile, c);
-        Console.WriteLine($"  carcass {c.Id}: {c.Animal}, decay {Carcasses.DecayLevel(c):P0}, {Carcasses.TotalRemainingKg(c):0.0} kg left");
-    }
-    if (tile?.Stash is { } stash && (stash.Kg.Count > 0 || stash.Gear.Count > 0)) Console.WriteLine($"  stash: {Items.Describe(stash)}");
-    if (Work.HasOpenWater(w, p.Tile)) Console.WriteLine("  open water");
+    foreach (var line in Report.Look(w, AgentId.Player)) Console.WriteLine($"  {line}");
 }
 
 static void Inv(World w)

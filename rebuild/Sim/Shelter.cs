@@ -90,13 +90,14 @@ public static class Shelters
     };
 
     /// The old starting camp's Overhang (GridWorldGenerator.CreateCampLocation), placed by World.New.
+    // The camp is not a content site yet, so its shelter and bedding are code (see rebuild-deferred.md).
     public static readonly ShelterDef CampOverhang = new("Overhang", ShelterKind.NaturalShelter, 0.55, 0.3, 0.4, 0.70, 0.50, 0.55);
 
     /// Pitched tents by gear kind (old Gear.HideTent, MammothHideTent shelter values).
     public static readonly IReadOnlyDictionary<string, ShelterDef> Tents = new Dictionary<string, ShelterDef>
     {
         ["hide_tent"] = new("Hide Tent", ShelterKind.HideTent, 0.5, 0.9, 0.7),
-        ["mammoth_hide_tent"] = new("Mammoth Hide Tent", ShelterKind.HideTent, 0.6, 0.95, 0.85),
+        ["mammoth_hide_tent"] = new("Mammoth Hide Tent", ShelterKind.HideTent, 0.6, 0.95, 0.85, WindCap: 0.85), // above the hide tent's cap
     };
 
     // ---- placing and reading ----
@@ -107,6 +108,13 @@ public static class Shelters
     static ShelterState Place(World world, TileId tile, ShelterDef def, Gear? tent)
     {
         if (world.Shelters.ContainsKey(tile)) throw new InvalidOperationException($"{tile} already has a shelter");
+        var s = New(world, def, tent);
+        world.Shelters[tile] = s;
+        return s;
+    }
+
+    static ShelterState New(World world, ShelterDef def, Gear? tent)
+    {
         var k = Kinds[def.Kind];
         // A tent pitched again stands as it was packed, improvements and all.
         var levels = tent?.TentLevels ?? new ShelterCover(def.Insulation ?? k.Insulation, def.Overhead ?? k.Overhead, def.Wind ?? k.Wind);
@@ -118,7 +126,9 @@ public static class Shelters
             // Melting counts whole clock hours from the first one it stands through.
             MeltedToHour = k.IsSnow ? (world.Minute + 59) / 60 : null,
         };
-        world.Shelters[tile] = s;
+        foreach (var stat in Enum.GetValues<ShelterStat>())
+            if (Level(s, stat) > Cap(s, stat) + 1e-9)
+                throw new ArgumentException($"{def.Name}: {stat} {Level(s, stat)} is above its cap {Cap(s, stat)}", nameof(def));
         return s;
     }
 
@@ -129,11 +139,12 @@ public static class Shelters
         if (!world.Shelters.TryGetValue(tile, out var s)) return null;
         if (Melt(world, tile, s)) return s;
         world.Shelters.Remove(tile);
-        return null;
+        return StandWaiting(world, tile);
     }
 
     /// The shelter on this tile as it is now, or null, without writing anything: a snow shelter is
-    /// melted on a copy. Callers must not change what it returns.
+    /// melted on a copy, and a find waiting for the tile is shown as it would stand. Callers must not
+    /// change what it returns.
     public static ShelterState? Peek(World world, TileId tile)
     {
         if (!world.Shelters.TryGetValue(tile, out var s)) return null;
@@ -144,13 +155,41 @@ public static class Shelters
             InsulationLevel = s.InsulationLevel, OverheadLevel = s.OverheadLevel, WindLevel = s.WindLevel,
             InsulationCap = s.InsulationCap, OverheadCap = s.OverheadCap, WindCap = s.WindCap,
         };
-        return Melt(world, tile, copy) ? copy : null;
+        if (Melt(world, tile, copy)) return copy;
+        return Waiting(world, tile) is { } def ? New(world, def, null) : null;
     }
 
     public static ShelterState? Remove(World world, TileId tile)
     {
         world.Shelters.Remove(tile, out var s);
+        StandWaiting(world, tile);
         return s;
+    }
+
+    /// A shelter find, found: it stands on the tile for everyone. One shelter to a tile, and nothing
+    /// is pushed off it: while a shelter stands or one is being built here, the find waits
+    /// (World.WaitingShelters) and stands once the tile is free - a tent packed, snow melted. A
+    /// half-built frame is finished, never stranded. A second find while one waits adds nothing.
+    public static void Found(World world, PoolId id, ShelterFind find)
+    {
+        if (At(world, id.Tile) == null && !BuildingShelter(world, id.Tile)) Place(world, id.Tile, find.Shelter);
+        else world.WaitingShelters.TryAdd(id.Tile, id.Index);
+    }
+
+    static bool BuildingShelter(World world, TileId tile) =>
+        world.Projects.TryGetValue(tile, out var p) && Recipes[p.Building].Shelter != null;
+
+    /// The find waiting for this tile, if the tile is free for it now.
+    static ShelterDef? Waiting(World world, TileId tile) =>
+        world.WaitingShelters.TryGetValue(tile, out int index) && !BuildingShelter(world, tile)
+            ? ((ShelterFind)Pools.At(world, tile)[index]).Shelter : null;
+
+    /// The tile has just come free: a find waiting for it stands now.
+    static ShelterState? StandWaiting(World world, TileId tile)
+    {
+        if (Waiting(world, tile) is not { } def) return null;
+        world.WaitingShelters.Remove(tile);
+        return Place(world, tile, def);
     }
 
     public static double Quality(ShelterState s) => (s.InsulationLevel + s.OverheadLevel + s.WindLevel) / 3.0;
@@ -321,7 +360,7 @@ public static class Shelters
                     && there.QualityPct >= Beddings[bed].QualityPct && there.WarmthBonusF >= Beddings[bed].WarmthBonusF)
                     return $"the {there.Name} here is as good as a {Beddings[bed].Name}";
                 // Resuming checks tools and weather again; materials and the tent went in when it started.
-                if (Requirement(world, r, pack) is string missing) return missing;
+                if (Requirement(world, tile, r, pack) is string missing) return missing;
                 if (p != null) return null;
                 if (b.What == Structure.Tent && Tent(pack) == null) return "you have no tent";
                 foreach (var (anyOf, kg) in r.Materials)
@@ -344,10 +383,11 @@ public static class Shelters
     }
 
     /// The tool and weather a recipe needs, checked when work starts or resumes and every minute of it.
-    static string? Requirement(World world, Recipe r, Inventory pack)
+    /// Frost is the tile's surface air, the same air that melts a snow shelter (Melt).
+    static string? Requirement(World world, TileId tile, Recipe r, Inventory pack)
     {
         if (r.NeedsShovel && Items.Tool(pack, ToolType.Shovel) == null) return "you need a shovel";
-        if (r.NeedsFrost && Weather.At(world, world.Minute).TemperatureF > 32) return "too warm to build in snow";
+        if (r.NeedsFrost && Ground.WeatherAt(world, tile, world.Minute).AirTemperatureF > 32) return "too warm to build in snow";
         return null;
     }
 
@@ -395,7 +435,7 @@ public static class Shelters
             {
                 var r = Recipes[b.What];
                 if (r.NeedsLight && Work.TooDarkToWork(world, agent)) return Work.TooDark;
-                if (Requirement(world, r, Items.Pack(world, agent.Id)) is string missing) return missing;
+                if (Requirement(world, tile, r, Items.Pack(world, agent.Id)) is string missing) return missing;
                 var p = world.Projects[tile];
                 bool shovel = r.ShovelHelps && Items.Tool(Items.Pack(world, agent.Id), ToolType.Shovel) != null;
                 p.MinutesDone += (shovel ? 2.0 : 1.0) / ImpairmentFactor(agent.Body);

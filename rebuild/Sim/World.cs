@@ -29,8 +29,9 @@ public sealed class World
     /// Only tiles that differ from generation (plan decision 1). Ground and tracks write here.
     public SortedDictionary<TileId, TileState> Tiles { get; init; } = [];
     public SortedDictionary<AgentId, Agent> Agents { get; init; } = [];
-    /// One RNG stream per system, keyed by system name. Lives here so a load resumes every stream exactly.
-    public Dictionary<string, Rng> Rngs { get; init; } = [];
+    /// RNG streams by name: world-making systems by system name, everything an agent rolls by system
+    /// and agent (Rng(system, who)). Lives here so a load resumes every stream exactly.
+    public SortedDictionary<StreamName, Rng> Rngs { get; init; } = [];
     /// Fire pits and carried torches. Owned by the Fire system.
     public SortedDictionary<FireId, FireState> Fires { get; init; } = [];
     public int NextFireId { get; set; }
@@ -49,6 +50,9 @@ public sealed class World
     public SortedDictionary<TileId, BeddingKind> Beddings { get; init; } = [];
     /// Building under way, one per tile. Owned by Shelters.
     public SortedDictionary<TileId, Project> Projects { get; init; } = [];
+    /// A shelter find that was found while the tile was taken, by tile: the index of its pool
+    /// (Pools.At). It stands once the tile is free. Owned by Shelters.
+    public SortedDictionary<TileId, int> WaitingShelters { get; init; } = [];
     /// The pools generation put on each tile looked at so far; derived from Seed, never saved. Owned by Pools.
     internal Dictionary<TileId, IReadOnlyList<PoolDef>>? PoolCache;
 
@@ -68,11 +72,20 @@ public sealed class World
     public Agent Agent(AgentId id) =>
         Agents.TryGetValue(id, out var agent) ? agent : throw new KeyNotFoundException($"No agent {id} in world");
 
-    /// The named system's stream, created from Seed on first use.
-    public Rng Rng(string system)
+    /// The named system's stream, created from Seed on first use. For making the world; what an
+    /// agent rolls comes from its own stream.
+    public Rng Rng(StreamName system)
     {
         if (!Rngs.TryGetValue(system, out var rng))
-            Rngs[system] = rng = Survival.Rng.ForSystem(Seed, system);
+            Rngs[system] = rng = Survival.Rng.ForSystem(Seed, system.Value);
         return rng;
     }
+
+    /// This agent's own stream for the system, so one agent's rolls never hang on another's: a herd
+    /// across the valley bleeding, fighting or wandering leaves the player's injuries as they were.
+    public Rng Rng(string system, AgentId who) => Rng(StreamName.Of(system, who));
+
+    /// A stream used once, as an agent is made (its bodies, its temper): derived from Seed and the
+    /// agent, never saved, since no id is made twice. Named apart from the agent's own streams.
+    public Rng Birth(string system, AgentId who) => Survival.Rng.ForSystem(Seed, "born " + StreamName.Of(system, who).Value);
 }

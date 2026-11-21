@@ -81,16 +81,22 @@ public class ShelterTests
     }
 
     /// old game: wind coverage was improved with materials and shown, and nothing read it (bug, fixed).
-    /// It is read once, through the wind chill: the body's convective wind stays the regional wind,
-    /// as the tile's own wind factor does (WeatherTests).
+    /// Walls cut the wind as a fire pit's do: the chill, and the wind through your clothes and drying
+    /// you. Sealed in a snow shelter, the body has next to no wind; walking out, it has the sky's.
     [Fact]
-    public void WindCoverage_CutsTheChillOnce_NotTheBodysWindToo()
+    public void WindCoverage_SealedSnowShelter_LeavesTheBodyNoWind()
     {
         var w = At(Snowy);
-        var camp = Map.Of(w).Camp;
-        var s = Weather.At(w, 0);
-        Assert.Equal(0.6, Sim.Surroundings(w, w.Agent(P), new Wait(P)).WindLevel, Digits);
+        var tile = Open(w);
+        w.Agent(P).Tile = tile;
+        Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter, Wind: 1.0, WindCap: 1.0));
+        Assert.True(Sim.Surroundings(w, w.Agent(P), new Wait(P)).WindLevel < 0.01);
         Assert.Equal(0.6, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North)).WindLevel, Digits);
+
+        var camp = Map.Of(w).Camp;
+        w.Agent(P).Tile = camp;
+        Assert.Equal(0.6 * (1 - Overhang.WindLevel), Sim.Surroundings(w, w.Agent(P), new Wait(P)).WindLevel, Digits);
+        var s = Weather.At(w, 0);
         Assert.True(Weather.ShelteredAirF(w, camp, s, 0, Overhang).AirF > Weather.ShelteredAirF(w, camp, s, 0, Overhang with { WindLevel = 0 }).AirF);
     }
 
@@ -434,5 +440,146 @@ public class ShelterTests
         var r = Sim.Step(w, new Build(P, Structure.SnowShelter), 200);
         Assert.Equal(("built", 68), (r.InterruptedReason, r.MinutesElapsed)); // 135 minutes, doubled
         Assert.Equal(ShelterKind.SnowShelter, Shelters.At(w, tile)!.Kind);
+    }
+
+    // ---- shelter finds and the tile they stand on ----
+
+    /// A tile in the valley holding a hidden shelter find (seed 17), with the player on it in daylight.
+    static (World W, TileId Tile, int Pool) FindTile(WeatherSample sky)
+    {
+        var w = At(sky);
+        var m = Map.Of(w);
+        var tile = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+                    let t = new TileId(x, y)
+                    where m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && !w.Shelters.ContainsKey(t)
+                        && Pools.At(w, t).Any(p => p is ShelterFind)
+                    select t).First();
+        w.Agent(P).Tile = tile;
+        w.Minute = 3 * 60;
+        int pool = Pools.At(w, tile).ToList().FindIndex(p => p is ShelterFind);
+        return (w, tile, pool);
+    }
+
+    static string FindName(World w, TileId tile, int pool) => ((ShelterFind)Pools.At(w, tile)[pool]).Shelter.Name;
+
+    /// old game (and the rebuild until now): a find placed under a half-built frame stranded it - the
+    /// frame could not be resumed ("already a shelter"), and nothing else could be built there, ever;
+    /// found by someone else mid-build, the frame's completion threw. The frame is finished; the find
+    /// is remembered and waits for the tile.
+    [Fact]
+    public void Find_UnderAHalfBuiltFrame_Waits_AndTheFrameIsFinished()
+    {
+        var (w, tile, pool) = FindTile(Mild);
+        Items.Add(Items.Pack(w, P), Resource.Kindling, 2);
+        Assert.Null(Sim.Step(w, new Build(P, Structure.BranchFrame), 10).InterruptedReason);
+        var events = new List<WorldEvent>();
+        Pools.Search(w, w.Agent(P), 1000, events);
+        Assert.Contains(events, e => e is PoolDiscovered d && d.Pool == new PoolId(tile, pool));
+        Assert.Null(Shelters.Peek(w, tile));
+        var r = Sim.Step(w, new Build(P, Structure.BranchFrame), 60);
+        Assert.Equal("built", r.InterruptedReason);
+        Assert.Equal(ShelterKind.BranchFrame, Shelters.At(w, tile)!.Kind);
+        Assert.Equal(pool, w.WaitingShelters[tile]);
+        Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find" && f.Text.Contains("waiting"));
+        // And the tile is not shut to other work: bedding goes down beside the frame.
+        Assert.Equal("built", Sim.Step(w, new Build(P, Structure.MakeshiftBedding), 60).InterruptedReason);
+    }
+
+    /// Found under a pitched tent, the find stands as soon as the tent is packed.
+    [Fact]
+    public void Find_UnderATent_StandsWhenTheTentIsPacked()
+    {
+        var (w, tile, pool) = FindTile(Mild);
+        Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
+        Assert.Equal("built", Sim.Step(w, new Build(P, Structure.Tent), 30).InterruptedReason);
+        Pools.Search(w, w.Agent(P), 1000, []);
+        Assert.Equal("Hide Tent", Shelters.At(w, tile)!.Name);
+        Sim.Step(w, new PackTent(P), 1);
+        Assert.Equal(FindName(w, tile, pool), Shelters.At(w, tile)!.Name);
+        Assert.Empty(w.WaitingShelters);
+    }
+
+    /// Found beside a snow shelter, it stands when the snow has melted: seen so at once by a
+    /// read that writes nothing, and placed by the next one that settles the melt.
+    [Fact]
+    public void Find_UnderASnowShelter_StandsWhenItMelts()
+    {
+        var (w, tile, pool) = FindTile(Mild); // 41 °F: about eleven hours of melt
+        Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
+        Pools.Search(w, w.Agent(P), 1000, []);
+        Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Text.Contains("waiting"));
+        w.Minute += 24 * 60;
+        string before = Save.ToJson(w);
+        Assert.Equal(FindName(w, tile, pool), Shelters.Peek(w, tile)!.Name);
+        Assert.Equal(before, Save.ToJson(w));
+        Assert.Equal(FindName(w, tile, pool), Shelters.At(w, tile)!.Name);
+        Assert.Empty(w.WaitingShelters);
+    }
+
+    /// A find someone has found is not reported hidden, though another shelter stands on its tile.
+    [Fact]
+    public void Find_FoundWhileAnotherStands_IsNotReportedHidden()
+    {
+        var (w, tile, _) = FindTile(Mild);
+        Shelters.Place(w, tile, new ShelterDef("Branch Frame Shelter", ShelterKind.BranchFrame));
+        Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Text.EndsWith("hidden"));
+        Pools.Search(w, w.Agent(P), 1000, []);
+        Assert.DoesNotContain(Report.Finds(w), f => f.Tile == tile && f.Text.EndsWith("hidden"));
+    }
+
+    /// The frost a snow shelter needs is the tile's surface air, the air that melts one: in the cold
+    /// of the pass a regional thaw still leaves snow to dig, and a shelter there does not melt.
+    [Fact]
+    public void SnowShelter_Frost_IsTheTilesAir_AsMeltIs()
+    {
+        var w = At(new WeatherSample(0, WeatherCondition.Cloudy, 2, 0.1, 0, 0.8, WindDirection.North)); // 35.6 °F
+        var m = Map.Of(w);
+        var proper = m.PassStageIndex.Single(s => s.Value == 2).Key; // 15 °F colder
+        Assert.True(Ground.WeatherAt(w, proper, 0).AirTemperatureF <= 32);
+        w.Agent(P).Tile = proper;
+        Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
+        Assert.Null(Shelters.Refusal(w, new Build(P, Structure.SnowShelter)));
+        var s = Shelters.Place(w, proper, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
+        w.Minute += 24 * 60;
+        Assert.Same(s, Shelters.At(w, proper));
+        Assert.Equal(0.6, s.InsulationLevel);
+
+        w.Agent(P).Tile = Open(w); // open ground at the regional air: a thaw
+        Assert.Equal("too warm to build in snow", Shelters.Refusal(w, new Build(P, Structure.SnowShelter)));
+    }
+
+    /// Old DiscoveryFeatureFactory rolled overhangs past the RockOverhang kind's caps (0.40), so the
+    /// first repair or improvement clamped a good one down. A find's caps are at least its levels.
+    [Fact]
+    public void RockOverhangFind_IsNeverClampedDownByWork()
+    {
+        var finds = new List<ShelterDef>();
+        for (int seed = 0; seed < 6 && finds.Count < 5; seed++)
+        {
+            var w = World.New(seed);
+            var m = Map.Of(w);
+            for (int x = 0; x < m.Width; x++)
+                for (int y = 0; y < m.Height; y++)
+                    foreach (var p in Pools.At(w, new TileId(x, y)))
+                        if (p is ShelterFind { Shelter: { Kind: ShelterKind.RockOverhang } def } && (def.Insulation > 0.4 || def.Wind > 0.4)) finds.Add(def);
+        }
+        Assert.NotEmpty(finds);
+        foreach (var def in finds)
+        {
+            var w = At(Mild);
+            var tile = Open(w);
+            var s = Shelters.Place(w, tile, def);
+            Shelters.Repair(s, 0);
+            Assert.Equal((def.Insulation!.Value, def.Wind!.Value), (s.InsulationLevel, s.WindLevel));
+            Assert.True(Shelters.Improve(s, ShelterStat.Wind, Resource.Pine, 1) >= 0);
+        }
+    }
+
+    /// A shelter is never put down above its own caps.
+    [Fact]
+    public void Place_RefusesLevelsAboveTheirCaps()
+    {
+        var w = At(Mild);
+        Assert.Throws<ArgumentException>(() => Shelters.Place(w, Open(w), new ShelterDef("Rock Overhang", ShelterKind.RockOverhang, Insulation: 0.5)));
     }
 }

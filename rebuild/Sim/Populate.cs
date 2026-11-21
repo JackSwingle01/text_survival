@@ -15,13 +15,13 @@ public static partial class Fauna
     {
         var m = Map.Of(world);
         var rng = world.Rng("populate");
-        // Interior tiles: off the map's edge, above ground, off the pass (old: off only its far side).
+        // Interior tiles: off the map's edge, above ground, off the whole pass corridor (old: off only its far side).
         var interior = new List<TileId>();
         for (int x = 2; x < m.Width - 2; x++)
             for (int y = 2; y < m.Height - 2; y++)
             {
                 var t = new TileId(x, y);
-                if (m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && m.StageAt(t) == null) interior.Add(t);
+                if (m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && !m.OnPass(t)) interior.Add(t);
             }
         // Predators keep out of each other's land; prey graze anywhere outside the safe zone.
         var available = interior.Where(p => MapGen.Manhattan(p, m.Camp) > SafeZoneTiles).ToList();
@@ -122,7 +122,7 @@ public static partial class Fauna
 
     /// Old GetPositionsInRadius: open ground within a square around a den, off caves and the pass.
     /// old game: only the far side was left out, so a den near the mountains could range up the
-    /// pass stages (bug, fixed).
+    /// pass (bug, fixed).
     static List<TileId> Around(GeneratedMap m, TileId center, int radius)
     {
         var tiles = new List<TileId>();
@@ -130,7 +130,7 @@ public static partial class Fauna
             for (int dy = -radius; dy <= radius; dy++)
             {
                 var t = new TileId(center.X + dx, center.Y + dy);
-                if (m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && m.StageAt(t) == null) tiles.Add(t);
+                if (m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && !m.OnPass(t)) tiles.Add(t);
             }
         return tiles;
     }

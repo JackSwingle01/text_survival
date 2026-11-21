@@ -47,7 +47,7 @@ static class MapGen
         var sites = new Dictionary<TileId, LocationDef>();
         PlaceNamedLocations(rng, land, terrain, camp, width, sites);
         PlaceCaveSites(rng, layout.Structures, layout.CaveIds, width, height, sites);
-        return new GeneratedMap(width, height, terrain, layout.Structures, layout.CaveIds, barriers, river, camp, stages, sites);
+        return new GeneratedMap(width, height, terrain, layout.Structures, layout.CaveIds, barriers, river, camp, stages, sites, layout.Pass);
     }
 
     const int TargetNamedLocations = 300, MinLocationSpacing = 10;

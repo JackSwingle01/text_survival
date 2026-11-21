@@ -205,7 +205,7 @@ public static class Ground
     public static double ContactWettingRate(World world, TileId tile, SurfaceContact contact, double currentWetnessPct) =>
         new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).ContactWettingRate(contact, currentWetnessPct);
 
-    /// How well a thing here can be searched against bare ground. For discovery (phase 4).
+    /// How well a thing here can be searched against bare ground (Pools.Search).
     public static double SearchFactor(World world, TileId tile, double baseElevationM, double verticalExtentM) =>
         new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).SearchFactor(baseElevationM, verticalExtentM);
 

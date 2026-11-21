@@ -84,17 +84,55 @@ public class ReportTests
         Assert.True(w.Shelters.ContainsKey(tile)); // and the report settled nothing
     }
 
-    /// Sticks and tinder lying in the forage are fuel: a region with them passes the fuel floor.
+    /// The fuel floor is a sum of hours of fire, so it fails where wood is thin (open steppe, bare
+    /// rock), and forage counts toward it: a treeless region that passes on its deadfall fails once
+    /// that is picked over, and passes again when it has grown back.
     [Fact]
-    public void Forage_fuel_counts_toward_the_fuel_floor()
+    public void Fuel_floor_fails_where_wood_is_thin_and_counts_forage()
     {
         var w = World.New(17);
         var m = Map.Of(w);
+        IEnumerable<TileId> Tiles(RegionRow r) =>
+            from x in Enumerable.Range(r.X * Report.RegionTiles, Report.RegionTiles)
+            from y in Enumerable.Range(r.Y * Report.RegionTiles, Report.RegionTiles)
+            let t = new TileId(x, y)
+            where m.InBounds(t) && m.TerrainAt(t).IsPassable()
+            select t;
         var d = Report.Distribution(w);
-        foreach (var r in d.Regions.Where(r => !r.Fuel))
-            for (int x = r.X * Report.RegionTiles; x < Math.Min(m.Width, (r.X + 1) * Report.RegionTiles); x++)
-                for (int y = r.Y * Report.RegionTiles; y < Math.Min(m.Height, (r.Y + 1) * Report.RegionTiles); y++)
-                    Assert.DoesNotContain(Pools.At(w, new TileId(x, y)), p => p is ForagePool f && f.Items.Any(i => Fire.IsFuel(i.Resource)));
+        Assert.Contains(d.Regions, r => !r.Fuel);
+        var region = d.Regions.First(r => r.Fuel && Tiles(r).All(t => !Pools.At(w, t).Any(p => p is TreePool)));
+        RegionRow Now() => Report.Distribution(w).Regions.Single(r => (r.X, r.Y) == (region.X, region.Y));
+
+        var rng = w.Rng("test");
+        foreach (var t in Tiles(region))
+            for (int i = 0; i < Pools.At(w, t).Count; i++)
+                if (Pools.At(w, t)[i] is ForagePool) Pools.Forage(w, new PoolId(t, i), 500, rng);
+        Assert.False(Now().Fuel, $"region {region.X},{region.Y} picked clean still has {Now().FuelFireHours:0.0} h of fire");
+        w.Minute += (long)(Pools.ForageRespawnHours * 60);
+        Assert.True(Now().Fuel);
+    }
+
+    /// What the CLI's look prints reads the world and writes nothing (it once settled a snow
+    /// shelter's melt and a carcass's decay, so "look; save" saved a different world from "save").
+    [Fact]
+    public void Look_changes_nothing()
+    {
+        var w = World.New(17);
+        w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
+        var m = Map.Of(w);
+        var tile = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+                    let t = new TileId(x, y)
+                    where m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null && t != m.Camp
+                    select t).First();
+        w.Agent(AgentId.Player).Tile = tile;
+        Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
+        Carcasses.Create(w, tile, "Caribou", SpeciesTable.NewBody(Species.Caribou, w.Rng("test")), w.Minute);
+        w.Minute += 6 * 60;
+        string before = Save.ToJson(w);
+        var lines = Report.Look(w, AgentId.Player);
+        Assert.Equal(before, Save.ToJson(w));
+        Assert.Contains(lines, l => l.StartsWith("shelter: Snow shelter", StringComparison.Ordinal));
+        Assert.Contains(lines, l => l.StartsWith("carcass", StringComparison.Ordinal) && !l.Contains("decay 0%"));
     }
 
     [Fact]

@@ -10,7 +10,7 @@ public enum Terrain
 public enum Cave { None, Floor, Entrance }
 
 /// Something between two adjacent tiles. Generation lays only Ravine and Cliff, both impassable;
-/// the rest are authored or player-built and arrive with phase 4 locations and trail work.
+/// the rest are authored or player-built; nothing lays them yet (no trail cutting or marking).
 public enum EdgeType { River, Cliff, Climb, GameTrail, TrailMarker, CutTrail, Ravine }
 
 public enum Direction { North, East, South, West }
@@ -94,9 +94,10 @@ public enum RunOutcome { Surviving, Died, Crossed }
 /// Terrain as generated from a seed. Never saved: Map.Of rebuilds it from World.Seed.
 public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave[,] caves, int?[,] caveIds,
     Dictionary<(TileId, TileId), EdgeType> edges, HashSet<TileId> river, TileId camp, Dictionary<TileId, int> passStages,
-    Dictionary<TileId, LocationDef>? sites = null)
+    Dictionary<TileId, LocationDef>? sites = null, IReadOnlyCollection<TileId>? pass = null)
 {
     readonly Dictionary<TileId, LocationDef> _sites = sites ?? [];
+    readonly HashSet<TileId> _pass = [.. pass ?? passStages.Keys, .. passStages.Keys];
     public int Width { get; } = width;
     public int Height { get; } = height;
     public TileId Camp { get; } = camp;
@@ -113,6 +114,9 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
     /// (the pass stages) did not inherit.
     public bool BesideRiver(TileId t) => river.Contains(t) && !passStages.ContainsKey(t);
     public LocationDef? StageAt(TileId t) => passStages.TryGetValue(t, out int i) ? Map.PassStages[i] : null;
+    /// The whole corridor through the mountains, its six stages and the rock between them.
+    public bool OnPass(TileId t) => _pass.Contains(t);
+    public IReadOnlyCollection<TileId> Pass => _pass;
     /// The named place on this tile: a pass stage, a cave site or a site dealt onto open land.
     public LocationDef? SiteAt(TileId t) => StageAt(t) ?? _sites.GetValueOrDefault(t);
     /// Every named site off the pass, by tile.

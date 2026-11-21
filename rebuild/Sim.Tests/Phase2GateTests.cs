@@ -234,7 +234,7 @@ public class Phase2GateTests(ITestOutputHelper output)
         return true;
     }
 
-    /// The one thing handed over: an axe. Without one (no crafting until phase 4) foraged
+    /// The one thing handed over: an axe. Without one (there is no crafting) foraged
     /// deadwood alone does not keep a fire through a month of nights; see the report.
     static World NewWorld(int seed)
     {

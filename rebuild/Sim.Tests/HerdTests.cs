@@ -369,9 +369,12 @@ public class HerdTests(ITestOutputHelper output)
     // ---- the player's hunt ----
 
     [Fact]
+    // The naive stalk below (advance to throwing range on open plain) kills about one hunt in fifty, so
+    // this walks seeds until one does: seed 3 did with shared streams, seed 43 since each agent rolls
+    // on its own (re-pinned 2026-11-20). The stalk's odds are a balance question, not this test's.
     public void ThePlayer_CanHuntAHerdMember_ButcherItAndEat()
     {
-        for (int seed = 1; seed <= 10; seed++)
+        for (int seed = 1; seed <= 60; seed++)
         {
             var w = World.New(seed);
             var tile = Quiet(w);
@@ -400,9 +403,9 @@ public class HerdTests(ITestOutputHelper output)
                 result = r.Events.OfType<FightEnded>().FirstOrDefault(f => f.Agent == P)?.Result;
             }
             output.WriteLine($"seed {seed}: {result}");
-            if (result != CombatResult.Victory) continue;
+            // A kill is a carcass, even when the rest of the herd ran (AnimalFled).
+            if (w.Tiles.GetValueOrDefault(tile)?.Carcasses is not [var carcass, ..]) continue;
 
-            var carcass = w.Tiles[tile].Carcasses!.First();
             var butchered = Sim.Step(w, new Butcher(P, carcass.Id), 240);
             double meat = Items.Have(pack, Resource.RawMeat);
             Assert.True(meat > 1, $"butchering a caribou gave {meat:F2} kg of meat ({butchered.InterruptedReason})");
@@ -411,7 +414,47 @@ public class HerdTests(ITestOutputHelper output)
             output.WriteLine($"seed {seed}: killed, butchered {meat:F1} kg of meat, ate {ate.Kcal:F0} kcal");
             return;
         }
-        Assert.Fail("ten stalks with a spear and never a kill");
+        Assert.Fail("sixty stalks with a spear and never a kill");
+    }
+
+    /// Every agent rolls on its own streams: a pack pulling down caribou across the valley, bleeding
+    /// and fighting, leaves the player's injuries and body as they were without it. (Shared streams
+    /// let any herd's fight move the player's next injury.)
+    [Fact]
+    public void AFarFight_LeavesThePlayersRollsAlone()
+    {
+        (string Rolls, int Mine, int HerdInjuries) Run(bool farFight)
+        {
+            var w = World.New(17);
+            var m = Map.Of(w);
+            if (farFight)
+            {
+                var far = Enumerable.Range(0, m.Width / 2).Select(dx => m.Width - 30 - dx).SelectMany(x => Enumerable.Range(10, m.Height - 20).Select(y => new TileId(x, y)))
+                    .First(t => m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && !m.OnPass(t));
+                Agents.Spawn(w, Species.Caribou, far, 3);
+                var pack = Agents.Spawn(w, Species.Wolf, far, 5);
+                Mind(w, pack).Hunger = 0.9;
+                Mind(w, pack).State = HerdState.Patrolling;
+            }
+            // Seed 17: forest at (2,33), rock below it, so every quick step south rolls for an injury.
+            w.Agent(P).Tile = new TileId(2, 33);
+            var events = new List<WorldEvent>();
+            for (int i = 0; i < 30 && Body.IsAlive(w.Agent(P).Body); i++)
+            {
+                events.AddRange(Sim.Step(w, new Travel(P, Direction.South), 60).Events);
+                events.AddRange(Sim.Step(w, new Travel(P, Direction.North), 60).Events);
+                events.AddRange(Sim.Step(w, new Wait(P), 30).Events);
+            }
+            var mine = events.OfType<Injured>().Where(e => e.Who == P).Select(e => $"{e.Minute} {e.Region} {e.Type} {e.Amount}");
+            var streams = w.Rngs.Where(kv => kv.Key.Value.EndsWith(":0", StringComparison.Ordinal)).Select(kv => $"{kv.Key}={kv.Value.State}");
+            string body = System.Text.Json.JsonSerializer.Serialize(w.Agent(P).Body);
+            return (string.Join("\n", mine.Concat(streams)) + "\n" + body, mine.Count(), events.OfType<Injured>().Count(e => e.Who != P));
+        }
+        var alone = Run(false);
+        var beside = Run(true);
+        Assert.True(beside.HerdInjuries > 0, "the far pack never drew blood: nothing tested");
+        Assert.True(alone.Mine > 0, "thirty quick steps onto rock and never hurt: nothing tested");
+        Assert.Equal(alone.Rolls, beside.Rolls);
     }
 
     static Cell StepToward(Cell from, Cell to) =>
@@ -778,15 +821,29 @@ public class DenTests
 
     /// old game: den land was any open tile in a square round the den bar the far side, grown by
     /// adjacency alone, so a pack could hold pass stages and land across a ravine or cliff it could
-    /// never walk to (bug, fixed). Every herd's land is walkable from its start, and off the pass.
+    /// never walk to (bug, fixed). Every herd's land is walkable from its start, and off the whole
+    /// pass corridor: the rock between the stages too, which once held herds penned in 3-tile pockets.
     [Theory]
     [InlineData(24)] // a wolf den under the mountains: its land took three pass stages
     [InlineData(67)] // land beyond a blocking edge
     [InlineData(80)]
+    [InlineData(63)] // six bison penned between two stages
+    [InlineData(1)] // megaloceros between stages
     public void EveryTerritory_IsWalkableFromItsStart_AndOffThePass(int seed)
     {
         var w = World.New(seed);
         var m = Map.Of(w);
+        // The corridor read off the terrain alone: from the exit back to the Pass Approach, every tile
+        // reached through a passage one tile wide. (West of the approach is the valley's own.)
+        int Open(TileId t) => MapGen.Neighbors(t).Count(n => m.InBounds(n) && m.TerrainAt(n).IsPassable());
+        int approachX = m.PassStageIndex.Single(s => s.Value == 0).Key.X;
+        var corridor = new HashSet<TileId> { m.Exit };
+        var walk = new Queue<TileId>(corridor);
+        while (walk.Count > 0)
+            foreach (var n in MapGen.Neighbors(walk.Dequeue()))
+                if (m.InBounds(n) && n.X >= approachX && m.TerrainAt(n).IsPassable() && Open(n) <= 2 && corridor.Add(n)) walk.Enqueue(n);
+        Assert.True(corridor.Count >= 12, $"corridor of only {corridor.Count} tiles");
+        Assert.All(corridor, t => Assert.True(m.OnPass(t), $"{t} is in the corridor but not on the map's pass"));
         foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind))
         {
             var land = ((HerdMind)h.Mind).Territory;
@@ -801,6 +858,37 @@ public class DenTests
             }
             Assert.True(reached.Count == land.Count, $"{h.Species} {h.Id}: {land.Count - reached.Count} of {land.Count} tiles cut off from its start");
             Assert.DoesNotContain(land, t => m.StageAt(t) != null);
+            Assert.DoesNotContain(land, m.OnPass);
+            Assert.DoesNotContain(land, corridor.Contains);
         }
+    }
+}
+
+/// Herd land across many valleys: every species' smallest territory is real range, not a pocket.
+/// The floors sit under the smallest seen in seeds 0-59 with the whole pass corridor left out
+/// (land grown through walkable edges is cut short by ravines and cliffs, so they are below the
+/// target sizes). Cave dens range only where their cave connects, and hyena packs start hard against
+/// a wolf pack's land, so those two keep the generator's own floor of three tiles.
+public class TerritorySweepTests(ITestOutputHelper output)
+{
+    static readonly IReadOnlyDictionary<Species, int> Floor = new Dictionary<Species, int>
+    {
+        [Species.Bison] = 80, [Species.Megaloceros] = 40, [Species.Caribou] = 100, [Species.SaberTooth] = 80,
+        [Species.Wolf] = 20, [Species.Bear] = 40, [Species.Mammoth] = 150, [Species.CaveBear] = 3, [Species.Hyena] = 3,
+    };
+
+    [Fact]
+    public void SmallestTerritory_PerSpecies_IsRealRange()
+    {
+        var smallest = new SortedDictionary<Species, (int Tiles, int Seed)>();
+        for (int seed = 0; seed < 60; seed++)
+            foreach (var h in World.New(seed).Agents.Values.Where(a => a.Mind is HerdMind))
+            {
+                int tiles = ((HerdMind)h.Mind).Territory.Count;
+                if (!smallest.TryGetValue(h.Species, out var s) || tiles < s.Tiles) smallest[h.Species] = (tiles, seed);
+            }
+        output.WriteLine(string.Join(", ", smallest.Select(s => $"{s.Key} {s.Value.Tiles} (seed {s.Value.Seed})")));
+        foreach (var (species, (tiles, seed)) in smallest)
+            Assert.True(tiles >= Floor[species], $"{species}: seed {seed} gave a territory of {tiles} tiles, under {Floor[species]}");
     }
 }

@@ -264,7 +264,7 @@ public static class Work
                         // below 1, so a healthy forager with an axe never got the +10% it was promised (bug, fixed).
                         double yieldFactor = Math.Min(perception, 1.0)
                             * (Items.Tool(pack, ToolType.Axe) != null ? 1.10 : 1.0) * (Items.Tool(pack, ToolType.Shovel) != null ? 1.10 : 1.0);
-                        var rng = world.Rng("work");
+                        var rng = world.Rng("work", agent.Id);
                         var finds = Pools.Forage(world, id, effective / 60.0, rng);
                         var got = new Inventory();
                         foreach (var (r, kg) in Focus(finds, g.Focus, rng)) Items.Add(got, r, kg * yieldFactor);
@@ -275,7 +275,7 @@ public static class Work
                     case TreePool:
                         if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
                         Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
-                        if (Pools.Chop(world, id, effective, world.Rng("work")) is not { } tree) return null;
+                        if (Pools.Chop(world, id, effective, world.Rng("work", agent.Id)) is not { } tree) return null;
                         Keep(world, agent, s, tree, events);
                         events.Add(new TreeFelled(world.Minute, agent.Id, id));
                         return "tree felled";

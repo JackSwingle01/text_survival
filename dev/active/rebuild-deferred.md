@@ -22,7 +22,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 ## Water, ice and ground
 
-- `Content.cs:54`, `Map.cs:195`, `Work.cs:155` - site water ice is static: no ice holes, fishing, or ice that grows and thaws;
+- `Content.cs:54`, `Map.cs:199`, `Work.cs:155` - site water ice is static: no ice holes, fishing, or ice that grows and thaws;
   a frozen lake gives water without a hole. Upgrade: give Ground ice thickness, then port `IceCuttingStrategy`.
 - `Work.cs:306` - melting snow never checks there is snow (old: "assumed freely available", even in July).
   Upgrade: take it from `Ground`'s snow depth on the tile.
@@ -55,25 +55,35 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Combat.cs:724`, `CombatAI.cs:37`, `Npc.cs:34` - relationship opinions are never written, so companions'
   help and pack cohesion ignore them. Upgrade: feed `Opinions` from the `WorldEvent` stream (plan decision 4).
 - `Npc.cs:475` - camp fuel hours ignore a stone pit's efficiency and a small fire's slower burn (both under 15%).
-- `Npc.cs:621`, `Npc.cs:673`, `Map.cs:124` - no sight rays or fog of war: NPC sight is a fixed radius and reads
+- `Npc.cs:621`, `Npc.cs:673`, `Map.cs:128` - no sight rays or fog of war: NPC sight is a fixed radius and reads
   herds' true positions. Upgrade: port old `GameMap.UpdateVisibility` into agent knowledge (plan decision 7).
 - `Travel.cs:201` - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.
 
 ## Shelter and bedding
 
-- `Shelter.cs:209` - snow shelter melt rate (0.01 of each level per hour per °F above freezing) is invented;
+- `Shelter.cs:250` - snow shelter melt rate (0.01 of each level per hour per °F above freezing) is invented;
   the old hook was a stub. Upgrade: tune in playtest.
-- `Shelter.cs:289` - old bedding `HasWindProtection` / `HasGroundInsulation` flags dropped (nothing read them).
+- `Shelter.cs:328` - old bedding `HasWindProtection` / `HasGroundInsulation` flags dropped (nothing read them).
   Upgrade: give them numbers when a sleeper's wind is modelled.
+- `Shelter.cs:94` - the camp's Overhang and bedding are placed from code by `World.New`; the camp is not a content site.
+  Upgrade: make the starting camp a `Content/locations.json` site, so `Map.PlaceSiteShelters` places them.
+- `Sim.cs:254` - a known physics question: a shelter's wind cover cuts both the wind chill and the body's own wind
+  (convection, wind through clothing, drying), as a fire pit's walls do, but a tile's wind factor reaches only the
+  chill (old game). One of them is wrong. The cover also slows drying by a fire (wind speeds evaporation): over
+  twelve camper runs with reseeded forage, two died wet in a blizzard with the cover on the body's wind, none without.
+  Upgrade: decide what a tile's wind factor does to a body, and whether drying under a roof should read the open wind.
 
 ## Performance and portability
 
-- `Sim.cs:278` - every agent steps every minute. Upgrade: distant agents step hourly at hour-aligned minutes (plan decision 3).
+- `Sim.cs:279` - every agent steps every minute. Upgrade: distant agents step hourly at hour-aligned minutes (plan decision 3).
 - `Tracks.cs:174` - fading tracks are swept by a full pass, at most hourly. Upgrade: index by expiry if saves grow.
 - `MapGen.cs:8` - `Math.Sin/Cos/Pow` are libm calls, so terrain is exact per platform, not across platforms.
   Upgrade: a portable sin if saves must move between operating systems.
 
 ## Reports
 
-- `Report.cs:39` - a region with fewer than a third of the median finds fails; the design doc gives only the 3x ceiling.
+- `Report.cs:41` - a region with fewer than a third of the median finds fails; the design doc gives only the 3x ceiling.
   Upgrade: tune against playtests.
+- `Report.cs:231` - the fuel floor is 12 hours of fire from an hour's work on every tile of a region (a night at about
+  a kilo an hour); about a fifth of regions fail it, open steppe, rock and fringe squares with no stand of trees.
+  Upgrade: tune against playtests, or weigh a region by its passable tiles if fringe squares should not count.

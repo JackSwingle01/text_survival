@@ -67,7 +67,7 @@ public static partial class Npc
             Pack = pack,
             Camp = camp ?? tile,
             // Old NPCFactory: boldness 0.3-0.7.
-            Boldness = boldness ?? 0.3 + world.Rng("npc").NextDouble() * 0.4,
+            Boldness = boldness ?? 0.3 + world.Birth("npc", id).NextDouble() * 0.4,
         };
         world.Agents[id] = new Agent { Id = id, Tile = tile, Mind = mind };
         mind.TargetFatMinute = world.Minute;
@@ -738,7 +738,7 @@ public static partial class Npc
         double theirs = Body.Vitality(biggest) * biggest.WeightKg / 30.0;
         if (theirs > mine * 1.5) fight -= 0.3;
         if (theirs < mine * 0.5) fight += 0.3;
-        return me.World.Rng("npc").NextDouble() < Math.Clamp(fight, 0.1, 0.9);
+        return me.World.Rng("npc", me.Agent.Id).NextDouble() < Math.Clamp(fight, 0.1, 0.9);
     }
 
     /// A fight this NPC started, resolved headless (as herds fight), then a minute to catch its breath.

@@ -71,7 +71,7 @@ public static partial class Combat
     static double Intimidation(World world, CombatUnit target, CombatUnit shouter)
     {
         double effectiveness = IntimidationChance(world, target, shouter);
-        return world.Rng("combat").NextDouble() < effectiveness ? 0.3 : 0.05;
+        return world.Rng("combat", shouter.Agent).NextDouble() < effectiveness ? 0.3 : 0.05;
     }
 
     public static double IntimidationChance(World world, CombatUnit target, CombatUnit shouter) =>
@@ -164,7 +164,7 @@ public static partial class Combat
     /// steer by morale, as far as their legs allow.
     public static Cell MovePosition(World world, Encounter enc, CombatUnit u)
     {
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", u.Agent);
         if (u.Awareness != Awareness.Engaged)
         {
             if (rng.NextDouble() < 0.4) return u.Position;
@@ -185,7 +185,7 @@ public static partial class Combat
     /// What this unit does on its turn (old CombatAI.DetermineAction).
     public static CombatAction ChooseAction(World world, Encounter enc, CombatUnit u)
     {
-        var rng = world.Rng("combat");
+        var rng = world.Rng("combat", u.Agent);
         if (u.Awareness == Awareness.Unaware) return rng.NextDouble() < 0.6 ? CombatAction.Wait : CombatAction.Move;
         if (u.Awareness == Awareness.Alert) return CombatAction.Move;
         var stats = StatsOf(world, u);

@@ -248,9 +248,10 @@ public static class Sim
             // Bedding's warmth is felt asleep in it (old WarmthBonus: authored, never read - bug, fixed).
             AirTempF = Weather.ShelteredAirF(world, agent.Tile, sky, warmth.WindProtectionLevel, cover).AirF + warmth.AirHeatF
                 + (sleeping ? bedding?.WarmthBonusF ?? 0 : 0),
-            // Old CalculateEffectiveWindSpeed: the regional wind less the pit's walls. The tile's wind
-            // factor and a shelter's walls reach the body only through the wind chill above, once.
-            WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel),
+            // Old CalculateEffectiveWindSpeed: the regional wind less the pit's walls. A shelter's walls
+            // cut it the same way - the wind through your clothes and drying you, as well as the chill
+            // above - as the pit's walls cut both. The tile's wind factor reaches only the chill (old game).
+            WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel) * (1 - cover.WindLevel),
             Precipitation = sky.Precipitation,
             PrecipitationPct = sky.PrecipitationPct,
             // Old SurvivalContext: a roof over someone keeping still, or the sky's own cover, whichever is more.

@@ -61,11 +61,11 @@ public static class Agents
     public static AgentId Spawn(World world, Species species, TileId tile, int members, List<TileId>? territory = null)
     {
         if (members < 1) throw new ArgumentOutOfRangeException(nameof(members), members, "An agent has at least one member");
-        var rng = world.Rng("fauna");
         var id = NewId(world);
+        var rng = world.Birth("fauna", id);
         world.Agents[id] = new Agent
         {
-            Id = id, Tile = tile, Species = species, Mind = Fauna.NewMind(world, species, territory ?? [tile]),
+            Id = id, Tile = tile, Species = species, Mind = Fauna.NewMind(world, id, species, territory ?? [tile]),
             Members = Enumerable.Range(0, members).Select(_ => SpeciesTable.NewBody(species, rng)).ToList(),
         };
         return id;

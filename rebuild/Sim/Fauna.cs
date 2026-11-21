@@ -97,7 +97,7 @@ public static partial class Fauna
     /// Long enough for any crossing: a crossing ends itself on arrival.
     const int UntilArrived = int.MaxValue;
 
-    public static HerdMind NewMind(World world, Species species, List<TileId> territory)
+    public static HerdMind NewMind(World world, AgentId id, Species species, List<TileId> territory)
     {
         if (territory.Count == 0) throw new ArgumentException("A herd needs at least one tile of territory");
         return new HerdMind
@@ -110,7 +110,7 @@ public static partial class Fauna
                 _ => HerdState.Grazing,
             },
             StateSinceMinute = world.Minute,
-            Hunger = world.Rng("herds").NextDouble() * 0.3, // start slightly hungry
+            Hunger = world.Birth("herds", id).NextDouble() * 0.3, // start slightly hungry
         };
     }
 
@@ -152,7 +152,7 @@ public static partial class Fauna
             // A headless fight already lived this minute of it.
             if (world.Minute <= body.WoundsLivedThroughMinute) continue;
             body.WoundsLivedThroughMinute = world.Minute;
-            if (body.Effects.Count > 0) Body.TickWounds(body, world.Rng("body")); // nothing to fade or bleed: skipping it changes nothing
+            if (body.Effects.Count > 0) Body.TickWounds(body, world.Rng("body", herd.Id)); // nothing to fade or bleed: skipping it changes nothing
             // old game: only prey herds split off wounded healed, and only their severity number; a predator's wounds and every
             // body's tissue stayed as they were, so one lame member pinned its herd for good (bug, fixed).
             if (!Hurt(body)) continue;
@@ -329,7 +329,7 @@ public static partial class Fauna
             _ => 1.0,
         };
         stealth = Math.Max(0.2, stealth);
-        var rng = world.Rng("herds");
+        var rng = world.Rng("herds", prey.Id);
         return rng.NextDouble() * vigilance > rng.NextDouble() * stealth;
     }
 
@@ -405,7 +405,7 @@ public static partial class Fauna
             case HerdState.Grazing:
                 if (mind.Hunger < 0.2) { Become(world, mind, HerdState.Resting); return Rest(herd); }
                 // Drifts across its land, faster where it is eaten out.
-                if (Roll(world, 0.01 + 0.01 * GrazedLevelHere(world, herd)) && PatrolStep(world, herd, mind) is { } walk) return walk;
+                if (Roll(world, herd, 0.01 + 0.01 * GrazedLevelHere(world, herd)) && PatrolStep(world, herd, mind) is { } walk) return walk;
                 return (new Graze(herd.Id), 1);
             default:
                 Become(world, mind, HerdState.Resting);
@@ -463,7 +463,7 @@ public static partial class Fauna
         {
             if (mind.Foray is not TileId target || target == herd.Tile)
             {
-                mind.Foray = ForayTarget(world, mind.Territory[0]);
+                mind.Foray = ForayTarget(world, herd, mind.Territory[0]);
                 if (mind.Foray == null) return null;
                 target = mind.Foray.Value;
             }
@@ -475,10 +475,10 @@ public static partial class Fauna
     }
 
     /// A random open tile within ForayRadiusTiles of the den, off any cave floor. Null after a few misses.
-    static TileId? ForayTarget(World world, TileId den)
+    static TileId? ForayTarget(World world, Agent herd, TileId den)
     {
         var m = Map.Of(world);
-        var rng = world.Rng("herds");
+        var rng = world.Rng("herds", herd.Id);
         for (int i = 0; i < 8; i++)
         {
             var t = new TileId(den.X + rng.NextInt(2 * ForayRadiusTiles + 1) - ForayRadiusTiles, den.Y + rng.NextInt(2 * ForayRadiusTiles + 1) - ForayRadiusTiles);
@@ -497,11 +497,11 @@ public static partial class Fauna
                 return Rest(herd);
             case HerdState.Grazing: // a bear forages, omnivore that it is
                 if (mind.Hunger < 0.3) { Become(world, mind, HerdState.Resting); return Rest(herd); }
-                if (Roll(world, 0.01 + 0.01 * GrazedLevelHere(world, herd)) && PatrolStep(world, herd, mind) is { } walk) return walk;
+                if (Roll(world, herd, 0.01 + 0.01 * GrazedLevelHere(world, herd)) && PatrolStep(world, herd, mind) is { } walk) return walk;
                 return (new Graze(herd.Id), 1);
             case HerdState.Patrolling:
                 if (t > 60) { Become(world, mind, HerdState.Resting); return Rest(herd); }
-                if (Roll(world, 0.01 + 0.01 * GrazedLevelHere(world, herd)) && PatrolStep(world, herd, mind) is { } prowl) return prowl;
+                if (Roll(world, herd, 0.01 + 0.01 * GrazedLevelHere(world, herd)) && PatrolStep(world, herd, mind) is { } prowl) return prowl;
                 return Wait(herd);
             case HerdState.Feeding:
                 if (t > 90 || MeatHere(world, herd.Tile) <= 0) { Become(world, mind, HerdState.Resting); return Rest(herd); }
@@ -525,7 +525,7 @@ public static partial class Fauna
                 if (t % CarcassSearchEveryMinutes == 0 && TowardNearest(world, herd, MeatSensed(world, herd.Tile)) is { } go) return go;
                 if (mind.Hunger < 0.3 && t > 60) { Become(world, mind, HerdState.Resting); return Rest(herd); }
                 // Old hyenas also shadowed feeding predators and wolf packs; carcasses alone draw them here.
-                if (Roll(world, 0.04) && PatrolStep(world, herd, mind) is { } walk) return walk;
+                if (Roll(world, herd, 0.04) && PatrolStep(world, herd, mind) is { } walk) return walk;
                 return Wait(herd);
             case HerdState.Feeding:
                 if (HerdsAt(world, herd.Tile).Any(h => h.Id != herd.Id && h.Species is Species.Wolf or Species.Bear or Species.CaveBear or Species.SaberTooth))
@@ -560,10 +560,10 @@ public static partial class Fauna
         if (options.Count == 0) return null;
         int best = options.Max(d => MapGen.Manhattan(Map.Step(herd.Tile, d), threat));
         options = options.Where(d => MapGen.Manhattan(Map.Step(herd.Tile, d), threat) == best).ToList();
-        return options[world.Rng("herds").NextInt(options.Count)];
+        return options[world.Rng("herds", herd.Id).NextInt(options.Count)];
     }
 
-    static bool Roll(World world, double chance) => world.Rng("herds").NextDouble() < chance;
+    static bool Roll(World world, Agent herd, double chance) => world.Rng("herds", herd.Id).NextDouble() < chance;
 
     static bool CanMove(Agent herd) => herd.Members.All(Mobile);
 
@@ -574,11 +574,11 @@ public static partial class Fauna
     static (Activity, int)? PatrolStep(World world, Agent herd, HerdMind mind)
     {
         if (mind.Territory.Count < 2) return null;
-        if (herd.Tile == mind.Territory[mind.TerritoryIndex]) mind.TerritoryIndex = world.Rng("herds").NextInt(mind.Territory.Count);
+        if (herd.Tile == mind.Territory[mind.TerritoryIndex]) mind.TerritoryIndex = world.Rng("herds", herd.Id).NextInt(mind.Territory.Count);
         var walk = Toward(world, herd, mind, mind.Territory[mind.TerritoryIndex]);
         if (walk != null || !CanMove(herd)) return walk;
         // No way there from here (walled off): it makes for somewhere else on its land next time.
-        mind.TerritoryIndex = world.Rng("herds").NextInt(mind.Territory.Count);
+        mind.TerritoryIndex = world.Rng("herds", herd.Id).NextInt(mind.Territory.Count);
         return null;
     }
 

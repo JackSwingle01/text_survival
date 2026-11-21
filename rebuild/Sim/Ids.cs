@@ -88,6 +88,25 @@ sealed class EdgeIdConverter : JsonConverter<EdgeId>
     }
 }
 
+/// An RNG stream's name, keying World.Rngs: "body", or "body:12" for agent 12's own. Compared
+/// ordinally, so a save lists its streams in one order on any machine.
+[JsonConverter(typeof(StreamNameConverter))]
+public readonly record struct StreamName(string Value) : IComparable<StreamName>
+{
+    public int CompareTo(StreamName o) => string.CompareOrdinal(Value, o.Value);
+    public static implicit operator StreamName(string system) => new(system);
+    public static StreamName Of(string system, AgentId who) => new(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{system}:{who.Value}"));
+    public override string ToString() => Value;
+}
+
+sealed class StreamNameConverter : JsonConverter<StreamName>
+{
+    public override StreamName Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => new(r.GetString() ?? throw new JsonException("StreamName is null"));
+    public override void Write(Utf8JsonWriter w, StreamName id, JsonSerializerOptions o) => w.WriteStringValue(id.Value);
+    public override StreamName ReadAsPropertyName(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => Read(ref r, t, o);
+    public override void WriteAsPropertyName(Utf8JsonWriter w, StreamName id, JsonSerializerOptions o) => w.WritePropertyName(id.Value);
+}
+
 /// A resource pool on a tile: the Index-th pool generation puts there (Pools.At).
 [JsonConverter(typeof(PoolIdConverter))]
 public readonly record struct PoolId(TileId Tile, int Index) : IComparable<PoolId>
