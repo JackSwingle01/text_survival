@@ -14,6 +14,8 @@ and changes what does not fit the rebuild: a 2D grid valley with a full per-minu
 
 ## 0. Decisions of 2026-11-21 (these override anything below that disagrees)
 
+The hard-to-reverse ones are recorded with their reasons in `documentation/decisions/`.
+
 1. **No special cases.** What a person can do about a situation comes from systems that exist for
    everyone: fighting, moving, waiting, fire, digging. Nothing scripts "what you can do when a bear
    is near". New behaviour arrives as small general mechanics (fire is a term in predator
