@@ -77,6 +77,8 @@ public class SkillsTests
 
     // ---- each action teaches ----
 
+    /// A miss teaches 1; a strike that catches teaches as much, and the fire it lit pays the rest of
+    /// the 3 when it takes its first log, whoever puts it on.
     [Fact]
     public void FireStarting_Teaches_ThreeForAFireAndOneForAMiss()
     {
@@ -86,12 +88,46 @@ public class SkillsTests
             var w = World.New(3);
             Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
             Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
+            Items.Add(Items.Pack(w, P), Resource.Pine, 2);
             w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
             var r = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1);
-            if (r.Events.Any(e => e is FireLit)) { lit = true; Assert.Equal(Skills.FireSuccessXp, Xp(w, Skill.Firecraft)); }
-            else { missed = true; Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft)); }
+            Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
+            if (!r.Events.Any(e => e is FireLit)) { missed = true; continue; }
+            lit = true;
+            Sim.Step(w, new AddFuel(P, Resource.Kindling, 0.2), 1); // more kindling is not a log
+            Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
+            Sim.Step(w, new AddFuel(P, Resource.Pine, 1), 1);
+            Assert.Equal(Skills.FireSuccessXp, Xp(w, Skill.Firecraft));
+            Sim.Step(w, new AddFuel(P, Resource.Pine, 1), 1); // once per fire
+            Assert.Equal(Skills.FireSuccessXp, Xp(w, Skill.Firecraft));
         }
         Assert.True(lit && missed);
+    }
+
+    /// Review: a success paid 3 for 0.05 kg of tinder and a pinch of kindling with no fuel to follow,
+    /// so an NPC went from level 3 to 7 in six hours. A fire that dies on its kindling teaches a miss's worth.
+    [Fact]
+    public void AFireThatNeverTakesALog_TeachesNoMoreThanAMiss()
+    {
+        for (int seed = 0; seed < 60; seed++)
+        {
+            var w = World.New(3);
+            Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
+            Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
+            Items.Add(Items.Pack(w, P), Resource.Pine, 2);
+            w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
+            if (!Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1).Events.Any(e => e is FireLit)) continue;
+            var pit = Fire.PitAt(w, w.Agent(P).Tile)!.Value;
+            for (int i = 0; i < 6 * 60 && w.Fires.ContainsKey(pit) && (Fire.IsActive(w.Fires[pit]) || w.Fires[pit].HasEmbers); i++) Sim.Step(w, new Wait(P), 1);
+            Assert.False(Fire.IsActive(w.Fires[pit]), "the kindling fire never went out");
+            Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
+            // Out, a log on the cold pit teaches nothing more.
+            Items.Add(Items.Pack(w, P), Resource.Pine, 1);
+            Sim.Step(w, new AddFuel(P, Resource.Pine, 1), 1);
+            Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
+            return;
+        }
+        Assert.Fail("no seed lit the fire");
     }
 
     [Fact]
@@ -180,19 +216,24 @@ public class SkillsTests
         Assert.True(Minutes(10) < Minutes(0));
     }
 
+    /// Practice wins back what spoiling meat would cost, and nothing past a clean cut: at the most
+    /// practice a careful butcher takes exactly the careful share of the meat (65% of the muscle), however
+    /// it rots during the cut (review: the factor multiplied every yield, 120% of the cut at level 20).
     [Fact]
-    public void Butchering_YieldsMore()
+    public void Butchering_YieldsMore_FromSpoilingMeat_AndNeverMoreThanTheCut()
     {
-        double Meat(int level)
+        double Meat(int level, double effectiveHours)
         {
             var w = Mild17();
             SetLevel(w, P, Skill.Butchering, level);
             var c = Carcasses.Create(w, Map.Of(w).Camp, "Rabbit", BodyState.Create(BodyKind.Quadruped, 2, 0.1, 0.4), 0);
+            c.EffectiveHours = effectiveHours;
             Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
             Sim.Step(w, new Butcher(P, c.Id), 600);
             return Items.Have(Items.Pack(w, P), Resource.RawMeat);
         }
-        Assert.Equal(Meat(0) * Skills.ButcherYieldFactor(10), Meat(10), 9);
+        Assert.Equal(Meat(0, 12) * Skills.ButcherYieldFactor(10), Meat(10, 12), 9);
+        Assert.Equal(2 * 0.4 * 0.65, Meat(Skills.MaxLevel, 0), 9);
     }
 
     // ---- saved, and the same however stepped ----

@@ -35,7 +35,10 @@ public sealed class TileMemory
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? ForageDensity { get; set; }
     /// The pit's phase as seen; null when there was no pit.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FirePhase? Fire { get; set; }
-    /// Hours of burning the pit had left, as of VisitedMinute (only someone beside it can judge the fuel).
+    /// Hours of fire in what was on the pit (Fire.FuelHours), as of VisitedMinute: only someone beside
+    /// it can judge the fuel. Null when it was not burning. From a distance (Knowledge.Glance) a person
+    /// sees whether it burns, not how much is on it: a fire seen out has none left (null), and a fire seen
+    /// burning keeps the reckoning from beside it, which whoever reads it ages from VisitedMinute.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? FireHours { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<SeenCarcass>? Carcasses { get; set; }
     /// The stash by resource, to a tenth of a kilo.
@@ -173,6 +176,7 @@ public static class Knowledge
             if (mem == null) beliefs.Places[t] = mem = new TileMemory();
             mem.SeenMinute = now;
             (mem.Trees, mem.Water, mem.Fire, mem.Shelter) = (trees, water, fire, shelter);
+            if (!Fire.Burns(fire)) mem.FireHours = null;
             mem.Danger = den ? mem.Danger | Danger.Den : mem.Danger & ~Danger.Den;
         }
         foreach (var other in world.Agents.Values)
@@ -241,7 +245,7 @@ public static class Knowledge
         mem.Water = Work.HasOpenWater(world, tile);
         mem.ForageDensity = pools.Count > 0 && pools[0] is ForagePool ? Pools.ForageDensity(world, new PoolId(tile, 0)) : 0;
         mem.Fire = fire;
-        mem.FireHours = pit != null && Fire.IsActive(pit) ? Math.Round(Fire.BurningHoursRemaining(pit), 1) : null;
+        mem.FireHours = pit != null && Fire.IsActive(pit) ? Math.Round(Fire.FuelHours(pit), 1) : null;
         mem.Carcasses = carcasses;
         mem.Stash = stash;
         mem.Shelter = shelter;
@@ -297,9 +301,25 @@ public static class Journal
             if (!Files(e) || !Staked(world, e.Tile)) continue;
             if (!world.Journal.TryGetValue(e.Tile, out var list)) world.Journal[e.Tile] = list = [];
             list.Add(e);
-            if (list.Count > MaxEntriesPerTile) list.RemoveAt(0);
+            if (list.Count > MaxEntriesPerTile) list.RemoveAt(Evicted(list));
         }
         if (world.Minute % 1440 == 0 && world.Journal.Count > 0) Forget(world);
+    }
+
+    /// Chores: what someone does at a fire or a stash over and over through a night. They make
+    /// way for anything else, so a night of feeding the fire cannot push out the fire going out.
+    public static bool IsRoutine(WorldEvent e) => e is FuelAdded or Stashed or Unstashed;
+
+    /// Which entry a full journal lets go: the earliest-happened chore, or failing that the
+    /// earliest-happened entry. By minute, not by filing order: catch-up files what happened
+    /// hours ago after what happened just now. Ties go to the first filed.
+    static int Evicted(List<WorldEvent> list)
+    {
+        int oldest = -1;
+        bool routine = list.Any(IsRoutine);
+        for (int i = 0; i < list.Count; i++)
+            if ((!routine || IsRoutine(list[i])) && (oldest < 0 || list[i].Minute < list[oldest].Minute)) oldest = i;
+        return oldest;
     }
 
     /// The tile's entries strictly after one minute and strictly before another, in the order filed.

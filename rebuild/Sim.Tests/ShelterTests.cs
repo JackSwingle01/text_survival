@@ -135,6 +135,31 @@ public class ShelterTests
         Assert.Equal(WetAfter(byFire with { WindLevel = byFire.FireDryingWindLevel.Value }), WetAfter(byFire), Digits);
     }
 
+    /// The open-wind drying is a pit's (review): a torch in hand dries in the wind the shelter leaves,
+    /// and beside a pit the drying wind stays the open one when its heat is withheld because you sweat.
+    [Fact]
+    public void DryingWind_IsThePitsOnly_AndSteadyAcrossSweating()
+    {
+        static double WetAfter(SurvivalContext ctx, double coreF)
+        {
+            var b = BodyState.BaselineHuman();
+            b.CoreTempF = coreF;
+            Effects.Set(b, EffectKind.Wet, 1.0);
+            return Body.Process(b, ctx, 10, Rng.ForSystem(1, "test")).Effects.Single(e => e.Kind == EffectKind.Wet).Severity;
+        }
+        var sheltered = new SurvivalContext { AirTempF = 46, WindLevel = 0.05, FireDryingWindLevel = 0.6 };
+
+        // A torch in a shelter: the shelter's wind, not the open wind (old: any heat read FireDryingWindLevel).
+        var torch = sheltered with { TorchHeatF = 15 };
+        Assert.Equal(WetAfter(torch with { FireDryingWindLevel = null }, Body.BaseCoreTempF), WetAfter(torch, Body.BaseCoreTempF), Digits);
+
+        // Beside a pit, too hot to take its heat: still the open wind past the pit's walls.
+        var pit = sheltered with { FireBonusF = 20 };
+        double hotF = Body.SweatingThresholdF + 0.5;
+        Assert.True(WetAfter(pit, hotF) < WetAfter(pit with { FireDryingWindLevel = null }, hotF) - 1e-6,
+            "sweating beside a pit, the drying wind fell back to the shelter's");
+    }
+
     /// Old SurvivalContext: a roof over someone keeping still, else the sky's own cover. The ground
     /// under it still gets the rain (Ground reads Map.OverheadCover only).
     [Fact]

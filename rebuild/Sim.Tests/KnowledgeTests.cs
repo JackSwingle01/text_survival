@@ -261,6 +261,30 @@ public class KnowledgeTests
         Assert.Equal(w.Minute, Memory(w, P, camp)!.SeenMinute);
     }
 
+    /// From a distance you see whether a fire burns, not how much is on it (review: a glance updated the
+    /// phase to Embers and left "5.0 h left" beside it). Seen burning, the reckoning from beside it stands;
+    /// seen out, there are no hours left.
+    [Fact]
+    public void AGlance_SeesTheFireOut_AndForgetsItsHours()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        var pit = PlacePit(w, camp, 5);
+        Sim.Step(w, new Wait(P), 1);
+        double hours = Memory(w, P, camp)!.FireHours!.Value;
+        Assert.True(hours > 3);
+        long died = DiesAt(w, pit);
+
+        Put(w, P, Away(w, camp, Sight.RadiusTiles - 1)); // in sight of camp, not on it
+        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes);
+        Assert.True(Fire.Burns(Memory(w, P, camp)!.Fire));
+        Assert.Equal(hours, Memory(w, P, camp)!.FireHours);
+
+        while (!w.Fires[pit].HasEmbers && w.Minute < died) Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes);
+        Assert.Equal(FirePhase.Embers, Memory(w, P, camp)!.Fire);
+        Assert.Null(Memory(w, P, camp)!.FireHours);
+    }
+
     /// Sleeping counts as being away: the morning receipt tells what happened in the night.
     [Fact]
     public void Waking_GivesTheMorningReceipt()
@@ -331,6 +355,46 @@ public class KnowledgeTests
         var loaded = Save.FromJson(json);
         Assert.Equal(json, Save.ToJson(loaded));
         Assert.IsType<Stashed>(loaded.Journal[camp][^1]);
+    }
+
+    /// A full journal lets go of what happened longest ago, not what was filed first: catch-up files
+    /// the fire that died in the night after the morning's news (review).
+    [Fact]
+    public void AFullJournal_EvictsTheEarliestHappened_NotTheFirstFiled()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        var events = new List<WorldEvent>();
+        for (int i = 0; i < Journal.MaxEntriesPerTile; i++) events.Add(new FireStartFailed(600 + i, P, camp, 0.5));
+        events.Add(new FireDied(300, new FireId(0), camp)); // found late: it went out at minute 300
+        events.Add(new FireStartFailed(700, P, camp, 0.5));
+        int filed = 0;
+        Journal.File(w, events, ref filed);
+        var kept = w.Journal[camp];
+        Assert.Equal(Journal.MaxEntriesPerTile, kept.Count);
+        Assert.DoesNotContain(kept, e => e is FireDied); // the earliest-happened went, though it was filed late
+        Assert.DoesNotContain(kept, e => e.Minute == 600); // then the next earliest made room for minute 700
+        Assert.Contains(kept, e => e.Minute == 601);
+        Assert.Contains(kept, e => e.Minute == 700);
+    }
+
+    /// Chores make way first: a night of feeding the fire and fetching from the stash cannot push out
+    /// the fire going out (review: an overnight FireDied evicted by FuelAdded and Stashed).
+    [Fact]
+    public void ABusyNight_KeepsTheFireDying_InTheJournal()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        var events = new List<WorldEvent> { new FireDied(100, new FireId(0), camp) };
+        for (int i = 0; i < 3 * Journal.MaxEntriesPerTile; i++)
+            events.Add(i % 2 == 0 ? new FuelAdded(200 + i, new FireId(1), camp, P, Resource.Pine, 1) : new Stashed(200 + i, P, camp, Resource.Pine, 1));
+        int filed = 0;
+        Journal.File(w, events, ref filed);
+        var kept = w.Journal[camp];
+        Assert.Equal(Journal.MaxEntriesPerTile, kept.Count);
+        Assert.Contains(kept, e => e is FireDied);
+        Assert.Equal(200 + 3 * Journal.MaxEntriesPerTile - 1, kept[^1].Minute); // the latest chores are the ones kept
+        Assert.Equal(200 + 3 * Journal.MaxEntriesPerTile - (Journal.MaxEntriesPerTile - 1), kept[1].Minute);
     }
 
     [Fact]

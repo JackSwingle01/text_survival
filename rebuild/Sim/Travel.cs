@@ -163,11 +163,14 @@ public static class Traversal
     {
         double baseRisk = EffectiveHazardLevel(world, tile);
         if (baseRisk < HazardousLevel) return new Odds("Safe ground", 0, []);
-        double weather = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? 0.25
-            : sky.PrecipitationPct > 0.3 || sky.Condition == WeatherCondition.LightSnow ? 0.15 : 0;
+        // Labelled by what earned it: a storm, light snow, or (whatever the sky is called) heavy precipitation.
+        var (weatherWhy, weather) = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? (sky.Condition.ToString(), 0.25)
+            : sky.Condition == WeatherCondition.LightSnow ? (sky.Condition.ToString(), 0.15)
+            : sky.PrecipitationPct > 0.3 ? (sky.Precipitation == Precipitation.None ? "Precipitation" : $"Heavy {sky.Precipitation.ToString().ToLowerInvariant()}", 0.15)
+            : (sky.Condition.ToString(), 0.0);
         double impaired = (1 - Body.GetCapacities(body).Moving) * 0.3;
         return new Odds("Hazardous ground", baseRisk, Odds.Moving(
-            OddsTerm.Add(sky.Condition.ToString(), weather),
+            OddsTerm.Add(weatherWhy, weather),
             OddsTerm.Add("Bad legs", impaired)), MinPct: 0, MaxPct: MaxInjuryRiskPct);
     }
 

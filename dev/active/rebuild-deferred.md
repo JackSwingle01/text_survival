@@ -10,7 +10,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   Upgrade: move the plain rows to `Content/*.json` beside locations and loot, checked by `Content.Parse`.
 - `Shelter.cs:58` - only the simplest camp recipes exist (bedding, frames, snow shelter, pitching a tent);
   no general crafting, no hide tent recipe. Upgrade: port `NeedCraftingSystem` as its own system; `Recipe` becomes a content row.
-- `Npc.cs:56`, `Npc.cs:442` - NPCs spawn with an axe and knife and cannot make a fire starter, standing in
+- `Npc.cs:48`, `Npc.cs:439` - NPCs spawn with an axe and knife and cannot make a fire starter, standing in
   for the old NPC's crafting. Upgrade: once crafting exists, shrink the kit to the player's and craft at these points.
 - `Shelter.cs:74` - old `CacheFeature` (capacity, predator/weather protection, food preservation) not ported;
   no branch-to-log frame rebuild (old 60% salvage), no reclaim from an abandoned project. Upgrade: port with scavengers that raid stashes.
@@ -44,34 +44,44 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   Upgrade: emergent-world signs.
 - `Body.cs:523` - the inner-organ hit threshold (5) predates the 0-1 damage scale, so only huge hits reach organs.
   Upgrade: rescale when combat damage is tuned.
-- `Carcass.cs:253` - cut meat left waiting on a carcass does not rot further.
+- `Carcass.cs:298` - cut meat left waiting on a carcass does not rot further.
 
 ## Combat and NPCs
 
-- `Combat.cs:436`, `Npc.cs:745` - only the player fights round by round; an NPC's own fight resolves at once,
+- `Combat.cs:436`, `Npc.cs:771` - only the player fights round by round; an NPC's own fight resolves at once,
   its rounds lived by its wounds alone. Upgrade: let other agents step `Fight` when combat allows it.
 - `Combat.cs:490` - the remainder of a fight the player left resolves at once (old: a background fight, a round a minute).
 - `Combat.cs:636` - no Fighting skill added to blows. Upgrade: with progression.
-- `Combat.cs:724`, `CombatAI.cs:37`, `Npc.cs:34` - relationship opinions are never written, so companions'
+- `Combat.cs:724`, `CombatAI.cs:37`, `Npc.cs:26` - relationship opinions are never written, so companions'
   help and pack cohesion ignore them. Upgrade: feed `Opinions` from the `WorldEvent` stream (plan decision 4).
-- `Npc.cs:475` - camp fuel hours ignore a stone pit's efficiency and a small fire's slower burn (both under 15%).
-- `Knowledge.cs:84`, `Npc.cs:638`, `Map.cs:128` - no sight rays or fog of war: everyone's sight is `Sight.Visible`, a fixed
+- `Fire.cs:137` - fuel hours as a person reckons them (`Fire.FuelHours`, the NPC's camp fuel and remembered fire hours)
+  ignore a stone pit's efficiency and a small fire's slower burn (both under 15%).
+- `Knowledge.cs:89`, `Npc.cs:699`, `Map.cs:128` - no sight rays or fog of war: everyone's sight is `Sight.Visible`, a fixed
   5-tile radius blind to terrain, weather and dark, and NPC threat checks read herds' true positions.
   Upgrade: port old `GameMap.UpdateVisibility` behind `Sight.Visible`; nothing else needs to change.
+- What an NPC still reads from the world rather than its beliefs, deliberately (plan decision 7; the camp's fire
+  and stash now come from memory out of sight, `Npc.CampFuelHours`): `Npc.cs:597` the forage pool kind and full
+  density of a remembered tile (the land itself, fixed content: "the look of the country"); `Npc.cs:806` passability
+  for its walks (terrain, cliffs and ravines, which never change and every map shows); the crossing off its own tile
+  and the weather overhead (felt, not seen); herds within 1-3 tiles (the sight-rays entry above).
+  Upgrade: route the first two through `Beliefs` once fog of war means a person can not know the ground.
+- `Npc.cs:570` - the NPC's foraging trip is weighed for cold by its walking chill at the tile it decides on
+  (`WalkingCoolingFPerHour`); out and back for food, it can still turn home because the walk tired or chilled it more
+  than reckoned (seed 17: 3 such trips in 30 days). Upgrade: reckon the trip's chill along the path, not the first tile.
 - `Travel.cs:201` - old sprains also added SprainedAnkle / Clumsy effects; there are no such effect kinds yet.
 
 ## Knowledge, receipts and skills
 
 - `Knowledge.cs:18` - a bare tile seen from a distance is not remembered (only tiles stood on or with something notable),
   so memory cannot draw "explored but empty" ground. Upgrade: a seen-tiles bitset per person when the map needs fog.
-- `Knowledge.cs:232` - receipts leave out human prints: yours and another person's are the same mark.
+- `Knowledge.cs:236` - receipts leave out human prints: yours and another person's are the same mark.
   Upgrade: remember a tile's human traffic as of the visit and report only what was added since.
-- `Knowledge.cs:119` - the player's camp, where a receipt tells everything, is the generated camp; moving camp does not move it.
+- `Knowledge.cs:122` - the player's camp, where a receipt tells everything, is the generated camp; moving camp does not move it.
   Upgrade: a camp the player chooses (a tent pitched, a shelter built) once camps can move.
-- `Knowledge.cs:142` - an NPC's receipts are computed and dropped; the old `WitnessedTheft` / `StoleFrom` memories wait on them.
+- `Knowledge.cs:145` - an NPC's receipts are computed and dropped; the old `WitnessedTheft` / `StoleFrom` memories wait on them.
   Allies do not share beliefs yet (short-loop step 8). Herds keep their learned fear on `HerdMind`, outside `Beliefs`.
-- `Knowledge.cs:55` - `Danger` has Hurt and Den; no thin ice, since Ground models no ice thickness yet.
-- `Npc.cs:33` - an NPC's last close threat (`ThreatTile`) stays its own decision state, not a `Sighting`: it keeps the
+- `Knowledge.cs:58` - `Danger` has Hurt and Den; no thin ice, since Ground models no ice thickness yet.
+- `Npc.cs:36` - an NPC's last close threat (`ThreatTile`) stays its own decision state, not a `Sighting`: it keeps the
   flight logic exactly as tuned. Upgrade: derive it from `Beliefs.Sightings` if the two should agree.
 - `Shelter.cs:459`, `Skills.cs:62` - Crafting teaches but pays nothing (crafting has no failures to spare yet); Cooking pays
   in speed only (cooking has no bad results yet). Upgrade: crafting luck and cooking quality (short-loop feature 8).

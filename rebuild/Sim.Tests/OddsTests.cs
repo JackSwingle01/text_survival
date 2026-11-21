@@ -167,6 +167,22 @@ public class OddsTests
         Assert.True(hazardous > 0, "no hazardous ground sampled");
     }
 
+    /// The weather term is named for what earned it (review: a cloudy sky got the +15% that heavy
+    /// precipitation earned, and was labelled Cloudy).
+    [Fact]
+    public void InjuryOdds_WeatherTerm_IsNamedForItsCause()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        var tile = Enumerable.Range(0, m.Width * m.Height).Select(i => new TileId(i % m.Width, i / m.Width))
+            .First(t => m.TerrainAt(t).IsPassable() && Traversal.IsHazardous(w, t));
+        string Why(WeatherSample sky) => Traversal.InjuryOdds(w, tile, BodyState.BaselineHuman(), sky).Terms.Single(t => t.Value == 0.15).Factor;
+        Assert.Equal("Heavy rain", Why(new WeatherSample(0, WeatherCondition.Rainy, 5, 0.1, 0.5, 1, WindDirection.North)));
+        Assert.Equal("Heavy snow", Why(new WeatherSample(0, WeatherCondition.HeavySnow, -5, 0.1, 0.5, 1, WindDirection.North)));
+        Assert.Equal("LightSnow", Why(new WeatherSample(0, WeatherCondition.LightSnow, -5, 0.1, 0.2, 1, WindDirection.North)));
+        Assert.DoesNotContain("Cloudy", Why(new WeatherSample(0, WeatherCondition.Cloudy, -5, 0.1, 0.5, 1, WindDirection.North)));
+    }
+
     [Fact]
     public void ForageYield_IsTheOldProduct_AndAddsUp()
     {

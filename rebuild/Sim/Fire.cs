@@ -27,6 +27,10 @@ public sealed class FireState
     public double CharcoalKg { get; set; }
     public AgentId? CarriedBy { get; set; }
     public double TorchMinutesLeft { get; set; }
+    /// Who struck this fire, until it takes its first log or goes out: their Firecraft for lighting it
+    /// is paid when it takes the log (Fire.Feed), so a fire that never got past its kindling teaches only a miss's worth.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public AgentId? LitBy { get; set; }
 }
 
 public static class Fire
@@ -79,6 +83,9 @@ public static class Fire
         return FirePhase.Dying;
     }
 
+    /// Whether a fire seen in this phase is burning (IsActive, for a pit): flames, not embers.
+    public static bool Burns(FirePhase? phase) => phase is not (null or FirePhase.Cold or FirePhase.Embers);
+
     /// Combustion temperature, not heat felt.
     public static double TemperatureF(FireState f)
     {
@@ -121,6 +128,17 @@ public static class Fire
         double rate = BurnRateKgPerHour(f);
         return rate > 0 ? BurningKg(f) / rate : 0;
     }
+
+    /// A fire's burn rate over its fuels' table rates at a working size (BurnSizeFactor runs 0.9-1.2):
+    /// what someone judging how long wood will last reckons with.
+    public const double ReckonedBurnSizeFactor = 1.1;
+
+    /// Hours of fire in this much of a fuel, as someone judging a woodpile reckons it.
+    // Ignores a stone pit's efficiency and that a small fire burns slower; both under 15%.
+    public static double FuelHours(Resource fuel, double kg) => kg / (Props[fuel].BurnRateKgPerHour * ReckonedBurnSizeFactor);
+
+    /// Hours of fire in everything on the pit, burning or waiting to catch, reckoned as FuelHours.
+    public static double FuelHours(FireState f) => f.UnburnedKg.Concat(f.BurningKg).Sum(x => FuelHours(x.Key, x.Value));
 
     /// Radiant heat in °F added to the ambient temperature. Embers radiate too.
     public static double HeatOutputF(FireState f, double ambientF)
@@ -194,6 +212,15 @@ public static class Fire
         foreach (var (id, f) in world.Fires)
             if (f.CarriedBy == null && f.Tile == tile) return id;
         return null;
+    }
+
+    /// The pit on a tile as it is now. It must have been caught up, as anything read off a fire must be.
+    public static FireState? CurrentPitAt(World world, TileId tile)
+    {
+        if (PitAt(world, tile) is not FireId id) return null;
+        var f = world.Fires[id];
+        RequireCurrent(world, id, f);
+        return f;
     }
 
     static void RequireCurrent(World world, FireId id, FireState f)
@@ -337,6 +364,7 @@ public static class Fire
 
     static void ToEmbers(FireState f, FireId id, long minute, List<WorldEvent> events)
     {
+        f.LitBy = null; // out before it took a log: nothing more to learn from it
         f.EmberStartTempF = f.LastBurningTempF;
         f.HasEmbers = true;
         f.EmberDurationHours = Math.Max(0.25, f.EmberStartTempF / 600.0 * 0.5);
@@ -461,7 +489,10 @@ public static class Fire
         if (a.KindlingKg > 0) Items.Take(pack, Resource.Kindling, AddFuel(f, Resource.Kindling, a.KindlingKg));
         IgniteAll(f);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
-        Skills.Award(world, agent, Skill.Firecraft, Skills.FireSuccessXp, events);
+        // A strike that catches is worth a miss now; the rest when the fire takes wood (Feed). Old game:
+        // a full success for any flame, so tinder and a pinch of kindling, with no fuel to follow, farmed levels (bug, fixed).
+        Skills.Award(world, agent, Skill.Firecraft, Skills.FireFailureXp, events);
+        f.LitBy = a.Who;
         return null;
     }
 
@@ -476,6 +507,13 @@ public static class Fire
         double added = AddFuel(f, a.Fuel, Math.Min(a.Kg, Items.Have(pack, a.Fuel)));
         Items.Take(pack, a.Fuel, added);
         events.Add(new FuelAdded(world.Minute, id, tile, a.Who, a.Fuel, added));
+        // The first log on a fire someone struck: it has caught, and it was their doing.
+        if (f.LitBy is AgentId lighter && added > 0 && Props[a.Fuel].MinFireTempF > 0 && IsActive(f))
+        {
+            f.LitBy = null;
+            if (world.Agents.TryGetValue(lighter, out var who))
+                Skills.Award(world, who, Skill.Firecraft, Skills.FireSuccessXp - Skills.FireFailureXp, events);
+        }
         if (wasEmbers && !f.HasEmbers) events.Add(new FireLit(world.Minute, id, tile, a.Who));
         return null;
     }

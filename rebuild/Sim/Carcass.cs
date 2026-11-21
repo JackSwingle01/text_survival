@@ -36,17 +36,37 @@ public static class Carcasses
 {
     const double BaseButcheringMinutes = 30.0, MinutesPerKgYield = 2.75;
 
+    /// Old ButcheringModeConfig's factors, relative to a careful butcher's yield. Full processing took
+    /// 110% of the meat and fat and 120% of the sinew and feathers. Old game: the carcass's ledger was the
+    /// careful yield, so a full cut gave 107% of the kilograms it took off the carcass (bug, fixed): the
+    /// ledger now holds what full processing recovers (Create scales it by ThoroughFactor), and every
+    /// mode recovers its old yield as a share of it, never more than was cut.
+    static readonly IReadOnlyDictionary<Resource, double> QuickStripFactors = new Dictionary<Resource, double>
+    {
+        [Resource.RawMeat] = 0.8, [Resource.Hide] = 0, [Resource.Bone] = 0.5, [Resource.Sinew] = 0, [Resource.RawFat] = 0.5, [Resource.Feather] = 0,
+    };
+    static readonly IReadOnlyDictionary<Resource, double> ThoroughFactors = new Dictionary<Resource, double>
+    {
+        [Resource.RawMeat] = 1.1, [Resource.Sinew] = 1.2, [Resource.RawFat] = 1.1, [Resource.Feather] = 1.2,
+    };
+
+    /// How much more of a resource full processing recovers than careful work: the ledger's scale.
+    public static double ThoroughFactor(Resource r) => ThoroughFactors.GetValueOrDefault(r, 1);
+
+    static IReadOnlyDictionary<Resource, double> Recovered(IReadOnlyDictionary<Resource, double> careful) =>
+        Enum.GetValues<Resource>().Where(r => careful.ContainsKey(r) || ThoroughFactors.ContainsKey(r))
+            .ToDictionary(r => r, r => careful.GetValueOrDefault(r, 1) / ThoroughFactor(r));
+
+    static readonly ButcherModeProps QuickStrip = new(0.5, Recovered(QuickStripFactors), 0.2, 0.3);
+    static readonly ButcherModeProps Careful = new(1.0, Recovered(new Dictionary<Resource, double>()), 0.1, 0.15);
+    static readonly ButcherModeProps FullProcessing = new(1.5, new Dictionary<Resource, double>(), 0.05, 0.1);
+
+    /// YieldFactor is the share of each resource's ledger the mode recovers, at most 1; anything not named takes 1.
     public static ButcherModeProps ModeProps(ButcherMode mode) => mode switch
     {
-        ButcherMode.QuickStrip => new(0.5, new Dictionary<Resource, double>
-        {
-            [Resource.RawMeat] = 0.8, [Resource.Hide] = 0, [Resource.Bone] = 0.5, [Resource.Sinew] = 0, [Resource.RawFat] = 0.5, [Resource.Feather] = 0,
-        }, 0.2, 0.3),
-        ButcherMode.Careful => new(1.0, new Dictionary<Resource, double>(), 0.1, 0.15),
-        ButcherMode.FullProcessing => new(1.5, new Dictionary<Resource, double>
-        {
-            [Resource.RawMeat] = 1.1, [Resource.Sinew] = 1.2, [Resource.RawFat] = 1.1, [Resource.Feather] = 1.2,
-        }, 0.05, 0.1),
+        ButcherMode.QuickStrip => QuickStrip,
+        ButcherMode.Careful => Careful,
+        ButcherMode.FullProcessing => FullProcessing,
         _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
     };
 
@@ -79,6 +99,7 @@ public static class Carcasses
             if (y.ContainsKey(Resource.Hide)) y[Resource.Hide] *= Math.Max(0.5, left);
             y[Resource.Sinew] *= Math.Max(0.8, left);
         }
+        foreach (var r in y.Keys.ToList()) y[r] *= ThoroughFactor(r);
         var c = new Carcass
         {
             Id = world.NextCarcassId++, Animal = animal, BodyWeightKg = body.WeightKg,
@@ -185,7 +206,11 @@ public static class Carcasses
     /// Old GetRemainingMinutes(mode): setup plus 2.75 minutes a kilo, scaled by the mode. The setup
     /// is charged once per carcass, not once per session (Prepare).
     public static int RemainingMinutes(Carcass c, ButcherMode mode) =>
-        (int)Math.Ceiling((Math.Max(0, BaseButcheringMinutes - c.SetupMinutes) + TotalRemainingKg(c) * MinutesPerKgYield) * ModeProps(mode).TimeFactor);
+        (int)Math.Ceiling((Math.Max(0, BaseButcheringMinutes - c.SetupMinutes) + WorkKg(c) * MinutesPerKgYield) * ModeProps(mode).TimeFactor);
+
+    /// The kilograms the butchering time is charged on: the ledger at a careful butcher's yield, as the
+    /// old game charged it, so scaling the ledger up to full processing's (ThoroughFactor) took no longer.
+    static double WorkKg(Carcass c) => c.Remaining.Sum(x => x.Value / ThoroughFactor(x.Key));
 
     /// Effective minutes of butchering go to the setup first, until it is done; returns what is left for cutting.
     public static double Prepare(Carcass c, double minutes, ButcherMode mode)
@@ -201,23 +226,28 @@ public static class Carcasses
     /// tear off half the meat and some bone and ruin the rest. Kilograms removed are linear in
     /// minutes, so cutting a minute at a time takes what one long cut does. Once it is all cut,
     /// Settle applies the meat floor and drops what was too little to keep.
-    /// skillFactor is the butcher's practice (Skills.ButcherYieldFactor): less left on the bone.
+    /// skillFactor is the butcher's practice (Skills.ButcherYieldFactor): it wins back what clumsy hands
+    /// and spoiling meat would lose, never more than the method recovers clean, so never more than the cut.
     public static void Cut(Carcass c, double minutes, bool hasCuttingTool, bool handsImpaired, ButcherMode mode, double skillFactor = 1.0)
     {
         if (minutes <= 0 || AllCut(c)) return;
         var props = ModeProps(mode);
-        double fraction = Math.Min(1.0, minutes / (TotalRemainingKg(c) * MinutesPerKgYield * props.TimeFactor));
-        double yieldFactor = handsImpaired ? 0.8 : 1.0;
-        double meatDecay = 1.0 - DecayLevel(c) * 0.8;
+        double fraction = Math.Min(1.0, minutes / (WorkKg(c) * MinutesPerKgYield * props.TimeFactor));
+        double handsPct = handsImpaired ? 0.8 : 1.0;
+        double meatDecayPct = 1.0 - DecayLevel(c) * 0.8;
         foreach (var r in c.Remaining.Keys.ToList())
         {
             // Trophy materials are not torn off by hand: they wait for a blade.
             if (!hasCuttingTool && r is Resource.Ivory or Resource.MammothHide) continue;
             double take = c.Remaining[r] * fraction;
-            double kg = !hasCuttingTool
-                ? r switch { Resource.RawMeat => take * 0.5 * yieldFactor * meatDecay, Resource.Bone => take * yieldFactor * 0.67, _ => 0 }
-                : take * yieldFactor * props.YieldFactor.GetValueOrDefault(r, 1) * (r == Resource.RawMeat ? meatDecay : 1);
-            kg *= skillFactor;
+            // What the method recovers from this cut with steady hands and fresh meat (old ButcheringModeConfig,
+            // and the old bare-handed tear: half the meat and two thirds of the bone)...
+            double clean = !hasCuttingTool
+                ? r switch { Resource.RawMeat => take / ThoroughFactor(r) * 0.5, Resource.Bone => take * 0.67, _ => 0 }
+                : take * props.YieldFactor.GetValueOrDefault(r, 1);
+            // ...and what the hands and the rot cost of it, some of which practice wins back.
+            double penaltyPct = handsPct * (r == Resource.RawMeat ? meatDecayPct : 1);
+            double kg = Math.Min(clean, clean * penaltyPct * skillFactor);
             c.CutKg[r] = c.CutKg.GetValueOrDefault(r) + take;
             c.Remaining[r] = Math.Max(0, c.Remaining[r] - take);
             if (kg <= 0) continue;

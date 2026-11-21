@@ -77,6 +77,110 @@ public class NpcTests(ITestOutputHelper output)
         Assert.True(log.OfType<PlanRefused>().Count(r => r.Who == npc) < 20);
     }
 
+    /// What an NPC does, minute by minute: its activity, its need, its camp and its moves. With look,
+    /// every fire in the world is caught up after each minute: a pure observation.
+    static List<string> Lived(World w, AgentId npc, long untilMinute, bool look)
+    {
+        var did = new List<string>();
+        while (w.Minute < untilMinute && Body.IsAlive(w.Agent(npc).Body))
+        {
+            foreach (var e in Sim.Advance(w, 1))
+                if (e is Moved { } m && m.Who == npc) did.Add($"{m.Minute} moved {m.To}");
+            var mind = (NpcMind)w.Agent(npc).Mind;
+            did.Add($"{w.Minute} {w.Agent(npc).Doing?.Activity} {mind.Need} camp {mind.Camp}");
+            if (look) foreach (var id in w.Fires.Keys.ToList()) if (w.Fires.ContainsKey(id)) Fire.CatchUp(w, id, []);
+        }
+        return did;
+    }
+
+    static void AssertSameLives(List<string> unseen, List<string> seen)
+    {
+        int first = Enumerable.Range(0, Math.Min(unseen.Count, seen.Count)).FirstOrDefault(i => unseen[i] != seen[i], -1);
+        Assert.True(first < 0 && unseen.Count == seen.Count, first < 0 ? "one run lived longer" : $"first difference: {unseen[first]} | {seen[first]}");
+    }
+
+    /// Plan decision 7: an NPC acts on what it has seen. Catching up every fire in the world after each
+    /// minute is a pure observation, so it cannot change one thing the NPC does.
+    [Fact]
+    public void LookingAtEveryFire_ChangesNothingAnNpcDoes()
+    {
+        List<string> Run(bool look) { var (w, npc) = AtCamp(17); return Lived(w, npc, 10 * 1440L, look); }
+        AssertSameLives(Run(false), Run(true));
+    }
+
+    /// The same, where it used to matter (review: the camp's fuel and the fled-camp check read the camp
+    /// pit from any distance, as whoever last looked left it). It fled a bear that settled beside camp,
+    /// leaving the fire burning; out of sight, the fire died. Whether anyone looks at that fire must not
+    /// decide whether it gives up its camp: it goes by the fire it saw.
+    [Fact]
+    public void LookingAtAnAbandonedCampFire_ChangesNothingAnNpcDoes()
+    {
+        List<string> Run(bool look)
+        {
+            var w = World.New(17);
+            w.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, -5, 0.1, 0, 0.8, WindDirection.North);
+            w.Agents.Remove(AgentId.Player); // nobody at camp to keep its fire caught up
+            var camp = Map.Of(w).Camp;
+            var pit = new FireId(w.NextFireId++);
+            w.Fires[pit] = new FireState { Tile = camp, LastUpdatedMinute = 0, BurningKg = { [Resource.Birch] = 1 } };
+            var phase = Fire.Phase(w.Fires[pit]);
+            Sim.Advance(w, 5 * 60); // the fire burns out with nobody to see it
+            var far = Enumerable.Range(Sight.RadiusTiles + 2, 10).Select(d => new TileId(camp.X + d, camp.Y))
+                .First(t => Map.Of(w).TerrainAt(t).IsPassable());
+            var npc = Npc.Spawn(w, far, camp);
+            var mind = (NpcMind)w.Agent(npc).Mind;
+            // It stood in camp at minute 0 with the fire burning, and fled the bear beside it a few minutes ago.
+            mind.Knows.Places[camp] = new TileMemory { SeenMinute = 0, VisitedMinute = 0, Fire = phase, FireHours = 1.0 };
+            (mind.ThreatTile, mind.ThreatMinute) = (new TileId(camp.X - 1, camp.Y), w.Minute - 5);
+            return Lived(w, npc, w.Minute + 3 * 60, look);
+        }
+        AssertSameLives(Run(false), Run(true));
+    }
+
+    /// Review: on seed 17 (dying on day 14.8), 832 of 1,182 moves were there-and-back within ten minutes,
+    /// the starving NPC walking between camp and the next tile because from each, the walk toward some far
+    /// ground looked better than the step it had just taken. Walking out for food and straight back again,
+    /// having done nothing there, never happens now. (Out for food and home because the walk tired or
+    /// chilled it is another need doing its job, and still can.)
+    [Fact]
+    public void LookingForFood_ItNeverTurnsStraightBack()
+    {
+        var (w, npc) = AtCamp(17);
+        var back = new List<string>();
+        (long Minute, TileId From, Need? Need)? last = null;
+        bool did = false;
+        while (w.Minute < 16 * 1440L && Body.IsAlive(w.Agent(npc).Body))
+        {
+            var need = ((NpcMind)w.Agent(npc).Mind).Need;
+            foreach (var e in Sim.Advance(w, 1))
+            {
+                if (e is Moved m && m.Who == npc)
+                {
+                    if (last is { } l && m.To == l.From && m.Minute - l.Minute <= 60 && !did && l.Need == Need.Food && need == Need.Food)
+                        back.Add($"{l.From}->{m.From}->{m.To} at {l.Minute}-{m.Minute}");
+                    (last, did) = ((m.Minute, m.From, need), false);
+                }
+                else if (e is Stashed or Unstashed or Gathered or Ate or Drank or FuelAdded or FireLit or FireStartFailed or Butchered or TreeFelled or Dropped
+                         && e.ToString()!.Contains(npc.ToString() + ",")) did = true;
+            }
+        }
+        Assert.True(back.Count == 0, $"{back.Count} trips out for food and straight back: {string.Join("; ", back.Take(5))}");
+    }
+
+    /// Old behavior: banking the fire before going out took wood off the stash, and the next choice
+    /// put it back on the stash before it went on the fire, two minutes a round, for most of an hour
+    /// (seed 17: 236 rounds in a run).
+    [Fact]
+    public void BankingTheFire_PutsTheWoodOnIt_NotBackOnTheStash()
+    {
+        var (w, npc) = AtCamp(17);
+        var log = NpcDriver.Live(w, npc, 8 * 1440L);
+        var handled = log.Where(e => e is Stashed s && s.Who == npc || e is Unstashed u && u.Who == npc).ToList();
+        var backAgain = handled.Zip(handled.Skip(1)).Where(p => p.First is Unstashed u && p.Second is Stashed s
+                                                               && u.Resource == s.Resource && s.Minute - u.Minute <= 1).ToList();
+        Assert.True(backAgain.Count == 0, $"{backAgain.Count} times off the stash and straight back on, first {backAgain.FirstOrDefault().First}");
+    }
+
     [Fact]
     public void SameSeed_SameWorld()
     {

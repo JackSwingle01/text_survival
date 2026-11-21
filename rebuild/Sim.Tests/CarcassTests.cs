@@ -49,7 +49,8 @@ public class CarcassTests
     {
         var (_, c) = Make(animal);
         Resource[] order = [Resource.RawMeat, Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat, Resource.Feather];
-        for (int i = 0; i < order.Length; i++) Assert.Equal(kg[i], c.Remaining.GetValueOrDefault(order[i]), Digits);
+        // The old ledger was a careful butcher's yield; this one is full processing's (Carcasses.ThoroughFactor).
+        for (int i = 0; i < order.Length; i++) Assert.Equal(kg[i] * Carcasses.ThoroughFactor(order[i]), c.Remaining.GetValueOrDefault(order[i]), Digits);
         Assert.Equal(minutes, new[] { ButcherMode.QuickStrip, ButcherMode.Careful, ButcherMode.FullProcessing }.Select(m => Carcasses.RemainingMinutes(c, m)));
     }
 
@@ -102,11 +103,34 @@ public class CarcassTests
         var f = CutAll(full, 30, true, false, ButcherMode.FullProcessing);
         Assert.Equal(4.505415162454874, Items.Have(f, Resource.RawMeat), Digits);
         Assert.Equal(0.6301279947489334, Items.Have(f, Resource.Sinew), Digits);
-        Assert.Equal(78.90653121028166, Carcasses.TotalRemainingKg(full), Digits);
+        // Old 78.90653121028166 kg of the careful ledger; this ledger is full processing's (ThoroughFactor), cut at the old rate.
+        Assert.Equal(85.515309275547125, Carcasses.TotalRemainingKg(full), Digits);
 
         var (_, mammoth) = Make("Mammoth");
         CutAll(mammoth, Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful), false, false, ButcherMode.Careful);
         Assert.Equal(19, Carcasses.TotalRemainingKg(mammoth), Digits); // ivory and the great hide wait for a blade
+    }
+
+    /// Cutting never yields more than it takes off the carcass, by resource: in any mode, fresh or
+    /// spoiling, steady or clumsy, with a blade or without, at the most practice there is. Old game: full
+    /// processing gave 107% of the careful ledger it cut (bug, fixed); the review found the skill factor
+    /// lifting every yield past the cut as well (120% careful, 128.8% full at level 20).
+    [Fact]
+    public void Cutting_ConservesMass_AtMaxSkill_InEveryMode()
+    {
+        double maxSkill = Skills.ButcherYieldFactor(Skills.MaxLevel);
+        foreach (var animal in Animals.Keys)
+            foreach (var mode in Enum.GetValues<ButcherMode>())
+                foreach (double hours in new[] { 0.0, 8, 30 })
+                    foreach (bool knife in new[] { true, false })
+                        foreach (bool clumsy in new[] { false, true })
+                            foreach (double skill in new[] { 1.0, maxSkill })
+                            {
+                                var (_, c) = Make(animal, hours);
+                                for (int i = 0; i < 200 && !Carcasses.AllCut(c); i++) Carcasses.Cut(c, 7, knife, clumsy, mode, skill);
+                                foreach (var (r, kg) in c.YieldKg)
+                                    Assert.True(kg <= c.CutKg[r] + 1e-9, $"{animal} {mode} {hours}h knife={knife} clumsy={clumsy} skill {skill}: {r} yielded {kg} kg of {c.CutKg[r]} kg cut");
+                            }
     }
 
     /// Old DecayLevel through ApplyTemperatureDecay: 3 h at 60F, 10 h at 40F, 10 h at 20F, 20 h at 10F, 40 h at -5F.
@@ -201,7 +225,7 @@ public class CarcassTests
     {
         var (w, c) = Make("Caribou");
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
-        double total = Carcasses.TotalRemainingKg(c);
+        double total = c.Remaining.Sum(x => x.Value / Carcasses.ThoroughFactor(x.Key)); // what careful work recovers of the ledger
         var r = Sim.Step(w, new Butcher(P, c.Id), 24 * 60);
         Assert.Equal(Work.PackFull, r.InterruptedReason); // all cut, not all carried: the carcass is not done
         Assert.Contains(r.Events, e => e is Butchered { Finished: false });
