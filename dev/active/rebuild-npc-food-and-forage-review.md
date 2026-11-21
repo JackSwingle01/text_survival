@@ -1,0 +1,58 @@
+# NPC food, forage balance and fire keeping: open for review
+
+**Status:** open, deferred (noted 2026-11-20, clean-room rebuild phase 3; "fine for now, review later")
+**Where:** `rebuild/Sim/Work.cs` (`FocusGain`), `rebuild/Sim/Npc.cs`, `rebuild/Sim/Pools.cs`.
+**Related:** `rebuild-npc-hunting.md` (hunting is the planned high-return food source).
+
+## Where it stands
+
+- Design goal: focused foraging lets you scrape by; casual foraging, poor terrain, a worked-out
+  tile or splitting the day with firewood still runs a deficit; hunting is the big return.
+- Lever used: `Work.FocusGain = 1.3`. Each find in the focused category has a 30% chance of a
+  duplicate. Before this, focus only filtered: a food-focused search found the same food as a
+  general one. Density, depletion (1/(1+2h)) and four-week regrowth are unchanged.
+- NPC food priority runs on `NpcMind.TargetFatKg` (EMA of its own fat, 3-day half-life, clamped to
+  10-15% of body weight); wood beats wanted food until fuel lasts to dawn + 2 h. Food past a full
+  stomach now becomes fat at 7700 kcal/kg (old bug, fixed).
+
+Scripted focused forager from camp, 14 days, fat change per day (fuel and water supplied):
+
+| seed | before (gain 1.0) | after (gain 1.3) | terrain |
+|---|---|---|---|
+| 17 | -0.061 | -0.002 | forest |
+| 1 | -0.108 | -0.045 | forest |
+| 2024 | -0.094 | -0.062 | forest |
+| 3 | -0.088 | -0.038 | forest |
+| 42 | -0.196 | -0.184 | grassland, 1 forest tile within 8 |
+| 777 | -0.183 | -0.174 | grassland |
+
+Staying on one tile: -0.12 to -0.20 kg/day. A nomadic forager with free fuel: -0.11 to +0.10.
+
+NPC results on the full tree: 14-day gate 6/6; 20-seed 14-day sweep 18/20 (seeds 5 and 10 freeze,
+no timber nearby); 30 days on the six gate seeds 3/6 (1, 42, 777 live; 17 dies day 27.8 at 6.9 kg
+fat; 2024 day 28.6; 3 day 15.2 at 9.3 kg fat, so cold or fire, not hunger).
+
+## To review
+
+1. **Focus gain size.** At 1.3 a focused forest forager ends about -0.04 kg/day. At 1.5 about
+   -0.02, and a nomad clearly gains fat. A design call.
+2. **The NPC forages only about 4 h a day.** The rest: sleep ~7.8 h, resting 5-6 h (much of it
+   warming by the fire), travel 2-3 h, wood ~1.3 h. Its kcal per forage hour matches the scripted
+   forager's, so the deficit is its day, not the food numbers. Needs: more daylight foraging (less
+   fire-warming, napping and hauling) and moving camp when the ground nearby is worked out. Do it
+   with the hunting work, since both are about how the NPC spends its day.
+3. **Grassland camps can't forage their way through.** Seeds 42 and 777. Fine as "poor terrain"
+   only if the NPC/player can tell and move; otherwise a map-generation question.
+4. **Seeds 5 and 10: no timber near camp** (nearest 24 tiles on seed 5). The NPC freezes on day 2
+   / ~8. Camp placement or "move camp to timber" reach.
+5. **Seed 3 dies on day 15.2 with fat to spare.** Cold or fire keeping; not yet traced.
+6. **Fire-keeping bug (seed 8, clear bug).** With only oak on hand, the NPC lights tinder, then
+   forages for fuel for 15 minutes while the fire dies, and repeats until it freezes. It should
+   gather kindling before lighting, or feed what will catch. Fix with a regression test.
+
+Tried and rejected during the retune: dropping logs instead of walking home to unload (less camp
+firewood, more cold deaths); foraging tiles only seen, not visited (walked too far, seed-1 NPC died
+day 4); delaying bedtime (marginal).
+
+Harnesses and data: `~/.claude/jobs/2c768bb5/tmp/p3forage/` (`live.sh`, `VARIANT=before|after`).
+Job scratch, so copy anything worth keeping before the job is cleaned up.
