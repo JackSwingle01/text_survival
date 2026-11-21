@@ -157,3 +157,12 @@ Build a fresh `Core` project beside the old one and stop at any gate with a play
 | 5. Desktop front end | Async driver over `Step`; pixel-art renderers; UI draws the player's knowledge, not the truth | Feature-parity checklist done; old project retired |
 
 The CLI is the first front end, so every phase is playable and testable before any rendering exists. Durations are open: size each phase after phase 1 shows the real porting speed.
+
+---
+
+## After the Rebuild
+
+Design work planned to build on this architecture once it lands. It waits for the rebuild, with one exception: the cheap changes listed under "Asks of the Rebuild" in the short-loop plan belong in the phases above.
+
+- [Short-loop plan](../dev/active/short-loop-plan.md): making days 1–3 satisfying. Odds shown before every bet, fire-starting that can fail partway, visible skills, place memory and "while you were away" receipts, the fire as a workbench, the night as a bet. Its **Asks of the Rebuild** table lists changes to make during phases 1–3: every `WorldEvent` carries a tile, catch-up stamps historical minutes, chance functions return their factors, skills live on `Agent`, the knowledge model holds what the receipts need, and a fix for `Fire.cs` ignoring skill and dexterity.
+- [UI design](../dev/active/ui-design.md): the phase 5 front end. The map is the screen; a small always-on layer; alerts only past a threshold; conditions shown inside the decision they affect; detail one key away. It adds checks to the phase 5 gate. The reference prototype is `dev/prototypes/ui/index.html`.

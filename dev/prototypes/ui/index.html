@@ -1,0 +1,1397 @@
+<title>Text Survival UI Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&family=Pixelify+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an instrument strip on top; the body on the left, the cold world in the middle, the place
+   and the task on the right; verbs along the bottom. One visual world, dark only. */
+:root {
+  --ink: #16110d;        /* smoked hide, panel ground */
+  --ink-2: #211913;      /* raised */
+  --ink-3: #2d231b;      /* wells, tracks */
+  --seam: #4a3726;       /* borders, like stitched hide */
+  --bone: #eadfc8;       /* text */
+  --bone-2: #b3a68e;     /* secondary text */
+  --bone-3: #7d715f;     /* muted */
+  --ember: #f5811f;      /* the active, the fire */
+  --ochre: #ffc93c;      /* rare finds, highlights */
+  --blood: #d13b1f;      /* failure */
+  --minus: #cf6f4c;      /* factors that subtract */
+  --lichen: #9fbb86;     /* factors that add */
+  --frost: #8fa6b7;      /* cold */
+  --night: #0d1216;
+  --f-pixel: "Pixelify Sans", "Courier New", monospace;
+  --f-body: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-num: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; /* numbers: legible, tabular */
+  --notch: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+  --notch-s: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px);
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--night); color: var(--bone); font: 500 18px/1.35 var(--f-body); overflow: hidden; font-variant-ligatures: none; }
+* { box-sizing: border-box; font-feature-settings: "liga" 0, "clig" 0, "calt" 0; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ochre); outline-offset: 2px; }
+
+.app {
+  height: 100%; display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "top" "map" "dock";
+  padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+}
+.map { grid-area: map; position: relative; min-width: 0; overflow: hidden; background: var(--night); }
+#world { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+
+/* ---------- shared pieces ---------- */
+.plate { background: var(--ink); border: 2px solid var(--seam); clip-path: var(--notch); }
+.label { font: 500 13px/1 var(--f-pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--bone-3); }
+.num { font-family: var(--f-num); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ico { width: 20px; height: 20px; image-rendering: pixelated; flex: none; }
+.ico.x2 { width: 40px; height: 40px; }
+.key { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px; font: 500 13px/1 var(--f-pixel); color: var(--bone-2); background: var(--ink-3); border: 1px solid var(--seam); border-bottom-width: 2px; }
+.sev { display: inline-flex; gap: 2px; }
+.sev i { width: 5px; height: 9px; background: var(--ink-3); }
+.sev i.on { background: currentColor; }
+.minibar { height: 6px; background: var(--ink-3); position: relative; clip-path: var(--notch-s); }
+.minibar i { position: absolute; inset: 0 auto 0 0; background: var(--c, var(--bone-2)); }
+.sec { display: grid; gap: 7px; }
+.sec + .sec { padding-top: 12px; border-top: 1px dashed var(--seam); }
+.sec-h { display: flex; align-items: center; gap: 6px; }
+.sec-h .label { flex: 1; }
+.sec-h .aside { font-size: 14px; color: var(--bone-3); }
+.kv { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; font-size: 17px; }
+.kv .v { font-family: var(--f-num); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--bone-2); }
+.kv.minus .v { color: var(--minus); }
+.kv.plus .v { color: var(--lichen); }
+.kv.cold .v { color: var(--frost); }
+.muted { color: var(--bone-3); }
+[data-tip] { cursor: help; }
+
+/* ---------- top strip ---------- */
+.top { grid-area: top; display: flex; align-items: stretch; gap: 0; background: var(--ink-2); border-bottom: 2px solid var(--seam); padding-top: env(safe-area-inset-top, 0px); overflow-x: auto; }
+.top > div { padding: 8px 16px; display: flex; align-items: center; gap: 12px; border-right: 1px solid var(--seam); flex: none; white-space: nowrap; }
+.clock { display: grid !important; gap: 6px; min-width: 240px; }
+.clock-row { display: flex; align-items: baseline; gap: 10px; }
+.clock-time { font: 600 31px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.clock-ampm { font: 600 16px/1 var(--f-num); color: var(--bone-2); margin-left: 4px; letter-spacing: .04em; }
+.clock-day { color: var(--bone-2); font-size: 17px; }
+.dayband { position: relative; height: 8px; background: linear-gradient(90deg, #1a2230 0%, #1a2230 22%, #5d4d63 27%, #b9c6cc 34%, #d7e1e4 50%, #b9c6cc 66%, #8a5a48 73%, #2a2433 79%, #1a2230 84%, #1a2230 100%); clip-path: var(--notch-s); }
+.dayband i { position: absolute; top: -1px; width: 3px; height: 10px; background: var(--ember); box-shadow: 0 0 0 1px var(--ink); transform: translateX(-1px); transition: left .4s; }
+.wx { display: grid; gap: 3px; }
+.wx .lbl { display: flex; align-items: center; gap: 5px; font-size: 14px; color: var(--bone-3); }
+.wx .val { font-size: 19px; display: flex; align-items: baseline; gap: 6px; }
+.wx .val .num { font-size: 23px; }
+.front { color: var(--frost); }
+.top .grow { flex: 1; border-right: 0; }
+
+/* ---------- left: the survivor ---------- */
+.survivor { grid-area: body; background: var(--ink); border-right: 2px solid var(--seam); overflow-y: auto; padding: 14px 14px 18px; display: grid; gap: 12px; align-content: start; min-height: 0; }
+.gauge { display: grid; grid-template-columns: 20px 1fr auto; gap: 4px 8px; align-items: center; }
+.gauge .name { font-size: 17px; }
+.gauge .val { font: 600 17px/1 var(--f-num); font-variant-numeric: tabular-nums; color: var(--bone-2); display: flex; gap: 5px; align-items: baseline; }
+.gauge .trend { font-size: 14px; }
+.trend.up { color: var(--lichen); } .trend.down { color: var(--minus); }
+.ticks { grid-column: 2 / 4; display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; height: 9px; }
+.ticks span { background: var(--ink-3); }
+.ticks span.on { background: var(--c, var(--bone)); }
+.gauge.low .ticks span.on { background: var(--minus); }
+.gauge.crit .ticks span.on { background: var(--blood); animation: pulse 1s steps(2) infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+.feels { display: flex; align-items: baseline; justify-content: space-between; }
+.feels .big { font: 600 34px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.thermo { position: relative; height: 12px; background: linear-gradient(90deg, #3b5568, #6f8796 40%, #8a7a62 60%, #c46a2c); clip-path: var(--notch-s); }
+.thermo b { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--bone); box-shadow: 0 0 0 1px var(--ink); }
+.thermo s { position: absolute; top: 3px; height: 6px; width: 2px; background: rgba(13,18,22,.7); }
+.doll { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: start; }
+.doll svg { width: 74px; height: 110px; shape-rendering: crispEdges; }
+.doll .parts { display: grid; gap: 4px; font-size: 16px; }
+.inj { display: flex; justify-content: space-between; gap: 6px; }
+.inj b { font-weight: 500; }
+.inj .sev { color: var(--minus); }
+.caps { display: grid; gap: 5px; }
+.cap { display: grid; grid-template-columns: 1fr 70px 34px; gap: 8px; align-items: center; font-size: 16px; }
+.cap .num { text-align: right; color: var(--bone-2); }
+.effects { display: flex; flex-wrap: wrap; gap: 5px; }
+.eff { display: inline-flex; align-items: center; gap: 6px; padding: 3px 7px; font-size: 16px; background: var(--ink-2); border: 1px solid var(--seam); clip-path: var(--notch-s); }
+.eff.cold { color: var(--frost); border-color: #3a4a55; }
+.eff.warm { color: var(--ember); border-color: #6b3a18; }
+.eff.bad { color: var(--minus); }
+.threat { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; font-size: 16px; }
+.threat img { width: 22px; height: 22px; image-rendering: pixelated; }
+.threat small { display: block; color: var(--bone-3); font-size: 14px; }
+.threat .sev { color: var(--minus); }
+.slot { display: grid; grid-template-columns: 42px 1fr 46px; gap: 8px; align-items: center; font-size: 16px; }
+.slot .where { color: var(--bone-3); font-size: 14px; }
+.slot.bare .nm { color: var(--minus); }
+.slot .minibar { --c: var(--lichen); }
+
+/* ---------- map overlays ---------- */
+.tip { position: absolute; pointer-events: none; padding: 8px 10px; min-width: 170px; max-width: 260px; font-size: 16px; display: grid; gap: 4px; transform: translate(-50%, calc(-100% - 10px)); z-index: 3; }
+.tip .t { font: 500 17px/1 var(--f-pixel); }
+.tip .r { display: flex; gap: 6px; align-items: center; color: var(--bone-2); }
+.ftip { position: fixed; pointer-events: none; z-index: 20; padding: 8px 10px; max-width: 260px; font-size: 16px; display: grid; gap: 3px; }
+.ftip .t { font: 500 16px/1.1 var(--f-pixel); margin-bottom: 2px; }
+.ftip .g { color: var(--lichen); } .ftip .b { color: var(--minus); } .ftip .m { color: var(--bone-3); }
+
+/* ---------- right: place and task ---------- */
+.side { grid-area: side; border-left: 2px solid var(--seam); background: var(--ink); display: flex; flex-direction: column; min-height: 0; }
+.tabs { display: flex; border-bottom: 2px solid var(--seam); background: var(--ink-2); }
+.tab { flex: 1; padding: 9px 8px 8px; display: flex; gap: 6px; align-items: center; justify-content: center; background: none; border: 0; border-bottom: 3px solid transparent; cursor: pointer; font: 500 16px/1 var(--f-pixel); color: var(--bone-2); letter-spacing: .03em; }
+.tab[aria-selected="true"] { color: var(--bone); border-bottom-color: var(--ember); background: var(--ink); }
+.tab:hover { color: var(--bone); }
+.side-head { padding: 12px 16px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--seam); }
+.side-head h2 { margin: 0; font: 500 23px/1 var(--f-pixel); flex: 1; text-wrap: balance; }
+.side-head .cost { font-size: 16px; color: var(--bone-2); display: flex; gap: 5px; align-items: center; }
+.side-body { padding: 14px 16px 18px; overflow-y: auto; display: grid; gap: 14px; align-content: start; min-height: 0; flex: 1; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px 5px 7px; cursor: pointer; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); font-size: 17px; }
+.chip small { color: var(--bone-3); font-size: 14px; }
+.chip[aria-pressed="true"] { border-color: var(--ember); background: #2a1a0f; }
+.chip:disabled { opacity: .4; cursor: not-allowed; }
+.chip:not(:disabled):hover { border-color: var(--bone-3); }
+.chip[aria-pressed="true"]:hover { border-color: var(--ember); }
+.terrain-chip { font-size: 14px; color: var(--bone-2); padding: 3px 7px; background: var(--ink-3); clip-path: var(--notch-s); }
+
+/* odds sheet */
+.odds { display: grid; gap: 8px; }
+.odds-top { display: flex; align-items: baseline; justify-content: space-between; }
+.odds-total { font: 600 50px/0.9 var(--f-num); font-variant-numeric: tabular-nums; }
+.odds-total small { font-size: 24px; color: var(--bone-2); }
+.oddsbar { position: relative; height: 14px; background: var(--ink-3); clip-path: var(--notch-s); overflow: hidden; }
+.oddsbar .seg { position: absolute; top: 0; bottom: 0; }
+.oddsbar .seg.base { background: var(--bone-2); }
+.oddsbar .seg.plus { background: var(--lichen); }
+.oddsbar .seg.minus { background: repeating-linear-gradient(135deg, var(--minus) 0 3px, #5a2a1a 3px 6px); }
+.oddsbar .seg + .seg { box-shadow: inset 2px 0 0 var(--ink); }
+.factors { display: grid; gap: 2px; font-size: 17px; }
+.factor { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; padding: 3px 0; }
+.factor .v { font-family: var(--f-num); font-weight: 600; font-size: 18px; font-variant-numeric: tabular-nums; text-align: right; min-width: 3ch; }
+.factor.plus .v { color: var(--lichen); } .factor.minus .v { color: var(--minus); } .factor.base .v { color: var(--bone); }
+.factor .why { color: var(--bone-3); font-size: 14px; margin-left: 4px; }
+
+/* the attempt bar */
+.run { display: grid; gap: 6px; }
+.runbar { position: relative; height: 22px; background: var(--ink-3); border: 2px solid var(--seam); clip-path: var(--notch-s); }
+.runbar .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: repeating-linear-gradient(90deg, var(--ember) 0 6px, #e06a12 6px 8px); }
+.runbar.fail .fill { background: repeating-linear-gradient(90deg, #6a2a1c 0 6px, #5a2216 6px 8px); }
+.runbar.ok .fill { background: repeating-linear-gradient(90deg, var(--ochre) 0 6px, #f0b22a 6px 8px); }
+.runbar .stop { position: absolute; top: -2px; bottom: -2px; width: 4px; background: var(--blood); box-shadow: 0 0 0 2px var(--ink); }
+.runbar.shake { animation: shake .3s steps(3); }
+@keyframes shake { 33% { transform: translateX(-3px); } 66% { transform: translateX(3px); } }
+.runbar .ticks10 { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(0,0,0,.35) calc(10% - 1px) 10%); pointer-events: none; }
+.runmeta { display: flex; justify-content: space-between; align-items: center; font-size: 16px; color: var(--bone-2); min-height: 20px; }
+.history { display: flex; gap: 4px; }
+.history span { width: 14px; height: 14px; display: grid; place-items: center; font: 600 12px/1 var(--f-body); clip-path: var(--notch-s); }
+.history .f { background: #4a1d12; color: var(--minus); } .history .s { background: #4a3a10; color: var(--ochre); }
+
+/* skill */
+.skill { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-size: 16px; color: var(--bone-2); }
+.skill .lv { font: 500 16px/1 var(--f-pixel); color: var(--bone); }
+.pips { display: grid; grid-auto-flow: column; gap: 2px; height: 6px; }
+.pips span { background: var(--ink-3); } .pips span.on { background: var(--ochre); }
+.pips span.new { background: var(--ochre); animation: pop .5s steps(3); }
+.skill.up .lv { color: var(--ochre); }
+@keyframes pop { 0% { transform: scaleY(2.4); } 100% { transform: none; } }
+
+/* buttons */
+.act { display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 10px 14px; font: 500 19px/1 var(--f-pixel); letter-spacing: .03em; background: var(--ember); color: #1e1006; border: none; clip-path: var(--notch); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+.act:hover { filter: brightness(1.08); }
+.act:active { box-shadow: inset 0 3px 0 rgba(0,0,0,.25); }
+.act:disabled { background: var(--ink-3); color: var(--bone-3); cursor: not-allowed; box-shadow: none; }
+.act .key { background: rgba(0,0,0,.18); border-color: rgba(0,0,0,.3); color: inherit; }
+.act.quiet { background: var(--ink-2); color: var(--bone); border: 2px solid var(--seam); box-shadow: none; }
+.act.quiet .key { background: var(--ink-3); border-color: var(--seam); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row .act { flex: 1; }
+.note { font-size: 16px; color: var(--bone-3); margin: 0; }
+
+/* fire */
+.firestate { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; }
+.firestate .pit { width: 56px; height: 56px; display: grid; place-items: center; background: radial-gradient(circle at 50% 60%, rgba(245,129,31,.35), transparent 70%), var(--ink-3); clip-path: var(--notch); }
+.firestate .pit img { width: 40px; height: 40px; image-rendering: pixelated; }
+.phase { font: 500 23px/1 var(--f-pixel); }
+.fuelbar { position: relative; height: 14px; background: var(--ink-3); clip-path: var(--notch-s); margin-top: 6px; }
+.fuelbar .unb { position: absolute; inset: 0 auto 0 0; background: #6a4a2a; }
+.fuelbar .brn { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--blood), var(--ember) 40%, var(--ochre)); }
+.fuelleg { display: flex; gap: 10px; font-size: 14px; color: var(--bone-3); margin-top: 4px; }
+.fuelleg i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; vertical-align: 0; }
+.fuelrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fuel { display: grid; justify-items: center; gap: 3px; padding: 8px 4px; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); cursor: pointer; font-size: 16px; }
+.fuel small { color: var(--bone-3); font-size: 14px; }
+.fuel:hover { border-color: var(--bone-3); } .fuel:disabled { opacity: .35; cursor: not-allowed; }
+.bench { display: grid; gap: 6px; }
+.job { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; background: var(--ink-2); clip-path: var(--notch-s); font-size: 17px; }
+.job small { display: block; color: var(--bone-3); font-size: 14px; }
+.ring { width: 34px; height: 34px; position: relative; display: grid; place-items: center; }
+.ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.job.done { box-shadow: inset 0 0 0 2px var(--ochre); }
+.job .state { font: 600 17px/1 var(--f-num); color: var(--bone-2); }
+.job.done .state { color: var(--ochre); }
+
+/* place */
+.place-feats { display: grid; gap: 6px; }
+.pf { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; font-size: 17px; }
+.pf .v { font: 600 16px/1 var(--f-num); color: var(--bone-2); font-variant-numeric: tabular-nums; }
+.pf .sub { grid-column: 2 / 4; display: grid; gap: 4px; }
+.res { display: flex; flex-wrap: wrap; gap: 4px; }
+.res span { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; padding: 2px 6px 2px 4px; background: var(--ink-2); clip-path: var(--notch-s); color: var(--bone-2); }
+.trk { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; font-size: 16px; }
+.trk .age { font: 600 14px/1 var(--f-num); color: var(--bone-3); }
+.person { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: center; font-size: 17px; padding: 6px 8px; background: var(--ink-2); clip-path: var(--notch-s); }
+.person img { width: 28px; height: 28px; image-rendering: pixelated; }
+.person small { display: block; color: var(--bone-3); font-size: 14px; }
+.person .need { color: var(--minus); }
+.exits { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.exit { display: grid; grid-template-columns: 22px 1fr auto; gap: 6px; align-items: center; padding: 6px 8px; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); cursor: pointer; text-align: left; font-size: 16px; }
+.exit:hover { border-color: var(--bone-3); }
+.exit:disabled { opacity: .35; cursor: not-allowed; }
+.exit .dir { font: 600 16px/1 var(--f-pixel); color: var(--bone-2); }
+.exit small { display: block; color: var(--bone-3); font-size: 14px; }
+.exit .m { font: 600 16px/1 var(--f-num); color: var(--bone-2); }
+.exit .haz { color: var(--minus); }
+
+/* pack */
+.bag { display: grid; gap: 4px; }
+.it { display: grid; grid-template-columns: 20px 1fr auto 52px; gap: 8px; align-items: center; font-size: 17px; padding: 3px 0; }
+.it .n { font: 600 16px/1 var(--f-num); color: var(--bone-2); text-align: right; font-variant-numeric: tabular-nums; }
+.it .kg { font: 600 16px/1 var(--f-num); color: var(--bone-3); text-align: right; font-variant-numeric: tabular-nums; }
+.it .minibar { width: 52px; --c: var(--lichen); }
+.capacity { display: grid; gap: 5px; }
+.capacity .bar { height: 10px; background: var(--ink-3); position: relative; clip-path: var(--notch-s); }
+.capacity .bar i { position: absolute; inset: 0 auto 0 0; background: var(--bone-2); }
+
+/* journal */
+.log { display: grid; }
+.log .e { display: grid; grid-template-columns: 76px 20px 1fr; gap: 8px; align-items: start; font-size: 17px; padding: 6px 0; border-bottom: 1px dashed var(--seam); }
+.log .e .t { font: 600 16px/1.35 var(--f-num); color: var(--bone-3); font-variant-numeric: tabular-nums; }
+.log .e.bad { color: var(--minus); } .log .e.rare { color: var(--ochre); }
+.log .day { font: 500 13px/1 var(--f-pixel); letter-spacing: .08em; text-transform: uppercase; color: var(--bone-3); padding: 10px 0 4px; }
+
+/* forage */
+.found { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; min-height: 52px; }
+.item { display: grid; grid-template-columns: 20px 1fr; gap: 2px 6px; align-items: center; padding: 6px 8px; background: var(--ink-2); clip-path: var(--notch-s); font-size: 16px; }
+.item .n { grid-column: 2; font: 600 16px/1 var(--f-num); color: var(--bone-2); font-variant-numeric: tabular-nums; }
+.item.bump { animation: bump .35s steps(3); }
+@keyframes bump { 0% { background: #3d2a14; } 100% { background: var(--ink-2); } }
+.item.rare { grid-column: 1 / -1; background: #2c2210; box-shadow: inset 0 0 0 2px var(--ochre); color: var(--ochre); }
+.mood { font: 500 14px/1 var(--f-pixel); padding: 4px 7px; letter-spacing: .04em; clip-path: var(--notch-s); }
+.mood.good { background: #33300f; color: var(--ochre); } .mood.thin { background: #2a2f33; color: var(--frost); } .mood.wait { background: var(--ink-3); color: var(--bone-3); }
+.empty { color: var(--bone-3); font-size: 16px; align-self: center; }
+
+/* night */
+.lay { display: grid; gap: 6px; }
+.layopt { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 8px 10px; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); cursor: pointer; text-align: left; }
+.layopt[aria-pressed="true"] { border-color: var(--ember); background: #2a1a0f; }
+.layopt:disabled { opacity: .4; cursor: not-allowed; }
+.layopt .nm { font: 500 18px/1 var(--f-pixel); }
+.layopt .lasts { font-size: 16px; color: var(--bone-2); text-align: right; }
+.nightbar { grid-column: 1 / -1; position: relative; height: 8px; background: #1a2230; }
+.nightbar i { position: absolute; inset: 0 auto 0 0; background: var(--ember); }
+.layopt .tags { grid-column: 1 / -1; display: flex; gap: 10px; font-size: 14px; color: var(--bone-3); flex-wrap: wrap; }
+.layopt .tags .g { color: var(--lichen); } .layopt .tags .b { color: var(--minus); }
+
+/* receipt */
+.veil { position: absolute; inset: 0; background: rgba(8,10,12,.55); display: grid; place-items: center; z-index: 5; padding: 16px; }
+.receipt { width: min(540px, 100%); max-height: 100%; overflow: auto; display: grid; animation: drop .35s steps(4); }
+@keyframes drop { from { transform: translateY(-12px); } }
+.receipt header { padding: 14px 18px 12px; background: var(--ink-2); border-bottom: 2px solid var(--seam); display: grid; gap: 6px; }
+.receipt h3 { margin: 0; font: 500 25px/1 var(--f-pixel); }
+.receipt .span { display: flex; gap: 8px; align-items: center; color: var(--bone-2); font-size: 17px; }
+.lines { display: grid; padding: 8px 18px; }
+.line { display: grid; grid-template-columns: 76px 26px 1fr auto; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--seam); font-size: 18px; }
+.line:last-child { border-bottom: 0; }
+.line .t { font: 600 17px/1 var(--f-num); color: var(--bone-3); font-variant-numeric: tabular-nums; }
+.line .who { width: 26px; height: 26px; image-rendering: pixelated; }
+.line.bad { color: var(--minus); } .line.rare { color: var(--ochre); }
+.line .amt { font: 600 17px/1 var(--f-num); color: var(--bone-2); }
+.collected { padding: 10px 18px 12px; background: var(--ink-2); border-top: 2px solid var(--seam); display: grid; gap: 8px; }
+.receipt footer { padding: 12px 18px 16px; display: flex; justify-content: flex-end; }
+
+/* bottom: verbs */
+.dock { grid-area: dock; border-top: 2px solid var(--seam); background: var(--ink-2); display: flex; gap: 10px; align-items: center; padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)); overflow-x: auto; }
+.verb { display: grid; grid-template-columns: 40px auto; grid-template-rows: auto auto; column-gap: 9px; align-items: center; padding: 8px 14px 8px 10px; background: var(--ink); border: 2px solid var(--seam); clip-path: var(--notch); cursor: pointer; text-align: left; flex: none; min-width: 180px; }
+.verb img { grid-row: 1 / 3; width: 40px; height: 40px; image-rendering: pixelated; }
+.verb .vn { font: 500 19px/1.1 var(--f-pixel); display: flex; gap: 8px; align-items: center; }
+.verb .vt { font-size: 14px; color: var(--bone-3); }
+.verb:hover { border-color: var(--bone-3); }
+.verb[aria-pressed="true"] { border-color: var(--ember); background: #22150c; }
+.verb:disabled { opacity: .35; cursor: not-allowed; }
+.toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 8px 12px; display: flex; gap: 8px; align-items: center; font-size: 17px; z-index: 4; animation: drop .3s steps(3); }
+
+/* ---------- always: slim top strip ---------- */
+.top { justify-content: flex-start; }
+.t-clock .clock-time { font-size: 29px; }
+.lbar { width: 92px; height: 10px; background: var(--ink-3); position: relative; clip-path: var(--notch-s); }
+.lbar i { position: absolute; inset: 0 auto 0 0; background: #d7e1e4; }
+.t-light.warn .lbar i { background: var(--ochre); }
+.t-light.warn .num { color: var(--ochre); }
+.t-feels .num { font-size: 24px; }
+.top .muted { font-size: 16px; }
+
+/* ---------- always: vitals, and alerts only when something's wrong ---------- */
+.status { position: absolute; left: 12px; bottom: 12px; display: flex; align-items: flex-end; gap: 8px; z-index: 2; pointer-events: none; }
+.status > * { pointer-events: auto; }
+.vitals { padding: 11px 12px; display: grid; gap: 9px; width: 190px; }
+.vbar { display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: center; }
+.vtrack { height: 11px; background: var(--ink-3); position: relative; clip-path: var(--notch-s); }
+.vtrack i { position: absolute; inset: 0 auto 0 0; background: var(--c); }
+.vbar.low .vtrack i { background: var(--minus); }
+.vbar.crit .vtrack i { background: var(--blood); animation: pulse 1s steps(2) infinite; }
+.alerts { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+.alert { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px 8px 10px; font: 600 17px/1 var(--f-body); cursor: pointer;
+  background: var(--ink); border: 2px solid var(--seam); clip-path: var(--notch-s); }
+.alert.danger { border-color: var(--blood); color: #f0a08a; }
+.alert.cold { border-color: #4b6273; color: #b9cfdd; }
+.alert.warn { border-color: #7a5f1c; color: var(--ochre); }
+.alert.more { color: var(--bone-2); }
+.alert:hover { filter: brightness(1.15); }
+
+/* ---------- on demand and tasks: one drawer ---------- */
+.drawer { position: absolute; top: 12px; right: 12px; bottom: 12px; width: min(440px, calc(100% - 24px)); display: flex; flex-direction: column; z-index: 3; }
+.drawer .side-head { background: var(--ink-2); border-bottom: 2px solid var(--seam); }
+.xbtn { background: var(--ink-3); border: 1px solid var(--seam); border-bottom-width: 2px; color: var(--bone-2); font: 500 13px/1 var(--f-pixel); padding: 4px 6px; cursor: pointer; }
+.xbtn:hover { color: var(--bone); }
+.preview { display: grid; gap: 8px; padding: 10px 12px; background: var(--ink-2); clip-path: var(--notch-s); }
+.preview .big { font: 600 31px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.preview .head { display: flex; align-items: baseline; justify-content: space-between; }
+.stale { font-size: 14px; color: var(--bone-3); padding: 4px 8px; background: var(--ink-3); clip-path: var(--notch-s); }
+
+/* ---------- dock: verbs, where you are, sheets ---------- */
+.dock .spacer { flex: 1; }
+.where-btn { display: grid; text-align: right; background: none; border: 0; cursor: pointer; padding: 2px 6px; flex: none; }
+.where-btn b { font: 500 18px/1.1 var(--f-pixel); }
+.where-btn small { color: var(--bone-3); font-size: 14px; }
+.where-btn:hover b { color: var(--ochre); }
+.sheets { display: flex; gap: 4px; flex: none; }
+.sbtn { display: grid; justify-items: center; gap: 3px; padding: 6px 8px 5px; background: var(--ink); border: 2px solid var(--seam); clip-path: var(--notch-s); cursor: pointer; }
+.sbtn img { width: 26px; height: 26px; image-rendering: pixelated; }
+.sbtn[aria-pressed="true"] { border-color: var(--ember); }
+.sbtn:hover { border-color: var(--bone-3); }
+
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .app { height: auto; min-height: 100%; grid-template-rows: auto 64vh auto; }
+  .dock, .top { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .top > div { padding-left: 0; padding-right: 14px; margin-right: 14px; }
+  .drawer { inset: 0; width: 100%; border: 0; clip-path: none; }
+  .vitals { width: 150px; }
+  .where-btn { display: none; }
+  .dock { flex-wrap: wrap; }
+  .verb { min-width: 0; flex: 1 1 calc(50% - 5px); }
+  .dock .spacer { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="app" id="app">
+  <header class="top" id="top"></header>
+  <section class="map" aria-label="The valley">
+    <canvas id="world"></canvas>
+    <div class="status" id="status"></div>
+    <aside class="drawer plate" id="drawer" hidden>
+      <div class="side-head" id="sideHead"></div>
+      <div class="side-body" id="sideBody" aria-live="polite"></div>
+    </aside>
+    <div class="plate tip" id="tip" hidden></div>
+    <div class="veil" id="veil" hidden></div>
+    <div class="plate toast" id="toast" hidden></div>
+  </section>
+  <nav class="dock" id="dock" aria-label="Actions"></nav>
+</div>
+<div class="plate ftip" id="ftip" hidden></div>
+
+<script>
+(() => {
+'use strict';
+// ---------------------------------------------------------------- assets
+const IMG = {};
+const SRC = {
+  forest: [1,2,3,4,5,6].map(i => `img/forest_tile${i>1?i:''}.png`),
+  plain: [1,2,3,4].map(i => `img/plain_tile${i>1?i:''}.png`),
+  clearing: [1,2,3].map(i => `img/clearing_tile${i>1?i:''}.png`),
+  rock: [1,2,3].map(i => `img/rock_tile${i>1?i:''}.png`),
+  hills: [1,2,3].map(i => `img/hills_tile${i>1?i:''}.png`),
+  mountain: [1,2,3,4].map(i => `img/mountain_tile${i>1?i:''}.png`),
+  water: [1,2,3].map(i => `img/water_tile${i>1?i:''}.png`),
+  marsh: [1,2].map(i => `img/marsh_tile${i>1?i:''}.png`),
+};
+const SPRITES = ['fire','embers','player','shelter','npc/female_1','tracks/paw','tracks/boot','animals/wolf','animals/caribou','ui/water','ui/meat'];
+function load(src) { return new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => { console.error('Missing asset', src); r(null); }; im.src = src; }); }
+
+// ---------------------------------------------------------------- world
+const W = 30, H = 20;
+const CAMP = { x: 10, y: 11 }, BIRCH = { x: 16, y: 10 };
+const hash = (x, y, s = 7) => { let h = x * 374761393 + y * 668265263 + s * 982451653; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+function noise(x, y, s) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, sm = t => t * t * (3 - 2 * t);
+  const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
+  return a + (b - a) * sm(xf) + (c - a) * sm(yf) + (a - b - c + d) * sm(xf) * sm(yf);
+}
+const terrain = [];
+for (let y = 0; y < H; y++) { terrain[y] = []; for (let x = 0; x < W; x++) {
+  const n = noise(x * .28, y * .28, 3) * .7 + noise(x * .7, y * .7, 9) * .3;
+  const riverX = 21 + Math.round(2.2 * Math.sin(y * .42) + .8 * Math.sin(y * 1.3));
+  let t = 'plain';
+  if (y <= 1 || (y === 2 && hash(x, y) > .35) || (y === 3 && hash(x, y, 2) > .8)) t = 'mountain';
+  else if (x === riverX) t = 'water';
+  else if (Math.abs(x - riverX) === 1 && hash(x, y, 4) > .55) t = 'marsh';
+  else if (noise(x * .45, y * .45, 21) > .78) t = 'rock';
+  else if (noise(x * .3, y * .3, 33) > .72) t = 'hills';
+  else if (n > .5) t = 'forest';
+  else if (n > .42) t = 'clearing';
+  terrain[y][x] = t;
+}}
+terrain[CAMP.y][CAMP.x] = 'clearing';
+[[9,11],[11,11],[10,12],[9,12],[11,12],[9,10],[11,10]].forEach(([x,y]) => terrain[y][x] = 'forest');
+[[15,10],[16,10],[17,10],[16,9],[16,11],[15,9],[17,11]].forEach(([x,y]) => terrain[y][x] = 'forest');
+[[11,9],[12,10],[13,10],[14,10],[12,11],[13,11],[14,11]].forEach(([x,y]) => { if (['water','rock','marsh','mountain'].includes(terrain[y][x])) terrain[y][x] = 'plain'; });
+terrain[7][6] = 'rock'; terrain[7][7] = 'rock'; terrain[6][7] = 'rock';
+const NAMES = { [`${CAMP.x},${CAMP.y}`]: 'Forest Camp', [`${BIRCH.x},${BIRCH.y}`]: 'Birch Stand', '7,7': 'Flint Scatter', '13,6': 'Windy Rise' };
+const TERRAIN_NAME = { forest: 'Dense forest', plain: 'Open snow', clearing: 'Clearing', rock: 'Rocky ground', hills: 'Hills', mountain: 'Mountain', water: 'Frozen creek', marsh: 'Frozen marsh' };
+const STEP_MIN = { forest: 4, plain: 2, clearing: 2, rock: 5, hills: 4, marsh: 5, water: 6, mountain: 99 };
+const HAZARD = { rock: 'Injury risk 30%', marsh: 'Thin ice in places', water: 'Ice: test it first', hills: 'Steep in places' };
+const SNOW_CM = { forest: 14, plain: 26, clearing: 22, rock: 9, hills: 31, marsh: 18, water: 6, mountain: 60 };
+
+// ---------------------------------------------------------------- state
+const DAY = 1440, T = (d, h, m) => d * DAY + h * 60 + m;
+const S = {
+  now: T(1, 13, 5),
+  player: { ...BIRCH }, drawPos: { ...BIRCH }, walking: false, sleeping: false,
+  explored: new Set(),
+  vit: { warmth: 61, food: 57, water: 46, rest: 70, blood: 100 },
+  damp: .35,
+  inv: { birch: 4, grass: 6, sticks: 6, pine: 2, birchlog: 1, meat: .8, water: .4, stone: 3, fiber: 2, usnea: 1 },
+  tools: [{ name: 'Hand drill', icon: 'fire', cond: .8 }, { name: 'Stone knife', icon: 'knife', cond: .64 }, { name: 'Waterskin', icon: 'water', cond: .9 }],
+  gear: [{ slot: 'Head', name: 'Fur cap', ins: 12, cond: .72 }, { slot: 'Chest', name: 'Hide wrap', ins: 22, cond: .58 }, { slot: 'Legs', name: 'Hide leggings', ins: 14, cond: .81 },
+         { slot: 'Feet', name: 'Wrapped boots', ins: 8, cond: .44, wet: true }, { slot: 'Hands', name: null, ins: 0, cond: 0 }],
+  skills: { Firecraft: { lv: 2, xp: 6, need: 20 }, Foraging: { lv: 1, xp: 9, need: 12 } },
+  panel: null, sel: null,
+  campFire: { override: null },
+  jobs: [
+    { id: 'water', name: 'Melting snow', icon: 'ui/water', start: T(1, 10, 30), mins: 100, out: '1.2 L water', collected: false },
+    { id: 'meat', name: 'Drying meat strips', icon: 'ui/meat', start: T(1, 10, 40), mins: 180, out: '3 strips', collected: false },
+  ],
+  seenCamp: { at: T(1, 10, 50), phase: 'Roaring' },
+  campLog: [
+    { t: T(1, 11, 30), kind: 'tracks', text: 'Paw prints at the camp edge, heading north', icon: 'tracks/paw', cls: 'bad' },
+    { t: T(1, 12, 40), kind: 'fire', text: 'Fire burned down to embers', icon: 'embers', cls: 'bad' },
+    { t: T(1, 12, 58), kind: 'anu', text: 'Anu fed the fire', amt: '+3 kg pine', icon: 'npc/female_1', cls: 'good' },
+  ],
+  pawsKnown: false,
+  wolfSeen: { x: 13, y: 6, at: T(1, 12, 10), doing: 'watching you' },
+  localFire: null,
+  fireTry: { hist: [], running: false, result: null, stop: null },
+  tool: 'drill', tinder: 'birch',
+  forage: { focus: 'fuel', mins: 60, running: false, found: {}, rare: null, mood: null, done: false },
+  searched: { [`${BIRCH.x},${BIRCH.y}`]: .35 }, picked: { [`${BIRCH.x},${BIRCH.y}`]: .3, [`${CAMP.x},${CAMP.y}`]: .95 },
+  lay: 'log',
+  log: [
+    { t: T(1, 9, 40), icon: 'ui/fire', text: 'Fire started at camp' },
+    { t: T(1, 10, 30), icon: 'ui/water', text: 'Set snow to melt' },
+    { t: T(1, 10, 50), icon: 'ui/follow', text: 'Left camp, heading east' },
+    { t: T(1, 11, 5), icon: 'ui/foraging', text: 'Birch Stand: 4 sticks, 2 birch bark, usnea' },
+    { t: T(1, 12, 10), icon: 'ui/beasts', text: 'A wolf on Windy Rise, watching you', cls: 'bad' },
+  ],
+};
+const VISION = 3.6;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const atCamp = () => S.player.x === CAMP.x && S.player.y === CAMP.y;
+const visible = (x, y) => dist(S.drawPos, { x, y }) <= VISION;
+const key = p => `${p.x},${p.y}`;
+function exploreAround() { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (visible(x, y)) S.explored.add(`${x},${y}`); }
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+  const near = Math.min(dist({ x, y }, CAMP), dist({ x, y }, BIRCH), Math.abs(y - 10.5) + Math.max(0, Math.abs(x - 13) - 3));
+  if (near <= 4.2 || dist({ x, y }, { x: 7, y: 7 }) < 2.2 || dist({ x, y }, { x: 13, y: 6 }) < 2) S.explored.add(`${x},${y}`);
+}
+exploreAround();
+const logIt = (icon, text, cls) => S.log.push({ t: S.now, icon, text, cls });
+
+// fire at camp: truth, from what has happened by time t
+function fireOut(t = S.now) {
+  if (S.campFire.override) return S.campFire.override;
+  return S.campLog.some(e => e.kind === 'anu' && e.t <= t) ? T(1, 16, 20) : T(1, 12, 40);
+}
+function campFireTruth(t = S.now) {
+  const out = fireOut(t);
+  if (t < out - 60) return { phase: 'Steady', until: out };
+  if (t < out) return { phase: 'Dying', until: out };
+  if (t < out + 120) return { phase: 'Embers', until: out + 120 };
+  return { phase: 'Out', until: null };
+}
+const fireHere = () => atCamp() ? campFireTruth().phase !== 'Out' : !!(S.localFire && S.localFire.x === S.player.x && S.localFire.y === S.player.y && S.now < S.localFire.until);
+const warmingFire = () => atCamp() ? ['Steady', 'Dying'].includes(campFireTruth().phase) : fireHere();
+const phaseSprite = p => p === 'Embers' ? 'embers' : p === 'Out' ? null : 'fire';
+const fmt = t => { const m = ((t % DAY) + DAY) % DAY, h = Math.floor(m / 60); return `${h % 12 || 12}:${String(m % 60).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+const dur = m => m >= 60 ? `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, '0')}m` : `${Math.round(m)}m`;
+const ago = m => m < 60 ? `${Math.round(m)}m ago` : `${Math.round(m / 60)}h ago`;
+const roman = n => ['', 'I', 'II', 'III', 'IV', 'V'][n];
+const pct = v => `${Math.round(v * 100)}%`;
+const sev = (n, of = 3) => `<span class="sev">${Array.from({ length: of }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
+
+// ---------------------------------------------------------------- derived body state
+function airF(t = S.now) { return Math.round(4 + 6 * Math.sin(((t % DAY) / 60 - 9) / 24 * Math.PI * 2)); }
+function feels() {
+  const here = atCamp(), hr = (S.now % DAY) / 60, f = [];
+  f.push({ k: 'base', icon: 'ui/temperature', name: 'Air', v: airF() });
+  f.push({ k: 'minus', icon: 'ui/wind', name: here ? 'Wind, mostly blocked' : 'Wind chill', why: '14 mph NW', v: here ? -4 : -11 });
+  if (hr > 8 && hr < 16) f.push({ k: 'plus', icon: 'ui/sun', name: 'Sun through cloud', v: 3 });
+  if (!here) f.push({ k: 'minus', icon: 'ui/precipitation', name: 'Snow on you', v: -2 });
+  if (here) f.push({ k: 'plus', icon: 'ui/shelter', name: 'Lean-to', v: 6 });
+  if (warmingFire()) f.push({ k: 'plus', icon: 'ui/fire', name: 'Fire', v: 38 });
+  return f;
+}
+const feelsTotal = () => feels().reduce((a, b) => a + b.v, 0);
+const bodyTemp = () => 95.2 + S.vit.warmth * .04;
+const tempTrend = () => warmingFire() ? +0.8 : S.sleeping ? -0.3 : -0.6;
+function clothingWarmth() { return S.gear.reduce((a, g) => a + g.ins * g.cond * (g.wet ? .6 : 1) * (1 - S.damp * .3), 0) / 100; }
+function effects() {
+  const v = S.vit, e = [];
+  const shiver = warmingFire() ? 0 : v.warmth < 35 ? 3 : v.warmth < 50 ? 2 : v.warmth < 66 ? 1 : 0;
+  if (shiver) e.push({ name: 'Shivering', sev: shiver, cls: 'cold', tip: [`Manipulation −${shiver * 6}%`, 'Burns calories faster', 'm:Stops by a fire'] });
+  if (warmingFire()) e.push({ name: 'Warming up', sev: 1, cls: 'warm', tip: ['g:Body temp +0.8°F/hr', 'g:Clothes drying'] });
+  if (S.damp > .12) e.push({ name: 'Damp', sev: S.damp > .5 ? 2 : 1, cls: 'cold', tip: [`Clothing warmth −${Math.round(S.damp * 30)}%`, `Manipulation −${S.damp > .2 ? 4 : 0}%`, 'm:Dries by a fire, freezes below 20°F'] });
+  e.push({ name: 'Sore', sev: 1, cls: '', tip: ['Moving −3%', 'm:Fades with rest'] });
+  if (v.food < 50) e.push({ name: 'Hungry', sev: v.food < 25 ? 2 : 1, cls: 'bad', tip: ['Energy drains faster', 'm:Eat'] });
+  if (v.water < 50) e.push({ name: 'Thirsty', sev: v.water < 25 ? 2 : 1, cls: 'bad', tip: ['Consciousness −2%', 'm:Drink; melt snow by a fire'] });
+  return e;
+}
+const INJURIES = [
+  { part: 'Left hand', what: 'Frostnip', sev: 1, region: 'lhand', tip: ['Manipulation −6%', 'Skin 82%', 'm:Heals when warm. Gloves would have stopped it.'] },
+  { part: 'Right shin', what: 'Bruised', sev: 1, region: 'rleg', tip: ['Moving −4%', 'Muscle 88%', 'm:Heals with rest'] },
+];
+function capacities() {
+  const shiver = effects().find(e => e.name === 'Shivering')?.sev || 0;
+  return [
+    { name: 'Manipulation', v: 1 - shiver * .06 - .06 - (S.damp > .2 ? .04 : 0) },
+    { name: 'Moving', v: 1 - .04 - .03 - Math.max(0, carryKg() - 12) * .02 },
+    { name: 'Consciousness', v: S.vit.water < 50 ? .98 : 1 },
+    { name: 'Breathing', v: 1 }, { name: 'Sight', v: ((S.now % DAY) / 60 > 18 || (S.now % DAY) / 60 < 7) ? .7 : 1 },
+  ];
+}
+function carryKg() { const i = S.inv; return i.birch * .05 + i.grass * .03 + i.sticks * .3 + i.pine * 1.2 + i.birchlog * 1.5 + i.meat + i.water + i.stone * .4 + i.fiber * .05 + i.usnea * .03 + 3.1; }
+
+// ---------------------------------------------------------------- time passes
+function advance(mins) {
+  for (let i = 0; i < mins; i++) {
+    S.now++;
+    const v = S.vit, warm = warmingFire();
+    v.food = Math.max(0, v.food - .05); v.water = Math.max(0, v.water - .065);
+    v.rest = Math.max(0, Math.min(100, v.rest - (S.sleeping ? -.2 : .06)));
+    v.warmth = Math.max(0, Math.min(100, v.warmth + (warm ? .22 : S.sleeping ? -.05 : -.04)));
+    if (warm) S.damp = Math.max(0, S.damp - .004);
+  }
+  if (atCamp()) S.seenCamp = { at: S.now, phase: campFireTruth().phase };
+}
+
+// ---------------------------------------------------------------- canvas
+const cv = document.getElementById('world'), ctx = cv.getContext('2d');
+let TS = 48, cam = { x: BIRCH.x, y: BIRCH.y }, hover = null, dpr = 1, flakes = [];
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function resize() {
+  const r = cv.getBoundingClientRect(); dpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  TS = r.width < 600 ? 48 : 64;
+  flakes = Array.from({ length: Math.round(r.width * r.height / 9000) }, () => ({ x: Math.random() * r.width, y: Math.random() * r.height, s: 1 + Math.random() * 1.5, v: 12 + Math.random() * 20 }));
+}
+new ResizeObserver(resize).observe(cv);
+function drawSprite(name, px, py, size, alpha = 1) { const im = IMG[name]; if (!im) return; ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = false; ctx.drawImage(im, px, py, size, size); ctx.globalAlpha = 1; }
+function label(text, px, py, color = '#eadfc8') {
+  ctx.font = '600 15px "Barlow Semi Condensed", "Arial Narrow", sans-serif';
+  const w = ctx.measureText(text).width + 10;
+  ctx.fillStyle = 'rgba(22,17,13,.88)'; ctx.fillRect(Math.round(px - w / 2), Math.round(py - 10), Math.round(w), 20);
+  ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, Math.round(px), Math.round(py));
+}
+function ring(px, py, r, p, color, icon) {
+  ctx.fillStyle = 'rgba(22,17,13,.9)'; ctx.beginPath(); ctx.arc(px, py, r + 3, 0, Math.PI * 2); ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#2d231b'; ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = color; ctx.beginPath(); ctx.arc(px, py, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p)); ctx.stroke();
+  drawSprite(icon, px - 8, py - 8, 16);
+}
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  const r = cv.getBoundingClientRect(), w = r.width, h = r.height;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#0d1216'; ctx.fillRect(0, 0, w, h);
+  const shift = S.panel && w > 860 ? 232 / TS : 0;
+  const tx = S.drawPos.x + .5 + shift, ty = S.drawPos.y + .5;
+  cam.x += (tx - cam.x) * Math.min(1, dt * 4); cam.y += (ty - cam.y) * Math.min(1, dt * 4);
+  const ox = w / 2 - cam.x * TS, oy = h / 2 - cam.y * TS;
+  const x0 = Math.max(0, Math.floor(-ox / TS)), y0 = Math.max(0, Math.floor(-oy / TS));
+  const x1 = Math.min(W - 1, Math.ceil((w - ox) / TS)), y1 = Math.min(H - 1, Math.ceil((h - oy) / TS));
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const set = IMG[terrain[y][x]]; if (!set || !set.length) continue;
+    ctx.drawImage(set[Math.floor(hash(x, y, 11) * set.length)], Math.round(ox + x * TS), Math.round(oy + y * TS), TS, TS);
+  }
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const px = Math.round(ox + x * TS), py = Math.round(oy + y * TS);
+    if (!S.explored.has(`${x},${y}`)) { ctx.fillStyle = 'rgba(13,18,22,.94)'; ctx.fillRect(px, py, TS, TS); }
+    else if (!visible(x, y)) {
+      ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = 'rgba(128,128,128,.85)'; ctx.fillRect(px, py, TS, TS);
+      ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(30,44,58,.32)'; ctx.fillRect(px, py, TS, TS);
+    }
+  }
+  ctx.fillStyle = 'rgba(13,18,22,.55)';
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    if (S.explored.has(`${x},${y}`)) continue;
+    const px = Math.round(ox + x * TS), py = Math.round(oy + y * TS);
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
+      if (!S.explored.has(`${x+dx},${y+dy}`)) return;
+      for (let i = 0; i < TS; i += 4) for (let j = 0; j < 8; j += 4) {
+        if (((i + j) / 4) % 2) continue;
+        const ex = dx === 1 ? px + TS + j : dx === -1 ? px - 8 + j : px + i;
+        const ey = dy === 1 ? py + TS + j : dy === -1 ? py - 8 + j : py + i;
+        ctx.fillRect(ex, ey, 4, 4);
+      }
+    });
+  }
+  const tile = (x, y) => [Math.round(ox + x * TS), Math.round(oy + y * TS)];
+  const sp = TS * .75;   // 16px art at an exact 3x on 64px tiles
+  for (const [x, y] of [[11,11],[12,11],[13,10],[14,10],[15,10]]) { const [px, py] = tile(x, y); drawSprite('tracks/boot', px + TS / 2 - 12, py + TS / 2 - 12, 24, .5); }
+  if (S.pawsKnown) for (const [x, y] of [[10,10],[10,9],[10,8]]) { const [px, py] = tile(x, y); drawSprite('tracks/paw', px + TS / 2 - 12, py + TS / 2 - 12, 24, .9); }
+  { const [px, py] = tile(CAMP.x, CAMP.y), vis = visible(CAMP.x, CAMP.y);
+    drawSprite('shelter', px + 2, py + 2, sp * .8);
+    const ph = vis ? campFireTruth().phase : S.seenCamp.phase, spr = phaseSprite(ph);
+    if (spr) {
+      if (vis && ph !== 'Embers') { const fl = reduce ? 1 : .85 + Math.sin(now / 90) * .08 + Math.random() * .07;
+        const g = ctx.createRadialGradient(px + TS / 2, py + TS * .62, 2, px + TS / 2, py + TS * .62, TS * 1.4 * fl);
+        g.addColorStop(0, 'rgba(255,170,60,.42)'); g.addColorStop(1, 'rgba(255,120,30,0)'); ctx.fillStyle = g; ctx.fillRect(px - TS, py - TS, TS * 3, TS * 3); }
+      drawSprite(spr, px + TS / 2 - sp / 2, py + TS - sp - 2, sp, vis ? 1 : .55);
+    }
+    if (vis) drawSprite('npc/female_1', px + TS - sp * .55, py + TS * .25, sp * .75);
+    if (!vis) label(`${S.seenCamp.phase} · ${ago(S.now - S.seenCamp.at)}`, px + TS / 2, py - 8, '#b3a68e');
+    else { const jobs = S.jobs.filter(j => !j.collected);
+      jobs.forEach((j, i) => ring(px + TS / 2 + (i - (jobs.length - 1) / 2) * 30, py - 14, 11, (S.now - j.start) / j.mins, (S.now - j.start) >= j.mins ? '#ffc93c' : '#f5811f', j.icon)); }
+  }
+  if (S.localFire) { const [px, py] = tile(S.localFire.x, S.localFire.y), live = S.now < S.localFire.until;
+    if (live) { const g = ctx.createRadialGradient(px + TS / 2, py + TS * .62, 2, px + TS / 2, py + TS * .62, TS * 1.2); g.addColorStop(0, 'rgba(255,170,60,.38)'); g.addColorStop(1, 'rgba(255,120,30,0)'); ctx.fillStyle = g; ctx.fillRect(px - TS, py - TS, TS * 3, TS * 3); }
+    drawSprite(live ? 'fire' : 'embers', px + 2, py + TS - sp - 2, sp * .8, visible(S.localFire.x, S.localFire.y) ? 1 : .55); }
+  { const s = S.wolfSeen, [px, py] = tile(s.x, s.y);
+    if (!visible(s.x, s.y)) { drawSprite('animals/wolf', px + TS / 2 - sp / 2, py + TS / 2 - sp / 2, sp, .6); label(`wolf · ${ago(S.now - s.at)}`, px + TS / 2, py - 6, '#cf6f4c'); } }
+  for (const k in NAMES) { const [x, y] = k.split(',').map(Number); if (!S.explored.has(k)) continue; const [px, py] = tile(x, y); label(NAMES[k], px + TS / 2, py + TS + 8); }
+  { const px = ox + S.drawPos.x * TS, py = oy + S.drawPos.y * TS, bob = S.walking && !reduce ? Math.abs(Math.sin(now / 80)) * 2 : 0;
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(px + TS / 2 - 10, py + TS - 7, 20, 4);
+    drawSprite('player', Math.round(px + TS / 2 - sp / 2), Math.round(py + TS - sp - 4 - bob), sp); }
+  for (const [pos, col] of [[S.panel === 'place' ? S.sel : null, '#ffc93c'], [hover, '#eadfc8']]) if (pos) { const [px, py] = tile(pos.x, pos.y); ctx.fillStyle = col; const L = 9, k = 2;
+    [[px, py, 1, 1], [px + TS, py, -1, 1], [px, py + TS, 1, -1], [px + TS, py + TS, -1, -1]].forEach(([a, b, sx, sy]) => { ctx.fillRect(sx > 0 ? a : a - L, sy > 0 ? b : b - k, L, k); ctx.fillRect(sx > 0 ? a : a - k, sy > 0 ? b : b - L, k, L); }); }
+  const hr = (S.now % DAY) / 60;
+  const night = hr < 6.5 || hr > 19 ? .55 : hr < 8 ? .55 * (8 - hr) / 1.5 : hr > 17 ? .55 * (hr - 17) / 2 : 0;
+  if (night > 0) { ctx.fillStyle = `rgba(14,22,40,${night})`; ctx.fillRect(0, 0, w, h); }
+  if (hr > 15.5 && hr < 18.5) { ctx.fillStyle = `rgba(140,80,50,${.12 * (1 - Math.abs(hr - 17) / 1.5)})`; ctx.fillRect(0, 0, w, h); }
+  if (!reduce) { ctx.fillStyle = 'rgba(240,246,248,.75)'; for (const f of flakes) { f.y += f.v * dt; f.x -= f.v * .35 * dt; if (f.y > h) { f.y = -4; f.x = Math.random() * (w + 60); } if (f.x < -4) f.x = w; ctx.fillRect(Math.round(f.x), Math.round(f.y), f.s, f.s); } }
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .35, w / 2, h / 2, Math.max(w, h) * .75);
+  vg.addColorStop(0, 'rgba(13,18,22,0)'); vg.addColorStop(1, 'rgba(13,18,22,.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+  frame.ox = ox; frame.oy = oy;
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- place knowledge
+function placeInfo(x, y) {
+  const k = `${x},${y}`, t = terrain[y][x], camp = x === CAMP.x && y === CAMP.y, birch = x === BIRCH.x && y === BIRCH.y;
+  const info = { name: NAMES[k] || TERRAIN_NAME[t], terrain: TERRAIN_NAME[t], cross: STEP_MIN[t], hazard: HAZARD[t], snow: SNOW_CM[t], tracks: [], forage: null, game: null, water: null };
+  info.ground = `${info.snow} cm snow${t === 'forest' ? ' under the trees' : ', wind-packed'} · ${t === 'rock' ? 'icy footing' : 'footing fair'}`;
+  if (camp || birch) {
+    const picked = S.picked[k] ?? .1;
+    info.forage = { left: 1 - picked, res: camp ? [] : [['sticks', 'Sticks'], ['tinder', 'Tinder'], ['tinder', 'Birch bark'], ['medicine', 'Usnea']], searched: S.searched[k] ?? 0 };
+  } else if (['forest', 'clearing', 'plain', 'marsh'].includes(t)) info.forage = { left: .5 + hash(x, y, 5) * .4, res: t === 'forest' ? [['sticks', 'Sticks'], ['tinder', 'Tinder']] : [['roots', 'Roots'], ['tinder', 'Dry grass']], searched: 0 };
+  if (birch) { info.game = 'Hare runs · best at dusk'; info.tracks.push({ icon: 'tracks/paw', what: 'Hare', traffic: 'Heavy · E/W', age: 'fresh' }); }
+  if (camp && S.pawsKnown) info.tracks.push({ icon: 'tracks/paw', what: 'Wolf, alone', traffic: 'Heading north', age: ago(S.now - T(1, 11, 30)) });
+  if (camp || birch || (y >= 10 && y <= 11 && x > 10 && x < 16)) info.tracks.push({ icon: 'tracks/boot', what: 'Yours', traffic: 'E/W', age: 'this morning' });
+  const riverX = 21 + Math.round(2.2 * Math.sin(y * .42) + .8 * Math.sin(y * 1.3));
+  info.water = t === 'water' ? 'Frozen creek · cut a hole to drink' : `Creek ${Math.abs(riverX - x)} tiles ${riverX > x ? 'east' : 'west'}`;
+  return info;
+}
+
+// hover tooltips: map tiles
+const tip = document.getElementById('tip');
+cv.addEventListener('pointermove', e => {
+  const r = cv.getBoundingClientRect(), x = Math.floor((e.clientX - r.left - frame.ox) / TS), y = Math.floor((e.clientY - r.top - frame.oy) / TS);
+  if (x < 0 || y < 0 || x >= W || y >= H) { hover = null; tip.hidden = true; return; }
+  hover = { x, y }; const k = `${x},${y}`;
+  if (!S.explored.has(k)) tip.innerHTML = `<span class="t">Unexplored</span>`;
+  else {
+    const vis = visible(x, y), p = placeInfo(x, y), t = terrain[y][x];
+    let rows = `<span class="r"><img class="ico" src="img/ui/location.png" alt="">${p.terrain}${t !== 'mountain' ? ` · <span class="num">${p.cross}</span> min to cross` : ' · impassable'}</span>`;
+    if (p.hazard) rows += `<span class="r" style="color:var(--minus)"><img class="ico" src="img/ui/warning.png" alt="">${p.hazard}</span>`;
+    if (t !== 'mountain') rows += `<span class="r"><img class="ico" src="img/ui/precipitation.png" alt="">${p.ground}</span>`;
+    if (x === CAMP.x && y === CAMP.y) {
+      const ph = vis ? campFireTruth() : null;
+      rows += `<span class="r"><img class="ico" src="img/ui/fire.png" alt="">${vis ? `${ph.phase}${ph.until ? ` until ${fmt(ph.until)}` : ''}` : `${S.seenCamp.phase} when you left · ${ago(S.now - S.seenCamp.at)}`}</span>`;
+    }
+    if (p.forage) rows += `<span class="r"><img class="ico" src="img/ui/foraging.png" alt="">Forage ${p.forage.left > .6 ? 'good' : p.forage.left > .3 ? 'fair' : 'picked over'}</span>`;
+    p.tracks.forEach(tr => rows += `<span class="r"><img class="ico" src="img/${tr.icon}.png" alt="">${tr.what} · ${tr.age}</span>`);
+    if (S.wolfSeen.x === x && S.wolfSeen.y === y && !vis) rows += `<span class="r" style="color:var(--minus)"><img class="ico" src="img/ui/beasts.png" alt="">Wolf seen ${ago(S.now - S.wolfSeen.at)}</span>`;
+    if (!vis) rows += `<span class="r" style="color:var(--bone-3)">As you last saw it</span>`;
+    tip.innerHTML = `<span class="t">${p.name}</span>${rows}`;
+  }
+  tip.hidden = false; tip.style.left = `${frame.ox + (x + .5) * TS}px`; tip.style.top = `${frame.oy + y * TS}px`;
+});
+cv.addEventListener('pointerleave', () => { hover = null; tip.hidden = true; });
+cv.addEventListener('click', () => { if (!hover || busy()) return; S.sel = { ...hover }; S.panel = 'place'; tip.hidden = true; render(); });
+
+// hover tooltips: anything with data-tip ("g:" good, "b:" bad, "m:" muted lines)
+const ftip = document.getElementById('ftip');
+document.addEventListener('pointerover', e => {
+  const el = e.target.closest('[data-tip]'); if (!el) { ftip.hidden = true; return; }
+  const [title, ...lines] = el.dataset.tip.split('|');
+  ftip.innerHTML = `<span class="t">${title}</span>${lines.map(l => { const m = l.match(/^(g|b|m):(.*)$/); return `<span class="${m ? m[1] : ''}">${m ? m[2] : l}</span>`; }).join('')}`;
+  ftip.hidden = false;
+  const r = el.getBoundingClientRect(), fw = ftip.offsetWidth, fh = ftip.offsetHeight;
+  let lx = r.right + 8, ly = r.top;
+  if (lx + fw > innerWidth - 8) lx = Math.max(8, r.left - fw - 8);
+  if (ly + fh > innerHeight - 8) ly = innerHeight - fh - 8;
+  ftip.style.left = `${lx}px`; ftip.style.top = `${ly}px`;
+});
+document.addEventListener('pointerout', e => { if (e.target.closest('[data-tip]') && !e.relatedTarget?.closest?.('[data-tip]')) ftip.hidden = true; });
+const tipAttr = (title, lines) => `data-tip="${[title, ...lines].join('|').replace(/"/g, '&quot;')}"`;
+
+// ---------------------------------------------------------------- always: the top strip
+const $ = id => document.getElementById(id);
+const DUSK = 16 * 60 + 40, DAWN = 7 * 60 + 30;
+function daylightLeft() { const m = S.now % DAY; return m >= DAWN && m < DUSK ? DUSK - m : 0; }
+function renderTop() {
+  const [hm, ap] = fmt(S.now).split(' '), left = daylightLeft(), ft = feelsTotal();
+  const weather = [`Air ${airF()}°F`, 'Wind 14 mph NW, gusting', 'Overcast · light snow', 'b:Cold front tonight · −15°F by dawn', 'm:Dark at 4:40 PM · light at 7:30 AM'];
+  $('top').innerHTML = `
+    <div class="t-clock" ${tipAttr(`Day ${Math.floor(S.now / DAY) + 1} · Midwinter`, weather)}><span class="clock-time">${hm}<span class="clock-ampm">${ap}</span></span></div>
+    <div class="t-light ${left && left <= 60 ? 'warn' : ''}" ${tipAttr('Daylight', [left ? 'Dark at 4:40 PM' : 'Light at 7:30 AM'])}>
+      <img class="ico" src="img/ui/${left ? 'sun' : 'moon'}.png" alt=""><span class="lbar"><i style="width:${Math.min(1, left / (DUSK - DAWN)) * 100}%"></i></span><span class="num">${left ? `${dur(left)} light` : 'Night'}</span></div>
+    <div class="t-feels" ${tipAttr('Feels like', feels().map(f => f.k === 'base' ? `${f.name} ${f.v}°F` : `${f.v > 0 ? 'g:' : 'b:'}${f.name} ${f.v > 0 ? '+' : '−'}${Math.abs(f.v)}°`))}>
+      <img class="ico" src="img/ui/temperature.png" alt=""><span class="num" style="color:${ft < 0 ? 'var(--frost)' : 'var(--bone)'}">${ft}°F</span><span class="muted">feels like</span></div>`;
+}
+
+// ---------------------------------------------------------------- always: vitals; alerts only past a line
+function alerts() {
+  const a = [], shiver = effects().find(e => e.name === 'Shivering'), w = S.wolfSeen;
+  if (S.vit.warmth < 30 && !warmingFire()) a.push({ p: 0, cls: 'danger', icon: 'ui/temperature', text: 'Hypothermia', tip: [`Body temp ${bodyTemp().toFixed(1)}°F`, 'b:Get to a fire now'] });
+  else if (shiver) a.push({ p: 2, cls: 'cold', icon: 'ui/temperature', text: 'Shivering', tip: [`Body temp ${bodyTemp().toFixed(1)}°F, falling`, ...shiver.tip] });
+  if (dist(S.player, w) <= 6 && S.now - w.at < 180) a.push({ p: 1, cls: 'danger', icon: 'ui/beasts', text: 'Wolf nearby', tip: [`Seen ${ago(S.now - w.at)} on Windy Rise, ${w.doing}`, 'b:Stalked: tracks near camp', 'm:A fire keeps it off'] });
+  if (S.gear.some(g => g.wet) && !warmingFire()) a.push({ p: 3, cls: 'cold', icon: 'ui/water', text: 'Wet boots', tip: ['Feet: warmth −40%', 'm:Dry them by a fire'] });
+  const m = S.now % DAY;
+  if (m > 6 * 60 && m < 22 * 60) a.push({ p: 4, cls: 'warn', icon: 'ui/warning', text: 'Cold front tonight', tip: ['−15°F by dawn', 'm:Lay a fire that lasts; stay sheltered'] });
+  const left = daylightLeft();
+  if (left && left <= 60 && !atCamp()) a.push({ p: 1, cls: 'warn', icon: 'ui/moon', text: 'Dark within the hour', tip: [`Camp is ${tripMin(CAMP.x, CAMP.y)} min away`] });
+  if (carryKg() > 15) a.push({ p: 3, cls: 'warn', icon: 'ui/backpack', text: 'Overloaded', tip: ['Moving slower', 'm:Drop or cache something'] });
+  return a.sort((x, y) => x.p - y.p);
+}
+function renderStatus() {
+  const v = S.vit, warm = warmingFire(), al = alerts(), tt = tempTrend();
+  const bar = (name, icon, val, color, lines) => `<div class="vbar ${val < 15 ? 'crit' : val < 35 ? 'low' : ''}" ${tipAttr(name, lines)}><img class="ico" src="img/ui/${icon}.png" alt=""><span class="vtrack" style="--c:${color}"><i style="width:${val}%"></i></span></div>`;
+  $('status').innerHTML = `<div class="plate vitals" aria-label="Vitals">
+      ${bar('Warmth', 'temperature', v.warmth, warm ? '#f5811f' : '#8fa6b7', [`Body ${bodyTemp().toFixed(1)}°F`, `${tt > 0 ? 'g:Rising' : 'b:Falling'} ${Math.abs(tt).toFixed(1)}°F/hr`])}
+      ${bar('Food', 'food', v.food, '#eadfc8', [`${Math.round(v.food)}% · ${Math.round(v.food * 22)} kcal`])}
+      ${bar('Water', 'water', v.water, '#b9d3dc', [`${Math.round(v.water)}%`])}
+      ${bar('Rest', 'energy', v.rest, '#eadfc8', [`${Math.round(v.rest)}%`])}
+    </div>
+    <div class="alerts">${al.slice(0, 3).map(x => `<button class="alert ${x.cls}" data-sheet="body" ${tipAttr(x.text, x.tip)}><img class="ico" src="img/${x.icon}.png" alt="">${x.text}</button>`).join('')}${al.length > 3 ? `<button class="alert more" data-sheet="body" ${tipAttr('Also', al.slice(3).map(x => x.text))}>+${al.length - 3} more</button>` : ''}</div>`;
+}
+$('status').addEventListener('click', e => { const b = e.target.closest('[data-sheet]'); if (b) openSheet(b.dataset.sheet); });
+
+// ---------------------------------------------------------------- on demand: the body sheet
+function renderBody() {
+  const v = S.vit, warm = warmingFire();
+  const g = (name, icon, val, color, valText, trend) => {
+    const on = Math.round(val / 10), cls = val < 15 ? 'crit' : val < 35 ? 'low' : '';
+    return `<div class="gauge ${cls}"><img class="ico" src="img/ui/${icon}.png" alt=""><span class="name">${name}</span>
+      <span class="val">${valText}${trend ? `<span class="trend ${trend.startsWith('+') ? 'up' : 'down'}">${trend}</span>` : ''}</span>
+      <span class="ticks" style="--c:${color}">${Array.from({ length: 10 }, (_, i) => `<span class="${i < on ? 'on' : ''}"></span>`).join('')}</span></div>`;
+  };
+  const tt = tempTrend(), f = feels(), ft = feelsTotal(), lo = -40, hi = 60, pos = x => Math.max(0, Math.min(100, (x - lo) / (hi - lo) * 100));
+  const caps = capacities().filter(c => c.v < .995), cw = clothingWarmth();
+  const regionColor = r => INJURIES.find(j => j.region === r) ? '#cf6f4c' : '#5a4a3a';
+  head('ui/person', 'Body', '');
+  $('sideBody').innerHTML = `
+    <div class="sec">
+      ${g('Warmth', 'temperature', v.warmth, warm ? '#f5811f' : '#8fa6b7', `${bodyTemp().toFixed(1)}°F`, `${tt > 0 ? '+' : '−'}${Math.abs(tt).toFixed(1)}/hr`)}
+      ${g('Food', 'food', v.food, '#eadfc8', `${Math.round(v.food)}%`, '−3/hr')}
+      ${g('Water', 'water', v.water, '#b9d3dc', `${Math.round(v.water)}%`, '−4/hr')}
+      ${g('Rest', 'energy', v.rest, '#eadfc8', `${Math.round(v.rest)}%`, S.sleeping ? '+12/hr' : '−4/hr')}
+      ${v.blood < 100 ? g('Blood', 'vitality', v.blood, '#d97a6a', `${Math.round(v.blood)}%`, '') : ''}
+    </div>
+    <div class="sec"><div class="sec-h"><span class="label">Effects</span></div>
+      <div class="factors">${effects().map(e => `<div class="kv ${e.cls === 'warm' ? 'plus' : 'minus'}"><span class="sev" style="color:${e.cls === 'warm' ? 'var(--ember)' : 'var(--minus)'}">${sev(e.sev).replace('<span class="sev">', '').replace('</span>', '')}</span><span>${e.name} <span class="muted" style="font-size:14px">${e.tip.filter(t => !t.startsWith('m:')).map(t => t.replace(/^[gb]:/, '')).join(' · ')}</span></span><span class="v"></span></div>`).join('')}</div>
+    </div>
+    <div class="sec"><div class="sec-h"><span class="label">Injuries</span><span class="aside">${INJURIES.length} minor</span></div>
+      <div class="doll">
+        <svg viewBox="0 0 37 55" aria-hidden="true">
+          <rect x="14" y="1" width="9" height="9" fill="#5a4a3a"/><rect x="12" y="11" width="13" height="12" fill="#5a4a3a"/><rect x="12" y="24" width="13" height="8" fill="#5a4a3a"/>
+          <rect x="6" y="11" width="5" height="17" fill="#5a4a3a"/><rect x="26" y="11" width="5" height="17" fill="#5a4a3a"/>
+          <rect x="6" y="29" width="5" height="4" fill="${regionColor('rhand')}"/><rect x="26" y="29" width="5" height="4" fill="${regionColor('lhand')}"/>
+          <rect x="12" y="33" width="6" height="20" fill="${regionColor('rleg')}"/><rect x="19" y="33" width="6" height="20" fill="#5a4a3a"/>
+        </svg>
+        <div class="parts">${INJURIES.map(i => `<div class="inj" ${tipAttr(`${i.part} · ${i.what}`, i.tip)}><b>${i.part}</b><span class="sev">${sev(i.sev)}</span></div><span class="muted" style="font-size:14px;margin-top:-3px">${i.what} · ${i.tip[0]}</span>`).join('')}</div>
+      </div>
+      ${caps.length ? `<div class="caps">${caps.map(c => `<div class="cap"><span>${c.name}</span><span class="minibar" style="--c:${c.v < .7 ? 'var(--minus)' : 'var(--bone-2)'}"><i style="width:${c.v * 100}%"></i></span><span class="num">${pct(c.v)}</span></div>`).join('')}</div>` : ''}
+    </div>
+    <div class="sec"><div class="sec-h"><span class="label">Feels like</span><span class="aside">air ${airF()}°F</span></div>
+      <div class="feels"><span class="big" style="color:${ft < 0 ? 'var(--frost)' : 'var(--bone)'}">${ft}°F</span><span class="muted">${warm ? 'by the fire' : 'out in the open'}</span></div>
+      <div class="thermo" aria-hidden="true"><s style="left:${pos(32)}%"></s><s style="left:${pos(0)}%"></s><b style="left:calc(${pos(ft)}% - 1px)"></b></div>
+      <div class="factors">${f.filter(x => x.k !== 'base').map(x => `<div class="kv ${x.v > 0 ? 'plus' : 'minus'}"><img class="ico" src="img/${x.icon}.png" alt=""><span>${x.name}</span><span class="v">${x.v > 0 ? '+' : '−'}${Math.abs(x.v)}°</span></div>`).join('')}</div>
+    </div>
+    <div class="sec"><div class="sec-h"><span class="label">Wearing</span><span class="aside">${pct(cw)} warmth</span></div>
+      ${S.gear.map(g => `<div class="slot ${g.name ? '' : 'bare'}"><span class="where">${g.slot}</span><span class="nm">${g.name || 'Bare'}${g.wet ? ' <span style="color:var(--frost);font-size:14px">wet</span>' : ''}</span>
+        ${g.name ? `<span class="minibar" style="--c:${g.cond < .5 ? 'var(--minus)' : 'var(--lichen)'}"><i style="width:${g.cond * 100}%"></i></span>` : '<span></span>'}</div>`).join('')}
+    </div>
+    <div class="sec"><div class="sec-h"><span class="label">Threats</span></div>
+      <div class="threat"><img src="img/animals/wolf.png" alt=""><span>Wolf<small>${S.wolfSeen.doing} · Windy Rise · ${ago(S.now - S.wolfSeen.at)}</small></span></div>
+      <div class="threat"><img src="img/ui/tracks.png" alt=""><span>Stalked<small>tracks near camp${S.pawsKnown ? ' and the creek' : ''}</small></span><span class="sev">${sev(S.pawsKnown ? 2 : 1)}</span></div>
+    </div>
+    <div class="sec"><div class="sec-h"><span class="label">Skills</span></div>
+      ${Object.keys(S.skills).map(n => skillRow(n)).join('')}
+    </div>`;
+}
+
+// ---------------------------------------------------------------- dock: verbs, where you are, sheets
+function verbs() {
+  const here = atCamp(), fh = fireHere();
+  const list = [
+    { id: 'fire', key: 'F', icon: 'ui/fire', name: fh ? 'Tend fire' : 'Start fire', sub: fh ? (here ? campFireTruth().phase : 'Burning') : '10 min' },
+    { id: 'forage', key: 'G', icon: 'ui/foraging', name: 'Forage', sub: here ? 'Picked over' : 'Good ground' },
+  ];
+  if (here) {
+    const tr = campFireTruth();
+    list.push({ id: 'sleep', key: 'Z', icon: 'ui/moon', name: 'Sleep', sub: '8 hours' },
+      { id: 'go-birch', key: 'T', icon: 'ui/follow', name: 'To Birch Stand', sub: `${tripMin(BIRCH.x, BIRCH.y)} min · fire ${tr.until ? `${dur(tr.until - S.now)} left` : 'out'}` });
+  } else list.push({ id: 'go-camp', key: 'C', icon: 'ui/shelter', name: 'Return to camp', sub: `${tripMin(CAMP.x, CAMP.y)} min · fire ${S.seenCamp.phase.toLowerCase()} ${ago(S.now - S.seenCamp.at)}` });
+  return list;
+}
+const busy = () => S.walking || S.fireTry.running || S.forage.running;
+const SHEETS = [['body', 'ui/person', 'B', 'Body'], ['pack', 'ui/backpack', 'I', 'Pack'], ['people', 'npc/female_1', 'P', 'People'], ['log', 'ui/journal', 'J', 'Journal']];
+function renderDock() {
+  const p = placeInfo(S.player.x, S.player.y);
+  $('dock').innerHTML = verbs().map(v => `<button class="verb" data-verb="${v.id}" aria-pressed="${S.panel === v.id}" ${busy() ? 'disabled' : ''}>
+      <img src="img/${v.icon}.png" alt=""><span class="vn">${px(v.name)} <span class="key">${v.key}</span></span><span class="vt">${v.sub}</span></button>`).join('')
+    + `<span class="spacer"></span><button class="where-btn" data-sheet="place" title="This place (X)"><b>${p.name}</b><small>${p.terrain} · X</small></button>
+       <span class="sheets">${SHEETS.map(([id, ic, k, nm]) => `<button class="sbtn" data-sheet="${id}" aria-pressed="${S.panel === id}" title="${nm}"><img src="img/${ic}.png" alt="${nm}"><span class="key">${k}</span></button>`).join('')}</span>`;
+}
+$('dock').addEventListener('click', e => {
+  const s = e.target.closest('[data-sheet]'); if (s) return openSheet(s.dataset.sheet);
+  const b = e.target.closest('[data-verb]'); if (b && !b.disabled) doVerb(b.dataset.verb);
+});
+function openSheet(id) {
+  if (busy()) return;
+  if (id === 'place') S.sel = { ...S.player };
+  S.panel = S.panel === id && id !== 'place' ? null : id; render();
+}
+function doVerb(v) {
+  if (v === 'go-camp') return walkTo(CAMP);
+  if (v === 'go-birch') return walkTo(BIRCH);
+  S.panel = S.panel === v ? null : v;
+  if (v === 'forage' && S.forage.done) S.forage = { ...S.forage, done: false, found: {}, rare: null, mood: null };
+  if (v === 'fire') S.fireTry.result = null;
+  render();
+}
+
+// ---------------------------------------------------------------- right panel pieces
+const px = s => String(s).replace(/f(?=[il])/g, 'f\u200C'); // the pixel face draws "fi" as one glyph
+function head(icon, title, extra) {
+  $('sideHead').innerHTML = `<img class="ico x2" src="img/${icon}.png" alt=""><h2>${px(title)}</h2>${extra || ''}<button class="xbtn" data-close aria-label="Close">Esc</button>`;
+}
+const cost = c => `<span class="cost"><img class="ico" src="img/ui/clock.png" alt="">${c}</span>`;
+function skillRow(name, fresh = 0, up = false) {
+  const s = S.skills[name];
+  return `<div class="skill ${up ? 'up' : ''}"><span class="lv">${name} ${roman(s.lv)}</span>
+    <span class="pips" style="grid-template-columns:repeat(${s.need},1fr)">${Array.from({ length: s.need }, (_, i) => `<span class="${i < s.xp - fresh ? 'on' : i < s.xp ? 'new' : ''}"></span>`).join('')}</span>
+    <span class="num" style="color:var(--bone-3)">${s.xp}/${s.need}</span></div>`;
+}
+function gainXp(name, n) {
+  const s = S.skills[name]; s.xp += n; let up = false;
+  if (s.xp >= s.need) { s.xp -= s.need; s.lv++; s.need = Math.round(s.need * 1.5); up = true; toast(`ui/${name === 'Firecraft' ? 'fire' : 'foraging'}`, `${name} ${roman(s.lv)} · better odds from now on`); logIt(`ui/${name === 'Firecraft' ? 'fire' : 'foraging'}`, `${name} rose to ${roman(s.lv)}`, 'rare'); }
+  return up;
+}
+function fuelBar(burning, unburned, cap) {
+  return `<div class="fuelbar"><span class="unb" style="width:${Math.min(100, (burning + unburned) / cap * 100)}%"></span><span class="brn" style="width:${Math.min(100, burning / cap * 100)}%"></span></div>
+    <div class="fuelleg"><span><i style="background:var(--ember)"></i>Burning <span class="num">${burning.toFixed(1)}</span> kg</span><span><i style="background:#6a4a2a"></i>Waiting <span class="num">${unburned.toFixed(1)}</span> kg</span><span>Pit holds <span class="num">${cap}</span> kg</span></div>`;
+}
+function campFuel() { const tr = campFireTruth(); const left = tr.until ? Math.max(0, tr.until - S.now) : 0; return tr.phase === 'Embers' ? [.3, 0] : [Math.min(3.2, left / 60 * .9), Math.max(0, left / 60 * .9 - 3.2)]; }
+
+// ----- place: what you know about a tile, and what the trip there costs
+function tripRows(x, y) {
+  const t = terrain[y][x], steps = Math.abs(S.player.x - x) + Math.abs(S.player.y - y);
+  const rows = [{ k: 'base', icon: 'ui/location', name: steps === 1 ? `${TERRAIN_NAME[t]}, ${SNOW_CM[t]} cm snow` : `${steps} tiles`, v: steps === 1 ? STEP_MIN[t] : Math.round(steps * 2.6) }];
+  if (steps === 1 && SNOW_CM[t] > 24) rows.push({ k: 'minus', icon: 'ui/precipitation', name: 'Deep snow', v: 1 });
+  rows.push({ k: 'minus', icon: 'ui/bandage', name: 'Bruised shin', v: steps === 1 ? 1 : 2 });
+  if (carryKg() > 12) rows.push({ k: 'minus', icon: 'ui/backpack', name: 'Heavy load', v: 1 });
+  return rows;
+}
+const tripMin = (x, y) => tripRows(x, y).reduce((a, b) => a + b.v, 0);
+function travelPreview(x, y) {
+  const t = terrain[y][x], steps = Math.abs(S.player.x - x) + Math.abs(S.player.y - y);
+  if (t === 'mountain') return `<div class="preview"><span style="color:var(--minus)">Impassable</span></div>`;
+  const rows = tripRows(x, y), mins = tripMin(x, y);
+  const riskBase = steps === 1 ? { rock: 30, marsh: 15, water: 20, hills: 10 }[t] : 0;
+  const left = daylightLeft(), leavingCamp = atCamp() && !(x === CAMP.x && y === CAMP.y), tr = campFireTruth();
+  return `<div class="preview">
+      <div class="head"><span class="label">Getting there</span><span class="big">${mins}<small class="muted" style="font-size:17px"> min</small></span></div>
+      <div class="factors">${rows.map(r => `<div class="factor ${r.k}"><img class="ico" src="img/${r.icon}.png" alt=""><span>${r.name}</span><span class="v">${r.k === 'base' ? '' : '+'}${r.v}m</span></div>`).join('')}</div>
+      ${riskBase ? `<div class="head" style="margin-top:4px"><span class="label">Injury risk</span><span class="big" style="color:var(--minus)">${riskBase + 5}<small class="muted" style="font-size:17px">%</small></span></div>
+        <div class="factors"><div class="factor base"><img class="ico" src="img/ui/warning.png" alt=""><span>${TERRAIN_NAME[t]}</span><span class="v">${riskBase}</span></div>
+        <div class="factor minus"><img class="ico" src="img/ui/bandage.png" alt=""><span>Bruised shin</span><span class="v">+5</span></div></div>` : ''}
+      <div class="factors">
+        <div class="kv ${left && left > mins * 2 + 30 ? '' : 'minus'}"><img class="ico" src="img/ui/${left ? 'sun' : 'moon'}.png" alt=""><span>${left ? `${dur(left)} of light left` : 'Dark'}</span><span class="v">${left && left > mins * 2 + 30 ? 'back before dark' : 'tight'}</span></div>
+        ${leavingCamp ? `<div class="kv"><img class="ico" src="img/ui/fire.png" alt=""><span>Camp fire</span><span class="v">${tr.until ? `${dur(tr.until - S.now)} left` : 'out'}</span></div>` : ''}
+        ${!atCamp() && !(x === CAMP.x && y === CAMP.y) ? `<div class="kv"><img class="ico" src="img/ui/fire.png" alt=""><span>Camp fire, as last seen</span><span class="v">${S.seenCamp.phase.toLowerCase()} · ${ago(S.now - S.seenCamp.at)}</span></div>` : ''}
+      </div>
+      ${riskBase ? `<div class="row"><button class="act quiet" data-go="${x},${y}">Careful · ${mins + 3}m</button><button class="act" data-go="${x},${y}">Go · ${mins}m</button></div>`
+                 : `<div class="row"><button class="act" data-go="${x},${y}">Go <span class="key">Enter</span></button></div>`}
+    </div>`;
+}
+function renderPlace() {
+  const sel = S.sel || S.player, { x, y } = sel, k = `${x},${y}`;
+  if (x === S.player.x && y === S.player.y) return renderHere();
+  if (!S.explored.has(k)) { head('ui/location', 'Unexplored', ''); $('sideBody').innerHTML = `<p class="note">You haven't seen this ground.</p>${travelPreview(x, y)}`; return; }
+  const p = placeInfo(x, y), vis = visible(x, y), camp = x === CAMP.x && y === CAMP.y, w = S.wolfSeen;
+  head(camp ? 'shelter' : 'ui/location', p.name, p.name === p.terrain ? '' : `<span class="terrain-chip">${p.terrain}</span>`);
+  $('sideBody').innerHTML = `
+    ${travelPreview(x, y)}
+    <div class="sec"><div class="sec-h"><span class="label">Known here</span>${vis ? '' : '<span class="stale">as you last saw it</span>'}</div>
+      ${terrain[y][x] !== 'mountain' ? `<div class="pf"><img class="ico" src="img/ui/precipitation.png" alt=""><span>${p.ground}</span><span></span></div>` : ''}
+      ${camp ? `<div class="pf"><img class="ico" src="img/ui/fire.png" alt=""><span>Fire</span><span class="v">${vis ? campFireTruth().phase : `${S.seenCamp.phase} · ${ago(S.now - S.seenCamp.at)}`}</span></div>
+        ${S.jobs.filter(j => !j.collected).map(j => `<div class="pf"><img class="ico" src="img/${j.icon}.png" alt=""><span>${j.name}</span><span class="v">${S.now >= j.start + j.mins ? 'ready' : fmt(j.start + j.mins)}</span></div>`).join('')}` : ''}
+      ${p.forage ? `<div class="pf"><img class="ico" src="img/ui/foraging.png" alt=""><span>Forage ${p.forage.left > .6 ? 'good' : p.forage.left > .3 ? 'fair' : 'picked over'}</span><span class="v">${pct(p.forage.left)}</span></div>` : ''}
+      ${p.tracks.map(t => `<div class="trk"><img class="ico" src="img/${t.icon}.png" alt=""><span>${t.what} <span class="muted">· ${t.traffic}</span></span><span class="age">${t.age}</span></div>`).join('')}
+      ${w.x === x && w.y === y ? `<div class="pf"><img class="ico" src="img/ui/beasts.png" alt=""><span style="color:var(--minus)">Wolf, ${w.doing}</span><span class="v">${ago(S.now - w.at)}</span></div>` : ''}
+    </div>`;
+}
+
+// ----- here: everything known about where you stand
+function renderHere() {
+  const here = atCamp(), p = placeInfo(S.player.x, S.player.y);
+  head(here ? 'shelter' : 'ui/location', p.name, p.name === p.terrain ? '' : `<span class="terrain-chip">${p.terrain}</span>`);
+  const exits = [['N', 0, -1], ['E', 1, 0], ['S', 0, 1], ['W', -1, 0]].map(([d, dx, dy]) => {
+    const x = S.player.x + dx, y = S.player.y + dy, t = terrain[y]?.[x];
+    if (!t) return '';
+    const known = S.explored.has(`${x},${y}`), nm = NAMES[`${x},${y}`] || TERRAIN_NAME[t];
+    return `<button class="exit" data-exit="${x},${y}" ${t === 'mountain' || busy() ? 'disabled' : ''}><span class="dir">${d}</span><span>${known ? nm : 'Unexplored'}<small class="${HAZARD[t] ? 'haz' : ''}">${t === 'mountain' ? 'Impassable' : HAZARD[t] || `${SNOW_CM[t]} cm snow`}</small></span><span class="m">${t === 'mountain' ? '' : `${STEP_MIN[t]}m`}</span></button>`;
+  }).join('');
+  let fire = '';
+  if (here) {
+    const tr = campFireTruth(), [b, u] = campFuel();
+    fire = `<div class="sec"><div class="sec-h"><span class="label">Fire</span><span class="aside">${tr.until ? `until ${fmt(tr.until)}` : 'cold'}</span></div>
+      <div class="pf"><img class="ico" src="img/${phaseSprite(tr.phase) || 'embers'}.png" alt=""><span>${tr.phase} · stone ring</span><span class="v">${tr.until ? dur(tr.until - S.now) : '—'}</span></div>${fuelBar(b, u, 12)}</div>
+      <div class="sec"><div class="sec-h"><span class="label">On the fire</span></div>${benchHtml()}</div>`;
+  } else if (S.localFire && fireHere()) {
+    fire = `<div class="sec"><div class="sec-h"><span class="label">Fire</span></div><div class="pf"><img class="ico" src="img/fire.png" alt=""><span>Steady · open pit</span><span class="v">${dur(S.localFire.until - S.now)}</span></div></div>`;
+  }
+  const shelter = here
+    ? `<div class="pf"><img class="ico" src="img/ui/shelter.png" alt=""><span>Lean-to</span><span class="v">55% · 40% wind</span>
+        <span class="sub"><span class="minibar" style="--c:var(--lichen)"><i style="width:55%"></i></span></span></div>
+       <div class="pf"><img class="ico" src="img/ui/bedding.png" alt=""><span>Spruce bedding</span><span class="v">fair</span></div>
+       <div class="pf"><img class="ico" src="img/ui/storage.png" alt=""><span>Cache</span><span class="v">10.1 kg</span></div>`
+    : `<div class="pf"><img class="ico" src="img/ui/wind.png" alt=""><span style="color:var(--minus)">No shelter · exposed</span><span class="v">14 mph</span></div>`;
+  const fg = p.forage;
+  $('sideBody').innerHTML = `
+    <div class="sec"><div class="sec-h"><span class="label">Ground</span><span class="aside">${p.cross} min to cross</span></div>
+      <div class="pf"><img class="ico" src="img/ui/precipitation.png" alt=""><span>${p.ground}</span><span></span></div>
+    </div>
+    ${fire}
+    <div class="sec"><div class="sec-h"><span class="label">Shelter</span></div><div class="place-feats">${shelter}</div></div>
+    ${fg ? `<div class="sec"><div class="sec-h"><span class="label">Forage</span><span class="aside">${fg.left > .6 ? 'good' : fg.left > .3 ? 'fair' : 'picked over'}</span></div>
+      <div class="pf"><img class="ico" src="img/ui/foraging.png" alt=""><span>What's left</span><span class="v">${pct(fg.left)}</span><span class="sub"><span class="minibar" style="--c:${fg.left > .3 ? 'var(--lichen)' : 'var(--minus)'}"><i style="width:${fg.left * 100}%"></i></span>
+        ${fg.res.length ? `<span class="res">${fg.res.map(([i, n]) => `<span><img class="ico" src="img/ui/${i}.png" alt="">${n}</span>`).join('')}</span>` : '<span class="muted" style="font-size:14px">Recovers over a few days</span>'}</span></div>
+      <div class="pf"><img class="ico" src="img/ui/inspect.png" alt=""><span>Hidden finds searched</span><span class="v">${pct(fg.searched)}</span></div>
+    </div>` : ''}
+    <div class="sec"><div class="sec-h"><span class="label">Signs</span></div>
+      ${p.game ? `<div class="pf"><img class="ico" src="img/ui/beasts.png" alt=""><span>${p.game}</span><span></span></div>` : ''}
+      ${p.tracks.map(t => `<div class="trk"><img class="ico" src="img/${t.icon}.png" alt=""><span>${t.what} <span class="muted">· ${t.traffic}</span></span><span class="age">${t.age}</span></div>`).join('') || '<span class="muted" style="font-size:16px">No tracks</span>'}
+      <div class="pf"><img class="ico" src="img/ui/water.png" alt=""><span>${p.water}</span><span></span></div>
+    </div>
+    <div class="sec"><div class="sec-h"><span class="label">Exits</span><span class="aside">pick one to see the trip</span></div><div class="exits">${exits}</div></div>`;
+}
+
+// ----- people
+function renderPeople() {
+  head('npc/female_1', 'People', '');
+  const seen = atCamp() || visible(CAMP.x, CAMP.y), ph = campFireTruth().phase;
+  $('sideBody').innerHTML = `
+    <div class="person"><img src="img/npc/female_1.png" alt=""><span>Anu<small>${seen ? `${ph === 'Out' ? 'Trying to start the fire' : 'Resting by the fire'} · camp` : `At camp when you left · ${ago(S.now - S.seenCamp.at)}`}</small></span></div>
+    <div class="sec"><div class="sec-h"><span class="label">Needs</span>${seen ? '' : '<span class="stale">as you last saw her</span>'}</div>
+      <div class="kv"><img class="ico" src="img/ui/temperature.png" alt=""><span>Warmth</span><span class="v">98.4°F</span></div>
+      <div class="kv"><img class="ico" src="img/ui/food.png" alt=""><span>Food</span><span class="v">61%</span></div>
+      <div class="kv"><img class="ico" src="img/ui/water.png" alt=""><span>Water</span><span class="v">52%</span></div>
+      <div class="kv minus"><img class="ico" src="img/ui/clothing.png" alt=""><span>No gloves</span><span class="v">cold hands</span></div>
+    </div>
+    <div class="sec"><div class="sec-h"><span class="label">Toward you</span><span class="aside">warming</span></div>
+      <span class="minibar" style="--c:var(--lichen)"><i style="width:62%"></i></span>
+      <div class="kv plus"><img class="ico" src="img/ui/food.png" alt=""><span>You shared food</span><span class="v">Day 1</span></div>
+      <div class="kv plus"><img class="ico" src="img/ui/fire.png" alt=""><span>You kept the fire going</span><span class="v">Day 2</span></div>
+    </div>`;
+}
+
+// ----- pack
+function renderPack() {
+  const l = carryKg(), i = S.inv;
+  head('ui/backpack', 'Pack', `<span class="cost num">${l.toFixed(1)} / 15 kg</span>`);
+  const row = (icon, name, n, kg, tipL) => `<div class="it" ${tipL ? tipAttr(name, tipL) : ''}><img class="ico" src="img/ui/${icon}.png" alt=""><span>${name}</span><span class="n">${n}</span><span class="kg">${kg}</span></div>`;
+  $('sideBody').innerHTML = `
+    <div class="capacity"><div class="sec-h"><span class="label">Carrying</span><span class="aside">${l > 12 ? 'heavy: slower' : 'light enough'}</span></div><span class="bar"><i style="width:${l / 15 * 100}%"></i></span></div>
+    <div class="sec"><div class="sec-h"><span class="label">Fuel</span></div><div class="bag">
+      ${row('sticks', 'Sticks', `×${i.sticks}`, `${(i.sticks * .3).toFixed(1)} kg`, ['Kindling', 'Catches at any heat'])}
+      ${row('fuel', 'Pine log', `×${i.pine}`, `${(i.pine * 1.2).toFixed(1)} kg`, ['Hot and fast', 'Needs 500°F to catch'])}
+      ${row('fuel', 'Birch log', `×${i.birchlog}`, `${(i.birchlog * 1.5).toFixed(1)} kg`, ['Steady burn', 'Needs 550°F to catch'])}
+      ${row('tinder', 'Birch bark', `×${i.birch}`, `${(i.birch * .05).toFixed(2)} kg`, ['Tinder', 'g:+20% to start a fire'])}
+      ${row('roots', 'Dry grass', `×${i.grass}`, `${(i.grass * .03).toFixed(2)} kg`, ['Tinder', 'g:+10% to start a fire'])}</div></div>
+    <div class="sec"><div class="sec-h"><span class="label">Food & water</span></div><div class="bag">
+      ${row('meat', 'Raw meat', `${i.meat.toFixed(1)} kg`, `${(i.meat * 1500).toFixed(0)} kcal`, ['Raw meat', 'b:Risk of illness raw', 'm:Cook it, or dry it on the fire'])}
+      ${row('water', 'Water', `${i.water.toFixed(1)} L`, `${i.water.toFixed(1)} kg`, ['Water', 'm:Freezes in the skin overnight unless kept warm'])}</div></div>
+    <div class="sec"><div class="sec-h"><span class="label">Materials & medicine</span></div><div class="bag">
+      ${row('materials', 'Stone', `×${i.stone}`, `${(i.stone * .4).toFixed(1)} kg`)}
+      ${row('rope', 'Plant fiber', `×${i.fiber}`, `${(i.fiber * .05).toFixed(2)} kg`)}
+      ${row('medicine', 'Usnea', `×${i.usnea}`, `${(i.usnea * .03).toFixed(2)} kg`, ['Usnea', 'g:Dresses wounds, slows infection'])}</div></div>
+    <div class="sec"><div class="sec-h"><span class="label">Tools</span></div><div class="bag">
+      ${S.tools.map(t => `<div class="it" ${tipAttr(t.name, [`Condition ${pct(t.cond)}`, 'm:Wears with use'])}><img class="ico" src="img/ui/${t.icon}.png" alt=""><span>${t.name}</span><span class="n">${pct(t.cond)}</span><span class="minibar" style="--c:${t.cond < .5 ? 'var(--minus)' : 'var(--lichen)'}"><i style="width:${t.cond * 100}%"></i></span></div>`).join('')}</div></div>`;
+}
+
+// ----- journal
+function renderLog() {
+  head('ui/journal', 'Journal', '');
+  let html = '', day = null;
+  for (const e of [...S.log].sort((a, b) => b.t - a.t)) {
+    const d = Math.floor(e.t / DAY) + 1;
+    if (d !== day) { html += `<div class="day">Day ${d}</div>`; day = d; }
+    html += `<div class="e ${e.cls || ''}"><span class="t">${fmt(e.t)}</span><img class="ico" src="img/${e.icon}.png" alt="" style="margin-top:2px"><span>${e.text}</span></div>`;
+  }
+  $('sideBody').innerHTML = `<div class="log">${html}</div>`;
+}
+
+// ----- fire: the odds, then the gauntlet
+const TOOLS = { drill: { name: 'Hand drill', pct: 35, have: true }, bow: { name: 'Bow drill', pct: 50, have: false } };
+const TINDERS = { birch: { name: 'Birch bark', pct: 20, icon: 'tinder' }, grass: { name: 'Dry grass', pct: 10, icon: 'roots' } };
+function fireFactors() {
+  const f = [], shiver = effects().find(e => e.name === 'Shivering')?.sev || 0, hr = (S.now % DAY) / 60;
+  f.push({ k: 'base', icon: 'ui/fire', name: TOOLS[S.tool].name, v: TOOLS[S.tool].pct });
+  f.push({ k: 'plus', icon: `ui/${TINDERS[S.tinder].icon}`, name: TINDERS[S.tinder].name, v: TINDERS[S.tinder].pct });
+  f.push({ k: 'plus', icon: 'ui/fire', name: `Firecraft ${roman(S.skills.Firecraft.lv)}`, v: S.skills.Firecraft.lv * 4 });
+  if (shiver) f.push({ k: 'minus', icon: 'ui/temperature', name: 'Shivering', v: -shiver * 5 });
+  f.push({ k: 'minus', icon: 'ui/bandage', name: 'Frostnip', why: 'left hand', v: -3 });
+  if (S.damp > .2) f.push({ k: 'minus', icon: 'ui/water', name: 'Damp hands', v: -4 });
+  if (!atCamp()) f.push({ k: 'minus', icon: 'ui/wind', name: 'Gusting wind', why: 'no shelter', v: -6 });
+  if (hr > 17 || hr < 7.5) f.push({ k: 'minus', icon: 'ui/moon', name: 'Dark', v: -8 });
+  return f;
+}
+const total = f => Math.max(5, Math.min(95, f.reduce((a, b) => a + b.v, 0)));
+function renderFireStart() {
+  const f = fireFactors(), tot = total(f), tr = S.fireTry;
+  let acc = 0;
+  const pos = f.filter(x => x.v > 0).map(x => { const s = `<span class="seg ${x.k}" style="left:${acc}%;width:${x.v}%"></span>`; acc += x.v; return s; }).join('');
+  const neg = f.filter(x => x.v < 0).map(x => { acc += x.v; return `<span class="seg minus" style="left:${acc}%;width:${-x.v}%"></span>`; }).join('');
+  head('fire', 'Start a fire', cost('10 min'));
+  $('sideBody').innerHTML = `
+    <div class="sec"><span class="label">Fire-starter</span><div class="chips">
+      ${Object.entries(TOOLS).map(([k, t]) => `<button class="chip" data-tool="${k}" aria-pressed="${S.tool === k}" ${t.have ? '' : 'disabled title="Not carried"'}><img class="ico" src="img/ui/fire.png" alt="">${t.name} <small>${t.pct}%</small></button>`).join('')}
+    </div></div>
+    <div class="sec"><span class="label">Tinder</span><div class="chips">
+      ${Object.entries(TINDERS).map(([k, t]) => `<button class="chip" data-tinder="${k}" aria-pressed="${S.tinder === k}" ${S.inv[k] ? '' : 'disabled'}><img class="ico" src="img/ui/${t.icon}.png" alt="">${t.name} <small>×${S.inv[k]}</small></button>`).join('')}
+    </div></div>
+    <div class="odds">
+      <div class="odds-top"><span class="label">Your odds</span><span class="odds-total">${tot}<small>%</small></span></div>
+      <div class="oddsbar" role="img" aria-label="${tot} percent">${pos}${neg}</div>
+      <div class="factors">${f.map(x => `<div class="factor ${x.k}"><img class="ico" src="img/${x.icon}.png" alt=""><span>${x.name}${x.why ? `<span class="why">${x.why}</span>` : ''}</span><span class="v">${x.v > 0 && x.k !== 'base' ? '+' : x.v < 0 ? '−' : ''}${Math.abs(x.v)}</span></div>`).join('')}</div>
+    </div>
+    <div class="run">
+      <div class="runbar ${tr.result === 'fail' ? 'fail' : tr.result === 'ok' ? 'ok' : ''}" id="runbar"><span class="fill" id="runfill" style="width:${tr.result ? tr.stop * 100 : 0}%"></span><span class="ticks10"></span>${tr.result === 'fail' ? `<span class="stop" style="left:calc(${tr.stop * 100}% - 2px)"></span>` : ''}</div>
+      <div class="runmeta"><span id="runtext">${tr.result === 'fail' ? `Failed at ${Math.round(tr.stop * 100)}%` : tr.result === 'ok' ? 'It caught.' : `Uses 1 ${TINDERS[S.tinder].name.toLowerCase()} · kindling kept on a fail`}</span>
+        <span class="history">${tr.hist.slice(-8).map(h => `<span class="${h ? 's' : 'f'}">${h ? '✓' : '✕'}</span>`).join('')}</span></div>
+    </div>
+    <div class="row"><button class="act" id="attempt" ${S.inv[S.tinder] && !tr.running ? '' : 'disabled'}>${tr.result === 'fail' ? 'Try again' : 'Strike'} <span class="key">F</span></button></div>
+    ${skillRow('Firecraft', tr.fresh || 0, tr.up)}`;
+}
+function attemptFire() {
+  const tr = S.fireTry; if (tr.running || !S.inv[S.tinder]) return;
+  const chance = total(fireFactors()) / 100, ok = Math.random() < chance;
+  const stop = ok ? 1 : .12 + .85 * Math.sqrt(Math.random());   // failures lean late: near misses happen
+  S.inv[S.tinder]--; tr.running = true; tr.result = null; tr.stop = 0; tr.fresh = 0; tr.up = false;
+  renderFireStart(); renderDock();
+  const fill = $('runfill'), text = $('runtext'), t0 = performance.now(), ms = 2600;
+  (function tick(nw) {
+    const p = Math.min(stop, (nw - t0) / ms); fill.style.width = `${p * 100}%`;
+    text.textContent = p < .3 ? 'Drilling…' : p < .6 ? 'Smoke…' : p < .9 ? 'An ember…' : 'Blowing it up…';
+    if (p < stop) return requestAnimationFrame(tick);
+    tr.running = false; tr.result = ok ? 'ok' : 'fail'; tr.stop = stop; tr.hist.push(ok);
+    advance(Math.round(10 * stop));
+    const xp = ok ? 3 : 1; tr.up = gainXp('Firecraft', xp); tr.fresh = tr.up ? 0 : xp;
+    logIt(ok ? 'ui/fire' : 'embers', ok ? `Fire started (${Math.round(chance * 100)}%)` : `Fire failed at ${Math.round(stop * 100)}% (${Math.round(chance * 100)}%)`, ok ? '' : 'bad');
+    if (ok) {
+      if (atCamp()) S.campFire.override = S.now + 150; else S.localFire = { x: S.player.x, y: S.player.y, until: S.now + 90 };
+      setTimeout(() => { S.fireTry.result = null; render(); }, 1400);
+    }
+    render(); if (!ok) $('runbar')?.classList.add('shake');
+  })(t0);
+}
+
+// ----- fire: tending and the workbench
+function benchHtml() {
+  return `<div class="bench">${S.jobs.map(j => {
+    const p = Math.min(1, (S.now - j.start) / j.mins), done = p >= 1, circ = 2 * Math.PI * 14;
+    return `<div class="job ${done && !j.collected ? 'done' : ''}"><span class="ring"><svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="none" stroke="#2d231b" stroke-width="4"/><circle cx="17" cy="17" r="14" fill="none" stroke="${done ? '#ffc93c' : '#f5811f'}" stroke-width="4" stroke-dasharray="${circ * p} ${circ}"/></svg><img class="ico" src="img/${j.icon}.png" alt=""></span>
+      <span>${j.name}<small>${j.collected ? 'Collected' : done ? `${j.out} ready` : `${j.out} at ${fmt(j.start + j.mins)}`}</small></span><span class="state">${j.collected ? '✓' : done ? 'Ready' : dur(j.start + j.mins - S.now)}</span></div>`; }).join('')}</div>`;
+}
+function renderTend() {
+  const here = atCamp(), truth = here ? campFireTruth() : { phase: 'Steady', until: S.localFire.until };
+  const left = truth.until ? truth.until - S.now : 0, [b, u] = here ? campFuel() : [1.2, 0];
+  head('fire', here ? 'Camp fire' : 'Your fire', '');
+  const fuels = [['sticks', 'sticks', 'Sticks', 25], ['pine', 'fuel', 'Pine log', 70], ['birchlog', 'fuel', 'Birch log', 95]];
+  $('sideBody').innerHTML = `
+    <div class="firestate"><div class="pit"><img src="img/${phaseSprite(truth.phase) || 'embers'}.png" alt=""></div>
+      <div><div class="phase">${truth.phase}</div><div class="note">Burns until ${fmt(truth.until)} · ${dur(left)}</div></div></div>
+    ${fuelBar(b, u, here ? 12 : 6)}
+    <div class="sec"><span class="label">Add fuel</span><div class="fuelrow">
+      ${fuels.map(([k, ic, nm, add]) => `<button class="fuel" data-fuel="${k}" data-add="${add}" ${S.inv[k] ? '' : 'disabled'}><img class="ico x2" src="img/ui/${ic}.png" alt="">${nm}<small>×${S.inv[k]} · +${add}m</small></button>`).join('')}
+    </div><button class="act quiet" id="buildup">Build it up <span class="key">U</span></button></div>
+    ${here ? `<div class="sec"><span class="label">On the fire</span>${benchHtml()}<p class="note">Finished things wait for you. You collect them when you come back.</p></div>` : ''}`;
+}
+
+// ----- forage: the trickle
+const LOOT = {
+  fuel: [['Sticks', 'sticks', .55], ['Tinder', 'tinder', .3], ['Birch bark', 'tinder', .15]],
+  food: [['Roots', 'roots', .6], ['Frozen berries', 'food', .4]],
+  medicine: [['Usnea', 'medicine', .6], ['Pine resin', 'medicine', .4]],
+  materials: [['Stone', 'materials', .7], ['Bone', 'bone', .3]],
+};
+const RARE = [['Frozen ptarmigan', 'meat'], ['Flint nodule', 'materials'], ['Chaga', 'medicine']];
+const FOCI = [['fuel', 'sticks', 'Fuel'], ['food', 'food', 'Food'], ['medicine', 'medicine', 'Medicine'], ['materials', 'materials', 'Materials']];
+function renderForage() {
+  const f = S.forage, here = atCamp(), items = Object.entries(f.found);
+  head('ui/foraging', `Forage · ${here ? 'Forest Camp' : 'Birch Stand'}`, cost(dur(f.mins)));
+  $('sideBody').innerHTML = `
+    <div class="sec"><span class="label">Look for</span><div class="chips">${FOCI.map(([k, ic, nm]) => `<button class="chip" data-focus="${k}" aria-pressed="${f.focus === k}" ${f.running ? 'disabled' : ''}><img class="ico" src="img/ui/${ic}.png" alt="">${nm}</button>`).join('')}</div></div>
+    <div class="sec"><span class="label">How long</span><div class="chips">${[15, 30, 60, 120].map(m => `<button class="chip" data-mins="${m}" aria-pressed="${f.mins === m}" ${f.running ? 'disabled' : ''}>${dur(m)}</button>`).join('')}</div></div>
+    <div class="run">
+      <div class="runbar"><span class="fill" id="ffill" style="width:${f.done ? 100 : 0}%"></span><span class="ticks10"></span></div>
+      <div class="runmeta"><span class="mood ${f.mood || 'wait'}" id="fmood">${f.mood === 'good' ? 'Good ground' : f.mood === 'thin' ? 'Thin pickings' : here ? 'Picked over lately' : 'Untouched'}</span><span class="num" id="fkg">${f.done || f.running ? `${kg().toFixed(2)} kg` : ''}</span></div>
+    </div>
+    <div class="found" id="found">${items.length || f.rare ? '' : `<span class="empty">${f.done ? 'Nothing. It happens.' : 'Finds appear here as you search.'}</span>`}
+      ${f.rare ? `<div class="item rare"><img class="ico" src="img/ui/${f.rare[1]}.png" alt="">${f.rare[0]}<span class="n">rare find</span></div>` : ''}
+      ${items.map(([nm, d]) => `<div class="item" data-item="${nm}"><img class="ico" src="img/ui/${d.icon}.png" alt="">${nm}<span class="n">×${d.n}</span></div>`).join('')}</div>
+    <div class="row"><button class="act" id="goforage" ${f.running ? 'disabled' : ''}>${f.done ? 'Again' : 'Search'} <span class="key">${f.done ? 'R' : 'G'}</span></button></div>
+    ${skillRow('Foraging', f.fresh || 0, f.up)}`;
+}
+const kg = () => Object.values(S.forage.found).reduce((a, d) => a + d.n * d.kg, 0) + (S.forage.rare ? .4 : 0);
+function runForage() {
+  const f = S.forage; if (f.running) return;
+  Object.assign(f, { running: true, done: false, found: {}, rare: null, mood: null, fresh: 0, up: false });
+  renderForage(); renderDock();
+  const k = key(S.player), rolls = f.mins, ms = Math.min(6000, 1800 + f.mins * 45), t0 = performance.now();
+  const base = atCamp() ? .05 : .13 * (1 - (S.picked[k] ?? .1) * .5), moodGood = Math.random() < .55;
+  let done = 0;
+  (function tick(nw) {
+    const due = Math.min(rolls, Math.floor((nw - t0) / ms * rolls));
+    for (; done < due; done++) {
+      advance(1);
+      S.searched[k] = Math.min(1, (S.searched[k] ?? 0) + .004);
+      if (!f.mood && done > rolls * .12 && done > 4) { f.mood = moodGood ? 'good' : 'thin'; const m = $('fmood'); if (m) { m.className = `mood ${f.mood}`; m.textContent = f.mood === 'good' ? 'Good ground' : 'Thin pickings'; } }
+      const p = base * (f.mood === 'good' ? 1.5 : f.mood === 'thin' ? .55 : 1);
+      if (Math.random() < p) {
+        const pool = LOOT[f.focus]; let r = Math.random(), pick = pool[0]; for (const it of pool) { if ((r -= it[2]) <= 0) { pick = it; break; } }
+        const d = f.found[pick[0]] || (f.found[pick[0]] = { n: 0, icon: pick[1], kg: pick[1] === 'sticks' ? .3 : pick[1] === 'materials' ? .4 : .06 });
+        d.n++; S.picked[k] = Math.min(.95, (S.picked[k] ?? .1) + .01); paintFound(pick[0]);
+      }
+      if (!f.rare && Math.random() < (atCamp() ? .002 : .006)) { f.rare = RARE[Math.floor(Math.random() * RARE.length)]; paintFound(null); }
+    }
+    const fill = $('ffill'); if (fill) fill.style.width = `${done / rolls * 100}%`;
+    const kk = $('fkg'); if (kk) kk.textContent = `${kg().toFixed(2)} kg`;
+    renderTop(); renderStatus();
+    if (done < rolls) return requestAnimationFrame(tick);
+    f.running = false; f.done = true; const xp = Object.keys(f.found).length + (f.rare ? 2 : 0) + 1; f.up = gainXp('Foraging', xp); f.fresh = f.up ? 0 : xp;
+    const got = Object.entries(f.found).map(([n, d]) => `${d.n} ${n.toLowerCase()}`);
+    if (f.found['Sticks']) S.inv.sticks += f.found['Sticks'].n; if (f.found['Tinder']) S.inv.grass += f.found['Tinder'].n; if (f.found['Birch bark']) S.inv.birch += f.found['Birch bark'].n;
+    if (f.found['Stone']) S.inv.stone += f.found['Stone'].n; if (f.found['Usnea']) S.inv.usnea += f.found['Usnea'].n;
+    logIt('ui/foraging', `${NAMES[k] || 'Foraged'}: ${got.length ? got.join(', ') : 'nothing'}`);
+    if (f.rare) logIt(`ui/${f.rare[1]}`, `Found ${f.rare[0].toLowerCase()}`, 'rare');
+    render();
+  })(t0);
+}
+function paintFound(name) {
+  const box = $('found'); if (!box) return; const f = S.forage;
+  box.querySelector('.empty')?.remove();
+  if (!name) { const el = document.createElement('div'); el.className = 'item rare'; el.innerHTML = `<img class="ico" src="img/ui/${f.rare[1]}.png" alt="">${f.rare[0]}<span class="n">rare find</span>`; box.prepend(el); return; }
+  let el = box.querySelector(`[data-item="${name}"]`); const d = f.found[name];
+  if (!el) { el = document.createElement('div'); el.className = 'item'; el.dataset.item = name; box.append(el); }
+  el.innerHTML = `<img class="ico" src="img/ui/${d.icon}.png" alt="">${name}<span class="n">×${d.n}</span>`;
+  el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+}
+
+// ----- the night: a bet on how you lay the fire
+const LAYS = {
+  embers: { name: 'Bank to embers', hours: 9, warmth: 'Cold but steady', keeps: false, fuel: 'sticks', cost: 3 },
+  log: { name: 'One big log', hours: 6.2, warmth: 'Warm till late', keeps: false, fuel: 'birchlog', cost: 1 },
+  high: { name: 'Pile it high', hours: 3.5, warmth: 'Hot, short', keeps: true, fuel: 'pine', cost: 2 },
+};
+function renderSleep() {
+  head('ui/moon', 'Sleep', cost('8 hours'));
+  $('sideBody').innerHTML = `
+    <div class="sec"><span class="label">Lay the fire</span><div class="lay">${Object.entries(LAYS).map(([k, l]) => {
+      const have = S.inv[l.fuel] >= l.cost;
+      return `<button class="layopt" data-lay="${k}" aria-pressed="${S.lay === k}" ${have ? '' : 'disabled'}><span class="nm">${l.name}</span><span class="lasts">${l.hours >= 8 ? 'lasts till you wake' : `out by ~${fmt(S.now + l.hours * 60)}`}</span>
+        <span class="nightbar"><i style="width:${Math.min(1, l.hours / 8) * 100}%"></i></span>
+        <span class="tags"><span class="${l.hours >= 6 ? 'g' : 'b'}">${l.warmth}</span><span class="${l.keeps ? 'g' : 'b'}">${l.keeps ? 'Keeps animals off' : 'Animals may come'}</span><span>${l.cost} × ${l.fuel === 'birchlog' ? 'birch log' : l.fuel}</span></span></button>`; }).join('')}</div></div>
+    <div class="sec"><span class="label">Watch</span><div class="chips"><button class="chip" aria-pressed="true"><img class="ico" src="img/npc/female_1.png" alt="">Anu sleeps near the fire</button></div>
+      <p class="note">Anu wakes when the fire gets low, about half the time.</p></div>
+    <div class="row"><button class="act" id="dosleep">Sleep until ${fmt(S.now + 480)} <span class="key">Z</span></button></div>`;
+}
+function doSleep() {
+  const l = LAYS[S.lay]; if (S.inv[l.fuel] < l.cost) return; S.inv[l.fuel] -= l.cost;
+  const start = S.now, wake = start + 480, lines = [];
+  const outAt = start + Math.round(l.hours * 60 * (.85 + Math.random() * .3));
+  const anu = Math.random() < .5 && outAt < wake;
+  let finalOut = outAt;
+  lines.push({ t: start + 5, icon: 'fire', text: `Laid the fire · ${l.name.toLowerCase()}`, cls: 'good' });
+  if (outAt < wake) {
+    if (anu) { const ft = outAt - 15; lines.push({ t: ft, icon: 'npc/female_1', text: 'Anu fed the fire', amt: '+2 kg pine', cls: 'good' }); finalOut = Math.min(wake + 120, ft + 240); }
+    else lines.push({ t: outAt, icon: 'embers', text: 'Fire went out', cls: 'bad' });
+  }
+  const wolf = !l.keeps && finalOut < wake && Math.random() < .7;
+  if (wolf) { lines.push({ t: Math.max(finalOut, start) + 40, icon: 'tracks/paw', text: 'Something circled the camp', cls: 'bad' }); S.pawsKnown = true; }
+  if (finalOut < wake - 60) lines.push({ t: finalOut + 60, icon: 'ui/temperature', text: 'Cold woke you', cls: 'bad' });
+  else lines.push({ t: wake - 1, icon: 'ui/temperature', text: 'Slept warm', cls: 'good' });
+  if (Math.random() < .25) lines.push({ t: start + 200, icon: 'animals/caribou', text: 'Caribou passed below the camp', cls: 'rare' });
+  S.sleeping = true; const coldMins = Math.max(0, wake - finalOut);
+  advance(480); S.sleeping = false; S.vit.warmth = Math.max(8, S.vit.warmth - coldMins * .08);
+  S.campFire.override = finalOut; S.campLog = []; S.seenCamp = { at: S.now, phase: campFireTruth().phase };
+  lines.sort((a, b) => a.t - b.t);
+  lines.forEach(x => S.log.push({ t: x.t, icon: x.icon, text: x.text, cls: x.cls === 'good' ? '' : x.cls }));
+  S.panel = null; render();
+  receipt('Morning', start, wake, lines, []);
+}
+
+// ---------------------------------------------------------------- walking and the receipt
+function walkTo(dest) {
+  if (S.walking) return; S.panel = null; S.walking = true; render();
+  const home = dest.x === CAMP.x && dest.y === CAMP.y, leaving = atCamp();
+  const path = []; let { x, y } = S.player;
+  while (x !== dest.x || y !== dest.y) { if (x !== dest.x && !(y !== dest.y && Math.random() < .35)) x += Math.sign(dest.x - x); else y += Math.sign(dest.y - y); path.push({ x, y }); }
+  const lastSeen = S.seenCamp.at;
+  if (leaving) logIt('ui/follow', `Left camp`);
+  let i = 0, from = { ...S.player };
+  function step() {
+    if (i >= path.length) { S.walking = false; if (home && !leaving) arrive(lastSeen); else if (NAMES[key(S.player)]) logIt('ui/location', `Reached ${NAMES[key(S.player)]}`); render(); return; }
+    const to = path[i], t0 = performance.now();
+    (function anim(nw) {
+      const p = Math.min(1, (nw - t0) / 260); S.drawPos = { x: from.x + (to.x - from.x) * p, y: from.y + (to.y - from.y) * p };
+      exploreAround();
+      if (p < 1) return requestAnimationFrame(anim);
+      S.player = { ...to }; from = { ...to }; advance(Math.min(6, STEP_MIN[terrain[to.y][to.x]] || 3)); renderTop(); renderStatus(); i++; step();
+    })(t0);
+  }
+  step();
+}
+function arrive(since) {
+  const lines = S.campLog.filter(e => e.t > since && e.t <= S.now).map(e => ({ ...e }));
+  if (S.campLog.some(e => e.kind === 'tracks' && e.t <= S.now)) S.pawsKnown = true;
+  const got = [];
+  for (const j of S.jobs) if (!j.collected && S.now >= j.start + j.mins) { j.collected = true; got.push({ icon: j.icon, text: j.out }); lines.push({ t: j.start + j.mins, icon: j.icon, text: `${j.name.replace('Melting', 'Melted').replace('Drying', 'Dried')} · ready`, cls: 'good' }); if (j.id === 'water') S.inv.water += 1.2; }
+  for (const j of S.jobs) if (!j.collected && S.now < j.start + j.mins) lines.push({ t: S.now, icon: j.icon, text: `${j.name} · ready at ${fmt(j.start + j.mins)}`, cls: '', pending: true });
+  lines.sort((a, b) => a.t - b.t);
+  S.campFire.override = fireOut();
+  S.campLog = S.campLog.filter(e => e.t > S.now);
+  S.seenCamp = { at: S.now, phase: campFireTruth().phase };
+  lines.filter(l => !l.pending).forEach(l => S.log.push({ t: l.t, icon: l.icon, text: l.text, cls: l.cls === 'good' ? '' : l.cls }));
+  logIt('shelter', 'Back at camp');
+  receipt('While you were away', since, S.now, lines, got);
+}
+function receipt(title, from, to, lines, got) {
+  const veil = $('veil');
+  veil.innerHTML = `<div class="plate receipt" role="dialog" aria-label="${title}">
+    <header><h3>${title}</h3><span class="span"><img class="ico" src="img/ui/clock.png" alt=""><span class="num">${fmt(from)} → ${fmt(to)}</span><span>· ${dur(to - from)}</span></span></header>
+    <div class="lines">${lines.length ? lines.map(l => `<div class="line ${l.cls}"><span class="t">${l.pending ? '…' : fmt(l.t)}</span><img class="who" src="img/${l.icon}.png" alt=""><span>${l.text}</span><span class="amt">${l.amt || ''}</span></div>`).join('') : '<div class="line"><span></span><span></span><span class="muted">Nothing changed.</span><span></span></div>'}</div>
+    ${got.length ? `<div class="collected"><span class="label">Collected</span><div class="chips">${got.map(g => `<span class="chip" style="cursor:default"><img class="ico" src="img/${g.icon}.png" alt="">${g.text}</span>`).join('')}</div></div>` : ''}
+    <footer><button class="act" id="cont">Continue <span class="key">Space</span></button></footer></div>`;
+  veil.hidden = false; $('cont').focus();
+}
+function closeReceipt() { $('veil').hidden = true; render(); }
+$('veil').addEventListener('click', e => { if (e.target.closest('#cont')) closeReceipt(); });
+
+// ---------------------------------------------------------------- toast
+let toastT;
+function toast(icon, text) { const t = $('toast'); t.innerHTML = `<img class="ico" src="img/${icon}.png" alt="">${text}`; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+const wasReady = new Set();
+function watchJobs() {
+  for (const j of S.jobs) { const ready = S.now >= j.start + j.mins && !j.collected;
+    if (ready && !wasReady.has(j.id) && atCamp()) { toast(j.icon, `${j.out} ready`); logIt(j.icon, `${j.out} ready`); }
+    if (ready) wasReady.add(j.id); }
+}
+
+// ---------------------------------------------------------------- router
+function render() {
+  renderTop(); renderStatus(); renderDock(); watchJobs();
+  const p = S.panel;
+  $('drawer').hidden = !p;
+  if (!p) return;
+  if (p === 'fire') (fireHere() && !S.fireTry.result ? renderTend : renderFireStart)();
+  else if (p === 'forage') renderForage();
+  else if (p === 'sleep' && atCamp()) renderSleep();
+  else if (p === 'body') renderBody();
+  else if (p === 'place') renderPlace();
+  else if (p === 'pack') renderPack();
+  else if (p === 'log') renderLog();
+  else if (p === 'people') renderPeople();
+  else { S.panel = null; $('drawer').hidden = true; }
+}
+$('drawer').addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t || t.disabled) return;
+  if (t.dataset.close !== undefined) { S.panel = null; render(); }
+  else if (t.dataset.tool) { S.tool = t.dataset.tool; render(); }
+  else if (t.dataset.tinder) { S.tinder = t.dataset.tinder; S.fireTry.result = null; render(); }
+  else if (t.id === 'attempt') attemptFire();
+  else if (t.dataset.focus) { S.forage.focus = t.dataset.focus; render(); }
+  else if (t.dataset.mins) { S.forage.mins = +t.dataset.mins; render(); }
+  else if (t.id === 'goforage') runForage();
+  else if (t.dataset.fuel) addFuel(t.dataset.fuel, +t.dataset.add);
+  else if (t.id === 'buildup') buildUp();
+  else if (t.dataset.lay) { S.lay = t.dataset.lay; render(); }
+  else if (t.id === 'dosleep') doSleep();
+  else if (t.dataset.exit) { const [x, y] = t.dataset.exit.split(',').map(Number); S.sel = { x, y }; render(); }
+  else if (t.dataset.go) { const [x, y] = t.dataset.go.split(',').map(Number); walkTo({ x, y }); }
+});
+function addFuel(k, add) {
+  if (!S.inv[k]) return; S.inv[k]--;
+  if (atCamp()) S.campFire.override = Math.max(S.now, fireOut()) + add; else S.localFire.until += add;
+  advance(1); render();
+}
+function buildUp() { if (S.inv.sticks >= 2) { S.inv.sticks -= 2; addFuel('pine', 70); } else if (S.inv.pine) addFuel('pine', 70); }
+
+addEventListener('keydown', e => {
+  if (!$('veil').hidden) { if (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); closeReceipt(); } return; }
+  const k = e.key.toLowerCase();
+  if (k === 'escape') { S.panel = null; render(); return; }
+  if (busy()) return;
+  if (k === 'enter' && S.panel === 'place') { const go = $('sideBody').querySelector('[data-go]:last-of-type'); if (go) go.click(); return; }
+  const sheet = { b: 'body', i: 'pack', j: 'log', p: 'people', x: 'place' }[k];
+  if (sheet) return openSheet(sheet);
+  if (k === 'f') { const a = $('attempt'); if (S.panel === 'fire' && a && !a.disabled) attemptFire(); else doVerb('fire'); }
+  else if (k === 'g') { if (S.panel === 'forage') runForage(); else doVerb('forage'); }
+  else if (k === 'r' && S.panel === 'forage') runForage();
+  else if (k === 'u' && $('buildup')) buildUp();
+  else if (k === 'z' && atCamp()) { if (S.panel === 'sleep') doSleep(); else doVerb('sleep'); }
+  else if (k === 'c' && !atCamp()) doVerb('go-camp');
+  else if (k === 't' && atCamp()) doVerb('go-birch');
+});
+
+// ---------------------------------------------------------------- boot
+(async () => {
+  await Promise.all(Object.entries(SRC).map(async ([k, list]) => { IMG[k] = (await Promise.all(list.map(load))).filter(Boolean); }));
+  await Promise.all(SPRITES.map(async s => { IMG[s] = await load(`img/${s}.png`); }));
+  resize(); render(); requestAnimationFrame(frame);
+  // Local screenshot hook (?shot=name): drives the page into one state so it can be checked headless.
+  const shot = new URLSearchParams(location.search).get('shot');
+  if (shot === 'fire') doVerb('fire');
+  if (shot === 'fail') { doVerb('fire'); const r = Math.random; Math.random = () => .99; attemptFire(); Math.random = r; }
+  if (shot === 'forage') { doVerb('forage'); runForage(); }
+  if (shot === 'camp') walkTo(CAMP);
+  if (shot === 'tend') { S.player = { ...CAMP }; S.drawPos = { ...CAMP }; exploreAround(); arrive(S.seenCamp.at); closeReceipt(); doVerb('fire'); }
+  if (shot === 'sleep') { S.player = { ...CAMP }; S.drawPos = { ...CAMP }; exploreAround(); arrive(S.seenCamp.at); closeReceipt(); doVerb('sleep'); }
+  if (shot === 'failed') { doVerb('fire'); Object.assign(S.fireTry, { hist: [false, false], result: 'fail', stop: .87, fresh: 1 }); S.inv.birch -= 2; render(); }
+  if (shot === 'foraged') { doVerb('forage'); Object.assign(S.forage, { done: true, mood: 'good', found: { Sticks: { n: 7, icon: 'sticks', kg: .3 }, Tinder: { n: 3, icon: 'tinder', kg: .06 }, 'Birch bark': { n: 2, icon: 'tinder', kg: .06 } }, rare: ['Frozen ptarmigan', 'meat'], fresh: 4 }); render(); }
+  if (shot === 'receipt') { S.now += 16; S.player = { ...CAMP }; S.drawPos = { ...CAMP }; exploreAround(); render(); arrive(T(1, 10, 50)); }
+  if (shot === 'pack') { S.panel = 'pack'; render(); }
+  if (shot === 'body') { S.panel = 'body'; render(); }
+  if (shot === 'people') { S.panel = 'people'; render(); }
+  if (shot === 'here') { S.sel = { ...S.player }; S.panel = 'place'; render(); }
+  if (shot === 'travel') { S.sel = { x: 17, y: 10 }; terrain[10][17] = 'rock'; S.panel = 'place'; render(); }
+  if (shot === 'far') { S.sel = { ...CAMP }; S.panel = 'place'; render(); }  if (shot === 'log') { S.panel = 'log'; render(); }
+})();
+})();
+</script>
