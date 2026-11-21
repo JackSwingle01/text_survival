@@ -27,6 +27,9 @@ public sealed record Outcome(OutcomeKind Kind, IReadOnlyList<Effect> Effects, do
     /// Failure-like weights are made rarer by skill and likelier by clumsy hands: a failure, an injury
     /// or a broken tool (§3.7). The rest are success bonuses, made likelier by skill.
     public bool FailureLike => Kind == OutcomeKind.Fail || Effects.Any(e => e is Injury or BreakTool);
+
+    /// The outcome as the player reads it: "Fails: the stone is wasted" (Names.Outcome).
+    public string Words => Names.Outcome(this);
 }
 
 /// The outcome syntax: `succeed|fail[:effect:params...]=<base odds>`. Effects stack; `|` in any
@@ -246,7 +249,7 @@ public static class Making
     {
         foreach (var m in r.Materials)
             if (m.AnyOf.Sum(x => Items.Have(pack, x)) < m.Kg - 1e-9)
-                return $"you need {m.Kg:0.##} kg of {string.Join(" or ", m.AnyOf.Select(Words))}";
+                return $"you need {m.Kg:0.##} kg of {string.Join(" or ", m.AnyOf.Select(x => Names.Of(x)))}";
         foreach (var (kind, n) in r.Items.GroupBy(k => k).Select(g => (g.Key, g.Count())))
             if (pack.Gear.Count(g => g.Kind == kind) < n) return $"you need a {Items.GearKinds[kind].Name.ToLowerInvariant()}";
         return null;
@@ -258,7 +261,7 @@ public static class Making
     {
         var consumed = begun ? [] : ItemsToConsume(pack, r);
         foreach (var cap in r.Tools)
-            if (!pack.Gear.Any(g => !consumed.Contains(g) && Gives(g, cap))) return $"you need something for {Words(cap.ToString())}";
+            if (!pack.Gear.Any(g => !consumed.Contains(g) && Gives(g, cap))) return $"you need something for {Names.Of(cap)}";
         return null;
     }
 
@@ -326,7 +329,7 @@ public static class Making
             ? Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 - SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, 1 + (1 - dexterityPct)),
                 OddsTerm.Scale("Dazed", dazed ? 1.2 : 1))
             : Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 + SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, dexterityPct));
-        var table = r.Outcomes.Select(o => new OutcomeOdds(o, new Survival.Odds(o.Text, o.BasePct, Terms(o)))).ToList();
+        var table = r.Outcomes.Select(o => new OutcomeOdds(o, new Survival.Odds("Base odds", o.BasePct, Terms(o)))).ToList();
         double sum = table.Sum(t => t.Odds.TotalPct);
         if (sum > 1)
             table = [.. table.Select(t => t with { Odds = t.Odds with { Terms = [.. t.Odds.Terms, OddsTerm.Scale("Capped", 1 / sum)] } })];
@@ -542,8 +545,4 @@ public static class Making
         return "died";
     }
 
-    /// "PlantFiber" as "plant fiber".
-    static string Words(Resource r) => Words(r.ToString());
-    static string Words(string name) =>
-        string.Concat(name.Select((ch, i) => i > 0 && char.IsUpper(ch) ? " " + char.ToLowerInvariant(ch) : char.ToLowerInvariant(ch).ToString()));
 }

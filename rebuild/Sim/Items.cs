@@ -289,7 +289,7 @@ public static class Items
     }
 
     public static string Describe(Inventory inv) =>
-        string.Join(", ", inv.Kg.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key} {kv.Value:0.##}kg")
+        string.Join(", ", inv.Kg.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key} {kv.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}kg")
             .Concat(inv.Gear.Select(g => Def(g).Name)));
 
     /// The old starting kit (GameContext.CreateNewGame): worn furs and boots. New items each call.

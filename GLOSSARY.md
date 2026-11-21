@@ -80,6 +80,12 @@ success or failure, plus any effects (wasted or saved material, an extra product
 tool). One outcome is rolled per finished piece of work; whatever odds are left are the plain result.
 _Avoid_: roll, event
 
+**Step outcome**:
+How one step of an activity ended: finished (it did what it set out to, or ran its minutes), refused
+(it could not start, and no time passed), or interrupted (something cut it short), with the reason in
+the system's words. Not an Outcome, which is how a piece of making turns out.
+_Avoid_: result, status
+
 **Project**:
 Work on a recipe that is not finished yet, keeping its progress: on the tile for something placed, as
 an unfinished item in the pack for something carried.

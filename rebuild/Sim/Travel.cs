@@ -97,10 +97,13 @@ public static class Traversal
         if (to == Map.Of(world).Exit && agent.Mind is PersonMind)
         {
             events.Add(new CrossedThePass(world.Minute, agent.Id, to));
-            return "crossed the pass";
+            return CrossedThePassReason;
         }
-        return "arrived";
+        return Arrived;
     }
+
+    /// The crossing's own ends: on the far tile, or on the far side of the pass.
+    public const string Arrived = "arrived", CrossedThePassReason = "crossed the pass";
 
     // ---- cost ----
 
@@ -165,15 +168,21 @@ public static class Traversal
 
     /// The injury risk as its terms, for the trip preview: the ground's hazard, the weather, bad legs;
     /// at most MaxInjuryRiskPct. Ground below HazardousLevel carries no risk at all (a zero base).
-    public static Odds InjuryOdds(World world, TileId tile, BodyState body, WeatherSample sky)
+    public static Odds InjuryOdds(World world, TileId tile, BodyState body, WeatherSample sky) =>
+        InjuryOdds(EffectiveHazardLevel(world, tile), body, sky);
+
+    /// A careful pace: no injury roll at all.
+    public static readonly Odds NoRisk = new("Careful", 0, []);
+
+    /// The same, from the tile's effective hazard however it was read (observed, or looked at: Trip.Risk).
+    internal static Odds InjuryOdds(double baseRisk, BodyState body, WeatherSample sky)
     {
-        double baseRisk = EffectiveHazardLevel(world, tile);
         if (baseRisk < HazardousLevel) return new Odds("Safe ground", 0, []);
         // Labelled by what earned it: a storm, light snow, or (whatever the sky is called) heavy precipitation.
-        var (weatherWhy, weather) = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? (sky.Condition.ToString(), 0.25)
-            : sky.Condition == WeatherCondition.LightSnow ? (sky.Condition.ToString(), 0.15)
-            : sky.PrecipitationPct > 0.3 ? (sky.Precipitation == Precipitation.None ? "Precipitation" : $"Heavy {sky.Precipitation.ToString().ToLowerInvariant()}", 0.15)
-            : (sky.Condition.ToString(), 0.0);
+        var (weatherWhy, weather) = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? (Names.Title(sky.Condition), 0.25)
+            : sky.Condition == WeatherCondition.LightSnow ? (Names.Title(sky.Condition), 0.15)
+            : sky.PrecipitationPct > 0.3 ? (sky.Precipitation == Precipitation.None ? "Precipitation" : $"Heavy {Names.Of(sky.Precipitation)}", 0.15)
+            : (Names.Title(sky.Condition), 0.0);
         double impaired = (1 - Body.GetCapacities(body).Moving) * 0.3;
         return new Odds("Hazardous ground", baseRisk, Odds.Moving(
             OddsTerm.Add(weatherWhy, weather),

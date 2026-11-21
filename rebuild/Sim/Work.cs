@@ -27,11 +27,15 @@ public static class Work
     /// One use of the axe per hour of chopping (old: one per session, and its sessions ran 30-120 minutes).
     public const double ChopMinutesPerAxeUse = 60;
 
-    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or Stash or Unstash or Wear;
+    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or Stash or Unstash or Wear or TakeOff;
 
     // ---- light and ability ----
 
     public const string TooDark = "too dark to work";
+
+    /// Work's own ends: the meal eaten, the drink drunk, the meat cooked, the snow melted, the tree
+    /// down, the carcass cut up.
+    public const string Ate = "ate", Drank = "drank", CookedReason = "cooked", Melted = "melted", TreeFelled = "tree felled", ButcheredReason = "butchered";
 
     /// Old WorkRunner.CheckDarknessBlocking: night (old TimeOfDay.Night) or a cave, with no flame or torch.
     public static bool TooDarkToWork(World world, Agent agent)
@@ -107,7 +111,7 @@ public static class Work
                     ShelterFind f => $"the {f.Name} is shelter, not something to gather",
                     StockPool s when !Pools.HasStock(world, id) => $"the {s.Name} is picked clean",
                     // old game: the player's harvest never checked the tool a harvestable required; only NPCs did (bug, fixed).
-                    StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => $"you need a {t}",
+                    StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => $"you need {Names.A(Names.Of(t))}",
                     _ => null,
                 };
             }
@@ -118,7 +122,7 @@ public static class Work
                 if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Carcass, agent.Tile, c.Id)) is string barred) return barred;
                 if (Carcasses.IsButchered(c)) return "there's nothing left to butcher";
                 if (b.Mode is ButcherMode asked && c.Mode is ButcherMode started && asked != started)
-                    return $"this carcass is being butchered {started}, not {asked}";
+                    return $"this carcass is being butchered {Names.Of(started)}, not {Names.Of(asked)}";
                 bool blade = Items.HasCuttingTool(pack);
                 if (Carcasses.AllCut(c, blade) && c.Pending.Count == 0) return NeedsABlade;
                 if (Carcasses.AllCut(c, blade) && Items.CarriedKg(agent) >= Items.CapacityKg(pack)) return PackFull;
@@ -126,16 +130,16 @@ public static class Work
             }
             case Eat e:
                 if (e.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), e.Kg, "Eat a positive amount");
-                if (Items.Resources[e.Food].Category != ResourceCategory.Food) return $"{e.Food} is not food";
-                return Items.Have(pack, e.Food) > 0 ? null : $"no {e.Food} to eat";
+                if (Items.Resources[e.Food].Category != ResourceCategory.Food) return $"{Names.Cap(Names.Of(e.Food))} is not food";
+                return Items.Have(pack, e.Food) > 0 ? null : $"no {Names.Of(e.Food)} to eat";
             case Drink d:
                 if (d.Liters <= 0) throw new ArgumentOutOfRangeException(nameof(activity), d.Liters, "Drink a positive amount");
                 if (Items.Have(pack, Resource.Water) <= 0 && !HasOpenWater(world, agent.Tile)) return "no water here";
                 return (Body.MaxHydrationMl - agent.Body.HydrationMl) / 1000 < 0.01 ? "not thirsty" : null;
             case Cook c:
                 if (c.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), c.Kg, "Cook a positive amount");
-                if (Cooked(c.Raw) == null) return $"{c.Raw} is not something to cook";
-                if (Items.Have(pack, c.Raw) <= 0) return $"no {c.Raw} to cook";
+                if (Cooked(c.Raw) == null) return $"{Names.Cap(Names.Of(c.Raw))} is not something to cook";
+                if (Items.Have(pack, c.Raw) <= 0) return $"no {Names.Of(c.Raw)} to cook";
                 return HasCookingFire(world, agent.Tile) ? null : "no fire to cook on";
             case MeltSnow:
                 return HasCookingFire(world, agent.Tile) ? null : "no fire to melt snow on";
@@ -143,17 +147,19 @@ public static class Work
                 if (s.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), s.Kg, "Stash a positive amount");
                 // Putting down, on a stash already here or the first thing that makes one: one gate.
                 if (Access.PutDownRefusal(world, agent.Id, agent.Tile) is string stashBarred) return stashBarred;
-                return Items.Have(pack, s.Resource) > 0 ? null : $"no {s.Resource} to stash";
+                return Items.Have(pack, s.Resource) > 0 ? null : $"no {Names.Of(s.Resource)} to put down";
             case Unstash u:
                 if (u.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), u.Kg, "Take a positive amount");
                 var stash = world.Tiles.GetValueOrDefault(agent.Tile)?.Stash;
-                if (stash == null || Items.Have(stash, u.Resource) <= 0) return $"no {u.Resource} stashed here";
+                if (stash == null || Items.Have(stash, u.Resource) <= 0) return $"no {Names.Of(u.Resource)} stashed here";
                 if (Access.Refusal(world, agent.Id, Things.StashAt(world, agent.Tile)!.Value) is string unstashBarred) return unstashBarred;
                 return Items.CarriedKg(agent) >= Items.CapacityKg(pack) ? "your pack is full" : null;
             case Wear w:
                 var gear = pack.Gear.FirstOrDefault(x => x.Kind == w.Gear);
-                if (gear == null) return $"no {w.Gear} in your pack";
-                return Items.Def(gear).Slot == null ? $"{Items.Def(gear).Name} is not worn" : null;
+                if (gear == null) return $"no {(Items.GearKinds.ContainsKey(w.Gear) ? Names.GearWords(w.Gear) : w.Gear)} in your pack";
+                return Items.Def(gear).Slot == null ? $"{Items.Def(gear).Name} is not something to wear" : null;
+            case TakeOff t:
+                return agent.Body.Worn.Any(x => x.Kind == t.Gear) ? null : $"you are not wearing {Names.GearWords(t.Gear)}";
             default:
                 throw new NotSupportedException($"{activity.GetType().Name} is not work");
         }
@@ -240,6 +246,13 @@ public static class Work
                 body.Worn.Add(gear);
                 return new WorkSession { Activity = activity };
             }
+            case TakeOff t:
+            {
+                var off = body.Worn.First(x => x.Kind == t.Gear);
+                body.Worn.Remove(off);
+                pack.Gear.Add(off);
+                return new WorkSession { Activity = activity };
+            }
             case Cook or MeltSnow:
                 return new WorkSession { Activity = activity };
             default:
@@ -289,7 +302,7 @@ public static class Work
                         if (Pools.Chop(world, id, effective, world.Rng("work", agent.Id)) is not { } tree) return null;
                         Keep(world, agent, s, tree, events);
                         events.Add(new TreeFelled(world.Minute, agent.Id, id));
-                        return "tree felled";
+                        return TreeFelled;
                     case StockPool stock:
                         Keep(world, agent, s, Pools.WorkStock(world, id, effective), events);
                         return Pools.HasStock(world, id) ? null : $"the {stock.Name} is picked clean";
@@ -298,9 +311,9 @@ public static class Work
                 }
             }
             case Eat:
-                return s.Minutes >= s.TargetMinutes ? "ate" : null;
+                return s.Minutes >= s.TargetMinutes ? Ate : null;
             case Drink:
-                return s.Minutes >= s.TargetMinutes ? "drank" : null;
+                return s.Minutes >= s.TargetMinutes ? Drank : null;
             case Cook c:
             {
                 if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
@@ -312,7 +325,7 @@ public static class Work
                 Items.Add(pack, Cooked(c.Raw)!.Value, kg);
                 s.DoneKg += kg;
                 Skills.Award(world, agent, Skill.Cooking, kg * Skills.CookXpPerKg, events);
-                return s.DoneKg >= c.Kg - 1e-9 || Items.Have(pack, c.Raw) <= 0 ? "cooked" : null;
+                return s.DoneKg >= c.Kg - 1e-9 || Items.Have(pack, c.Raw) <= 0 ? CookedReason : null;
             }
             case MeltSnow:
                 if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
@@ -321,8 +334,8 @@ public static class Work
                 var water = new Inventory();
                 Items.Add(water, Resource.Water, MeltSnowLiters);
                 Keep(world, agent, s, water, events);
-                return "melted";
-            case Stash or Unstash or Wear:
+                return Melted;
+            case Stash or Unstash or Wear or TakeOff:
                 return null; // done on the first minute; the agent waits out the rest
             default:
                 throw new NotSupportedException($"{s.Activity.GetType().Name} is not work");
@@ -383,7 +396,7 @@ public static class Work
         if (c.Pending.Count > 0) return PackFull; // all cut; what the pack could not take waits on the carcass
         if (!Carcasses.AllCut(c)) return NeedsABlade; // the tusks and the great hide wait on it for someone with one
         Carcasses.Remove(world, agent.Tile, c);
-        return "butchered";
+        return ButcheredReason;
     }
 
     public const string PackFull = "your pack is full";

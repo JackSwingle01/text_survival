@@ -37,28 +37,31 @@ sealed class ViewBuilder(World world, int gen)
         var here = Survival.Verbs.At(world, AgentId.Player);
         var tiers = Tiers.Of(world, AgentId.Player);
         var sky = Weather.At(world, world.Minute);
-        var exposure = Exposure.At(world, p.Tile, Cover.Open(AgentId.Player));
+        // What the player feels doing what they are doing, sheltered as it keeps them (Sim.Feels); idle, waiting.
+        var feeling = Sim.Feels(world, AgentId.Player, job is { Finished: false } ? job.Activity : new Wait(AgentId.Player));
+        var exposure = feeling.Exposure;
 
         var things = here.Things.Select(t =>
         {
             var menu = t.Menu.Select(Dto).ToList();
             string? action = t.Action is { } a ? menu[IndexIn(t.Menu, a)].Id : null;
-            return new ThingDto(Words.Of(t.Thing.Kind), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
+            return new ThingDto(t.Thing.Kind.ToString().ToLowerInvariant(), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
         }).ToList();
         var walk = here.Walk.Select(Dto).ToList();
         var tile = here.Tile.Select(Dto).ToList();
+        var carried = here.Pack.Select(Dto).ToList();
         var make = here.Make.Select(Dto).ToList();
 
         return new ViewDto(
             Gen: gen,
             Minute: world.Minute,
             Clock: Clock(sky),
-            Feels: Feels(exposure),
+            Feels: new FeelsDto(Math.Round(feeling.FeltF, 1), [.. feeling.Terms.Select(t => new FeelsTermDto(t.Factor, Math.Round(t.DeltaF, 1)))]),
             Vitals: Vitals(body, tiers, exposure),
             Alerts: Alerts(body, tiers, sky),
             Place: Place(),
             Fire: FireHere(),
-            Things: things, Walk: walk, Tile: tile, Make: make,
+            Things: things, Walk: walk, Tile: tile, PackVerbs: carried, Make: make,
             Pack: Pack(),
             Body: BodyOf(body),
             Map: MapOf(),
@@ -86,14 +89,14 @@ sealed class ViewBuilder(World world, int gen)
         var travel = v.Activity as Travel;
         return new VerbDto(id, v.Label, KindOf(v.Activity), minutes, v.Refused,
             Odds: v.Odds is { } o ? OddsOf(o) : null,
-            Trip: v.Trip is { } trip && travel != null ? TripOf(trip, travel) : null,
+            Trip: v.Trip is { } trip && travel != null ? TripOf(trip, travel, v.Risk) : null,
             Make: v.Activity is Make mk ? MakeOf(mk, v.Outcomes) : null,
             Dir: travel?.Dir.ToString().ToLowerInvariant(),
             Careful: travel?.Pace == Pace.Careful,
             Uses: v.Activity switch
             {
-                StartFire f => [$"{Words.Kg(f.TinderKg)} {Words.Of(f.Tinder)}", .. f.KindlingKg > 0 ? new[] { $"{Words.Kg(f.KindlingKg)} kindling" } : [], Words.Of(f.Tool)],
-                AddFuel f => [$"{Words.Kg(f.Kg)} {Words.Of(f.Fuel)}"],
+                StartFire f => [Names.Kg(f.TinderKg, f.Tinder), .. f.KindlingKg > 0 ? new[] { Names.Kg(f.KindlingKg, Resource.Kindling) } : [], Names.Of(f.Tool)],
+                AddFuel f => [Names.Kg(f.Kg, f.Fuel)],
                 _ => null,
             });
     }
@@ -103,30 +106,28 @@ sealed class ViewBuilder(World world, int gen)
     {
         Wait => "wait", Rest => "rest", Sleep => "sleep", StartFire => "fire", AddFuel => "fuel", LightTorch => "torch",
         GatherCharcoal => "charcoal", Gather => "gather", Butcher => "butcher", Eat => "eat", Drink => "drink", Cook => "cook",
-        MeltSnow => "melt", Stash => "stash", Unstash => "take", Wear => "wear", Fight => "fight", Travel => "walk",
+        MeltSnow => "melt", Stash => "stash", Unstash => "take", Wear => "wear", TakeOff => "takeoff", Fight => "fight", Travel => "walk",
         Survival.Build => "build", ImproveShelter => "improve", PackTent => "pack", Make => "make", Abandon => "abandon",
         _ => "other",
     };
 
-    /// baseName: what to call the starting odds when Sim's name for them is a key, not words (an outcome line).
-    static OddsDto OddsOf(Odds o, string? baseName = null)
+    /// Sim's odds names their base and factors in the player's words (Names): passed on as they are.
+    static OddsDto OddsOf(Odds o)
     {
         var deltas = o.Contributions;
-        return new OddsDto(baseName ?? Factor(o.Base), o.BasePct,
-            [.. o.Terms.Select((t, i) => new OddsTermDto(Factor(t.Factor), t.Op == OddsOp.Add ? "add" : "scale", t.Value, deltas[i].DeltaPct))],
+        return new OddsDto(o.Base, o.BasePct,
+            [.. o.Terms.Select((t, i) => new OddsTermDto(t.Factor, t.Op == OddsOp.Add ? "add" : "scale", t.Value, deltas[i].DeltaPct))],
             o.RawPct, o.TotalPct, o.Capped);
     }
 
-    /// A factor named by a game key ("HandDrill", "BirchBark") in words; one already in words is kept.
-    static string Factor(string name) => name.Contains(' ') || name.Contains('(') ? name : Words.Cap(Words.Of(name));
-
-    TripDto TripOf(TripTime t, Travel go)
+    TripDto TripOf(TripTime t, Travel go, CrossingRisk? risk)
     {
         var to = Map.Step(_player.Tile, go.Dir);
         bool known = Explored(to);
         return new TripDto(t.TotalMinutes, [.. t.Terms.Where(x => x.Minutes != 0).Select(x => new TripTermDto(x.Factor, x.Minutes))],
             Trip.IsHazardousNow(world, _player.Tile) || Trip.IsHazardousNow(world, to),
-            known ? Map.Describe(M, to) : "unexplored ground", known);
+            known ? Map.Describe(M, to) : "unexplored ground", known,
+            risk is { AnyPct: > 0 } r ? new RiskDto(r.AnyPct, OddsOf(r.Leaving), OddsOf(r.Entering)) : null);
     }
 
     MakeDto MakeOf(Make mk, MakeOdds? odds)
@@ -134,30 +135,14 @@ sealed class ViewBuilder(World world, int gen)
         var r = Recipes.Get(mk.Recipe);
         var pack = Items.PackOf(_player);
         double? progress = pack != null && Making.ProjectFor(pack, r.Id) is { } project ? project.MinutesDone / r.Minutes : null;
-        var materials = r.Materials.Select(m => $"{Words.Kg(m.Kg)} {string.Join(" or ", m.AnyOf.Select(x => Words.Of(x)))}")
-            .Concat(r.Items.Select(i => Words.Lower(Items.GearKinds[i].Name))).ToList();
-        string result = r.Result.Gear is { } g ? Items.GearKinds[g].Name : $"{Words.Kg(r.Result.Kg)} {Words.Of(r.Result.Resource!.Value)}";
-        return new MakeDto(r.Id, r.Name, Words.Of(r.Category), r.Minutes, materials,
-            [.. r.Tools.Select(t => Words.Of(t))], [.. r.Requires.Select(q => Words.Of(q))], result,
+        var materials = r.Materials.Select(m => $"{Names.Kg(m.Kg)} {string.Join(" or ", m.AnyOf.Select(x => Names.Of(x)))}")
+            .Concat(r.Items.Select(Names.GearWords)).ToList();
+        string result = r.Result.Gear is { } g ? Names.Gear(g) : Names.Kg(r.Result.Kg, r.Result.Resource!.Value);
+        return new MakeDto(r.Id, r.Name, Names.Of(r.Category), r.Minutes, materials,
+            [.. r.Tools.Select(t => Names.Of(t))], [.. r.Requires.Select(q => Names.Of(q))], result,
             odds?.PlainPct ?? 1,
-            odds == null ? [] : [.. odds.Outcomes.Select(o => new MakeOutcomeDto(OutcomeText(o.Outcome), o.Outcome.Kind == OutcomeKind.Succeed, o.Outcome.FailureLike, OddsOf(o.Odds, "Base odds")))],
+            odds == null ? [] : [.. odds.Outcomes.Select(o => new MakeOutcomeDto(o.Outcome.Words, o.Outcome.Kind == OutcomeKind.Succeed, o.Outcome.FailureLike, OddsOf(o.Odds)))],
             progress);
-    }
-
-    /// An outcome in words: "Fails: the stone is wasted", "Done, but you cut your left arm".
-    static string OutcomeText(Outcome o)
-    {
-        var parts = o.Effects.Select(e => e switch
-        {
-            WasteMaterial w => w.SharePct >= 1 ? $"the {Words.Of(w.Input)} is wasted" : $"{w.SharePct:P0} of the {Words.Of(w.Input)} is wasted",
-            SaveMaterial s => $"{s.SharePct:P0} of the {Words.Of(s.Input)} is left over",
-            ExtraProduct x => Items.GearKinds.TryGetValue(x.What, out var g) ? $"an extra {Words.Lower(g.Name)}" : $"{x.Amount} kg more {Words.Of(x.What)}",
-            Injury j => $"you cut your {Words.Of(j.Target)}",
-            BreakTool b => b.Uses is int n ? $"the {Words.Of(b.Capability)} tool loses {n} uses" : $"the {Words.Of(b.Capability)} tool breaks",
-            _ => throw new NotSupportedException(e.GetType().Name),
-        }).ToList();
-        string head = o.Kind == OutcomeKind.Fail ? "Fails" : "Done";
-        return parts.Count == 0 ? head : o.Kind == OutcomeKind.Fail ? $"{head}: {string.Join(", ", parts)}" : $"{head}, but {string.Join(", ", parts)}";
     }
 
     // ---- the always-on layer ----
@@ -166,21 +151,9 @@ sealed class ViewBuilder(World world, int gen)
     {
         int mod = Weather.MinuteOfDay(world.Minute);
         int rise = Weather.SunriseHour(world.Minute) * 60, set = Weather.SunsetHour(world.Minute) * 60;
-        return new ClockDto(Weather.DayNumber(world.Minute), mod, Weather.SeasonAt(world.Minute).ToString(), Words.Cap(Words.Of(sky.Condition)),
-            Math.Round(sky.TemperatureF, 1), Math.Round(sky.WindMph, 1), Words.Of(sky.WindDirection), rise, set,
+        return new ClockDto(Weather.DayNumber(world.Minute), mod, Names.Title(Weather.SeasonAt(world.Minute)), Names.Title(sky.Condition),
+            Math.Round(sky.TemperatureF, 1), Math.Round(sky.WindMph, 1), Names.Of(sky.WindDirection), rise, set,
             mod >= rise && mod < set ? set - mod : 0);
-    }
-
-    /// The air on the player, standing in the open here: the sky's air (with the place's own cold),
-    /// then wind, sun and snow together, then the fire's warmth (its air and its radiant heat), then a torch.
-    static FeelsDto Feels(Exposure e)
-    {
-        var terms = new List<FeelsTermDto> { new("Air", Math.Round(e.SurfaceAirF, 1)) };
-        void Add(string name, double f) { if (Math.Abs(f) >= 0.5) terms.Add(new(name, Math.Round(f, 1))); }
-        Add(e.WindLevel > 0.02 ? "Wind and sky" : "Sky", e.AirBeforeFireF - e.SurfaceAirF);
-        Add("Fire", e.Warmth.AirHeatF + e.Warmth.PitHeatF);
-        Add("Torch", e.Warmth.TorchHeatF);
-        return new FeelsDto(Math.Round(terms.Sum(t => t.DeltaF), 1), terms);
     }
 
     static VitalDto[] Vitals(BodyState b, StatTiers tiers, Exposure e)
@@ -224,7 +197,7 @@ sealed class ViewBuilder(World world, int gen)
             if (id != AgentId.Player && Fauna.IsPredator(s.Species) && world.Minute - s.Minute <= NearbyMinutes
                 && Math.Abs(s.Tile.X - _player.Tile.X) + Math.Abs(s.Tile.Y - _player.Tile.Y) <= NearbyTiles)
             {
-                list.Add(new("predator-" + id.Value, $"{Words.Cap(Words.Of(s.Species))} nearby", "danger", 75, Words.SpeciesIcon(s.Species),
+                list.Add(new("predator-" + id.Value, $"{Names.Title(s.Species)} nearby", "danger", 75, Words.SpeciesIcon(s.Species),
                     [$"{s.Count} seen {Ago(world.Minute - s.Minute)}", "A fire keeps it off"]));
                 break; // one chip for the nearest threat is enough
             }
@@ -237,7 +210,7 @@ sealed class ViewBuilder(World world, int gen)
     PlaceDto Place()
     {
         var t = _player.Tile;
-        return new PlaceDto(Map.Describe(M, t), Words.Cap(Words.Of(M.TerrainAt(t))), t.X, t.Y, t == M.Camp, Map.IsDark(M, t), Map.DiscoveryText(world, t));
+        return new PlaceDto(Map.Describe(M, t), Names.Title(M.TerrainAt(t)), t.X, t.Y, t == M.Camp, Map.IsDark(M, t), Map.DiscoveryText(world, t));
     }
 
     FireDto? FireHere()
@@ -245,15 +218,15 @@ sealed class ViewBuilder(World world, int gen)
         if (Fire.PitAt(world, _player.Tile) is not FireId id) return null;
         var f = world.Fires[id];
         var phase = Fire.Phase(f);
-        return new FireDto(Words.Cap(Words.Of(phase)), Fire.Burns(phase), Math.Round(Fire.FuelHours(f), 2), Math.Round(Fire.TemperatureF(f)), Math.Round(f.CharcoalKg, 2));
+        return new FireDto(Names.Title(phase), Fire.Burns(phase), Math.Round(Fire.FuelHours(f), 2), Math.Round(Fire.TemperatureF(f)), Math.Round(f.CharcoalKg, 2));
     }
 
     PackDto Pack()
     {
         var pack = Items.PackOf(_player) ?? new Inventory();
-        GearDto G(Gear g) => new(g.Kind, Items.Def(g).Name, Items.ConditionPct(g), Items.Def(g).Slot?.ToString());
+        GearDto G(Gear g) => new(g.Kind, Items.Def(g).Name, Items.ConditionPct(g), Items.Def(g).Slot is EquipSlot slot ? Names.Title(slot) : null);
         return new PackDto(Math.Round(Items.CarriedKg(_player), 2), Items.CapacityKg(pack),
-            [.. pack.Kg.Where(x => x.Value > 0.001).Select(x => new StackDto(x.Key.ToString(), Words.Cap(Words.Of(x.Key)), Math.Round(x.Value, 2)))],
+            [.. pack.Kg.Where(x => x.Value > 0.001).Select(x => new StackDto(x.Key.ToString(), Names.Title(x.Key), Math.Round(x.Value, 2)))],
             [.. pack.Gear.Select(G)], [.. _player.Body.Worn.Select(G)],
             [.. (pack.Projects ?? []).Select(p => new ProjectDto(p.Recipe, Recipes.Get(p.Recipe).Name, Math.Clamp(p.MinutesDone / Recipes.Get(p.Recipe).Minutes, 0, 1)))]);
     }
@@ -261,13 +234,14 @@ sealed class ViewBuilder(World world, int gen)
     BodyDto BodyOf(BodyState b)
     {
         var caps = Body.GetCapacities(b);
-        var all = new (string, double)[] { ("Moving", caps.Moving), ("Manipulation", caps.Manipulation), ("Breathing", caps.Breathing),
-            ("Blood pumping", caps.BloodPumping), ("Consciousness", caps.Consciousness), ("Sight", caps.Sight), ("Hearing", caps.Hearing) };
+        var all = new (string, double)[] { (Names.Title(Capacity.Moving), caps.Moving), (Names.Title(Capacity.Manipulation), caps.Manipulation),
+            (Names.Title(Capacity.Breathing), caps.Breathing), (Names.Title(Capacity.BloodPumping), caps.BloodPumping),
+            (Names.Title(Capacity.Consciousness), caps.Consciousness), (Names.Title(Capacity.Sight), caps.Sight), (Names.Title(Capacity.Hearing), caps.Hearing) };
         var skills = (_player.Mind as PersonMind)?.Skills ?? [];
         return new BodyDto(Math.Round(b.CoreTempF, 1), b.BloodPct, Math.Round(b.CaloriesKcal), Math.Round(b.HydrationMl), b.EnergyPct,
-            [.. b.Effects.Where(e => e.Severity > 0.01).Select(e => new EffectDto(Words.Cap(Words.Of(e.Kind)), Math.Round(e.Severity, 2)))],
+            [.. b.Effects.Where(e => e.Severity > 0.01).Select(e => new EffectDto(Names.Title(e.Kind), Math.Round(e.Severity, 2)))],
             [.. all.Where(c => c.Item2 < 0.995).Select(c => new CapacityDto(c.Item1, Math.Round(c.Item2, 3)))],
-            [.. skills.Where(s => s.Value.Level > 0).Select(s => new SkillDto(s.Key.ToString(), s.Value.Level))],
+            [.. skills.Where(s => s.Value.Level > 0).Select(s => new SkillDto(Names.Title(s.Key), s.Value.Level))],
             Math.Round(b.ClothingClo, 2));
     }
 
@@ -287,9 +261,7 @@ sealed class ViewBuilder(World world, int gen)
                 known.Append(!Explored(t) ? UnknownCode
                     : m.CaveAt(t) == Cave.Floor ? CaveFloorCode : m.CaveAt(t) == Cave.Entrance ? CaveMouthCode : TerrainCodes[(int)m.TerrainAt(t)]);
             }
-        var sight = Body.GetCapacities(_player.Body).Sight;
-        var visible = Sight.Visible(world, _player.Tile, sight);
-        var visibleSet = visible.ToHashSet();
+        var visible = Sight.InView(world, _player); // the view the player's looks already cast
 
         var places = new List<PlaceMarkDto>();
         foreach (var (t, mem) in beliefs.Places)
@@ -298,7 +270,7 @@ sealed class ViewBuilder(World world, int gen)
             if (!notable) continue;
             // The fuel was reckoned beside the fire; age it from then. A fire seen burning since keeps that reckoning.
             double? hoursLeft = mem.FireHours is double h && mem.VisitedMinute is long v ? Math.Max(0, Math.Round(h - (world.Minute - v) / 60.0, 1)) : null;
-            places.Add(new PlaceMarkDto(t.X, t.Y, mem.SeenMinute, mem.Fire is { } f ? Words.Cap(Words.Of(f)) : null, hoursLeft, mem.Shelter,
+            places.Add(new PlaceMarkDto(t.X, t.Y, mem.SeenMinute, mem.Fire is { } f ? Names.Title(f) : null, hoursLeft, mem.Shelter,
                 mem.Carcasses is { Count: > 0 }, mem.Stash is { Count: > 0 }, mem.Danger.HasFlag(Danger.Den), mem.Danger.HasFlag(Danger.Hurt)));
         }
         var sightings = beliefs.Sightings.Where(s => s.Key != AgentId.Player)
@@ -308,26 +280,25 @@ sealed class ViewBuilder(World world, int gen)
         foreach (var t in visible)
             if (Math.Abs(t.X - _player.Tile.X) <= TrackReadTiles && Math.Abs(t.Y - _player.Tile.Y) <= TrackReadTiles)
                 foreach (var s in Tracks.Read(world, t))
-                    tracks.Add(new TrackDto(t.X, t.Y, Words.Of(s.Maker), Reading(s), s.AgeMinutes));
+                    tracks.Add(new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes));
 
         var named = new List<NamedDto>();
         foreach (var (t, site) in m.Sites) if (Explored(t)) named.Add(new NamedDto(t.X, t.Y, site.Name));
         foreach (var (t, i) in m.PassStageIndex) if (Explored(t)) named.Add(new NamedDto(t.X, t.Y, Map.PassStages[i].Name));
         named.Add(new NamedDto(m.Camp.X, m.Camp.Y, Map.Describe(m, m.Camp)));
 
-        return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
-            places, sightings, tracks, named);
-    }
-
-    public static string Reading(TrackSign s) =>
-        (s.Pattern switch
+        var surface = new List<SurfaceDto>();
+        foreach (var t in visible)
         {
-            TrafficPattern.Heading => $"heading {Words.Of(s.Heading)}",
-            TrafficPattern.NorthSouth => "north-south traffic",
-            TrafficPattern.EastWest => "east-west traffic",
-            TrafficPattern.Mixed => "mixed traffic",
-            _ => throw new ArgumentOutOfRangeException(nameof(s), s.Pattern, null),
-        }) + (s.FreshnessPct > 0.8 ? ", fresh" : s.FreshnessPct < 0.3 ? ", old" : "");
+            if (!m.TerrainAt(t).IsPassable()) continue;
+            var g = Ground.SurfaceNow(world, t);
+            double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
+            if (snowCm > 0 || waterCm > 0 || mud > 0) surface.Add(new SurfaceDto(t.Y * m.Width + t.X, snowCm, g.Crusted, mud, waterCm, g.Iced));
+        }
+        surface.Sort((a, b) => a.I.CompareTo(b.I));
+        return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
+            places, sightings, tracks, named, surface);
+    }
 
     public static string TrackIcon(TrackMaker m) => m switch
     {
@@ -397,7 +368,7 @@ sealed class ViewBuilder(World world, int gen)
             double rate = Making.WorkPerMinute(world, _player, pack, r);
             if (rate > 0) total = job.Done + (int)Math.Ceiling((r.Minutes - project.MinutesDone) / rate);
         }
-        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Reason, job.From.X, job.From.Y, job.Dir?.ToString().ToLowerInvariant());
+        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Outcome, job.Reason, job.From.X, job.From.Y, job.Dir?.ToString().ToLowerInvariant());
     }
 
     static string Ago(long minutes) => minutes < 60 ? $"{minutes} min ago" : $"{minutes / 60} h ago";

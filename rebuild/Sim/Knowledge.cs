@@ -113,6 +113,10 @@ public static class Sight
     /// The farthest anyone can see: open ground from the best vantage, on a clear day.
     public const int MaxTiles = OpenGroundTiles + MaxVantageBonusTiles;
 
+    /// Every tile in view of this person now (Visible's order), from the view their looks keep: cast
+    /// again only when their tile, eyes or the sky's visibility change.
+    public static IReadOnlyList<TileId> InView(World world, Agent agent) => ViewOf(world, agent).Tiles;
+
     /// Whether the tile is in view of this person now.
     public static bool InSight(World world, Agent agent, TileId tile) => ViewOf(world, agent).Set.Contains(tile);
 

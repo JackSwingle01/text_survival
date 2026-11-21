@@ -328,7 +328,8 @@ public class MapTests
         // The valley's herds are real state (their bodies and land); everything else must be tiny.
         var bare = Save.FromJson(json);
         foreach (var id in bare.Agents.Keys.Where(id => id != AgentId.Player).ToList()) bare.Agents.Remove(id);
-        Assert.True(Save.ToJson(bare).Length < 10_000, $"Save is {Save.ToJson(bare).Length} bytes without its herds: generated terrain leaked into it?");
+        // The player's first look is in it (World.New): what they have explored and the places noted, about 13 kB.
+        Assert.True(Save.ToJson(bare).Length < 20_000, $"Save is {Save.ToJson(bare).Length} bytes without its herds: generated terrain leaked into it?");
         Assert.DoesNotContain("Mountain", json);
         Assert.Contains("\"Tiles\":{}", json);
 

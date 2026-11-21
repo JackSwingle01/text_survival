@@ -89,7 +89,7 @@ public class OddsTests
 
         var plain = Fire.StartOdds(ToolType.BowDrill, Resource.Amadou);
         Assert.False(plain.Capped);
-        Assert.Equal(("BowDrill", 0.5), (plain.Base, plain.BasePct));
+        Assert.Equal(("Bow drill", 0.5), (plain.Base, plain.BasePct)); // the player's words (names.json), not the code key
         Assert.Equal(0.5 + 0.20, plain.TotalPct, 12);
     }
 
@@ -179,7 +179,7 @@ public class OddsTests
         string Why(WeatherSample sky) => Traversal.InjuryOdds(w, tile, BodyState.BaselineHuman(), sky).Terms.Single(t => t.Value == 0.15).Factor;
         Assert.Equal("Heavy rain", Why(new WeatherSample(0, WeatherCondition.Rainy, 5, 0.1, 0.5, 1, WindDirection.North)));
         Assert.Equal("Heavy snow", Why(new WeatherSample(0, WeatherCondition.HeavySnow, -5, 0.1, 0.5, 1, WindDirection.North)));
-        Assert.Equal("LightSnow", Why(new WeatherSample(0, WeatherCondition.LightSnow, -5, 0.1, 0.2, 1, WindDirection.North)));
+        Assert.Equal("Light snow", Why(new WeatherSample(0, WeatherCondition.LightSnow, -5, 0.1, 0.2, 1, WindDirection.North)));
         Assert.DoesNotContain("Cloudy", Why(new WeatherSample(0, WeatherCondition.Cloudy, -5, 0.1, 0.5, 1, WindDirection.North)));
     }
 

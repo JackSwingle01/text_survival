@@ -423,7 +423,7 @@ public class CarcassTests
         Sim.Step(w, new Butcher(P, c.Id, ButcherMode.Careful), 5);
         string before = Save.ToJson(w);
         var r = Sim.Step(w, new Butcher(P, c.Id, ButcherMode.QuickStrip), 5);
-        Assert.Equal((0, "this carcass is being butchered Careful, not QuickStrip"), (r.MinutesElapsed, r.InterruptedReason));
+        Assert.Equal((0, "this carcass is being butchered careful, not quick strip"), (r.MinutesElapsed, r.InterruptedReason));
         Assert.Equal(before, Save.ToJson(w));
         Assert.Null(Sim.Step(w, new Butcher(P, c.Id), 5).InterruptedReason);
         Assert.Null(Sim.Step(w, new Butcher(P, c.Id, ButcherMode.Careful), 5).InterruptedReason);

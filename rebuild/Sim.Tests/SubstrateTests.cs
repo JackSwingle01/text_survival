@@ -480,7 +480,7 @@ public class SubstrateTests
         w.AccessGates = Access.Gate.All; // nothing there to gate: the thing's own refusal answers
         Assert.Equal("no such carcass here", Work.Refusal(w, new Butcher(P, 99)));
         Assert.Equal("nothing like that here", Work.Refusal(w, new Gather(P, 99)));
-        Assert.Equal("no Pine stashed here", Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
+        Assert.Equal("no pine stashed here", Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
         Items.Add(Items.Pack(w, P), Resource.Pine, 1);
         Assert.Equal("no fire here", Fire.Refusal(w, new AddFuel(P, Resource.Pine, 1)));
         Assert.Equal("no charcoal here", Fire.Refusal(w, new GatherCharcoal(P)));

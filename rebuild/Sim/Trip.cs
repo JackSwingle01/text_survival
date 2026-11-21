@@ -24,6 +24,13 @@ public sealed record TripTime(int WalkingMinutes, int TerrainMinutes, int Weathe
     ];
 }
 
+/// The injury risk a crossing rolls, as the odds sheet shows it: once for leaving this tile, once for
+/// entering the next (Traversal.Advance rolls them in that order). AnyPct is the chance of at least one.
+public sealed record CrossingRisk(Odds Leaving, Odds Entering)
+{
+    public double AnyPct => 1 - (1 - Leaving.TotalPct) * (1 - Entering.TotalPct);
+}
+
 /// A crossing as seen before it is made: for verb lists and the trip preview. Reads only: the
 /// ground is looked at (Ground.Peek), never observed, so asking changes nothing in the world.
 // The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(..., observe: true).TotalMinutes.
@@ -69,6 +76,21 @@ public static class Trip
             int loaded = Traversal.SegmentMinutes(m, tile, speed, sky);
             return (walking, shaped - walking, weathered - shaped, paced - weathered, loaded - paced, loaded);
         }
+    }
+
+    /// The injury odds the crossing this agent would make now would roll: the very factors
+    /// Traversal.Begin fixes, from the ground looked at rather than observed. A careful pace risks nothing.
+    public static CrossingRisk Risk(World world, AgentId who, Direction dir, Pace pace)
+    {
+        var agent = world.Agent(who);
+        if (pace == Pace.Careful) return new CrossingRisk(Traversal.NoRisk, Traversal.NoRisk);
+        // A crossing under way this way keeps the risks fixed when it began (Traversal.Begin resumes it).
+        if (agent.Crossing is { } c && c.Dir == dir && c.Pace == pace && c.From == agent.Tile)
+            return new CrossingRisk(new Odds("As you set out", c.OriginRiskPct, []), new Odds("As you set out", c.DestRiskPct, []));
+        var m = Map.Of(world);
+        var sky = Weather.At(world, world.Minute);
+        Odds On(TileId t) => Traversal.InjuryOdds(Traversal.HazardLevel(m, t, Ground.HazardDeltaNow(world, t)), agent.Body, sky);
+        return new CrossingRisk(On(agent.Tile), On(Map.Step(agent.Tile, dir)));
     }
 
     static int Careful(int segmentMinutes) => (int)Math.Ceiling(segmentMinutes * Traversal.CarefulFactor) - segmentMinutes;

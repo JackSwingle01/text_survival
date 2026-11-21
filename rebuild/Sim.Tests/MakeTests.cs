@@ -431,7 +431,7 @@ public class MakeTests
         var w = Noon(out var pack);
         Items.Add(pack, Resource.Stone, 0.3);
         Items.Add(pack, Resource.Kindling, 1.0);
-        var make = Verbs.At(w, P).Make;
+        var make = Verbs.At(w, P).Make.Where(v => v.Activity is Make).ToList(); // then building (Build) and abandoning
         Assert.Equal(Recipes.All.Select(r => r.Id), make.Select(v => ((Make)v.Activity).Recipe));
         var rock = make.Single(v => v.Activity == new Make(P, "sharp_rock"));
         Assert.Equal("Make sharp rock", rock.Label);
@@ -440,7 +440,7 @@ public class MakeTests
         Assert.Equal("you need something for cutting", make.Single(v => v.Activity == new Make(P, "hand_drill")).Refused);
 
         Sim.Step(w, new Make(P, "sharp_rock"), 2);
-        make = Verbs.At(w, P).Make;
+        make = [.. Verbs.At(w, P).Make];
         Assert.Equal("Go on making sharp rock", make.Single(v => v.Activity == new Make(P, "sharp_rock")).Label);
         var abandon = Assert.Single(make, v => v.Activity is Abandon);
         Assert.Equal("Abandon the unfinished sharp rock", abandon.Label);

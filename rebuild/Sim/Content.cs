@@ -176,7 +176,7 @@ public static partial class Content
     /// Every table file, one per family, under rebuild/Sim/Content/.
     internal static readonly string[] Files =
         ["locations.json", "loot.json", "items.json", "fire.json", "species.json", "effects.json", "shelters.json",
-         "butchering.json", "terrain.json", "forage.json", "discoveries.json", "accidents.json", "recipes.json"];
+         "butchering.json", "terrain.json", "forage.json", "discoveries.json", "accidents.json", "recipes.json", "names.json"];
 
     /// Everything, as loaded. The systems that own a table read it from here once, into their own statics.
     internal static ContentTables Tables { get; }

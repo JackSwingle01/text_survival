@@ -12,7 +12,7 @@ public class GameHostTests
     static ViewDto Parse(string json) => JsonSerializer.Deserialize(json, HostJson.Default.ViewDto)!;
 
     static IEnumerable<VerbDto> AllVerbs(ViewDto v) =>
-        v.Things.SelectMany(t => t.Menu).Concat(v.Walk).Concat(v.Tile).Concat(v.Make);
+        v.Things.SelectMany(t => t.Menu).Concat(v.Walk).Concat(v.Tile).Concat(v.PackVerbs).Concat(v.Make);
 
     static string Act(GameHost h, string verbId) => h.Act($$"""{"verb":"{{verbId}}"}""");
 
@@ -59,7 +59,7 @@ public class GameHostTests
         var refused = AllVerbs(v).First(x => x.Refused != null);
         var after = Parse(Act(h, refused.Id));
         Assert.True(after.Job!.Finished);
-        Assert.Equal(refused.Refused, after.Job.Reason);
+        Assert.Equal(("refused", refused.Refused), (after.Job.Outcome, after.Job.Reason));
         Assert.Equal(v.Minute, after.Minute);
     }
 
@@ -73,6 +73,7 @@ public class GameHostTests
         var go = v.Walk.First(w => w.Refused == null && !w.Careful);
         var after = Run(h, go, chunk: 3);
         Assert.Equal(go.Trip!.TotalMinutes, after.Job!.DoneMinutes);
+        Assert.Equal(("finished", "arrived"), (after.Job.Outcome, after.Job.Reason)); // an arrival is not an interruption
         Assert.Equal(v.Minute + go.Trip.TotalMinutes, after.Minute);
         Assert.False(after.Place.Camp);
     }
@@ -234,5 +235,22 @@ public class GameHostTests
     {
         var v = Parse(new GameHost().NewGame(Seed));
         Assert.Empty(v.Alerts);
+    }
+
+    /// Sim's gaps the page used to work around: the journal is Sim's narration, the pack has its verbs,
+    /// and the map carries the ground in sight.
+    [Fact]
+    public void The_journal_reads_in_words_the_pack_has_verbs_and_the_map_has_the_ground()
+    {
+        var h = new GameHost();
+        var v = Parse(h.NewGame(Seed));
+        Assert.Contains(v.PackVerbs, x => x.Kind == "takeoff");
+        Assert.Contains(v.PackVerbs, x => x.Kind == "stash");
+        var go = v.Walk.First(w => w.Refused == null && !w.Careful);
+        var after = Run(h, go, chunk: 3);
+        Assert.Contains(after.Log, l => l.Text.StartsWith("You reach ", StringComparison.Ordinal) && l.Icon == "ui/follow");
+        Assert.All(after.Log, l => Assert.DoesNotMatch("[a-z][A-Z]", l.Text));
+        Assert.All(after.Map.Surface, s => Assert.Contains(s.I, after.Map.Visible));
+        Assert.Equal(after.Map.Surface.OrderBy(s => s.I).Select(s => s.I), after.Map.Surface.Select(s => s.I));
     }
 }

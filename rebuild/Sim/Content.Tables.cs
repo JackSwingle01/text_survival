@@ -33,7 +33,8 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> Forage,
     DiscoveryTables Discoveries,
     IReadOnlyDictionary<string, IReadOnlyList<Accident>> Accidents,
-    IReadOnlyList<Recipe> MakeRecipes);
+    IReadOnlyList<Recipe> MakeRecipes,
+    IReadOnlyDictionary<Enum, string> Names);
 
 // ---- rows that have no home in a system's own file ----
 
@@ -101,12 +102,13 @@ public static partial class Content
         var discoveries = Deserialize<DiscoveriesFile>(Text("discoveries.json"), "discoveries.json");
         var accidents = Deserialize<Dictionary<string, IReadOnlyList<Accident>>>(Text("accidents.json"), "accidents.json");
         var recipeRows = Deserialize<Dictionary<string, RecipeFileRow>>(Text("recipes.json"), "recipes.json");
+        var nameRows = Deserialize<Dictionary<string, Dictionary<string, string>>>(Text("names.json"), "names.json");
 
         // Nulls first: every later check would trip over one.
         var problems = LocationNullProblems(locations, loot).ToList();
         foreach (var (file, root) in new (string, object)[] { ("items.json", items), ("fire.json", fire), ("species.json", species),
             ("effects.json", effects), ("shelters.json", shelters), ("butchering.json", butchering), ("terrain.json", terrain),
-            ("forage.json", forage), ("discoveries.json", discoveries), ("accidents.json", accidents), ("recipes.json", recipeRows) })
+            ("forage.json", forage), ("discoveries.json", discoveries), ("accidents.json", accidents), ("recipes.json", recipeRows), ("names.json", nameRows) })
             problems.AddRange(NullsIn(root, file));
         Fail(problems);
 
@@ -135,6 +137,7 @@ public static partial class Content
         var mixedWood = Keyed<Resource, double>(terrain.Felling.MixedWood, "terrain.json felling mixedWood", problems);
         var draws = Keyed<Terrain, IReadOnlyList<DiscoveryDraw>>(discoveries.Terrains, "discoveries.json terrains", problems);
         var detailDraws = Keyed<Terrain, IReadOnlyList<string>>(discoveries.DetailDraws, "discoveries.json detailDraws", problems);
+        var names = NameTable(nameRows, problems);
         Fail(problems);
 
         // Then references, shapes and ranges.
@@ -176,7 +179,28 @@ public static partial class Content
             new DiscoveryTables(new ReadOnlyDictionary<string, FindDef>(discoveries.Finds), new ReadOnlyDictionary<string, FindDef>(discoveries.Details),
                 ReadOnly(draws), discoveries.Cave, ReadOnly(detailDraws), discoveries.ExamineOnly),
             new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents),
-            makeRecipes);
+            makeRecipes, ReadOnly(names));
+    }
+
+    /// names.json: every value of every enum Names.Tables lists, and nothing else, each with its words.
+    static Dictionary<Enum, string> NameTable(Dictionary<string, Dictionary<string, string>> rows, List<string> problems)
+    {
+        var table = new Dictionary<Enum, string>();
+        foreach (var name in rows.Keys)
+            if (!Survival.Names.Tables.Any(t => t.Name == name)) problems.Add($"names.json: {name} is not a table of names (Names.Tables)");
+        foreach (var type in Survival.Names.Tables)
+        {
+            if (!rows.TryGetValue(type.Name, out var words)) { problems.Add($"names.json: no {type.Name} table"); continue; }
+            foreach (var key in words.Keys)
+                if (!Enum.GetNames(type).Contains(key, StringComparer.Ordinal)) problems.Add($"names.json {type.Name}: no {type.Name} '{key}'");
+            foreach (Enum value in Enum.GetValues(type))
+            {
+                if (!words.TryGetValue(value.ToString(), out var w)) problems.Add($"names.json {type.Name}: no words for {value}");
+                else if (string.IsNullOrWhiteSpace(w) || w != w.Trim()) problems.Add($"names.json {type.Name}.{value}: '{w}' is not words");
+                else table[value] = w;
+            }
+        }
+        return table;
     }
 
     static void Fail(List<string> problems)

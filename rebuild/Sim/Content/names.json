@@ -1,0 +1,280 @@
+// What the player reads for each of the game's names: "BirchBark" is "birch bark", "Hypothermia" (an
+// effect) is "hypothermic". Lower case; the words that use them capitalise a sentence's start (Names.Cap).
+// One row for every value of each enum listed here, no more (Names.Tables): a value added in code
+// without its words fails at load. Gear and recipes are named in items.json and recipes.json.
+// EffectKind reads after "You are" ("You are shivering", "You are in pain").
+// Requirement reads after "needs" ("needs a fire burning"). Capability names the tool by what it does
+// ("the cutting tool"). The fight's own names (actions, range, a fighter's state) join when the
+// combat round's rework settles them.
+{
+ "Resource": {
+  "Tinder": "tinder",
+  "BirchBark": "birch bark",
+  "Amadou": "amadou",
+  "Usnea": "usnea",
+  "Chaga": "chaga",
+  "Kindling": "kindling",
+  "Pine": "pine",
+  "Birch": "birch",
+  "Oak": "oak",
+  "Bone": "bone",
+  "Peat": "peat",
+  "RawMeat": "raw meat",
+  "CookedMeat": "cooked meat",
+  "DriedMeat": "dried meat",
+  "RawFish": "raw fish",
+  "CookedFish": "cooked fish",
+  "DriedFish": "dried fish",
+  "Berries": "berries",
+  "DriedBerries": "dried berries",
+  "Nuts": "nuts",
+  "Roots": "roots",
+  "Honey": "honey",
+  "Water": "water",
+  "Stone": "stone",
+  "Hide": "hide",
+  "PlantFiber": "plant fiber",
+  "Sinew": "sinew",
+  "Shale": "shale",
+  "Flint": "flint",
+  "Pyrite": "pyrite",
+  "ScrapedHide": "scraped hide",
+  "CuredHide": "cured hide",
+  "RawFat": "raw fat",
+  "Tallow": "tallow",
+  "Charcoal": "charcoal",
+  "Rope": "rope",
+  "Ivory": "ivory",
+  "MammothHide": "mammoth hide",
+  "Feather": "feather",
+  "BirchPolypore": "birch polypore",
+  "RoseHip": "rose hip",
+  "JuniperBerry": "juniper berry",
+  "WillowBark": "willow bark",
+  "PineNeedles": "pine needles",
+  "PineResin": "pine resin",
+  "SphagnumMoss": "sphagnum moss"
+ },
+ "ToolType": {
+  "Axe": "axe",
+  "Knife": "knife",
+  "FireStriker": "fire striker",
+  "HandDrill": "hand drill",
+  "BowDrill": "bow drill",
+  "WaterContainer": "water container",
+  "Spear": "spear",
+  "Club": "club",
+  "Torch": "torch",
+  "Needle": "needle",
+  "Shovel": "shovel",
+  "Tent": "tent",
+  "Hammerstone": "hammerstone"
+ },
+ "Capability": {
+  "None": "no tool",
+  "Cutting": "cutting",
+  "Striking": "striking",
+  "Prying": "prying",
+  "Digging": "digging",
+  "Smoke": "smoke",
+  "Light": "light",
+  "Reaching": "reaching",
+  "Bait": "bait",
+  "Spark": "spark",
+  "Binding": "binding",
+  "Carrying": "carrying",
+  "Piercing": "piercing",
+  "Sewing": "sewing"
+ },
+ "WeatherCondition": {
+  "Clear": "clear",
+  "Cloudy": "cloudy",
+  "Misty": "misty",
+  "LightSnow": "light snow",
+  "HeavySnow": "heavy snow",
+  "Rainy": "rainy",
+  "FreezingRain": "freezing rain",
+  "Blizzard": "blizzard",
+  "Whiteout": "whiteout",
+  "Stormy": "stormy"
+ },
+ "Precipitation": {
+  "None": "nothing falling",
+  "Snow": "snow",
+  "Rain": "rain",
+  "Blizzard": "blizzard"
+ },
+ "BodyTarget": {
+  "Random": "somewhere",
+  "Head": "head",
+  "Chest": "chest",
+  "Abdomen": "abdomen",
+  "LeftArm": "left arm",
+  "RightArm": "right arm",
+  "LeftLeg": "left leg",
+  "RightLeg": "right leg",
+  "AnyLeg": "a leg",
+  "AnyArm": "an arm",
+  "Blood": "blood",
+  "Heart": "heart",
+  "Brain": "brain",
+  "Lungs": "lungs",
+  "Liver": "liver",
+  "Stomach": "stomach",
+  "LeftKidney": "left kidney",
+  "RightKidney": "right kidney",
+  "LeftEye": "left eye",
+  "RightEye": "right eye",
+  "LeftEar": "left ear",
+  "RightEar": "right ear"
+ },
+ "EffectKind": {
+  "Hungry": "hungry",
+  "Thirsty": "thirsty",
+  "Tired": "tired",
+  "Shivering": "shivering",
+  "Hypothermia": "hypothermic",
+  "Frostbite": "frostbitten",
+  "Hyperthermia": "overheated",
+  "Sweating": "sweating",
+  "Wet": "wet",
+  "Bloody": "bloody",
+  "Bleeding": "bleeding",
+  "Pain": "in pain",
+  "Dazed": "dazed",
+  "Shock": "in shock"
+ },
+ "Capacity": {
+  "Moving": "moving",
+  "Manipulation": "manipulation",
+  "Breathing": "breathing",
+  "BloodPumping": "blood pumping",
+  "Consciousness": "consciousness",
+  "Sight": "sight",
+  "Hearing": "hearing",
+  "Digestion": "digestion"
+ },
+ "Structure": {
+  "MakeshiftBedding": "makeshift bed",
+  "PaddedBedding": "padded bed",
+  "MossBedding": "moss bed",
+  "SleepingBag": "sleeping bag",
+  "BranchFrame": "branch frame shelter",
+  "LogFrame": "log frame shelter",
+  "SnowShelter": "snow shelter",
+  "Tent": "tent"
+ },
+ "Species": {
+  "Human": "human",
+  "Wolf": "wolf",
+  "Bear": "bear",
+  "CaveBear": "cave bear",
+  "Homotherium": "scimitar cat",
+  "Hyena": "hyena",
+  "Caribou": "caribou",
+  "Megaloceros": "giant deer",
+  "Bison": "bison",
+  "Mammoth": "mammoth",
+  "Rabbit": "rabbit",
+  "Fox": "fox",
+  "Raven": "raven"
+ },
+ "ButcherMode": {
+  "QuickStrip": "quick strip",
+  "Careful": "careful",
+  "FullProcessing": "full processing"
+ },
+ "FirePhase": {
+  "Cold": "cold",
+  "Igniting": "igniting",
+  "Building": "building",
+  "Roaring": "roaring",
+  "Steady": "steady",
+  "Dying": "dying",
+  "Embers": "embers"
+ },
+ "PitType": {
+  "Open": "open",
+  "Mound": "mound",
+  "Stone": "stone"
+ },
+ "ShelterStat": {
+  "Insulation": "insulation",
+  "Overhead": "overhead",
+  "Wind": "wind"
+ },
+ "Terrain": {
+  "Forest": "forest",
+  "Clearing": "clearing",
+  "Plain": "plain",
+  "Hills": "hills",
+  "Water": "water",
+  "Marsh": "marsh",
+  "Rock": "rock",
+  "Mountain": "mountain",
+  "DeepWater": "deep water"
+ },
+ "Skill": {
+  "Firecraft": "firecraft",
+  "Foraging": "foraging",
+  "Cooking": "cooking",
+  "Butchering": "butchering",
+  "Crafting": "crafting"
+ },
+ "MakeCategory": {
+  "FireStarting": "fire starting",
+  "CuttingTool": "cutting tool",
+  "HuntingWeapon": "hunting weapon",
+  "Lighting": "lighting",
+  "Processing": "processing",
+  "Clothing": "clothing"
+ },
+ "Requirement": {
+  "Light": "light",
+  "Fire": "a fire burning",
+  "Frost": "a frost",
+  "Shelter": "shelter",
+  "Dry": "a roof or a dry sky"
+ },
+ "TrackMaker": {
+  "Human": "human",
+  "Paw": "paw",
+  "Hoof": "hoof"
+ },
+ "TrailTier": {
+  "None": "no trail",
+  "Trace": "trace",
+  "Path": "path",
+  "Trail": "trail"
+ },
+ "Season": {
+  "Winter": "winter",
+  "Spring": "spring",
+  "Summer": "summer",
+  "Fall": "fall"
+ },
+ "WindDirection": {
+  "North": "north",
+  "Northeast": "northeast",
+  "East": "east",
+  "Southeast": "southeast",
+  "South": "south",
+  "Southwest": "southwest",
+  "West": "west",
+  "Northwest": "northwest",
+  "Calm": "calm"
+ },
+ "Direction": {
+  "North": "north",
+  "East": "east",
+  "South": "south",
+  "West": "west"
+ },
+ "EquipSlot": {
+  "Head": "head",
+  "Chest": "chest",
+  "Legs": "legs",
+  "Feet": "feet",
+  "Hands": "hands"
+ }
+}

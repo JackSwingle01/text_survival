@@ -32,7 +32,7 @@ window.ui = { S, ready: null, client }; // for the headless checks (tools/shots.
 
 // ---------------------------------------------------------------- verbs, read off the view
 
-const allVerbs = v => [...v.things.flatMap(t => t.menu), ...v.walk, ...v.tile, ...v.make];
+const allVerbs = v => [...v.things.flatMap(t => t.menu), ...v.walk, ...v.tile, ...v.packVerbs, ...v.make];
 const byId = id => allVerbs(S.view).find(x => x.id === id) ?? S.view.combat?.actions.find(x => x.id === id);
 const fireThing = v => v.things.find(t => t.kind === 'fire');
 /** The verb that lights a fire here: the tile's "Start a fire", or the cold pit's own "Light the fire". */
@@ -44,7 +44,7 @@ const dirTo = (from, to) => Object.keys(DIRS).find(d => from.x + DIRS[d][0] === 
 const KIND_ICON = {
   wait: 'ui/clock', rest: 'ui/energy', sleep: 'ui/moon', fire: 'ui/fire', fuel: 'ui/fuel', torch: 'ui/torch', charcoal: 'ui/charcoal',
   gather: 'ui/foraging', butcher: 'ui/knife', eat: 'ui/food', drink: 'ui/water', cook: 'ui/meat', melt: 'ui/water', stash: 'ui/storage',
-  take: 'ui/storage', wear: 'ui/equip', walk: 'ui/follow', build: 'construction', improve: 'ui/shelter', pack: 'ui/backpack',
+  take: 'ui/storage', wear: 'ui/equip', takeoff: 'ui/equip', walk: 'ui/follow', build: 'construction', improve: 'ui/shelter', pack: 'ui/backpack',
   make: 'ui/project', abandon: 'ui/cancel', other: 'ui/inspect',
 };
 const FIGHT_ICON = {
@@ -130,11 +130,11 @@ function finishJob(verb, v, startMinute, logFrom) {
     if (S.drawer?.kind !== 'fire') openDrawer({ kind: 'fire' });
     S.drawer.result = lit ? { good: true, text: 'It caught.' } : { good: false, text: fresh.find(l => l.icon === 'ui/fire')?.text ?? cap(job.reason ?? 'It did not catch.') };
   } else if (S.drawer?.kind === 'job' && S.drawer.verbId === verb.id) {
-    S.drawer.done = { reason: job.reason, minutes: v.minute - startMinute, lines: fresh };
-  } else if (job.reason && job.kind !== 'walk' && job.kind !== 'fight' && job.reason !== 'arrived') {
-    toast(verbIcon(verb), cap(job.reason));
+    S.drawer.done = { outcome: job.outcome, reason: job.reason, minutes: v.minute - startMinute, lines: fresh };
+  } else if (job.outcome === 'interrupted' || job.outcome === 'refused') {
+    // Sim says whether it finished or was cut short: an arrival or a meal eaten is not news.
+    toast(job.kind === 'walk' ? 'ui/warning' : verbIcon(verb), cap(job.reason));
   }
-  if (job.kind === 'walk' && job.reason && job.reason !== 'arrived') toast('ui/warning', cap(job.reason));
   if (verb.kind === 'make' && S.drawer?.kind === 'job') S.drawer.back = 'make';
   render();
   if (v.receipt) showReceipt(v.receipt);
@@ -362,7 +362,8 @@ function renderTrip(d, v) {
   $('sideBody').innerHTML = `
     <div class="preview"><div class="head"><span class="label">${esc(cap(d.dir))} · ${t.toKnown ? 'as you know it' : 'unexplored'}</span><span class="big">${t.totalMinutes}<small class="muted"> min</small></span></div>
       <div class="factors">${rows(t)}</div></div>
-    ${t.hazardous ? section('Footing', `<p class="note">Hazardous ground: a quick crossing risks a fall. Careful is slower.</p>
+    ${t.hazardous ? section('Footing', `${t.risk ? `<p class="note">Chance of a fall going quickly: ${pct(t.risk.anyPct)}</p>${[['Leaving', t.risk.leaving], ['Entering', t.risk.entering]].filter(([, o]) => o.totalPct > 0).map(([w, o]) => oddsSheet(o, { title: `${w} this ground` })).join('')}` : '<p class="note">Hazardous ground: a quick crossing risks a fall.</p>'}
+      <p class="note">Careful is slower, and risks nothing.</p>
       ${careful?.trip ? `<div class="factors">${rows(careful.trip)}</div>` : ''}`) : ''}
     ${section('Daylight', `<div class="kv ${left && left < t.totalMinutes * 2 + 30 ? 'minus' : ''}">${img(left ? 'ui/sun' : 'ui/moon')}<span>${left ? `${dur(left)} of light left` : 'It is night'}</span><span class="v">${left && left > t.totalMinutes * 2 + 30 ? 'back before dark' : left ? 'tight' : ''}</span></div>`)}
     ${!v.place.camp && camp?.fire ? section('Your camp fire', `<div class="kv">${img(camp.fire === 'Embers' || camp.fire === 'Cold' ? 'embers' : 'fire')}<span>${esc(camp.fire)}, as you last saw it</span><span class="v">${ago(v.minute - camp.seenMinute)}</span></div>
@@ -394,7 +395,7 @@ function renderPlace(d, v) {
 
 function renderMake(d, v) {
   head('ui/project', 'Make', '');
-  const makes = v.make.filter(x => x.kind === 'make'), abandons = v.make.filter(x => x.kind === 'abandon');
+  const makes = v.make.filter(x => x.kind === 'make'), abandons = v.make.filter(x => x.kind === 'abandon'), builds = v.make.filter(x => x.kind === 'build');
   if (!S.makeSel || !makes.some(x => x.make.recipe === S.makeSel)) S.makeSel = (makes.find(x => !x.refused) ?? makes[0])?.make.recipe;
   const sel = makes.find(x => x.make.recipe === S.makeSel);
   let detail = '';
@@ -421,7 +422,8 @@ function renderMake(d, v) {
   }).join('');
   $('sideBody').innerHTML = `${detail}
     ${abandons.length ? section('Unfinished', `<div class="menu">${abandons.map(x => menuItem(x)).join('')}</div>`) : ''}
-    ${section('Recipes', `<div class="menu">${list}</div>`)}`;
+    ${section('Recipes', `<div class="menu">${list}</div>`)}
+    ${builds.length ? section('Build here', `<div class="menu">${builds.map(x => menuItem(x)).join('')}</div>`) : ''}`;
 }
 
 function renderBody(d, v) {
@@ -458,7 +460,8 @@ function renderPack(d, v) {
     <div class="capacity"><div class="bar"><i style="width:${Math.min(1, p.carriedKg / p.capacityKg) * 100}%"></i></div></div>
     ${section('Carried', p.stacks.length ? `<div class="bag">${p.stacks.map(s => `<div class="it">${img(stackIcon(s.resource))}<span>${esc(s.name)}</span><span class="n"></span><span class="kg">${s.kg} kg</span></div>`).join('')}</div>` : '<p class="note">Nothing.</p>')}
     ${section('Tools and gear', p.gear.length ? `<div class="bag">${p.gear.map(gr => `<div class="it">${img('ui/gear')}<span>${esc(gr.name)}</span><span class="n">${pct(gr.conditionPct)}</span><span class="minibar" style="--c:${gr.conditionPct < 0.3 ? 'var(--minus)' : 'var(--lichen)'}"><i style="width:${gr.conditionPct * 100}%"></i></span></div>`).join('')}</div>` : '<p class="note">None.</p>')}
-    ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}`;
+    ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}
+    ${v.packVerbs.length ? section('Use', `<div class="menu">${v.packVerbs.map(x => menuItem(x)).join('')}</div>`) : ''}`;
 }
 const stackIcon = r => /Tinder|Bark|Usnea|Amadou|Chaga/.test(r) ? 'ui/tinder' : /Kindling|Pine|Birch|Oak|Peat/.test(r) ? 'ui/sticks' : /Meat|Fish|Berr|Nut|Root/.test(r) ? 'ui/food'
   : r === 'Water' ? 'ui/water' : /Hide/.test(r) ? 'ui/hide' : /Bone/.test(r) ? 'ui/bone' : /Charcoal/.test(r) ? 'ui/charcoal' : 'ui/materials';
@@ -495,7 +498,7 @@ function renderJob(d, v) {
   const f = d.done ? 1 : total ? Math.min(1, Math.max(0, shown) / total) : 0;
   const lines = v.log.filter(l => !d.logFrom.has(logKey(l)));
   $('sideBody').innerHTML = `
-    <div class="run"><div class="runbar ${d.done ? (d.done.reason && /fail|died|went out|too dark/.test(d.done.reason) ? 'fail' : 'ok') : ''}"><span class="fill" style="width:${f * 100}%"></span><span class="ticks10"></span></div>
+    <div class="run"><div class="runbar ${d.done ? (d.done.outcome === 'interrupted' || d.done.outcome === 'refused' ? 'fail' : 'ok') : ''}"><span class="fill" style="width:${f * 100}%"></span><span class="ticks10"></span></div>
       <div class="runmeta"><span class="num">${dur(Math.max(0, d.done ? d.done.minutes : shown))}${total && !d.done ? ` of ${dur(total)}` : ''}</span><span>${d.done ? esc(cap(d.done.reason ?? 'done')) : 'under way'}</span></div></div>
     ${lines.length ? section(d.done ? 'What came of it' : 'So far', `<div class="factors">${lines.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : l.kind === 'good' || l.kind === 'rare' ? 'plus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}
     <div class="row">${d.done ? `${d.back ? `<button class="act quiet" data-act="back" data-to="${d.back}">Back to making</button>` : ''}<button class="act" data-act="close">Done <span class="key">Esc</span></button>` : `<button class="act quiet" data-act="stop">Stop</button>`}</div>`;

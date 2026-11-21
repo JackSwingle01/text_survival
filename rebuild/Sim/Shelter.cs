@@ -217,7 +217,13 @@ public static class Shelters
 
     /// What the shelter here does for someone; nothing unless they keep still (old IsStationary).
     public static ShelterCover CoverFor(World world, TileId tile, bool stationary, List<WorldEvent> events) =>
-        stationary && At(world, tile, events) is { } s ? new(s.InsulationLevel, s.OverheadLevel, s.WindLevel) : default;
+        stationary && At(world, tile, events) is { } s ? CoverOf(s) : default;
+
+    /// The same, read without writing anything (Peek): a snow shelter that has melted gives nothing.
+    public static ShelterCover CoverNow(World world, TileId tile, bool stationary) =>
+        stationary && Peek(world, tile) is { } s ? CoverOf(s) : default;
+
+    static ShelterCover CoverOf(ShelterState s) => new(s.InsulationLevel, s.OverheadLevel, s.WindLevel);
 
     // ---- wear and work ----
 
@@ -320,6 +326,9 @@ public static class Shelters
 
     public static bool Handles(Activity a) => a is Build or ImproveShelter or PackTent;
 
+    /// Building's own ends: the thing stands, the tent is packed, the shelter is improved to its cap.
+    public const string BuiltReason = "built", Packed = "packed", AsGoodAsItGets = "as good as it gets";
+
     public static string? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
@@ -332,18 +341,18 @@ public static class Shelters
                 var r = Recipes[b.What];
                 if (r.NeedsLight && Work.TooDarkToWork(world, agent)) return Work.TooDark;
                 world.Projects.TryGetValue(tile, out var p);
-                if (p != null && p.Building != b.What) return $"a {p.Building} is half-built here";
+                if (p != null && p.Building != b.What) return $"a {Names.Of(p.Building)} is half-built here";
                 if (r.Shelter != null && Peek(world, tile) is { } s) return $"there is already a shelter here ({s.Name})";
                 // Old MakeCamp was offered only where there was no bedding; here any better bed may replace one.
                 if (r.Bedding is BeddingKind bed && BeddingAt(world, tile) is { } there
                     && there.QualityPct >= Beddings[bed].QualityPct && there.WarmthBonusF >= Beddings[bed].WarmthBonusF)
-                    return $"the {there.Name} here is as good as a {Beddings[bed].Name}";
+                    return $"the {there.Name.ToLowerInvariant()} here is as good as a {Beddings[bed].Name.ToLowerInvariant()}";
                 // Resuming checks tools and weather again; materials and the tent went in when it started.
                 if (Requirement(world, tile, r, pack) is string missing) return missing;
                 if (p != null) return null;
                 if (b.What == Structure.Tent && Tent(pack) == null) return "you have no tent";
                 foreach (var (anyOf, kg) in r.Materials)
-                    if (anyOf.Sum(x => Items.Have(pack, x)) < kg - 1e-9) return $"you need {kg:0.##} kg of {string.Join(" or ", anyOf)}";
+                    if (anyOf.Sum(x => Items.Have(pack, x)) < kg - 1e-9) return $"you need {kg:0.##} kg of {string.Join(" or ", anyOf.Select(x => Names.Of(x)))}";
                 return null;
             }
             case ImproveShelter i:
@@ -351,9 +360,9 @@ public static class Shelters
                 if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
                 if (Peek(world, tile) is not { } s || IsDestroyed(s)) return "there's no shelter here to improve";
                 if (Access.Refusal(world, agent.Id, Things.ShelterAt(world, tile)!.Value) is string barred) return barred;
-                if (!ShelterMaterials.Contains(i.Material)) return $"{i.Material} is no use on a shelter";
-                if (Items.Have(pack, i.Material) <= 0) return $"you have no {i.Material}";
-                if (Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9) return $"this {s.Name}'s {i.Stat} can't be improved further";
+                if (!ShelterMaterials.Contains(i.Material)) return $"{Names.Cap(Names.Of(i.Material))} is no use on a shelter";
+                if (Items.Have(pack, i.Material) <= 0) return $"you have no {Names.Of(i.Material)}";
+                if (Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9) return $"this {s.Name.ToLowerInvariant()}'s {Names.Of(i.Stat)} can't be improved further";
                 return null;
             }
             case PackTent:
@@ -433,7 +442,7 @@ public static class Shelters
                     _ => "Snow shelter",
                 }, r.Shelter.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"));
                 events.Add(new Built(world.Minute, agent.Id, tile, b.What));
-                return "built";
+                return BuiltReason;
             }
             case ImproveShelter i:
             {
@@ -443,10 +452,10 @@ public static class Shelters
                 var pack = Items.Pack(world, agent.Id);
                 double pieces = Items.Take(pack, i.Material, Materials[i.Material].PieceKg / 10 / ImpairmentFactor(agent.Body)) / Materials[i.Material].PieceKg;
                 Improve(s, i.Stat, i.Material, pieces);
-                if (Items.Have(pack, i.Material) <= 0) return $"out of {i.Material}";
-                return Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9 ? "as good as it gets" : null;
+                if (Items.Have(pack, i.Material) <= 0) return $"out of {Names.Of(i.Material)}";
+                return Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9 ? AsGoodAsItGets : null;
             }
-            case PackTent: return "packed";
+            case PackTent: return Packed;
             default: throw new NotSupportedException(activity.GetType().Name);
         }
     }

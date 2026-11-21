@@ -29,6 +29,11 @@ public sealed class SurfaceLayer
     public double FrozenFractionPct { get; set; }
 }
 
+/// A tile's ground as the eye takes it in (Ground.SurfaceNow): lying snow, whether its top has
+/// refrozen to a crust, how muddy bare ground is (0-1), standing water's height, and whether that
+/// water is mostly ice. What the map draws; the physics stays in Ground.
+public readonly record struct SurfaceSummary(double SnowDepthM, bool Crusted, double MudLevel, double WaterDepthM, bool Iced);
+
 /// A tile's ground, where it differs from generation. Depths are metres of a one-square-metre
 /// column. Water is conserved: WaterAddedM = held + drained + evaporated + overflowed, always.
 public sealed class GroundState
@@ -213,6 +218,9 @@ public static class Ground
         WaterOverflowedM = s.WaterOverflowedM, LastUpdatedMinute = s.LastUpdatedMinute,
     };
 
+    /// The tile's ground as a view draws it, read without writing (Peek).
+    public static SurfaceSummary SurfaceNow(World world, TileId tile) => new Column(Peek(world, tile), Substrate(Map.Of(world), tile)).Summary;
+
     /// Snow on the tile now, read without writing (Peek).
     public static double SnowDepthNowM(World world, TileId tile) => SnowDepthM(Peek(world, tile), Substrate(Map.Of(world), tile));
 
@@ -390,6 +398,9 @@ public static class Ground
         public double SnowDepthM => _layers.Where(l => l.Material == SurfaceMaterial.Snow).Sum(l => l.ThicknessM);
         public double StandingWaterDepthM => Pond is { } p ? PhysicalThicknessM(p) : 0;
         public double StandingLiquidDepthM => Pond is { } p ? p.ThicknessM * (1 - p.FrozenFractionPct) : 0;
+
+        public SurfaceSummary Summary => new(SnowDepthM, SnowDepthM > 0.05 && TopSnowFrozenLiquid > 0.25, MudLevel, StandingWaterDepthM,
+            Pond is { } p && p.FrozenFractionPct > 0.5);
 
         public double TraversalFactor
         {

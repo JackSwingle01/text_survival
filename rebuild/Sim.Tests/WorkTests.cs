@@ -210,7 +210,7 @@ public class WorkTests
     {
         var w = WithPools(Forage, Bush() with { RequiresTool = ToolType.Axe });
         Know(w, 1);
-        Assert.Equal("you need a Axe", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
+        Assert.Equal("you need an axe", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
         Axe(w);
         Assert.Equal("the Bush is picked clean", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
     }

@@ -454,9 +454,9 @@ public static class Fire
             ToolType.HandDrill => 0.35,
             _ => throw new ArgumentOutOfRangeException(nameof(tool), tool, "Not a fire starter"),
         };
-        return new Odds(tool.ToString(), basePct, Odds.Moving(
+        return new Odds(Names.Title(tool), basePct, Odds.Moving(
             OddsTerm.Add("Firecraft", Skills.FirecraftPct(skillLevel)),
-            OddsTerm.Add(tinder.ToString(), Props[tinder].IgnitionBonusPct),
+            OddsTerm.Add(Names.Title(tinder), Props[tinder].IgnitionBonusPct),
             OddsTerm.Add("Dazed", consciousnessImpaired ? -0.2 : 0),
             OddsTerm.Add(handsWhy.Length > 0 ? $"Hands ({handsWhy})" : "Hands", -(1.0 - dexterityPct) * 0.5)), MinPct: 0.05, MaxPct: 0.95);
     }
@@ -494,22 +494,22 @@ public static class Fire
                 if (pit != null)
                 {
                     if (Reach() is string barred) return barred;
-                    if (pit.Pit != a.Pit) return $"the pit here is {pit.Pit}, not {a.Pit}";
+                    if (pit.Pit != a.Pit) return $"the pit here is {Names.Of(pit.Pit)}, not {Names.Of(a.Pit)}";
                     if (!CanAddFuel(pit, a.Tinder)) return "the fire is full";
                     if (IsActive(pit)) return "the fire is already burning";
                 }
-                if (Items.Tool(pack, a.Tool) == null) return $"no working {a.Tool}";
-                if (Items.Have(pack, a.Tinder) < a.TinderKg - 1e-9) return $"not enough {a.Tinder}";
+                if (Items.Tool(pack, a.Tool) == null) return $"no working {Names.Of(a.Tool)}";
+                if (Items.Have(pack, a.Tinder) < a.TinderKg - 1e-9) return $"not enough {Names.Of(a.Tinder)}";
                 if (Items.Have(pack, Resource.Kindling) < a.KindlingKg - 1e-9) return "not enough kindling";
                 return null;
             case AddFuel a:
-                if (!IsFuel(a.Fuel)) return $"{a.Fuel} does not burn";
+                if (!IsFuel(a.Fuel)) return $"{Names.Cap(Names.Of(a.Fuel))} does not burn";
                 if (a.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), a.Kg, "Fuel mass must be positive");
                 if (pit == null) return "no fire here";
                 if (Reach() is string fuelBarred) return fuelBarred;
-                if (Items.Have(pack, a.Fuel) <= 0) return $"no {a.Fuel} to add";
+                if (Items.Have(pack, a.Fuel) <= 0) return $"no {Names.Of(a.Fuel)} to add";
                 if (CanAddFuel(pit, a.Fuel)) return null;
-                return TotalKg(pit) >= MaxFuelKg(pit.Pit) ? "the fire is full" : $"the fire is not hot enough for {a.Fuel}";
+                return TotalKg(pit) >= MaxFuelKg(pit.Pit) ? "the fire is full" : $"the fire is not hot enough for {Names.Of(a.Fuel)}";
             case LightTorch a:
                 if (!HasLight(world, a.Who)) return "no flame to light a torch from";
                 return Items.Tool(pack, ToolType.Torch) == null ? "no torch to light" : null;
@@ -521,7 +521,10 @@ public static class Fire
         }
     }
 
-    /// Does the one-shot part of a fire activity Refusal allowed. Returns "fire did not catch"
+    /// A strike made and failed: the attempt is over, and cost its minute.
+    public const string DidNotCatch = "fire did not catch";
+
+    /// Does the one-shot part of a fire activity Refusal allowed. Returns DidNotCatch
     /// when the ignition roll fails: the attempt still happened and cost its minute.
     public static string? Act(World world, Activity activity, List<WorldEvent> events)
     {
@@ -552,7 +555,7 @@ public static class Fire
         {
             events.Add(new FireStartFailed(world.Minute, a.Who, tile, chance));
             Skills.Award(world, agent, Skill.Firecraft, Skills.FireFailureXp, events);
-            return "fire did not catch";
+            return DidNotCatch;
         }
         var id = PitAt(world, tile) ?? NewFire(world, new FireState
         {

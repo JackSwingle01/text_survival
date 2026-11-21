@@ -35,7 +35,9 @@ Version 2 (MVP 4, making things) added `Gear.MadeOf`, `Inventory.Projects`, the 
 `abandon` activities, and the `made` and `projectabandoned` events. Version 3 (the species round)
 dropped `HerdMind.Hunger`, since a herd's hunger is now its members' calorie stores, and added
 `BodyState.SprintSpentLevel` and `BodyState.Sex`, both skipped at their defaults. When you add
-a new kind of saved state, extend `SampleWorld` so the fixture covers it.
+a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
+an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
+activity lives inside one step), so the version stands.
 
 ## After the first release
 

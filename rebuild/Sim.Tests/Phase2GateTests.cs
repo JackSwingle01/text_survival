@@ -249,7 +249,7 @@ public class Phase2GateTests(ITestOutputHelper output)
     [ThreadStatic] internal static Action<string>? Log;
     static StepResult S(World w, Survival.Activity a, int minutes)
     {
-        if (!Alive(w)) return new StepResult([], 0, "dead");
+        if (!Alive(w)) return new StepResult([], 0, StepOutcome.Refused, "dead");
         var r = Sim.Step(w, a, minutes);
         if (r.InterruptedReason == "died" || Log != null && r.Events.Any(e => e is Died))
             Log?.Invoke($"died at {w.Minute} during {a}: core {w.Agent(P).Body.CoreTempF:0.0} kcal {w.Agent(P).Body.CaloriesKcal:0} water {w.Agent(P).Body.HydrationMl:0} blood {w.Agent(P).Body.BloodPct:0.00} caps {Body.GetCapacities(w.Agent(P).Body)} effects {string.Join(",", w.Agent(P).Body.Effects.Select(e => $"{e.Kind}:{e.Severity:0.00}"))}");

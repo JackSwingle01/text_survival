@@ -23,6 +23,7 @@ public sealed record ViewDto(
     IReadOnlyList<ThingDto> Things,
     IReadOnlyList<VerbDto> Walk,
     IReadOnlyList<VerbDto> Tile,
+    IReadOnlyList<VerbDto> PackVerbs,
     IReadOnlyList<VerbDto> Make,
     PackDto Pack,
     BodyDto Body,
@@ -70,8 +71,11 @@ public sealed record VerbDto(string Id, string Label, string Kind, int? Minutes,
 public sealed record OddsDto(string Base, double BasePct, IReadOnlyList<OddsTermDto> Terms, double RawPct, double TotalPct, bool Capped);
 public sealed record OddsTermDto(string Factor, string Op, double Value, double DeltaPct);
 
-/// A crossing's minutes as their terms (Trip.Time), zeros left out; they sum to TotalMinutes.
-public sealed record TripDto(int TotalMinutes, IReadOnlyList<TripTermDto> Terms, bool Hazardous, string To, bool ToKnown);
+/// A crossing's minutes as their terms (Trip.Time), zeros left out; they sum to TotalMinutes. Risk: the
+/// injury odds a quick crossing rolls (Trip.Risk), when there is any.
+public sealed record TripDto(int TotalMinutes, IReadOnlyList<TripTermDto> Terms, bool Hazardous, string To, bool ToKnown, RiskDto? Risk = null);
+/// AnyPct: the chance of at least one injury; Leaving and Entering: the two rolls, each with its factors.
+public sealed record RiskDto(double AnyPct, OddsDto Leaving, OddsDto Entering);
 public sealed record TripTermDto(string Factor, int Minutes);
 
 /// A recipe and its odds table (Making.Odds): every outcome's odds; what is left is the plain result.
@@ -94,10 +98,16 @@ public sealed record SkillDto(string Name, int Level);
 
 /// The map as the player knows it. Known: one character per tile, row by row (Width per row): '.'
 /// for never seen, otherwise the terrain's code (TerrainCodes). Visible: indices (y*Width+x) in sight now.
-/// Everything else is memory: places as last seen, sightings with their minute.
+/// Everything else is memory: places as last seen, sightings with their minute. Surface: the ground of
+/// each tile in sight now with anything on it (Ground.SurfaceNow); a tile in sight that is not listed is
+/// bare, dry ground. Out of sight the ground is not known (nobody remembers yesterday's snow depth).
 public sealed record MapDto(int Width, int Height, string Known, IReadOnlyList<int> Visible, int CampX, int CampY,
     IReadOnlyList<PlaceMarkDto> Places, IReadOnlyList<SightingDto> Sightings, IReadOnlyList<TrackDto> Tracks,
-    IReadOnlyList<NamedDto> Named);
+    IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface);
+
+/// One tile's ground in sight. I: its index (y*Width+x). SnowCm: lying snow; Crust: its top refrozen;
+/// MudLevel: 0-1 on bare ground; WaterCm: standing water (ice included); Ice: that water mostly frozen.
+public sealed record SurfaceDto(int I, double SnowCm, bool Crust, double MudLevel, double WaterCm, bool Ice);
 
 /// A remembered tile with something on it. Fire: the phase as last seen. FireHoursLeft: the fuel
 /// reckoned when last beside it, aged to now (null when not known to be burning). SeenMinute: when.
@@ -115,9 +125,10 @@ public sealed record UnitDto(int Index, int Team, string Species, string Name, i
     string Awareness, string Condition, string? Weapon);
 public sealed record CellDto(int X, int Y);
 
-/// A timed action under way: what it is, how far along. Finished once it stopped (Reason says why
-/// if it was cut short).
-public sealed record JobDto(string Label, string Kind, int DoneMinutes, int? TotalMinutes, bool Finished, string? Reason,
+/// A timed action under way: what it is, how far along. Finished once it stopped. Outcome, once
+/// finished: finished, refused, interrupted (Sim's StepOutcome), or stopped (by the client). Reason:
+/// the stop in the game's words ("arrived", "the fire went out"), null when it simply ran its time.
+public sealed record JobDto(string Label, string Kind, int DoneMinutes, int? TotalMinutes, bool Finished, string? Outcome, string? Reason,
     int? FromX, int? FromY, string? Dir);
 
 /// "While you were away" (Knowledge.Receipt): what happened here, what changed, what prints say.

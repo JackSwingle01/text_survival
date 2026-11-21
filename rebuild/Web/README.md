@@ -22,7 +22,12 @@ file with `fetch` calls to the same five operations.
 - **Views are plain data**, rebuilt on every call from the player's side of the world: `Verbs.At`, the
   player's beliefs (explored tiles, remembered places, sightings), `Sight` for what is in view now,
   `Tiers.Of` for the vitals and alerts, the clock and sky, the fire on the tile, trip terms and odds.
-  The map never reads the truth of a tile out of sight.
+  The map never reads the truth of a tile out of sight; the ground it carries (`Ground.SurfaceNow`) is
+  the ground in sight now.
+- **The words are Sim's.** Names come from `Names` (`Sim/Content/names.json`), journal and receipt lines
+  from `Narration`, odds factors and make outcomes are already in words, and a job's end is Sim's
+  `StepOutcome` (finished, refused, interrupted) with its reason. The host adds only icons
+  (`Host/Words.cs`); the CLI reads the same words.
 - **Actions are verb ids.** Each view lists every verb under an id; the client posts one back
   (`{"verb":"12.3"}`) and the host runs the exact `Activity` behind it. An id from an older view is
   refused. The page never builds an activity or names a game verb.

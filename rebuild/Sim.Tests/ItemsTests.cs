@@ -120,7 +120,7 @@ public class ItemsTests
         Sim.Step(loaded, new Unstash(P, Resource.Kindling, 99), 1);
         Assert.Equal(0.9, Items.Have(Items.Pack(loaded, P), Resource.Kindling), 9);
         var r = Sim.Step(loaded, new Unstash(P, Resource.Kindling, 1), 5);
-        Assert.Equal(("no Kindling stashed here", 0), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal(("no kindling stashed here", 0), (r.InterruptedReason, r.MinutesElapsed));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class ItemsTests
         Assert.True(w.Agent(P).Body.ClothingClo > before);
         Assert.Contains(Items.Pack(w, P).Gear, g => g.Kind == "worn_fur_chest_wrap");
         Assert.Single(w.Agent(P).Body.Worn, g => Items.Def(g).Slot == EquipSlot.Chest);
-        Assert.Equal("Hand Drill is not worn", Sim.Step(w, new Wear(P, "hand_drill"), 1).InterruptedReason);
+        Assert.Equal("Hand Drill is not something to wear", Sim.Step(w, new Wear(P, "hand_drill"), 1).InterruptedReason);
     }
 
     [Fact]
@@ -155,9 +155,9 @@ public class ItemsTests
         var w = New();
         string before = Save.ToJson(w);
         var r = Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.Tinder, 0.05, 0.3), 5);
-        Assert.Equal(("no working FireStriker", 0), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal(("no working fire striker", 0), (r.InterruptedReason, r.MinutesElapsed));
         r = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.BirchBark, 0.05, 0.3), 5);
-        Assert.Equal(("not enough BirchBark", 0), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal(("not enough birch bark", 0), (r.InterruptedReason, r.MinutesElapsed));
         r = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 5), 5);
         Assert.Equal(("not enough kindling", 0), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Equal(before, Save.ToJson(w));
@@ -197,7 +197,7 @@ public class ItemsTests
         Assert.True(Items.Have(pack, Resource.Birch) < birch);
         Assert.Equal(birch - Items.Have(pack, Resource.Birch), pit.UnburnedKg.GetValueOrDefault(Resource.Birch) + pit.BurningKg.GetValueOrDefault(Resource.Birch), 1);
         Assert.Equal("Berries does not burn", Sim.Step(w, new AddFuel(P, Resource.Berries, 1), 1).InterruptedReason);
-        Assert.Equal("no Oak to add", Sim.Step(w, new AddFuel(P, Resource.Oak, 1), 1).InterruptedReason);
+        Assert.Equal("no oak to add", Sim.Step(w, new AddFuel(P, Resource.Oak, 1), 1).InterruptedReason);
     }
 
     [Fact]

@@ -112,6 +112,19 @@ public class KnowledgeTests
 
     static double Eyes(World w, AgentId who) => Body.GetCapacities(w.Agent(who).Body).Sight;
 
+    /// A new world has already looked once: the player stands at camp and has taken in what is in
+    /// view, before any step (World.New). The same seed looks the same.
+    [Fact]
+    public void ANewWorld_HasLookedAroundOnce()
+    {
+        var w = World.New(17);
+        var camp = Map.Of(w).Camp;
+        var inView = Sight.Visible(w, camp, Eyes(w, P));
+        Assert.Equal(inView.Count, Explored(w, P).Count);
+        Assert.All(inView, t => Assert.True(Explored(w, P).Contains(t), $"{t} in view but not explored"));
+        Assert.Equal(Save.ToJson(w), Save.ToJson(World.New(17)));
+    }
+
     /// Everything in view is explored, bare ground too, which Places leaves out.
     [Fact]
     public void Looking_ExploresEveryTileInView_BareGroundToo()

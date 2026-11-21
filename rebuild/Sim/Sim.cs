@@ -2,7 +2,20 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-public sealed record StepResult(List<WorldEvent> Events, int MinutesElapsed, string? InterruptedReason);
+/// How a step ended. Finished: the activity ran its course (the minutes given ran out, or it stopped
+/// itself having done what it set out to: arrived, ate, made, woke fully rested). Refused: it could
+/// not start, and no time passed (or a fight round's action the fight had moved past). Interrupted:
+/// something stopped it short (the fire went out, too dark, exhausted, died).
+public enum StepOutcome { Finished, Refused, Interrupted }
+
+/// What one Sim.Step did. Reason is the stop in the system's own words, for display, whatever the
+/// outcome: null only for a step that finished by running the minutes it was given.
+public sealed record StepResult(List<WorldEvent> Events, int MinutesElapsed, StepOutcome Outcome, string? Reason)
+{
+    /// The stop reason under its first name, whatever the outcome (finished, refused or interrupted):
+    /// kept for the callers that still read it. Read Outcome to tell an arrival from an interruption.
+    public string? InterruptedReason => Reason;
+}
 
 /// An activity under way: what an NPC or herd is doing between its mind's decisions. Saved on the
 /// agent, so a load resumes it mid-way. The player's lives only inside one Sim.Step.
@@ -35,21 +48,21 @@ public static class Sim
         if (!IsAlive(agent)) throw new InvalidOperationException($"{agent.Id} is dead and cannot act");
         var events = new List<WorldEvent>();
         int filed = 0; // how far into events the tile journals have read (Journal.File)
-        StepResult Result(int elapsed, string? reason)
+        StepResult Result(int elapsed, StepOutcome outcome, string? reason)
         {
             Journal.File(world, events, ref filed);
-            return new StepResult(events, elapsed, reason);
+            return new StepResult(events, elapsed, outcome, reason);
         }
-        if (agent.Id == AgentId.Player && Crossed(world)) return new StepResult(events, 0, RunOver);
+        if (agent.Id == AgentId.Player && Crossed(world)) return new StepResult(events, 0, StepOutcome.Refused, RunOver);
         // A fight holds every agent with a member still in it: no walking off without fleeing.
         if (activity is not Fight && Held(world, agent.Id))
-            return new StepResult(events, 0, InAFight);
+            return new StepResult(events, 0, StepOutcome.Refused, InAFight);
         if (agent.Doing != null) // told to do something else: what it was doing ends here
         {
             Stop(world, agent, agent.Doing, events);
             agent.Doing = null;
         }
-        if (Start(world, activity, minutes, events, out var doing) is string refused) return Result(0, refused);
+        if (Start(world, activity, minutes, events, out var doing) is string refused) return Result(0, StepOutcome.Refused, refused);
 
         for (int elapsed = 1; elapsed <= minutes; elapsed++)
         {
@@ -57,7 +70,7 @@ public static class Sim
             if (activity is Fight act && Combat.Act(world, act, events) is string stale)
             {
                 Stop(world, agent, doing, events);
-                return Result(elapsed - 1, stale);
+                return Result(elapsed - 1, StepOutcome.Refused, stale);
             }
             world.Minute++;
             Scheduler.Minute(world, activity.Who, events);
@@ -66,7 +79,8 @@ public static class Sim
             if (interrupt != null)
             {
                 Stop(world, agent, doing, events); // death too: what was gathered is reported
-                return Result(elapsed, interrupt == Done ? null : interrupt);
+                return interrupt == Done ? Result(elapsed, StepOutcome.Finished, null)
+                    : Result(elapsed, Finishes(interrupt) ? StepOutcome.Finished : StepOutcome.Interrupted, interrupt);
             }
         }
         throw new InvalidOperationException("An activity outlived the minutes it was given");
@@ -83,6 +97,24 @@ public static class Sim
 
     /// What Live returns when the minutes given ran out with nothing else to stop for.
     internal const string Done = "done";
+
+    /// The stops that mean the activity did what it set out to: each system's own words for having
+    /// finished. Every other stop is an interruption. Body.Tick's "fully rested" (a sleep that woke
+    /// rested) and Combat.EndRound's "fight over" are written in those systems as literals.
+    static readonly HashSet<string> Finishing =
+    [
+        Traversal.Arrived, Traversal.CrossedThePassReason,
+        Work.Ate, Work.Drank, Work.CookedReason, Work.Melted, Work.TreeFelled, Work.ButcheredReason,
+        Shelters.BuiltReason, Shelters.Packed, Shelters.AsGoodAsItGets,
+        Making.MadeIt, Making.Spoiled,
+        Fire.DidNotCatch, // the strike was made and failed: the attempt is over
+        FullyRestedReason, FightOver,
+    ];
+
+    public const string FullyRestedReason = "fully rested", FightOver = "fight over";
+
+    /// Whether a stop reason (Live's) is the activity finishing rather than being cut short.
+    public static bool Finishes(string reason) => Finishing.Contains(reason);
 
     /// Why a player who has crossed the pass can do nothing more.
     public const string RunOver = "the run is over: you crossed the pass";
@@ -240,18 +272,19 @@ public static class Sim
         if (d.Work != null) Work.End(world, agent, d.Work, events);
     }
 
-    /// What the world and this activity do to the agent's body this minute.
-    /// Events take a snow shelter melting away under someone keeping still (Shelters.At).
-    internal static SurvivalContext Surroundings(World world, Agent agent, Activity activity, List<WorldEvent> events)
+    /// How an activity holds the body (old ActivityConfig): its metabolic factor, how close to the fire
+    /// it keeps you, whether it is sleep, whether it keeps you put long enough for a shelter to help
+    /// (old ActivityConfig.IsStationary), and how it touches the ground.
+    readonly record struct Hold(double ActivityFactor, double FireProximityFactor, bool Sleeping, bool Stationary, SurfaceContact Contact);
+
+    static Hold HoldOf(World world, Agent agent, Activity activity)
     {
         // Every activity so far keeps the agent put beside whatever fire there is: full radiant heat.
-        // Old ActivityConfig: metabolic factor and how close to the fire the activity keeps you.
         var gathering = activity is Gather g ? Pools.Def(world, new PoolId(agent.Tile, g.Pool)) : null;
-        // Stationary: whether it keeps you put long enough for a shelter to help (old ActivityConfig.IsStationary).
         var (activityFactor, fireProximityFactor, sleeping, stationary) = activity switch
         {
             Sleep => (0.5, 2.0, true, true),
-            Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or Stash or Unstash or Wear => (1.0, 2.0, false, true),
+            Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or Stash or Unstash or Wear or TakeOff => (1.0, 2.0, false, true),
             Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, tending the fire
             Build or ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // old ActivityType.Crafting
             Travel => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
@@ -264,8 +297,6 @@ public static class Sim
 
             _ => throw new NotSupportedException($"No survival profile for activity {activity.GetType().Name}"),
         };
-        var cover = Shelters.CoverFor(world, agent.Tile, stationary, events);
-        var bedding = Shelters.BeddingAt(world, agent.Tile);
         // Old SurvivalContext.GroundContactFor: idle and walking both go through the ground on foot.
         var contact = activity switch
         {
@@ -274,12 +305,28 @@ public static class Sim
             StartFire or AddFuel or LightTorch or GatherCharcoal or Eat or Drink or Cook or MeltSnow or Butcher => SurfaceContact.WorkingOnGround,
             _ => SurfaceContact.Walking,
         };
-        var exposure = Exposure.At(world, agent.Tile, Cover.In(cover, agent.Id), contact, Effects.Severity(agent.Body, EffectKind.Wet));
+        return new Hold(activityFactor, fireProximityFactor, sleeping, stationary, contact);
+    }
+
+    /// The radiant heat the activity takes from fires: the pit's by how close it keeps you, plus the
+    /// heat a shelter holds, which rides with it (withheld once you sweat, by the body).
+    static double FireBonusF(Fire.Warmth warmth, Hold hold) => warmth.PitHeatF * hold.FireProximityFactor + warmth.ShelterHeatF;
+
+    /// Bedding's warmth is felt asleep in it (old WarmthBonus: authored, never read - bug, fixed).
+    static double BeddingF(BeddingProps? bedding, Hold hold) => hold.Sleeping ? bedding?.WarmthBonusF ?? 0 : 0;
+
+    /// What the world and this activity do to the agent's body this minute.
+    /// Events take a snow shelter melting away under someone keeping still (Shelters.At).
+    internal static SurvivalContext Surroundings(World world, Agent agent, Activity activity, List<WorldEvent> events)
+    {
+        var hold = HoldOf(world, agent, activity);
+        var cover = Shelters.CoverFor(world, agent.Tile, hold.Stationary, events);
+        var bedding = Shelters.BeddingAt(world, agent.Tile);
+        var exposure = Exposure.At(world, agent.Tile, Cover.In(cover, agent.Id), hold.Contact, Effects.Severity(agent.Body, EffectKind.Wet));
         var warmth = exposure.Warmth;
         return new SurvivalContext
         {
-            // Bedding's warmth is felt asleep in it (old WarmthBonus: authored, never read - bug, fixed).
-            AirTempF = exposure.AirF + (sleeping ? bedding?.WarmthBonusF ?? 0 : 0),
+            AirTempF = exposure.AirF + BeddingF(bedding, hold),
             // The one wind at the body (Exposure.WindAt): the wind chill in AirTempF read it too.
             WindLevel = exposure.WindLevel,
             FireDryingWindLevel = exposure.FireDryingWindLevel,
@@ -288,18 +335,50 @@ public static class Sim
             OverheadCoverLevel = exposure.OverheadCoverLevel,
             // The shelter's held fire heat rides with the radiant heat: withheld once you sweat (old: it was
             // in the air, so a sheltered sleeper by a big fire sweated through every litre - bug, fixed).
-            FireBonusF = warmth.PitHeatF * fireProximityFactor + warmth.ShelterHeatF,
+            FireBonusF = FireBonusF(warmth, hold),
             TorchHeatF = warmth.TorchHeatF,
             ClothingClo = agent.Body.ClothingClo,
             ClothingWeightKg = agent.Body.ClothingWeightKg,
-            ActivityFactor = activityFactor,
-            IsSleeping = sleeping,
+            ActivityFactor = hold.ActivityFactor,
+            IsSleeping = hold.Sleeping,
             GroundWettingPctPerMinute = exposure.GroundWettingPctPerMinute,
-            GroundProtectionLevel = contact == SurfaceContact.RestingOnGround ? Shelters.GroundProtectionLevel(bedding) : 0,
+            GroundProtectionLevel = hold.Contact == SurfaceContact.RestingOnGround ? Shelters.GroundProtectionLevel(bedding) : 0,
             BeddingQualityPct = bedding?.QualityPct ?? SurvivalContext.NoBeddingQualityPct,
         };
     }
+
+    /// What the person feels doing this here, now: the air their body lives by this minute (Surroundings'
+    /// air, fire and torch heat), as its terms - the air (with the place's own cold), the wind and the
+    /// sky, the shelter (when the activity keeps them still in it), the fire, a torch, bedding asleep.
+    /// Terms that change nothing are left out; the rest add up to FeltF exactly. Reads only:
+    /// the shelter is looked at (Shelters.CoverNow), and both airs come from the one Exposure.At. Fires
+    /// around the person must be caught up (they are after any step).
+    public static Feeling Feels(World world, AgentId who, Activity activity)
+    {
+        var agent = world.Agent(who);
+        var hold = HoldOf(world, agent, activity);
+        var cover = Shelters.CoverNow(world, agent.Tile, hold.Stationary);
+        // No ground contact: how wet the ground makes you is not felt air, and reading it would observe
+        // (catch up and store) the tile's ground.
+        var e = Exposure.At(world, agent.Tile, Cover.In(cover, who));
+        double openBeforeFireF = cover == default ? e.AirBeforeFireF : Exposure.At(world, agent.Tile, Cover.Open(who)).AirBeforeFireF;
+        var all = new (string Factor, double DeltaF)[]
+        {
+            ("Air", e.SurfaceAirF),
+            (e.WindLevel > 0.02 ? "Wind and sky" : "Sky", openBeforeFireF - e.SurfaceAirF),
+            ("Shelter", e.AirBeforeFireF - openBeforeFireF),
+            ("Fire", e.Warmth.AirHeatF + FireBonusF(e.Warmth, hold)),
+            ("Torch", e.Warmth.TorchHeatF),
+            ("Bedding", BeddingF(Shelters.BeddingAt(world, agent.Tile), hold)),
+        };
+        double felt = all.Sum(t => t.DeltaF);
+        return new Feeling(felt, [.. all.Where((t, i) => i == 0 || t.DeltaF != 0)], e);
+    }
 }
+
+/// The air a person feels, and what makes it (Sim.Feels). Terms: "Air" first, then each term that
+/// moves it; they add up to FeltF.
+public sealed record Feeling(double FeltF, IReadOnlyList<(string Factor, double DeltaF)> Terms, Exposure Exposure);
 
 /// Moves every agent that has a mind of its own (NPCs, herds) through the world's minutes. Runs once
 /// for each minute the world lives, after the clock moves, whoever's step is living it, so one long

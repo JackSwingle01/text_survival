@@ -237,4 +237,96 @@ public class VerbsTests
         Assert.Equal("Forage", forage.Action.Label);
         AssertEveryVerbIsTrue(w, P);
     }
+
+    // ---- what you carry, and building ----
+
+    /// The pack's verbs: eat each food, put down each thing, wear each garment carried, take off each
+    /// one worn. All of them as true as the rest.
+    [Fact]
+    public void ThePack_OffersEating_PuttingDown_Wearing_AndTakingOff()
+    {
+        var w = Camp(out _);
+        TestKit.Supply(w);
+        var pack = Items.Pack(w, P);
+        Items.Add(pack, Resource.Berries, 2);
+        pack.Gear.Add(Items.Make("fur_chest_wrap"));
+        Sim.Step(w, new Wait(P), 1);
+        var carried = Verbs.At(w, P).Pack;
+        var eat = Assert.Single(carried, v => v.Activity is Eat);
+        Assert.Equal(Resource.Berries, ((Eat)eat.Activity).Food);
+        Assert.Equal("Eat berries", eat.Label);
+        Assert.Equal(pack.Kg.Keys.Where(r => pack.Kg[r] > 0), carried.Select(v => v.Activity).OfType<Stash>().Select(s => s.Resource));
+        Assert.All(carried.Select(v => v.Activity).OfType<Stash>(), s => Assert.Equal(Items.Have(pack, s.Resource), s.Kg));
+        Assert.Equal(new Wear(P, "fur_chest_wrap"), Assert.Single(carried, v => v.Activity is Wear).Activity);
+        Assert.Equal(w.Agent(P).Body.Worn.Select(g => g.Kind), carried.Select(v => v.Activity).OfType<TakeOff>().Select(t => t.Gear));
+        AssertEveryVerbIsTrue(w, P);
+    }
+
+    /// Taking something off puts it in the pack, and wearing it again puts it back on.
+    [Fact]
+    public void TakingOff_PutsItInThePack()
+    {
+        var w = Camp(out _);
+        var boots = w.Agent(P).Body.Worn.Single(g => g.Kind == "worn_hide_boots");
+        var r = Sim.Step(w, new TakeOff(P, "worn_hide_boots"), 1);
+        Assert.Equal(StepOutcome.Finished, r.Outcome);
+        Assert.DoesNotContain(boots, w.Agent(P).Body.Worn);
+        Assert.Contains(boots, Items.Pack(w, P).Gear);
+        Assert.Equal("you are not wearing worn hide boots", Sim.Refusal(w, new TakeOff(P, "worn_hide_boots")));
+        Sim.Step(w, new Wear(P, "worn_hide_boots"), 1);
+        Assert.Contains(boots, w.Agent(P).Body.Worn);
+    }
+
+    /// Every structure is offered to build, refused with what it lacks (no hidden recipes), as Make's are.
+    [Fact]
+    public void EveryStructure_IsOfferedToBuild()
+    {
+        var w = Camp(out _);
+        Sim.Step(w, new Wait(P), 1);
+        var builds = Verbs.At(w, P).Make.Where(v => v.Activity is Build).ToList();
+        Assert.Equal(Enum.GetValues<Structure>(), builds.Select(v => ((Build)v.Activity).What));
+        Assert.Equal("there is already a shelter here (Overhang)", builds.Single(v => v.Activity == new Build(P, Structure.Tent)).Refused); // the camp's overhang
+        AssertEveryVerbIsTrue(w, P);
+    }
+
+    /// A tent in the pack can be pitched from the list, and the pitched tent packed again.
+    [Fact]
+    public void ATentInThePack_IsPitchedFromTheList()
+    {
+        var w = Camp(out var camp);
+        var m = Map.Of(w);
+        var open = Enumerable.Range(1, 30).Select(r => new TileId(camp.X + r, camp.Y)).First(t => m.TerrainAt(t).IsPassable() && Shelters.Peek(w, t) == null);
+        w.Agent(P).Tile = open;
+        Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
+        Sim.Step(w, new Wait(P), 1);
+        var pitch = Verbs.At(w, P).Make.Single(v => v.Activity == new Build(P, Structure.Tent));
+        Assert.True(pitch.Allowed, pitch.Refused);
+        AssertEveryVerbIsTrue(w, P);
+    }
+
+    // ---- crossing risk ----
+
+    /// A quick walk over hazardous ground shows the injury odds the crossing will roll, leaving and
+    /// entering; a careful one, none.
+    [Fact]
+    public void AQuickWalkOverHazardousGround_ShowsTheRiskItRolls()
+    {
+        var w = Camp(out var camp);
+        var m = Map.Of(w);
+        var start = Enumerable.Range(1, m.Height - 2).SelectMany(y => Enumerable.Range(1, m.Width - 2).Select(x => new TileId(x, y)))
+            .First(t => m.TerrainAt(t).IsPassable() && Directions.Any(d => m.TerrainAt(Map.Step(t, d)).IsPassable() && Traversal.IsHazardous(w, Map.Step(t, d))));
+        w.Agent(P).Tile = start;
+        Sim.Step(w, new Wait(P), 1);
+        var dir = Directions.First(d => m.TerrainAt(Map.Step(start, d)).IsPassable() && Traversal.IsHazardous(w, Map.Step(start, d)));
+        var walks = Verbs.At(w, P).Walk;
+        var quick = walks.Single(v => v.Activity == new Travel(P, dir));
+        var careful = walks.Single(v => v.Activity == new Travel(P, dir, Pace.Careful));
+        Assert.Equal(0, careful.Risk!.AnyPct);
+        Assert.True(quick.Risk!.Entering.TotalPct > 0);
+
+        Sim.Step(w, quick.Activity, 1);
+        var crossing = w.Agent(P).Crossing!;
+        Assert.Equal((crossing.OriginRiskPct, crossing.DestRiskPct), (quick.Risk.Leaving.TotalPct, quick.Risk.Entering.TotalPct));
+        Assert.Equal(1 - (1 - crossing.OriginRiskPct) * (1 - crossing.DestRiskPct), quick.Risk.AnyPct, 12);
+    }
 }

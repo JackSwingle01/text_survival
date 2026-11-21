@@ -91,6 +91,12 @@ public sealed class World
         Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);
         Map.PlaceSiteShelters(world);
         Fauna.Populate(world);
+        // The player takes in where they stand before anything happens: the map opens on what is in
+        // view (Beliefs.Explored), not on nothing. No fire is lit yet, so the look has nothing to report;
+        // should generation ever place a burning fire, catching it up here would, and this throws to say so.
+        var events = new List<WorldEvent>();
+        Knowledge.Glance(world, world.Agents[AgentId.Player], events);
+        if (events.Count > 0) throw new InvalidOperationException($"The first look at a new world reported {events.Count} events");
         return world;
     }
 

@@ -24,6 +24,17 @@ public class SightTests
 
     static bool Sees(World w, TileId from, int dx, int dy, double sight = 1) => Sight.Visible(w, from, sight).Contains(new TileId(from.X + dx, from.Y + dy));
 
+    /// What the person has in view now, from the view their looks already cast (no rays cast again):
+    /// the same tiles Sight.Visible gives from there with their eyes.
+    [Fact]
+    public void InView_IsTheVisibleTiles_FromWhereThePersonStands()
+    {
+        var w = World.New(17);
+        var me = w.Agent(AgentId.Player);
+        Assert.Equal(Sight.Visible(w, me.Tile, Body.GetCapacities(me.Body).Sight), Sight.InView(w, me));
+        Assert.Same(Sight.InView(w, me), Sight.InView(w, me));
+    }
+
     [Fact]
     public void OverOpenGround_SightReachesElevenTiles()
     {

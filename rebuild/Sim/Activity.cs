@@ -22,6 +22,7 @@ namespace Survival;
 [JsonDerivedType(typeof(Stash), "stash")]
 [JsonDerivedType(typeof(Unstash), "unstash")]
 [JsonDerivedType(typeof(Wear), "wear")]
+[JsonDerivedType(typeof(TakeOff), "takeoff")]
 [JsonDerivedType(typeof(Fight), "fight")]
 [JsonDerivedType(typeof(Travel), "travel")]
 [JsonDerivedType(typeof(Graze), "graze")]
@@ -64,6 +65,8 @@ public sealed record Stash(AgentId Who, Resource Resource, double Kg) : Activity
 public sealed record Unstash(AgentId Who, Resource Resource, double Kg) : Activity(Who);
 /// Puts on a garment from the pack; what that slot held goes back in the pack.
 public sealed record Wear(AgentId Who, string Gear) : Activity(Who);
+/// Takes off a garment of this kind and puts it in the pack.
+public sealed record TakeOff(AgentId Who, string Gear) : Activity(Who);
 
 /// One round of the fight the agent is in: its action, then a minute lived, then everyone else's
 /// turn (Combat). Target indexes Encounter.Units; To is the cell for a Move.

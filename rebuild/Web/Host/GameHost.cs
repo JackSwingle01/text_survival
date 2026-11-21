@@ -35,10 +35,7 @@ public sealed class GameHost
 
     public string NewGame(int seed)
     {
-        _world = World.New(seed);
-        // A new world has looked at nothing yet (Beliefs.Explored is null until the first look): the
-        // player takes in where they stand, as they will every quarter-hour awake.
-        Knowledge.Glance(_world, _world.Agent(AgentId.Player), []);
+        _world = World.New(seed); // it has already looked around once: the map opens on what is in view
         Reset();
         _log.Add(new LogDto(_world.Minute, "Separated from the tribe in the crossing. You are alone at the camp.", "plain", "shelter"));
         return View();
@@ -64,7 +61,7 @@ public sealed class GameHost
         }
         else if (a.Stop == true)
         {
-            if (_job is { Finished: false } job) job.Finish("stopped");
+            if (_job is { Finished: false } job) job.Finish("stopped", null);
         }
         else throw new ArgumentException("An act names a verb, an advance or a stop");
         return View();
@@ -109,8 +106,15 @@ public sealed class GameHost
         public Direction? Dir { get; } = dir;
         public int Done { get; set; }
         public bool Finished { get; private set; }
+        /// How it ended (Sim's StepOutcome, or stopped by the client), once it has.
+        public string? Outcome { get; private set; }
         public string? Reason { get; private set; }
-        public void Finish(string? reason) { Finished = true; Reason ??= reason; }
+        public void Finish(string outcome, string? reason)
+        {
+            if (Finished) return;
+            (Finished, Outcome, Reason) = (true, outcome, reason);
+        }
+        public void Finish(StepResult r) => Finish(r.Outcome.ToString().ToLowerInvariant(), r.Reason);
     }
 
     Job JobFor(Verb v)
@@ -120,7 +124,7 @@ public sealed class GameHost
         int? budget = v.Minutes == Verbs.UntilDoneMinutes ? null : v.Minutes;
         var job = new Job(v.Label, ViewBuilder.KindOf(v.Activity), v.Activity, budget, chunked, p.Tile, (v.Activity as Travel)?.Dir);
         // A refused verb never starts: no time passes, and the refusal comes back as the job's reason.
-        if (v.Refused != null) job.Finish(v.Refused);
+        if (v.Refused != null) job.Finish("refused", v.Refused);
         return job;
     }
 
@@ -131,28 +135,16 @@ public sealed class GameHost
         {
             var whole = Sim.Step(w, job.Activity, job.Budget ?? Verbs.UntilDoneMinutes);
             Took(job, whole);
-            job.Finish(whole.InterruptedReason);
+            job.Finish(whole);
             return;
         }
         int left = (job.Budget ?? Verbs.UntilDoneMinutes) - job.Done;
         int minutes = Math.Min(chunk, left);
         var r = Sim.Step(w, job.Activity, minutes);
         Took(job, r);
-        if (r.InterruptedReason != null || r.MinutesElapsed < minutes || job.Done >= (job.Budget ?? Verbs.UntilDoneMinutes) || StoppedItself(job))
-            job.Finish(r.InterruptedReason);
-    }
-
-    /// Work that ends on its own and finished exactly at the end of a chunk: the crossing is over,
-    /// or the project is no longer in the pack. Run again, it would begin anew.
-    bool StoppedItself(Job job)
-    {
-        var p = W.Agent(AgentId.Player);
-        return job.Activity switch
-        {
-            Travel => p.Crossing == null,
-            Make m => Items.PackOf(p) is not { } pack || Making.ProjectFor(pack, m.Recipe) == null,
-            _ => false,
-        };
+        // A chunk that ran all its minutes with no reason has only reached the client's chunk boundary;
+        // anything else (a stop with a reason: arrived, made, interrupted, refused) is the job's end.
+        if (r.Reason != null || r.MinutesElapsed < minutes || job.Done >= (job.Budget ?? Verbs.UntilDoneMinutes)) job.Finish(r);
     }
 
     void Took(Job job, StepResult r)
@@ -161,7 +153,7 @@ public sealed class GameHost
         foreach (var e in r.Events)
         {
             if (e is Noticed n && n.Who == AgentId.Player) _receipt = ReceiptOf(n.Receipt, job.Activity is Sleep);
-            else if (Words.Event(W, e) is { } line) _log.Add(line);
+            else if (Narration.ForPlayer(W, e) is { } line) _log.Add(Words.Log(line));
         }
         if (_log.Count > MaxLog) _log.RemoveRange(0, _log.Count - MaxLog);
     }
@@ -170,23 +162,14 @@ public sealed class GameHost
     {
         var lines = new List<LogDto>();
         foreach (var e in r.Happened)
-            if (Words.Line(W, e) is { } l) lines.Add(l);
-        foreach (var c in r.Changes) lines.Add(new LogDto(W.Minute, ChangeText(c), c.Now == null ? "bad" : "plain", ChangeIcon(c)));
+            if (Narration.Of(W, e) is { } l) lines.Add(Words.Log(l));
+        foreach (var c in r.Changes) lines.Add(new LogDto(W.Minute, Narration.Change(c), c.Now == null ? "bad" : "plain", ChangeIcon(c)));
         foreach (var s in r.Signs)
-            lines.Add(new LogDto(W.Minute - s.AgeMinutes, $"{Words.Cap(Words.Of(s.Maker))} prints, {ViewBuilder.Reading(s)}", "bad", ViewBuilder.TrackIcon(s.Maker)));
+            lines.Add(new LogDto(W.Minute - s.AgeMinutes, Narration.Sign(s), "bad", ViewBuilder.TrackIcon(s.Maker)));
         lines.Sort((a, b) => a.Minute.CompareTo(b.Minute));
         string title = woke ? "Morning" : r.Full ? "While you were away" : "Since you were last here";
         return new ReceiptDto(title, r.SinceMinute, W.Minute, r.Full, lines);
     }
-
-    static string ChangeText(Change c) => c.Kind switch
-    {
-        ChangeKind.Fire => c.Now == null ? "The fire pit is gone" : c.Was == null ? $"A fire here: {Words.Of(c.Now)}" : $"The fire: {Words.Of(c.Was)} to {Words.Of(c.Now)}",
-        ChangeKind.Stash => c.Now == null ? $"The {Words.Of(c.Subject)} in the stash is gone" : c.Was == null ? $"{c.Now} kg {Words.Of(c.Subject)} in the stash" : $"Stash {Words.Of(c.Subject)}: {c.Was} to {c.Now} kg",
-        ChangeKind.Carcass => c.Now == null ? $"The {Words.Lower(c.Subject)} carcass is gone" : $"A {Words.Lower(c.Subject)} carcass",
-        ChangeKind.Shelter => c.Now == null ? $"The {Words.Lower(c.Was ?? "shelter")} is gone" : $"A {Words.Lower(c.Now)} stands here",
-        _ => throw new ArgumentOutOfRangeException(nameof(c), c.Kind, null),
-    };
 
     static string ChangeIcon(Change c) => c.Kind switch
     {
@@ -218,10 +201,10 @@ public sealed class GameHost
             ? to is { } c ? new Cell(c.X, c.Y) : throw new ArgumentException("Move needs a cell (to)")
             : null);
         var job = new Job(Words.Cap(Words.Of(f.Action)), "fight", act, 1, false, p.Tile, null);
-        if (Sim.Refusal(W, act) is string refused) job.Finish(refused);
+        if (Sim.Refusal(W, act) is string refused) job.Finish("refused", refused);
         else if (Combat.EncounterOf(W, AgentId.Player) is { } enc &&
                  Combat.Refusal(W, enc, Combat.UnitOf(enc, AgentId.Player), f.Action, f.Target is int t ? enc.Units[t] : null, act.To) is string no)
-            job.Finish(no);
+            job.Finish("refused", no);
         return job;
     }
 }
