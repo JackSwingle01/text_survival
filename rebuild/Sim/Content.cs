@@ -78,6 +78,33 @@ public sealed record LootRoll(double Chance = 1, Resource? Resource = null, IRea
 /// The game's tables, loaded once from the JSON embedded beside this assembly and checked on load:
 /// a bad name or a broken reference throws here, not when a player happens to walk onto it.
 /// Content never lands in a save: the save holds kinds and ids, and the tables say what they are.
+/// Numbers to change in the tables before Content first loads them, so a tool (the tuner) can try
+/// other constants in its own process without editing a file. Kept apart from Content because touching
+/// Content loads it: set these first, or not at all.
+public static class ContentOverrides
+{
+    static IReadOnlyDictionary<string, double> pending = new Dictionary<string, double>();
+    static bool loaded;
+
+    /// Paths as Content.Override reads them ("species.json:species.Wolf.boldness"). Throws once
+    /// Content has loaded: a late override would change nothing and say nothing.
+    public static void Set(IReadOnlyDictionary<string, double> overrides)
+    {
+        if (loaded) throw new InvalidOperationException("Content is already loaded; set overrides before anything reads it");
+        pending = new Dictionary<string, double>(overrides);
+    }
+
+    /// What Content applies as it loads; after this, Set refuses.
+    internal static IReadOnlyDictionary<string, double> Take()
+    {
+        loaded = true;
+        return pending;
+    }
+
+    /// The overrides Content loaded with (none, for the game).
+    public static IReadOnlyDictionary<string, double> Applied => loaded ? pending : throw new InvalidOperationException("Content has not loaded yet");
+}
+
 public static partial class Content
 {
     static readonly JsonSerializerOptions Options = new()
@@ -166,7 +193,7 @@ public static partial class Content
     static Content()
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        Tables = Parse(EmbeddedFiles());
+        Tables = Parse(Override(EmbeddedFiles(), ContentOverrides.Take()));
         LoadMilliseconds = clock.Elapsed.TotalMilliseconds;
         (Locations, Loot) = (Tables.Locations, Tables.Loot);
         ById = Locations.ToDictionary(l => l.Id).AsReadOnly();
@@ -184,6 +211,52 @@ public static partial class Content
 
     /// Every embedded file's text, by file name.
     internal static Dictionary<string, string> EmbeddedFiles() => Files.ToDictionary(f => f, Embedded);
+
+    /// The files with numbers replaced, before anything reads them: "species.json:species.Wolf.boldness"
+    /// is the file, then a dotted path of object keys (or array indexes) to a number already there.
+    /// A path that names nothing, or anything but a number there, throws: a tuner
+    /// that mistyped a name must not quietly tune nothing. The checks that follow (Parse) still apply.
+    internal static Dictionary<string, string> Override(IReadOnlyDictionary<string, string> files, IReadOnlyDictionary<string, double> overrides)
+    {
+        var result = files.ToDictionary(f => f.Key, f => f.Value);
+        foreach (var group in overrides.GroupBy(o => FileOf(o.Key)))
+        {
+            if (!result.TryGetValue(group.Key, out var text)) throw new InvalidDataException($"Override: no content file {group.Key}");
+            var root = System.Text.Json.Nodes.JsonNode.Parse(text, documentOptions: new JsonDocumentOptions
+                { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })
+                ?? throw new InvalidDataException($"Override: {group.Key} is empty");
+            foreach (var (path, value) in group) Set(root, path, value);
+            result[group.Key] = root.ToJsonString();
+        }
+        return result;
+    }
+
+    static string FileOf(string path) =>
+        path.IndexOf(':') is int i and > 0 ? path[..i] : throw new InvalidDataException($"Override '{path}' is not file:path.to.number");
+
+    static void Set(System.Text.Json.Nodes.JsonNode root, string path, double value)
+    {
+        if (!double.IsFinite(value)) throw new InvalidDataException($"Override {path}: {value} is not a number");
+        var keys = path[(path.IndexOf(':') + 1)..].Split('.');
+        var node = root;
+        for (int k = 0; k < keys.Length - 1; k++) node = Child(node, keys[k], path);
+        string last = keys[^1];
+        var old = Child(node, last, path) as System.Text.Json.Nodes.JsonValue;
+        if (old == null || old.GetValueKind() != JsonValueKind.Number) throw new InvalidDataException($"Override {path}: not a number in the file");
+        // A whole value is written as one, so an int field takes it; a fraction where the table wants
+        // an int fails in Parse, by name.
+        System.Text.Json.Nodes.JsonNode replacement = value == Math.Round(value) && Math.Abs(value) < 1e15
+            ? System.Text.Json.Nodes.JsonValue.Create((long)value) : System.Text.Json.Nodes.JsonValue.Create(value);
+        if (node is System.Text.Json.Nodes.JsonArray array) array[int.Parse(last)] = replacement;
+        else node.AsObject()[last] = replacement;
+    }
+
+    static System.Text.Json.Nodes.JsonNode Child(System.Text.Json.Nodes.JsonNode node, string key, string path) => node switch
+    {
+        System.Text.Json.Nodes.JsonObject o when o.TryGetPropertyValue(key, out var c) && c != null => c,
+        System.Text.Json.Nodes.JsonArray a when int.TryParse(key, out int i) && i >= 0 && i < a.Count && a[i] != null => a[i]!,
+        _ => throw new InvalidDataException($"Override {path}: no '{key}' there"),
+    };
 
     /// Reads and checks the location and loot tables against the rest as embedded; any problem throws
     /// InvalidDataException naming it. Tests hand it broken ones.
