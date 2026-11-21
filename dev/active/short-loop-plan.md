@@ -4,6 +4,10 @@
 reaches phase 5. Built on `rebuild/Sim`, not the old code. A few cheap asks of the rebuild itself are
 listed under [Asks of the Rebuild](#asks-of-the-rebuild); those should land during the rebuild.*
 
+*How these features are presented on screen (the information hierarchy, layout, components and
+visual language) is in [ui-design.md](ui-design.md), with a working prototype in
+`dev/prototypes/ui/`.*
+
 ---
 
 ## Why
