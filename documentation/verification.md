@@ -158,3 +158,20 @@ too.
 5. Run `dotnet stryker` and kill or excuse every survivor.
 
 Save migration tests are deliberately not part of this setup: save compatibility starts at the first playable release.
+
+## Evidence of effectiveness (2026-11-21)
+
+The first afternoon of property and conservation testing found 11 real bugs that the ~1,100
+hand-written tests had not:
+
+| Found by | Bug |
+|---|---|
+| Effect properties | A treatment flag depended on the order an effect worsened; NaN severity was accepted and stuck; negative decay minutes raised severity |
+| Body properties | `ProcessTemperature(N)` was wrong for N > 1 (switch points fixed at the step's start); a fire or torch dried you slower than warm air alone above about 62 °F |
+| Random action sequences | A crossing's outcome depended on how the walk was cut into steps (the "barely move" rule was checked only at the start) |
+| Conservation laws | A blade wasted more bone than bare hands in quick-strip butchering; adding fuel shortened a fire (mixed fuels burned at the averaged rate); fuel under 1 g was deleted uncounted; a mammoth could never be butchered by hand |
+
+A blind retro-check against older commits with known bugs was planned and dropped: the property
+writer had seen the old bug list in its brief and in code comments, so it would not have been
+blind, and the suite's API does not compile against old commits without rewriting. The new finds
+above are the evidence instead.
