@@ -32,13 +32,14 @@ export function createTerrain() {
         g.drawImage(im, 0, 0);
         textures.set(name, { w: im.width, h: im.height, data: g.getImageData(0, 0, im.width, im.height).data });
       };
-      im.onerror = () => console.error('Missing terrain texture', name);
+      im.onerror = () => textures.set(name, new Error(`missing terrain texture ${name}`));
       im.src = src(name);
     }
     wanted = textureNames(world);
     wantedFor = world.key;
   }
-  const ready = () => wanted.every(n => textures.get(n));
+  // A texture that failed to load would leave the map blank for ever; say so instead.
+  const ready = () => wanted.every(n => { const t = textures.get(n); if (t instanceof Error) throw t; return t; });
   const tex = name => {
     const t = textures.get(name);
     if (!t) throw new Error(`terrain texture not loaded: ${name}`);

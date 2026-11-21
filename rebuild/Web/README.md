@@ -48,16 +48,17 @@ file with `fetch` calls to the same five operations.
 `wwwroot/terrain.js` bakes it into 8 x 8 cell chunks, a few milliseconds a frame, nearest the camera
 first. Cells are 48 CSS px everywhere (one art pixel each: crisp at a device pixel ratio of 1 or 2).
 Rivers are one channel through their cells, lakes have round shores, mountains are lit ridged
-height with a snowline, and snow, mud, ice and every tree come from world noise, so nothing repeats
-per tile. A pixel reads only its cell's 5 x 5 neighbourhood, and unknown cells read as the cell's own
-terrain, so the ground never shows what the player has not seen.
+height with a snowline, and where snow and mud lie and where every tree stands come from world
+noise. Snow, mud and ice themselves are painted 96 px textures shown through those masks. A pixel
+reads only its cell's 5 x 5 neighbourhood, and unknown cells read as the cell's own terrain, so
+the ground never shows what the player has not seen.
 
 Tiles supply only texture, painted by `scripts/build-terrain-layers.py` into `assets/icons/terrain/`.
 Each cell's snow, mud and ice come from `MapDto.Surface` (`wwwroot/ground-state.js`, which holds
 every threshold in `GROUND`); the date sets only the palette and the mountain snowline (`SEASONS`).
 The view carries the ground in sight only, so the page keeps the ground as it last saw it; a tile not
-in sight since the page loaded is drawn bare. Art not painted yet (`PAINTED` in `terrain-core.js`)
-is drawn with the closest that is, and the console says so once per asset.
+in sight since the page loaded is drawn bare. Every layer and palette is painted (`PAINTED` in `terrain-core.js`);
+asking for art that is not throws.
 
 ```bash
 node --test tools/terrain.test.mjs                                               # ground follows the Sim, art matches PAINTED

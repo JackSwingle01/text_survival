@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createBaker, textureNames, wantedArt, resolveArt, PAINTED, CELL, SRC, VARIANTS, variant } from '../App/wwwroot/terrain-core.js';
+import { createBaker, wantedArt, resolveArt, PAINTED, CELL, SRC, VARIANTS, variant } from '../App/wwwroot/terrain-core.js';
 import { cellState, worldState, createGroundMemory, GROUND, SEASONS, BARE } from '../App/wwwroot/ground-state.js';
 import { decodePng } from './png.mjs';
 
@@ -15,7 +15,6 @@ const icons = path.resolve(here, '../../../assets/icons');
 const fixture = JSON.parse(fs.readFileSync(path.join(here, 'fixtures/seed17.json'), 'utf8'));
 const CODES = { forest: 'F', clearing: 'C', plain: 'P', hills: 'H', water: 'W', marsh: 'M', rock: 'R', mountain: 'X', deepwater: 'D', cavefloor: 'c' };
 const TERRAIN = Object.fromEntries(Object.entries(CODES).map(([k, v]) => [v, k]));
-const quiet = () => {};
 
 const textures = new Map();
 const tex = name => {
@@ -23,7 +22,7 @@ const tex = name => {
   return textures.get(name);
 };
 function sampleOf(name, px, py) {
-  const t = tex(resolveArt(name, quiet)), sx = Math.floor(px / SRC), sy = Math.floor(py / SRC);
+  const t = tex(resolveArt(name)), sx = Math.floor(px / SRC), sy = Math.floor(py / SRC);
   const x = Math.floor((px - sx * SRC) * t.w / SRC), y = Math.floor((py - sy * SRC) * t.h / SRC), i = (y * t.w + x) * 4;
   return t.data[i + 3] ? [t.data[i], t.data[i + 1], t.data[i + 2]] : null;
 }
@@ -51,7 +50,7 @@ function openLand(terrain) {
   return out;
 }
 
-/** Per pixel of cell (cx, cy) baked from `m`: whether it is the snow layer, the bare ground, or neither. */
+/** Per pixel of cell (cx, cy) baked from `m`: whether it is any snow layer, the bare ground, or neither. */
 function layers(m, cx, cy, world) {
   const ground = createGroundMemory(c => TERRAIN[c]);
   ground.see(m);
@@ -64,12 +63,35 @@ function layers(m, cx, cy, world) {
   for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) {
     const px = cx * CELL + x, py = cy * CELL + y, i = (y * CELL + x) * 4, got = [out[i], out[i + 1], out[i + 2]];
     const n = variant(Math.floor(px / SRC), Math.floor(py / SRC), VARIANTS) + 1;
-    const s = sampleOf(`terrain/snow/full_${flav}_${n}`, px, py), g = sampleOf(`terrain/ground/${terrain}_${n}_${world.palette}`, px, py);
-    const isSnow = s && String(s) === String(got), isBare = g && String(g) === String(got);
+    const g = sampleOf(`terrain/ground/${terrain}_${n}_${world.palette}`, px, py), isBare = g && String(g) === String(got);
+    const isSnow = ['full', 'patchy', 'dust'].some(level => {
+      const s = sampleOf(`terrain/snow/${level}_${flav}_${n}`, px, py);
+      return s && String(s) === String(got);
+    });
     if (isSnow && !isBare) snow++;
     if (isBare && !isSnow) bare++;
   }
   return { snow, bare, pixels: CELL * CELL };
+}
+
+/** Of the pixels of cell (cx, cy) where `art` is opaque and differs from the bare ground, the share baked as `art`. */
+function shownShare(m, cx, cy, world, art) {
+  const ground = createGroundMemory(c => TERRAIN[c]);
+  ground.see(m);
+  const baker = createBaker({ width: m.width, height: m.height, terrainAt: (x, y) => TERRAIN[m.known[y * m.width + x]] },
+    ground.stateAt, world, n => tex(n));
+  const out = new Uint8ClampedArray(CELL * CELL * 4), terrain = TERRAIN[m.known[cy * m.width + cx]];
+  baker.bakeCell(out, cx, cy, cx + 1, cx, cy);
+  let shown = 0, total = 0;
+  for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) {
+    const px = cx * CELL + x, py = cy * CELL + y, i = (y * CELL + x) * 4;
+    const n = variant(Math.floor(px / SRC), Math.floor(py / SRC), VARIANTS) + 1;
+    const a = sampleOf(art(n), px, py), g = sampleOf(`terrain/ground/${terrain}_${n}_${world.palette}`, px, py);
+    if (!a || String(a) === String(g)) continue;
+    total++;
+    if (String(a) === String([out[i], out[i + 1], out[i + 2]])) shown++;
+  }
+  return total ? shown / total : 0;
 }
 
 const dry = { snowCm: 0, crust: false, mudLevel: 0, waterCm: 0, ice: false };
@@ -93,6 +115,40 @@ test('a tile under deep snow draws the snow layer, never bare ground, in summer 
     assert.equal(r.bare, 0, `cell ${x},${y} under 40 cm of snow drew ${r.bare} bare pixels (${world.palette})`);
     assert.ok(r.snow > r.pixels * 0.9, `cell ${x},${y} under 40 cm of snow drew snow on only ${r.snow} pixels`);
   }
+});
+
+test('dust, patches, mud and pond ice each draw their own art', () => {
+  const [x, y] = openLand('plain').concat(openLand('forest'))[0];
+  const cases = [
+    ['dusting', { ...dry, snowCm: 2 }, n => `terrain/snow/dust_flat_${n}`, 0.95],
+    ['patchy snow', { ...dry, snowCm: 6 }, n => `terrain/snow/patchy_flat_${n}`, 0.8],
+    ['soaked ground', { ...dry, mudLevel: 1 }, n => `terrain/mud_${n}_summer`, 0.95],
+    ['thick pond ice', { ...dry, waterCm: 5, ice: true }, n => `terrain/ice/thick_${n}`, 0.95],
+    ['thin ice on soaked ground', { ...dry, mudLevel: 1, waterCm: 1, ice: true }, n => `terrain/ice/thin_${n}`, 0.95],
+  ];
+  for (const [what, surface, art, share] of cases) {
+    const got = shownShare(mapDto((cx, cy) => cx === x && cy === y ? surface : null), x, y, SUMMER_WORLD, art);
+    assert.ok(got >= share, `${what} showed only ${(got * 100).toFixed(0)}% of its art`);
+  }
+});
+
+test('lake ice carries snow only as a dusting', () => {
+  const lake = [];
+  for (let y = 0; y < fixture.H; y++) for (let x = 0; x < fixture.W; x++) if (fixture.terrain[y][x] === 'deepwater') lake.push([x, y]);
+  const [x, y] = lake.find(([x, y]) => [[-1, 0], [1, 0], [0, -1], [0, 1]].every(([dx, dy]) => fixture.terrain[y + dy]?.[x + dx] === 'deepwater'));
+  const got = shownShare(mapDto((cx, cy) => cx === x && cy === y ? deep : null), x, y, WINTER_WORLD, n => `terrain/snow/dust_flat_${n}`);
+  assert.ok(got >= 0.95, `snow on lake ice showed only ${(got * 100).toFixed(0)}% of the dusting`);
+});
+
+test('wetter ground shows more mud, from the least wetness that shows', () => {
+  const cells = openLand('plain').concat(openLand('forest')).slice(0, 8);
+  const share = mudLevel => {
+    const m = mapDto(() => ({ ...dry, mudLevel }));
+    return cells.reduce((sum, [x, y]) => sum + shownShare(m, x, y, SUMMER_WORLD, n => `terrain/mud_${n}_summer`), 0) / cells.length;
+  };
+  const shares = [GROUND.mudMin, 0.3, 0.5, 0.7, 1].map(share);
+  assert.ok(shares[0] > 0, `wetness ${GROUND.mudMin} drew no mud`);
+  for (let i = 1; i < shares.length; i++) assert.ok(shares[i] > shares[i - 1], `mud shown does not grow with wetness: ${shares.map(v => v.toFixed(2))}`);
 });
 
 test('a tile in sight with no surface entry is bare, dry ground', () => {
@@ -145,20 +201,20 @@ test('ground memory keeps the last seen state and refuses ground out of sight', 
   assert.throws(() => g.see({ ...away, surface: [{ i: 3 * m.width + 3, ...deep }] }), /not in sight/);
 });
 
-test('every art name resolves to a file, and PAINTED matches the files', () => {
-  for (const season of Object.keys(SEASONS)) for (const name of textureNames(worldState({ season })))
+test('every art name a world state draws is a file, and PAINTED matches the files', () => {
+  for (const season of Object.keys(SEASONS)) for (const name of wantedArt(worldState({ season })))
     assert.ok(fs.existsSync(path.join(icons, `${name}.png`)), `${name}.png is missing`);
-  for (const season of Object.keys(SEASONS)) for (const name of wantedArt(worldState({ season }))) {
-    const exists = fs.existsSync(path.join(icons, `${name}.png`)), resolved = resolveArt(name, quiet) === name;
-    assert.equal(resolved, exists, exists ? `${name}.png exists: add it to PAINTED in terrain-core.js` : `${name} is marked painted but has no file`);
-  }
-  assert.ok(PAINTED.palettes.length > 0);
+  const files = fs.readdirSync(path.join(icons, 'terrain'), { recursive: true })
+    .filter(f => f.endsWith('.png')).map(f => `terrain/${f.replaceAll(path.sep, '/').slice(0, -4)}`);
+  for (const name of files) assert.doesNotThrow(() => resolveArt(name), `${name}.png exists: add its layer or palette to PAINTED in terrain-core.js`);
+  for (const layer of PAINTED.layers)
+    assert.ok(files.some(f => f.slice(8).split(/[/_]/)[0] === layer), `layer "${layer}" is marked painted but has no file`);
+  for (const palette of PAINTED.palettes)
+    assert.ok(files.some(f => f.endsWith(`_${palette}`)), `palette "${palette}" is marked painted but has no file`);
 });
 
-test('missing art is said once per asset', () => {
-  const said = [];
-  assert.equal(resolveArt('terrain/ground/tundra_1_summer', m => said.push(m)), 'terrain/ground/tundra_1_winter');
-  resolveArt('terrain/ground/tundra_2_summer', m => said.push(m));
-  assert.equal(said.length, 1);
-  assert.throws(() => resolveArt('terrain/lichen/x_1_winter', quiet), /no terrain art for layer/);
+test('art that was never painted is an error', () => {
+  assert.equal(resolveArt('terrain/ground/plain_1_summer'), 'terrain/ground/plain_1_summer');
+  assert.throws(() => resolveArt('terrain/lichen/x_1_winter'), /no terrain art for layer/);
+  assert.throws(() => resolveArt('terrain/ground/plain_1_spring'), /no terrain art in palette/);
 });

@@ -9,8 +9,10 @@
 //     each wet side, as a quarter arc when they turn; the rest of a water cell is its nearest land;
 //   - mountains: ridged, domain-warped height scaled by how deep into the range a pixel is, lit
 //     from the top left, with snow above a snowline;
-//   - snow and mud: one full-cover texture shown through a world-noise mask, so cover is continuous;
-//   - ice: tone, cracks, leads and clear windows from world noise;
+//   - snow: a dusting, then patches lingering in shade and hollows, then full cover shown through a
+//     world-noise mask, so cover is continuous;
+//   - mud, and ice on wet land: their textures through a world-noise mask that grows with how wet the
+//     cell is; lake ice covers the whole water cell;
 //   - sprites: trees, shrubs, boulders and reeds on a jittered world grid.
 // A pixel needs only its cell's 5x5 neighbourhood, so the map can be baked a cell at a time.
 // Unknown neighbours are read as the cell's own terrain: the renderer never shows what the
@@ -29,38 +31,26 @@ export const WINTER_WORLD = Object.freeze({ palette: 'winter', snowline: 0.34 })
 
 // ---------------------------------------------------------------- the art that exists
 /**
- * What scripts/build-terrain-layers.py has painted. The art is still being drawn, so a layer or
- * palette not listed is drawn with the closest art that is, and said once on the console.
- * tools/terrain.test.mjs fails when this list and assets/icons/terrain disagree.
+ * The layers and palettes scripts/build-terrain-layers.py paints. tools/terrain.test.mjs fails when
+ * this list and assets/icons/terrain disagree.
  */
-export const PAINTED = Object.freeze({ palettes: ['winter'], layers: ['ground', 'snow', 'sprites'] });
-const PALETTES = ['winter', 'summer', 'autumn'];
-/** The nearest painted palette, nearest first. */
-const NEAR_PALETTE = { winter: ['autumn', 'summer'], summer: ['autumn', 'winter'], autumn: ['summer', 'winter'] };
-/** An unpainted layer's nearest art: mud is wet ground, so the marsh's. */
-const NEAR_LAYER = { mud: name => name.replace(/^terrain\/mud_/, 'terrain/ground/marsh_') };
+export const PAINTED = Object.freeze({
+  palettes: ['winter', 'summer', 'autumn'],
+  layers: ['ground', 'mud', 'snow', 'ice', 'sprites'],
+});
 
 const layerOf = name => name.startsWith('terrain/') ? name.slice(8).split(/[/_]/)[0] : null;
-const paletteOf = name => { const p = name.slice(name.lastIndexOf('_') + 1); return PALETTES.includes(p) ? p : null; };
-const warned = new Set();
+/** A terrain name ends in its palette, or in its variant number when its colours never change. */
+const paletteOf = name => { const p = name.slice(name.lastIndexOf('_') + 1); return /^\d+$/.test(p) ? null : p; };
 
-/** The painted art drawn for `name`: itself, or the closest that exists (said once per asset, all variants together). */
-export function resolveArt(name, warn = console.warn) {
-  let art = name;
-  for (;;) {
-    const layer = layerOf(art), pal = paletteOf(art);
-    if (layer && !PAINTED.layers.includes(layer)) {
-      if (!NEAR_LAYER[layer]) throw new Error(`no terrain art for layer "${layer}" (${name}) and nothing close to draw instead`);
-      art = NEAR_LAYER[layer](art);
-    } else if (pal && !PAINTED.palettes.includes(pal)) {
-      const near = NEAR_PALETTE[pal].find(p => PAINTED.palettes.includes(p));
-      if (!near) throw new Error(`no painted palette near "${pal}" (${name})`);
-      art = art.slice(0, art.lastIndexOf('_') + 1) + near;
-    } else break;
-  }
-  const asset = name.replace(/_\d+(?=_|$)/, '_*');
-  if (art !== name && !warned.has(asset)) { warned.add(asset); warn(`Missing terrain art ${asset}: drawing ${art.replace(/_\d+(?=_|$)/, '_*')}`); }
-  return art;
+/** `name`, if it is art that has been painted. Anything else is a bug in the caller, so it throws. */
+export function resolveArt(name) {
+  const layer = layerOf(name);
+  if (!layer) return name;
+  if (!PAINTED.layers.includes(layer)) throw new Error(`no terrain art for layer "${layer}" (${name})`);
+  const pal = paletteOf(name);
+  if (pal && !PAINTED.palettes.includes(pal)) throw new Error(`no terrain art in palette "${pal}" (${name})`);
+  return name;
 }
 
 const WET = t => t === 'water' || t === 'deepwater';
@@ -69,15 +59,10 @@ const hex = s => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), pars
 const C = Object.fromEntries(Object.entries({
   s0: '#f4f6f4', s1: '#e3eaec', s2: '#ccd7dd', s3: '#b0c0ca', s4: '#8fa3b2', s5: '#6c8193',
   r0: '#b6b8b5', r1: '#8a8d8d', r2: '#646a6e', r3: '#454b52', r4: '#2b3037',
-  e3: '#463a2c', sc: '#7d7a6b',
-  i0: '#cfe4ea', i1: '#aecfda', i2: '#89b3c4', i3: '#5f8ea3', i4: '#3f6f86',
-  ti0: '#9db4bc', ti1: '#7f9aa6', ti2: '#647f8d', ti3: '#4f6a7a',
-  sh: '#323d2b',
+  e3: '#463a2c', sc: '#7d7a6b', sh: '#323d2b',
 }).map(([k, v]) => [k, hex(v)]));
 const SNOW = ['s0', 's1', 's2', 's3', 's4', 's5'].map(k => C[k]);
 const ROCK = ['r0', 'r1', 'r2', 'r3', 'r4'].map(k => C[k]);
-const ICE = ['i0', 'i1', 'i2', 'i3'].map(k => C[k]);
-const THIN = ['ti0', 'ti1', 'ti2', 'ti3'].map(k => C[k]);
 
 // ---------------------------------------------------------------- world noise
 // 32-bit integer hashes, so every platform draws the same pixels.
@@ -109,13 +94,13 @@ export function variant(sx, sy, count) {
 }
 
 // ---------------------------------------------------------------- textures
-/** Texture names a world state draws from. */
-/** Art names a world state asks for, before resolveArt. */
+/** Art names a world state draws from. */
 export function wantedArt(world) {
   const p = world.palette, names = [];
   for (let n = 1; n <= VARIANTS; n++) {
     for (const t of ['forest', 'clearing', 'plain', 'hills', 'rock', 'marsh', 'water', 'deepwater']) names.push(`terrain/ground/${t}_${n}_${p}`);
-    for (const f of ['flat', 'rugged', 'crag']) names.push(`terrain/snow/full_${f}_${n}`);
+    for (const level of ['dust', 'patchy', 'full']) for (const f of ['flat', 'rugged', 'crag']) names.push(`terrain/snow/${level}_${f}_${n}`);
+    for (const level of ['thin', 'thick']) names.push(`terrain/ice/${level}_${n}`);
     names.push(`terrain/mud_${n}_${p}`);
   }
   for (let k = 0; k < 8; k++) names.push(`cavefloor_tile${k === 0 ? '' : k + 1}`);
@@ -298,7 +283,10 @@ export function createBaker(map, stateAt, world, tex) {
     }
     if (WET(p.kind)) {
       let col = sample(`terrain/ground/${p.kind}_${n}_${pal}`, px, py);
-      if (s.ice !== 'none') col = ice(px, py, s.ice) ?? col;
+      if (s.ice === 'none') return col;
+      col = sample(`terrain/ice/${s.ice}_${n}`, px, py) ?? col;
+      // Wind scours lake ice, so any snow the cell holds lies on it only as a dusting.
+      if (s.dust || s.snow > 0) col = sample(`terrain/snow/dust_flat_${n}`, px, py) ?? col;
       return col;
     }
     if (p.kind === 'cavefloor') { // caves keep the old per-tile art: they have no seasons
@@ -306,46 +294,23 @@ export function createBaker(map, stateAt, world, tex) {
       return sample(`cavefloor_tile${k === 0 ? '' : k + 1}`, px, py);
     }
     let col = sample(`terrain/ground/${p.kind}_${n}_${pal}`, px, py);
-    const flav = FLAVOUR[p.kind] ?? 'flat';
-    if (s.mud > 0) { // wet ground; where its water has frozen, ice
-      const mud = vnoise(px, py, 34, 41) * 0.65 + vnoise(px, py, 11, 42) * 0.35;
-      if (mud > 1 - s.mud * 0.5 && !snowed(px, py, s.snow))
-        col = (s.ice === 'none' ? sample(`terrain/mud_${n}_${pal}`, px, py) : ice(px, py, s.ice)) ?? col;
-    }
-    if (s.dust || fringe(px, py, s.snow)) col = dust(px, py) ?? col;
-    if (snowed(px, py, s.snow)) col = sample(`terrain/snow/full_${flav}_${n}`, px, py) ?? col;
-    if (p.bank) {
-      const white = snowed(px, py, s.snow);
-      if (hash01(px, py, 5) < (white ? 0.8 : 0.75)) col = white ? C.s4 : C.e3;
-    }
+    const flav = FLAVOUR[p.kind] ?? 'flat', lies = snowed(px, py, s.snow);
+    // Wet ground, and where its water has frozen, ice. The mask's noise lies almost wholly within
+    // 0.15..0.85, so its threshold spans that range: the least wetness shows, and a soaked cell shows
+    // all of the (itself sparse) mud art.
+    const wet = vnoise(px, py, 34, 41) * 0.65 + vnoise(px, py, 11, 42) * 0.35;
+    if (s.mud > 0 && !lies && wet > 0.85 - s.mud * 0.7)
+      col = sample(s.ice === 'none' ? `terrain/mud_${n}_${pal}` : `terrain/ice/${s.ice}_${n}`, px, py) ?? col;
+    if (s.dust) col = sample(`terrain/snow/dust_${flav}_${n}`, px, py) ?? col;
+    if (s.snow > 0 && !lies) col = sample(`terrain/snow/patchy_${flav}_${n}`, px, py) ?? col;
+    if (lies) col = sample(`terrain/snow/full_${flav}_${n}`, px, py) ?? col;
+    if (p.bank && hash01(px, py, 5) < (lies ? 0.8 : 0.75)) col = lies ? C.s4 : C.e3;
     return col;
   }
 
-  // One world mask decides where snow lies; more snow lowers its threshold.
+  // One world mask decides where full cover lies; more snow lowers its threshold.
   const snowField = (px, py) => vnoise(px, py, 60, 31) * 0.55 + vnoise(px, py, 22, 32) * 0.3 + vnoise(px, py, 7, 33) * 0.15;
   const snowed = (px, py, cover) => cover >= 1 || (cover > 0 && snowField(px, py) > 1 - cover);
-  const fringe = (px, py, cover) => cover > 0 && cover < 1 && !snowed(px, py, cover) && snowField(px, py) > 1 - cover - 0.035 && hash01(px, py, 3) < 0.5;
-  function dust(px, py) {
-    const drift = vnoise(px, py, 70, 95) * 0.6 + vnoise(px, py, 22, 96) * 0.4;
-    return hash01(px, py, 97) < 0.06 + Math.max(0, Math.min(1, drift - 0.5)) * 0.9 ? C.s1 : null;
-  }
-
-  /** Ice in world space: cracks follow warped noise contours; leads and windows show the water. */
-  function ice(px, py, level) {
-    const X = px + (vnoise(px, py, 50, 81) - 0.5) * 60, Y = py + (vnoise(px, py, 50, 82) - 0.5) * 60;
-    if (level === 'thin') {
-      if (Math.abs(vnoise(X, Y, 40, 83) - 0.5) < 0.016 || Math.abs(vnoise(Y, X, 15, 84) - 0.5) < 0.01) return null;
-      if (vnoise(px, py, 90, 85) * 0.7 + vnoise(px, py, 30, 86) * 0.3 > 0.66) return null;
-      if (hash01(px, py, 89) < 0.012) return C.s1;
-      return ramp(THIN, 1.4 + (vnoise(px, py, 55, 87) - 0.5) * 2.4 + (vnoise(px, py, 18, 88) - 0.5) * 0.6, px, py, 3);
-    }
-    let col = null;
-    if (vnoise(px, py, 80, 90) * 0.7 + vnoise(px, py, 26, 91) * 0.3 <= 0.72) {
-      col = ramp(ICE, 1.1 + (vnoise(px, py, 60, 92) - 0.5) * 1.6 + (vnoise(px, py, 20, 93) - 0.5) * 0.5, px, py, 4);
-      if (Math.abs(vnoise(X, Y, 45, 94) - 0.5) < 0.012) col = C.i4;
-    }
-    return dust(px, py) ?? col; // a powdering of snow, thicker where the wind drops it
-  }
 
   /**
    * Bakes the pixels of cells [x0, x1) x [y0, y1) into out (RGBA, (x1 - x0) * CELL wide), then the

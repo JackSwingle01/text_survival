@@ -1,18 +1,19 @@
 # Terrain art for the seasons
 
-*Status: the renderer and the winter art are done; the other states need art and wiring. The map
+*Status: the renderer and the art for every state are done; the Sim gaps below remain. The map
 should show the ground as it is: bare in July, snow arriving in autumn, mud in a thaw, ice on the
 ponds. The simulation already tracks every tile's snow depth, wetness and mud, and ice on water
 (`rebuild/Sim/Ground.cs`). The UI draws from that ground state, not from the calendar.*
 
-## Done: the world-space renderer, winter only
+## Done: the world-space renderer and its art
 
 The tile-per-cell approach below was replaced. `rebuild/Web/App/wwwroot/terrain-core.js` draws the
 ground per pixel in world space, and tiles supply only texture (`scripts/build-terrain-layers.py`
--> `assets/icons/terrain/`): ground per terrain and palette, full snow in three flavours (flat;
-rugged for hills; crag for rock, which keeps bare faces), and sprites (spruce, shrub, boulder,
-reeds). Mountains, rivers, lake shores, ice, snow and mud cover, and sprite placement are computed,
-so nothing repeats per tile. `rebuild/Web/README.md` has the details and the preview tool.
+-> `assets/icons/terrain/`): ground per terrain and palette (winter, summer, autumn), mud per
+palette, snow at three levels (dust, patchy, full) in three flavours (flat; rugged for hills; crag
+for rock, which keeps bare faces), thin and thick ice, and sprites (spruce, shrub, boulder, reeds).
+Mountains, rivers, lake shores, the masks that spread snow and mud cover, and sprite placement are
+computed in world space. `rebuild/Web/README.md` has the details and the preview tool.
 
 The renderer takes the ground state as input, and every state below already draws (try them with
 `tools/terrain-preview.mjs --state`):
@@ -21,18 +22,18 @@ The renderer takes the ground state as input, and every state below already draw
 - per world: `{ palette, snowline }` (mountain height above which snow lies, 0..1).
 
 The page derives both from the view (`wwwroot/ground-state.js`): cells from `MapDto.Surface`, the
-world from `ClockDto.Season`. Missing art falls back to the closest painted art (`PAINTED`,
-`resolveArt` in `terrain-core.js`); `tools/terrain.test.mjs` fails when `PAINTED` and the files
-disagree, so add a palette or `mud` there when its art lands.
+world from `ClockDto.Season`. Asking for art that is not painted throws (`PAINTED`, `resolveArt`
+in `terrain-core.js`); `tools/terrain.test.mjs` fails when `PAINTED` and the files disagree.
 
 ## To wire next
 
-1. **Art for the other palettes.** `build-terrain-layers.py` emits only `winter`. Add `summer` and
-   `autumn` to its `main` (the colours are in `SEASONS`): ground, plus bare and autumn sprites
-   (`sprites(snowed=False)`). Mud needs a texture, `terrain/mud_<n>_<palette>`, which the renderer
-   already looks for when `mud > 0`; the prototype's `mud()` painter is in the art branch
-   (`dev/prototypes/art/seasons/build_seasons.py` on `worktree-short-loop-plan`).
-2. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness, and only tiles in sight have a
+1. **Ice art repeats.** The ice textures' cracks, leads and windows near a 96 px tile's edge are
+   shared by every variant, so a large frozen lake shows them on a 96 px grid. Repaint them with
+   features that fade out at the tile edge, or draw lake ice in world space.
+2. **Pond extent.** Ice on land is drawn through the wetness mask, so 1 cm of frozen water on
+   saturated mud draws as a sheet of ice. The cell state needs the standing water's extent apart
+   from the mud's.
+3. **Sim gaps.** `SurfaceDto` has an ice flag, not a thickness, and only tiles in sight have a
    surface, so remembered tiles need the ground as last seen. Deep water is impassable and skipped,
    and lake and river ice is static (`SiteWater`) until it grows and thaws.
 

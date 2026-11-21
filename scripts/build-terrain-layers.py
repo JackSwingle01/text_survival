@@ -1,22 +1,25 @@
-"""Terrain layers for the rebuild's world-space map renderer (rebuild/Web/App/wwwroot/terrain.js).
+"""Terrain layers for the rebuild's world-space map renderer (rebuild/Web/App/wwwroot/terrain-core.js).
 Run with Python 3; no dependencies. Writes PNGs to assets/icons/terrain/ and sources to
 assets/pixelart/terrain/.
 
-The renderer draws a cell as: ground texture, then mud and snow through world-noise masks, then
-water and ice, mountains, and sprites placed on a world grid. Tiles only supply texture, so this
-script paints:
+The renderer draws land as ground, then mud (or ice where its water froze) through a world-noise
+mask, then a dusting, patches and full snow cover; water as ground then ice; then mountains, and
+sprites placed on a world grid. Tiles only supply texture, so this script paints:
   ground/<terrain>_<n>_<palette>   bare ground per terrain, 4 variants, one per palette;
-  snow/full_<flavour>_<n>          full snow cover, lit by the same height field as the ground
-                                   (flat; rugged for hills; crag for rock, which keeps bare faces);
+  mud_<n>_<palette>                wet earth and puddles, drawn over any ground;
+  snow/<level>_<flavour>_<n>       snow lit by the same height field as the ground: a dusting
+                                   (dust), what lingers in shade and hollows (patchy), and full
+                                   cover (full); flat, rugged for hills, crag for rock, where
+                                   full cover keeps bare faces;
+  ice/<thin|thick>_<n>             ice over water and frozen wet ground, cracks and leads left clear;
   sprites/<kind>_<palette>         spruce, shrub, boulder and reed sprites.
-Palettes share one pixel grid per layer, so a season is a palette swap. Only the winter palette is
-emitted for now; the summer and autumn colours are kept for when those states are drawn.
+Palettes share one pixel grid per layer, so a season is a palette swap. Snow and ice colours do
+not change with the season.
 Every 96px layer is periodic; variants differ only in the faded interior.
 """
 from pathlib import Path
 import importlib.util
 import math
-import random
 import struct
 import zlib
 
@@ -175,8 +178,8 @@ BOULDER_BARE = dict(bt.BOULDER_PAL, s='r0')
 BOULDER_BARE['0'] = 'li'
 
 
-def snow(flavour, variant):
-    """Full snow cover. Rugged and crag flavours leave steep shaded faces bare."""
+def snow(level, flavour, variant):
+    """Snow at one level. Full cover on rugged and crag flavours leaves steep shaded faces bare."""
     cv, px = Canvas(FLAVOUR_AMP[flavour], variant, OVERLAY_BAND), blank()
     for y in range(SIZE):
         for x in range(SIZE):
@@ -185,9 +188,60 @@ def snow(flavour, variant):
             grain = (pnoise(x, y, 19, 7) - .5) * .5
             tone = cv.ramp(SNOW, 1.3 - s * 1.6 + grain, x, y)
             if s > -.02 and math.sin(u * 8 + v * 13 + pnoise(x, y, 6, 8) * 9) > .93: tone = 's0'
-            scoured = SCOUR[flavour] is not None and s < SCOUR[flavour] + (pnoise(x, y, 10, 11) - .5) * .3
-            if flavour == 'crag': scoured = scoured and pnoise(x, y, 14, 12) < .5
-            px[y][x] = None if scoured else tone
+            if level == 'full':
+                scoured = SCOUR[flavour] is not None and s < SCOUR[flavour] + (pnoise(x, y, 10, 11) - .5) * .3
+                if flavour == 'crag': scoured = scoured and pnoise(x, y, 14, 12) < .5
+                px[y][x] = None if scoured else tone
+            elif level == 'patchy':
+                # Snow lingers in the shade and in hollows.
+                # Drift-sized shapes: big ones would repeat visibly every source tile.
+                cover = cv.field(x, y, 8, 40) * .5 + cv.field(x, y, 16, 41) * .35 \
+                    + pnoise(x, y, 40, 42) * .15 - s * (1.5 if flavour == 'flat' else 2)
+                if cover > .53: px[y][x] = tone
+                elif cover > .49 and hash01(x, y, 43) < (cover - .49) * 25: px[y][x] = 's2' if s >= 0 else 's3'
+            else:
+                # A powdering: dense in the lee and hollows, a few flakes on open ground.
+                drift = cv.field(x, y, 6, 44) * .55 + pnoise(x, y, 24, 45) * .3 - s * 2
+                p = .05 + max(0., min(1., (drift - .3) * 1.6)) * .65
+                if hash01(x, y, 46) < p: px[y][x] = 's0' if s > .02 else 's1' if s > -.03 else 's2'
+    return px
+
+
+def mud(variant):
+    """Wet earth with puddles in the wettest hollows; clear elsewhere, so any ground shows through."""
+    cv, px = Canvas(.1, variant, OVERLAY_BAND), blank()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            u, v = x / SIZE * math.tau, y / SIZE * math.tau
+            m = cv.field(x, y, 7, 50) * .6 + cv.field(x, y, 20, 51) * .3 + pnoise(x, y, 40, 52) * .1
+            if m > .7 and pnoise(x, y, 16, 53) > .5:
+                px[y][x] = 'wg' if math.sin(u * 3 + v * 11 + pnoise(x, y, 6, 20) * 6) > .9 else \
+                    cv.ramp(['wa1', 'wa2', 'wa3'], 1 + (m - .7) * 8, x, y)
+            elif m > .6:
+                px[y][x] = cv.ramp(['e1', 'e2', 'e3'], .6 + (m - .6) * 12, x, y)
+                if hash01(x, y, 54) < .03: px[y][x] = 'e0'
+            elif m > .57 and hash01(x, y, 55) < .6:
+                px[y][x] = 'e3'
+    return px
+
+
+def ice(level, variant):
+    """Thin ice is dark and cracked with open leads; thick ice is pale with a few clear windows."""
+    cv, px = Canvas(0, variant, OVERLAY_BAND), blank()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if level == 'thin':
+                crack = abs(pnoise(x, y, 9, 60) - .5) < .018 or abs(pnoise(x, y, 17, 61) - .5) < .012
+                lead = cv.field(x, y, 5, 62) > .7
+                if crack or lead: continue
+                px[y][x] = cv.ramp(['ti0', 'ti1', 'ti2', 'ti3'], 1.4 + (pnoise(x, y, 6, 63) - .5) * 2.4
+                                   + (pnoise(x, y, 24, 64) - .5) * .6, x, y)
+                if hash01(x, y, 65) < .012: px[y][x] = 's1'
+            else:
+                if cv.field(x, y, 7, 66) > .74: continue
+                iv = 1.1 + (pnoise(x, y, 6, 15) - .5) * 1.6 + (pnoise(x, y, 24, 16) - .5) * .5
+                px[y][x] = cv.ramp(['i0', 'i1', 'i2', 'i3'], iv, x, y)
+                if abs(pnoise(x, y, 10, 17) - .5) < .012: px[y][x] = 'i4'
     return px
 
 
@@ -235,15 +289,25 @@ def write(rel, names, palette):
 
 
 def main():
-    palette = 'winter'
     for v in range(VARIANTS):
         n = v + 1
         for t in TERRAINS:
-            write(f'ground/{t}_{n}_{palette}', ground(t, v), palette)
-        for flavour in ('flat', 'rugged', 'crag'):
-            write(f'snow/full_{flavour}_{n}', snow(flavour, v), palette)
+            grid = ground(t, v)
+            for palette in SEASONS:
+                write(f'ground/{t}_{n}_{palette}', grid, palette)
+        grid = mud(v)
+        for palette in SEASONS:
+            write(f'mud_{n}_{palette}', grid, palette)
+        for level in ('dust', 'patchy', 'full'):
+            for flavour in ('flat', 'rugged', 'crag'):
+                write(f'snow/{level}_{flavour}_{n}', snow(level, flavour, v), 'winter')
+        for level in ('thin', 'thick'):
+            write(f'ice/{level}_{n}', ice(level, v), 'winter')
     for kind, names in sprites(snowed=True).items():
-        write(f'sprites/{kind}_{palette}', names, palette)
+        write(f'sprites/{kind}_winter', names, 'winter')
+    for kind, names in sprites(snowed=False).items():
+        for palette in ('summer', 'autumn'):
+            write(f'sprites/{kind}_{palette}', names, palette)
     print('wrote', len(list((ROOT / 'assets/icons/terrain').rglob('*.png'))), 'terrain layers')
 
 
