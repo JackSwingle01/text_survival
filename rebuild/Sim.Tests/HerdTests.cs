@@ -62,7 +62,7 @@ public class HerdTests(ITestOutputHelper output)
             var kill = events.OfType<Killed>().FirstOrDefault(k => k.Species == Species.Caribou && k.By is AgentId by && by == wolves);
             if (kill == null) continue;
             kills++;
-            Assert.Equal(tile, kill.Tile);
+            tile = kill.Tile; // where the chase ended, if the caribou ran
             Assert.NotEqual(tile, w.Agent(P).Tile); // the player was at camp throughout
             Assert.Contains(events.OfType<FightEnded>(), f => f.Agent == wolves);
             // The carcass is on the tile and the pack has eaten into it.
@@ -103,10 +103,10 @@ public class HerdTests(ITestOutputHelper output)
         var wounded = Combat.BodyOf(w, unit);
         wounded.Regions[2].Muscle.Condition = 0.6;
         Effects.Add(wounded, EffectKind.Bleeding, 0.3);
-        unit.Position = new Cell(unit.Position.X, Combat.MapSize - 1);
-        Combat.Move(w, e, unit, new Cell(unit.Position.X, Combat.MapSize)); // off the edge
+        Assert.Null(Combat.Apply(w, e, unit, CombatAction.Flee, []).Refused); // nobody presses it: it gets away
         var r = Sim.Step(w, new Fight(P, CombatAction.Wait), 1);
-        var escaped = r.Events.OfType<WoundedEscaped>().Single().Agent;
+        var got = r.Events.OfType<WoundedEscaped>().Single();
+        var escaped = got.Agent;
 
         var split = w.Agent(escaped);
         Assert.NotEqual(herd, escaped);
@@ -114,13 +114,15 @@ public class HerdTests(ITestOutputHelper output)
         Assert.Equal(HerdState.Fleeing, Mind(w, escaped).State);
         Assert.NotSame(w.Agent(herd).Mind, split.Mind);
 
-        // It runs on its own mind, through the shared travel, and the ground remembers it.
+        // It ran on the way it fled, a tile for every 100 m, and its trail runs that way.
+        Assert.NotNull(got.Heading);
+        Assert.NotEqual(tile, split.Tile);
+        Assert.InRange(MapGen.Manhattan(tile, split.Tile), 1, 5);
+        Assert.True(MapGen.Manhattan(Map.Step(tile, got.Heading!.Value), split.Tile) < MapGen.Manhattan(tile, split.Tile), "it ran the other way");
+        Assert.Contains(Tracks.Read(w, split.Tile), s => s.Maker == TrackMaker.Hoof);
+
+        // It lives on its own mind, through the shared travel.
         var events = Idle(w, 30);
-        var fled = events.OfType<Moved>().First(m => m.Who == escaped);
-        Assert.Equal(tile, fled.From);
-        var prints = Tracks.Read(w, fled.To);
-        Assert.Contains(prints, s => s.Maker == TrackMaker.Hoof);
-        Assert.True(w.Agent(escaped).Tile != tile, "the wounded one never left");
         // The rest of the herd ran too, on its own way.
         Assert.Contains(events.OfType<Moved>(), m => m.Who == herd);
     }

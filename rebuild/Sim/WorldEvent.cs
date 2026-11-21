@@ -84,7 +84,10 @@ public sealed record Killed(long Minute, AgentId Agent, Species Species, double 
 /// A fight is over. Result is from this agent's side; Rounds is how many minutes it lasted.
 public sealed record FightEnded(long Minute, AgentId Agent, TileId Tile, CombatResult Result, int Rounds) : WorldEvent(Minute, Tile);
 /// A wounded animal got away from the player and left its herd as Agent: a trail to follow.
-public sealed record WoundedEscaped(long Minute, AgentId Agent, Species Species, double Severity, TileId Tile) : WorldEvent(Minute, Tile);
+/// Heading: the way it ran, which its trail follows; null for one that ran nowhere in particular.
+public sealed record WoundedEscaped(long Minute, AgentId Agent, Species Species, double Severity, TileId Tile,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Direction? Heading = null)
+    : WorldEvent(Minute, Tile);
 
 /// Practice paid off: the person's skill is now Level (Skills).
 public sealed record SkillLeveledUp(long Minute, AgentId Who, TileId Tile, Skill Skill, int Level) : WorldEvent(Minute, Tile);

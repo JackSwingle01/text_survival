@@ -33,6 +33,8 @@ public sealed record SpeciesStats(
     double GrazeKcalPerMinute,
     /// Giving ground with the enemy in reach, it strikes instead of backing off at this margin or above.
     double StrikeBackMargin,
+    /// How long it chases a fleeing quarry before it gives up, in seconds.
+    double ChaseLimitSeconds,
     /// People only: the range a person's starting fat is drawn from, well fed for the autumn.
     FatRange? AutumnFatPct,
     /// People only: a woman's build, running and autumn fat, where they differ from a man's (the row's own).

@@ -141,8 +141,8 @@ public class CombatStateTests
     [InlineData(CombatAction.Retreat, FighterState.GivingGround)]
     public void ThePlayersStateFollowsFromTheirAction(CombatAction action, FighterState state)
     {
-        var (w, e) = PlayerVs(Species.Bison, 3);
-        B(e).BoldnessModifier = -100; // it keeps out of it
+        var (w, e) = PlayerVs(Species.Wolf, 3);
+        B(e).BoldnessModifier = -0.9; // it gives ground, short of running (a runner would be gone at once)
         var r = Sim.Step(w, new Fight(P, action), 1);
         Assert.True(r.InterruptedReason is null or "done", r.InterruptedReason);
         Assert.Equal(state, Me(e).State);
@@ -152,6 +152,7 @@ public class CombatStateTests
     public void Fleeing_WorksAtAnyDistance()
     {
         var (w, e) = PlayerVs(Species.Wolf, 1);
+        B(e).BoldnessModifier = -2; // too daunted to give chase, even with the chase instinct
         Assert.Null(Combat.Refusal(w, e, Me(e), CombatAction.Flee));
         Combat.Apply(w, e, Me(e), CombatAction.Flee, []);
         Assert.Equal(FighterState.Gone, Combat.StateOf(w, Me(e)));
@@ -413,7 +414,7 @@ public class CombatStateTests
         var (w, t) = CombatTests.Field();
         var wolf = CombatTests.Herd(w, Species.Wolf, 1, t);
         var e = Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], t, 20, Awareness.Unaware, Awareness.Engaged);
-        B(e).BoldnessModifier = -100; // it keeps away
+        B(e).BoldnessModifier = -1.2; // it stands off at 20 m, short of running
         Sim.Step(w, new Fight(P, CombatAction.Wait), 1);
         Assert.Equal(FighterState.Unaware, Me(e).State);
         Sim.Step(w, new Fight(P, CombatAction.Retreat), 1);

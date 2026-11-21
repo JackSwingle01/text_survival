@@ -541,6 +541,7 @@ public class CombatTests
         var (w, t) = Field();
         var e = PlayerVs(w, t, Species.Wolf, 20);
         Me(e).Position = new Cell(25, 25); // the middle of the field: no edge needed (combat round 1)
+        B(e).BoldnessModifier = -2; // nothing gives chase: the run is the whole cost
         var body = w.Agent(AgentId.Player).Body;
         double energy = body.EnergyMinutes, kcal = body.CaloriesKcal;
         Combat.Apply(w, e, Me(e), CombatAction.Flee, []);

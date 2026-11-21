@@ -53,6 +53,11 @@
   { "name": "wolf.strikeBackMargin", "path": "species.json:species.Wolf.strikeBackMargin", "min": -0.8, "max": -0.05 },
   { "name": "bear.strikeBackMargin", "path": "species.json:species.Bear.strikeBackMargin", "min": -0.8, "max": -0.05 },
 
+  { "name": "human.chaseLimitSeconds", "path": "species.json:species.Human.chaseLimitSeconds", "min": 10, "max": 300, "log": true,
+   "note": "how long it chases a runner before giving up" },
+  { "name": "wolf.chaseLimitSeconds", "path": "species.json:species.Wolf.chaseLimitSeconds", "min": 30, "max": 900, "log": true },
+  { "name": "bear.chaseLimitSeconds", "path": "species.json:species.Bear.chaseLimitSeconds", "min": 5, "max": 300, "log": true },
+
   { "name": "spear.damage", "path": "items.json:gear.wooden_spear.weapon.damage", "min": 0.1, "max": 15, "log": true },
   { "name": "axe.damage", "path": "items.json:gear.stone_axe.weapon.damage", "min": 0.1, "max": 15, "log": true },
   { "name": "knife.damage", "paths": ["items.json:gear.flint_knife.weapon.damage", "items.json:gear.bone_knife.weapon.damage", "items.json:gear.worn_knife.weapon.damage"],

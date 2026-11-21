@@ -18,7 +18,9 @@ public enum CombatResult { Victory, Defeat, Fled, AnimalFled, AnimalDisengaged }
 /// Retreat step a full allowance toward or away from the target. Turn faces another target, and costs
 /// the round. PickUp takes up a weapon lying within reach. There is no Block or Dodge: every aware
 /// fighter defends itself when struck (Combat.DefenceChance; combat round 1).
-public enum CombatAction { Wait, Move, Advance, Retreat, Attack, Throw, ThrowStone, Shove, Intimidate, Flee, CallHelp, CallRetreat, PickUp, Turn }
+/// Flee runs for it, resolved at once by the catch-up (CombatFlight); Chase gives chase to a fighter that
+/// has just run from the player.
+public enum CombatAction { Wait, Move, Advance, Retreat, Attack, Throw, ThrowStone, Shove, Intimidate, Flee, CallHelp, CallRetreat, PickUp, Turn, Chase }
 
 /// How an animal-initiated fight opens. Only an Approach spreads a pack into a formation.
 public enum Opening { Approach, CloseEncounter, Ambush }
@@ -67,6 +69,13 @@ public sealed class CombatUnit
     public double AlertnessLevel { get; set; }
     /// The index in Encounter.Units of the fighter it faces.
     public int? Target { get; set; }
+    /// Gone by running or breaking off: which way, and how many tiles on it ended up (100 m each, five at most).
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Direction? FledHeading { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int FledTiles { get; set; }
+    /// Gone after a runner, not away from the fight.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool LeftChasing { get; set; }
+    /// Run down this round: no defence, and no second flight, until the round ends.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool RunDown { get; set; }
     /// As the old three-step awareness, for what only asks whether it knows (detection, ambush damage).
     /// Whether it has turned to run in this fight: the chase instinct fires on the first time only.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool HasRun { get; set; }
@@ -100,6 +109,8 @@ public sealed class Encounter
     public List<CombatUnit> Units { get; init; } = [];
     public int Rounds { get; set; }
     public Formation Formation { get; set; }
+    /// The unit that has just run from the player, waiting on whether the player gives chase.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? PendingFlight { get; set; }
     /// Weapons thrown and lying on the grid, to be picked up; the aftermath stashes whatever is left.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<DroppedWeapon>? Dropped { get; set; }
@@ -397,7 +408,8 @@ public static partial class Combat
     {
         var player = enc.Units.FirstOrDefault(IsPlayer);
         if (player != null && !Alive(world, player)) return CombatResult.Defeat;
-        if (player != null && !player.InField) return CombatResult.Fled;
+        // A player who went after a runner that got away drove it off; one who left any other way fled.
+        if (player != null && !player.InField) return player.LeftChasing && !Field(enc).Any(u => u.Team == 1) ? CombatResult.AnimalFled : CombatResult.Fled;
         var listed = enc.Units.Where(u => !u.Released).ToList();
         if (!listed.Any(u => u.Team == 1 && Alive(world, u))) return CombatResult.Victory;
         if (!listed.Any(u => u.Team == 0 && Alive(world, u))) return CombatResult.Defeat;
@@ -427,7 +439,8 @@ public static partial class Combat
         if (target != null && target != current) return "Turn to face them first.";
         switch (action)
         {
-            case CombatAction.Flee: return null; // at any distance (round 1); the bitten-NPC lock is gone
+            case CombatAction.Flee: return unit.RunDown ? "You were run down." : null;
+            case CombatAction.Chase: return ChaseOffer(world, enc, unit) == null ? "Nobody is running from you." : null;
             case CombatAction.Wait: return null;
             case CombatAction.PickUp:
                 return unit.Weapon != null ? "Your hands are full." : DroppedNear(enc, unit) == null ? "Nothing to pick up within reach." : null;
@@ -497,12 +510,8 @@ public static partial class Combat
                 break;
             case CombatAction.Shove: result = Shove(world, enc, unit, target!); break;
             case CombatAction.Intimidate: Intimidate(world, enc, unit); break;
-            case CombatAction.Flee:
-                // Running for it: flat out until the reserve is spent (the flight itself is combat round 3).
-                Enter(world, enc, unit, FighterState.Fleeing);
-                Body.SprintUntilSpent(BodyOf(world, unit), RunningOf(world, unit));
-                Flee(world, enc, unit);
-                break;
+            case CombatAction.Flee: Flight(world, enc, unit, events); break;
+            case CombatAction.Chase: PlayerChase(world, enc, unit); break;
             case CombatAction.CallHelp or CombatAction.CallRetreat: Signal(world, enc, unit, action == CombatAction.CallRetreat); break;
             default: throw new NotSupportedException($"No rule for {action}");
         }
@@ -541,6 +550,7 @@ public static partial class Combat
         var start = unit.Position;
         enc.RoundEventsFrom = events.Count;
         var action = RoundAction(enc, unit, fight);
+        if (action != CombatAction.Chase) LetGo(world, enc); // doing anything else, the player lets the runner go
         Apply(world, enc, unit, action, events, action == CombatAction.Turn ? enc.Units[fight.Target!.Value] : null, fight.To);
         PlayerState(world, enc, unit, action, start);
         if (unit.InField) RunDetection(world, enc, unit, huntingSkill: 0, ExposureMeters(action, start, unit.Position));
@@ -568,6 +578,8 @@ public static partial class Combat
                 if (IsOver(enc)) break;
                 AiTurn(world, enc, u, events);
             }
+        BreakOffs(world, enc);
+        foreach (var u in enc.Units) u.RunDown = false;
         enc.Rounds++;
         ReTarget(world, enc, me); // its target gone, the player faces the best one left, free
         if (enc.Observer != null) Report(world, enc, events.Skip(enc.RoundEventsFrom).ToList());
@@ -581,6 +593,7 @@ public static partial class Combat
     // The old game ran the remainder as a background fight, one round a minute; here it resolves at once.
     internal static void Finish(World world, Encounter enc, List<WorldEvent> events)
     {
+        LetGo(world, enc); // nobody left to give chase to a runner the player was weighing up
         Sweep(world, enc, events, by: null);
         RunRounds(world, enc, events, HeadlessRoundCap);
         Aftermath(world, enc, Result(world, enc), events);
@@ -627,6 +640,8 @@ public static partial class Combat
                 body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute - 1) + 1;
             }
             Sweep(world, enc, events, by: null);
+            BreakOffs(world, enc);
+            foreach (var u in enc.Units) u.RunDown = false;
             enc.Rounds++;
             if (enc.Observer != null) Report(world, enc, events.Skip(from).ToList());
         }
@@ -643,12 +658,12 @@ public static partial class Combat
         Body.Cover(BodyOf(world, unit), RunningOf(world, unit), from.DistanceTo(unit.Position));
     }
 
-    /// Steps to a cell (or a free one beside it), and leaves the field past its edge. How the enemies
+    /// Steps to a cell (or a free one beside it), on the grid. How the enemies
     /// take it is read off the mover's state once a round (RoundMorale), not off each step's direction.
     internal static void Move(World world, Encounter enc, CombatUnit unit, Cell destination)
     {
-        unit.Position = ResolveDestination(world, enc, destination, unit);
-        if (!InBounds(unit.Position)) Flee(world, enc, unit);
+        // The grid's edge holds: a fighter leaves only by running (Flight) or breaking off.
+        unit.Position = ResolveDestination(world, enc, OnTheGrid(destination), unit);
     }
 
     /// An occupied cell gives way to a random free neighbour, or to staying put.
@@ -806,7 +821,7 @@ public static partial class Combat
     /// terms are a person's (body review B11), so a realistic mammoth dodged like a wolf.
     public static double DefenceChance(World world, Encounter enc, CombatUnit defender, CombatUnit attacker)
     {
-        if (TargetOf(enc, defender) != attacker) return 0;
+        if (TargetOf(enc, defender) != attacker || defender.RunDown) return 0; // caught running: no defence this round
         double stance = StateOf(world, defender) switch
         {
             FighterState.GivingGround => GivingGroundDefenceFactor,

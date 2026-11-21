@@ -121,7 +121,10 @@ public sealed record NamedDto(int X, int Y, string Name);
 /// refusal (Combat.Refusal); Move takes a cell. Target is the unit faced; Targets every enemy that could
 /// be, nearest first, each with the verb that turns to face it (turning costs the round).
 public sealed record CombatDto(int Size, int Round, IReadOnlyList<UnitDto> Units, IReadOnlyList<VerbDto> Actions, string Zone,
-    double TargetM, int? Target, double MoveM, IReadOnlyList<TargetDto> Targets);
+    double TargetM, int? Target, double MoveM, IReadOnlyList<TargetDto> Targets, ChaseDto? Chase);
+/// Someone has just run from the player: whom, and the odds of running it down if they give chase (the
+/// Chase action), how long the chase would take and how far they would run.
+public sealed record ChaseDto(int Index, string Name, double Pct, double Seconds, double Metres);
 /// An enemy the player could face: its unit index, how far, whether it is faced now, and the Turn verb.
 public sealed record TargetDto(int Index, string Name, double DistanceM, bool Facing, VerbDto Turn);
 /// State is Combat.StateOf: Unaware, Wary, Pressing, Standoff, Giving ground, Fleeing, Gone or Down.

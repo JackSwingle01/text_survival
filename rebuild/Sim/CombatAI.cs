@@ -181,7 +181,11 @@ public static partial class Combat
         if (!IsAware(u.State)) return;
         if (StatsOf(world, u).IsSkittish) { Enter(world, enc, u, FighterState.Fleeing); return; }
         if (TargetOf(enc, u) is not CombatUnit target) return;
-        Enter(world, enc, u, NextState(u.State, Margin(world, enc, u, target)));
+        var next = NextState(u.State, Margin(world, enc, u, target));
+        // A person runs only from what it can outrun (under a 50% chance of being caught); else it gives ground.
+        if (next == FighterState.Fleeing && !StatsOf(world, u).IsAnimal && BestCatchPct(world, enc, u) >= PersonRunsBelowPct)
+            next = FighterState.GivingGround;
+        Enter(world, enc, u, next);
     }
 
     /// Where the margin takes a fighter from the state it is in.
@@ -219,6 +223,8 @@ public static partial class Combat
             CombatAction.Retreat => FighterState.GivingGround,
             CombatAction.Move => closer >= 1 ? FighterState.Pressing : closer <= -1 ? FighterState.GivingGround : FighterState.Standoff,
             CombatAction.Turn => u.State,
+            CombatAction.Flee => FighterState.Fleeing, // run down: no defence this round
+            CombatAction.Chase => FighterState.Pressing,
             _ => FighterState.Standoff, // Wait, Intimidate, PickUp, the calls
         };
         Enter(world, enc, u, state);
@@ -381,9 +387,8 @@ public static partial class Combat
                 if (Allowed(CombatAction.Attack) && Margin(world, enc, u, target) >= stats.StrikeBackMargin) return (CombatAction.Attack, null, null);
                 return Go(u.Position.Away(target.Position, Math.Max(1, Allowance(world, u) / 2)));
             case FighterState.Fleeing:
-                // A person runs for it; an animal bolts across the field and off it.
-                if (!stats.IsAnimal) return (CombatAction.Flee, null, null);
-                return Go(u.Position.Away(NearestEnemy(enc, u)?.Position ?? target.Position, Allowance(world, u)));
+                // Resolved at once by the catch-up (CombatFlight); run down this round, it can only stand there.
+                return u.RunDown ? Wait() : (CombatAction.Flee, null, null);
         }
         return Wait();
     }

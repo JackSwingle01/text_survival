@@ -34,6 +34,14 @@ public static partial class Combat
             : null;
         var escapedBody = escaped != null ? BodyOf(world, escaped) : null;
 
+        // Which animal agents ran off whole: every member still alive was in this fight and left it on a heading
+        // (or chasing). Read before the dead leave their herds and a wounded one splits off.
+        var drifts = units.Where(u => StatsOf(world, u).IsAnimal).Select(u => u.Agent).Distinct()
+            .Select(id => (Id: id, Living: units.Where(u => u.Agent == id && Alive(world, u)).ToList()))
+            .Where(a => a.Living.Count > 0 && a.Living.Count == world.Agent(a.Id).Members.Count(Body.IsAlive) && a.Living.All(u => u.FledHeading != null))
+            .Select(a => (a.Id, Far: a.Living.OrderByDescending(u => u.FledTiles).First()))
+            .ToList();
+
         // Which sides lost someone, before the dead leave their herds.
         var fell = units.Where(u => !Alive(world, u)).Select(u => u.Team).ToHashSet();
         var fought = units.Select(u => u.Agent).Distinct().ToList();
@@ -55,8 +63,10 @@ public static partial class Combat
         {
             var source = world.Agent(escaped.Agent);
             var newId = Agents.SplitOff(world, escaped.Agent, source.Members.IndexOf(escapedBody!));
-            events.Add(new WoundedEscaped(world.Minute, newId, source.Species, 0.3 + WoundLevel(escapedBody!) * 0.5, enc.Tile));
-            Fauna.Escaped(world, newId, enc.Tile);
+            // It ran on the way it fled, leaving its trail that way.
+            if (escaped.FledHeading is Direction heading) Drift(world, newId, heading, escaped.FledTiles);
+            events.Add(new WoundedEscaped(world.Minute, newId, source.Species, 0.3 + WoundLevel(escapedBody!) * 0.5, enc.Tile, escaped.FledHeading));
+            Fauna.Escaped(world, newId, world.Agent(newId).Tile);
         }
 
         foreach (var id in fought)
@@ -66,6 +76,11 @@ public static partial class Combat
             events.Add(new FightEnded(world.Minute, id, enc.Tile, own, enc.Rounds));
             Fauna.AfterFight(world, id, own, killedOne: fell.Contains(1 - side), enc.Tile);
         }
+
+        // Those carry on along their heading as far as the farthest of them ran; a herd with members
+        // that stayed behind, or one now gone with its last member, does not.
+        foreach (var (id, far) in drifts.Where(d => world.Agents.ContainsKey(d.Id)))
+            Drift(world, id, far.FledHeading!.Value, far.FledTiles);
     }
 
     /// A carcass on the tile, ready to butcher (old CombatAftermath.LeaveRemains). Old Animal: over

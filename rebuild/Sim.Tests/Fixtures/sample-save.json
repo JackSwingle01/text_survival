@@ -1,5 +1,5 @@
 {
-  "Version": 4,
+  "Version": 5,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -26,7 +26,7 @@
           "WaterAddedM": 0.20419664191594453,
           "WaterDrainedM": 0.11542226816259214,
           "WaterEvaporatedM": 0.006161509692953861,
-          "WaterOverflowedM": 0.00910195829115138,
+          "WaterOverflowedM": 0.009101958291151393,
           "LastUpdatedMinute": 105
         }
       },
@@ -51,7 +51,7 @@
           "WaterAddedM": 0.26928895544869946,
           "WaterDrainedM": 0.10513107335515694,
           "WaterEvaporatedM": 0.009319147017962087,
-          "WaterOverflowedM": 0.14844441990301938,
+          "WaterOverflowedM": 0.14844441990301946,
           "LastUpdatedMinute": 105
         }
       },
@@ -76,7 +76,7 @@
           "WaterAddedM": 0.20419664191594453,
           "WaterDrainedM": 0.11542226816259214,
           "WaterEvaporatedM": 0.006161509692953861,
-          "WaterOverflowedM": 0.00910195829115138,
+          "WaterOverflowedM": 0.009101958291151393,
           "LastUpdatedMinute": 105
         }
       },
@@ -113,7 +113,7 @@
           "WaterAddedM": 0.204367694774504,
           "WaterDrainedM": 0.11550514361529604,
           "WaterEvaporatedM": 0.00616375644788165,
-          "WaterOverflowedM": 0.00910195829115138,
+          "WaterOverflowedM": 0.009101958291151393,
           "LastUpdatedMinute": 120
         },
         "Pools": {
@@ -155,8 +155,8 @@
               "Material": 0,
               "ThicknessM": 0.35,
               "CompactionPct": 0,
-              "WaterSaturationPct": 0.5609629230203321,
-              "FrozenFractionPct": 0.12724780714541864
+              "WaterSaturationPct": 0.5609629230242762,
+              "FrozenFractionPct": 0.1272478071445237
             },
             {
               "Material": 1,
@@ -167,9 +167,9 @@
             }
           ],
           "WaterAddedM": 0.264783194690255,
-          "WaterDrainedM": 0.11796450026521424,
+          "WaterDrainedM": 0.11796450034405591,
           "WaterEvaporatedM": 0.007235458223766969,
-          "WaterOverflowedM": 0.04625183344784298,
+          "WaterOverflowedM": 0.04625183432822394,
           "LastUpdatedMinute": 165
         },
         "Stash": {
@@ -215,7 +215,7 @@
           "WaterAddedM": 0.20419664191594453,
           "WaterDrainedM": 0.11542226816259214,
           "WaterEvaporatedM": 0.006161509692953861,
-          "WaterOverflowedM": 0.00910195829115138,
+          "WaterOverflowedM": 0.009101958291151393,
           "LastUpdatedMinute": 105
         }
       },
@@ -240,7 +240,7 @@
           "WaterAddedM": 0.20419664191594453,
           "WaterDrainedM": 0.11542226816259214,
           "WaterEvaporatedM": 0.006161509692953861,
-          "WaterOverflowedM": 0.00910195829115138,
+          "WaterOverflowedM": 0.009101958291151393,
           "LastUpdatedMinute": 105
         }
       },
@@ -277,7 +277,7 @@
           "WaterAddedM": 0.20419664191594453,
           "WaterDrainedM": 0.11542226816259214,
           "WaterEvaporatedM": 0.006161509692953861,
-          "WaterOverflowedM": 0.00910195829115138,
+          "WaterOverflowedM": 0.009101958291151393,
           "LastUpdatedMinute": 105
         }
       }
@@ -631,15 +631,15 @@
             "StructuralKg": 34,
             "FatKg": 8.16,
             "MuscleKg": 25.84,
-            "CoreTempF": 99.01911921765473,
+            "CoreTempF": 99.01911921765465,
             "CaloriesKcal": 1278.327466666679,
             "EnergyMinutes": 730,
-            "HydrationMl": 2702.896000157296,
+            "HydrationMl": 2702.896000157327,
             "ClothingHeatBufferPct": 1,
             "Effects": [
               {
                 "Kind": 8,
-                "Severity": 0.00169578678244192,
+                "Severity": 0.001695786782465586,
                 "RequiresTreatment": false
               }
             ],
@@ -1233,10 +1233,10 @@
             "StructuralKg": 34,
             "FatKg": 11.449394004618185,
             "MuscleKg": 25.84,
-            "CoreTempF": 98.99123258494556,
+            "CoreTempF": 98.99123258494545,
             "CaloriesKcal": 1199.8184444444519,
             "EnergyMinutes": 730,
-            "HydrationMl": 2703.7359870157443,
+            "HydrationMl": 2703.7359870157557,
             "ClothingHeatBufferPct": 1,
             "Effects": [],
             "WoundsLivedThroughMinute": 170,

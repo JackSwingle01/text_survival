@@ -49,26 +49,36 @@ public static partial class Body
     }
 
     /// Runs flat out until the reserve is spent, as anything running for its life does. Returns the metres run.
-    public static double SprintUntilSpent(BodyState body, Running running) =>
-        Sprint(body, running, SprintReservePct(body) * running.Motion.SprintSeconds * running.SpeedPct);
+    public static double SprintUntilSpent(BodyState body, Running running) => Sprint(body, running, SprintSecondsLeft(body, running));
 
     /// Runs flat out for these seconds: the reserve drains in SprintSeconds at full strength (sooner
     /// hurt or laden) and the pace falls with it, then holds at endurance speed. Returns the metres run.
     public static double Sprint(BodyState body, Running running, double seconds)
     {
-        var m = running.Motion;
-        double f = running.SpeedPct;
-        double reserve = SprintReservePct(body);
-        // The reserve falls linearly at 1 / (SprintSeconds x f) a second; speed rides its square root.
-        double drainSeconds = Math.Min(seconds, reserve * m.SprintSeconds * f);
-        double after = reserve - drainSeconds / (m.SprintSeconds * f);
-        if (after < 1e-12) after = 0;
-        double metres = m.EnduranceSpeedMps * f * seconds
-            + (m.TopSpeedMps - m.EnduranceSpeedMps) * f * (2.0 / 3.0) * (Math.Pow(reserve, 1.5) - Math.Pow(Math.Max(0, after), 1.5)) * m.SprintSeconds * f;
-        Spend(body, reserve - Math.Max(0, after));
+        var (metres, after) = SprintPlan(body, running, seconds);
+        Spend(body, SprintReservePct(body) - after);
         Cover(body, running, metres);
         return metres;
     }
+
+    /// How far a flat-out run of these seconds would go, and the reserve it would leave: Sprint's arithmetic,
+    /// changing nothing. The reserve falls linearly at 1 / (SprintSeconds x f) a second; speed rides its square root.
+    public static (double Metres, double ReserveAfterPct) SprintPlan(BodyState body, Running running, double seconds)
+    {
+        var m = running.Motion;
+        double f = running.SpeedPct;
+        double reserve = SprintReservePct(body);
+        double drainSeconds = Math.Min(seconds, SprintSecondsLeft(body, running));
+        double after = reserve - drainSeconds / (m.SprintSeconds * f);
+        if (after < 1e-12) after = 0;
+        double metres = m.EnduranceSpeedMps * f * seconds
+            + (m.TopSpeedMps - m.EnduranceSpeedMps) * f * (2.0 / 3.0) * (Math.Pow(reserve, 1.5) - Math.Pow(after, 1.5)) * m.SprintSeconds * f;
+        return (metres, after);
+    }
+
+    /// The seconds of flat-out running the reserve has left in it, at this body's share of its kind's speed.
+    public static double SprintSecondsLeft(BodyState body, Running running) =>
+        SprintReservePct(body) * running.Motion.SprintSeconds * running.SpeedPct;
 
     /// The metabolic work of moving this far with what is carried (net cost of transport, Taylor 1982).
     public static void Cover(BodyState body, Running running, double metres) =>

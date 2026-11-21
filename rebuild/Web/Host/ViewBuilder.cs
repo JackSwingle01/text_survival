@@ -342,8 +342,11 @@ sealed class ViewBuilder(World world, int gen)
         string moveId = $"{gen}.{_n++}";
         Fights.Add((moveId, new FightVerb(CombatAction.Move, null)));
         actions.Add(new VerbDto(moveId, "Move", "fight-move", 1, me.InField ? null : "You are out of the fight."));
+        var chase = Combat.ChaseOffer(world, enc, me) is var (fleer, odds)
+            ? new ChaseDto(enc.Units.IndexOf(fleer), units[enc.Units.IndexOf(fleer)].Name, Math.Round(odds.Pct, 2), Math.Round(odds.Seconds), Math.Round(odds.PursuerMetres))
+            : null;
         return new CombatDto(Combat.MapSize, enc.Rounds, units, actions, Words.Of(Combat.ZoneOf(distance)), Math.Round(distance, 1), target,
-            MoveAllowance(enc, me), targets);
+            MoveAllowance(enc, me), targets, chase);
     }
 
     /// How far a Move may go: the largest whole distance Combat.Refusal accepts, probed along the row.

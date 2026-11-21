@@ -226,24 +226,16 @@ public class CombatGoldenTests
     //   wolf vs spear   [0.082, 0.388, 0.213, 0.269, 0.049, 11.24] → [0.140, 0.411, 0.145, 0.242, 0.062, 11.53]
     //   wolf vs unarmed [0.007, 0.797, 0.171, 0.000, 0.025, 11.05] → [0.005, 0.861, 0.105, 0.000, 0.029, 11.49]
     //   bear vs spear   [0.032, 0.720, 0.176, 0.063, 0.009, 9.48]  → [0.073, 0.762, 0.112, 0.031, 0.022, 9.72]
-    // Stage 2 (combat rounds 1, 2 and 6, 2026-11-21): the fighter state machine, the automatic defence roll,
-    // flight at any distance. 1000 fights each. The AI person now stands off, presses or gives ground by its
-    // margin; giving ground it backs away and no longer blocks, so a lone wolf wears it down, and against a
-    // bear at 5 m its margin sends it running at once (until the catch-up of round 3). Old (stage 1) → new:
-    //   wolf vs spear       [0.333, 0.421, 0.116, 0.057, 0.073, 11.54] → [0.097, 0.743, 0.016, 0.009, 0.135, 12.89]
-    //   wolf vs unarmed     [0.007, 0.876, 0.083, 0.000, 0.034, 11.80] → [0.006, 0.893, 0.026, 0.000, 0.075, 13.04]
-    //   3 wolves vs spear   [0.000, 0.999, 0.000, 0.000, 0.001, 5.18]  → [0.000, 0.606, 0.356, 0.038, 0.000, 4.61]
-    //   4 wolves ambush 2   [1.000, 0.000, 0.000, 0.000, 0.000, 4.30]  → [1.000, 0.000, 0.000, 0.000, 0.000, 4.24]
-    //   4 wolves noticed    [0.955, 0.000, 0.000, 0.045, 0.000, 8.37]  → [1.000, 0.000, 0.000, 0.000, 0.000, 7.39]
-    //   bear vs spear       [0.101, 0.778, 0.090, 0.011, 0.020, 9.94]  → [0.000, 0.000, 1.000, 0.000, 0.000, 2.00]
+    // This rebuild's own numbers, 1000 fights each, under the fighter state machine and the catch-up: a person
+    // gives ground to what would run it down rather than run, and a pack runs its caribou down together.
     public static readonly TheoryData<string, double[]> Headless = new()
     {
-        { "wolf vs spear", [0.097, 0.743, 0.016, 0.009, 0.135, 12.89] },
-        { "wolf vs unarmed", [0.006, 0.893, 0.026, 0.000, 0.075, 13.04] },
-        { "3 wolves vs spear", [0.000, 0.606, 0.356, 0.038, 0.000, 4.61] },
-        { "4 wolves ambush 2 caribou", [1.000, 0.000, 0.000, 0.000, 0.000, 4.24] },
-        { "4 wolves noticed by 2 caribou", [1.000, 0.000, 0.000, 0.000, 0.000, 7.39] },
-        { "bear vs spear", [0.000, 0.000, 1.000, 0.000, 0.000, 2.00] },
+        { "wolf vs spear", [0.104, 0.749, 0.005, 0.000, 0.142, 12.89] },
+        { "wolf vs unarmed", [0.006, 0.909, 0.000, 0.000, 0.085, 13.11] },
+        { "3 wolves vs spear", [0.000, 0.962, 0.000, 0.038, 0.000, 4.75] },
+        { "4 wolves ambush 2 caribou", [0.999, 0.000, 0.000, 0.001, 0.000, 4.20] },
+        { "4 wolves noticed by 2 caribou", [0.984, 0.000, 0.000, 0.016, 0.000, 6.40] },
+        { "bear vs spear", [0.000, 0.970, 0.000, 0.000, 0.030, 11.57] },
     };
 
     [Trait("Category", TestCategories.Slow)]
