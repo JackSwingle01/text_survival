@@ -36,8 +36,8 @@ public static class Report
 {
     public const int RegionTiles = 10;
     public const double MaxDeadMatterPct = 0.35, MinResourcePct = 0.25;
-    /// A region with finds outside [median x Min, median x Max] fails. ponytail: the doc gives only the
-    /// 3x ceiling; a third of the median as the floor is a starting guess.
+    /// A region with finds outside [median x Min, median x Max] fails. The doc gives only the 3x
+    /// ceiling; a third of the median as the floor is a starting guess.
     public const double MinRegionFactor = 1.0 / 3, MaxRegionFactor = 3.0;
 
     public static IReadOnlyList<FindRow> Finds(World w)
@@ -72,6 +72,10 @@ public static class Report
                             Add(t, "worked trees", FindCategory.Resource, null,
                                 Invariant($"{tr.Name}: {ts.Felled} felled{(Pools.HasTrees(w, id) ? "" : ", cleared")}"));
                             break;
+                        case ShelterFind sf when Shelters.Peek(w, t) is not { } standing || standing.Name != sf.Name:
+                            Add(t, "shelter find", FindCategory.Structure, null, $"{sf.Name} ({sf.Shelter.Kind}), hidden");
+                            break;
+                        case ShelterFind: break; // found: the shelter's own row says so
                         case ForagePool or TreePool: break; // the skeleton: see the class comment
                         default: throw new InvalidOperationException($"Report has no row for pool {pools[i].GetType().Name}");
                     }
@@ -98,8 +102,9 @@ public static class Report
         foreach (var (_, f) in w.Fires)
             if (f.CarriedBy == null)
                 Add(f.Tile, "fire pit", FindCategory.Structure, null, Invariant($"{f.Pit} pit, {Fire.Phase(f)}, charcoal {f.CharcoalKg:0.0} kg"));
-        foreach (var (t, s) in w.Shelters)
-            Add(t, "shelter", FindCategory.Structure, null, Invariant($"{s.Name} ({s.Kind}), quality {Shelters.Quality(s):P0}"));
+        foreach (var t in w.Shelters.Keys)
+            if (Shelters.Peek(w, t) is { } s) // melted as of now, on a copy: a thawed snow shelter is gone
+                Add(t, "shelter", FindCategory.Structure, null, Invariant($"{s.Name} ({s.Kind}), quality {Shelters.Quality(s):P0}"));
         foreach (var (t, b) in w.Beddings)
             Add(t, "bedding", FindCategory.Structure, null, Shelters.Beddings[b].Name);
         foreach (var (edge, wear) in w.Trails)
@@ -165,8 +170,10 @@ public static class Report
                         passable++;
                         var pools = Pools.At(w, t);
                         water |= Work.HasOpenWater(w, t) || pools.Any(p => p is StockPool s && s.Items.Any(i => i.Resource == Resource.Water));
-                        fuel |= pools.Any(p => p is TreePool || p is StockPool s && s.Items.Any(i => Fire.IsFuel(i.Resource)));
-                        shelter |= w.Shelters.ContainsKey(t) || m.CaveAt(t) != Cave.None;
+                        fuel |= pools.Any(p => p is TreePool
+                            || p is StockPool s && s.Items.Any(i => Fire.IsFuel(i.Resource))
+                            || p is ForagePool f && f.Items.Any(i => Fire.IsFuel(i.Resource)));
+                        shelter |= Shelters.Peek(w, t) != null || m.CaveAt(t) != Cave.None || pools.Any(p => p is ShelterFind);
                     }
                 if (passable == 0) continue;
                 regions.Add(new RegionRow(rx, ry, passable, Enumerable.Range(0, cats).Select(c => counts[rx, ry, c]).ToArray(), water, fuel, shelter));

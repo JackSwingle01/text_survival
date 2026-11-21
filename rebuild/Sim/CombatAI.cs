@@ -34,7 +34,7 @@ public static partial class Combat
     static double Aggression(World world, CombatUnit u) => StatsOf(world, u).Aggression + (u.JustDamaged ? RetaliationBonus : 0);
 
     /// How much this fighter trusts its side.
-    // ponytail: old NPCs scaled cohesion by their opinion of each ally; relationships come with phase 3d.
+    // Old NPCs scaled cohesion by their opinion of each ally; nothing writes opinions yet (Npc Opinions).
     static double Cohesion(World world, CombatUnit u) => StatsOf(world, u).Cohesion;
 
     /// Threat seen from here: falls off 7% a metre, so nothing past 14 m frightens.

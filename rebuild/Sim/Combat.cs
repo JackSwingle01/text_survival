@@ -102,7 +102,7 @@ public static partial class Combat
     public const int HeadlessRoundCap = 20;
     const int FleeEdgeM = 3, FleeEnergyMinutes = 20, DodgeEnergyMinutes = 10, SignalCooldownMinutes = 5, SignalMinutes = 5;
     const double StoneRangeM = 15, StoneAccuracy = 0.90;
-    /// ponytail: old inventories counted stones as items; resources are kilograms now, so one throw is a typical stone.
+    /// Old inventories counted stones as items; resources are kilograms now, so one throw is a typical stone.
     public const double StoneKg = 0.3;
 
     // ---- setup ----
@@ -433,7 +433,7 @@ public static partial class Combat
 
     internal static string? Refusal(World world, Fight fight)
     {
-        // ponytail: only the player picks rounds; phase 3d's NPCs fight through the AI (or Combat.Apply) until they step themselves.
+        // Only the player picks rounds; NPCs fight through the AI (or Combat.Apply) until they step themselves.
         if (fight.Who != AgentId.Player) return "Only the player fights round by round; others fight through the AI.";
         if (EncounterOf(world, fight.Who) is not Encounter enc) return "You are not in a fight.";
         CombatUnit? target = null;
@@ -487,7 +487,7 @@ public static partial class Combat
 
     /// The player is out (fled or fell, in a round or not): whoever is left fights it out unwatched,
     /// and the fight leaves the world. No fight outlives the player's part in it.
-    // ponytail: old game ran the remainder as a background fight, one round a minute; here it resolves at once.
+    // The old game ran the remainder as a background fight, one round a minute; here it resolves at once.
     internal static void Finish(World world, Encounter enc, List<WorldEvent> events)
     {
         Sweep(world, enc, events, by: null);
@@ -633,7 +633,7 @@ public static partial class Combat
     }
 
     /// Base attack (weapon or species) scaled by strength 50-100%, vitality 70-100% and luck 50-150%.
-    // ponytail: old Player added Fighting skill level to every blow; skills arrive with progression.
+    // Old Player added Fighting skill level to every blow; there are no skills yet.
     static (double Amount, DamageType Type) AttackDamage(World world, CombatUnit attacker, Rng rng)
     {
         var (amount, type) = AverageBlow(world, attacker);
@@ -721,7 +721,7 @@ public static partial class Combat
 
     /// A call to the human companions on this side: a morale nudge that replaces the last one and
     /// lapses after five minutes (old CompanionCombat.Signal).
-    // ponytail: old game skipped companions whose opinion of the caller was negative; relationships are phase 3d.
+    // The old game skipped companions whose opinion of the caller was negative; nothing writes opinions yet.
     static void Signal(World world, Encounter enc, CombatUnit caller, bool retreat)
     {
         caller.LastSignalMinute = world.Minute;

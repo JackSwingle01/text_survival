@@ -84,7 +84,7 @@ public static class TerrainProps
         _ => 0,
     };
 
-    /// Whether an edge stops a crossing outright. ponytail: no seasons yet (old River could flood in spring).
+    /// Whether an edge stops a crossing outright. No seasons yet: the old River could flood in spring.
     public static bool IsBlocking(this EdgeType e) => e is EdgeType.Ravine or EdgeType.Cliff;
 }
 
@@ -121,7 +121,7 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
 }
 
 /// The world's terrain and how tiles connect. Terrain is a pure function of the seed (plan decision 1).
-// ponytail: no tile visibility / fog of war yet. That is the player's knowledge (plan decision 7), not
+// No tile visibility / fog of war yet. That is the player's knowledge (plan decision 7), not
 // map truth; port old GameMap.UpdateVisibility + Sight rays into the agent-knowledge step, not here.
 public static class Map
 {
@@ -192,7 +192,7 @@ public static class Map
     /// Old Location.GetTravelHazardLevel: the ground plus frozen water. River ice is thin (0.3):
     /// 0.15 for any ice, 0.2 more for thin. A site with water of its own has that water instead of
     /// the river (old named sites inherited the river's only when they had none).
-    /// ponytail: static ice; Ground (phase 2c) owns ice that grows and thaws.
+    /// Static ice: a site's water ice does not grow or thaw with Ground yet.
     public static double TravelHazardLevel(GeneratedMap m, TileId t) =>
         Math.Min(1.0, TerrainHazardLevel(m, t) + (m.SiteAt(t)?.Water is { } w ? w.HazardDelta : m.BesideRiver(t) ? 0.15 + 0.20 : 0));
 

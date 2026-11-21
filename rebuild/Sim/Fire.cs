@@ -33,7 +33,7 @@ public static class Fire
 {
     public static readonly IReadOnlyDictionary<Resource, FuelProps> Props = new Dictionary<Resource, FuelProps>
     {
-        // ponytail: table in code until phase 4 moves content to data files
+        // Table in code; plain rows, so moving it to Content is mechanical.
         [Resource.Tinder] = new(450, 3.0, 0, 0.15),
         [Resource.BirchBark] = new(500, 2.5, 0, 0.25),
         [Resource.Amadou] = new(490, 2.6, 0, 0.20),

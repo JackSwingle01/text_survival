@@ -766,9 +766,41 @@ public class DenTests
         Assert.InRange(herd.Members.Count, 8, 12);
         Assert.InRange(((HerdMind)herd.Mind).Territory.Count, 8, 288);
 
-        w.Agents.Remove(herd.Id); // the herd hunted out
-        Sim.Step(w, new Wait(AgentId.Player), 6 * 60);
-        Assert.Empty(Herds(w, Species.Mammoth));
+        // Hunted out: every member dies of its wounds, the herd leaves the world the way the dead do
+        // (Fauna.Tick), and days on nothing has come back to the hollow.
+        foreach (var body in herd.Members) body.BloodPct = 0;
+        Sim.Advance(w, 60);
+        Assert.False(w.Agents.ContainsKey(herd.Id));
+        Sim.Advance(w, 3 * 1440);
+        Assert.DoesNotContain(w.Agents.Values, a => a.Species == Species.Mammoth);
         Assert.Empty(Herds(World.New(1), Species.Mammoth)); // and a valley with no Bone Hollow has none at all
+    }
+
+    /// old game: den land was any open tile in a square round the den bar the far side, grown by
+    /// adjacency alone, so a pack could hold pass stages and land across a ravine or cliff it could
+    /// never walk to (bug, fixed). Every herd's land is walkable from its start, and off the pass.
+    [Theory]
+    [InlineData(24)] // a wolf den under the mountains: its land took three pass stages
+    [InlineData(67)] // land beyond a blocking edge
+    [InlineData(80)]
+    public void EveryTerritory_IsWalkableFromItsStart_AndOffThePass(int seed)
+    {
+        var w = World.New(seed);
+        var m = Map.Of(w);
+        foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind))
+        {
+            var land = ((HerdMind)h.Mind).Territory;
+            var inLand = land.ToHashSet();
+            var reached = new HashSet<TileId> { land[0] };
+            var queue = new Queue<TileId>(reached);
+            while (queue.Count > 0)
+            {
+                var t = queue.Dequeue();
+                foreach (var n in MapGen.Neighbors(t))
+                    if (inLand.Contains(n) && Map.Blocked(m, t, n) == null && reached.Add(n)) queue.Enqueue(n);
+            }
+            Assert.True(reached.Count == land.Count, $"{h.Species} {h.Id}: {land.Count - reached.Count} of {land.Count} tiles cut off from its start");
+            Assert.DoesNotContain(land, t => m.StageAt(t) != null);
+        }
     }
 }

@@ -44,8 +44,8 @@ public sealed record Hunt(AgentId Who, AgentId Prey) : Activity(Who);
 /// Herds: their minds and what they do (port of old Herd, PreyBehavior, PackPredatorBehavior,
 /// SolitaryPredatorBehavior, ScavengerBehavior and HerdVigilance). A herd's mind decides one
 /// minute at a time, as the old behaviors updated; travel is the shared Travel activity.
-// ponytail: herds never come for the player or an NPC yet (old ShouldEngagePlayer, PredatorInteraction's
-// stalking, the NPC attacks in PackPredatorBehavior). Player encounters are phase 4 events; Combat.Boldness is ready for them.
+// Herds never come for the player or an NPC yet (old ShouldEngagePlayer, PredatorInteraction's stalking,
+// the NPC attacks in PackPredatorBehavior). Combat.Boldness is ready for when they do.
 public static partial class Fauna
 {
     public static HerdBehavior BehaviorOf(Species s) => s switch
@@ -184,7 +184,7 @@ public static partial class Fauna
     /// It has lived this minute with them, so it starts on the next. Not in the old game, where a
     /// herd moved at its first member's pace however hurt the others were (judgment: realistic, and
     /// one lame member can no longer hold a herd still).
-    // ponytail: a member that mends never rejoins; it lives on as its own herd on a copy of their land.
+    // A member that mends never rejoins; it lives on as its own herd on a copy of their land.
     static void LeaveBehindTheLame(World world, Agent herd)
     {
         for (int i = herd.Members.Count - 1; i >= 0 && herd.Members.Count > 1; i--)
@@ -300,7 +300,7 @@ public static partial class Fauna
         bool noticed = PreyNotices(world, pack, prey);
         var enc = Combat.Create(world, hunters, targets, pack.Tile, noticed ? 15 : 5, Awareness.Engaged, noticed ? Awareness.Alert : Awareness.Unaware);
         Combat.ResolveHeadless(world, enc, events);
-        // ponytail: old hungry wolves (hunger > 0.8) chased escaping prey 40% of the time; they patrol on here.
+        // Old hungry wolves (hunger > 0.8) chased escaping prey 40% of the time; they patrol on here.
         return Math.Max(1, enc.Rounds);
     }
 
@@ -524,7 +524,7 @@ public static partial class Fauna
                 if (MeatHere(world, herd.Tile) > 0) { Become(world, mind, HerdState.Feeding); return (new Feed(herd.Id), 1); }
                 if (t % CarcassSearchEveryMinutes == 0 && TowardNearest(world, herd, MeatSensed(world, herd.Tile)) is { } go) return go;
                 if (mind.Hunger < 0.3 && t > 60) { Become(world, mind, HerdState.Resting); return Rest(herd); }
-                // ponytail: old hyenas also shadowed feeding predators and wolf packs; carcasses alone draw them here.
+                // Old hyenas also shadowed feeding predators and wolf packs; carcasses alone draw them here.
                 if (Roll(world, 0.04) && PatrolStep(world, herd, mind) is { } walk) return walk;
                 return Wait(herd);
             case HerdState.Feeding:

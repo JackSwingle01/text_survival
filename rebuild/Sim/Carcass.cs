@@ -136,14 +136,16 @@ public static class Carcasses
     }
 
     /// Ages the carcass to world.Minute in clock-hour chunks, each at the tile's air at the top of its hour,
-    /// so how often anyone looks cannot change how fast it rots.
-    // ponytail: the old Location.GetTemperature it read included a fire on the tile; the air here does not.
+    /// so how often anyone looks cannot change how fast it rots. The air is what reaches the surface
+    /// (Ground.WeatherAt): old game: decay read the air a person feels, wind chill and all, so a windy
+    /// thaw kept meat as if it were freezing (bug, fixed). The old reading also included a fire on the
+    /// tile; this one does not.
     public static void CatchUp(World world, TileId tile, Carcass c)
     {
         while (c.LastUpdatedMinute < world.Minute)
         {
             long next = Math.Min(world.Minute, (c.LastUpdatedMinute / 60 + 1) * 60);
-            double tempF = Weather.AirAtF(world, tile, Weather.At(world, c.LastUpdatedMinute / 60 * 60), 0);
+            double tempF = Ground.WeatherAt(world, tile, c.LastUpdatedMinute / 60 * 60).AirTemperatureF;
             c.LastKnownTempF = tempF;
             c.EffectiveHours += (next - c.LastUpdatedMinute) / 60.0 * DecayFactor(tempF);
             c.LastUpdatedMinute = next;
@@ -248,7 +250,7 @@ public static class Carcasses
     /// Cut pieces a full pack could not take wait on the carcass, already yielded: the next session
     /// carries them without cutting them again. Old game: RestoreYields put the yield back as uncut
     /// carcass and scaled it by mode, decay and hands a second time (bug, fixed).
-    // ponytail: waiting cut meat does not rot further; decay was charged when it was cut.
+    // Waiting cut meat does not rot further; decay was charged when it was cut.
     public static void PutBack(Carcass c, Inventory leftovers)
     {
         foreach (var (r, kg) in leftovers.Kg) c.Pending[r] = c.Pending.GetValueOrDefault(r) + kg;

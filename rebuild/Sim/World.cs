@@ -57,7 +57,7 @@ public sealed class World
         var map = Map.Generate(seed);
         var world = new World { Seed = seed, GeneratedMap = map };
         world.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = map.Camp };
-        // ponytail: the old camp's Overhang and bedding, here until named-location content places them.
+        // The old camp's Overhang and bedding (old GridWorldGenerator.CreateCampLocation).
         Survival.Shelters.Place(world, map.Camp, Survival.Shelters.CampOverhang);
         Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);
         Map.PlaceSiteShelters(world);

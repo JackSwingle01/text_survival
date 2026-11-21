@@ -135,7 +135,24 @@ public class CarcassTests
         Carcasses.CatchUp(a, Map.Of(a).Camp, ca);
         Carcasses.CatchUp(b, Map.Of(b).Camp, cb);
         Assert.Equal(ca.EffectiveHours, cb.EffectiveHours, 12);
-        Assert.Equal(2000 / 60.0 * Carcasses.DecayFactor(Weather.AirAtF(a, Map.Of(a).Camp, Mild, 0)), ca.EffectiveHours, 9);
+        Assert.Equal(2000 / 60.0 * Carcasses.DecayFactor(Ground.WeatherAt(a, Map.Of(a).Camp, 0).AirTemperatureF), ca.EffectiveHours, 9);
+    }
+
+    /// old game: decay read the air a person feels, wind chill included, so a gale over a thaw kept
+    /// meat as if it were freezing (bug, fixed): meat rots at the air that reaches it.
+    [Fact]
+    public void Decay_ReadsTheAirNotTheWindChill()
+    {
+        var w = World.New(17);
+        w.FixedWeather = new(0, WeatherCondition.Cloudy, 3, 0.6, 0, 0.9, WindDirection.North); // 37.4 °F, a 27 mph wind
+        var tile = Map.Of(w).Camp;
+        Assert.True(Weather.AirAtF(w, tile, Weather.At(w, 0), 0) < 32);
+        var c = Carcasses.Create(w, tile, "Caribou", BodyState.Create(BodyKind.Quadruped, 124, 0.15, 0.6), 0);
+        w.Minute = 10 * 60;
+        Carcasses.CatchUp(w, tile, c);
+        Assert.Equal(10.0 * Carcasses.DecayFactor(37.4), c.EffectiveHours, 9);
+        Assert.Equal(1.0, Carcasses.DecayFactor(37.4));
+        Assert.False(Carcasses.IsFrozen(w, c));
     }
 
     /// The same with the seed's own weather, which changes within the hour: each hour is read at

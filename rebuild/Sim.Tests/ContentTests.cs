@@ -77,4 +77,70 @@ public class ContentTests
         Assert.True(woods > 30, $"{woods} deep woods");
         Assert.InRange(bushes / (double)woods, 0.15, 0.45);
     }
+
+    // ---- the loader is strict: a broken file fails loudly, naming what is wrong ----
+
+    static readonly string Locations = Content.Embedded("locations.json"), Loot = Content.Embedded("loot.json");
+
+    /// The real files with one edit, which must be there to make.
+    static string Edit(string json, string from, string to)
+    {
+        int at = json.IndexOf(from, StringComparison.Ordinal);
+        Assert.True(at >= 0, $"no '{from}' to edit");
+        return json[..at] + to + json[(at + from.Length)..];
+    }
+
+    static string Broken(string locations, string? loot = null) =>
+        Assert.Throws<InvalidDataException>(() => Content.Parse(locations, loot ?? Loot)).Message;
+
+    [Fact]
+    public void Loader_TheRealFilesParse()
+    {
+        var (locations, loot) = Content.Parse(Locations, Loot);
+        Assert.Equal(Content.Locations.Count, locations.Count);
+        Assert.Equal(Content.Loot.Count, loot.Count);
+    }
+
+    [Fact]
+    public void Loader_RefusesAnUnknownField() =>
+        Assert.Contains("colour", Broken(Edit(Locations, "\"name\": \"Deep Woods\",", "\"name\": \"Deep Woods\", \"colour\": \"green\",")));
+
+    [Fact]
+    public void Loader_RefusesAMissingRequiredField() =>
+        Assert.Contains("name", Broken(Edit(Locations, "\"name\": \"Deep Woods\",", "")));
+
+    [Fact]
+    public void Loader_RefusesABadEnum() =>
+        Assert.Contains("locations.json", Broken(Edit(Locations, "\"terrain\": [ \"Forest\" ]", "\"terrain\": [ \"Jungle\" ]")));
+
+    [Fact]
+    public void Loader_RefusesADuplicateKey()
+    {
+        Assert.Contains("hazard", Broken(Edit(Locations, "\"hazard\": 0.2,", "\"hazard\": 0.2, \"hazard\": 0.9,")));
+        // A loot table named twice: the second would silently replace the first.
+        int open = Loot.IndexOf('{');
+        Assert.Contains("loot.json", Broken(Locations, Loot[..(open + 1)] + "\"MedicinalForage\": [], " + Loot[(open + 1)..]));
+    }
+
+    [Fact]
+    public void Loader_RefusesANullElement()
+    {
+        Assert.Contains("location forest: features[0] is null", Broken(Edit(Locations, "\"features\": [", "\"features\": [ null,")));
+        Assert.Contains("locations[0] is null", Broken(Edit(Locations, "\"locations\": [", "\"locations\": [ null,")));
+    }
+
+    [Fact]
+    public void Loader_RefusesAShelterOutOfRange()
+    {
+        Assert.Contains("Dense Thicket: wind 0.9 is above its cap 0.7",
+            Broken(Edit(Locations, "\"type\": \"DenseThicket\", \"insulation\": 0.15, \"overhead\": 0.5, \"wind\": 0.6", "\"type\": \"DenseThicket\", \"insulation\": 0.15, \"overhead\": 0.5, \"wind\": 0.9")));
+        Assert.Contains("not in 0-1", Broken(Edit(Locations, "\"insulationCap\": 0.4, \"overheadCap\": 0.6", "\"insulationCap\": 1.4, \"overheadCap\": 0.6")));
+    }
+
+    [Fact]
+    public void Loader_RefusesADanglingReference()
+    {
+        Assert.Contains("known loot table (NoSuchTable)", Broken(Edit(Locations, "\"loot\": \"MedicinalForage\"", "\"loot\": \"NoSuchTable\"")));
+        Assert.Contains("no gear kind 'no_such_gear'", Broken(Locations, Edit(Loot, "\"gear\": [", "\"gear\": [ \"no_such_gear\",")));
+    }
 }

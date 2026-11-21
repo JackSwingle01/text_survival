@@ -31,7 +31,7 @@ public sealed partial record NpcMind
     /// exploring NPC does not go back to them.
     public SortedDictionary<TileId, Place> Places { get; init; } = [];
     /// Old RelationshipMemory reduced to an opinion per agent, -1..1; strangers are 0.
-    // ponytail: nothing writes this yet; the WorldEvent stream will feed it (plan decision 4) when consumers subscribe.
+    // Nothing writes this yet; the WorldEvent stream will feed it (plan decision 4) when consumers subscribe.
     public SortedDictionary<AgentId, double> Opinions { get; init; } = [];
     /// The fat this body has got used to carrying (Npc.AdaptTargetFat): a running average of its own
     /// fat, never above baseline and never below the floor where leanness starts to cost speed and warmth.
@@ -53,8 +53,8 @@ public static partial class Npc
 
     /// A person with an NpcMind: the player's body and clothes, the player's starting pack, plus an
     /// axe and a knife. Camp defaults to where it stands.
-    // ponytail: the axe and knife stand in for the old NPC's crafting (it made them in its first hours);
-    // the kit shrinks back to the player's when crafting is ported (phase 4).
+    // The axe and knife stand in for the old NPC's crafting (it made them in its first hours); the kit
+    // shrinks back to the player's when crafting is ported.
     public static AgentId Spawn(World world, TileId tile, TileId? camp = null, double? boldness = null)
     {
         var id = new AgentId(world.NextAgentId++);
@@ -439,7 +439,7 @@ public static partial class Npc
     static Plan? Light(Me me)
     {
         var tool = Starters.Cast<ToolType?>().FirstOrDefault(t => Items.Tool(me.Pack, t!.Value) != null);
-        if (tool == null) return null; // ponytail: the old NPC crafted a fire starter here; crafting is phase 4.
+        if (tool == null) return null; // the old NPC crafted a fire starter here; there is no crafting yet
         var tinder = First(Tinders, r => me.Has(r) >= 0.05);
         if (tinder == null && First(Tinders, r => me.Stashed(r) > 0) is Resource stashed)
             return Try(me, new Unstash(me.Id, stashed, 0.3), 1);
@@ -472,7 +472,7 @@ public static partial class Npc
 
     /// Hours of fire in the camp's wood, the pit's and the pack's: each fuel's kilograms over its burn
     /// rate (Fire.Props) at a banked fire's size.
-    // ponytail: ignores a stone pit's efficiency and that a small fire burns slower; both under 15%.
+    // Ignores a stone pit's efficiency and that a small fire burns slower; both under 15%.
     static double CampFuelHours(Me me)
     {
         var stash = me.World.Tiles.GetValueOrDefault(me.Mind.Camp)?.Stash;
@@ -618,7 +618,7 @@ public static partial class Npc
 
     /// Old ResourceMemory.RememberLocation: refreshed, not appended, on every visit. A stand of trees
     /// is plain to see from a distance, so tiles in sight are remembered for their trees too.
-    // ponytail: sight is a fixed SightTiles; it should be the player's sight rays (terrain, weather) once those are ported.
+    // Sight is a fixed SightTiles; it should be the player's sight rays (terrain, weather) once those are ported.
     static void Remember(World world, Agent agent, NpcMind mind)
     {
         bool Trees(TileId t)
@@ -670,7 +670,7 @@ public static partial class Npc
 
     /// Old GetPriorityThreat, reaching one tile further: the biggest, healthiest predator here or
     /// next door, not already in a fight.
-    // ponytail: Threat, FindFood's prey and AllyInFight read herds' true tiles and bodies from world.Agents, gated
+    // Threat, FindFood's prey and AllyInFight read herds' true tiles and bodies from world.Agents, gated
     // only by a fixed radius (1 and 3 tiles, inside SightTiles, as Remember is); use sight rays when those are ported.
     static Agent? Threat(Me me) =>
         Herds(me, 1, h => Fauna.IsPredator(h.Species) && Unengaged(me, h))
@@ -742,7 +742,7 @@ public static partial class Npc
     }
 
     /// A fight this NPC started, resolved headless (as herds fight), then a minute to catch its breath.
-    // ponytail: Combat.Refusal lets only the player fight round by round, so an NPC's own fight resolves at once, its
+    // Combat.Refusal lets only the player fight round by round, so an NPC's own fight resolves at once, its
     // rounds lived by its wounds alone (no fighting metabolism, no clock); step it by Fight when combat allows other agents.
     static Plan Fought(Me me, Encounter enc)
     {

@@ -9,7 +9,7 @@ public enum Placement { Named, Cave, Pass }
 /// A named place (old LocationFactory / CaveLocationFactory site, or a stage of the crossing): what
 /// standing there is like and what is there. Hazard, wind, cover, visibility, temperature and
 /// traversal replace the terrain's own on that tile; the features become its pools.
-// ponytail: Edges (old WithEdgesOnAllSides(Climb)) is carried, not applied: the old GameMap never read
+// Edges (old WithEdgesOnAllSides(Climb)) is carried, not applied: the old GameMap never read
 // EdgeOverrides, so no climb was ever paid; apply it in Map.EdgeBetween if climbing sites should cost
 // 6 minutes a side. Escape and Vantage wait for combat escape terrain and scouting.
 public sealed record LocationDef(
@@ -51,15 +51,15 @@ public sealed record SiteStock(string Name, StockKind Work, int Minutes, IReadOn
 public sealed record SiteStockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit = 0, int? UnitsMax = null);
 
 /// Old WaterFeature. Open water is a source to draw from; ice adds to the ground's hazard.
-// ponytail: ice holes, fishing and ice that grows and thaws (Ground) read Frozen, Ice and Fish when they exist.
+// Frozen, Ice and Fish wait for ice holes, fishing and ice that grows and thaws (Ground).
 public sealed record SiteWater(string Name, bool Frozen, double Fish, double Ice = 0, string? Description = null) : SiteFeature
 {
     /// Old WaterFeature.GetTerrainHazardContribution: 0.15 for any ice, 0.2 more below 0.4 thick.
     public double HazardDelta => !Frozen ? 0 : 0.15 + (Ice < 0.4 ? 0.20 : 0);
 }
 
-// ponytail: small game, caches and discovery events are carried as data until their systems exist
-// (a small-game density to hunt in, remote storage - see Shelters' note on old CacheFeature - and phase 4 moments).
+// Small game, caches and discovery events are carried as data until their systems exist (a small-game
+// density to hunt in, remote storage - see Shelters' note on old CacheFeature - and moments).
 public enum SmallGame { Rabbit, Ptarmigan, Fox }
 public sealed record SmallGameEntry(SmallGame Animal, double Weight);
 public sealed record SiteSmallGame(double Density, IReadOnlyList<SmallGameEntry> Animals, int[]? PeakHours = null, double PeakFactor = 1) : SiteFeature;
@@ -83,6 +83,7 @@ public static class Content
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
         AllowOutOfOrderMetadataProperties = true,
+        AllowDuplicateProperties = false,
         RespectNullableAnnotations = true,
         RespectRequiredConstructorParameters = true,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
@@ -100,32 +101,82 @@ public static class Content
 
     static Content()
     {
-        Locations = Load<LocationsFile>("locations.json").Locations;
-        Loot = Load<Dictionary<string, IReadOnlyList<LootRoll>>>("loot.json");
-        ById = Locations.ToDictionary(l => l.Id); // throws on a duplicate id
+        (Locations, Loot) = Parse(Embedded("locations.json"), Embedded("loot.json"));
+        ById = Locations.ToDictionary(l => l.Id);
         PassStages = Locations.Where(l => l.Placement == Placement.Pass).ToList();
         CaveSites = Locations.Where(l => l.Placement == Placement.Cave).ToList();
-        var problems = Problems().ToList();
-        if (problems.Count > 0) throw new InvalidDataException("Content is broken:\n" + string.Join("\n", problems));
     }
 
-    static T Load<T>(string file)
+    internal static string Embedded(string file)
     {
         using var stream = typeof(Content).Assembly.GetManifestResourceStream($"Survival.Content.{file}")
             ?? throw new FileNotFoundException($"Content file {file} is not embedded in {typeof(Content).Assembly.GetName().Name}");
-        try { return JsonSerializer.Deserialize<T>(stream, Options) ?? throw new InvalidDataException($"{file} is empty"); }
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    /// Reads and checks both tables; any problem throws InvalidDataException naming it. The game
+    /// loads the embedded files through here; tests hand it broken ones.
+    internal static (IReadOnlyList<LocationDef> Locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> Loot) Parse(string locationsJson, string lootJson)
+    {
+        var locations = Deserialize<LocationsFile>(locationsJson, "locations.json").Locations;
+        var loot = Deserialize<Dictionary<string, IReadOnlyList<LootRoll>>>(lootJson, "loot.json");
+        // Nulls first: every later check would trip over one.
+        var problems = NullProblems(locations, loot).ToList();
+        if (problems.Count == 0) problems = Problems(locations, loot).ToList();
+        if (problems.Count > 0) throw new InvalidDataException("Content is broken:\n" + string.Join("\n", problems));
+        return (locations, loot);
+    }
+
+    static T Deserialize<T>(string json, string file)
+    {
+        try { return JsonSerializer.Deserialize<T>(json, Options) ?? throw new InvalidDataException($"{file} is empty"); }
         catch (JsonException e) { throw new InvalidDataException($"{file}: {e.Message}", e); }
     }
 
-    /// Everything enums cannot check by themselves: cross-references, shapes and ranges.
-    static IEnumerable<string> Problems()
+    /// Nullable annotations cover properties, not the elements of a list: a stray null in an array
+    /// is caught here, by name.
+    static IEnumerable<string> NullProblems(IReadOnlyList<LocationDef> locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot)
     {
-        if (PassStages.Count != 6) yield return $"{PassStages.Count} pass stages, not 6";
-        if (PassStages.Count(s => s.IsCrossingExit) != 1 || PassStages.Count > 0 && !PassStages[^1].IsCrossingExit)
+        for (int i = 0; i < locations.Count; i++)
+        {
+            var l = locations[i];
+            if (l == null) { yield return $"locations[{i}] is null"; continue; }
+            string at = $"location {l.Id}";
+            if (l.Stories?.Any(x => x == null) == true) yield return $"{at}: a null story";
+            var features = l.All;
+            for (int j = 0; j < features.Count; j++)
+            {
+                var f = features[j];
+                if (f == null) { yield return $"{at}: features[{j}] is null"; continue; }
+                bool nullInside = f switch
+                {
+                    SiteForage fo => fo.Items.Any(x => x == null),
+                    SiteStock st => st.Items?.Any(x => x == null) == true,
+                    SiteSmallGame sg => sg.Animals.Any(x => x == null),
+                    _ => false,
+                };
+                if (nullInside) yield return $"{at}: features[{j}] has a null entry";
+            }
+        }
+        foreach (var (name, rolls) in loot)
+            if (HasNullRoll(rolls)) yield return $"loot {name}: a null roll";
+    }
+
+    static bool HasNullRoll(IReadOnlyList<LootRoll>? rolls) =>
+        rolls == null || rolls.Any(r => r == null || r.Gear?.Any(g => g == null) == true || r.Of != null && HasNullRoll(r.Of));
+
+    /// Everything enums cannot check by themselves: cross-references, shapes and ranges.
+    static IEnumerable<string> Problems(IReadOnlyList<LocationDef> locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot)
+    {
+        var passStages = locations.Where(l => l.Placement == Placement.Pass).ToList();
+        foreach (var dup in locations.GroupBy(l => l.Id).Where(g => g.Count() > 1)) yield return $"location id {dup.Key} is used {dup.Count()} times";
+        if (passStages.Count != 6) yield return $"{passStages.Count} pass stages, not 6";
+        if (passStages.Count(s => s.IsCrossingExit) != 1 || passStages.Count > 0 && !passStages[^1].IsCrossingExit)
             yield return "the last pass stage, and only it, is the crossing exit";
-        if (Locations.Any(l => l.IsCrossingExit && l.Placement != Placement.Pass)) yield return "only a pass stage is a crossing exit";
-        if (CaveSites.Count == 0) yield return "no cave sites";
-        foreach (var l in Locations)
+        if (locations.Any(l => l.IsCrossingExit && l.Placement != Placement.Pass)) yield return "only a pass stage is a crossing exit";
+        if (!locations.Any(l => l.Placement == Placement.Cave)) yield return "no cave sites";
+        foreach (var l in locations)
         {
             string at = $"location {l.Id}";
             if (l.Placement == Placement.Named)
@@ -137,6 +188,7 @@ public static class Content
             var features = l.All;
             int firstOther = features.ToList().FindIndex(f => f is not SiteForage);
             if (firstOther >= 0 && features.Skip(firstOther).Any(f => f is SiteForage)) yield return $"{at}: forage must come first (pool 0 is a tile's forage)";
+            if (features.OfType<SiteShelter>().Count() > 1) yield return $"{at}: one shelter to a tile";
             foreach (var f in features)
             {
                 if (f.Chance is <= 0 or > 1) yield return $"{at}: chance {f.Chance}";
@@ -145,7 +197,7 @@ public static class Content
                 {
                     case SiteStock { Work: StockKind.Harvest } s when s.Items is not { Count: > 0 } || s.Loot != null:
                         yield return $"{at}: harvest {s.Name} needs items and no loot"; break;
-                    case SiteStock { Work: StockKind.Salvage } s when s.Loot == null || !Loot.ContainsKey(s.Loot) || s.Items != null:
+                    case SiteStock { Work: StockKind.Salvage } s when s.Loot == null || !loot.ContainsKey(s.Loot) || s.Items != null:
                         yield return $"{at}: salvage {s.Name} needs a known loot table ({s.Loot}) and no items"; break;
                     case SiteStock { Work: StockKind.Detail } s:
                         yield return $"{at}: {s.Name} is a detail; details are terrain's"; break;
@@ -153,13 +205,26 @@ public static class Content
                         yield return $"{at}: {s.Name} has a bad item"; break;
                     case SiteShelter s when s.Chance < 1 || s.RevealAtHours > 0:
                         yield return $"{at}: shelter {s.Name} is placed when the world is made, so always and in sight"; break;
+                    case SiteShelter s when ShelterLevelProblem(s) is string bad:
+                        yield return $"{at}: shelter {s.Name}: {bad}"; break;
                     case SiteForage s when s.Items.Any(i => i.MinKg > i.MaxKg || i.Abundance <= 0):
                         yield return $"{at}: forage has a bad item"; break;
                 }
             }
         }
-        foreach (var (name, rolls) in Loot)
+        foreach (var (name, rolls) in loot)
             foreach (var p in RollProblems(rolls)) yield return $"loot {name}: {p}";
+    }
+
+    /// Levels and caps are fractions, and work improves a level up to its cap, never down to it.
+    static string? ShelterLevelProblem(SiteShelter s)
+    {
+        foreach (var (stat, level, cap) in new[] { ("insulation", s.Insulation, s.InsulationCap), ("overhead", s.Overhead, s.OverheadCap), ("wind", s.Wind, s.WindCap) })
+        {
+            if (level is < 0 or > 1 || cap is < 0 or > 1) return $"{stat} {level} (cap {cap}) is not in 0-1";
+            if (level > cap) return $"{stat} {level} is above its cap {cap}";
+        }
+        return null;
     }
 
     static IEnumerable<string> RollProblems(IReadOnlyList<LootRoll> rolls)

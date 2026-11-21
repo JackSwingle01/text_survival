@@ -520,7 +520,7 @@ public static partial class Body
         var external = region.Organs.Where(o => o.IsExternal).ToList();
         if (external.Count > 0 && amount > 0) return external[rng.NextInt(external.Count)];
         var inner = region.Organs.Where(o => !o.IsExternal).ToList();
-        // ponytail: threshold 5 predates the 0-1 damage scale, so in practice only huge hits reach inner organs.
+        // The old threshold 5 predates the 0-1 damage scale, so in practice only huge hits reach inner organs.
         if (inner.Count > 0 && amount > 5) return inner[rng.NextInt(inner.Count)];
         return null;
     }

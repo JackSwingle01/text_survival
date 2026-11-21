@@ -32,7 +32,7 @@ public static class SpeciesTable
     static readonly Temperament Never = new(0, 0, 1.1, 1.1, 0, 0, 0);
     static readonly Temperament Bears = new(0.15, 0, 0.8, 0.95, 0.3, 0.55, 1.0);
 
-    // ponytail: tables in code until phase 4 moves content to data files; plain rows so that move is mechanical.
+    // Tables in code; plain rows, so moving them to Content is mechanical.
     static readonly Dictionary<Species, SpeciesStats> Rows = new()
     {
         // Old Player: unarmed 0.15 blunt. Old NPC punched for 0.1; one agent model means one number.

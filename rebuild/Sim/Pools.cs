@@ -24,6 +24,10 @@ public sealed record StockPool(
 /// RespawnHoursPerUnit 0 never regrows.
 public sealed record StockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit = 0);
 
+/// A natural shelter (old DiscoveryGenerator rock overhang, ice cave, cave sleeping recess) hidden
+/// until searched for. Nothing to gather: finding it puts the shelter on the tile (Pools.Search).
+public sealed record ShelterFind(ShelterDef Shelter, double RevealAtHours, double PlacementHeightM = 2.0) : PoolDef(Shelter.Name);
+
 /// How a stock is worked: harvest (no impairment check), salvage (slowed by bad legs), detail (a light look).
 public enum StockKind { Harvest, Salvage, Detail }
 
@@ -103,7 +107,8 @@ public static class Pools
         {
             pools.AddRange(SitePools(Map.SiteFeatures(seed, m, tile), rng));
             if (site.Placement == Placement.Named) pools.AddRange(Discoveries(terrain, rng));
-            else if (site.Placement == Placement.Cave) pools.AddRange(CaveDiscoveries(rng).Where(d => pools.All(p => p.Name != d.Name)));
+            else if (site.Placement == Placement.Cave)
+                pools.AddRange(CaveDiscoveries(rng).Where(d => pools.All(p => p.Name != d.Name) && site.All.OfType<SiteShelter>().All(s => s.Name != d.Name)));
             return pools;
         }
         // Old CaveLocationFactory.MakePassage: stone and bone underfoot, wind-blown sticks at the mouth.
@@ -141,9 +146,9 @@ public static class Pools
     /// A named site's features as pools, in order (Map.SiteFeatures has rolled their chances). Water that runs open is a
     /// source to draw from (old WaterFeature.AsOpenWater, as Hidden Spring); frozen water is hazard
     /// (Map.TravelHazardLevel). Shelters, small game, caches and events are not pools.
-    // ponytail: a site's shelter waits for Shelters (phase 4b), its small game for hunting by density,
-    // and its event triggers (FirstVisitEvent, SiteEvent) for phase 4 moments: they would fire on
-    // arrival and in Search below, when the hidden one is found.
+    // A site's shelter is placed with the world (Map.PlaceSiteShelters). Its small game waits for
+    // hunting by density, and its event triggers (FirstVisitEvent, SiteEvent) for moments: they would
+    // fire on arrival and in Search below, when the hidden one is found.
     static IEnumerable<PoolDef> SitePools(IReadOnlyList<SiteFeature> features, Rng rng)
     {
         foreach (var f in features)
@@ -312,10 +317,10 @@ public static class Pools
     // ---- discoveries (old DiscoveryGenerator terrain pools) ----
 
     /// One template: spawn chance, expected hours to find, and the pool it makes.
-    sealed record Template(double SpawnChance, double ExpectedHours, Func<Rng, double, StockPool>? Make);
+    sealed record Template(double SpawnChance, double ExpectedHours, Func<Rng, double, PoolDef>? Make);
 
-    /// Old pools in their order. Templates with a null Make are shelters, small game and event
-    /// triggers, which arrive with their systems (phase 4); they still roll so the draw is the old one.
+    /// Old pools in their order. Templates with a null Make are small game and event triggers, which
+    /// arrive with their systems; they still roll so the draw is the old one.
     static IReadOnlyList<Template> DiscoveryTable(Terrain terrain) => terrain switch
     {
         Terrain.Forest =>
@@ -324,7 +329,7 @@ public static class Pools
             new(0.03, 2.5, MedicinePatch), new(0.04, 1.5, ResinPocket), new(0.03, 2.0, AbandonedDen), new(0.03, 2.0, CharDeposit),
             new(0.02, 2.0, AntlerShed), new(0.02, 2.5, OldButcheringSite), new(0.01, 3.0, TallowPot), new(0.02, 2.0, DryWoodStack),
             new(0.02, 2.5, CordageBundle), new(0.02, 2.0, TinderCache), new(0.01, 3.5, MedicineStash), new(0.02, 3.0, MassiveDeadfall),
-            new(0.01, 4.0, null), new(0.02, 3.5, AbandonedCamp), new(0.02, 4.0, TrapperStash), new(0.02, 3.0, HuntersBlind),
+            new(0.01, 4.0, RockOverhang), new(0.02, 3.5, AbandonedCamp), new(0.02, 4.0, TrapperStash), new(0.02, 3.0, HuntersBlind),
             new(0.01, 4.0, null), new(0.02, 3.0, null), new(0.02, 3.0, null), new(0.02, 2.0, null), new(0.03, 2.0, null),
         ],
         Terrain.Clearing =>
@@ -341,15 +346,15 @@ public static class Pools
         Terrain.Hills =>
         [
             new(0.05, 2.5, FlintOutcrop), new(0.04, 2.0, null), new(0.03, 2.0, AbandonedDen), new(0.02, 2.0, null),
-            new(0.03, 1.5, AntlerShed), new(0.02, 2.0, KnappingScatter), new(0.01, 3.5, MedicineStash), new(0.03, 3.0, null),
-            new(0.02, 3.5, null), new(0.02, 4.0, PyriteSeam), new(0.02, 3.5, HiddenSpring), new(0.03, 4.0, null),
+            new(0.03, 1.5, AntlerShed), new(0.02, 2.0, KnappingScatter), new(0.01, 3.5, MedicineStash), new(0.03, 3.0, RockOverhang),
+            new(0.02, 3.5, IceCave), new(0.02, 4.0, PyriteSeam), new(0.02, 3.5, HiddenSpring), new(0.03, 4.0, null),
             new(0.02, 5.0, null), new(0.02, 3.5, null),
         ],
         Terrain.Rock =>
         [
             new(0.06, 2.0, FlintOutcrop), new(0.03, 2.0, BonePile), new(0.03, 2.0, null), new(0.03, 2.0, AbandonedDen),
-            new(0.03, 2.0, KnappingScatter), new(0.02, 2.5, TallowPot), new(0.02, 2.0, TinderCache), new(0.03, 2.5, null),
-            new(0.02, 3.5, null), new(0.02, 3.5, HiddenSpring),
+            new(0.03, 2.0, KnappingScatter), new(0.02, 2.5, TallowPot), new(0.02, 2.0, TinderCache), new(0.03, 2.5, RockOverhang),
+            new(0.02, 3.5, IceCave), new(0.02, 3.5, HiddenSpring),
         ],
         Terrain.Marsh =>
         [
@@ -360,12 +365,28 @@ public static class Pools
         _ => [],
     };
 
-    /// Old DiscoveryGenerator.CavePool. The sleeping recess is a shelter (phase 4b) and still rolls.
+    /// Old DiscoveryGenerator.CavePool.
     static readonly IReadOnlyList<Template> CaveTable =
     [
         new(0.12, 0.8, FlintOutcrop), new(0.06, 1.2, PyriteSeam), new(0.16, 0.5, BonePile), new(0.06, 0.6, CharDeposit),
-        new(0.05, 0.8, KnappingScatter), new(0.06, 0.7, CaveSeep), new(0.05, 1.0, null), new(0.12, 0.4, LooseShale),
+        new(0.05, 0.8, KnappingScatter), new(0.06, 0.7, CaveSeep), new(0.05, 1.0, SleepingRecess), new(0.12, 0.4, LooseShale),
     ];
+
+    // Old DiscoveryFeatureFactory natural shelters and CaveLocationFactory.CreateSleepingRecess. The old
+    // game drew their levels from the process-wide RNG; here they come from the tile's stream.
+    static ShelterFind RockOverhang(Rng r, double _)
+    {
+        double insulation = 0.3 + r.NextDouble() * 0.3, wind = 0.4 + r.NextDouble() * 0.3;
+        return new(new ShelterDef("Rock Overhang", ShelterKind.RockOverhang, insulation, 0.8, wind), 0);
+    }
+
+    static ShelterFind IceCave(Rng r, double _)
+    {
+        double insulation = 0.25 + r.NextDouble() * 0.15, wind = 0.7 + r.NextDouble() * 0.2;
+        return new(new ShelterDef("Ice Cave", ShelterKind.Cave, insulation, 0.95, wind, 0.45, 0.98, 0.95), 0);
+    }
+
+    static ShelterFind SleepingRecess(Rng r, double _) => new(new ShelterDef("Dry Sleeping Recess", ShelterKind.Cave), 0);
 
     static IEnumerable<PoolDef> CaveDiscoveries(Rng rng) => Roll(CaveTable, rng);
 
@@ -378,7 +399,13 @@ public static class Pools
             if (rng.NextDouble() >= t.SpawnChance) continue;
             var made = t.Make?.Invoke(rng, t.ExpectedHours);
             double reveal = RevealAt(rng, t.ExpectedHours);
-            if (made != null) yield return made with { RevealAtHours = reveal };
+            switch (made)
+            {
+                case StockPool stock: yield return stock with { RevealAtHours = reveal }; break;
+                case ShelterFind find: yield return find with { RevealAtHours = reveal }; break;
+                case null: break;
+                default: throw new InvalidOperationException($"No reveal for a {made.GetType().Name}");
+            }
         }
     }
 
@@ -701,8 +728,16 @@ public static class Pools
     // ---- discovery: the agent's knowledge, not the tile's ----
 
     /// Whether this pool needs finding before it can be worked: forage, timber and a named site's
-    /// stock in plain sight (RevealAtHours 0) are there to see; every other stock is hidden.
-    public static bool IsHidden(PoolDef def) => def is StockPool { RevealAtHours: > 0 };
+    /// stock in plain sight (RevealAtHours 0) are there to see; every other stock, and every shelter
+    /// find, is hidden.
+    public static bool IsHidden(PoolDef def) => def is StockPool { RevealAtHours: > 0 } or ShelterFind;
+
+    static (double RevealAtHours, double PlacementHeightM) Hiding(PoolDef def) => def switch
+    {
+        StockPool s => (s.RevealAtHours, s.PlacementHeightM),
+        ShelterFind f => (f.RevealAtHours, f.PlacementHeightM),
+        _ => throw new InvalidOperationException($"{def.Name} is not hidden"),
+    };
 
     public static bool Knows(World world, AgentId who, PoolId id) =>
         !IsHidden(Def(world, id)) || (world.Agent(who).Mind as PersonMind)?.Knows.Discovered.Contains(id) == true;
@@ -716,16 +751,19 @@ public static class Pools
         for (int i = 0; i < pools.Count; i++)
         {
             if (!IsHidden(pools[i])) continue;
-            var stock = (StockPool)pools[i];
             var id = new PoolId(agent.Tile, i);
             if (mind.Knows.Discovered.Contains(id)) continue;
+            var (revealAt, height) = Hiding(pools[i]);
             double hours = mind.Knows.SearchHours.GetValueOrDefault(id)
-                + perceptionWeightedHours * Ground.SearchFactor(world, agent.Tile, 0, stock.PlacementHeightM);
-            if (hours >= stock.RevealAtHours)
+                + perceptionWeightedHours * Ground.SearchFactor(world, agent.Tile, 0, height);
+            if (hours >= revealAt)
             {
                 mind.Knows.SearchHours.Remove(id);
                 mind.Knows.Discovered.Add(id);
-                events.Add(new PoolDiscovered(world.Minute, agent.Id, id, stock.Name));
+                events.Add(new PoolDiscovered(world.Minute, agent.Id, id, pools[i].Name));
+                // Found, the shelter is on the tile for everyone. One shelter to a tile: where one
+                // already stands (built, or found first), the find adds nothing.
+                if (pools[i] is ShelterFind find && Shelters.At(world, agent.Tile) == null) Shelters.Place(world, agent.Tile, find.Shelter);
             }
             else mind.Knows.SearchHours[id] = hours;
         }

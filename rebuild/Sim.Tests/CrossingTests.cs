@@ -46,4 +46,27 @@ public class CrossingTests
         Assert.Equal(RunOutcome.Died, Map.Outcome(w));
         Assert.Equal(RunOutcome.Died, Map.Outcome(Save.FromJson(Save.ToJson(w))));
     }
+
+    /// Standing on the far side ends the run: the player can do nothing more, so cannot walk back
+    /// and turn a win into Surviving, and the valley's clock runs on without them.
+    [Fact]
+    public void Crossed_TheRunIsOver()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        w.Agent(P).Tile = Map.Step(m.Exit, Direction.West);
+        Assert.Equal("crossed the pass", Sim.Step(w, new Travel(P, Direction.East, Pace.Careful), 600).InterruptedReason);
+        var body = System.Text.Json.JsonSerializer.Serialize(w.Agent(P));
+        foreach (Activity a in new Activity[] { new Travel(P, Direction.West), new Wait(P), new Sleep(P), new Gather(P, 0) })
+        {
+            var r = Sim.Step(w, a, 60);
+            Assert.Equal((0, Sim.RunOver), (r.MinutesElapsed, r.InterruptedReason));
+        }
+        long minute = w.Minute;
+        Sim.Advance(w, 3 * 1440);
+        Assert.Equal(minute + 3 * 1440, w.Minute);
+        Assert.Equal(body, System.Text.Json.JsonSerializer.Serialize(w.Agent(P))); // not a minute lived: no hunger, no cold
+        Assert.Equal(RunOutcome.Crossed, Map.Outcome(w));
+        Assert.Equal(RunOutcome.Crossed, Map.Outcome(Save.FromJson(Save.ToJson(w))));
+    }
 }

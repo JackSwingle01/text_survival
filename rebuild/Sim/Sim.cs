@@ -34,6 +34,7 @@ public static class Sim
         var agent = world.Agent(activity.Who);
         if (!IsAlive(agent)) throw new InvalidOperationException($"{agent.Id} is dead and cannot act");
         var events = new List<WorldEvent>();
+        if (agent.Id == AgentId.Player && Crossed(world)) return new StepResult(events, 0, RunOver);
         // A fight holds every agent with a member still in it: no walking off without fleeing.
         if (activity is not Fight && Held(world, agent.Id))
             return new StepResult(events, 0, "You are in a fight.");
@@ -66,11 +67,20 @@ public static class Sim
     /// What Live returns when the minutes given ran out with nothing else to stop for.
     internal const string Done = "done";
 
+    /// Why a player who has crossed the pass can do nothing more.
+    public const string RunOver = "the run is over: you crossed the pass";
+
+    /// The player has stood on the far side: the run is won and over (Map.Outcome). From then on the
+    /// player is out of the world: Step refuses them and Advance runs the valley without them, so
+    /// nothing can walk them back or let them die after the win.
+    static bool Crossed(World world) => Map.Outcome(world) == RunOutcome.Crossed;
+
     /// Lets the world's clock run with nobody acting for the player: NPCs and herds live these
     /// minutes on their own minds, and a living player lives them waiting where they stand (a
     /// headless simulation, or a player who has stepped away). The world lives either way. A player
     /// in a fight waits it out round by round (Fight Wait): the fight goes on around them. A fight
-    /// whose player died outside a round ends here, before the minute.
+    /// whose player died outside a round ends here, before the minute. A player who has crossed the
+    /// pass lives no more minutes here: the valley goes on without them.
     public static List<WorldEvent> Advance(World world, int minutes)
     {
         if (minutes <= 0) throw new ArgumentOutOfRangeException(nameof(minutes), minutes, "Advance needs at least one minute");
@@ -78,6 +88,7 @@ public static class Sim
         for (int i = 0; i < minutes; i++)
         {
             world.Agents.TryGetValue(AgentId.Player, out var player);
+            if (player != null && Crossed(world)) player = null;
             if (player != null && Combat.EncounterOf(world, player.Id) is Encounter fight)
             {
                 if (!IsAlive(player)) Combat.Finish(world, fight, events);
@@ -237,9 +248,9 @@ public static class Sim
             // Bedding's warmth is felt asleep in it (old WarmthBonus: authored, never read - bug, fixed).
             AirTempF = Weather.ShelteredAirF(world, agent.Tile, sky, warmth.WindProtectionLevel, cover).AirF + warmth.AirHeatF
                 + (sleeping ? bedding?.WarmthBonusF ?? 0 : 0),
-            // Old CalculateEffectiveWindSpeed: the regional wind less the pit's walls; the tile's
-            // wind factor reaches the body only through the wind chill above. A shelter's walls cut it too.
-            WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel) * (1 - cover.WindLevel),
+            // Old CalculateEffectiveWindSpeed: the regional wind less the pit's walls. The tile's wind
+            // factor and a shelter's walls reach the body only through the wind chill above, once.
+            WindLevel = sky.WindLevel * (1 - warmth.WindProtectionLevel),
             Precipitation = sky.Precipitation,
             PrecipitationPct = sky.PrecipitationPct,
             // Old SurvivalContext: a roof over someone keeping still, or the sky's own cover, whichever is more.
@@ -264,7 +275,7 @@ public static class Sim
 /// player step and many short ones, or a save and load between them, give the same world.
 /// Each agent runs its current activity through the same Start/Live/Stop the player's step uses;
 /// when the activity ends or is interrupted its mind (Minds.Decide) picks the next one.
-// ponytail: every agent steps every minute. Plan decision 3 lets distant ones step hourly; do that
+// Every agent steps every minute. Plan decision 3 lets distant ones step hourly; do that
 // (at hour-aligned world minutes, never by when the player looked) if a populated month gets slow.
 public static class Scheduler
 {

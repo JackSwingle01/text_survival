@@ -5,7 +5,7 @@ namespace Survival;
 /// first - basins, winding valleys, lakes and their drainages, ravines, caves, the pass - then
 /// biomes painted on the open land, then the named places dealt onto it (old PlaceNamedLocations and
 /// PlaceCaveLocations), still on the same stream, so a seed names the same places the old game named.
-// ponytail: Math.Sin/Cos/Pow are libm calls, so seed -> terrain is exact per platform, not across
+// Math.Sin/Cos/Pow are libm calls, so seed -> terrain is exact per platform, not across
 // platforms. A save holds no terrain; if saves must move between OSes, swap these for a portable sin.
 static class MapGen
 {

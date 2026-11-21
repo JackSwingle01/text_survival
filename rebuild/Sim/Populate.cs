@@ -5,7 +5,7 @@ namespace Survival;
 // Dens are authored sites (Content): the Wolf Den's pack, the Bear Cave's bear and Bone Hollow's
 // mammoths are herds anchored on them, as the old HerdPopulator anchored them. Nothing repopulates
 // the valley, so a herd killed off stays dead for the run.
-// ponytail: old territory details (tracks, droppings, bones as pools) are phase 4 content: the herds leave real prints now.
+// Old territory details (tracks, droppings, bones as pools) are not ported: the herds leave real prints now.
 public static partial class Fauna
 {
     /// Old safeZone: herds start more than 2.4 km from camp.
@@ -15,13 +15,13 @@ public static partial class Fauna
     {
         var m = Map.Of(world);
         var rng = world.Rng("populate");
-        // Interior tiles: off the map's edge, above ground, not the far side of the pass.
+        // Interior tiles: off the map's edge, above ground, off the pass (old: off only its far side).
         var interior = new List<TileId>();
         for (int x = 2; x < m.Width - 2; x++)
             for (int y = 2; y < m.Height - 2; y++)
             {
                 var t = new TileId(x, y);
-                if (m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && t != m.Exit) interior.Add(t);
+                if (m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && m.StageAt(t) == null) interior.Add(t);
             }
         // Predators keep out of each other's land; prey graze anywhere outside the safe zone.
         var available = interior.Where(p => MapGen.Manhattan(p, m.Camp) > SafeZoneTiles).ToList();
@@ -41,7 +41,7 @@ public static partial class Fauna
             bool den = i < wolfDens.Count;
             if (!den && available.Count == 0) break;
             var start = den ? wolfDens[i] : available[rng.NextInt(available.Count)];
-            var land = Territory(start, den ? Around(m, start, 10) : available, 48 + rng.NextInt(33), rng);
+            var land = Territory(m, start, den ? Around(m, start, 10) : available, 48 + rng.NextInt(33), rng);
             if (land.Count < 3) continue;
             Herd(Species.Wolf, start, land, 3 + rng.NextInt(6));
             wolfLand.UnionWith(land);
@@ -55,7 +55,7 @@ public static partial class Fauna
             bool den = i < bearCaves.Count;
             if (!den && available.Count == 0) break;
             var start = den ? bearCaves[i] : available[rng.NextInt(available.Count)];
-            var land = Territory(start, den ? Around(m, start, 12) : available, 64 + rng.NextInt(65), rng);
+            var land = Territory(m, start, den ? Around(m, start, 12) : available, 64 + rng.NextInt(65), rng);
             if (land.Count < 3) continue;
             Herd(rng.NextDouble() < 0.5 ? Species.CaveBear : Species.Bear, start, land, 1);
             available.Remove(start);
@@ -64,7 +64,7 @@ public static partial class Fauna
         for (int i = 0, herds = 2 + rng.NextInt(2); i < herds && preyLand.Count >= 8; i++)
         {
             var start = preyLand[rng.NextInt(preyLand.Count)];
-            var land = Territory(start, preyLand, 128 + rng.NextInt(65), rng);
+            var land = Territory(m, start, preyLand, 128 + rng.NextInt(65), rng);
             if (land.Count < 6) continue;
             Herd(Species.Caribou, start, land, 5 + rng.NextInt(11));
         }
@@ -73,13 +73,13 @@ public static partial class Fauna
         for (int i = 0; i < large / 2 && preyLand.Count > 0; i++)
         {
             var start = preyLand[rng.NextInt(preyLand.Count)];
-            var land = Territory(start, preyLand, 48 + rng.NextInt(49), rng);
+            var land = Territory(m, start, preyLand, 48 + rng.NextInt(49), rng);
             if (land.Count >= 3) Herd(Species.Megaloceros, start, land, 1 + rng.NextInt(3));
         }
         for (int i = 0; i < large - large / 2 && preyLand.Count > 0; i++)
         {
             var start = preyLand[rng.NextInt(preyLand.Count)];
-            var land = Territory(start, preyLand, 240 + rng.NextInt(161), rng);
+            var land = Territory(m, start, preyLand, 240 + rng.NextInt(161), rng);
             if (land.Count >= 3) Herd(Species.Bison, start, land, 3 + rng.NextInt(6));
         }
         // Saber-tooths: 1-2 alone on 96-160 tiles, off the packs' land and holding their own.
@@ -88,7 +88,7 @@ public static partial class Fauna
             var valid = available.Where(p => !wolfLand.Contains(p)).ToList();
             if (valid.Count == 0) valid = available;
             var start = valid[rng.NextInt(valid.Count)];
-            var land = Territory(start, available, 96 + rng.NextInt(65), rng);
+            var land = Territory(m, start, available, 96 + rng.NextInt(65), rng);
             if (land.Count < 4) continue;
             Herd(Species.SaberTooth, start, land, 1);
             available.RemoveAll(land.ToHashSet().Contains);
@@ -96,18 +96,21 @@ public static partial class Fauna
         // Hyenas: 1-2 packs of 3-6 on 64-112 tiles, starting just outside a wolf pack's land.
         var hyenaZone = available.Where(p => !wolfLand.Contains(p) && MapGen.Neighbors(p).Any(wolfLand.Contains)).ToList();
         if (hyenaZone.Count < 3) hyenaZone = available.ToList();
-        for (int i = 0, packs = 1 + rng.NextInt(2); i < packs && hyenaZone.Count > 0; i++)
+        // The zone hugs the packs' land, so a start there can be boxed in by it and by ravines: such a
+        // start is struck off and another drawn, so the valley still gets its packs.
+        for (int i = 0, packs = 1 + rng.NextInt(2); i < packs && hyenaZone.Count > 0;)
         {
             var start = hyenaZone[rng.NextInt(hyenaZone.Count)];
-            var land = Territory(start, available, 64 + rng.NextInt(49), rng);
-            if (land.Count < 3) continue;
+            var land = Territory(m, start, available, 64 + rng.NextInt(49), rng);
+            if (land.Count < 3) { hyenaZone.Remove(start); continue; }
+            i++;
             Herd(Species.Hyena, start, land, 3 + rng.NextInt(4));
             hyenaZone.RemoveAll(land.ToHashSet().Contains);
         }
         // Mammoths: one herd of 8-12 on 192-288 tiles around the first Bone Hollow, if the valley has one.
         if (SitesNamed(m, "bone_hollow") is [var hollow, ..])
         {
-            var land = Territory(hollow, Around(m, hollow, 40), 192 + rng.NextInt(97), rng);
+            var land = Territory(m, hollow, Around(m, hollow, 40), 192 + rng.NextInt(97), rng);
             Herd(Species.Mammoth, hollow, land.Count < 8 ? [hollow] : land, 8 + rng.NextInt(5));
         }
         PopulateCaves(world, m, rng);
@@ -117,7 +120,9 @@ public static partial class Fauna
     static List<TileId> SitesNamed(GeneratedMap m, string id) =>
         [.. m.Sites.Where(s => s.Value.Id == id).Select(s => s.Key).OrderBy(t => t)];
 
-    /// Old GetPositionsInRadius: open ground within a square around a den, off caves and the far side.
+    /// Old GetPositionsInRadius: open ground within a square around a den, off caves and the pass.
+    /// old game: only the far side was left out, so a den near the mountains could range up the
+    /// pass stages (bug, fixed).
     static List<TileId> Around(GeneratedMap m, TileId center, int radius)
     {
         var tiles = new List<TileId>();
@@ -125,7 +130,7 @@ public static partial class Fauna
             for (int dy = -radius; dy <= radius; dy++)
             {
                 var t = new TileId(center.X + dx, center.Y + dy);
-                if (m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && t != m.Exit) tiles.Add(t);
+                if (m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && m.StageAt(t) == null) tiles.Add(t);
             }
         return tiles;
     }
@@ -161,8 +166,10 @@ public static partial class Fauna
     }
 
     /// Old CreateContiguousTerritory: a random flood fill from the start through the allowed tiles,
-    /// up to the target size. Adjacency only: edges and cliffs are the herd's problem when it walks.
-    static List<TileId> Territory(TileId start, List<TileId> allowed, int targetSize, Rng rng)
+    /// up to the target size, across only the edges a herd can walk. old game: the fill went by
+    /// adjacency alone, so a territory could take in land beyond a ravine or cliff its herd could
+    /// never reach (bug, fixed).
+    static List<TileId> Territory(GeneratedMap m, TileId start, List<TileId> allowed, int targetSize, Rng rng)
     {
         var open = allowed.ToHashSet();
         var land = new List<TileId> { start };
@@ -176,7 +183,8 @@ public static partial class Fauna
             foreach (var n in MapGen.Neighbors(current))
             {
                 if (land.Count >= targetSize) break;
-                if (!open.Contains(n) || !taken.Add(n)) continue;
+                if (!open.Contains(n) || taken.Contains(n) || Map.Blocked(m, current, n) != null) continue;
+                taken.Add(n);
                 land.Add(n);
                 frontier.Add(n);
             }

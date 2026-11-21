@@ -33,7 +33,7 @@ public sealed class ShelterState
     /// load stranded a pitched tent as a shelter that could never be packed - bug, fixed).
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Gear? Tent { get; init; }
-    /// Snow only: the clock hours before this one have been melted (Shelters.CatchUp).
+    /// Snow only: the clock hours before this one have been melted (Shelters.Melt).
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? MeltedToHour { get; set; }
 }
@@ -55,7 +55,7 @@ public sealed class Project
 public enum Structure { MakeshiftBedding, PaddedBedding, MossBedding, SleepingBag, BranchFrame, LogFrame, SnowShelter, Tent }
 
 /// One recipe. Materials are (any of these, kg); taken when the work starts.
-/// ponytail: the simplest camp recipes only, in code; full crafting (and the hide tent recipe) is its own phase.
+/// The simplest camp recipes only, in code; full crafting (and the hide tent recipe) is not ported.
 public sealed record Recipe(int Minutes, (Resource[] AnyOf, double Kg)[] Materials, bool NeedsLight = true,
     bool NeedsShovel = false, bool ShovelHelps = false, bool NeedsFrost = false, ShelterKind? Shelter = null, BeddingKind? Bedding = null);
 
@@ -71,9 +71,9 @@ public sealed record ShelterCollapsed(long Minute, TileId Tile, string Name) : W
 
 /// Shelters, bedding and the work that makes them. Port of old ShelterFeature, BeddingFeature, the
 /// shelter and bedding parts of CampHandler and NeedCraftingSystem, and ShelterImprovementStrategy.
-// ponytail: old CacheFeature (capacity, predator and weather protection, food preservation) is not
-// ported; the tile stash is unlimited, unprotected storage. Port it when scavengers raid stashes.
-// ponytail: no rebuilding a branch frame into a log frame (old 60% salvage), no reclaim from an abandoned project.
+// Old CacheFeature (capacity, predator and weather protection, food preservation) is not ported: the
+// tile stash is unlimited, unprotected storage. No rebuilding a branch frame into a log frame (old 60%
+// salvage), no reclaim from an abandoned project.
 public static class Shelters
 {
     public static readonly IReadOnlyDictionary<ShelterKind, ShelterKindProps> Kinds = new Dictionary<ShelterKind, ShelterKindProps>
@@ -89,8 +89,7 @@ public static class Shelters
         [ShelterKind.NaturalShelter] = new(0.20, 0.50, 0.40, 0.80, 0.90, 0.80, IsNatural: true),
     };
 
-    /// The old starting camp's Overhang (GridWorldGenerator.CreateCampLocation).
-    // ponytail: placed by World.New until named-location content places it.
+    /// The old starting camp's Overhang (GridWorldGenerator.CreateCampLocation), placed by World.New.
     public static readonly ShelterDef CampOverhang = new("Overhang", ShelterKind.NaturalShelter, 0.55, 0.3, 0.4, 0.70, 0.50, 0.55);
 
     /// Pitched tents by gear kind (old Gear.HideTent, MammothHideTent shelter values).
@@ -109,10 +108,12 @@ public static class Shelters
     {
         if (world.Shelters.ContainsKey(tile)) throw new InvalidOperationException($"{tile} already has a shelter");
         var k = Kinds[def.Kind];
+        // A tent pitched again stands as it was packed, improvements and all.
+        var levels = tent?.TentLevels ?? new ShelterCover(def.Insulation ?? k.Insulation, def.Overhead ?? k.Overhead, def.Wind ?? k.Wind);
         var s = new ShelterState
         {
             Name = def.Name, Kind = def.Kind, Tent = tent,
-            InsulationLevel = def.Insulation ?? k.Insulation, OverheadLevel = def.Overhead ?? k.Overhead, WindLevel = def.Wind ?? k.Wind,
+            InsulationLevel = levels.InsulationLevel, OverheadLevel = levels.OverheadLevel, WindLevel = levels.WindLevel,
             InsulationCap = def.InsulationCap ?? k.InsulationCap, OverheadCap = def.OverheadCap ?? k.OverheadCap, WindCap = def.WindCap ?? k.WindCap,
             // Melting counts whole clock hours from the first one it stands through.
             MeltedToHour = k.IsSnow ? (world.Minute + 59) / 60 : null,
@@ -121,12 +122,29 @@ public static class Shelters
         return s;
     }
 
-    /// The shelter on this tile as it is now, or null.
+    /// The shelter on this tile as it is now, or null. Settles any melting owed, so it writes to the
+    /// world: reads that must not (refusals, reports) use Peek.
     public static ShelterState? At(World world, TileId tile)
     {
         if (!world.Shelters.TryGetValue(tile, out var s)) return null;
-        CatchUp(world, tile, s);
-        return world.Shelters.GetValueOrDefault(tile);
+        if (Melt(world, tile, s)) return s;
+        world.Shelters.Remove(tile);
+        return null;
+    }
+
+    /// The shelter on this tile as it is now, or null, without writing anything: a snow shelter is
+    /// melted on a copy. Callers must not change what it returns.
+    public static ShelterState? Peek(World world, TileId tile)
+    {
+        if (!world.Shelters.TryGetValue(tile, out var s)) return null;
+        if (s.MeltedToHour == null) return s;
+        var copy = new ShelterState
+        {
+            Name = s.Name, Kind = s.Kind, Tent = s.Tent, MeltedToHour = s.MeltedToHour,
+            InsulationLevel = s.InsulationLevel, OverheadLevel = s.OverheadLevel, WindLevel = s.WindLevel,
+            InsulationCap = s.InsulationCap, OverheadCap = s.OverheadCap, WindCap = s.WindCap,
+        };
+        return Melt(world, tile, copy) ? copy : null;
     }
 
     public static ShelterState? Remove(World world, TileId tile)
@@ -188,31 +206,30 @@ public static class Shelters
 
     /// Snow melts on its own clock: each whole clock hour, at the tile's open air at the top of
     /// that hour, so how often anyone looks cannot change how fast it goes. Gone when destroyed.
-    // ponytail: old snow shelters never melted (the hook was a stub). 0.01 of every level per hour
-    // per °F above freezing is invented: about a day at 35 °F, an afternoon at 50 °F. A fire inside does not melt it.
+    // Old snow shelters never melted (the hook was a stub). 0.01 of every level per hour per °F above
+    // freezing is invented: about a day at 35 °F, an afternoon at 50 °F. A fire inside does not melt it.
     const double MeltPerHourPerF = 0.01;
 
-    static void CatchUp(World world, TileId tile, ShelterState s)
+    /// Melts s to the current hour. The air is what reaches the surface (Ground.WeatherAt): wind chill
+    /// is felt by a body, it does not melt snow. False when it melted away; the caller removes it.
+    static bool Melt(World world, TileId tile, ShelterState s)
     {
-        if (s.MeltedToHour is not long hour) return;
+        if (s.MeltedToHour is not long hour) return true;
         long now = world.Minute / 60;
         for (; hour < now; hour++)
         {
-            double airF = Weather.AirAtF(world, tile, Weather.At(world, hour * 60), 0);
+            double airF = Ground.WeatherAt(world, tile, hour * 60).AirTemperatureF;
             if (airF > 32) Damage(s, MeltPerHourPerF * (airF - 32));
-            if (IsDestroyed(s))
-            {
-                world.Shelters.Remove(tile);
-                return;
-            }
+            if (IsDestroyed(s)) return false;
         }
         s.MeltedToHour = hour;
+        return true;
     }
 
     // ---- materials (old MaterialProperties) ----
 
     /// Old item counts become kilos through a nominal piece: a stick, a log, a hide.
-    // ponytail: one judged weight per material; recipes and improvement both read it.
+    // One judged weight per material; recipes and improvement both read it.
     public static readonly IReadOnlyDictionary<Resource, (double PieceKg, double Insulating, double Waterproof, double Structural)> Materials =
         new Dictionary<Resource, (double, double, double, double)>
         {
@@ -269,7 +286,7 @@ public static class Shelters
         [BeddingKind.MossPadded] = new("Moss-padded bedding", 0.9, 3.0),
         [BeddingKind.SleepingBag] = new("Sleeping bag", 1.0, 5.0),
     };
-    // ponytail: old HasWindProtection and HasGroundInsulation were flags nothing read (ground
+    // Old HasWindProtection and HasGroundInsulation were flags nothing read (ground
     // protection came from quality alone); dropped until a sleeper's wind has a number to give them.
 
     /// Bedding here replaces what was there (old: a second BeddingFeature was added behind the first,
@@ -296,11 +313,16 @@ public static class Shelters
             {
                 var r = Recipes[b.What];
                 if (r.NeedsLight && Work.TooDarkToWork(world, agent)) return Work.TooDark;
-                if (world.Projects.TryGetValue(tile, out var p))
-                    return p.Building == b.What ? null : $"a {p.Building} is half-built here";
-                if (r.Shelter != null && At(world, tile) is { } s) return $"there is already a shelter here ({s.Name})";
-                if (r.NeedsShovel && Items.Tool(pack, ToolType.Shovel) == null) return "you need a shovel";
-                if (r.NeedsFrost && Weather.At(world, world.Minute).TemperatureF > 32) return "too warm to build in snow";
+                world.Projects.TryGetValue(tile, out var p);
+                if (p != null && p.Building != b.What) return $"a {p.Building} is half-built here";
+                if (r.Shelter != null && Peek(world, tile) is { } s) return $"there is already a shelter here ({s.Name})";
+                // Old MakeCamp was offered only where there was no bedding; here any better bed may replace one.
+                if (r.Bedding is BeddingKind bed && BeddingAt(world, tile) is { } there
+                    && there.QualityPct >= Beddings[bed].QualityPct && there.WarmthBonusF >= Beddings[bed].WarmthBonusF)
+                    return $"the {there.Name} here is as good as a {Beddings[bed].Name}";
+                // Resuming checks tools and weather again; materials and the tent went in when it started.
+                if (Requirement(world, r, pack) is string missing) return missing;
+                if (p != null) return null;
                 if (b.What == Structure.Tent && Tent(pack) == null) return "you have no tent";
                 foreach (var (anyOf, kg) in r.Materials)
                     if (anyOf.Sum(x => Items.Have(pack, x)) < kg - 1e-9) return $"you need {kg:0.##} kg of {string.Join(" or ", anyOf)}";
@@ -309,16 +331,24 @@ public static class Shelters
             case ImproveShelter i:
             {
                 if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
-                if (At(world, tile) is not { } s || IsDestroyed(s)) return "there's no shelter here to improve";
+                if (Peek(world, tile) is not { } s || IsDestroyed(s)) return "there's no shelter here to improve";
                 if (!ShelterMaterials.Contains(i.Material)) return $"{i.Material} is no use on a shelter";
                 if (Items.Have(pack, i.Material) <= 0) return $"you have no {i.Material}";
                 if (Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9) return $"this {s.Name}'s {i.Stat} can't be improved further";
                 return null;
             }
             case PackTent:
-                return At(world, tile)?.Tent == null ? "there's no tent to pack up here" : null;
+                return Peek(world, tile)?.Tent == null ? "there's no tent to pack up here" : null;
             default: throw new NotSupportedException(activity.GetType().Name);
         }
+    }
+
+    /// The tool and weather a recipe needs, checked when work starts or resumes and every minute of it.
+    static string? Requirement(World world, Recipe r, Inventory pack)
+    {
+        if (r.NeedsShovel && Items.Tool(pack, ToolType.Shovel) == null) return "you need a shovel";
+        if (r.NeedsFrost && Weather.At(world, world.Minute).TemperatureF > 32) return "too warm to build in snow";
+        return null;
     }
 
     static Gear? Tent(Inventory pack) => pack.Gear.FirstOrDefault(g => Tents.ContainsKey(g.Kind));
@@ -341,8 +371,10 @@ public static class Shelters
         }
         else if (activity is PackTent)
         {
+            // old game: packing kept the tent item as it was pitched, so improvements were lost (bug, fixed).
             var s = Remove(world, agent.Tile)!;
-            pack.Gear.Add(s.Tent!);
+            s.Tent!.TentLevels = new ShelterCover(s.InsulationLevel, s.OverheadLevel, s.WindLevel);
+            pack.Gear.Add(s.Tent);
         }
     }
 
@@ -363,6 +395,7 @@ public static class Shelters
             {
                 var r = Recipes[b.What];
                 if (r.NeedsLight && Work.TooDarkToWork(world, agent)) return Work.TooDark;
+                if (Requirement(world, r, Items.Pack(world, agent.Id)) is string missing) return missing;
                 var p = world.Projects[tile];
                 bool shovel = r.ShovelHelps && Items.Tool(Items.Pack(world, agent.Id), ToolType.Shovel) != null;
                 p.MinutesDone += (shovel ? 2.0 : 1.0) / ImpairmentFactor(agent.Body);

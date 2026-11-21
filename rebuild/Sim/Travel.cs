@@ -111,7 +111,7 @@ public static class Traversal
 
     /// A herd moves at its slowest member's pace over the shape of the ground and the edge, and
     /// does not stumble (no injury roll).
-    // ponytail: herds ignore today's snow and mud. Reading it would catch up the ground on every tile
+    // Herds ignore today's snow and mud. Reading it would catch up the ground on every tile
     // a herd crosses (a month of history each, and a ground state in the save); add it if herds in
     // deep snow should visibly slow.
     public static int HerdCrossingMinutes(World world, Agent herd, TileId from, TileId to, WeatherSample sky)
@@ -198,7 +198,7 @@ public static class Traversal
         new(BodyTarget.AnyArm, DamageType.Blunt, 0.12), new(BodyTarget.Chest, DamageType.Blunt, 0.15),
         new(BodyTarget.Head, DamageType.Blunt, 0.12, EffectKind.Dazed, 0.4),
     ];
-    // ponytail: the old sprains also added SprainedAnkle / Clumsy effects, which the rebuild has no kinds for yet.
+    // The old sprains also added SprainedAnkle / Clumsy effects, which the rebuild has no kinds for yet.
     static readonly Accident[] Sprains =
     [
         new(BodyTarget.AnyLeg, DamageType.Blunt, 0.08), new(BodyTarget.AnyLeg, DamageType.Blunt, 0.10),

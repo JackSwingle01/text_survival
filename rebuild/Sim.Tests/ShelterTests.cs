@@ -81,12 +81,17 @@ public class ShelterTests
     }
 
     /// old game: wind coverage was improved with materials and shown, and nothing read it (bug, fixed).
+    /// It is read once, through the wind chill: the body's convective wind stays the regional wind,
+    /// as the tile's own wind factor does (WeatherTests).
     [Fact]
-    public void WindCoverage_CutsTheWindOnTheBody_WhenKeepingStill()
+    public void WindCoverage_CutsTheChillOnce_NotTheBodysWindToo()
     {
         var w = At(Snowy);
-        Assert.Equal(0.6 * (1 - 0.4), Sim.Surroundings(w, w.Agent(P), new Wait(P)).WindLevel, Digits);
+        var camp = Map.Of(w).Camp;
+        var s = Weather.At(w, 0);
+        Assert.Equal(0.6, Sim.Surroundings(w, w.Agent(P), new Wait(P)).WindLevel, Digits);
         Assert.Equal(0.6, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North)).WindLevel, Digits);
+        Assert.True(Weather.ShelteredAirF(w, camp, s, 0, Overhang).AirF > Weather.ShelteredAirF(w, camp, s, 0, Overhang with { WindLevel = 0 }).AirF);
     }
 
     /// Old SurvivalContext: a roof over someone keeping still, else the sky's own cover. The ground
@@ -162,6 +167,24 @@ public class ShelterTests
         Assert.Equal(awake + 5, Sim.Surroundings(w, w.Agent(P), new Sleep(P)).AirTempF, Digits);
     }
 
+    /// Old MakeCamp was offered only where there was no bedding: a bed no better than the one there
+    /// is refused, and costs nothing.
+    [Fact]
+    public void Bedding_NoBetterThanTheOneThere_IsRefused()
+    {
+        var w = At(Mild);
+        var camp = Map.Of(w).Camp;
+        var r = Sim.Step(w, new Build(P, Structure.MakeshiftBedding), 60);
+        Assert.Equal(0, r.MinutesElapsed);
+        Assert.Contains("as good as", r.InterruptedReason);
+        Assert.Equal(BeddingKind.Camp, w.Beddings[camp]);
+        Assert.Empty(w.Projects);
+        // A sleeping bag is as good to sleep on and warmer: it replaces the sleeping area.
+        Items.Add(Items.Pack(w, P), Resource.CuredHide, 4);
+        Items.Add(Items.Pack(w, P), Resource.Sinew, 0.6);
+        Assert.Null(Shelters.Refusal(w, new Build(P, Structure.SleepingBag)));
+    }
+
     /// old game: new bedding went in behind the old and GetFeature found the old one, so crafting a
     /// better bed at camp did nothing (bug, fixed).
     [Fact]
@@ -198,6 +221,39 @@ public class ShelterTests
         var s = Shelters.At(w, tile)!;
         Assert.Equal((0.15, 0.25, 0.20), (s.InsulationLevel, s.OverheadLevel, s.WindLevel));
         Assert.Contains("already a shelter", Sim.Step(w, new Build(P, Structure.LogFrame), 10).InterruptedReason);
+    }
+
+    /// Resuming a half-built snow shelter checks its shovel and the frost again, and so does every
+    /// minute of the work.
+    [Fact]
+    public void SnowShelter_Resumed_StillNeedsItsShovel()
+    {
+        var w = At(Snowy);
+        var tile = Open(w);
+        w.Agent(P).Tile = tile;
+        var shovel = Items.Make("bone_shovel");
+        Items.Pack(w, P).Gear.Add(shovel);
+        Assert.Null(Sim.Step(w, new Build(P, Structure.SnowShelter), 10).InterruptedReason);
+        Items.Pack(w, P).Gear.Remove(shovel);
+        double done = w.Projects[tile].MinutesDone;
+        var r = Sim.Step(w, new Build(P, Structure.SnowShelter), 30);
+        Assert.Equal((0, "you need a shovel"), (r.MinutesElapsed, r.InterruptedReason));
+        Assert.Equal(done, w.Projects[tile].MinutesDone);
+        // Lost mid-work, the same reason stops it.
+        Assert.Equal("you need a shovel", Shelters.Minute(w, w.Agent(P), new Build(P, Structure.SnowShelter), []));
+        Assert.Equal(done, w.Projects[tile].MinutesDone);
+    }
+
+    [Fact]
+    public void SnowShelter_Resumed_InAThaw_IsRefused()
+    {
+        var w = Builder(out var tile); // 41 °F
+        Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
+        w.Projects[tile] = new Project { Building = Structure.SnowShelter, MinutesDone = 60 };
+        var r = Sim.Step(w, new Build(P, Structure.SnowShelter), 30);
+        Assert.Equal((0, "too warm to build in snow"), (r.MinutesElapsed, r.InterruptedReason));
+        Assert.Equal("too warm to build in snow", Shelters.Minute(w, w.Agent(P), new Build(P, Structure.SnowShelter), []));
+        Assert.Equal(60, w.Projects[tile].MinutesDone);
     }
 
     [Fact]
@@ -283,32 +339,77 @@ public class ShelterTests
         Assert.Contains("no tent", Sim.Step(w, new PackTent(P), 5).InterruptedReason);
     }
 
+    /// old game: packing gave back the tent as it was first pitched, so work put into it was lost (bug, fixed).
+    [Fact]
+    public void Tent_KeepsItsImprovements_WhenPackedAndPitchedAgain()
+    {
+        var w = Builder(out var tile);
+        Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
+        Sim.Step(w, new Build(P, Structure.Tent), 10);
+        Items.Add(Items.Pack(w, P), Resource.Hide, 2);
+        Sim.Step(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 10);
+        var improved = Shelters.At(w, tile)!;
+        double insulation = improved.InsulationLevel;
+        Assert.True(insulation > 0.5);
+        Sim.Step(w, new PackTent(P), 1);
+        w = Save.FromJson(Save.ToJson(w)); // packed through a save too
+        w.Agent(P).Tile = tile;
+        Assert.Equal("built", Sim.Step(w, new Build(P, Structure.Tent), 10).InterruptedReason);
+        var again = Shelters.At(w, tile)!;
+        Assert.Equal((insulation, 0.9, 0.7), (again.InsulationLevel, again.OverheadLevel, again.WindLevel));
+        Assert.Equal((0.6, 0.95, 0.8), (again.InsulationCap, again.OverheadCap, again.WindCap));
+    }
+
     // ---- snow ----
 
+    /// Melting is settled by the hour whenever it is read; a refusal or a report reads without
+    /// settling (Shelters.Peek), so being turned away leaves the save as it was.
     [Fact]
     public void SnowShelter_MeltsByTheHour_HoweverOftenItIsLookedAt()
     {
-        World Thaw(bool look)
+        World Thaw(bool look, bool settle)
         {
             var w = At(Mild with { TemperatureC = 2 });
             var tile = Open(w);
+            var camp = Map.Of(w).Camp;
             Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
             for (int i = 0; i < 600; i++)
             {
-                Sim.Advance(w, 1);
-                if (look) Shelters.At(w, tile);
+                Sim.Advance(w, 1); // the player waits at camp, away from the snow
+                if (!look) continue;
+                w.Agent(P).Tile = tile; // and is turned away at the shelter, every way there is
+                Assert.Equal(0, Sim.Step(w, new PackTent(P), 1).MinutesElapsed);
+                Assert.Equal(0, Sim.Step(w, new ImproveShelter(P, ShelterStat.Wind, Resource.Hide), 1).MinutesElapsed);
+                Assert.Equal(0, Sim.Step(w, new Build(P, Structure.BranchFrame), 1).MinutesElapsed);
+                Assert.NotNull(Shelters.Peek(w, tile));
+                w.Agent(P).Tile = camp;
             }
-            Shelters.At(w, tile);
+            if (settle) Shelters.At(w, tile);
             return w;
         }
-        var a = Thaw(true);
-        Assert.Equal(Save.ToJson(a), Save.ToJson(Thaw(false)));
+        Assert.Equal(Save.ToJson(Thaw(true, settle: false)), Save.ToJson(Thaw(false, settle: false)));
+        var a = Thaw(true, settle: true);
+        Assert.Equal(Save.ToJson(a), Save.ToJson(Thaw(false, settle: true)));
         var s = a.Shelters.Values.Single(x => x.Kind == ShelterKind.SnowShelter);
         Assert.True(s.InsulationLevel < 0.6);
         // Left to the thaw long enough it is gone.
-        var b = Thaw(false);
+        var b = Thaw(false, settle: true);
         b.Minute += 3 * 24 * 60;
         Assert.Null(Shelters.At(b, Open(b)));
+    }
+
+    /// Snow melts at the air that reaches it: a gale at 37 °F chills a person below freezing but
+    /// thaws snow all the same.
+    [Fact]
+    public void SnowShelter_MeltsInAWindyThaw()
+    {
+        var w = At(new(0, WeatherCondition.Cloudy, 3, 0.6, 0, 0.9, WindDirection.North));
+        var tile = Open(w);
+        Assert.True(Weather.AirAtF(w, tile, Weather.At(w, 0), 0) < 32);
+        var s = Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
+        w.Minute += 10 * 60;
+        Assert.Same(s, Shelters.At(w, tile));
+        Assert.Equal(0.6 - 10 * 0.01 * (37.4 - 32), s.InsulationLevel, Digits);
     }
 
     [Fact]

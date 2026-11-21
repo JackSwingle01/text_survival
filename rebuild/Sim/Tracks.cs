@@ -171,7 +171,7 @@ public static class Tracks
 
     /// Drop signs and wear the weather has finished with, so the save holds only what is there.
     /// Erosion only rises, so dead stays dead and dropping it changes no reading.
-    // ponytail: a full sweep, O(tiles + edges), at most hourly; index tracks by expiry if the save grows large.
+    // A full sweep, O(tiles + edges), at most hourly; index tracks by expiry if the save grows large.
     static void Sweep(World world, long now, double erosion)
     {
         foreach (var (tile, state) in world.Tiles.ToList())

@@ -52,6 +52,9 @@ public sealed class Gear
     /// Minutes of use not yet charged to Durability (Items.UseFor).
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public double UseMinutes { get; set; }
+    /// A tent packed after pitching: the levels it stood at, so it pitches again as it was.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ShelterCover? TentLevels { get; set; }
 }
 
 /// What one agent carries, or a stash on a tile. Plain data: resources by kg, gear by instance.
@@ -71,7 +74,7 @@ public static class Items
     /// Old Gear.CloPerInsulationPoint.
     const double CloPerInsulationPoint = 10.0;
 
-    // ponytail: tables in code until phase 4 moves content to data files; plain rows so that move is mechanical.
+    // Tables in code; plain rows, so moving them to Content is mechanical.
     public static readonly IReadOnlyDictionary<Resource, ResourceDef> Resources = new Dictionary<Resource, ResourceDef>
     {
         [Resource.Tinder] = new(ResourceCategory.Fuel),

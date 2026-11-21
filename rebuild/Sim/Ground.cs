@@ -211,9 +211,9 @@ public static class Ground
 
     public static double SnowDepthM(World world, TileId tile) => new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).SnowDepthM;
 
-    // ponytail: burial access and digging (old GroundSurface.Excavation, DigUpStrategy) wait for placed
-    // features (phase 4): they need a per-placement elevation, footprint and hole depth on TileState.
-    // ponytail: no route packing (Compact is ported but nothing calls it) - old game deferred it too.
+    // Burial access and digging (old GroundSurface.Excavation, DigUpStrategy) are not ported: they need a
+    // per-placement elevation, footprint and hole depth on TileState.
+    // No route packing (Compact is ported but nothing calls it); the old game deferred it too.
 
     // ---- state-level API: the old GroundSurface methods, for tests and the catch-up ----
 

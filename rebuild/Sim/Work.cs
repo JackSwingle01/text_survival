@@ -103,6 +103,7 @@ public static class Work
                     ForagePool => null,
                     TreePool when !Pools.HasTrees(world, id) => "all the trees here have been felled",
                     TreePool => Items.Tool(pack, ToolType.Axe) == null ? "you need an axe to fell trees" : null,
+                    ShelterFind f => $"the {f.Name} is shelter, not something to gather",
                     StockPool s when !Pools.HasStock(world, id) => $"the {s.Name} is picked clean",
                     // old game: the player's harvest never checked the tool a harvestable required; only NPCs did (bug, fixed).
                     StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => $"you need a {t}",
@@ -151,8 +152,8 @@ public static class Work
         }
     }
 
-    /// Rivers run open and lakes give water here. ponytail: a frozen lake should need a hole cut
-    /// (old IceCuttingStrategy); it needs ice thickness, which arrives with Ground's ice in phase 4.
+    /// Rivers run open and lakes give water here. A frozen lake should need a hole cut (old
+    /// IceCuttingStrategy); that needs ice thickness, which Ground does not model yet.
     public static bool HasOpenWater(World world, TileId tile)
     {
         var m = Map.Of(world);
@@ -302,7 +303,7 @@ public static class Work
             case MeltSnow:
                 if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
                 if (s.Minutes < MeltSnowMinutes) return null;
-                // ponytail: old game: snow "is assumed freely available", even in July; Ground knows the real depth now.
+                // Old game: snow "is assumed freely available", even in July. Ground knows the real depth; melting does not read it yet.
                 var water = new Inventory();
                 Items.Add(water, Resource.Water, MeltSnowLiters);
                 Keep(world, agent, s, water, events);
