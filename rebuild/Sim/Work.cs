@@ -216,7 +216,8 @@ public static class Work
             {
                 double kg = Items.TakeFromStash(world, agent.Tile, u.Resource, Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent)));
                 Items.Add(pack, u.Resource, kg);
-                events.Add(new Unstashed(world.Minute, agent.Id, agent.Tile, u.Resource, kg));
+                bool taken = agent.Mind is not PersonMind || Knowledge.CampOf(world, agent) != agent.Tile;
+                events.Add(new Unstashed(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken));
                 return new WorkSession { Activity = activity };
             }
             case Wear w:

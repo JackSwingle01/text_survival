@@ -39,6 +39,14 @@ Also fixed: strike odds the NPC will accept fall as it gets colder, it sleeps sh
 and from camp it does not set off for wood it would come home freezing from. Forage numbers and the daily schedule
 are unchanged. NPC 30-day survival on the ten review seeds: 9/10 (seed 123 dies in a mammoth hunt it started).
 
+**Update 2026-11-21 (fire-keeping review, third round):** every NPC trip and every stint of work away from camp is
+held to one budget (`Npc.Afford`: home warm enough by the same reckoning the warmth need uses, the clothes' stored
+heat included; rested enough; home by `HomeMinuteOfDay`), a far-out NPC too spent or cold to walk home makes camp
+where it is, bed reckons by the hours the fire will burn (`Fire.HoursItWillBurn`), and short of starving it leaves
+prey it would run from alone. Forage numbers and the daily schedule are unchanged. 60 days on the 16 review seeds:
+all still die; mean death day 33.4 -> 34.8, median 34.2 -> 36.2, worst 5.0 -> 26.5, best 52.0 -> 40.0. Most deaths
+are still fat at or under the 10% floor, then cold.
+
 ## To review
 
 1. **Focus gain size.** At 1.3 a focused forest forager ends about -0.04 kg/day. At 1.5 about

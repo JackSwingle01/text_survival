@@ -143,30 +143,39 @@ public class NpcTests(ITestOutputHelper output)
     /// the starving NPC walking between camp and the next tile because from each, the walk toward some far
     /// ground looked better than the step it had just taken. Walking out for food and straight back again,
     /// having done nothing there, never happens now. (Out for food and home because the walk tired or
-    /// chilled it is another need doing its job, and still can.)
+    /// chilled it is another need doing its job, and still can: so is the trip budget, when the walk out
+    /// proved colder than reckoned and the ground no longer fits it - Npc.ForageTripFits.)
     [Fact]
     public void LookingForFood_ItNeverTurnsStraightBack()
     {
         var (w, npc) = AtCamp(17);
         var back = new List<string>();
-        (long Minute, TileId From, Need? Need)? last = null;
+        (long Minute, TileId From, Need? Need, bool Unaffordable)? last = null;
         bool did = false;
+        int budgeted = 0;
         while (w.Minute < 16 * 1440L && Body.IsAlive(w.Agent(npc).Body))
         {
             var need = ((NpcMind)w.Agent(npc).Mind).Need;
+            var goal = ((NpcMind)w.Agent(npc).Mind).ForageGoal;
             foreach (var e in Sim.Advance(w, 1))
             {
                 if (e is Moved m && m.Who == npc)
                 {
                     if (last is { } l && m.To == l.From && m.Minute - l.Minute <= 60 && !did && l.Need == Need.Food && need == Need.Food)
-                        back.Add($"{l.From}->{m.From}->{m.To} at {l.Minute}-{m.Minute}");
-                    (last, did) = ((m.Minute, m.From, need), false);
+                    {
+                        if (l.Unaffordable) budgeted++;
+                        else back.Add($"{l.From}->{m.From}->{m.To} at {l.Minute}-{m.Minute}");
+                    }
+                    // Arrived with ground in mind: does the stint there still fit, from here?
+                    (last, did) = ((m.Minute, m.From, need, goal is TileId g && g != m.To && !Npc.ForageTripFits(w, w.Agent(npc), g)), false);
                 }
                 else if (e is Stashed or Unstashed or Gathered or Ate or Drank or FuelAdded or FireLit or FireStartFailed or Butchered or TreeFelled or Dropped
                          && e.ToString()!.Contains(npc.ToString() + ",")) did = true;
             }
         }
+        output.WriteLine($"turned back by the trip budget: {budgeted}");
         Assert.True(back.Count == 0, $"{back.Count} trips out for food and straight back: {string.Join("; ", back.Take(5))}");
+        Assert.True(budgeted <= 3, $"turned back by the trip budget {budgeted} times: its reckoning setting out is too far off");
     }
 
     /// Old behavior: banking the fire before going out took wood off the stash, and the next choice
@@ -285,7 +294,9 @@ public class NpcTests(ITestOutputHelper output)
         Assert.Equal(camp, Map.Step(wood, home.Dir));
     }
 
-    /// Hungry, with wood enough at camp and a caribou on its tile in daylight: it goes after it.
+    /// Starving, with wood enough at camp and a caribou on its tile in daylight: it goes after it. (Merely
+    /// wanting food, it leaves anything it would run from alone - by FightOrFlight's sizes a caribou is
+    /// one, 120 kg against an armed person: see WantingFood_LeavesAMammothHerdAlone.)
     [Fact]
     public void HungryWithPreyHere_Hunts()
     {
@@ -294,7 +305,7 @@ public class NpcTests(ITestOutputHelper output)
         var npc = Npc.Spawn(w, camp);
         Items.Add(Items.StashAt(w, camp), Resource.Birch, 40); // so firewood is not what it worries about
         w.Agent(npc).Body.CaloriesKcal = 100;
-        w.Agent(npc).Body.FatKg -= 0.6; // short of the fat it is used to: food is wanted (Npc.TargetFatKg)
+        w.Agent(npc).Body.FatKg -= 1.5; // well short of the fat it is used to: food is critical (Npc.TargetFatKg)
         var caribou = Agents.Spawn(w, Species.Caribou, camp, 1);
 
         var events = new List<WorldEvent>();
@@ -463,9 +474,13 @@ public class NpcTests(ITestOutputHelper output)
     }
 
     /// Old: cold by a fire with no wood left to feed it, it rested until the fire was nearly out, then
-    /// groped the bare camp ground for sticks (bug, fixed). By day it goes for wood while the fire lasts.
-    [Fact]
-    public void ColdByAFireWithNoWoodLeft_GoesForWoodWhileItLasts()
+    /// groped the bare camp ground for sticks (bug, fixed). By day it goes for wood while the fire lasts:
+    /// once warm enough to come home warm (the trip budget), not while it still wants warming, when a
+    /// walk out would bring it home colder than it wants to be (seed 7, day 22: out at 98.1, home at 93.4).
+    [Theory]
+    [InlineData(97.6, true)]
+    [InlineData(96.5, false)]
+    public void ColdByAFireWithNoWoodLeft_GoesForWoodWhileItLasts(double coreF, bool goes)
     {
         var w = World.New(17);
         var camp = Map.Of(w).Camp;
@@ -475,10 +490,11 @@ public class NpcTests(ITestOutputHelper output)
         Fire.IgniteAll(pit);
         w.Fires[new FireId(w.NextFireId++)] = pit;
         ((NpcMind)w.Agent(npc).Mind).Pack.Kg[Resource.Kindling] = 0.6; // its reserve: nothing to feed the fire
-        w.Agent(npc).Body.CoreTempF = 96.5;
+        w.Agent(npc).Body.CoreTempF = coreF;
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a}");
-        Assert.True(a is Travel or Gather { Focus: not ForageFocus.Food } && a is not Gather { Pool: 0 }, $"chose {a}");
+        if (goes) Assert.True(a is Travel or Gather { Focus: not ForageFocus.Food } && a is not Gather { Pool: 0 }, $"chose {a}");
+        else Assert.IsNotType<Travel>(a);
     }
 
     /// Old: freezing and parched, it fussed with its fire and died of thirst carrying three litres
@@ -698,6 +714,7 @@ public class NpcTests(ITestOutputHelper output)
     {
         var (w, npc, _) = ForagerAtCamp(At(0, 11));
         var mind = (NpcMind)w.Agent(npc).Mind;
+        w.Agent(npc).Body.FatKg = mind.TargetFatKg - 1.5; // starving: a caribou outsizes it (Npc.Outsizes), so only then does it hunt one
         var camp = mind.Camp;
         var next = MapGen.Neighbors(camp).Where(t => Map.Of(w).TerrainAt(t).IsPassable() && Map.Blocked(Map.Of(w), camp, t) == null).OrderBy(t => t).First();
         Agents.Spawn(w, Species.Caribou, next, 3);
@@ -734,9 +751,10 @@ public class NpcTests(ITestOutputHelper output)
         var mild = Decide(10);
         Assert.Equal(mild.Ground, mild.Goal);
         Assert.IsType<Travel>(mild.Activity); // on its way
-        // At freezing the nine tiles out and back would bring it home colder than it wants to be, though
-        // it is not cold yet: it gives the ground up rather than walk on until warmth is critical.
-        var cold = Decide(0);
+        // At -10C the nine tiles out and back would bring it home colder than it wants to be, though it is
+        // not cold yet: it gives the ground up rather than walk on until warmth is critical. (At freezing,
+        // before the trip budget counted the heat its clothes had stored, this was already too cold.)
+        var cold = Decide(-10);
         Assert.Null(cold.Goal);
         Assert.NotEqual(mild.Activity, cold.Activity); // not the step on toward it
     }
@@ -791,13 +809,16 @@ public class NpcTests(ITestOutputHelper output)
         Assert.Equal(new Gather(npc, 0, ForageFocus.Fuel), a);
     }
 
-    /// Home at seven with an hour of fire and timber next door: there is light to fetch some before
-    /// bed, and it does (old: to bed with what it had).
-    [Fact]
-    public void ShortOfFuelAtDusk_FetchesSomeWhileThereIsLight()
+    /// Home by evening with an hour of fire and timber next door: there is light to fetch some before
+    /// bed, and it does (old: to bed with what it had). After the hour it must be home by
+    /// (Npc.HomeMinuteOfDay), it gets what it can without leaving camp (see WinterEvening_NoTripForWoodAfterSunset).
+    [Theory]
+    [InlineData(17, 30, true)]
+    [InlineData(19, 0, false)]
+    public void ShortOfFuelAtDusk_FetchesSomeWhileThereIsLight(int hour, int minute, bool walks)
     {
         var pit = new FireState { Tile = default, LastUpdatedMinute = 0, BurningKg = { [Resource.Kindling] = 1.0 } };
-        var (w, npc, _) = ByAFire(At(0, 19), pit, kindlingKg: 0.9, tinderKg: 0.2);
+        var (w, npc, _) = ByAFire(At(0, hour, minute), pit, kindlingKg: 0.9, tinderKg: 0.2);
         var chose = new List<Activity>();
         for (int i = 0; i < 4; i++)
         {
@@ -807,7 +828,8 @@ public class NpcTests(ITestOutputHelper output)
             Sim.Step(w, a, minutes);
         }
         output.WriteLine(string.Join(", ", chose));
-        Assert.True(chose[^1] is Travel || chose[^1] is Gather g && Pools.At(w, w.Agent(npc).Tile)[g.Pool] is TreePool, $"chose {chose[^1]}");
+        if (walks) Assert.True(chose[^1] is Travel || chose[^1] is Gather g && Pools.At(w, w.Agent(npc).Tile)[g.Pool] is TreePool, $"chose {chose[^1]}");
+        else Assert.DoesNotContain(chose, a => a is Travel);
     }
 
     /// Traced (seed 5): it would not strike under 20% until its core was critical, by when its cold hands

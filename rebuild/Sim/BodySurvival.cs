@@ -86,6 +86,8 @@ public static partial class Body
     const double SurvivalEffectThresholdPct = 0.30;
 
     const double ThermalMassFPerKg = 2.0;
+    /// The chill the clothing's stored heat will take before the core falls under its setpoint (ProcessTemperature's buffer).
+    public static double ClothingHeatStoredF(BodyState body) => body.ClothingHeatBufferPct * body.ClothingWeightKg * ThermalMassFPerKg;
     const double MaxSweatMlPerHour = 1000;
     /// Water held by fully soaked clothing; shared by soaking and drying so they cannot drift apart.
     const double MlPerFullSoak = 2000;

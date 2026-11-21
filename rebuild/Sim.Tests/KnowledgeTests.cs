@@ -391,7 +391,7 @@ public class KnowledgeTests
         {
             new FireDied(100, new FireId(0), camp),
             new Injured(101, P, camp, "Left Leg", DamageType.Pierce, 1),
-            new Unstashed(102, stranger, camp, Resource.Birch, 3), // someone else's camp is not theirs to take from
+            new Unstashed(102, stranger, camp, Resource.Birch, 3, Taken: true), // someone else's camp is not theirs to take from
             new Killed(103, new AgentId(99), Species.Caribou, 100, camp, P),
         };
         for (int i = 0; i < 3 * Journal.MaxEntriesPerTile; i++)
@@ -400,7 +400,7 @@ public class KnowledgeTests
                 0 => new FireStartFailed(200 + i, P, camp, 0.1),
                 1 => new Ate(200 + i, P, camp, Resource.Berries, 0.1, 50),
                 2 => new FireLit(200 + i, new FireId(1), camp, P),
-                _ => new Unstashed(200 + i, P, camp, Resource.Birch, 1), // their own camp: a chore
+                _ => new Unstashed(200 + i, P, camp, Resource.Birch, 1, Taken: false), // their own camp: a chore
             });
         int filed = 0;
         Journal.File(w, events, ref filed);

@@ -317,7 +317,9 @@ public static class Journal
     {
         FireDied or FireBurnedToEmbers or ShelterCollapsed or Died or Injured or Killed or FightEnded or WoundedEscaped
             or Built or CrossedThePass => true,
-        Unstashed u => !world.Agents.TryGetValue(u.Who, out var who) || who.Mind is not PersonMind || Knowledge.CampOf(world, who) != u.Tile,
+        // Whose camp it was when it was taken, not when the entry is weighed: a camp that moves on does not
+        // turn its owner's old chores into thefts (old: CampOf read at eviction - bug, fixed).
+        Unstashed u => u.Taken,
         _ => false,
     };
 

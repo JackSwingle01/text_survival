@@ -68,7 +68,8 @@ public sealed record Gathered(long Minute, AgentId Who, TileId Tile, string What
 public sealed record Dropped(long Minute, AgentId Who, TileId Tile, string What) : WorldEvent(Minute, Tile);
 /// Put on, or taken from, the tile's stash by hand.
 public sealed record Stashed(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg) : WorldEvent(Minute, Tile);
-public sealed record Unstashed(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg) : WorldEvent(Minute, Tile);
+/// Taken: by someone whose camp this was not, as it stood when they took it (Journal.IsNotable).
+public sealed record Unstashed(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, bool Taken) : WorldEvent(Minute, Tile);
 /// A hidden pool found by searching. Only this agent now knows it.
 public sealed record PoolDiscovered(long Minute, AgentId Who, PoolId Pool, string Name) : WorldEvent(Minute, Pool.Tile);
 public sealed record TreeFelled(long Minute, AgentId Who, PoolId Pool) : WorldEvent(Minute, Pool.Tile);

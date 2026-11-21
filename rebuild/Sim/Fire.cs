@@ -521,12 +521,7 @@ public static class Fire
         static bool LogBurning(FireState x) => x.BurningKg.Keys.Any(r => Props[r].MinFireTempF > 0);
         if (LogBurning(f)) return true;
         if (!f.UnburnedKg.Keys.Any(r => Props[r].MinFireTempF > 0)) return false;
-        var copy = new FireState
-        {
-            Tile = f.Tile, LastUpdatedMinute = f.LastUpdatedMinute, Pit = f.Pit,
-            UnburnedKg = new(f.UnburnedKg), BurningKg = new(f.BurningKg), HasEmbers = f.HasEmbers,
-            EmberDurationHours = f.EmberDurationHours, EmberHoursRemaining = f.EmberHoursRemaining, EmberStartTempF = f.EmberStartTempF,
-        };
+        var copy = BurnCopy(f);
         while (BurningKg(copy) > 0)
         {
             Catch(copy);
@@ -535,6 +530,28 @@ public static class Fire
         }
         return false;
     }
+
+    /// Hours the fire will go on burning, left as it is: a copy burned forward a minute at a time, as
+    /// WillTakeALog. Unlike FuelHours, logs on a fire too cool to take them count for nothing.
+    public static double HoursItWillBurn(FireState f)
+    {
+        var copy = BurnCopy(f);
+        int minutes = 0;
+        while (BurningKg(copy) > 0)
+        {
+            Catch(copy);
+            Consume(copy);
+            minutes++;
+        }
+        return minutes / 60.0;
+    }
+
+    static FireState BurnCopy(FireState f) => new()
+    {
+        Tile = f.Tile, LastUpdatedMinute = f.LastUpdatedMinute, Pit = f.Pit,
+        UnburnedKg = new(f.UnburnedKg), BurningKg = new(f.BurningKg), HasEmbers = f.HasEmbers,
+        EmberDurationHours = f.EmberDurationHours, EmberHoursRemaining = f.EmberHoursRemaining, EmberStartTempF = f.EmberStartTempF,
+    };
 
     /// From flames on the tile, or from the torch already in hand (which it replaces). Uses up a torch from the pack.
     static string? Torch(World world, LightTorch a, List<WorldEvent> events)
