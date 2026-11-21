@@ -153,3 +153,7 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - Fire at the edge is meant at tile level first: a strong fire keeps a predator off your tile, so
   most of the time there is no encounter at all, only eyes on the neighbouring tile. The same
   falloff holds within a fight if one starts.
+- Combat: keep the grid and salvage it (survey option a). It's entertaining to watch whole
+  simulated battles, and it extends naturally to fights with three or more sides. What needs fixing:
+  the clunky movement and the 1v1 balance. Today the outcome is set in advance, and an animal
+  that's going to run away takes several turns to do it. Targets: next grilling round.
