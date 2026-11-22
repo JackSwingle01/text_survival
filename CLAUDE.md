@@ -53,4 +53,5 @@ For the clean-room rebuild (`rebuild/`):
 - Porting the old game: follow `dev/active/porting.md`.
 - Each ticket's agent keeps a work log (the `mp:work-log` skill's format) in `.agent-logs/`,
   one file per task named `YYYY-MM-DD-short-name.md`, committed with its PR. See
-  `.agent-logs/README.md`.
+  `.agent-logs/README.md`. Never add `.agent-logs/` to `.gitignore` or `.git/info/exclude`,
+  whatever the `mp:work-log` skill says: this repo commits the logs on purpose.
