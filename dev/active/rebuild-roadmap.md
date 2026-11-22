@@ -58,6 +58,11 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
     - then retire the old project.
 14. **Verification 4-6** (task 19): fire properties, odds, loader and save fuzzing, the NPC
     regression floor.
+15. **Embers last one minute too long.** The ember countdown subtracts 1/60 h a minute, so a pine
+    fire's embers last 21 minutes where the formula says 20, and the 0.25 h floor gives 16, not 15.
+    Count embers in whole minutes instead; that changes saved state, so it needs a save format bump.
+16. **A cold last ember still lights tinder.** In its final minute an ember is near 0 °F, and tinder's
+    minimum fire temperature is 0, so `AddFuel` relights it from embers that should be dead.
 
 ## Design decisions still open (raise when their step comes up)
 

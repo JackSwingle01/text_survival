@@ -19,15 +19,20 @@ Each Stryker run takes under a minute for `Effects.cs` and several minutes for
 `BodySurvival.cs`. Reports land in `rebuild/Sim.Tests/StrykerOutput/` (ignored by git). Open
 `reports/mutation-report.html` to see the mutants that survived.
 
-**Replaying a failure.** CsCheck uses a new random seed on every run and, when a property fails,
-shrinks the input and prints it with its seed:
-`Set seed: "asQ2YGi3KzQ1" or -e CsCheck_Seed=asQ2YGi3KzQ1 to reproduce`. Rerun that one test
-with `CsCheck_Seed=asQ2YGi3KzQ1 dotnet test ... --filter <name>` and it sees the same input.
+**Seeds, replay and the random search.** `Gens.Check` draws the same cases on every run, so the
+suite and CI fail only when the code changes; a failure names the fixed case's seed and the
+shrunk one, as `CsCheck_Seed=...`. The nightly `property-search.yml` job runs the property tests
+with fresh seeds and ten times the iterations, and opens an issue per failing test with its seed.
+To replay any of them, run that one test with the seed:
+`CsCheck_Seed=asQ2YGi3KzQ1 dotnet test rebuild/Sim.Tests -c Release --filter <name>` (CsCheck runs
+that case first, then keeps shrinking). To search locally as the nightly job does, set
+`SIM_PROPERTY_SEARCH=random` and optionally `SIM_PROPERTY_ITER_FACTOR=10` on the same command with
+the property filter above.
 
 ## Files
 
 - `rebuild/Sim.Tests/Verification/Gens.cs` has the generators and the `Check` helper (400
-  iterations, single-threaded).
+  iterations by default, single-threaded, fixed seed unless `SIM_PROPERTY_SEARCH=random`).
 - `rebuild/Sim.Tests/EffectsPropertyTests.cs` has the laws for the registry in `Effects.cs`.
 - `rebuild/Sim.Tests/Verification/BodySurvivalPropertyTests.cs` has the laws for wetness, drying
   and core temperature in `BodySurvival.cs`, and the wetness reference model.

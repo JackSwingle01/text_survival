@@ -12,11 +12,46 @@ static class Gens
     /// that the whole file stays well under a second of the suite.
     public const long Iter = 400;
 
-    /// Runs a property single-threaded (xunit already runs test classes in parallel). On failure
-    /// CsCheck throws with the shrunk input and a seed; set the environment variable
-    /// CsCheck_Seed to that seed to replay exactly that case.
-    public static void Check<T>(this Gen<T> gen, Action<T> assert, long iter = Iter) =>
-        gen.Sample(assert, iter: iter, threads: 1);
+    /// Set to "random" for CsCheck's own random search (the nightly job); otherwise every run
+    /// draws the same cases, so CI fails only when the code changes.
+    public const string SearchVariable = "SIM_PROPERTY_SEARCH";
+    /// A whole number that multiplies every property's iterations (default 1).
+    public const string IterFactorVariable = "SIM_PROPERTY_ITER_FACTOR";
+
+    const ulong FixedSeed = 0x5EED_CA5E;
+
+    public static bool RandomSearch =>
+        string.Equals(Environment.GetEnvironmentVariable(SearchVariable), "random", StringComparison.OrdinalIgnoreCase);
+
+    static long IterFactor =>
+        long.TryParse(Environment.GetEnvironmentVariable(IterFactorVariable), out var n) && n > 0 ? n : 1;
+
+    /// Runs a property single-threaded (xunit already runs test classes in parallel). CsCheck's
+    /// `seed` pins only the first case and draws the rest from a clock-seeded generator, so the
+    /// fixed search walks one PCG stream itself. A failing case is handed back to CsCheck by its
+    /// seed: the failure is certain, CsCheck shrinks from it and throws with the seed to replay
+    /// (CsCheck_Seed), which takes the CsCheck path here too.
+    public static void Check<T>(this Gen<T> gen, Action<T> assert, long iter = Iter)
+    {
+        iter *= IterFactor;
+        if (RandomSearch || CsCheck.Check.Seed is not null)
+        {
+            gen.Sample(assert, iter: iter, threads: 1);
+            return;
+        }
+        var pcg = new PCG(1, FixedSeed);
+        for (long i = 0; i < iter; i++)
+        {
+            string seed = pcg.ToString(pcg.State);
+            try { assert(gen.Generate(pcg, null, out _)); }
+            catch (Exception)
+            {
+                try { gen.Sample(assert, seed: seed, iter: iter, threads: 1); }
+                catch (Exception shrunk) { throw new CsCheckException($"Fixed search fails at CsCheck_Seed={seed}; shrunk by CsCheck below", shrunk); }
+                throw new InvalidOperationException($"CsCheck_Seed={seed} failed once and passed when replayed: the property is not a function of its input");
+            }
+        }
+    }
 
     // ---- effect state ----
 
