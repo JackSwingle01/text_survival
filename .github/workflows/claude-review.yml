@@ -21,6 +21,10 @@ jobs:
       - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1, 2026-11-20
+        env:
+          # Opus launched the four reviewers in the background, ended its turn, and the run exited
+          # before they reported, so nothing was posted. Foreground agents make it wait for them.
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
