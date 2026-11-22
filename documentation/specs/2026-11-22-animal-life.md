@@ -143,7 +143,7 @@ Animals and people share one body model and one way of looking for what they nee
     one stat against another.
 40. As the designer, I want threats to be hard refusals in the planner, not weights, so that danger
     avoidance is legible and needs no tuning.
-41. As the designer, I want herd size to come out of vigilance against crowding, so that there are no
+41. As the designer, I want herd size to come out of cohesion against crowding, so that there are no
     split or merge rules to maintain.
 42. As the designer, I want packs to be animals familiar with each other, so that packs, rivals and
     dispersal come from one number.
