@@ -373,12 +373,14 @@ public class Phase2GateTests(ITestOutputHelper output)
     public void ThirtyDays_Headless_CompletesAliveAndSmall()
     {
         Log = output.WriteLine;
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         var clock = Stopwatch.StartNew();
         var (w, t) = Run(17);
         Log = null;
         clock.Stop();
+        long allocatedMB = (GC.GetAllocatedBytesForCurrentThread() - allocatedBefore) / (1024 * 1024);
 
-        output.WriteLine($"30 days: {t.Injuries} injuries, {clock.Elapsed.TotalSeconds:F1}s; gathered {t.GatheredKcal:0} kcal of food, " +
+        output.WriteLine($"30 days: {t.Injuries} injuries, {clock.Elapsed.TotalSeconds:F1}s, {allocatedMB} MB allocated; gathered {t.GatheredKcal:0} kcal of food, " +
                          $"hand-fed {t.HandFedKcal:0} kcal ({t.HandFedKcal / (t.HandFedKcal + t.GatheredKcal):P0}); " +
                          $"melted and drank {t.WaterLiters:0.0} L; carried home {t.WoodKg:0} kg of wood");
         var camp = Map.Of(w).Camp;
@@ -387,7 +389,11 @@ public class Phase2GateTests(ITestOutputHelper output)
         string json = Save.ToJson(w);
         output.WriteLine($"save {json.Length} bytes");
         Assert.True(json.Length < 1_000_000, $"save is {json.Length} bytes");
-        Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed.TotalSeconds:F1}s");
+        // Cost is budgeted in bytes allocated, as in HerdTests.ThirtyPopulatedDays_StayCheap: deterministic for the
+        // seed and blind to machine load (about 3.4 GB in 4 s on an idle machine, 70 s beside the rest of the suite).
+        // The wall clock is only a backstop for a blow-up that does not allocate.
+        Assert.True(allocatedMB < 6000, $"allocated {allocatedMB} MB");
+        Assert.True(clock.Elapsed.TotalSeconds < 300, $"took {clock.Elapsed.TotalSeconds:F1}s");
     }
 
     [Trait("Category", TestCategories.Slow)]

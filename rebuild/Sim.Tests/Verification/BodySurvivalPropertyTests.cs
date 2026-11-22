@@ -135,8 +135,8 @@ public class BodySurvivalPropertyTests
     }
 
     /// The core laws hold for single one-minute steps only. A longer step reads its rates once, at the starting core,
-    /// and the model switches on hard lines: sweating, with the fire's heat withheld, at Body.SweatingThresholdF (99F),
-    /// and the clothing heat buffer at Body.BaseCoreTempF (98.6F). Over a long step the warmer case can cross a line the colder one does not
+    /// and the model switches on hard lines: sweating at Body.SweatingThresholdF (99F) and the clothing heat buffer at
+    /// Body.BaseCoreTempF (98.6F); between them the fire's heat fades. Over a long step the warmer case can cross a line the colder one does not
     /// and come out about 0.04F a minute behind. Whether the hard switches stay is for the body review
     /// (documentation/body-review-2026-11-21.md).
     [Fact]
@@ -211,8 +211,8 @@ public class BodySurvivalPropertyTests
 
     /// The core under one N-minute ProcessTemperature against N one-minute ones with the core and the
     /// clothing buffer applied between. The step evaluates its switches once, at the start: whether
-    /// the buffer may pay for a chill (core at or under 98.6), whether fire heat is withheld (core at
-    /// 99), how open the skin's circulation is (97-99). Across any of them a long step is not a run of
+    /// the buffer may pay for a chill (core at or under 98.6), how much fire heat is withheld (core
+    /// 98.6-99), how open the skin's circulation is (97-99). Across any of them a long step is not a run of
     /// short ones (found by this test: 7 minutes from 98.8F in a gale, one step -1.40F, minute
     /// steps -0.20F). Only Update, a minute at a time, runs it in the game, so the law holds where
     /// none of the switches can be crossed: no clothing buffer, the core below 96 (circulation shut,
@@ -271,28 +271,38 @@ public class BodySurvivalPropertyTests
     /// moves it by less than a tenth of a degree) or is on its way out of the living range. Two days,
     /// because a full clothing buffer can pay a sleeper's chill for eight hours before the core
     /// feels it, and a short run catches the turn as if it were a swing.
-    [Fact]
-    public void FixedPoint_TheCoreSettlesOrLeaves_ItNeverOscillates()
+    static readonly Gen<(Gens.BodyInput, SurvivalContext)> MildCores =
+        Gen.Select(Gens.BodyInputs.Select(i => i with { CoreTempF = Math.Clamp(i.CoreTempF, 95, 100) }), Gens.Contexts);
+
+    static void SettlesOrLeaves((Gens.BodyInput, SurvivalContext) t)
     {
-        var mild = Gens.BodyInputs.Select(i => i with { CoreTempF = Math.Clamp(i.CoreTempF, 95, 100) });
-        Gen.Select(mild, Gens.Contexts).Check(t =>
+        var (input, ctx) = t;
+        var b = input.Build();
+        var rng = Gens.Rng();
+        var hourly = new List<double>();
+        for (int m = 0; m < 48 * 60 && Body.IsAlive(b); m++)
         {
-            var (input, ctx) = t;
-            var b = input.Build();
-            var rng = Gens.Rng();
-            var hourly = new List<double>();
-            for (int m = 0; m < 48 * 60 && Body.IsAlive(b); m++)
-            {
-                Body.Update(b, ctx, rng);
-                if (m % 60 == 59) hourly.Add(b.CoreTempF);
-            }
-            if (hourly.Count < 48) return; // died: left the living range
-            double lastHour = Math.Abs(hourly[^1] - hourly[^2]);
-            bool settled = lastHour < 0.1;
-            bool leaving = hourly[^1] < Body.HypothermiaThresholdF || hourly[^1] > Body.HyperthermiaThresholdF;
-            Assert.True(settled || leaving, $"core still moving {lastHour:R}F/h at {hourly[^1]:R}F: {string.Join(", ", hourly.Select(h => h.ToString("F2")))}");
-        }, iter: 40);
+            Body.Update(b, ctx, rng);
+            if (m % 60 == 59) hourly.Add(b.CoreTempF);
+        }
+        if (hourly.Count < 48) return; // died: left the living range
+        double lastHour = Math.Abs(hourly[^1] - hourly[^2]);
+        bool settled = lastHour < 0.1;
+        bool leaving = hourly[^1] < Body.HypothermiaThresholdF || hourly[^1] > Body.HyperthermiaThresholdF;
+        Assert.True(settled || leaving, $"core still moving {lastHour:R}F/h at {hourly[^1]:R}F: {string.Join(", ", hourly.Select(h => h.ToString("F2")))}");
     }
+
+    [Fact]
+    public void FixedPoint_TheCoreSettlesOrLeaves_ItNeverOscillates() => MildCores.Check(SettlesOrLeaves, iter: 40);
+
+    /// Seeds that caught the core bouncing across 99F beside a roaring fire: each minute it reached the line the
+    /// whole fire went at once and it fell a quarter of a degree, then climbed back, every few minutes
+    /// (FixedPoint_TheCoreSettlesOrLeaves_ItNeverOscillates).
+    [Theory]
+    [InlineData("fAZ5uqu8jhq1")] // naked in the rain, a 94F fire
+    [InlineData("4k_8AfronAH3")] // unclothed under a roof edge in a light blizzard, a 93F fire
+    public void FixedPoint_BesideARoaringFire_TheCoreSettles(string seed) =>
+        MildCores.Sample(SettlesOrLeaves, seed: seed, iter: 1, threads: 1);
 
     // ---- every input matters ----
 
@@ -401,8 +411,10 @@ public class BodySurvivalPropertyTests
             double sweatA = producedMlPerMinute * sealedPct / MlPerFullSoak;
             double sweatB = producedMlPerMinute * (1 - sealedPct) / MlPerFullSoak;
 
-            // Drying: the fire's heat (withheld in a sweat) or warm air, whichever supplies more, sped by wind when nothing falls.
-            double fireF = (coreF < Body.SweatingThresholdF ? c.FireBonusF : 0) + c.TorchHeatF;
+            // Drying: the fire's heat (faded out from the setpoint to a sweat) or warm air, whichever supplies more, sped by
+            // wind when nothing falls.
+            double firePct = Math.Clamp((Body.SweatingThresholdF - coreF) / (Body.SweatingThresholdF - Body.BaseCoreTempF), 0, 1);
+            double fireF = c.FireBonusF * firePct + c.TorchHeatF;
             double kcalPerHour = Math.Max(fireF > 0 ? 300 + fireF * 25 : 0, c.AirTempF > 32 ? (c.AirTempF - 32) * 10 : 0);
             double wind = c.FireBonusF > 0 ? c.FireDryingWindLevel ?? c.WindLevel : c.WindLevel;
             if (c.Precipitation == Precipitation.None) kcalPerHour *= 1 + wind * 1.5;
@@ -440,8 +452,8 @@ public class BodySurvivalPropertyTests
     }
 
     /// The same exposure run through Update, the path the game takes, with the core free to move:
-    /// out of a sweat and without the fire's heat withheld, the core does not touch wetness, so the
-    /// closed form still holds. Cases that start a sweat are left to the step-by-step test.
+    /// at or under the setpoint, out of a sweat and with the fire's heat not yet fading, the core does not
+    /// touch wetness, so the closed form still holds. Warmer cases are left to the step-by-step test.
     [Fact]
     public void ReferenceModel_UpdateWetness_MatchesTheClosedForm_OutOfASweat()
     {
@@ -454,7 +466,7 @@ public class BodySurvivalPropertyTests
             double w0 = Wet(b);
             for (int n = 1; n <= 180 && Body.IsAlive(b); n++)
             {
-                if (b.CoreTempF >= Body.SweatingThresholdF) return;
+                if (b.CoreTempF > Body.BaseCoreTempF) return;
                 Body.Update(b, ctx, rng);
                 double expected = WetnessReference.After(w0, input.CoreTempF, ctx, n);
                 Assert.True(Math.Abs(expected - Wet(b)) <= 1e-9, $"minute {n}: expected {expected:R}, got {Wet(b):R}");

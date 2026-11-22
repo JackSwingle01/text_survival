@@ -315,7 +315,7 @@ public static class Sim
     }
 
     /// The radiant heat the activity takes from fires: the pit's by how close it keeps you, plus the
-    /// heat a shelter holds, which rides with it (withheld once you sweat, by the body).
+    /// heat a shelter holds, which rides with it (withheld as you warm to a sweat, by the body).
     static double FireBonusF(Fire.Warmth warmth, Hold hold) => warmth.PitHeatF * hold.FireProximityFactor + warmth.ShelterHeatF;
 
     /// Bedding's warmth is felt asleep in it.
@@ -343,7 +343,7 @@ public static class Sim
             Precipitation = exposure.Precipitation,
             PrecipitationPct = exposure.PrecipitationPct,
             OverheadCoverLevel = exposure.OverheadCoverLevel,
-            // The shelter's held fire heat rides with the radiant heat, so it is withheld once you sweat; in the
+            // The shelter's held fire heat rides with the radiant heat, so it is withheld as you warm to a sweat; in the
             // air, it would sweat a sheltered sleeper by a big fire dry.
             FireBonusF = FireBonusF(warmth, hold),
             TorchHeatF = warmth.TorchHeatF,

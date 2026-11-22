@@ -15,7 +15,9 @@ public class GameLoopSmokeTests
     [Fact]
     public async Task RunAsync_WaitsTravelsAndQuits()
     {
-        var ctx = GameContext.CreateNewGame();
+        // Seeded: some unseeded worlds put a predator on the route, and the fight that follows
+        // asks for combat actions this loop does not script.
+        var ctx = GameContext.CreateNewGame(seed: 42);
         var start = ctx.Map!.CurrentPosition;
         var destination = FirstReachableNeighbour(ctx, start);
 
@@ -27,8 +29,7 @@ public class GameLoopSmokeTests
         ui.PlayerActions.Enqueue(new PlayerAction.Camp(CampAction.Wait));
         ui.PlayerActions.Enqueue(new PlayerAction.Quit());
 
-        // Travel may run into hazardous terrain or be interrupted by an event; answer
-        // both so a random world cannot leave a prompt unanswered.
+        // Travel may run into hazardous terrain or be interrupted by an event; answer both.
         ui.Choices.Enqueue("quick");
         ui.Confirmations.Enqueue(true);
 

@@ -75,7 +75,7 @@ can reach.
   whose state-dependent switches are evaluated at the start. Wetness splits exactly out of a sweat
   (`TimeSplitting_Wetness_IsExactOutOfASweat`). In a sweat it is forward Euler, within the
   bound ½N²B|rate|(1+B)^N (`..._DriftsInASweat_WithinTheEulerBound`). The core splits only
-  away from its switches: the buffer gate at 98.6 °F, fire withheld at 99 °F, and vasomotor tone
+  away from its switches: the buffer gate at 98.6 °F, fire heat fading out from 98.6 to 99 °F, and vasomotor tone
   between 97 and 99 °F (`TimeSplitting_CoreTemperature_HoldsAwayFromTheSwitches`). Across them a
   long step is wrong by more than a degree.
 - `Body.Update`, `Body.Tick` and `Body.TickWounds` are one minute only. The game calls nothing

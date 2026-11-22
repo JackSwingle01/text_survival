@@ -205,7 +205,7 @@ public static class Fire
     /// felt against that warmed air, before the activity's proximity. TorchHeatF warms only
     /// the carrier. A pit's walls cut the wind only while it burns.
     /// ShelterHeatF is the fire's heat a shelter holds in beyond the open air's share: warm air, but
-    /// air someone too hot can step out of, so it is withheld with the radiant heat once they sweat.
+    /// air someone too hot can step out of, so it is withheld with the radiant heat as they warm to a sweat.
     public readonly record struct Warmth(double AirHeatF, double PitHeatF, double TorchHeatF, double WindProtectionLevel, double ShelterHeatF = 0);
 
     const double OpenAirHeatPct = 0.4;

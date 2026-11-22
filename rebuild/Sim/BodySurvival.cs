@@ -13,8 +13,8 @@ public sealed record SurvivalContext
     /// The wind drying you at a fire pit: the wind at the body without the shelter's walls
     /// (Exposure.FireDryingWindLevel). Null when nothing sets it apart: the same as WindLevel.
     public double? FireDryingWindLevel { get; init; }
-    /// Radiant heat reaching this agent, °F added to the air. Withheld once the body is warm
-    /// enough to sweat: anyone that hot shifts back from the fire long before sweating through a night.
+    /// Radiant heat reaching this agent, °F added to the air. Faded out from the setpoint to a sweat, as anyone that hot
+    /// eases back rather than sweat through a night; cut at one line, the core would bounce across it.
     public double FireBonusF { get; init; }
     /// A carried torch's heat, °F. Not withheld when sweating: you cannot step back from a torch in your hand.
     public double TorchHeatF { get; init; }
@@ -115,7 +115,8 @@ public static partial class Body
     public static double SkinTemperatureF(double coreF) =>
         coreF - (ConstrictedGradientF + VasomotorTone(coreF) * (DilatedGradientF - ConstrictedGradientF));
 
-    static double FireF(BodyState body, SurvivalContext ctx) => (body.CoreTempF < SweatingThresholdF ? ctx.FireBonusF : 0) + ctx.TorchHeatF;
+    static double FireF(BodyState body, SurvivalContext ctx) =>
+        ctx.FireBonusF * Math.Clamp((SweatingThresholdF - body.CoreTempF) / (SweatingThresholdF - BaseCoreTempF), 0, 1) + ctx.TorchHeatF;
 
     internal static double ConvectiveCoefficient(SurvivalContext ctx) => 5.0 * (1.0 + ConvectiveWind(ctx.WindLevel) * 2.0);
 
@@ -284,8 +285,8 @@ public static partial class Body
         return d;
     }
 
-    /// Minute by minute: whether the clothing pays for a chill (core at or under its setpoint), whether a fire's heat is
-    /// withheld (sweating), the skin's tone and the buffer's fill all change as the core and the buffer do, so one long
+    /// Minute by minute: whether the clothing pays for a chill (core at or under its setpoint), how much of a fire's heat is
+    /// withheld (warming to a sweat), the skin's tone and the buffer's fill all change as the core and the buffer do, so one long
     /// step is the same minutes lived one at a time, not the first minute's rates held. Effects are judged by the core
     /// as the step began.
     static void ProcessTemperature(BodyState body, SurvivalContext ctx, int minutes, SurvivalDelta d)
@@ -379,7 +380,7 @@ public static partial class Body
         if (kcalPerHour <= 0) return 0; // frozen wet
 
         // Wind speeds evaporation; it cannot create it. Beside a pit it is the wind past the pit's walls,
-        // whether or not its heat is withheld for sweating; anywhere else, a torch in hand included, the
+        // however much of its heat the body is taking; anywhere else, a torch in hand included, the
         // sheltered wind.
         double windLevel = ctx.FireBonusF > 0 ? ctx.FireDryingWindLevel ?? ctx.WindLevel : ctx.WindLevel;
         if (ctx.Precipitation == Precipitation.None) kcalPerHour *= 1 + windLevel * 1.5;
