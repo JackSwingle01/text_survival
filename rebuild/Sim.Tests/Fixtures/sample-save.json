@@ -1,5 +1,5 @@
 {
-  "Version": 19,
+  "Version": 20,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -1174,7 +1174,7 @@
           "Camp": "7,41",
           "Goal": {
             "Stat": "Warmth",
-            "Tier": "Need",
+            "Priority": "Need",
             "StartedMinute": 170,
             "BudgetMinutes": 90
           },

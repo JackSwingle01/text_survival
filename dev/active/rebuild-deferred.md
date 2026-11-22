@@ -137,7 +137,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Npc.cs` (`Warm`) - on a bitter day (-30, a strong wind) at a dead camp with the nearest timber twelve tiles off, the
   walk does not fit (70 minutes of snow, lethal core in 52) and it gropes the camp ground until it dies. Nothing it has
   saves it; a fire's makings carried out of every camp it leaves would.
-- `Npc.cs` (`StarvingFatPct`) - starving (food Critical, the stat tiers) reads the fat the body burns down to as its
+- `Npc.cs` (`StarvingFatPct`) - starving (food Critical, the stat priorities) reads the fat the body burns down to as its
   own 3%, a copy of BodySurvival's private `MinFatPct`. Upgrade: make that one public and read it.
 - `Npc.cs` (`TripHomeCoreF`) - trips are held to coming home above 96.8F (plus 0.3 setting out), inside warmth's Need
   (97.5F): a wood trip is what getting through the day takes. Held to the Need line itself, seed 17 froze at its fire in
@@ -145,7 +145,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   the lethal line, so it can come home well under 96.8 (`Seed7_WorkAtTheTreesInAFrost`, 95.2F). The 16-seed table
   moves a death or two either way with the line (review 4.1's report).
 - `Npc.cs` (`StaysOut`) - only an option that outranks the evening and is not tonight's wood may keep it out past the
-  home-by hour; the Critical tier and threats always do. Tonight's wood is warmth's at every hour; in the dark (`Me.Lit`:
+  home-by hour; the Critical priority and threats always do. Tonight's wood is warmth's at every hour; in the dark (`Me.Lit`:
   the sun up and out of Work's 21:00-05:00 night, or a torch) it walks nowhere for it, and gropes the camp ground only
   while an hour of it finds an hour of fire (birch the yardstick). A fire lights its own tile only: there is no lit
   radius to fetch within, and NPCs carry no torches (no crafting). Upgrade: a light radius from fire size, and torches.
@@ -153,14 +153,14 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   included once logs wait; at a camp of oak and tinder that leaves nothing to follow the next strike. Most cold
   deaths on review 4.1's 48-seed sweep end there (seed 11 day 13.7: tinder and oak, no kindling, groping a dead camp).
   Upgrade: keep a strike's kindling back from a bank, as Light keeps tinder.
-- `Npc.cs` (`FoodTier`, `FoodToHand`) - food on the stash of the tile it stands on makes food Want there, though
+- `Npc.cs` (`FoodPriority`, `FoodToHand`) - food on the stash of the tile it stands on makes food Want there, though
   nothing eats from a stash short of food's Need; so from a camp with none it walks to a tile with some, is "fed"
   there, and walks home, and back (review 4.1's 48 seeds: runs of 17-52 on day 0.9 on seeds 13, 15, 23, 27; base had
   them too, 87 on seed 27). Out of scope there (food priorities). Upgrade: food to hand is food it would eat.
 - `Npc.cs` (`FireMakings`, `FetchMakingsTiles`) - makings a tile off a sheltered home are fetched home (`WoodGoal`,
   picked up by `GoHome`); two tiles off, home still moves to them and the next wood trip brings it back. Upgrade:
   fetch from further once a fetch can span several steps whatever plan runs on the way.
-- Food under the stat tiers: fat under the floor is Need, below tonight's wood, so on the 16 seeds most NPCs live to
+- Food under the stat priorities: fat under the floor is Need, below tonight's wood, so on the 16 seeds most NPCs live to
   day 60 at 2-5 kg of fat, near the floor the body burns to; past 60 days starving (food Critical) is the next death.
   The forage economy (review item 2, `rebuild-npc-food-and-forage-review.md`) is what decides it now.
 - `Knowledge.cs:315` - a carcass going (butchered away) is not a notable journal entry: `Butchered` is a step's tally and

@@ -46,9 +46,9 @@ public sealed record ClockDto(int Day, int MinuteOfDay, string Season, string Sk
 public sealed record FeelsDto(double TotalF, IReadOnlyList<FeelsTermDto> Terms);
 public sealed record FeelsTermDto(string Name, double DeltaF);
 
-/// Stat: warmth, food, water, rest. Pct 0-1 for the bar. Tier from Tiers.Of (none, want, need, critical):
+/// Stat: warmth, food, water, rest. Pct 0-1 for the bar. Priority from Priorities.Of (none, want, need, critical):
 /// the bar's colour. Detail is the hover line.
-public sealed record VitalDto(string Stat, double Pct, string Tier, string Detail);
+public sealed record VitalDto(string Stat, double Pct, string Priority, string Detail);
 
 /// Kind: danger, cold or warn. Rank orders them (higher first). Lines: the hover detail.
 public sealed record AlertDto(string Id, string Text, string Kind, int Rank, string Icon, IReadOnlyList<string> Lines);

@@ -38,9 +38,9 @@ The hard-to-reverse ones are recorded with their reasons in `documentation/decis
    authored cause. No "ghost camp" settling for now.
 8. **Place text never contradicts game state.** Static description only; live facts ("wolf tracks
    everywhere") come from real signs. Old hallucination scenes are cut.
-9. **Stat tiers** (`GLOSSARY.md`): every stat is Critical (imminent death, drop everything), Need
-   (survive the day, or back to baseline) or Want (stockpile, surplus). Tier ranks first; within a
-   tier, warmth, then water, then food, then rest. The NPC and the player-facing alerts use it.
+9. **Stat priorities** (`GLOSSARY.md`): every stat is Critical (imminent death, drop everything), Need
+   (survive the day, or back to baseline) or Want (stockpile, surplus). Priority ranks first; within a
+   priority, warmth, then water, then food, then rest. The NPC and the player-facing alerts use it.
 10. **Effects code is verified** to a stated bar (§3.3): a pure kernel, property tests, a
     reference model, and mutation testing.
 
@@ -77,7 +77,7 @@ So tensions go. What they gave the player that raw state does not is kept, by ot
 
 - **Perception.** Tension is the player's *belief* about a real thing. A pack following unseen is
   not tension; fresh prints over your own trail are. Beliefs are plan decision 7.
-- **Pacing.** From the world itself: discoveries, renewal, attractors and the stat tiers' pressure.
+- **Pacing.** From the world itself: discoveries, renewal, attractors and the stat priorities' pressure.
   No director (§0.2).
 - **Legibility.** Signs carry a cause where there is one (§3.2), so investigating can say why.
 

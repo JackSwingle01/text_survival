@@ -704,7 +704,7 @@ public static class Fire
 
     public static readonly IReadOnlyList<Resource> Tinders = [Resource.BirchBark, Resource.Amadou, Resource.Usnea, Resource.Chaga, Resource.Tinder];
 
-    /// A forecast for warmth (Tiers.WarmthTier): hours of fire from only the fuel a fire could get hot enough to take, from
+    /// A forecast for warmth (Priorities.WarmthPriority): hours of fire from only the fuel a fire could get hot enough to take, from
     /// the pit if it burns or glows, else struck from the fuel's tinder (canStrike); the fuel counts as one load.
     public static double UsableHours(FireState? pit, PitType pitType, IReadOnlyDictionary<Resource, double> fuelKg, bool canStrike)
     {

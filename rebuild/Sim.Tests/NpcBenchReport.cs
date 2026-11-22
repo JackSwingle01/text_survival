@@ -50,7 +50,7 @@ public class NpcBenchReport(ITestOutputHelper output)
                 var b = agent.Body;
                 int clock = Weather.MinuteOfDay(w.Minute);
                 trace.WriteLine($"{w.Minute / 1440.0,6:0.00} {clock / 60:00}:{clock % 60:00} at {agent.Tile.X - mind.Camp.X:+0;-0;0},{agent.Tile.Y - mind.Camp.Y:+0;-0;0} " +
-                    $"camp {mind.Camp} goal {mind.Goal?.Stat}/{mind.Goal?.Tier} core {b.CoreTempF:0.0} water {b.HydrationPct:0.00} energy {b.EnergyPct:0.00} kcal {b.CaloriesKcal:0} | {now}");
+                    $"camp {mind.Camp} goal {mind.Goal?.Stat}/{mind.Goal?.Priority} core {b.CoreTempF:0.0} water {b.HydrationPct:0.00} energy {b.EnergyPct:0.00} kcal {b.CaloriesKcal:0} | {now}");
             }
             foreach (var e in Sim.Advance(w, 1))
             {
