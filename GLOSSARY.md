@@ -113,8 +113,9 @@ making or travel. Its rules live only there; everything else asks it.
 _Avoid_: manager, module, service
 
 **Verb**:
-Something a person could do here and now, offered with its refusal, odds and cost.
-_Avoid_: action, option, command
+Something a person could do here and now, offered with its refusal, odds and cost in time. A move in
+a fight is a verb too, costing seconds rather than minutes.
+_Avoid_: action, combat action, option, command
 
 **Activity**:
 A verb a person has chosen and is carrying out.
