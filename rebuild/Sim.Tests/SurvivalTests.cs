@@ -813,8 +813,11 @@ public class SurvivalTests
         Effects.Set(b, EffectKind.Wet, 0.2);
         var ctx = new SurvivalContext
         {
-            AirTempF = 45, Precipitation = Precipitation.Rain, PrecipitationPct = 1.0,
-            GroundWettingPctPerMinute = 0.004, WindLevel = 0.2,
+            AirTempF = 45,
+            Precipitation = Precipitation.Rain,
+            PrecipitationPct = 1.0,
+            GroundWettingPctPerMinute = 0.004,
+            WindLevel = 0.2,
         };
         var wet = Body.Process(b, ctx, 1, TestRng()).Effects.Single(e => e.Kind == EffectKind.Wet);
         double drying = (45 - 32) * 10.0 / (2000 * 0.58) / 60; // windless in rain

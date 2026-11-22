@@ -211,7 +211,7 @@ public static partial class Content
         {
             if (!result.TryGetValue(group.Key, out var text)) throw new InvalidDataException($"Override: no content file {group.Key}");
             var root = System.Text.Json.Nodes.JsonNode.Parse(text, documentOptions: new JsonDocumentOptions
-                { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })
+            { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })
                 ?? throw new InvalidDataException($"Override: {group.Key} is empty");
             foreach (var (path, value) in group) Set(root, path, value);
             result[group.Key] = root.ToJsonString();

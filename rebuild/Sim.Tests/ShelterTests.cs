@@ -22,7 +22,8 @@ public class ShelterTests
     static TileId Open(World w)
     {
         var m = Map.Of(w);
-        return (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+        return (from x in Enumerable.Range(0, m.Width)
+                from y in Enumerable.Range(0, m.Height)
                 let t = new TileId(x, y)
                 where m.TerrainAt(t) == Terrain.Plain && t != m.Camp && m.CaveAt(t) == Cave.None && m.StageAt(t) == null && !m.BesideRiver(t)
                 select t).First();
@@ -516,7 +517,8 @@ public class ShelterTests
     {
         var w = At(sky);
         var m = Map.Of(w);
-        var tile = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+        var tile = (from x in Enumerable.Range(0, m.Width)
+                    from y in Enumerable.Range(0, m.Height)
                     let t = new TileId(x, y)
                     where m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && !w.Shelters.ContainsKey(t)
                         && Pools.At(w, t).Any(p => p is ShelterFind)

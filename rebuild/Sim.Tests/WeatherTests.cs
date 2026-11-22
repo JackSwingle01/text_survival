@@ -334,7 +334,8 @@ public class WeatherTests
 
     /// An ordinary tile of this terrain: not camp, a cave, a pass stage or beside a river.
     static TileId TileOf(GeneratedMap m, Terrain terrain) =>
-        (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+        (from x in Enumerable.Range(0, m.Width)
+         from y in Enumerable.Range(0, m.Height)
          let t = new TileId(x, y)
          where m.TerrainAt(t) == terrain && t != m.Camp && m.CaveAt(t) == Cave.None && m.StageAt(t) == null && !m.BesideRiver(t)
          select t).First();

@@ -129,7 +129,10 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         Items.Add(mind.Pack, Resource.Birch, 4);
         mind.Knows.Places[camp] = new TileMemory
         {
-            SeenMinute = w.Minute - 2 * 1440, VisitedMinute = w.Minute - 2 * 1440, Fire = FirePhase.Roaring, FireHours = 3,
+            SeenMinute = w.Minute - 2 * 1440,
+            VisitedMinute = w.Minute - 2 * 1440,
+            Fire = FirePhase.Roaring,
+            FireHours = 3,
             Shelter = shelter ? "a lean-to" : null,
         };
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);

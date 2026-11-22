@@ -164,8 +164,15 @@ public class MapTests
             for (int y = 0; y < m.Height; y++) counts[m.TerrainAt(new(x, y))] = counts.GetValueOrDefault(m.TerrainAt(new(x, y))) + 1;
         var old = new Dictionary<Terrain, int>
         {
-            [Terrain.Forest] = 2085, [Terrain.Clearing] = 74, [Terrain.Plain] = 2197, [Terrain.Hills] = 33, [Terrain.Water] = 86,
-            [Terrain.Marsh] = 261, [Terrain.Rock] = 361, [Terrain.Mountain] = 12912, [Terrain.DeepWater] = 359,
+            [Terrain.Forest] = 2085,
+            [Terrain.Clearing] = 74,
+            [Terrain.Plain] = 2197,
+            [Terrain.Hills] = 33,
+            [Terrain.Water] = 86,
+            [Terrain.Marsh] = 261,
+            [Terrain.Rock] = 361,
+            [Terrain.Mountain] = 12912,
+            [Terrain.DeepWater] = 359,
         };
         Assert.Equal(old.OrderBy(k => k.Key), counts.OrderBy(k => k.Key));
     }

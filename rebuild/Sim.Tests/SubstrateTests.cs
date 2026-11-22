@@ -186,8 +186,12 @@ public class SubstrateTests
             {
                 string? kind = s.Kind switch
                 {
-                    SignKind.Carcass => "carcass", SignKind.Stash => "stash", SignKind.FirePit => "fire pit", SignKind.Shelter => "shelter",
-                    SignKind.Prints => "tracks", SignKind.Body when s.Thing.Index != P.Value => "body",
+                    SignKind.Carcass => "carcass",
+                    SignKind.Stash => "stash",
+                    SignKind.FirePit => "fire pit",
+                    SignKind.Shelter => "shelter",
+                    SignKind.Prints => "tracks",
+                    SignKind.Body when s.Thing.Index != P.Value => "body",
                     SignKind.Trail when s.Thing.TrailDirection is Direction.East or Direction.South => "trail",
                     _ => null,
                 };

@@ -85,8 +85,13 @@ public static class Carcasses
         foreach (var r in y.Keys.ToList()) y[r] *= ThoroughFactor(r);
         var c = new Carcass
         {
-            Id = world.NextCarcassId++, Animal = animal, BodyWeightKg = body.WeightKg,
-            DiedMinute = diedMinute, LastUpdatedMinute = diedMinute, Remaining = y, Cause = cause,
+            Id = world.NextCarcassId++,
+            Animal = animal,
+            BodyWeightKg = body.WeightKg,
+            DiedMinute = diedMinute,
+            LastUpdatedMinute = diedMinute,
+            Remaining = y,
+            Cause = cause,
             FleshAtDeathKg = y[Resource.RawMeat] + y[Resource.RawFat],
         };
         return Put(world, tile, c);
@@ -96,8 +101,14 @@ public static class Carcasses
     public static Carcass Bones(World world, TileId tile, string animal, double bodyWeightKg, double boneKg, long diedMinute, Cause cause, double effectiveHours) =>
         Put(world, tile, new Carcass
         {
-            Id = world.NextCarcassId++, Animal = animal, BodyWeightKg = bodyWeightKg, DiedMinute = diedMinute, Cause = cause,
-            EffectiveHours = effectiveHours, LastUpdatedMinute = world.Minute, Remaining = new() { [Resource.Bone] = boneKg },
+            Id = world.NextCarcassId++,
+            Animal = animal,
+            BodyWeightKg = bodyWeightKg,
+            DiedMinute = diedMinute,
+            Cause = cause,
+            EffectiveHours = effectiveHours,
+            LastUpdatedMinute = world.Minute,
+            Remaining = new() { [Resource.Bone] = boneKg },
         });
 
     static Carcass Put(World world, TileId tile, Carcass c)

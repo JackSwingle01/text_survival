@@ -55,44 +55,44 @@ public static class Outcomes
             {
                 case "waste_material":
                 case "save_material":
-                {
-                    var inputs = Alternatives("resource").Select(r => Named<Resource>(line, r)).ToList();
-                    double share = Share(line, Param("share"));
-                    effects.Add([.. inputs.Select(r => name == "waste_material" ? (Effect)new WasteMaterial(r, share) : new SaveMaterial(r, share))]);
-                    break;
-                }
-                case "extra_product":
-                {
-                    var what = Alternatives("item or resource");
-                    double n = Number(line, Param("amount"));
-                    if (n <= 0) throw Bad(line, $"extra_product amount {n}");
-                    effects.Add([.. what.Select(w => (Effect)new ExtraProduct(w, n))]);
-                    break;
-                }
-                case "injury":
-                {
-                    var parts = Alternatives("body part").Select(p => Named<BodyTarget>(line, p)).ToList();
-                    double damage = Share(line, Param("damage"));
-                    effects.Add([.. parts.Select(p => (Effect)new Injury(p, damage))]);
-                    break;
-                }
-                case "break_tool":
-                {
-                    var caps = Alternatives("capability").Select(c => Named<Capability>(line, c)).ToList();
-                    if (caps.Contains(Capability.None)) throw Bad(line, "break_tool names no capability");
-                    // An amount is optional: the next token is one only if it is a number.
-                    int? uses = null;
-                    if (i < tokens.Length && int.TryParse(tokens[i], NumberStyles.None, CultureInfo.InvariantCulture, out int n))
                     {
-                        if (n <= 0) throw Bad(line, $"break_tool loses {n} uses");
-                        uses = n;
-                        i++;
+                        var inputs = Alternatives("resource").Select(r => Named<Resource>(line, r)).ToList();
+                        double share = Share(line, Param("share"));
+                        effects.Add([.. inputs.Select(r => name == "waste_material" ? (Effect)new WasteMaterial(r, share) : new SaveMaterial(r, share))]);
+                        break;
                     }
-                    else if (i < tokens.Length && double.TryParse(tokens[i], NumberStyles.Float, CultureInfo.InvariantCulture, out _))
-                        throw Bad(line, $"break_tool loses whole uses, not {tokens[i]}");
-                    effects.Add([.. caps.Select(c => (Effect)new BreakTool(c, uses))]);
-                    break;
-                }
+                case "extra_product":
+                    {
+                        var what = Alternatives("item or resource");
+                        double n = Number(line, Param("amount"));
+                        if (n <= 0) throw Bad(line, $"extra_product amount {n}");
+                        effects.Add([.. what.Select(w => (Effect)new ExtraProduct(w, n))]);
+                        break;
+                    }
+                case "injury":
+                    {
+                        var parts = Alternatives("body part").Select(p => Named<BodyTarget>(line, p)).ToList();
+                        double damage = Share(line, Param("damage"));
+                        effects.Add([.. parts.Select(p => (Effect)new Injury(p, damage))]);
+                        break;
+                    }
+                case "break_tool":
+                    {
+                        var caps = Alternatives("capability").Select(c => Named<Capability>(line, c)).ToList();
+                        if (caps.Contains(Capability.None)) throw Bad(line, "break_tool names no capability");
+                        // An amount is optional: the next token is one only if it is a number.
+                        int? uses = null;
+                        if (i < tokens.Length && int.TryParse(tokens[i], NumberStyles.None, CultureInfo.InvariantCulture, out int n))
+                        {
+                            if (n <= 0) throw Bad(line, $"break_tool loses {n} uses");
+                            uses = n;
+                            i++;
+                        }
+                        else if (i < tokens.Length && double.TryParse(tokens[i], NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+                            throw Bad(line, $"break_tool loses whole uses, not {tokens[i]}");
+                        effects.Add([.. caps.Select(c => (Effect)new BreakTool(c, uses))]);
+                        break;
+                    }
                 default: throw Bad(line, $"no effect '{name}'");
             }
         }
@@ -203,17 +203,17 @@ public static class Making
         switch (activity)
         {
             case Make m:
-            {
-                var r = Recipes.Get(m.Recipe);
-                bool begun = ProjectFor(pack, r.Id) != null;
-                if (!begun && MissingMaterial(pack, r) is string material) return material;
-                return MissingTool(pack, r, begun) ?? Unmet(world, agent, r);
-            }
+                {
+                    var r = Recipes.Get(m.Recipe);
+                    bool begun = ProjectFor(pack, r.Id) != null;
+                    if (!begun && MissingMaterial(pack, r) is string material) return material;
+                    return MissingTool(pack, r, begun) ?? Unmet(world, agent, r);
+                }
             case Abandon a:
-            {
-                var r = Recipes.Get(a.Recipe);
-                return ProjectFor(pack, r.Id) == null ? $"you have no unfinished {r.Name.ToLowerInvariant()}" : null;
-            }
+                {
+                    var r = Recipes.Get(a.Recipe);
+                    return ProjectFor(pack, r.Id) == null ? $"you have no unfinished {r.Name.ToLowerInvariant()}" : null;
+                }
             default: throw new NotSupportedException($"{activity.GetType().Name} is not making");
         }
     }
@@ -310,44 +310,44 @@ public static class Making
         switch (activity)
         {
             case Make m when ProjectFor(pack, m.Recipe) == null:
-            {
-                var r = Recipes.Get(m.Recipe);
-                var p = new MakeProject { Recipe = r.Id };
-                foreach (var g in ItemsToConsume(pack, r))
                 {
-                    pack.Gear.Remove(g);
-                    p.Materials.Gear.Add(g);
-                }
-                foreach (var input in r.Materials)
-                {
-                    double left = input.Kg;
-                    foreach (var res in input.AnyOf)
+                    var r = Recipes.Get(m.Recipe);
+                    var p = new MakeProject { Recipe = r.Id };
+                    foreach (var g in ItemsToConsume(pack, r))
                     {
-                        if (left <= 0) break;
-                        double took = Items.Take(pack, res, left);
-                        Items.Add(p.Materials, res, took);
-                        left -= took;
+                        pack.Gear.Remove(g);
+                        p.Materials.Gear.Add(g);
                     }
+                    foreach (var input in r.Materials)
+                    {
+                        double left = input.Kg;
+                        foreach (var res in input.AnyOf)
+                        {
+                            if (left <= 0) break;
+                            double took = Items.Take(pack, res, left);
+                            Items.Add(p.Materials, res, took);
+                            left -= took;
+                        }
+                    }
+                    (pack.Projects ??= []).Add(p);
+                    break;
                 }
-                (pack.Projects ??= []).Add(p);
-                break;
-            }
             case Make: break; // going on with it
             case Abandon a:
-            {
-                var p = ProjectFor(pack, a.Recipe)!;
-                RemoveProject(pack, p);
-                var back = new Inventory { Gear = [.. p.Materials.Gear] };
-                var lost = new SortedDictionary<Resource, double>();
-                foreach (var (res, kg) in p.Materials.Kg)
                 {
-                    Items.Add(back, res, kg * AbandonReclaimPct);
-                    lost[res] = kg - kg * AbandonReclaimPct;
+                    var p = ProjectFor(pack, a.Recipe)!;
+                    RemoveProject(pack, p);
+                    var back = new Inventory { Gear = [.. p.Materials.Gear] };
+                    var lost = new SortedDictionary<Resource, double>();
+                    foreach (var (res, kg) in p.Materials.Kg)
+                    {
+                        Items.Add(back, res, kg * AbandonReclaimPct);
+                        lost[res] = kg - kg * AbandonReclaimPct;
+                    }
+                    Items.Receive(world, agent, back, events);
+                    events.Add(new ProjectAbandoned(world.Minute, agent.Id, agent.Tile, a.Recipe, lost));
+                    break;
                 }
-                Items.Receive(world, agent, back, events);
-                events.Add(new ProjectAbandoned(world.Minute, agent.Id, agent.Tile, a.Recipe, lost));
-                break;
-            }
         }
     }
 
@@ -459,12 +459,12 @@ public static class Making
                     for (int i = 0; i < (int)x.Amount; i++) { gained.Gear.Add(Items.Make(x.What)); extraGear.Add(x.What); }
                     break;
                 case ExtraProduct x:
-                {
-                    var res = Enum.Parse<Resource>(x.What);
-                    Items.Add(gained, res, x.Amount);
-                    produced[res] = produced.GetValueOrDefault(res) + x.Amount;
-                    break;
-                }
+                    {
+                        var res = Enum.Parse<Resource>(x.What);
+                        Items.Add(gained, res, x.Amount);
+                        produced[res] = produced.GetValueOrDefault(res) + x.Amount;
+                        break;
+                    }
                 case BreakTool b when used.TryGetValue(b.Capability, out var tool):
                     if (b.Uses is not int uses) tool.Durability = 0;
                     else for (int i = 0; i < uses; i++) Items.Use(tool);

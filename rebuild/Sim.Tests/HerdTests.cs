@@ -395,8 +395,14 @@ public class HerdTests(ITestOutputHelper output)
             Assert.True(MapGen.Manhattan(h.Tile, m.Camp) > Fauna.SafeZoneTiles, $"{h.Species} starts {MapGen.Manhattan(h.Tile, m.Camp)} tiles from camp");
             var (min, max) = h.Species switch
             {
-                Species.Wolf => (3, 80), Species.Bear or Species.CaveBear => (3, 128), Species.Caribou => (6, 192),
-                Species.Megaloceros => (3, 96), Species.Bison => (3, 400), Species.Homotherium => (4, 160), Species.Raven => (3, 250), _ => (3, 112),
+                Species.Wolf => (3, 80),
+                Species.Bear or Species.CaveBear => (3, 128),
+                Species.Caribou => (6, 192),
+                Species.Megaloceros => (3, 96),
+                Species.Bison => (3, 400),
+                Species.Homotherium => (4, 160),
+                Species.Raven => (3, 250),
+                _ => (3, 112),
             };
             Assert.InRange(land.Count, min, max);
             Assert.InRange(h.Members.Count, 1, 15);
@@ -446,8 +452,11 @@ public class HerdTests(ITestOutputHelper output)
             var herd = Agents.Spawn(w, doing == "patrolling" ? Species.Wolf : Species.Caribou, tile, 4);
             Mind(w, herd).State = doing switch
             {
-                "grazing" => HerdState.Grazing, "feeding" => HerdState.Feeding, "fleeing" => HerdState.Fleeing,
-                "patrolling" => HerdState.Patrolling, _ => HerdState.Resting,
+                "grazing" => HerdState.Grazing,
+                "feeding" => HerdState.Feeding,
+                "fleeing" => HerdState.Fleeing,
+                "patrolling" => HerdState.Patrolling,
+                _ => HerdState.Resting,
             };
             if (doing == "fearful") Mind(w, herd).Fear = 0.8;
             if (doing == "wounded") w.Agent(herd).Members[0].BloodPct = 0.9;
@@ -1027,8 +1036,16 @@ public class TerritorySweepTests(ITestOutputHelper output)
 {
     static readonly IReadOnlyDictionary<Species, int> Floor = new Dictionary<Species, int>
     {
-        [Species.Bison] = 80, [Species.Megaloceros] = 40, [Species.Caribou] = 100, [Species.Homotherium] = 80,
-        [Species.Wolf] = 20, [Species.Bear] = 40, [Species.Mammoth] = 150, [Species.CaveBear] = 3, [Species.Hyena] = 3, [Species.Raven] = 100,
+        [Species.Bison] = 80,
+        [Species.Megaloceros] = 40,
+        [Species.Caribou] = 100,
+        [Species.Homotherium] = 80,
+        [Species.Wolf] = 20,
+        [Species.Bear] = 40,
+        [Species.Mammoth] = 150,
+        [Species.CaveBear] = 3,
+        [Species.Hyena] = 3,
+        [Species.Raven] = 100,
     };
 
     [Fact]

@@ -22,22 +22,28 @@ public class CombatStateTests
 
     // ---- the margin bands, one threshold each ----
 
-    [Fact] public void Standoff_PressesFromPlusPoint2() =>
+    [Fact]
+    public void Standoff_PressesFromPlusPoint2() =>
         Assert.Equal((FighterState.Standoff, FighterState.Pressing), (Combat.NextState(FighterState.Standoff, 0.19), Combat.NextState(FighterState.Standoff, 0.2)));
 
-    [Fact] public void Pressing_HoldsDownTo0_ThenStandsOff() =>
+    [Fact]
+    public void Pressing_HoldsDownTo0_ThenStandsOff() =>
         Assert.Equal((FighterState.Pressing, FighterState.Standoff), (Combat.NextState(FighterState.Pressing, 0.0), Combat.NextState(FighterState.Pressing, -0.01)));
 
-    [Fact] public void Standoff_GivesGroundBelowMinusPoint3() =>
+    [Fact]
+    public void Standoff_GivesGroundBelowMinusPoint3() =>
         Assert.Equal((FighterState.Standoff, FighterState.GivingGround), (Combat.NextState(FighterState.Standoff, -0.3), Combat.NextState(FighterState.Standoff, -0.31)));
 
-    [Fact] public void GivingGround_RecoversAboveMinusPoint1() =>
+    [Fact]
+    public void GivingGround_RecoversAboveMinusPoint1() =>
         Assert.Equal((FighterState.GivingGround, FighterState.Standoff), (Combat.NextState(FighterState.GivingGround, -0.1), Combat.NextState(FighterState.GivingGround, -0.09)));
 
-    [Fact] public void AnyStand_RunsBelowMinusPoint8() =>
+    [Fact]
+    public void AnyStand_RunsBelowMinusPoint8() =>
         Assert.Equal((FighterState.GivingGround, FighterState.Fleeing), (Combat.NextState(FighterState.GivingGround, -0.8), Combat.NextState(FighterState.Pressing, -0.81)));
 
-    [Fact] public void Fleeing_RecoversAboveMinusPoint4_ToGivingGround() =>
+    [Fact]
+    public void Fleeing_RecoversAboveMinusPoint4_ToGivingGround() =>
         Assert.Equal((FighterState.Fleeing, FighterState.GivingGround), (Combat.NextState(FighterState.Fleeing, -0.4), Combat.NextState(FighterState.Fleeing, -0.39)));
 
     // ---- alertness, one threshold each ----

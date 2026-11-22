@@ -170,27 +170,27 @@ public static class Tags
         switch (def)
         {
             case ForagePool f:
-            {
-                var tags = Tag.Harvestable;
-                if (f.Items.Any(i => Items.Resources[i.Resource].Category == ResourceCategory.Food)) tags |= Tag.Edible;
-                if (f.Items.Any(i => Fire.IsFuel(i.Resource))) tags |= Tag.Burnable;
-                if (Pools.ForageDensity(world, id) < f.Density * DepletedForagePct) tags |= Tag.Depleted;
-                return tags;
-            }
+                {
+                    var tags = Tag.Harvestable;
+                    if (f.Items.Any(i => Items.Resources[i.Resource].Category == ResourceCategory.Food)) tags |= Tag.Edible;
+                    if (f.Items.Any(i => Fire.IsFuel(i.Resource))) tags |= Tag.Burnable;
+                    if (Pools.ForageDensity(world, id) < f.Density * DepletedForagePct) tags |= Tag.Depleted;
+                    return tags;
+                }
             case TreePool:
                 return Pools.HasTrees(world, id) ? Tag.Harvestable | Tag.Burnable : Tag.Depleted;
             case StockPool s:
-            {
-                var units = Pools.UnitsNow(world, id);
-                var tags = units.Any(u => u > 0) ? Tag.Harvestable : Tag.Depleted;
-                for (int i = 0; i < s.Items.Count; i++)
                 {
-                    if (units[i] <= 0) continue;
-                    if (Items.Resources[s.Items[i].Resource].Category == ResourceCategory.Food) tags |= Tag.Edible;
-                    if (Fire.IsFuel(s.Items[i].Resource)) tags |= Tag.Burnable;
+                    var units = Pools.UnitsNow(world, id);
+                    var tags = units.Any(u => u > 0) ? Tag.Harvestable : Tag.Depleted;
+                    for (int i = 0; i < s.Items.Count; i++)
+                    {
+                        if (units[i] <= 0) continue;
+                        if (Items.Resources[s.Items[i].Resource].Category == ResourceCategory.Food) tags |= Tag.Edible;
+                        if (Fire.IsFuel(s.Items[i].Resource)) tags |= Tag.Burnable;
+                    }
+                    return tags | BuriedUnder(world, id.Tile, Pools.IsHidden(s) ? s.PlacementHeightM : null);
                 }
-                return tags | BuriedUnder(world, id.Tile, Pools.IsHidden(s) ? s.PlacementHeightM : null);
-            }
             case ShelterFind f:
                 return Tag.Sheltering | BuriedUnder(world, id.Tile, f.PlacementHeightM);
             default:

@@ -58,7 +58,10 @@ public sealed class GameHost
 
     static Direction Heading(string? d) => d switch
     {
-        "N" => Direction.North, "E" => Direction.East, "S" => Direction.South, "W" => Direction.West,
+        "N" => Direction.North,
+        "E" => Direction.East,
+        "S" => Direction.South,
+        "W" => Direction.West,
         _ => throw new ArgumentException($"No direction '{d}'"),
     };
 
@@ -73,11 +76,11 @@ public sealed class GameHost
 
         var tiles = new List<string>();
         for (int dy = -Radius; dy <= Radius; dy++)
-        for (int dx = -Radius; dx <= Radius; dx++)
-        {
-            var t = new TileId(p.Tile.X + dx, p.Tile.Y + dy);
-            tiles.Add(!map.InBounds(t) ? "" : map.CaveAt(t) != Cave.None ? "cavefloor" : map.TerrainAt(t).ToString().ToLowerInvariant());
-        }
+            for (int dx = -Radius; dx <= Radius; dx++)
+            {
+                var t = new TileId(p.Tile.X + dx, p.Tile.Y + dy);
+                tiles.Add(!map.InBounds(t) ? "" : map.CaveAt(t) != Cave.None ? "cavefloor" : map.TerrainAt(t).ToString().ToLowerInvariant());
+            }
 
         var marks = new List<MarkDto>();
         foreach (var agent in w.Agents.Values)
@@ -95,8 +98,10 @@ public sealed class GameHost
             if (Math.Abs(dx) <= Radius && Math.Abs(dy) <= Radius)
                 marks.Add(new MarkDto(dx, dy, Fire.Burns(Fire.Phase(f)) ? "fire" : "embers"));
         }
-        { int dx = map.Camp.X - p.Tile.X, dy = map.Camp.Y - p.Tile.Y;
-          if (Math.Abs(dx) <= Radius && Math.Abs(dy) <= Radius) marks.Add(new MarkDto(dx, dy, "shelter")); }
+        {
+            int dx = map.Camp.X - p.Tile.X, dy = map.Camp.Y - p.Tile.Y;
+            if (Math.Abs(dx) <= Radius && Math.Abs(dy) <= Radius) marks.Add(new MarkDto(dx, dy, "shelter"));
+        }
 
         return new ViewDto(
             Clock: new ClockDto(Weather.DayNumber(w.Minute), $"{mod / 60}:{mod % 60:00}", Weather.SeasonAt(w.Minute).ToString(),

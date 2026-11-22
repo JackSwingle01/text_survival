@@ -170,9 +170,18 @@ public class ConservationFireTests
 
     static FireState Copy(FireState f) => new()
     {
-        Tile = f.Tile, LastUpdatedMinute = f.LastUpdatedMinute, Pit = f.Pit, UnburnedKg = new(f.UnburnedKg), BurningKg = new(f.BurningKg),
-        HasEmbers = f.HasEmbers, EmberDurationHours = f.EmberDurationHours, EmberHoursRemaining = f.EmberHoursRemaining,
-        EmberStartTempF = f.EmberStartTempF, LastBurningTempF = f.LastBurningTempF, BurnedSinceLitKg = f.BurnedSinceLitKg, CharcoalKg = f.CharcoalKg,
+        Tile = f.Tile,
+        LastUpdatedMinute = f.LastUpdatedMinute,
+        Pit = f.Pit,
+        UnburnedKg = new(f.UnburnedKg),
+        BurningKg = new(f.BurningKg),
+        HasEmbers = f.HasEmbers,
+        EmberDurationHours = f.EmberDurationHours,
+        EmberHoursRemaining = f.EmberHoursRemaining,
+        EmberStartTempF = f.EmberStartTempF,
+        LastBurningTempF = f.LastBurningTempF,
+        BurnedSinceLitKg = f.BurnedSinceLitKg,
+        CharcoalKg = f.CharcoalKg,
     };
 
     /// Minutes of flame, and minutes until the last ember is cold, left as it is.

@@ -88,39 +88,39 @@ public static class Work
         switch (activity)
         {
             case Gather g:
-            {
-                var pools = Pools.At(world, agent.Tile);
-                if (g.Pool < 0 || g.Pool >= pools.Count) return "nothing like that here";
-                var id = new PoolId(agent.Tile, g.Pool);
-                if (!Pools.Knows(world, agent.Id, id)) return "nothing like that here"; // a hidden pool names nothing yet
-                if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Pool, agent.Tile, g.Pool)) is string barred) return barred;
-                var def = pools[g.Pool];
-                if (NeedsLight(world, agent, activity) && TooDarkToWork(world, agent)) return TooDark;
-                return def switch
                 {
-                    ForagePool => null,
-                    TreePool when !Pools.HasTrees(world, id) => "all the trees here have been felled",
-                    TreePool => Items.Tool(pack, ToolType.Axe) == null ? "you need an axe to fell trees" : null,
-                    ShelterFind f => $"the {f.Name} is shelter, not something to gather",
-                    StockPool s when !Pools.HasStock(world, id) => $"the {s.Name} is picked clean",
-                    // The tool a harvestable requires is checked for everyone.
-                    StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => $"you need {Names.A(Names.Of(t))}",
-                    _ => null,
-                };
-            }
+                    var pools = Pools.At(world, agent.Tile);
+                    if (g.Pool < 0 || g.Pool >= pools.Count) return "nothing like that here";
+                    var id = new PoolId(agent.Tile, g.Pool);
+                    if (!Pools.Knows(world, agent.Id, id)) return "nothing like that here"; // a hidden pool names nothing yet
+                    if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Pool, agent.Tile, g.Pool)) is string barred) return barred;
+                    var def = pools[g.Pool];
+                    if (NeedsLight(world, agent, activity) && TooDarkToWork(world, agent)) return TooDark;
+                    return def switch
+                    {
+                        ForagePool => null,
+                        TreePool when !Pools.HasTrees(world, id) => "all the trees here have been felled",
+                        TreePool => Items.Tool(pack, ToolType.Axe) == null ? "you need an axe to fell trees" : null,
+                        ShelterFind f => $"the {f.Name} is shelter, not something to gather",
+                        StockPool s when !Pools.HasStock(world, id) => $"the {s.Name} is picked clean",
+                        // The tool a harvestable requires is checked for everyone.
+                        StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => $"you need {Names.A(Names.Of(t))}",
+                        _ => null,
+                    };
+                }
             case Butcher b:
-            {
-                var c = Carcasses.Find(world, agent.Tile, b.Carcass);
-                if (c == null) return "no such carcass here";
-                if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Carcass, agent.Tile, c.Id)) is string barred) return barred;
-                if (Carcasses.IsButchered(c)) return "there's nothing left to butcher";
-                if (b.Mode is ButcherMode asked && c.Mode is ButcherMode started && asked != started)
-                    return $"this carcass is being butchered {Names.Of(started)}, not {Names.Of(asked)}";
-                bool blade = Items.HasCuttingTool(pack);
-                if (Carcasses.AllCut(c, blade) && c.Pending.Count == 0) return NeedsABlade;
-                if (Carcasses.AllCut(c, blade) && Items.CarriedKg(agent) >= Items.CapacityKg(pack)) return PackFull;
-                return NeedsLight(world, agent, activity) && TooDarkToWork(world, agent) ? TooDark : null;
-            }
+                {
+                    var c = Carcasses.Find(world, agent.Tile, b.Carcass);
+                    if (c == null) return "no such carcass here";
+                    if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Carcass, agent.Tile, c.Id)) is string barred) return barred;
+                    if (Carcasses.IsButchered(c)) return "there's nothing left to butcher";
+                    if (b.Mode is ButcherMode asked && c.Mode is ButcherMode started && asked != started)
+                        return $"this carcass is being butchered {Names.Of(started)}, not {Names.Of(asked)}";
+                    bool blade = Items.HasCuttingTool(pack);
+                    if (Carcasses.AllCut(c, blade) && c.Pending.Count == 0) return NeedsABlade;
+                    if (Carcasses.AllCut(c, blade) && Items.CarriedKg(agent) >= Items.CapacityKg(pack)) return PackFull;
+                    return NeedsLight(world, agent, activity) && TooDarkToWork(world, agent) ? TooDark : null;
+                }
             case Eat e:
                 if (e.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), e.Kg, "Eat a positive amount");
                 if (Items.Resources[e.Food].Category != ResourceCategory.Food) return $"{Names.Cap(Names.Of(e.Food))} is not food";
@@ -187,68 +187,68 @@ public static class Work
             case Gather g:
                 return new WorkSession { Activity = activity, Pool = new PoolId(agent.Tile, g.Pool) };
             case Butcher b:
-            {
-                var c = Carcasses.Find(world, agent.Tile, b.Carcass)!;
-                c.Mode ??= b.Mode ?? ButcherMode.Careful;
-                return new WorkSession { Activity = activity };
-            }
-            case Eat e:
-            {
-                double kg = Items.Take(pack, e.Food, e.Kg);
-                var def = Items.Resources[e.Food];
-                double kcal = kg * def.KcalPerKg;
-                Body.Eat(body, kcal);
-                body.HydrationMl = Math.Clamp(body.HydrationMl + kg * def.HydrationMlPerKg, 0, Body.MaxHydrationMl);
-                events.Add(new Ate(world.Minute, agent.Id, agent.Tile, e.Food, kg, kcal));
-                return new WorkSession { Activity = activity, TargetMinutes = EatMinutes };
-            }
-            case Drink d:
-            {
-                double room = (Body.MaxHydrationMl - body.HydrationMl) / 1000;
-                double liters = Math.Round(Math.Min(Math.Min(d.Liters, MaxDrinkLiters), room), 2);
-                if (Items.Have(pack, Resource.Water) > 0) liters = Items.Take(pack, Resource.Water, liters);
-                Body.Drink(body, liters * 1000);
-                // Cold water takes the edge off overheating.
-                if (body.Effects.FirstOrDefault(x => x.Kind == EffectKind.Hyperthermia) is { } hot)
-                    hot.Severity = Math.Max(0, hot.Severity - 0.15 * (liters / 0.25));
-                events.Add(new Drank(world.Minute, agent.Id, agent.Tile, liters));
-                return new WorkSession { Activity = activity, TargetMinutes = DrinkMinutes };
-            }
-            case Stash s:
-            {
-                double kg = Items.Take(pack, s.Resource, s.Kg);
-                Items.Add(Items.StashAt(world, agent.Tile, new Cause(agent.Id, $"stashed by {Cause.Describe(world, agent.Id)}")), s.Resource, kg);
-                events.Add(new Stashed(world.Minute, agent.Id, agent.Tile, s.Resource, kg));
-                return new WorkSession { Activity = activity };
-            }
-            case Unstash u:
-            {
-                double kg = Items.TakeFromStash(world, agent.Tile, u.Resource, Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent)));
-                Items.Add(pack, u.Resource, kg);
-                bool taken = agent.Mind is not PersonMind || Knowledge.CampOf(world, agent) != agent.Tile;
-                events.Add(new Unstashed(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken));
-                return new WorkSession { Activity = activity };
-            }
-            case Wear w:
-            {
-                var gear = pack.Gear.First(x => x.Kind == w.Gear);
-                var slot = Items.Def(gear).Slot!.Value;
-                pack.Gear.Remove(gear);
-                foreach (var off in body.Worn.Where(x => Items.Def(x).Slot == slot).ToList())
                 {
+                    var c = Carcasses.Find(world, agent.Tile, b.Carcass)!;
+                    c.Mode ??= b.Mode ?? ButcherMode.Careful;
+                    return new WorkSession { Activity = activity };
+                }
+            case Eat e:
+                {
+                    double kg = Items.Take(pack, e.Food, e.Kg);
+                    var def = Items.Resources[e.Food];
+                    double kcal = kg * def.KcalPerKg;
+                    Body.Eat(body, kcal);
+                    body.HydrationMl = Math.Clamp(body.HydrationMl + kg * def.HydrationMlPerKg, 0, Body.MaxHydrationMl);
+                    events.Add(new Ate(world.Minute, agent.Id, agent.Tile, e.Food, kg, kcal));
+                    return new WorkSession { Activity = activity, TargetMinutes = EatMinutes };
+                }
+            case Drink d:
+                {
+                    double room = (Body.MaxHydrationMl - body.HydrationMl) / 1000;
+                    double liters = Math.Round(Math.Min(Math.Min(d.Liters, MaxDrinkLiters), room), 2);
+                    if (Items.Have(pack, Resource.Water) > 0) liters = Items.Take(pack, Resource.Water, liters);
+                    Body.Drink(body, liters * 1000);
+                    // Cold water takes the edge off overheating.
+                    if (body.Effects.FirstOrDefault(x => x.Kind == EffectKind.Hyperthermia) is { } hot)
+                        hot.Severity = Math.Max(0, hot.Severity - 0.15 * (liters / 0.25));
+                    events.Add(new Drank(world.Minute, agent.Id, agent.Tile, liters));
+                    return new WorkSession { Activity = activity, TargetMinutes = DrinkMinutes };
+                }
+            case Stash s:
+                {
+                    double kg = Items.Take(pack, s.Resource, s.Kg);
+                    Items.Add(Items.StashAt(world, agent.Tile, new Cause(agent.Id, $"stashed by {Cause.Describe(world, agent.Id)}")), s.Resource, kg);
+                    events.Add(new Stashed(world.Minute, agent.Id, agent.Tile, s.Resource, kg));
+                    return new WorkSession { Activity = activity };
+                }
+            case Unstash u:
+                {
+                    double kg = Items.TakeFromStash(world, agent.Tile, u.Resource, Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent)));
+                    Items.Add(pack, u.Resource, kg);
+                    bool taken = agent.Mind is not PersonMind || Knowledge.CampOf(world, agent) != agent.Tile;
+                    events.Add(new Unstashed(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken));
+                    return new WorkSession { Activity = activity };
+                }
+            case Wear w:
+                {
+                    var gear = pack.Gear.First(x => x.Kind == w.Gear);
+                    var slot = Items.Def(gear).Slot!.Value;
+                    pack.Gear.Remove(gear);
+                    foreach (var off in body.Worn.Where(x => Items.Def(x).Slot == slot).ToList())
+                    {
+                        body.Worn.Remove(off);
+                        pack.Gear.Add(off);
+                    }
+                    body.Worn.Add(gear);
+                    return new WorkSession { Activity = activity };
+                }
+            case TakeOff t:
+                {
+                    var off = body.Worn.First(x => x.Kind == t.Gear);
                     body.Worn.Remove(off);
                     pack.Gear.Add(off);
+                    return new WorkSession { Activity = activity };
                 }
-                body.Worn.Add(gear);
-                return new WorkSession { Activity = activity };
-            }
-            case TakeOff t:
-            {
-                var off = body.Worn.First(x => x.Kind == t.Gear);
-                body.Worn.Remove(off);
-                pack.Gear.Add(off);
-                return new WorkSession { Activity = activity };
-            }
             case Cook or MeltSnow:
                 return new WorkSession { Activity = activity };
             default:
@@ -274,55 +274,55 @@ public static class Work
         switch (s.Activity)
         {
             case Gather g:
-            {
-                var id = s.Pool!.Value;
-                switch (Pools.Def(world, id))
                 {
-                    case ForagePool:
+                    var id = s.Pool!.Value;
+                    switch (Pools.Def(world, id))
                     {
-                        // This minute's eyes, light, tools and skill, as impairment is: not fixed when the step began.
-                        double perception = Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent));
-                        double yieldFactor = ForageYield(agent, pack, perception).TotalPct;
-                        var rng = world.Rng("work", agent.Id);
-                        var finds = Pools.Forage(world, id, effective / 60.0, rng);
-                        var got = new Inventory();
-                        foreach (var (r, kg) in Focus(finds, g.Focus, rng)) Items.Add(got, r, kg * yieldFactor);
-                        Keep(world, agent, s, got, events);
-                        Pools.Search(world, agent, perception / 60.0, events);
-                        Skills.Award(world, agent, Skill.Foraging, Skills.ForageXpPerHour / 60, events);
-                        return null;
+                        case ForagePool:
+                            {
+                                // This minute's eyes, light, tools and skill, as impairment is: not fixed when the step began.
+                                double perception = Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent));
+                                double yieldFactor = ForageYield(agent, pack, perception).TotalPct;
+                                var rng = world.Rng("work", agent.Id);
+                                var finds = Pools.Forage(world, id, effective / 60.0, rng);
+                                var got = new Inventory();
+                                foreach (var (r, kg) in Focus(finds, g.Focus, rng)) Items.Add(got, r, kg * yieldFactor);
+                                Keep(world, agent, s, got, events);
+                                Pools.Search(world, agent, perception / 60.0, events);
+                                Skills.Award(world, agent, Skill.Foraging, Skills.ForageXpPerHour / 60, events);
+                                return null;
+                            }
+                        case TreePool:
+                            if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
+                            Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
+                            if (Pools.Chop(world, id, effective, world.Rng("work", agent.Id)) is not { } tree) return null;
+                            Keep(world, agent, s, tree, events);
+                            events.Add(new TreeFelled(world.Minute, agent.Id, id));
+                            return TreeFelled;
+                        case StockPool stock:
+                            Keep(world, agent, s, Pools.WorkStock(world, id, effective), events);
+                            return Pools.HasStock(world, id) ? null : $"the {stock.Name} is picked clean";
+                        default:
+                            throw new NotSupportedException("Unknown pool kind");
                     }
-                    case TreePool:
-                        if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
-                        Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
-                        if (Pools.Chop(world, id, effective, world.Rng("work", agent.Id)) is not { } tree) return null;
-                        Keep(world, agent, s, tree, events);
-                        events.Add(new TreeFelled(world.Minute, agent.Id, id));
-                        return TreeFelled;
-                    case StockPool stock:
-                        Keep(world, agent, s, Pools.WorkStock(world, id, effective), events);
-                        return Pools.HasStock(world, id) ? null : $"the {stock.Name} is picked clean";
-                    default:
-                        throw new NotSupportedException("Unknown pool kind");
                 }
-            }
             case Eat:
                 return s.Minutes >= s.TargetMinutes ? Ate : null;
             case Drink:
                 return s.Minutes >= s.TargetMinutes ? Drank : null;
             case Cook c:
-            {
-                if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
-                // A piece (about a kilo) of meat in 15 minutes, of fish in 12.
-                // A practised cook turns it sooner: less time over the fire (Skills).
-                double perMinute = 1.0 / (c.Raw == Resource.RawFish ? CookFishMinutesPerKg : CookMeatMinutesPerKg)
-                    * Skills.CookSpeedFactor(Skills.Level(agent, Skill.Cooking));
-                double kg = Items.Take(pack, c.Raw, Math.Min(perMinute, c.Kg - s.DoneKg));
-                Items.Add(pack, Cooked(c.Raw)!.Value, kg);
-                s.DoneKg += kg;
-                Skills.Award(world, agent, Skill.Cooking, kg * Skills.CookXpPerKg, events);
-                return s.DoneKg >= c.Kg - 1e-9 || Items.Have(pack, c.Raw) <= 0 ? CookedReason : null;
-            }
+                {
+                    if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
+                    // A piece (about a kilo) of meat in 15 minutes, of fish in 12.
+                    // A practised cook turns it sooner: less time over the fire (Skills).
+                    double perMinute = 1.0 / (c.Raw == Resource.RawFish ? CookFishMinutesPerKg : CookMeatMinutesPerKg)
+                        * Skills.CookSpeedFactor(Skills.Level(agent, Skill.Cooking));
+                    double kg = Items.Take(pack, c.Raw, Math.Min(perMinute, c.Kg - s.DoneKg));
+                    Items.Add(pack, Cooked(c.Raw)!.Value, kg);
+                    s.DoneKg += kg;
+                    Skills.Award(world, agent, Skill.Cooking, kg * Skills.CookXpPerKg, events);
+                    return s.DoneKg >= c.Kg - 1e-9 || Items.Have(pack, c.Raw) <= 0 ? CookedReason : null;
+                }
             case MeltSnow:
                 if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
                 if (s.Minutes < MeltSnowMinutes) return null;

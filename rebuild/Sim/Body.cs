@@ -171,7 +171,8 @@ public static partial class Body
 
     static Region NewRegion(string name, double coverage, double boneToughness = 3) => new()
     {
-        Name = name, Coverage = coverage,
+        Name = name,
+        Coverage = coverage,
         Skin = new Tissue { Name = "Skin", Kind = TissueKind.Skin },
         Muscle = new Tissue { Name = "Muscle", Kind = TissueKind.Muscle },
         Bone = new Tissue { Name = "Bone", Kind = TissueKind.Bone, Toughness = boneToughness },

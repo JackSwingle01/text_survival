@@ -124,23 +124,23 @@ static class ActionGen
             case Act.Sleep: return new Sleep(P);
             case Act.Travel: return new Travel(P, (Direction)(pick % 4), pick / 4 % 3 == 0 ? Pace.Careful : Pace.Quick);
             case Act.Gather:
-            {
-                var pools = Pools.At(w, tile);
-                var known = Enumerable.Range(0, pools.Count).Where(k => Pools.Knows(w, P, new PoolId(tile, k))).ToList();
-                return new Gather(P, PickOf(known, pick, 0), (ForageFocus)(pick / 8 % 5));
-            }
+                {
+                    var pools = Pools.At(w, tile);
+                    var known = Enumerable.Range(0, pools.Count).Where(k => Pools.Knows(w, P, new PoolId(tile, k))).ToList();
+                    return new Gather(P, PickOf(known, pick, 0), (ForageFocus)(pick / 8 % 5));
+                }
             case Act.StartFire:
-            {
-                // The best tool and tinder held, mostly, so fires get lit and what needs one gets reached.
-                var tools = pack.Gear.Where(g => Items.Def(g).Tool is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill)
-                    .Select(g => Items.Def(g).Tool!.Value).Distinct().OrderBy(t => t == ToolType.FireStriker ? 0 : 1).ToList();
-                var tinders = Held(r => Fire.IsFuel(r) && Fire.Props[r].MinFireTempF == 0 && r != Resource.Kindling && r != Resource.Charcoal)
-                    .OrderByDescending(r => Fire.Props[r].IgnitionBonusPct).ToList();
-                if (pick % 3 != 0) (tools, tinders) = (tools.Take(1).ToList(), tinders.Take(1).ToList());
-                var pit = Fire.PitAt(w, tile) is FireId id ? w.Fires[id].Pit : (PitType)(pick % 3 == 2 ? 1 : 0);
-                return new StartFire(P, PickOf(tools, pick, ToolType.HandDrill), PickOf(tinders, pick / 2, Resource.Tinder),
-                    0.03 + pick % 4 * 0.02, pick % 5 * 0.1, pit);
-            }
+                {
+                    // The best tool and tinder held, mostly, so fires get lit and what needs one gets reached.
+                    var tools = pack.Gear.Where(g => Items.Def(g).Tool is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill)
+                        .Select(g => Items.Def(g).Tool!.Value).Distinct().OrderBy(t => t == ToolType.FireStriker ? 0 : 1).ToList();
+                    var tinders = Held(r => Fire.IsFuel(r) && Fire.Props[r].MinFireTempF == 0 && r != Resource.Kindling && r != Resource.Charcoal)
+                        .OrderByDescending(r => Fire.Props[r].IgnitionBonusPct).ToList();
+                    if (pick % 3 != 0) (tools, tinders) = (tools.Take(1).ToList(), tinders.Take(1).ToList());
+                    var pit = Fire.PitAt(w, tile) is FireId id ? w.Fires[id].Pit : (PitType)(pick % 3 == 2 ? 1 : 0);
+                    return new StartFire(P, PickOf(tools, pick, ToolType.HandDrill), PickOf(tinders, pick / 2, Resource.Tinder),
+                        0.03 + pick % 4 * 0.02, pick % 5 * 0.1, pit);
+                }
             case Act.AddFuel:
                 return new AddFuel(P, PickOf(Held(Fire.IsFuel), pick, Resource.Kindling), 0.2 + pick % 8 * 0.4);
             case Act.LightTorch: return new LightTorch(P);
@@ -153,35 +153,35 @@ static class ActionGen
             case Act.Stash:
                 return new Stash(P, PickOf(Held(_ => true), pick, Resource.Kindling), 0.1 + pick % 5 * 0.2);
             case Act.Unstash:
-            {
-                var stash = w.Tiles.GetValueOrDefault(tile)?.Stash;
-                var there = stash?.Kg.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList() ?? [];
-                return new Unstash(P, PickOf(there, pick, Resource.Kindling), 0.1 + pick % 5 * 0.3);
-            }
+                {
+                    var stash = w.Tiles.GetValueOrDefault(tile)?.Stash;
+                    var there = stash?.Kg.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList() ?? [];
+                    return new Unstash(P, PickOf(there, pick, Resource.Kindling), 0.1 + pick % 5 * 0.3);
+                }
             case Act.Butcher:
-            {
-                var here = w.Tiles.GetValueOrDefault(tile)?.Carcasses?.Select(c => c.Id).ToList() ?? [];
-                ButcherMode? mode = pick % 4 == 3 ? null : (ButcherMode)(pick % 3);
-                return new Butcher(P, PickOf(here, pick, 0), mode);
-            }
+                {
+                    var here = w.Tiles.GetValueOrDefault(tile)?.Carcasses?.Select(c => c.Id).ToList() ?? [];
+                    ButcherMode? mode = pick % 4 == 3 ? null : (ButcherMode)(pick % 3);
+                    return new Butcher(P, PickOf(here, pick, 0), mode);
+                }
             case Act.Build:
-            {
-                // A project under way here is the one to resume; otherwise any structure.
-                var what = w.Projects.TryGetValue(tile, out var p) && pick % 3 != 0 ? p.Building : (Structure)(pick % Enum.GetValues<Structure>().Length);
-                return new Build(P, what);
-            }
+                {
+                    // A project under way here is the one to resume; otherwise any structure.
+                    var what = w.Projects.TryGetValue(tile, out var p) && pick % 3 != 0 ? p.Building : (Structure)(pick % Enum.GetValues<Structure>().Length);
+                    return new Build(P, what);
+                }
             case Act.Improve:
-            {
-                var materials = Held(r => Shelters.Materials.ContainsKey(r));
-                return new ImproveShelter(P, (ShelterStat)(pick % 3), PickOf(materials, pick / 3, Resource.Hide));
-            }
+                {
+                    var materials = Held(r => Shelters.Materials.ContainsKey(r));
+                    return new ImproveShelter(P, (ShelterStat)(pick % 3), PickOf(materials, pick / 3, Resource.Hide));
+                }
             case Act.Fight: return new Fight(P, CombatAction.Wait); // not in a fight: refused
             case Act.Make:
-            {
-                // A project in the pack is the one to go on with; otherwise any recipe.
-                var projects = Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [];
-                return new Make(P, projects.Count > 0 && pick % 3 != 0 ? PickOf(projects, pick, "") : Recipes.All[pick % Recipes.All.Count].Id);
-            }
+                {
+                    // A project in the pack is the one to go on with; otherwise any recipe.
+                    var projects = Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [];
+                    return new Make(P, projects.Count > 0 && pick % 3 != 0 ? PickOf(projects, pick, "") : Recipes.All[pick % Recipes.All.Count].Id);
+                }
             case Act.Abandon:
                 return new Abandon(P, PickOf(Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [], pick, Recipes.All[pick % Recipes.All.Count].Id));
             default: throw new NotSupportedException(i.Act.ToString());

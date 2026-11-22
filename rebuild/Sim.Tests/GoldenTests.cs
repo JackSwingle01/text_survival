@@ -85,8 +85,13 @@ public class GoldenTests
         if (input[6] > 0) Effects.Set(b, EffectKind.Wet, input[6]);
         var ctx = new SurvivalContext
         {
-            AirTempF = input[0], WindLevel = input[1], FireBonusF = input[2], ClothingClo = input[3],
-            ClothingWeightKg = input[4], ActivityFactor = input[8], IsSleeping = sleeping,
+            AirTempF = input[0],
+            WindLevel = input[1],
+            FireBonusF = input[2],
+            ClothingClo = input[3],
+            ClothingWeightKg = input[4],
+            ActivityFactor = input[8],
+            IsSleeping = sleeping,
         };
         var d = Body.Process(b, ctx, 1, Rng.ForSystem(1, "golden"));
         Assert.True(Math.Abs(expected[0] - d.CoreTempDeltaF) < 1e-6, $"{name}: core {d.CoreTempDeltaF} vs old {expected[0]}");

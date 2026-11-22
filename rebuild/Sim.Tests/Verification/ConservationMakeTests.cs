@@ -115,19 +115,19 @@ public class ConservationMakeTests
                 switch (e)
                 {
                     case Made m:
-                    {
-                        Move(m.Produced, +1);
-                        Move(m.Spent, -1);
-                        Assert.True(m.Produced.Values.Sum() <= m.Spent.Values.Sum() + 1e-9, $"{m.Recipe} made more than it spent");
-                        var r = Recipes.Get(m.Recipe);
-                        if (m.Succeeded)
                         {
-                            if (r.Result.Gear is string kind) pieces[kind] = pieces.GetValueOrDefault(kind) + 1;
-                            foreach (var used in r.Items) pieces[used]--;
+                            Move(m.Produced, +1);
+                            Move(m.Spent, -1);
+                            Assert.True(m.Produced.Values.Sum() <= m.Spent.Values.Sum() + 1e-9, $"{m.Recipe} made more than it spent");
+                            var r = Recipes.Get(m.Recipe);
+                            if (m.Succeeded)
+                            {
+                                if (r.Result.Gear is string kind) pieces[kind] = pieces.GetValueOrDefault(kind) + 1;
+                                foreach (var used in r.Items) pieces[used]--;
+                            }
+                            foreach (var extra in m.ExtraGear) pieces[extra] = pieces.GetValueOrDefault(extra) + 1;
+                            break;
                         }
-                        foreach (var extra in m.ExtraGear) pieces[extra] = pieces.GetValueOrDefault(extra) + 1;
-                        break;
-                    }
                     case ProjectAbandoned gone: Move(gone.Lost, -1); break;
                 }
 

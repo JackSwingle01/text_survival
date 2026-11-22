@@ -49,62 +49,62 @@ public class Phase3GateTests
         {
             case 0: S(new Gather(P, 0), 30); break;
             case 1:
-            {
-                // The fire is kept at camp only: a predator stays clear of a burning fire, so the fights are out in the wood.
-                if (tile != camp) break;
-                if (!Burning())
                 {
-                    if (Items.Have(pack, Resource.Tinder) < 0.05) Items.Add(pack, Resource.Tinder, 0.2);
-                    if (Items.Have(pack, Resource.Kindling) < 0.5) Items.Add(pack, Resource.Kindling, 1);
-                    S(new StartFire(P, ToolType.FireStriker, Resource.Tinder, 0.05, 0.3), 3);
-                }
-                if (Burning())
-                    foreach (var r in new[] { Resource.Kindling, Resource.Pine, Resource.Birch, Resource.Oak })
+                    // The fire is kept at camp only: a predator stays clear of a burning fire, so the fights are out in the wood.
+                    if (tile != camp) break;
+                    if (!Burning())
                     {
-                        if (Items.Have(pack, r) <= 0) Items.Add(pack, r, 2);
-                        S(new AddFuel(P, r, 1.0), 2);
+                        if (Items.Have(pack, Resource.Tinder) < 0.05) Items.Add(pack, Resource.Tinder, 0.2);
+                        if (Items.Have(pack, Resource.Kindling) < 0.5) Items.Add(pack, Resource.Kindling, 1);
+                        S(new StartFire(P, ToolType.FireStriker, Resource.Tinder, 0.05, 0.3), 3);
                     }
-                break;
-            }
+                    if (Burning())
+                        foreach (var r in new[] { Resource.Kindling, Resource.Pine, Resource.Birch, Resource.Oak })
+                        {
+                            if (Items.Have(pack, r) <= 0) Items.Add(pack, r, 2);
+                            S(new AddFuel(P, r, 1.0), 2);
+                        }
+                    break;
+                }
             case 2:
-            {
-                if (Burning()) break;
-                var wolves = Agents.Spawn(w, Species.Wolf, tile, 2);
-                Combat.Create(w, [new Fighter(P) { Weapon = Items.Tool(pack, ToolType.Spear) }], [new Fighter(wolves, 0)], tile, 8, Awareness.Engaged, Awareness.Engaged);
-                break;
-            }
+                {
+                    if (Burning()) break;
+                    var wolves = Agents.Spawn(w, Species.Wolf, tile, 2);
+                    Combat.Create(w, [new Fighter(P) { Weapon = Items.Tool(pack, ToolType.Spear) }], [new Fighter(wolves, 0)], tile, 8, Awareness.Engaged, Awareness.Engaged);
+                    break;
+                }
             case 4:
-            {
-                // A pack of five loses one to wandering off, then four ambush a lone caribou. The
-                // caribou comes first, so the agent its death removes is not the newest one.
-                var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
-                var wolves = Agents.Spawn(w, Species.Wolf, tile, 5);
-                Agents.SplitOff(w, wolves, 4);
-                t.Splits++;
-                var hunt = Combat.Create(w, [.. Enumerable.Range(0, 4).Select(k => new Fighter(wolves, k))], [new Fighter(caribou)], tile, 5, Awareness.Engaged, Awareness.Unaware);
-                Combat.ResolveHeadless(w, hunt, []);
-                if (!w.Agents.ContainsKey(caribou)) t.HerdsEmptied++;
-                break;
-            }
+                {
+                    // A pack of five loses one to wandering off, then four ambush a lone caribou. The
+                    // caribou comes first, so the agent its death removes is not the newest one.
+                    var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
+                    var wolves = Agents.Spawn(w, Species.Wolf, tile, 5);
+                    Agents.SplitOff(w, wolves, 4);
+                    t.Splits++;
+                    var hunt = Combat.Create(w, [.. Enumerable.Range(0, 4).Select(k => new Fighter(wolves, k))], [new Fighter(caribou)], tile, 5, Awareness.Engaged, Awareness.Unaware);
+                    Combat.ResolveHeadless(w, hunt, []);
+                    if (!w.Agents.ContainsKey(caribou)) t.HerdsEmptied++;
+                    break;
+                }
             case 5:
-            {
-                var carcasses = w.Tiles.GetValueOrDefault(tile)?.Carcasses;
-                if (carcasses is { Count: > 0 }) S(new Butcher(P, carcasses[0].Id), 90);
-                else S(new Rest(P), 5);
-                break;
-            }
+                {
+                    var carcasses = w.Tiles.GetValueOrDefault(tile)?.Carcasses;
+                    if (carcasses is { Count: > 0 }) S(new Butcher(P, carcasses[0].Id), 90);
+                    else S(new Rest(P), 5);
+                    break;
+                }
             case 6:
-            {
-                // Out to the wood east of camp and back on alternate visits, felling while there.
-                int trees = Pools.At(w, tile).ToList().FindIndex(p => p is TreePool);
-                if (trees >= 0 && !Work.TooDarkToWork(w, me)) S(new Gather(P, trees), 120);
-                foreach (var (r, kg) in pack.Kg.ToList())
-                    if (r is not (Resource.Tinder or Resource.Kindling) && Items.Resources[r].Category != ResourceCategory.Food) S(new Stash(P, r, kg), 1);
-                var dir = tile == camp ? Direction.East : Direction.West;
-                for (int tries = 0; tries < 5 && w.Agent(P).Tile == tile && Combat.EncounterOf(w, P) == null; tries++)
-                    S(new Travel(P, dir, Pace.Careful), 30);
-                break;
-            }
+                {
+                    // Out to the wood east of camp and back on alternate visits, felling while there.
+                    int trees = Pools.At(w, tile).ToList().FindIndex(p => p is TreePool);
+                    if (trees >= 0 && !Work.TooDarkToWork(w, me)) S(new Gather(P, trees), 120);
+                    foreach (var (r, kg) in pack.Kg.ToList())
+                        if (r is not (Resource.Tinder or Resource.Kindling) && Items.Resources[r].Category != ResourceCategory.Food) S(new Stash(P, r, kg), 1);
+                    var dir = tile == camp ? Direction.East : Direction.West;
+                    for (int tries = 0; tries < 5 && w.Agent(P).Tile == tile && Combat.EncounterOf(w, P) == null; tries++)
+                        S(new Travel(P, dir, Pace.Careful), 30);
+                    break;
+                }
             case 8:
                 if (pack.Kg.Keys.FirstOrDefault(r => Items.Resources[r].Category == ResourceCategory.Food, Resource.Water) is var food && food != Resource.Water)
                     S(new Eat(P, food, 0.5), 10);

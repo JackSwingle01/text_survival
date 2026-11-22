@@ -88,8 +88,17 @@ app.MapGet("/api/replay", async (int gen, string candidate, string scenario, int
     res.ContentType = "application/x-ndjson";
     await res.WriteAsync(JsonSerializer.Serialize(new
     {
-        type = "replay", gen, candidate, scenario, fight, seed = job.Seed, outcome = r.Outcome, recorded,
-        matchesRecord = recorded == null ? (bool?)null : recorded == r.Outcome, gridSize = r.GridSize, traceNote = r.TraceNote,
+        type = "replay",
+        gen,
+        candidate,
+        scenario,
+        fight,
+        seed = job.Seed,
+        outcome = r.Outcome,
+        recorded,
+        matchesRecord = recorded == null ? (bool?)null : recorded == r.Outcome,
+        gridSize = r.GridSize,
+        traceNote = r.TraceNote,
         mean = cand == null,
     }, json) + "\n");
     foreach (var frame in r.Frames ?? []) await res.WriteAsync(JsonSerializer.Serialize(frame, json) + "\n");

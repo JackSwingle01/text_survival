@@ -53,18 +53,18 @@ public class ConservationCaloriesTests
             switch (op.Kind)
             {
                 case OpKind.Eat:
-                {
-                    bool wholeGut = Body.GetCapacities(b).Digestion >= 1 - 1e-12;
-                    double before = Held(b);
-                    Body.Eat(b, op.Kcal);
-                    double got = Held(b) - before;
-                    Assert.True(got >= op.Kcal * 0.5 - 1e-6 && got <= op.Kcal + 1e-6, $"op {i}: ate {op.Kcal:R} kcal, absorbed {got:R}");
-                    // A whole gut, effects and all (effects only lower a capacity): starvation and blows wear it too.
-                    if (wholeGut) Assert.True(Math.Abs(got - op.Kcal) <= 1e-6, $"op {i}: a whole gut absorbed {got:R} of {op.Kcal:R} kcal");
-                    Assert.True(b.CaloriesKcal <= Body.CaloriesCapacityKcal(b) + 1e-9, $"op {i}: store {b.CaloriesKcal:R} over its cap");
-                    absorbed += got;
-                    break;
-                }
+                    {
+                        bool wholeGut = Body.GetCapacities(b).Digestion >= 1 - 1e-12;
+                        double before = Held(b);
+                        Body.Eat(b, op.Kcal);
+                        double got = Held(b) - before;
+                        Assert.True(got >= op.Kcal * 0.5 - 1e-6 && got <= op.Kcal + 1e-6, $"op {i}: ate {op.Kcal:R} kcal, absorbed {got:R}");
+                        // A whole gut, effects and all (effects only lower a capacity): starvation and blows wear it too.
+                        if (wholeGut) Assert.True(Math.Abs(got - op.Kcal) <= 1e-6, $"op {i}: a whole gut absorbed {got:R} of {op.Kcal:R} kcal");
+                        Assert.True(b.CaloriesKcal <= Body.CaloriesCapacityKcal(b) + 1e-9, $"op {i}: store {b.CaloriesKcal:R} over its cap");
+                        absorbed += got;
+                        break;
+                    }
                 case OpKind.HurtGut:
                     Body.Damage(b, new DamageInfo(op.Hurt, DamageType.Internal, BodyTarget.Stomach), rng);
                     break;

@@ -78,7 +78,11 @@ public class ConservationButcheringTests
         w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, Pit = PitType.Stone, BurningKg = { [Resource.Oak] = 10 } };
         return new Run
         {
-            W = w, CarcassId = c.Id, C = c, Ledger = new Dictionary<Resource, double>(c.Remaining), ItemsAtStart = Carried(w),
+            W = w,
+            CarcassId = c.Id,
+            C = c,
+            Ledger = new Dictionary<Resource, double>(c.Remaining),
+            ItemsAtStart = Carried(w),
             BodyKg = body.WeightKg,
         };
     }
@@ -233,8 +237,14 @@ public class ConservationButcheringTests
         }
         return new Carcass
         {
-            Id = 0, Animal = species.ToString(), BodyWeightKg = body.WeightKg, DiedMinute = 0, LastUpdatedMinute = 0,
-            EffectiveHours = s.EffectiveHours, Remaining = new(ledger), FleshAtDeathKg = ledger[Resource.RawMeat] + ledger[Resource.RawFat],
+            Id = 0,
+            Animal = species.ToString(),
+            BodyWeightKg = body.WeightKg,
+            DiedMinute = 0,
+            LastUpdatedMinute = 0,
+            EffectiveHours = s.EffectiveHours,
+            Remaining = new(ledger),
+            FleshAtDeathKg = ledger[Resource.RawMeat] + ledger[Resource.RawFat],
         };
     }
 

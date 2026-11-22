@@ -21,8 +21,15 @@ public class NpcShuttleTests(ITestOutputHelper output)
 
         static bool Work(WorldEvent e, AgentId who) => e switch
         {
-            Gathered g => g.Who == who, Stashed s => s.Who == who, Unstashed u => u.Who == who, TreeFelled t => t.Who == who,
-            Ate a => a.Who == who, Drank d => d.Who == who, Butchered b => b.Who == who, FuelAdded f => f.By == who, FireLit l => l.By == who,
+            Gathered g => g.Who == who,
+            Stashed s => s.Who == who,
+            Unstashed u => u.Who == who,
+            TreeFelled t => t.Who == who,
+            Ate a => a.Who == who,
+            Drank d => d.Who == who,
+            Butchered b => b.Who == who,
+            FuelAdded f => f.By == who,
+            FireLit l => l.By == who,
             _ => false,
         };
 

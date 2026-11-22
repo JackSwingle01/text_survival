@@ -78,7 +78,8 @@ public sealed class CombatUnit
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool RunDown { get; set; }
     /// Whether it has turned to run in this fight: the chase instinct fires on the first time only.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool HasRun { get; set; }
-    [JsonIgnore] public Awareness Awareness => State switch
+    [JsonIgnore]
+    public Awareness Awareness => State switch
     {
         FighterState.Unaware => Awareness.Unaware,
         FighterState.Wary => Awareness.Alert,
@@ -181,9 +182,15 @@ public static partial class Combat
                 if (f.Weapon != null) Items.PackOf(world.Agent(f.Agent))!.Gear.Remove(f.Weapon);
                 enc.Units.Add(new CombatUnit
                 {
-                    Agent = f.Agent, Member = f.Member, Team = side, State = OpeningState(awareness), AlertnessLevel = OpeningAlertnessLevel(awareness),
+                    Agent = f.Agent,
+                    Member = f.Member,
+                    Team = side,
+                    State = OpeningState(awareness),
+                    AlertnessLevel = OpeningAlertnessLevel(awareness),
                     Position = new Cell(MapSize / 2 + (i % 3) * 2 - 2, y + i / 3),
-                    Weapon = f.Weapon, DetectionFactor = f.DetectionFactor, BoldnessModifier = f.BoldnessDelta,
+                    Weapon = f.Weapon,
+                    DetectionFactor = f.DetectionFactor,
+                    BoldnessModifier = f.BoldnessDelta,
                 });
             }
         }
@@ -226,8 +233,15 @@ public static partial class Combat
         if (f.Weapon != null) Items.PackOf(agent)!.Gear.Remove(f.Weapon);
         var unit = new CombatUnit
         {
-            Agent = f.Agent, Member = f.Member, Team = team, Position = entry, State = FighterState.Standoff, AlertnessLevel = 1,
-            Weapon = f.Weapon, DetectionFactor = f.DetectionFactor, BoldnessModifier = f.BoldnessDelta,
+            Agent = f.Agent,
+            Member = f.Member,
+            Team = team,
+            Position = entry,
+            State = FighterState.Standoff,
+            AlertnessLevel = 1,
+            Weapon = f.Weapon,
+            DetectionFactor = f.DetectionFactor,
+            BoldnessModifier = f.BoldnessDelta,
         };
         enc.Units.Add(unit);
         unit.Target = enc.Units.IndexOf(NearestEnemy(enc, unit)!);

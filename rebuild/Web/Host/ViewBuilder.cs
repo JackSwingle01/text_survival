@@ -104,10 +104,30 @@ sealed class ViewBuilder(World world, int gen)
     /// The activity's family, for the page's icons and keys. Not a vocabulary: the page acts by id.
     public static string KindOf(Activity a) => a switch
     {
-        Wait => "wait", Rest => "rest", Sleep => "sleep", StartFire => "fire", AddFuel => "fuel", LightTorch => "torch",
-        GatherCharcoal => "charcoal", Gather => "gather", Butcher => "butcher", Eat => "eat", Drink => "drink", Cook => "cook",
-        MeltSnow => "melt", Stash => "stash", Unstash => "take", Wear => "wear", TakeOff => "takeoff", Fight => "fight", Travel => "walk",
-        Survival.Build => "build", ImproveShelter => "improve", PackTent => "pack", Make => "make", Abandon => "abandon",
+        Wait => "wait",
+        Rest => "rest",
+        Sleep => "sleep",
+        StartFire => "fire",
+        AddFuel => "fuel",
+        LightTorch => "torch",
+        GatherCharcoal => "charcoal",
+        Gather => "gather",
+        Butcher => "butcher",
+        Eat => "eat",
+        Drink => "drink",
+        Cook => "cook",
+        MeltSnow => "melt",
+        Stash => "stash",
+        Unstash => "take",
+        Wear => "wear",
+        TakeOff => "takeoff",
+        Fight => "fight",
+        Travel => "walk",
+        Survival.Build => "build",
+        ImproveShelter => "improve",
+        PackTent => "pack",
+        Make => "make",
+        Abandon => "abandon",
         Hunt => "hunt",
         _ => "other",
     };
@@ -312,7 +332,9 @@ sealed class ViewBuilder(World world, int gen)
 
     public static string TrackIcon(TrackMaker m) => m switch
     {
-        TrackMaker.Human => "tracks/boot", TrackMaker.Paw => "tracks/paw", TrackMaker.Hoof => "tracks/hoof",
+        TrackMaker.Human => "tracks/boot",
+        TrackMaker.Paw => "tracks/paw",
+        TrackMaker.Hoof => "tracks/hoof",
         _ => throw new ArgumentOutOfRangeException(nameof(m), m, null),
     };
 

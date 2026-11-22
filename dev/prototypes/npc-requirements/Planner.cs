@@ -373,8 +373,13 @@ public sealed class Planner(AgentId who, TileId home, Crude crude, Stats stats, 
                 if (same >= 0)
                 {
                     var l = leaves[same];
-                    leaves[same] = l with { For = l.For.Contains(req.Name) ? l.For : $"{l.For}+{req.Name}", Units = l.Units + take.Units, Kg = l.Kg + take.Kg,
-                        WorkMin = take.Kind == SourceKind.Chop ? l.WorkMin : l.WorkMin + take.WorkMin };
+                    leaves[same] = l with
+                    {
+                        For = l.For.Contains(req.Name) ? l.For : $"{l.For}+{req.Name}",
+                        Units = l.Units + take.Units,
+                        Kg = l.Kg + take.Kg,
+                        WorkMin = take.Kind == SourceKind.Chop ? l.WorkMin : l.WorkMin + take.WorkMin
+                    };
                 }
                 else
                 {
@@ -493,7 +498,7 @@ public sealed class Planner(AgentId who, TileId home, Crude crude, Stats stats, 
         {
             var plan = Build(w, Goal.Until);
             if (plan.Impossible.Count > 0) log($"   !! no source for: {string.Join(", ", plan.Impossible)}");
-            log($"      list: {string.Join(" | ", plan.Leaves)}   [stash mem: {string.Join(",", CampStash(w).Select(x => $"{x.Key}{x.Value}"))}; true: {(w.Tiles.GetValueOrDefault(Home)?.Stash is {} st ? Harness.Describe(st) : "-")}]");
+            log($"      list: {string.Join(" | ", plan.Leaves)}   [stash mem: {string.Join(",", CampStash(w).Select(x => $"{x.Key}{x.Value}"))}; true: {(w.Tiles.GetValueOrDefault(Home)?.Stash is { } st ? Harness.Describe(st) : "-")}]");
             var step = Pick(w, plan);
             if (step != null) return step.Value;
             if (plan.Impossible.Count > 0)
@@ -667,27 +672,27 @@ public sealed class Planner(AgentId who, TileId home, Crude crude, Stats stats, 
             switch (next.Kind)
             {
                 case SourceKind.Forage:
-                {
-                    var g = new Gather(who, next.Pool, ForageFocus.Fuel);
-                    var refused = Sim.Refusal(w, g);
-                    if (refused != null) { Note(refused); break; }
-                    return (g, (int)Math.Clamp(next.WorkMin, 10, StintMinutes), $"forage {next}");
-                }
+                    {
+                        var g = new Gather(who, next.Pool, ForageFocus.Fuel);
+                        var refused = Sim.Refusal(w, g);
+                        if (refused != null) { Note(refused); break; }
+                        return (g, (int)Math.Clamp(next.WorkMin, 10, StintMinutes), $"forage {next}");
+                    }
                 case SourceKind.Chop:
-                {
-                    var g = new Gather(who, next.Pool);
-                    var refused = Sim.Refusal(w, g);
-                    if (refused != null) { Note(refused); break; }
-                    return (g, Math.Max(10, (int)next.WorkMin + 1), $"chop {next}");
-                }
+                    {
+                        var g = new Gather(who, next.Pool);
+                        var refused = Sim.Refusal(w, g);
+                        if (refused != null) { Note(refused); break; }
+                        return (g, Math.Max(10, (int)next.WorkMin + 1), $"chop {next}");
+                    }
                 case SourceKind.Stash:
-                {
-                    var v = Verbs.At(w, who).Things.SelectMany(t => t.Menu).Where(v => v.Activity is Unstash u && Fuels.Contains(u.Resource))
-                        .OrderByDescending(v => Fire.FuelHours(((Unstash)v.Activity).Resource, 1)).FirstOrDefault();
-                    if (v is { Allowed: true }) return (v.Activity, 1, $"pick up {((Unstash)v.Activity).Resource}");
-                    if (v != null) Note(v.Refused!);
-                    break;
-                }
+                    {
+                        var v = Verbs.At(w, who).Things.SelectMany(t => t.Menu).Where(v => v.Activity is Unstash u && Fuels.Contains(u.Resource))
+                            .OrderByDescending(v => Fire.FuelHours(((Unstash)v.Activity).Resource, 1)).FirstOrDefault();
+                        if (v is { Allowed: true }) return (v.Activity, 1, $"pick up {((Unstash)v.Activity).Resource}");
+                        if (v != null) Note(v.Refused!);
+                        break;
+                    }
             }
         }
         if (here != Home && (awayLeaves.Count == 0 || room <= 0.3)) return WalkToward(w, Home, room <= 0.3 ? "home: pack full" : "home: list done");

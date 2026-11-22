@@ -10,7 +10,10 @@ public readonly record struct StatTiers(Tier Warmth, Tier Water, Tier Food, Tier
 {
     public Tier this[Stat stat] => stat switch
     {
-        Stat.Warmth => Warmth, Stat.Water => Water, Stat.Food => Food, Stat.Rest => Rest,
+        Stat.Warmth => Warmth,
+        Stat.Water => Water,
+        Stat.Food => Food,
+        Stat.Rest => Rest,
         _ => throw new ArgumentOutOfRangeException(nameof(stat), stat, "Not a stat"),
     };
 }

@@ -31,24 +31,24 @@ foreach (string line in commands)
             case "rest": Run(new Rest(AgentId.Player), Minutes(parts)); break;
             case "sleep": Run(new Sleep(AgentId.Player), Minutes(parts)); break;
             case "fire":
-            {
-                // Lighting a fire is the verb Verbs offers: the tile's, or the pit's own once there is one.
-                var light = Verbs.At(world, AgentId.Player).All.FirstOrDefault(v => v.Activity is StartFire);
-                if (light == null) { Console.WriteLine("  Nothing to light: the fire here is burning."); continue; }
-                if (light.Odds != null) PrintOdds(light.Odds);
-                Run(light.Activity, light.Minutes);
-                break;
-            }
+                {
+                    // Lighting a fire is the verb Verbs offers: the tile's, or the pit's own once there is one.
+                    var light = Verbs.At(world, AgentId.Player).All.FirstOrDefault(v => v.Activity is StartFire);
+                    if (light == null) { Console.WriteLine("  Nothing to light: the fire here is burning."); continue; }
+                    if (light.Odds != null) PrintOdds(light.Odds);
+                    Run(light.Activity, light.Minutes);
+                    break;
+                }
             case "verbs": PrintVerbs(Verbs.At(world, AgentId.Player)); continue;
             case "do":
-            {
-                var verb = Numbered(Verbs.At(world, AgentId.Player))[int.Parse(parts[1]) - 1];
-                if (verb.Odds != null) PrintOdds(verb.Odds);
-                foreach (var o in verb.Outcomes?.Outcomes ?? []) { Console.WriteLine($"  {o.Outcome.Words}"); PrintOdds(o.Odds); }
-                if (verb.Risk is { } risk) PrintOdds(risk);
-                Run(verb.Activity, verb.Minutes);
-                break;
-            }
+                {
+                    var verb = Numbered(Verbs.At(world, AgentId.Player))[int.Parse(parts[1]) - 1];
+                    if (verb.Odds != null) PrintOdds(verb.Odds);
+                    foreach (var o in verb.Outcomes?.Outcomes ?? []) { Console.WriteLine($"  {o.Outcome.Words}"); PrintOdds(o.Odds); }
+                    if (verb.Risk is { } risk) PrintOdds(risk);
+                    Run(verb.Activity, verb.Minutes);
+                    break;
+                }
             case "charcoal": Run(new GatherCharcoal(AgentId.Player), 1); break;
             case "look": Look(world); continue;
             case "inv" or "inventory": Inv(world); continue;
@@ -179,8 +179,10 @@ static void Inv(World w)
 }
 static Direction Heading(string word) => word.ToLowerInvariant() switch
 {
-    "n" or "north" => Direction.North, "e" or "east" => Direction.East,
-    "s" or "south" => Direction.South, "w" or "west" => Direction.West,
+    "n" or "north" => Direction.North,
+    "e" or "east" => Direction.East,
+    "s" or "south" => Direction.South,
+    "w" or "west" => Direction.West,
     _ => throw new ArgumentException($"No direction '{word}'"),
 };
 static Pace Pace(string[] parts) => parts.Contains("careful") ? Survival.Pace.Careful : Survival.Pace.Quick;

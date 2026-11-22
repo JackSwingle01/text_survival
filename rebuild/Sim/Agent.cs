@@ -71,7 +71,10 @@ public static class Agents
         var rng = world.Birth("fauna", id);
         world.Agents[id] = new Agent
         {
-            Id = id, Tile = tile, Species = species, Mind = Fauna.NewMind(world, id, species, territory ?? [tile]),
+            Id = id,
+            Tile = tile,
+            Species = species,
+            Mind = Fauna.NewMind(world, id, species, territory ?? [tile]),
             Members = Enumerable.Range(0, members).Select(_ => SpeciesTable.NewBody(species, rng)).ToList(),
         };
         return id;

@@ -191,8 +191,11 @@ public static class Ground
             Material = l.Material, ThicknessM = l.ThicknessM, CompactionPct = l.CompactionPct,
             WaterSaturationPct = l.WaterSaturationPct, FrozenFractionPct = l.FrozenFractionPct,
         })],
-        WaterAddedM = s.WaterAddedM, WaterDrainedM = s.WaterDrainedM, WaterEvaporatedM = s.WaterEvaporatedM,
-        WaterOverflowedM = s.WaterOverflowedM, LastUpdatedMinute = s.LastUpdatedMinute,
+        WaterAddedM = s.WaterAddedM,
+        WaterDrainedM = s.WaterDrainedM,
+        WaterEvaporatedM = s.WaterEvaporatedM,
+        WaterOverflowedM = s.WaterOverflowedM,
+        LastUpdatedMinute = s.LastUpdatedMinute,
     };
 
     /// On an open lake the water is waded at the deepest the ground holds, so the ground's own

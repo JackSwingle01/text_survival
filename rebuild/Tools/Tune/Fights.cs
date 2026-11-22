@@ -34,8 +34,13 @@ public sealed record FightOutcome(string Result, bool ADied, bool BKilled, bool 
     /// X AnimalDisengaged, U Unfinished, ? none recorded.
     public static readonly IReadOnlyDictionary<string, char> EndingCodes = new Dictionary<string, char>
     {
-        [nameof(CombatResult.Victory)] = 'V', [nameof(CombatResult.Defeat)] = 'D', [nameof(CombatResult.Fled)] = 'F',
-        [nameof(CombatResult.AnimalFled)] = 'A', [nameof(CombatResult.AnimalDisengaged)] = 'X', ["Unfinished"] = 'U', ["?"] = '?',
+        [nameof(CombatResult.Victory)] = 'V',
+        [nameof(CombatResult.Defeat)] = 'D',
+        [nameof(CombatResult.Fled)] = 'F',
+        [nameof(CombatResult.AnimalFled)] = 'A',
+        [nameof(CombatResult.AnimalDisengaged)] = 'X',
+        ["Unfinished"] = 'U',
+        ["?"] = '?',
     };
 
     /// One fight in a few characters: ending letter, a digit of flags (1 A died, 2 B killed, 4 A fled),
@@ -181,7 +186,10 @@ public sealed class Fights
             if (c.Fire != "torch") return;
             w.Fires[new FireId(w.NextFireId++)] = new FireState
             {
-                Tile = tile, LastUpdatedMinute = w.Minute, CarriedBy = person, TorchMinutesLeft = Fire.TorchBurnMinutes,
+                Tile = tile,
+                LastUpdatedMinute = w.Minute,
+                CarriedBy = person,
+                TorchMinutesLeft = Fire.TorchBurnMinutes,
             };
         }
 

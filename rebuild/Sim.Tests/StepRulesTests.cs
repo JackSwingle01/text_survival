@@ -72,8 +72,12 @@ public class StepRulesTests
         var embers = World.New(1);
         PlacePit(embers, new FireState
         {
-            Tile = Map.Of(embers).Camp, LastUpdatedMinute = 0,
-            HasEmbers = true, EmberDurationHours = 2, EmberHoursRemaining = 2, EmberStartTempF = 800,
+            Tile = Map.Of(embers).Camp,
+            LastUpdatedMinute = 0,
+            HasEmbers = true,
+            EmberDurationHours = 2,
+            EmberHoursRemaining = 2,
+            EmberStartTempF = 800,
         });
         Sim.Step(cold, new Rest(P), 60);
         Sim.Step(embers, new Rest(P), 60);

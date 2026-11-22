@@ -24,8 +24,11 @@ public class ExposureTests
     static TileId Find(World w, Func<GeneratedMap, TileId, bool> pick)
     {
         var m = Map.Of(w);
-        return (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
-                let t = new TileId(x, y) where pick(m, t) select t).First();
+        return (from x in Enumerable.Range(0, m.Width)
+                from y in Enumerable.Range(0, m.Height)
+                let t = new TileId(x, y)
+                where pick(m, t)
+                select t).First();
     }
 
     /// An ordinary tile of this terrain: not camp, a cave, a named site or beside a river.

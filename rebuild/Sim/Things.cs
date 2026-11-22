@@ -36,8 +36,10 @@ public readonly record struct ThingRef(ThingKind Kind, TileId Tile, int Index) :
 
     static Direction Opposite(Direction d) => d switch
     {
-        Direction.North => Direction.South, Direction.South => Direction.North,
-        Direction.East => Direction.West, Direction.West => Direction.East,
+        Direction.North => Direction.South,
+        Direction.South => Direction.North,
+        Direction.East => Direction.West,
+        Direction.West => Direction.East,
     };
 
     public Direction? TrailDirection => Kind == ThingKind.Track && Index >= TrailIndexBase ? (Direction)(Index - TrailIndexBase) : null;

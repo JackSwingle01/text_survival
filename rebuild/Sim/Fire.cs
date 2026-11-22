@@ -548,7 +548,9 @@ public static class Fire
         }
         var id = PitAt(world, tile) ?? NewFire(world, new FireState
         {
-            Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit,
+            Tile = tile,
+            LastUpdatedMinute = world.Minute,
+            Pit = a.Pit,
             Cause = new Cause(a.Who, $"lit by {Cause.Describe(world, a.Who)} with a {Items.Def(tool).Name.ToLowerInvariant()}"),
         });
         var f = world.Fires[id];
@@ -633,9 +635,15 @@ public static class Fire
 
     static FireState BurnCopy(FireState f) => new()
     {
-        Tile = f.Tile, LastUpdatedMinute = f.LastUpdatedMinute, Pit = f.Pit,
-        UnburnedKg = new(f.UnburnedKg), BurningKg = new(f.BurningKg), HasEmbers = f.HasEmbers,
-        EmberDurationHours = f.EmberDurationHours, EmberHoursRemaining = f.EmberHoursRemaining, EmberStartTempF = f.EmberStartTempF,
+        Tile = f.Tile,
+        LastUpdatedMinute = f.LastUpdatedMinute,
+        Pit = f.Pit,
+        UnburnedKg = new(f.UnburnedKg),
+        BurningKg = new(f.BurningKg),
+        HasEmbers = f.HasEmbers,
+        EmberDurationHours = f.EmberDurationHours,
+        EmberHoursRemaining = f.EmberHoursRemaining,
+        EmberStartTempF = f.EmberStartTempF,
     };
 
     /// Lit from flames on the tile or the torch already in hand (which it replaces); uses up a torch from the pack.

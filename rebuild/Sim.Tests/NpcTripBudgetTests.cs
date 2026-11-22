@@ -339,8 +339,13 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
             .Where(t => m.InBounds(t) && MapGen.Manhattan(t, camp) <= 6).ToList();
         var ground = near.Where(t => MapGen.Manhattan(t, camp) == 3 && m.TerrainAt(t).IsPassable() && Pools.At(w, t) is [ForagePool { Density: > 0.2 }, ..]).OrderBy(t => t).First();
         foreach (var t in near)
-            mind.Knows.Places[t] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, ForageDensity = t == ground ? ((ForagePool)Pools.At(w, t)[0]).Density : 0,
-                Stash = t == camp ? new() { [Resource.Birch] = 40 } : null };
+            mind.Knows.Places[t] = new TileMemory
+            {
+                SeenMinute = w.Minute,
+                VisitedMinute = w.Minute,
+                ForageDensity = t == ground ? ((ForagePool)Pools.At(w, t)[0]).Density : 0,
+                Stash = t == camp ? new() { [Resource.Birch] = 40 } : null
+            };
         // A small fire burning: going out, it banks it first.
         w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.Birch] = 1.0 } };
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);

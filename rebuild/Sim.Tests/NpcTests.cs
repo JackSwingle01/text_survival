@@ -730,7 +730,9 @@ public class NpcTests(ITestOutputHelper output)
         foreach (var t in near)
             mind.Knows.Places[t] = new TileMemory
             {
-                SeenMinute = minute, VisitedMinute = minute, ForageDensity = t == ground ? ((ForagePool)Pools.At(w, t)[0]).Density : 0,
+                SeenMinute = minute,
+                VisitedMinute = minute,
+                ForageDensity = t == ground ? ((ForagePool)Pools.At(w, t)[0]).Density : 0,
                 Stash = t == camp ? new() { [Resource.Oak] = 40, [Resource.Kindling] = 2 } : null,
             };
         return (w, npc, ground);
