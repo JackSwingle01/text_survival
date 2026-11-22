@@ -270,9 +270,17 @@ try {
       let t0 = t(); await c.advance(1); const minute = t() - t0;
       t0 = t(); await c.advance(60); const hour = t() - t0;
       t0 = t(); await c.inspect(${O}.map.campX, ${O}.map.campY); const look = t() - t0;
-      return { minute: Math.round(minute), hour: Math.round(hour), inspect: Math.round(look) };
+      t0 = t(); const m = await c.map(); const map = t() - t0;
+      return { minute: Math.round(minute), hour: Math.round(hour), inspect: Math.round(look), map: Math.round(map),
+        kb: Math.round(JSON.stringify(m).length / 1024) };
     })()`);
-    console.log(`  worker round trip: a minute ${ms.minute} ms, an hour ${ms.hour} ms, inspect ${ms.inspect} ms`);
+    console.log(`  worker round trip: a minute ${ms.minute} ms, an hour ${ms.hour} ms, inspect ${ms.inspect} ms, the map ${ms.map} ms (${ms.kb} KB)`);
+    // The map is the player's MapDto (MapView.Truth): its ravines and cliffs draw here as on the player's page.
+    const edge = await cdp.evaluate(`${O}.map.edges[0] ?? null`);
+    if (!edge) throw new Error('the observer map has no ravines or cliffs');
+    await cdp.evaluate(`(${O}.cam = { x: ${(edge.ax + edge.bx) / 2 + 0.5}, y: ${(edge.ay + edge.by) / 2 + 0.5}, scale: 48 }, true)`);
+    await new Promise(r => setTimeout(r, 2500));
+    await shot(cdp, 'observe-04-ravine');
   }
   const wanted = args.includes('--all') ? Object.keys(STATES) : args.flatMap((a, i) => a === '--shot' ? [args[i + 1]] : []);
   for (const name of wanted) {

@@ -1,4 +1,4 @@
-// Observer mode's camera and pacing: pure, so node can test them (tools/observe.test.mjs).
+// Observer mode's camera, pacing and flat colours: pure, so node can test them (tools/observe.test.mjs).
 //
 // The camera is the cell at the centre of the screen (x, y, fractional) and a scale in screen pixels
 // per cell. It zooms about the pointer and pans with it, from the whole valley on screen to a few
@@ -6,6 +6,11 @@
 
 /** Pixels per cell all the way out (the whole valley fits) and all the way in (four times the art). */
 export const MIN_SCALE = 2, MAX_SCALE = 192;
+
+/** The zoomed-out map's colour for each terrain name (terrain.js TERRAIN), one pixel a tile. */
+export const FLAT = { forest: [47, 74, 44], clearing: [111, 122, 69], plain: [138, 138, 90], hills: [123, 107, 74], water: [60, 106, 138],
+  marsh: [79, 95, 69], rock: [106, 100, 96], mountain: [154, 148, 140], deepwater: [36, 74, 102], cavefloor: [58, 51, 44],
+  caveentrance: [74, 62, 50] };
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const onMap = (cam, map) => ({ ...cam, x: clamp(cam.x, 0, map.width), y: clamp(cam.y, 0, map.height) });

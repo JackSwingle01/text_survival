@@ -1,25 +1,25 @@
-// Observer mode's map: the whole valley as it truly is, no fog. Zoomed in (a cell 24 px or more) the
-// ground is terrain.js's painted chunks drawn under the camera's scale; zoomed out it is one pixel a
-// tile, coloured by terrain and snow, so the whole map never has to be baked at 48 px a cell.
+// Observer mode's map: the whole valley as it truly is, no fog. The map is a MapDto (MapView.Truth), the
+// one the player's renderer draws. Zoomed in (a cell 24 px or more) the ground, ravines, routes and prints
+// are terrain.js's, drawn under the camera's scale; zoomed out it is one pixel a tile, coloured by terrain
+// and snow, so the whole map never has to be baked at 48 px a cell.
 // Actors ease from where they were drawn toward where the latest view puts them.
 import { icon } from './util.js';
 import { createTerrain, TERRAIN } from './terrain.js';
 import { CELL } from './terrain-core.js';
 import { createGround, worldState } from './ground-state.js';
+import { FLAT } from './observe-core.js';
 
 /** Below this many pixels a cell the painted ground gives way to the flat map. */
 export const PAINTED_FROM_SCALE = 24;
 
-const FLAT = { forest: [47, 74, 44], clearing: [111, 122, 69], plain: [138, 138, 90], hills: [123, 107, 74], water: [60, 106, 138],
-  marsh: [79, 95, 69], rock: [106, 100, 96], mountain: [154, 148, 140], deepwater: [36, 74, 102], cavefloor: [58, 51, 44] };
 const SNOW = [232, 238, 242], ICE = [188, 211, 223];
 
-/** get(): { map (ObserverMapDto), view (ObserverViewDto), ground (ObserverGroundDto), cam, selected, hover }. */
+/** get(): { map (MapDto, MapView.Truth), view (ObserverViewDto), cam, selected, hover }. */
 export function createObserverMap(canvas, get) {
   const ctx = canvas.getContext('2d');
   const terrain = createTerrain(), ground = createGround(code => TERRAIN[code]);
   const flat = document.createElement('canvas');
-  let flatFor = null, groundM = null, groundFor = null, dpr = 1;
+  let flatFor = null, dpr = 1;
   const drawn = new Map(); // actor id -> { x, y } where it was last drawn
   let last = performance.now();
 
@@ -28,14 +28,6 @@ export function createObserverMap(canvas, get) {
     dpr = Math.min(2, devicePixelRatio || 1);
     canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
   }).observe(canvas);
-
-  /** terrain.js and ground-state.js read a MapDto: the observer's terrain with the ground it was last handed. */
-  function mapDto(S) {
-    if (groundFor === S.ground && groundM?.known === S.map.terrain) return groundM;
-    groundFor = S.ground;
-    return groundM = { width: S.map.width, height: S.map.height, known: S.map.terrain,
-      surface: S.ground?.surface ?? [], frozenWater: S.ground?.frozenWater ?? [] };
-  }
 
   function bakeFlat(m) {
     if (flatFor === m) return;
@@ -72,12 +64,11 @@ export function createObserverMap(canvas, get) {
     const S = get(), dt = Math.min(0.1, (now - last) / 1000); last = now;
     const r = canvas.getBoundingClientRect(), w = r.width, h = r.height;
     if (!S.map || !S.view || w === 0) return;
-    const { cam, map: M, view: V } = S, s = cam.scale;
-    const m = mapDto(S);
+    const { cam, map: m, view: V } = S, s = cam.scale;
     // screen position of a cell's top-left corner
     const sx = x => w / 2 + (x - cam.x) * s, sy = y => h / 2 + (y - cam.y) * s;
-    const x0 = Math.max(0, Math.floor(cam.x - w / 2 / s)), x1 = Math.min(M.width - 1, Math.ceil(cam.x + w / 2 / s));
-    const y0 = Math.max(0, Math.floor(cam.y - h / 2 / s)), y1 = Math.min(M.height - 1, Math.ceil(cam.y + h / 2 / s));
+    const x0 = Math.max(0, Math.floor(cam.x - w / 2 / s)), x1 = Math.min(m.width - 1, Math.ceil(cam.x + w / 2 / s));
+    const y0 = Math.max(0, Math.floor(cam.y - h / 2 / s)), y1 = Math.min(m.height - 1, Math.ceil(cam.y + h / 2 / s));
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0d1216'; ctx.fillRect(0, 0, w, h);
@@ -85,12 +76,19 @@ export function createObserverMap(canvas, get) {
       ground.see(m);
       const k = s / CELL; // art pixels to screen pixels
       ctx.setTransform(dpr * k, 0, 0, dpr * k, 0, 0);
-      terrain.draw(ctx, { m, ox: sx(0) / k, oy: sy(0) / k, x0, y0, x1, y1, camera: cam, ground, world: worldState(V.clock) });
+      const ox = sx(0) / k, oy = sy(0) / k;
+      terrain.draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera: cam, ground, world: worldState(V.clock) });
+      // prints, pressed into the ground they lie on, in art pixels like the ground (map.js)
+      for (const t of m.tracks) {
+        if (t.x < x0 || t.x > x1 || t.y < y0 || t.y > y1) continue;
+        const px = ox + t.x * CELL, py = oy + t.y * CELL;
+        for (const [dx, dy, fill] of terrain.prints(t, ground)) { ctx.fillStyle = fill; ctx.fillRect(px + dx, py + dy, 1, 1); }
+      }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     } else {
       bakeFlat(m);
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(flat, sx(0), sy(0), M.width * s, M.height * s);
+      ctx.drawImage(flat, sx(0), sy(0), m.width * s, m.height * s);
     }
 
     // places: fires, shelters, carcasses, stashes
@@ -133,7 +131,7 @@ export function createObserverMap(canvas, get) {
     for (const id of drawn.keys()) if (!seen.has(id)) drawn.delete(id);
 
     if (s >= PAINTED_FROM_SCALE)
-      for (const n of M.named) if (n.x >= x0 && n.x <= x1 && n.y >= y0 && n.y <= y1) label(n.name, sx(n.x) + s / 2, sy(n.y) + s + 8);
+      for (const n of m.named) if (n.x >= x0 && n.x <= x1 && n.y >= y0 && n.y <= y1) label(n.name, sx(n.x) + s / 2, sy(n.y) + s + 8);
 
     const box = (t, color) => { if (!t) return; ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.strokeRect(sx(t.x) + 1, sy(t.y) + 1, Math.max(2, s - 2), Math.max(2, s - 2)); };
     box(S.hover, 'rgba(234,223,200,.7)');

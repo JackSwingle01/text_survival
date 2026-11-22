@@ -231,9 +231,9 @@ public class GameHostTests
     {
         var v = Parse(new GameHost().NewGame(Seed));
         Assert.Equal(v.Map.Width * v.Map.Height, v.Map.Known.Length);
-        int known = v.Map.Known.Count(c => c != ViewBuilder.UnknownCode);
+        int known = v.Map.Known.Count(c => c != MapView.UnknownCode);
         Assert.InRange(known, 10, v.Map.Known.Length / 4);
-        Assert.All(v.Map.Visible, i => Assert.NotEqual(ViewBuilder.UnknownCode, v.Map.Known[i]));
+        Assert.All(v.Map.Visible, i => Assert.NotEqual(MapView.UnknownCode, v.Map.Known[i]));
     }
 
     [Theory]
@@ -243,7 +243,7 @@ public class GameHostTests
     {
         var v = Parse(new GameHost().NewGame(seed));
         var m = Survival.Map.Generate(seed);
-        bool Known(int x, int y) => v.Map.Known[y * v.Map.Width + x] != ViewBuilder.UnknownCode;
+        bool Known(int x, int y) => v.Map.Known[y * v.Map.Width + x] != MapView.UnknownCode;
         var expected = m.Edges
             .Where(e => e.Value is Survival.EdgeType.Ravine or Survival.EdgeType.Cliff
                 && (Known(e.Key.Item1.X, e.Key.Item1.Y) || Known(e.Key.Item2.X, e.Key.Item2.Y)))
@@ -529,7 +529,7 @@ public class GameHostTests
         Assert.DoesNotContain(Index(w, a), v.Map.Visible);
         Assert.Contains(Trail(a, b, "path"), Sent(v));
         Assert.DoesNotContain(v.Map.Trails, t => t.Ax == far.X && t.Ay == far.Y - 1);
-        bool Known(int x, int y) => v.Map.Known[y * v.Map.Width + x] != ViewBuilder.UnknownCode;
+        bool Known(int x, int y) => v.Map.Known[y * v.Map.Width + x] != MapView.UnknownCode;
         Assert.All(v.Map.Trails, t =>
         {
             Assert.True(Known(t.Ax, t.Ay) && Known(t.Bx, t.By), $"{t} has an end never seen");
@@ -564,12 +564,12 @@ public class GameHostTests
         var w = h.World;
         var here = w.Agent(AgentId.Player).Tile;
         var m = Map.Of(w);
-        var far = Enumerable.Range(1, 20).Select(d => new TileId(here.X + ViewBuilder.TrackReadTiles + d, here.Y))
+        var far = Enumerable.Range(1, 20).Select(d => new TileId(here.X + MapView.TrackReadTiles + d, here.Y))
             .First(t => m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.TerrainAt(Map.Step(t, Direction.East)).IsPassable());
         Tracks.RecordMove(w, Map.Step(far, Direction.East), far, TrackMaker.Hoof, 5);
         var v = Parse(h.View());
         Assert.NotEmpty(Tracks.Read(w, far));
-        Assert.All(v.Map.Tracks, t => Assert.True(Math.Max(Math.Abs(t.X - here.X), Math.Abs(t.Y - here.Y)) <= ViewBuilder.TrackReadTiles, $"prints at {t.X},{t.Y}"));
+        Assert.All(v.Map.Tracks, t => Assert.True(Math.Max(Math.Abs(t.X - here.X), Math.Abs(t.Y - here.Y)) <= MapView.TrackReadTiles, $"prints at {t.X},{t.Y}"));
         Assert.All(v.Map.Tracks, t => Assert.Contains(t.Y * m.Width + t.X, v.Map.Visible));
     }
 

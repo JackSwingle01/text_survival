@@ -11,12 +11,12 @@ const params = new URLSearchParams(location.search);
 const obs = createClient().observe;
 const pacer = createPacer();
 
-/** Hand the renderer new ground at most this often: every chunk on screen rebakes when it changes. */
-const GROUND_EVERY_MS = 2000, INSPECT_EVERY_MS = 500;
+/** Fetch a new map (MapView.Truth) at most this often: every chunk on screen rebakes when its ground changes. */
+const MAP_EVERY_MS = 2000, INSPECT_EVERY_MS = 500;
 
 const S = {
-  map: null, view: null, ground: null, cam: null,
-  pendingGround: null, groundAt: 0,
+  map: null, view: null, cam: null, spawnables: [],
+  mapMinute: null, mapAt: 0, mapLoading: false, // the map's GroundMinute, when it was fetched, a fetch queued
   selected: null, hover: null, inspected: null, inspectedAt: 0,
   playing: false, busy: false, armed: null,
 };
@@ -35,14 +35,20 @@ function toast(text) {
 
 function apply(v) {
   S.view = v;
-  if (v.ground) S.pendingGround = v.ground;
-  commitGround(false);
   renderBar(); renderLog();
 }
 
-function commitGround(force) {
-  if (!S.pendingGround || (!force && S.ground && performance.now() - S.groundAt < GROUND_EVERY_MS)) return;
-  S.ground = S.pendingGround; S.pendingGround = null; S.groundAt = performance.now();
+/** The map is the whole valley's MapDto, drawn by the player's renderer. It goes stale when the view's
+ * GroundMinute passes it; fetch it then, at most every MAP_EVERY_MS unless forced. */
+function refreshMap(force) {
+  if (!S.view || S.mapLoading || S.mapMinute === S.view.groundMinute) return Promise.resolve();
+  if (!force && performance.now() - S.mapAt < MAP_EVERY_MS) return Promise.resolve();
+  S.mapLoading = true;
+  const minute = S.view.groundMinute;
+  return call(async () => {
+    try { S.map = await obs.map(); S.mapMinute = minute; S.mapAt = performance.now(); }
+    finally { S.mapLoading = false; }
+  });
 }
 
 /** One call to the world at a time: a click while time runs waits its turn behind the call in flight.
@@ -67,13 +73,15 @@ async function advance(minutes) {
 
 async function newWorld(seed) {
   S.playing = false; pacer.reset();
-  const map = await call(() => obs.newWorld(seed));
-  if (!map) return;
-  S.map = map; S.ground = null; S.selected = null; S.inspected = null;
-  S.cam = createCamera(map, viewport());
+  const start = await call(() => obs.newWorld(seed));
+  if (!start) return;
+  S.map = null; S.mapMinute = null; S.selected = null; S.inspected = null;
+  S.spawnables = start.spawnables;
+  apply(start.view);
+  await refreshMap(true);
+  if (!S.map) return;
+  S.cam = createCamera(S.map, viewport());
   renderSpawns();
-  apply(await obs.view());
-  commitGround(true);
   renderInspector();
   const u = new URL(location.href); u.searchParams.set('seed', seed); history.replaceState(null, '', u);
 }
@@ -98,7 +106,7 @@ async function spawnAt(t, keepArmed) {
 let lastT = performance.now();
 function loop(now) {
   requestAnimationFrame(loop);
-  commitGround(false);
+  refreshMap(false);
   const dt = (now - lastT) / 1000;
   if (!S.playing || !S.view) { lastT = now; return; }
   if (S.busy) return; // the time it waits is banked by the pacer, up to a second
@@ -123,7 +131,7 @@ function renderBar() {
 }
 
 function renderSpawns() {
-  $('spawns').innerHTML = S.map.spawnables.map(s =>
+  $('spawns').innerHTML = S.spawnables.map(s =>
     `<button class="obs-btn${S.armed === s.id ? ' on' : ''}" data-spawn="${esc(s.id)}" title="Then click a tile (Shift-click to place several)">${esc(s.label)}</button>`).join('');
   $('world').classList.toggle('spawning', !!S.armed);
 }

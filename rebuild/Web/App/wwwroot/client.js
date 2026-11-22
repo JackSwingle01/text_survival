@@ -32,6 +32,7 @@ export function createClient(url = new URL('./worker.js', import.meta.url)) {
       /** Resolves to what never changes: terrain, named places, the camp, what can be spawned. */
       newWorld: seed => call('observeNew', seed),
       view: () => call('observeView'),
+      map: () => call('observeMap'),
       advance: minutes => call('observeAdvance', minutes),
       spawn: (kind, x, y) => call('observeSpawn', { kind, x, y }),
       inspect: (x, y) => call('observeInspect', { x, y }),

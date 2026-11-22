@@ -15,12 +15,6 @@ sealed class ViewBuilder(World world, int gen)
 
     public sealed record CombatVerb(CombatAction Action, int? Target);
 
-    /// The terrain codes of MapDto.Known: one character each.
-    public const string TerrainCodes = "FCPHWMRXD"; // Forest Clearing Plain Hills Water Marsh Rock Mountain DeepWater
-    public const char CaveFloorCode = 'c', CaveMouthCode = 'e', UnknownCode = '.';
-
-    /// Tracks are read within this many tiles of the player, in sight: nobody reads prints from far off.
-    public const int TrackReadTiles = 3;
     /// Predators seen within this many tiles in the last few hours make an alert.
     public const int NearbyTiles = 6;
     public const long NearbyMinutes = 180;
@@ -272,94 +266,11 @@ sealed class ViewBuilder(World world, int gen)
             Math.Round(b.ClothingClo, 2));
     }
 
-    // ---- the map: memory only ----
+    // ---- the map: memory only (MapView) ----
 
-    bool Explored(TileId t) => t == _player.Tile || Memories.Of(_player).Explored is { } e && M.InBounds(t) && e.Contains(t);
+    bool Explored(TileId t) => MapView.Explored(world, _player, t);
 
-    MapDto MapOf()
-    {
-        var m = M;
-        var memory = Memories.Of(_player);
-        var known = new StringBuilder(m.Width * m.Height);
-        for (int y = 0; y < m.Height; y++)
-            for (int x = 0; x < m.Width; x++)
-            {
-                var t = new TileId(x, y);
-                known.Append(!Explored(t) ? UnknownCode : TerrainCode(m, t));
-            }
-        var visible = Sight.InView(world, _player); // the view the player's looks already cast
-
-        var places = new List<PlaceMarkDto>();
-        // The fire underfoot is the one the fire panel shows (FireHere): memory catches up with it only on
-        // the next minute awake, so on waking it would still hold the fire slept beside.
-        var pitHere = Fire.PitAt(world, _player.Tile) is FireId pid ? world.Fires[pid] : null;
-        foreach (var (t, mem) in memory.Places)
-        {
-            bool underfoot = t == _player.Tile;
-            var fire = underfoot ? (pitHere is { } ph ? Fire.Phase(ph) : null) : mem.Fire;
-            bool notable = fire != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Stash is { Count: > 0 } || mem.Danger != Danger.None;
-            if (!notable) continue;
-            // The fuel was reckoned beside the fire; age it from then. A fire seen burning since keeps that reckoning.
-            double? hoursLeft = underfoot ? (pitHere != null && Fire.IsActive(pitHere) ? Math.Round(Fire.FuelHours(pitHere), 1) : null)
-                : mem.FireHours is double h && mem.VisitedMinute is long v ? Math.Max(0, Math.Round(h - (world.Minute - v) / 60.0, 1)) : null;
-            places.Add(new PlaceMarkDto(t.X, t.Y, underfoot ? world.Minute : mem.SeenMinute, fire is { } f ? Names.Title(f) : null, hoursLeft, mem.Shelter,
-                mem.Carcasses is { Count: > 0 }, mem.Stash is { Count: > 0 }, mem.Danger.HasFlag(Danger.Den), mem.Danger.HasFlag(Danger.Hurt)));
-        }
-        var sightings = memory.Sightings.Where(s => s.Key != AgentId.Player)
-            .Select(s => new SightingDto(s.Value.Tile.X, s.Value.Tile.Y, Words.SpeciesIcon(s.Value.Species), s.Value.Count, s.Value.Minute)).ToList();
-
-        var tracks = new List<TrackDto>();
-        foreach (var t in visible)
-            if (Math.Abs(t.X - _player.Tile.X) <= TrackReadTiles && Math.Abs(t.Y - _player.Tile.Y) <= TrackReadTiles)
-                foreach (var s in Tracks.Read(world, t))
-                    tracks.Add(new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes, s.Traffic, Code(s.Heading), Code(s.Pattern),
-                        Math.Round(s.FreshnessPct, 2)));
-
-        var named = new List<NamedDto>();
-        foreach (var (t, site) in m.Sites) if (Explored(t)) named.Add(new NamedDto(t.X, t.Y, site.Name));
-        foreach (var (t, i) in m.PassStageIndex) if (Explored(t)) named.Add(new NamedDto(t.X, t.Y, Map.PassStages[i].Name));
-        named.Add(new NamedDto(m.Camp.X, m.Camp.Y, Map.Describe(m, m.Camp)));
-
-        // In sight, the ground as it is; out of sight, as the player last saw it.
-        var inSight = visible.ToHashSet();
-        var surface = new List<SurfaceDto>();
-        var frozen = new List<int>();
-        for (int y = 0; y < m.Height; y++)
-            for (int x = 0; x < m.Width; x++)
-            {
-                var t = new TileId(x, y);
-                if (!Explored(t)) continue;
-                RememberedGround Seen() => memory.Explored?.At(t) ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
-                if (FrozenWater(m, t, inSight.Contains(t) ? world.Minute : Seen().SeenMinute))
-                    frozen.Add(y * m.Width + x);
-                if (!m.TerrainAt(t).IsPassable()) continue;
-                if (SurfaceOf(inSight.Contains(t) ? Ground.SurfaceNow(world, t) : Seen().Surface, y * m.Width + x) is { } s) surface.Add(s);
-            }
-        var edges = new List<EdgeDto>();
-        foreach (var ((a, b), e) in m.Edges)
-            if (e is EdgeType.Ravine or EdgeType.Cliff && (Explored(a) || Explored(b)))
-                edges.Add(new EdgeDto(a.X, a.Y, b.X, b.Y, Code(e)));
-        edges.Sort((p, q) => (p.Ay, p.Ax, p.By, p.Bx).CompareTo((q.Ay, q.Ax, q.By, q.Bx)));
-
-        var trails = Memories.Trails(world, _player, inSight).Select(t => new TrailDto(t.Edge.A.X, t.Edge.A.Y, t.Edge.B.X, t.Edge.B.Y, Code(t.Tier))).ToList();
-        return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
-            places, sightings, tracks, named, surface, frozen, edges, trails);
-    }
-
-    /// A tile's code in MapDto.Known: a cave's floor or mouth, else its terrain.
-    public static char TerrainCode(GeneratedMap m, TileId t) =>
-        m.CaveAt(t) == Cave.Floor ? CaveFloorCode : m.CaveAt(t) == Cave.Entrance ? CaveMouthCode : TerrainCodes[(int)m.TerrainAt(t)];
-
-    /// A lake or deep-water tile that is ice at this minute (MapDto.FrozenWater).
-    public static bool FrozenWater(GeneratedMap m, TileId t, long minute) =>
-        m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater && m.CaveAt(t) == Cave.None && Map.IsFrozen(m, t, minute);
-
-    /// A tile's ground as the page draws it, or null for bare, dry ground (left out of MapDto.Surface).
-    public static SurfaceDto? SurfaceOf(SurfaceSummary g, int index)
-    {
-        double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
-        return snowCm > 0 || waterCm > 0 || mud > 0 ? new SurfaceDto(index, snowCm, g.Crusted, mud, waterCm, g.Iced) : null;
-    }
+    MapDto MapOf() => MapView.Remembered(world, _player);
 
     /// An enum value as the page's renderer names it (terrain-core.js): a code, not a word for the player.
     public static string Code<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();

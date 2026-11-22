@@ -53,13 +53,18 @@ a kind (one row per kind in `Host/Observer.cs`'s `Spawnables`: an NPC today), th
 (Shift-click for several). Clicking a tile lists what is there in `Verbs.NameOf`'s words, and who,
 with their tiers or herd state; the log is world events in Sim's narration with their tile.
 
-It talks to `Host/Observer.cs` through `client.js`'s `observe` calls, never to `GameHost`: the player's
-view, built from Memory, is untouched. The rate it achieves is shown beside the clock; Sim's own speed
+It talks to `Host/Observer.cs` through `client.js`'s `observe` calls, never to `GameHost`. Its map is the
+player's `MapDto`, built by `Host/MapView.cs` from the other side: `MapView.Remembered` is a person's
+memory, `MapView.Truth` every tile known and in sight, every print and worn route. The page hands it to
+the same renderer (terrain.js, ground-state.js), so whatever the map gains, ravines and routes included,
+the observer draws too. The map changes with Ground's 15-minute step: each view carries `groundMinute`,
+and the page fetches `observe.map()` when that has passed the map it holds, at most every 2 s. Actors,
+places (fires, shelters, carcasses, stashes) and the log come with every view. The rate it achieves is shown beside the clock; Sim's own speed
 is the ceiling (about 26-40 game minutes a second in the AOT build with a populated valley).
 
 ```bash
-node --test tools/observe.test.mjs                               # camera and pacing
-node tools/shots.mjs /tmp/text-survival-web/wwwroot --observe    # play, zoom, spawn, inspect; times the calls
+node --test tools/observe.test.mjs                               # camera, pacing, flat colours
+node tools/shots.mjs /tmp/text-survival-web/wwwroot --observe    # play, zoom, spawn, inspect, a ravine; times the calls
 ```
 
 ## The map's ground

@@ -2,7 +2,8 @@
 //   node --test tools/observe.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createCamera, zoomAt, panBy, cellAt, createPacer, MIN_SCALE, MAX_SCALE } from '../App/wwwroot/observe-core.js';
+import { createCamera, zoomAt, panBy, cellAt, createPacer, MIN_SCALE, MAX_SCALE, FLAT } from '../App/wwwroot/observe-core.js';
+import { TERRAIN } from '../App/wwwroot/terrain.js';
 
 const view = { w: 1000, h: 600 }, map = { width: 224, height: 82 };
 
@@ -68,4 +69,8 @@ test('after a pause the achieved rate counts only from the restart', () => {
   p.reset(); // paused, then played again
   t += 10000; p.ran(30, 5, t); t += 500; p.ran(30, 5, t);
   assert.equal(Math.round(p.achieved(t)), 120); // 60 minutes over the half second since the restart
+});
+
+test('the zoomed-out map has a colour for every terrain the map can name', () => {
+  for (const name of Object.values(TERRAIN)) assert.ok(FLAT[name], `no flat colour for ${name}`);
 });

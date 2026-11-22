@@ -108,7 +108,9 @@ public sealed record EffectDto(string Name, double Severity);
 public sealed record CapacityDto(string Name, double Pct);
 public sealed record SkillDto(string Name, int Level);
 
-/// The map as the player knows it. Known: one character per tile, row by row (Width per row): '.'
+/// The map the page draws (MapView): as a person knows it, or in observer mode as it truly is (MapView.Truth:
+/// every tile known and in sight, every print, every worn route, and no places or sightings, which come
+/// with the observer's view). As the player knows it: Known: one character per tile, row by row (Width per row): '.'
 /// for never seen, otherwise the terrain's code (TerrainCodes). Visible: indices (y*Width+x) in sight now.
 /// Everything else is memory: places as last seen, sightings with their minute. Surface: the ground of
 /// each known tile with anything on it, in tile order: in sight, as it is now (Ground.SurfaceNow); out
@@ -185,19 +187,16 @@ public sealed record LogDto(long Minute, string Text, string Kind, string Icon);
 
 // ---- Observer mode (Observer.cs): development only, a world with no player drawn as it truly is ----
 
-/// What never changes in an observer world, sent once by New: the terrain of every tile (MapDto.Known's
-/// codes, none of them unknown), the named places, the camp, and what can be spawned.
-public sealed record ObserverMapDto(int Width, int Height, string Terrain, int CampX, int CampY, IReadOnlyList<NamedDto> Named,
-    IReadOnlyList<SpawnableDto> Spawnables);
+/// A new observer world: what the spawn tool can make, and the first view.
+public sealed record ObserverStartDto(IReadOnlyList<SpawnableDto> Spawnables, ObserverViewDto View);
 /// One kind of thing the spawn tool can put on a tile. Id is what Spawn takes.
 public sealed record SpawnableDto(string Id, string Label);
 
-/// The observer's view after every call. Ground: null when it has not changed since the last view
-/// (it changes every Ground.StepMinutes), so the page keeps the copy it has.
-public sealed record ObserverViewDto(long Minute, ClockDto Clock, IReadOnlyList<ActorDto> Actors, IReadOnlyList<PlaceMarkDto> Places,
-    ObserverGroundDto? Ground, IReadOnlyList<ObserverLogDto> Log);
-/// Every passable tile's ground (SurfaceDto, bare tiles left out) and every frozen lake tile, now.
-public sealed record ObserverGroundDto(long Minute, IReadOnlyList<SurfaceDto> Surface, IReadOnlyList<int> FrozenWater);
+/// The observer's view after every call: what changes by the minute. GroundMinute: the start of Ground's
+/// current step; the map (Observer.Map, a MapDto from MapView.Truth) is stale once this passes its minute.
+/// Places: every unattended fire, shelter, carcass and stash, as they are now (the map carries none).
+public sealed record ObserverViewDto(long Minute, long GroundMinute, ClockDto Clock, IReadOnlyList<ActorDto> Actors, IReadOnlyList<PlaceMarkDto> Places,
+    IReadOnlyList<ObserverLogDto> Log);
 /// An NPC or a herd. Kind: npc or herd. Doing: its activity in words ("travel north"), or "deciding".
 /// State: a herd's (Fauna HerdState). Predator: Fauna.IsPredator. ToX/ToY/CrossingPct: a crossing under way, for the page to draw it moving.
 public sealed record ActorDto(int Id, string Kind, string Icon, string Name, int X, int Y, int Count, string Doing, string? State, bool Predator,
@@ -217,7 +216,8 @@ public sealed record ActorDetailDto(int Id, string Name, string Doing, IReadOnly
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(ActDto))]
 [JsonSerializable(typeof(ViewDto))]
-[JsonSerializable(typeof(ObserverMapDto))]
+[JsonSerializable(typeof(ObserverStartDto))]
+[JsonSerializable(typeof(MapDto))]
 [JsonSerializable(typeof(ObserverViewDto))]
 [JsonSerializable(typeof(TileDto))]
 public partial class HostJson : JsonSerializerContext;

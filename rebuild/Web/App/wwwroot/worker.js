@@ -19,6 +19,7 @@ const ops = {
   // Development only: Observer mode (observe.html).
   observeNew: (G, seed) => JSON.parse(G.ObserveNew(seed)),
   observeView: G => JSON.parse(G.ObserveView()),
+  observeMap: G => JSON.parse(G.ObserveMap()),
   observeAdvance: (G, minutes) => JSON.parse(G.ObserveAdvance(minutes)),
   observeSpawn: (G, { kind, x, y }) => JSON.parse(G.ObserveSpawn(kind, x, y)),
   observeInspect: (G, { x, y }) => JSON.parse(G.ObserveInspect(x, y)),
