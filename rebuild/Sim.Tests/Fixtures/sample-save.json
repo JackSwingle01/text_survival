@@ -1,95 +1,20 @@
 {
-  "Version": 11,
+  "Version": 13,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
     "Minute": 172,
     "Tiles": {
-      "6,41": {
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.446495348259833,
-              "FrozenFractionPct": 0.03439394182648681
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.02954832858165671,
-              "CompactionPct": 0.04469459049309967,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.20488085335018244,
-          "WaterDrainedM": 0.11573727356676665,
-          "WaterEvaporatedM": 0.006170541153386771,
-          "WaterOverflowedM": 0.009101958291151393,
-          "LastUpdatedMinute": 165
-        }
-      },
-      "6,42": {
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.08,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.12626486441005827,
-              "FrozenFractionPct": 1
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.053287337033924354,
-              "CompactionPct": 0.04473870066435253,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.27052053603032755,
-          "WaterDrainedM": 0.10513107335515694,
-          "WaterEvaporatedM": 0.009333279226384173,
-          "WaterOverflowedM": 0.14844441990301946,
-          "LastUpdatedMinute": 165
-        }
-      },
-      "7,40": {
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.446495348259833,
-              "FrozenFractionPct": 0.03439394182648681
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.02954832858165671,
-              "CompactionPct": 0.04469459049309967,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.20488085335018244,
-          "WaterDrainedM": 0.11573727356676665,
-          "WaterEvaporatedM": 0.006170541153386771,
-          "WaterOverflowedM": 0.009101958291151393,
-          "LastUpdatedMinute": 165
-        }
-      },
       "7,41": {
         "Tracks": {
           "Human": {
-            "Minute": 123,
-            "Heading": 2,
-            "Traffic": 3.8670965839756692,
+            "Minute": 5,
+            "Heading": 0,
+            "Traffic": 1,
             "HeaviestIndividual": 1,
             "DirectionX": 0,
-            "DirectionY": 0.11093372751074759,
-            "NorthSouthTraffic": 3.8670965839756692,
+            "DirectionY": -1,
+            "NorthSouthTraffic": 1,
             "EastWestTraffic": 0
           }
         },
@@ -122,11 +47,17 @@
             "MinutesWorked": 0,
             "Felled": 0,
             "ClearedMinute": 0
+          },
+          "0": {
+            "kind": "forage",
+            "HoursForaged": 0.016666666666666666,
+            "LastForagedMinute": 167,
+            "Grazed": {}
           }
         },
         "Stash": {
           "Kg": {
-            "Oak": 24.604203770142746
+            "Oak": 34.97920517535081
           },
           "Gear": []
         },
@@ -139,14 +70,14 @@
       "7,42": {
         "Tracks": {
           "Human": {
-            "Minute": 123,
-            "Heading": 2,
-            "Traffic": 5.779912140321684,
+            "Minute": 82,
+            "Heading": 3,
+            "Traffic": 2.8841451852062714,
             "HeaviestIndividual": 1,
-            "DirectionX": -0.04429643041840325,
-            "DirectionY": 0.09422764821254692,
-            "NorthSouthTraffic": 3.8871520761369793,
-            "EastWestTraffic": 1.892760064184705
+            "DirectionX": -0.045735816732055956,
+            "DirectionY": -0.9298810019383272,
+            "NorthSouthTraffic": 0.9298810019383272,
+            "EastWestTraffic": 1.9542641832679442
           }
         },
         "Ground": {
@@ -174,7 +105,6 @@
         },
         "Stash": {
           "Kg": {
-            "Kindling": 1.8897363227451383,
             "Pine": 2
           },
           "Gear": [
@@ -193,56 +123,6 @@
           "What": "stashed by the player"
         },
         "StashId": 0
-      },
-      "7,43": {
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.446495348259833,
-              "FrozenFractionPct": 0.03439394182648681
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.02954832858165671,
-              "CompactionPct": 0.04469459049309967,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.20488085335018244,
-          "WaterDrainedM": 0.11573727356676665,
-          "WaterEvaporatedM": 0.006170541153386771,
-          "WaterOverflowedM": 0.009101958291151393,
-          "LastUpdatedMinute": 165
-        }
-      },
-      "8,41": {
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.446495348259833,
-              "FrozenFractionPct": 0.03439394182648681
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.02954832858165671,
-              "CompactionPct": 0.04469459049309967,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.20488085335018244,
-          "WaterDrainedM": 0.11573727356676665,
-          "WaterEvaporatedM": 0.006170541153386771,
-          "WaterOverflowedM": 0.009101958291151393,
-          "LastUpdatedMinute": 165
-        }
       },
       "8,42": {
         "Tracks": {
@@ -631,12 +511,12 @@
             "StructuralKg": 34,
             "FatKg": 8.390951619047621,
             "MuscleKg": 25.84,
-            "CoreTempF": 98.90341027692948,
+            "CoreTempF": 98.59784436409228,
             "CaloriesKcal": 1997.6331838888889,
             "EnergyMinutes": 728,
             "HydrationMl": 2701.388888888854,
             "MinutesWithoutHunger": 1442,
-            "ClothingHeatBufferPct": 1,
+            "ClothingHeatBufferPct": 0.9992449752579204,
             "Effects": [
               {
                 "Kind": 15,
@@ -724,7 +604,7 @@
               }
             ]
           },
-          "Knows": {
+          "Memory": {
             "Discovered": [],
             "SearchHours": {},
             "Places": {
@@ -786,16 +666,16 @@
               },
               "7,41": {
                 "SeenMinute": 165,
-                "Trees": true
+                "Trees": true,
+                "Fire": 5
               },
               "7,42": {
                 "SeenMinute": 172,
                 "VisitedMinute": 172,
                 "ForageDensity": 0.38,
-                "Fire": 4,
-                "FireHours": 3.8,
+                "Fire": 1,
+                "FireHours": 0.3,
                 "Stash": {
-                  "Kindling": 1.9,
                   "Pine": 2
                 },
                 "Shelter": "Overhang"
@@ -869,7 +749,7 @@
             },
             "Sightings": {
               "1": {
-                "Tile": "7,42",
+                "Tile": "7,41",
                 "Species": 0,
                 "Count": 1,
                 "Minute": 165
@@ -892,7 +772,7 @@
       },
       "1": {
         "Id": 1,
-        "Tile": "7,42",
+        "Tile": "7,41",
         "Species": 0,
         "Members": [
           {
@@ -1238,13 +1118,18 @@
             "StructuralKg": 34,
             "FatKg": 11.449394004618185,
             "MuscleKg": 25.84,
-            "CoreTempF": 98.88496957312523,
-            "CaloriesKcal": 1198.6639000000073,
+            "CoreTempF": 98.41287675301108,
+            "CaloriesKcal": 1204.4366222222302,
             "EnergyMinutes": 4,
-            "HydrationMl": 2702.430555555521,
+            "HydrationMl": 3962.430555555521,
             "MinutesWithoutHunger": 172,
-            "ClothingHeatBufferPct": 1,
+            "ClothingHeatBufferPct": 0.804524802449794,
             "Effects": [
+              {
+                "Kind": 8,
+                "Severity": 0.0022894175698130736,
+                "RequiresTreatment": false
+              },
               {
                 "Kind": 14,
                 "Severity": 0.4222222222222222,
@@ -1283,22 +1168,20 @@
         ],
         "Mind": {
           "kind": "npc",
-          "Camp": "7,42",
-          "Boldness": 0.6071940396270876,
-          "SeeingTo": null,
-          "Heading": null,
-          "ForageGoal": null,
-          "WoodGoal": null,
-          "Opinions": {},
+          "Camp": "7,41",
+          "Goal": {
+            "Stat": "Warmth",
+            "Tier": "Need",
+            "StartedMinute": 170,
+            "BudgetMinutes": 90
+          },
           "TargetFatKg": 8.554727280554182,
-          "TargetFatMinute": 155,
-          "ThreatTile": null,
-          "ThreatMinute": 0,
+          "TargetFatMinute": 166,
           "Pack": {
             "Kg": {
-              "Tinder": 0.30817460870774116,
-              "Kindling": 1,
-              "Oak": 7.977760304016053
+              "Tinder": 0.20817460870774118,
+              "Kindling": 0.8897363227451383,
+              "Water": 2.74
             },
             "Gear": [
               {
@@ -1319,153 +1202,152 @@
               }
             ]
           },
-          "Knows": {
+          "Memory": {
             "Discovered": [],
-            "SearchHours": {},
+            "SearchHours": {
+              "7,41#2": 0.07594625118791916
+            },
             "Places": {
               "3,42": {
-                "SeenMinute": 155,
+                "SeenMinute": 1,
                 "Trees": true
               },
               "4,41": {
-                "SeenMinute": 155,
+                "SeenMinute": 1,
                 "Trees": true
               },
               "4,42": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "4,43": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "5,39": {
-                "SeenMinute": 119,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "5,40": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "5,41": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "5,43": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "5,44": {
-                "SeenMinute": 155,
+                "SeenMinute": 1,
                 "Trees": true
               },
               "6,39": {
-                "SeenMinute": 119,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "6,40": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "6,41": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "6,43": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "6,44": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "7,39": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "7,40": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "7,41": {
-                "SeenMinute": 155,
-                "VisitedMinute": 119,
+                "SeenMinute": 166,
+                "VisitedMinute": 166,
                 "Trees": true,
                 "ForageDensity": 1.013609329260508,
+                "Fire": 5,
+                "FireHours": 0.5,
                 "Stash": {
-                  "Oak": 24.6
+                  "Oak": 35
                 }
               },
               "7,42": {
-                "SeenMinute": 155,
-                "VisitedMinute": 155,
+                "SeenMinute": 166,
+                "VisitedMinute": 1,
                 "ForageDensity": 0.38,
-                "Fire": 4,
-                "FireHours": 4.1,
-                "Stash": {
-                  "Kindling": 1.9,
-                  "Pine": 2
-                },
+                "Fire": 1,
                 "Shelter": "Overhang"
               },
               "7,43": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "7,44": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "7,45": {
-                "SeenMinute": 155,
+                "SeenMinute": 1,
                 "Trees": true
               },
               "8,39": {
-                "SeenMinute": 119,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "8,40": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "8,41": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "8,42": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "8,43": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "8,44": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "9,39": {
-                "SeenMinute": 119,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "9,40": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "9,41": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "9,42": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "9,43": {
-                "SeenMinute": 155,
+                "SeenMinute": 166,
                 "Trees": true
               },
               "9,44": {
-                "SeenMinute": 155,
+                "SeenMinute": 1,
                 "Trees": true
               }
             },
@@ -1474,23 +1356,23 @@
                 "Tile": "7,42",
                 "Species": 0,
                 "Count": 1,
-                "Minute": 155
+                "Minute": 166
               }
             },
-            "Explored": "224x82:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4AMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\u002BAcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==:dwAAABkAAAAAAXcAAAAZAAAAAAGbAAAAHAAAAAABdwAAABkAAAAAAXcAAAAZAAAAAAGbAAAAHAAAAAABmwAAABwAAAAAAZsAAAAcAAAAAAGbAAAAHAAAAAABmwAAABwAAAAAAZsAAAAcAAAAAAGbAAAAHAAAAAABmwAAABwAAAAAAZsAAAAcAAAAAAGbAAAAHAAAAAABmwAAABwAAAAAAZsAAAAcAAAAAAGbAAAAHAAAAAABmwAAADMAAAAAAZsAAAAzAAAAAAGbAAAAKAAAAAABmwAAABwAAAAAAZsAAAAcAAAAAAGbAAAAOQAAAAABmwAAABwAAAAAAZsAAAAcAAAAAAGbAAAAHAAAAAABmwAAABwAAAAAAZsAAAAcAAAAAAGbAAAAHAAAAAABmwAAABwAAAAAAZsAAAAcAAAAAAGbAAAAHAAAAAABmwAAABwAAAAAAZsAAAAcAAAAAAGbAAAAHAAAAAAB"
+            "Explored": "224x82:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4AMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\u002BAcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==:pgAAAB4AAAAAAaYAAAAeAAAAAAGmAAAAHgAAAAABpgAAAB4AAAAAAaYAAAAeAAAAAAGmAAAAHgAAAAABpgAAAB4AAAAAAaYAAAAeAAAAAAGmAAAAHgAAAAABpgAAAB4AAAAAAQEAAAAPAAAAFAGmAAAAHgAAAAABpgAAAB4AAAAAAaYAAAAeAAAAAAGmAAAAHgAAAAABpgAAAB4AAAAAAQEAAAAPAAAAFAGmAAAAHgAAAAABpgAAADUAAAAAAaYAAAA1AAAAAAGmAAAAKQAAAAABpgAAAB4AAAAAAaYAAAAeAAAAAAEBAAAAHwAAAAABpgAAAB4AAAAAAaYAAAAeAAAAAAGmAAAAHgAAAAABpgAAAB4AAAAAAaYAAAAeAAAAAAGmAAAAHgAAAAABAQAAAA8AAAAUAaYAAAAeAAAAAAGmAAAAHgAAAAABpgAAAB4AAAAAAQEAAAAPAAAAFAEBAAAADwAAABQB"
           },
-          "Skills": {}
+          "Skills": {
+            "Firecraft": {
+              "Level": 0,
+              "Xp": 2
+            },
+            "Foraging": {
+              "Level": 0,
+              "Xp": 0.08333333333333333
+            }
+          }
         },
-        "Crossing": null,
-        "Doing": {
-          "Plain": {
-            "kind": "rest",
-            "Who": 1
-          },
-          "Work": null,
-          "MinutesLeft": 12,
-          "Acted": null
-        }
+        "Crossing": null
       },
       "2": {
         "Id": 2,
@@ -2109,7 +1991,7 @@
           "State": 0,
           "StateSinceMinute": 1,
           "Fear": 0,
-          "LastFightMinute": -1000000,
+          "LastEncounterMinute": -1000000,
           "FleeFrom": null,
           "Foray": null,
           "LastFedMinute": 0
@@ -2127,6 +2009,9 @@
       "fire:0": {
         "State": 12312604483156130127
       },
+      "fire:1": {
+        "State": 5266574129258148755
+      },
       "make:0": {
         "State": 11656051548387474417
       },
@@ -2134,10 +2019,10 @@
         "State": 12184350808930138095
       },
       "travel:1": {
-        "State": 5138320455032156723
+        "State": 12184349709418509854
       },
       "work:1": {
-        "State": 11585691137858028565
+        "State": 277671184274156365
       }
     },
     "Fires": {
@@ -2147,17 +2032,15 @@
         "Pit": 0,
         "UnburnedKg": {},
         "BurningKg": {
-          "BirchBark": 0.001326070432060828,
-          "Kindling": 0.11442562833290583,
-          "Birch": 0.6237990389899252,
-          "Oak": 2.04720137641628
+          "Kindling": 0.02230481662605102,
+          "Birch": 0.23664419536030387
         },
         "HasEmbers": false,
         "EmberDurationHours": 0,
         "EmberHoursRemaining": 0,
         "EmberStartTempF": 0,
-        "LastBurningTempF": 912.9331680462649,
-        "BurnedSinceLitKg": 2.660488987020837,
+        "LastBurningTempF": 413.880930437776,
+        "BurnedSinceLitKg": 2.7910509880136423,
         "CharcoalKg": 0,
         "CarriedBy": null,
         "TorchMinutesLeft": 0,
@@ -2165,22 +2048,46 @@
           "Who": 0,
           "What": "lit by the player with a fire striker"
         }
+      },
+      "1": {
+        "Tile": "7,41",
+        "LastUpdatedMinute": 172,
+        "Pit": 0,
+        "UnburnedKg": {},
+        "BurningKg": {
+          "Tinder": 0.019753560755794732,
+          "Kindling": 0.6326232196221023
+        },
+        "HasEmbers": false,
+        "EmberDurationHours": 0,
+        "EmberHoursRemaining": 0,
+        "EmberStartTempF": 300,
+        "LastBurningTempF": 416.710776474701,
+        "BurnedSinceLitKg": 1.4476232196221024,
+        "CharcoalKg": 0,
+        "CarriedBy": null,
+        "TorchMinutesLeft": 0,
+        "LitBy": 1,
+        "Cause": {
+          "Who": 1,
+          "What": "lit by a person with a hand drill"
+        }
       }
     },
-    "NextFireId": 1,
+    "NextFireId": 2,
     "NextAgentId": 3,
     "Encounters": [],
     "Trails": {
       "7,41|7,42": {
-        "Wear": 3.934819546192139,
-        "Minute": 123
+        "Wear": 1,
+        "Minute": 5
       },
       "7,42|8,42": {
         "Wear": 1.9712764101863662,
         "Minute": 82
       }
     },
-    "TracksSweptHour": 2,
+    "TracksSweptHour": 1,
     "NextCarcassId": 0,
     "NextStashId": 2,
     "NextShelterId": 1,
@@ -2215,12 +2122,49 @@
           "Tile": "7,41"
         },
         {
+          "kind": "firelit",
+          "Fire": 1,
+          "By": 1,
+          "Minute": 106,
+          "Tile": "7,41"
+        },
+        {
           "kind": "unstashed",
           "Who": 1,
+          "Resource": 22,
+          "Kg": 0.019999999999999574,
+          "Taken": false,
+          "Minute": 143,
+          "Tile": "7,41"
+        },
+        {
+          "kind": "stashed",
+          "Who": 1,
           "Resource": 8,
-          "Kg": 3.722912336660947,
-          "Taken": true,
-          "Minute": 118,
+          "Kg": 6.65208906854712,
+          "Minute": 144,
+          "Tile": "7,41"
+        },
+        {
+          "kind": "unstashed",
+          "Who": 1,
+          "Resource": 22,
+          "Kg": 0.7099999999999973,
+          "Taken": false,
+          "Minute": 147,
+          "Tile": "7,41"
+        },
+        {
+          "kind": "fireembers",
+          "Fire": 1,
+          "Minute": 152,
+          "Tile": "7,41"
+        },
+        {
+          "kind": "firelit",
+          "Fire": 1,
+          "By": 1,
+          "Minute": 155,
           "Tile": "7,41"
         }
       ],
@@ -2247,32 +2191,6 @@
           "Resource": 6,
           "Kg": 2,
           "Minute": 7,
-          "Tile": "7,42"
-        },
-        {
-          "kind": "fueladded",
-          "Fire": 0,
-          "By": 1,
-          "Fuel": 8,
-          "Kg": 1.8331760139158084,
-          "Minute": 111,
-          "Tile": "7,42"
-        },
-        {
-          "kind": "stashed",
-          "Who": 1,
-          "Resource": 5,
-          "Kg": 1.8897363227451383,
-          "Minute": 112,
-          "Tile": "7,42"
-        },
-        {
-          "kind": "fueladded",
-          "Fire": 0,
-          "By": 1,
-          "Fuel": 8,
-          "Kg": 0.5640650872762052,
-          "Minute": 154,
           "Tile": "7,42"
         },
         {

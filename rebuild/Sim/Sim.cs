@@ -54,13 +54,13 @@ public static class Sim
         if (agent.Id == AgentId.Player && Crossed(world)) return new StepResult(events, 0, StepOutcome.Refused, RunOver);
         // A fight holds every agent with a member still in it: no walking off without fleeing.
         if (activity is not Fight && Held(world, agent.Id))
-            return new StepResult(events, 0, StepOutcome.Refused, InAFight);
+            return new StepResult(events, 0, StepOutcome.Refused, InAnEncounter);
         if (agent.Doing != null) // told to do something else: what it was doing ends here
         {
             Stop(world, agent, agent.Doing, events);
             agent.Doing = null;
         }
-        if (Start(world, activity, minutes, events, out var doing) is string refused) return Result(0, StepOutcome.Refused, refused);
+        if (Start(world, activity, minutes, events, out var doing) is { } refused) return Result(0, StepOutcome.Refused, refused.Reason);
         bool fighting = Held(world, agent.Id); // a round, or a hunt it has just started
         agent.Stepping = activity;
         try
@@ -98,7 +98,7 @@ public static class Sim
     {
         bool nearer = false;
         if (person != null && Looks(person, activity) && world.Agents.ContainsKey(person.Id))
-            nearer = person.Mind is PlayerMind ? Knowledge.Witness(world, person, events, ref filed) : Knowledge.Watch(world, person, events);
+            nearer = person.Mind is PlayerMind ? Memories.Witness(world, person, events, ref filed) : Memories.Watch(world, person, events);
         Journal.File(world, events, ref filed);
         return nearer;
     }
@@ -136,10 +136,10 @@ public static class Sim
         Shelters.BuiltReason, Shelters.Packed, Shelters.AsGoodAsItGets,
         Making.MadeIt, Making.Spoiled,
         Fire.DidNotCatch, // the strike was made and failed: the attempt is over
-        FullyRestedReason, FightOver,
+        FullyRestedReason, EncounterOver,
     ];
 
-    public const string FullyRestedReason = "fully rested", FightOver = "fight over";
+    public const string FullyRestedReason = "fully rested", EncounterOver = "fight over";
 
     public static bool Finishes(string reason) => Finishing.Contains(reason);
 
@@ -199,7 +199,7 @@ public static class Sim
 
     /// Checks and begins an activity at this instant; refusal or null. Instant parts (lighting,
     /// eating, stashing) happen here, before the first minute is lived.
-    internal static string? Start(World world, Activity activity, int minutes, List<WorldEvent> events, out Doing doing)
+    internal static Refusal? Start(World world, Activity activity, int minutes, List<WorldEvent> events, out Doing doing)
     {
         var agent = world.Agent(activity.Who);
         doing = null!;
@@ -207,7 +207,7 @@ public static class Sim
         WorkSession? work = null;
         // Fire, work and building read the fire as it is now: its light, its heat, the pit to tend.
         if (ReadsTheFire(activity)) Fire.CatchUpAround(world, agent, events);
-        if (ActivityRefusal(world, activity) is string refused) return refused;
+        if (ActivityRefusal(world, activity) is { } refused) return refused;
         if (activity is StartFire or AddFuel or LightTorch or GatherCharcoal)
             acted = Fire.Act(world, activity, events); // a failed ignition still costs its minute
         else if (activity is Travel travel) Traversal.Begin(world, travel);
@@ -224,16 +224,16 @@ public static class Sim
     /// Why this activity cannot start now, or null: the refusal Step would give, without a minute
     /// passing or anything changing. Fires around the agent must be caught up (they are after any
     /// step: every minute lived catches them up).
-    public static string? Refusal(World world, Activity activity)
+    public static Refusal? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
-        if (!IsAlive(agent)) return "dead";
-        if (agent.Id == AgentId.Player && Crossed(world)) return RunOver;
-        if (activity is not Fight && Held(world, agent.Id)) return InAFight;
+        if (!IsAlive(agent)) return new("dead");
+        if (agent.Id == AgentId.Player && Crossed(world)) return new(RunOver);
+        if (activity is not Fight && Held(world, agent.Id)) return new(InAnEncounter);
         return ActivityRefusal(world, activity);
     }
 
-    public const string InAFight = "You are in a fight.";
+    public const string InAnEncounter = "You are in a fight.";
 
     public const string Asleep = "You are asleep.";
 
@@ -241,9 +241,9 @@ public static class Sim
         activity is StartFire or AddFuel or LightTorch or GatherCharcoal || Work.Handles(activity) || Shelters.Handles(activity) || Making.Handles(activity);
 
     /// The owning system's refusal for this activity: the one dispatch Start and Refusal share.
-    static string? ActivityRefusal(World world, Activity activity) => activity switch
+    static Refusal? ActivityRefusal(World world, Activity activity) => activity switch
     {
-        not (Wait or Rest or Sleep or Fight { Action: CombatAction.Wait }) when world.Agent(activity.Who) is { Mind: PersonMind } person && Body.IsAsleep(person.Body) => Asleep,
+        not (Wait or Rest or Sleep or Fight { Action: CombatAction.Wait }) when world.Agent(activity.Who) is { Mind: PersonMind } person && Body.IsAsleep(person.Body) => new(Asleep),
         StartFire or AddFuel or LightTorch or GatherCharcoal => Fire.Refusal(world, activity),
         Travel travel => Traversal.Refusal(world, travel),
         _ when Work.Handles(activity) => Work.Refusal(world, activity),
@@ -309,9 +309,9 @@ public static class Sim
     /// it is sleep, whether it keeps you put long enough for a shelter to help, and how it touches the ground.
     readonly record struct Hold(double ActivityFactor, double FireProximityFactor, bool Sleeping, bool Stationary, SurfaceContact Contact);
 
-    static Hold HoldOf(World world, Agent agent, Activity activity)
+    static Hold HoldOf(World world, TileId tile, Activity activity)
     {
-        var gathering = activity is Gather g ? Pools.Def(world, new PoolId(agent.Tile, g.Pool)) : null;
+        var gathering = activity is Gather g ? Pools.Def(world, new PoolId(tile, g.Pool)) : null;
         var (activityFactor, fireProximityFactor, sleeping, stationary) = activity switch
         {
             Sleep => (0.5, 2.0, true, true),
@@ -354,7 +354,7 @@ public static class Sim
     internal static SurvivalContext Surroundings(World world, Agent agent, Activity activity, List<WorldEvent> events)
     {
         activity = AsLived(agent, activity);
-        var hold = HoldOf(world, agent, activity);
+        var hold = HoldOf(world, agent.Tile, activity);
         var cover = Shelters.CoverFor(world, agent.Tile, hold.Stationary, events);
         var bedding = Shelters.BeddingAt(world, agent.Tile);
         var exposure = Exposure.At(world, agent.Tile, Cover.In(cover, agent.Id), hold.Contact, Effects.Severity(agent.Body, EffectKind.Wet));
@@ -391,7 +391,7 @@ public static class Sim
     public static Feeling Feels(World world, AgentId who, Activity activity)
     {
         var agent = world.Agent(who);
-        var hold = HoldOf(world, agent, AsLived(agent, activity));
+        var hold = HoldOf(world, agent.Tile, AsLived(agent, activity));
         var cover = Shelters.CoverNow(world, agent.Tile, hold.Stationary);
         // No ground contact: how wet the ground makes you is not felt air, and reading it would observe
         // (catch up and store) the tile's ground.
@@ -408,6 +408,56 @@ public static class Sim
         };
         double felt = all.Sum(t => t.DeltaF);
         return new Feeling(felt, [.. all.Where((t, i) => i == 0 || t.DeltaF != 0)], e);
+    }
+
+    /// A forecast: the core after living these legs in turn, each an activity on a tile for some minutes, if the sky,
+    /// the fires and how wet the person is stay as they are now. Reads only, as Feels does; the ground's wetting is left
+    /// out, since reading it would observe the ground. Fires on every tile a leg is lived on must be caught up.
+    public static double CoreAfterF(World world, AgentId who, IEnumerable<(Activity Activity, TileId Tile, int Minutes)> legs)
+    {
+        var agent = world.Agent(who);
+        var body = agent.Body;
+        double startCoreF = body.CoreTempF, startBufferPct = body.ClothingHeatBufferPct;
+        try
+        {
+            foreach (var (activity, tile, minutes) in legs)
+            {
+                if (minutes <= 0) continue;
+                var d = Body.ProcessTemperature(body, Forecast(world, agent, activity, tile), minutes);
+                body.CoreTempF += d.CoreTempDeltaF;
+                body.ClothingHeatBufferPct += d.ClothingHeatBufferDeltaPct;
+            }
+            return body.CoreTempF;
+        }
+        finally
+        {
+            body.CoreTempF = startCoreF;
+            body.ClothingHeatBufferPct = startBufferPct;
+        }
+    }
+
+    /// Surroundings for a forecast on any tile: the shelter looked at, not caught up, and no ground contact.
+    static SurvivalContext Forecast(World world, Agent agent, Activity activity, TileId tile)
+    {
+        var hold = HoldOf(world, tile, activity);
+        var cover = Shelters.CoverNow(world, tile, hold.Stationary);
+        var bedding = Shelters.BeddingAt(world, tile);
+        var e = Exposure.At(world, tile, Cover.In(cover, agent.Id), wetnessPct: Effects.Severity(agent.Body, EffectKind.Wet));
+        return new SurvivalContext
+        {
+            AirTempF = e.AirF + BeddingF(bedding, hold),
+            WindLevel = e.WindLevel,
+            FireDryingWindLevel = e.FireDryingWindLevel,
+            Precipitation = e.Precipitation,
+            PrecipitationPct = e.PrecipitationPct,
+            OverheadCoverLevel = e.OverheadCoverLevel,
+            FireBonusF = FireBonusF(e.Warmth, hold),
+            TorchHeatF = e.Warmth.TorchHeatF,
+            ClothingClo = agent.Body.ClothingClo,
+            ClothingWeightKg = agent.Body.ClothingWeightKg,
+            ActivityFactor = hold.ActivityFactor,
+            IsSleeping = hold.Sleeping,
+        };
     }
 }
 
@@ -442,7 +492,7 @@ public static class Scheduler
             if (agent.Doing == null && !Plan(world, agent, events)) continue;
             var doing = agent.Doing!;
             var stop = Sim.Live(world, agent, doing, events);
-            if (stop == null && agent.Mind is NpcMind && Sim.Looks(agent, doing.Activity) && Knowledge.Watch(world, agent, events)) stop = Sim.PredatorInSight;
+            if (stop == null && agent.Mind is NpcMind && Sim.Looks(agent, doing.Activity) && Memories.Watch(world, agent, events)) stop = Sim.PredatorInSight;
             if (stop == null) continue;
             if (world.Agents.ContainsKey(id)) Sim.Stop(world, agent, doing, events);
             // A fight's aftermath may already have given it something new to do.
@@ -464,10 +514,10 @@ public static class Scheduler
         // Deciding may have been a fight the agent started (an NPC's hunt): it may not have survived it.
         if (!world.Agents.ContainsKey(agent.Id) || (agent.Mind is HerdMind ? agent.Members.Count == 0 : !Sim.IsAlive(agent))) return false;
         if (activity.Who != agent.Id) throw new InvalidOperationException($"{agent.Id}'s mind chose an activity for {activity.Who}");
-        if (Sim.Start(world, activity, minutes, events, out var doing) is string refused)
+        if (Sim.Start(world, activity, minutes, events, out var doing) is { } refused)
         {
             if (agent.Mind is HerdMind) throw new InvalidOperationException($"Herd {agent.Id} chose a refused {activity}: {refused}");
-            events.Add(new PlanRefused(world.Minute, agent.Id, agent.Tile, activity.GetType().Name, refused));
+            events.Add(new PlanRefused(world.Minute, agent.Id, agent.Tile, activity.GetType().Name, refused.Reason));
             Sim.Start(world, new Wait(agent.Id), 1, events, out doing);
         }
         // Starting may have ended it: a hunt that killed every hunter.

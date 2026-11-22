@@ -39,9 +39,9 @@ public class CombatReachTests
         var (w, e) = PlayerVs(Species.Wolf, 2, "wooden_spear");
         Assert.Equal(2, Me(e).Position.DistanceTo(B(e).Position), 9);
         Assert.Null(Combat.Refusal(w, e, Me(e), CombatAction.Attack));
-        Assert.Equal("Out of reach.", Combat.Refusal(w, e, B(e), CombatAction.Attack));
+        Assert.Equal("Out of reach.", Combat.Refusal(w, e, B(e), CombatAction.Attack)?.Reason);
         Me(e).Weapon = null;
-        Assert.Equal("Out of reach.", Combat.Refusal(w, e, Me(e), CombatAction.Attack));
+        Assert.Equal("Out of reach.", Combat.Refusal(w, e, Me(e), CombatAction.Attack)?.Reason);
         var (w2, tusks) = PlayerVs(Species.Mammoth, 2, null);
         Assert.Null(Combat.Refusal(w2, tusks, B(tusks), CombatAction.Attack)); // 2.5 m of tusk
     }
@@ -114,9 +114,9 @@ public class CombatReachTests
     public void WhatIsNotMadeToBeThrown_IsNotThrown_AndEachThrowCarriesItsOwnRange()
     {
         var (w, e) = PlayerVs(Species.Bison, 8, "staff");
-        Assert.Equal("That is not made to be thrown.", Combat.Refusal(w, e, Me(e), CombatAction.Throw));
+        Assert.Equal("That is not made to be thrown.", Combat.Refusal(w, e, Me(e), CombatAction.Throw)?.Reason);
         var (w2, knife) = PlayerVs(Species.Bison, 12, "flint_knife");
-        Assert.Equal("Beyond weapon range.", Combat.Refusal(w2, knife, Me(knife), CombatAction.Throw));
+        Assert.Equal("Beyond weapon range.", Combat.Refusal(w2, knife, Me(knife), CombatAction.Throw)?.Reason);
         var (w3, stone) = PlayerVs(Species.Bison, 6, "stone");
         Assert.Equal(0.50 * (1 - 6.0 / 15), Combat.ThrowChance(w3, Me(stone), B(stone), Me(stone).Weapon!), 9);
         Assert.Equal(Combat.ThrowChance(w3, Me(stone), B(stone), Me(stone).Weapon!), Combat.StoneChance(w3, Me(stone), B(stone)), 9);
@@ -154,7 +154,7 @@ public class CombatReachTests
         var (w, e) = PlayerVs(Species.Wolf, 6, "wooden_spear");
         var wolf = B(e);
         wolf.State = FighterState.Standoff;
-        wolf.BoldnessModifier += -0.25 - Combat.Margin(w, e, wolf, Me(e)); // margin -0.25: inside Standoff, past the deadband
+        wolf.BoldnessModifier += -0.25 - Combat.Resolve(w, e, wolf, Me(e)); // resolve -0.25: inside Standoff, past the deadband
         double gap = wolf.Position.DistanceTo(Me(e).Position);
         var (action, to, _) = Combat.ChooseAction(w, e, wolf);
         Assert.Equal(CombatAction.Move, action);

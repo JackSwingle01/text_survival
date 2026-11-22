@@ -228,7 +228,7 @@ public sealed class Fights
                     events.AddRange(Sim.Step(w, new Fight(P, CombatAction.Wait), 1).Events); // a refused action: wait instead
             }
             if (w.Encounters.Contains(enc)) return new("Unfinished", !Body.IsAlive(w.Agent(P).Body), BKilled(enc, events), false, enc.Rounds);
-            var result = events.OfType<FightEnded>().LastOrDefault(f => f.Agent == P)?.Result.ToString() ?? "?";
+            var result = events.OfType<EncounterEnded>().LastOrDefault(f => f.Agent == P)?.Result.ToString() ?? "?";
             bool dead = !Body.IsAlive(w.Agent(P).Body);
             return new(result, dead, BKilled(enc, events), !dead && result == nameof(CombatResult.Fled), enc.Rounds);
         }
@@ -246,13 +246,13 @@ public sealed class Fights
             {
                 foreach (var f in round.Fighters) fight.species[f.Agent] = f.Species.ToString();
                 var units = round.Fighters.Select(f => new TraceUnit(f.Index, f.Team, f.Species.ToString(), f.Member, f.Position.X, f.Position.Y,
-                    f.State.ToString(), f.Action?.ToString(), f.Target, f.Margin, f.Boldness, f.Vitality, f.BloodPct, f.SprintReservePct, f.WoundLevel)).ToList();
+                    f.State.ToString(), f.Action?.ToString(), f.Target, f.Resolve, f.Boldness, f.Vitality, f.BloodPct, f.SprintReservePct, f.WoundLevel)).ToList();
                 var lines = round.Events.Select(e => e switch
                 {
                     Injured i => $"{fight.Name(i.Who)} hurt: {i.Region}, {i.Type} {i.Amount:0.00}",
                     Killed k => $"{k.Species} killed",
                     Died d => $"{fight.Name(d.Who)} died",
-                    FightEnded f when f.Agent == P => $"fight over: {f.Result}",
+                    EncounterEnded f when f.Agent == P => $"fight over: {f.Result}",
                     _ => null,
                 }).OfType<string>().ToList();
                 watch(new TraceFrame(round.Round, units, round.Fire is Cell c ? new TraceCell(c.X, c.Y) : null, lines));

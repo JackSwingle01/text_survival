@@ -24,6 +24,8 @@ public sealed class GameHost
     int _gen;
     readonly Dictionary<string, Func<CellDto?, Job>> _verbs = [];
     readonly List<LogDto> _log = [];
+    // What the rounds of the fight under way told: the fight screen's own lines, apart from the walk before it.
+    readonly List<LogDto> _encounterLog = [];
     ReceiptDto? _receipt;
     // Sim looks around on the first minute awake, which falls in whatever the player does next, so
     // the minute sleep ended is what tells that look's news is the morning's.
@@ -92,6 +94,7 @@ public sealed class GameHost
         _receipt = null;
         _sleptUntil = null;
         _log.Clear();
+        _encounterLog.Clear();
         _verbs.Clear();
     }
 
@@ -113,12 +116,14 @@ public sealed class GameHost
         /// How it ended (Sim's StepOutcome, or stopped by the client), once it has.
         public string? Outcome { get; private set; }
         public string? Reason { get; private set; }
+        /// How the fight ended, when a step of this job ended one: said in place of Sim's bare "fight over".
+        public string? EncounterEnding { get; set; }
         public void Finish(string outcome, string? reason)
         {
             if (Finished) return;
             (Finished, Outcome, Reason) = (true, outcome, reason);
         }
-        public void Finish(StepResult r) => Finish(r.Outcome.ToString().ToLowerInvariant(), r.Reason);
+        public void Finish(StepResult r) => Finish(r.Outcome.ToString().ToLowerInvariant(), EncounterEnding ?? r.Reason);
     }
 
     Job JobFor(Verb v)
@@ -128,7 +133,7 @@ public sealed class GameHost
         int? budget = v.Minutes == Verbs.UntilDoneMinutes ? null : v.Minutes;
         var job = new Job(v.Label, ViewBuilder.KindOf(v.Activity), v.Activity, budget, chunked, p.Tile, (v.Activity as Travel)?.Dir);
         // A refused verb never starts: no time passes, and the refusal comes back as the job's reason.
-        if (v.Refused != null) job.Finish("refused", v.Refused);
+        if (v.Refused != null) job.Finish("refused", v.Refused.Reason);
         return job;
     }
 
@@ -158,7 +163,12 @@ public sealed class GameHost
         {
             if (e is Noticed n && n.Who == AgentId.Player)
                 _receipt = ReceiptOf(n.Receipt, job.Activity is Sleep || n.Minute <= _sleptUntil + 1);
-            else if (Narration.ForPlayer(W, e) is { } line) _log.Add(Words.Log(line));
+            else if (Narration.ForPlayer(W, e) is { } line)
+            {
+                _log.Add(Words.Log(line));
+                if (job.Activity is Fight) _encounterLog.Add(Words.Log(line));
+                if (e is EncounterEnded) job.EncounterEnding = line.Text;
+            }
         }
         if (_log.Count > MaxLog) _log.RemoveRange(0, _log.Count - MaxLog);
         if (job.Activity is Sleep) _sleptUntil = W.Minute;
@@ -172,7 +182,7 @@ public sealed class GameHost
         foreach (var c in r.Changes) lines.Add(new LogDto(W.Minute, Narration.Change(c), c.Now == null ? "bad" : "plain", ChangeIcon(c)));
         foreach (var s in r.Signs)
             lines.Add(new LogDto(W.Minute - s.AgeMinutes, Narration.Sign(s), "bad", ViewBuilder.TrackIcon(s.Maker)));
-        lines.Sort((a, b) => a.Minute.CompareTo(b.Minute));
+        lines = [.. lines.OrderBy(l => l.Minute)]; // stable: lines of one minute keep the order they happened in
         string title = woke ? "Morning" : r.Full ? "While you were away" : "Since you were last here";
         return new ReceiptDto(title, r.SinceMinute, W.Minute, r.Full, lines);
     }
@@ -192,25 +202,26 @@ public sealed class GameHost
     {
         _gen++;
         _verbs.Clear();
+        if (Combat.EncounterOf(W, AgentId.Player) == null) _encounterLog.Clear();
         var b = new ViewBuilder(W, _gen);
-        var view = b.Build(_job, _receipt, _log);
+        var view = b.Build(_job, _receipt, _log, _encounterLog);
         foreach (var (id, verb) in b.Verbs) _verbs[id] = _ => JobFor(verb);
-        foreach (var (id, fight) in b.Fights) _verbs[id] = to => FightJob(fight, to);
+        foreach (var (id, fight) in b.CombatVerbs) _verbs[id] = to => CombatJob(fight, to);
         _receipt = null; // shown once
         return view;
     }
 
-    Job FightJob(ViewBuilder.FightVerb f, CellDto? to)
+    Job CombatJob(ViewBuilder.CombatVerb f, CellDto? to)
     {
         var p = W.Agent(AgentId.Player);
         var act = new Fight(AgentId.Player, f.Action, f.Target, f.Action == CombatAction.Move
             ? to is { } c ? new Cell(c.X, c.Y) : throw new ArgumentException("Move needs a cell (to)")
             : null);
         var job = new Job(Words.Cap(Words.Of(f.Action)), "fight", act, 1, false, p.Tile, null);
-        if (Sim.Refusal(W, act) is string refused) job.Finish("refused", refused);
+        if (Sim.Refusal(W, act) is { } refused) job.Finish("refused", refused.Reason);
         else if (Combat.EncounterOf(W, AgentId.Player) is { } enc &&
-                 Combat.Refusal(W, enc, Combat.UnitOf(enc, AgentId.Player), f.Action, f.Target is int t ? enc.Units[t] : null, act.To) is string no)
-            job.Finish("refused", no);
+                 Combat.Refusal(W, enc, Combat.UnitOf(enc, AgentId.Player), f.Action, f.Target is int t ? enc.Units[t] : null, act.To) is { } no)
+            job.Finish("refused", no.Reason);
         return job;
     }
 }

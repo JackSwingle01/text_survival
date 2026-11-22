@@ -4,7 +4,7 @@ namespace Survival;
 public enum HerdState { Resting, Grazing, Patrolling, Hunting, Feeding, Fleeing }
 
 /// How a species' herd behaves. Carrion is the folded scavenger flock (Species.Raven): it never
-/// hunts and never guards, and follows whatever is dying or killing.
+/// hunts and never occupies a carcass, and follows whatever is dying or killing.
 public enum HerdBehavior { Prey, Pack, Solitary, Scavenger, Carrion }
 
 /// What a herd grazes. Carnivores graze nothing.
@@ -23,7 +23,7 @@ public sealed record HerdMind : Mind
     public long StateSinceMinute { get; set; }
     /// Learned fear 0-1: scales boldness down, and a frightened pack will not hunt.
     public double Fear { get; set; }
-    public long LastFightMinute { get; set; } = Never;
+    public long LastEncounterMinute { get; set; } = Never;
     /// Where the threat was, while fleeing.
     public TileId? FleeFrom { get; set; }
     /// Where a starving pack is ranging to, off its land (Fauna.Foray); cleared when it eats.
@@ -228,19 +228,19 @@ public static partial class Fauna
 
     public static bool Handles(Activity a) => a is Graze or Feed or Hunt or Raid;
 
-    public static string? Refusal(World world, Activity activity)
+    public static Refusal? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
         if (activity is Hunt hunt && agent.Mind is PersonMind) return PersonHuntRefusal(world, agent, hunt);
-        if (agent.Mind is not HerdMind) return "only a herd does that";
+        if (agent.Mind is not HerdMind) return new("only a herd does that");
         if (activity is Graze) return GrazeRefusal(world, agent);
-        if (activity is Feed) return CanFeed(world, agent) ? null : "nothing here it can reach to eat";
+        if (activity is Feed) return CanFeed(world, agent) ? null : new("nothing here it can reach to eat");
         if (activity is Raid) return RaidRefusal(world, agent);
         if (activity is not Hunt h) return null;
         if (h.Prey == h.Who || !world.Agents.TryGetValue(h.Prey, out var prey) || prey.Tile != agent.Tile || !Sim.IsAlive(prey))
-            return "no such prey here";
-        if (Access.Refusal(world, h.Who, Things.OfAgent(world, h.Prey), confronting: true) is string barred) return barred;
-        if (Combat.EncounterOf(world, h.Prey) != null || Combat.EncounterOf(world, h.Who) != null) return "already fighting";
+            return new("no such prey here");
+        if (Access.Refusal(world, h.Who, LocationFeatures.OfAgent(world, h.Prey), confronting: true) is { } barred) return barred;
+        if (Combat.EncounterOf(world, h.Prey) != null || Combat.EncounterOf(world, h.Who) != null) return new("already fighting");
         return null;
     }
 
@@ -251,13 +251,13 @@ public static partial class Fauna
         : PackHunt(world, world.Agent(h.Who), world.Agent(h.Prey), events);
 
     /// Why a person cannot start this stalk: the herd must be here, alive, and in no fight, and nothing
-    /// may guard it (Access, as a confrontation).
-    static string? PersonHuntRefusal(World world, Agent hunter, Hunt h)
+    /// may occupy it (Access, as a confrontation).
+    static Refusal? PersonHuntRefusal(World world, Agent hunter, Hunt h)
     {
         if (!world.Agents.TryGetValue(h.Prey, out var prey) || prey.Mind is not HerdMind || prey.Tile != hunter.Tile || !Sim.IsAlive(prey))
-            return "No such herd here.";
-        if (Combat.EncounterOf(world, h.Prey) != null) return "They are already fighting.";
-        return Access.Refusal(world, h.Who, Things.OfAgent(world, h.Prey), confronting: true);
+            return new("No such herd here.");
+        if (Combat.EncounterOf(world, h.Prey) != null) return new("They are already fighting.");
+        return Access.Refusal(world, h.Who, LocationFeatures.OfAgent(world, h.Prey), confronting: true);
     }
 
     /// A person's stalk, with the best working weapon in the pack (Combat.WeaponWorth), at the herd's weakest member.
@@ -320,8 +320,8 @@ public static partial class Fauna
 
     /// Why the herd cannot graze here, or null: the tile's forage is reached through Access like
     /// anything else. Where nothing grows, grazing is only standing about, which nothing bars.
-    static string? GrazeRefusal(World world, Agent herd) =>
-        ForageHere(world, herd.Tile) is (PoolId id, _) ? Access.Refusal(world, herd.Id, new ThingRef(ThingKind.Pool, id.Tile, id.Index)) : null;
+    static Refusal? GrazeRefusal(World world, Agent herd) =>
+        ForageHere(world, herd.Tile) is (PoolId id, _) ? Access.Refusal(world, herd.Id, new LocationFeature(LocationFeatureKind.Pool, id.Tile, id.Index)) : null;
 
     /// How eaten-out this tile is for the herd, 0-1. Nothing it eats here at all is fully eaten out.
     public static double GrazedLevelHere(World world, Agent herd)
@@ -338,8 +338,8 @@ public static partial class Fauna
         world.Tiles.GetValueOrDefault(tile)?.Carcasses?.Sum(c => Remains.MeatKg(world, tile, c)) ?? 0;
 
     /// Feeding, in calories: the herd eats what its stores have room for, no faster than 0.1 kg a
-    /// minute a head, and is fed only by what it ate. Each carcass is reached through Access (a guard
-    /// on it bars the meal) and none is eaten once it is bones. The carrion flock picks at a dead
+    /// minute a head, and is fed only by what it ate. Each carcass is reached through Access (an occupant
+    /// bars the meal) and none is eaten once it is bones. The carrion flock picks at a dead
     /// person's body too, once the carcasses are bare (Remains.Pick).
     static void FeedMinute(World world, Agent herd)
     {
@@ -363,12 +363,12 @@ public static partial class Fauna
     /// Carcasses here with meat on them that the herd can reach (Access).
     static IEnumerable<Carcass> Edible(World world, Agent herd) =>
         (world.Tiles.GetValueOrDefault(herd.Tile)?.Carcasses ?? []).Where(c => Remains.MeatKg(world, herd.Tile, c) > 0
-            && Access.Refusal(world, herd.Id, new ThingRef(ThingKind.Carcass, herd.Tile, c.Id)) == null);
+            && Access.Refusal(world, herd.Id, new LocationFeature(LocationFeatureKind.Carcass, herd.Tile, c.Id)) == null);
 
     /// Dead people on the herd's tile with flesh on them that it can reach (Access), in id order.
     static IEnumerable<AgentId> PickableBodies(World world, Agent herd) =>
         Nearby.At(world, herd.Tile).Where(id => world.Agents[id] is { Mind: PersonMind } d && id != AgentId.Player && !Sim.IsAlive(d)
-            && Remains.StageOf(world, d) == RemainsStage.Flesh && Access.Refusal(world, herd.Id, Things.OfAgent(world, id)) == null);
+            && Remains.StageOf(world, d) == RemainsStage.Flesh && Access.Refusal(world, herd.Id, LocationFeatures.OfAgent(world, id)) == null);
 
     /// What the mind asks before it chooses Feed.
     static bool CanFeed(World world, Agent herd) =>
@@ -418,7 +418,7 @@ public static partial class Fauna
     /// Awake, and their last look about caught this herd: read from their memory.
     static bool SawItComing(World world, Agent person, Agent herd) =>
         Sim.Looks(person, Sim.ActivityOf(person))
-        && Knowledge.LastSeenMinute(person, herd.Id) is long seen && world.Minute - seen <= Knowledge.GlanceMinutes;
+        && Memories.LastSeenMinute(person, herd.Id) is long seen && world.Minute - seen <= Memories.GlanceMinutes;
 
     /// The prey's watchfulness against the pack's stealth.
     public static bool PreyNotices(World world, Agent predator, Agent prey)
@@ -450,10 +450,10 @@ public static partial class Fauna
 
     /// What a fight leaves in a herd's mind, from its own side: fear by how it went; a predator that
     /// killed feeds; prey that did not win, and anything that scattered, runs. Whatever it was doing is over.
-    internal static void AfterFight(World world, AgentId id, CombatResult own, bool killedOne, TileId tile)
+    internal static void AfterEncounter(World world, AgentId id, CombatResult own, bool killedOne, TileId tile)
     {
         if (!world.Agents.TryGetValue(id, out var herd) || herd.Mind is not HerdMind mind) return;
-        mind.LastFightMinute = world.Minute;
+        mind.LastEncounterMinute = world.Minute;
         bool predator = IsPredator(herd.Species);
         // A kill feeds the pack from the carcass it made.
         if (predator && killedOne)
@@ -812,7 +812,7 @@ public static partial class Fauna
         if (a.Mind is not PersonMind || !Sim.InTheWorld(world, a)) return null;
         Fire.CatchUpOn(world, a.Tile, events);
         double resolve = Combat.ResolveToward(world, predator, a);
-        return resolve >= Combat.PressingEnterMargin ? resolve : null;
+        return resolve >= Combat.PressingEnterResolve ? resolve : null;
     }
 
     /// How far a species senses prey, in tiles.

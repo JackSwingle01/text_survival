@@ -132,7 +132,7 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
 }
 
 /// The world's terrain and how tiles connect. Terrain is a pure function of the seed.
-// Visibility is the player's knowledge (Sight, Knowledge), not map truth, so it is not here.
+// Visibility is the player's memory (Sight, Memories), not map truth, so it is not here.
 public static class Map
 {
     public const int DefaultWidth = 224, DefaultHeight = 82; // 100 m tiles

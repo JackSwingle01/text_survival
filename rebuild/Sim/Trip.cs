@@ -63,6 +63,22 @@ public static class Trip
         }
     }
 
+    /// A forecast for planners: the minutes Terms gives who's crossing from a tile to its neighbour now. Kept for the
+    /// minute, so a route search pays for each crossing once however often it asks, and the answer is the same after a load.
+    public static int StepMinutes(World world, AgentId who, TileId from, TileId to, Pace pace)
+    {
+        var agent = world.Agent(who);
+        if (agent.Mind is HerdMind) throw new ArgumentException($"{who} is a herd: herds cross by their own rule");
+        double encumbrancePct = Items.EncumbrancePct(agent), speed = Body.Speed(agent.Body);
+        if (world.StepMinutesCache is not { } cache || cache.Minute != world.Minute) world.StepMinutesCache = cache = (world.Minute, []);
+        if (cache.Minutes.TryGetValue((who, from, to, pace), out var kept) && kept.EncumbrancePct == encumbrancePct && kept.Speed == speed)
+            return kept.Minutes;
+        if (Map.Blocked(Map.Of(world), from, to) is string blocked) throw new ArgumentException($"No crossing from {from} to {to}: {blocked}");
+        int minutes = Terms(world, agent.Body, from, to, pace, Weather.At(world, world.Minute), encumbrancePct).TotalMinutes;
+        cache.Minutes[(who, from, to, pace)] = (minutes, encumbrancePct, speed);
+        return minutes;
+    }
+
     /// The odds of the one roll, on the tile walked onto, that Traversal.Begin would fix now, from the ground looked at.
     public static Odds Risk(World world, AgentId who, Direction dir, Pace pace)
     {

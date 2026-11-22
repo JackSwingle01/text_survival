@@ -35,7 +35,8 @@ public static class Names
 
     public static string Lower(string s) => s.ToLowerInvariant();
 
-    public static string Kg(double kg) => kg.ToString(kg < 1 ? "0.##" : "0.#", CultureInfo.InvariantCulture) + " kg";
+    public static string Kg(double kg) =>
+        kg > 0 && kg < 0.005 ? "<0.01 kg" : kg.ToString(kg < 1 ? "0.##" : "0.#", CultureInfo.InvariantCulture) + " kg";
 
     public static string Kg(double kg, Resource r) => $"{Kg(kg)} {Of(r)}";
 

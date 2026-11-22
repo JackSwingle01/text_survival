@@ -32,7 +32,7 @@ namespace Survival;
 [JsonDerivedType(typeof(Drank), "drank")]
 [JsonDerivedType(typeof(Butchered), "butchered")]
 [JsonDerivedType(typeof(Killed), "killed")]
-[JsonDerivedType(typeof(FightEnded), "fightended")]
+[JsonDerivedType(typeof(EncounterEnded), "encounterended")]
 [JsonDerivedType(typeof(WoundedEscaped), "woundedescaped")]
 [JsonDerivedType(typeof(Built), "built")]
 [JsonDerivedType(typeof(ShelterCollapsed), "sheltercollapsed")]
@@ -77,13 +77,13 @@ public sealed record Butchered(long Minute, AgentId Who, TileId Tile, int Carcas
 /// An animal member died on Tile: a carcass of this species and mass. By struck the blow; null if it bled out.
 public sealed record Killed(long Minute, AgentId Agent, Species Species, double MassKg, TileId Tile, AgentId? By) : WorldEvent(Minute, Tile);
 /// Result is from this agent's side; Rounds is minutes lasted.
-public sealed record FightEnded(long Minute, AgentId Agent, TileId Tile, CombatResult Result, int Rounds) : WorldEvent(Minute, Tile);
+public sealed record EncounterEnded(long Minute, AgentId Agent, TileId Tile, CombatResult Result, int Rounds) : WorldEvent(Minute, Tile);
 /// A wounded animal left its herd as Agent: a trail to follow. Heading is the way it ran; null if nowhere in particular.
 public sealed record WoundedEscaped(long Minute, AgentId Agent, Species Species, double Severity, TileId Tile,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Direction? Heading = null)
     : WorldEvent(Minute, Tile);
 
 public sealed record SkillLeveledUp(long Minute, AgentId Who, TileId Tile, Skill Skill, int Level) : WorldEvent(Minute, Tile);
-/// What changed on a remembered tile since the player last saw it (Knowledge.Receipt).
+/// What changed on a remembered tile since the player last saw it (Memories.Receipt).
 /// Never filed in a journal: it is a reading of one.
 public sealed record Noticed(long Minute, AgentId Who, TileId Tile, Receipt Receipt) : WorldEvent(Minute, Tile);

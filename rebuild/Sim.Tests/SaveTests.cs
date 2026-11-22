@@ -98,6 +98,7 @@ public class SaveFixtureTests
         w.Agent(P).Body.MinutesWithoutHunger = 24 * 60;
         w.Agent(npc).Body.EnergyMinutes = 0;
         Effects.Set(w.Agent(npc).Body, EffectKind.Asleep, 40 / 90.0);
+        ((NpcMind)w.Agent(npc).Mind).Goal = new NpcGoal(Stat.Warmth, Tier.Need, w.Minute, 90); // a committed goal, saved by name
         Sim.Step(w, new Wait(P), 2);
         return w;
     }

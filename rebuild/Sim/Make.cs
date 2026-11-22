@@ -196,61 +196,63 @@ public static class Making
     public static MakeProject? ProjectFor(Inventory pack, string recipe) => pack.Projects?.FirstOrDefault(p => p.Recipe == recipe);
 
 
-    public static string? Refusal(World world, Activity activity)
+    public static Refusal? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
-        if (Items.PackOf(agent) is not Inventory pack) return "carries nothing to work with";
+        if (Items.PackOf(agent) is not Inventory pack) return new("carries nothing to work with");
         switch (activity)
         {
             case Make m:
                 {
                     var r = Recipes.Get(m.Recipe);
                     bool begun = ProjectFor(pack, r.Id) != null;
-                    if (!begun && MissingMaterial(pack, r) is string material) return material;
+                    if (!begun && MissingMaterial(pack, r) is { } material) return material;
                     return MissingTool(pack, r, begun) ?? Unmet(world, agent, r);
                 }
             case Abandon a:
                 {
                     var r = Recipes.Get(a.Recipe);
-                    return ProjectFor(pack, r.Id) == null ? $"you have no unfinished {r.Name.ToLowerInvariant()}" : null;
+                    return ProjectFor(pack, r.Id) == null ? new($"you have no unfinished {r.Name.ToLowerInvariant()}") : null;
                 }
             default: throw new NotSupportedException($"{activity.GetType().Name} is not making");
         }
     }
 
-    static string? MissingMaterial(Inventory pack, Recipe r)
+    static Refusal? MissingMaterial(Inventory pack, Recipe r)
     {
         foreach (var m in r.Materials)
-            if (m.AnyOf.Sum(x => Items.Have(pack, x)) < m.Kg - 1e-9)
-                return $"you need {m.Kg:0.##} kg of {string.Join(" or ", m.AnyOf.Select(x => Names.Of(x)))}";
+            if (m.AnyOf.Sum(x => Items.Have(pack, x)) is double have && have < m.Kg - 1e-9)
+                return new($"you need {m.Kg:0.##} kg of {string.Join(" or ", m.AnyOf.Select(x => Names.Of(x)))}", new MissingResource(m.AnyOf, m.Kg - have));
         foreach (var (kind, n) in r.Items.GroupBy(k => k).Select(g => (g.Key, g.Count())))
-            if (pack.Gear.Count(g => g.Kind == kind) < n) return $"you need a {Items.GearKinds[kind].Name.ToLowerInvariant()}";
+            if (pack.Gear.Count(g => g.Kind == kind) < n) return new($"you need a {Items.GearKinds[kind].Name.ToLowerInvariant()}", new MissingGear(kind));
         return null;
     }
 
     /// Before the work begins, the items it would consume do not count: the knife cannot cut its own handle.
-    static string? MissingTool(Inventory pack, Recipe r, bool begun)
+    static Refusal? MissingTool(Inventory pack, Recipe r, bool begun)
     {
         var consumed = begun ? [] : ItemsToConsume(pack, r);
         foreach (var cap in r.Tools)
-            if (!pack.Gear.Any(g => !consumed.Contains(g) && Gives(g, cap))) return $"you need something for {Names.Of(cap)}";
+            if (!pack.Gear.Any(g => !consumed.Contains(g) && Gives(g, cap))) return new($"you need something for {Names.Of(cap)}", new MissingCapability(cap));
         return null;
     }
 
     /// Checked to start and every minute of the work. Fires around the agent must be caught up.
-    public static string? Unmet(World world, Agent agent, Recipe r)
+    public static Refusal? Unmet(World world, Agent agent, Recipe r)
     {
         var tile = agent.Tile;
         foreach (var need in r.Requires)
             switch (need)
             {
-                case Requirement.Light when Work.TooDarkToWork(world, agent): return Work.TooDark;
-                case Requirement.Fire when !(Fire.PitAt(world, tile) is FireId id && Fire.IsActive(world.Fires[id])): return "you need a fire burning here";
+                case Requirement.Light when Work.TooDarkToWork(world, agent): return Work.Dark;
+                case Requirement.Fire when !(Fire.PitAt(world, tile) is FireId id && Fire.IsActive(world.Fires[id])):
+                    return new("you need a fire burning here", new MissingState(Lack.BurningFire));
                 // The tile's surface air, the air that melts a snow shelter.
-                case Requirement.Frost when Exposure.Surface(world, tile, world.Minute).AirTemperatureF > 32: return "it is too warm: this needs a frost";
-                case Requirement.Shelter when Shelters.Peek(world, tile) == null: return "you need shelter here";
+                case Requirement.Frost when Exposure.Surface(world, tile, world.Minute).AirTemperatureF is var airF && airF > 32:
+                    return new("it is too warm: this needs a frost", new MissingState(Lack.FrostF, 32, airF));
+                case Requirement.Shelter when Shelters.Peek(world, tile) == null: return new("you need shelter here", new MissingState(Lack.Shelter));
                 case Requirement.Dry when Falling(world, tile) && !(Shelters.Peek(world, tile)?.OverheadLevel >= DryRoofLevel):
-                    return "it is too wet here: this needs a roof or a dry sky";
+                    return new("it is too wet here: this needs a roof or a dry sky", new MissingState(Lack.Dry));
             }
         return null;
     }
@@ -304,7 +306,7 @@ public static class Making
 
     public static void Begin(World world, Activity activity, List<WorldEvent> events)
     {
-        if (Refusal(world, activity) is string refused) throw new InvalidOperationException($"Making.Begin on a refused activity: {refused}");
+        if (Refusal(world, activity) is { } refused) throw new InvalidOperationException($"Making.Begin on a refused activity: {refused}");
         var agent = world.Agent(activity.Who);
         var pack = Items.Pack(world, agent.Id);
         switch (activity)
@@ -364,7 +366,7 @@ public static class Making
         var pack = Items.Pack(world, agent.Id);
         var r = Recipes.Get(m.Recipe);
         var p = ProjectFor(pack, r.Id) ?? throw new InvalidOperationException($"{agent.Id} is making {r.Id} with no project for it");
-        if ((MissingTool(pack, r, begun: true) ?? Unmet(world, agent, r)) is string stop) return stop;
+        if ((MissingTool(pack, r, begun: true) ?? Unmet(world, agent, r)) is { } stop) return stop.Reason;
         p.MinutesDone += WorkPerMinute(world, agent, pack, r);
         Skills.Award(world, agent, Skill.Crafting, Skills.CraftXpPerHour / 60, events);
         return p.MinutesDone < r.Minutes - 1e-9 ? null : Finish(world, agent, r, events);

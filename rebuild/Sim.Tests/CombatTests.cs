@@ -164,7 +164,7 @@ public class CombatTests
             Assert.All(w.Agents.Values, a => Assert.NotEmpty(a.Members));
             Assert.Equal(6 - killed, (w.Agents.GetValueOrDefault(wolves)?.Members.Count ?? 0) + (w.Agents.GetValueOrDefault(caribou)?.Members.Count ?? 0));
             Assert.Empty(w.Encounters);
-            var ended = events.OfType<FightEnded>().ToDictionary(f => f.Agent, f => f.Result);
+            var ended = events.OfType<EncounterEnded>().ToDictionary(f => f.Agent, f => f.Result);
             Assert.Equal(result, ended[wolves]);
             Assert.Equal(Combat.Mirror(result), ended[caribou]);
         }
@@ -349,7 +349,7 @@ public class CombatTests
         Combat.AiTurn(w, e, wolf, []);
         Assert.Equal(FighterState.Pressing, wolf.State);
         Assert.Equal(new Cell(25, 39), wolf.Position);
-        wolf.BoldnessModifier = -2.0; // a margin of about -0.7: past giving ground's -0.3, short of running's -0.8
+        wolf.BoldnessModifier = -2.0; // a resolve of about -0.7: past giving ground's -0.3, short of running's -0.8
         int y = wolf.Position.Y;
         Combat.AiTurn(w, e, wolf, []);
         Assert.Equal(FighterState.GivingGround, wolf.State);
@@ -446,6 +446,16 @@ public class CombatTests
         Assert.Equal(0, friend.SignalModifier); // the call lapses after five minutes
     }
 
+    [Fact]
+    public void CallingOut_WithNobodyToHear_IsRefused()
+    {
+        var (w, t) = Field();
+        var e = PlayerVs(w, t, Species.Wolf, 5);
+        Assert.Equal("Nobody is with you to hear it.", Combat.Refusal(w, e, Me(e), CombatAction.CallHelp)?.Reason);
+        Assert.Equal("Nobody is with you to hear it.", Combat.Refusal(w, e, Me(e), CombatAction.CallRetreat)?.Reason);
+        Assert.DoesNotContain(CombatAction.CallHelp, Combat.Actions(w, e, Me(e)));
+    }
+
     // ---- the player's rounds through Sim.Step ----
 
     [Fact]
@@ -481,7 +491,7 @@ public class CombatTests
             r = Sim.Step(w, new Fight(AgentId.Player, CombatAction.Flee), 1);
         Assert.Empty(w.Encounters);
         Assert.Equal("fight over", r.InterruptedReason);
-        Assert.Contains(r.Events, ev => ev is FightEnded f && f.Agent == AgentId.Player);
+        Assert.Contains(r.Events, ev => ev is EncounterEnded f && f.Agent == AgentId.Player);
         Assert.True(w.Agents.ContainsKey(rabbit) || r.Events.OfType<Killed>().Any());
         Assert.Contains("wooden_spear", Items.Pack(w, AgentId.Player).Gear.Select(g => g.Kind)); // the wielded spear went back in the pack
     }
@@ -497,23 +507,23 @@ public class CombatTests
         for (int i = 0; i < 60 && w.Encounters.Count > 0; i++) r = Sim.Step(w, new Fight(AgentId.Player, CombatAction.Wait), 1);
         Assert.Equal("died", r.InterruptedReason);
         Assert.Single(r.Events.OfType<Died>(), d => d.Who == AgentId.Player);
-        Assert.Equal(CombatResult.Defeat, r.Events.OfType<FightEnded>().Single(f => f.Agent == AgentId.Player).Result);
+        Assert.Equal(CombatResult.Defeat, r.Events.OfType<EncounterEnded>().Single(f => f.Agent == AgentId.Player).Result);
         Assert.True(w.Agents.ContainsKey(AgentId.Player)); // a dead person stays where they fell
     }
 
     [Theory]
     // Flee at any distance, and Intimidate from Near out (combat round 1).
-    [InlineData(1, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Shove, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
-    [InlineData(2, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Intimidate, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
-    [InlineData(10, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Throw, CombatAction.ThrowStone, CombatAction.Intimidate, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
-    [InlineData(22, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Intimidate, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
+    [InlineData(1, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Shove, CombatAction.Flee })]
+    [InlineData(2, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Intimidate, CombatAction.Flee })]
+    [InlineData(10, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Throw, CombatAction.ThrowStone, CombatAction.Intimidate, CombatAction.Flee })]
+    [InlineData(22, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Intimidate, CombatAction.Flee })]
     public void ActionsDependOnTheZone(int distance, CombatAction[] expected)
     {
         var (w, t) = Field();
         Items.Add(Items.Pack(w, AgentId.Player), Resource.Stone, 1.0);
         var e = PlayerVs(w, t, Species.Wolf, distance, weapon: Spear(w));
         Assert.Equal(expected.Order(), Combat.Actions(w, e, Me(e)).Order());
-        Assert.Equal("That's too far to move in one action.", Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 4, Me(e).Position.Y)));
+        Assert.Equal("That's too far to move in one action.", Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 4, Me(e).Position.Y))?.Reason);
         Assert.Null(Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 3, Me(e).Position.Y)));
     }
 
@@ -529,10 +539,10 @@ public class CombatTests
         Assert.Null(Combat.Apply(w, e, Me(e), CombatAction.Throw, []).Refused);
         Assert.Null(Me(e).Weapon);
         Assert.Contains(e.Dropped!, d => d.Weapon == spear && d.At == B(e).Position); // where it was thrown at
-        Assert.Equal("No weapon to throw.", Combat.Refusal(w, e, Me(e), CombatAction.Throw));
+        Assert.Equal("No weapon to throw.", Combat.Refusal(w, e, Me(e), CombatAction.Throw)?.Reason);
         Assert.Null(Combat.Apply(w, e, Me(e), CombatAction.ThrowStone, []).Refused);
         Assert.Equal(0.2, Items.Have(pack, Resource.Stone), 9);
-        Assert.Equal("No stones to throw.", Combat.Refusal(w, e, Me(e), CombatAction.ThrowStone));
+        Assert.Equal("No stones to throw.", Combat.Refusal(w, e, Me(e), CombatAction.ThrowStone)?.Reason);
     }
 
     [Fact]
@@ -640,7 +650,7 @@ public class CombatTests
         var r = Sim.Step(w, new Fight(AgentId.Player, CombatAction.Wait), 1);
         Assert.Equal("fight over", r.InterruptedReason);
         Assert.False(w.Agents.ContainsKey(wolf));
-        Assert.Equal(CombatResult.Victory, r.Events.OfType<FightEnded>().Single(f => f.Agent == AgentId.Player).Result);
+        Assert.Equal(CombatResult.Victory, r.Events.OfType<EncounterEnded>().Single(f => f.Agent == AgentId.Player).Result);
     }
 
     [Fact]
@@ -662,7 +672,7 @@ public class CombatTests
         Assert.Equal(Species.Caribou, w.Agent(escaped.Agent).Species);
         // It lived the round's minute before it got away: one minute of mending off the wound.
         Assert.Equal(0.3 + (0.4 - Fauna.MendPctPerMinute) * 0.5, escaped.Severity, 9);
-        Assert.Equal(CombatResult.AnimalFled, r.Events.OfType<FightEnded>().Single(f => f.Agent == AgentId.Player).Result);
+        Assert.Equal(CombatResult.AnimalFled, r.Events.OfType<EncounterEnded>().Single(f => f.Agent == AgentId.Player).Result);
     }
 
     [Fact]
@@ -747,7 +757,7 @@ public class CombatTests
         var r = Sim.Step(w, new Fight(AgentId.Player, CombatAction.Wait), 1);
         Assert.Equal("fight over", r.InterruptedReason);
         Assert.Null(r.Events.OfType<Killed>().Single().By);
-        Assert.Equal(CombatResult.Victory, r.Events.OfType<FightEnded>().Single(f => f.Agent == AgentId.Player).Result);
+        Assert.Equal(CombatResult.Victory, r.Events.OfType<EncounterEnded>().Single(f => f.Agent == AgentId.Player).Result);
     }
 
     [Fact]
@@ -788,19 +798,15 @@ public class CombatTests
         var fled = enc.Units.Single(u => u.Agent == npc);
         fled.InField = false; // it fled; the player fights on
         var bison = Agents.Spawn(w, Species.Bison, tile, 3);
-        var mind = (NpcMind)w.Agent(npc).Mind;
-        var b = w.Agent(npc).Body;
-        b.FatKg = 0.025 * b.WeightKg; b.CaloriesKcal = 0; b.CoreTempF = 98.6; // starving: a bison is worth the risk (Npc.WouldHunt)
         Items.Add(Items.StashAt(w, tile), Resource.Birch, 60);
 
-        var events = new List<WorldEvent>();
-        for (int i = 0; i < 30; i++) events.AddRange(Sim.Advance(w, 1));
-        Assert.Contains(events, e => e is FightEnded f && f.Agent == bison); // the NPC's hunt was fought out
+        var events = Sim.Step(w, new Hunt(npc, bison), Verbs.UntilDoneMinutes).Events; // the hunt a mind would choose
+        Assert.Contains(events, e => e is EncounterEnded f && f.Agent == bison); // the NPC's hunt was fought out
         Assert.True(fled.Released);
         // The player's fight goes on (or ended) without reading the NPC again: it hears nothing of it.
         for (int i = 0; i < 600 && w.Encounters.Contains(enc); i++) events.AddRange(Sim.Advance(w, 1));
         Assert.DoesNotContain(w.Encounters, e => e == enc);
-        Assert.Single(events.OfType<FightEnded>(), f => f.Agent == AgentId.Player);
+        Assert.Single(events.OfType<EncounterEnded>(), f => f.Agent == AgentId.Player);
     }
 
     /// Releasing a fled fighter settles it out of the old fight: its weapon comes back to its pack,
@@ -828,8 +834,8 @@ public class CombatTests
         // The old fight ends without the NPC: no carcass, no fall, no report of it.
         var events = new List<WorldEvent>();
         Combat.Finish(w, old, events);
-        Assert.DoesNotContain(events, e => e is FightEnded f && f.Agent == npc);
-        Assert.Contains(events, e => e is FightEnded f && f.Agent == wolves);
+        Assert.DoesNotContain(events, e => e is EncounterEnded f && f.Agent == npc);
+        Assert.Contains(events, e => e is EncounterEnded f && f.Agent == wolves);
         Assert.Empty(w.Encounters);
     }
 
@@ -847,7 +853,7 @@ public class CombatTests
         var events = new List<WorldEvent>();
         for (int i = 0; i < 1440 && w.Encounters.Count > 0; i++) events.AddRange(Sim.Advance(w, 1));
         Assert.Empty(w.Encounters);
-        Assert.Contains(events, e => e is FightEnded f && f.Agent == AgentId.Player);
+        Assert.Contains(events, e => e is EncounterEnded f && f.Agent == AgentId.Player);
         Assert.True(enc.Rounds > 0);
         Assert.Contains(events, e => e is Died d && d.Who == AgentId.Player);
         Assert.False(Sim.Held(w, wolves));
@@ -869,7 +875,7 @@ public class CombatTests
         Assert.False(Body.IsAlive(w.Agent(AgentId.Player).Body));
         var events = Sim.Advance(w, 1);
         Assert.Empty(w.Encounters);
-        Assert.Contains(events, e => e is FightEnded f && f.Agent == wolves && f.Result == CombatResult.Victory);
+        Assert.Contains(events, e => e is EncounterEnded f && f.Agent == wolves && f.Result == CombatResult.Victory);
         Assert.False(Sim.Held(w, wolves));
     }
 }

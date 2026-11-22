@@ -225,7 +225,6 @@ public class WhereThingsGoTests
         ["ShelterStat"] = Unconverted,
         ["Skill"] = Unconverted,
         ["Species"] = Unconverted,
-        ["Stat"] = Unconverted,
         ["Structure"] = Unconverted,
         ["SurfaceMaterial"] = Unconverted,
         ["TissueKind"] = Unconverted,
@@ -331,12 +330,7 @@ public class WhereThingsGoTests
     // ---- OneNightRule ----
 
     /// Night is the weather's to say: Weather publishes the light and the rest read it.
-    static readonly Dictionary<string, (int Count, string Why)> ClockHourNights = new()
-    {
-        ["Combat.cs"] = (2, "the night boldness: 05:00 to 21:00"),
-        ["Npc.cs"] = (3, "NightHour and Me.Night copy Work.TooDarkToWork's hours"),
-        ["Work.cs"] = (2, "TooDarkToWork's night: 05:00 to 21:00"),
-    };
+    static readonly Dictionary<string, (int Count, string Why)> ClockHourNights = new();
 
     static readonly Regex ClockHourNight = new(
         @"\bNightHour\b" +
@@ -357,11 +351,6 @@ public class WhereThingsGoTests
     /// Members outside Fire.cs that work out hours of fire themselves, by file and member.
     static readonly Dictionary<string, string> BurnTimeOutsideFire = new()
     {
-        ["Npc.cs:BelievedCampFuelHours"] = "a test's read of CampFuelHours",
-        ["Npc.cs:CampFireHours"] = "the NPC ages the remembered fire's hours itself",
-        ["Npc.cs:CampFuelHours"] = "the NPC's own sum of the camp's fuel hours",
-        ["Npc.cs:FireHours"] = "the NPC's own sum of a pile's fuel hours",
-        ["Npc.cs:ReckonedCampFuelHours"] = "a test's read of CampFuelHours",
         ["Report.cs:FireHoursPerDensity"] = "the distribution report turns forage into fire hours by burn rate",
         ["Report.cs:FuelFireHoursPerWorkHour"] = "the same, for a tile's stock",
         ["Report.cs:Logs"] = "the same, for a felled tree's logs (in TreeFireHours)",
@@ -458,14 +447,8 @@ public class WhereThingsGoTests
 
     // ---- NpcUsesOnlyThePublicInterface ----
 
-    /// Internal Sim members Npc.cs reaches today. The NPC is to use only verbs, refusals, forecasts and memory.
-    static readonly Dictionary<string, string> NpcInternalUses = new()
-    {
-        ["Combat.ResolveHeadless"] = "the NPC fights its own hunt out instead of stepping Fight rounds",
-        ["Fauna.BeginHunt"] = "the NPC opens a hunt itself instead of choosing the Hunt activity",
-        ["Sim.Held"] = "the NPC asks whether a herd is held in a fight",
-        ["Sim.Surroundings"] = "the NPC reads the survival context to forecast its own cooling",
-    };
+    /// Internal Sim members Npc.cs reaches today: none. The NPC uses only verbs, refusals, forecasts and memory.
+    static readonly Dictionary<string, string> NpcInternalUses = new();
 
     static readonly Regex NpcForbiddenCalls = new(@"\bSim\.Start\b|\bFauna\.BeginHunt\b|\bCombat\.ResolveHeadless\b");
 
@@ -523,15 +506,44 @@ public class WhereThingsGoTests
             $"Choose an activity and let Sim.Step run it; read the world through verbs, refusals, forecasts and memory ({Guide}, Agent behaviour)"));
     }
 
+    // ---- RefusalsAreData ----
+
+    /// Every refusal in the Sim, by member name: methods named for a refusal, and the fields and properties
+    /// that carry one (Verb.Refused, ActionResult.Refused, CombatTarget.TurnRefusal).
+    static IEnumerable<(string Member, Type Type)> RefusalMembers()
+    {
+        const BindingFlags all = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+        static bool Named(string name) => !name.Contains('<') && (name.EndsWith("Refusal", StringComparison.Ordinal) || name == "Refused");
+        foreach (var t in SimTypes.Where(t => t.GetCustomAttribute<System.Runtime.CompilerServices.CompilerGeneratedAttribute>() == null && !t.Name.Contains('<')))
+            foreach (var m in t.GetMembers(all).Where(m => Named(m.Name)))
+                switch (m)
+                {
+                    case MethodInfo mi when !mi.IsSpecialName: yield return ($"{t.Name}.{mi.Name}", mi.ReturnType); break;
+                    case PropertyInfo pi: yield return ($"{t.Name}.{pi.Name}", pi.PropertyType); break;
+                    case FieldInfo fi when !fi.IsLiteral: yield return ($"{t.Name}.{fi.Name}", fi.FieldType); break;
+                }
+    }
+
+    [Fact]
+    public void RefusalsAreData()
+    {
+        var members = RefusalMembers().ToList();
+        foreach (var expected in new[] { "Sim.Refusal", "Fire.Refusal", "Work.Refusal", "Traversal.Refusal", "Making.Refusal", "Shelters.Refusal",
+                     "Combat.Refusal", "Fauna.Refusal", "Access.Refusal", "Verb.Refused", "ActionResult.Refused", "CombatTarget.TurnRefusal" })
+            Assert.Contains(members, m => m.Member == expected); // the scan still reaches every system's refusal
+        AssertNone([.. members.Where(m => m.Type != typeof(Refusal)).Select(m => $"{m.Member} gives a {m.Type.Name}, not a Refusal. " +
+            $"Return a Refusal: the reason, and what is missing as data where getting it would help ({Guide}, the rules)")]);
+    }
+
     // ---- BannedGlossaryWords_Ratchet ----
 
     /// Identifiers using words GLOSSARY.md avoids, counted across the Sim, each held at today's count.
     static readonly Dictionary<string, (int Count, string Why, string Say)> BannedWords = new()
     {
-        ["Beliefs"] = (25, "the code name for memory until the rename", "memory"),
-        ["Guarded"] = (13, "the condition the glossary calls occupied", "occupied"),
-        ["Margin"] = (53, "the word the glossary replaces with resolve", "resolve"),
-        ["Thing"] = (168, "location features are still things in the code (ThingRef, ThingKind, Things)", "location feature"),
+        ["Beliefs"] = (0, "memory, by its old code name", "memory"),
+        ["Guarded"] = (0, "the condition the glossary calls occupied", "occupied"),
+        ["Margin"] = (0, "the word the glossary replaces with resolve", "resolve"),
+        ["Thing"] = (0, "location features", "location feature"),
     };
 
     static readonly Regex Identifier = new(@"(?<![\w@])[A-Za-z_]\w*");

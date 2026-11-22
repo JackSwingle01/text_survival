@@ -24,8 +24,8 @@ public sealed record SpeciesStats(
     Diet Diet,
     Motion Motion,
     double GrazeKcalPerMinute,
-    /// Giving ground with the enemy in reach, it strikes instead of backing off at this margin or above.
-    double StrikeBackMargin,
+    /// Giving ground with the enemy in reach, it strikes instead of backing off at this resolve or above.
+    double StrikeBackResolve,
     double ChaseLimitSeconds,
     /// People only: a person's starting fat is drawn from this range, well fed for the autumn.
     FatRange? AutumnFatPct,

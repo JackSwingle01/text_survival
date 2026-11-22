@@ -122,7 +122,7 @@ then one frame per round (round 0 is the opening placement):
 ```
 { "round", "fire": { "x", "y" } | null, "events": [ "Wolf hurt: Left Leg, Pierce 0.31", ... ],
   "units": [ { "index", "team", "species", "member", "x", "y", "state", "action", "target",
-               "margin", "boldness", "vitality", "blood", "reserve", "wounds" } ] }
+               "resolve", "boldness", "vitality", "blood", "reserve", "wounds" } ] }
 ```
 
 Grid y runs north (up). Numbers a fighter no longer has (a herd member removed when it died) are null.
@@ -148,11 +148,11 @@ public sealed record CombatRoundView(int Round, IReadOnlyList<FighterView> Fight
     IReadOnlyList<WorldEvent> Events);
 
 /// One unit of Encounter.Units, by its index there. Action and Target are what it did this round
-/// (null in round 0, or if it did nothing); State is Combat.StateOf. Margin is
-/// Combat.Margin toward its target (null with no target). The body numbers are read from its body as
+/// (null in round 0, or if it did nothing); State is Combat.StateOf. Resolve is
+/// Combat.Resolve toward its target (null with no target). The body numbers are read from its body as
 /// the round ends, or null once the body is gone (a herd member removed when it died).
 public sealed record FighterView(int Index, AgentId Agent, int Member, int Team, Species Species,
-    Cell Position, FighterState State, CombatAction? Action, int? Target, double? Margin,
+    Cell Position, FighterState State, CombatAction? Action, int? Target, double? Resolve,
     double? Boldness, double? Vitality, double? BloodPct, double? SprintReservePct, double? WoundLevel);
 ```
 

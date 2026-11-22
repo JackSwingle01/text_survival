@@ -30,15 +30,15 @@ public class KillChainTests
         var w = Bare();
         var camp = Map.Of(w).Camp;
         Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), Resource.Pine, 1);
-        var first = Things.StashAt(w, camp)!.Value;
+        var first = LocationFeatures.StashAt(w, camp)!.Value;
         Assert.Equal(1, Items.TakeFromStash(w, camp, Resource.Pine, 1));
-        Assert.False(Things.Exists(w, first));
+        Assert.False(LocationFeatures.Exists(w, first));
         Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), Resource.Oak, 1);
-        var second = Things.StashAt(w, camp)!.Value;
+        var second = LocationFeatures.StashAt(w, camp)!.Value;
         Assert.NotEqual(first, second);
-        Assert.False(Things.Exists(w, first), "a held ref to the old stash never names the new one");
+        Assert.False(LocationFeatures.Exists(w, first), "a held ref to the old stash never names the new one");
         var loaded = Save.FromJson(Save.ToJson(w));
-        Assert.Equal(second, Things.StashAt(loaded, camp));
+        Assert.Equal(second, LocationFeatures.StashAt(loaded, camp));
         Assert.Equal(w.NextStashId, loaded.NextStashId);
     }
 
@@ -48,14 +48,14 @@ public class KillChainTests
         var w = Bare();
         var tile = Map.Step(Map.Of(w).Camp, Direction.East);
         Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
-        var first = Things.ShelterAt(w, tile)!.Value;
+        var first = LocationFeatures.ShelterAt(w, tile)!.Value;
         Shelters.Remove(w, tile);
         Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
-        var second = Things.ShelterAt(w, tile)!.Value;
+        var second = LocationFeatures.ShelterAt(w, tile)!.Value;
         Assert.NotEqual(first, second);
-        Assert.False(Things.Exists(w, first));
-        Assert.True(Things.Exists(w, second));
-        Assert.Equal(second, Things.ShelterAt(Save.FromJson(Save.ToJson(w)), tile));
+        Assert.False(LocationFeatures.Exists(w, first));
+        Assert.True(LocationFeatures.Exists(w, second));
+        Assert.Equal(second, LocationFeatures.ShelterAt(Save.FromJson(Save.ToJson(w)), tile));
     }
 
     // ---- who killed what ----
@@ -239,11 +239,11 @@ public class KillChainTests
         Assert.Equal(0, Carcasses.MeatKg(c)); // the hour's settling rotted the flesh off the ledger
         Assert.True(c.Remaining[Resource.Bone] > 0);
         Assert.Equal(cause, c.Cause);
-        var sign = Signs.At(w, camp).Single(s => s.Thing.Kind == ThingKind.Carcass);
+        var sign = Signs.At(w, camp).Single(s => s.LocationFeature.Kind == LocationFeatureKind.Carcass);
         Assert.Equal(SignKind.Bones, sign.Kind);
         Assert.Equal(cause, sign.Cause);
         Assert.Contains(Report.Finds(w), f => f.Kind == "bones" && f.Tile == camp && f.Category == FindCategory.DeadMatter);
-        Assert.False(Tags.Of(w, new ThingRef(ThingKind.Carcass, camp, c.Id)).HasFlag(Tag.Edible));
+        Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, camp, c.Id)).HasFlag(Tag.Edible));
         Sim.Advance(w, (int)((Remains.GoneHours - bonesAt) * 60) + 60);
         Assert.Equal(RemainsStage.Gone, StageAt(w, camp, c.Id));
         Assert.Null(w.Tiles.GetValueOrDefault(camp)?.Carcasses);
@@ -326,7 +326,7 @@ public class KillChainTests
         Body.MarkDead(dead.Body, w.Minute, cause);
         double skeletal = Remains.SkeletalHours(dead.Body.WeightKg);
         Assert.Equal(RemainsStage.Flesh, Remains.StageOf(w, dead));
-        Assert.True(Tags.Of(w, Things.OfAgent(w, npc)).HasFlag(Tag.ScentSource));
+        Assert.True(Tags.Of(w, LocationFeatures.OfAgent(w, npc)).HasFlag(Tag.ScentSource));
         Sim.Advance(w, (int)(skeletal * 60) + 60);
         Assert.Equal(RemainsStage.Skeletal, Remains.StageOf(w, dead));
         Assert.True(w.Agents.ContainsKey(npc));
@@ -538,7 +538,7 @@ public class KillChainTests
             TestKit.SetHunger(w.Agent(wolves), 0.95); // starving the whole time, on the mammoths' land
             events.AddRange(Sim.Advance(w, 1));
         }
-        Assert.DoesNotContain(events.OfType<FightEnded>(), f => f.Agent == mammoths);
+        Assert.DoesNotContain(events.OfType<EncounterEnded>(), f => f.Agent == mammoths);
         Assert.True(w.Agents.ContainsKey(wolves), "the pack went for the mammoths and died of it");
         Assert.True(w.Agent(mammoths).Members.Count >= 6);
     }
@@ -573,7 +573,7 @@ public class KillChainTests
     /// The wolves took my kill: a pack on the player's own kill holds it against the player (the gate
     /// is unwired; the rule is what it will be). What the player made is still the player's.
     [Fact]
-    public void A_Pack_OnYourKill_GuardsIt()
+    public void A_Pack_OnYourKill_OccupiesIt()
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
@@ -582,7 +582,7 @@ public class KillChainTests
         Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), Resource.Pine, 2);
         Agents.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Butcher(P, kill.Id)));
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Butcher(P, kill.Id))?.Reason);
         Assert.Null(Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
     }
 
@@ -621,10 +621,10 @@ public class KillChainTests
         double meat = Carcasses.MeatKg(c);
         var start = new TileId(tile.X, tile.Y + 6);
         var flock = Agents.Spawn(w, Species.Raven, start, 5, [start, tile]);
-        Assert.False(Tags.Of(w, new ThingRef(ThingKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon));
+        Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon));
         for (int i = 0; i < 6 * 60 && w.Agent(flock).Tile != tile; i++) Sim.Advance(w, 1);
         Assert.Equal(tile, w.Agent(flock).Tile);
-        Assert.True(Tags.Of(w, new ThingRef(ThingKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon), "circling flesh: a beacon");
+        Assert.True(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon), "circling flesh: a beacon");
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "carcass" && f.Text.Contains("ravens circling"));
         TestKit.SetHunger(w.Agent(flock), 1);
         Sim.Advance(w, 60);
@@ -645,7 +645,7 @@ public class KillChainTests
         Assert.Equal(w.Agent(wolves).Tile, w.Agent(flock).Tile);
         var sign = Signs.At(w, w.Agent(flock).Tile).Single(s => s.Kind == SignKind.RavensOver);
         Assert.Equal(wolves, sign.Cause!.Value.Who);
-        Assert.Equal(Things.OfAgent(w, flock), sign.Thing);
+        Assert.Equal(LocationFeatures.OfAgent(w, flock), sign.LocationFeature);
         Assert.Contains(Report.Finds(w), f => f.Kind == "ravens" && f.Category == FindCategory.Sign);
     }
 
@@ -660,12 +660,12 @@ public class KillChainTests
         TestKit.SetHunger(w.Agent(flock), 0.2); // not hungry enough to forage: only the stash tempts it
         Assert.Null(Fauna.Refusal(w, new Raid(flock)));
         w.Agent(P).Tile = tile;
-        Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(flock)));
+        Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(flock))?.Reason);
         w.Agent(P).Tile = camp;
         Agents.Spawn(w, Species.Wolf, tile, 2);
         Assert.Null(Fauna.Refusal(w, new Raid(flock))); // the guard gate is not wired
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Raid(flock)));
+        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Raid(flock))?.Reason);
         w.AccessGates = Access.Wired;
         foreach (var id in w.Agents.Values.Where(a => a.Species == Species.Wolf).Select(a => a.Id).ToList()) Agents.Remove(w, id);
         Sim.Advance(w, 5 * 1440);
@@ -684,7 +684,7 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         var c = Caribou(w, camp);
         Agents.Spawn(w, Species.Raven, camp, 4);
-        Assert.False(Tags.Of(w, new ThingRef(ThingKind.Carcass, camp, c.Id)).HasFlag(Tag.Guarded));
+        Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, camp, c.Id)).HasFlag(Tag.Occupied));
     }
 
     // ---- the herds' access gate ----
@@ -704,8 +704,8 @@ public class KillChainTests
         Assert.Null(Fauna.Refusal(w, new Feed(flock))); // unwired: the pack changes nothing yet
         Assert.Null(Fauna.Refusal(w, new Graze(caribou)));
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("nothing here it can reach to eat", Fauna.Refusal(w, new Feed(flock)));
-        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Graze(caribou)));
+        Assert.Equal("nothing here it can reach to eat", Fauna.Refusal(w, new Feed(flock))?.Reason);
+        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Graze(caribou))?.Reason);
         Assert.Null(Fauna.Refusal(w, new Feed(wolves))); // the guard's own meal
         Fauna.MindOf(w.Agent(wolves)).Fear = 0.9; // an afraid pack holds nothing
         Assert.Null(Fauna.Refusal(w, new Feed(flock)));
@@ -727,8 +727,8 @@ public class KillChainTests
         Assert.Null(Work.Refusal(w, new Stash(P, Resource.Pine, 1))); // a new pile: the player's own
         Sim.Step(w, new Stash(P, Resource.Pine, 1), 1);
         Assert.Null(Work.Refusal(w, new Stash(P, Resource.Pine, 1))); // still the player's own
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Stash(npc, Resource.Pine, 1))); // someone else's
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Unstash(npc, Resource.Pine, 1)));
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Stash(npc, Resource.Pine, 1))?.Reason); // someone else's
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Unstash(npc, Resource.Pine, 1))?.Reason);
     }
 
     // ---- the caches ----

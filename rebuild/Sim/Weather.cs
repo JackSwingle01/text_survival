@@ -97,6 +97,19 @@ public static class Weather
     public static int SunriseHour(long minute) => SeasonAt(minute) switch { Season.Winter => 8, Season.Summer => 4, _ => 6 };
     public static int SunsetHour(long minute) => SeasonAt(minute) switch { Season.Winter => 16, Season.Summer => 20, _ => 18 };
 
+    /// The light to work by: before LightFromHour and from DarkFromHour it is too dark without a flame,
+    /// whatever the season. Work, a predator's boldness, people's plans and the page's daylight all read it.
+    public const int LightFromHour = 5, DarkFromHour = 21;
+
+    public static bool IsNight(long minute)
+    {
+        int hour = MinuteOfDay(minute) / 60;
+        return hour < LightFromHour || hour >= DarkFromHour;
+    }
+
+    /// Minutes until IsNight; 0 at night.
+    public static int LightLeftMinutes(long minute) => IsNight(minute) ? 0 : DarkFromHour * 60 - MinuteOfDay(minute);
+
     public static bool IsDaytime(long minute)
     {
         int hour = MinuteOfDay(minute) / 60;
@@ -124,15 +137,13 @@ public static class Weather
     /// By the hour, whatever the season; caves are always dark.
     public static double DarknessLevel(World world, TileId tile)
     {
-        if (Map.Of(world).CaveAt(tile) == Cave.Floor) return 1.0;
+        if (Map.Of(world).CaveAt(tile) == Cave.Floor || IsNight(world.Minute)) return 1.0;
         return (MinuteOfDay(world.Minute) / 60) switch
         {
-            < 5 => 1.0,
             < 6 => 0.5,
             < 17 => 0.0,
             < 20 => 0.2,
-            < 21 => 0.6,
-            _ => 1.0,
+            _ => 0.6,
         };
     }
 

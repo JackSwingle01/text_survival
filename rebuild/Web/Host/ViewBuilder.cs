@@ -3,7 +3,7 @@ using System.Text;
 namespace Survival.Web;
 
 /// Builds one view from the player's side of the world: what Verbs.At offers, what the player
-/// believes (Beliefs: explored tiles, remembered places, sightings), what they can see now, their
+/// remembers (Memory: explored tiles, remembered places, sightings), what they can see now, their
 /// body by its tiers, the sky. The map never reads the truth about a place out of sight: a fire is
 /// drawn as it was last seen (clean-room decision 7).
 sealed class ViewBuilder(World world, int gen)
@@ -11,9 +11,9 @@ sealed class ViewBuilder(World world, int gen)
     /// Every verb this view lists, by id, for the host to start.
     public readonly List<(string Id, Verb Verb)> Verbs = [];
     /// Every combat round action this view lists, by id.
-    public readonly List<(string Id, FightVerb Fight)> Fights = [];
+    public readonly List<(string Id, CombatVerb Fight)> CombatVerbs = [];
 
-    public sealed record FightVerb(CombatAction Action, int? Target);
+    public sealed record CombatVerb(CombatAction Action, int? Target);
 
     /// The terrain codes of MapDto.Known: one character each.
     public const string TerrainCodes = "FCPHWMRXD"; // Forest Clearing Plain Hills Water Marsh Rock Mountain DeepWater
@@ -29,7 +29,7 @@ sealed class ViewBuilder(World world, int gen)
     readonly Agent _player = world.Agent(AgentId.Player);
     GeneratedMap M => Map.Of(world);
 
-    public ViewDto Build(GameHost.Job? job, ReceiptDto? receipt, IReadOnlyList<LogDto> log)
+    public ViewDto Build(GameHost.Job? job, ReceiptDto? receipt, IReadOnlyList<LogDto> log, IReadOnlyList<LogDto> fightLines)
     {
         var p = _player;
         var body = p.Body;
@@ -41,11 +41,11 @@ sealed class ViewBuilder(World world, int gen)
         var feeling = Sim.Feels(world, AgentId.Player, job is { Finished: false } ? job.Activity : new Wait(AgentId.Player));
         var exposure = feeling.Exposure;
 
-        var things = here.Things.Select(t =>
+        var features = here.LocationFeatures.Select(t =>
         {
             var menu = t.Menu.Select(Dto).ToList();
             string? action = t.Action is { } a ? menu[IndexIn(t.Menu, a)].Id : null;
-            return new ThingDto(t.Thing.Kind.ToString().ToLowerInvariant(), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
+            return new LocationFeatureDto(t.LocationFeature.Kind.ToString().ToLowerInvariant(), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
         }).ToList();
         var walk = here.Walk.Select(Dto).ToList();
         var tile = here.Tile.Select(Dto).ToList();
@@ -61,11 +61,11 @@ sealed class ViewBuilder(World world, int gen)
             Alerts: Alerts(body, tiers, sky),
             Place: Place(),
             Fire: FireHere(),
-            Things: things, Walk: walk, Tile: tile, PackVerbs: carried, Make: make,
+            LocationFeatures: features, Walk: walk, Tile: tile, PackVerbs: carried, Make: make,
             Pack: Pack(),
             Body: BodyOf(body),
             Map: MapOf(),
-            Combat: CombatOf(),
+            Combat: CombatOf(fightLines),
             Job: job is null ? null : JobOf(job),
             Receipt: receipt,
             Log: [.. log.TakeLast(40)],
@@ -87,7 +87,7 @@ sealed class ViewBuilder(World world, int gen)
         Verbs.Add((id, v));
         int? minutes = v.Minutes == Survival.Verbs.UntilDoneMinutes ? null : v.Minutes;
         var travel = v.Activity as Travel;
-        return new VerbDto(id, v.Label, KindOf(v.Activity), minutes, v.Refused,
+        return new VerbDto(id, v.Label, KindOf(v.Activity), minutes, v.Refused?.Reason,
             Odds: v.Odds is { } o ? OddsOf(o) : null,
             Trip: v.Trip is { } trip && travel != null ? TripOf(trip, travel, v.Risk) : null,
             Make: v.Activity is Make mk ? MakeOf(mk, v.Outcomes) : null,
@@ -171,10 +171,9 @@ sealed class ViewBuilder(World world, int gen)
     ClockDto Clock(WeatherSample sky)
     {
         int mod = Weather.MinuteOfDay(world.Minute);
-        int rise = Weather.SunriseHour(world.Minute) * 60, set = Weather.SunsetHour(world.Minute) * 60;
         return new ClockDto(Weather.DayNumber(world.Minute), mod, Names.Title(Weather.SeasonAt(world.Minute)), Names.Title(sky.Condition),
-            Math.Round(sky.TemperatureF, 1), Math.Round(sky.WindMph, 1), Names.Of(sky.WindDirection), rise, set,
-            mod >= rise && mod < set ? set - mod : 0);
+            Math.Round(sky.TemperatureF, 1), Math.Round(sky.WindMph, 1), Names.Of(sky.WindDirection),
+            Weather.LightFromHour * 60, Weather.DarkFromHour * 60, Weather.LightLeftMinutes(world.Minute));
     }
 
     static VitalDto[] Vitals(BodyState b, StatTiers tiers, Exposure e)
@@ -213,8 +212,8 @@ sealed class ViewBuilder(World world, int gen)
                 list.Add(new("impaired-" + name.ToLowerInvariant(), $"{name} impaired", "warn", 40, "ui/capacities", [$"{name} {v:P0}"]));
         if (Items.EncumbrancePct(_player) > 1)
             list.Add(new("overloaded", "Overloaded", "warn", 35, "ui/backpack", [$"{Items.CarriedKg(_player):0.0} kg carried", "Moving slower"]));
-        var beliefs = Knowledge.Of(_player);
-        foreach (var (id, s) in beliefs.Sightings)
+        var memory = Memories.Of(_player);
+        foreach (var (id, s) in memory.Sightings)
             if (id != AgentId.Player && Fauna.IsPredator(s.Species) && world.Minute - s.Minute <= NearbyMinutes
                 && Math.Abs(s.Tile.X - _player.Tile.X) + Math.Abs(s.Tile.Y - _player.Tile.Y) <= NearbyTiles)
             {
@@ -247,7 +246,7 @@ sealed class ViewBuilder(World world, int gen)
         var pack = Items.PackOf(_player) ?? new Inventory();
         GearDto G(Gear g) => new(g.Kind, Items.Def(g).Name, Items.ConditionPct(g), Items.Def(g).Slot is EquipSlot slot ? Names.Title(slot) : null);
         return new PackDto(Math.Round(Items.CarriedKg(_player), 2), Items.CapacityKg(pack),
-            [.. pack.Kg.Where(x => x.Value > 0.001).Select(x => new StackDto(x.Key.ToString(), Names.Title(x.Key), Math.Round(x.Value, 2)))],
+            [.. pack.Kg.Where(x => x.Value > 0.001).Select(x => new StackDto(x.Key.ToString(), Names.Title(x.Key), Math.Round(x.Value, 2), Names.Kg(x.Value)))],
             [.. pack.Gear.Select(G)], [.. _player.Body.Worn.Select(G)],
             [.. (pack.Projects ?? []).Select(p => new ProjectDto(p.Recipe, Recipes.Get(p.Recipe).Name, Math.Clamp(p.MinutesDone / Recipes.Get(p.Recipe).Minutes, 0, 1)))]);
     }
@@ -266,14 +265,14 @@ sealed class ViewBuilder(World world, int gen)
             Math.Round(b.ClothingClo, 2));
     }
 
-    // ---- the map: beliefs only ----
+    // ---- the map: memory only ----
 
-    bool Explored(TileId t) => t == _player.Tile || Knowledge.Of(_player).Explored is { } e && M.InBounds(t) && e.Contains(t);
+    bool Explored(TileId t) => t == _player.Tile || Memories.Of(_player).Explored is { } e && M.InBounds(t) && e.Contains(t);
 
     MapDto MapOf()
     {
         var m = M;
-        var beliefs = Knowledge.Of(_player);
+        var memory = Memories.Of(_player);
         var known = new StringBuilder(m.Width * m.Height);
         for (int y = 0; y < m.Height; y++)
             for (int x = 0; x < m.Width; x++)
@@ -285,16 +284,22 @@ sealed class ViewBuilder(World world, int gen)
         var visible = Sight.InView(world, _player); // the view the player's looks already cast
 
         var places = new List<PlaceMarkDto>();
-        foreach (var (t, mem) in beliefs.Places)
+        // The fire underfoot is the one the fire panel shows (FireHere): memory catches up with it only on
+        // the next minute awake, so on waking it would still hold the fire slept beside.
+        var pitHere = Fire.PitAt(world, _player.Tile) is FireId pid ? world.Fires[pid] : null;
+        foreach (var (t, mem) in memory.Places)
         {
-            bool notable = mem.Fire != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Stash is { Count: > 0 } || mem.Danger != Danger.None;
+            bool underfoot = t == _player.Tile;
+            var fire = underfoot ? (pitHere is { } ph ? Fire.Phase(ph) : null) : mem.Fire;
+            bool notable = fire != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Stash is { Count: > 0 } || mem.Danger != Danger.None;
             if (!notable) continue;
             // The fuel was reckoned beside the fire; age it from then. A fire seen burning since keeps that reckoning.
-            double? hoursLeft = mem.FireHours is double h && mem.VisitedMinute is long v ? Math.Max(0, Math.Round(h - (world.Minute - v) / 60.0, 1)) : null;
-            places.Add(new PlaceMarkDto(t.X, t.Y, mem.SeenMinute, mem.Fire is { } f ? Names.Title(f) : null, hoursLeft, mem.Shelter,
+            double? hoursLeft = underfoot ? (pitHere != null && Fire.IsActive(pitHere) ? Math.Round(Fire.FuelHours(pitHere), 1) : null)
+                : mem.FireHours is double h && mem.VisitedMinute is long v ? Math.Max(0, Math.Round(h - (world.Minute - v) / 60.0, 1)) : null;
+            places.Add(new PlaceMarkDto(t.X, t.Y, underfoot ? world.Minute : mem.SeenMinute, fire is { } f ? Names.Title(f) : null, hoursLeft, mem.Shelter,
                 mem.Carcasses is { Count: > 0 }, mem.Stash is { Count: > 0 }, mem.Danger.HasFlag(Danger.Den), mem.Danger.HasFlag(Danger.Hurt)));
         }
-        var sightings = beliefs.Sightings.Where(s => s.Key != AgentId.Player)
+        var sightings = memory.Sightings.Where(s => s.Key != AgentId.Player)
             .Select(s => new SightingDto(s.Value.Tile.X, s.Value.Tile.Y, Words.SpeciesIcon(s.Value.Species), s.Value.Count, s.Value.Minute)).ToList();
 
         var tracks = new List<TrackDto>();
@@ -317,7 +322,7 @@ sealed class ViewBuilder(World world, int gen)
             {
                 var t = new TileId(x, y);
                 if (!Explored(t)) continue;
-                RememberedGround Seen() => beliefs.Explored?.At(t) ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
+                RememberedGround Seen() => memory.Explored?.At(t) ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
                 if (m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater && m.CaveAt(t) == Cave.None
                     && Map.IsFrozen(m, t, inSight.Contains(t) ? world.Minute : Seen().SeenMinute))
                     frozen.Add(y * m.Width + x);
@@ -340,7 +345,7 @@ sealed class ViewBuilder(World world, int gen)
 
     // ---- the fight ----
 
-    CombatDto? CombatOf()
+    CombatDto? CombatOf(IReadOnlyList<LogDto> lines)
     {
         if (Combat.EncounterOf(world, AgentId.Player) is not { } enc) return null;
         var me = Combat.UnitOf(enc, AgentId.Player);
@@ -360,25 +365,25 @@ sealed class ViewBuilder(World world, int gen)
         foreach (var t in Combat.Targets(world, enc, me))
         {
             string tid = $"{gen}.{_n++}";
-            Fights.Add((tid, new FightVerb(CombatAction.Turn, t.Index)));
-            var verb = new VerbDto(tid, $"Face {units[t.Index].Name.ToLowerInvariant()}", "fight", 1, t.Facing ? "You are already facing them." : t.TurnRefusal);
+            CombatVerbs.Add((tid, new CombatVerb(CombatAction.Turn, t.Index)));
+            var verb = new VerbDto(tid, $"Face {units[t.Index].Name.ToLowerInvariant()}", "fight", 1, t.Facing ? "You are already facing them." : t.TurnRefusal?.Reason);
             targets.Add(new TargetDto(t.Index, units[t.Index].Name, Math.Round(t.DistanceM, 1), t.Facing, verb));
         }
         foreach (var a in Enum.GetValues<CombatAction>())
         {
             if (a is CombatAction.Move or CombatAction.Turn) continue; // a cell, a target: Move is listed below, Turn with each target
             string id = $"{gen}.{_n++}";
-            Fights.Add((id, new FightVerb(a, null)));
-            actions.Add(new VerbDto(id, Words.Cap(Words.Of(a)), "fight", 1, Combat.Refusal(world, enc, me, a)));
+            CombatVerbs.Add((id, new CombatVerb(a, null)));
+            actions.Add(new VerbDto(id, Words.Cap(Words.Of(a)), "fight", 1, Combat.Refusal(world, enc, me, a)?.Reason));
         }
         string moveId = $"{gen}.{_n++}";
-        Fights.Add((moveId, new FightVerb(CombatAction.Move, null)));
+        CombatVerbs.Add((moveId, new CombatVerb(CombatAction.Move, null)));
         actions.Add(new VerbDto(moveId, "Move", "fight-move", 1, me.InField ? null : "You are out of the fight."));
         var chase = Combat.ChaseOffer(world, enc, me) is var (fleer, odds)
             ? new ChaseDto(enc.Units.IndexOf(fleer), units[enc.Units.IndexOf(fleer)].Name, Math.Round(odds.Pct, 2), Math.Round(odds.Seconds), Math.Round(odds.PursuerMetres))
             : null;
         return new CombatDto(Combat.MapSize, enc.Rounds, units, actions, Words.Of(Combat.ZoneOf(distance)), Math.Round(distance, 1), target,
-            MoveAllowance(enc, me), targets, chase);
+            MoveAllowance(enc, me), targets, chase, lines);
     }
 
     /// How far a Move may go: the largest whole distance Combat.Refusal accepts, probed along the row.

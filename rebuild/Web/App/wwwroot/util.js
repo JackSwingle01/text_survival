@@ -36,3 +36,9 @@ export const px = s => esc(s).replace(/f(?=[il])/g, 'f‌');
 
 /** A hover tip: title, then lines; a line may start g: (good), b: (bad) or m: (muted). */
 export const tip = (title, lines = []) => `data-tip="${esc([title, ...lines].join('|'))}"`;
+
+/** What a key does while a popup covers the page. A receipt is news to read and go on from: Escape,
+ * Space or Enter close it ('close'); an action key (a letter or an arrow) closes it and goes on to do
+ * what it does ('pass'). Other keys (Shift, Tab) and the end of the run leave it be ('keep'). */
+export const veilKey = (kind, key) => kind !== 'receipt' ? 'keep' : key === 'Escape' || key === ' ' || key === 'Enter' ? 'close'
+  : key.length === 1 || key.startsWith('Arrow') ? 'pass' : 'keep';

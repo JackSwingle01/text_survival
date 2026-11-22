@@ -1,6 +1,6 @@
 namespace Survival.Tests;
 
-/// The fighter state machine (combat grilling rounds 1, 2 and 6, 2026-11-21): one margin with hysteresis
+/// The fighter state machine (combat grilling rounds 1, 2 and 6, 2026-11-21): one resolve with hysteresis
 /// bands, alertness that rises and fades, actions as state within distance, the defence roll, targets,
 /// and morale read off what the target does. Each threshold has its own test.
 public class CombatStateTests
@@ -20,7 +20,7 @@ public class CombatStateTests
         return (w, e);
     }
 
-    // ---- the margin bands, one threshold each ----
+    // ---- the resolve bands, one threshold each ----
 
     [Fact]
     public void Standoff_PressesFromPlusPoint2() =>
@@ -211,7 +211,7 @@ public class CombatStateTests
         Assert.Empty(e.Dropped!);
     }
 
-    /// The hold: standing off, an animal comes on as far as its margin takes it, never inside the longer
+    /// The hold: standing off, an animal comes on as far as its resolve takes it, never inside the longer
     /// reach and half a metre; a spear's reach keeps it a metre further out than bare hands do.
     [Theory]
     [InlineData(false, 2.0)]
@@ -221,7 +221,7 @@ public class CombatStateTests
         var (w, e) = PlayerVs(Species.Wolf, 12, spear: spear);
         var wolf = B(e);
         wolf.State = FighterState.Standoff;
-        wolf.BoldnessModifier = 10; // a margin that would carry it all the way in
+        wolf.BoldnessModifier = 10; // a resolve that would carry it all the way in
         Assert.Equal(holdM, Combat.HoldLineM(w, wolf, Me(e)), 9);
         bool closed = false;
         for (int i = 0; i < 50; i++)
@@ -239,12 +239,12 @@ public class CombatStateTests
 
     /// In the deadband it stops or circles; it never steps nearer.
     [Fact]
-    public void InStandoff_AnAnimalAtAnEvenMarginHoldsOrStepsAside()
+    public void InStandoff_AnAnimalAtAnEvenResolveHoldsOrStepsAside()
     {
         var (w, e) = PlayerVs(Species.Wolf, 8);
         var wolf = B(e);
         wolf.State = FighterState.Standoff;
-        wolf.BoldnessModifier = -Combat.Margin(w, e, wolf, Me(e)) + wolf.BoldnessModifier;
+        wolf.BoldnessModifier = -Combat.Resolve(w, e, wolf, Me(e)) + wolf.BoldnessModifier;
         double gap = wolf.Position.DistanceTo(Me(e).Position);
         for (int i = 0; i < 50; i++)
         {
@@ -317,7 +317,7 @@ public class CombatStateTests
     {
         var (w, e) = PlayerVs(Species.Wolf, 12);
         var wolf = B(e);
-        wolf.BoldnessModifier = -1.25; // standing off: margin a little under 0
+        wolf.BoldnessModifier = -1.25; // standing off: resolve a little under 0
         Me(e).State = FighterState.Standoff;
         Combat.AiTurn(w, e, wolf, []);
         double after = wolf.BoldnessModifier;
@@ -344,7 +344,7 @@ public class CombatStateTests
     }
 
     [Fact]
-    public void OtherEnemiesPressingWithin5m_WeighOnTheMargin()
+    public void OtherEnemiesPressingWithin5m_WeighOnTheResolve()
     {
         var (w, e) = PlayerVs(Species.Wolf, 3, count: 2);
         var (a, b) = (B(e, 0), B(e, 1));
@@ -352,9 +352,9 @@ public class CombatStateTests
         var other = faced == a ? b : a;
         other.Target = e.Units.IndexOf(Me(e));
         other.State = FighterState.Standoff;
-        double alone = Combat.Margin(w, e, Me(e), faced);
+        double alone = Combat.Resolve(w, e, Me(e), faced);
         other.State = FighterState.Pressing;
-        Assert.Equal(alone - 0.5 * Combat.Threat(w, other), Combat.Margin(w, e, Me(e), faced), 9);
+        Assert.Equal(alone - 0.5 * Combat.Threat(w, other), Combat.Resolve(w, e, Me(e), faced), 9);
     }
 
     // ---- the defence roll ----
@@ -432,13 +432,13 @@ public class CombatStateTests
     // ---- an NPC's fight or flight ----
 
     [Fact]
-    public void AnNpc_PressesAWolf_StandsUpToABear_AndRunsFromACaveBear_ByTheMargin()
+    public void AnNpc_PressesAWolf_StandsUpToABear_AndRunsFromACaveBear_ByItsResolve()
     {
         var (w, t) = CombatTests.Field();
-        var npc = Npc.Spawn(w, t, boldness: 0.5);
+        var npc = Npc.Spawn(w, t);
         var me = new Fighter(npc);
         Assert.Equal(FighterState.Pressing, Combat.WouldStand(w, me, w.Agent(CombatTests.Herd(w, Species.Wolf, 1, t)), 8));
-        // A bear at 8 m: boldness 1.0 against 2.5 x 0.44 of threat, a margin of -0.1: it stands its ground.
+        // A bear at 8 m: boldness 1.0 against 2.5 x 0.44 of threat, a resolve of -0.1: it stands its ground.
         Assert.Equal(FighterState.Standoff, Combat.WouldStand(w, me, w.Agent(CombatTests.Herd(w, Species.Bear, 1, t)), 8));
         Assert.Equal(FighterState.GivingGround, Combat.WouldStand(w, me, w.Agent(CombatTests.Herd(w, Species.CaveBear, 1, t)), 8));
         // The same every time: no dice (round 2).
@@ -452,7 +452,7 @@ public class CombatStateTests
     public void ThePlayersHunt_IsAnActivity_WithRefusals()
     {
         var (w, t) = CombatTests.Field();
-        Assert.Equal("No such herd here.", Sim.Refusal(w, new Hunt(P, new AgentId(999_999))));
+        Assert.Equal("No such herd here.", Sim.Refusal(w, new Hunt(P, new AgentId(999_999)))?.Reason);
         var herd = CombatTests.Herd(w, Species.Caribou, 4, t);
         Items.Pack(w, P).Gear.Add(Items.Make("wooden_spear"));
         Assert.Null(Sim.Refusal(w, new Hunt(P, herd)));
@@ -460,7 +460,7 @@ public class CombatStateTests
         var enc = Combat.EncounterOf(w, P);
         Assert.NotNull(enc);
         Assert.Equal("wooden_spear", Combat.UnitOf(enc!, P).Weapon!.Kind);
-        Assert.Equal(Sim.InAFight, Sim.Refusal(w, new Hunt(P, herd)));
+        Assert.Equal(Sim.InAnEncounter, Sim.Refusal(w, new Hunt(P, herd))?.Reason);
         Assert.Equal(1, r.MinutesElapsed);
     }
 
@@ -523,17 +523,17 @@ public class CombatStateTests
         Assert.InRange(looks, 5, 80);
     }
 
-    /// Giving ground with the enemy in reach, a fighter strikes while its margin is at or above its kind's
-    /// strikeBackMargin (decided 2026-11-21, tunable), and backs off below it.
+    /// Giving ground with the enemy in reach, a fighter strikes while its resolve is at or above its kind's
+    /// strikeBackResolve (decided 2026-11-21, tunable), and backs off below it.
     [Fact]
-    public void GivingGround_StrikesInReach_AboveItsStrikeBackMargin_AndBacksOffBelow()
+    public void GivingGround_StrikesInReach_AboveItsStrikeBackResolve_AndBacksOffBelow()
     {
         var (w, e) = PlayerVs(Species.Wolf, 1);
         var wolf = B(e);
         wolf.State = FighterState.GivingGround;
         var me = Combat.TargetOf(e, wolf)!;
-        double line = SpeciesTable.Of(Species.Wolf).StrikeBackMargin;
-        wolf.BoldnessModifier = line - Combat.Margin(w, e, wolf, me) + 0.01;
+        double line = SpeciesTable.Of(Species.Wolf).StrikeBackResolve;
+        wolf.BoldnessModifier = line - Combat.Resolve(w, e, wolf, me) + 0.01;
         Assert.Equal(CombatAction.Attack, Combat.ChooseAction(w, e, wolf).Action);
         wolf.BoldnessModifier -= 0.02;
         Assert.Equal(CombatAction.Move, Combat.ChooseAction(w, e, wolf).Action);
@@ -547,7 +547,7 @@ public class CombatStateTests
         var wolf = B(e);
         wolf.State = FighterState.GivingGround;
         var me = Combat.TargetOf(e, wolf)!;
-        wolf.BoldnessModifier = SpeciesTable.Of(Species.Wolf).StrikeBackMargin - Combat.Margin(w, e, wolf, me) + 0.01;
+        wolf.BoldnessModifier = SpeciesTable.Of(Species.Wolf).StrikeBackResolve - Combat.Resolve(w, e, wolf, me) + 0.01;
         Assert.Equal(CombatAction.Attack, Combat.ChooseAction(w, e, wolf).Action);
         Effects.Set(Combat.BodyOf(w, wolf), EffectKind.Asleep, 40 / 90.0);
         Assert.Equal(CombatAction.Wait, Combat.ChooseAction(w, e, wolf).Action);

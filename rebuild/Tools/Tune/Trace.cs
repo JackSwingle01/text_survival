@@ -3,7 +3,7 @@ namespace Survival.Tune;
 /// One fighter at the end of a round, as a replay shows it. Numbers the body no longer has (a
 /// herd member removed mid-fight) are null.
 public sealed record TraceUnit(int Index, int Team, string Species, int Member, int X, int Y, string State, string? Action,
-    int? Target, double? Margin, double? Boldness, double? Vitality, double? Blood, double? Reserve, double? Wounds);
+    int? Target, double? Resolve, double? Boldness, double? Vitality, double? Blood, double? Reserve, double? Wounds);
 
 /// The grid after one round (round 0 is the opening placement). Fire is the burning fire's cell,
 /// if the fight has one. Events are short plain lines: who was hurt, who died.

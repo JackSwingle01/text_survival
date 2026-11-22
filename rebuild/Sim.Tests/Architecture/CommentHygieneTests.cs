@@ -11,7 +11,6 @@ public class CommentHygieneTests
     /// Files other work is rewriting right now: not yet swept. Empty this list as each is cleaned.
     static readonly Dictionary<string, string> NotYetSwept = new()
     {
-        ["Npc.cs"] = "being edited by the NPC work",
     };
 
     /// History, not design. Each pattern is matched against comment text only.
@@ -62,12 +61,12 @@ public class CommentHygieneTests
         ["Fire.cs"] = 12,
         ["Ground.cs"] = 11,
         ["Items.cs"] = 15,
-        ["Knowledge.cs"] = 24,
+        ["LocationFeatures.cs"] = 22,
         ["Make.cs"] = 11,
         ["Map.cs"] = 17,
+        ["Memory.cs"] = 24,
         ["Names.cs"] = 11,
         ["Nearby.cs"] = 13,
-        ["Npc.cs"] = 37,
         ["Pools.cs"] = 11,
         ["Populate.cs"] = 11,
         ["Remains.cs"] = 14,
@@ -81,7 +80,6 @@ public class CommentHygieneTests
         ["Skills.cs"] = 15,
         ["Species.cs"] = 21,
         ["Tags.cs"] = 13,
-        ["Things.cs"] = 22,
         ["Tiers.cs"] = 14,
         ["Tracks.cs"] = 18,
         ["Travel.cs"] = 12,

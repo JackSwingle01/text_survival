@@ -17,6 +17,17 @@ public class NamesTests
         Assert.Equal("light snow", Names.Of(WeatherCondition.LightSnow));
     }
 
+    /// A crumb is not nothing: what rounds to zero still reads as some, and only nothing reads as 0.
+    [Theory]
+    [InlineData(0.004, "<0.01 kg")]
+    [InlineData(0.0001, "<0.01 kg")]
+    [InlineData(0.0, "0 kg")]
+    [InlineData(0.006, "0.01 kg")]
+    [InlineData(0.38, "0.38 kg")]
+    [InlineData(2.84, "2.8 kg")]
+    public void AnAmountTooSmallToRound_ReadsAsLessThanTheLeastShown(double kg, string words) =>
+        Assert.Equal(words, Names.Kg(kg));
+
     /// names.json must name every value of every table it keeps: a value added in code with no words fails at load.
     [Fact]
     public void EveryValueOfEveryTable_HasWords()

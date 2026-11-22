@@ -153,7 +153,7 @@ public class CombatFlightTests
         B(e).State = FighterState.Pressing;
         Combat.Apply(w, e, Me(e), CombatAction.Flee, []);
         Assert.True(Me(e).InField);
-        Assert.Equal("You were run down.", Combat.Refusal(w, e, Me(e), CombatAction.Flee));
+        Assert.Equal("You were run down.", Combat.Refusal(w, e, Me(e), CombatAction.Flee)?.Reason);
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public class CombatFlightTests
         var npc = Npc.Spawn(w, t);
         var e = Combat.Create(w, [new Fighter(npc)], [new Fighter(wolf)], t, 2, Awareness.Engaged, Awareness.Engaged);
         e.Units[1].State = FighterState.Pressing;
-        e.Units[0].BoldnessModifier = -3; // its margin says run
+        e.Units[0].BoldnessModifier = -3; // its resolve says run
         Combat.AiTurn(w, e, e.Units[0], []);
         Assert.Equal(FighterState.GivingGround, e.Units[0].State);
         Assert.True(e.Units[0].InField);
@@ -208,7 +208,7 @@ public class CombatFlightTests
     public void Chase_IsRefused_WhenNobodyRuns()
     {
         var (w, e) = PlayerVs(Species.Wolf, 5);
-        Assert.Equal("Nobody is running from you.", Combat.Refusal(w, e, Me(e), CombatAction.Chase));
+        Assert.Equal("Nobody is running from you.", Combat.Refusal(w, e, Me(e), CombatAction.Chase)?.Reason);
     }
 
     /// A lamed, blown wolf runs from the player: given chase, it is run down (the fight goes on) or it gets
@@ -243,7 +243,7 @@ public class CombatFlightTests
             var r = Sim.Step(w, new Fight(P, CombatAction.Chase), 1);
             if (w.Encounters.Contains(e)) { caught = true; Assert.True(wolf.InField); continue; }
             lost = true;
-            Assert.Equal(CombatResult.AnimalFled, r.Events.OfType<FightEnded>().Single(f => f.Agent == P).Result);
+            Assert.Equal(CombatResult.AnimalFled, r.Events.OfType<EncounterEnded>().Single(f => f.Agent == P).Result);
             Assert.NotNull(r.Events.OfType<WoundedEscaped>().Single().Heading);
         }
         Assert.True(caught && lost, $"caught {caught}, lost {lost} at legs {legs}");

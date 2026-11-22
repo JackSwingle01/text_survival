@@ -612,7 +612,7 @@ public class ShelterTests
         var npc = Npc.Spawn(w, tile);
         string before = System.Text.Json.JsonSerializer.Serialize(w.Shelters) + System.Text.Json.JsonSerializer.Serialize(w.WaitingShelters);
         Pools.Search(w, w.Agent(npc), 1000, []);
-        Assert.Contains(new PoolId(tile, pool), ((PersonMind)w.Agent(npc).Mind).Knows.Discovered);
+        Assert.Contains(new PoolId(tile, pool), ((PersonMind)w.Agent(npc).Mind).Memory.Discovered);
         Assert.Empty(w.WaitingShelters);
         Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(w.Shelters) + System.Text.Json.JsonSerializer.Serialize(w.WaitingShelters));
         Assert.DoesNotContain(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find");
@@ -665,7 +665,7 @@ public class ShelterTests
         Assert.Equal(0.6, s.InsulationLevel);
 
         w.Agent(P).Tile = Open(w); // open ground at the regional air: a thaw
-        Assert.Equal("too warm to build in snow", Shelters.Refusal(w, new Build(P, Structure.SnowShelter)));
+        Assert.Equal("too warm to build in snow", Shelters.Refusal(w, new Build(P, Structure.SnowShelter))?.Reason);
     }
 
     /// Old DiscoveryFeatureFactory rolled overhangs past the RockOverhang kind's caps (0.40), so the

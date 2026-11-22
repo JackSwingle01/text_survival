@@ -218,7 +218,7 @@ select, input[type="number"] {
 .units td { padding: 0 4px; border-top: 1px solid var(--rule); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .units td.num { text-align: right; }
 .units tr.down td { color: var(--ink-soft); text-decoration: line-through; }
-.units col.c-who { width: 24%; } .units col.c-state { width: 15%; } .units col.c-act { width: 17%; } .units col.c-margin { width: 8%; }
+.units col.c-who { width: 24%; } .units col.c-state { width: 15%; } .units col.c-act { width: 17%; } .units col.c-resolve { width: 8%; }
 .team-a { color: var(--team-a); font-weight: 600; }
 .team-b { color: var(--team-b); font-weight: 600; }
 .you { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--team-a); margin-right: 6px; vertical-align: 1px; }

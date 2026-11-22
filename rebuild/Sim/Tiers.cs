@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// Ordered as the hierarchy that ranks stats within a tier (GLOSSARY: Stat).
+/// GLOSSARY: Stat. Within a tier the NPC ranks them warmth, water, rest, food (Npc.Ladder).
 public enum Stat { Warmth, Water, Food, Rest }
 
 /// Least urgent first: a later tier outranks an earlier one (GLOSSARY: Tier). None: nothing to do, not even topping up.
@@ -27,18 +27,29 @@ public static class Tiers
     public const double RestCriticalPct = 0.1, RestNeedPct = 0.3, RestAgainPct = 0.5, RestedPct = 0.8;
     public const double FatFloorPct = 0.10; // below it the body pays for leanness (Body.Speed, Body.ColdResistance)
     /// The fat the body burns down to before it burns muscle (BodySurvival's MinFatPct).
-    public const double StarvingFatPct = 0.03, StarvingMarginKg = 0.05;
+    public const double StarvingFatPct = 0.03, StarvingToleranceKg = 0.05;
     public const double WantedShortfallKg = 0.3, SatisfiedShortfallKg = 0.1;
     public const double HungryPct = 0.3;
     public const double SpareFireHours = 12;
 
-    /// Tonight's fuel is warmth, not a stockpile: a night without it kills.
-    public static Tier WarmthTier(double coreAtHomeF, bool seeingTo, double fuelHours, double tonightHours)
+    /// Tonight's fire is warmth, not a stockpile. usableFireHours is fire the person can have (Fire.UsableHours), not raw wood.
+    public static Tier WarmthTier(double coreAtHomeF, bool seeingTo, double usableFireHours, double tonightHours)
     {
         var core = CoreTier(coreAtHomeF, seeingTo);
         if (core > Tier.None) return core;
-        if (fuelHours < tonightHours) return Tier.Need;
-        return fuelHours < tonightHours + SpareFireHours ? Tier.Want : Tier.None;
+        if (usableFireHours < tonightHours) return Tier.Need;
+        return usableFireHours < tonightHours + SpareFireHours ? Tier.Want : Tier.None;
+    }
+
+    public const double HealthCriticalBloodPct = 0.6, HealthNeedBloodPct = 0.8, HealthCriticalVitalityPct = 0.3, HealthNeedVitalityPct = 0.6;
+
+    /// Bleeding by where it will leave the blood (Body.LowestBloodPct): a deep cut is Critical while the blood is still full.
+    public static Tier HealthTier(BodyState body)
+    {
+        double bloodPct = Body.LowestBloodPct(body), vitality = Body.TissueVitality(body);
+        if (bloodPct <= HealthCriticalBloodPct || vitality <= HealthCriticalVitalityPct) return Tier.Critical;
+        if (Effects.BleedMlPerHour(body) > 0 || bloodPct < HealthNeedBloodPct || vitality < HealthNeedVitalityPct) return Tier.Need;
+        return Body.IsMended(body) ? Tier.None : Tier.Want;
     }
 
     public static Tier CoreTier(double coreF, bool seeingTo) =>
@@ -71,7 +82,7 @@ public static class Tiers
 
     /// Fat down to what the body will burn with nothing in the stomach: the muscle is what burns.
     public static bool Starving(BodyState body) =>
-        body.CaloriesKcal <= 0 && body.FatKg <= StarvingFatPct * body.WeightKg + StarvingMarginKg;
+        body.CaloriesKcal <= 0 && body.FatKg <= StarvingFatPct * body.WeightKg + StarvingToleranceKg;
 
     public static double FatFloorKg(BodyState body) => FatFloorPct * body.WeightKg;
 

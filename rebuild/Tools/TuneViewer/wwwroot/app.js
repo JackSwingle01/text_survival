@@ -581,8 +581,8 @@ function fighterNames(units, sides) {
   });
 }
 
-const HEAD = '<colgroup><col class="c-who"><col class="c-state"><col class="c-act"><col class="c-margin"><col><col><col><col></colgroup>'
-  + '<tr><th>Fighter</th><th>State</th><th>Action</th><th>Margin</th><th>Vitality</th><th>Blood</th><th>Reserve</th><th>Wounds</th></tr>';
+const HEAD = '<colgroup><col class="c-who"><col class="c-state"><col class="c-act"><col class="c-resolve"><col><col><col><col></colgroup>'
+  + '<tr><th>Fighter</th><th>State</th><th>Action</th><th>Resolve</th><th>Vitality</th><th>Blood</th><th>Reserve</th><th>Wounds</th></tr>';
 function emptyUnits() {
   $('r-units').innerHTML = HEAD + '<tr><td colspan="8" style="color:var(--ink-soft)">Fighters show here once a fight is loaded.</td></tr>';
 }
@@ -599,7 +599,7 @@ function showFrame(i) {
   const meter = v => v == null ? '-' : `<span class="meter" title="${pct(v)}"><i style="width:${Math.max(0, Math.min(1, v)) * 100}%"></i></span>`;
   $('r-units').innerHTML = HEAD
     + f.units.map((u, k) => `<tr class="${u.state === 'Down' ? 'down' : ''}${names[k].you ? ' you-row' : ''}"><td class="${u.team ? 'team-b' : 'team-a'}">${names[k].you ? '<span class="you" aria-hidden="true"></span>' : ''}${esc(names[k].name)}</td>`
-      + `<td>${esc(u.state)}</td><td>${esc(u.action ?? '')}</td><td class="num">${u.margin == null ? '-' : (u.margin >= 0 ? '+' : '') + u.margin.toFixed(2)}</td>`
+      + `<td>${esc(u.state)}</td><td>${esc(u.action ?? '')}</td><td class="num">${u.resolve == null ? '-' : (u.resolve >= 0 ? '+' : '') + u.resolve.toFixed(2)}</td>`
       + `<td>${meter(u.vitality)}</td><td>${meter(u.blood)}</td><td>${meter(u.reserve)}</td><td>${meter(u.wounds)}</td></tr>`).join('');
   $('r-events').innerHTML = f.events.length ? f.events.map(e => `<li title="${esc(e)}">${esc(e)}</li>`).join('') : '<li>Nothing happened this round.</li>';
 }

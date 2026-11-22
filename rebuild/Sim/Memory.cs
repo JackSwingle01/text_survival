@@ -2,13 +2,13 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-// ---- what a person believes ----
+// ---- what a person remembers ----
 
-/// A person's beliefs about the world: the player's and an NPC's are one structure, kept by one set
-/// of rules (Knowledge). What hidden pools they have found, the search put into the rest, every tile
+/// What a person remembers of the world: the player's and an NPC's are one structure, kept by one set
+/// of rules (Memories). What hidden pools they have found, the search put into the rest, every tile
 /// they have seen with anything worth remembering on it, and the animals and people they have seen.
 /// Never copies of world objects: a summary of what was notable, as it was when seen.
-public sealed class Beliefs
+public sealed class Memory
 {
     public List<PoolId> Discovered { get; init; } = [];
     /// Perception-weighted hours spent searching for each hidden pool still unfound.
@@ -18,7 +18,7 @@ public sealed class Beliefs
     /// a den). A bare tile seen from a distance is not kept: the save stays small.
     public SortedDictionary<TileId, TileMemory> Places { get; init; } = [];
     /// The last place each animal group or person was seen, predator or not. Forgotten after
-    /// Knowledge.SightingMemoryMinutes.
+    /// Memories.SightingMemoryMinutes.
     public SortedDictionary<AgentId, Sighting> Sightings { get; init; } = [];
     /// Every tile ever in view (Sight.Visible), whether or not anything was there, with its ground as
     /// last seen: what the map draws as known rather than unexplored, and the snow, mud and ice it
@@ -48,7 +48,7 @@ sealed class SightView(TileId from, double budgetTiles, bool iceSeason, IReadOnl
 public sealed class TileMemory
 {
     public long SeenMinute { get; set; }
-    /// When they last stood here and took it all in: what a receipt counts from (Knowledge.Receipt).
+    /// When they last stood here and took it all in: what a receipt counts from (Memories.Receipt).
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public long? VisitedMinute { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Trees { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Water { get; set; }
@@ -57,7 +57,7 @@ public sealed class TileMemory
     /// The pit's phase as seen; null when there was no pit.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FirePhase? Fire { get; set; }
     /// Hours of fire in what was on the pit (Fire.FuelHours), as of VisitedMinute: only someone beside
-    /// it can judge the fuel. Null when it was not burning. From a distance (Knowledge.Glance) a person
+    /// it can judge the fuel. Null when it was not burning. From a distance (Memories.Glance) a person
     /// sees whether it burns, not how much is on it: a fire seen out has none left (null), and a fire seen
     /// burning keeps the reckoning from beside it, which whoever reads it ages from VisitedMinute.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? FireHours { get; set; }
@@ -121,16 +121,16 @@ public static class Sight
     public static bool InSight(World world, Agent agent, TileId tile) => ViewOf(world, agent).Set.Contains(tile);
 
     /// What this person has in view now, cast from their tile with their eyes and today's sky; kept on
-    /// their beliefs while tile and budget hold.
+    /// their memory while tile and budget hold.
     internal static SightView ViewOf(World world, Agent agent)
     {
         double sight = Body.GetCapacities(agent.Body).Sight;
         double budget = BudgetTiles(world, agent.Tile, sight);
-        var beliefs = (agent.Mind as PersonMind)?.Knows;
+        var memory = (agent.Mind as PersonMind)?.Memory;
         bool ice = Map.IsIceSeason(world.Minute);
-        if (beliefs?.View is { } kept && kept.From == agent.Tile && kept.BudgetTiles == budget && kept.IceSeason == ice) return kept;
+        if (memory?.View is { } kept && kept.From == agent.Tile && kept.BudgetTiles == budget && kept.IceSeason == ice) return kept;
         var view = new SightView(agent.Tile, budget, ice, Visible(world, agent.Tile, sight));
-        if (beliefs != null) beliefs.View = view;
+        if (memory != null) memory.View = view;
         return view;
     }
 
@@ -222,18 +222,20 @@ public static class Sight
     }
 }
 
-/// The one set of rules every person's beliefs are kept by. Memory changes only by looking: the
+/// The one set of rules every person's memory is kept by. It changes only by looking: the
 /// player looks every minute they are awake (Witness), an NPC whenever it decides (Observe). Asleep
 /// or away, memory stands still, and the map drawn from it shows things as last seen.
-public static class Knowledge
+public static class Memories
 {
     /// How often a person awake looks around at the tiles in sight, on the clock. They also look
     /// on arriving somewhere or waking. The tile underfoot is taken in every minute.
     public const int GlanceMinutes = 15;
     public const long SightingMemoryMinutes = 3 * 1440;
+    /// A stash is remembered to this, so what is there may be up to half of it less.
+    public const double StashPrecisionKg = 0.1;
 
-    public static Beliefs Of(Agent agent) =>
-        (agent.Mind as PersonMind ?? throw new ArgumentException($"{agent.Id} is not a person and remembers nothing", nameof(agent))).Knows;
+    public static Memory Of(Agent agent) =>
+        (agent.Mind as PersonMind ?? throw new ArgumentException($"{agent.Id} is not a person and remembers nothing", nameof(agent))).Memory;
 
     /// The camp a person reports back to: where allies tell everything they did.
     public static TileId CampOf(World world, Agent agent) => agent.Mind switch
@@ -281,11 +283,11 @@ public static class Knowledge
     /// predator came into sight, or nearer than where it was last seen.
     public static bool Glance(World world, Agent agent, List<WorldEvent> events)
     {
-        var beliefs = Of(agent);
+        var memory = Of(agent);
         var m = Map.Of(world);
         long now = world.Minute;
         var view = Sight.ViewOf(world, agent);
-        Explore(world, beliefs, view);
+        Explore(world, memory, view);
         var pits = new Dictionary<TileId, FireId>();
         foreach (var (id, f) in world.Fires.ToList())
             if (f.CarriedBy == null && f.Tile != agent.Tile && view.Set.Contains(f.Tile))
@@ -301,23 +303,23 @@ public static class Knowledge
         look.UnionWith(pits.Keys);
         look.UnionWith(dens.Where(view.Set.Contains));
         look.UnionWith(world.Shelters.Keys.Where(view.Set.Contains));
-        look.UnionWith(beliefs.Places.Keys.Where(view.Set.Contains));
+        look.UnionWith(memory.Places.Keys.Where(view.Set.Contains));
         foreach (var t in look)
         {
             if (t == agent.Tile) continue;
             bool trees = Trees(world, t), water = m.TerrainAt(t).IsPassable() && Work.HasOpenWater(world, t), den = dens.Contains(t);
             FirePhase? fire = pits.TryGetValue(t, out var pit) ? Fire.Phase(world.Fires[pit]) : null;
             string? shelter = Shelters.Peek(world, t)?.Name;
-            var mem = beliefs.Places.GetValueOrDefault(t);
+            var mem = memory.Places.GetValueOrDefault(t);
             if (mem == null && !trees && !water && !den && fire == null && shelter == null) continue;
-            if (mem == null) beliefs.Places[t] = mem = new TileMemory();
+            if (mem == null) memory.Places[t] = mem = new TileMemory();
             mem.SeenMinute = now;
             (mem.Trees, mem.Water, mem.Fire, mem.Shelter) = (trees, water, fire, shelter);
             if (!Fire.Burns(fire)) mem.FireHours = null;
             mem.Danger = den ? mem.Danger | Danger.Den : mem.Danger & ~Danger.Den;
         }
         bool nearer = false;
-        var seen = beliefs.Sightings;
+        var seen = memory.Sightings;
         foreach (var other in world.Agents.Values)
         {
             if (other.Id == agent.Id || !view.Set.Contains(other.Tile)) continue;
@@ -335,13 +337,13 @@ public static class Knowledge
     }
 
     /// Every tile in view is explored, and its ground as it is now remembered.
-    static void Explore(World world, Beliefs beliefs, SightView view)
+    static void Explore(World world, Memory memory, SightView view)
     {
         var m = Map.Of(world);
-        beliefs.Explored ??= new GroundMemory(m.Width, m.Height);
-        if ((beliefs.Explored.Width, beliefs.Explored.Height) != (m.Width, m.Height))
-            throw new InvalidOperationException($"Explored ground is {beliefs.Explored.Width}x{beliefs.Explored.Height}, the map {m.Width}x{m.Height}");
-        foreach (var t in view.Tiles) beliefs.Explored.Remember(t, Ground.Look(world, t), world.Minute);
+        memory.Explored ??= new GroundMemory(m.Width, m.Height);
+        if ((memory.Explored.Width, memory.Explored.Height) != (m.Width, m.Height))
+            throw new InvalidOperationException($"Explored ground is {memory.Explored.Width}x{memory.Explored.Height}, the map {m.Width}x{m.Height}");
+        foreach (var t in view.Tiles) memory.Explored.Remember(t, Ground.Look(world, t), world.Minute);
     }
 
     /// What changed on this tile since the person last stood on it, and then their memory of it,
@@ -350,9 +352,9 @@ public static class Knowledge
     public static Receipt Receipt(World world, Agent agent, TileId tile)
     {
         if (tile != agent.Tile) throw new ArgumentException($"{agent.Id} stands on {agent.Tile}, not {tile}: a receipt is for where you stand", nameof(tile));
-        var beliefs = Of(agent);
+        var memory = Of(agent);
         long now = world.Minute;
-        var mem = beliefs.Places.GetValueOrDefault(tile);
+        var mem = memory.Places.GetValueOrDefault(tile);
         long? since = mem?.VisitedMinute;
 
         // The tile as it is now.
@@ -365,7 +367,7 @@ public static class Knowledge
         SortedDictionary<Resource, double>? stash = null;
         if (state?.Stash is { } st)
             foreach (var (r, kg) in st.Kg)
-                if (Math.Round(kg, 1) > 0) (stash ??= [])[r] = Math.Round(kg, 1);
+                if (Math.Round(kg / StashPrecisionKg) > 0) (stash ??= [])[r] = Math.Round(kg / StashPrecisionKg) * StashPrecisionKg;
         string? shelter = Shelters.Peek(world, tile)?.Name;
 
         var happened = new List<WorldEvent>();
@@ -392,7 +394,7 @@ public static class Knowledge
             signs.AddRange(Tracks.Read(world, tile).Where(x => x.Maker != TrackMaker.Human && x.AgeMinutes < now - s));
         }
 
-        if (mem == null) beliefs.Places[tile] = mem = new TileMemory();
+        if (mem == null) memory.Places[tile] = mem = new TileMemory();
         var pools = Pools.At(world, tile);
         mem.SeenMinute = now;
         mem.VisitedMinute = now;
@@ -411,8 +413,8 @@ public static class Knowledge
     /// The person was hurt here: a place to fear (from the event stream, Journal.File).
     internal static void Hurt(Agent agent, TileId tile, long minute)
     {
-        var beliefs = Of(agent);
-        if (!beliefs.Places.TryGetValue(tile, out var mem)) beliefs.Places[tile] = mem = new TileMemory { SeenMinute = minute };
+        var memory = Of(agent);
+        if (!memory.Places.TryGetValue(tile, out var mem)) memory.Places[tile] = mem = new TileMemory { SeenMinute = minute };
         mem.Danger |= Danger.Hurt;
     }
 
@@ -454,7 +456,7 @@ public static class Journal
         {
             var e = events[filed];
             if (e is Injured hurt && world.Agents.TryGetValue(hurt.Who, out var who) && who.Mind is PersonMind)
-                Knowledge.Hurt(who, hurt.Tile, hurt.Minute);
+                Memories.Hurt(who, hurt.Tile, hurt.Minute);
             if (!Files(e) || !Staked(world, e.Tile)) continue;
             if (!world.Journal.TryGetValue(e.Tile, out var list)) world.Journal[e.Tile] = list = [];
             list.Add(e);
@@ -471,7 +473,7 @@ public static class Journal
     // A carcass going (butchered away) has no filed event: Butchered is a step's tally (Files).
     public static bool IsNotable(World world, WorldEvent e) => e switch
     {
-        FireDied or FireBurnedToEmbers or ShelterCollapsed or Died or Injured or Killed or FightEnded or WoundedEscaped
+        FireDied or FireBurnedToEmbers or ShelterCollapsed or Died or Injured or Killed or EncounterEnded or WoundedEscaped
             or Built or CrossedThePass => true,
         // Whose camp it was when it was taken, not when the entry is weighed: a camp that moves on does not
         // turn its owner's old chores into thefts.
@@ -504,7 +506,7 @@ public static class Journal
         {
             if (a.Mind is not PersonMind p) continue;
             if (a.Mind is NpcMind npc && npc.Camp == tile) return true;
-            if (p.Knows.Places.TryGetValue(tile, out var mem) && mem.Carcasses is { Count: > 0 }) return true;
+            if (p.Memory.Places.TryGetValue(tile, out var mem) && mem.Carcasses is { Count: > 0 }) return true;
         }
         return false;
     }

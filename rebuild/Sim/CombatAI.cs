@@ -13,9 +13,9 @@ public enum MoraleEvent { DealtDamage, AllyKilled, AllyFled, Intimidated }
 /// The fighter state machine, morale and the AI's turn. Any unit the
 /// player is not driving takes its turn here, animal or person.
 ///
-/// A fighter's margin toward its target is its boldness, less fire's deterrence, less the threat it
-/// sees in the target. The margin moves it between bands, each with its own way in and out
-/// (hysteresis), so a fighter that has committed stays committed until the margin really turns:
+/// A fighter's resolve toward its target is its boldness, less fire's deterrence, less the threat it
+/// sees in the target. Its resolve moves it between bands, each with its own way in and out
+/// (hysteresis), so a fighter that has committed stays committed until its resolve really turns:
 /// Pressing from +0.2, back to Standoff below 0; Giving ground below -0.3, back above -0.1; Fleeing
 /// below -0.8, back above -0.4. An Unaware fighter becomes Wary when its alertness reaches 0.3 (and
 /// Unaware again below 0.1), and engages at 0.7. A fighter's actions are its state's, within what the
@@ -23,9 +23,9 @@ public enum MoraleEvent { DealtDamage, AllyKilled, AllyFled, Intimidated }
 public static partial class Combat
 {
     // ---- the bands (starting values, to be tuned) ----
-    public const double PressingEnterMargin = 0.2, PressingLeaveMargin = 0.0;
-    public const double GivingGroundEnterMargin = -0.3, GivingGroundRecoverMargin = -0.1;
-    public const double FleeingEnterMargin = -0.8, FleeingRecoverMargin = -0.4;
+    public const double PressingEnterResolve = 0.2, PressingLeaveResolve = 0.0;
+    public const double GivingGroundEnterResolve = -0.3, GivingGroundRecoverResolve = -0.1;
+    public const double FleeingEnterResolve = -0.8, FleeingRecoverResolve = -0.4;
     public const double WaryAlertnessLevel = 0.3, UnawareAlertnessLevel = 0.1, EngagedAlertnessLevel = 0.7;
     /// Alertness one notice adds, and what a look that notices nothing takes away.
     public const double NoticeAlertnessDelta = 0.35, FadeAlertnessDelta = 0.1;
@@ -38,9 +38,9 @@ public static partial class Combat
     // ---- the AI's choices ----
     /// A person throws only at this hit chance or better, and shouts only at this chance or better.
     public const double PersonThrowMinPct = 0.5, IntimidateMinPct = 0.5;
-    /// A target nearer by a metre is worth this much margin; a better target must beat the current one by
-    /// SwitchGainMargin before turning to it is worth the round it costs.
-    const double ClosenessMarginPerM = 0.02, SwitchGainMargin = 0.1;
+    /// A target nearer by a metre is worth this much score; a better target must beat the current one by
+    /// SwitchGainScore before turning to it is worth the round it costs.
+    const double ClosenessScorePerM = 0.02, SwitchGainScore = 0.1;
     const int WanderM = 2;
 
     // ---- morale ----
@@ -107,7 +107,7 @@ public static partial class Combat
 
     /// Boldness, less fire's deterrence, less the threat seen in the other and in whoever else is
     /// pressing it: the one number the bands read.
-    public static double Margin(World world, Encounter enc, CombatUnit u, CombatUnit other) =>
+    public static double Resolve(World world, Encounter enc, CombatUnit u, CombatUnit other) =>
         UnitBoldness(world, enc, u) - FireDeterrence(world, enc, u) - PerceivedThreat(world, u, other) - Pressure(world, enc, u, other);
 
     /// Half the threat of every other enemy pressing in on this fighter within 5 m: a pack
@@ -200,13 +200,13 @@ public static partial class Combat
         else if (u.State == FighterState.Wary && u.AlertnessLevel < UnawareAlertnessLevel) Enter(world, enc, u, FighterState.Unaware);
     }
 
-    /// The margin bands, for an aware fighter the AI drives. Skittish animals always flee once engaged.
+    /// The resolve bands, for an aware fighter the AI drives. Skittish animals always flee once engaged.
     static void UpdateState(World world, Encounter enc, CombatUnit u)
     {
         if (!IsAware(u.State)) return;
         if (StatsOf(world, u).IsSkittish) { Enter(world, enc, u, FighterState.Fleeing); return; }
         if (TargetOf(enc, u) is not CombatUnit target) return;
-        var next = NextState(u.State, Margin(world, enc, u, target));
+        var next = NextState(u.State, Resolve(world, enc, u, target));
         // A person runs only from what it can outrun (under a 50% chance of being caught); else it gives ground.
         if (next == FighterState.Fleeing && !StatsOf(world, u).IsAnimal && BestCatchPct(world, enc, u) >= PersonRunsBelowPct)
             next = FighterState.GivingGround;
@@ -216,16 +216,16 @@ public static partial class Combat
     /// Where its resolve takes a fighter from the state it is in.
     public static FighterState NextState(FighterState state, double resolve)
     {
-        if (state == FighterState.Fleeing) return resolve > FleeingRecoverMargin ? FighterState.GivingGround : FighterState.Fleeing;
-        if (resolve < FleeingEnterMargin) return FighterState.Fleeing;
+        if (state == FighterState.Fleeing) return resolve > FleeingRecoverResolve ? FighterState.GivingGround : FighterState.Fleeing;
+        if (resolve < FleeingEnterResolve) return FighterState.Fleeing;
         return state switch
         {
-            FighterState.Pressing => resolve < GivingGroundEnterMargin ? FighterState.GivingGround
-                : resolve < PressingLeaveMargin ? FighterState.Standoff : FighterState.Pressing,
-            FighterState.GivingGround => resolve >= PressingEnterMargin ? FighterState.Pressing
-                : resolve > GivingGroundRecoverMargin ? FighterState.Standoff : FighterState.GivingGround,
-            FighterState.Standoff => resolve >= PressingEnterMargin ? FighterState.Pressing
-                : resolve < GivingGroundEnterMargin ? FighterState.GivingGround : FighterState.Standoff,
+            FighterState.Pressing => resolve < GivingGroundEnterResolve ? FighterState.GivingGround
+                : resolve < PressingLeaveResolve ? FighterState.Standoff : FighterState.Pressing,
+            FighterState.GivingGround => resolve >= PressingEnterResolve ? FighterState.Pressing
+                : resolve > GivingGroundRecoverResolve ? FighterState.Standoff : FighterState.GivingGround,
+            FighterState.Standoff => resolve >= PressingEnterResolve ? FighterState.Pressing
+                : resolve < GivingGroundEnterResolve ? FighterState.GivingGround : FighterState.Standoff,
             _ => state,
         };
     }
@@ -271,7 +271,7 @@ public static partial class Combat
     };
 
     /// Where a fighter would stand toward the strongest of a herd at this distance, before any fight:
-    /// the same margin and bands a fight runs on (an NPC deciding whether to stand or run).
+    /// the same resolve and bands a fight runs on (an NPC deciding whether to stand or run).
     /// No allies yet and no morale; the fighter's boldness delta is its own nature.
     public static FighterState WouldStand(World world, Fighter me, Agent threat, double distanceM)
     {
@@ -279,14 +279,14 @@ public static partial class Combat
         var living = threat.Members.Where(Body.IsAlive).ToList();
         if (living.Count == 0) throw new ArgumentException($"{threat.Id} has nobody alive to stand against");
         double worst = living.Max(m => them.Threat * Body.Vitality(m));
-        // Margin's terms, before the fight: no allies, no morale yet, and fire deters no person.
-        double margin = Courage(SpeciesTable.Of(world.Agent(me.Agent).Species), me.BoldnessDelta, world.Agent(me.Agent).Members[me.Member])
+        // Resolve's terms, before the fight: no allies, no morale yet, and fire deters no person.
+        double resolve = Courage(SpeciesTable.Of(world.Agent(me.Agent).Species), me.BoldnessDelta, world.Agent(me.Agent).Members[me.Member])
             - PerceivedThreat(worst, distanceM);
-        return NextState(FighterState.Standoff, margin);
+        return NextState(FighterState.Standoff, resolve);
     }
 
     /// The resolve a herd would have toward one agent (the member named, for a herd) were it at its side,
-    /// before any fight: Margin's terms, and it must follow Margin when Margin changes. Its boldest member
+    /// before any fight: Resolve's terms, and it must follow Resolve when Resolve changes. Its boldest member
     /// leads, carrying the herd's boldness toward the target as a predator that chose to come
     /// (Fighter.BoldnessDelta: hunger, fear, numbers against the people standing with it, wounds, the
     /// night); its other members are its allies; every flame on the target's tile is beside it; and every
@@ -336,7 +336,7 @@ public static partial class Combat
     /// A herd steps onto a tile with people only if its resolve there, fire included, reaches the Pressing
     /// entry; short of that it holds where it is until the fire dies or the person steps away.
     public static bool WouldEnter(World world, Agent herd, TileId tile) =>
-        ResolveOnTile(world, herd, tile) is not double resolve || resolve >= PressingEnterMargin;
+        ResolveOnTile(world, herd, tile) is not double resolve || resolve >= PressingEnterResolve;
 
     // ---- targets ----
 
@@ -357,11 +357,11 @@ public static partial class Combat
     }
 
     /// How much a fighter wants this target, weighted toward closer ones: a predator the most
-    /// vulnerable (the best margin), anything else the biggest threat to it.
+    /// vulnerable (the best resolve), anything else the biggest threat to it.
     static double TargetScore(World world, Encounter enc, CombatUnit u, CombatUnit other)
     {
-        double want = StatsOf(world, u).Role == Role.Predator ? Margin(world, enc, u, other) : PerceivedThreat(world, u, other);
-        return want - ClosenessMarginPerM * u.Position.DistanceTo(other.Position);
+        double want = StatsOf(world, u).Role == Role.Predator ? Resolve(world, enc, u, other) : PerceivedThreat(world, u, other);
+        return want - ClosenessScorePerM * u.Position.DistanceTo(other.Position);
     }
 
     public static CombatUnit? BestTarget(World world, Encounter enc, CombatUnit u) =>
@@ -438,7 +438,7 @@ public static partial class Combat
         }
         if (target == null) return Wait();
         if (BestTarget(world, enc, u) is CombatUnit best && best != target
-            && TargetScore(world, enc, u, best) > TargetScore(world, enc, u, target) + SwitchGainMargin)
+            && TargetScore(world, enc, u, best) > TargetScore(world, enc, u, target) + SwitchGainScore)
             return (CombatAction.Turn, null, best);
         switch (u.State)
         {
@@ -462,7 +462,7 @@ public static partial class Combat
             case FighterState.GivingGround:
                 if (!stats.IsAnimal && u.Weapon == null && Allowed(CombatAction.PickUp)) return (CombatAction.PickUp, null, null);
                 // The enemy in reach: a fighting retreat strikes while it has the nerve for it (a tunable line).
-                if (Allowed(CombatAction.Attack) && Margin(world, enc, u, target) >= stats.StrikeBackMargin) return (CombatAction.Attack, null, null);
+                if (Allowed(CombatAction.Attack) && Resolve(world, enc, u, target) >= stats.StrikeBackResolve) return (CombatAction.Attack, null, null);
                 return Go(u.Position.Away(target.Position, Math.Max(1, Allowance(world, u) / 2)));
             case FighterState.Fleeing:
                 // Resolved at once by the catch-up (CombatFlight); run down this round, it can only stand there.
@@ -479,7 +479,7 @@ public static partial class Combat
     /// line, it stops or circles a metre round. Null when it stays put.
     static Cell? Hold(World world, Encounter enc, CombatUnit u, CombatUnit target, Rng rng)
     {
-        double resolve = Margin(world, enc, u, target), distanceM = u.Position.DistanceTo(target.Position);
+        double resolve = Resolve(world, enc, u, target), distanceM = u.Position.DistanceTo(target.Position);
         double holdM = HoldLineM(world, u, target);
         double stepM = Math.Abs(resolve) < HoldDeadbandResolve ? 0
             : Math.Clamp(resolve * HoldStepMPerResolve, -Allowance(world, u), Math.Max(0, distanceM - holdM));
@@ -546,7 +546,7 @@ public static partial class Combat
         }
         var (action, to, face) = ChooseAction(world, enc, u);
         var target = TargetOf(enc, u);
-        if (Apply(world, enc, u, action, events, face, to) is { Refused: string refused })
+        if (Apply(world, enc, u, action, events, face, to) is { Refused: { } refused })
             throw new InvalidOperationException($"The AI chose a refused {action} for {u.Agent}: {refused}");
         if (action == CombatAction.Turn) return;
         if (action == CombatAction.Move && u.State == FighterState.Pressing && StatsOf(world, u).IsAnimal

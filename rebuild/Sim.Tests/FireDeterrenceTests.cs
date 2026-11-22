@@ -3,7 +3,7 @@ using Xunit.Abstractions;
 namespace Survival.Tests;
 
 /// Fire in predator boldness: deterrence = fire-fear × intensity × min(1, (6 m / d)²),
-/// one formula for the grid and the map. On the map a predator holds on the next tile unless its margin at the
+/// one formula for the grid and the map. On the map a predator holds on the next tile unless its resolve at the
 /// person's position, fire included, reaches the Pressing entry.
 public class FireDeterrenceTests(ITestOutputHelper output)
 {
@@ -148,7 +148,7 @@ public class FireDeterrenceTests(ITestOutputHelper output)
     {
         var (w, here, pack) = Camp(1);
         double open = Combat.ResolveOnTile(w, w.Agent(pack), here)!.Value;
-        Assert.True(open >= Combat.PressingEnterMargin, $"three wolves at a lone person's side: margin {open:F2}");
+        Assert.True(open >= Combat.PressingEnterResolve, $"three wolves at a lone person's side: resolve {open:F2}");
         var pit = Pit(here, w.Minute, pineKg: 2);
         w.Fires[new FireId(w.NextFireId++)] = pit;
         double lit = Combat.ResolveOnTile(w, w.Agent(pack), here)!.Value;
@@ -181,10 +181,10 @@ public class FireDeterrenceTests(ITestOutputHelper output)
     public void InAFight_AFighterByTheFire_HoldsOffAWolfThatPressesOneStanding15mAway()
     {
         var (w, e, wolf, me) = Fight(playerFromFireM: 1);
-        var byTheFire = Combat.NextState(FighterState.Standoff, Combat.Margin(w, e, wolf, me));
+        var byTheFire = Combat.NextState(FighterState.Standoff, Combat.Resolve(w, e, wolf, me));
         var (w2, e2, wolf2, me2) = Fight(playerFromFireM: 15);
-        var away = Combat.NextState(FighterState.Standoff, Combat.Margin(w2, e2, wolf2, me2));
-        output.WriteLine($"by the fire: {Combat.Margin(w, e, wolf, me):F2} {byTheFire}; 15 m away: {Combat.Margin(w2, e2, wolf2, me2):F2} {away}");
+        var away = Combat.NextState(FighterState.Standoff, Combat.Resolve(w2, e2, wolf2, me2));
+        output.WriteLine($"by the fire: {Combat.Resolve(w, e, wolf, me):F2} {byTheFire}; 15 m away: {Combat.Resolve(w2, e2, wolf2, me2):F2} {away}");
         Assert.Equal(FighterState.Pressing, away);
         Assert.True(byTheFire is FighterState.GivingGround or FighterState.Fleeing, $"by the fire the wolf is {byTheFire}");
     }
@@ -196,7 +196,7 @@ public class FireDeterrenceTests(ITestOutputHelper output)
         {
             var (w, e, wolf, me) = Fight(playerFromFireM, campfire, torch);
             var (wn, en, wolfn, men) = Fight(playerFromFireM, campfire: false);
-            return Combat.Margin(wn, en, wolfn, men) - Combat.Margin(w, e, wolf, me);
+            return Combat.Resolve(wn, en, wolfn, men) - Combat.Resolve(w, e, wolf, me);
         }
         double torchNear = Deterred(campfire: false, torch: true, playerFromFireM: 0);
         double torchFar = Deterred(campfire: false, torch: true, playerFromFireM: 20);
@@ -211,10 +211,10 @@ public class FireDeterrenceTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void InAFight_ThePersonsOwnMargin_IsUntouchedByTheFire()
+    public void InAFight_ThePersonsOwnResolve_IsUntouchedByTheFire()
     {
         var (w, e, wolf, me) = Fight(playerFromFireM: 0);
         var (wn, en, wolfn, men) = Fight(playerFromFireM: 0, campfire: false);
-        Assert.Equal(Combat.Margin(wn, en, men, wolfn), Combat.Margin(w, e, me, wolf), 9);
+        Assert.Equal(Combat.Resolve(wn, en, men, wolfn), Combat.Resolve(w, e, me, wolf), 9);
     }
 }

@@ -30,7 +30,7 @@ public static class Narration
             FireStartFailed x => x.Who == me,
             FuelAdded x => x.By == me,
             Moved x => x.Who == me,
-            Injured x => x.Who == me,
+            Injured x => x.Who == me || Combat.EncounterOf(world, me) is { } fight && fight.Units.Any(u => u.Agent == x.Who), // a blow in your fight is seen
             CrossedThePass x => x.Who == me,
             Gathered x => x.Who == me,
             Dropped x => x.Who == me,
@@ -42,7 +42,7 @@ public static class Narration
             Drank x => x.Who == me,
             Butchered x => x.Who == me && x.Finished,
             Killed x => x.By == me,
-            FightEnded x => x.Agent == me,
+            EncounterEnded x => x.Agent == me,
             WoundedEscaped x => x.Tile == here,
             Built x => x.Who == me,
             SkillLeveledUp x => x.Who == me,
@@ -76,9 +76,11 @@ public static class Narration
             FireBurnedToEmbers => ("The fire burns down to embers.", Tone.Bad),
             FireDied => ("The fire goes out.", Tone.Bad),
             Moved x => ($"{Does(x.Who, "reach")} {Place(world, x.To)}.", Tone.Plain),
-            Injured x => (Me(x.Who) ? $"You hurt your {x.Region.ToLowerInvariant()}." : $"{Who(x.Who)} is hurt.", Tone.Bad),
+            Injured x => (Me(x.Who) ? $"You hurt your {x.Region.ToLowerInvariant()}."
+                : world.Agents.TryGetValue(x.Who, out var hurt) && hurt.Mind is HerdMind ? $"A {Names.Of(hurt.Species)} is hurt." // one of the herd, not the herd
+                : $"{Who(x.Who)} is hurt.", Tone.Bad),
             CrossedThePass x => ($"{Does(x.Who, "cross")} the pass.", Tone.Rare),
-            Gathered x => ($"{Does(x.Who, "gather")} {Haul(x.What)}.", Tone.Good),
+            Gathered x => x.What.Length == 0 ? ($"{Does(x.Who, "find")} nothing.", Tone.Bad) : ($"{Does(x.Who, "gather")} {Haul(x.What)}.", Tone.Good),
             Dropped x => ($"No room in the pack: {Haul(x.What)} left on the ground.", Tone.Bad),
             Stashed x => ($"{Does(x.Who, "put")} down {Names.Kg(x.Kg, x.Resource)}.", Tone.Plain),
             Unstashed x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Kg(x.Kg, x.Resource)} from the stash." : $"{Does(x.Who, "pick")} up {Names.Kg(x.Kg, x.Resource)}.",
@@ -89,7 +91,7 @@ public static class Narration
             Drank x => ($"{Does(x.Who, "drink")} {x.Liters.ToString("0.##", CultureInfo.InvariantCulture)} L.", Tone.Plain),
             Butchered x => ($"{Does(x.Who, "finish")} butchering.", Tone.Good),
             Killed x => (x.By is AgentId by ? $"{Does(by, "kill")} a {Names.Of(x.Species)}." : $"A {Names.Of(x.Species)} dies.", Tone.Rare),
-            FightEnded x => ($"The fight is over: {FightResult(x.Result)}.", x.Result is CombatResult.Victory or CombatResult.AnimalFled ? Tone.Good : Tone.Bad),
+            EncounterEnded x => ($"The fight is over: {EncounterResult(x.Result)}.", x.Result is CombatResult.Victory or CombatResult.AnimalFled ? Tone.Good : Tone.Bad),
             WoundedEscaped x => ($"A wounded {Names.Of(x.Species)} gets away.", Tone.Bad),
             Built x => ($"{Does(x.Who, x.What == Structure.Tent ? "pitch" : "build")} the {Names.Of(x.What)}.", Tone.Good),
             ShelterCollapsed x => ($"The {Names.Lower(x.Name)} comes down.", Tone.Bad),
@@ -144,7 +146,7 @@ public static class Narration
         return (m.ExtraGear.Count > 0 ? $"{you} {make} a {name}, and offcuts for more." : $"{you} {make} a {name}.", Tone.Good);
     }
 
-    static string FightResult(CombatResult r) => r switch
+    static string EncounterResult(CombatResult r) => r switch
     {
         CombatResult.Victory => "you won",
         CombatResult.Defeat => "you lost",

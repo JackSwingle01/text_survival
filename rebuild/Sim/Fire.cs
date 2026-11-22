@@ -470,14 +470,14 @@ public static class Fire
     }
 
     /// Checked before any time passes, so a refusal costs nothing. Fires around the agent must be caught up.
-    public static string? Refusal(World world, Activity activity)
+    public static Refusal? Refusal(World world, Activity activity)
     {
         var tile = world.Agent(activity.Who).Tile;
         var pack = Items.Pack(world, activity.Who);
         var pitId = PitAt(world, tile);
         var pit = pitId is FireId id ? world.Fires[id] : null;
         // The pit is the thing reached: asked first, once it is there.
-        string? Reach() => Access.Refusal(world, activity.Who, new ThingRef(ThingKind.Fire, tile, pitId!.Value.Value));
+        Refusal? Reach() => Access.Refusal(world, activity.Who, new LocationFeature(LocationFeatureKind.Fire, tile, pitId!.Value.Value));
         switch (activity)
         {
             case StartFire a:
@@ -485,33 +485,47 @@ public static class Fire
                 if (a.TinderKg <= 0 || a.KindlingKg < 0) throw new ArgumentOutOfRangeException(nameof(activity), "Tinder must be positive and kindling not negative");
                 if (pit != null)
                 {
-                    if (Reach() is string barred) return barred;
-                    if (pit.Pit != a.Pit) return $"the pit here is {Names.Of(pit.Pit)}, not {Names.Of(a.Pit)}";
-                    if (!CanAddFuel(pit, a.Tinder)) return "the fire is full";
-                    if (IsActive(pit)) return "the fire is already burning";
+                    if (Reach() is { } barred) return barred;
+                    if (pit.Pit != a.Pit) return new($"the pit here is {Names.Of(pit.Pit)}, not {Names.Of(a.Pit)}");
+                    if (!CanAddFuel(pit, a.Tinder)) return Full(pit, a.TinderKg);
+                    if (IsActive(pit)) return new("the fire is already burning");
                 }
-                if (Items.Tool(pack, a.Tool) == null) return $"no working {Names.Of(a.Tool)}";
-                if (Items.Have(pack, a.Tinder) < a.TinderKg - 1e-9) return $"not enough {Names.Of(a.Tinder)}";
-                if (Items.Have(pack, Resource.Kindling) < a.KindlingKg - 1e-9) return "not enough kindling";
+                if (Items.Tool(pack, a.Tool) == null) return new($"no working {Names.Of(a.Tool)}", new MissingTool(a.Tool));
+                if (Items.Have(pack, a.Tinder) < a.TinderKg - 1e-9)
+                    return new($"not enough {Names.Of(a.Tinder)}", new MissingResource(a.Tinder, a.TinderKg - Items.Have(pack, a.Tinder)));
+                if (Items.Have(pack, Resource.Kindling) < a.KindlingKg - 1e-9)
+                    return new("not enough kindling", new MissingResource(Resource.Kindling, a.KindlingKg - Items.Have(pack, Resource.Kindling)));
                 return null;
             case AddFuel a:
-                if (!IsFuel(a.Fuel)) return $"{Names.Cap(Names.Of(a.Fuel))} does not burn";
+                if (!IsFuel(a.Fuel)) return new($"{Names.Cap(Names.Of(a.Fuel))} does not burn");
                 if (a.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), a.Kg, "Fuel mass must be positive");
-                if (pit == null) return "no fire here";
-                if (Reach() is string fuelBarred) return fuelBarred;
-                if (Items.Have(pack, a.Fuel) <= 0) return $"no {Names.Of(a.Fuel)} to add";
+                if (pit == null) return new("no fire here", new MissingState(Lack.BurningFire));
+                if (Reach() is { } fuelBarred) return fuelBarred;
+                if (Items.Have(pack, a.Fuel) <= 0) return new($"no {Names.Of(a.Fuel)} to add", new MissingResource(a.Fuel, a.Kg));
+                double topUpKg = Math.Min(a.Kg, Items.Have(pack, a.Fuel));
+                if (IsSliver(pit, topUpKg)) return Full(pit, Math.Min(topUpKg, SliverKg));
                 if (CanAddFuel(pit, a.Fuel)) return null;
-                return TotalKg(pit) >= MaxFuelKg(pit.Pit) ? "the fire is full" : $"the fire is not hot enough for {Names.Of(a.Fuel)}";
+                return new($"the fire is not hot enough for {Names.Of(a.Fuel)}",
+                    new MissingState(Lack.FireHeatF, Props[a.Fuel].MinFireTempF, CatchTemperatureF(pit)));
             case LightTorch a:
-                if (!HasLight(world, a.Who)) return "no flame to light a torch from";
-                return Items.Tool(pack, ToolType.Torch) == null ? "no torch to light" : null;
+                if (!HasLight(world, a.Who)) return new("no flame to light a torch from", new MissingState(Lack.Light));
+                return Items.Tool(pack, ToolType.Torch) == null ? new("no torch to light", new MissingTool(ToolType.Torch)) : null;
             case GatherCharcoal:
-                if (pit == null) return "no charcoal here";
-                return Reach() ?? (pit.CharcoalKg > 0 ? null : "no charcoal here");
+                if (pit == null) return new("no charcoal here");
+                return Reach() ?? (pit.CharcoalKg > 0 ? null : new("no charcoal here"));
             default:
                 throw new NotSupportedException($"{activity.GetType().Name} is not a fire activity");
         }
     }
+
+    /// Less room than this, when the top-up offered is bigger, is a sliver: too little to matter, so the pit counts as full.
+    public const double SliverKg = 0.25;
+
+    static bool IsSliver(FireState pit, double offeredKg) => RoomKg(pit) < Math.Min(offeredKg, SliverKg);
+
+    static double RoomKg(FireState f) => Math.Max(0, MaxFuelKg(f.Pit) - TotalKg(f));
+
+    static Refusal Full(FireState pit, double needKg) => new("the fire is full", new MissingState(Lack.FireRoomKg, needKg, RoomKg(pit)));
 
     /// A strike made and failed: the attempt is over, and cost its minute.
     public const string DidNotCatch = "fire did not catch";
@@ -519,7 +533,7 @@ public static class Fire
     /// Returns DidNotCatch when the ignition roll fails: the attempt still happened and cost its minute.
     public static string? Act(World world, Activity activity, List<WorldEvent> events)
     {
-        if (Refusal(world, activity) is string refused) throw new InvalidOperationException($"Fire.Act on a refused activity: {refused}");
+        if (Refusal(world, activity) is { } refused) throw new InvalidOperationException($"Fire.Act on a refused activity: {refused}");
         return activity switch
         {
             StartFire a => Start(world, a, events),
@@ -619,8 +633,13 @@ public static class Fire
         return false;
     }
 
+    /// A forecast: whether this fuel, put on now, catches. What a burning or glowing pit accepts catches the next minute.
+    public static bool WillCatch(FireState f, Resource fuel, double kg) => kg > 0 && (IsActive(f) || f.HasEmbers) && CanAddFuel(f, fuel);
+
     /// Unlike FuelHours, logs on a fire too cool to take them count for nothing.
-    public static double HoursItWillBurn(FireState f)
+    public static double HoursItWillBurn(FireState f) => MinutesItWillBurn(f) / 60.0;
+
+    public static int MinutesItWillBurn(FireState f)
     {
         var copy = BurnCopy(f);
         int minutes = 0;
@@ -630,7 +649,83 @@ public static class Fire
             Consume(copy);
             minutes++;
         }
-        return minutes / 60.0;
+        return minutes;
+    }
+
+    /// A forecast: the minutes of light to work by here (HasLight) if nobody tends it. Fires around who must be caught up.
+    public static int MinutesOfLightLeft(World world, AgentId who)
+    {
+        var tile = world.Agent(who).Tile;
+        int minutes = 0;
+        foreach (var (id, f) in world.Fires)
+        {
+            if (f.CarriedBy != who && (f.CarriedBy != null || f.Tile != tile)) continue;
+            RequireCurrent(world, id, f);
+            if (IsActive(f)) minutes = Math.Max(minutes, f.CarriedBy != null ? (int)Math.Ceiling(f.TorchMinutesLeft) : MinutesItWillBurn(f));
+        }
+        return minutes;
+    }
+
+    /// A forecast of a strike now, assuming nobody adds fuel; fires around the agent caught up. CatchTemperatureF is the heat a minute later, when fuel
+    /// can next go on (Takes). KeepsGoingPct: the odds it catches and goes on to take a log in the pit or the pack.
+    public sealed record LightForecast(double StrikePct, double FlameHours, double CatchTemperatureF, double KeepsGoingPct)
+    {
+        public bool Takes(Resource fuel) => CatchTemperatureF >= Props[fuel].MinFireTempF;
+    }
+
+    public static LightForecast ForecastLight(World world, StartFire a)
+    {
+        var agent = world.Agent(a.Who);
+        if (Refusal(world, a) != null) return new LightForecast(0, 0, 0, 0);
+        double strike = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
+        var lit = IfLit(world, a);
+        // Fuel goes on the minute after the strike, the soonest another activity can start.
+        var next = BurnCopy(lit);
+        Tick(next, default, next.LastUpdatedMinute + 1, []);
+        var pack = Items.Pack(world, a.Who);
+        bool keepsGoing = WillTakeALog(lit) || pack.Kg.Any(x => Props.TryGetValue(x.Key, out var p) && p.MinFireTempF > 0
+            && !IsSliver(next, x.Value) && WillCatch(next, x.Key, Math.Min(x.Value, RoomKg(next))));
+        return new LightForecast(strike, HoursItWillBurn(lit), CatchTemperatureF(next), keepsGoing ? strike : 0);
+    }
+
+    static FireState IfLit(World world, StartFire a)
+    {
+        var tile = world.Agent(a.Who).Tile;
+        var lit = PitAt(world, tile) is FireId id ? BurnCopy(world.Fires[id]) : new FireState { Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit };
+        AddFuel(lit, a.Tinder, a.TinderKg);
+        if (a.KindlingKg > 0 && CanAddFuel(lit, Resource.Kindling)) AddFuel(lit, Resource.Kindling, a.KindlingKg);
+        IgniteAll(lit);
+        return lit;
+    }
+
+    public static bool CanStrike(Inventory pack) => Starters.Any(t => Items.Tool(pack, t) != null);
+
+    public static readonly IReadOnlyList<ToolType> Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
+
+    public static readonly IReadOnlyList<Resource> Tinders = [Resource.BirchBark, Resource.Amadou, Resource.Usnea, Resource.Chaga, Resource.Tinder];
+
+    /// A forecast for warmth (Tiers.WarmthTier): hours of fire from only the fuel a fire could get hot enough to take, from
+    /// the pit if it burns or glows, else struck from the fuel's tinder (canStrike); the fuel counts as one load.
+    public static double UsableHours(FireState? pit, PitType pitType, IReadOnlyDictionary<Resource, double> fuelKg, bool canStrike)
+    {
+        var fuels = fuelKg.Where(x => x.Value > DustKg && IsFuel(x.Key)).ToDictionary(x => x.Key, x => x.Value);
+        bool burns = pit != null && (IsActive(pit) || pit.HasEmbers);
+        bool strikable = canStrike && fuels.Keys.Any(Tinders.Contains);
+        if (!burns && !strikable) return 0;
+        double maxKg = MaxFuelKg(pit?.Pit ?? pitType), heatF = burns ? CatchTemperatureF(pit!) : 0, ownKg = pit != null ? BurningKg(pit) : 0;
+        var taken = new HashSet<Resource>();
+        for (bool more = true; more;)
+        {
+            more = false;
+            foreach (var r in fuels.Keys.Where(r => !taken.Contains(r) && Props[r].MinFireTempF <= heatF).ToList())
+            {
+                taken.Add(r);
+                more = true;
+            }
+            double loadKg = Math.Min(maxKg, ownKg + taken.Sum(r => fuels[r]));
+            if (taken.Count > 0) heatF = Math.Max(heatF, taken.Max(r => Props[r].PeakTempF) * TempSizeFactor(loadKg));
+        }
+        return (burns ? HoursItWillBurn(pit!) : 0) + taken.Sum(r => FuelHours(r, fuels[r]));
     }
 
     static FireState BurnCopy(FireState f) => new()

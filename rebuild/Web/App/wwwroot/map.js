@@ -141,7 +141,7 @@ export function createMap(canvas, state, { onHover, onClick }) {
     if (hover) { const [px, py] = at(hover.x, hover.y); brackets(px, py, '#eadfc8'); }
 
     // the light: night by the clock, a warm dusk
-    const mod = S.displayMinuteOfDay ?? v.clock.minuteOfDay, rise = v.clock.sunriseMinute, set = v.clock.sunsetMinute;
+    const mod = S.displayMinuteOfDay ?? v.clock.minuteOfDay, rise = v.clock.lightFromMinute, set = v.clock.darkFromMinute;
     const night = mod < rise - 60 || mod > set + 60 ? 0.6 : mod < rise ? 0.6 * (rise - mod) / 60 : mod > set ? 0.6 * (mod - set) / 60 : 0;
     if (night > 0) { ctx.fillStyle = `rgba(14,22,40,${night})`; ctx.fillRect(0, 0, w, h); }
     if (mod > set - 90 && mod < set + 30) { ctx.fillStyle = `rgba(140,80,50,${0.12 * (1 - Math.abs(mod - (set - 30)) / 60)})`; ctx.fillRect(0, 0, w, h); }

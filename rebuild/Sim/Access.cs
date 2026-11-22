@@ -1,8 +1,8 @@
 namespace Survival;
 
-/// One gate for reaching a thing (emergent-world-design §3.5). Every refusal that acts on a thing
-/// resolves it (the thing is there: its own wording) and then asks here before anything else about
-/// it, so buried, guarded, frozen-in and across-the-water mean the same everywhere.
+/// One gate for reaching a location feature (emergent-world-design §3.5). Every refusal that acts on one
+/// resolves it (it is there: its own wording) and then asks here before anything else about
+/// it, so buried, occupied, frozen-in and across-the-water mean the same everywhere.
 public static class Access
 {
     [Flags]
@@ -11,13 +11,13 @@ public static class Access
         None = 0,
         /// Buried (Tags) and no Digging in the pack.
         Buried = 1 << 0,
-        /// A living predator herd guards it (Tags) and this is not the confrontation.
-        Guarded = 1 << 1,
+        /// A living predator herd occupies it (Tags) and this is not the confrontation.
+        Occupied = 1 << 1,
         /// Frozen in (Tags) and nothing to strike or cut it free with.
         FrozenIn = 1 << 2,
         /// On a neighbouring tile with open water between and no crossing.
         AcrossWater = 1 << 3,
-        All = Buried | Guarded | FrozenIn | AcrossWater,
+        All = Buried | Occupied | FrozenIn | AcrossWater,
     }
 
     /// The conditions in force. None is wired yet: each is available via the gates overloads until switched on here.
@@ -26,24 +26,24 @@ public static class Access
     public const string BuriedReason = "it is buried under the snow", FrozenInReason = "it is frozen in",
         AcrossWaterReason = "there is open water in the way", OutOfReach = "it is out of reach";
 
-    /// Why who cannot reach t now, or null. The thing must already exist (callers find it first).
-    /// confronting: the activity is the fight with its guard, so a guard is no bar.
-    public static string? Refusal(World world, AgentId who, ThingRef t, bool confronting = false) =>
+    /// Why who cannot reach t now, or null. The location feature must already exist (callers find it first).
+    /// confronting: the activity is the encounter with its occupant, so an occupant is no bar.
+    public static Refusal? Refusal(World world, AgentId who, LocationFeature t, bool confronting = false) =>
         Refusal(world, who, t, world.AccessGates, confronting);
 
-    public static string? Refusal(World world, AgentId who, ThingRef t, Gate gates, bool confronting = false) =>
-        Blocker(world, who, t, gates, confronting)?.Reason;
+    public static Refusal? Refusal(World world, AgentId who, LocationFeature t, Gate gates, bool confronting = false) =>
+        Blocker(world, who, t, gates, confronting) is { } b ? new(b.Reason, b.Missing) : null;
 
     /// Gate.None means plain distance.
-    public readonly record struct Block(Gate Gate, string Reason);
+    public readonly record struct Block(Gate Gate, string Reason, Missing? Missing = null);
 
     /// The first condition in force behind Refusal, or null, for whatever shows it (Verbs.At).
-    public static Block? Blocker(World world, AgentId who, ThingRef t, bool confronting = false) =>
+    public static Block? Blocker(World world, AgentId who, LocationFeature t, bool confronting = false) =>
         Blocker(world, who, t, world.AccessGates, confronting);
 
-    public static Block? Blocker(World world, AgentId who, ThingRef t, Gate gates, bool confronting = false)
+    public static Block? Blocker(World world, AgentId who, LocationFeature t, Gate gates, bool confronting = false)
     {
-        Things.Require(world, t);
+        LocationFeatures.Require(world, t);
         var actor = world.Agent(who);
         if (actor.Tile != t.Tile)
         {
@@ -51,30 +51,34 @@ public static class Access
             if (MapGen.Manhattan(actor.Tile, t.Tile) != 1) return new Block(Gate.None, OutOfReach);
             if (gates.HasFlag(Gate.AcrossWater) && AcrossWater(world, actor.Tile, t.Tile)) return new Block(Gate.AcrossWater, AcrossWaterReason);
         }
-        if ((gates & (Gate.Buried | Gate.Guarded | Gate.FrozenIn)) == 0) return null;
+        if ((gates & (Gate.Buried | Gate.Occupied | Gate.FrozenIn)) == 0) return null;
         var tags = Tags.Of(world, t, who);
         var caps = Items.PackOf(actor) is { } pack ? Capabilities.Of(pack) : Capability.None;
-        if (gates.HasFlag(Gate.Buried) && tags.HasFlag(Tag.Buried) && !caps.HasFlag(Capability.Digging)) return new Block(Gate.Buried, BuriedReason);
-        if (gates.HasFlag(Gate.Guarded) && !confronting && tags.HasFlag(Tag.Guarded)) return new Block(Gate.Guarded, GuardedReason(world, t, who));
-        if (gates.HasFlag(Gate.FrozenIn) && tags.HasFlag(Tag.FrozenIn) && (caps & (Capability.Striking | Capability.Cutting)) == 0) return new Block(Gate.FrozenIn, FrozenInReason);
+        if (gates.HasFlag(Gate.Buried) && tags.HasFlag(Tag.Buried) && !caps.HasFlag(Capability.Digging))
+            return new Block(Gate.Buried, BuriedReason, new MissingCapability(Capability.Digging));
+        if (gates.HasFlag(Gate.Occupied) && !confronting && tags.HasFlag(Tag.Occupied)) return new Block(Gate.Occupied, OccupiedReason(world, t, who));
+        if (gates.HasFlag(Gate.FrozenIn) && tags.HasFlag(Tag.FrozenIn) && (caps & FreesIce) == 0)
+            return new Block(Gate.FrozenIn, FrozenInReason, new MissingCapability(FreesIce));
         return null;
     }
 
-    static string GuardedReason(World world, ThingRef t, AgentId who) =>
-        $"{Cause.Describe(world, Tags.Guards(world, t, who).Min())} guards it";
+    const Capability FreesIce = Capability.Striking | Capability.Cutting;
 
-    /// Only a guard holding the ground bars putting down, whether or not a stash lies there yet. What is
+    static string OccupiedReason(World world, LocationFeature t, AgentId who) =>
+        $"{Cause.Describe(world, Tags.Occupants(world, t, who).Min())} guards it";
+
+    /// Only an occupant holding the ground bars putting down, whether or not a stash lies there yet. What is
     /// put down lies on top, so snow or ice over a stash does not bar adding to it; taking is the full gate.
-    public static string? PutDownRefusal(World world, AgentId who, TileId tile) => PutDownRefusal(world, who, tile, world.AccessGates);
+    public static Refusal? PutDownRefusal(World world, AgentId who, TileId tile) => PutDownRefusal(world, who, tile, world.AccessGates);
 
-    public static string? PutDownRefusal(World world, AgentId who, TileId tile, Gate gates)
+    public static Refusal? PutDownRefusal(World world, AgentId who, TileId tile, Gate gates)
     {
-        if (world.Agent(who).Tile != tile) return OutOfReach;
-        if (!gates.HasFlag(Gate.Guarded)) return null;
-        // A new pile is the putter's own: it is guarded against them only as their own would be.
-        var pile = Things.StashAt(world, tile);
+        if (world.Agent(who).Tile != tile) return new(OutOfReach);
+        if (!gates.HasFlag(Gate.Occupied)) return null;
+        // A new pile is the putter's own: an occupant bars them from it only as it would from their own.
+        var pile = LocationFeatures.StashAt(world, tile);
         if (pile == null) return null;
-        return Tags.Guards(world, pile.Value, who).Count > 0 ? GuardedReason(world, pile.Value, who) : null;
+        return Tags.Occupants(world, pile.Value, who).Count > 0 ? new(OccupiedReason(world, pile.Value, who)) : null;
     }
 
     static bool AcrossWater(World world, TileId from, TileId to)

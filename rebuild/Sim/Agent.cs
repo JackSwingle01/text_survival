@@ -15,7 +15,7 @@ public abstract record Mind;
 public abstract record PersonMind : Mind
 {
     public Inventory Pack { get; init; } = Items.StartingPack();
-    public Beliefs Knows { get; init; } = new();
+    public Memory Memory { get; init; } = new();
     /// Only the skills practised so far. Here because only a person learns.
     public SortedDictionary<Skill, SkillProgress> Skills { get; init; } = [];
 }

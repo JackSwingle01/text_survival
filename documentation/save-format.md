@@ -61,7 +61,13 @@ also caught up the two bodies' core temperature, hydration and effects, which ha
 changed no field but what a saved `Tissue.Toughness` means: units of damage to destroy it whole, not a divisor. Bone and
 organ toughness in the body plans moved to that unit (a skull 20 became 4, a heart 5 became 0.5), so a body saved before
 would keep the old numbers and shrug off every blow; `BodyState.BloodPct` is now of 70 ml a kilo, not a fixed 5,000 ml.
-The sample's bodies carry the new toughness. When you add
+The sample's bodies carry the new toughness. Version 12 (glossary names) renamed saved names to the
+glossary's: a person's memory is saved as `PersonMind.Memory` (was `Knows`, of type `Beliefs`), a herd's
+`HerdMind.LastEncounterMinute` (was `LastFightMinute`), and the `fightended` event is `encounterended`
+(`EncounterEnded`). Nothing else moved. Version 13 (the NPC mind on the tier ladder) reshaped `NpcMind`: it keeps
+`Camp`, `TargetFatKg` and `TargetFatMinute`, drops `Boldness`, `SeeingTo`, `Heading`, `ForageGoal`, `WoodGoal`,
+`Opinions`, `ThreatTile` and `ThreatMinute`, and adds `Goal` (an `NpcGoal`: its stat and tier by name, the minute it
+was taken on and its minutes of budget). When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands.

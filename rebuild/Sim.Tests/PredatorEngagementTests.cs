@@ -96,7 +96,7 @@ public class PredatorEngagementTests(ITestOutputHelper output)
     {
         var (w, here) = Open(Night);
         var pack = Pack(w, here);
-        if (sawIt) Knowledge.Of(w.Agent(P)).Sightings[pack] = new Sighting(East(here, 1), Species.Wolf, 3, w.Minute);
+        if (sawIt) Memories.Of(w.Agent(P)).Sightings[pack] = new Sighting(East(here, 1), Species.Wolf, 3, w.Minute);
         Sim.Step(w, doing, 5);
         var enc = Assert.IsType<Encounter>(Combat.EncounterOf(w, P));
         var me = Combat.UnitOf(enc, P);
@@ -206,7 +206,7 @@ public class PredatorEngagementTests(ITestOutputHelper output)
         w.Agent(pack).Tile = East(here, 3);
         var closer = Sim.Step(w, new Rest(P), 40);
         Assert.Equal(Sim.PredatorInSight, closer.Reason);
-        Assert.True(closer.MinutesElapsed <= Knowledge.GlanceMinutes, $"it took {closer.MinutesElapsed} minutes to notice");
+        Assert.True(closer.MinutesElapsed <= Memories.GlanceMinutes, $"it took {closer.MinutesElapsed} minutes to notice");
     }
 
     /// Walking up to a pack that stands still is not the pack coming on.
@@ -239,7 +239,7 @@ public class PredatorEngagementTests(ITestOutputHelper output)
         var rest = new Rest(npc);
         w.Agent(npc).Doing = new Doing { Plain = rest, MinutesLeft = 120 };
         Pack(w, East(here, 5), hunger: 0.05, state: HerdState.Resting);
-        for (int i = 0; i < Knowledge.GlanceMinutes && w.Agent(npc).Doing?.Activity == rest; i++) Sim.Advance(w, 1);
+        for (int i = 0; i < Memories.GlanceMinutes && w.Agent(npc).Doing?.Activity == rest; i++) Sim.Advance(w, 1);
         Assert.NotSame(rest, w.Agent(npc).Doing?.Activity);
     }
 
@@ -252,8 +252,8 @@ public class PredatorEngagementTests(ITestOutputHelper output)
         w.Agent(npc).Doing = new Doing { Plain = rest, MinutesLeft = 600 };
         var pack = Pack(w, here);
         var events = Sim.Advance(w, 1);
-        Assert.Contains(events.OfType<FightEnded>(), f => f.Agent == npc);
-        Assert.Contains(events.OfType<FightEnded>(), f => f.Agent == pack);
+        Assert.Contains(events.OfType<EncounterEnded>(), f => f.Agent == npc);
+        Assert.Contains(events.OfType<EncounterEnded>(), f => f.Agent == pack);
         Assert.NotSame(rest, w.Agent(npc).Doing?.Activity);
     }
 }

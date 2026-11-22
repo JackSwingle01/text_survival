@@ -37,7 +37,7 @@ public class VerbsTests
             var copy = Save.FromJson(before);
             copy.AccessGates = w.AccessGates; // never saved
             var result = Sim.Step(copy, v.Activity, v.Minutes);
-            if (v.Refused != null) Assert.True(result.MinutesElapsed == 0 && result.InterruptedReason == v.Refused,
+            if (v.Refused?.Reason != null) Assert.True(result.MinutesElapsed == 0 && result.InterruptedReason == v.Refused?.Reason,
                 $"{v.Label}: listed refused '{v.Refused}', Step said '{result.InterruptedReason}' after {result.MinutesElapsed} min");
             else Assert.True(result.MinutesElapsed > 0, $"{v.Label}: listed allowed, Step refused '{result.InterruptedReason}'");
             // A walk that can start says how long it takes: exactly the crossing Step makes.
@@ -67,7 +67,7 @@ public class VerbsTests
             .First(t => m.TerrainAt(t).IsPassable() && !m.TerrainAt(Map.Step(t, Direction.North)).IsPassable());
         w.Agent(P).Tile = wall;
         var north = Verbs.At(w, P).Walk.Single(v => v.Activity == new Travel(P, Direction.North));
-        Assert.Equal(Map.Blocked(m, wall, Map.Step(wall, Direction.North)), north.Refused);
+        Assert.Equal(Map.Blocked(m, wall, Map.Step(wall, Direction.North)), north.Refused?.Reason);
         Assert.NotNull(north.Refused);
         AssertEveryVerbIsTrue(w, P);
     }
@@ -111,9 +111,9 @@ public class VerbsTests
         var w = Camp(out _);
         TestKit.Supply(w);
         Sim.Step(w, new Stash(P, Resource.Pine, 2), 1);
-        Assert.Equal(new Unstash(P, Resource.Pine, 2), Listed(w, ThingKind.Stash).Action!.Activity);
+        Assert.Equal(new Unstash(P, Resource.Pine, 2), Listed(w, LocationFeatureKind.Stash).Action!.Activity);
         Sim.Step(w, new Stash(P, Resource.Birch, 3), 1);
-        var stash = Listed(w, ThingKind.Stash);
+        var stash = Listed(w, LocationFeatureKind.Stash);
         Assert.True(stash.Interact);
         Assert.Equal(new Activity[] { new Unstash(P, Resource.Pine, 2), new Unstash(P, Resource.Birch, 3) }, stash.Menu.Select(v => v.Activity));
         AssertEveryVerbIsTrue(w, P);
@@ -138,7 +138,7 @@ public class VerbsTests
         for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++) Sim.Step(w, light.Activity, 1);
         var here = Verbs.At(w, P);
         Assert.DoesNotContain(here.Tile, v => v.Activity is StartFire); // the pit's own verb now
-        var pit = here.Things.Single(t => t.Thing.Kind == ThingKind.Fire);
+        var pit = here.LocationFeatures.Single(t => t.LocationFeature.Kind == LocationFeatureKind.Fire);
         Assert.True(pit.Interact);
         var fuels = Items.Pack(w, P).Kg.Keys.Where(Fire.IsFuel).ToList();
         Assert.Equal(fuels, pit.Menu.Select(v => v.Activity).OfType<AddFuel>().Select(a => a.Fuel));
@@ -157,17 +157,17 @@ public class VerbsTests
         var (tile, pool) = Enumerable.Range(1, 60).SelectMany(r => new[] { new TileId(camp.X + r, camp.Y), new TileId(camp.X - r, camp.Y), new TileId(camp.X, camp.Y + r) })
             .Where(t => m.InBounds(t) && m.TerrainAt(t).IsPassable())
             .Select(t => (t, Pools.At(w, t).ToList().FindIndex(p => p is StockPool { RevealAtHours: > 0 }))).First(x => x.Item2 >= 0);
-        ((PersonMind)w.Agent(P).Mind).Knows.Discovered.Add(new PoolId(tile, pool));
+        ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(tile, pool));
         w.Agent(P).Tile = tile;
         Sim.Step(w, new Wait(P), 1);
         Ground.CatchUp(w, tile).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 3, CompactionPct = 0.3, FrozenFractionPct = 1 });
-        var unblocked = Verbs.At(w, P).Things.Single(t => t.Thing == new ThingRef(ThingKind.Pool, tile, pool));
+        var unblocked = Verbs.At(w, P).LocationFeatures.Single(t => t.LocationFeature == new LocationFeature(LocationFeatureKind.Pool, tile, pool));
         Assert.Empty(unblocked.Conditions); // the gate is not wired: buried bars nothing yet
 
         w.AccessGates = Access.Gate.All;
-        var find = Verbs.At(w, P).Things.Single(t => t.Thing == new ThingRef(ThingKind.Pool, tile, pool));
+        var find = Verbs.At(w, P).LocationFeatures.Single(t => t.LocationFeature == new LocationFeature(LocationFeatureKind.Pool, tile, pool));
         Assert.Equal([new Condition("buried", Blocking: true)], find.Conditions);
-        Assert.Equal(Access.BuriedReason, find.Action!.Refused);
+        Assert.Equal(Access.BuriedReason, find.Action!.Refused?.Reason);
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -179,8 +179,8 @@ public class VerbsTests
         var npc = Npc.Spawn(w, camp);
         TestKit.Supply(w, npc);
         Sim.Step(w, new Wait(P), 1);
-        Assert.DoesNotContain(Verbs.At(w, npc).Things, t => t.Thing == Things.OfAgent(w, npc));
-        Assert.Contains(Verbs.At(w, npc).Things, t => t.Thing == Things.OfAgent(w, P));
+        Assert.DoesNotContain(Verbs.At(w, npc).LocationFeatures, t => t.LocationFeature == LocationFeatures.OfAgent(w, npc));
+        Assert.Contains(Verbs.At(w, npc).LocationFeatures, t => t.LocationFeature == LocationFeatures.OfAgent(w, P));
         AssertEveryVerbIsTrue(w, npc);
     }
 
@@ -195,10 +195,10 @@ public class VerbsTests
         var herd = Agents.Spawn(w, Species.Caribou, camp, 3);
         Items.Pack(w, P).Gear.Add(Items.Make("wooden_spear"));
         var here = Verbs.At(w, P);
-        var caribou = here.Things.Single(t => t.Thing == Things.OfAgent(w, herd));
+        var caribou = here.LocationFeatures.Single(t => t.LocationFeature == LocationFeatures.OfAgent(w, herd));
         Assert.Equal(new Hunt(P, herd), caribou.Action!.Activity);
         Assert.True(caribou.Action.Allowed);
-        Assert.Empty(here.Things.Single(t => t.Thing == Things.OfAgent(w, npc)).Menu);
+        Assert.Empty(here.LocationFeatures.Single(t => t.LocationFeature == LocationFeatures.OfAgent(w, npc)).Menu);
         AssertEveryVerbIsTrue(w, P);
 
         Sim.Step(w, caribou.Action.Activity, caribou.Action.Minutes);
@@ -213,11 +213,11 @@ public class VerbsTests
         Sim.Step(w, new Wait(P), 1);
         var wolf = Agents.Spawn(w, Species.Wolf, camp, 1);
         Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], camp, 10, Awareness.Engaged, Awareness.Engaged);
-        Assert.All(Verbs.At(w, P).All, v => Assert.Equal(Sim.InAFight, v.Refused));
+        Assert.All(Verbs.At(w, P).All, v => Assert.Equal(Sim.InAnEncounter, v.Refused?.Reason));
         AssertEveryVerbIsTrue(w, P);
     }
 
-    static ThingVerbs Listed(World w, ThingKind kind) => Verbs.At(w, P).Things.Single(t => t.Thing.Kind == kind);
+    static LocationFeatureVerbs Listed(World w, LocationFeatureKind kind) => Verbs.At(w, P).LocationFeatures.Single(t => t.LocationFeature.Kind == kind);
 
     /// A carcass offers butchering three ways: several verbs, so Interact; once begun one way, only that way.
     [Fact]
@@ -227,13 +227,13 @@ public class VerbsTests
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         var c = PlayerKill(w, camp);
         Sim.Step(w, new Wait(P), 1);
-        var carcass = Listed(w, ThingKind.Carcass);
+        var carcass = Listed(w, LocationFeatureKind.Carcass);
         Assert.True(carcass.Interact);
         Assert.Equal(Enum.GetValues<ButcherMode>().Select(mode => (Activity)new Butcher(P, c.Id, mode)), carcass.Menu.Select(v => v.Activity));
         AssertEveryVerbIsTrue(w, P);
 
         Sim.Step(w, new Butcher(P, c.Id, ButcherMode.Careful), 5);
-        var begun = Listed(w, ThingKind.Carcass);
+        var begun = Listed(w, LocationFeatureKind.Carcass);
         Assert.Equal(new Butcher(P, c.Id, ButcherMode.Careful), begun.Action!.Activity);
         AssertEveryVerbIsTrue(w, P);
     }
@@ -254,10 +254,10 @@ public class VerbsTests
         Sim.Step(w, new Wait(P), 1);
         var pools = Pools.At(w, camp);
         Assert.Contains(pools.Select((_, i) => new PoolId(camp, i)), id => !Pools.Knows(w, P, id)); // something here is still hidden
-        var listed = Verbs.At(w, P).Things.Where(t => t.Thing.Kind == ThingKind.Pool).ToList();
-        Assert.Equal(pools.Select((_, i) => i).Where(i => Pools.Knows(w, P, new PoolId(camp, i))), listed.Select(t => t.Thing.Index));
-        var forage = listed.Single(t => pools[t.Thing.Index] is ForagePool);
-        Assert.Equal(new Gather(P, forage.Thing.Index), forage.Action!.Activity);
+        var listed = Verbs.At(w, P).LocationFeatures.Where(t => t.LocationFeature.Kind == LocationFeatureKind.Pool).ToList();
+        Assert.Equal(pools.Select((_, i) => i).Where(i => Pools.Knows(w, P, new PoolId(camp, i))), listed.Select(t => t.LocationFeature.Index));
+        var forage = listed.Single(t => pools[t.LocationFeature.Index] is ForagePool);
+        Assert.Equal(new Gather(P, forage.LocationFeature.Index), forage.Action!.Activity);
         Assert.Equal("Forage", forage.Action.Label);
         AssertEveryVerbIsTrue(w, P);
     }
@@ -296,7 +296,7 @@ public class VerbsTests
         Assert.Equal(StepOutcome.Finished, r.Outcome);
         Assert.DoesNotContain(boots, w.Agent(P).Body.Worn);
         Assert.Contains(boots, Items.Pack(w, P).Gear);
-        Assert.Equal("you are not wearing worn hide boots", Sim.Refusal(w, new TakeOff(P, "worn_hide_boots")));
+        Assert.Equal("you are not wearing worn hide boots", Sim.Refusal(w, new TakeOff(P, "worn_hide_boots"))?.Reason);
         Sim.Step(w, new Wear(P, "worn_hide_boots"), 1);
         Assert.Contains(boots, w.Agent(P).Body.Worn);
     }
@@ -309,7 +309,7 @@ public class VerbsTests
         Sim.Step(w, new Wait(P), 1);
         var builds = Verbs.At(w, P).Make.Where(v => v.Activity is Build).ToList();
         Assert.Equal(Enum.GetValues<Structure>(), builds.Select(v => ((Build)v.Activity).What));
-        Assert.Equal("there is already a shelter here (Overhang)", builds.Single(v => v.Activity == new Build(P, Structure.Tent)).Refused); // the camp's overhang
+        Assert.Equal("there is already a shelter here (Overhang)", builds.Single(v => v.Activity == new Build(P, Structure.Tent)).Refused?.Reason); // the camp's overhang
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -324,7 +324,7 @@ public class VerbsTests
         Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
         Sim.Step(w, new Wait(P), 1);
         var pitch = Verbs.At(w, P).Make.Single(v => v.Activity == new Build(P, Structure.Tent));
-        Assert.True(pitch.Allowed, pitch.Refused);
+        Assert.True(pitch.Allowed, pitch.Refused?.Reason);
         AssertEveryVerbIsTrue(w, P);
     }
 

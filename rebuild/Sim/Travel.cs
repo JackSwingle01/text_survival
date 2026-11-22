@@ -26,15 +26,20 @@ public static class Traversal
     static readonly Footing FootingRules = Content.Tables.Footing;
     public const int MinimumCrossingMinutes = 5;
 
-    public static string? Refusal(World world, Travel t)
+    public static Refusal? Refusal(World world, Travel t)
     {
         var agent = world.Agent(t.Who);
-        return CannotWalk(agent) ?? Map.Blocked(Map.Of(world), agent.Tile, Map.Step(agent.Tile, t.Dir));
+        if (CannotWalk(agent) is string lame) return new(lame, new MissingState(Lack.MovingPct, LameMovingPct, Moving(agent)));
+        return Map.Blocked(Map.Of(world), agent.Tile, Map.Step(agent.Tile, t.Dir)) is string blocked ? new(blocked) : null;
     }
 
+    /// At or under this Moving, a person can barely move.
+    public const double LameMovingPct = 0.1;
+
+    static double Moving(Agent agent) => agent.Members.Where(Body.IsAlive).Min(m => Body.GetCapacities(m).Moving);
+
     /// Checked at the start and every minute (Advance), so a crossing stops at the same minute however its minutes are cut into steps.
-    static string? CannotWalk(Agent agent) =>
-        agent.Members.Where(Body.IsAlive).Min(m => Body.GetCapacities(m).Moving) <= 0.1 ? "you can barely move" : null;
+    static string? CannotWalk(Agent agent) => Moving(agent) <= LameMovingPct ? "you can barely move" : null;
 
     /// A crossing in another direction, at another pace, or from a tile the agent is no longer on, is abandoned.
     public static Crossing Begin(World world, Travel t)

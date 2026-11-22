@@ -284,7 +284,8 @@ button { font: inherit; color: inherit; }
 .stale { font-size: 14px; color: var(--bone-3); padding: 4px 8px; background: var(--ink-3); clip-path: var(--notch-s); }
 
 /* ---------- dock: verbs, where you are, sheets ---------- */
-.dock .spacer { flex: 1; }
+/* the verbs wrap in their own box, so the place and the sheets always keep theirs */
+.dock .verbs { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 auto; min-width: 0; }
 .where-btn { display: grid; text-align: right; background: none; border: 0; cursor: pointer; padding: 2px 6px; flex: none; }
 .where-btn b { font: 500 18px/1.1 var(--f-pixel); }
 .where-btn small { color: var(--bone-3); font-size: 14px; }
@@ -305,7 +306,7 @@ button { font: inherit; color: inherit; }
   .where-btn { display: none; }
   .dock { flex-wrap: wrap; }
   .verb { min-width: 0; flex: 1 1 calc(50% - 5px); }
-  .dock .spacer { display: none; }
+  .dock .verbs { flex-basis: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
@@ -319,9 +320,9 @@ button { font: inherit; color: inherit; }
 .verb:disabled { opacity: .55; }
 .verb.fight img { width: 32px; height: 32px; }
 .dock .group { display: flex; gap: 10px; flex: none; }
-.thing { display: grid; gap: 6px; padding: 8px 10px; background: var(--ink-2); clip-path: var(--notch-s); }
-.thing-h { display: flex; align-items: center; gap: 8px; }
-.thing-h b { font: 500 18px/1.1 var(--f-pixel); flex: 1; }
+.feature { display: grid; gap: 6px; padding: 8px 10px; background: var(--ink-2); clip-path: var(--notch-s); }
+.feature-h { display: flex; align-items: center; gap: 8px; }
+.feature-h b { font: 500 18px/1.1 var(--f-pixel); flex: 1; }
 .cond { font-size: 14px; padding: 2px 6px; background: #3a1d14; color: var(--minus); clip-path: var(--notch-s); }
 .menu { display: grid; gap: 4px; }
 .mi { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; background: var(--ink); border: 2px solid var(--seam);
@@ -345,8 +346,8 @@ button { font: inherit; color: inherit; }
 .end .lines { padding: 14px 22px; text-align: left; }
 .end footer { padding: 12px 18px 18px; display: flex; gap: 8px; justify-content: center; }
 .slot-meta { font-size: 16px; color: var(--bone-2); }
-.fightside { position: absolute; top: 12px; right: 12px; width: min(330px, calc(100% - 24px)); display: grid; gap: 0; z-index: 3; max-height: calc(100% - 24px); overflow: auto; }
-.fightside .side-body { padding: 12px 14px; }
+.combatside { position: absolute; top: 12px; right: 12px; width: min(330px, calc(100% - 24px)); display: grid; gap: 0; z-index: 3; max-height: calc(100% - 24px); overflow: auto; }
+.combatside .side-body { padding: 12px 14px; }
 .unit { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; align-items: center; font-size: 17px; }
 .unit img { width: 28px; height: 28px; image-rendering: pixelated; }
 .unit small { display: block; color: var(--bone-3); font-size: 14px; }
@@ -360,7 +361,7 @@ button { font: inherit; color: inherit; }
 .flash { animation: flash .5s steps(3); }
 @keyframes flash { 0% { background: #3d2a14; } 100% { background: transparent; } }
 .shake { animation: shake .3s steps(3); }
-@media (max-width: 860px) { .fightside { top: auto; bottom: 12px; max-height: 40%; } }
+@media (max-width: 860px) { .combatside { top: auto; bottom: 12px; max-height: 40%; } }
 .dock { gap: 8px; }
 .dock .verb { min-width: 0; padding: 6px 12px 6px 8px; grid-template-columns: 32px auto; }
 .dock .verb img { width: 32px; height: 32px; }
@@ -412,6 +413,6 @@ button { font: inherit; color: inherit; }
 @media (max-width: 860px) {
   .dock .group { flex-wrap: wrap; flex: 1 1 100%; }
   .dock .group .verb.fight { flex: 1 1 calc(50% - 6px); }
-  .fightside { max-height: 34%; }
+  .combatside { max-height: 34%; }
 }
 .act.quiet:disabled { opacity: .4; cursor: not-allowed; }

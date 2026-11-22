@@ -37,7 +37,8 @@ public class PoolsTests
     {
         var w = New();
         var m = Map.Of(w);
-        var tile = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+        var tile = (from x in Enumerable.Range(0, m.Width)
+                    from y in Enumerable.Range(0, m.Height)
                     let t = new TileId(x, y)
                     where !w.Shelters.ContainsKey(t) && Pools.At(w, t).Any(p => p is ShelterFind f && f.Name == name)
                     select t).First();
@@ -308,7 +309,7 @@ public class PoolsTests
         Assert.InRange(types[Resource.Oak] / (double)n, 0.22, 0.28);
     }
 
-    // ---- discovery is the agent's knowledge ----
+    // ---- discovery is the agent's memory ----
 
     [Fact]
     public void AHiddenPool_CannotBeWorkedUntilFound_AndOnlyItsFinderKnowsIt()
@@ -345,7 +346,7 @@ public class PoolsTests
         Ground.AddSnow(ground, sub, 0.1); // about a metre of fresh snow
         Pools.Search(bare, bare.Agent(P), 1.0, []);
         Pools.Search(snowy, snowy.Agent(P), 1.0, []);
-        double Hours(World w) => ((PersonMind)w.Agent(P).Mind).Knows.SearchHours[Camp(w, 1)];
+        double Hours(World w) => ((PersonMind)w.Agent(P).Mind).Memory.SearchHours[Camp(w, 1)];
         Assert.Equal(1.0, Hours(bare), 9);
         Assert.InRange(Hours(snowy), 0.099, 0.99); // buried: down to the 0.1 floor
         double earned = Hours(snowy);

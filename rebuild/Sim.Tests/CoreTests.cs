@@ -99,7 +99,7 @@ public class CoreTests
         Assert.Contains(dropped.Events, e => e is EffectStarted { Kind: EffectKind.Asleep });
         int left = Body.AsleepMinutesLeft(body);
         Assert.InRange(left, 15, 90);
-        Assert.Equal(Sim.Asleep, Sim.Refusal(world, walk));
+        Assert.Equal(Sim.Asleep, Sim.Refusal(world, walk)?.Reason);
         Assert.Equal(Sim.Asleep, Sim.Step(world, walk, 10).InterruptedReason);
 
         var slept = Sim.Step(world, new Wait(AgentId.Player), left);
@@ -107,7 +107,7 @@ public class CoreTests
         Assert.Equal(2.0 * left, body.EnergyMinutes, 9); // sleep refills two waking minutes a minute
         Assert.False(Body.IsAsleep(body));
         Assert.Contains(slept.Events, e => e is EffectEnded { Kind: EffectKind.Asleep });
-        Assert.NotEqual(Sim.Asleep, Sim.Refusal(world, walk));
+        Assert.NotEqual(Sim.Asleep, Sim.Refusal(world, walk)?.Reason);
     }
 
     /// The roll to drop asleep is one a minute lived, on the body's own stream, so ten
