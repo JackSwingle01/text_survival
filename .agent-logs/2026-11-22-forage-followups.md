@@ -15,3 +15,9 @@ Revised: CommentHygiene: two comments said "the old game" (history) and Work.cs 
 Revised: Pools.Search takes the tile searched (a crossing searches the tile it walks into); the search-here overload stays for its many callers.
 Revised: save fixture regenerated for version 18; only SearchedHours/SearchHours moved (a crossing's searching now split between its two tiles).
 Probe (scratch, 3 seeds x 300 tiles x 20 draws): a carcass scavenge clue is noticed on 5.2% of looks at 5e75f23 (always laid) and 4.6% now, laid on a 25% roll: about 1 search in 87 instead of 1 in 19.
+NPC bench (scratch NpcForageBench, 20 seeds x 60 days, lone NPC at the start camp; food foraged = food kcal gained in pack and tile stash during forage minutes):
+  7e73ea8: alive 14/20; 1242 kcal of food foraged per NPC-day; 1430 kcal eaten/day; 9.2 forage h/day; 135 food kcal per forage hour; survivors' fat 8.3 kg (min 4.4).
+  5e75f23: alive 11/20 (7 thirst deaths); 491 kcal/day foraged; 1099 eaten; 4.8 forage h/day; 103 kcal per forage hour; fat 6.2 kg (min 2.1).
+  this branch: alive 16/20; 537 kcal/day foraged; 870 eaten; 4.9 forage h/day; 109 kcal per forage hour; fat 3.4 kg (min 1.8).
+Follow-up: NPC food foraged fell about 57% at the forage restore (5e75f23): yield per forage hour -19% (FocusGain 1.3 gone) and forage hours halved; survivors end day 60 near 2-5 kg of fat, so longer runs will likely starve them. No compensation added (the user's decision); the halved forage hours are undiagnosed.
+Follow-up: "Picked clean" and "picked over" still appear in ported old-event lines (OldCampsite outcome, KillSite and BoneScatter openings) and in the harvest/salvage refusal "the X is picked clean"; the user's wording change covered the forage clue and failure lines.
