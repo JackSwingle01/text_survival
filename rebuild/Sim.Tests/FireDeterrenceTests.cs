@@ -66,7 +66,7 @@ public class FireDeterrenceTests(ITestOutputHelper output)
     }
 
     /// A pit lit from kindling with pine laid on, burned for the half hour before this minute so the pine has caught.
-    static FireState Pit(TileId tile, long minute, double pineKg, double kindlingKg = 1.0)
+    internal static FireState Pit(TileId tile, long minute, double pineKg, double kindlingKg = 1.0)
     {
         const int LitMinutesBefore = 30;
         var f = new FireState { Tile = tile, LastUpdatedMinute = minute - LitMinutesBefore, Pit = PitType.Open };
@@ -147,15 +147,15 @@ public class FireDeterrenceTests(ITestOutputHelper output)
     public void TheHold_MeasuresThePackAtYourPosition_FireIncluded()
     {
         var (w, here, pack) = Camp(1);
-        double open = Combat.MarginOnTile(w, w.Agent(pack), here)!.Value;
+        double open = Combat.ResolveOnTile(w, w.Agent(pack), here)!.Value;
         Assert.True(open >= Combat.PressingEnterMargin, $"three wolves at a lone person's side: margin {open:F2}");
         var pit = Pit(here, w.Minute, pineKg: 2);
         w.Fires[new FireId(w.NextFireId++)] = pit;
-        double lit = Combat.MarginOnTile(w, w.Agent(pack), here)!.Value;
+        double lit = Combat.ResolveOnTile(w, w.Agent(pack), here)!.Value;
         Assert.InRange(Fire.IntensityPct(pit), 0.1, 0.99);
         Assert.Equal(open - Fire.Deterrence.FireFear * Fire.IntensityPct(pit), lit, 9);
         // Nobody there: nothing to hold it off.
-        Assert.Null(Combat.MarginOnTile(w, w.Agent(pack), MapGen.Neighbors(here).Last()));
+        Assert.Null(Combat.ResolveOnTile(w, w.Agent(pack), MapGen.Neighbors(here).Last()));
     }
 
     // ---- in a fight ----

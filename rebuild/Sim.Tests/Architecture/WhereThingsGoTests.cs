@@ -531,9 +531,9 @@ public class WhereThingsGoTests
     /// Identifiers using words GLOSSARY.md avoids, counted across the Sim, each held at today's count.
     static readonly Dictionary<string, (int Count, string Why, string Say)> BannedWords = new()
     {
-        ["Beliefs"] = (27, "the code name for memory until the rename", "memory"),
+        ["Beliefs"] = (25, "the code name for memory until the rename", "memory"),
         ["Guarded"] = (13, "the condition the glossary calls occupied", "occupied"),
-        ["Margin"] = (56, "the word the glossary replaces with resolve", "resolve"),
+        ["Margin"] = (53, "the word the glossary replaces with resolve", "resolve"),
         ["Thing"] = (168, "location features are still things in the code (ThingRef, ThingKind, Things)", "location feature"),
     };
 

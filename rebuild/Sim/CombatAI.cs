@@ -287,30 +287,58 @@ public static partial class Combat
         return NextState(FighterState.Standoff, margin);
     }
 
-    /// The margin a herd would have toward the people on a tile were it at their position (the hold):
-    /// Margin's terms before any fight, and it must follow Margin when Margin changes. Its boldest member leads, its other members are its
-    /// allies, the person faced is the one it has the best margin against, every other person there presses
-    /// on it, and every flame on the tile is beside them. Null when nobody alive stands there. The tile's
-    /// flames must be caught up (Fire.CatchUpOn).
-    public static double? MarginOnTile(World world, Agent herd, TileId tile)
+    /// The resolve a herd would have toward one agent (the member named, for a herd) were it at its side,
+    /// before any fight: Margin's terms, and it must follow Margin when Margin changes. Its boldest member
+    /// leads, carrying the herd's boldness toward the target as a predator that chose to come
+    /// (Fighter.BoldnessDelta: hunger, fear, numbers against the people standing with it, wounds, the
+    /// night); its other members are its allies; every flame on the target's tile is beside it; and every
+    /// other person there presses on it. The tile's flames must be caught up (Fire.CatchUpOn).
+    public static double ResolveToward(World world, Agent herd, Agent target, int member = 0)
     {
-        var people = Nearby.At(world, tile).Select(world.Agent).Where(a => a.Mind is PersonMind && Sim.IsAlive(a)).ToList();
-        if (people.Count == 0) return null;
         var stats = SpeciesTable.Of(herd.Species);
         var living = herd.Members.Where(Body.IsAlive).ToList();
         if (living.Count == 0) throw new ArgumentException($"{herd.Id} has nobody alive to come on");
-        int lead = Enumerable.Range(0, living.Count).MaxBy(i => Courage(stats, 0, living[i]));
-        double nerve = Courage(stats, 0, living[lead]) + AllyBonus(stats.Cohesion, living.Where((_, i) => i != lead).Select(m => stats.Threat * Body.Vitality(m)));
-        double deterrence = FireDeterrence(stats, Fire.FlamesOn(world, tile).Select(f => (f.IntensityPct, 0.0)));
-        var threats = people.Select(p => SpeciesTable.Of(p.Species).Threat * Body.Vitality(p.Body)).ToList();
-        double all = threats.Sum();
-        return threats.Max(t => nerve - deterrence - PerceivedThreat(t, 0) - OtherPressureFactor * (all - t));
+        var body = target.Members[member];
+        var others = PeopleWith(world, target);
+        double delta = BoldnessToward(world, herd, target, member) - 0.5;
+        int lead = Enumerable.Range(0, living.Count).MaxBy(i => Courage(stats, delta, living[i]));
+        double nerve = Courage(stats, delta, living[lead]) + AllyBonus(stats.Cohesion, living.Where((_, i) => i != lead).Select(m => stats.Threat * Body.Vitality(m)));
+        double deterrence = FireDeterrence(stats, Fire.FlamesOn(world, target.Tile).Select(f => (f.IntensityPct, 0.0)));
+        double threat = SpeciesTable.Of(target.Species).Threat * Body.Vitality(body);
+        double pressure = OtherPressureFactor * others.Sum(p => SpeciesTable.Of(p.Species).Threat * Body.Vitality(p.Body));
+        return nerve - deterrence - PerceivedThreat(threat, 0) - pressure;
     }
 
-    /// A herd steps onto a tile with people only if its margin there, fire included, reaches the Pressing
+    /// A herd's boldness toward one agent (the member named, for a herd) where it stands now: Boldness,
+    /// with the herd's hunger and learned fear, raw meat in the target's pack, and the people standing with it.
+    public static double BoldnessToward(World world, Agent herd, Agent target, int member = 0)
+    {
+        var mind = Fauna.MindOf(herd);
+        bool meat = Items.PackOf(target) is Inventory pack && (Items.Have(pack, Resource.RawMeat) > 0 || Items.Have(pack, Resource.RawFish) > 0);
+        return Boldness(world, herd.Id, target.Members[member], hunger: Fauna.Hunger(herd), fear: mind.Fear, targetCarriesMeat: meat,
+            othersWithTarget: PeopleWith(world, target).Count);
+    }
+
+    /// The living people on the target's tile, the target left out.
+    static List<Agent> PeopleWith(World world, Agent target) =>
+        Nearby.At(world, target.Tile).Select(world.Agent).Where(a => a.Id != target.Id && a.Mind is PersonMind && Sim.InTheWorld(world, a)).ToList();
+
+    /// The best working weapon in a person's pack (WeaponWorth), or null.
+    public static Gear? BestWeapon(Agent person) =>
+        Items.PackOf(person)!.Gear.Where(g => Items.Def(g).Weapon != null && Items.Works(g)).OrderByDescending(g => WeaponWorth(Items.Def(g).Weapon!)).FirstOrDefault();
+
+    /// The best resolve a herd would have toward any person on a tile were it at their position (the
+    /// hold), or null when nobody alive stands there.
+    public static double? ResolveOnTile(World world, Agent herd, TileId tile)
+    {
+        var people = Nearby.At(world, tile).Select(world.Agent).Where(a => a.Mind is PersonMind && Sim.InTheWorld(world, a)).ToList();
+        return people.Count == 0 ? null : people.Max(p => ResolveToward(world, herd, p));
+    }
+
+    /// A herd steps onto a tile with people only if its resolve there, fire included, reaches the Pressing
     /// entry; short of that it holds where it is until the fire dies or the person steps away.
     public static bool WouldEnter(World world, Agent herd, TileId tile) =>
-        MarginOnTile(world, herd, tile) is not double margin || margin >= PressingEnterMargin;
+        ResolveOnTile(world, herd, tile) is not double resolve || resolve >= PressingEnterMargin;
 
     // ---- targets ----
 

@@ -57,6 +57,7 @@ public sealed class Agent
     /// whose activities live inside one Sim.Step, and for an agent about to decide.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Doing? Doing { get; set; }
+    [JsonIgnore] internal Activity? Stepping { get; set; }
 }
 
 /// Making and splitting agents. A herd sends members, not itself, into a fight; a wounded member

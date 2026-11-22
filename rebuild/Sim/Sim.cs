@@ -63,36 +63,69 @@ public static class Sim
             agent.Doing = null;
         }
         if (Start(world, activity, minutes, events, out var doing) is string refused) return Result(0, StepOutcome.Refused, refused);
-
-        for (int elapsed = 1; elapsed <= minutes; elapsed++)
+        bool fighting = Held(world, agent.Id); // a round, or a hunt it has just started
+        agent.Stepping = activity;
+        try
         {
-            // A round: the action at the start of its minute (refused once the fight moved on), the rest after.
-            if (activity is Fight act && Combat.Act(world, act, events) is string stale)
+            for (int elapsed = 1; elapsed <= minutes; elapsed++)
             {
-                Stop(world, agent, doing, events);
-                return Result(elapsed - 1, StepOutcome.Refused, stale);
+                // A round: the action at the start of its minute (refused once the fight moved on), the rest after.
+                if (activity is Fight act && Combat.Act(world, act, events) is string stale)
+                {
+                    Stop(world, agent, doing, events);
+                    return Result(elapsed - 1, StepOutcome.Refused, stale);
+                }
+                world.Minute++;
+                Scheduler.Minute(world, activity.Who, events);
+                // Set upon this minute: the body lives it held, and nothing of the activity runs.
+                var interrupt = !fighting && Held(world, agent.Id)
+                    ? LiveBodies(world, agent, new Fight(agent.Id, CombatAction.Wait), events) ?? SetUpon
+                    : Live(world, agent, doing, events);
+                if (EndMinute(world, agent, activity, events, ref filed) && interrupt == null && activity is not Fight) interrupt = PredatorInSight;
+                if (interrupt != null)
+                {
+                    Stop(world, agent, doing, events); // death too: what was gathered is reported
+                    return interrupt == Done ? Result(elapsed, StepOutcome.Finished, null)
+                        : Result(elapsed, Finishes(interrupt) ? StepOutcome.Finished : StepOutcome.Interrupted, interrupt);
+                }
             }
-            world.Minute++;
-            Scheduler.Minute(world, activity.Who, events);
-            var interrupt = Live(world, agent, doing, events);
-            EndMinute(world, agent, activity, events, ref filed);
-            if (interrupt != null)
-            {
-                Stop(world, agent, doing, events); // death too: what was gathered is reported
-                return interrupt == Done ? Result(elapsed, StepOutcome.Finished, null)
-                    : Result(elapsed, Finishes(interrupt) ? StepOutcome.Finished : StepOutcome.Interrupted, interrupt);
-            }
+            throw new InvalidOperationException("An activity outlived the minutes it was given");
         }
-        throw new InvalidOperationException("An activity outlived the minutes it was given");
+        finally { agent.Stepping = null; }
     }
 
-    /// The close of every minute the world lives: the player, awake, takes in what is around them
-    /// (Knowledge.Witness), and the minute's events go into the tile journals. Asleep is away.
-    static void EndMinute(World world, Agent? player, Activity activity, List<WorldEvent> events, ref int filed)
+    /// The close of every minute the world lives: the person stepping, awake, looks about, and the
+    /// minute's events go into the tile journals. True when they saw a predator come into sight or nearer.
+    static bool EndMinute(World world, Agent? person, Activity activity, List<WorldEvent> events, ref int filed)
     {
-        if (player is { Mind: PlayerMind } && activity is not Sleep && IsAlive(player) && !Body.IsAsleep(player.Body) && world.Agents.ContainsKey(player.Id))
-            Knowledge.Witness(world, player, events, ref filed);
+        bool nearer = false;
+        if (person != null && Looks(person, activity) && world.Agents.ContainsKey(person.Id))
+            nearer = person.Mind is PlayerMind ? Knowledge.Witness(world, person, events, ref filed) : Knowledge.Watch(world, person, events);
         Journal.File(world, events, ref filed);
+        return nearer;
+    }
+
+    /// Whether a person is awake to look about while doing this (an idle one stands about).
+    public static bool Looks(Agent agent, Activity? activity) =>
+        agent.Mind is PersonMind && activity is not Sleep && IsAlive(agent) && !Body.IsAsleep(agent.Body);
+
+    /// What an agent is doing now: an NPC's or herd's activity under way, or the player's step.
+    public static Activity? ActivityOf(Agent agent) => agent.Doing?.Activity ?? agent.Stepping;
+
+    /// Whether an agent is in the world to be met: alive, and not a player who has crossed the pass.
+    public static bool InTheWorld(World world, Agent agent) => IsAlive(agent) && !(agent.Id == AgentId.Player && Crossed(world));
+
+    /// The long-action rule: a predator seen coming into sight or nearer stops anything but a fight round.
+    public const string PredatorInSight = "a predator in sight";
+    /// A fight took hold of the person this minute.
+    public const string SetUpon = "set upon";
+
+    /// Ends what a person was doing, wherever they stood: what accrued is settled and a crossing under way is dropped.
+    internal static void EndDoing(World world, Agent agent, List<WorldEvent> events)
+    {
+        if (agent.Doing is Doing d) Stop(world, agent, d, events);
+        agent.Doing = null;
+        agent.Crossing = null;
     }
 
     /// What Live returns when the minutes given ran out with nothing else to stop for.
@@ -417,7 +450,9 @@ public static class Scheduler
             if (Sim.Held(world, id)) { Sim.LiveBodies(world, agent, new Fight(id, CombatAction.Wait), events); continue; }
             if (agent.Doing == null && !Plan(world, agent, events)) continue;
             var doing = agent.Doing!;
-            if (Sim.Live(world, agent, doing, events) == null) continue;
+            var stop = Sim.Live(world, agent, doing, events);
+            if (stop == null && agent.Mind is NpcMind && Sim.Looks(agent, doing.Activity) && Knowledge.Watch(world, agent, events)) stop = Sim.PredatorInSight;
+            if (stop == null) continue;
             if (world.Agents.ContainsKey(id)) Sim.Stop(world, agent, doing, events);
             // A fight's aftermath may already have given it something new to do.
             if (agent.Doing == doing) agent.Doing = null;

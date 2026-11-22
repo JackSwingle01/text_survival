@@ -162,7 +162,7 @@ public static partial class Combat
     /// grid and team B distanceM up from them, unless an opening places them as an animal encounter.
     /// A hunt is an Engaged player against Unaware prey; an ambush is the reverse.
     public static Encounter Create(World world, IReadOnlyList<Fighter> teamA, IReadOnlyList<Fighter> teamB, TileId tile,
-        int distanceM, Awareness awarenessA, Awareness awarenessB, Opening? opening = null)
+        int distanceM, Awareness awarenessA, Awareness awarenessB, Opening? opening = null, List<WorldEvent>? events = null)
     {
         if (teamA.Count == 0 || teamB.Count == 0) throw new ArgumentException("Combat needs at least one fighter on each side");
         if (teamB.Any(f => f.Agent == AgentId.Player)) throw new ArgumentException("The player fights on team A: results are from team A's side");
@@ -194,6 +194,9 @@ public static partial class Combat
         foreach (var u in enc.Units) u.Target = enc.Units.IndexOf(NearestEnemy(enc, u)!);
         enc.FireCell = (enc.Units.FirstOrDefault(IsPlayer) ?? enc.Units[0]).Position;
         world.Encounters.Add(enc);
+        // Anyone awake beside a fight stops what they are at, and their mind chooses whether to help.
+        foreach (var id in Nearby.At(world, tile).Where(id => all.All(f => f.Agent != id)))
+            if (world.Agents[id] is { Mind: NpcMind, Doing: Doing d } bystander && Sim.Looks(bystander, d.Activity)) Sim.EndDoing(world, bystander, events ?? []);
         return enc;
     }
 
@@ -273,17 +276,17 @@ public static partial class Combat
         return [new Fighter(herd, lead), .. others.Take(extra).Select(i => new Fighter(herd, i))];
     }
 
-    /// How readily a herd comes at a target (old Herd.BoldnessToward): species temperament, pack size,
-    /// the target's wounds, the night. It decides whether a predator engages and seeds its morale
-    /// (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear live on HerdMind (Fauna);
-    /// callers pass them in (neutral by default).
+    /// How readily a herd comes at a target (old Herd.BoldnessToward): species temperament, pack size
+    /// against the people standing with the target, the target's wounds, the night. It decides whether a
+    /// predator engages and seeds its morale (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear
+    /// live on HerdMind (Fauna); callers pass them in (neutral by default).
     public static double Boldness(World world, AgentId herd, BodyState target, bool defending = false,
-        double hunger = 0, double fear = 0, bool targetCarriesMeat = false)
+        double hunger = 0, double fear = 0, bool targetCarriesMeat = false, int othersWithTarget = 0)
     {
         var agent = world.Agent(herd);
         var t = SpeciesTable.Of(agent.Species).Temperament;
         if (t.Cap <= 0) return 0;
-        double bold = t.Base + agent.Members.Count * t.PerMember;
+        double bold = t.Base + (agent.Members.Count - othersWithTarget) * t.PerMember;
         if (hunger > t.HungryAt) bold += t.HungerBonus;
         if (hunger > t.StarvingAt) bold += t.HungerBonus;
         if (defending) bold += t.DefendBonus;

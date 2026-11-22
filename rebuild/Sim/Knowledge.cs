@@ -246,17 +246,26 @@ public static class Knowledge
     /// The player's minute of looking, while awake: the fires in reach caught up, a look around when
     /// due, the minute's events filed, and the tile underfoot taken in. Coming back to a tile it
     /// remembers (or waking on one) with something to tell, it adds a Noticed event with the receipt.
-    public static void Witness(World world, Agent agent, List<WorldEvent> events, ref int filed)
+    public static bool Witness(World world, Agent agent, List<WorldEvent> events, ref int filed)
     {
         var mem = Of(agent).Places.GetValueOrDefault(agent.Tile);
         bool back = mem?.VisitedMinute != world.Minute - 1;
         bool knew = mem?.VisitedMinute != null;
         Fire.CatchUpAround(world, agent, events);
-        if (back || world.Minute % GlanceMinutes == 0) Glance(world, agent, events);
+        bool nearer = (back || world.Minute % GlanceMinutes == 0) && Glance(world, agent, events);
         Journal.File(world, events, ref filed); // what catching up found is in the journal before the receipt reads it
         var receipt = Receipt(world, agent, agent.Tile);
         if (back && knew && !receipt.IsEmpty) events.Add(new Noticed(world.Minute, agent.Id, agent.Tile, receipt));
+        return nearer;
     }
+
+    /// An NPC's look about while it keeps at something, as often as the player looks.
+    public static bool Watch(World world, Agent agent, List<WorldEvent> events) =>
+        world.Minute % GlanceMinutes == 0 && Glance(world, agent, events);
+
+    /// When the person last saw this agent, while they remember it.
+    public static long? LastSeenMinute(Agent person, AgentId other) =>
+        Of(person).Sightings.TryGetValue(other, out var s) ? s.Minute : null;
 
     /// An NPC's look as it decides: around it, then the tile underfoot. What it would be told is
     /// not reported: nothing reads an NPC's receipts yet.
@@ -268,8 +277,9 @@ public static class Knowledge
     }
 
     /// Looks at every tile in sight but the one underfoot: what can be told from a distance.
-    /// Fire pits in sight are caught up first, so the flame seen is the flame there now.
-    public static void Glance(World world, Agent agent, List<WorldEvent> events)
+    /// Fire pits in sight are caught up first, so the flame seen is the flame there now. True when a
+    /// predator came into sight, or nearer than where it was last seen.
+    public static bool Glance(World world, Agent agent, List<WorldEvent> events)
     {
         var beliefs = Of(agent);
         var m = Map.Of(world);
@@ -306,14 +316,22 @@ public static class Knowledge
             if (!Fire.Burns(fire)) mem.FireHours = null;
             mem.Danger = den ? mem.Danger | Danger.Den : mem.Danger & ~Danger.Den;
         }
+        bool nearer = false;
+        var seen = beliefs.Sightings;
         foreach (var other in world.Agents.Values)
         {
             if (other.Id == agent.Id || !view.Set.Contains(other.Tile)) continue;
             int alive = other.Members.Count(Body.IsAlive);
-            if (alive > 0) beliefs.Sightings[other.Id] = new Sighting(other.Tile, other.Species, alive, now);
+            if (alive == 0) continue;
+            // Both measured from where the person stands now: walking up to a pack is not the pack coming on.
+            if (other.Mind is HerdMind && Fauna.IsPredator(other.Species) && (!seen.TryGetValue(other.Id, out var was)
+                    || MapGen.Manhattan(other.Tile, agent.Tile) < MapGen.Manhattan(was.Tile, agent.Tile)))
+                nearer = true;
+            seen[other.Id] = new Sighting(other.Tile, other.Species, alive, now);
         }
-        foreach (var (id, s) in beliefs.Sightings.ToList())
-            if (now - s.Minute > SightingMemoryMinutes) beliefs.Sightings.Remove(id);
+        foreach (var (id, s) in seen.ToList())
+            if (now - s.Minute > SightingMemoryMinutes) seen.Remove(id);
+        return nearer;
     }
 
     /// Every tile in view is explored, and its ground as it is now remembered.

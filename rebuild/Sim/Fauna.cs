@@ -38,16 +38,15 @@ public sealed record HerdMind : Mind
 public sealed record Graze(AgentId Who) : Activity(Who);
 /// Eats from a carcass on the tile, for one minute.
 public sealed record Feed(AgentId Who) : Activity(Who);
-/// Goes for a herd on the same tile. A pack's hunt is fought headless at once; a person stalks the herd's
-/// weakest member with the best weapon in the pack: the player's rounds are then Fight activities, and
-/// anyone else's fight is fought headless at once (Combat).
+/// Goes for a herd or a person on the same tile. A pack's hunt is fought headless at once (the player fights
+/// theirs round by round); a person stalks the herd's weakest member with the best weapon in the pack: the
+/// player's rounds are then Fight activities, and anyone else's fight is fought headless at once (Combat).
 public sealed record Hunt(AgentId Who, AgentId Prey) : Activity(Who);
 /// Takes food from the tile's stash, for one minute (the carrion flock at an unwatched camp).
 public sealed record Raid(AgentId Who) : Activity(Who);
 
 /// Herds: their minds and what they do. A herd's mind decides one minute at a time; travel is the
 /// shared Travel activity.
-// Herds never come for the player or an NPC yet. Combat.Boldness is ready for when they do.
 public static partial class Fauna
 {
     public static HerdBehavior BehaviorOf(Species s) => SpeciesTable.Of(s).Behavior;
@@ -267,9 +266,7 @@ public static partial class Fauna
     static int PersonHunt(World world, Hunt h, List<WorldEvent> events)
     {
         var hunter = world.Agent(h.Who);
-        var weapon = Items.PackOf(hunter)!.Gear.Where(g => Items.Def(g).Weapon != null && Items.Works(g))
-            .OrderByDescending(g => Combat.WeaponWorth(Items.Def(g).Weapon!)).FirstOrDefault();
-        var enc = BeginHunt(world, h.Who, h.Prey, Weakest(world.Agent(h.Prey)), weapon);
+        var enc = BeginHunt(world, h.Who, h.Prey, Weakest(world.Agent(h.Prey)), Combat.BestWeapon(hunter), events);
         if (h.Who == AgentId.Player) return 1;
         Combat.ResolveHeadless(world, enc, events);
         return Math.Max(1, enc.Rounds);
@@ -386,15 +383,42 @@ public static partial class Fauna
     static int PackHunt(World world, Agent pack, Agent prey, List<WorldEvent> events)
     {
         Become(world, MindOf(pack), HerdState.Hunting);
+        if (prey.Mind is PersonMind) return ComeFor(world, pack, prey, events);
         var targets = new List<Fighter> { new(prey.Id, Weakest(prey)) };
         var hunters = Enumerable.Range(0, pack.Members.Count).Where(i => Body.IsAlive(pack.Members[i]))
-            .Take(6).Select(i => new Fighter(pack.Id, i)).ToList();
+            .Take(MaxHunters).Select(i => new Fighter(pack.Id, i)).ToList();
         bool noticed = PreyNotices(world, pack, prey);
-        var enc = Combat.Create(world, hunters, targets, pack.Tile, noticed ? 15 : 5, Awareness.Engaged, noticed ? Awareness.Alert : Awareness.Unaware);
+        var enc = Combat.Create(world, hunters, targets, pack.Tile, noticed ? 15 : 5, Awareness.Engaged, noticed ? Awareness.Alert : Awareness.Unaware, events: events);
         Combat.ResolveHeadless(world, enc, events);
         // Escaping prey is not chased: the pack patrols on.
         return Math.Max(1, enc.Rounds);
     }
+
+    /// The most of a pack that goes into one fight.
+    const int MaxHunters = 6;
+
+    /// How far off an ambush opens. An approach opens from the grid's edge, whatever distance it is given.
+    const int AmbushFromM = 5;
+
+    /// The pack comes for a person on its tile, its boldness toward them carried into the fight. One who
+    /// saw it coming meets it ready at the grid's edge; anyone else is ambushed. Returns the fight's minutes.
+    static int ComeFor(World world, Agent pack, Agent person, List<WorldEvent> events)
+    {
+        double delta = Combat.BoldnessToward(world, pack, person) - 0.5;
+        var hunters = Enumerable.Range(0, pack.Members.Count).Where(i => Body.IsAlive(pack.Members[i]))
+            .Take(MaxHunters).Select(i => new Fighter(pack.Id, i) { BoldnessDelta = delta }).ToList();
+        bool ready = SawItComing(world, person, pack);
+        var enc = Combat.Create(world, [new Fighter(person.Id) { Weapon = Combat.BestWeapon(person) }], hunters, person.Tile, AmbushFromM,
+            ready ? Awareness.Engaged : Awareness.Unaware, Awareness.Engaged, ready ? Opening.Approach : Opening.Ambush, events);
+        if (person.Id == AgentId.Player) return 1;
+        Combat.ResolveHeadless(world, enc, events);
+        return Math.Max(1, enc.Rounds);
+    }
+
+    /// Awake, and their last look about caught this herd: read from their memory.
+    static bool SawItComing(World world, Agent person, Agent herd) =>
+        Sim.Looks(person, Sim.ActivityOf(person))
+        && Knowledge.LastSeenMinute(person, herd.Id) is long seen && world.Minute - seen <= Knowledge.GlanceMinutes;
 
     /// The prey's watchfulness against the pack's stealth.
     public static bool PreyNotices(World world, Agent predator, Agent prey)
@@ -476,7 +500,7 @@ public static partial class Fauna
         var choice = mind.State == HerdState.Fleeing ? Flee(world, herd, mind, behavior, events) : behavior switch
         {
             HerdBehavior.Prey => DecidePrey(world, herd, mind),
-            HerdBehavior.Pack => DecidePack(world, herd, mind),
+            HerdBehavior.Pack => DecidePack(world, herd, mind, events),
             HerdBehavior.Solitary => DecideSolitary(world, herd, mind),
             HerdBehavior.Scavenger => DecideScavenger(world, herd, mind, events),
             HerdBehavior.Carrion => DecideCarrion(world, herd, mind),
@@ -489,7 +513,7 @@ public static partial class Fauna
     /// Whether people on that tile keep this predator off it, they and their fire weighed as in a fight there.
     static bool HeldOff(World world, Agent herd, TileId to, List<WorldEvent> events)
     {
-        if (!IsPredator(herd.Species) || !Nearby.At(world, to).Any(id => world.Agents[id] is { Mind: PersonMind } a && Sim.IsAlive(a))) return false;
+        if (!IsPredator(herd.Species) || !Nearby.At(world, to).Any(id => world.Agents[id] is { Mind: PersonMind } a && Sim.InTheWorld(world, a))) return false;
         Fire.CatchUpOn(world, to, events);
         return !Combat.WouldEnter(world, herd, to);
     }
@@ -516,7 +540,7 @@ public static partial class Fauna
         }
     }
 
-    static (Activity, int) DecidePack(World world, Agent herd, HerdMind mind)
+    static (Activity, int) DecidePack(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
         double hunger = Hunger(herd);
         long t = StateMinutes(world, mind);
@@ -529,7 +553,7 @@ public static partial class Fauna
                 // A pack goes back to the meat on its tile before it hunts again, so a kill feeds it for days.
                 if (CanFeed(world, herd)) { Become(world, mind, HerdState.Feeding); return (new Feed(herd.Id), 1); }
                 // A frightened pack (it just lost a fight) leaves prey alone.
-                if (hunger > 0.4 && mind.Fear <= 0.5 && PreyHere(world, herd) is Agent prey) return (new Hunt(herd.Id, prey.Id), 1);
+                if (hunger > 0.4 && mind.Fear <= 0.5 && PreyHere(world, herd, events) is Agent prey) return (new Hunt(herd.Id, prey.Id), 1);
                 // A starving pack does not go home empty: it ranges on (Foray).
                 if (t > PackPatrolTimeoutMinutes && hunger <= StarvingHunger)
                 {
@@ -542,7 +566,7 @@ public static partial class Fauna
                 {
                     // A hungry pack follows the scent of prey it can sense instead of walking its round, so packs
                     // and herds actually meet.
-                    if (hunger > 0.6 && TowardNearest(world, herd, PreySensed(world, herd)) is { } stalk) return stalk;
+                    if (hunger > 0.6 && TowardNearest(world, herd, PreySensed(world, herd, events)) is { } stalk) return stalk;
                     if (hunger > StarvingHunger && Foray(world, herd, mind) is { } range) return range;
                     if (PatrolStep(world, herd, mind) is { } walk) return walk;
                 }
@@ -762,19 +786,44 @@ public static partial class Fauna
         return null;
     }
 
-    /// A herd of its quarry on this tile, not already in a fight.
-    static Agent? PreyHere(World world, Agent predator) =>
-        HerdsAt(world, predator.Tile).FirstOrDefault(h => h.Id != predator.Id && IsQuarry(h.Species) && Sim.IsAlive(h)
-            && Combat.EncounterOf(world, h.Id) == null);
+    /// A herd of its quarry or a person it would come for, on this tile and in no fight: the one it has
+    /// the most resolve toward, the first in id order on a tie.
+    static Agent? PreyHere(World world, Agent predator, List<WorldEvent> events)
+    {
+        Fire.CatchUpOn(world, predator.Tile, events); // every resolve here reads the tile's flames
+        Agent? best = null;
+        double bestResolve = double.NegativeInfinity;
+        foreach (var id in Nearby.At(world, predator.Tile))
+        {
+            var a = world.Agents[id];
+            if (a.Id == predator.Id || !Sim.IsAlive(a) || Combat.EncounterOf(world, a.Id) != null) continue;
+            double resolve;
+            if (a.Mind is HerdMind && IsQuarry(a.Species)) resolve = Combat.ResolveToward(world, predator, a, Weakest(a));
+            else if (WouldComeFor(world, predator, a, events) is double r) resolve = r;
+            else continue;
+            if (resolve > bestResolve) (best, bestResolve) = (a, resolve);
+        }
+        return best;
+    }
+
+    /// Its resolve toward this person, when it reaches the line that lets it onto their tile (Combat.WouldEnter).
+    static double? WouldComeFor(World world, Agent predator, Agent a, List<WorldEvent> events)
+    {
+        if (a.Mind is not PersonMind || !Sim.InTheWorld(world, a)) return null;
+        Fire.CatchUpOn(world, a.Tile, events);
+        double resolve = Combat.ResolveToward(world, predator, a);
+        return resolve >= Combat.PressingEnterMargin ? resolve : null;
+    }
 
     /// How far a species senses prey, in tiles.
     public static int DetectionRangeTiles(Species s) => s is Species.Wolf or Species.Homotherium ? 12 : 8;
 
-    /// Where the herds of its quarry within the predator's senses stand.
-    static HashSet<TileId> PreySensed(World world, Agent predator)
+    /// Where the herds of its quarry, and the people it would come for, within the predator's senses stand.
+    static HashSet<TileId> PreySensed(World world, Agent predator, List<WorldEvent> events)
     {
         return Nearby.Within(world, predator.Tile, DetectionRangeTiles(predator.Species))
-            .Where(h => h.Mind is HerdMind && IsQuarry(h.Species)).Select(h => h.Tile).ToHashSet();
+            .Where(h => h.Mind is HerdMind ? IsQuarry(h.Species) : Combat.EncounterOf(world, h.Id) == null && WouldComeFor(world, predator, h, events) != null)
+            .Select(h => h.Tile).ToHashSet();
     }
 
     /// The tiles with meat on them within the scavenger's nose, its own left out: found among the
@@ -798,7 +847,7 @@ public static partial class Fauna
     /// The hunter stalks one member of a herd on its tile: the hunter Engaged, the animal and a few
     /// herd mates Unaware (Alert if they are already running). The rounds are the hunter's Fight
     /// activities; the kill leaves a carcass to butcher.
-    public static Encounter BeginHunt(World world, AgentId hunter, AgentId herd, int member, Gear? weapon = null)
+    public static Encounter BeginHunt(World world, AgentId hunter, AgentId herd, int member, Gear? weapon = null, List<WorldEvent>? events = null)
     {
         var prey = world.Agent(herd);
         if (prey.Mind is not HerdMind mind) throw new ArgumentException($"{herd} is not a herd");
@@ -808,7 +857,7 @@ public static partial class Fauna
         double watchfulness = SightingDetectionFactor(world, hunter, herd, member);
         var animals = Combat.SendMembers(world, herd, member).Select(f => f with { DetectionFactor = watchfulness }).ToList();
         return Combat.Create(world, [new Fighter(hunter) { Weapon = weapon }], animals,
-            prey.Tile, HuntStartDistanceM, Awareness.Engaged, awareness);
+            prey.Tile, HuntStartDistanceM, Awareness.Engaged, awareness, events: events);
     }
 
     /// How watchful the stalked animals are, from what the herd is doing: its state stands for the

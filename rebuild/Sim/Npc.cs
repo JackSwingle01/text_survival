@@ -903,7 +903,7 @@ public static partial class Npc
     {
         if (prey.Tile != me.Tile) return Go(me, prey.Tile, HuntWorkMinutes);
         // The player's hunt: a stalk from Fauna.HuntStartDistanceM at one member, a few herd mates with it.
-        return Fought(me, Fauna.BeginHunt(me.World, me.Id, prey.Id, prey.Members.FindIndex(Body.IsAlive), Weapon(me)));
+        return Fought(me, Fauna.BeginHunt(me.World, me.Id, prey.Id, prey.Members.FindIndex(Body.IsAlive), Weapon(me), me.Events));
     }
 
     /// Nothing pressing: unload, keep the fire, top up water, forage the day away.
@@ -1568,7 +1568,7 @@ public static partial class Npc
         {
             var lead = threat.Members.FindIndex(Body.IsAlive);
             var enc = Combat.Create(me.World, [self], Combat.SendMembers(me.World, threat.Id, lead),
-                me.Tile, ThreatMetFromM, Awareness.Engaged, Awareness.Engaged);
+                me.Tile, ThreatMetFromM, Awareness.Engaged, Awareness.Engaged, events: me.Events);
             return Fought(me, enc);
         }
         return Flee(me, threat?.Tile ?? FreshThreat(me)!.Value);
@@ -1594,8 +1594,7 @@ public static partial class Npc
     }
 
     /// The best weapon in the pack (Combat.WeaponWorth).
-    static Gear? Weapon(Me me) =>
-        me.Pack.Gear.Where(g => Items.Def(g).Weapon != null && Items.Works(g)).OrderByDescending(g => Combat.WeaponWorth(Items.Def(g).Weapon!)).FirstOrDefault();
+    static Gear? Weapon(Me me) => Combat.BestWeapon(me.Agent);
 
     /// One tile away from the threat, quick: toward camp when that is also away.
     static Plan? Flee(Me me, TileId from)

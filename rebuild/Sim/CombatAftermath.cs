@@ -75,6 +75,8 @@ public static partial class Combat
             var own = side == 0 ? result : Mirror(result);
             events.Add(new FightEnded(world.Minute, id, enc.Tile, own, enc.Rounds));
             Fauna.AfterFight(world, id, own, killedOne: fell.Contains(1 - side), enc.Tile);
+            // Whatever a person was at when the fight found them is over: they decide afresh.
+            if (world.Agents.TryGetValue(id, out var person) && person.Mind is PersonMind) Sim.EndDoing(world, person, events);
         }
 
         // Those carry on along their heading as far as the farthest of them ran; a herd with members

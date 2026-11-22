@@ -467,13 +467,14 @@ public class KillChainTests
         int arrivals = 0;
         // Each day's look is the minute after midnight, when the day's arrivals came in (Fauna.Renew).
         Sim.Advance(w, 1440 - Weather.MinuteOfDay(w.Minute));
-        for (int day = 0; day < 200; day++)
+        // Alone on open land they may be killed by a pack that comes for them: the days they lived are the ones looked at.
+        int day = 0;
+        for (; day < 200 && Body.IsAlive(w.Agent(P).Body); day++)
         {
             var lands = w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => Fauna.MindOf(a).Territory.ToList()).ToList();
             var body = w.Agent(P).Body;
             (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // alive, and so someone to be seen by
             Sim.Advance(w, 1440);
-            Assert.True(Body.IsAlive(body));
             var newcomers = w.Agents.Values.Where(a => a.Mind is HerdMind && !seen.Contains(a.Id)).ToList();
             var packLand = w.Agents.Values.Where(a => a.Species == Species.Wolf && seen.Contains(a.Id)).SelectMany(a => Fauna.MindOf(a).Territory).ToHashSet();
             foreach (var herd in newcomers)
@@ -492,6 +493,7 @@ public class KillChainTests
                 if (herd.Species == Species.Wolf) Assert.DoesNotContain(land, packLand.Contains);
             }
         }
+        Assert.True(day >= 100, $"the player was there to be seen by for only {day} days");
         Assert.True(arrivals > 0, "nothing came into an empty valley in two hundred days");
         Assert.Contains(w.Agents.Values, h => h.Species == Species.Caribou);
         // Capacity is derived, never saved: a loaded world reads the same capacities off the same land.
