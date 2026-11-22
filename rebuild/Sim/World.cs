@@ -51,6 +51,9 @@ public sealed class World
     public SortedDictionary<TileId, int> WaitingShelters { get; init; } = [];
     /// Owned by Journal.
     public SortedDictionary<TileId, List<WorldEvent>> Journal { get; init; } = [];
+    /// The tutorials the player has been shown (Tutorials.Show): each once a game.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public SortedSet<Tutorial>? Tutorials { get; set; }
     /// Owned by Pools.
     internal Dictionary<TileId, IReadOnlyList<PoolDef>>? PoolCache;
     /// The access conditions in force; tests switch on the unwired ones to show every refusal asks Access.

@@ -181,6 +181,16 @@ public static class Carcasses
     public static double EffectiveHoursNow(World world, TileId tile, Carcass c) =>
         c.EffectiveHours + Remains.EffectiveHours(world, tile, c.LastUpdatedMinute, world.Minute);
 
+    /// How long a carcass found frozen through has lain: long enough to freeze, and the cold has kept it.
+    public const int FrozenThroughHours = 24;
+
+    /// Frozen through at today's air, its hours dead kept by the cold: only the last minute of them rots it.
+    public static void FrozenThrough(World world, TileId tile, Carcass c)
+    {
+        c.LastUpdatedMinute = Math.Max(0, world.Minute - 1);
+        CatchUp(world, tile, c);
+    }
+
     public static double RawHours(World world, Carcass c) => (world.Minute - c.DiedMinute) / 60.0;
     public static bool IsFrozen(World world, Carcass c) => c.LastKnownTempF < 15 && RawHours(world, c) > 2;
 

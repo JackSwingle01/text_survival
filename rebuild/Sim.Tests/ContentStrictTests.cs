@@ -86,7 +86,7 @@ public class ContentStrictTests
     [InlineData("items.json", "\"reachM\": 1.2,", "\"reachM\": -1.2,", "reachM -1.2")]
     [InlineData("items.json", "\"accuracy\": 0.45,", "\"accuracy\": 1.45,", "accuracy 1.45")]
     [InlineData("species.json", "\"reachM\": 2.5,", "\"reachM\": -2.5,", "reachM -2.5")]
-    [InlineData("locations.json", "\"animals\": [\n      { \"animal\": \"Rabbit\", \"weight\": 0.6 },\n      { \"animal\": \"Fox\", \"weight\": 0.3 }\n     ]", "\"animals\": []", "small game needs a density, animals")]
+    [InlineData("locations.json", "\"animals\": [\n      { \"animal\": \"Hare\", \"weight\": 0.6 },\n      { \"animal\": \"Fox\", \"weight\": 0.3 }\n     ]", "\"animals\": []", "small game needs a density, animals")]
     // Role and herd life agree: a caribou herd does not hunt as a pack.
     [InlineData("species.json", "\"temperament\": \"never\", \"behavior\": \"Prey\", \"diet\": \"Browser\"", "\"temperament\": \"never\", \"behavior\": \"Pack\", \"diet\": \"Browser\"", "species.json Caribou: role Prey does not live as a Pack herd")]
     [InlineData("species.json", "\"role\": \"Predator\"", "\"role\": \"Scavenger\"", "species.json Wolf: role Scavenger does not live as a Pack herd")]

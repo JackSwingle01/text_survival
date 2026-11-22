@@ -10,14 +10,16 @@ public enum StepOutcome { Finished, Refused, Interrupted }
 
 /// What one Sim.Step did. Reason is the stop in the system's own words, for display, whatever the
 /// outcome: null only for a step that finished by running the minutes it was given.
-public sealed record StepResult(List<WorldEvent> Events, int MinutesElapsed, StepOutcome Outcome, string? Reason)
+/// Work: the step's work session, ended or held, for a screen that shows what it turned up (a forage's finds).
+public sealed record StepResult(List<WorldEvent> Events, int MinutesElapsed, StepOutcome Outcome, string? Reason, WorkSession? Work = null)
 {
     /// Alias of Reason, whatever the outcome. Read Outcome to tell an arrival from an interruption.
     public string? InterruptedReason => Reason;
 }
 
 /// An activity under way: what an NPC or herd is doing between its mind's decisions. Saved on the
-/// agent, so a load resumes it mid-way. The player's lives only inside one Sim.Step.
+/// agent, so a load resumes it mid-way. The player's lives inside one Sim.Step, or across the steps of one
+/// job when it is held between them (Sim.Step with more).
 public sealed class Doing
 {
     /// The activity, when it is not work: a work session carries its own, and one record held in
@@ -28,6 +30,8 @@ public sealed class Doing
     public required int MinutesLeft { get; set; }
     /// Why a fire activity's act stops the agent after its first minute, if it does.
     public string? Acted { get; init; }
+    /// Work left between two steps of one job (Sim.Step with more): the next step of the same activity carries it on.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Held { get; set; }
 }
 
 /// A non-player agent's mind turned an activity down this minute: the activity was refused. It
@@ -39,28 +43,41 @@ public static class Sim
     /// Runs an activity minute by minute until done or interrupted. A refused activity returns at
     /// once: no time passes. Every minute it lives, every other agent with a mind of its own lives
     /// that minute too (Scheduler), so the world moves with the clock however the caller chunks its steps.
-    public static StepResult Step(World world, Activity activity, int minutes)
+    /// more: the caller will step this same activity again, so work is held at the end of the minutes rather than
+    /// ended: one search, one luck roll and one tally however many steps the job is cut into. Finish ends it.
+    public static StepResult Step(World world, Activity activity, int minutes, bool more = false)
     {
         if (minutes <= 0) throw new ArgumentOutOfRangeException(nameof(minutes), minutes, "Step needs at least one minute");
         var agent = world.Agent(activity.Who);
         if (!IsAlive(agent)) throw new InvalidOperationException($"{agent.Id} is dead and cannot act");
         var events = new List<WorldEvent>();
         int filed = 0; // how far into events the tile journals have read (Journal.File)
+        WorkSession? work = null;
         StepResult Result(int elapsed, StepOutcome outcome, string? reason)
         {
             Journal.File(world, events, ref filed);
-            return new StepResult(events, elapsed, outcome, reason);
+            return new StepResult(events, elapsed, outcome, reason, work);
         }
         if (agent.Id == AgentId.Player && Crossed(world)) return new StepResult(events, 0, StepOutcome.Refused, RunOver);
         // A fight holds every agent with a member still in it: no walking off without fleeing.
         if (activity is not Fight && Held(world, agent.Id))
             return new StepResult(events, 0, StepOutcome.Refused, InAnEncounter);
-        if (agent.Doing != null) // told to do something else: what it was doing ends here
+        Doing doing;
+        // The same work held from this job's last step (and nothing refusing it now) is carried on, not begun again.
+        if (agent.Doing is { Held: true } held && held.Activity == activity && ActivityRefusal(world, activity) == null)
         {
-            Stop(world, agent, agent.Doing, events);
-            agent.Doing = null;
+            (doing, held.Held, held.MinutesLeft, agent.Doing) = (held, false, minutes, null); // the same work, carried on
         }
-        if (Start(world, activity, minutes, events, out var doing) is { } refused) return Result(0, StepOutcome.Refused, refused.Reason);
+        else
+        {
+            if (agent.Doing != null) // told to do something else: what it was doing ends here
+            {
+                Stop(world, agent, agent.Doing, events);
+                agent.Doing = null;
+            }
+            if (Start(world, activity, minutes, events, out doing) is { } refused) return Result(0, StepOutcome.Refused, refused.Reason);
+        }
+        work = doing.Work;
         bool fighting = Held(world, agent.Id); // a round, or a hunt it has just started
         agent.Stepping = activity;
         try
@@ -80,6 +97,11 @@ public static class Sim
                     ? LiveBodies(world, agent, new Fight(agent.Id, CombatAction.Wait), events) ?? SetUpon
                     : Live(world, agent, doing, events);
                 if (EndMinute(world, agent, activity, events, ref filed) && interrupt == null && activity is not Fight) interrupt = PredatorInSight;
+                if (interrupt == Done && more && doing.Work != null && agent.Mind is PlayerMind)
+                {
+                    (doing.Held, agent.Doing) = (true, doing);
+                    return Result(elapsed, StepOutcome.Finished, null);
+                }
                 if (interrupt != null)
                 {
                     Stop(world, agent, doing, events); // death too: what was gathered is reported
@@ -91,6 +113,22 @@ public static class Sim
         }
         finally { agent.Stepping = null; }
     }
+
+    /// Ends work held between steps (Step with more): what it gathered is reported, as if its last step had ended it.
+    public static List<WorldEvent> Finish(World world, AgentId who)
+    {
+        var events = new List<WorldEvent>();
+        var agent = world.Agent(who);
+        if (agent.Doing is not { Held: true } held) return events;
+        Stop(world, agent, held, events);
+        agent.Doing = null;
+        int filed = 0;
+        Journal.File(world, events, ref filed);
+        return events;
+    }
+
+    /// The work under way for this person, held between steps, or null: what the forage screen reads its finds from.
+    public static WorkSession? WorkUnderWay(World world, AgentId who) => world.Agent(who).Doing is { Held: true, Work: { } w } ? w : null;
 
     /// The close of every minute the world lives: the person stepping, awake, looks about, and the
     /// minute's events go into the tile journals. True when they saw a predator come into sight or nearer.
@@ -132,7 +170,7 @@ public static class Sim
     static readonly HashSet<string> Finishing =
     [
         Traversal.Arrived, Traversal.CrossedThePassReason,
-        Work.Ate, Work.Drank, Work.CookedReason, Work.Melted, Work.TreeFelled, Work.ButcheredReason,
+        Work.Ate, Work.Drank, Work.CookedReason, Work.Melted, Work.TreeFelled, Work.ButcheredReason, Work.WalkedAbout,
         Shelters.BuiltReason, Shelters.Packed, Shelters.AsGoodAsItGets,
         Making.MadeIt, Making.Spoiled,
         Fire.DidNotCatch, // the strike was made and failed: the attempt is over
@@ -162,6 +200,8 @@ public static class Sim
         if (minutes <= 0) throw new ArgumentOutOfRangeException(nameof(minutes), minutes, "Advance needs at least one minute");
         var events = new List<WorldEvent>();
         int filed = 0;
+        // Time the player spends on nothing ends any work held between the steps of a job: it is not carried on later.
+        if (world.Agents.TryGetValue(AgentId.Player, out var holder) && holder.Doing is { Held: true }) EndDoing(world, holder, events);
         for (int i = 0; i < minutes; i++)
         {
             world.Agents.TryGetValue(AgentId.Player, out var player);
@@ -318,7 +358,7 @@ public static class Sim
             Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or Stash or Unstash or Wear or TakeOff => (1.0, 2.0, false, true),
             Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, tending the fire
             Build or ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // crafting
-            Travel => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
+            Travel or WalkAbout => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
             // Basal only: a fight's strikes, dodges, steps and sprints pay their own work as they happen (Body.Burst,
             // Body.Cover, Body.Sprint); a flat factor would charge them twice.
             Fight => (1.0, 0.0, false, true),
