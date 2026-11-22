@@ -381,3 +381,6 @@ After the MVP, in this order: NPC step 1 (Sim forecasts and structured refusals 
 - Lakes and rivers: open water and impassable from about May to October, ice and crossable otherwise, decided by the date through one Sim function, until real freezing lands after the MVP.
 - Combat moves are verbs: during a fight, the fight system offers its verbs (refusal, odds, cost in seconds) through the same interface as every other verb. The code merge of `CombatAction` into `Verb` comes after the MVP, with the audit refactors.
 - Wiring between systems: the system that makes the decision owns the formula that combines inputs; the system that provides an input publishes one plain read or forecast, never its internals (example: fire deterrence lives in Combat and reads `Fire.IntensityPct`). A combination two systems both need is its own rule: a system or a forecast. This goes in the "where things go" guide.
+- Summer ponds (shallow Water terrain) are open from 15 May to 15 October and can be waded: slow, soaking and cold, but passable. Deep water stays a wall all year. Ice from 15 October to 15 May.
+- The pace choice is offered only where quick injury risk on the tile walked onto is above 1.5% (hills stay quick-only).
+- A new run does not start Well fed: it is earned after the first 24 hours without hunger.
