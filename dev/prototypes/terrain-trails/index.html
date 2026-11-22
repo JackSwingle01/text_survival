@@ -53,8 +53,8 @@ code { font-size: 14px; color: var(--fg); }
     <h2 id="h-map">The whole valley</h2>
     <p>36 by 22 tiles, 3.6 by 2.2 km. Herds have worn a grazing ground on the left and a single route north through the forest and the gap in the range. Today none of it is drawn.</p>
     <div class="pair">
-      <figure><h3>Today</h3><div class="px"><img data-img="map" data-today src="map_before_winter.png" alt="Today: the valley with no routes drawn"></div></figure>
-      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="map" src="map_winter.png" alt="Draft: the valley with a trampled grazing ground and a worn route through the forest"></div></figure>
+      <figure><h3>Today</h3><div class="px"><img data-img="map" data-today alt="Today: the valley with no routes drawn"></div></figure>
+      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="map" alt="Draft: the valley with a trampled grazing ground and a worn route through the forest"></div></figure>
     </div>
   </section>
 
@@ -62,8 +62,8 @@ code { font-size: 14px; color: var(--fg); }
     <h2 id="h-route">A route through the forest, 2x</h2>
     <p>Worn edges between tiles become one line from tile centre to tile centre, curving where it turns and wandering in world space, so it never follows the grid. The trees stand clear of it. In snow it is a trench of packed, dirtied snow, its upper-left wall in shadow and its lower-right wall in the light, trodden through to earth where it is a Trail. Bare ground shows trodden earth with stones, and in the thaw the packed snow on the path is the last to go.</p>
     <div class="pair">
-      <figure><h3>Today</h3><div class="px"><img data-img="detail_route" data-today src="detail_route_before_winter.png" alt="Today: the forest gap with no route"></div></figure>
-      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="detail_route" src="detail_route_winter.png" alt="Draft: a worn route through the forest and down the gap"></div></figure>
+      <figure><h3>Today</h3><div class="px"><img data-img="detail_route" data-today alt="Today: the forest gap with no route"></div></figure>
+      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="detail_route" alt="Draft: a worn route through the forest and down the gap"></div></figure>
     </div>
   </section>
 
@@ -71,8 +71,8 @@ code { font-size: 14px; color: var(--fg); }
     <h2 id="h-grazing">Grazing ground, 2x</h2>
     <p>Where herds graze, every side of every tile is worn. Drawn as lines, that would be a grid. Where most sides of the tiles around are worn, the draft drops the lines and tramples the ground instead: hoof holes and packed snow in winter, bare poached patches in summer, mud in the thaw. Routes keep their lines where they leave it.</p>
     <div class="pair">
-      <figure><h3>Today</h3><div class="px"><img data-img="detail_grazing" data-today src="detail_grazing_before_winter.png" alt="Today: open ground beside a ravine"></div></figure>
-      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="detail_grazing" src="detail_grazing_winter.png" alt="Draft: trampled grazing ground with routes leaving it"></div></figure>
+      <figure><h3>Today</h3><div class="px"><img data-img="detail_grazing" data-today alt="Today: open ground beside a ravine"></div></figure>
+      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="detail_grazing" alt="Draft: trampled grazing ground with routes leaving it"></div></figure>
     </div>
   </section>
 
@@ -84,8 +84,8 @@ code { font-size: 14px; color: var(--fg); }
       <b>Columns</b><span>Fresh, one way. Fresh, both ways (two passed). Two days old. A herd of twelve crossing every way.</span>
     </div>
     <div class="pair">
-      <figure><h3>Today</h3><div class="px"><img data-img="detail_prints" data-today src="detail_prints_before_winter.png" alt="Today: one slate track icon per tile"></div></figure>
-      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="detail_prints" src="detail_prints_winter.png" alt="Draft: lines of boot, paw and hoof prints pressed into the ground"></div></figure>
+      <figure><h3>Today</h3><div class="px"><img data-img="detail_prints" data-today alt="Today: one slate track icon per tile"></div></figure>
+      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="detail_prints" alt="Draft: lines of boot, paw and hoof prints pressed into the ground"></div></figure>
     </div>
   </section>
 
@@ -102,10 +102,11 @@ code { font-size: 14px; color: var(--fg); }
 
 <script>
 const buttons = [...document.querySelectorAll('[data-season]')];
-for (const b of buttons) b.addEventListener('click', () => {
-  const season = b.dataset.season;
-  buttons.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+function show(season) {
+  buttons.forEach(x => x.setAttribute('aria-pressed', String(x.dataset.season === season)));
   for (const img of document.querySelectorAll('[data-img]'))
     img.src = `${img.dataset.img}_${img.hasAttribute('data-today') ? 'before_' : ''}${season}.png`;
-});
+}
+for (const b of buttons) b.addEventListener('click', () => show(b.dataset.season));
+show('winter');
 </script>
