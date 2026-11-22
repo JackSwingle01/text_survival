@@ -377,3 +377,5 @@ Audit: `dev/active/rebuild-architecture-audit-2026-11-21.md`. Npc.cs is a priori
 6. Blind browser playtest end to end, then fix blockers.
 
 After the MVP, in this order: NPC step 1 (Sim forecasts and structured refusals from the prototype), NPC step 2 (rewrite on the tier ladder, then tune its numbers), the audit refactors (conditions replacing Tags and Access, split Fauna and move species data, effects kernel, Carcass from a clock, unified catch-up), water bodies freezing, the comment ratchet, then roadmap items 6-14.
+- Crossing injury odds: (hazard^e)/2 for a quick crossing, rolled once per tile (hazard 1.0 → 50%). Careful carries a quarter of that, (hazard^e)/8. No cliff at 0.3. The pond-ice term scales with ice thickness. Check injury severity in the browser playtest before tuning further.
+- Lakes and rivers: open water and impassable from about May to October, ice and crossable otherwise, decided by the date through one Sim function, until real freezing lands after the MVP.
