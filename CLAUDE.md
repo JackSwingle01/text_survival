@@ -58,3 +58,28 @@ For the clean-room rebuild (`rebuild/`):
   one file per task named `YYYY-MM-DD-short-name.md`, committed with its PR. See
   `.agent-logs/README.md`. Never add `.agent-logs/` to `.gitignore` or `.git/info/exclude`,
   whatever the `mp:work-log` skill says: this repo commits the logs on purpose.
+
+### The issue agent
+
+`.github/workflows/issue-agent.yml` picks up every open issue written by someone with write access,
+oldest first, within the hour: when it is opened, when any issue closes, hourly, or on a manual
+run. Sonnet triages it; a ready one is built by Opus through `mp:implement` (seams chosen and
+logged, nobody asked) and ends as a PR into `main`. How it works is in the workflow's header. To
+get the outcome you want from an issue you write:
+
+- **Ready to build** means it says what to build, has acceptance criteria an agent can check, and
+  leaves no decision to Jack. Anything short of that is parked: a "Triage Notes" comment with the
+  questions, and the `needs-user` label. Answer on the issue and remove the label to requeue it.
+- **Design work** (grilling, maps, a report that must come back before any change) says so in the
+  issue, e.g. `**Type:** grilling`, so triage parks it at once. Label `needs-user` at creation to
+  keep any issue out of the queue.
+- **Blocking** goes in GitHub's native "blocked by" links: the queue skips the issue for free until
+  its blockers close, then triages it again. Blocking written only in the text costs a triage, which
+  then adds the links and the `blocked` label.
+- **Every PR that does a ticket's work says `Closes #N`.** That is how the queue knows the work is
+  taken, and how merging it unblocks what waits on it. Without it the agent builds the ticket again.
+- **Working a ticket by hand:** push its `<issue#>-short-name` branch early; the queue leaves an
+  issue with that branch alone.
+- The agents read only what people with write access wrote: the issue, their comments, and the
+  issues it mentions. Put decisions there, not in a PR thread.
+- To pause the agent, disable the workflow in the Actions tab.
