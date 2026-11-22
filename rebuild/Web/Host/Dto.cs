@@ -108,7 +108,9 @@ public sealed record EffectDto(string Name, double Severity);
 public sealed record CapacityDto(string Name, double Pct);
 public sealed record SkillDto(string Name, int Level);
 
-/// The map as the player knows it. Known: one character per tile, row by row (Width per row): '.'
+/// The map the page draws (MapView): as a person knows it, or in observer mode as it truly is (MapView.Truth:
+/// every tile known and in sight, every print, every worn route, and no places or sightings, which come
+/// with the observer's view). As the player knows it: Known: one character per tile, row by row (Width per row): '.'
 /// for never seen, otherwise the terrain's code (TerrainCodes). Visible: indices (y*Width+x) in sight now.
 /// Everything else is memory: places as last seen, sightings with their minute. Surface: the ground of
 /// each known tile with anything on it, in tile order: in sight, as it is now (Ground.SurfaceNow); out
@@ -183,8 +185,39 @@ public sealed record ReceiptDto(string Title, long? SinceMinute, long Minute, bo
 /// One line of the journal. Kind: plain, bad, good or rare. Icon: an icon path under icons/.
 public sealed record LogDto(long Minute, string Text, string Kind, string Icon);
 
+// ---- Observer mode (Observer.cs): development only, a world with no player drawn as it truly is ----
+
+/// A new observer world: what the spawn tool can make, and the first view.
+public sealed record ObserverStartDto(IReadOnlyList<SpawnableDto> Spawnables, ObserverViewDto View);
+/// One kind of thing the spawn tool can put on a tile. Id is what Spawn takes.
+public sealed record SpawnableDto(string Id, string Label);
+
+/// The observer's view after every call. The map (Observer.TruthMap, a MapDto) is fetched apart, and is
+/// stale once Minute passes the minute it was fetched at. Places: every unattended fire, shelter, carcass
+/// and stash, as they are now (the truth map carries none).
+public sealed record ObserverViewDto(long Minute, ClockDto Clock, IReadOnlyList<ActorDto> Actors, IReadOnlyList<PlaceMarkDto> Places,
+    IReadOnlyList<ObserverLogDto> Log);
+/// An NPC or a herd. Kind: npc or herd. Doing: its activity in words ("travel north"), or "deciding".
+/// State: a herd's (Fauna HerdState). Predator: Fauna.IsPredator. ToX/ToY/CrossingPct: a crossing under way, for the page to draw it moving.
+public sealed record ActorDto(int Id, string Kind, string Icon, string Name, int X, int Y, int Count, string Doing, string? State, bool Predator,
+    int? ToX = null, int? ToY = null, double? CrossingPct = null);
+/// A narrated world event and the tile it happened on.
+public sealed record ObserverLogDto(int X, int Y, LogDto Line);
+
+/// A tile as a person standing on it would find it: the place, its story, its fire, the things on it
+/// in Verbs.At's words, and who is there. Undiscovered: a pool nobody has found yet.
+public sealed record TileDto(int X, int Y, string Place, string Terrain, string? Story, FireDto? Fire, IReadOnlyList<TileFeatureDto> Features,
+    IReadOnlyList<ActorDetailDto> Actors);
+public sealed record TileFeatureDto(string Kind, string Name, bool Undiscovered);
+/// An actor on the tile, and its insides in lines: stats by tier, effects, a herd's state and hunger.
+public sealed record ActorDetailDto(int Id, string Name, string Doing, IReadOnlyList<string> Lines);
+
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(ActDto))]
 [JsonSerializable(typeof(ViewDto))]
+[JsonSerializable(typeof(ObserverStartDto))]
+[JsonSerializable(typeof(MapDto))]
+[JsonSerializable(typeof(ObserverViewDto))]
+[JsonSerializable(typeof(TileDto))]
 public partial class HostJson : JsonSerializerContext;

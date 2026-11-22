@@ -223,6 +223,65 @@ try {
     })()`);
     console.log(`  worker round trip: view ${ms.view} ms, an hour's wait ${ms.waitHour} ms`);
   }
+  if (args.includes('--observe')) {
+    // Observer mode (observe.html): no player, the whole map, time at a rate, spawn and inspect.
+    await size(cdp, 1280, 860);
+    console.log('observer');
+    await cdp.send('Page.navigate', { url: `${url}observe.html?seed=${seed}&npcs=3` });
+    for (let i = 0; i < 300; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      try { if (await cdp.evaluate(`!!(window.obs && window.obs.ready)`)) break; } catch {}
+    }
+    await cdp.evaluate(`window.obs.ready.then(() => true)`);
+    const O = 'window.obs.S';
+    const npcs = await cdp.evaluate(`${O}.view.actors.filter(a => a.kind === 'npc').length`);
+    if (npcs !== 3) throw new Error(`?npcs=3 spawned ${npcs}`);
+    await new Promise(r => setTimeout(r, 800));
+    await shot(cdp, 'observe-01-valley');
+    // Six real seconds at an hour a second.
+    const m0 = await cdp.evaluate(`${O}.view.minute`);
+    await cdp.evaluate(`(document.getElementById('play').click(), true)`);
+    await new Promise(r => setTimeout(r, 6000));
+    const run = await cdp.evaluate(`({ minute: ${O}.view.minute, achieved: document.getElementById('achieved').textContent })`);
+    await cdp.evaluate(`(document.getElementById('play').click(), true)`);
+    console.log(`  6 s at 60 min/s ran ${run.minute - m0} game minutes (${run.achieved})`);
+    if (run.minute - m0 < 60) throw new Error('time barely moved');
+    // In close on the camp: the painted ground, the people, the inspector.
+    await cdp.evaluate(`(${O}.cam = { x: ${O}.map.campX + 0.5, y: ${O}.map.campY + 0.5, scale: 64 }, true)`);
+    await new Promise(r => setTimeout(r, 2500)); // the chunks bake over a few frames
+    await shot(cdp, 'observe-02-camp');
+    // Spawn one more person by the camp through the tool, as a click would.
+    const spawned = await cdp.evaluate(`(async () => {
+      const S = ${O}, before = S.view.actors.filter(a => a.kind === 'npc').length;
+      document.querySelector('[data-spawn="npc"]').click();
+      const r = document.getElementById('world').getBoundingClientRect();
+      const ev = (type, x, y) => document.getElementById('world').dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, bubbles: true, pointerId: 1 }));
+      ev('pointerdown', r.left + r.width / 2, r.top + r.height / 2); ev('pointerup', r.left + r.width / 2, r.top + r.height / 2);
+      for (let i = 0; i < 50 && S.view.actors.filter(a => a.kind === 'npc').length === before; i++) await new Promise(r => setTimeout(r, 100));
+      for (let i = 0; i < 50 && !S.inspected; i++) await new Promise(r => setTimeout(r, 100));
+      return { npcs: S.view.actors.filter(a => a.kind === 'npc').length - before, inspected: S.inspected?.place, people: S.inspected?.actors.length };
+    })()`);
+    console.log(`  spawned ${spawned.npcs}, inspected ${spawned.inspected} with ${spawned.people} there`);
+    if (spawned.npcs !== 1 || !spawned.inspected) throw new Error(`spawn or inspect failed: ${JSON.stringify(spawned)}`);
+    await shot(cdp, 'observe-03-spawned');
+    // What a call costs through the worker, as the page pays it (view JSON and messaging included).
+    const ms = await cdp.evaluate(`(async () => {
+      const c = window.obs.client, t = () => performance.now();
+      let t0 = t(); await c.advance(1); const minute = t() - t0;
+      t0 = t(); await c.advance(60); const hour = t() - t0;
+      t0 = t(); await c.inspect(${O}.map.campX, ${O}.map.campY); const look = t() - t0;
+      t0 = t(); const m = await c.map(); const map = t() - t0;
+      return { minute: Math.round(minute), hour: Math.round(hour), inspect: Math.round(look), map: Math.round(map),
+        kb: Math.round(JSON.stringify(m).length / 1024) };
+    })()`);
+    console.log(`  worker round trip: a minute ${ms.minute} ms, an hour ${ms.hour} ms, inspect ${ms.inspect} ms, the map ${ms.map} ms (${ms.kb} KB)`);
+    // The map is the player's MapDto (MapView.Truth): its ravines and cliffs draw here as on the player's page.
+    const edge = await cdp.evaluate(`${O}.map.edges[0] ?? null`);
+    if (!edge) throw new Error('the observer map has no ravines or cliffs');
+    await cdp.evaluate(`(${O}.cam = { x: ${(edge.ax + edge.bx) / 2 + 0.5}, y: ${(edge.ay + edge.by) / 2 + 0.5}, scale: 48 }, true)`);
+    await new Promise(r => setTimeout(r, 2500));
+    await shot(cdp, 'observe-04-ravine');
+  }
   const wanted = args.includes('--all') ? Object.keys(STATES) : args.flatMap((a, i) => a === '--shot' ? [args[i + 1]] : []);
   for (const name of wanted) {
     const st = STATES[name];

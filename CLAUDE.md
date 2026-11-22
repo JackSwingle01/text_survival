@@ -31,6 +31,10 @@ For the clean-room rebuild (`rebuild/`):
   polling. A poll that greps for its own pattern (`pgrep -f "X"` from a shell whose command line
   contains "X") never ends, and leftover pollers outlive the agent that started them.
 - For long-running agent work (e.g. overnight), schedule an hourly check for stalled agents and leftover processes.
+- When something needs the user to review, verify or validate it (a page, a UI change, a run they
+  should watch), don't stop at instructions: build it, start it for them (e.g. publish and serve the
+  web app in the background), and hand over a working link plus short numbered steps to test.
+
 ## Domain Language and Decisions
 
 - `GLOSSARY.md` defines the project's terms (stat tiers, effects, conditions, contest...). Use them.
@@ -49,4 +53,5 @@ For the clean-room rebuild (`rebuild/`):
 - Porting the old game: follow `dev/active/porting.md`.
 - Each ticket's agent keeps a work log (the `mp:work-log` skill's format) in `.agent-logs/`,
   one file per task named `YYYY-MM-DD-short-name.md`, committed with its PR. See
-  `.agent-logs/README.md`.
+  `.agent-logs/README.md`. Never add `.agent-logs/` to `.gitignore` or `.git/info/exclude`,
+  whatever the `mp:work-log` skill says: this repo commits the logs on purpose.

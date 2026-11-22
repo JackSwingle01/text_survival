@@ -15,12 +15,6 @@ sealed class ViewBuilder(World world, int gen)
 
     public sealed record CombatVerb(CombatAction Action, int? Target);
 
-    /// The terrain codes of MapDto.Known: one character each.
-    public const string TerrainCodes = "FCPHWMRXD"; // Forest Clearing Plain Hills Water Marsh Rock Mountain DeepWater
-    public const char CaveFloorCode = 'c', CaveMouthCode = 'e', UnknownCode = '.';
-
-    /// Tracks are read within this many tiles of the player, in sight: nobody reads prints from far off.
-    public const int TrackReadTiles = 3;
     /// Predators seen within this many tiles in the last few hours make an alert.
     public const int NearbyTiles = 6;
     public const long NearbyMinutes = 180;
@@ -45,7 +39,7 @@ sealed class ViewBuilder(World world, int gen)
         {
             var menu = t.Menu.Select(Dto).ToList();
             string? action = t.Action is { } a ? menu[IndexIn(t.Menu, a)].Id : null;
-            return new LocationFeatureDto(Code(t.LocationFeature.Kind), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
+            return new LocationFeatureDto(Words.Code(t.LocationFeature.Kind), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
         }).ToList();
         var walk = here.Walk.Select(Dto).ToList();
         var tile = here.Tile.Select(Dto).ToList();
@@ -55,7 +49,7 @@ sealed class ViewBuilder(World world, int gen)
         return new ViewDto(
             Gen: gen,
             Minute: world.Minute,
-            Clock: Clock(sky),
+            Clock: ClockOf(world, sky),
             Feels: new FeelsDto(Math.Round(feeling.FeltF, 1), [.. feeling.Terms.Select(t => new FeelsTermDto(t.Factor, Math.Round(t.DeltaF, 1)))]),
             Vitals: Vitals(body, tiers, exposure),
             Alerts: Alerts(body, tiers, sky),
@@ -64,13 +58,13 @@ sealed class ViewBuilder(World world, int gen)
             LocationFeatures: features, Walk: walk, Tile: tile, PackVerbs: carried, Make: make,
             Pack: Pack(),
             Body: BodyOf(body),
-            Map: MapOf(),
+            Map: MapView.Remembered(world, _player),
             Combat: CombatOf(fightLines),
             Forage: ForageOf(here, features),
             Job: job is null ? null : JobOf(job),
             Receipt: receipt,
             Log: [.. log.TakeLast(40)],
-            Outcome: Code(outcome),
+            Outcome: Words.Code(outcome),
             DeathCause: outcome == RunOutcome.Died ? body.DeathCause?.What : null);
     }
 
@@ -92,7 +86,7 @@ sealed class ViewBuilder(World world, int gen)
             Odds: v.Odds is { } o ? OddsOf(o) : null,
             Trip: v.Trip is { } trip && travel != null ? TripOf(trip, travel, v.Risk) : null,
             Make: v.Activity is Make mk ? MakeOf(mk, v.Outcomes) : null,
-            Dir: travel is null ? null : Code(travel.Dir),
+            Dir: travel is null ? null : Words.Code(travel.Dir),
             Careful: travel?.Pace == Pace.Careful,
             Uses: v.Activity switch
             {
@@ -147,7 +141,7 @@ sealed class ViewBuilder(World world, int gen)
     TripDto TripOf(TripTime t, Travel go, Odds? risk)
     {
         var to = Map.Step(_player.Tile, go.Dir);
-        bool known = Explored(to);
+        bool known = MapView.Explored(world, _player, to);
         return new TripDto(t.TotalMinutes, [.. t.Terms.Where(x => x.Minutes != 0).Select(x => new TripTermDto(x.Factor, x.Minutes))],
             Trip.PaceMatters(world, go.Who, go.Dir),
             known ? Map.Describe(M, to) : "unexplored ground", known,
@@ -171,7 +165,8 @@ sealed class ViewBuilder(World world, int gen)
 
     // ---- the always-on layer ----
 
-    ClockDto Clock(WeatherSample sky)
+    /// The clock and sky: the same for the player's view and the observer's.
+    public static ClockDto ClockOf(World world, WeatherSample sky)
     {
         int mod = Weather.MinuteOfDay(world.Minute);
         return new ClockDto(Weather.DayNumber(world.Minute), mod, Names.Title(Weather.SeasonAt(world.Minute)), Names.Title(sky.Condition),
@@ -186,10 +181,10 @@ sealed class ViewBuilder(World world, int gen)
         bool warming = e.Warmth.PitHeatF + e.Warmth.AirHeatF > 1;
         return
         [
-            new("warmth", warmth, Code(tiers.Warmth), $"Body {b.CoreTempF:0.0}°F{(warming ? ", by a fire" : "")}"),
-            new("food", Math.Clamp(b.CaloriesPct, 0, 1), Code(tiers.Food), $"{b.CaloriesKcal:0} kcal in the stomach · fat {b.FatKg:0.0} kg"),
-            new("water", Math.Clamp(b.HydrationPct, 0, 1), Code(tiers.Water), $"{b.HydrationPct:P0} · {b.HydrationMl / 1000:0.0} L"),
-            new("rest", Math.Clamp(b.EnergyPct, 0, 1), Code(tiers.Rest), $"{b.EnergyPct:P0}"),
+            new("warmth", warmth, Words.Code(tiers.Warmth), $"Body {b.CoreTempF:0.0}°F{(warming ? ", by a fire" : "")}"),
+            new("food", Math.Clamp(b.CaloriesPct, 0, 1), Words.Code(tiers.Food), $"{b.CaloriesKcal:0} kcal in the stomach · fat {b.FatKg:0.0} kg"),
+            new("water", Math.Clamp(b.HydrationPct, 0, 1), Words.Code(tiers.Water), $"{b.HydrationPct:P0} · {b.HydrationMl / 1000:0.0} L"),
+            new("rest", Math.Clamp(b.EnergyPct, 0, 1), Words.Code(tiers.Rest), $"{b.EnergyPct:P0}"),
         ];
     }
 
@@ -238,7 +233,11 @@ sealed class ViewBuilder(World world, int gen)
     FireDto? FireHere()
     {
         if (Fire.PitAt(world, _player.Tile) is not FireId id) return null;
-        var f = world.Fires[id];
+        return FireOf(world.Fires[id]);
+    }
+
+    public static FireDto FireOf(FireState f)
+    {
         var phase = Fire.Phase(f);
         return new FireDto(Names.Title(phase), Fire.Burns(phase), Math.Round(Fire.FuelHours(f), 2), Math.Round(Fire.TemperatureF(f)), Math.Round(f.CharcoalKg, 2));
     }
@@ -266,87 +265,6 @@ sealed class ViewBuilder(World world, int gen)
             [.. skills.Where(s => s.Value.Level > 0).Select(s => new SkillDto(Names.Title(s.Key), s.Value.Level))],
             Math.Round(b.ClothingClo, 2));
     }
-
-    // ---- the map: memory only ----
-
-    bool Explored(TileId t) => t == _player.Tile || Memories.Of(_player).Explored is { } e && M.InBounds(t) && e.Contains(t);
-
-    MapDto MapOf()
-    {
-        var m = M;
-        var memory = Memories.Of(_player);
-        var known = new StringBuilder(m.Width * m.Height);
-        for (int y = 0; y < m.Height; y++)
-            for (int x = 0; x < m.Width; x++)
-            {
-                var t = new TileId(x, y);
-                known.Append(!Explored(t) ? UnknownCode
-                    : m.CaveAt(t) == Cave.Floor ? CaveFloorCode : m.CaveAt(t) == Cave.Entrance ? CaveMouthCode : TerrainCodes[(int)m.TerrainAt(t)]);
-            }
-        var visible = Sight.InView(world, _player); // the view the player's looks already cast
-
-        var places = new List<PlaceMarkDto>();
-        // The fire underfoot is the one the fire panel shows (FireHere): memory catches up with it only on
-        // the next minute awake, so on waking it would still hold the fire slept beside.
-        var pitHere = Fire.PitAt(world, _player.Tile) is FireId pid ? world.Fires[pid] : null;
-        foreach (var (t, mem) in memory.Places)
-        {
-            bool underfoot = t == _player.Tile;
-            var fire = underfoot ? (pitHere is { } ph ? Fire.Phase(ph) : null) : mem.Fire;
-            bool notable = fire != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Stash is { Count: > 0 } || mem.Danger != Danger.None;
-            if (!notable) continue;
-            // The fuel was reckoned beside the fire; age it from then. A fire seen burning since keeps that reckoning.
-            double? hoursLeft = underfoot ? (pitHere != null && Fire.IsActive(pitHere) ? Math.Round(Fire.FuelHours(pitHere), 1) : null)
-                : mem.FireHours is double h && mem.VisitedMinute is long v ? Math.Max(0, Math.Round(h - (world.Minute - v) / 60.0, 1)) : null;
-            places.Add(new PlaceMarkDto(t.X, t.Y, underfoot ? world.Minute : mem.SeenMinute, fire is { } f ? Names.Title(f) : null, hoursLeft, mem.Shelter,
-                mem.Carcasses is { Count: > 0 }, mem.Stash is { Count: > 0 }, mem.Danger.HasFlag(Danger.Den), mem.Danger.HasFlag(Danger.Hurt)));
-        }
-        var sightings = memory.Sightings.Where(s => s.Key != AgentId.Player)
-            .Select(s => new SightingDto(s.Value.Tile.X, s.Value.Tile.Y, Words.SpeciesIcon(s.Value.Species), s.Value.Count, s.Value.Minute)).ToList();
-
-        var tracks = new List<TrackDto>();
-        foreach (var t in visible)
-            if (Math.Abs(t.X - _player.Tile.X) <= TrackReadTiles && Math.Abs(t.Y - _player.Tile.Y) <= TrackReadTiles)
-                foreach (var s in Tracks.Read(world, t))
-                    tracks.Add(new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes, s.Traffic, Code(s.Heading), Code(s.Pattern),
-                        Math.Round(s.FreshnessPct, 2)));
-
-        var named = new List<NamedDto>();
-        foreach (var (t, site) in m.Sites) if (Explored(t)) named.Add(new NamedDto(t.X, t.Y, site.Name));
-        foreach (var (t, i) in m.PassStageIndex) if (Explored(t)) named.Add(new NamedDto(t.X, t.Y, Map.PassStages[i].Name));
-        named.Add(new NamedDto(m.Camp.X, m.Camp.Y, Map.Describe(m, m.Camp)));
-
-        // In sight, the ground as it is; out of sight, as the player last saw it.
-        var inSight = visible.ToHashSet();
-        var surface = new List<SurfaceDto>();
-        var frozen = new List<int>();
-        for (int y = 0; y < m.Height; y++)
-            for (int x = 0; x < m.Width; x++)
-            {
-                var t = new TileId(x, y);
-                if (!Explored(t)) continue;
-                RememberedGround Seen() => memory.Explored?.At(t) ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
-                if (m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater && m.CaveAt(t) == Cave.None
-                    && Map.IsFrozen(m, t, inSight.Contains(t) ? world.Minute : Seen().SeenMinute))
-                    frozen.Add(y * m.Width + x);
-                if (!m.TerrainAt(t).IsPassable()) continue;
-                var g = inSight.Contains(t) ? Ground.SurfaceNow(world, t) : Seen().Surface;
-                double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
-                if (snowCm > 0 || waterCm > 0 || mud > 0) surface.Add(new SurfaceDto(y * m.Width + x, snowCm, g.Crusted, mud, waterCm, g.Iced));
-            }
-        var edges = new List<EdgeDto>();
-        foreach (var ((a, b), e) in m.Edges)
-            if (e is EdgeType.Ravine or EdgeType.Cliff && (Explored(a) || Explored(b)))
-                edges.Add(new EdgeDto(a.X, a.Y, b.X, b.Y, Code(e)));
-        edges.Sort((p, q) => (p.Ay, p.Ax, p.By, p.Bx).CompareTo((q.Ay, q.Ax, q.By, q.Bx)));
-
-        var trails = Memories.Trails(world, _player, inSight).Select(t => new TrailDto(t.Edge.A.X, t.Edge.A.Y, t.Edge.B.X, t.Edge.B.Y, Code(t.Tier))).ToList();
-        return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
-            places, sightings, tracks, named, surface, frozen, edges, trails);
-    }
-
-    /// An enum value as the page's renderer names it (terrain-core.js): a code, not a word for the player.
-    public static string Code<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
 
     public static string TrackIcon(TrackMaker m) => m switch
     {
@@ -433,7 +351,7 @@ sealed class ViewBuilder(World world, int gen)
             var foci = Pools.Foci(def).Select(x => new FocusDto(Names.Of(x.Focus), x.Hint,
                 VerbOf(a => a is Gather g && g.Focus == x.Focus))).ToList();
             var offered = Pools.Foci(def).Select(x => x.Focus).ToHashSet();
-            var clues = Clues.At(world, AgentId.Player).Select(c => new ClueDto(c.Def.Text, Code(c.Def.Kind),
+            var clues = Clues.At(world, AgentId.Player).Select(c => new ClueDto(c.Def.Text, Words.Code(c.Def.Kind),
                 Clues.Suggests(c.Def) is ForageFocus s && offered.Contains(s) ? Names.Of(s) : null)).ToList();
             bool foraged = Memories.Of(_player).Places.GetValueOrDefault(id.Tile)?.Foraged == true;
             return new ForageDto(foraged ? Pools.QualityWord(Pools.ForageDensity(world, id)) : null, Pools.SearchEffort(world, AgentId.Player, id.Tile),
@@ -456,11 +374,11 @@ sealed class ViewBuilder(World world, int gen)
         var session = job.Session;
         var finds = session?.LuckFactor > 0
             ? session.Finds.GroupBy(x => x.Resource).OrderBy(g => g.Min(x => x.Minute))
-                .Select(g => new FindDto(g.Key.ToString(), Names.Of(g.Key), Code(Items.Resources[g.Key].Category), g.Count(), Math.Round(g.Sum(x => x.Kg), 2))).ToList()
+                .Select(g => new FindDto(g.Key.ToString(), Names.Of(g.Key), Words.Code(Items.Resources[g.Key].Category), g.Count(), Math.Round(g.Sum(x => x.Kg), 2))).ToList()
             : null;
-        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Outcome, job.Reason, job.From.X, job.From.Y, job.Dir is { } dir ? Code(dir) : null,
+        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Outcome, job.Reason, job.From.X, job.From.Y, job.Dir is { } dir ? Words.Code(dir) : null,
             finds, finds == null ? null : Math.Round(session!.Finds.Sum(x => x.Kg), 2), session == null ? null : Work.Mood(session),
-            finds == null ? null : Code(Pools.TierOf(session!.LuckFactor)));
+            finds == null ? null : Words.Code(Pools.TierOf(session!.LuckFactor)));
     }
 
     static string Ago(long minutes) => minutes < 60 ? $"{minutes} min ago" : $"{minutes / 60} h ago";

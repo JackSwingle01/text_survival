@@ -173,30 +173,43 @@ public static class Verbs
         LocationFeatureKind.Carcass or LocationFeatureKind.Stash or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item => true,
     };
 
+    /// What a thing on a tile is called, the same whoever looks (and with no one there to look).
+    public static string NameOf(World world, LocationFeature t) => t.Kind switch
+    {
+        LocationFeatureKind.Agent => Cause.Describe(world, new AgentId(t.Index)),
+        LocationFeatureKind.Body => "a body",
+        LocationFeatureKind.Pool => Pools.Def(world, new PoolId(t.Tile, t.Index)).Name,
+        LocationFeatureKind.Carcass => Carcasses.Find(world, t.Tile, t.Index)!.Animal,
+        LocationFeatureKind.Stash => "stash",
+        LocationFeatureKind.Fire => $"fire ({Names.Of(Fire.Phase(world.Fires[new FireId(t.Index)]))})",
+        LocationFeatureKind.Shelter => Shelters.Peek(world, t.Tile)!.Name,
+        LocationFeatureKind.Track => t.TrailDirection is Direction dir ? $"{Names.Of(Tracks.TierOf(world, t.Tile, Map.Step(t.Tile, dir)))} {Names.Of(dir)}"
+            : $"{Names.Of((TrackMaker)t.Index)} prints",
+        LocationFeatureKind.Sign => throw new InvalidOperationException("LocationFeatures.At listed a sign, which has no ids yet"),
+        LocationFeatureKind.Item => throw new InvalidOperationException("LocationFeatures.At listed an item, which has no ids yet"),
+    };
+
     /// A herd offers a hunt; location features nobody can act on yet (a person, a body, prints) are listed with no verbs.
     static (string Name, List<(string Label, Activity Activity, int Minutes)> Menu) Describe(World world, AgentId who, LocationFeature t, Inventory? pack)
     {
         var have = pack?.Kg ?? [];
-        return t.Kind switch
+        return (NameOf(world, t), t.Kind switch
         {
-            LocationFeatureKind.Agent => AgentVerbs(world, who, new AgentId(t.Index)),
-            LocationFeatureKind.Body => ("a body", []),
+            LocationFeatureKind.Agent => world.Agent(new AgentId(t.Index)).Mind is HerdMind ? [("Hunt", new Hunt(who, new AgentId(t.Index)), 1)] : [],
+            LocationFeatureKind.Body or LocationFeatureKind.Track => [],
             LocationFeatureKind.Pool => PoolVerbs(world, who, t),
             LocationFeatureKind.Carcass => CarcassVerbs(world, who, t),
-            LocationFeatureKind.Stash => ("stash", [.. world.Tiles[t.Tile].Stash!.Kg.Select(x => ($"Take {Names.Of(x.Key)}", (Activity)new Unstash(who, x.Key, x.Value), 1))]),
+            LocationFeatureKind.Stash => [.. world.Tiles[t.Tile].Stash!.Kg.Select(x => ($"Take {Names.Of(x.Key)}", (Activity)new Unstash(who, x.Key, x.Value), 1))],
             LocationFeatureKind.Fire => FireVerbs(world, who, t, pack, have),
             LocationFeatureKind.Shelter => ShelterVerbs(world, who, t, have),
-            LocationFeatureKind.Track => (t.TrailDirection is Direction dir ? $"{Names.Of(Tracks.TierOf(world, t.Tile, Map.Step(t.Tile, dir)))} {Names.Of(dir)}"
-                : $"{Names.Of((TrackMaker)t.Index)} prints", []),
-            LocationFeatureKind.Sign => throw new InvalidOperationException("LocationFeatures.At listed a sign, which has no ids yet"),
-            LocationFeatureKind.Item => throw new InvalidOperationException("LocationFeatures.At listed an item, which has no ids yet"),
-        };
+            LocationFeatureKind.Sign or LocationFeatureKind.Item => throw new InvalidOperationException($"LocationFeatures.At listed a {t.Kind}, which has no ids yet"),
+        });
     }
 
-    static (string, List<(string, Activity, int)>) PoolVerbs(World world, AgentId who, LocationFeature t)
+    static List<(string, Activity, int)> PoolVerbs(World world, AgentId who, LocationFeature t)
     {
         var def = Pools.Def(world, new PoolId(t.Tile, t.Index));
-        if (def is ForagePool forage) return (def.Name, ForageVerbs(world, who, t, forage));
+        if (def is ForagePool forage) return ForageVerbs(world, who, t, forage);
         (string, Activity, int)? verb = def switch
         {
             TreePool => ("Chop", new Gather(who, t.Index), WorkMinutes),
@@ -206,7 +219,7 @@ public static class Verbs
             CarcassFind or StashFind => null,
             _ => throw new NotSupportedException($"No verb for a {def.GetType().Name}"),
         };
-        return (def.Name, verb is { } v ? [v] : []);
+        return verb is { } v ? [v] : [];
     }
 
     /// The old forage screen's choices: a general search, labelled with the ground's word once foraged here, one
@@ -222,17 +235,14 @@ public static class Verbs
         return menu;
     }
 
-    static (string, List<(string, Activity, int)>) AgentVerbs(World world, AgentId who, AgentId other) =>
-        (Cause.Describe(world, other), world.Agent(other).Mind is HerdMind ? [("Hunt", new Hunt(who, other), 1)] : []);
-
-    static (string, List<(string, Activity, int)>) CarcassVerbs(World world, AgentId who, LocationFeature t)
+    static List<(string, Activity, int)> CarcassVerbs(World world, AgentId who, LocationFeature t)
     {
         var c = Carcasses.Find(world, t.Tile, t.Index)!;
         var modes = c.Mode is ButcherMode begun ? [begun] : Enum.GetValues<ButcherMode>();
-        return (c.Animal, [.. modes.Select(mode => ($"Butcher ({Names.Of(mode)})", (Activity)new Butcher(who, c.Id, mode), UntilDoneMinutes))]);
+        return [.. modes.Select(mode => ($"Butcher ({Names.Of(mode)})", (Activity)new Butcher(who, c.Id, mode), UntilDoneMinutes))];
     }
 
-    static (string, List<(string, Activity, int)>) FireVerbs(World world, AgentId who, LocationFeature t, Inventory? pack, IReadOnlyDictionary<Resource, double> have)
+    static List<(string, Activity, int)> FireVerbs(World world, AgentId who, LocationFeature t, Inventory? pack, IReadOnlyDictionary<Resource, double> have)
     {
         var pit = world.Fires[new FireId(t.Index)];
         var menu = new List<(string, Activity, int)>();
@@ -243,10 +253,10 @@ public static class Verbs
         foreach (var raw in (ReadOnlySpan<Resource>)[Resource.RawMeat, Resource.RawFish])
             if (have.GetValueOrDefault(raw) > 0) menu.Add(($"Cook {Names.Of(raw)}", new Cook(who, raw, have[raw]), UntilDoneMinutes));
         menu.Add(("Melt snow", new MeltSnow(who), Work.MeltSnowMinutes));
-        return ($"fire ({Names.Of(Fire.Phase(pit))})", menu);
+        return menu;
     }
 
-    static (string, List<(string, Activity, int)>) ShelterVerbs(World world, AgentId who, LocationFeature t, IReadOnlyDictionary<Resource, double> have)
+    static List<(string, Activity, int)> ShelterVerbs(World world, AgentId who, LocationFeature t, IReadOnlyDictionary<Resource, double> have)
     {
         var s = Shelters.Peek(world, t.Tile)!;
         var menu = new List<(string, Activity, int)>();
@@ -255,7 +265,7 @@ public static class Verbs
                 if (Shelters.Materials.TryGetValue(r, out var mat) && mat.Shelter)
                     menu.Add(($"Improve {Names.Of(stat)} with {Names.Of(r)}", new ImproveShelter(who, stat, r), ImproveMinutes));
         if (s.Tent != null) menu.Add(("Pack the tent", new PackTent(who), 1));
-        return (s.Name, menu);
+        return menu;
     }
 
     /// Today only the access gates in force (Access.Blocker); modifying conditions (wet, spoiled) arrive with the effects kernel.
