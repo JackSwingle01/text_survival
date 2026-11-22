@@ -546,7 +546,7 @@ public static partial class Combat
         }
         var (action, to, face) = ChooseAction(world, enc, u);
         var target = TargetOf(enc, u);
-        if (Apply(world, enc, u, action, events, face, to) is { Refused: string refused })
+        if (Apply(world, enc, u, action, events, face, to) is { Refused: { } refused })
             throw new InvalidOperationException($"The AI chose a refused {action} for {u.Agent}: {refused}");
         if (action == CombatAction.Turn) return;
         if (action == CombatAction.Move && u.State == FighterState.Pressing && StatsOf(world, u).IsAnimal

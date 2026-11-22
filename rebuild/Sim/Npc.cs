@@ -1707,7 +1707,7 @@ public static partial class Npc
     /// The activity, if the rules would let it start: an NPC never picks what the player would be refused.
     static Plan? Try(Me me, Activity a, int minutes, bool warming = false)
     {
-        string? refused = a switch
+        Refusal? refused = a switch
         {
             StartFire or AddFuel or LightTorch or GatherCharcoal => Fire.Refusal(me.World, a),
             Travel t => Traversal.Refusal(me.World, t),

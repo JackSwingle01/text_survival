@@ -75,7 +75,7 @@ public class StepOutcomeTests
         var w = Camp(out _);
         var eat = new Eat(P, Resource.Honey, 1);
         var r = Sim.Step(w, eat, 10);
-        Assert.Equal((StepOutcome.Refused, 0, Sim.Refusal(w, eat)), (r.Outcome, r.MinutesElapsed, r.Reason));
+        Assert.Equal((StepOutcome.Refused, 0, Sim.Refusal(w, eat)?.Reason), (r.Outcome, r.MinutesElapsed, r.Reason));
         Assert.NotNull(r.Reason);
     }
 

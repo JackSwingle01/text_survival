@@ -37,7 +37,7 @@ public class VerbsTests
             var copy = Save.FromJson(before);
             copy.AccessGates = w.AccessGates; // never saved
             var result = Sim.Step(copy, v.Activity, v.Minutes);
-            if (v.Refused != null) Assert.True(result.MinutesElapsed == 0 && result.InterruptedReason == v.Refused,
+            if (v.Refused?.Reason != null) Assert.True(result.MinutesElapsed == 0 && result.InterruptedReason == v.Refused?.Reason,
                 $"{v.Label}: listed refused '{v.Refused}', Step said '{result.InterruptedReason}' after {result.MinutesElapsed} min");
             else Assert.True(result.MinutesElapsed > 0, $"{v.Label}: listed allowed, Step refused '{result.InterruptedReason}'");
             // A walk that can start says how long it takes: exactly the crossing Step makes.
@@ -67,7 +67,7 @@ public class VerbsTests
             .First(t => m.TerrainAt(t).IsPassable() && !m.TerrainAt(Map.Step(t, Direction.North)).IsPassable());
         w.Agent(P).Tile = wall;
         var north = Verbs.At(w, P).Walk.Single(v => v.Activity == new Travel(P, Direction.North));
-        Assert.Equal(Map.Blocked(m, wall, Map.Step(wall, Direction.North)), north.Refused);
+        Assert.Equal(Map.Blocked(m, wall, Map.Step(wall, Direction.North)), north.Refused?.Reason);
         Assert.NotNull(north.Refused);
         AssertEveryVerbIsTrue(w, P);
     }
@@ -167,7 +167,7 @@ public class VerbsTests
         w.AccessGates = Access.Gate.All;
         var find = Verbs.At(w, P).LocationFeatures.Single(t => t.LocationFeature == new LocationFeature(LocationFeatureKind.Pool, tile, pool));
         Assert.Equal([new Condition("buried", Blocking: true)], find.Conditions);
-        Assert.Equal(Access.BuriedReason, find.Action!.Refused);
+        Assert.Equal(Access.BuriedReason, find.Action!.Refused?.Reason);
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -213,7 +213,7 @@ public class VerbsTests
         Sim.Step(w, new Wait(P), 1);
         var wolf = Agents.Spawn(w, Species.Wolf, camp, 1);
         Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], camp, 10, Awareness.Engaged, Awareness.Engaged);
-        Assert.All(Verbs.At(w, P).All, v => Assert.Equal(Sim.InAnEncounter, v.Refused));
+        Assert.All(Verbs.At(w, P).All, v => Assert.Equal(Sim.InAnEncounter, v.Refused?.Reason));
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -296,7 +296,7 @@ public class VerbsTests
         Assert.Equal(StepOutcome.Finished, r.Outcome);
         Assert.DoesNotContain(boots, w.Agent(P).Body.Worn);
         Assert.Contains(boots, Items.Pack(w, P).Gear);
-        Assert.Equal("you are not wearing worn hide boots", Sim.Refusal(w, new TakeOff(P, "worn_hide_boots")));
+        Assert.Equal("you are not wearing worn hide boots", Sim.Refusal(w, new TakeOff(P, "worn_hide_boots"))?.Reason);
         Sim.Step(w, new Wear(P, "worn_hide_boots"), 1);
         Assert.Contains(boots, w.Agent(P).Body.Worn);
     }
@@ -309,7 +309,7 @@ public class VerbsTests
         Sim.Step(w, new Wait(P), 1);
         var builds = Verbs.At(w, P).Make.Where(v => v.Activity is Build).ToList();
         Assert.Equal(Enum.GetValues<Structure>(), builds.Select(v => ((Build)v.Activity).What));
-        Assert.Equal("there is already a shelter here (Overhang)", builds.Single(v => v.Activity == new Build(P, Structure.Tent)).Refused); // the camp's overhang
+        Assert.Equal("there is already a shelter here (Overhang)", builds.Single(v => v.Activity == new Build(P, Structure.Tent)).Refused?.Reason); // the camp's overhang
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -324,7 +324,7 @@ public class VerbsTests
         Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
         Sim.Step(w, new Wait(P), 1);
         var pitch = Verbs.At(w, P).Make.Single(v => v.Activity == new Build(P, Structure.Tent));
-        Assert.True(pitch.Allowed, pitch.Refused);
+        Assert.True(pitch.Allowed, pitch.Refused?.Reason);
         AssertEveryVerbIsTrue(w, P);
     }
 

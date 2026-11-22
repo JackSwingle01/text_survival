@@ -127,13 +127,13 @@ public sealed class Encounter
 
 /// An enemy a fighter could face: its index in Encounter.Units (as Fight.Target names it), how far it
 /// is, whether it is faced now, and why turning to it would be refused.
-public sealed record CombatTarget(int Index, AgentId Agent, int Member, double DistanceM, bool Facing, string? TurnRefusal);
+public sealed record CombatTarget(int Index, AgentId Agent, int Member, double DistanceM, bool Facing, Refusal? TurnRefusal);
 
 /// A weapon lying where it fell on the grid, and who threw it.
 public sealed record DroppedWeapon(Cell At, Gear Weapon, AgentId ThrownBy);
 
 /// What one deliberate action did. Refused actions changed nothing and drew no random numbers.
-public sealed record ActionResult(string? Refused = null, bool Hit = false, bool Dodged = false, bool Blocked = false, DamageResult? Damage = null);
+public sealed record ActionResult(Refusal? Refused = null, bool Hit = false, bool Dodged = false, bool Blocked = false, DamageResult? Damage = null);
 
 /// The tactical grid: every fight in the game, the player's turn by turn and everyone else's headless.
 /// The AI is in CombatAI.cs, the aftermath in CombatAftermath.cs.
@@ -446,55 +446,57 @@ public static partial class Combat
     /// Why this action cannot be taken, or null: what the distance allows, and for a fighter the AI
     /// drives, what its state allows too (the player's state follows from the action instead). The
     /// target is the unit's own; naming another is Turn, which faces it and costs the round.
-    public static string? Refusal(World world, Encounter enc, CombatUnit unit, CombatAction action, CombatUnit? target = null, Cell? to = null)
+    public static Refusal? Refusal(World world, Encounter enc, CombatUnit unit, CombatAction action, CombatUnit? target = null, Cell? to = null)
     {
-        if (!unit.InField) return "You are out of the fight.";
-        if (IsDown(world, unit)) return action == CombatAction.Wait ? null : "You are down.";
-        if (!IsPlayer(unit) && !StateAllows(unit.State, action)) return $"Not while {unit.State}.";
+        if (!unit.InField) return new("You are out of the fight.");
+        if (IsDown(world, unit)) return action == CombatAction.Wait ? null : new("You are down.");
+        if (!IsPlayer(unit) && !StateAllows(unit.State, action)) return new($"Not while {unit.State}.");
         var current = TargetOf(enc, unit);
         if (action == CombatAction.Turn)
-            return target == null ? "Choose whom to face." : !target.InField || target.Team == unit.Team ? "No available target."
-                : target == current ? "You are already facing them." : null;
-        if (target != null && target != current) return "Turn to face them first.";
+            return target == null ? new("Choose whom to face.") : !target.InField || target.Team == unit.Team ? new("No available target.")
+                : target == current ? new("You are already facing them.") : null;
+        if (target != null && target != current) return new("Turn to face them first.");
         switch (action)
         {
-            case CombatAction.Flee: return unit.RunDown ? "You were run down." : null;
-            case CombatAction.Chase: return ChaseOffer(world, enc, unit) == null ? "Nobody is running from you." : null;
+            case CombatAction.Flee: return unit.RunDown ? new("You were run down.") : null;
+            case CombatAction.Chase: return ChaseOffer(world, enc, unit) == null ? new("Nobody is running from you.") : null;
             case CombatAction.Wait: return null;
             case CombatAction.PickUp:
-                return unit.Weapon != null ? "Your hands are full." : DroppedNear(enc, unit) == null ? "Nothing to pick up within reach." : null;
+                return unit.Weapon != null ? new("Your hands are full.") : DroppedNear(enc, unit) == null ? new("Nothing to pick up within reach.") : null;
             case CombatAction.CallHelp or CombatAction.CallRetreat:
-                return !Hearers(world, enc, unit).Any() ? "Nobody is with you to hear it."
-                    : unit.LastSignalMinute is long last && world.Minute - last < SignalCooldownMinutes ? "You called out a moment ago." : null;
+                return !Hearers(world, enc, unit).Any() ? new("Nobody is with you to hear it.")
+                    : unit.LastSignalMinute is long last && world.Minute - last < SignalCooldownMinutes ? new("You called out a moment ago.") : null;
             case CombatAction.Move:
-                if (to is not Cell cell) return "Choose where to move.";
+                if (to is not Cell cell) return new("Choose where to move.");
                 double metres = unit.Position.DistanceTo(cell);
-                if (metres == 0) return "You are already there.";
-                return metres > Allowance(world, unit) ? "That's too far to move in one action." : null;
+                if (metres == 0) return new("You are already there.");
+                return metres > Allowance(world, unit) ? new("That's too far to move in one action.") : null;
         }
         target = current;
-        if (target == null) return "No available target.";
+        if (target == null) return new("No available target.");
         // The fight is the confrontation: an occupant of the target does not bar striking at it.
-        if (Access.Refusal(world, unit.Agent, LocationFeatures.OfAgent(world, target.Agent), confronting: true) is string barred) return barred;
+        if (Access.Refusal(world, unit.Agent, LocationFeatures.OfAgent(world, target.Agent), confronting: true) is { } barred) return barred;
         double distance = unit.Position.DistanceTo(target.Position);
         var zone = ZoneOf(distance);
         var nearestZone = ZoneOf(unit.Position.DistanceTo((NearestEnemy(enc, unit) ?? target).Position));
         return action switch
         {
-            CombatAction.Attack when distance > StrikeRangeM(world, unit) => "Out of reach.",
-            CombatAction.Shove when zone != Zone.Close => "Requires close range.",
+            CombatAction.Attack when distance > StrikeRangeM(world, unit) => new("Out of reach."),
+            CombatAction.Shove when zone != Zone.Close => new("Requires close range."),
             // Near too: a bear's bluff is met at a few metres.
-            CombatAction.Intimidate when nearestZone == Zone.Close => "Requires near range or further.",
-            CombatAction.Throw when unit.Weapon == null => "No weapon to throw.",
-            CombatAction.Throw when Items.Def(unit.Weapon!).Weapon!.Thrown == null => "That is not made to be thrown.",
-            CombatAction.Throw or CombatAction.ThrowStone when zone is not (Zone.Mid or Zone.Far) => "Requires mid or far range.",
-            CombatAction.ThrowStone when zone != Zone.Mid => "Stones require mid range.",
-            CombatAction.ThrowStone when Items.PackOf(world.Agent(unit.Agent)) is not Inventory pack || Items.Have(pack, Resource.Stone) < StoneKg => "No stones to throw.",
-            CombatAction.Throw when distance > Items.Def(unit.Weapon!).Weapon!.Thrown!.RangeM => "Beyond weapon range.",
-            CombatAction.ThrowStone when distance > Stone.Thrown!.RangeM => "Beyond weapon range.",
+            CombatAction.Intimidate when nearestZone == Zone.Close => new("Requires near range or further."),
+            CombatAction.Throw when unit.Weapon == null => new("No weapon to throw."),
+            CombatAction.Throw when Items.Def(unit.Weapon!).Weapon!.Thrown == null => new("That is not made to be thrown."),
+            CombatAction.Throw or CombatAction.ThrowStone when zone is not (Zone.Mid or Zone.Far) => new("Requires mid or far range."),
+            CombatAction.ThrowStone when zone != Zone.Mid => new("Stones require mid range."),
+            CombatAction.ThrowStone when StonesHeldKg(world, unit) < StoneKg => new("No stones to throw.", new MissingResource(Resource.Stone, StoneKg - StonesHeldKg(world, unit))),
+            CombatAction.Throw when distance > Items.Def(unit.Weapon!).Weapon!.Thrown!.RangeM => new("Beyond weapon range."),
+            CombatAction.ThrowStone when distance > Stone.Thrown!.RangeM => new("Beyond weapon range."),
             _ => null,
         };
     }
+
+    static double StonesHeldKg(World world, CombatUnit unit) => Items.PackOf(world.Agent(unit.Agent)) is { } pack ? Items.Have(pack, Resource.Stone) : 0;
 
     static DroppedWeapon? DroppedNear(Encounter enc, CombatUnit unit) =>
         enc.Dropped?.Where(d => d.At.DistanceTo(unit.Position) <= PickUpReachM).OrderBy(d => d.At.DistanceTo(unit.Position)).FirstOrDefault();
@@ -503,7 +505,7 @@ public static partial class Combat
     public static ActionResult Apply(World world, Encounter enc, CombatUnit unit, CombatAction action, List<WorldEvent> events,
         CombatUnit? target = null, Cell? to = null)
     {
-        if (Refusal(world, enc, unit, action, target, to) is string refused) return new ActionResult(refused);
+        if (Refusal(world, enc, unit, action, target, to) is { } refused) return new ActionResult(refused);
         if (action == CombatAction.Turn)
         {
             unit.Target = enc.Units.IndexOf(target!);
@@ -543,15 +545,15 @@ public static partial class Combat
 
     // ---- the player's round, driven by Sim.Step(Fight) ----
 
-    internal static string? Refusal(World world, Fight fight)
+    internal static Refusal? Refusal(World world, Fight fight)
     {
         // Only the player picks rounds; NPCs fight through the AI (or Combat.Apply) until they step themselves.
-        if (fight.Who != AgentId.Player) return "Only the player fights round by round; others fight through the AI.";
-        if (EncounterOf(world, fight.Who) is not Encounter enc) return "You are not in a fight.";
+        if (fight.Who != AgentId.Player) return new("Only the player fights round by round; others fight through the AI.");
+        if (EncounterOf(world, fight.Who) is not Encounter enc) return new("You are not in a fight.");
         var me = UnitOf(enc, fight.Who);
         if (fight.Target is int i)
         {
-            if (i < 0 || i >= enc.Units.Count) return "No such fighter.";
+            if (i < 0 || i >= enc.Units.Count) return new("No such fighter.");
             // Naming someone else spends the round turning to face them, whatever the action.
             if (enc.Units[i] != TargetOf(enc, me) || fight.Action == CombatAction.Turn)
                 return Refusal(world, enc, me, CombatAction.Turn, enc.Units[i]);
@@ -566,7 +568,7 @@ public static partial class Combat
     /// The player's action, at the start of the round's minute. Movement may be noticed.
     internal static string? Act(World world, Fight fight, List<WorldEvent> events)
     {
-        if (Refusal(world, fight) is string refused) return refused;
+        if (Refusal(world, fight) is { } refused) return refused.Reason;
         var enc = EncounterOf(world, fight.Who)!;
         var unit = UnitOf(enc, fight.Who);
         var start = unit.Position;

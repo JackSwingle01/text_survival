@@ -247,7 +247,7 @@ public static partial class Body
         // Cascades. Only real blood loss collapses circulation, not cold-slowed pumping.
         if (body.BloodPct < 1.0)
         {
-            double circulation = Math.Max(0, (body.BloodPct - 0.5) / 0.5);
+            double circulation = Math.Max(0, (body.BloodPct - CirculationFailsBloodPct) / (1 - CirculationFailsBloodPct));
             c[(int)Capacity.Consciousness] *= circulation;
             c[(int)Capacity.Moving] *= circulation;
             c[(int)Capacity.Manipulation] *= circulation;
@@ -356,7 +356,12 @@ public static partial class Body
 
     /// Life is tissue and blood: breathing, a pumping heart and a working brain, before any effect.
     /// Effects disable (consciousness can fall to nothing and leave you unable to act) but never kill.
-    public static bool IsAlive(BodyState body) => Vitality(GetCapacitiesWithoutEffects(body)) > 0;
+    public static bool IsAlive(BodyState body) => TissueVitality(body) > 0;
+
+    /// Vitality from tissue and blood alone: the harm that kills, not the hunger or pain that only disables.
+    public static double TissueVitality(BodyState body) => Vitality(GetCapacitiesWithoutEffects(body));
+
+    public const double CirculationFailsBloodPct = 0.5;
 
     /// Keeps the time, and the cause only if no damage already named one (Body.Damage). A body dies once.
     public static void MarkDead(BodyState body, long minute, Cause cause)

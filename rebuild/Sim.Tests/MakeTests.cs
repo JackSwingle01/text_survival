@@ -264,19 +264,19 @@ public class MakeTests
     public void Refusals_SayWhatIsMissing_AndCostNothing()
     {
         var w = Noon(out var pack);
-        Assert.Equal("you need 0.3 kg of stone", Sim.Refusal(w, new Make(P, "sharp_rock")));
-        Assert.Equal("you need 1.5 kg of pine or birch or oak", Sim.Refusal(w, new Make(P, "crude_spear")));
+        Assert.Equal("you need 0.3 kg of stone", Sim.Refusal(w, new Make(P, "sharp_rock"))?.Reason);
+        Assert.Equal("you need 1.5 kg of pine or birch or oak", Sim.Refusal(w, new Make(P, "crude_spear"))?.Reason);
         Items.Add(pack, Resource.Pine, 2.0);
-        Assert.Equal("you need something for cutting", Sim.Refusal(w, new Make(P, "crude_spear")));
-        Assert.Equal("you need a crude spear", Sim.Refusal(w, new Make(P, "wooden_spear")));
+        Assert.Equal("you need something for cutting", Sim.Refusal(w, new Make(P, "crude_spear"))?.Reason);
+        Assert.Equal("you need a crude spear", Sim.Refusal(w, new Make(P, "wooden_spear"))?.Reason);
         pack.Gear.Add(Items.Make("crude_spear"));
-        Assert.Equal("you need a fire burning here", Sim.Refusal(w, new Make(P, "wooden_spear")));
-        Assert.Equal("you have no unfinished crude spear", Sim.Refusal(w, new Abandon(P, "crude_spear")));
+        Assert.Equal("you need a fire burning here", Sim.Refusal(w, new Make(P, "wooden_spear"))?.Reason);
+        Assert.Equal("you have no unfinished crude spear", Sim.Refusal(w, new Abandon(P, "crude_spear"))?.Reason);
         Items.Add(pack, Resource.Stone, 0.3);
         Assert.Null(Sim.Refusal(w, new Make(P, "sharp_rock")));
 
         w.Minute = 14 * 60; // eleven at night, and no fire
-        Assert.Equal(Work.TooDark, Sim.Refusal(w, new Make(P, "sharp_rock")));
+        Assert.Equal(Work.TooDark, Sim.Refusal(w, new Make(P, "sharp_rock"))?.Reason);
         Assert.Null(Sim.Refusal(w, new Make(P, "staff"))); // a straight branch, trimmed by feel
         string before = Save.ToJson(w);
         Assert.Equal(0, Sim.Step(w, new Make(P, "sharp_rock"), 10).MinutesElapsed);
@@ -437,7 +437,7 @@ public class MakeTests
         Assert.Equal("Make sharp rock", rock.Label);
         Assert.Null(rock.Refused);
         Assert.Equal(0.75, rock.Outcomes!.PlainPct, 12);
-        Assert.Equal("you need something for cutting", make.Single(v => v.Activity == new Make(P, "hand_drill")).Refused);
+        Assert.Equal("you need something for cutting", make.Single(v => v.Activity == new Make(P, "hand_drill")).Refused?.Reason);
 
         Sim.Step(w, new Make(P, "sharp_rock"), 2);
         make = [.. Verbs.At(w, P).Make];

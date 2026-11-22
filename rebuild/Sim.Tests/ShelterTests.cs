@@ -665,7 +665,7 @@ public class ShelterTests
         Assert.Equal(0.6, s.InsulationLevel);
 
         w.Agent(P).Tile = Open(w); // open ground at the regional air: a thaw
-        Assert.Equal("too warm to build in snow", Shelters.Refusal(w, new Build(P, Structure.SnowShelter)));
+        Assert.Equal("too warm to build in snow", Shelters.Refusal(w, new Build(P, Structure.SnowShelter))?.Reason);
     }
 
     /// Old DiscoveryFeatureFactory rolled overhangs past the RockOverhang kind's caps (0.40), so the

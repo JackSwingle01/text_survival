@@ -299,7 +299,7 @@ public static class Shelters
 
     public const string BuiltReason = "built", Packed = "packed", AsGoodAsItGets = "as good as it gets";
 
-    public static string? Refusal(World world, Activity activity)
+    public static Refusal? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
         var pack = Items.Pack(world, agent.Id);
@@ -309,43 +309,45 @@ public static class Shelters
             case Build b:
                 {
                     var r = Recipes[b.What];
-                    if (r.NeedsLight && Work.TooDarkToWork(world, agent)) return Work.TooDark;
+                    if (r.NeedsLight && Work.TooDarkToWork(world, agent)) return Work.Dark;
                     world.Projects.TryGetValue(tile, out var p);
-                    if (p != null && p.Building != b.What) return $"a {Names.Of(p.Building)} is half-built here";
-                    if (r.Shelter != null && Peek(world, tile) is { } s) return $"there is already a shelter here ({s.Name})";
+                    if (p != null && p.Building != b.What) return new($"a {Names.Of(p.Building)} is half-built here");
+                    if (r.Shelter != null && Peek(world, tile) is { } s) return new($"there is already a shelter here ({s.Name})");
                     if (r.Bedding is BeddingKind bed && BeddingAt(world, tile) is { } there
                         && there.QualityPct >= Beddings[bed].QualityPct && there.WarmthBonusF >= Beddings[bed].WarmthBonusF)
-                        return $"the {there.Name.ToLowerInvariant()} here is as good as a {Beddings[bed].Name.ToLowerInvariant()}";
+                        return new($"the {there.Name.ToLowerInvariant()} here is as good as a {Beddings[bed].Name.ToLowerInvariant()}");
                     // Resuming checks tools and weather again; materials and the tent went in when it started.
-                    if (Requirement(world, tile, r, pack) is string missing) return missing;
+                    if (Requirement(world, tile, r, pack) is { } missing) return missing;
                     if (p != null) return null;
-                    if (b.What == Structure.Tent && Tent(pack) == null) return "you have no tent";
+                    if (b.What == Structure.Tent && Tent(pack) == null) return new("you have no tent", new MissingGear([.. Tents.Keys]));
                     foreach (var (anyOf, kg) in r.Materials)
-                        if (anyOf.Sum(x => Items.Have(pack, x)) < kg - 1e-9) return $"you need {kg:0.##} kg of {string.Join(" or ", anyOf.Select(x => Names.Of(x)))}";
+                        if (anyOf.Sum(x => Items.Have(pack, x)) is double have && have < kg - 1e-9)
+                            return new($"you need {kg:0.##} kg of {string.Join(" or ", anyOf.Select(x => Names.Of(x)))}", new MissingResource(anyOf, kg - have));
                     return null;
                 }
             case ImproveShelter i:
                 {
-                    if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
-                    if (Peek(world, tile) is not { } s || IsDestroyed(s)) return "there's no shelter here to improve";
-                    if (Access.Refusal(world, agent.Id, LocationFeatures.ShelterAt(world, tile)!.Value) is string barred) return barred;
-                    if (!ShelterMaterials.Contains(i.Material)) return $"{Names.Cap(Names.Of(i.Material))} is no use on a shelter";
-                    if (Items.Have(pack, i.Material) <= 0) return $"you have no {Names.Of(i.Material)}";
-                    if (Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9) return $"this {s.Name.ToLowerInvariant()}'s {Names.Of(i.Stat)} can't be improved further";
+                    if (Work.TooDarkToWork(world, agent)) return Work.Dark;
+                    if (Peek(world, tile) is not { } s || IsDestroyed(s)) return new("there's no shelter here to improve", new MissingState(Lack.Shelter));
+                    if (Access.Refusal(world, agent.Id, LocationFeatures.ShelterAt(world, tile)!.Value) is { } barred) return barred;
+                    if (!ShelterMaterials.Contains(i.Material)) return new($"{Names.Cap(Names.Of(i.Material))} is no use on a shelter");
+                    if (Items.Have(pack, i.Material) <= 0) return new($"you have no {Names.Of(i.Material)}", new MissingResource(i.Material, Materials[i.Material].PieceKg));
+                    if (Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9) return new($"this {s.Name.ToLowerInvariant()}'s {Names.Of(i.Stat)} can't be improved further");
                     return null;
                 }
             case PackTent:
-                if (Peek(world, tile)?.Tent == null) return "there's no tent to pack up here";
+                if (Peek(world, tile)?.Tent == null) return new("there's no tent to pack up here");
                 return Access.Refusal(world, agent.Id, LocationFeatures.ShelterAt(world, tile)!.Value);
             default: throw new NotSupportedException(activity.GetType().Name);
         }
     }
 
     /// Checked when work starts or resumes and every minute of it. Frost is the surface air that melts a snow shelter.
-    static string? Requirement(World world, TileId tile, StructureRecipe r, Inventory pack)
+    static Refusal? Requirement(World world, TileId tile, StructureRecipe r, Inventory pack)
     {
-        if (r.NeedsShovel && Items.Tool(pack, ToolType.Shovel) == null) return "you need a shovel";
-        if (r.NeedsFrost && Exposure.Surface(world, tile, world.Minute).AirTemperatureF > 32) return "too warm to build in snow";
+        if (r.NeedsShovel && Items.Tool(pack, ToolType.Shovel) == null) return new("you need a shovel", new MissingTool(ToolType.Shovel));
+        if (r.NeedsFrost && Exposure.Surface(world, tile, world.Minute).AirTemperatureF is var airF && airF > 32)
+            return new("too warm to build in snow", new MissingState(Lack.FrostF, 32, airF));
         return null;
     }
 
@@ -391,7 +393,7 @@ public static class Shelters
                 {
                     var r = Recipes[b.What];
                     if (r.NeedsLight && Work.TooDarkToWork(world, agent)) return Work.TooDark;
-                    if (Requirement(world, tile, r, Items.Pack(world, agent.Id)) is string missing) return missing;
+                    if (Requirement(world, tile, r, Items.Pack(world, agent.Id)) is { } missing) return missing.Reason;
                     var p = world.Projects[tile];
                     bool shovel = r.ShovelHelps && Items.Tool(Items.Pack(world, agent.Id), ToolType.Shovel) != null;
                     p.MinutesDone += (shovel ? 2.0 : 1.0) / ImpairmentFactor(agent.Body);

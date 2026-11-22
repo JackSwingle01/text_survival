@@ -129,6 +129,22 @@ public static class Effects
 
     const double BloodFlowPerWeightExponent = 0.75;
 
+    /// A forecast: the bleeding rate after the hours given of Decay, nothing else changing.
+    public static double BleedMlPerHourIn(BodyState body, double hours) =>
+        body.Effects.Sum(e => DefOf(e.Kind).BleedMlPerHour * FadedSeverity(e, hours)) * Math.Pow(body.WeightKg / Body.BaselineWeightKg, BloodFlowPerWeightExponent);
+
+    /// Infinity for bleeding a treatment floor holds (Decay's clamp, as FadedSeverity reads it), or that does not fade.
+    public static double HoursUntilBleedingStops(BodyState body)
+    {
+        double hours = 0;
+        foreach (var e in body.Effects.Where(e => DefOf(e.Kind).BleedMlPerHour > 0))
+            hours = Math.Max(hours, e.RequiresTreatment || DefOf(e.Kind).SeverityPerHour >= 0 ? double.PositiveInfinity : e.Severity / -DefOf(e.Kind).SeverityPerHour);
+        return hours;
+    }
+
+    static double FadedSeverity(BodyEffect e, double hours) =>
+        Math.Clamp(e.Severity + DefOf(e.Kind).SeverityPerHour * hours, e.RequiresTreatment ? Math.Min(TreatmentFloorPct, e.Severity) : 0, 1);
+
     public static double MetabolicHeatFactor(BodyState body) => 1 + body.Effects.Sum(e => DefOf(e.Kind).MetabolicHeatDelta * e.Severity);
 
     public static double HealingFactor(BodyState body) => 1 + body.Effects.Sum(e => DefOf(e.Kind).HealingDelta * e.Severity);

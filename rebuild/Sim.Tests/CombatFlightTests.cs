@@ -153,7 +153,7 @@ public class CombatFlightTests
         B(e).State = FighterState.Pressing;
         Combat.Apply(w, e, Me(e), CombatAction.Flee, []);
         Assert.True(Me(e).InField);
-        Assert.Equal("You were run down.", Combat.Refusal(w, e, Me(e), CombatAction.Flee));
+        Assert.Equal("You were run down.", Combat.Refusal(w, e, Me(e), CombatAction.Flee)?.Reason);
     }
 
     [Fact]
@@ -208,7 +208,7 @@ public class CombatFlightTests
     public void Chase_IsRefused_WhenNobodyRuns()
     {
         var (w, e) = PlayerVs(Species.Wolf, 5);
-        Assert.Equal("Nobody is running from you.", Combat.Refusal(w, e, Me(e), CombatAction.Chase));
+        Assert.Equal("Nobody is running from you.", Combat.Refusal(w, e, Me(e), CombatAction.Chase)?.Reason);
     }
 
     /// A lamed, blown wolf runs from the player: given chase, it is run down (the fight goes on) or it gets

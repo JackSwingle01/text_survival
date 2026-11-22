@@ -133,7 +133,7 @@ public sealed class GameHost
         int? budget = v.Minutes == Verbs.UntilDoneMinutes ? null : v.Minutes;
         var job = new Job(v.Label, ViewBuilder.KindOf(v.Activity), v.Activity, budget, chunked, p.Tile, (v.Activity as Travel)?.Dir);
         // A refused verb never starts: no time passes, and the refusal comes back as the job's reason.
-        if (v.Refused != null) job.Finish("refused", v.Refused);
+        if (v.Refused != null) job.Finish("refused", v.Refused.Reason);
         return job;
     }
 
@@ -218,10 +218,10 @@ public sealed class GameHost
             ? to is { } c ? new Cell(c.X, c.Y) : throw new ArgumentException("Move needs a cell (to)")
             : null);
         var job = new Job(Words.Cap(Words.Of(f.Action)), "fight", act, 1, false, p.Tile, null);
-        if (Sim.Refusal(W, act) is string refused) job.Finish("refused", refused);
+        if (Sim.Refusal(W, act) is { } refused) job.Finish("refused", refused.Reason);
         else if (Combat.EncounterOf(W, AgentId.Player) is { } enc &&
-                 Combat.Refusal(W, enc, Combat.UnitOf(enc, AgentId.Player), f.Action, f.Target is int t ? enc.Units[t] : null, act.To) is string no)
-            job.Finish("refused", no);
+                 Combat.Refusal(W, enc, Combat.UnitOf(enc, AgentId.Player), f.Action, f.Target is int t ? enc.Units[t] : null, act.To) is { } no)
+            job.Finish("refused", no.Reason);
         return job;
     }
 }

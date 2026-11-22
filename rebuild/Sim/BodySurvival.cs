@@ -429,18 +429,40 @@ public static partial class Body
     /// Sleep heals through the same gates, or a naked sleeper at -40 °F would live through the night.
     static void ProcessRegeneration(BodyState body, SurvivalContext ctx, double calories, double hydration, int minutes, SurvivalDelta d)
     {
+        bool healed = body.Regions.All(r => r.Condition >= 1.0 && r.Organs.All(o => o.Condition >= 1.0));
+        bool bloodFull = body.BloodPct >= 1.0;
+        if (healed && bloodFull) return;
+        double amount = HealingAmount(body, ctx.IsSleeping, calories, hydration, minutes);
+        if (amount <= 0) return;
+        if (!bloodFull) d.BloodHealedPct = amount * BloodHealingShare;
+        if (!healed) d.HealAmount = amount * (ctx.IsSleeping ? SleepHealingFactor(body, ctx) : 1);
+    }
+
+    const double BloodHealingShare = 0.5;
+
+    static double HealingAmount(BodyState body, bool sleeping, double calories, double hydration, int minutes)
+    {
         bool fed = calories > CaloriesCapacityKcal(body) * RegenMinCaloriesPct;
         bool watered = hydration > MaxHydrationMl * RegenMinHydrationPct;
         bool warm = body.CoreTempF >= HypothermiaThresholdF;
-        bool rested = ctx.IsSleeping || body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
-        bool healed = body.Regions.All(r => r.Condition >= 1.0 && r.Organs.All(o => o.Condition >= 1.0));
-        bool bloodFull = body.BloodPct >= 1.0;
-        if (!fed || !watered || !warm || !rested || (healed && bloodFull)) return;
-
+        bool rested = sleeping || body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
+        if (!fed || !watered || !warm || !rested) return 0;
         double nutritionPct = Math.Min(1.0, calories / CaloriesCapacityKcal(body));
-        double amount = BaseHealingPerHour / 60.0 * minutes * nutritionPct * GetCapacitiesWithoutEffects(body).Digestion * Effects.HealingFactor(body);
-        if (!bloodFull) d.BloodHealedPct = amount * 0.5;
-        if (!healed) d.HealAmount = amount * (ctx.IsSleeping ? SleepHealingFactor(body, ctx) : 1);
+        return BaseHealingPerHour / 60.0 * minutes * nutritionPct * GetCapacitiesWithoutEffects(body).Digestion * Effects.HealingFactor(body);
+    }
+
+    /// A forecast: the lowest the blood falls before the bleeding stops, if the body goes on healing awake as it heals
+    /// now (fed, watered, warm, rested) and nothing else changes. Bleeding that never stops is followed for a day.
+    public static double LowestBloodPct(BodyState body)
+    {
+        double healPerMinute = HealingAmount(body, sleeping: false, body.CaloriesKcal, body.HydrationMl, 1) * BloodHealingShare;
+        double blood = body.BloodPct, lowest = blood, untilHours = Math.Min(Effects.HoursUntilBleedingStops(body), 24);
+        for (int m = 0; m < untilHours * 60 && blood > 0; m++)
+        {
+            blood = Math.Max(0, Math.Min(1.0, blood + healPerMinute) - Effects.BleedMlPerHourIn(body, (m + 1) / 60.0) / 60 / BloodVolumeMl(body));
+            lowest = Math.Min(lowest, blood);
+        }
+        return lowest;
     }
 
     /// How many times faster sleep mends than waking rest. Exhausted sleep is deeper, wet sleep poorer, a proper bed

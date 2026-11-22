@@ -351,14 +351,59 @@ public static class Pools
     public static void SetGrazed(World world, PoolId id, Resource r, double level) =>
         StateFor(world, id, () => new ForageState()).Grazed[r] = new Grazing(Math.Clamp(level, 0, 1), world.Minute);
 
-    static double LuckFactor(Rng rng) => rng.NextDouble() switch
+    static readonly (double Below, double Factor)[] Luck = [(0.15, 0.5), (0.75, 1.0), (0.95, 1.5), (0.99, 2.0), (1.0, 3.0)];
+
+    static double LuckFactor(Rng rng)
     {
-        < 0.15 => 0.5,
-        < 0.75 => 1.0,
-        < 0.95 => 1.5,
-        < 0.99 => 2.0,
-        _ => 3.0,
-    };
+        double roll = rng.NextDouble();
+        return Luck.First(l => roll < l.Below).Factor;
+    }
+
+    /// A forecast: the kg of each resource searching here for the minutes given (each worth effectivePct of a minute's
+    /// search, as impairment leaves it) is expected to find, before the
+    /// searcher's eyes and tools (Work.ExpectedGather): Forage's chances at each luck, minute by minute, on ground
+    /// thinning as Forage thins it, only when something turns up; grazing as it is now. rememberedDensity: the ground
+    /// as a person remembers it, for a place out of sight, read with no grazing they could not see.
+    public static IReadOnlyDictionary<Resource, double> ExpectedForage(World world, PoolId id, int minutes, double effectivePct = 1, double? rememberedDensity = null)
+    {
+        var def = (ForagePool)Def(world, id);
+        var kg = new SortedDictionary<Resource, double>();
+        double density = rememberedDensity ?? ForageDensity(world, id);
+        if (minutes <= 0 || density <= 0) return kg;
+        double hours = HoursBehind(def, density), stepHours = effectivePct / 60;
+        var ungrazed = def.Items.Select(i => rememberedDensity == null ? 1 - GrazedLevel(world, id, i.Resource) : 1).ToArray();
+        for (int step = 0; step < minutes; step++)
+        {
+            double d = def.Density / (1 + 2 * hours), findsPct = 0;
+            for (int band = 0; band < Luck.Length; band++)
+            {
+                double bandPct = Luck[band].Below - (band == 0 ? 0 : Luck[band - 1].Below), nonePct = 1;
+                for (int i = 0; i < def.Items.Count; i++)
+                {
+                    var item = def.Items[i];
+                    double chance = d * item.Abundance * ungrazed[i] * Luck[band].Factor * stepHours;
+                    kg[item.Resource] = kg.GetValueOrDefault(item.Resource) + bandPct * chance * (item.MinKg + item.MaxKg) / 2;
+                    nonePct *= chance >= 1 ? 0 : 1 - chance;
+                }
+                findsPct += bandPct * (1 - nonePct);
+            }
+            hours += stepHours * findsPct;
+        }
+        return kg;
+    }
+
+    /// A forecast: one felled tree's expected yield, the mixed wood shared out as Chop draws it.
+    public static IReadOnlyDictionary<Resource, double> ExpectedTree(TreePool def)
+    {
+        var f = Felled;
+        var kg = new SortedDictionary<Resource, double>();
+        IReadOnlyList<(Resource Wood, double Share)> woods = def.Wood is Resource w ? [(w, 1.0)] : f.MixedWood;
+        foreach (var (wood, share) in woods)
+            kg[wood] = f.Logs.MiddleCount() * share * f.LogKg[wood];
+        kg[Resource.Kindling] = f.Kindling.MiddleCount() * f.Kindling.MiddleKg();
+        kg[Resource.Tinder] = f.Tinder.MiddleCount() * f.Tinder.MiddleKg();
+        return kg;
+    }
 
     /// Depletes only when something turned up.
     public static List<(Resource Resource, double Kg)> Forage(World world, PoolId id, double hours, Rng rng)
@@ -386,11 +431,9 @@ public static class Pools
     }
 
     /// The hours-foraged figure that gives today's density, so a new search re-thins from the regrown ground.
-    static double Recovered(World world, PoolId id, ForagePool def, ForageState s)
-    {
-        double density = ForageDensity(world, id);
-        return density >= def.Density ? 0 : (def.Density / density - 1) / 2;
-    }
+    static double Recovered(World world, PoolId id, ForagePool def, ForageState s) => HoursBehind(def, ForageDensity(world, id));
+
+    static double HoursBehind(ForagePool def, double density) => density >= def.Density ? 0 : (def.Density / density - 1) / 2;
 
     public static bool HasTrees(World world, PoolId id)
     {

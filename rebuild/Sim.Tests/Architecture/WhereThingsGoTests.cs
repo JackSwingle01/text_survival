@@ -518,6 +518,35 @@ public class WhereThingsGoTests
             $"Choose an activity and let Sim.Step run it; read the world through verbs, refusals, forecasts and memory ({Guide}, Agent behaviour)"));
     }
 
+    // ---- RefusalsAreData ----
+
+    /// Every refusal in the Sim, by member name: methods named for a refusal, and the fields and properties
+    /// that carry one (Verb.Refused, ActionResult.Refused, CombatTarget.TurnRefusal).
+    static IEnumerable<(string Member, Type Type)> RefusalMembers()
+    {
+        const BindingFlags all = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+        static bool Named(string name) => !name.Contains('<') && (name.EndsWith("Refusal", StringComparison.Ordinal) || name == "Refused");
+        foreach (var t in SimTypes.Where(t => t.GetCustomAttribute<System.Runtime.CompilerServices.CompilerGeneratedAttribute>() == null && !t.Name.Contains('<')))
+            foreach (var m in t.GetMembers(all).Where(m => Named(m.Name)))
+                switch (m)
+                {
+                    case MethodInfo mi when !mi.IsSpecialName: yield return ($"{t.Name}.{mi.Name}", mi.ReturnType); break;
+                    case PropertyInfo pi: yield return ($"{t.Name}.{pi.Name}", pi.PropertyType); break;
+                    case FieldInfo fi when !fi.IsLiteral: yield return ($"{t.Name}.{fi.Name}", fi.FieldType); break;
+                }
+    }
+
+    [Fact]
+    public void RefusalsAreData()
+    {
+        var members = RefusalMembers().ToList();
+        foreach (var expected in new[] { "Sim.Refusal", "Fire.Refusal", "Work.Refusal", "Traversal.Refusal", "Making.Refusal", "Shelters.Refusal",
+                     "Combat.Refusal", "Fauna.Refusal", "Access.Refusal", "Verb.Refused", "ActionResult.Refused", "CombatTarget.TurnRefusal" })
+            Assert.Contains(members, m => m.Member == expected); // the scan still reaches every system's refusal
+        AssertNone([.. members.Where(m => m.Type != typeof(Refusal)).Select(m => $"{m.Member} gives a {m.Type.Name}, not a Refusal. " +
+            $"Return a Refusal: the reason, and what is missing as data where getting it would help ({Guide}, the rules)")]);
+    }
+
     // ---- BannedGlossaryWords_Ratchet ----
 
     /// Identifiers using words GLOSSARY.md avoids, counted across the Sim, each held at today's count.

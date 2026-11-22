@@ -452,7 +452,7 @@ public class CombatStateTests
     public void ThePlayersHunt_IsAnActivity_WithRefusals()
     {
         var (w, t) = CombatTests.Field();
-        Assert.Equal("No such herd here.", Sim.Refusal(w, new Hunt(P, new AgentId(999_999))));
+        Assert.Equal("No such herd here.", Sim.Refusal(w, new Hunt(P, new AgentId(999_999)))?.Reason);
         var herd = CombatTests.Herd(w, Species.Caribou, 4, t);
         Items.Pack(w, P).Gear.Add(Items.Make("wooden_spear"));
         Assert.Null(Sim.Refusal(w, new Hunt(P, herd)));
@@ -460,7 +460,7 @@ public class CombatStateTests
         var enc = Combat.EncounterOf(w, P);
         Assert.NotNull(enc);
         Assert.Equal("wooden_spear", Combat.UnitOf(enc!, P).Weapon!.Kind);
-        Assert.Equal(Sim.InAnEncounter, Sim.Refusal(w, new Hunt(P, herd)));
+        Assert.Equal(Sim.InAnEncounter, Sim.Refusal(w, new Hunt(P, herd))?.Reason);
         Assert.Equal(1, r.MinutesElapsed);
     }
 

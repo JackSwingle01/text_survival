@@ -87,7 +87,7 @@ sealed class ViewBuilder(World world, int gen)
         Verbs.Add((id, v));
         int? minutes = v.Minutes == Survival.Verbs.UntilDoneMinutes ? null : v.Minutes;
         var travel = v.Activity as Travel;
-        return new VerbDto(id, v.Label, KindOf(v.Activity), minutes, v.Refused,
+        return new VerbDto(id, v.Label, KindOf(v.Activity), minutes, v.Refused?.Reason,
             Odds: v.Odds is { } o ? OddsOf(o) : null,
             Trip: v.Trip is { } trip && travel != null ? TripOf(trip, travel, v.Risk) : null,
             Make: v.Activity is Make mk ? MakeOf(mk, v.Outcomes) : null,
@@ -366,7 +366,7 @@ sealed class ViewBuilder(World world, int gen)
         {
             string tid = $"{gen}.{_n++}";
             CombatVerbs.Add((tid, new CombatVerb(CombatAction.Turn, t.Index)));
-            var verb = new VerbDto(tid, $"Face {units[t.Index].Name.ToLowerInvariant()}", "fight", 1, t.Facing ? "You are already facing them." : t.TurnRefusal);
+            var verb = new VerbDto(tid, $"Face {units[t.Index].Name.ToLowerInvariant()}", "fight", 1, t.Facing ? "You are already facing them." : t.TurnRefusal?.Reason);
             targets.Add(new TargetDto(t.Index, units[t.Index].Name, Math.Round(t.DistanceM, 1), t.Facing, verb));
         }
         foreach (var a in Enum.GetValues<CombatAction>())
@@ -374,7 +374,7 @@ sealed class ViewBuilder(World world, int gen)
             if (a is CombatAction.Move or CombatAction.Turn) continue; // a cell, a target: Move is listed below, Turn with each target
             string id = $"{gen}.{_n++}";
             CombatVerbs.Add((id, new CombatVerb(a, null)));
-            actions.Add(new VerbDto(id, Words.Cap(Words.Of(a)), "fight", 1, Combat.Refusal(world, enc, me, a)));
+            actions.Add(new VerbDto(id, Words.Cap(Words.Of(a)), "fight", 1, Combat.Refusal(world, enc, me, a)?.Reason));
         }
         string moveId = $"{gen}.{_n++}";
         CombatVerbs.Add((moveId, new CombatVerb(CombatAction.Move, null)));

@@ -103,6 +103,7 @@ public class ArchitectureTests
              ("Travel.cs", "Begin", "a crossing's pace and injury risk against the sky (Traversal.CrossingMinutes)"),
              ("Trip.cs", "Time", "the same crossing previewed before it starts, against the same sky"),
              ("Trip.cs", "Risk", "the same crossing's injury risk previewed, against the sky Begin fixes it by"),
+             ("Trip.cs", "StepMinutes", "the same crossing's minutes for a planner, kept for the minute"),
              ("Memory.cs", "BudgetTiles", "how far a person can see: the weather's visibility, nothing about warmth"),
              ("Remains.cs", "At", "rot's hourly air, through Exposure.SiteAirF"),
              ("Remains.cs", "TempF", "the same, for one hour")]),

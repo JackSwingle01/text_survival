@@ -228,19 +228,19 @@ public static partial class Fauna
 
     public static bool Handles(Activity a) => a is Graze or Feed or Hunt or Raid;
 
-    public static string? Refusal(World world, Activity activity)
+    public static Refusal? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
         if (activity is Hunt hunt && agent.Mind is PersonMind) return PersonHuntRefusal(world, agent, hunt);
-        if (agent.Mind is not HerdMind) return "only a herd does that";
+        if (agent.Mind is not HerdMind) return new("only a herd does that");
         if (activity is Graze) return GrazeRefusal(world, agent);
-        if (activity is Feed) return CanFeed(world, agent) ? null : "nothing here it can reach to eat";
+        if (activity is Feed) return CanFeed(world, agent) ? null : new("nothing here it can reach to eat");
         if (activity is Raid) return RaidRefusal(world, agent);
         if (activity is not Hunt h) return null;
         if (h.Prey == h.Who || !world.Agents.TryGetValue(h.Prey, out var prey) || prey.Tile != agent.Tile || !Sim.IsAlive(prey))
-            return "no such prey here";
-        if (Access.Refusal(world, h.Who, LocationFeatures.OfAgent(world, h.Prey), confronting: true) is string barred) return barred;
-        if (Combat.EncounterOf(world, h.Prey) != null || Combat.EncounterOf(world, h.Who) != null) return "already fighting";
+            return new("no such prey here");
+        if (Access.Refusal(world, h.Who, LocationFeatures.OfAgent(world, h.Prey), confronting: true) is { } barred) return barred;
+        if (Combat.EncounterOf(world, h.Prey) != null || Combat.EncounterOf(world, h.Who) != null) return new("already fighting");
         return null;
     }
 
@@ -252,11 +252,11 @@ public static partial class Fauna
 
     /// Why a person cannot start this stalk: the herd must be here, alive, and in no fight, and nothing
     /// may occupy it (Access, as a confrontation).
-    static string? PersonHuntRefusal(World world, Agent hunter, Hunt h)
+    static Refusal? PersonHuntRefusal(World world, Agent hunter, Hunt h)
     {
         if (!world.Agents.TryGetValue(h.Prey, out var prey) || prey.Mind is not HerdMind || prey.Tile != hunter.Tile || !Sim.IsAlive(prey))
-            return "No such herd here.";
-        if (Combat.EncounterOf(world, h.Prey) != null) return "They are already fighting.";
+            return new("No such herd here.");
+        if (Combat.EncounterOf(world, h.Prey) != null) return new("They are already fighting.");
         return Access.Refusal(world, h.Who, LocationFeatures.OfAgent(world, h.Prey), confronting: true);
     }
 
@@ -320,7 +320,7 @@ public static partial class Fauna
 
     /// Why the herd cannot graze here, or null: the tile's forage is reached through Access like
     /// anything else. Where nothing grows, grazing is only standing about, which nothing bars.
-    static string? GrazeRefusal(World world, Agent herd) =>
+    static Refusal? GrazeRefusal(World world, Agent herd) =>
         ForageHere(world, herd.Tile) is (PoolId id, _) ? Access.Refusal(world, herd.Id, new LocationFeature(LocationFeatureKind.Pool, id.Tile, id.Index)) : null;
 
     /// How eaten-out this tile is for the herd, 0-1. Nothing it eats here at all is fully eaten out.

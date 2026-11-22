@@ -582,7 +582,7 @@ public class KillChainTests
         Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), Resource.Pine, 2);
         Agents.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Butcher(P, kill.Id)));
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Butcher(P, kill.Id))?.Reason);
         Assert.Null(Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
     }
 
@@ -660,12 +660,12 @@ public class KillChainTests
         TestKit.SetHunger(w.Agent(flock), 0.2); // not hungry enough to forage: only the stash tempts it
         Assert.Null(Fauna.Refusal(w, new Raid(flock)));
         w.Agent(P).Tile = tile;
-        Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(flock)));
+        Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(flock))?.Reason);
         w.Agent(P).Tile = camp;
         Agents.Spawn(w, Species.Wolf, tile, 2);
         Assert.Null(Fauna.Refusal(w, new Raid(flock))); // the guard gate is not wired
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Raid(flock)));
+        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Raid(flock))?.Reason);
         w.AccessGates = Access.Wired;
         foreach (var id in w.Agents.Values.Where(a => a.Species == Species.Wolf).Select(a => a.Id).ToList()) Agents.Remove(w, id);
         Sim.Advance(w, 5 * 1440);
@@ -704,8 +704,8 @@ public class KillChainTests
         Assert.Null(Fauna.Refusal(w, new Feed(flock))); // unwired: the pack changes nothing yet
         Assert.Null(Fauna.Refusal(w, new Graze(caribou)));
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("nothing here it can reach to eat", Fauna.Refusal(w, new Feed(flock)));
-        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Graze(caribou)));
+        Assert.Equal("nothing here it can reach to eat", Fauna.Refusal(w, new Feed(flock))?.Reason);
+        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Graze(caribou))?.Reason);
         Assert.Null(Fauna.Refusal(w, new Feed(wolves))); // the guard's own meal
         Fauna.MindOf(w.Agent(wolves)).Fear = 0.9; // an afraid pack holds nothing
         Assert.Null(Fauna.Refusal(w, new Feed(flock)));
@@ -727,8 +727,8 @@ public class KillChainTests
         Assert.Null(Work.Refusal(w, new Stash(P, Resource.Pine, 1))); // a new pile: the player's own
         Sim.Step(w, new Stash(P, Resource.Pine, 1), 1);
         Assert.Null(Work.Refusal(w, new Stash(P, Resource.Pine, 1))); // still the player's own
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Stash(npc, Resource.Pine, 1))); // someone else's
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Unstash(npc, Resource.Pine, 1)));
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Stash(npc, Resource.Pine, 1))?.Reason); // someone else's
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Unstash(npc, Resource.Pine, 1))?.Reason);
     }
 
     // ---- the caches ----

@@ -451,8 +451,8 @@ public class CombatTests
     {
         var (w, t) = Field();
         var e = PlayerVs(w, t, Species.Wolf, 5);
-        Assert.Equal("Nobody is with you to hear it.", Combat.Refusal(w, e, Me(e), CombatAction.CallHelp));
-        Assert.Equal("Nobody is with you to hear it.", Combat.Refusal(w, e, Me(e), CombatAction.CallRetreat));
+        Assert.Equal("Nobody is with you to hear it.", Combat.Refusal(w, e, Me(e), CombatAction.CallHelp)?.Reason);
+        Assert.Equal("Nobody is with you to hear it.", Combat.Refusal(w, e, Me(e), CombatAction.CallRetreat)?.Reason);
         Assert.DoesNotContain(CombatAction.CallHelp, Combat.Actions(w, e, Me(e)));
     }
 
@@ -523,7 +523,7 @@ public class CombatTests
         Items.Add(Items.Pack(w, AgentId.Player), Resource.Stone, 1.0);
         var e = PlayerVs(w, t, Species.Wolf, distance, weapon: Spear(w));
         Assert.Equal(expected.Order(), Combat.Actions(w, e, Me(e)).Order());
-        Assert.Equal("That's too far to move in one action.", Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 4, Me(e).Position.Y)));
+        Assert.Equal("That's too far to move in one action.", Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 4, Me(e).Position.Y))?.Reason);
         Assert.Null(Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 3, Me(e).Position.Y)));
     }
 
@@ -539,10 +539,10 @@ public class CombatTests
         Assert.Null(Combat.Apply(w, e, Me(e), CombatAction.Throw, []).Refused);
         Assert.Null(Me(e).Weapon);
         Assert.Contains(e.Dropped!, d => d.Weapon == spear && d.At == B(e).Position); // where it was thrown at
-        Assert.Equal("No weapon to throw.", Combat.Refusal(w, e, Me(e), CombatAction.Throw));
+        Assert.Equal("No weapon to throw.", Combat.Refusal(w, e, Me(e), CombatAction.Throw)?.Reason);
         Assert.Null(Combat.Apply(w, e, Me(e), CombatAction.ThrowStone, []).Refused);
         Assert.Equal(0.2, Items.Have(pack, Resource.Stone), 9);
-        Assert.Equal("No stones to throw.", Combat.Refusal(w, e, Me(e), CombatAction.ThrowStone));
+        Assert.Equal("No stones to throw.", Combat.Refusal(w, e, Me(e), CombatAction.ThrowStone)?.Reason);
     }
 
     [Fact]

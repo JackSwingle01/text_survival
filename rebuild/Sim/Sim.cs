@@ -60,7 +60,7 @@ public static class Sim
             Stop(world, agent, agent.Doing, events);
             agent.Doing = null;
         }
-        if (Start(world, activity, minutes, events, out var doing) is string refused) return Result(0, StepOutcome.Refused, refused);
+        if (Start(world, activity, minutes, events, out var doing) is { } refused) return Result(0, StepOutcome.Refused, refused.Reason);
         bool fighting = Held(world, agent.Id); // a round, or a hunt it has just started
         agent.Stepping = activity;
         try
@@ -199,7 +199,7 @@ public static class Sim
 
     /// Checks and begins an activity at this instant; refusal or null. Instant parts (lighting,
     /// eating, stashing) happen here, before the first minute is lived.
-    internal static string? Start(World world, Activity activity, int minutes, List<WorldEvent> events, out Doing doing)
+    internal static Refusal? Start(World world, Activity activity, int minutes, List<WorldEvent> events, out Doing doing)
     {
         var agent = world.Agent(activity.Who);
         doing = null!;
@@ -207,7 +207,7 @@ public static class Sim
         WorkSession? work = null;
         // Fire, work and building read the fire as it is now: its light, its heat, the pit to tend.
         if (ReadsTheFire(activity)) Fire.CatchUpAround(world, agent, events);
-        if (ActivityRefusal(world, activity) is string refused) return refused;
+        if (ActivityRefusal(world, activity) is { } refused) return refused;
         if (activity is StartFire or AddFuel or LightTorch or GatherCharcoal)
             acted = Fire.Act(world, activity, events); // a failed ignition still costs its minute
         else if (activity is Travel travel) Traversal.Begin(world, travel);
@@ -224,12 +224,12 @@ public static class Sim
     /// Why this activity cannot start now, or null: the refusal Step would give, without a minute
     /// passing or anything changing. Fires around the agent must be caught up (they are after any
     /// step: every minute lived catches them up).
-    public static string? Refusal(World world, Activity activity)
+    public static Refusal? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
-        if (!IsAlive(agent)) return "dead";
-        if (agent.Id == AgentId.Player && Crossed(world)) return RunOver;
-        if (activity is not Fight && Held(world, agent.Id)) return InAnEncounter;
+        if (!IsAlive(agent)) return new("dead");
+        if (agent.Id == AgentId.Player && Crossed(world)) return new(RunOver);
+        if (activity is not Fight && Held(world, agent.Id)) return new(InAnEncounter);
         return ActivityRefusal(world, activity);
     }
 
@@ -241,9 +241,9 @@ public static class Sim
         activity is StartFire or AddFuel or LightTorch or GatherCharcoal || Work.Handles(activity) || Shelters.Handles(activity) || Making.Handles(activity);
 
     /// The owning system's refusal for this activity: the one dispatch Start and Refusal share.
-    static string? ActivityRefusal(World world, Activity activity) => activity switch
+    static Refusal? ActivityRefusal(World world, Activity activity) => activity switch
     {
-        not (Wait or Rest or Sleep or Fight { Action: CombatAction.Wait }) when world.Agent(activity.Who) is { Mind: PersonMind } person && Body.IsAsleep(person.Body) => Asleep,
+        not (Wait or Rest or Sleep or Fight { Action: CombatAction.Wait }) when world.Agent(activity.Who) is { Mind: PersonMind } person && Body.IsAsleep(person.Body) => new(Asleep),
         StartFire or AddFuel or LightTorch or GatherCharcoal => Fire.Refusal(world, activity),
         Travel travel => Traversal.Refusal(world, travel),
         _ when Work.Handles(activity) => Work.Refusal(world, activity),
@@ -464,10 +464,10 @@ public static class Scheduler
         // Deciding may have been a fight the agent started (an NPC's hunt): it may not have survived it.
         if (!world.Agents.ContainsKey(agent.Id) || (agent.Mind is HerdMind ? agent.Members.Count == 0 : !Sim.IsAlive(agent))) return false;
         if (activity.Who != agent.Id) throw new InvalidOperationException($"{agent.Id}'s mind chose an activity for {activity.Who}");
-        if (Sim.Start(world, activity, minutes, events, out var doing) is string refused)
+        if (Sim.Start(world, activity, minutes, events, out var doing) is { } refused)
         {
             if (agent.Mind is HerdMind) throw new InvalidOperationException($"Herd {agent.Id} chose a refused {activity}: {refused}");
-            events.Add(new PlanRefused(world.Minute, agent.Id, agent.Tile, activity.GetType().Name, refused));
+            events.Add(new PlanRefused(world.Minute, agent.Id, agent.Tile, activity.GetType().Name, refused.Reason));
             Sim.Start(world, new Wait(agent.Id), 1, events, out doing);
         }
         // Starting may have ended it: a hunt that killed every hunter.

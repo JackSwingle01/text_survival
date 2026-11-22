@@ -368,11 +368,11 @@ public class SubstrateTests
         var (w, tile, pool) = OnFoundStock();
         SnowUnder(w, tile, 3);
         var gather = new Gather(P, pool);
-        Assert.NotEqual(Access.BuriedReason, Work.Refusal(w, gather));
+        Assert.NotEqual(Access.BuriedReason, Work.Refusal(w, gather)?.Reason);
         w.AccessGates = Access.Gate.All;
-        Assert.Equal(Access.BuriedReason, Work.Refusal(w, gather));
+        Assert.Equal(Access.BuriedReason, Work.Refusal(w, gather)?.Reason);
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel")); // something to dig with
-        Assert.NotEqual(Access.BuriedReason, Work.Refusal(w, gather));
+        Assert.NotEqual(Access.BuriedReason, Work.Refusal(w, gather)?.Reason);
     }
 
     [Fact]
@@ -396,14 +396,14 @@ public class SubstrateTests
         Items.Pack(w, npc).Gear.Add(Items.Make("flint_knife"));
         var refusals = new (string Name, Func<string?> Refusal)[]
         {
-            ("butcher", () => Work.Refusal(w, new Butcher(npc, c.Id))),
-            ("unstash", () => Work.Refusal(w, new Unstash(npc, Resource.Pine, 1))),
-            ("stash", () => Work.Refusal(w, new Stash(npc, Resource.Birch, 1))),
-            ("gather", () => Work.Refusal(w, new Gather(npc, 0))),
-            ("add fuel", () => Fire.Refusal(w, new AddFuel(npc, Resource.Birch, 1))),
-            ("charcoal", () => Fire.Refusal(w, new GatherCharcoal(npc))),
-            ("start fire", () => Fire.Refusal(w, new StartFire(npc, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3))),
-            ("improve shelter", () => Shelters.Refusal(w, new ImproveShelter(npc, ShelterStat.Insulation, Resource.Pine))),
+            ("butcher", () => Work.Refusal(w, new Butcher(npc, c.Id))?.Reason),
+            ("unstash", () => Work.Refusal(w, new Unstash(npc, Resource.Pine, 1))?.Reason),
+            ("stash", () => Work.Refusal(w, new Stash(npc, Resource.Birch, 1))?.Reason),
+            ("gather", () => Work.Refusal(w, new Gather(npc, 0))?.Reason),
+            ("add fuel", () => Fire.Refusal(w, new AddFuel(npc, Resource.Birch, 1))?.Reason),
+            ("charcoal", () => Fire.Refusal(w, new GatherCharcoal(npc))?.Reason),
+            ("start fire", () => Fire.Refusal(w, new StartFire(npc, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3))?.Reason),
+            ("improve shelter", () => Shelters.Refusal(w, new ImproveShelter(npc, ShelterStat.Insulation, Resource.Pine))?.Reason),
         };
         var unguarded = refusals.Select(r => r.Refusal()).ToList();
         var wolves = Herd(w, Species.Wolf, 3, camp);
@@ -473,7 +473,7 @@ public class SubstrateTests
         // The player's own tent is not held against them (Occupied_HasItsExemptions); someone else's is.
         Assert.Null(Shelters.Refusal(w, new PackTent(P)));
         var npc = Npc.Spawn(w, east);
-        Assert.Equal("a bear guards it", Shelters.Refusal(w, new PackTent(npc)));
+        Assert.Equal("a bear guards it", Shelters.Refusal(w, new PackTent(npc))?.Reason);
     }
 
     /// The things' own wording, from before the gate: unchanged.
@@ -482,15 +482,15 @@ public class SubstrateTests
     {
         var w = Camp(out var camp);
         w.AccessGates = Access.Gate.All; // nothing there to gate: the thing's own refusal answers
-        Assert.Equal("no such carcass here", Work.Refusal(w, new Butcher(P, 99)));
-        Assert.Equal("nothing like that here", Work.Refusal(w, new Gather(P, 99)));
-        Assert.Equal("no pine stashed here", Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
+        Assert.Equal("no such carcass here", Work.Refusal(w, new Butcher(P, 99))?.Reason);
+        Assert.Equal("nothing like that here", Work.Refusal(w, new Gather(P, 99))?.Reason);
+        Assert.Equal("no pine stashed here", Work.Refusal(w, new Unstash(P, Resource.Pine, 1))?.Reason);
         Items.Add(Items.Pack(w, P), Resource.Pine, 1);
-        Assert.Equal("no fire here", Fire.Refusal(w, new AddFuel(P, Resource.Pine, 1)));
-        Assert.Equal("no charcoal here", Fire.Refusal(w, new GatherCharcoal(P)));
-        Assert.Equal("there's no tent to pack up here", Shelters.Refusal(w, new PackTent(P)));
+        Assert.Equal("no fire here", Fire.Refusal(w, new AddFuel(P, Resource.Pine, 1))?.Reason);
+        Assert.Equal("no charcoal here", Fire.Refusal(w, new GatherCharcoal(P))?.Reason);
+        Assert.Equal("there's no tent to pack up here", Shelters.Refusal(w, new PackTent(P))?.Reason);
         w.Agent(P).Tile = new TileId(camp.X + 1, camp.Y);
-        Assert.Equal("there's no shelter here to improve", Shelters.Refusal(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Pine)));
+        Assert.Equal("there's no shelter here to improve", Shelters.Refusal(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Pine))?.Reason);
     }
 
     [Fact]
@@ -499,7 +499,7 @@ public class SubstrateTests
         var w = Camp(out var camp);
         var m = Map.Of(w);
         var far = Enumerable.Range(2, 20).Select(d => new TileId(camp.X + d, camp.Y)).First(t => Pools.At(w, t).Count > 0);
-        Assert.Equal(Access.OutOfReach, Access.Refusal(w, P, new LocationFeature(LocationFeatureKind.Pool, far, 0)));
+        Assert.Equal(Access.OutOfReach, Access.Refusal(w, P, new LocationFeature(LocationFeatureKind.Pool, far, 0))?.Reason);
         // A neighbour across open water: refused only with the condition in force.
         var (water, land) = Enumerable.Range(1, m.Width - 2).SelectMany(x => Enumerable.Range(1, m.Height - 2).Select(y => new TileId(x, y)))
             .Where(t => m.TerrainAt(t) == Terrain.Water)
@@ -508,7 +508,7 @@ public class SubstrateTests
         w.Agent(P).Tile = water;
         var across = new LocationFeature(LocationFeatureKind.Pool, land, 0);
         Assert.Null(Access.Refusal(w, P, across));
-        Assert.Equal(Access.AcrossWaterReason, Access.Refusal(w, P, across, Access.Gate.All));
+        Assert.Equal(Access.AcrossWaterReason, Access.Refusal(w, P, across, Access.Gate.All)?.Reason);
     }
 
     [Fact]

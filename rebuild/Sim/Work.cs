@@ -38,6 +38,55 @@ public static class Work
         return dark && !Fire.HasLight(world, agent.Id);
     }
 
+    /// A forecast: minutes until TooDarkToWork here, if nobody tends the light. Fires around the agent must be caught up.
+    public static int MinutesUntilTooDark(World world, Agent agent)
+    {
+        int lit = Fire.MinutesOfLightLeft(world, agent.Id);
+        return Map.IsDark(Map.Of(world), agent.Tile) ? lit : lit + Weather.LightLeftMinutes(world.Minute + lit);
+    }
+
+    /// A forecast: what the minutes given bring in, the agent staying as they are and stopping for the dark; a tree only if
+    /// it comes down, a harvest by whole cycles. Fires around the agent must be caught up.
+    public static IReadOnlyDictionary<Resource, double> ExpectedGather(World world, Agent agent, Gather g, int minutes)
+    {
+        var kg = new SortedDictionary<Resource, double>();
+        if (Refusal(world, g) != null) return kg;
+        var id = new PoolId(agent.Tile, g.Pool);
+        if (NeedsLight(world, agent, g)) minutes = Math.Min(minutes, MinutesUntilTooDark(world, agent));
+        double effectivePct = 1 / ImpairmentFactor(world, agent, g), workMinutes = minutes * effectivePct;
+        switch (Pools.Def(world, id))
+        {
+            case ForagePool:
+                double yieldPct = ForageYield(world, agent).TotalPct;
+                foreach (var (r, found) in Pools.ExpectedForage(world, id, minutes, effectivePct))
+                    kg[r] = found * yieldPct * FocusFactor(r, g.Focus);
+                break;
+            case TreePool tree when Pools.ChopProgressPct(world, id) * tree.MinutesToFell + workMinutes >= tree.MinutesToFell - 1e-9:
+                foreach (var (r, logs) in Pools.ExpectedTree(tree)) kg[r] = logs;
+                break;
+            case StockPool stock:
+                int cycles = (int)Math.Floor(((Pools.StateOf(world, id) as StockState)?.MinutesWorked ?? 0) / stock.MinutesPerUnit + workMinutes / stock.MinutesPerUnit + 1e-9);
+                var units = Pools.UnitsNow(world, id);
+                for (int i = 0; i < units.Length; i++)
+                    kg[stock.Items[i].Resource] = kg.GetValueOrDefault(stock.Items[i].Resource) + Math.Min(units[i], cycles) * stock.Items[i].KgPerUnit;
+                break;
+        }
+        return kg;
+    }
+
+    static double FocusFactor(Resource r, ForageFocus focus) =>
+        focus == ForageFocus.General ? 1 : Items.Resources[r].Category == FocusCategory(focus) ? FocusGain : OffFocusKeepPct + OffFocusKeepSpreadPct / 2;
+
+    const double OffFocusKeepPct = 0.4, OffFocusKeepSpreadPct = 0.2;
+
+    static ResourceCategory FocusCategory(ForageFocus focus) => focus switch
+    {
+        ForageFocus.Fuel => ResourceCategory.Fuel,
+        ForageFocus.Food => ResourceCategory.Food,
+        ForageFocus.Medicine => ResourceCategory.Medicine,
+        _ => ResourceCategory.Material,
+    };
+
     /// Work that needs to see: everything but foraging, which can be done by feel.
     static bool NeedsLight(World world, Agent agent, Activity activity) => activity switch
     {
@@ -79,83 +128,88 @@ public static class Work
     // ---- refusal: before any time passes ----
 
     /// Why this work cannot start, or null. Fires around the agent must be caught up.
-    public static string? Refusal(World world, Activity activity)
+    public static Refusal? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
         var pack = Items.PackOf(agent);
-        if (pack == null) return "carries nothing to work with";
+        if (pack == null) return new("carries nothing to work with");
         switch (activity)
         {
             case Gather g:
                 {
                     var pools = Pools.At(world, agent.Tile);
-                    if (g.Pool < 0 || g.Pool >= pools.Count) return "nothing like that here";
+                    if (g.Pool < 0 || g.Pool >= pools.Count) return new("nothing like that here");
                     var id = new PoolId(agent.Tile, g.Pool);
-                    if (!Pools.Knows(world, agent.Id, id)) return "nothing like that here"; // a hidden pool names nothing yet
-                    if (Access.Refusal(world, agent.Id, new LocationFeature(LocationFeatureKind.Pool, agent.Tile, g.Pool)) is string barred) return barred;
+                    if (!Pools.Knows(world, agent.Id, id)) return new("nothing like that here"); // a hidden pool names nothing yet
+                    if (Access.Refusal(world, agent.Id, new LocationFeature(LocationFeatureKind.Pool, agent.Tile, g.Pool)) is { } barred) return barred;
                     var def = pools[g.Pool];
-                    if (NeedsLight(world, agent, activity) && TooDarkToWork(world, agent)) return TooDark;
+                    if (NeedsLight(world, agent, activity) && TooDarkToWork(world, agent)) return Dark;
                     return def switch
                     {
                         ForagePool => null,
-                        TreePool when !Pools.HasTrees(world, id) => "all the trees here have been felled",
-                        TreePool => Items.Tool(pack, ToolType.Axe) == null ? "you need an axe to fell trees" : null,
-                        ShelterFind f => $"the {f.Name} is shelter, not something to gather",
-                        StockPool s when !Pools.HasStock(world, id) => $"the {s.Name} is picked clean",
+                        TreePool when !Pools.HasTrees(world, id) => new("all the trees here have been felled"),
+                        TreePool => Items.Tool(pack, ToolType.Axe) == null ? new("you need an axe to fell trees", new MissingTool(ToolType.Axe)) : null,
+                        ShelterFind f => new($"the {f.Name} is shelter, not something to gather"),
+                        StockPool s when !Pools.HasStock(world, id) => new($"the {s.Name} is picked clean"),
                         // The tool a harvestable requires is checked for everyone.
-                        StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => $"you need {Names.A(Names.Of(t))}",
+                        StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => new($"you need {Names.A(Names.Of(t))}", new MissingTool(t)),
                         _ => null,
                     };
                 }
             case Butcher b:
                 {
                     var c = Carcasses.Find(world, agent.Tile, b.Carcass);
-                    if (c == null) return "no such carcass here";
-                    if (Access.Refusal(world, agent.Id, new LocationFeature(LocationFeatureKind.Carcass, agent.Tile, c.Id)) is string barred) return barred;
-                    if (Carcasses.IsButchered(c)) return "there's nothing left to butcher";
+                    if (c == null) return new("no such carcass here");
+                    if (Access.Refusal(world, agent.Id, new LocationFeature(LocationFeatureKind.Carcass, agent.Tile, c.Id)) is { } barred) return barred;
+                    if (Carcasses.IsButchered(c)) return new("there's nothing left to butcher");
                     if (b.Mode is ButcherMode asked && c.Mode is ButcherMode started && asked != started)
-                        return $"this carcass is being butchered {Names.Of(started)}, not {Names.Of(asked)}";
+                        return new($"this carcass is being butchered {Names.Of(started)}, not {Names.Of(asked)}");
                     bool blade = Items.HasCuttingTool(pack);
-                    if (Carcasses.AllCut(c, blade) && c.Pending.Count == 0) return NeedsABlade;
-                    if (Carcasses.AllCut(c, blade) && Items.CarriedKg(agent) >= Items.CapacityKg(pack)) return PackFull;
-                    return NeedsLight(world, agent, activity) && TooDarkToWork(world, agent) ? TooDark : null;
+                    if (Carcasses.AllCut(c, blade) && c.Pending.Count == 0) return new(NeedsABlade, new MissingCapability(Capability.Cutting));
+                    if (Carcasses.AllCut(c, blade) && Items.CarriedKg(agent) >= Items.CapacityKg(pack))
+                        return new(PackFull, new MissingState(Lack.PackRoomKg, Have: Items.CapacityKg(pack) - Items.CarriedKg(agent)));
+                    return NeedsLight(world, agent, activity) && TooDarkToWork(world, agent) ? Dark : null;
                 }
             case Eat e:
                 if (e.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), e.Kg, "Eat a positive amount");
-                if (Items.Resources[e.Food].Category != ResourceCategory.Food) return $"{Names.Cap(Names.Of(e.Food))} is not food";
-                return Items.Have(pack, e.Food) > 0 ? null : $"no {Names.Of(e.Food)} to eat";
+                if (Items.Resources[e.Food].Category != ResourceCategory.Food) return new($"{Names.Cap(Names.Of(e.Food))} is not food");
+                return Items.Have(pack, e.Food) > 0 ? null : new($"no {Names.Of(e.Food)} to eat", new MissingResource(e.Food, e.Kg));
             case Drink d:
                 if (d.Liters <= 0) throw new ArgumentOutOfRangeException(nameof(activity), d.Liters, "Drink a positive amount");
-                if (Items.Have(pack, Resource.Water) <= 0 && !HasOpenWater(world, agent.Tile)) return "no water here";
-                return (Body.MaxHydrationMl - agent.Body.HydrationMl) / 1000 < 0.01 ? "not thirsty" : null;
+                if (Items.Have(pack, Resource.Water) <= 0 && !HasOpenWater(world, agent.Tile)) return new("no water here", new MissingResource(Resource.Water, d.Liters));
+                return (Body.MaxHydrationMl - agent.Body.HydrationMl) / 1000 < 0.01 ? new("not thirsty") : null;
             case Cook c:
                 if (c.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), c.Kg, "Cook a positive amount");
-                if (Cooked(c.Raw) == null) return $"{Names.Cap(Names.Of(c.Raw))} is not something to cook";
-                if (Items.Have(pack, c.Raw) <= 0) return $"no {Names.Of(c.Raw)} to cook";
-                return HasCookingFire(world, agent.Tile) ? null : "no fire to cook on";
+                if (Cooked(c.Raw) == null) return new($"{Names.Cap(Names.Of(c.Raw))} is not something to cook");
+                if (Items.Have(pack, c.Raw) <= 0) return new($"no {Names.Of(c.Raw)} to cook", new MissingResource(c.Raw, c.Kg));
+                return HasCookingFire(world, agent.Tile) ? null : new("no fire to cook on", new MissingState(Lack.BurningFire));
             case MeltSnow:
-                return HasCookingFire(world, agent.Tile) ? null : "no fire to melt snow on";
+                return HasCookingFire(world, agent.Tile) ? null : new("no fire to melt snow on", new MissingState(Lack.BurningFire));
             case Stash s:
                 if (s.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), s.Kg, "Stash a positive amount");
                 // Putting down, on a stash already here or the first thing that makes one: one gate.
-                if (Access.PutDownRefusal(world, agent.Id, agent.Tile) is string stashBarred) return stashBarred;
-                return Items.Have(pack, s.Resource) > 0 ? null : $"no {Names.Of(s.Resource)} to put down";
+                if (Access.PutDownRefusal(world, agent.Id, agent.Tile) is { } stashBarred) return stashBarred;
+                return Items.Have(pack, s.Resource) > 0 ? null : new($"no {Names.Of(s.Resource)} to put down", new MissingResource(s.Resource, s.Kg));
             case Unstash u:
                 if (u.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), u.Kg, "Take a positive amount");
                 var stash = world.Tiles.GetValueOrDefault(agent.Tile)?.Stash;
-                if (stash == null || Items.Have(stash, u.Resource) <= 0) return $"no {Names.Of(u.Resource)} stashed here";
-                if (Access.Refusal(world, agent.Id, LocationFeatures.StashAt(world, agent.Tile)!.Value) is string unstashBarred) return unstashBarred;
-                return Items.CarriedKg(agent) >= Items.CapacityKg(pack) ? "your pack is full" : null;
+                if (stash == null || Items.Have(stash, u.Resource) <= 0) return new($"no {Names.Of(u.Resource)} stashed here");
+                if (Access.Refusal(world, agent.Id, LocationFeatures.StashAt(world, agent.Tile)!.Value) is { } unstashBarred) return unstashBarred;
+                return Items.CarriedKg(agent) >= Items.CapacityKg(pack)
+                    ? new("your pack is full", new MissingState(Lack.PackRoomKg, Have: Items.CapacityKg(pack) - Items.CarriedKg(agent)))
+                    : null;
             case Wear w:
                 var gear = pack.Gear.FirstOrDefault(x => x.Kind == w.Gear);
-                if (gear == null) return $"no {(Items.GearKinds.ContainsKey(w.Gear) ? Names.GearWords(w.Gear) : w.Gear)} in your pack";
-                return Items.Def(gear).Slot == null ? $"{Items.Def(gear).Name} is not something to wear" : null;
+                if (gear == null) return new($"no {(Items.GearKinds.ContainsKey(w.Gear) ? Names.GearWords(w.Gear) : w.Gear)} in your pack", new MissingGear(w.Gear));
+                return Items.Def(gear).Slot == null ? new($"{Items.Def(gear).Name} is not something to wear") : null;
             case TakeOff t:
-                return agent.Body.Worn.Any(x => x.Kind == t.Gear) ? null : $"you are not wearing {Names.GearWords(t.Gear)}";
+                return agent.Body.Worn.Any(x => x.Kind == t.Gear) ? null : new($"you are not wearing {Names.GearWords(t.Gear)}");
             default:
                 throw new NotSupportedException($"{activity.GetType().Name} is not work");
         }
     }
+
+    public static readonly Refusal Dark = new(TooDark, new MissingState(Lack.Light));
 
     /// Water to drink here: a river or a lake underfoot, ice or not, a site's water while it is not ice, or an
     /// open lake a step away. Ice should need a hole cut; that needs ice thickness, which Ground does not model yet.
@@ -177,7 +231,7 @@ public static class Work
     /// Starts work Refusal allowed. Instant work (stash, wear, eating and drinking) happens here.
     public static WorkSession Begin(World world, Activity activity, List<WorldEvent> events)
     {
-        if (Refusal(world, activity) is string refused) throw new InvalidOperationException($"Work.Begin on a refused activity: {refused}");
+        if (Refusal(world, activity) is { } refused) throw new InvalidOperationException($"Work.Begin on a refused activity: {refused}");
         var agent = world.Agent(activity.Who);
         var pack = Items.PackOf(agent)!;
         var body = agent.Body;
@@ -417,13 +471,7 @@ public static class Work
     static IEnumerable<(Resource, double)> Focus(List<(Resource Resource, double Kg)> finds, ForageFocus focus, Rng rng)
     {
         if (focus == ForageFocus.General) return finds;
-        ResourceCategory target = focus switch
-        {
-            ForageFocus.Fuel => ResourceCategory.Fuel,
-            ForageFocus.Food => ResourceCategory.Food,
-            ForageFocus.Medicine => ResourceCategory.Medicine,
-            _ => ResourceCategory.Material,
-        };
+        var target = FocusCategory(focus);
         var kept = new List<(Resource, double)>();
         foreach (var group in finds.GroupBy(f => f.Resource))
         {
@@ -436,7 +484,7 @@ public static class Work
                 }
                 continue;
             }
-            double keepPct = 0.4 + rng.NextDouble() * 0.2;
+            double keepPct = OffFocusKeepPct + rng.NextDouble() * OffFocusKeepSpreadPct;
             foreach (var f in group) if (rng.NextDouble() < keepPct) kept.Add((f.Resource, f.Kg));
         }
         return kept;

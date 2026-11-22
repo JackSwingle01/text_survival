@@ -70,13 +70,13 @@ public static partial class Fauna
     public static Agent? FlockAt(World world, TileId tile) =>
         HerdsAt(world, tile).FirstOrDefault(h => BehaviorOf(h.Species) == HerdBehavior.Carrion && Sim.IsAlive(h));
 
-    static string? RaidRefusal(World world, Agent herd)
+    static Refusal? RaidRefusal(World world, Agent herd)
     {
-        if (BehaviorOf(herd.Species) != HerdBehavior.Carrion) return "only the carrion flock raids";
-        if (LocationFeatures.StashAt(world, herd.Tile) is not LocationFeature stash) return "no stash here";
+        if (BehaviorOf(herd.Species) != HerdBehavior.Carrion) return new("only the carrion flock raids");
+        if (LocationFeatures.StashAt(world, herd.Tile) is not LocationFeature stash) return new("no stash here");
         var inv = world.Tiles[herd.Tile].Stash!;
-        if (!RaidFood.Any(r => Items.Have(inv, r) > 0)) return "nothing in the stash it eats";
-        if (Nearby.At(world, herd.Tile).Any(id => world.Agents[id] is { Mind: PersonMind } p && Sim.IsAlive(p))) return "someone is keeping it";
+        if (!RaidFood.Any(r => Items.Have(inv, r) > 0)) return new("nothing in the stash it eats");
+        if (Nearby.At(world, herd.Tile).Any(id => world.Agents[id] is { Mind: PersonMind } p && Sim.IsAlive(p))) return new("someone is keeping it");
         return Access.Refusal(world, herd.Id, stash);
     }
 
