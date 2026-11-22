@@ -67,10 +67,16 @@ glossary's: a person's memory is saved as `PersonMind.Memory` (was `Knows`, of t
 (`EncounterEnded`). Nothing else moved. Version 13 (the NPC mind on the tier ladder) reshaped `NpcMind`: it keeps
 `Camp`, `TargetFatKg` and `TargetFatMinute`, drops `Boldness`, `SeeingTo`, `Heading`, `ForageGoal`, `WoodGoal`,
 `Opinions`, `ThreatTile` and `ThreatMinute`, and adds `Goal` (an `NpcGoal`: its stat and tier by name, the minute it
-was taken on and its minutes of budget). Version 14 (routes as last seen) kept the worn routes a person
-has seen in the spare bits of `GroundMemory`'s flags byte: the tier (`TrailTier`, 0 to 3) of each seen tile's east
-and south edges, two bits each, so a route costs a saved tile nothing. A route is remembered only between two
-seen tiles. NPC memories carry them too, since a person's memory is one structure. The sample wears a path
+was taken on and its minutes of budget). Versions 14 to 17 (the forage restore) added, each skipped at its
+default: a work session's `LuckFactor` and `Clues` and a held `Doing.Held` (work carried between the steps of one
+job), with `Gathered.Luck` and `Gathered.Density` (14); `TileMemory.SearchedHours` and `TileMemory.Foraged` (15);
+`ForageState.ClueDraw` (16); `World.Tutorials`, with the `scavenged`, `tutorialshown` events and the `walkabout`
+activity (17). `LuckTier` and `Tutorial` are written by name. The species renames (Rabbit to Hare, Homotherium to
+SaberTooth) kept their enum positions, so saves hold the same numbers. Version 18 (the forage follow-ups) adds a work
+session's `ClueDraw`, skipped at its default (a scavenge clue pays once a draw). Version 19 (trails as last seen) kept
+the worn trails a person has seen in the spare bits of `GroundMemory`'s flags byte: the tier (`TrailTier`, 0 to 3) of
+each seen tile's east and south edges, two bits each, so a trail costs a saved tile nothing. A trail is remembered only
+between two seen tiles. NPC memories carry them too, since a person's memory is one structure. The sample wears a path
 beside camp and the player looks at it. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's

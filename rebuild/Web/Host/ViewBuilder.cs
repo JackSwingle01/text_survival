@@ -66,6 +66,7 @@ sealed class ViewBuilder(World world, int gen)
             Body: BodyOf(body),
             Map: MapOf(),
             Combat: CombatOf(fightLines),
+            Forage: ForageOf(here, features),
             Job: job is null ? null : JobOf(job),
             Receipt: receipt,
             Log: [.. log.TakeLast(40)],
@@ -98,7 +99,8 @@ sealed class ViewBuilder(World world, int gen)
                 StartFire f => [Names.Kg(f.TinderKg, f.Tinder), .. f.KindlingKg > 0 ? new[] { Names.Kg(f.KindlingKg, Resource.Kindling) } : [], Names.Of(f.Tool)],
                 AddFuel f => [Names.Kg(f.Kg, f.Fuel)],
                 _ => null,
-            });
+            },
+            Durations: v.Durations);
     }
 
     /// The activity's family, for the page's icons and keys. Not a vocabulary: the page acts by id.
@@ -112,6 +114,7 @@ sealed class ViewBuilder(World world, int gen)
         LightTorch => "torch",
         GatherCharcoal => "charcoal",
         Gather => "gather",
+        WalkAbout => "walkabout",
         Butcher => "butcher",
         Eat => "eat",
         Drink => "drink",
@@ -416,6 +419,29 @@ sealed class ViewBuilder(World world, int gen)
         return v > 0.9 ? "unhurt" : v > 0.65 ? "wounded" : v > 0.35 ? "badly hurt" : "near death";
     }
 
+    /// The forage ground's screen, read off the forage feature's verbs (Verbs.At) and the player's memory.
+    ForageDto? ForageOf(Here here, List<LocationFeatureDto> features)
+    {
+        for (int i = 0; i < here.LocationFeatures.Count; i++)
+        {
+            var f = here.LocationFeatures[i];
+            if (f.LocationFeature.Kind != LocationFeatureKind.Pool) continue;
+            var id = new PoolId(f.LocationFeature.Tile, f.LocationFeature.Index);
+            if (Pools.Def(world, id) is not ForagePool def) continue;
+            var menu = features[i].Menu;
+            string VerbOf(Func<Activity, bool> which) => menu[f.Menu.ToList().FindIndex(v => which(v.Activity))].Id;
+            var foci = Pools.Foci(def).Select(x => new FocusDto(Names.Of(x.Focus), x.Hint,
+                VerbOf(a => a is Gather g && g.Focus == x.Focus))).ToList();
+            var offered = Pools.Foci(def).Select(x => x.Focus).ToHashSet();
+            var clues = Clues.At(world, AgentId.Player).Select(c => new ClueDto(c.Def.Text, Code(c.Def.Kind),
+                Clues.Suggests(c.Def) is ForageFocus s && offered.Contains(s) ? Names.Of(s) : null)).ToList();
+            bool foraged = Memories.Of(_player).Places.GetValueOrDefault(id.Tile)?.Foraged == true;
+            return new ForageDto(foraged ? Pools.QualityWord(Pools.ForageDensity(world, id)) : null, Pools.SearchEffort(world, AgentId.Player, id.Tile),
+                foci, clues, VerbOf(a => a is WalkAbout), OddsOf(Work.ForageYield(world, _player)));
+        }
+        return null;
+    }
+
     JobDto JobOf(GameHost.Job job)
     {
         int? total = job.Budget;
@@ -427,7 +453,14 @@ sealed class ViewBuilder(World world, int gen)
             double rate = Making.WorkPerMinute(world, _player, pack, r);
             if (rate > 0) total = job.Done + (int)Math.Ceiling((r.Minutes - project.MinutesDone) / rate);
         }
-        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Outcome, job.Reason, job.From.X, job.From.Y, job.Dir is { } dir ? Code(dir) : null);
+        var session = job.Session;
+        var finds = session?.LuckFactor > 0
+            ? session.Finds.GroupBy(x => x.Resource).OrderBy(g => g.Min(x => x.Minute))
+                .Select(g => new FindDto(g.Key.ToString(), Names.Of(g.Key), Code(Items.Resources[g.Key].Category), g.Count(), Math.Round(g.Sum(x => x.Kg), 2))).ToList()
+            : null;
+        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Outcome, job.Reason, job.From.X, job.From.Y, job.Dir is { } dir ? Code(dir) : null,
+            finds, finds == null ? null : Math.Round(session!.Finds.Sum(x => x.Kg), 2), session == null ? null : Work.Mood(session),
+            finds == null ? null : Code(Pools.TierOf(session!.LuckFactor)));
     }
 
     static string Ago(long minutes) => minutes < 60 ? $"{minutes} min ago" : $"{minutes / 60} h ago";

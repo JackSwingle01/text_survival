@@ -67,6 +67,10 @@ public sealed class TileMemory
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public SortedDictionary<Resource, double>? Stash { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Shelter { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Danger Danger { get; set; }
+    /// Perception-weighted hours spent searching here, foraging or walking through (Pools.Search): effort, whatever was found.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public double SearchedHours { get; set; }
+    /// Foraged here at least once: the ground's quality word is known.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Foraged { get; set; }
     [JsonIgnore] public bool Visited => VisitedMinute != null;
 }
 

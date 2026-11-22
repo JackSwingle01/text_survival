@@ -21,7 +21,7 @@ public class SpeciesBodyTests
     [Theory]
     [InlineData(Species.Wolf)]
     [InlineData(Species.Bear)]
-    [InlineData(Species.Homotherium)]
+    [InlineData(Species.SaberTooth)]
     [InlineData(Species.Hyena)]
     [InlineData(Species.Caribou)]
     [InlineData(Species.Bison)]
@@ -69,9 +69,9 @@ public class SpeciesBodyTests
     }
 
     [Fact]
-    public void Homotherium_ReplacesTheSabreTooth_AtAbout190Kg()
+    public void SaberTooth_ReplacesTheSabreTooth_AtAbout190Kg()
     {
-        Assert.Equal(190, SpeciesTable.Of(Species.Homotherium).WeightKg);
+        Assert.Equal(190, SpeciesTable.Of(Species.SaberTooth).WeightKg);
     }
 
     // ---- metabolism ----
@@ -100,7 +100,7 @@ public class SpeciesBodyTests
     /// Gut contents and glycogen: about half a day to a day of what the body burns (research §3.2), for a
     /// hare and a mammoth alike. Old: 2,000 kcal for every body, which a mammoth emptied in under an hour.
     [Theory]
-    [InlineData(Species.Rabbit)]
+    [InlineData(Species.Hare)]
     [InlineData(Species.Wolf)]
     [InlineData(Species.Caribou)]
     [InlineData(Species.Bison)]

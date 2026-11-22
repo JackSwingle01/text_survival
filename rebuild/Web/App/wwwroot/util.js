@@ -42,3 +42,10 @@ export const tip = (title, lines = []) => `data-tip="${esc([title, ...lines].joi
  * what it does ('pass'). Other keys (Shift, Tab) and the end of the run leave it be ('keep'). */
 export const veilKey = (kind, key) => kind !== 'receipt' ? 'keep' : key === 'Escape' || key === ' ' || key === 'Enter' ? 'close'
   : key.length === 1 || key.startsWith('Arrow') ? 'pass' : 'keep';
+
+/** How long a job's minutes play on screen, in ms, as the old game paced them (Pacing): 0.3 s a game minute,
+ *  1 to 30 s; a sleep four times faster; a crossing half a second to a second. */
+export function paceMs(minutes, kind) {
+  if (kind === 'walk') return Math.min(1200, Math.max(500, 500 + minutes * 30));
+  return Math.min(30000, Math.max(1000, minutes * 300)) / (kind === 'sleep' ? 4 : 1);
+}

@@ -23,7 +23,7 @@ public class ConservationItemsTests
         [Resource.RawMeat, Resource.RawFish, Resource.Berries, Resource.Water, Resource.Birch, Resource.Pine, Resource.Kindling, Resource.Tinder, Resource.Stone, Resource.Hide];
     static readonly Resource[] Foods = [Resource.RawMeat, Resource.RawFish, Resource.Berries];
     static readonly Resource[] Fuels = [Resource.Birch, Resource.Pine, Resource.Kindling, Resource.Tinder];
-    static readonly Species[] Prey = [Species.Caribou, Species.Rabbit, Species.Fox, Species.Wolf, Species.Bison];
+    static readonly Species[] Prey = [Species.Caribou, Species.Hare, Species.Fox, Species.Wolf, Species.Bison];
 
     public enum OpKind { Stash, Unstash, Eat, Drink, Cook, Butcher, AddFuel, StartFire, Wear, Wait, MeltSnow, GatherCharcoal }
 

@@ -1,5 +1,5 @@
 {
-  "Version": 14,
+  "Version": 19,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -52,6 +52,7 @@
             "kind": "forage",
             "HoursForaged": 0.016666666666666666,
             "LastForagedMinute": 167,
+            "ClueDraw": 1,
             "Grazed": {}
           }
         },
@@ -678,7 +679,8 @@
                 "Stash": {
                   "Pine": 2
                 },
-                "Shelter": "Overhang"
+                "Shelter": "Overhang",
+                "SearchedHours": 0.09166666666666674
               },
               "7,43": {
                 "SeenMinute": 170,
@@ -704,7 +706,8 @@
                 "SeenMinute": 170,
                 "VisitedMinute": 81,
                 "Trees": true,
-                "ForageDensity": 1.1294334018947862
+                "ForageDensity": 1.1294334018947862,
+                "SearchedHours": 0.09166666666666674
               },
               "8,43": {
                 "SeenMinute": 170,
@@ -1205,7 +1208,7 @@
           "Memory": {
             "Discovered": [],
             "SearchHours": {
-              "7,41#2": 0.07594625118791916
+              "7,41#2": 0.08588334358388733
             },
             "Places": {
               "3,42": {
@@ -1281,14 +1284,17 @@
                 "FireHours": 0.5,
                 "Stash": {
                   "Oak": 35
-                }
+                },
+                "SearchedHours": 0.09374999999999999,
+                "Foraged": true
               },
               "7,42": {
                 "SeenMinute": 166,
                 "VisitedMinute": 1,
                 "ForageDensity": 0.38,
                 "Fire": 1,
-                "Shelter": "Overhang"
+                "Shelter": "Overhang",
+                "SearchedHours": 0.010416666666666666
               },
               "7,43": {
                 "SeenMinute": 166,
@@ -2012,6 +2018,9 @@
       "fire:1": {
         "State": 5266574129258148755
       },
+      "focus:1": {
+        "State": 4515275339733669097
+      },
       "make:0": {
         "State": 11656051548387474417
       },
@@ -2022,7 +2031,7 @@
         "State": 12184349709418509854
       },
       "work:1": {
-        "State": 277671184274156365
+        "State": 5660358563173171919
       }
     },
     "Fires": {

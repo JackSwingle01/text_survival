@@ -9,7 +9,8 @@ namespace Survival.Web;
 /// Verb: an id from the current view (starts it; a combat Move also takes To).
 /// Advance: run the job under way for up to this many game minutes.
 /// Stop: drop the job under way, keeping what it did so far.
-public sealed record ActDto(string? Verb = null, int? Advance = null, bool? Stop = null, CellDto? To = null);
+/// Minutes: with a Verb that offers Durations, how long to run it.
+public sealed record ActDto(string? Verb = null, int? Advance = null, bool? Stop = null, CellDto? To = null, int? Minutes = null);
 
 public sealed record ViewDto(
     int Gen,
@@ -29,6 +30,7 @@ public sealed record ViewDto(
     BodyDto Body,
     MapDto Map,
     CombatDto? Combat,
+    ForageDto? Forage,
     JobDto? Job,
     ReceiptDto? Receipt,
     IReadOnlyList<LogDto> Log,
@@ -63,9 +65,19 @@ public sealed record ConditionDto(string Name, bool Blocking);
 /// One verb. Id is what the client posts back. Kind is the activity's family, for icons and keys only.
 /// Minutes: what it runs for, or null for work that stops itself. Refused: why it cannot start now.
 /// Uses: what it takes from the pack, in words, where the verb says (lighting a fire, feeding one).
+/// Durations: the minutes it can be run for (ActDto.Minutes), where how long is the player's choice.
 public sealed record VerbDto(string Id, string Label, string Kind, int? Minutes, string? Refused,
     OddsDto? Odds = null, TripDto? Trip = null, MakeDto? Make = null, string? Dir = null, bool Careful = false,
-    IReadOnlyList<string>? Uses = null);
+    IReadOnlyList<string>? Uses = null, IReadOnlyList<int>? Durations = null);
+
+/// The forage ground here, as the forage screen draws it. Quality: the ground's word, once foraged here. Effort: how
+/// hard the player has searched the tile (never what is left). Foci: a verb for each focus on offer, General last, each
+/// with its sub-category hint. Clues: what the player notices now; Focus, the offered focus a resource clue points to.
+/// Yield: what a minute's search brings against an unhindered one (eyes, axe, shovel, skill, snow over the ground).
+public sealed record ForageDto(string? Quality, string Effort, IReadOnlyList<FocusDto> Foci, IReadOnlyList<ClueDto> Clues, string? WalkVerb,
+    OddsDto Yield);
+public sealed record FocusDto(string Focus, string Hint, string Verb);
+public sealed record ClueDto(string Text, string Kind, string? Focus);
 
 /// A bet as its factors (Survival.Odds): start at BasePct, apply each term, clamp. DeltaPct is each
 /// term's signed share, so BasePct plus the deltas is RawPct; TotalPct is that clamped.
@@ -159,8 +171,11 @@ public sealed record CellDto(int X, int Y);
 /// finished: finished, refused, interrupted (Sim's StepOutcome), or stopped (by the client). Reason:
 /// the stop in the game's words ("arrived", "the fire went out"), null when it simply ran its time; a
 /// round that ended the fight gives the fight's end as Narration tells it.
+/// Finds, FoundKg, Mood and Luck: a forage's haul so far, by resource with how many finds, its luck's mood line and tier.
 public sealed record JobDto(string Label, string Kind, int DoneMinutes, int? TotalMinutes, bool Finished, string? Outcome, string? Reason,
-    int? FromX, int? FromY, string? Dir);
+    int? FromX, int? FromY, string? Dir, IReadOnlyList<FindDto>? Finds = null, double? FoundKg = null, string? Mood = null, string? Luck = null);
+/// Category: fuel, food, medicine, material or water, for its colour.
+public sealed record FindDto(string Resource, string Name, string Category, int Count, double Kg);
 
 /// "While you were away" (Memories.Receipt): what happened here, what changed, what prints say.
 public sealed record ReceiptDto(string Title, long? SinceMinute, long Minute, bool Full, IReadOnlyList<LogDto> Lines);

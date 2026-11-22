@@ -257,22 +257,19 @@ export function printPixels(t, baker, snowy) {
   return out;
 }
 
-// ---------------------------------------------------------------- the map
+// ---------------------------------------------------------------- ravines and cliffs
 /**
- * map: { width, height, terrainAt(x, y) -> terrain name, or null where unknown,
- *        edges?: [{ ax, ay, bx, by, type: 'ravine' | 'cliff' }] between 4-adjacent known cells }.
- * stateAt(x, y) -> cell state; world -> world state; tex(name) -> { w, h, data } (RGBA).
+ * Ravines and cliffs (map.edges: [{ ax, ay, bx, by, type }]) as straight pieces in cell coordinates.
+ * The boundary segments of each kind are chained, and each chain is rounded (corner cutting), so a
+ * ravine that steps from cell to cell reads as one curving line; an open chain's ends taper. A piece
+ * depends on its whole chain, so the map's pieces are worked out once, and a cell baked on its own is
+ * handed the pieces in its reach (piecesNear).
  */
-export function createBaker(map, stateAt, world, tex) {
-  const { width: W, height: H } = map;
-  const cells = new Map();
-  // Edges as paths in cell coordinates. The boundary segments of each kind are chained, and each chain
-  // is rounded (corner cutting), so a ravine that steps from cell to cell reads as one curving line.
-  // The pieces are indexed by every cell within one of either end; a chain's open ends taper.
-  const edgeIndex = new Map();
+export function edgePieces(edges) {
+  const pieces = [];
   for (const type of ['ravine', 'cliff']) {
     const at = new Map(), key = (x, y) => `${x},${y}`, segs = [];
-    for (const e of map.edges ?? []) {
+    for (const e of edges) {
       if (e.type !== type) continue;
       const side = e.bx !== e.ax; // neighbours side by side share a vertical boundary
       const bx = Math.max(e.ax, e.bx), by = Math.max(e.ay, e.by);
@@ -296,16 +293,19 @@ export function createBaker(map, stateAt, world, tex) {
     for (const [k, list] of at) if (list.length === 1 && !used.has(list[0])) chains.push({ pts: walk(k.split(',').map(Number)), open: true });
     for (const g of segs) if (!used.has(g)) chains.push({ pts: walk(g[0]), open: false });
     for (const { pts: raw, open } of chains) {
-      let pts = raw;
+      // A closed chain ends on its first point; corner cutting goes round it, so it is cut as a ring
+      // (each pass wrapping from the last point to the first) and closed again after.
+      let pts = open ? raw : raw.slice(0, -1);
       for (let it = 0; it < 3; it++) {
         const out = open ? [pts[0]] : [];
-        for (let i = 0; i < pts.length - 1; i++) {
-          const [a, b] = [pts[i], pts[i + 1]];
+        for (let i = 0; i < (open ? pts.length - 1 : pts.length); i++) {
+          const [a, b] = [pts[i], pts[(i + 1) % pts.length]];
           out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
         }
         if (open) out.push(pts[pts.length - 1]);
         pts = out;
       }
+      if (!open) pts.push(pts[0]);
       let run = 0, total = 0;
       for (let i = 0; i < pts.length - 1; i++) total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
       for (let i = 0; i < pts.length - 1; i++) {
@@ -314,16 +314,56 @@ export function createBaker(map, stateAt, world, tex) {
         // The normal that points to the lower right: a cliff drops that way, so its face is in shadow.
         let nx = -(y2 - y1) / len, ny = (x2 - x1) / len;
         if (nx + ny < 0) { nx = -nx; ny = -ny; }
-        const piece = { x1, y1, x2, y2, len, nx, ny, type, start: run, total, open };
+        pieces.push({ x1, y1, x2, y2, len, nx, ny, type, start: run, total, open });
         run += len;
-        for (const [x, y] of [[x1, y1], [x2, y2]]) for (let oy = -2; oy <= 1; oy++) for (let ox = -2; ox <= 1; ox++) {
-          const cx = Math.floor(x) + ox, cy = Math.floor(y) + oy, k = cy * W + cx;
-          if (!edgeIndex.has(k)) edgeIndex.set(k, new Set());
-          edgeIndex.get(k).add(piece);
-        }
       }
     }
   }
+  return pieces;
+}
+
+/** The cells a piece is drawn from: every cell within one of either end. */
+function pieceCells(p, fn) {
+  for (const [x, y] of [[p.x1, p.y1], [p.x2, p.y2]]) for (let oy = -2; oy <= 1; oy++) for (let ox = -2; ox <= 1; ox++)
+    fn(Math.floor(x) + ox, Math.floor(y) + oy);
+}
+
+/**
+ * The trails (map.trails) with an end within REACH of (cx, cy), in the map's order: all a cell's
+ * pixels need (a trail's line reaches the cells beside its ends; trampled ground counts the worn
+ * sides of the cells around a neighbour).
+ */
+export function trailsNear(trails, cx, cy) {
+  return trails.filter(t => Math.max(Math.abs(t.ax - cx), Math.abs(t.ay - cy)) <= REACH || Math.max(Math.abs(t.bx - cx), Math.abs(t.by - cy)) <= REACH);
+}
+
+/** The pieces drawn from any cell within REACH of (cx, cy), in the map's order: all a cell's pixels need. */
+export function piecesNear(pieces, cx, cy) {
+  return pieces.filter(p => {
+    let near = false;
+    pieceCells(p, (x, y) => { if (Math.abs(x - cx) <= REACH && Math.abs(y - cy) <= REACH) near = true; });
+    return near;
+  });
+}
+
+// ---------------------------------------------------------------- the map
+/**
+ * map: { width, height, terrainAt(x, y) -> terrain name, or null where unknown,
+ *        edges?: [{ ax, ay, bx, by, type: 'ravine' | 'cliff' }] between 4-adjacent known cells, or
+ *        pieces?: edgePieces of them, worked out already }.
+ * stateAt(x, y) -> cell state; world -> world state; tex(name) -> { w, h, data } (RGBA).
+ */
+export function createBaker(map, stateAt, world, tex) {
+  const { width: W, height: H } = map;
+  const cells = new Map();
+  // Ravines and cliffs, indexed by the cells they are drawn from.
+  const edgeIndex = new Map();
+  for (const piece of map.pieces ?? edgePieces(map.edges ?? []))
+    pieceCells(piece, (cx, cy) => {
+      const k = cy * W + cx;
+      if (!edgeIndex.has(k)) edgeIndex.set(k, new Set());
+      edgeIndex.get(k).add(piece);
+    });
 
   // Worn routes (map.trails) between neighbouring cell centres: each cell's worn sides, by tier.
   const links = new Map();
@@ -849,4 +889,40 @@ export function createBaker(map, stateAt, world, tex) {
   }
 
   return { bakeCell, bakeSprites, classify, covered };
+}
+
+// ---------------------------------------------------------------- one cell on its own
+/**
+ * How far a cell's finished pixels reach for their inputs: sprites anchored in the next cell read
+ * that cell's 5x5 neighbourhood, so terrain three cells away and ground state two cells away.
+ */
+export const REACH = 3, GROUND_REACH = 2;
+const SIDE = 2 * REACH + 1;
+
+/** fn(x, y) for every cell within REACH of (cx, cy), row by row, clamped to the map as the baker clamps. */
+export function around(width, height, cx, cy, fn) {
+  const out = new Array(SIDE * SIDE);
+  for (let oy = -REACH; oy <= REACH; oy++) for (let ox = -REACH; ox <= REACH; ox++)
+    out[(oy + REACH) * SIDE + ox + REACH] = fn(Math.min(width - 1, Math.max(0, cx + ox)), Math.min(height - 1, Math.max(0, cy + oy)));
+  return out;
+}
+
+/**
+ * The finished pixels (ground and sprites, RGBA, CELL x CELL) of cell (cx, cy), from its
+ * neighbourhood alone: the same pixels as baking the whole map, so a cell can be baked anywhere
+ * (a worker) and kept until its neighbourhood changes.
+ * job: { width, height, cx, cy, world, terrain, states, pieces, trails } with terrain and states from
+ * around(), pieces from piecesNear() and trails from trailsNear().
+ */
+export function bakeAlone({ width, height, cx, cy, world, terrain, states, pieces = [], trails = [] }, tex) {
+  const look = (arr, x, y) => {
+    const dx = x - cx + REACH, dy = y - cy + REACH;
+    if (dx < 0 || dy < 0 || dx >= SIDE || dy >= SIDE) throw new Error(`cell (${cx}, ${cy}) read (${x}, ${y}), beyond its reach`);
+    return arr[dy * SIDE + dx];
+  };
+  const baker = createBaker({ width, height, terrainAt: (x, y) => look(terrain, x, y), pieces, trails }, (x, y) => look(states, x, y), world, tex);
+  const out = new Uint8ClampedArray(CELL * CELL * 4);
+  baker.bakeCell(out, cx, cy, cx + 1, cx, cy);
+  baker.bakeSprites(out, cx, cy, cx + 1, cy + 1);
+  return out;
 }

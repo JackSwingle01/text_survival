@@ -745,7 +745,8 @@ public class MemoryTests
             {
                 for (int done = 0; done < total;)
                 {
-                    var r = Sim.Step(w, make(), Math.Min(chunk, total - done));
+                    int n = Math.Min(chunk, total - done);
+                    var r = Sim.Step(w, make(), n, more: done + n < total); // one job: work held between its chunks
                     Assert.True(r.MinutesElapsed > 0, r.InterruptedReason);
                     done += r.MinutesElapsed;
                     if (reload) w = Save.FromJson(Save.ToJson(w));

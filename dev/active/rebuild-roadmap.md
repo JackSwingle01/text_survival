@@ -4,6 +4,143 @@ Nothing below was dropped by the re-ordering; it only moved. Design is in
 `documentation/emergent-world-design.md`, decisions in `documentation/decisions/`, open deferrals in
 `dev/active/rebuild-deferred.md`.
 
+## Restoring the old game (2026-11-22)
+
+The rules are in `dev/active/porting.md`: the old game is the default, improvements are flagged for
+the user, nothing reachable becomes unreachable. The audit's 130 items are in
+`dev/active/parity-audit-items.json`.
+
+The order:
+
+1. Foraging and discovery.
+2. Discrete and continuous resources (decision "Resources are discrete or continuous").
+3. Reachability: recipes, gear, picking gear back up.
+4. Consequences: wear, final death and autosave (decision "Death is final").
+5. The remaining screens: fire, body, butchering, combat feedback, travel, the tile sheet.
+
+Decided by the user on 2026-11-22:
+
+- **Foraging (the first restore).** The forage screen in the prototype's style, with the old game's
+  behaviour:
+  - focus: Fuel, Food, Medicine, Materials or General, offered only where that category grows;
+  - time: 15, 30 or 60 minutes, or Keep Walking (5 minutes, new clues);
+  - the ground's quality word, and how much of the hidden finds is searched;
+  - finds appearing as you search, with counts;
+  - the luck mood line, and the failure and discovery text.
+
+  Focus works as the old filter: the focus category is kept whole, the others cut to 40-60%. The
+  rebuild's `FocusGain` 1.3 reverts (an agent tuned it toward a survival number). The Foraging skill
+  stays (the user asked for it). The old clues are ported faithfully: the same texts, terrain pools,
+  weighting and multipliers (x1.2-1.5), followed by choosing the matching focus. Later, as a separate
+  decision: a clue could place a real patch (an extra stock of those resources on the tile, sized to
+  give the old multiplier, and depleting), so clues become true and lasting.
+- **Discovery.** Discoveries that place real things in the world come back. For the others, work out
+  whether each can become something real rather than an event. Each new one gets a design session
+  with the user (decision "Authored discoveries stay until the world produces them", amended
+  2026-11-22).
+- **Wear.** Tools and clothing wear out, as in the old game.
+- **Crippling injuries.** Keep the rebuild's current behaviour until a design session with the user.
+  *To do: hold that session.*
+- **The stomach.** Decision "The stomach holds a fixed amount": eating is refused at full, and food
+  goes to fat as it digests.
+
+Also decided by the user on 2026-11-22 (audit ids in brackets):
+
+- **Camp storage (ITM-14).** The old caches come back: the camp cache holds 1000 kg; natural caches
+  have a capacity and are predator-safe or weatherproof. Predators eat exposed food again. Design
+  session (1) below comes first.
+- **Ember carriers (ITM-15).** Restored, and made to work: you carry an ember and light a fire from
+  it with no strike. Deferred to later in the port.
+- **Crafting in the dark (ITM-17).** The old behaviour: darkness, wet hands and injury slow crafting,
+  never refuse. The slowdown is named and shown in the UI, with no warning text. Recipes that truly
+  need a fire still need one.
+- **Recipe inputs (ITM-18).** Design session (2) below. The old recipes are the starting point, and
+  inputs are counted in discrete pieces.
+- **Crafted gear (ITM-19).** New gear goes into the pack. The rebuild's change stays.
+- **Camp builds and recipes (ITM-20).** Settled by decision "Resources are discrete or continuous":
+  both count discrete resources in pieces.
+- **Curing rack (ITM-21).** The old rack comes back: 4 items; hide 48 h, meat 24 h, berries 12 h,
+  fish 16 h; it cures while you are away. Design session (3) also adds a less effective drying slot
+  at a campfire.
+- **Hide scraping (ITM-22).** The old way: one whole hide becomes 0.8 kg of scraped hide. One hide is
+  one garment's worth.
+- **Firecraft (FIR-4).** Keep the rebuild's +2% per level. The playtest's fire "death spiral" was the
+  player's skill, not the game.
+- **Tinder bundle (FIR-5).** Birch bark and amadou make a bundle again, as a high-quality tinder, not
+  a fire starter. Every fire-starting chance is capped at 95%.
+- **Washing off blood (FIR-12).** Restored: 0.5 L of water and 5 minutes removes Bloody and leaves you
+  slightly wet. Bloody still dries on its own too (decision "No effect needs a treatment the game
+  doesn't have", amended 2026-11-22).
+- **Drinking (FIR-13).** Frozen water needs an ice hole or snowmelt, as in the old game. Drinking
+  straight from open, unfrozen water stays: an improvement the user accepted.
+- **The night-no-fuel alert.** Not an alert: a fact on the fire panel, such as "burns about 3 h ·
+  dawn in 9 h" (decision "The UI shows what the game knows"; `dev/active/ui-design.md`).
+
+### Design sessions with the user
+
+Each waits until the restores before it are done.
+
+1. **Predators and items:** what counts as exposed food, which caches protect it, how far scent
+   reaches, and whether the rebuild's scavengers (ravens) stay.
+2. **Recipes that make sense:** rethink the recipes so a player would not find them strange or
+   illogical. The old recipes are the starting point; inputs are discrete pieces.
+3. **The fire as a workbench:** the jobs in `dev/active/short-loop-plan.md` §6 and the campfire drying
+   slot, together with the curing rack.
+4. **Animal life** (after the foraging restore). The brief, decided by the user on 2026-11-22. Why:
+   the user expects emergence from animals travelling to water and food, sleeping at their natural
+   times, avoiding predators and seeking prey.
+   - **Body needs are shared components**, used by people, NPCs and animals alike: hunger (calories,
+     fat, then organ damage), thirst (hydration, then organ damage), rest (energy, sleep) and warmth
+     (left off animals for now). Which components a kind of body has is set in code, not data: it
+     does not vary meaningfully between species.
+   - **Starvation comes from the body** for every species. It replaces the wolves-only starvation
+     rule in Renewal (`Renewal.cs:68-74`) and the "shortfall ignored" floor in animal metabolism
+     (`BodySurvival.cs:384-390`; animals run `Fauna.Tick` in place of `Body.Tick`, `Sim.cs:264-272`).
+   - **One shared planner for seeking a need**, used by NPCs and animals: where to meet it and whether
+     the trip is worth it (travel plus the time to satisfy it, judged against staying put). Routes
+     and step times are already shared (`Trip`, `Travel`). Sources per need: food (grazing ground,
+     prey, carcasses), water (rivers, lakes, wet tiles), rest (a den if the herd has one, else where
+     it stands).
+   - **Herds rank their needs** on a simple version of the tier ladder. Herd-only behaviour stays in
+     the herd mind: fleeing, hunting together, pack cohesion, defending a kill.
+   - **Sleep follows the species' activity pattern** (diurnal, nocturnal or crepuscular; see
+     "Activity patterns" under "Decided in the 2026-11-21 grilling"), at the den if there is one,
+     otherwise where the herd stands.
+   - **Thirst is added**, with real water sources.
+   - **Grazing stops** where the forage odds are low enough. Today an eaten-out tile still feeds in
+     full (`Fauna.cs:291-292`, `323-324`).
+   - **Ravens fly**: they leave no prints.
+   - **After the shared planner exists, review the NPC mind** so NPCs and animals do not keep two
+     copies.
+
+Crippling injuries already has one (above).
+
+### The emergent-world work is on hold
+
+Steps 1-3a of `documentation/emergent-world-design.md` were built before a design session with the
+user, who did not know they existed. Everything built from that design goes on the user's review
+list as flagged changes, and a design-review session comes before any more of it is built. Until
+then no further emergent-world step starts: not step 3b (settling), step 4's remainder, or steps 5-6
+(roadmap items 7, 9 and 10 below wait on the session).
+
+The user reviewed the emergent-world overview on 2026-11-22. The design matches what was discussed,
+on the condition that everything ends up integrated, not cobbled together. The ravens, renewal and
+signs findings feed the Animal life (4) and Predators and items (1) design sessions above. The hold
+on further steps stays until those sessions are held.
+
+What was built:
+
+- `2af01d6` Step 1, QA tools: find dump, distribution report and population curves (`Report`), the
+  CLI report command.
+- `11cedc4` Step 2, substrate: `ThingRef` and `Things.At`, `Cause` on carcasses, stashes, fire pits
+  and shelters, the `Signs.At` projection used by the report, derived Tags and gear Capabilities, one
+  `Access.Refusal` gate for every thing refusal, exhaustive `ThingKind` switches.
+- `9cbe8cc` Step 3a, the kill chain: herd renewal toward carrying capacity (births, pack starvation,
+  arrivals); ravens as scavengers with a derived Beacon and stash raids; the carcass and body pipeline
+  to bones and gone on one rot timeline; kill attribution by wounder and last striker; causes of
+  death; stable stash and shelter ids; canonical trail refs; feed, graze and raid through `Access`;
+  a ground cache and `Nearby` index for whole-map passes.
+
 ## The MVP: a run you can play
 
 A desktop run where you survive, prepare, hunt, get hunted, and try the pass.
@@ -66,12 +203,15 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 
 ## Design decisions still open (raise when their step comes up)
 
-- **Food balance:** NPCs survive 60 days but end near starvation; the forage focus gain; the NPC's
-  daily schedule (`rebuild-npc-food-and-forage-review.md`).
+- **Food balance:** NPCs survive 60 days but end near starvation; the NPC's
+  daily schedule (`rebuild-npc-food-and-forage-review.md`). The forage focus gain is decided: it
+  reverts to the old filter (see "Restoring the old game").
 - **Hunting thresholds:** bison only when starving; prey worth computed from the animal
   (`rebuild-npc-hunting.md`).
 - **Mammoth sinew:** about 300 kg, uncapped.
-- **The Bloody effect:** its treatment floor contradicts the "dries on its own" comment.
+- **The Bloody effect:** its treatment floor contradicts the "dries on its own" comment. Washing is
+  restored and Bloody still dries on its own (see "Restoring the old game"). Check the floor against
+  that when washing is built.
 - **Combat balance retune:** folds into MVP step 3.
 - **World-density checks:** measures and floors (parked).
 - **The body review's design questions** (step 6).

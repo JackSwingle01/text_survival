@@ -35,6 +35,8 @@ static class Words
         Dropped => "ui/drop",
         Stashed or Unstashed => "ui/storage",
         PoolDiscovered => "ui/inspect",
+        Scavenged => "carcass",
+        TutorialShown => "ui/help",
         TreeFelled => "forest",
         Ate => "ui/food",
         Drank => "ui/water",
