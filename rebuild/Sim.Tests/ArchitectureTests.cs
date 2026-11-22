@@ -188,6 +188,18 @@ public class ArchitectureTests
         Assert.True(missing.Count == 0, "not registered: " + string.Join(", ", missing));
     }
 
+    /// An activity is saved while an NPC or herd is part-way through one (Agent.Doing): a subtype with
+    /// no JsonDerivedType line throws the first time someone is saved doing it.
+    [Fact]
+    public void EveryActivity_IsRegisteredForTheSave()
+    {
+        var registered = typeof(Activity).GetCustomAttributes<JsonDerivedTypeAttribute>().Select(a => a.DerivedType).ToHashSet();
+        var activities = typeof(Activity).Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(Activity)) && !t.IsAbstract).ToList();
+        Assert.True(activities.Count >= 25);
+        var missing = activities.Where(t => !registered.Contains(t)).Select(t => t.Name).OrderBy(n => n).ToList();
+        Assert.True(missing.Count == 0, "not registered: " + string.Join(", ", missing));
+    }
+
     /// In a busy run every event raised carries a real tile on the map: none left at its default.
     [Fact]
     public void ABusyRun_RaisesNoEventWithoutATile()

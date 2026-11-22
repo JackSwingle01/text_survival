@@ -30,6 +30,22 @@ public class SaveTests
         var e = Assert.Throws<JsonException>(() => Save.FromJson("""{"Seed":17,"Minute":0}"""));
         Assert.Contains("no format version", e.Message);
     }
+
+    /// A raid lasts a minute, so nothing saves one today; this keeps one saveable if it ever lasts longer.
+    [Fact]
+    public void AHerdMidRaid_SavesAndLoads()
+    {
+        var w = World.New(17);
+        var tile = Map.Step(Map.Of(w).Camp, Direction.West);
+        Items.Add(Items.StashAt(w, tile, new Cause(AgentId.Player, "stashed by the player")), Resource.RawMeat, 5);
+        var flock = Agents.Spawn(w, Species.Raven, tile, 4, [tile]);
+        w.Agent(flock).Doing = new Doing { Plain = new Raid(flock), MinutesLeft = 1 };
+
+        var loaded = Save.FromJson(Save.ToJson(w));
+
+        Assert.Equal(new Raid(flock), loaded.Agent(flock).Doing?.Activity);
+        Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
+    }
 }
 
 /// The committed sample save (Fixtures/sample-save.json), in the current format. Loading it and saving again must give the
