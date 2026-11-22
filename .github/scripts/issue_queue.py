@@ -6,7 +6,9 @@ selector and the per-issue recheck cannot disagree.
   issue_queue.py list [N]   JSON array of eligible issue numbers, oldest first (only N if given).
                             Each skipped issue and its reason goes to stderr.
   issue_queue.py check N    exit 0 if N is still eligible, else print why and exit 1.
-  issue_queue.py brief N    the issue and its comments from people with write access, as Markdown.
+  issue_queue.py brief N    the issue and its comments from people with write access, then the facts
+                            an agent would otherwise fetch: referenced issues and their state, GitHub
+                            links, open PRs, and whether each repo path it names exists. Markdown.
   issue_queue.py pr N       URL of an open pull request for N, or nothing.
 
 Needs GH_TOKEN and GITHUB_REPOSITORY. Calls the API through the gh CLI.
@@ -97,6 +99,104 @@ def skip_reason(issue, repo):
     return None
 
 
+def try_api(path, what):
+    """For context the brief can do without: a failure is reported in the brief and on stderr."""
+    try:
+        return api(path), None
+    except subprocess.CalledProcessError as e:
+        note = f"({what} could not be fetched: {e.stderr.strip()[:200]})"
+        print(f"brief: {note}", file=sys.stderr)
+        return None, note
+
+
+def mentioned_issues(text, number):
+    """Issue numbers in this repo written as #N or owner/repo#N. Over-matching is harmless here:
+    the brief only adds context, and a miss costs the agent one `gh issue view`."""
+    found = set()
+    for m in re.finditer(r"(?<![\w/#&])(?:([\w.-]+/[\w.-]+))?#(\d+)\b", text):
+        if m.group(1) is None or m.group(1).lower() == REPO.lower():
+            found.add(int(m.group(2)))
+    found.discard(number)
+    return sorted(found)
+
+
+def mentioned_paths(text):
+    """Repo paths the text names: GitHub blob/tree links to this repo, and `code` spans with a slash."""
+    paths = set()
+    for m in re.finditer(rf"github\.com/{re.escape(REPO)}/(?:blob|tree)/[^/\s]+/([^\s)#?]+)", text, re.IGNORECASE):
+        paths.add(m.group(1))
+    for m in re.finditer(r"`([^`\s]+)`", text):
+        token = m.group(1).rstrip(".,:;")
+        if "/" in token and not token.startswith(("/", "http", "@")) and ":" not in token:
+            paths.add(token.removeprefix("./"))
+    return sorted(paths)
+
+
+def brief(number):
+    issue = api(f"repos/{REPO}/issues/{number}")
+    out = [f"# #{number}: {issue['title']}\n", f"Opened by {issue['user']['login']} on {issue['created_at']}.\n",
+           issue["body"] or "(no description)"]
+    trusted_text = [issue["body"] or ""]
+    comments = api(f"repos/{REPO}/issues/{number}/comments?per_page=100")
+    untrusted = 0
+    for c in comments:
+        if c["author_association"] not in TRUSTED:
+            untrusted += 1
+            continue
+        trusted_text.append(c["body"] or "")
+        out.append(f"\n---\n\n## Comment by {c['user']['login']} on {c['created_at']}\n\n{c['body']}")
+    if untrusted:
+        out.append(f"\n---\n\n({untrusted} comments from people without write access were left out.)")
+
+    out.append("\n---\n\n# Fetched for you (current state, not part of the issue)")
+    links = []
+    for path, label in [(f"issues/{number}/dependencies/blocked_by", "Blocked by"),
+                        (f"issues/{number}/dependencies/blocking", "Blocking"),
+                        (f"issues/{number}/sub_issues", "Sub-issues")]:
+        items, note = try_api(f"repos/{REPO}/{path}", label)
+        if note:
+            links.append(f"- {label}: {note}")
+        elif items:
+            links.append(f"- {label}: " + ", ".join(f"#{i['number']} ({i['state']})" for i in items))
+    try:
+        parent = api(f"repos/{REPO}/issues/{number}/parent")
+    except subprocess.CalledProcessError as e:
+        parent = None  # 404 is "no parent"; anything else is worth a line in the brief.
+        if "404" not in e.stderr:
+            links.append(f"- Parent: (could not be fetched: {e.stderr.strip()[:200]})")
+    if parent:
+        links.append(f"- Parent: #{parent['number']} {parent['title']} ({parent['state']})")
+    out.append("\n## GitHub links\n\n" + ("\n".join(links) if links else "None."))
+
+    mentioned = mentioned_issues("\n".join(trusted_text), number)
+    rows = []
+    for n in mentioned:
+        item, note = try_api(f"repos/{REPO}/issues/{n}", f"#{n}")
+        if note:
+            rows.append(f"| #{n} | {note} | | |")
+            continue
+        kind = "PR" if "pull_request" in item else "issue"
+        state = item["state"] + (f" ({item['state_reason']})" if item.get("state_reason") else "")
+        rows.append(f"| #{n} | {item['title']} | {kind} | {state} |")
+    out.append("\n## Issues and PRs it mentions\n\n" +
+               ("| # | Title | Kind | State |\n|---|---|---|---|\n" + "\n".join(rows) if rows else "None."))
+
+    prs, note = try_api(f"repos/{REPO}/pulls?state=open&per_page=100", "Open pull requests")
+    if note:
+        out.append(f"\n## Open pull requests\n\n{note}")
+    else:
+        out.append("\n## Open pull requests\n\n" + ("\n".join(
+            f"- #{p['number']} {p['title']} (`{p['head']['ref']}`{', draft' if p['draft'] else ''})" for p in prs)
+            if prs else "None."))
+
+    root = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip()
+    paths = mentioned_paths("\n".join(trusted_text))
+    if root and paths:
+        out.append("\n## Repo paths it names (checked in this checkout)\n\n" + "\n".join(
+            f"- `{p}`: {'exists' if os.path.exists(os.path.join(root, p)) else 'MISSING'}" for p in paths))
+    return "\n".join(out)
+
+
 def main(argv):
     command, number = argv[1], int(argv[2]) if len(argv) > 2 else None
     if command == "list":
@@ -116,19 +216,7 @@ def main(argv):
             print(f"#{number} is no longer eligible: {reason}")
             return 1
     elif command == "brief":
-        issue = api(f"repos/{REPO}/issues/{number}")
-        print(f"# #{number}: {issue['title']}\n")
-        print(f"Opened by {issue['user']['login']} on {issue['created_at']}.\n")
-        print(issue["body"] or "(no description)")
-        comments = api(f"repos/{REPO}/issues/{number}/comments?per_page=100")
-        untrusted = 0
-        for c in comments:
-            if c["author_association"] not in TRUSTED:
-                untrusted += 1
-                continue
-            print(f"\n---\n\n## Comment by {c['user']['login']} on {c['created_at']}\n\n{c['body']}")
-        if untrusted:
-            print(f"\n---\n\n({untrusted} comments from people without write access were left out.)")
+        print(brief(number))
     elif command == "pr":
         print(Repo().pr_for(number) or "")
     else:
