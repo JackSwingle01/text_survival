@@ -26,6 +26,11 @@ _Avoid_: wanted, required
 The tier for anything beyond the day's survival: stockpiling, a surplus, comfort.
 _Avoid_: optional, luxury
 
+**Source**:
+A place where a stat can be met right now, with what it offers there: grazing, open water, snow, a
+den, a carcass, a stash.
+_Avoid_: offer, patch, spot
+
 ## Things in the world
 
 **Exposure**:
@@ -198,6 +203,11 @@ _Avoid_: home, base
 What a person has seen and remembers of the world: their map, the ground as last seen, stashes,
 fires, dangers. It can be out of date or wrong.
 _Avoid_: beliefs, knowledge, explored
+
+**Familiarity**:
+How well one agent knows another particular agent: it grows with time spent together, fades apart,
+and falls when one attacks the other. A wolf pack is the wolves familiar with each other.
+_Avoid_: relationship, opinion, bond
 
 ## Bodies
 
