@@ -107,7 +107,17 @@ _Avoid_: feature on its own for something at a place (say location feature)
 Anything at a place that can be seen, used or taken from: a fire, a shelter, a stash, a carcass, a
 stand of trees, a berry bush, forage ground, a lake, a rock overhang. Location features are told apart
 by the verbs they offer, not by sub-kinds.
-_Avoid_: thing, harvestable, structure, landmark, site feature, object
+_Avoid_: thing, structure, landmark, site feature, object
+
+**Harvestable**:
+A location feature you gather from again and again, whose supply runs down and may regrow: a berry
+bush, deadfall, a stand of trees, forage ground.
+_Avoid_: pool, patch, resource node
+
+**Shelter**:
+A location feature that keeps weather off a person, built or natural: a lean-to, a pitched tent, a
+rock overhang, a cave.
+_Avoid_: structure, building
 
 **Discovery**:
 A location feature or items hidden at a place until searching turns them up.
