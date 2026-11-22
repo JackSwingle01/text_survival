@@ -1,10 +1,16 @@
 name: Claude Review
+# Reviews each PR when it opens (or leaves draft). Add the `review` label to review again after a push.
+# Dependabot PRs are skipped: workflows they trigger get no repository secrets.
 on:
   pull_request:
-    types: [labeled]
+    types: [opened, ready_for_review, labeled]
 jobs:
   review:
-    if: github.event.label.name == 'review'
+    if: |
+      github.event.pull_request.user.login != 'dependabot[bot]' && (
+        (github.event.action != 'labeled' && !github.event.pull_request.draft) ||
+        (github.event.action == 'labeled' && github.event.label.name == 'review')
+      )
     runs-on: ubuntu-latest
     concurrency:
       group: review-${{ github.event.pull_request.number }}
