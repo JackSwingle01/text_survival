@@ -1,7 +1,9 @@
 name: CI
 
+# Branches are checked through their PR (merged with main); push covers only main itself.
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
