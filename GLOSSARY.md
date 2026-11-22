@@ -101,11 +101,21 @@ _Avoid_: job, task, build in progress
 **Feature**:
 A piece of gameplay the player meets, such as a new location, weather type, animal, recipe, effect,
 condition, item, verb, terrain or discovery.
-_Avoid_: feature for something lying at a place (that is a thing)
+_Avoid_: feature on its own for something at a place (say location feature)
 
-**Thing**:
-Anything at a place that can be seen, used or carried: a fire, a stash, a carcass, a shelter, a tree.
-_Avoid_: feature, object, entity
+**Location feature**:
+Anything at a place that can be seen, used or taken from: a fire, a shelter, a stash, a carcass, a
+stand of trees, a berry bush, forage ground, a lake, a rock overhang. Location features are told apart
+by the verbs they offer, not by sub-kinds.
+_Avoid_: thing, harvestable, structure, landmark, site feature, object
+
+**Discovery**:
+A location feature or items hidden at a place until searching turns them up.
+_Avoid_: find, hidden feature
+
+**Sign**:
+A trace an agent left at a place that tells you about it: tracks, scat, a kill, a cold fire.
+_Avoid_: clue, evidence
 
 **System**:
 The one owner of a set of rules about the world, such as fire, body, ground, weather, animals, fights,
