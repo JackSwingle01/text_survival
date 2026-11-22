@@ -82,10 +82,7 @@ public class WhereThingsGoTests
 
     static readonly Dictionary<string, string> NoBodyProfileYet = new();
 
-    static readonly Dictionary<string, string> NoUiKindYet = new()
-    {
-        ["Hunt"] = "only NPCs set out on a hunt; Verbs.At does not offer it to the player yet",
-    };
+    static readonly Dictionary<string, string> NoUiKindYet = new();
 
     static readonly Dictionary<string, string> NotInActionGenYet = new()
     {

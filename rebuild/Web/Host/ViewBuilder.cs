@@ -108,6 +108,7 @@ sealed class ViewBuilder(World world, int gen)
         GatherCharcoal => "charcoal", Gather => "gather", Butcher => "butcher", Eat => "eat", Drink => "drink", Cook => "cook",
         MeltSnow => "melt", Stash => "stash", Unstash => "take", Wear => "wear", TakeOff => "takeoff", Fight => "fight", Travel => "walk",
         Survival.Build => "build", ImproveShelter => "improve", PackTent => "pack", Make => "make", Abandon => "abandon",
+        Hunt => "hunt",
         _ => "other",
     };
 

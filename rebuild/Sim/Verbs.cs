@@ -144,13 +144,13 @@ public static class Verbs
         ThingKind.Carcass or ThingKind.Stash or ThingKind.Fire or ThingKind.Shelter or ThingKind.Track or ThingKind.Sign or ThingKind.Item => true,
     };
 
-    /// Things nobody can act on yet (another agent, a body, prints) are listed with no verbs.
+    /// A herd offers a hunt; things nobody can act on yet (a person, a body, prints) are listed with no verbs.
     static (string Name, List<(string Label, Activity Activity, int Minutes)> Menu) Describe(World world, AgentId who, ThingRef t, Inventory? pack)
     {
         var have = pack?.Kg ?? [];
         return t.Kind switch
         {
-            ThingKind.Agent => (Cause.Describe(world, new AgentId(t.Index)), []),
+            ThingKind.Agent => AgentVerbs(world, who, new AgentId(t.Index)),
             ThingKind.Body => ("a body", []),
             ThingKind.Pool => PoolVerbs(world, who, t),
             ThingKind.Carcass => CarcassVerbs(world, who, t),
@@ -178,6 +178,9 @@ public static class Verbs
         };
         return (def.Name, verb is { } v ? [v] : []);
     }
+
+    static (string, List<(string, Activity, int)>) AgentVerbs(World world, AgentId who, AgentId other) =>
+        (Cause.Describe(world, other), world.Agent(other).Mind is HerdMind ? [("Hunt", new Hunt(who, other), 1)] : []);
 
     static (string, List<(string, Activity, int)>) CarcassVerbs(World world, AgentId who, ThingRef t)
     {

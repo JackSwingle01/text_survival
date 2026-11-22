@@ -458,6 +458,27 @@ public class CombatStateTests
         Assert.Equal(1, r.MinutesElapsed);
     }
 
+    /// An animal that falls in the player's action was on its way somewhere: with nobody of its herd
+    /// left alive it walks no further, and the round ends with its carcass on the tile.
+    [Fact]
+    public void AnAnimalKilledMidWalk_InThePlayersRound_WalksNoFurther()
+    {
+        var (w, t) = CombatTests.Field();
+        var caribou = CombatTests.Herd(w, Species.Caribou, 1, t);
+        var m = Map.Of(w);
+        var dir = new[] { Direction.North, Direction.East, Direction.South, Direction.West }
+            .First(d => m.InBounds(Map.Step(t, d)) && Map.Blocked(m, t, Map.Step(t, d)) == null);
+        Assert.Null(Sim.Start(w, new Travel(caribou, dir), Verbs.UntilDoneMinutes, [], out var walking));
+        w.Agent(caribou).Doing = walking;
+        Combat.Create(w, [new Fighter(P)], [new Fighter(caribou)], t, 10, Awareness.Engaged, Awareness.Unaware);
+        w.Agent(caribou).Body.BloodPct = 0;
+        var r = Sim.Step(w, new Fight(P, CombatAction.Wait), 1);
+        Assert.Contains(r.Events, e => e is Killed k && k.Agent == caribou);
+        Assert.False(w.Agents.ContainsKey(caribou));
+        Assert.Null(Combat.EncounterOf(w, P));
+        Assert.NotEmpty(w.Tiles[t].Carcasses!);
+    }
+
     [Fact]
     public void TheChaseInstinct_FiresOnTheFirstTurnToRun_NotOnEveryWavering()
     {

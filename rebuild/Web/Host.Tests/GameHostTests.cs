@@ -216,6 +216,20 @@ public class GameHostTests
         Assert.Equal(v.Minute + 1, after.Minute);
     }
 
+    /// A herd standing where the player is can be hunted from the page: its verb is a hunt, and
+    /// taking it puts the player on the grid with it.
+    [Fact]
+    public void A_herd_on_the_tile_offers_a_hunt_that_opens_a_fight()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        Agents.Spawn(h.World, Species.Caribou, h.World.Agent(AgentId.Player).Tile, 3);
+        var hunt = Find(Parse(h.View()), x => x.Kind == "hunt" && x.Refused == null, "hunt");
+        var v = Run(h, hunt);
+        Assert.NotNull(v.Combat);
+        Assert.Contains(v.Combat!.Units, u => u.Team == 1);
+    }
+
     [Fact]
     public void Death_and_the_crossing_are_the_outcome()
     {

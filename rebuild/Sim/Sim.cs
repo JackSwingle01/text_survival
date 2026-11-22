@@ -272,6 +272,8 @@ public static class Sim
         {
             // Animals live outside the human survival model: Fauna ticks their wounds and hunger.
             interrupt = LiveBodies(world, agent, activity, events);
+            // Its last member fell in a fight whose aftermath has not taken the dead yet: nobody walks or eats.
+            if (interrupt == null && !IsAlive(agent)) interrupt = "died";
             if (interrupt == null && activity is Travel) interrupt = Traversal.Advance(world, agent, events);
             if (interrupt == null && Fauna.Handles(activity)) interrupt = Fauna.Minute(world, agent, activity, events);
         }

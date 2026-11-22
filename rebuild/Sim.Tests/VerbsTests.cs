@@ -184,6 +184,27 @@ public class VerbsTests
         AssertEveryVerbIsTrue(w, npc);
     }
 
+    /// A herd on the tile is something to hunt: its one verb is the stalk, and taking it opens the fight
+    /// with the best weapon in the pack. A person on the tile offers nothing.
+    [Fact]
+    public void AHerdHere_OffersAHunt_ThatOpensTheStalk()
+    {
+        var w = Camp(out var camp);
+        Sim.Step(w, new Wait(P), 1);
+        var npc = Npc.Spawn(w, camp);
+        var herd = Agents.Spawn(w, Species.Caribou, camp, 3);
+        Items.Pack(w, P).Gear.Add(Items.Make("wooden_spear"));
+        var here = Verbs.At(w, P);
+        var caribou = here.Things.Single(t => t.Thing == Things.OfAgent(w, herd));
+        Assert.Equal(new Hunt(P, herd), caribou.Action!.Activity);
+        Assert.True(caribou.Action.Allowed);
+        Assert.Empty(here.Things.Single(t => t.Thing == Things.OfAgent(w, npc)).Menu);
+        AssertEveryVerbIsTrue(w, P);
+
+        Sim.Step(w, caribou.Action.Activity, caribou.Action.Minutes);
+        Assert.Equal("wooden_spear", Combat.UnitOf(Combat.EncounterOf(w, P)!, P).Weapon!.Kind);
+    }
+
     /// In a fight nothing but the fight's own actions can start (they are the combat screen's, Combat.Actions).
     [Fact]
     public void InAFight_EveryVerbIsRefused_AsStepWouldRefuseIt()
