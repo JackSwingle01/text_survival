@@ -91,6 +91,7 @@ public static partial class Body
     public static double SpendKcal(BodyState body, double kcal)
     {
         if (kcal <= 0) return 0;
+        if (body.Kind == BodyKind.Human) body.CalorieBalanceKcal -= kcal; // burned, whatever pays for it
         double fromStore = Math.Min(kcal, body.CaloriesKcal);
         body.CaloriesKcal -= fromStore;
         if (kcal - fromStore <= 0) return 0;

@@ -38,6 +38,11 @@ A state that builds up and fades under exposure and time, on a body or a thing: 
 spoiling, and for bodies only bleeding, pain, shivering. One kind of thing for bodies and items.
 _Avoid_: status, debuff
 
+**Discomfort**:
+An effect that wears a body down without harming it: hungry, thirsty, tired. Their losses stack with diminishing returns, so together they never take a
+capacity below about a fifth; wounds, blood loss and the cold take what they take on top.
+_Avoid_: debuff, need effect
+
 **Condition**:
 What an action sees about a thing: a fact read from its effects and its place (frozen to the
 ground, buried under snow, occupied), never stored. A blocking condition stands in front of the

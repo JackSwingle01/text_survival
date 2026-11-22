@@ -45,8 +45,8 @@ public static class Narration
         string Is(AgentId id) => Me(id) ? "You are" : $"{Who(id)} is";
         (string Text, Tone Tone)? line = e switch
         {
-            EffectStarted x => ($"{Is(x.Who)} {Names.Of(x.Kind)}.", x.Kind == EffectKind.Sweating ? Tone.Plain : Tone.Bad),
-            EffectEnded x => ($"{Is(x.Who)} no longer {Names.Of(x.Kind)}.", Tone.Good),
+            EffectStarted x => ($"{Is(x.Who)} {Names.Of(x.Kind)}.", x.Kind switch { EffectKind.Sweating => Tone.Plain, EffectKind.WellFed => Tone.Good, _ => Tone.Bad }),
+            EffectEnded x => ($"{Is(x.Who)} no longer {Names.Of(x.Kind)}.", x.Kind == EffectKind.WellFed ? Tone.Plain : Tone.Good),
             Died x => (Me(x.Who) ? "You die." : $"{Who(x.Who)} dies.", Tone.Bad),
             Exhausted x => ($"{Is(x.Who)} exhausted.", Tone.Bad),
             FullyRested x => ($"{Is(x.Who)} fully rested.", Tone.Good),

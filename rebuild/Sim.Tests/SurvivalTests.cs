@@ -66,6 +66,165 @@ public class SurvivalTests
         Assert.True(Body.GetCapacities(b).Moving < 0.5);
     }
 
+    // ---- hunger follows reserves ----
+
+    /// An empty stomach on a body with fat to burn is a pang: about 5% off moving and manipulation.
+    [Fact]
+    public void Hunger_AnEmptyStomachWithFatToSpare_IsAPang()
+    {
+        var b = Baseline();
+        b.CaloriesKcal = 0;
+        Live(b, Room(), 1);
+        var c = Body.GetCapacities(b);
+        Assert.InRange(c.Moving, 0.94, 0.96);
+        Assert.InRange(c.Manipulation, 0.94, 0.96);
+        Assert.InRange(c.Consciousness, 0.97, 0.99);
+    }
+
+    /// The strong hunger comes as fat and muscle near their floors, and it comes smoothly: along a whole
+    /// fast's worth of reserves, from 10 kg of fat to both floors, moving never rises as they fall, no
+    /// 100 g of fat or muscle costs more than a point of it, and at both floors Hungry is full (-35%).
+    [Fact]
+    public void Hunger_RisesWithoutACliff_AsFatAndMuscleNearTheirFloors()
+    {
+        double MovingAt(double fatKg, double muscleKg)
+        {
+            var b = Baseline();
+            (b.CaloriesKcal, b.FatKg, b.MuscleKg) = (0, fatKg, muscleKg);
+            Live(b, Room(), 1);
+            return Body.GetCapacities(b).Moving;
+        }
+        var start = Baseline();
+        double fatFloorKg = 0.03 * start.WeightKg, startMuscleKg = start.MuscleKg;
+        double previous = MovingAt(10, startMuscleKg);
+        Assert.True(previous > 0.94, $"10 kg of fat: moving {previous:0.000}");
+        var path = new List<(double Fat, double Muscle)>();
+        for (double fat = 10; fat > fatFloorKg; fat -= 0.1) path.Add((fat, startMuscleKg));
+        // The floors move with weight (body review C): muscle's is 15% of the body it is on.
+        for (double muscle = startMuscleKg; muscle > 0.15 * (start.StructuralKg + fatFloorKg + muscle); muscle -= 0.1) path.Add((fatFloorKg, muscle));
+        foreach (var (fat, muscle) in path)
+        {
+            double moving = MovingAt(fat, muscle);
+            Assert.True(moving <= previous + 1e-9, $"moving rose to {moving:0.000} at {fat:0.0} kg fat, {muscle:0.0} kg muscle");
+            Assert.True(previous - moving < 0.01, $"a cliff of {previous - moving:0.000} at {fat:0.0} kg fat, {muscle:0.0} kg muscle");
+            previous = moving;
+        }
+        var spent = Baseline();
+        double spentKg = spent.StructuralKg / (1 - 0.03 - 0.15); // fat and muscle both at their floors
+        (spent.CaloriesKcal, spent.FatKg, spent.MuscleKg) = (0, 0.03 * spentKg, 0.15 * spentKg);
+        Live(spent, Room(), 1);
+        Assert.Equal(1.0, Effects.Severity(spent, EffectKind.Hungry), 2);
+    }
+
+    /// Well fed: while the last day's calorie balance is positive the body makes 5%
+    /// more of its own heat and heals 5% faster. Capacities are untouched: they stay capped at whole.
+    /// A day and more without food turns the balance and it is gone.
+    [Fact]
+    public void WellFed_WhileTheDaysBalanceIsPositive_WarmsAndHealsFivePercentMore()
+    {
+        BodyState Hurt() { var b = Baseline(); b.Regions.Single(r => r.Name == "Left Arm").Muscle.Condition = 0.5; return b; }
+        var fed = Hurt();
+        var unfed = Hurt();
+        Body.Eat(fed, 3000);
+        (unfed.CaloriesKcal, unfed.FatKg) = (fed.CaloriesKcal, fed.FatKg); // the same body: only the day's balance differs
+        Live(fed, Room(), 1);
+        Live(unfed, Room(), 1);
+        Assert.True(Effects.Has(fed, EffectKind.WellFed));
+        Assert.False(Effects.Has(unfed, EffectKind.WellFed));
+        Assert.Equal(1.05, Body.CalculateHeatBalance(fed, Room()).MetabolismKcalPerHour / Body.CalculateHeatBalance(unfed, Room()).MetabolismKcalPerHour, 6);
+        // (to 4 places: the fed body's extra burn leaves a hair less in the store that healing reads)
+        Assert.Equal(1.05, Body.Process(fed, Room(), 1, TestRng()).HealAmount / Body.Process(unfed, Room(), 1, TestRng()).HealAmount, 4);
+        // The heat is paid for: the thermic effect of food burns the calories it makes it from.
+        Assert.Equal(1.05, Body.Process(fed, Room(), 1, TestRng()).CaloriesDeltaKcal / Body.Process(unfed, Room(), 1, TestRng()).CaloriesDeltaKcal, 6);
+        Assert.Equal(Body.GetCapacities(unfed), Body.GetCapacities(fed));
+
+        Live(fed, Room(), 30 * 60);
+        Assert.False(Effects.Has(fed, EffectKind.WellFed), "a day and a half without food, still well fed");
+    }
+
+    /// The day's balance is one running number: eating adds what is absorbed, and ten hours in one step
+    /// leave it where six hundred one-minute steps do. With no food it settles toward minus a day's burn.
+    [Fact]
+    public void CalorieBalance_OneLongStep_IsTheMinutesLivedOneAtATime()
+    {
+        var once = Baseline();
+        Body.Eat(once, 2000);
+        Assert.Equal(2000, once.CalorieBalanceKcal, 9);
+        var byMinute = Baseline();
+        Body.Eat(byMinute, 2000);
+        Body.Apply(once, Body.Process(once, Room(), 600, TestRng()), TestRng());
+        for (int i = 0; i < 600; i++) Body.Apply(byMinute, Body.Process(byMinute, Room(), 1, TestRng()), TestRng());
+        Assert.Equal(byMinute.CalorieBalanceKcal, once.CalorieBalanceKcal, 6);
+        Assert.True(once.CalorieBalanceKcal is > 0 and < 2000);
+
+        var fasting = Baseline();
+        Body.Apply(fasting, Body.Process(fasting, Room(), 20 * 1440, TestRng()), TestRng());
+        Assert.InRange(fasting.CalorieBalanceKcal, -Body.MetabolismKcalPerDay(fasting, 1.0) * 1.01, -Body.MetabolismKcalPerDay(fasting, 1.0) * 0.99);
+    }
+
+    /// Work a fight pays as it goes (a sprint, a strike) is burned too, so it comes off the
+    /// day's balance; and an animal, outside the survival model, keeps none.
+    [Fact]
+    public void CalorieBalance_CountsWorkPaidAsItGoes_AndOnlyForPeople()
+    {
+        var b = Baseline();
+        Body.SpendKcal(b, 300);
+        Assert.Equal(-300, b.CalorieBalanceKcal, 9);
+        var wolf = BodyState.Create(BodyKind.Quadruped, 40, 0.15, 0.45);
+        Body.Eat(wolf, 2000);
+        Body.SpendKcal(wolf, 100);
+        Assert.Equal(0, wolf.CalorieBalanceKcal);
+    }
+
+    // ---- exhaustion ----
+
+    /// At zero energy a body does not drop at once: each minute awake there is about a 1% chance it falls
+    /// asleep where it is, for 15 to 90 minutes, rolled on its own stream. Over 400 bodies the wait
+    /// averages about a hundred minutes, few drop in the first minute, and every sleep lasts 15-90.
+    [Fact]
+    public void AtZeroEnergy_FallsAsleepAboutOnceInAHundredMinutes_ForAQuarterHourToAnHourAndAHalf()
+    {
+        var waits = new List<int>();
+        var sleeps = new List<int>();
+        for (int seed = 1; seed <= 400; seed++)
+        {
+            var b = Baseline();
+            b.EnergyMinutes = 0;
+            var rng = Rng.ForSystem(seed, "body");
+            int minute = 0;
+            while (!Effects.Has(b, EffectKind.Asleep) && minute < 2000) { Body.Update(b, Room(), rng); minute++; }
+            Assert.True(Effects.Has(b, EffectKind.Asleep), $"seed {seed}: awake for 2000 minutes at zero energy");
+            waits.Add(minute);
+            int slept = 0;
+            while (Effects.Has(b, EffectKind.Asleep)) { Body.Update(b, Room(), rng); slept++; }
+            sleeps.Add(slept);
+        }
+        Assert.InRange(waits.Average(), 80, 125);
+        Assert.True(waits.Count(w => w == 1) < 15, $"{waits.Count(w => w == 1)} of 400 dropped in the first minute");
+        Assert.All(sleeps, s => Assert.InRange(s, 15, 90));
+        Assert.True(sleeps.Min() <= 20 && sleeps.Max() >= 85, $"sleeps {sleeps.Min()}-{sleeps.Max()}");
+    }
+
+    /// Asleep, a body is not rolled again, and awake with energy left it is never rolled.
+    [Fact]
+    public void WithEnergyLeft_NoBodyFallsAsleep()
+    {
+        var b = Baseline();
+        b.EnergyMinutes = 5000 / 6.0; // most of a day
+        Live(b, Room(), 600);
+        Assert.False(Effects.Has(b, EffectKind.Asleep));
+    }
+
+    /// A blow wakes a sleeper: whatever hurts enough to give pain ends the sleep.
+    [Fact]
+    public void ABlow_WakesASleeper()
+    {
+        var b = Baseline();
+        Effects.Set(b, EffectKind.Asleep, 60 / 90.0);
+        Body.Damage(b, new DamageInfo(0.3, DamageType.Blunt, BodyTarget.LeftArm), TestRng());
+        Assert.False(Effects.Has(b, EffectKind.Asleep));
+    }
+
     // ---- starvation, dehydration, regeneration ----
 
     [Fact]
@@ -720,7 +879,8 @@ public class SurvivalTests
         c.CaloriesKcal = 300;
         Live(c, Room(), 1);
         double pct = (300 - Body.MetabolismKcalPerDay(c, 1.0) / 1440) / Body.MaxCaloriesKcal;
-        Assert.Equal((0.3 - pct) / 0.3, Effects.Severity(c, EffectKind.Hungry), 2);
+        // A pang, with fat to spare: a seventh of Hungry's full row at an empty store.
+        Assert.Equal(0.05 / 0.35 * (0.3 - pct) / 0.3, Effects.Severity(c, EffectKind.Hungry), 3);
     }
 
     [Fact]

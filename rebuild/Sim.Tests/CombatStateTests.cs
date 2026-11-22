@@ -482,4 +482,18 @@ public class CombatStateTests
         wolf.BoldnessModifier -= 0.02;
         Assert.Equal(CombatAction.Move, Combat.ChooseAction(w, e, wolf).Action);
     }
+
+    /// A fighter asleep where it dropped from exhaustion does nothing but lie there until a blow wakes it.
+    [Fact]
+    public void AnAsleepFighter_Waits()
+    {
+        var (w, e) = PlayerVs(Species.Wolf, 1);
+        var wolf = B(e);
+        wolf.State = FighterState.GivingGround;
+        var me = Combat.TargetOf(e, wolf)!;
+        wolf.BoldnessModifier = SpeciesTable.Of(Species.Wolf).StrikeBackMargin - Combat.Margin(w, e, wolf, me) + 0.01;
+        Assert.Equal(CombatAction.Attack, Combat.ChooseAction(w, e, wolf).Action);
+        Effects.Set(Combat.BodyOf(w, wolf), EffectKind.Asleep, 40 / 90.0);
+        Assert.Equal(CombatAction.Wait, Combat.ChooseAction(w, e, wolf).Action);
+    }
 }

@@ -90,7 +90,7 @@ public static class Sim
     /// (Knowledge.Witness), and the minute's events go into the tile journals. Asleep is away.
     static void EndMinute(World world, Agent? player, Activity activity, List<WorldEvent> events, ref int filed)
     {
-        if (player is { Mind: PlayerMind } && activity is not Sleep && IsAlive(player) && world.Agents.ContainsKey(player.Id))
+        if (player is { Mind: PlayerMind } && activity is not Sleep && IsAlive(player) && !Body.IsAsleep(player.Body) && world.Agents.ContainsKey(player.Id))
             Knowledge.Witness(world, player, events, ref filed);
         Journal.File(world, events, ref filed);
     }
@@ -209,12 +209,15 @@ public static class Sim
 
     public const string InAFight = "You are in a fight.";
 
+    public const string Asleep = "You are asleep.";
+
     static bool ReadsTheFire(Activity activity) =>
         activity is StartFire or AddFuel or LightTorch or GatherCharcoal || Work.Handles(activity) || Shelters.Handles(activity) || Making.Handles(activity);
 
     /// The owning system's refusal for this activity: the one dispatch Start and Refusal share.
     static string? ActivityRefusal(World world, Activity activity) => activity switch
     {
+        not (Wait or Rest or Sleep or Fight { Action: CombatAction.Wait }) when world.Agent(activity.Who) is { Mind: PersonMind } person && Body.IsAsleep(person.Body) => Asleep,
         StartFire or AddFuel or LightTorch or GatherCharcoal => Fire.Refusal(world, activity),
         Travel travel => Traversal.Refusal(world, travel),
         _ when Work.Handles(activity) => Work.Refusal(world, activity),
@@ -242,6 +245,9 @@ public static class Sim
         else
         {
             interrupt = LiveBodies(world, agent, activity, events);
+            // Before any of the minute runs: a fight may have held a waking activity through the drop.
+            if (interrupt != "died" && activity is not (Wait or Rest or Sleep or Fight) && Body.IsAsleep(agent.Body))
+                return Body.FellAsleep;
             if (activity is Travel && interrupt != "died") interrupt = Traversal.Advance(world, agent, events) ?? interrupt;
             if (d.Work != null && interrupt != "died") interrupt = Work.Minute(world, agent, d.Work, events) ?? interrupt;
             if (Shelters.Handles(activity) && interrupt != "died") interrupt = Shelters.Minute(world, agent, activity, events) ?? interrupt;
@@ -315,10 +321,14 @@ public static class Sim
     /// Bedding's warmth is felt asleep in it.
     static double BeddingF(BeddingProps? bedding, Hold hold) => hold.Sleeping ? bedding?.WarmthBonusF ?? 0 : 0;
 
+    /// A body asleep where it dropped lives the minute as sleep, whatever it was doing.
+    static Activity AsLived(Agent agent, Activity activity) => Body.IsAsleep(agent.Body) ? new Sleep(agent.Id) : activity;
+
     /// What the world and this activity do to the agent's body this minute.
     /// Events take a snow shelter melting away under someone keeping still (Shelters.At).
     internal static SurvivalContext Surroundings(World world, Agent agent, Activity activity, List<WorldEvent> events)
     {
+        activity = AsLived(agent, activity);
         var hold = HoldOf(world, agent, activity);
         var cover = Shelters.CoverFor(world, agent.Tile, hold.Stationary, events);
         var bedding = Shelters.BeddingAt(world, agent.Tile);
@@ -356,7 +366,7 @@ public static class Sim
     public static Feeling Feels(World world, AgentId who, Activity activity)
     {
         var agent = world.Agent(who);
-        var hold = HoldOf(world, agent, activity);
+        var hold = HoldOf(world, agent, AsLived(agent, activity));
         var cover = Shelters.CoverNow(world, agent.Tile, hold.Stationary);
         // No ground contact: how wet the ground makes you is not felt air, and reading it would observe
         // (catch up and store) the tile's ground.
@@ -420,7 +430,11 @@ public static class Scheduler
     {
         // A person decides on the fire as it is now (light, a fire to tend), not as it was last looked at.
         if (agent.Mind is PersonMind) Fire.CatchUpAround(world, agent, events);
-        var (activity, minutes) = Minds.Decide(world, agent, events);
+        // A person asleep where it dropped sleeps a minute at a time, its mind not asked (it could start a
+        // hunt in deciding); once awake, slept out or woken by a blow, the mind decides again.
+        var (activity, minutes) = agent.Mind is PersonMind && Body.IsAsleep(agent.Body)
+            ? (new Sleep(agent.Id), 1)
+            : Minds.Decide(world, agent, events);
         // Deciding may have been a fight the agent started (an NPC's hunt): it may not have survived it.
         if (!world.Agents.ContainsKey(agent.Id) || (agent.Mind is HerdMind ? agent.Members.Count == 0 : !Sim.IsAlive(agent))) return false;
         if (activity.Who != agent.Id) throw new InvalidOperationException($"{agent.Id}'s mind chose an activity for {activity.Who}");

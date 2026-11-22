@@ -306,8 +306,9 @@ public class EffectsPropertyTests
 
     // ---- what effects do to the body ----
 
-    /// The readouts are each effect's full-severity row scaled by its severity and summed: linear,
-    /// additive, and nothing from an effect that is not there.
+    /// The readouts are each effect's full-severity row scaled by its severity and summed, and nothing
+    /// from an effect that is not there; the discomforts' losses alone are summed and then saturate,
+    /// x / (1 + (x/0.8)^4)^(1/4).
     [Fact]
     public void Readouts_AreSeverityScaledSumsOfTheTable()
     {
@@ -315,18 +316,44 @@ public class EffectsPropertyTests
         {
             var b = Gens.BodyAfter(ops);
             var caps = new double[Enum.GetValues<Capacity>().Length];
+            var discomfort = new double[caps.Length];
             double core = 0, bleed = 0;
             foreach (var e in b.Effects)
             {
-                foreach (var (cap, delta) in Def(e.Kind).Capacities) caps[(int)cap] += delta * e.Severity;
+                foreach (var (cap, delta) in Def(e.Kind).Capacities)
+                    if (Def(e.Kind).Discomfort && delta < 0) discomfort[(int)cap] -= delta * e.Severity;
+                    else caps[(int)cap] += delta * e.Severity;
                 core += Def(e.Kind).CoreTempFPerHour * e.Severity;
                 bleed += Def(e.Kind).BleedMlPerHour * e.Severity;
             }
             var actual = Effects.CapacityDeltas(b);
-            for (int i = 0; i < caps.Length; i++) Assert.Equal(caps[i], actual[i], 12);
+            for (int i = 0; i < caps.Length; i++)
+                Assert.Equal(caps[i] - discomfort[i] / Math.Pow(1 + Math.Pow(discomfort[i] / 0.8, 4), 0.25), actual[i], 12);
             Assert.Equal(core, Effects.CoreTempFPerHour(b), 12);
             Assert.Equal(bleed, Effects.BleedMlPerHour(b), 12);
         });
+    }
+
+    /// Whatever the curve: worsening any discomfort never raises a capacity, and
+    /// hunger, thirst and tiredness at any severities never take one below a fifth of a whole body.
+    [Fact]
+    public void Discomforts_AreMonotone_AndNeverTakeAWholeBodyBelowAFifth()
+    {
+        var kinds = new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired };
+        var rng = new Random(7);
+        for (int trial = 0; trial < 2000; trial++)
+        {
+            var b = BodyState.BaselineHuman();
+            foreach (var k in kinds) Effects.Set(b, k, rng.NextDouble());
+            var before = Body.GetCapacities(b);
+            foreach (var c in new[] { before.Moving, before.Manipulation, before.Consciousness, before.Sight, before.Hearing })
+                Assert.True(c >= 0.2, $"trial {trial}: {c:0.000}");
+            var k2 = kinds[rng.Next(kinds.Length)];
+            Effects.Set(b, k2, Math.Min(1, Effects.Severity(b, k2) + rng.NextDouble() * 0.3));
+            var after = Body.GetCapacities(b);
+            Assert.True(after.Moving <= before.Moving + 1e-12 && after.Manipulation <= before.Manipulation + 1e-12
+                && after.Consciousness <= before.Consciousness + 1e-12 && after.Sight <= before.Sight + 1e-12, $"trial {trial}: worse {k2} raised a capacity");
+        }
     }
 
     [Fact]

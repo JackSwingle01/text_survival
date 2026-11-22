@@ -301,6 +301,73 @@ public class NpcTests(ITestOutputHelper output)
         Assert.Equal(camp, Map.Step(wood, home.Dir));
     }
 
+    /// An NPC about to decide while asleep where it dropped from exhaustion sleeps it
+    /// out. Its mind is not asked (it could start a hunt in deciding), nothing it chose is refused, its
+    /// body lives the minutes as sleep, and once awake it decides again.
+    [Fact]
+    public void AnNpcAsleepWhereItDropped_SleepsItOut_ThenDecidesAgain()
+    {
+        var (w, npc) = AtCamp(17);
+        Sim.Advance(w, 60);
+        var agent = w.Agent(npc);
+        agent.Doing = null;
+        agent.Body.EnergyMinutes = 0;
+        Effects.Set(agent.Body, EffectKind.Asleep, 40 / 90.0);
+        var events = new List<WorldEvent>();
+        for (int m = 0; m < 40; m++)
+        {
+            events.AddRange(Sim.Advance(w, 1));
+            Assert.True(agent.Doing is null or { Activity: Sleep }, $"minute {m}: {agent.Doing?.Activity}");
+        }
+        Assert.False(Body.IsAsleep(agent.Body));
+        Assert.Equal(80, agent.Body.EnergyMinutes, 9);
+        Assert.DoesNotContain(events, e => e is PlanRefused r && r.Who == npc);
+    }
+
+    /// An NPC asleep with a waking activity still under way (a fight held it while it dropped)
+    /// does not walk or work on asleep: the activity stops on its first minute, before any of it runs.
+    [Fact]
+    public void AnNpcAsleepMidActivity_StopsBeforeTheActivityRuns()
+    {
+        var (w, npc) = AtCamp(17);
+        var agent = w.Agent(npc);
+        var dir = Enum.GetValues<Direction>().First(d => Sim.Refusal(w, new Travel(npc, d)) == null);
+        var events = new List<WorldEvent>();
+        Sim.Start(w, new Travel(npc, dir), 600, events, out var doing);
+        agent.Doing = doing;
+        var tile = agent.Tile;
+        agent.Body.EnergyMinutes = 0;
+        Effects.Set(agent.Body, EffectKind.Asleep, 40 / 90.0);
+        var crossing = agent.Crossing;
+        int elapsed = crossing!.ElapsedMinutes;
+        Sim.Advance(w, 1);
+        Assert.Equal(tile, agent.Tile);
+        Assert.Equal(elapsed, crossing.ElapsedMinutes); // not a step of it walked
+        Assert.Null(agent.Doing);
+        Sim.Advance(w, 1);
+        Assert.Equal(tile, agent.Tile);
+        Assert.Null(agent.Crossing); // turned back: it is sleeping where it stands
+    }
+
+    /// An NPC sleeping off exhaustion that a blow wakes gets up: its mind decides again on the
+    /// next minute rather than lying out the sleep it was given.
+    [Fact]
+    public void AnNpcWokenByABlow_DecidesAgain()
+    {
+        var (w, npc) = AtCamp(17);
+        Sim.Advance(w, 60);
+        var agent = w.Agent(npc);
+        agent.Doing = null;
+        agent.Body.EnergyMinutes = 800; // rested: awake, its mind would not choose to sleep by day
+        Effects.Set(agent.Body, EffectKind.Asleep, 60 / 90.0);
+        Sim.Advance(w, 2);
+        Assert.Equal(804, agent.Body.EnergyMinutes, 9); // lived as sleep
+        Body.Damage(agent.Body, new DamageInfo(0.3, DamageType.Blunt, BodyTarget.LeftArm), Rng.ForSystem(1, "test"));
+        Sim.Advance(w, 2);
+        Assert.False(Body.IsAsleep(agent.Body));
+        Assert.False(agent.Doing?.Activity is Sleep, "woken, and still lying out the exhaustion sleep it was given");
+    }
+
     /// Starving, with wood enough at camp and a caribou on its tile in daylight: it goes after it. (Which herds
     /// it takes on, wanting food or starving: NpcWarmingWalkTests.WhichHerdsALoneNpcHunts.)
     [Fact]

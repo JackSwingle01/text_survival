@@ -9,7 +9,8 @@ namespace Survival.Tests.Verification;
 ///
 /// (BodySurvival.cs: KcalPerKgFat 7700, KcalPerKgMuscle 1320.) absorbed is what Body.Eat put in the
 /// store or laid down as fat: between half the food's kcal (a ruined gut) and all of it, all of it
-/// with a whole gut. burned is metabolism (MetabolismKcalPerDay at the minute's activity) paid in
+/// with a whole gut. burned is metabolism (MetabolismKcalPerDay at the minute's activity, with Well fed's
+/// thermic share) paid in
 /// full, except once fat is down to 3% of body weight and muscle to 15%, when the shortfall is
 /// unpaid and starvation damages the organs instead (declared sink: nothing to burn).
 public class ConservationCaloriesTests
@@ -71,7 +72,8 @@ public class ConservationCaloriesTests
                     for (int m = 0; m < op.Minutes && Body.IsAlive(b); m++)
                     {
                         double weight = b.WeightKg;
-                        double kcalPerMinute = Body.MetabolismKcalPerDay(b, op.Ctx.ActivityFactor) / 24.0 / 60.0;
+                        // Well fed's extra heat is burned too (the thermic effect of food).
+                        double kcalPerMinute = Body.MetabolismKcalPerDay(b, op.Ctx.ActivityFactor) / 24.0 / 60.0 * Effects.MetabolicHeatFactor(b);
                         double before = Held(b);
                         Body.Update(b, op.Ctx, rng);
                         double paid = before - Held(b);

@@ -29,7 +29,7 @@ default" attribute leaves old saves byte-identical, and the test stays green.
 
 The sample world has a little of most saved state: a fire, a stash, a shelter and bedding, a
 crossing, an NPC, a wolf pack, memory, explored and remembered ground, rng streams, a journal, a made spear
-with its recorded parts and an unfinished one in the pack.
+with its recorded parts and an unfinished one in the pack, a well-fed player and an NPC asleep where it dropped.
 
 Version 2 (MVP 4, making things) added `Gear.MadeOf`, `Inventory.Projects`, the `make` and
 `abandon` activities, and the `made` and `projectabandoned` events. Version 3 (the species round)
@@ -45,7 +45,11 @@ per tile seen (minute, snow and standing water in millimetres, mud in hundredths
 13 characters per tile seen on top of the bitset. A look also catches up the kept ground in view, so the
 sample's ground numbers moved forward. Version 7 (fire deterrence) gave an encounter its `FireCell`, where the
 tile's fire pit stands on the grid: written always, since (0,0) is a cell, so a fight saved before it would put the
-pit in a corner. The sample has no fight in it, so only its version moved. When you add
+pit in a corner. The sample has no fight in it, so only its version moved. Version 8 (hunger, Well fed and exhaustion)
+added `BodyState.CalorieBalanceKcal`, the running day's calorie balance behind Well fed, skipped at its
+default, and the `Asleep` and `WellFed` effect kinds, appended to `EffectKind` (saved as numbers 14 and 15).
+An `Asleep` severity is the sleep left in ninetieths of the longest one, so changing that longest sleep
+reinterprets saves. The sample's bodies moved with the new hunger and the Well fed burn. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands.

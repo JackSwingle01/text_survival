@@ -52,7 +52,7 @@ public class SaveFixtureTests
 
     /// A small world with a bit of most of what a save holds: a fire burning, a stash, a shelter and
     /// bedding, a crossing made, an NPC, a wolf pack, the player's memory, explored and remembered ground, rng
-    /// streams, a journal, a made thing's parts and an unfinished one in the pack. Not World.New: its two dozen herds would make the fixture half a megabyte.
+    /// streams, a journal, a made thing's parts and an unfinished one in the pack, a well-fed player and an NPC asleep. Not World.New: its two dozen herds would make the fixture half a megabyte.
     internal static World SampleWorld()
     {
         var map = Map.Generate(17);
@@ -62,7 +62,7 @@ public class SaveFixtureTests
         Shelters.Place(w, camp, Shelters.CampOverhang);
         Shelters.PlaceBedding(w, camp, BeddingKind.Camp);
         TestKit.Supply(w);
-        Npc.Spawn(w, camp);
+        var npc = Npc.Spawn(w, camp);
         Agents.Spawn(w, Species.Wolf, new TileId(camp.X + 12, camp.Y), 2);
         Sim.Step(w, new Wait(P), 5);
         for (int i = 0; i < 10 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++)
@@ -77,6 +77,11 @@ public class SaveFixtureTests
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         Sim.Step(w, new Make(P, "crude_spear"), Verbs.UntilDoneMinutes);
         Sim.Step(w, new Make(P, "crude_spear"), 8);
+        // A good meal (the day's balance in surplus: Well fed), and the NPC asleep where it dropped.
+        Body.Eat(w.Agent(P).Body, 2500);
+        w.Agent(npc).Body.EnergyMinutes = 0;
+        Effects.Set(w.Agent(npc).Body, EffectKind.Asleep, 40 / 90.0);
+        Sim.Step(w, new Wait(P), 2);
         return w;
     }
 

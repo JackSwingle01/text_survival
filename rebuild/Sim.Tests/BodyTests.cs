@@ -281,6 +281,46 @@ public class BodyTests
         Assert.True(Body.IsAlive(b));
     }
 
+    /// Discomforts stack with diminishing returns. Hunger, thirst and tiredness at full together leave
+    /// every capacity at about a fifth; each alone is nearly what its row says.
+    [Fact]
+    public void Discomforts_StackWithDiminishingReturns_NeverBelowAboutAFifth()
+    {
+        var b = Baseline();
+        foreach (var kind in new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired }) Effects.Add(b, kind, 1.0);
+        var c = Body.GetCapacities(b);
+        foreach (var (name, value) in new[] { ("Moving", c.Moving), ("Manipulation", c.Manipulation), ("Consciousness", c.Consciousness), ("Sight", c.Sight), ("Hearing", c.Hearing) })
+            Assert.True(value >= 0.2, $"{name} {value:0.000}");
+        Assert.InRange(c.Moving, 0.2, 0.25);
+
+        var tired = Baseline();
+        Effects.Add(tired, EffectKind.Tired, 1.0);
+        Assert.InRange(Body.GetCapacities(tired).Moving, 0.55, 0.57); // -0.45 alone, a hair less
+    }
+
+    /// Only discomfort saturates: wounds, blood loss and the cold's effects still take what they take,
+    /// on top of it, to nothing.
+    [Fact]
+    public void Discomforts_Saturate_ButDamageBloodLossAndColdStillTakeCapacitiesToNothing()
+    {
+        BodyState Miserable()
+        {
+            var b = Baseline();
+            foreach (var kind in new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired }) Effects.Add(b, kind, 1.0);
+            return b;
+        }
+        var bled = Miserable();
+        bled.BloodPct = 0.5;
+        Assert.Equal(0, Body.GetCapacities(bled).Moving, 9);
+        var lame = Miserable();
+        Destroy(RegionOf(lame, "Left Leg"));
+        Destroy(RegionOf(lame, "Right Leg"));
+        Assert.True(Body.GetCapacities(lame).Moving < 0.02);
+        var frozen = Miserable();
+        Effects.Add(frozen, EffectKind.Frostbite, 0.3); // -0.15 moving, added in full below the fifth
+        Assert.InRange(Body.GetCapacities(frozen).Moving, 0.06, 0.10);
+    }
+
     /// Body review B5: a body that dies is named after the damage that took it over the line, as it
     /// landed; a cause no damage named is the body's injuries, and a living body has no cause.
     [Fact]

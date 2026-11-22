@@ -142,7 +142,9 @@
   "Bleeding": "bleeding",
   "Pain": "in pain",
   "Dazed": "dazed",
-  "Shock": "in shock"
+  "Shock": "in shock",
+  "Asleep": "asleep",
+  "WellFed": "well fed"
  },
  "Capacity": {
   "Moving": "moving",

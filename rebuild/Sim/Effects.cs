@@ -8,6 +8,8 @@ public enum EffectKind
     Shivering, Hypothermia, Frostbite, Hyperthermia, Sweating,
     Wet, Bloody,
     Bleeding, Pain, Dazed, Shock,
+    // Appended: saves write the kind as its number.
+    Asleep, WellFed,
 }
 
 /// An ongoing process on a body. Distinct from tissue damage: stopping a bleed does not mend the leg.
@@ -23,7 +25,7 @@ public sealed class BodyEffect
 /// One effect's definition (Content/effects.json): its hourly drift, whether it needs treatment once it
 /// starts above a severity (null never), and what it does to the body at full severity.
 public sealed record EffectDef(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour, double BleedMlPerHour,
-    IReadOnlyList<(Capacity Capacity, double Delta)> Capacities);
+    IReadOnlyList<(Capacity Capacity, double Delta)> Capacities, bool Discomfort = false, double MetabolicHeatDelta = 0, double HealingDelta = 0);
 
 public static class Effects
 {
@@ -92,17 +94,40 @@ public static class Effects
         body.Effects.RemoveAll(e => e.Severity <= 0);
     }
 
-    /// Summed capacity deltas, indexed by Capacity, each scaled by severity.
+    /// Summed capacity deltas, each scaled by severity, except that the discomforts' losses saturate
+    /// first: hunger, thirst and tiredness wear a body down without leaving it helpless.
     public static double[] CapacityDeltas(BodyState body)
     {
-        var deltas = new double[Enum.GetValues<Capacity>().Length];
+        int count = Enum.GetValues<Capacity>().Length;
+        var deltas = new double[count];
+        var discomfortLoss = new double[count];
         foreach (var e in body.Effects)
-            foreach (var (cap, delta) in DefOf(e.Kind).Capacities)
-                deltas[(int)cap] += delta * e.Severity;
+        {
+            var def = DefOf(e.Kind);
+            foreach (var (cap, delta) in def.Capacities)
+            {
+                if (def.Discomfort) discomfortLoss[(int)cap] -= delta * e.Severity;
+                else deltas[(int)cap] += delta * e.Severity;
+            }
+        }
+        for (int i = 0; i < count; i++) deltas[i] -= DiscomfortLoss(discomfortLoss[i]);
         return deltas;
     }
+
+    internal const double DiscomfortMaxLoss = 0.8;
+
+    /// The sum while it is small, bending smoothly toward DiscomfortMaxLoss: never a cliff, never a relief.
+    internal static double DiscomfortLoss(double summedLoss) =>
+        summedLoss / Math.Pow(1 + Math.Pow(summedLoss / DiscomfortMaxLoss, 4), 0.25);
+
+    internal static double CapacityLoss(EffectKind kind, Capacity capacity) =>
+        DefOf(kind).Capacities.Single(c => c.Capacity == capacity).Delta;
 
     public static double CoreTempFPerHour(BodyState body) => body.Effects.Sum(e => DefOf(e.Kind).CoreTempFPerHour * e.Severity);
 
     public static double BleedMlPerHour(BodyState body) => body.Effects.Sum(e => DefOf(e.Kind).BleedMlPerHour * e.Severity);
+
+    public static double MetabolicHeatFactor(BodyState body) => 1 + body.Effects.Sum(e => DefOf(e.Kind).MetabolicHeatDelta * e.Severity);
+
+    public static double HealingFactor(BodyState body) => 1 + body.Effects.Sum(e => DefOf(e.Kind).HealingDelta * e.Severity);
 }

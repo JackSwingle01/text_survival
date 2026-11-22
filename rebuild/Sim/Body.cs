@@ -77,6 +77,9 @@ public sealed class BodyState
     /// Minutes of waking left; sleep refills it.
     public double EnergyMinutes { get; set; } = 900;
     public double HydrationMl { get; set; } = 3000;
+    /// Absorbed less burned, each minute's share fading by e a day: one running number for "the last day".
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double CalorieBalanceKcal { get; set; }
     /// Warmth stored in clothing's thermal mass, 0-1 of what it can hold.
     public double ClothingHeatBufferPct { get; set; } = 0.3;
     /// How much of the sprint reserve is spent, 0 full to 1 empty (Body.SprintReservePct): running
@@ -572,7 +575,10 @@ public static partial class Body
 
         if (hit.Type is DamageType.Blunt or DamageType.Sharp or DamageType.Pierce or DamageType.Burn
             && result.TotalDamageDealt > 0.02)
+        {
             Trigger(EffectKind.Pain, Math.Clamp(result.TotalDamageDealt, 0.1, 0.8));
+            Wake(body); // nobody sleeps through a blow that hurts
+        }
 
         if (hit.Type == DamageType.Blunt && region.Name == "Head" && result.TotalDamageDealt > 0.08)
             Trigger(EffectKind.Dazed, Math.Clamp(result.TotalDamageDealt * 1.5, 0.2, 0.8));
@@ -771,10 +777,13 @@ public static partial class Body
     /// every kilocalorie absorbed is either in the store or on the body.
     public static void Eat(BodyState body, double kcal)
     {
-        double stored = body.CaloriesKcal + kcal * (0.5 + 0.5 * GetCapacitiesWithoutEffects(body).Digestion);
+        double absorbed = kcal * (0.5 + 0.5 * GetCapacitiesWithoutEffects(body).Digestion);
+        double stored = body.CaloriesKcal + absorbed;
         double capacity = CaloriesCapacityKcal(body);
         body.CaloriesKcal = Math.Min(capacity, stored);
         body.FatKg += Math.Max(0, stored - capacity) / KcalPerKgFat;
+        // People only: an animal lives outside the survival model that would age the balance (Fauna.Tick).
+        if (body.Kind == BodyKind.Human) body.CalorieBalanceKcal += absorbed;
     }
 
     public static void Drink(BodyState body, double ml) =>

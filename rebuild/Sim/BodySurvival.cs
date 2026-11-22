@@ -43,7 +43,7 @@ public sealed record SurvivalContext
 /// Everything one stretch of survival does to a body, computed before any of it is applied.
 public sealed class SurvivalDelta
 {
-    public double CoreTempDeltaF, CaloriesDeltaKcal, HydrationDeltaMl, EnergyDeltaMinutes, ClothingHeatBufferDeltaPct;
+    public double CoreTempDeltaF, CaloriesDeltaKcal, HydrationDeltaMl, EnergyDeltaMinutes, ClothingHeatBufferDeltaPct, CalorieBalanceDeltaKcal;
     public double FatBurnedKg, MuscleBurnedKg, BloodHealedPct, HealAmount;
     public List<(EffectKind Kind, double Severity)> Effects { get; } = [];
     public List<DamageInfo> Damage { get; } = [];
@@ -169,6 +169,10 @@ public static partial class Body
         return bmr * activityFactor;
     }
 
+    /// The one source for heat made and calories burned, so an effect's extra heat is always paid for.
+    static double BurnKcalPerHour(BodyState body, double activityFactor) =>
+        MetabolismKcalPerDay(body, activityFactor) / 24 * Effects.MetabolicHeatFactor(body);
+
     readonly record struct SweatResponse(double Severity, double ProducedMlPerHour, double EvaporatedMlPerHour)
     {
         public double CoolingKcalPerHour => EvaporatedMlPerHour * EvaporativeKcalPerMl;
@@ -194,7 +198,7 @@ public static partial class Body
         double deltaC = (SkinTemperatureF(body.CoreTempF) - (ctx.AirTempF + FireF(body, ctx))) * 5.0 / 9.0;
         double sensibleLossKcalPerHour = surfaceAreaM2 * deltaC / TotalThermalResistance(body, ctx) * 0.86;
         return new HeatBalance(
-            MetabolismKcalPerDay(body, ctx.ActivityFactor) / 24,
+            BurnKcalPerHour(body, ctx.ActivityFactor),
             sensibleLossKcalPerHour,
             Sweat(body, ctx).CoolingKcalPerHour,
             body.WeightKg * specificHeatKcalPerKgF);
@@ -211,7 +215,9 @@ public static partial class Body
     {
         var d = new SurvivalDelta();
 
-        d.CaloriesDeltaKcal = -MetabolismKcalPerDay(body, ctx.ActivityFactor) / 24.0 / 60.0 * minutes;
+        double burnKcalPerMinute = BurnKcalPerHour(body, ctx.ActivityFactor) / 60.0;
+        d.CaloriesDeltaKcal = -burnKcalPerMinute * minutes;
+        d.CalorieBalanceDeltaKcal = CalorieBalanceAfter(body.CalorieBalanceKcal, burnKcalPerMinute, minutes) - body.CalorieBalanceKcal;
         d.EnergyDeltaMinutes = ctx.IsSleeping ? SleepRecoveryFactor * minutes : -minutes;
         d.HydrationDeltaMl = -BaseWaterLossMlPerDay / (24.0 * 60.0) * (ctx.IsSleeping ? SleepWaterLossFactor : 1.0) * minutes;
 
@@ -227,18 +233,48 @@ public static partial class Body
         ProcessRegeneration(body, ctx, calories, hydration, minutes, d);
 
         double energy = body.EnergyMinutes + d.EnergyDeltaMinutes;
-        AddBelowThreshold(d, EffectKind.Hungry, calories / CaloriesCapacityKcal(body));
+        double hungry = HungerSeverity(body, calories / CaloriesCapacityKcal(body));
+        if (hungry > 0) d.Effects.Add((EffectKind.Hungry, hungry));
         AddBelowThreshold(d, EffectKind.Thirsty, hydration / MaxHydrationMl);
         AddBelowThreshold(d, EffectKind.Tired, energy / MaxEnergyMinutes);
+        d.Effects.Add((EffectKind.WellFed, WellFedSeverity(body.CalorieBalanceKcal + d.CalorieBalanceDeltaKcal))); // Set: zero ends it
         return d;
     }
 
+    /// In closed form, so one long step is exactly the minutes lived one at a time.
+    static double CalorieBalanceAfter(double balanceKcal, double burnKcalPerMinute, int minutes)
+    {
+        double keptPct = Math.Pow(CalorieBalanceKeptPerMinutePct, minutes);
+        return balanceKcal * keptPct - burnKcalPerMinute * (1 - keptPct) / (1 - CalorieBalanceKeptPerMinutePct);
+    }
+
+    static readonly double CalorieBalanceKeptPerMinutePct = Math.Exp(-1.0 / (24 * 60));
+
+    /// Rising from nothing, so there is no line to flicker across.
+    static double WellFedSeverity(double balanceKcal) => Math.Clamp(balanceKcal / WellFedFullKcal, 0, 1);
+
+    const double WellFedFullKcal = 500;
+
     static void AddBelowThreshold(SurvivalDelta d, EffectKind kind, double pct)
     {
-        pct = Math.Clamp(pct, 0, 1);
-        if (pct < SurvivalEffectThresholdPct)
-            d.Effects.Add((kind, (SurvivalEffectThresholdPct - pct) / SurvivalEffectThresholdPct));
+        double severity = BelowThreshold(pct);
+        if (severity > 0) d.Effects.Add((kind, severity));
     }
+
+    static double BelowThreshold(double pct) =>
+        Math.Max(0, (SurvivalEffectThresholdPct - Math.Clamp(pct, 0, 1)) / SurvivalEffectThresholdPct);
+
+    /// Hunger follows the reserves, so a body with fat to burn is not weak from a missed day: an empty
+    /// store is a pang, and the strong hunger rises over the last StarvingRampDays the reserves can feed.
+    static double HungerSeverity(BodyState body, double storePct)
+    {
+        double pang = EmptyStoreHungerSeverity * BelowThreshold(storePct);
+        double reserves = Math.Clamp(1 - ReservesKcal(body) / (StarvingRampDays * MetabolismKcalPerDay(body, 1.0)), 0, 1);
+        return Math.Max(pang, reserves);
+    }
+
+    const double EmptyStorePangLoss = 0.05, StarvingRampDays = 20;
+    static readonly double EmptyStoreHungerSeverity = EmptyStorePangLoss / -Effects.CapacityLoss(EffectKind.Hungry, Capacity.Moving);
 
     /// Body temperature change, the clothing heat buffer, the water sweat costs, and temperature effects.
     public static SurvivalDelta ProcessTemperature(BodyState body, SurvivalContext ctx, int minutes)
@@ -475,7 +511,7 @@ public static partial class Body
         if (!fed || !watered || !warm || !rested || (healed && bloodFull)) return;
 
         double nutritionPct = Math.Min(1.0, calories / CaloriesCapacityKcal(body));
-        double amount = BaseHealingPerHour / 60.0 * minutes * nutritionPct * GetCapacitiesWithoutEffects(body).Digestion;
+        double amount = BaseHealingPerHour / 60.0 * minutes * nutritionPct * GetCapacitiesWithoutEffects(body).Digestion * Effects.HealingFactor(body);
         if (!bloodFull) d.BloodHealedPct = amount * 0.5;
         if (!healed) d.HealAmount = amount * (ctx.IsSleeping ? SleepHealingFactor(body, ctx) : 1);
     }
@@ -500,6 +536,7 @@ public static partial class Body
         body.EnergyMinutes = Math.Clamp(body.EnergyMinutes + d.EnergyDeltaMinutes, 0, MaxEnergyMinutes);
         body.CoreTempF += d.CoreTempDeltaF;
         body.ClothingHeatBufferPct = Math.Clamp(body.ClothingHeatBufferPct + d.ClothingHeatBufferDeltaPct, 0, 1);
+        body.CalorieBalanceKcal += d.CalorieBalanceDeltaKcal;
         body.FatKg = Math.Max(0, body.FatKg - d.FatBurnedKg);
         body.MuscleKg = Math.Max(0, body.MuscleKg - d.MuscleBurnedKg);
         body.BloodPct = Math.Min(1.0, body.BloodPct + d.BloodHealedPct);
@@ -521,7 +558,7 @@ public static partial class Body
         }
         foreach (var (kind, severity) in d.Effects)
         {
-            if (kind is EffectKind.Wet or EffectKind.Bloody) Effects.Set(body, kind, severity);
+            if (kind is EffectKind.Wet or EffectKind.Bloody or EffectKind.WellFed) Effects.Set(body, kind, severity);
             else Effects.Add(body, kind, severity);
         }
 
@@ -532,7 +569,31 @@ public static partial class Body
         Apply(body, d, rng);
         // A mended body, person or animal, forgets who hurt it: a death days later is not the old wound's.
         if (body.WoundedBy != null && IsMended(body)) body.WoundedBy = null;
+        Exhaustion(body, ctx, rng);
     }
+
+    /// One roll a minute lived, on the body's own stream, so a drop is the same however the minutes are
+    /// stepped.
+    static void Exhaustion(BodyState body, SurvivalContext ctx, Rng rng)
+    {
+        int asleepLeft = AsleepMinutesLeft(body);
+        if (asleepLeft > 0) SetAsleepMinutes(body, asleepLeft - 1);
+        else if (!ctx.IsSleeping && body.EnergyMinutes <= 0 && rng.NextDouble() < CollapsePctPerMinute)
+            SetAsleepMinutes(body, MinCollapseMinutes + rng.NextInt(MaxCollapseMinutes - MinCollapseMinutes + 1));
+    }
+
+    const double CollapsePctPerMinute = 0.01;
+    /// The unit of a saved Asleep severity: changing MaxCollapseMinutes raises Save.FormatVersion.
+    const int MinCollapseMinutes = 15, MaxCollapseMinutes = 90;
+
+    /// Dropped from exhaustion, not the chosen Sleep activity: it can only sleep it out (Sim).
+    public static bool IsAsleep(BodyState body) => AsleepMinutesLeft(body) > 0;
+
+    public static int AsleepMinutesLeft(BodyState body) => (int)Math.Round(Effects.Severity(body, EffectKind.Asleep) * MaxCollapseMinutes);
+
+    static void SetAsleepMinutes(BodyState body, int minutes) => Effects.Set(body, EffectKind.Asleep, (double)minutes / MaxCollapseMinutes);
+
+    internal static void Wake(BodyState body) => Effects.Set(body, EffectKind.Asleep, 0);
 
     /// A minute's bleeding: the blood lost to wounds someone gave is theirs to answer for.
     static DamageInfo Bleed(BodyState body, double ml) => new(ml, DamageType.Bleed, BodyTarget.Blood, By: body.WoundedBy ?? BloodLoss);
@@ -546,6 +607,8 @@ public static partial class Body
         double bleedMl = Effects.BleedMlPerHour(body) / 60;
         if (bleedMl > 0) Damage(body, Bleed(body, bleedMl), rng);
     }
+
+    public const string FellAsleep = "fell asleep";
 
     /// Advances one agent one minute and reports what happened. Returns the reason to stop, if any.
     public static string? Tick(World world, Agent agent, SurvivalContext ctx, List<WorldEvent> events)
@@ -572,6 +635,8 @@ public static partial class Body
             events.Add(new Exhausted(world.Minute, agent.Id, agent.Tile));
             return "exhausted";
         }
+        if (IsAsleep(body) && !kindsBefore.Contains(EffectKind.Asleep)) return FellAsleep;
+
         if (ctx.IsSleeping && energyBefore < MaxEnergyMinutes && body.EnergyMinutes == MaxEnergyMinutes)
         {
             events.Add(new FullyRested(world.Minute, agent.Id, agent.Tile));

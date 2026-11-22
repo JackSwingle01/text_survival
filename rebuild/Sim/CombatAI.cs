@@ -399,6 +399,7 @@ public static partial class Combat
         bool Allowed(CombatAction a) => Refusal(world, enc, u, a) == null;
         (CombatAction, Cell?, CombatUnit?) Wait() => (CombatAction.Wait, null, null);
         (CombatAction, Cell?, CombatUnit?) Go(Cell to) => WithinAllowance(world, u, to) is Cell c ? (CombatAction.Move, c, null) : Wait();
+        if (Body.IsAsleep(BodyOf(world, u))) return Wait();
         switch (u.State)
         {
             case FighterState.Unaware:

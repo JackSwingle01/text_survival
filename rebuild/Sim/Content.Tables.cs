@@ -61,7 +61,8 @@ public static partial class Content
         double StrikeBackMargin, double ChaseLimitSeconds,
         FatRange? AutumnFatPct = null, PersonBuild? Female = null);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
-        double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null);
+        double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
+        double MetabolicHeatDelta = 0, double HealingDelta = 0);
     sealed record SheltersFile(Dictionary<string, ShelterKindProps> Kinds, Dictionary<string, ShelterDef> Tents,
         Dictionary<string, ShelterMaterial> Materials, Dictionary<string, RecipeRow> Recipes, Dictionary<string, BeddingProps> Beddings);
     sealed record RecipeRow(int Minutes, IReadOnlyList<RecipeMaterial> Materials, bool NeedsLight, bool NeedsShovel = false,
@@ -169,7 +170,8 @@ public static partial class Content
             ReadOnly(speciesRows.ToDictionary(s => s.Key, s => ToStats(s.Value, species.Temperaments[s.Value.Temperament]))),
             ReadOnly(diets), species.Sightings,
             ReadOnly(effectRows.ToDictionary(e => e.Key, e => new EffectDef(e.Value.SeverityPerHour, e.Value.TreatmentAboveSeverity,
-                e.Value.CoreTempFPerHour, e.Value.BleedMlPerHour, effectCaps[e.Key].Select(c => (c.Key, c.Value)).ToList().AsReadOnly()))),
+                e.Value.CoreTempFPerHour, e.Value.BleedMlPerHour, effectCaps[e.Key].Select(c => (c.Key, c.Value)).ToList().AsReadOnly(), e.Value.Discomfort,
+                e.Value.MetabolicHeatDelta, e.Value.HealingDelta))),
             ReadOnly(kinds), new ReadOnlyDictionary<string, ShelterDef>(shelters.Tents), ReadOnly(materials),
             ReadOnly(recipes.ToDictionary(r => r.Key, r => ToRecipe(r.Value, materials))),
             ReadOnly(beddings),
@@ -482,6 +484,8 @@ public static partial class Content
             if (e.SeverityPerHour > 0) yield return $"effects.json {k}: severityPerHour {e.SeverityPerHour} grows by itself";
             if (e.BleedMlPerHour < 0) yield return $"effects.json {k}: bleedMlPerHour {e.BleedMlPerHour}";
             foreach (var (c, d) in caps[k]) if (d is < -1 or > 0) yield return $"effects.json {k}: {c} {d} is not a loss in 0-1";
+            if (e.MetabolicHeatDelta is < -1 or > 1) yield return $"effects.json {k}: metabolicHeatDelta {e.MetabolicHeatDelta} is not in -1..1";
+            if (e.HealingDelta is < -1 or > 1) yield return $"effects.json {k}: healingDelta {e.HealingDelta} is not in -1..1";
         }
     }
 
