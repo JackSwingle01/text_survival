@@ -36,3 +36,5 @@ For the clean-room rebuild (`rebuild/`):
 - `GLOSSARY.md` defines the project's terms (stat tiers, effects, conditions, contest...). Use them.
 - `documentation/decisions/` holds decision records (`YYYY-MM-DD-short-name.md`, a paragraph each)
   for hard-to-reverse, surprising choices. Read them before reopening a design question.
+- Before adding any feature to the rebuild, read "Where things go" in
+  `documentation/clean-room-architecture.md`: the home, rule and touch points for each kind.
