@@ -81,6 +81,13 @@ public static class Report
                             Add(t, "shelter find", FindCategory.Structure, null, $"{sf.Name} ({sf.Shelter.Kind}), found, the {other.Name} stands in its place");
                             break;
                         case ShelterFind: break; // found: standing, the shelter's own row says so
+                        case CarcassFind cf when !FoundByAnyone(w, id):
+                            Add(t, "carcass find", FindCategory.Resource, null, Invariant($"{cf.Name} ({cf.Animal}, {cf.HarvestedPct:P0} eaten), hidden"));
+                            break;
+                        case StashFind sf when !FoundByAnyone(w, id):
+                            Add(t, "stash find", FindCategory.Resource, null, $"{sf.Name}, hidden");
+                            break;
+                        case CarcassFind or StashFind: break; // found: the carcass or stash's own row says so
                         case ForagePool or TreePool: break; // the skeleton: see the class comment
                         default: throw new InvalidOperationException($"Report has no row for pool {pools[i].GetType().Name}");
                     }

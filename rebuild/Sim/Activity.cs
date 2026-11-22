@@ -19,6 +19,7 @@ namespace Survival;
 [JsonDerivedType(typeof(Drink), "drink")]
 [JsonDerivedType(typeof(Cook), "cook")]
 [JsonDerivedType(typeof(MeltSnow), "meltsnow")]
+[JsonDerivedType(typeof(WalkAbout), "walkabout")]
 [JsonDerivedType(typeof(Stash), "stash")]
 [JsonDerivedType(typeof(Unstash), "unstash")]
 [JsonDerivedType(typeof(Wear), "wear")]
@@ -58,6 +59,8 @@ public sealed record Eat(AgentId Who, Resource Food, double Kg) : Activity(Who);
 public sealed record Drink(AgentId Who, double Liters = Work.MaxDrinkLiters) : Activity(Who);
 public sealed record Cook(AgentId Who, Resource Raw, double Kg) : Activity(Who);
 public sealed record MeltSnow(AgentId Who) : Activity(Who);
+/// Keep Walking: walk the forage ground a few minutes to notice new clues (Work.WalkAboutMinutes).
+public sealed record WalkAbout(AgentId Who) : Activity(Who);
 public sealed record Stash(AgentId Who, Resource Resource, double Kg) : Activity(Who);
 public sealed record Unstash(AgentId Who, Resource Resource, double Kg) : Activity(Who);
 /// What that slot held goes back in the pack.

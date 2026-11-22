@@ -312,6 +312,57 @@ public class GameHostTests
         Assert.Contains(v.Combat!.Units, u => u.Team == 1);
     }
 
+    /// Out on your feet, foraging until you drop asleep where you stand.
+    static (GameHost Host, ViewDto View) Exhausted()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        h.World.Agent(AgentId.Player).Body.EnergyMinutes = 0;
+        return (h, Parse(h.View()));
+    }
+
+    /// Dropped asleep from exhaustion, the player has nothing to choose until they wake: the sleep is
+    /// what is under way, run in the page's chunks like any job, and the page is never handed a view
+    /// with nothing under way while every verb but waiting is refused. Awake again, the verbs are back.
+    [Fact]
+    public void Dropping_asleep_from_exhaustion_runs_the_sleep_out_and_gives_the_verbs_back()
+    {
+        var (h, v) = Exhausted();
+        bool dropped = false;
+        for (int tries = 0; !dropped; tries++)
+        {
+            Assert.True(tries < 30, "never dropped asleep at zero energy");
+            v = Parse(Act(h, Find(v, x => x.Kind == "gather" && x.Refused == null, "forage").Id));
+            for (int i = 0; v.Job is { Finished: false } && i < 10_000; i++)
+            {
+                if (Body.IsAsleep(h.World.Agent(AgentId.Player).Body)) dropped = true;
+                v = Parse(h.Act("""{"advance":10}"""));
+            }
+            dropped |= v.Log.Any(l => l.Text == "You are asleep.");
+            Assert.True(v.Job!.Finished);
+            Assert.False(Body.IsAsleep(h.World.Agent(AgentId.Player).Body), "the page was handed a finished job while the player sleeps on");
+        }
+        Assert.Contains(v.Log, l => l.Text == "You are no longer asleep.");
+        Assert.Contains(AllVerbs(v), x => x.Kind == "gather" && x.Refused == null);
+    }
+
+    /// The body's own sleep is not the player's to stop: a stop while asleep leaves it under way.
+    [Fact]
+    public void A_stop_while_dropped_asleep_leaves_the_sleep_under_way()
+    {
+        var (h, v) = Exhausted();
+        bool Asleep() => Body.IsAsleep(h.World.Agent(AgentId.Player).Body);
+        for (int tries = 0; !Asleep(); tries++)
+        {
+            Assert.True(tries < 30, "never dropped asleep at zero energy");
+            v = Parse(Act(h, Find(v, x => x.Kind == "gather" && x.Refused == null, "forage").Id));
+            for (int i = 0; v.Job is { Finished: false } && !Asleep() && i < 10_000; i++) v = Parse(h.Act("""{"advance":1}"""));
+        }
+        var stopped = Parse(h.Act("""{"stop":true}"""));
+        Assert.True(Asleep());
+        Assert.False(stopped.Job!.Finished);
+    }
+
     [Fact]
     public void Death_and_the_crossing_are_the_outcome()
     {
@@ -492,5 +543,67 @@ public class GameHostTests
         var january = Parse(h.View());
         Assert.Contains(Index(w, lake), january.Map.FrozenWater);
         Assert.All(january.Map.FrozenWater, i => Assert.Contains(january.Map.Known[i], "WD"));
+    }
+
+    // ---- the forage screen, and every timed job run in chunks ----
+
+    static VerbDto ForageVerb(ViewDto v) => Find(v, x => x.Kind == "gather" && x.Durations != null && x.Label.StartsWith("Forage", StringComparison.Ordinal) && !x.Label.Contains(" for "), "forage");
+
+    [Fact]
+    public void The_camp_shows_its_forage_ground_with_a_verb_for_each_focus_its_clues_and_keep_walking()
+    {
+        var v = Parse(new GameHost().NewGame(Seed));
+        var f = v.Forage!;
+        Assert.Null(f.Quality); // not foraged here yet
+        Assert.Equal("anything", f.Foci[^1].Focus);
+        Assert.All(f.Foci, x => Assert.Contains(AllVerbs(v), verb => verb.Id == x.Verb));
+        Assert.NotEmpty(f.Clues);
+        Assert.All(f.Clues.Where(c => c.Focus != null), c => Assert.Contains(f.Foci, x => x.Focus == c.Focus));
+        Assert.Contains(AllVerbs(v), verb => verb.Id == f.WalkVerb && verb.Kind == "walkabout");
+        Assert.Equal([15, 30, 60], ForageVerb(v).Durations!);
+    }
+
+    [Fact]
+    public void A_forage_runs_for_the_minutes_chosen_in_chunks_as_one_search_and_shows_its_finds()
+    {
+        var h = new GameHost();
+        var v = Parse(h.NewGame(Seed));
+        long start = v.Minute;
+        v = Parse(h.Act($$"""{"verb":"{{ForageVerb(v).Id}}","minutes":60}"""));
+        int views = 0;
+        for (; v.Job is { Finished: false }; views++) v = Parse(h.Act("""{"advance":5}"""));
+        Assert.True(views > 5, "a forage should come back as many views");
+        Assert.Equal(start + 60, v.Minute);
+        Assert.Single(v.Log, l => l.Icon == "ui/foraging" && l.Minute > start);
+        Assert.NotNull(v.Job!.Finds);
+        Assert.Equal(v.Job.Finds!.Sum(x => x.Kg), v.Job.FoundKg!.Value, 1);
+        Assert.NotNull(v.Forage!.Quality); // foraged here now: the ground has its word
+    }
+
+    [Fact]
+    public void A_forage_refuses_a_length_it_does_not_offer()
+    {
+        var h = new GameHost();
+        var v = Parse(h.NewGame(Seed));
+        Assert.Throws<ArgumentException>(() => h.Act($$"""{"verb":"{{ForageVerb(v).Id}}","minutes":45}"""));
+    }
+
+    [Fact]
+    public void A_stop_ends_a_forage_at_the_minute_it_was_pressed_with_what_it_found()
+    {
+        var h = new GameHost();
+        var v = Parse(h.NewGame(Seed));
+        long start = v.Minute;
+        Parse(h.Act($$"""{"verb":"{{ForageVerb(v).Id}}","minutes":60}"""));
+        Parse(h.Act("""{"advance":7}"""));
+        v = Parse(h.Act("""{"advance":6}"""));
+        long pressed = v.Minute;
+        v = Parse(h.Act("""{"stop":true}"""));
+        Assert.Equal(pressed, v.Minute);
+        Assert.Equal(13, pressed - start);
+        Assert.True(v.Job!.Finished);
+        Assert.Equal("stopped", v.Job.Outcome);
+        Assert.Single(v.Log, l => l.Icon == "ui/foraging" && l.Minute > start);
+        h.Save(); // nothing held over: the search has ended
     }
 }

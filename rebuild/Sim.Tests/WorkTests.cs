@@ -83,7 +83,8 @@ public class WorkTests
         var r = Sim.Step(w, new Gather(P, 0), 60);
         Assert.Equal(60, r.MinutesElapsed);
         var said = r.Events.Select(e => Narration.ForPlayer(w, e)?.Text).Where(t => t != null).ToList();
-        Assert.Contains("You find nothing.", said);
+        // The old failure lines, from the band of the ground's word: bare ground is the lowest band.
+        Assert.Contains(said, t => Clues.Table.Failures[^1].Lines.Contains(t));
     }
 
     /// A stash emptied goes back to null, so a tile with nothing else on it can leave World.Tiles.
@@ -148,26 +149,28 @@ public class WorkTests
         Assert.True(foodFocused < fuelFocused * 0.75, $"fuel kept {fuelFocused:0.0} kg under a fuel focus, {foodFocused:0.0} under a food focus");
     }
 
-    /// balance: forage retuned (2026-11-20). Old FocusProcessor only filtered, so a food search fed no
-    /// better than a general one; focus now buys Work.FocusGain of what it looks for.
-    [Trait("Category", TestCategories.Slow)]
+    /// The old filter (FocusProcessor.ApplyFocus): a focus keeps its whole category and buys nothing more of it.
     [Fact]
-    public void AFocusedSearch_FindsMoreOfWhatItLooksFor_ThanAGeneralOne()
+    public void AFocusedSearch_KeepsExactlyWhatAGeneralSearchFindsOfItsCategory_AndNoMoreOfAnything()
     {
-        double FoodKcal(ForageFocus focus)
+        IReadOnlyDictionary<Resource, double> Haul(ForageFocus focus, int seed)
         {
-            double sum = 0;
-            for (int i = 0; i < 60; i++)
-            {
-                var w = WithPools(new ForagePool("forage", 1.0, Pools.MixedForest));
-                w.Rngs[StreamName.Of("work", P)] = Rng.ForSystem(i, "work");
-                Sim.Step(w, new Gather(P, 0, focus), 60);
-                sum += Items.Pack(w, P).Kg.Sum(kv => kv.Value * Items.Resources[kv.Key].KcalPerKg);
-            }
-            return sum;
+            var w = WithPools(new ForagePool("forage", 1.0, Pools.MixedForest));
+            w.Rngs[StreamName.Of("work", P)] = Rng.ForSystem(seed, "work");
+            Sim.Step(w, new Gather(P, 0, focus), 60);
+            return Items.Pack(w, P).Kg;
         }
-        double general = FoodKcal(ForageFocus.General), food = FoodKcal(ForageFocus.Food);
-        Assert.InRange(food / general, 1.1, 1.6);
+        for (int seed = 0; seed < 6; seed++)
+        {
+            var general = Haul(ForageFocus.General, seed);
+            var food = Haul(ForageFocus.Food, seed);
+            foreach (var r in general.Keys.Union(food.Keys))
+            {
+                double g = general.GetValueOrDefault(r), f = food.GetValueOrDefault(r);
+                if (Items.Resources[r].Category == ResourceCategory.Food) Assert.Equal(g, f, 9);
+                else Assert.True(f <= g + 1e-9, $"{r}: {f} under a food focus, {g} in a general search");
+            }
+        }
     }
 
     [Fact]
@@ -282,7 +285,8 @@ public class WorkTests
     }
 
     /// Perception, light and tools are read every minute of foraging, as impairment is: two hours
-    /// from 16:00 or into the dusk from 19:00 come out the same in one step, four, or a hundred and twenty.
+    /// from 16:00 or into the dusk from 19:00 come out the same in one step, four, or a hundred and twenty,
+    /// the search held between its steps so it is one search with one luck.
     [Theory, InlineData(16), InlineData(19)]
     public void Foraging_InOneStepOrMany_ComesOutTheSame(int startHour)
     {
@@ -297,7 +301,7 @@ public class WorkTests
         foreach (int chunk in new[] { 30, 1 })
         {
             var w = Start();
-            for (int i = 0; i < 120 / chunk; i++) Sim.Step(w, new Gather(P, 0), chunk);
+            for (int i = 0; i < 120 / chunk; i++) Sim.Step(w, new Gather(P, 0), chunk, more: i < 120 / chunk - 1);
             Assert.Equal(Save.ToJson(one), Save.ToJson(w));
         }
     }
@@ -310,7 +314,7 @@ public class WorkTests
         var w = World.New(17);
         var tile = new TileId(3, 3);
         Assert.False(w.Tiles.ContainsKey(tile));
-        var c = Carcasses.Create(w, tile, "Rabbit", BodyState.Create(BodyKind.Quadruped, 2, 0.1, 0.5), 0);
+        var c = Carcasses.Create(w, tile, "Hare", BodyState.Create(BodyKind.Quadruped, 2, 0.1, 0.5), 0);
         Carcasses.Remove(w, tile, c);
         Assert.False(w.Tiles.ContainsKey(tile));
     }

@@ -33,6 +33,7 @@ public sealed record LocationDef(
 [JsonDerivedType(typeof(SiteSmallGame), "smallGame")]
 [JsonDerivedType(typeof(SiteShelter), "shelter")]
 [JsonDerivedType(typeof(SiteCache), "cache")]
+[JsonDerivedType(typeof(SiteFind), "find")]
 [JsonDerivedType(typeof(SiteEvent), "event")]
 public abstract record SiteFeature
 {
@@ -57,11 +58,12 @@ public sealed record SiteWater(string Name, bool Frozen, double Fish, double Ice
 }
 
 // Small game, caches and discovery events are carried as data until their systems exist.
-public enum SmallGame { Rabbit, Ptarmigan, Fox }
+public enum SmallGame { Hare, Ptarmigan, Fox }
 public sealed record SmallGameEntry(SmallGame Animal, double Weight);
 public sealed record SiteSmallGame(double Density, IReadOnlyList<SmallGameEntry> Animals, IReadOnlyList<int>? PeakHours = null, double PeakFactor = 1) : SiteFeature;
 public sealed record SiteCache(string Name, double CapacityKg, bool ProtectsFromPredators = false, bool ProtectsFromWeather = false, bool PreservesFood = false) : SiteFeature;
 public sealed record SiteEvent(string Event) : SiteFeature;
+public sealed record SiteFind(string Find) : SiteFeature;
 /// What it gives now and the most it can be improved to; a cap left out is the kind's (shelters.json kinds). Placed by Shelters.
 public sealed record SiteShelter(string Name, ShelterKind Type, double Insulation, double Overhead, double Wind,
     double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null) : SiteFeature;
@@ -168,7 +170,7 @@ public static partial class Content
 
     internal static readonly string[] Files =
         ["locations.json", "loot.json", "items.json", "fire.json", "species.json", "effects.json", "shelters.json",
-         "butchering.json", "terrain.json", "forage.json", "discoveries.json", "accidents.json", "recipes.json", "names.json"];
+         "butchering.json", "terrain.json", "forage.json", "discoveries.json", "accidents.json", "recipes.json", "names.json", "foraging.json"];
 
     /// Everything, as loaded. The systems that own a table read it from here once, into their own statics.
     internal static ContentTables Tables { get; }

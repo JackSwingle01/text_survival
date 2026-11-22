@@ -14,7 +14,7 @@ public static class Names
         typeof(EffectKind), typeof(Capacity), typeof(Structure), typeof(Species), typeof(ButcherMode), typeof(FirePhase),
         typeof(PitType), typeof(ShelterStat), typeof(Terrain), typeof(Skill),
         typeof(MakeCategory), typeof(Requirement), typeof(TrackMaker), typeof(TrailTier), typeof(Season), typeof(WindDirection),
-        typeof(Direction), typeof(EquipSlot),
+        typeof(Direction), typeof(EquipSlot), typeof(ForageFocus),
     ];
 
     /// Lower case: "birch bark".

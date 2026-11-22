@@ -173,7 +173,7 @@ public class CombatTests
     // ---- prey (old PreyBehaviorTests) ----
 
     [Theory]
-    [InlineData(Species.Rabbit)]
+    [InlineData(Species.Hare)]
     [InlineData(Species.Fox)]
     public void SpottedSmallGameRunsInsteadOfFighting(Species species)
     {
@@ -217,11 +217,11 @@ public class CombatTests
     static double StalkSuccess(double detectionFactor)
     {
         var (w, t) = Field();
-        var rabbit = Herd(w, Species.Rabbit, 1, t);
+        var hare = Herd(w, Species.Hare, 1, t);
         int successes = 0, trials = 2000;
         for (int i = 0; i < trials; i++)
         {
-            var e = Combat.Create(w, [Player()], [new(rabbit) { DetectionFactor = detectionFactor }], t, 34, Awareness.Engaged, Awareness.Unaware);
+            var e = Combat.Create(w, [Player()], [new(hare) { DetectionFactor = detectionFactor }], t, 34, Awareness.Engaged, Awareness.Unaware);
             var prey = B(e);
             var hunter = Me(e);
             while (hunter.Position.DistanceTo(prey.Position) > 8 && prey.Awareness != Awareness.Engaged)
@@ -250,7 +250,7 @@ public class CombatTests
     public void StandingStillIsNeverNoticed()
     {
         var (w, t) = Field();
-        var e = PlayerVs(w, t, Species.Rabbit, 5, Awareness.Unaware);
+        var e = PlayerVs(w, t, Species.Hare, 5, Awareness.Unaware);
         for (int i = 0; i < 200; i++) Combat.RunDetection(w, e, Me(e), 0, exposureMeters: 0);
         Assert.Equal(Awareness.Unaware, B(e).Awareness); // nothing moving, nothing to notice
     }
@@ -399,7 +399,7 @@ public class CombatTests
     [InlineData(Species.Bear, 5)]
     [InlineData(Species.Hyena, 6)]
     [InlineData(Species.Wolf, 6)]
-    [InlineData(Species.Homotherium, 7)]
+    [InlineData(Species.SaberTooth, 7)]
     public void SpeciesMovementAndDiagonalPursuitStayWithinBudget(Species species, int expected)
     {
         var (w, t) = Field();
@@ -484,15 +484,15 @@ public class CombatTests
     public void AFightEndsInTheStepThatEndsIt()
     {
         var (w, t) = Field();
-        var e = PlayerVs(w, t, Species.Rabbit, 2, weapon: Spear(w));
-        var rabbit = B(e).Agent;
+        var e = PlayerVs(w, t, Species.Hare, 2, weapon: Spear(w));
+        var hare = B(e).Agent;
         StepResult r = null!;
         for (int i = 0; i < 40 && w.Encounters.Count > 0; i++)
             r = Sim.Step(w, new Fight(AgentId.Player, CombatAction.Flee), 1);
         Assert.Empty(w.Encounters);
         Assert.Equal("fight over", r.InterruptedReason);
         Assert.Contains(r.Events, ev => ev is EncounterEnded f && f.Agent == AgentId.Player);
-        Assert.True(w.Agents.ContainsKey(rabbit) || r.Events.OfType<Killed>().Any());
+        Assert.True(w.Agents.ContainsKey(hare) || r.Events.OfType<Killed>().Any());
         Assert.Contains("wooden_spear", Items.Pack(w, AgentId.Player).Gear.Select(g => g.Kind)); // the wielded spear went back in the pack
     }
 
