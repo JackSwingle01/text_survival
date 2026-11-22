@@ -8,13 +8,13 @@ public interface ICombatObserver
     void Round(CombatRoundView round);
 }
 
-/// The grid at the end of a round. Round 0 is the placement, before anyone acts. Events are the
+/// The grid at the end of a round. Round zero is the placement, before anyone acts. Events are the
 /// WorldEvents this round raised (Injured, Killed, Died, FightEnded...). Fire is the burning pit's cell
 /// (Encounter.FireCell), or null when no pit burns on the tile.
 public sealed record CombatRoundView(int Round, IReadOnlyList<FighterView> Fighters, Cell? Fire, IReadOnlyList<WorldEvent> Events);
 
 /// One unit of Encounter.Units, by its index there. Action and Target are what it did this round (null in
-/// round 0, or if it did nothing); State is Combat.StateOf; Margin is Combat.Margin toward its target
+/// round zero, or if it did nothing); State is Combat.StateOf; Margin is Combat.Margin toward its target
 /// (null with no target). The body numbers are read as the round ends, or null once the body is gone
 /// (a herd member removed when it died).
 public sealed record FighterView(int Index, AgentId Agent, int Member, int Team, Species Species,
@@ -23,7 +23,7 @@ public sealed record FighterView(int Index, AgentId Agent, int Member, int Team,
 
 public static partial class Combat
 {
-    /// Attaches a watcher to a fight under way and shows it the field as it stands (round 0 when nothing
+    /// Attaches a watcher to a fight under way and shows it the field as it stands (round zero when nothing
     /// has happened yet).
     public static void Watch(World world, Encounter enc, ICombatObserver observer)
     {

@@ -17,7 +17,7 @@ public enum CombatResult { Victory, Defeat, Fled, AnimalFled, AnimalDisengaged }
 /// Move is a step to a chosen cell (the AI's steering, or a cell the player picked); Advance and
 /// Retreat step a full allowance toward or away from the target. Turn faces another target, and costs
 /// the round. PickUp takes up a weapon lying within reach. There is no Block or Dodge: every aware
-/// fighter defends itself when struck (Combat.DefenceChance; combat round 1).
+/// fighter defends itself when struck (Combat.DefenceChance).
 /// Flee runs for it, resolved at once by the catch-up (CombatFlight); Chase gives chase to a fighter that
 /// has just run from the player.
 public enum CombatAction { Wait, Move, Advance, Retreat, Attack, Throw, ThrowStone, Shove, Intimidate, Flee, CallHelp, CallRetreat, PickUp, Turn, Chase }
@@ -31,7 +31,7 @@ public readonly record struct Cell(int X, int Y)
 {
     internal Vector2 Vector => new(X, Y);
     public double DistanceTo(Cell other) => Vector2.Distance(Vector, other.Vector);
-    /// Unnormalised, as the old GridPosition.DirectionTo: morale reads its raw dot products.
+    /// Unnormalised: morale reads its raw dot products.
     internal Vector2 DirectionTo(Cell other) => other.Vector - Vector;
     internal Cell Move(Vector2 direction, float metres) =>
         direction == Vector2.Zero ? this : Of(Vector + Vector2.Normalize(direction) * metres);
@@ -135,8 +135,7 @@ public sealed record DroppedWeapon(Cell At, Gear Weapon, AgentId ThrownBy);
 public sealed record ActionResult(string? Refused = null, bool Hit = false, bool Dodged = false, bool Blocked = false, DamageResult? Damage = null);
 
 /// The tactical grid: every fight in the game, the player's turn by turn and everyone else's headless.
-/// Port of old Combat/: CombatScenario, CombatActionRules, CombatFormulas, EncounterPlacement and
-/// the mechanical half of CompanionCombat. The AI is in CombatAI.cs, the aftermath in CombatAftermath.cs.
+/// The AI is in CombatAI.cs, the aftermath in CombatAftermath.cs.
 ///
 /// Time: one round is one minute. The player's rounds are Fight activities, so Sim.Step lives the
 /// minute (every body in the fight: the others on the scheduler, then the player's) between the
@@ -211,8 +210,7 @@ public static partial class Combat
 
     static double OpeningAlertnessLevel(Awareness a) => a switch { Awareness.Unaware => 0, Awareness.Alert => NoticeAlertnessDelta, _ => 1 };
 
-    /// A late arrival joins its side from the free edge cell nearest that side (old AddParticipant).
-    /// Phase 3d's NPCs call this when they decide to help.
+    /// A late arrival joins its side from the free edge cell nearest that side.
     public static CombatUnit Join(World world, Encounter enc, Fighter f, int team)
     {
         if (IsOver(enc)) throw new InvalidOperationException("The fight is over");
@@ -265,7 +263,7 @@ public static partial class Combat
             throw new ArgumentException($"{Items.Def(weapon).Name} is not in {f.Agent}'s pack");
     }
 
-    /// The lead plus a random handful (0 to maxExtra) of its living herd mates (old AnimalSide).
+    /// The lead plus a random handful (0 to maxExtra) of its living herd mates.
     public static List<Fighter> SendMembers(World world, AgentId herd, int lead, int maxExtra = 3)
     {
         var agent = world.Agent(herd);
@@ -276,7 +274,7 @@ public static partial class Combat
         return [new Fighter(herd, lead), .. others.Take(extra).Select(i => new Fighter(herd, i))];
     }
 
-    /// How readily a herd comes at a target (old Herd.BoldnessToward): species temperament, pack size
+    /// How readily a herd comes at a target: species temperament, pack size
     /// against the people standing with the target, the target's wounds, the night. It decides whether a
     /// predator engages and seeds its morale (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear
     /// live on HerdMind (Fauna); callers pass them in (neutral by default).
@@ -300,7 +298,7 @@ public static partial class Combat
         return Math.Clamp(bold, 0, t.Cap);
     }
 
-    // ---- placement (old EncounterPlacement) ----
+    // ---- placement ----
 
     public static Formation SelectFormation(Species species, int count, Rng rng)
     {
@@ -426,7 +424,7 @@ public static partial class Combat
         return CombatResult.AnimalDisengaged;
     }
 
-    // ---- the player's choices (old CombatActionRules and the orchestrator's Execute*) ----
+    // ---- the player's choices ----
 
     /// What this unit could do now against its target. Move and Turn are not listed: they need a cell or a target.
     public static IReadOnlyList<CombatAction> Actions(World world, Encounter enc, CombatUnit unit) =>
@@ -471,7 +469,7 @@ public static partial class Combat
         {
             CombatAction.Attack when distance > StrikeRangeM(world, unit) => "Out of reach.",
             CombatAction.Shove when zone != Zone.Close => "Requires close range.",
-            // Near too: a bear's bluff is met at a few metres (round 1).
+            // Near too: a bear's bluff is met at a few metres.
             CombatAction.Intimidate when nearestZone == Zone.Close => "Requires near range or further.",
             CombatAction.Throw when unit.Weapon == null => "No weapon to throw.",
             CombatAction.Throw when Items.Def(unit.Weapon!).Weapon!.Thrown == null => "That is not made to be thrown.",
@@ -540,7 +538,7 @@ public static partial class Combat
         if (fight.Target is int i)
         {
             if (i < 0 || i >= enc.Units.Count) return "No such fighter.";
-            // Naming someone else spends the round turning to face them, whatever the action (round 1).
+            // Naming someone else spends the round turning to face them, whatever the action.
             if (enc.Units[i] != TargetOf(enc, me) || fight.Action == CombatAction.Turn)
                 return Refusal(world, enc, me, CombatAction.Turn, enc.Units[i]);
         }
@@ -789,7 +787,7 @@ public static partial class Combat
         return new ActionResult(Hit: true, Damage: damage);
     }
 
-    /// Landing a blow heartens the striker a little (round 2); being hurt costs morale through the wound
+    /// Landing a blow heartens the striker a little; being hurt costs morale through the wound
     /// itself, for as long as it lasts (HealthPenalty), not as an event.
     static void AfterHit(World world, Encounter enc, CombatUnit attacker, CombatUnit defender, List<WorldEvent> events)
     {
@@ -847,12 +845,11 @@ public static partial class Combat
     /// Unaware targets take half again: the ambush.
     public static double AwarenessDamageFactor(Awareness a) => a == Awareness.Unaware ? 1.5 : 1.0;
 
-    /// The chance an aware fighter turns a blow aside (combat round 1: Block and Dodge folded into one roll):
+    /// The chance an aware fighter turns a blow aside:
     /// 60% fresh and unladen, cut as its speed is (Running.SpeedPct: wounds, tiredness, load), higher
     /// giving ground or standing off, lower pressing in. None without breath for the burst, none for a
     /// fighter that does not know the fight is on or is running, and none against anyone but its own
-    /// target: a blow from the side lands unguarded (round 6). Old: 0.6 x Body.Speed, whose kilogram
-    /// terms are a person's (body review B11), so a realistic mammoth dodged like a wolf.
+    /// target: a blow from the side lands unguarded.
     public static double DefenceChance(World world, Encounter enc, CombatUnit defender, CombatUnit attacker)
     {
         if (TargetOf(enc, defender) != attacker || defender.RunDown) return 0; // caught running: no defence this round
@@ -884,7 +881,7 @@ public static partial class Combat
     }
 
     /// Mass times how well each moves now (Running.SpeedPct: wounds, tiredness, load): a heavier, fitter
-    /// body moves a lighter one. Old: Body.Strength, whose kilogram terms are a person's (body review B11).
+    /// body moves a lighter one.
     public static (double Chance, double PushM) ShoveOdds(BodyState attacker, Running attackerRunning, BodyState target, Running targetRunning)
     {
         double ratio = attacker.WeightKg * attackerRunning.SpeedPct / (target.WeightKg * targetRunning.SpeedPct);
@@ -906,7 +903,7 @@ public static partial class Combat
     }
 
     /// A call to the human companions on this side: a morale nudge that replaces the last one and
-    /// lapses after five minutes (old CompanionCombat.Signal).
+    /// lapses after five minutes.
     static void Signal(World world, Encounter enc, CombatUnit caller, bool retreat)
     {
         caller.LastSignalMinute = world.Minute;
@@ -945,7 +942,7 @@ public static partial class Combat
     public static double ExposureMeters(Cell before, Cell after) => before == after ? StalkStepMeters : before.DistanceTo(after);
 
     /// As above for the player's round, where keeping still is a choice: freezing shows a little, never
-    /// nothing (round 2: freezing helps, but is not a sure thing).
+    /// nothing.
     static double ExposureMeters(CombatAction action, Cell before, Cell after) => action == CombatAction.Wait ? FrozenExposureMeters : ExposureMeters(before, after);
 
     public const double StalkStepMeters = 3.0;
@@ -956,7 +953,7 @@ public static partial class Combat
     public const double DetectionReferenceMeters = 20.0;
 
     /// Chance an animal notices movement at this distance: 100 m ~0%, 50 m ~20%, 30 m ~50%, 10 m ~90%
-    /// before awareness and skill (old CombatFormulas.CalculateDetectionChance).
+    /// before awareness and skill.
     public static double DetectionChance(double distanceM, Awareness awareness, int huntingSkill = 0, int failedAttempts = 0)
     {
         double chance = Math.Pow(1.0 - distanceM / 100.0, 0.7);
@@ -975,7 +972,7 @@ public static partial class Combat
     public static double ThrownAccuracy(double distanceM, double maxRangeM, double baseAccuracy, bool targetIsSmall, double manipulationPenalty = 0) =>
         ThrownOdds(distanceM, maxRangeM, baseAccuracy, targetIsSmall, manipulationPenalty).TotalPct;
 
-    /// The throw's odds as their terms, in the old order: the weapon's accuracy, scaled down with
+    /// The throw's odds as their terms: the weapon's accuracy, scaled down with
     /// distance and for a small target, less any penalty for the hands; 5-95%. Out of range is 0.
     public static Odds ThrownOdds(double distanceM, double maxRangeM, double baseAccuracy, bool targetIsSmall, double manipulationPenalty = 0)
     {
@@ -986,7 +983,7 @@ public static partial class Combat
             OddsTerm.Add("Hands", -manipulationPenalty)), MinPct: 0.05, MaxPct: 0.95);
     }
 
-    /// Risk of one normal stalking step being noticed, as shown to the player (old Assess).
+    /// Risk of one normal stalking step being noticed, as shown to the player.
     public static double DetectionRisk(World world, Encounter enc, CombatUnit mover, CombatUnit detector, int huntingSkill = 0) =>
         ExposedDetectionChance(world, enc, mover, detector, huntingSkill, StalkStepMeters);
 
@@ -998,11 +995,11 @@ public static partial class Combat
         return StepDetectionChance(Math.Clamp(chance, 0.05, 0.95), exposureMeters);
     }
 
-    /// Old Location.VisibilityFactor (0-2): terrain, camp, cave or named site (Map.Visibility).
+    /// Tile visibility (0-2): terrain, camp, cave or named site (Map.Visibility).
     static double CoverVisibility(World world, TileId tile) => Map.Visibility(Map.Of(world), tile);
 
     /// Enemies not yet in the fight look at the mover: noticing it raises their alertness, seeing
-    /// nothing lets it fade (round 2), and the awareness bands move them (Combat.Alert).
+    /// nothing lets it fade, and the awareness bands move them (Combat.Alert).
     internal static void RunDetection(World world, Encounter enc, CombatUnit mover, int huntingSkill, double exposureMeters)
     {
         // Seeing nothing calms a watcher less while the mover covers more ground than a stalking step.

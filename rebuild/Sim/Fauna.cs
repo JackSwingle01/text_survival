@@ -360,7 +360,7 @@ public static partial class Fauna
 
     static double MeatKcalPerKg => Items.Resources[Resource.RawMeat].KcalPerKg;
 
-    /// The carcasses on the herd's tile with meat on them that it can reach (Access).
+    /// Carcasses here with meat on them that the herd can reach (Access).
     static IEnumerable<Carcass> Edible(World world, Agent herd) =>
         (world.Tiles.GetValueOrDefault(herd.Tile)?.Carcasses ?? []).Where(c => Remains.MeatKg(world, herd.Tile, c) > 0
             && Access.Refusal(world, herd.Id, new ThingRef(ThingKind.Carcass, herd.Tile, c.Id)) == null);
@@ -370,7 +370,7 @@ public static partial class Fauna
         Nearby.At(world, herd.Tile).Where(id => world.Agents[id] is { Mind: PersonMind } d && id != AgentId.Player && !Sim.IsAlive(d)
             && Remains.StageOf(world, d) == RemainsStage.Flesh && Access.Refusal(world, herd.Id, Things.OfAgent(world, id)) == null);
 
-    /// Whether the herd has a meal it can reach here: what its mind asks before it chooses Feed.
+    /// What the mind asks before it chooses Feed.
     static bool CanFeed(World world, Agent herd) =>
         Edible(world, herd).Any() || BehaviorOf(herd.Species) == HerdBehavior.Carrion && PickableBodies(world, herd).Any();
 

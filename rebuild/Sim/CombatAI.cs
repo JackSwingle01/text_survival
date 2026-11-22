@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// Where a fighter stands toward its target (combat grilling round 1, 2026-11-21). The one thing a fighter
+/// Where a fighter stands toward its target. The one thing a fighter
 /// stores about how it is fighting; everything else is derived. Down (dead, or consciousness under 0.1)
 /// and Gone (left the field alive) are read off the body and the field (Combat.StateOf), never stored.
 /// Clash is Pressing with the target in reach.
@@ -10,7 +10,7 @@ public enum FighterState { Unaware, Wary, Pressing, Standoff, GivingGround, Flee
 /// blood for as long as they last (Combat.HealthPenalty).
 public enum MoraleEvent { DealtDamage, AllyKilled, AllyFled, Intimidated }
 
-/// The fighter state machine, morale and the AI's turn (combat grilling rounds 1 and 2). Any unit the
+/// The fighter state machine, morale and the AI's turn. Any unit the
 /// player is not driving takes its turn here, animal or person.
 ///
 /// A fighter's margin toward its target is its boldness, less fire's deterrence, less the threat it
@@ -36,7 +36,7 @@ public static partial class Combat
     const double ThreatDropPerM = 0.07;
 
     // ---- the AI's choices ----
-    /// A person throws only at this hit chance or better (round 2), and shouts only at this chance or better.
+    /// A person throws only at this hit chance or better, and shouts only at this chance or better.
     public const double PersonThrowMinPct = 0.5, IntimidateMinPct = 0.5;
     /// A target nearer by a metre is worth this much margin; a better target must beat the current one by
     /// SwitchGainMargin before turning to it is worth the round it costs.
@@ -49,8 +49,7 @@ public static partial class Combat
     public static double Threat(World world, CombatUnit u) => StatsOf(world, u).Threat * Body.Vitality(BodyOf(world, u));
 
     /// Courage now: the species' own, its allies' strength and what has happened in the fight, less what
-    /// its wounds cost it. Old: plus an opening optimism of up to +1.0 that one wound wiped out (deleted,
-    /// round 2: the bands' hysteresis does its job).
+    /// its wounds cost it.
     public static double UnitBoldness(World world, Encounter enc, CombatUnit u) =>
         Courage(StatsOf(world, u), u.BoldnessModifier, BodyOf(world, u)) + AllyBonus(world, enc, u);
 
@@ -58,12 +57,11 @@ public static partial class Combat
     static double Courage(SpeciesStats stats, double boldnessModifier, BodyState body) => stats.Boldness + boldnessModifier - HealthPenalty(body);
 
     /// What its wounds cost a fighter's courage: how far from alive it is, and the blood it has lost
-    /// (round 2: derived from vitality and blood, no number per hit). Old: 1.5 for the worst region
-    /// plus 0.3 while bleeding, so one spear hit cost about 1.8 and turned anything.
+    /// (derived from vitality and blood, no number per hit).
     public static double HealthPenalty(BodyState body) => (1 - Body.Vitality(body)) + 0.5 * (1 - body.BloodPct);
 
     /// How much this fighter trusts its side.
-    // Old NPCs scaled cohesion by their opinion of each ally; nothing writes opinions yet (Npc Opinions).
+    // Cohesion could scale by its opinion of each ally; nothing writes opinions yet (Npc Opinions).
     static double Cohesion(World world, CombatUnit u) => StatsOf(world, u).Cohesion;
 
     /// Threat seen from here: falls off 7% a metre, so nothing past 14 m frightens.
@@ -112,7 +110,7 @@ public static partial class Combat
     public static double Margin(World world, Encounter enc, CombatUnit u, CombatUnit other) =>
         UnitBoldness(world, enc, u) - FireDeterrence(world, enc, u) - PerceivedThreat(world, u, other) - Pressure(world, enc, u, other);
 
-    /// Half the threat of every other enemy pressing in on this fighter within 5 m (round 6): a pack
+    /// Half the threat of every other enemy pressing in on this fighter within 5 m: a pack
     /// round you weighs on you even while you face one of it.
     static double Pressure(World world, Encounter enc, CombatUnit u, CombatUnit facing) =>
         OtherPressureFactor * Enemies(enc, u).Where(e => e != facing && StateOf(world, e) == FighterState.Pressing && TargetOf(enc, e) == u
@@ -148,7 +146,7 @@ public static partial class Combat
     }
 
     /// A shout and a show: works better from a healthy shouter on a weakened target. A weapon does not
-    /// come into it: animals do not fear weapons, they learn through injury (round 2).
+    /// come into it: animals do not fear weapons, they learn through injury.
     static double Intimidation(World world, CombatUnit target, CombatUnit shouter) =>
         world.Rng("combat", shouter.Agent).NextDouble() < IntimidationChance(world, target, shouter) ? 0.3 : 0.05;
 
@@ -185,7 +183,7 @@ public static partial class Combat
             e.BoldnessModifier += ChaseInstinctMorale;
     }
 
-    /// Becoming aware of the fight: skittish animals run (round 1); anything else stands and weighs it up.
+    /// Becoming aware of the fight: skittish animals run; anything else stands and weighs it up.
     static void Engage(World world, Encounter enc, CombatUnit u)
     {
         u.AlertnessLevel = 1;
@@ -232,7 +230,7 @@ public static partial class Combat
         };
     }
 
-    /// The state the player's own action puts them in (round 1: they have no thresholds of their own).
+    /// The state the player's own action puts them in (they have no thresholds of their own).
     /// An ambushed player who acts at all is in the fight from then on; one who keeps still stays unaware.
     static void PlayerState(World world, Encounter enc, CombatUnit u, CombatAction action, Cell before)
     {
@@ -257,7 +255,7 @@ public static partial class Combat
         Enter(world, enc, u, state);
     }
 
-    /// What a state allows, before the distance has its say (round 1). The player's state follows from
+    /// What a state allows, before the distance has its say. The player's state follows from
     /// their action, so only fighters the AI drives are held to this.
     // Doing nothing is open to anyone: a cornered runner with no step to take has only that.
     static bool StateAllows(FighterState state, CombatAction action) => action is CombatAction.Turn or CombatAction.Wait || state switch
@@ -273,7 +271,7 @@ public static partial class Combat
     };
 
     /// Where a fighter would stand toward the strongest of a herd at this distance, before any fight:
-    /// the same margin and bands a fight runs on (an NPC deciding whether to stand or run, round 2).
+    /// the same margin and bands a fight runs on (an NPC deciding whether to stand or run).
     /// No allies yet and no morale; the fighter's boldness delta is its own nature.
     public static FighterState WouldStand(World world, Fighter me, Agent threat, double distanceM)
     {
@@ -358,7 +356,7 @@ public static partial class Combat
         return enc.Units[i] is { InField: true } t && t.Team != u.Team ? t : null;
     }
 
-    /// How much a fighter wants this target, weighted toward closer ones (round 1): a predator the most
+    /// How much a fighter wants this target, weighted toward closer ones: a predator the most
     /// vulnerable (the best margin), anything else the biggest threat to it.
     static double TargetScore(World world, Encounter enc, CombatUnit u, CombatUnit other)
     {
@@ -370,7 +368,7 @@ public static partial class Combat
         Enemies(enc, u).OrderByDescending(e => TargetScore(world, enc, u, e)).ThenBy(e => enc.Units.IndexOf(e)).FirstOrDefault();
 
     /// A fighter whose target has left the field faces the best one left at once; turning from a target
-    /// still there to a better one is an action, and costs the round (round 1).
+    /// still there to a better one is an action, and costs the round.
     static void ReTarget(World world, Encounter enc, CombatUnit u)
     {
         if (TargetOf(enc, u) == null && BestTarget(world, enc, u) is CombatUnit best) u.Target = enc.Units.IndexOf(best);
@@ -380,7 +378,7 @@ public static partial class Combat
 
     /// Tactical metres per action, cut as the body's speed is (RunningOf: wounds, tiredness, load): a
     /// crippled animal can be run down and a mauled or laden person cannot sprint. Never more than
-    /// the species' own. Old: cut by Moving alone, so a load never slowed anyone in a fight.
+    /// the species' own.
     public static int Allowance(World world, CombatUnit u)
     {
         double speedPct = Math.Clamp(RunningOf(world, u).SpeedPct, 0, 1);
@@ -417,7 +415,7 @@ public static partial class Combat
 
     // ---- the AI's turn ----
 
-    /// What this unit does on its turn: its state's priority list, first allowed action wins (round 2).
+    /// What this unit does on its turn: its state's priority list, first allowed action wins.
     /// Returns the action, the cell for a Move (already within its allowance), and whom to face for a Turn.
     public static (CombatAction Action, Cell? To, CombatUnit? Face) ChooseAction(World world, Encounter enc, CombatUnit u)
     {
@@ -434,7 +432,7 @@ public static partial class Combat
                 if (rng.NextDouble() < 0.6) return Wait();
                 return Go(Wander(u, rng));
             case FighterState.Wary:
-                // Freezes and looks, or now and then comes a step nearer to see (round 2).
+                // Freezes and looks, or now and then comes a step nearer to see.
                 if (rng.NextDouble() >= WaryLookPct || NearestEnemy(enc, u) is not CombatUnit seen) return Wait();
                 return Go(u.Position.Toward(seen.Position, 1));
         }

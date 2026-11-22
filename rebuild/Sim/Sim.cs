@@ -12,8 +12,7 @@ public enum StepOutcome { Finished, Refused, Interrupted }
 /// outcome: null only for a step that finished by running the minutes it was given.
 public sealed record StepResult(List<WorldEvent> Events, int MinutesElapsed, StepOutcome Outcome, string? Reason)
 {
-    /// The stop reason under its first name, whatever the outcome (finished, refused or interrupted):
-    /// kept for the callers that still read it. Read Outcome to tell an arrival from an interruption.
+    /// Alias of Reason, whatever the outcome. Read Outcome to tell an arrival from an interruption.
     public string? InterruptedReason => Reason;
 }
 
@@ -37,10 +36,9 @@ public sealed record PlanRefused(long Minute, AgentId Who, TileId Tile, string A
 
 public static class Sim
 {
-    /// Runs an activity minute by minute until done or interrupted. Mutates the world in place.
-    /// The same path runs for every agent. A refused activity returns at once: no time passes.
-    /// Every minute it lives, every other agent with a mind of its own lives that minute too
-    /// (Scheduler), so the world moves with the clock however the caller chunks its steps.
+    /// Runs an activity minute by minute until done or interrupted. A refused activity returns at
+    /// once: no time passes. Every minute it lives, every other agent with a mind of its own lives
+    /// that minute too (Scheduler), so the world moves with the clock however the caller chunks its steps.
     public static StepResult Step(World world, Activity activity, int minutes)
     {
         if (minutes <= 0) throw new ArgumentOutOfRangeException(nameof(minutes), minutes, "Step needs at least one minute");
@@ -105,14 +103,11 @@ public static class Sim
         return nearer;
     }
 
-    /// Whether a person is awake to look about while doing this (an idle one stands about).
     public static bool Looks(Agent agent, Activity? activity) =>
         agent.Mind is PersonMind && activity is not Sleep && IsAlive(agent) && !Body.IsAsleep(agent.Body);
 
-    /// What an agent is doing now: an NPC's or herd's activity under way, or the player's step.
     public static Activity? ActivityOf(Agent agent) => agent.Doing?.Activity ?? agent.Stepping;
 
-    /// Whether an agent is in the world to be met: alive, and not a player who has crossed the pass.
     public static bool InTheWorld(World world, Agent agent) => IsAlive(agent) && !(agent.Id == AgentId.Player && Crossed(world));
 
     /// The long-action rule: a predator seen coming into sight or nearer stops anything but a fight round.
@@ -146,7 +141,6 @@ public static class Sim
 
     public const string FullyRestedReason = "fully rested", FightOver = "fight over";
 
-    /// Whether a stop reason (Live's) is the activity finishing rather than being cut short.
     public static bool Finishes(string reason) => Finishing.Contains(reason);
 
     /// Why a player who has crossed the pass can do nothing more.
@@ -199,7 +193,6 @@ public static class Sim
     internal static bool Held(World world, AgentId id) =>
         world.Encounters.Count > 0 && world.Encounters.Any(e => e.Units.Any(u => u.Agent == id && u.InField));
 
-    /// Whether any body of the agent still lives.
     public static bool IsAlive(Agent agent) => agent.Members.Any(Body.IsAlive);
 
     // ---- one activity, whoever does it: start, a minute lived, stop ----
@@ -307,7 +300,6 @@ public static class Sim
         return interrupt;
     }
 
-    /// The activity is over, however it ended: what accrued to it is settled.
     internal static void Stop(World world, Agent agent, Doing d, List<WorldEvent> events)
     {
         if (d.Work != null) Work.End(world, agent, d.Work, events);
@@ -319,7 +311,6 @@ public static class Sim
 
     static Hold HoldOf(World world, Agent agent, Activity activity)
     {
-        // Every activity so far keeps the agent put beside whatever fire there is: full radiant heat.
         var gathering = activity is Gather g ? Pools.Def(world, new PoolId(agent.Tile, g.Pool)) : null;
         var (activityFactor, fireProximityFactor, sleeping, stationary) = activity switch
         {
@@ -353,7 +344,6 @@ public static class Sim
     /// heat a shelter holds, which rides with it (withheld as you warm to a sweat, by the body).
     static double FireBonusF(Fire.Warmth warmth, Hold hold) => warmth.PitHeatF * hold.FireProximityFactor + warmth.ShelterHeatF;
 
-    /// Bedding's warmth is felt asleep in it.
     static double BeddingF(BeddingProps? bedding, Hold hold) => hold.Sleeping ? bedding?.WarmthBonusF ?? 0 : 0;
 
     /// A body asleep where it dropped lives the minute as sleep, whatever it was doing.
@@ -428,8 +418,7 @@ public sealed record Feeling(double FeltF, IReadOnlyList<(string Factor, double 
 /// Moves every agent that has a mind of its own (NPCs, herds) through the world's minutes. Runs once
 /// for each minute the world lives, after the clock moves, whoever's step is living it, so one long
 /// player step and many short ones, or a save and load between them, give the same world.
-/// Each agent runs its current activity through the same Start/Live/Stop the player's step uses;
-/// when the activity ends or is interrupted its mind (Minds.Decide) picks the next one.
+/// Each agent runs its current activity through the same Start/Live/Stop the player's step uses.
 // Every agent steps every minute. Distant ones could step hourly (at hour-aligned world minutes,
 // never by when the player looked) if a populated month gets slow.
 public static class Scheduler

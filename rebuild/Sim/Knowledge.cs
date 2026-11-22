@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-// ---- what a person believes (plan decision 7) ----
+// ---- what a person believes ----
 
 /// A person's beliefs about the world: the player's and an NPC's are one structure, kept by one set
 /// of rules (Knowledge). What hidden pools they have found, the search put into the rest, every tile
@@ -17,8 +17,8 @@ public sealed class Beliefs
     /// Tiles stood on, and tiles seen with something notable (trees, open water, a fire, a shelter,
     /// a den). A bare tile seen from a distance is not kept: the save stays small.
     public SortedDictionary<TileId, TileMemory> Places { get; init; } = [];
-    /// The last place each animal group or person was seen (old PredatorObservations, for every
-    /// agent, not only predators). Forgotten after Knowledge.SightingMemoryMinutes.
+    /// The last place each animal group or person was seen, predator or not. Forgotten after
+    /// Knowledge.SightingMemoryMinutes.
     public SortedDictionary<AgentId, Sighting> Sightings { get; init; } = [];
     /// Every tile ever in view (Sight.Visible), whether or not anything was there, with its ground as
     /// last seen: what the map draws as known rather than unexplored, and the snow, mud and ice it
@@ -52,7 +52,7 @@ public sealed class TileMemory
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public long? VisitedMinute { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Trees { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Water { get; set; }
-    /// How picked-over the ground was, as of VisitedMinute (old NPC ResourceMemory). 0 with no forage.
+    /// How picked-over the ground was, as of VisitedMinute. 0 with no forage.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? ForageDensity { get; set; }
     /// The pit's phase as seen; null when there was no pit.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FirePhase? Fire { get; set; }
@@ -93,7 +93,7 @@ public enum ChangeKind { Fire, Stash, Carcass, Shelter }
 /// appeared or went: a carcass, a shelter, a resource in the stash, a fire pit.
 public sealed record Change(ChangeKind Kind, string Subject, string? Was, string? Now);
 
-/// "What happened here since you last saw it" (short-loop plan, feature 4). Happened is the tile's
+/// "What happened here since you last saw it". Happened is the tile's
 /// journal over the time away, only at camp, where allies tell you everything (Full). Changes are
 /// memory against what is there now; Signs are prints made since, still readable. In the field there
 /// is no one to tell you: only the changes and the signs, and old or snowed-over prints tell nothing.
@@ -103,7 +103,7 @@ public sealed record Receipt(AgentId Who, TileId Tile, long? SinceMinute, bool F
     [JsonIgnore] public bool IsEmpty => Happened.Count == 0 && Changes.Count == 0 && Signs.Count == 0;
 }
 
-/// What a person can see from where they stand: the sight rays (port of the old Perception.Sight).
+/// What a person can see from where they stand: the sight rays.
 /// One model for everything that sees: the explored map, place memory, sightings and NPC decisions
 /// (InSight) all read the same view.
 public static class Sight
@@ -136,7 +136,7 @@ public static class Sight
 
     /// The sight budget from a tile on a clear day with sound eyes: 6 in a cave, otherwise open
     /// ground plus the tile's vantage (its own visibility, or the hills' if it stands on hills).
-    // Regional weather elevation is not a heightmap, so it gives no local vantage (old comment).
+    // Regional weather elevation is not a heightmap, so it gives no local vantage.
     public static int RangeTiles(GeneratedMap m, TileId from, double sightCapacity = 1)
     {
         if (m.CaveAt(from) == Cave.Floor) return (int)Math.Round(CaveTiles * Math.Clamp(sightCapacity, 0, 1));
@@ -418,7 +418,7 @@ public static class Knowledge
 
     static bool HasTreePool(World world, TileId t) => Pools.At(world, t).Any(p => p is TreePool);
 
-    /// Standing timber on the tile (old NPC memory: a stand of trees is plain to see from a distance).
+    /// Standing timber on the tile (a stand of trees is plain to see from a distance).
     static bool Trees(World world, TileId t)
     {
         var pools = Pools.At(world, t);
@@ -467,15 +467,14 @@ public static class Journal
     /// a kill (a carcass appearing), a fight, a wounded animal getting away, something built, the pass
     /// crossed, and its stash taken by someone whose camp it is not. Everything else - feeding the fire,
     /// stashing, eating, cooking, strikes that failed, a fire lit - makes way for these, so no amount of
-    /// it can push out the fire going out. Old routine list (fuel, stash) was too narrow: 31 failed
-    /// strikes or meals evicted a FireDied (bug, fixed).
+    /// it can push out the fire going out.
     // A carcass going (butchered away) has no filed event: Butchered is a step's tally (Files).
     public static bool IsNotable(World world, WorldEvent e) => e switch
     {
         FireDied or FireBurnedToEmbers or ShelterCollapsed or Died or Injured or Killed or FightEnded or WoundedEscaped
             or Built or CrossedThePass => true,
         // Whose camp it was when it was taken, not when the entry is weighed: a camp that moves on does not
-        // turn its owner's old chores into thefts (old: CampOf read at eviction - bug, fixed).
+        // turn its owner's old chores into thefts.
         Unstashed u => u.Taken,
         _ => false,
     };

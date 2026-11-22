@@ -47,11 +47,9 @@ public static partial class Combat
         return new CatchOdds(best, when, Body.SprintPlan(bp, rp, when).Metres);
     }
 
-    /// Everyone pressing this fighter, who would give chase if it ran.
     static List<CombatUnit> Pursuers(World world, Encounter enc, CombatUnit fleer) =>
         Enemies(enc, fleer).Where(e => StateOf(world, e) == FighterState.Pressing && TargetOf(enc, e) == fleer).ToList();
 
-    /// The best chance anyone pressing this fighter would have of running it down.
     static double BestCatchPct(World world, Encounter enc, CombatUnit fleer) =>
         Pursuers(world, enc, fleer).Select(p => CatchOdds(world, p, fleer).Pct).DefaultIfEmpty(0).Max();
 
@@ -136,7 +134,6 @@ public static partial class Combat
         return Math.Abs(dx) > Math.Abs(dy) ? (dx >= 0 ? Direction.East : Direction.West) : (dy >= 0 ? Direction.North : Direction.South);
     }
 
-    /// The player gives chase to a fighter that has just turned to run from them.
     static void PlayerChase(World world, Encounter enc, CombatUnit me)
     {
         var fleer = enc.Units[enc.PendingFlight!.Value];
@@ -156,7 +153,6 @@ public static partial class Combat
     public static (CombatUnit Fleer, CatchOdds Odds)? ChaseOffer(World world, Encounter enc, CombatUnit me) =>
         enc.PendingFlight is int i && enc.Units[i] is { InField: true } fleer ? (fleer, CatchOdds(world, me, fleer)) : null;
 
-    /// A fighter standing off or giving ground 30 m or more from every enemy has broken off.
     /// Only once someone on the other side knows the fight is on: a hunter 34 m from a herd that has not
     /// seen it is stalking, not leaving.
     static void BreakOffs(World world, Encounter enc)
@@ -170,8 +166,8 @@ public static partial class Combat
         }
     }
 
-    /// An agent carried on a heading by its flight, tile by tile, marking the ground as it goes
-    /// (Tracks.RecordMove, the one seam for a crossing). Where the way ahead is blocked it swerves to a
+    /// Carries an agent along a heading tile by tile, recording each crossing through
+    /// Tracks.RecordMove (the one seam for a crossing). Where the way ahead is blocked it swerves to a
     /// side (the left, then the right, of the heading); boxed in, it stops.
     static void Drift(World world, AgentId id, Direction heading, int tiles)
     {

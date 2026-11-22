@@ -12,12 +12,6 @@ public class CommentHygieneTests
     static readonly Dictionary<string, string> NotYetSwept = new()
     {
         ["Npc.cs"] = "being edited by the NPC work",
-        ["Combat.cs"] = "being edited by the combat work",
-        ["CombatAI.cs"] = "being edited by the combat work",
-        ["CombatAftermath.cs"] = "being edited by the combat work",
-        ["CombatFlight.cs"] = "being edited by the combat work",
-        ["CombatObserver.cs"] = "being edited by the combat work",
-        ["Knowledge.cs"] = "being edited by the knowledge work",
     };
 
     /// History, not design. Each pattern is matched against comment text only.
@@ -51,7 +45,7 @@ public class CommentHygieneTests
     {
         ["Access.cs"] = 22,
         ["Activity.cs"] = 25,
-        ["Agent.cs"] = 25,
+        ["Agent.cs"] = 24,
         ["Body.cs"] = 11,
         ["BodyMotion.cs"] = 22,
         ["BodySurvival.cs"] = 15,
@@ -59,7 +53,7 @@ public class CommentHygieneTests
         ["Combat.cs"] = 22,
         ["CombatAI.cs"] = 25,
         ["CombatAftermath.cs"] = 26,
-        ["CombatFlight.cs"] = 25,
+        ["CombatFlight.cs"] = 23,
         ["CombatObserver.cs"] = 25,
         ["Content.cs"] = 11,
         ["Effects.cs"] = 12,
@@ -83,7 +77,7 @@ public class CommentHygieneTests
         ["Save.cs"] = 14,
         ["Shelter.cs"] = 12,
         ["Signs.cs"] = 11,
-        ["Sim.cs"] = 29,
+        ["Sim.cs"] = 27,
         ["Skills.cs"] = 15,
         ["Species.cs"] = 21,
         ["Tags.cs"] = 13,

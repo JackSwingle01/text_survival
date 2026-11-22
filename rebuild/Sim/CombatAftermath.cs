@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// Everything the world keeps after a fight, whoever fought it (old CombatAftermath).
+/// Everything the world keeps after a fight, whoever fought it.
 public static partial class Combat
 {
     /// The fight leaves the world. Weapons go back to their wielders' packs (or the ground); dead
@@ -27,7 +27,7 @@ public static partial class Combat
             u.Weapon = null;
         }
 
-        // Only a wounded animal the player watched get away leaves a trail (old TrackWoundedPrey).
+        // Only a wounded animal the player watched get away leaves a trail.
         var escaped = result == CombatResult.AnimalFled && units.Any(IsPlayer)
             ? units.Where(u => u.Team == 1 && StatsOf(world, u).IsAnimal && Alive(world, u) && WoundLevel(BodyOf(world, u)) > 0.05)
                 .OrderByDescending(u => WoundLevel(BodyOf(world, u))).FirstOrDefault()
@@ -85,8 +85,8 @@ public static partial class Combat
             Drift(world, id, far.FledHeading!.Value, far.FledTiles);
     }
 
-    /// A carcass on the tile, ready to butcher (old CombatAftermath.LeaveRemains). Old Animal: over
-    /// 500 kg is megafauna; a mammoth leaves its tusks and hide besides.
+    /// A carcass on the tile, ready to butcher. Over 500 kg is megafauna; a mammoth leaves its tusks
+    /// and hide besides.
     internal static void LeaveCarcass(World world, TileId tile, Species species, BodyState body, Cause cause) =>
         Carcasses.Create(world, tile, species.ToString(), body, world.Minute, isMegafauna: body.WeightKg > 500,
             special: species == Species.Mammoth ? new Dictionary<Resource, double> { [Resource.Ivory] = 4, [Resource.MammothHide] = 15 } : null,
@@ -116,7 +116,7 @@ public static partial class Combat
         _ => CombatResult.AnimalDisengaged,
     };
 
-    /// Old herd fear after a fight, by its own result: lost it 0.9, ran 0.7, the other side ran 0.2,
+    /// Herd fear after a fight, by its own result: lost it 0.9, ran 0.7, the other side ran 0.2,
     /// won 0, broke off 0.4.
     public static double FearAfter(CombatResult ownResult) => ownResult switch
     {

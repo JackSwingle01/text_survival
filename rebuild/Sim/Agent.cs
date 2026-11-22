@@ -10,15 +10,13 @@ namespace Survival;
 [JsonDerivedType(typeof(HerdMind), "herd")]
 public abstract record Mind;
 
-/// A person: carries a pack, knows what they have seen, and gets better at what they do. The
-/// player and NPCs share this, so every work activity, memory and skill runs the same code for
-/// both. A herd's mind carries nothing.
+/// A person: carries a pack, remembers, and learns skills. The player and NPCs share this so
+/// work, memory and skills run the same code for both. A herd's mind carries none of it.
 public abstract record PersonMind : Mind
 {
     public Inventory Pack { get; init; } = Items.StartingPack();
     public Beliefs Knows { get; init; } = new();
-    /// Only the skills practised so far (Skills). They live here because only a person learns, and
-    /// kind-specific state lives in the mind.
+    /// Only the skills practised so far. Here because only a person learns.
     public SortedDictionary<Skill, SkillProgress> Skills { get; init; } = [];
 }
 
