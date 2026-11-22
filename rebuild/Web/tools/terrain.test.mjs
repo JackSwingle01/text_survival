@@ -457,3 +457,74 @@ test('art that was never painted is an error', () => {
   assert.throws(() => resolveArt('terrain/lichen/x_1_winter'), /no terrain art for layer/);
   assert.throws(() => resolveArt('terrain/ground/plain_1_spring'), /no terrain art in palette/);
 });
+
+// ---------------------------------------------------------------- caves, ravines and cliffs
+const hexRgb = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16));
+const CLEFT = hexRgb('#191c20');
+const ROCKS = ['#b6b8b5', '#8a8d8d', '#646a6e', '#454b52', '#2b3037'].map(hexRgb);
+const same = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+const BARE_STATE = { dust: 0, patches: 0, snow: 0, laden: false, mud: 0, water: 0, ice: 'none' };
+
+/** Bakes a small map (rows of terrain names) with edges; returns pixel(x, y) -> [r, g, b]. */
+function bake(rows, edges = []) {
+  const H = rows.length, W = rows[0].length;
+  const baker = createBaker({ width: W, height: H, terrainAt: (x, y) => rows[y][x], edges }, () => BARE_STATE, SUMMER_WORLD, tex);
+  const out = new Uint8Array(W * CELL * H * CELL * 4);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) baker.bakeCell(out, 0, 0, W, x, y);
+  baker.bakeSprites(out, 0, 0, W, H);
+  return (x, y) => { const i = (y * W * CELL + x) * 4; return [out[i], out[i + 1], out[i + 2]]; };
+}
+const field = (w, h, t) => Array.from({ length: h }, () => Array(w).fill(t));
+/** Counts pixels in [x0, x1) x [y0, y1) for which `is` holds. */
+function count(px, x0, y0, x1, y1, is) {
+  let n = 0;
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if (is(px(x, y))) n++;
+  return n;
+}
+
+test('a ravine draws a dark cleft along its boundary, and none without the edge', () => {
+  const rows = field(8, 7, 'plain');
+  // A ravine down the boundary between columns 3 and 4, rows 1 to 5.
+  const edges = [1, 2, 3, 4, 5].map(y => ({ ax: 3, ay: y, bx: 4, by: y, type: 'ravine' }));
+  const box = [4 * CELL - 30, 2 * CELL, 4 * CELL + 30, 5 * CELL];
+  const cleft = p => same(p, CLEFT);
+  assert.ok(count(bake(rows, edges), ...box, cleft) > 200, 'the cleft is drawn');
+  assert.equal(count(bake(rows), ...box, cleft), 0, 'no edge, no cleft');
+});
+
+test('a cliff\'s face lies on the lower-right side of its boundary', () => {
+  const rows = field(8, 7, 'plain');
+  const edges = [1, 2, 3, 4, 5].map(y => ({ ax: 3, ay: y, bx: 4, by: y, type: 'cliff' }));
+  const px = bake(rows, edges), rock = p => ROCKS.some(r => same(p, r));
+  let left = 0, right = 0;
+  for (let y = 2 * CELL; y < 5 * CELL; y++) {
+    // Where the face begins on this row: the boundary wanders, so measure from the first rock pixel.
+    let x0 = -1;
+    for (let x = 3 * CELL; x < 5 * CELL && x0 < 0; x++) if (rock(px(x, y))) x0 = x;
+    if (x0 < 0) continue;
+    left += count(px, x0 - 12, y, x0, y + 1, rock);
+    right += count(px, x0, y, x0 + 12, y + 1, rock);
+  }
+  assert.ok(right > 1000 && right > left * 4, `face to the right: ${right} rock pixels right, ${left} left`);
+});
+
+test('a cave cuts a dark passage through the mountain, out of its mouth', () => {
+  const rows = field(9, 7, 'mountain');
+  for (let y = 0; y < 7; y++) rows[y][0] = rows[y][1] = 'plain';
+  for (let x = 3; x < 8; x++) rows[3][x] = 'cavefloor';
+  rows[3][2] = 'caveentrance';
+  const lum = p => p[0] + p[1] + p[2];
+  const solid = bake(field(9, 7, 'mountain').map(r => r.map((t, x) => x < 2 ? 'plain' : t)));
+  const cave = bake(rows);
+  let darker = 0;
+  for (let x = 3; x < 8; x++) {
+    // Mean brightness of the cell's middle: the passage wanders, but it runs through the middle.
+    let a = 0, b = 0, n = 0;
+    for (let y = 3 * CELL + 14; y < 4 * CELL - 14; y++) for (let px = x * CELL + 14; px < (x + 1) * CELL - 14; px++) {
+      a += lum(cave(px, y)); b += lum(solid(px, y)); n++;
+    }
+    if (a / n < b / n * 0.8) darker++;
+  }
+  assert.equal(darker, 5, 'every cave cell is darker than the same rock without a cave');
+  assert.ok(!wantedArt(SUMMER_WORLD).some(n => n.startsWith('cavefloor_tile')), 'the old cave-floor tiles are retired');
+});

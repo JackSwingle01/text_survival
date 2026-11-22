@@ -331,8 +331,13 @@ sealed class ViewBuilder(World world, int gen)
                 double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
                 if (snowCm > 0 || waterCm > 0 || mud > 0) surface.Add(new SurfaceDto(y * m.Width + x, snowCm, g.Crusted, mud, waterCm, g.Iced));
             }
+        var edges = new List<EdgeDto>();
+        foreach (var ((a, b), e) in m.Edges)
+            if (e is EdgeType.Ravine or EdgeType.Cliff && (Explored(a) || Explored(b)))
+                edges.Add(new EdgeDto(a.X, a.Y, b.X, b.Y, e == EdgeType.Ravine ? "ravine" : "cliff"));
+        edges.Sort((p, q) => (p.Ay, p.Ax, p.By, p.Bx).CompareTo((q.Ay, q.Ax, q.By, q.Bx)));
         return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
-            places, sightings, tracks, named, surface, frozen);
+            places, sightings, tracks, named, surface, frozen, edges);
     }
 
     public static string TrackIcon(TrackMaker m) => m switch

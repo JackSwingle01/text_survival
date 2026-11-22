@@ -236,6 +236,24 @@ public class GameHostTests
         Assert.All(v.Map.Visible, i => Assert.NotEqual(ViewBuilder.UnknownCode, v.Map.Known[i]));
     }
 
+    [Theory]
+    [InlineData(Seed)]
+    [InlineData(17)]
+    public void The_map_sends_exactly_the_ravines_and_cliffs_beside_known_tiles(int seed)
+    {
+        var v = Parse(new GameHost().NewGame(seed));
+        var m = Survival.Map.Generate(seed);
+        bool Known(int x, int y) => v.Map.Known[y * v.Map.Width + x] != ViewBuilder.UnknownCode;
+        var expected = m.Edges
+            .Where(e => e.Value is Survival.EdgeType.Ravine or Survival.EdgeType.Cliff
+                && (Known(e.Key.Item1.X, e.Key.Item1.Y) || Known(e.Key.Item2.X, e.Key.Item2.Y)))
+            .Select(e => (e.Key.Item1.X, e.Key.Item1.Y, e.Key.Item2.X, e.Key.Item2.Y, e.Value == Survival.EdgeType.Ravine ? "ravine" : "cliff"))
+            .Order().ToList();
+        var sent = v.Map.Edges.Select(e => (e.Ax, e.Ay, e.Bx, e.By, e.Kind)).Order().ToList();
+        Assert.Equal(expected, sent);
+        Assert.All(v.Map.Edges, e => Assert.Equal(1, Math.Abs(e.Ax - e.Bx) + Math.Abs(e.Ay - e.By)));
+    }
+
     [Fact]
     public void Save_and_load_give_back_the_same_world_and_view()
     {

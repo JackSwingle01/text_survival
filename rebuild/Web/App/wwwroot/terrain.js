@@ -9,7 +9,7 @@ import { src } from './util.js';
 import { createBaker, textureNames, CELL } from './terrain-core.js';
 
 /** Terrain names by the map's known-tile codes (MapDto.Known). */
-export const TERRAIN = { F: 'forest', C: 'clearing', P: 'plain', H: 'hills', W: 'water', M: 'marsh', R: 'rock', X: 'mountain', D: 'deepwater', c: 'cavefloor', e: 'rock' };
+export const TERRAIN = { F: 'forest', C: 'clearing', P: 'plain', H: 'hills', W: 'water', M: 'marsh', R: 'rock', X: 'mountain', D: 'deepwater', c: 'cavefloor', e: 'caveentrance' };
 
 const CHUNK = 8;          // cells per chunk side
 const BUDGET_MS = 6;      // baking per frame
@@ -70,10 +70,11 @@ export function createTerrain() {
     if (!ready()) return;
     const key = `${world.key}|${ground.version}|${m.width}`;
     if (!baker || bakerFor !== m.known + key) {
+      // Ravines and cliffs come with the known tiles they lie beside, so m.known keys them too.
       baker = createBaker({ width: m.width, height: m.height, terrainAt: (x, y) => {
         const c = m.known[y * m.width + x];
         return c === '.' ? null : TERRAIN[c];
-      } }, ground.stateAt, world, tex);
+      }, edges: m.edges.map(e => ({ ax: e.ax, ay: e.ay, bx: e.bx, by: e.by, type: e.kind })) }, ground.stateAt, world, tex);
       bakerFor = m.known + key;
     }
     const todo = [];

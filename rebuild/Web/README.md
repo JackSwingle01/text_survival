@@ -48,7 +48,11 @@ file with `fetch` calls to the same five operations.
 `wwwroot/terrain.js` bakes it into 8 x 8 cell chunks, a few milliseconds a frame, nearest the camera
 first. Cells are 48 CSS px everywhere (one art pixel each: crisp at a device pixel ratio of 1 or 2).
 Rivers are one channel through their cells, lakes have round shores, and mountains are lit ridged
-height with a snowline. Ice, where snow and mud lie, and where every tree stands come from world
+height with a snowline. Caves are dark passages cut through the rock along their cells, out of the
+mouth onto the ground beside it. Ravines and cliffs come from `MapDto.Edges` (those beside a known
+tile): the boundary steps are chained and rounded into a cleft whose far wall catches the light, or
+a one-sided face that drops toward the lower right (the Sim gives a cliff no high side), with a lip
+and a shadow. Ice, where snow and mud lie, and where every tree stands come from world
 noise; snow and mud are painted 96 px textures shown through those masks. A pixel takes the ground
 state of the cell whose terrain it shows, so state follows the same organic borders as the ground.
 A pixel reads only its cell's 5 x 5 neighbourhood, and unknown cells read as the cell's own terrain,

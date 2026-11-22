@@ -103,9 +103,14 @@ public sealed record SkillDto(string Name, int Level);
 /// of sight, as last seen (Memory.Explored). A known tile that is not listed is bare, dry ground.
 /// FrozenWater: the known lake and deep-water tiles that are ice (Map.IsFrozen), in tile order: in sight, now;
 /// out of sight, when last seen. A known one not listed is open water.
+/// Edges: the ravines and cliffs beside a known tile (a cliff is seen from above or below).
 public sealed record MapDto(int Width, int Height, string Known, IReadOnlyList<int> Visible, int CampX, int CampY,
     IReadOnlyList<PlaceMarkDto> Places, IReadOnlyList<SightingDto> Sightings, IReadOnlyList<TrackDto> Tracks,
-    IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface, IReadOnlyList<int> FrozenWater);
+    IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface, IReadOnlyList<int> FrozenWater,
+    IReadOnlyList<EdgeDto> Edges);
+
+/// A ravine or cliff between two 4-adjacent tiles (A, B), drawn along their shared boundary. Kind: ravine or cliff.
+public sealed record EdgeDto(int Ax, int Ay, int Bx, int By, string Kind);
 
 /// One known tile's ground. I: its index (y*Width+x). SnowCm: lying snow; Crust: its top refrozen;
 /// MudLevel: 0-1 on bare ground; WaterCm: standing water (ice included); Ice: that water mostly frozen.

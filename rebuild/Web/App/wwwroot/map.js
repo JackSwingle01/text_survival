@@ -68,8 +68,6 @@ export function createMap(canvas, state, { onHover, onClick }) {
     // ground: only what is known is drawn at all
     ground.see(m);
     terrain.draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera: cam, ground, world: worldState(v.clock) });
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++)
-      if (m.known[y * W + x] === 'e') { const [px, py] = at(x, y); sprite('cave_entrance', px + TS / 8, py + TS / 8, TS * 0.75); }
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const [px, py] = at(x, y);
       if (!known(x, y)) { ctx.fillStyle = 'rgba(13,18,22,.96)'; ctx.fillRect(px, py, TS, TS); }
@@ -169,6 +167,6 @@ export function createMap(canvas, state, { onHover, onClick }) {
   return {
     known: (x, y) => { const m = state().view.map; return m.known.charCodeAt(y * m.width + x) !== 46; },
     inSight: (x, y) => visible.has(y * state().view.map.width + x),
-    terrainName: code => TERRAIN[code],
+    terrainName: code => ({ c: 'cave', e: 'cave mouth' })[code] ?? TERRAIN[code],
   };
 }
