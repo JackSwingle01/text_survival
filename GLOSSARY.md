@@ -160,6 +160,11 @@ _Avoid_: morale, courage, aggression
 How dangerous something looks to an animal weighing whether to press it.
 _Avoid_: danger score, strength
 
+**Resolve**:
+What is left of an animal's boldness once threat, fire and pressure are weighed against it. High
+resolve presses; when it is gone the animal backs off or flees.
+_Avoid_: margin, nerve, morale
+
 **Encounter**:
 One meeting between agents close enough to act on each other, from the moment they are aware of
 each other until one side leaves or dies. Combat is the system that runs it; an encounter may end
