@@ -1,0 +1,111 @@
+<title>Trails and Tracks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column of Today | Draft pairs, side by side on wide screens and stacked on phones; season buttons swap every pair. One dark look, like the game. */
+:root {
+  --bg: #15191c; --plate: #1d2327; --line: #2e383e; --fg: #e3eaec; --dim: #93a3ad; --ember: #f5811f; --ice: #9cc3d1;
+  --display: "Pixelify Sans", ui-monospace, monospace; --body: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body { font: 17px/1.5 var(--body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; }
+main { max-width: 1240px; margin: 0 auto; display: grid; gap: 38px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; }
+h1 { font-size: 34px; }
+h2 { font-size: 21px; color: var(--ice); }
+h3 { font: 600 14px var(--body); letter-spacing: .07em; text-transform: uppercase; margin: 0; }
+p { margin: 0; max-width: 72ch; color: var(--dim); }
+section, header { display: grid; gap: 12px; }
+.bar { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg); padding-block: 8px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.bar button { font: 600 14px var(--body); letter-spacing: .04em; text-transform: uppercase; color: var(--dim); background: var(--plate); border: 1px solid var(--line); padding: 7px 14px; cursor: pointer; }
+.bar button[aria-pressed="true"] { color: var(--bg); background: var(--ice); border-color: var(--ice); }
+.bar button:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
+figure { margin: 0; background: var(--plate); padding: 8px; display: grid; gap: 6px; min-width: 0; align-content: start; }
+figure h3 { color: var(--dim); }
+figure.draft h3 { color: var(--ice); }
+figure .px { overflow: auto; border: 1px solid var(--line); }
+figure img { display: block; width: 100%; max-width: 100%; image-rendering: pixelated; }
+.legend { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; font-size: 15px; color: var(--dim); max-width: 72ch; }
+.legend b { color: var(--fg); font-weight: 600; }
+.ask { background: var(--plate); border-left: 3px solid var(--ember); padding: 16px 18px; display: grid; gap: 10px; }
+.ask ol { margin: 0; padding-left: 20px; color: var(--dim); display: grid; gap: 8px; max-width: 76ch; }
+.ask b { color: var(--fg); font-weight: 600; }
+code { font-size: 14px; color: var(--fg); }
+</style>
+
+<main>
+  <header>
+    <h1>Trails and tracks</h1>
+    <p>Draft textures for worn routes and footprints on the rebuild's web map, drawn by the game's own terrain renderer. The routes are real: seed 17's world run for 30 days, worn by its caribou, bison and wolf packs. Each pair shows the map on <code>main</code> today on the left and the draft on the right.</p>
+  </header>
+
+  <div class="bar" role="group" aria-label="Season">
+    <button type="button" data-season="winter" aria-pressed="true">Winter</button>
+    <button type="button" data-season="thaw" aria-pressed="false">Thaw</button>
+    <button type="button" data-season="summer" aria-pressed="false">Summer</button>
+  </div>
+
+  <section aria-labelledby="h-map">
+    <h2 id="h-map">The whole valley</h2>
+    <p>36 by 22 tiles, 3.6 by 2.2 km. Herds have worn a grazing ground on the left and a single route north through the forest and the gap in the range. Today none of it is drawn.</p>
+    <div class="pair">
+      <figure><h3>Today</h3><div class="px"><img data-img="map" data-today src="map_before_winter.png" alt="Today: the valley with no routes drawn"></div></figure>
+      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="map" src="map_winter.png" alt="Draft: the valley with a trampled grazing ground and a worn route through the forest"></div></figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-route">
+    <h2 id="h-route">A route through the forest, 2x</h2>
+    <p>Worn edges between tiles become one line from tile centre to tile centre, curving where it turns and wandering in world space, so it never follows the grid. The trees stand clear of it. In snow it is a trench of packed, dirtied snow, its upper-left wall in shadow and its lower-right wall in the light, trodden through to earth where it is a Trail. Bare ground shows trodden earth with stones, and in the thaw the packed snow on the path is the last to go.</p>
+    <div class="pair">
+      <figure><h3>Today</h3><div class="px"><img data-img="detail_route" data-today src="detail_route_before_winter.png" alt="Today: the forest gap with no route"></div></figure>
+      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="detail_route" src="detail_route_winter.png" alt="Draft: a worn route through the forest and down the gap"></div></figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-grazing">
+    <h2 id="h-grazing">Grazing ground, 2x</h2>
+    <p>Where herds graze, every side of every tile is worn. Drawn as lines, that would be a grid. Where most sides of the tiles around are worn, the draft drops the lines and tramples the ground instead: hoof holes and packed snow in winter, bare poached patches in summer, mud in the thaw. Routes keep their lines where they leave it.</p>
+    <div class="pair">
+      <figure><h3>Today</h3><div class="px"><img data-img="detail_grazing" data-today src="detail_grazing_before_winter.png" alt="Today: open ground beside a ravine"></div></figure>
+      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="detail_grazing" src="detail_grazing_winter.png" alt="Draft: trampled grazing ground with routes leaving it"></div></figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-prints">
+    <h2 id="h-prints">Footprints, 2x</h2>
+    <p>Today every track is one 16 px icon scaled to 24 px, so it is no longer pixel-sharp: dark slate, always pointing north, one per tile whoever made it and however many. The draft presses prints into the ground at the art's own pixel size: lit from the top left like everything else, laid along the heading the Sim records, one line per animal up to three, and filling in and going missing as they age.</p>
+    <div class="legend">
+      <b>Rows</b><span>A person heading east, a wolf heading north, a caribou heading west.</span>
+      <b>Columns</b><span>Fresh, one way. Fresh, both ways (two passed). Two days old. A herd of twelve crossing every way.</span>
+    </div>
+    <div class="pair">
+      <figure><h3>Today</h3><div class="px"><img data-img="detail_prints" data-today src="detail_prints_before_winter.png" alt="Today: one slate track icon per tile"></div></figure>
+      <figure class="draft"><h3>Draft</h3><div class="px"><img data-img="detail_prints" src="detail_prints_winter.png" alt="Draft: lines of boot, paw and hoof prints pressed into the ground"></div></figure>
+    </div>
+  </section>
+
+  <section class="ask" aria-labelledby="h-ask">
+    <h2 id="h-ask" style="color:var(--fg)">What approval covers</h2>
+    <ol>
+      <li><b>The looks above.</b> Routes, grazing ground and prints are all computed by the renderer in world space. They need no new art files, and the three track icons would be retired.</li>
+      <li><b>Prints bigger than life.</b> A tile is 100 m, so a true-scale boot would be a fraction of a pixel. The draft's prints are 4 to 6 px, the smallest size that still reads as a boot, a paw or a hoof.</li>
+      <li><b>Routes on the map need the host to send them.</b> Today the map carries no worn edges at all. Wear changes over time, and the map never shows the truth out of sight, so out of sight a route has to come from the player's memory. That means Memory keeps the tier it last saw on each edge, which is a small Sim change. Without it, routes would show only in sight.</li>
+      <li><b>Prints need the heading the Sim already reads.</b> The map's tracks would carry their heading, pattern and freshness, which the Sim already computes. Prints stay within 3 tiles of the player, as now.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+const buttons = [...document.querySelectorAll('[data-season]')];
+for (const b of buttons) b.addEventListener('click', () => {
+  const season = b.dataset.season;
+  buttons.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  for (const img of document.querySelectorAll('[data-img]'))
+    img.src = `${img.dataset.img}_${img.hasAttribute('data-today') ? 'before_' : ''}${season}.png`;
+});
+</script>

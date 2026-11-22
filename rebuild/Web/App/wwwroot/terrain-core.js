@@ -18,7 +18,11 @@
 //   - caves: tunnels cut through the mountain as dark passages (the river channel's geometry), the
 //     mouth opening onto the ground beside it; the range stays whole over them;
 //   - ravines and cliffs, which lie between cells (map.edges): a dark cleft whose far wall catches the
-//     light, and a one-sided rock face dropping toward the higher-numbered cell, with its shadow.
+//     light, and a one-sided rock face dropping toward the higher-numbered cell, with its shadow;
+//   - worn routes (map.trails): a line between cell centres, by tier, a trench in snow and trodden earth
+//     out of it; where most sides around are worn (grazing ground), trampled ground instead of lines;
+//   - footprints (trackMarks): prints pressed into the ground along the Sim's heading, drawn over
+//     everything else by the caller.
 // A pixel needs only its cell's 5x5 neighbourhood, so the map can be baked a cell at a time.
 // Unknown neighbours are read as the cell's own terrain: the renderer never shows what the
 // player has not seen.
@@ -84,6 +88,17 @@ const THIN = ['ti0', 'ti1', 'ti2', 'ti3'].map(k => C[k]);
 /** A cave floor: dry dust and grit, darker toward the walls. */
 const CAVE_FLOOR = ['#5a4d40', '#4a3f35', '#3d342c', '#302924', '#25201c', '#1b1815'].map(hex);
 const CLEFT = hex('#191c20');
+/** The Sim's trail tiers, faintest first; a line's half-width in cells for each (index = tier). */
+export const TRAIL_TIERS = ['trace', 'path', 'trail'];
+const TRAIL_WIDTH = [0, 0.05, 0.075, 0.115];
+/** Trodden earth, light to dark, by palette (winter's bare ground is autumn's). */
+const EARTH = {
+  summer: ['#8a7856', '#73644a', '#5e513c', '#4a4030', '#383024'].map(hex),
+  autumn: ['#7f6c50', '#6a5942', '#564836', '#44392b', '#332b21'].map(hex),
+};
+/** Trodden snow: packed and dirtied, greyer and warmer than snow lying in shadow. */
+const PACKED = ['#e2e1db', '#cfcdc5', '#b8b5ab', '#9c988d', '#7f7a6f'].map(hex);
+const mix = (a, b, t) => [0, 1, 2].map(i => Math.round(a[i] + (b[i] - a[i]) * t));
 
 // ---------------------------------------------------------------- world noise
 // 32-bit integer hashes, so every platform draws the same pixels.
@@ -162,6 +177,72 @@ const SPRITE_NAMES = ['spruce_l', 'spruce_m', 'spruce_s', 'shrub', 'boulder', 'r
 const BARE_SPRITES = { winter: 'autumn', summer: 'summer', autumn: 'autumn' };
 const spriteArt = (name, palette, laden) => `terrain/sprites/${name}_${laden ? 'winter' : BARE_SPRITES[palette]}`;
 
+// ---------------------------------------------------------------- footprints
+/**
+ * One print of each maker, heading north (front = -y), in art pixels, and how far apart a line of
+ * them falls. Bigger than life (a cell is 100 m), so a print reads as a print: a boot's long stride either side of the line, a wolf's paws almost in one line, a
+ * hoof's split cleats.
+ */
+const PRINTS = {
+  human: { step: 16, side: 4, shape: [[-1, -4], [0, -4], [-2, -3], [-1, -3], [0, -3], [1, -3], [-2, -2], [-1, -2], [0, -2], [1, -2], [-2, -1], [-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [-1, 2], [0, 2], [-1, 3], [0, 3]] },
+  paw: { step: 12, side: 2, shape: [[-2, -3], [1, -3], [-3, -2], [2, -2], [-1, -1], [0, -1], [-2, 0], [-1, 0], [0, 0], [1, 0], [-2, 1], [-1, 1], [0, 1], [1, 1], [-1, 2], [0, 2]] },
+  hoof: { step: 13, side: 3, shape: [[-2, -2], [2, -2], [-2, -1], [-1, -1], [1, -1], [2, -1], [-2, 0], [-1, 0], [1, 0], [2, 0], [-2, 1], [-1, 1], [1, 1], [2, 1], [-1, 2], [1, 2]] },
+};
+const HEADINGS = { north: [0, -1], east: [1, 0], south: [0, 1], west: [-1, 0] };
+/**
+ * A mark's tint and its strength when fresh, in snow and on bare ground: a print's shadowed upper-left
+ * wall, its floor, its lit lower-right rim. Snow takes a blue shadow and a bright rim; earth only darkens.
+ */
+export const MARKS = {
+  snow: { s: [[52, 66, 86], 0.72], d: [[52, 66, 86], 0.5], l: [[255, 255, 255], 0.75] },
+  earth: { s: [[30, 24, 16], 0.62], d: [[30, 24, 16], 0.42], l: [[255, 244, 220], 0.16] },
+};
+/** Whether prints in a cell are pressed into snow (else into the ground under it). */
+export const snowyCell = state => state.snow + state.patches * 0.5 >= 0.5;
+/**
+ * The marks of a cell's prints: [[x, y, kind, strength]] in art pixels from the cell's top-left, kind
+ * a key of MARKS.snow. track: { x, y, maker: 'human' | 'paw' | 'hoof', heading: 'north' | ..., pattern:
+ * 'heading' | 'northsouth' | 'eastwest' | 'mixed', traffic: n, freshness: 0..1 }. Lines run along the
+ * heading (both ways for a two-way pattern, across too for a mixed one), one per individual up to
+ * three; old prints fill in and go missing.
+ */
+export function trackMarks(t) {
+  const pr = PRINTS[t.maker], h = HEADINGS[t.heading];
+  if (!pr) throw new Error(`no prints for maker "${t.maker}"`);
+  if (!h) throw new Error(`no heading "${t.heading}"`);
+  const dirs = { heading: [h], northsouth: [[0, -1], [0, 1]], eastwest: [[1, 0], [-1, 0]], mixed: [h, [-h[1], h[0]]] }[t.pattern];
+  if (!dirs) throw new Error(`no traffic pattern "${t.pattern}"`);
+  const f = Math.max(0, Math.min(1, t.freshness));
+  const strength = 0.4 + 0.6 * f; // a print fades, but a print you can see at all you can see
+  const lanes = Math.max(1, Math.min(3, Math.round(t.traffic / dirs.length)));
+  const dent = new Map();
+  dirs.forEach(([hx, hy], di) => {
+    for (let lane = 0; lane < lanes; lane++) {
+      const seed = di * 7 + lane, lx = -hy, ly = hx;
+      const off = lanes === 1 && dirs.length === 1 ? 0 : Math.round((lattice(t.x, t.y, 400 + seed) - 0.5) * 22);
+      const phase = Math.floor(lattice(t.x, t.y, 410 + seed) * pr.step);
+      for (let k = 0, s = -24 + phase; s < 24; s += pr.step, k++) {
+        if (lattice(t.x * 64 + k, t.y * 64 + seed, 420) > 0.35 + 0.65 * f) continue; // drifted over
+        const side = (k % 2 ? 1 : -1) * pr.side;
+        const cx = 24 + hx * s + lx * (side + off), cy = 24 + hy * s + ly * (side + off);
+        for (const [sx, sy] of pr.shape) {
+          const x = Math.round(cx + sx * lx - sy * hx), y = Math.round(cy + sx * ly - sy * hy);
+          if (x >= 1 && x < CELL - 1 && y >= 1 && y < CELL - 1) dent.set(y * CELL + x, [x, y]);
+        }
+      }
+    }
+  });
+  // Old prints fill with snow: their edges soften before they go.
+  const sharp = f > 0.4, out = [];
+  for (const [k, [x, y]] of dent) {
+    out.push([x, y, sharp && !dent.has(k - CELL - 1) ? 's' : 'd', strength]);
+    if (sharp && !dent.has(k + CELL + 1)) out.push([x + 1, y + 1, 'l', strength]);
+  }
+  return out;
+}
+/** A pixel's colour under a mark; ground is 'snow' or 'earth' (snowyCell). */
+export const marked = (col, kind, strength, ground) => { const [tint, k] = MARKS[ground][kind]; return mix(col, tint, k * strength); };
+
 // ---------------------------------------------------------------- the map
 /**
  * map: { width, height, terrainAt(x, y) -> terrain name, or null where unknown,
@@ -230,6 +311,35 @@ export function createBaker(map, stateAt, world, tex) {
     }
   }
 
+  // Worn routes (map.trails) between neighbouring cell centres: each cell's worn sides, by tier.
+  const links = new Map();
+  for (const t of map.trails ?? []) {
+    const tier = TRAIL_TIERS.indexOf(t.tier) + 1;
+    if (!tier) throw new Error(`no trail tier "${t.tier}"`);
+    if (Math.abs(t.ax - t.bx) + Math.abs(t.ay - t.by) !== 1) throw new Error(`trail (${t.ax}, ${t.ay})-(${t.bx}, ${t.by}) joins cells that are not neighbours`);
+    for (const [x, y, dx, dy] of [[t.ax, t.ay, t.bx - t.ax, t.by - t.ay], [t.bx, t.by, t.ax - t.bx, t.ay - t.by]]) {
+      const k = y * W + x;
+      if (!links.has(k)) links.set(k, []);
+      links.get(k).push([dx, dy, tier]);
+    }
+  }
+  /**
+   * Grazing ground, 0..1: where most sides of most cells around are worn, the ground is trampled all
+   * over and drawn without lines (lines there would draw the grid). A route, even where it forks, has
+   * few worn sides around it and keeps its line.
+   */
+  const churns = new Map();
+  const churnAt = (x, y) => {
+    const k = y * W + x;
+    let v = churns.get(k);
+    if (v !== undefined) return v;
+    let sum = 0;
+    for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) sum += links.get((y + oy) * W + x + ox)?.length ?? 0;
+    v = Math.max(0, Math.min(1, (sum - 13) / 13));
+    churns.set(k, v);
+    return v;
+  };
+
   /** A cell's 5x5 neighbourhood, terrain and ground state, with unknown cells read as the cell's own. */
   function cell(cx, cy) {
     const key = cy * W + cx;
@@ -247,7 +357,15 @@ export function createBaker(map, stateAt, world, tex) {
       if (ROCKY(t ?? own)) mtn = true;
       if (Math.abs(ox) <= 1 && Math.abs(oy) <= 1 && CAVE(t ?? own)) cave = true;
     }
-    c = { own, nb, st, wet, mtn, cave, edges: [...(edgeIndex.get(key) ?? [])] };
+    const tl = new Array(9), churn = new Array(9);
+    let trails = false;
+    for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+      const x = cx + ox, y = cy + oy, inside = x >= 0 && x < W && y >= 0 && y < H, list = inside ? links.get(y * W + x) : undefined;
+      tl[(oy + 1) * 3 + ox + 1] = list ?? null;
+      churn[(oy + 1) * 3 + ox + 1] = inside ? churnAt(x, y) : 0;
+      if (list) trails = true;
+    }
+    c = { own, nb, st, wet, mtn, cave, edges: [...(edgeIndex.get(key) ?? [])], tl, churn, trails };
     cells.set(key, c);
     return c;
   }
@@ -422,7 +540,49 @@ export function createBaker(map, stateAt, world, tex) {
         else if (cliff.side < 0 && cliff.side > -2.5 / CELL) feature = 'clifflip';
       }
     }
-    return { kind, water, bank, mountain: mountain && !water, h, h1, h2, feature, across, lit, mouth, state: c.st[(sy + 2) * 5 + sx + 2] };
+    // Worn routes: a line from each cell's centre to each worn side, a quarter arc where it turns (the
+    // river channel's geometry), meandered in world space so it joins its neighbour's line at the border.
+    let tr = 0, trAcross = 1, trLit = false, churn = 0;
+    if (c.trails && !water && !feature) {
+      const fx = fxc - cx - 0.5, fy = fyc - cy - 0.5, ox = Math.floor(fx), oy = Math.floor(fy), ax = fx - ox, ay = fy - oy;
+      const dn = (dx, dy) => c.churn[(oy + dy + 1) * 3 + ox + dx + 1];
+      churn = (dn(0, 0) * (1 - ax) + dn(1, 0) * ax) * (1 - ay) + (dn(0, 1) * (1 - ax) + dn(1, 1) * ax) * ay;
+      const tx = qx + (vnoise(px, py, 70, 150) - 0.5) * 0.3 + (vnoise(px, py, 17, 151) - 0.5) * 0.07,
+        ty = qy + (vnoise(px, py, 70, 152) - 0.5) * 0.3 + (vnoise(px, py, 17, 153) - 0.5) * 0.07;
+      const wobble = (vnoise(px, py, 20, 154) - 0.5) * 0.03;
+      let best = 9;
+      for (let coy = -1; coy <= 1; coy++) for (let cox = -1; cox <= 1; cox++) {
+        const L = c.tl[(coy + 1) * 3 + cox + 1];
+        if (!L) continue;
+        const rx = tx - cox, ry = ty - coy;
+        // Lines thin out over grazing ground, where the trampling takes over.
+        const thin = Math.max(0, 1 - c.churn[(coy + 1) * 3 + cox + 1] * 1.6);
+        const consider = (d, offx, offy, tier) => {
+          if (thin <= 0) return;
+          const s = d - (TRAIL_WIDTH[tier] * thin + wobble);
+          if (s < best) { best = s; tr = tier; trAcross = Math.min(1, d / Math.max(1e-6, TRAIL_WIDTH[tier] * thin + wobble)); trLit = offx + offy > 0; }
+        };
+        const turn = L.length === 2 && L[0][0] !== -L[1][0] && L[0][1] !== -L[1][1] ? L : null;
+        if (turn) {
+          const kx = (turn[0][0] + turn[1][0]) * 0.5, ky = (turn[0][1] + turn[1][1]) * 0.5;
+          const sx = Math.sign(kx), sy = Math.sign(ky);
+          if ((rx - kx) * -sx >= 0 && (ry - ky) * -sy >= 0) {
+            const r0 = Math.hypot(rx - kx, ry - ky), k = (r0 - 0.5) / Math.max(1e-6, r0);
+            consider(Math.abs(r0 - 0.5), (rx - kx) * k, (ry - ky) * k, Math.min(turn[0][2], turn[1][2]));
+            continue;
+          }
+        }
+        for (const [dx, dy, tier] of L) {
+          const t = Math.max(0, Math.min(1, (rx * dx + ry * dy) / 0.5));
+          const offx = rx - dx * 0.5 * t, offy = ry - dy * 0.5 * t;
+          consider(Math.hypot(offx, offy), offx, offy, tier);
+        }
+      }
+      if (best >= 0) tr = 0;
+      // A route through a pass cuts the rock it crosses.
+      if (tr && mountain) { mountain = false; if (ROCKY(kind)) kind = 'rock'; }
+    }
+    return { kind, water, bank, mountain: mountain && !water, h, h1, h2, feature, across, lit, mouth, tr, trAcross, trLit, churn, state: c.st[(sy + 2) * 5 + sx + 2] };
   }
 
   const art = new Map();
@@ -498,12 +658,63 @@ export function createBaker(map, stateAt, world, tex) {
     if (snowed(px, py, dust) && !patched) col = sample(`terrain/snow/dust_${flav}_${n}`, px, py) ?? col;
     if (patched && !lies) col = sample(`terrain/snow/patchy_${flav}_${n}`, px, py) ?? col;
     if (lies) col = sample(`terrain/snow/full_${flav}_${n}`, px, py) ?? col;
+    if (p.tr || p.churn > 0) col = worn(col, p, px, py, lies || patched, s, n);
     // Banks: a dark wet edge, or a shadowed snow lip where the ground is covered.
     if (p.bank && hash01(px, py, 5) < (cover >= 1 ? 0.8 : 0.75)) col = cover >= 1 ? C.s4 : C.e3;
     if (p.feature === 'ravinerim' && hash01(px, py, 140) < 0.7) col = C.r4; // a broken dark lip
     if (p.feature === 'clifflip') col = cover >= 0.5 ? C.s0 : C.r0;
     if (p.feature === 'cliffshadow' && hash01(px, py, 144) < 1 - p.across * 0.7) col = col.map(v => Math.round(v * 0.66));
     return col;
+  }
+
+  /**
+   * Worn ground over the ground's own colour. In snow a route is a trench, lit from the top left: its
+   * upper-left wall in shadow, its lower-right wall catching the light, a trail trodden through to the
+   * earth. On bare ground a trace is flattened plants, a path is trodden earth, a trail a bare band
+   * with stones in it, and mud where the ground is wet. Grazing ground is pocked all over.
+   */
+  function worn(col, p, px, py, snowy, s, n) {
+    const E = EARTH[world.palette === 'summer' ? 'summer' : 'autumn'];
+    const muddy = s.mud > 0.15 && !snowy;
+    const mud = () => sample(`terrain/mud_${n}_${world.palette}`, px, py) ?? E[3];
+    if (!p.tr) {
+      // Patchy at the edge of the grazed ground, solid in the middle of it.
+      const amount = vnoise(px, py, 14, 161) * 0.5 + vnoise(px, py, 45, 162) * 0.5;
+      if (amount < 1.05 - p.churn) return col;
+      // Hoof holes: each a shadowed upper-left wall and a lit lower-right rim; more where it is most trodden.
+      const pit = (x, y) => vnoise(x, y, 2.6, 163) > 0.78 - (amount - 0.5) * 0.3;
+      if (snowy) {
+        if (pit(px, py)) return pit(px - 1, py - 1) ? PACKED[2] : PACKED[3];
+        if (pit(px - 1, py - 1)) return C.s0;
+        return vnoise(px, py, 6, 164) > 0.55 ? ramp(PACKED, 0.6 + (vnoise(px, py, 3, 168) - 0.5) * 1.2, px, py, 16) : col;
+      }
+      if (pit(px, py)) return muddy ? mud().map(v => Math.round(v * 0.8)) : E[pit(px - 1, py - 1) ? 3 : 4];
+      if (vnoise(px, py, 9, 165) > 0.62) return muddy ? mud() : ramp(E, 1.5 + (vnoise(px, py, 4, 166) - 0.5) * 1.5, px, py, 12);
+      return hash01(px, py, 167) < 0.4 ? col.map(v => Math.round(v * 0.86)) : col;
+    }
+    const a = p.trAcross, wall = a > 0.55;
+    if (snowy) {
+      // A trace is a broken line of prints, not yet a trench.
+      if (p.tr === 1 && vnoise(px, py, 3.2, 170) < 0.48) return col;
+      if (wall && !p.trLit) return a > 0.8 ? C.s4 : PACKED[3];
+      if (wall && p.trLit) return a > 0.75 ? C.s0 : PACKED[0];
+      if (p.tr === 3 && vnoise(px, py, 6, 171) > 0.68 - (1 - a) * 0.1) return ramp(E, 2 + (vnoise(px, py, 3, 172) - 0.5), px, py, 13); // trodden through
+      // The floor: packed snow, dimpled with prints.
+      if (vnoise(px, py, 2.2, 173) > 0.74) return PACKED[3];
+      return ramp(PACKED, 1.2 + a * 0.8 + (vnoise(px, py, 4, 169) - 0.5) * 1.1, px, py, 14);
+    }
+    if (p.tr === 1) return hash01(px, py, 174) < 0.55 ? col.map(v => Math.round(v * 0.82)) : col;
+    if (wall) {
+      if (p.tr === 2) return col.map(v => Math.round(v * (p.trLit ? 0.9 : 0.76)));
+      return p.trLit ? E[0] : E[4];
+    }
+    if (muddy && vnoise(px, py, 8, 175) < 0.4 + s.mud * 0.6) {
+      if (s.water > 0.2 && vnoise(px, py, 11, 176) > 0.72) return (s.ice === 'none' ? null : ice(px, py, s.ice)) ?? C.i4; // a puddle in the rut
+      return mud();
+    }
+    if (p.tr === 3 && hash01(px, py, 177) < 0.03) return hash01(px, py, 178) < 0.5 ? C.r1 : C.r3; // stones
+    const floor = ramp(E, (p.tr === 2 ? 1.6 : 1.1) + a * 1.4 + (vnoise(px, py, 5, 179) - 0.5) * 1.2, px, py, 15);
+    return p.tr === 2 && hash01(px, py, 180) < 0.25 ? mix(floor, col, 0.5) : floor;
   }
 
   /**
@@ -552,7 +763,7 @@ export function createBaker(map, stateAt, world, tex) {
       const i = ((y - Y0) * stride + (x - X0)) * 4;
       out[i] = col[0]; out[i + 1] = col[1]; out[i + 2] = col[2]; out[i + 3] = 255;
     };
-    const solid = p => !p || p.water || p.mountain || (p.feature && p.feature !== 'cliffshadow');
+    const solid = p => !p || p.water || p.mountain || p.tr || (p.feature && p.feature !== 'cliffshadow');
     const blocked = (x, y) => solid(classify(x, y));
     const found = [];
     // Any anchor whose sprite (up to 12 rows tall, 9 wide, a 2-row shadow) can reach this area.
