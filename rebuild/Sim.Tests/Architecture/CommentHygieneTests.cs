@@ -170,7 +170,7 @@ public class CommentHygieneTests
         Assert.True(problems.Count == 0, string.Join("\n", problems));
     }
 
-    static IEnumerable<string> SimFiles() =>
+    internal static IEnumerable<string> SimFiles() =>
         Directory.EnumerateFiles(ArchitectureTests.SimSourceDir(), "*.cs", SearchOption.AllDirectories)
             .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
                      && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
@@ -213,7 +213,19 @@ public class CommentHygieneTests
 
     /// The comments in C# source, as [start, end) spans: line comments and block comments, skipping
     /// string and character literals (plain, verbatim, interpolated and raw).
-    internal static List<(int Start, int End)> Comments(string src)
+    internal static List<(int Start, int End)> Comments(string src) => Spans(src, withLiterals: false);
+
+    /// The source with every comment and string or character literal blanked to spaces, line breaks kept,
+    /// so a scan of what the code says matches neither prose nor player-facing words, and line numbers hold.
+    internal static string CodeOnly(string src)
+    {
+        var code = src.ToCharArray();
+        foreach (var (start, end) in Spans(src, withLiterals: true))
+            for (int k = start; k < end; k++) if (code[k] != '\n') code[k] = ' ';
+        return new string(code);
+    }
+
+    static List<(int Start, int End)> Spans(string src, bool withLiterals)
     {
         var spans = new List<(int, int)>();
         int i = 0, n = src.Length;
@@ -233,8 +245,12 @@ public class CommentHygieneTests
                 spans.Add((i, j));
                 i = j;
             }
-            else if (src[i] is '"' or '$' or '@') i = SkipString(src, i);
-            else if (src[i] == '\'') i = SkipChar(src, i);
+            else if (src[i] is '"' or '$' or '@' or '\'')
+            {
+                int j = src[i] == '\'' ? SkipChar(src, i) : SkipString(src, i);
+                if (withLiterals && j > i + 1) spans.Add((i, j));
+                i = j;
+            }
             else i++;
         }
         return spans;

@@ -109,7 +109,7 @@ public class ArchitectureTests
     ];
 
     /// A member declaration: modifiers, a type (a tuple included), a name, its parameters. Not a statement or a call.
-    static readonly Regex MemberDeclaration = new(
+    internal static readonly Regex MemberDeclaration = new(
         @"^\s*(?!(?:if|else|while|for|foreach|switch|return|using|catch|lock|new|throw|yield|case|await)\b)" +
         @"(?:(?:public|internal|private|protected|static|readonly|override|sealed|partial|virtual|abstract)\s+)*" +
         @"(?:[\w<>\[\],.?]+|\([^)]*\)\??)\s+(\w+)\s*(?:<[^>]*>)?\s*(?:\(|=>)");
