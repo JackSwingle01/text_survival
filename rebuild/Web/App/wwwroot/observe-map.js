@@ -78,12 +78,7 @@ export function createObserverMap(canvas, get) {
       ctx.setTransform(dpr * k, 0, 0, dpr * k, 0, 0);
       const ox = sx(0) / k, oy = sy(0) / k;
       terrain.draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera: cam, ground, world: worldState(V.clock) });
-      // prints, pressed into the ground they lie on, in art pixels like the ground (map.js)
-      for (const t of m.tracks) {
-        if (t.x < x0 || t.x > x1 || t.y < y0 || t.y > y1) continue;
-        const px = ox + t.x * CELL, py = oy + t.y * CELL;
-        for (const [dx, dy, fill] of terrain.prints(t, ground)) { ctx.fillStyle = fill; ctx.fillRect(px + dx, py + dy, 1, 1); }
-      }
+      terrain.drawPrints(ctx, { m, ox, oy, x0, y0, x1, y1, ground });
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     } else {
       bakeFlat(m);

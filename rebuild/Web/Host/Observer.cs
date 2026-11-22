@@ -42,11 +42,11 @@ public sealed class Observer
 
     public string View() => JsonSerializer.Serialize(ViewOf(W), HostJson.Default.ObserverViewDto);
 
-    /// The whole valley as it is (MapView.Truth). The page asks for it when the view's GroundMinute has
-    /// moved past the map it has: the ground, routes and prints change with Ground's step, not every minute.
-    public string Map() => JsonSerializer.Serialize(MapView.Truth(W), HostJson.Default.MapDto);
+    /// The whole valley as it is (MapView.Truth). The page asks for it when the view's minute has moved
+    /// past the map it holds, as often as it can afford to redraw.
+    public string TruthMap() => JsonSerializer.Serialize(MapView.Truth(W), HostJson.Default.MapDto);
 
-    ObserverViewDto ViewOf(World w) => new(w.Minute, w.Minute / Ground.StepMinutes * Ground.StepMinutes, ViewBuilder.ClockOf(w, Weather.At(w, w.Minute)),
+    ObserverViewDto ViewOf(World w) => new(w.Minute, ViewBuilder.ClockOf(w, Weather.At(w, w.Minute)),
         Actors(), Places(), [.. _log.TakeLast(LogShown)]);
 
     /// Runs the world on for this many minutes with nobody acting for the player (Sim.Advance), then
@@ -68,7 +68,7 @@ public sealed class Observer
     public string Spawn(string kind, int x, int y)
     {
         var w = W;
-        var m = Survival.Map.Of(w);
+        var m = Map.Of(w);
         var what = Spawnables.FirstOrDefault(s => s.Id == kind)
             ?? throw new ArgumentException($"Nothing to spawn called '{kind}'; there are {string.Join(", ", Spawnables.Select(s => s.Id))}");
         var t = new TileId(x, y);
@@ -82,7 +82,7 @@ public sealed class Observer
     public string Inspect(int x, int y)
     {
         var w = W;
-        var m = Survival.Map.Of(w);
+        var m = Map.Of(w);
         var t = new TileId(x, y);
         if (!m.InBounds(t)) throw new ArgumentException($"Tile {x},{y} is off the map");
         var features = LocationFeatures.At(w, t).Select(f => new TileFeatureDto(f.Kind.ToString().ToLowerInvariant(), Verbs.NameOf(w, f),
@@ -90,7 +90,7 @@ public sealed class Observer
         var actors = w.Agents.Values.Where(a => a.Tile == t && Shown(a))
             .Select(a => new ActorDetailDto(a.Id.Value, Names.Cap(Cause.Describe(w, a.Id)), Doing(a), Insides(a))).ToList();
         var fire = Fire.PitAt(w, t) is FireId id ? ViewBuilder.FireOf(w.Fires[id]) : null;
-        return JsonSerializer.Serialize(new TileDto(x, y, Survival.Map.Describe(m, t), Names.Title(m.TerrainAt(t)), Survival.Map.DiscoveryText(w, t), fire, features, actors),
+        return JsonSerializer.Serialize(new TileDto(x, y, Map.Describe(m, t), Names.Title(m.TerrainAt(t)), Map.DiscoveryText(w, t), fire, features, actors),
             HostJson.Default.TileDto);
     }
 
@@ -132,7 +132,7 @@ public sealed class Observer
         foreach (var (id, a) in w.Agents)
         {
             if (!Shown(a)) continue;
-            var to = a.Crossing is { } c ? Survival.Map.Step(c.From, c.Dir) : (TileId?)null;
+            var to = a.Crossing is { } c ? Map.Step(c.From, c.Dir) : (TileId?)null;
             list.Add(new ActorDto(id.Value, a.Mind is HerdMind ? "herd" : "npc", Words.SpeciesIcon(a.Species), Names.Cap(Cause.Describe(w, id)),
                 a.Tile.X, a.Tile.Y, a.Members.Count, Doing(a), (a.Mind as HerdMind)?.State is HerdState s ? Words.Of(s) : null,
                 a.Mind is HerdMind && Fauna.IsPredator(a.Species), to?.X, to?.Y, a.Crossing is { } cr ? Math.Round((double)cr.ElapsedMinutes / cr.TotalMinutes, 3) : null));

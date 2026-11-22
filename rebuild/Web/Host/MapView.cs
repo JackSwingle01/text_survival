@@ -54,14 +54,11 @@ static class MapView
                 tracks.AddRange(TracksOn(world, t));
 
         // In sight, the ground as it is; out of sight, as the person last saw it.
-        (SurfaceSummary, long) groundAt(TileId t)
-        {
-            if (inSight.Contains(t)) return (Ground.SurfaceNow(world, t), world.Minute);
-            var seen = memory.Explored?.At(t) ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
-            return (seen.Surface, seen.SeenMinute);
-        }
+        RememberedGround seen(TileId t) => memory.Explored?.At(t) ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
+        long minuteOf(TileId t) => inSight.Contains(t) ? world.Minute : seen(t).SeenMinute;
+        SurfaceSummary groundOf(TileId t) => inSight.Contains(t) ? Ground.SurfaceNow(world, t) : seen(t).Surface;
         var trails = Memories.Trails(world, person, inSight).Select(t => Trail(t.Edge, t.Tier)).ToList();
-        return Build(world, explored, groundAt, [.. visible.Select(t => t.Y * m.Width + t.X).Order()], places, sightings, tracks, trails);
+        return Build(world, explored, minuteOf, groundOf, [.. visible.Select(t => t.Y * m.Width + t.X).Order()], places, sightings, tracks, trails);
     }
 
     /// The map as it truly is: every tile explored and in sight, every print readable, every worn route.
@@ -76,13 +73,14 @@ static class MapView
         var trails = new List<TrailDto>();
         foreach (var edge in world.Trails.Keys) // edge order: Trails is sorted
             if (Tracks.TierOf(world, edge.A, edge.B) is var tier and not TrailTier.None) trails.Add(Trail(edge, tier));
-        return Build(world, _ => true, t => (Ground.SurfaceNow(world, t), world.Minute), [.. Enumerable.Range(0, m.Width * m.Height)],
+        return Build(world, _ => true, _ => world.Minute, t => Ground.SurfaceNow(world, t), [.. Enumerable.Range(0, m.Width * m.Height)],
             [], [], tracks, trails);
     }
 
-    /// The per-tile rules both sides share. explored: whether the tile is on the map at all; groundAt: its
-    /// ground and the minute it is from (now, or when last seen).
-    static MapDto Build(World world, Func<TileId, bool> explored, Func<TileId, (SurfaceSummary Ground, long Minute)> groundAt, IReadOnlyList<int> visible,
+    /// The per-tile rules both sides share. explored: whether the tile is on the map at all; minuteOf: the
+    /// minute it is drawn as of (now, or when last seen); groundOf: its ground as of then, asked only of
+    /// passable tiles.
+    static MapDto Build(World world, Func<TileId, bool> explored, Func<TileId, long> minuteOf, Func<TileId, SurfaceSummary> groundOf, IReadOnlyList<int> visible,
         List<PlaceMarkDto> places, List<SightingDto> sightings, List<TrackDto> tracks, List<TrailDto> trails)
     {
         var m = Map.Of(world);
@@ -95,11 +93,9 @@ static class MapView
                 var t = new TileId(x, y);
                 if (!explored(t)) { known.Append(UnknownCode); continue; }
                 known.Append(TerrainCode(m, t));
-                bool water = m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater && m.CaveAt(t) == Cave.None;
-                if (!water && !m.TerrainAt(t).IsPassable()) continue;
-                var (g, minute) = groundAt(t);
-                if (water && Map.IsFrozen(m, t, minute)) frozen.Add(y * m.Width + x);
-                if (m.TerrainAt(t).IsPassable() && SurfaceOf(g, y * m.Width + x) is { } s) surface.Add(s);
+                if (m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater && m.CaveAt(t) == Cave.None && Map.IsFrozen(m, t, minuteOf(t)))
+                    frozen.Add(y * m.Width + x);
+                if (m.TerrainAt(t).IsPassable() && SurfaceOf(groundOf(t), y * m.Width + x) is { } s) surface.Add(s);
             }
 
         var named = new List<NamedDto>();
@@ -110,7 +106,7 @@ static class MapView
         var edges = new List<EdgeDto>();
         foreach (var ((a, b), e) in m.Edges)
             if (e is EdgeType.Ravine or EdgeType.Cliff && (explored(a) || explored(b)))
-                edges.Add(new EdgeDto(a.X, a.Y, b.X, b.Y, ViewBuilder.Code(e)));
+                edges.Add(new EdgeDto(a.X, a.Y, b.X, b.Y, Words.Code(e)));
         edges.Sort((p, q) => (p.Ay, p.Ax, p.By, p.Bx).CompareTo((q.Ay, q.Ax, q.By, q.Bx)));
 
         return new MapDto(m.Width, m.Height, known.ToString(), visible, m.Camp.X, m.Camp.Y,
@@ -118,10 +114,10 @@ static class MapView
     }
 
     static IEnumerable<TrackDto> TracksOn(World world, TileId t) => Tracks.Read(world, t).Select(s =>
-        new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes, s.Traffic, ViewBuilder.Code(s.Heading), ViewBuilder.Code(s.Pattern),
+        new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes, s.Traffic, Words.Code(s.Heading), Words.Code(s.Pattern),
             Math.Round(s.FreshnessPct, 2)));
 
-    static TrailDto Trail(EdgeId e, TrailTier tier) => new(e.A.X, e.A.Y, e.B.X, e.B.Y, ViewBuilder.Code(tier));
+    static TrailDto Trail(EdgeId e, TrailTier tier) => new(e.A.X, e.A.Y, e.B.X, e.B.Y, Words.Code(tier));
 
     /// A tile's code in MapDto.Known: a cave's floor or mouth, else its terrain.
     static char TerrainCode(GeneratedMap m, TileId t) =>

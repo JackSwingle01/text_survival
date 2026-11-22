@@ -209,5 +209,17 @@ export function createTerrain() {
     return r;
   }
 
-  return { draw, prints: printsOf };
+  /**
+   * Presses the map's prints (MapDto.Tracks) on cells [x0..x1] x [y0..y1] into ground already drawn,
+   * with the map's origin at (ox, oy), one cell CELL pixels wide: the frame draw used.
+   */
+  function drawPrints(ctx, { m, ox, oy, x0, y0, x1, y1, ground }) {
+    for (const t of m.tracks) {
+      if (t.x < x0 || t.x > x1 || t.y < y0 || t.y > y1) continue;
+      const px = ox + t.x * CELL, py = oy + t.y * CELL;
+      for (const [dx, dy, fill] of printsOf(t, ground)) { ctx.fillStyle = fill; ctx.fillRect(px + dx, py + dy, 1, 1); }
+    }
+  }
+
+  return { draw, drawPrints };
 }

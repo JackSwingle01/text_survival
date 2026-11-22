@@ -11,12 +11,13 @@ const params = new URLSearchParams(location.search);
 const obs = createClient().observe;
 const pacer = createPacer();
 
-/** Fetch a new map (MapView.Truth) at most this often: every chunk on screen rebakes when its ground changes. */
+/** Fetch a new map (MapView.Truth) at most this often: chunks whose ground or routes changed rebake. */
 const MAP_EVERY_MS = 2000, INSPECT_EVERY_MS = 500;
 
 const S = {
   map: null, view: null, cam: null, spawnables: [],
-  mapMinute: null, mapAt: 0, mapLoading: false, // the map's GroundMinute, when it was fetched, a fetch queued
+  mapMinute: null, mapAt: 0, mapLoading: null, // the minute the map is as of, when it was fetched, a fetch queued
+  gen: 0, // the world's generation: a reply for an earlier world is dropped
   selected: null, hover: null, inspected: null, inspectedAt: 0,
   playing: false, busy: false, armed: null,
 };
@@ -39,16 +40,18 @@ function apply(v) {
 }
 
 /** The map is the whole valley's MapDto, drawn by the player's renderer. It goes stale when the view's
- * GroundMinute passes it; fetch it then, at most every MAP_EVERY_MS unless forced. */
+ * minute passes it (prints and routes change with any crossing); fetch it then, at most every
+ * MAP_EVERY_MS unless forced. Resolves when the map in hand is the one asked for. */
 function refreshMap(force) {
-  if (!S.view || S.mapLoading || S.mapMinute === S.view.groundMinute) return Promise.resolve();
+  if (S.mapLoading) return S.mapLoading;
+  if (!S.view || S.mapMinute === S.view.minute) return Promise.resolve();
   if (!force && performance.now() - S.mapAt < MAP_EVERY_MS) return Promise.resolve();
-  S.mapLoading = true;
-  const minute = S.view.groundMinute;
-  return call(async () => {
-    try { S.map = await obs.map(); S.mapMinute = minute; S.mapAt = performance.now(); }
-    finally { S.mapLoading = false; }
-  });
+  const gen = S.gen;
+  return S.mapLoading = call(async () => {
+    const minute = S.view.minute, map = await obs.map(); // calls run one at a time: nothing moves the clock between
+    if (gen !== S.gen) return;
+    S.map = map; S.mapMinute = minute; S.mapAt = performance.now();
+  }).finally(() => { S.mapLoading = null; });
 }
 
 /** One call to the world at a time: a click while time runs waits its turn behind the call in flight.
@@ -75,6 +78,8 @@ async function newWorld(seed) {
   S.playing = false; pacer.reset();
   const start = await call(() => obs.newWorld(seed));
   if (!start) return;
+  S.gen++;
+  await S.mapLoading; // a fetch queued for the last world lands, and is dropped, before this one asks
   S.map = null; S.mapMinute = null; S.selected = null; S.inspected = null;
   S.spawnables = start.spawnables;
   apply(start.view);

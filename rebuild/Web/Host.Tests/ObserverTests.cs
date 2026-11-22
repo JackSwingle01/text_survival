@@ -22,7 +22,7 @@ public class ObserverTests
         var o = new Observer();
         var start = Start(o.New(Seed));
         Assert.False(o.World.Agents.ContainsKey(AgentId.Player));
-        var map = Map(o.Map());
+        var map = Map(o.TruthMap());
         int tiles = map.Width * map.Height;
         Assert.Equal(tiles, map.Known.Length);
         Assert.DoesNotContain(MapView.UnknownCode, map.Known);
@@ -47,7 +47,7 @@ public class ObserverTests
         var a = m.Camp;
         var b = Survival.Map.Step(a, Direction.East);
         for (int i = 0; i < 40; i++) Tracks.RecordMove(w, i % 2 == 0 ? a : b, i % 2 == 0 ? b : a, TrackMaker.Human);
-        var map = Map(o.Map());
+        var map = Map(o.TruthMap());
         var worn = w.Trails.Keys.Where(e => Tracks.TierOf(w, e.A, e.B) != TrailTier.None).Select(e => (e.A.X, e.A.Y, e.B.X, e.B.Y)).ToList();
         Assert.Equal(worn, map.Trails.Select(t => (t.Ax, t.Ay, t.Bx, t.By)));
         Assert.Contains(map.Trails, t => t.Tier == "trail");
@@ -56,16 +56,12 @@ public class ObserverTests
     }
 
     [Fact]
-    public void Advance_moves_the_clock_and_the_view_says_when_the_ground_last_stepped()
+    public void Advance_moves_the_clock_by_the_minutes_asked()
     {
         var o = new Observer();
         long start = Start(o.New(Seed)).View.Minute;
-        var v = View(o.Advance(7));
-        Assert.Equal(start + 7, v.Minute);
-        Assert.Equal(start, v.GroundMinute); // still inside Ground's first 15-minute step
-        v = View(o.Advance(8));
-        Assert.Equal(start + 15, v.Minute);
-        Assert.Equal(start + Ground.StepMinutes, v.GroundMinute);
+        Assert.Equal(start + 7, View(o.Advance(7)).Minute);
+        Assert.Equal(start + 15, View(o.Advance(8)).Minute);
     }
 
     [Fact]
@@ -88,7 +84,7 @@ public class ObserverTests
     {
         var o = new Observer();
         o.New(Seed);
-        var map = Map(o.Map());
+        var map = Map(o.TruthMap());
         int i = map.Known.IndexOf('X'); // mountain
         Assert.Throws<ArgumentException>(() => o.Spawn("npc", i % map.Width, i / map.Width));
         Assert.Throws<ArgumentException>(() => o.Spawn("dragon", map.CampX, map.CampY));

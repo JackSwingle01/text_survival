@@ -580,9 +580,9 @@ public class GameHostTests
     {
         string[] tiers = ["trace", "path", "trail"], headings = ["north", "east", "south", "west"],
             patterns = ["heading", "northsouth", "eastwest", "mixed"], makers = ["human", "paw", "hoof"];
-        Assert.All(Enum.GetValues<TrailTier>().Where(t => t != TrailTier.None), t => Assert.Contains(ViewBuilder.Code(t), tiers));
-        Assert.All(Enum.GetValues<Direction>(), d => Assert.Contains(ViewBuilder.Code(d), headings));
-        Assert.All(Enum.GetValues<TrafficPattern>(), p => Assert.Contains(ViewBuilder.Code(p), patterns));
+        Assert.All(Enum.GetValues<TrailTier>().Where(t => t != TrailTier.None), t => Assert.Contains(Words.Code(t), tiers));
+        Assert.All(Enum.GetValues<Direction>(), d => Assert.Contains(Words.Code(d), headings));
+        Assert.All(Enum.GetValues<TrafficPattern>(), p => Assert.Contains(Words.Code(p), patterns));
         Assert.All(Enum.GetValues<TrackMaker>(), m => Assert.Contains(Names.Of(m), makers));
     }
 

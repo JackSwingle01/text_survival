@@ -40,3 +40,11 @@ Revised: the scratch characterization (18 views: two seeds' start, six walks eac
 Revised: Observer.Map() collides with Survival.Map inside Observer → Observer names Survival.Map in full.
 Revised: the flat colours moved from observe-map.js to observe-core.js so node can test them against terrain.js's TERRAIN without a DOM.
 Follow-up: in the interpreter build a truth map is 244 KB and 33 ms through the worker; not measured in AOT.
+Revised (review): a map fetch queued as New world ran was dropped by refreshMap's loading guard, leaving no map, camera or spawn buttons → a world generation drops a reply for an earlier world, and New world awaits the fetch in flight before asking.
+Revised (review): MapView.Build read a water tile's ground only for its minute, and the surface of deep water nobody stands on → two questions: the minute a tile is drawn as of, and its ground (passable tiles only).
+Revised (review): prints and routes change with any crossing, not with Ground's step, so a GroundMinute key left them up to 15 game minutes behind → the map is stale when the view's minute passes it (2 s throttle as before; ground-state only rebakes on changed cells); GroundMinute removed.
+Revised (review): the prints loop was copied from map.js → terrain.drawPrints, called by both; terrain.prints leaves the interface.
+Revised (review): ViewBuilder's Explored and MapOf only forwarded to MapView, and MapView reached back for ViewBuilder.Code → both forwarders inlined; Code moved to Words (GameHostTests renamed, no assertion changed).
+Revised (review): Observer.Map() shadowed Survival.Map → TruthMap().
+Follow-up: observe-map.js still draws places (fires, shelters, carcasses, stashes) and place names its own way, scaled to the observer's zoom, where map.js draws them at one fixed scale with fog; a marks layer both pages call would bring them together.
+Follow-up: ViewBuilder.ClockOf and FireOf stay public statics the observer calls: shared view rules, not map, but a Host words-for-the-page home would hold them better than the player's builder.

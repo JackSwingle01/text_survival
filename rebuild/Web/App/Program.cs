@@ -19,7 +19,7 @@ public static partial class Game
     static readonly Observer Watch = new();
     [JSExport] internal static string ObserveNew(int seed) => Watch.New(seed);
     [JSExport] internal static string ObserveView() => Watch.View();
-    [JSExport] internal static string ObserveMap() => Watch.Map();
+    [JSExport] internal static string ObserveMap() => Watch.TruthMap();
     [JSExport] internal static string ObserveAdvance(int minutes) => Watch.Advance(minutes);
     [JSExport] internal static string ObserveSpawn(string kind, int x, int y) => Watch.Spawn(kind, x, y);
     [JSExport] internal static string ObserveInspect(int x, int y) => Watch.Inspect(x, y);

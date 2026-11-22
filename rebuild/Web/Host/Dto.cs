@@ -192,10 +192,10 @@ public sealed record ObserverStartDto(IReadOnlyList<SpawnableDto> Spawnables, Ob
 /// One kind of thing the spawn tool can put on a tile. Id is what Spawn takes.
 public sealed record SpawnableDto(string Id, string Label);
 
-/// The observer's view after every call: what changes by the minute. GroundMinute: the start of Ground's
-/// current step; the map (Observer.Map, a MapDto from MapView.Truth) is stale once this passes its minute.
-/// Places: every unattended fire, shelter, carcass and stash, as they are now (the map carries none).
-public sealed record ObserverViewDto(long Minute, long GroundMinute, ClockDto Clock, IReadOnlyList<ActorDto> Actors, IReadOnlyList<PlaceMarkDto> Places,
+/// The observer's view after every call. The map (Observer.TruthMap, a MapDto) is fetched apart, and is
+/// stale once Minute passes the minute it was fetched at. Places: every unattended fire, shelter, carcass
+/// and stash, as they are now (the truth map carries none).
+public sealed record ObserverViewDto(long Minute, ClockDto Clock, IReadOnlyList<ActorDto> Actors, IReadOnlyList<PlaceMarkDto> Places,
     IReadOnlyList<ObserverLogDto> Log);
 /// An NPC or a herd. Kind: npc or herd. Doing: its activity in words ("travel north"), or "deciding".
 /// State: a herd's (Fauna HerdState). Predator: Fauna.IsPredator. ToX/ToY/CrossingPct: a crossing under way, for the page to draw it moving.

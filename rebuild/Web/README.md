@@ -57,9 +57,9 @@ It talks to `Host/Observer.cs` through `client.js`'s `observe` calls, never to `
 player's `MapDto`, built by `Host/MapView.cs` from the other side: `MapView.Remembered` is a person's
 memory, `MapView.Truth` every tile known and in sight, every print and worn route. The page hands it to
 the same renderer (terrain.js, ground-state.js), so whatever the map gains, ravines and routes included,
-the observer draws too. The map changes with Ground's 15-minute step: each view carries `groundMinute`,
-and the page fetches `observe.map()` when that has passed the map it holds, at most every 2 s. Actors,
-places (fires, shelters, carcasses, stashes) and the log come with every view. The rate it achieves is shown beside the clock; Sim's own speed
+the observer draws too. The page fetches `observe.map()` when the view's minute has passed
+the map it holds, at most every 2 s; actors, places (fires, shelters, carcasses, stashes) and the log
+come with every view. The rate it achieves is shown beside the clock; Sim's own speed
 is the ceiling (about 26-40 game minutes a second in the AOT build with a populated valley).
 
 ```bash
