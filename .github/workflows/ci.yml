@@ -1,9 +1,11 @@
 name: CI
 
-# The full suite, Slow tests included, on every push and PR. Mutation testing runs separately
+# The full suite, Slow tests included, on every PR and on pushes to main. Mutation testing runs separately
 # (mutation.yml), at most daily.
+# Branches are checked through their PR (merged with main); push covers only main itself.
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
@@ -17,3 +19,41 @@ jobs:
       - run: dotnet restore text_survival.sln
       - run: dotnet build text_survival.sln -c Release --no-restore
       - run: dotnet test text_survival.sln -c Release --no-build --no-restore
+
+  # GitHub only reports a workflow it cannot parse; actionlint also catches bad expressions,
+  # unknown action inputs and shellcheck problems in run steps. Same version as the
+  # .githooks/pre-commit hook expects locally.
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: get_actionlint
+        shell: bash
+        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
+      - shell: bash
+        run: ${{ steps.get_actionlint.outputs.executable }} -color
+
+  # Ratchet: whitespace formatting is enforced only on the C# files a PR touches, so older
+  # unformatted files get fixed when they are next edited instead of in one repo-wide reformat.
+  # Fix locally with: dotnet format whitespace --folder --include <files>
+  format:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Whitespace formatting of changed C# files
+        shell: bash
+        run: |
+          # The PR checkout is a merge commit whose first parent is the base branch.
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMR HEAD^1 HEAD -- '*.cs')
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No C# files changed."
+            exit 0
+          fi
+          printf 'Checking %s\n' "${files[@]}"
+          dotnet format whitespace --folder --verify-no-changes --include "${files[@]}"
