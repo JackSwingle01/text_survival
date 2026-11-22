@@ -95,3 +95,36 @@ _Avoid_: result, status
 Work on a recipe that is not finished yet, keeping its progress: on the tile for something placed, as
 an unfinished item in the pack for something carried.
 _Avoid_: job, task, build in progress
+
+## How the game is built
+
+**Feature**:
+A piece of gameplay the player meets, such as a new location, weather type, animal, recipe, effect,
+condition, item, verb, terrain or discovery.
+_Avoid_: feature for something lying at a place (that is a thing)
+
+**Thing**:
+Anything at a place that can be seen, used or carried: a fire, a stash, a carcass, a shelter, a tree.
+_Avoid_: feature, object, entity
+
+**System**:
+The one owner of a set of rules about the world, such as fire, body, ground, weather, animals, fights,
+making or travel. Its rules live only there; everything else asks it.
+_Avoid_: manager, module, service
+
+**Verb**:
+Something a person could do here and now, offered with its refusal, odds and cost.
+_Avoid_: action, option, command
+
+**Activity**:
+A verb a person has chosen and is carrying out.
+_Avoid_: task, job, action
+
+**Refusal**:
+Why a verb can't start now, naming what is missing and how much where getting it would help.
+_Avoid_: error, block, requirement
+
+**Forecast**:
+A system's rough, probabilistic expectation of how its own part of the world goes on, assuming
+everything else stays as it is now; the same for the player and every other person.
+_Avoid_: prediction, simulation, estimate
