@@ -37,8 +37,8 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 ## Water, ice and ground
 
-- `Content.cs:54`, `Map.cs:184`, `Work.cs:155` - site water ice is static: no ice holes, fishing, or ice that grows and thaws;
-  a frozen lake gives water without a hole. Upgrade: give Ground ice thickness, then port `IceCuttingStrategy`.
+- `Content.cs:54`, `Map.cs` (`IsFrozen`), `Work.cs` (`HasOpenWater`) - water ice comes and goes by the date alone, at a
+  fixed thickness: no ice holes, fishing, or ice that grows and thaws; a frozen lake gives water without a hole. Upgrade: give Ground ice thickness, then port `IceCuttingStrategy`.
 - `Work.cs:310` - melting snow never checks there is snow (old: "assumed freely available", even in July).
   Upgrade: take it from `Ground`'s snow depth on the tile.
 - `Ground.cs:208` - burial access and digging (old `GroundSurface.Excavation`, `DigUpStrategy`) not ported.

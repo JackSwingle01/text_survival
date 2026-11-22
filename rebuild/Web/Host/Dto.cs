@@ -99,9 +99,11 @@ public sealed record SkillDto(string Name, int Level);
 /// Everything else is memory: places as last seen, sightings with their minute. Surface: the ground of
 /// each known tile with anything on it, in tile order: in sight, as it is now (Ground.SurfaceNow); out
 /// of sight, as last seen (Beliefs.Explored). A known tile that is not listed is bare, dry ground.
+/// FrozenWater: the known lake and deep-water tiles that are ice (Map.IsFrozen), in tile order: in sight, now;
+/// out of sight, when last seen. A known one not listed is open water.
 public sealed record MapDto(int Width, int Height, string Known, IReadOnlyList<int> Visible, int CampX, int CampY,
     IReadOnlyList<PlaceMarkDto> Places, IReadOnlyList<SightingDto> Sightings, IReadOnlyList<TrackDto> Tracks,
-    IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface);
+    IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface, IReadOnlyList<int> FrozenWater);
 
 /// One known tile's ground. I: its index (y*Width+x). SnowCm: lying snow; Crust: its top refrozen;
 /// MudLevel: 0-1 on bare ground; WaterCm: standing water (ice included); Ice: that water mostly frozen.

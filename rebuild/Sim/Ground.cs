@@ -73,7 +73,7 @@ public sealed record SubstrateProfile(
     public static SubstrateProfile Rock => Named("rock");
     /// Holds nearly everything and lets go of none of it: wet in any weather, ponds the moment it rains.
     public static SubstrateProfile Peat => Named("peat");
-    /// Lake ice. Inert here: standing water runs away.
+    /// Lake ice. Inert here: standing water runs away. While the lake is open it is waded instead (Underfoot).
     public static SubstrateProfile IceSheet => Named("iceSheet");
     public static SubstrateProfile Impassable => Named("impassable");
 
@@ -223,18 +223,31 @@ public static class Ground
         WaterOverflowedM = s.WaterOverflowedM, LastUpdatedMinute = s.LastUpdatedMinute,
     };
 
-    /// The tile's ground as a view draws it, read without writing (Peek).
-    public static SurfaceSummary SurfaceNow(World world, TileId tile) => new Column(Peek(world, tile), Substrate(Map.Of(world), tile)).Summary;
+    /// What someone on the tile meets: its ground, or on an open lake (Map.IsOpenWater) water to wade, the
+    /// deepest the ground holds (MaxStandingWaterDepthM), so wading is slow and soaks you by the ground's own
+    /// rules. Snow on the lake's ice waits, unread, for the freeze.
+    static Column Underfoot(World world, TileId tile, Func<World, TileId, GroundState> ground)
+    {
+        var m = Map.Of(world);
+        var sub = Substrate(m, tile);
+        if (!Map.IsOpenWater(m, tile, world.Minute)) return new Column(ground(world, tile), sub);
+        var water = Baseline(sub);
+        water.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Water, ThicknessM = MaxStandingWaterDepthM, WaterSaturationPct = 1 });
+        return new Column(water, sub);
+    }
 
-    /// The tile's ground as a person looking at it sees it now. Ground already kept is caught up in
+    /// The tile's ground as a view draws it, read without writing (Peek).
+    public static SurfaceSummary SurfaceNow(World world, TileId tile) => Underfoot(world, tile, Peek).Summary;
+
+    /// The tile's ground as a person looking at it sees it now (Underfoot). Ground already kept is caught up in
     /// place, so the next look carries on from here instead of re-living the same days; ground never
     /// kept is read without writing, its history shared with its class (Unobserved). Either way the
     /// same sub-steps, so what is seen does not depend on when anyone looked before.
     public static SurfaceSummary Look(World world, TileId tile) =>
-        world.Tiles.GetValueOrDefault(tile)?.Ground != null ? new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).Summary : SurfaceNow(world, tile);
+        world.Tiles.GetValueOrDefault(tile)?.Ground != null ? Underfoot(world, tile, CatchUp).Summary : SurfaceNow(world, tile);
 
     /// Snow on the tile now, read without writing (Peek).
-    public static double SnowDepthNowM(World world, TileId tile) => SnowDepthM(Peek(world, tile), Substrate(Map.Of(world), tile));
+    public static double SnowDepthNowM(World world, TileId tile) => Underfoot(world, tile, Peek).SnowDepthM;
 
     /// When the ground's history begins: the weather pre-roll for a seeded world. A pinned test sky
     /// has no past, so its ground starts at minute 0 as generated.
@@ -243,32 +256,30 @@ public static class Ground
     // ---- world queries (each one is an observation: it catches the tile up) ----
 
     /// How much slower the ground is to cross than bare dry earth; 1 is the baseline.
-    public static double TraversalFactor(World world, TileId tile) =>
-        new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).TraversalFactor;
+    public static double TraversalFactor(World world, TileId tile) => Underfoot(world, tile, CatchUp).TraversalFactor;
 
-    /// Footing hazard the surface adds: slick ice, a crust, mud. Zero beside a river, whose own
-    /// ice (Map.TravelHazardLevel) already owns the hazard, as the old WaterFeature did.
+    /// Footing hazard the surface adds: slick ice, a crust, mud. Zero beside a frozen river, whose
+    /// own ice (Map.TravelHazardLevel) already owns the hazard, as the old WaterFeature did.
     public static double HazardDelta(World world, TileId tile) => HazardDelta(world, tile, CatchUp);
 
     // ---- the same, read without writing (Peek): looking at a tile from a list or a preview ----
 
-    public static double TraversalFactorNow(World world, TileId tile) =>
-        new Column(Peek(world, tile), Substrate(Map.Of(world), tile)).TraversalFactor;
+    public static double TraversalFactorNow(World world, TileId tile) => Underfoot(world, tile, Peek).TraversalFactor;
 
     public static double HazardDeltaNow(World world, TileId tile) => HazardDelta(world, tile, Peek);
 
     static double HazardDelta(World world, TileId tile, Func<World, TileId, GroundState> ground) =>
-        Map.Of(world).BesideRiver(tile) ? 0 : new Column(ground(world, tile), Substrate(Map.Of(world), tile)).HazardDelta;
+        Map.Of(world).BesideRiver(tile) && Map.IsFrozen(Map.Of(world), tile, world.Minute) ? 0 : Underfoot(world, tile, ground).HazardDelta;
 
     /// Wetness picked up per minute by whoever is in this contact with the ground.
     public static double ContactWettingRate(World world, TileId tile, SurfaceContact contact, double currentWetnessPct) =>
-        new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).ContactWettingRate(contact, currentWetnessPct);
+        Underfoot(world, tile, CatchUp).ContactWettingRate(contact, currentWetnessPct);
 
     /// How well a thing here can be searched against bare ground (Pools.Search).
     public static double SearchFactor(World world, TileId tile, double baseElevationM, double verticalExtentM) =>
-        new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).SearchFactor(baseElevationM, verticalExtentM);
+        Underfoot(world, tile, CatchUp).SearchFactor(baseElevationM, verticalExtentM);
 
-    public static double SnowDepthM(World world, TileId tile) => new Column(CatchUp(world, tile), Substrate(Map.Of(world), tile)).SnowDepthM;
+    public static double SnowDepthM(World world, TileId tile) => Underfoot(world, tile, CatchUp).SnowDepthM;
 
     // Burial access and digging (old GroundSurface.Excavation, DigUpStrategy) are not ported: they need a
     // per-placement elevation, footprint and hole depth on TileState.

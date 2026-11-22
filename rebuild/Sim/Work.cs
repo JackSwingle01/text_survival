@@ -164,12 +164,15 @@ public static class Work
         }
     }
 
-    /// Rivers run open and lakes give water here. A frozen lake should need a hole cut; that needs ice
-    /// thickness, which Ground does not model yet.
+    /// Water to drink here: a river or a lake underfoot, ice or not, a site's water while it is not ice, or an
+    /// open lake a step away. Ice should need a hole cut; that needs ice thickness, which Ground does not model yet.
     public static bool HasOpenWater(World world, TileId tile)
     {
         var m = Map.Of(world);
-        return m.BesideRiver(tile) || m.TerrainAt(tile) == Terrain.Water;
+        if (m.BesideRiver(tile) || m.TerrainAt(tile) == Terrain.Water) return true;
+        if (m.SiteAt(tile)?.Water != null && !Map.IsFrozen(m, tile, world.Minute)) return true;
+        return MapGen.Neighbors(tile).Any(n => m.InBounds(n) && m.TerrainAt(n) == Terrain.Water && !Map.IsFrozen(m, n, world.Minute)
+            && Map.Blocked(m, tile, n) == null);
     }
 
     static bool HasCookingFire(World world, TileId tile) => Fire.PitAt(world, tile) is FireId id && Fire.IsActive(world.Fires[id]);

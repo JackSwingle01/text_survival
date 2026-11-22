@@ -12,6 +12,9 @@ static class TestKit
         ((NpcMind)agent.Mind).TargetFatKg = agent.Body.FatKg;
     }
 
+    /// 15 January, 09:00: a minute when the lakes and rivers are ice (Map.IsFrozen). World minute 0, 1 July, is open water.
+    public const long JanuaryMinute = 198 * 1440;
+
     /// Sets a herd's hunger (Fauna.Hunger) by emptying each member's calorie store that far.
     public static void SetHunger(Agent herd, double hunger)
     {

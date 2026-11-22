@@ -602,7 +602,7 @@ public class GroundTests
     }
 
     [Fact]
-    public void IcedOverStandingWater_IsAFootingHazard_ButNotBesideARiver()
+    public void IcedOverStandingWater_IsAFootingHazard_ButNotBesideAFrozenRiver()
     {
         var land = OpenTile(Terrain.Marsh);
         var river = First(p => Seed17.BesideRiver(p) && Seed17.TerrainAt(p) == Terrain.Marsh);
@@ -614,8 +614,10 @@ public class GroundTests
             world.Tiles[t] = new TileState { Ground = s };
         }
         world.Minute = 12 * 60;
-        double bare = Map.TravelHazardLevel(Seed17, land);
+        double bare = Map.TravelHazardLevel(Seed17, land, world.Minute);
         Assert.True(Traversal.EffectiveHazardLevel(world, land) > bare + 0.1, "verglas should be a hazard");
+        Assert.True(Traversal.SurfaceHazardDelta(world, river) > 0.1, "an open river has no ice of its own to own the hazard");
+        world.Minute = TestKit.JanuaryMinute + 12 * 60;
         Assert.Equal(0, Traversal.SurfaceHazardDelta(world, river));
     }
 

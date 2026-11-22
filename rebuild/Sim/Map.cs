@@ -82,6 +82,8 @@ public sealed record Pieces(IReadOnlyList<int> Count, IReadOnlyList<double>? Kg 
 }
 /// Minutes an edge adds to a crossing (negative saves time), and whether it stops one outright.
 public sealed record EdgeRow(int TraversalMinutes, bool Blocking);
+/// The days of the year (Weather.DayOfYear) lakes and rivers freeze over and break up (Content/terrain.json).
+public sealed record WaterIce(int FreezeDay, int ThawDay);
 
 public static class TerrainProps
 {
@@ -107,7 +109,7 @@ public static class TerrainProps
     /// Minutes an edge adds to a crossing (negative saves time).
     public static int TraversalMinutes(this EdgeType e) => Edges[(int)e].TraversalMinutes;
 
-    /// Whether an edge stops a crossing outright. No seasons yet, so no river floods in spring.
+    /// Whether an edge stops a crossing outright. No river floods in spring.
     public static bool IsBlocking(this EdgeType e) => Edges[(int)e].Blocking;
 }
 
@@ -210,10 +212,35 @@ public static class Map
         m.SiteAt(t)?.Hazard ?? (t == m.Camp ? 0 : m.CaveAt(t) is var c and not Cave.None ? c.Row().Hazard : m.TerrainAt(t).BaseHazardLevel());
 
     /// The ground plus frozen water. River ice is thin (0.3): 0.15 for any ice, 0.2 more for thin. A
-    /// site with water of its own has that water instead of the river. Static ice: a site's water ice
-    /// does not grow or thaw with Ground yet.
-    public static double TravelHazardLevel(GeneratedMap m, TileId t) =>
-        Math.Min(1.0, TerrainHazardLevel(m, t) + (m.SiteAt(t)?.Water is { } w ? w.HazardDelta : m.BesideRiver(t) ? 0.15 + 0.20 : 0));
+    /// site with water of its own has that water instead of the river. Its thickness is fixed: only
+    /// whether it is there follows the date (IsFrozen).
+    public static double TravelHazardLevel(GeneratedMap m, TileId t, long minute) =>
+        Math.Min(1.0, TerrainHazardLevel(m, t) + (!HoldsWater(m, t) || !IsFrozen(m, t, minute) ? 0
+            : m.SiteAt(t)?.Water is { } w ? w.HazardDelta : m.BesideRiver(t) ? 0.15 + 0.20 : 0));
+
+    /// Water of its own on this tile: a lake, a river's channel or bank, or a named site's water.
+    public static bool HoldsWater(GeneratedMap m, TileId t) =>
+        m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater || m.BesideRiver(t) || m.SiteAt(t)?.Water != null;
+
+    /// Whether this tile's water (the site's own, else the lake's or river's) is ice at minute: by the date
+    /// alone (terrain.json waterIce), a stand-in for ice that grows and thaws with the cold.
+    public static bool IsFrozen(GeneratedMap m, TileId t, long minute)
+    {
+        if (!HoldsWater(m, t)) throw new ArgumentException($"{t} holds no water to freeze");
+        return m.SiteAt(t)?.Water is not { Frozen: false } && IsIceSeason(minute);
+    }
+
+    /// From freeze-up to break-up (terrain.json waterIce), across the turn of the year.
+    public static bool IsIceSeason(long minute)
+    {
+        var ice = Content.Tables.WaterIce;
+        int day = Weather.DayOfYear(minute);
+        return day >= ice.FreezeDay || day < ice.ThawDay;
+    }
+
+    /// An unfrozen lake tile, to be waded (Ground); a spring on one is open all year. Deep water is a wall in every season.
+    public static bool IsOpenWater(GeneratedMap m, TileId t, long minute) =>
+        m.InBounds(t) && m.TerrainAt(t) == Terrain.Water && !IsFrozen(m, t, minute);
 
     /// Random 0.8-1.2 per terrain tile, from the position seed; a named site has its own (mostly 1),
     /// and the camp and caves are 1.

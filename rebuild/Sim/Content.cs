@@ -52,10 +52,11 @@ public sealed record SiteStock(string Name, StockKind Work, int Minutes, IReadOn
 public sealed record SiteStockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit, int? UnitsMax = null);
 
 /// Old WaterFeature. Open water is a source to draw from; ice adds to the ground's hazard.
-// Frozen, Ice and Fish wait for ice holes, fishing and ice that grows and thaws (Ground).
+/// Frozen: ice in its season (Map.IsFrozen); water that is not never freezes. Ice and Fish wait for ice
+/// holes, fishing and ice that grows and thaws with the cold.
 public sealed record SiteWater(string Name, bool Frozen, double Fish, double Ice = 0, string? Description = null) : SiteFeature
 {
-    /// Old WaterFeature.GetTerrainHazardContribution: 0.15 for any ice, 0.2 more below 0.4 thick.
+    /// Old WaterFeature.GetTerrainHazardContribution, while its ice lies: 0.15 for any ice, 0.2 more below 0.4 thick.
     public double HazardDelta => !Frozen ? 0 : 0.15 + (Ice < 0.4 ? 0.20 : 0);
 }
 

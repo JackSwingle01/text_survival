@@ -1,8 +1,8 @@
 // What the map draws on each cell, from the ground the Sim reports (MapDto.Surface), and the world's
 // colour from the date. Pure, so the page and the node tools read the same thresholds.
 //
-// The date sets colour only. Snow, mud and ice come from the ground itself, so a dry cold July day
-// draws bare ground and a June blizzard draws snow.
+// The date sets colour only. Snow, mud and ice come from the Sim's ground and water, so a dry cold July
+// day draws bare ground and a June blizzard draws snow.
 
 /** Every threshold between the Sim's numbers and the art. */
 export const GROUND = Object.freeze({
@@ -17,11 +17,8 @@ export const GROUND = Object.freeze({
   steps: 20,            // cover is drawn in twentieths, so small changes do not rebake the map
 });
 
-/**
- * Terrain the Sim keeps frozen whatever the weather: lakes and rivers are ice it does not grow or
- * thaw, and the payload carries no thickness for them.
- */
-export const FROZEN_TERRAIN = Object.freeze({ water: 'thick', deepwater: 'thick' });
+/** Lake and deep-water terrain: ice when the Sim says so (MapDto.FrozenWater), else open water. */
+const WATER = new Set(['water', 'deepwater']);
 
 /**
  * Palette, for the ground and the plants, and mountain snowline by season (ClockDto.Season). Spring has
@@ -50,16 +47,18 @@ function intern(patches, snow, dust, laden, mud, water, ice) {
  * { dust: 0 | 1 (a dusting lies where patches do not), patches: 0..1 of the ground under patches,
  * snow: 0..1 under full cover, laden, mud: 0..1, water: 0..1 standing water's extent,
  * ice: 'none' | 'thin' | 'thick' (the standing water's, or the lake's), key }. Mud and standing water are apart, so a film of ice on soaked ground covers only as
- * much as the film does.
+ * much as the film does. frozen: the lake or river is ice; the payload carries no thickness for it, so it
+ * is thick.
  */
-export function cellState(surface, terrain) {
+export function cellState(surface, terrain, frozen = false) {
+  if (frozen && !WATER.has(terrain)) throw new Error(`frozen water on ${terrain}`);
   const snowCm = surface?.snowCm ?? 0, waterCm = surface?.waterCm ?? 0, mudLevel = surface?.mudLevel ?? 0;
   const patches = quantise((snowCm - GROUND.patchyCm) / (GROUND.patchedCm - GROUND.patchyCm));
   const snow = quantise((snowCm - GROUND.patchedCm) / (GROUND.fullCm - GROUND.patchedCm));
   const dust = snowCm >= GROUND.dustCm && snowCm < GROUND.patchedCm ? 1 : 0;
   const shown = v => { const q = quantise(v); return q < GROUND.wetMin ? 0 : q; };
   const pond = surface?.ice ? (waterCm >= GROUND.thickIceCm ? 'thick' : 'thin') : 'none';
-  const lake = FROZEN_TERRAIN[terrain] ?? 'none';
+  const lake = frozen ? 'thick' : 'none';
   return intern(patches, snow, dust, snowCm >= GROUND.ladenCm, shown(mudLevel), shown(waterCm / GROUND.wetFullCm), ICE_RANK[pond] > ICE_RANK[lake] ? pond : lake);
 }
 
@@ -73,9 +72,9 @@ export function worldState(clock) {
 }
 
 /**
- * Every cell's drawn state for one MapDto. Its Surface carries the ground of every known tile: in
- * sight as it is now, out of sight as the player last saw it (the Sim remembers, so the page keeps
- * nothing between views). A known tile not listed is its terrain's bare ground; a tile never seen is
+ * Every cell's drawn state for one MapDto. Its Surface carries the ground of every known tile, and its
+ * FrozenWater which lake and deep-water tiles are ice: in sight as they are now, out of sight as the player last
+ * saw them (the Sim remembers, so the page keeps nothing between views). A known tile not listed is its terrain's bare ground; a tile never seen is
  * BARE, the unknown.
  * terrainOf(code) -> terrain name for a MapDto.Known code.
  */
@@ -92,20 +91,23 @@ export function createGround(terrainOf) {
     see(m) {
       if (m === seen) return;
       seen = m;
-      const n = m.width * m.height, surface = new Map();
+      if (!Array.isArray(m.frozenWater)) throw new Error('the view has no frozenWater');
+      const n = m.width * m.height, surface = new Map(), frozen = new Set(m.frozenWater);
       for (const s of m.surface) {
         if (m.known[s.i] === '.') throw new Error(`surface for tile ${s.i}, which has never been seen`);
         surface.set(s.i, s);
       }
+      for (const i of frozen) if (m.known[i] === '.' || !WATER.has(terrain(m.known[i]))) throw new Error(`frozen water on tile ${i}, which is not known water`);
       const next = new Array(n);
       let changed = n !== keys.length;
       for (let i = 0; i < n; i++) {
-        const code = m.known[i], s = surface.get(i);
+        const code = m.known[i], s = surface.get(i), ice = frozen.has(i);
         let state = BARE;
-        if (s) state = cellState(s, terrain(code));
+        if (s) state = cellState(s, terrain(code), ice);
         else if (code !== '.') {
-          if (!bare.has(code)) bare.set(code, cellState(null, terrain(code)));
-          state = bare.get(code);
+          const k = ice ? `${code}*` : code;
+          if (!bare.has(k)) bare.set(k, cellState(null, terrain(code), ice));
+          state = bare.get(k);
         }
         next[i] = state;
         if (!changed && state.key !== keys[i]) changed = true;

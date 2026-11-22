@@ -27,16 +27,19 @@ function sampleOf(name, px, py) {
   return t.data[i + 3] ? [t.data[i], t.data[i + 1], t.data[i + 2]] : null;
 }
 
-/** The fixture as a MapDto with every tile in sight and `surfaceOf(x, y)` as its ground. */
-function mapDto(surfaceOf) {
-  const { W, H } = fixture, surface = [];
+const WET = t => t === 'water' || t === 'deepwater';
+
+/** The fixture as a MapDto with every tile in sight, `surfaceOf(x, y)` as its ground, and its lake and deep-water tiles ice when `frozen`. */
+function mapDto(surfaceOf, frozen = false) {
+  const { W, H } = fixture, surface = [], frozenWater = [];
   let known = '';
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     known += CODES[fixture.terrain[y][x]];
     const s = surfaceOf(x, y);
     if (s) surface.push({ i: y * W + x, ...s });
+    if (frozen && WET(fixture.terrain[y][x])) frozenWater.push(y * W + x);
   }
-  return { width: W, height: H, known, visible: [...Array(W * H).keys()], surface };
+  return { width: W, height: H, known, visible: [...Array(W * H).keys()], surface, frozenWater };
 }
 
 /** Land cells far enough from water and mountains that every pixel is the cell's own ground. */
@@ -273,7 +276,7 @@ test('ice is painted pixel for pixel as the reference painter paints it', () => 
 });
 
 test('a lake reaching into a land cell freezes with the lake', () => {
-  const m = mapDto(() => null), ground = createGround(c => TERRAIN[c]);
+  const m = mapDto(() => null, true), ground = createGround(c => TERRAIN[c]);
   ground.see(m);
   const baker = createBaker({ width: m.width, height: m.height, terrainAt: (x, y) => TERRAIN[m.known[y * m.width + x]] },
     ground.stateAt, WINTER_WORLD, n => tex(n));
@@ -291,6 +294,35 @@ test('a lake reaching into a land cell freezes with the lake', () => {
     }
   }
   assert.ok(shore > 100, `fixture has ${shore} lake pixels in land cells`);
+});
+
+test('the map draws the lakes and rivers the view calls frozen as ice, and the rest as open water', () => {
+  // The Sim's answer, not the season's: the world state is the same summer in both.
+  const thick = (px, py) => ice(px, py, 'thick');
+  const lakePixels = m => {
+    const ground = createGround(c => TERRAIN[c]);
+    ground.see(m);
+    const baker = createBaker({ width: m.width, height: m.height, terrainAt: (x, y) => TERRAIN[m.known[y * m.width + x]] },
+      ground.stateAt, SUMMER_WORLD, n => tex(n));
+    const out = new Uint8ClampedArray(CELL * CELL * 4);
+    let ice = 0, open = 0;
+    for (let cy = 0; cy < fixture.H; cy++) for (let cx = 0; cx < fixture.W; cx++) {
+      if (!WET(fixture.terrain[cy][cx])) continue;
+      baker.bakeCell(out, cx, cy, cx + 1, cx, cy);
+      for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) {
+        const px = cx * CELL + x, py = cy * CELL + y, p = baker.classify(px, py), want = thick(px, py);
+        if (!p.water || !want) continue;
+        const i = (y * CELL + x) * 4, n = variant(Math.floor(px / SRC), Math.floor(py / SRC), VARIANTS) + 1;
+        const got = String(out.subarray(i, i + 3)), water = sampleOf(`terrain/ground/${p.kind}_${n}_${SUMMER_WORLD.palette}`, px, py);
+        if (got === String(want)) ice++;
+        else if (water && got === String(water)) open++;
+      }
+    }
+    return { ice, open };
+  };
+  const winter = lakePixels(mapDto(() => null, true)), summer = lakePixels(mapDto(() => null, false));
+  assert.ok(winter.ice > 1000 && winter.open === 0, `frozen: ${winter.ice} ice pixels, ${winter.open} open`);
+  assert.ok(summer.open > 1000 && summer.ice === 0, `open: ${summer.open} open-water pixels, ${summer.ice} ice`);
 });
 
 test('lake ice does not repeat with the textures\' period', () => {
@@ -368,8 +400,10 @@ test('mud and standing water are apart; frozen standing water is ice', () => {
   assert.equal(cellState({ ...dry, waterCm: 1 }, 'plain').ice, 'none');
   assert.equal(cellState({ ...dry, waterCm: 1, ice: true }, 'plain').ice, 'thin');
   assert.equal(cellState({ ...dry, waterCm: GROUND.thickIceCm, ice: true }, 'plain').ice, 'thick');
-  assert.equal(cellState(null, 'water').ice, 'thick');
+  assert.equal(cellState(null, 'water', true).ice, 'thick');
+  assert.equal(cellState(null, 'water').ice, 'none');
   assert.equal(cellState(null, 'plain').ice, 'none');
+  assert.throws(() => cellState(null, 'plain', true), /frozen water on plain/);
 });
 
 test('the date sets the palette and snowline only', () => {

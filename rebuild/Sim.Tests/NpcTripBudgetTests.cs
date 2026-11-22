@@ -469,11 +469,11 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
 
     /// Seed 5, days 8.5-10.7: no fire from 8.5, no tinder to make one, so no snow to melt; no water it knew of, and
     /// nothing sent it to look: it foraged at a treeless camp until it died of thirst. With water wanted and no way to
-    /// melt snow, it goes looking for water.
+    /// melt snow, it goes looking for water. In January: in summer a shore in sight of camp has the lake to drink from.
     [Fact]
     public void WaterCritical_NoFireToMeltSnowAndNoWaterKnown_GoesLookingForWater()
     {
-        var (w, npc, mind) = Setup(17, Mild, At(1, 10));
+        var (w, npc, mind) = Setup(17, Mild, At(198, 10));
         var a = w.Agent(npc);
         foreach (var r in mind.Pack.Kg.Keys.Where(r => r is Resource.Water or Resource.Tinder or Resource.Kindling or Resource.BirchBark
                      or Resource.Amadou or Resource.Usnea or Resource.Chaga).ToList()) mind.Pack.Kg.Remove(r);

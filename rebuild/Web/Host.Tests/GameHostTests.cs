@@ -339,4 +339,45 @@ public class GameHostTests
             Assert.Equal(Math.Round(g.WaterDepthM * 100, 1), s?.WaterCm ?? 0);
         }
     }
+
+    /// The map says which lakes are ice, from the Sim: open in July, frozen in January, and out of
+    /// sight as they were when last seen.
+    [Fact]
+    public void The_map_marks_a_lake_open_in_July_and_frozen_in_January_as_last_seen()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var m = Map.Of(w);
+        var p = w.Agent(AgentId.Player);
+        var all = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y))).ToList();
+        bool Land(TileId t) => m.InBounds(t) && m.TerrainAt(t) is not (Terrain.Water or Terrain.Mountain or Terrain.DeepWater) && m.CaveAt(t) == Cave.None;
+        TileId? Shore(TileId t) => Enum.GetValues<Direction>().Select(d => Map.Step(t, d)).Where(Land).Cast<TileId?>().FirstOrDefault();
+        var lake = all.First(t => m.TerrainAt(t) == Terrain.Water && m.SiteAt(t) == null && m.CaveAt(t) == Cave.None && Shore(t) != null);
+        var shore = Shore(lake)!.Value;
+        var far = all.First(f => m.TerrainAt(f).IsPassable() && m.SiteAt(f) == null && Math.Abs(f.X - lake.X) + Math.Abs(f.Y - lake.Y) > 2 * Sight.MaxTiles);
+        void Look(TileId at)
+        {
+            p.Tile = at;
+            p.Crossing = null;
+            Sim.Step(w, new Wait(AgentId.Player), Knowledge.GlanceMinutes);
+        }
+
+        Look(shore);
+        var july = Parse(h.View());
+        Assert.Contains(Index(w, lake), july.Map.Visible);
+        Assert.DoesNotContain(Index(w, lake), july.Map.FrozenWater);
+
+        Look(far);
+        w.Minute = 198 * 1440L; // 15 January, as the winter scenario
+        Sim.Step(w, new Wait(AgentId.Player), 1);
+        var unseen = Parse(h.View());
+        Assert.DoesNotContain(Index(w, lake), unseen.Map.Visible);
+        Assert.DoesNotContain(Index(w, lake), unseen.Map.FrozenWater); // remembered open, as it was in July
+
+        Look(shore);
+        var january = Parse(h.View());
+        Assert.Contains(Index(w, lake), january.Map.FrozenWater);
+        Assert.All(january.Map.FrozenWater, i => Assert.Contains(january.Map.Known[i], "WD"));
+    }
 }

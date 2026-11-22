@@ -290,18 +290,23 @@ sealed class ViewBuilder(World world, int gen)
         // In sight, the ground as it is; out of sight, as the player last saw it.
         var inSight = visible.ToHashSet();
         var surface = new List<SurfaceDto>();
+        var frozen = new List<int>();
         for (int y = 0; y < m.Height; y++)
             for (int x = 0; x < m.Width; x++)
             {
                 var t = new TileId(x, y);
-                if (!m.TerrainAt(t).IsPassable() || !Explored(t)) continue;
-                var g = inSight.Contains(t) ? Ground.SurfaceNow(world, t)
-                    : beliefs.Explored?.At(t)?.Surface ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
+                if (!Explored(t)) continue;
+                RememberedGround Seen() => beliefs.Explored?.At(t) ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
+                if (m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater && m.CaveAt(t) == Cave.None
+                    && Map.IsFrozen(m, t, inSight.Contains(t) ? world.Minute : Seen().SeenMinute))
+                    frozen.Add(y * m.Width + x);
+                if (!m.TerrainAt(t).IsPassable()) continue;
+                var g = inSight.Contains(t) ? Ground.SurfaceNow(world, t) : Seen().Surface;
                 double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
                 if (snowCm > 0 || waterCm > 0 || mud > 0) surface.Add(new SurfaceDto(y * m.Width + x, snowCm, g.Crusted, mud, waterCm, g.Iced));
             }
         return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
-            places, sightings, tracks, named, surface);
+            places, sightings, tracks, named, surface, frozen);
     }
 
     public static string TrackIcon(TrackMaker m) => m switch

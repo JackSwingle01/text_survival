@@ -84,12 +84,13 @@ public static class Access
         return Tags.Guards(world, pile.Value, who).Count > 0 ? GuardedReason(world, pile.Value, who) : null;
     }
 
-    /// Open water between two neighbours: either is a lake or deep water, a river runs along both,
-    /// or the edge between them is a river.
+    /// Open water between two neighbours: either is open lake (Map.IsOpenWater) or unfrozen deep water,
+    /// an unfrozen river runs along both, or the edge between them is a river.
     static bool AcrossWater(World world, TileId from, TileId to)
     {
         var m = Map.Of(world);
-        static bool Wet(Terrain t) => t is Terrain.Water or Terrain.DeepWater;
-        return Wet(m.TerrainAt(from)) || Wet(m.TerrainAt(to)) || m.BesideRiver(from) && m.BesideRiver(to) || m.EdgeBetween(from, to) == EdgeType.River;
+        bool Open(TileId t) => !Map.IsFrozen(m, t, world.Minute);
+        bool Wet(TileId t) => Map.IsOpenWater(m, t, world.Minute) || m.TerrainAt(t) == Terrain.DeepWater && Open(t);
+        return Wet(from) || Wet(to) || m.BesideRiver(from) && m.BesideRiver(to) && (Open(from) || Open(to)) || m.EdgeBetween(from, to) == EdgeType.River;
     }
 }

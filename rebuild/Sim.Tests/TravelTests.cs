@@ -20,6 +20,20 @@ public class TravelTests
         return world;
     }
 
+    /// January, when the river is ice: the old game's never thawed. These tiles keep their ground as
+    /// generated, as at minute 0 under a pinned sky (which has no history), so only the ice differs.
+    static World InJanuary(World world, params TileId[] tiles)
+    {
+        world.Minute = TestKit.JanuaryMinute;
+        foreach (var t in tiles)
+        {
+            var ground = Ground.Baseline(Ground.Substrate(Seed17, t));
+            ground.LastUpdatedMinute = world.Minute;
+            world.Tiles[t] = new TileState { Ground = ground };
+        }
+        return world;
+    }
+
     // from, to, sky, old quick minutes, old careful minutes, risk: the footing curve on the tile walked onto.
     public static readonly TheoryData<int, int, int, int, string, int, int, double> OldCrossings = new()
     {
@@ -40,10 +54,10 @@ public class TravelTests
     [Theory, MemberData(nameof(OldCrossings))]
     public void CrossingMinutesAndRisk_MatchOld(int ax, int ay, int bx, int by, string sky, int quick, int careful, double risk)
     {
-        var s = sky switch { "blizzard" => Blizzard, "lightsnow" => LightSnow, _ => Calm };
-        var world = At(ax, ay, s);
-        var body = TestKit.OldBaselineHuman(); // the old game's traveller
+        var s = (sky switch { "blizzard" => Blizzard, "lightsnow" => LightSnow, _ => Calm }) with { Minute = TestKit.JanuaryMinute };
         TileId a = new(ax, ay), b = new(bx, by);
+        var world = InJanuary(At(ax, ay, s), a, b);
+        var body = TestKit.OldBaselineHuman(); // the old game's traveller
         Assert.Equal(quick, Traversal.CrossingMinutes(world, body, a, b, Pace.Quick, s));
         Assert.Equal(careful, Traversal.CrossingMinutes(world, body, a, b, Pace.Careful, s));
         Assert.Equal(risk, Traversal.InjuryRiskPct(world, b, body, s), 12);
@@ -85,7 +99,7 @@ public class TravelTests
         Assert.True(Trip.Time(world, P, Direction.North, Pace.Careful).TotalMinutes > Trip.Time(world, P, Direction.North, Pace.Quick).TotalMinutes,
             "careful pays for its care in minutes");
 
-        bool Gentle(TileId t) => Map.TravelHazardLevel(m, t) <= 0.1 && Ground.SurfaceNow(world, t).SnowDepthM > 0.3;
+        bool Gentle(TileId t) => Map.TravelHazardLevel(m, t, world.Minute) <= 0.1 && Ground.SurfaceNow(world, t).SnowDepthM > 0.3;
         var gentle = valley.Where(t => Gentle(t) && Gentle(Map.Step(t, Direction.North))).ToList();
         Assert.True(gentle.Count > 500, $"only {gentle.Count} gentle snowy crossings");
         var risky = gentle.Where(t => { me.Tile = t; return Trip.PaceMatters(world, P, Direction.North); }).ToList();
@@ -95,9 +109,9 @@ public class TravelTests
     [Fact]
     public void InjuryRisk_RisesWithImpairedMovement()
     {
-        var world = At(2, 33);
+        TileId forestOnRiver = new(26, 3); // effective hazard 0.45 while the river is ice
+        var world = InJanuary(At(2, 33), forestOnRiver, new TileId(2, 33));
         var body = world.Agent(P).Body;
-        TileId forestOnRiver = new(26, 3); // effective hazard 0.45
         double healthy = Traversal.InjuryRiskPct(world, forestOnRiver, body, Calm);
         Body.Damage(body, new DamageInfo(0.6, DamageType.Blunt, BodyTarget.LeftLeg), world.Rng("body"));
         double moving = Body.GetCapacities(body).Moving;
@@ -190,7 +204,7 @@ public class TravelTests
         var opposite = (Direction)(((int)dir + 2) % 4);
         foreach (var (from, to, way) in new[] { (river, dry, dir), (dry, river, opposite) })
         {
-            var world = At(from.X, from.Y);
+            var world = InJanuary(At(from.X, from.Y), from, to);
             var hits = new List<Injured>();
             for (int i = 0; i < 200; i++)
             {
@@ -207,6 +221,18 @@ public class TravelTests
             if (to == river) Assert.All(hits, h => Assert.Equal(DamageType.Blunt, h.Type)); // ice slips and stumbles, never the dry tile's sharp hazards
             else Assert.Contains(hits, h => h.Type == DamageType.Sharp);
         }
+    }
+
+    /// Hills (0.25) are a choice of pace no more: their fall chance sits just under the line. Rock (0.3) is.
+    [Fact]
+    public void Hills_AreQuickOnly_RockOffersACarefulPace()
+    {
+        TileId Bare(Terrain t) => Enumerable.Range(0, Seed17.Width).SelectMany(x => Enumerable.Range(0, Seed17.Height).Select(y => new TileId(x, y)))
+            .First(p => Seed17.TerrainAt(p) == t && Seed17.SiteAt(p) == null && Seed17.CaveAt(p) == Cave.None && !Seed17.BesideRiver(p) && p != Seed17.Camp);
+        var (hills, rock) = (Bare(Terrain.Hills), Bare(Terrain.Rock));
+        var world = At(hills.X, hills.Y);
+        Assert.False(Traversal.IsHazardous(world, hills));
+        Assert.True(Traversal.IsHazardous(world, rock));
     }
 
     [Fact]
@@ -395,5 +421,84 @@ public class TravelTests
         Assert.Equal(straight, RunRoute(17, saveAtStep: 7));
         Assert.Equal(straight, RunRoute(17, saveAtStep: 30, splitMinutes: 1));
         Assert.True(straight.Length < 1_000_000);
+    }
+
+    // ---- open water ----
+
+    /// Seed 17's first unnamed lake tile with land west and east of it.
+    internal static (TileId West, TileId Lake, TileId East) LakeBetweenLand(GeneratedMap m)
+    {
+        bool Land(TileId t) => m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.TerrainAt(t) != Terrain.Water && m.CaveAt(t) == Cave.None
+            && m.SiteAt(t) == null && t != m.Camp;
+        for (int y = 3; y < m.Height - 3; y++)
+            for (int x = 3; x < m.Width - 3; x++)
+            {
+                var (lake, w, e) = (new TileId(x, y), new TileId(x - 1, y), new TileId(x + 1, y));
+                if (m.TerrainAt(lake) == Terrain.Water && m.SiteAt(lake) == null && m.CaveAt(lake) == Cave.None
+                    && Land(w) && Land(e) && Map.Blocked(m, w, lake) == null && Map.Blocked(m, lake, e) == null)
+                    return (w, lake, e);
+            }
+        throw new InvalidOperationException("seed 17 has no lake tile between land");
+    }
+
+    /// In July a lake is a foot of water to wade: slower than its ice, and it soaks you on the way through.
+    /// In January it is ice, with no water on it to wade or to soak you.
+    [Fact]
+    public void ALake_IsWadedInJuly_AndWalkedOnAsIceInJanuary()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        var (west, lake, east) = LakeBetweenLand(m);
+        var me = w.Agent(P);
+        me.Tile = west;
+        me.Crossing = null;
+        var onto = new Travel(P, Direction.East, Pace.Careful);
+        Assert.False(Map.IsFrozen(m, lake, w.Minute));
+        Assert.Null(Verbs.At(w, P).Walk.Single(v => v.Activity == new Travel(P, Direction.East)).Refused);
+        Assert.Equal(new SurfaceSummary(0, false, 0, Ground.MaxStandingWaterDepthM, false), Ground.SurfaceNow(w, lake));
+        Assert.True(Trip.Time(w, P, Direction.East, Pace.Careful).GroundMinutes > 0, "wading is slower than the walk");
+        Assert.Equal("arrived", Sim.Step(w, onto, 600).InterruptedReason);
+        Assert.Equal(lake, me.Tile);
+        double dry = Effects.Severity(me.Body, EffectKind.Wet);
+        Assert.Equal("arrived", Sim.Step(w, onto, 600).InterruptedReason);
+        Assert.Equal(east, me.Tile);
+        Assert.True(Effects.Severity(me.Body, EffectKind.Wet) > dry + 0.1, $"waded out at {Effects.Severity(me.Body, EffectKind.Wet):F2} wet, from {dry:F2}");
+
+        w.Minute = TestKit.JanuaryMinute;
+        Assert.True(Map.IsFrozen(m, lake, w.Minute));
+        Assert.Equal(0, Ground.SurfaceNow(w, lake).WaterDepthM);
+        Assert.Equal(0, Ground.ContactWettingRate(w, lake, SurfaceContact.Walking, 0));
+    }
+
+    /// A shore drinks from the open lake beside it in July; in January the lake is ice and the shore is dry.
+    [Fact]
+    public void AShore_HasWaterToDrinkInJuly_NotInJanuary()
+    {
+        var w = World.New(17);
+        var m = Map.Of(w);
+        var shore = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .First(t => m.TerrainAt(t) is Terrain.Forest or Terrain.Plain && m.SiteAt(t) == null && !m.BesideRiver(t) && m.CaveAt(t) == Cave.None
+                && Enum.GetValues<Direction>().Any(d => Map.Step(t, d) is var n && m.InBounds(n) && m.TerrainAt(n) == Terrain.Water && Map.Blocked(m, t, n) == null));
+        Assert.True(Work.HasOpenWater(w, shore));
+        w.Minute = TestKit.JanuaryMinute;
+        Assert.False(Work.HasOpenWater(w, shore));
+    }
+
+    /// Lakes and rivers freeze over and break up on the days terrain.json names, every year alike.
+    [Fact]
+    public void WaterIsIce_FromFreezeUpToBreakUp()
+    {
+        var m = Map.Generate(17);
+        var lake = LakeBetweenLand(m).Lake;
+        var ice = Content.Tables.WaterIce;
+        // The first time each day of the year comes round after 1 July.
+        long MinuteOf(int dayOfYear) => Enumerable.Range(0, 365).Select(d => d * 1440L).First(t => Weather.DayOfYear(t) == dayOfYear);
+        Assert.False(Map.IsFrozen(m, lake, MinuteOf(ice.FreezeDay - 1)));
+        Assert.True(Map.IsFrozen(m, lake, MinuteOf(ice.FreezeDay)));
+        Assert.True(Map.IsFrozen(m, lake, MinuteOf(1)));
+        Assert.True(Map.IsFrozen(m, lake, MinuteOf(ice.ThawDay - 1)));
+        Assert.False(Map.IsFrozen(m, lake, MinuteOf(ice.ThawDay)));
+        Assert.True(Map.IsFrozen(m, lake, MinuteOf(ice.FreezeDay) + 365 * 1440L));
+        Assert.Throws<ArgumentException>(() => Map.IsFrozen(m, m.Camp, 0)); // no water there to freeze
     }
 }

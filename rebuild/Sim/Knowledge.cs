@@ -31,9 +31,10 @@ public sealed class Beliefs
 }
 
 /// The tiles in view from one tile with one budget (Sight.ViewOf), and the ones among them that a
-/// look always has something to note on: standing timber's pools and open water, fixed at generation.
-sealed class SightView(TileId from, double budgetTiles, IReadOnlyList<TileId> tiles)
+/// look always has something to note on: standing timber's pools and water to drink, which the ice season changes.
+sealed class SightView(TileId from, double budgetTiles, bool iceSeason, IReadOnlyList<TileId> tiles)
 {
+    public bool IceSeason { get; } = iceSeason;
     public TileId From { get; } = from;
     public double BudgetTiles { get; } = budgetTiles;
     public IReadOnlyList<TileId> Tiles { get; } = tiles;
@@ -126,8 +127,9 @@ public static class Sight
         double sight = Body.GetCapacities(agent.Body).Sight;
         double budget = BudgetTiles(world, agent.Tile, sight);
         var beliefs = (agent.Mind as PersonMind)?.Knows;
-        if (beliefs?.View is { } kept && kept.From == agent.Tile && kept.BudgetTiles == budget) return kept;
-        var view = new SightView(agent.Tile, budget, Visible(world, agent.Tile, sight));
+        bool ice = Map.IsIceSeason(world.Minute);
+        if (beliefs?.View is { } kept && kept.From == agent.Tile && kept.BudgetTiles == budget && kept.IceSeason == ice) return kept;
+        var view = new SightView(agent.Tile, budget, ice, Visible(world, agent.Tile, sight));
         if (beliefs != null) beliefs.View = view;
         return view;
     }

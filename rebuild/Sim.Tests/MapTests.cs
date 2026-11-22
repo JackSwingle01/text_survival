@@ -126,7 +126,7 @@ public class MapTests
         var (t, site) = m.Sites.First(s => s.Value.Placement == Placement.Named && s.Value.Water == null && !m.BesideRiver(s.Key));
         Assert.Equal(site.Name, Map.Describe(m, t));
         Assert.Equal(site.Hazard, Map.TerrainHazardLevel(m, t));
-        Assert.Equal(site.Hazard, Map.TravelHazardLevel(m, t));
+        Assert.Equal(site.Hazard, Map.TravelHazardLevel(m, t, TestKit.JanuaryMinute));
         Assert.Equal(site.Wind, Map.WindFactor(m, t));
         Assert.Equal(site.Cover, Map.OverheadCover(m, t));
         Assert.Equal(site.Visibility, Map.Visibility(m, t));
@@ -148,7 +148,10 @@ public class MapTests
         {
             var m = Map.Generate(seed);
             foreach (var (t, site) in m.Sites.Where(s => s.Value.Water != null))
-                Assert.Equal(Math.Min(1, site.Hazard + site.Water!.HazardDelta), Map.TravelHazardLevel(m, t), 12);
+            {
+                Assert.Equal(Math.Min(1, site.Hazard + site.Water!.HazardDelta), Map.TravelHazardLevel(m, t, TestKit.JanuaryMinute), 12);
+                Assert.Equal(site.Hazard, Map.TravelHazardLevel(m, t, 0), 12); // July: open water, no ice to slip on
+            }
         }
     }
 
@@ -301,7 +304,7 @@ public class MapTests
         var t = new TileId(x, y);
         Assert.Equal(modifier, Map.TraversalModifier(m, t), 12);
         Assert.Equal(baseMinutes, Map.BaseTraversalMinutes(m, t));
-        Assert.Equal(hazard, Map.TravelHazardLevel(m, t), 12);
+        Assert.Equal(hazard, Map.TravelHazardLevel(m, t, TestKit.JanuaryMinute), 12); // the old game's ice never thawed
     }
 
     [Fact]
@@ -309,10 +312,10 @@ public class MapTests
     {
         var m = Map.Generate(17);
         var proper = m.PassStageIndex.Single(s => s.Value == 2).Key;
-        Assert.Equal(1.0, Map.TravelHazardLevel(m, proper));
+        Assert.Equal(1.0, Map.TravelHazardLevel(m, proper, 0));
         Assert.Equal(7, Map.BaseTraversalMinutes(m, proper)); // old: (Rock 2 + floor(1.0 * 5)) x 1.0
         Assert.Equal(-15, Map.TemperatureDeltaF(m, proper));
-        Assert.Equal(0, Map.TravelHazardLevel(m, m.Camp));
+        Assert.Equal(0, Map.TravelHazardLevel(m, m.Camp, 0));
         Assert.Equal(1, Map.BaseTraversalMinutes(m, m.Camp));
         Assert.Equal(0.4, Map.WindFactor(m, m.Camp));
     }

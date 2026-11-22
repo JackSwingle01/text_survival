@@ -122,7 +122,7 @@ public static class Traversal
     /// strong wind or heavy precipitation, and by how slowly this body moves.
     public static int SegmentMinutes(GeneratedMap m, TileId tile, double speed, WeatherSample sky)
     {
-        double multiplier = Map.TravelHazardLevel(m, tile);
+        double multiplier = Map.TravelHazardLevel(m, tile, sky.Minute);
         if (sky.WindLevel > 0.5) multiplier *= 1 + Exposure.OpenWindLevel(m, tile, sky) * 0.3;
         if (sky.PrecipitationPct > 0.5) multiplier *= 1 + sky.PrecipitationPct * 0.2;
         return (int)Math.Ceiling(Map.BaseTraversalMinutes(m, tile) * (1 + multiplier) / Math.Max(0.1, speed));
@@ -139,16 +139,16 @@ public static class Traversal
     public static double SurfaceExcessMinutes(World world, TileId tile, int segmentMinutes) =>
         segmentMinutes * (Ground.TraversalFactor(world, tile) - 1);
 
-    /// Zero beside a river, whose ice already owns the hazard.
+    /// Zero beside a frozen river, whose ice already owns the hazard.
     public static double SurfaceHazardDelta(World world, TileId tile) => Ground.HazardDelta(world, tile);
 
     // ---- hazard ----
 
-    public static double EffectiveHazardLevel(World world, TileId tile) => HazardLevel(Map.Of(world), tile, SurfaceHazardDelta(world, tile));
+    public static double EffectiveHazardLevel(World world, TileId tile) => HazardLevel(Map.Of(world), tile, world.Minute, SurfaceHazardDelta(world, tile));
 
     /// The ground's shape plus what its surface adds, at most 1: one rule whether the surface was
     /// observed (EffectiveHazardLevel) or only looked at (Trip.Risk).
-    internal static double HazardLevel(GeneratedMap m, TileId tile, double surfaceDelta) => Math.Min(1.0, Map.TravelHazardLevel(m, tile) + surfaceDelta);
+    internal static double HazardLevel(GeneratedMap m, TileId tile, long minute, double surfaceDelta) => Math.Min(1.0, Map.TravelHazardLevel(m, tile, minute) + surfaceDelta);
 
     public static bool PaceMatters(double quickRiskPct) => quickRiskPct > FootingRules.PaceMattersAbovePct;
 
@@ -188,12 +188,12 @@ public static class Traversal
     static IReadOnlyList<Accident> Accidents(string pool) =>
         Content.Tables.Accidents.TryGetValue(pool, out var a) ? a : throw new KeyNotFoundException($"No accident pool '{pool}'");
 
-    /// Ice slips beside a river, otherwise worse pools as the ground gets worse. Every question is
+    /// Ice slips beside a frozen river, otherwise worse pools as the ground gets worse. Every question is
     /// asked of the tile walked onto.
-    static (IReadOnlyList<Accident> Pool, double Weight)[] AccidentPools(GeneratedMap m, TileId tile)
+    static (IReadOnlyList<Accident> Pool, double Weight)[] AccidentPools(GeneratedMap m, TileId tile, long minute)
     {
         double severity = Map.TerrainHazardLevel(m, tile);
-        if (m.BesideRiver(tile))
+        if (m.BesideRiver(tile) && Map.IsFrozen(m, tile, minute))
             return severity >= 0.5 ? [(IceSlip, 2.0), (FallImpact, 1.0)] : [(IceSlip, 2.0), (TripStumble, 0.8)];
         if (severity >= 0.7) return [(FallImpact, 1.5), (Sprains, 1.5), (RockyTerrain, 1.0)];
         if (severity >= 0.5) return [(RockyTerrain, 1.5), (Sprains, 1.0), (SharpHazards, 0.8)];
@@ -204,7 +204,7 @@ public static class Traversal
 
     static string? Injure(World world, Agent agent, TileId tile, List<WorldEvent> events)
     {
-        var weighted = AccidentPools(Map.Of(world), tile).SelectMany(p => p.Pool.Select(a => (a, p.Weight))).ToList();
+        var weighted = AccidentPools(Map.Of(world), tile, world.Minute).SelectMany(p => p.Pool.Select(a => (a, p.Weight))).ToList();
         double roll = world.Rng("travel", agent.Id).NextDouble() * weighted.Sum(x => x.Weight);
         var accident = weighted[^1].a;
         foreach (var (a, weight) in weighted)

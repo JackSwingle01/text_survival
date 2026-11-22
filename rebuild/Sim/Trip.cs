@@ -85,5 +85,5 @@ public static class Trip
 
     static int Careful(int segmentMinutes) => (int)Math.Ceiling(segmentMinutes * Traversal.CarefulFactor) - segmentMinutes;
 
-    static double HazardNow(World world, TileId tile) => Traversal.HazardLevel(Map.Of(world), tile, Ground.HazardDeltaNow(world, tile));
+    static double HazardNow(World world, TileId tile) => Traversal.HazardLevel(Map.Of(world), tile, world.Minute, Ground.HazardDeltaNow(world, tile));
 }
