@@ -201,16 +201,19 @@ export function createBaker(map, stateAt, world, tex) {
     for (const [k, list] of at) if (list.length === 1 && !used.has(list[0])) chains.push({ pts: walk(k.split(',').map(Number)), open: true });
     for (const g of segs) if (!used.has(g)) chains.push({ pts: walk(g[0]), open: false });
     for (const { pts: raw, open } of chains) {
-      let pts = raw;
+      // A closed chain ends on its first point; corner cutting goes round it, so it is cut as a ring
+      // (each pass wrapping from the last point to the first) and closed again after.
+      let pts = open ? raw : raw.slice(0, -1);
       for (let it = 0; it < 3; it++) {
         const out = open ? [pts[0]] : [];
-        for (let i = 0; i < pts.length - 1; i++) {
-          const [a, b] = [pts[i], pts[i + 1]];
+        for (let i = 0; i < (open ? pts.length - 1 : pts.length); i++) {
+          const [a, b] = [pts[i], pts[(i + 1) % pts.length]];
           out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
         }
         if (open) out.push(pts[pts.length - 1]);
         pts = out;
       }
+      if (!open) pts.push(pts[0]);
       let run = 0, total = 0;
       for (let i = 0; i < pts.length - 1; i++) total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
       for (let i = 0; i < pts.length - 1; i++) {

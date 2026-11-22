@@ -492,6 +492,24 @@ test('a ravine draws a dark cleft along its boundary, and none without the edge'
   assert.equal(count(bake(rows), ...box, cleft), 0, 'no edge, no cleft');
 });
 
+test('a ravine that closes on itself is drawn all the way round', () => {
+  // Regression: corner cutting did not wrap a closed chain, leaving a gap where its walk began.
+  const edges = [];
+  for (let i = 2; i <= 4; i++) edges.push(
+    { ax: i, ay: 1, bx: i, by: 2, type: 'ravine' }, { ax: i, ay: 4, bx: i, by: 5, type: 'ravine' },
+    { ax: 1, ay: i, bx: 2, by: i, type: 'ravine' }, { ax: 4, ay: i, bx: 5, by: i, type: 'ravine' });
+  const px = bake(field(7, 7, 'plain'), edges), cleft = p => same(p, CLEFT);
+  // A ray from the middle of the ringed block out past each corner crosses the ring.
+  for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    let hits = 0;
+    for (let k = 0; k < 2.4 * CELL; k++) {
+      const x = Math.round(3.5 * CELL + dx * k), y = Math.round(3.5 * CELL + dy * k);
+      for (let o = -3; o <= 3; o++) if (cleft(px(x + o, y)) || cleft(px(x, y + o))) { hits++; break; }
+    }
+    assert.ok(hits > 3, `the ring is broken toward corner ${dx},${dy}: ${hits} cleft pixels on the ray`);
+  }
+});
+
 test('a cliff\'s face lies on the lower-right side of its boundary', () => {
   const rows = field(8, 7, 'plain');
   const edges = [1, 2, 3, 4, 5].map(y => ({ ax: 3, ay: y, bx: 4, by: y, type: 'cliff' }));
