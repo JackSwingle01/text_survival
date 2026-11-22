@@ -192,6 +192,11 @@ _Avoid_: actor, entity, unit
 **Herd**:
 The animals of one species on one tile, from a lone bear to a hundred caribou: what they make
 together, not a thing of its own. A pack is a herd of predators familiar with each other.
+
+**Cohesion**:
+How strongly an animal sticks with its group, from a bear's none to a caribou's strong pull: going
+somewhere its kin aren't costs it more, and under attack it holds with them.
+_Avoid_: herding instinct, sociality
 _Avoid_: group, flock
 
 **Camp**:
