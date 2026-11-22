@@ -231,6 +231,8 @@ public static class Memories
     /// on arriving somewhere or waking. The tile underfoot is taken in every minute.
     public const int GlanceMinutes = 15;
     public const long SightingMemoryMinutes = 3 * 1440;
+    /// A stash is remembered to this, so what is there may be up to half of it less.
+    public const double StashPrecisionKg = 0.1;
 
     public static Memory Of(Agent agent) =>
         (agent.Mind as PersonMind ?? throw new ArgumentException($"{agent.Id} is not a person and remembers nothing", nameof(agent))).Memory;
@@ -365,7 +367,7 @@ public static class Memories
         SortedDictionary<Resource, double>? stash = null;
         if (state?.Stash is { } st)
             foreach (var (r, kg) in st.Kg)
-                if (Math.Round(kg, 1) > 0) (stash ??= [])[r] = Math.Round(kg, 1);
+                if (Math.Round(kg / StashPrecisionKg) > 0) (stash ??= [])[r] = Math.Round(kg / StashPrecisionKg) * StashPrecisionKg;
         string? shelter = Shelters.Peek(world, tile)?.Name;
 
         var happened = new List<WorldEvent>();

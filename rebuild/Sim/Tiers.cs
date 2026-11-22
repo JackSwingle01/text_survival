@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// Ordered as the hierarchy that ranks stats within a tier (GLOSSARY: Stat).
+/// GLOSSARY: Stat. Within a tier the NPC ranks them warmth, water, rest, food (Npc.Ladder).
 public enum Stat { Warmth, Water, Food, Rest }
 
 /// Least urgent first: a later tier outranks an earlier one (GLOSSARY: Tier). None: nothing to do, not even topping up.

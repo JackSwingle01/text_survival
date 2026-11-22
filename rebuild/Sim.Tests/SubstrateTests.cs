@@ -131,7 +131,8 @@ public class SubstrateTests
     {
         var w = Camp(out var camp);
         TestKit.Supply(w);
-        var npc = Npc.Spawn(w, camp);
+        var away = new TileId(camp.X + 6, camp.Y); // an NPC to name, out of the way of the player's stash
+        var npc = Npc.Spawn(w, away, away);
         Assert.Equal(new Cause(null, Cause.Natural), w.Shelters[camp].Cause);
 
         Sim.Step(w, new Stash(P, Resource.Pine, 1), 1);

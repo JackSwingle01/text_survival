@@ -435,7 +435,7 @@ public class CombatStateTests
     public void AnNpc_PressesAWolf_StandsUpToABear_AndRunsFromACaveBear_ByItsResolve()
     {
         var (w, t) = CombatTests.Field();
-        var npc = Npc.Spawn(w, t, boldness: 0.5);
+        var npc = Npc.Spawn(w, t);
         var me = new Fighter(npc);
         Assert.Equal(FighterState.Pressing, Combat.WouldStand(w, me, w.Agent(CombatTests.Herd(w, Species.Wolf, 1, t)), 8));
         // A bear at 8 m: boldness 1.0 against 2.5 x 0.44 of threat, a resolve of -0.1: it stands its ground.

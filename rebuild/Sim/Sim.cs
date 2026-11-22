@@ -309,9 +309,9 @@ public static class Sim
     /// it is sleep, whether it keeps you put long enough for a shelter to help, and how it touches the ground.
     readonly record struct Hold(double ActivityFactor, double FireProximityFactor, bool Sleeping, bool Stationary, SurfaceContact Contact);
 
-    static Hold HoldOf(World world, Agent agent, Activity activity)
+    static Hold HoldOf(World world, TileId tile, Activity activity)
     {
-        var gathering = activity is Gather g ? Pools.Def(world, new PoolId(agent.Tile, g.Pool)) : null;
+        var gathering = activity is Gather g ? Pools.Def(world, new PoolId(tile, g.Pool)) : null;
         var (activityFactor, fireProximityFactor, sleeping, stationary) = activity switch
         {
             Sleep => (0.5, 2.0, true, true),
@@ -354,7 +354,7 @@ public static class Sim
     internal static SurvivalContext Surroundings(World world, Agent agent, Activity activity, List<WorldEvent> events)
     {
         activity = AsLived(agent, activity);
-        var hold = HoldOf(world, agent, activity);
+        var hold = HoldOf(world, agent.Tile, activity);
         var cover = Shelters.CoverFor(world, agent.Tile, hold.Stationary, events);
         var bedding = Shelters.BeddingAt(world, agent.Tile);
         var exposure = Exposure.At(world, agent.Tile, Cover.In(cover, agent.Id), hold.Contact, Effects.Severity(agent.Body, EffectKind.Wet));
@@ -391,7 +391,7 @@ public static class Sim
     public static Feeling Feels(World world, AgentId who, Activity activity)
     {
         var agent = world.Agent(who);
-        var hold = HoldOf(world, agent, AsLived(agent, activity));
+        var hold = HoldOf(world, agent.Tile, AsLived(agent, activity));
         var cover = Shelters.CoverNow(world, agent.Tile, hold.Stationary);
         // No ground contact: how wet the ground makes you is not felt air, and reading it would observe
         // (catch up and store) the tile's ground.
@@ -408,6 +408,56 @@ public static class Sim
         };
         double felt = all.Sum(t => t.DeltaF);
         return new Feeling(felt, [.. all.Where((t, i) => i == 0 || t.DeltaF != 0)], e);
+    }
+
+    /// A forecast: the core after living these legs in turn, each an activity on a tile for some minutes, if the sky,
+    /// the fires and how wet the person is stay as they are now. Reads only, as Feels does; the ground's wetting is left
+    /// out, since reading it would observe the ground. Fires on every tile a leg is lived on must be caught up.
+    public static double CoreAfterF(World world, AgentId who, IEnumerable<(Activity Activity, TileId Tile, int Minutes)> legs)
+    {
+        var agent = world.Agent(who);
+        var body = agent.Body;
+        double startCoreF = body.CoreTempF, startBufferPct = body.ClothingHeatBufferPct;
+        try
+        {
+            foreach (var (activity, tile, minutes) in legs)
+            {
+                if (minutes <= 0) continue;
+                var d = Body.ProcessTemperature(body, Forecast(world, agent, activity, tile), minutes);
+                body.CoreTempF += d.CoreTempDeltaF;
+                body.ClothingHeatBufferPct += d.ClothingHeatBufferDeltaPct;
+            }
+            return body.CoreTempF;
+        }
+        finally
+        {
+            body.CoreTempF = startCoreF;
+            body.ClothingHeatBufferPct = startBufferPct;
+        }
+    }
+
+    /// Surroundings for a forecast on any tile: the shelter looked at, not caught up, and no ground contact.
+    static SurvivalContext Forecast(World world, Agent agent, Activity activity, TileId tile)
+    {
+        var hold = HoldOf(world, tile, activity);
+        var cover = Shelters.CoverNow(world, tile, hold.Stationary);
+        var bedding = Shelters.BeddingAt(world, tile);
+        var e = Exposure.At(world, tile, Cover.In(cover, agent.Id), wetnessPct: Effects.Severity(agent.Body, EffectKind.Wet));
+        return new SurvivalContext
+        {
+            AirTempF = e.AirF + BeddingF(bedding, hold),
+            WindLevel = e.WindLevel,
+            FireDryingWindLevel = e.FireDryingWindLevel,
+            Precipitation = e.Precipitation,
+            PrecipitationPct = e.PrecipitationPct,
+            OverheadCoverLevel = e.OverheadCoverLevel,
+            FireBonusF = FireBonusF(e.Warmth, hold),
+            TorchHeatF = e.Warmth.TorchHeatF,
+            ClothingClo = agent.Body.ClothingClo,
+            ClothingWeightKg = agent.Body.ClothingWeightKg,
+            ActivityFactor = hold.ActivityFactor,
+            IsSleeping = hold.Sleeping,
+        };
     }
 }
 

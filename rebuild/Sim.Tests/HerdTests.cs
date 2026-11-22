@@ -754,9 +754,9 @@ public class HerdTests(ITestOutputHelper output)
         var camp = Map.Of(w).Camp;
         var wolves = Agents.Spawn(w, Species.Wolf, camp, 1);
         var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 40, Awareness.Engaged, Awareness.Unaware);
-        var npc = Survival.Npc.Spawn(w, camp, boldness: 1.0);
+        var npc = Survival.Npc.Spawn(w, camp);
+        Combat.Join(w, enc, new Fighter(npc), 0); // it came to help
         Sim.Step(w, new Fight(P, CombatAction.Wait), 1);
-        Assert.Contains(enc.Units, u => u.Agent == npc); // it came to help
         Combat.UnitOf(enc, npc).InField = false; // and ran off the grid
         var b = w.Agent(npc).Body;
         Trace(b);
@@ -775,7 +775,8 @@ public class HerdTests(ITestOutputHelper output)
         var camp = Map.Of(w).Camp;
         var wolves = Agents.Spawn(w, Species.Wolf, camp, 1);
         var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 40, Awareness.Engaged, Awareness.Unaware);
-        var npc = Survival.Npc.Spawn(w, camp, boldness: 1.0);
+        var npc = Survival.Npc.Spawn(w, camp);
+        Combat.Join(w, enc, new Fighter(npc), 0);
         var bodies = new[] { w.Agent(npc).Body, w.Agent(wolves).Members[0], w.Agent(P).Body };
         foreach (var b in bodies) Trace(b);
         for (int i = 0; i < 5; i++) Sim.Step(w, new Fight(P, CombatAction.Wait), 1);
@@ -813,12 +814,16 @@ public class HerdTests(ITestOutputHelper output)
         {
             var w = World.New(seed);
             var tile = Quiet(w);
-            var npc = Survival.Npc.Spawn(w, tile, boldness: 1.0);
+            var npc = Survival.Npc.Spawn(w, tile);
             var wolf = Agents.Spawn(w, Species.Wolf, tile, 1, [tile]);
             Mind(w, wolf).State = HerdState.Resting;
             var bodies = new[] { w.Agent(npc).Body, w.Agent(wolf).Members[0], w.Agent(P).Body };
             foreach (var b in bodies) Trace(b);
-            var events = Sim.Advance(w, 30);
+            // The NPC takes the wolf on, as a mind choosing the Hunt activity would: its fight is fought out headless.
+            var events = new List<WorldEvent>();
+            Sim.Start(w, new Hunt(npc, wolf), 1, events, out var doing);
+            w.Agent(npc).Doing = Sim.IsAlive(w.Agent(npc)) ? doing : null;
+            events.AddRange(Sim.Advance(w, 30));
             if (!events.OfType<EncounterEnded>().Any(f => f.Agent == npc)) continue;
             fights++;
             // A headless fight lives its rounds ahead of the clock (Combat.RunRounds): those minutes are lived

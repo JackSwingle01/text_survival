@@ -225,7 +225,6 @@ public class WhereThingsGoTests
         ["ShelterStat"] = Unconverted,
         ["Skill"] = Unconverted,
         ["Species"] = Unconverted,
-        ["Stat"] = Unconverted,
         ["Structure"] = Unconverted,
         ["SurfaceMaterial"] = Unconverted,
         ["TissueKind"] = Unconverted,
@@ -352,11 +351,6 @@ public class WhereThingsGoTests
     /// Members outside Fire.cs that work out hours of fire themselves, by file and member.
     static readonly Dictionary<string, string> BurnTimeOutsideFire = new()
     {
-        ["Npc.cs:BelievedCampFuelHours"] = "a test's read of CampFuelHours",
-        ["Npc.cs:CampFireHours"] = "the NPC ages the remembered fire's hours itself",
-        ["Npc.cs:CampFuelHours"] = "the NPC's own sum of the camp's fuel hours",
-        ["Npc.cs:FireHours"] = "the NPC's own sum of a pile's fuel hours",
-        ["Npc.cs:ReckonedCampFuelHours"] = "a test's read of CampFuelHours",
         ["Report.cs:FireHoursPerDensity"] = "the distribution report turns forage into fire hours by burn rate",
         ["Report.cs:FuelFireHoursPerWorkHour"] = "the same, for a tile's stock",
         ["Report.cs:Logs"] = "the same, for a felled tree's logs (in TreeFireHours)",
@@ -453,14 +447,8 @@ public class WhereThingsGoTests
 
     // ---- NpcUsesOnlyThePublicInterface ----
 
-    /// Internal Sim members Npc.cs reaches today. The NPC is to use only verbs, refusals, forecasts and memory.
-    static readonly Dictionary<string, string> NpcInternalUses = new()
-    {
-        ["Combat.ResolveHeadless"] = "the NPC fights its own hunt out instead of stepping Fight rounds",
-        ["Fauna.BeginHunt"] = "the NPC opens a hunt itself instead of choosing the Hunt activity",
-        ["Sim.Held"] = "the NPC asks whether a herd is held in a fight",
-        ["Sim.Surroundings"] = "the NPC reads the survival context to forecast its own cooling",
-    };
+    /// Internal Sim members Npc.cs reaches today: none. The NPC uses only verbs, refusals, forecasts and memory.
+    static readonly Dictionary<string, string> NpcInternalUses = new();
 
     static readonly Regex NpcForbiddenCalls = new(@"\bSim\.Start\b|\bFauna\.BeginHunt\b|\bCombat\.ResolveHeadless\b");
 

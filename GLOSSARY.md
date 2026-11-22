@@ -11,7 +11,7 @@ has all four.
 
 **Tier**:
 How urgent a stat is right now: Critical, Need or Want. Tier decides first; within a tier the stats
-rank warmth, then water, then food, then rest.
+rank warmth, then water, then rest, then food.
 _Avoid_: level, priority, urgency score
 
 **Critical**:

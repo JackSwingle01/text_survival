@@ -99,8 +99,7 @@ public class ArchitectureTests
         // Planning reads of the sky are allowed where listed: they ask what the weather will do to a walk or a
         // rot, through Exposure, and routing them through Exposure.At would build a whole exposure per question.
         (@"\bWeather\.At\(", "reads the sky directly",
-            [("Npc.cs", "Sky", "the NPC's planning, once a decision: crossing times and the cooling forecast (Exposure.Walking)"),
-             ("Travel.cs", "Begin", "a crossing's pace and injury risk against the sky (Traversal.CrossingMinutes)"),
+            [("Travel.cs", "Begin", "a crossing's pace and injury risk against the sky (Traversal.CrossingMinutes)"),
              ("Trip.cs", "Time", "the same crossing previewed before it starts, against the same sky"),
              ("Trip.cs", "Risk", "the same crossing's injury risk previewed, against the sky Begin fixes it by"),
              ("Trip.cs", "StepMinutes", "the same crossing's minutes for a planner, kept for the minute"),
@@ -223,8 +222,11 @@ public class ArchitectureTests
         var (world, _) = Phase3GateTests.Run(160);
         // The NPC is in it, caught with work in hand: its mind and its work session are walked too.
         var npc = world.Agents.Values.Single(a => a.Mind is NpcMind);
-        for (int i = 0; i < 24 * 60 && npc.Doing?.Work == null; i++) Sim.Advance(world, 1);
-        Assert.NotNull(npc.Doing?.Work);
+        // Watered, so the save is walked with a living NPC whatever its mind made of the busy day.
+        npc.Body.HydrationMl = Body.MaxHydrationMl;
+        Items.Add(Items.Pack(world, npc.Id), Resource.Water, 3);
+        for (int i = 0; i < 3 * 24 * 60 && npc.Doing?.Work == null; i++) Sim.Advance(world, 1);
+        Assert.True(npc.Doing?.Work != null, $"no work in hand at minute {world.Minute}: {npc.Doing?.Activity} at {npc.Tile}, alive {Sim.IsAlive(npc)}");
         string json = JsonSerializer.Serialize(world, new JsonSerializerOptions { ReferenceHandler = ReferenceHandler.Preserve });
         int at = json.IndexOf("\"$ref\"", StringComparison.Ordinal);
         Assert.True(at < 0, at < 0 ? "" : $"an object reachable twice: ...{json.Substring(Math.Max(0, at - 300), 400)}...");

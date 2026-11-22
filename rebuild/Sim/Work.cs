@@ -39,26 +39,51 @@ public static class Work
     }
 
     /// A forecast: minutes until TooDarkToWork here, if nobody tends the light. Fires around the agent must be caught up.
-    public static int MinutesUntilTooDark(World world, Agent agent)
+    public static int MinutesUntilTooDark(World world, Agent agent) =>
+        LightLeft(world, agent.Tile, Fire.MinutesOfLightLeft(world, agent.Id), 0);
+
+    /// The same for a place it is not standing, starting work there in startInMinutes: by the light it carries and the
+    /// sky, with no fire there to work by.
+    public static int MinutesUntilTooDarkAt(World world, Agent agent, TileId tile, int startInMinutes)
     {
-        int lit = Fire.MinutesOfLightLeft(world, agent.Id);
-        return Map.IsDark(Map.Of(world), agent.Tile) ? lit : lit + Weather.LightLeftMinutes(world.Minute + lit);
+        int carried = world.Fires.Values.Where(f => f.CarriedBy == agent.Id && Fire.IsActive(f)).Select(f => (int)Math.Ceiling(f.TorchMinutesLeft)).DefaultIfEmpty(0).Max();
+        return LightLeft(world, tile, Math.Max(0, carried - startInMinutes), startInMinutes);
     }
+
+    static int LightLeft(World world, TileId tile, int litMinutes, int startInMinutes) =>
+        Map.IsDark(Map.Of(world), tile) ? litMinutes : litMinutes + Weather.LightLeftMinutes(world.Minute + startInMinutes + litMinutes);
 
     /// A forecast: what the minutes given bring in, the agent staying as they are and stopping for the dark; a tree only if
     /// it comes down, a harvest by whole cycles. Fires around the agent must be caught up.
     public static IReadOnlyDictionary<Resource, double> ExpectedGather(World world, Agent agent, Gather g, int minutes)
     {
-        var kg = new SortedDictionary<Resource, double>();
-        if (Refusal(world, g) != null) return kg;
+        if (Refusal(world, g) != null) return new SortedDictionary<Resource, double>();
         var id = new PoolId(agent.Tile, g.Pool);
-        if (NeedsLight(world, agent, g)) minutes = Math.Min(minutes, MinutesUntilTooDark(world, agent));
-        double effectivePct = 1 / ImpairmentFactor(world, agent, g), workMinutes = minutes * effectivePct;
+        if (NeedsLight(world, Pools.Def(world, id), g)) minutes = Math.Min(minutes, MinutesUntilTooDark(world, agent));
+        return Expected(world, agent, id, g, minutes, ForageYield(world, agent).TotalPct, rememberedDensity: null);
+    }
+
+    /// The same for a pool elsewhere, starting there in startInMinutes, on the ground as remembered (null: as it is).
+    /// What only being there can refuse (trees all felled, the pool unseen) is the caller's to know.
+    public static IReadOnlyDictionary<Resource, double> ExpectedGatherAt(World world, Agent agent, PoolId id, ForageFocus focus, int minutes,
+        int startInMinutes, double? rememberedDensity)
+    {
+        var def = Pools.Def(world, id);
+        var g = new Gather(agent.Id, id.Index, focus);
+        if (Items.PackOf(agent) is not { } pack || ToolRefusal(def, pack) != null) return new SortedDictionary<Resource, double>();
+        if (NeedsLight(world, def, g)) minutes = Math.Min(minutes, MinutesUntilTooDarkAt(world, agent, id.Tile, startInMinutes));
+        double perception = Body.Perception(agent.Body, new AbilityContext(Items.EncumbrancePct(agent), Weather.DarknessLevel(world, id.Tile), false));
+        return Expected(world, agent, id, g, minutes, ForageYield(agent, pack, perception).TotalPct, rememberedDensity);
+    }
+
+    static SortedDictionary<Resource, double> Expected(World world, Agent agent, PoolId id, Gather g, int minutes, double yieldPct, double? rememberedDensity)
+    {
+        var kg = new SortedDictionary<Resource, double>();
+        double effectivePct = 1 / ImpairmentFactor(world, agent, id.Tile, g), workMinutes = minutes * effectivePct;
         switch (Pools.Def(world, id))
         {
             case ForagePool:
-                double yieldPct = ForageYield(world, agent).TotalPct;
-                foreach (var (r, found) in Pools.ExpectedForage(world, id, minutes, effectivePct))
+                foreach (var (r, found) in Pools.ExpectedForage(world, id, minutes, effectivePct, rememberedDensity))
                     kg[r] = found * yieldPct * FocusFactor(r, g.Focus);
                 break;
             case TreePool tree when Pools.ChopProgressPct(world, id) * tree.MinutesToFell + workMinutes >= tree.MinutesToFell - 1e-9:
@@ -91,18 +116,22 @@ public static class Work
     static bool NeedsLight(World world, Agent agent, Activity activity) => activity switch
     {
         Butcher => true,
-        Gather g => Pools.Def(world, new PoolId(agent.Tile, g.Pool)) is not ForagePool,
+        Gather g => NeedsLight(world, Pools.Def(world, new PoolId(agent.Tile, g.Pool)), g),
         _ => false,
     };
 
+    static bool NeedsLight(World world, PoolDef def, Gather g) => def is not ForagePool;
+
     /// Bad legs +20%, bad lungs +15%, bad hands +25% time; a frozen carcass +50%. Read every minute,
     /// so how the work is split into steps cannot change what it gets done.
-    static double ImpairmentFactor(World world, Agent agent, Activity activity)
+    static double ImpairmentFactor(World world, Agent agent, Activity activity) => ImpairmentFactor(world, agent, agent.Tile, activity);
+
+    static double ImpairmentFactor(World world, Agent agent, TileId tile, Activity activity)
     {
         var body = agent.Body;
         return activity switch
         {
-            Gather g => Pools.Def(world, new PoolId(agent.Tile, g.Pool)) switch
+            Gather g => Pools.Def(world, new PoolId(tile, g.Pool)) switch
             {
                 ForagePool => ImpairmentFactor(body, moving: true, breathing: true),
                 TreePool => ImpairmentFactor(body, moving: true, manipulation: true),
@@ -146,14 +175,10 @@ public static class Work
                     if (NeedsLight(world, agent, activity) && TooDarkToWork(world, agent)) return Dark;
                     return def switch
                     {
-                        ForagePool => null,
                         TreePool when !Pools.HasTrees(world, id) => new("all the trees here have been felled"),
-                        TreePool => Items.Tool(pack, ToolType.Axe) == null ? new("you need an axe to fell trees", new MissingTool(ToolType.Axe)) : null,
                         ShelterFind f => new($"the {f.Name} is shelter, not something to gather"),
                         StockPool s when !Pools.HasStock(world, id) => new($"the {s.Name} is picked clean"),
-                        // The tool a harvestable requires is checked for everyone.
-                        StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => new($"you need {Names.A(Names.Of(t))}", new MissingTool(t)),
-                        _ => null,
+                        _ => ToolRefusal(def, pack),
                     };
                 }
             case Butcher b:
@@ -210,6 +235,14 @@ public static class Work
     }
 
     public static readonly Refusal Dark = new(TooDark, new MissingState(Lack.Light));
+
+    /// The tool a pool's work needs, checked for everyone: an axe for trees, a harvestable's own tool.
+    static Refusal? ToolRefusal(PoolDef def, Inventory pack) => def switch
+    {
+        TreePool => Items.Tool(pack, ToolType.Axe) == null ? new("you need an axe to fell trees", new MissingTool(ToolType.Axe)) : null,
+        StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => new($"you need {Names.A(Names.Of(t))}", new MissingTool(t)),
+        _ => null,
+    };
 
     /// Water to drink here: a river or a lake underfoot, ice or not, a site's water while it is not ice, or an
     /// open lake a step away. Ice should need a hole cut; that needs ice thickness, which Ground does not model yet.

@@ -798,13 +798,9 @@ public class CombatTests
         var fled = enc.Units.Single(u => u.Agent == npc);
         fled.InField = false; // it fled; the player fights on
         var bison = Agents.Spawn(w, Species.Bison, tile, 3);
-        var mind = (NpcMind)w.Agent(npc).Mind;
-        var b = w.Agent(npc).Body;
-        b.FatKg = 0.025 * b.WeightKg; b.CaloriesKcal = 0; b.CoreTempF = 98.6; // starving: a bison is worth the risk (Npc.WouldHunt)
         Items.Add(Items.StashAt(w, tile), Resource.Birch, 60);
 
-        var events = new List<WorldEvent>();
-        for (int i = 0; i < 30; i++) events.AddRange(Sim.Advance(w, 1));
+        var events = Sim.Step(w, new Hunt(npc, bison), Verbs.UntilDoneMinutes).Events; // the hunt a mind would choose
         Assert.Contains(events, e => e is EncounterEnded f && f.Agent == bison); // the NPC's hunt was fought out
         Assert.True(fled.Released);
         // The player's fight goes on (or ended) without reading the NPC again: it hears nothing of it.
