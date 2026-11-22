@@ -164,7 +164,10 @@ public class ExposureTests
     // 30 and this row is no longer the old wiring's. Old → new: air 3.576741759363495 → 3.6852252553580183, fire
     // 58.22737464236477 → 58.758882665518485, rate -0.21952233102853913 → -0.1882198115126869, core
     // 98.58811999999998 → 98.59615249999999, wet 0.04319999999999998 → 0.024300000000000006. The no-fire row still is.
-    [InlineData(true, 3.6852252553580183, 0.6, 0.6, 58.758882665518485, -0.1882198115126869, 98.59615249999999, 0.024300000000000006)]
+    // rebuild: exact one-fuel mean (2026-11-21): the fire's weighted means are measured up from the lowest fuel, a
+    // rounding change. Old → new: fire 58.758882665518485 → 58.7588826655185, rate -0.1882198115126869 →
+    // -0.1882198115126862; air, core and wet unchanged.
+    [InlineData(true, 3.6852252553580183, 0.6, 0.6, 58.7588826655185, -0.1882198115126862, 98.59615249999999, 0.024300000000000006)]
     public void FactorOneTile_IsBitForBitTheOldWiring(bool fire, double airF, double wind, double dryingWind, double fireBonusF,
         double rateFPerHour, double coreAfter4hF, double wetAfter4h)
     {

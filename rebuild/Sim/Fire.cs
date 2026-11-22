@@ -116,11 +116,14 @@ public static class Fire
         return f.EmberStartTempF * Math.Sqrt(f.EmberHoursRemaining / f.EmberDurationHours); // cools slowly, then faster
     }
 
+    /// From the lowest fuel up, so equal values average exactly: an ulp can tip a whole ember minute.
     static double Weighted(FireState f, Func<FuelProps, double> prop, double fallback)
     {
+        if (f.BurningKg.Count == 0) return fallback;
+        double lowest = f.BurningKg.Keys.Min(fuel => prop(Props[fuel]));
         double mass = 0, sum = 0;
-        foreach (var (fuel, kg) in f.BurningKg) { sum += prop(Props[fuel]) * kg; mass += kg; }
-        return mass > 0 ? sum / mass : fallback;
+        foreach (var (fuel, kg) in f.BurningKg) { sum += (prop(Props[fuel]) - lowest) * kg; mass += kg; }
+        return mass > 0 ? lowest + sum / mass : fallback;
     }
 
     /// How much faster a bigger fire burns: each band from its lower edge up, largest first.

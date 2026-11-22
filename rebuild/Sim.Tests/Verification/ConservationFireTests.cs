@@ -251,7 +251,7 @@ public class ConservationFireTests
     {
         static double Size(double kg) => kg < 1.5 ? 0.9 : kg < 4.0 ? 1.0 : kg < 7.0 ? 1.1 : 1.2;
         double efficiency = pit == PitType.Stone ? 1.15 : 1.0;
-        double rate = Fire.Props[fuel].BurnRateKgPerHour * kg / kg; // the old mass-weighted mean, rounding and all
+        double rate = Fire.Props[fuel].BurnRateKgPerHour; // one fuel's mean is its own rate exactly
         double PerMinute(double atKg) => rate * Size(atKg) / efficiency / 60.0;
         double consumed = PerMinute(kg);
         double edge = new[] { 7.0, 4.0, 1.5 }.FirstOrDefault(e => kg >= e && kg - consumed < e);
@@ -291,6 +291,15 @@ public class ConservationFireTests
     public void Fire_AGramMore_AcrossASizeBand_NeverShortensTheBurn() =>
         MoreFuel(new MoreScene(new FireScene(1, [.. FuelKinds.Select(r => r == Resource.Amadou ? 5.0 : 0)], new double[FuelKinds.Length], [], 1, [1]),
             Array.IndexOf(FuelKinds, Resource.Amadou), 0.0011233327397750922), 1.0);
+
+    /// 3 g more pine on 2 kg of it in a stone pit stayed warm 145 min against 146 without it: the
+    /// mean peak of one fuel came out a rounding error off its own peak, the embers' length sits on
+    /// a whole minute, and the error picked the side (CsCheck seed cHFSEvDRgWP1,
+    /// Fire_MoreOfTheSameFuel_NeverShortensTheBurn_Many).
+    [Fact]
+    public void Fire_AGramMore_OfOneFuel_LeavesTheEmbersTheirTime() =>
+        MoreFuel(new MoreScene(new FireScene(2, [.. FuelKinds.Select(r => r == Resource.Pine ? 2.0 : 0)], new double[FuelKinds.Length], [], 1, [1]),
+            Array.IndexOf(FuelKinds, Resource.Pine), 0.0033670508448069274), 1.0);
 
     /// One minute of a mix with nothing waiting: what each fuel lost, or null where a stack burned out
     /// or the fire burned everything (the share then is the stack, not the rate).
