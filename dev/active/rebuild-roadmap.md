@@ -330,8 +330,8 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - B12, hunger follows reserves:
   - an empty stomach is a mild penalty, about 5%;
   - the strong penalty comes only as fat and muscle near their floors;
-  - Well fed is a small matching bonus (about +5%) when the last 24 hours' calorie balance is
-    positive. That balance is kept as one running value.
+  - Well fed is a small matching bonus (about +5%) once 24 hours have passed without the Hungry effect (empty stomach); it ends the moment you are Hungry again. (Revised 2026-11-21: the old rule, a positive 24-hour calorie balance,
+    flickered when eating at about maintenance.)
 - B14, exhaustion:
   - at zero energy you don't fall asleep at once. Each minute there's about a 1% chance of falling
     asleep where you are for 15–90 minutes;
