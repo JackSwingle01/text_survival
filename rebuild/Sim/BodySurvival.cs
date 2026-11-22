@@ -43,7 +43,7 @@ public sealed record SurvivalContext
 /// Everything one stretch of survival does to a body, computed before any of it is applied.
 public sealed class SurvivalDelta
 {
-    public double CoreTempDeltaF, CaloriesDeltaKcal, HydrationDeltaMl, EnergyDeltaMinutes, ClothingHeatBufferDeltaPct, CalorieBalanceDeltaKcal;
+    public double CoreTempDeltaF, CaloriesDeltaKcal, HydrationDeltaMl, EnergyDeltaMinutes, ClothingHeatBufferDeltaPct;
     public double FatBurnedKg, MuscleBurnedKg, BloodHealedPct, HealAmount;
     public List<(EffectKind Kind, double Severity)> Effects { get; } = [];
     public List<DamageInfo> Damage { get; } = [];
@@ -218,7 +218,6 @@ public static partial class Body
 
         double burnKcalPerMinute = BurnKcalPerHour(body, ctx.ActivityFactor) / 60.0;
         d.CaloriesDeltaKcal = -burnKcalPerMinute * minutes;
-        d.CalorieBalanceDeltaKcal = CalorieBalanceAfter(body.CalorieBalanceKcal, burnKcalPerMinute, minutes) - body.CalorieBalanceKcal;
         d.EnergyDeltaMinutes = ctx.IsSleeping ? SleepRecoveryFactor * minutes : -minutes;
         d.HydrationDeltaMl = -BaseWaterLossMlPerDay / (24.0 * 60.0) * (ctx.IsSleeping ? SleepWaterLossFactor : 1.0) * minutes;
 
@@ -238,23 +237,8 @@ public static partial class Body
         if (hungry > 0) d.Effects.Add((EffectKind.Hungry, hungry));
         AddBelowThreshold(d, EffectKind.Thirsty, hydration / MaxHydrationMl);
         AddBelowThreshold(d, EffectKind.Tired, energy / MaxEnergyMinutes);
-        d.Effects.Add((EffectKind.WellFed, WellFedSeverity(body.CalorieBalanceKcal + d.CalorieBalanceDeltaKcal))); // Set: zero ends it
         return d;
     }
-
-    /// In closed form, so one long step is exactly the minutes lived one at a time.
-    static double CalorieBalanceAfter(double balanceKcal, double burnKcalPerMinute, int minutes)
-    {
-        double keptPct = Math.Pow(CalorieBalanceKeptPerMinutePct, minutes);
-        return balanceKcal * keptPct - burnKcalPerMinute * (1 - keptPct) / (1 - CalorieBalanceKeptPerMinutePct);
-    }
-
-    static readonly double CalorieBalanceKeptPerMinutePct = Math.Exp(-1.0 / (24 * 60));
-
-    /// Rising from nothing, so there is no line to flicker across.
-    static double WellFedSeverity(double balanceKcal) => Math.Clamp(balanceKcal / WellFedFullKcal, 0, 1);
-
-    const double WellFedFullKcal = 500;
 
     static void AddBelowThreshold(SurvivalDelta d, EffectKind kind, double pct)
     {
@@ -537,7 +521,6 @@ public static partial class Body
         body.EnergyMinutes = Math.Clamp(body.EnergyMinutes + d.EnergyDeltaMinutes, 0, MaxEnergyMinutes);
         body.CoreTempF += d.CoreTempDeltaF;
         body.ClothingHeatBufferPct = Math.Clamp(body.ClothingHeatBufferPct + d.ClothingHeatBufferDeltaPct, 0, 1);
-        body.CalorieBalanceKcal += d.CalorieBalanceDeltaKcal;
         body.FatKg = Math.Max(0, body.FatKg - d.FatBurnedKg);
         body.MuscleKg = Math.Max(0, body.MuscleKg - d.MuscleBurnedKg);
         body.BloodPct = Math.Min(1.0, body.BloodPct + d.BloodHealedPct);
@@ -559,9 +542,10 @@ public static partial class Body
         }
         foreach (var (kind, severity) in d.Effects)
         {
-            if (kind is EffectKind.Wet or EffectKind.Bloody or EffectKind.WellFed) Effects.Set(body, kind, severity);
+            if (kind is EffectKind.Wet or EffectKind.Bloody) Effects.Set(body, kind, severity);
             else Effects.Add(body, kind, severity);
         }
+        WellFed(body);
 
         d.CoreTempDeltaF += Effects.CoreTempFPerHour(body) / 60;
         double bleedMl = woundsLived ? 0 : Effects.BleedMlPerHour(body) / 60;
@@ -571,6 +555,13 @@ public static partial class Body
         // A mended body, person or animal, forgets who hurt it: a death days later is not the old wound's.
         if (body.WoundedBy != null && IsMended(body)) body.WoundedBy = null;
         Exhaustion(body, ctx, rng);
+    }
+
+    /// Judged on the effects as this minute leaves them, so the pang's fading tail counts as hunger.
+    static void WellFed(BodyState body)
+    {
+        body.MinutesWithoutHunger = Effects.Has(body, EffectKind.Hungry) ? 0 : body.MinutesWithoutHunger + 1;
+        Effects.Set(body, EffectKind.WellFed, body.MinutesWithoutHunger >= Effects.WellFedAfterHours * 60 ? 1 : 0);
     }
 
     /// One roll a minute lived, on the body's own stream, so a drop is the same however the minutes are

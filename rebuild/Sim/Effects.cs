@@ -25,7 +25,8 @@ public sealed class BodyEffect
 /// One effect's definition (Content/effects.json): its hourly drift, whether it needs treatment once it
 /// starts above a severity (null never), and what it does to the body at full severity.
 public sealed record EffectDef(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour, double BleedMlPerHour,
-    IReadOnlyList<(Capacity Capacity, double Delta)> Capacities, bool Discomfort = false, double MetabolicHeatDelta = 0, double HealingDelta = 0);
+    IReadOnlyList<(Capacity Capacity, double Delta)> Capacities, bool Discomfort = false, double MetabolicHeatDelta = 0, double HealingDelta = 0,
+    double? HungerFreeHours = null);
 
 public static class Effects
 {
@@ -122,6 +123,9 @@ public static class Effects
 
     internal static double CapacityLoss(EffectKind kind, Capacity capacity) =>
         DefOf(kind).Capacities.Single(c => c.Capacity == capacity).Delta;
+
+    /// Content checks the row carries it.
+    internal static double WellFedAfterHours => DefOf(EffectKind.WellFed).HungerFreeHours!.Value;
 
     public static double CoreTempFPerHour(BodyState body) => body.Effects.Sum(e => DefOf(e.Kind).CoreTempFPerHour * e.Severity);
 

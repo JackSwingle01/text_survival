@@ -77,8 +77,9 @@ public class SaveFixtureTests
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         Sim.Step(w, new Make(P, "crude_spear"), Verbs.UntilDoneMinutes);
         Sim.Step(w, new Make(P, "crude_spear"), 8);
-        // A good meal (the day's balance in surplus: Well fed), and the NPC asleep where it dropped.
+        // A good meal and a day without hunger behind it (Well fed), and the NPC asleep where it dropped.
         Body.Eat(w.Agent(P).Body, 2500);
+        w.Agent(P).Body.MinutesWithoutHunger = 24 * 60;
         w.Agent(npc).Body.EnergyMinutes = 0;
         Effects.Set(w.Agent(npc).Body, EffectKind.Asleep, 40 / 90.0);
         Sim.Step(w, new Wait(P), 2);

@@ -49,7 +49,11 @@ pit in a corner. The sample has no fight in it, so only its version moved. Versi
 added `BodyState.CalorieBalanceKcal`, the running day's calorie balance behind Well fed, skipped at its
 default, and the `Asleep` and `WellFed` effect kinds, appended to `EffectKind` (saved as numbers 14 and 15).
 An `Asleep` severity is the sleep left in ninetieths of the longest one, so changing that longest sleep
-reinterprets saves. The sample's bodies moved with the new hunger and the Well fed burn. When you add
+reinterprets saves. The sample's bodies moved with the new hunger and the Well fed burn. Version 9 (Well fed
+after a day without hunger) replaced `BodyState.CalorieBalanceKcal` with `BodyState.MinutesWithoutHunger`, the
+minutes lived in a row without the `Hungry` effect, skipped at its default; Well fed holds once it reaches
+`hungerFreeHours` in `effects.json`. The sample sets the player's count to a day so the player is still
+Well fed; only the version and that field moved. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands.

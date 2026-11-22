@@ -1,5 +1,5 @@
 {
-  "Version": 8,
+  "Version": 9,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -635,7 +635,7 @@
             "CaloriesKcal": 1997.6331838888889,
             "EnergyMinutes": 728,
             "HydrationMl": 2699.317004516907,
-            "CalorieBalanceKcal": 2285.959251582264,
+            "MinutesWithoutHunger": 1442,
             "ClothingHeatBufferPct": 1,
             "Effects": [
               {
@@ -1243,7 +1243,7 @@
             "CaloriesKcal": 1198.6639000000073,
             "EnergyMinutes": 4,
             "HydrationMl": 2701.2510126176094,
-            "CalorieBalanceKcal": -282.181569284109,
+            "MinutesWithoutHunger": 172,
             "ClothingHeatBufferPct": 1,
             "Effects": [
               {

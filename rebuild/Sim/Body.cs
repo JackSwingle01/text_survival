@@ -77,9 +77,9 @@ public sealed class BodyState
     /// Minutes of waking left; sleep refills it.
     public double EnergyMinutes { get; set; } = 900;
     public double HydrationMl { get; set; } = 3000;
-    /// Absorbed less burned, each minute's share fading by e a day: one running number for "the last day".
+    /// Minutes lived in a row without the Hungry effect, what Well fed waits on (Body.Update sees no world clock).
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public double CalorieBalanceKcal { get; set; }
+    public int MinutesWithoutHunger { get; set; }
     /// Warmth stored in clothing's thermal mass, 0-1 of what it can hold.
     public double ClothingHeatBufferPct { get; set; } = 0.3;
     /// How much of the sprint reserve is spent, 0 full to 1 empty (Body.SprintReservePct): running
@@ -782,8 +782,6 @@ public static partial class Body
         double capacity = CaloriesCapacityKcal(body);
         body.CaloriesKcal = Math.Min(capacity, stored);
         body.FatKg += Math.Max(0, stored - capacity) / KcalPerKgFat;
-        // People only: an animal lives outside the survival model that would age the balance (Fauna.Tick).
-        if (body.Kind == BodyKind.Human) body.CalorieBalanceKcal += absorbed;
     }
 
     public static void Drink(BodyState body, double ml) =>
