@@ -337,8 +337,8 @@ public static class Memories
         return nearer;
     }
 
-    /// Every tile in view is explored, and its ground as it is now remembered, and the routes worn
-    /// between it and its seen neighbours. Each route once: one between two tiles in view is read from
+    /// Every tile in view is explored, and its ground as it is now remembered, and the trails worn
+    /// between it and its seen neighbours. Each trail once: one between two tiles in view is read from
     /// its east or south end.
     static void Explore(World world, Memory memory, SightView view)
     {
@@ -350,12 +350,37 @@ public static class Memories
         foreach (var t in view.Tiles) explored.Remember(t, Ground.Look(world, t), world.Minute);
         double erosion = Tracks.ErosionAt(world, world.Minute);
         foreach (var t in view.Tiles)
-            foreach (var dir in (ReadOnlySpan<Direction>)[Direction.East, Direction.South, Direction.West, Direction.North])
-            {
-                var n = Map.Step(t, dir);
-                if (!m.InBounds(n) || !explored.Contains(n) || dir is Direction.West or Direction.North && view.Set.Contains(n)) continue;
-                explored.RememberTrail(t, n, Tracks.TierNow(world, t, n, erosion));
-            }
+            foreach (var n in SeenNeighbours(m, explored, t))
+                if (n.X >= t.X && n.Y >= t.Y || !view.Set.Contains(n))
+                    explored.RememberTrailTier(t, n, Tracks.TierNow(world, t, n, erosion));
+    }
+
+    /// The trails a person knows of, between tiles they have seen, in edge order: those touching a tile
+    /// in sight as they are now, the rest as last seen. What a map drawn from memory shows.
+    public static IReadOnlyList<(EdgeId Edge, TrailTier Tier)> Trails(World world, Agent person, IReadOnlySet<TileId> inSight)
+    {
+        var known = new SortedDictionary<EdgeId, TrailTier>();
+        if (Of(person).Explored is not { } explored) return [];
+        foreach (var (a, b, tier) in explored.Trails())
+            if (!inSight.Contains(a) && !inSight.Contains(b)) known[new EdgeId(a, b)] = tier;
+        var m = Map.Of(world);
+        double erosion = Tracks.ErosionAt(world, world.Minute);
+        foreach (var t in inSight)
+        {
+            if (!explored.Contains(t)) continue;
+            foreach (var n in SeenNeighbours(m, explored, t))
+                if (Tracks.TierNow(world, t, n, erosion) is var tier and not TrailTier.None) known[new EdgeId(t, n)] = tier;
+        }
+        return [.. known.Select(k => (k.Key, k.Value))];
+    }
+
+    static IEnumerable<TileId> SeenNeighbours(GeneratedMap m, GroundMemory explored, TileId t)
+    {
+        foreach (var dir in new[] { Direction.East, Direction.South, Direction.West, Direction.North })
+        {
+            var n = Map.Step(t, dir);
+            if (m.InBounds(n) && explored.Contains(n)) yield return n;
+        }
     }
 
     /// What changed on this tile since the person last stood on it, and then their memory of it,

@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createBaker, wantedArt, resolveArt, ice, snowField, PAINTED, CELL, SRC, VARIANTS, variant, trackMarks, printPixels } from '../App/wwwroot/terrain-core.js';
-import { chunkSignature, routesOf } from '../App/wwwroot/terrain.js';
+import { chunkSignature, trailsOf } from '../App/wwwroot/terrain.js';
 import { cellState, worldState, createGround, GROUND, SEASONS, BARE } from '../App/wwwroot/ground-state.js';
 import { decodePng } from './png.mjs';
 
@@ -598,7 +598,7 @@ test('a chunk rebakes when a route it can reach changes, and not for one far off
   const m = trails => ({ width: W, height: H, known, trails });
   const ground = { keyAt: () => 'k' }, world = { key: 'w' };
   const near = [{ ax: 9, ay: 4, bx: 10, by: 4, tier: 'path' }], far = [{ ax: 30, ay: 4, bx: 31, by: 4, tier: 'path' }];
-  const sig = trails => chunkSignature(m(trails), routesOf(m(trails)), 0, 0, ground, world);
+  const sig = trails => chunkSignature(m(trails), trailsOf(m(trails)), 0, 0, ground, world);
   assert.notEqual(sig(near), sig([]), 'a route two cells past the chunk changes it');
   assert.notEqual(sig(near), sig([{ ...near[0], tier: 'trail' }]), 'so does its tier');
   assert.equal(sig(far), sig([]), 'a route far off does not');

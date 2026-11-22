@@ -442,13 +442,13 @@ public class GameHostTests
             .First(n => inSight.Contains(n) && Map.Of(w).TerrainAt(n).IsPassable());
     }
 
-    static (int, int, int, int, string) Route(TileId a, TileId b, string tier)
+    static (int, int, int, int, string) Trail(TileId a, TileId b, string tier)
     {
         var e = new EdgeId(a, b);
         return (e.A.X, e.A.Y, e.B.X, e.B.Y, tier);
     }
 
-    static List<(int, int, int, int, string)> Routes(ViewDto v) => [.. v.Map.Trails.Select(t => (t.Ax, t.Ay, t.Bx, t.By, t.Tier))];
+    static List<(int, int, int, int, string)> Sent(ViewDto v) => [.. v.Map.Trails.Select(t => (t.Ax, t.Ay, t.Bx, t.By, t.Tier))];
 
     /// A route in sight is drawn as it is, even worn on since the last look; out of sight, as last seen,
     /// after a save and load too. A route never seen is not drawn.
@@ -464,7 +464,7 @@ public class GameHostTests
         Wear(w, a, b, Tracks.PathAt + 1);
         Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes);
         Wear(w, a, b, Tracks.TrailAt + 1); // after the look
-        Assert.Contains(Route(a, b, "trail"), Routes(Parse(h.View())));
+        Assert.Contains(Trail(a, b, "trail"), Sent(Parse(h.View())));
 
         var m = Map.Of(w);
         p.Tile = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
@@ -476,7 +476,7 @@ public class GameHostTests
 
         var v = Parse(new GameHost().Load(h.Save()));
         Assert.DoesNotContain(Index(w, a), v.Map.Visible);
-        Assert.Contains(Route(a, b, "path"), Routes(v));
+        Assert.Contains(Trail(a, b, "path"), Sent(v));
         Assert.DoesNotContain(v.Map.Trails, t => t.Ax == far.X && t.Ay == far.Y - 1);
         bool Known(int x, int y) => v.Map.Known[y * v.Map.Width + x] != ViewBuilder.UnknownCode;
         Assert.All(v.Map.Trails, t =>
@@ -484,7 +484,7 @@ public class GameHostTests
             Assert.True(Known(t.Ax, t.Ay) && Known(t.Bx, t.By), $"{t} has an end never seen");
             Assert.Equal(1, Math.Abs(t.Ax - t.Bx) + Math.Abs(t.Ay - t.By));
         });
-        Assert.Equal(Routes(v).Order(), Routes(v).Distinct().Order());
+        Assert.Equal(Sent(v).Order(), Sent(v).Distinct().Order());
     }
 
     /// Prints in sight carry what the page lays them out by: maker, heading, traffic, its pattern and freshness.
@@ -502,6 +502,24 @@ public class GameHostTests
         Assert.Equal("heading", t.Pattern);
         Assert.Equal(3, t.Traffic);
         Assert.InRange(t.FreshnessPct, 0.9, 1);
+    }
+
+    /// Prints are read only near the player and in sight: none from further off, wherever they lie.
+    [Fact]
+    public void Prints_beyond_reading_distance_are_not_sent()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var here = w.Agent(AgentId.Player).Tile;
+        var m = Map.Of(w);
+        var far = Enumerable.Range(1, 20).Select(d => new TileId(here.X + ViewBuilder.TrackReadTiles + d, here.Y))
+            .First(t => m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.TerrainAt(Map.Step(t, Direction.East)).IsPassable());
+        Tracks.RecordMove(w, Map.Step(far, Direction.East), far, TrackMaker.Hoof, 5);
+        var v = Parse(h.View());
+        Assert.NotEmpty(Tracks.Read(w, far));
+        Assert.All(v.Map.Tracks, t => Assert.True(Math.Max(Math.Abs(t.X - here.X), Math.Abs(t.Y - here.Y)) <= ViewBuilder.TrackReadTiles, $"prints at {t.X},{t.Y}"));
+        Assert.All(v.Map.Tracks, t => Assert.Contains(t.Y * m.Width + t.X, v.Map.Visible));
     }
 
     /// The renderer (terrain-core.js) knows these codes and throws on any other: every value the Sim can

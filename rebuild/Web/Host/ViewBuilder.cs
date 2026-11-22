@@ -45,7 +45,7 @@ sealed class ViewBuilder(World world, int gen)
         {
             var menu = t.Menu.Select(Dto).ToList();
             string? action = t.Action is { } a ? menu[IndexIn(t.Menu, a)].Id : null;
-            return new LocationFeatureDto(t.LocationFeature.Kind.ToString().ToLowerInvariant(), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
+            return new LocationFeatureDto(Code(t.LocationFeature.Kind), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
         }).ToList();
         var walk = here.Walk.Select(Dto).ToList();
         var tile = here.Tile.Select(Dto).ToList();
@@ -69,7 +69,7 @@ sealed class ViewBuilder(World world, int gen)
             Job: job is null ? null : JobOf(job),
             Receipt: receipt,
             Log: [.. log.TakeLast(40)],
-            Outcome: outcome.ToString().ToLowerInvariant(),
+            Outcome: Code(outcome),
             DeathCause: outcome == RunOutcome.Died ? body.DeathCause?.What : null);
     }
 
@@ -91,7 +91,7 @@ sealed class ViewBuilder(World world, int gen)
             Odds: v.Odds is { } o ? OddsOf(o) : null,
             Trip: v.Trip is { } trip && travel != null ? TripOf(trip, travel, v.Risk) : null,
             Make: v.Activity is Make mk ? MakeOf(mk, v.Outcomes) : null,
-            Dir: travel?.Dir.ToString().ToLowerInvariant(),
+            Dir: travel is null ? null : Code(travel.Dir),
             Careful: travel?.Pace == Pace.Careful,
             Uses: v.Activity switch
             {
@@ -178,16 +178,15 @@ sealed class ViewBuilder(World world, int gen)
 
     static VitalDto[] Vitals(BodyState b, StatTiers tiers, Exposure e)
     {
-        string T(Tier t) => t.ToString().ToLowerInvariant();
         // Warmth's bar spans the core from the hypothermia line's far side (90F) to normal.
         double warmth = Math.Clamp((b.CoreTempF - 90.0) / (Body.BaseCoreTempF - 90.0), 0, 1);
         bool warming = e.Warmth.PitHeatF + e.Warmth.AirHeatF > 1;
         return
         [
-            new("warmth", warmth, T(tiers.Warmth), $"Body {b.CoreTempF:0.0}°F{(warming ? ", by a fire" : "")}"),
-            new("food", Math.Clamp(b.CaloriesPct, 0, 1), T(tiers.Food), $"{b.CaloriesKcal:0} kcal in the stomach · fat {b.FatKg:0.0} kg"),
-            new("water", Math.Clamp(b.HydrationPct, 0, 1), T(tiers.Water), $"{b.HydrationPct:P0} · {b.HydrationMl / 1000:0.0} L"),
-            new("rest", Math.Clamp(b.EnergyPct, 0, 1), T(tiers.Rest), $"{b.EnergyPct:P0}"),
+            new("warmth", warmth, Code(tiers.Warmth), $"Body {b.CoreTempF:0.0}°F{(warming ? ", by a fire" : "")}"),
+            new("food", Math.Clamp(b.CaloriesPct, 0, 1), Code(tiers.Food), $"{b.CaloriesKcal:0} kcal in the stomach · fat {b.FatKg:0.0} kg"),
+            new("water", Math.Clamp(b.HydrationPct, 0, 1), Code(tiers.Water), $"{b.HydrationPct:P0} · {b.HydrationMl / 1000:0.0} L"),
+            new("rest", Math.Clamp(b.EnergyPct, 0, 1), Code(tiers.Rest), $"{b.EnergyPct:P0}"),
         ];
     }
 
@@ -335,21 +334,10 @@ sealed class ViewBuilder(World world, int gen)
         var edges = new List<EdgeDto>();
         foreach (var ((a, b), e) in m.Edges)
             if (e is EdgeType.Ravine or EdgeType.Cliff && (Explored(a) || Explored(b)))
-                edges.Add(new EdgeDto(a.X, a.Y, b.X, b.Y, e == EdgeType.Ravine ? "ravine" : "cliff"));
+                edges.Add(new EdgeDto(a.X, a.Y, b.X, b.Y, Code(e)));
         edges.Sort((p, q) => (p.Ay, p.Ax, p.By, p.Bx).CompareTo((q.Ay, q.Ax, q.By, q.Bx)));
 
-        // Routes between known tiles: touching a tile in sight, as they are; otherwise as last seen.
-        var routes = new SortedDictionary<EdgeId, TrailTier>();
-        foreach (var (a, b, tier) in memory.Explored?.Trails() ?? [])
-            if (!inSight.Contains(a) && !inSight.Contains(b)) routes[new EdgeId(a, b)] = tier;
-        foreach (var t in inSight)
-            foreach (var dir in (ReadOnlySpan<Direction>)[Direction.East, Direction.South, Direction.West, Direction.North])
-            {
-                var n = Map.Step(t, dir);
-                if (m.InBounds(n) && Explored(t) && Explored(n) && Tracks.TierOf(world, t, n) is var tier and not TrailTier.None)
-                    routes[new EdgeId(t, n)] = tier;
-            }
-        var trails = routes.Select(r => new TrailDto(r.Key.A.X, r.Key.A.Y, r.Key.B.X, r.Key.B.Y, Code(r.Value))).ToList();
+        var trails = Memories.Trails(world, _player, inSight).Select(t => new TrailDto(t.Edge.A.X, t.Edge.A.Y, t.Edge.B.X, t.Edge.B.Y, Code(t.Tier))).ToList();
         return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
             places, sightings, tracks, named, surface, frozen, edges, trails);
     }
@@ -439,7 +427,7 @@ sealed class ViewBuilder(World world, int gen)
             double rate = Making.WorkPerMinute(world, _player, pack, r);
             if (rate > 0) total = job.Done + (int)Math.Ceiling((r.Minutes - project.MinutesDone) / rate);
         }
-        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Outcome, job.Reason, job.From.X, job.From.Y, job.Dir?.ToString().ToLowerInvariant());
+        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Outcome, job.Reason, job.From.X, job.From.Y, job.Dir is { } dir ? Code(dir) : null);
     }
 
     static string Ago(long minutes) => minutes < 60 ? $"{minutes} min ago" : $"{minutes / 60} h ago";
