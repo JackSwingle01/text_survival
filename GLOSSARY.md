@@ -6,8 +6,8 @@ terms the design and the simulation share.
 ## Needs
 
 **Stat**:
-One of the four things a person must keep up: warmth, water, food, rest. Every person (player or NPC)
-has all four.
+One of the things a body must keep up: warmth, water, food, rest. Every person (player or NPC) has
+all four; an animal has water, food and rest.
 
 **Tier**:
 How urgent a stat is right now: Critical, Need or Want. Tier decides first; within a tier the stats
