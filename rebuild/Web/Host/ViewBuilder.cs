@@ -306,7 +306,8 @@ sealed class ViewBuilder(World world, int gen)
         foreach (var t in visible)
             if (Math.Abs(t.X - _player.Tile.X) <= TrackReadTiles && Math.Abs(t.Y - _player.Tile.Y) <= TrackReadTiles)
                 foreach (var s in Tracks.Read(world, t))
-                    tracks.Add(new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes));
+                    tracks.Add(new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes, Code(s.Heading), Code(s.Pattern),
+                        Math.Round(s.FreshnessPct, 2)));
 
         var named = new List<NamedDto>();
         foreach (var (t, site) in m.Sites) if (Explored(t)) named.Add(new NamedDto(t.X, t.Y, site.Name));
@@ -336,9 +337,25 @@ sealed class ViewBuilder(World world, int gen)
             if (e is EdgeType.Ravine or EdgeType.Cliff && (Explored(a) || Explored(b)))
                 edges.Add(new EdgeDto(a.X, a.Y, b.X, b.Y, e == EdgeType.Ravine ? "ravine" : "cliff"));
         edges.Sort((p, q) => (p.Ay, p.Ax, p.By, p.Bx).CompareTo((q.Ay, q.Ax, q.By, q.Bx)));
+
+        // Routes between known tiles: touching a tile in sight, as they are; otherwise as last seen.
+        var routes = new SortedDictionary<EdgeId, TrailTier>();
+        foreach (var (a, b, tier) in memory.Explored?.Trails() ?? [])
+            if (!inSight.Contains(a) && !inSight.Contains(b)) routes[new EdgeId(a, b)] = tier;
+        foreach (var t in inSight)
+            foreach (var dir in (ReadOnlySpan<Direction>)[Direction.East, Direction.South, Direction.West, Direction.North])
+            {
+                var n = Map.Step(t, dir);
+                if (m.InBounds(n) && Explored(t) && Explored(n) && Tracks.TierOf(world, t, n) is var tier and not TrailTier.None)
+                    routes[new EdgeId(t, n)] = tier;
+            }
+        var trails = routes.Select(r => new TrailDto(r.Key.A.X, r.Key.A.Y, r.Key.B.X, r.Key.B.Y, Code(r.Value))).ToList();
         return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
-            places, sightings, tracks, named, surface, frozen, edges);
+            places, sightings, tracks, named, surface, frozen, edges, trails);
     }
+
+    /// An enum value as the page's renderer names it (terrain-core.js): a code, not a word for the player.
+    public static string Code<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
 
     public static string TrackIcon(TrackMaker m) => m switch
     {

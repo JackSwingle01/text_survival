@@ -431,6 +431,91 @@ public class GameHostTests
         Assert.Equal(seenCm, remembered.SnowCm);
     }
 
+    // ---- routes and prints on the map ----
+
+    static void Wear(World w, TileId a, TileId b, double wear) => w.Trails[new EdgeId(a, b)] = new TrailWear(wear, w.Minute);
+
+    static TileId NeighbourInSight(World w, TileId t)
+    {
+        var inSight = Sight.InView(w, w.Agent(AgentId.Player)).ToHashSet();
+        return new[] { Direction.East, Direction.South, Direction.West, Direction.North }.Select(d => Map.Step(t, d))
+            .First(n => inSight.Contains(n) && Map.Of(w).TerrainAt(n).IsPassable());
+    }
+
+    static (int, int, int, int, string) Route(TileId a, TileId b, string tier)
+    {
+        var e = new EdgeId(a, b);
+        return (e.A.X, e.A.Y, e.B.X, e.B.Y, tier);
+    }
+
+    static List<(int, int, int, int, string)> Routes(ViewDto v) => [.. v.Map.Trails.Select(t => (t.Ax, t.Ay, t.Bx, t.By, t.Tier))];
+
+    /// A route in sight is drawn as it is, even worn on since the last look; out of sight, as last seen,
+    /// after a save and load too. A route never seen is not drawn.
+    [Fact]
+    public void Routes_on_the_map_are_as_they_are_in_sight_and_as_last_seen_out_of_sight()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var p = w.Agent(AgentId.Player);
+        var a = InSightOfPlayer(w);
+        var b = NeighbourInSight(w, a);
+        Wear(w, a, b, Tracks.PathAt + 1);
+        Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes);
+        Wear(w, a, b, Tracks.TrailAt + 1); // after the look
+        Assert.Contains(Route(a, b, "trail"), Routes(Parse(h.View())));
+
+        var m = Map.Of(w);
+        p.Tile = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .First(f => m.TerrainAt(f).IsPassable() && m.SiteAt(f) == null && Math.Abs(f.X - a.X) + Math.Abs(f.Y - a.Y) > 2 * Sight.MaxTiles);
+        p.Crossing = null;
+        Sim.Step(w, new Wait(AgentId.Player), 1);
+        var far = Enumerable.Range(0, m.Width).Select(x => new TileId(x, m.Height - 1)).First(t => !Memories.Of(p).Explored!.Contains(t));
+        Wear(w, far, Map.Step(far, Direction.North), Tracks.TrailAt + 1); // never seen
+
+        var v = Parse(new GameHost().Load(h.Save()));
+        Assert.DoesNotContain(Index(w, a), v.Map.Visible);
+        Assert.Contains(Route(a, b, "path"), Routes(v));
+        Assert.DoesNotContain(v.Map.Trails, t => t.Ax == far.X && t.Ay == far.Y - 1);
+        bool Known(int x, int y) => v.Map.Known[y * v.Map.Width + x] != ViewBuilder.UnknownCode;
+        Assert.All(v.Map.Trails, t =>
+        {
+            Assert.True(Known(t.Ax, t.Ay) && Known(t.Bx, t.By), $"{t} has an end never seen");
+            Assert.Equal(1, Math.Abs(t.Ax - t.Bx) + Math.Abs(t.Ay - t.By));
+        });
+        Assert.Equal(Routes(v).Order(), Routes(v).Distinct().Order());
+    }
+
+    /// Prints in sight carry what the page lays them out by: maker, heading, traffic pattern and freshness.
+    [Fact]
+    public void Prints_carry_their_heading_pattern_and_freshness()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var here = w.Agent(AgentId.Player).Tile;
+        var west = Map.Step(here, Direction.West);
+        Tracks.RecordMove(w, west, here, TrackMaker.Paw, 3);
+        var t = Parse(h.View()).Map.Tracks.Single(t => t.X == here.X && t.Y == here.Y && t.Maker == "paw");
+        Assert.Equal("east", t.Heading);
+        Assert.Equal("heading", t.Pattern);
+        Assert.InRange(t.FreshnessPct, 0.9, 1);
+    }
+
+    /// The renderer (terrain-core.js) knows these codes and throws on any other: every value the Sim can
+    /// send must be one of them.
+    [Fact]
+    public void Every_route_and_print_code_is_one_the_page_draws()
+    {
+        string[] tiers = ["trace", "path", "trail"], headings = ["north", "east", "south", "west"],
+            patterns = ["heading", "northsouth", "eastwest", "mixed"], makers = ["human", "paw", "hoof"];
+        Assert.All(Enum.GetValues<TrailTier>().Where(t => t != TrailTier.None), t => Assert.Contains(ViewBuilder.Code(t), tiers));
+        Assert.All(Enum.GetValues<Direction>(), d => Assert.Contains(ViewBuilder.Code(d), headings));
+        Assert.All(Enum.GetValues<TrafficPattern>(), p => Assert.Contains(ViewBuilder.Code(p), patterns));
+        Assert.All(Enum.GetValues<TrackMaker>(), m => Assert.Contains(Names.Of(m), makers));
+    }
+
     /// The winter scenario opens in mid-January on snow.
     [Fact]
     public void The_winter_scenario_opens_on_snow()
