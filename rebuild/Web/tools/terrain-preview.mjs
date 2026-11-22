@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { createBaker, textureNames, WINTER, WINTER_WORLD, CELL } from '../App/wwwroot/terrain-core.js';
+import { createBaker, textureNames, printPixels, snowyCell, WINTER, WINTER_WORLD, CELL } from '../App/wwwroot/terrain-core.js';
 import { decodePng } from './png.mjs';
 
 const args = process.argv.slice(2);
@@ -37,7 +37,11 @@ const M = JSON.parse(fs.readFileSync(args[0], 'utf8'));
 const state = opt('--state', WINTER), world = opt('--world', WINTER_WORLD);
 const textures = new Map(textureNames(world).map(n => [n, decodePng(path.join(icons, `${n}.png`))]));
 const tex = name => { const t = textures.get(name); if (!t) throw new Error(`missing terrain texture ${name}`); return t; };
-const map = { width: M.W, height: M.H, terrainAt: (x, y) => M.terrain[y][x] };
+// edges: [[ax, ay, bx, by, "ravine" | "cliff"], ...] between 4-adjacent cells, optional;
+// trails: [[ax, ay, bx, by, "trace" | "path" | "trail"], ...] likewise.
+const map = { width: M.W, height: M.H, terrainAt: (x, y) => M.terrain[y][x],
+  edges: (M.edges ?? []).map(([ax, ay, bx, by, type]) => ({ ax, ay, bx, by, type })),
+  trails: (M.trails ?? []).map(([ax, ay, bx, by, tier]) => ({ ax, ay, bx, by, tier })) };
 const byTerrain = Object.values(state).some(v => typeof v === 'object');
 if (byTerrain && !('*' in state)) throw new Error('--state by terrain needs a "*" entry for the rest');
 const stateAt = byTerrain ? (x, y) => state[M.terrain[y][x]] ?? state['*'] : () => state;
@@ -46,6 +50,13 @@ const out = new Uint8Array(M.W * CELL * M.H * CELL * 4);
 const t0 = performance.now();
 for (let cy = 0; cy < M.H; cy++) for (let cx = 0; cx < M.W; cx++) baker.bakeCell(out, 0, 0, M.W, cx, cy);
 baker.bakeSprites(out, 0, 0, M.W, M.H);
+// tracks: [[x, y, maker, heading, pattern, traffic, ageMinutes, freshness], ...], optional, over everything
+// that is ground (the page draws them over its baked chunks the same way).
+for (const [x, y, maker, heading, pattern, traffic, , freshness] of M.tracks ?? [])
+  for (const [mx, my, tint, a] of printPixels({ x, y, maker, heading, pattern, traffic, freshness }, baker, snowyCell(stateAt(x, y)))) {
+    const i = ((y * CELL + my) * M.W * CELL + x * CELL + mx) * 4;
+    for (let c = 0; c < 3; c++) out[i + c] = Math.round(out[i + c] + (tint[c] - out[i + c]) * a);
+  }
 const ms = performance.now() - t0;
 encodePng(args[1], M.W * CELL, M.H * CELL, out);
 console.log(`${args[1]}: ${M.W}x${M.H} cells in ${Math.round(ms)} ms (${(ms / (M.W * M.H)).toFixed(2)} ms per cell)`);

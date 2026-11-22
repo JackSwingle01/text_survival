@@ -59,6 +59,8 @@ const STATES = {
   dead: { scenario: 'dead', steps: [] },
   won: { scenario: 'won', steps: [] },
   winter: { scenario: 'winter', steps: [] },
+  // Winter beside routes worn out of camp and grazing ground, with fresh prints around the player.
+  trails: { scenario: 'trails', steps: [] },
   // Mid-January, walked away from camp and the game saved and loaded: the ground behind, out of
   // sight, is the Sim's memory of it.
   remembered: { scenario: 'winter', steps: ['away', `window.ui.doSave().then(() => true)`, `window.ui.doLoad().then(() => true)`, page.idle, 'remembered', page.key('Escape')] },

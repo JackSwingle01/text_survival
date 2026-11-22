@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createBaker, bakeAlone, around, REACH, GROUND_REACH, wantedArt, resolveArt, ice, snowField, PAINTED, CELL, SRC, VARIANTS, variant } from '../App/wwwroot/terrain-core.js';
+import { createBaker, bakeAlone, around, edgePieces, piecesNear, trailsNear, REACH, GROUND_REACH, wantedArt, resolveArt, ice, snowField, PAINTED, CELL, SRC, VARIANTS, variant, trackMarks, printPixels } from '../App/wwwroot/terrain-core.js';
+import { trailsOf, trailsSignature } from '../App/wwwroot/terrain.js';
 import { cellState, worldState, createGround, GROUND, SEASONS, BARE } from '../App/wwwroot/ground-state.js';
 import { decodePng } from './png.mjs';
 
@@ -458,6 +459,199 @@ test('art that was never painted is an error', () => {
   assert.throws(() => resolveArt('terrain/ground/plain_1_spring'), /no terrain art in palette/);
 });
 
+// ---------------------------------------------------------------- caves, ravines and cliffs
+const hexRgb = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16));
+const CLEFT = hexRgb('#191c20');
+const ROCKS = ['#b6b8b5', '#8a8d8d', '#646a6e', '#454b52', '#2b3037'].map(hexRgb);
+const same = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+const BARE_STATE = { dust: 0, patches: 0, snow: 0, laden: false, mud: 0, water: 0, ice: 'none' };
+
+/** Bakes a small map (rows of terrain names) with edges; returns pixel(x, y) -> [r, g, b]. */
+function bake(rows, edges = [], trails = []) {
+  const H = rows.length, W = rows[0].length;
+  const baker = createBaker({ width: W, height: H, terrainAt: (x, y) => rows[y][x], edges, trails }, () => BARE_STATE, SUMMER_WORLD, tex);
+  const out = new Uint8Array(W * CELL * H * CELL * 4);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) baker.bakeCell(out, 0, 0, W, x, y);
+  baker.bakeSprites(out, 0, 0, W, H);
+  const px = (x, y) => { const i = (y * W * CELL + x) * 4; return [out[i], out[i + 1], out[i + 2]]; };
+  px.classify = baker.classify;
+  px.covered = baker.covered;
+  return px;
+}
+const field = (w, h, t) => Array.from({ length: h }, () => Array(w).fill(t));
+/** Counts pixels in [x0, x1) x [y0, y1) for which `is` holds. */
+function count(px, x0, y0, x1, y1, is) {
+  let n = 0;
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if (is(px(x, y))) n++;
+  return n;
+}
+
+test('a ravine draws a dark cleft along its boundary, and none without the edge', () => {
+  const rows = field(8, 7, 'plain');
+  // A ravine down the boundary between columns 3 and 4, rows 1 to 5.
+  const edges = [1, 2, 3, 4, 5].map(y => ({ ax: 3, ay: y, bx: 4, by: y, type: 'ravine' }));
+  const box = [4 * CELL - 30, 2 * CELL, 4 * CELL + 30, 5 * CELL];
+  const cleft = p => same(p, CLEFT);
+  assert.ok(count(bake(rows, edges), ...box, cleft) > 200, 'the cleft is drawn');
+  assert.equal(count(bake(rows), ...box, cleft), 0, 'no edge, no cleft');
+});
+
+test('a ravine that closes on itself is drawn all the way round', () => {
+  // Regression: corner cutting did not wrap a closed chain, leaving a gap where its walk began.
+  const edges = [];
+  for (let i = 2; i <= 4; i++) edges.push(
+    { ax: i, ay: 1, bx: i, by: 2, type: 'ravine' }, { ax: i, ay: 4, bx: i, by: 5, type: 'ravine' },
+    { ax: 1, ay: i, bx: 2, by: i, type: 'ravine' }, { ax: 4, ay: i, bx: 5, by: i, type: 'ravine' });
+  const px = bake(field(7, 7, 'plain'), edges), cleft = p => same(p, CLEFT);
+  // A ray from the middle of the ringed block out past each corner crosses the ring.
+  for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    let hits = 0;
+    for (let k = 0; k < 2.4 * CELL; k++) {
+      const x = Math.round(3.5 * CELL + dx * k), y = Math.round(3.5 * CELL + dy * k);
+      for (let o = -3; o <= 3; o++) if (cleft(px(x + o, y)) || cleft(px(x, y + o))) { hits++; break; }
+    }
+    assert.ok(hits > 3, `the ring is broken toward corner ${dx},${dy}: ${hits} cleft pixels on the ray`);
+  }
+});
+
+test('a cliff\'s face lies on the lower-right side of its boundary', () => {
+  const rows = field(8, 7, 'plain');
+  const edges = [1, 2, 3, 4, 5].map(y => ({ ax: 3, ay: y, bx: 4, by: y, type: 'cliff' }));
+  const px = bake(rows, edges), rock = p => ROCKS.some(r => same(p, r));
+  let left = 0, right = 0;
+  for (let y = 2 * CELL; y < 5 * CELL; y++) {
+    // Where the face begins on this row: the boundary wanders, so measure from the first rock pixel.
+    let x0 = -1;
+    for (let x = 3 * CELL; x < 5 * CELL && x0 < 0; x++) if (rock(px(x, y))) x0 = x;
+    if (x0 < 0) continue;
+    left += count(px, x0 - 12, y, x0, y + 1, rock);
+    right += count(px, x0, y, x0 + 12, y + 1, rock);
+  }
+  assert.ok(right > 1000 && right > left * 4, `face to the right: ${right} rock pixels right, ${left} left`);
+});
+
+test('a cave cuts a dark passage through the mountain, out of its mouth', () => {
+  const rows = field(9, 7, 'mountain');
+  for (let y = 0; y < 7; y++) rows[y][0] = rows[y][1] = 'plain';
+  for (let x = 3; x < 8; x++) rows[3][x] = 'cavefloor';
+  rows[3][2] = 'caveentrance';
+  const lum = p => p[0] + p[1] + p[2];
+  const solid = bake(field(9, 7, 'mountain').map(r => r.map((t, x) => x < 2 ? 'plain' : t)));
+  const cave = bake(rows);
+  let darker = 0;
+  for (let x = 3; x < 8; x++) {
+    // Mean brightness of the cell's middle: the passage wanders, but it runs through the middle.
+    let a = 0, b = 0, n = 0;
+    for (let y = 3 * CELL + 14; y < 4 * CELL - 14; y++) for (let px = x * CELL + 14; px < (x + 1) * CELL - 14; px++) {
+      a += lum(cave(px, y)); b += lum(solid(px, y)); n++;
+    }
+    if (a / n < b / n * 0.8) darker++;
+  }
+  assert.equal(darker, 5, 'every cave cell is darker than the same rock without a cave');
+  assert.ok(!wantedArt(SUMMER_WORLD).some(n => n.startsWith('cavefloor_tile')), 'the old cave-floor tiles are retired');
+});
+
+// ---------------------------------------------------------------- routes and prints
+/** Pixels of cell (cx, cy) that classify as a route line. */
+const routePixels = (px, cx, cy) => {
+  let n = 0;
+  for (let y = cy * CELL; y < (cy + 1) * CELL; y++) for (let x = cx * CELL; x < (cx + 1) * CELL; x++) if (px.classify(x, y).tr) n++;
+  return n;
+};
+
+test('a route draws a line through the cells it joins, and none without it', () => {
+  const rows = field(8, 5, 'plain');
+  // A path along row 2 from column 1 to column 6.
+  const trails = [1, 2, 3, 4, 5].map(x => ({ ax: x, ay: 2, bx: x + 1, by: 2, tier: 'path' }));
+  const worn = bake(rows, [], trails), bare = bake(rows);
+  for (let x = 2; x <= 5; x++) assert.ok(routePixels(worn, x, 2) > 150, `the path crosses cell ${x}: ${routePixels(worn, x, 2)} pixels`);
+  assert.equal(routePixels(worn, 3, 0), 0, 'nothing two rows away');
+  let changed = 0;
+  for (let y = 2 * CELL; y < 3 * CELL; y++) for (let x = 2 * CELL; x < 6 * CELL; x++) if (!same(worn(x, y), bare(x, y))) changed++;
+  assert.ok(changed > 600, `${changed} pixels changed along the path`);
+  assert.throws(() => bake(rows, [], [{ ax: 1, ay: 1, bx: 2, by: 1, tier: 'road' }]), /no trail tier/);
+  assert.throws(() => bake(rows, [], [{ ax: 1, ay: 1, bx: 3, by: 1, tier: 'path' }]), /not neighbours/);
+});
+
+test('grazing ground, worn on every side, is trampled, not drawn as a grid of lines', () => {
+  const rows = field(9, 9, 'plain'), trails = [];
+  for (let y = 0; y < 9; y++) for (let x = 0; x < 9; x++) {
+    if (x < 8) trails.push({ ax: x, ay: y, bx: x + 1, by: y, tier: 'trail' });
+    if (y < 8) trails.push({ ax: x, ay: y, bx: x, by: y + 1, tier: 'trail' });
+  }
+  const px = bake(rows, [], trails);
+  for (let y = 3; y <= 5; y++) for (let x = 3; x <= 5; x++) assert.equal(routePixels(px, x, y), 0, `no line in cell ${x},${y}`);
+  assert.ok(px.classify(4 * CELL + 20, 4 * CELL + 20).churn > 0.9, 'the middle is trampled');
+});
+
+test('prints run along their heading, and an unknown maker, heading or pattern is an error', () => {
+  const spread = marks => {
+    const xs = marks.map(m => m[0]), ys = marks.map(m => m[1]);
+    return [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+  };
+  const track = { x: 3, y: 4, maker: 'human', pattern: 'heading', traffic: 1, freshness: 1 };
+  const [ex, ey] = spread(trackMarks({ ...track, heading: 'east' })), [nx, ny] = spread(trackMarks({ ...track, heading: 'north' }));
+  assert.ok(ex > 2 * ey, `east: ${ex} across, ${ey} down`);
+  assert.ok(ny > 2 * nx, `north: ${nx} across, ${ny} down`);
+  assert.throws(() => trackMarks({ ...track, heading: 'up' }), /no heading/);
+  assert.throws(() => trackMarks({ ...track, heading: 'east', maker: 'hand' }), /no prints for maker/);
+  assert.throws(() => trackMarks({ ...track, heading: 'east', pattern: 'loop' }), /no traffic pattern/);
+});
+
+test('prints are pressed only into ground, darker into snow than onto earth\'s colour alone', () => {
+  // Water fills the east half of cell 3: a print line heading east runs into it.
+  const rows = field(6, 5, 'plain');
+  rows[2][4] = rows[2][5] = 'water';
+  const px = bake(rows);
+  const track = { x: 3, y: 2, maker: 'paw', heading: 'east', pattern: 'heading', traffic: 3, freshness: 1 };
+  const onSnow = printPixels(track, px, true), onEarth = printPixels(track, px, false);
+  assert.ok(onSnow.length > 20, `${onSnow.length} print pixels`);
+  for (const [dx, dy] of onSnow) assert.ok(!px.classify(3 * CELL + dx, 2 * CELL + dy).water, `a print on water at ${dx},${dy}`);
+  const tint = marks => new Set(marks.map(m => m[2].join()));
+  assert.notDeepEqual(tint(onSnow), tint(onEarth));
+});
+
+test('a cell rebakes when a trail it can reach changes, and not for one beyond its reach', () => {
+  const W = 40, H = 12;
+  const sig = trails => trailsSignature(trailsOf({ width: W, trails }), W, H, 5, 4);
+  const near = [{ ax: 8, ay: 4, bx: 9, by: 4, tier: 'path' }], far = [{ ax: 9, ay: 4, bx: 10, by: 4, tier: 'path' }];
+  assert.notEqual(sig(near), sig([]), 'a trail ending three cells off changes it');
+  assert.notEqual(sig(near), sig([{ ...near[0], tier: 'trail' }]), 'so does its tier');
+  assert.equal(sig(far), sig([]), 'a trail four cells off does not');
+});
+
+test('a cell baked on its own with the trails in its reach is the cell of the whole map with its trails', () => {
+  const p = patchwork(), trails = [];
+  // A path wandering across, and a grazing patch worn on every side.
+  for (let x = 1; x < 17; x++) trails.push({ ax: x, ay: 6 + (x > 8 ? 1 : 0), bx: x + 1, by: 6 + (x > 8 ? 1 : 0), tier: x < 5 ? 'trail' : 'path' });
+  trails.push({ ax: 9, ay: 6, bx: 9, by: 7, tier: 'path' });
+  for (let y = 9; y <= 12; y++) for (let x = 3; x <= 7; x++) {
+    trails.push({ ax: x, ay: y, bx: x + 1, by: y, tier: 'trail' });
+    if (y < 12) trails.push({ ax: x, ay: y, bx: x, by: y + 1, tier: 'trail' });
+  }
+  const whole = new Uint8ClampedArray(p.W * CELL * p.H * CELL * 4);
+  const baker = createBaker({ width: p.W, height: p.H, terrainAt: p.terrainAt, trails }, p.stateAt, WINTER_WORLD, n => tex(n));
+  for (let cy = 0; cy < p.H; cy++) for (let cx = 0; cx < p.W; cx++) baker.bakeCell(whole, 0, 0, p.W, cx, cy);
+  baker.bakeSprites(whole, 0, 0, p.W, p.H);
+  for (let cy = 0; cy < p.H; cy++) for (let cx = 0; cx < p.W; cx++) {
+    const one = bakeAlone({ width: p.W, height: p.H, cx, cy, world: WINTER_WORLD, terrain: around(p.W, p.H, cx, cy, p.terrainAt),
+      states: around(p.W, p.H, cx, cy, p.stateAt), trails: trailsNear(trails, cx, cy) }, n => tex(n));
+    assert.ok(Buffer.from(one).equals(Buffer.from(cellOf(whole, p.W, cx, cy))), `cell (${cx}, ${cy})`);
+  }
+});
+
+test('prints in a forest show between the trees, never on them', () => {
+  const rows = field(5, 5, 'forest'), px = bake(rows), bare = bake(field(5, 5, 'clearing'));
+  const track = { x: 2, y: 2, maker: 'human', heading: 'east', pattern: 'mixed', traffic: 6, freshness: 1 };
+  const all = printPixels(track, bare, true), shown = printPixels(track, px, true);
+  assert.ok(shown.length > 0 && shown.length < all.length, `${shown.length} of ${all.length} print pixels show among the trees`);
+  let onTree = 0, trees = 0;
+  for (let y = 2 * CELL; y < 3 * CELL; y++) for (let x = 2 * CELL; x < 3 * CELL; x++) if (px.covered(x, y)) trees++;
+  for (const [dx, dy] of shown) if (px.covered(2 * CELL + dx, 2 * CELL + dy)) onTree++;
+  assert.ok(trees > 300, `${trees} tree pixels in the cell`);
+  assert.equal(onTree, 0);
+});
+
 /**
  * A crop of the fixture with its left map edge, lakes, river, marsh and mountains, ground varying cell
  * to cell, and a ragged unknown edge, so every way a cell reads its neighbours is exercised.
@@ -488,6 +682,25 @@ test('a cell baked on its own is pixel for pixel the cell of the whole map baked
     baker.bakeSprites(whole, 0, 0, p.W, p.H);
     for (let cy = 0; cy < p.H; cy++) for (let cx = 0; cx < p.W; cx++)
       assert.ok(Buffer.from(alone(p, cx, cy, world)).equals(Buffer.from(cellOf(whole, p.W, cx, cy))), `cell (${cx}, ${cy}) in ${world.palette}`);
+  }
+});
+
+test('a cell baked on its own with the edge pieces in its reach is the cell of the whole map with its ravines and cliffs', () => {
+  const p = patchwork(), edges = [];
+  // A ravine down column 6's east side, a ring of cliff round cells 11..12, an open cliff along row 3.
+  for (let y = 2; y < 12; y++) edges.push({ ax: 6, ay: y, bx: 7, by: y, type: 'ravine' });
+  for (const i of [11, 12]) edges.push({ ax: i, ay: 8, bx: i, by: 9, type: 'cliff' }, { ax: i, ay: 10, bx: i, by: 11, type: 'cliff' },
+    { ax: 10, ay: i - 2, bx: 11, by: i - 2, type: 'cliff' }, { ax: 12, ay: i - 2, bx: 13, by: i - 2, type: 'cliff' });
+  for (let x = 1; x < 5; x++) edges.push({ ax: x, ay: 3, bx: x, by: 4, type: 'cliff' });
+  const pieces = edgePieces(edges);
+  const whole = new Uint8ClampedArray(p.W * CELL * p.H * CELL * 4);
+  const baker = createBaker({ width: p.W, height: p.H, terrainAt: p.terrainAt, edges }, p.stateAt, WINTER_WORLD, n => tex(n));
+  for (let cy = 0; cy < p.H; cy++) for (let cx = 0; cx < p.W; cx++) baker.bakeCell(whole, 0, 0, p.W, cx, cy);
+  baker.bakeSprites(whole, 0, 0, p.W, p.H);
+  for (let cy = 0; cy < p.H; cy++) for (let cx = 0; cx < p.W; cx++) {
+    const one = bakeAlone({ width: p.W, height: p.H, cx, cy, world: WINTER_WORLD, terrain: around(p.W, p.H, cx, cy, p.terrainAt),
+      states: around(p.W, p.H, cx, cy, p.stateAt), pieces: piecesNear(pieces, cx, cy) }, n => tex(n));
+    assert.ok(Buffer.from(one).equals(Buffer.from(cellOf(whole, p.W, cx, cy))), `cell (${cx}, ${cy})`);
   }
 });
 

@@ -45,7 +45,7 @@ sealed class ViewBuilder(World world, int gen)
         {
             var menu = t.Menu.Select(Dto).ToList();
             string? action = t.Action is { } a ? menu[IndexIn(t.Menu, a)].Id : null;
-            return new LocationFeatureDto(t.LocationFeature.Kind.ToString().ToLowerInvariant(), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
+            return new LocationFeatureDto(Code(t.LocationFeature.Kind), t.Name, [.. t.Conditions.Select(c => new ConditionDto(c.Name, c.Blocking))], action, t.Interact, menu);
         }).ToList();
         var walk = here.Walk.Select(Dto).ToList();
         var tile = here.Tile.Select(Dto).ToList();
@@ -70,7 +70,7 @@ sealed class ViewBuilder(World world, int gen)
             Job: job is null ? null : JobOf(job),
             Receipt: receipt,
             Log: [.. log.TakeLast(40)],
-            Outcome: outcome.ToString().ToLowerInvariant(),
+            Outcome: Code(outcome),
             DeathCause: outcome == RunOutcome.Died ? body.DeathCause?.What : null);
     }
 
@@ -92,7 +92,7 @@ sealed class ViewBuilder(World world, int gen)
             Odds: v.Odds is { } o ? OddsOf(o) : null,
             Trip: v.Trip is { } trip && travel != null ? TripOf(trip, travel, v.Risk) : null,
             Make: v.Activity is Make mk ? MakeOf(mk, v.Outcomes) : null,
-            Dir: travel?.Dir.ToString().ToLowerInvariant(),
+            Dir: travel is null ? null : Code(travel.Dir),
             Careful: travel?.Pace == Pace.Careful,
             Uses: v.Activity switch
             {
@@ -181,16 +181,15 @@ sealed class ViewBuilder(World world, int gen)
 
     static VitalDto[] Vitals(BodyState b, StatTiers tiers, Exposure e)
     {
-        string T(Tier t) => t.ToString().ToLowerInvariant();
         // Warmth's bar spans the core from the hypothermia line's far side (90F) to normal.
         double warmth = Math.Clamp((b.CoreTempF - 90.0) / (Body.BaseCoreTempF - 90.0), 0, 1);
         bool warming = e.Warmth.PitHeatF + e.Warmth.AirHeatF > 1;
         return
         [
-            new("warmth", warmth, T(tiers.Warmth), $"Body {b.CoreTempF:0.0}°F{(warming ? ", by a fire" : "")}"),
-            new("food", Math.Clamp(b.CaloriesPct, 0, 1), T(tiers.Food), $"{b.CaloriesKcal:0} kcal in the stomach · fat {b.FatKg:0.0} kg"),
-            new("water", Math.Clamp(b.HydrationPct, 0, 1), T(tiers.Water), $"{b.HydrationPct:P0} · {b.HydrationMl / 1000:0.0} L"),
-            new("rest", Math.Clamp(b.EnergyPct, 0, 1), T(tiers.Rest), $"{b.EnergyPct:P0}"),
+            new("warmth", warmth, Code(tiers.Warmth), $"Body {b.CoreTempF:0.0}°F{(warming ? ", by a fire" : "")}"),
+            new("food", Math.Clamp(b.CaloriesPct, 0, 1), Code(tiers.Food), $"{b.CaloriesKcal:0} kcal in the stomach · fat {b.FatKg:0.0} kg"),
+            new("water", Math.Clamp(b.HydrationPct, 0, 1), Code(tiers.Water), $"{b.HydrationPct:P0} · {b.HydrationMl / 1000:0.0} L"),
+            new("rest", Math.Clamp(b.EnergyPct, 0, 1), Code(tiers.Rest), $"{b.EnergyPct:P0}"),
         ];
     }
 
@@ -309,7 +308,8 @@ sealed class ViewBuilder(World world, int gen)
         foreach (var t in visible)
             if (Math.Abs(t.X - _player.Tile.X) <= TrackReadTiles && Math.Abs(t.Y - _player.Tile.Y) <= TrackReadTiles)
                 foreach (var s in Tracks.Read(world, t))
-                    tracks.Add(new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes));
+                    tracks.Add(new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes, s.Traffic, Code(s.Heading), Code(s.Pattern),
+                        Math.Round(s.FreshnessPct, 2)));
 
         var named = new List<NamedDto>();
         foreach (var (t, site) in m.Sites) if (Explored(t)) named.Add(new NamedDto(t.X, t.Y, site.Name));
@@ -334,9 +334,19 @@ sealed class ViewBuilder(World world, int gen)
                 double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
                 if (snowCm > 0 || waterCm > 0 || mud > 0) surface.Add(new SurfaceDto(y * m.Width + x, snowCm, g.Crusted, mud, waterCm, g.Iced));
             }
+        var edges = new List<EdgeDto>();
+        foreach (var ((a, b), e) in m.Edges)
+            if (e is EdgeType.Ravine or EdgeType.Cliff && (Explored(a) || Explored(b)))
+                edges.Add(new EdgeDto(a.X, a.Y, b.X, b.Y, Code(e)));
+        edges.Sort((p, q) => (p.Ay, p.Ax, p.By, p.Bx).CompareTo((q.Ay, q.Ax, q.By, q.Bx)));
+
+        var trails = Memories.Trails(world, _player, inSight).Select(t => new TrailDto(t.Edge.A.X, t.Edge.A.Y, t.Edge.B.X, t.Edge.B.Y, Code(t.Tier))).ToList();
         return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
-            places, sightings, tracks, named, surface, frozen);
+            places, sightings, tracks, named, surface, frozen, edges, trails);
     }
+
+    /// An enum value as the page's renderer names it (terrain-core.js): a code, not a word for the player.
+    public static string Code<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
 
     public static string TrackIcon(TrackMaker m) => m switch
     {
@@ -423,7 +433,7 @@ sealed class ViewBuilder(World world, int gen)
             var foci = Pools.Foci(def).Select(x => new FocusDto(Names.Of(x.Focus), x.Hint,
                 VerbOf(a => a is Gather g && g.Focus == x.Focus))).ToList();
             var offered = Pools.Foci(def).Select(x => x.Focus).ToHashSet();
-            var clues = Clues.At(world, AgentId.Player).Select(c => new ClueDto(c.Def.Text, c.Def.Kind.ToString().ToLowerInvariant(),
+            var clues = Clues.At(world, AgentId.Player).Select(c => new ClueDto(c.Def.Text, Code(c.Def.Kind),
                 Clues.Suggests(c.Def) is ForageFocus s && offered.Contains(s) ? Names.Of(s) : null)).ToList();
             bool foraged = Memories.Of(_player).Places.GetValueOrDefault(id.Tile)?.Foraged == true;
             return new ForageDto(foraged ? Pools.QualityWord(Pools.ForageDensity(world, id)) : null, Pools.SearchEffort(world, AgentId.Player, id.Tile),
@@ -446,11 +456,11 @@ sealed class ViewBuilder(World world, int gen)
         var session = job.Session;
         var finds = session?.LuckFactor > 0
             ? session.Finds.GroupBy(x => x.Resource).OrderBy(g => g.Min(x => x.Minute))
-                .Select(g => new FindDto(g.Key.ToString(), Names.Of(g.Key), Items.Resources[g.Key].Category.ToString().ToLowerInvariant(), g.Count(), Math.Round(g.Sum(x => x.Kg), 2))).ToList()
+                .Select(g => new FindDto(g.Key.ToString(), Names.Of(g.Key), Code(Items.Resources[g.Key].Category), g.Count(), Math.Round(g.Sum(x => x.Kg), 2))).ToList()
             : null;
-        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Outcome, job.Reason, job.From.X, job.From.Y, job.Dir?.ToString().ToLowerInvariant(),
+        return new JobDto(job.Label, job.Kind, job.Done, total, job.Finished, job.Outcome, job.Reason, job.From.X, job.From.Y, job.Dir is { } dir ? Code(dir) : null,
             finds, finds == null ? null : Math.Round(session!.Finds.Sum(x => x.Kg), 2), session == null ? null : Work.Mood(session),
-            finds == null ? null : Pools.TierOf(session!.LuckFactor).ToString().ToLowerInvariant());
+            finds == null ? null : Code(Pools.TierOf(session!.LuckFactor)));
     }
 
     static string Ago(long minutes) => minutes < 60 ? $"{minutes} min ago" : $"{minutes / 60} h ago";
