@@ -1,5 +1,6 @@
 name: Claude Review
-# Reviews each PR when it opens (or leaves draft). Add the `review` label to review again after a push.
+# Reviews each PR when it opens (or leaves draft). Add the `review` label to review again after a push;
+# the label is removed when the review finishes.
 # Dependabot PRs are skipped: workflows they trigger get no repository secrets.
 on:
   pull_request:
@@ -26,3 +27,10 @@ jobs:
           plugins: "code-review@claude-plugins-official"
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
           claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+      # The label is a button: clear it when the run finishes so adding it again re-reviews.
+      - name: Remove review label
+        if: always() && github.event.action == 'labeled'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh api -X DELETE "repos/${GITHUB_REPOSITORY}/issues/${PR}/labels/review"
