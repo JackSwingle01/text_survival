@@ -1,0 +1,32 @@
+/* Observer mode (observe.html): a development page on the game's tokens (style.css). */
+body.obs { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+.obs-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; background: var(--ink-2); border-bottom: 2px solid var(--seam); font-size: 16px; }
+.obs-bar input, .obs-bar select { font: inherit; color: var(--bone); background: var(--ink-3); border: 1px solid var(--seam); padding: 2px 6px; }
+.obs-bar input[type=number] { width: 80px; }
+.obs-sep { width: 1px; align-self: stretch; background: var(--seam); }
+.obs-btn { background: var(--ink-3); border: 1px solid var(--seam); border-bottom-width: 2px; padding: 3px 10px; cursor: pointer; }
+.obs-btn:hover { border-color: var(--bone-3); }
+.obs-btn.on { background: var(--ember); color: var(--ink); border-color: var(--ember); }
+#spawns { display: inline-flex; gap: 6px; }
+.obs-main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; min-height: 0; }
+.obs-map { position: relative; min-width: 0; overflow: hidden; }
+.obs-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+.obs-map canvas.dragging { cursor: grabbing; }
+.obs-map canvas.spawning { cursor: crosshair; }
+.obs-hint { position: absolute; left: 10px; bottom: 8px; font-size: 14px; pointer-events: none; text-shadow: 0 1px 2px #000; }
+.obs-toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); padding: 6px 14px; }
+.obs-loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--night); }
+.obs-loading .plate { padding: 14px 20px; }
+.obs-side { display: flex; flex-direction: column; gap: 12px; padding: 12px; overflow: hidden; min-height: 0; border-width: 0 0 0 2px; clip-path: none; }
+#inspector { overflow-y: auto; max-height: 55%; font-size: 16px; }
+#inspector h3 { margin: 0 0 4px; font: 500 18px/1.2 var(--f-pixel); }
+#inspector ul { margin: 4px 0 8px; padding-left: 18px; }
+#inspector .actor { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--seam); }
+.obs-log-sec { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.obs-log { list-style: none; margin: 6px 0 0; padding: 0; overflow-y: auto; font-size: 15px; display: flex; flex-direction: column-reverse; }
+.obs-log li { padding: 2px 0; cursor: pointer; }
+.obs-log li:hover { color: var(--ochre); }
+.obs-log .t { color: var(--bone-3); margin-right: 6px; }
+.obs-log .bad { color: var(--minus); }
+.obs-log .good { color: var(--lichen); }
+@media (max-width: 760px) { .obs-main { grid-template-columns: 1fr; grid-template-rows: 1fr 40%; } .obs-side { border-width: 2px 0 0; } }

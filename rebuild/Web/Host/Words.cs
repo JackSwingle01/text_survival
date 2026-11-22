@@ -4,6 +4,9 @@ namespace Survival.Web;
 /// words themselves are Sim's (Names for names, Narration for what happens), shared with the CLI.
 static class Words
 {
+    /// An enum value as the page's renderer names it (terrain-core.js): a code, not a word for the player.
+    public static string Code<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
+
     /// The fight view's labels: "Throw stone". With Of, below, until its names join Names.
     public static string Cap(string s) => Names.Cap(s);
 

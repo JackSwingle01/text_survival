@@ -6,25 +6,39 @@ terms the design and the simulation share.
 ## Needs
 
 **Stat**:
-One of the four things a person must keep up: warmth, water, food, rest. Every person (player or NPC)
-has all four.
+One of the things a body must keep up: warmth, water, food, rest. Every person (player or NPC) has
+all four; an animal has water, food and rest.
 
-**Tier**:
-How urgent a stat is right now: Critical, Need or Want. Tier decides first; within a tier the stats
-rank warmth, then water, then rest, then food.
-_Avoid_: level, priority, urgency score
+**Priority**:
+How urgent a stat is right now: Critical, Need or Want. Priority decides first; within a priority the
+stats rank warmth, then water, then rest, then food. An agent acts on its top-ranked stat.
+_Avoid_: tier, level, urgency score
 
 **Critical**:
-The tier where a stat means imminent death: drop whatever you are doing.
+The priority where a stat means imminent death: drop whatever you are doing.
 _Avoid_: urgent, emergency
 
 **Need**:
-The tier for what it takes to survive the day, or to bring a stat back up to its baseline.
+The priority for what it takes to survive the day, or to bring a stat back up to its baseline.
 _Avoid_: wanted, required
 
 **Want**:
-The tier for anything beyond the day's survival: stockpiling, a surplus, comfort.
+The priority for anything beyond the day's survival: stockpiling, a surplus, comfort.
 _Avoid_: optional, luxury
+
+**Source**:
+A place where a stat can be met right now, with what it offers there: grazing, open water, snow, a
+den, a carcass, a stash.
+_Avoid_: offer, patch, spot
+
+**Route**:
+The way an agent will walk to a source: the tiles in order, with the minutes and calories it costs.
+_Avoid_: path, trip
+
+**Plan**:
+What an agent has decided to do about its top-ranked stat: a source, the route there and the work it
+expects there, kept until something interrupts it.
+_Avoid_: goal, errand, task
 
 ## Things in the world
 
@@ -181,13 +195,18 @@ everything else stays as it is now; the same for the player and every other pers
 _Avoid_: prediction, simulation, estimate
 
 **Agent**:
-Anything that decides and moves in the world as one: a person, or a herd.
+Anything that decides and moves in the world on its own: a person or an animal.
 _Avoid_: actor, entity, unit
 
 **Herd**:
-Animals of one species that move and decide as one, from a lone bear to a hundred caribou. Pack is
-an alias for a herd of predators.
+The animals of one species on one tile, from a lone bear to a hundred caribou: what they make
+together, not a thing of its own. A pack is a herd of predators familiar with each other.
 _Avoid_: group, flock
+
+**Cohesion**:
+How strongly an animal sticks with its group, from a bear's none to a caribou's strong pull: going
+somewhere its kin aren't costs it more, and under attack it holds with them.
+_Avoid_: herding instinct, sociality
 
 **Camp**:
 A place a person has set up to live from for now, with a fire, a stash or a shelter. Camps are
@@ -198,6 +217,17 @@ _Avoid_: home, base
 What a person has seen and remembers of the world: their map, the ground as last seen, stashes,
 fires, dangers. It can be out of date or wrong.
 _Avoid_: beliefs, knowledge, explored
+
+**Familiarity**:
+How well one agent knows another particular agent: it grows with time spent together, fades apart,
+and falls when one attacks the other. A wolf pack is the wolves familiar with each other.
+_Avoid_: relationship, opinion, bond
+
+**Observer mode**:
+A development view of a world with no player in it: the whole map as it truly is, not anyone's
+Memory, with time run at a chosen rate and people, animals or things placed by hand to watch what
+the world does.
+_Avoid_: debug mode, god mode, spectator, fog-of-war off
 
 ## Bodies
 

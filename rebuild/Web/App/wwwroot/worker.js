@@ -16,6 +16,13 @@ const ops = {
   save: G => G.Save(),
   load: (G, bytes) => JSON.parse(G.Load(bytes)),
   scenario: (G, name) => JSON.parse(G.Scenario(name)),
+  // Development only: Observer mode (observe.html).
+  observeNew: (G, seed) => JSON.parse(G.ObserveNew(seed)),
+  observeView: G => JSON.parse(G.ObserveView()),
+  observeMap: G => JSON.parse(G.ObserveMap()),
+  observeAdvance: (G, minutes) => JSON.parse(G.ObserveAdvance(minutes)),
+  observeSpawn: (G, { kind, x, y }) => JSON.parse(G.ObserveSpawn(kind, x, y)),
+  observeInspect: (G, { x, y }) => JSON.parse(G.ObserveInspect(x, y)),
 };
 
 self.onmessage = async ({ data: { id, op, arg } }) => {

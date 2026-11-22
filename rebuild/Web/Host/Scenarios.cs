@@ -96,7 +96,7 @@ public static class Scenarios
                     // caribou crossing every way.
                     Sim.Step(w, new Wait(AgentId.Player), 1);
                     var open = Sight.InView(w, p)
-                        .Where(t => t != c && Math.Max(Math.Abs(t.X - c.X), Math.Abs(t.Y - c.Y)) <= ViewBuilder.TrackReadTiles
+                        .Where(t => t != c && Math.Max(Math.Abs(t.X - c.X), Math.Abs(t.Y - c.Y)) <= MapView.TrackReadTiles
                             && m.TerrainAt(t).IsPassable() && m.TerrainAt(t) is not (Terrain.Water or Terrain.DeepWater))
                         .OrderBy(t => m.TerrainAt(t) == Terrain.Forest).ThenBy(t => Math.Abs(t.X - c.X) + Math.Abs(t.Y - c.Y)).ThenBy(t => t)
                         .Take(3).ToList();

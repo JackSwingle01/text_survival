@@ -174,6 +174,15 @@ public static class Fire
         return flames;
     }
 
+    /// Every pit in the world brought up to the clock. A pit lives only when someone near it catches it
+    /// up (CatchUpAround, CatchUpOn); a world watched with nobody in it (Observer mode) needs them all
+    /// current to show them. Path-independent, like every catch-up: it changes no outcome.
+    public static void CatchUpAll(World world, List<WorldEvent> events)
+    {
+        foreach (var (id, f) in world.Fires.ToList())
+            if (f.CarriedBy == null) CatchUp(world, id, events); // a torch goes with its carrier
+    }
+
     /// FlamesOn requires this first.
     public static void CatchUpOn(World world, TileId tile, List<WorldEvent> events)
     {

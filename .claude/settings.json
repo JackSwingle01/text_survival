@@ -1,5 +1,16 @@
 {
   "permissions": {
     "defaultMode": "acceptEdits"
+  },
+  "extraKnownMarketplaces": {
+    "jackswingle01": {
+      "source": {
+        "source": "github",
+        "repo": "JackSwingle01/skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "mp@jackswingle01": true
   }
 }

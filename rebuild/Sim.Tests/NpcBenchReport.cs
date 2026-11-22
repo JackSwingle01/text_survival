@@ -4,14 +4,15 @@ using Xunit.Abstractions;
 /// The NPC bench: a lone NPC at the start camp of each seed, lived on its own mind. It reports and never gates:
 /// how long each lived, what killed it, and the decisions worth a look. Fixed seeds plus fresh random ones each
 /// run, so nothing is fitted to particular seeds. NPC_BENCH_SEEDS (comma list) and NPC_BENCH_DAYS override the
-/// run; NPC_BENCH_OUT appends the lines to a file, so seeds can be split across processes.
+/// run; NPC_BENCH_OUT appends the lines to a file, so seeds can be split across processes. It runs only with
+/// NPC_BENCH set: NPC_BENCH=1 dotnet test rebuild/Sim.Tests -c Release --filter NpcBenchReport
 public class NpcBenchReport(ITestOutputHelper output)
 {
     static readonly int[] FixedSeeds = [1, 3, 5, 7, 11, 17, 42, 777, 2024];
     const int RandomSeeds = 6, DefaultDays = 30;
 
     [Trait("Category", TestCategories.Slow)]
-    [Fact]
+    [ReportFact("NPC_BENCH")]
     public void Bench()
     {
         var env = Environment.GetEnvironmentVariable("NPC_BENCH_SEEDS");

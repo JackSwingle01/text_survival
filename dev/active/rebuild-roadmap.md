@@ -103,6 +103,10 @@ Each waits until the restores before it are done.
      it stands).
    - **Herds rank their needs** on a simple version of the tier ladder. Herd-only behaviour stays in
      the herd mind: fleeing, hunting together, pack cohesion, defending a kill.
+   - *Superseded by the grilling of 2026-11-22:* animals are individuals and herds are derived, and
+     there is no herd mind or fixed territory. See `documentation/specs/2026-11-22-animal-life.md`
+     and the decision records "Animals are individuals; a herd is derived" and "Animals read the slow
+     world true and sense what moves".
    - **Sleep follows the species' activity pattern** (diurnal, nocturnal or crepuscular; see
      "Activity patterns" under "Decided in the 2026-11-21 grilling"), at the den if there is one,
      otherwise where the herd stands.

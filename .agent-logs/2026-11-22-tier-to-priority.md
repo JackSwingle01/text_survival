@@ -34,3 +34,8 @@ merges second resolves a one-line conflict.
 Follow-up: the container had no .NET SDK and `dot.net` is blocked; Ubuntu's `dotnet-sdk-10.0` is
 10.0.115, below `global.json`'s 10.0.400 pin, so tests ran from a directory outside the repo to
 skip the pin. CI uses the pinned SDK.
+
+Revised (merge of main): #77 and the observer mode (#64) landed first. The "Agent behaviour" and
+"UI view or field" rows of `clean-room-architecture.md` take main's text with the rename applied;
+`ViewBuilder.Vitals` takes main's `Words.Code` with `priorities`; the new `Host/Observer.cs` reads
+`Priorities.Of`. `GLOSSARY.md` and the decision record now say Priority on main, from #77.
