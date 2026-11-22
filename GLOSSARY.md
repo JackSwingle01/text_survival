@@ -223,6 +223,12 @@ How well one agent knows another particular agent: it grows with time spent toge
 and falls when one attacks the other. A wolf pack is the wolves familiar with each other.
 _Avoid_: relationship, opinion, bond
 
+**Observer mode**:
+A development view of a world with no player in it: the whole map as it truly is, not anyone's
+Memory, with time run at a chosen rate and people, animals or things placed by hand to watch what
+the world does.
+_Avoid_: debug mode, god mode, spectator, fog-of-war off
+
 ## Bodies
 
 **Damage**:

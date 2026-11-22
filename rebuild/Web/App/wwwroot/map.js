@@ -68,8 +68,6 @@ export function createMap(canvas, state, { onHover, onClick }) {
     // ground: only what is known is drawn at all
     ground.see(m);
     terrain.draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera: cam, ground, world: worldState(v.clock) });
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++)
-      if (m.known[y * W + x] === 'e') { const [px, py] = at(x, y); sprite('cave_entrance', px + TS / 8, py + TS / 8, TS * 0.75); }
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const [px, py] = at(x, y);
       if (!known(x, y)) { ctx.fillStyle = 'rgba(13,18,22,.96)'; ctx.fillRect(px, py, TS, TS); }
@@ -96,11 +94,8 @@ export function createMap(canvas, state, { onHover, onClick }) {
 
     const sp = 32; // 16 px art at an exact 2x on 48 px cells
     const onScreen = (x, y) => x >= x0 - 1 && x <= x1 + 1 && y >= y0 - 1 && y <= y1 + 1;
-    for (const t of m.tracks) {
-      if (!onScreen(t.x, t.y)) continue;
-      const [px, py] = at(t.x, t.y), off = t.maker === 'human' ? -8 : t.maker === 'paw' ? 6 : 0;
-      sprite(`tracks/${t.maker === 'human' ? 'boot' : t.maker}`, px + TS / 2 - 12 + off, py + TS / 2 - 12 + off, 24, t.ageMinutes > 720 ? 0.45 : 0.8);
-    }
+    // prints, pressed into the ground they lie on
+    terrain.drawPrints(ctx, { m, ox, oy, x0: x0 - 1, y0: y0 - 1, x1: x1 + 1, y1: y1 + 1, ground });
     // the camp: always known
     { const [px, py] = at(m.campX, m.campY); if (onScreen(m.campX, m.campY)) sprite('shelter', px + 2, py + 2, sp * 0.8, inSight(m.campX, m.campY) ? 1 : 0.6); }
     for (const p of m.places) {
@@ -169,6 +164,6 @@ export function createMap(canvas, state, { onHover, onClick }) {
   return {
     known: (x, y) => { const m = state().view.map; return m.known.charCodeAt(y * m.width + x) !== 46; },
     inSight: (x, y) => visible.has(y * state().view.map.width + x),
-    terrainName: code => TERRAIN[code],
+    terrainName: code => ({ c: 'cave', e: 'cave mouth' })[code] ?? TERRAIN[code],
   };
 }

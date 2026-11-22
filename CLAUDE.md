@@ -20,7 +20,10 @@ For the clean-room rebuild (`rebuild/`):
 - Each red-green cycle: only the test class or file in hand,
   `dotnet test rebuild/Sim.Tests --filter "FullyQualifiedName~<ClassName>"`. Before each commit: the fast
   suite, `--filter "Category!=Slow"` (about 35 s). Before handback or PR: the full
-  `dotnet test rebuild/Sim.Tests`. Stryker and long sims run in CI (`.github/workflows/mutation.yml`).
+  `dotnet test rebuild/Sim.Tests`. PR CI runs only the fast suite. The Slow tests and the random property
+  search run nightly (`.github/workflows/nightly.yml`; `gh workflow run nightly.yml --ref <branch>` runs
+  them on a branch), and Stryker at most daily (`.github/workflows/mutation.yml`).
+- `NpcBenchReport` reports and never gates; it runs only with `NPC_BENCH=1`.
 - Agents choosing which checks to run or add use the `mp:verification` skill.
 - Tag any new test that takes 5 s or more with `[Trait("Category", TestCategories.Slow)]`.
 - Run long simulations, sweeps and probes in Release (`-c Release`), and split independent seeds
@@ -31,6 +34,10 @@ For the clean-room rebuild (`rebuild/`):
   polling. A poll that greps for its own pattern (`pgrep -f "X"` from a shell whose command line
   contains "X") never ends, and leftover pollers outlive the agent that started them.
 - For long-running agent work (e.g. overnight), schedule an hourly check for stalled agents and leftover processes.
+- When something needs the user to review, verify or validate it (a page, a UI change, a run they
+  should watch), don't stop at instructions: build it, start it for them (e.g. publish and serve the
+  web app in the background), and hand over a working link plus short numbered steps to test.
+
 ## Domain Language and Decisions
 
 - `GLOSSARY.md` defines the project's terms (stat tiers, effects, conditions, contest...). Use them.
@@ -49,4 +56,5 @@ For the clean-room rebuild (`rebuild/`):
 - Porting the old game: follow `dev/active/porting.md`.
 - Each ticket's agent keeps a work log (the `mp:work-log` skill's format) in `.agent-logs/`,
   one file per task named `YYYY-MM-DD-short-name.md`, committed with its PR. See
-  `.agent-logs/README.md`.
+  `.agent-logs/README.md`. Never add `.agent-logs/` to `.gitignore` or `.git/info/exclude`,
+  whatever the `mp:work-log` skill says: this repo commits the logs on purpose.

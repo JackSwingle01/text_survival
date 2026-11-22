@@ -108,16 +108,28 @@ public sealed record EffectDto(string Name, double Severity);
 public sealed record CapacityDto(string Name, double Pct);
 public sealed record SkillDto(string Name, int Level);
 
-/// The map as the player knows it. Known: one character per tile, row by row (Width per row): '.'
+/// The map the page draws (MapView): as a person knows it, or in observer mode as it truly is (MapView.Truth:
+/// every tile known and in sight, every print, every worn route, and no places or sightings, which come
+/// with the observer's view). As the player knows it: Known: one character per tile, row by row (Width per row): '.'
 /// for never seen, otherwise the terrain's code (TerrainCodes). Visible: indices (y*Width+x) in sight now.
 /// Everything else is memory: places as last seen, sightings with their minute. Surface: the ground of
 /// each known tile with anything on it, in tile order: in sight, as it is now (Ground.SurfaceNow); out
 /// of sight, as last seen (Memory.Explored). A known tile that is not listed is bare, dry ground.
 /// FrozenWater: the known lake and deep-water tiles that are ice (Map.IsFrozen), in tile order: in sight, now;
 /// out of sight, when last seen. A known one not listed is open water.
+/// Edges: the ravines and cliffs beside a known tile (a cliff is seen from above or below).
+/// Trails: the worn routes between two known tiles, in edge order: touching a tile in sight, as they are now
+/// (Tracks.TierOf); otherwise as last seen (Memory.Explored). A pair not listed has no route worn.
 public sealed record MapDto(int Width, int Height, string Known, IReadOnlyList<int> Visible, int CampX, int CampY,
     IReadOnlyList<PlaceMarkDto> Places, IReadOnlyList<SightingDto> Sightings, IReadOnlyList<TrackDto> Tracks,
-    IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface, IReadOnlyList<int> FrozenWater);
+    IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface, IReadOnlyList<int> FrozenWater,
+    IReadOnlyList<EdgeDto> Edges, IReadOnlyList<TrailDto> Trails);
+
+/// A ravine or cliff between two 4-adjacent tiles (A, B), drawn along their shared boundary. Kind: ravine or cliff.
+public sealed record EdgeDto(int Ax, int Ay, int Bx, int By, string Kind);
+
+/// A worn route between two 4-adjacent tiles (A, B), drawn from centre to centre. Tier: trace, path or trail.
+public sealed record TrailDto(int Ax, int Ay, int Bx, int By, string Tier);
 
 /// One known tile's ground. I: its index (y*Width+x). SnowCm: lying snow; Crust: its top refrozen;
 /// MudLevel: 0-1 on bare ground; WaterCm: standing water (ice included); Ice: that water mostly frozen.
@@ -134,7 +146,11 @@ public sealed record SurfaceDto(int I,
 public sealed record PlaceMarkDto(int X, int Y, long SeenMinute, string? Fire, double? FireHoursLeft, string? Shelter, bool Carcass,
     bool Stash, bool Den, bool Hurt);
 public sealed record SightingDto(int X, int Y, string Species, int Count, long Minute);
-public sealed record TrackDto(int X, int Y, string Maker, string Reading, long AgeMinutes);
+/// Prints on a tile in sight near the player. Maker: human, paw or hoof. Traffic: how many passed, as the
+/// prints read. Heading: the way the net traffic went (north, east, south, west); Pattern: heading (one way),
+/// northsouth, eastwest or mixed. FreshnessPct: 1 just made.
+public sealed record TrackDto(int X, int Y, string Maker, string Reading, long AgeMinutes, int Traffic, string Heading, string Pattern,
+    double FreshnessPct);
 public sealed record NamedDto(int X, int Y, string Name);
 
 /// The fight the player is in. Grid cells are metres, 0..Size-1. Actions: every round action with its
@@ -169,8 +185,39 @@ public sealed record ReceiptDto(string Title, long? SinceMinute, long Minute, bo
 /// One line of the journal. Kind: plain, bad, good or rare. Icon: an icon path under icons/.
 public sealed record LogDto(long Minute, string Text, string Kind, string Icon);
 
+// ---- Observer mode (Observer.cs): development only, a world with no player drawn as it truly is ----
+
+/// A new observer world: what the spawn tool can make, and the first view.
+public sealed record ObserverStartDto(IReadOnlyList<SpawnableDto> Spawnables, ObserverViewDto View);
+/// One kind of thing the spawn tool can put on a tile. Id is what Spawn takes.
+public sealed record SpawnableDto(string Id, string Label);
+
+/// The observer's view after every call. The map (Observer.TruthMap, a MapDto) is fetched apart, and is
+/// stale once Minute passes the minute it was fetched at. Places: every unattended fire, shelter, carcass
+/// and stash, as they are now (the truth map carries none).
+public sealed record ObserverViewDto(long Minute, ClockDto Clock, IReadOnlyList<ActorDto> Actors, IReadOnlyList<PlaceMarkDto> Places,
+    IReadOnlyList<ObserverLogDto> Log);
+/// An NPC or a herd. Kind: npc or herd. Doing: its activity in words ("travel north"), or "deciding".
+/// State: a herd's (Fauna HerdState). Predator: Fauna.IsPredator. ToX/ToY/CrossingPct: a crossing under way, for the page to draw it moving.
+public sealed record ActorDto(int Id, string Kind, string Icon, string Name, int X, int Y, int Count, string Doing, string? State, bool Predator,
+    int? ToX = null, int? ToY = null, double? CrossingPct = null);
+/// A narrated world event and the tile it happened on.
+public sealed record ObserverLogDto(int X, int Y, LogDto Line);
+
+/// A tile as a person standing on it would find it: the place, its story, its fire, the things on it
+/// in Verbs.At's words, and who is there. Undiscovered: a pool nobody has found yet.
+public sealed record TileDto(int X, int Y, string Place, string Terrain, string? Story, FireDto? Fire, IReadOnlyList<TileFeatureDto> Features,
+    IReadOnlyList<ActorDetailDto> Actors);
+public sealed record TileFeatureDto(string Kind, string Name, bool Undiscovered);
+/// An actor on the tile, and its insides in lines: stats by tier, effects, a herd's state and hunger.
+public sealed record ActorDetailDto(int Id, string Name, string Doing, IReadOnlyList<string> Lines);
+
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(ActDto))]
 [JsonSerializable(typeof(ViewDto))]
+[JsonSerializable(typeof(ObserverStartDto))]
+[JsonSerializable(typeof(MapDto))]
+[JsonSerializable(typeof(ObserverViewDto))]
+[JsonSerializable(typeof(TileDto))]
 public partial class HostJson : JsonSerializerContext;

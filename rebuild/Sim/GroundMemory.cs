@@ -8,16 +8,19 @@ namespace Survival;
 /// the minute they saw it.
 public readonly record struct RememberedGround(SurfaceSummary Surface, long SeenMinute);
 
-/// The tiles a person has seen on one map, each with its ground as last seen (Memory.Explored). Held
-/// to millimetres and hundredths of mud, which is all a view shows, so the remembered ground and the
-/// ground in sight read alike. Saved as
+/// The tiles a person has seen on one map, each with its ground as last seen (Memory.Explored), and
+/// the trails worn between seen tiles as last seen (Tracks.TierOf). Held to millimetres and hundredths
+/// of mud, which is all a view shows, so the remembered ground and the ground in sight read alike. A
+/// trail is kept with the tile at its west or north end, so it costs a saved tile nothing. Saved as
 /// "WxH:seen:records", both base64: a bitset of the tiles seen, then ten bytes per tile seen, in
-/// tile order (minute, snow mm, water mm, mud hundredths, crust and ice flags).
+/// tile order (minute, snow mm, water mm, mud hundredths, flags: crust, ice, east and south trails).
 [JsonConverter(typeof(GroundMemoryConverter))]
 public sealed class GroundMemory
 {
     const int RecordBytes = 10;
     const byte Seen = 1, Crust = 2, Ice = 4;
+    const int EastShift = 3, SouthShift = 5, TierMask = 3;
+    const byte TrailBits = TierMask << EastShift | TierMask << SouthShift;
 
     readonly int[] _minute;
     readonly ushort[] _snowMm, _waterMm;
@@ -59,8 +62,47 @@ public sealed class GroundMemory
         byte mud = (byte)Quantised(s.MudLevel * 100, 100, nameof(s.MudLevel));
         if ((_flags[i] & Seen) == 0) Count++;
         (_minute[i], _snowMm[i], _waterMm[i], _mudPct[i]) = ((int)minute, snow, water, mud);
-        _flags[i] = (byte)(Seen | (s.Crusted ? Crust : 0) | (s.Iced ? Ice : 0));
+        _flags[i] = (byte)(Seen | (s.Crusted ? Crust : 0) | (s.Iced ? Ice : 0) | _flags[i] & TrailBits);
     }
+
+    /// The trail between two neighbouring tiles as last seen; None where either was never seen.
+    public TrailTier TrailTierAt(TileId a, TileId b)
+    {
+        var (owner, shift) = TrailSlot(a, b);
+        int i = Index(owner);
+        return (_flags[i] & Seen) == 0 ? TrailTier.None : (TrailTier)(_flags[i] >> shift & TierMask);
+    }
+
+    /// Both tiles must already be seen: a trail is remembered only between ground the person knows.
+    public void RememberTrailTier(TileId a, TileId b, TrailTier tier)
+    {
+        if (!Contains(a) || !Contains(b)) throw new ArgumentException($"A trail {a}-{b} with an end never seen", nameof(b));
+        var (owner, shift) = TrailSlot(a, b);
+        int i = Index(owner);
+        _flags[i] = (byte)(_flags[i] & ~(TierMask << shift) | (int)tier << shift);
+    }
+
+    /// Every trail remembered, tile order, the east one before the south one.
+    public IEnumerable<(TileId A, TileId B, TrailTier Tier)> Trails()
+    {
+        for (int i = 0; i < _flags.Length; i++)
+        {
+            if ((_flags[i] & TrailBits) == 0) continue;
+            var t = new TileId(i % Width, i / Width);
+            if ((_flags[i] >> EastShift & TierMask) is var east and > 0) yield return (t, new TileId(t.X + 1, t.Y), (TrailTier)east);
+            if ((_flags[i] >> SouthShift & TierMask) is var south and > 0) yield return (t, new TileId(t.X, t.Y + 1), (TrailTier)south);
+        }
+    }
+
+    /// The tile a trail is kept with, and where in its flags.
+    static (TileId Owner, int Shift) TrailSlot(TileId a, TileId b) => (b.X - a.X, b.Y - a.Y) switch
+    {
+        (1, 0) => (a, EastShift),
+        (-1, 0) => (b, EastShift),
+        (0, 1) => (a, SouthShift),
+        (0, -1) => (b, SouthShift),
+        _ => throw new ArgumentException($"{a} and {b} are not neighbours", nameof(b)),
+    };
 
     static ushort Quantised(double value, int max, string what)
     {
@@ -113,7 +155,9 @@ public sealed class GroundMemory
             memory._waterMm[i] = BinaryPrimitives.ReadUInt16LittleEndian(rec[6..]);
             memory._mudPct[i] = rec[8];
             memory._flags[i] = rec[9];
-            if ((rec[9] & Seen) == 0 || rec[9] > (Seen | Crust | Ice) || rec[8] > 100) throw new JsonException($"GroundMemory record {r / RecordBytes} is not a seen tile's ground");
+            int x = i % width, y = i / width;
+            if ((rec[9] & Seen) == 0 || rec[9] > (Seen | Crust | Ice | TrailBits) || rec[8] > 100
+                || x == width - 1 && (rec[9] >> EastShift & TierMask) != 0 || y == height - 1 && (rec[9] >> SouthShift & TierMask) != 0) throw new JsonException($"GroundMemory record {r / RecordBytes} is not a seen tile's ground");
             memory.Count++;
             r += RecordBytes;
         }

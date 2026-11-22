@@ -275,6 +275,87 @@ public class MemoryTests
         Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse(one[..one.LastIndexOf(':')] + ":" + Convert.ToBase64String(badFlags)));
     }
 
+    // ---- routes as last seen (Memory.Explored trail tiers) ----
+
+    static void Wear(World w, TileId a, TileId b, double wear) => w.Trails[new EdgeId(a, b)] = new TrailWear(wear, w.Minute);
+
+    /// A neighbour of t, also in view from the camp, both passable.
+    static TileId NeighbourInView(World w, TileId t)
+    {
+        var view = Sight.Visible(w, Map.Of(w).Camp, Eyes(w, P)).ToHashSet();
+        foreach (var dir in new[] { Direction.East, Direction.South, Direction.West, Direction.North })
+        {
+            var n = Map.Step(t, dir);
+            if (view.Contains(n) && Map.Of(w).TerrainAt(n).IsPassable()) return n;
+        }
+        throw new InvalidOperationException($"No neighbour of {t} in view");
+    }
+
+    /// A route seen as a path, worn into a trail while the player is away, is still a path in their
+    /// memory, after a save and load too; back in sight it is a trail.
+    [Fact]
+    public void RouteOutOfSight_IsTheRouteAsLastSeen_AfterASaveAndLoad()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        var a = InViewFrom(w, camp);
+        var b = NeighbourInView(w, a);
+        Wear(w, a, b, Tracks.PathAt + 1);
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
+        Assert.Equal(TrailTier.Path, Explored(w, P).TrailTierAt(a, b));
+        Assert.Equal(TrailTier.Path, Explored(w, P).TrailTierAt(b, a));
+
+        Put(w, P, OutOfView(w, camp));
+        Sim.Step(w, new Wait(P), 1);
+        Assert.False(Sight.InSight(w, w.Agent(P), a) || Sight.InSight(w, w.Agent(P), b));
+        Wear(w, a, b, Tracks.TrailAt + 1); // worn in while nobody looked
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
+        var loaded = Save.FromJson(Save.ToJson(w));
+        Assert.Equal(TrailTier.Path, Explored(loaded, P).TrailTierAt(a, b));
+
+        Put(loaded, P, camp);
+        Sim.Step(loaded, new Wait(P), 1);
+        Assert.Equal(TrailTier.Trail, Explored(loaded, P).TrailTierAt(a, b));
+    }
+
+    /// A route seen gone is forgotten; one never worn is none.
+    [Fact]
+    public void RouteSeenFaded_IsForgotten()
+    {
+        var w = Mild17();
+        var a = InViewFrom(w, Map.Of(w).Camp);
+        var b = NeighbourInView(w, a);
+        Wear(w, a, b, Tracks.TraceAt + 1);
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
+        Assert.Equal(TrailTier.Trace, Explored(w, P).TrailTierAt(a, b));
+        w.Trails.Remove(new EdgeId(a, b));
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
+        Assert.Equal(TrailTier.None, Explored(w, P).TrailTierAt(a, b));
+        Assert.Empty(Explored(w, P).Trails());
+    }
+
+    /// Kept beside the ground of the tile on the west or north end: a new look at the ground keeps it,
+    /// it is saved, and a route with an end never seen is refused.
+    [Fact]
+    public void GroundMemory_KeepsRoutesBetweenSeenTiles()
+    {
+        var g = new GroundMemory(4, 3);
+        TileId a = new(1, 1), east = new(2, 1), south = new(1, 2);
+        var ground = new SurfaceSummary(0.1, false, 0, 0, false);
+        foreach (var t in new[] { a, east, south }) g.Remember(t, ground, 5);
+        g.RememberTrailTier(east, a, TrailTier.Trail);
+        g.RememberTrailTier(a, south, TrailTier.Trace);
+        g.Remember(a, new SurfaceSummary(0.2, true, 0.5, 0, true), 6);
+        Assert.Equal(TrailTier.Trail, g.TrailTierAt(a, east));
+        Assert.Equal(TrailTier.Trace, g.TrailTierAt(south, a));
+        var loaded = GroundMemory.Parse(g.Format());
+        Assert.Equal(TrailTier.Trail, loaded.TrailTierAt(a, east));
+        Assert.Equal(TrailTier.Trace, loaded.TrailTierAt(a, south));
+        Assert.Equal(new[] { (a, east, TrailTier.Trail), (a, south, TrailTier.Trace) }, loaded.Trails());
+        Assert.Throws<ArgumentException>(() => g.RememberTrailTier(a, new TileId(0, 1), TrailTier.Path)); // never seen
+        Assert.Throws<ArgumentException>(() => g.RememberTrailTier(a, new TileId(3, 1), TrailTier.Path)); // not a neighbour
+    }
+
     // ---- the receipt done-when tests (feature 4) ----
 
     /// After 4 h away, the camp receipt lists an NPC's FuelAdded and the FireDied at the minutes

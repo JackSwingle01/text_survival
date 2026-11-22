@@ -5,14 +5,41 @@
 // showing its last image until the new one comes back. Cells nearest the camera are baked first.
 //
 // Ground state: draw() takes ground (ground-state.js's memory: each cell's state and its key) and
-// world (palette and snowline). Snow settling on one tile rebakes only the cells around it.
+// world (palette and snowline). Snow settling on one tile rebakes only the cells around it; so does a
+// trail worn deeper.
 import { src } from './util.js';
-import { textureNames, around, CELL, GROUND_REACH } from './terrain-core.js';
+import { createBaker, textureNames, around, edgePieces, piecesNear, trailsNear, printPixels, snowyCell, CELL, REACH, GROUND_REACH } from './terrain-core.js';
 
 /** Terrain names by the map's known-tile codes (MapDto.Known). */
-export const TERRAIN = { F: 'forest', C: 'clearing', P: 'plain', H: 'hills', W: 'water', M: 'marsh', R: 'rock', X: 'mountain', D: 'deepwater', c: 'cavefloor', e: 'rock' };
+export const TERRAIN = { F: 'forest', C: 'clearing', P: 'plain', H: 'hills', W: 'water', M: 'marsh', R: 'rock', X: 'mountain', D: 'deepwater', c: 'cavefloor', e: 'caveentrance' };
 
 const CHUNK = 8;            // cells per canvas side: fewer, larger draws per frame
+
+const NO_TRAILS = { list: [], at: new Map(), key: '' };
+const trailCache = new WeakMap();
+/**
+ * A map's trails (MapDto.Trails), worked out once per view: the list for the bakes, each cell's trails
+ * as one string for signatures (at: cell index -> code), and a key for them all.
+ */
+export function trailsOf(m) {
+  if (!m.trails?.length) return NO_TRAILS;
+  let r = trailCache.get(m.trails);
+  if (r) return r;
+  const list = m.trails.map(t => ({ ax: t.ax, ay: t.ay, bx: t.bx, by: t.by, tier: t.tier })), at = new Map();
+  const codes = list.map(t => `${t.ax},${t.ay},${t.bx},${t.by},${t.tier};`);
+  list.forEach((t, k) => { for (const i of [t.ay * m.width + t.ax, t.by * m.width + t.bx]) at.set(i, (at.get(i) ?? '') + codes[k]); });
+  trailCache.set(m.trails, r = { list, at, key: codes.join('') });
+  return r;
+}
+
+/** The part of cell (cx, cy)'s signature its trails make: every trail with an end within REACH. */
+export function trailsSignature(trails, width, height, cx, cy) {
+  if (!trails.at.size) return '';
+  let sig = '';
+  for (let y = Math.max(0, cy - REACH); y <= Math.min(height - 1, cy + REACH); y++)
+    for (let x = Math.max(0, cx - REACH); x <= Math.min(width - 1, cx + REACH); x++) sig += trails.at.get(y * width + x) ?? '';
+  return sig;
+}
 const POOL = Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
 const IN_FLIGHT = 2;        // jobs queued per worker, so none idles while the page posts the next
 
@@ -28,6 +55,10 @@ export function createTerrain() {
   });
   // Per map: chunk canvases, and per cell the bake its pixels show and the latest one asked for.
   let W = 0, H = 0, chunks, drawn, asked, sigs = new Map(), sigsFor = null;
+  // The map's ravines and cliffs as pieces (a piece depends on its whole chain), per edge list.
+  let pieces = [], piecesFor = null;
+  const near = new Map(); // cell index -> the pieces in its reach, for the current pieces
+  let trails = NO_TRAILS;
   const jobs = new Map(); // id -> { i, cx, cy, sig, W }
   let nextId = 1;
 
@@ -60,9 +91,18 @@ export function createTerrain() {
     const codes = around(W, H, cx, cy, (x, y) => m.known[y * W + x]).join('');
     if (!/[^.]/.test(codes)) return null;
     let sig = world.key + codes;
+    for (const p of piecesAround(cx, cy)) sig += `|${p.type}${p.x1},${p.y1},${p.x2},${p.y2},${p.start},${p.total}`;
+    sig += '|' + trailsSignature(trails, W, H, cx, cy);
     for (let y = Math.max(0, cy - GROUND_REACH); y <= Math.min(H - 1, cy + GROUND_REACH); y++)
       for (let x = Math.max(0, cx - GROUND_REACH); x <= Math.min(W - 1, cx + GROUND_REACH); x++) sig += '|' + ground.keyAt(y * W + x);
     return sig;
+  }
+
+  function piecesAround(cx, cy) {
+    const i = cy * W + cx;
+    let list = near.get(i);
+    if (!list) near.set(i, list = piecesNear(pieces, cx, cy));
+    return list;
   }
 
   function done({ id, i, pixels }) {
@@ -88,7 +128,7 @@ export function createTerrain() {
    */
   function draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera, ground, world }) {
     if (failure) throw failure;
-    if (m.width !== W || m.height !== H) { W = m.width; H = m.height; chunks = new Map(); drawn = new Map(); asked = new Map(); sigsFor = null; }
+    if (m.width !== W || m.height !== H) { W = m.width; H = m.height; chunks = new Map(); drawn = new Map(); asked = new Map(); sigsFor = null; piecesFor = null; }
     if (wantedFor !== world.key) load(world);
     if (!ready()) return;
     const fresh = wanted.filter(n => !sent.has(n));
@@ -96,7 +136,15 @@ export function createTerrain() {
       for (const w of workers) w.postMessage({ textures: fresh.map(n => [n, textures.get(n)]) });
       for (const n of fresh) sent.add(n);
     }
-    const inputs = `${world.key}|${ground.version}|${m.known}`;
+    if (piecesFor !== m.edges) {
+      pieces = edgePieces(m.edges.map(e => ({ ax: e.ax, ay: e.ay, bx: e.bx, by: e.by, type: e.kind })));
+      piecesFor = m.edges;
+      near.clear();
+    }
+    trails = trailsOf(m);
+    // Ravines and cliffs come with the known tiles they lie beside, so m.known keys them too; trails
+    // change on their own.
+    const inputs = `${world.key}|${ground.version}|${m.known}|${trails.key}`;
     if (sigsFor !== inputs) { sigs = new Map(); sigsFor = inputs; }
 
     const todo = [];
@@ -124,9 +172,54 @@ export function createTerrain() {
       w.jobs++;
       w.postMessage({ id, i, width: W, height: H, cx, cy, world: { palette: world.palette, snowline: world.snowline },
         terrain: around(W, H, cx, cy, (x, y) => TERRAIN[m.known[y * W + x]] ?? null),
-        states: around(W, H, cx, cy, ground.stateAt) });
+        states: around(W, H, cx, cy, ground.stateAt), pieces: piecesAround(cx, cy), trails: trailsNear(trails.list, cx, cy) });
+    }
+    probeFor = { m, ground, world };
+  }
+
+  // Prints are laid over the drawn ground per frame; which of their pixels land on open ground is
+  // asked of a baker of the same map on the page (classify, covered), made when first asked.
+  let probeFor = null, probe = null, probeKey = null, prints = new Map();
+  const tex = name => {
+    const t = textures.get(name);
+    if (!t || t instanceof Error) throw new Error(`terrain texture not loaded: ${name}`);
+    return t;
+  };
+  /**
+   * A track's prints as [[x, y, fill]] from its cell's top-left, fill a CSS colour to lay one pixel
+   * of over the drawn ground. Empty until the ground has been drawn once.
+   */
+  function printsOf(t) {
+    if (!probeFor) return [];
+    const { m, ground, world } = probeFor, key = `${world.key}|${ground.version}|${m.known}|${trails.key}`;
+    if (probeKey !== key) {
+      probe = createBaker({ width: W, height: H, terrainAt: (x, y) => TERRAIN[m.known[y * W + x]] ?? null, pieces, trails: trails.list },
+        ground.stateAt, world, tex);
+      probeKey = key;
+      prints = new Map();
+    }
+    const snowy = snowyCell(ground.stateAt(t.x, t.y)), freshness = Math.round(t.freshnessPct * 50) / 50;
+    const k = `${t.x},${t.y},${t.maker},${t.heading},${t.pattern},${t.traffic},${freshness},${snowy}`;
+    let r = prints.get(k);
+    if (!r) {
+      r = printPixels({ x: t.x, y: t.y, maker: t.maker, heading: t.heading, pattern: t.pattern, traffic: t.traffic, freshness }, probe, snowy)
+        .map(([x, y, [cr, cg, cb], a]) => [x, y, `rgba(${cr},${cg},${cb},${a.toFixed(3)})`]);
+      prints.set(k, r);
+    }
+    return r;
+  }
+
+  /**
+   * Presses the map's prints (MapDto.Tracks) on cells [x0..x1] x [y0..y1] into ground already drawn,
+   * with the map's origin at (ox, oy), one cell CELL pixels wide: the frame draw used.
+   */
+  function drawPrints(ctx, { m, ox, oy, x0, y0, x1, y1, ground }) {
+    for (const t of m.tracks) {
+      if (t.x < x0 || t.x > x1 || t.y < y0 || t.y > y1) continue;
+      const px = ox + t.x * CELL, py = oy + t.y * CELL;
+      for (const [dx, dy, fill] of printsOf(t, ground)) { ctx.fillStyle = fill; ctx.fillRect(px + dx, py + dy, 1, 1); }
     }
   }
 
-  return { draw };
+  return { draw, drawPrints };
 }

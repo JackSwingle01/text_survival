@@ -28,7 +28,7 @@ default" attribute leaves old saves byte-identical, and the test stays green.
 5. Commit the version, the fixture and the change together.
 
 The sample world has a little of most saved state: a fire, a stash, a shelter and bedding, a
-crossing, an NPC, a wolf pack, memory, explored and remembered ground, rng streams, a journal, a made spear
+crossing, an NPC, a wolf pack, memory, explored and remembered ground, a remembered route, rng streams, a journal, a made spear
 with its recorded parts and an unfinished one in the pack, a well-fed player and an NPC asleep where it dropped.
 
 Version 2 (MVP 4, making things) added `Gear.MadeOf`, `Inventory.Projects`, the `make` and
@@ -73,7 +73,11 @@ job), with `Gathered.Luck` and `Gathered.Density` (14); `TileMemory.SearchedHour
 `ForageState.ClueDraw` (16); `World.Tutorials`, with the `scavenged`, `tutorialshown` events and the `walkabout`
 activity (17). `LuckTier` and `Tutorial` are written by name. The species renames (Rabbit to Hare, Homotherium to
 SaberTooth) kept their enum positions, so saves hold the same numbers. Version 18 (the forage follow-ups) adds a work
-session's `ClueDraw`, skipped at its default (a scavenge clue pays once a draw). When you add
+session's `ClueDraw`, skipped at its default (a scavenge clue pays once a draw). Version 19 (trails as last seen) kept
+the worn trails a person has seen in the spare bits of `GroundMemory`'s flags byte: the tier (`TrailTier`, 0 to 3) of
+each seen tile's east and south edges, two bits each, so a trail costs a saved tile nothing. A trail is remembered only
+between two seen tiles. NPC memories carry them too, since a person's memory is one structure. The sample wears a path
+beside camp and the player looks at it. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands.

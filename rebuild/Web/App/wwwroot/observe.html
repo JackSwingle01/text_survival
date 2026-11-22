@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Observer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&family=Pixelify+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="observe.css">
+  <link rel="icon" href="icons/fire.png">
+</head>
+<!-- Observer mode (GLOSSARY): development only. A world with no player, the whole map as it truly is. -->
+<body class="obs">
+  <header class="obs-bar">
+    <b class="label">Observer</b>
+    <label>Seed <input id="seed" type="number" value="1" class="num"></label>
+    <button id="newWorld" class="obs-btn">New world</button>
+    <span class="obs-sep"></span>
+    <button id="play" class="obs-btn" title="Play or pause (Space)">Play</button>
+    <button id="step" class="obs-btn" title="One second's worth of time (.)">Step</button>
+    <label>Rate
+      <select id="rate">
+        <option value="1">1 min/s</option>
+        <option value="10">10 min/s</option>
+        <option value="60" selected>1 h/s</option>
+        <option value="360">6 h/s</option>
+        <option value="1440">1 day/s</option>
+        <option value="custom">custom…</option>
+      </select>
+    </label>
+    <input id="rateCustom" type="number" min="1" value="120" class="num" hidden title="Game minutes per real second">
+    <span class="num" id="clock"></span>
+    <span class="muted num" id="achieved"></span>
+    <span class="obs-sep"></span>
+    <span class="label">Spawn</span>
+    <span id="spawns"></span>
+  </header>
+  <main class="obs-main">
+    <section class="obs-map" id="mapArea">
+      <canvas id="world"></canvas>
+      <div class="obs-hint muted">Drag to pan · wheel to zoom · click a tile · Space play · . step · +/− zoom</div>
+      <div class="plate obs-toast" id="toast" hidden></div>
+      <div class="obs-loading" id="loading"><div class="plate"><b>Starting the world</b> <span class="muted" id="loadingNote"></span></div></div>
+    </section>
+    <aside class="obs-side plate">
+      <div class="sec" id="inspector"><div class="muted">Click a tile to see what is there.</div></div>
+      <div class="sec obs-log-sec"><div class="label">The world</div><ol class="obs-log" id="log"></ol></div>
+    </aside>
+  </main>
+  <script type="module" src="observe.js"></script>
+</body>
+</html>

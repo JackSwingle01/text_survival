@@ -231,9 +231,27 @@ public class GameHostTests
     {
         var v = Parse(new GameHost().NewGame(Seed));
         Assert.Equal(v.Map.Width * v.Map.Height, v.Map.Known.Length);
-        int known = v.Map.Known.Count(c => c != ViewBuilder.UnknownCode);
+        int known = v.Map.Known.Count(c => c != MapView.UnknownCode);
         Assert.InRange(known, 10, v.Map.Known.Length / 4);
-        Assert.All(v.Map.Visible, i => Assert.NotEqual(ViewBuilder.UnknownCode, v.Map.Known[i]));
+        Assert.All(v.Map.Visible, i => Assert.NotEqual(MapView.UnknownCode, v.Map.Known[i]));
+    }
+
+    [Theory]
+    [InlineData(Seed)]
+    [InlineData(17)]
+    public void The_map_sends_exactly_the_ravines_and_cliffs_beside_known_tiles(int seed)
+    {
+        var v = Parse(new GameHost().NewGame(seed));
+        var m = Survival.Map.Generate(seed);
+        bool Known(int x, int y) => v.Map.Known[y * v.Map.Width + x] != MapView.UnknownCode;
+        var expected = m.Edges
+            .Where(e => e.Value is Survival.EdgeType.Ravine or Survival.EdgeType.Cliff
+                && (Known(e.Key.Item1.X, e.Key.Item1.Y) || Known(e.Key.Item2.X, e.Key.Item2.Y)))
+            .Select(e => (e.Key.Item1.X, e.Key.Item1.Y, e.Key.Item2.X, e.Key.Item2.Y, e.Value == Survival.EdgeType.Ravine ? "ravine" : "cliff"))
+            .Order().ToList();
+        var sent = v.Map.Edges.Select(e => (e.Ax, e.Ay, e.Bx, e.By, e.Kind)).Order().ToList();
+        Assert.Equal(expected, sent);
+        Assert.All(v.Map.Edges, e => Assert.Equal(1, Math.Abs(e.Ax - e.Bx) + Math.Abs(e.Ay - e.By)));
     }
 
     [Fact]
@@ -462,6 +480,124 @@ public class GameHostTests
         Assert.Equal(0, Ground.SurfaceNow(loaded.World, t).SnowDepthM);
         var remembered = v.Map.Surface.Single(s => s.I == Index(w, t));
         Assert.Equal(seenCm, remembered.SnowCm);
+    }
+
+    // ---- routes and prints on the map ----
+
+    static void Wear(World w, TileId a, TileId b, double wear) => w.Trails[new EdgeId(a, b)] = new TrailWear(wear, w.Minute);
+
+    static TileId NeighbourInSight(World w, TileId t)
+    {
+        var inSight = Sight.InView(w, w.Agent(AgentId.Player)).ToHashSet();
+        return new[] { Direction.East, Direction.South, Direction.West, Direction.North }.Select(d => Map.Step(t, d))
+            .First(n => inSight.Contains(n) && Map.Of(w).TerrainAt(n).IsPassable());
+    }
+
+    static (int, int, int, int, string) Trail(TileId a, TileId b, string tier)
+    {
+        var e = new EdgeId(a, b);
+        return (e.A.X, e.A.Y, e.B.X, e.B.Y, tier);
+    }
+
+    static List<(int, int, int, int, string)> Sent(ViewDto v) => [.. v.Map.Trails.Select(t => (t.Ax, t.Ay, t.Bx, t.By, t.Tier))];
+
+    /// A route in sight is drawn as it is, even worn on since the last look; out of sight, as last seen,
+    /// after a save and load too. A route never seen is not drawn.
+    [Fact]
+    public void Routes_on_the_map_are_as_they_are_in_sight_and_as_last_seen_out_of_sight()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var p = w.Agent(AgentId.Player);
+        var a = InSightOfPlayer(w);
+        var b = NeighbourInSight(w, a);
+        Wear(w, a, b, Tracks.PathAt + 1);
+        Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes);
+        Wear(w, a, b, Tracks.TrailAt + 1); // after the look
+        Assert.Contains(Trail(a, b, "trail"), Sent(Parse(h.View())));
+
+        var m = Map.Of(w);
+        p.Tile = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .First(f => m.TerrainAt(f).IsPassable() && m.SiteAt(f) == null && Math.Abs(f.X - a.X) + Math.Abs(f.Y - a.Y) > 2 * Sight.MaxTiles);
+        p.Crossing = null;
+        Sim.Step(w, new Wait(AgentId.Player), 1);
+        var far = Enumerable.Range(0, m.Width).Select(x => new TileId(x, m.Height - 1)).First(t => !Memories.Of(p).Explored!.Contains(t));
+        Wear(w, far, Map.Step(far, Direction.North), Tracks.TrailAt + 1); // never seen
+
+        var v = Parse(new GameHost().Load(h.Save()));
+        Assert.DoesNotContain(Index(w, a), v.Map.Visible);
+        Assert.Contains(Trail(a, b, "path"), Sent(v));
+        Assert.DoesNotContain(v.Map.Trails, t => t.Ax == far.X && t.Ay == far.Y - 1);
+        bool Known(int x, int y) => v.Map.Known[y * v.Map.Width + x] != MapView.UnknownCode;
+        Assert.All(v.Map.Trails, t =>
+        {
+            Assert.True(Known(t.Ax, t.Ay) && Known(t.Bx, t.By), $"{t} has an end never seen");
+            Assert.Equal(1, Math.Abs(t.Ax - t.Bx) + Math.Abs(t.Ay - t.By));
+        });
+        Assert.Equal(Sent(v).Order(), Sent(v).Distinct().Order());
+    }
+
+    /// Prints in sight carry what the page lays them out by: maker, heading, traffic, its pattern and freshness.
+    [Fact]
+    public void Prints_carry_their_heading_pattern_and_freshness()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var here = w.Agent(AgentId.Player).Tile;
+        var west = Map.Step(here, Direction.West);
+        Tracks.RecordMove(w, west, here, TrackMaker.Paw, 3);
+        var t = Parse(h.View()).Map.Tracks.Single(t => t.X == here.X && t.Y == here.Y && t.Maker == "paw");
+        Assert.Equal("east", t.Heading);
+        Assert.Equal("heading", t.Pattern);
+        Assert.Equal(3, t.Traffic);
+        Assert.InRange(t.FreshnessPct, 0.9, 1);
+    }
+
+    /// Prints are read only near the player and in sight: none from further off, wherever they lie.
+    [Fact]
+    public void Prints_beyond_reading_distance_are_not_sent()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var here = w.Agent(AgentId.Player).Tile;
+        var m = Map.Of(w);
+        var far = Enumerable.Range(1, 20).Select(d => new TileId(here.X + MapView.TrackReadTiles + d, here.Y))
+            .First(t => m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.TerrainAt(Map.Step(t, Direction.East)).IsPassable());
+        Tracks.RecordMove(w, Map.Step(far, Direction.East), far, TrackMaker.Hoof, 5);
+        var v = Parse(h.View());
+        Assert.NotEmpty(Tracks.Read(w, far));
+        Assert.All(v.Map.Tracks, t => Assert.True(Math.Max(Math.Abs(t.X - here.X), Math.Abs(t.Y - here.Y)) <= MapView.TrackReadTiles, $"prints at {t.X},{t.Y}"));
+        Assert.All(v.Map.Tracks, t => Assert.Contains(t.Y * m.Width + t.X, v.Map.Visible));
+    }
+
+    /// The renderer (terrain-core.js) knows these codes and throws on any other: every value the Sim can
+    /// send must be one of them.
+    [Fact]
+    public void Every_route_and_print_code_is_one_the_page_draws()
+    {
+        string[] tiers = ["trace", "path", "trail"], headings = ["north", "east", "south", "west"],
+            patterns = ["heading", "northsouth", "eastwest", "mixed"], makers = ["human", "paw", "hoof"];
+        Assert.All(Enum.GetValues<TrailTier>().Where(t => t != TrailTier.None), t => Assert.Contains(Words.Code(t), tiers));
+        Assert.All(Enum.GetValues<Direction>(), d => Assert.Contains(Words.Code(d), headings));
+        Assert.All(Enum.GetValues<TrafficPattern>(), p => Assert.Contains(Words.Code(p), patterns));
+        Assert.All(Enum.GetValues<TrackMaker>(), m => Assert.Contains(Names.Of(m), makers));
+    }
+
+    /// The trails scenario (for screenshots) opens in winter beside a worn route and grazing ground,
+    /// with prints of all three makers in sight.
+    [Fact]
+    public void The_trails_scenario_opens_beside_routes_and_prints()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var v = Parse(Scenarios.Apply(h, "trails"));
+        Assert.Equal("Winter", v.Clock.Season);
+        Assert.Equal(new[] { "path", "trace", "trail" }, v.Map.Trails.Select(t => t.Tier).Distinct().Order());
+        Assert.True(v.Map.Trails.Count > 20, $"{v.Map.Trails.Count} routes");
+        Assert.Equal(new[] { "hoof", "human", "paw" }, v.Map.Tracks.Select(t => t.Maker).Distinct().Order());
     }
 
     /// The winter scenario opens in mid-January on snow.
