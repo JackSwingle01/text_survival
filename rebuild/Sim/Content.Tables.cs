@@ -720,6 +720,20 @@ public static partial class Content
         int shapes = (d.Work != null ? 1 : 0) + (d.Shelter != null ? 1 : 0) + (d.Carcass != null ? 1 : 0) + (d.Stash ? 1 : 0);
         if (shapes != 1) { yield return "a find is a stock (work), a shelter, a carcass or a stash, one of them"; yield break; }
         if (d.Loot != null && !loot.ContainsKey(d.Loot)) yield return $"no loot table '{d.Loot}'";
+        if (d.Outcomes != null)
+        {
+            if (detail) yield return "a detail has no outcomes";
+            if (!d.Stash && d.Work != StockKind.Salvage) yield return "only a salvage or a stash has outcomes";
+            if (d.Loot != null || d.Items != null) yield return "outcomes stand in place of loot and items";
+            if (d.Stash != (d.Minutes == 0)) yield return d.Stash ? "a stash has no minutes" : $"minutes {d.Minutes}";
+            if (d.Outcomes.Count == 0) yield return "no outcomes";
+            foreach (var o in d.Outcomes)
+            {
+                if (o.Weight <= 0 || o.Scale <= 0 || string.IsNullOrWhiteSpace(o.Line)) yield return $"outcome '{o.Line}': a weight, a scale and a line";
+                foreach (var t in o.Loot) if (!loot.ContainsKey(t)) yield return $"outcome '{o.Line}': no loot table '{t}'";
+            }
+            yield break;
+        }
         if (d.Carcass is { } c)
         {
             if (detail) yield return "a detail is not a carcass";
@@ -820,7 +834,8 @@ public static partial class Content
             if (!detailsUsed.Contains(id)) yield return $"discoveries.json details {id}: no terrain draws it";
         foreach (var name in accidents.Keys) if (!CodeAccidents.Contains(name)) yield return $"accidents.json {name}: no crossing draws from it";
         var lootUsed = locations.SelectMany(l => l.All.OfType<SiteStock>()).Select(s => s.Loot)
-            .Concat(discoveries.Finds.Values.Select(f => f.Loot)).ToHashSet();
+            .Concat(discoveries.Finds.Values.Select(f => f.Loot))
+            .Concat(discoveries.Finds.Values.SelectMany(f => f.Outcomes ?? []).SelectMany(o => o.Loot)).ToHashSet();
         foreach (var name in loot.Keys) if (!lootUsed.Contains(name)) yield return $"loot.json {name}: no place is salvaged with it";
     }
 }

@@ -165,7 +165,12 @@ public class ForageRestoreTests(ITestOutputHelper output)
         var w = WithPools(Forage);
         var me = w.Agent(P);
         var events = new List<WorldEvent>();
-        Work.End(w, me, new WorkSession { Activity = new Gather(P, 0), Pool = ForageId(w), Minutes = 15, LuckFactor = 1, Clues = [ravens] }, events);
+        // Laid on a roll (Work.ScavengeCarcassPct): the first draw whose trail ends at a carcass.
+        for (int draw = 0; w.Tiles.GetValueOrDefault(Camp(w))?.Carcasses == null; draw++)
+        {
+            Pools.ForageStateFor(w, ForageId(w)).ClueDraw = draw;
+            Work.End(w, me, new WorkSession { Activity = new Gather(P, 0), Pool = ForageId(w), Minutes = 15, LuckFactor = 1, Clues = [ravens], ClueDraw = draw }, events);
+        }
         var c = Assert.Single(w.Tiles[Camp(w)].Carcasses!);
         Assert.Contains(clue.Animals!, a => a.Animal.ToString() == c.Animal);
         Assert.Contains(events, e => e is Scavenged s && s.Animal != null);

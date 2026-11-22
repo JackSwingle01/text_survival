@@ -72,7 +72,8 @@ default: a work session's `LuckFactor` and `Clues` and a held `Doing.Held` (work
 job), with `Gathered.Luck` and `Gathered.Density` (14); `TileMemory.SearchedHours` and `TileMemory.Foraged` (15);
 `ForageState.ClueDraw` (16); `World.Tutorials`, with the `scavenged`, `tutorialshown` events and the `walkabout`
 activity (17). `LuckTier` and `Tutorial` are written by name. The species renames (Rabbit to Hare, Homotherium to
-SaberTooth) kept their enum positions, so saves hold the same numbers. When you add
+SaberTooth) kept their enum positions, so saves hold the same numbers. Version 18 (the forage follow-ups) adds a work
+session's `ClueDraw`, skipped at its default (a scavenge clue pays once a draw). When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands.

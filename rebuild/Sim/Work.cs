@@ -18,9 +18,11 @@ public sealed class WorkSession
     /// A forage's luck, rolled once when it begins (Pools.RollLuck); 0 for other work.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public double LuckFactor { get; init; }
-    /// The clues a forage began with, by their index in the clue table (Clues.At): what it follows and what it scavenges.
+    /// The clues a forage began with, by their index in the clue table (Clues.At), and their draw (ClueDraw): a scavenge clue pays once a draw.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public List<int>? Clues { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int ClueDraw { get; init; }
     /// Every find as it turned up, after focus and yield: what the forage screen shows minute by minute. Not saved:
     /// only that screen reads it, and the host saves no job part-way.
     [System.Text.Json.Serialization.JsonIgnore] public List<Find> Finds { get; } = [];
@@ -305,6 +307,7 @@ public static class Work
                         Pool = new PoolId(agent.Tile, g.Pool),
                         LuckFactor = Pools.RollLuck(world.Rng("work", agent.Id)),
                         Clues = [.. clues.Select(c => c.Index)],
+                        ClueDraw = (Pools.StateOf(world, new PoolId(agent.Tile, g.Pool)) as ForageState)?.ClueDraw ?? 0,
                     };
                 }
             case Gather g:
@@ -465,6 +468,7 @@ public static class Work
             case Stash or Unstash or Wear or TakeOff:
                 return null; // done on the first minute; the agent waits out the rest
             case WalkAbout:
+                Pools.Search(world, agent, Traversal.TravelSearchPct * Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent)) / 60.0, events);
                 return s.Minutes >= s.TargetMinutes ? WalkedAbout : null;
             default:
                 throw new NotSupportedException($"{s.Activity.GetType().Name} is not work");
@@ -564,12 +568,13 @@ public static class Work
         return kept;
     }
 
-    /// A forage's end: the clues move on, a scavenge clue lays its remains, and the player's tutorials come up once each.
+    /// A forage's end: a scavenge clue of the draw still showing lays its remains, the clues move on, tutorials come up.
     static void EndForage(World world, Agent agent, WorkSession s, List<WorldEvent> events)
     {
-        Survival.Clues.Redraw(world, agent.Tile);
-        if (s.Clues?.Select(i => Survival.Clues.Table.Clues[i]).FirstOrDefault(c => c.Kind == ClueKind.Scavenge) is { } scavenge)
+        bool drawShowing = (Pools.StateOf(world, s.Pool!.Value) as ForageState)?.ClueDraw is int draw ? draw == s.ClueDraw : s.ClueDraw == 0;
+        if (drawShowing && s.Clues?.Select(i => Survival.Clues.Table.Clues[i]).FirstOrDefault(c => c.Kind == ClueKind.Scavenge) is { } scavenge)
             Scavenge(world, agent, s, scavenge, events);
+        Survival.Clues.Redraw(world, agent.Tile);
         if (agent.Id != AgentId.Player || Items.PackOf(agent) is not { } pack) return;
         if (Items.Tool(pack, ToolType.Axe) != null) Tutorials.Show(world, agent, Tutorial.Axe, events);
         if (Items.Tool(pack, ToolType.Shovel) != null) Tutorials.Show(world, agent, Tutorial.Shovel, events);
@@ -581,12 +586,11 @@ public static class Work
 
     public const double DayOneFuelKg = 8.0;
 
-    /// The remains a scavenge clue promised: a real carcass, part-eaten, or bone scraps.
-    /// No predator is rolled: whatever is near finds the carcass by its ordinary carcass search.
+    /// Bone scraps, or on a roll a part-eaten carcass of an animal that ranges here; what is near finds it by its own search.
     static void Scavenge(World world, Agent agent, WorkSession s, ClueDef clue, List<WorldEvent> events)
     {
-        var rng = world.Rng("work", agent.Id);
-        if (clue.Animals is not { Count: > 0 } animals)
+        var rng = Rng.ForSystem(world.Seed, $"scavenge {TileIdConverter.Format(agent.Tile)} {s.ClueDraw}");
+        if (clue.Animals is not { Count: > 0 })
         {
             var bones = new Inventory();
             Items.Add(bones, Resource.Bone, ScrapBoneKg[0] + rng.NextDouble() * (ScrapBoneKg[1] - ScrapBoneKg[0]));
@@ -594,13 +598,22 @@ public static class Work
             events.Add(new Scavenged(world.Minute, agent.Id, agent.Tile, null, clue.Remains!));
             return;
         }
+        var animals = clue.Animals.Where(a => Survival.Clues.RangesNear(world, agent.Tile, a.Animal)).ToList();
+        if (animals.Count == 0 || rng.NextDouble() >= ScavengeCarcassPct) return;
         double pick = rng.NextDouble() * animals.Sum(a => a.Weight);
         var animal = animals[^1].Animal;
         foreach (var a in animals) { if ((pick -= a.Weight) < 0) { animal = a.Animal; break; } }
         double eaten = clue.HarvestedPct![0] + rng.NextDouble() * (clue.HarvestedPct[1] - clue.HarvestedPct[0]);
-        Combat.LeaveCarcass(world, agent.Tile, animal, SpeciesTable.NewBody(animal, rng), new Cause(null, Pools.FoundDead), eaten);
+        var cause = new Cause(null, Pools.FoundDead);
+        var body = SpeciesTable.NewBody(animal, rng);
+        if (!clue.Frozen) Combat.LeaveCarcass(world, agent.Tile, animal, body, cause, eaten);
+        else Carcasses.FrozenThrough(world, agent.Tile,
+            Combat.LeaveCarcass(world, agent.Tile, animal, body, cause, eaten, world.Minute - Carcasses.FrozenThroughHours * 60L));
         events.Add(new Scavenged(world.Minute, agent.Id, agent.Tile, animal, clue.Remains!));
     }
+
+    /// The chance a scavenge clue's trail ends at a carcass: sign often leads nowhere, and a carcass is a find, not a promise.
+    public const double ScavengeCarcassPct = 0.25;
 
     static readonly double[] ScrapBoneKg = [0.1, 0.3];
 

@@ -6,16 +6,17 @@ public enum LuckTier { Lean, Normal, Good, Jackpot }
 /// What a clue promises: resources a matching focus finds more of, game (waiting for small game), a poorer search, or remains.
 public enum ClueKind { Resource, Game, Negative, Scavenge }
 
-public enum ClueWhen { Always, Forest, Rocky, Water, Wind, Rain, Snow, DawnDusk, PickedOver, Frozen, Grazed, Saturated, PredatorsNear, BearsNear }
+public enum ClueWhen { Always, Forest, Rocky, Water, Wind, Rain, Snow, DawnDusk, NearlyDepleted, Frozen, Grazed, Saturated, PredatorsNear, BearsNear }
 
 /// A once-per-game teaching line (GLOSSARY: Tutorial), kept in World.Tutorials so it never repeats.
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<Tutorial>))]
 public enum Tutorial { FirstClue, Axe, Shovel, DayOneFuel }
 
 /// One clue (Content/foraging.json clues). Remains: the words a scavenge find is told in; no Animals is bone scraps.
+/// Frozen: the carcass it lays is frozen through.
 public sealed record ClueDef(string Text, ClueKind Kind, ClueWhen When, double Weight, IReadOnlyList<Resource>? Resources = null,
     double Yield = 1, Species? Game = null, IReadOnlyList<AnimalWeight>? Animals = null, IReadOnlyList<double>? HarvestedPct = null,
-    string? Remains = null, double PredatorBoost = 1);
+    string? Remains = null, double PredatorBoost = 1, bool Frozen = false);
 
 public sealed record QualityRow(string Word, double AtLeast);
 public sealed record FailureRow(IReadOnlyList<string> Words, IReadOnlyList<string> Lines);
@@ -83,6 +84,7 @@ public static class Clues
                 ClueKind.Game => place.GameNear ? c.Weight : 0,
                 ClueKind.Negative when c.When == ClueWhen.Grazed => c.Weight * place.GrazedLevel,
                 ClueKind.Negative => c.Weight,
+                ClueKind.Scavenge when c.Animals is { Count: > 0 } animals && !animals.Any(a => RangesNear(world, agent.Tile, a.Animal)) => 0,
                 ClueKind.Scavenge => c.Weight * (place.PredatorsNear ? c.PredatorBoost : 1),
                 _ => throw new ArgumentOutOfRangeException(nameof(c), c.Kind, null),
             };
@@ -130,13 +132,19 @@ public static class Clues
             ClueWhen.Snow => Ground.SnowDepthNowM(world, tile) >= SnowyM,
             ClueWhen.Frozen => sky.TemperatureF < FrozenBelowF,
             ClueWhen.DawnDusk => Weather.MinuteOfDay(world.Minute) / 60 is DawnHour or DuskHour,
-            ClueWhen.PickedOver => Pools.ForageDensity(world, forage) < NearlyDepletedDensity,
+            ClueWhen.NearlyDepleted => Pools.ForageDensity(world, forage) < NearlyDepletedDensity,
             ClueWhen.Grazed => GrazedLevel > 0,
             ClueWhen.PredatorsNear => PredatorsNear,
             ClueWhen.BearsNear => Near.Any(a => IsBear(a.Species)),
             _ => throw new ArgumentOutOfRangeException(nameof(when), when, null),
         };
     }
+
+    /// Whether this kind of animal lives about here: a live herd of it holding the tile, or small game, which has no herds
+    /// and is taken to be everywhere.
+    public static bool RangesNear(World world, TileId tile, Species s) =>
+        SpeciesTable.Of(s).IsSmall
+        || world.Agents.Values.Any(a => a.Mind is HerdMind h && a.Species == s && Sim.IsAlive(a) && (a.Tile == tile || h.Territory.Contains(tile)));
 
     /// A bear, by what it is rather than its name: a lone hunter that eats anything.
     static bool IsBear(Species s) => Fauna.BehaviorOf(s) == HerdBehavior.Solitary && SpeciesTable.Of(s).Diet == Diet.Omnivore;
@@ -146,19 +154,21 @@ public static class Clues
     const double SnowyM = 0.01;
     const int DawnHour = 5, DuskHour = 20;
 
-    /// What a search's clues make of one find: a negative clue cuts everything; the resource clue its focus follows multiplies its own.
+    /// What a search's clues make of one find: the first negative clue noticed cuts everything; every resource clue its
+    /// focus follows multiplies its own.
     public static double YieldFactor(IReadOnlyList<int> clues, ForageFocus focus, Resource r)
     {
         double factor = 1;
         foreach (var i in clues) if (Table.Clues[i].Kind == ClueKind.Negative) { factor *= Table.Clues[i].Yield; break; }
-        if (Followed(clues, focus) is ClueDef followed && followed.Resources!.Contains(r) && Work.InFocus(r, focus)) factor *= followed.Yield;
+        if (!Work.InFocus(r, focus)) return factor;
+        foreach (var followed in Followed(clues, focus)) if (followed.Resources!.Contains(r)) factor *= followed.Yield;
         return factor;
     }
 
-    /// The resource clue a focus follows: the first one noticed that names something in that focus. General follows none.
-    public static ClueDef? Followed(IReadOnlyList<int> clues, ForageFocus focus) =>
-        focus == ForageFocus.General ? null
-        : clues.Select(i => Table.Clues[i]).FirstOrDefault(c => c.Kind == ClueKind.Resource && c.Resources!.Any(r => Work.InFocus(r, focus)));
+    /// The resource clues a focus follows: those noticed that name something in that focus. General follows none.
+    public static IEnumerable<ClueDef> Followed(IReadOnlyList<int> clues, ForageFocus focus) =>
+        focus == ForageFocus.General ? []
+        : clues.Select(i => Table.Clues[i]).Where(c => c.Kind == ClueKind.Resource && c.Resources!.Any(r => Work.InFocus(r, focus)));
 
     public static ForageFocus? Suggests(ClueDef c) =>
         c.Kind != ClueKind.Resource ? null

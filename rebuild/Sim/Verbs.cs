@@ -202,7 +202,7 @@ public static class Verbs
             TreePool => ("Chop", new Gather(who, t.Index), WorkMinutes),
             StockPool s => (s.Kind switch { StockKind.Harvest => "Harvest", StockKind.Salvage => "Salvage", StockKind.Detail => "Examine" },
                 new Gather(who, t.Index), WorkMinutes),
-            ShelterFind => null, // once found it stands as a shelter, which is its own thing
+            ShelterFind => null, // once found it stands as a shelter, its own location feature
             CarcassFind or StashFind => null,
             _ => throw new NotSupportedException($"No verb for a {def.GetType().Name}"),
         };

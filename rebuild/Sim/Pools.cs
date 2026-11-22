@@ -37,10 +37,16 @@ public enum StockKind { Harvest, Salvage, Detail }
 
 /// What a discovery or detail makes (Content/discoveries.json): a stock, a natural shelter, a carcass or a stash.
 /// Loot: a salvage's or a stash's contents as a loot table (loot.json), in place of Items. Found: the lines read on finding it.
+/// Outcomes: what a salvage or a stash may turn out to hold, one drawn by weight, in place of Loot.
 public sealed record FindDef(string Name, StockKind? Work = null, int Minutes = 0, IReadOnlyList<FindItem>? Items = null,
     ShelterKind? Shelter = null, double? Insulation = null, double InsulationSpread = 0, double? Overhead = null, double OverheadSpread = 0,
     double? Wind = null, double WindSpread = 0, double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null,
-    string? Loot = null, CarcassRow? Carcass = null, bool Stash = false, IReadOnlyList<string>? Found = null);
+    string? Loot = null, CarcassRow? Carcass = null, bool Stash = false, IReadOnlyList<string>? Found = null,
+    IReadOnlyList<FindOutcome>? Outcomes = null);
+
+/// One way a find can turn out: its loot tables rolled together (none: nothing there), each scaled by Scale (kilos and
+/// how many it picks), told by Line after the find's found line.
+public sealed record FindOutcome(double Weight, string Line, IReadOnlyList<string> Loot, double Scale = 1);
 
 public sealed record CarcassRow(IReadOnlyList<AnimalWeight> Animals, IReadOnlyList<double> HarvestedPct);
 public sealed record AnimalWeight(Species Animal, double Weight);
@@ -190,7 +196,7 @@ public static class Pools
     }
 
     /// Content/loot.json rolled: one salvage item per resource, plus the gear.
-    internal static (List<StockItem> Items, List<Gear> Gear) RollLoot(IReadOnlyList<LootRoll> table, Rng rng)
+    internal static (List<StockItem> Items, List<Gear> Gear) RollLoot(IReadOnlyList<LootRoll> table, Rng rng, double scale = 1)
     {
         var kg = new SortedDictionary<Resource, double>();
         var gear = new List<Gear>();
@@ -199,8 +205,8 @@ public static class Pools
             if (r.Chance < 1 && rng.NextDouble() >= r.Chance) return;
             if (r.Resource is Resource res)
             {
-                int pieces = r.Pieces is [var lo, var hi] ? Between(rng, lo, hi + 1) : 1;
-                kg[res] = kg.GetValueOrDefault(res) + Pieces(rng, pieces, r.Kg![0], r.Kg[1]);
+                int pieces = (int)Math.Ceiling((r.Pieces is [var lo, var hi] ? Between(rng, lo, hi + 1) : 1) * scale);
+                kg[res] = kg.GetValueOrDefault(res) + Pieces(rng, pieces, r.Kg![0], r.Kg[1]) * scale;
             }
             else if (r.Gear != null)
             {
@@ -212,7 +218,7 @@ public static class Pools
             }
             else
             {
-                int count = Between(rng, r.Pick![0], r.Pick[1] + 1);
+                int count = (int)Math.Ceiling(Between(rng, r.Pick![0], r.Pick[1] + 1) * scale);
                 var of = r.Of!.ToList();
                 for (int i = of.Count - 1; i > 0; i--) { int j = rng.NextInt(i + 1); (of[i], of[j]) = (of[j], of[i]); }
                 foreach (var pick in of.Take(count)) Take(pick);
@@ -296,7 +302,7 @@ public static class Pools
     /// How high a find stands, for how far snow buries it: a bush, a salvage pile, a detail on the ground.
     static double PlacementHeightM(StockKind kind) => kind switch { StockKind.Salvage => 0.3, StockKind.Detail => 0.25, _ => 0.6 };
 
-    static PoolDef Make(FindDef d, Rng rng, double revealAtHours)
+    internal static PoolDef Make(FindDef d, Rng rng, double revealAtHours)
     {
         if (d.Shelter is ShelterKind kind) return new ShelterFind(ShelterOf(d, kind, rng), revealAtHours, Found: d.Found);
         if (d.Carcass is { } c)
@@ -305,6 +311,12 @@ public static class Pools
             var animal = c.Animals[^1].Animal;
             foreach (var a in c.Animals) { if ((pick -= a.Weight) < 0) { animal = a.Animal; break; } }
             return new CarcassFind(d.Name, animal, Uniform(rng, c.HarvestedPct[0], c.HarvestedPct[1]), revealAtHours, d.Found);
+        }
+        if (d.Outcomes != null)
+        {
+            var (held, kept, found) = RollOutcome(d, rng);
+            return d.Stash ? new StashFind(d.Name, held, kept, revealAtHours, found)
+                : new StockPool(d.Name, d.Work!.Value, d.Minutes, held, revealAtHours, PlacementHeightM(d.Work.Value), kept.Count > 0 ? kept : null, Found: found);
         }
         if (d.Stash)
         {
@@ -342,6 +354,24 @@ public static class Pools
         foreach (var i in d.Items ?? []) Take(i);
         foreach (var (index, anyOf) in choices) items[index] = items[index] with { Resource = anyOf[rng.NextInt(anyOf.Count)] };
         return new StockPool(d.Name, work, d.Minutes, items, revealAtHours, PlacementHeightM(work), gear.Count > 0 ? gear : null, Found: d.Found);
+    }
+
+    /// One of a find's outcomes, by weight, with its loot tables rolled and merged, and its line after each found line.
+    static (List<StockItem> Items, List<Gear> Gear, IReadOnlyList<string> Found) RollOutcome(FindDef d, Rng rng)
+    {
+        var outcomes = d.Outcomes!;
+        double pick = rng.NextDouble() * outcomes.Sum(o => o.Weight);
+        var outcome = outcomes[^1];
+        foreach (var o in outcomes) { if ((pick -= o.Weight) < 0) { outcome = o; break; } }
+        var kg = new SortedDictionary<Resource, double>();
+        var gear = new List<Gear>();
+        foreach (var table in outcome.Loot)
+        {
+            var (items, kept) = RollLoot(Content.Loot[table], rng, outcome.Scale);
+            foreach (var i in items) kg[i.Resource] = kg.GetValueOrDefault(i.Resource) + i.KgPerUnit;
+            gear.AddRange(kept);
+        }
+        return ([.. kg.Select(x => All(x.Key, x.Value))], gear, [.. d.Found!.Select(f => $"{f} {outcome.Line}")]);
     }
 
     /// A cap left out is the kind's. A find's caps are at least its own levels (rolls can run past the kind's caps), so work on
@@ -645,7 +675,7 @@ public static class Pools
     /// plain sight (RevealAtHours 0) are not hidden; every other stock and every shelter find is.
     public static bool IsHidden(PoolDef def) => def is StockPool { RevealAtHours: > 0 } or ShelterFind or CarcassFind or StashFind;
 
-    /// What finding this pool lays on the tile in its place (a carcass, a stash): once found, it is that thing, not a pool.
+    /// What finding this pool lays on the tile in its place (a carcass, a stash): once found, it is that location feature, not a pool.
     public static bool LaysItsOwnFeature(PoolDef def) => def is CarcassFind or StashFind;
 
     static (double RevealAtHours, double PlacementHeightM) Hiding(PoolDef def) => def switch
@@ -660,21 +690,26 @@ public static class Pools
     public static bool Knows(World world, AgentId who, PoolId id) =>
         !IsHidden(Def(world, id)) || (world.Agent(who).Mind as PersonMind)?.Memory.Discovered.Contains(id) == true;
 
-    /// Effort reaches every hidden pool on the tile, slowed per pool by how far snow covers it, and is remembered (SearchEffort).
-    public static void Search(World world, Agent agent, double perceptionWeightedHours, List<WorldEvent> events)
+    /// Searching where the agent stands.
+    public static void Search(World world, Agent agent, double perceptionWeightedHours, List<WorldEvent> events) =>
+        Search(world, agent, agent.Tile, perceptionWeightedHours, events);
+
+    /// Effort reaches every hidden pool on the tile searched (the agent's own, or one it is walking onto), slowed per pool by
+    /// how far snow covers it, and is remembered (SearchEffort).
+    public static void Search(World world, Agent agent, TileId tile, double perceptionWeightedHours, List<WorldEvent> events)
     {
         if (agent.Mind is not PersonMind mind) return;
-        if (!mind.Memory.Places.TryGetValue(agent.Tile, out var place)) mind.Memory.Places[agent.Tile] = place = new TileMemory { SeenMinute = world.Minute };
+        if (!mind.Memory.Places.TryGetValue(tile, out var place)) mind.Memory.Places[tile] = place = new TileMemory { SeenMinute = world.Minute };
         place.SearchedHours += perceptionWeightedHours;
-        var pools = At(world, agent.Tile);
+        var pools = At(world, tile);
         for (int i = 0; i < pools.Count; i++)
         {
             if (!IsHidden(pools[i])) continue;
-            var id = new PoolId(agent.Tile, i);
+            var id = new PoolId(tile, i);
             if (mind.Memory.Discovered.Contains(id)) continue;
             var (revealAt, height) = Hiding(pools[i]);
             double hours = mind.Memory.SearchHours.GetValueOrDefault(id)
-                + perceptionWeightedHours * Ground.SearchFactor(world, agent.Tile, 0, height);
+                + perceptionWeightedHours * Ground.SearchFactor(world, tile, 0, height);
             if (hours >= revealAt)
             {
                 mind.Memory.SearchHours.Remove(id);

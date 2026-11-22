@@ -1,0 +1,17 @@
+# forage-followups: the user's decisions on PR #65's flags
+
+Hypothesis:
+- Changes: Content/foraging.json (barren wording, the hare's fur line, frozen flag on "Something large"), Clues.cs (every followed clue pays; a scavenge clue is only noticed when one of its animals ranges near; small game counts as everywhere), Work.cs (scavenge rolled once per clue draw, not certain, only near species; Keep Walking searches at the walking rate), Travel.cs + Pools.Search (a crossing's search split half to each tile), Content/discoveries.json + loot.json + Pools.Make (the old events' discoveries roll their contents from the old event's main choice: its outcome odds and its reward pools), the "thing" wording, dev/active porting review list.
+- Affects: WorkSession gains the clue draw it began on (save version 18, fixture regenerated); KillSite and BearCache stop laying a carcass and become salvage of the old meat/bone pools; OldCampsite can be empty; FireOrigin's charcoal harvest becomes the old event's tinder (or nothing).
+- Stays green: full Sim.Tests, Host.Tests, Tune.Tests; SaveTests after the fixture is regenerated; ContentTests (every loot table rolls only real things).
+- First red: ForageFollowupTests: two clues that both name kindling under the fuel focus multiply together; fails at 1.3 (only the first pays).
+- Seams (from the brief, not re-confirmed with the parent: it names the behaviours): Clues.At / Clues.YieldFactor; Work.End and Sim.Step for a forage's end; Sim.Step for WalkAbout and Travel (Memory.Places[..].SearchedHours); Pools.At / Pools.Generate for a discovery's contents.
+- NPC bench: scratch NpcForageBench (not committed) at 7e73ea8 and after, 20 seeds x 60 days, 5 processes each.
+Revised: the scavenge slice was written code-first, then its tests (the old ForageRestoreTests scavenge test went red as expected: a carcass is now a roll, so it loops draws until one lays; its behaviour, a real part-eaten carcass of the clue's animals, is unchanged).
+Revised: Hare and Fox are never herds (Renewal gives them no population), so "ranges near" by herd alone would make every small-game scavenge clue dead -> small (IsSmall) animals range everywhere until small game is built; large ones need a live herd holding the tile.
+Revised: the old events' finds had their own pools wrong: KillSite and BearCache laid carcasses drawn from the ravens and bear-cache scavenge scenarios, FireOrigin a charcoal harvest -> each now rolls its event's first choice (kill site 0.40 meat / 0.25 meat+bones, bear's cache 0.50 meat / 0.30 small game, fire origin 0.70 nothing / 0.30 tinder); the fights in them are left out of the odds and listed in discoveries.json.
+Revised: Carcasses.FrozenThrough first read the tile's air itself -> ArchitectureTests.OnlyExposure: it goes through CatchUp instead.
+Revised: CommentHygiene: two comments said "the old game" (history) and Work.cs went over 10% -> reworded and trimmed.
+Revised: Pools.Search takes the tile searched (a crossing searches the tile it walks into); the search-here overload stays for its many callers.
+Revised: save fixture regenerated for version 18; only SearchedHours/SearchHours moved (a crossing's searching now split between its two tiles).
+Probe (scratch, 3 seeds x 300 tiles x 20 draws): a carcass scavenge clue is noticed on 5.2% of looks at 5e75f23 (always laid) and 4.6% now, laid on a 25% roll: about 1 search in 87 instead of 1 in 19.

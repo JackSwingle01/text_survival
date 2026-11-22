@@ -116,31 +116,57 @@
    { "chance": 0.4, "resource": "Tinder", "kgPerUnit": 0.15, "kgPerUnitMax": 0.3 } ] },
 
 
-  // Discoveries the old game told as events (DiscoveryEventFactory), each as the real thing it found:
-  // a carcass, a stash, a salvage or a harvest. Their found lines are the old events' openings.
+  // Discoveries the old game told as events (DiscoveryEventFactory), each as the location feature it left: a
+  // carcass, a stash, a salvage or a harvest. Found lines are the old events' openings. Where the event's choices
+  // rolled what you came away with, the find's outcomes are its first, fullest choice: its outcomes' odds and reward
+  // pools (loot.json), each outcome's own line read after the opening. Not ported, the outcomes' other parts:
+  //   OldCampsite: fear (Unsettling 15%, Panicking 10%, Frightening 10%), the Disturbed tension, the human remains (10%).
+  //   KillSite: "something growls, you back away" (20%, nothing taken) and the feeding wolf's fight (15%), left out of the odds.
+  //   BearCache: the ClaimedTerritory tension (80%) and the returning bear's fight (20%, left out of the odds).
+  //   BoneScatter: the "look for signs" choice (wolf sign, the bear's ClaimedTerritory tension).
+  //   WaterSource: thin ice at the edge (15%: cold and wet, no water) and bad water when drunk at once (nausea); the source is always there.
+  //   FireOrigin: nothing beyond the tinder.
+  // FrozenSmallGame was a feature, not an event: the old 50/50 hare or ptarmigan is a hare (no ptarmigan yet).
   "FrozenSmallGame": { "name": "Frozen Hare", "found": ["You discover something interesting: Frozen Hare."],
    "carcass": { "animals": [ { "animal": "Hare", "weight": 1 } ], "harvestedPct": [0, 0] } },
   "KillSite": { "name": "Kill Site", "found": ["The smell hits you first. Something died here recently - not fresh, but not ancient either. A carcass, picked over but not empty."],
-   "carcass": { "animals": [ { "animal": "Caribou", "weight": 0.5 }, { "animal": "Hare", "weight": 0.2 }, { "animal": "Fox", "weight": 0.15 }, { "animal": "Wolf", "weight": 0.15 } ],
-    "harvestedPct": [0.35, 0.55] } },
+   "work": "Salvage", "minutes": 15, "outcomes": [
+   { "weight": 0.40, "line": "No scavengers in sight. You claim the scraps.", "loot": ["BasicMeat"] },
+   { "weight": 0.25, "line": "A raven takes off as you approach. Nothing else watches.", "loot": ["BasicMeat", "BoneHarvest"] } ] },
   "BearCache": { "name": "Bear's Cache", "found": ["Deep in the cave, a mound of dirt and debris. The smell of rotting meat. The bear has cached its kills here."],
-   "carcass": { "animals": [ { "animal": "Caribou", "weight": 0.6 }, { "animal": "Bison", "weight": 0.3 }, { "animal": "Megaloceros", "weight": 0.1 } ],
-    "harvestedPct": [0.15, 0.35] } },
+   "work": "Salvage", "minutes": 20, "outcomes": [
+   { "weight": 0.50, "line": "You uncover frozen carcasses. Partially eaten, but there's meat here.", "loot": ["BasicMeat"] },
+   { "weight": 0.30, "line": "The cache is fresh. The bear hasn't been gone long.", "loot": ["SmallGame"] } ] },
   "HiddenCache": { "name": "Hidden Cache", "found": ["Something about this rock formation seems deliberate. You pry at the stones and find a hollow space behind them. Someone hid supplies here."],
-   "stash": true, "loot": "HiddenCache" },
+   "stash": true, "outcomes": [
+   { "weight": 0.50, "line": "A good haul. Whoever cached this had the right idea.", "loot": ["HiddenCache"] },
+   { "weight": 0.35, "line": "Preserved food, tools, tinder. A lifeline.", "loot": ["HiddenCache", "TinderBundle"] },
+   { "weight": 0.15, "line": "The cache is old but well-preserved. Quality supplies.", "loot": ["HiddenCache"] } ] },
   "OldCampsite": { "name": "Old Campsite", "found": ["Your foot catches on something in the snow. Brushing it aside, you find the remains of a camp. A fire ring, blackened stones, the collapsed frame of a lean-to. Someone survived here once."],
-   "work": "Salvage", "minutes": 25, "loot": "OldCampsite" },
+   "work": "Salvage", "minutes": 25, "outcomes": [
+   { "weight": 0.25, "line": "Picked clean. Whoever was here took everything.", "loot": [] },
+   { "weight": 0.25, "line": "Some scraps they couldn't carry. Useful.", "loot": ["OldCampsite"] },
+   { "weight": 0.15, "line": "Signs of struggle. Dark stains in the snow. You take what's left.", "loot": ["BasicSupplies"] },
+   { "weight": 0.15, "line": "A cache they hid and never returned for.", "loot": ["HiddenCache"] },
+   { "weight": 0.10, "line": "You find remains. Human. Their gear is still useful.", "loot": ["OldCampsite"] },
+   { "weight": 0.10, "line": "Bones, scattered by scavengers. What happened here?", "loot": [] } ] },
   "SquirrelCache": { "name": "Squirrel Cache", "found": ["A squirrel chatters angrily from a branch above. Following its gaze, you spot a hollow where it's been storing food."],
-   "work": "Salvage", "minutes": 15, "loot": "SquirrelCache" },
+   "work": "Salvage", "minutes": 15, "outcomes": [
+   { "weight": 0.65, "line": "A good haul - nuts, seeds, even some dried berries.", "loot": ["SquirrelCache"], "scale": 1.5 },
+   { "weight": 0.30, "line": "Mostly acorns, but food is food.", "loot": ["SquirrelCache"], "scale": 0.8 },
+   { "weight": 0.05, "line": "The cache goes deeper than expected. Worth the effort.", "loot": ["SquirrelCache"], "scale": 2.5 } ] },
   "WaterSource": { "name": "Water Source", "found": ["You hear it before you see it - running water, or the promising crack of ice over a stream. Following the sound leads you to a reliable water source."],
    "work": "Harvest", "minutes": 1, "items": [
    { "resource": "Water", "units": 100, "kgPerUnit": 1.0, "respawnHoursPerUnit": 0.1 } ] },
   "BoneScatter": { "name": "Bone Scatter", "found": ["Bones, scattered across the snow. Old, picked clean. Something died here. Something else ate well."],
-   "work": "Salvage", "minutes": 10, "items": [
-   { "resource": "Bone", "units": 1, "unitsMax": 3, "kgPerUnit": 0.2, "kgPerUnitMax": 0.5 } ] },
+   "work": "Salvage", "minutes": 10, "outcomes": [
+   { "weight": 0.6, "line": "You collect several intact pieces.", "loot": ["BoneHarvest"] },
+   { "weight": 0.3, "line": "Most are cracked for marrow, but some are usable.", "loot": ["BoneHarvest"] },
+   { "weight": 0.1, "line": "Quality bone, surprisingly well-preserved.", "loot": ["BoneHarvest", "BoneHarvest"] } ] },
   "FireOrigin": { "name": "Lightning-Struck Trunk", "found": ["Near the center of the burnt stand, you find a massive split trunk. Lightning-struck. The fire started here."],
-   "work": "Harvest", "minutes": 5, "items": [
-   { "resource": "Charcoal", "units": 3, "unitsMax": 7, "kgPerUnit": 0.08, "respawnHoursPerUnit": 0 } ] },
+   "work": "Salvage", "minutes": 8, "outcomes": [
+   { "weight": 0.70, "line": "The strike split the trunk and ignited the heartwood. Nature's violence made this clearing.", "loot": [] },
+   { "weight": 0.30, "line": "Among the ash, you find chunks of charcoal perfect for fire-starting.", "loot": ["TinderBundle"] } ] },
 
   // Old DiscoveryFeatureFactory natural shelters and CaveLocationFactory.CreateSleepingRecess. The old
   // game drew their levels from the process-wide RNG; here they come from the tile's stream. The old

@@ -7,11 +7,12 @@
 // hints: the sub-category word a focus shows for each resource it would look for (old GetSubCategory).
 // clues: what a forager may notice before searching, drawn by weight (Clues.At). kind: Resource clues name the
 //   resources they promise and multiply them by yield when the matching focus is chosen; Game clues wait for
-//   small game; Negative clues cut the whole search by yield; Scavenge clues lay a carcass (animals, eaten
-//   harvestedPct) or bone scraps (no animals) when the search ends. when: what must be true of the place,
+//   small game; Negative clues cut the whole search by yield; Scavenge clues leave bone scraps (no animals) or,
+//   on a roll (Work.ScavengeCarcassPct), a carcass of one of their animals that ranges near (eaten harvestedPct;
+//   frozen: frozen through) when the search ends, once a draw. when: what must be true of the place,
 //   the sky or the animals near for it to be drawn at all. A Resource clue's weight is scaled by the share
 //   of its resources that grow here and by its yield, except an Always one; a Grazed clue's by the grazing;
-//   a Scavenge clue's by predatorBoost when predators are near.
+//   a Scavenge clue's by predatorBoost when predators are near, and none is noticed whose animals all range elsewhere.
 // tutorials: once-per-game lines, by id. searchBands: how a tile's search effort reads, against the time
 //   a thorough search of its terrain takes (the longest expected find in its draws), lowest first.
 {
@@ -35,7 +36,7 @@
    "Wind scattered what was here. Nothing to show for it.", "You find traces but nothing worth collecting." ] },
   { "words": ["light", "sparse", "thin"], "lines": [
    "Slim pickings. Most of it's already gone.", "Traces of what was here. Nearly spent.", "Hardly anything left. You'd need luck.",
-   "Almost picked clean. Time to look elsewhere.", "Scraps and remnants. This place won't last." ] },
+   "Almost barren. Time to look elsewhere.", "Scraps and remnants. This place won't last." ] },
   { "words": ["scarce", "barren", "minimal"], "lines": [ "Stripped bare.", "It's gone. All of it.", "You're wasting time here.", "Barren.", "Move on." ] }
  ],
  "luck": { "Lean": "The pickings feel thin here today.", "Good": "Something about this spot feels right.", "Jackpot": "You've found a rich patch." },
@@ -72,14 +73,14 @@
   { "text": "Animal trails through the brush", "kind": "Game", "when": "Forest", "game": "Caribou", "weight": 0.8 },
   { "text": "Fresh feeding marks in the bark", "kind": "Game", "when": "DawnDusk", "game": "Caribou", "weight": 1.0 },
   { "text": "Movement in the underbrush", "kind": "Game", "when": "DawnDusk", "game": "Hare", "weight": 1.0 },
-  { "text": "The ground looks picked over", "kind": "Negative", "when": "PickedOver", "yield": 0.8, "weight": 2.0 },
+  { "text": "The ground is going barren", "kind": "Negative", "when": "NearlyDepleted", "yield": 0.8, "weight": 2.0 },
   { "text": "Everything frozen solid", "kind": "Negative", "when": "Frozen", "yield": 0.7, "weight": 1.5 },
   { "text": "Trampled and grazed bare", "kind": "Negative", "when": "Grazed", "yield": 0.7, "weight": 2.0 },
   { "text": "Saturated and rotting", "kind": "Negative", "when": "Saturated", "yield": 0.7, "weight": 1.2 },
   { "text": "Signs of past foraging here", "kind": "Resource", "when": "Always", "resources": ["Kindling", "Stone", "PlantFiber"], "yield": 1.0, "weight": 0.3 },
   { "text": "Raptor pellets below a ledge", "kind": "Scavenge", "when": "Always", "harvestedPct": [0.7, 0.9], "remains": "bone scraps", "weight": 0.1 },
   { "text": "Old bones scattered, gnawed clean", "kind": "Scavenge", "when": "Always", "harvestedPct": [0.7, 0.9], "remains": "bone scraps", "weight": 0.1 },
-  { "text": "Scattered feathers and blood", "kind": "Scavenge", "when": "Always", "animals": [ { "animal": "Hare", "weight": 1.0 } ],
+  { "text": "Scattered fur and blood", "kind": "Scavenge", "when": "Always", "animals": [ { "animal": "Hare", "weight": 1.0 } ],
    "harvestedPct": [0.15, 0.35], "remains": "recent kill", "weight": 0.06 },
   { "text": "Blood trail into the brush", "kind": "Scavenge", "when": "Always", "animals": [ { "animal": "Hare", "weight": 0.8 }, { "animal": "Fox", "weight": 0.2 } ],
    "harvestedPct": [0.15, 0.35], "remains": "recent kill", "weight": 0.06 },
@@ -100,7 +101,7 @@
    "harvestedPct": [0.15, 0.35], "remains": "recent kill", "weight": 0.01 },
   { "text": "Something large, half-buried in snow. Frozen solid.", "kind": "Scavenge", "when": "Frozen",
    "animals": [ { "animal": "Bison", "weight": 0.4 }, { "animal": "Caribou", "weight": 0.35 }, { "animal": "Bear", "weight": 0.15 }, { "animal": "Mammoth", "weight": 0.1 } ],
-   "harvestedPct": [0.0, 0.15], "remains": "fresh carcass", "weight": 0.005 },
+   "harvestedPct": [0.0, 0.15], "remains": "fresh carcass", "weight": 0.005, "frozen": true },
   { "text": "Pine branches piled over something. Bear cache.", "kind": "Scavenge", "when": "BearsNear",
    "animals": [ { "animal": "Caribou", "weight": 0.6 }, { "animal": "Bison", "weight": 0.3 }, { "animal": "Megaloceros", "weight": 0.1 } ],
    "harvestedPct": [0.15, 0.35], "remains": "recent kill", "weight": 0.005 }
