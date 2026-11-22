@@ -8,6 +8,9 @@ name: Issue agent
 # - issues opened: drains the queue too, so issues opened in a burst (e.g. by /to-tickets) are
 #   never lost. Runs share one concurrency group, and GitHub keeps only the newest pending run,
 #   which is fine: that run lists every eligible issue again.
+# - issues closed: drains the queue, because closing an issue (usually by merging its PR) is what
+#   unblocks the issues waiting on it. Blocked issues are triaged again and built if now ready;
+#   their branch starts from main, which by then has the blocker's work.
 #
 # .github/scripts/issue_queue.py keeps out only what GitHub records as fact: issues from people
 # without write access, issues labelled `needs-user`, issues with an open PR or an `<issue#>-`
@@ -29,7 +32,7 @@ on:
         required: false
         type: string
   issues:
-    types: [opened]
+    types: [opened, closed]
 
 permissions:
   contents: read
