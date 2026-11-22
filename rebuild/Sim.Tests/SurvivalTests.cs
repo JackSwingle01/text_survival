@@ -174,6 +174,23 @@ public class SurvivalTests
         Assert.Equal(lastHungry + 24 * 60, firstWellFed);
     }
 
+    /// The minute hunger ends Well fed, the lines read in that order: no longer well fed, then hungry.
+    [Fact]
+    public void WellFedEnding_IsToldBeforeTheHungerThatEndsIt()
+    {
+        var w = World.New(1);
+        var p = w.Agent(AgentId.Player);
+        p.Body.MinutesWithoutHunger = 2 * 1440;
+        Effects.Set(p.Body, EffectKind.WellFed, 1);
+        p.Body.CaloriesKcal = 0;
+        var events = new List<WorldEvent>();
+        Body.Tick(w, p, Room(), events);
+        int ended = events.FindIndex(e => e is EffectEnded { Kind: EffectKind.WellFed });
+        int started = events.FindIndex(e => e is EffectStarted { Kind: EffectKind.Hungry });
+        Assert.True(ended >= 0 && started >= 0, "hunger should start and Well fed end this minute");
+        Assert.True(ended < started, "Well fed's end should be told before the hunger that ended it");
+    }
+
     /// Eating what you burn and never going hungry: Well fed starts once, after a day, and holds.
     [Fact]
     public void WellFed_AtMaintenance_StartsOnceAndHolds()

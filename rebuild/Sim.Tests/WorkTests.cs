@@ -75,6 +75,17 @@ public class WorkTests
         Assert.Equal(Items.Have(Items.Pack(one, P), Resource.Birch), Items.Have(Items.Pack(quarters, P), Resource.Birch), 9);
     }
 
+    /// An hour's search that turns up nothing says so: the session's line is never only what it taught.
+    [Fact]
+    public void ForagingThatFindsNothing_SaysSo()
+    {
+        var w = WithPools(new ForagePool("bare", 0.0, []));
+        var r = Sim.Step(w, new Gather(P, 0), 60);
+        Assert.Equal(60, r.MinutesElapsed);
+        var said = r.Events.Select(e => Narration.ForPlayer(w, e)?.Text).Where(t => t != null).ToList();
+        Assert.Contains("You find nothing.", said);
+    }
+
     /// A stash emptied goes back to null, so a tile with nothing else on it can leave World.Tiles.
     [Fact]
     public void AnEmptiedStash_IsGone()

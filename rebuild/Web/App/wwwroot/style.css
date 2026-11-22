@@ -284,7 +284,8 @@ button { font: inherit; color: inherit; }
 .stale { font-size: 14px; color: var(--bone-3); padding: 4px 8px; background: var(--ink-3); clip-path: var(--notch-s); }
 
 /* ---------- dock: verbs, where you are, sheets ---------- */
-.dock .spacer { flex: 1; }
+/* the verbs wrap in their own box, so the place and the sheets always keep theirs */
+.dock .verbs { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 auto; min-width: 0; }
 .where-btn { display: grid; text-align: right; background: none; border: 0; cursor: pointer; padding: 2px 6px; flex: none; }
 .where-btn b { font: 500 18px/1.1 var(--f-pixel); }
 .where-btn small { color: var(--bone-3); font-size: 14px; }
@@ -305,7 +306,7 @@ button { font: inherit; color: inherit; }
   .where-btn { display: none; }
   .dock { flex-wrap: wrap; }
   .verb { min-width: 0; flex: 1 1 calc(50% - 5px); }
-  .dock .spacer { display: none; }
+  .dock .verbs { flex-basis: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 

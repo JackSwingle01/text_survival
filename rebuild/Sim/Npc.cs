@@ -227,8 +227,6 @@ public static partial class Npc
     static double HoursLeftToday(Me me) => (1440 - Weather.MinuteOfDay(me.World.Minute)) / 60.0;
 
     const int HomeByHour = 19;
-    /// Work.TooDarkToWork's night begins.
-    const int NightHour = 21;
     /// How far it runs from a predator, and how long it keeps one in mind.
     const int FleeTiles = 3;
     public const int ThreatMemoryMinutes = 120;
@@ -293,8 +291,8 @@ public static partial class Npc
         public Inventory Pack => Mind.Pack;
         public bool AtCamp => Agent.Tile == Mind.Camp;
         public int Hour => Weather.MinuteOfDay(World.Minute) / 60;
-        /// Work.TooDarkToWork's night: the rule for working without a flame, not when the sun is down (Daylight).
-        public bool Night => Hour < 5 || Hour >= NightHour;
+        /// The night of the rule for working without a flame (Weather.IsNight), not when the sun is down (Daylight).
+        public bool Night => Weather.IsNight(World.Minute);
         /// The sun is up (Weather.IsDaytime): what "by day" means wherever the NPC plans by it.
         public bool Daylight => Weather.IsDaytime(World.Minute);
         /// Light to walk out and fetch by, and to work by when it gets there: the sun up and out of Work's night, or a

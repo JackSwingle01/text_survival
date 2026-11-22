@@ -34,8 +34,7 @@ public static class Work
 
     public static bool TooDarkToWork(World world, Agent agent)
     {
-        int hour = Weather.MinuteOfDay(world.Minute) / 60;
-        bool dark = Map.IsDark(Map.Of(world), agent.Tile) || hour < 5 || hour >= 21;
+        bool dark = Map.IsDark(Map.Of(world), agent.Tile) || Weather.IsNight(world.Minute);
         return dark && !Fire.HasLight(world, agent.Id);
     }
 
@@ -356,6 +355,8 @@ public static class Work
         if (s.Activity is Butcher b) EndButcher(world, agent, b, s, events);
         if (s.Got.Kg.Count > 0 || s.Got.Gear.Count > 0)
             events.Add(new Gathered(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Got)));
+        else if (s.Minutes > 0 && s.Pool is PoolId searched && Pools.Def(world, searched) is ForagePool)
+            events.Add(new Gathered(world.Minute, agent.Id, agent.Tile, ""));
         if (s.Dropped.Kg.Count > 0 || s.Dropped.Gear.Count > 0)
             events.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Dropped)));
     }

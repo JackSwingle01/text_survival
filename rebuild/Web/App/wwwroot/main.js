@@ -8,7 +8,7 @@ import { createClient } from './client.js';
 import { createMap } from './map.js';
 import { createGrid } from './combat.js';
 import { putSave, getSave, download, upload } from './saves.js';
-import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip } from './util.js';
+import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey } from './util.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -131,8 +131,9 @@ function finishJob(verb, v, startMinute, logFrom) {
     S.drawer.result = lit ? { good: true, text: 'It caught.' } : { good: false, text: fresh.find(l => l.icon === 'ui/fire')?.text ?? cap(job.reason ?? 'It did not catch.') };
   } else if (S.drawer?.kind === 'job' && S.drawer.verbId === verb.id) {
     S.drawer.done = { outcome: job.outcome, reason: job.reason, minutes: v.minute - startMinute, lines: fresh };
-  } else if (job.outcome === 'interrupted' || job.outcome === 'refused') {
-    // Sim says whether it finished or was cut short: an arrival or a meal eaten is not news.
+  } else if (job.outcome === 'interrupted' || job.outcome === 'refused' || job.kind === 'fight' && !v.combat) {
+    // Sim says whether it finished or was cut short: an arrival or a meal eaten is not news. A fight's
+    // end is: its grid is gone, and the round's reason is how it ended.
     toast(job.kind === 'walk' ? 'ui/warning' : verbIcon(verb), cap(job.reason));
   }
   if (verb.kind === 'make' && S.drawer?.kind === 'job') S.drawer.back = 'make';
@@ -155,14 +156,14 @@ function renderTop() {
   const mod = c.minuteOfDay + (shownMinute - v.minute);
   const [hm, ap] = clock(mod).split(' ');
   const left = Math.max(0, c.daylightLeftMinutes - (shownMinute - v.minute));
-  const span = c.sunsetMinute - c.sunriseMinute;
+  const span = c.darkFromMinute - c.lightFromMinute;
   const f = v.feels;
   const weather = [`Air ${deg(c.airF)}`, `Wind ${Math.round(c.windMph)} mph${c.windDirection !== 'calm' ? ` from the ${c.windDirection}` : ''}`, c.sky,
-    `m:Light at ${clock(c.sunriseMinute)} · dark at ${clock(c.sunsetMinute)}`];
+    `m:Light at ${clock(c.lightFromMinute)} · dark at ${clock(c.darkFromMinute)}`];
   $('top').innerHTML = `
     <div class="t-clock" ${tip(`Day ${dayOf(shownMinute)} · ${c.season}`, weather)}>
       <span class="clock-time">${hm}<span class="clock-ampm">${ap}</span></span></div>
-    <div class="t-light ${left && left <= 60 ? 'warn' : ''}" ${tip('Daylight', [left ? `Dark at ${clock(c.sunsetMinute)}` : `Light at ${clock(c.sunriseMinute)}`])}>
+    <div class="t-light ${left && left <= 60 ? 'warn' : ''}" ${tip('Daylight', [left ? `Dark at ${clock(c.darkFromMinute)}` : `Light at ${clock(c.lightFromMinute)}`])}>
       ${img(left ? 'ui/sun' : 'ui/moon')}<span class="lbar"><i style="width:${Math.min(1, left / span) * 100}%"></i></span>
       <span class="num">${left ? `${dur(left)} light` : 'Night'}</span></div>
     <div class="t-feels" ${tip('Feels like', f.terms.map((t, i) => i === 0 ? `${t.name} ${deg(t.deltaF)}` : `${t.deltaF > 0 ? 'g:' : 'b:'}${t.name} ${signed(Math.round(t.deltaF), '°')}`))}>
@@ -224,7 +225,7 @@ function renderDock() {
       <div class="group refused">${acts.filter(a => a.refused).map(a => verbButton(a, { small: true, sub: '' })).join('')}</div>`;
     return;
   }
-  $('dock').innerHTML = `${dockVerbs(v)}<span class="spacer"></span>
+  $('dock').innerHTML = `<div class="verbs">${dockVerbs(v)}</div>
     <button class="where-btn" data-open="here" ${tip('Where you are', ['Press X'])}><b>${px(v.place.name)}</b><small>${esc(v.place.terrain)}${v.fire ? ` · fire ${v.fire.phase.toLowerCase()}` : ''}</small></button>
     <div class="sheets">${SHEETS.map(([id, ic, k, name]) => `<button class="sbtn" data-open="${id}" aria-pressed="${S.drawer?.kind === id}" ${tip(name, [`Press ${k}`])}><img src="${src(ic)}" alt=""><span class="key">${k}</span></button>`).join('')}</div>`;
 }
@@ -458,7 +459,7 @@ function renderPack(d, v) {
   head('ui/backpack', 'Pack', `<span class="cost num">${p.carriedKg.toFixed(1)} / ${p.capacityKg} kg</span>`);
   $('sideBody').innerHTML = `
     <div class="capacity"><div class="bar"><i style="width:${Math.min(1, p.carriedKg / p.capacityKg) * 100}%"></i></div></div>
-    ${section('Carried', p.stacks.length ? `<div class="bag">${p.stacks.map(s => `<div class="it">${img(stackIcon(s.resource))}<span>${esc(s.name)}</span><span class="n"></span><span class="kg">${s.kg} kg</span></div>`).join('')}</div>` : '<p class="note">Nothing.</p>')}
+    ${section('Carried', p.stacks.length ? `<div class="bag">${p.stacks.map(s => `<div class="it">${img(stackIcon(s.resource))}<span>${esc(s.name)}</span><span class="n"></span><span class="kg">${esc(s.amount)}</span></div>`).join('')}</div>` : '<p class="note">Nothing.</p>')}
     ${section('Tools and gear', p.gear.length ? `<div class="bag">${p.gear.map(gr => `<div class="it">${img('ui/gear')}<span>${esc(gr.name)}</span><span class="n">${pct(gr.conditionPct)}</span><span class="minibar" style="--c:${gr.conditionPct < 0.3 ? 'var(--minus)' : 'var(--lichen)'}"><i style="width:${gr.conditionPct * 100}%"></i></span></div>`).join('')}</div>` : '<p class="note">None.</p>')}
     ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}
     ${v.packVerbs.length ? section('Use', `<div class="menu">${v.packVerbs.map(x => menuItem(x)).join('')}</div>`) : ''}`;
@@ -513,7 +514,7 @@ function renderFight() {
   const units = c.units.map(u => `<div class="unit ${u.inField ? '' : 'out'} ${u.index === c.target ? 'target' : ''}"><img src="${src(u.isPlayer ? 'player' : u.species)}" alt="">
     <span><b>${esc(u.name)}</b><small>${esc(u.condition)}${u.isPlayer ? '' : ` · ${esc(u.state)}`}${u.weapon ? ` · ${esc(u.weapon)}` : ''}${u.inField ? '' : ' · out of the fight'}</small></span>
     <span class="c">${u.team === 0 ? '' : u.index === c.target ? 'target' : ''}</span></div>`).join('');
-  const recent = S.view.log.slice(-5).reverse();
+  const recent = c.lines.slice(-5).reverse();
   $('fightside').innerHTML = `<div class="side-head">${img('ui/target', 'ico x2')}<h2>Fight</h2><span class="cost num">round ${c.round}</span></div>
     <div class="side-body"><div class="sec"><div class="sec-h"><span class="label">Range</span><span class="zone">${esc(c.zone)} · ${c.targetM} m</span></div>
       <p class="note">Click the ground to move, up to ${c.moveM} m a round.</p></div>
@@ -608,7 +609,12 @@ createGrid($('grid'), () => S, {
 document.addEventListener('keydown', e => {
   if (!S.view || e.metaKey || e.ctrlKey || e.altKey) return;
   const v = S.view, k = e.key;
-  if (!$('veil').hidden) { if ((k === ' ' || k === 'Enter') && $('veil').dataset.kind === 'receipt') { e.preventDefault(); closeVeil(); } return; }
+  if (!$('veil').hidden) {
+    const does = veilKey($('veil').dataset.kind, k);
+    if (does === 'keep') return;
+    closeVeil();
+    if (does === 'close') { e.preventDefault(); return; }
+  }
   if (k === 'Escape') { if (S.busy && S.drawer?.kind === 'job') S.stop = true; else closeDrawer(); return; }
   if (S.busy || v.combat) return;
   const arrows = { ArrowUp: 'north', ArrowRight: 'east', ArrowDown: 'south', ArrowLeft: 'west' };

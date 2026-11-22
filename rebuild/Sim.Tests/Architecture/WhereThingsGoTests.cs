@@ -331,12 +331,7 @@ public class WhereThingsGoTests
     // ---- OneNightRule ----
 
     /// Night is the weather's to say: Weather publishes the light and the rest read it.
-    static readonly Dictionary<string, (int Count, string Why)> ClockHourNights = new()
-    {
-        ["Combat.cs"] = (2, "the night boldness: 05:00 to 21:00"),
-        ["Npc.cs"] = (3, "NightHour and Me.Night copy Work.TooDarkToWork's hours"),
-        ["Work.cs"] = (2, "TooDarkToWork's night: 05:00 to 21:00"),
-    };
+    static readonly Dictionary<string, (int Count, string Why)> ClockHourNights = new();
 
     static readonly Regex ClockHourNight = new(
         @"\bNightHour\b" +

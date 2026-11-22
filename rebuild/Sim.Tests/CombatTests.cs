@@ -446,6 +446,16 @@ public class CombatTests
         Assert.Equal(0, friend.SignalModifier); // the call lapses after five minutes
     }
 
+    [Fact]
+    public void CallingOut_WithNobodyToHear_IsRefused()
+    {
+        var (w, t) = Field();
+        var e = PlayerVs(w, t, Species.Wolf, 5);
+        Assert.Equal("Nobody is with you to hear it.", Combat.Refusal(w, e, Me(e), CombatAction.CallHelp));
+        Assert.Equal("Nobody is with you to hear it.", Combat.Refusal(w, e, Me(e), CombatAction.CallRetreat));
+        Assert.DoesNotContain(CombatAction.CallHelp, Combat.Actions(w, e, Me(e)));
+    }
+
     // ---- the player's rounds through Sim.Step ----
 
     [Fact]
@@ -503,10 +513,10 @@ public class CombatTests
 
     [Theory]
     // Flee at any distance, and Intimidate from Near out (combat round 1).
-    [InlineData(1, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Shove, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
-    [InlineData(2, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Intimidate, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
-    [InlineData(10, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Throw, CombatAction.ThrowStone, CombatAction.Intimidate, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
-    [InlineData(22, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Intimidate, CombatAction.Flee, CombatAction.CallHelp, CombatAction.CallRetreat })]
+    [InlineData(1, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Shove, CombatAction.Flee })]
+    [InlineData(2, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Attack, CombatAction.Intimidate, CombatAction.Flee })]
+    [InlineData(10, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Throw, CombatAction.ThrowStone, CombatAction.Intimidate, CombatAction.Flee })]
+    [InlineData(22, new[] { CombatAction.Wait, CombatAction.Advance, CombatAction.Retreat, CombatAction.Intimidate, CombatAction.Flee })]
     public void ActionsDependOnTheZone(int distance, CombatAction[] expected)
     {
         var (w, t) = Field();

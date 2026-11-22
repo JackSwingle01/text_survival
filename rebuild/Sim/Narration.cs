@@ -30,7 +30,7 @@ public static class Narration
             FireStartFailed x => x.Who == me,
             FuelAdded x => x.By == me,
             Moved x => x.Who == me,
-            Injured x => x.Who == me,
+            Injured x => x.Who == me || Combat.EncounterOf(world, me) is { } fight && fight.Units.Any(u => u.Agent == x.Who), // a blow in your fight is seen
             CrossedThePass x => x.Who == me,
             Gathered x => x.Who == me,
             Dropped x => x.Who == me,
@@ -76,9 +76,11 @@ public static class Narration
             FireBurnedToEmbers => ("The fire burns down to embers.", Tone.Bad),
             FireDied => ("The fire goes out.", Tone.Bad),
             Moved x => ($"{Does(x.Who, "reach")} {Place(world, x.To)}.", Tone.Plain),
-            Injured x => (Me(x.Who) ? $"You hurt your {x.Region.ToLowerInvariant()}." : $"{Who(x.Who)} is hurt.", Tone.Bad),
+            Injured x => (Me(x.Who) ? $"You hurt your {x.Region.ToLowerInvariant()}."
+                : world.Agents.TryGetValue(x.Who, out var hurt) && hurt.Mind is HerdMind ? $"A {Names.Of(hurt.Species)} is hurt." // one of the herd, not the herd
+                : $"{Who(x.Who)} is hurt.", Tone.Bad),
             CrossedThePass x => ($"{Does(x.Who, "cross")} the pass.", Tone.Rare),
-            Gathered x => ($"{Does(x.Who, "gather")} {Haul(x.What)}.", Tone.Good),
+            Gathered x => x.What.Length == 0 ? ($"{Does(x.Who, "find")} nothing.", Tone.Bad) : ($"{Does(x.Who, "gather")} {Haul(x.What)}.", Tone.Good),
             Dropped x => ($"No room in the pack: {Haul(x.What)} left on the ground.", Tone.Bad),
             Stashed x => ($"{Does(x.Who, "put")} down {Names.Kg(x.Kg, x.Resource)}.", Tone.Plain),
             Unstashed x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Kg(x.Kg, x.Resource)} from the stash." : $"{Does(x.Who, "pick")} up {Names.Kg(x.Kg, x.Resource)}.",

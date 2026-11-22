@@ -306,8 +306,7 @@ public static partial class Combat
         if (targetCarriesMeat) bold += 0.1;
         if (Body.GetCapacities(target).Moving < 0.5) bold += 0.2;
         if (Body.Vitality(target) < 0.7) bold += 0.1;
-        int hour = Weather.MinuteOfDay(world.Minute) / 60;
-        if (hour < 5 || hour >= 21) bold += 0.1;
+        if (Weather.IsNight(world.Minute)) bold += 0.1;
         if (fear > 0) bold *= 1.0 - fear;
         return Math.Clamp(bold, 0, t.Cap);
     }
@@ -465,7 +464,8 @@ public static partial class Combat
             case CombatAction.PickUp:
                 return unit.Weapon != null ? "Your hands are full." : DroppedNear(enc, unit) == null ? "Nothing to pick up within reach." : null;
             case CombatAction.CallHelp or CombatAction.CallRetreat:
-                return unit.LastSignalMinute is long last && world.Minute - last < SignalCooldownMinutes ? "You called out a moment ago." : null;
+                return !Hearers(world, enc, unit).Any() ? "Nobody is with you to hear it."
+                    : unit.LastSignalMinute is long last && world.Minute - last < SignalCooldownMinutes ? "You called out a moment ago." : null;
             case CombatAction.Move:
                 if (to is not Cell cell) return "Choose where to move.";
                 double metres = unit.Position.DistanceTo(cell);
@@ -916,12 +916,16 @@ public static partial class Combat
         foreach (var ally in Allies(enc, unit).ToList()) Morale(world, enc, ally, MoraleEvent.AllyFled, unit);
     }
 
+    /// The allies a call reaches: people beside the caller, not animals.
+    static IEnumerable<CombatUnit> Hearers(World world, Encounter enc, CombatUnit caller) =>
+        Allies(enc, caller).Where(u => !IsPlayer(u) && !StatsOf(world, u).IsAnimal);
+
     /// A call to the human companions on this side: a morale nudge that replaces the last one and
     /// lapses after five minutes.
     static void Signal(World world, Encounter enc, CombatUnit caller, bool retreat)
     {
         caller.LastSignalMinute = world.Minute;
-        foreach (var ally in Allies(enc, caller).Where(u => !IsPlayer(u) && !StatsOf(world, u).IsAnimal))
+        foreach (var ally in Hearers(world, enc, caller))
         {
             ally.BoldnessModifier -= ally.SignalModifier;
             ally.SignalModifier = retreat ? -0.75 : 0.25;

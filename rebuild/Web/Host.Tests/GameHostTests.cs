@@ -172,6 +172,27 @@ public class GameHostTests
         Assert.Contains(v.Map.Places, p => (p.X, p.Y) == camp && p.Fire is null or "Cold" or "Embers");
     }
 
+    /// Waking beside a fire that died in the night, the map draws the fire you are looking at, not the
+    /// one you fell asleep to: the map and the fire panel tell the same story, so leaving, you remember
+    /// what you saw.
+    [Fact]
+    public void Waking_by_a_dead_fire_the_map_shows_it_as_the_fire_panel_does()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var v = Parse(Scenarios.Apply(h, "supplied"));
+        for (int tries = 0; v.Fire is not { Burning: true }; tries++)
+        {
+            Assert.True(tries < 40, "the fire never caught");
+            v = Run(h, Find(v, x => x.Kind == "fire" && x.Refused == null, "light a fire"));
+            if (v.Fire is not { Burning: true }) v = Run(h, Find(v, x => x.Kind == "wait", "wait"));
+        }
+        v = Run(h, Find(v, x => x.Kind == "sleep", "sleep"), chunk: 60);
+        Assert.False(v.Fire!.Burning, "the fire should have died in the night");
+        var here = v.Map.Places.Single(p => (p.X, p.Y) == (v.Place.X, v.Place.Y));
+        Assert.Equal(v.Fire.Phase, here.Fire);
+    }
+
     /// Waking where you slept, what changed in the night is the morning's news, not a homecoming:
     /// whichever view carries it, its title is "Morning".
     [Fact]
@@ -249,6 +270,34 @@ public class GameHostTests
         Assert.Equal(v.Minute + 1, after.Minute);
     }
 
+    /// The fight's "just now" is the fight's own lines, never the walk that came before it; and the
+    /// round that ends the fight says how it ended, where the page shows a job's end.
+    [Fact]
+    public void A_fight_tells_its_own_rounds_and_its_last_round_says_how_it_ended()
+    {
+        var h = new GameHost();
+        var v = Parse(h.NewGame(Seed));
+        v = Run(h, v.Walk.First(w => w.Refused == null && !w.Careful));
+        Assert.Contains(v.Log, l => l.Text.StartsWith("You reach", StringComparison.Ordinal));
+        v = Parse(Scenarios.Apply(h, "fight"));
+        Assert.Empty(v.Combat!.Lines);
+        long from = v.Minute;
+        var told = new List<LogDto>();
+        for (int round = 0; v.Combat != null; round++)
+        {
+            Assert.True(round < 200, "the fight never ended");
+            Assert.All(v.Combat.Lines, l => Assert.True(l.Minute > from, $"'{l.Text}' is from before the fight"));
+            told.AddRange(v.Combat.Lines.Where(l => !told.Contains(l)));
+            var acts = v.Combat.Actions;
+            var act = acts.FirstOrDefault(a => a.Label == "Attack" && a.Refused == null)
+                ?? acts.FirstOrDefault(a => a.Label == "Advance" && a.Refused == null) ?? acts.First(a => a.Label == "Wait");
+            v = Run(h, act);
+        }
+        Assert.NotEmpty(told); // blows were struck, one way or the other
+        Assert.All(told, l => Assert.DoesNotMatch("Someone|pack", l.Text)); // each blow names the one it hurt
+        Assert.StartsWith("The fight is over", v.Job!.Reason);
+    }
+
     /// A herd standing where the player is can be hunted from the page: its verb is a hunt, and
     /// taking it puts the player on the grid with it.
     [Fact]
@@ -277,6 +326,23 @@ public class GameHostTests
         var w = Parse(Scenarios.Apply(won, "won"));
         Assert.Equal("crossed", w.Outcome);
         Assert.All(w.Map.Surface, s => Assert.NotEqual('.', w.Map.Known[s.I])); // in sight from a tile never looked around: no ground for the unknown
+    }
+
+    /// The daylight countdown is the light work goes by: while it shows light left, nothing is too dark
+    /// to see by, and it runs out the minute work would be.
+    [Fact]
+    public void The_daylight_countdown_runs_out_when_work_goes_dark()
+    {
+        var h = new GameHost();
+        var v = Parse(h.NewGame(Seed));
+        var p = h.World.Agent(AgentId.Player);
+        for (int i = 0; i < 48; i++)
+        {
+            bool dark = Work.TooDarkToWork(h.World, p);
+            Assert.True(dark == (v.Clock.DaylightLeftMinutes == 0),
+                $"at {v.Clock.MinuteOfDay / 60}:{v.Clock.MinuteOfDay % 60:00} the page shows {v.Clock.DaylightLeftMinutes} min of light, and work is {(dark ? "" : "not ")}too dark");
+            v = Run(h, Find(v, x => x.Kind == "wait", "wait"), chunk: 30);
+        }
     }
 
     [Fact]

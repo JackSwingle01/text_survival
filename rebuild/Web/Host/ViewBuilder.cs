@@ -29,7 +29,7 @@ sealed class ViewBuilder(World world, int gen)
     readonly Agent _player = world.Agent(AgentId.Player);
     GeneratedMap M => Map.Of(world);
 
-    public ViewDto Build(GameHost.Job? job, ReceiptDto? receipt, IReadOnlyList<LogDto> log)
+    public ViewDto Build(GameHost.Job? job, ReceiptDto? receipt, IReadOnlyList<LogDto> log, IReadOnlyList<LogDto> fightLines)
     {
         var p = _player;
         var body = p.Body;
@@ -65,7 +65,7 @@ sealed class ViewBuilder(World world, int gen)
             Pack: Pack(),
             Body: BodyOf(body),
             Map: MapOf(),
-            Combat: CombatOf(),
+            Combat: CombatOf(fightLines),
             Job: job is null ? null : JobOf(job),
             Receipt: receipt,
             Log: [.. log.TakeLast(40)],
@@ -171,10 +171,9 @@ sealed class ViewBuilder(World world, int gen)
     ClockDto Clock(WeatherSample sky)
     {
         int mod = Weather.MinuteOfDay(world.Minute);
-        int rise = Weather.SunriseHour(world.Minute) * 60, set = Weather.SunsetHour(world.Minute) * 60;
         return new ClockDto(Weather.DayNumber(world.Minute), mod, Names.Title(Weather.SeasonAt(world.Minute)), Names.Title(sky.Condition),
-            Math.Round(sky.TemperatureF, 1), Math.Round(sky.WindMph, 1), Names.Of(sky.WindDirection), rise, set,
-            mod >= rise && mod < set ? set - mod : 0);
+            Math.Round(sky.TemperatureF, 1), Math.Round(sky.WindMph, 1), Names.Of(sky.WindDirection),
+            Weather.LightFromHour * 60, Weather.DarkFromHour * 60, Weather.LightLeftMinutes(world.Minute));
     }
 
     static VitalDto[] Vitals(BodyState b, StatTiers tiers, Exposure e)
@@ -247,7 +246,7 @@ sealed class ViewBuilder(World world, int gen)
         var pack = Items.PackOf(_player) ?? new Inventory();
         GearDto G(Gear g) => new(g.Kind, Items.Def(g).Name, Items.ConditionPct(g), Items.Def(g).Slot is EquipSlot slot ? Names.Title(slot) : null);
         return new PackDto(Math.Round(Items.CarriedKg(_player), 2), Items.CapacityKg(pack),
-            [.. pack.Kg.Where(x => x.Value > 0.001).Select(x => new StackDto(x.Key.ToString(), Names.Title(x.Key), Math.Round(x.Value, 2)))],
+            [.. pack.Kg.Where(x => x.Value > 0.001).Select(x => new StackDto(x.Key.ToString(), Names.Title(x.Key), Math.Round(x.Value, 2), Names.Kg(x.Value)))],
             [.. pack.Gear.Select(G)], [.. _player.Body.Worn.Select(G)],
             [.. (pack.Projects ?? []).Select(p => new ProjectDto(p.Recipe, Recipes.Get(p.Recipe).Name, Math.Clamp(p.MinutesDone / Recipes.Get(p.Recipe).Minutes, 0, 1)))]);
     }
@@ -285,13 +284,19 @@ sealed class ViewBuilder(World world, int gen)
         var visible = Sight.InView(world, _player); // the view the player's looks already cast
 
         var places = new List<PlaceMarkDto>();
+        // The fire underfoot is the one the fire panel shows (FireHere): memory catches up with it only on
+        // the next minute awake, so on waking it would still hold the fire slept beside.
+        var pitHere = Fire.PitAt(world, _player.Tile) is FireId pid ? world.Fires[pid] : null;
         foreach (var (t, mem) in beliefs.Places)
         {
-            bool notable = mem.Fire != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Stash is { Count: > 0 } || mem.Danger != Danger.None;
+            bool underfoot = t == _player.Tile;
+            var fire = underfoot ? (pitHere is { } ph ? Fire.Phase(ph) : null) : mem.Fire;
+            bool notable = fire != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Stash is { Count: > 0 } || mem.Danger != Danger.None;
             if (!notable) continue;
             // The fuel was reckoned beside the fire; age it from then. A fire seen burning since keeps that reckoning.
-            double? hoursLeft = mem.FireHours is double h && mem.VisitedMinute is long v ? Math.Max(0, Math.Round(h - (world.Minute - v) / 60.0, 1)) : null;
-            places.Add(new PlaceMarkDto(t.X, t.Y, mem.SeenMinute, mem.Fire is { } f ? Names.Title(f) : null, hoursLeft, mem.Shelter,
+            double? hoursLeft = underfoot ? (pitHere != null && Fire.IsActive(pitHere) ? Math.Round(Fire.FuelHours(pitHere), 1) : null)
+                : mem.FireHours is double h && mem.VisitedMinute is long v ? Math.Max(0, Math.Round(h - (world.Minute - v) / 60.0, 1)) : null;
+            places.Add(new PlaceMarkDto(t.X, t.Y, underfoot ? world.Minute : mem.SeenMinute, fire is { } f ? Names.Title(f) : null, hoursLeft, mem.Shelter,
                 mem.Carcasses is { Count: > 0 }, mem.Stash is { Count: > 0 }, mem.Danger.HasFlag(Danger.Den), mem.Danger.HasFlag(Danger.Hurt)));
         }
         var sightings = beliefs.Sightings.Where(s => s.Key != AgentId.Player)
@@ -340,7 +345,7 @@ sealed class ViewBuilder(World world, int gen)
 
     // ---- the fight ----
 
-    CombatDto? CombatOf()
+    CombatDto? CombatOf(IReadOnlyList<LogDto> lines)
     {
         if (Combat.EncounterOf(world, AgentId.Player) is not { } enc) return null;
         var me = Combat.UnitOf(enc, AgentId.Player);
@@ -378,7 +383,7 @@ sealed class ViewBuilder(World world, int gen)
             ? new ChaseDto(enc.Units.IndexOf(fleer), units[enc.Units.IndexOf(fleer)].Name, Math.Round(odds.Pct, 2), Math.Round(odds.Seconds), Math.Round(odds.PursuerMetres))
             : null;
         return new CombatDto(Combat.MapSize, enc.Rounds, units, actions, Words.Of(Combat.ZoneOf(distance)), Math.Round(distance, 1), target,
-            MoveAllowance(enc, me), targets, chase);
+            MoveAllowance(enc, me), targets, chase, lines);
     }
 
     /// How far a Move may go: the largest whole distance Combat.Refusal accepts, probed along the row.

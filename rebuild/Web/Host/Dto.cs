@@ -35,9 +35,10 @@ public sealed record ViewDto(
     string Outcome,
     string? DeathCause);
 
-/// Day is the run's day number; MinuteOfDay 0-1439. DaylightLeftMinutes is 0 at night.
+/// Day is the run's day number; MinuteOfDay 0-1439. LightFromMinute and DarkFromMinute bound the light
+/// to work by (Weather.IsNight); DaylightLeftMinutes counts down to it, 0 at night.
 public sealed record ClockDto(int Day, int MinuteOfDay, string Season, string Sky, double AirF, double WindMph, string WindDirection,
-    int SunriseMinute, int SunsetMinute, int DaylightLeftMinutes);
+    int LightFromMinute, int DarkFromMinute, int DaylightLeftMinutes);
 
 /// What the air feels like on the player: the base air, then each thing that moves it, summing to TotalF.
 public sealed record FeelsDto(double TotalF, IReadOnlyList<FeelsTermDto> Terms);
@@ -84,7 +85,8 @@ public sealed record MakeOutcomeDto(string Text, bool Succeeds, bool FailureLike
 
 public sealed record PackDto(double CarriedKg, double CapacityKg, IReadOnlyList<StackDto> Stacks, IReadOnlyList<GearDto> Gear,
     IReadOnlyList<GearDto> Worn, IReadOnlyList<ProjectDto> Projects);
-public sealed record StackDto(string Resource, string Name, double Kg);
+/// Amount: Kg in words (Names.Kg), so a crumb reads as one rather than as nothing.
+public sealed record StackDto(string Resource, string Name, double Kg, string Amount);
 public sealed record GearDto(string Kind, string Name, double ConditionPct, string? Slot);
 public sealed record ProjectDto(string Recipe, string Name, double ProgressPct);
 
@@ -125,9 +127,10 @@ public sealed record NamedDto(int X, int Y, string Name);
 
 /// The fight the player is in. Grid cells are metres, 0..Size-1. Actions: every round action with its
 /// refusal (Combat.Refusal); Move takes a cell. Target is the unit faced; Targets every enemy that could
-/// be, nearest first, each with the verb that turns to face it (turning costs the round).
+/// be, nearest first, each with the verb that turns to face it (turning costs the round). Lines: what this
+/// fight's rounds told, oldest first.
 public sealed record CombatDto(int Size, int Round, IReadOnlyList<UnitDto> Units, IReadOnlyList<VerbDto> Actions, string Zone,
-    double TargetM, int? Target, double MoveM, IReadOnlyList<TargetDto> Targets, ChaseDto? Chase);
+    double TargetM, int? Target, double MoveM, IReadOnlyList<TargetDto> Targets, ChaseDto? Chase, IReadOnlyList<LogDto> Lines);
 /// Someone has just run from the player: whom, and the odds of running it down if they give chase (the
 /// Chase action), how long the chase would take and how far they would run.
 public sealed record ChaseDto(int Index, string Name, double Pct, double Seconds, double Metres);
@@ -140,7 +143,8 @@ public sealed record CellDto(int X, int Y);
 
 /// A timed action under way: what it is, how far along. Finished once it stopped. Outcome, once
 /// finished: finished, refused, interrupted (Sim's StepOutcome), or stopped (by the client). Reason:
-/// the stop in the game's words ("arrived", "the fire went out"), null when it simply ran its time.
+/// the stop in the game's words ("arrived", "the fire went out"), null when it simply ran its time; a
+/// round that ended the fight gives the fight's end as Narration tells it.
 public sealed record JobDto(string Label, string Kind, int DoneMinutes, int? TotalMinutes, bool Finished, string? Outcome, string? Reason,
     int? FromX, int? FromY, string? Dir);
 

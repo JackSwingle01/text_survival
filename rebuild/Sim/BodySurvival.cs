@@ -551,8 +551,9 @@ public static partial class Body
         Update(body, ctx, world.Rng("body", agent.Id), woundsLived: world.Minute <= body.WoundsLivedThroughMinute);
 
         var kindsAfter = body.Effects.Select(e => e.Kind).ToList();
-        foreach (var k in kindsAfter.Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, agent.Tile, k));
+        // Endings first: hunger that ends Well fed reads as the change it is, not as both at once.
         foreach (var k in kindsBefore.Except(kindsAfter)) events.Add(new EffectEnded(world.Minute, agent.Id, agent.Tile, k));
+        foreach (var k in kindsAfter.Except(kindsBefore)) events.Add(new EffectStarted(world.Minute, agent.Id, agent.Tile, k));
 
         if (!IsAlive(body))
         {
