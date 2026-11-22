@@ -40,8 +40,13 @@ jobs:
           CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
-          plugins: "code-review@claude-plugins-official"
+          # mp: the owner's skills (JackSwingle01/skills), installed for reference.
+          plugin_marketplaces: |
+            https://github.com/anthropics/claude-plugins-official.git
+            https://github.com/JackSwingle01/skills.git
+          plugins: |
+            code-review@claude-plugins-official
+            mp@jackswingle01
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
           claude_args: '--model ${{ steps.model.outputs.name }} --allowedTools "mcp__github_inline_comment__create_inline_comment"'
           # Temporary: runs finish in seconds with no comments, and the default output hides why.
