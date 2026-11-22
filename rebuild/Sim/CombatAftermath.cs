@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// Everything the world keeps after a fight, whoever fought it (old CombatAftermath).
+/// Everything the world keeps after a fight, whoever fought it.
 public static partial class Combat
 {
     /// The fight leaves the world. Weapons go back to their wielders' packs (or the ground); dead
@@ -17,6 +17,9 @@ public static partial class Combat
         // earlier one): read before weapons go home and the dead leave their herds.
         var fellTo = new[] { KilledBy(world, enc, units, 0), KilledBy(world, enc, units, 1) };
 
+        // What was thrown and never picked up lies where the fight was.
+        foreach (var d in enc.Dropped ?? [])
+            Items.StashAt(world, enc.Tile, new Cause(d.ThrownBy, $"thrown by {Cause.Describe(world, d.ThrownBy)}")).Gear.Add(d.Weapon);
         foreach (var u in units.Where(u => u.Weapon != null))
         {
             var pack = Items.PackOf(world.Agent(u.Agent));
@@ -24,12 +27,20 @@ public static partial class Combat
             u.Weapon = null;
         }
 
-        // Only a wounded animal the player watched get away leaves a trail (old TrackWoundedPrey).
+        // Only a wounded animal the player watched get away leaves a trail.
         var escaped = result == CombatResult.AnimalFled && units.Any(IsPlayer)
             ? units.Where(u => u.Team == 1 && StatsOf(world, u).IsAnimal && Alive(world, u) && WoundLevel(BodyOf(world, u)) > 0.05)
                 .OrderByDescending(u => WoundLevel(BodyOf(world, u))).FirstOrDefault()
             : null;
         var escapedBody = escaped != null ? BodyOf(world, escaped) : null;
+
+        // Which animal agents ran off whole: every member still alive was in this fight and left it on a heading
+        // (or chasing). Read before the dead leave their herds and a wounded one splits off.
+        var drifts = units.Where(u => StatsOf(world, u).IsAnimal).Select(u => u.Agent).Distinct()
+            .Select(id => (Id: id, Living: units.Where(u => u.Agent == id && Alive(world, u)).ToList()))
+            .Where(a => a.Living.Count > 0 && a.Living.Count == world.Agent(a.Id).Members.Count(Body.IsAlive) && a.Living.All(u => u.FledHeading != null))
+            .Select(a => (a.Id, Far: a.Living.OrderByDescending(u => u.FledTiles).First()))
+            .ToList();
 
         // Which sides lost someone, before the dead leave their herds.
         var fell = units.Where(u => !Alive(world, u)).Select(u => u.Team).ToHashSet();
@@ -52,8 +63,10 @@ public static partial class Combat
         {
             var source = world.Agent(escaped.Agent);
             var newId = Agents.SplitOff(world, escaped.Agent, source.Members.IndexOf(escapedBody!));
-            events.Add(new WoundedEscaped(world.Minute, newId, source.Species, 0.3 + WoundLevel(escapedBody!) * 0.5, enc.Tile));
-            Fauna.Escaped(world, newId, enc.Tile);
+            // It ran on the way it fled, leaving its trail that way.
+            if (escaped.FledHeading is Direction heading) Drift(world, newId, heading, escaped.FledTiles);
+            events.Add(new WoundedEscaped(world.Minute, newId, source.Species, 0.3 + WoundLevel(escapedBody!) * 0.5, enc.Tile, escaped.FledHeading));
+            Fauna.Escaped(world, newId, world.Agent(newId).Tile);
         }
 
         foreach (var id in fought)
@@ -62,11 +75,18 @@ public static partial class Combat
             var own = side == 0 ? result : Mirror(result);
             events.Add(new FightEnded(world.Minute, id, enc.Tile, own, enc.Rounds));
             Fauna.AfterFight(world, id, own, killedOne: fell.Contains(1 - side), enc.Tile);
+            // Whatever a person was at when the fight found them is over: they decide afresh.
+            if (world.Agents.TryGetValue(id, out var person) && person.Mind is PersonMind) Sim.EndDoing(world, person, events);
         }
+
+        // Those carry on along their heading as far as the farthest of them ran; a herd with members
+        // that stayed behind, or one now gone with its last member, does not.
+        foreach (var (id, far) in drifts.Where(d => world.Agents.ContainsKey(d.Id)))
+            Drift(world, id, far.FledHeading!.Value, far.FledTiles);
     }
 
-    /// A carcass on the tile, ready to butcher (old CombatAftermath.LeaveRemains). Old Animal: over
-    /// 500 kg is megafauna; a mammoth leaves its tusks and hide besides.
+    /// A carcass on the tile, ready to butcher. Over 500 kg is megafauna; a mammoth leaves its tusks
+    /// and hide besides.
     internal static void LeaveCarcass(World world, TileId tile, Species species, BodyState body, Cause cause) =>
         Carcasses.Create(world, tile, species.ToString(), body, world.Minute, isMegafauna: body.WeightKg > 500,
             special: species == Species.Mammoth ? new Dictionary<Resource, double> { [Resource.Ivory] = 4, [Resource.MammothHide] = 15 } : null,
@@ -96,7 +116,7 @@ public static partial class Combat
         _ => CombatResult.AnimalDisengaged,
     };
 
-    /// Old herd fear after a fight, by its own result: lost it 0.9, ran 0.7, the other side ran 0.2,
+    /// Herd fear after a fight, by its own result: lost it 0.9, ran 0.7, the other side ran 0.2,
     /// won 0, broke off 0.4.
     public static double FearAfter(CombatResult ownResult) => ownResult switch
     {

@@ -3,6 +3,33 @@ using Survival;
 /// Gives an agent the gear and fuel the fire tests used to take for granted.
 static class TestKit
 {
+    /// An NPC at the lean 12% baseline build, its fat target matched to it: the NPC food scenarios were
+    /// written against that body, before people started the run well fed for the autumn.
+    public static void Lean(World world, AgentId npc)
+    {
+        var agent = world.Agent(npc);
+        agent.Members[0] = BodyState.BaselineHuman();
+        ((NpcMind)agent.Mind).TargetFatKg = agent.Body.FatKg;
+    }
+
+    /// 15 January, 09:00: a minute when the lakes and rivers are ice (Map.IsFrozen). World minute 0, 1 July, is open water.
+    public const long JanuaryMinute = 198 * 1440;
+
+    /// Sets a herd's hunger (Fauna.Hunger) by emptying each member's calorie store that far.
+    public static void SetHunger(Agent herd, double hunger)
+    {
+        foreach (var b in herd.Members) b.CaloriesKcal = Body.CaloriesCapacityKcal(b) * (1 - hunger);
+    }
+
+    /// The old game's baseline adult (75 kg, 15% fat, 30% muscle) in the starting clothes: the body
+    /// parity goldens were measured on. The rebuild's baseline is the species round's 68 kg man.
+    public static BodyState OldBaselineHuman()
+    {
+        var b = BodyState.Create(BodyKind.Human, 75, 0.15, 0.30);
+        b.Worn.AddRange(Items.StartingClothes());
+        return b;
+    }
+
     public static World Supply(World world, AgentId? who = null)
     {
         var pack = Items.Pack(world, who ?? AgentId.Player);

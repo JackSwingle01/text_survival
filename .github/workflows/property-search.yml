@@ -1,0 +1,100 @@
+name: Property search
+
+# CI runs the rebuild's property tests on a fixed seed (Gens.Check), so a push fails only when the
+# code changes. This job keeps the random search: every night, fresh CsCheck seeds and ten times
+# the iterations. Each failing test opens one issue with its seed and message, so it can be replayed
+# locally (documentation/verification.md); a test that already has an open issue gets no second one.
+
+on:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: property-search
+  cancel-in-progress: false
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - shell: bash
+        run: dotnet build rebuild/Sim.Tests -c Release
+
+      - name: Property tests, random seeds
+        id: test
+        env:
+          SIM_PROPERTY_SEARCH: random
+          SIM_PROPERTY_ITER_FACTOR: "10"
+        shell: bash
+        run: |
+          set +e
+          dotnet test rebuild/Sim.Tests -c Release --no-build \
+            --filter "FullyQualifiedName~EffectsPropertyTests|FullyQualifiedName~Survival.Tests.Verification" \
+            --logger "trx;LogFileName=property-search.trx" --results-directory "$RUNNER_TEMP/results"
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue per failing test
+        if: steps.test.outputs.exit != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/failures"
+          mkdir -p "$out"
+          python3 - "$RUNNER_TEMP/results/property-search.trx" "$out" <<'PY'
+          import re, sys, os, xml.etree.ElementTree as ET
+          trx, out = sys.argv[1], sys.argv[2]
+          ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+          sha, run = os.environ["GITHUB_SHA"], os.environ["RUN_URL"]
+          failed = [r for r in ET.parse(trx).getroot().iterfind(".//t:UnitTestResult", ns) if r.get("outcome") == "Failed"]
+          for i, r in enumerate(failed):
+              name = r.get("testName")
+              message = r.findtext(".//t:ErrorInfo/t:Message", "", ns)
+              stack = r.findtext(".//t:ErrorInfo/t:StackTrace", "", ns)
+              seeds = re.findall(r"CsCheck_Seed=([\w-]+)", message)
+              seed = seeds[0] if seeds else "(none in the message)"
+              method = name.split("(")[0]
+              body = (f"The nightly property search failed `{name}` at {sha}.\n\n"
+                      f"**Seed:** `{seed}`\n\n"
+                      f"Replay locally:\n\n```bash\nCsCheck_Seed={seed} dotnet test rebuild/Sim.Tests -c Release "
+                      f"--filter \"FullyQualifiedName~{method}\"\n```\n\n"
+                      f"**Message:**\n\n```\n{message[:30000]}\n```\n\n"
+                      f"<details><summary>Stack trace</summary>\n\n```\n{stack[:20000]}\n```\n</details>\n\n"
+                      f"Run: {run}\n")
+              with open(f"{out}/{i}.title", "w") as f: f.write(f"Property search failed: {name}")
+              with open(f"{out}/{i}.search", "w") as f: f.write(method.rsplit(".", 1)[-1])
+              with open(f"{out}/{i}.body", "w") as f: f.write(body)
+          print(f"{len(failed)} failing test(s)")
+          PY
+
+          for title_file in "$out"/*.title; do
+            [ -e "$title_file" ] || continue
+            title=$(cat "$title_file")
+            search=$(cat "${title_file%.title}.search")
+            existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$search in:title" \
+                         --limit 100 --json number,title | jq -r --arg t "$title" 'map(select(.title == $t)) | .[0].number // empty')
+            if [ -n "$existing" ]; then
+              echo "Already open as #$existing: $title"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "${title_file%.title}.body"
+            fi
+          done
+
+      - name: Fail the run when a test failed
+        if: steps.test.outputs.exit != '0'
+        shell: bash
+        run: |
+          echo "::error::Property search found failures; see the issues opened above."
+          exit 1

@@ -27,14 +27,14 @@ public class OddsTests
         return Math.Clamp(accuracy, 0.05, 0.95);
     }
 
-    static double OldInjury(World world, TileId tile, BodyState body, WeatherSample sky)
+    /// The old terms (weather, bad legs) make the footing worse in proportion; the footing curve turns it into a chance.
+    static double ExpectedInjury(World world, TileId tile, BodyState body, WeatherSample sky, Pace pace)
     {
-        double baseRisk = Traversal.EffectiveHazardLevel(world, tile);
-        if (baseRisk < Traversal.HazardousLevel) return 0;
         double weather = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? 0.25
             : sky.PrecipitationPct > 0.3 || sky.Condition == WeatherCondition.LightSnow ? 0.15 : 0;
         double impaired = (1 - Body.GetCapacities(body).Moving) * 0.3;
-        return Math.Min(Traversal.MaxInjuryRiskPct, baseRisk + weather + impaired);
+        double footing = Math.Min(1, Traversal.EffectiveHazardLevel(world, tile) * (1 + weather + impaired));
+        return Math.Pow(footing, Math.E) / 2 * (pace == Pace.Careful ? 0.25 : 1);
     }
 
     static readonly ToolType[] Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
@@ -89,7 +89,7 @@ public class OddsTests
 
         var plain = Fire.StartOdds(ToolType.BowDrill, Resource.Amadou);
         Assert.False(plain.Capped);
-        Assert.Equal(("BowDrill", 0.5), (plain.Base, plain.BasePct));
+        Assert.Equal(("Bow drill", 0.5), (plain.Base, plain.BasePct)); // the player's words (names.json), not the code key
         Assert.Equal(0.5 + 0.20, plain.TotalPct, 12);
     }
 
@@ -137,7 +137,7 @@ public class OddsTests
     }
 
     [Fact]
-    public void InjuryOdds_AreTheOldNumbers_AndAddUp()
+    public void InjuryOdds_FollowTheFootingCurve_AndAddUp()
     {
         var w = World.New(17);
         var m = Map.Of(w);
@@ -157,14 +157,32 @@ public class OddsTests
                 if (!m.TerrainAt(t).IsPassable()) continue;
                 foreach (var body in new[] { BodyState.BaselineHuman(), hurt })
                     foreach (var sky in skies)
-                    {
-                        var odds = Traversal.InjuryOdds(w, t, body, sky);
-                        Assert.Equal(OldInjury(w, t, body, sky), odds.TotalPct);
-                        AssertAddsUp(odds);
-                        if (odds.TotalPct > 0) hazardous++;
-                    }
+                        foreach (var pace in new[] { Pace.Quick, Pace.Careful })
+                        {
+                            var odds = Traversal.InjuryOdds(w, t, body, sky, pace);
+                            Assert.Equal(ExpectedInjury(w, t, body, sky, pace), odds.TotalPct, 12);
+                            AssertAddsUp(odds);
+                            if (odds.TotalPct > 0) hazardous++;
+                        }
             }
         Assert.True(hazardous > 0, "no hazardous ground sampled");
+    }
+
+    /// A quick crossing's chance of injury is hazard^e / 2, a smooth curve: easy ground nearly safe,
+    /// the worst a coin flip, and no step anywhere along it (the old game's 0.3 threshold went from 0 to 30%).
+    [Fact]
+    public void InjuryOdds_AreHazardToTheEOverTwo_WithNoCliff()
+    {
+        var calm = new WeatherSample(0, WeatherCondition.Clear, -5, 0, 0, 0, WindDirection.North);
+        double Quick(double hazard) => Traversal.InjuryOdds(hazard, BodyState.BaselineHuman(), calm, Pace.Quick).TotalPct;
+        Assert.Equal(0, Quick(0));
+        Assert.Equal(0.0190, Quick(0.3), 4);
+        Assert.Equal(0.0760, Quick(0.5), 4);
+        Assert.Equal(0.2287, Quick(0.75), 4);
+        Assert.Equal(0.5, Quick(1.0), 12);
+        Assert.InRange(Quick(0.29), 0.0170, Quick(0.3));
+        for (double h = 0.01; h <= 1; h += 0.01)
+            Assert.InRange(Quick(h) - Quick(h - 0.01), 0, 0.014); // steepest at the top: 1.0 vs 0.99
     }
 
     /// The weather term is named for what earned it (review: a cloudy sky got the +15% that heavy
@@ -176,10 +194,12 @@ public class OddsTests
         var m = Map.Of(w);
         var tile = Enumerable.Range(0, m.Width * m.Height).Select(i => new TileId(i % m.Width, i / m.Width))
             .First(t => m.TerrainAt(t).IsPassable() && Traversal.IsHazardous(w, t));
-        string Why(WeatherSample sky) => Traversal.InjuryOdds(w, tile, BodyState.BaselineHuman(), sky).Terms.Single(t => t.Value == 0.15).Factor;
+        var calm = new WeatherSample(0, WeatherCondition.Clear, -5, 0.1, 0, 0.1, WindDirection.North);
+        string Why(WeatherSample sky) => Traversal.InjuryOdds(w, tile, BodyState.BaselineHuman(), sky).Terms.Single().Factor;
+        Assert.Empty(Traversal.InjuryOdds(w, tile, BodyState.BaselineHuman(), calm).Terms);
         Assert.Equal("Heavy rain", Why(new WeatherSample(0, WeatherCondition.Rainy, 5, 0.1, 0.5, 1, WindDirection.North)));
         Assert.Equal("Heavy snow", Why(new WeatherSample(0, WeatherCondition.HeavySnow, -5, 0.1, 0.5, 1, WindDirection.North)));
-        Assert.Equal("LightSnow", Why(new WeatherSample(0, WeatherCondition.LightSnow, -5, 0.1, 0.2, 1, WindDirection.North)));
+        Assert.Equal("Light snow", Why(new WeatherSample(0, WeatherCondition.LightSnow, -5, 0.1, 0.2, 1, WindDirection.North)));
         Assert.DoesNotContain("Cloudy", Why(new WeatherSample(0, WeatherCondition.Cloudy, -5, 0.1, 0.5, 1, WindDirection.North)));
     }
 

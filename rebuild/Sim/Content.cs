@@ -6,11 +6,9 @@ namespace Survival;
 /// Where generation puts a named place: dealt onto open land, onto a cave floor, or along the pass.
 public enum Placement { Named, Cave, Pass }
 
-/// A named place (old LocationFactory / CaveLocationFactory site, or a stage of the crossing): what
-/// standing there is like and what is there. Hazard, wind, cover, visibility, temperature and
+/// A named place or a stage of the crossing. Hazard, wind, cover, visibility, temperature and
 /// traversal replace the terrain's own on that tile; the features become its pools.
-// Edges (old WithEdgesOnAllSides(Climb)) is carried, not applied: the old GameMap never read
-// EdgeOverrides, so no climb was ever paid; apply it in Map.EdgeBetween if climbing sites should cost
+// Edges is carried, not applied: apply it in Map.EdgeBetween if climbing sites should cost
 // 6 minutes a side. Escape and Vantage wait for combat escape terrain and scouting.
 public sealed record LocationDef(
     string Id, string Name, Placement Placement,
@@ -22,12 +20,11 @@ public sealed record LocationDef(
 {
     public IReadOnlyList<SiteFeature> All => Features ?? NoFeatures;
     static readonly IReadOnlyList<SiteFeature> NoFeatures = Array.AsReadOnly(Array.Empty<SiteFeature>());
-    /// The site's own water (old Location.GetFeature<WaterFeature>: the first one).
     public SiteWater? Water => All.OfType<SiteWater>().FirstOrDefault();
 }
 
-/// Something at a named place. Chance is the odds generation puts it on a given tile (old
-/// Utils.DetermineSuccess at creation); RevealAtHours 0 is in plain sight, otherwise search hours.
+/// Something at a named place. Chance is the odds generation puts it on a given tile;
+/// RevealAtHours 0 is in plain sight, otherwise search hours.
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind", UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization)]
 [JsonDerivedType(typeof(SiteForage), "forage")]
 [JsonDerivedType(typeof(SiteTrees), "trees")]
@@ -51,23 +48,21 @@ public sealed record SiteStock(string Name, StockKind Work, int Minutes, IReadOn
 /// UnitsMax: units drawn in [Units, UnitsMax] when generated.
 public sealed record SiteStockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit, int? UnitsMax = null);
 
-/// Old WaterFeature. Open water is a source to draw from; ice adds to the ground's hazard.
-// Frozen, Ice and Fish wait for ice holes, fishing and ice that grows and thaws (Ground).
+/// Open water is a source to draw from; ice adds to the ground's hazard.
+/// Frozen: ice in its season (Map.IsFrozen); water that is not never freezes. Ice and Fish wait for ice holes and fishing.
 public sealed record SiteWater(string Name, bool Frozen, double Fish, double Ice = 0, string? Description = null) : SiteFeature
 {
-    /// Old WaterFeature.GetTerrainHazardContribution: 0.15 for any ice, 0.2 more below 0.4 thick.
+    /// While its ice lies: 0.15 for any ice, 0.2 more below 0.4 thick.
     public double HazardDelta => !Frozen ? 0 : 0.15 + (Ice < 0.4 ? 0.20 : 0);
 }
 
-// Small game, caches and discovery events are carried as data until their systems exist (a small-game
-// density to hunt in, remote storage - see Shelters' note on old CacheFeature - and moments).
+// Small game, caches and discovery events are carried as data until their systems exist.
 public enum SmallGame { Rabbit, Ptarmigan, Fox }
 public sealed record SmallGameEntry(SmallGame Animal, double Weight);
 public sealed record SiteSmallGame(double Density, IReadOnlyList<SmallGameEntry> Animals, IReadOnlyList<int>? PeakHours = null, double PeakFactor = 1) : SiteFeature;
 public sealed record SiteCache(string Name, double CapacityKg, bool ProtectsFromPredators = false, bool ProtectsFromWeather = false, bool PreservesFood = false) : SiteFeature;
 public sealed record SiteEvent(string Event) : SiteFeature;
-/// Old ShelterFeature: what it gives now and the most it can be improved to; a cap left out is the
-/// kind's (shelters.json kinds). Placed by Shelters.
+/// What it gives now and the most it can be improved to; a cap left out is the kind's (shelters.json kinds). Placed by Shelters.
 public sealed record SiteShelter(string Name, ShelterKind Type, double Insulation, double Overhead, double Wind,
     double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null) : SiteFeature;
 
@@ -78,6 +73,31 @@ public sealed record LootRoll(double Chance = 1, Resource? Resource = null, IRea
 /// The game's tables, loaded once from the JSON embedded beside this assembly and checked on load:
 /// a bad name or a broken reference throws here, not when a player happens to walk onto it.
 /// Content never lands in a save: the save holds kinds and ids, and the tables say what they are.
+/// Numbers to change in the tables before Content first loads them, so a tuner can try other constants
+/// in its own process without editing a file. Kept apart from Content because
+/// touching Content loads it: set these first, or not at all.
+public static class ContentOverrides
+{
+    static IReadOnlyDictionary<string, double> pending = new Dictionary<string, double>();
+    static bool loaded;
+
+    /// Paths as Content.Override reads them ("species.json:species.Wolf.boldness"). Throws once
+    /// Content has loaded: a late override would change nothing and say nothing.
+    public static void Set(IReadOnlyDictionary<string, double> overrides)
+    {
+        if (loaded) throw new InvalidOperationException("Content is already loaded; set overrides before anything reads it");
+        pending = new Dictionary<string, double>(overrides);
+    }
+
+    internal static IReadOnlyDictionary<string, double> Take()
+    {
+        loaded = true;
+        return pending;
+    }
+
+    public static IReadOnlyDictionary<string, double> Applied => loaded ? pending : throw new InvalidOperationException("Content has not loaded yet");
+}
+
 public static partial class Content
 {
     static readonly JsonSerializerOptions Options = new()
@@ -146,27 +166,25 @@ public static partial class Content
 
     sealed record LocationsFile(IReadOnlyList<LocationDef> Locations);
 
-    /// Every table file, one per family, under rebuild/Sim/Content/.
     internal static readonly string[] Files =
         ["locations.json", "loot.json", "items.json", "fire.json", "species.json", "effects.json", "shelters.json",
-         "butchering.json", "terrain.json", "forage.json", "discoveries.json", "accidents.json"];
+         "butchering.json", "terrain.json", "forage.json", "discoveries.json", "accidents.json", "recipes.json", "names.json"];
 
     /// Everything, as loaded. The systems that own a table read it from here once, into their own statics.
     internal static ContentTables Tables { get; }
-    /// How long loading and checking every file took, the once it happens.
     internal static double LoadMilliseconds { get; }
 
     public static IReadOnlyList<LocationDef> Locations { get; }
     public static IReadOnlyDictionary<string, LocationDef> ById { get; }
     public static IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> Loot { get; }
-    /// The six stages of the crossing, south-west to far side, in file order.
+    /// South-west to far side, in file order.
     public static IReadOnlyList<LocationDef> PassStages { get; }
     public static IReadOnlyList<LocationDef> CaveSites { get; }
 
     static Content()
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        Tables = Parse(EmbeddedFiles());
+        Tables = Parse(Override(EmbeddedFiles(), ContentOverrides.Take()));
         LoadMilliseconds = clock.Elapsed.TotalMilliseconds;
         (Locations, Loot) = (Tables.Locations, Tables.Loot);
         ById = Locations.ToDictionary(l => l.Id).AsReadOnly();
@@ -182,11 +200,53 @@ public static partial class Content
         return reader.ReadToEnd();
     }
 
-    /// Every embedded file's text, by file name.
     internal static Dictionary<string, string> EmbeddedFiles() => Files.ToDictionary(f => f, Embedded);
 
-    /// Reads and checks the location and loot tables against the rest as embedded; any problem throws
-    /// InvalidDataException naming it. Tests hand it broken ones.
+    /// Path is the file, then a dotted path of object keys (or array indexes) to an existing number.
+    /// A path that names nothing, or anything but a number, throws: a mistyped name must not quietly tune nothing.
+    internal static Dictionary<string, string> Override(IReadOnlyDictionary<string, string> files, IReadOnlyDictionary<string, double> overrides)
+    {
+        var result = files.ToDictionary(f => f.Key, f => f.Value);
+        foreach (var group in overrides.GroupBy(o => FileOf(o.Key)))
+        {
+            if (!result.TryGetValue(group.Key, out var text)) throw new InvalidDataException($"Override: no content file {group.Key}");
+            var root = System.Text.Json.Nodes.JsonNode.Parse(text, documentOptions: new JsonDocumentOptions
+            { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })
+                ?? throw new InvalidDataException($"Override: {group.Key} is empty");
+            foreach (var (path, value) in group) Set(root, path, value);
+            result[group.Key] = root.ToJsonString();
+        }
+        return result;
+    }
+
+    static string FileOf(string path) =>
+        path.IndexOf(':') is int i and > 0 ? path[..i] : throw new InvalidDataException($"Override '{path}' is not file:path.to.number");
+
+    static void Set(System.Text.Json.Nodes.JsonNode root, string path, double value)
+    {
+        if (!double.IsFinite(value)) throw new InvalidDataException($"Override {path}: {value} is not a number");
+        var keys = path[(path.IndexOf(':') + 1)..].Split('.');
+        var node = root;
+        for (int k = 0; k < keys.Length - 1; k++) node = Child(node, keys[k], path);
+        string last = keys[^1];
+        var old = Child(node, last, path) as System.Text.Json.Nodes.JsonValue;
+        if (old == null || old.GetValueKind() != JsonValueKind.Number) throw new InvalidDataException($"Override {path}: not a number in the file");
+        // A whole value is written as one, so an int field takes it; a fraction where the table wants
+        // an int fails in Parse, by name.
+        System.Text.Json.Nodes.JsonNode replacement = value == Math.Round(value) && Math.Abs(value) < 1e15
+            ? System.Text.Json.Nodes.JsonValue.Create((long)value) : System.Text.Json.Nodes.JsonValue.Create(value);
+        if (node is System.Text.Json.Nodes.JsonArray array) array[int.Parse(last)] = replacement;
+        else node.AsObject()[last] = replacement;
+    }
+
+    static System.Text.Json.Nodes.JsonNode Child(System.Text.Json.Nodes.JsonNode node, string key, string path) => node switch
+    {
+        System.Text.Json.Nodes.JsonObject o when o.TryGetPropertyValue(key, out var c) && c != null => c,
+        System.Text.Json.Nodes.JsonArray a when int.TryParse(key, out int i) && i >= 0 && i < a.Count && a[i] != null => a[i]!,
+        _ => throw new InvalidDataException($"Override {path}: no '{key}' there"),
+    };
+
+    /// Any problem throws InvalidDataException naming it. Tests hand it broken tables.
     internal static (IReadOnlyList<LocationDef> Locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> Loot) Parse(string locationsJson, string lootJson)
     {
         var files = EmbeddedFiles();
@@ -234,7 +294,6 @@ public static partial class Content
     static bool HasNullRoll(IReadOnlyList<LootRoll>? rolls) =>
         rolls == null || rolls.Any(r => r == null || r.Gear?.Any(g => g == null) == true || r.Of != null && HasNullRoll(r.Of));
 
-    /// Everything enums cannot check by themselves: cross-references, shapes and ranges.
     static IEnumerable<string> LocationProblems(IReadOnlyList<LocationDef> locations, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot,
         IReadOnlyDictionary<string, GearDef> gear, IReadOnlyDictionary<ShelterKind, ShelterKindProps> shelterKinds,
         IReadOnlyDictionary<Terrain, TerrainRow> terrains)

@@ -30,7 +30,7 @@ public class StepRulesTests
         var world = LitCamp();
         string before = Save.ToJson(world);
         var r = Sim.Step(world, new AddFuel(P, Resource.Bone, 1), 5);
-        Assert.Equal("the fire is not hot enough for Bone", r.InterruptedReason);
+        Assert.Equal("the fire is not hot enough for bone", r.InterruptedReason);
         Assert.Equal(0, r.MinutesElapsed);
         Assert.Empty(r.Events);
         Assert.Equal(before, Save.ToJson(world));
@@ -72,8 +72,12 @@ public class StepRulesTests
         var embers = World.New(1);
         PlacePit(embers, new FireState
         {
-            Tile = Map.Of(embers).Camp, LastUpdatedMinute = 0,
-            HasEmbers = true, EmberDurationHours = 2, EmberHoursRemaining = 2, EmberStartTempF = 800,
+            Tile = Map.Of(embers).Camp,
+            LastUpdatedMinute = 0,
+            HasEmbers = true,
+            EmberDurationHours = 2,
+            EmberHoursRemaining = 2,
+            EmberStartTempF = 800,
         });
         Sim.Step(cold, new Rest(P), 60);
         Sim.Step(embers, new Rest(P), 60);
@@ -134,7 +138,7 @@ public class StepRulesTests
     {
         var world = LitCamp();
         var r = Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0, PitType.Stone), 1);
-        Assert.Equal("the pit here is Open, not Stone", r.InterruptedReason);
+        Assert.Equal("the pit here is open, not stone", r.InterruptedReason);
         Assert.Equal(0, r.MinutesElapsed);
         Assert.Equal(PitType.Open, world.Fires[Fire.PitAt(world, Map.Of(world).Camp)!.Value].Pit);
     }

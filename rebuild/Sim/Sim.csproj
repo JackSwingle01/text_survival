@@ -14,6 +14,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The combat tuner (rebuild/Tools/Tune) builds fights from the same internals the tests use. -->
+    <InternalsVisibleTo Include="Tune" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The game's tables, read by Content as Survival.Content.<file>: no working-directory dependence. -->
     <EmbeddedResource Include="Content\*.json" />
   </ItemGroup>

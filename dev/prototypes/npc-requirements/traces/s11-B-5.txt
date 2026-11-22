@@ -1,0 +1,76 @@
+## 5 picked-over forest, no axe - forecasts B (Sim forecasts)
+start 15:00, Clear 19F wind 5 mph, camp Forest, sunrise 6:00, pack Tinder0.18 Kindling0.9
+   ++ goal: fire until 06:00, need 15.0 fuel-h, forecast 470 min, budget 705
+      list: Forage@(0,-1) kindling+fuel 8.5 (244m)   [stash mem: ; true: -]
+15:00 (0,-1)   to Forage@(0,-1) kindling+fuel 8.5 (244m) [1 leaves] (Careful 17m, risk 0%) -> Finished | no fire | core 98.6 | Tinder0.18 Kindling0.9
+      list: Forage@(+1,-1) kindling+fuel 8.5 (223m)   [stash mem: ; true: -]
+15:17 (+1,-1)  to Forage@(+1,-1) kindling+fuel 8.5 (223m) [1 leaves] (Careful 17m, risk 0%) -> Finished | no fire | core 98.5 | Tinder0.18 Kindling0.9
+      list: Forage@(+1,0) kindling 0.1 (6m) | Forage@(+2,-1) fuel 8.4 (157m)   [stash mem: ; true: -]
+15:34 (+1,0)   to Forage@(+1,0) kindling 0.1 (6m) [2 leaves] (Careful 17m, risk 0%) -> Finished | no fire | core 98.4 | Tinder0.18 Kindling0.9
+      list: Forage@(0,+1) kindling 0.1 (6m) | Forage@(+2,+1) fuel 8.4 (130m)   [stash mem: ; true: -]
+15:51 home(0,0) to Forage@(0,+1) kindling 0.1 (6m) [2 leaves] (Careful 17m, risk 0%) -> Finished | no fire | core 98.2 | Tinder0.18 Kindling0.9
+      list: Forage@(0,+1) kindling+fuel 8.5 (246m)   [stash mem: ; true: -]
+16:08 (0,+1)   to Forage@(0,+1) kindling+fuel 8.5 (246m) [1 leaves] (Careful 17m, risk 0%) -> Finished | no fire | core 98.0 | Tinder0.18 Kindling0.9
+      list: Forage@(-1,0) kindling 0.1 (8m) | Forage@(+2,+1) fuel 8.4 (130m)   [stash mem: ; true: -]
+16:25 home(0,0) to Forage@(-1,0) kindling 0.1 (8m) [2 leaves] (Careful 17m, risk 0%) -> Finished | no fire | core 97.7 | Tinder0.18 Kindling0.9
+      list: Forage@(-1,0) tinder+kindling 0.11 (15m) | Forage@(+2,+1) fuel 8.39 (130m)   [stash mem: ; true: -]
+16:42 (-1,0)   to Forage@(-1,0) tinder+kindling 0.11 (15m) [2 leaves] (Careful 17m, risk 0%) -> Finished | no fire | core 97.1 | Tinder0.18 Kindling0.9
+      list: Forage@(-1,-1) tinder+kindling 0.11 (15m) | Forage@(+2,+1) fuel 8.39 (130m)   [stash mem: ; true: -]
+16:59 (-1,-1)  to Forage@(-1,-1) tinder+kindling 0.11 (15m) [2 leaves] (Careful 17m, risk 0%) -> Finished | no fire | core 96.5 | Tinder0.18 Kindling0.9
+      list: Forage@(+2,-1) tinder+kindling+fuel 8.5 (174m)   [stash mem: ; true: -]
+17:16 (0,-1)   to Forage@(+2,-1) tinder+kindling+fuel 8.5 (174m) [1 leaves] (Careful 16m, risk 0%) -> Finished | no fire | core 96.0 | Tinder0.18 Kindling0.9
+      list: Forage@(+2,-1) tinder+kindling+fuel 8.5 (176m)   [stash mem: ; true: -]
+17:32 (+1,-1)  to Forage@(+2,-1) tinder+kindling+fuel 8.5 (176m) [1 leaves] (Careful 16m, risk 0%) -> Finished | no fire | core 95.5 | Tinder0.18 Kindling0.9
+   -- goal dropped: way home dangerous
+   ++ goal: fire until 06:00, need 12.2 fuel-h, forecast 287 min, budget 430
+      list: Forage@(+2,-1) tinder+kindling+fuel 8.5 (178m)   [stash mem: ; true: -]
+17:48 (+2,-1)  to Forage@(+2,-1) tinder+kindling+fuel 8.5 (178m) [1 leaves] (Careful 16m, risk 0%) -> Finished | no fire | core 95.1 | Tinder0.18 Kindling0.9
+      list: Forage@(+2,0) tinder+kindling 0.15 (46m) | Forage@(+2,+1) fuel 8.36 (129m)   [stash mem: ; true: -]
+18:04 (+2,0)   to Forage@(+2,0) tinder+kindling 0.15 (46m) [2 leaves] (Careful 16m, risk 0%) -> Finished | no fire | core 94.8 | Tinder0.18 Kindling0.9
+      list: Forage@(+2,+1) tinder+kindling+fuel 8.5 (150m)   [stash mem: ; true: -]
+18:20 (+2,+1)  to Forage@(+2,+1) tinder+kindling+fuel 8.5 (150m) [1 leaves] (Careful 16m, risk 0%) -> Finished | no fire | core 94.5 | Tinder0.18 Kindling0.9
+      list: Forage@(+3,0) tinder+kindling+fuel 8.51 (225m)   [stash mem: ; true: -]
+18:36 (+2,0)   to Forage@(+3,0) tinder+kindling+fuel 8.51 (225m) [1 leaves] (Careful 16m, risk 0%) -> Finished | no fire | core 94.3 | Tinder0.18 Kindling0.9
+      list: Forage@(+3,0) tinder+kindling+fuel 8.51 (229m)   [stash mem: ; true: -]
+18:52 (+3,0)   to Forage@(+3,0) tinder+kindling+fuel 8.51 (229m) [1 leaves] (Careful 16m, risk 0%) -> Finished | no fire | core 94.1 | Tinder0.18 Kindling0.9
+      list: Forage@(+3,0) tinder+kindling+fuel 8.51 (233m)   [stash mem: ; true: -]
+19:08 (+3,0)   forage Forage@(+3,0) tinder+kindling+fuel 8.51 (233m)      -> Finished | no fire | core 93.8 | Tinder0.23 Kindling2.13 Birch3.6 PlantFiber0.05
+      list: Forage@(+3,0) tinder+fuel 3.98 (121m)   [stash mem: ; true: -]
+19:38 (+3,0)   forage Forage@(+3,0) tinder+fuel 3.98 (121m)               -> Finished | no fire | core 93.6 | Tinder0.26 Kindling2.47 Birch5.73 PlantFiber0.05
+      list: Forage@(+3,0) tinder+fuel 1.69 (123m)   [stash mem: ; true: -]
+20:08 (+3,0)   forage Forage@(+3,0) tinder+fuel 1.69 (123m)               -> Finished | no fire | core 93.5 | Tinder0.31 Kindling3.05 Birch5.73 PlantFiber0.14
+      list: Forage@(+3,0) tinder+fuel 1.03 (56m)   [stash mem: ; true: -]
+20:38 (+3,0)   forage Forage@(+3,0) tinder+fuel 1.03 (56m)                -> Finished | no fire | core 93.4 | Tinder0.31 Kindling3.69 Birch6.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+21:08 (+2,0)   home: pack full (Careful 25m, risk 0%)                     -> Finished | no fire | core 93.4 | Tinder0.31 Kindling3.69 Birch6.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+21:33 (+1,0)   home: pack full (Careful 25m, risk 0%)                     -> Finished | no fire | core 93.5 | Tinder0.31 Kindling3.69 Birch6.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+21:58 home(0,0) home: pack full (Careful 25m, risk 0%)                     -> Finished | no fire | core 93.5 | Tinder0.31 Kindling3.69 Birch6.06 Stone0.16 PlantFiber0.14
+      list: Forage@(0,-3) tinder 0.09 (61m)   [stash mem: ; true: -]
+22:23 home(0,0) light (16%)                                                -> Finished | fire 0.8h/1.0kg | core 93.5 | Tinder0.26 Kindling2.69 Birch6.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+22:24 home(0,0) stoke Birch                                                -> Finished | fire 1.9h/2.0kg | core 93.5 | Tinder0.26 Kindling2.69 Birch5.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+22:25 home(0,0) stoke Birch                                                -> Finished | fire 3.1h/3.0kg | core 93.5 | Tinder0.26 Kindling2.69 Birch4.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+22:26 home(0,0) stoke Birch                                                -> Finished | fire 4.2h/4.0kg | core 93.6 | Tinder0.26 Kindling2.69 Birch3.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+22:27 home(0,0) stoke Birch                                                -> Finished | fire 5.2h/4.9kg | core 93.6 | Tinder0.26 Kindling2.69 Birch2.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+22:28 home(0,0) stoke Birch                                                -> Finished | fire 6.2h/5.9kg | core 93.6 | Tinder0.26 Kindling2.69 Birch1.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+22:29 home(0,0) stoke Birch                                                -> Finished | fire 7.2h/6.9kg | core 93.6 | Tinder0.26 Kindling2.69 Birch0.06 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+22:30 home(0,0) stoke Birch                                                -> Finished | fire 7.3h/6.9kg | core 93.6 | Tinder0.26 Kindling2.69 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+22:31 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 7.8h/7.9kg | core 93.7 | Tinder0.26 Kindling1.69 Stone0.16 PlantFiber0.14
+      list:    [stash mem: ; true: -]
+22:32 home(0,0) sleep 448m (fire 7.8h, Warmth Critical)                    -> Finished | fire 3.5h/3.2kg | core 99.0 | Tinder0.26 Kindling1.69 Stone0.16 PlantFiber0.14
+   -- goal dropped: time budget
+02:48 home(0,0) sleep 192m (fire 3.5h, Water Need)                         -> Finished | fire 0.3h/0.3kg | core 98.6 | Tinder0.26 Kindling1.69 Stone0.16 PlantFiber0.14
+RESULT 5 picked-over forest, no axe / B (Sim forecasts): fire-site=home(0,0) alive=True fire-at-sunrise=yes fire-out-min-after-first-lit=0 night-out=105 first-lit=22:23 trips=3 reversals=0 goals=2 drops=[way home dangerous:1, time budget:1] flips=9 minCore=93.4 plan=15922us avg/57179us max over 33
+  refusals: 
+  interruptions: 
+  rules fired: R10 sleep timed to the fire x2; R14 light early: cold now x1; R19 careful pace x18
+

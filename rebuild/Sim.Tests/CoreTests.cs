@@ -82,6 +82,73 @@ public class CoreTests
         Assert.Equal(1.0, world.Agent(AgentId.Player).Body.EnergyPct);
     }
 
+    /// Out of energy, the player drops asleep where they are. The step stops there;
+    /// until the sleep is out they can wait, rest or sleep, which their body lives as sleep, and nothing
+    /// else; then they are awake and free again.
+    [Fact]
+    public void AtZeroEnergy_ThePlayerDropsAsleep_AndCanOnlySleepItOut()
+    {
+        var world = World.New(1);
+        world.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
+        var body = world.Agent(AgentId.Player).Body;
+        body.EnergyMinutes = 0;
+        var walk = new Travel(AgentId.Player, Direction.North);
+
+        var dropped = Sim.Step(world, new Wait(AgentId.Player), 2000);
+        Assert.Equal("fell asleep", dropped.InterruptedReason);
+        Assert.Contains(dropped.Events, e => e is EffectStarted { Kind: EffectKind.Asleep });
+        int left = Body.AsleepMinutesLeft(body);
+        Assert.InRange(left, 15, 90);
+        Assert.Equal(Sim.Asleep, Sim.Refusal(world, walk));
+        Assert.Equal(Sim.Asleep, Sim.Step(world, walk, 10).InterruptedReason);
+
+        var slept = Sim.Step(world, new Wait(AgentId.Player), left);
+        Assert.Null(slept.InterruptedReason);
+        Assert.Equal(2.0 * left, body.EnergyMinutes, 9); // sleep refills two waking minutes a minute
+        Assert.False(Body.IsAsleep(body));
+        Assert.Contains(slept.Events, e => e is EffectEnded { Kind: EffectKind.Asleep });
+        Assert.NotEqual(Sim.Asleep, Sim.Refusal(world, walk));
+    }
+
+    /// The roll to drop asleep is one a minute lived, on the body's own stream, so ten
+    /// hours at zero energy come out the same minute by minute, in one go, in chunks with a save and load
+    /// between them, or as the player's own waiting steps (which stop each time they drop).
+    [Fact]
+    public void FallingAsleep_IsTheSameHoweverTheMinutesAreStepped()
+    {
+        const int minutes = 600;
+        World Make()
+        {
+            var w = World.New(3);
+            w.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
+            w.Agent(AgentId.Player).Body.EnergyMinutes = 0;
+            return w;
+        }
+        int[] chunks = [7, 60, 1, 133];
+        var byMinute = Make();
+        var drops = new List<WorldEvent>();
+        for (int i = 0; i < minutes; i++)
+            drops.AddRange(Sim.Advance(byMinute, 1).Where(e => e is EffectStarted { Kind: EffectKind.Asleep, Who: var who } && who == AgentId.Player));
+        Assert.True(drops.Count >= 2, $"{drops.Count} drops in ten hours at zero energy");
+
+        var once = Make();
+        Sim.Advance(once, minutes);
+        var saved = Make();
+        for (int k = 0; saved.Minute < minutes; k++)
+        {
+            Sim.Advance(saved, (int)Math.Min(chunks[k % chunks.Length], minutes - saved.Minute));
+            saved = Save.FromJson(Save.ToJson(saved));
+        }
+        var stepped = Make();
+        for (int k = 0; stepped.Minute < minutes; k++)
+            Sim.Step(stepped, new Wait(AgentId.Player), (int)Math.Min(chunks[k % chunks.Length], minutes - stepped.Minute));
+
+        string expected = Save.ToJson(byMinute);
+        Assert.Equal(expected, Save.ToJson(once));
+        Assert.Equal(expected, Save.ToJson(saved));
+        Assert.Equal(expected, Save.ToJson(stepped));
+    }
+
     [Fact]
     public void Rest_DoesNotRestoreEnergy_OnlySleepDoes()
     {

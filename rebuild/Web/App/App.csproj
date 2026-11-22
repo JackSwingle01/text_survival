@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!-- The game in the browser: Sim and the host, compiled to WebAssembly and run in a Web Worker
+       (wwwroot/worker.js). Needs the wasm-tools workload to publish (README). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Survival.Web.App</RootNamespace>
+    <!-- Sim's saves and content tables are reflection JSON; trimmed wasm turns that off by default. -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- The repo treats warnings as errors, and Sim's reflection JSON is not trim-annotated: the
+         trimmer's warnings would fail the publish. Sim is rooted below instead, so nothing it
+         reflects over is trimmed away. The real fix is source-generated JSON in Sim (Web.Spike/REPORT.md). -->
+    <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <!-- No culture data: drops ICU from the download. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- AOT by default for publish (about 2x the interpreter's speed); -p:Aot=false for a quick interpreter build. -->
+    <RunAOTCompilation Condition="'$(Aot)' != 'false'">true</RunAOTCompilation>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Host/Host.csproj" />
+    <TrimmerRootAssembly Include="Sim" />
+    <!-- The game's pixel art, served as icons/ beside the page. -->
+    <Content Include="../../../assets/icons/**/*.png" Link="wwwroot/icons/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

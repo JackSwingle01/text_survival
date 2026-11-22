@@ -186,8 +186,12 @@ public class SubstrateTests
             {
                 string? kind = s.Kind switch
                 {
-                    SignKind.Carcass => "carcass", SignKind.Stash => "stash", SignKind.FirePit => "fire pit", SignKind.Shelter => "shelter",
-                    SignKind.Prints => "tracks", SignKind.Body when s.Thing.Index != P.Value => "body",
+                    SignKind.Carcass => "carcass",
+                    SignKind.Stash => "stash",
+                    SignKind.FirePit => "fire pit",
+                    SignKind.Shelter => "shelter",
+                    SignKind.Prints => "tracks",
+                    SignKind.Body when s.Thing.Index != P.Value => "body",
                     SignKind.Trail when s.Thing.TrailDirection is Direction.East or Direction.South => "trail",
                     _ => null,
                 };
@@ -408,7 +412,7 @@ public class SubstrateTests
         w.AccessGates = Access.Gate.All;
         foreach (var (name, refusal) in refusals) Assert.True(refusal() == "a wolf pack guards it", $"{name}: {refusal()}");
         // A fight is the confrontation: a guard does not bar striking at it.
-        var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 2, Awareness.Engaged, Awareness.Engaged);
+        var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 1, Awareness.Engaged, Awareness.Engaged);
         Assert.Null(Combat.Refusal(w, enc, Combat.UnitOf(enc, P), CombatAction.Attack));
     }
 
@@ -480,7 +484,7 @@ public class SubstrateTests
         w.AccessGates = Access.Gate.All; // nothing there to gate: the thing's own refusal answers
         Assert.Equal("no such carcass here", Work.Refusal(w, new Butcher(P, 99)));
         Assert.Equal("nothing like that here", Work.Refusal(w, new Gather(P, 99)));
-        Assert.Equal("no Pine stashed here", Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
+        Assert.Equal("no pine stashed here", Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
         Items.Add(Items.Pack(w, P), Resource.Pine, 1);
         Assert.Equal("no fire here", Fire.Refusal(w, new AddFuel(P, Resource.Pine, 1)));
         Assert.Equal("no charcoal here", Fire.Refusal(w, new GatherCharcoal(P)));

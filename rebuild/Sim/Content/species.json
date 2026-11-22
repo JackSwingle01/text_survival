@@ -6,9 +6,28 @@
 //   role: how it meets a threat. isSmall: small game, which runs where a big one of its role would not.
 //   attackDamage, attackType: its unarmed attack. threat, boldness, aggression, cohesion: the morale
 //   numbers combat runs on. moveAllowanceM: metres covered in one combat action at full Moving.
+//   reachM: how far from its body it strikes unarmed (research §2: jaws 0.3, a bear's paw 1.0, tusks 2.5; D
+//   where the research gives none). attackDamage is on the weapons' scale (units of tissue condition), what
+//   an average member's blow does: a wolf's bite does not get through a person's flesh, a spear's thrust does.
 //   temperament: what makes its herd come at a target (a name in temperaments).
 //   behavior: how its herd lives (old HerdBehaviorType; Carrion is the folded scavenger flock). diet: what its herd grazes (a name in diets).
 //   Humans, rabbits and foxes never form herds of their own; theirs are the old defaults, Prey and Carnivore.
+//   How it runs (documentation/species-stats-research.md §5.3), fresh and unladen: topSpeedMps, flat out;
+//   enduranceSpeedMps, the pace it holds for 20 minutes or more; sprintSeconds, the seconds at top speed
+//   that empty a full sprint reserve; runCostJPerKgM, the net cost of running a metre (Taylor 1982, a
+//   person's measured); burstPct, the share of the reserve one strike, dodge or shove takes. The reserve
+//   refills over a recovery time derived from the body's weight (Body.RecoverySeconds).
+//   chaseLimitSeconds: how long it runs after a fleeing quarry before giving up (Mech 1966: wolves quit
+//     a moose that kept its lead for 10-15 s, unless they were gaining; D otherwise).
+//   strikeBackMargin: giving ground with the enemy in reach, it strikes instead of backing off while its
+//     margin (Combat.Margin) is at or above this (-0.3 gives ground, -0.8 runs): when to fight a retreat is the
+//     tuner's to learn (decided 2026-11-21). A starting value, the same for all.
+//   grazeKcalPerMinute: what a member eats a minute grazing (winter forage, research §4.1); 0 for what never grazes.
+//   People only: autumnFatPct, the range a person's starting fat is drawn from (well fed for the autumn:
+//   SpeciesTable.NewBody); female, a woman's build, running and autumn fat, where they differ from a man's.
+// Every number's source is tagged by its row: V read in a primary source, R recalled from the literature
+// (check before pinning a test to it), D derived or judged (documentation/species-stats-research.md).
+//
 // temperaments: base, a bonus per member, hunger (hungryAt, starvingAt, hungerBonus), defending a kill
 //   or den (defendBonus), and a ceiling (cap). Cap 0 never starts a fight.
 // diets: what each Diet takes off a tile's forage, in order (old AnimalDietExtensions.GetConsumedResources).
@@ -16,58 +35,104 @@
 //   (old HuntingSightings' DetectionModifier values, pool by pool, in their order).
 {
  "species": {
-  // Old Player: unarmed 0.15 blunt. Old NPC punched for 0.1; one agent model means one number.
-  // The build is the dressed baseline adult (Body.BaselineWeightKg, BaselineFatPct, BaselineMusclePct).
-  "Human": { "body": "Human", "weightKg": 75, "fatPct": 0.15, "musclePct": 0.30, "role": "Human", "isSmall": false,
-   "attackDamage": 0.15, "attackType": "Blunt", "threat": 1.0, "boldness": 1.0, "aggression": 1.0, "cohesion": 0.5, "moveAllowanceM": 3,
-   "temperament": "never", "behavior": "Prey", "diet": "Carnivore" },
-  "Wolf": { "body": "Quadruped", "weightKg": 40, "fatPct": 0.20, "musclePct": 0.60, "role": "Predator", "isSmall": false,
-   "attackDamage": 0.45, "attackType": "Pierce", "threat": 0.7, "boldness": 1.3, "aggression": 0.8, "cohesion": 2, "moveAllowanceM": 6,
-   "temperament": "wolf", "behavior": "Pack", "diet": "Carnivore" },
-  "Bear": { "body": "Quadruped", "weightKg": 250, "fatPct": 0.30, "musclePct": 0.55, "role": "Predator", "isSmall": false,
-   "attackDamage": 0.60, "attackType": "Sharp", "threat": 2.5, "boldness": 1.6, "aggression": 0.4, "cohesion": 0, "moveAllowanceM": 5,
-   "temperament": "bear", "behavior": "Solitary", "diet": "Omnivore" },
-  "CaveBear": { "body": "Quadruped", "weightKg": 350, "fatPct": 0.35, "musclePct": 0.55, "role": "Predator", "isSmall": false,
-   "attackDamage": 0.80, "attackType": "Sharp", "threat": 3.0, "boldness": 1.8, "aggression": 0.4, "cohesion": 0, "moveAllowanceM": 4,
-   "temperament": "bear", "behavior": "Solitary", "diet": "Omnivore" },
-  "SaberTooth": { "body": "Quadruped", "weightKg": 300, "fatPct": 0.10, "musclePct": 0.70, "role": "Predator", "isSmall": false,
-   "attackDamage": 0.90, "attackType": "Pierce", "threat": 3.0, "boldness": 2.0, "aggression": 0.7, "cohesion": 0, "moveAllowanceM": 7,
-   "temperament": "saberTooth", "behavior": "Solitary", "diet": "Carnivore" },
-  "Hyena": { "body": "Quadruped", "weightKg": 70, "fatPct": 0.15, "musclePct": 0.65, "role": "Scavenger", "isSmall": false,
-   "attackDamage": 0.40, "attackType": "Blunt", "threat": 0.4, "boldness": 0.7, "aggression": 0.5, "cohesion": 2, "moveAllowanceM": 6,
-   "temperament": "hyena", "behavior": "Scavenger", "diet": "Carnivore" },
-  "Caribou": { "body": "Quadruped", "weightKg": 120, "fatPct": 0.15, "musclePct": 0.60, "role": "Prey", "isSmall": false,
-   "attackDamage": 0.25, "attackType": "Blunt", "threat": 0.3, "boldness": 0.3, "aggression": 0.05, "cohesion": 1, "moveAllowanceM": 3,
-   "temperament": "never", "behavior": "Prey", "diet": "Browser" },
-  "Megaloceros": { "body": "Quadruped", "weightKg": 600, "fatPct": 0.15, "musclePct": 0.60, "role": "DangerousPrey", "isSmall": false,
-   "attackDamage": 0.50, "attackType": "Blunt", "threat": 0.5, "boldness": 0.4, "aggression": 0.1, "cohesion": 1, "moveAllowanceM": 3,
-   "temperament": "never", "behavior": "Prey", "diet": "Browser" },
-  "Bison": { "body": "Quadruped", "weightKg": 800, "fatPct": 0.20, "musclePct": 0.55, "role": "DangerousPrey", "isSmall": false,
-   "attackDamage": 0.55, "attackType": "Pierce", "threat": 1.8, "boldness": 0.5, "aggression": 0.1, "cohesion": 2, "moveAllowanceM": 3,
-   "temperament": "never", "behavior": "Prey", "diet": "Grazer" },
-  // Old AnimalFactory's 6000 kg body; AnimalType.WeightKg said 5000 (tracks only).
-  "Mammoth": { "body": "Quadruped", "weightKg": 6000, "fatPct": 0.35, "musclePct": 0.50, "role": "DangerousPrey", "isSmall": false,
-   "attackDamage": 1.2, "attackType": "Pierce", "threat": 3.5, "boldness": 1.0, "aggression": 0.1, "cohesion": 2, "moveAllowanceM": 3,
-   "temperament": "never", "behavior": "Prey", "diet": "Browser" },
-  "Rabbit": { "body": "Quadruped", "weightKg": 2, "fatPct": 0.10, "musclePct": 0.50, "role": "Prey", "isSmall": true,
-   "attackDamage": 0.02, "attackType": "Blunt", "threat": 0.05, "boldness": 0.1, "aggression": 0.0, "cohesion": 1, "moveAllowanceM": 3,
-   "temperament": "never", "behavior": "Prey", "diet": "Carnivore" },
-  "Fox": { "body": "Quadruped", "weightKg": 6, "fatPct": 0.20, "musclePct": 0.55, "role": "Scavenger", "isSmall": true,
-   "attackDamage": 0.12, "attackType": "Pierce", "threat": 0.15, "boldness": 0.4, "aggression": 0.1, "cohesion": 0, "moveAllowanceM": 3,
-   "temperament": "never", "behavior": "Prey", "diet": "Carnivore" },
+  // Bare hands: 0.05 blunt at 0.8 m, the bottom of the weapon order.
+  // The build is the baseline adult man (Body.BaselineWeightKg, BaselineFatPct, BaselineMusclePct).
+  // Build R (Holt & Formicola 2008; Pontzer 2012; Janssen 2000), the woman's too.
+  // Running: Top speed R, endurance V (Liebenberg 2006), sprint seconds D, running cost R (Margaria 1963), burst D. Autumn fat: the user's call (2026-11-21).
+  "Human": { "body": "Human", "weightKg": 68, "fatPct": 0.12, "musclePct": 0.38, "role": "Human", "isSmall": false,
+   "attackDamage": 0.05, "attackType": "Blunt", "threat": 1.0, "boldness": 1.0, "aggression": 1.0, "cohesion": 0.5, "moveAllowanceM": 3, "reachM": 0.8,
+   "temperament": "never", "behavior": "Prey", "diet": "Carnivore",
+   "topSpeedMps": 8.5, "enduranceSpeedMps": 3.3, "sprintSeconds": 15, "runCostJPerKgM": 4.0, "burstPct": 0.12, "grazeKcalPerMinute": 0, "strikeBackMargin": -0.2, "chaseLimitSeconds": 60,
+   "autumnFatPct": { "min": 0.15, "max": 0.18 },
+   "female": { "weightKg": 55, "fatPct": 0.22, "musclePct": 0.31, "topSpeedMps": 7.3, "enduranceSpeedMps": 2.9,
+    "autumnFatPct": { "min": 0.25, "max": 0.28 } } },
+  // Mass V (Mech 1966) and R (Alaska); fat R; muscle D.
+  // Running: Top speed chosen above the clocked 12 m/s (V, Mech 1966); endurance (the chase pace), sprint and burst D; running cost V (Taylor 1982).
+  "Wolf": { "body": "Quadruped", "weightKg": 45, "fatPct": 0.10, "musclePct": 0.48, "role": "Predator", "isSmall": false,
+   "attackDamage": 1.86, "attackType": "Pierce", "threat": 0.7, "boldness": 1.3, "aggression": 0.8, "cohesion": 2, "moveAllowanceM": 6, "reachM": 0.3,
+   "temperament": "wolf", "behavior": "Pack", "diet": "Carnivore",
+   "topSpeedMps": 14, "enduranceSpeedMps": 8, "sprintSeconds": 40, "runCostJPerKgM": 3.3, "burstPct": 0.06, "grazeKcalPerMinute": 0, "strikeBackMargin": -0.2, "chaseLimitSeconds": 240 },
+  // Brown bear. Mass R, fat R (autumn-to-spring middle), muscle D.
+  // Running: Top speed V (secondary), endurance R, the rest D; intake D: the old forage-to-hunger ratio at Kleiber's burn.
+  "Bear": { "body": "Quadruped", "weightKg": 250, "fatPct": 0.25, "musclePct": 0.40, "role": "Predator", "isSmall": false,
+   "attackDamage": 3.22, "attackType": "Sharp", "threat": 2.5, "boldness": 1.6, "aggression": 0.4, "cohesion": 0, "moveAllowanceM": 5, "reachM": 1.0,
+   "temperament": "bear", "behavior": "Solitary", "diet": "Omnivore",
+   "topSpeedMps": 13, "enduranceSpeedMps": 4, "sprintSeconds": 20, "runCostJPerKgM": 1.8, "burstPct": 0.08, "grazeKcalPerMinute": 18, "strikeBackMargin": -0.2, "chaseLimitSeconds": 30 },
+  // A den defender, not a predator: mostly herbivorous (R, Bocherens), dangerous in or near its den (its
+  // temperament: no base boldness, no hunger, all of it from defending). Mass V (Christiansen 1999, the sexes
+  // between), fat R, muscle D.
+  // Running: Running all D; intake the brown bear's, scaled by Kleiber (D).
+  "CaveBear": { "body": "Quadruped", "weightKg": 400, "fatPct": 0.25, "musclePct": 0.40, "role": "Predator", "isSmall": false,
+   "attackDamage": 2.10, "attackType": "Sharp", "threat": 3.0, "boldness": 1.8, "aggression": 0.4, "cohesion": 0, "moveAllowanceM": 4, "reachM": 1.0,
+   "temperament": "caveBear", "behavior": "Solitary", "diet": "Omnivore",
+   "topSpeedMps": 11, "enduranceSpeedMps": 3.5, "sprintSeconds": 20, "runCostJPerKgM": 1.5, "burstPct": 0.08, "grazeKcalPerMinute": 25, "strikeBackMargin": -0.2, "chaseLimitSeconds": 30 },
+  // Homotherium latidens, the Eurasian scimitar-tooth (the old generic 300 kg sabre-tooth). Mass V (Illinois State
+  // Museum), fat and muscle D.
+  // Running: Speeds R (Barnett 2020: cursorial), a felid's short sprint D; its grazing is the small game a lone cat lives on between kills (D).
+  "Homotherium": { "body": "Quadruped", "weightKg": 190, "fatPct": 0.08, "musclePct": 0.48, "role": "Predator", "isSmall": false,
+   "attackDamage": 2.40, "attackType": "Pierce", "threat": 3.0, "boldness": 2.0, "aggression": 0.7, "cohesion": 0, "moveAllowanceM": 7, "reachM": 0.5,
+   "temperament": "homotherium", "behavior": "Solitary", "diet": "Carnivore",
+   "topSpeedMps": 14, "enduranceSpeedMps": 4, "sprintSeconds": 15, "runCostJPerKgM": 2.0, "burstPct": 0.10, "grazeKcalPerMinute": 15, "strikeBackMargin": -0.2, "chaseLimitSeconds": 30 },
+  // Cave hyena. Mass V/R (Wroe 2005, larger than the spotted), fat and muscle D.
+  // Running: Speeds R (Kruuk 1972), the rest D.
+  "Hyena": { "body": "Quadruped", "weightKg": 85, "fatPct": 0.10, "musclePct": 0.48, "role": "Scavenger", "isSmall": false,
+   "attackDamage": 0.90, "attackType": "Blunt", "threat": 0.4, "boldness": 0.7, "aggression": 0.5, "cohesion": 2, "moveAllowanceM": 6, "reachM": 0.3,
+   "temperament": "hyena", "behavior": "Scavenger", "diet": "Carnivore",
+   "topSpeedMps": 15, "enduranceSpeedMps": 7, "sprintSeconds": 40, "runCostJPerKgM": 2.7, "burstPct": 0.06, "grazeKcalPerMinute": 0, "strikeBackMargin": -0.2, "chaseLimitSeconds": 300 },
+  // Mass R, fat R (late winter to autumn middle), muscle D.
+  // Running: Top speed R, endurance and sprint D, running cost V; intake D from winter lichen (research §4.1).
+  "Caribou": { "body": "Quadruped", "weightKg": 110, "fatPct": 0.08, "musclePct": 0.47, "role": "Prey", "isSmall": false,
+   "attackDamage": 0.60, "attackType": "Blunt", "threat": 0.3, "boldness": 0.3, "aggression": 0.05, "cohesion": 1, "moveAllowanceM": 3, "reachM": 0.8,
+   "temperament": "never", "behavior": "Prey", "diet": "Browser",
+   "topSpeedMps": 16, "enduranceSpeedMps": 7, "sprintSeconds": 20, "runCostJPerKgM": 2.4, "burstPct": 0.10, "grazeKcalPerMinute": 13, "strikeBackMargin": -0.2, "chaseLimitSeconds": 30 },
+  // Mass V (summaries); fat and muscle D, by red deer and elk.
+  // Running: Running and intake all D, by red deer and elk.
+  "Megaloceros": { "body": "Quadruped", "weightKg": 550, "fatPct": 0.12, "musclePct": 0.45, "role": "DangerousPrey", "isSmall": false,
+   "attackDamage": 1.20, "attackType": "Blunt", "threat": 0.5, "boldness": 0.4, "aggression": 0.1, "cohesion": 1, "moveAllowanceM": 3, "reachM": 1.5,
+   "temperament": "never", "behavior": "Prey", "diet": "Browser",
+   "topSpeedMps": 15, "enduranceSpeedMps": 6, "sprintSeconds": 20, "runCostJPerKgM": 1.4, "burstPct": 0.08, "grazeKcalPerMinute": 20, "strikeBackMargin": -0.2, "chaseLimitSeconds": 20 },
+  // Steppe bison, the herd's average (bulls 850, cows 500). Mass V (summaries), fat and muscle D.
+  // Running: Top speed R, the rest D; intake D from V grams a minute (Hudson & Frank 1987; Raynor 2015).
+  "Bison": { "body": "Quadruped", "weightKg": 600, "fatPct": 0.12, "musclePct": 0.45, "role": "DangerousPrey", "isSmall": false,
+   "attackDamage": 1.50, "attackType": "Pierce", "threat": 1.8, "boldness": 0.5, "aggression": 0.1, "cohesion": 2, "moveAllowanceM": 3, "reachM": 0.8,
+   "temperament": "never", "behavior": "Prey", "diet": "Grazer",
+   "topSpeedMps": 15, "enduranceSpeedMps": 6, "sprintSeconds": 25, "runCostJPerKgM": 1.3, "burstPct": 0.08, "grazeKcalPerMinute": 35, "strikeBackMargin": -0.2, "chaseLimitSeconds": 20 },
+  // A family group's average (bulls 6 t, cows 4 t; R, check Larramendi 2016). Fat V/R (an 8 cm layer), muscle D.
+  // Running: Top speed V (Hutchinson 2003, elephants), endurance R, sprint seconds a guess (D); intake D, by elephants.
+  "Mammoth": { "body": "Quadruped", "weightKg": 5000, "fatPct": 0.10, "musclePct": 0.40, "role": "DangerousPrey", "isSmall": false,
+   "attackDamage": 3.50, "attackType": "Pierce", "threat": 3.5, "boldness": 1.0, "aggression": 0.1, "cohesion": 2, "moveAllowanceM": 3, "reachM": 2.5,
+   "temperament": "never", "behavior": "Prey", "diet": "Browser",
+   "topSpeedMps": 6.5, "enduranceSpeedMps": 3, "sprintSeconds": 90, "runCostJPerKgM": 0.7, "burstPct": 0.05, "grazeKcalPerMinute": 90, "strikeBackMargin": -0.2, "chaseLimitSeconds": 20 },
+  // The mountain hare. Mass R, fat and muscle D.
+  // Running: Top speed R (unverified), the rest D.
+  "Rabbit": { "body": "Quadruped", "weightKg": 3, "fatPct": 0.05, "musclePct": 0.50, "role": "Prey", "isSmall": true,
+   "attackDamage": 0.05, "attackType": "Blunt", "threat": 0.05, "boldness": 0.1, "aggression": 0.0, "cohesion": 1, "moveAllowanceM": 3, "reachM": 0.1,
+   "temperament": "never", "behavior": "Prey", "diet": "Carnivore",
+   "topSpeedMps": 17, "enduranceSpeedMps": 4, "sprintSeconds": 10, "runCostJPerKgM": 7.5, "burstPct": 0.15, "grazeKcalPerMinute": 0.4, "strikeBackMargin": -0.2, "chaseLimitSeconds": 10 },
+  // Mass R, fat and muscle D.
+  // Running: Top speed R, the rest D.
+  "Fox": { "body": "Quadruped", "weightKg": 6, "fatPct": 0.10, "musclePct": 0.45, "role": "Scavenger", "isSmall": true,
+   "attackDamage": 0.25, "attackType": "Pierce", "threat": 0.15, "boldness": 0.4, "aggression": 0.1, "cohesion": 0, "moveAllowanceM": 3, "reachM": 0.2,
+   "temperament": "never", "behavior": "Prey", "diet": "Carnivore",
+   "topSpeedMps": 13.5, "enduranceSpeedMps": 5, "sprintSeconds": 15, "runCostJPerKgM": 6.0, "burstPct": 0.10, "grazeKcalPerMinute": 0, "strikeBackMargin": -0.2, "chaseLimitSeconds": 60 },
   // The folded scavenger (Species.Raven): ravens, a fox, a wolverine as one flock, each member about
   // a fox's build at a raven's weight (judgment). It never starts a fight and runs from one. Between
   // kills it forages like a bear for berries, fungi and roots (Omnivore), so it never starves.
-  "Raven": { "body": "Quadruped", "weightKg": 3, "fatPct": 0.15, "musclePct": 0.50, "role": "Scavenger", "isSmall": true,
-   "attackDamage": 0.05, "attackType": "Pierce", "threat": 0.05, "boldness": 0.3, "aggression": 0.0, "cohesion": 1, "moveAllowanceM": 6,
-   "temperament": "never", "behavior": "Carrion", "diet": "Omnivore" }
+  // Fat and muscle D.
+  // Running: The flock runs as its fox does (D); its foraging the old forage-to-hunger ratio at Kleiber's burn (D).
+  "Raven": { "body": "Quadruped", "weightKg": 3, "fatPct": 0.10, "musclePct": 0.45, "role": "Scavenger", "isSmall": true,
+   "attackDamage": 0.10, "attackType": "Pierce", "threat": 0.05, "boldness": 0.3, "aggression": 0.0, "cohesion": 1, "moveAllowanceM": 6, "reachM": 0.2,
+   "temperament": "never", "behavior": "Carrion", "diet": "Omnivore",
+   "topSpeedMps": 13.5, "enduranceSpeedMps": 5, "sprintSeconds": 15, "runCostJPerKgM": 6.0, "burstPct": 0.10, "grazeKcalPerMinute": 0.53, "strikeBackMargin": -0.2, "chaseLimitSeconds": 30 }
  },
 
  "temperaments": {
   "never": { "base": 0, "perMember": 0, "hungryAt": 1.1, "starvingAt": 1.1, "hungerBonus": 0, "defendBonus": 0, "cap": 0 },
   "bear": { "base": 0.15, "perMember": 0, "hungryAt": 0.8, "starvingAt": 0.95, "hungerBonus": 0.3, "defendBonus": 0.55, "cap": 1.0 },
   "wolf": { "base": 0.20, "perMember": 0.05, "hungryAt": 0.7, "starvingAt": 0.9, "hungerBonus": 0.2, "defendBonus": 0.6, "cap": 0.9 },
-  "saberTooth": { "base": 0.25, "perMember": 0, "hungryAt": 0.7, "starvingAt": 0.9, "hungerBonus": 0.3, "defendBonus": 0.5, "cap": 1.0 },
+  // All of it from defending its den: it never comes at anyone for food.
+  "caveBear": { "base": 0, "perMember": 0, "hungryAt": 1.1, "starvingAt": 1.1, "hungerBonus": 0, "defendBonus": 0.7, "cap": 0.8 },
+  "homotherium": { "base": 0.25, "perMember": 0, "hungryAt": 0.7, "starvingAt": 0.9, "hungerBonus": 0.3, "defendBonus": 0.5, "cap": 1.0 },
   "hyena": { "base": 0.10, "perMember": 0.08, "hungryAt": 0.8, "starvingAt": 1.1, "hungerBonus": 0.2, "defendBonus": 0.15, "cap": 0.6 }
  },
 

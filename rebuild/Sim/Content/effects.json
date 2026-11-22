@@ -6,10 +6,17 @@
 //   only to a floor; 0 means any of it does; null, stated, never needs treatment.
 // coreTempFPerHour, bleedMlPerHour: what it does to the body each hour at full severity.
 // capacities: what it takes off each capacity at full severity; scaled by severity.
+// metabolicHeatDelta, healingDelta: the share added at full severity to the body's own heat and to its healing.
+// hungerFreeHours: Well fed only: it holds once this long has passed without Hungry, and ends the minute Hungry returns.
+// discomfort: true for hunger, thirst and tiredness: their losses together stack with diminishing returns
+//   (Effects.CapacityDeltas), so they never take a capacity below about a fifth; everything else adds in full.
 {
- "Hungry": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "capacities": { "Moving": -0.35, "Manipulation": -0.35, "Consciousness": -0.15 } },
- "Thirsty": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "capacities": { "Moving": -0.40, "Manipulation": -0.25, "Consciousness": -0.45 } },
- "Tired": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "capacities": { "Moving": -0.45, "Manipulation": -0.30, "Consciousness": -0.45, "Sight": -0.25, "Hearing": -0.15 } },
+ "Hungry": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "discomfort": true, "capacities": { "Moving": -0.35, "Manipulation": -0.35, "Consciousness": -0.15 } },
+ "Thirsty": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "discomfort": true, "capacities": { "Moving": -0.40, "Manipulation": -0.25, "Consciousness": -0.45 } },
+ // Hunger's mirror, all or nothing: the survival tick sets it from the minutes since the body was last Hungry.
+ // Capacities stay capped at whole, so it gives more heat and faster healing instead.
+ "WellFed": { "severityPerHour": 0, "treatmentAboveSeverity": null, "metabolicHeatDelta": 0.05, "healingDelta": 0.05, "hungerFreeHours": 24 },
+ "Tired": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "discomfort": true, "capacities": { "Moving": -0.45, "Manipulation": -0.30, "Consciousness": -0.45, "Sight": -0.25, "Hearing": -0.15 } },
  "Shivering": { "severityPerHour": -2, "treatmentAboveSeverity": null, "coreTempFPerHour": 3.0, "capacities": { "Manipulation": -0.2 } },
  "Hypothermia": { "severityPerHour": -0.5, "treatmentAboveSeverity": null, "capacities": { "Moving": -0.3, "Manipulation": -0.3, "Consciousness": -0.5, "BloodPumping": -0.2 } },
  "Frostbite": { "severityPerHour": -0.02, "treatmentAboveSeverity": 0, "capacities": { "Manipulation": -0.5, "Moving": -0.5, "BloodPumping": -0.2 } },
@@ -18,9 +25,15 @@
  "Sweating": { "severityPerHour": -2, "treatmentAboveSeverity": null },
  // Severity IS the stored wetness; the survival tick sets it directly and owns drying.
  "Wet": { "severityPerHour": 0, "treatmentAboveSeverity": null, "coreTempFPerHour": -1.0 },
- "Bloody": { "severityPerHour": -0.02, "treatmentAboveSeverity": 0 },
+ // Severity IS the blood on you; the survival tick sets it and owns drying (it dries on its own, faster by a fire:
+ // decisions/2026-11-21-no-effect-needs-a-missing-treatment.md).
+ "Bloody": { "severityPerHour": 0, "treatmentAboveSeverity": null },
  "Bleeding": { "severityPerHour": -0.1, "treatmentAboveSeverity": null, "bleedMlPerHour": 3000 },
  "Pain": { "severityPerHour": -0.15, "treatmentAboveSeverity": null, "capacities": { "Manipulation": -0.25, "Consciousness": -0.15, "Sight": -0.15, "Hearing": -0.10 } },
  "Dazed": { "severityPerHour": -0.15, "treatmentAboveSeverity": null, "capacities": { "Sight": -0.4, "Hearing": -0.3, "Consciousness": -0.2 } },
- "Shock": { "severityPerHour": -0.05, "treatmentAboveSeverity": 0.5, "capacities": { "Consciousness": -0.4, "BloodPumping": -0.3, "Moving": -0.2 } }
+ // No floor: no treatment exists yet (decisions/2026-11-21-no-effect-needs-a-missing-treatment.md).
+ // Dropped asleep where you stood from exhaustion. Severity IS the sleep left, in ninetieths of the
+ // longest such sleep; the survival tick counts it down a minute at a time, and a blow ends it (Body.Damage).
+ "Asleep": { "severityPerHour": 0, "treatmentAboveSeverity": null },
+ "Shock": { "severityPerHour": -0.05, "treatmentAboveSeverity": null, "capacities": { "Consciousness": -0.4, "BloodPumping": -0.3, "Moving": -0.2 } }
 }

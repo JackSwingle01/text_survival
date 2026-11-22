@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-// ---- what a person believes (plan decision 7) ----
+// ---- what a person believes ----
 
 /// A person's beliefs about the world: the player's and an NPC's are one structure, kept by one set
 /// of rules (Knowledge). What hidden pools they have found, the search put into the rest, every tile
@@ -17,9 +17,30 @@ public sealed class Beliefs
     /// Tiles stood on, and tiles seen with something notable (trees, open water, a fire, a shelter,
     /// a den). A bare tile seen from a distance is not kept: the save stays small.
     public SortedDictionary<TileId, TileMemory> Places { get; init; } = [];
-    /// The last place each animal group or person was seen (old PredatorObservations, for every
-    /// agent, not only predators). Forgotten after Knowledge.SightingMemoryMinutes.
+    /// The last place each animal group or person was seen, predator or not. Forgotten after
+    /// Knowledge.SightingMemoryMinutes.
     public SortedDictionary<AgentId, Sighting> Sightings { get; init; } = [];
+    /// Every tile ever in view (Sight.Visible), whether or not anything was there, with its ground as
+    /// last seen: what the map draws as known rather than unexplored, and the snow, mud and ice it
+    /// draws there out of sight. Null until the first look. Only grows.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public GroundMemory? Explored { get; set; }
+    /// What is in view from where the person stands, with the budget it was cast with: the same tile
+    /// and budget give the same view (terrain never changes), so it is cast again only when either
+    /// moves. Never saved: after a load the first look casts it afresh, to the same tiles.
+    internal SightView? View;
+}
+
+/// The tiles in view from one tile with one budget (Sight.ViewOf), and the ones among them that a
+/// look always has something to note on: standing timber's pools and water to drink, which the ice season changes.
+sealed class SightView(TileId from, double budgetTiles, bool iceSeason, IReadOnlyList<TileId> tiles)
+{
+    public bool IceSeason { get; } = iceSeason;
+    public TileId From { get; } = from;
+    public double BudgetTiles { get; } = budgetTiles;
+    public IReadOnlyList<TileId> Tiles { get; } = tiles;
+    public HashSet<TileId> Set { get; } = [.. tiles];
+    /// Tiles in view with a tree pool or open water, in view order: where a look may note trees or water.
+    public List<TileId>? TreesOrWater;
 }
 
 /// What one tile looked like when last seen. From a distance a person sees the trees, open water,
@@ -31,7 +52,7 @@ public sealed class TileMemory
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public long? VisitedMinute { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Trees { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Water { get; set; }
-    /// How picked-over the ground was, as of VisitedMinute (old NPC ResourceMemory). 0 with no forage.
+    /// How picked-over the ground was, as of VisitedMinute. 0 with no forage.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? ForageDensity { get; set; }
     /// The pit's phase as seen; null when there was no pit.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FirePhase? Fire { get; set; }
@@ -72,7 +93,7 @@ public enum ChangeKind { Fire, Stash, Carcass, Shelter }
 /// appeared or went: a carcass, a shelter, a resource in the stash, a fire pit.
 public sealed record Change(ChangeKind Kind, string Subject, string? Was, string? Now);
 
-/// "What happened here since you last saw it" (short-loop plan, feature 4). Happened is the tile's
+/// "What happened here since you last saw it". Happened is the tile's
 /// journal over the time away, only at camp, where allies tell you everything (Full). Changes are
 /// memory against what is there now; Signs are prints made since, still readable. In the field there
 /// is no one to tell you: only the changes and the signs, and old or snowed-over prints tell nothing.
@@ -82,27 +103,123 @@ public sealed record Receipt(AgentId Who, TileId Tile, long? SinceMinute, bool F
     [JsonIgnore] public bool IsEmpty => Happened.Count == 0 && Changes.Count == 0 && Signs.Count == 0;
 }
 
-/// What a person can see from where they stand. A fixed radius for now; the old sight rays
-/// (terrain, weather, hills) replace it here, behind this one function.
+/// What a person can see from where they stand: the sight rays.
+/// One model for everything that sees: the explored map, place memory, sightings and NPC decisions
+/// (InSight) all read the same view.
 public static class Sight
 {
-    public const int RadiusTiles = 5;
+    /// The sight budget over open ground, in tiles; a vantage adds up to MaxVantageBonusTiles more.
+    public const int OpenGroundTiles = 11, MaxVantageBonusTiles = 8, CaveTiles = 6;
+    /// The farthest anyone can see: open ground from the best vantage, on a clear day.
+    public const int MaxTiles = OpenGroundTiles + MaxVantageBonusTiles;
 
-    /// Every tile in sight, the agent's own included, in a fixed order.
-    public static IEnumerable<TileId> Visible(World world, Agent agent)
+    /// Every tile in view of this person now (Visible's order), from the view their looks keep: cast
+    /// again only when their tile, eyes or the sky's visibility change.
+    public static IReadOnlyList<TileId> InView(World world, Agent agent) => ViewOf(world, agent).Tiles;
+
+    /// Whether the tile is in view of this person now.
+    public static bool InSight(World world, Agent agent, TileId tile) => ViewOf(world, agent).Set.Contains(tile);
+
+    /// What this person has in view now, cast from their tile with their eyes and today's sky; kept on
+    /// their beliefs while tile and budget hold.
+    internal static SightView ViewOf(World world, Agent agent)
     {
-        var m = Map.Of(world);
-        var at = agent.Tile;
-        for (int dx = -RadiusTiles; dx <= RadiusTiles; dx++)
-            for (int dy = Math.Abs(dx) - RadiusTiles; dy <= RadiusTiles - Math.Abs(dx); dy++)
-            {
-                var t = new TileId(at.X + dx, at.Y + dy);
-                if (m.InBounds(t)) yield return t;
-            }
+        double sight = Body.GetCapacities(agent.Body).Sight;
+        double budget = BudgetTiles(world, agent.Tile, sight);
+        var beliefs = (agent.Mind as PersonMind)?.Knows;
+        bool ice = Map.IsIceSeason(world.Minute);
+        if (beliefs?.View is { } kept && kept.From == agent.Tile && kept.BudgetTiles == budget && kept.IceSeason == ice) return kept;
+        var view = new SightView(agent.Tile, budget, ice, Visible(world, agent.Tile, sight));
+        if (beliefs != null) beliefs.View = view;
+        return view;
     }
 
-    public static bool InSight(World world, Agent agent, TileId tile) =>
-        MapGen.Manhattan(agent.Tile, tile) <= RadiusTiles && Map.Of(world).InBounds(tile);
+    /// The sight budget from a tile on a clear day with sound eyes: 6 in a cave, otherwise open
+    /// ground plus the tile's vantage (its own visibility, or the hills' if it stands on hills).
+    // Regional weather elevation is not a heightmap, so it gives no local vantage.
+    public static int RangeTiles(GeneratedMap m, TileId from, double sightCapacity = 1)
+    {
+        if (m.CaveAt(from) == Cave.Floor) return (int)Math.Round(CaveTiles * Math.Clamp(sightCapacity, 0, 1));
+        double hills = m.TerrainAt(from) == Terrain.Hills ? Terrain.Hills.Row().Visibility : 0;
+        return VantageRangeTiles(Math.Max(Map.Visibility(m, from), hills), sightCapacity);
+    }
+
+    /// Open ground's budget, plus (vantage - 1.3) x 20 tiles for a high place, at most 8 more.
+    public static int VantageRangeTiles(double vantageVisibility, double sightCapacity = 1)
+    {
+        double bonus = Math.Clamp((vantageVisibility - 1.3) * 20, 0, MaxVantageBonusTiles);
+        return (int)Math.Round((OpenGroundTiles + bonus) * Math.Clamp(sightCapacity, 0, 1));
+    }
+
+    /// The budget now: the range, cut by the weather's visibility.
+    public static double BudgetTiles(World world, TileId from, double sightCapacity = 1) =>
+        RangeTiles(Map.Of(world), from, sightCapacity) * Weather.At(world, world.Minute).VisibilityFactor;
+
+    /// Every tile in view from here now, by column then row. sightCapacity is the eyes' (Capacity.Sight).
+    public static IReadOnlyList<TileId> Visible(World world, TileId from, double sightCapacity = 1)
+    {
+        var m = Map.Of(world);
+        double budget = BudgetTiles(world, from, sightCapacity);
+        int range = (int)Math.Ceiling(budget);
+        var seen = new List<TileId>();
+        for (int x = Math.Max(0, from.X - range); x <= Math.Min(m.Width - 1, from.X + range); x++)
+            for (int y = Math.Max(0, from.Y - range); y <= Math.Min(m.Height - 1, from.Y + range); y++)
+            {
+                var t = new TileId(x, y);
+                if (CanSee(m, from, t, budget)) seen.Add(t);
+            }
+        return seen;
+    }
+
+    static bool InCave(GeneratedMap m, TileId t) => m.CaveAt(t) == Cave.Floor;
+
+    /// Budget a tile takes per tile-length of ray: infinite through a mountain, through nothing to see
+    /// through, and through another cave's floor; otherwise 1/visibility², and never less than 1.
+    static double Absorption(GeneratedMap m, TileId t, int? caveId)
+    {
+        double v = Map.Visibility(m, t);
+        return m.TerrainAt(t) == Terrain.Mountain || v <= 0 || InCave(m, t) && m.CaveIdAt(t) != caveId
+            ? double.PositiveInfinity
+            : Math.Max(1, 1 / (v * v));
+    }
+
+    static bool Opaque(GeneratedMap m, TileId t, int? caveId) => !m.InBounds(t) || double.IsPositiveInfinity(Absorption(m, t, caveId));
+
+    /// Walks every cell a centre-to-centre ray crosses, charging each its exact segment length; the
+    /// target itself is never charged, so a wall is seen though nothing behind it is.
+    static bool CanSee(GeneratedMap m, TileId from, TileId to, double budget)
+    {
+        if (to == from) return true;
+        int? caveId = m.CaveIdAt(from);
+        if (InCave(m, to) && m.CaveIdAt(to) != caveId) return false; // a cave's floor is seen only from that cave, its mouth included
+        int dx = to.X - from.X, dy = to.Y - from.Y;
+        double distance = Math.Sqrt(dx * dx + dy * dy);
+        if (budget <= 0 || distance > budget) return false;
+
+        int stepX = Math.Sign(dx), stepY = Math.Sign(dy);
+        double strideX = dx == 0 ? double.PositiveInfinity : distance / Math.Abs(dx);
+        double strideY = dy == 0 ? double.PositiveInfinity : distance / Math.Abs(dy);
+        double nextX = strideX / 2, nextY = strideY / 2, travelled = 0;
+        int x = from.X, y = from.Y;
+        while (x != to.X || y != to.Y)
+        {
+            var here = new TileId(x, y);
+            double exit = Math.Min(nextX, nextY);
+            budget -= (exit - travelled) * Absorption(m, here, caveId);
+            if (budget <= 0) return false;
+            travelled = exit;
+            bool crossX = nextX <= exit + 1e-9, crossY = nextY <= exit + 1e-9;
+            // A diagonal cannot peek through the seam between two opaque tiles.
+            if (crossX && crossY && Opaque(m, new TileId(x + stepX, y), caveId) && Opaque(m, new TileId(x, y + stepY), caveId)) return false;
+            if (crossX) { x += stepX; nextX += strideX; }
+            if (crossY) { y += stepY; nextY += strideY; }
+            var entered = new TileId(x, y);
+            // Out of a cave's floor, sight goes only along that cave's floor and to its mouth.
+            if (InCave(m, here) && m.TerrainAt(entered).IsPassable() && (m.CaveIdAt(entered) != m.CaveIdAt(here) || m.CaveAt(entered) == Cave.None))
+                return false;
+        }
+        return true;
+    }
 }
 
 /// The one set of rules every person's beliefs are kept by. Memory changes only by looking: the
@@ -129,17 +246,26 @@ public static class Knowledge
     /// The player's minute of looking, while awake: the fires in reach caught up, a look around when
     /// due, the minute's events filed, and the tile underfoot taken in. Coming back to a tile it
     /// remembers (or waking on one) with something to tell, it adds a Noticed event with the receipt.
-    public static void Witness(World world, Agent agent, List<WorldEvent> events, ref int filed)
+    public static bool Witness(World world, Agent agent, List<WorldEvent> events, ref int filed)
     {
         var mem = Of(agent).Places.GetValueOrDefault(agent.Tile);
         bool back = mem?.VisitedMinute != world.Minute - 1;
         bool knew = mem?.VisitedMinute != null;
         Fire.CatchUpAround(world, agent, events);
-        if (back || world.Minute % GlanceMinutes == 0) Glance(world, agent, events);
+        bool nearer = (back || world.Minute % GlanceMinutes == 0) && Glance(world, agent, events);
         Journal.File(world, events, ref filed); // what catching up found is in the journal before the receipt reads it
         var receipt = Receipt(world, agent, agent.Tile);
         if (back && knew && !receipt.IsEmpty) events.Add(new Noticed(world.Minute, agent.Id, agent.Tile, receipt));
+        return nearer;
     }
+
+    /// An NPC's look about while it keeps at something, as often as the player looks.
+    public static bool Watch(World world, Agent agent, List<WorldEvent> events) =>
+        world.Minute % GlanceMinutes == 0 && Glance(world, agent, events);
+
+    /// When the person last saw this agent, while they remember it.
+    public static long? LastSeenMinute(Agent person, AgentId other) =>
+        Of(person).Sightings.TryGetValue(other, out var s) ? s.Minute : null;
 
     /// An NPC's look as it decides: around it, then the tile underfoot. What it would be told is
     /// not reported: nothing reads an NPC's receipts yet.
@@ -151,21 +277,32 @@ public static class Knowledge
     }
 
     /// Looks at every tile in sight but the one underfoot: what can be told from a distance.
-    /// Fire pits in sight are caught up first, so the flame seen is the flame there now.
-    public static void Glance(World world, Agent agent, List<WorldEvent> events)
+    /// Fire pits in sight are caught up first, so the flame seen is the flame there now. True when a
+    /// predator came into sight, or nearer than where it was last seen.
+    public static bool Glance(World world, Agent agent, List<WorldEvent> events)
     {
         var beliefs = Of(agent);
         var m = Map.Of(world);
         long now = world.Minute;
+        var view = Sight.ViewOf(world, agent);
+        Explore(world, beliefs, view);
         var pits = new Dictionary<TileId, FireId>();
         foreach (var (id, f) in world.Fires.ToList())
-            if (f.CarriedBy == null && f.Tile != agent.Tile && Sight.InSight(world, agent, f.Tile))
+            if (f.CarriedBy == null && f.Tile != agent.Tile && view.Set.Contains(f.Tile))
             {
                 Fire.CatchUp(world, id, events);
                 pits.TryAdd(f.Tile, id);
             }
         var dens = Dens(world);
-        foreach (var t in Sight.Visible(world, agent))
+        // Only tiles with something to note, or a memory to bring up to date: every other tile in view
+        // would be passed over (nothing seen, nothing remembered), so it is not visited at all.
+        view.TreesOrWater ??= [.. view.Tiles.Where(t => HasTreePool(world, t) || m.TerrainAt(t).IsPassable() && Work.HasOpenWater(world, t))];
+        var look = new SortedSet<TileId>(view.TreesOrWater);
+        look.UnionWith(pits.Keys);
+        look.UnionWith(dens.Where(view.Set.Contains));
+        look.UnionWith(world.Shelters.Keys.Where(view.Set.Contains));
+        look.UnionWith(beliefs.Places.Keys.Where(view.Set.Contains));
+        foreach (var t in look)
         {
             if (t == agent.Tile) continue;
             bool trees = Trees(world, t), water = m.TerrainAt(t).IsPassable() && Work.HasOpenWater(world, t), den = dens.Contains(t);
@@ -179,14 +316,32 @@ public static class Knowledge
             if (!Fire.Burns(fire)) mem.FireHours = null;
             mem.Danger = den ? mem.Danger | Danger.Den : mem.Danger & ~Danger.Den;
         }
+        bool nearer = false;
+        var seen = beliefs.Sightings;
         foreach (var other in world.Agents.Values)
         {
-            if (other.Id == agent.Id || !Sight.InSight(world, agent, other.Tile)) continue;
+            if (other.Id == agent.Id || !view.Set.Contains(other.Tile)) continue;
             int alive = other.Members.Count(Body.IsAlive);
-            if (alive > 0) beliefs.Sightings[other.Id] = new Sighting(other.Tile, other.Species, alive, now);
+            if (alive == 0) continue;
+            // Both measured from where the person stands now: walking up to a pack is not the pack coming on.
+            if (other.Mind is HerdMind && Fauna.IsPredator(other.Species) && (!seen.TryGetValue(other.Id, out var was)
+                    || MapGen.Manhattan(other.Tile, agent.Tile) < MapGen.Manhattan(was.Tile, agent.Tile)))
+                nearer = true;
+            seen[other.Id] = new Sighting(other.Tile, other.Species, alive, now);
         }
-        foreach (var (id, s) in beliefs.Sightings.ToList())
-            if (now - s.Minute > SightingMemoryMinutes) beliefs.Sightings.Remove(id);
+        foreach (var (id, s) in seen.ToList())
+            if (now - s.Minute > SightingMemoryMinutes) seen.Remove(id);
+        return nearer;
+    }
+
+    /// Every tile in view is explored, and its ground as it is now remembered.
+    static void Explore(World world, Beliefs beliefs, SightView view)
+    {
+        var m = Map.Of(world);
+        beliefs.Explored ??= new GroundMemory(m.Width, m.Height);
+        if ((beliefs.Explored.Width, beliefs.Explored.Height) != (m.Width, m.Height))
+            throw new InvalidOperationException($"Explored ground is {beliefs.Explored.Width}x{beliefs.Explored.Height}, the map {m.Width}x{m.Height}");
+        foreach (var t in view.Tiles) beliefs.Explored.Remember(t, Ground.Look(world, t), world.Minute);
     }
 
     /// What changed on this tile since the person last stood on it, and then their memory of it,
@@ -261,7 +416,9 @@ public static class Knowledge
         mem.Danger |= Danger.Hurt;
     }
 
-    /// Standing timber on the tile (old NPC memory: a stand of trees is plain to see from a distance).
+    static bool HasTreePool(World world, TileId t) => Pools.At(world, t).Any(p => p is TreePool);
+
+    /// Standing timber on the tile (a stand of trees is plain to see from a distance).
     static bool Trees(World world, TileId t)
     {
         var pools = Pools.At(world, t);
@@ -310,15 +467,14 @@ public static class Journal
     /// a kill (a carcass appearing), a fight, a wounded animal getting away, something built, the pass
     /// crossed, and its stash taken by someone whose camp it is not. Everything else - feeding the fire,
     /// stashing, eating, cooking, strikes that failed, a fire lit - makes way for these, so no amount of
-    /// it can push out the fire going out. Old routine list (fuel, stash) was too narrow: 31 failed
-    /// strikes or meals evicted a FireDied (bug, fixed).
+    /// it can push out the fire going out.
     // A carcass going (butchered away) has no filed event: Butchered is a step's tally (Files).
     public static bool IsNotable(World world, WorldEvent e) => e switch
     {
         FireDied or FireBurnedToEmbers or ShelterCollapsed or Died or Injured or Killed or FightEnded or WoundedEscaped
             or Built or CrossedThePass => true,
         // Whose camp it was when it was taken, not when the entry is weighed: a camp that moves on does not
-        // turn its owner's old chores into thefts (old: CampOf read at eviction - bug, fixed).
+        // turn its owner's old chores into thefts.
         Unstashed u => u.Taken,
         _ => false,
     };

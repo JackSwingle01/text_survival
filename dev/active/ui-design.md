@@ -53,7 +53,7 @@ ui/
 │   ├── injured-<part>              # injury cuts a capacity > ~10%
 │   ├── exhausted | starving | dehydrated   # severe stage only (mild = bar colour)
 │   ├── overloaded                  # carry over the limit
-│   ├── wolf-nearby | stalked       # sighting within a few tiles, or tension ≥ 2/3
+│   ├── wolf-nearby                 # sighting within a few tiles (no "stalked": seen in the world)
 │   ├── cold-front                  # sharp turn for the worse within ~12h
 │   ├── gear-failing                # anything below 20% condition
 │   ├── night-no-fuel               # < 1h of light and you can't last the night
@@ -71,7 +71,7 @@ ui/
 │   ├── forage/                     # what's left · likely finds · hidden finds searched
 │   │                               # · perception (dark, sight) · daylight
 │   ├── sleep/                      # fire layout vs night length · shelter & bedding
-│   │                               # · overnight temp (front) · watch · predator tension
+│   │                               # · overnight temp (front) · watch · predators sighted nearby
 │   ├── eat-drink/                  # calories · hydration · raw/spoiled risk · days of food
 │   ├── craft/                      # materials · odds · skill
 │   ├── hunt-fight/                 # weapon · injuries · moving · animal state
@@ -177,7 +177,7 @@ at the fire, *Shivering* and *Wet boots* go away on their own.
 - **Colours:** danger (blood red), cold (frost), warning (ochre).
 - **Triggers:** the thresholds in `alerts/` above. Mild stages never get a chip; the vitals bar
   colour already says it.
-- **Data:** derived each tick from body state, tensions, the knowledge model (sightings) and the
+- **Data:** derived each tick from body state, the knowledge model (sightings) and the
   weather forecast. Nothing stored.
 
 ### Odds sheet

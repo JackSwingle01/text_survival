@@ -180,7 +180,7 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 | Capacities from tissue and organ condition | `CapacityCalculator` | Done | `BodyTests.DestroyedLung_HalvesBreathingRoughly`, `HalfDamagedArm_RoughlyHalvesItsManipulation` | | |
 | Blood and circulation | `Blood.cs` | Done | `BodyTests.BloodLoss_CollapsesCirculationAtHalf`, `SurvivalTests.Bleeding_DrainsBloodUntilDeath` | | |
 | Abilities: vitality, strength, speed, perception, dexterity, cold resistance | `AbilityCalculator`, `AbilityContext` | Done | `BodyTests.Speed_HeavyLoadSlows`, `Perception_FullInDaylight_HearingCarriesItInTheDark`, `Dexterity_DarknessAndWetHandsHurt`, `ColdResistance_FatInsulatesWithDiminishingReturns` | | |
-| Damage: layered penetration, targeting, armour | `DamageCalculator`, `BodyTargetResolver` | Done | `BodyTests.Damage_*`, `Armor_ReducesBluntByCushioning_ButNotInternal` | | |
+| Damage: layered penetration, targeting, armour | `DamageCalculator`, `BodyTargetResolver` | Done | `BodyTests.Damage_*`, `Clothing_ReducesBluntByCushioning_ButNotInternal` | | |
 | Skills (Fighting, Hunting, Foraging, Firecraft, Crafting, Healing, Mending...) | `Skills/Skill.cs`, `SkillRegistry.cs` | Missing | No skills anywhere in `rebuild/`. The short-loop plan asks for skills on `Agent` during the rebuild, with the old free first level-up fixed. The combat skill bonus is skipped for now (`dev/active/rebuild-combat-balance.md`) | M | |
 | Serpentine, arachnid and flying bodies | `BodyPartFactory` | Cut | Plan Keep/Port/Cut | | |
 

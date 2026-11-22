@@ -15,6 +15,7 @@ internal sealed record ContentTables(
     IReadOnlyList<KitGear> StartingClothes,
     IReadOnlyDictionary<Resource, FuelProps> Fuels,
     IReadOnlyDictionary<PitType, PitProps> Pits,
+    DeterrenceProps Deterrence,
     IReadOnlyDictionary<Species, SpeciesStats> Species,
     IReadOnlyDictionary<Diet, IReadOnlyList<Resource>> Diets,
     SightingPools Sightings,
@@ -22,7 +23,7 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<ShelterKind, ShelterKindProps> ShelterKinds,
     IReadOnlyDictionary<string, ShelterDef> Tents,
     IReadOnlyDictionary<Resource, ShelterMaterial> ShelterMaterials,
-    IReadOnlyDictionary<Structure, Recipe> Recipes,
+    IReadOnlyDictionary<Structure, StructureRecipe> Recipes,
     IReadOnlyDictionary<BeddingKind, BeddingProps> Beddings,
     IReadOnlyDictionary<ButcherMode, ButcherModeProps> Butchering,
     IReadOnlyDictionary<Terrain, TerrainRow> Terrains,
@@ -30,9 +31,13 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<string, SubstrateProfile> Substrates,
     IReadOnlyDictionary<EdgeType, EdgeRow> Edges,
     Felling Felling,
+    Footing Footing,
+    WaterIce WaterIce,
     IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> Forage,
     DiscoveryTables Discoveries,
-    IReadOnlyDictionary<string, IReadOnlyList<Accident>> Accidents);
+    IReadOnlyDictionary<string, IReadOnlyList<Accident>> Accidents,
+    IReadOnlyList<Recipe> MakeRecipes,
+    IReadOnlyDictionary<Enum, string> Names);
 
 // ---- rows that have no home in a system's own file ----
 
@@ -48,14 +53,18 @@ public static partial class Content
     sealed record ItemsFile(Dictionary<string, ResourceDef> Resources, Dictionary<string, GearDef> Gear,
         Dictionary<string, double> SlotCoverage, PackFile StartingPack, IReadOnlyList<KitGear> StartingClothes);
     sealed record PackFile(Dictionary<string, IReadOnlyList<double>> Kg, IReadOnlyList<KitGear> Gear);
-    sealed record FireFile(Dictionary<string, FuelProps> Fuels, Dictionary<string, PitProps> Pits);
+    sealed record FireFile(Dictionary<string, FuelProps> Fuels, Dictionary<string, PitProps> Pits, DeterrenceProps Deterrence);
     sealed record SpeciesFile(Dictionary<string, SpeciesRow> Species, Dictionary<string, Temperament> Temperaments,
         Dictionary<string, IReadOnlyList<Resource>> Diets, SightingPools Sightings);
     sealed record SpeciesRow(BodyKind Body, double WeightKg, double FatPct, double MusclePct, Role Role, bool IsSmall,
         double AttackDamage, DamageType AttackType, double Threat, double Boldness, double Aggression, double Cohesion,
-        int MoveAllowanceM, string Temperament, HerdBehavior Behavior, Diet Diet);
+        int MoveAllowanceM, double ReachM, string Temperament, HerdBehavior Behavior, Diet Diet,
+        double TopSpeedMps, double EnduranceSpeedMps, double SprintSeconds, double RunCostJPerKgM, double BurstPct, double GrazeKcalPerMinute,
+        double StrikeBackMargin, double ChaseLimitSeconds,
+        FatRange? AutumnFatPct = null, PersonBuild? Female = null);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
-        double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null);
+        double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
+        double MetabolicHeatDelta = 0, double HealingDelta = 0, double? HungerFreeHours = null);
     sealed record SheltersFile(Dictionary<string, ShelterKindProps> Kinds, Dictionary<string, ShelterDef> Tents,
         Dictionary<string, ShelterMaterial> Materials, Dictionary<string, RecipeRow> Recipes, Dictionary<string, BeddingProps> Beddings);
     sealed record RecipeRow(int Minutes, IReadOnlyList<RecipeMaterial> Materials, bool NeedsLight, bool NeedsShovel = false,
@@ -63,12 +72,16 @@ public static partial class Content
     sealed record RecipeMaterial(IReadOnlyList<Resource> AnyOf, int Pieces);
     sealed record ButcherFile(double TimeFactor, double ScentIncrease, double BloodySeverity, Dictionary<string, double> YieldFactors);
     sealed record TerrainFile(Dictionary<string, TerrainRow> Terrains, Dictionary<string, CaveRow> Caves,
-        Dictionary<string, SubstrateProfile> Substrates, Dictionary<string, EdgeRow> Edges, FellingFile Felling);
+        Dictionary<string, SubstrateProfile> Substrates, Dictionary<string, EdgeRow> Edges, FellingFile Felling, Footing Footing, WaterIce WaterIce);
     sealed record FellingFile(Pieces Logs, Dictionary<string, double> LogKg, double LogKgSpreadPct, Dictionary<string, double> MixedWood,
         Pieces Kindling, Pieces Tinder);
     sealed record DiscoveriesFile(Dictionary<string, FindDef> Finds, Dictionary<string, FindDef> Details,
         Dictionary<string, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave,
         Dictionary<string, IReadOnlyList<string>> DetailDraws, IReadOnlyList<string> ExamineOnly);
+    sealed record RecipeFileRow(string Name, MakeCategory Category, IReadOnlyList<InputRow> Inputs, IReadOnlyList<Capability> Tools,
+        IReadOnlyList<Requirement> Requires, int Minutes, ResultRow Result, IReadOnlyList<string> Outcomes, IReadOnlyList<Capability>? Faster = null);
+    sealed record InputRow(string? Item = null, string? Of = null, double Kg = 0);
+    sealed record ResultRow(string? Gear = null, Resource? Resource = null, double Kg = 0);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
@@ -93,12 +106,14 @@ public static partial class Content
         var forage = Deserialize<Dictionary<string, IReadOnlyList<ForageItem>>>(Text("forage.json"), "forage.json");
         var discoveries = Deserialize<DiscoveriesFile>(Text("discoveries.json"), "discoveries.json");
         var accidents = Deserialize<Dictionary<string, IReadOnlyList<Accident>>>(Text("accidents.json"), "accidents.json");
+        var recipeRows = Deserialize<Dictionary<string, RecipeFileRow>>(Text("recipes.json"), "recipes.json");
+        var nameRows = Deserialize<Dictionary<string, Dictionary<string, string>>>(Text("names.json"), "names.json");
 
         // Nulls first: every later check would trip over one.
         var problems = LocationNullProblems(locations, loot).ToList();
         foreach (var (file, root) in new (string, object)[] { ("items.json", items), ("fire.json", fire), ("species.json", species),
             ("effects.json", effects), ("shelters.json", shelters), ("butchering.json", butchering), ("terrain.json", terrain),
-            ("forage.json", forage), ("discoveries.json", discoveries), ("accidents.json", accidents) })
+            ("forage.json", forage), ("discoveries.json", discoveries), ("accidents.json", accidents), ("recipes.json", recipeRows), ("names.json", nameRows) })
             problems.AddRange(NullsIn(root, file));
         Fail(problems);
 
@@ -127,12 +142,13 @@ public static partial class Content
         var mixedWood = Keyed<Resource, double>(terrain.Felling.MixedWood, "terrain.json felling mixedWood", problems);
         var draws = Keyed<Terrain, IReadOnlyList<DiscoveryDraw>>(discoveries.Terrains, "discoveries.json terrains", problems);
         var detailDraws = Keyed<Terrain, IReadOnlyList<string>>(discoveries.DetailDraws, "discoveries.json detailDraws", problems);
+        var names = NameTable(nameRows, problems);
         Fail(problems);
 
         // Then references, shapes and ranges.
         problems.AddRange(LocationProblems(locations, loot, items.Gear, kinds, terrains));
         problems.AddRange(ItemProblems(items, resources, slots, packKg));
-        problems.AddRange(FireProblems(fuels, pits));
+        problems.AddRange(FireProblems(fuels, pits, fire.Deterrence));
         problems.AddRange(SpeciesProblems(species, speciesRows));
         problems.AddRange(EffectProblems(effectRows, effectCaps));
         problems.AddRange(ShelterProblems(shelters, items.Gear, kinds, materials, recipes, beddings));
@@ -142,6 +158,7 @@ public static partial class Content
         problems.AddRange(ForageProblems(forage));
         problems.AddRange(DiscoveryProblems(discoveries, draws, detailDraws, terrains, items.Gear));
         problems.AddRange(AccidentProblems(accidents));
+        var makeRecipes = MakeRecipes(recipeRows, items.Gear, problems);
         problems.AddRange(DeadRows(locations, loot, terrain, forage, discoveries, accidents));
         foreach (var kind in CodeGear) if (!items.Gear.ContainsKey(kind)) problems.Add($"items.json: no gear kind '{kind}', which the code names");
         foreach (var id in CodeLocations) if (!locations.Any(l => l.Id == id)) problems.Add($"locations.json: no location '{id}', which the code names");
@@ -151,11 +168,12 @@ public static partial class Content
             locations, new ReadOnlyDictionary<string, IReadOnlyList<LootRoll>>(loot),
             ReadOnly(resources), new ReadOnlyDictionary<string, GearDef>(items.Gear), ReadOnly(slots),
             new StartingPackDef(ReadOnly(packKg), items.StartingPack.Gear), items.StartingClothes,
-            ReadOnly(fuels), ReadOnly(pits),
+            ReadOnly(fuels), ReadOnly(pits), fire.Deterrence,
             ReadOnly(speciesRows.ToDictionary(s => s.Key, s => ToStats(s.Value, species.Temperaments[s.Value.Temperament]))),
             ReadOnly(diets), species.Sightings,
             ReadOnly(effectRows.ToDictionary(e => e.Key, e => new EffectDef(e.Value.SeverityPerHour, e.Value.TreatmentAboveSeverity,
-                e.Value.CoreTempFPerHour, e.Value.BleedMlPerHour, effectCaps[e.Key].Select(c => (c.Key, c.Value)).ToList().AsReadOnly()))),
+                e.Value.CoreTempFPerHour, e.Value.BleedMlPerHour, effectCaps[e.Key].Select(c => (c.Key, c.Value)).ToList().AsReadOnly(), e.Value.Discomfort,
+                e.Value.MetabolicHeatDelta, e.Value.HealingDelta, e.Value.HungerFreeHours))),
             ReadOnly(kinds), new ReadOnlyDictionary<string, ShelterDef>(shelters.Tents), ReadOnly(materials),
             ReadOnly(recipes.ToDictionary(r => r.Key, r => ToRecipe(r.Value, materials))),
             ReadOnly(beddings),
@@ -163,10 +181,34 @@ public static partial class Content
             ReadOnly(terrains), ReadOnly(caves), new ReadOnlyDictionary<string, SubstrateProfile>(terrain.Substrates), ReadOnly(edges),
             new Felling(terrain.Felling.Logs, ReadOnly(logKg), terrain.Felling.LogKgSpreadPct,
                 mixedWood.Select(m => (m.Key, m.Value)).ToList().AsReadOnly(), terrain.Felling.Kindling, terrain.Felling.Tinder),
+            terrain.Footing,
+            terrain.WaterIce,
             new ReadOnlyDictionary<string, IReadOnlyList<ForageItem>>(forage),
             new DiscoveryTables(new ReadOnlyDictionary<string, FindDef>(discoveries.Finds), new ReadOnlyDictionary<string, FindDef>(discoveries.Details),
                 ReadOnly(draws), discoveries.Cave, ReadOnly(detailDraws), discoveries.ExamineOnly),
-            new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents));
+            new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents),
+            makeRecipes, ReadOnly(names));
+    }
+
+    /// names.json: every value of every enum Names.Tables lists, and nothing else, each with its words.
+    static Dictionary<Enum, string> NameTable(Dictionary<string, Dictionary<string, string>> rows, List<string> problems)
+    {
+        var table = new Dictionary<Enum, string>();
+        foreach (var name in rows.Keys)
+            if (!Survival.Names.Tables.Any(t => t.Name == name)) problems.Add($"names.json: {name} is not a table of names (Names.Tables)");
+        foreach (var type in Survival.Names.Tables)
+        {
+            if (!rows.TryGetValue(type.Name, out var words)) { problems.Add($"names.json: no {type.Name} table"); continue; }
+            foreach (var key in words.Keys)
+                if (!Enum.GetNames(type).Contains(key, StringComparer.Ordinal)) problems.Add($"names.json {type.Name}: no {type.Name} '{key}'");
+            foreach (Enum value in Enum.GetValues(type))
+            {
+                if (!words.TryGetValue(value.ToString(), out var w)) problems.Add($"names.json {type.Name}: no words for {value}");
+                else if (string.IsNullOrWhiteSpace(w) || w != w.Trim()) problems.Add($"names.json {type.Name}.{value}: '{w}' is not words");
+                else table[value] = w;
+            }
+        }
+        return table;
     }
 
     static void Fail(List<string> problems)
@@ -225,14 +267,96 @@ public static partial class Content
 
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
-            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.MoveAllowanceM, t, r.Behavior, r.Diet);
+            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
+            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackMargin, r.ChaseLimitSeconds, r.AutumnFatPct, r.Female);
 
     /// A recipe's materials in kilos: pieces of the first material's nominal piece.
-    static Recipe ToRecipe(RecipeRow r, IReadOnlyDictionary<Resource, ShelterMaterial> materials) =>
+    static StructureRecipe ToRecipe(RecipeRow r, IReadOnlyDictionary<Resource, ShelterMaterial> materials) =>
         new(r.Minutes, r.Materials.Select(m => (m.AnyOf, materials[m.AnyOf[0]].PieceKg * m.Pieces)).ToList().AsReadOnly(),
             r.NeedsLight, r.NeedsShovel, r.ShovelHelps, r.NeedsFrost, r.Shelter, r.Bedding);
 
     // ---- checks, one family at a time ----
+
+    /// The Make recipes, in file order, each checked: names resolve, outcomes parse and name only the
+    /// recipe's own inputs and tools, and the odds leave most of the work to the plain result.
+    static IReadOnlyList<Recipe> MakeRecipes(Dictionary<string, RecipeFileRow> rows, IReadOnlyDictionary<string, GearDef> gear, List<string> problems)
+    {
+        var recipes = new List<Recipe>();
+        foreach (var (id, row) in rows)
+        {
+            string at = $"recipes.json {id}";
+            int before = problems.Count;
+            var materials = new List<MaterialInput>();
+            var items = new List<string>();
+            foreach (var input in row.Inputs)
+            {
+                if ((input.Item != null) == (input.Of != null)) { problems.Add($"{at}: an input is an item or a material (of, kg), exactly one"); continue; }
+                if (input.Item != null)
+                {
+                    if (!gear.ContainsKey(input.Item)) problems.Add($"{at}: no gear kind '{input.Item}'");
+                    if (input.Kg != 0) problems.Add($"{at}: an item input {input.Item} has no kg");
+                    items.Add(input.Item);
+                    continue;
+                }
+                var anyOf = new List<Resource>();
+                foreach (var name in input.Of!.Split('|'))
+                    if (Enum.GetNames<Resource>().Contains(name, StringComparer.Ordinal)) anyOf.Add(Enum.Parse<Resource>(name));
+                    else problems.Add($"{at}: no Resource '{name}'");
+                if (input.Kg <= 0) problems.Add($"{at}: {input.Of} kg {input.Kg}");
+                materials.Add(new MaterialInput(anyOf.AsReadOnly(), input.Kg));
+            }
+            var inputResources = materials.SelectMany(m => m.AnyOf).ToList();
+            if (inputResources.Distinct().Count() != inputResources.Count) problems.Add($"{at}: a resource in two inputs");
+            if (row.Minutes <= 0) problems.Add($"{at}: minutes {row.Minutes}");
+            var r = row.Result;
+            if ((r.Gear != null) == (r.Resource != null)) problems.Add($"{at}: the result is a gear kind or a resource, exactly one");
+            else if (r.Gear != null && !gear.ContainsKey(r.Gear)) problems.Add($"{at}: no gear kind '{r.Gear}'");
+            else if (r.Gear != null && r.Kg != 0) problems.Add($"{at}: a gear result is one piece, with no kg");
+            else if (r.Resource != null && r.Kg <= 0) problems.Add($"{at}: result {r.Resource} kg {r.Kg}");
+            else if (r.Resource != null && items.Count > 0) problems.Add($"{at}: a resource result is worked from materials, not items");
+            var faster = row.Faster ?? Array.AsReadOnly(Array.Empty<Capability>());
+            foreach (var (name, caps) in new[] { ("tools", row.Tools), ("faster", faster) })
+                if (caps.Contains(Capability.None) || caps.Distinct().Count() != caps.Count) problems.Add($"{at}: {name} names None or a capability twice");
+            if (row.Requires.Distinct().Count() != row.Requires.Count) problems.Add($"{at}: a requirement listed twice");
+            var outcomes = new List<Outcome>();
+            foreach (var line in row.Outcomes)
+            {
+                try { outcomes.AddRange(Outcomes.Parse(line)); }
+                catch (FormatException e) { problems.Add($"{at}: {e.Message}"); }
+            }
+            foreach (var o in outcomes)
+                foreach (var e in o.Effects)
+                    switch (e)
+                    {
+                        case WasteMaterial w when !inputResources.Contains(w.Input): problems.Add($"{at}: {w.Input} is not an input"); break;
+                        case SaveMaterial s when !inputResources.Contains(s.Input): problems.Add($"{at}: {s.Input} is not an input"); break;
+                        case BreakTool b when !row.Tools.Contains(b.Capability) && !faster.Contains(b.Capability):
+                            problems.Add($"{at}: {b.Capability} is not a tool it uses"); break;
+                        case ExtraProduct x when !gear.ContainsKey(x.What) && !Enum.GetNames<Resource>().Contains(x.What, StringComparer.Ordinal):
+                            problems.Add($"{at}: extra_product {x.What} is no gear kind or resource"); break;
+                        case ExtraProduct x when gear.ContainsKey(x.What) && x.Amount != Math.Floor(x.Amount):
+                            problems.Add($"{at}: extra_product {x.What} is whole pieces"); break;
+                    }
+            // A resource result is worked from what is left after any saving: it never weighs more.
+            if (r.Resource != null && r.Kg > materials.Sum(m => m.Kg) + 1e-9) problems.Add($"{at}: {r.Kg} kg of {r.Resource} from {materials.Sum(m => m.Kg)} kg");
+            if (r.Resource != null)
+                foreach (var o in outcomes)
+                {
+                    double savedKg = o.Effects.OfType<SaveMaterial>().Sum(s => materials.First(m => m.AnyOf.Contains(s.Input)).Kg * s.SharePct);
+                    if (r.Kg > materials.Sum(m => m.Kg) - savedKg + 1e-9) problems.Add($"{at}: {r.Kg} kg of {r.Resource} from {materials.Sum(m => m.Kg) - savedKg} kg ({o.Text})");
+                }
+            double sum = outcomes.Sum(o => o.BasePct);
+            if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
+            if (problems.Count > before) continue;
+            recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
+                new RecipeResult(r.Gear, r.Resource, r.Kg), outcomes.AsReadOnly()));
+        }
+        return recipes.AsReadOnly();
+    }
+
+    /// The most a recipe's outcomes may take of the odds before skill and hands move them: the plain
+    /// result stays the likeliest thing by far.
+    internal const double MaxOutcomePct = 0.5;
 
     static IEnumerable<string> ItemProblems(ItemsFile f, Dictionary<Resource, ResourceDef> resources, Dictionary<EquipSlot, double> slots,
         Dictionary<Resource, IReadOnlyList<double>> packKg)
@@ -251,13 +375,16 @@ public static partial class Content
             if (g.BaseWeightKg <= 0) yield return $"{at}: baseWeightKg {g.BaseWeightKg}";
             if (g.MaxDurability is 0 or < -1) yield return $"{at}: maxDurability {g.MaxDurability} (-1 never wears out)";
             if ((g.Category == GearCategory.Clothing) != (g.Slot != null)) yield return $"{at}: clothing, and only clothing, has a slot";
-            if (g.Category == GearCategory.Tool && g.Tool == null) yield return $"{at}: a tool needs its tool type";
+            if (g.Category == GearCategory.Tool && g.Tool == null && g.Weapon == null) yield return $"{at}: a tool needs its tool type, unless it is only a weapon";
             if (g.Category != GearCategory.Tool && (g.Tool != null || g.Weapon != null)) yield return $"{at}: only a tool is a tool or a weapon";
             if ((g.Category == GearCategory.Accessory) != (g.CapacityBonusKg > 0)) yield return $"{at}: accessories, and only accessories, add capacity";
             foreach (var (name, v) in new[] { ("insulation", g.Insulation), ("cushioning", g.Cushioning), ("toughness", g.Toughness), ("waterproofLevel", g.WaterproofLevel) })
                 if (v is < 0 or > 1) yield return $"{at}: {name} {v} is not in 0-1";
             if (g.CapacityBonusKg < 0) yield return $"{at}: capacityBonusKg {g.CapacityBonusKg}";
-            if (g.Weapon is { } w && (w.Damage <= 0 || w.BlockChance is < 0 or > 1)) yield return $"{at}: weapon damage {w.Damage}, blockChance {w.BlockChance}";
+            if (g.Weapon is { } w && (w.Damage <= 0 || w.BlockChance is < 0 or > 1 || w.ReachM <= 0))
+                yield return $"{at}: weapon damage {w.Damage} (above 0), blockChance {w.BlockChance}, reachM {w.ReachM}";
+            if (g.Weapon?.Thrown is { } t && (t.RangeM <= 0 || t.Accuracy is <= 0 or > 1 || t.Damage <= 0))
+                yield return $"{at}: thrown rangeM {t.RangeM}, accuracy {t.Accuracy} and damage {t.Damage} (above 0)";
             if (g.Capabilities.Contains(Capability.None)) yield return $"{at}: capabilities names None (an empty list is nothing)";
             if (g.Capabilities.Distinct().Count() != g.Capabilities.Count) yield return $"{at}: a capability listed twice";
         }
@@ -276,8 +403,10 @@ public static partial class Content
             yield return "items.json: two starting clothes on one slot";
     }
 
-    static IEnumerable<string> FireProblems(Dictionary<Resource, FuelProps> fuels, Dictionary<PitType, PitProps> pits)
+    static IEnumerable<string> FireProblems(Dictionary<Resource, FuelProps> fuels, Dictionary<PitType, PitProps> pits, DeterrenceProps deterrence)
     {
+        if (deterrence.FireFear < 0 || deterrence.TorchIntensityPct is < 0 or > 1 || deterrence.FullIntensityHeatF <= 0 || deterrence.FullWithinM <= 0)
+            yield return "fire.json deterrence: out of range";
         foreach (var (r, p) in fuels)
         {
             if (p.PeakTempF <= 0 || p.BurnRateKgPerHour <= 0 || p.MinFireTempF < 0) yield return $"fire.json fuels {r}: temperatures and burn rate";
@@ -288,6 +417,14 @@ public static partial class Content
             if (p.MaxFuelKg <= 0 || p.WindProtectionLevel is < 0 or > 1 || p.FuelEfficiencyFactor <= 0) yield return $"fire.json pits {pit}: out of range";
     }
 
+    static string? RunningProblem(double topSpeedMps, double enduranceSpeedMps) =>
+        enduranceSpeedMps <= 0 || topSpeedMps <= enduranceSpeedMps ? "a top speed above an endurance speed above 0" : null;
+
+    /// Autumn fat is drawn over a build's lean mass: above the build's own fat, and leaving room for its muscle.
+    static string? FatRangeProblem(FatRange fat, double fatPct, double musclePct) =>
+        fat.Min < fatPct || fat.Min > fat.Max || fat.Max + musclePct * (1 - fat.Max) / (1 - fatPct) >= 1
+            ? "a range from the build's fat up, min not above max, that leaves room for the muscle" : null;
+
     static IEnumerable<string> SpeciesProblems(SpeciesFile f, Dictionary<Species, SpeciesRow> rows)
     {
         foreach (var (s, r) in rows)
@@ -296,16 +433,28 @@ public static partial class Content
             if (!f.Temperaments.ContainsKey(r.Temperament)) yield return $"{at}: no temperament '{r.Temperament}'";
             if (r.WeightKg <= 0 || r.FatPct <= 0 || r.MusclePct <= 0 || r.FatPct + r.MusclePct >= 1) yield return $"{at}: build";
             if (r.MoveAllowanceM <= 0) yield return $"{at}: moveAllowanceM {r.MoveAllowanceM}";
+            if (r.ReachM <= 0) yield return $"{at}: reachM {r.ReachM}";
             if (r.AttackDamage <= 0 || r.Threat <= 0 || r.Boldness < 0 || r.Aggression is < 0 or > 1 || r.Cohesion < 0)
                 yield return $"{at}: attackDamage and threat above 0, boldness and cohesion not below, aggression in 0-1";
             if (HerdBehaviorProblem(r) is string bad) yield return $"{at}: {bad}";
+            if (RunningProblem(r.TopSpeedMps, r.EnduranceSpeedMps) is string slow) yield return $"{at}: {slow}";
+            if (r.StrikeBackMargin is < -1 or > 0) yield return $"{at}: strikeBackMargin in -1 to 0 (a giving-ground margin)";
+            if (r.ChaseLimitSeconds <= 0) yield return $"{at}: chaseLimitSeconds above 0";
+            if (r.SprintSeconds <= 0 || r.RunCostJPerKgM <= 0 || r.BurstPct is <= 0 or > 1 || r.GrazeKcalPerMinute < 0)
+                yield return $"{at}: sprintSeconds and runCostJPerKgM above 0, burstPct in 0-1, grazeKcalPerMinute not below 0";
+            bool person = s == Survival.Species.Human;
+            if (person != (r.AutumnFatPct != null) || person != (r.Female != null))
+                yield return $"{at}: autumnFatPct and female are a person's, and a person has both";
+            if (r.AutumnFatPct is FatRange fat && FatRangeProblem(fat, r.FatPct, r.MusclePct) is string lean) yield return $"{at} autumnFatPct: {lean}";
+            if (r.Female is PersonBuild woman)
+            {
+                if (woman.WeightKg <= 0 || woman.FatPct <= 0 || woman.MusclePct <= 0 || woman.FatPct + woman.MusclePct >= 1) yield return $"{at} female: build";
+                if (RunningProblem(woman.TopSpeedMps, woman.EnduranceSpeedMps) is string fslow) yield return $"{at} female: {fslow}";
+                if (FatRangeProblem(woman.AutumnFatPct, woman.FatPct, woman.MusclePct) is string flean) yield return $"{at} female autumnFatPct: {flean}";
+            }
             if ((r.Role == Role.Human) != (s == Survival.Species.Human) || (r.Body == BodyKind.Human) != (s == Survival.Species.Human))
                 yield return $"{at}: only a human has the human role and body";
         }
-        // A human's body is the dressed baseline adult, whatever the row says; the row may not disagree.
-        if (rows.TryGetValue(Survival.Species.Human, out var human)
-            && (human.WeightKg != Body.BaselineWeightKg || human.FatPct != Body.BaselineFatPct || human.MusclePct != Body.BaselineMusclePct))
-            yield return "species.json Human: the build is Body's baseline adult";
         foreach (var (name, t) in f.Temperaments)
         {
             if (t.Cap is < 0 or > 1 || t.HungryAt > t.StarvingAt || t.HungryAt <= 0) yield return $"species.json temperament {name}: out of range";
@@ -343,6 +492,10 @@ public static partial class Content
             if (e.SeverityPerHour > 0) yield return $"effects.json {k}: severityPerHour {e.SeverityPerHour} grows by itself";
             if (e.BleedMlPerHour < 0) yield return $"effects.json {k}: bleedMlPerHour {e.BleedMlPerHour}";
             foreach (var (c, d) in caps[k]) if (d is < -1 or > 0) yield return $"effects.json {k}: {c} {d} is not a loss in 0-1";
+            if (e.MetabolicHeatDelta is < -1 or > 1) yield return $"effects.json {k}: metabolicHeatDelta {e.MetabolicHeatDelta} is not in -1..1";
+            if (e.HealingDelta is < -1 or > 1) yield return $"effects.json {k}: healingDelta {e.HealingDelta} is not in -1..1";
+            if (k == EffectKind.WellFed ? e.HungerFreeHours is not (> 0 and < double.PositiveInfinity) : e.HungerFreeHours != null)
+                yield return $"effects.json {k}: hungerFreeHours {e.HungerFreeHours?.ToString() ?? "missing"}: only WellFed has it, a positive number of hours";
         }
     }
 
@@ -437,6 +590,11 @@ public static partial class Content
                 || new[] { s.PermeabilityMPerMinute, s.DrainagePerMinute, s.RunoffPerMinute }.Any(v => v < 0))
                 yield return $"terrain.json substrates {name}: out of range";
         foreach (var name in CodeSubstrates) if (!f.Substrates.ContainsKey(name)) yield return $"terrain.json: no substrate '{name}', which the code names";
+        // The ice lies across the turn of the year, so it forms after it breaks up.
+        if (f.WaterIce is not { ThawDay: >= 1 and <= 365, FreezeDay: >= 1 and <= 365 } || f.WaterIce.ThawDay >= f.WaterIce.FreezeDay)
+            yield return "terrain.json waterIce: thawDay and freezeDay are days of the year, thawDay first";
+        if (f.Footing is not { InjuryExponent: > 0, InjuryDivisor: >= 1, CarefulRiskFraction: >= 0 and <= 1, PaceMattersAbovePct: >= 0 and < 1 })
+            yield return "terrain.json footing: out of range";
     }
 
     /// A named place may be windier than any terrain (the Wind Gap funnels it).

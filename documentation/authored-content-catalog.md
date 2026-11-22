@@ -17,18 +17,19 @@ at world-gen).
 
 ## 1. Summary
 
-**301 entries:** 244 replaced, 17 left, 40 cut.
+**301 entries:** 244 replaced, 12 left, 45 cut. (Was 17 left, 40 cut: the five false-perception entries were cut on
+2026-11-21, because the player is never shown something that is not there; see challenge 2.)
 Plus 22 old tension types, all derived (§4).
 
 | Source | Entries | Replaced | Left | Cut |
 |---|---|---|---|---|
-| Random and arc events (GameEventRegistry partials, edge, tension, predator factories) | 167 | 133 | 11 | 23 |
+| Random and arc events (GameEventRegistry partials, edge, tension, predator factories) | 167 | 133 | 7 | 27 |
 | First-visit events | 12 | 10 | 2 | 0 |
 | Discovery events (DiscoveryEventFactory) | 21 | 19 | 1 | 1 |
 | Discovery pools (DiscoveryGenerator) | 36 | 36 | 0 | 0 |
 | Environmental details | 16 | 11 | 0 | 5 |
 | Named-location content (locations.json) | 6 | 4 | 2 | 0 |
-| Building blocks (Situations, Variants, OutcomeTemplates) | 43 | 31 | 1 | 11 |
+| Building blocks (Situations, Variants, OutcomeTemplates) | 43 | 31 | 0 | 12 |
 
 Most of the Replaced pile collapses. About a dozen body and weather events become five moments (cold,
 hungry, thirsty, exhausted, infection). Some twenty predator events become one follower dynamic seen at
@@ -101,7 +102,8 @@ torch is Light. Firestarters are Spark.
    warm your hands. Those are activities on the actor, not affordances of a thing. Either the actor is a
    Thing with body tags (none are in the vocabulary), or the rule becomes `Verbs(present) + SelfActivities(cause)`.
    Say which.
-2. **Hallucinations and false percepts (5 entries left).** The fever and fear content (Fire Illusion,
+2. **Hallucinations and false percepts (5 entries, now Cut).** *Decided 2026-11-21: false perception is
+   scrapped and all five are Cut. What the player perceives is always real.* The original challenge: The fever and fear content (Fire Illusion,
    Footsteps Outside, Paranoia, Night Terrors, the hallucination pools) needs the player to perceive what
    is not there. Commitment 5 forbids creating facts, but a false belief is not a fact, and plan decision 7
    says beliefs can be wrong. Recommendation: allow fever and fear to add *confidence noise to real
@@ -123,7 +125,8 @@ torch is Light. Firestarters are Spark.
 6. **Static place text can lie.** Eleven `discoveryText` strings in `locations.json` assert live dynamics:
    'Wolf tracks everywhere', 'Ravens circle overhead', 'Fresh dung steams'. That is the tension problem
    in miniature: the text says a wolf is there whether or not one exists. They must be read from state at
-   the visit or rewritten as static description.
+   the visit or rewritten as static description. *Handled 2026-11-21: all eleven rewritten as static
+   description of the place (plus ten smaller live claims in other place texts); live facts come from real signs.*
 7. **Two old mechanisms were already dead, and one design row assumes them.** No `TrapLineActive`
    tension is ever created, so all six trapping events never fire. `SmokeSpotted` is never created either,
    yet the §1 table maps it as if it worked. Its replacement needs fire visibility to other minds, which
@@ -149,13 +152,8 @@ torch is Light. Firestarters are Spark.
 | Intrusive Thought | `Actions/Events/GameEventRegistry.Expedition.cs:453` | Psychological scene over the Disturbed tension; no simulated dynamic beyond a fear scalar. |
 | Lost Time | `Actions/Events/GameEventRegistry.Expedition.cs:496` | Psychological scene (dissociation); no simulated dynamic. |
 | Processing | `Actions/Events/GameEventRegistry.Camp.cs:388` | Psychological scene (sit with grief); no simulated dynamic. |
-| Night Terrors | `Actions/Events/GameEventRegistry.Camp.cs:339` | False perception at night; depends on the open hallucination question (see challenges). |
-| Paranoia | `Actions/Events/GameEventRegistry.Threats.cs:508` | False perception at camp; open hallucination question. |
-| The Fire Illusion | `Actions/Events/GameEventRegistry.Fever.cs:120` | Hallucination; open question. |
-| Footsteps Outside | `Actions/Events/GameEventRegistry.Fever.cs:180` | Hallucination that is sometimes real; open question (needs uncertain belief to be real-sourced). |
-| Hallucination pools x4 | `Actions/Events/Variants/IllnessVariant.cs:88` | Open hallucination question. |
 
-*To migrate:* the Fear effect (with Cause) and a decision on false percepts (challenge 2). If confidence noise is allowed, Night Terrors, Paranoia, Footsteps Outside and Fire Illusion become moments over real faint signals misread. Intrusive Thought, Lost Time and Processing stay as authored text layered on a high-Fear state; they need a 'cause of fear' template, not a system. Also here: the 'familiar face in death' variant of The Frozen One (`DiscoveryEventFactory.cs:117`). A tribe member's body needs the player's backstory as data.
+*To migrate:* the Fear effect (with Cause). Night Terrors, Paranoia, The Fire Illusion, Footsteps Outside and the hallucination pools were here; they are Cut (false perception is scrapped, challenge 2). Intrusive Thought, Lost Time and Processing stay as authored text layered on a high-Fear state; they need a 'cause of fear' template, not a system. Also here: the 'familiar face in death' variant of The Frozen One (`DiscoveryEventFactory.cs:117`). A tribe member's body needs the player's backstory as data.
 
 ### Hydrology: the Beaver Dam chain
 
@@ -258,7 +256,7 @@ Line numbers are the factory method (events) or the template line (pools).
 | Rustle at Camp Edge | `GameEventRegistry.Camp.cs:199` | Replaced | Real state: a predator/scavenger agent enters sight of camp at night (already sourced from a real herd). Verbs: drive off with fire (Light), Bait, wait and watch. | moments; **+tag Hostile** |
 | Melting Reveal | `GameEventRegistry.Camp.cs:249` | Cut | Fabricates a buried find under your fire; nothing was buried there. If fire ever melts ground snow, real buried things would surface generically. | - |
 | Nightmare | `GameEventRegistry.Camp.cs:288` | Replaced | Moment: Fear effect (with Cause) breaks sleep. Text from the Fear effect's cause. | effects, moments |
-| Night Terrors | `GameEventRegistry.Camp.cs:339` | Left | False perception at night; depends on the open hallucination question (see challenges). | - |
+| Night Terrors | `GameEventRegistry.Camp.cs:339` | Cut | False perception at night. Cut: false perception is scrapped (user decision 2026-11-21; `emergent-world-design.md` §0 decision 8). | - |
 | Processing | `GameEventRegistry.Camp.cs:388` | Left | Psychological scene (sit with grief); no simulated dynamic. | - |
 
 ### Threats and body (GameEventRegistry.Threats.cs)
@@ -276,7 +274,7 @@ Line numbers are the factory method (events) or the template line (pools).
 | Gut Wrench | `GameEventRegistry.Threats.cs:358` | Replaced | Real state: eating Questionable/spoiled meat (carcass freshness exists) causes nausea; moment at onset; treat. | toxic, effects; **self-verbs** |
 | Muscle Cramp | `GameEventRegistry.Threats.cs:400` | Cut | Random injury with no simulated cause; Tired/Exhausted already impair. | - |
 | Vision Blur | `GameEventRegistry.Threats.cs:463` | Replaced | Merged into the Thirsty-severe moment (self-verb drink). | moments; **self-verbs** |
-| Paranoia | `GameEventRegistry.Threats.cs:508` | Left | False perception at camp; open hallucination question. | - |
+| Paranoia | `GameEventRegistry.Threats.cs:508` | Cut | False perception at camp. Cut: false perception is scrapped (user decision 2026-11-21; `emergent-world-design.md` §0 decision 8). | - |
 | Moment of Clarity | `GameEventRegistry.Threats.cs:546` | Cut | Random buff, no cause. | - |
 | The Wound Festers | `GameEventRegistry.Threats.cs:571` | Replaced | Real state: an untreated wound becomes infected; moment at onset. Verbs: treat, cauterize (Light/fire). | infection; **self-verbs** |
 | Fever Sets In | `GameEventRegistry.Threats.cs:636` | Replaced | Infection -> fever effect threshold. | infection; **self-verbs** |
@@ -386,8 +384,8 @@ Line numbers are the factory method (events) or the template line (pools).
 |---|---|---|---|---|
 | Something Wrong | `GameEventRegistry.Fever.cs:19` | Replaced | Infection onset moment. | infection; **self-verbs** |
 | Fever Takes Hold | `GameEventRegistry.Fever.cs:71` | Replaced | Fever threshold moment. Verbs: rest, treat, press on. | infection; **self-verbs** |
-| The Fire Illusion | `GameEventRegistry.Fever.cs:120` | Left | Hallucination; open question. | - |
-| Footsteps Outside | `GameEventRegistry.Fever.cs:180` | Left | Hallucination that is sometimes real; open question (needs uncertain belief to be real-sourced). | belief |
+| The Fire Illusion | `GameEventRegistry.Fever.cs:120` | Cut | Hallucination. Cut: false perception is scrapped (user decision 2026-11-21; `emergent-world-design.md` §0 decision 8). | - |
+| Footsteps Outside | `GameEventRegistry.Fever.cs:180` | Cut | Hallucination that is sometimes real. Cut: false perception is scrapped (user decision 2026-11-21; `emergent-world-design.md` §0 decision 8). | - |
 | Crisis Point | `GameEventRegistry.Fever.cs:247` | Replaced | Fever crisis threshold. | infection; **self-verbs** |
 
 ### Equipment wear (GameEventRegistry.Equipment.cs)
@@ -635,7 +633,7 @@ Line numbers are the factory method (events) or the template line (pools).
 | Forage clues x10 | `ForageClueVariant.cs:76` | Replaced | Clues must derive from real state (Ripe/Depleted stock, grazed ground, real prints, windthrow); Negative/Generic clues become templates. | - |
 | Hunting encounter variants x6 | `HuntingEncounterVariant.cs:48` | Replaced | Derived from HerdState + vigilance (exist). | - |
 | Illness onset pools x4 | `IllnessVariant.cs:36` | Replaced | Cause on the infection/poisoning effect. | infection, toxic |
-| Hallucination pools x4 | `IllnessVariant.cs:88` | Left | Open hallucination question. | - |
+| Hallucination pools x4 | `IllnessVariant.cs:88` | Cut | Cut: false perception is scrapped (user decision 2026-11-21; `emergent-world-design.md` §0 decision 8). | - |
 | Scavenge scenarios x5 | `ScavengeScenarioVariant.cs:143` | Replaced | Carcass size/freshness/remaining (exist). | - |
 | Trail signs x5 (predator, prey, human, weather, danger) | `TrailSignVariant.cs:42` | Replaced | Predator/prey read real prints today; human from travellers; weather from Ground; danger = Unstable/ice. | traveller, ice |
 
@@ -659,7 +657,7 @@ Line numbers are the factory method (events) or the template line (pools).
 | Entry | Source | Verdict | Mechanism | Depends on |
 |---|---|---|---|---|
 | old_campsite 'stories' x5 | `locations.json:745` | Replaced | Five fates of a predecessor (taken by a predator, fled, meant to return, 37-day tally, long gone) become templates over a settled traveller's fate and stay length. | traveller, body |
-| discoveryText that asserts live dynamics (wolf_den, ravens_perch, herd_crossing, salt_lick, game_trail, mammoth_wallow, deer_meadow, mineral_spring, kill_site, fox_earth, rabbit_warren) | `locations.json:214` | Replaced | Each is a world-gen attractor; the claim ('wolf tracks everywhere', 'ravens circle', 'fresh dung steams') must be read from real state at the visit or dropped, or it lies like tensions did. | beacon, smallgame |
+| discoveryText that asserts live dynamics (wolf_den, ravens_perch, herd_crossing, salt_lick, game_trail, mammoth_wallow, deer_meadow, mineral_spring, kill_site, fox_earth, rabbit_warren) | `locations.json:214` | Replaced | Each is a world-gen attractor; the claim ('wolf tracks everywhere', 'ravens circle', 'fresh dung steams') must be read from real state at the visit or dropped, or it lies like tensions did. **Handled 2026-11-21:** the text now describes only the permanent place; live facts come from real signs. | beacon, smallgame |
 | discoveryText for static landmarks (the other ~75 places, the pass stages, caves) | `locations.json:15` | Left | Place description, not an event; stays authored. The pass, dens and caves are the expected landmark pile. | - |
 | firstVisitEvent hooks x12 | `locations.json:131` | Replaced | See First visits group; the hook goes once those are moments/verbs. | moments |
 | event features x10 (need_an_axe, fire_origin, fresh_tracks, previous_use, spot_movement, sharp_edges, see_for_miles, bear_cache, beaver_activity, deadfall_den) | `locations.json:131` | Replaced | See Discovery events group (one Cut, one Left). The field goes once its rows land. | - |

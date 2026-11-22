@@ -2,25 +2,19 @@ namespace Survival;
 
 public enum Precipitation { None, Snow, Rain, Blizzard }
 
-/// What the world and the activity do to a body this minute. Built by Sim from World, Agent and
-/// Activity; everything about the body itself (wetness, core temperature) is read off the body.
+/// What the world and the activity do to a body this minute; the body's own state is read off the body.
 public sealed record SurvivalContext
 {
     public double AirTempF { get; init; } = 70;
-    /// 0-1, where 1 is a 45 mph gale.
+    /// The wind at the body (Exposure.WindLevel); 1 is a 45 mph gale.
     public double WindLevel { get; init; }
-    /// The wind drying you at a fire pit: the open wind less the pit's walls only, as the old game read
-    /// it (old game parity: old SurvivalContext.CalculateEffectiveWindSpeed fed SurvivalProcessor's
-    /// drying). Null when nothing sets it apart: the same as WindLevel.
+    /// Wind at a fire pit, without the shelter's walls (Exposure.FireDryingWindLevel); null means WindLevel.
     public double? FireDryingWindLevel { get; init; }
-    /// Radiant heat reaching this agent, °F added to the air. Withheld once the body is warm
-    /// enough to sweat: anyone that hot shifts back from the fire long before sweating through a night.
+    /// Radiant heat, °F added to the air. Faded out from the setpoint to a sweat (anyone that hot eases back); a hard cut would bounce the core.
     public double FireBonusF { get; init; }
     /// A carried torch's heat, °F. Not withheld when sweating: you cannot step back from a torch in your hand.
     public double TorchHeatF { get; init; }
-    /// Whole-body clothing insulation, area-weighted.
     public double ClothingClo { get; init; }
-    /// Thermal mass that stores warmth (the clothing heat buffer).
     public double ClothingWeightKg { get; init; }
     /// Resin-sealed gear: keeps rain and wind out, and sweat vapour in.
     public double WaterproofingLevel { get; init; }
@@ -29,18 +23,15 @@ public sealed record SurvivalContext
     public double PrecipitationPct { get; init; }
     /// Wetness per minute from slush, mud or standing water, before anything protects you from it.
     public double GroundWettingPctPerMinute { get; init; }
-    /// Bedding between you and that ground, 0-1.
     public double GroundProtectionLevel { get; init; }
-    /// Sleep efficiency of the bed slept in (old BeddingFeature.Quality); the bare ground heals at 30% of a proper bed.
+    /// Sleep efficiency of the bed slept in; the bare ground heals at 30% of a proper bed.
     public double BeddingQualityPct { get; init; } = NoBeddingQualityPct;
     public const double NoBeddingQualityPct = 0.3;
     /// Metabolic multiplier: 1 resting awake, 0.5 asleep, 1.5 walking, 1.8 chopping.
     public double ActivityFactor { get; init; } = 1.0;
-    /// Sleep is the one activity that restores energy rather than spending it.
     public bool IsSleeping { get; init; }
 }
 
-/// Everything one stretch of survival does to a body, computed before any of it is applied.
 public sealed class SurvivalDelta
 {
     public double CoreTempDeltaF, CaloriesDeltaKcal, HydrationDeltaMl, EnergyDeltaMinutes, ClothingHeatBufferDeltaPct;
@@ -49,8 +40,7 @@ public sealed class SurvivalDelta
     public List<DamageInfo> Damage { get; } = [];
 }
 
-/// The heat balance behind a body temperature, kept as its terms so "why am I freezing" is
-/// answered by the same arithmetic that froze you.
+/// Kept as its terms so "why am I freezing" is answered by the same arithmetic that froze you.
 public readonly record struct HeatBalance(
     double MetabolismKcalPerHour, double SensibleLossKcalPerHour, double EvaporativeLossKcalPerHour, double HeatCapacityKcalPerF)
 {
@@ -62,10 +52,13 @@ public static partial class Body
 {
     public const double MaxEnergyMinutes = 960;
     public const double MaxHydrationMl = 4000;
+    /// The baseline man's calorie store; every body's scales from it with mass (CaloriesCapacityKcal).
     public const double MaxCaloriesKcal = 2000;
 
-    /// Urine, breath and insensible skin loss: everything but sweat, which is modelled on its own.
-    /// (4000 is a real adult's total turnover and already includes sweat; using it double-counted.)
+    /// Gut and glycogen before fat is touched; scales as Kleiber's M^0.75 so a hare's and a mammoth's both last about a day.
+    public static double CaloriesCapacityKcal(BodyState body) => MaxCaloriesKcal * Math.Pow(body.WeightKg / BaselineWeightKg, 0.75);
+
+    /// Everything but sweat, which is modelled on its own (a real adult's 4000 total includes it).
     public const double BaseWaterLossMlPerDay = 2500;
     const double SleepWaterLossFactor = 0.7;
     const double SleepRecoveryFactor = 2; // an hour asleep buys two awake
@@ -86,10 +79,9 @@ public static partial class Body
     const double SurvivalEffectThresholdPct = 0.30;
 
     const double ThermalMassFPerKg = 2.0;
-    /// The chill the clothing's stored heat will take before the core falls under its setpoint (ProcessTemperature's buffer).
     public static double ClothingHeatStoredF(BodyState body) => body.ClothingHeatBufferPct * body.ClothingWeightKg * ThermalMassFPerKg;
     const double MaxSweatMlPerHour = 1000;
-    /// Water held by fully soaked clothing; shared by soaking and drying so they cannot drift apart.
+    /// Shared by soaking and drying so they cannot drift apart.
     const double MlPerFullSoak = 2000;
     /// Latent heat: evaporating 1ml removes ~0.58 kcal. Why sweat cools, and why trapped sweat does not.
     const double EvaporativeKcalPerMl = 0.58;
@@ -97,31 +89,32 @@ public static partial class Body
     const double DilatedGradientF = 2.8;      // skin near 35C: flushed, shedding heat
     const double M2KPerWattPerClo = 0.155;
 
-    // ---- heat ----
-
-    /// Skin circulation, 0 shut to 1 wide open. Constriction runs out exactly where shivering starts,
-    /// dilation exactly where sweating starts, so neither costly response fires while blood alone could cope.
+    /// Skin circulation, 0 shut to 1 open. Constriction ends where shivering starts, dilation where sweating starts, so neither costly response fires while blood alone could cope.
     static double VasomotorTone(double coreF) => coreF < BaseCoreTempF
         ? Math.Clamp(0.5 * (coreF - ShiveringThresholdF) / (BaseCoreTempF - ShiveringThresholdF), 0, 0.5)
         : Math.Clamp(0.5 + 0.5 * (coreF - BaseCoreTempF) / (SweatingThresholdF - BaseCoreTempF), 0.5, 1);
 
-    /// What the air actually touches. Moving blood to or from it sheds or holds heat for free.
+    /// Moving blood to or from the skin sheds or holds heat for free.
     public static double SkinTemperatureF(double coreF) =>
         coreF - (ConstrictedGradientF + VasomotorTone(coreF) * (DilatedGradientF - ConstrictedGradientF));
 
-    static double FireF(BodyState body, SurvivalContext ctx) => (body.CoreTempF < SweatingThresholdF ? ctx.FireBonusF : 0) + ctx.TorchHeatF;
+    static double FireF(BodyState body, SurvivalContext ctx) =>
+        ctx.FireBonusF * Math.Clamp((SweatingThresholdF - body.CoreTempF) / (SweatingThresholdF - BaseCoreTempF), 0, 1) + ctx.TorchHeatF;
 
-    static double ConvectiveCoefficient(SurvivalContext ctx) => 5.0 * (1.0 + ctx.WindLevel * 2.0);
+    internal static double ConvectiveCoefficient(SurvivalContext ctx) => 5.0 * (1.0 + ConvectiveWind(ctx.WindLevel) * 2.0);
 
-    /// Clothing, fat and the air's boundary layer in series, the way real resistances add. Doubling
-    /// clothing never halves heat loss, so returns diminish with no clamp. 1 clo keeps a resting
-    /// person comfortable at 21C, which is what makes gear values checkable against reality.
+    /// Linear up to a 45 mph gale (1); past it the square root, as real convection grows: a 2.5 storm strips ~1.4x a gale's heat, not 2x.
+    internal static double ConvectiveWind(double windLevel) => windLevel <= 1 ? windLevel : Math.Sqrt(windLevel);
+
+    /// Clothing, fat and the boundary layer in series, as real resistances add: doubling clothing never halves heat loss.
+    /// 1 clo keeps a resting person comfortable at 21C, so gear values check against reality.
     public static double TotalThermalResistance(BodyState body, SurvivalContext ctx)
     {
         double wetness = Effects.Severity(body, EffectKind.Wet);
         double clo = ctx.ClothingClo * Math.Clamp(1 - wetness * 0.7, 0.1, 1.0); // soaked layers lose their air
         double sealedLevel = Math.Clamp(ctx.WaterproofingLevel, 0, 1);
-        clo *= Math.Clamp(1 - ctx.WindLevel * (1 - sealedLevel) * 0.4, 0.2, 1.0); // wind pushes through the unsealed
+        // Wind pushes through the unsealed on the same curve (ConvectiveWind) as it strips the boundary layer.
+        clo *= Math.Clamp(1 - ConvectiveWind(ctx.WindLevel) * (1 - sealedLevel) * 0.4, 0.2, 1.0);
         double naturalClo = Math.Clamp(ColdResistance(body), 0, 1) * 1.5;
         return (clo + naturalClo) * M2KPerWattPerClo + 1.0 / ConvectiveCoefficient(ctx);
     }
@@ -130,8 +123,7 @@ public static partial class Body
     static double InsulationPct(BodyState body, SurvivalContext ctx) =>
         Math.Clamp(1 - (1.0 / ConvectiveCoefficient(ctx)) / TotalThermalResistance(body, ctx), 0, 0.99);
 
-    /// Air temperature at which a resting body in this clothing is in balance. The number worth
-    /// showing a player: compare it to the temperature outside.
+    /// Air temperature at which a resting body in this clothing is in balance: the number to show a player.
     public static double ComfortTemperatureF(BodyState body, SurvivalContext ctx)
     {
         double neutralSkinF = SkinTemperatureF(BaseCoreTempF);
@@ -139,15 +131,25 @@ public static partial class Body
         return neutralSkinF - sensibleLossW / 1.8 * TotalThermalResistance(body, ctx) * 9.0 / 5.0;
     }
 
-    /// Katch-McArdle on lean body mass (everything not fat), in kcal/day. Damaged organs run less
-    /// efficiently. Metabolism is also the body's only heat source.
+    /// Katch-McArdle for people, Kleiber's 70 M^0.75 for animals (Katch-McArdle gives a mammoth 84,600 kcal/day to Kleiber's 47,700).
+    /// Damaged organs run less efficiently. Metabolism is also the body's only heat source.
     public static double MetabolismKcalPerDay(BodyState body, double activityFactor)
     {
-        double leanKg = Math.Max(0, body.WeightKg - body.FatKg);
-        double bmr = 370 + 21.6 * leanKg;
-        bmr *= 0.7 + 0.3 * body.Regions.SelectMany(r => r.Organs).Average(o => o.Condition);
+        double bmr = body.Kind == BodyKind.Human
+            ? 370 + 21.6 * Math.Max(0, body.WeightKg - body.FatKg)
+            : 70 * Math.Pow(body.WeightKg, 0.75);
+        double organs = 0;
+        int count = 0;
+        foreach (var r in body.Regions)
+            foreach (var o in r.Organs) { organs += o.Condition; count++; }
+        if (count == 0) throw new InvalidOperationException("A body with no organs has no metabolism");
+        bmr *= 0.7 + 0.3 * organs / count;
         return bmr * activityFactor;
     }
+
+    /// The one source for heat made and calories burned, so an effect's extra heat is always paid for.
+    static double BurnKcalPerHour(BodyState body, double activityFactor) =>
+        MetabolismKcalPerDay(body, activityFactor) / 24 * Effects.MetabolicHeatFactor(body);
 
     readonly record struct SweatResponse(double Severity, double ProducedMlPerHour, double EvaporatedMlPerHour)
     {
@@ -156,8 +158,7 @@ public static partial class Body
         public double SoakedMlPerHour => ProducedMlPerHour - EvaporatedMlPerHour;
     }
 
-    /// Sweat opens only once dilation is maxed, ramps from zero, and evaporates only as far as
-    /// sealed or saturated clothing lets it. Both near zero is heatstroke: water spent, no cooling.
+    /// Opens only once dilation is maxed; evaporates only as far as clothing lets it. Both near zero is heatstroke: water spent, no cooling.
     static SweatResponse Sweat(BodyState body, SurvivalContext ctx)
     {
         if (VasomotorTone(body.CoreTempF) < 1.0) return default;
@@ -167,14 +168,13 @@ public static partial class Body
         return new SweatResponse(severity, produced, produced * evaporatedPct);
     }
 
-    /// Metabolism in; conduction and convection out across the skin; evaporation out.
     public static HeatBalance CalculateHeatBalance(BodyState body, SurvivalContext ctx)
     {
         const double specificHeatKcalPerKgF = 0.83, surfaceAreaM2 = 1.8;
         double deltaC = (SkinTemperatureF(body.CoreTempF) - (ctx.AirTempF + FireF(body, ctx))) * 5.0 / 9.0;
         double sensibleLossKcalPerHour = surfaceAreaM2 * deltaC / TotalThermalResistance(body, ctx) * 0.86;
         return new HeatBalance(
-            MetabolismKcalPerDay(body, ctx.ActivityFactor) / 24,
+            BurnKcalPerHour(body, ctx.ActivityFactor),
             sensibleLossKcalPerHour,
             Sweat(body, ctx).CoolingKcalPerHour,
             body.WeightKg * specificHeatKcalPerKgF);
@@ -183,34 +183,30 @@ public static partial class Body
     public static double TemperatureChangeFPerHour(BodyState body, SurvivalContext ctx) =>
         CalculateHeatBalance(body, ctx).DegreesFPerHour;
 
-    // ---- the survival step ----
-
-    /// What `minutes` of these conditions would do to this body. Pure apart from drawing the rng
-    /// (which organ starvation or cold attacks); Apply makes it so.
+    /// Pure: Apply makes it so. The rng is not drawn here, kept for callers that pass one.
     public static SurvivalDelta Process(BodyState body, SurvivalContext ctx, int minutes, Rng rng)
     {
         var d = new SurvivalDelta();
 
-        // Base needs.
-        d.CaloriesDeltaKcal = -MetabolismKcalPerDay(body, ctx.ActivityFactor) / 24.0 / 60.0 * minutes;
+        double burnKcalPerMinute = BurnKcalPerHour(body, ctx.ActivityFactor) / 60.0;
+        d.CaloriesDeltaKcal = -burnKcalPerMinute * minutes;
         d.EnergyDeltaMinutes = ctx.IsSleeping ? SleepRecoveryFactor * minutes : -minutes;
         d.HydrationDeltaMl = -BaseWaterLossMlPerDay / (24.0 * 60.0) * (ctx.IsSleeping ? SleepWaterLossFactor : 1.0) * minutes;
 
         ProcessTemperature(body, ctx, minutes, d);
         ProcessWetness(body, ctx, minutes, d);
-        ProcessBloody(body, minutes, d);
+        ProcessBloody(body, ctx, minutes, d);
 
         double calories = body.CaloriesKcal + d.CaloriesDeltaKcal;
         double hydration = body.HydrationMl + d.HydrationDeltaMl;
-        double coreF = body.CoreTempF + d.CoreTempDeltaF;
 
-        ProcessStarvation(body, calories, minutes, rng, d);
-        ProcessDehydration(hydration, minutes, rng, d);
-        ProcessHypothermia(coreF, minutes, rng, d);
-        ProcessRegeneration(body, calories, hydration, minutes, d);
+        ProcessStarvation(body, calories, d);
+        ProcessLethal(body, minutes, d);
+        ProcessRegeneration(body, ctx, calories, hydration, minutes, d);
 
         double energy = body.EnergyMinutes + d.EnergyDeltaMinutes;
-        AddBelowThreshold(d, EffectKind.Hungry, calories / MaxCaloriesKcal);
+        double hungry = HungerSeverity(body, calories / CaloriesCapacityKcal(body));
+        if (hungry > 0) d.Effects.Add((EffectKind.Hungry, hungry));
         AddBelowThreshold(d, EffectKind.Thirsty, hydration / MaxHydrationMl);
         AddBelowThreshold(d, EffectKind.Tired, energy / MaxEnergyMinutes);
         return d;
@@ -218,12 +214,24 @@ public static partial class Body
 
     static void AddBelowThreshold(SurvivalDelta d, EffectKind kind, double pct)
     {
-        pct = Math.Clamp(pct, 0, 1);
-        if (pct < SurvivalEffectThresholdPct)
-            d.Effects.Add((kind, (SurvivalEffectThresholdPct - pct) / SurvivalEffectThresholdPct));
+        double severity = BelowThreshold(pct);
+        if (severity > 0) d.Effects.Add((kind, severity));
     }
 
-    /// Body temperature change, the clothing heat buffer, the water sweat costs, and temperature effects.
+    static double BelowThreshold(double pct) =>
+        Math.Max(0, (SurvivalEffectThresholdPct - Math.Clamp(pct, 0, 1)) / SurvivalEffectThresholdPct);
+
+    /// Follows the reserves: an empty store is a pang; strong hunger rises over the last StarvingRampDays they can feed.
+    static double HungerSeverity(BodyState body, double storePct)
+    {
+        double pang = EmptyStoreHungerSeverity * BelowThreshold(storePct);
+        double reserves = Math.Clamp(1 - ReservesKcal(body) / (StarvingRampDays * MetabolismKcalPerDay(body, 1.0)), 0, 1);
+        return Math.Max(pang, reserves);
+    }
+
+    const double EmptyStorePangLoss = 0.05, StarvingRampDays = 20;
+    static readonly double EmptyStoreHungerSeverity = EmptyStorePangLoss / -Effects.CapacityLoss(EffectKind.Hungry, Capacity.Moving);
+
     public static SurvivalDelta ProcessTemperature(BodyState body, SurvivalContext ctx, int minutes)
     {
         var d = new SurvivalDelta();
@@ -231,8 +239,47 @@ public static partial class Body
         return d;
     }
 
+    /// Minute by minute, because buffer use, withheld fire heat and skin tone all change with the core: one long step equals the
+    /// minutes lived one at a time. Effects are judged by the core as the step began.
     static void ProcessTemperature(BodyState body, SurvivalContext ctx, int minutes, SurvivalDelta d)
     {
+        double startCoreF = body.CoreTempF, startBufferPct = body.ClothingHeatBufferPct;
+        double sweatSeverity = Sweat(body, ctx).Severity;
+        try
+        {
+            for (int i = 0; i < minutes; i++)
+            {
+                var minute = new SurvivalDelta();
+                ProcessTemperatureMinute(body, ctx, minute);
+                d.CoreTempDeltaF += minute.CoreTempDeltaF;
+                d.HydrationDeltaMl += minute.HydrationDeltaMl;
+                d.ClothingHeatBufferDeltaPct += minute.ClothingHeatBufferDeltaPct;
+                body.CoreTempF = startCoreF + d.CoreTempDeltaF;
+                body.ClothingHeatBufferPct = startBufferPct + d.ClothingHeatBufferDeltaPct;
+            }
+        }
+        finally
+        {
+            body.CoreTempF = startCoreF;
+            body.ClothingHeatBufferPct = startBufferPct;
+        }
+
+        double core = startCoreF;
+        if (core < ShiveringThresholdF)
+            d.Effects.Add((EffectKind.Shivering, Math.Clamp((ShiveringThresholdF - core) / 5.0, 0.01, 1.0)));
+        if (core < HypothermiaThresholdF)
+            d.Effects.Add((EffectKind.Hypothermia, Math.Clamp((HypothermiaThresholdF - core) / 10.0, 0.01, 1.0)));
+        if (core < SevereHypothermiaThresholdF)
+            d.Effects.Add((EffectKind.Frostbite, Math.Clamp((SevereHypothermiaThresholdF - core) / 10.0, 0.01, 1.0)));
+        if (core > HyperthermiaThresholdF)
+            d.Effects.Add((EffectKind.Hyperthermia, Math.Clamp((core - HyperthermiaThresholdF) / 10.0, 0.01, 1.0)));
+        if (sweatSeverity > 0.01)
+            d.Effects.Add((EffectKind.Sweating, sweatSeverity));
+    }
+
+    static void ProcessTemperatureMinute(BodyState body, SurvivalContext ctx, SurvivalDelta d)
+    {
+        const int minutes = 1;
         var balance = CalculateHeatBalance(body, ctx);
         double coreDeltaF = balance.DegreesFPerHour / 60 * minutes;
         double capacityF = ctx.ClothingWeightKg * ThermalMassFPerKg;
@@ -242,7 +289,6 @@ public static partial class Body
 
         if (capacityF > 0)
         {
-            // Near a fire, clothing soaks up warmth to carry away from it.
             if (fireF > 0 && buffer < 1.0)
                 fireFill = Math.Min(fireF / 150.0 / capacityF * minutes, 1.0 - buffer);
 
@@ -258,7 +304,6 @@ public static partial class Body
             }
             else if (coreDeltaF > 0 && buffer < 1.0)
             {
-                // Heat the insulation blocked goes into the clothing.
                 double insulation = InsulationPct(body, ctx);
                 if (insulation > 0)
                     bufferDelta = Math.Min(coreDeltaF * insulation / (1 - insulation), (1.0 - buffer) * capacityF) / capacityF;
@@ -269,34 +314,17 @@ public static partial class Body
         d.CoreTempDeltaF += coreDeltaF;
         d.HydrationDeltaMl -= sweat.ProducedMlPerHour / 60.0 * minutes;
         d.ClothingHeatBufferDeltaPct += bufferDelta + fireFill;
-
-        double core = body.CoreTempF;
-        if (core < ShiveringThresholdF)
-            d.Effects.Add((EffectKind.Shivering, Math.Clamp((ShiveringThresholdF - core) / 5.0, 0.01, 1.0)));
-        if (core < HypothermiaThresholdF)
-            d.Effects.Add((EffectKind.Hypothermia, Math.Clamp((HypothermiaThresholdF - core) / 10.0, 0.01, 1.0)));
-        if (core < SevereHypothermiaThresholdF)
-            d.Effects.Add((EffectKind.Frostbite, Math.Clamp((SevereHypothermiaThresholdF - core) / 10.0, 0.01, 1.0)));
-        if (core > HyperthermiaThresholdF)
-            d.Effects.Add((EffectKind.Hyperthermia, Math.Clamp((core - HyperthermiaThresholdF) / 10.0, 0.01, 1.0)));
-        if (sweat.Severity > 0.01)
-            d.Effects.Add((EffectKind.Sweating, sweat.Severity));
     }
 
-    /// Drying is paid for in latent heat: soaked clothing (2000ml) needs ~1160 kcal to dry, half a
-    /// day of resting metabolism. A fire supplies it in about an hour; below freezing nothing else will.
-    /// Returns wetness per hour.
+    /// Paid for in latent heat: soaked clothing (2000ml) needs ~1160 kcal, half a day of resting metabolism. A fire supplies it in about an hour.
     static double DryingPctPerHour(BodyState body, SurvivalContext ctx)
     {
+        // Fire heat or warm air, whichever is faster; not their sum, as the air already holds the fire's warming (Exposure.AirF).
         double fireF = FireF(body, ctx);
-        double kcalPerHour;
-        if (fireF > 0) kcalPerHour = 300 + fireF * 25;
-        else if (ctx.AirTempF > 32) kcalPerHour = (ctx.AirTempF - 32) * 10;
-        else return 0; // frozen wet
+        double kcalPerHour = Math.Max(fireF > 0 ? 300 + fireF * 25 : 0, ctx.AirTempF > 32 ? (ctx.AirTempF - 32) * 10 : 0);
+        if (kcalPerHour <= 0) return 0; // frozen wet
 
-        // Wind speeds evaporation; it cannot create it. Beside a pit it is the wind past the pit's walls
-        // (old game parity), whether or not its heat is withheld for sweating; anywhere else, a torch in
-        // hand included, the sheltered wind.
+        // Wind speeds evaporation; it cannot create it. Beside a pit it is the wind past the pit's walls; anywhere else (a torch included) the sheltered wind.
         double windLevel = ctx.FireBonusF > 0 ? ctx.FireDryingWindLevel ?? ctx.WindLevel : ctx.WindLevel;
         if (ctx.Precipitation == Precipitation.None) kcalPerHour *= 1 + windLevel * 1.5;
         return kcalPerHour / (MlPerFullSoak * EvaporativeKcalPerMl);
@@ -331,90 +359,101 @@ public static partial class Body
         d.Effects.Add((EffectKind.Wet, next)); // Set: zero dries you off
     }
 
-    static void ProcessBloody(BodyState body, int minutes, SurvivalDelta d)
+    /// A level like wetness: wounds add, it dries on its own (twice as fast by a fire). No washing, no floor: what the game cannot treat must not need treating
+    /// (documentation/decisions/2026-11-21-no-effect-needs-a-missing-treatment.md).
+    static void ProcessBloody(BodyState body, SurvivalContext ctx, int minutes, SurvivalDelta d)
     {
-        double bleeding = Effects.Severity(body, EffectKind.Bleeding);
-        if (bleeding <= 0) return; // existing blood dries on its own
-        // Always set, however faint: gating at 5% meant it restarted from zero every minute and never built up.
-        d.Effects.Add((EffectKind.Bloody, Math.Clamp(Effects.Severity(body, EffectKind.Bloody) + 0.15 / 60.0 * bleeding * minutes, 0, 1)));
+        double bloody = Effects.Severity(body, EffectKind.Bloody), bleeding = Effects.Severity(body, EffectKind.Bleeding);
+        if (bloody <= 0 && bleeding <= 0) return;
+        // Drying in proportion runs out to nothing only slowly; the last smear dries at a steady rate.
+        double dryingPerHour = Math.Max(bloody * BloodyDryingPctPerHour, BloodyLastSmearDryingPerHour) * (FireF(body, ctx) > 0 ? 2 : 1);
+        // Always set, however faint: gated at a threshold, it would restart from zero every minute and never build up.
+        d.Effects.Add((EffectKind.Bloody, Math.Clamp(bloody + (BloodyPerBleedingHour * bleeding - dryingPerHour) / 60.0 * minutes, 0, 1)));
     }
 
-    /// Fat first, down to 3% of body weight; then muscle, down to 15%; then the organs.
-    static void ProcessStarvation(BodyState body, double calories, int minutes, Rng rng, SurvivalDelta d)
+    /// Per hour: gained from a full bleed; share dried; least dried. Butchering's 0.5 is gone in ~5 hours, 2.5 by a fire.
+    const double BloodyPerBleedingHour = 0.15, BloodyDryingPctPerHour = 1.0, BloodyLastSmearDryingPerHour = 0.01;
+
+    static void ProcessStarvation(BodyState body, double calories, SurvivalDelta d)
     {
         if (calories >= 0) return;
-        double deficit = -calories;
-        d.CaloriesDeltaKcal += deficit;
-
-        double fatKg = Math.Max(0, body.FatKg - MinFatPct * body.WeightKg);
-        if (fatKg * KcalPerKgFat >= deficit) { d.FatBurnedKg = deficit / KcalPerKgFat; return; }
-        d.FatBurnedKg = fatKg;
-        deficit -= fatKg * KcalPerKgFat;
-
-        double muscleKg = Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg);
-        if (muscleKg * KcalPerKgMuscle >= deficit) { d.MuscleBurnedKg = deficit / KcalPerKgMuscle; return; }
-        d.MuscleBurnedKg = muscleKg;
-        deficit -= muscleKg * KcalPerKgMuscle;
-
-        if (deficit > 0) // nothing left to burn: ~10 hours to death
-            d.Damage.Add(new DamageInfo(StarvingDamagePerHour / 60.0 * minutes, DamageType.Internal,
-                Pick(rng, BodyTarget.Heart, BodyTarget.Liver, BodyTarget.Brain, BodyTarget.Lungs)));
+        d.CaloriesDeltaKcal += -calories;
+        (d.FatBurnedKg, d.MuscleBurnedKg, _) = ReserveBurn(body, -calories);
     }
 
-    /// Organ damage an hour once fat and muscle are spent, and once the body is dry.
-    const double StarvingDamagePerHour = 0.5, DehydratedDamagePerHour = 1.0;
+    /// Fat down to 3% of body weight, then muscle down to 15%. UnpaidKcal is what both floors leave short; the heart answers for it (ProcessLethal).
+    internal static (double FatKg, double MuscleKg, double UnpaidKcal) ReserveBurn(BodyState body, double deficitKcal)
+    {
+        double fatKg = Math.Min(Math.Max(0, body.FatKg - MinFatPct * body.WeightKg), deficitKcal / KcalPerKgFat);
+        double left = deficitKcal - fatKg * KcalPerKgFat;
+        double muscleKg = Math.Min(Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg), left / KcalPerKgMuscle);
+        return (fatKg, muscleKg, Math.Max(0, left - muscleKg * KcalPerKgMuscle));
+    }
 
-    /// What fat and muscle the body can still burn, in kcal (ProcessStarvation's floors).
+    /// Organ condition lost an hour (internal harm, so these are the rates; Body.DamageTissue). Thirst fails the brain in ~1.5 days once dry,
+    /// so at rest a person lives about three days without water. Starving fails the heart in ~a day once fat and muscle are spent.
+    /// The cold fails the heart from 95 °F, steeply by 82 °F (HypothermiaDamagePerHour).
+    const double DehydratedDamagePerHour = 0.03, StarvingDamagePerHour = 1 / 24.0;
+    const double ColdHeartFailurePerHour = 0.8, ColdHeartFailureF = 82.0;
+
+    static readonly Cause TheCold = new(null, "the cold"), Thirst = new(null, "thirst"), Starvation = new(null, "starvation"),
+        BloodLoss = new(null, "blood loss");
+
     static double ReservesKcal(BodyState body) =>
         Math.Max(0, body.FatKg - MinFatPct * body.WeightKg) * KcalPerKgFat + Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg) * KcalPerKgMuscle;
 
-    /// The organ damage an hour that hunger, thirst and the cold are each doing to this body now: what
-    /// the survival step charges (ProcessStarvation, ProcessDehydration, ProcessHypothermia).
+    /// Read as the minute begins: exactly what the survival step charges (ProcessLethal).
     /// Hunger does none while there is fat or muscle to burn (within a few minutes' burning of the floors).
     public static (double ColdPerHour, double ThirstPerHour, double HungerPerHour) LethalRates(BodyState body) => (
         HypothermiaDamagePerHour(body.CoreTempF),
         body.HydrationMl > 0 ? 0 : DehydratedDamagePerHour,
         body.CaloriesKcal > 0 || ReservesKcal(body) >= 10 ? 0 : StarvingDamagePerHour);
 
-    static void ProcessDehydration(double hydration, int minutes, Rng rng, SurvivalDelta d)
-    {
-        if (hydration > 0) return; // ~5 hours to death once dry
-        d.Damage.Add(new DamageInfo(DehydratedDamagePerHour / 60.0 * minutes, DamageType.Internal,
-            Pick(rng, BodyTarget.Brain, BodyTarget.Heart, BodyTarget.Liver)));
-    }
-
-    /// Below 95F the core organs take damage, worsening toward ~80F.
+    /// Fourth power of how far the core has fallen toward 82 °F: days at 90 °F, hours at 85 °F, under an hour past 82 °F. One continuous curve.
     static double HypothermiaDamagePerHour(double coreF)
     {
         if (coreF >= HypothermiaThresholdF) return 0;
-        double severity = Math.Min(1.0, (HypothermiaThresholdF - coreF) / 15.0);
-        return severity < 0.5 ? 0.1 + 0.4 * severity : 0.5 + 0.5 * (severity - 0.5);
+        double fallen = (HypothermiaThresholdF - coreF) / (HypothermiaThresholdF - ColdHeartFailureF);
+        return ColdHeartFailurePerHour * Math.Pow(fallen, 4);
     }
 
-    static void ProcessHypothermia(double coreF, int minutes, Rng rng, SurvivalDelta d)
+    static void ProcessLethal(BodyState body, int minutes, SurvivalDelta d)
     {
-        if (coreF >= HypothermiaThresholdF) return;
-        d.Damage.Add(new DamageInfo(HypothermiaDamagePerHour(coreF) / 60.0 * minutes, DamageType.Internal,
-            Pick(rng, BodyTarget.Heart, BodyTarget.Brain, BodyTarget.Lungs)));
+        var (cold, thirst, hunger) = LethalRates(body);
+        if (cold > 0) d.Damage.Add(new DamageInfo(cold / 60.0 * minutes, DamageType.Internal, BodyTarget.Heart, By: TheCold));
+        if (thirst > 0) d.Damage.Add(new DamageInfo(thirst / 60.0 * minutes, DamageType.Internal, BodyTarget.Brain, By: Thirst));
+        if (hunger > 0) d.Damage.Add(new DamageInfo(hunger / 60.0 * minutes, DamageType.Internal, BodyTarget.Heart, By: Starvation));
     }
 
-    /// Healing needs food, water and rest, and is paced by how well the gut works.
-    static void ProcessRegeneration(BodyState body, double calories, double hydration, int minutes, SurvivalDelta d)
+    /// Needs food, water, warmth and rest, so nothing heals while hunger, thirst or cold is harming organs (LethalRates).
+    /// Sleep heals through the same gates, or a naked sleeper at -40 °F would live through the night.
+    static void ProcessRegeneration(BodyState body, SurvivalContext ctx, double calories, double hydration, int minutes, SurvivalDelta d)
     {
-        bool fed = calories > MaxCaloriesKcal * RegenMinCaloriesPct;
+        bool fed = calories > CaloriesCapacityKcal(body) * RegenMinCaloriesPct;
         bool watered = hydration > MaxHydrationMl * RegenMinHydrationPct;
-        bool rested = body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
+        bool warm = body.CoreTempF >= HypothermiaThresholdF;
+        bool rested = ctx.IsSleeping || body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
         bool healed = body.Regions.All(r => r.Condition >= 1.0 && r.Organs.All(o => o.Condition >= 1.0));
         bool bloodFull = body.BloodPct >= 1.0;
-        if (!fed || !watered || !rested || (healed && bloodFull)) return;
+        if (!fed || !watered || !warm || !rested || (healed && bloodFull)) return;
 
-        double nutritionPct = Math.Min(1.0, calories / MaxCaloriesKcal);
-        double amount = BaseHealingPerHour / 60.0 * minutes * nutritionPct * GetCapacitiesWithoutEffects(body).Digestion;
+        double nutritionPct = Math.Min(1.0, calories / CaloriesCapacityKcal(body));
+        double amount = BaseHealingPerHour / 60.0 * minutes * nutritionPct * GetCapacitiesWithoutEffects(body).Digestion * Effects.HealingFactor(body);
         if (!bloodFull) d.BloodHealedPct = amount * 0.5;
-        if (!healed) d.HealAmount = amount * nutritionPct;
+        if (!healed) d.HealAmount = amount * (ctx.IsSleeping ? SleepHealingFactor(body, ctx) : 1);
     }
 
-    static BodyTarget Pick(Rng rng, params BodyTarget[] targets) => targets[rng.NextInt(targets.Length)];
+    /// How many times faster sleep mends than waking rest. Exhausted sleep is deeper, wet sleep poorer, a proper bed
+    /// beats bare ground. How fast bodies should heal is not decided.
+    static double SleepHealingFactor(BodyState body, SurvivalContext ctx)
+    {
+        double quality = (body.EnergyMinutes <= 0 ? 1.0 : 0.7) * ctx.BeddingQualityPct;
+        double wetness = Effects.Severity(body, EffectKind.Wet);
+        if (wetness > 0.2) quality *= 1 - wetness * 0.5;
+        return SleepHealingPerHour / BaseHealingPerHour * quality;
+    }
+
+    const double SleepHealingPerHour = 6.0;
 
     public static void Apply(BodyState body, SurvivalDelta d, Rng rng)
     {
@@ -430,45 +469,78 @@ public static partial class Body
         if (d.HealAmount > 0) Heal(body, d.HealAmount);
     }
 
-    /// One minute of living: survival, sleep healing, effects starting and fading, bleeding.
     /// woundsLived: a headless fight already lived this minute's bleeding and fading (BodyState.WoundsLivedThroughMinute).
     public static void Update(BodyState body, SurvivalContext ctx, Rng rng, bool woundsLived = false)
     {
         var d = Process(body, ctx, 1, rng);
 
-        if (ctx.IsSleeping)
+        // Fade first, then this minute's levels: a level set this minute reads as the step computed it.
+        if (!woundsLived)
         {
-            // Sleep heals in step with the clock. Exhausted sleep is deeper; wet sleep is miserable.
-            double quality = (body.EnergyMinutes <= 0 ? 1.0 : 0.7) * ctx.BeddingQualityPct;
-            double wetness = Effects.Severity(body, EffectKind.Wet);
-            if (wetness > 0.2) quality *= 1 - wetness * 0.5;
-            Heal(body, 1 / 10.0 * quality);
+            Effects.Decay(body, 1);
+            Recover(body, 60);
         }
-
         foreach (var (kind, severity) in d.Effects)
         {
             if (kind is EffectKind.Wet or EffectKind.Bloody) Effects.Set(body, kind, severity);
             else Effects.Add(body, kind, severity);
         }
-        if (!woundsLived) Effects.Decay(body, 1);
+        WellFed(body);
 
         d.CoreTempDeltaF += Effects.CoreTempFPerHour(body) / 60;
         double bleedMl = woundsLived ? 0 : Effects.BleedMlPerHour(body) / 60;
-        if (bleedMl > 0) d.Damage.Add(new DamageInfo(bleedMl, DamageType.Bleed, BodyTarget.Blood));
+        if (bleedMl > 0) d.Damage.Add(Bleed(body, bleedMl));
 
         Apply(body, d, rng);
+        // A mended body, person or animal, forgets who hurt it: a death days later is not the old wound's.
+        if (body.WoundedBy != null && IsMended(body)) body.WoundedBy = null;
+        Exhaustion(body, ctx, rng);
     }
 
-    /// One minute for a body outside the human survival model (an animal member, plan decision 2):
-    /// effects fade and wounds bleed, as Update does it, and nothing else.
+    /// Judged on the effects as this minute leaves them, so the pang's fading tail counts as hunger.
+    static void WellFed(BodyState body)
+    {
+        body.MinutesWithoutHunger = Effects.Has(body, EffectKind.Hungry) ? 0 : body.MinutesWithoutHunger + 1;
+        Effects.Set(body, EffectKind.WellFed, body.MinutesWithoutHunger >= Effects.WellFedAfterHours * 60 ? 1 : 0);
+    }
+
+    /// One roll a minute lived, on the body's own stream, so a drop is the same however minutes are stepped.
+    static void Exhaustion(BodyState body, SurvivalContext ctx, Rng rng)
+    {
+        int asleepLeft = AsleepMinutesLeft(body);
+        if (asleepLeft > 0) SetAsleepMinutes(body, asleepLeft - 1);
+        else if (!ctx.IsSleeping && body.EnergyMinutes <= 0 && rng.NextDouble() < CollapsePctPerMinute)
+            SetAsleepMinutes(body, MinCollapseMinutes + rng.NextInt(MaxCollapseMinutes - MinCollapseMinutes + 1));
+    }
+
+    const double CollapsePctPerMinute = 0.01;
+    /// The unit of a saved Asleep severity: changing MaxCollapseMinutes raises Save.FormatVersion.
+    const int MinCollapseMinutes = 15, MaxCollapseMinutes = 90;
+
+    /// Dropped from exhaustion, not the chosen Sleep activity: it can only sleep it out (Sim).
+    public static bool IsAsleep(BodyState body) => AsleepMinutesLeft(body) > 0;
+
+    public static int AsleepMinutesLeft(BodyState body) => (int)Math.Round(Effects.Severity(body, EffectKind.Asleep) * MaxCollapseMinutes);
+
+    static void SetAsleepMinutes(BodyState body, int minutes) => Effects.Set(body, EffectKind.Asleep, (double)minutes / MaxCollapseMinutes);
+
+    internal static void Wake(BodyState body) => Effects.Set(body, EffectKind.Asleep, 0);
+
+    /// Blood lost to wounds someone gave is theirs to answer for.
+    static DamageInfo Bleed(BodyState body, double ml) => new(ml, DamageType.Bleed, BodyTarget.Blood, By: body.WoundedBy ?? BloodLoss);
+
+    /// For a body outside the human survival model (an animal member): effects fade, wounds bleed, sprint reserve refills, nothing else.
     public static void TickWounds(BodyState body, Rng rng)
     {
         Effects.Decay(body, 1);
+        Recover(body, 60);
         double bleedMl = Effects.BleedMlPerHour(body) / 60;
-        if (bleedMl > 0) Damage(body, new DamageInfo(bleedMl, DamageType.Bleed, BodyTarget.Blood), rng);
+        if (bleedMl > 0) Damage(body, Bleed(body, bleedMl), rng);
     }
 
-    /// Advances one agent one minute and reports what happened. Returns the reason to stop, if any.
+    public const string FellAsleep = "fell asleep";
+
+    /// Returns the reason to stop, if any.
     public static string? Tick(World world, Agent agent, SurvivalContext ctx, List<WorldEvent> events)
     {
         var body = agent.Body;
@@ -493,6 +565,8 @@ public static partial class Body
             events.Add(new Exhausted(world.Minute, agent.Id, agent.Tile));
             return "exhausted";
         }
+        if (IsAsleep(body) && !kindsBefore.Contains(EffectKind.Asleep)) return FellAsleep;
+
         if (ctx.IsSleeping && energyBefore < MaxEnergyMinutes && body.EnergyMinutes == MaxEnergyMinutes)
         {
             events.Add(new FullyRested(world.Minute, agent.Id, agent.Tile));

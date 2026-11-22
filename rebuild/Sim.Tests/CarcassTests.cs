@@ -115,6 +115,7 @@ public class CarcassTests
     /// spoiling, steady or clumsy, with a blade or without, at the most practice there is. Old game: full
     /// processing gave 107% of the careful ledger it cut (bug, fixed); the review found the skill factor
     /// lifting every yield past the cut as well (120% careful, 128.8% full at level 20).
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void Cutting_ConservesMass_AtMaxSkill_InEveryMode()
     {
@@ -159,7 +160,7 @@ public class CarcassTests
         Carcasses.CatchUp(a, Map.Of(a).Camp, ca);
         Carcasses.CatchUp(b, Map.Of(b).Camp, cb);
         Assert.Equal(ca.EffectiveHours, cb.EffectiveHours, 12);
-        Assert.Equal(2000 / 60.0 * Carcasses.DecayFactor(Ground.WeatherAt(a, Map.Of(a).Camp, 0).AirTemperatureF), ca.EffectiveHours, 9);
+        Assert.Equal(2000 / 60.0 * Carcasses.DecayFactor(Exposure.Surface(a, Map.Of(a).Camp, 0).AirTemperatureF), ca.EffectiveHours, 9);
     }
 
     /// old game: decay read the air a person feels, wind chill included, so a gale over a thaw kept
@@ -170,7 +171,7 @@ public class CarcassTests
         var w = World.New(17);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, 3, 0.6, 0, 0.9, WindDirection.North); // 37.4 °F, a 27 mph wind
         var tile = Map.Of(w).Camp;
-        Assert.True(Weather.AirAtF(w, tile, Weather.At(w, 0), 0) < 32);
+        Assert.True(Exposure.OpenAirF(w, tile, Weather.At(w, 0)) < 32);
         var c = Carcasses.Create(w, tile, "Caribou", BodyState.Create(BodyKind.Quadruped, 124, 0.15, 0.6), 0);
         w.Minute = 10 * 60;
         Carcasses.CatchUp(w, tile, c);
@@ -211,7 +212,7 @@ public class CarcassTests
         Assert.Contains(r.Events, e => e is Butchered { Finished: true });
         // All of it, less the decay at the camp's air when each minute's cut came off: the setup
         // takes the first 30 minutes, the cutting the last 4 (decay costs meat only).
-        double Meat(int minute) => 0.6703585854625697 * (1 - 0.8 * Carcasses.DecayLevel(minute / 60.0 * Carcasses.DecayFactor(Weather.AirAtF(w, Map.Of(w).Camp, Mild, 0))));
+        double Meat(int minute) => 0.6703585854625697 * (1 - 0.8 * Carcasses.DecayLevel(minute / 60.0 * Carcasses.DecayFactor(Exposure.OpenAirF(w, Map.Of(w).Camp, Mild))));
         Assert.InRange(Items.Have(Items.Pack(w, P), Resource.RawMeat), Meat(34), Meat(30));
         Assert.Null(w.Tiles[Map.Of(w).Camp].Carcasses); // the emptied list goes, so the tile can clean up
         Assert.True(Effects.Severity(w.Agent(P).Body, EffectKind.Bloody) > 0);
@@ -304,7 +305,9 @@ public class CarcassTests
         Assert.Equal(Carcasses.TotalRemainingKg(c1), Carcasses.TotalRemainingKg(c2), 9);
         Assert.Equal(c1.ScentBonus, c2.ScentBonus, 12);
         Assert.Equal(Effects.Severity(one.Agent(P).Body, EffectKind.Bloody), Effects.Severity(hours.Agent(P).Body, EffectKind.Bloody), 12);
-        Assert.True(Effects.Severity(one.Agent(P).Body, EffectKind.Bloody) > 0.3); // three hours elbow-deep
+        // Three hours elbow-deep. Blood on you now dries as you go (body review A5, 2026-11-21), so careful
+        // butchering's 0.15 an hour settles near 0.15 rather than piling up: was > 0.3.
+        Assert.True(Effects.Severity(one.Agent(P).Body, EffectKind.Bloody) > 0.1);
 
         var a = Sim.Step(one, new Butcher(P, c1.Id), 600);
         int minutes = 180 + a.MinutesElapsed, chunked = 180;
@@ -420,7 +423,7 @@ public class CarcassTests
         Sim.Step(w, new Butcher(P, c.Id, ButcherMode.Careful), 5);
         string before = Save.ToJson(w);
         var r = Sim.Step(w, new Butcher(P, c.Id, ButcherMode.QuickStrip), 5);
-        Assert.Equal((0, "this carcass is being butchered Careful, not QuickStrip"), (r.MinutesElapsed, r.InterruptedReason));
+        Assert.Equal((0, "this carcass is being butchered careful, not quick strip"), (r.MinutesElapsed, r.InterruptedReason));
         Assert.Equal(before, Save.ToJson(w));
         Assert.Null(Sim.Step(w, new Butcher(P, c.Id), 5).InterruptedReason);
         Assert.Null(Sim.Step(w, new Butcher(P, c.Id, ButcherMode.Careful), 5).InterruptedReason);
@@ -460,5 +463,45 @@ public class CarcassTests
         Assert.Equal(before, eaten, 9);
         Assert.Equal(0, c.Remaining[Resource.RawMeat]);
         Assert.Equal(0, Carcasses.EatMeat(c, 1));
+    }
+
+    /// Bare hands finish what bare hands can cut: the tusks and the great hide are not torn off by
+    /// hand, so they wait on the carcass for a blade rather than keep the work from ever ending. Old
+    /// game: bare hands on a mammoth never finished (bug, fixed).
+    [Fact]
+    public void BareHands_FinishWhatTheyCanCut_AndTheTrophiesWaitForABlade()
+    {
+        var (_, mammoth) = Make("Mammoth");
+        int bare = Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful, hasCuttingTool: false);
+        Assert.True(bare < Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful)); // no time charged on what hands cannot cut
+        Carcasses.Cut(mammoth, Carcasses.Prepare(mammoth, bare, ButcherMode.Careful), false, false, ButcherMode.Careful);
+        Assert.True(Carcasses.AllCut(mammoth, hasCuttingTool: false));
+        Assert.False(Carcasses.AllCut(mammoth));
+        Assert.Equal(4, mammoth.Remaining[Resource.Ivory], Digits);
+        Assert.Equal(15, mammoth.Remaining[Resource.MammothHide], Digits);
+        Carcasses.Cut(mammoth, Carcasses.RemainingMinutes(mammoth, ButcherMode.Careful), true, false, ButcherMode.Careful);
+        Assert.True(Carcasses.AllCut(mammoth));
+        Assert.Equal(4, mammoth.YieldKg[Resource.Ivory], Digits);
+    }
+
+    /// The same through the work: a bare-handed session ends, the carcass stays for someone with a knife,
+    /// and the knife finishes it.
+    [Fact]
+    public void BareHandedButchering_Ends_AndLeavesTheTuskForAKnife()
+    {
+        var w = World.New(17);
+        w.FixedWeather = Mild;
+        var (kg, muscle, fat, _, _) = Animals["Wolf"];
+        var body = BodyState.Create(BodyKind.Quadruped, kg, fat / kg, muscle / kg);
+        var c = Carcasses.Create(w, Map.Of(w).Camp, "Wolf", body, 0, special: new Dictionary<Resource, double> { [Resource.Ivory] = 0.5 });
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, Pit = PitType.Stone, BurningKg = { [Resource.Oak] = 10 } };
+        var r = Sim.Step(w, new Butcher(P, c.Id), 24 * 60);
+        Assert.Equal(Work.NeedsABlade, r.InterruptedReason);
+        Assert.Contains(c, w.Tiles[Map.Of(w).Camp].Carcasses!);
+        Assert.Equal(0.5, c.Remaining[Resource.Ivory], Digits);
+        Assert.Equal(Work.NeedsABlade, Sim.Step(w, new Butcher(P, c.Id), 60).InterruptedReason); // refused at once: nothing for hands
+        Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
+        Assert.Equal("butchered", Sim.Step(w, new Butcher(P, c.Id), 60).InterruptedReason);
+        Assert.True(Items.Have(Items.Pack(w, P), Resource.Ivory) > 0.4);
     }
 }

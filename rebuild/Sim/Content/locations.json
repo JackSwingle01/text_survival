@@ -182,7 +182,7 @@
    "weight": 3,
    "terrain": [ "Forest" ],
    "tags": "[Forest] [Difficult] [Safe]",
-   "discoveryText": "Young growth so thick you can barely push through. Branches grab at you. Small animals scatter.",
+   "discoveryText": "Young growth so thick you can barely push through. Branches grab at you.",
    "hazard": 0.25,
    "wind": 0.2,
    "cover": 0.7,
@@ -217,7 +217,7 @@
    "weight": 1.5,
    "terrain": [ "Forest" ],
    "tags": "[Wolves] [Dangerous] [Bones]",
-   "discoveryText": "Wolf tracks everywhere. Bones scattered around a rocky hollow. The smell of predator is strong.",
+   "discoveryText": "A rocky hollow, dug back under a ledge. The earth at its mouth is worn bare. Old bones lie half-sunk in the dirt.",
    "hazard": 0.3,
    "wind": 0.4,
    "cover": 0.6,
@@ -456,7 +456,7 @@
    "weight": 4,
    "terrain": [ "Forest" ],
    "tags": "[Forest] [Sheltered] [Damp]",
-   "discoveryText": "The ground dips into a natural hollow, carpeted in thick moss. Sheltered from wind, though perpetually damp.",
+   "discoveryText": "The ground dips into a natural hollow, carpeted in thick moss. Sheltered from wind, and slow to dry out.",
    "hazard": 0.15,
    "wind": 0.3,
    "cover": 0.7,
@@ -601,7 +601,7 @@
    "weight": 4,
    "terrain": [ "Clearing", "Plain" ],
    "tags": "[Forest] [Hunting] [Trail]",
-   "discoveryText": "A worn path through the brush. Hoofprints overlap in the mud. They pass through here regularly.",
+   "discoveryText": "A narrow path through the brush, trodden low and hard. It keeps to the easiest ground.",
    "hazard": 0.05,
    "wind": 0.6,
    "cover": 0.5,
@@ -686,7 +686,7 @@
    "weight": 4,
    "terrain": [ "Plain", "Clearing" ],
    "tags": "[Trapping] [Open] [Snow]",
-   "discoveryText": "A shallow bowl in the plain, ringed by low rises. Snow drifts pile against the windward side, leaving channels of bare ground. Small tracks crisscross everywhere — animals funnel through here to cross between sheltered areas.",
+   "discoveryText": "A shallow bowl in the plain, ringed by low rises. When snow comes, it drifts against the windward side and leaves the channels between bare. Low ways run between the rises, the easy path from one sheltered spot to the next.",
    "firstVisitEvent": "FirstVisitSnowfieldHollow",
    "hazard": 0.15,
    "wind": 0.9,
@@ -749,7 +749,7 @@
    "terrain": [ "Clearing", "Forest" ],
    "elite": true,
    "tags": "[Salvage] [Shelter] [Story]",
-   "discoveryText": "A clearing where the snow is depressed. Charcoal scattered. A collapsed lean-to. Someone was here. {story}",
+   "discoveryText": "A clearing, the ground trampled flat. Charcoal scattered. A collapsed lean-to. Someone was here. {story}",
    "firstVisitEvent": "FirstVisitOldCampsite",
    "hazard": 0.15,
    "wind": 0.5,
@@ -777,7 +777,7 @@
    "weight": 3,
    "terrain": [ "Plain", "Clearing" ],
    "tags": "[Plain] [Hunting] [Exposed]",
-   "discoveryText": "A bare patch where animals have licked the earth white. Tracks converge from every direction. They come here regularly.",
+   "discoveryText": "A bare patch of pale, salty earth, licked down below the ground around it. Nothing grows on it.",
    "hazard": 0.1,
    "wind": 1,
    "cover": 0,
@@ -812,7 +812,7 @@
    "weight": 4,
    "terrain": [ "Plain", "Clearing" ],
    "tags": "[Plain] [Cover] [Hunting]",
-   "discoveryText": "Grass taller than your waist, swaying in the wind. Small things rustle unseen. Good cover for stalking — or being stalked.",
+   "discoveryText": "Grass taller than your waist. Any wind sets it moving. Small things rustle unseen. Good cover for stalking — or being stalked.",
    "hazard": 0.1,
    "wind": 0.8,
    "cover": 0.1,
@@ -844,7 +844,7 @@
    "weight": 2,
    "terrain": [ "Plain", "Clearing" ],
    "tags": "[Plain] [Shelter] [Ancient]",
-   "discoveryText": "Stones stand upright in a rough circle, placed by hands long gone. The wind breaks around them. Someone worshipped here once.",
+   "discoveryText": "Stones stand upright in a rough circle, placed by hands long gone. They break the wind. Someone worshipped here once.",
    "hazard": 0.1,
    "wind": 0.5,
    "cover": 0,
@@ -868,7 +868,7 @@
    "weight": 3,
    "terrain": [ "Plain", "Clearing" ],
    "tags": "[Plain] [Hunting] [Trail]",
-   "discoveryText": "The ground is beaten flat by countless hooves. A migration path — herds pass through here on their seasonal journey.",
+   "discoveryText": "An open saddle between low rises, the easy way across for anything that walks. Old ruts score the ground.",
    "hazard": 0.15,
    "wind": 0.9,
    "cover": 0,
@@ -928,7 +928,7 @@
      ],
      "chance": 0.25
     },
-    { "kind": "water", "name": "Meltwater Puddle", "description": "A shallow puddle of snowmelt collected in a rock hollow.", "frozen": false, "fish": 0.7, "chance": 0.15 }
+    { "kind": "water", "name": "Meltwater Puddle", "description": "A rock hollow where snowmelt collects.", "frozen": false, "fish": 0.7, "chance": 0.15 }
    ]
   },
   {
@@ -961,7 +961,7 @@
    "weight": 3,
    "terrain": [ "Hills", "Rock" ],
    "tags": "[Scout] [Exposed] [Stone]",
-   "discoveryText": "The view stretches for miles. You can see smoke from distant fires, animal trails below.",
+   "discoveryText": "The view stretches for miles. Ridges and valleys lie open below you.",
    "hazard": 0.4,
    "wind": 1.6,
    "cover": 0,
@@ -993,7 +993,7 @@
    "weight": 3,
    "terrain": [ "Rock", "Hills" ],
    "tags": "[Shelter] [Stone]",
-   "discoveryText": "A stone lip juts from a cliff face. The ground beneath is dry. Wind passes over but the space below is calm.",
+   "discoveryText": "A stone lip juts from a cliff face. The ground beneath stays dry. Wind goes over it; the space below stays calm.",
    "hazard": 0.2,
    "wind": 0.4,
    "cover": 0.7,
@@ -1094,7 +1094,7 @@
    "weight": 1.5,
    "terrain": [ "Hills", "Rock" ],
    "tags": "[Stone] [Exposed] [Vantage]",
-   "discoveryText": "Spine of broken stone above the treeline. Wind never stops. You can see for miles — both valley sides visible.",
+   "discoveryText": "Spine of broken stone above the treeline. The wind seldom lets up. You can see for miles — both valley sides visible.",
    "firstVisitEvent": "FirstVisitRockyRidge",
    "hazard": 0.35,
    "wind": 1.2,
@@ -1123,7 +1123,7 @@
    "terrain": [ "Rock" ],
    "elite": true,
    "tags": "[Sheltered] [Dark] [Dangerous] [Bones]",
-   "discoveryText": "A deep cave mouth. Dry floor, wind-sheltered depths. But there's a smell — musk and old kills. Something lives here.",
+   "discoveryText": "A deep cave mouth. Dry floor, wind-sheltered depths. Gnawed bones lie in the dark. Something has denned here.",
    "firstVisitEvent": "FirstVisitBearCave",
    "hazard": 0.15,
    "wind": 0.1,
@@ -1188,7 +1188,7 @@
    "weight": 0.5,
    "terrain": [ "Rock" ],
    "tags": "[Ice] [Cache] [Dangerous]",
-   "discoveryText": "A deep crack in ancient ice. Freezing cold, but perfect for storing meat.",
+   "discoveryText": "A deep crack in ancient ice. The cold holds here even in a thaw. Good for storing meat.",
    "hazard": 0.8,
    "wind": 0.2,
    "cover": 0.8,
@@ -1249,7 +1249,7 @@
    "weight": 3.5,
    "terrain": [ "Hills" ],
    "tags": "[Mountain] [Exposed] [Shortcut]",
-   "discoveryText": "A notch in the ridge where wind funnels through with terrifying force. The snow is scoured to bare rock. But beyond — a whole section of the valley you couldn't reach otherwise.",
+   "discoveryText": "A notch in the ridge the wind funnels through, hard enough to knock you down. Snow never lies long on the bare rock. But beyond — a whole section of the valley you couldn't reach otherwise.",
    "firstVisitEvent": "FirstVisitWindGap",
    "hazard": 0.7,
    "wind": 2.5,
@@ -1275,7 +1275,7 @@
    "weight": 4,
    "terrain": [ "Rock", "Hills" ],
    "tags": "[Stone] [Warm] [Exposed]",
-   "discoveryText": "South-facing stone, dark and bare. The rock drinks sunlight and holds it. In the midday glare, the cliff radiates warmth — you can feel it from ten paces.",
+   "discoveryText": "South-facing stone, dark and bare. The rock drinks sunlight and holds it. On a clear day, by midday, you can feel its warmth from ten paces.",
    "firstVisitEvent": "FirstVisitSunWarmedCliff",
    "hazard": 0.3,
    "wind": 0.5,
@@ -1491,7 +1491,7 @@
    "weight": 5,
    "terrain": [ "Water" ],
    "tags": "[Ice] [Water] [Slippery]",
-   "discoveryText": "The creek is frozen solid. Dark shapes move beneath the ice.",
+   "discoveryText": "A creek that freezes hard in winter, its banks low and stony.",
    "hazard": 0.35,
    "wind": 0.9,
    "cover": 0,
@@ -1509,13 +1509,13 @@
      "kind": "stock",
      "work": "Harvest",
      "name": "Creek Ice",
-     "description": "Thick ice covers the creek. Can be broken and melted for water.",
+     "description": "The creek ices thick in deep cold. Break it and melt it for water.",
      "minutes": 5,
      "items": [
       { "resource": "Water", "units": 20, "kgPerUnit": 1, "respawnHoursPerUnit": 48 }
      ]
     },
-    { "kind": "water", "name": "Frozen Creek", "description": "The creek is frozen solid. Safe to cross if you're careful.", "frozen": true, "ice": 0.7, "fish": 0.7 }
+    { "kind": "water", "name": "Frozen Creek", "description": "The creek freezes hard in winter. Safe to cross then, if you're careful.", "frozen": true, "ice": 0.7, "fish": 0.7 }
    ]
   },
   {
@@ -1525,7 +1525,7 @@
    "weight": 2,
    "terrain": [ "Water" ],
    "tags": "[Water] [Exposed] [Remote]",
-   "discoveryText": "A depression where glacial meltwater collects. Crystal clear and painfully cold. Ice rings the edges.",
+   "discoveryText": "A depression where glacial meltwater collects. Crystal clear and painfully cold. Ice forms first at the edges.",
    "hazard": 0.25,
    "wind": 1,
    "cover": 0,
@@ -1606,7 +1606,7 @@
       { "animal": "Rabbit", "weight": 0.5 }
      ]
     },
-    { "kind": "water", "name": "Beaver Pond", "description": "Deep water. Ice at the edges, thin in places.", "frozen": true, "ice": 0.4, "fish": 0.7 },
+    { "kind": "water", "name": "Beaver Pond", "description": "Deep water. Ice forms at the edges first and stays thin in places.", "frozen": true, "ice": 0.4, "fish": 0.7 },
     { "kind": "event", "event": "beaver_activity", "revealAtHours": 1 }
    ]
   },
@@ -1617,7 +1617,7 @@
    "weight": 4,
    "terrain": [ "Water" ],
    "tags": "[Ice] [Vantage] [Exposed]",
-   "discoveryText": "A massive tongue of ice projects from the hillside — a frozen waterfall locked in time. The top is flat, wind-scoured. Nothing can approach unseen from below.",
+   "discoveryText": "A massive tongue of ice projects from the hillside — a waterfall the cold builds up, layer on layer. The top is flat, wind-scoured. Nothing can approach unseen from below.",
    "firstVisitEvent": "FirstVisitIceShelf",
    "hazard": 0.4,
    "wind": 1.4,
@@ -1645,7 +1645,7 @@
    "weight": 1.5,
    "terrain": [ "Water", "Rock" ],
    "tags": "[Warm] [Water]",
-   "discoveryText": "Steam rises from a pool of warm water. The air here is noticeably warmer.",
+   "discoveryText": "A pool of warm water that steams in cold air. The air near it is warmer.",
    "firstVisitEvent": "FirstVisitHotSpring",
    "hazard": 0.3,
    "wind": 0.4,
@@ -1687,7 +1687,7 @@
    "weight": 3,
    "terrain": [ "Water" ],
    "tags": "[Water] [Warm] [Sheltered]",
-   "discoveryText": "Water bubbles from the ground, too warm to freeze. A small pool collects before it soaks away. Animals come here to drink.",
+   "discoveryText": "Water bubbles from the ground, too warm to freeze. A small pool collects before it soaks away.",
    "hazard": 0.2,
    "wind": 0.6,
    "cover": 0.1,
@@ -1724,7 +1724,7 @@
    "weight": 2,
    "terrain": [ "Water" ],
    "tags": "[Water] [Fishing] [Open]",
-   "discoveryText": "The stream narrows over rocks, forcing fish through a bottleneck. Dark shapes flash in the current. You could spear them here.",
+   "discoveryText": "The stream narrows over rocks. Any fish coming up must pass through the gap. You could spear them here.",
    "hazard": 0.25,
    "wind": 0.9,
    "cover": 0,
@@ -1762,7 +1762,7 @@
    "weight": 4,
    "terrain": [ "Marsh" ],
    "tags": "[Water] [Treacherous] [Plants]",
-   "discoveryText": "The ground gives way to frozen marsh. Cattails poke through the ice. Rich foraging if you're careful.",
+   "discoveryText": "The ground gives way to marsh. Cattails stand in water that ices over in a frost. Rich foraging if you're careful.",
    "hazard": 0.4,
    "wind": 0.7,
    "cover": 0,
@@ -1795,13 +1795,13 @@
      "kind": "stock",
      "work": "Harvest",
      "name": "Open Water",
-     "description": "Dark water between ice sheets. Needs to be boiled.",
+     "description": "Dark water among the tussocks. Needs to be boiled.",
      "minutes": 3,
      "items": [
       { "resource": "Water", "units": 30, "kgPerUnit": 1, "respawnHoursPerUnit": 6 }
      ]
     },
-    { "kind": "water", "name": "Marsh Ice", "description": "Thin ice between tussocks. One wrong step and you're through.", "frozen": true, "ice": 0.3, "fish": 0.7 },
+    { "kind": "water", "name": "Marsh Ice", "description": "The ice between the tussocks never gets thick. One wrong step and you're through.", "frozen": true, "ice": 0.3, "fish": 0.7 },
     {
      "kind": "smallGame",
      "density": 0.9,
@@ -1857,7 +1857,7 @@
       { "resource": "Peat", "units": 15, "kgPerUnit": 2, "respawnHoursPerUnit": 0 }
      ]
     },
-    { "kind": "water", "name": "Bog Pools", "description": "Dark water between the mounds. Thin ice, uncertain depth.", "frozen": true, "ice": 0.15, "fish": 0.7 }
+    { "kind": "water", "name": "Bog Pools", "description": "Dark water between the mounds. The ice never gets thick, and the depth is hard to judge.", "frozen": true, "ice": 0.15, "fish": 0.7 }
    ]
   },
   {
@@ -1867,7 +1867,7 @@
    "weight": 4,
    "terrain": [ "Marsh" ],
    "tags": "[Marsh] [Fiber] [Hunting]",
-   "discoveryText": "Dense reeds crowd the shallows, rattling in the wind. Ducks burst from cover as you approach. Good fiber, if you can reach it.",
+   "discoveryText": "Dense reeds crowd the shallows, the kind that rattle in any wind. Good fiber, if you can reach it.",
    "hazard": 0.3,
    "wind": 0.5,
    "cover": 0.2,
@@ -1900,7 +1900,7 @@
       { "animal": "Rabbit", "weight": 0.5 }
      ]
     },
-    { "kind": "water", "name": "Reed Shallows", "description": "Shallow water between the reed stalks. Thin ice.", "frozen": true, "ice": 0.2, "fish": 0.7 }
+    { "kind": "water", "name": "Reed Shallows", "description": "Shallow water between the reed stalks. The ice here stays thin.", "frozen": true, "ice": 0.2, "fish": 0.7 }
    ]
   },
   {
@@ -1910,7 +1910,7 @@
    "weight": 3,
    "terrain": [ "Marsh" ],
    "tags": "[Marsh] [Food] [Treacherous]",
-   "discoveryText": "Red berries dot the spongy ground, frozen but still good. The footing is treacherous — one wrong step and you're through.",
+   "discoveryText": "Red berries dot the spongy ground. They keep through a frost. The footing is treacherous — one wrong step and you're through.",
    "hazard": 0.45,
    "wind": 0.6,
    "cover": 0.1,
@@ -1947,7 +1947,7 @@
       { "animal": "Rabbit", "weight": 0.5 }
      ]
     },
-    { "kind": "water", "name": "Bog Pools", "description": "Dark water hidden beneath thin ice and moss.", "frozen": true, "ice": 0.3, "fish": 0.7 }
+    { "kind": "water", "name": "Bog Pools", "description": "Dark water hidden under moss, and under thin ice in a frost.", "frozen": true, "ice": 0.3, "fish": 0.7 }
    ]
   },
   {
@@ -1957,7 +1957,7 @@
    "weight": 2,
    "terrain": [ "Forest", "Clearing" ],
    "tags": "[Forest] [Scavenger] [Vantage]",
-   "discoveryText": "Ravens circle overhead, cawing. They've found something. Where there are ravens, there's often a kill nearby.",
+   "discoveryText": "A lone dead tree, its high limbs bare and white with old droppings. A good perch, with a long view.",
    "hazard": 0.15,
    "wind": 0.7,
    "cover": 0.4,
@@ -2002,7 +2002,7 @@
    "weight": 2,
    "terrain": [ "Forest" ],
    "tags": "[Forest] [Hunting] [Den]",
-   "discoveryText": "A burrow entrance, well-used. The musky smell of fox. Small bones scattered around the opening. Valuable fur, if you're patient.",
+   "discoveryText": "A bank of dry, sandy earth, dug through with burrows. Old spoil heaps sit at each mouth, flecked with small bones.",
    "hazard": 0.15,
    "wind": 0.5,
    "cover": 0.5,
@@ -2134,7 +2134,7 @@
    "weight": 2.5,
    "terrain": [ "Water" ],
    "tags": "[Water] [Fishing] [Loud]",
-   "discoveryText": "Water roars over a rocky drop. The spray freezes on the stones. Fish leap in the pool below — and the noise covers your approach.",
+   "discoveryText": "Water roars over a rocky drop. In a frost, the spray ices the stones. A deep pool churns below, and the noise covers your approach.",
    "hazard": 0.45,
    "wind": 0.7,
    "cover": 0.1,
@@ -2311,7 +2311,7 @@
    "weight": 3,
    "terrain": [ "Plain", "Clearing" ],
    "tags": "[Plain] [Hunting] [Exposed]",
-   "discoveryText": "A broad meadow, grass poking through snow. Tracks everywhere — they graze here. But you'll be seen from a long way off.",
+   "discoveryText": "A broad meadow, the grass tall enough to show through light snow. Good grazing. But anything out here is seen from a long way off.",
    "hazard": 0.1,
    "wind": 1,
    "cover": 0,
@@ -2343,7 +2343,7 @@
    "weight": 3,
    "terrain": [ "Forest", "Clearing" ],
    "tags": "[Forest] [Hunting] [Small Game]",
-   "discoveryText": "Burrow entrances dot the slope, earth worn smooth by generations of rabbits. They're here — you just have to be patient.",
+   "discoveryText": "Burrow holes dot the slope, the earth at their mouths worn smooth. A warren, dug over many years.",
    "hazard": 0.2,
    "wind": 0.6,
    "cover": 0.5,
@@ -2390,7 +2390,7 @@
    "weight": 2.5,
    "terrain": [ "Water" ],
    "tags": "[Ice] [Shelter] [Escape]",
-   "discoveryText": "Ice plates driven up into jagged ridges by wind and current. Treacherous to navigate, but sheltered pockets between the slabs.",
+   "discoveryText": "Each winter, wind and current drive the ice up into jagged ridges. Treacherous going, but there are sheltered pockets between the slabs.",
    "hazard": 0.6,
    "wind": 0.3,
    "cover": 0.4,
@@ -2406,7 +2406,7 @@
       { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
      ]
     },
-    { "kind": "water", "name": "Pressure Ice", "description": "Jumbled ice plates. Hard to reach open water, but harvestable ice everywhere.", "frozen": true, "ice": 0.7, "fish": 0.7 },
+    { "kind": "water", "name": "Pressure Ice", "description": "Ice that heaps into jumbled plates. Open water is hard to reach, but there is ice to cut.", "frozen": true, "ice": 0.7, "fish": 0.7 },
     { "kind": "shelter", "name": "Ice Pocket", "type": "NaturalShelter", "insulation": 0.25, "overhead": 0.4, "wind": 0.6, "insulationCap": 0.35, "overheadCap": 0.55, "windCap": 0.7 }
    ]
   },
@@ -2417,14 +2417,14 @@
    "weight": 2,
    "terrain": [ "Water" ],
    "tags": "[Ice] [Fast] [Wet]",
-   "discoveryText": "Mirror-smooth ice, water welling up through cracks and spreading in sheets. Fast travel — but your feet are soaked before you know it.",
+   "discoveryText": "Water wells up through cracks in the ice here and spreads in mirror-smooth sheets. Fast going — but it soaks your feet before you know it.",
    "hazard": 0.7,
    "wind": 1.1,
    "cover": 0,
    "visibility": 1.5,
    "traversal": 0.6,
    "features": [
-    { "kind": "water", "name": "Overflow", "description": "Water bubbling up through ice cracks. Standing in it.", "frozen": false, "fish": 0.7 }
+    { "kind": "water", "name": "Overflow", "description": "Water wells up through cracks in the ice and stands on top of it.", "frozen": false, "fish": 0.7 }
    ]
   },
   {
@@ -2434,7 +2434,7 @@
    "weight": 1.5,
    "terrain": [ "Water", "Rock" ],
    "tags": "[Water] [Medicine] [Hunting]",
-   "discoveryText": "Water stained rust-red, smelling of iron. Warm from underground. Animals come for the minerals — and so do predators.",
+   "discoveryText": "Water stained rust-red, smelling of iron. Warm from underground. The red mud at its edge is licked bare.",
    "hazard": 0.2,
    "wind": 0.6,
    "cover": 0.1,
@@ -2489,7 +2489,7 @@
    "weight": 3,
    "terrain": [ "Plain", "Clearing" ],
    "tags": "[Snow] [Exposed] [Tracking]",
-   "discoveryText": "A high bowl filled with deep snow. Post-holing through it exhausts you — but every track is preserved. Nothing moves through here unseen.",
+   "discoveryText": "A high bowl where snow lies deep and late. Post-holing through it exhausts you — but it holds every track. Nothing moves through here unseen.",
    "hazard": 0.15,
    "wind": 0.7,
    "cover": 0,
@@ -2562,7 +2562,7 @@
    "weight": 2.5,
    "terrain": [ "Forest", "Hills" ],
    "tags": "[Forest] [Fuel] [Slow]",
-   "discoveryText": "Stunted, wind-twisted trees barely knee-high. You're crawling through them — but there's firewood everywhere, and ptarmigan love it here.",
+   "discoveryText": "Stunted, wind-twisted trees barely knee-high. You're crawling through them — but there's firewood everywhere.",
    "hazard": 0.25,
    "wind": 0.4,
    "cover": 0.3,
@@ -2617,7 +2617,7 @@
    "weight": 1,
    "terrain": [ "Plain", "Clearing" ],
    "tags": "[Bones] [Hunting] [Scavengers]",
-   "discoveryText": "Bones piled where many animals died. A stampede? A coordinated hunt? The bones are old but usable — and scavengers remember this place.",
+   "discoveryText": "Bones piled where many animals died. A stampede? A hunt? The bones are old but still good.",
    "hazard": 0.2,
    "wind": 0.8,
    "cover": 0,
@@ -2707,7 +2707,7 @@
    "weight": 1.5,
    "terrain": [ "Plain", "Marsh" ],
    "tags": "[Plain] [Megafauna] [Messy]",
-   "discoveryText": "Churned mud and ice where something massive rolls to shed parasites. Fresh dung steams in the cold. They come here regularly.",
+   "discoveryText": "A wide hollow of churned earth, rolled flat by something huge. The banks are rubbed smooth high above your head.",
    "hazard": 0.4,
    "wind": 0.9,
    "cover": 0,
@@ -2829,7 +2829,7 @@
    "weight": 0.8,
    "terrain": [ "Forest" ],
    "tags": "[Forest] [Fire] [Landmark]",
-   "discoveryText": "Smoke rises from a massive tree, struck by lightning and still smoldering inside. The wood is charred but preserved. You could light a torch here without tools.",
+   "discoveryText": "A massive tree, split and charred by lightning. Its burned heart is thick with charcoal.",
    "hazard": 0.2,
    "wind": 0.7,
    "cover": 0.3,
@@ -2860,8 +2860,8 @@
     {
      "kind": "stock",
      "work": "Harvest",
-     "name": "Smoldering Tree",
-     "description": "Lightning-struck and still smoldering. Charcoal forms as it burns.",
+     "name": "Burned Tree",
+     "description": "Lightning-struck and burned hollow. Charcoal lines the heart of it.",
      "minutes": 15,
      "items": [
       { "resource": "Charcoal", "units": 10, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 }
@@ -2910,7 +2910,7 @@
    "name": "Lower Pass",
    "placement": "Pass",
    "tags": "[Mountain] [Exposed] [Ice]",
-   "discoveryText": "Exposed scree and ice. The wind cuts through everything.",
+   "discoveryText": "Exposed scree and ice. Nothing here stops the wind.",
    "hazard": 0.8,
    "wind": 1.6,
    "cover": 0,
@@ -2922,7 +2922,7 @@
    "name": "The Pass Proper",
    "placement": "Pass",
    "tags": "[Mountain] [Exposed] [Extreme]",
-   "discoveryText": "The highest point. Snow blows horizontal. You can barely see.",
+   "discoveryText": "The highest point. Snow blows sideways here, and on a bad day you can barely see.",
    "hazard": 1,
    "wind": 2,
    "cover": 0,
@@ -2958,7 +2958,7 @@
    "name": "Far Side",
    "placement": "Pass",
    "tags": "[Valley] [Sheltered] [Victory]",
-   "discoveryText": "You made it. The valley stretches before you, green and sheltered.",
+   "discoveryText": "You made it. The valley stretches before you, sheltered, the first green ground past the pass.",
    "hazard": 0.3,
    "wind": 0.6,
    "cover": 0.3,

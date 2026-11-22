@@ -15,12 +15,12 @@ public class NpcColdBedTests(ITestOutputHelper output)
 
     /// Seed 11's state at 00:03 on day 30: at camp beside a cold pit, a hand drill and a pinch of
     /// tinder too small to strike with, nothing on the stash, core 96.3, spent.
-    static (World World, AgentId Npc, NpcMind Mind) ColdCamp(WeatherSample sky, double energyPct = 0.10, double coreF = 96.3)
+    static (World World, AgentId Npc, NpcMind Mind) ColdCamp(WeatherSample sky, double energyPct = 0.10, double coreF = 96.3, long? minute = null)
     {
         var w = World.New(11);
         w.FixedWeather = sky;
         foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => a.Id).ToList()) w.Agents.Remove(h);
-        w.Minute = At(30, 0, 3);
+        w.Minute = minute ?? At(30, 0, 3);
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp);
         var mind = (NpcMind)w.Agent(npc).Mind;
@@ -68,7 +68,8 @@ public class NpcColdBedTests(ITestOutputHelper output)
     }
 
     /// The makings of a fire left one tile off (seed 11 moved camp a tile from its own stash of tinder and
-    /// wood): with the legs and the warmth for the walk, it goes back to them, and home is there again.
+    /// wood): with the legs and the warmth for the walk, it goes back to them. Its camp is an overhang, so it
+    /// fetches them home and makes the fire there, rather than move home off the shelter (Npc.FireMakings).
     [Fact]
     public void ColdPit_NothingToLight_GoesBackToTheTinderAndWoodItLeft()
     {
@@ -84,10 +85,76 @@ public class NpcColdBedTests(ITestOutputHelper output)
         Items.Add(stash, Resource.Birch, 9);
         (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = stash;
         mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 1, [Resource.Birch] = 9 } };
-        mind.Need = Need.Rest;
+        mind.SeeingTo = Stat.Rest;
         var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a} for {minutes} min; camp {mind.Camp}");
         Assert.Equal(new Travel(npc, dir, Traversal.IsHazardous(w, camp) || Traversal.IsHazardous(w, next) ? Pace.Careful : Pace.Quick), a);
-        Assert.Equal(next, mind.Camp);
+        Assert.Equal(camp, mind.Camp);
+        Assert.Equal(next, mind.WoodGoal);
+        Assert.NotNull(mind.Knows.Places[camp].Shelter);
+        // There and back with the makings, and a fire going under the overhang within the hour.
+        var lit = NpcDriver.Live(w, npc, w.Minute + 60).OfType<FireLit>().Where(f => f.By == npc).Select(f => f.Tile).ToList();
+        output.WriteLine($"fires lit at {string.Join(", ", lit)}; camp {mind.Camp}");
+        Assert.Contains(camp, lit);
+    }
+
+    /// Freezing (warmth Critical, over rest's Critical in the hierarchy) and spent, at a cold pit with nothing to light
+    /// and no makings anywhere: Warm groped the camp ground for fuel at any energy, where ColdBed lies down once spent
+    /// (RestCriticalPct). The grope is held to the legs in both: it sleeps, waking before the cold has its core at the line.
+    [Fact]
+    public void Freezing_AndSpent_ColdPit_DoesNotGrope()
+    {
+        var (w, npc, mind) = ColdCamp(FrostyNight, energyPct: 0.05, coreF: 94.8);
+        var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
+        output.WriteLine($"{a} for {minutes} min, seeing to {mind.SeeingTo}");
+        Assert.IsNotType<Gather>(a);
+        Assert.IsType<Sleep>(a);
+    }
+
+    /// Traced (seed 11, day 13; seeds 7 and 2024 on the body-fix tree): a cold camp with tinder, oak and half a kilo of
+    /// kindling - a fire too small ever to take oak - counted its oak as a night's fire, so nothing went for kindling,
+    /// and the night came with nothing it could keep burning. Wood counts as fire only with the kindling to light it, by
+    /// the fire's own catch rule (Npc.Lit): short of it, tonight's fuel is short (warmth's Need) until it fetches some.
+    [Theory]
+    [InlineData(0.6, false)]
+    [InlineData(2.0, true)]
+    public void ColdPit_Oak_CountsAsFuelOnlyWithTheKindlingToLightIt(double kindlingKg, bool oakCounts)
+    {
+        var (w, npc, mind) = ColdCamp(Mild, energyPct: 0.8, coreF: 98.6, minute: At(13, 11));
+        mind.Pack.Kg[Resource.Tinder] = 0.3;
+        mind.Pack.Kg[Resource.Kindling] = kindlingKg;
+        Items.Add(Items.StashAt(w, mind.Camp), Resource.Oak, 20);
+        double hours = Npc.ReckonedCampFuelHours(w, w.Agent(npc));
+        double kindlingHours = Fire.FuelHours(Resource.Kindling, kindlingKg), oakHours = Fire.FuelHours(Resource.Oak, 20);
+        output.WriteLine($"{kindlingKg} kg of kindling: camp fuel reckoned {hours:0.0} h (kindling {kindlingHours:0.0} h, oak {oakHours:0.0} h)");
+        Assert.Equal(oakCounts, hours >= oakHours);
+        var lit = new FireState { Tile = default, LastUpdatedMinute = 0, BurningKg = { [Resource.Tinder] = 0.05, [Resource.Kindling] = kindlingKg } };
+        Assert.Equal(oakCounts, Fire.CanAddFuel(lit, Resource.Oak)); // the fire model's own answer
+    }
+
+    /// The same stash next door holding 0.094 kg of kindling, remembered as 0.1 (memory keeps a tenth of a kilo): from
+    /// camp the remembered 0.1 followed the tinder (MinLightKindlingKg), so it set out for the makings, and on arrival
+    /// the 0.094 there did not. A remembered stash is read as the least it may hold, so it does not set out for them.
+    [Fact]
+    public void ColdPit_MakingsNextDoorOnlyAsRemembered_DoesNotSetOutForThem()
+    {
+        var (w, npc, mind) = ColdCamp(BitterNight, energyPct: 0.45, coreF: 98.2);
+        var camp = mind.Camp;
+        var m = Map.Of(w);
+        var dir = Enum.GetValues<Direction>().First(d => m.InBounds(Map.Step(camp, d)) && m.TerrainAt(Map.Step(camp, d)).IsPassable()
+                                                          && Traversal.Refusal(w, new Travel(npc, d)) == null);
+        var next = Map.Step(camp, dir);
+        var stash = new Inventory();
+        Items.Add(stash, Resource.Tinder, 2);
+        Items.Add(stash, Resource.Kindling, 0.094);
+        Items.Add(stash, Resource.Birch, 9);
+        (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = stash;
+        Knowledge.Observe(w, w.Agent(npc), []);
+        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 0.1, [Resource.Birch] = 9 } };
+        mind.SeeingTo = Stat.Rest;
+        var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
+        output.WriteLine($"{a} for {minutes} min; wood goal {mind.WoodGoal}");
+        Assert.NotEqual(next, mind.WoodGoal);
+        Assert.False(a is Travel t && t.Dir == dir, $"set out for makings it only remembers: {a}");
     }
 }

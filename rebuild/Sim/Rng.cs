@@ -24,7 +24,6 @@ public sealed class Rng
     /// Uniform in [0, 1).
     public double NextDouble() => (NextUlong() >> 11) * (1.0 / (1UL << 53));
 
-    /// Uniform in [0, maxExclusive).
     public int NextInt(int maxExclusive)
     {
         if (maxExclusive <= 0) throw new ArgumentOutOfRangeException(nameof(maxExclusive));

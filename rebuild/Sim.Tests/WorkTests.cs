@@ -139,6 +139,7 @@ public class WorkTests
 
     /// balance: forage retuned (2026-11-20). Old FocusProcessor only filtered, so a food search fed no
     /// better than a general one; focus now buys Work.FocusGain of what it looks for.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void AFocusedSearch_FindsMoreOfWhatItLooksFor_ThanAGeneralOne()
     {
@@ -209,7 +210,7 @@ public class WorkTests
     {
         var w = WithPools(Forage, Bush() with { RequiresTool = ToolType.Axe });
         Know(w, 1);
-        Assert.Equal("you need a Axe", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
+        Assert.Equal("you need an axe", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
         Axe(w);
         Assert.Equal("the Bush is picked clean", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
     }

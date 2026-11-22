@@ -104,7 +104,10 @@ public class KillChainTests
             var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
             var npc = Npc.Spawn(w, tile);
             var e = Combat.Create(w, [new Fighter(P), new Fighter(npc)], [new Fighter(caribou)], tile, 1, Awareness.Engaged, Awareness.Unaware);
-            return (e, caribou, Combat.UnitOf(e, npc), CombatAction.Attack);
+            var ally = Combat.UnitOf(e, npc);
+            var at = Combat.UnitOf(e, caribou).Position;
+            ally.Position = new Cell(at.X + 1, at.Y); // in reach of bare hands
+            return (e, caribou, ally, CombatAction.Attack);
         });
         w.Agent(prey).Body.BloodPct = 0;
         Combat.Finish(w, enc, []);
@@ -152,17 +155,30 @@ public class KillChainTests
         Assert.Equal(body.DiedMinute, sign.MadeMinute);
 
         var cold = BodyState.BaselineHuman();
-        cold.CoreTempF = 80;
+        LiveUntilDead(cold, b => b.CoreTempF = 80);
         Assert.Equal("the cold", Body.CauseOfDeath(cold).What);
         var starved = BodyState.BaselineHuman();
-        starved.CaloriesKcal = 0;
         double spentKg = starved.StructuralKg / 0.82; // fat and muscle burned down to their floors (3% and 15%)
         (starved.FatKg, starved.MuscleKg) = (0.03 * spentKg, 0.15 * spentKg);
+        LiveUntilDead(starved, b => b.CaloriesKcal = 0);
         Assert.Equal("starvation", Body.CauseOfDeath(starved).What);
     }
 
+    /// Lives a body in a mild room, minute by minute, until it dies: each runs before every minute.
+    static void LiveUntilDead(BodyState body, Action<BodyState> each)
+    {
+        var rng = Rng.ForSystem(1, "body");
+        for (int m = 0; m < 10 * 1440 && Body.IsAlive(body); m++)
+        {
+            each(body);
+            Body.Update(body, new SurvivalContext { AirTempF = 70 }, rng);
+        }
+        Assert.False(Body.IsAlive(body), "lived ten days");
+    }
+
     /// Review: seed 99's NPC froze carrying six kilograms of fat at a core of 92.5 °F and was said to
-    /// have starved, because its day's calories were gone. The cause is what crossed a lethal line.
+    /// have starved, because its day's calories were gone. The cause is the damage that crossed the line
+    /// (body review B5): exhaustion is not one, since effects never kill.
     [Fact]
     public void A_Death_IsNamedForWhatKilled_NotForAnEmptyStomach()
     {
@@ -175,21 +191,30 @@ public class KillChainTests
             Effects.Add(b, EffectKind.Tired, 0.98);
             return b;
         }
-        Assert.Equal("the cold", Body.CauseOfDeath(Seed99()).What);
+        var cold = Seed99();
+        LiveUntilDead(cold, b => { b.CoreTempF = 86; b.CaloriesKcal = 0; });
+        Assert.Equal("the cold", Body.CauseOfDeath(cold).What); // fat left to burn: hunger is not killing it
 
-        var living = Seed99();
-        living.CoreTempF = Body.BaseCoreTempF;
-        Assert.NotEqual("starvation", Body.CauseOfDeath(living).What); // fat left to burn: hunger is not killing it
-        living.EnergyMinutes = 0;
-        Assert.Equal("exhaustion", Body.CauseOfDeath(living).What);
+        var spent = Seed99();
+        spent.CoreTempF = Body.BaseCoreTempF;
+        spent.EnergyMinutes = 0;
+        var rng = Rng.ForSystem(1, "body");
+        for (int m = 0; m < 6 * 60; m++)
+        {
+            spent.EnergyMinutes = 0;
+            Body.Update(spent, new SurvivalContext { AirTempF = 70 }, rng);
+        }
+        Assert.True(Body.IsAlive(spent)); // worn out on its feet, not dead of it
 
         var dry = Seed99();
-        dry.HydrationMl = 0; // thirst does more harm an hour than mild cold
+        LiveUntilDead(dry, b => { b.CoreTempF = 92.5; b.HydrationMl = 0; }); // thirst does more harm an hour than mild cold
         Assert.Equal("thirst", Body.CauseOfDeath(dry).What);
 
         var bled = Seed99();
         bled.CoreTempF = Body.BaseCoreTempF;
-        bled.BloodPct = 0.4;
+        bled.BloodPct = 0.55;
+        Effects.Add(bled, EffectKind.Bleeding, 0.5);
+        LiveUntilDead(bled, _ => { });
         Assert.Equal("blood loss", Body.CauseOfDeath(bled).What);
     }
 
@@ -427,6 +452,7 @@ public class KillChainTests
     /// everyone's sight, no bigger than the land they come to carries, and no pack on another's land.
     /// Review: an arrival was sized from its row alone (caribou twelve strong on land carrying four, a
     /// wolf pack of ten on land carrying two), and a pack could come in on top of another's land.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight()
     {
@@ -441,13 +467,14 @@ public class KillChainTests
         int arrivals = 0;
         // Each day's look is the minute after midnight, when the day's arrivals came in (Fauna.Renew).
         Sim.Advance(w, 1440 - Weather.MinuteOfDay(w.Minute));
-        for (int day = 0; day < 200; day++)
+        // Alone on open land they may be killed by a pack that comes for them: the days they lived are the ones looked at.
+        int day = 0;
+        for (; day < 200 && Body.IsAlive(w.Agent(P).Body); day++)
         {
             var lands = w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => Fauna.MindOf(a).Territory.ToList()).ToList();
             var body = w.Agent(P).Body;
             (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // alive, and so someone to be seen by
             Sim.Advance(w, 1440);
-            Assert.True(Body.IsAlive(body));
             var newcomers = w.Agents.Values.Where(a => a.Mind is HerdMind && !seen.Contains(a.Id)).ToList();
             var packLand = w.Agents.Values.Where(a => a.Species == Species.Wolf && seen.Contains(a.Id)).SelectMany(a => Fauna.MindOf(a).Territory).ToHashSet();
             foreach (var herd in newcomers)
@@ -466,6 +493,7 @@ public class KillChainTests
                 if (herd.Species == Species.Wolf) Assert.DoesNotContain(land, packLand.Contains);
             }
         }
+        Assert.True(day >= 100, $"the player was there to be seen by for only {day} days");
         Assert.True(arrivals > 0, "nothing came into an empty valley in two hundred days");
         Assert.Contains(w.Agents.Values, h => h.Species == Species.Caribou);
         // Capacity is derived, never saved: a loaded world reads the same capacities off the same land.
@@ -501,13 +529,13 @@ public class KillChainTests
         var land = Fauna.MindOf(World.New(123).Agents.Values.First(a => a.Species == Species.Mammoth)).Territory;
         var mammoths = Agents.Spawn(w, Species.Mammoth, land[0], 6, [.. land]);
         var wolves = Agents.Spawn(w, Species.Wolf, land[0], 6, [land[0]]);
-        Fauna.MindOf(w.Agent(wolves)).Hunger = 0.95;
+        TestKit.SetHunger(w.Agent(wolves), 0.95);
         Assert.False(Fauna.IsQuarry(Species.Mammoth));
         Assert.True(Fauna.IsQuarry(Species.Caribou) && Fauna.IsQuarry(Species.Bison));
         var events = new List<WorldEvent>();
         for (int i = 0; i < 3 * 1440 && w.Agents.ContainsKey(wolves); i++)
         {
-            Fauna.MindOf(w.Agent(wolves)).Hunger = 0.95; // starving the whole time, on the mammoths' land
+            TestKit.SetHunger(w.Agent(wolves), 0.95); // starving the whole time, on the mammoths' land
             events.AddRange(Sim.Advance(w, 1));
         }
         Assert.DoesNotContain(events.OfType<FightEnded>(), f => f.Agent == mammoths);
@@ -519,6 +547,7 @@ public class KillChainTests
     /// days unfed, so they followed nothing down. What lives on kills thins toward what its land
     /// carries: a fed pack, hyenas and a flock on land with no prey near and little growing all lose
     /// members, and the herd that is left is no bigger than before.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void What_LivesOnKills_ThinsWhenTheLandCannotFeedIt()
     {
@@ -597,7 +626,7 @@ public class KillChainTests
         Assert.Equal(tile, w.Agent(flock).Tile);
         Assert.True(Tags.Of(w, new ThingRef(ThingKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon), "circling flesh: a beacon");
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "carcass" && f.Text.Contains("ravens circling"));
-        Fauna.MindOf(w.Agent(flock)).Hunger = 1;
+        TestKit.SetHunger(w.Agent(flock), 1);
         Sim.Advance(w, 60);
         Assert.True(Carcasses.MeatKg(c) < meat, "the flock ate nothing");
     }
@@ -628,7 +657,7 @@ public class KillChainTests
         var tile = Map.Step(camp, Direction.West);
         Items.Add(Items.StashAt(w, tile, new Cause(P, "stashed by the player")), Resource.RawMeat, 5);
         var flock = Agents.Spawn(w, Species.Raven, tile, 4, [tile]);
-        Fauna.MindOf(w.Agent(flock)).Hunger = 0.2; // not hungry enough to forage: only the stash tempts it
+        TestKit.SetHunger(w.Agent(flock), 0.2); // not hungry enough to forage: only the stash tempts it
         Assert.Null(Fauna.Refusal(w, new Raid(flock)));
         w.Agent(P).Tile = tile;
         Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(flock)));

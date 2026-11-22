@@ -1,0 +1,11 @@
+{
+  "stryker-config": {
+    "project": "Sim.csproj",
+    "test-projects": ["Sim.Tests.csproj"],
+    "mutate": ["**/BodySurvival.cs"],
+    "test-case-filter": "FullyQualifiedName~Survival.Tests.Verification&Category!=Slow",
+    "coverage-analysis": "perTest",
+    "reporters": ["progress", "cleartext", "html", "json"],
+    "thresholds": { "high": 95, "low": 90, "break": 0 }
+  }
+}

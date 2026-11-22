@@ -1,5 +1,7 @@
 name: CI
 
+# The full suite, Slow tests included, on every PR and on pushes to main. Mutation testing runs separately
+# (mutation.yml), at most daily.
 # Branches are checked through their PR (merged with main); push covers only main itself.
 on:
   push:

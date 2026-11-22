@@ -1,10 +1,9 @@
 namespace Survival;
 
-/// The old game's world generator (ValleyLayout + GridWorldGenerator's terrain layers), ported
-/// draw for draw on LegacyRng so a seed gives the same terrain it gave the old game. Geography
-/// first - basins, winding valleys, lakes and their drainages, ravines, caves, the pass - then
-/// biomes painted on the open land, then the named places dealt onto it (old PlaceNamedLocations and
-/// PlaceCaveLocations), still on the same stream, so a seed names the same places the old game named.
+/// The world generator, draw for draw on LegacyRng, so a seed gives the legacy game's terrain and
+/// names its places. Geography first - basins, winding valleys, lakes and their drainages, ravines,
+/// caves, the pass - then biomes painted on the open land, then the named places dealt onto it,
+/// still on the same stream.
 // Math.Sin/Cos/Pow are libm calls, so seed -> terrain is exact per platform, not across
 // platforms. A save holds no terrain; if saves must move between OSes, swap these for a portable sin.
 static class MapGen
@@ -21,7 +20,7 @@ static class MapGen
         var land = layout.Reachable.Where(p => layout.Structures[p.X, p.Y] == Cave.None
             && !layout.Pass.Contains(p) && !layout.WaterCrossings.Contains(p)).ToList();
         var paintable = land.ToHashSet();
-        double density = land.Count / (96.0 * (96 - 18)); // the old constant, kept: it scales every layer
+        double density = land.Count / (96.0 * (96 - 18)); // scales every layer; changing it changes every map
         PaintBiomes(terrain, width, height, rng, land, paintable, density);
 
         var river = new HashSet<TileId>();
@@ -52,9 +51,9 @@ static class MapGen
 
     const int TargetNamedLocations = 300, MinLocationSpacing = 10;
 
-    /// Old PlaceNamedLocations: random open tiles at least ten apart (Manhattan) and from camp, each
-    /// given a site weighted among those that prefer its terrain; elite ones only past 65% of the
-    /// map's width from camp. Draw for draw the old loop, so the old sites land on the old tiles.
+    /// Random open tiles at least ten apart (Manhattan) and from camp, each given a site weighted among
+    /// those that prefer its terrain; elite ones only past 65% of the map's width from camp. In the
+    /// legacy draw order, so a seed's sites land on the same tiles.
     static void PlaceNamedLocations(LegacyRng rng, List<TileId> land, Terrain[,] terrain, TileId camp, int width,
         Dictionary<TileId, LocationDef> sites)
     {
@@ -82,13 +81,13 @@ static class MapGen
         }
     }
 
-    /// Old PlaceCaveLocations: the four cave sites in a shuffled order, dealt round-robin onto one
-    /// floor tile of each cave system, two for a system of sixteen floors or more.
+    /// The four cave sites in a shuffled order, dealt round-robin onto one floor tile of each cave
+    /// system, two for a system of sixteen floors or more.
     static void PlaceCaveSites(LegacyRng rng, Cave[,] caves, int?[,] caveIds, int width, int height,
         Dictionary<TileId, LocationDef> sites)
     {
         var order = Shuffled(Content.CaveSites.ToList(), rng);
-        var systems = new List<(int Id, List<TileId> Floors)>(); // in order of first floor, x-major, as old AllLocations
+        var systems = new List<(int Id, List<TileId> Floors)>(); // in order of first floor, x-major
         for (int x = 0; x < width; x++)
             for (int y = 0; y < height; y++)
                 if (caves[x, y] == Cave.Floor && caveIds[x, y] is int id)
@@ -105,7 +104,7 @@ static class MapGen
         }
     }
 
-    /// Old OrderBy(_ => rng.Next()): one key per item in order, then a stable sort on the keys.
+    /// One key per item in order, then a stable sort on the keys: the legacy shuffle's draws.
     static List<T> Shuffled<T>(List<T> items, LegacyRng rng)
     {
         var keys = items.Select(_ => rng.Next()).ToList();
@@ -114,10 +113,10 @@ static class MapGen
 
     public static bool In(TileId p, int width, int height) => p.X >= 0 && p.X < width && p.Y >= 0 && p.Y < height;
 
-    /// North, east, south, west: the old GetCardinalNeighbors order, which the draw order depends on.
+    /// North, east, south, west: the draw order depends on it.
     public static TileId[] Neighbors(TileId p) => [new(p.X, p.Y - 1), new(p.X + 1, p.Y), new(p.X, p.Y + 1), new(p.X - 1, p.Y)];
     public static int Manhattan(TileId a, TileId b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
-    /// Single precision, as the old GridPosition.DistanceTo (Vector2) computed it.
+    /// Single precision, as the legacy distance was computed.
     public static double Distance(TileId a, TileId b) { float dx = a.X - b.X, dy = a.Y - b.Y; return MathF.Sqrt(dx * dx + dy * dy); }
     public static (TileId A, TileId B) EdgeKey(TileId a, TileId b) => a.X < b.X || a.X == b.X && a.Y < b.Y ? (a, b) : (b, a);
 
@@ -359,7 +358,7 @@ static class MapGen
             }
             foreach (var group in stages.Where(s => s.Count == 2))
                 if (_rng.NextDouble() < .4) Valley(group[0].Center, group[1].Center);
-            for (int j = 0; j < _rng.Next(6, 11); j++) // the bound is redrawn every pass, as in the old code
+            for (int j = 0; j < _rng.Next(6, 11); j++) // the bound is redrawn every pass, as the legacy draws require
             {
                 var a = Pick(Pick(Routes));
                 for (int attempt = 0; attempt < 30; attempt++)
@@ -606,7 +605,7 @@ static class MapGen
 }
 
 /// The BCL Random(seed)'s legacy algorithm (Knuth's subtractive generator, as .NET's
-/// Net5CompatSeedImpl), so the map draws exactly what the old game drew. Generation only: it is
+/// Net5CompatSeedImpl), so the map draws exactly the legacy draws. Generation only: it is
 /// rebuilt from the seed every time, never saved, and never used by the running simulation.
 sealed class LegacyRng
 {

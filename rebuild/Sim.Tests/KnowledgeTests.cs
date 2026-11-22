@@ -60,16 +60,34 @@ public class KnowledgeTests
 
     // ---- sight and memory ----
 
-    [Fact]
-    public void Sight_IsAFixedRadius_AroundTheAgent()
+    /// A tile out of anyone's view of here: beyond the farthest anyone can see.
+    static TileId OutOfView(World w, TileId from) => Away(w, from, Sight.MaxTiles + 1);
+
+    /// The nearest tile, two or more steps off, from which target is in view.
+    static TileId InViewOf(World w, TileId target)
     {
-        var w = World.New(17);
+        var m = Map.Of(w);
+        for (int r = 2; r < Sight.MaxTiles; r++)
+            for (int dx = -r; dx <= r; dx++)
+                foreach (int dy in new[] { r - Math.Abs(dx), Math.Abs(dx) - r })
+                {
+                    var t = new TileId(target.X + dx, target.Y + dy);
+                    if (m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.SiteAt(t) == null && Sight.Visible(w, t).Contains(target)) return t;
+                }
+        throw new InvalidOperationException($"Nowhere two tiles or more from {target} has it in view");
+    }
+
+    /// One sight model: what a glance takes in is what the rays show (Sight.Visible), no more.
+    [Fact]
+    public void AGlance_SeesWhatTheRaysShow()
+    {
+        var w = Mild17();
         var me = w.Agent(P);
-        var seen = Sight.Visible(w, me).ToList();
-        Assert.Contains(me.Tile, seen);
-        Assert.All(seen, t => Assert.True(MapGen.Manhattan(t, me.Tile) <= Sight.RadiusTiles));
-        Assert.Equal(seen.Count, seen.Distinct().Count());
-        Assert.Equal(2 * Sight.RadiusTiles * (Sight.RadiusTiles + 1) + 1, seen.Count); // camp is not at the map's edge
+        Sim.Step(w, new Wait(P), 1);
+        var view = Sight.Visible(w, me.Tile, Body.GetCapacities(me.Body).Sight);
+        Assert.All(w.Agents.Values.Where(a => a.Id != P), a => Assert.Equal(view.Contains(a.Tile), Sight.InSight(w, me, a.Tile)));
+        var places = ((PersonMind)me.Mind).Knows.Places;
+        Assert.All(places.Keys, t => Assert.Contains(t, view));
     }
 
     /// Only what was seen, and only tiles with something worth remembering (or stood on).
@@ -82,10 +100,179 @@ public class KnowledgeTests
         var places = ((PersonMind)w.Agent(P).Mind).Knows.Places;
         Assert.True(places.ContainsKey(camp) && places[camp].Visited);
         Assert.Equal("Overhang", places[camp].Shelter);
-        Assert.All(places, p => Assert.True(MapGen.Manhattan(p.Key, camp) <= Sight.RadiusTiles));
+        Assert.All(places, p => Assert.Contains(p.Key, Sight.Visible(w, camp)));
         Assert.All(places.Where(p => p.Key != camp), p => Assert.True(p.Value.Trees || p.Value.Water || p.Value.Fire != null || p.Value.Shelter != null || p.Value.Danger != Danger.None));
         string json = Save.ToJson(w);
         Assert.Equal(json, Save.ToJson(Save.FromJson(json)));
+    }
+
+    // ---- the ground explored (Beliefs.Explored) ----
+
+    static GroundMemory Explored(World w, AgentId who) => ((PersonMind)w.Agent(who).Mind).Knows.Explored!;
+
+    static double Eyes(World w, AgentId who) => Body.GetCapacities(w.Agent(who).Body).Sight;
+
+    /// A new world has already looked once: the player stands at camp and has taken in what is in
+    /// view, before any step (World.New). The same seed looks the same.
+    [Fact]
+    public void ANewWorld_HasLookedAroundOnce()
+    {
+        var w = World.New(17);
+        var camp = Map.Of(w).Camp;
+        var inView = Sight.Visible(w, camp, Eyes(w, P));
+        Assert.Equal(inView.Count, Explored(w, P).Count);
+        Assert.All(inView, t => Assert.True(Explored(w, P).Contains(t), $"{t} in view but not explored"));
+        Assert.Equal(Save.ToJson(w), Save.ToJson(World.New(17)));
+    }
+
+    /// Everything in view is explored, bare ground too, which Places leaves out.
+    [Fact]
+    public void Looking_ExploresEveryTileInView_BareGroundToo()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        Sim.Step(w, new Wait(P), 1);
+        var inView = Sight.Visible(w, camp, Eyes(w, P));
+        Assert.True(inView.Count > ((PersonMind)w.Agent(P).Mind).Knows.Places.Count);
+        Assert.Equal(inView.Count, Explored(w, P).Count);
+        Assert.All(inView, t => Assert.True(Explored(w, P).Contains(t), $"{t} in view but not explored"));
+    }
+
+    /// Ground once seen stays explored when it is out of view; "visible" is only what is in view now.
+    [Fact]
+    public void ExploredGround_StaysExplored_AfterWalkingAway()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        Sim.Step(w, new Wait(P), 1);
+        var atCamp = Sight.Visible(w, camp, Eyes(w, P));
+        var far = Away(w, camp, 3 * Sight.OpenGroundTiles);
+        Put(w, P, far);
+        Sim.Step(w, new Wait(P), 1);
+        var there = Sight.Visible(w, far, Eyes(w, P));
+        Assert.DoesNotContain(camp, there);
+        Assert.All(atCamp.Concat(there), t => Assert.True(Explored(w, P).Contains(t)));
+        Assert.Equal(atCamp.Union(there).Count(), Explored(w, P).Count);
+    }
+
+    /// Asleep, nobody looks: nothing new is explored.
+    [Fact]
+    public void Asleep_NothingIsExplored()
+    {
+        var w = Mild17();
+        var camp = Map.Of(w).Camp;
+        Sim.Step(w, new Wait(P), 1);
+        int before = Explored(w, P).Count;
+        Put(w, P, Away(w, camp, 3 * Sight.OpenGroundTiles));
+        Sim.Step(w, new Sleep(P), 60);
+        Assert.Equal(before, Explored(w, P).Count);
+    }
+
+    /// Saved, and the same however the steps are cut and wherever a save and load falls.
+    [Fact]
+    public void Explored_IsSaved_AndTheSameHoweverTheWalkIsStepped()
+    {
+        World Walk(int chunk, bool reload)
+        {
+            var w = World.New(17);
+            foreach (var dir in new[] { Direction.East, Direction.East, Direction.South, Direction.East })
+            {
+                for (int done = 0; done < 90; done += chunk)
+                {
+                    if (Sim.Step(w, new Travel(P, dir), chunk).InterruptedReason is "arrived") break;
+                    if (reload) w = Save.FromJson(Save.ToJson(w));
+                }
+                Sim.Step(w, new Wait(P), 30);
+            }
+            return w;
+        }
+        var whole = Walk(90, false);
+        Assert.True(Explored(whole, P).Count > 0);
+        string json = Save.ToJson(whole);
+        Assert.Equal(json, Save.ToJson(Walk(1, false)));
+        Assert.Equal(json, Save.ToJson(Walk(7, true)));
+        var loaded = Save.FromJson(json);
+        Assert.Equal(Explored(whole, P).Count, Explored(loaded, P).Count);
+        Assert.Equal(json, Save.ToJson(loaded));
+    }
+
+    // ---- the ground as last seen (Beliefs.Explored) ----
+
+    static readonly WeatherSample Cold = new(0, WeatherCondition.Cloudy, -10, 0.1, 0, 0.8, WindDirection.North);
+
+    static void Snow(World w, TileId t, double depthM) =>
+        Ground.CatchUp(w, t).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 });
+
+    /// The first passable tile in view from here, other than here.
+    static TileId InViewFrom(World w, TileId from) =>
+        Sight.Visible(w, from, Eyes(w, P)).First(t => t != from && Map.Of(w).TerrainAt(t).IsPassable() && Map.Of(w).SiteAt(t) == null);
+
+    /// Snow seen on a tile, which then goes while the player is out of sight of it, is still snow in
+    /// their memory, after a save and load too: memory, not the ground as it is now.
+    [Fact]
+    public void GroundOutOfSight_IsTheGroundAsLastSeen_AfterASaveAndLoad()
+    {
+        var w = World.New(17);
+        w.FixedWeather = Cold;
+        var camp = Map.Of(w).Camp;
+        var t = InViewFrom(w, camp);
+        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes); // ground is kept once it has lived any time (Ground.CatchUp)
+        Snow(w, t, 0.4);
+        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes); // the clock's next look sees it
+        double seenM = Ground.SurfaceNow(w, t).SnowDepthM;
+        Assert.True(seenM > 0.35);
+        Assert.Equal(seenM, Explored(w, P).At(t)!.Value.Surface.SnowDepthM, 3);
+
+        Put(w, P, OutOfView(w, t));
+        Sim.Step(w, new Wait(P), 1);
+        Assert.False(Sight.InSight(w, w.Agent(P), t));
+        Ground.CatchUp(w, t).Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow); // gone while nobody looked
+        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes);
+
+        var loaded = Save.FromJson(Save.ToJson(w));
+        var remembered = Explored(loaded, P).At(t)!.Value;
+        Assert.Equal(seenM, remembered.Surface.SnowDepthM, 3);
+        Assert.Equal(2 * Knowledge.GlanceMinutes, remembered.SeenMinute);
+        Assert.Equal(0, Ground.SurfaceNow(loaded, t).SnowDepthM, 3);
+    }
+
+    /// Every tile in view has its ground remembered, with the minute of the look.
+    [Fact]
+    public void Looking_RemembersTheGroundOfEveryTileInView()
+    {
+        var w = Mild17();
+        Sim.Step(w, new Wait(P), 1);
+        var inView = Sight.Visible(w, Map.Of(w).Camp, Eyes(w, P));
+        Assert.All(inView, t => Assert.Equal(1, Explored(w, P).At(t)!.Value.SeenMinute));
+        var far = Away(w, Map.Of(w).Camp, 3 * Sight.OpenGroundTiles);
+        Assert.Null(Explored(w, P).At(far));
+    }
+
+    /// Kept to the millimetre and the hundredth, as a view shows it; refused, not clipped, out of range.
+    [Fact]
+    public void GroundMemory_HoldsMillimetresAndHundredths_AndRefusesWhatItCannotHold()
+    {
+        var g = new GroundMemory(4, 3);
+        var t = new TileId(2, 1);
+        g.Remember(t, new SurfaceSummary(0.12345, true, 0.456, 0.0071, true), 1234567);
+        Assert.Equal(new RememberedGround(new SurfaceSummary(0.123, true, 0.46, 0.007, true), 1234567), g.At(t));
+        var loaded = GroundMemory.Parse(g.Format());
+        Assert.Equal(g.At(t), loaded.At(t));
+        Assert.Equal(1, loaded.Count);
+        Assert.Null(loaded.At(new TileId(0, 0)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SurfaceSummary(-0.01, false, 0, 0, false), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SurfaceSummary(0, false, 1.2, 0, false), 0));
+        Assert.Equal(new RememberedGround(new SurfaceSummary(0.123, true, 0.46, 0.007, true), 1234567), g.At(t)); // a refused value leaves the tile as it was
+        Assert.Equal(1, g.Count);
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse("4x3:AA==:"));
+        var one = g.Format();
+        var records = one[(one.LastIndexOf(':') + 1)..];
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse(one[..one.LastIndexOf(':')] + ":")); // a seen tile with no record
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse(one + "AAAAAAAAAAAAAA==")); // not base64 at that length
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse("4xthree:AAA=:" + records));
+        var badFlags = Convert.FromBase64String(records);
+        badFlags[9] = 0;
+        Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse(one[..one.LastIndexOf(':')] + ":" + Convert.ToBase64String(badFlags)));
     }
 
     // ---- the receipt done-when tests (feature 4) ----
@@ -105,7 +292,7 @@ public class KnowledgeTests
         Sim.Step(w, new Wait(P), 1); // the player sees the fire burning
         Assert.Equal(FirePhase.Dying, Memory(w, P, camp)!.Fire);
         long left = w.Minute;
-        var far = Away(w, camp, Sight.RadiusTiles + 3);
+        var far = OutOfView(w, camp);
         Put(w, P, far);
         Sim.Step(w, new Wait(P), 30);
 
@@ -140,7 +327,7 @@ public class KnowledgeTests
         Put(w, P, field);
         Sim.Step(w, new Wait(P), 1);
         Assert.True(Memory(w, P, field)!.Visited);
-        Put(w, P, Away(w, field, Sight.RadiusTiles + 3));
+        Put(w, P, OutOfView(w, field));
         Sim.Step(w, new Wait(P), 1);
         return (w, field);
     }
@@ -196,7 +383,7 @@ public class KnowledgeTests
         var camp = Map.Of(w).Camp;
         var pit = PlacePit(w, camp, 1.5);
         long died = DiesAt(w, pit);
-        Put(w, P, Away(w, camp, Sight.RadiusTiles + 3));
+        Put(w, P, OutOfView(w, camp));
         var events = new List<WorldEvent>();
         while (w.Minute < awayMinutes) events.AddRange(Sim.Step(w, new Wait(P), (int)Math.Min(chunk, awayMinutes - w.Minute)).Events);
         Assert.DoesNotContain(events, e => e is FireDied); // nobody saw it go
@@ -249,13 +436,13 @@ public class KnowledgeTests
         long left = w.Minute;
         long died = DiesAt(w, pit);
 
-        Put(w, P, Away(w, camp, Sight.RadiusTiles + 2));
+        Put(w, P, OutOfView(w, camp));
         while (w.Minute <= died + 60) Sim.Step(w, new Wait(P), 60);
         Assert.Equal(FirePhase.Roaring, Memory(w, P, camp)!.Fire);
         Assert.Equal(left, Memory(w, P, camp)!.SeenMinute);
 
         // Back in sight of camp, not yet on it: the fire is seen to be out.
-        Put(w, P, Away(w, camp, Sight.RadiusTiles - 1));
+        Put(w, P, InViewOf(w, camp));
         Sim.Step(w, new Wait(P), 1);
         Assert.Equal(FirePhase.Cold, Memory(w, P, camp)!.Fire);
         Assert.Equal(w.Minute, Memory(w, P, camp)!.SeenMinute);
@@ -275,7 +462,7 @@ public class KnowledgeTests
         Assert.True(hours > 3);
         long died = DiesAt(w, pit);
 
-        Put(w, P, Away(w, camp, Sight.RadiusTiles - 1)); // in sight of camp, not on it
+        Put(w, P, InViewOf(w, camp)); // in sight of camp, not on it
         Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes);
         Assert.True(Fire.Burns(Memory(w, P, camp)!.Fire));
         Assert.Equal(hours, Memory(w, P, camp)!.FireHours);
@@ -311,7 +498,7 @@ public class KnowledgeTests
         Items.Add(Items.StashAt(w, camp), Resource.DriedMeat, 2);
         Sim.Step(w, new Wait(P), 1);
         Assert.Equal(2, Memory(w, P, camp)!.Stash![Resource.DriedMeat]);
-        Put(w, P, Away(w, camp, Sight.RadiusTiles + 3));
+        Put(w, P, OutOfView(w, camp));
         Sim.Step(w, new Wait(P), 30);
         var npc = Npc.Spawn(w, camp, camp: Away(w, camp, 25));
         Sim.Step(w, new Unstash(npc, Resource.DriedMeat, 1), 1);
@@ -459,6 +646,7 @@ public class KnowledgeTests
 
     /// Memory, journals and skills learned along the way come out the same however the minutes are
     /// stepped, and through saves: a busy camp with an NPC, a fire, work, a walk out and back, a night.
+    [Trait("Category", TestCategories.Slow)]
     [Theory]
     [InlineData(1, false)]
     [InlineData(7, true)]
@@ -471,7 +659,7 @@ public class KnowledgeTests
             var camp = Map.Of(w).Camp;
             Npc.Spawn(w, camp);
             PlacePit(w, camp, 2);
-            var far = Away(w, camp, Sight.RadiusTiles + 2);
+            var far = OutOfView(w, camp);
             void Do(Func<Activity> make, int total)
             {
                 for (int done = 0; done < total;)

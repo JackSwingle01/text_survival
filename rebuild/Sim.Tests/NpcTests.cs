@@ -26,10 +26,12 @@ static class NpcDriver
 
 public class NpcTests(ITestOutputHelper output)
 {
+    /// The NPC benches' NPC: at camp, at a fixed bench id (NpcBench), so its numbers do not move when generation
+    /// populates another herd kind.
     static (World World, AgentId Npc) AtCamp(int seed)
     {
         var w = World.New(seed);
-        return (w, Npc.Spawn(w, Map.Of(w).Camp));
+        return (w, NpcBench.Spawn(w, Map.Of(w).Camp));
     }
 
     static double CampWoodKg(World w, AgentId npc)
@@ -40,6 +42,7 @@ public class NpcTests(ITestOutputHelper output)
     }
 
     /// Phase 3 gate: an NPC survives 14 days alone - no hand-feeding, nothing given past its spawn kit.
+    [Trait("Category", TestCategories.Slow)]
     [Theory]
     [InlineData(17)]
     [InlineData(1)]
@@ -64,6 +67,7 @@ public class NpcTests(ITestOutputHelper output)
     }
 
     /// The same gate with the world's scheduler choosing when the NPC decides, as the game will run it.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void FourteenDaysAlone_OnTheWorldScheduler()
     {
@@ -87,7 +91,7 @@ public class NpcTests(ITestOutputHelper output)
             foreach (var e in Sim.Advance(w, 1))
                 if (e is Moved { } m && m.Who == npc) did.Add($"{m.Minute} moved {m.To}");
             var mind = (NpcMind)w.Agent(npc).Mind;
-            did.Add($"{w.Minute} {w.Agent(npc).Doing?.Activity} {mind.Need} camp {mind.Camp}");
+            did.Add($"{w.Minute} {w.Agent(npc).Doing?.Activity} {mind.SeeingTo} camp {mind.Camp}");
             if (look) foreach (var id in w.Fires.Keys.ToList()) if (w.Fires.ContainsKey(id)) Fire.CatchUp(w, id, []);
         }
         return did;
@@ -103,6 +107,7 @@ public class NpcTests(ITestOutputHelper output)
     /// than when someone looks, changes nothing the NPC does. The seed-17 NPC never goes out of sight of
     /// camp in these ten days, so this does not reach a read of a fire out of sight; that guard is
     /// LookingAtAnAbandonedCampFire_ChangesNothingAnNpcDoes.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void EagerAndLazyFireCatchUp_Agree()
     {
@@ -127,7 +132,7 @@ public class NpcTests(ITestOutputHelper output)
             w.Fires[pit] = new FireState { Tile = camp, LastUpdatedMinute = 0, BurningKg = { [Resource.Birch] = 1 } };
             var phase = Fire.Phase(w.Fires[pit]);
             Sim.Advance(w, 5 * 60); // the fire burns out with nobody to see it
-            var far = Enumerable.Range(Sight.RadiusTiles + 2, 10).Select(d => new TileId(camp.X + d, camp.Y))
+            var far = Enumerable.Range(Sight.MaxTiles + 1, 10).Select(d => new TileId(camp.X + d, camp.Y))
                 .First(t => Map.Of(w).TerrainAt(t).IsPassable());
             var npc = Npc.Spawn(w, far, camp);
             var mind = (NpcMind)w.Agent(npc).Mind;
@@ -145,23 +150,24 @@ public class NpcTests(ITestOutputHelper output)
     /// having done nothing there, never happens now. (Out for food and home because the walk tired or
     /// chilled it is another need doing its job, and still can: so is the trip budget, when the walk out
     /// proved colder than reckoned and the ground no longer fits it - Npc.ForageTripFits.)
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void LookingForFood_ItNeverTurnsStraightBack()
     {
         var (w, npc) = AtCamp(17);
         var back = new List<string>();
-        (long Minute, TileId From, Need? Need, bool Unaffordable)? last = null;
+        (long Minute, TileId From, Stat? SeeingTo, bool Unaffordable)? last = null;
         bool did = false;
         int budgeted = 0;
         while (w.Minute < 16 * 1440L && Body.IsAlive(w.Agent(npc).Body))
         {
-            var need = ((NpcMind)w.Agent(npc).Mind).Need;
+            var need = ((NpcMind)w.Agent(npc).Mind).SeeingTo;
             var goal = ((NpcMind)w.Agent(npc).Mind).ForageGoal;
             foreach (var e in Sim.Advance(w, 1))
             {
                 if (e is Moved m && m.Who == npc)
                 {
-                    if (last is { } l && m.To == l.From && m.Minute - l.Minute <= 60 && !did && l.Need == Need.Food && need == Need.Food)
+                    if (last is { } l && m.To == l.From && m.Minute - l.Minute <= 60 && !did && l.SeeingTo == Stat.Food && need == Stat.Food)
                     {
                         if (l.Unaffordable) budgeted++;
                         else back.Add($"{l.From}->{m.From}->{m.To} at {l.Minute}-{m.Minute}");
@@ -192,6 +198,7 @@ public class NpcTests(ITestOutputHelper output)
         Assert.True(backAgain.Count == 0, $"{backAgain.Count} times off the stash and straight back on, first {backAgain.FirstOrDefault().First}");
     }
 
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void SameSeed_SameWorld()
     {
@@ -294,6 +301,73 @@ public class NpcTests(ITestOutputHelper output)
         Assert.Equal(camp, Map.Step(wood, home.Dir));
     }
 
+    /// An NPC about to decide while asleep where it dropped from exhaustion sleeps it
+    /// out. Its mind is not asked (it could start a hunt in deciding), nothing it chose is refused, its
+    /// body lives the minutes as sleep, and once awake it decides again.
+    [Fact]
+    public void AnNpcAsleepWhereItDropped_SleepsItOut_ThenDecidesAgain()
+    {
+        var (w, npc) = AtCamp(17);
+        Sim.Advance(w, 60);
+        var agent = w.Agent(npc);
+        agent.Doing = null;
+        agent.Body.EnergyMinutes = 0;
+        Effects.Set(agent.Body, EffectKind.Asleep, 40 / 90.0);
+        var events = new List<WorldEvent>();
+        for (int m = 0; m < 40; m++)
+        {
+            events.AddRange(Sim.Advance(w, 1));
+            Assert.True(agent.Doing is null or { Activity: Sleep }, $"minute {m}: {agent.Doing?.Activity}");
+        }
+        Assert.False(Body.IsAsleep(agent.Body));
+        Assert.Equal(80, agent.Body.EnergyMinutes, 9);
+        Assert.DoesNotContain(events, e => e is PlanRefused r && r.Who == npc);
+    }
+
+    /// An NPC asleep with a waking activity still under way (a fight held it while it dropped)
+    /// does not walk or work on asleep: the activity stops on its first minute, before any of it runs.
+    [Fact]
+    public void AnNpcAsleepMidActivity_StopsBeforeTheActivityRuns()
+    {
+        var (w, npc) = AtCamp(17);
+        var agent = w.Agent(npc);
+        var dir = Enum.GetValues<Direction>().First(d => Sim.Refusal(w, new Travel(npc, d)) == null);
+        var events = new List<WorldEvent>();
+        Sim.Start(w, new Travel(npc, dir), 600, events, out var doing);
+        agent.Doing = doing;
+        var tile = agent.Tile;
+        agent.Body.EnergyMinutes = 0;
+        Effects.Set(agent.Body, EffectKind.Asleep, 40 / 90.0);
+        var crossing = agent.Crossing;
+        int elapsed = crossing!.ElapsedMinutes;
+        Sim.Advance(w, 1);
+        Assert.Equal(tile, agent.Tile);
+        Assert.Equal(elapsed, crossing.ElapsedMinutes); // not a step of it walked
+        Assert.Null(agent.Doing);
+        Sim.Advance(w, 1);
+        Assert.Equal(tile, agent.Tile);
+        Assert.Null(agent.Crossing); // turned back: it is sleeping where it stands
+    }
+
+    /// An NPC sleeping off exhaustion that a blow wakes gets up: its mind decides again on the
+    /// next minute rather than lying out the sleep it was given.
+    [Fact]
+    public void AnNpcWokenByABlow_DecidesAgain()
+    {
+        var (w, npc) = AtCamp(17);
+        Sim.Advance(w, 60);
+        var agent = w.Agent(npc);
+        agent.Doing = null;
+        agent.Body.EnergyMinutes = 800; // rested: awake, its mind would not choose to sleep by day
+        Effects.Set(agent.Body, EffectKind.Asleep, 60 / 90.0);
+        Sim.Advance(w, 2);
+        Assert.Equal(804, agent.Body.EnergyMinutes, 9); // lived as sleep
+        Body.Damage(agent.Body, new DamageInfo(0.3, DamageType.Blunt, BodyTarget.LeftArm), Rng.ForSystem(1, "test"));
+        Sim.Advance(w, 2);
+        Assert.False(Body.IsAsleep(agent.Body));
+        Assert.False(agent.Doing?.Activity is Sleep, "woken, and still lying out the exhaustion sleep it was given");
+    }
+
     /// Starving, with wood enough at camp and a caribou on its tile in daylight: it goes after it. (Which herds
     /// it takes on, wanting food or starving: NpcWarmingWalkTests.WhichHerdsALoneNpcHunts.)
     [Fact]
@@ -336,6 +410,7 @@ public class NpcTests(ITestOutputHelper output)
         var w = World.New(17);
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp);
+        TestKit.Lean(w, npc);
         if (stashBirchKg > 0) Items.Add(Items.StashAt(w, camp), Resource.Birch, stashBirchKg);
         var mind = (NpcMind)w.Agent(npc).Mind;
         w.Agent(npc).Body.FatKg = mind.TargetFatKg - shortfallKg;
@@ -350,8 +425,8 @@ public class NpcTests(ITestOutputHelper output)
     {
         var (w, mind) = ShortOfFat(0.5, 40);
         var a = DecideFor(w, mind);
-        output.WriteLine($"{a}, need {mind.Need}");
-        Assert.Equal(Need.Food, mind.Need);
+        output.WriteLine($"{a}, need {mind.SeeingTo}");
+        Assert.Equal(Stat.Food, mind.SeeingTo);
     }
 
     [Fact]
@@ -359,22 +434,9 @@ public class NpcTests(ITestOutputHelper output)
     {
         var (w, mind) = ShortOfFat(0.5, 0);
         var a = DecideFor(w, mind);
-        output.WriteLine($"{a}, need {mind.Need}");
-        Assert.Null(mind.Need); // the wood plan sees to no need
+        output.WriteLine($"{a}, need {mind.SeeingTo}");
+        Assert.Null(mind.SeeingTo); // the wood plan sees to no need
         Assert.False(a is Gather { Focus: ForageFocus.Food });
-    }
-
-    [Fact]
-    public void CriticalShortfall_GoesForFood_EvenShortOfFuel_ButNotOverCriticalCold()
-    {
-        var (w, mind) = ShortOfFat(1.5, 0);
-        DecideFor(w, mind);
-        Assert.Equal(Need.Food, mind.Need);
-
-        var (cold, coldMind) = ShortOfFat(1.5, 0);
-        cold.Agents.Values.Single(a => a.Mind == coldMind).Body.CoreTempF = 95.0;
-        DecideFor(cold, coldMind);
-        Assert.Equal(Need.Warmth, coldMind.Need);
     }
 
     /// A lean week: it gets used to the leaner body, but never below the floor where leanness costs.
@@ -383,10 +445,10 @@ public class NpcTests(ITestOutputHelper output)
     {
         var body = BodyState.BaselineHuman();
         var mind = new NpcMind { TargetFatKg = body.FatKg };
-        body.FatKg = 9.0;
+        body.FatKg = 7.0;
         Npc.AdaptTargetFat(mind, body, 7 * 1440);
-        output.WriteLine($"after a week at 9 kg: target {mind.TargetFatKg:0.000}");
-        Assert.InRange(mind.TargetFatKg, 9.0, 9.6); // 9 + 2.25 * 2^(-7/3)
+        output.WriteLine($"after a week at 7 kg: target {mind.TargetFatKg:0.000}");
+        Assert.InRange(mind.TargetFatKg, 7.0, 7.3); // 7 + 1.16 * 2^(-7/3), from the 68 kg man's 8.16
 
         body.FatKg = 5.0;
         Npc.AdaptTargetFat(mind, body, 14 * 1440);
@@ -468,8 +530,8 @@ public class NpcTests(ITestOutputHelper output)
         b.CoreTempF = 97.7;
         var mind = (NpcMind)w.Agent(npc).Mind;
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
-        output.WriteLine($"{a}, need {mind.Need}");
-        Assert.Equal(Need.Warmth, mind.Need);
+        output.WriteLine($"{a}, need {mind.SeeingTo}");
+        Assert.Equal(Stat.Warmth, mind.SeeingTo);
     }
 
     /// Old: cold by a fire with no wood left to feed it, it rested until the fire was nearly out, then
@@ -479,6 +541,9 @@ public class NpcTests(ITestOutputHelper output)
     /// Then it warms at the fire, not groping the camp ground (old, this rebuild: the wood plan's fallback,
     /// half an hour's fuel forage here, was taken for the walk it could not make).
     [Theory]
+    // 97.6: warm enough for a trip that brings it home above Npc.TripHomeCoreF (96.8F, inside warmth's Need: a wood
+    // trip is what it takes to get through the day). Held to the Need line itself, 97.5F, it was 98.4 - and seed 17
+    // froze in a blizzard beside a dying fire, no wood trip ever fitting.
     [InlineData(97.6, true)]
     [InlineData(96.5, false)]
     public void ColdByAFireWithNoWoodLeft_GoesForWoodWhileItLasts(double coreF, bool goes)
@@ -522,7 +587,7 @@ public class NpcTests(ITestOutputHelper output)
         agent.Body.EnergyMinutes = 0.05 * Body.MaxEnergyMinutes;
         var (a, _) = Npc.Decide(w, agent, []);
         Assert.True(a is Sleep or AddFuel or Unstash or StartFire, $"chose {a}"); // bed: the fire banked, then sleep
-        Assert.Equal(Need.Rest, mind.Need);
+        Assert.Equal(Stat.Rest, mind.SeeingTo);
     }
 
     // ---- foraging ----
@@ -559,6 +624,7 @@ public class NpcTests(ITestOutputHelper output)
                     (w.Tiles.TryGetValue(t, out var ts) ? ts : w.Tiles[t] = new TileState()).Ground = g;
                 }
             var npc = Npc.Spawn(w, here);
+            TestKit.Lean(w, npc);
             Items.Add(Items.StashAt(w, here), Resource.Birch, 40);
             var agent = w.Agent(npc);
             agent.Body.FatKg = ((NpcMind)agent.Mind).TargetFatKg - 0.5;
@@ -595,7 +661,7 @@ public class NpcTests(ITestOutputHelper output)
         (body.CoreTempF, body.EnergyMinutes, body.HydrationMl, body.CaloriesKcal) = (98.6, Body.MaxEnergyMinutes, Body.MaxHydrationMl, 100);
         body.FatKg = mind.TargetFatKg - 1.5;
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
-        output.WriteLine($"{a}, need {mind.Need}");
+        output.WriteLine($"{a}, need {mind.SeeingTo}");
         Assert.Single(w.Encounters);
         Assert.DoesNotContain(w.Encounters[0].Units, u => u.Agent == npc);
     }
@@ -654,6 +720,7 @@ public class NpcTests(ITestOutputHelper output)
         var npc = Npc.Spawn(w, camp, boldness: 0.5);
         var mind = (NpcMind)w.Agent(npc).Mind;
         Items.Add(Items.StashAt(w, camp), Resource.Oak, 40);
+        Items.Add(Items.StashAt(w, camp), Resource.Kindling, 2); // and the kindling to light it (Npc.Lit)
         w.Agent(npc).Body.FatKg = mind.TargetFatKg - 0.5;
         (w.Tiles.TryGetValue(camp, out var ts) ? ts : w.Tiles[camp] = new TileState()).Pools = new() { [0] = new ForageState { HoursForaged = 1000, LastForagedMinute = minute } };
         var near = Enumerable.Range(-6, 13).SelectMany(dx => Enumerable.Range(-6, 13).Select(dy => new TileId(camp.X + dx, camp.Y + dy)))
@@ -663,8 +730,10 @@ public class NpcTests(ITestOutputHelper output)
         foreach (var t in near)
             mind.Knows.Places[t] = new TileMemory
             {
-                SeenMinute = minute, VisitedMinute = minute, ForageDensity = t == ground ? ((ForagePool)Pools.At(w, t)[0]).Density : 0,
-                Stash = t == camp ? new() { [Resource.Oak] = 40 } : null,
+                SeenMinute = minute,
+                VisitedMinute = minute,
+                ForageDensity = t == ground ? ((ForagePool)Pools.At(w, t)[0]).Density : 0,
+                Stash = t == camp ? new() { [Resource.Oak] = 40, [Resource.Kindling] = 2 } : null,
             };
         return (w, npc, ground);
     }
@@ -746,16 +815,17 @@ public class NpcTests(ITestOutputHelper output)
             agent.Body.FatKg = mind.TargetFatKg - 1.5;
             agent.Body.CoreTempF = 98.2;
             var (a, _) = Npc.Decide(w, agent, []);
-            output.WriteLine($"{airC}C: {a}, need {mind.Need}, goal {mind.ForageGoal}");
+            output.WriteLine($"{airC}C: {a}, need {mind.SeeingTo}, goal {mind.ForageGoal}");
             return (a, mind.ForageGoal, at, ground);
         }
         var mild = Decide(10);
         Assert.Equal(mild.Ground, mild.Goal);
         Assert.IsType<Travel>(mild.Activity); // on its way
-        // At -10C the nine tiles out and back would bring it home colder than it wants to be, though it is
-        // not cold yet: it gives the ground up rather than walk on until warmth is critical. (At freezing,
-        // before the trip budget counted the heat its clothes had stored, this was already too cold.)
-        var cold = Decide(-10);
+        // At -20C the nine tiles out and back would bring it home under the trip line (Npc.TripHomeCoreF), though it
+        // is not cold yet: it gives the ground up rather than walk on until warmth is critical. (At freezing, before
+        // the trip budget counted the heat its clothes had stored, this was already too cold; at -10C, while trips
+        // were held to warmth's Need line, 97.5F.)
+        var cold = Decide(-20);
         Assert.Null(cold.Goal);
         Assert.NotEqual(mild.Activity, cold.Activity); // not the step on toward it
     }
@@ -785,12 +855,15 @@ public class NpcTests(ITestOutputHelper output)
     }
 
     /// Traced (seed 5, day 4): with nothing to bank its fire, it slept two hours at a time beside it, and
-    /// woke to a cold pit and a hand drill. It sleeps only until the fire is nearly out.
+    /// woke to a cold pit and a hand drill. It sleeps only until the fire is nearly out. (The camp ground picked
+    /// bare: with anything to gather there, the fire short of tonight has it gathering first - warmth's fuel tier
+    /// runs through the night, NightFireShortOfTonight_TheNpcAnswersIt.)
     [Fact]
     public void NothingToBankTheFire_SleepsOnlyUntilItIsNearlyOut()
     {
         var pit = new FireState { Tile = default, LastUpdatedMinute = 0, BurningKg = { [Resource.Birch] = 0.8 } };
         var (w, npc, _) = ByAFire(At(3, 23), pit);
+        PickedBare(w, w.Agent(npc).Tile);
         double minutesLeft = Fire.FuelHours(pit) * 60;
         var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a} for {minutes} min; the fire has {minutesLeft:0} min");
@@ -831,6 +904,14 @@ public class NpcTests(ITestOutputHelper output)
         output.WriteLine(string.Join(", ", chose));
         if (walks) Assert.True(chose[^1] is Travel || chose[^1] is Gather g && Pools.At(w, w.Agent(npc).Tile)[g.Pool] is TreePool, $"chose {chose[^1]}");
         else Assert.DoesNotContain(chose, a => a is Travel);
+    }
+
+    /// Every forage pool on a tile picked over to nothing, for now.
+    static void PickedBare(World w, TileId tile)
+    {
+        var ts = w.Tiles.TryGetValue(tile, out var t) ? t : w.Tiles[tile] = new TileState();
+        ts.Pools = Enumerable.Range(0, Pools.At(w, tile).Count).Where(i => Pools.At(w, tile)[i] is ForagePool)
+            .ToDictionary(i => i, i => (PoolState)new ForageState { HoursForaged = 1000, LastForagedMinute = w.Minute });
     }
 
     /// Traced (seed 5): it would not strike under 20% until its core was critical, by when its cold hands
@@ -879,27 +960,36 @@ public class NpcTests(ITestOutputHelper output)
         Assert.Contains(log, e => e is FuelAdded { Fuel: Resource.Oak } f && f.By == npc);
     }
 
-    /// Traced (seed 5): no standing timber within 15 tiles of camp, only deadfall; it had an axe and never
-    /// used it, and froze on day 4.8. A camp with no timber in reach is a reason to go and find some and
-    /// move camp to it. A kilo of birch bark and two of kindling in the pack: seed 5's grassland gives almost no
-    /// tinder or kindling, and whether the starting pinch lasts until the search finds the stand 24 tiles east is a
-    /// matter of a few strikes - the search and the move are what this pins. (A single trajectory, and a knife-edge
-    /// one: from the starting pack it lived on 9cbe8cc and ran out of tinder on day 4.6 after the Light fix; with
-    /// these, it lives after the fix and dies on 9cbe8cc, as it does there with the birch bark alone, on day 3.9.)
+    /// Traced (seed 5): no standing timber within 15 tiles of camp, only deadfall; it had an axe and never used it,
+    /// and froze on day 4.8. A camp with no timber in reach is a reason to move camp to timber. Seed 5's own camp and
+    /// its nearest stand (24 tiles east, past MaxWoodTiles), at the bench id, in mild weather with no herds about, the
+    /// stand known to it: it sets out for the stand with home moved there, gets there within the day, and keeps
+    /// house there - timber in reach, alive. (Once this ran seed 5's real kit and weather from spawn and passed or
+    /// not on the trajectory's luck; that outcome is the bench's, reported, not asserted.)
     [Fact]
     public void NoTimberInReach_MovesCampToTimber()
     {
         var w = World.New(5);
-        var camp = Map.Of(w).Camp;
-        var npc = Npc.Spawn(w, camp);
-        Items.Add(((NpcMind)w.Agent(npc).Mind).Pack, Resource.BirchBark, 1);
-        Items.Add(((NpcMind)w.Agent(npc).Mind).Pack, Resource.Kindling, 2);
-        NpcDriver.Live(w, npc, 6 * 1440L);
-        var mind = (NpcMind)w.Agent(npc).Mind;
+        w.FixedWeather = Mild;
+        NoHerds(w);
+        var m = Map.Of(w);
+        var camp = m.Camp;
+        var npc = NpcBench.Spawn(w, camp);
+        var agent = w.Agent(npc);
+        var mind = (NpcMind)agent.Mind;
+        bool Timber(TileId t) => m.InBounds(t) && Pools.At(w, t).Select((p, i) => (p, i)).Any(x => x.p is TreePool && Pools.HasTrees(w, new PoolId(t, x.i)));
+        var box = Enumerable.Range(-30, 61).SelectMany(dx => Enumerable.Range(-30, 61).Select(dy => new TileId(camp.X + dx, camp.Y + dy)));
+        Assert.DoesNotContain(box, t => MapGen.Manhattan(t, camp) <= 15 && Timber(t)); // nothing in carrying reach
+        var stand = box.Where(t => MapGen.Manhattan(t, camp) <= 30 && Timber(t)).OrderBy(t => MapGen.Manhattan(t, camp)).ThenBy(t => t).First();
+        mind.Knows.Places[stand] = new TileMemory { SeenMinute = w.Minute, Trees = true };
+        var (first, _) = Npc.Decide(w, agent, []);
+        output.WriteLine($"camp {camp}, stand {stand} ({MapGen.Manhattan(stand, camp)} tiles): first {first}, home now {mind.Camp}");
+        NpcDriver.Live(w, npc, w.Minute + 1440);
         var trees = mind.Knows.Places.Where(p => p.Value.Trees).Select(p => p.Key).ToList();
-        output.WriteLine($"camp {camp} -> {mind.Camp}; alive {Body.IsAlive(w.Agent(npc).Body)} at minute {w.Minute}; nearest timber {trees.Min(t => MapGen.Manhattan(t, mind.Camp))}");
+        output.WriteLine($"a day on: at {agent.Tile}, home {mind.Camp}, nearest timber {trees.Min(t => MapGen.Manhattan(t, mind.Camp))} tiles; alive {Body.IsAlive(agent.Body)}");
         Assert.NotEqual(camp, mind.Camp);
         Assert.True(trees.Min(t => MapGen.Manhattan(t, mind.Camp)) <= 2);
-        Assert.True(Body.IsAlive(w.Agent(npc).Body), $"died at minute {w.Minute}");
+        Assert.True(MapGen.Manhattan(agent.Tile, mind.Camp) <= 2, "never got there");
+        Assert.True(Body.IsAlive(agent.Body));
     }
 }

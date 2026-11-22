@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# tune-viewer RUN_DIR [--port P]: serves a tuning run to http://127.0.0.1:5177/
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+run="${1:?usage: tune-viewer RUN_DIR [--port P]}"; shift
+[ -d "$run" ] && run="$(cd "$run" && pwd)"
+exec dotnet run -c Release --project "$here" -- "$run" "$@"

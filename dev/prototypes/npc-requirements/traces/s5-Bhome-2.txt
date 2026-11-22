@@ -1,0 +1,158 @@
+## 2 plain camp, trees 3 tiles off - forecasts B, fire stays at home
+start 15:00, Clear 4F wind 21 mph, camp Plain, sunrise 6:00, pack Tinder0.18 Kindling0.9 +axe
+   ++ goal: fire until 06:00, need 15.0 fuel-h, forecast 682 min, budget 1023
+      list: Forage@(0,-1) kindling 0.1 (47m) | Chop@(+1,+2) fuel 8.18 (100m)   [stash mem: ; true: -]
+15:00 (0,-1)   to Forage@(0,-1) kindling 0.1 (47m) [2 leaves] (Careful 46m, risk 0%) -> Finished | no fire | core 97.9 | Tinder0.18 Kindling0.9 +axe
+      list: Forage@(0,-1) kindling 0.1 (47m) | Chop@(+1,+2) fuel 8.18 (100m)   [stash mem: ; true: -]
+15:46 (0,-1)   forage Forage@(0,-1) kindling 0.1 (47m)                    -> Finished | no fire | core 96.3 | Tinder0.18 Kindling1.73 +axe
+   -- goal dropped: way home dangerous
+   ++ goal: fire until 06:00, need 13.7 fuel-h, forecast 423 min, budget 635
+      list: Chop@(+1,+2) fuel 7.4 (100m)   [stash mem: ; true: -]
+16:16 home(0,0) to Chop@(+1,+2) fuel 7.4 (100m) [1 leaves] (Careful 46m, risk 0%) -> Finished | no fire | core 94.5 | Tinder0.18 Kindling1.73 +axe
+      list: Forage@home(0,0) tinder 0.01 (27m) | Chop@(+1,+2) fuel 7.39 (100m)   [stash mem: ; true: -]
+17:02 home(0,0) light (40%)                                                -> Finished | no fire | core 94.4 | Tinder0.13 Kindling1.73 +axe
+      list: Forage@(+2,+2) tinder 0.06 (50m) | Chop@(+2,+2) fuel 7.39 (100m)   [stash mem: ; true: -]
+17:03 home(0,0) light (39%)                                                -> Finished | no fire | core 94.4 | Tinder0.08 Kindling1.73 +axe
+      list: Chop@(+1,+2) tinder+fuel 7.5 (100m)   [stash mem: ; true: -]
+17:04 home(0,0) light (39%)                                                -> Finished | fire 0.8h/1.0kg | core 94.4 | Tinder0.03 Kindling0.73 +axe
+   !! no source for: fuel 11.71 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+17:05 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 1.3h/1.7kg | core 94.4 | Tinder0.03 +axe
+   !! no source for: fuel 11.62 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+17:06 home(0,0) sleep 15m (fire 1.3h, Warmth Critical)                     -> Finished | fire 1.0h/1.4kg | core 94.8 | Tinder0.03 +axe
+   ++ goal: fire until 06:00, need 11.6 fuel-h, forecast 0 min, budget 60
+   !! no source for: fuel 11.62 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+17:21 home(0,0) sleep 15m (fire 1.0h, Warmth Critical)                     -> Finished | fire 0.8h/1.0kg | core 95.1 | Tinder0.03 +axe
+   ++ goal: fire until 06:00, need 11.6 fuel-h, forecast 61070 min, budget 91605
+      list: Forage@home(0,0) fuel 3.84 (20160m)   [stash mem: ; true: -]
+17:36 home(0,0) forage Forage@home(0,0) fuel 3.84 (20160m)                 -> Finished | fire 0.3h/0.3kg | core 95.6 | Tinder0.03 Kindling0.31 +axe
+      list: Forage@home(0,0) fuel 3.71 (20160m)   [stash mem: ; true: -]
+18:06 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 0.5h/0.6kg | core 95.6 | Tinder0.03 +axe
+      list: Forage@home(0,0) fuel 3.85 (20880m)   [stash mem: ; true: -]
+18:07 home(0,0) forage Forage@home(0,0) fuel 3.85 (20880m)                 -> Finished | fire out | core 96.0 | Tinder0.03 +axe
+      list: Forage@(+3,0) tinder+kindling 1.14 (113m) | Chop@(+3,0) fuel 8.18 (100m)   [stash mem: ; true: -]
+18:37 (+1,0)   to Forage@(+3,0) tinder+kindling 1.14 (113m) [2 leaves] (Careful 26m, risk 0%) -> Finished | fire out | core 95.2 | Tinder0.03 +axe
+   -- goal dropped: way home dangerous
+   ++ goal: fire until 06:00, need 11.0 fuel-h, forecast 526 min, budget 788
+      list: Forage@(+3,0) tinder+kindling 1.15 (117m) | Chop@(+3,0) fuel 8.18 (100m)   [stash mem: ; true: -]
+19:03 (+2,0)   to Forage@(+3,0) tinder+kindling 1.15 (117m) [2 leaves] (Careful 46m, risk 0%) -> Finished | fire out | core 93.8 | Tinder0.03 +axe
+      list: Forage@(+3,0) tinder+kindling+fuel 8.18 (234m)   [stash mem: ; true: -]
+19:49 (+3,0)   to Forage@(+3,0) tinder+kindling+fuel 8.18 (234m) [1 leaves] (Careful 42m, risk 0%) -> Finished | fire out | core 92.9 | Tinder0.03 +axe
+      list: Forage@(+3,0) tinder+kindling+fuel 8.18 (265m)   [stash mem: ; true: -]
+20:31 (+3,0)   forage Forage@(+3,0) tinder+kindling+fuel 8.18 (265m)      -> Finished | fire out | core 93.3 | Tinder0.03 Chaga0.08 Kindling0.53 Birch3.41 +axe
+      list: Forage@(+3,0) tinder+kindling+fuel 4.46 (253m)   [stash mem: ; true: -]
+21:01 (+3,0)   forage Forage@(+3,0) tinder+kindling+fuel 4.46 (253m)      -> Finished | fire out | core 93.5 | Tinder0.1 Chaga0.08 Kindling1.57 Pine2.63 Birch4.43 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+21:31 (+2,0)   home: pack full (Careful 73m, risk 0%)                     -> Finished | fire out | core 93.8 | Tinder0.1 Chaga0.08 Kindling1.57 Pine2.63 Birch4.43 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+22:44 (+1,0)   home: pack full (Careful 65m, risk 0%)                     -> Finished | fire out | core 92.5 | Tinder0.1 Chaga0.08 Kindling1.57 Pine2.63 Birch4.43 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+23:49 home(0,0) home: pack full (Careful 40m, risk 0%)                     -> Finished | fire out | core 92.1 | Tinder0.1 Chaga0.08 Kindling1.57 Pine2.63 Birch4.43 PlantFiber0.04 +axe
+      list: Chop@(+2,+4) tinder 0.14 (100m) | Forage@(+2,+4) tinder 0.08 (182m)   [stash mem: ; true: -]
+00:29 home(0,0) light (16%)                                                -> Finished | fire out | core 92.1 | Tinder0.1 Chaga0.03 Kindling1.57 Pine2.63 Birch4.43 PlantFiber0.04 +axe
+      list: Chop@(+2,+4) tinder 0.14 (100m) | Forage@(+2,+4) tinder 0.13 (289m)   [stash mem: ; true: -]
+00:30 home(0,0) light (16%)                                                -> Finished | fire 0.8h/1.0kg | core 92.1 | Tinder0.05 Chaga0.03 Kindling0.57 Pine2.63 Birch4.43 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+00:31 home(0,0) stoke Birch                                                -> Finished | fire 1.9h/2.0kg | core 92.1 | Tinder0.05 Chaga0.03 Kindling0.57 Pine2.63 Birch3.43 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+00:32 home(0,0) stoke Birch                                                -> Finished | fire 3.1h/3.0kg | core 92.2 | Tinder0.05 Chaga0.03 Kindling0.57 Pine2.63 Birch2.43 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+00:33 home(0,0) stoke Birch                                                -> Finished | fire 4.2h/4.0kg | core 92.2 | Tinder0.05 Chaga0.03 Kindling0.57 Pine2.63 Birch1.43 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+00:34 home(0,0) stoke Birch                                                -> Finished | fire 5.2h/4.9kg | core 92.3 | Tinder0.05 Chaga0.03 Kindling0.57 Pine2.63 Birch0.43 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+00:35 home(0,0) stoke Birch                                                -> Finished | fire 5.6h/5.3kg | core 92.3 | Tinder0.05 Chaga0.03 Kindling0.57 Pine2.63 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+00:36 home(0,0) sleep 324m (fire 5.6h, Warmth Critical)                    -> Finished | fire 1.1h/0.9kg | core 96.7 | Tinder0.05 Chaga0.03 Kindling0.57 Pine2.63 PlantFiber0.04 +axe
+      list:    [stash mem: ; true: -]
+05:09 home(0,0) sleep 51m (fire 1.1h, Warmth Need)                         -> Finished | fire 0.2h/0.2kg | core 96.8 | Tinder0.05 Chaga0.03 Kindling0.57 Pine2.63 PlantFiber0.04 +axe
+RESULT 2 plain camp, trees 3 tiles off / B, fire stays at home: fire-site=home(0,0) alive=True fire-at-sunrise=yes fire-out-min-after-first-lit=383 night-out=239 first-lit=17:04 trips=2 reversals=0 goals=5 drops=[way home dangerous:2, step impossible:2] flips=2 minCore=92.1 plan=26876us avg/140819us max over 29
+  refusals: 
+  interruptions: 
+  rules fired: R10 sleep timed to the fire x4; R14 light early: cold now x5; R19 careful pace x8; R8 chop needs light by dark hours x27
+
+## 2b plain camp, no axe - forecasts B, fire stays at home
+start 15:00, Clear 4F wind 21 mph, camp Plain, sunrise 6:00, pack Tinder0.18 Kindling0.9
+   ++ goal: fire until 06:00, need 15.0 fuel-h, forecast 842 min, budget 1263
+      list: Forage@(0,-1) kindling 0.1 (47m) | Forage@(+3,0) fuel 8.4 (124m)   [stash mem: ; true: -]
+15:00 (0,-1)   to Forage@(0,-1) kindling 0.1 (47m) [2 leaves] (Careful 46m, risk 0%) -> Finished | no fire | core 97.9 | Tinder0.18 Kindling0.9
+      list: Forage@(0,-1) kindling 0.1 (47m) | Forage@(+3,0) fuel 8.4 (124m)   [stash mem: ; true: -]
+15:46 (0,-1)   forage Forage@(0,-1) kindling 0.1 (47m)                    -> Finished | no fire | core 96.3 | Tinder0.18 Kindling1.65
+   -- goal dropped: way home dangerous
+   ++ goal: fire until 06:00, need 13.7 fuel-h, forecast 522 min, budget 782
+      list: Forage@(+3,0) fuel 7.8 (115m)   [stash mem: ; true: -]
+16:16 (+1,-1)  to Forage@(+3,0) fuel 7.8 (115m) [1 leaves] (Careful 46m, risk 0%) -> Finished | no fire | core 94.5 | Tinder0.18 Kindling1.65
+      list: Forage@home(0,0) tinder 0.01 (27m) | Forage@(+3,0) fuel 7.79 (115m)   [stash mem: ; true: -]
+17:02 (+1,0)   to Forage@home(0,0) tinder 0.01 (27m) [2 leaves] (Careful 26m, risk 0%) -> Finished | no fire | core 93.8 | Tinder0.18 Kindling1.65
+      list: Forage@home(0,0) tinder 0.02 (93m) | Forage@(+3,0) fuel 7.78 (114m)   [stash mem: ; true: -]
+17:28 home(0,0) to Forage@home(0,0) tinder 0.02 (93m) [2 leaves] (Careful 26m, risk 0%) -> Finished | no fire | core 93.3 | Tinder0.18 Kindling1.65
+      list: Forage@(0,+1) tinder 0.03 (91m) | Forage@(+3,0) fuel 7.77 (113m)   [stash mem: ; true: -]
+17:54 home(0,0) light (35%)                                                -> Finished | no fire | core 93.2 | Tinder0.13 Kindling1.65
+      list: Forage@(+3,0) tinder+fuel 7.85 (143m)   [stash mem: ; true: -]
+17:55 home(0,0) light (35%)                                                -> Finished | no fire | core 93.2 | Tinder0.08 Kindling1.65
+      list: Forage@(+3,0) tinder+fuel 7.9 (175m)   [stash mem: ; true: -]
+17:56 home(0,0) light (35%)                                                -> Finished | fire 0.8h/1.0kg | core 93.2 | Tinder0.03 Kindling0.65
+   !! no source for: fuel 10.89 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+17:57 home(0,0) stoke kindling (no logs)                                   -> Finished | fire 1.2h/1.7kg | core 93.3 | Tinder0.03
+   !! no source for: fuel 10.81 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+17:58 home(0,0) sleep 15m (fire 1.2h, Warmth Critical)                     -> Finished | fire 1.0h/1.3kg | core 93.8 | Tinder0.03
+   ++ goal: fire until 06:00, need 10.8 fuel-h, forecast 0 min, budget 60
+   !! no source for: fuel 10.81 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+18:13 home(0,0) sleep 15m (fire 1.0h, Warmth Critical)                     -> Finished | fire 0.7h/1.0kg | core 94.2 | Tinder0.03
+   ++ goal: fire until 06:00, need 10.8 fuel-h, forecast 0 min, budget 60
+   !! no source for: fuel 10.81 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+18:28 home(0,0) sleep 15m (fire 0.7h, Warmth Critical)                     -> Finished | fire 0.5h/0.6kg | core 94.6 | Tinder0.03
+   ++ goal: fire until 06:00, need 10.8 fuel-h, forecast 0 min, budget 60
+   !! no source for: fuel 10.81 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+18:43 home(0,0) sleep 15m (fire 0.5h, Warmth Critical)                     -> Finished | fire 0.2h/0.3kg | core 94.9 | Tinder0.03
+   ++ goal: fire until 06:00, need 10.8 fuel-h, forecast 0 min, budget 60
+   !! no source for: fuel 10.81 (every source fails the survival forecast)
+      list:    [stash mem: ; true: -]
+18:58 home(0,0) sleep 15m (fire 0.2h, Warmth Critical)                     -> Finished | fire out | core 95.2 | Tinder0.03
+   ++ goal: fire until 06:00, need 10.8 fuel-h, forecast 522 min, budget 784
+      list: Forage@(+3,0) tinder+kindling+fuel 9.55 (235m)   [stash mem: ; true: -]
+19:13 (+1,0)   to Forage@(+3,0) tinder+kindling+fuel 9.55 (235m) [1 leaves] (Careful 26m, risk 0%) -> Finished | fire out | core 95.6 | Tinder0.03
+   -- goal dropped: way home dangerous
+   ++ goal: fire until 06:00, need 10.4 fuel-h, forecast 441 min, budget 661
+      list: Forage@(+3,0) tinder+kindling+fuel 9.55 (231m)   [stash mem: ; true: -]
+19:39 (+2,0)   to Forage@(+3,0) tinder+kindling+fuel 9.55 (231m) [1 leaves] (Careful 46m, risk 0%) -> Finished | fire out | core 96.0 | Tinder0.03
+      list: Forage@(+3,0) tinder+kindling+fuel 9.55 (253m)   [stash mem: ; true: -]
+20:25 (+3,0)   to Forage@(+3,0) tinder+kindling+fuel 9.55 (253m) [1 leaves] (Careful 42m, risk 0%) -> Finished | fire out | core 94.3 | Tinder0.03
+      list: Forage@(+3,0) tinder+kindling+fuel 9.56 (319m)   [stash mem: ; true: -]
+21:07 (+3,0)   forage Forage@(+3,0) tinder+kindling+fuel 9.56 (319m)      -> Finished | fire out | core 94.3 | Tinder0.11 Kindling0.41 Birch2.2
+      list: Forage@(+3,0) tinder+kindling+fuel 6.99 (289m)   [stash mem: ; true: -]
+21:37 (+3,0)   forage Forage@(+3,0) tinder+kindling+fuel 6.99 (289m)      -> Finished | fire out | core 94.3 | Tinder0.14 Kindling1.54 Pine0.99 Birch2.2 Berries0.26
+      list: Forage@(+3,0) tinder+fuel 4.79 (256m)   [stash mem: ; true: -]
+22:07 (+3,0)   forage Forage@(+3,0) tinder+fuel 4.79 (256m)               -> Finished | fire out | core 94.3 | Tinder0.19 Kindling2.4 Pine2.55 Birch3.19 Berries0.26 PlantFiber0.04
+      list: Forage@(+3,0) tinder+fuel 1.53 (161m)   [stash mem: ; true: -]
+22:37 (+3,0)   forage Forage@(+3,0) tinder+fuel 1.53 (161m)               -> Finished | fire out | core 94.3 | Tinder0.24 Kindling2.97 Pine2.55 Birch4.29 Berries0.26 PlantFiber0.04
+      list:    [stash mem: ; true: -]
+23:07 (+2,0)   home: pack full (Careful 61m, risk 0%)                     -> Finished | fire out | core 94.3 | Tinder0.24 Kindling2.97 Pine2.55 Birch4.29 Berries0.26 PlantFiber0.04
+      list:    [stash mem: ; true: -]
+00:08 (+1,0)   home: pack full (Careful 65m, risk 0%)                     -> Finished | fire out | core 92.8 | Tinder0.24 Kindling2.97 Pine2.55 Birch4.29 Berries0.26 PlantFiber0.04
+      list:    [stash mem: ; true: -]
+01:13 home(0,0) home: pack full (Careful 40m, risk 0%)                     -> Finished | fire out | core 92.4 | Tinder0.24 Kindling2.97 Pine2.55 Birch4.29 Berries0.26 PlantFiber0.04
+      list: Forage@(+2,+2) tinder 0.16 (157m)   [stash mem: ; true: -]
+01:53 home(0,0) light (15%)                                                -> Finished | fire out | core 92.4 | Tinder0.19 Kindling2.97 Pine2.55 Birch4.29 Berries0.26 PlantFiber0.04
+      list: Forage@home(0,0) tinder 0.21 (905m)   [stash mem: ; true: -]
+01:54 home(0,0) light (15%)                                                -> Finished | fire 0.8h/1.0kg | core 92.4 | Tinder0.14 Kindling1.97 Pine2.55 Birch4.29 Berries0.26 PlantFiber0.04
+      list:    [stash mem: ; true: -]
+01:55 home(0,0) stoke Birch                                                -> Finished | fire 1.9h/2.0kg | core 92.4 | Tinder0.14 Kindling1.97 Pine2.55 Birch3.29 Berries0.26 PlantFiber0.04
+      list:    [stash mem: ; true: -]
+01:56 home(0,0) stoke Birch                                                -> Finished | fire 3.1h/3.0kg | core 92.4 | Tinder0.14 Kindling1.97 Pine2.55 Birch2.29 Berries0.26 PlantFiber0.04
+      list:    [stash mem: ; true: -]
+01:57 home(0,0) stoke Birch                                                -> Finished | fire 4.2h/4.0kg | core 92.5 | Tinder0.14 Kindling1.97 Pine2.55 Birch1.29 Berries0.26 PlantFiber0.04
+      list:    [stash mem: ; true: -]
+01:58 home(0,0) sleep 242m (fire 4.2h, Warmth Critical)                    -> Finished | fire 0.1h/0.1kg | core 96.6 | Tinder0.14 Kindling1.97 Pine2.55 Birch1.29 Berries0.26 PlantFiber0.04
+RESULT 2b plain camp, no axe / B, fire stays at home: fire-site=home(0,0) alive=True fire-at-sunrise=yes fire-out-min-after-first-lit=416 night-out=329 first-lit=17:56 trips=2 reversals=0 goals=8 drops=[way home dangerous:2, step impossible:5] flips=3 minCore=92.4 plan=18215us avg/44027us max over 30
+  refusals: 
+  interruptions: 
+  rules fired: R10 sleep timed to the fire x6; R14 light early: cold now x5; R19 careful pace x10
+

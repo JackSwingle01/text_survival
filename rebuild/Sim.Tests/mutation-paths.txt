@@ -1,0 +1,22 @@
+# Paths whose change reruns mutation testing (.github/workflows/mutation.yml, gate job).
+# One git pathspec per line; blank lines and # comments are ignored.
+#
+# The mutated sources are NOT listed here: the gate reads them from each stryker-config*.json
+# `mutate` list. List everything else a config depends on. Each new Stryker config adds the
+# tests its test-case-filter selects and the content data its mutated code reads.
+
+# The Stryker configs themselves.
+:(glob)rebuild/Sim.Tests/stryker-config*.json
+rebuild/Sim.Tests/mutation-paths.txt
+
+# stryker-config.json: FullyQualifiedName~EffectsPropertyTests
+rebuild/Sim.Tests/EffectsPropertyTests.cs
+# stryker-config.body.json: FullyQualifiedName~Survival.Tests.Verification (the namespace of this
+# folder; EffectsPropertyTests also uses its generators in Gens.cs).
+rebuild/Sim.Tests/Verification/
+
+# Content data: Effects.cs reads Content.Tables.Effects; BodySurvival.cs reads effects only
+# through Effects.
+rebuild/Sim/Content/effects.json
+# BodySurvival.cs is mutated, and it reads capacities and body state from Body.cs.
+rebuild/Sim/Body.cs

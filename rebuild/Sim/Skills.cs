@@ -1,10 +1,7 @@
 namespace Survival;
 
-/// What a person gets better at by doing it (short-loop plan, feature 3). The old registry's
-/// Fighting, Hunting and the rest come back when the actions they reward are ported.
 public enum Skill { Firecraft, Foraging, Cooking, Butchering, Crafting }
 
-/// One skill's progress: the level reached and the experience toward the next.
 public sealed class SkillProgress
 {
     public int Level { get; set; }
@@ -12,30 +9,23 @@ public sealed class SkillProgress
 }
 
 /// Skills live with the person (PersonMind), so an NPC learns by the same rules as the player.
-/// Experience is awarded per minute of the work or per attempt, never per step, so how a caller
-/// chunks its steps cannot change what anyone learns.
+/// Experience is per minute of the work or per attempt, never per step, so step size cannot change it.
 public static class Skills
 {
     public const int MaxLevel = 20;
 
-    /// Experience from one level to the next: 5 at level 0, 5 more each level, so level 1 is a few
-    /// fires or an afternoon's foraging and level 20 is a whole run's practice. Old game: Level * 10,
-    /// which is 0 at level 0, so the first attempt at anything granted a free level (bug, fixed).
+    /// 5 at level 0, 5 more each level: level 1 is a few fires, level 20 a whole run's practice.
+    /// Never 0, or the first attempt at anything would grant a free level.
     public static double XpToNext(int level) => 5.0 * (level + 1);
 
-    // Experience: per attempt or per hour of the work.
-    public const double FireSuccessXp = 3, FireFailureXp = 1; // old FireHandler.ProcessStartFire
+    public const double FireSuccessXp = 3, FireFailureXp = 1;
     public const double ForageXpPerHour = 1, ButcherXpPerHour = 2, CraftXpPerHour = 2, CookXpPerKg = 1;
 
-    // Bonuses per level. Small steps over a long curve, where the old game's +10% a level ran
-    // the odds to their cap within a few levels.
     public const double FirecraftPctPerLevel = 0.02, ForageYieldPctPerLevel = 0.015, CookSpeedPctPerLevel = 0.02, ButcherYieldPctPerLevel = 0.01;
 
     public static int Level(Agent agent, Skill skill) =>
         agent.Mind is PersonMind p && p.Skills.TryGetValue(skill, out var s) ? s.Level : 0;
 
-    /// Adds experience; levels up as many times as it pays for, each with a SkillLeveledUp event.
-    /// Anything without a person's mind (a herd) learns nothing.
     public static void Award(World world, Agent agent, Skill skill, double xp, List<WorldEvent> events)
     {
         if (xp < 0) throw new ArgumentOutOfRangeException(nameof(xp), xp, "Experience is never taken away");
@@ -53,14 +43,9 @@ public static class Skills
         if (s.Level >= MaxLevel) s.Xp = 0;
     }
 
-    // ---- what a level is worth ----
-
-    /// Added to the fire-start odds (an odds term).
+    /// Added to the fire-start odds, not multiplied.
     public static double FirecraftPct(int level) => level * FirecraftPctPerLevel;
-    /// Multiplies what a forage minute finds.
     public static double ForageYieldFactor(int level) => 1 + level * ForageYieldPctPerLevel;
-    /// Multiplies how much meat or fish a minute at the fire cooks: less time over the fire.
     public static double CookSpeedFactor(int level) => 1 + level * CookSpeedPctPerLevel;
-    /// Multiplies what butchering yields: less left on the bone.
     public static double ButcherYieldFactor(int level) => 1 + level * ButcherYieldPctPerLevel;
 }
