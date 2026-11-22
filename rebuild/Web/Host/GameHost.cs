@@ -69,6 +69,7 @@ public sealed class GameHost
             if (_job is { Finished: false } job) job.Finish("stopped", null);
         }
         else throw new ArgumentException("An act names a verb, an advance or a stop");
+        if (_job is not { Finished: false } && BodyTakesOver() is { } asleep) _job = asleep;
         return View();
     }
 
@@ -135,6 +136,19 @@ public sealed class GameHost
         // A refused verb never starts: no time passes, and the refusal comes back as the job's reason.
         if (v.Refused != null) job.Finish("refused", v.Refused.Reason);
         return job;
+    }
+
+    /// Dropped asleep from exhaustion (Body.IsAsleep), the player has nothing to choose until they wake:
+    /// the job under way is the body's own sleep, run in the client's chunks like any other, and no stop
+    /// ends it (a stop ends this job, and the next is the sleep again). Only while that sleep can run: a
+    /// fight holds a sleeper to its rounds, and its view offers them.
+    Job? BodyTakesOver()
+    {
+        var p = W.Agent(AgentId.Player);
+        if (!Sim.IsAlive(p) || !Body.IsAsleep(p.Body)) return null;
+        var sleep = new Sleep(AgentId.Player);
+        if (Sim.Refusal(W, sleep) != null) return null;
+        return new Job("Asleep", ViewBuilder.KindOf(sleep), sleep, Body.AsleepMinutesLeft(p.Body), chunked: true, p.Tile, null);
     }
 
     void Run(Job job, int chunk)

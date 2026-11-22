@@ -97,11 +97,15 @@ async function run(id, extra = {}) {
       const total = v.job.totalMinutes ?? verb.minutes ?? 60;
       const quiet = v.job.kind === 'walk' || v.job.kind === 'fight' || total <= 2;
       if (!quiet) openDrawer({ kind: 'job', verbId: id, verbKind: verb.kind, label: verb.label, startMinute, logFrom });
-      S.walking = v.job.kind === 'walk';
       // how long it plays on screen: a crossing about half a second, an hour about a second, a night four
-      const ms = Math.min(4000, 350 + total * 8), rate = total / ms;
+      const rateOf = minutes => minutes / Math.min(4000, 350 + minutes * 8);
+      let rate = rateOf(total), pacing = v.job.label;
+      S.walking = v.job.kind === 'walk';
       while (!v.job.finished) {
-        if (S.stop) { v = await client.act({ stop: true }); break; }
+        // The host may hand over a job the player did not choose (dropped asleep): it is paced as its own,
+        // and only the host says when nothing is under way, so a stop it does not end runs on.
+        if (v.job.label !== pacing) { rate = rateOf(v.job.totalMinutes ?? 60); pacing = v.job.label; S.walking = v.job.kind === 'walk'; }
+        if (S.stop) { S.stop = false; v = await client.act({ stop: true }); apply(v, { keepDrawer: true }); continue; }
         const before = S.displayMinute ?? v.minute, chunk = Math.max(1, Math.round(rate * 70));
         const t0 = performance.now();
         v = await client.act({ advance: chunk });

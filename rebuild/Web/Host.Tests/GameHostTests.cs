@@ -312,6 +312,57 @@ public class GameHostTests
         Assert.Contains(v.Combat!.Units, u => u.Team == 1);
     }
 
+    /// Out on your feet, foraging until you drop asleep where you stand.
+    static (GameHost Host, ViewDto View) Exhausted()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        h.World.Agent(AgentId.Player).Body.EnergyMinutes = 0;
+        return (h, Parse(h.View()));
+    }
+
+    /// Dropped asleep from exhaustion, the player has nothing to choose until they wake: the sleep is
+    /// what is under way, run in the page's chunks like any job, and the page is never handed a view
+    /// with nothing under way while every verb but waiting is refused. Awake again, the verbs are back.
+    [Fact]
+    public void Dropping_asleep_from_exhaustion_runs_the_sleep_out_and_gives_the_verbs_back()
+    {
+        var (h, v) = Exhausted();
+        bool dropped = false;
+        for (int tries = 0; !dropped; tries++)
+        {
+            Assert.True(tries < 30, "never dropped asleep at zero energy");
+            v = Parse(Act(h, Find(v, x => x.Kind == "gather" && x.Refused == null, "forage").Id));
+            for (int i = 0; v.Job is { Finished: false } && i < 10_000; i++)
+            {
+                if (Body.IsAsleep(h.World.Agent(AgentId.Player).Body)) dropped = true;
+                v = Parse(h.Act("""{"advance":10}"""));
+            }
+            dropped |= v.Log.Any(l => l.Text == "You are asleep.");
+            Assert.True(v.Job!.Finished);
+            Assert.False(Body.IsAsleep(h.World.Agent(AgentId.Player).Body), "the page was handed a finished job while the player sleeps on");
+        }
+        Assert.Contains(v.Log, l => l.Text == "You are no longer asleep.");
+        Assert.Contains(AllVerbs(v), x => x.Kind == "gather" && x.Refused == null);
+    }
+
+    /// The body's own sleep is not the player's to stop: a stop while asleep leaves it under way.
+    [Fact]
+    public void A_stop_while_dropped_asleep_leaves_the_sleep_under_way()
+    {
+        var (h, v) = Exhausted();
+        bool Asleep() => Body.IsAsleep(h.World.Agent(AgentId.Player).Body);
+        for (int tries = 0; !Asleep(); tries++)
+        {
+            Assert.True(tries < 30, "never dropped asleep at zero energy");
+            v = Parse(Act(h, Find(v, x => x.Kind == "gather" && x.Refused == null, "forage").Id));
+            for (int i = 0; v.Job is { Finished: false } && !Asleep() && i < 10_000; i++) v = Parse(h.Act("""{"advance":1}"""));
+        }
+        var stopped = Parse(h.Act("""{"stop":true}"""));
+        Assert.True(Asleep());
+        Assert.False(stopped.Job!.Finished);
+    }
+
     [Fact]
     public void Death_and_the_crossing_are_the_outcome()
     {
