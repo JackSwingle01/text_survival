@@ -168,19 +168,19 @@ jobs:
               check; a conflict with a decision record; or a choice the issue says goes to Jack.
             - already_done: main already does what it asks. Say where.
             - in_progress: an open pull request in the brief already does this issue's work, whether or not
-              it links the issue. Name it in the summary; nobody should build it twice.
+              it links the issue. Name it in the note; nobody should build it twice.
 
-            Change no files. Answer only through the structured output. `established` holds what you
-            confirmed (with file paths), `questions` the specific questions a person must answer (empty if
-            ready), and `branch` a short kebab-case name for the work, without the issue number.
+            Change no files. Answer only through the structured output. `note` is what gets posted on the
+            issue when it isn't ready: one or two short sentences saying what a person has to do or decide,
+            naming the issue, PR or file involved. Nothing else: no recap of the issue, no list of what you
+            checked. `branch` is a short kebab-case name for the work, without the issue number.
           claude_args: >-
             --model claude-sonnet-5-5
             --allowedTools "Read,Glob,Grep,Bash(git log:*),Bash(git grep:*),Bash(git show:*),Bash(grep:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(ls:*),Bash(find:*),Bash(wc:*)"
             --json-schema '{"type":"object","additionalProperties":false,
-            "required":["decision","summary","established","questions","blocked_by","branch"],
+            "required":["decision","note","blocked_by","branch"],
             "properties":{"decision":{"type":"string","enum":["ready","blocked","needs_user","already_done","in_progress"]},
-            "summary":{"type":"string"},"established":{"type":"array","items":{"type":"string"}},
-            "questions":{"type":"array","items":{"type":"string"}},
+            "note":{"type":"string","maxLength":300},
             "blocked_by":{"type":"array","items":{"type":"integer"}},"branch":{"type":"string"}}}'
 
       - name: Triage usage
@@ -208,7 +208,7 @@ jobs:
           {
             echo "## Triage: $decision"
             echo
-            jq -r '.summary + (if (.blocked_by | length) > 0
+            jq -r '.note + (if (.blocked_by | length) > 0
               then "\n\nBlocked by: " + (.blocked_by | map("#" + tostring) | join(", ")) else "" end)' <<< "$OUTPUT"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -244,11 +244,9 @@ jobs:
             printf '%s\n' "${problems[@]}" > blocked-problems.txt
             exit 0
           fi
-          jq -r --arg run "$RUN_URL" --arg linked "${linked[*]}" '
-            "## Triage: blocked\n\n" + .summary + "\n\n" +
-            "Blocked by " + ($linked | split(" ") | join(", ")) +
-            ", now linked as GitHub \"blocked by\". The agent skips this issue until they close, then triages it again.\n\n" +
-            "---\n_Triaged by the [issue agent](" + $run + ")_"' <<< "$OUTPUT" > comment.md
+          jq -rn --arg run "$RUN_URL" --arg linked "${linked[*]}" '
+            "Blocked by " + ($linked | split(" ") | join(", ")) + " (now linked); picked up again when they close." +
+            "\n\n<sub>[Issue agent](" + $run + ")</sub>"' > comment.md
           gh issue comment "$ISSUE" --body-file comment.md
           gh issue edit "$ISSUE" --add-label blocked
 
@@ -261,24 +259,11 @@ jobs:
           OUTPUT: ${{ steps.triage.outputs.structured_output }}
         run: |
           set -euo pipefail
-          problems=$(sed 's/^/- /' blocked-problems.txt 2>/dev/null || true)
+          problems=$(paste -sd ';' blocked-problems.txt 2>/dev/null | sed 's/;/; /g' || true)
           jq -r --arg run "$RUN_URL" --arg problems "$problems" '
-            "## Triage Notes\n\n" +
-            (if .decision == "already_done" then "**Looks already built.** Close it if you agree.\n\n" else "" end) +
-            (if .decision == "in_progress" then "**An open pull request looks like it already does this.** " +
-              "Add `Closes #'"$ISSUE"'` to its body so merging it closes this issue (and unblocks what waits on it); " +
-              "if it is not this work, remove `needs-user`.\n\n" else "" end) +
-            (if .decision == "blocked"
-              then "**Blocked, but the blockers could not be linked**, so the agent would triage this again every run. " +
-                "Link the real blockers as GitHub \"blocked by\" (or fix the issue text), then remove `needs-user`.\n\n" +
-                $problems + "\n\n" else "" end) +
-            .summary + "\n\n" +
-            "**What we have established so far:**\n\n" + (.established | map("- " + .) | join("\n")) + "\n\n" +
-            (if (.questions | length) > 0
-              then "**What we still need from you:**\n\n" + (.questions | map("- " + .) | join("\n")) + "\n\n"
-              else "" end) +
-            "Answer here and remove the `needs-user` label to put this back in the agent queue.\n\n" +
-            "---\n_Triaged by the [issue agent](" + $run + ")_"' <<< "$OUTPUT" > comment.md
+            (if .decision == "blocked" then "Blocked, but the blockers couldn'"'"'t be linked (" + $problems +
+              "); link them as \"blocked by\" or fix the issue text." else .note end) +
+            "\n\n<sub>[Issue agent](" + $run + ") · remove `needs-user` to requeue</sub>"' <<< "$OUTPUT" > comment.md
           gh issue comment "$ISSUE" --body-file comment.md
           gh issue edit "$ISSUE" --add-label needs-user
 
@@ -325,23 +310,23 @@ jobs:
               Revised line, and carry on. Sub-agents report to you, and you answer them the same way.
             - Stop without a pull request only when finishing needs a decision that belongs to a person:
               one the issue says goes to Jack, a design or balance choice the spec does not make, or a gate
-              in the acceptance criteria that fails. Then answer needs_user with the specific questions.
+              in the acceptance criteria that fails. Then answer needs_user.
               Commit what you have locally, but do not push.
             - You are on branch ${{ steps.verdict.outputs.branch }}, just made from origin/main. This
               checkout counts as the ticket's own worktree; the runner is disposable. Push only that branch (`git push -u origin ${{ steps.verdict.outputs.branch }}`), never main.
             - Open the pull request with `gh pr create --base main`, its body from mp:pr, with
               "Closes #${{ matrix.issue }}" in it. Do not merge it.
 
-            Answer through the structured output: `outcome`, `pr_url` (empty if none), `summary` of what you
-            did or why you stopped, and `questions` for a person (empty when a PR is open).
+            Answer through the structured output: `outcome`, `pr_url` (empty if none), and `note`. When you
+            stop, `note` is posted on the issue: one or two short sentences saying what a person has to
+            decide. Details belong in the work log, not the note.
           claude_args: >-
             --model claude-opus-5-5
             --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,Agent,Task,Skill,TodoWrite,WebFetch,WebSearch"
             --json-schema '{"type":"object","additionalProperties":false,
-            "required":["outcome","pr_url","summary","questions"],
+            "required":["outcome","pr_url","note"],
             "properties":{"outcome":{"type":"string","enum":["pr_opened","needs_user"]},
-            "pr_url":{"type":"string"},"summary":{"type":"string"},
-            "questions":{"type":"array","items":{"type":"string"}}}}'
+            "pr_url":{"type":"string"},"note":{"type":"string","maxLength":300}}}'
 
       - name: Build usage
         id: build_usage
@@ -402,24 +387,10 @@ jobs:
             echo "Opened $pr" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          {
-            echo "## The issue agent stopped"
-            echo
-            if [ -n "${OUTPUT:-}" ]; then
-              jq -r '.summary + "\n\n" +
-                (if (.questions | length) > 0
-                  then "**What we still need from you:**\n\n" + (.questions | map("- " + .) | join("\n"))
-                  else "" end)' <<< "$OUTPUT"
-            else
-              echo "The build ended ($IMPLEMENT) without a pull request or a report."
-            fi
-            echo
-            echo "The work so far and its log are in the run's \`issue-$ISSUE-work\` artifact."
-            echo "Answer here and remove the \`needs-user\` label to put this back in the agent queue."
-            echo
-            echo "---"
-            echo "_[Issue agent run]($RUN_URL)_"
-          } > comment.md
+          if [ -n "${OUTPUT:-}" ]; then note=$(jq -r '.note' <<< "$OUTPUT")
+          else note="The build ended ($IMPLEMENT) without a pull request."; fi
+          jq -rn --arg run "$RUN_URL" --arg note "$note" --arg artifact "issue-$ISSUE-work" \
+            '$note + " Work so far: the `" + $artifact + "` artifact." + "\n\n<sub>[Issue agent](" + $run + ") · remove `needs-user` to requeue</sub>"' > comment.md
           gh issue comment "$ISSUE" --body-file comment.md
           gh issue edit "$ISSUE" --add-label needs-user
           cat comment.md >> "$GITHUB_STEP_SUMMARY"
