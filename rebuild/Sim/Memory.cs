@@ -20,9 +20,10 @@ public sealed class Memory
     /// The last place each animal group or person was seen, predator or not. Forgotten after
     /// Memories.SightingMemoryMinutes.
     public SortedDictionary<AgentId, Sighting> Sightings { get; init; } = [];
-    /// Every tile ever in view (Sight.Visible), whether or not anything was there, with its ground as
-    /// last seen: what the map draws as known rather than unexplored, and the snow, mud and ice it
-    /// draws there out of sight. Null until the first look. Only grows.
+    /// Every tile ever in view (Sight.Visible), whether or not anything was there, with its ground and
+    /// the routes worn between them as last seen: what the map draws as known rather than unexplored,
+    /// and the snow, mud, ice and routes it draws there out of sight. Null until the first look. The
+    /// tiles only grow; a route seen gone is forgotten.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public GroundMemory? Explored { get; set; }
     /// What is in view from where the person stands, with the budget it was cast with: the same tile
     /// and budget give the same view (terrain never changes), so it is cast again only when either
@@ -340,14 +341,50 @@ public static class Memories
         return nearer;
     }
 
-    /// Every tile in view is explored, and its ground as it is now remembered.
+    /// Every tile in view is explored, and its ground as it is now remembered, and the trails worn
+    /// between it and its seen neighbours. Each trail once: one between two tiles in view is read from
+    /// its east or south end.
     static void Explore(World world, Memory memory, SightView view)
     {
         var m = Map.Of(world);
         memory.Explored ??= new GroundMemory(m.Width, m.Height);
-        if ((memory.Explored.Width, memory.Explored.Height) != (m.Width, m.Height))
-            throw new InvalidOperationException($"Explored ground is {memory.Explored.Width}x{memory.Explored.Height}, the map {m.Width}x{m.Height}");
-        foreach (var t in view.Tiles) memory.Explored.Remember(t, Ground.Look(world, t), world.Minute);
+        var explored = memory.Explored;
+        if ((explored.Width, explored.Height) != (m.Width, m.Height))
+            throw new InvalidOperationException($"Explored ground is {explored.Width}x{explored.Height}, the map {m.Width}x{m.Height}");
+        foreach (var t in view.Tiles) explored.Remember(t, Ground.Look(world, t), world.Minute);
+        double erosion = Tracks.ErosionAt(world, world.Minute);
+        foreach (var t in view.Tiles)
+            foreach (var n in SeenNeighbours(m, explored, t))
+                if (n.X >= t.X && n.Y >= t.Y || !view.Set.Contains(n))
+                    explored.RememberTrailTier(t, n, Tracks.TierNow(world, t, n, erosion));
+    }
+
+    /// The trails a person knows of, between tiles they have seen, in edge order: those touching a tile
+    /// in sight as they are now, the rest as last seen. What a map drawn from memory shows.
+    public static IReadOnlyList<(EdgeId Edge, TrailTier Tier)> Trails(World world, Agent person, IReadOnlySet<TileId> inSight)
+    {
+        var known = new SortedDictionary<EdgeId, TrailTier>();
+        if (Of(person).Explored is not { } explored) return [];
+        foreach (var (a, b, tier) in explored.Trails())
+            if (!inSight.Contains(a) && !inSight.Contains(b)) known[new EdgeId(a, b)] = tier;
+        var m = Map.Of(world);
+        double erosion = Tracks.ErosionAt(world, world.Minute);
+        foreach (var t in inSight)
+        {
+            if (!explored.Contains(t)) continue;
+            foreach (var n in SeenNeighbours(m, explored, t))
+                if (Tracks.TierNow(world, t, n, erosion) is var tier and not TrailTier.None) known[new EdgeId(t, n)] = tier;
+        }
+        return [.. known.Select(k => (k.Key, k.Value))];
+    }
+
+    static IEnumerable<TileId> SeenNeighbours(GeneratedMap m, GroundMemory explored, TileId t)
+    {
+        foreach (var dir in new[] { Direction.East, Direction.South, Direction.West, Direction.North })
+        {
+            var n = Map.Step(t, dir);
+            if (m.InBounds(n) && explored.Contains(n)) yield return n;
+        }
     }
 
     /// What changed on this tile since the person last stood on it, and then their memory of it,

@@ -115,9 +115,19 @@ public sealed record SkillDto(string Name, int Level);
 /// of sight, as last seen (Memory.Explored). A known tile that is not listed is bare, dry ground.
 /// FrozenWater: the known lake and deep-water tiles that are ice (Map.IsFrozen), in tile order: in sight, now;
 /// out of sight, when last seen. A known one not listed is open water.
+/// Edges: the ravines and cliffs beside a known tile (a cliff is seen from above or below).
+/// Trails: the worn routes between two known tiles, in edge order: touching a tile in sight, as they are now
+/// (Tracks.TierOf); otherwise as last seen (Memory.Explored). A pair not listed has no route worn.
 public sealed record MapDto(int Width, int Height, string Known, IReadOnlyList<int> Visible, int CampX, int CampY,
     IReadOnlyList<PlaceMarkDto> Places, IReadOnlyList<SightingDto> Sightings, IReadOnlyList<TrackDto> Tracks,
-    IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface, IReadOnlyList<int> FrozenWater);
+    IReadOnlyList<NamedDto> Named, IReadOnlyList<SurfaceDto> Surface, IReadOnlyList<int> FrozenWater,
+    IReadOnlyList<EdgeDto> Edges, IReadOnlyList<TrailDto> Trails);
+
+/// A ravine or cliff between two 4-adjacent tiles (A, B), drawn along their shared boundary. Kind: ravine or cliff.
+public sealed record EdgeDto(int Ax, int Ay, int Bx, int By, string Kind);
+
+/// A worn route between two 4-adjacent tiles (A, B), drawn from centre to centre. Tier: trace, path or trail.
+public sealed record TrailDto(int Ax, int Ay, int Bx, int By, string Tier);
 
 /// One known tile's ground. I: its index (y*Width+x). SnowCm: lying snow; Crust: its top refrozen;
 /// MudLevel: 0-1 on bare ground; WaterCm: standing water (ice included); Ice: that water mostly frozen.
@@ -134,7 +144,11 @@ public sealed record SurfaceDto(int I,
 public sealed record PlaceMarkDto(int X, int Y, long SeenMinute, string? Fire, double? FireHoursLeft, string? Shelter, bool Carcass,
     bool Stash, bool Den, bool Hurt);
 public sealed record SightingDto(int X, int Y, string Species, int Count, long Minute);
-public sealed record TrackDto(int X, int Y, string Maker, string Reading, long AgeMinutes);
+/// Prints on a tile in sight near the player. Maker: human, paw or hoof. Traffic: how many passed, as the
+/// prints read. Heading: the way the net traffic went (north, east, south, west); Pattern: heading (one way),
+/// northsouth, eastwest or mixed. FreshnessPct: 1 just made.
+public sealed record TrackDto(int X, int Y, string Maker, string Reading, long AgeMinutes, int Traffic, string Heading, string Pattern,
+    double FreshnessPct);
 public sealed record NamedDto(int X, int Y, string Name);
 
 /// The fight the player is in. Grid cells are metres, 0..Size-1. Actions: every round action with its

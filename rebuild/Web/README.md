@@ -71,7 +71,19 @@ state within two changes (`REACH` in `terrain-core.js`), so a step rebakes only 
 and their neighbours. A cell baked on its own is the same pixels as the whole map baked at once
 (`tools/terrain.test.mjs`). Cells are 48 CSS px everywhere (one art pixel each: crisp at a device pixel ratio of 1 or 2).
 Rivers are one channel through their cells, lakes have round shores, and mountains are lit ridged
-height with a snowline. Ice, where snow and mud lie, and where every tree stands come from world
+height with a snowline. Caves are dark passages cut through the rock along their cells, out of the
+mouth onto the ground beside it. Ravines and cliffs come from `MapDto.Edges` (those beside a known
+tile): the boundary steps are chained and rounded into a cleft whose far wall catches the light, or
+a one-sided face that drops toward the lower right (the Sim gives a cliff no high side), with a lip
+and a shadow. A chain is rounded as a whole, so the page works out its pieces once per map
+(`edgePieces`) and hands each cell's bake the pieces in its reach (`piecesNear`). Worn trails come from
+`MapDto.Trails` (between known tiles: in sight as they are, out of sight as the player's memory last saw
+them): a line from tile centre to tile centre by tier, a packed trench in snow and trodden earth out of
+it; where most sides of the tiles around are worn (herds' grazing ground) the ground is trampled
+instead, so it never draws the grid. Each cell's bake gets the trails in its reach (`trailsNear`). Prints
+(`MapDto.Tracks`, within 3 tiles in sight) are pressed into the ground along the heading the Sim reads,
+one line per animal up to three, never on water, rock or under a tree (`printPixels`); `map.js` lays
+them over the baked cells. Ice, where snow and mud lie, and where every tree stands come from world
 noise; snow and mud are painted 96 px textures shown through those masks. A pixel takes the ground
 state of the cell whose terrain it shows, so state follows the same organic borders as the ground.
 A pixel reads only its cell's 5 x 5 neighbourhood, and unknown cells read as the cell's own terrain,
@@ -113,7 +125,7 @@ tools/publish.sh /tmp/text-survival-web -p:Aot=false       # interpreter (about 
 node tools/serve.mjs /tmp/text-survival-web/wwwroot 8183   # then open http://127.0.0.1:8183/
 ```
 
-`?seed=N` picks the world; `?scenario=fight` (or `supplied`, `dead`, `won`, `winter`) starts in a prepared state.
+`?seed=N` picks the world; `?scenario=fight` (or `supplied`, `dead`, `won`, `winter`, `trails`) starts in a prepared state.
 
 The host and its tests need no workload: `dotnet test rebuild/Web/Host.Tests`.
 
@@ -144,4 +156,4 @@ node tools/shots.mjs /tmp/text-survival-web/wwwroot --all --phone  # every state
 ```
 
 States: `start here trip walk fire lit forage make made body pack log save receipt sleep fight
-fight-round dead won winter remembered`. Look at the screenshots, not only the exit code.
+fight-round dead won winter trails remembered`. Look at the screenshots, not only the exit code.

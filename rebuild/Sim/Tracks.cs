@@ -3,7 +3,7 @@ namespace Survival;
 /// By shape, not identity: the player's boots and an NPC's are the same mark.
 public enum TrackMaker { Human, Paw, Hoof }
 
-/// Derived from the wear scalar, never stored.
+/// Derived from the wear scalar. The world never stores it; a person's memory keeps the tier they saw (GroundMemory).
 public enum TrailTier { None, Trace, Path, Trail }
 
 public enum TrafficPattern { Heading, NorthSouth, EastWest, Mixed }
@@ -200,6 +200,10 @@ public static class Tracks
     };
 
     public static TrailTier TierOf(World world, TileId a, TileId b) => TierFor(WearAt(world, a, b));
+
+    /// TierOf for many edges at one minute: erosion is worked out once by the caller (ErosionAt).
+    internal static TrailTier TierNow(World world, TileId a, TileId b, double erosionNow) =>
+        TierFor(WearAt(world, new EdgeId(a, b), world.Minute, erosionNow));
 
     /// Minutes a beaten route saves. A trace is only visible; you have to beat a route properly first.
     public static int TrailMinutes(World world, TileId a, TileId b) => TierOf(world, a, b) switch
