@@ -946,7 +946,7 @@ An unanswered prompt throws with the prompt text.
 **View models** live in `UI/` so game logic can name them without reaching into the
 renderer: `OverlayData.cs` (EventDto, EventChoiceDto, EventOutcomeDto, DiscoveryLogDto),
 `CombatInput.cs`, `PlayerAction.cs` (PlayerAction, Notice, WorkResultView, FireFeedback),
-`ScreenResults.cs`, `ProgressView.cs`, `ToastFeed.cs`.
+`ScreenResults.cs`, `ProgressView.cs`.
 
 **Layering is enforced by a test** — `text_survival.Tests/Architecture/LayeringTests.cs`
 scans the source and fails if game logic references the renderer, if the simulation
@@ -1022,7 +1022,7 @@ deleted, and the choice to start again.
 
 Not yet implemented, but shaping future development:
 
-Megafauna hunts — Trophy hunts that provide materials for gear required for the crossing.
+Megafauna gear — the hunts exist (see Herds); the trophy materials they should yield for crossing gear do not yet.
 
 Exploration areas — Distant, dangerous locations with unique rewards.
 
