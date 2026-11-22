@@ -30,8 +30,8 @@ Animals and people share one body model and one way of looking for what they nee
   den, a carcass, prey. It weighs each source by how long the trip takes plus how long the need takes
   to meet there, against staying put. It goes only if the trip is clearly better.
 - Herds aren't stored; they're what you see when animals of one species stand together. Animals keep
-  together because company means less time with their heads up watching. Big herds break up because
-  a crowd eats a tile out. Wolf and hyena packs are animals that know each other, and a rival pack is
+  together because their species' cohesion makes going alone costly. Big herds break up because a
+  crowd eats a tile out. Wolf and hyena packs are animals that know each other, and a rival pack is
   strangers, so territories come out of packs avoiding each other.
 - Animals know the lie of the land, the water and the grazing by heart. They know prey, predators and
   carcasses only by sensing them.
@@ -39,7 +39,8 @@ Animals and people share one body model and one way of looking for what they nee
   time. A herd that was run all night will sleep in the day.
 - Snow quenches thirst at a real calorie cost, so mammoths look for open water in winter and caribou
   hardly care. Rain and thaw ponds count as water.
-- Ravens fly and leave no prints. Foxes walk and do.
+- Ravens fly and leave no prints on the way, only where they land to feed. Foxes walk and leave
+  prints as they go.
 - The player sees all of this the way the world really is: caribou drift off a grazed slope, wolves
   sleep through the middle of the day, the herd at the pond in spring is there because the river is
   still frozen.
@@ -80,8 +81,8 @@ Animals and people share one body model and one way of looking for what they nee
     wolves changes where the caribou go.
 16. As a player, I want caribou to go to the far lake because wolves hold the near one, so that I can
     read the danger from the prey.
-17. As a player, I want ravens to fly straight across lakes and rough ground and leave no prints, so
-    that a raven circling tells me something without a trail to follow.
+17. As a player, I want ravens to fly straight across lakes and rough ground and leave prints only
+    where they land, so that bird prints around a carcass tell me something fed there recently.
 18. As a player, I want foxes to walk and leave paw prints, so that a fox is tracked like any small
     animal.
 19. As a player, I want a herd moving through deep snow to go slower and keep to worn trails and bare
@@ -95,12 +96,16 @@ Animals and people share one body model and one way of looking for what they nee
 
 22. As a hunter, I want a herd's watchfulness to come from how many animals share the watch, so that
     stalking a big herd and a lone animal feel different for a reason.
+22a. As a player, I want a caribou dying of thirst to walk past the wolves to drink, so that
+     desperation shows and creates moments I remember.
+22b. As a player, I want a bedding ground or a grazed pasture to be trampled, so that I can read where
+     a herd spent its time, not only where it passed.
 23. As a hunter, I want a pack's will to hunt big prey to come from its size, so that a pair of wolves
     leaves bison alone and a pack of eight doesn't.
 24. As a hunter, I want hungry animals to range further and take more risks, so that late winter is
     more dangerous.
 25. As a hunter, I want predators to find prey by sensing it, not by knowing where every animal is, so
-    that hiding and staying downwind can matter.
+    that hiding and staying downwind can matter. When they sense nothing, they roam.
 26. As a hunter, I want a pack defending a kill to decide from each wolf's own boldness and how many
     of its pack are there, so that a kill with two wolves on it is a different problem from one with
     six.
@@ -202,35 +207,60 @@ Animals and people share one body model and one way of looking for what they nee
   species whose company term uses it (wolves and hyenas). It grows with time spent on the same tile,
   fades apart, and drops when one attacks the other. A **pack** is the wolves familiar with each
   other, derived and never stored.
+  - Familiarity is seeded: a newborn inherits its mother's familiarity, and an arriving pack starts
+    familiar with each other.
+  - There is deliberately no persistent pack id. A feature that needs "that pack" kept over time,
+    such as "the wolves that stalked you yesterday", would have to add one.
+  - Familiarity is also the base for people's relationships later. What a person thinks of another
+    (the old game's relationship memory) builds on top of it; it isn't a second system.
+- Combat owns one **"who is on my side"** read: the same species on the tile for open-group species,
+  the familiar animals for closed groups. Boldness from numbers, noticing, and which animals join a
+  fight read it, replacing member counts and drawing members from one herd. Rival packs meeting on a
+  tile are two sides.
 - Open-group species (caribou, bison, megaloceros, mammoth) count any animal of their species on the
   tile as company. Closed-group species count only familiar animals. Unfamiliar animals of their own
   species are competitors and, for predators, a danger.
 
-### Company and crowding
+### Cohesion and crowding
 
-- An animal's food payout at a source accounts for who else is there:
-  intake ≈ (1 − vigilance(n)) × min(its own rate, the tile's supply ÷ n).
-  - Vigilance falls as n grows and levels off, reusing the existing prey vigilance curve.
-  - The share of the tile falls with n.
-  - Together they give an optimal group size that depends on the season and the ground.
-- Predators use the same shape. The benefit is the chance of making a kill by pack size, a new Combat
-  forecast. The cost is each one's share of the kill.
-- The combination (company term) belongs to the animal mind, the system making the decision. It reads
-  the vigilance and kill forecasts published by their owners.
-- When the animals an agent is travelling with leave its tile, that's an interrupt: it re-weighs
-  following against staying. Following reuses their destination, and company keeps its value, so a
-  group mostly moves as one.
+- **Cohesion** reuses the species' existing `cohesion` field, already read by combat as morale. It
+  becomes one number for how strongly an animal sticks with its group, read by combat and the planner.
+- **Going alone costs more.** For a source with none of the animal's kin present, the choice's total
+  minutes are multiplied by (1 + cohesion). A caribou at cohesion 1 would rather take twice as long
+  with the herd. A bear at 0 doesn't care. Closed-group species count only familiar animals as kin.
+- **Crowding.** A grazing source's yield is divided by the grazers on the tile now. Animals heading
+  there don't count. A whole herd re-deciding in the same minute and moving together is intended:
+  that's following the herd.
+- **What splits a herd.** Crowding cuts each animal's share until the next tile alone beats staying,
+  even after paying the cohesion cost. Bodies differ, so animals re-decide at different minutes, and
+  groups spread until each one's intake is about equal while cohesion keeps them in clumps. The
+  cohesion gate measures whether this happens; there is no split or merge rule.
+- **Vigilance stays in detection and combat.** The planner doesn't score it. It is one function owned
+  by the detection code (today's prey-noticing curve), read by the hunt and by combat alike.
+- Predators: the choice of hunting ground counts pack size through the kill-chance forecast below. A
+  pack shares a kill among those present.
+- When the kin an agent is with leave its tile, that's an interrupt: it re-weighs following against
+  staying. Following reuses their destination.
 
 ### What animals know
 
 - Per the decision record "Animals read the slow world true and sense what moves", animals have no
   Memory.
-- They read the true state anywhere on the map of things that stay put or change slowly: terrain,
-  water, whether it's frozen, ponds, dens, how grazed a tile is.
-- They know things that move only by sensing them now: prey, predators, carcasses, fresh prints. On
-  top of that they keep a short expiring sightings list. Sensing uses the same sight system as people,
-  scaled by the species' perception.
-- People keep Memory. Both feed the same source listing.
+- **Read true, anywhere on the map:** anything that isn't an agent and changes over days or longer:
+  terrain, water and whether it's frozen, ground (snow, ponds), how grazed a tile is, dens, trail
+  wear. This is a pragmatic line, not a principled one.
+- **Sensed only:** agents, and anything agents leave that matters within hours: carcasses, prints,
+  fires, stashes. Sensing uses the same sight system as people, scaled by the species' perception.
+- **What sensing keeps:** a sightings list. It keeps an agent for a few hours. It keeps a carcass
+  until the animal sees it gone, so a pack that leaves its kill to drink comes back to it.
+- **A knowledge view is a parameter.** Every source listing and the planner take a knowledge view:
+  Memory for people, the true world plus sensing for animals. No system grows two variants of its
+  source listing. The test that keeps NPCs to the public interface extends to the planner, so no NPC
+  can be handed the true world.
+- People keep Memory. Memory owns regrouping per-animal sightings into "a herd of N caribou here" for
+  the player and NPCs.
+- The visible cost: every caribou knows where the best pasture is. Distance and crowding are what
+  keep them from all heading there.
 - The fixed territory is removed. A den is a rest source for the species that has one. Carrying
   capacity in renewal becomes a per-species number across the map.
 
@@ -259,6 +289,12 @@ Four separate pieces, shared by NPCs and animals.
    - It stops expanding once travel alone exceeds the best total found so far.
    - People route over the tiles they've explored. Animals route over any tile.
    - Animals cross at the pace of the agent's body.
+   - **Reading the ground is decided by a measurement.** Today herds deliberately skip snow and mud,
+     because reading it catches up a tile's lazy ground history and stores ground state in the save.
+     The route-search ticket measures that cost and the save growth for animals. One terrain formula
+     for everyone stays only if it fits the budget. Otherwise animals read the ground's cheap
+     weather-only estimate, as a recorded exception. Ponds and snow as water sources follow the same
+     answer.
    - Flyers pay a flat cost per tile, ignore terrain and water, and can't cross the mountain wall.
    - The current planner forecast that refuses herds becomes the shared one.
 4. **Choice.**
@@ -267,6 +303,13 @@ Four separate pieces, shared by NPCs and animals.
    - Take the minimum. Move only if it beats staying by about 25% (one named constant).
    - Predators are hard refusals: never route through, or pick a source on, a tile where a threat is
      sensed or freshly remembered.
+   - **Critical drops the threat refusal.** A Critical stat weighs danger only then: a caribou dying
+     of thirst walks past the wolves to drink. Below Critical, no plan means stay put, and flee if
+     threatened.
+   - **Predators with nothing to hunt explore.** With no prey sensed and none in their sightings,
+     a predator picks a random tile at the edge of its sight range (seeded, so deterministic) and
+     goes there. Revisit if this starves them.
+   - Ties between sources and routes break on tile id, so results don't depend on dictionary order.
    - NPCs keep their warmth filter on top (refuse a trip whose forecast leaves them too cold).
    - The output is a **plan**: a destination, its path, and the expected work there.
 
@@ -299,7 +342,12 @@ Four separate pieces, shared by NPCs and animals.
 - The wolverine is dropped for now.
 - "Carrion" becomes a kind of food source, not a behaviour. The scavenger rules that remain (perching
   while a predator holds a kill, raiding stashes) are rules in the animal mind.
-- Flying is one property on the species. Track and trail recording skip flyers.
+- Flying is one property on the species: a flyer's crossing cost is flat per tile.
+- **Prints come from crossings and from activity on a tile.** Time spent active on a tile (feeding,
+  perching, raiding, grazing, bedding down) adds traffic there, for every agent. Flyers leave no
+  crossing prints or trail wear, only prints where they land and act.
+- A new print shape, **Bird**, joins Human, Paw and Hoof. Depth already scales with body mass, so bird
+  prints are shallow and fade within hours: a sign of something recent.
 
 ### The animal mind
 
@@ -338,6 +386,10 @@ Four separate pieces, shared by NPCs and animals.
   `Sim.Advance(world, minutes)`, then read the world. Prior art: `HerdTests`, `KillChainTests`,
   `NpcTests`, `ThirtyPopulatedDays_StayCheap`, `Phase3GateTests`. Covers:
   - Behaviours:
+    - a Critical-thirsty animal drinks past a predator, and a merely thirsty one doesn't;
+    - a pack with nothing sensed roams;
+    - a raven that crosses leaves no prints, and one that feeds leaves Bird prints;
+    - a herd grazing a tile all day leaves more traffic there than one passing through;
     - a thirsty animal goes to the nearer of two water sources;
     - a herd leaves an eaten-out tile;
     - an animal on snow stays watered and loses calories;
@@ -349,12 +401,22 @@ Four separate pieces, shared by NPCs and animals.
     - caribou avoid a source a predator holds;
     - packs avoid each other;
     - NPCs drink from an open pond.
-  - **The cohesion gate:** 60 days on several seeds, in Release, tagged Slow. It fails if:
-    - more than 10% of open-group animals are alone on average;
+  - **The cohesion gate:** 60 days on several seeds, in Release, tagged Slow. Every metric is per
+    species. It fails if:
+    - more than 10% of an open-group species' animals are alone on average;
     - any herd holds over 60% of its species' living animals once there are more than 20;
-    - a wolf pack present on day 1 isn't still 2 or more familiar wolves on day 60, unless it was
-      killed off;
-    - allocation is over 3× today's herd baseline.
+    - herds never split or join (a minimum rate of splits and joins, so a frozen lockstep fails);
+    - animals change tile far more often than they need to (tile changes per animal per day, to catch
+      oscillation);
+    - an outsized share of a species stands on the single busiest water tile;
+    - predator kills per week fall outside a band;
+    - starvation and thirst deaths per species fall outside a band;
+    - the number of wolf packs isn't stable, or rival packs merge, or a pack present on day 1 isn't
+      still 2 or more familiar wolves on day 60 unless it was killed off;
+    - allocation is over 3× today's herd baseline, measured with the real planner (route searches,
+      source listing, ground reads and familiarity included).
+
+    The bands are set in the ticket from a first run and stated in its work log.
 
     The first planner ticket must pass it before anything else builds on individuals. If it can't,
     the fallback is herd agents with split and merge rules, and this spec is revisited.
@@ -371,7 +433,8 @@ Four separate pieces, shared by NPCs and animals.
   - water payout, including snow and its calorie cost;
   - rest payout;
   - route minutes and kcal from the Dijkstra against `Travel`;
-  - Combat's kill chance by pack size.
+  - Combat's kill chance by pack size;
+  - vigilance: what the hunt and combat use is the one detection function.
 - **No planner test hook.** The planner's choices show through seam 1 and its accuracy through
   seam 2. A direct choose-for-this-agent hook would be a seam with one adapter. Add one only if a
   decision can't be phrased through `Sim.Advance`.
@@ -408,18 +471,24 @@ Four separate pieces, shared by NPCs and animals.
   | Individuals | 95-134 | 6.4-6.5 s | 6.2-7.0 GB |
 
   The individual runs made 4× the moves, because nothing held them together. The animal side costs
-  about 2-2.5× as much. That's about 0.15 ms per game minute and invisible in play. Per-animal saves
-  added about 3 KB each. Full Memory per animal would have made this tens of MB, which is why animals
-  don't have it.
+  about 2-2.5× as much, about 0.15 ms per game minute. That measured the number of agents with
+  today's cheap mind, not the planner: route searches, source listing, ground reads and familiarity
+  are not in it, which is why the gate re-measures with the real planner. The settling pass (one
+  simulation for world history) multiplies whatever this costs. Per-animal saves added about 3 KB
+  each. Full Memory per animal would have made this tens of MB, which is why animals don't have it.
+- If the cohesion gate fails, the fallback is herd agents with split and merge rules. The body needs,
+  sources, route search, planner and knowledge view all survive it; only the grouping changes.
+- Not handled by this design and worth knowing: with map-wide knowledge and no territory, nothing
+  makes an animal leave the map. Migration would need an off-map source.
 - This spec blocks #51, #59, #61 and #62 on the map.
 - Suggested ticket order (for `/to-tickets`), each a thin vertical slice:
   1. Shared body needs for animals (thirst, rest, body starvation), plus activity patterns and sleep
      hours.
-  2. The shared route search for everyone (one Dijkstra, ground state, flyers).
+  2. The shared route search for everyone (one Dijkstra, ground state measured, flyers).
   3. Sources and their forecasts, plus the planner choice for one stat (water) with individuals, plus
      the cohesion gate and the stored-path benchmark.
   4. Food and rest sources, grazing by what's left, company and crowding.
   5. Familiarity and packs, plus predators (hunting together, kill forecast, defending, avoidance).
-  6. Raven and Fox replace the carrion fold.
+  6. Raven and Fox replace the carrion fold; prints from activity and the Bird shape.
   7. Territory and the old herd mind removed, renewal on map-wide capacity, save bump.
   8. NPCs onto the shared planner.
