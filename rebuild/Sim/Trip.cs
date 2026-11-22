@@ -5,7 +5,7 @@ namespace Survival;
 /// rounds them:
 /// - Walking: the two tiles' base minutes; Terrain: the shape of the ground; Weather: strong wind and
 ///   heavy precipitation; Pace: this body's own speed, legs, wounds and build (negative for a quick one);
-///   Load: what it carries; Careful: half again on hazardous ground, taken carefully.
+///   Load: what it carries; Careful: half again on ground where care matters (Traversal.PaceMatters), taken carefully.
 /// - Edge: an authored edge (a ravine, a game trail); Trail: a path beaten in by use (negative).
 /// - Ground: today's snow, water and mud, with the whole sum's rounding up; Shortest: what the
 ///   five-minute floor adds to a crossing shorter than that.
@@ -22,13 +22,6 @@ public sealed record TripTime(int WalkingMinutes, int TerrainMinutes, int Weathe
         ("Load", LoadMinutes), ("Careful", CarefulMinutes), ("Edge", EdgeMinutes), ("Trail", TrailMinutes),
         ("Snow and ground", GroundMinutes), ("Shortest crossing", ShortestMinutes),
     ];
-}
-
-/// The injury risk a crossing rolls, as the odds sheet shows it: once for leaving this tile, once for
-/// entering the next (Traversal.Advance rolls them in that order). AnyPct is the chance of at least one.
-public sealed record CrossingRisk(Odds Leaving, Odds Entering)
-{
-    public double AnyPct => 1 - (1 - Leaving.TotalPct) * (1 - Entering.TotalPct);
 }
 
 /// A crossing as seen before it is made: for verb lists and the trip preview. Reads only: the
@@ -53,14 +46,14 @@ public static class Trip
         var still = sky with { WindLevel = 0, PrecipitationPct = 0 }; // no wind or precipitation to slow a walk
         var (exit, entry) = (Segment(from), Segment(to));
         Func<World, TileId, double> ground = observe ? Ground.TraversalFactor : Ground.TraversalFactorNow;
-        Func<World, TileId, bool> hazardous = observe ? Traversal.IsHazardous : IsHazardousNow;
+        Func<World, TileId, double> hazard = observe ? Traversal.EffectiveHazardLevel : HazardNow;
+        // Care slows both halves of risky ground, on top of the five-minute floor; only the tile walked onto is rolled for.
+        bool Slow(TileId tile) => Traversal.PaceMatters(Traversal.InjuryOdds(hazard(world, tile), body, sky, Pace.Quick).TotalPct);
         // Traversal.SurfaceExcessMinutes, from the segment before a careful pace stretches it.
         double surface = exit.Minutes * (ground(world, from) - 1) + entry.Minutes * (ground(world, to) - 1);
-        int careful = pace == Pace.Careful
-            ? (hazardous(world, from) ? Careful(exit.Minutes) : 0) + (hazardous(world, to) ? Careful(entry.Minutes) : 0)
-            : 0;
+        int careful = pace == Pace.Careful ? (Slow(from) ? Careful(exit.Minutes) : 0) + (Slow(to) ? Careful(entry.Minutes) : 0) : 0;
         int edge = m.EdgeBetween(from, to)?.TraversalMinutes() ?? 0, trail = Tracks.TrailMinutes(world, from, to);
-        int whole = exit.Minutes + entry.Minutes + careful + edge + trail;
+        int whole = exit.Minutes + entry.Minutes + edge + trail;
         int rounded = (int)Math.Ceiling(whole + surface);
         return new TripTime(exit.Walking + entry.Walking, exit.Terrain + entry.Terrain, exit.Weather + entry.Weather,
             exit.Pace + entry.Pace, exit.Load + entry.Load, careful, edge, trail,
@@ -78,24 +71,19 @@ public static class Trip
         }
     }
 
-    /// The injury odds the crossing this agent would make now would roll: the very factors
-    /// Traversal.Begin fixes, from the ground looked at rather than observed. A careful pace risks nothing.
-    public static CrossingRisk Risk(World world, AgentId who, Direction dir, Pace pace)
+    /// The odds of the one roll, on the tile walked onto, that Traversal.Begin would fix now, from the ground looked at.
+    public static Odds Risk(World world, AgentId who, Direction dir, Pace pace)
     {
         var agent = world.Agent(who);
-        if (pace == Pace.Careful) return new CrossingRisk(Traversal.NoRisk, Traversal.NoRisk);
-        // A crossing under way this way keeps the risks fixed when it began (Traversal.Begin resumes it).
+        // A crossing under way this way keeps the risk fixed when it began (Traversal.Begin resumes it).
         if (agent.Crossing is { } c && c.Dir == dir && c.Pace == pace && c.From == agent.Tile)
-            return new CrossingRisk(new Odds("As you set out", c.OriginRiskPct, []), new Odds("As you set out", c.DestRiskPct, []));
-        var m = Map.Of(world);
-        var sky = Weather.At(world, world.Minute);
-        Odds On(TileId t) => Traversal.InjuryOdds(Traversal.HazardLevel(m, t, Ground.HazardDeltaNow(world, t)), agent.Body, sky);
-        return new CrossingRisk(On(agent.Tile), On(Map.Step(agent.Tile, dir)));
+            return new Odds("As you set out", c.RiskPct, []);
+        return Traversal.InjuryOdds(HazardNow(world, Map.Step(agent.Tile, dir)), agent.Body, Weather.At(world, world.Minute), pace);
     }
+
+    public static bool PaceMatters(World world, AgentId who, Direction dir) => Traversal.PaceMatters(Risk(world, who, dir, Pace.Quick).TotalPct);
 
     static int Careful(int segmentMinutes) => (int)Math.Ceiling(segmentMinutes * Traversal.CarefulFactor) - segmentMinutes;
 
-    /// Traversal.IsHazardous, without observing the ground.
-    public static bool IsHazardousNow(World world, TileId tile) =>
-        Traversal.HazardLevel(Map.Of(world), tile, Ground.HazardDeltaNow(world, tile)) >= Traversal.HazardousLevel;
+    static double HazardNow(World world, TileId tile) => Traversal.HazardLevel(Map.Of(world), tile, Ground.HazardDeltaNow(world, tile));
 }

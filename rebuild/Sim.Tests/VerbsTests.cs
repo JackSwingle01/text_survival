@@ -72,18 +72,21 @@ public class VerbsTests
         AssertEveryVerbIsTrue(w, P);
     }
 
-    /// Pace only matters on hazardous ground, so only a crossing with some is offered carefully too.
+    /// Pace is a choice only where a quick crossing is risky enough to weigh, so only such a crossing
+    /// is offered carefully too.
     [Fact]
-    public void ACarefulWalk_IsOffered_OnlyWhereTheCrossingHasHazardousGround()
+    public void ACarefulWalk_IsOffered_OnlyWhereAQuickOneCarriesMeaningfulRisk()
     {
         var w = Camp(out _);
         var m = Map.Of(w);
+        bool Matters(TileId t, Direction d) { w.Agent(P).Tile = t; return Trip.PaceMatters(w, P, d); }
         var start = Enumerable.Range(1, m.Height - 2).SelectMany(y => Enumerable.Range(1, m.Width - 2).Select(x => new TileId(x, y)))
-            .First(t => m.TerrainAt(t).IsPassable() && !Traversal.IsHazardous(w, t)
-                && Directions.Any(d => Traversal.IsHazardous(w, Map.Step(t, d))) && Directions.Any(d => !Traversal.IsHazardous(w, Map.Step(t, d))));
+            .First(t => m.TerrainAt(t).IsPassable() && Directions.All(d => m.TerrainAt(Map.Step(t, d)).IsPassable())
+                && Directions.Any(d => Matters(t, d)) && Directions.Any(d => !Matters(t, d)));
         w.Agent(P).Tile = start;
         var careful = Verbs.At(w, P).Walk.Where(v => ((Travel)v.Activity).Pace == Pace.Careful).Select(v => ((Travel)v.Activity).Dir);
-        Assert.Equal(Directions.Where(d => Traversal.IsHazardous(w, Map.Step(start, d))), careful);
+        var sky = Weather.At(w, w.Minute);
+        Assert.Equal(Directions.Where(d => Traversal.InjuryRiskPct(w, Map.Step(start, d), w.Agent(P).Body, sky) > Content.Tables.Footing.PaceMattersAbovePct), careful);
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -306,8 +309,8 @@ public class VerbsTests
 
     // ---- crossing risk ----
 
-    /// A quick walk over hazardous ground shows the injury odds the crossing will roll, leaving and
-    /// entering; a careful one, none.
+    /// A walk onto hazardous ground shows the injury odds the crossing will roll, once, on the tile
+    /// walked onto: a careful one a quarter of a quick one's.
     [Fact]
     public void AQuickWalkOverHazardousGround_ShowsTheRiskItRolls()
     {
@@ -321,12 +324,10 @@ public class VerbsTests
         var walks = Verbs.At(w, P).Walk;
         var quick = walks.Single(v => v.Activity == new Travel(P, dir));
         var careful = walks.Single(v => v.Activity == new Travel(P, dir, Pace.Careful));
-        Assert.Equal(0, careful.Risk!.AnyPct);
-        Assert.True(quick.Risk!.Entering.TotalPct > 0);
+        Assert.True(quick.Risk!.TotalPct > 0);
+        Assert.Equal(quick.Risk.TotalPct * 0.25, careful.Risk!.TotalPct, 12);
 
         Sim.Step(w, quick.Activity, 1);
-        var crossing = w.Agent(P).Crossing!;
-        Assert.Equal((crossing.OriginRiskPct, crossing.DestRiskPct), (quick.Risk.Leaving.TotalPct, quick.Risk.Entering.TotalPct));
-        Assert.Equal(1 - (1 - crossing.OriginRiskPct) * (1 - crossing.DestRiskPct), quick.Risk.AnyPct, 12);
+        Assert.Equal(quick.Risk.TotalPct, w.Agent(P).Crossing!.RiskPct);
     }
 }

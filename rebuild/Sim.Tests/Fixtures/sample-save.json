@@ -1,5 +1,5 @@
 {
-  "Version": 9,
+  "Version": 10,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -631,18 +631,13 @@
             "StructuralKg": 34,
             "FatKg": 8.390951619047621,
             "MuscleKg": 25.84,
-            "CoreTempF": 98.99539677934341,
+            "CoreTempF": 98.90341027692948,
             "CaloriesKcal": 1997.6331838888889,
             "EnergyMinutes": 728,
-            "HydrationMl": 2699.317004516907,
+            "HydrationMl": 2701.388888888854,
             "MinutesWithoutHunger": 1442,
             "ClothingHeatBufferPct": 1,
             "Effects": [
-              {
-                "Kind": 8,
-                "Severity": 0.005097509417155633,
-                "RequiresTreatment": false
-              },
               {
                 "Kind": 15,
                 "Severity": 1,
@@ -1239,10 +1234,10 @@
             "StructuralKg": 34,
             "FatKg": 11.449394004618185,
             "MuscleKg": 25.84,
-            "CoreTempF": 98.9920684814275,
+            "CoreTempF": 98.88496957312523,
             "CaloriesKcal": 1198.6639000000073,
             "EnergyMinutes": 4,
-            "HydrationMl": 2701.2510126176094,
+            "HydrationMl": 2702.430555555521,
             "MinutesWithoutHunger": 172,
             "ClothingHeatBufferPct": 1,
             "Effects": [
@@ -2130,6 +2125,12 @@
       },
       "make:0": {
         "State": 11656051548387474417
+      },
+      "travel:0": {
+        "State": 12184350808930138095
+      },
+      "travel:1": {
+        "State": 5138320455032156723
       },
       "work:1": {
         "State": 11585691137858028565

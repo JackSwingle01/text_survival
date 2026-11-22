@@ -31,6 +31,7 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<string, SubstrateProfile> Substrates,
     IReadOnlyDictionary<EdgeType, EdgeRow> Edges,
     Felling Felling,
+    Footing Footing,
     IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> Forage,
     DiscoveryTables Discoveries,
     IReadOnlyDictionary<string, IReadOnlyList<Accident>> Accidents,
@@ -70,7 +71,7 @@ public static partial class Content
     sealed record RecipeMaterial(IReadOnlyList<Resource> AnyOf, int Pieces);
     sealed record ButcherFile(double TimeFactor, double ScentIncrease, double BloodySeverity, Dictionary<string, double> YieldFactors);
     sealed record TerrainFile(Dictionary<string, TerrainRow> Terrains, Dictionary<string, CaveRow> Caves,
-        Dictionary<string, SubstrateProfile> Substrates, Dictionary<string, EdgeRow> Edges, FellingFile Felling);
+        Dictionary<string, SubstrateProfile> Substrates, Dictionary<string, EdgeRow> Edges, FellingFile Felling, Footing Footing);
     sealed record FellingFile(Pieces Logs, Dictionary<string, double> LogKg, double LogKgSpreadPct, Dictionary<string, double> MixedWood,
         Pieces Kindling, Pieces Tinder);
     sealed record DiscoveriesFile(Dictionary<string, FindDef> Finds, Dictionary<string, FindDef> Details,
@@ -179,6 +180,7 @@ public static partial class Content
             ReadOnly(terrains), ReadOnly(caves), new ReadOnlyDictionary<string, SubstrateProfile>(terrain.Substrates), ReadOnly(edges),
             new Felling(terrain.Felling.Logs, ReadOnly(logKg), terrain.Felling.LogKgSpreadPct,
                 mixedWood.Select(m => (m.Key, m.Value)).ToList().AsReadOnly(), terrain.Felling.Kindling, terrain.Felling.Tinder),
+            terrain.Footing,
             new ReadOnlyDictionary<string, IReadOnlyList<ForageItem>>(forage),
             new DiscoveryTables(new ReadOnlyDictionary<string, FindDef>(discoveries.Finds), new ReadOnlyDictionary<string, FindDef>(discoveries.Details),
                 ReadOnly(draws), discoveries.Cave, ReadOnly(detailDraws), discoveries.ExamineOnly),
@@ -582,6 +584,8 @@ public static partial class Content
                 || new[] { s.PermeabilityMPerMinute, s.DrainagePerMinute, s.RunoffPerMinute }.Any(v => v < 0))
                 yield return $"terrain.json substrates {name}: out of range";
         foreach (var name in CodeSubstrates) if (!f.Substrates.ContainsKey(name)) yield return $"terrain.json: no substrate '{name}', which the code names";
+        if (f.Footing is not { InjuryExponent: > 0, InjuryDivisor: >= 1, CarefulRiskFraction: >= 0 and <= 1, PaceMattersAbovePct: >= 0 and < 1 })
+            yield return "terrain.json footing: out of range";
     }
 
     /// A named place may be windier than any terrain (the Wind Gap funnels it).

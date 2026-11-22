@@ -98,7 +98,7 @@ public static class TerrainProps
     /// Minutes to cross one 100 m tile of flat ground at a walk, before hazard and modifier.
     public static int BaseTraversalMinutes(this Terrain t) => Rows[(int)t].TraversalMinutes ?? int.MaxValue;
 
-    /// 0-1: chance of a slip or fall, and how much the ground slows you.
+    /// 0-1: how bad the footing is (Footing turns it into a chance of a fall), and how much the ground slows you.
     public static double BaseHazardLevel(this Terrain t) => Rows[(int)t].Hazard;
 
     /// 0-2: how much of the wind reaches you here.

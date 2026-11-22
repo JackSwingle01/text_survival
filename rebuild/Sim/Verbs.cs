@@ -8,7 +8,7 @@ namespace Survival;
 /// Outcomes, for making: the recipe's odds table (Making.Odds), shown before the work is committed to.
 /// Risk, for a walk that can start: the injury odds the crossing will roll (Trip.Risk), beside its time.
 public sealed record Verb(string Label, Activity Activity, int Minutes, string? Refused, Odds? Odds = null, TripTime? Trip = null,
-    MakeOdds? Outcomes = null, CrossingRisk? Risk = null)
+    MakeOdds? Outcomes = null, Odds? Risk = null)
 {
     public bool Allowed => Refused == null;
 }
@@ -30,7 +30,7 @@ public sealed record ThingVerbs(ThingRef Thing, string Name, IReadOnlyList<Condi
 
 /// What a person can do where they stand (Verbs.At).
 /// Things: what they can see on the tile, in Things.At's order, themselves left out.
-/// Walk: a crossing each way, then a careful one each way that has hazardous ground to take carefully.
+/// Walk: a crossing each way, then a careful one each way whose quick risk is worth weighing (Trip.PaceMatters).
 /// Tile: what needs nothing but the place - wait, rest, sleep, the fire verbs, drinking.
 /// Pack: what can be done with what is carried - eat each food, put down each thing, wear each
 /// garment in the pack, take off each one worn.
@@ -79,9 +79,8 @@ public static class Verbs
 
         var walk = new List<Verb>();
         foreach (var dir in Directions) walk.Add(Ready(($"Walk {Names.Of(dir)}", new Travel(who, dir), UntilDoneMinutes)));
-        // Pace only changes a crossing with hazardous ground in it (Traversal.CrossingMinutes).
         foreach (var dir in Directions)
-            if (m.InBounds(Map.Step(agent.Tile, dir)) && (Trip.IsHazardousNow(world, agent.Tile) || Trip.IsHazardousNow(world, Map.Step(agent.Tile, dir))))
+            if (m.InBounds(Map.Step(agent.Tile, dir)) && Trip.PaceMatters(world, who, dir))
                 walk.Add(Ready(($"Walk {Names.Of(dir)} carefully", new Travel(who, dir, Pace.Careful), UntilDoneMinutes)));
 
         var tile = new List<(string, Activity, int)>

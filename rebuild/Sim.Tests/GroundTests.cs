@@ -131,6 +131,26 @@ public class GroundTests
         Assert.True(Ground.HazardDelta(dusted, peat) >= 0.35, "ice under a dusting is still slippery");
     }
 
+    /// Pond ice is as slick as ice gets from a few millimetres thick; a film of frost on a puddle is
+    /// slick in proportion to its thickness, not the whole slick-ice term.
+    [Fact]
+    public void PondIce_IsSlickInProportionToItsThickness()
+    {
+        var peat = SubstrateProfile.Peat;
+        double IcedOver(double waterM)
+        {
+            var g = Fresh(peat, frozen: 1);
+            Ground.AddWater(g, peat, waterM);
+            Ground.Advance(g, peat, 60 * 24, new SurfaceWeather(5, 0.1, 0, 0, 0));
+            Assert.Equal(0, Ground.SnowDepthM(g, peat));
+            return Ground.HazardDelta(g, peat);
+        }
+        double bare = Ground.HazardDelta(Fresh(peat, frozen: 1), peat);
+        double SlickFor(double iceM) => 0.35 * iceM / 0.004;
+        Assert.Equal(SlickFor(0.0004 * 1000 / 917.0), IcedOver(0.0004) - bare, 3);
+        Assert.Equal(0.35, IcedOver(0.02) - bare, 3);
+    }
+
     [Fact]
     public void Peat_PondsAtOnceWhilePermeableGroundSoaksItUp()
     {
@@ -540,7 +560,8 @@ public class GroundTests
         // threshold effects (a crust forming a sub-step earlier flips hazard by its whole 0.1), so
         // they are bounded by what a threshold flip costs, not by the integration error.
         Assert.True(maxSnowM < 0.03 && maxWaterM < 0.01, report);
-        Assert.True(maxTf < 0.6 && maxHd <= 0.15 + 1e-9 && maxWet < 0.07, report); // hazard: crust (0.1) and first snow (0.05) can flip together
+        // Hazard: at SnowFootingDepthM the footing flips between pond ice (up to 0.35) and snow with its crust (0.15).
+        Assert.True(maxTf < 0.6 && maxHd <= 0.35 + 1e-9 && maxWet < 0.07, report);
     }
 
     [Fact]
@@ -680,7 +701,9 @@ public class GroundTests
         Assert.Equal(world.Minute / Ground.StepMinutes * Ground.StepMinutes, world.Tiles[Map.Of(world).Camp].Ground!.LastUpdatedMinute);
     }
 
-    /// Output of the old-code harness (golden-ground/Program.cs).
+    /// Output of the old-code harness (golden-ground/Program.cs), but for hd on the frozen ponds
+    /// (batch-frz-peat, pm-frz-peat, glazed): pond ice is slick by its thickness, not its frozen share,
+    /// and every one of them holds more than FullSlickIceM of ice.
     const string OldGolden = """
 batch-seq-snow|Ground:0.3:0:0.3:1;Snow:0.31988250964630066:0.47115602322061095:0:0;Snow:0.30495439884600334:0.2960507718571081:0:0;Snow:0.4604035511885626:0.10909934723885269:0:0|add=0.27599999999999963|drn=0|evp=0.00040319999999999945|ovf=0|tf=6|hd=0.05|sf=0.09999999999999998|cww=0|cwr=0|cwk=0
 batch-seq-thaw|Ground:0.3:0:0.873973907683327:0.34325967556081904;Snow:0.31860575963802984:0.7415583672384389:0.09988801222698711:0|add=0.27599999999999963|drn=0.014582453530868114|evp=0.0015491999999999954|ovf=0|tf=1.6677228568510225|hd=0.05|sf=0.09999999999999998|cww=0.03944384344609996|cwr=0.032869869538416634|cwk=0.01972192172304998
@@ -699,7 +722,7 @@ batch-dry-rock|Ground:0.08:0:0.03623479295765552:0|add=0.24096000000000017|drn=0
 batch-frz-rock|Ground:0.08:0:0.03623479295765552:1|add=0.24096000000000017|drn=0.04380609256780492|evp=0.0014334000000000072|ovf=0.19537265341980173|tf=1|hd=0|sf=1|cww=0|cwr=0|cwk=0
 batch-rain-peat|Ground:0.5:0:0.9998875:0;Water:0.18033021430978996:0:1:0|add=0.4950000000000002|drn=0.00222915716842121|evp=0.00017279999999999986|ovf=0.012301578521787291|tf=1.841593124606194|hd=0.04999437500000001|sf=0.45900935707063006|cww=0.12|cwr=0.1|cwk=0.06
 batch-dry-peat|Ground:0.5:0:0.9998875:0;Water:0.1284481158677981:0:1:0|add=0.4950000000000002|drn=0.008709157168421218|evp=0.0014400000000000072|ovf=0.056436476963780104|tf=1.6713800960800231|hd=0.04999437500000001|sf=0.6146556523966056|cww=0.10875781769423849|cwr=0.09063151474519876|cwk=0.054378908847119246
-batch-frz-peat|Ground:0.5:0:0.9998875:0;Water:0.11870225661261924:0:1:0.20432811213650945|add=0.4950000000000002|drn=0.010329157168421256|evp=0.0015696000000000078|ovf=0.06443273621895931|tf=1.5598338288435873|hd=0.2645388927433349|sf=0.6373073001817715|cww=0.0815577638900954|cwr=0.06796480324174618|cwk=0.0407788819450477
+batch-frz-peat|Ground:0.5:0:0.9998875:0;Water:0.11870225661261924:0:1:0.20432811213650945|add=0.4950000000000002|drn=0.010329157168421256|evp=0.0015696000000000078|ovf=0.06443273621895931|tf=1.5598338288435873|hd=0.399994375|sf=0.6373073001817715|cww=0.0815577638900954|cwr=0.06796480324174618|cwk=0.0407788819450477
 batch-rain-iceSheet|Ground:0.05:0:0:0|add=0.24000000000000016|drn=0|evp=0|ovf=0.24000000000000016|tf=1|hd=0|sf=1|cww=0|cwr=0|cwk=0
 batch-dry-iceSheet|Ground:0.05:0:0:0|add=0.24000000000000016|drn=0|evp=0|ovf=0.24000000000000016|tf=1|hd=0|sf=1|cww=0|cwr=0|cwk=0
 batch-frz-iceSheet|Ground:0.05:0:0:0|add=0.24000000000000016|drn=0|evp=0|ovf=0.24000000000000016|tf=1|hd=0|sf=1|cww=0|cwr=0|cwk=0
@@ -720,13 +743,13 @@ pm-dry-rock|Ground:0.08:0:0.03880917479309171:0|add=0.24096000000000525|drn=0.04
 pm-frz-rock|Ground:0.08:0:0.0386029247930917:1|add=0.24096000000000525|drn=0.04419614962011229|evp=0.0014415399999999677|ovf=0.19495172230187444|tf=1|hd=0|sf=1|cww=0|cwr=0|cwk=0
 pm-rain-peat|Ground:0.5:0:0.9999925000000001:0;Water:0.1804504123947491:0:1:0|add=0.4949999999999736|drn=0.00221311181328546|evp=0.0001727999999999991|ovf=0.012165925791973158|tf=1.8420261490128953|hd=0.049999625000000006|sf=0.45864876281575273|cww=0.12|cwr=0.1|cwk=0.06
 pm-dry-peat|Ground:0.5:0:0.9999925000000001:0;Water:0.12856169960354968:0:1:0|add=0.4949999999999736|drn=0.008693111813285113|evp=0.0014399999999999676|ovf=0.05630743858325336|tf=1.6717878453444894|hd=0.049999625000000006|sf=0.614314901189351|cww=0.10884931468283975|cwr=0.0907077622356998|cwk=0.05442465734141987
-pm-frz-peat|Ground:0.5:0:0.9999925000000001:0;Water:0.11879595789974004:0:1:0.20416694666050605|add=0.4949999999999736|drn=0.010313111813285484|evp=0.0015695999999999785|ovf=0.06432358028707814|tf=1.560174004550903|hd=0.2643749189935313|sf=0.6370261963204091|cww=0.08163335491979208|cwr=0.06802779576649341|cwk=0.04081667745989604
+pm-frz-peat|Ground:0.5:0:0.9999925000000001:0;Water:0.11879595789974004:0:1:0.20416694666050605|add=0.4949999999999736|drn=0.010313111813285484|evp=0.0015695999999999785|ovf=0.06432358028707814|tf=1.560174004550903|hd=0.39999962499999997|sf=0.6370261963204091|cww=0.08163335491979208|cwr=0.06802779576649341|cwk=0.04081667745989604
 pm-rain-iceSheet|Ground:0.05:0:0:0|add=0.24000000000000518|drn=0|evp=0|ovf=0.24000000000000518|tf=1|hd=0|sf=1|cww=0|cwr=0|cwk=0
 pm-dry-iceSheet|Ground:0.05:0:0:0|add=0.24000000000000518|drn=0|evp=0|ovf=0.24000000000000518|tf=1|hd=0|sf=1|cww=0|cwr=0|cwk=0
 pm-frz-iceSheet|Ground:0.05:0:0:0|add=0.24000000000000518|drn=0|evp=0|ovf=0.24000000000000518|tf=1|hd=0|sf=1|cww=0|cwr=0|cwk=0
 compact|Ground:0.3:0:0.3:0.07689283629609212;Snow:0.0530466722458564:0.6139742705561418:0:0|add=0.056000000000000015|drn=0|evp=3.36E-05|ovf=0|tf=1.0726205662863404|hd=0.05|sf=0.8408599832624308|cww=0.0016615928946670342|cwr=0.001384660745555862|cwk=0.0008307964473335171
 flooded|Ground:0.5:0:0.8501666583333334:0;Water:0.299919905:0:1:0|add=0.5549999999999999|drn=2.4999999999997246E-09|evp=1E-07|ovf=2.9995E-05|tf=2.167043976526575|hd=0.04250833291666667|sf=0.10024028499999993|cww=0.12|cwr=0.1|cwk=0.06
-glazed|Ground:0.5:0:0.9486391154217391:0;Water:0.253661424248126:0:1:0.050376441896424505|add=0.5549999999999999|drn=0.00045826537347726476|evp=7.210000000000007E-05|ovf=0.016216475751875282|tf=2.019339807892903|hd=0.10032721976233268|sf=0.2355458674519143|cww=0.12|cwr=0.1|cwk=0.06
+glazed|Ground:0.5:0:0.9486391154217391:0;Water:0.253661424248126:0:1:0.050376441896424505|add=0.5549999999999999|drn=0.00045826537347726476|evp=7.210000000000007E-05|ovf=0.016216475751875282|tf=2.019339807892903|hd=0.3974319557710869|sf=0.2355458674519143|cww=0.12|cwr=0.1|cwk=0.06
 search30|0.09999999999999998|0.5141344219705644|0.09999999999999998
 """;
 }

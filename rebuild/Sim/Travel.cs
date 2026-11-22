@@ -1,11 +1,13 @@
 namespace Survival;
 
-/// How to take hazardous ground: quick at full injury risk, or careful at half again the time
-/// and no risk. Only hazardous segments care.
+/// Careful: half again the time where care matters, for a fraction of the risk (Footing).
 public enum Pace { Quick, Careful }
 
+/// How bad footing turns into a fall (terrain.json footing).
+public sealed record Footing(double InjuryExponent, double InjuryDivisor, double CarefulRiskFraction, double PaceMattersAbovePct);
+
 /// A crossing under way. The agent stays on its tile until ElapsedMinutes reaches TotalMinutes.
-/// Risks are fixed when the crossing starts, before the walk.
+/// The risk is fixed when the crossing starts, before the walk.
 public sealed class Crossing
 {
     /// Where the crossing started. Only resumed from this tile: an agent moved by anything else starts afresh.
@@ -14,8 +16,7 @@ public sealed class Crossing
     public required Pace Pace { get; init; }
     public required int TotalMinutes { get; init; }
     public int ElapsedMinutes { get; set; }
-    public double OriginRiskPct { get; init; }
-    public double DestRiskPct { get; init; }
+    public double RiskPct { get; init; }
 }
 
 /// One accident's mechanics (Content/accidents.json): a hit of Amount and Type on Target, and an
@@ -26,10 +27,8 @@ public sealed record Accident(BodyTarget Target, DamageType Type, double Amount,
 /// Walking one tile north, east, south or west.
 public static class Traversal
 {
-    /// Effective hazard at or above which a segment is hazardous: pace matters and quick risks injury.
-    public const double HazardousLevel = 0.3;
     public const double CarefulFactor = 1.5;
-    public const double MaxInjuryRiskPct = 0.5;
+    static readonly Footing FootingRules = Content.Tables.Footing;
     /// Shortest a crossing can take, however many trail bonuses stack on it.
     public const int MinimumCrossingMinutes = 5;
 
@@ -57,20 +56,18 @@ public static class Traversal
         var sky = Weather.At(world, world.Minute);
         if (agent.Mind is HerdMind)
             return agent.Crossing = new Crossing { From = from, Dir = t.Dir, Pace = t.Pace, TotalMinutes = HerdCrossingMinutes(world, agent, from, to, sky) };
-        bool quick = t.Pace == Pace.Quick;
         return agent.Crossing = new Crossing
         {
             From = from,
             Dir = t.Dir,
             Pace = t.Pace,
             TotalMinutes = CrossingMinutes(world, agent.Body, from, to, t.Pace, sky, Items.EncumbrancePct(agent)),
-            OriginRiskPct = quick ? InjuryRiskPct(world, from, agent.Body, sky) : 0,
-            DestRiskPct = quick ? InjuryRiskPct(world, to, agent.Body, sky) : 0,
+            RiskPct = InjuryRiskPct(world, to, agent.Body, sky, t.Pace),
         };
     }
 
-    /// One minute of walking lived. On the last one the agent arrives, and quick hazardous
-    /// segments roll for injury, origin first. Returns why to stop, if anything. A minute that leaves
+    /// One minute of walking lived. On the last one the agent arrives and rolls for injury on the tile
+    /// it walked onto. Returns why to stop, if anything. A minute that leaves
     /// the agent too lame to go on (CannotWalk) is walked, and stops it short of the far side, on its
     /// tile with the crossing kept, as a step that ends there and a refused next Start would.
     public static string? Advance(World world, Agent agent, List<WorldEvent> events)
@@ -89,11 +86,7 @@ public static class Traversal
         if (Fauna.BehaviorOf(agent.Species) != HerdBehavior.Carrion)
             Tracks.RecordMove(world, from, to, Tracks.MakerOf(agent.Species), agent.Members.Count, Tracks.IndividualDepth(agent.Species));
 
-        foreach (var (tile, riskPct) in new[] { (from, c.OriginRiskPct), (to, c.DestRiskPct) })
-        {
-            if (riskPct <= 0 || world.Rng("travel", agent.Id).NextDouble() >= riskPct) continue;
-            if (Injure(world, agent, tile, events) is string stop) return stop;
-        }
+        if (c.RiskPct > 0 && world.Rng("travel", agent.Id).NextDouble() < c.RiskPct && Injure(world, agent, to, events) is string stop) return stop;
         if (to == Map.Of(world).Exit && agent.Mind is PersonMind)
         {
             events.Add(new CrossedThePass(world.Minute, agent.Id, to));
@@ -154,36 +147,38 @@ public static class Traversal
     public static double EffectiveHazardLevel(World world, TileId tile) => HazardLevel(Map.Of(world), tile, SurfaceHazardDelta(world, tile));
 
     /// The ground's shape plus what its surface adds, at most 1: one rule whether the surface was
-    /// observed (EffectiveHazardLevel) or only looked at (Trip.IsHazardousNow).
+    /// observed (EffectiveHazardLevel) or only looked at (Trip.Risk).
     internal static double HazardLevel(GeneratedMap m, TileId tile, double surfaceDelta) => Math.Min(1.0, Map.TravelHazardLevel(m, tile) + surfaceDelta);
 
-    public static bool IsHazardous(World world, TileId tile) => EffectiveHazardLevel(world, tile) >= HazardousLevel;
+    public static bool PaceMatters(double quickRiskPct) => quickRiskPct > FootingRules.PaceMattersAbovePct;
 
-    /// Chance a quick crossing of this tile injures you.
-    public static double InjuryRiskPct(World world, TileId tile, BodyState body, WeatherSample sky) =>
-        InjuryOdds(world, tile, body, sky).TotalPct;
+    /// The ground alone, for a sound body under a calm sky: for agents that choose a pace by the map.
+    public static bool IsHazardous(World world, TileId tile) => PaceMatters(FallPct(EffectiveHazardLevel(world, tile)));
 
-    /// The injury risk as its terms, for the trip preview: the ground's hazard, the weather, bad legs;
-    /// at most MaxInjuryRiskPct. Ground below HazardousLevel carries no risk at all (a zero base).
-    public static Odds InjuryOdds(World world, TileId tile, BodyState body, WeatherSample sky) =>
-        InjuryOdds(EffectiveHazardLevel(world, tile), body, sky);
+    /// The one curve every injury risk is read from, so easy ground is nearly safe and there is no step in it.
+    internal static double FallPct(double footing) => Math.Pow(Math.Clamp(footing, 0, 1), FootingRules.InjuryExponent) / FootingRules.InjuryDivisor;
 
-    /// A careful pace: no injury roll at all.
-    public static readonly Odds NoRisk = new("Careful", 0, []);
+    public static double InjuryRiskPct(World world, TileId tile, BodyState body, WeatherSample sky, Pace pace = Pace.Quick) =>
+        InjuryOdds(world, tile, body, sky, pace).TotalPct;
 
-    /// The same, from the tile's effective hazard however it was read (observed, or looked at: Trip.Risk).
-    internal static Odds InjuryOdds(double baseRisk, BodyState body, WeatherSample sky)
+    /// The risk of the one roll a crossing onto this tile makes, as its terms for the trip preview.
+    public static Odds InjuryOdds(World world, TileId tile, BodyState body, WeatherSample sky, Pace pace = Pace.Quick) =>
+        InjuryOdds(EffectiveHazardLevel(world, tile), body, sky, pace);
+
+    /// Weather and bad legs worsen footing in proportion, so easy ground stays easy in a storm.
+    internal static Odds InjuryOdds(double hazardLevel, BodyState body, WeatherSample sky, Pace pace)
     {
-        if (baseRisk < HazardousLevel) return new Odds("Safe ground", 0, []);
         // Labelled by what earned it: a storm, light snow, or (whatever the sky is called) heavy precipitation.
         var (weatherWhy, weather) = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? (Names.Title(sky.Condition), 0.25)
             : sky.Condition == WeatherCondition.LightSnow ? (Names.Title(sky.Condition), 0.15)
             : sky.PrecipitationPct > 0.3 ? (sky.Precipitation == Precipitation.None ? "Precipitation" : $"Heavy {Names.Of(sky.Precipitation)}", 0.15)
             : (Names.Title(sky.Condition), 0.0);
         double impaired = (1 - Body.GetCapacities(body).Moving) * 0.3;
-        return new Odds("Hazardous ground", baseRisk, Odds.Moving(
-            OddsTerm.Add(weatherWhy, weather),
-            OddsTerm.Add("Bad legs", impaired)), MinPct: 0, MaxPct: MaxInjuryRiskPct);
+        double ground = Math.Clamp(hazardLevel, 0, 1), weathered = Math.Min(1, ground * (1 + weather)), lame = Math.Min(1, ground * (1 + weather + impaired));
+        return new Odds("Ground", FallPct(ground), Odds.Moving(
+            OddsTerm.Add(weatherWhy, FallPct(weathered) - FallPct(ground)),
+            OddsTerm.Add("Bad legs", FallPct(lame) - FallPct(weathered)),
+            OddsTerm.Scale("Careful", pace == Pace.Careful ? FootingRules.CarefulRiskFraction : 1)));
     }
 
     // Accident mechanics, pool by pool (Content/accidents.json).
@@ -194,7 +189,7 @@ public static class Traversal
         Content.Tables.Accidents.TryGetValue(pool, out var a) ? a : throw new KeyNotFoundException($"No accident pool '{pool}'");
 
     /// Ice slips beside a river, otherwise worse pools as the ground gets worse. Every question is
-    /// asked of the injured segment's own tile.
+    /// asked of the tile walked onto.
     static (IReadOnlyList<Accident> Pool, double Weight)[] AccidentPools(GeneratedMap m, TileId tile)
     {
         double severity = Map.TerrainHazardLevel(m, tile);

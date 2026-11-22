@@ -45,7 +45,7 @@ foreach (string line in commands)
                 var verb = Numbered(Verbs.At(world, AgentId.Player))[int.Parse(parts[1]) - 1];
                 if (verb.Odds != null) PrintOdds(verb.Odds);
                 foreach (var o in verb.Outcomes?.Outcomes ?? []) { Console.WriteLine($"  {o.Outcome.Words}"); PrintOdds(o.Odds); }
-                if (verb.Risk is { } risk) { PrintOdds(risk.Leaving); PrintOdds(risk.Entering); }
+                if (verb.Risk is { } risk) PrintOdds(risk);
                 Run(verb.Activity, verb.Minutes);
                 break;
             }
@@ -135,7 +135,7 @@ static void PrintVerbs(Here here)
         Console.WriteLine($"  [{t.Name}{conditions}] - {shown}");
         foreach (var v in t.Menu) Console.WriteLine($"     {Line(v)}");
     }
-    foreach (var v in here.Walk.Concat(here.Tile)) Console.WriteLine($"  {Line(v)}{(v.Risk is { AnyPct: > 0 } risk ? $" [{risk.AnyPct:P0} injury risk]" : "")}");
+    foreach (var v in here.Walk.Concat(here.Tile)) Console.WriteLine($"  {Line(v)}{(v.Risk is { TotalPct: > 0 } risk ? $" [{risk.TotalPct:P1} injury risk]" : "")}");
     Console.WriteLine("  [pack]");
     foreach (var v in here.Pack) Console.WriteLine($"     {Line(v)}");
     Console.WriteLine("  [make]");

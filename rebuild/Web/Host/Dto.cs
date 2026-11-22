@@ -71,11 +71,9 @@ public sealed record VerbDto(string Id, string Label, string Kind, int? Minutes,
 public sealed record OddsDto(string Base, double BasePct, IReadOnlyList<OddsTermDto> Terms, double RawPct, double TotalPct, bool Capped);
 public sealed record OddsTermDto(string Factor, string Op, double Value, double DeltaPct);
 
-/// A crossing's minutes as their terms (Trip.Time), zeros left out; they sum to TotalMinutes. Risk: the
-/// injury odds a quick crossing rolls (Trip.Risk), when there is any.
-public sealed record TripDto(int TotalMinutes, IReadOnlyList<TripTermDto> Terms, bool Hazardous, string To, bool ToKnown, RiskDto? Risk = null);
-/// AnyPct: the chance of at least one injury; Leaving and Entering: the two rolls, each with its factors.
-public sealed record RiskDto(double AnyPct, OddsDto Leaving, OddsDto Entering);
+/// A crossing's minutes as their terms (Trip.Time), zeros left out; they sum to TotalMinutes. Hazardous:
+/// the pace is a choice (Trip.PaceMatters). Risk: the injury odds this crossing rolls at its pace (Trip.Risk), when there is any.
+public sealed record TripDto(int TotalMinutes, IReadOnlyList<TripTermDto> Terms, bool Hazardous, string To, bool ToKnown, OddsDto? Risk = null);
 public sealed record TripTermDto(string Factor, int Minutes);
 
 /// A recipe and its odds table (Making.Odds): every outcome's odds; what is left is the plain result.

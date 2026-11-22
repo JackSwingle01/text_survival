@@ -120,14 +120,14 @@ sealed class ViewBuilder(World world, int gen)
             o.RawPct, o.TotalPct, o.Capped);
     }
 
-    TripDto TripOf(TripTime t, Travel go, CrossingRisk? risk)
+    TripDto TripOf(TripTime t, Travel go, Odds? risk)
     {
         var to = Map.Step(_player.Tile, go.Dir);
         bool known = Explored(to);
         return new TripDto(t.TotalMinutes, [.. t.Terms.Where(x => x.Minutes != 0).Select(x => new TripTermDto(x.Factor, x.Minutes))],
-            Trip.IsHazardousNow(world, _player.Tile) || Trip.IsHazardousNow(world, to),
+            Trip.PaceMatters(world, go.Who, go.Dir),
             known ? Map.Describe(M, to) : "unexplored ground", known,
-            risk is { AnyPct: > 0 } r ? new RiskDto(r.AnyPct, OddsOf(r.Leaving), OddsOf(r.Entering)) : null);
+            risk is { TotalPct: > 0 } r ? OddsOf(r) : null);
     }
 
     MakeDto MakeOf(Make mk, MakeOdds? odds)

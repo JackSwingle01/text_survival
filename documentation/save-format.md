@@ -53,7 +53,11 @@ reinterprets saves. The sample's bodies moved with the new hunger and the Well f
 after a day without hunger) replaced `BodyState.CalorieBalanceKcal` with `BodyState.MinutesWithoutHunger`, the
 minutes lived in a row without the `Hungry` effect, skipped at its default; Well fed holds once it reaches
 `hungerFreeHours` in `effects.json`. The sample sets the player's count to a day so the player is still
-Well fed; only the version and that field moved. When you add
+Well fed; only the version and that field moved. Version 10 (one injury roll per crossing) replaced
+`Crossing.OriginRiskPct` and `Crossing.DestRiskPct` with one `Crossing.RiskPct`, the chance rolled on arrival for
+the tile walked onto; an older save taken mid-crossing would otherwise load with no risk at all. The sample has no
+crossing under way; its quick walk onto forest now rolls, so it gained a `travel` rng stream, and regenerating it
+also caught up the two bodies' core temperature, hydration and effects, which had drifted from `SampleWorld` before this change. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands.

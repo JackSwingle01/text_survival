@@ -113,6 +113,9 @@ public static class Ground
     const double SnowInsulationPerMetre = 12;
     /// Snow deeper than this is what a foot stands on, hiding the footing of whatever is under it.
     const double SnowFootingDepthM = 0.05;
+    /// Pond ice this thick is as slick as ice gets; a thinner film is slick in proportion.
+    const double FullSlickIceM = 0.004;
+    const double SlickIceHazardDelta = 0.35;
     /// Deepest liquid water modelled; the excess leaves through the overflow sink.
     public const double MaxStandingWaterDepthM = 0.3048;
     const int MaxSnowLayers = 3;
@@ -328,8 +331,10 @@ public static class Ground
 
     /// How tall the layer stands; ice takes more room than the water it froze from.
     static double PhysicalThicknessM(SurfaceLayer l) => l.Material == SurfaceMaterial.Water
-        ? l.ThicknessM * (1 - l.FrozenFractionPct) + l.ThicknessM * l.FrozenFractionPct * IceExpansion
+        ? l.ThicknessM * (1 - l.FrozenFractionPct) + IceThicknessM(l)
         : l.ThicknessM;
+
+    static double IceThicknessM(SurfaceLayer pond) => pond.ThicknessM * pond.FrozenFractionPct * IceExpansion;
 
     /// Callers pass at most the layer's pore volume, and a layer with no room holds nothing: the few
     /// that can pass more (snow being packed or shrunk) take back the difference themselves.
@@ -439,7 +444,7 @@ public static class Ground
             {
                 double hazard = 0;
                 bool snowIsFooting = SnowDepthM > SnowFootingDepthM;
-                if (!snowIsFooting && Pond is { } pond && pond.FrozenFractionPct > 0.02) hazard += 0.35 * Math.Min(1, pond.FrozenFractionPct * 3);
+                if (!snowIsFooting && Pond is { } pond) hazard += SlickIceHazardDelta * Math.Min(1, IceThicknessM(pond) / FullSlickIceM);
                 if (snowIsFooting)
                 {
                     hazard += 0.05;

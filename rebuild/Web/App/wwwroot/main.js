@@ -362,9 +362,9 @@ function renderTrip(d, v) {
   $('sideBody').innerHTML = `
     <div class="preview"><div class="head"><span class="label">${esc(cap(d.dir))} · ${t.toKnown ? 'as you know it' : 'unexplored'}</span><span class="big">${t.totalMinutes}<small class="muted"> min</small></span></div>
       <div class="factors">${rows(t)}</div></div>
-    ${t.hazardous ? section('Footing', `${t.risk ? `<p class="note">Chance of a fall going quickly: ${pct(t.risk.anyPct)}</p>${[['Leaving', t.risk.leaving], ['Entering', t.risk.entering]].filter(([, o]) => o.totalPct > 0).map(([w, o]) => oddsSheet(o, { title: `${w} this ground` })).join('')}` : '<p class="note">Hazardous ground: a quick crossing risks a fall.</p>'}
-      <p class="note">Careful is slower, and risks nothing.</p>
-      ${careful?.trip ? `<div class="factors">${rows(careful.trip)}</div>` : ''}`) : ''}
+    ${t.hazardous || t.risk ? section('Footing', `${t.risk ? `<p class="note">Chance of a fall going quickly: ${pct(t.risk.totalPct)}</p>${oddsSheet(t.risk, { title: 'This ground, quickly' })}` : ''}
+      ${t.hazardous ? `<p class="note">Careful is slower${careful?.trip?.risk ? `, with a ${pct(careful.trip.risk.totalPct)} chance of a fall` : ', and safer'}.</p>
+      ${careful?.trip ? `<div class="factors">${rows(careful.trip)}</div>` : ''}` : ''}`) : ''}
     ${section('Daylight', `<div class="kv ${left && left < t.totalMinutes * 2 + 30 ? 'minus' : ''}">${img(left ? 'ui/sun' : 'ui/moon')}<span>${left ? `${dur(left)} of light left` : 'It is night'}</span><span class="v">${left && left > t.totalMinutes * 2 + 30 ? 'back before dark' : left ? 'tight' : ''}</span></div>`)}
     ${!v.place.camp && camp?.fire ? section('Your camp fire', `<div class="kv">${img(camp.fire === 'Embers' || camp.fire === 'Cold' ? 'embers' : 'fire')}<span>${esc(camp.fire)}, as you last saw it</span><span class="v">${ago(v.minute - camp.seenMinute)}</span></div>
       ${camp.fireHoursLeft != null ? `<p class="note">About ${dur(camp.fireHoursLeft * 60)} of fuel left, by your reckoning.</p>` : ''}`) : ''}
