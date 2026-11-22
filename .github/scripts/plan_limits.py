@@ -48,13 +48,14 @@ def main(path, max_utilization):
         print(f"rejected={str(rejected).lower()}\nheadroom={str(not rejected).lower()}")
         return
 
-    last = events[-1]
-    windows = dict(last.get("unifiedWindows") or {})
-    if not windows:
-        windows[last.get("rateLimitType", "window")] = last
-    rejected = refused or last.get("status") == "rejected" or any(
-        w.get("status") == "rejected" for w in windows.values()
-    )
+    # Events may report one window each, so fold them in order: the latest reading per window.
+    windows = {}
+    for event in events:
+        if event.get("unifiedWindows"):
+            windows.update(event["unifiedWindows"])
+        else:
+            windows[event.get("rateLimitType", "window")] = event
+    rejected = refused or any(w.get("status") == "rejected" for w in windows.values())
     used = {name: w.get("utilization", 0.0) for name, w in windows.items()}
     headroom = not rejected and all(u < max_utilization for u in used.values())
 

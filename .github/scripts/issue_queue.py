@@ -132,6 +132,28 @@ def mentioned_paths(text):
     return sorted(paths)
 
 
+MENTIONED_TEXT_CHARS = 8000
+
+
+def mentioned_text(item):
+    """A mentioned issue's body and trusted comments, cut to MENTIONED_TEXT_CHARS so one long map
+    can't crowd out the rest."""
+    n = item["number"]
+    if item["author_association"] not in TRUSTED:
+        return f"### #{n}: {item['title']}\n\n(opened by someone without write access; text left out)"
+    parts = [item["body"] or "(no description)"]
+    comments, note = try_api(f"repos/{REPO}/issues/{n}/comments?per_page=100", f"comments on #{n}")
+    if note:
+        parts.append(note)
+    for c in comments or []:
+        if c["author_association"] in TRUSTED:
+            parts.append(f"Comment by {c['user']['login']} on {c['created_at']}:\n\n{c['body']}")
+    text = "\n\n".join(parts)
+    if len(text) > MENTIONED_TEXT_CHARS:
+        text = text[:MENTIONED_TEXT_CHARS] + f"\n\n(cut at {MENTIONED_TEXT_CHARS} characters)"
+    return f"### #{n}: {item['title']}\n\n{text}"
+
+
 def brief(number):
     issue = api(f"repos/{REPO}/issues/{number}")
     out = [f"# #{number}: {issue['title']}\n", f"Opened by {issue['user']['login']} on {issue['created_at']}.\n",
@@ -169,7 +191,7 @@ def brief(number):
     out.append("\n## GitHub links\n\n" + ("\n".join(links) if links else "None."))
 
     mentioned = mentioned_issues("\n".join(trusted_text), number)
-    rows = []
+    rows, texts = [], []
     for n in mentioned:
         item, note = try_api(f"repos/{REPO}/issues/{n}", f"#{n}")
         if note:
@@ -178,8 +200,14 @@ def brief(number):
         kind = "PR" if "pull_request" in item else "issue"
         state = item["state"] + (f" ({item['state_reason']})" if item.get("state_reason") else "")
         rows.append(f"| #{n} | {item['title']} | {kind} | {state} |")
+        # The agents get no GitHub access, so the issues it mentions come with their text, filtered by
+        # the same rule as this issue's: only what people with write access wrote.
+        if kind == "issue":
+            texts.append(mentioned_text(item))
     out.append("\n## Issues and PRs it mentions\n\n" +
                ("| # | Title | Kind | State |\n|---|---|---|---|\n" + "\n".join(rows) if rows else "None."))
+    if texts:
+        out.append("\n## Text of the issues it mentions\n\n" + "\n\n".join(texts))
 
     prs, note = try_api(f"repos/{REPO}/pulls?state=open&per_page=100", "Open pull requests")
     if note:
