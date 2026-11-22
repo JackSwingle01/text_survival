@@ -1,0 +1,147 @@
+// How things are made (emergent-world-design §3.7; old NeedCraftingSystem, the MVP families). Loaded
+// once by Content; the loader checks every name and outcome. Make.cs runs them.
+//
+// Each recipe, by id, in menu order:
+//   name, category (MakeCategory);
+//   inputs: { "of": "A|B", "kg": n } is kilos of any of those resources, taken in the order listed;
+//     { "item": kind } is one piece of that gear kind, consumed into the result;
+//   tools: capabilities the pack must give (each used once per finished piece); faster: capabilities
+//     that speed the work when carried (optional);
+//   requires: what the place must have to start and to go on (Light, Fire, Frost, Shelter, Dry);
+//   minutes: the work for someone whole, warm and dry;
+//   result: { "gear": kind } for one piece, or { "resource": r, "kg": n };
+//   outcomes: `succeed|fail[:effect:params...]=<base odds>`, one rolled per finished piece; the odds
+//     left over are the plain result. Effects: waste_material:<input>:<share>,
+//     save_material:<input>:<share>, extra_product:<gear or resource>:<n>, injury:<BodyTarget>:<damage>,
+//     break_tool:<capability>[:<uses lost>] (no amount breaks it outright). `|` in a parameter lists
+//     alternatives, the odds split evenly. An input of alternatives is named by any of them. Base odds
+//     add up to at most 0.5.
+// Old item counts become kilos through shelters.json's nominal pieces: a stick 0.3, plant fibre 0.1,
+// a stone 0.3, sinew 0.1, a hide 1.0. Wood is Pine|Birch|Oak, from the deadfall foraging finds.
+{
+ // ---- cutting tools: a sharp rock needs nothing, a hammerstone knaps the rest ----
+ "sharp_rock": { "name": "Sharp rock", "category": "CuttingTool",
+  "inputs": [ { "of": "Stone", "kg": 0.3 } ], "tools": [], "requires": ["Light"], "minutes": 5,
+  "result": { "gear": "sharp_rock" },
+  "outcomes": ["fail:waste_material:Stone:1=.20", "succeed:injury:LeftArm|RightArm:0.03=.05"] },
+ "hammerstone": { "name": "Hammerstone", "category": "CuttingTool",
+  "inputs": [ { "of": "Stone", "kg": 0.6 } ], "tools": [], "requires": ["Light"], "minutes": 10,
+  "result": { "gear": "hammerstone" },
+  "outcomes": ["fail=.05"] },
+ "stone_knife": { "name": "Stone knife", "category": "CuttingTool",
+  "inputs": [ { "of": "Stone", "kg": 0.3 }, { "of": "Kindling", "kg": 0.3 }, { "of": "PlantFiber|Sinew", "kg": 0.1 } ],
+  "tools": ["Striking"], "requires": ["Light"], "minutes": 20,
+  "result": { "gear": "stone_knife" },
+  "outcomes": ["fail:waste_material:Stone:1=.10", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
+ "flint_knife": { "name": "Flint knife", "category": "CuttingTool",
+  "inputs": [ { "of": "Flint", "kg": 0.3 }, { "of": "Kindling", "kg": 0.3 }, { "of": "PlantFiber|Sinew", "kg": 0.1 } ],
+  "tools": ["Striking"], "faster": ["Cutting"], "requires": ["Light"], "minutes": 25,
+  "result": { "gear": "flint_knife" },
+  "outcomes": ["fail:waste_material:Flint:1=.10", "succeed:injury:LeftArm|RightArm:0.05=.05", "fail:break_tool:Striking=.02",
+   "succeed:extra_product:sharp_rock:1=.05"] },
+ "bone_needle": { "name": "Bone needle", "category": "CuttingTool",
+  "inputs": [ { "of": "Bone", "kg": 0.1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 20,
+  "result": { "gear": "bone_needle" },
+  "outcomes": ["fail:waste_material:Bone:1=.15"] },
+
+ // ---- fire-starting ----
+ "hand_drill": { "name": "Hand drill", "category": "FireStarting",
+  "inputs": [ { "of": "Kindling", "kg": 0.6 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 15,
+  "result": { "gear": "hand_drill" },
+  "outcomes": ["fail=.05"] },
+ "bow_drill": { "name": "Bow drill", "category": "FireStarting",
+  "inputs": [ { "of": "Kindling", "kg": 0.9 }, { "of": "PlantFiber|Sinew|Rope", "kg": 0.1 } ],
+  "tools": ["Cutting"], "requires": ["Light"], "minutes": 25,
+  "result": { "gear": "bow_drill" },
+  "outcomes": ["fail=.08"] },
+ // Old pyrite strike-a-light.
+ "fire_striker": { "name": "Fire striker", "category": "FireStarting",
+  "inputs": [ { "of": "Flint", "kg": 0.3 }, { "of": "Pyrite", "kg": 0.2 } ], "tools": ["Striking"], "requires": ["Light"], "minutes": 10,
+  "result": { "gear": "fire_striker" },
+  "outcomes": ["fail:waste_material:Flint:1=.05"] },
+
+ // ---- cordage and hides ----
+ // Twisted by feel: no light needed.
+ "cordage": { "name": "Cordage", "category": "Processing",
+  "inputs": [ { "of": "PlantFiber", "kg": 0.3 } ], "tools": [], "requires": [], "minutes": 15,
+  "result": { "resource": "Rope", "kg": 0.2 },
+  "outcomes": ["fail:waste_material:PlantFiber:0.5=.08", "succeed:save_material:PlantFiber:0.33=.10"] },
+ // Old scrape-hide, now needing a blade (old bug, §3.7).
+ "scrape_hide": { "name": "Scrape a hide", "category": "Processing",
+  "inputs": [ { "of": "Hide", "kg": 1.0 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 30,
+  "result": { "resource": "ScrapedHide", "kg": 0.8 },
+  "outcomes": ["fail:waste_material:Hide:0.25=.05", "succeed:injury:LeftArm|RightArm:0.03=.02"] },
+ // Stands in for the curing rack (roadmap 11): four hours drying and smoking one scraped hide by a
+ // fire. One hide goes 1.0 kg raw, 0.8 scraped, 0.7 cured.
+ "dry_hide": { "name": "Dry a hide by the fire", "category": "Processing",
+  "inputs": [ { "of": "ScrapedHide", "kg": 0.8 } ], "tools": [], "requires": ["Fire"], "minutes": 240,
+  "result": { "resource": "CuredHide", "kg": 0.7 },
+  "outcomes": ["fail:waste_material:ScrapedHide:0.5=.08"] },
+
+ // ---- weapons ----
+ "stone": { "name": "Stone", "category": "HuntingWeapon",
+  "inputs": [ { "of": "Stone", "kg": 0.3 } ], "tools": [], "requires": [], "minutes": 1,
+  "result": { "gear": "stone" },
+  "outcomes": [] },
+ "staff": { "name": "Staff", "category": "HuntingWeapon",
+  "inputs": [ { "of": "Pine|Birch|Oak", "kg": 1.5 } ], "tools": [], "faster": ["Cutting"], "requires": [], "minutes": 10,
+  "result": { "gear": "staff" },
+  "outcomes": ["fail=.03"] },
+ "crude_spear": { "name": "Crude spear", "category": "HuntingWeapon",
+  "inputs": [ { "of": "Pine|Birch|Oak", "kg": 1.5 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 20,
+  "result": { "gear": "crude_spear" },
+  "outcomes": ["fail:waste_material:Pine:1=.05", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
+ // The crude spear's point hardened in the fire.
+ "wooden_spear": { "name": "Fire-hardened spear", "category": "HuntingWeapon",
+  "inputs": [ { "item": "crude_spear" } ], "tools": [], "requires": ["Fire"], "minutes": 30,
+  "result": { "gear": "wooden_spear" },
+  "outcomes": ["fail=.10"] },
+ "heavy_spear": { "name": "Heavy spear", "category": "HuntingWeapon",
+  "inputs": [ { "of": "Pine|Birch|Oak", "kg": 2.5 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 35,
+  "result": { "gear": "heavy_spear" },
+  "outcomes": ["fail:waste_material:Pine:1=.04", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
+ // §3.7's own example; the injury is a cut, not the 0.2 written there.
+ "stone_tipped_spear": { "name": "Stone-tipped spear", "category": "HuntingWeapon",
+  "inputs": [ { "item": "wooden_spear" }, { "of": "Flint", "kg": 0.2 }, { "of": "Sinew|Rope", "kg": 0.05 } ],
+  "tools": ["Cutting"], "faster": ["Striking"], "requires": ["Light"], "minutes": 40,
+  "result": { "gear": "stone_tipped_spear" },
+  "outcomes": ["fail=.05", "fail:waste_material:Flint:.5=.08", "succeed:save_material:Sinew:1=.10",
+   "succeed:injury:LeftArm|RightArm:0.05=.04", "fail:break_tool:Cutting=.02"] },
+
+ // ---- torches: all three make the one torch ----
+ "simple_torch": { "name": "Simple torch", "category": "Lighting",
+  "inputs": [ { "of": "Kindling", "kg": 0.3 }, { "of": "Tinder", "kg": 0.1 } ], "tools": [], "requires": [], "minutes": 5,
+  "result": { "gear": "torch" },
+  "outcomes": ["fail:waste_material:Tinder:1=.05"] },
+ "birch_bark_torch": { "name": "Birch bark torch", "category": "Lighting",
+  "inputs": [ { "of": "Kindling", "kg": 0.3 }, { "of": "BirchBark", "kg": 0.05 } ], "tools": [], "requires": [], "minutes": 5,
+  "result": { "gear": "torch" },
+  "outcomes": [] },
+ "resin_torch": { "name": "Resin torch", "category": "Lighting",
+  "inputs": [ { "of": "Kindling", "kg": 0.3 }, { "of": "Tinder", "kg": 0.05 }, { "of": "PineResin", "kg": 0.05 } ],
+  "tools": [], "requires": [], "minutes": 10,
+  "result": { "gear": "torch" },
+  "outcomes": ["succeed:save_material:PineResin:1=.10"] },
+
+ // ---- hide clothing: cured hide and sinew, sewn with a needle ----
+ "hide_gloves": { "name": "Hide gloves", "category": "Clothing",
+  "inputs": [ { "of": "CuredHide", "kg": 0.4 }, { "of": "Sinew", "kg": 0.1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 30,
+  "result": { "gear": "hide_gloves" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+ "hide_cap": { "name": "Hide cap", "category": "Clothing",
+  "inputs": [ { "of": "CuredHide", "kg": 0.35 }, { "of": "Sinew", "kg": 0.1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 25,
+  "result": { "gear": "hide_cap" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+ "hide_wrap": { "name": "Hide wrap", "category": "Clothing",
+  "inputs": [ { "of": "CuredHide", "kg": 2.0 }, { "of": "Sinew", "kg": 0.2 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 45,
+  "result": { "gear": "hide_wrap" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+ "hide_leggings": { "name": "Hide leggings", "category": "Clothing",
+  "inputs": [ { "of": "CuredHide", "kg": 1.4 }, { "of": "Sinew", "kg": 0.1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 40,
+  "result": { "gear": "hide_leggings" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+ "hide_boots": { "name": "Hide boots", "category": "Clothing",
+  "inputs": [ { "of": "CuredHide", "kg": 0.8 }, { "of": "Sinew", "kg": 0.1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 35,
+  "result": { "gear": "hide_boots" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] }
+}

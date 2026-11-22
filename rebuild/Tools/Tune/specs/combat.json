@@ -1,0 +1,78 @@
+// What the combat tuner may change. Each entry is one number the search moves:
+//   name     how the run's tables call it
+//   path     where it lives: a content file, then a dotted path of keys (or array indexes) to a
+//            number already in that file, e.g. "species.json:species.Wolf.boldness"
+//   paths    instead of path: several numbers that move together (they start at the first one's value)
+//   min/max  the range searched; today's value must lie inside it (the search starts there)
+//   log      search on a log scale (for multipliers and damages that span orders of magnitude)
+//   integer  round to a whole number (the table reads an int)
+//   note     why it is here, or what to watch
+// To tune a new constant, put it in a content table and add an entry here: no tool code changes.
+// Every number below is in data today; combat constants still in code are not tuned yet. The running ranges
+// keep each top speed above its endurance speed, which the content loader insists on.
+{
+ "parameters": [
+  { "name": "human.attackDamage", "path": "species.json:species.Human.attackDamage", "min": 0.05, "max": 1.5, "log": true, "note": "bare hands" },
+  { "name": "human.threat", "path": "species.json:species.Human.threat", "min": 0.2, "max": 4, "log": true, "note": "what an animal reads off a person" },
+  { "name": "human.moveAllowanceM", "path": "species.json:species.Human.moveAllowanceM", "min": 2, "max": 6, "integer": true },
+
+  { "name": "wolf.attackDamage", "path": "species.json:species.Wolf.attackDamage", "min": 0.2, "max": 3, "log": true },
+  { "name": "wolf.threat", "path": "species.json:species.Wolf.threat", "min": 0.1, "max": 4, "log": true },
+  { "name": "wolf.boldness", "path": "species.json:species.Wolf.boldness", "min": 0.2, "max": 4, "log": true },
+  { "name": "wolf.aggression", "path": "species.json:species.Wolf.aggression", "min": 0.05, "max": 1, "note": "the tables hold aggression to 0-1" },
+  { "name": "wolf.cohesion", "path": "species.json:species.Wolf.cohesion", "min": 0.1, "max": 4, "log": true, "note": "pack morale: ally bonus and the cascade when one falls" },
+  { "name": "wolf.moveAllowanceM", "path": "species.json:species.Wolf.moveAllowanceM", "min": 2, "max": 10, "integer": true },
+
+  { "name": "bear.attackDamage", "path": "species.json:species.Bear.attackDamage", "min": 0.4, "max": 6, "log": true },
+  { "name": "bear.threat", "path": "species.json:species.Bear.threat", "min": 0.3, "max": 6, "log": true },
+  { "name": "bear.boldness", "path": "species.json:species.Bear.boldness", "min": 0.2, "max": 5, "log": true },
+  { "name": "bear.aggression", "path": "species.json:species.Bear.aggression", "min": 0.05, "max": 1 },
+  { "name": "bear.moveAllowanceM", "path": "species.json:species.Bear.moveAllowanceM", "min": 2, "max": 10, "integer": true },
+
+  { "name": "caribou.threat", "path": "species.json:species.Caribou.threat", "min": 0.05, "max": 3, "log": true, "note": "what a wolf reads off a caribou" },
+  { "name": "caribou.moveAllowanceM", "path": "species.json:species.Caribou.moveAllowanceM", "min": 2, "max": 10, "integer": true },
+
+  { "name": "human.topSpeedMps", "path": "species.json:species.Human.topSpeedMps", "min": 6, "max": 11, "note": "running: kept above endurance by the ranges" },
+  { "name": "human.enduranceSpeedMps", "path": "species.json:species.Human.enduranceSpeedMps", "min": 2, "max": 5 },
+  { "name": "human.sprintSeconds", "path": "species.json:species.Human.sprintSeconds", "min": 5, "max": 40, "log": true },
+  { "name": "human.burstPct", "path": "species.json:species.Human.burstPct", "min": 0.02, "max": 0.4, "log": true, "note": "the reserve one strike, dodge or shove takes" },
+  { "name": "wolf.topSpeedMps", "path": "species.json:species.Wolf.topSpeedMps", "min": 10, "max": 18 },
+  { "name": "wolf.enduranceSpeedMps", "path": "species.json:species.Wolf.enduranceSpeedMps", "min": 4, "max": 9.5 },
+  { "name": "wolf.sprintSeconds", "path": "species.json:species.Wolf.sprintSeconds", "min": 10, "max": 90, "log": true },
+  { "name": "wolf.burstPct", "path": "species.json:species.Wolf.burstPct", "min": 0.01, "max": 0.3, "log": true },
+  { "name": "bear.topSpeedMps", "path": "species.json:species.Bear.topSpeedMps", "min": 8, "max": 16 },
+  { "name": "bear.enduranceSpeedMps", "path": "species.json:species.Bear.enduranceSpeedMps", "min": 2, "max": 7.5 },
+  { "name": "bear.sprintSeconds", "path": "species.json:species.Bear.sprintSeconds", "min": 5, "max": 60, "log": true },
+  { "name": "bear.burstPct", "path": "species.json:species.Bear.burstPct", "min": 0.02, "max": 0.3, "log": true },
+  { "name": "caribou.topSpeedMps", "path": "species.json:species.Caribou.topSpeedMps", "min": 11, "max": 20 },
+  { "name": "caribou.enduranceSpeedMps", "path": "species.json:species.Caribou.enduranceSpeedMps", "min": 4, "max": 10.5 },
+  { "name": "caribou.sprintSeconds", "path": "species.json:species.Caribou.sprintSeconds", "min": 5, "max": 60, "log": true },
+
+  { "name": "human.strikeBackResolve", "path": "species.json:species.Human.strikeBackResolve", "min": -0.8, "max": -0.05,
+   "note": "giving ground with the enemy in reach: strike at this resolve or above, else back off" },
+  { "name": "wolf.strikeBackResolve", "path": "species.json:species.Wolf.strikeBackResolve", "min": -0.8, "max": -0.05 },
+  { "name": "bear.strikeBackResolve", "path": "species.json:species.Bear.strikeBackResolve", "min": -0.8, "max": -0.05 },
+
+  { "name": "human.chaseLimitSeconds", "path": "species.json:species.Human.chaseLimitSeconds", "min": 10, "max": 300, "log": true,
+   "note": "how long it chases a runner before giving up" },
+  { "name": "wolf.chaseLimitSeconds", "path": "species.json:species.Wolf.chaseLimitSeconds", "min": 30, "max": 900, "log": true },
+  { "name": "bear.chaseLimitSeconds", "path": "species.json:species.Bear.chaseLimitSeconds", "min": 5, "max": 300, "log": true },
+
+  { "name": "spear.damage", "path": "items.json:gear.wooden_spear.weapon.damage", "min": 0.5, "max": 6, "log": true, "note": "in units of tissue condition" },
+  { "name": "crudeSpear.damage", "path": "items.json:gear.crude_spear.weapon.damage", "min": 0.3, "max": 6, "log": true },
+  { "name": "axe.damage", "path": "items.json:gear.stone_axe.weapon.damage", "min": 0.3, "max": 6, "log": true },
+  { "name": "knife.damage", "paths": ["items.json:gear.flint_knife.weapon.damage", "items.json:gear.bone_knife.weapon.damage", "items.json:gear.worn_knife.weapon.damage",
+   "items.json:gear.stone_knife.weapon.damage"], "min": 0.3, "max": 6, "log": true, "note": "every knife alike" },
+  { "name": "stone.damage", "path": "items.json:gear.stone.weapon.damage", "min": 0.1, "max": 3, "log": true, "note": "a stone in the hand" },
+  { "name": "staff.damage", "path": "items.json:gear.staff.weapon.damage", "min": 0.1, "max": 3, "log": true },
+
+  { "name": "fire.fireFear", "path": "fire.json:deterrence.fireFear", "min": 0.5, "max": 6, "log": true,
+   "note": "what a flame at full intensity, close by, takes off an animal's resolve; people are not deterred" },
+  { "name": "fire.torchIntensityPct", "path": "fire.json:deterrence.torchIntensityPct", "min": 0.05, "max": 0.6, "note": "a lit torch against a campfire's 1" },
+  { "name": "fire.fullWithinM", "path": "fire.json:deterrence.fullWithinM", "min": 2, "max": 15, "log": true,
+   "note": "deters in full this close; inverse-square beyond" },
+
+  { "name": "sightings.resting.0", "path": "species.json:sightings.resting.0", "min": 0.2, "max": 3, "log": true, "note": "how watchful a resting herd is when stalked" },
+  { "name": "sightings.resting.1", "path": "species.json:sightings.resting.1", "min": 0.2, "max": 3, "log": true }
+ ]
+}

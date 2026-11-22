@@ -261,7 +261,7 @@ public class FireTests
     public void AddFuel_RefusesBoneOnASmallFire_AndNoFireAtAll()
     {
         var world = LitCamp();
-        Assert.Equal("the fire is not hot enough for Bone", Sim.Step(world, new AddFuel(P, Resource.Bone, 1), 1).InterruptedReason);
+        Assert.Equal("the fire is not hot enough for bone", Sim.Step(world, new AddFuel(P, Resource.Bone, 1), 1).InterruptedReason);
         var empty = World.New(1);
         Assert.Equal("no fire here", Sim.Step(empty, new AddFuel(P, Resource.Kindling, 1), 1).InterruptedReason);
     }

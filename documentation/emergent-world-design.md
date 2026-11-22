@@ -1,13 +1,46 @@
-# Emergent World: Signs, Settling and Moments
+# Emergent World: Signs, Settling and Conditions
 
 *Design for the clean-room rebuild's content layer. It replaces tensions and most authored events
 with content that falls out of the simulation. The plan (`clean-room-architecture.md`) points here
 for Phase 4 onward.*
 
-**Status:** design agreed in direction (2026-11-20); not yet built.
+**Status:** design agreed in direction (2026-11-20); revised 2026-11-21 after a review session with
+the user (§0). Steps 1-3a built.
 **Source:** adapted from the "Emergent Discovery System" handoff written for the corridor game
 (text-survival-2), whose findings came from a throwaway world-gen POC. This doc keeps its findings
 and changes what does not fit the rebuild: a 2D grid valley with a full per-minute agent sim.
+
+---
+
+## 0. Decisions of 2026-11-21 (these override anything below that disagrees)
+
+The hard-to-reverse ones are recorded with their reasons in `documentation/decisions/`.
+
+1. **No special cases.** What a person can do about a situation comes from systems that exist for
+   everyone: fighting, moving, waiting, fire, digging. Nothing scripts "what you can do when a bear
+   is near". New behaviour arrives as small general mechanics (fire is a term in predator
+   boldness), never as per-situation choices, so every situation updates when a mechanic does.
+2. **No moments, no director.** There are no event popups. Discoveries and ordinary gameplay are
+   the moments: things on the map and in the action list that the player answers with ordinary
+   actions. Nothing manages the player's attention.
+3. **Effects apply to bodies and things alike** (§3.3), driven by **one exposure calculation**
+   (§3.4). Carcass decay becomes the Spoiling effect.
+4. **Conditions replace tags** (§3.5): facts an action sees, read from effects and place, never
+   stored. Blocking conditions offer one clearing action; modifying ones only change outcomes.
+   Occupied blocks; its clearing action is **Contest** (or **Ask**, toward an ally).
+5. **No Guarded gate.** A predator on its kill makes the kill Occupied; contesting it is answered by
+   the predator's own mind through its boldness. Fire's heat and light is a boldness term.
+6. **Crossing water is a chance with visible odds**, like fire-starting (§3.6).
+7. **One hop of cause is a preference, not a rule.** Signs carry a real cause where one exists.
+   Authored discovery content stays until the system produces the same thing, and may carry an
+   authored cause. No "ghost camp" settling for now.
+8. **Place text never contradicts game state.** Static description only; live facts ("wolf tracks
+   everywhere") come from real signs. Old hallucination scenes are cut.
+9. **Stat tiers** (`GLOSSARY.md`): every stat is Critical (imminent death, drop everything), Need
+   (survive the day, or back to baseline) or Want (stockpile, surplus). Tier ranks first; within a
+   tier, warmth, then water, then food, then rest. The NPC and the player-facing alerts use it.
+10. **Effects code is verified** to a stated bar (§3.3): a pure kernel, property tests, a
+    reference model, and mutation testing.
 
 ---
 
@@ -42,8 +75,9 @@ So tensions go. What they gave the player that raw state does not is kept, by ot
 
 - **Perception.** Tension is the player's *belief* about a real thing. A pack following unseen is
   not tension; fresh prints over your own trail are. Beliefs are plan decision 7.
-- **Pacing.** A director that manages attention, never facts (§7).
-- **Legibility.** Every sign carries one hop of cause (§3.2), so a moment can say why.
+- **Pacing.** From the world itself: discoveries, renewal, attractors and the stat tiers' pressure.
+  No director (§0.2).
+- **Legibility.** Signs carry a cause where there is one (§3.2), so investigating can say why.
 
 **The rule:** any event or discovery this system can replace, it replaces. Whatever is left is
 catalogued (`documentation/authored-content-catalog.md`, created during build step 4's paper
@@ -64,13 +98,12 @@ emergence cannot produce. Landmarks also serve as *attractors* that the sim's ag
 2. **The settling pass samples a content distribution; it is not a chronicle.** One to two sim
    years is enough. Shortcuts a historian could not take are allowed: seeding herds mid-story,
    extra arrivals into empty stretches.
-3. **One hop of cause.** Every sign points to its source and its cause. Investigate answers "what
-   made this". Sagas, provenance epics and deep history are out of scope.
+3. **One hop of cause, where there is one.** A sign points to its source and cause when the sim made
+   it; authored content may carry an authored cause (§0.7). Sagas and deep history are out of scope.
 4. **Emergence comes from chains through shared currencies, not from coverage.** Interactions read
    and write five currencies: **meat, occupancy, territory/scent, information, structure.** An
    interaction earns its place only if it touches one. Deliberate nulls are listed and stay null.
-5. **Facts never move after settling for pacing reasons.** Pacing biases what the player notices
-   and when, never what exists.
+5. **Facts never move for pacing.** Nothing creates, moves or hides a fact to pace the player.
 6. **No language model in this system for now.** Text comes from templates over fact records.
 
 ---
@@ -119,79 +152,150 @@ public static class Signs
 - New saved fields are only `Cause` on things that persist (carcass, stash, fire pit, body, stored
   signs). `Who` may name a dead or departed agent; it is a label, not a live reference.
 
-### 3.3 Tags and capabilities are computed bitsets
+### 3.3 Effects: one model for bodies and things
 
-```csharp
-[Flags] public enum Tag : ulong
-{
-    Occupied, Owned, Guarded, Sealed, Buried, FrozenIn, Elevated, Unstable, ScentSource, Edible,
-    Harvestable, Sheltering, Burnable, Fresh, Contested, Depleted, Beacon,
-    Hostile, Unaware, Wounded  // powers of two; Ripe folds into Harvestable, Crossing moves to edges
-}
-[Flags] public enum Capability
-{
-    Cutting, Striking, Prying, Digging, Smoke, Light, Reaching, Bait, Spark, Binding, Carrying, Piercing  // ≤ 12
-}
+An effect is a state that builds up and fades under exposure and time: Wet, Frozen and Spoiling
+on bodies and things; Bleeding, Pain, Shivering and the rest on bodies only.
 
-public static Tag TagsOf(World w, ThingRef t);         // Ground says Buried, a nearby agent says Guarded
-public static Capability CapabilitiesOf(Inventory p);  // OR over the GearDefs in the pack
+- **One definition table** (data): each effect's severity range, how exposure drives it up, how it
+  fades, label thresholds, whether it is body-only.
+- **One pure kernel:** `Effects.Next(state, exposure, minutes) -> state`. No world, no RNG, no side
+  effects. The body's survival step and every thing call it.
+- **State is per stack in one place:** the tinder pile in a pack is one wetness. Merging stacks
+  averages by weight; splitting copies.
+- **Carried things follow their carrier:** packed, they take the carrier's exposure under pack
+  cover; worn, they are the body's. Things on the ground or in a stash evolve from their tile's
+  exposure. Every stack ticks every world minute, in one pass at the start of the minute (never
+  inside an agent's turn, so a stack handed over mid-minute is ticked exactly once).
+- **Where an effect's consequences live:** in the system that reads it (fire odds read wet tinder,
+  butchering reads spoilage). An effect two systems share has one function, owned by the effect's
+  physics, that both call.
+
+**Verification bar** (effects have been a major source of bugs):
+
+1. The kernel is pure and small; numbers live in the table.
+2. Property tests (CsCheck) in the normal suite:
+   - bounds: severity stays in range for any input;
+   - time-splitting: N one-minute steps equal one N-minute step;
+   - direction: more rain never dries, more heat never freezes faster;
+   - fixed point: under steady exposure the state settles;
+   - every input matters: changing any exposure input changes some effect, or is declared irrelevant;
+   - merge laws: commutative, result between the inputs;
+   - body and thing agree: the same exposure gives the same curve.
+3. A closed-form reference model for steady exposure, compared within a tolerance.
+4. Mutation testing (Stryker.NET) on the effects module, score at least 90%, run as a separate
+   command. No Dafny for now: it proves over reals, and the bugs live partly in doubles.
+
+### 3.4 Exposure: one calculation
+
+`Exposure.At(world, tile, cover)` returns what the world does to a body or thing in one place:
+air temperature with fire heat, wind at it, precipitation, ground wetting, sun. Cover says how
+protected it is: open, shelter, pack, worn, under snow.
+
+- **Wind at the body** is regional × tile × (1 − pit walls) × (1 − shelter), and every consumer
+  (wind chill, convection, drying) reads that one value. Drying beside a fire omits the shelter
+  term. Today tile wind reaches only the chill; that is the bug this fixes.
+- No system computes exposure itself; an architecture test enforces it.
+- **The body's wind is not capped.** Exposed places push it past 1 (Plain 1.2, Hills 1.4, pass
+  stages up to 2.0, Wind Gap 2.5). Convection is linear in it up to 1, where the old values were
+  tuned, and grows with its square root above (real convection grows with about the square root of
+  wind speed), so a Wind Gap storm strips about 1.4x a gale's heat, not 2x.
+- **The ground's weather is Exposure's surface view** (`Exposure.Surface(world, tile, minute)`): the
+  open tile with no body, shelter or fire, addressable at any minute because ground, snow-shelter
+  melt and carcass rot catch up lazily. `Exposure.At` adds the body's side (wind chill at the body's
+  wind, the shelter step, the fire) to the same sky-and-tile terms in the same file.
+
+### 3.5 Conditions and actions
+
+A condition is what an action sees about a thing: a fact read from its effects and its place,
+never stored. Conditions replace the tags of build step 2.
+
+- **Blocking conditions** stand in front of a thing's action and have one clearing action: Buried
+  (Dig), Frozen to the ground (Chip free), Iced over (Cut a hole), Tied (Untie, or Cut), Out of reach
+  (Climb, Knock down), Alive (Kill), **Occupied (Contest; Ask toward an ally)**.
+- **Modifying conditions** block nothing and change the outcome or odds: Wet, Spoiled, Rotten,
+  Cracked.
+- **Three parts:** the definition is data (name, label thresholds, clearing action, tool tiers,
+  order); deriving it lives in the system that owns the underlying state (ground owns Buried, heat
+  owns Frozen); its effect on outcomes lives in the consumer.
+- **A clearing action changes the world, never the condition directly.** Digging lowers the snow
+  over the thing; chipping leaves "ice broken at minute X", which refreezes. When the world changes
+  by itself (a thaw, a fire beside it, wind scouring the snow), the condition simply stops being
+  true. That is how waiting or lighting a fire work around a condition without a special action.
+- **Tool tiers set the method and cost:** `Dig (bare hands)` 1×, improvised 1.5×, shovel 2×, scaled
+  by depth; chipping needs a striking or cutting tool.
+- **One action shown:** the thing, its conditions, and one action. Blocked: the outermost blocking
+  condition's clearing action (order is physical layering, snow over ice over lid over contents).
+  Not blocked: the thing's action, or **Interact** when it has several (fire, carcass, stash,
+  shelter), which opens its menu. Example: `[Old cache (buried, frozen)] - Dig (bare hands)`, then
+  `Chip free (stone axe)`, then `Pick up`.
+- **Contest** is answered by the occupant's mind: it yields, holds and threatens, or fights, through
+  its ordinary boldness. The same for a pack on a kill, a bear in a den, a stranger at a fire.
+- `Capability` stays: gear capabilities pick the tool tier. `Access.Refusal` remains the one place
+  an action asks whether it is blocked, and it answers with the clearing action.
+
+### 3.6 Crossing water
+
+Anywhere can be crossed. Before committing the player sees odds, as for fire-starting: ice
+thickness at that spot, open water, depth and current, a feature (a fallen log, stepping stones),
+load, legs. Outcomes: **dry**, **wet** (feet and legs soaked, heavy cooling) or **through** (fully
+soaked, cold shock, injury chance on thin ice). Open water can't come out dry. Better crossing
+places are real tile content, found by searching the bank.
+
+### 3.7 Making things: recipes and projects (decided 2026-11-21)
+
+One kind of recipe and one Make activity cover crafting and building; NPCs use the same ones.
+
+```
+recipe "stone_tipped_spear"
+  category   HuntingWeapon                         # menu grouping
+  inputs     wooden_spear x1 (consumed), flint 0.2 kg, sinew|cordage 0.05 kg
+  tools      Cutting (required), Striking (faster)  # capabilities, never named items
+  requires   Light                                  # closed list: Light, Fire, Frost, Shelter, Dry
+  work       40 min, skill Crafting
+  result     stone_tipped_spear x1                  # what the menu shows
+  outcomes   fail=.05                               # time lost
+             fail:waste_material:flint:.5=.08       # half the flint wasted
+             succeed:save_material:sinew:1.0=.10    # the sinew comes back
+             succeed:injury:left_hand|right_hand:.2=.04
+             fail:break_tool:Cutting=.02            # the cutting tool breaks outright
 ```
 
-- The enum is the closed vocabulary. Adding a bespoke tag for one situation is the failure mode;
-  adding one is a visible code change.
-- `Hostile` is an agent whose mind is targeting you (the commonest old situation: "the wolf",
-  not a thing); `Unaware` and `Wounded` are read off the agent's mind and body. `Occupied` can be
-  set by a small-game density (a hive, a burrow), not only by an agent.
-- Tags are never stored, so they cannot go stale and do not touch save determinism.
+- **Recipes are data** behind the strict loader. Logic stays in code.
+- **Inputs** are resources by kg (`a|b` for alternatives) or items. An item input is `consumed` or
+  the `target` (repairs: the same item comes out improved). Repair, sharpening and fitting a point
+  are ordinary recipes.
+- **Tools are capabilities.** A required capability gates the recipe; better tools (tool tiers)
+  make it faster.
+- **`requires` gates; conditions slow.** Light, Fire within reach, Frost, Shelter, Dry must hold to
+  start. Wet or cold hands and impairment never block; they worsen time and odds.
+- **Result and outcomes are separate.** The result is always present and is what the menu shows.
+  Outcomes are optional departures from it, written `succeed|fail[:effect:params...]=<base odds>`.
+  One is rolled when the work finishes; the odds left over are the plain result.
+- **Effects** are a closed list and can stack on one outcome: `waste_material:<res>:<share>`,
+  `save_material:<res>:<share>`, `extra_product:<item or res>:<n>`, `injury:<region>:<damage>`
+  (through `Body.Damage`, as a cut), `break_tool:<capability>[:<uses lost>]` (whole uses of
+  durability; no amount breaks it outright, and what is left falls out of the tool's recorded
+  materials). A new kind is a code and loader change.
+- **`|` in any parameter** lists alternatives with the outcome's odds split evenly between them.
+- **Skill:** each level multiplies failure-like weights (fail, injury, break_tool) by
+  (1 - 0.04 x level) and success-bonus weights by (1 + 0.04 x level), in one tunable place. Tools,
+  dark and cold hands shift them the other way through the odds terms fire uses. The odds sheet shows
+  the table before you commit. Crafting never changes an item's stats (short-loop plan); quality can
+  be added later as a new effect kind.
+- **Items record what they are made of**, merged from the inputs, so decay, salvage and repair read
+  real parts. Raw resources stay simple stacks.
+- **Projects:** any recipe can be interrupted and resumed. Materials go in at the start; progress
+  stays on the tile for a placed build, or as an unfinished item in the pack. Abandoning returns
+  about 80% of the materials (the old value, never wired in the old game).
+- **Every recipe is visible from the start**, showing what is had and missing and jumping to the
+  recipe for a missing tool or material. No unlock gating.
+- **Content:** the old game's 71 recipes are ported as data, minus the 10 treatments and the ember
+  carriers until their systems exist, with the old bugs fixed (render fat needs a fire, scraping a
+  hide needs a cutting tool, mammoth gear durability made sensible). Bear and mammoth chest pieces
+  get recipes.
 
-### 3.4 Verbs from a small affordance table
-
-The one place a data table pays off: about 14 rows, and its output is existing `Activity` records.
-
-```csharp
-sealed record Affordance(Tag Needs, Capability Uses, string Verb, Func<AgentId, ThingRef, Activity> Make);
-
-static readonly Affordance[] Table =
-[
-    new(Tag.Occupied, Capability.Smoke,    "drive out with smoke", (a, t) => new DriveOut(a, t)),
-    new(Tag.Occupied, Capability.Bait,     "lure out",             (a, t) => new Lure(a, t)),
-    new(Tag.FrozenIn, Capability.Striking, "chip free",            (a, t) => new ChipFree(a, t)),
-    new(Tag.Sealed,   Capability.Prying,   "force open",           (a, t) => new Force(a, t)),
-    new(Tag.Buried,   Capability.Digging,  "dig out",              (a, t) => new Dig(a, t)),
-    new(Tag.Guarded,  Capability.Light,    "drive off with fire",  (a, t) => new Contest(a, t)),
-    new(Tag.Edible,   Capability.Cutting,  "butcher",              (a, t) => new Butcher(a, ...)),
-    // ...
-];
-
-public static IEnumerable<(string Verb, Activity Act)> Verbs(World w, AgentId who, ThingRef t)
-    => Table.Where(r => TagsOf(w, t).HasFlag(r.Needs) && CapabilitiesOf(PackOf(w, who)).HasFlag(r.Uses))
-            .Select(r => (r.Verb, r.Make(who, t)))
-            .Concat(Universal(who, t));
-```
-
-**Universal verbs, always present** (a find never offers zero verbs): investigate (surfaces `Cause`
-and connections), take / take some (taking less leaves less trace for an owner to notice),
-wait and watch, avoid, press on, detour, follow (prints, a herd, a person), intimidate (an agent).
-
-**Capability-free rows** are allowed where the body, not a tool, gates the verb: climb, wade, take
-shelter. The gate is `Access.Refusal` (legs, injuries, load), not a capability.
-
-The player's menu, a moment's choices and the NPC's options all come from `Verbs`, so they are
-always the same set. "Wave a torch at the wolf" exists only if you carry a burning torch.
-
-### 3.5 One access gate
-
-```csharp
-public static string? Access.Refusal(World w, AgentId who, ThingRef t);
-```
-
-Refused if buried deeper than the actor can dig, guarded by a live agent within its guard radius
-(unless the activity is the confrontation), frozen in without striking or cutting, or across water
-without a crossing. Every existing `Refusal` (`Work`, `Fire`, `Combat`, `Traversal`) calls it
-first. This removes the class of silent absurdity, such as looting through a metre of snow, that
-the corridor POC hit.
-
-### 3.6 Indexes that are never saved
+### 3.8 Indexes that are never saved
 
 - **Nearby:** `TileId → sorted agent ids`, rebuilt lazily when agents move. A year-long settle is
   mostly "what is within r tiles" queries.
@@ -309,7 +413,7 @@ year's settle would empty the valley. Flat respawn rates drift to extremes; tie 
 
 ---
 
-## 7. Runtime: discovery, moments and pacing
+## 7. Runtime: discovery and perception
 
 - **Discovery:** keep the scouting accumulator. Hidden finds are built from the settled world, and
   each find's reveal difficulty is computed from state, not rolled:
@@ -317,17 +421,10 @@ year's settle would empty the valley. Flat respawn rates drift to extremes; tie 
   `Knowledge.SearchHours` generalizes from `PoolId` to `ThingRef`.
 - **Connection surfacing:** when a find is revealed and an already-revealed one shares its
   `Cause.Who`, a perception roll also gives the link: "these tracks match the sign by the river".
-  One lookup; the most valuable sentence the system produces.
-- **Moments** replace events. A moment fires when a real dynamic crosses a threshold the player can
-  perceive: a pack closes to sight range, the fire dies with a predator near, a storm front reaches
-  you mid-crossing. Its choices are `Verbs` (§3.4) over what is present, plus the actor's own
-  activities when the moment is about the body (eat, drink, rest, treat, warm your hands). Outcomes
-  go through the same activities and effects as everything else. The old `PredatorEventFactory`
-  is already this shape and is the template.
-- **Perception** is sight first; sound (a herd's thunder, a trumpet, a sudden silence) is a second
-  channel with its own range, added when a moment needs it.
-- **Director:** manages attention only. It may lower the reveal threshold of the next real thing
-  after a dead stretch, or time a sound during a lull. It never creates a fact.
+- **No moments and no director** (§0.2). What would have been a moment is the world on the map and
+  in the action list, answered with ordinary actions.
+- **Perception** is sight first; sound is a second channel with its own range, added when a real
+  need appears. Perception can be uncertain (a fox heard as a wolf), but never invents a source.
 - **Legibility:** packs and travellers get names and traits (the Limping pack), checked for
   collisions; the trait shows in their prints and signs.
 
@@ -340,8 +437,9 @@ year's settle would empty the valley. Flat respawn rates drift to extremes; tie 
    invisible on a map.
 2. **Distribution report:** finds per region by category, ratios against targets, population curves
    per species over the settle. The caribou-crash class of bug is a glance at a chart.
-3. **Content-density metrics** as tests, the way the forage retune was measured: real decisions per
-   play hour, distinct moment types per 10 days, signs met per trip. Fail the build if they drop.
+3. **World-density checks** (open question 7): what a player can actually run into per in-game day
+   near a typical route, measured in headless runs. Which measures, and their floors, are not
+   decided; the short-loop plan's day 1-3 cadence is the likely source, not the old game.
 4. **Deterministic replay:** same seed gives a byte-identical settled save (the existing determinism
    contract, extended to world generation).
 
@@ -367,11 +465,12 @@ Each step stops at a playable, testable state.
    *Gate:* a settled valley yields carcasses of different ages with causes; connection surfacing
    links a kill's prints to its carcass; find-dump ratios within targets; a one-year settle runs in
    acceptable world-gen time.
-4. **Affordances and moments:** tag and capability vocabulary, the affordance table, universal
-   verbs, moments with a minimal director. Paper-exercise the old discovery and event catalog
-   against the vocabulary first: each entry is marked replaced (and by what) or left. The left
-   entries form `authored-content-catalog.md`, migrated later.
-   *Gate:* no find ever offers zero verbs; a torch makes "drive off with fire" appear.
+4. **Effects, exposure and conditions:** the shared effect kernel and table (§3.3) to its
+   verification bar, one `Exposure.At` (§3.4), conditions and clearing actions with tool tiers
+   (§3.5), Contest/Ask, crossing odds (§3.6), fire as a boldness term. Tags fold into conditions.
+   *Gate:* the §3.3 property tests and mutation score pass; no thing ever shows zero actions;
+   `[cache (buried, frozen)]` walks Dig, Chip free, Pick up; a wolf pack on your kill answers
+   Contest with its own boldness, and fire nearby changes the answer.
 5. **Full interaction table:** the ★ rows above, dens and occupancy, contested kills, seasonal
    stock dynamics.
    *Gate:* the den arc, a contested carcass and a raided camp occur in settling logs with no
@@ -415,3 +514,6 @@ save" make it nearly free once step 6 exists.
 4. Scavenger granularity: one folded kind first; split ravens (beacon) from wolverines (raiders)
    only if the information side needs separate tuning.
 5. Grave permanence: forever, or eventually claimed by sediment?
+6. ~~Things' effects: per-minute tick or lazy catch-up?~~ Decided: every stack ticks every minute
+   until that is a slowdown problem (decision record "Item effects tick every minute").
+7. World-density checks: which measures and floors (parked by the user).

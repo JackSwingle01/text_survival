@@ -5,12 +5,14 @@ public enum PitType { Open, Mound, Stone }
 /// Derived from FireState, never stored.
 public enum FirePhase { Cold, Igniting, Building, Roaring, Steady, Dying, Embers }
 
-/// Temperatures in °F, as tuned in the old game. One row of Content/fire.json fuels. A class, not a struct:
+/// One row of Content/fire.json fuels, temperatures in °F. A class, not a struct:
 /// the reader builds a struct row from its parameterless constructor and would take a missing field as 0.
 public sealed record FuelProps(double PeakTempF, double BurnRateKgPerHour, double MinFireTempF, double IgnitionBonusPct);
 
-/// One row of Content/fire.json pits: what a pit holds, how much wind it keeps off, how long fuel lasts in it.
 public sealed record PitProps(double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
+
+/// What flame does to an animal's nerve (Content/fire.json deterrence, read by Combat.FireDeterrence).
+public sealed record DeterrenceProps(double FireFear, double TorchIntensityPct, double FullIntensityHeatF, double FullWithinM);
 
 /// A fire pit on a tile, or a torch carried by an agent (CarriedBy set; the two-mass fields are then unused).
 public sealed class FireState
@@ -18,8 +20,8 @@ public sealed class FireState
     public required TileId Tile { get; set; }
     public required long LastUpdatedMinute { get; set; }
     public PitType Pit { get; init; }
-    // Two-mass model: fuel waiting to catch, and fuel burning. Masses are the sums. Sorted, so the
-    // sums add up in one order however the fuels came and went (see World.Tiles).
+    // Two masses: fuel waiting to catch, and fuel burning. Sorted, so the sums add up in one order however
+    // the fuels came and went (see World.Tiles).
     public SortedDictionary<Resource, double> UnburnedKg { get; init; } = [];
     public SortedDictionary<Resource, double> BurningKg { get; init; } = [];
     public bool HasEmbers { get; set; }
@@ -31,8 +33,7 @@ public sealed class FireState
     public double CharcoalKg { get; set; }
     public AgentId? CarriedBy { get; set; }
     public double TorchMinutesLeft { get; set; }
-    /// Who struck this fire, until it is sure to take a log or goes out: their Firecraft for lighting it
-    /// is paid then (Fire.PayLighter), so a fire that never got past its kindling teaches only a miss's worth.
+    /// Who struck this fire, until it is sure to take a log or goes out; Fire.PayLighter pays their Firecraft then.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public AgentId? LitBy { get; set; }
     /// A pit: who made it, by lighting the first fire in it. Null on a carried torch.
@@ -42,23 +43,20 @@ public sealed class FireState
 
 public static class Fire
 {
-    /// What burns and how (Content/fire.json).
     public static readonly IReadOnlyDictionary<Resource, FuelProps> Props = Content.Tables.Fuels;
     static readonly IReadOnlyDictionary<PitType, PitProps> Pits = Content.Tables.Pits;
+    public static readonly DeterrenceProps Deterrence = Content.Tables.Deterrence;
 
-    /// Which resources burn: the ones with fuel properties.
     public static bool IsFuel(Resource r) => Props.ContainsKey(r);
 
     const double BaseCatchRateKgPerMinute = 0.05;
     const double CharcoalYieldPct = 0.04;
     public const double TorchBurnMinutes = 60;
 
-    // ---- pit properties ----
     public static double MaxFuelKg(PitType pit) => Pits[pit].MaxFuelKg;
     public static double WindProtectionLevel(PitType pit) => Pits[pit].WindProtectionLevel;
     static double FuelEfficiencyFactor(PitType pit) => Pits[pit].FuelEfficiencyFactor;
 
-    // ---- derived state ----
     public static double UnburnedKg(FireState f) => f.UnburnedKg.Values.Sum();
     public static double BurningKg(FireState f) => f.BurningKg.Values.Sum();
     public static double TotalKg(FireState f) => UnburnedKg(f) + BurningKg(f);
@@ -89,9 +87,19 @@ public static class Fire
     static double ActiveTemperatureF(FireState f)
     {
         double burning = BurningKg(f);
-        if (burning <= 0) return 0;
-        double sizeFactor = burning < 0.5 ? 0.5 : burning < 1.0 ? 0.7 : burning < 2.0 ? 0.85 : burning < 4.0 ? 1.0 : 1.1;
-        return Weighted(f, p => p.PeakTempF, fallback: 450) * sizeFactor;
+        return burning > 0 ? Weighted(f, p => p.PeakTempF, fallback: 450) * TempSizeFactor(burning) : 0;
+    }
+
+    static double TempSizeFactor(double burningKg) =>
+        burningKg < 0.5 ? 0.5 : burningKg < 1.0 ? 0.7 : burningKg < 2.0 ? 0.85 : burningKg < 4.0 ? 1.0 : 1.1;
+
+    /// The hottest flame, not the mass-weighted mean: new fuel catches off the burning oak beside it, so
+    /// tinder thrown on a hot fire never stops it taking bone.
+    public static double CatchTemperatureF(FireState f)
+    {
+        if (f.HasEmbers) return EmberTemperatureF(f);
+        double burning = BurningKg(f);
+        return burning > 0 ? f.BurningKg.Where(x => x.Value > 0).Max(x => Props[x.Key].PeakTempF) * TempSizeFactor(burning) : 0;
     }
 
     static double EmberTemperatureF(FireState f)
@@ -100,16 +108,21 @@ public static class Fire
         return f.EmberStartTempF * Math.Sqrt(f.EmberHoursRemaining / f.EmberDurationHours); // cools slowly, then faster
     }
 
+    /// From the lowest fuel up, so equal values average exactly: an ulp can tip a whole ember minute.
     static double Weighted(FireState f, Func<FuelProps, double> prop, double fallback)
     {
+        if (f.BurningKg.Count == 0) return fallback;
+        double lowest = f.BurningKg.Keys.Min(fuel => prop(Props[fuel]));
         double mass = 0, sum = 0;
-        foreach (var (fuel, kg) in f.BurningKg) { sum += prop(Props[fuel]) * kg; mass += kg; }
-        return mass > 0 ? sum / mass : fallback;
+        foreach (var (fuel, kg) in f.BurningKg) { sum += (prop(Props[fuel]) - lowest) * kg; mass += kg; }
+        return mass > 0 ? lowest + sum / mass : fallback;
     }
 
-    static double BurnSizeFactor(double burningKg) => burningKg < 1.5 ? 0.9 : burningKg < 4.0 ? 1.0 : burningKg < 7.0 ? 1.1 : 1.2;
+    static readonly (double FromKg, double Factor)[] BurnSizeBands = [(7.0, 1.2), (4.0, 1.1), (1.5, 1.0), (0, 0.9)];
 
-    /// Before the stone pit's efficiency, matching the old display figure.
+    static double BurnSizeFactor(double burningKg) => BurnSizeBands.First(b => burningKg >= b.FromKg).Factor;
+
+    /// Kg an hour before the stone pit's efficiency: mass-weighted mean table rate at the fire's size.
     public static double BurnRateKgPerHour(FireState f)
     {
         double burning = BurningKg(f);
@@ -122,15 +135,12 @@ public static class Fire
         return rate > 0 ? BurningKg(f) / rate : 0;
     }
 
-    /// A fire's burn rate over its fuels' table rates at a working size (BurnSizeFactor runs 0.9-1.2):
-    /// what someone judging how long wood will last reckons with.
+    /// What someone judging how long wood will last reckons with (BurnSizeFactor runs 0.9-1.2).
     public const double ReckonedBurnSizeFactor = 1.1;
 
-    /// Hours of fire in this much of a fuel, as someone judging a woodpile reckons it.
-    // Ignores a stone pit's efficiency and that a small fire burns slower; both under 15%.
+    // Reckoned as a woodpile is judged: ignores a stone pit's efficiency and a small fire's slower burn; both under 15%.
     public static double FuelHours(Resource fuel, double kg) => kg / (Props[fuel].BurnRateKgPerHour * ReckonedBurnSizeFactor);
 
-    /// Hours of fire in everything on the pit, burning or waiting to catch, reckoned as FuelHours.
     public static double FuelHours(FireState f) => f.UnburnedKg.Concat(f.BurningKg).Sum(x => FuelHours(x.Key, x.Value));
 
     /// Radiant heat in °F added to the ambient temperature. Embers radiate too.
@@ -143,41 +153,75 @@ public static class Fire
         return differentialF / 50.0 * Math.Sqrt(Math.Max(BurningKg(f), 0.5));
     }
 
-    // ---- world queries ----
+    /// For what fears flame: measured against 0 °F air, so it is the flame's own, not the weather's. Embers give none.
+    public static double IntensityPct(FireState f) =>
+        !IsActive(f) || f.HasEmbers ? 0
+        : f.CarriedBy != null ? Deterrence.TorchIntensityPct
+        : Math.Min(1, HeatOutputF(f, ambientF: 0) / Deterrence.FullIntensityHeatF);
 
-    /// Everything fire does for one agent this minute, in °F (the old SurvivalContext and
-    /// Location.GetTemperature rules). AirHeatF warms the tile's air, embers included, damped
-    /// because open air carries heat away. PitHeatF is the radiant heat of flames on the tile,
-    /// felt against that warmed air, before the activity's proximity. TorchHeatF warms only
-    /// the carrier. A pit's walls cut the wind only while it burns.
-    /// ShelterHeatF is the fire's heat a shelter holds in beyond the open air's share: warm air, but
-    /// air someone too hot can step out of, so it is withheld with the radiant heat once they sweat.
+    /// A burning pit (Holder null) or torch on a tile, and how fiercely it burns.
+    public readonly record struct Flame(AgentId? Holder, double IntensityPct);
+
+    public static List<Flame> FlamesOn(World world, TileId tile)
+    {
+        var flames = new List<Flame>();
+        foreach (var (id, f) in world.Fires)
+        {
+            if (!OnTile(world, f, tile)) continue;
+            RequireCurrent(world, id, f);
+            if (IntensityPct(f) is double pct and > 0) flames.Add(new Flame(f.CarriedBy, pct));
+        }
+        return flames;
+    }
+
+    /// FlamesOn requires this first.
+    public static void CatchUpOn(World world, TileId tile, List<WorldEvent> events)
+    {
+        foreach (var (id, f) in world.Fires.ToList())
+            if (OnTile(world, f, tile)) CatchUp(world, id, events);
+    }
+
+    /// A torch's own Tile is only as fresh as its last catch-up, so it is placed by its living carrier.
+    static bool OnTile(World world, FireState f, TileId tile) =>
+        f.CarriedBy is AgentId carrier ? world.Agents.TryGetValue(carrier, out var a) && a.Tile == tile && Sim.IsAlive(a) : f.Tile == tile;
+
+    /// What fire does for one agent, in °F. AirHeatF warms the tile's air (embers included), damped because open air
+    /// carries heat away. PitHeatF is flames' radiant heat felt against that warmed air, before activity proximity.
+    /// TorchHeatF warms only the carrier. ShelterHeatF is the heat a shelter holds in beyond the open air's share;
+    /// withheld with the radiant heat as someone warms to a sweat, since they can step out of hot air.
     public readonly record struct Warmth(double AirHeatF, double PitHeatF, double TorchHeatF, double WindProtectionLevel, double ShelterHeatF = 0);
 
     const double OpenAirHeatPct = 0.4;
 
-    /// cover: the shelter around someone keeping still. Its insulation keeps the fire's heat in.
-    public static Warmth WarmthFor(World world, AgentId who, ShelterCover cover = default)
+    /// cover: the shelter around someone keeping still; its insulation keeps the fire's heat in.
+    public static Warmth WarmthFor(World world, AgentId who, ShelterCover cover = default) =>
+        Exposure.At(world, world.Agent(who).Tile, Cover.In(cover, who)).Warmth;
+
+    /// Walls keep wind off only while the pit burns. All caught up.
+    internal readonly record struct FiresAround(List<FireState> Pits, double TorchHeatF, double WallsLevel);
+
+    internal static FiresAround Around(World world, TileId tile, AgentId? holder)
     {
-        var tile = world.Agent(who).Tile;
         double torchHeatF = 0;
         var pits = new List<FireState>();
         foreach (var (id, f) in world.Fires)
         {
-            if (f.CarriedBy == who) { RequireCurrent(world, id, f); torchHeatF += HeatOutputF(f, 0); }
+            if (holder != null && f.CarriedBy == holder) { RequireCurrent(world, id, f); torchHeatF += HeatOutputF(f, 0); }
             else if (f.CarriedBy == null && f.Tile == tile) { RequireCurrent(world, id, f); pits.Add(f); }
         }
         var burning = pits.Where(IsActive).ToList();
-        double windProtection = burning.Count == 0 ? 0 : burning.Max(f => WindProtectionLevel(f.Pit));
-        // Heat is felt against the air as weather leaves it, wind chill included (old Location.GetTemperatureBreakdown).
-        var (ambientF, insulation) = Weather.ShelteredAirF(world, tile, Weather.At(world, world.Minute), windProtection, cover);
-        // Open air carries 60% of the heat away; a shelter's insulation keeps more of it in (old: the
-        // fire's share was Clamp(insulation + 0.4, 0.4, 1)).
+        return new FiresAround(pits, torchHeatF, burning.Count == 0 ? 0 : burning.Max(f => WindProtectionLevel(f.Pit)));
+    }
+
+    /// Felt against the air as weather and shelter leave it, wind chill included.
+    internal static Warmth WarmthAgainst(FiresAround fires, double ambientF, double insulation)
+    {
+        // Open air carries 60% of the heat away; a shelter's insulation keeps more of it in.
         double heldPct = Math.Clamp(insulation + OpenAirHeatPct, OpenAirHeatPct, 1.0);
-        double heatF = pits.Sum(f => HeatOutputF(f, ambientF));
+        double heatF = fires.Pits.Sum(f => HeatOutputF(f, ambientF));
         double airHeatF = heatF * OpenAirHeatPct, shelterHeatF = heatF * heldPct - airHeatF;
-        double pitHeatF = burning.Sum(f => HeatOutputF(f, ambientF + airHeatF + shelterHeatF));
-        return new Warmth(airHeatF, pitHeatF, torchHeatF, windProtection, shelterHeatF);
+        double pitHeatF = fires.Pits.Where(IsActive).Sum(f => HeatOutputF(f, ambientF + airHeatF + shelterHeatF));
+        return new Warmth(airHeatF, pitHeatF, fires.TorchHeatF, fires.WallsLevel, shelterHeatF);
     }
 
     /// Light enough to work by: flames on the tile, or a lit torch in hand. Embers are not light.
@@ -194,7 +238,6 @@ public static class Fire
         return lit;
     }
 
-    /// Old AbilityContext.FromFullContext: the load, the dark, and whether a flame lights the work.
     /// Here, beside HasLight, so work and fire both read it without depending on each other.
     /// Fires around the agent must be caught up.
     public static AbilityContext AbilityContextFor(World world, Agent agent) =>
@@ -222,13 +265,10 @@ public static class Fire
             throw new InvalidOperationException($"Fire {id.Value} is at minute {f.LastUpdatedMinute}, world at {world.Minute}: catch it up first");
     }
 
-    // ---- fuel ----
-
     public static bool CanAddFuel(FireState f, Resource fuel) =>
-        TotalKg(f) < MaxFuelKg(f.Pit) && TemperatureF(f) >= Props[fuel].MinFireTempF;
+        TotalKg(f) < MaxFuelKg(f.Pit) && CatchTemperatureF(f) >= Props[fuel].MinFireTempF;
 
-    /// Fuel goes on the unburned pile and catches over time. Hot embers relight at once.
-    /// Returns the kg actually added (capped by pit capacity), or 0 when refused.
+    /// Fuel catches over time; hot embers relight at once. Returns kg added (capped by pit capacity), 0 when refused.
     public static double AddFuel(FireState f, Resource fuel, double kg)
     {
         if (kg <= 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Fuel mass must be positive");
@@ -246,17 +286,21 @@ public static class Fire
         return added;
     }
 
-    /// Lights every unburned fuel that can catch from cold (tinder and kindling).
     public static void IgniteAll(FireState f)
     {
         foreach (var (fuel, kg) in f.UnburnedKg.ToList())
             if (Props[fuel].MinFireTempF == 0 && kg > 0) Transfer(f, fuel, kg);
     }
 
+    /// Under this, a stack is dust: it goes with the rest of its fuel, never off the ledger.
+    const double DustKg = 0.001;
+
+    /// A last gram left waiting catches with it, never deleted.
     static void Transfer(FireState f, Resource fuel, double kg)
     {
         double left = f.UnburnedKg.GetValueOrDefault(fuel) - kg;
-        if (left <= 0.001) f.UnburnedKg.Remove(fuel); else f.UnburnedKg[fuel] = left;
+        if (left <= DustKg) { f.UnburnedKg.Remove(fuel); kg += Math.Max(0, left); }
+        else f.UnburnedKg[fuel] = left;
         f.BurningKg[fuel] = f.BurningKg.GetValueOrDefault(fuel) + kg;
     }
 
@@ -267,9 +311,7 @@ public static class Fire
         return kg;
     }
 
-    // ---- time ----
-
-    /// Advances one fire to world.Minute, a minute at a time, emitting what happened when it happened.
+    /// A minute at a time, emitting what happened when it happened.
     public static void CatchUp(World world, FireId id, List<WorldEvent> events)
     {
         var f = world.Fires[id];
@@ -283,8 +325,7 @@ public static class Fire
         if (f.CarriedBy != null && f.TorchMinutesLeft <= 0) world.Fires.Remove(id); // a spent torch is ash
     }
 
-    /// Torches whose carrier has died or left the world go out where they fell (Remains.Hour): no one
-    /// carries them on, and nothing else would ever catch them up or take them away.
+    /// Torches whose carrier died or left go out where they fell (Remains.Hour); nothing else would ever catch them up.
     internal static void PutOutDroppedTorches(World world)
     {
         foreach (var (id, f) in world.Fires.ToList())
@@ -292,7 +333,6 @@ public static class Fire
                 world.Fires.Remove(id);
     }
 
-    /// Catches up the pits on the agent's tile and the torches it carries.
     public static void CatchUpAround(World world, Agent agent, List<WorldEvent> events)
     {
         foreach (var (id, f) in world.Fires.ToList())
@@ -300,7 +340,6 @@ public static class Fire
                 CatchUp(world, id, events);
     }
 
-    /// One minute of burning.
     public static void Tick(FireState f, FireId id, long minute, List<WorldEvent> events)
     {
         if (f.CarriedBy != null)
@@ -333,35 +372,59 @@ public static class Fire
         }
     }
 
-    /// Unburned fuel catches faster in a hot, big fire; fast-burning fuel catches fast.
     static void Catch(FireState f)
     {
         double burning = BurningKg(f);
         if (f.UnburnedKg.Count == 0 || burning <= 0) return;
-        double tempF = TemperatureF(f);
-        double tempFactor = Math.Max(0.5, tempF / 400.0);
+        double tempFactor = Math.Max(0.5, TemperatureF(f) / 400.0);
+        double catchF = CatchTemperatureF(f);
         double massFactor = 1.0 + burning * 0.15;
         foreach (var (fuel, kg) in f.UnburnedKg.ToList())
         {
             var p = Props[fuel];
-            if (kg <= 0 || tempF < p.MinFireTempF) continue;
+            if (kg <= 0 || catchF < p.MinFireTempF) continue;
             double catching = Math.Min(kg, BaseCatchRateKgPerMinute * tempFactor * massFactor * p.BurnRateKgPerHour);
             if (catching > 0) Transfer(f, fuel, catching);
         }
     }
 
+    /// Shares the minute's burn (BurnRateKgPerHour) among fuels by table rate times mass, read at the start of the
+    /// minute: a fast fuel goes first, so tinder does not drag an oak log down with it. A last gram burns with its stack.
     static void Consume(FireState f)
     {
         double burning = BurningKg(f);
         f.LastBurningTempF = ActiveTemperatureF(f); // before consumption: the embers start from it
-        double consumed = Math.Min(burning, BurnRateKgPerHour(f) / FuelEfficiencyFactor(f.Pit) / 60.0);
-        double keepPct = 1.0 - consumed / burning;
-        foreach (var fuel in f.BurningKg.Keys.ToList())
+        double consumed = MinuteBurnKg(burning, Weighted(f, p => p.BurnRateKgPerHour, fallback: 1.0), FuelEfficiencyFactor(f.Pit));
+        double weight = f.BurningKg.Sum(x => Props[x.Key].BurnRateKgPerHour * x.Value);
+        var shares = f.BurningKg.ToDictionary(x => x.Key, x => consumed * (Props[x.Key].BurnRateKgPerHour * x.Value / weight));
+        foreach (var (fuel, share) in shares)
         {
-            double left = f.BurningKg[fuel] * keepPct;
-            if (left < 0.001) f.BurningKg.Remove(fuel); else f.BurningKg[fuel] = left;
+            double kg = f.BurningKg[fuel];
+            double burned = Math.Min(kg, share);
+            double left = kg * (1.0 - burned / kg); // a fraction of the stack, not kg - burned: one fuel alone burns bit for bit as a fraction rule
+            if (left < DustKg) { burned = kg; f.BurningKg.Remove(fuel); }
+            else f.BurningKg[fuel] = left;
+            f.BurnedSinceLitKg += burned;
         }
-        f.BurnedSinceLitKg += consumed;
+    }
+
+    /// A minute crossing a size band burns at the bigger band's rate only until the edge, then the smaller's:
+    /// billing it all at the bigger rate let a fire with a gram more fuel go out a minute sooner.
+    static double MinuteBurnKg(double burningKg, double meanRateKgPerHour, double efficiency)
+    {
+        double kg = burningKg, minutes = 1.0, burned = 0;
+        int band = Array.FindIndex(BurnSizeBands, b => kg >= b.FromKg);
+        while (true)
+        {
+            double perMinuteKg = meanRateKgPerHour * BurnSizeBands[band].Factor / efficiency / 60.0;
+            double toEdgeKg = kg - BurnSizeBands[band].FromKg;
+            if (band == BurnSizeBands.Length - 1 || perMinuteKg * minutes <= toEdgeKg)
+                return Math.Min(burningKg, burned + perMinuteKg * minutes);
+            burned += toEdgeKg;
+            minutes -= toEdgeKg / perMinuteKg;
+            kg = BurnSizeBands[band].FromKg;
+            band++;
+        }
     }
 
     static void ToEmbers(FireState f, FireId id, long minute, List<WorldEvent> events)
@@ -375,12 +438,8 @@ public static class Fire
         events.Add(new FireBurnedToEmbers(minute, id, f.Tile));
     }
 
-    // ---- activities ----
-
-    /// Fire-start odds as their terms (old FireHandler.CalculateFireChance, in its order): the tool's
-    /// base, the skill, the tinder, -20% with consciousness impaired, and up to -50% for clumsy
-    /// hands; clamped to 5-95%. Dexterity folds in manipulation, wetness, darkness and vitality;
-    /// handsWhy names which of those are costing it, for the sheet.
+    /// Odds as terms: tool base, skill, tinder, -20% consciousness impaired, up to -50% clumsy hands; clamped 5-95%.
+    /// handsWhy names what is costing dexterity, for the sheet.
     public static Odds StartOdds(ToolType tool, Resource tinder, int skillLevel = 0, bool consciousnessImpaired = false, double dexterityPct = 1.0, string handsWhy = "")
     {
         double basePct = tool switch
@@ -390,9 +449,9 @@ public static class Fire
             ToolType.HandDrill => 0.35,
             _ => throw new ArgumentOutOfRangeException(nameof(tool), tool, "Not a fire starter"),
         };
-        return new Odds(tool.ToString(), basePct, Odds.Moving(
+        return new Odds(Names.Title(tool), basePct, Odds.Moving(
             OddsTerm.Add("Firecraft", Skills.FirecraftPct(skillLevel)),
-            OddsTerm.Add(tinder.ToString(), Props[tinder].IgnitionBonusPct),
+            OddsTerm.Add(Names.Title(tinder), Props[tinder].IgnitionBonusPct),
             OddsTerm.Add("Dazed", consciousnessImpaired ? -0.2 : 0),
             OddsTerm.Add(handsWhy.Length > 0 ? $"Hands ({handsWhy})" : "Hands", -(1.0 - dexterityPct) * 0.5)), MinPct: 0.05, MaxPct: 0.95);
     }
@@ -400,7 +459,6 @@ public static class Fire
     public static double StartChancePct(ToolType tool, Resource tinder, int skillLevel = 0, bool consciousnessImpaired = false, double dexterityPct = 1.0) =>
         StartOdds(tool, tinder, skillLevel, consciousnessImpaired, dexterityPct).TotalPct;
 
-    /// This person's odds of lighting a fire here, now: their skill, their head, their hands, the dark.
     /// Fires around the agent must be caught up (the light they work by).
     public static Odds StartOdds(World world, Agent agent, ToolType tool, Resource tinder)
     {
@@ -411,17 +469,15 @@ public static class Fire
             dexterityPct: Body.Dexterity(body, context), handsWhy: string.Join(", ", Body.DexterityCosts(body, context)));
     }
 
-    /// Why this fire activity cannot be done right now, or null. Checked before any time passes
-    /// or anything changes, so a refusal costs nothing. Fires around the agent must be caught up.
-    /// Everything put on a fire comes out of the agent's pack.
-    public static string? Refusal(World world, Activity activity)
+    /// Checked before any time passes, so a refusal costs nothing. Fires around the agent must be caught up.
+    public static Refusal? Refusal(World world, Activity activity)
     {
         var tile = world.Agent(activity.Who).Tile;
         var pack = Items.Pack(world, activity.Who);
         var pitId = PitAt(world, tile);
         var pit = pitId is FireId id ? world.Fires[id] : null;
         // The pit is the thing reached: asked first, once it is there.
-        string? Reach() => Access.Refusal(world, activity.Who, new ThingRef(ThingKind.Fire, tile, pitId!.Value.Value));
+        Refusal? Reach() => Access.Refusal(world, activity.Who, new LocationFeature(LocationFeatureKind.Fire, tile, pitId!.Value.Value));
         switch (activity)
         {
             case StartFire a:
@@ -429,39 +485,55 @@ public static class Fire
                 if (a.TinderKg <= 0 || a.KindlingKg < 0) throw new ArgumentOutOfRangeException(nameof(activity), "Tinder must be positive and kindling not negative");
                 if (pit != null)
                 {
-                    if (Reach() is string barred) return barred;
-                    if (pit.Pit != a.Pit) return $"the pit here is {pit.Pit}, not {a.Pit}";
-                    if (!CanAddFuel(pit, a.Tinder)) return "the fire is full";
-                    if (IsActive(pit)) return "the fire is already burning";
+                    if (Reach() is { } barred) return barred;
+                    if (pit.Pit != a.Pit) return new($"the pit here is {Names.Of(pit.Pit)}, not {Names.Of(a.Pit)}");
+                    if (!CanAddFuel(pit, a.Tinder)) return Full(pit, a.TinderKg);
+                    if (IsActive(pit)) return new("the fire is already burning");
                 }
-                if (Items.Tool(pack, a.Tool) == null) return $"no working {a.Tool}";
-                if (Items.Have(pack, a.Tinder) < a.TinderKg - 1e-9) return $"not enough {a.Tinder}";
-                if (Items.Have(pack, Resource.Kindling) < a.KindlingKg - 1e-9) return "not enough kindling";
+                if (Items.Tool(pack, a.Tool) == null) return new($"no working {Names.Of(a.Tool)}", new MissingTool(a.Tool));
+                if (Items.Have(pack, a.Tinder) < a.TinderKg - 1e-9)
+                    return new($"not enough {Names.Of(a.Tinder)}", new MissingResource(a.Tinder, a.TinderKg - Items.Have(pack, a.Tinder)));
+                if (Items.Have(pack, Resource.Kindling) < a.KindlingKg - 1e-9)
+                    return new("not enough kindling", new MissingResource(Resource.Kindling, a.KindlingKg - Items.Have(pack, Resource.Kindling)));
                 return null;
             case AddFuel a:
-                if (!IsFuel(a.Fuel)) return $"{a.Fuel} does not burn";
+                if (!IsFuel(a.Fuel)) return new($"{Names.Cap(Names.Of(a.Fuel))} does not burn");
                 if (a.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), a.Kg, "Fuel mass must be positive");
-                if (pit == null) return "no fire here";
-                if (Reach() is string fuelBarred) return fuelBarred;
-                if (Items.Have(pack, a.Fuel) <= 0) return $"no {a.Fuel} to add";
+                if (pit == null) return new("no fire here", new MissingState(Lack.BurningFire));
+                if (Reach() is { } fuelBarred) return fuelBarred;
+                if (Items.Have(pack, a.Fuel) <= 0) return new($"no {Names.Of(a.Fuel)} to add", new MissingResource(a.Fuel, a.Kg));
+                double topUpKg = Math.Min(a.Kg, Items.Have(pack, a.Fuel));
+                if (IsSliver(pit, topUpKg)) return Full(pit, Math.Min(topUpKg, SliverKg));
                 if (CanAddFuel(pit, a.Fuel)) return null;
-                return TotalKg(pit) >= MaxFuelKg(pit.Pit) ? "the fire is full" : $"the fire is not hot enough for {a.Fuel}";
+                return new($"the fire is not hot enough for {Names.Of(a.Fuel)}",
+                    new MissingState(Lack.FireHeatF, Props[a.Fuel].MinFireTempF, CatchTemperatureF(pit)));
             case LightTorch a:
-                if (!HasLight(world, a.Who)) return "no flame to light a torch from";
-                return Items.Tool(pack, ToolType.Torch) == null ? "no torch to light" : null;
+                if (!HasLight(world, a.Who)) return new("no flame to light a torch from", new MissingState(Lack.Light));
+                return Items.Tool(pack, ToolType.Torch) == null ? new("no torch to light", new MissingTool(ToolType.Torch)) : null;
             case GatherCharcoal:
-                if (pit == null) return "no charcoal here";
-                return Reach() ?? (pit.CharcoalKg > 0 ? null : "no charcoal here");
+                if (pit == null) return new("no charcoal here");
+                return Reach() ?? (pit.CharcoalKg > 0 ? null : new("no charcoal here"));
             default:
                 throw new NotSupportedException($"{activity.GetType().Name} is not a fire activity");
         }
     }
 
-    /// Does the one-shot part of a fire activity Refusal allowed. Returns "fire did not catch"
-    /// when the ignition roll fails: the attempt still happened and cost its minute.
+    /// Less room than this, when the top-up offered is bigger, is a sliver: too little to matter, so the pit counts as full.
+    public const double SliverKg = 0.25;
+
+    static bool IsSliver(FireState pit, double offeredKg) => RoomKg(pit) < Math.Min(offeredKg, SliverKg);
+
+    static double RoomKg(FireState f) => Math.Max(0, MaxFuelKg(f.Pit) - TotalKg(f));
+
+    static Refusal Full(FireState pit, double needKg) => new("the fire is full", new MissingState(Lack.FireRoomKg, needKg, RoomKg(pit)));
+
+    /// A strike made and failed: the attempt is over, and cost its minute.
+    public const string DidNotCatch = "fire did not catch";
+
+    /// Returns DidNotCatch when the ignition roll fails: the attempt still happened and cost its minute.
     public static string? Act(World world, Activity activity, List<WorldEvent> events)
     {
-        if (Refusal(world, activity) is string refused) throw new InvalidOperationException($"Fire.Act on a refused activity: {refused}");
+        if (Refusal(world, activity) is { } refused) throw new InvalidOperationException($"Fire.Act on a refused activity: {refused}");
         return activity switch
         {
             StartFire a => Start(world, a, events),
@@ -472,38 +544,36 @@ public static class Fire
         };
     }
 
-    /// Old FireHandler.AttemptStartFire: the tinder is spent on every attempt, the kindling only
-    /// when it catches. Dexterity carries hands, wetness, darkness and vitality.
+    /// The tinder is spent on every attempt, the kindling only when it catches.
     static string? Start(World world, StartFire a, List<WorldEvent> events)
     {
         var agent = world.Agent(a.Who);
         var tile = agent.Tile;
         var pack = Items.Pack(world, a.Who);
-        // Old FireHandler passed the Firecraft level; the port had dropped it (bug, fixed).
         double chance = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
-        Items.Take(pack, a.Tinder, a.TinderKg);
+        double tinderKg = Items.Take(pack, a.Tinder, a.TinderKg);
         var tool = Items.Tool(pack, a.Tool)!;
         Items.Use(tool);
         if (world.Rng("fire", a.Who).NextDouble() >= chance)
         {
             events.Add(new FireStartFailed(world.Minute, a.Who, tile, chance));
             Skills.Award(world, agent, Skill.Firecraft, Skills.FireFailureXp, events);
-            return "fire did not catch";
+            return DidNotCatch;
         }
         var id = PitAt(world, tile) ?? NewFire(world, new FireState
         {
-            Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit,
+            Tile = tile,
+            LastUpdatedMinute = world.Minute,
+            Pit = a.Pit,
             Cause = new Cause(a.Who, $"lit by {Cause.Describe(world, a.Who)} with a {Items.Def(tool).Name.ToLowerInvariant()}"),
         });
         var f = world.Fires[id];
-        // What the pit has no room for stays in the pack, as Feed does. Old game: it popped the
-        // kindling and tinder and the pit's capacity cap destroyed what did not fit (bug, fixed).
-        Items.Add(pack, a.Tinder, a.TinderKg - AddFuel(f, a.Tinder, a.TinderKg));
-        if (a.KindlingKg > 0) Items.Take(pack, Resource.Kindling, AddFuel(f, Resource.Kindling, a.KindlingKg));
+        // What the pit has no room for stays in the pack, as Feed does.
+        Items.Add(pack, a.Tinder, tinderKg - AddFuel(f, a.Tinder, tinderKg));
+        if (a.KindlingKg > 0) PutOn(f, pack, Resource.Kindling, a.KindlingKg);
         IgniteAll(f);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
-        // A strike that catches is worth a miss now; the rest when the fire takes wood (PayLighter). Old game:
-        // a full success for any flame, so tinder and a pinch of kindling, with no fuel to follow, farmed levels (bug, fixed).
+        // A catching strike pays a miss's worth now, the rest when the fire takes wood (PayLighter), so tinder with no fuel to follow cannot farm levels.
         Skills.Award(world, agent, Skill.Firecraft, Skills.FireFailureXp, events);
         f.LitBy = a.Who;
         PayLighter(world, f, events); // struck onto logs already in the pit
@@ -518,17 +588,26 @@ public static class Fire
         var id = PitAt(world, tile)!.Value;
         var f = world.Fires[id];
         bool wasEmbers = f.HasEmbers;
-        double added = AddFuel(f, a.Fuel, Math.Min(a.Kg, Items.Have(pack, a.Fuel)));
-        Items.Take(pack, a.Fuel, added);
+        double added = PutOn(f, pack, a.Fuel, a.Kg);
         events.Add(new FuelAdded(world.Minute, id, tile, a.Who, a.Fuel, added));
         if (added > 0) PayLighter(world, f, events);
         if (wasEmbers && !f.HasEmbers) events.Add(new FireLit(world.Minute, id, tile, a.Who));
         return null;
     }
 
-    /// The rest of a strike's Firecraft, to whoever struck it, once the fire is sure to take a log: it has
-    /// caught, and it was their doing. Decided at the action that makes it so (a strike onto logs, a log
-    /// onto a strike), never by the catch-up that sees the log take, which runs whenever someone looks.
+    /// Returns what left the pack; a sliver Items.Take takes with the rest goes on the fire, never nowhere.
+    static double PutOn(FireState f, Inventory pack, Resource fuel, double kg)
+    {
+        double offered = Math.Min(kg, Items.Have(pack, fuel));
+        double added = offered > 0 ? AddFuel(f, fuel, offered) : 0;
+        if (added <= 0) return 0;
+        double taken = Items.Take(pack, fuel, added);
+        if (taken > added) f.UnburnedKg[fuel] = f.UnburnedKg.GetValueOrDefault(fuel) + taken - added;
+        return taken;
+    }
+
+    /// Decided at the action that makes the fire sure to take a log (a strike onto logs, a log onto a strike),
+    /// never by the catch-up that sees the log take, which runs whenever someone looks.
     static void PayLighter(World world, FireState f, List<WorldEvent> events)
     {
         if (f.LitBy is not AgentId lighter || !WillTakeALog(f)) return;
@@ -537,9 +616,8 @@ public static class Fire
             Skills.Award(world, who, Skill.Firecraft, Skills.FireSuccessXp - Skills.FireFailureXp, events);
     }
 
-    /// Whether, left as it is, the fire will have a log burning before it goes out: a copy burned forward
-    /// a minute at a time. The burn has no weather and no dice in it, and fuel put on later only helps
-    /// a log catch, so the answer at the action is the answer the catch-up will find.
+    /// Burns a copy forward. The burn has no weather or dice and later fuel only helps, so the answer at the
+    /// action is the answer the catch-up will find.
     static bool WillTakeALog(FireState f)
     {
         static bool LogBurning(FireState x) => x.BurningKg.Keys.Any(r => Props[r].MinFireTempF > 0);
@@ -555,9 +633,13 @@ public static class Fire
         return false;
     }
 
-    /// Hours the fire will go on burning, left as it is: a copy burned forward a minute at a time, as
-    /// WillTakeALog. Unlike FuelHours, logs on a fire too cool to take them count for nothing.
-    public static double HoursItWillBurn(FireState f)
+    /// A forecast: whether this fuel, put on now, catches. What a burning or glowing pit accepts catches the next minute.
+    public static bool WillCatch(FireState f, Resource fuel, double kg) => kg > 0 && (IsActive(f) || f.HasEmbers) && CanAddFuel(f, fuel);
+
+    /// Unlike FuelHours, logs on a fire too cool to take them count for nothing.
+    public static double HoursItWillBurn(FireState f) => MinutesItWillBurn(f) / 60.0;
+
+    public static int MinutesItWillBurn(FireState f)
     {
         var copy = BurnCopy(f);
         int minutes = 0;
@@ -567,17 +649,99 @@ public static class Fire
             Consume(copy);
             minutes++;
         }
-        return minutes / 60.0;
+        return minutes;
+    }
+
+    /// A forecast: the minutes of light to work by here (HasLight) if nobody tends it. Fires around who must be caught up.
+    public static int MinutesOfLightLeft(World world, AgentId who)
+    {
+        var tile = world.Agent(who).Tile;
+        int minutes = 0;
+        foreach (var (id, f) in world.Fires)
+        {
+            if (f.CarriedBy != who && (f.CarriedBy != null || f.Tile != tile)) continue;
+            RequireCurrent(world, id, f);
+            if (IsActive(f)) minutes = Math.Max(minutes, f.CarriedBy != null ? (int)Math.Ceiling(f.TorchMinutesLeft) : MinutesItWillBurn(f));
+        }
+        return minutes;
+    }
+
+    /// A forecast of a strike now, assuming nobody adds fuel; fires around the agent caught up. CatchTemperatureF is the heat a minute later, when fuel
+    /// can next go on (Takes). KeepsGoingPct: the odds it catches and goes on to take a log in the pit or the pack.
+    public sealed record LightForecast(double StrikePct, double FlameHours, double CatchTemperatureF, double KeepsGoingPct)
+    {
+        public bool Takes(Resource fuel) => CatchTemperatureF >= Props[fuel].MinFireTempF;
+    }
+
+    public static LightForecast ForecastLight(World world, StartFire a)
+    {
+        var agent = world.Agent(a.Who);
+        if (Refusal(world, a) != null) return new LightForecast(0, 0, 0, 0);
+        double strike = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
+        var lit = IfLit(world, a);
+        // Fuel goes on the minute after the strike, the soonest another activity can start.
+        var next = BurnCopy(lit);
+        Tick(next, default, next.LastUpdatedMinute + 1, []);
+        var pack = Items.Pack(world, a.Who);
+        bool keepsGoing = WillTakeALog(lit) || pack.Kg.Any(x => Props.TryGetValue(x.Key, out var p) && p.MinFireTempF > 0
+            && !IsSliver(next, x.Value) && WillCatch(next, x.Key, Math.Min(x.Value, RoomKg(next))));
+        return new LightForecast(strike, HoursItWillBurn(lit), CatchTemperatureF(next), keepsGoing ? strike : 0);
+    }
+
+    static FireState IfLit(World world, StartFire a)
+    {
+        var tile = world.Agent(a.Who).Tile;
+        var lit = PitAt(world, tile) is FireId id ? BurnCopy(world.Fires[id]) : new FireState { Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit };
+        AddFuel(lit, a.Tinder, a.TinderKg);
+        if (a.KindlingKg > 0 && CanAddFuel(lit, Resource.Kindling)) AddFuel(lit, Resource.Kindling, a.KindlingKg);
+        IgniteAll(lit);
+        return lit;
+    }
+
+    public static bool CanStrike(Inventory pack) => Starters.Any(t => Items.Tool(pack, t) != null);
+
+    public static readonly IReadOnlyList<ToolType> Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
+
+    public static readonly IReadOnlyList<Resource> Tinders = [Resource.BirchBark, Resource.Amadou, Resource.Usnea, Resource.Chaga, Resource.Tinder];
+
+    /// A forecast for warmth (Tiers.WarmthTier): hours of fire from only the fuel a fire could get hot enough to take, from
+    /// the pit if it burns or glows, else struck from the fuel's tinder (canStrike); the fuel counts as one load.
+    public static double UsableHours(FireState? pit, PitType pitType, IReadOnlyDictionary<Resource, double> fuelKg, bool canStrike)
+    {
+        var fuels = fuelKg.Where(x => x.Value > DustKg && IsFuel(x.Key)).ToDictionary(x => x.Key, x => x.Value);
+        bool burns = pit != null && (IsActive(pit) || pit.HasEmbers);
+        bool strikable = canStrike && fuels.Keys.Any(Tinders.Contains);
+        if (!burns && !strikable) return 0;
+        double maxKg = MaxFuelKg(pit?.Pit ?? pitType), heatF = burns ? CatchTemperatureF(pit!) : 0, ownKg = pit != null ? BurningKg(pit) : 0;
+        var taken = new HashSet<Resource>();
+        for (bool more = true; more;)
+        {
+            more = false;
+            foreach (var r in fuels.Keys.Where(r => !taken.Contains(r) && Props[r].MinFireTempF <= heatF).ToList())
+            {
+                taken.Add(r);
+                more = true;
+            }
+            double loadKg = Math.Min(maxKg, ownKg + taken.Sum(r => fuels[r]));
+            if (taken.Count > 0) heatF = Math.Max(heatF, taken.Max(r => Props[r].PeakTempF) * TempSizeFactor(loadKg));
+        }
+        return (burns ? HoursItWillBurn(pit!) : 0) + taken.Sum(r => FuelHours(r, fuels[r]));
     }
 
     static FireState BurnCopy(FireState f) => new()
     {
-        Tile = f.Tile, LastUpdatedMinute = f.LastUpdatedMinute, Pit = f.Pit,
-        UnburnedKg = new(f.UnburnedKg), BurningKg = new(f.BurningKg), HasEmbers = f.HasEmbers,
-        EmberDurationHours = f.EmberDurationHours, EmberHoursRemaining = f.EmberHoursRemaining, EmberStartTempF = f.EmberStartTempF,
+        Tile = f.Tile,
+        LastUpdatedMinute = f.LastUpdatedMinute,
+        Pit = f.Pit,
+        UnburnedKg = new(f.UnburnedKg),
+        BurningKg = new(f.BurningKg),
+        HasEmbers = f.HasEmbers,
+        EmberDurationHours = f.EmberDurationHours,
+        EmberHoursRemaining = f.EmberHoursRemaining,
+        EmberStartTempF = f.EmberStartTempF,
     };
 
-    /// From flames on the tile, or from the torch already in hand (which it replaces). Uses up a torch from the pack.
+    /// Lit from flames on the tile or the torch already in hand (which it replaces); uses up a torch from the pack.
     static string? Torch(World world, LightTorch a, List<WorldEvent> events)
     {
         var tile = world.Agent(a.Who).Tile;
@@ -590,7 +754,6 @@ public static class Fire
         return null;
     }
 
-    /// The charcoal a dead fire left behind goes into the pack (old ember collection).
     static string? Collect(World world, GatherCharcoal a, List<WorldEvent> events)
     {
         var agent = world.Agent(a.Who);

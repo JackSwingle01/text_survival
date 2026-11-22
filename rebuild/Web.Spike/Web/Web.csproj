@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Save.cs serializes World by reflection; trimmed wasm apps turn that off by default. -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- The repo treats warnings as errors; Sim's reflection JSON (Content tables, Save, Agents.SplitOff's
+         deep copy) is not trim-annotated, so the trimmer's warnings would fail the publish. Sim is
+         rooted below instead, so nothing it reflects over is trimmed away. -->
+    <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <!-- No culture data: drops ICU, 2.25 MB -> 1.62 MB brotli for the interpreter build (REPORT.md). -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- `-p:Aot=true` publishes AOT-compiled; the default is the interpreter. -->
+    <RunAOTCompilation Condition="'$(Aot)' == 'true'">true</RunAOTCompilation>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Host/Host.csproj" />
+    <!-- Sim is not marked trimmable, but its records are reached only through reflection (System.Text.Json). -->
+    <TrimmerRootAssembly Include="Sim" />
+    <Content Include="../../../assets/icons/**/*.png" Link="wwwroot/icons/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

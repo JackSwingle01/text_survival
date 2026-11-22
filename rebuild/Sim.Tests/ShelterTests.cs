@@ -22,7 +22,8 @@ public class ShelterTests
     static TileId Open(World w)
     {
         var m = Map.Of(w);
-        return (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+        return (from x in Enumerable.Range(0, m.Width)
+                from y in Enumerable.Range(0, m.Height)
                 let t = new TileId(x, y)
                 where m.TerrainAt(t) == Terrain.Plain && t != m.Camp && m.CaveAt(t) == Cave.None && m.StageAt(t) == null && !m.BesideRiver(t)
                 select t).First();
@@ -52,16 +53,18 @@ public class ShelterTests
         var camp = Map.Of(w).Camp;
         var s = Weather.At(w, 0);
         // The old game never read wind coverage: with none, the port is the old step exactly.
-        Assert.Equal(oldIdleF, Weather.ShelteredAirF(w, camp, s, 0, Overhang with { WindLevel = 0 }).AirF, Digits);
-        Assert.Equal(oldMovingF, Weather.ShelteredAirF(w, camp, s, 0, default).AirF, Digits);
-        Assert.Equal(oldMovingF, Weather.AirAtF(w, camp, s, 0), Digits);
+        Assert.Equal(oldIdleF, Exposure.At(w, camp, Cover.In(Overhang with { WindLevel = 0 })).AirBeforeFireF, Digits);
+        Assert.Equal(oldMovingF, Exposure.At(w, camp, Cover.In(default)).AirBeforeFireF, Digits);
+        Assert.Equal(oldMovingF, Exposure.OpenAirF(w, camp, s), Digits);
     }
 
     /// Wind coverage cuts the wind that reaches you: the old step on a tile whose wind factor is the
     /// camp's 0.4 times what the walls let through. Moving forfeits the shelter (old IsStationary).
     [Theory]
-    [InlineData("calm", 30.617350893324215, 19.419973477794883, 111.43729522069367)]
-    [InlineData("snowy", 9.3047090110841, -22.3255645003846, 90.42666263762786)]
+    // rebuild: shared burn (2026-11-21): the camp fire (bark, kindling, birch, 30 min) has a little more birch
+    // burning. Old → new effective: calm 111.43729522069367 → 112.19672113057332, snowy 90.42666263762786 → 91.17567679136559.
+    [InlineData("calm", 30.617350893324215, 19.419973477794883, 112.19672113057332)]
+    [InlineData("snowy", 9.3047090110841, -22.3255645003846, 91.17567679136559)]
     public void CampOverhang_ThroughSurroundings_MatchesOldWithWindCoverageRead(string sky, double idleF, double movingF, double effectiveF)
     {
         var w = At(sky == "calm" ? Calm : Snowy);
@@ -77,7 +80,7 @@ public class ShelterTests
     public void ShelterStep_NeverCoolsAWarmDay()
     {
         var s = Mild with { TemperatureC = 25 };
-        Assert.Equal(77, Weather.ShelterStep(77, s, 0.9, 1, 0, 0).AirF, Digits);
+        Assert.Equal(77, Exposure.ShelterStep(77, s, 0.9, s.WindLevel, 0).AirF, Digits);
     }
 
     /// old game: wind coverage was improved with materials and shown, and nothing read it (bug, fixed).
@@ -91,17 +94,19 @@ public class ShelterTests
         w.Agent(P).Tile = tile;
         Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter, Wind: 1.0, WindCap: 1.0));
         Assert.True(Sim.Surroundings(w, w.Agent(P), new Wait(P), []).WindLevel < 0.01);
-        Assert.Equal(0.6, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North), []).WindLevel, Digits);
+        // Rebuild: tile wind reaches the body (decision 2026-11-21): the open plain's 1.2 (old: the sky's 0.6).
+        Assert.Equal(0.6 * 1.2, Sim.Surroundings(w, w.Agent(P), new Travel(P, Direction.North), []).WindLevel, Digits);
 
         var camp = Map.Of(w).Camp;
         w.Agent(P).Tile = camp;
-        Assert.Equal(0.6 * (1 - Overhang.WindLevel), Sim.Surroundings(w, w.Agent(P), new Wait(P), []).WindLevel, Digits);
+        // Rebuild: tile wind reaches the body (decision 2026-11-21): the camp's 0.4 (old: 0.6 x 0.6).
+        Assert.Equal(0.6 * 0.4 * (1 - Overhang.WindLevel), Sim.Surroundings(w, w.Agent(P), new Wait(P), []).WindLevel, Digits);
         var s = Weather.At(w, 0);
-        Assert.True(Weather.ShelteredAirF(w, camp, s, 0, Overhang).AirF > Weather.ShelteredAirF(w, camp, s, 0, Overhang with { WindLevel = 0 }).AirF);
+        Assert.True(Exposure.At(w, camp, Cover.In(Overhang)).AirBeforeFireF > Exposure.At(w, camp, Cover.In(Overhang with { WindLevel = 0 })).AirBeforeFireF);
     }
 
-    /// Old game parity: drying at a fire read the open wind less the pit's walls (old SurvivalContext
-    /// CalculateEffectiveWindSpeed into SurvivalProcessor's drying), never a shelter's walls. With no
+    /// Old game parity: drying at a fire read the wind less the pit's walls (old SurvivalContext
+    /// CalculateEffectiveWindSpeed into SurvivalProcessor's drying), never a shelter's walls; the tile's own wind reaches it as it reaches the body. With no
     /// fire, ambient drying reads the sheltered wind, so walls slow it.
     [Fact]
     public void ShelterWalls_DoNotSlowDryingByAFire_ButSlowAmbientDrying()
@@ -119,18 +124,21 @@ public class ShelterTests
         var camp = Map.Of(w).Camp;
         Assert.NotNull(Shelters.At(w, camp, []));
         double openWind = Weather.At(w, w.Minute).WindLevel;
+        double campWind = openWind * Map.WindFactor(Map.Of(w), camp); // the wind at the camp tile, no walls
 
         // No fire: the walls cut the drying wind.
         var still = Sim.Surroundings(w, w.Agent(P), new Wait(P), []);
-        Assert.True(still.FireBonusF == 0 && still.WindLevel < openWind - 1e-6);
-        Assert.True(WetAfter(still) > WetAfter(still with { WindLevel = openWind }) + 1e-6, "walls should slow ambient drying");
+        Assert.True(still.FireBonusF == 0 && still.WindLevel < campWind - 1e-6);
+        Assert.True(WetAfter(still) > WetAfter(still with { WindLevel = campWind }) + 1e-6, "walls should slow ambient drying");
 
         // By a fire: the walls cut the chill (WindLevel) and not the drying.
         LightCampFire(w);
         var byFire = Sim.Surroundings(w, w.Agent(P), new Wait(P), []);
         var warmth = Fire.WarmthFor(w, P, Shelters.CoverFor(w, camp, stationary: true, events: []));
         Assert.True(byFire.FireBonusF > 0);
-        Assert.Equal(openWind * (1 - warmth.WindProtectionLevel), byFire.FireDryingWindLevel!.Value, Digits);
+        // Rebuild: tile wind reaches the body (decision 2026-11-21): the camp lets 0.4 of it through
+        // (old: the open wind less the pit's walls).
+        Assert.Equal(campWind * (1 - warmth.WindProtectionLevel), byFire.FireDryingWindLevel!.Value, Digits);
         Assert.True(byFire.WindLevel < byFire.FireDryingWindLevel.Value - 1e-6);
         Assert.Equal(WetAfter(byFire with { WindLevel = byFire.FireDryingWindLevel.Value }), WetAfter(byFire), Digits);
     }
@@ -185,7 +193,7 @@ public class ShelterTests
         var warmth = Fire.WarmthFor(w, P, Overhang);
         Assert.True(warmth.ShelterHeatF > 10);
         var ctx = Sim.Surroundings(w, w.Agent(P), new Sleep(P), []);
-        double open = Weather.ShelteredAirF(w, Map.Of(w).Camp, Weather.At(w, w.Minute), 0, Overhang).AirF + warmth.AirHeatF;
+        double open = Exposure.At(w, Map.Of(w).Camp, Cover.In(Overhang)).AirBeforeFireF + warmth.AirHeatF;
         Assert.Equal(open, ctx.AirTempF, Digits);
         Assert.Equal(warmth.PitHeatF * 2 + warmth.ShelterHeatF, ctx.FireBonusF, Digits);
     }
@@ -315,7 +323,7 @@ public class ShelterTests
     {
         var w = Builder(out var tile); // 41 °F
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
-        w.Projects[tile] = new Project { Building = Structure.SnowShelter, MinutesDone = 60 };
+        w.Projects[tile] = new StructureProject { Building = Structure.SnowShelter, MinutesDone = 60 };
         var r = Sim.Step(w, new Build(P, Structure.SnowShelter), 30);
         Assert.Equal((0, "too warm to build in snow"), (r.MinutesElapsed, r.InterruptedReason));
         Assert.Equal("too warm to build in snow", Shelters.Minute(w, w.Agent(P), new Build(P, Structure.SnowShelter), []));
@@ -471,7 +479,7 @@ public class ShelterTests
     {
         var w = At(new(0, WeatherCondition.Cloudy, 3, 0.6, 0, 0.9, WindDirection.North));
         var tile = Open(w);
-        Assert.True(Weather.AirAtF(w, tile, Weather.At(w, 0), 0) < 32);
+        Assert.True(Exposure.OpenAirF(w, tile, Weather.At(w, 0)) < 32);
         var s = Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
         w.Minute += 10 * 60;
         Assert.Same(s, Shelters.At(w, tile, []));
@@ -509,7 +517,8 @@ public class ShelterTests
     {
         var w = At(sky);
         var m = Map.Of(w);
-        var tile = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+        var tile = (from x in Enumerable.Range(0, m.Width)
+                    from y in Enumerable.Range(0, m.Height)
                     let t = new TileId(x, y)
                     where m.TerrainAt(t).IsPassable() && m.CaveAt(t) == Cave.None && !w.Shelters.ContainsKey(t)
                         && Pools.At(w, t).Any(p => p is ShelterFind)
@@ -603,7 +612,7 @@ public class ShelterTests
         var npc = Npc.Spawn(w, tile);
         string before = System.Text.Json.JsonSerializer.Serialize(w.Shelters) + System.Text.Json.JsonSerializer.Serialize(w.WaitingShelters);
         Pools.Search(w, w.Agent(npc), 1000, []);
-        Assert.Contains(new PoolId(tile, pool), ((PersonMind)w.Agent(npc).Mind).Knows.Discovered);
+        Assert.Contains(new PoolId(tile, pool), ((PersonMind)w.Agent(npc).Mind).Memory.Discovered);
         Assert.Empty(w.WaitingShelters);
         Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(w.Shelters) + System.Text.Json.JsonSerializer.Serialize(w.WaitingShelters));
         Assert.DoesNotContain(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find");
@@ -646,7 +655,7 @@ public class ShelterTests
         var w = At(new WeatherSample(0, WeatherCondition.Cloudy, 2, 0.1, 0, 0.8, WindDirection.North)); // 35.6 °F
         var m = Map.Of(w);
         var proper = m.PassStageIndex.Single(s => s.Value == 2).Key; // 15 °F colder
-        Assert.True(Ground.WeatherAt(w, proper, 0).AirTemperatureF <= 32);
+        Assert.True(Exposure.Surface(w, proper, 0).AirTemperatureF <= 32);
         w.Agent(P).Tile = proper;
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
         Assert.Null(Shelters.Refusal(w, new Build(P, Structure.SnowShelter)));
@@ -656,7 +665,7 @@ public class ShelterTests
         Assert.Equal(0.6, s.InsulationLevel);
 
         w.Agent(P).Tile = Open(w); // open ground at the regional air: a thaw
-        Assert.Equal("too warm to build in snow", Shelters.Refusal(w, new Build(P, Structure.SnowShelter)));
+        Assert.Equal("too warm to build in snow", Shelters.Refusal(w, new Build(P, Structure.SnowShelter))?.Reason);
     }
 
     /// Old DiscoveryFeatureFactory rolled overhangs past the RockOverhang kind's caps (0.40), so the

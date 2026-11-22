@@ -31,13 +31,24 @@ foreach (string line in commands)
             case "rest": Run(new Rest(AgentId.Player), Minutes(parts)); break;
             case "sleep": Run(new Sleep(AgentId.Player), Minutes(parts)); break;
             case "fire":
-            {
-                var light = (StartFire)LightFire(world);
-                if (Items.Tool(Items.Pack(world, AgentId.Player), light.Tool) != null)
-                    PrintOdds(Fire.StartOdds(world, world.Agent(AgentId.Player), light.Tool, light.Tinder));
-                Run(light, 1);
-                break;
-            }
+                {
+                    // Lighting a fire is the verb Verbs offers: the tile's, or the pit's own once there is one.
+                    var light = Verbs.At(world, AgentId.Player).All.FirstOrDefault(v => v.Activity is StartFire);
+                    if (light == null) { Console.WriteLine("  Nothing to light: the fire here is burning."); continue; }
+                    if (light.Odds != null) PrintOdds(light.Odds);
+                    Run(light.Activity, light.Minutes);
+                    break;
+                }
+            case "verbs": PrintVerbs(Verbs.At(world, AgentId.Player)); continue;
+            case "do":
+                {
+                    var verb = Numbered(Verbs.At(world, AgentId.Player))[int.Parse(parts[1]) - 1];
+                    if (verb.Odds != null) PrintOdds(verb.Odds);
+                    foreach (var o in verb.Outcomes?.Outcomes ?? []) { Console.WriteLine($"  {o.Outcome.Words}"); PrintOdds(o.Odds); }
+                    if (verb.Risk is { } risk) PrintOdds(risk);
+                    Run(verb.Activity, verb.Minutes);
+                    break;
+                }
             case "charcoal": Run(new GatherCharcoal(AgentId.Player), 1); break;
             case "look": Look(world); continue;
             case "inv" or "inventory": Inv(world); continue;
@@ -52,6 +63,7 @@ foreach (string line in commands)
             case "stash": Run(new Stash(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), 1); break;
             case "take": Run(new Unstash(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), 1); break;
             case "wear": Run(new Wear(AgentId.Player, parts[1]), 1); break;
+            case "takeoff": Run(new TakeOff(AgentId.Player, parts[1]), 1); break;
             case "fuel": Run(new AddFuel(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), double.Parse(parts[2])), 1); break;
             case "torch": Run(new LightTorch(AgentId.Player), 1); break;
             case "build": Run(new Build(AgentId.Player, Enum.Parse<Structure>(parts[1], ignoreCase: true)), 24 * 60); break; // stops itself when built
@@ -69,9 +81,9 @@ foreach (string line in commands)
                 Console.WriteLine($"Loaded {Path(parts)}");
                 break;
             default:
-                Console.WriteLine("Commands: wait N, rest N, sleep N, fire, fuel KIND KG, torch, charcoal, n/s/e/w [careful], go DIR [careful], " +
+                Console.WriteLine("Commands: verbs, do N, wait N, rest N, sleep N, fire, fuel KIND KG, torch, charcoal, n/s/e/w [careful], go DIR [careful], " +
                                   "look, inv, forage [MIN] [FOCUS], gather POOL [MIN], drink, eat KIND [KG], cook KIND [KG], melt, " +
-                                  "butcher ID [MODE], stash KIND [KG], take KIND [KG], wear GEAR, status, save [file], load [file], quit");
+                                  "butcher ID [MODE], stash KIND [KG], take KIND [KG], wear GEAR, takeoff GEAR, status, save [file], load [file], quit");
                 continue;
         }
     }
@@ -95,37 +107,54 @@ void Run(Activity activity, int minutes)
     var result = Sim.Step(world, activity, minutes);
     foreach (var e in result.Events)
     {
-        if (e is Noticed n) PrintReceipt(n.Receipt);
-        else Console.WriteLine($"  [{Clock(e.Minute)}] {e}");
+        if (e is Noticed n) PrintReceipt(world, n.Receipt);
+        // The player's words for it (Narration); what the player would not hear of, as the record, for a bug report.
+        else Console.WriteLine($"  [{Clock(e.Minute)}] {(Narration.ForPlayer(world, e)?.Text ?? e.ToString())}");
     }
-    if (result.InterruptedReason != null)
-        Console.WriteLine($"  Stopped after {result.MinutesElapsed} min: {result.InterruptedReason}");
+    if (result.Reason != null)
+        Console.WriteLine($"  {result.Outcome} after {result.MinutesElapsed} min: {result.Reason}");
 }
 
 static int Minutes(string[] parts) => int.Parse(parts[1]);
 static int MinutesOr(string[] parts, int fallback) => parts.Length > 1 ? int.Parse(parts[1]) : fallback;
 static double Kg(string[] parts) => parts.Length > 2 ? double.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture) : 99;
 
-/// The best fire starter and tinder in the pack, and up to a kilo of kindling.
-static Activity LightFire(World w)
+/// Every verb Verbs.At lists, in the order `verbs` numbers them: each thing's menu, the walks, the tile's, making.
+static List<Verb> Numbered(Here here) => [.. here.All];
+
+/// What can be done here, numbered for `do N`: each thing with its conditions and the action shown
+/// for it (or Interact, with its menu beneath), then the walks and the tile's own verbs.
+static void PrintVerbs(Here here)
 {
-    var pack = Items.Pack(w, AgentId.Player);
-    var tool = new[] { ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill }.FirstOrDefault(t => Items.Tool(pack, t) != null, ToolType.HandDrill);
-    var tinder = new[] { Resource.BirchBark, Resource.Amadou, Resource.Usnea, Resource.Chaga, Resource.Tinder }
-        .FirstOrDefault(r => Items.Have(pack, r) >= 0.05, Resource.Tinder);
-    return new StartFire(AgentId.Player, tool, tinder, 0.05, Math.Min(1.0, Items.Have(pack, Resource.Kindling)));
+    int n = 0;
+    string Line(Verb v) => $"{++n,3}. {v.Label}{(v.Refused != null ? $" (refused: {v.Refused})" : "")}{(v.Odds != null ? $" [{v.Odds.TotalPct:P0}]" : "")}{(v.Trip != null ? $" [{v.Trip.TotalMinutes} min]" : "")}";
+    foreach (var t in here.LocationFeatures)
+    {
+        string conditions = t.Conditions.Count > 0 ? $" ({string.Join(", ", t.Conditions.Select(c => c.Name))})" : "";
+        string shown = t.Action?.Label ?? (t.Interact ? "Interact" : "nothing to do");
+        Console.WriteLine($"  [{t.Name}{conditions}] - {shown}");
+        foreach (var v in t.Menu) Console.WriteLine($"     {Line(v)}");
+    }
+    foreach (var v in here.Walk.Concat(here.Tile)) Console.WriteLine($"  {Line(v)}{(v.Risk is { TotalPct: > 0 } risk ? $" [{risk.TotalPct:P1} injury risk]" : "")}");
+    Console.WriteLine("  [pack]");
+    foreach (var v in here.Pack) Console.WriteLine($"     {Line(v)}");
+    Console.WriteLine("  [make]");
+    foreach (var v in here.Make)
+    {
+        Console.WriteLine($"     {Line(v)}{(v.Outcomes != null && v.Refused == null ? $" [{v.Outcomes.PlainPct:P0} as planned]" : "")}");
+        if (v.Refused == null) foreach (var o in v.Outcomes?.Outcomes ?? []) Console.WriteLine($"          {o.Odds.TotalPct:P0} {o.Outcome.Words}");
+    }
 }
 
 /// What changed at a remembered tile while you were away or asleep: a camp tells you everything
 /// that happened, the field only what you can see for yourself.
-static void PrintReceipt(Receipt r)
+static void PrintReceipt(World w, Receipt r)
 {
     string since = r.SinceMinute is long s ? Clock(s) : "never";
     Console.WriteLine($"  -- {(r.Full ? "at camp" : "here")}, since you last saw it ({since}) --");
-    foreach (var e in r.Happened) Console.WriteLine($"     [{Clock(e.Minute)}] {e}");
-    foreach (var c in r.Changes) Console.WriteLine($"     {c.Kind} {c.Subject}: {c.Was ?? "none"} -> {c.Now ?? "gone"}");
-    foreach (var t in r.Signs)
-        Console.WriteLine($"     {t.Maker} prints, {(t.Pattern == TrafficPattern.Heading ? $"heading {t.Heading}" : t.Pattern.ToString())}, {t.AgeMinutes / 60} h old");
+    foreach (var e in r.Happened) Console.WriteLine($"     [{Clock(e.Minute)}] {(Narration.Of(w, e)?.Text ?? e.ToString())}");
+    foreach (var c in r.Changes) Console.WriteLine($"     {Narration.Change(c)}");
+    foreach (var t in r.Signs) Console.WriteLine($"     {Narration.Sign(t)} ({t.AgeMinutes / 60} h old)");
 }
 
 /// An odds sheet: the base, each factor's signed share, the total.
@@ -150,8 +179,10 @@ static void Inv(World w)
 }
 static Direction Heading(string word) => word.ToLowerInvariant() switch
 {
-    "n" or "north" => Direction.North, "e" or "east" => Direction.East,
-    "s" or "south" => Direction.South, "w" or "west" => Direction.West,
+    "n" or "north" => Direction.North,
+    "e" or "east" => Direction.East,
+    "s" or "south" => Direction.South,
+    "w" or "west" => Direction.West,
     _ => throw new ArgumentException($"No direction '{word}'"),
 };
 static Pace Pace(string[] parts) => parts.Contains("careful") ? Survival.Pace.Careful : Survival.Pace.Quick;

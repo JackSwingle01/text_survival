@@ -3,13 +3,11 @@ using static System.FormattableString;
 
 namespace Survival;
 
-/// What a find is, for the distribution targets (emergent-world-design §8).
 public enum FindCategory { DeadMatter, Resource, Structure, Sign, Agent }
 
 /// One thing a player could find in the world today. Cause is the sign's (Signs.At), null where none is kept.
 public sealed record FindRow(TileId Tile, int RegionX, int RegionY, string Kind, FindCategory Category, long? AgeMinutes, string? Cause, string Text);
 
-/// One region's finds by category and whether its survival floors hold.
 /// FuelFireHours is what bare hands gather (the floor reads it); FelledFireHours what an axe adds.
 public sealed record RegionRow(int X, int Y, int PassableTiles, int[] Counts, bool Water, bool Fuel, bool Shelter, double FuelFireHours, double FelledFireHours)
 {
@@ -29,16 +27,15 @@ public sealed record DistributionReport(IReadOnlyList<RegionRow> Regions, int[] 
 public sealed record PopulationRow(Species Species, int Herds, int Members);
 public sealed record CurvePoint(int Day, IReadOnlyList<PopulationRow> Populations);
 
-/// QA instruments over a world: the find dump, the distribution report and population curves
-/// (emergent-world-design §8). Reads only; Curve is the one thing here that runs the sim.
+/// QA instruments over a world (emergent-world-design §8). Reads only; Curve is the one thing here that runs the sim.
 /// Ambient forage and standing timber are on nearly every tile, so they are the survivable
 /// skeleton (the floors), not finds: they appear as rows only once something has worked them.
 public static class Report
 {
     public const int RegionTiles = 10;
     public const double MaxDeadMatterPct = 0.35, MinResourcePct = 0.25;
-    /// A region with finds outside [median x Min, median x Max] fails. The doc gives only the 3x
-    /// ceiling; a third of the median as the floor is a starting guess.
+    /// A region with finds outside [median x Min, median x Max] fails. The doc gives only the 3x ceiling;
+    /// a third of the median as the floor is a starting guess.
     public const double MinRegionFactor = 1.0 / 3, MaxRegionFactor = 3.0;
 
     public static IReadOnlyList<FindRow> Finds(World w)
@@ -100,18 +97,18 @@ public static class Report
             long? age = sign.MadeMinute is long made ? w.Minute - made : null;
             switch (sign.Kind)
             {
-                case SignKind.Body when sign.Thing.Index != AgentId.Player.Value: // the player is not a find
-                    var dead = w.Agent(new AgentId(sign.Thing.Index));
+                case SignKind.Body when sign.LocationFeature.Index != AgentId.Player.Value: // the player is not a find
+                    var dead = w.Agent(new AgentId(sign.LocationFeature.Index));
                     Add(t, "body", FindCategory.DeadMatter, age,
                         $"dead {dead.Species} ({dead.Id}), {Remains.StageOf(w, dead).ToString().ToLowerInvariant()}{Circled(t)}", sign.Cause);
                     break;
                 case SignKind.Carcass:
-                    var c = Carcasses.Find(w, t, sign.Thing.Index)!;
+                    var c = Carcasses.Find(w, t, sign.LocationFeature.Index)!;
                     Add(t, "carcass", FindCategory.DeadMatter, age,
                         Invariant($"{c.Animal} carcass, {Carcasses.TotalRemainingKg(c):0.0} kg left, decay {Carcasses.DecayLevelNow(w, t, c):P0}{Circled(t)}"), sign.Cause);
                     break;
                 case SignKind.Bones:
-                    var b = Carcasses.Find(w, t, sign.Thing.Index)!;
+                    var b = Carcasses.Find(w, t, sign.LocationFeature.Index)!;
                     Add(t, "bones", FindCategory.DeadMatter, age, Invariant($"{b.Animal} bones, {Carcasses.TotalRemainingKg(b):0.0} kg"), sign.Cause);
                     break;
                 case SignKind.RavensOver:
@@ -123,7 +120,7 @@ public static class Report
                         stash.Kg.Select(kv => Invariant($"{kv.Key} {kv.Value:0.##}kg")).Concat(stash.Gear.Select(g => Items.Def(g).Name))), sign.Cause);
                     break;
                 case SignKind.FirePit:
-                    var f = w.Fires[new FireId(sign.Thing.Index)];
+                    var f = w.Fires[new FireId(sign.LocationFeature.Index)];
                     Add(t, "fire pit", FindCategory.Structure, age, Invariant($"{f.Pit} pit, {Fire.Phase(f)}, charcoal {f.CharcoalKg:0.0} kg"), sign.Cause);
                     break;
                 case SignKind.Shelter:
@@ -131,13 +128,13 @@ public static class Report
                     Add(t, "shelter", FindCategory.Structure, age, Invariant($"{s.Name} ({s.Kind}), quality {Shelters.Quality(s):P0}"), sign.Cause);
                     break;
                 case SignKind.Prints:
-                    var p = Tracks.Read(w, t).First(x => (int)x.Maker == sign.Thing.Index);
+                    var p = Tracks.Read(w, t).First(x => (int)x.Maker == sign.LocationFeature.Index);
                     Add(t, "tracks", FindCategory.Sign, age,
                         Invariant($"{p.Maker} prints, traffic {p.Traffic}, {p.Pattern} {p.Heading}, {p.FreshnessPct:P0} fresh"), sign.Cause);
                     break;
                 // An edge's one ref is named from its first tile (EdgeId.A), whose other end is east or south.
                 case SignKind.Trail:
-                    var to = Map.Step(t, sign.Thing.TrailDirection!.Value);
+                    var to = Map.Step(t, sign.LocationFeature.TrailDirection!.Value);
                     Add(t, "trail", FindCategory.Sign, age, $"{Tracks.TierOf(w, t, to)} to {TileIdConverter.Format(to)}", sign.Cause);
                     break;
                 case SignKind.Body: break; // the player
@@ -165,7 +162,7 @@ public static class Report
     }
 
     static bool FoundByAnyone(World w, PoolId id) =>
-        w.Agents.Values.Any(a => (a.Mind as PersonMind)?.Knows.Discovered.Contains(id) == true);
+        w.Agents.Values.Any(a => (a.Mind as PersonMind)?.Memory.Discovered.Contains(id) == true);
 
     public static string DumpText(World w) => DumpText(w, Finds(w));
 
@@ -179,8 +176,7 @@ public static class Report
         return sb.ToString();
     }
 
-    /// What someone standing here sees: the place, what is plainly there and what they have found.
-    /// Reads only, as the rest of Report: a snow shelter is melted and a carcass decayed on copies.
+    /// Reads only: a snow shelter is melted and a carcass decayed on copies.
     public static IReadOnlyList<string> Look(World w, AgentId who)
     {
         var p = w.Agent(who);
@@ -259,19 +255,14 @@ public static class Report
         return new DistributionReport(regions, totals, Median(regions.Select(r => (double)r.Total)));
     }
 
-    /// The fuel floor (§8 floors per region, as a minimum fuel-quality sum): a region passes when an
-    /// hour's work by hand on each of its tiles would bring in at least this many hours of fire, every
-    /// source weighed by how long its wood burns (Fire.Props). The floor is about surviving, and the
-    /// player starts with no axe: standing trees (and stock that needs one) are counted apart, as
-    /// felled fuel, and do not hold a region up. Open plain gives about 0.02 an hour in tinder and
-    /// twigs, rock and barren less, so open steppe or rock with little deadfall falls under it.
+    /// The fuel floor (§8): hours of fire an hour's work by hand on each tile of a region must bring in.
+    /// The player starts with no axe, so standing trees (and stock that needs one) count apart as
+    /// felled fuel and do not hold a region up. Open plain gives about 0.02 an hour, rock less.
     // 12 is a night: a fire kept through twelve dark hours at about a kilo an hour.
     public const double MinFuelFireHours = 12;
 
-    /// Hours of fire an hour's work here brings in now: forage by today's density, a standing tree
-    /// by its felling time, stock by what is left (all of it, if it takes under an hour). Mixed
-    /// forest is the felling's own draw (Pools.Felled's mixed wood). By hand: forage and stock anyone can take; with an
-    /// axe: the trees, and stock that needs a tool (content's only one is an axe).
+    /// Hours of fire an hour's work here brings in now. By hand: forage and stock anyone can take;
+    /// with an axe: the trees, and stock that needs a tool (content's only one is an axe).
     public static (double ByHand, double WithAxe) FuelFireHoursPerWorkHour(World w, TileId t)
     {
         var pools = Pools.At(w, t);
@@ -301,9 +292,7 @@ public static class Report
         return (hours, felled);
     }
 
-    /// A forage pool's fire per unit of density: what its fuel items burn for, by abundance and their
-    /// middle weight. Fixed by content, so worked out once per pool row (a whole-map pass asked it of
-    /// every tile).
+    /// Fixed by content, so worked out once per pool row, not per tile.
     static double FireHoursPerDensity(ForagePool f) =>
         FireFactors.GetValue(f, p => new(p.Items.Where(x => Fire.IsFuel(x.Resource))
             .Sum(item => item.Abundance * (item.MinKg + item.MaxKg) / 2 / Fire.Props[item.Resource].BurnRateKgPerHour))).Value;
@@ -353,14 +342,12 @@ public static class Report
 
     // ---- populations ----
 
-    /// Living members per species, the player left out.
     public static IReadOnlyList<PopulationRow> Populations(World w) =>
         w.Agents.Values.Where(a => a.Id != AgentId.Player && Sim.IsAlive(a))
             .GroupBy(a => a.Species).OrderBy(g => g.Key)
             .Select(g => new PopulationRow(g.Key, g.Count(), g.Sum(a => a.Members.Count(Body.IsAlive))))
             .ToList();
 
-    /// Runs the world on chunkDays at a time and records the populations after each chunk.
     public static IReadOnlyList<CurvePoint> Curve(World w, int days, int chunkDays)
     {
         if (chunkDays <= 0 || days <= 0 || days % chunkDays != 0)

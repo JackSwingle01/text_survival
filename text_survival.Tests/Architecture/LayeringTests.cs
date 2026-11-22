@@ -23,6 +23,7 @@ public class LayeringTests
             if (relative.StartsWith("tools/")) continue;
             if (relative.StartsWith("rebuild/")) continue; // the clean-room rebuild has its own ArchitectureTests
             if (relative.StartsWith(".claude/")) continue; // other sessions' worktrees live here
+            if (relative.StartsWith("dev/")) continue; // prototypes are their own projects, not the game
             if (relative.StartsWith("text_survival.Tests/")) continue;
 
             yield return (relative, File.ReadAllLines(file));

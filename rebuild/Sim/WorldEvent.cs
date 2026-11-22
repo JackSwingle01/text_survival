@@ -2,13 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-/// A fact the simulation emits. Log, notices, tile journals and memory all read the same stream.
-/// Minute is the instant it happened: an agent's action (lighting, adding fuel) happens at the
-/// step's starting world.Minute, before that step's first minute is lived; what lazy catch-up
-/// finds (a fire that died while nobody looked) carries the minute it really happened, not the
-/// minute someone came to look. Consumers should rely on stream order within a minute, not on
-/// Minute being strictly greater than the previous step's last minute.
-/// Tile is where it happened, so every event can be filed in a tile's journal (Journal).
+/// A fact the simulation emits; log, notices, tile journals and memory all read the same stream.
+/// Minute is when it really happened: an agent's action carries the step's starting minute, lazy
+/// catch-up carries the minute it occurred, not when someone looked. Rely on stream order within a
+/// minute, not on Minute exceeding the previous step's last minute. Every event has a Tile so it can be filed
+/// in that tile's journal.
 /// Saved inside tile journals: a new event type needs its line here, or filing it throws.
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(EffectStarted), "effectstarted")]
@@ -34,13 +32,15 @@ namespace Survival;
 [JsonDerivedType(typeof(Drank), "drank")]
 [JsonDerivedType(typeof(Butchered), "butchered")]
 [JsonDerivedType(typeof(Killed), "killed")]
-[JsonDerivedType(typeof(FightEnded), "fightended")]
+[JsonDerivedType(typeof(EncounterEnded), "encounterended")]
 [JsonDerivedType(typeof(WoundedEscaped), "woundedescaped")]
 [JsonDerivedType(typeof(Built), "built")]
 [JsonDerivedType(typeof(ShelterCollapsed), "sheltercollapsed")]
 [JsonDerivedType(typeof(PlanRefused), "planrefused")]
 [JsonDerivedType(typeof(SkillLeveledUp), "skillup")]
 [JsonDerivedType(typeof(Noticed), "noticed")]
+[JsonDerivedType(typeof(Made), "made")]
+[JsonDerivedType(typeof(ProjectAbandoned), "projectabandoned")]
 public abstract record WorldEvent(long Minute, TileId Tile);
 
 public sealed record EffectStarted(long Minute, AgentId Who, TileId Tile, EffectKind Kind) : WorldEvent(Minute, Tile);
@@ -59,14 +59,11 @@ public sealed record FireDied(long Minute, FireId Fire, TileId Tile) : WorldEven
 /// A crossing completed: the agent now stands on To, which is the event's Tile.
 public sealed record Moved(long Minute, AgentId Who, TileId From, TileId To) : WorldEvent(Minute, To);
 public sealed record Injured(long Minute, AgentId Who, TileId Tile, string Region, DamageType Type, double Amount) : WorldEvent(Minute, Tile);
-/// Reached the far side of the mountain pass: the run is won.
 public sealed record CrossedThePass(long Minute, AgentId Who, TileId Tile) : WorldEvent(Minute, Tile);
 
-/// What one step of work brought in, all of it, summarised (Items.Describe).
 public sealed record Gathered(long Minute, AgentId Who, TileId Tile, string What) : WorldEvent(Minute, Tile);
 /// More than the pack could hold: the rest went on the tile's stash.
 public sealed record Dropped(long Minute, AgentId Who, TileId Tile, string What) : WorldEvent(Minute, Tile);
-/// Put on, or taken from, the tile's stash by hand.
 public sealed record Stashed(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg) : WorldEvent(Minute, Tile);
 /// Taken: by someone whose camp this was not, as it stood when they took it (Journal.IsNotable).
 public sealed record Unstashed(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, bool Taken) : WorldEvent(Minute, Tile);
@@ -79,13 +76,14 @@ public sealed record Butchered(long Minute, AgentId Who, TileId Tile, int Carcas
 
 /// An animal member died on Tile: a carcass of this species and mass. By struck the blow; null if it bled out.
 public sealed record Killed(long Minute, AgentId Agent, Species Species, double MassKg, TileId Tile, AgentId? By) : WorldEvent(Minute, Tile);
-/// A fight is over. Result is from this agent's side; Rounds is how many minutes it lasted.
-public sealed record FightEnded(long Minute, AgentId Agent, TileId Tile, CombatResult Result, int Rounds) : WorldEvent(Minute, Tile);
-/// A wounded animal got away from the player and left its herd as Agent: a trail to follow.
-public sealed record WoundedEscaped(long Minute, AgentId Agent, Species Species, double Severity, TileId Tile) : WorldEvent(Minute, Tile);
+/// Result is from this agent's side; Rounds is minutes lasted.
+public sealed record EncounterEnded(long Minute, AgentId Agent, TileId Tile, CombatResult Result, int Rounds) : WorldEvent(Minute, Tile);
+/// A wounded animal left its herd as Agent: a trail to follow. Heading is the way it ran; null if nowhere in particular.
+public sealed record WoundedEscaped(long Minute, AgentId Agent, Species Species, double Severity, TileId Tile,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Direction? Heading = null)
+    : WorldEvent(Minute, Tile);
 
-/// Practice paid off: the person's skill is now Level (Skills).
 public sealed record SkillLeveledUp(long Minute, AgentId Who, TileId Tile, Skill Skill, int Level) : WorldEvent(Minute, Tile);
-/// The player came back to a remembered tile, or woke on one, and took in what changed since
-/// they last saw it (Knowledge.Receipt). Never filed in a journal: it is a reading of one.
+/// What changed on a remembered tile since the player last saw it (Memories.Receipt).
+/// Never filed in a journal: it is a reading of one.
 public sealed record Noticed(long Minute, AgentId Who, TileId Tile, Receipt Receipt) : WorldEvent(Minute, Tile);

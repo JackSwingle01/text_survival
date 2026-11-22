@@ -19,7 +19,7 @@ public class WorkTests
     static readonly TreePool Trees = new("Trees", Resource.Birch, 100);
     static StockPool Bush() => new("Bush", StockKind.Harvest, 5, [new StockItem(Resource.Berries, 5, 0.4, 168)], RevealAtHours: 0);
 
-    static void Know(World w, int pool) => ((PersonMind)w.Agent(P).Mind).Knows.Discovered.Add(new PoolId(Map.Of(w).Camp, pool));
+    static void Know(World w, int pool) => ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(Map.Of(w).Camp, pool));
     static void Axe(World w) => Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
     static void FastForwardTo(World w, int hour) { while (Weather.MinuteOfDay(w.Minute) / 60 != hour) w.Minute++; }
     static void LightAPit(World w) =>
@@ -73,6 +73,17 @@ public class WorkTests
         Assert.Equal(axe1.Durability, axe2.Durability);
         Assert.Equal(axe1.MaxDurability - 1, axe1.Durability); // one use for 100 minutes: one per hour
         Assert.Equal(Items.Have(Items.Pack(one, P), Resource.Birch), Items.Have(Items.Pack(quarters, P), Resource.Birch), 9);
+    }
+
+    /// An hour's search that turns up nothing says so: the session's line is never only what it taught.
+    [Fact]
+    public void ForagingThatFindsNothing_SaysSo()
+    {
+        var w = WithPools(new ForagePool("bare", 0.0, []));
+        var r = Sim.Step(w, new Gather(P, 0), 60);
+        Assert.Equal(60, r.MinutesElapsed);
+        var said = r.Events.Select(e => Narration.ForPlayer(w, e)?.Text).Where(t => t != null).ToList();
+        Assert.Contains("You find nothing.", said);
     }
 
     /// A stash emptied goes back to null, so a tile with nothing else on it can leave World.Tiles.
@@ -139,6 +150,7 @@ public class WorkTests
 
     /// balance: forage retuned (2026-11-20). Old FocusProcessor only filtered, so a food search fed no
     /// better than a general one; focus now buys Work.FocusGain of what it looks for.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void AFocusedSearch_FindsMoreOfWhatItLooksFor_ThanAGeneralOne()
     {
@@ -209,7 +221,7 @@ public class WorkTests
     {
         var w = WithPools(Forage, Bush() with { RequiresTool = ToolType.Axe });
         Know(w, 1);
-        Assert.Equal("you need a Axe", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
+        Assert.Equal("you need an axe", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
         Axe(w);
         Assert.Equal("the Bush is picked clean", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
     }

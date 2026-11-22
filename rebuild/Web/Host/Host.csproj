@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Survival.Web</RootNamespace>
+    <!-- Which Sim to build against. Override to build against a clean extract of HEAD while the
+         working tree's Sim is mid-change: -p:SimProject=/tmp/head/rebuild/Sim/Sim.csproj (README). -->
+    <SimProject Condition="'$(SimProject)' == ''">$(MSBuildThisFileDirectory)../../Sim/Sim.csproj</SimProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(SimProject)" />
+    <InternalsVisibleTo Include="Host.Tests" />
+  </ItemGroup>
+</Project>

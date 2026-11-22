@@ -44,6 +44,11 @@
     <None Include="rebuild/**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Exclude throwaway prototypes (each its own project) from main project compilation -->
+    <Compile Remove="dev/**" />
+  </ItemGroup>
+
   <!-- Desktop rendering packages -->
   <ItemGroup>
     <PackageReference Include="Raylib-cs" Version="7.0.2" />

@@ -68,6 +68,99 @@ public class ArchitectureTests
         Assert.True(writes.Count == 0, string.Join("\n", writes));
     }
 
+    /// One exposure calculation (decision 2026-11-21, emergent-world-design §3.4): only Exposure.cs
+    /// combines the sky with a tile's wind, cover or cold, a pit's walls or a shelter's, or computes the
+    /// wind chill. Each rule names the members (file and member, not the whole file) that may still say it and
+    /// why; anything else that does is a second exposure model, the class of bug this replaced (tile wind reached
+    /// only the chill). Old (this rebuild): allowances by file, so anything new in Ground.cs or Travel.cs passed.
+    static readonly (string Pattern, string What, (string File, string Member, string Why)[] Allowed)[] ExposureRules =
+    [
+        (@"\bMap\.WindFactor\(", "reads a tile's wind factor",
+            [("Map.cs", "WindFactor", "its definition"),
+             ("Ground.cs", "Unobserved", "the key of a never-observed tile's ground class, not a wind")]),
+        (@"\bMap\.OverheadCover\(", "reads a tile's overhead cover",
+            [("Map.cs", "OverheadCover", "its definition"),
+             ("Ground.cs", "Unobserved", "the ground class key")]),
+        (@"\bMap\.TemperatureDeltaF\(", "reads a tile's own cold",
+            [("Map.cs", "TemperatureDeltaF", "its definition"),
+             ("Ground.cs", "Unobserved", "the ground class key"),
+             ("Remains.cs", "EffectiveHours", "a key handed on to Exposure.SiteAirF"),
+             ("Carcass.cs", "CatchUp", "a key handed on to Exposure.SiteAirF")]),
+        (@"\.TemperatureF\s*[-+]", "adds to the sky's air", []),
+        (@"[-+]\s*[\w.]*\.TemperatureF\b(?!\s*\()", "adds to the sky's air", []),
+        (@"\bWindChillF\(", "computes a wind chill", [("Weather.cs", "WindChillF", "its definition")]),
+        (@"\.WindMph\b", "reads the wind in mph", []),
+        (@"\(1 - [^()]*(WindProtectionLevel|WallsLevel|\.WindLevel)\)", "cuts a wind by walls or shelter", []),
+        (@"(?i)\.WindLevel\s*\*[^;]*(WindFactor|tileWind)|(WindFactor|tileWind)\w*\s*(\([^)]*\))?\s*\*[^;]*\.WindLevel\b",
+            "scales the sky's wind by a tile's", []),
+        (@"\b(FeltAirF|ShelterStep|SiteAirF|WindAt|OpenAirF)\(", "calls exposure's parts directly",
+            [("Remains.cs", "At", "rot's hourly air: the sky's air with the tile's cold, nothing more"),
+             ("Remains.cs", "TempF", "the same, for one hour")]),
+        // Planning reads of the sky are allowed where listed: they ask what the weather will do to a walk or a
+        // rot, through Exposure, and routing them through Exposure.At would build a whole exposure per question.
+        (@"\bWeather\.At\(", "reads the sky directly",
+            [("Travel.cs", "Begin", "a crossing's pace and injury risk against the sky (Traversal.CrossingMinutes)"),
+             ("Trip.cs", "Time", "the same crossing previewed before it starts, against the same sky"),
+             ("Trip.cs", "Risk", "the same crossing's injury risk previewed, against the sky Begin fixes it by"),
+             ("Trip.cs", "StepMinutes", "the same crossing's minutes for a planner, kept for the minute"),
+             ("Memory.cs", "BudgetTiles", "how far a person can see: the weather's visibility, nothing about warmth"),
+             ("Remains.cs", "At", "rot's hourly air, through Exposure.SiteAirF"),
+             ("Remains.cs", "TempF", "the same, for one hour")]),
+    ];
+
+    /// A member declaration: modifiers, a type (a tuple included), a name, its parameters. Not a statement or a call.
+    internal static readonly Regex MemberDeclaration = new(
+        @"^\s*(?!(?:if|else|while|for|foreach|switch|return|using|catch|lock|new|throw|yield|case|await)\b)" +
+        @"(?:(?:public|internal|private|protected|static|readonly|override|sealed|partial|virtual|abstract)\s+)*" +
+        @"(?:[\w<>\[\],.?]+|\([^)]*\)\??)\s+(\w+)\s*(?:<[^>]*>)?\s*(?:\(|=>)");
+
+    /// The rule breaches in one file's lines, each with the member it is in (the nearest declaration at or above it).
+    internal static List<string> ExposureViolations(string file, IEnumerable<string> lines)
+    {
+        var violations = new List<string>();
+        string member = "";
+        int i = 0;
+        foreach (var line in lines)
+        {
+            i++;
+            if (MemberDeclaration.Match(line) is { Success: true } decl) member = decl.Groups[1].Value;
+            if (line.TrimStart().StartsWith("//")) continue;
+            foreach (var r in ExposureRules)
+                if (Regex.IsMatch(line, r.Pattern) && !r.Allowed.Any(a => a.File == file && a.Member == member))
+                    violations.Add($"{file}:{i} ({member}) {r.What}: {line.Trim()}");
+        }
+        return violations;
+    }
+
+    [Fact]
+    public void OnlyExposure_CombinesSkyTileShelterAndFire()
+    {
+        var violations = Directory.GetFiles(SimSourceDir(), "*.cs")
+            .Where(f => Path.GetFileName(f) != "Exposure.cs")
+            .SelectMany(f => ExposureViolations(Path.GetFileName(f), File.ReadLines(f)))
+            .ToList();
+        Assert.True(violations.Count == 0, string.Join("\n", violations));
+    }
+
+    /// The rules catch a second exposure model however it is written, and an allowance covers only its own member.
+    [Theory]
+    [InlineData("        double t = deltaF + sky.TemperatureF;")]
+    [InlineData("        double t = sky.TemperatureF + deltaF;")]
+    [InlineData("        if (sky.WindLevel > 0.5) multiplier *= 1 + sky.WindLevel * 0.3 * Map.WindFactor(m, tile);")]
+    [InlineData("        double wind = tileWind * sky.WindLevel;")]
+    [InlineData("        double wind = Map.WindFactor(m, tile) * s.WindLevel;")]
+    [InlineData("        double w = s.WindLevel * (1 - pit.WallsLevel);")]
+    [InlineData("        var sky = Weather.At(world, world.Minute);")]
+    public void ExposureRules_CatchASecondModel(string body)
+    {
+        string[] lines = ["    static double Forecast(World world, TileId tile)", "    {", body, "    }"];
+        Assert.NotEmpty(ExposureViolations("Npc.cs", lines));
+        // Allowed in Remains.At, which reads rot's hourly sky; not in another member of the same file.
+        string[] remains = ["    double At(World world, long minute)", "    {", "        var sky = Weather.At(world, minute);", "    }",
+                            "    static double Other(World world)", "    {", "        var sky = Weather.At(world, 0);", "    }"];
+        Assert.Equal(["Remains.cs:7 (Other) reads the sky directly: var sky = Weather.At(world, 0);"], ExposureViolations("Remains.cs", remains));
+    }
+
     // ---- world events: every one names its tile, and every one can be filed ----
 
     static IReadOnlyList<Type> EventTypes() =>
@@ -95,6 +188,18 @@ public class ArchitectureTests
         Assert.True(missing.Count == 0, "not registered: " + string.Join(", ", missing));
     }
 
+    /// An activity is saved while an NPC or herd is part-way through one (Agent.Doing): a subtype with
+    /// no JsonDerivedType line throws the first time someone is saved doing it.
+    [Fact]
+    public void EveryActivity_IsRegisteredForTheSave()
+    {
+        var registered = typeof(Activity).GetCustomAttributes<JsonDerivedTypeAttribute>().Select(a => a.DerivedType).ToHashSet();
+        var activities = typeof(Activity).Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(Activity)) && !t.IsAbstract).ToList();
+        Assert.True(activities.Count >= 25);
+        var missing = activities.Where(t => !registered.Contains(t)).Select(t => t.Name).OrderBy(n => n).ToList();
+        Assert.True(missing.Count == 0, "not registered: " + string.Join(", ", missing));
+    }
+
     /// In a busy run every event raised carries a real tile on the map: none left at its default.
     [Fact]
     public void ABusyRun_RaisesNoEventWithoutATile()
@@ -117,8 +222,11 @@ public class ArchitectureTests
         var (world, _) = Phase3GateTests.Run(160);
         // The NPC is in it, caught with work in hand: its mind and its work session are walked too.
         var npc = world.Agents.Values.Single(a => a.Mind is NpcMind);
-        for (int i = 0; i < 24 * 60 && npc.Doing?.Work == null; i++) Sim.Advance(world, 1);
-        Assert.NotNull(npc.Doing?.Work);
+        // Watered, so the save is walked with a living NPC whatever its mind made of the busy day.
+        npc.Body.HydrationMl = Body.MaxHydrationMl;
+        Items.Add(Items.Pack(world, npc.Id), Resource.Water, 3);
+        for (int i = 0; i < 3 * 24 * 60 && npc.Doing?.Work == null; i++) Sim.Advance(world, 1);
+        Assert.True(npc.Doing?.Work != null, $"no work in hand at minute {world.Minute}: {npc.Doing?.Activity} at {npc.Tile}, alive {Sim.IsAlive(npc)}");
         string json = JsonSerializer.Serialize(world, new JsonSerializerOptions { ReferenceHandler = ReferenceHandler.Preserve });
         int at = json.IndexOf("\"$ref\"", StringComparison.Ordinal);
         Assert.True(at < 0, at < 0 ? "" : $"an object reachable twice: ...{json.Substring(Math.Max(0, at - 300), 400)}...");

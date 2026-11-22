@@ -19,10 +19,28 @@ public class WeatherTests
     [InlineData(-20, 45, -58.144996326070746)]
     [InlineData(32, 3, 29.316734684752944)]
     [InlineData(40, 2.9, 40)]   // below 3 mph: no chill
-    [InlineData(51, 30, 51)]    // above 50 °F: no chill
+    [InlineData(60, 30, 60)]    // at 60 °F and above: no chill (was 50 °F, a cliff; body review A10)
     [InlineData(23, 13.5, 10.729616789111176)]
     public void WindChill_MatchesOld(double tempF, double mph, double expected) =>
         Assert.Equal(expected, Weather.WindChillF(tempF, mph), Digits);
+
+    /// Body review A10: the chill fades out between 50 and 60 °F, never jumping and never warming. Old:
+    /// in a gale 49.9 °F felt like about 40 °F and 50.1 °F like 50.1 °F.
+    [Theory]
+    [InlineData(3)]
+    [InlineData(10)]
+    [InlineData(45)]
+    [InlineData(70)]
+    public void WindChill_IsContinuousInTheAir_AndNeverWarms(double mph)
+    {
+        for (double t = 30; t < 70; t += 0.01)
+        {
+            double here = Weather.WindChillF(t, mph), next = Weather.WindChillF(t + 0.01, mph);
+            Assert.True(Math.Abs(next - here) < 0.1, $"{mph} mph: {t:0.00} °F feels {here:0.00}, {t + 0.01:0.00} °F feels {next:0.00}");
+            Assert.True(here <= t, $"{mph} mph: {t:0.00} °F feels warmer, {here:0.00}");
+        }
+        if (mph >= 10) Assert.True(Weather.WindChillF(55, mph) < 55, "a stiff wind still chills a little past 50 °F");
+    }
 
     // ---- exact: old Location.GetTemperatureBreakdown(Idle) on an exposed tile, no features ----
     // Minutes are counted from the old GameContext.StartTime (July 1, 09:00).
@@ -39,7 +57,7 @@ public class WeatherTests
 
     [Theory, MemberData(nameof(ExposedCases))]
     public void ExposedAir_MatchesOld(long minute, double c, double wind, double precip, double cloud, WeatherCondition cond, double expectedF) =>
-        Assert.Equal(expectedF, Weather.ExposedAirF(Sky(minute, c, wind, precip, cloud, cond), 0), Digits);
+        Assert.Equal(expectedF, Exposure.FeltAirF(Sky(minute, c, wind, precip, cloud, cond), wind), Digits);
 
     // ---- exact: old Weather.SunlightIntensity on a clear, cloudless sky at hh:30 ----
 
@@ -307,12 +325,17 @@ public class WeatherTests
         ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P), []);
         Assert.Equal(Weather.WindChillF(14, 22.5 * 1.2), ctx.AirTempF, Digits);
         Assert.True(ctx.AirTempF < 14 - 15);
-        Assert.Equal(0.5, ctx.WindLevel, Digits); // old: the body's convective wind is regional, not the tile's
+        // Rebuild: tile wind reaches the body (decision 2026-11-21). Old: the body's convective wind was
+        // the regional 0.5, the tile's factor reaching only the chill; now the chill and the convection
+        // read the one wind, 0.5 x 1.2.
+        Assert.Equal(0.5 * 1.2, ctx.WindLevel, Digits);
+        Assert.Equal(Weather.WindChillF(14, ctx.WindLevel * Weather.MaxWindMph), ctx.AirTempF, Digits);
     }
 
     /// An ordinary tile of this terrain: not camp, a cave, a pass stage or beside a river.
     static TileId TileOf(GeneratedMap m, Terrain terrain) =>
-        (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+        (from x in Enumerable.Range(0, m.Width)
+         from y in Enumerable.Range(0, m.Height)
          let t = new TileId(x, y)
          where m.TerrainAt(t) == terrain && t != m.Camp && m.CaveAt(t) == Cave.None && m.StageAt(t) == null && !m.BesideRiver(t)
          select t).First();
@@ -330,7 +353,7 @@ public class WeatherTests
         world.Agent(P).Tile = pass;
         double passF = Sim.Surroundings(world, world.Agent(P), new Wait(P), []).AirTempF;
         // -15 °F of its own, and twice the wind through the chill against camp's 0.4.
-        Assert.Equal(Weather.ExposedAirF(Weather.At(world, 0), 0, 2.0, 0, -15), passF, Digits);
+        Assert.Equal(Exposure.FeltAirF(Weather.At(world, 0), Weather.At(world, 0).WindLevel * 2.0, 0, -15), passF, Digits);
         Assert.True(passF < campF - 25, $"pass {passF:F1} F vs camp {campF:F1} F");
     }
 
@@ -355,8 +378,8 @@ public class WeatherTests
         Assert.True(underTrees < inTheOpen - 0.1, $"forest {underTrees:F3} vs plain {inTheOpen:F3}");
         // The canopy (0.5) halves the precipitation's cooling and the sun's warming; forest wind 0.3.
         var sky = Weather.At(world, 0);
-        Assert.Equal(Weather.ExposedAirF(sky, 0, 0.3, 0.5, 0), Weather.AirAtF(world, forest, sky, 0), Digits);
-        Assert.NotEqual(Weather.ExposedAirF(sky, 0), Weather.AirAtF(world, forest, sky, 0));
+        Assert.Equal(Exposure.FeltAirF(sky, sky.WindLevel * 0.3, 0.5, 0), Exposure.OpenAirF(world, forest, sky), Digits);
+        Assert.NotEqual(Exposure.FeltAirF(sky, sky.WindLevel), Exposure.OpenAirF(world, forest, sky));
     }
 
     [Fact]

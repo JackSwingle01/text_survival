@@ -1,0 +1,15 @@
+<!-- PROTOTYPE, throwaway: answers whether the NPC requirements-tree design holds before the NPC rewrite.
+     References rebuild/Sim read-only, through its public interface only (no InternalsVisibleTo). -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>NpcReq</RootNamespace>
+    <NoWarn>$(NoWarn);CS8524</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../rebuild/Sim/Sim.csproj" />
+  </ItemGroup>
+</Project>

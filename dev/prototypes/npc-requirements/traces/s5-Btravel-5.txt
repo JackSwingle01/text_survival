@@ -1,0 +1,98 @@
+## 5 picked-over forest, no axe - forecasts B, source by travel only
+start 15:00, Clear 4F wind 21 mph, camp Forest, sunrise 6:00, pack Tinder0.18 Kindling0.9
+   >> fire site: (-1,+1) (walk 36 + plan 291, home 2345) instead of home (home(0,0)): home moves
+   ++ goal: fire until 06:00, need 15.0 fuel-h, forecast 291 min, budget 437
+      list: Forage@home(-1,+1) kindling 0.1 (5m) | Forage@(0,+1) fuel 8.4 (165m)   [stash mem: ; true: -]
+15:00 (0,+1)   to Forage@(0,+1) fuel 8.4 (165m) [2 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 98.6 | Tinder0.18 Kindling0.9
+      list: Forage@home(-1,+1) kindling+fuel 8.5 (205m)   [stash mem: ; true: -]
+15:18 home(-1,+1) to Forage@home(-1,+1) kindling+fuel 8.5 (205m) [1 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 98.6 | Tinder0.18 Kindling0.9
+      list: Forage@home(-1,+1) kindling+fuel 8.5 (1866m)   [stash mem: ; true: -]
+15:36 home(-1,+1) forage Forage@home(-1,+1) kindling+fuel 8.5 (1866m)        -> Finished | no fire | core 98.4 | Tinder0.18 Kindling0.9
+      list: Forage@home(-1,+1) kindling+fuel 8.5 (1854m)   [stash mem: ; true: -]
+16:06 home(-1,+1) forage Forage@home(-1,+1) kindling+fuel 8.5 (1854m)        -> Finished | no fire | core 97.5 | Tinder0.18 Kindling0.9
+      list: Forage@home(-1,+1) kindling+fuel 8.5 (1843m)   [stash mem: ; true: -]
+16:36 home(-1,+1) light (50%)                                                -> Finished | no fire | core 97.4 | Tinder0.13 Kindling0.9
+      list: Forage@home(-1,+1) tinder+kindling+fuel 8.55 (1990m)   [stash mem: ; true: -]
+16:37 home(-1,+1) light (50%)                                                -> Finished | no fire | core 97.4 | Tinder0.08 Kindling0.9
+      list: Forage@home(-1,+1) tinder+kindling+fuel 8.6 (2390m)   [stash mem: ; true: -]
+16:38 home(-1,+1) light (50%)                                                -> Finished | fire 0.7h/0.9kg | core 97.3 | Tinder0.03
+      list: Forage@home(-1,+1) fuel 9.41 (1980m)   [stash mem: ; true: -]
+16:39 home(-1,+1) forage Forage@home(-1,+1) fuel 9.41 (1980m)                -> Finished | fire 0.2h/0.2kg | core 96.6 | Tinder0.03 Kindling0.48
+      list: Forage@home(-1,+1) fuel 9 (1890m)   [stash mem: ; true: -]
+17:09 home(-1,+1) stoke kindling (no logs)                                   -> Finished | fire 0.5h/0.7kg | core 96.6 | Tinder0.03
+      list: Forage@home(-1,+1) fuel 9.44 (1980m)   [stash mem: ; true: -]
+17:10 home(-1,+1) forage Forage@home(-1,+1) fuel 9.44 (1980m)                -> Finished | fire 0.0h/0.0kg | core 96.0 | Tinder0.03 Berries0.57
+      list: Forage@home(-1,+1) fuel 8.93 (1870m)   [stash mem: ; true: -]
+17:40 home(-1,+1) forage Forage@home(-1,+1) fuel 8.93 (1870m)                -> Finished | fire out | core 95.4 | Tinder0.03 Berries0.57
+      list: Forage@home(-1,+1) tinder+kindling+fuel 8.93 (3546m)   [stash mem: ; true: -]
+18:10 home(-1,+1) forage Forage@home(-1,+1) tinder+kindling+fuel 8.93 (3546m) -> Finished | fire out | core 95.0 | Tinder0.03 Berries0.57
+      list: Forage@home(-1,+1) tinder+kindling+fuel 8.98 (3574m)   [stash mem: ; true: -]
+18:40 home(-1,+1) forage Forage@home(-1,+1) tinder+kindling+fuel 8.98 (3574m) -> Finished | fire out | core 94.6 | Tinder0.03 Berries0.57
+      list: Forage@home(-1,+1) tinder+kindling+fuel 9.03 (3594m)   [stash mem: ; true: -]
+19:10 home(-1,+1) forage Forage@home(-1,+1) tinder+kindling+fuel 9.03 (3594m) -> Finished | fire out | core 94.4 | Tinder0.03 Berries0.57
+      list: Forage@home(-1,+1) tinder+kindling+fuel 9.03 (3618m)   [stash mem: ; true: -]
+19:40 home(-1,+1) forage Forage@home(-1,+1) tinder+kindling+fuel 9.03 (3618m) -> Finished | fire out | core 94.1 | Tinder0.03 Berries0.57
+      list: Forage@home(-1,+1) tinder+kindling+fuel 9.03 (4035m)   [stash mem: ; true: -]
+20:10 home(-1,+1) forage Forage@home(-1,+1) tinder+kindling+fuel 9.03 (4035m) -> Finished | fire out | core 94.0 | Tinder0.03 Berries0.57
+      list: Forage@home(-1,+1) tinder+kindling+fuel 9.03 (4046m)   [stash mem: ; true: -]
+20:40 home(-1,+1) forage Forage@home(-1,+1) tinder+kindling+fuel 9.03 (4046m) -> Finished | fire out | core 93.9 | Tinder0.03 Amadou0.03 Kindling0.25 Berries0.57
+      list: Forage@home(-1,+1) tinder+kindling+fuel 8.77 (4435m)   [stash mem: ; true: -]
+21:10 home(-1,+1) forage Forage@home(-1,+1) tinder+kindling+fuel 8.77 (4435m) -> Finished | fire out | core 93.8 | Tinder0.03 Amadou0.03 Kindling0.25 Berries0.57
+      list: Forage@home(-1,+1) tinder+kindling+fuel 8.62 (4411m)   [stash mem: ; true: -]
+21:40 home(-1,+1) forage Forage@home(-1,+1) tinder+kindling+fuel 8.62 (4411m) -> Finished | fire out | core 93.7 | Tinder0.03 Amadou0.03 Kindling0.48 Berries0.57 PlantFiber0.03
+      list: Forage@home(-1,+1) tinder+kindling+fuel 8.37 (4264m)   [stash mem: ; true: -]
+22:10 home(-1,+1) forage Forage@home(-1,+1) tinder+kindling+fuel 8.37 (4264m) -> Finished | fire out | core 93.6 | Tinder0.03 Amadou0.03 Kindling0.48 Berries0.57 PlantFiber0.03
+   -- goal dropped: time budget
+   >> fire site: (+1,+1) (walk 36 + plan 387, home 4200) instead of home (home(-1,+1)): home moves
+   ++ goal: fire until 06:00, need 7.3 fuel-h, forecast 387 min, budget 580
+      list: Forage@home(+1,+1) tinder+kindling+fuel 8.17 (387m)   [stash mem: ; true: -]
+22:40 (0,+1)   to Forage@home(+1,+1) tinder+kindling+fuel 8.17 (387m) [1 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 93.6 | Tinder0.03 Amadou0.03 Kindling0.48 Berries0.57 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder+kindling+fuel 7.87 (381m)   [stash mem: ; true: -]
+22:58 home(+1,+1) to Forage@home(+1,+1) tinder+kindling+fuel 7.87 (381m) [1 leaves] (Careful 18m, risk 0%) -> Finished | no fire | core 93.5 | Tinder0.03 Amadou0.03 Kindling0.48 Berries0.57 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder+kindling+fuel 7.57 (2720m)   [stash mem: ; true: -]
+23:16 home(+1,+1) forage Forage@home(+1,+1) tinder+kindling+fuel 7.57 (2720m) -> Finished | no fire | core 93.5 | Tinder0.03 Amadou0.03 Kindling0.6 Pine1.09 Berries0.57 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder+kindling+fuel 6.13 (2544m)   [stash mem: ; true: -]
+23:46 home(+1,+1) unload Pine before the trip                                -> Finished | no fire | core 93.5 | Tinder0.03 Amadou0.03 Kindling0.6 Berries0.57 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder+kindling+fuel 6.11 (2543m) | CampStash@home(+1,+1) fuel:Pine 0.83 (1m)   [stash mem: Pine1.1; true: Pine1.09]
+23:47 home(+1,+1) forage Forage@home(+1,+1) tinder+kindling+fuel 6.11 (2543m) -> Finished | no fire | core 93.5 | Tinder0.04 Amadou0.03 Kindling0.6 Berries0.57 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder+kindling+fuel 5.61 (2468m) | CampStash@home(+1,+1) fuel:Pine 0.83 (1m)   [stash mem: Pine1.1; true: Pine1.09]
+00:17 home(+1,+1) forage Forage@home(+1,+1) tinder+kindling+fuel 5.61 (2468m) -> Finished | no fire | core 93.5 | Tinder0.04 Amadou0.03 Kindling0.6 Berries0.57 Roots0.12 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder+kindling+fuel 5.11 (2399m) | CampStash@home(+1,+1) fuel:Pine 0.83 (1m)   [stash mem: Pine1.1; true: Pine1.09]
+00:47 home(+1,+1) forage Forage@home(+1,+1) tinder+kindling+fuel 5.11 (2399m) -> Finished | no fire | core 93.5 | Tinder0.04 Amadou0.03 Kindling1.0 Berries0.57 Roots0.12 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder+fuel 4.21 (2151m) | CampStash@home(+1,+1) fuel:Pine 0.83 (1m)   [stash mem: Pine1.1; true: Pine1.09]
+01:17 home(+1,+1) forage Forage@home(+1,+1) tinder+fuel 4.21 (2151m)         -> Finished | no fire | core 93.4 | Tinder0.05 Amadou0.03 Kindling1.2 Oak2.25 Berries0.57 Roots0.12 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder 0.32 (1602m) | CampStash@home(+1,+1) fuel:Pine 0.69 (1m)   [stash mem: Pine1.1; true: Pine1.09]
+01:47 home(+1,+1) light (15%)                                                -> Finished | no fire | core 93.4 | Amadou0.03 Kindling1.2 Oak2.25 Berries0.57 Roots0.12 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder 0.37 (1848m) | CampStash@home(+1,+1) fuel:Pine 0.67 (1m)   [stash mem: Pine1.1; true: Pine1.09]
+01:48 home(+1,+1) unload Oak before the trip                                 -> Finished | no fire | core 93.4 | Amadou0.03 Kindling1.2 Berries0.57 Roots0.12 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder 0.37 (1848m) | CampStash@home(+1,+1) fuel:Oak 3.33 (1m) | CampStash@home(+1,+1) fuel:Pine 0.73 (1m)   [stash mem: Pine1.1,Oak2.2; true: Pine1.09 Oak2.25]
+01:49 home(+1,+1) forage Forage@home(+1,+1) tinder 0.37 (1848m)              -> Finished | no fire | core 93.4 | Tinder0.03 Amadou0.03 Kindling1.38 Berries0.57 Roots0.12 PlantFiber0.03
+      list: Forage@home(+1,+1) tinder 0.34 (1721m) | CampStash@home(+1,+1) fuel:Oak 3.33 (1m) | CampStash@home(+1,+1) fuel:Pine 0.12 (1m)   [stash mem: Pine1.1,Oak2.2; true: Pine1.09 Oak2.25]
+02:19 home(+1,+1) forage Forage@home(+1,+1) tinder 0.34 (1721m)              -> Finished | no fire | core 93.4 | Tinder0.07 Amadou0.03 Kindling1.38 Berries0.57 Roots0.12 PlantFiber0.03 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.3 (1542m) | CampStash@home(+1,+1) fuel:Oak 2.95 (1m)   [stash mem: Pine1.1,Oak2.2; true: Pine1.09 Oak2.25]
+02:49 home(+1,+1) light (12%)                                                -> Finished | no fire | core 93.4 | Tinder0.02 Amadou0.03 Kindling1.38 Berries0.57 Roots0.12 PlantFiber0.03 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.35 (1804m) | CampStash@home(+1,+1) fuel:Oak 2.94 (1m)   [stash mem: Pine1.1,Oak2.2; true: Pine1.09 Oak2.25]
+02:50 home(+1,+1) forage Forage@home(+1,+1) tinder 0.35 (1804m)              -> Finished | no fire | core 93.4 | Tinder0.06 Amadou0.03 Kindling1.38 Birch1.23 Oak0.77 Berries0.57 Roots0.12 PlantFiber0.03 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.32 (1630m) | CampStash@home(+1,+1) fuel:Oak 0.03 (1m)   [stash mem: Pine1.1,Oak2.2; true: Pine1.09 Oak2.25]
+03:20 home(+1,+1) light (12%)                                                -> Finished | no fire | core 93.4 | Tinder0.01 Amadou0.03 Kindling1.38 Birch1.23 Oak0.77 Berries0.57 Roots0.12 PlantFiber0.03 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.37 (1894m) | CampStash@home(+1,+1) fuel:Oak 0.01 (1m)   [stash mem: Pine1.1,Oak2.2; true: Pine1.09 Oak2.25]
+03:21 home(+1,+1) unload Birch before the trip                               -> Finished | no fire | core 93.4 | Tinder0.01 Amadou0.03 Kindling1.38 Oak0.77 Berries0.57 Roots0.12 PlantFiber0.03 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.37 (1894m) | CampStash@home(+1,+1) fuel:Oak 1.24 (1m)   [stash mem: Pine1.1,Birch1.2,Oak2.2; true: Pine1.09 Birch1.23 Oak2.25]
+03:22 home(+1,+1) unload Oak before the trip                                 -> Finished | no fire | core 93.4 | Tinder0.01 Amadou0.03 Kindling1.38 Berries0.57 Roots0.12 PlantFiber0.03 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.37 (1894m) | CampStash@home(+1,+1) fuel:Oak 2.39 (1m)   [stash mem: Pine1.1,Birch1.2,Oak3; true: Pine1.09 Birch1.23 Oak3.02]
+03:23 home(+1,+1) forage Forage@home(+1,+1) tinder 0.37 (1894m)              -> Finished | no fire | core 93.4 | Tinder0.02 Amadou0.03 Kindling1.51 Berries0.57 Roots0.12 PlantFiber0.05 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.35 (1816m) | CampStash@home(+1,+1) fuel:Oak 1.81 (1m)   [stash mem: Pine1.1,Birch1.2,Oak3; true: Pine1.09 Birch1.23 Oak3.02]
+03:53 home(+1,+1) forage Forage@home(+1,+1) tinder 0.35 (1816m)              -> Finished | no fire | core 93.4 | Tinder0.02 Amadou0.03 Kindling1.51 Berries0.57 Roots0.12 PlantFiber0.05 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.35 (1810m) | CampStash@home(+1,+1) fuel:Oak 1.31 (1m)   [stash mem: Pine1.1,Birch1.2,Oak3; true: Pine1.09 Birch1.23 Oak3.02]
+04:23 home(+1,+1) forage Forage@home(+1,+1) tinder 0.35 (1810m)              -> Finished | no fire | core 93.4 | Tinder0.02 Amadou0.03 Kindling1.51 Berries0.57 Roots0.12 PlantFiber0.05 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.35 (1806m) | CampStash@home(+1,+1) fuel:Oak 0.81 (1m)   [stash mem: Pine1.1,Birch1.2,Oak3; true: Pine1.09 Birch1.23 Oak3.02]
+04:53 home(+1,+1) forage Forage@home(+1,+1) tinder 0.35 (1806m)              -> Finished | no fire | core 93.4 | Tinder0.02 Amadou0.03 Kindling1.51 Berries0.57 Roots0.12 PlantFiber0.05 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.35 (1802m) | CampStash@home(+1,+1) fuel:Oak 0.31 (1m)   [stash mem: Pine1.1,Birch1.2,Oak3; true: Pine1.09 Birch1.23 Oak3.02]
+05:23 home(+1,+1) forage Forage@home(+1,+1) tinder 0.35 (1802m)              -> Finished | no fire | core 93.4 | Tinder0.02 Amadou0.03 Usnea0.01 Kindling1.51 Berries0.64 Roots0.12 PlantFiber0.05 PineResin0.01
+      list: Forage@home(+1,+1) tinder 0.34 (1764m)   [stash mem: Pine1.1,Birch1.2,Oak3; true: Pine1.09 Birch1.23 Oak3.02]
+05:53 home(+1,+1) forage Forage@home(+1,+1) tinder 0.34 (1764m)              -> Interrupted (exhausted) | no fire | core 93.4 | Tinder0.02 Amadou0.03 Usnea0.01 Kindling1.51 Berries0.64 Roots0.12 PlantFiber0.05 PineResin0.01
+RESULT 5 picked-over forest, no axe / B, source by travel only: fire-site=home(+1,+1) alive=True fire-at-sunrise=NO fire-out-min-after-first-lit=740 night-out=560 first-lit=16:38 trips=2 reversals=0 goals=2 drops=[time budget:1] flips=2 minCore=93.4 plan=19418us avg/67797us max over 43
+  refusals: 
+  interruptions: exhausted x1
+  rules fired: R13 unload before a trip x4; R14 light early: cold now x6; R19 careful pace x4; SITE camp moves to the fire's site x2
+

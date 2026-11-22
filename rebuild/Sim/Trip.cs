@@ -1,0 +1,97 @@
+namespace Survival;
+
+/// A crossing's minutes as terms that add up to the total exactly (ui-design: every time in the dock equals the preview).
+/// Each slowing is the extra minutes over the stage before it, per segment, rounded as the crossing rounds them.
+/// Terrain is the ground's shape, Weather strong wind and heavy precipitation, Pace the body's own speed (negative
+/// for a quick one), Careful half again where Traversal.PaceMatters. Edge is an authored edge (a ravine, a game
+/// trail), Trail a path beaten in by use (negative). Ground is today's snow, water and mud, with the sum's
+/// rounding up; Shortest is what the five-minute floor adds.
+public sealed record TripTime(int WalkingMinutes, int TerrainMinutes, int WeatherMinutes, int PaceMinutes, int LoadMinutes,
+    int CarefulMinutes, int EdgeMinutes, int TrailMinutes, int GroundMinutes, int ShortestMinutes)
+{
+    public int TotalMinutes => WalkingMinutes + TerrainMinutes + WeatherMinutes + PaceMinutes + LoadMinutes + CarefulMinutes
+        + EdgeMinutes + TrailMinutes + GroundMinutes + ShortestMinutes;
+
+    public IReadOnlyList<(string Factor, int Minutes)> Terms =>
+    [
+        ("Walking", WalkingMinutes), ("Terrain", TerrainMinutes), ("Weather", WeatherMinutes), ("Pace", PaceMinutes),
+        ("Load", LoadMinutes), ("Careful", CarefulMinutes), ("Edge", EdgeMinutes), ("Trail", TrailMinutes),
+        ("Snow and ground", GroundMinutes), ("Shortest crossing", ShortestMinutes),
+    ];
+}
+
+/// A crossing as seen before it is made. Reads only: the ground is looked at (Ground.Peek), never observed.
+// The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(..., observe: true).TotalMinutes.
+public static class Trip
+{
+    public static TripTime Time(World world, AgentId who, Direction dir, Pace pace)
+    {
+        var agent = world.Agent(who);
+        return Terms(world, agent.Body, agent.Tile, Map.Step(agent.Tile, dir), pace, Weather.At(world, world.Minute), Items.EncumbrancePct(agent));
+    }
+
+    /// observe: catch the ground up as the crossing itself does (writing to the world), not just look.
+    public static TripTime Terms(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky,
+        double encumbrancePct = 0, bool observe = false)
+    {
+        var m = Map.Of(world);
+        double unloaded = Body.Speed(body), speed = Body.Speed(body, new AbilityContext(EncumbrancePct: encumbrancePct));
+        var still = sky with { WindLevel = 0, PrecipitationPct = 0 }; // no wind or precipitation to slow a walk
+        var (exit, entry) = (Segment(from), Segment(to));
+        Func<World, TileId, double> ground = observe ? Ground.TraversalFactor : Ground.TraversalFactorNow;
+        Func<World, TileId, double> hazard = observe ? Traversal.EffectiveHazardLevel : HazardNow;
+        // Care slows both halves of risky ground, on top of the five-minute floor; only the tile walked onto is rolled for.
+        bool Slow(TileId tile) => Traversal.PaceMatters(Traversal.InjuryOdds(hazard(world, tile), body, sky, Pace.Quick).TotalPct);
+        double surface = exit.Minutes * (ground(world, from) - 1) + entry.Minutes * (ground(world, to) - 1);
+        int careful = pace == Pace.Careful ? (Slow(from) ? Careful(exit.Minutes) : 0) + (Slow(to) ? Careful(entry.Minutes) : 0) : 0;
+        int edge = m.EdgeBetween(from, to)?.TraversalMinutes() ?? 0, trail = Tracks.TrailMinutes(world, from, to);
+        int whole = exit.Minutes + entry.Minutes + edge + trail;
+        int rounded = (int)Math.Ceiling(whole + surface);
+        return new TripTime(exit.Walking + entry.Walking, exit.Terrain + entry.Terrain, exit.Weather + entry.Weather,
+            exit.Pace + entry.Pace, exit.Load + entry.Load, careful, edge, trail,
+            GroundMinutes: rounded - whole, ShortestMinutes: Math.Max(0, Traversal.MinimumCrossingMinutes - rounded));
+
+        // Minutes is Traversal.SegmentMinutes itself.
+        (int Walking, int Terrain, int Weather, int Pace, int Load, int Minutes) Segment(TileId tile)
+        {
+            int walking = Map.BaseTraversalMinutes(m, tile);
+            int shaped = Traversal.SegmentMinutes(m, tile, 1, still);
+            int weathered = Traversal.SegmentMinutes(m, tile, 1, sky);
+            int paced = Traversal.SegmentMinutes(m, tile, unloaded, sky);
+            int loaded = Traversal.SegmentMinutes(m, tile, speed, sky);
+            return (walking, shaped - walking, weathered - shaped, paced - weathered, loaded - paced, loaded);
+        }
+    }
+
+    /// A forecast for planners: the minutes Terms gives who's crossing from a tile to its neighbour now. Kept for the
+    /// minute, so a route search pays for each crossing once however often it asks, and the answer is the same after a load.
+    public static int StepMinutes(World world, AgentId who, TileId from, TileId to, Pace pace)
+    {
+        var agent = world.Agent(who);
+        if (agent.Mind is HerdMind) throw new ArgumentException($"{who} is a herd: herds cross by their own rule");
+        double encumbrancePct = Items.EncumbrancePct(agent), speed = Body.Speed(agent.Body);
+        if (world.StepMinutesCache is not { } cache || cache.Minute != world.Minute) world.StepMinutesCache = cache = (world.Minute, []);
+        if (cache.Minutes.TryGetValue((who, from, to, pace), out var kept) && kept.EncumbrancePct == encumbrancePct && kept.Speed == speed)
+            return kept.Minutes;
+        if (Map.Blocked(Map.Of(world), from, to) is string blocked) throw new ArgumentException($"No crossing from {from} to {to}: {blocked}");
+        int minutes = Terms(world, agent.Body, from, to, pace, Weather.At(world, world.Minute), encumbrancePct).TotalMinutes;
+        cache.Minutes[(who, from, to, pace)] = (minutes, encumbrancePct, speed);
+        return minutes;
+    }
+
+    /// The odds of the one roll, on the tile walked onto, that Traversal.Begin would fix now, from the ground looked at.
+    public static Odds Risk(World world, AgentId who, Direction dir, Pace pace)
+    {
+        var agent = world.Agent(who);
+        // A crossing under way this way keeps the risk fixed when it began (Traversal.Begin resumes it).
+        if (agent.Crossing is { } c && c.Dir == dir && c.Pace == pace && c.From == agent.Tile)
+            return new Odds("As you set out", c.RiskPct, []);
+        return Traversal.InjuryOdds(HazardNow(world, Map.Step(agent.Tile, dir)), agent.Body, Weather.At(world, world.Minute), pace);
+    }
+
+    public static bool PaceMatters(World world, AgentId who, Direction dir) => Traversal.PaceMatters(Risk(world, who, dir, Pace.Quick).TotalPct);
+
+    static int Careful(int segmentMinutes) => (int)Math.Ceiling(segmentMinutes * Traversal.CarefulFactor) - segmentMinutes;
+
+    static double HazardNow(World world, TileId tile) => Traversal.HazardLevel(Map.Of(world), tile, world.Minute, Ground.HazardDeltaNow(world, tile));
+}

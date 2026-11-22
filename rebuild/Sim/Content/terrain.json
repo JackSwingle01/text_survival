@@ -4,7 +4,7 @@
 //
 // terrains: every Terrain. passable false is a wall (no traversal, forage or finds).
 //   traversalMinutes: minutes to cross one 100 m tile of flat ground at a walk, before hazard and modifier.
-//   hazard 0-1: chance of a slip or fall, and how much the ground slows you. wind 0-2: how much of the
+//   hazard 0-1: how bad the footing is (footing turns it into a chance of a fall), and how much the ground slows you. wind 0-2: how much of the
 //   wind reaches you. cover 0-1: canopy overhead. visibility 0-2: how far you can see.
 //   substrate: the ground under the snow (a name in substrates). forage: its table in forage.json and
 //   the density drawn around (old FeatureFactory.CreateTerrainForage). trees: standing timber, stated
@@ -12,6 +12,9 @@
 // caves: the underground tiles, Entrance and Floor, as a terrain row (their substrate is bare rock).
 // substrates: the ground under a tile (old SubstrateProfile.For), named by their key. Thickness in metres;
 //   rates per minute. holdsStandingWater, stated on each: whether water can stand on it or runs away.
+// waterIce: the days of the year (1 is January 1) the lakes and rivers freeze over and break up; between
+//   freezeDay and thawDay, across the new year, they are ice whatever the weather (Map.IsFrozen). A site's
+//   water that never freezes (a spring) stays open. An open lake is waded: slow and soaking (Ground).
 // edges: every EdgeType: minutes it adds to a crossing (negative saves time), and whether it stops one
 //   (blocking, stated on each; a blocking edge adds no minutes).
 {
@@ -53,12 +56,19 @@
   // Holds nearly everything and lets go of none of it: wet in any weather, ponds the moment it rains.
   "peat": { "thicknessM": 0.50, "poreCapacityPct": 0.60, "permeabilityMPerMinute": 0.00005, "drainagePerMinute": 0.00005,
    "retentionPct": 0.85, "runoffPerMinute": 0.0001, "initialSaturationPct": 0.85, "softnessLevel": 1.00, "holdsStandingWater": true },
-  // Lake ice. Inert here: standing water runs away.
+  // Lake ice. Inert here: standing water runs away. While the lake is open it is waded instead (Ground).
   "iceSheet": { "thicknessM": 0.05, "poreCapacityPct": 0.0, "permeabilityMPerMinute": 0.0, "drainagePerMinute": 0.0,
    "retentionPct": 0.0, "runoffPerMinute": 0.0200, "initialSaturationPct": 0.0, "softnessLevel": 0.0, "holdsStandingWater": false },
   "impassable": { "thicknessM": 0.05, "poreCapacityPct": 0.0, "permeabilityMPerMinute": 0.0, "drainagePerMinute": 0.0,
    "retentionPct": 0.0, "runoffPerMinute": 0.0, "initialSaturationPct": 0.0, "softnessLevel": 0.0, "holdsStandingWater": false }
  },
+
+ // footing: how bad footing turns into a fall. A quick crossing onto a tile whose footing is h (its
+ //   hazard, made worse in proportion by the weather and bad legs, at most 1) injures with chance
+ //   h^injuryExponent / injuryDivisor, rolled once for the tile walked onto: a smooth curve, so easy
+ //   ground is nearly safe and the worst is a coin flip. A careful crossing takes carefulRiskFraction
+ //   of that chance for its extra minutes. The pace is offered as a choice above paceMattersAbovePct.
+ "footing": { "injuryExponent": 2.718281828459045, "injuryDivisor": 2, "carefulRiskFraction": 0.25, "paceMattersAbovePct": 0.015 },
 
  // What every felled tree gives, wherever it stood (old WoodedAreaFeature.FellTree): logs of its wood,
  // each logKg within logKgSpreadPct either way; sticks and pinches of tinder, each kg in [min, max].
@@ -72,6 +82,12 @@
   "kindling": { "count": [4, 6], "kg": [0.2, 0.5] },
   "tinder": { "count": [2, 3], "kg": [0.03, 0.08] }
  },
+
+ // A cold interior valley: the fall air (Weather) averages below freezing from late September, and a lake
+ // takes about three weeks to shed its summer heat, so freeze-up is mid-October (day 288); a winter's ice,
+ // a metre and more, outlasts the below-freezing spring and breaks up in mid-May (day 135). Interior
+ // Alaska and the Yukon run about so today, and the ice age valley is colder than either.
+ "waterIce": { "freezeDay": 288, "thawDay": 135 },
 
  "edges": {
   "River": { "traversalMinutes": 4, "blocking": false },

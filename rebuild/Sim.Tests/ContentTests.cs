@@ -134,6 +134,7 @@ public class ContentTests
         }
     }
 
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void DeepWoods_HasItsBerryBushOnAboutThreeTilesInTen()
     {
@@ -255,7 +256,7 @@ public class ContentTests
     [Theory]
     [InlineData("items.json", "\"name\": \"Stone Axe\",", "\"name\": \"Stone Axe\", \"colour\": \"grey\",", "colour")]
     [InlineData("fire.json", "\"maxFuelKg\": 12,", "\"maxFuelKg\": 12, \"smoke\": 1,", "smoke")]
-    [InlineData("species.json", "\"weightKg\": 40,", "\"weightKg\": 40, \"legs\": 4,", "legs")]
+    [InlineData("species.json", "\"weightKg\": 45,", "\"weightKg\": 45, \"legs\": 4,", "legs")]
     [InlineData("effects.json", "\"Wet\": { \"severityPerHour\": 0,", "\"Wet\": { \"severityPerHour\": 0, \"itch\": 1,", "itch")]
     [InlineData("shelters.json", "\"name\": \"Sleeping area\",", "\"name\": \"Sleeping area\", \"soft\": true,", "soft")]
     [InlineData("butchering.json", "\"timeFactor\": 0.5,", "\"timeFactor\": 0.5, \"mess\": 1,", "mess")]
@@ -308,8 +309,10 @@ public class ContentTests
     [Theory]
     [InlineData("fire.json", "\"minFireTempF\": 500,", "\"minFireTempF\": 5000,", "is not below peakTempF")]
     [InlineData("items.json", "\"Head\": 0.1,", "\"Head\": 0.2,", "slotCoverage sums to")]
-    [InlineData("species.json", "\"weightKg\": 75,", "\"weightKg\": 80,", "the build is Body's baseline adult")]
-    [InlineData("effects.json", "\"treatmentAboveSeverity\": 0.5", "\"treatmentAboveSeverity\": 1.5", "is not in 0-1")]
+    [InlineData("species.json", "\"sprintSeconds\": 40, \"runCostJPerKgM\": 3.3", "\"sprintSeconds\": 0, \"runCostJPerKgM\": 3.3", "sprintSeconds and runCostJPerKgM above 0")]
+    [InlineData("species.json", "\"topSpeedMps\": 14, \"enduranceSpeedMps\": 8", "\"topSpeedMps\": 7, \"enduranceSpeedMps\": 8", "a top speed above an endurance speed")]
+    [InlineData("species.json", "\"autumnFatPct\": { \"min\": 0.15", "\"autumnFatPct\": { \"min\": 0.05", "a range from the build's fat up")]
+    [InlineData("effects.json", "\"treatmentAboveSeverity\": 0, ", "\"treatmentAboveSeverity\": 1.5, ", "is not in 0-1")]
     [InlineData("shelters.json", "\"insulation\": 0.60, \"overhead\": 0.90, \"wind\": 0.80, \"insulationCap\": 0.60", "\"insulation\": 0.70, \"overhead\": 0.90, \"wind\": 0.80, \"insulationCap\": 0.60", "insulation 0.7 is above its cap 0.6")]
     [InlineData("butchering.json", "\"RawMeat\": 0.8", "\"RawMeat\": 1.5", "RawMeat above full processing's")]
     [InlineData("terrain.json", "\"visibility\": 1.5,", "\"visibility\": 2.5,", "visibility 2.5 is not in 0-2")]

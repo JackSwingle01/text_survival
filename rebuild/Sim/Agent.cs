@@ -10,25 +10,23 @@ namespace Survival;
 [JsonDerivedType(typeof(HerdMind), "herd")]
 public abstract record Mind;
 
-/// A person: carries a pack, knows what they have seen, and gets better at what they do. The
-/// player and NPCs share this, so every work activity, memory and skill runs the same code for
-/// both. A herd's mind carries nothing.
+/// A person: carries a pack, remembers, and learns skills. The player and NPCs share this so
+/// work, memory and skills run the same code for both. A herd's mind carries none of it.
 public abstract record PersonMind : Mind
 {
     public Inventory Pack { get; init; } = Items.StartingPack();
-    public Beliefs Knows { get; init; } = new();
-    /// Only the skills practised so far (Skills). The short-loop plan put these on Agent; they live
-    /// here because only a person learns, and kind-specific state lives in the mind (plan decision 2).
+    public Memory Memory { get; init; } = new();
+    /// Only the skills practised so far. Here because only a person learns.
     public SortedDictionary<Skill, SkillProgress> Skills { get; init; } = [];
 }
 
 /// The UI picks the activities.
 public sealed record PlayerMind : PersonMind;
 
-/// The NPC utility AI picks the activities (phase 3d; state and decider live in Npc.cs).
+/// The NPC utility AI picks the activities (state and decider live in Npc.cs).
 public sealed partial record NpcMind : PersonMind;
 
-/// One or more bodies that move and decide as a unit: the player, an NPC, a herd (plan decision 2).
+/// One or more bodies that move and decide as a unit: the player, an NPC, a herd.
 public sealed class Agent
 {
     public required AgentId Id { get; init; }
@@ -57,10 +55,11 @@ public sealed class Agent
     /// whose activities live inside one Sim.Step, and for an agent about to decide.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Doing? Doing { get; set; }
+    [JsonIgnore] internal Activity? Stepping { get; set; }
 }
 
 /// Making and splitting agents. A herd sends members, not itself, into a fight; a wounded member
-/// that leaves becomes an agent of its own (plan decision 2).
+/// that leaves becomes an agent of its own.
 public static class Agents
 {
     /// A new herd of this species on this tile, each member at its own random size (Species.NewBody).
@@ -72,7 +71,10 @@ public static class Agents
         var rng = world.Birth("fauna", id);
         world.Agents[id] = new Agent
         {
-            Id = id, Tile = tile, Species = species, Mind = Fauna.NewMind(world, id, species, territory ?? [tile]),
+            Id = id,
+            Tile = tile,
+            Species = species,
+            Mind = Fauna.NewMind(world, id, species, territory ?? [tile]),
             Members = Enumerable.Range(0, members).Select(_ => SpeciesTable.NewBody(species, rng)).ToList(),
         };
         return id;

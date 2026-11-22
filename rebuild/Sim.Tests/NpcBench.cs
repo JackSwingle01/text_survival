@@ -13,9 +13,31 @@ static class NpcBench
     /// An NPC at FirstId, or the next id after the bench's earlier NPCs: the same id on every seed and
     /// whatever generation populated. Spawn the bench's NPCs before anything else is born in the world;
     /// what is born after them takes the ids after theirs, so they keep their place ahead of it.
-    public static AgentId Spawn(World world, TileId tile, TileId? camp = null, double? boldness = null)
+    public static AgentId Spawn(World world, TileId tile, TileId? camp = null)
     {
         if (world.NextAgentId < FirstId) world.NextAgentId = FirstId;
-        return Npc.Spawn(world, tile, camp, boldness);
+        return Npc.Spawn(world, tile, camp);
+    }
+}
+
+/// Drives NPCs by their own minds, on the world's scheduler: the world lives on and every NPC
+/// chooses its own activities (Minds.Decide) as each one ends.
+static class NpcDriver
+{
+    /// Lives the world on until the minute. Returns what happened. A choice refused more than a
+    /// few times running is a bug in the mind, so it throws.
+    public static List<WorldEvent> Live(World w, AgentId npc, long untilMinute)
+    {
+        var log = new List<WorldEvent>();
+        int refusedInARow = 0;
+        while (w.Minute < untilMinute && Body.IsAlive(w.Agent(npc).Body))
+        {
+            var events = Sim.Advance(w, 1);
+            log.AddRange(events);
+            var refused = events.OfType<PlanRefused>().FirstOrDefault(r => r.Who == npc);
+            if (refused == null) { if (w.Agent(npc).Doing != null) refusedInARow = 0; }
+            else if (++refusedInARow > 3) throw new InvalidOperationException($"{npc} keeps choosing a refused {refused.Activity}: {refused.Reason}");
+        }
+        return log;
     }
 }

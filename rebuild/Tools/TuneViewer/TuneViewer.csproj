@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- The tuning run viewer: a dev tool, never shipped. Serves a run folder's progress log to the
+       page in wwwroot/, and fights any fight of the run again on request (through Tune's replay
+       worker, so the run's overrides load in a process of their own). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>TuneViewer</AssemblyName>
+    <RootNamespace>Survival.TuneViewer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tune/Tune.csproj" />
+    <ProjectReference Include="../../Sim/Sim.csproj" />
+  </ItemGroup>
+
+</Project>

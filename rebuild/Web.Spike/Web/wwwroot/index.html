@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sim Wasm Spike</title>
+  <script>window.__t0 = performance.now();</script>
+  <style>
+    :root {
+      --ink: #16110d; --ink-2: #211913; --ink-3: #2d231b; --seam: #4a3726;
+      --bone: #eadfc8; --bone-2: #b3a68e; --bone-3: #7d715f;
+      --ember: #f5811f; --minus: #cf6f4c; --lichen: #9fbb86; --frost: #8fa6b7; --night: #0d1216;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--night); color: var(--bone); font: 500 16px/1.35 "Arial Narrow", system-ui, sans-serif; }
+    .app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
+    .top { display: flex; flex-wrap: wrap; background: var(--ink-2); border-bottom: 2px solid var(--seam); }
+    .top > div { padding: 8px 16px; border-right: 1px solid var(--seam); display: grid; gap: 2px; }
+    .label { font: 500 12px/1 "Courier New", monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--bone-3); }
+    .big { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .mid { display: grid; grid-template-columns: 200px 1fr 260px; min-height: 0; }
+    .side { background: var(--ink); padding: 12px; display: grid; gap: 10px; align-content: start; overflow: auto; }
+    .side.l { border-right: 2px solid var(--seam); } .side.r { border-left: 2px solid var(--seam); }
+    .gauge { display: grid; gap: 3px; }
+    .ticks { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; height: 9px; }
+    .ticks span { background: var(--ink-3); } .ticks span.on { background: var(--bone); }
+    .gauge.low .ticks span.on { background: var(--minus); }
+    .map { position: relative; overflow: hidden; display: grid; place-items: center; }
+    canvas { image-rendering: pixelated; max-width: 100%; max-height: 100%; }
+    .dock { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; background: var(--ink-2); border-top: 2px solid var(--seam); }
+    button { font: inherit; color: var(--bone); background: var(--ink-3); border: 1px solid var(--seam); padding: 6px 12px; cursor: pointer; }
+    button:hover { border-color: var(--ember); }
+    button:disabled { opacity: .4; cursor: wait; }
+    pre { margin: 0; font: 13px/1.35 "Courier New", monospace; color: var(--bone-2); white-space: pre-wrap; }
+    .effects { color: var(--frost); font-size: 14px; }
+    @media (max-width: 760px) { .mid { grid-template-columns: 1fr; } .side.l, .side.r { border: 0; } }
+  </style>
+  <script type="module" src="./main.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div><span class="label">Clock</span><span class="big" id="time">--:--</span><span id="day" class="label"></span></div>
+      <div><span class="label">Sky</span><span id="sky">-</span></div>
+      <div><span class="label">Feels like</span><span class="big" id="feels">-</span></div>
+      <div><span class="label">Place</span><span id="place">loading .NET...</span></div>
+      <div><span class="label">Host</span><span id="status">starting</span></div>
+    </div>
+    <div class="mid">
+      <div class="side l" id="vitals"></div>
+      <div class="map"><canvas id="world" width="480" height="480"></canvas></div>
+      <div class="side r"><span class="label">Log</span><pre id="log"></pre><span class="label">Bench</span><pre id="bench">add ?bench to the URL to run it</pre></div>
+    </div>
+    <div class="dock" id="dock"></div>
+  </div>
+</body>
+</html>

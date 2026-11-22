@@ -1,0 +1,3 @@
+# Tuning runs are local; keep only the reviewed shakedown.
+runs/*
+!runs/2026-11-21-shakedown/

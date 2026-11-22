@@ -1,0 +1,3 @@
+# Stat tiers decide priority before the stat hierarchy
+
+Every stat (warmth, water, food, rest) is Critical (imminent death), Need (survive the day, or back to baseline) or Want (stockpile, surplus). Tier ranks first; within a tier, warmth beats water beats food beats rest. This replaced a rule that made food critical once fat fell below the 10% floor: at the floor a person still holds weeks of reserve, while a night without wood kills in hours, and NPCs following the old rule foraged all day and froze. Fat below the floor is now Need, and tonight's fuel (warmth, Need) outranks it.
