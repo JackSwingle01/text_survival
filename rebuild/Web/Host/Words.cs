@@ -40,7 +40,7 @@ static class Words
         Drank => "ui/water",
         Butchered => "ui/knife",
         Killed => "carcass",
-        FightEnded => "ui/target",
+        EncounterEnded => "ui/target",
         Built => "construction",
         ShelterCollapsed => "shelter",
         Made m => m.Succeeded ? "ui/project" : "ui/cancel",

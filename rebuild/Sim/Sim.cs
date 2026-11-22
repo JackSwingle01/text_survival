@@ -54,7 +54,7 @@ public static class Sim
         if (agent.Id == AgentId.Player && Crossed(world)) return new StepResult(events, 0, StepOutcome.Refused, RunOver);
         // A fight holds every agent with a member still in it: no walking off without fleeing.
         if (activity is not Fight && Held(world, agent.Id))
-            return new StepResult(events, 0, StepOutcome.Refused, InAFight);
+            return new StepResult(events, 0, StepOutcome.Refused, InAnEncounter);
         if (agent.Doing != null) // told to do something else: what it was doing ends here
         {
             Stop(world, agent, agent.Doing, events);
@@ -98,7 +98,7 @@ public static class Sim
     {
         bool nearer = false;
         if (person != null && Looks(person, activity) && world.Agents.ContainsKey(person.Id))
-            nearer = person.Mind is PlayerMind ? Knowledge.Witness(world, person, events, ref filed) : Knowledge.Watch(world, person, events);
+            nearer = person.Mind is PlayerMind ? Memories.Witness(world, person, events, ref filed) : Memories.Watch(world, person, events);
         Journal.File(world, events, ref filed);
         return nearer;
     }
@@ -136,10 +136,10 @@ public static class Sim
         Shelters.BuiltReason, Shelters.Packed, Shelters.AsGoodAsItGets,
         Making.MadeIt, Making.Spoiled,
         Fire.DidNotCatch, // the strike was made and failed: the attempt is over
-        FullyRestedReason, FightOver,
+        FullyRestedReason, EncounterOver,
     ];
 
-    public const string FullyRestedReason = "fully rested", FightOver = "fight over";
+    public const string FullyRestedReason = "fully rested", EncounterOver = "fight over";
 
     public static bool Finishes(string reason) => Finishing.Contains(reason);
 
@@ -229,11 +229,11 @@ public static class Sim
         var agent = world.Agent(activity.Who);
         if (!IsAlive(agent)) return "dead";
         if (agent.Id == AgentId.Player && Crossed(world)) return RunOver;
-        if (activity is not Fight && Held(world, agent.Id)) return InAFight;
+        if (activity is not Fight && Held(world, agent.Id)) return InAnEncounter;
         return ActivityRefusal(world, activity);
     }
 
-    public const string InAFight = "You are in a fight.";
+    public const string InAnEncounter = "You are in a fight.";
 
     public const string Asleep = "You are asleep.";
 
@@ -442,7 +442,7 @@ public static class Scheduler
             if (agent.Doing == null && !Plan(world, agent, events)) continue;
             var doing = agent.Doing!;
             var stop = Sim.Live(world, agent, doing, events);
-            if (stop == null && agent.Mind is NpcMind && Sim.Looks(agent, doing.Activity) && Knowledge.Watch(world, agent, events)) stop = Sim.PredatorInSight;
+            if (stop == null && agent.Mind is NpcMind && Sim.Looks(agent, doing.Activity) && Memories.Watch(world, agent, events)) stop = Sim.PredatorInSight;
             if (stop == null) continue;
             if (world.Agents.ContainsKey(id)) Sim.Stop(world, agent, doing, events);
             // A fight's aftermath may already have given it something new to do.

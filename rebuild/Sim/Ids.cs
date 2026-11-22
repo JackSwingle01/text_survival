@@ -120,7 +120,7 @@ public readonly record struct PoolId(TileId Tile, int Index) : IComparable<PoolI
     public override string ToString() => $"{TileIdConverter.Format(Tile)}#{Index}";
 }
 
-/// PoolId keys Knowledge.SearchHours, so it serializes as "x,y#i".
+/// PoolId keys Memory.SearchHours, so it serializes as "x,y#i".
 sealed class PoolIdConverter : JsonConverter<PoolId>
 {
     public override PoolId Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => Parse(r.GetString());

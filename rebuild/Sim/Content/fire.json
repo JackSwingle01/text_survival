@@ -8,7 +8,7 @@
 //   flames; fuelEfficiencyFactor how much longer fuel lasts in it.
 // deterrence: what flame does to an animal's nerve (Combat.FireDeterrence).
 //   fireFear is the one base value for every animal (people are not deterred): what a flame at full
-//   intensity, close by, takes off its margin. torchIntensityPct is what a lit torch counts for against a
+//   intensity, close by, takes off its resolve. torchIntensityPct is what a lit torch counts for against a
 //   campfire's 1. fullIntensityHeatF is the radiant heat (Fire.HeatOutputF against 0 °F air) at which a pit
 //   counts in full: a steady to roaring wood fire. fullWithinM is the distance inside which a flame
 //   deters in full; beyond it, deterrence falls off with the square of the distance.

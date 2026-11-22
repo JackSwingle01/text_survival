@@ -477,7 +477,7 @@ public static class Fire
         var pitId = PitAt(world, tile);
         var pit = pitId is FireId id ? world.Fires[id] : null;
         // The pit is the thing reached: asked first, once it is there.
-        string? Reach() => Access.Refusal(world, activity.Who, new ThingRef(ThingKind.Fire, tile, pitId!.Value.Value));
+        string? Reach() => Access.Refusal(world, activity.Who, new LocationFeature(LocationFeatureKind.Fire, tile, pitId!.Value.Value));
         switch (activity)
         {
             case StartFire a:

@@ -27,7 +27,7 @@ public static class Tiers
     public const double RestCriticalPct = 0.1, RestNeedPct = 0.3, RestAgainPct = 0.5, RestedPct = 0.8;
     public const double FatFloorPct = 0.10; // below it the body pays for leanness (Body.Speed, Body.ColdResistance)
     /// The fat the body burns down to before it burns muscle (BodySurvival's MinFatPct).
-    public const double StarvingFatPct = 0.03, StarvingMarginKg = 0.05;
+    public const double StarvingFatPct = 0.03, StarvingToleranceKg = 0.05;
     public const double WantedShortfallKg = 0.3, SatisfiedShortfallKg = 0.1;
     public const double HungryPct = 0.3;
     public const double SpareFireHours = 12;
@@ -71,7 +71,7 @@ public static class Tiers
 
     /// Fat down to what the body will burn with nothing in the stomach: the muscle is what burns.
     public static bool Starving(BodyState body) =>
-        body.CaloriesKcal <= 0 && body.FatKg <= StarvingFatPct * body.WeightKg + StarvingMarginKg;
+        body.CaloriesKcal <= 0 && body.FatKg <= StarvingFatPct * body.WeightKg + StarvingToleranceKg;
 
     public static double FatFloorKg(BodyState body) => FatFloorPct * body.WeightKg;
 

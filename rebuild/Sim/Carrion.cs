@@ -73,7 +73,7 @@ public static partial class Fauna
     static string? RaidRefusal(World world, Agent herd)
     {
         if (BehaviorOf(herd.Species) != HerdBehavior.Carrion) return "only the carrion flock raids";
-        if (Things.StashAt(world, herd.Tile) is not ThingRef stash) return "no stash here";
+        if (LocationFeatures.StashAt(world, herd.Tile) is not LocationFeature stash) return "no stash here";
         var inv = world.Tiles[herd.Tile].Stash!;
         if (!RaidFood.Any(r => Items.Have(inv, r) > 0)) return "nothing in the stash it eats";
         if (Nearby.At(world, herd.Tile).Any(id => world.Agents[id] is { Mind: PersonMind } p && Sim.IsAlive(p))) return "someone is keeping it";

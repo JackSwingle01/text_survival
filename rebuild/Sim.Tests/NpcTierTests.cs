@@ -167,7 +167,7 @@ public class NpcTierTests(ITestOutputHelper output)
         var (w, npc, overhang, trees) = OverhangByTrees(31, Mild);
         var agent = w.Agent(npc);
         var mind = (NpcMind)agent.Mind;
-        Knowledge.Observe(w, agent, []); // it has seen the overhang
+        Memories.Observe(w, agent, []); // it has seen the overhang
         agent.Tile = trees;
         mind.Camp = trees;
         for (int i = 0; i < 30 && mind.Camp == trees; i++) Sim.Advance(w, 10);

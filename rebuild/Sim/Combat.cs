@@ -474,8 +474,8 @@ public static partial class Combat
         }
         target = current;
         if (target == null) return "No available target.";
-        // The fight is the confrontation: whatever guards the target does not bar striking at it.
-        if (Access.Refusal(world, unit.Agent, Things.OfAgent(world, target.Agent), confronting: true) is string barred) return barred;
+        // The fight is the confrontation: an occupant of the target does not bar striking at it.
+        if (Access.Refusal(world, unit.Agent, LocationFeatures.OfAgent(world, target.Agent), confronting: true) is string barred) return barred;
         double distance = unit.Position.DistanceTo(target.Position);
         var zone = ZoneOf(distance);
         var nearestZone = ZoneOf(unit.Position.DistanceTo((NearestEnemy(enc, unit) ?? target).Position));

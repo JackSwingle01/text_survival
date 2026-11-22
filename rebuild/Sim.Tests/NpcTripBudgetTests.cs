@@ -86,7 +86,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         {
             var stock = new Dictionary<Resource, double> { [Resource.Kindling] = 1.0, [Resource.Birch] = 1.5 };
             foreach (var (r, kg) in stock) Items.Add(Items.StashAt(w, camp), r, kg);
-            mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new(stock) };
+            mind.Memory.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new(stock) };
         }
         var (first, minutes) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"chose {first} x{minutes}; camp fuel {Npc.BelievedCampFuelHours(w, w.Agent(npc)):0.0} h");
@@ -161,8 +161,8 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var (w, npc, mind) = Setup(17, Mild, at);
         var camp = mind.Camp;
         var tree = new TileId(camp.X, camp.Y - 3);
-        mind.Knows.Places[camp] = new TileMemory { SeenMinute = at, VisitedMinute = at };
-        mind.Knows.Places[tree] = new TileMemory { SeenMinute = at, VisitedMinute = at, Trees = true };
+        mind.Memory.Places[camp] = new TileMemory { SeenMinute = at, VisitedMinute = at };
+        mind.Memory.Places[tree] = new TileMemory { SeenMinute = at, VisitedMinute = at, Trees = true };
         var (a, n) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{hour}:{minute:00} (sunset {Weather.SunsetHour(at)}): {a} x{n}, need {mind.SeeingTo}");
         Assert.Equal(travels, a is Travel);
@@ -295,7 +295,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var camp = mind.Camp;
         Items.Add(Items.StashAt(w, camp), Resource.Oak, 40); // firewood is not what it worries about
         Items.Add(Items.StashAt(w, camp), Resource.Kindling, 2); // nor the kindling to light it (Npc.Lit)
-        mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 40 } };
+        mind.Memory.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 40 } };
         var body = w.Agent(npc).Body;
         body.FatKg = mind.TargetFatKg - shortKg;
         body.CaloriesKcal = Body.MaxCaloriesKcal; // not hungry for what it carries: it is the fat it is short of
@@ -339,7 +339,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
             .Where(t => m.InBounds(t) && MapGen.Manhattan(t, camp) <= 6).ToList();
         var ground = near.Where(t => MapGen.Manhattan(t, camp) == 3 && m.TerrainAt(t).IsPassable() && Pools.At(w, t) is [ForagePool { Density: > 0.2 }, ..]).OrderBy(t => t).First();
         foreach (var t in near)
-            mind.Knows.Places[t] = new TileMemory
+            mind.Memory.Places[t] = new TileMemory
             {
                 SeenMinute = w.Minute,
                 VisitedMinute = w.Minute,
@@ -438,7 +438,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var stream = Enumerable.Range(-4, 9).SelectMany(dx => Enumerable.Range(-4, 9).Select(dy => new TileId(camp.X + dx, camp.Y + dy)))
             .Where(t => m.InBounds(t) && Work.HasOpenWater(w, t)).OrderBy(t => MapGen.Manhattan(t, camp)).ThenBy(t => t).First();
         Assert.InRange(MapGen.Manhattan(stream, camp), 1, 3);
-        mind.Knows.Places[stream] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Water = true };
+        mind.Memory.Places[stream] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Water = true };
         foreach (var r in mind.Pack.Kg.Keys.Where(r => r == Resource.Water || r is Resource.Tinder or Resource.Kindling or Resource.BirchBark or Resource.Amadou or Resource.Usnea or Resource.Chaga).ToList())
             mind.Pack.Kg.Remove(r);
         a.Body.HydrationMl = 0.05 * Body.MaxHydrationMl; // Critical
@@ -451,7 +451,7 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
 
     /// Seed 5, day 8 (sight rays): its only timber lay past a mountain it walked beside, and the search counted any tile
     /// within three of a place it had stood as looked at, so the ground behind the ridge it never saw was never gone to.
-    /// The search goes to what it has not seen (Beliefs.Explored): here every tile but one, beside where it stood.
+    /// The search goes to what it has not seen (Memory.Explored): here every tile but one, beside where it stood.
     [Fact]
     public void Explore_HeadsForGroundItHasNotSeen_NotJustGroundItWalkedBeside()
     {
@@ -462,11 +462,11 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var unseen = Enumerable.Range(-6, 13).Select(dx => new TileId(camp.X + dx, camp.Y + (6 - Math.Abs(dx))))
             .Where(t => m.InBounds(t) && m.TerrainAt(t).IsPassable()).OrderBy(t => t).First();
         var stood = MapGen.Neighbors(unseen).First(t => m.InBounds(t) && MapGen.Manhattan(t, camp) == 5);
-        mind.Knows.Explored = new GroundMemory(m.Width, m.Height);
+        mind.Memory.Explored = new GroundMemory(m.Width, m.Height);
         for (int x = 0; x < m.Width; x++)
             for (int y = 0; y < m.Height; y++)
-                if (new TileId(x, y) != unseen) mind.Knows.Explored.Remember(new TileId(x, y), default, w.Minute);
-        mind.Knows.Places[stood] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute };
+                if (new TileId(x, y) != unseen) mind.Memory.Explored.Remember(new TileId(x, y), default, w.Minute);
+        mind.Memory.Places[stood] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute };
         var heading = Npc.ExploreHeading(w, a, 12);
         output.WriteLine($"unseen {unseen}, stood beside it at {stood}: heads for {heading}");
         Assert.Equal(unseen, heading);
@@ -482,9 +482,9 @@ public class NpcTripBudgetTests(ITestOutputHelper output)
         var a = w.Agent(npc);
         foreach (var r in mind.Pack.Kg.Keys.Where(r => r is Resource.Water or Resource.Tinder or Resource.Kindling or Resource.BirchBark
                      or Resource.Amadou or Resource.Usnea or Resource.Chaga).ToList()) mind.Pack.Kg.Remove(r);
-        foreach (var p in mind.Knows.Places.Values) p.Water = false;
-        mind.Knows.Explored = new GroundMemory(Map.Of(w).Width, Map.Of(w).Height);
-        mind.Knows.Explored.Remember(mind.Camp, default, w.Minute);
+        foreach (var p in mind.Memory.Places.Values) p.Water = false;
+        mind.Memory.Explored = new GroundMemory(Map.Of(w).Width, Map.Of(w).Height);
+        mind.Memory.Explored.Remember(mind.Camp, default, w.Minute);
         a.Body.HydrationMl = 0.1 * Body.MaxHydrationMl; // water Critical: over warmth's Need, which a camp with no fire to be had always is
         var (act, _) = Npc.Decide(w, a, []);
         output.WriteLine($"{act}; seeing to {mind.SeeingTo}, heading {mind.Heading}");

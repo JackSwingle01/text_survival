@@ -38,7 +38,7 @@ public sealed class World
     /// The clock hour of the last sweep of faded tracks. Owned by Tracks.
     public long TracksSweptHour { get; set; } = -1;
     public int NextCarcassId { get; set; }
-    /// Never reused, so a ref held to one never points at a later one on the same tile (ThingRef). Owned by Items and Shelters.
+    /// Never reused, so a ref held to one never points at a later one on the same tile (LocationFeature). Owned by Items and Shelters.
     public int NextStashId { get; set; }
     public int NextShelterId { get; set; }
     /// Owned by Shelters.
@@ -78,7 +78,7 @@ public sealed class World
         Fauna.Populate(world);
         // The map opens on what is in view, not on nothing. A burning fire placed by generation would report events here, and this throws to say so.
         var events = new List<WorldEvent>();
-        Knowledge.Glance(world, world.Agents[AgentId.Player], events);
+        Memories.Glance(world, world.Agents[AgentId.Player], events);
         if (events.Count > 0) throw new InvalidOperationException($"The first look at a new world reported {events.Count} events");
         return world;
     }

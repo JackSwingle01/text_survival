@@ -128,7 +128,7 @@ static void PrintVerbs(Here here)
 {
     int n = 0;
     string Line(Verb v) => $"{++n,3}. {v.Label}{(v.Refused != null ? $" (refused: {v.Refused})" : "")}{(v.Odds != null ? $" [{v.Odds.TotalPct:P0}]" : "")}{(v.Trip != null ? $" [{v.Trip.TotalMinutes} min]" : "")}";
-    foreach (var t in here.Things)
+    foreach (var t in here.LocationFeatures)
     {
         string conditions = t.Conditions.Count > 0 ? $" ({string.Join(", ", t.Conditions.Select(c => c.Name))})" : "";
         string shown = t.Action?.Label ?? (t.Interact ? "Interact" : "nothing to do");

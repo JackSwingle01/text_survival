@@ -127,7 +127,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         var body = w.Agent(npc).Body;
         body.CoreTempF = 94.6;
         Items.Add(mind.Pack, Resource.Birch, 4);
-        mind.Knows.Places[camp] = new TileMemory
+        mind.Memory.Places[camp] = new TileMemory
         {
             SeenMinute = w.Minute - 2 * 1440,
             VisitedMinute = w.Minute - 2 * 1440,
@@ -150,7 +150,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
     public void FarOutAndCold_FireLeftAnHourAgo_WalksHome()
     {
         var (w, npc, mind, far) = FarOut(BitterDay, campFire: true);
-        mind.Knows.Places[mind.Camp] = new TileMemory { SeenMinute = w.Minute - 60, VisitedMinute = w.Minute - 60, Fire = FirePhase.Roaring, FireHours = 3 };
+        mind.Memory.Places[mind.Camp] = new TileMemory { SeenMinute = w.Minute - 60, VisitedMinute = w.Minute - 60, Fire = FirePhase.Roaring, FireHours = 3 };
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a}, camp {mind.Camp}");
         Assert.NotEqual(far, mind.Camp);
@@ -175,9 +175,9 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         if (campFire)
         {
             LitPit(w, camp, 3);
-            mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Fire = FirePhase.Roaring, FireHours = 3 };
+            mind.Memory.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Fire = FirePhase.Roaring, FireHours = 3 };
         }
-        else mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute };
+        else mind.Memory.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute };
         return (w, npc, mind, far);
     }
 
@@ -207,7 +207,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         Items.Add(stash, Resource.Kindling, 1);
         Items.Add(stash, Resource.Birch, 9);
         (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = stash;
-        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 1, [Resource.Birch] = 9 } };
+        mind.Memory.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 1, [Resource.Birch] = 9 } };
         var (a, n) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"energy {energyPct} core {coreF} {(day ? "day" : "night")}: {a} x{n}, camp {mind.Camp}");
         var step = Assert.IsType<Travel>(a);
@@ -233,7 +233,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         var (w, npc, mind, camp) = DeadCamp(FrostyNight, At(29, 0, 3), 0.4, 96.3);
         Items.Add(Items.StashAt(w, camp), Resource.Tinder, 5.33);
         mind.Pack.Kg[Resource.Tinder] = 0.21;
-        mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 5.3 } };
+        mind.Memory.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 5.3 } };
         var m = Map.Of(w);
         var next = MapGen.Neighbors(camp).Where(n => m.InBounds(n) && m.TerrainAt(n).IsPassable() && Map.Blocked(m, camp, n) == null)
             .SelectMany(n => MapGen.Neighbors(n).Where(f => MapGen.Manhattan(f, camp) == 2 && m.InBounds(f) && m.TerrainAt(f).IsPassable() && Map.Blocked(m, n, f) == null))
@@ -243,7 +243,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         Items.Add(pile, Resource.Kindling, 1.5);
         Items.Add(pile, Resource.Tinder, 0.05);
         (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = pile;
-        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 31, [Resource.Kindling] = 1.5, [Resource.Tinder] = 0.1 } };
+        mind.Memory.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 31, [Resource.Kindling] = 1.5, [Resource.Tinder] = 0.1 } };
         double carried = 0;
         for (int i = 0; i < 60 && Body.IsAlive(w.Agent(npc).Body); i++)
         {
@@ -279,7 +279,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         var m = Map.Of(w);
         var tree = Enumerable.Range(-tiles, 2 * tiles + 1).Select(dx => new TileId(camp.X + dx, camp.Y + (tiles - Math.Abs(dx))))
             .First(t => m.InBounds(t) && m.TerrainAt(t).IsPassable());
-        mind.Knows.Places[tree] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Trees = true };
+        mind.Memory.Places[tree] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Trees = true };
         // Seed 11's camp is an overhang with standing timber a tile off: a shelter is not left for a bare tile in hauling
         // reach (Npc.Wood, the stat-tiers step), so the walk is a round trip and the fire is made back under the overhang.
         bool sheltered = Shelters.Peek(w, camp) != null;
@@ -323,7 +323,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         body.EnergyMinutes = energyPct * Body.MaxEnergyMinutes;
         body.CoreTempF = coreF;
         w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = start, LastUpdatedMinute = w.Minute };
-        mind.Knows.Places[tree] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Trees = true };
+        mind.Memory.Places[tree] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Trees = true };
         bool fits = Npc.WarmingTripFits(w, w.Agent(npc), tree);
         var (left, litAt, backAtCamp) = Follow(w, npc, start, 720);
         output.WriteLine($"trees {MapGen.Manhattan(start, tree)} tiles off, {(bitter ? "bitter" : "frosty")}: fits {fits}, left {left}, lit at {litAt?.ToString() ?? "-"}, back {backAtCamp}, alive {Body.IsAlive(body)} core {body.CoreTempF:0.0} en {body.EnergyPct:0.00}");
@@ -476,7 +476,7 @@ public class NpcWarmingWalkTests(ITestOutputHelper output)
         var mind = (NpcMind)w.Agent(npc).Mind;
         Items.Add(Items.StashAt(w, camp), Resource.Oak, 40); // firewood is not what it worries about
         Items.Add(Items.StashAt(w, camp), Resource.Kindling, 2); // nor the kindling to light it (Npc.Lit)
-        mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 40, [Resource.Kindling] = 2 } };
+        mind.Memory.Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Oak] = 40, [Resource.Kindling] = 2 } };
         var body = w.Agent(npc).Body;
         // Wanting food: half a kilo short of its fat, not hungry for what it carries. Starving (food Critical, the stat
         // tiers): fat down to the floor the body burns to, the stomach empty.

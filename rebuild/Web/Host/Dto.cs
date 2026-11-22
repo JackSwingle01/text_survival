@@ -20,7 +20,7 @@ public sealed record ViewDto(
     IReadOnlyList<AlertDto> Alerts,
     PlaceDto Place,
     FireDto? Fire,
-    IReadOnlyList<ThingDto> Things,
+    IReadOnlyList<LocationFeatureDto> LocationFeatures,
     IReadOnlyList<VerbDto> Walk,
     IReadOnlyList<VerbDto> Tile,
     IReadOnlyList<VerbDto> PackVerbs,
@@ -56,7 +56,7 @@ public sealed record PlaceDto(string Name, string Terrain, int X, int Y, bool Ca
 public sealed record FireDto(string Phase, bool Burning, double FuelHours, double TemperatureF, double CharcoalKg);
 
 /// One thing on the tile (Verbs.At): its conditions, the action shown for it (or Interact), and its menu.
-public sealed record ThingDto(string Kind, string Name, IReadOnlyList<ConditionDto> Conditions, string? Action, bool Interact,
+public sealed record LocationFeatureDto(string Kind, string Name, IReadOnlyList<ConditionDto> Conditions, string? Action, bool Interact,
     IReadOnlyList<VerbDto> Menu);
 public sealed record ConditionDto(string Name, bool Blocking);
 
@@ -100,7 +100,7 @@ public sealed record SkillDto(string Name, int Level);
 /// for never seen, otherwise the terrain's code (TerrainCodes). Visible: indices (y*Width+x) in sight now.
 /// Everything else is memory: places as last seen, sightings with their minute. Surface: the ground of
 /// each known tile with anything on it, in tile order: in sight, as it is now (Ground.SurfaceNow); out
-/// of sight, as last seen (Beliefs.Explored). A known tile that is not listed is bare, dry ground.
+/// of sight, as last seen (Memory.Explored). A known tile that is not listed is bare, dry ground.
 /// FrozenWater: the known lake and deep-water tiles that are ice (Map.IsFrozen), in tile order: in sight, now;
 /// out of sight, when last seen. A known one not listed is open water.
 public sealed record MapDto(int Width, int Height, string Known, IReadOnlyList<int> Visible, int CampX, int CampY,
@@ -148,7 +148,7 @@ public sealed record CellDto(int X, int Y);
 public sealed record JobDto(string Label, string Kind, int DoneMinutes, int? TotalMinutes, bool Finished, string? Outcome, string? Reason,
     int? FromX, int? FromY, string? Dir);
 
-/// "While you were away" (Knowledge.Receipt): what happened here, what changed, what prints say.
+/// "While you were away" (Memories.Receipt): what happened here, what changed, what prints say.
 public sealed record ReceiptDto(string Title, long? SinceMinute, long Minute, bool Full, IReadOnlyList<LogDto> Lines);
 
 /// One line of the journal. Kind: plain, bad, good or rare. Icon: an icon path under icons/.

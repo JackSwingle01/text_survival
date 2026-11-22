@@ -40,7 +40,7 @@ weather type, animal, recipe, effect, condition, item, verb, terrain, discovery 
 - **Location feature** is the one word for anything at a place, told apart by the verbs it offers.
   Harvestable and shelter are named kinds. A discovery is hidden until searched. A sign is a trace
   an agent left.
-- **Memory** is what a person has seen and remembers (code name `Beliefs` until the rename).
+- **Memory** is what a person has seen and remembers (`Memory`, `Sim/Memory.cs`).
   **Camp** is temporary, and a person can have several. **Encounter** is run by the combat system.
   **Resolve** replaces "margin".
 - **Saves** store enums by name, so reordering can't corrupt saves (target state). Every saved
@@ -62,7 +62,7 @@ Paths below are under `rebuild/` unless they start with `documentation/` or `dev
 | **Species or animal** | `Species` enum (`Sim/Species.cs`) + a row in `Sim/Content/species.json`; yields in `butchering.json` | Every number that varies per species is a species.json field. Code never switches on a species name; behaviour comes from `Role` and `HerdBehavior`. | `Wolf` row: morale, speeds, sprint | Load check: every `Species` has a row and words | `names.json`; animal art in the page. Today also: stealth (`Fauna.cs` ~L416), `Fauna.DetectionRangeTiles`, the scavenger flee list (`Fauna.cs` ~L636), the population table (`Renewal.cs`), `Renewal.IsMegafauna`, counts in `Populate.cs`, `Combat.SelectFormation`, mammoth ivory in `CombatAftermath.cs` (to be merged into species.json, see the audit) |
 | **Recipe** (and structure) | Data: `Sim/Content/recipes.json`, made by the Make activity (`Sim/Make.cs`) | One recipe shape for crafting and building. Departures from the result are an outcome table in data, with a closed list of effects (`OutcomeKind`). | `hammerstone` | `ContentTests`; `MakeTests`; `ConservationMakeTests` | Today also: beddings, frames, the snow shelter and the tent are `Structure` + `StructureRecipe` in `Shelter.cs` and `shelters.json`, built by `Build` (to be merged into Make, see the audit; roadmap 8) |
 | **Effect** | `EffectKind` (`Sim/Effects.cs`) + a row in `Sim/Content/effects.json` | One kernel ticks every effect from its row, under one `Exposure.At`, for bodies and things alike. No floor that only a missing treatment clears. | `Frostbite` row | Load check: every `EffectKind` has a row and words; `EffectsPropertyTests`; `ArchitectureTests.OnlyExposure_CombinesSkyTileShelterAndFire` | `names.json` ("You are ..."). Today also: Wet and Bloody are set by bespoke code in `BodySurvival.cs`; effects are body-only; carcass spoilage is `Carcass.cs`'s own scale (to be merged into one kernel, see the audit) |
-| **Condition** | Target: one conditions module, read by `Verbs` (the `Condition` record in `Sim/Verbs.cs`) | Derived each time from effects and place, never stored. A blocking condition names its clearing verb, which changes the world, not the condition. | "buried" (`Verbs.Conditions`) | Not enforced yet | Today also: `Tags.cs` (`Tag` flags), `Access.cs` (`Gate`, with `Wired = Gate.None`, so off in play), and `Verbs.ConditionName` turning `Guarded` into "occupied" (to be merged, see the audit) |
+| **Condition** | Target: one conditions module, read by `Verbs` (the `Condition` record in `Sim/Verbs.cs`) | Derived each time from effects and place, never stored. A blocking condition names its clearing verb, which changes the world, not the condition. | "buried" (`Verbs.Conditions`) | Not enforced yet | Today also: `Tags.cs` (`Tag` flags), `Access.cs` (`Gate`, with `Wired = Gate.None`, so off in play), and `Verbs.ConditionName` turning `Gate.Occupied` into "occupied" (to be merged, see the audit) |
 | **Item or gear** | `Resource`, `ToolType`, `EquipSlot` enums (`Sim/Items.cs`) + `Sim/Content/items.json` | Every number about an item is in items.json. Tools are asked for by capability (`Capability`), not by name. | `BirchBark` | `ContentTests`; `ItemsTests`; `ConservationItemsTests` | `names.json` for a new `Resource`; `fire.json` if it burns; `forage.json`, `loot.json` or `discoveries.json` to make it findable; `butchering.json` if animals yield it; the page's icon |
 | **Verb or activity** | Target: the owning system's file (`Work.cs`, `Fire.cs`, `Make.cs`...) holds one declaration with every facet; the record sits in `Sim/Activity.cs` | Prefer a recipe, a pool or a content row to a new activity. A mind or the UI only picks an activity; `Sim.Step` runs it the same for everyone. Combat moves are `CombatAction`s inside `Fight` for now. | `MeltSnow` (`Work.cs`) | `ArchitectureTests.EveryActivity_IsRegisteredForTheSave`; `VerbsTests.EveryVerb_AtTheStart_IsRefusedExactlyWhenStepRefusesIt`; `Sim.HoldOf` throws at run time on an unknown activity | Today also, 12-15 places: the record and its `JsonDerivedType` line; the owning system's `Handles`, `Refusal`, `Begin`, `Minute` and `End`; in `Sim.cs`, `Start`, `ActivityRefusal`, `ReadsTheFire`, `Live`, both switches in `HoldOf`, and the `Finishing` set; the offer in `Verbs.At`; `ViewBuilder.KindOf` (`Web/Host`); `ActionGen` (`Act`, `Resolve`, `Splittable`); `Npc.Try` (to be merged into one declaration, see the audit) |
 | **Terrain** | `Terrain` enum (`Sim/Map.cs`) + a row in `Sim/Content/terrain.json` (substrate included) | Traversal, hazard, wind, cover, visibility, substrate and forage are row values. Code reads them through `Map`. | `Forest` row | Load check: every `Terrain` has a row; `MapTests`; `GroundTests` | `MapGen.cs` to place it; its pool in `discoveries.json`; `names.json`; the page's ground drawing (`wwwroot/terrain.js`, `terrain-core.js`). Today also: the camp tile's own values in `Map.cs` (`t == m.Camp ? ...`) and `Shelters.CampOverhang` in code (to go to data) |
@@ -71,7 +71,7 @@ Paths below are under `rebuild/` unless they start with `documentation/` or `dev
 | **Rule inside a system** | That system's file, only | One place per rule. If it needs a table, the table is content. | The fire's catch rule in `Fire.cs` | `Fire_DoesNotDependOnWork`; `OnlyCarcasses_ChangesWhatIsLeftOnACarcass`; `OnlyExposure_CombinesSkyTileShelterAndFire`. Otherwise not enforced | Night is `Weather.IsNight` (05:00-21:00), read by work, the night boldness in `Combat.cs`, Npc and the page's daylight (`OneNightRule`). Today also: `Weather.IsDaytime` (sunrise to sunset, seasonal) for the sun and Npc's `Daylight`, beside it (to be merged, see the audit) |
 | **Cross-system wiring** | The system that makes the decision | It owns the formula. Each input system publishes one plain read or forecast. A combination both sides need becomes its own rule. | `CombatAI.FireDeterrence` reads `Fire.IntensityPct`, with its constants in `fire.json` | Not enforced yet | — |
 | **Agent behaviour** | A person: the NPC mind (`Sim/Npc.cs`, `NpcMind`). A herd: `Fauna.Decide` (`Sim/Fauna.cs`, `HerdMind`). Both plug in at `Minds.Decide` (`Sim/Sim.cs`) | A mind only chooses the next activity. A person's mind uses only verbs, refusals, forecasts and memory, and never restates a system's rule. The NPC is a tier ladder (`Tiers.cs`): worst tier first, commit to a goal, re-derive the next step from what the refusal says is missing. | `Tiers.Of`, shared by the player's alerts and the NPC | Not enforced yet | Today also: `Npc.cs` builds activities itself, re-implements refusal (`Npc.Try`), routing, cooling and fire catching, and reads true herd positions (to be rewritten on the ladder, see the audit §4 and the roadmap's NPC redesign decisions) |
-| **Memory** | `Sim/Knowledge.cs`: `Beliefs` on `PersonMind.Knows`, updated by `Knowledge.Observe`, `Glance` and `Witness` through `Sight` | What a person has seen and remembers. It can be stale or wrong. The UI and NPCs read memory, not the truth, for anything out of sight. | `TileMemory` (a tile as last seen) | Not enforced yet | Code name is still `Beliefs` (rename later). Today also: `NpcMind.ThreatTile`/`ThreatMinute` duplicate `Beliefs.Sightings`; `TileMemory.FireHours` is aged by its readers (to be merged, see the audit) |
+| **Memory** | `Sim/Memory.cs`: `Memory` on `PersonMind.Memory`, updated by `Memories.Observe`, `Glance` and `Witness` through `Sight` | What a person has seen and remembers. It can be stale or wrong. The UI and NPCs read memory, not the truth, for anything out of sight. | `TileMemory` (a tile as last seen) | Not enforced yet | Today also: `NpcMind.ThreatTile`/`ThreatMinute` duplicate `Memory.Sightings`; `TileMemory.FireHours` is aged by its readers (to be merged, see the audit) |
 | **World event or notice** | A record in `Sim/WorldEvent.cs` with its `JsonDerivedType` line; its words in `Sim/Narration.cs` and `names.json` | The Sim emits typed facts, each with a minute and a tile. The log, tile journals, receipts and memory read the one stream. No popups and no director; systems never speak to the player. | `FireDied` | `EveryWorldEvent_IsGivenItsTile`; `EveryWorldEvent_IsRegisteredForTheSave`; `ABusyRun_RaisesNoEventWithoutATile`; `NarrationTests` | `Journal.IsNotable` if a tile should remember it; the log in `Web/Host/ViewBuilder.cs` |
 | **UI view or field** | Shape in `Web/Host/Dto.cs`; filled in `Web/Host/ViewBuilder.cs`; drawn in `Web/App/wwwroot/*.js` | The page reaches the game only through `client.js`'s five operations, and acts by verb id, never by building an activity. Views come from the player's side: `Verbs.At`, memory, `Sight`, `Tiers.Of`. Words come from the Sim (`Names`, `Narration`); the host adds only icons (`Words.cs`). If the Sim has no read for a field, add it in the owning system first. | `DaylightLeftMinutes` (`Dto.cs`) | `Web/Host.Tests/GameHostTests.cs`; `ArchitectureTests.SimAssembly_ReferencesNoUiAssembly` | — |
 | **Saved field** | The owning system's state on `World` (`Sim/World.cs`), or kind-specific state on the agent's `Mind` (`Sim/Agent.cs`) | Save only what the seed and the clock can't give back. Refer by id. Derived caches are `internal` and unsaved. Raise `Save.FormatVersion` and regenerate the fixture (`documentation/save-format.md`). | `World.Trails` (owned by Tracks) | `SaveTests.TheSampleSave_LoadsAndSavesAgain_ByteForByte`; `ABusyWorld_HasNoObjectReachableTwice`; `SavedState_ReferencesNoEntityByObject`; the registration tests for `Activity` and `WorldEvent` | `Sim.Tests/Fixtures/sample-save.json`. Today also: enum values save as numbers (`Save.cs` has no string-enum converter), so reordering an enum breaks saves; `Mind` and `PoolDef` registration is untested |
@@ -83,8 +83,8 @@ Paths below are under `rebuild/` unless they start with `documentation/` or `dev
 - **Content files** carry a `//` header that says what each field means. Every enum a table keys
   on has exactly one row, and every name has its words in `names.json`; a value added in code
   without its row fails at load.
-- **Location features** are listed for a tile by `Things.At` and given their verbs by `Verbs.At`.
-  The code still says "thing" (`ThingRef`, `ThingKind`) and "pool" for harvestables; the words are
+- **Location features** are listed for a tile by `LocationFeatures.At` (each a `LocationFeature` of a
+  `LocationFeatureKind`) and given their verbs by `Verbs.At`. The code still says "pool" for harvestables; the word is
   to be renamed with the conditions refactor.
 - **Combat** owns the encounter from awareness to the end. A hunt enters it through the `Hunt`
   activity, the same for players and NPCs.
@@ -113,7 +113,7 @@ Cheap tests worth adding, each a source scan, reflection or one short run:
 - **RefusalsAreData:** once a refusal record exists, `Sim.Refusal` and each system's `Refusal`
   return it, not a string.
 - **BannedGlossaryWords_Ratchet:** counts of identifiers using words the glossary avoids
-  (`Guarded`, `Margin`, `Beliefs`, `Thing`) may only fall.
+  (`Guarded`, `Margin`, `Beliefs`, `Thing`) may only fall. All four are at 0.
 
 ---
 
@@ -153,7 +153,7 @@ record World(int Seed, long Minute, WeatherState Weather,
 > seed, not stored. Derived caches sit on it as `internal`, unsaved fields. **Narrative is not a
 > system:** `Narration.cs` and `Names.cs` only put events and names into words. The systems are
 > Fire, Body, Ground, Weather, Fauna, Combat, Make, Shelters, Travel, Tracks, Pools, Items and
-> Knowledge.
+> Memories.
 
 ### 2. One agent model and one activity model for player, NPCs and herds
 
@@ -204,7 +204,7 @@ abstract record WorldEvent;  // FireDied, Injured, Witnessed, TrackLeft, ...
 - Replaces `ctx.Notices`, `NarrativeLog` plumbing and `RelationshipEvents` routing. Replays and debug traces come with it.
 
 > **Superseded in part:** there are no moments (decision 2026-11-21-no-moments-no-director). Every
-> event carries a minute and a tile and is filed in tile journals (`Journal`, `Sim/Knowledge.cs`).
+> event carries a minute and a tile and is filed in tile journals (`Journal`, `Sim/Memory.cs`).
 
 ### 5. Content emerges from the simulation; tensions are derived, not tracked
 
@@ -237,8 +237,7 @@ abstract record WorldEvent;  // FireDied, Injured, Witnessed, TrackLeft, ...
 - Player map memory, discovered features, readable tracks, NPC `ResourceMemory` and a herd's learned fear are one thing: an agent's beliefs.
 - The UI renders the player's beliefs, not the truth. NPCs can be wrong.
 
-> **Superseded in part:** the word is **memory** (`GLOSSARY.md`); the code still says `Beliefs`
-> until the rename. A herd's learned fear is not in it yet.
+> **Superseded in part:** the word is **memory** (`GLOSSARY.md`), in the code too (`Memory`). A herd's learned fear is not in it yet.
 
 ### 8. Deterministic and headless by default
 

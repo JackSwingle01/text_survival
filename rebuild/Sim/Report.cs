@@ -97,18 +97,18 @@ public static class Report
             long? age = sign.MadeMinute is long made ? w.Minute - made : null;
             switch (sign.Kind)
             {
-                case SignKind.Body when sign.Thing.Index != AgentId.Player.Value: // the player is not a find
-                    var dead = w.Agent(new AgentId(sign.Thing.Index));
+                case SignKind.Body when sign.LocationFeature.Index != AgentId.Player.Value: // the player is not a find
+                    var dead = w.Agent(new AgentId(sign.LocationFeature.Index));
                     Add(t, "body", FindCategory.DeadMatter, age,
                         $"dead {dead.Species} ({dead.Id}), {Remains.StageOf(w, dead).ToString().ToLowerInvariant()}{Circled(t)}", sign.Cause);
                     break;
                 case SignKind.Carcass:
-                    var c = Carcasses.Find(w, t, sign.Thing.Index)!;
+                    var c = Carcasses.Find(w, t, sign.LocationFeature.Index)!;
                     Add(t, "carcass", FindCategory.DeadMatter, age,
                         Invariant($"{c.Animal} carcass, {Carcasses.TotalRemainingKg(c):0.0} kg left, decay {Carcasses.DecayLevelNow(w, t, c):P0}{Circled(t)}"), sign.Cause);
                     break;
                 case SignKind.Bones:
-                    var b = Carcasses.Find(w, t, sign.Thing.Index)!;
+                    var b = Carcasses.Find(w, t, sign.LocationFeature.Index)!;
                     Add(t, "bones", FindCategory.DeadMatter, age, Invariant($"{b.Animal} bones, {Carcasses.TotalRemainingKg(b):0.0} kg"), sign.Cause);
                     break;
                 case SignKind.RavensOver:
@@ -120,7 +120,7 @@ public static class Report
                         stash.Kg.Select(kv => Invariant($"{kv.Key} {kv.Value:0.##}kg")).Concat(stash.Gear.Select(g => Items.Def(g).Name))), sign.Cause);
                     break;
                 case SignKind.FirePit:
-                    var f = w.Fires[new FireId(sign.Thing.Index)];
+                    var f = w.Fires[new FireId(sign.LocationFeature.Index)];
                     Add(t, "fire pit", FindCategory.Structure, age, Invariant($"{f.Pit} pit, {Fire.Phase(f)}, charcoal {f.CharcoalKg:0.0} kg"), sign.Cause);
                     break;
                 case SignKind.Shelter:
@@ -128,13 +128,13 @@ public static class Report
                     Add(t, "shelter", FindCategory.Structure, age, Invariant($"{s.Name} ({s.Kind}), quality {Shelters.Quality(s):P0}"), sign.Cause);
                     break;
                 case SignKind.Prints:
-                    var p = Tracks.Read(w, t).First(x => (int)x.Maker == sign.Thing.Index);
+                    var p = Tracks.Read(w, t).First(x => (int)x.Maker == sign.LocationFeature.Index);
                     Add(t, "tracks", FindCategory.Sign, age,
                         Invariant($"{p.Maker} prints, traffic {p.Traffic}, {p.Pattern} {p.Heading}, {p.FreshnessPct:P0} fresh"), sign.Cause);
                     break;
                 // An edge's one ref is named from its first tile (EdgeId.A), whose other end is east or south.
                 case SignKind.Trail:
-                    var to = Map.Step(t, sign.Thing.TrailDirection!.Value);
+                    var to = Map.Step(t, sign.LocationFeature.TrailDirection!.Value);
                     Add(t, "trail", FindCategory.Sign, age, $"{Tracks.TierOf(w, t, to)} to {TileIdConverter.Format(to)}", sign.Cause);
                     break;
                 case SignKind.Body: break; // the player
@@ -162,7 +162,7 @@ public static class Report
     }
 
     static bool FoundByAnyone(World w, PoolId id) =>
-        w.Agents.Values.Any(a => (a.Mind as PersonMind)?.Knows.Discovered.Contains(id) == true);
+        w.Agents.Values.Any(a => (a.Mind as PersonMind)?.Memory.Discovered.Contains(id) == true);
 
     public static string DumpText(World w) => DumpText(w, Finds(w));
 

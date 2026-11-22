@@ -59,7 +59,7 @@ public class NpcTests(ITestOutputHelper output)
         output.WriteLine($"seed {seed}: alive {Body.IsAlive(b)} at minute {w.Minute}; vitality {Body.Vitality(b):0.00}, fat {b.FatKg:0.0} kg " +
                          $"(from {Body.BaselineWeightKg * Body.BaselineFatPct:0.0}), calories {b.CaloriesKcal:0}, hydration {b.HydrationPct:0.00}, " +
                          $"energy {b.EnergyPct:0.00}, core {b.CoreTempF:0.0}F; ate {ate:0} kcal, fires lit {log.OfType<FireLit>().Count(f => f.By == npc)}, " +
-                         $"trees felled {log.OfType<TreeFelled>().Count()}, places known {((NpcMind)w.Agent(npc).Mind).Knows.Places.Count}, camp wood {CampWoodKg(w, npc):0} kg");
+                         $"trees felled {log.OfType<TreeFelled>().Count()}, places known {((NpcMind)w.Agent(npc).Mind).Memory.Places.Count}, camp wood {CampWoodKg(w, npc):0} kg");
         Assert.True(Body.IsAlive(b), $"seed {seed}: the NPC died at minute {w.Minute}");
         Assert.True(w.Minute >= 14 * 1440L);
         Assert.True(ate > 0, "two weeks and it never ate");
@@ -137,7 +137,7 @@ public class NpcTests(ITestOutputHelper output)
             var npc = Npc.Spawn(w, far, camp);
             var mind = (NpcMind)w.Agent(npc).Mind;
             // It stood in camp at minute 0 with the fire burning, and fled the bear beside it a few minutes ago.
-            mind.Knows.Places[camp] = new TileMemory { SeenMinute = 0, VisitedMinute = 0, Fire = phase, FireHours = 1.0 };
+            mind.Memory.Places[camp] = new TileMemory { SeenMinute = 0, VisitedMinute = 0, Fire = phase, FireHours = 1.0 };
             (mind.ThreatTile, mind.ThreatMinute) = (new TileId(camp.X - 1, camp.Y), w.Minute - 5);
             return Lived(w, npc, w.Minute + 3 * 60, look);
         }
@@ -254,9 +254,9 @@ public class NpcTests(ITestOutputHelper output)
 
         var events = new List<WorldEvent>();
         var (activity, _) = Npc.Decide(w, w.Agent(npc), events);
-        bool fought = events.OfType<FightEnded>().Any(f => f.Agent == npc);
+        bool fought = events.OfType<EncounterEnded>().Any(f => f.Agent == npc);
         bool fled = activity is Travel { Pace: Pace.Quick };
-        output.WriteLine($"boldness {boldness}: {(fought ? "fought: " + events.OfType<FightEnded>().First(f => f.Agent == npc).Result : fled ? "fled" : activity.ToString())}");
+        output.WriteLine($"boldness {boldness}: {(fought ? "fought: " + events.OfType<EncounterEnded>().First(f => f.Agent == npc).Result : fled ? "fled" : activity.ToString())}");
         Assert.True(fought || fled, $"with wolves on its tile it chose {activity}");
     }
 
@@ -383,7 +383,7 @@ public class NpcTests(ITestOutputHelper output)
 
         var events = new List<WorldEvent>();
         Npc.Decide(w, w.Agent(npc), events);
-        var ended = events.OfType<FightEnded>().FirstOrDefault(f => f.Agent == npc);
+        var ended = events.OfType<EncounterEnded>().FirstOrDefault(f => f.Agent == npc);
         Assert.NotNull(ended);
         output.WriteLine($"hunt: {ended.Result} after {ended.Rounds} rounds; carcass {(w.Tiles.GetValueOrDefault(camp)?.Carcasses?.Count ?? 0)}");
     }
@@ -398,7 +398,7 @@ public class NpcTests(ITestOutputHelper output)
         var mind = (NpcMind)w.Agent(npc).Mind;
         var stoodOn = log.OfType<Moved>().Where(m => m.Who == npc).Select(m => m.To).Append(Map.Of(w).Camp).ToHashSet();
         Assert.True(log.OfType<Moved>().Count(m => m.Who == npc && m.To == Map.Of(w).Camp) > 1, "it should have come home more than once");
-        Assert.Equal(stoodOn.OrderBy(t => t), mind.Knows.Places.Where(p => p.Value.Visited).Select(p => p.Key));
+        Assert.Equal(stoodOn.OrderBy(t => t), mind.Memory.Places.Where(p => p.Value.Visited).Select(p => p.Key));
     }
 
     // ---- food by fat (Npc.TargetFatKg) ----
@@ -695,14 +695,14 @@ public class NpcTests(ITestOutputHelper output)
         // It stood by the fire an hour ago, when it had two hours on it; someone has fed it since.
         Sim.Advance(w, 60);
         agent.Tile = near;
-        mind.Knows.Places[camp] = new TileMemory { SeenMinute = w.Minute - 60, VisitedMinute = w.Minute - 60, Fire = FirePhase.Steady, FireHours = 2.0 };
-        Knowledge.Observe(w, agent, []);
+        mind.Memory.Places[camp] = new TileMemory { SeenMinute = w.Minute - 60, VisitedMinute = w.Minute - 60, Fire = FirePhase.Steady, FireHours = 2.0 };
+        Memories.Observe(w, agent, []);
         Assert.True(Sight.InSight(w, agent, camp) && agent.Tile != camp);
         Assert.True(Fire.FuelHours(w.Fires[pit]) > 5, "the pit should hold far more than it remembers");
         Assert.Equal(1.0, Npc.BelievedCampFuelHours(w, agent), 6);
         // Standing beside it, it judges the pit as it is.
         agent.Tile = camp;
-        Knowledge.Observe(w, agent, []);
+        Memories.Observe(w, agent, []);
         Assert.Equal(Fire.FuelHours(w.Fires[pit]), Npc.BelievedCampFuelHours(w, agent), 6);
     }
 
@@ -728,7 +728,7 @@ public class NpcTests(ITestOutputHelper output)
         var ground = near.Where(t => MapGen.Manhattan(t, camp) == 5 && m.TerrainAt(t).IsPassable() && Pools.At(w, t) is [ForagePool { Density: > 0.2 }, ..])
             .OrderBy(t => t).First();
         foreach (var t in near)
-            mind.Knows.Places[t] = new TileMemory
+            mind.Memory.Places[t] = new TileMemory
             {
                 SeenMinute = minute,
                 VisitedMinute = minute,
@@ -981,11 +981,11 @@ public class NpcTests(ITestOutputHelper output)
         var box = Enumerable.Range(-30, 61).SelectMany(dx => Enumerable.Range(-30, 61).Select(dy => new TileId(camp.X + dx, camp.Y + dy)));
         Assert.DoesNotContain(box, t => MapGen.Manhattan(t, camp) <= 15 && Timber(t)); // nothing in carrying reach
         var stand = box.Where(t => MapGen.Manhattan(t, camp) <= 30 && Timber(t)).OrderBy(t => MapGen.Manhattan(t, camp)).ThenBy(t => t).First();
-        mind.Knows.Places[stand] = new TileMemory { SeenMinute = w.Minute, Trees = true };
+        mind.Memory.Places[stand] = new TileMemory { SeenMinute = w.Minute, Trees = true };
         var (first, _) = Npc.Decide(w, agent, []);
         output.WriteLine($"camp {camp}, stand {stand} ({MapGen.Manhattan(stand, camp)} tiles): first {first}, home now {mind.Camp}");
         NpcDriver.Live(w, npc, w.Minute + 1440);
-        var trees = mind.Knows.Places.Where(p => p.Value.Trees).Select(p => p.Key).ToList();
+        var trees = mind.Memory.Places.Where(p => p.Value.Trees).Select(p => p.Key).ToList();
         output.WriteLine($"a day on: at {agent.Tile}, home {mind.Camp}, nearest timber {trees.Min(t => MapGen.Manhattan(t, mind.Camp))} tiles; alive {Body.IsAlive(agent.Body)}");
         Assert.NotEqual(camp, mind.Camp);
         Assert.True(trees.Min(t => MapGen.Manhattan(t, mind.Camp)) <= 2);

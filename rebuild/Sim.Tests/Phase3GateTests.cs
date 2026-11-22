@@ -32,7 +32,7 @@ public class Phase3GateTests
             t.Events.AddRange(r.Events);
             t.Felled += r.Events.OfType<TreeFelled>().Count();
             t.Butchered += r.Events.OfType<Butchered>().Count();
-            t.PlayerFights += r.Events.OfType<FightEnded>().Count(f => f.Agent == P);
+            t.PlayerFights += r.Events.OfType<EncounterEnded>().Count(f => f.Agent == P);
             t.Moves += r.Events.OfType<Moved>().Count();
             foreach (var f in r.Events.OfType<FuelAdded>().Where(f => f.Kg > 0)) t.Fuels.Add(f.Fuel);
         }

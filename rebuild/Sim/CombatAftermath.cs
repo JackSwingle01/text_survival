@@ -7,7 +7,7 @@ public static partial class Combat
     /// animals leave their herds as carcasses; a herd left with nobody is gone. A dead person stays
     /// an agent with a dead body: their remains and belongings are where they fell. A wounded animal
     /// the player saw escape splits off, a trail to follow. Every agent that fought hears how it
-    /// went from its own side (FightEnded), and a herd's mind takes fear, feeding and flight from it.
+    /// went from its own side (EncounterEnded), and a herd's mind takes fear, feeding and flight from it.
     static void Aftermath(World world, Encounter enc, CombatResult result, List<WorldEvent> events)
     {
         world.Encounters.Remove(enc); // first: members may be reordered from here on
@@ -73,8 +73,8 @@ public static partial class Combat
         {
             var side = units.First(u => u.Agent == id).Team;
             var own = side == 0 ? result : Mirror(result);
-            events.Add(new FightEnded(world.Minute, id, enc.Tile, own, enc.Rounds));
-            Fauna.AfterFight(world, id, own, killedOne: fell.Contains(1 - side), enc.Tile);
+            events.Add(new EncounterEnded(world.Minute, id, enc.Tile, own, enc.Rounds));
+            Fauna.AfterEncounter(world, id, own, killedOne: fell.Contains(1 - side), enc.Tile);
             // Whatever a person was at when the fight found them is over: they decide afresh.
             if (world.Agents.TryGetValue(id, out var person) && person.Mind is PersonMind) Sim.EndDoing(world, person, events);
         }

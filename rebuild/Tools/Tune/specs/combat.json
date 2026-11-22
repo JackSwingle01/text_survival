@@ -48,10 +48,10 @@
   { "name": "caribou.enduranceSpeedMps", "path": "species.json:species.Caribou.enduranceSpeedMps", "min": 4, "max": 10.5 },
   { "name": "caribou.sprintSeconds", "path": "species.json:species.Caribou.sprintSeconds", "min": 5, "max": 60, "log": true },
 
-  { "name": "human.strikeBackMargin", "path": "species.json:species.Human.strikeBackMargin", "min": -0.8, "max": -0.05,
-   "note": "giving ground with the enemy in reach: strike at this margin or above, else back off" },
-  { "name": "wolf.strikeBackMargin", "path": "species.json:species.Wolf.strikeBackMargin", "min": -0.8, "max": -0.05 },
-  { "name": "bear.strikeBackMargin", "path": "species.json:species.Bear.strikeBackMargin", "min": -0.8, "max": -0.05 },
+  { "name": "human.strikeBackResolve", "path": "species.json:species.Human.strikeBackResolve", "min": -0.8, "max": -0.05,
+   "note": "giving ground with the enemy in reach: strike at this resolve or above, else back off" },
+  { "name": "wolf.strikeBackResolve", "path": "species.json:species.Wolf.strikeBackResolve", "min": -0.8, "max": -0.05 },
+  { "name": "bear.strikeBackResolve", "path": "species.json:species.Bear.strikeBackResolve", "min": -0.8, "max": -0.05 },
 
   { "name": "human.chaseLimitSeconds", "path": "species.json:species.Human.chaseLimitSeconds", "min": 10, "max": 300, "log": true,
    "note": "how long it chases a runner before giving up" },
@@ -67,7 +67,7 @@
   { "name": "staff.damage", "path": "items.json:gear.staff.weapon.damage", "min": 0.1, "max": 3, "log": true },
 
   { "name": "fire.fireFear", "path": "fire.json:deterrence.fireFear", "min": 0.5, "max": 6, "log": true,
-   "note": "what a flame at full intensity, close by, takes off an animal's margin; people are not deterred" },
+   "note": "what a flame at full intensity, close by, takes off an animal's resolve; people are not deterred" },
   { "name": "fire.torchIntensityPct", "path": "fire.json:deterrence.torchIntensityPct", "min": 0.05, "max": 0.6, "note": "a lit torch against a campfire's 1" },
   { "name": "fire.fullWithinM", "path": "fire.json:deterrence.fullWithinM", "min": 2, "max": 15, "log": true,
    "note": "deters in full this close; inverse-square beyond" },

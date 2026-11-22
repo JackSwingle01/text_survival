@@ -8,7 +8,7 @@ namespace Survival;
 /// the minute they saw it.
 public readonly record struct RememberedGround(SurfaceSummary Surface, long SeenMinute);
 
-/// The tiles a person has seen on one map, each with its ground as last seen (Beliefs.Explored). Held
+/// The tiles a person has seen on one map, each with its ground as last seen (Memory.Explored). Held
 /// to millimetres and hundredths of mud, which is all a view shows, so the remembered ground and the
 /// ground in sight read alike. Saved as
 /// "WxH:seen:records", both base64: a bitset of the tiles seen, then ten bytes per tile seen, in

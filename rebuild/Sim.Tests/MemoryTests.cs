@@ -1,8 +1,8 @@
 namespace Survival.Tests;
 
 /// Place memory, tile journals and receipts (short-loop plan, features 4 and 5): what a person
-/// believes about a tile, what happened there while they were away, and how coming back tells them.
-public class KnowledgeTests
+/// remembers of a tile, what happened there while they were away, and how coming back tells them.
+public class MemoryTests
 {
     static readonly AgentId P = AgentId.Player;
     static readonly WeatherSample Mild = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
@@ -36,7 +36,7 @@ public class KnowledgeTests
         throw new InvalidOperationException($"No passable tile {min} from {from}");
     }
 
-    static TileMemory? Memory(World w, AgentId who, TileId t) => ((PersonMind)w.Agent(who).Mind).Knows.Places.GetValueOrDefault(t);
+    static TileMemory? Memory(World w, AgentId who, TileId t) => ((PersonMind)w.Agent(who).Mind).Memory.Places.GetValueOrDefault(t);
 
     static FireId PlacePit(World w, TileId tile, double birchKg)
     {
@@ -86,7 +86,7 @@ public class KnowledgeTests
         Sim.Step(w, new Wait(P), 1);
         var view = Sight.Visible(w, me.Tile, Body.GetCapacities(me.Body).Sight);
         Assert.All(w.Agents.Values.Where(a => a.Id != P), a => Assert.Equal(view.Contains(a.Tile), Sight.InSight(w, me, a.Tile)));
-        var places = ((PersonMind)me.Mind).Knows.Places;
+        var places = ((PersonMind)me.Mind).Memory.Places;
         Assert.All(places.Keys, t => Assert.Contains(t, view));
     }
 
@@ -97,7 +97,7 @@ public class KnowledgeTests
         var w = Mild17();
         var camp = Map.Of(w).Camp;
         Sim.Step(w, new Wait(P), 1);
-        var places = ((PersonMind)w.Agent(P).Mind).Knows.Places;
+        var places = ((PersonMind)w.Agent(P).Mind).Memory.Places;
         Assert.True(places.ContainsKey(camp) && places[camp].Visited);
         Assert.Equal("Overhang", places[camp].Shelter);
         Assert.All(places, p => Assert.Contains(p.Key, Sight.Visible(w, camp)));
@@ -106,9 +106,9 @@ public class KnowledgeTests
         Assert.Equal(json, Save.ToJson(Save.FromJson(json)));
     }
 
-    // ---- the ground explored (Beliefs.Explored) ----
+    // ---- the ground explored (Memory.Explored) ----
 
-    static GroundMemory Explored(World w, AgentId who) => ((PersonMind)w.Agent(who).Mind).Knows.Explored!;
+    static GroundMemory Explored(World w, AgentId who) => ((PersonMind)w.Agent(who).Mind).Memory.Explored!;
 
     static double Eyes(World w, AgentId who) => Body.GetCapacities(w.Agent(who).Body).Sight;
 
@@ -133,7 +133,7 @@ public class KnowledgeTests
         var camp = Map.Of(w).Camp;
         Sim.Step(w, new Wait(P), 1);
         var inView = Sight.Visible(w, camp, Eyes(w, P));
-        Assert.True(inView.Count > ((PersonMind)w.Agent(P).Mind).Knows.Places.Count);
+        Assert.True(inView.Count > ((PersonMind)w.Agent(P).Mind).Memory.Places.Count);
         Assert.Equal(inView.Count, Explored(w, P).Count);
         Assert.All(inView, t => Assert.True(Explored(w, P).Contains(t), $"{t} in view but not explored"));
     }
@@ -196,7 +196,7 @@ public class KnowledgeTests
         Assert.Equal(json, Save.ToJson(loaded));
     }
 
-    // ---- the ground as last seen (Beliefs.Explored) ----
+    // ---- the ground as last seen (Memory.Explored) ----
 
     static readonly WeatherSample Cold = new(0, WeatherCondition.Cloudy, -10, 0.1, 0, 0.8, WindDirection.North);
 
@@ -216,9 +216,9 @@ public class KnowledgeTests
         w.FixedWeather = Cold;
         var camp = Map.Of(w).Camp;
         var t = InViewFrom(w, camp);
-        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes); // ground is kept once it has lived any time (Ground.CatchUp)
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes); // ground is kept once it has lived any time (Ground.CatchUp)
         Snow(w, t, 0.4);
-        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes); // the clock's next look sees it
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes); // the clock's next look sees it
         double seenM = Ground.SurfaceNow(w, t).SnowDepthM;
         Assert.True(seenM > 0.35);
         Assert.Equal(seenM, Explored(w, P).At(t)!.Value.Surface.SnowDepthM, 3);
@@ -227,12 +227,12 @@ public class KnowledgeTests
         Sim.Step(w, new Wait(P), 1);
         Assert.False(Sight.InSight(w, w.Agent(P), t));
         Ground.CatchUp(w, t).Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow); // gone while nobody looked
-        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes);
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
 
         var loaded = Save.FromJson(Save.ToJson(w));
         var remembered = Explored(loaded, P).At(t)!.Value;
         Assert.Equal(seenM, remembered.Surface.SnowDepthM, 3);
-        Assert.Equal(2 * Knowledge.GlanceMinutes, remembered.SeenMinute);
+        Assert.Equal(2 * Memories.GlanceMinutes, remembered.SeenMinute);
         Assert.Equal(0, Ground.SurfaceNow(loaded, t).SnowDepthM, 3);
     }
 
@@ -463,11 +463,11 @@ public class KnowledgeTests
         long died = DiesAt(w, pit);
 
         Put(w, P, InViewOf(w, camp)); // in sight of camp, not on it
-        Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes);
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         Assert.True(Fire.Burns(Memory(w, P, camp)!.Fire));
         Assert.Equal(hours, Memory(w, P, camp)!.FireHours);
 
-        while (!w.Fires[pit].HasEmbers && w.Minute < died) Sim.Step(w, new Wait(P), Knowledge.GlanceMinutes);
+        while (!w.Fires[pit].HasEmbers && w.Minute < died) Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         Assert.Equal(FirePhase.Embers, Memory(w, P, camp)!.Fire);
         Assert.Null(Memory(w, P, camp)!.FireHours);
     }
@@ -636,10 +636,10 @@ public class KnowledgeTests
         var w = World.New(17);
         var npc = Npc.Spawn(w, Map.Of(w).Camp);
         NpcDriver.Live(w, npc, 1440);
-        var places = ((NpcMind)w.Agent(npc).Mind).Knows.Places;
+        var places = ((NpcMind)w.Agent(npc).Mind).Memory.Places;
         Assert.Contains(places.Values, p => p.Visited && p.ForageDensity != null);
         Assert.Contains(places.Values, p => p.Trees && !p.Visited);
-        Assert.NotEmpty(((NpcMind)w.Agent(npc).Mind).Knows.Sightings);
+        Assert.NotEmpty(((NpcMind)w.Agent(npc).Mind).Memory.Sightings);
     }
 
     // ---- determinism ----

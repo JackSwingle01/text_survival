@@ -84,14 +84,14 @@ public class NpcColdBedTests(ITestOutputHelper output)
         Items.Add(stash, Resource.Kindling, 1); // tinder and birch alone are not makings: a tinder fire never takes birch
         Items.Add(stash, Resource.Birch, 9);
         (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = stash;
-        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 1, [Resource.Birch] = 9 } };
+        mind.Memory.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 1, [Resource.Birch] = 9 } };
         mind.SeeingTo = Stat.Rest;
         var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a} for {minutes} min; camp {mind.Camp}");
         Assert.Equal(new Travel(npc, dir, Traversal.IsHazardous(w, camp) || Traversal.IsHazardous(w, next) ? Pace.Careful : Pace.Quick), a);
         Assert.Equal(camp, mind.Camp);
         Assert.Equal(next, mind.WoodGoal);
-        Assert.NotNull(mind.Knows.Places[camp].Shelter);
+        Assert.NotNull(mind.Memory.Places[camp].Shelter);
         // There and back with the makings, and a fire going under the overhang within the hour.
         var lit = NpcDriver.Live(w, npc, w.Minute + 60).OfType<FireLit>().Where(f => f.By == npc).Select(f => f.Tile).ToList();
         output.WriteLine($"fires lit at {string.Join(", ", lit)}; camp {mind.Camp}");
@@ -149,8 +149,8 @@ public class NpcColdBedTests(ITestOutputHelper output)
         Items.Add(stash, Resource.Kindling, 0.094);
         Items.Add(stash, Resource.Birch, 9);
         (w.Tiles.TryGetValue(next, out var there) ? there : w.Tiles[next] = new TileState()).Stash = stash;
-        Knowledge.Observe(w, w.Agent(npc), []);
-        mind.Knows.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 0.1, [Resource.Birch] = 9 } };
+        Memories.Observe(w, w.Agent(npc), []);
+        mind.Memory.Places[next] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Tinder] = 2, [Resource.Kindling] = 0.1, [Resource.Birch] = 9 } };
         mind.SeeingTo = Stat.Rest;
         var (a, minutes) = Npc.Decide(w, w.Agent(npc), []);
         output.WriteLine($"{a} for {minutes} min; wood goal {mind.WoodGoal}");

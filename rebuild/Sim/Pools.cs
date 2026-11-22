@@ -497,7 +497,7 @@ public static class Pools
         return got;
     }
 
-    /// Discovery is the agent's knowledge, not the tile's. Forage, timber and a named site's stock in
+    /// Discovery is the agent's memory, not the tile's. Forage, timber and a named site's stock in
     /// plain sight (RevealAtHours 0) are not hidden; every other stock and every shelter find is.
     public static bool IsHidden(PoolDef def) => def is StockPool { RevealAtHours: > 0 } or ShelterFind;
 
@@ -509,7 +509,7 @@ public static class Pools
     };
 
     public static bool Knows(World world, AgentId who, PoolId id) =>
-        !IsHidden(Def(world, id)) || (world.Agent(who).Mind as PersonMind)?.Knows.Discovered.Contains(id) == true;
+        !IsHidden(Def(world, id)) || (world.Agent(who).Mind as PersonMind)?.Memory.Discovered.Contains(id) == true;
 
     /// Effort reaches every hidden pool on the tile, slowed per pool by how far snow covers it.
     public static void Search(World world, Agent agent, double perceptionWeightedHours, List<WorldEvent> events)
@@ -520,18 +520,18 @@ public static class Pools
         {
             if (!IsHidden(pools[i])) continue;
             var id = new PoolId(agent.Tile, i);
-            if (mind.Knows.Discovered.Contains(id)) continue;
+            if (mind.Memory.Discovered.Contains(id)) continue;
             var (revealAt, height) = Hiding(pools[i]);
-            double hours = mind.Knows.SearchHours.GetValueOrDefault(id)
+            double hours = mind.Memory.SearchHours.GetValueOrDefault(id)
                 + perceptionWeightedHours * Ground.SearchFactor(world, agent.Tile, 0, height);
             if (hours >= revealAt)
             {
-                mind.Knows.SearchHours.Remove(id);
-                mind.Knows.Discovered.Add(id);
+                mind.Memory.SearchHours.Remove(id);
+                mind.Memory.Discovered.Add(id);
                 events.Add(new PoolDiscovered(world.Minute, agent.Id, id, pools[i].Name));
                 if (pools[i] is ShelterFind find) Shelters.Found(world, id, find, events);
             }
-            else mind.Knows.SearchHours[id] = hours;
+            else mind.Memory.SearchHours[id] = hours;
         }
     }
 }

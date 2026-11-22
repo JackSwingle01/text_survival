@@ -25,7 +25,7 @@ public sealed class GameHost
     readonly Dictionary<string, Func<CellDto?, Job>> _verbs = [];
     readonly List<LogDto> _log = [];
     // What the rounds of the fight under way told: the fight screen's own lines, apart from the walk before it.
-    readonly List<LogDto> _fightLog = [];
+    readonly List<LogDto> _encounterLog = [];
     ReceiptDto? _receipt;
     // Sim looks around on the first minute awake, which falls in whatever the player does next, so
     // the minute sleep ended is what tells that look's news is the morning's.
@@ -94,7 +94,7 @@ public sealed class GameHost
         _receipt = null;
         _sleptUntil = null;
         _log.Clear();
-        _fightLog.Clear();
+        _encounterLog.Clear();
         _verbs.Clear();
     }
 
@@ -117,13 +117,13 @@ public sealed class GameHost
         public string? Outcome { get; private set; }
         public string? Reason { get; private set; }
         /// How the fight ended, when a step of this job ended one: said in place of Sim's bare "fight over".
-        public string? FightEnding { get; set; }
+        public string? EncounterEnding { get; set; }
         public void Finish(string outcome, string? reason)
         {
             if (Finished) return;
             (Finished, Outcome, Reason) = (true, outcome, reason);
         }
-        public void Finish(StepResult r) => Finish(r.Outcome.ToString().ToLowerInvariant(), FightEnding ?? r.Reason);
+        public void Finish(StepResult r) => Finish(r.Outcome.ToString().ToLowerInvariant(), EncounterEnding ?? r.Reason);
     }
 
     Job JobFor(Verb v)
@@ -166,8 +166,8 @@ public sealed class GameHost
             else if (Narration.ForPlayer(W, e) is { } line)
             {
                 _log.Add(Words.Log(line));
-                if (job.Activity is Fight) _fightLog.Add(Words.Log(line));
-                if (e is FightEnded) job.FightEnding = line.Text;
+                if (job.Activity is Fight) _encounterLog.Add(Words.Log(line));
+                if (e is EncounterEnded) job.EncounterEnding = line.Text;
             }
         }
         if (_log.Count > MaxLog) _log.RemoveRange(0, _log.Count - MaxLog);
@@ -202,16 +202,16 @@ public sealed class GameHost
     {
         _gen++;
         _verbs.Clear();
-        if (Combat.EncounterOf(W, AgentId.Player) == null) _fightLog.Clear();
+        if (Combat.EncounterOf(W, AgentId.Player) == null) _encounterLog.Clear();
         var b = new ViewBuilder(W, _gen);
-        var view = b.Build(_job, _receipt, _log, _fightLog);
+        var view = b.Build(_job, _receipt, _log, _encounterLog);
         foreach (var (id, verb) in b.Verbs) _verbs[id] = _ => JobFor(verb);
-        foreach (var (id, fight) in b.Fights) _verbs[id] = to => FightJob(fight, to);
+        foreach (var (id, fight) in b.CombatVerbs) _verbs[id] = to => CombatJob(fight, to);
         _receipt = null; // shown once
         return view;
     }
 
-    Job FightJob(ViewBuilder.FightVerb f, CellDto? to)
+    Job CombatJob(ViewBuilder.CombatVerb f, CellDto? to)
     {
         var p = W.Agent(AgentId.Player);
         var act = new Fight(AgentId.Player, f.Action, f.Target, f.Action == CombatAction.Move

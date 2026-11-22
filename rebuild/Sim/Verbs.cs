@@ -9,27 +9,27 @@ public sealed record Verb(string Label, Activity Activity, int Minutes, string? 
     public bool Allowed => Refused == null;
 }
 
-/// A fact read off a thing's effects and place, never stored (GLOSSARY: Condition). A blocking one
-/// stands in front of the thing's verbs; Clear is the verb that ends it (none exists yet).
+/// A fact read off a location feature's effects and place, never stored (GLOSSARY: Condition). A blocking one
+/// stands in front of the location feature's verbs; Clear is the verb that ends it (none exists yet).
 public sealed record Condition(string Name, bool Blocking, Verb? Clear = null);
 
 /// Conditions are outermost first. Action is the one shown (emergent-world-design §3.5): the outermost
 /// blocking condition's clearing verb; otherwise the only verb; otherwise null, which is
 /// Interact when there are several (open Menu) and nothing to do when there are none.
-public sealed record ThingVerbs(ThingRef Thing, string Name, IReadOnlyList<Condition> Conditions, IReadOnlyList<Verb> Menu)
+public sealed record LocationFeatureVerbs(LocationFeature LocationFeature, string Name, IReadOnlyList<Condition> Conditions, IReadOnlyList<Verb> Menu)
 {
     public Verb? Action => Conditions.FirstOrDefault(c => c.Blocking && c.Clear != null)?.Clear ?? (Menu.Count == 1 ? Menu[0] : null);
     public bool Interact => Action == null && Menu.Count > 1;
 }
 
-/// What a person can do where they stand (Verbs.At). Things leave the person out, in Things.At's order.
+/// What a person can do where they stand (Verbs.At). Location features leave the person out, in LocationFeatures.At's order.
 /// Walk adds a careful crossing only where quick risk is worth weighing (Trip.PaceMatters). Tile is what needs
 /// nothing but the place (wait, rest, sleep, fire, drink); Pack is what can be done with what is carried.
 /// Make lists every recipe, hidden none (a refused one says what it lacks), then structures (Shelters, until Make takes building over).
-public sealed record Here(AgentId Who, TileId At, IReadOnlyList<ThingVerbs> Things, IReadOnlyList<Verb> Walk, IReadOnlyList<Verb> Tile,
+public sealed record Here(AgentId Who, TileId At, IReadOnlyList<LocationFeatureVerbs> LocationFeatures, IReadOnlyList<Verb> Walk, IReadOnlyList<Verb> Tile,
     IReadOnlyList<Verb> Pack, IReadOnlyList<Verb> Make)
 {
-    public IEnumerable<Verb> All => Things.SelectMany(t => t.Menu).Concat(Walk).Concat(Tile).Concat(Pack).Concat(Make);
+    public IEnumerable<Verb> All => LocationFeatures.SelectMany(t => t.Menu).Concat(Walk).Concat(Tile).Concat(Pack).Concat(Make);
 }
 
 /// The one source of "what can I do here" (emergent-world-design §3.5), for player, NPCs, CLI, UI and
@@ -52,12 +52,12 @@ public static class Verbs
         var pack = Items.PackOf(agent);
         RequireFiresCurrent(world, agent);
 
-        var things = new List<ThingVerbs>();
-        foreach (var t in Things.At(world, agent.Tile))
+        var features = new List<LocationFeatureVerbs>();
+        foreach (var t in LocationFeatures.At(world, agent.Tile))
             if (Seen(world, who, t))
             {
                 var (name, menu) = Describe(world, who, t, pack);
-                things.Add(new ThingVerbs(t, name, Conditions(world, who, t), [.. menu.Select(Ready)]));
+                features.Add(new LocationFeatureVerbs(t, name, Conditions(world, who, t), [.. menu.Select(Ready)]));
             }
 
         var walk = new List<Verb>();
@@ -103,7 +103,7 @@ public static class Verbs
                     : building == s ? $"Go on building the {Names.Of(s)}" : $"Build a {Names.Of(s)}", new Build(who, s), UntilDoneMinutes));
             foreach (var p in pack.Projects ?? []) make.Add(($"Abandon the unfinished {Names.Lower(Recipes.Get(p.Recipe).Name)}", new Abandon(who, p.Recipe), 1));
         }
-        return new Here(who, agent.Tile, things, walk, [.. tile.Select(Ready)], [.. carried.Select(Ready)], [.. make.Select(Ready)]);
+        return new Here(who, agent.Tile, features, walk, [.. tile.Select(Ready)], [.. carried.Select(Ready)], [.. make.Select(Ready)]);
 
         Verb Ready((string Label, Activity Activity, int Minutes) v)
         {
@@ -137,34 +137,34 @@ public static class Verbs
                 throw new InvalidOperationException($"Fire {id.Value} is at minute {f.LastUpdatedMinute}, world at {world.Minute}: catch it up first");
     }
 
-    static bool Seen(World world, AgentId who, ThingRef t) => t.Kind switch
+    static bool Seen(World world, AgentId who, LocationFeature t) => t.Kind switch
     {
-        ThingKind.Agent or ThingKind.Body => t.Index != who.Value,
-        ThingKind.Pool => Pools.Knows(world, who, new PoolId(t.Tile, t.Index)),
-        ThingKind.Carcass or ThingKind.Stash or ThingKind.Fire or ThingKind.Shelter or ThingKind.Track or ThingKind.Sign or ThingKind.Item => true,
+        LocationFeatureKind.Agent or LocationFeatureKind.Body => t.Index != who.Value,
+        LocationFeatureKind.Pool => Pools.Knows(world, who, new PoolId(t.Tile, t.Index)),
+        LocationFeatureKind.Carcass or LocationFeatureKind.Stash or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item => true,
     };
 
-    /// A herd offers a hunt; things nobody can act on yet (a person, a body, prints) are listed with no verbs.
-    static (string Name, List<(string Label, Activity Activity, int Minutes)> Menu) Describe(World world, AgentId who, ThingRef t, Inventory? pack)
+    /// A herd offers a hunt; location features nobody can act on yet (a person, a body, prints) are listed with no verbs.
+    static (string Name, List<(string Label, Activity Activity, int Minutes)> Menu) Describe(World world, AgentId who, LocationFeature t, Inventory? pack)
     {
         var have = pack?.Kg ?? [];
         return t.Kind switch
         {
-            ThingKind.Agent => AgentVerbs(world, who, new AgentId(t.Index)),
-            ThingKind.Body => ("a body", []),
-            ThingKind.Pool => PoolVerbs(world, who, t),
-            ThingKind.Carcass => CarcassVerbs(world, who, t),
-            ThingKind.Stash => ("stash", [.. world.Tiles[t.Tile].Stash!.Kg.Select(x => ($"Take {Names.Of(x.Key)}", (Activity)new Unstash(who, x.Key, x.Value), 1))]),
-            ThingKind.Fire => FireVerbs(world, who, t, pack, have),
-            ThingKind.Shelter => ShelterVerbs(world, who, t, have),
-            ThingKind.Track => (t.TrailDirection is Direction dir ? $"{Names.Of(Tracks.TierOf(world, t.Tile, Map.Step(t.Tile, dir)))} {Names.Of(dir)}"
+            LocationFeatureKind.Agent => AgentVerbs(world, who, new AgentId(t.Index)),
+            LocationFeatureKind.Body => ("a body", []),
+            LocationFeatureKind.Pool => PoolVerbs(world, who, t),
+            LocationFeatureKind.Carcass => CarcassVerbs(world, who, t),
+            LocationFeatureKind.Stash => ("stash", [.. world.Tiles[t.Tile].Stash!.Kg.Select(x => ($"Take {Names.Of(x.Key)}", (Activity)new Unstash(who, x.Key, x.Value), 1))]),
+            LocationFeatureKind.Fire => FireVerbs(world, who, t, pack, have),
+            LocationFeatureKind.Shelter => ShelterVerbs(world, who, t, have),
+            LocationFeatureKind.Track => (t.TrailDirection is Direction dir ? $"{Names.Of(Tracks.TierOf(world, t.Tile, Map.Step(t.Tile, dir)))} {Names.Of(dir)}"
                 : $"{Names.Of((TrackMaker)t.Index)} prints", []),
-            ThingKind.Sign => throw new InvalidOperationException("Things.At listed a sign, which has no ids yet"),
-            ThingKind.Item => throw new InvalidOperationException("Things.At listed an item, which has no ids yet"),
+            LocationFeatureKind.Sign => throw new InvalidOperationException("LocationFeatures.At listed a sign, which has no ids yet"),
+            LocationFeatureKind.Item => throw new InvalidOperationException("LocationFeatures.At listed an item, which has no ids yet"),
         };
     }
 
-    static (string, List<(string, Activity, int)>) PoolVerbs(World world, AgentId who, ThingRef t)
+    static (string, List<(string, Activity, int)>) PoolVerbs(World world, AgentId who, LocationFeature t)
     {
         var def = Pools.Def(world, new PoolId(t.Tile, t.Index));
         (string, Activity, int)? verb = def switch
@@ -182,14 +182,14 @@ public static class Verbs
     static (string, List<(string, Activity, int)>) AgentVerbs(World world, AgentId who, AgentId other) =>
         (Cause.Describe(world, other), world.Agent(other).Mind is HerdMind ? [("Hunt", new Hunt(who, other), 1)] : []);
 
-    static (string, List<(string, Activity, int)>) CarcassVerbs(World world, AgentId who, ThingRef t)
+    static (string, List<(string, Activity, int)>) CarcassVerbs(World world, AgentId who, LocationFeature t)
     {
         var c = Carcasses.Find(world, t.Tile, t.Index)!;
         var modes = c.Mode is ButcherMode begun ? [begun] : Enum.GetValues<ButcherMode>();
         return (c.Animal, [.. modes.Select(mode => ($"Butcher ({Names.Of(mode)})", (Activity)new Butcher(who, c.Id, mode), UntilDoneMinutes))]);
     }
 
-    static (string, List<(string, Activity, int)>) FireVerbs(World world, AgentId who, ThingRef t, Inventory? pack, IReadOnlyDictionary<Resource, double> have)
+    static (string, List<(string, Activity, int)>) FireVerbs(World world, AgentId who, LocationFeature t, Inventory? pack, IReadOnlyDictionary<Resource, double> have)
     {
         var pit = world.Fires[new FireId(t.Index)];
         var menu = new List<(string, Activity, int)>();
@@ -203,7 +203,7 @@ public static class Verbs
         return ($"fire ({Names.Of(Fire.Phase(pit))})", menu);
     }
 
-    static (string, List<(string, Activity, int)>) ShelterVerbs(World world, AgentId who, ThingRef t, IReadOnlyDictionary<Resource, double> have)
+    static (string, List<(string, Activity, int)>) ShelterVerbs(World world, AgentId who, LocationFeature t, IReadOnlyDictionary<Resource, double> have)
     {
         var s = Shelters.Peek(world, t.Tile)!;
         var menu = new List<(string, Activity, int)>();
@@ -216,13 +216,13 @@ public static class Verbs
     }
 
     /// Today only the access gates in force (Access.Blocker); modifying conditions (wet, spoiled) arrive with the effects kernel.
-    static List<Condition> Conditions(World world, AgentId who, ThingRef t) =>
+    static List<Condition> Conditions(World world, AgentId who, LocationFeature t) =>
         Access.Blocker(world, who, t) is { Gate: not Access.Gate.None } b ? [new Condition(ConditionName(b.Gate), Blocking: true)] : [];
 
     static string ConditionName(Access.Gate gate) => gate switch
     {
         Access.Gate.Buried => "buried",
-        Access.Gate.Guarded => "occupied",
+        Access.Gate.Occupied => "occupied",
         Access.Gate.FrozenIn => "frozen in",
         Access.Gate.AcrossWater => "across water",
         _ => throw new ArgumentOutOfRangeException(nameof(gate), gate, "Not one condition"),

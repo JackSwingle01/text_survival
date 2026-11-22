@@ -612,7 +612,7 @@ public class ShelterTests
         var npc = Npc.Spawn(w, tile);
         string before = System.Text.Json.JsonSerializer.Serialize(w.Shelters) + System.Text.Json.JsonSerializer.Serialize(w.WaitingShelters);
         Pools.Search(w, w.Agent(npc), 1000, []);
-        Assert.Contains(new PoolId(tile, pool), ((PersonMind)w.Agent(npc).Mind).Knows.Discovered);
+        Assert.Contains(new PoolId(tile, pool), ((PersonMind)w.Agent(npc).Mind).Memory.Discovered);
         Assert.Empty(w.WaitingShelters);
         Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(w.Shelters) + System.Text.Json.JsonSerializer.Serialize(w.WaitingShelters));
         Assert.DoesNotContain(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find");

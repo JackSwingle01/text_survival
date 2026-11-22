@@ -280,7 +280,7 @@ public class ConservationItemsTests
             _ => new StockPool("Bush", StockKind.Harvest, 5, [new StockItem(Resource.Berries, 5, 0.4, 168)], RevealAtHours: 0),
         };
         w.PoolCache = new() { [camp] = [pool] };
-        ((PersonMind)w.Agent(P).Mind).Knows.Discovered.Add(new PoolId(camp, 0));
+        ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(camp, 0));
         var pack = Items.Pack(w, P);
         pack.Gear.Add(Items.Make("stone_axe"));
         if (s.FillKg > 0) Items.Add(pack, Resource.Stone, s.FillKg);

@@ -1,5 +1,5 @@
 {
-  "Version": 11,
+  "Version": 12,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -724,7 +724,7 @@
               }
             ]
           },
-          "Knows": {
+          "Memory": {
             "Discovered": [],
             "SearchHours": {},
             "Places": {
@@ -1319,7 +1319,7 @@
               }
             ]
           },
-          "Knows": {
+          "Memory": {
             "Discovered": [],
             "SearchHours": {},
             "Places": {
@@ -2109,7 +2109,7 @@
           "State": 0,
           "StateSinceMinute": 1,
           "Fear": 0,
-          "LastFightMinute": -1000000,
+          "LastEncounterMinute": -1000000,
           "FleeFrom": null,
           "Foray": null,
           "LastFedMinute": 0

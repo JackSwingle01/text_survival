@@ -92,7 +92,7 @@ public static class Work
                     if (g.Pool < 0 || g.Pool >= pools.Count) return "nothing like that here";
                     var id = new PoolId(agent.Tile, g.Pool);
                     if (!Pools.Knows(world, agent.Id, id)) return "nothing like that here"; // a hidden pool names nothing yet
-                    if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Pool, agent.Tile, g.Pool)) is string barred) return barred;
+                    if (Access.Refusal(world, agent.Id, new LocationFeature(LocationFeatureKind.Pool, agent.Tile, g.Pool)) is string barred) return barred;
                     var def = pools[g.Pool];
                     if (NeedsLight(world, agent, activity) && TooDarkToWork(world, agent)) return TooDark;
                     return def switch
@@ -111,7 +111,7 @@ public static class Work
                 {
                     var c = Carcasses.Find(world, agent.Tile, b.Carcass);
                     if (c == null) return "no such carcass here";
-                    if (Access.Refusal(world, agent.Id, new ThingRef(ThingKind.Carcass, agent.Tile, c.Id)) is string barred) return barred;
+                    if (Access.Refusal(world, agent.Id, new LocationFeature(LocationFeatureKind.Carcass, agent.Tile, c.Id)) is string barred) return barred;
                     if (Carcasses.IsButchered(c)) return "there's nothing left to butcher";
                     if (b.Mode is ButcherMode asked && c.Mode is ButcherMode started && asked != started)
                         return $"this carcass is being butchered {Names.Of(started)}, not {Names.Of(asked)}";
@@ -144,7 +144,7 @@ public static class Work
                 if (u.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), u.Kg, "Take a positive amount");
                 var stash = world.Tiles.GetValueOrDefault(agent.Tile)?.Stash;
                 if (stash == null || Items.Have(stash, u.Resource) <= 0) return $"no {Names.Of(u.Resource)} stashed here";
-                if (Access.Refusal(world, agent.Id, Things.StashAt(world, agent.Tile)!.Value) is string unstashBarred) return unstashBarred;
+                if (Access.Refusal(world, agent.Id, LocationFeatures.StashAt(world, agent.Tile)!.Value) is string unstashBarred) return unstashBarred;
                 return Items.CarriedKg(agent) >= Items.CapacityKg(pack) ? "your pack is full" : null;
             case Wear w:
                 var gear = pack.Gear.FirstOrDefault(x => x.Kind == w.Gear);
@@ -224,7 +224,7 @@ public static class Work
                 {
                     double kg = Items.TakeFromStash(world, agent.Tile, u.Resource, Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent)));
                     Items.Add(pack, u.Resource, kg);
-                    bool taken = agent.Mind is not PersonMind || Knowledge.CampOf(world, agent) != agent.Tile;
+                    bool taken = agent.Mind is not PersonMind || Memories.CampOf(world, agent) != agent.Tile;
                     events.Add(new Unstashed(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken));
                     return new WorkSession { Activity = activity };
                 }

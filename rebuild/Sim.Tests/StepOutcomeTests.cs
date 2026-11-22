@@ -57,7 +57,7 @@ public class StepOutcomeTests
         Assert.True(r.MinutesElapsed < Verbs.SleepMinutes);
     }
 
-    /// A fight the player wins ends its last round Finished: Combat.EndRound's "fight over" is Sim.FightOver.
+    /// A fight the player wins ends its last round Finished: Combat.EndRound's "fight over" is Sim.EncounterOver.
     [Fact]
     public void AFightThatEnds_Finished()
     {
@@ -66,7 +66,7 @@ public class StepOutcomeTests
         Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], camp, 10, Awareness.Engaged, Awareness.Engaged);
         w.Agent(wolf).Body.BloodPct = 0;
         var r = Sim.Step(w, new Fight(P, CombatAction.Wait), 1);
-        Assert.Equal((StepOutcome.Finished, Sim.FightOver), (r.Outcome, r.Reason));
+        Assert.Equal((StepOutcome.Finished, Sim.EncounterOver), (r.Outcome, r.Reason));
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class StepOutcomeTests
         var wolf = Agents.Spawn(w, Species.Wolf, camp, 1);
         Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], camp, 10, Awareness.Engaged, Awareness.Engaged);
         var r = Sim.Step(w, new Wait(P), 5);
-        Assert.Equal((StepOutcome.Refused, Sim.InAFight), (r.Outcome, r.Reason));
+        Assert.Equal((StepOutcome.Refused, Sim.InAnEncounter), (r.Outcome, r.Reason));
     }
 
     [Fact]

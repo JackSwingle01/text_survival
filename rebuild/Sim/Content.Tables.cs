@@ -60,7 +60,7 @@ public static partial class Content
         double AttackDamage, DamageType AttackType, double Threat, double Boldness, double Aggression, double Cohesion,
         int MoveAllowanceM, double ReachM, string Temperament, HerdBehavior Behavior, Diet Diet,
         double TopSpeedMps, double EnduranceSpeedMps, double SprintSeconds, double RunCostJPerKgM, double BurstPct, double GrazeKcalPerMinute,
-        double StrikeBackMargin, double ChaseLimitSeconds,
+        double StrikeBackResolve, double ChaseLimitSeconds,
         FatRange? AutumnFatPct = null, PersonBuild? Female = null);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
         double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
@@ -268,7 +268,7 @@ public static partial class Content
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
             r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
-            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackMargin, r.ChaseLimitSeconds, r.AutumnFatPct, r.Female);
+            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.AutumnFatPct, r.Female);
 
     /// A recipe's materials in kilos: pieces of the first material's nominal piece.
     static StructureRecipe ToRecipe(RecipeRow r, IReadOnlyDictionary<Resource, ShelterMaterial> materials) =>
@@ -438,7 +438,7 @@ public static partial class Content
                 yield return $"{at}: attackDamage and threat above 0, boldness and cohesion not below, aggression in 0-1";
             if (HerdBehaviorProblem(r) is string bad) yield return $"{at}: {bad}";
             if (RunningProblem(r.TopSpeedMps, r.EnduranceSpeedMps) is string slow) yield return $"{at}: {slow}";
-            if (r.StrikeBackMargin is < -1 or > 0) yield return $"{at}: strikeBackMargin in -1 to 0 (a giving-ground margin)";
+            if (r.StrikeBackResolve is < -1 or > 0) yield return $"{at}: strikeBackResolve in -1 to 0 (a giving-ground resolve)";
             if (r.ChaseLimitSeconds <= 0) yield return $"{at}: chaseLimitSeconds above 0";
             if (r.SprintSeconds <= 0 || r.RunCostJPerKgM <= 0 || r.BurstPct is <= 0 or > 1 || r.GrazeKcalPerMinute < 0)
                 yield return $"{at}: sprintSeconds and runCostJPerKgM above 0, burstPct in 0-1, grazeKcalPerMinute not below 0";

@@ -64,7 +64,7 @@ public class HerdTests(ITestOutputHelper output)
             kills++;
             tile = kill.Tile; // where the chase ended, if the caribou ran
             Assert.NotEqual(tile, w.Agent(P).Tile); // the player was at camp throughout
-            Assert.Contains(events.OfType<FightEnded>(), f => f.Agent == wolves);
+            Assert.Contains(events.OfType<EncounterEnded>(), f => f.Agent == wolves);
             // The carcass is on the tile and the pack has eaten into it.
             Assert.True(w.Agents.ContainsKey(wolves));
             Assert.Contains(events.OfType<Killed>(), k => k.Agent == caribou);
@@ -86,7 +86,7 @@ public class HerdTests(ITestOutputHelper output)
         var (wolves, _, _) = PackAndPrey(w);
         Mind(w, wolves).Fear = 1.0; // fades at 0.015 a minute: still frightened for half an hour
         var events = Idle(w, 30);
-        Assert.DoesNotContain(events.OfType<FightEnded>(), f => f.Agent == wolves);
+        Assert.DoesNotContain(events.OfType<EncounterEnded>(), f => f.Agent == wolves);
     }
 
     // ---- gate: a wounded animal splits into its own agent and is tracked ----
@@ -229,7 +229,7 @@ public class HerdTests(ITestOutputHelper output)
         var a = Planted(5);
         a.Agent(P).Members[0] = BodyState.BaselineHuman();
         var events = Sim.Advance(a, 3 * 1440);
-        Assert.Contains(events, e => e is FightEnded); // the planted hunt, at least
+        Assert.Contains(events, e => e is EncounterEnded); // the planted hunt, at least
         string straight = Save.ToJson(a);
 
         var b = Planted(5);
@@ -343,7 +343,7 @@ public class HerdTests(ITestOutputHelper output)
         var w = World.New(1);
         var tile = Quiet(w);
         var pack = Agents.Spawn(w, Species.Wolf, tile, 4);
-        Fauna.AfterFight(w, pack, CombatResult.Fled, killedOne: false, tile);
+        Fauna.AfterEncounter(w, pack, CombatResult.Fled, killedOne: false, tile);
         Assert.Equal(HerdState.Fleeing, Mind(w, pack).State);
         var events = Sim.Advance(w, 120);
         Assert.Single(events.OfType<Moved>(), m => m.Who == pack);
@@ -507,7 +507,7 @@ public class HerdTests(ITestOutputHelper output)
                     : gap <= 10 && acts.Contains(CombatAction.Throw) ? CombatAction.Throw
                     : acts.Contains(CombatAction.Advance) ? CombatAction.Advance : CombatAction.Wait;
                 var r = Sim.Step(w, new Fight(P, act, target == null ? null : enc.Units.IndexOf(target)), 1);
-                result = r.Events.OfType<FightEnded>().FirstOrDefault(f => f.Agent == P)?.Result;
+                result = r.Events.OfType<EncounterEnded>().FirstOrDefault(f => f.Agent == P)?.Result;
             }
             output.WriteLine($"seed {seed}: {result}");
             // A kill is a carcass, even when the rest of the herd ran (AnimalFled).
@@ -632,7 +632,7 @@ public class HerdTests(ITestOutputHelper output)
         long allocatedMB = (GC.GetAllocatedBytesForCurrentThread() - allocatedBefore) / (1024 * 1024);
         int json = Save.ToJson(w).Length;
         output.WriteLine($"30 days, {Herds(w).Count()} herds: {clock.Elapsed.TotalSeconds:F1}s, {allocatedMB} MB allocated, {events.OfType<Moved>().Count()} moves, " +
-                         $"{events.OfType<FightEnded>().Count()} fight sides, {events.OfType<Killed>().Count()} killed; save {json / 1024} KB");
+                         $"{events.OfType<EncounterEnded>().Count()} fight sides, {events.OfType<Killed>().Count()} killed; save {json / 1024} KB");
         // Cost is budgeted in bytes allocated, not seconds: the sim is single-threaded, so this thread's
         // allocation is deterministic for a seed and blind to machine load, and it tracks the work done
         // (about 2.1 GB in 2.5 s when this was written). Wall clock flaked at 13-21 s under parallel suites;
@@ -798,7 +798,7 @@ public class HerdTests(ITestOutputHelper output)
             var bodies = w.Agent(wolves).Members.Concat(w.Agent(caribou).Members).Append(w.Agent(P).Body).ToList();
             foreach (var b in bodies) Trace(b);
             var events = playerSteps ? Sim.Step(w, new Wait(P), 40).Events : Sim.Advance(w, 40);
-            if (!events.OfType<FightEnded>().Any(f => f.Agent == wolves)) continue;
+            if (!events.OfType<EncounterEnded>().Any(f => f.Agent == wolves)) continue;
             hunts++;
             AssertEachLivedOnce(bodies, 40, $"seed {seed} pack hunt");
         }
@@ -819,7 +819,7 @@ public class HerdTests(ITestOutputHelper output)
             var bodies = new[] { w.Agent(npc).Body, w.Agent(wolf).Members[0], w.Agent(P).Body };
             foreach (var b in bodies) Trace(b);
             var events = Sim.Advance(w, 30);
-            if (!events.OfType<FightEnded>().Any(f => f.Agent == npc)) continue;
+            if (!events.OfType<EncounterEnded>().Any(f => f.Agent == npc)) continue;
             fights++;
             // A headless fight lives its rounds ahead of the clock (Combat.RunRounds): those minutes are lived
             // already, and the clock skips them when it gets there.
@@ -911,7 +911,7 @@ public class HerdLongRunTests(ITestOutputHelper output)
         string? worstWho = null;
         for (int hour = 0; hour < Days * 24; hour++)
         {
-            foreach (var f in Sim.Advance(w, 60).OfType<FightEnded>().Where(f => packs.Contains(f.Agent))) hunts[f.Agent] = hunts.GetValueOrDefault(f.Agent) + 1;
+            foreach (var f in Sim.Advance(w, 60).OfType<EncounterEnded>().Where(f => packs.Contains(f.Agent))) hunts[f.Agent] = hunts.GetValueOrDefault(f.Agent) + 1;
             foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind))
             {
                 bool wantsToMove = ((HerdMind)h.Mind).State is HerdState.Patrolling or HerdState.Grazing or HerdState.Fleeing;

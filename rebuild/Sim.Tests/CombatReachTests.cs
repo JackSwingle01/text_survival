@@ -154,7 +154,7 @@ public class CombatReachTests
         var (w, e) = PlayerVs(Species.Wolf, 6, "wooden_spear");
         var wolf = B(e);
         wolf.State = FighterState.Standoff;
-        wolf.BoldnessModifier += -0.25 - Combat.Margin(w, e, wolf, Me(e)); // margin -0.25: inside Standoff, past the deadband
+        wolf.BoldnessModifier += -0.25 - Combat.Resolve(w, e, wolf, Me(e)); // resolve -0.25: inside Standoff, past the deadband
         double gap = wolf.Position.DistanceTo(Me(e).Position);
         var (action, to, _) = Combat.ChooseAction(w, e, wolf);
         Assert.Equal(CombatAction.Move, action);

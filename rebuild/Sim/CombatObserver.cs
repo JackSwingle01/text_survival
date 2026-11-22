@@ -9,16 +9,16 @@ public interface ICombatObserver
 }
 
 /// The grid at the end of a round. Round zero is the placement, before anyone acts. Events are the
-/// WorldEvents this round raised (Injured, Killed, Died, FightEnded...). Fire is the burning pit's cell
+/// WorldEvents this round raised (Injured, Killed, Died, EncounterEnded...). Fire is the burning pit's cell
 /// (Encounter.FireCell), or null when no pit burns on the tile.
 public sealed record CombatRoundView(int Round, IReadOnlyList<FighterView> Fighters, Cell? Fire, IReadOnlyList<WorldEvent> Events);
 
 /// One unit of Encounter.Units, by its index there. Action and Target are what it did this round (null in
-/// round zero, or if it did nothing); State is Combat.StateOf; Margin is Combat.Margin toward its target
+/// round zero, or if it did nothing); State is Combat.StateOf; Resolve is Combat.Resolve toward its target
 /// (null with no target). The body numbers are read as the round ends, or null once the body is gone
 /// (a herd member removed when it died).
 public sealed record FighterView(int Index, AgentId Agent, int Member, int Team, Species Species,
-    Cell Position, FighterState State, CombatAction? Action, int? Target, double? Margin,
+    Cell Position, FighterState State, CombatAction? Action, int? Target, double? Resolve,
     double? Boldness, double? Vitality, double? BloodPct, double? SprintReservePct, double? WoundLevel);
 
 public static partial class Combat
@@ -53,7 +53,7 @@ public static partial class Combat
             bool targetReads = target != null && world.Agents.TryGetValue(target.Agent, out var t) && target.Member < t.Members.Count;
             return new FighterView(i, u.Agent, u.Member, u.Team, agent?.Species ?? enc.ObservedSpecies![u.Agent], u.Position,
                 body == null ? FighterState.Down : StateOf(world, u), u.RoundAction, u.RoundTarget,
-                targetReads ? Margin(world, enc, u, target!) : null, reads ? UnitBoldness(world, enc, u) : null,
+                targetReads ? Resolve(world, enc, u, target!) : null, reads ? UnitBoldness(world, enc, u) : null,
                 body == null ? null : Body.Vitality(body), body?.BloodPct, body == null ? null : Body.SprintReservePct(body),
                 body == null ? null : WoundLevel(body));
         }).ToList();

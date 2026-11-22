@@ -124,9 +124,9 @@ public class NpcShuttleTests(ITestOutputHelper output)
         Items.Add(Items.StashAt(w, pile), Resource.Kindling, 1.5);
         Items.Add(Items.StashAt(w, pile), Resource.Birch, 8);
         w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute };
-        Knowledge.Observe(w, agent, []);
-        mind.Knows.Places[pile] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Kindling] = 1.5, [Resource.Birch] = 8 } };
-        Assert.NotNull(mind.Knows.Places[camp].Shelter);
+        Memories.Observe(w, agent, []);
+        mind.Memory.Places[pile] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, Stash = new() { [Resource.Kindling] = 1.5, [Resource.Birch] = 8 } };
+        Assert.NotNull(mind.Memory.Places[camp].Shelter);
         var camps = new List<TileId>();
         var lit = new List<TileId>();
         while (w.Minute < 8 * 1440L + (29 - 9) * 60 && Body.IsAlive(agent.Body)) // until 05:00
@@ -215,8 +215,8 @@ public class NpcShuttleTests(ITestOutputHelper output)
         Items.Add(stash, Resource.Kindling, 0.094);
         Items.Add(stash, Resource.Oak, 16.2);
         w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute };
-        Knowledge.Observe(w, agent, []);
-        Assert.Equal(0.1, mind.Knows.Places[camp].Stash![Resource.Kindling]);
+        Memories.Observe(w, agent, []);
+        Assert.Equal(0.1, mind.Memory.Places[camp].Stash![Resource.Kindling]);
         double atCamp = Npc.ReckonedCampFuelHours(w, agent);
         agent.Tile = new TileId(5, 45);
         double aTileOut = Npc.ReckonedCampFuelHours(w, agent);

@@ -19,7 +19,7 @@ public class WorkTests
     static readonly TreePool Trees = new("Trees", Resource.Birch, 100);
     static StockPool Bush() => new("Bush", StockKind.Harvest, 5, [new StockItem(Resource.Berries, 5, 0.4, 168)], RevealAtHours: 0);
 
-    static void Know(World w, int pool) => ((PersonMind)w.Agent(P).Mind).Knows.Discovered.Add(new PoolId(Map.Of(w).Camp, pool));
+    static void Know(World w, int pool) => ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(Map.Of(w).Camp, pool));
     static void Axe(World w) => Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
     static void FastForwardTo(World w, int hour) { while (Weather.MinuteOfDay(w.Minute) / 60 != hour) w.Minute++; }
     static void LightAPit(World w) =>

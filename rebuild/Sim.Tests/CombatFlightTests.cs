@@ -177,7 +177,7 @@ public class CombatFlightTests
         var npc = Npc.Spawn(w, t);
         var e = Combat.Create(w, [new Fighter(npc)], [new Fighter(wolf)], t, 2, Awareness.Engaged, Awareness.Engaged);
         e.Units[1].State = FighterState.Pressing;
-        e.Units[0].BoldnessModifier = -3; // its margin says run
+        e.Units[0].BoldnessModifier = -3; // its resolve says run
         Combat.AiTurn(w, e, e.Units[0], []);
         Assert.Equal(FighterState.GivingGround, e.Units[0].State);
         Assert.True(e.Units[0].InField);
@@ -243,7 +243,7 @@ public class CombatFlightTests
             var r = Sim.Step(w, new Fight(P, CombatAction.Chase), 1);
             if (w.Encounters.Contains(e)) { caught = true; Assert.True(wolf.InField); continue; }
             lost = true;
-            Assert.Equal(CombatResult.AnimalFled, r.Events.OfType<FightEnded>().Single(f => f.Agent == P).Result);
+            Assert.Equal(CombatResult.AnimalFled, r.Events.OfType<EncounterEnded>().Single(f => f.Agent == P).Result);
             Assert.NotNull(r.Events.OfType<WoundedEscaped>().Single().Heading);
         }
         Assert.True(caught && lost, $"caught {caught}, lost {lost} at legs {legs}");

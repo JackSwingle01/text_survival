@@ -23,7 +23,7 @@ const S = {
   walking: false,
   displayMinute: null,   // the clock as shown while time is being played out
   selected: null,
-  openThing: null,       // the thing whose Interact menu is open
+  openFeature: null,       // the location feature whose Interact menu is open
   makeSel: null,         // the recipe selected in the make drawer
   strikes: [],           // this fire's strikes: true caught, false failed
   lastLog: 0,
@@ -32,11 +32,11 @@ window.ui = { S, ready: null, client }; // for the headless checks (tools/shots.
 
 // ---------------------------------------------------------------- verbs, read off the view
 
-const allVerbs = v => [...v.things.flatMap(t => t.menu), ...v.walk, ...v.tile, ...v.packVerbs, ...v.make];
+const allVerbs = v => [...v.locationFeatures.flatMap(t => t.menu), ...v.walk, ...v.tile, ...v.packVerbs, ...v.make];
 const byId = id => allVerbs(S.view).find(x => x.id === id) ?? S.view.combat?.actions.find(x => x.id === id);
-const fireThing = v => v.things.find(t => t.kind === 'fire');
+const fireFeature = v => v.locationFeatures.find(t => t.kind === 'fire');
 /** The verb that lights a fire here: the tile's "Start a fire", or the cold pit's own "Light the fire". */
-const lightVerb = v => v.tile.find(x => x.kind === 'fire') ?? fireThing(v)?.menu.find(x => x.kind === 'fire');
+const lightVerb = v => v.tile.find(x => x.kind === 'fire') ?? fireFeature(v)?.menu.find(x => x.kind === 'fire');
 const walkVerb = (v, dir, careful = false) => v.walk.find(w => w.dir === dir && w.careful === careful);
 const DIRS = { north: [0, -1], east: [1, 0], south: [0, 1], west: [-1, 0] };
 const dirTo = (from, to) => Object.keys(DIRS).find(d => from.x + DIRS[d][0] === to.x && from.y + DIRS[d][1] === to.y);
@@ -199,13 +199,13 @@ function verbButton(vb, { name = vb.label, sub = verbTime(vb), key = '', open = 
 
 function dockVerbs(v) {
   const out = [];
-  const fire = fireThing(v), light = lightVerb(v);
+  const fire = fireFeature(v), light = lightVerb(v);
   if (fire) out.push(verbButton(fire.menu[0] ?? light, { name: 'Tend fire', sub: `${fire.name.replace(/^fire \(|\)$/g, '')}${v.fire?.burning ? ` · ${dur(v.fire.fuelHours * 60)} fuel` : ''}`, key: 'F', open: 'fire' }));
   else if (light) out.push(verbButton(light, { name: 'Start fire', sub: light.odds ? `${pct(light.odds.totalPct)} chance` : verbTime(light), key: 'F', open: 'fire' }));
-  for (const t of v.things) {
+  for (const t of v.locationFeatures) {
     if (t.kind === 'fire' || t.menu.length === 0) continue;
     if (t.action) { const a = t.menu.find(x => x.id === t.action); out.push(verbButton(a, { sub: a.refused ? '' : a.label.toLowerCase() === t.name.toLowerCase() ? verbTime(a) : `${t.name} · ${verbTime(a)}`, key: a.kind === 'gather' && a.label === 'Forage' ? 'G' : '' })); }
-    else if (t.interact) out.push(verbButton({ ...t.menu[0], label: cap(t.name), refused: null }, { name: cap(t.name), sub: `${t.menu.length} things to do`, open: `thing:${v.things.indexOf(t)}` }));
+    else if (t.interact) out.push(verbButton({ ...t.menu[0], label: cap(t.name), refused: null }, { name: cap(t.name), sub: `${t.menu.length} things to do`, open: `feature:${v.locationFeatures.indexOf(t)}` }));
   }
   for (const vb of v.tile) {
     if (vb.kind === 'fire') continue;
@@ -236,7 +236,7 @@ document.addEventListener('click', e => {
   if (b.dataset.verb) return run(b.dataset.verb);
   if (b.dataset.open) {
     const o = b.dataset.open;
-    if (o.startsWith('thing:')) { S.openThing = +o.slice(6); return openDrawer({ kind: 'here' }); }
+    if (o.startsWith('feature:')) { S.openFeature = +o.slice(8); return openDrawer({ kind: 'here' }); }
     if (o.startsWith('recipe:')) { S.makeSel = o.slice(7); return renderDrawer(); }
     if (S.drawer?.kind === o) return closeDrawer();
     return openDrawer({ kind: o });
@@ -244,7 +244,7 @@ document.addEventListener('click', e => {
   const act = b.dataset.act;
   if (act === 'close') closeDrawer();
   else if (act === 'stop') S.stop = true;
-  else if (act === 'menu') { S.openThing = S.openThing === +b.dataset.i ? null : +b.dataset.i; renderDrawer(); }
+  else if (act === 'menu') { S.openFeature = S.openFeature === +b.dataset.i ? null : +b.dataset.i; renderDrawer(); }
   else if (act === 'back') openDrawer({ kind: b.dataset.to });
   else if (act === 'continue') closeVeil();
   else if (act === 'save') doSave();
@@ -306,12 +306,12 @@ function fireBlock(v) {
 function renderHere(d, v) {
   const p = v.place;
   head(p.camp ? 'shelter' : 'ui/location', p.name, p.name !== p.terrain ? `<span class="terrain-chip">${esc(p.terrain)}</span>` : '');
-  const things = v.things.map((t, i) => {
+  const features = v.locationFeatures.map((t, i) => {
     const conds = t.conditions.map(c => `<span class="cond">${esc(c.name)}</span>`).join('');
     const action = t.action ? t.menu.find(x => x.id === t.action) : null;
-    const open = S.openThing === i;
+    const open = S.openFeature === i;
     if (action && !conds && action.label.toLowerCase() === t.name.toLowerCase()) return menuItem(action);
-    return `<div class="thing"><div class="thing-h"><b>${px(cap(t.name))}</b>${conds}
+    return `<div class="feature"><div class="feature-h"><b>${px(cap(t.name))}</b>${conds}
         ${action ? '' : t.interact ? `<button class="xbtn" data-act="menu" data-i="${i}">${open ? 'CLOSE' : 'INTERACT'}</button>` : t.menu.length === 0 ? '<span class="muted">nothing to do</span>' : ''}</div>
       ${action ? `<div class="menu">${menuItem(action)}</div>` : ''}
       ${open ? `<div class="menu">${t.menu.map(x => menuItem(x)).join('')}</div>` : ''}</div>`;
@@ -325,14 +325,14 @@ function renderHere(d, v) {
   $('sideBody').innerHTML = `
     ${p.story ? `<p class="story">${esc(p.story)}</p>` : ''}
     ${v.fire ? section('Fire', fireBlock(v)) : ''}
-    ${things ? section('Here', `<div class="menu">${things}</div>`) : ''}
+    ${features ? section('Here', `<div class="menu">${features}</div>`) : ''}
     ${section('Exits', `<div class="exits">${exits}</div>`)}
     ${section('Stay', `<div class="menu">${v.tile.map(x => menuItem(x)).join('')}</div>`)}`;
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-trip]'); if (b && !S.busy) openTrip(b.dataset.trip); });
 
 function renderFire(d, v) {
-  const fire = fireThing(v), light = lightVerb(v);
+  const fire = fireFeature(v), light = lightVerb(v);
   head('fire', fire && v.fire?.burning ? 'The fire' : 'Start a fire', costChip('1 min'));
   const hist = S.strikes.length ? `<div class="hist" ${tip('Strikes', [`${S.strikes.filter(Boolean).length} of ${S.strikes.length} caught`])}>${S.strikes.map(s => `<span class="${s ? 's' : 'f'}"></span>`).join('')}</div>` : '';
   const result = d.result ? `<div class="result-line ${d.result.good ? 'good' : 'bad'} ${d.result.good ? 'flash' : 'shake'}">${esc(d.result.text)}</div>` : '';
@@ -507,15 +507,15 @@ function renderJob(d, v) {
 
 // ---------------------------------------------------------------- the fight
 
-function renderFight() {
+function renderCombat() {
   const c = S.view.combat;
-  $('world').hidden = !!c; $('grid').hidden = !c; $('fightside').hidden = !c;
+  $('world').hidden = !!c; $('grid').hidden = !c; $('combatside').hidden = !c;
   if (!c) return;
   const units = c.units.map(u => `<div class="unit ${u.inField ? '' : 'out'} ${u.index === c.target ? 'target' : ''}"><img src="${src(u.isPlayer ? 'player' : u.species)}" alt="">
     <span><b>${esc(u.name)}</b><small>${esc(u.condition)}${u.isPlayer ? '' : ` · ${esc(u.state)}`}${u.weapon ? ` · ${esc(u.weapon)}` : ''}${u.inField ? '' : ' · out of the fight'}</small></span>
     <span class="c">${u.team === 0 ? '' : u.index === c.target ? 'target' : ''}</span></div>`).join('');
   const recent = c.lines.slice(-5).reverse();
-  $('fightside').innerHTML = `<div class="side-head">${img('ui/target', 'ico x2')}<h2>Fight</h2><span class="cost num">round ${c.round}</span></div>
+  $('combatside').innerHTML = `<div class="side-head">${img('ui/target', 'ico x2')}<h2>Fight</h2><span class="cost num">round ${c.round}</span></div>
     <div class="side-body"><div class="sec"><div class="sec-h"><span class="label">Range</span><span class="zone">${esc(c.zone)} · ${c.targetM} m</span></div>
       <p class="note">Click the ground to move, up to ${c.moveM} m a round.</p></div>
       ${section('On the ground', `<div class="place-feats">${units}</div>`)}
@@ -630,7 +630,7 @@ document.addEventListener('keydown', e => {
     const light = lightVerb(v);
     if (S.drawer?.kind === 'fire' && light && !v.fire?.burning) run(light.id); else openDrawer({ kind: 'fire' });
   }
-  else if (key === 'g') { const f = v.things.flatMap(t => t.menu).find(x => x.label === 'Forage'); if (f) run(f.id); }
+  else if (key === 'g') { const f = v.locationFeatures.flatMap(t => t.menu).find(x => x.label === 'Forage'); if (f) run(f.id); }
   else if (key === 'z') { const s = v.tile.find(x => x.kind === 'sleep'); if (s) run(s.id); }
   else if (key === 'w') { const s = v.tile.find(x => x.kind === 'wait'); if (s) run(s.id); }
   else if (key === 'm') S.drawer?.kind === 'make' ? closeDrawer() : openDrawer({ kind: 'make' });
@@ -671,7 +671,7 @@ async function loadBytes(bytes, note) {
 
 function render() {
   if (!S.view) return;
-  renderTop(); renderStatus(); renderDock(); renderFight(); renderDrawer(); renderEnd();
+  renderTop(); renderStatus(); renderDock(); renderCombat(); renderDrawer(); renderEnd();
 }
 
 async function newGame(seed) {

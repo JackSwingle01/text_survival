@@ -1,18 +1,18 @@
 namespace Survival;
 
-/// The closed vocabulary of what a thing is, for access and verbs (emergent-world-design §3.3). Computed, never stored.
+/// The closed vocabulary of what a location feature is, for access and verbs (emergent-world-design §3.3). Computed, never stored.
 /// Adding a tag for one situation is the failure mode; adding one at all is a visible code change.
 [Flags]
 public enum Tag : ulong
 {
     None = 0,
-    Occupied = 1UL << 0, Owned = 1UL << 1, Guarded = 1UL << 2, Sealed = 1UL << 3, Buried = 1UL << 4,
+    Inhabited = 1UL << 0, Owned = 1UL << 1, Occupied = 1UL << 2, Sealed = 1UL << 3, Buried = 1UL << 4,
     FrozenIn = 1UL << 5, Elevated = 1UL << 6, Unstable = 1UL << 7, ScentSource = 1UL << 8, Edible = 1UL << 9,
     Harvestable = 1UL << 10, Sheltering = 1UL << 11, Burnable = 1UL << 12, Fresh = 1UL << 13, Contested = 1UL << 14,
     Depleted = 1UL << 15, Beacon = 1UL << 16, Hostile = 1UL << 17, Unaware = 1UL << 18, Wounded = 1UL << 19,
 }
 
-/// What carried gear lets someone do to a thing. Each gear row in Content/items.json lists its own.
+/// What carried gear lets someone do to a location feature. Each gear row in Content/items.json lists its own.
 [Flags]
 public enum Capability
 {
@@ -42,8 +42,8 @@ public static class Capabilities
 /// and Buried for a carcass, stash or body (no placement elevation: the snow under and over them is one depth).
 public static class Tags
 {
-    /// How far a guard holds its ground around what it guards, in tiles (0: its own tile).
-    public const int GuardRadiusTiles = 0;
+    /// How far an occupant holds its ground around what it occupies, in tiles (0: its own tile).
+    public const int OccupantRadiusTiles = 0;
     /// Decay under 0.2 is the first four effective hours.
     public const double FreshDecayLevel = 0.2;
     public const double FreshPrintsPct = 0.5;
@@ -51,34 +51,34 @@ public static class Tags
     /// Matches the aftermath's threshold for a trail to follow.
     public const double WoundedLevel = 0.05;
 
-    /// A viewer makes the relative tags relative to them: Owned and Guarded never count the viewer, Hostile needs one.
-    public static Tag Of(World world, ThingRef t, AgentId? viewer = null)
+    /// A viewer makes the relative tags relative to them: Owned and Occupied never count the viewer, Hostile needs one.
+    public static Tag Of(World world, LocationFeature t, AgentId? viewer = null)
     {
-        Things.Require(world, t);
+        LocationFeatures.Require(world, t);
         var state = world.Tiles.GetValueOrDefault(t.Tile);
         var tags = t.Kind switch
         {
-            ThingKind.Agent => OfAgent(world, world.Agent(new AgentId(t.Index)), viewer),
-            ThingKind.Body => OfBody(world, world.Agent(new AgentId(t.Index))),
-            ThingKind.Carcass => OfCarcass(world, t.Tile, Carcasses.Find(world, t.Tile, t.Index)!, viewer),
-            ThingKind.Pool => OfPool(world, new PoolId(t.Tile, t.Index)),
-            ThingKind.Stash => OfInventory(state!.Stash!) | OwnedBy(world, state.StashCause, viewer),
-            ThingKind.Fire => OwnedBy(world, world.Fires[new FireId(t.Index)].Cause, viewer),
-            ThingKind.Shelter => OfShelter(world, t.Tile, Shelters.Peek(world, t.Tile)!, viewer),
-            ThingKind.Track => t.TrailDirection != null ? Tag.None // a desire path is a way, not a thing to act on
+            LocationFeatureKind.Agent => OfAgent(world, world.Agent(new AgentId(t.Index)), viewer),
+            LocationFeatureKind.Body => OfBody(world, world.Agent(new AgentId(t.Index))),
+            LocationFeatureKind.Carcass => OfCarcass(world, t.Tile, Carcasses.Find(world, t.Tile, t.Index)!, viewer),
+            LocationFeatureKind.Pool => OfPool(world, new PoolId(t.Tile, t.Index)),
+            LocationFeatureKind.Stash => OfInventory(state!.Stash!) | OwnedBy(world, state.StashCause, viewer),
+            LocationFeatureKind.Fire => OwnedBy(world, world.Fires[new FireId(t.Index)].Cause, viewer),
+            LocationFeatureKind.Shelter => OfShelter(world, t.Tile, Shelters.Peek(world, t.Tile)!, viewer),
+            LocationFeatureKind.Track => t.TrailDirection != null ? Tag.None // a desire path is a way, not a location feature to act on
                 : Tracks.Read(world, t.Tile).First(s => (int)s.Maker == t.Index).FreshnessPct >= FreshPrintsPct ? Tag.Fresh : Tag.None,
-            ThingKind.Sign => Tag.None,
-            ThingKind.Item => Tag.None,
+            LocationFeatureKind.Sign => Tag.None,
+            LocationFeatureKind.Item => Tag.None,
         };
         bool holdable = t.Kind switch
         {
-            ThingKind.Agent => false, // an agent is met, not held: Hostile says what it means to you
-            ThingKind.Body or ThingKind.Carcass or ThingKind.Pool or ThingKind.Stash or ThingKind.Fire or ThingKind.Shelter => true,
-            ThingKind.Track => false,
-            ThingKind.Sign => true,
-            ThingKind.Item => false,
+            LocationFeatureKind.Agent => false, // an agent is met, not held: Hostile says what it means to you
+            LocationFeatureKind.Body or LocationFeatureKind.Carcass or LocationFeatureKind.Pool or LocationFeatureKind.Stash or LocationFeatureKind.Fire or LocationFeatureKind.Shelter => true,
+            LocationFeatureKind.Track => false,
+            LocationFeatureKind.Sign => true,
+            LocationFeatureKind.Item => false,
         };
-        if (holdable && Guards(world, t, viewer).Count > 0) tags |= Tag.Guarded;
+        if (holdable && Occupants(world, t, viewer).Count > 0) tags |= Tag.Occupied;
         return tags;
     }
 
@@ -122,21 +122,21 @@ public static class Tags
         // The carrion flock circling flesh: findable from far off (emergent-world-design §4).
         if (Fauna.FlockAt(world, tile) != null) tags |= Tag.Beacon;
         // Contested: another predator herd or a person (the viewer included) is there too.
-        var guards = Guards(world, new ThingRef(ThingKind.Carcass, tile, c.Id), viewer);
-        if (guards.Count > 0 && Nearby.At(world, tile).Select(id => world.Agents[id]).Any(a => !guards.Contains(a.Id) && Sim.IsAlive(a)
+        var occupants = Occupants(world, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id), viewer);
+        if (occupants.Count > 0 && Nearby.At(world, tile).Select(id => world.Agents[id]).Any(a => !occupants.Contains(a.Id) && Sim.IsAlive(a)
                 && (a.Mind is PersonMind || a.Mind is HerdMind && Fauna.IsPredator(a.Species))))
             tags |= Tag.Contested;
         return tags;
     }
 
-    /// The living predator herds within guard radius of a thing that hold their ground against the
+    /// The living predator herds within occupant radius of a location feature that hold their ground against the
     /// viewer. None hold it over what the viewer made, on a tile where a fire burns or while the
     /// viewer carries a burning torch (fire as defence); a herd that is afraid, running, or busy
-    /// (in a fight, or on a hunt) holds nothing. A kill is not made: a pack on the viewer's kill guards it.
-    internal static HashSet<AgentId> Guards(World world, ThingRef t, AgentId? viewer)
+    /// (in a fight, or on a hunt) holds nothing. A kill is not made: a pack on the viewer's kill occupies it.
+    internal static HashSet<AgentId> Occupants(World world, LocationFeature t, AgentId? viewer)
     {
         if (viewer is AgentId v && (MadeBy(world, t) == v || FireDefends(world, t.Tile, v))) return [];
-        return Nearby.Within(world, t.Tile, GuardRadiusTiles)
+        return Nearby.Within(world, t.Tile, OccupantRadiusTiles)
             .Where(a => a.Id != viewer && a.Mind is HerdMind mind && Fauna.IsPredator(a.Species) && Sim.IsAlive(a) && Attending(world, a, mind))
             .Select(a => a.Id).ToHashSet();
     }
@@ -150,18 +150,18 @@ public static class Tags
         world.Fires.Values.Any(f => (f.CarriedBy == viewer || f.CarriedBy == null && f.Tile == tile) && Fire.Burns(Fire.Phase(f)));
 
     /// Someone's work, not what they killed.
-    static AgentId? MadeBy(World world, ThingRef t) => t.Kind switch
+    static AgentId? MadeBy(World world, LocationFeature t) => t.Kind switch
     {
-        ThingKind.Agent => null,
-        ThingKind.Body => null,
-        ThingKind.Carcass => null, // a kill, which a pack takes from its killer
-        ThingKind.Pool => null,
-        ThingKind.Stash => world.Tiles.GetValueOrDefault(t.Tile)?.StashCause?.Who,
-        ThingKind.Fire => world.Fires.GetValueOrDefault(new FireId(t.Index))?.Cause?.Who,
-        ThingKind.Shelter => Shelters.Peek(world, t.Tile)?.Cause?.Who,
-        ThingKind.Track => null,
-        ThingKind.Sign => null,
-        ThingKind.Item => null,
+        LocationFeatureKind.Agent => null,
+        LocationFeatureKind.Body => null,
+        LocationFeatureKind.Carcass => null, // a kill, which a pack takes from its killer
+        LocationFeatureKind.Pool => null,
+        LocationFeatureKind.Stash => world.Tiles.GetValueOrDefault(t.Tile)?.StashCause?.Who,
+        LocationFeatureKind.Fire => world.Fires.GetValueOrDefault(new FireId(t.Index))?.Cause?.Who,
+        LocationFeatureKind.Shelter => Shelters.Peek(world, t.Tile)?.Cause?.Who,
+        LocationFeatureKind.Track => null,
+        LocationFeatureKind.Sign => null,
+        LocationFeatureKind.Item => null,
     };
 
     static Tag OfPool(World world, PoolId id)
@@ -218,7 +218,7 @@ public static class Tags
     static Tag OfShelter(World world, TileId tile, ShelterState s, AgentId? viewer)
     {
         var tags = OwnedBy(world, s.Cause, viewer) | (Shelters.IsDestroyed(s) ? Tag.Depleted : Tag.Sheltering);
-        if (Nearby.At(world, tile).Any(id => id != viewer && Sim.IsAlive(world.Agents[id]))) tags |= Tag.Occupied;
+        if (Nearby.At(world, tile).Any(id => id != viewer && Sim.IsAlive(world.Agents[id]))) tags |= Tag.Inhabited;
         return tags;
     }
 

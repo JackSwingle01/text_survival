@@ -12,7 +12,7 @@ public class GameHostTests
     static ViewDto Parse(string json) => JsonSerializer.Deserialize(json, HostJson.Default.ViewDto)!;
 
     static IEnumerable<VerbDto> AllVerbs(ViewDto v) =>
-        v.Things.SelectMany(t => t.Menu).Concat(v.Walk).Concat(v.Tile).Concat(v.PackVerbs).Concat(v.Make);
+        v.LocationFeatures.SelectMany(t => t.Menu).Concat(v.Walk).Concat(v.Tile).Concat(v.PackVerbs).Concat(v.Make);
 
     static string Act(GameHost h, string verbId) => h.Act($$"""{"verb":"{{verbId}}"}""");
 
@@ -142,7 +142,7 @@ public class GameHostTests
         Assert.True(made || after.Log.Any(l => l.Text.Contains("failed")), "the staff was neither made nor failed");
     }
 
-    /// The Phase 5 gate: the map is drawn from beliefs. Light a fire, step off camp, sleep while it dies:
+    /// The Phase 5 gate: the map is drawn from memory. Light a fire, step off camp, sleep while it dies:
     /// right after the sleep the map still shows it burning (asleep is away), though the truth is cold.
     [Fact]
     public void The_map_shows_the_camp_fire_as_last_seen_not_as_it_is()
@@ -264,7 +264,7 @@ public class GameHostTests
         Assert.Contains(v.Combat!.Units, u => u.IsPlayer);
         Assert.Contains(v.Combat.Units, u => u.Team == 1);
         Assert.Contains(v.Combat.Actions, a => a.Label == "Wait" && a.Refused == null);
-        Assert.All(v.Walk, w => Assert.Equal(Sim.InAFight, w.Refused));
+        Assert.All(v.Walk, w => Assert.Equal(Sim.InAnEncounter, w.Refused));
         var advance = v.Combat.Actions.First(a => a.Label == "Advance");
         var after = Run(h, advance);
         Assert.Equal(v.Minute + 1, after.Minute);
@@ -392,9 +392,9 @@ public class GameHostTests
         var w = h.World;
         var p = w.Agent(AgentId.Player);
         var t = InSightOfPlayer(w);
-        Sim.Step(w, new Wait(AgentId.Player), Knowledge.GlanceMinutes); // ground is kept once it has lived any time
+        Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes); // ground is kept once it has lived any time
         Snow(w, t, 0.4);
-        Sim.Step(w, new Wait(AgentId.Player), Knowledge.GlanceMinutes); // the next look sees it
+        Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes); // the next look sees it
         double seenCm = Math.Round(Ground.SurfaceNow(w, t).SnowDepthM * 100, 1);
         Assert.True(seenCm > 30, $"{seenCm} cm");
 
@@ -434,8 +434,8 @@ public class GameHostTests
         h.NewGame(Seed);
         var w = h.World;
         var t = InSightOfPlayer(w);
-        Sim.Step(w, new Wait(AgentId.Player), Knowledge.GlanceMinutes);
-        var remembered = Knowledge.Of(w.Agent(AgentId.Player)).Explored!.At(t)!.Value;
+        Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes);
+        var remembered = Memories.Of(w.Agent(AgentId.Player)).Explored!.At(t)!.Value;
         Assert.Equal(w.Minute, remembered.SeenMinute);
         Snow(w, t, 0.4); // after the look: memory says otherwise
         Assert.True(remembered.Surface.SnowDepthM < 0.1);
@@ -473,7 +473,7 @@ public class GameHostTests
         {
             p.Tile = at;
             p.Crossing = null;
-            Sim.Step(w, new Wait(AgentId.Player), Knowledge.GlanceMinutes);
+            Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes);
         }
 
         Look(shore);

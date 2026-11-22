@@ -93,7 +93,7 @@ const STRIKE = `(async () => {
   for (let i = 0; i < 25; i++) {
     const v = window.ui.S.view;
     if (v.fire?.burning) break;
-    const light = v.tile.find(x => x.kind === 'fire') ?? v.things.find(t => t.kind === 'fire')?.menu.find(x => x.kind === 'fire');
+    const light = v.tile.find(x => x.kind === 'fire') ?? v.locationFeatures.find(t => t.kind === 'fire')?.menu.find(x => x.kind === 'fire');
     if (!light || light.refused) throw new Error('cannot light: ' + (light?.refused ?? 'no verb'));
     window.ui.openDrawer({ kind: 'fire' });
     await window.ui.run(light.id);

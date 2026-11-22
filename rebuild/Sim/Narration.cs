@@ -42,7 +42,7 @@ public static class Narration
             Drank x => x.Who == me,
             Butchered x => x.Who == me && x.Finished,
             Killed x => x.By == me,
-            FightEnded x => x.Agent == me,
+            EncounterEnded x => x.Agent == me,
             WoundedEscaped x => x.Tile == here,
             Built x => x.Who == me,
             SkillLeveledUp x => x.Who == me,
@@ -91,7 +91,7 @@ public static class Narration
             Drank x => ($"{Does(x.Who, "drink")} {x.Liters.ToString("0.##", CultureInfo.InvariantCulture)} L.", Tone.Plain),
             Butchered x => ($"{Does(x.Who, "finish")} butchering.", Tone.Good),
             Killed x => (x.By is AgentId by ? $"{Does(by, "kill")} a {Names.Of(x.Species)}." : $"A {Names.Of(x.Species)} dies.", Tone.Rare),
-            FightEnded x => ($"The fight is over: {FightResult(x.Result)}.", x.Result is CombatResult.Victory or CombatResult.AnimalFled ? Tone.Good : Tone.Bad),
+            EncounterEnded x => ($"The fight is over: {EncounterResult(x.Result)}.", x.Result is CombatResult.Victory or CombatResult.AnimalFled ? Tone.Good : Tone.Bad),
             WoundedEscaped x => ($"A wounded {Names.Of(x.Species)} gets away.", Tone.Bad),
             Built x => ($"{Does(x.Who, x.What == Structure.Tent ? "pitch" : "build")} the {Names.Of(x.What)}.", Tone.Good),
             ShelterCollapsed x => ($"The {Names.Lower(x.Name)} comes down.", Tone.Bad),
@@ -146,7 +146,7 @@ public static class Narration
         return (m.ExtraGear.Count > 0 ? $"{you} {make} a {name}, and offcuts for more." : $"{you} {make} a {name}.", Tone.Good);
     }
 
-    static string FightResult(CombatResult r) => r switch
+    static string EncounterResult(CombatResult r) => r switch
     {
         CombatResult.Victory => "you won",
         CombatResult.Defeat => "you lost",

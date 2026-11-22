@@ -328,7 +328,7 @@ public static class Shelters
                 {
                     if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
                     if (Peek(world, tile) is not { } s || IsDestroyed(s)) return "there's no shelter here to improve";
-                    if (Access.Refusal(world, agent.Id, Things.ShelterAt(world, tile)!.Value) is string barred) return barred;
+                    if (Access.Refusal(world, agent.Id, LocationFeatures.ShelterAt(world, tile)!.Value) is string barred) return barred;
                     if (!ShelterMaterials.Contains(i.Material)) return $"{Names.Cap(Names.Of(i.Material))} is no use on a shelter";
                     if (Items.Have(pack, i.Material) <= 0) return $"you have no {Names.Of(i.Material)}";
                     if (Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9) return $"this {s.Name.ToLowerInvariant()}'s {Names.Of(i.Stat)} can't be improved further";
@@ -336,7 +336,7 @@ public static class Shelters
                 }
             case PackTent:
                 if (Peek(world, tile)?.Tent == null) return "there's no tent to pack up here";
-                return Access.Refusal(world, agent.Id, Things.ShelterAt(world, tile)!.Value);
+                return Access.Refusal(world, agent.Id, LocationFeatures.ShelterAt(world, tile)!.Value);
             default: throw new NotSupportedException(activity.GetType().Name);
         }
     }

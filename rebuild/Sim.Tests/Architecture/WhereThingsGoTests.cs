@@ -523,10 +523,10 @@ public class WhereThingsGoTests
     /// Identifiers using words GLOSSARY.md avoids, counted across the Sim, each held at today's count.
     static readonly Dictionary<string, (int Count, string Why, string Say)> BannedWords = new()
     {
-        ["Beliefs"] = (25, "the code name for memory until the rename", "memory"),
-        ["Guarded"] = (13, "the condition the glossary calls occupied", "occupied"),
-        ["Margin"] = (53, "the word the glossary replaces with resolve", "resolve"),
-        ["Thing"] = (168, "location features are still things in the code (ThingRef, ThingKind, Things)", "location feature"),
+        ["Beliefs"] = (0, "memory, by its old code name", "memory"),
+        ["Guarded"] = (0, "the condition the glossary calls occupied", "occupied"),
+        ["Margin"] = (0, "the word the glossary replaces with resolve", "resolve"),
+        ["Thing"] = (0, "location features", "location feature"),
     };
 
     static readonly Regex Identifier = new(@"(?<![\w@])[A-Za-z_]\w*");
