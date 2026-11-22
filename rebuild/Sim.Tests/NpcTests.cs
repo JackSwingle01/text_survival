@@ -57,28 +57,28 @@ public class NpcTests(ITestOutputHelper output)
 
     /// Water at Critical outranks a food goal at Want, with no water to hand: the goal gives way to the water.
     [Fact]
-    public void ACommittedGoal_IsDropped_WhenAnotherStatReachesAWorseTier()
+    public void ACommittedGoal_IsDropped_WhenAnotherStatReachesAWorsePriority()
     {
         var (w, npc) = Alone(5);
         var mind = MindOf(npc);
-        mind.Goal = new NpcGoal(Stat.Food, Tier.Want, w.Minute, 600);
+        mind.Goal = new NpcGoal(Stat.Food, Priority.Want, w.Minute, 600);
         npc.Body.HydrationMl = 0.1 * Body.MaxHydrationMl;
         var (a, _) = Decide(w, npc);
         output.WriteLine($"{a}, goal {mind.Goal}");
         Assert.NotNull(mind.Goal);
-        Assert.Equal((Stat.Water, Tier.Critical), (mind.Goal!.Stat, mind.Goal.Tier));
+        Assert.Equal((Stat.Water, Priority.Critical), (mind.Goal!.Stat, mind.Goal.Priority));
     }
 
-    /// A goal whose own stat worsens is held at the worse tier.
+    /// A goal whose own stat worsens is held at the worse priority.
     [Fact]
-    public void AGoalsOwnStatWorsening_RaisesItsTier()
+    public void AGoalsOwnStatWorsening_RaisesItsPriority()
     {
         var (w, npc) = Alone(5);
         var mind = MindOf(npc);
-        mind.Goal = new NpcGoal(Stat.Water, Tier.Want, w.Minute, 600);
+        mind.Goal = new NpcGoal(Stat.Water, Priority.Want, w.Minute, 600);
         npc.Body.HydrationMl = 0.1 * Body.MaxHydrationMl;
         Decide(w, npc);
-        Assert.Equal(Tier.Critical, mind.Goal?.Tier);
+        Assert.Equal(Priority.Critical, mind.Goal?.Priority);
     }
 
     /// Out on a trip for food when thirst turns Critical, it gives the trip up for the water it carries.
@@ -90,7 +90,7 @@ public class NpcTests(ITestOutputHelper output)
         var mind = MindOf(a);
         var out1 = MapGen.Neighbors(mind.Camp).First(t => Map.Blocked(Map.Of(w), mind.Camp, t) == null);
         a.Tile = out1;
-        mind.Goal = new NpcGoal(Stat.Food, Tier.Need, w.Minute, 600);
+        mind.Goal = new NpcGoal(Stat.Food, Priority.Need, w.Minute, 600);
         a.Body.HydrationMl = 0.12 * Body.MaxHydrationMl;
         var (act, _) = Decide(w, a);
         Assert.False(act is Gather { Focus: ForageFocus.Food } || mind.Goal?.Stat == Stat.Food, $"kept to the food trip: {act}");
@@ -103,7 +103,7 @@ public class NpcTests(ITestOutputHelper output)
     {
         var (w, npc) = Alone(5);
         var mind = MindOf(npc);
-        var stale = new NpcGoal(Stat.Food, Tier.Want, w.Minute - 500, 60);
+        var stale = new NpcGoal(Stat.Food, Priority.Want, w.Minute - 500, 60);
         mind.Goal = stale;
         Decide(w, npc);
         Assert.True(mind.Goal == null || mind.Goal.StartedMinute == w.Minute, $"the stale goal ran on: {mind.Goal}");
@@ -347,7 +347,7 @@ public class NpcTests(ITestOutputHelper output)
         Assert.InRange(mind.TargetFatKg, 7.0, 7.3);
         body.FatKg = 5.0;
         Npc.AdaptTargetFat(mind, body, 14 * 1440);
-        Assert.Equal(Tiers.FatFloorKg(body), mind.TargetFatKg, 9);
+        Assert.Equal(Priorities.FatFloorKg(body), mind.TargetFatKg, 9);
     }
 
     [Fact]

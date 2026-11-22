@@ -4,7 +4,7 @@ namespace Survival.Web;
 
 /// Builds one view from the player's side of the world: what Verbs.At offers, what the player
 /// remembers (Memory: explored tiles, remembered places, sightings), what they can see now, their
-/// body by its tiers, the sky. The map never reads the truth about a place out of sight: a fire is
+/// body by its priorities, the sky. The map never reads the truth about a place out of sight: a fire is
 /// drawn as it was last seen (clean-room decision 7).
 sealed class ViewBuilder(World world, int gen)
 {
@@ -29,7 +29,7 @@ sealed class ViewBuilder(World world, int gen)
         var body = p.Body;
         var outcome = Map.Outcome(world);
         var here = Survival.Verbs.At(world, AgentId.Player);
-        var tiers = Tiers.Of(world, AgentId.Player);
+        var priorities = Priorities.Of(world, AgentId.Player);
         var sky = Weather.At(world, world.Minute);
         // What the player feels doing what they are doing, sheltered as it keeps them (Sim.Feels); idle, waiting.
         var feeling = Sim.Feels(world, AgentId.Player, job is { Finished: false } ? job.Activity : new Wait(AgentId.Player));
@@ -51,8 +51,8 @@ sealed class ViewBuilder(World world, int gen)
             Minute: world.Minute,
             Clock: ClockOf(world, sky),
             Feels: new FeelsDto(Math.Round(feeling.FeltF, 1), [.. feeling.Terms.Select(t => new FeelsTermDto(t.Factor, Math.Round(t.DeltaF, 1)))]),
-            Vitals: Vitals(body, tiers, exposure),
-            Alerts: Alerts(body, tiers, sky),
+            Vitals: Vitals(body, priorities, exposure),
+            Alerts: Alerts(body, priorities, sky),
             Place: Place(),
             Fire: FireHere(),
             LocationFeatures: features, Walk: walk, Tile: tile, PackVerbs: carried, Make: make,
@@ -174,25 +174,25 @@ sealed class ViewBuilder(World world, int gen)
             Weather.LightFromHour * 60, Weather.DarkFromHour * 60, Weather.LightLeftMinutes(world.Minute));
     }
 
-    static VitalDto[] Vitals(BodyState b, StatTiers tiers, Exposure e)
+    static VitalDto[] Vitals(BodyState b, StatPriorities priorities, Exposure e)
     {
         // Warmth's bar spans the core from the hypothermia line's far side (90F) to normal.
         double warmth = Math.Clamp((b.CoreTempF - 90.0) / (Body.BaseCoreTempF - 90.0), 0, 1);
         bool warming = e.Warmth.PitHeatF + e.Warmth.AirHeatF > 1;
         return
         [
-            new("warmth", warmth, Words.Code(tiers.Warmth), $"Body {b.CoreTempF:0.0}°F{(warming ? ", by a fire" : "")}"),
-            new("food", Math.Clamp(b.CaloriesPct, 0, 1), Words.Code(tiers.Food), $"{b.CaloriesKcal:0} kcal in the stomach · fat {b.FatKg:0.0} kg"),
-            new("water", Math.Clamp(b.HydrationPct, 0, 1), Words.Code(tiers.Water), $"{b.HydrationPct:P0} · {b.HydrationMl / 1000:0.0} L"),
-            new("rest", Math.Clamp(b.EnergyPct, 0, 1), Words.Code(tiers.Rest), $"{b.EnergyPct:P0}"),
+            new("warmth", warmth, Words.Code(priorities.Warmth), $"Body {b.CoreTempF:0.0}°F{(warming ? ", by a fire" : "")}"),
+            new("food", Math.Clamp(b.CaloriesPct, 0, 1), Words.Code(priorities.Food), $"{b.CaloriesKcal:0} kcal in the stomach · fat {b.FatKg:0.0} kg"),
+            new("water", Math.Clamp(b.HydrationPct, 0, 1), Words.Code(priorities.Water), $"{b.HydrationPct:P0} · {b.HydrationMl / 1000:0.0} L"),
+            new("rest", Math.Clamp(b.EnergyPct, 0, 1), Words.Code(priorities.Rest), $"{b.EnergyPct:P0}"),
         ];
     }
 
     /// Only what is past a line, by danger (ui-design §Alerts). Mild stages are the bar's colour, not a chip.
-    List<AlertDto> Alerts(BodyState b, StatTiers tiers, WeatherSample sky)
+    List<AlertDto> Alerts(BodyState b, StatPriorities priorities, WeatherSample sky)
     {
         var list = new List<AlertDto>();
-        if (tiers.Warmth == Tier.Critical)
+        if (priorities.Warmth == Priority.Critical)
             list.Add(new("hypothermia", "Hypothermia", "danger", 90, "ui/temperature", [$"Body {b.CoreTempF:0.0}°F", "Get to a fire now"]));
         else if (b.Effects.FirstOrDefault(x => x.Kind == EffectKind.Shivering && x.Severity > 0.05) is { } shiver)
             list.Add(new("shivering", "Shivering", "cold", 60, "ui/temperature", [$"Body {b.CoreTempF:0.0}°F", "Stops by a fire"]));
@@ -200,9 +200,9 @@ sealed class ViewBuilder(World world, int gen)
             list.Add(new("bleeding", "Bleeding", "danger", 85, "ui/blood", [$"Blood {b.BloodPct:P0}"]));
         if (b.Effects.FirstOrDefault(x => x.Kind == EffectKind.Wet && x.Severity >= 0.2) is { } wet)
             list.Add(new("wet", "Wet", "cold", 55, "ui/water", [$"Soaked {wet.Severity:P0}", "Dries by a fire; freezes in the cold"]));
-        if (tiers.Water == Tier.Critical) list.Add(new("dehydrated", "Dehydrated", "danger", 80, "ui/water", ["Drink, or melt snow by a fire"]));
-        if (tiers.Food == Tier.Critical) list.Add(new("starving", "Starving", "danger", 70, "ui/food", ["Your body is burning muscle"]));
-        if (tiers.Rest == Tier.Critical) list.Add(new("exhausted", "Exhausted", "danger", 65, "ui/energy", ["You will collapse soon"]));
+        if (priorities.Water == Priority.Critical) list.Add(new("dehydrated", "Dehydrated", "danger", 80, "ui/water", ["Drink, or melt snow by a fire"]));
+        if (priorities.Food == Priority.Critical) list.Add(new("starving", "Starving", "danger", 70, "ui/food", ["Your body is burning muscle"]));
+        if (priorities.Rest == Priority.Critical) list.Add(new("exhausted", "Exhausted", "danger", 65, "ui/energy", ["You will collapse soon"]));
         var caps = Body.GetCapacities(b);
         foreach (var (name, v) in new[] { ("Moving", caps.Moving), ("Manipulation", caps.Manipulation), ("Sight", caps.Sight) })
             if (v < 0.9 && b.Effects.All(x => x.Kind != EffectKind.Shivering)) // shivering's cost is its own chip

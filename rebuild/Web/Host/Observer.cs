@@ -110,11 +110,11 @@ public sealed class Observer
             return lines;
         }
         var b = a.Body;
-        var tiers = Tiers.Of(w, a.Id);
-        lines.Add($"Warmth: {Words.Of(tiers.Warmth)} · body {b.CoreTempF:0.0}°F");
-        lines.Add($"Food: {Words.Of(tiers.Food)} · {b.CaloriesKcal:0} kcal · fat {b.FatKg:0.0} kg");
-        lines.Add($"Water: {Words.Of(tiers.Water)} · {b.HydrationPct:P0}");
-        lines.Add($"Rest: {Words.Of(tiers.Rest)} · {b.EnergyPct:P0}");
+        var priorities = Priorities.Of(w, a.Id);
+        lines.Add($"Warmth: {Words.Of(priorities.Warmth)} · body {b.CoreTempF:0.0}°F");
+        lines.Add($"Food: {Words.Of(priorities.Food)} · {b.CaloriesKcal:0} kcal · fat {b.FatKg:0.0} kg");
+        lines.Add($"Water: {Words.Of(priorities.Water)} · {b.HydrationPct:P0}");
+        lines.Add($"Rest: {Words.Of(priorities.Rest)} · {b.EnergyPct:P0}");
         foreach (var e in b.Effects.Where(e => e.Severity > 0.01)) lines.Add($"{Names.Title(e.Kind)} {e.Severity:P0}");
         lines.Add($"Carrying {Items.CarriedKg(a):0.0} kg");
         if (a.Mind is NpcMind n) lines.Add($"Camp: {n.Camp.X},{n.Camp.Y}");

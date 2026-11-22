@@ -77,7 +77,7 @@ session's `ClueDraw`, skipped at its default (a scavenge clue pays once a draw).
 the worn trails a person has seen in the spare bits of `GroundMemory`'s flags byte: the tier (`TrailTier`, 0 to 3) of
 each seen tile's east and south edges, two bits each, so a trail costs a saved tile nothing. A trail is remembered only
 between two seen tiles. NPC memories carry them too, since a person's memory is one structure. The sample wears a path
-beside camp and the player looks at it. When you add
+beside camp and the player looks at it. Version 20 (the glossary's priorities) renamed `NpcGoal.Tier` to `NpcGoal.Priority`; its values (`Critical`, `Need`, `Want`, by name) are unchanged, and nothing else moved. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands.

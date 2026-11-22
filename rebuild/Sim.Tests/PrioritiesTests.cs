@@ -1,0 +1,73 @@
+namespace Survival.Tests;
+
+/// The player-facing reader of the stat priorities (Priorities.Of): the same priority functions the NPC ranks by, with no
+/// hysteresis, read off the person as they are. The UI's alerts show its Critical stats.
+public class PrioritiesTests
+{
+    [Fact]
+    public void Of_ReadsEachStatsPriority_OffThePersonAsTheyAre()
+    {
+        var w = World.New(17);
+        var p = w.Agent(AgentId.Player);
+        Items.Pack(w, AgentId.Player).Kg.Remove(Resource.Water);
+        var b = p.Body;
+        (b.CoreTempF, b.HydrationMl, b.EnergyMinutes) = (98.6, 0.95 * Body.MaxHydrationMl, Body.MaxEnergyMinutes);
+        var fine = Priorities.Of(w, AgentId.Player);
+        Assert.Equal(Priority.None, fine.Warmth);
+        Assert.Equal(Priority.None, fine.Rest);
+
+        (b.CoreTempF, b.HydrationMl, b.EnergyMinutes) = (Priorities.HypothermiaCoreF - 0.5, 0.4 * Body.MaxHydrationMl, 0.2 * Body.MaxEnergyMinutes);
+        var bad = Priorities.Of(w, AgentId.Player);
+        Assert.Equal(Priority.Critical, bad.Warmth);
+        Assert.Equal(Priority.Need, bad.Water);
+        Assert.Equal(Priority.Need, bad.Rest);
+        Assert.Equal(Priority.Critical, bad[Stat.Warmth]);
+    }
+
+    [Theory]
+    [InlineData(98.6, false, 30.0, Priority.None)]
+    [InlineData(98.6, false, 20.0, Priority.Want)]   // tonight's 16 h in, not a spare half-day
+    [InlineData(98.6, false, 4.0, Priority.Need)]    // tonight's fuel short is warmth, Need
+    [InlineData(97.4, false, 30.0, Priority.Need)]
+    [InlineData(97.6, true, 30.0, Priority.Need)]    // seeing to it: held to the satisfied line
+    [InlineData(97.6, false, 30.0, Priority.None)]
+    [InlineData(95.0, false, 30.0, Priority.Critical)]
+    public void Warmth(double coreF, bool seeing, double fuelHours, Priority priority) =>
+        Assert.Equal(priority, Priorities.WarmthPriority(coreF, seeing, fuelHours, tonightHours: 16));
+
+    [Theory]
+    [InlineData(0.15, false, 3.0, 2.0, Priority.Critical)]
+    [InlineData(0.40, false, 3.0, 2.0, Priority.Need)]
+    [InlineData(0.80, true, 3.0, 2.0, Priority.Need)]
+    [InlineData(0.80, false, 3.0, 2.0, Priority.None)]
+    [InlineData(0.80, false, 1.0, 2.0, Priority.Want)]
+    [InlineData(0.55, false, 0.0, 18.0, Priority.Need)] // nothing to hand and the evening's loss takes it to the line
+    public void Water(double hydrationPct, bool seeing, double toHandL, double hoursLeft, Priority priority) =>
+        Assert.Equal(priority, Priorities.WaterPriority(hydrationPct, seeing, toHandL, hoursLeft));
+
+    [Theory]
+    [InlineData(0.10, false, Priority.Critical)]
+    [InlineData(0.20, false, Priority.Need)]
+    [InlineData(0.40, true, Priority.Need)]
+    [InlineData(0.40, false, Priority.Want)]
+    [InlineData(0.90, false, Priority.None)]
+    public void Rest(double energyPct, bool seeing, Priority priority) => Assert.Equal(priority, Priorities.RestPriority(energyPct, seeing));
+
+    [Fact]
+    public void Food_UnderTheFloorIsNeed_StarvingIsCritical()
+    {
+        var b = BodyState.BaselineHuman();
+        double target = b.FatKg;
+        Assert.Equal(Priority.Want, Priorities.FoodPriority(b, target, false, foodToHand: true));
+        b.CaloriesKcal = 0;
+        Assert.Equal(Priority.Need, Priorities.FoodPriority(b, target, false, foodToHand: false)); // stomach empty, nothing for today
+        b.CaloriesKcal = 1500;
+        b.FatKg = 0.09 * b.WeightKg; // under the 10% floor: weeks of reserve, Need
+        Assert.Equal(Priority.Need, Priorities.FoodPriority(b, b.FatKg, false, foodToHand: true));
+        b.FatKg = 0.025 * b.WeightKg; // the body's own floor, 3% of what it weighs now
+        Assert.Equal(Priority.Need, Priorities.FoodPriority(b, b.FatKg, false, foodToHand: true));
+        b.CaloriesKcal = 0;
+        Assert.True(Priorities.Starving(b));
+        Assert.Equal(Priority.Critical, Priorities.FoodPriority(b, b.FatKg, false, foodToHand: true));
+    }
+}

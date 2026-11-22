@@ -22,7 +22,7 @@ file with `fetch` calls to the same five operations.
 
 - **Views are plain data**, rebuilt on every call from the player's side of the world: `Verbs.At`, the
   player's memory (explored tiles, remembered places, sightings), `Sight` for what is in view now,
-  `Tiers.Of` for the vitals and alerts, the clock and sky, the fire on the tile, trip terms and odds.
+  `Priorities.Of` for the vitals and alerts, the clock and sky, the fire on the tile, trip terms and odds.
   The map never reads the truth of a tile out of sight: the ground it carries is `Ground.SurfaceNow` in
   sight and the player's memory of it (`Memory.Explored`) out of sight.
 - **The words are Sim's.** Names come from `Names` (`Sim/Content/names.json`), journal and receipt lines
@@ -51,7 +51,7 @@ pan, wheel to zoom (from the whole valley to a few cells; below 24 px a cell the
 above it terrain.js's painted chunks), Space plays, `.` steps one second's worth. The Spawn buttons arm
 a kind (one row per kind in `Host/Observer.cs`'s `Spawnables`: an NPC today), then a click places it
 (Shift-click for several). Clicking a tile lists what is there in `Verbs.NameOf`'s words, and who,
-with their tiers or herd state; the log is world events in Sim's narration with their tile.
+with their priorities or herd state; the log is world events in Sim's narration with their tile.
 
 It talks to `Host/Observer.cs` through `client.js`'s `observe` calls, never to `GameHost`. Its map is the
 player's `MapDto`, built by `Host/MapView.cs` from the other side: `MapView.Remembered` is a person's

@@ -177,13 +177,13 @@ function renderTop() {
       ${img('ui/temperature')}<span class="num" style="color:${f.totalF < 20 ? 'var(--frost)' : 'var(--bone)'}">${deg(f.totalF)}</span><span class="muted">feels like</span></div>`;
 }
 
-const TIER_CLASS = { none: '', want: '', need: 'low', critical: 'crit' };
+const PRIORITY_CLASS = { none: '', want: '', need: 'low', critical: 'crit' };
 const VITAL = { warmth: ['Warmth', 'ui/temperature'], food: ['Food', 'ui/food'], water: ['Water', 'ui/water'], rest: ['Rest', 'ui/energy'] };
 function renderStatus() {
   const v = S.view;
   const warming = v.feels.terms.some(t => t.name === 'Fire');
   const color = { warmth: warming ? '#f5811f' : '#8fa6b7', food: '#eadfc8', water: '#b9d3dc', rest: '#eadfc8' };
-  const bars = v.vitals.map(x => `<div class="vbar ${TIER_CLASS[x.tier]}" ${tip(VITAL[x.stat][0], [x.detail, ...(x.tier === 'need' || x.tier === 'critical' ? [`b:${cap(x.tier)}`] : [])])}>
+  const bars = v.vitals.map(x => `<div class="vbar ${PRIORITY_CLASS[x.priority]}" ${tip(VITAL[x.stat][0], [x.detail, ...(x.priority === 'need' || x.priority === 'critical' ? [`b:${cap(x.priority)}`] : [])])}>
       ${img(VITAL[x.stat][1])}<span class="vtrack" style="--c:${color[x.stat]}"><i style="width:${Math.round(x.pct * 100)}%"></i></span></div>`).join('');
   const al = v.alerts, shown = al.slice(0, 3), rest = al.slice(3);
   $('status').innerHTML = `<div class="plate vitals" aria-label="Vitals">${bars}</div>
@@ -439,19 +439,19 @@ function renderMake(d, v) {
 function renderBody(d, v) {
   const b = v.body;
   head('ui/person', 'Body', '');
-  const g = (name, ic, val, color, text, tier) => {
+  const g = (name, ic, val, color, text, priority) => {
     const on = Math.round(val * 10);
-    return `<div class="gauge ${TIER_CLASS[tier] ?? ''}">${img(ic)}<span class="name">${name}</span><span class="val">${text}</span>
+    return `<div class="gauge ${PRIORITY_CLASS[priority] ?? ''}">${img(ic)}<span class="name">${name}</span><span class="val">${text}</span>
       <span class="ticks" style="--c:${color}">${Array.from({ length: 10 }, (_, i) => `<span class="${i < on ? 'on' : ''}"></span>`).join('')}</span></div>`;
   };
   const vit = Object.fromEntries(v.vitals.map(x => [x.stat, x]));
   const f = v.feels;
   $('sideBody').innerHTML = `
     <div class="sec">
-      ${g('Warmth', 'ui/temperature', vit.warmth.pct, '#8fa6b7', `${b.coreTempF.toFixed(1)}°F`, vit.warmth.tier)}
-      ${g('Food', 'ui/food', vit.food.pct, '#eadfc8', `${Math.round(b.caloriesKcal)} kcal`, vit.food.tier)}
-      ${g('Water', 'ui/water', vit.water.pct, '#b9d3dc', `${(b.hydrationMl / 1000).toFixed(1)} L`, vit.water.tier)}
-      ${g('Rest', 'ui/energy', vit.rest.pct, '#eadfc8', pct(b.energyPct), vit.rest.tier)}
+      ${g('Warmth', 'ui/temperature', vit.warmth.pct, '#8fa6b7', `${b.coreTempF.toFixed(1)}°F`, vit.warmth.priority)}
+      ${g('Food', 'ui/food', vit.food.pct, '#eadfc8', `${Math.round(b.caloriesKcal)} kcal`, vit.food.priority)}
+      ${g('Water', 'ui/water', vit.water.pct, '#b9d3dc', `${(b.hydrationMl / 1000).toFixed(1)} L`, vit.water.priority)}
+      ${g('Rest', 'ui/energy', vit.rest.pct, '#eadfc8', pct(b.energyPct), vit.rest.priority)}
       ${b.bloodPct < 0.995 ? g('Blood', 'ui/vitality', b.bloodPct, '#d97a6a', pct(b.bloodPct), b.bloodPct < 0.7 ? 'need' : '') : ''}
     </div>
     ${v.alerts.length ? section('Now', `<div class="factors">${v.alerts.map(a => `<div class="kv minus">${img(a.icon)}<span>${esc(a.text)}<span class="why"> ${esc(a.lines.join(' · '))}</span></span><span class="v"></span></div>`).join('')}</div>`) : ''}

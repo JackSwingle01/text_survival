@@ -146,8 +146,8 @@ public class ForecastTests
         double withKindling = Fire.UsableHours(null, PitType.Open, oakTinderKindling, canStrike: true);
         Assert.True(tinderOnly > 0);
         Assert.True(withKindling > tinderOnly + Fire.FuelHours(Resource.Kindling, 1)); // the kindling brings the oak in
-        Assert.Equal(Tier.Need, Tiers.WarmthTier(98.6, false, Fire.UsableHours(null, PitType.Open, oak, canStrike: true), tonightHours: 12));
-        Assert.Equal(Tier.None, Tiers.WarmthTier(98.6, false, Fire.FuelHours(Resource.Oak, 8) * 3, tonightHours: 2)); // raw hours would read warm
+        Assert.Equal(Priority.Need, Priorities.WarmthPriority(98.6, false, Fire.UsableHours(null, PitType.Open, oak, canStrike: true), tonightHours: 12));
+        Assert.Equal(Priority.None, Priorities.WarmthPriority(98.6, false, Fire.FuelHours(Resource.Oak, 8) * 3, tonightHours: 2)); // raw hours would read warm
     }
 
     [Fact]
@@ -337,17 +337,17 @@ public class ForecastTests
     }
 
     [Fact]
-    public void TheHealthTier_RanksHarmByWhereItIsGoing()
+    public void TheHealthPriority_RanksHarmByWhereItIsGoing()
     {
         var whole = BodyState.BaselineHuman();
         var scraped = BodyState.BaselineHuman();
         scraped.BloodPct = 0.97;
-        Assert.Equal(Tier.None, Tiers.HealthTier(whole));
-        Assert.Equal(Tier.Want, Tiers.HealthTier(scraped));
-        Assert.Equal(Tier.Need, Tiers.HealthTier(Bleeding(0.05)));
+        Assert.Equal(Priority.None, Priorities.HealthPriority(whole));
+        Assert.Equal(Priority.Want, Priorities.HealthPriority(scraped));
+        Assert.Equal(Priority.Need, Priorities.HealthPriority(Bleeding(0.05)));
         var deep = Bleeding(0.5);
         Assert.True(deep.BloodPct > 0.99);
-        Assert.Equal(Tier.Critical, Tiers.HealthTier(deep)); // the blood is still full, but not for long
+        Assert.Equal(Priority.Critical, Priorities.HealthPriority(deep)); // the blood is still full, but not for long
         Assert.True(Body.LowestBloodPct(Bleeding(0.3)) < Body.LowestBloodPct(Bleeding(0.1)));
     }
 
