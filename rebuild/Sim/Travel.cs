@@ -66,6 +66,7 @@ public static class Traversal
     public static string? Advance(World world, Agent agent, List<WorldEvent> events)
     {
         var c = agent.Crossing ?? throw new InvalidOperationException($"{agent.Id} is not crossing");
+        if (agent.Mind is PersonMind && agent.Members.Count == 1) Pools.Search(world, agent, TravelSearchPct * Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent)) / 60.0, events);
         if (++c.ElapsedMinutes < c.TotalMinutes) return CannotWalk(agent);
 
         if (c.From != agent.Tile) throw new InvalidOperationException($"{agent.Id} is crossing from {c.From} but stands on {agent.Tile}");
@@ -88,6 +89,8 @@ public static class Traversal
     }
 
     public const string Arrived = "arrived", CrossedThePassReason = "crossed the pass";
+
+    public const double TravelSearchPct = 0.25;
 
     /// encumbrancePct is carried weight over capacity (Items.EncumbrancePct): past half, a load slows you.
     public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky, double encumbrancePct = 0) =>

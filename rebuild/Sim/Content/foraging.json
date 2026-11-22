@@ -1,0 +1,118 @@
+// What the forage screen reads and notices (the old ForageFeature, ForageClueVariant, ScavengeScenarioVariant,
+// WorkRunner and ForageStrategy texts and numbers). Loaded once by Content.
+//
+// quality: the ground's word for its density (old ForageDensity), highest first: the first whose atLeast
+//   the density reaches. failures: what an empty search says, by the band the ground's word is in.
+// luck: the mood line for a search's luck (one roll a search, Pools.Luck); Normal says nothing.
+// hints: the sub-category word a focus shows for each resource it would look for (old GetSubCategory).
+// clues: what a forager may notice before searching, drawn by weight (Clues.At). kind: Resource clues name the
+//   resources they promise and multiply them by yield when the matching focus is chosen; Game clues wait for
+//   small game; Negative clues cut the whole search by yield; Scavenge clues lay a carcass (animals, eaten
+//   harvestedPct) or bone scraps (no animals) when the search ends. when: what must be true of the place,
+//   the sky or the animals near for it to be drawn at all. A Resource clue's weight is scaled by the share
+//   of its resources that grow here and by its yield, except an Always one; a Grazed clue's by the grazing;
+//   a Scavenge clue's by predatorBoost when predators are near.
+// tutorials: once-per-game lines, by id. searchBands: how a tile's search effort reads, against the time
+//   a thorough search of its terrain takes (the longest expected find in its draws), lowest first.
+{
+ "quality": [
+  { "word": "exceptional", "atLeast": 3.0 }, { "word": "abundant", "atLeast": 2.52 }, { "word": "premium", "atLeast": 2.0 },
+  { "word": "lush", "atLeast": 1.8 }, { "word": "plentiful", "atLeast": 1.6 }, { "word": "rich", "atLeast": 1.52 },
+  { "word": "good", "atLeast": 1.4 }, { "word": "decent", "atLeast": 1.2 }, { "word": "standard", "atLeast": 1.0 },
+  { "word": "fair", "atLeast": 0.92 }, { "word": "moderate", "atLeast": 0.8 }, { "word": "modest", "atLeast": 0.72 },
+  { "word": "light", "atLeast": 0.6 }, { "word": "sparse", "atLeast": 0.52 }, { "word": "thin", "atLeast": 0.4 },
+  { "word": "scarce", "atLeast": 0.32 }, { "word": "barren", "atLeast": 0.2 }, { "word": "minimal", "atLeast": 0 }
+ ],
+ "failures": [
+  { "words": ["exceptional", "abundant", "premium", "lush"], "lines": [
+   "Fresh snow. Everything's buried.", "What you spot is rotten through.", "Frozen solid to the ground. Can't pry it loose.",
+   "A sound nearby. You wait it out, lose your momentum.", "Ice crust over everything. Takes too long to break through." ] },
+  { "words": ["plentiful", "rich", "good", "decent"], "lines": [
+   "Hollow log, empty inside. Wasted time.", "Wind-scoured ground. Bare rock in every crevice.", "Drifts deeper than they looked. Hard to search properly.",
+   "What you find crumbles apart in your hands.", "Steep terrain. You cover less ground than planned." ] },
+  { "words": ["standard", "fair", "moderate", "modest"], "lines": [
+   "Slim pickings today. The area's not bad, just unlucky.", "You search thoroughly but come up empty.", "Frozen ground makes digging pointless.",
+   "Wind scattered what was here. Nothing to show for it.", "You find traces but nothing worth collecting." ] },
+  { "words": ["light", "sparse", "thin"], "lines": [
+   "Slim pickings. Most of it's already gone.", "Traces of what was here. Nearly spent.", "Hardly anything left. You'd need luck.",
+   "Almost picked clean. Time to look elsewhere.", "Scraps and remnants. This place won't last." ] },
+  { "words": ["scarce", "barren", "minimal"], "lines": [ "Stripped bare.", "It's gone. All of it.", "You're wasting time here.", "Barren.", "Move on." ] }
+ ],
+ "luck": { "Lean": "The pickings feel thin here today.", "Good": "Something about this spot feels right.", "Jackpot": "You've found a rich patch." },
+ "hints": {
+  "BirchPolypore": "fungi", "Chaga": "fungi", "Amadou": "fungi", "WillowBark": "bark", "RoseHip": "berries", "JuniperBerry": "berries",
+  "PineResin": "tree resin", "Usnea": "lichen", "SphagnumMoss": "moss", "PineNeedles": "needles",
+  "Stone": "stone", "Shale": "stone", "Flint": "stone", "Pyrite": "stone", "PlantFiber": "fiber", "Rope": "fiber",
+  "Bone": "animal parts", "Hide": "animal parts", "ScrapedHide": "animal parts", "CuredHide": "animal parts", "Sinew": "animal parts",
+  "RawFat": "animal parts", "Tallow": "animal parts", "Ivory": "animal parts", "MammothHide": "animal parts", "Feather": "animal parts",
+  "Charcoal": "charcoal", "RawMeat": "meat", "CookedMeat": "meat", "DriedMeat": "meat", "Berries": "berries", "DriedBerries": "berries",
+  "Nuts": "nuts", "Roots": "roots", "Honey": "honey", "Kindling": "kindling", "Tinder": "kindling", "Pine": "wood", "Birch": "wood",
+  "Oak": "wood", "BirchBark": "bark", "Peat": "peat", "RawFish": "fish", "CookedFish": "fish", "DriedFish": "fish", "Water": "water"
+ },
+ "clues": [
+  { "text": "Woodpecker holes in dead birch", "kind": "Resource", "when": "Forest", "resources": ["BirchBark", "Amadou", "Chaga"], "yield": 1.2, "weight": 1.5 },
+  { "text": "Fresh deadfall from the wind", "kind": "Resource", "when": "Forest", "resources": ["Kindling", "Pine", "Birch"], "yield": 1.3, "weight": 1.5 },
+  { "text": "Shelf fungus on fallen logs", "kind": "Resource", "when": "Forest", "resources": ["BirchPolypore", "Amadou"], "yield": 1.2, "weight": 1.5 },
+  { "text": "Resin bleeding from pine bark", "kind": "Resource", "when": "Forest", "resources": ["PineResin", "PineNeedles"], "yield": 1.2, "weight": 1.5 },
+  { "text": "Lichen hanging from branches", "kind": "Resource", "when": "Forest", "resources": ["Usnea"], "yield": 1.3, "weight": 1.5 },
+  { "text": "Nuts scattered beneath the trees", "kind": "Resource", "when": "Forest", "resources": ["Nuts"], "yield": 1.2, "weight": 1.5 },
+  { "text": "Dry leaves gathered in hollows", "kind": "Resource", "when": "Forest", "resources": ["Tinder", "PlantFiber"], "yield": 1.2, "weight": 1.5 },
+  { "text": "Shale fragments along the cliff base", "kind": "Resource", "when": "Rocky", "resources": ["Shale", "Flint", "Stone"], "yield": 1.3, "weight": 1.5 },
+  { "text": "Pyrite glinting in exposed rock", "kind": "Resource", "when": "Rocky", "resources": ["Pyrite", "Flint"], "yield": 1.5, "weight": 1.5 },
+  { "text": "Exposed roots in eroded soil", "kind": "Resource", "when": "Rocky", "resources": ["Roots"], "yield": 1.3, "weight": 1.5 },
+  { "text": "Wind-scoured scrub growth", "kind": "Resource", "when": "Rocky", "resources": ["PlantFiber"], "yield": 1.2, "weight": 1.5 },
+  { "text": "Thick sphagnum at the water's edge", "kind": "Resource", "when": "Water", "resources": ["SphagnumMoss"], "yield": 1.3, "weight": 1.5 },
+  { "text": "Reeds and fibrous plants", "kind": "Resource", "when": "Water", "resources": ["PlantFiber"], "yield": 1.3, "weight": 1.5 },
+  { "text": "Willow growing near the bank", "kind": "Resource", "when": "Water", "resources": ["WillowBark"], "yield": 1.4, "weight": 1.5 },
+  { "text": "Berry bushes along the shore", "kind": "Resource", "when": "Water", "resources": ["Berries", "RoseHip"], "yield": 1.2, "weight": 1.5 },
+  { "text": "Branches torn down by recent wind", "kind": "Resource", "when": "Wind", "resources": ["Kindling", "Pine", "Birch", "Oak"], "yield": 1.5, "weight": 1.3 },
+  { "text": "Bracket fungi swollen after the rain", "kind": "Resource", "when": "Rain", "resources": ["BirchPolypore", "Amadou"], "yield": 1.4, "weight": 1.4 },
+  { "text": "Fresh tracks in the snow", "kind": "Game", "when": "Snow", "game": "Caribou", "weight": 1.0 },
+  { "text": "Scat visible against the white", "kind": "Game", "when": "Snow", "game": "Hare", "weight": 1.0 },
+  { "text": "Animal trails through the brush", "kind": "Game", "when": "Forest", "game": "Caribou", "weight": 0.8 },
+  { "text": "Fresh feeding marks in the bark", "kind": "Game", "when": "DawnDusk", "game": "Caribou", "weight": 1.0 },
+  { "text": "Movement in the underbrush", "kind": "Game", "when": "DawnDusk", "game": "Hare", "weight": 1.0 },
+  { "text": "The ground looks picked over", "kind": "Negative", "when": "PickedOver", "yield": 0.8, "weight": 2.0 },
+  { "text": "Everything frozen solid", "kind": "Negative", "when": "Frozen", "yield": 0.7, "weight": 1.5 },
+  { "text": "Trampled and grazed bare", "kind": "Negative", "when": "Grazed", "yield": 0.7, "weight": 2.0 },
+  { "text": "Saturated and rotting", "kind": "Negative", "when": "Saturated", "yield": 0.7, "weight": 1.2 },
+  { "text": "Signs of past foraging here", "kind": "Resource", "when": "Always", "resources": ["Kindling", "Stone", "PlantFiber"], "yield": 1.0, "weight": 0.3 },
+  { "text": "Raptor pellets below a ledge", "kind": "Scavenge", "when": "Always", "harvestedPct": [0.7, 0.9], "remains": "bone scraps", "weight": 0.1 },
+  { "text": "Old bones scattered, gnawed clean", "kind": "Scavenge", "when": "Always", "harvestedPct": [0.7, 0.9], "remains": "bone scraps", "weight": 0.1 },
+  { "text": "Scattered feathers and blood", "kind": "Scavenge", "when": "Always", "animals": [ { "animal": "Hare", "weight": 1.0 } ],
+   "harvestedPct": [0.15, 0.35], "remains": "recent kill", "weight": 0.06 },
+  { "text": "Blood trail into the brush", "kind": "Scavenge", "when": "Always", "animals": [ { "animal": "Hare", "weight": 0.8 }, { "animal": "Fox", "weight": 0.2 } ],
+   "harvestedPct": [0.15, 0.35], "remains": "recent kill", "weight": 0.06 },
+  { "text": "Circling ravens ahead", "kind": "Scavenge", "when": "Always",
+   "animals": [ { "animal": "Caribou", "weight": 0.5 }, { "animal": "Hare", "weight": 0.2 }, { "animal": "Fox", "weight": 0.15 }, { "animal": "Wolf", "weight": 0.15 } ],
+   "harvestedPct": [0.35, 0.55], "remains": "scavenged remains", "weight": 0.03, "predatorBoost": 1.5 },
+  { "text": "Drag marks through the snow", "kind": "Scavenge", "when": "Snow",
+   "animals": [ { "animal": "Caribou", "weight": 0.6 }, { "animal": "Wolf", "weight": 0.25 }, { "animal": "Megaloceros", "weight": 0.15 } ],
+   "harvestedPct": [0.15, 0.35], "remains": "recent kill", "weight": 0.03, "predatorBoost": 1.5 },
+  { "text": "Ground torn up, blood frozen", "kind": "Scavenge", "when": "Always",
+   "animals": [ { "animal": "Caribou", "weight": 0.4 }, { "animal": "Bison", "weight": 0.35 }, { "animal": "Megaloceros", "weight": 0.25 } ],
+   "harvestedPct": [0.35, 0.55], "remains": "scavenged remains", "weight": 0.03, "predatorBoost": 1.5 },
+  { "text": "Fresh kill, still warm. Blood steams in the cold.", "kind": "Scavenge", "when": "Always",
+   "animals": [ { "animal": "Caribou", "weight": 0.35 }, { "animal": "Bison", "weight": 0.30 }, { "animal": "Megaloceros", "weight": 0.25 }, { "animal": "Wolf", "weight": 0.10 } ],
+   "harvestedPct": [0.0, 0.15], "remains": "fresh carcass", "weight": 0.01 },
+  { "text": "Large carcass, wolves gone. Still fresh enough.", "kind": "Scavenge", "when": "PredatorsNear",
+   "animals": [ { "animal": "Bison", "weight": 0.5 }, { "animal": "Caribou", "weight": 0.3 }, { "animal": "Megaloceros", "weight": 0.2 } ],
+   "harvestedPct": [0.15, 0.35], "remains": "recent kill", "weight": 0.01 },
+  { "text": "Something large, half-buried in snow. Frozen solid.", "kind": "Scavenge", "when": "Frozen",
+   "animals": [ { "animal": "Bison", "weight": 0.4 }, { "animal": "Caribou", "weight": 0.35 }, { "animal": "Bear", "weight": 0.15 }, { "animal": "Mammoth", "weight": 0.1 } ],
+   "harvestedPct": [0.0, 0.15], "remains": "fresh carcass", "weight": 0.005 },
+  { "text": "Pine branches piled over something. Bear cache.", "kind": "Scavenge", "when": "BearsNear",
+   "animals": [ { "animal": "Caribou", "weight": 0.6 }, { "animal": "Bison", "weight": 0.3 }, { "animal": "Megaloceros", "weight": 0.1 } ],
+   "harvestedPct": [0.15, 0.35], "remains": "recent kill", "weight": 0.005 }
+ ],
+ "tutorials": {
+  "FirstClue": "You've learned to read the land. Signs like these tell you what might be found nearby.",
+  "Axe": "Your axe helps break branches and strip bark. (+10% yield)",
+  "Shovel": "Your shovel helps dig up roots and turn soil. (+10% yield)",
+  "DayOneFuel": "You'll want about {kg} more kg of fuel for tonight."
+ },
+ "searchBands": [
+  { "word": "unsearched", "belowPct": 0.0001 }, { "word": "lightly searched", "belowPct": 0.34 },
+  { "word": "searched", "belowPct": 1.0 }, { "word": "thoroughly searched", "belowPct": 1e9 }
+ ]
+}

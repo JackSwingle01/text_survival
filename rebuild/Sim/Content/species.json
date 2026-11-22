@@ -11,7 +11,7 @@
 //   an average member's blow does: a wolf's bite does not get through a person's flesh, a spear's thrust does.
 //   temperament: what makes its herd come at a target (a name in temperaments).
 //   behavior: how its herd lives (old HerdBehaviorType; Carrion is the folded scavenger flock). diet: what its herd grazes (a name in diets).
-//   Humans, rabbits and foxes never form herds of their own; theirs are the old defaults, Prey and Carnivore.
+//   Humans, hares and foxes never form herds of their own; theirs are the old defaults, Prey and Carnivore.
 //   How it runs (documentation/species-stats-research.md §5.3), fresh and unladen: topSpeedMps, flat out;
 //   enduranceSpeedMps, the pace it holds for 20 minutes or more; sprintSeconds, the seconds at top speed
 //   that empty a full sprint reserve; runCostJPerKgM, the net cost of running a metre (Taylor 1982, a
@@ -69,9 +69,9 @@
   // Homotherium latidens, the Eurasian scimitar-tooth (the old generic 300 kg sabre-tooth). Mass V (Illinois State
   // Museum), fat and muscle D.
   // Running: Speeds R (Barnett 2020: cursorial), a felid's short sprint D; its grazing is the small game a lone cat lives on between kills (D).
-  "Homotherium": { "body": "Quadruped", "weightKg": 190, "fatPct": 0.08, "musclePct": 0.48, "role": "Predator", "isSmall": false,
+  "SaberTooth": { "body": "Quadruped", "weightKg": 190, "fatPct": 0.08, "musclePct": 0.48, "role": "Predator", "isSmall": false,
    "attackDamage": 2.40, "attackType": "Pierce", "threat": 3.0, "boldness": 2.0, "aggression": 0.7, "cohesion": 0, "moveAllowanceM": 7, "reachM": 0.5,
-   "temperament": "homotherium", "behavior": "Solitary", "diet": "Carnivore",
+   "temperament": "saberTooth", "behavior": "Solitary", "diet": "Carnivore",
    "topSpeedMps": 14, "enduranceSpeedMps": 4, "sprintSeconds": 15, "runCostJPerKgM": 2.0, "burstPct": 0.10, "grazeKcalPerMinute": 15, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30 },
   // Cave hyena. Mass V/R (Wroe 2005, larger than the spotted), fat and muscle D.
   // Running: Speeds R (Kruuk 1972), the rest D.
@@ -105,7 +105,7 @@
    "topSpeedMps": 6.5, "enduranceSpeedMps": 3, "sprintSeconds": 90, "runCostJPerKgM": 0.7, "burstPct": 0.05, "grazeKcalPerMinute": 90, "strikeBackResolve": -0.2, "chaseLimitSeconds": 20 },
   // The mountain hare. Mass R, fat and muscle D.
   // Running: Top speed R (unverified), the rest D.
-  "Rabbit": { "body": "Quadruped", "weightKg": 3, "fatPct": 0.05, "musclePct": 0.50, "role": "Prey", "isSmall": true,
+  "Hare": { "body": "Quadruped", "weightKg": 3, "fatPct": 0.05, "musclePct": 0.50, "role": "Prey", "isSmall": true,
    "attackDamage": 0.05, "attackType": "Blunt", "threat": 0.05, "boldness": 0.1, "aggression": 0.0, "cohesion": 1, "moveAllowanceM": 3, "reachM": 0.1,
    "temperament": "never", "behavior": "Prey", "diet": "Carnivore",
    "topSpeedMps": 17, "enduranceSpeedMps": 4, "sprintSeconds": 10, "runCostJPerKgM": 7.5, "burstPct": 0.15, "grazeKcalPerMinute": 0.4, "strikeBackResolve": -0.2, "chaseLimitSeconds": 10 },
@@ -132,7 +132,7 @@
   "wolf": { "base": 0.20, "perMember": 0.05, "hungryAt": 0.7, "starvingAt": 0.9, "hungerBonus": 0.2, "defendBonus": 0.6, "cap": 0.9 },
   // All of it from defending its den: it never comes at anyone for food.
   "caveBear": { "base": 0, "perMember": 0, "hungryAt": 1.1, "starvingAt": 1.1, "hungerBonus": 0, "defendBonus": 0.7, "cap": 0.8 },
-  "homotherium": { "base": 0.25, "perMember": 0, "hungryAt": 0.7, "starvingAt": 0.9, "hungerBonus": 0.3, "defendBonus": 0.5, "cap": 1.0 },
+  "saberTooth": { "base": 0.25, "perMember": 0, "hungryAt": 0.7, "starvingAt": 0.9, "hungerBonus": 0.3, "defendBonus": 0.5, "cap": 1.0 },
   "hyena": { "base": 0.10, "perMember": 0.08, "hungryAt": 0.8, "starvingAt": 1.1, "hungerBonus": 0.2, "defendBonus": 0.15, "cap": 0.6 }
  },
 

@@ -37,7 +37,8 @@ internal sealed record ContentTables(
     DiscoveryTables Discoveries,
     IReadOnlyDictionary<string, IReadOnlyList<Accident>> Accidents,
     IReadOnlyList<Recipe> MakeRecipes,
-    IReadOnlyDictionary<Enum, string> Names);
+    IReadOnlyDictionary<Enum, string> Names,
+    ForagingTables Foraging);
 
 // ---- rows that have no home in a system's own file ----
 
@@ -78,6 +79,8 @@ public static partial class Content
     sealed record DiscoveriesFile(Dictionary<string, FindDef> Finds, Dictionary<string, FindDef> Details,
         Dictionary<string, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave,
         Dictionary<string, IReadOnlyList<string>> DetailDraws, IReadOnlyList<string> ExamineOnly);
+    sealed record ForagingFile(IReadOnlyList<QualityRow> Quality, IReadOnlyList<FailureRow> Failures, Dictionary<string, string> Luck,
+        Dictionary<string, string> Hints, IReadOnlyList<ClueDef> Clues, Dictionary<string, string> Tutorials, IReadOnlyList<SearchBand> SearchBands);
     sealed record RecipeFileRow(string Name, MakeCategory Category, IReadOnlyList<InputRow> Inputs, IReadOnlyList<Capability> Tools,
         IReadOnlyList<Requirement> Requires, int Minutes, ResultRow Result, IReadOnlyList<string> Outcomes, IReadOnlyList<Capability>? Faster = null);
     sealed record InputRow(string? Item = null, string? Of = null, double Kg = 0);
@@ -108,12 +111,13 @@ public static partial class Content
         var accidents = Deserialize<Dictionary<string, IReadOnlyList<Accident>>>(Text("accidents.json"), "accidents.json");
         var recipeRows = Deserialize<Dictionary<string, RecipeFileRow>>(Text("recipes.json"), "recipes.json");
         var nameRows = Deserialize<Dictionary<string, Dictionary<string, string>>>(Text("names.json"), "names.json");
+        var foraging = Deserialize<ForagingFile>(Text("foraging.json"), "foraging.json");
 
         // Nulls first: every later check would trip over one.
         var problems = LocationNullProblems(locations, loot).ToList();
         foreach (var (file, root) in new (string, object)[] { ("items.json", items), ("fire.json", fire), ("species.json", species),
             ("effects.json", effects), ("shelters.json", shelters), ("butchering.json", butchering), ("terrain.json", terrain),
-            ("forage.json", forage), ("discoveries.json", discoveries), ("accidents.json", accidents), ("recipes.json", recipeRows), ("names.json", nameRows) })
+            ("forage.json", forage), ("discoveries.json", discoveries), ("accidents.json", accidents), ("recipes.json", recipeRows), ("names.json", nameRows), ("foraging.json", foraging) })
             problems.AddRange(NullsIn(root, file));
         Fail(problems);
 
@@ -143,6 +147,9 @@ public static partial class Content
         var draws = Keyed<Terrain, IReadOnlyList<DiscoveryDraw>>(discoveries.Terrains, "discoveries.json terrains", problems);
         var detailDraws = Keyed<Terrain, IReadOnlyList<string>>(discoveries.DetailDraws, "discoveries.json detailDraws", problems);
         var names = NameTable(nameRows, problems);
+        var luck = Keyed<LuckTier, string>(foraging.Luck, "foraging.json luck", problems);
+        var hints = Keyed<Resource, string>(foraging.Hints, "foraging.json hints", problems, complete: true);
+        var tutorials = Keyed<Tutorial, string>(foraging.Tutorials, "foraging.json tutorials", problems, complete: true);
         Fail(problems);
 
         // Then references, shapes and ranges.
@@ -156,8 +163,9 @@ public static partial class Content
         problems.AddRange(TerrainProblems(terrain, terrains, caves, forage));
         problems.AddRange(FellingProblems(terrain.Felling, logKg, mixedWood, fuels, locations));
         problems.AddRange(ForageProblems(forage));
-        problems.AddRange(DiscoveryProblems(discoveries, draws, detailDraws, terrains, items.Gear));
+        problems.AddRange(DiscoveryProblems(discoveries, draws, detailDraws, terrains, items.Gear, loot, locations));
         problems.AddRange(AccidentProblems(accidents));
+        problems.AddRange(ForagingProblems(foraging, luck));
         var makeRecipes = MakeRecipes(recipeRows, items.Gear, problems);
         problems.AddRange(DeadRows(locations, loot, terrain, forage, discoveries, accidents));
         foreach (var kind in CodeGear) if (!items.Gear.ContainsKey(kind)) problems.Add($"items.json: no gear kind '{kind}', which the code names");
@@ -187,7 +195,44 @@ public static partial class Content
             new DiscoveryTables(new ReadOnlyDictionary<string, FindDef>(discoveries.Finds), new ReadOnlyDictionary<string, FindDef>(discoveries.Details),
                 ReadOnly(draws), discoveries.Cave, ReadOnly(detailDraws), discoveries.ExamineOnly),
             new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents),
-            makeRecipes, ReadOnly(names));
+            makeRecipes, ReadOnly(names),
+            new ForagingTables(foraging.Quality, foraging.Failures, ReadOnly(luck), ReadOnly(hints), foraging.Clues, ReadOnly(tutorials), foraging.SearchBands));
+    }
+
+    /// foraging.json: words for every band, highest first; one failure band for every word; a mood for every
+    /// luck but Normal; each clue with exactly what its kind reads.
+    static IEnumerable<string> ForagingProblems(ForagingFile f, Dictionary<LuckTier, string> luck)
+    {
+        for (int i = 1; i < f.Quality.Count; i++)
+            if (f.Quality[i].AtLeast >= f.Quality[i - 1].AtLeast) yield return $"foraging.json quality: {f.Quality[i].Word} is not below {f.Quality[i - 1].Word}";
+        if (f.Quality.Count == 0 || f.Quality[^1].AtLeast != 0) yield return "foraging.json quality: the last word starts at 0";
+        foreach (var q in f.Quality)
+            if (f.Failures.Count(b => b.Words.Contains(q.Word)) != 1) yield return $"foraging.json failures: {q.Word} is in {f.Failures.Count(b => b.Words.Contains(q.Word))} bands";
+        foreach (var b in f.Failures)
+        {
+            if (b.Lines.Count == 0) yield return "foraging.json failures: a band with no lines";
+            foreach (var w in b.Words) if (f.Quality.All(q => q.Word != w)) yield return $"foraging.json failures: no quality word '{w}'";
+        }
+        foreach (var t in Enum.GetValues<LuckTier>())
+            if ((t == LuckTier.Normal) == luck.ContainsKey(t)) yield return $"foraging.json luck: {t} {(t == LuckTier.Normal ? "says nothing" : "needs its line")}";
+        for (int i = 1; i < f.SearchBands.Count; i++)
+            if (f.SearchBands[i].BelowPct <= f.SearchBands[i - 1].BelowPct) yield return "foraging.json searchBands: not rising";
+        foreach (var c in f.Clues)
+        {
+            string at = $"foraging.json clues '{c.Text}'";
+            if (c.Weight <= 0 || c.Yield <= 0) yield return $"{at}: weight and yield are positive";
+            bool resources = c.Resources is { Count: > 0 }, game = c.Game != null, scavenge = c.HarvestedPct != null;
+            switch (c.Kind)
+            {
+                case ClueKind.Resource when !resources || game || scavenge: yield return $"{at}: a resource clue names resources and nothing else"; break;
+                case ClueKind.Game when !game || resources || scavenge: yield return $"{at}: a game clue names its game and nothing else"; break;
+                case ClueKind.Negative when resources || game || scavenge || c.Yield >= 1: yield return $"{at}: a negative clue cuts the yield, nothing else"; break;
+                case ClueKind.Scavenge when c.HarvestedPct is not [var lo, var hi] || lo < 0 || hi < lo || hi >= 1 || c.Remains == null || resources || game:
+                    yield return $"{at}: a scavenge clue has harvestedPct [min, max] in 0-1 and its remains"; break;
+            }
+            if (c.Animals?.Any(a => a.Weight <= 0) == true) yield return $"{at}: an animal with no weight";
+        }
+        if (f.Clues.Count(c => c.Kind == ClueKind.Resource && c.When == ClueWhen.Always) != 1) yield return "foraging.json clues: exactly one generic (Always) resource clue";
     }
 
     /// names.json: every value of every enum Names.Tables lists, and nothing else, each with its words.
@@ -467,7 +512,7 @@ public static partial class Content
     }
 
     /// A herd lives as its role meets a threat: prey graze and flee, predators hunt in a pack or alone,
-    /// scavengers scavenge, and a small scavenger may be the carrion flock. People, rabbits and foxes
+    /// scavengers scavenge, and a small scavenger may be the carrion flock. People, hares and foxes
     /// never form herds of their own and keep the default.
     static string? HerdBehaviorProblem(SpeciesRow r)
     {
@@ -642,10 +687,14 @@ public static partial class Content
     }
 
     static IEnumerable<string> DiscoveryProblems(DiscoveriesFile f, Dictionary<Terrain, IReadOnlyList<DiscoveryDraw>> draws,
-        Dictionary<Terrain, IReadOnlyList<string>> detailDraws, Dictionary<Terrain, TerrainRow> terrains, IReadOnlyDictionary<string, GearDef> gear)
+        Dictionary<Terrain, IReadOnlyList<string>> detailDraws, Dictionary<Terrain, TerrainRow> terrains, IReadOnlyDictionary<string, GearDef> gear,
+        IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot, IReadOnlyList<LocationDef> locations)
     {
-        foreach (var (id, d) in f.Finds) foreach (var p in FindProblems(d, gear, detail: false)) yield return $"discoveries.json finds {id}: {p}";
-        foreach (var (id, d) in f.Details) foreach (var p in FindProblems(d, gear, detail: true)) yield return $"discoveries.json details {id}: {p}";
+        foreach (var (id, d) in f.Finds) foreach (var p in FindProblems(d, gear, loot, detail: false)) yield return $"discoveries.json finds {id}: {p}";
+        foreach (var (id, d) in f.Details) foreach (var p in FindProblems(d, gear, loot, detail: true)) yield return $"discoveries.json details {id}: {p}";
+        foreach (var l in locations)
+            foreach (var find in l.All.OfType<SiteFind>())
+                if (!f.Finds.ContainsKey(find.Find)) yield return $"locations.json {l.Id}: no find '{find.Find}' in discoveries.json";
         foreach (var (t, row) in terrains)
         {
             if (row.Passable != draws.ContainsKey(t)) yield return $"discoveries.json terrains: {t} {(row.Passable ? "needs" : "is a wall and has no")} draws";
@@ -664,9 +713,27 @@ public static partial class Content
         foreach (var id in f.ExamineOnly) if (f.Details.ContainsKey(id)) yield return $"discoveries.json: {id} is examine-only and has things to take";
     }
 
-    static IEnumerable<string> FindProblems(FindDef d, IReadOnlyDictionary<string, GearDef> gear, bool detail)
+    static IEnumerable<string> FindProblems(FindDef d, IReadOnlyDictionary<string, GearDef> gear,
+        IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot, bool detail)
     {
-        if ((d.Work != null) == (d.Shelter != null)) { yield return "a find is a stock (work) or a shelter, one of them"; yield break; }
+        if (d.Found is not { Count: > 0 } || d.Found.Any(string.IsNullOrWhiteSpace)) yield return "no found lines";
+        int shapes = (d.Work != null ? 1 : 0) + (d.Shelter != null ? 1 : 0) + (d.Carcass != null ? 1 : 0) + (d.Stash ? 1 : 0);
+        if (shapes != 1) { yield return "a find is a stock (work), a shelter, a carcass or a stash, one of them"; yield break; }
+        if (d.Loot != null && !loot.ContainsKey(d.Loot)) yield return $"no loot table '{d.Loot}'";
+        if (d.Carcass is { } c)
+        {
+            if (detail) yield return "a detail is not a carcass";
+            if (c.Animals.Count == 0 || c.Animals.Any(a => a.Weight <= 0)) yield return "a carcass needs animals, each with a weight";
+            if (c.HarvestedPct is not [var lo, var hi] || lo < 0 || hi < lo || hi >= 1) yield return "harvestedPct is [min, max] in 0-1";
+            if (d.Items != null || d.Minutes != 0 || d.Loot != null) yield return "a carcass has no items, minutes or loot";
+            yield break;
+        }
+        if (d.Stash)
+        {
+            if (detail) yield return "a detail is not a stash";
+            if (d.Loot == null || d.Items != null || d.Minutes != 0) yield return "a stash holds a loot table, with no items or minutes";
+            yield break;
+        }
         if (d.Shelter != null)
         {
             if (detail) yield return "a detail is not a shelter";
@@ -682,6 +749,12 @@ public static partial class Content
         }
         if (detail != (d.Work == StockKind.Detail)) yield return detail ? "a detail's work is Detail" : "a find's work is Harvest or Salvage";
         if (d.Minutes <= 0) yield return $"minutes {d.Minutes}";
+        if (d.Loot != null)
+        {
+            if (d.Work != StockKind.Salvage) yield return "only a salvage is rolled from a loot table";
+            if (d.Items != null) yield return "a find has items or a loot table, not both";
+            yield break;
+        }
         if (d.Items is not { Count: > 0 }) { yield return "no items"; yield break; }
         if (new[] { d.Insulation, d.Overhead, d.Wind, d.InsulationCap, d.OverheadCap, d.WindCap }.Any(v => v != null)) yield return "a stock has no shelter levels";
         foreach (var p in ItemProblems(d.Items, d.Work!.Value, gear)) yield return p;
@@ -739,13 +812,15 @@ public static partial class Content
     {
         var forageUsed = terrain.Terrains.Values.Select(t => t.Forage?.Table).Concat(terrain.Caves.Values.Select(c => c.Forage.Table)).Concat(CodeForage).ToHashSet();
         foreach (var name in forage.Keys) if (!forageUsed.Contains(name)) yield return $"forage.json {name}: no terrain or cave forages it";
-        var findsUsed = discoveries.Terrains.Values.SelectMany(d => d).Concat(discoveries.Cave).Select(d => d.Find).ToHashSet();
+        var findsUsed = discoveries.Terrains.Values.SelectMany(d => d).Concat(discoveries.Cave).Select(d => d.Find)
+            .Concat(locations.SelectMany(l => l.All.OfType<SiteFind>()).Select(s => s.Find)).ToHashSet();
         foreach (var id in discoveries.Finds.Keys) if (!findsUsed.Contains(id)) yield return $"discoveries.json finds {id}: no draw finds it";
         var detailsUsed = discoveries.DetailDraws.Values.SelectMany(d => d).ToHashSet();
         foreach (var id in discoveries.Details.Keys.Concat(discoveries.ExamineOnly))
             if (!detailsUsed.Contains(id)) yield return $"discoveries.json details {id}: no terrain draws it";
         foreach (var name in accidents.Keys) if (!CodeAccidents.Contains(name)) yield return $"accidents.json {name}: no crossing draws from it";
-        var lootUsed = locations.SelectMany(l => l.All.OfType<SiteStock>()).Select(s => s.Loot).ToHashSet();
+        var lootUsed = locations.SelectMany(l => l.All.OfType<SiteStock>()).Select(s => s.Loot)
+            .Concat(discoveries.Finds.Values.Select(f => f.Loot)).ToHashSet();
         foreach (var name in loot.Keys) if (!lootUsed.Contains(name)) yield return $"loot.json {name}: no place is salvaged with it";
     }
 }

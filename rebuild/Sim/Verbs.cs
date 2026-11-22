@@ -30,8 +30,9 @@ public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, Moving
 /// One thing a person can do now, ready to run (Sim.Step(world, Activity, Minutes)). An activity that
 /// stops itself (a crossing, a butchering) gets a budget it never reaches. A refused verb is still listed, so the player sees why.
 /// Trip (Trip.Time) is the one number dock and preview show; Risk is the injury odds the crossing rolls.
+/// Durations: the lengths it can be run for, Minutes among them, where how long is the person's choice (a forage).
 public sealed record Verb(string Label, Activity Activity, int Minutes, Refusal? Refused, Odds? Odds = null, TripTime? Trip = null,
-    MakeOdds? Outcomes = null, Odds? Risk = null)
+    MakeOdds? Outcomes = null, Odds? Risk = null, IReadOnlyList<int>? Durations = null)
 {
     public bool Allowed => Refused == null;
 }
@@ -64,9 +65,10 @@ public sealed record Here(AgentId Who, TileId At, IReadOnlyList<LocationFeatureV
 /// Reads only: nothing is caught up, so the fires around the person must already be (any step catches them up).
 public static class Verbs
 {
-    public const int WaitMinutes = 60, RestMinutes = 60, SleepMinutes = 8 * 60, ForageMinutes = 60, WorkMinutes = 4 * 60,
+    public const int WaitMinutes = 60, RestMinutes = 60, SleepMinutes = 8 * 60, ForageMinutes = 30, WorkMinutes = 4 * 60,
         ImproveMinutes = 10;
     public const int UntilDoneMinutes = 24 * 60;
+    public static readonly IReadOnlyList<int> ForageDurations = [15, 30, 60];
     public const double FuelKg = 1.0;
     public const double TinderKg = 0.05, KindlingKg = 1.0;
     /// The least an Eat verb offers: a meal. Past what the stomach holds it goes on as fat (Body.Eat).
@@ -138,7 +140,8 @@ public static class Verbs
             return new(v.Label, v.Activity, v.Minutes, refused, v.Activity is StartFire s ? StartOdds(world, agent, s) : null,
                 v.Activity is Travel go && refused == null ? Trip.Time(world, who, go.Dir, go.Pace) : null,
                 v.Activity is Make m ? Making.Odds(world, agent, Recipes.Get(m.Recipe)) : null,
-                v.Activity is Travel walk && refused == null ? Trip.Risk(world, who, walk.Dir, walk.Pace) : null);
+                v.Activity is Travel walk && refused == null ? Trip.Risk(world, who, walk.Dir, walk.Pace) : null,
+                v.Activity is Gather g && Pools.Def(world, new PoolId(agent.Tile, g.Pool)) is ForagePool ? ForageDurations : null);
         }
     }
 
@@ -166,7 +169,7 @@ public static class Verbs
     static bool Seen(World world, AgentId who, LocationFeature t) => t.Kind switch
     {
         LocationFeatureKind.Agent or LocationFeatureKind.Body => t.Index != who.Value,
-        LocationFeatureKind.Pool => Pools.Knows(world, who, new PoolId(t.Tile, t.Index)),
+        LocationFeatureKind.Pool => Pools.Knows(world, who, new PoolId(t.Tile, t.Index)) && !Pools.LaysItsOwnFeature(Pools.Def(world, new PoolId(t.Tile, t.Index))),
         LocationFeatureKind.Carcass or LocationFeatureKind.Stash or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item => true,
     };
 
@@ -193,16 +196,30 @@ public static class Verbs
     static (string, List<(string, Activity, int)>) PoolVerbs(World world, AgentId who, LocationFeature t)
     {
         var def = Pools.Def(world, new PoolId(t.Tile, t.Index));
+        if (def is ForagePool forage) return (def.Name, ForageVerbs(world, who, t, forage));
         (string, Activity, int)? verb = def switch
         {
-            ForagePool => ("Forage", new Gather(who, t.Index), ForageMinutes),
             TreePool => ("Chop", new Gather(who, t.Index), WorkMinutes),
             StockPool s => (s.Kind switch { StockKind.Harvest => "Harvest", StockKind.Salvage => "Salvage", StockKind.Detail => "Examine" },
                 new Gather(who, t.Index), WorkMinutes),
             ShelterFind => null, // once found it stands as a shelter, which is its own thing
+            CarcassFind or StashFind => null,
             _ => throw new NotSupportedException($"No verb for a {def.GetType().Name}"),
         };
         return (def.Name, verb is { } v ? [v] : []);
+    }
+
+    /// The old forage screen's choices: a general search, labelled with the ground's word once foraged here, one
+    /// for each focus that grows here, and Keep Walking for new clues.
+    static List<(string, Activity, int)> ForageVerbs(World world, AgentId who, LocationFeature t, ForagePool def)
+    {
+        var place = (world.Agent(who).Mind as PersonMind)?.Memory.Places.GetValueOrDefault(t.Tile);
+        string general = place?.Foraged == true ? $"Forage ({Pools.QualityWord(Pools.ForageDensity(world, new PoolId(t.Tile, t.Index)))})" : "Forage";
+        var menu = new List<(string, Activity, int)>();
+        foreach (var (focus, _) in Pools.Foci(def))
+            menu.Add((focus == ForageFocus.General ? general : $"Forage for {Names.Of(focus)}", new Gather(who, t.Index, focus), ForageMinutes));
+        menu.Add(("Keep walking", new WalkAbout(who), Work.WalkAboutMinutes));
+        return menu;
     }
 
     static (string, List<(string, Activity, int)>) AgentVerbs(World world, AgentId who, AgentId other) =>

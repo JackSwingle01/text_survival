@@ -87,8 +87,8 @@ public static partial class Combat
 
     /// A carcass on the tile, ready to butcher. Over 500 kg is megafauna; a mammoth leaves its tusks
     /// and hide besides.
-    internal static void LeaveCarcass(World world, TileId tile, Species species, BodyState body, Cause cause) =>
-        Carcasses.Create(world, tile, species.ToString(), body, world.Minute, isMegafauna: body.WeightKg > 500,
+    internal static void LeaveCarcass(World world, TileId tile, Species species, BodyState body, Cause cause, double harvestedPct = 0) =>
+        Carcasses.Create(world, tile, species.ToString(), body, world.Minute, isMegafauna: body.WeightKg > 500, harvestedPct: harvestedPct,
             special: species == Species.Mammoth ? new Dictionary<Resource, double> { [Resource.Ivory] = 4, [Resource.MammothHide] = 15 } : null,
             cause: cause);
 

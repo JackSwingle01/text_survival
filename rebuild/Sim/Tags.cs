@@ -193,6 +193,8 @@ public static class Tags
                 }
             case ShelterFind f:
                 return Tag.Sheltering | BuriedUnder(world, id.Tile, f.PlacementHeightM);
+            case CarcassFind or StashFind:
+                return Tag.None;
             default:
                 throw new InvalidOperationException($"Tags has no reading for pool {def.GetType().Name}");
         }

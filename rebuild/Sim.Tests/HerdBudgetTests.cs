@@ -79,10 +79,10 @@ public class HerdBudgetTests
 
     /// The lone cat lives on small game between kills, as the old solitary forage let it.
     [Fact]
-    public void Homotherium_DoesNotStarveWhileItForages()
+    public void SaberTooth_DoesNotStarveWhileItForages()
     {
         var w = World.New(3);
-        var cat = w.Agent(Agents.Spawn(w, Species.Homotherium, Open(w), 1));
+        var cat = w.Agent(Agents.Spawn(w, Species.SaberTooth, Open(w), 1));
         TestKit.SetHunger(cat, 0.8);
         Minutes(w, cat, new Graze(cat.Id), 60);
         Assert.True(Fauna.Hunger(cat) < 0.8);

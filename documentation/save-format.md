@@ -67,7 +67,12 @@ glossary's: a person's memory is saved as `PersonMind.Memory` (was `Knows`, of t
 (`EncounterEnded`). Nothing else moved. Version 13 (the NPC mind on the tier ladder) reshaped `NpcMind`: it keeps
 `Camp`, `TargetFatKg` and `TargetFatMinute`, drops `Boldness`, `SeeingTo`, `Heading`, `ForageGoal`, `WoodGoal`,
 `Opinions`, `ThreatTile` and `ThreatMinute`, and adds `Goal` (an `NpcGoal`: its stat and tier by name, the minute it
-was taken on and its minutes of budget). When you add
+was taken on and its minutes of budget). Versions 14 to 17 (the forage restore) added, each skipped at its
+default: a work session's `LuckFactor` and `Clues` and a held `Doing.Held` (work carried between the steps of one
+job), with `Gathered.Luck` and `Gathered.Density` (14); `TileMemory.SearchedHours` and `TileMemory.Foraged` (15);
+`ForageState.ClueDraw` (16); `World.Tutorials`, with the `scavenged`, `tutorialshown` events and the `walkabout`
+activity (17). `LuckTier` and `Tutorial` are written by name. The species renames (Rabbit to Hare, Homotherium to
+SaberTooth) kept their enum positions, so saves hold the same numbers. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
 activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands.

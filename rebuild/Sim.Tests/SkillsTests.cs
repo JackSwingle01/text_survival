@@ -261,7 +261,7 @@ public class SkillsTests
         {
             var w = Mild17();
             SetLevel(w, P, Skill.Butchering, level);
-            var c = Carcasses.Create(w, Map.Of(w).Camp, "Rabbit", BodyState.Create(BodyKind.Quadruped, 2, 0.1, 0.4), 0);
+            var c = Carcasses.Create(w, Map.Of(w).Camp, "Hare", BodyState.Create(BodyKind.Quadruped, 2, 0.1, 0.4), 0);
             c.EffectiveHours = effectiveHours;
             Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
             Sim.Step(w, new Butcher(P, c.Id), 600);
@@ -293,7 +293,7 @@ public class SkillsTests
         var many = Save.FromJson(Save.ToJson(one));
         var levelled = Sim.Step(one, new Gather(P, 0), 120).Events.OfType<SkillLeveledUp>().Single();
         var events = new List<WorldEvent>();
-        for (int i = 0; i < 120; i++) events.AddRange(Sim.Step(many, new Gather(P, 0), 1).Events);
+        for (int i = 0; i < 120; i++) events.AddRange(Sim.Step(many, new Gather(P, 0), 1, more: i < 119).Events);
         Assert.Equal(levelled.Minute, events.OfType<SkillLeveledUp>().Single().Minute);
         Assert.Equal(Save.ToJson(one), Save.ToJson(many));
     }

@@ -34,9 +34,10 @@ file with `fetch` calls to the same five operations.
   refused. The page never builds an activity or names a game verb.
 - **Time is paced by the client.** A verb starts a job; `{"advance":N}` runs it up to N more game
   minutes and returns the view, so the clock is seen to move and a walk animates tile to tile.
-  `{"stop":true}` drops it. Wait, rest, sleep, walking and making run in those chunks (Sim continues
-  each across steps; tests check a chunked run leaves the world byte-identical to one step). Other work
-  (foraging, butchering, cooking) is one Sim step, which the page plays out on the clock.
+  `{"stop":true}` ends it at that minute. Wait, rest, sleep, walking, making and work (foraging,
+  butchering, cooking) run in those chunks: Sim continues each across steps, and holds work between them
+  (`Sim.Step` with `more`), so a chunked search is one search with one luck. The page plays the minutes
+  out at the old game's pace (`paceMs`). A verb with `durations` takes `{"verb":id,"minutes":N}`.
 - **Saves** are Sim's versioned JSON as bytes: kept in IndexedDB (one slot), and downloadable and
   uploadable as a file.
 - `Scenario(name)` is development only (`Host/Scenarios.cs`: `supplied`, `fight`, `dead`, `won`, `winter`), for

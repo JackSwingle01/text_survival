@@ -142,6 +142,12 @@ _Avoid_: structure, building
 A location feature or items hidden at a place until searching turns them up.
 _Avoid_: find, hidden feature
 
+**Clue**:
+What a forager notices before searching a place, drawn from what grows there, the ground, the sky, the
+hour and the animals near: an authored line, not a trace an agent left. A resource clue points to a
+focus and pays off when that focus is chosen; a scavenge clue leaves remains when the search ends.
+_Avoid_: hint, sign (a sign is a real trace)
+
 **Sign**:
 A trace an agent left at a place that tells you about it: tracks, scat, a kill, a cold fire.
 _Avoid_: clue, evidence

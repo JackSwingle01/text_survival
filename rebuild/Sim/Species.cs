@@ -2,7 +2,7 @@ namespace Survival;
 
 /// Raven is the folded scavenger kind (emergent-world-design §4): ravens, a fox and a wolverine as one
 /// flock. Birds have no body plan, so its members are small quadrupeds.
-public enum Species { Human, Wolf, Bear, CaveBear, Homotherium, Hyena, Caribou, Megaloceros, Bison, Mammoth, Rabbit, Fox, Raven }
+public enum Species { Human, Wolf, Bear, CaveBear, SaberTooth, Hyena, Caribou, Megaloceros, Bison, Mammoth, Hare, Fox, Raven }
 
 /// Humans are their own row: they never bolt by instinct.
 public enum Role { Human, Prey, DangerousPrey, Predator, Scavenger }

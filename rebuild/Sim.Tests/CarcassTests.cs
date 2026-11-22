@@ -12,7 +12,7 @@ public class CarcassTests
     /// Old AnimalFactory bodies: weight, muscle, fat (kg), bird, megafauna.
     static readonly Dictionary<string, (double W, double Muscle, double Fat, bool Bird, bool Mega)> Animals = new()
     {
-        ["Rabbit"] = (2.062641801423291, 1.0313209007116455, 0.2062641801423291, false, false),
+        ["Hare"] = (2.062641801423291, 1.0313209007116455, 0.2062641801423291, false, false),
         ["Caribou"] = (124.4465826469443, 74.66794958816658, 18.666987397041645, false, false),
         ["Wolf"] = (41.52815800699646, 24.91689480419788, 8.305631601399293, false, false),
         ["Bear"] = (225.99621700503752, 124.29791935277063, 67.79886510151125, false, false),
@@ -35,7 +35,7 @@ public class CarcassTests
     // Old yields: meat, bone, hide, sinew, fat, feather; and minutes for quick, careful, full.
     public static readonly TheoryData<string, double[], int[]> Yields = new()
     {
-        { "Rabbit", [0.6703585854625697, 0.2062641801423291, 0.2062641801423291, 0.10313209007116456, 0.12375850808539746, 0], [17, 34, 51] },
+        { "Hare", [0.6703585854625697, 0.2062641801423291, 0.2062641801423291, 0.10313209007116456, 0.12375850808539746, 0], [17, 34, 51] },
         { "Caribou", [48.53416723230828, 7.777911415434017, 12.44465826469443, 6.222329132347215, 11.200192438224986, 0], [134, 267, 401] },
         { "Wolf", [16.195981622728624, 2.0764079003498224, 4.1528158006996465, 2.0764079003498233, 4.983378960839576, 0], [56, 112, 167] },
         { "Bear", [80.79364757930091, 8.474858137688908, 22.599621700503754, 11.299810850251877, 40.67931906090675, 0], [241, 481, 721] },
@@ -73,7 +73,7 @@ public class CarcassTests
         { "Caribou", 30, false, 6.40651007466469, 5.2112006483407916, 0 },
         { "Bear", 8, false, 29.058704065846857, 5.678154952251569, 0 },
         { "Wolf", 30, true, 4.275739148400355, 2.0764079003498224, 4.1528158006996465 },
-        { "Rabbit", 30, false, 0.1, 0.1381970006953605, 0 },       // the 0.1 kg meat floor
+        { "Hare", 30, false, 0.1, 0.1381970006953605, 0 },       // the 0.1 kg meat floor
         { "Ptarmigan", 0, true, 0.21504061125140772, 0, 0 },       // bone under 0.05 kg is not worth keeping
         { "Mammoth", 18, true, 38.4, 8, 0 },
     };
@@ -205,7 +205,7 @@ public class CarcassTests
     [Fact]
     public void Butcher_RunsItsTime_FillsThePack_BloodiesYou_AndLeavesNoCarcass()
     {
-        var (w, c) = Make("Rabbit");
+        var (w, c) = Make("Hare");
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         var r = Sim.Step(w, new Butcher(P, c.Id), 120);
         Assert.Equal(("butchered", 34), (r.InterruptedReason, r.MinutesElapsed));
@@ -322,8 +322,8 @@ public class CarcassTests
     /// One step, an hour at a time, or a minute at a time: the same pack, the same carcass, the same
     /// world, exactly. Old (and before this fix): the scrap minimum and the meat floor were applied to
     /// each step's cut, so a caribou butchered a minute at a time gave meat and nothing else, and a
-    /// rabbit nothing at all but floored meat.
-    [Theory, InlineData("Caribou"), InlineData("Rabbit")]
+    /// hare nothing at all but floored meat.
+    [Theory, InlineData("Caribou"), InlineData("Hare")]
     public void Butchering_InOneStepHoursOrMinutes_YieldsExactlyTheSame(string animal)
     {
         (World, Carcass) Start() { var (w, c) = Make(animal); BigPack(w); return (w, c); }
@@ -350,7 +350,7 @@ public class CarcassTests
     /// Nothing is minted or lost but what the rules say: every kg off the carcass is still on it or
     /// in the cut ledger, and every kg the cut yielded is in the pack or waiting on the carcass -
     /// through a save in the middle, and through a pack too small for it.
-    [Theory, InlineData("Caribou", true), InlineData("Caribou", false), InlineData("Rabbit", true)]
+    [Theory, InlineData("Caribou", true), InlineData("Caribou", false), InlineData("Hare", true)]
     public void Butchering_ConservesWhatTheCarcassHad_ThroughASave(string animal, bool bigPack)
     {
         var (w, c) = Make(animal);
