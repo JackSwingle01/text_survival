@@ -44,6 +44,72 @@ Decided by the user on 2026-11-22:
 - **The stomach.** Decision "The stomach holds a fixed amount": eating is refused at full, and food
   goes to fat as it digests.
 
+Also decided by the user on 2026-11-22 (audit ids in brackets):
+
+- **Camp storage (ITM-14).** The old caches come back: the camp cache holds 1000 kg; natural caches
+  have a capacity and are predator-safe or weatherproof. Predators eat exposed food again. Design
+  session (1) below comes first.
+- **Ember carriers (ITM-15).** Restored, and made to work: you carry an ember and light a fire from
+  it with no strike. Deferred to later in the port.
+- **Crafting in the dark (ITM-17).** The old behaviour: darkness, wet hands and injury slow crafting,
+  never refuse. The slowdown is named and shown in the UI, with no warning text. Recipes that truly
+  need a fire still need one.
+- **Recipe inputs (ITM-18).** Design session (2) below. The old recipes are the starting point, and
+  inputs are counted in discrete pieces.
+- **Crafted gear (ITM-19).** New gear goes into the pack. The rebuild's change stays.
+- **Camp builds and recipes (ITM-20).** Settled by decision "Resources are discrete or continuous":
+  both count discrete resources in pieces.
+- **Curing rack (ITM-21).** The old rack comes back: 4 items; hide 48 h, meat 24 h, berries 12 h,
+  fish 16 h; it cures while you are away. Design session (3) also adds a less effective drying slot
+  at a campfire.
+- **Hide scraping (ITM-22).** The old way: one whole hide becomes 0.8 kg of scraped hide. One hide is
+  one garment's worth.
+- **Firecraft (FIR-4).** Keep the rebuild's +2% per level. The playtest's fire "death spiral" was the
+  player's skill, not the game.
+- **Tinder bundle (FIR-5).** Birch bark and amadou make a bundle again, as a high-quality tinder, not
+  a fire starter. Every fire-starting chance is capped at 95%.
+- **Washing off blood (FIR-12).** Restored: 0.5 L of water and 5 minutes removes Bloody and leaves you
+  slightly wet. Bloody still dries on its own too (decision "No effect needs a treatment the game
+  doesn't have", amended 2026-11-22).
+- **Drinking (FIR-13).** Frozen water needs an ice hole or snowmelt, as in the old game. Drinking
+  straight from open, unfrozen water stays: an improvement the user accepted.
+- **The night-no-fuel alert.** Not an alert: a fact on the fire panel, such as "burns about 3 h ·
+  dawn in 9 h" (decision "The UI shows what the game knows"; `dev/active/ui-design.md`).
+
+### Design sessions with the user
+
+Each waits until the restores before it are done.
+
+1. **Predators and items:** what counts as exposed food, which caches protect it, how far scent
+   reaches, and whether the rebuild's scavengers (ravens) stay.
+2. **Recipes that make sense:** rethink the recipes so a player would not find them strange or
+   illogical. The old recipes are the starting point; inputs are discrete pieces.
+3. **The fire as a workbench:** the jobs in `dev/active/short-loop-plan.md` §6 and the campfire drying
+   slot, together with the curing rack.
+
+Crippling injuries already has one (above).
+
+### The emergent-world work is on hold
+
+Steps 1-3a of `documentation/emergent-world-design.md` were built before a design session with the
+user, who did not know they existed. Everything built from that design goes on the user's review
+list as flagged changes, and a design-review session comes before any more of it is built. Until
+then no further emergent-world step starts: not step 3b (settling), step 4's remainder, or steps 5-6
+(roadmap items 7, 9 and 10 below wait on the session).
+
+What was built:
+
+- `2af01d6` Step 1, QA tools: find dump, distribution report and population curves (`Report`), the
+  CLI report command.
+- `11cedc4` Step 2, substrate: `ThingRef` and `Things.At`, `Cause` on carcasses, stashes, fire pits
+  and shelters, the `Signs.At` projection used by the report, derived Tags and gear Capabilities, one
+  `Access.Refusal` gate for every thing refusal, exhaustive `ThingKind` switches.
+- `9cbe8cc` Step 3a, the kill chain: herd renewal toward carrying capacity (births, pack starvation,
+  arrivals); ravens as scavengers with a derived Beacon and stash raids; the carcass and body pipeline
+  to bones and gone on one rot timeline; kill attribution by wounder and last striker; causes of
+  death; stable stash and shelter ids; canonical trail refs; feed, graze and raid through `Access`;
+  a ground cache and `Nearby` index for whole-map passes.
+
 ## The MVP: a run you can play
 
 A desktop run where you survive, prepare, hunt, get hunted, and try the pass.
@@ -112,7 +178,9 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - **Hunting thresholds:** bison only when starving; prey worth computed from the animal
   (`rebuild-npc-hunting.md`).
 - **Mammoth sinew:** about 300 kg, uncapped.
-- **The Bloody effect:** its treatment floor contradicts the "dries on its own" comment.
+- **The Bloody effect:** its treatment floor contradicts the "dries on its own" comment. Washing is
+  restored and Bloody still dries on its own (see "Restoring the old game"). Check the floor against
+  that when washing is built.
 - **Combat balance retune:** folds into MVP step 3.
 - **World-density checks:** measures and floors (parked).
 - **The body review's design questions** (step 6).

@@ -30,6 +30,28 @@ items are in [parity-audit-items.json](parity-audit-items.json).
 - **Each built screen is compared side by side** with the old game, and with the prototype's style,
   before it counts as done.
 
+- **A design session waits for its restores.** Camp storage, recipes and the fire as a workbench each
+  have a session with the user (roadmap, "Design sessions with the user"). Restore what comes before
+  it first; build nothing the session decides until it is held.
+- **Mark the audit.** When the user decides an audit item, add a `decision` key to it in
+  `parity-audit-items.json`.
+
+## Work built before a design session (added 2026-11-22)
+
+Steps 1-3a of `documentation/emergent-world-design.md` were built before a design session with the
+user, who did not know they existed. Everything they built goes on the user's review list as flagged
+changes:
+
+- `2af01d6` QA tools (find dump, distribution report, population curves, CLI report);
+- `11cedc4` the substrate (`ThingRef`, `Cause`, `Signs.At`, derived Tags and Capabilities,
+  `Access.Refusal`);
+- `9cbe8cc` the kill chain: herd renewal, ravens as scavengers with Beacons and raids, the carcass and
+  body pipeline, kill attribution and causes of death.
+
+A design-review session with the user comes before any more of that design is built. Until then no
+further emergent-world step starts. The full list is in the roadmap, "The emergent-world work is on
+hold".
+
 ## The restore order
 
 1. Foraging and discovery.

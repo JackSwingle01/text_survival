@@ -29,8 +29,8 @@ _Avoid_: optional, luxury
 ## Things in the world
 
 **Exposure**:
-What the world is doing to a body or thing in one place right now: air temperature (fire
-included), wind at it, precipitation, ground wetting, sun, and how covered it is.
+What the world is doing to a body, an item or a location feature in one place right now: air
+temperature (fire included), wind at it, precipitation, ground wetting, sun, and how covered it is.
 _Avoid_: environment, weather effects
 
 **Effect**:
