@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Bumps workflow actions, including the SHA-pinned claude-code-action (keeps the # v1 comment).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: nuget
+    directories: ["/**"]
+    schedule:
+      interval: weekly
+    groups:
+      # rlImGui-cs binds Raylib-cs to ImGui.NET, so the three move together. Rendering can
+      # change between versions: run the game before merging.
+      ui:
+        patterns: ["Raylib-cs", "ImGui.NET", "rlImGui-cs"]
+      test:
+        patterns: ["xunit*", "Microsoft.NET.Test.Sdk"]
