@@ -9,12 +9,15 @@ name: Issue agent
 #   never lost. Runs share one concurrency group, and GitHub keeps only the newest pending run,
 #   which is fine: that run lists every eligible issue again.
 #
-# What stays out of the queue is .github/scripts/issue_queue.py: issues from people without write
-# access, maps, design (grilling) tickets, issues labelled `needs-user`, issues with an open PR or
-# an `<issue#>-` branch, and issues whose "Blocked by" issues are still open.
+# .github/scripts/issue_queue.py keeps out only what GitHub records as fact: issues from people
+# without write access, issues labelled `needs-user`, issues with an open PR or an `<issue#>-`
+# branch, and issues with an open native "blocked by" link. Everything that takes reading the
+# issue (a design ticket, a map, blocking written in the text, a vague spec) is the triage call's
+# judgement on Sonnet.
 #
 # When triage or the build needs a person, the run comments on the issue and labels it
-# `needs-user`. Answer on the issue and remove the label to put it back in the queue.
+# `needs-user`. Answer on the issue and remove the label to put it back in the queue. A blocked
+# issue gets no comment or label: it is triaged again on each run until its blockers land.
 #
 # Issue and dispatch workflows run from the default branch, so this only works once it is on main.
 
@@ -128,10 +131,14 @@ jobs:
             - ready: an implementation ticket that says what to build, with acceptance criteria an agent can
               check, and no decision in it that belongs to a person. Gaps an engineer can close from the
               spec, the glossary, the decision records or the code are not a reason to stop.
+            - blocked: it depends on another issue that is still open, or on work not on main yet, however
+              the issue says so. Check each one's state with `gh issue view`. A mention for context is not a
+              blocker. Put the open blockers' numbers in `blocked_by`. This resolves itself once they land,
+              so nobody is asked anything.
             - needs_user: a person has to decide or answer first. For example: a design or grilling ticket;
-              an open question; an issue that asks for a diagnosis or report to come back before anything
-              changes; acceptance criteria nobody can check; a conflict with a decision record; a choice the
-              issue says goes to Jack; or a dependency on work that is not on main yet.
+              a map or parent issue that tracks other tickets; an open question; an issue that asks for a
+              diagnosis or report to come back before anything changes; acceptance criteria nobody can
+              check; a conflict with a decision record; or a choice the issue says goes to Jack.
             - already_done: main already does what it asks. Say where.
 
             Change no files. Answer only through the structured output. `established` holds what you
@@ -141,10 +148,11 @@ jobs:
             --model claude-sonnet-5-5
             --allowedTools "Read,Glob,Grep,Bash(gh issue view:*),Bash(git log:*),Bash(git grep:*)"
             --json-schema '{"type":"object","additionalProperties":false,
-            "required":["decision","summary","established","questions","branch"],
-            "properties":{"decision":{"type":"string","enum":["ready","needs_user","already_done"]},
+            "required":["decision","summary","established","questions","blocked_by","branch"],
+            "properties":{"decision":{"type":"string","enum":["ready","blocked","needs_user","already_done"]},
             "summary":{"type":"string"},"established":{"type":"array","items":{"type":"string"}},
-            "questions":{"type":"array","items":{"type":"string"}},"branch":{"type":"string"}}}'
+            "questions":{"type":"array","items":{"type":"string"}},
+            "blocked_by":{"type":"array","items":{"type":"integer"}},"branch":{"type":"string"}}}'
 
       - name: Read triage
         id: verdict
@@ -160,7 +168,8 @@ jobs:
           {
             echo "## Triage: $decision"
             echo
-            jq -r '.summary' <<< "$OUTPUT"
+            jq -r '.summary + (if (.blocked_by | length) > 0
+              then "\n\nBlocked by: " + (.blocked_by | map("#" + tostring) | join(", ")) else "" end)' <<< "$OUTPUT"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Park for a person

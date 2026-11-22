@@ -47,41 +47,15 @@ def open_issues():
     return [i for i in items if "pull_request" not in i]
 
 
-def refs(text):
-    """Issue numbers in this repo referenced as #N or owner/repo#N."""
-    found = set()
-    for m in re.finditer(r"(?<![\w/#])(?:([\w.-]+/[\w.-]+))?#(\d+)\b", text or ""):
-        if m.group(1) is None or m.group(1).lower() == REPO.lower():
-            found.add(int(m.group(2)))
-    return found
-
-
-def section(body, heading):
-    m = re.search(
-        rf"^#+\s*{heading}\s*$(.*?)(?=^#+\s|\Z)", body or "", re.MULTILINE | re.DOTALL | re.IGNORECASE
-    )
-    return m.group(1) if m else ""
-
-
-_state = {}
-
-
-def is_open(number):
-    if number not in _state:
-        _state[number] = api(f"repos/{REPO}/issues/{number}")["state"] == "open"
-    return _state[number]
-
-
 def open_blockers(issue):
-    """Open issues this one waits on: its "Blocked by" section, plus GitHub's native edges."""
-    blockers = {n for n in refs(section(issue["body"], "Blocked by")) if n != issue["number"]}
+    """Open issues linked to this one with GitHub's native "blocked by". Blocking written only in
+    the issue's text is triage's to read, not this script's."""
     try:
-        for b in api(f"repos/{REPO}/issues/{issue['number']}/dependencies/blocked_by"):
-            if b.get("state") == "open":
-                blockers.add(b["number"])
+        return [b["number"] for b in api(f"repos/{REPO}/issues/{issue['number']}/dependencies/blocked_by")
+                if b.get("state") == "open"]
     except subprocess.CalledProcessError as e:
         print(f"#{issue['number']}: native blocked-by lookup failed: {e.stderr.strip()}", file=sys.stderr)
-    return sorted(n for n in blockers if is_open(n))
+        return []
 
 
 class Repo:
@@ -105,17 +79,15 @@ class Repo:
 
 
 def skip_reason(issue, repo):
-    """Why an agent must not pick this issue up now, or None if it may."""
-    n, body = issue["number"], issue["body"] or ""
+    """Why an agent must not pick this issue up now, or None if it may. Only facts GitHub records
+    (author, labels, PRs, branches, native links) are checked here. Whether the issue itself is
+    ready, a design ticket, a map or blocked in its text is triage's judgement."""
+    n = issue["number"]
     labels = {label["name"] for label in issue["labels"]}
     if issue["author_association"] not in TRUSTED:
         return f"opened by {issue['user']['login']}, who has no write access"
     if NEEDS_USER in labels:
         return f"labelled {NEEDS_USER}"
-    if issue["title"].lower().startswith("map:"):
-        return "a map: it closes when its children do"
-    if re.search(r"\*\*Type:\*\*\s*(grilling|design)", body, re.IGNORECASE):
-        return "a design ticket: it resolves by grilling with a person"
     if pr := repo.pr_for(n):
         return f"already has an open pull request, {pr}"
     if branch := repo.branch_for(n):
