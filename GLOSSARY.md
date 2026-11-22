@@ -129,3 +129,39 @@ _Avoid_: error, block, requirement
 A system's rough, probabilistic expectation of how its own part of the world goes on, assuming
 everything else stays as it is now; the same for the player and every other person.
 _Avoid_: prediction, simulation, estimate
+
+**Agent**:
+Anything that decides and moves in the world as one: a person, or a herd.
+_Avoid_: actor, entity, unit
+
+**Herd**:
+Animals of one species that move and decide as one, from a lone bear to a hundred caribou. Pack is
+an alias for a herd of predators.
+_Avoid_: group, flock
+
+**Camp**:
+A place a person has set up to live from for now, with a fire, a stash or a shelter. Camps are
+temporary, and a person may have several.
+_Avoid_: home, base
+
+**Memory**:
+What a person has seen and remembers of the world: their map, the ground as last seen, stashes,
+fires, dangers. It can be out of date or wrong.
+_Avoid_: beliefs, knowledge, explored
+
+## Danger
+
+**Boldness**:
+How much an animal is willing to risk right now, from its nature, hunger, numbers and what it is
+defending.
+_Avoid_: morale, courage, aggression
+
+**Threat**:
+How dangerous something looks to an animal weighing whether to press it.
+_Avoid_: danger score, strength
+
+**Encounter**:
+One meeting between agents close enough to act on each other, from the moment they are aware of
+each other until one side leaves or dies. Combat is the system that runs it; an encounter may end
+without a blow.
+_Avoid_: fight, battle, combat (for the meeting itself)
