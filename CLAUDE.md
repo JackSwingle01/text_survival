@@ -42,3 +42,15 @@ For the clean-room rebuild (`rebuild/`):
   for hard-to-reverse, surprising choices. Read them before reopening a design question.
 - Before adding any feature to the rebuild, read "Where things go" in
   `documentation/clean-room-architecture.md`: the home, rule and touch points for each kind.
+
+## Tickets, branches and PRs
+
+- Tickets are GitHub issues. A plan too big for one session is a wayfinder map: a parent issue with
+  child issues, blocking expressed with GitHub's native "blocked by".
+- Each ticket gets its own branch off `main`, named `<issue#>-short-name`, worked in its own git
+  worktree. Agents touch only their own worktree.
+- One PR per ticket, into `main`. Merge when CI and the Claude review are green.
+- Porting the old game: follow `dev/active/porting.md`.
+- Each ticket's agent keeps a work log (the `mp:work-log` skill's format) in `.agent-logs/`,
+  one file per task named `YYYY-MM-DD-short-name.md`, committed with its PR. See
+  `.agent-logs/README.md`.

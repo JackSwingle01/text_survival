@@ -382,7 +382,7 @@ public class HerdTests(ITestOutputHelper output)
         Assert.InRange(Count(Species.Wolf), 1, 2);
         Assert.InRange(Count(Species.Caribou), 2, 3);
         Assert.InRange(Count(Species.Megaloceros) + Count(Species.Bison), 8, 15);
-        Assert.InRange(Count(Species.Homotherium), 1, 2);
+        Assert.InRange(Count(Species.SaberTooth), 1, 2);
         Assert.InRange(Count(Species.Hyena), 1, 2 + m.Width * m.Height); // the old 1-2 packs, plus cave clans
         Assert.InRange(herds.Count(h => h.Species is Species.Bear or Species.CaveBear && m.CaveAt(h.Tile) == Cave.None), 3, 5);
         foreach (var h in herds)
@@ -400,7 +400,7 @@ public class HerdTests(ITestOutputHelper output)
                 Species.Caribou => (6, 192),
                 Species.Megaloceros => (3, 96),
                 Species.Bison => (3, 400),
-                Species.Homotherium => (4, 160),
+                Species.SaberTooth => (4, 160),
                 Species.Raven => (3, 250),
                 _ => (3, 112),
             };
@@ -1044,7 +1044,7 @@ public class TerritorySweepTests(ITestOutputHelper output)
         [Species.Bison] = 80,
         [Species.Megaloceros] = 40,
         [Species.Caribou] = 100,
-        [Species.Homotherium] = 80,
+        [Species.SaberTooth] = 80,
         [Species.Wolf] = 20,
         [Species.Bear] = 40,
         [Species.Mammoth] = 150,

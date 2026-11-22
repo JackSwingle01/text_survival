@@ -440,3 +440,38 @@ export function createBaker(map, stateAt, world, tex) {
 
   return { bakeCell, bakeSprites, classify };
 }
+
+// ---------------------------------------------------------------- one cell on its own
+/**
+ * How far a cell's finished pixels reach for their inputs: sprites anchored in the next cell read
+ * that cell's 5x5 neighbourhood, so terrain three cells away and ground state two cells away.
+ */
+export const REACH = 3, GROUND_REACH = 2;
+const SIDE = 2 * REACH + 1;
+
+/** fn(x, y) for every cell within REACH of (cx, cy), row by row, clamped to the map as the baker clamps. */
+export function around(width, height, cx, cy, fn) {
+  const out = new Array(SIDE * SIDE);
+  for (let oy = -REACH; oy <= REACH; oy++) for (let ox = -REACH; ox <= REACH; ox++)
+    out[(oy + REACH) * SIDE + ox + REACH] = fn(Math.min(width - 1, Math.max(0, cx + ox)), Math.min(height - 1, Math.max(0, cy + oy)));
+  return out;
+}
+
+/**
+ * The finished pixels (ground and sprites, RGBA, CELL x CELL) of cell (cx, cy), from its
+ * neighbourhood alone: the same pixels as baking the whole map, so a cell can be baked anywhere
+ * (a worker) and kept until its neighbourhood changes.
+ * job: { width, height, cx, cy, world, terrain, states } with terrain and states from around().
+ */
+export function bakeAlone({ width, height, cx, cy, world, terrain, states }, tex) {
+  const look = (arr, x, y) => {
+    const dx = x - cx + REACH, dy = y - cy + REACH;
+    if (dx < 0 || dy < 0 || dx >= SIDE || dy >= SIDE) throw new Error(`cell (${cx}, ${cy}) read (${x}, ${y}), beyond its reach`);
+    return arr[dy * SIDE + dx];
+  };
+  const baker = createBaker({ width, height, terrainAt: (x, y) => look(terrain, x, y) }, (x, y) => look(states, x, y), world, tex);
+  const out = new Uint8ClampedArray(CELL * CELL * 4);
+  baker.bakeCell(out, cx, cy, cx + 1, cx, cy);
+  baker.bakeSprites(out, cx, cy, cx + 1, cy + 1);
+  return out;
+}

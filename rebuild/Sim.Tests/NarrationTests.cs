@@ -53,7 +53,8 @@ public class NarrationTests
         for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++) events.AddRange(Sim.Step(w, light.Activity, 1).Events);
         events.AddRange(Sim.Step(w, new AddFuel(P, Resource.Birch, 1), 1).Events);
         events.AddRange(Sim.Step(w, new Eat(P, Resource.Berries, 0.5), 10).Events);
-        events.AddRange(Sim.Step(w, new Gather(P, 0), 60).Events);
+        // A search's luck is one roll: a lean one at camp can come up empty, so search until something turns up.
+        for (int i = 0; i < 6 && !events.OfType<Gathered>().Any(g => g.What.Length > 0); i++) events.AddRange(Sim.Step(w, new Gather(P, 0), 60).Events);
         var walk = Verbs.At(w, P).Walk.First(v => v.Allowed);
         events.AddRange(Sim.Step(w, walk.Activity, walk.Minutes).Events);
         var lines = events.Select(e => Narration.ForPlayer(w, e)).OfType<Narrated>().ToList();

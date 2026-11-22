@@ -49,7 +49,7 @@
      "kind": "smallGame",
      "density": 1.2,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.6 },
+      { "animal": "Hare", "weight": 0.6 },
       { "animal": "Fox", "weight": 0.3 }
      ]
     },
@@ -121,7 +121,7 @@
      "kind": "smallGame",
      "density": 0.7,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     }
@@ -166,7 +166,7 @@
      "kind": "smallGame",
      "density": 0.5,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.6 },
+      { "animal": "Hare", "weight": 0.6 },
       { "animal": "Fox", "weight": 0.3 }
      ]
     },
@@ -203,7 +203,7 @@
      "kind": "smallGame",
      "density": 1.2,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     },
@@ -260,10 +260,10 @@
      "kind": "smallGame",
      "density": 0.3,
      "animals": [
-      { "animal": "Rabbit", "weight": 1 }
+      { "animal": "Hare", "weight": 1 }
      ]
     },
-    { "kind": "event", "event": "fire_origin", "revealAtHours": 1.5 }
+    { "kind": "find", "find": "FireOrigin", "revealAtHours": 1.5 }
    ]
   },
   {
@@ -318,7 +318,7 @@
      "kind": "smallGame",
      "density": 0.6,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     }
@@ -364,7 +364,7 @@
      "kind": "smallGame",
      "density": 0.5,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     },
@@ -410,7 +410,7 @@
      "kind": "smallGame",
      "density": 0.4,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     }
@@ -443,7 +443,7 @@
      "kind": "smallGame",
      "density": 0.7,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.6 },
+      { "animal": "Hare", "weight": 0.6 },
       { "animal": "Fox", "weight": 0.3 }
      ]
     }
@@ -475,7 +475,7 @@
      "kind": "smallGame",
      "density": 0.6,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     },
@@ -510,7 +510,7 @@
      "kind": "smallGame",
      "density": 0.8,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     }
@@ -554,7 +554,7 @@
      "kind": "smallGame",
      "density": 1,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.6 },
+      { "animal": "Hare", "weight": 0.6 },
       { "animal": "Fox", "weight": 0.3 }
      ]
     },
@@ -588,7 +588,7 @@
      "kind": "smallGame",
      "density": 0.8,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     }
@@ -623,7 +623,7 @@
      "kind": "smallGame",
      "density": 0.6,
      "animals": [
-      { "animal": "Rabbit", "weight": 1 },
+      { "animal": "Hare", "weight": 1 },
       { "animal": "Fox", "weight": 0.3 }
      ],
      "peakHours": [ 5, 8 ],
@@ -671,7 +671,7 @@
      "kind": "smallGame",
      "density": 1.3,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.6 },
+      { "animal": "Hare", "weight": 0.6 },
       { "animal": "Fox", "weight": 0.3 }
      ]
     },
@@ -707,7 +707,7 @@
      "kind": "smallGame",
      "density": 1.4,
      "animals": [
-      { "animal": "Rabbit", "weight": 2 },
+      { "animal": "Hare", "weight": 2 },
       { "animal": "Ptarmigan", "weight": 1.5 },
       { "animal": "Fox", "weight": 0.6 }
      ],
@@ -798,7 +798,7 @@
      "kind": "smallGame",
      "density": 1.6,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.8 }
+      { "animal": "Hare", "weight": 0.8 }
      ],
      "peakHours": [ 5, 8 ],
      "peakFactor": 2
@@ -830,7 +830,7 @@
      "kind": "smallGame",
      "density": 1.2,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.5 },
+      { "animal": "Hare", "weight": 1.5 },
       { "animal": "Ptarmigan", "weight": 1.2 },
       { "animal": "Fox", "weight": 0.5 }
      ]
@@ -890,7 +890,7 @@
      "kind": "smallGame",
      "density": 1.8,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.8 }
+      { "animal": "Hare", "weight": 0.8 }
      ],
      "peakHours": [ 6, 10 ],
      "peakFactor": 1.8
@@ -923,7 +923,7 @@
      "kind": "smallGame",
      "density": 0.5,
      "animals": [
-      { "animal": "Rabbit", "weight": 1 },
+      { "animal": "Hare", "weight": 1 },
       { "animal": "Ptarmigan", "weight": 0.6 }
      ],
      "chance": 0.25
@@ -980,7 +980,7 @@
      "kind": "smallGame",
      "density": 0.4,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     }
@@ -1141,7 +1141,7 @@
     },
     { "kind": "stock", "work": "Salvage", "name": "Den Floor", "description": "Bones litter the cave floor. Years of kills.", "minutes": 45, "loot": "MegafaunaGraveyard" },
     { "kind": "stock", "work": "Salvage", "name": "Deep Cave Cache", "description": "The cave narrows. Cached bones in the back.", "minutes": 25, "loot": "BoneHarvest" },
-    { "kind": "event", "event": "bear_cache", "revealAtHours": 2 }
+    { "kind": "find", "find": "BearCache", "revealAtHours": 2 }
    ]
   },
   {
@@ -1174,7 +1174,7 @@
      "kind": "smallGame",
      "density": 0.4,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     },
@@ -1298,7 +1298,7 @@
      "density": 0.7,
      "animals": [
       { "animal": "Ptarmigan", "weight": 1.5 },
-      { "animal": "Rabbit", "weight": 1 },
+      { "animal": "Hare", "weight": 1 },
       { "animal": "Fox", "weight": 0.4 }
      ],
      "peakHours": [ 6, 9 ],
@@ -1603,7 +1603,7 @@
      "density": 0.7,
      "animals": [
       { "animal": "Ptarmigan", "weight": 1.5 },
-      { "animal": "Rabbit", "weight": 0.5 }
+      { "animal": "Hare", "weight": 0.5 }
      ]
     },
     { "kind": "water", "name": "Beaver Pond", "description": "Deep water. Ice forms at the edges first and stays thin in places.", "frozen": true, "ice": 0.4, "fish": 0.7 },
@@ -1674,7 +1674,7 @@
      "kind": "smallGame",
      "density": 0.6,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.6 },
+      { "animal": "Hare", "weight": 0.6 },
       { "animal": "Fox", "weight": 0.3 }
      ]
     }
@@ -1710,7 +1710,7 @@
      "kind": "smallGame",
      "density": 1,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.8 }
+      { "animal": "Hare", "weight": 0.8 }
      ],
      "peakHours": [ 5, 8 ],
      "peakFactor": 1.5
@@ -1807,7 +1807,7 @@
      "density": 0.9,
      "animals": [
       { "animal": "Ptarmigan", "weight": 1.5 },
-      { "animal": "Rabbit", "weight": 0.5 }
+      { "animal": "Hare", "weight": 0.5 }
      ]
     }
    ]
@@ -1844,7 +1844,7 @@
      "density": 0.6,
      "animals": [
       { "animal": "Ptarmigan", "weight": 1.5 },
-      { "animal": "Rabbit", "weight": 0.5 }
+      { "animal": "Hare", "weight": 0.5 }
      ]
     },
     {
@@ -1897,7 +1897,7 @@
      "density": 1.3,
      "animals": [
       { "animal": "Ptarmigan", "weight": 1.5 },
-      { "animal": "Rabbit", "weight": 0.5 }
+      { "animal": "Hare", "weight": 0.5 }
      ]
     },
     { "kind": "water", "name": "Reed Shallows", "description": "Shallow water between the reed stalks. The ice here stays thin.", "frozen": true, "ice": 0.2, "fish": 0.7 }
@@ -1944,7 +1944,7 @@
      "density": 0.6,
      "animals": [
       { "animal": "Ptarmigan", "weight": 1.5 },
-      { "animal": "Rabbit", "weight": 0.5 }
+      { "animal": "Hare", "weight": 0.5 }
      ]
     },
     { "kind": "water", "name": "Bog Pools", "description": "Dark water hidden under moss, and under thin ice in a frost.", "frozen": true, "ice": 0.3, "fish": 0.7 }
@@ -2042,7 +2042,7 @@
      "density": 0.9,
      "animals": [
       { "animal": "Fox", "weight": 2 },
-      { "animal": "Rabbit", "weight": 0.6 }
+      { "animal": "Hare", "weight": 0.6 }
      ],
      "peakHours": [ 4, 7 ],
      "peakFactor": 1.8
@@ -2096,7 +2096,7 @@
      "kind": "smallGame",
      "density": 0.5,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     }
@@ -2194,7 +2194,7 @@
      "kind": "smallGame",
      "density": 1.1,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.8 },
+      { "animal": "Hare", "weight": 0.8 },
       { "animal": "Ptarmigan", "weight": 0.4 }
      ]
     }
@@ -2227,7 +2227,7 @@
      "kind": "smallGame",
      "density": 0.9,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     }
@@ -2298,7 +2298,7 @@
      "kind": "smallGame",
      "density": 0.5,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     }
@@ -2329,7 +2329,7 @@
      "kind": "smallGame",
      "density": 1.5,
      "animals": [
-      { "animal": "Rabbit", "weight": 0.6 }
+      { "animal": "Hare", "weight": 0.6 }
      ],
      "peakHours": [ 5, 8 ],
      "peakFactor": 2.2
@@ -2375,7 +2375,7 @@
      "kind": "smallGame",
      "density": 1.3,
      "animals": [
-      { "animal": "Rabbit", "weight": 2.5 },
+      { "animal": "Hare", "weight": 2.5 },
       { "animal": "Fox", "weight": 0.6 }
      ],
      "peakHours": [ 5, 7 ],
@@ -2455,11 +2455,11 @@
     },
     { "kind": "water", "name": "Mineral Spring", "description": "Iron-rich water. Medicinal, if you can stomach the taste.", "frozen": false, "fish": 0.7 },
     // old game: this SmallGameFeature listed no animals, so nothing could ever be hunted here
-    // (bug, fixed): the common rabbit and ptarmigan.
+    // (bug, fixed): the common hare and ptarmigan.
     {
      "kind": "smallGame",
      "density": 1.3,
-     "animals": [ { "animal": "Rabbit", "weight": 1.2 }, { "animal": "Ptarmigan", "weight": 1 } ],
+     "animals": [ { "animal": "Hare", "weight": 1.2 }, { "animal": "Ptarmigan", "weight": 1 } ],
      "peakHours": [ 5, 8 ],
      "peakFactor": 1.8
     }
@@ -2582,7 +2582,7 @@
      "density": 1,
      "animals": [
       { "animal": "Ptarmigan", "weight": 2 },
-      { "animal": "Rabbit", "weight": 0.8 }
+      { "animal": "Hare", "weight": 0.8 }
      ]
     }
    ]
@@ -2815,7 +2815,7 @@
      "kind": "smallGame",
      "density": 1.2,
      "animals": [
-      { "animal": "Rabbit", "weight": 1.2 },
+      { "animal": "Hare", "weight": 1.2 },
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     },

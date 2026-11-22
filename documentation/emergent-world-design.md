@@ -5,7 +5,9 @@ with content that falls out of the simulation. The plan (`clean-room-architectur
 for Phase 4 onward.*
 
 **Status:** design agreed in direction (2026-11-20); revised 2026-11-21 after a review session with
-the user (§0). Steps 1-3a built.
+the user (§0). Steps 1-3a built, before a design session with the user. On hold since 2026-11-22:
+what was built is on the user's review list, and no further step starts until a design-review session
+(`dev/active/rebuild-roadmap.md`, "The emergent-world work is on hold").
 **Source:** adapted from the "Emergent Discovery System" handoff written for the corridor game
 (text-survival-2), whose findings came from a throwaway world-gen POC. This doc keeps its findings
 and changes what does not fit the rebuild: a 2D grid valley with a full per-minute agent sim.

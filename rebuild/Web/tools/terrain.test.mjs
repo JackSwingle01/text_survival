@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createBaker, wantedArt, resolveArt, ice, snowField, PAINTED, CELL, SRC, VARIANTS, variant } from '../App/wwwroot/terrain-core.js';
+import { createBaker, bakeAlone, around, REACH, GROUND_REACH, wantedArt, resolveArt, ice, snowField, PAINTED, CELL, SRC, VARIANTS, variant } from '../App/wwwroot/terrain-core.js';
 import { cellState, worldState, createGround, GROUND, SEASONS, BARE } from '../App/wwwroot/ground-state.js';
 import { decodePng } from './png.mjs';
 
@@ -456,4 +456,47 @@ test('art that was never painted is an error', () => {
   assert.equal(resolveArt('terrain/ground/plain_1_summer'), 'terrain/ground/plain_1_summer');
   assert.throws(() => resolveArt('terrain/lichen/x_1_winter'), /no terrain art for layer/);
   assert.throws(() => resolveArt('terrain/ground/plain_1_spring'), /no terrain art in palette/);
+});
+
+/**
+ * A crop of the fixture with its left map edge, lakes, river, marsh and mountains, ground varying cell
+ * to cell, and a ragged unknown edge, so every way a cell reads its neighbours is exercised.
+ */
+function patchwork(W = 19, H = 15, Y0 = 8) {
+  const terrain = [], surfaces = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const t = (x + y * 3) % 11 === 0 ? null : fixture.terrain[Y0 + y][x], r = (x * 7 + y * 13) % 10;
+    terrain.push(t);
+    surfaces.push(t && cellState({ snowCm: [0, 0.6, 7, 12, 30][r % 5], mudLevel: r / 10, waterCm: r % 3 * 2, ice: r > 6 }, t, WET(t) && r < 5));
+  }
+  return { W, H, terrainAt: (x, y) => terrain[y * W + x], stateAt: (x, y) => surfaces[y * W + x] ?? BARE };
+}
+const cellOf = (out, W, cx, cy) => {
+  const px = new Uint8ClampedArray(CELL * CELL * 4);
+  for (let y = 0; y < CELL; y++) px.set(out.subarray(((cy * CELL + y) * W * CELL + cx * CELL) * 4, ((cy * CELL + y) * W * CELL + cx * CELL + CELL) * 4), y * CELL * 4);
+  return px;
+};
+const alone = (p, cx, cy, world, stateAt = p.stateAt) => bakeAlone({ width: p.W, height: p.H, cx, cy, world,
+  terrain: around(p.W, p.H, cx, cy, p.terrainAt), states: around(p.W, p.H, cx, cy, stateAt) }, n => tex(n));
+
+test('a cell baked on its own is pixel for pixel the cell of the whole map baked at once', () => {
+  const p = patchwork();
+  for (const world of [WINTER_WORLD, SUMMER_WORLD]) {
+    const whole = new Uint8ClampedArray(p.W * CELL * p.H * CELL * 4);
+    const baker = createBaker({ width: p.W, height: p.H, terrainAt: p.terrainAt }, p.stateAt, world, n => tex(n));
+    for (let cy = 0; cy < p.H; cy++) for (let cx = 0; cx < p.W; cx++) baker.bakeCell(whole, 0, 0, p.W, cx, cy);
+    baker.bakeSprites(whole, 0, 0, p.W, p.H);
+    for (let cy = 0; cy < p.H; cy++) for (let cx = 0; cx < p.W; cx++)
+      assert.ok(Buffer.from(alone(p, cx, cy, world)).equals(Buffer.from(cellOf(whole, p.W, cx, cy))), `cell (${cx}, ${cy}) in ${world.palette}`);
+  }
+});
+
+test('a cell\'s pixels do not depend on ground state beyond its reach', () => {
+  const p = patchwork(), far = cellState({ snowCm: 40, mudLevel: 1, waterCm: 9, ice: true }, 'plain');
+  for (const [cx, cy] of [[4, 4], [9, 7], [14, 10], [0, 3]]) {
+    const near = (x, y) => Math.max(Math.abs(x - cx), Math.abs(y - cy)) <= GROUND_REACH;
+    const before = alone(p, cx, cy, WINTER_WORLD), after = alone(p, cx, cy, WINTER_WORLD, (x, y) => near(x, y) ? p.stateAt(x, y) : far);
+    assert.ok(Buffer.from(before).equals(Buffer.from(after)), `cell (${cx}, ${cy})`);
+  }
+  assert.equal(REACH, GROUND_REACH + 1);
 });

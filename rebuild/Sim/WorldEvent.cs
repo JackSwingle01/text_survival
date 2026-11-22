@@ -27,6 +27,8 @@ namespace Survival;
 [JsonDerivedType(typeof(Stashed), "stashed")]
 [JsonDerivedType(typeof(Unstashed), "unstashed")]
 [JsonDerivedType(typeof(PoolDiscovered), "pooldiscovered")]
+[JsonDerivedType(typeof(Scavenged), "scavenged")]
+[JsonDerivedType(typeof(TutorialShown), "tutorialshown")]
 [JsonDerivedType(typeof(TreeFelled), "treefelled")]
 [JsonDerivedType(typeof(Ate), "ate")]
 [JsonDerivedType(typeof(Drank), "drank")]
@@ -61,7 +63,13 @@ public sealed record Moved(long Minute, AgentId Who, TileId From, TileId To) : W
 public sealed record Injured(long Minute, AgentId Who, TileId Tile, string Region, DamageType Type, double Amount) : WorldEvent(Minute, Tile);
 public sealed record CrossedThePass(long Minute, AgentId Who, TileId Tile) : WorldEvent(Minute, Tile);
 
-public sealed record Gathered(long Minute, AgentId Who, TileId Tile, string What) : WorldEvent(Minute, Tile);
+public sealed record Gathered(long Minute, AgentId Who, TileId Tile, string What,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] LuckTier? Luck = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? Density = null) : WorldEvent(Minute, Tile);
+/// A scavenge clue's remains, found as a forage ended: a carcass of Animal, or bone scraps (null). Remains: the words for them.
+public sealed record Scavenged(long Minute, AgentId Who, TileId Tile, Species? Animal, string Remains) : WorldEvent(Minute, Tile);
+public sealed record TutorialShown(long Minute, AgentId Who, TileId Tile, Tutorial Tutorial,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? Kg = null) : WorldEvent(Minute, Tile);
 /// More than the pack could hold: the rest went on the tile's stash.
 public sealed record Dropped(long Minute, AgentId Who, TileId Tile, string What) : WorldEvent(Minute, Tile);
 public sealed record Stashed(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg) : WorldEvent(Minute, Tile);

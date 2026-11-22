@@ -14,15 +14,15 @@ namespace Survival.Web;
 /// Time is paced by the client. Posting a verb starts a job; posting {"advance":N} runs it for up to N
 /// more game minutes, so a long action comes back as many views and the clock is seen to move. Waiting,
 /// resting, sleeping, walking and making run in those chunks, because Sim continues each of them
-/// across steps (a crossing resumes; a project in the pack is picked up where it was left). Other work
-/// (foraging, butchering, cooking) runs as one Sim.Step on its first advance, since a step is its
-/// session; the client still plays its minutes out on the clock.
+/// across steps (a crossing resumes; a project in the pack is picked up where it was left). Work (foraging,
+/// butchering, cooking) runs in those chunks too, held between them (Sim.Step with more), so it is one
+/// session however it is cut, and a stop ends it at the minute it was pressed (Sim.Finish).
 public sealed class GameHost
 {
     World? _world;
     Job? _job;
     int _gen;
-    readonly Dictionary<string, Func<CellDto?, Job>> _verbs = [];
+    readonly Dictionary<string, Func<CellDto?, int?, Job>> _verbs = [];
     readonly List<LogDto> _log = [];
     // What the rounds of the fight under way told: the fight screen's own lines, apart from the walk before it.
     readonly List<LogDto> _encounterLog = [];
@@ -56,7 +56,7 @@ public sealed class GameHost
             if (_job is { Finished: false }) throw new InvalidOperationException($"A job is under way ({_job.Label}): advance or stop it first");
             if (!_verbs.TryGetValue(a.Verb, out var start))
                 throw new ArgumentException($"No verb '{a.Verb}' in the current view (generation {_gen})");
-            _job = start(a.To);
+            _job = start(a.To, a.Minutes);
         }
         else if (a.Advance is int minutes)
         {
@@ -66,9 +66,14 @@ public sealed class GameHost
         }
         else if (a.Stop == true)
         {
-            if (_job is { Finished: false } job) job.Finish("stopped", null);
+            if (_job is { Finished: false } job)
+            {
+                if (job.Held) Took(job, new StepResult(Sim.Finish(W, AgentId.Player), 0, StepOutcome.Finished, null));
+                job.Finish("stopped", null);
+            }
         }
         else throw new ArgumentException("An act names a verb, an advance or a stop");
+        if (_job is not { Finished: false } && BodyTakesOver() is { } asleep) _job = asleep;
         return View();
     }
 
@@ -112,6 +117,10 @@ public sealed class GameHost
         public TileId From { get; } = from;
         public Direction? Dir { get; } = dir;
         public int Done { get; set; }
+        /// Work held in Sim between this job's chunks (Sim.Step with more): a stop must finish it.
+        public bool Held { get; set; }
+        /// The job's work session, ended or held: what the forage screen draws its finds and mood from.
+        public WorkSession? Session { get; set; }
         public bool Finished { get; private set; }
         /// How it ended (Sim's StepOutcome, or stopped by the client), once it has.
         public string? Outcome { get; private set; }
@@ -126,16 +135,35 @@ public sealed class GameHost
         public void Finish(StepResult r) => Finish(r.Outcome.ToString().ToLowerInvariant(), EncounterEnding ?? r.Reason);
     }
 
-    Job JobFor(Verb v)
+    /// minutes: how long to run it, one of the verb's durations, where it offers a choice.
+    Job JobFor(Verb v, int? minutes)
     {
         var p = W.Agent(AgentId.Player);
-        bool chunked = v.Activity is Wait or Rest or Sleep or Travel or Make;
-        int? budget = v.Minutes == Verbs.UntilDoneMinutes ? null : v.Minutes;
+        bool chunked = v.Activity is Wait or Rest or Sleep or Travel or Make or Survival.Build or ImproveShelter || HeldWork(v.Activity);
+        if (minutes is int m && v.Durations?.Contains(m) != true)
+            throw new ArgumentException($"'{v.Label}' does not run for {m} minutes");
+        int? budget = minutes ?? (v.Minutes == Verbs.UntilDoneMinutes ? null : v.Minutes);
         var job = new Job(v.Label, ViewBuilder.KindOf(v.Activity), v.Activity, budget, chunked, p.Tile, (v.Activity as Travel)?.Dir);
         // A refused verb never starts: no time passes, and the refusal comes back as the job's reason.
         if (v.Refused != null) job.Finish("refused", v.Refused.Reason);
         return job;
     }
+
+    /// Dropped asleep from exhaustion (Body.IsAsleep), the player has nothing to choose until they wake:
+    /// the job under way is the body's own sleep, run in the client's chunks like any other, and no stop
+    /// ends it (a stop ends this job, and the next is the sleep again). Only while that sleep can run: a
+    /// fight holds a sleeper to its rounds, and its view offers them.
+    Job? BodyTakesOver()
+    {
+        var p = W.Agent(AgentId.Player);
+        if (!Sim.IsAlive(p) || !Body.IsAsleep(p.Body)) return null;
+        var sleep = new Sleep(AgentId.Player);
+        if (Sim.Refusal(W, sleep) != null) return null;
+        return new Job("Asleep", ViewBuilder.KindOf(sleep), sleep, Body.AsleepMinutesLeft(p.Body), chunked: true, p.Tile, null);
+    }
+
+    /// Work that takes time, run in chunks and held between them: a search, a butchering, cooking, melting snow.
+    static bool HeldWork(Activity a) => a is Gather or Butcher or Cook or MeltSnow or WalkAbout;
 
     void Run(Job job, int chunk)
     {
@@ -149,7 +177,10 @@ public sealed class GameHost
         }
         int left = (job.Budget ?? Verbs.UntilDoneMinutes) - job.Done;
         int minutes = Math.Min(chunk, left);
-        var r = Sim.Step(w, job.Activity, minutes);
+        bool more = HeldWork(job.Activity) && minutes < left;
+        var r = Sim.Step(w, job.Activity, minutes, more);
+        job.Session = r.Work ?? job.Session;
+        job.Held = more && Sim.WorkUnderWay(w, AgentId.Player) != null;
         Took(job, r);
         // A chunk that ran all its minutes with no reason has only reached the client's chunk boundary;
         // anything else (a stop with a reason: arrived, made, interrupted, refused) is the job's end.
@@ -205,8 +236,8 @@ public sealed class GameHost
         if (Combat.EncounterOf(W, AgentId.Player) == null) _encounterLog.Clear();
         var b = new ViewBuilder(W, _gen);
         var view = b.Build(_job, _receipt, _log, _encounterLog);
-        foreach (var (id, verb) in b.Verbs) _verbs[id] = _ => JobFor(verb);
-        foreach (var (id, fight) in b.CombatVerbs) _verbs[id] = to => CombatJob(fight, to);
+        foreach (var (id, verb) in b.Verbs) _verbs[id] = (_, minutes) => JobFor(verb, minutes);
+        foreach (var (id, fight) in b.CombatVerbs) _verbs[id] = (to, _) => CombatJob(fight, to);
         _receipt = null; // shown once
         return view;
     }

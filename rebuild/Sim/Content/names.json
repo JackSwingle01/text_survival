@@ -171,13 +171,13 @@
   "Wolf": "wolf",
   "Bear": "bear",
   "CaveBear": "cave bear",
-  "Homotherium": "scimitar cat",
+  "SaberTooth": "sabre-tooth",
   "Hyena": "hyena",
   "Caribou": "caribou",
   "Megaloceros": "giant deer",
   "Bison": "bison",
   "Mammoth": "mammoth",
-  "Rabbit": "rabbit",
+  "Hare": "hare",
   "Fox": "fox",
   "Raven": "raven"
  },
@@ -278,5 +278,12 @@
   "Legs": "legs",
   "Feet": "feet",
   "Hands": "hands"
+ },
+ "ForageFocus": {
+  "General": "anything",
+  "Fuel": "fuel",
+  "Food": "food",
+  "Medicine": "medicine",
+  "Materials": "materials"
  }
 }
