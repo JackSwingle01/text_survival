@@ -52,7 +52,13 @@ height with a snowline. Caves are dark passages cut through the rock along their
 mouth onto the ground beside it. Ravines and cliffs come from `MapDto.Edges` (those beside a known
 tile): the boundary steps are chained and rounded into a cleft whose far wall catches the light, or
 a one-sided face that drops toward the lower right (the Sim gives a cliff no high side), with a lip
-and a shadow. Ice, where snow and mud lie, and where every tree stands come from world
+and a shadow. Worn routes come from `MapDto.Trails` (between known tiles: in sight as they are, out of
+sight as the player's memory last saw them): a line from tile centre to tile centre by tier, a packed
+trench in snow and trodden earth out of it; where most sides of the tiles around are worn (herds'
+grazing ground) the ground is trampled instead, so it never draws the grid. Prints (`MapDto.Tracks`,
+within 3 tiles in sight) are pressed into the ground along the heading the Sim reads, one line per
+animal up to three, never on water, rock or under a tree (`printPixels`); `map.js` lays them over the
+baked chunks. Ice, where snow and mud lie, and where every tree stands come from world
 noise; snow and mud are painted 96 px textures shown through those masks. A pixel takes the ground
 state of the cell whose terrain it shows, so state follows the same organic borders as the ground.
 A pixel reads only its cell's 5 x 5 neighbourhood, and unknown cells read as the cell's own terrain,
@@ -94,7 +100,7 @@ tools/publish.sh /tmp/text-survival-web -p:Aot=false       # interpreter (about 
 node tools/serve.mjs /tmp/text-survival-web/wwwroot 8183   # then open http://127.0.0.1:8183/
 ```
 
-`?seed=N` picks the world; `?scenario=fight` (or `supplied`, `dead`, `won`, `winter`) starts in a prepared state.
+`?seed=N` picks the world; `?scenario=fight` (or `supplied`, `dead`, `won`, `winter`, `trails`) starts in a prepared state.
 
 The host and its tests need no workload: `dotnet test rebuild/Web/Host.Tests`.
 
@@ -125,4 +131,4 @@ node tools/shots.mjs /tmp/text-survival-web/wwwroot --all --phone  # every state
 ```
 
 States: `start here trip walk fire lit forage make made body pack log save receipt sleep fight
-fight-round dead won winter remembered`. Look at the screenshots, not only the exit code.
+fight-round dead won winter trails remembered`. Look at the screenshots, not only the exit code.

@@ -94,10 +94,11 @@ export function createMap(canvas, state, { onHover, onClick }) {
 
     const sp = 32; // 16 px art at an exact 2x on 48 px cells
     const onScreen = (x, y) => x >= x0 - 1 && x <= x1 + 1 && y >= y0 - 1 && y <= y1 + 1;
+    // prints, pressed into the ground they lie on
     for (const t of m.tracks) {
       if (!onScreen(t.x, t.y)) continue;
-      const [px, py] = at(t.x, t.y), off = t.maker === 'human' ? -8 : t.maker === 'paw' ? 6 : 0;
-      sprite(`tracks/${t.maker === 'human' ? 'boot' : t.maker}`, px + TS / 2 - 12 + off, py + TS / 2 - 12 + off, 24, t.ageMinutes > 720 ? 0.45 : 0.8);
+      const [px, py] = at(t.x, t.y);
+      for (const [dx, dy, fill] of terrain.prints(t, ground)) { ctx.fillStyle = fill; ctx.fillRect(px + dx, py + dy, 1, 1); }
     }
     // the camp: always known
     { const [px, py] = at(m.campX, m.campY); if (onScreen(m.campX, m.campY)) sprite('shelter', px + 2, py + 2, sp * 0.8, inSight(m.campX, m.campY) ? 1 : 0.6); }

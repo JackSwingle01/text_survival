@@ -132,9 +132,11 @@ public sealed record SurfaceDto(int I,
 public sealed record PlaceMarkDto(int X, int Y, long SeenMinute, string? Fire, double? FireHoursLeft, string? Shelter, bool Carcass,
     bool Stash, bool Den, bool Hurt);
 public sealed record SightingDto(int X, int Y, string Species, int Count, long Minute);
-/// Prints on a tile in sight near the player. Maker: human, paw or hoof. Heading: the way the net traffic went
-/// (north, east, south, west); Pattern: heading (one way), northsouth, eastwest or mixed. FreshnessPct: 1 just made.
-public sealed record TrackDto(int X, int Y, string Maker, string Reading, long AgeMinutes, string Heading, string Pattern, double FreshnessPct);
+/// Prints on a tile in sight near the player. Maker: human, paw or hoof. Traffic: how many passed, as the
+/// prints read. Heading: the way the net traffic went (north, east, south, west); Pattern: heading (one way),
+/// northsouth, eastwest or mixed. FreshnessPct: 1 just made.
+public sealed record TrackDto(int X, int Y, string Maker, string Reading, long AgeMinutes, int Traffic, string Heading, string Pattern,
+    double FreshnessPct);
 public sealed record NamedDto(int X, int Y, string Name);
 
 /// The fight the player is in. Grid cells are metres, 0..Size-1. Actions: every round action with its

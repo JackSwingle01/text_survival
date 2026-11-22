@@ -487,7 +487,7 @@ public class GameHostTests
         Assert.Equal(Routes(v).Order(), Routes(v).Distinct().Order());
     }
 
-    /// Prints in sight carry what the page lays them out by: maker, heading, traffic pattern and freshness.
+    /// Prints in sight carry what the page lays them out by: maker, heading, traffic, its pattern and freshness.
     [Fact]
     public void Prints_carry_their_heading_pattern_and_freshness()
     {
@@ -500,6 +500,7 @@ public class GameHostTests
         var t = Parse(h.View()).Map.Tracks.Single(t => t.X == here.X && t.Y == here.Y && t.Maker == "paw");
         Assert.Equal("east", t.Heading);
         Assert.Equal("heading", t.Pattern);
+        Assert.Equal(3, t.Traffic);
         Assert.InRange(t.FreshnessPct, 0.9, 1);
     }
 
@@ -514,6 +515,20 @@ public class GameHostTests
         Assert.All(Enum.GetValues<Direction>(), d => Assert.Contains(ViewBuilder.Code(d), headings));
         Assert.All(Enum.GetValues<TrafficPattern>(), p => Assert.Contains(ViewBuilder.Code(p), patterns));
         Assert.All(Enum.GetValues<TrackMaker>(), m => Assert.Contains(Names.Of(m), makers));
+    }
+
+    /// The trails scenario (for screenshots) opens in winter beside a worn route and grazing ground,
+    /// with prints of all three makers in sight.
+    [Fact]
+    public void The_trails_scenario_opens_beside_routes_and_prints()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var v = Parse(Scenarios.Apply(h, "trails"));
+        Assert.Equal("Winter", v.Clock.Season);
+        Assert.Equal(new[] { "path", "trace", "trail" }, v.Map.Trails.Select(t => t.Tier).Distinct().Order());
+        Assert.True(v.Map.Trails.Count > 20, $"{v.Map.Trails.Count} routes");
+        Assert.Equal(new[] { "hoof", "human", "paw" }, v.Map.Tracks.Select(t => t.Maker).Distinct().Order());
     }
 
     /// The winter scenario opens in mid-January on snow.

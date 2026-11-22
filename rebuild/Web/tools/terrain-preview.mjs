@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { createBaker, textureNames, trackMarks, marked, snowyCell, WINTER, WINTER_WORLD, CELL } from '../App/wwwroot/terrain-core.js';
+import { createBaker, textureNames, printPixels, snowyCell, WINTER, WINTER_WORLD, CELL } from '../App/wwwroot/terrain-core.js';
 import { decodePng } from './png.mjs';
 
 const args = process.argv.slice(2);
@@ -53,11 +53,9 @@ baker.bakeSprites(out, 0, 0, M.W, M.H);
 // tracks: [[x, y, maker, heading, pattern, traffic, ageMinutes, freshness], ...], optional, over everything
 // that is ground (the page draws them over its baked chunks the same way).
 for (const [x, y, maker, heading, pattern, traffic, , freshness] of M.tracks ?? [])
-  for (const [mx, my, kind, f] of trackMarks({ x, y, maker, heading, pattern, traffic, freshness })) {
-    const px = x * CELL + mx, py = y * CELL + my, p = baker.classify(px, py);
-    if (!p || p.water || p.mountain || (p.feature && p.feature !== 'cliffshadow')) continue;
-    const i = (py * M.W * CELL + px) * 4;
-    out.set(marked([out[i], out[i + 1], out[i + 2]], kind, f, snowyCell(stateAt(x, y)) ? 'snow' : 'earth'), i);
+  for (const [mx, my, tint, a] of printPixels({ x, y, maker, heading, pattern, traffic, freshness }, baker, snowyCell(stateAt(x, y)))) {
+    const i = ((y * CELL + my) * M.W * CELL + x * CELL + mx) * 4;
+    for (let c = 0; c < 3; c++) out[i + c] = Math.round(out[i + c] + (tint[c] - out[i + c]) * a);
   }
 const ms = performance.now() - t0;
 encodePng(args[1], M.W * CELL, M.H * CELL, out);

@@ -3,16 +3,51 @@
 // last image until its new one is done.
 //
 // Ground state: draw() takes ground (ground-state.js's memory: each cell's state and its key) and
-// world (palette and snowline). A chunk rebakes only when the states or terrain it can see change,
-// so snow settling on one tile does not redraw the screen.
+// world (palette and snowline). A chunk rebakes only when the states, terrain or routes it can see
+// change, so snow settling on one tile does not redraw the screen.
 import { src } from './util.js';
-import { createBaker, textureNames, CELL } from './terrain-core.js';
+import { createBaker, textureNames, printPixels, snowyCell, CELL } from './terrain-core.js';
 
 /** Terrain names by the map's known-tile codes (MapDto.Known). */
 export const TERRAIN = { F: 'forest', C: 'clearing', P: 'plain', H: 'hills', W: 'water', M: 'marsh', R: 'rock', X: 'mountain', D: 'deepwater', c: 'cavefloor', e: 'caveentrance' };
 
 const CHUNK = 8;          // cells per chunk side
 const BUDGET_MS = 6;      // baking per frame
+
+const NO_ROUTES = { list: [], at: new Map(), key: '' };
+const routeCache = new WeakMap();
+/**
+ * A map's routes (MapDto.Trails), worked out once per view: the list for the baker, each cell's routes
+ * as one string for chunk signatures (at: cell index -> code), and a key for them all.
+ */
+export function routesOf(m) {
+  if (!m.trails?.length) return NO_ROUTES;
+  let r = routeCache.get(m.trails);
+  if (r) return r;
+  const list = m.trails.map(t => ({ ax: t.ax, ay: t.ay, bx: t.bx, by: t.by, tier: t.tier })), at = new Map();
+  const codes = list.map(t => `${t.ax},${t.ay},${t.bx},${t.by},${t.tier};`);
+  list.forEach((t, k) => { for (const i of [t.ay * m.width + t.ax, t.by * m.width + t.bx]) at.set(i, (at.get(i) ?? '') + codes[k]); });
+  routeCache.set(m.trails, r = { list, at, key: codes.join('') });
+  return r;
+}
+
+/**
+ * What a chunk's pixels can depend on: ground state two cells around it, and terrain and routes
+ * three (a sprite anchored in the next cell reads that cell's 5x5 neighbourhood; trampled ground
+ * counts the worn sides of the cells around a neighbour).
+ */
+export function chunkSignature(m, routes, cx0, cy0, ground, world) {
+  let sig = world.key;
+  for (let y = Math.max(0, cy0 - 3); y < Math.min(m.height, cy0 + CHUNK + 3); y++) {
+    const xa = Math.max(0, cx0 - 3), xb = Math.min(m.width, cx0 + CHUNK + 3);
+    sig += m.known.slice(y * m.width + xa, y * m.width + xb);
+    if (routes.at.size) for (let x = xa; x < xb; x++) sig += routes.at.get(y * m.width + x) ?? '';
+  }
+  const xa = Math.max(0, cx0 - 2), xb = Math.min(m.width, cx0 + CHUNK + 2);
+  for (let y = Math.max(0, cy0 - 2); y < Math.min(m.height, cy0 + CHUNK + 2); y++)
+    for (let x = xa; x < xb; x++) sig += ground.keyAt(y * m.width + x);
+  return sig;
+}
 
 export function createTerrain() {
   const textures = new Map();
@@ -47,20 +82,6 @@ export function createTerrain() {
   };
 
   /**
-   * What a chunk's pixels can depend on: ground state two cells around it, and terrain three (a
-   * sprite anchored in the next cell reads that cell's 5x5 neighbourhood).
-   */
-  function signature(m, cx0, cy0, ground, world) {
-    let sig = world.key;
-    for (let y = Math.max(0, cy0 - 3); y < Math.min(m.height, cy0 + CHUNK + 3); y++)
-      sig += m.known.slice(y * m.width + Math.max(0, cx0 - 3), y * m.width + Math.min(m.width, cx0 + CHUNK + 3));
-    const xa = Math.max(0, cx0 - 2), xb = Math.min(m.width, cx0 + CHUNK + 2);
-    for (let y = Math.max(0, cy0 - 2); y < Math.min(m.height, cy0 + CHUNK + 2); y++)
-      for (let x = xa; x < xb; x++) sig += ground.keyAt(y * m.width + x);
-    return sig;
-  }
-
-  /**
    * Draws the ground of cells [x0..x1] x [y0..y1] with the map's origin at (ox, oy), one cell CELL
    * pixels wide. m: MapDto (width, height, known); camera: cell the camera centres on;
    * ground: { stateAt(x, y), keyAt(i), version }; world: { palette, snowline, key }.
@@ -68,19 +89,21 @@ export function createTerrain() {
   function draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera, ground, world }) {
     if (wantedFor !== world.key) load(world);
     if (!ready()) return;
-    const key = `${world.key}|${ground.version}|${m.width}`;
-    if (!baker || bakerFor !== m.known + key) {
-      // Ravines and cliffs come with the known tiles they lie beside, so m.known keys them too.
+    const routes = routesOf(m);
+    // Ravines and cliffs come with the known tiles they lie beside, so m.known keys them too. Routes
+    // change on their own, and the baker caches each cell's routes, so a changed route is a new baker.
+    const key = `${m.known}|${routes.key}|${world.key}|${ground.version}|${m.width}`;
+    if (!baker || bakerFor !== key) {
       baker = createBaker({ width: m.width, height: m.height, terrainAt: (x, y) => {
         const c = m.known[y * m.width + x];
         return c === '.' ? null : TERRAIN[c];
-      }, edges: m.edges.map(e => ({ ax: e.ax, ay: e.ay, bx: e.bx, by: e.by, type: e.kind })) }, ground.stateAt, world, tex);
-      bakerFor = m.known + key;
+      }, edges: m.edges.map(e => ({ ax: e.ax, ay: e.ay, bx: e.bx, by: e.by, type: e.kind })), trails: routes.list }, ground.stateAt, world, tex);
+      bakerFor = key;
     }
     const todo = [];
     for (let cy0 = Math.floor(y0 / CHUNK) * CHUNK; cy0 <= y1; cy0 += CHUNK)
       for (let cx0 = Math.floor(x0 / CHUNK) * CHUNK; cx0 <= x1; cx0 += CHUNK) {
-        const id = `${cx0},${cy0}`, sig = signature(m, cx0, cy0, ground, world);
+        const id = `${cx0},${cy0}`, sig = chunkSignature(m, routes, cx0, cy0, ground, world);
         let ch = chunks.get(id);
         if (!ch) chunks.set(id, ch = { canvas: null, sig: null, job: null });
         if (ch.sig !== sig && ch.job?.sig !== sig) {
@@ -116,5 +139,25 @@ export function createTerrain() {
     }
   }
 
-  return { draw };
+  // Print pixels per track, until the ground under them is baked anew.
+  let prints = new Map(), printsFor = null;
+  /**
+   * A track's prints as [[x, y, fill]] from its cell's top-left, fill a CSS colour to lay one pixel
+   * of over the drawn ground. Empty until the ground has been drawn once.
+   */
+  function printsOf(t, ground) {
+    if (!baker) return [];
+    if (printsFor !== baker) { prints = new Map(); printsFor = baker; }
+    const snowy = snowyCell(ground.stateAt(t.x, t.y)), freshness = Math.round(t.freshnessPct * 50) / 50;
+    const key = `${t.x},${t.y},${t.maker},${t.heading},${t.pattern},${t.traffic},${freshness},${snowy}`;
+    let r = prints.get(key);
+    if (!r) {
+      r = printPixels({ x: t.x, y: t.y, maker: t.maker, heading: t.heading, pattern: t.pattern, traffic: t.traffic, freshness }, baker, snowy)
+        .map(([x, y, [cr, cg, cb], a]) => [x, y, `rgba(${cr},${cg},${cb},${a.toFixed(3)})`]);
+      prints.set(key, r);
+    }
+    return r;
+  }
+
+  return { draw, prints: printsOf };
 }

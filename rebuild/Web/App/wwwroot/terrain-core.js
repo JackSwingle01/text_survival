@@ -21,8 +21,8 @@
 //     light, and a one-sided rock face dropping toward the higher-numbered cell, with its shadow;
 //   - worn routes (map.trails): a line between cell centres, by tier, a trench in snow and trodden earth
 //     out of it; where most sides around are worn (grazing ground), trampled ground instead of lines;
-//   - footprints (trackMarks): prints pressed into the ground along the Sim's heading, drawn over
-//     everything else by the caller.
+//   - footprints (printPixels): prints pressed into the ground along the Sim's heading, drawn over
+//     the baked ground by the caller.
 // A pixel needs only its cell's 5x5 neighbourhood, so the map can be baked a cell at a time.
 // Unknown neighbours are read as the cell's own terrain: the renderer never shows what the
 // player has not seen.
@@ -240,8 +240,22 @@ export function trackMarks(t) {
   }
   return out;
 }
-/** A pixel's colour under a mark; ground is 'snow' or 'earth' (snowyCell). */
-export const marked = (col, kind, strength, ground) => { const [tint, k] = MARKS[ground][kind]; return mix(col, tint, k * strength); };
+/**
+ * A track's print pixels as drawn over the baked ground: [[x, y, tint, alpha]] from the cell's
+ * top-left, a tint laid over the ground at alpha (a mix toward it). Prints are pressed only into
+ * open ground: none on water, rock, a cave, ravine or cliff, or under a tree. baker: the ground's
+ * (classify, covered); snowy: snowyCell of the track's cell.
+ */
+export function printPixels(t, baker, snowy) {
+  const out = [];
+  for (const [x, y, kind, strength] of trackMarks(t)) {
+    const px = t.x * CELL + x, py = t.y * CELL + y, p = baker.classify(px, py);
+    if (!p || p.water || p.mountain || (p.feature && p.feature !== 'cliffshadow') || baker.covered(px, py)) continue;
+    const [tint, k] = MARKS[snowy ? 'snow' : 'earth'][kind];
+    out.push([x, y, tint, k * strength]);
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------- the map
 /**
@@ -755,6 +769,53 @@ export function createBaker(map, stateAt, world, tex) {
     }
   }
 
+  const solid = p => !p || p.water || p.mountain || p.tr || (p.feature && p.feature !== 'cliffshadow');
+  /**
+   * The sprite standing at grid point (gx, gy) of the jittered world grid: { x, y, art, shadow, laden }
+   * with (x, y) its bottom-centre pixel, or null. One rule, for baking sprites and for what they cover.
+   */
+  function spriteAt(gx, gy) {
+    const ax = gx * STEP + Math.floor(lattice(gx, gy, 101) * STEP), ay = gy * STEP + Math.floor(lattice(gx, gy, 102) * STEP);
+    const roll = lattice(gx, gy, 103), r = lattice(gx, gy, 104);
+    const dens = vnoise(ax, ay, 40, 105) * 0.7 + vnoise(ax, ay, 12, 106) * 0.3;
+    const p = classify(ax, ay);
+    if (solid(p)) return null;
+    const t = p.kind, laden = p.state.laden;
+    let what = null;
+    if (t === 'forest' && dens > 0.2 && roll < 0.92) what = 'LLMMS'[Math.floor(r * 5)];
+    else if (t === 'clearing' && dens > 0.6 && roll < 0.14) what = 'MSS'[Math.floor(r * 3)];
+    else if (t === 'clearing' && dens > 0.35 && roll >= 0.14 && roll < 0.34) what = 'H';
+    else if ((t === 'plain' || t === 'hills') && dens > 0.68 && roll < 0.06) what = 'SM'[Math.floor(r * 2)];
+    else if ((t === 'plain' || t === 'hills') && dens > 0.5 && roll >= 0.06 && roll < 0.16) what = 'H';
+    else if (t === 'rock' && roll < 0.3) what = 'B';
+    else if (t === 'hills' && roll >= 0.16 && roll < 0.24) what = 'B';
+    else if (t === 'marsh' && roll < (laden ? 0.45 : 1) && dens > 0.25) what = 'R'; // snow buries reeds
+    if (!what) return null;
+    let name, shadow;
+    if ('LMS'.includes(what)) { name = `spruce_${what.toLowerCase()}`; shadow = true; }
+    else if (what === 'B') { name = 'boulder'; shadow = false; }
+    else if (what === 'H') { name = 'shrub'; shadow = !laden; }
+    else { name = `reed_${2 + (ax * 7 + ay * 3) % 3}`; shadow = false; }
+    return { x: ax, y: ay, art: texture(spriteArt(name, world.palette, laden)), shadow, laden };
+  }
+  // Sprites are at most 12 rows tall and 9 wide, standing on their bottom-centre pixel.
+  const SPRITE_UP = 12, SPRITE_SIDE = 5;
+
+  /** Whether a tree, shrub, boulder or reed stands over a world pixel. */
+  function covered(px, py) {
+    const MW = W * CELL, MH = H * CELL;
+    if (px < 0 || py < 0 || px >= MW || py >= MH) return false;
+    const gx0 = Math.max(0, Math.floor((px - SPRITE_SIDE) / STEP)), gx1 = Math.min(MW / STEP - 1, Math.floor((px + SPRITE_SIDE) / STEP));
+    const gy0 = Math.max(0, Math.floor(py / STEP)), gy1 = Math.min(MH / STEP - 1, Math.floor((py + SPRITE_UP) / STEP));
+    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
+      const s = spriteAt(gx, gy);
+      if (!s) continue;
+      const i = px - (s.x - Math.floor(s.art.w / 2)), j = py - (s.y - s.art.h + 1);
+      if (i >= 0 && i < s.art.w && j >= 0 && j < s.art.h && s.art.data[(j * s.art.w + i) * 4 + 3]) return true;
+    }
+    return false;
+  }
+
   function bakeSprites(out, x0, y0, x1, y1) {
     const stride = (x1 - x0) * CELL, X0 = x0 * CELL, Y0 = y0 * CELL, X1 = x1 * CELL, Y1 = y1 * CELL;
     const MW = W * CELL, MH = H * CELL, pal = world.palette;
@@ -763,38 +824,18 @@ export function createBaker(map, stateAt, world, tex) {
       const i = ((y - Y0) * stride + (x - X0)) * 4;
       out[i] = col[0]; out[i + 1] = col[1]; out[i + 2] = col[2]; out[i + 3] = 255;
     };
-    const solid = p => !p || p.water || p.mountain || p.tr || (p.feature && p.feature !== 'cliffshadow');
     const blocked = (x, y) => solid(classify(x, y));
     const found = [];
     // Any anchor whose sprite (up to 12 rows tall, 9 wide, a 2-row shadow) can reach this area.
     const gx0 = Math.max(0, Math.floor((X0 - 8) / STEP)), gx1 = Math.min(MW / STEP - 1, Math.floor((X1 + 8) / STEP));
     const gy0 = Math.max(0, Math.floor((Y0 - 4) / STEP)), gy1 = Math.min(MH / STEP - 1, Math.floor((Y1 + 14) / STEP));
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) {
-      const ax = gx * STEP + Math.floor(lattice(gx, gy, 101) * STEP), ay = gy * STEP + Math.floor(lattice(gx, gy, 102) * STEP);
-      const roll = lattice(gx, gy, 103), r = lattice(gx, gy, 104);
-      const dens = vnoise(ax, ay, 40, 105) * 0.7 + vnoise(ax, ay, 12, 106) * 0.3;
-      const p = classify(ax, ay);
-      if (solid(p)) continue;
-      const t = p.kind, laden = p.state.laden;
-      let what = null;
-      if (t === 'forest' && dens > 0.2 && roll < 0.92) what = 'LLMMS'[Math.floor(r * 5)];
-      else if (t === 'clearing' && dens > 0.6 && roll < 0.14) what = 'MSS'[Math.floor(r * 3)];
-      else if (t === 'clearing' && dens > 0.35 && roll >= 0.14 && roll < 0.34) what = 'H';
-      else if ((t === 'plain' || t === 'hills') && dens > 0.68 && roll < 0.06) what = 'SM'[Math.floor(r * 2)];
-      else if ((t === 'plain' || t === 'hills') && dens > 0.5 && roll >= 0.06 && roll < 0.16) what = 'H';
-      else if (t === 'rock' && roll < 0.3) what = 'B';
-      else if (t === 'hills' && roll >= 0.16 && roll < 0.24) what = 'B';
-      else if (t === 'marsh' && roll < (laden ? 0.45 : 1) && dens > 0.25) what = 'R'; // snow buries reeds
-      if (what) found.push([ay, ax, what, laden]);
+      const s = spriteAt(gx, gy);
+      if (s) found.push(s);
     }
-    found.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    for (const [y, x, what, laden] of found) {
-      let name, shadow;
-      if ('LMS'.includes(what)) { name = `spruce_${what.toLowerCase()}`; shadow = true; }
-      else if (what === 'B') { name = 'boulder'; shadow = false; }
-      else if (what === 'H') { name = 'shrub'; shadow = !laden; }
-      else { name = `reed_${2 + (x * 7 + y * 3) % 3}`; shadow = false; }
-      const sp = texture(spriteArt(name, pal, laden)), shadowTones = laden ? [C.s4, C.s3] : [SHADOW[pal]];
+    found.sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const { x, y, art: sp, shadow, laden } of found) {
+      const shadowTones = laden ? [C.s4, C.s3] : [SHADOW[pal]];
       if (shadow) for (let xx = 0; xx < Math.floor(sp.w / 2) + 2; xx++) shadowTones.forEach((tone, yy) => {
         const sx = x + xx - 1, sy = y + yy;
         if (sx >= 0 && sx < MW && sy >= 0 && sy < MH && sx >= X0 && sx < X1 && sy >= Y0 && sy < Y1 && !blocked(sx, sy)) put(sx, sy, tone);
@@ -807,5 +848,5 @@ export function createBaker(map, stateAt, world, tex) {
     }
   }
 
-  return { bakeCell, bakeSprites, classify };
+  return { bakeCell, bakeSprites, classify, covered };
 }

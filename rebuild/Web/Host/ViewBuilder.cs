@@ -306,7 +306,7 @@ sealed class ViewBuilder(World world, int gen)
         foreach (var t in visible)
             if (Math.Abs(t.X - _player.Tile.X) <= TrackReadTiles && Math.Abs(t.Y - _player.Tile.Y) <= TrackReadTiles)
                 foreach (var s in Tracks.Read(world, t))
-                    tracks.Add(new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes, Code(s.Heading), Code(s.Pattern),
+                    tracks.Add(new TrackDto(t.X, t.Y, Names.Of(s.Maker), Narration.Reading(s), s.AgeMinutes, s.Traffic, Code(s.Heading), Code(s.Pattern),
                         Math.Round(s.FreshnessPct, 2)));
 
         var named = new List<NamedDto>();
