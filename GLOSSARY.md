@@ -9,27 +9,36 @@ terms the design and the simulation share.
 One of the things a body must keep up: warmth, water, food, rest. Every person (player or NPC) has
 all four; an animal has water, food and rest.
 
-**Tier**:
-How urgent a stat is right now: Critical, Need or Want. Tier decides first; within a tier the stats
-rank warmth, then water, then rest, then food.
-_Avoid_: level, priority, urgency score
+**Priority**:
+How urgent a stat is right now: Critical, Need or Want. Priority decides first; within a priority the
+stats rank warmth, then water, then rest, then food. An agent acts on its top-ranked stat.
+_Avoid_: tier, level, urgency score
 
 **Critical**:
-The tier where a stat means imminent death: drop whatever you are doing.
+The priority where a stat means imminent death: drop whatever you are doing.
 _Avoid_: urgent, emergency
 
 **Need**:
-The tier for what it takes to survive the day, or to bring a stat back up to its baseline.
+The priority for what it takes to survive the day, or to bring a stat back up to its baseline.
 _Avoid_: wanted, required
 
 **Want**:
-The tier for anything beyond the day's survival: stockpiling, a surplus, comfort.
+The priority for anything beyond the day's survival: stockpiling, a surplus, comfort.
 _Avoid_: optional, luxury
 
 **Source**:
 A place where a stat can be met right now, with what it offers there: grazing, open water, snow, a
 den, a carcass, a stash.
 _Avoid_: offer, patch, spot
+
+**Route**:
+The way an agent will walk to a source: the tiles in order, with the minutes and calories it costs.
+_Avoid_: path, trip
+
+**Plan**:
+What an agent has decided to do about its top-ranked stat: a source, the route there and the work it
+expects there, kept until something interrupts it.
+_Avoid_: goal, errand, task
 
 ## Things in the world
 

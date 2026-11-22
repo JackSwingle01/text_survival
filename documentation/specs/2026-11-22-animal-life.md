@@ -131,7 +131,7 @@ Animals and people share one body model and one way of looking for what they nee
     new species is a row, not code.
 34. As the designer, I want the flat night bonus gone, so that night is what each species' pattern
     makes it.
-35. As the designer, I want the planner split into need, sources, routes and choice, so that each
+35. As the designer, I want the planner split into priorities, sources, routes and choice, so that each
     piece is testable and replaceable on its own.
 36. As the designer, I want each resource's owning system to forecast what its sources pay, so that
     no planner copies a system's rules.
@@ -189,7 +189,7 @@ Animals and people share one body model and one way of looking for what they nee
 - Outside its active hours an animal prefers to rest and is less watchful and warier. Inside them it
   is bolder. This replaces the flat night boldness bonus. Light is still read through the one night
   rule.
-- Rest is a real stat on the tier ladder. If its tier rises above everything else, the animal sleeps
+- Rest is a real stat in the priorities. If its priority rises above everything else, the animal sleeps
   in its active hours.
 
 ### Agents and herds
@@ -264,11 +264,11 @@ Animals and people share one body model and one way of looking for what they nee
 - The fixed territory is removed. A den is a rest source for the species that has one. Carrying
   capacity in renewal becomes a per-species number across the map.
 
-### The planner: need → sources → routes → choice
+### The planner: priorities → sources → routes → choice
 
 Four separate pieces, shared by NPCs and animals.
 
-1. **Need.** The tier ladder: warmth > water > rest > food within a tier, rest before food as amended.
+1. **Priorities.** Warmth > water > rest > food within a priority, rest before food as amended.
    It says which stat is due and how much it takes to bring it back to its seen-to level, using the
    existing hysteresis. Plans are made for the top-ranked stat only.
 2. **Sources.** The system that owns each resource lists the candidate sources the agent knows of,
@@ -316,7 +316,7 @@ Four separate pieces, shared by NPCs and animals.
 - **Stored paths.** A plan's path is stored on the agent and saved. It is re-planned only when:
   - a threat is sensed on or near the path;
   - the next step is refused;
-  - a stat rises to a higher tier than the plan's;
+  - a stat rises to a higher priority than the plan's;
   - the source turns out to be gone on arrival;
   - the animals it's travelling with leave.
 
@@ -354,7 +354,7 @@ Four separate pieces, shared by NPCs and animals.
 - One mind for every animal, replacing the herd mind and its states:
   - **Fleeing:** each animal flees what it senses. A group flees together because its members sense
     the same thing and follow.
-  - **Hunting together:** a wolf joins a hunt a packmate starts if its own food tier agrees.
+  - **Hunting together:** a wolf joins a hunt a packmate starts if its own food priority agrees.
   - **Pack cohesion:** the company term.
   - **Defending a kill:** each animal decides from its own boldness, with the number of packmates
     present (wiring the `defending` boldness input that exists but has no caller).
@@ -362,7 +362,7 @@ Four separate pieces, shared by NPCs and animals.
 
 ### NPCs
 
-- The last ticket moves NPC source-finding onto the shared need → sources → routes → choice pieces.
+- The last ticket moves NPC source-finding onto the shared priorities → sources → routes → choice pieces.
 - NPCs keep:
   - the warmth filter;
   - the requirement tree for crafting needs;
