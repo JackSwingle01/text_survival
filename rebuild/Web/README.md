@@ -45,8 +45,11 @@ file with `fetch` calls to the same five operations.
 ## The map's ground
 
 `wwwroot/terrain-core.js` draws the ground per pixel from known terrain and world pixel coordinates;
-`wwwroot/terrain.js` bakes it into 8 x 8 cell chunks, a few milliseconds a frame, nearest the camera
-first. Cells are 48 CSS px everywhere (one art pixel each: crisp at a device pixel ratio of 1 or 2).
+`wwwroot/terrain.js` bakes it a cell at a time in a pool of workers (`wwwroot/terrain-worker.js`),
+nearest the camera first, and rebakes a cell only when the terrain within three cells or the ground
+state within two changes (`REACH` in `terrain-core.js`), so a step rebakes only the cells it reveals
+and their neighbours. A cell baked on its own is the same pixels as the whole map baked at once
+(`tools/terrain.test.mjs`). Cells are 48 CSS px everywhere (one art pixel each: crisp at a device pixel ratio of 1 or 2).
 Rivers are one channel through their cells, lakes have round shores, and mountains are lit ridged
 height with a snowline. Ice, where snow and mud lie, and where every tree stands come from world
 noise; snow and mud are painted 96 px textures shown through those masks. A pixel takes the ground
