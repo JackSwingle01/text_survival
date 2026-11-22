@@ -186,12 +186,12 @@ everything else stays as it is now; the same for the player and every other pers
 _Avoid_: prediction, simulation, estimate
 
 **Agent**:
-Anything that decides and moves in the world as one: a person, or a herd.
+Anything that decides and moves in the world on its own: a person or an animal.
 _Avoid_: actor, entity, unit
 
 **Herd**:
-Animals of one species that move and decide as one, from a lone bear to a hundred caribou. Pack is
-an alias for a herd of predators.
+The animals of one species on one tile, from a lone bear to a hundred caribou: what they make
+together, not a thing of its own. A pack is a herd of predators familiar with each other.
 _Avoid_: group, flock
 
 **Camp**:
