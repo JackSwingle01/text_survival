@@ -19,8 +19,10 @@ name: Issue agent
 # judgement on Sonnet.
 #
 # When triage or the build needs a person, the run comments on the issue and labels it
-# `needs-user`. Answer on the issue and remove the label to put it back in the queue. A blocked
-# issue gets no comment or label: it is triaged again on each run until its blockers land.
+# `needs-user`. Answer on the issue and remove the label to put it back in the queue. When triage
+# finds an issue blocked, the run links its blockers as native "blocked by", comments and labels it
+# `blocked`. The queue then skips it without a Claude call until they close, and the next triage
+# removes the label. A blocker that can't be linked parks the issue as `needs-user` instead.
 #
 # Issue and dispatch workflows run from the default branch, so this only works once it is on main.
 
@@ -62,6 +64,9 @@ jobs:
           set -euo pipefail
           gh label create needs-user --color D93F0B \
             --description "The issue agent stopped: a person has to decide or answer" 2>/dev/null || true
+          gh label create blocked --color FBCA04 \
+            --description "Waits on open issues (linked as blocked by); the issue agent retries when they close" \
+            2>/dev/null || true
           # shellcheck disable=SC2086
           issues=$(python3 .github/scripts/issue_queue.py list $ONLY 2> skipped.txt)
           {
@@ -134,10 +139,10 @@ jobs:
             - ready: an implementation ticket that says what to build, with acceptance criteria an agent can
               check, and no decision in it that belongs to a person. Gaps an engineer can close from the
               spec, the glossary, the decision records or the code are not a reason to stop.
-            - blocked: it depends on another issue that is still open, or on work not on main yet, however
-              the issue says so. Check each one's state with `gh issue view`. A mention for context is not a
-              blocker. Put the open blockers' numbers in `blocked_by`. This resolves itself once they land,
-              so nobody is asked anything.
+            - blocked: it depends on another open issue in this repo, however the issue says so. Check each
+              one's state with `gh issue view`. A mention for context is not a blocker. Put every open
+              blocker's number in `blocked_by`; they become GitHub "blocked by" links, and the issue comes
+              back when they close. If it depends on work no open issue covers, answer needs_user instead.
             - needs_user: a person has to decide or answer first. For example: a design or grilling ticket;
               a map or parent issue that tracks other tickets; an open question; an issue that asks for a
               diagnosis or report to come back before anything changes; acceptance criteria nobody can
@@ -165,6 +170,10 @@ jobs:
         run: |
           set -euo pipefail
           decision=$(jq -r '.decision' <<< "$OUTPUT")
+          if [ "$decision" != "blocked" ]; then
+            # Back from blocked: the label described the last triage, not this one.
+            gh issue edit "$ISSUE" --remove-label blocked 2>/dev/null || true
+          fi
           branch=$(jq -r '.branch' <<< "$OUTPUT" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9-' '-' | sed 's/--*/-/g; s/^-//; s/-$//' | cut -c1-40)
           echo "decision=$decision" >> "$GITHUB_OUTPUT"
           echo "branch=$ISSUE-${branch:-work}" >> "$GITHUB_OUTPUT"
@@ -175,15 +184,62 @@ jobs:
               then "\n\nBlocked by: " + (.blocked_by | map("#" + tostring) | join(", ")) else "" end)' <<< "$OUTPUT"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Blocking triage read in the text becomes GitHub's native "blocked by" links, so the queue
+      # script skips the issue without a Claude call until the blockers close. A blocker that can't
+      # be linked (none named, already closed, or the API refused) parks the issue for a person
+      # instead: otherwise it would be triaged and commented on again every run.
+      - name: Mark blocked
+        id: blocked
+        if: steps.verdict.outputs.decision == 'blocked'
+        env:
+          OUTPUT: ${{ steps.triage.outputs.structured_output }}
+        run: |
+          set -uo pipefail
+          linked=(); problems=()
+          for b in $(jq -r '.blocked_by[]' <<< "$OUTPUT"); do
+            if [ "$b" = "$ISSUE" ]; then problems+=("#$b is this issue"); continue; fi
+            if ! blocker=$(gh api "repos/$GITHUB_REPOSITORY/issues/$b" --jq '[.id, .state] | @tsv'); then
+              problems+=("#$b could not be read"); continue
+            fi
+            read -r id state <<< "$blocker"
+            if [ "$state" != "open" ]; then problems+=("#$b is already closed"); continue; fi
+            if out=$(gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$ISSUE/dependencies/blocked_by" \
+                       -F issue_id="$id" 2>&1) || grep -qi "already" <<< "$out"; then
+              linked+=("#$b")
+            else
+              problems+=("#$b could not be linked: $out")
+            fi
+          done
+          if [ ${#linked[@]} -eq 0 ] || [ ${#problems[@]} -gt 0 ]; then
+            printf '%s\n' "${problems[@]}" "No open blocker could be linked." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "park=true" >> "$GITHUB_OUTPUT"
+            printf '%s\n' "${problems[@]}" > blocked-problems.txt
+            exit 0
+          fi
+          jq -r --arg run "$RUN_URL" --arg linked "${linked[*]}" '
+            "## Triage: blocked\n\n" + .summary + "\n\n" +
+            "Blocked by " + ($linked | split(" ") | join(", ")) +
+            ", now linked as GitHub \"blocked by\". The agent skips this issue until they close, then triages it again.\n\n" +
+            "---\n_Triaged by the [issue agent](" + $run + ")_"' <<< "$OUTPUT" > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
+          gh issue edit "$ISSUE" --add-label blocked
+
       - name: Park for a person
-        if: steps.verdict.outputs.decision == 'needs_user' || steps.verdict.outputs.decision == 'already_done'
+        if: |
+          steps.verdict.outputs.decision == 'needs_user' || steps.verdict.outputs.decision == 'already_done' ||
+          steps.blocked.outputs.park == 'true'
         env:
           OUTPUT: ${{ steps.triage.outputs.structured_output }}
         run: |
           set -euo pipefail
-          jq -r --arg run "$RUN_URL" '
+          problems=$(sed 's/^/- /' blocked-problems.txt 2>/dev/null || true)
+          jq -r --arg run "$RUN_URL" --arg problems "$problems" '
             "## Triage Notes\n\n" +
             (if .decision == "already_done" then "**Looks already built.** Close it if you agree.\n\n" else "" end) +
+            (if .decision == "blocked"
+              then "**Blocked, but the blockers could not be linked**, so the agent would triage this again every run. " +
+                "Link the real blockers as GitHub \"blocked by\" (or fix the issue text), then remove `needs-user`.\n\n" +
+                $problems + "\n\n" else "" end) +
             .summary + "\n\n" +
             "**What we have established so far:**\n\n" + (.established | map("- " + .) | join("\n")) + "\n\n" +
             (if (.questions | length) > 0
