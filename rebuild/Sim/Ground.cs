@@ -229,6 +229,15 @@ public static class Ground
     /// Zero beside a frozen river, whose own ice (Map.TravelHazardLevel) already owns the hazard.
     public static double HazardDelta(World world, TileId tile) => HazardDelta(world, tile, CatchUp);
 
+    // ---- the weather-only estimate: the ground as the weather alone has made it, never this tile's own ----
+
+    /// What animals read (Traversal.GroundReadOf): the tile's ground class carried on through the weather, as if
+    /// nobody had ever trodden or dug it. Cheap (one cached state per class) and never written.
+    public static double TraversalFactorEstimate(World world, TileId tile) => Underfoot(world, tile, Estimate).TraversalFactor;
+
+    static GroundState Estimate(World world, TileId tile) =>
+        Unobserved(world, tile, Substrate(Map.Of(world), tile), world.Minute / StepMinutes * StepMinutes);
+
     // ---- the same, read without writing (Peek) ----
 
     public static double TraversalFactorNow(World world, TileId tile) => Underfoot(world, tile, Peek).TraversalFactor;

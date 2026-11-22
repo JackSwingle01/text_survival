@@ -103,6 +103,7 @@ public class ArchitectureTests
              ("Trip.cs", "Time", "the same crossing previewed before it starts, against the same sky"),
              ("Trip.cs", "Risk", "the same crossing's injury risk previewed, against the sky Begin fixes it by"),
              ("Trip.cs", "StepMinutes", "the same crossing's minutes for a planner, kept for the minute"),
+             ("Trip.cs", "Routes", "the same crossings' minutes for a route search, under the one sky of its minute"),
              ("Memory.cs", "BudgetTiles", "how far a person can see: the weather's visibility, nothing about warmth"),
              ("Clues.cs", "Place", "what a forager notices: wind, rain and hard frost as signs on the ground, nothing about warmth"),
              ("Remains.cs", "At", "rot's hourly air, through Exposure.SiteAirF"),
@@ -223,7 +224,9 @@ public class ArchitectureTests
         var (world, _) = Phase3GateTests.Run(160);
         // The NPC is in it, caught with work in hand: its mind and its work session are walked too.
         var npc = world.Agents.Values.Single(a => a.Mind is NpcMind);
-        // Watered, so the save is walked with a living NPC whatever its mind made of the busy day.
+        // Revived (as Play revives the player) and watered, so the save is walked with a living NPC whatever
+        // the busy day made of it: on seed 17 a wolf pack lies up on its kill beside the NPC's camp.
+        if (!Sim.IsAlive(npc)) npc.Members[0] = BodyState.BaselineHuman();
         npc.Body.HydrationMl = Body.MaxHydrationMl;
         Items.Add(Items.Pack(world, npc.Id), Resource.Water, 3);
         for (int i = 0; i < 3 * 24 * 60 && npc.Doing?.Work == null; i++) Sim.Advance(world, 1);

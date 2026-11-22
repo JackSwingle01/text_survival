@@ -327,6 +327,127 @@ public class ForecastTests
         Assert.Equal(Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick), Trip.StepMinutes(loaded, P, Camp(loaded), east, Pace.Quick));
     }
 
+    // ---- Trip.Routes: the one route search ----
+
+    /// Walks the route to the farthest tile within a few steps, one Travel a step, and checks each step's
+    /// forecast at the minute it begins, the route's total and its calories against what the walk took.
+    static void RouteAgrees(World w, AgentId who, double kcalTolerancePct)
+    {
+        var routes = Trip.Routes(w, who, maxMinutes: 60);
+        var target = routes.Reached.Where(t => routes.RouteTo(t).Count is >= 3 and <= 5)
+            .OrderByDescending(t => routes.RouteTo(t).Count).ThenBy(t => t).First();
+        double Held() => w.Agent(who).Members.Sum(b => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat);
+        double before = Held();
+        int walked = 0;
+        var at = w.Agent(who).Tile;
+        foreach (var next in routes.RouteTo(target))
+        {
+            int forecast = Trip.StepMinutes(w, who, at, next, Pace.Quick);
+            var dir = Enum.GetValues<Direction>().Single(d => Map.Step(at, d) == next);
+            var r = Sim.Step(w, new Travel(who, dir), Verbs.UntilDoneMinutes);
+            Assert.Equal((Traversal.Arrived, forecast), (r.Reason, r.MinutesElapsed));
+            walked += r.MinutesElapsed;
+            at = next;
+        }
+        Assert.Equal(target, w.Agent(who).Tile);
+        Assert.Equal(routes.Minutes[target], walked);
+        Assert.InRange(before - Held(), routes.Kcal(target)!.Value * (1 - kcalTolerancePct), routes.Kcal(target)!.Value * (1 + kcalTolerancePct));
+    }
+
+    [Fact]
+    public void Routes_ForAPerson_AgreeWithTheWalkMade()
+    {
+        var w = Bare(-5);
+        RouteAgrees(w, P, 0.02);
+    }
+
+    [Fact]
+    public void Routes_ForAnAnimal_AgreeWithTheWalkMade()
+    {
+        var w = Bare(-5);
+        var herd = Agents.Spawn(w, Species.Caribou, Map.Step(Camp(w), Direction.South), 3);
+        RouteAgrees(w, herd, 0.001);
+    }
+
+    [Fact]
+    public void Routes_ForAPerson_StayOnGroundItHasSeen()
+    {
+        var w = Bare(-5);
+        var explored = Memories.Of(Me(w)).Explored!;
+        var routes = Trip.Routes(w, P);
+        Assert.Contains(routes.Reached, t => t != Camp(w));
+        Assert.All(routes.Reached, t => Assert.True(t == Camp(w) || explored.Contains(t), $"{t} is unexplored"));
+    }
+
+    [Fact]
+    public void Routes_StopAtTheCutoff()
+    {
+        var w = Bare(-5);
+        var herd = Agents.Spawn(w, Species.Caribou, Camp(w), 1);
+        var routes = Trip.Routes(w, herd, maxMinutes: 30);
+        Assert.All(routes.Reached, t => Assert.InRange(routes.Minutes[t], 0, 30));
+        Assert.True(Trip.Routes(w, herd, maxMinutes: 120).Minutes.Count > routes.Minutes.Count);
+    }
+
+    [Fact]
+    public void Routes_UntilStopsAtTheFirstTileItAccepts_InMinutesThenTileOrder()
+    {
+        var w = Bare(-5);
+        var herd = Agents.Spawn(w, Species.Caribou, Camp(w), 1);
+        var settled = new List<(int Minutes, TileId Tile)>();
+        var routes = Trip.Routes(w, herd, until: (t, minutes) => { settled.Add((minutes, t)); return settled.Count == 20; });
+        Assert.Equal(20, settled.Count);
+        Assert.Equal(settled.OrderBy(s => s.Minutes).ThenBy(s => s.Tile), settled);
+        Assert.Equal(20, routes.Minutes.Count);
+    }
+
+    /// A lake row with land on either side: the shore, a run of water tiles, the far shore.
+    static (TileId West, TileId East) AcrossALake(World w)
+    {
+        var m = Map.Of(w);
+        for (int y = 0; y < m.Height; y++)
+            for (int x = 0; x + 5 < m.Width; x++)
+            {
+                var row = Enumerable.Range(x, 6).Select(i => new TileId(i, y)).ToList();
+                bool land(TileId t) => m.TerrainAt(t) is not (Terrain.Water or Terrain.DeepWater or Terrain.Mountain);
+                if (land(row[0]) && land(row[5]) && row.Skip(1).Take(4).All(t => m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater)) return (row[0], row[5]);
+            }
+        throw new InvalidOperationException("No lake four tiles wide on this map");
+    }
+
+    [Fact]
+    public void Routes_AFlyerCrossesALakeInAStraightLine_AndStopsAtTheMountainWall()
+    {
+        var w = Bare(-5);
+        var m = Map.Of(w);
+        var (west, east) = AcrossALake(w);
+        var flock = Agents.Spawn(w, Species.Raven, west, 3);
+        var routes = Trip.Routes(w, flock);
+        Assert.Equal(Enumerable.Range(west.X + 1, 5).Select(x => new TileId(x, west.Y)), routes.RouteTo(east));
+        Assert.Equal(5 * Traversal.FlightMinutesPerTile(w.Agent(flock))!.Value, routes.Minutes[east]);
+        Assert.DoesNotContain(routes.Reached, t => m.TerrainAt(t) == Terrain.Mountain);
+        Assert.Contains(routes.Reached, t => MapGen.Neighbors(t).Any(n => m.InBounds(n) && m.TerrainAt(n) == Terrain.Mountain));
+
+        var herd = Agents.Spawn(w, Species.Caribou, west, 3);
+        var walking = Trip.Routes(w, herd);
+        Assert.True(!walking.Reaches(east) || walking.Minutes[east] > routes.Minutes[east]);
+    }
+
+    [Fact]
+    public void Routes_OfTwoEqualWays_TakeTheOneThroughTheLowerTile_EveryRun()
+    {
+        var w = Bare(-5);
+        // Flat minutes a tile on the wing: south-then-west and west-then-south cost the same, and south is
+        // looked at first, so only the tie-break sends it west.
+        var start = Camp(w);
+        var corner = new TileId(start.X - 1, start.Y + 1);
+        var flock = Agents.Spawn(w, Species.Raven, start, 3);
+        var path = Trip.Routes(w, flock).RouteTo(corner);
+        Assert.Equal([new TileId(start.X - 1, start.Y), corner], path); // (x-1, y) sorts before (x, y+1)
+        var again = Save.FromJson(Save.ToJson(w));
+        Assert.Equal(path, Trip.Routes(again, flock).RouteTo(corner));
+    }
+
     // ---- Body: health ----
 
     static BodyState Bleeding(double severity)
