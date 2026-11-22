@@ -5,7 +5,6 @@ namespace Survival;
 /// it, so buried, guarded, frozen-in and across-the-water mean the same everywhere.
 public static class Access
 {
-    /// The conditions the gate can enforce.
     [Flags]
     public enum Gate
     {
@@ -21,27 +20,24 @@ public static class Access
         All = Buried | Guarded | FrozenIn | AcrossWater,
     }
 
-    /// The conditions in force. None is wired yet: each is implemented and available (Refusal with
-    /// gates) until the work that wants it switches it on here.
+    /// The conditions in force. None is wired yet: each is available via the gates overloads until switched on here.
     public const Gate Wired = Gate.None;
 
     public const string BuriedReason = "it is buried under the snow", FrozenInReason = "it is frozen in",
         AcrossWaterReason = "there is open water in the way", OutOfReach = "it is out of reach";
 
-    /// Why who cannot reach t now, or null. The thing must be there (Things.Exists): callers find it
-    /// first. confronting: the activity is the fight with whatever guards it, so a guard is no bar.
+    /// Why who cannot reach t now, or null. The thing must already exist (callers find it first).
+    /// confronting: the activity is the fight with its guard, so a guard is no bar.
     public static string? Refusal(World world, AgentId who, ThingRef t, bool confronting = false) =>
         Refusal(world, who, t, world.AccessGates, confronting);
 
-    /// As Refusal, with these conditions in force instead of the wired ones.
     public static string? Refusal(World world, AgentId who, ThingRef t, Gate gates, bool confronting = false) =>
         Blocker(world, who, t, gates, confronting)?.Reason;
 
-    /// What stands between who and t: the condition (Gate.None for plain distance) and its reason.
+    /// Gate.None means plain distance.
     public readonly record struct Block(Gate Gate, string Reason);
 
-    /// The first condition in force that bars who from t now, or null: the condition behind Refusal,
-    /// for whatever shows it (Verbs.At). The thing must be there.
+    /// The first condition in force behind Refusal, or null, for whatever shows it (Verbs.At).
     public static Block? Blocker(World world, AgentId who, ThingRef t, bool confronting = false) =>
         Blocker(world, who, t, world.AccessGates, confronting);
 
@@ -67,11 +63,8 @@ public static class Access
     static string GuardedReason(World world, ThingRef t, AgentId who) =>
         $"{Cause.Describe(world, Tags.Guards(world, t, who).Min())} guards it";
 
-    /// Why who cannot put something down on this tile now, or null. One rule whether or not a stash
-    /// lies there yet: only a guard holding the ground bars it, by the same exemptions as reaching what
-    /// lies there (a pile of the putter's own is never held against them). What is put down lies on
-    /// top, so snow or ice over a stash does not bar adding to it; taking from one is the full gate
-    /// (Refusal).
+    /// Only a guard holding the ground bars putting down, whether or not a stash lies there yet. What is
+    /// put down lies on top, so snow or ice over a stash does not bar adding to it; taking is the full gate.
     public static string? PutDownRefusal(World world, AgentId who, TileId tile) => PutDownRefusal(world, who, tile, world.AccessGates);
 
     public static string? PutDownRefusal(World world, AgentId who, TileId tile, Gate gates)
@@ -84,8 +77,6 @@ public static class Access
         return Tags.Guards(world, pile.Value, who).Count > 0 ? GuardedReason(world, pile.Value, who) : null;
     }
 
-    /// Open water between two neighbours: either is open lake (Map.IsOpenWater) or unfrozen deep water,
-    /// an unfrozen river runs along both, or the edge between them is a river.
     static bool AcrossWater(World world, TileId from, TileId to)
     {
         var m = Map.Of(world);

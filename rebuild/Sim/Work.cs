@@ -17,14 +17,11 @@ public sealed class WorkSession
     public double DoneKg { get; set; }
 }
 
-/// Work activities, shared by the player and NPCs: gathering from pools, butchering, eating,
-/// drinking, cooking, the stash.
 public static class Work
 {
     public const double MaxDrinkLiters = 1.0;
     public const int EatMinutes = 10, DrinkMinutes = 2, MeltSnowMinutes = 10, CookMeatMinutesPerKg = 15, CookFishMinutesPerKg = 12;
     public const double MeltSnowLiters = 1.0;
-    /// One use of the axe per hour of chopping.
     public const double ChopMinutesPerAxeUse = 60;
 
     public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or Stash or Unstash or Wear or TakeOff;
@@ -33,11 +30,8 @@ public static class Work
 
     public const string TooDark = "too dark to work";
 
-    /// Work's own ends: the meal eaten, the drink drunk, the meat cooked, the snow melted, the tree
-    /// down, the carcass cut up.
     public const string Ate = "ate", Drank = "drank", CookedReason = "cooked", Melted = "melted", TreeFelled = "tree felled", ButcheredReason = "butchered";
 
-    /// Night or a cave, with no flame or torch.
     public static bool TooDarkToWork(World world, Agent agent)
     {
         int hour = Weather.MinuteOfDay(world.Minute) / 60;
@@ -353,12 +347,10 @@ public static class Work
             OddsTerm.Scale("Shovel", Items.Tool(pack, ToolType.Shovel) != null ? 1.10 : 1.0),
             OddsTerm.Scale("Foraging", Skills.ForageYieldFactor(Skills.Level(agent, Skill.Foraging)))), MinPct: 0, MaxPct: double.MaxValue);
 
-    /// This forager's yield odds here, now (the forage preview).
     public static Odds ForageYield(World world, Agent agent) =>
         ForageYield(agent, Items.PackOf(agent) ?? throw new InvalidOperationException($"{agent.Id} carries nothing"),
             Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent)));
 
-    /// The step is over, however it ended: what accrued to it is settled.
     public static void End(World world, Agent agent, WorkSession s, List<WorldEvent> events)
     {
         if (s.Activity is Butcher b) EndButcher(world, agent, b, s, events);
@@ -368,9 +360,7 @@ public static class Work
             events.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Dropped)));
     }
 
-    /// A minute of butchering: the setup once per carcass, then the cutting, at this minute's decay and
-    /// hands. The blood on you and the scent on the carcass build with the minutes worked. What is ready
-    /// goes in the pack now; the rest waits on the carcass.
+    /// Cuts at this minute's decay and hands; what is ready goes in the pack now, the rest waits on the carcass.
     static string? CutMinute(World world, Agent agent, Butcher b, WorkSession s, List<WorldEvent> events)
     {
         // Old bones can weather away under the knife (Remains.Hour settles them before this minute).
@@ -415,13 +405,11 @@ public static class Work
         Items.AddAll(s.Dropped, Items.Receive(world, agent, got, events: null));
     }
 
-    /// What a focused search finds of what it looks for, over a general one: each such find comes with
-    /// another like it on these odds, because the eyes and hours a general search spends on sticks and
-    /// stones go on the berries and roots. Filtering alone would make focus cost the rest of the haul and
-    /// buy nothing. Why this lever: per hour, fresh forest gives ~170 kcal of food (berries 75%), thinning
-    /// as 1/(1+2h); kcal per kg are already realistic (berries 500, nuts 6000), and density and depletion
-    /// are shared with fuel and are what pushes a forager outward. Tuned so a food forager in fresh forest
-    /// about holds their weight, while poor country, staying put and a general search still run a deficit.
+    /// Each find of the focus comes with another like it on these odds: the effort a general search spends on
+    /// sticks and stones goes on the berries and roots. Filtering alone would make focus cost the rest of the
+    /// haul and buy nothing. Tuned so a food forager in fresh forest about holds their weight, while poor
+    /// country, staying put and a general search still run a deficit. This lever, not kcal per kg (already
+    /// realistic) or density and depletion (shared with fuel, and what pushes a forager outward).
     public const double FocusGain = 1.3;
 
     /// Each find outside the focus survives on a 40-60% roll.

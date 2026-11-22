@@ -1,26 +1,20 @@
 namespace Survival;
 
-/// One thing a person can do now, ready to run: the exact activity, and the minutes to step it for
-/// (Sim.Step(world, Activity, Minutes)). An activity that stops itself (a crossing, a butchering)
-/// gets a budget it never reaches. Refused is why it cannot start now, in the system's own words
-/// (Sim.Refusal); a refused verb is still listed, so the player sees why. Odds, for a bet; Trip, for
-/// a walk that can start: its minutes as their terms (Trip.Time), the one number dock and preview show.
-/// Outcomes, for making: the recipe's odds table (Making.Odds), shown before the work is committed to.
-/// Risk, for a walk that can start: the injury odds the crossing will roll (Trip.Risk), beside its time.
+/// One thing a person can do now, ready to run (Sim.Step(world, Activity, Minutes)). An activity that
+/// stops itself (a crossing, a butchering) gets a budget it never reaches. A refused verb is still listed, so the player sees why.
+/// Trip (Trip.Time) is the one number dock and preview show; Risk is the injury odds the crossing rolls.
 public sealed record Verb(string Label, Activity Activity, int Minutes, string? Refused, Odds? Odds = null, TripTime? Trip = null,
     MakeOdds? Outcomes = null, Odds? Risk = null)
 {
     public bool Allowed => Refused == null;
 }
 
-/// What an action sees about a thing: a fact read off its effects and its place, never stored
-/// (GLOSSARY: Condition). A blocking one stands in front of the thing's verbs; Clear is the verb that
-/// changes the world so it stops being true (none exists yet: Dig, Contest and the rest).
+/// A fact read off a thing's effects and place, never stored (GLOSSARY: Condition). A blocking one
+/// stands in front of the thing's verbs; Clear is the verb that ends it (none exists yet).
 public sealed record Condition(string Name, bool Blocking, Verb? Clear = null);
 
-/// One thing here as the person sees it: what it is, its conditions (outermost first), and every
-/// verb it offers (Menu). Action is the one shown (emergent-world-design §3.5): the outermost
-/// blocking condition's clearing verb; otherwise the thing's only verb; otherwise null, which is
+/// Conditions are outermost first. Action is the one shown (emergent-world-design §3.5): the outermost
+/// blocking condition's clearing verb; otherwise the only verb; otherwise null, which is
 /// Interact when there are several (open Menu) and nothing to do when there are none.
 public sealed record ThingVerbs(ThingRef Thing, string Name, IReadOnlyList<Condition> Conditions, IReadOnlyList<Verb> Menu)
 {
@@ -28,36 +22,25 @@ public sealed record ThingVerbs(ThingRef Thing, string Name, IReadOnlyList<Condi
     public bool Interact => Action == null && Menu.Count > 1;
 }
 
-/// What a person can do where they stand (Verbs.At).
-/// Things: what they can see on the tile, in Things.At's order, themselves left out.
-/// Walk: a crossing each way, then a careful one each way whose quick risk is worth weighing (Trip.PaceMatters).
-/// Tile: what needs nothing but the place - wait, rest, sleep, the fire verbs, drinking.
-/// Pack: what can be done with what is carried - eat each food, put down each thing, wear each
-/// garment in the pack, take off each one worn.
-/// Make: every recipe, in menu order (none is hidden: a refused one says what it lacks), then every
-/// structure to build here (shelters, bedding, the tent: Shelters, until Make takes building over),
-/// then abandoning each unfinished thing in the pack.
+/// What a person can do where they stand (Verbs.At). Things leave the person out, in Things.At's order.
+/// Walk adds a careful crossing only where quick risk is worth weighing (Trip.PaceMatters). Tile is what needs
+/// nothing but the place (wait, rest, sleep, fire, drink); Pack is what can be done with what is carried.
+/// Make lists every recipe, hidden none (a refused one says what it lacks), then structures (Shelters, until Make takes building over).
 public sealed record Here(AgentId Who, TileId At, IReadOnlyList<ThingVerbs> Things, IReadOnlyList<Verb> Walk, IReadOnlyList<Verb> Tile,
     IReadOnlyList<Verb> Pack, IReadOnlyList<Verb> Make)
 {
-    /// Every verb listed: each thing's menu, then the walks, then the tile's, the pack's, then making.
     public IEnumerable<Verb> All => Things.SelectMany(t => t.Menu).Concat(Walk).Concat(Tile).Concat(Pack).Concat(Make);
 }
 
-/// The one source of "what can I do here" (emergent-world-design §3.5), for the player and NPCs
-/// alike, and for the CLI, the UI host and tests. A verb is listed when what it acts on is there
-/// (the pit, the fuel in the pack, the carcass); whether it can start now is its Refused. Reads
-/// only: nothing is caught up, so the fires around the person must already be (they are after any
-/// step, which catches them up every minute it lives).
+/// The one source of "what can I do here" (emergent-world-design §3.5), for player, NPCs, CLI, UI and
+/// tests. A verb is listed when what it acts on is there; whether it can start now is its Refused.
+/// Reads only: nothing is caught up, so the fires around the person must already be (any step catches them up).
 public static class Verbs
 {
     public const int WaitMinutes = 60, RestMinutes = 60, SleepMinutes = 8 * 60, ForageMinutes = 60, WorkMinutes = 4 * 60,
         ImproveMinutes = 10;
-    /// The budget for an activity that stops itself: never reached.
     public const int UntilDoneMinutes = 24 * 60;
-    /// What one Add fuel verb puts on: up to a kilo of it.
     public const double FuelKg = 1.0;
-    /// What lighting a fire takes from the pack: a pinch of tinder, up to a kilo of kindling.
     public const double TinderKg = 0.05, KindlingKg = 1.0;
     /// The least an Eat verb offers: a meal. Past what the stomach holds it goes on as fat (Body.Eat).
     public const double MealKcal = 500;
@@ -91,7 +74,6 @@ public static class Verbs
         };
         if (pack != null)
         {
-            // A pit's own menu lights it again; with none, lighting one makes the pit.
             if (Fire.PitAt(world, agent.Tile) == null) tile.Add(("Start a fire", Light(who, pack, PitType.Open), 1));
             if (Items.Tool(pack, ToolType.Torch) != null) tile.Add(("Light a torch", new LightTorch(who), 1));
             if (Items.Have(pack, Resource.Water) > 0 || Work.HasOpenWater(world, agent.Tile)) tile.Add(("Drink", new Drink(who), Work.DrinkMinutes));
@@ -133,15 +115,12 @@ public static class Verbs
         }
     }
 
-    /// What an Eat verb offers of a food: what the stomach has room for, and at least a meal, of what there is.
     static double Portion(BodyState body, Resource food, double haveKg) =>
         Math.Min(haveKg, Math.Max(Body.CaloriesCapacityKcal(body) - body.CaloriesKcal, MealKcal) / Items.Resources[food].KcalPerKg);
 
-    /// The fire-start odds for a verb that has the tool to strike with: no tool, no bet to show.
     static Odds? StartOdds(World world, Agent agent, StartFire s) =>
         Items.PackOf(agent) is { } pack && Items.Tool(pack, s.Tool) != null ? Fire.StartOdds(world, agent, s.Tool, s.Tinder) : null;
 
-    /// Lighting a fire with the best starter and tinder in the pack, and up to a kilo of kindling.
     static StartFire Light(AgentId who, Inventory pack, PitType pit)
     {
         var tool = new[] { ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill }.FirstOrDefault(t => Items.Tool(pack, t) != null, ToolType.HandDrill);
@@ -151,7 +130,6 @@ public static class Verbs
     }
 
     /// A list read off stale fires would be wrong about light, heat and the pit: fail, never guess.
-    /// A cold pit has nothing to catch up.
     static void RequireFiresCurrent(World world, Agent agent)
     {
         foreach (var (id, f) in world.Fires)
@@ -159,7 +137,6 @@ public static class Verbs
                 throw new InvalidOperationException($"Fire {id.Value} is at minute {f.LastUpdatedMinute}, world at {world.Minute}: catch it up first");
     }
 
-    /// Whether the person sees the thing at all: not themselves, and not a hidden pool they have not found.
     static bool Seen(World world, AgentId who, ThingRef t) => t.Kind switch
     {
         ThingKind.Agent or ThingKind.Body => t.Index != who.Value,
@@ -167,7 +144,6 @@ public static class Verbs
         ThingKind.Carcass or ThingKind.Stash or ThingKind.Fire or ThingKind.Shelter or ThingKind.Track or ThingKind.Sign or ThingKind.Item => true,
     };
 
-    /// What a thing is called and the verbs it offers, before refusals: (label, activity, minutes).
     /// Things nobody can act on yet (another agent, a body, prints) are listed with no verbs.
     static (string Name, List<(string Label, Activity Activity, int Minutes)> Menu) Describe(World world, AgentId who, ThingRef t, Inventory? pack)
     {
@@ -206,7 +182,6 @@ public static class Verbs
     static (string, List<(string, Activity, int)>) CarcassVerbs(World world, AgentId who, ThingRef t)
     {
         var c = Carcasses.Find(world, t.Tile, t.Index)!;
-        // A carcass keeps the way it was first butchered.
         var modes = c.Mode is ButcherMode begun ? [begun] : Enum.GetValues<ButcherMode>();
         return (c.Animal, [.. modes.Select(mode => ($"Butcher ({Names.Of(mode)})", (Activity)new Butcher(who, c.Id, mode), UntilDoneMinutes))]);
     }
@@ -237,9 +212,7 @@ public static class Verbs
         return (s.Name, menu);
     }
 
-    /// The conditions on a thing, outermost first. Today the only ones are the access gates in force
-    /// (Access.Blocker), and none has a clearing verb yet; modifying conditions (wet, spoiled) arrive
-    /// with the effects kernel.
+    /// Today only the access gates in force (Access.Blocker); modifying conditions (wet, spoiled) arrive with the effects kernel.
     static List<Condition> Conditions(World world, AgentId who, ThingRef t) =>
         Access.Blocker(world, who, t) is { Gate: not Access.Gate.None } b ? [new Condition(ConditionName(b.Gate), Blocking: true)] : [];
 

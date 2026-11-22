@@ -1,18 +1,14 @@
 namespace Survival;
 
-/// What a sign is evidence of.
 /// RavensOver: the carrion flock over a predator herd (no flesh on the tile), its cause the predator.
 public enum SignKind { Body, Carcass, Stash, FirePit, Shelter, Prints, Trail, WorkedGround, Grazed, Felled, Picked, Bones, RavensOver }
 
-/// One piece of evidence on a tile (emergent-world-design §3.2): the thing it is, what kind of sign,
-/// when it was made and by what. MadeMinute is null where the thing keeps no clock of its making
-/// (a stash, a fire pit, a shelter, a body, felled stumps): adding one would be a new saved field.
+/// One piece of evidence on a tile (emergent-world-design §3.2). MadeMinute is null where the thing keeps
+/// no clock of its making (stash, fire pit, shelter, body, stumps): adding one would be a new saved field.
 /// For prints and desire paths it is the last passage, which is what their fading counts from.
 public sealed record Sign(ThingRef Thing, SignKind Kind, long? MadeMinute, Cause? Cause);
 
-/// Signs are a projection over state that already exists; none is stored (no thing has its home
-/// here yet). Reads only: age and fading come from the clocks the things keep, as Report's do.
-// Kill sites (bones taken or weathered away) and stored signs (scat, claw marks) are not built yet.
+/// Signs are a projection over state that already exists; none is stored. Age and fading come from the things' own clocks.
 public static class Signs
 {
     public static IEnumerable<Sign> At(World world, TileId tile)
@@ -22,7 +18,7 @@ public static class Signs
         foreach (var t in Things.At(world, tile))
             signs.AddRange(t.Kind switch
             {
-                ThingKind.Agent => OfAgent(world, t), // the living are there, not signs: but ravens over a pack point to it
+                ThingKind.Agent => OfAgent(world, t), // the living are not signs, but ravens over a pack point to it
                 ThingKind.Body => [OfBody(world.Agent(new AgentId(t.Index)).Body, t)],
                 ThingKind.Carcass => [Of(world, t, Carcasses.Find(world, tile, t.Index)!)],
                 ThingKind.Pool => OfPool(world, t),
@@ -30,8 +26,8 @@ public static class Signs
                 ThingKind.Fire => [new Sign(t, SignKind.FirePit, null, world.Fires[new FireId(t.Index)].Cause)],
                 ThingKind.Shelter => [new Sign(t, SignKind.Shelter, null, Shelters.Peek(world, tile)!.Cause)],
                 ThingKind.Track => [OfTrack(world, t)],
-                ThingKind.Sign => [], // none stored yet (Things.At names none)
-                ThingKind.Item => [], // carried gear is not a sign
+                ThingKind.Sign => [],
+                ThingKind.Item => [],
             });
         return signs;
     }
@@ -41,8 +37,7 @@ public static class Signs
 
     static Sign OfBody(BodyState body, ThingRef t) => new(t, SignKind.Body, body.DiedMinute, body.DeathCause);
 
-    /// The carrion flock over a predator herd, where there is no flesh to hold it: the sign is the
-    /// flock, its cause the predator it follows (the lowest id, if more than one).
+    /// The flock over a predator herd with no flesh to hold it; its cause is the predator (the lowest id, if more than one).
     static IEnumerable<Sign> OfAgent(World world, ThingRef t)
     {
         var a = world.Agent(new AgentId(t.Index));
@@ -62,8 +57,7 @@ public static class Signs
         return new Sign(t, SignKind.Prints, world.Minute - prints.AgeMinutes, null);
     }
 
-    /// Ground that shows it was worked: forage thinned by searching or grazing, felled stumps, a
-    /// stock picked below what it holds. Nobody is recorded for these, so no cause.
+    /// Nobody is recorded for worked ground, so these signs carry no cause.
     static IEnumerable<Sign> OfPool(World world, ThingRef t)
     {
         var id = new PoolId(t.Tile, t.Index);

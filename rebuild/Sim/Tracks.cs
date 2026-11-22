@@ -1,48 +1,40 @@
 namespace Survival;
 
-/// The kind of print left on the ground: by shape, not identity. The player's boots and an
-/// NPC's are the same mark; what a print tells you is two feet, pads or hooves.
+/// By shape, not identity: the player's boots and an NPC's are the same mark.
 public enum TrackMaker { Human, Paw, Hoof }
 
-/// How far a route has been beaten in. Derived from the wear scalar, never stored.
+/// Derived from the wear scalar, never stored.
 public enum TrailTier { None, Trace, Path, Trail }
 
-/// How traffic through a tile reads: mostly one way (Heading), back and forth along one axis, or mixed.
 public enum TrafficPattern { Heading, NorthSouth, EastWest, Mixed }
 
-/// The sign one kind of maker has left on one tile, as of the last passage (Minute).
-/// Traffic and the direction totals are what had come through by then, faded passage to
-/// passage; reading them now fades them again by Freshness.
+/// Totals are as of the last passage (Minute), faded passage to passage; reading fades them again by Freshness.
 public sealed record Track(long Minute, Direction Heading, double Traffic, double HeaviestIndividual,
     double DirectionX, double DirectionY, double NorthSouthTraffic, double EastWestTraffic);
 
-/// Desire-path wear on one edge as of Minute. Decay since then is derived on read.
+/// Wear as of Minute; decay since then is derived on read.
 public sealed record TrailWear(double Wear, long Minute);
 
-/// What a tile's ground says about one kind of maker right now. FreshnessPct 1 = just made.
+/// FreshnessPct 1 = just made.
 public readonly record struct TrackSign(TrackMaker Maker, double FreshnessPct, int Traffic, TrafficPattern Pattern,
     Direction Heading, long AgeMinutes, double Depth, int NorthSouthTraffic, int EastWestTraffic);
 
-/// Footprints and desire paths: the ground remembers who walked on it, on two clocks.
-///
-/// Both age against erosion. The sky is a pure function of (seed, minute), so erosion at any minute
-/// is derived from it (ErosionAt) and nothing is ticked or saved. Tracks and wear store the minute
-/// they were last added to and catch up on read.
+/// Footprints and desire paths, both aged against erosion. The sky is a pure function of
+/// (seed, minute), so erosion is derived (ErosionAt), never ticked or saved; tracks and wear
+/// store the minute they were last added to and catch up on read.
 public static class Tracks
 {
     // ---- erosion ----
 
     /// Erosion units a Depth-1 track survives.
     public const double BaseLifespanUnits = 2880;
-    // Roughly 4 days in dead calm cold, 17 hours in light snow, 6 hours in a blizzard for one person.
+    // One person's prints last ~4 days in dead calm cold, 17 hours in light snow, 6 hours in a blizzard.
     const double StillAirUnits = 0.5, PrecipitationUnits = 6.0, WindUnits = 3.0, ThawUnits = 2.0, ThawAboveF = 34;
 
-    /// How fast the ground is wiped clean: falling snow buries, wind drifts, a thaw slumps, still air fills slowly.
     public static double ErosionPerMinute(WeatherSample s) =>
         StillAirUnits + s.PrecipitationPct * PrecipitationUnits + s.WindLevel * WindUnits + (s.TemperatureF > ThawAboveF ? ThawUnits : 0);
 
-    /// Total erosion over the minutes lived up to and including minute (minutes 1..minute, each
-    /// under its own sky, as Step lives them). Monotonic; an age is a difference of two of these.
+    /// Total erosion over minutes 1..minute, each under its own sky. Monotonic; an age is a difference of two.
     public static double ErosionAt(World world, long minute)
     {
         if (minute < 0) throw new ArgumentOutOfRangeException(nameof(minute), minute, "Erosion starts at minute 0");
@@ -53,9 +45,8 @@ public static class Tracks
 
     // ---- footprints ----
 
-    /// The single seam for a completed crossing, whoever made it: prints on both tiles, wear on the
-    /// edge between them. individuals is head count (a herd agent's Members.Count); individualDepth
-    /// is how heavily one of them marks the ground, an adult human at 1.0.
+    /// The single seam for a completed crossing, whoever made it. individuals is head count;
+    /// individualDepth is how heavily one marks the ground, an adult human at 1.0.
     public static void RecordMove(World world, TileId from, TileId to, TrackMaker maker, double individuals = 1, double individualDepth = 1.0)
     {
         if (from == to) return;
@@ -63,7 +54,7 @@ public static class Tracks
             throw new ArgumentOutOfRangeException(nameof(individuals), $"{individuals} x {individualDepth}: a move needs feet");
         long now = world.Minute;
         double erosion = ErosionAt(world, now);
-        // Once a clock hour at most: with herds walking, a sweep per crossing was most of the cost of a month.
+        // At most hourly: with herds walking, a sweep per crossing dominates a long run's cost.
         if (now / 60 != world.TracksSweptHour)
         {
             world.TracksSweptHour = now / 60;
@@ -74,15 +65,14 @@ public static class Tracks
         Stamp(world, from, maker, heading, individuals, individualDepth, now, erosion);
         Stamp(world, to, maker, heading, individuals, individualDepth, now, erosion);
 
-        // Wear belongs to an edge, and an edge exists only between neighbours: crediting one
-        // arbitrary edge for a multi-tile hop would wear in a route nothing walked.
+        // Only neighbours share an edge: crediting one arbitrary edge for a multi-tile hop would wear in a route nothing walked.
         if (Math.Abs(from.X - to.X) + Math.Abs(from.Y - to.Y) != 1) return;
         // Linear in head count: every set of feet treads the ground.
         var edge = new EdgeId(from, to);
         world.Trails[edge] = new TrailWear(Math.Min(MaxWear, WearAt(world, edge, now, erosion) + individuals * individualDepth), now);
     }
 
-    /// Readable signs on a tile, freshest first. Empty when the ground is clean.
+    /// Freshest first.
     public static IReadOnlyList<TrackSign> Read(World world, TileId tile)
     {
         if (!world.Tiles.TryGetValue(tile, out var state) || state.Tracks == null) return [];
@@ -97,8 +87,7 @@ public static class Tracks
         return signs;
     }
 
-    /// How deeply the ground is marked, and so how long the sign lasts: linear in the heaviest
-    /// thing through, sublinear in how many came.
+    /// Sets how long the sign lasts: linear in the heaviest thing through, sublinear in how many came.
     public static double Depth(Track t) => Math.Clamp(t.HeaviestIndividual * (0.6 + 0.4 * Math.Sqrt(Math.Max(1, t.Traffic))), 0.5, 3.0);
 
     static double Freshness(World world, Track t, double erosionNow) =>
@@ -109,8 +98,7 @@ public static class Tracks
         if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
         state.Tracks ??= [];
         double traffic = individuals, heaviest = individualDepth, dx = 0, dy = 0, ns = 0, ew = 0;
-        // Whatever the weather has left of the earlier sign carries over, so a route in daily use
-        // reads busier than one crossed once - and nothing piles up forever, because it has faded.
+        // What the weather left of the earlier sign carries over: daily routes read busier, yet nothing piles up forever.
         // A dead sign is no sign, whether or not the sweep has dropped it yet.
         if (state.Tracks.TryGetValue(maker, out var old) && Freshness(world, old, erosion) is var f && f > 0)
         {
@@ -129,7 +117,7 @@ public static class Tracks
         state.Tracks[maker] = new Track(now, heading, traffic, heaviest, dx, dy, ns, ew);
     }
 
-    /// Which way something was heading; a multi-tile hop reads by its larger axis.
+    // A multi-tile hop reads by its larger axis.
     static Direction HeadingOf(TileId from, TileId to)
     {
         int dx = to.X - from.X, dy = to.Y - from.Y;
@@ -137,7 +125,6 @@ public static class Tracks
         return dy >= 0 ? Direction.South : Direction.North;
     }
 
-    /// Strongest net movement; the last heading when it cancels out.
     static Direction DominantHeading(Track t)
     {
         if (Math.Abs(t.DirectionX) < double.Epsilon && Math.Abs(t.DirectionY) < double.Epsilon) return t.Heading;
@@ -165,9 +152,8 @@ public static class Tracks
             Readable(t.NorthSouthTraffic, f), Readable(t.EastWestTraffic, f));
     }
 
-    /// Drop signs and wear the weather has finished with, so the save holds only what is there.
-    /// Erosion only rises, so dead stays dead and dropping it changes no reading.
-    // A full sweep, O(tiles + edges), at most hourly; index tracks by expiry if the save grows large.
+    /// Drop what the weather has finished with so the save holds only what is there; erosion only
+    /// rises, so dropping a dead sign changes no reading. O(tiles + edges), hence the hourly cap.
     static void Sweep(World world, long now, double erosion)
     {
         foreach (var (tile, state) in world.Tiles.ToList())
@@ -194,10 +180,8 @@ public static class Tracks
     const double SettlingPerMinute = 0.000306;
     /// Snow filling the trench, per erosion unit. Deliberately the smaller term: burying a path is not undoing it.
     const double BuryingPerErosionUnit = 0.0000837;
-    /// Below this the route is gone.
     const double MinimumWear = 0.5;
 
-    /// How beaten-in the edge between two tiles is right now.
     public static double WearAt(World world, TileId a, TileId b) => WearAt(world, new EdgeId(a, b), world.Minute, ErosionAt(world, world.Minute));
 
     static double WearAt(World world, EdgeId edge, long now, double erosionNow)
@@ -227,7 +211,6 @@ public static class Tracks
 
     // ---- who leaves what ----
 
-    /// What shape of print a species leaves: people, pads, hooves.
     public static TrackMaker MakerOf(Species species) => SpeciesTable.Of(species).Role switch
     {
         Role.Human => TrackMaker.Human,
@@ -235,26 +218,22 @@ public static class Tracks
         _ => TrackMaker.Hoof,
     };
 
-    /// How heavily one of them marks the ground, an adult human at 1: with the square root of body
-    /// mass, so a mammoth prints far deeper than a fox, not seventy times.
+    /// Square root of body mass, so a mammoth prints far deeper than a fox, not seventy times.
     public static double IndividualDepth(Species species) =>
         species == Species.Human ? 1.0 : Math.Clamp(Math.Sqrt(SpeciesTable.Of(species).WeightKg / 70.0), 0.4, 3.0);
 }
 
-/// Prefix sums of erosion over the seed's front states, which hold the sky constant from one
-/// start to the next. Pure derived data, rebuilt from the seed after a load.
+/// Prefix sums of erosion over the seed's front states (sky constant between starts). Derived; rebuilt after a load.
 internal sealed class ErosionTimeline
 {
     readonly List<long> starts = [];
-    // Erosion from the start of the weather pre-roll to each start. Only differences are ever read,
-    // so the origin (Weather.PreRollMinutes before minute 0) cancels out.
+    // From the weather pre-roll start; only differences are read, so the origin cancels.
     readonly List<double> before = [];
     readonly List<double> rates = [];
     long coveredThrough = -1;
 
     public double At(World world, long minute) => Before(world, minute + 1) - Before(world, 1);
 
-    /// Erosion over minutes [pre-roll start, n).
     double Before(World world, long n)
     {
         long last = n - 1;

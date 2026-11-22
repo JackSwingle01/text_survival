@@ -2,33 +2,26 @@ using System.Globalization;
 
 namespace Survival;
 
-// ---- outcomes: what a finished piece of work can turn out as, besides the plain result ----
-
 public enum OutcomeKind { Succeed, Fail }
 
 /// One effect an outcome has (emergent-world-design §3.7). A closed list: a new kind is a code and
 /// loader change. Shares are 0-1 of the named input's kilos.
 public abstract record Effect;
-/// That share of the input named (by any of its alternatives) is lost.
 public sealed record WasteMaterial(Resource Input, double SharePct) : Effect;
 /// That share of the input named comes back to the pack instead of going into the result.
 public sealed record SaveMaterial(Resource Input, double SharePct) : Effect;
-/// Something more besides: Amount pieces of a gear kind, or kilos of a resource.
 public sealed record ExtraProduct(string What, double Amount) : Effect;
 /// A cut, through Body.Damage: Amount in DamageInfo's units of tissue condition.
 public sealed record Injury(BodyTarget Target, double Amount) : Effect;
 /// The tool giving this capability loses whole uses of durability; no amount breaks it outright.
 public sealed record BreakTool(Capability Capability, int? Uses) : Effect;
 
-/// One way a finished piece of work can turn out, with its base odds before skill and hands.
-/// Text is the outcome as written, alternatives resolved.
+/// BasePct is before skill and hands. Text is the outcome as written, alternatives resolved.
 public sealed record Outcome(OutcomeKind Kind, IReadOnlyList<Effect> Effects, double BasePct, string Text)
 {
-    /// Failure-like weights are made rarer by skill and likelier by clumsy hands: a failure, an injury
-    /// or a broken tool (§3.7). The rest are success bonuses, made likelier by skill.
+    /// Skill makes these rarer and clumsy hands likelier; the rest are success bonuses (§3.7).
     public bool FailureLike => Kind == OutcomeKind.Fail || Effects.Any(e => e is Injury or BreakTool);
 
-    /// The outcome as the player reads it: "Fails: the stone is wasted" (Names.Outcome).
     public string Words => Names.Outcome(this);
 }
 
@@ -36,7 +29,7 @@ public sealed record Outcome(OutcomeKind Kind, IReadOnlyList<Effect> Effects, do
 /// parameter lists alternatives, with the odds split evenly between every pairing of them.
 public static class Outcomes
 {
-    /// Every concrete outcome the line stands for. Throws FormatException naming what is wrong.
+    /// Throws FormatException naming what is wrong.
     public static IReadOnlyList<Outcome> Parse(string line)
     {
         int eq = line.LastIndexOf('=');
@@ -141,30 +134,25 @@ public static class Outcomes
     static FormatException Bad(string line, string why) => new($"outcome '{line}': {why}");
 }
 
-// ---- recipes ----
-
-/// Menu grouping.
 public enum MakeCategory { FireStarting, CuttingTool, HuntingWeapon, Lighting, Processing, Clothing }
 
 /// What the place must have for the work to start, and to go on: a closed list. Wet or cold hands
 /// and impairment never block; they slow the work and worsen the odds.
 public enum Requirement { Light, Fire, Frost, Shelter, Dry }
 
-/// Kilos of any of these resources, taken in the order listed.
+/// Taken from AnyOf in the order listed.
 public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg);
 
-/// What the recipe makes when nothing goes differently: one piece of a gear kind, or kilos of a resource.
 public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg);
 
-/// How one thing is made (GLOSSARY: Recipe). Items are gear kinds consumed into the result. Tools are
-/// capabilities: a required one gates the recipe and is used once per finished piece; a faster one
-/// only speeds it.
+/// (GLOSSARY: Recipe). Items are gear kinds consumed into the result. Tools are capabilities: a
+/// required one gates the recipe and wears once per piece; a faster one only speeds it.
 public sealed record Recipe(
     string Id, string Name, MakeCategory Category, IReadOnlyList<MaterialInput> Materials, IReadOnlyList<string> Items,
     IReadOnlyList<Capability> Tools, IReadOnlyList<Capability> Faster, IReadOnlyList<Requirement> Requires, int Minutes,
     RecipeResult Result, IReadOnlyList<Outcome> Outcomes);
 
-/// The recipes (Content/recipes.json), in file order: the order the menu lists them.
+/// In Content/recipes.json file order, which is the menu order.
 public static class Recipes
 {
     public static readonly IReadOnlyList<Recipe> All = Content.Tables.MakeRecipes;
@@ -174,41 +162,29 @@ public static class Recipes
     public static bool Exists(string id) => ById.ContainsKey(id);
 }
 
-// ---- the odds sheet ----
-
-/// One outcome's chance as its terms: the base odds, the maker's skill, their hands and head.
 public sealed record OutcomeOdds(Outcome Outcome, Odds Odds);
 
-/// Every outcome of a recipe as its odds, shown before the work is committed to; whatever is left
-/// is the plain result.
+/// Shown before the work is committed to; whatever is left is the plain result.
 public sealed record MakeOdds(IReadOnlyList<OutcomeOdds> Outcomes)
 {
     public double PlainPct => Math.Max(0, 1 - Outcomes.Sum(o => o.Odds.TotalPct));
 }
 
-/// A finished piece of work: the recipe, the outcome rolled (null for the plain result), and what it
-/// did to the things held. Spent: kilos gone from what anyone holds (wasted, or worked into a resource
-/// result). Produced: kilos made (a resource result, an extra product). ExtraGear: pieces made over
-/// the result, from the offcuts. Everything else moved: into the result's recorded parts, or back
-/// to the pack.
+/// Outcome is null for the plain result. Spent: kilos gone from what anyone holds. Produced: kilos
+/// made. ExtraGear: pieces made over the result, from the offcuts. Everything else moved: into the
+/// result's recorded parts, or back to the pack.
 public sealed record Made(long Minute, AgentId Who, TileId Tile, string Recipe, string? Outcome, bool Succeeded,
     SortedDictionary<Resource, double> Spent, SortedDictionary<Resource, double> Produced, IReadOnlyList<string> ExtraGear) : WorldEvent(Minute, Tile);
 
-/// An unfinished thing given up: most of its materials came back; Lost is the rest.
 public sealed record ProjectAbandoned(long Minute, AgentId Who, TileId Tile, string Recipe, SortedDictionary<Resource, double> Lost) : WorldEvent(Minute, Tile);
 
-// ---- the Make activity ----
-
 /// One Make activity for everything carried (emergent-world-design §3.7), shared by the player and
-/// NPCs: start or go on with a recipe's project, and when its work is done roll one outcome.
-/// Building on a tile is still Shelters' Build.
+/// NPCs. Building on a tile is still Shelters' Build.
 public static class Making
 {
     /// Each Crafting level: failure-like weights x(1 - this), success bonuses x(1 + this).
     public const double SkillPctPerLevel = 0.04;
-    /// What abandoning a project gives back of its materials' kilos.
     public const double AbandonReclaimPct = 0.8;
-    /// How much more work a minute does with each faster tool carried.
     public const double FasterToolFactor = 1.5;
     /// Below this dexterity the work slows, by up to half again at none.
     const double DexterityThreshold = 0.7, MaxDexterityPenaltyPct = 0.5;
@@ -217,10 +193,8 @@ public static class Making
 
     public static bool Handles(Activity a) => a is Make or Abandon;
 
-    /// The unfinished thing for this recipe in the pack, if there is one.
     public static MakeProject? ProjectFor(Inventory pack, string recipe) => pack.Projects?.FirstOrDefault(p => p.Recipe == recipe);
 
-    // ---- refusal ----
 
     public static string? Refusal(World world, Activity activity)
     {
@@ -231,7 +205,6 @@ public static class Making
             case Make m:
             {
                 var r = Recipes.Get(m.Recipe);
-                // Going on with it: the materials went in when it began.
                 bool begun = ProjectFor(pack, r.Id) != null;
                 if (!begun && MissingMaterial(pack, r) is string material) return material;
                 return MissingTool(pack, r, begun) ?? Unmet(world, agent, r);
@@ -255,8 +228,7 @@ public static class Making
         return null;
     }
 
-    /// A required tool the pack lacks. Before the work begins, the items it would consume do not count:
-    /// the knife cannot cut its own handle.
+    /// Before the work begins, the items it would consume do not count: the knife cannot cut its own handle.
     static string? MissingTool(Inventory pack, Recipe r, bool begun)
     {
         var consumed = begun ? [] : ItemsToConsume(pack, r);
@@ -265,8 +237,7 @@ public static class Making
         return null;
     }
 
-    /// The place falls short of one of the recipe's requirements: why, or null. Checked to start and
-    /// every minute of the work. Fires around the agent must be caught up.
+    /// Checked to start and every minute of the work. Fires around the agent must be caught up.
     public static string? Unmet(World world, Agent agent, Recipe r)
     {
         var tile = agent.Tile;
@@ -284,7 +255,6 @@ public static class Making
         return null;
     }
 
-    /// A roof this good keeps the work dry.
     const double DryRoofLevel = 0.5;
 
     static bool Falling(World world, TileId tile)
@@ -295,10 +265,9 @@ public static class Making
 
     static bool Gives(Gear g, Capability cap) => Items.Works(g) && Items.Def(g).Capabilities.Contains(cap);
 
-    /// The working tool in the pack that gives this capability: the first, in pack order.
     static Gear? ToolFor(Inventory pack, Capability cap) => pack.Gear.FirstOrDefault(g => Gives(g, cap));
 
-    /// The pieces a new project would take: the first of each kind in the pack, as many as it needs.
+    /// The first of each kind in the pack, as many as it needs.
     static List<Gear> ItemsToConsume(Inventory pack, Recipe r)
     {
         var taken = new List<Gear>();
@@ -307,10 +276,8 @@ public static class Making
         return taken;
     }
 
-    // ---- the odds ----
 
-    /// This maker's odds for the recipe here, now: their skill, their hands (manipulation, wet, cold,
-    /// the dark) and their head. Fires around the agent must be caught up.
+    /// Fires around the agent must be caught up.
     public static MakeOdds Odds(World world, Agent agent, Recipe r)
     {
         var context = Fire.AbilityContextFor(world, agent);
@@ -318,10 +285,8 @@ public static class Making
             dazed: Body.GetCapacities(agent.Body).Consciousness < 0.5, handsWhy: string.Join(", ", Body.DexterityCosts(agent.Body, context)));
     }
 
-    /// The odds table: each outcome's base odds, then the skill, the hands and the head, in that order.
-    /// Clumsy hands make failure-like outcomes likelier, up to twice as likely at no dexterity, and
-    /// success bonuses rarer, in proportion. Should the outcomes ever add up to more than a certainty,
-    /// every one is scaled back to share it.
+    /// Clumsy hands make failure-like outcomes up to twice as likely at no dexterity, and success
+    /// bonuses rarer in proportion. Outcomes summing past certainty are scaled back to share it.
     public static MakeOdds Odds(Recipe r, int craftingLevel, double dexterityPct = 1.0, bool dazed = false, string handsWhy = "")
     {
         string hands = handsWhy.Length > 0 ? $"Hands ({handsWhy})" : "Hands";
@@ -336,9 +301,7 @@ public static class Making
         return new MakeOdds(table.AsReadOnly());
     }
 
-    // ---- the work ----
 
-    /// Starts the work Refusal allowed: a new project takes its materials now; abandoning is instant.
     public static void Begin(World world, Activity activity, List<WorldEvent> events)
     {
         if (Refusal(world, activity) is string refused) throw new InvalidOperationException($"Making.Begin on a refused activity: {refused}");
@@ -394,8 +357,7 @@ public static class Making
         if (pack.Projects.Count == 0) pack.Projects = null;
     }
 
-    /// One minute of the work lived. Returns why it stops: finished (made or spoiled), the place or
-    /// the tools no longer serving, or death from a slip of the blade.
+    /// Returns why the work stops: finished (made or spoiled), the place or tools no longer serving, or death by a slip.
     public static string? Minute(World world, Agent agent, Activity activity, List<WorldEvent> events)
     {
         if (activity is not Make m) return null; // abandoning was done at the start
@@ -408,9 +370,8 @@ public static class Making
         return p.MinutesDone < r.Minutes - 1e-9 ? null : Finish(world, agent, r, events);
     }
 
-    /// The recipe's minutes this minute does: more with faster tools, less with bad hands, a fogged
-    /// head or clumsy fingers. Bad hands count twice, through manipulation and through the dexterity
-    /// built on it. Read every minute, so how the work is split into steps cannot change when it finishes.
+    /// Bad hands count twice, through manipulation and through the dexterity built on it. Read every
+    /// minute, so how the work is split into steps cannot change when it finishes.
     public static double WorkPerMinute(World world, Agent agent, Inventory pack, Recipe r)
     {
         double work = 1.0;
@@ -424,9 +385,8 @@ public static class Making
 
     static readonly Cause Slip = new(null, "a slip at work");
 
-    /// The work is done: one outcome rolled at this minute's odds, then Complete. The sheet shown at
-    /// the start is the odds as things stand then; hands that froze or a light that failed since
-    /// change what is rolled, as they would.
+    /// Rolled at this minute's odds, not the sheet shown at the start: hands that froze or a light
+    /// that failed since change the roll.
     static string Finish(World world, Agent agent, Recipe r, List<WorldEvent> events)
     {
         var odds = Odds(world, agent, r);
@@ -437,8 +397,7 @@ public static class Making
         return Complete(world, agent, r, outcome, events);
     }
 
-    /// The project for this recipe in the agent's pack turns out as this outcome (null: the plain
-    /// result): its effects, then the result or the materials back. Tests name the outcome here.
+    /// Outcome null is the plain result. Tests name the outcome here.
     internal static string Complete(World world, Agent agent, Recipe r, Outcome? outcome, List<WorldEvent> events)
     {
         var pack = Items.Pack(world, agent.Id);
@@ -520,7 +479,6 @@ public static class Making
         return died ?? (succeeded ? MadeIt : Spoiled);
     }
 
-    /// What the result is made of: the kilos that went in, and the recorded parts of the items consumed.
     static SortedDictionary<Resource, double> Composition(Inventory materials)
     {
         var parts = new SortedDictionary<Resource, double>(materials.Kg);
@@ -530,7 +488,6 @@ public static class Making
         return parts;
     }
 
-    /// A cut at work, through Body.Damage, as a fall is on the trail.
     static string? Injure(World world, Agent agent, Injury j, List<WorldEvent> events)
     {
         var body = agent.Body;

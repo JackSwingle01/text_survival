@@ -17,35 +17,28 @@ public static class Names
         typeof(Direction), typeof(EquipSlot),
     ];
 
-    /// The words for a name, lower case: "birch bark".
+    /// Lower case: "birch bark".
     public static string Of(Enum value) =>
         Content.Tables.Names.TryGetValue(value, out var words) ? words
         : throw new KeyNotFoundException($"No words for {value.GetType().Name}.{value}: add its table to Names.Tables and names.json");
 
-    /// The words with a capital, for a label or the start of a sentence: "Birch bark".
     public static string Title(Enum value) => Cap(Of(value));
 
-    /// A gear kind's name, as items.json writes it ("Flint knife").
     public static string Gear(string kind) =>
         Items.GearKinds.TryGetValue(kind, out var g) ? g.Name : throw new KeyNotFoundException($"No gear kind '{kind}'");
 
-    /// A gear kind's name in running text: "worn hide boots".
     public static string GearWords(string kind) => Gear(kind).ToLowerInvariant();
 
-    /// "an axe", "a knife".
     public static string A(string words) => ("aeiou".Contains(char.ToLowerInvariant(words[0])) ? "an " : "a ") + words;
 
     public static string Cap(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
     public static string Lower(string s) => s.Length == 0 ? s : char.ToLowerInvariant(s[0]) + s[1..];
 
-    /// "0.3 kg", "1.5 kg".
     public static string Kg(double kg) => kg.ToString(kg < 1 ? "0.##" : "0.#", CultureInfo.InvariantCulture) + " kg";
 
-    /// "1.5 kg birch bark".
     public static string Kg(double kg, Resource r) => $"{Kg(kg)} {Of(r)}";
 
-    /// An outcome of making, in words: "Fails: the stone is wasted", "Done, but you cut your left arm".
     public static string Outcome(Outcome o)
     {
         var parts = o.Effects.Select(e => e switch

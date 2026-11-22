@@ -1,7 +1,6 @@
 namespace Survival;
 
-/// The effects the body itself produces: survival thresholds, temperature, wetness, wounds.
-/// Event-only effects (fear, fever, sprains...) arrive with events, as new rows.
+/// What the body itself produces; event-only effects (fear, fever, sprains) arrive with events, as new rows.
 public enum EffectKind
 {
     Hungry, Thirsty, Tired,
@@ -17,13 +16,11 @@ public sealed class BodyEffect
 {
     public required EffectKind Kind { get; init; }
     public double Severity { get; set; }
-    /// Set once the effect has been worse than its definition's threshold, whether it started there or
-    /// was worsened there. Such effects fade to a floor, never away, until treated.
+    /// Latches once severity passes the definition's threshold, even by worsening; such effects fade to a floor, never away, until treated.
     public bool RequiresTreatment { get; set; }
 }
 
-/// One effect's definition (Content/effects.json): its hourly drift, whether it needs treatment once it
-/// starts above a severity (null never), and what it does to the body at full severity.
+/// One row of Content/effects.json; TreatmentAboveSeverity null means never needs treatment.
 public sealed record EffectDef(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour, double BleedMlPerHour,
     IReadOnlyList<(Capacity Capacity, double Delta)> Capacities, bool Discomfort = false, double MetabolicHeatDelta = 0, double HealingDelta = 0,
     double? HungerFreeHours = null);
@@ -32,7 +29,6 @@ public static class Effects
 {
     internal const double TreatmentFloorPct = 0.05;
 
-    /// Every effect's row (Content/effects.json).
     static readonly IReadOnlyDictionary<EffectKind, EffectDef> Defs = Content.Tables.Effects;
 
     static EffectDef DefOf(EffectKind kind) =>
@@ -82,7 +78,6 @@ public static class Effects
         }
     }
 
-    /// Every effect drifts at its own hourly rate; ones that need treatment stop at a floor.
     public static void Decay(BodyState body, int minutes)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(minutes);
@@ -124,7 +119,7 @@ public static class Effects
     internal static double CapacityLoss(EffectKind kind, Capacity capacity) =>
         DefOf(kind).Capacities.Single(c => c.Capacity == capacity).Delta;
 
-    /// Content checks the row carries it.
+    /// Content checks the row carries it, so the ! cannot throw.
     internal static double WellFedAfterHours => DefOf(EffectKind.WellFed).HungerFreeHours!.Value;
 
     public static double CoreTempFPerHour(BodyState body) => body.Effects.Sum(e => DefOf(e.Kind).CoreTempFPerHour * e.Severity);

@@ -2,10 +2,8 @@ using System.Text.Json;
 
 namespace Survival;
 
-/// The save is the World as JSON, inside an envelope that names its format:
-/// {"Version":N,"World":{...}}. A save in any other format is refused, never half-read: until the
-/// first release there are no migrations (documentation/decisions/2026-11-21-save-compatibility-from-first-release.md).
-/// Changing the format: documentation/save-format.md.
+/// A save in any other format is refused, never half-read: no migrations until the first release
+/// (documentation/decisions/2026-11-21-save-compatibility-from-first-release.md). Changing it: documentation/save-format.md.
 public static class Save
 {
     /// The format this build writes and reads. Raise it with any change to what a save holds.

@@ -6,20 +6,17 @@ namespace Survival;
 /// liquid; ice is the frozen fraction of whatever holds the water.
 public enum SurfaceMaterial { Ground, Snow, Water }
 
-/// How something is touching the ground. Different contact, different soaking.
+/// Walking is brief per step through everything in the way; kneeling (digging, tending a fire) is long.
 public enum SurfaceContact
 {
-    /// Walking through it: brief per step, but you go through everything in the way.
     Walking,
-    /// Kneeling, digging, tending a fire: hands and knees in it for a long time.
     WorkingOnGround,
-    /// Lying on it: the longest contact there is, and the one bedding is for.
+    /// The longest contact there is, and the one bedding is for.
     RestingOnGround,
 }
 
-/// One horizontal layer of a tile's ground, stored bottom-to-top. Saturation counts liquid and
+/// One layer of a tile's ground, stored bottom-to-top. Saturation counts liquid and
 /// frozen pore water together, so freezing cannot conjure free space a thaw would un-conjure.
-/// Operations work in metres of skeleton and water and recompute the fractions afterwards.
 public sealed class SurfaceLayer
 {
     public SurfaceMaterial Material { get; set; }
@@ -29,9 +26,7 @@ public sealed class SurfaceLayer
     public double FrozenFractionPct { get; set; }
 }
 
-/// A tile's ground as the eye takes it in (Ground.SurfaceNow): lying snow, whether its top has
-/// refrozen to a crust, how muddy bare ground is (0-1), standing water's height, and whether that
-/// water is mostly ice. What the map draws; the physics stays in Ground.
+/// A tile's ground as the eye takes it in (Ground.SurfaceNow). What the map draws; the physics stays in Ground.
 public readonly record struct SurfaceSummary(double SnowDepthM, bool Crusted, double MudLevel, double WaterDepthM, bool Iced);
 
 /// A tile's ground, where it differs from generation. Depths are metres of a one-square-metre
@@ -47,8 +42,7 @@ public sealed class GroundState
     public long LastUpdatedMinute { get; set; }
 }
 
-/// Everything a never-observed tile's ground history depends on besides the sky (Exposure.Surface
-/// and Ground.Substrate): tiles that share these have the same ground until something observes one.
+/// Everything besides the sky that a never-observed tile's ground history depends on: tiles sharing these share ground.
 internal readonly record struct GroundClass(SubstrateProfile Substrate, double CoverLevel, double TemperatureDeltaF, double WindFactor);
 
 /// The ground under a tile before anything falls on it (Content/terrain.json substrates). Derived from terrain, never saved.
@@ -65,11 +59,9 @@ public sealed record SubstrateProfile(
 {
     public double PoreVolumeM => ThicknessM * PoreCapacityPct;
 
-    // The profiles themselves are Content/terrain.json's substrates; these name the ones code and tests ask for.
     public static SubstrateProfile Loam => Named("loam");
     public static SubstrateProfile ForestFloor => Named("forestFloor");
     public static SubstrateProfile Slope => Named("slope");
-    /// Takes almost nothing in, so rain ponds at once and then runs off the tile.
     public static SubstrateProfile Rock => Named("rock");
     /// Holds nearly everything and lets go of none of it: wet in any weather, ponds the moment it rains.
     public static SubstrateProfile Peat => Named("peat");
@@ -83,17 +75,11 @@ public sealed record SubstrateProfile(
     public static SubstrateProfile For(Terrain terrain) => Named(terrain.Row().Substrate);
 }
 
-/// Snow accumulates, packs, melts and refreezes; rain and meltwater soak in until the ground will
-/// take no more and then stand on it; standing water freezes from the top down. Port of the old
-/// GroundSurface. Tiles catch up lazily when observed (plan decision 3), in sub-steps aligned to
-/// the world clock, so when or how often a tile is looked at never changes what it holds.
+/// Tiles catch up lazily, so when or how often one is looked at never changes what it holds.
 public static class Ground
 {
-    /// Sub-step of the lazy catch-up, aligned to world minutes divisible by it. The old game's
-    /// own MaxStepMinutes, so a sub-step is one old background batch.
+    /// Sub-step of the lazy catch-up, aligned to world minutes divisible by it.
     public const int StepMinutes = 15;
-
-    // ---- physics constants (old SurfacePhysics) ----
 
     const double IceExpansion = 1000.0 / 917.0;
     const double FreezingPointF = 32;
@@ -120,17 +106,14 @@ public static class Ground
     public const double MaxStandingWaterDepthM = 0.3048;
     const int MaxSnowLayers = 3;
     const double MergeCompactionTolerance = 0.08;
-    /// The old per-call step bound, also used as the percolation window for arriving water.
+    /// Per-call step bound, also the percolation window for arriving water.
     const int MaxStepMinutes = 15;
 
-    // ---- per-tile ground from the generated map ----
-
-    /// What the ground is made of. Caves and the pass stages are rock, the camp is forest floor, as their old Locations were.
+    /// Caves and the pass stages are rock.
     public static SubstrateProfile Substrate(GeneratedMap m, TileId t) =>
         m.StageAt(t) != null || m.CaveAt(t) != Cave.None ? SubstrateProfile.Rock : SubstrateProfile.For(m.TerrainAt(t));
 
-    /// Ground as generated: the substrate at its starting saturation, frozen through (initial
-    /// frozen fraction 1, the old default), with that water entered in the ledger.
+    /// Frozen through by default, with the starting water entered in the ledger.
     public static GroundState Baseline(SubstrateProfile sub, double initialFrozenFractionPct = 1.0)
     {
         var ground = new SurfaceLayer { Material = SurfaceMaterial.Ground, ThicknessM = sub.ThicknessM };
@@ -141,15 +124,9 @@ public static class Ground
         return state;
     }
 
-    // ---- lazy catch-up ----
-
-    /// The tile's ground as of the latest StepMinutes boundary at or before world.Minute,
-    /// simulated forward from wherever it was last left. A tile never observed starts frozen
-    /// through at HistoryStartMinute and lives every minute since, so in the game it has the month
-    /// of weather before minute 0 behind it, as the old Settle pass would have if ground had been
-    /// cheap enough to run on every tile: here only observed tiles pay, about 2 ms each. Stored in
+    /// A never-observed tile starts frozen through at HistoryStartMinute and lives every minute since,
+    /// so day 1 has weather behind it; only observed tiles pay (about 2 ms each). Stored in
     /// World.Tiles once it has lived any time; until then it is the unsaved baseline.
-    /// old game: day 1 opened on ground frozen through in July, whatever the weather (bug, fixed).
     public static GroundState CatchUp(World world, TileId tile)
     {
         long target = world.Minute / StepMinutes * StepMinutes;
@@ -177,8 +154,7 @@ public static class Ground
         state.LastUpdatedMinute = Math.Max(state.LastUpdatedMinute, target);
     }
 
-    /// The tile's ground as CatchUp would leave it now, without writing anything: a copy is caught
-    /// up, so looking (Tags) changes nothing.
+    /// CatchUp without writing: a copy is caught up, so looking changes nothing.
     public static GroundState Peek(World world, TileId tile)
     {
         long target = world.Minute / StepMinutes * StepMinutes;
@@ -189,12 +165,8 @@ public static class Ground
         return state;
     }
 
-    /// The ground of a tile nobody has observed, as of target: frozen through at HistoryStartMinute
-    /// and lived every sub-step since. That history depends on nothing but the sky and the four
-    /// things the tile's weather and substrate are made of (GroundClass), so every tile of a class
-    /// has the same ground, and the class's latest is kept (World.GroundCache, never saved) to be
-    /// carried on from: a whole-map pass pays for each class once, not for each tile from the start
-    /// of history, and the result is the one the long way gives, sub-step for sub-step.
+    /// Every tile of a GroundClass shares ground, so the class's latest is cached (World.GroundCache,
+    /// never saved) and carried on: a whole-map pass pays once per class, with the result the long way gives.
     static GroundState Unobserved(World world, TileId tile, SubstrateProfile sub, long target)
     {
         var m = Map.Of(world);
@@ -223,9 +195,8 @@ public static class Ground
         WaterOverflowedM = s.WaterOverflowedM, LastUpdatedMinute = s.LastUpdatedMinute,
     };
 
-    /// What someone on the tile meets: its ground, or on an open lake (Map.IsOpenWater) water to wade, the
-    /// deepest the ground holds (MaxStandingWaterDepthM), so wading is slow and soaks you by the ground's own
-    /// rules. Snow on the lake's ice waits, unread, for the freeze.
+    /// On an open lake the water is waded at the deepest the ground holds, so the ground's own
+    /// rules apply. Snow on the lake's ice waits, unread, for the freeze.
     static Column Underfoot(World world, TileId tile, Func<World, TileId, GroundState> ground)
     {
         var m = Map.Of(world);
@@ -236,33 +207,26 @@ public static class Ground
         return new Column(water, sub);
     }
 
-    /// The tile's ground as a view draws it, read without writing (Peek).
     public static SurfaceSummary SurfaceNow(World world, TileId tile) => Underfoot(world, tile, Peek).Summary;
 
-    /// The tile's ground as a person looking at it sees it now (Underfoot). Ground already kept is caught up in
-    /// place, so the next look carries on from here instead of re-living the same days; ground never
-    /// kept is read without writing, its history shared with its class (Unobserved). Either way the
-    /// same sub-steps, so what is seen does not depend on when anyone looked before.
+    /// Kept ground is caught up in place; never-kept ground is read without writing. Either way the same
+    /// sub-steps, so what is seen does not depend on when anyone looked before.
     public static SurfaceSummary Look(World world, TileId tile) =>
         world.Tiles.GetValueOrDefault(tile)?.Ground != null ? Underfoot(world, tile, CatchUp).Summary : SurfaceNow(world, tile);
 
-    /// Snow on the tile now, read without writing (Peek).
     public static double SnowDepthNowM(World world, TileId tile) => Underfoot(world, tile, Peek).SnowDepthM;
 
-    /// When the ground's history begins: the weather pre-roll for a seeded world. A pinned test sky
-    /// has no past, so its ground starts at minute 0 as generated.
+    /// A pinned test sky has no past, so its ground starts at minute 0.
     public static long HistoryStartMinute(World world) => world.FixedWeather == null ? -Weather.PreRollMinutes : 0;
 
     // ---- world queries (each one is an observation: it catches the tile up) ----
 
-    /// How much slower the ground is to cross than bare dry earth; 1 is the baseline.
     public static double TraversalFactor(World world, TileId tile) => Underfoot(world, tile, CatchUp).TraversalFactor;
 
-    /// Footing hazard the surface adds: slick ice, a crust, mud. Zero beside a frozen river, whose
-    /// own ice (Map.TravelHazardLevel) already owns the hazard, as the old WaterFeature did.
+    /// Zero beside a frozen river, whose own ice (Map.TravelHazardLevel) already owns the hazard.
     public static double HazardDelta(World world, TileId tile) => HazardDelta(world, tile, CatchUp);
 
-    // ---- the same, read without writing (Peek): looking at a tile from a list or a preview ----
+    // ---- the same, read without writing (Peek) ----
 
     public static double TraversalFactorNow(World world, TileId tile) => Underfoot(world, tile, Peek).TraversalFactor;
 
@@ -271,23 +235,17 @@ public static class Ground
     static double HazardDelta(World world, TileId tile, Func<World, TileId, GroundState> ground) =>
         Map.Of(world).BesideRiver(tile) && Map.IsFrozen(Map.Of(world), tile, world.Minute) ? 0 : Underfoot(world, tile, ground).HazardDelta;
 
-    /// Wetness picked up per minute by whoever is in this contact with the ground.
     public static double ContactWettingRate(World world, TileId tile, SurfaceContact contact, double currentWetnessPct) =>
         Underfoot(world, tile, CatchUp).ContactWettingRate(contact, currentWetnessPct);
 
-    /// How well a thing here can be searched against bare ground (Pools.Search).
     public static double SearchFactor(World world, TileId tile, double baseElevationM, double verticalExtentM) =>
         Underfoot(world, tile, CatchUp).SearchFactor(baseElevationM, verticalExtentM);
 
     public static double SnowDepthM(World world, TileId tile) => Underfoot(world, tile, CatchUp).SnowDepthM;
 
-    // Burial access and digging (old GroundSurface.Excavation, DigUpStrategy) are not ported: they need a
-    // per-placement elevation, footprint and hole depth on TileState.
-    // No route packing (Compact is ported but nothing calls it); the old game deferred it too.
+    // Burial access and digging need a per-placement elevation, footprint and hole depth on TileState; not built.
+    // No route packing: nothing calls Compact.
 
-    // ---- state-level API: the old GroundSurface methods, for tests and the catch-up ----
-
-    /// Old GroundSurface.Advance: bounded steps of at most 15 minutes under one weather.
     public static void Advance(GroundState s, SubstrateProfile sub, int minutes, SurfaceWeather weather)
     {
         var column = new Column(s, sub);
@@ -308,18 +266,15 @@ public static class Ground
     public static double SurfaceHeightM(GroundState s, SubstrateProfile sub) => new Column(s, sub).SurfaceHeightM;
     public static double StandingWaterDepthM(GroundState s, SubstrateProfile sub) => new Column(s, sub).StandingWaterDepthM;
     public static double StandingLiquidDepthM(GroundState s, SubstrateProfile sub) => new Column(s, sub).StandingLiquidDepthM;
-    /// How wet the ground itself is, ignoring anything standing on it.
     public static double WetnessPct(GroundState s) => s.Layers[0].WaterSaturationPct;
 
-    /// Every drop the tile is holding, however it is held.
     public static double StoredWaterM(GroundState s, SubstrateProfile sub) => s.Layers.Sum(l => TotalWaterM(l, sub));
 
-    // ---- layer geometry (old SurfaceLayer) ----
+    // ---- layer geometry ----
 
     static double SnowIceFraction(double compactionPct) =>
         LooseSnowIceFraction + Math.Clamp(compactionPct, 0, 1) * (DenseSnowIceFraction - LooseSnowIceFraction);
 
-    /// Fraction of the layer's volume that is pore space; the material decides what compaction means.
     static double PoreCapacityPct(SurfaceLayer l, SubstrateProfile sub) => l.Material switch
     {
         SurfaceMaterial.Snow => 1 - SnowIceFraction(l.CompactionPct),
@@ -349,8 +304,6 @@ public static class Ground
 
     /// Callers pass at most the layer's pore volume, and a layer with no room holds nothing: the few
     /// that can pass more (snow being packed or shrunk) take back the difference themselves.
-    /// A trace below NegligibleM is still water and stays in the ledger; zeroing it here deleted
-    /// up to a nanometre per call, which a long settle summed past the law (bug, fixed).
     static void SetStoredWaterM(SurfaceLayer l, SubstrateProfile sub, double waterM, double frozenM)
     {
         double capacity = PoreVolumeM(l, sub);
@@ -365,8 +318,7 @@ public static class Ground
         l.FrozenFractionPct = Math.Clamp(frozenM / stored, 0, 1);
     }
 
-    /// The working view of one tile's state: the old GroundSurface instance methods, nearly
-    /// verbatim. Holds no state of its own beyond water in transit within one operation.
+    /// Working view of one tile's state; holds nothing beyond water in transit within one operation.
     sealed class Column(GroundState state, SubstrateProfile sub)
     {
         readonly List<SurfaceLayer> _layers = state.Layers;
@@ -400,7 +352,6 @@ public static class Ground
             return Math.Clamp(water(snow, sub) / capacity, 0, 1);
         }
 
-        /// Mud: wet, soft, unfrozen ground with nothing on top of it.
         double MudLevel
         {
             get
@@ -413,7 +364,6 @@ public static class Ground
 
         // ---- queries ----
 
-        /// Top of the modelled cover above bare ground as it was found.
         public double SurfaceHeightM
         {
             get
@@ -466,8 +416,7 @@ public static class Ground
             }
         }
 
-        /// Cover hides a thing in proportion to how much of it is under the cover, down to a
-        /// floor: a discovery that can never be made should not have been placed.
+        /// In proportion to how much of it is under the cover, floored: a discovery that can never be made should not have been placed.
         public double SearchFactor(double baseElevationM, double verticalExtentM)
         {
             const double Floor = 0.1;
@@ -477,8 +426,7 @@ public static class Ground
             return 1 - Math.Clamp(cover / extent, 0, 1) * (1 - Floor);
         }
 
-        /// Wetness per minute, before clothing or bedding. Each contact has a ceiling on how wet
-        /// it can get you; frozen ground has no liquid to give.
+        /// Per minute, before clothing or bedding. Each contact has a ceiling; frozen ground has no liquid to give.
         public double ContactWettingRate(SurfaceContact contact, double currentWetnessPct)
         {
             double pond = Math.Clamp(StandingLiquidDepthM / 0.15, 0, 1); // ankle-deep is as wet as walking gets
@@ -497,8 +445,7 @@ public static class Ground
             return currentWetnessPct >= ContactCeiling(contact) ? 0 : source * rate;
         }
 
-        /// How far up you the wet stuff reaches. Walking it is geometry; lying in two
-        /// centimetres of meltwater soaks your whole back.
+        /// Walking is geometry; lying in two centimetres of meltwater soaks your whole back.
         double ContactCeiling(SurfaceContact contact) => contact switch
         {
             SurfaceContact.RestingOnGround => 0.7,
@@ -525,7 +472,6 @@ public static class Ground
             Percolate(waterDepthM, MaxStepMinutes);
         }
 
-        /// Press the top snow down: 0 is nothing, 1 packs it as hard as snow packs.
         public void Compact(double pressureFactor)
         {
             double pressure = Math.Clamp(pressureFactor, 0, 1);
@@ -563,7 +509,6 @@ public static class Ground
             else Freeze(budget);
         }
 
-        /// Warmth works down from the top, spending itself as it goes.
         void Melt(double budgetM)
         {
             double released = 0;
@@ -597,7 +542,7 @@ public static class Ground
             FlushDisplacedWater();
         }
 
-        /// Cold works down from the top too. Freezing moves water between ledger columns, never out.
+        /// Freezing moves water between ledger columns, never out.
         void Freeze(double budgetM)
         {
             for (int i = _layers.Count - 1; i >= 0 && budgetM > NegligibleM; i--)
@@ -623,7 +568,6 @@ public static class Ground
             return 1 / (1 + snowAbove * SnowInsulationPerMetre);
         }
 
-        /// Liquid arriving at the top works down; snow holds a little and passes the rest on.
         void Percolate(double liquidM, int minutes)
         {
             double carried = liquidM;
@@ -644,8 +588,7 @@ public static class Ground
             if (carried > 0) AddToPond(carried);
         }
 
-        /// Water that reached the ground. On lake ice it runs away, and so does a film too thin to
-        /// stand as a pond of its own.
+        /// On lake ice water runs away, and so does a film too thin to stand as a pond.
         void AddToPond(double liquidM)
         {
             var pond = Pond;
@@ -665,7 +608,6 @@ public static class Ground
             pond.FrozenFractionPct = pond.ThicknessM > 0 ? Math.Clamp(frozen / pond.ThicknessM, 0, 1) : 0;
         }
 
-        /// Take liquid off the pond, keeping its ice.
         static void DrawPond(SurfaceLayer pond, double lostM)
         {
             double frozen = pond.ThicknessM * pond.FrozenFractionPct;
@@ -673,7 +615,6 @@ public static class Ground
             pond.FrozenFractionPct = pond.ThicknessM > NegligibleM ? Math.Clamp(frozen / pond.ThicknessM, 0, 1) : 0;
         }
 
-        /// Ponded liquid soaks in, as fast as the ground will take it.
         void Infiltrate(int minutes)
         {
             var pond = Pond;
@@ -688,7 +629,6 @@ public static class Ground
             DrawPond(pond, soaked);
         }
 
-        /// Free water keeps going down, out of the modelled layer.
         void Drain(int minutes)
         {
             var g = GroundLayer;
@@ -772,10 +712,8 @@ public static class Ground
 
             double skeletonM = skeletonWe * IceExpansion;
             double target = Math.Clamp(compaction, layer.CompactionPct, 1);
-            // Frozen pore water is a solid: stop compacting where it still fits, which is where the
-            // ice fraction reaches skeleton / (skeleton + frozen).
-            // Old game: it compacted anyway and then thickened the layer to frozen / pore, which
-            // grew the skeleton out of nothing and broke the water ledger (bug, fixed).
+            // Frozen pore water is a solid: stop compacting where the ice fraction reaches
+            // skeleton / (skeleton + frozen), or the skeleton grows out of nothing and breaks the water ledger.
             if (frozen > NegligibleM && skeletonM > NegligibleM)
             {
                 double maxCompaction = (skeletonM / (skeletonM + frozen) - LooseSnowIceFraction) / (DenseSnowIceFraction - LooseSnowIceFraction);
@@ -799,8 +737,7 @@ public static class Ground
         }
 
         /// Water a layer could no longer hold, in transit down. However little, it is never dropped:
-        /// the old threshold here deleted each sub-nanometre squeeze, and settling saturated snow
-        /// squeezes one every sub-step (bug, fixed).
+        /// settling saturated snow squeezes out a sub-nanometre every sub-step, which would break the ledger.
         void Displace(double waterM)
         {
             if (waterM > 0) _displacedWaterM += waterM;
@@ -814,8 +751,7 @@ public static class Ground
             Percolate(displaced, MaxStepMinutes);
         }
 
-        /// Merge deposits that are the same snow, drop the ones that are gone, and coarsen if the
-        /// stack still will not fit - never by discarding material.
+        /// Coarsens an over-full stack, never by discarding material.
         void Consolidate()
         {
             FlushDisplacedWater();

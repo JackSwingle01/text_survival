@@ -36,7 +36,6 @@ public sealed class Tissue
     public required TissueKind Kind { get; init; }
     public double Condition { get; set; } = 1.0;
     public double Toughness { get; set; } = 1.0;
-    /// Organs only: the one capacity this organ supplies, and how much of it.
     public Capacity? Provides { get; init; }
     public double ProvidesAmount { get; init; }
     /// Eyes and ears: hit by anything that reaches the region at all.
@@ -53,17 +52,16 @@ public sealed class Region
     public required Tissue Bone { get; init; }
     public List<Tissue> Organs { get; init; } = [];
 
-    /// Weakest tissue layer. Organs are deliberately excluded: they show up as vitality, not wounds.
+    /// Weakest layer; organs are excluded: they show up as vitality, not wounds.
     [JsonIgnore] public double Condition => Math.Min(Skin.Condition, Math.Min(Muscle.Condition, Bone.Condition));
     [JsonIgnore] public bool IsDestroyed => Condition <= 0;
     [JsonIgnore] public IEnumerable<Tissue> Layers => [Skin, Muscle, Bone];
 }
 
-/// Everything about a body, as plain data. Capacities and abilities are derived from it, never stored.
+/// Capacities and abilities are derived from this, never stored.
 public sealed class BodyState
 {
     public required BodyKind Kind { get; init; }
-    /// A person's sex: a woman is built and runs as the species row's female build says.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Sex Sex { get; init; }
     public required List<Region> Regions { get; init; }
@@ -75,7 +73,6 @@ public sealed class BodyState
     public required double MuscleKg { get; set; }
     public double CoreTempF { get; set; } = Body.BaseCoreTempF;
     public double CaloriesKcal { get; set; } = 1500;
-    /// Minutes of waking left; sleep refills it.
     public double EnergyMinutes { get; set; } = 900;
     public double HydrationMl { get; set; } = 3000;
     /// Minutes lived in a row without the Hungry effect, what Well fed waits on (Body.Update sees no world clock).
@@ -83,34 +80,29 @@ public sealed class BodyState
     public int MinutesWithoutHunger { get; set; }
     /// Warmth stored in clothing's thermal mass, 0-1 of what it can hold.
     public double ClothingHeatBufferPct { get; set; } = 0.3;
-    /// How much of the sprint reserve is spent, 0 full to 1 empty (Body.SprintReservePct): running
-    /// above endurance speed and every strike or dodge spend it, and it refills every minute lived.
+    /// Sprint reserve spent, 0 full to 1 empty (Body.SprintReservePct); refills every minute lived.
     /// The one stored value of the fight energy model; everything else is derived.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public double SprintSpentLevel { get; set; }
     public List<BodyEffect> Effects { get; init; } = [];
-    /// The last world minute this body's wounds have lived (0: none yet). The scheduler moves it on
-    /// every minute; a headless fight's rounds move it ahead of the clock. A minute up to this one
-    /// is not lived again, so every body lives every minute exactly once.
+    /// The last world minute this body's wounds have lived (0: none yet); a headless fight's rounds move
+    /// it ahead of the clock. A minute up to this one is not lived again: every minute exactly once.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long WoundsLivedThroughMinute { get; set; }
     /// Who last hurt this body in a fight, and with what ("the player's wooden spear"): what an
     /// animal that bleeds out later, or a person, died of. Cleared on an animal once it has mended.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Cause? WoundedBy { get; set; }
-    /// When it died (Body.MarkDead), and of what: the cause of the damage that took it over the line,
-    /// kept the moment that damage lands (Body.Damage). A dead person's body is a sign with this cause.
+    /// When it died (Body.MarkDead), and of what: kept the moment the fatal damage lands (Body.Damage).
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? DiedMinute { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Cause? DeathCause { get; set; }
-    /// Kg of flesh scavengers have picked off it since it died (Remains.Pick): a picked body goes to
-    /// bones sooner.
+    /// Kg of flesh scavengers have picked off since it died (Remains.Pick); a picked body goes to bones sooner.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public double PickedKg { get; set; }
-    /// What this member wears; nothing for a bare animal. Clothing belongs to the body it is on.
+    /// Clothing belongs to the body it is on.
     public List<Gear> Worn { get; init; } = [];
-    /// Whole-body clothing insulation and its weight, derived from what is worn.
     [JsonIgnore] public double ClothingClo => Items.ClothingClo(Worn);
     [JsonIgnore] public double ClothingWeightKg => Items.ClothingWeightKg(Worn);
 
@@ -131,8 +123,7 @@ public sealed class BodyState
         StructuralKg = weightKg * (1 - fatPct - musclePct),
     };
 
-    /// A dressed adult in furs and boots: 1.33 clo, 3.05 kg. A man unless told otherwise, a woman at
-    /// the species row's female build.
+    /// A dressed adult in furs and boots: 1.33 clo, 3.05 kg.
     public static BodyState BaselineHuman(Sex sex = Sex.Male)
     {
         var row = SpeciesTable.Of(Species.Human);
@@ -144,12 +135,10 @@ public sealed class BodyState
     }
 }
 
-/// The eight body functions, each 0-1. Derived per call from tissues, blood and effects.
 public readonly record struct Capacities(
     double Moving, double Manipulation, double Breathing, double BloodPumping,
     double Consciousness, double Sight, double Hearing, double Digestion);
 
-/// Situation that changes abilities but is not the body: load carried and how dark it is.
 public readonly record struct AbilityContext(double EncumbrancePct = 0, double DarknessLevel = 0, bool HasLightSource = false);
 
 /// By: what this damage is, as the death it causes would be named ("the cold", "the player's wooden
@@ -175,12 +164,9 @@ public static partial class Body
 {
     /// The reference man the body's scales are measured from (the calorie store's 2,000 kcal, the
     /// reserve's six minutes): an Upper Palaeolithic man (documentation/species-stats-research.md §2.1).
-    /// The body a person is born with is the species row's (BodyState.BaselineHuman).
     public const double BaselineWeightKg = 68, BaselineFatPct = 0.12, BaselineMusclePct = 0.38;
     public const double BloodMlPerKg = 70;
     public static double BloodVolumeMl(BodyState body) => BloodMlPerKg * body.WeightKg;
-
-    // ---- body plans ----
 
 
     static Region NewRegion(string name, double coverage, double boneToughness = 3) => new()
@@ -241,14 +227,11 @@ public static partial class Body
             NewRegion("Rear Left Leg", 12.5), NewRegion("Rear Right Leg", 12.5)];
     }
 
-    // ---- capacities ----
-
     const int CapacityCount = 8;
 
     public static Capacities GetCapacities(BodyState body) => GetCapacities(body, Effects.CapacityDeltas(body));
 
-    /// Capacities from tissue and blood alone, as digestion and life use: being hungry does not slow
-    /// absorbing food, and no effect stops a heart.
+    /// Tissue and blood alone, as digestion and life use: hunger does not slow absorbing food, and no effect stops a heart.
     static Capacities GetCapacitiesWithoutEffects(BodyState body) => GetCapacities(body, new double[CapacityCount]);
 
     static Capacities GetCapacities(BodyState body, double[] effectDeltas)
@@ -258,7 +241,6 @@ public static partial class Body
         for (int i = 0; i < CapacityCount; i++)
             c[i] = Clamp01(Clamp01(c[i]) + Math.Clamp(effectDeltas[i], -1, 1));
 
-        // The heart pumps; blood is what gets pumped.
         c[(int)Capacity.BloodPumping] *= body.BloodPct;
 
         // Cascades. Only real blood loss collapses circulation, not cold-slowed pumping.
@@ -280,8 +262,7 @@ public static partial class Body
         return new Capacities(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
     }
 
-    /// Every tissue and organ whole: such a body's tissues supply what any whole body of its kind does
-    /// (WholeTissueCapacities), the same numbers worked out once. Most animals, most of the time.
+    /// Every tissue and organ whole, so WholeTissueCapacities applies: worked out once, for most bodies most of the time.
     static bool IsWhole(BodyState body)
     {
         foreach (var r in body.Regions)
@@ -292,11 +273,9 @@ public static partial class Body
         return true;
     }
 
-    /// TissueCapacities of a whole body of each kind (by BodyKind), from the body plans.
     static readonly double[][] WholeTissueCapacities =
         [.. Enum.GetValues<BodyKind>().Select(k => TissueCapacities(BodyState.Create(k, BaselineWeightKg, BaselineFatPct, BaselineMusclePct)))];
 
-    /// What the tissues supply, each capacity 0-1, before effects and blood.
     static double[] TissueCapacities(BodyState body)
     {
         var regions = body.Regions.Select(r => (r.Name, Caps: RegionCapacities(r))).ToList();
@@ -319,16 +298,14 @@ public static partial class Body
         };
         c[(int)Capacity.Manipulation] = regions.Sum(r => r.Caps[(int)Capacity.Manipulation] * ManipWeight(r.Name));
 
-        // Everything else: organs add up wherever they sit.
         foreach (var cap in new[] { Capacity.Breathing, Capacity.BloodPumping, Capacity.Consciousness, Capacity.Sight, Capacity.Hearing, Capacity.Digestion })
             foreach (var (_, caps) in regions)
                 c[(int)cap] = Clamp01(c[(int)cap] + caps[(int)cap]);
         return c;
     }
 
-    /// One region's contribution: what each organ supplies in proportion to its own condition, plus
-    /// the muscle's work, limited by the region's weakest layer for that capacity. Not an average over
-    /// the region's tissues, which leaves two-thirds of the breathing with both lungs destroyed.
+    /// Organs supply in proportion to their condition, plus the muscle's work, limited by the region's
+    /// weakest layer. Not an average over tissues: that leaves two-thirds of breathing with both lungs destroyed.
     public static double[] RegionCapacities(Region region)
     {
         var result = new double[CapacityCount];
@@ -345,8 +322,7 @@ public static partial class Body
         return result;
     }
 
-    /// How far one layer of a region lets it do its work, 1 where the layer plays no part. Skin carries
-    /// a limb's work, not the organs': a scalp wound does not dim the eyes.
+    /// 1 where the layer plays no part: skin carries a limb's work, not the organs' (a scalp wound does not dim the eyes).
     static double LayerMultiplier(Tissue t, Capacity cap)
     {
         double c = t.Condition;
@@ -374,9 +350,6 @@ public static partial class Body
 
     static double Clamp01(double x) => Math.Clamp(x, 0, 1);
 
-    // ---- abilities ----
-
-    /// How alive you are: the weakest of breathing, pumping and consciousness.
     public static double Vitality(BodyState body) => Vitality(GetCapacities(body));
     static double Vitality(Capacities c) => Math.Min(c.Breathing, Math.Min(c.BloodPumping, c.Consciousness));
 
@@ -384,8 +357,7 @@ public static partial class Body
     /// Effects disable (consciousness can fall to nothing and leave you unable to act) but never kill.
     public static bool IsAlive(BodyState body) => Vitality(GetCapacitiesWithoutEffects(body)) > 0;
 
-    /// The body has died now: its time is kept, and its cause if no damage already named one
-    /// (Body.Damage keeps the cause of the damage that killed). Once: a body dies only once.
+    /// Keeps the time, and the cause only if no damage already named one (Body.Damage). A body dies once.
     public static void MarkDead(BodyState body, long minute, Cause cause)
     {
         if (body.DiedMinute != null) return;
@@ -395,19 +367,15 @@ public static partial class Body
 
     public static readonly Cause UnnamedInjuries = new(null, "its injuries");
 
-    /// What killed a body that has just died: the cause of the damage that took a vital organ or the
-    /// blood over the line, kept as it landed (DamageInfo.By). Its blood ran out from wounds someone
-    /// gave it (the bleeding names them), its heart stopped in the cold, its brain failed of thirst.
-    /// Kept as it lands, not read off the dead body afterwards, so a person who freezes days after a
-    /// wolf bite died of the cold.
+    /// Kept as the fatal damage lands (DamageInfo.By), not read off the dead body afterwards, so a
+    /// person who freezes days after a wolf bite died of the cold.
     public static Cause CauseOfDeath(BodyState body)
     {
         if (IsAlive(body)) throw new InvalidOperationException("This body is alive: it has no cause of death");
         return body.DeathCause ?? UnnamedInjuries; // made dead by setting its state, not by damage: nothing to name
     }
 
-    /// Whole again: every layer, every organ not lost for good, and the blood. Whoever hurt a body that
-    /// has mended no longer counts.
+    /// Whole again: every layer, every organ not lost for good, and the blood. Whoever hurt it no longer counts.
     public static bool IsMended(BodyState body)
     {
         if (body.BloodPct < 1) return false;
@@ -435,8 +403,7 @@ public static partial class Body
         return (0.30 + muscle + fat) * (0.50 + 0.50 * c.Moving) * (0.80 + 0.20 * c.Manipulation) * Vitality(c);
     }
 
-    /// The build Speed's terms are measured from, which its numbers were tuned around. Not the baseline
-    /// man: moving the baseline does not re-tune the formula.
+    /// The build Speed's numbers were tuned around; not the baseline man, so moving that does not re-tune it.
     const double SpeedReferenceWeightKg = 75, SpeedReferenceFatPct = 0.15, SpeedReferenceMusclePct = 0.30;
 
     /// Movement rate. Strength modulates load: a strong person feels 30kg less than a weak one.
@@ -464,9 +431,8 @@ public static partial class Body
         return baseSpeed * vitalityFactor * (1 - loadPenalty);
     }
 
-    /// Awareness. Consciousness counts twice, once through vitality: being dazed tanks it.
-    /// Sight and hearing are half each; darkness takes away what sight gives, so the healthy perceive
-    /// half as much in pitch dark as at noon.
+    /// Consciousness counts twice, once through vitality: being dazed tanks it. Sight and hearing are
+    /// half each, so the healthy perceive half as much in pitch dark as at noon.
     public static double Perception(BodyState body, AbilityContext context = default)
     {
         var c = GetCapacities(body);
@@ -484,7 +450,6 @@ public static partial class Body
         return c.Manipulation * (1 - darknessPenalty) * (1 - wetnessPenalty) * (0.7 + Vitality(c) * 0.3);
     }
 
-    /// What is costing Dexterity, by name, in its order: the factors below whole. For an odds sheet's label.
     public static IReadOnlyList<string> DexterityCosts(BodyState body, AbilityContext context = default)
     {
         var c = GetCapacities(body);
@@ -507,11 +472,8 @@ public static partial class Body
         return Math.Clamp(insulation, 0, 0.95);
     }
 
-    // ---- damage ----
-
-    /// The one way anything hurts a body. Picks the region, applies clothing over it, penetrates the layers,
-    /// and adds the processes the wound sets off (bleeding, pain, shock, dazed). Damage is the only
-    /// thing that kills (IsAlive), so the damage that takes a body over the line names its death.
+    /// The one way anything hurts a body. Damage is the only thing that kills (IsAlive), so the damage
+    /// that takes a body over the line names its death.
     public static DamageResult Damage(BodyState body, DamageInfo hit, Rng rng)
     {
         bool wasAlive = body.DeathCause == null && IsAlive(body);
@@ -658,9 +620,8 @@ public static partial class Body
         else Take(organ, remaining, type, size, result);
     }
 
-    /// A tissue stops up to its EffectiveToughness of one blow, and no more than it has left, losing
-    /// one condition per unit of its own toughness, and passes the rest on: a narrow blow destroys a
-    /// layer only over several blows.
+    /// A tissue stops up to its EffectiveToughness of one blow and passes the rest on: a narrow blow
+    /// destroys a layer only over several blows.
     static double Take(Tissue tissue, double amount, DamageType type, double size, DamageResult result)
     {
         double shrugged = tissue.Condition > 0 ? Math.Min(amount, NaturalAbsorption(tissue, type)) : 0;
@@ -696,7 +657,7 @@ public static partial class Body
     }
 
     /// How much of a blow a whole tissue can stop: its toughness times how much of it the blow meets.
-    /// A point goes deep; soft tissue gives little to a club, which breaks the bone behind it.
+    /// A point goes deep; soft tissue gives little to a club, which breaks the bone behind.
     public static double EffectiveToughness(Tissue tissue, DamageType type, double size) =>
         tissue.Toughness * size * (tissue.Kind, type) switch
         {
@@ -792,10 +753,7 @@ public static partial class Body
         return alive[^1];
     }
 
-    // ---- healing ----
-
-    /// Mends the worst-hurt region first: its layers, then its organs. A destroyed organ
-    /// (condition 0) is gone for good and is neither mended nor counted as hurt.
+    /// Worst-hurt region first. A destroyed organ (condition 0) is gone for good: neither mended nor counted as hurt.
     public static void Heal(BodyState body, double amount)
     {
         var worst = body.Regions
@@ -816,8 +774,6 @@ public static partial class Body
             amount -= heal;
         }
     }
-
-    // ---- eating and drinking ----
 
     /// A damaged gut absorbs half as much at worst. What the store cannot hold is laid down as fat:
     /// every kilocalorie absorbed is either in the store or on the body.

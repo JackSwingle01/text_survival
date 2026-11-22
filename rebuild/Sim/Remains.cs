@@ -1,40 +1,25 @@
 namespace Survival;
 
-/// How far a carcass or a dead body has gone (emergent-world-design §5): flesh, then bones once the
-/// flesh is stripped or rotted away, then gone. A dead person is a body, a skeleton, then scattered
-/// bones beside what they carried.
+/// Flesh, bones, gone; a dead person is a body, a skeleton, then scattered bones (emergent-world-design §5).
 public enum RemainsStage { Flesh, Skeletal, Bones, Gone }
 
-/// The body and carcass pipeline (emergent-world-design §5). Everything is derived from the rot clock
-/// (DecayTimeline: Carcasses.DecayFactor at each clock hour's air) and from how much flesh is left, so
-/// a read changes nothing. What a stage change does to the world (the flesh rotting off the ledger, the
-/// bones taken away, a skeleton scattering) is settled at the top of every clock hour (Hour), which
-/// every minute the world lives passes through, so it happens at the same minute however the clock is
-/// stepped and whoever looks.
-/// Cold all but stops the clock (DecayFactor 0.1 below 0 °F): a body kept frozen by the local air
-/// lasts ten times as long (the frozen traveller). Scavengers speed it by eating: a carcass is
-/// stripped through Carcasses.EatMeat, a body through Pick.
+/// Stage is derived, so a read changes nothing. World changes are settled only at the top of each
+/// clock hour (Hour), which every minute lived passes through, so they happen at the same minute however
+/// the clock is stepped and whoever looks.
+/// Cold all but stops the clock (DecayFactor 0.1 below 0 °F).
 // A grave (not built yet) is exempt: Hour skips it once burial exists.
 public static class Remains
 {
-    /// Effective hours to bones for a 70 kg body left whole: ten days at a cool thaw, five in summer
-    /// heat, a hundred deep frozen. Carrion that lasts only three days leaves the scavengers nothing
-    /// (judgment). Larger animals take longer, with the cube root of their mass (a mammoth about four
-    /// times a man).
+    /// Effective hours to bones for a 70 kg body: ten days at a thaw. Three would leave scavengers nothing.
     public const double SkeletalHours70Kg = 240;
-    /// However stripped, the last of the flesh takes this share of the full time (judgment).
+    /// However stripped, the last of the flesh takes this share of the full time.
     public const double StrippedFloorPct = 0.1;
-    /// A skeleton lies whole this many effective hours before it scatters into bones (judgment).
     public const double ScatterHours = 240;
-    /// Bones weather away this many effective hours after death: about sixty days at a thaw, two
-    /// hundred and forty in a hard frost (judgment).
+    /// About sixty days at a thaw, two hundred and forty in a hard frost.
     public const double GoneHours = 1440;
 
-    /// Effective hours to bones for a whole body of this mass.
     public static double SkeletalHours(double bodyKg) => SkeletalHours70Kg * Math.Cbrt(Math.Max(1, bodyKg) / 70);
 
-    /// Temperature-weighted hours of rot on this tile between two minutes (Carcasses.DecayFactor at
-    /// each clock hour's surface air, as Carcasses.CatchUp charges them).
     public static double EffectiveHours(World world, TileId tile, long fromMinute, long toMinute)
     {
         if (toMinute <= fromMinute) return 0;
@@ -44,19 +29,13 @@ public static class Remains
         return timeline.Between(world, fromMinute, toMinute);
     }
 
-    // ---- carcasses ----
-
-    /// How much of the flesh it died with nothing has eaten, 0-1: what is still on it and what was cut
-    /// off it. Eating strips a carcass for the rot; cutting does not, because the flesh still on it
-    /// rots no faster for what a butcher took away.
+    /// Eating speeds the rot; cutting does not, because the flesh left rots no faster for what a butcher took.
     public static double FleshLeftPct(Carcass c)
     {
         double uneaten = Carcasses.FleshKg(c) + Carcasses.CutFleshKg(c);
         return c.FleshAtDeathKg <= 0 ? (uneaten > 0 ? 1 : 0) : Math.Clamp(uneaten / c.FleshAtDeathKg, 0, 1);
     }
 
-    /// Bones once its time is up, sooner the more of it was eaten; bones at once when it was eaten to
-    /// nothing, or once nothing that rots is left on it (cut clean and carried off).
     public static RemainsStage StageOf(World world, TileId tile, Carcass c)
     {
         double hours = Carcasses.EffectiveHoursNow(world, tile, c);
@@ -67,16 +46,12 @@ public static class Remains
         return RemainsStage.Flesh;
     }
 
-    /// Meat an animal could eat off it now: none once it is bones.
     public static double MeatKg(World world, TileId tile, Carcass c) =>
         StageOf(world, tile, c) == RemainsStage.Flesh ? Carcasses.MeatKg(c) : 0;
 
-    // ---- dead people ----
-
-    /// The flesh a dead person had, by the carcass ledger's rule (Carcasses.Create: meat and fat).
+    /// By the carcass ledger's rule (Carcasses.Create).
     public static double FleshKg(BodyState body) => body.MuscleKg * 0.65 + body.FatKg * 0.6;
 
-    /// Effective hours since a dead person died, where they lie.
     public static double HoursDead(World world, Agent dead) =>
         dead.Body.DiedMinute is long died ? EffectiveHours(world, dead.Tile, died, world.Minute) : 0;
 
@@ -88,7 +63,6 @@ public static class Remains
         return hours >= skeletal ? RemainsStage.Skeletal : RemainsStage.Flesh;
     }
 
-    /// Scavengers tear up to kg off a dead body; returns what they got. None off a skeleton.
     public static double Pick(World world, AgentId deadId, double kg)
     {
         if (kg < 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Cannot pick a negative amount");
@@ -100,13 +74,8 @@ public static class Remains
         return bite;
     }
 
-    // ---- the hourly settling ----
-
-    /// At the top of every clock hour: flesh past its time rots off the ledger, bones past theirs
-    /// leave, and a skeleton past its time scatters: the person leaves the world's agents, their
-    /// bones lie as remains with the cause they died of, and what they carried and wore lies beside
-    /// them as a stash. The player's body stays (the run is over; Map.Outcome reads it). A torch the
-    /// dead were carrying goes out.
+    /// At the top of every clock hour. A scattered person leaves the world's agents; their gear lies
+    /// beside the bones as a stash, and a torch they carried goes out. The player's body stays (Map.Outcome reads it).
     public static void Hour(World world)
     {
         if (world.Minute % 60 != 0) return;
@@ -137,8 +106,7 @@ public static class Remains
     }
 }
 
-/// Prefix sums of rot (Carcasses.DecayFactor) over clock hours, for one tile's air: the seed's sky
-/// plus the tile's own cold (Map.TemperatureDeltaF), sampled at the top of each hour as
+/// Prefix sums of rot over clock hours for one tile's air, sampled at the top of each hour as
 /// Carcasses.CatchUp samples it. Pure derived data, rebuilt from the seed after a load.
 internal sealed class DecayTimeline(double deltaF, long historyStartMinute)
 {
@@ -165,6 +133,5 @@ internal sealed class DecayTimeline(double deltaF, long historyStartMinute)
         return before[i] + (minute - hour * 60) / 60.0 * factors[i];
     }
 
-    /// The air at the top of the clock hour holding this minute, as Carcasses.CatchUp last read it.
     public static double TempF(World world, long minute, double deltaF) => Exposure.SiteAirF(Weather.At(world, FloorHour(minute) * 60), deltaF);
 }
