@@ -61,5 +61,44 @@
    { "resource": "WillowBark", "kg": [0.1, 0.2] },
    { "resource": "Usnea", "kg": [0.06, 0.16] }
   ] }
+ ],
+ // Old RewardGenerator.GenerateHiddenCache: a fire striker one time in three, else a flint knife or axe, 60-100% worn.
+ "HiddenCache": [
+  { "gear": ["fire_striker", "flint_knife", "stone_axe"], "durabilityPct": [0.6, 1.0] },
+  { "pick": [1, 1], "of": [
+   { "resource": "Pine", "kg": [2.0, 3.5] }, { "resource": "Birch", "kg": [2.0, 3.5] }, { "resource": "Oak", "kg": [2.0, 3.5] } ] },
+  { "chance": 0.4, "resource": "Tinder", "kg": [0.2, 0.4] },
+  { "chance": 0.25, "resource": "DriedMeat", "kg": [0.3, 0.5] }
+ ],
+ // Old RewardGenerator.GenerateAbandonedCamp (the old campsite discovery's reward): a tool left behind, 30-70% worn.
+ "OldCampsite": [
+  { "gear": ["bone_knife", "stone_axe", "wooden_spear", "torch"], "durabilityPct": [0.3, 0.7] },
+  { "resource": "Tinder", "kg": [0.15, 0.3] },
+  { "resource": "Kindling", "kg": [0.3, 0.5] },
+  { "chance": 0.3, "resource": "Bone", "kg": [0.2, 0.4] }
+ ],
+ // Old RewardGenerator.GenerateSquirrelCache at the base amount: two to four of these.
+ "SquirrelCache": [
+  { "pick": [2, 4], "of": [
+   { "resource": "Nuts", "kg": [0.2, 0.35] }, { "resource": "DriedBerries", "kg": [0.1, 0.25] },
+   { "resource": "Berries", "kg": [0.2, 0.35] }, { "resource": "Nuts", "kg": [0.25, 0.4] } ] }
+ ],
+ // Old RewardGenerator pools the old discovery events gave (DiscoveryEventFactory), for their finds' outcomes.
+ // Old Stick is kindling here.
+ "BasicSupplies": [
+  { "pick": [2, 4], "of": [
+   { "resource": "Kindling", "kg": [0.4, 0.8] }, { "resource": "Tinder", "kg": [0.2, 0.5] }, { "resource": "Berries", "kg": [0.2, 0.4] },
+   { "pick": [1, 1], "of": [ { "resource": "Pine", "kg": [1.5, 2.5] }, { "resource": "Birch", "kg": [1.5, 2.5] }, { "resource": "Oak", "kg": [1.5, 2.5] } ] } ] }
+ ],
+ "BasicMeat": [
+  { "resource": "RawMeat", "kg": [0.5, 0.9] }
+ ],
+ "TinderBundle": [
+  { "resource": "Tinder", "kg": [0.4, 0.8] }
+ ],
+ "SmallGame": [
+  { "resource": "RawMeat", "kg": [0.4, 0.7] },
+  { "chance": 0.7, "resource": "Bone", "kg": [0.15, 0.3] },
+  { "chance": 0.4, "resource": "Hide", "kg": [0.1, 0.2] }
  ]
 }

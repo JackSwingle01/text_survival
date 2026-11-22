@@ -28,7 +28,7 @@ public static partial class Fauna
         Species.Bear => new(100, 140, 0.004, 0.022, null, new(0.0012, 1, 1, 64, 128)),
         Species.CaveBear => new(100, 140, 0.004, 0.022, null, null), // its den is a cave
         // A dead megafauna hunter stays dead and none arrive; saber-tooths forage, so never starve. People and small game are not herds.
-        Species.Homotherium or Species.Human or Species.Rabbit or Species.Fox => null,
+        Species.SaberTooth or Species.Human or Species.Hare or Species.Fox => null,
     };
 
     public const int PreyRangeTiles = ForayRadiusTiles;
@@ -162,7 +162,7 @@ public static partial class Fauna
         return world.OpenLandCache = [.. InteriorTiles(m).Where(t => MapGen.Manhattan(t, m.Camp) > SafeZoneTiles)];
     }
 
-    public static bool IsMegafauna(Species s) => s is Species.Mammoth or Species.Homotherium;
+    public static bool IsMegafauna(Species s) => s is Species.Mammoth or Species.SaberTooth;
 
     /// Derived from its pools and never saved.
     public static double CapacityOf(World world, Agent herd) => CapacityOn(world, herd.Species, MindOf(herd).Territory);

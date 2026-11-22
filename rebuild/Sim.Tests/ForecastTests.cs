@@ -258,8 +258,11 @@ public class ForecastTests
             {
                 var w = At(Forage(1.0));
                 w.Minute = Clock(9 * 60 + run * 7);
-                var rng = w.Rng("work", P);
-                for (int draw = 0; draw < run * 5000; draw++) rng.NextDouble(); // each run its own rolls, an hour's worth apart
+                foreach (var stream in new[] { "work", "focus" })
+                {
+                    var rng = w.Rng(stream, P);
+                    for (int draw = 0; draw < run * 5000; draw++) rng.NextDouble(); // each run its own rolls, an hour's worth apart
+                }
                 var g = new Gather(P, 0, focus);
                 forecast += Total(Work.ExpectedGather(w, Me(w), g, 60));
                 double before = Items.CarriedKg(Me(w));

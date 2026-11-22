@@ -37,6 +37,8 @@ public static class Narration
             Stashed x => x.Who == me,
             Unstashed x => x.Who == me,
             PoolDiscovered x => x.Who == me,
+            Scavenged x => x.Who == me,
+            TutorialShown x => x.Who == me,
             TreeFelled x => x.Who == me,
             Ate x => x.Who == me,
             Drank x => x.Who == me,
@@ -80,12 +82,16 @@ public static class Narration
                 : world.Agents.TryGetValue(x.Who, out var hurt) && hurt.Mind is HerdMind ? $"A {Names.Of(hurt.Species)} is hurt." // one of the herd, not the herd
                 : $"{Who(x.Who)} is hurt.", Tone.Bad),
             CrossedThePass x => ($"{Does(x.Who, "cross")} the pass.", Tone.Rare),
-            Gathered x => x.What.Length == 0 ? ($"{Does(x.Who, "find")} nothing.", Tone.Bad) : ($"{Does(x.Who, "gather")} {Haul(x.What)}.", Tone.Good),
+            Gathered x => x.What.Length > 0 ? ($"{Does(x.Who, "gather")} {Haul(x.What)}.", Tone.Good)
+                : Me(x.Who) && x.Density is double d ? (FailureLine(d, x.Minute), Tone.Bad) : ($"{Does(x.Who, "find")} nothing.", Tone.Bad),
             Dropped x => ($"No room in the pack: {Haul(x.What)} left on the ground.", Tone.Bad),
             Stashed x => ($"{Does(x.Who, "put")} down {Names.Kg(x.Kg, x.Resource)}.", Tone.Plain),
             Unstashed x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Kg(x.Kg, x.Resource)} from the stash." : $"{Does(x.Who, "pick")} up {Names.Kg(x.Kg, x.Resource)}.",
                 x.Taken ? Tone.Bad : Tone.Plain),
-            PoolDiscovered x => ($"{Does(x.Who, "find")} {Names.Lower(x.Name)}.", Tone.Rare),
+            PoolDiscovered x => (Me(x.Who) && Pools.FoundLine(world, x.Pool) is string found ? found : $"{Does(x.Who, "find")} {Names.Lower(x.Name)}.", Tone.Rare),
+            Scavenged x => (x.Animal is Species a ? $"{Does(x.Who, "find")} a {x.Remains} - {Names.Of(a)}. It could be butchered for resources."
+                : $"{Does(x.Who, "find")} some bone fragments.", Tone.Rare),
+            TutorialShown x => (Tutorials.Text(x.Tutorial, x.Kg), Tone.Plain),
             TreeFelled => ("The tree comes down.", Tone.Good),
             Ate x => ($"{Does(x.Who, "eat")} {Names.Kg(x.Kg, x.Food)}.", Tone.Plain),
             Drank x => ($"{Does(x.Who, "drink")} {x.Liters.ToString("0.##", CultureInfo.InvariantCulture)} L.", Tone.Plain),
@@ -101,6 +107,14 @@ public static class Narration
             _ => null,
         };
         return line is { } l ? new Narrated(e.Minute, l.Text, l.Tone, e) : null;
+    }
+
+    /// What an empty search says, by the band of the ground's word, picked by the minute.
+    public static string FailureLine(double density, long minute)
+    {
+        string word = Pools.QualityWord(density);
+        var lines = Clues.Table.Failures.First(b => b.Words.Contains(word)).Lines;
+        return lines[(int)((ulong)minute * 2654435761UL % (ulong)lines.Count)];
     }
 
     public static string Change(Change c) => c.Kind switch

@@ -19,7 +19,7 @@ namespace Survival.Tests.Verification;
 public class ConservationButcheringTests
 {
     static readonly Species[] Kinds =
-        [Species.Rabbit, Species.Fox, Species.Wolf, Species.Caribou, Species.Megaloceros, Species.Bison, Species.Bear, Species.Mammoth];
+        [Species.Hare, Species.Fox, Species.Wolf, Species.Caribou, Species.Megaloceros, Species.Bison, Species.Bear, Species.Mammoth];
     static readonly string?[] Tools = [null, "flint_knife", "stone_axe", "worn_knife"];
 
     public sealed record Chunk(int Minutes, bool SaveLoad, int GapMinutes, bool Unload);

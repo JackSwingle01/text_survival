@@ -56,7 +56,6 @@ ui/
 │   ├── wolf-nearby                 # sighting within a few tiles (no "stalked": seen in the world)
 │   ├── cold-front                  # sharp turn for the worse within ~12h
 │   ├── gear-failing                # anything below 20% condition
-│   ├── night-no-fuel               # < 1h of light and you can't last the night
 │   └── toasts/                     # one-off events, not chips
 │       ├── job-ready
 │       └── skill-up
@@ -64,6 +63,8 @@ ui/
 ├── at-decision/                    # inside the odds or preview of the choice it affects
 │   ├── start-fire/                 # tool · tinder · skill · shivering · hand injuries
 │   │                               # · wet hands · wind/shelter · dark
+│   ├── tend-fire/                  # the fire panel: burn time against the night,
+│   │                               # "burns about 3 h · dawn in 9 h"
 │   ├── travel/                     # crossing time · hazard & injury risk (moving, legs)
 │   │                               # · snow depth · carry slowdown · daylight vs trip
 │   │                               # · camp fire time left (as last seen)
@@ -177,6 +178,9 @@ at the fire, *Shivering* and *Wet boots* go away on their own.
 - **Colours:** danger (blood red), cold (frost), warning (ochre).
 - **Triggers:** the thresholds in `alerts/` above. Mild stages never get a chip; the vitals bar
   colour already says it.
+- **No fire alert.** A fire that won't last the night is not a chip or a warning. The fire panel
+  shows the fact, "burns about 3 h · dawn in 9 h", and the player reads it (decided 2026-11-22,
+  decision "The UI shows what the game knows").
 - **Data:** derived each tick from body state, the knowledge model (sightings) and the
   weather forecast. Nothing stored.
 

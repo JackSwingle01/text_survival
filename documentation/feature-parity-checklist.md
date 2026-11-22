@@ -11,6 +11,13 @@ recipes, features, effects, body, combat, NPCs, herds, items, Desktop UI, save/l
 from the docs. Every "done" claim was checked by grepping `rebuild/`; the test named is the one that
 covers it. Tests were not run for this snapshot, because another agent is editing `rebuild/`.
 
+> **Since 2026-11-22: Done means the player's experience matches the old game,** not only that the
+> Sim has the rule. Porting follows `dev/active/porting.md` (the old game is the default; anything
+> simplified is flagged for the user) and the decision records in `documentation/decisions/`. Rows
+> the parity audit (`dev/active/parity-audit-items.json`) found marked Done but reduced or changed now
+> say **Reduced** or **Changed**. The summary counts below predate that correction, and the rest of
+> the checklist has not been re-audited.
+
 ## Legend
 
 | Status | Meaning |
@@ -21,6 +28,8 @@ covers it. Tests were not run for this snapshot, because another agent is editin
 | **Missing** | Not in the rebuild. |
 | **Replaced** | A plan or emergent-world-design decision supersedes it. The row cites the decision and says whether the replacement exists yet. |
 | **Cut** | Dropped on purpose (the plan's Keep/Port/Cut table, or a recorded decision). |
+| **Reduced** | Marked Done before 2026-11-22, but the player gets less than the old game gave (parity audit). The row says what is missing. |
+| **Changed** | Marked Done before 2026-11-22, but it works differently from the old game for the player, and no decision record or user choice made that change, unless the row cites one. |
 
 Sizes for Missing and Partial rows: **S** is under a day, **M** is a few days, **L** is a week or more.
 
@@ -129,7 +138,7 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 | Time passes per activity; every agent lives every minute | `GameContext.Update`, `Pacing.PassTime` | Done | `Sim.Step`, `Scheduler.Minute` (`Sim.cs`); `CoreTests.Wait_DrainsAndAdvancesClock`, `HerdTests.EveryBody_LivesEveryMinuteOnce_*` | | |
 | Deterministic, headless simulation | (none; old used the process RNG in places) | Done | Seeded stream per system (`Rng.cs`, `World.Rng`); `CoreTests.SameSeedAndActions_GiveIdenticalWorld`, `Phase2GateTests.ThirtyDays_SameSeedAndActions_SameWorld` | | |
 | New game with the starting kit | `GameContext.CreateNewGame`, `Persistence/GameInitializer.cs` | Done | `World.New`, `Items.StartingPack/StartingClothes`; `ItemsTests.StartingKit_MatchesOld_CloWeightAndLoad` | | |
-| Save and load | `Core/SaveManager.cs`, `Persistence/SaveManager.cs` | Done | `Save.cs` (the World as JSON, terrain regenerated); CLI `save`/`load`; `CoreTests.SaveRoundTrips_AndResumesRngExactly`, `Phase3GateTests.MixedRun_SavedAndLoadedEveryFewSteps_IsByteIdenticalToAStraightRun` | | |
+| Save and load | `Core/SaveManager.cs`, `Persistence/SaveManager.cs` | Changed | Death offers "Load your save" and there is no autosave; the old game deleted the save on death (decision "Death is final"). Sim: `Save.cs` (the World as JSON, terrain regenerated); CLI `save`/`load`; `CoreTests.SaveRoundTrips_AndResumesRngExactly`, `Phase3GateTests.MixedRun_SavedAndLoadedEveryFewSteps_IsByteIdenticalToAStraightRun` | | |
 | Death ends the run | `GameRunner.HandleDeath` | Done | `Map.Outcome` returns `Died`; `CoreTests.BleedingOut_EmitsDiedAndInterrupts_ThenTheDeadCannotAct`, `CrossingTests.Outcome_IsDerived_SurvivingDeadOrAcross` | | |
 | Victory by crossing the pass | `GameRunner.HandleVictory`, `Location.IsCrossingExit` | Done | `Map.Outcome` returns `Crossed`; `Sim.Step` refuses the player afterwards; `CrossingTests.Crossed_TheRunIsOver`, `TravelTests.ReachingTheFarSide_CrossesThePass` | | |
 | Typed fact stream instead of notices and narrative plumbing | `ctx.Notices`, `NarrativeLog`, `RelationshipEvents` | Partial | `WorldEvent.cs` exists and every step returns events. Missing: the short-loop "Asks": not every event carries a tile (`FuelAdded` has none), and nothing consumes the stream yet (no log, no notices, no memory) | S | |
@@ -142,14 +151,14 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 |---|---|---|---|---|---|
 | Two-mass fuel model, fire phases, temperature | `HeatSourceFeature` | Done | `Fire.cs`; `FireTests.UnburnedFuel_CatchesOverTime`, `GoldenTests.Fire_MatchesOldTrajectory` | | |
 | Typed fuels (pine, birch, oak, bone, peat, tinders) | `FuelType.cs` | Done | `Fire.Props`; `FireTests.Hardwood_NeedsAHotFire`, `ItemsTests.EveryResource_HasARow_AndFuelsAreResources` | | |
-| Start a fire: tool, tinder, kindling; chance by tool and tinder | `FireHandler.AttemptStartFire` | Done | `Fire.Start`; CLI `fire`; `FireTests.StartChance_MatchesOldTable`, `ItemsTests.StartFire_SpendsTinderEachTry_AndKindlingOnlyWhenItCatches` | | |
+| Start a fire: tool, tinder, kindling; chance by tool and tinder | `FireHandler.AttemptStartFire` | Reduced | The player cannot choose the tool or the tinder; a fixed 0.05 kg a strike gives the starting kit three strikes, not four. Sim: `Fire.Start`; CLI `fire`; `FireTests.StartChance_MatchesOldTable`, `ItemsTests.StartFire_SpendsTinderEachTry_AndKindlingOnlyWhenItCatches` | | |
 | Fire chance reads the firecraft skill | `FireHandler.CalculateFireChance(skillLevel)` | Partial | Dexterity and consciousness are now passed (`Fire.cs` `Start`); skill is not (no skills exist, §4). The short-loop "Ask" (chance returns its factors) is not done | S | skills |
 | Add fuel, temperature-gated, capped by the pit | `FireHandler.AddFuel`, `TendFire` | Done | `Fire.Feed`; CLI `fuel`; `FireTests.AddFuel_IsCappedByPitCapacity`, `StepRulesTests.StartFire_OnAFullPit_IsRefused_AndLightsNothing` | | |
 | Embers, and relighting from embers | `StartFromEmber`, ember phase | Done | `FireTests.Embers_DecayThenDie_AndLeaveCharcoal`, `FireTests.AddFuel_ToEmbers_Relights` | | |
 | Fire warms the tile and the body; lazy catch-up while away | `HeatSourceFeature`, `Location.GetTemperature` | Done | `Fire.WarmthFor`, `Fire.CatchUp`; `FireTests.UnattendedFire_CatchesUpLazily_WithEventsAtTheRightMinute`, `FireBodyTests.RestingByAFire_StaysWarmerThanRestingWithout` | | |
 | Charcoal left by a dead fire | `FireHandler.CollectCharcoal` | Done | `GatherCharcoal`; CLI `charcoal`; `ItemsTests.GatherCharcoal_PutsWhatADeadFireLeftInThePack` | | |
-| Fire-starter tools wear out | `Gear.Use` | Done | `Items.Use` in `Fire.Start`; covered by `ItemsTests.StartFire_*` | | |
-| Pit types: open, mound, stone | `HeatSourceFeature` pit types | Done | `PitType`, wind and efficiency (`Content/fire.json` pits); `FireTests.StonePit_BurnsSlowerThanOpen` | | |
+| Fire-starter tools wear out | `Gear.Use` | Reduced | Every fire-starter row has `maxDurability: -1`, so crafted drills and strikers never wear out (old: 5/15/20/30 uses). Sim: `Items.Use` in `Fire.Start`; covered by `ItemsTests.StartFire_*` | | |
+| Pit types: open, mound, stone | `HeatSourceFeature` pit types | Reduced | The types exist, but no mound or stone pit can be built; every fire is an Open pit. Sim: `PitType`, wind and efficiency (`Content/fire.json` pits); `FireTests.StonePit_BurnsSlowerThanOpen` | | |
 | Upgrading a pit costs a project | `FirePitUpgradeProject`, "Mound/Stone Fire Pit (Project)" recipes | Partial | `StartFire` takes any `PitType` for free on a new pit. Missing: the mound and stone projects (materials, time) | S | crafting |
 | Torch: light from a fire, carried heat and light, burns out | `TorchHandler.LightTorch`, `UpdateTorchBurnTime` | Done | `Fire.Torch`; CLI `torch`; `FireTests.Torch_LightsFromFire_WarmsItsCarrier_AndBurnsOutInAnHour`. As a system of its own it is Cut (below) | | |
 | Torch chains onto a fresh one automatically | `TorchHandler` chaining | Missing | Lighting a new torch from the one in hand works by hand; there is no automatic chain when one gutters away from a fire | S | |
@@ -163,12 +172,12 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 |---|---|---|---|---|---|
 | Energy, hydration, calories each minute | `SurvivalProcessor` | Done | `BodySurvival.cs`; `SurvivalTests.AnHourAwake_SpendsEnergyWaterAndFood`, `GoldenTests.BodyProcess_MatchesOld` | | |
 | BMR metabolism from body composition | `SurvivalProcessor` | Done | `SurvivalTests.Metabolism_IsKatchMcArdleOnLeanMass` | | |
-| Sleep restores energy; rest does not | `CampHandler` sleep | Done | CLI `sleep`/`rest`; `SurvivalTests.Sleep_RestoresEnergy_BurnsLess_AndLosesSeventyPercentWater`, `CoreTests.Rest_DoesNotRestoreEnergy_OnlySleepDoes`, `CoreTests.Sleep_StopsWhenFullyRested` | | |
+| Sleep restores energy; rest does not | `CampHandler` sleep | Reduced | Sleep is a fixed 8 h with Stop; the old choice of 1-8 hours is gone (its fire warning stays out, decision "The UI shows what the game knows"). Sim: CLI `sleep`/`rest`; `SurvivalTests.Sleep_RestoresEnergy_BurnsLess_AndLosesSeventyPercentWater`, `CoreTests.Rest_DoesNotRestoreEnergy_OnlySleepDoes`, `CoreTests.Sleep_StopsWhenFullyRested` | | |
 | Starvation: fat, then muscle, then organs; food past full becomes fat | `SurvivalProcessor` | Done | `SurvivalTests.Starvation_ThenMuscle_ThenOrgans`, `SurvivalTests.Eat_PastAFullStore_BecomesFat_NothingLost` (old bug fixed) | | |
 | Dehydration kills | `SurvivalProcessor` | Done | `SurvivalTests.Dehydration_KillsWithinAnHourOrSo` | | |
 | Heat transfer: clothing clo, wind chill, sun, shelter, fire | `SurvivalProcessor`, `Location.GetTemperature` | Done | `SurvivalTests.Cold_CoolsYou_AndInsulationSlowsIt`, `GoldenTests.EffectiveHeatOnAnExposedTile_MatchesOld` | | |
 | Shivering, hypothermia, frostbite, hyperthermia, sweating | `SurvivalProcessor`, `EffectFactory` | Done | `SurvivalTests.BitterCold_Naked_ShiversThenHypothermiaThenFrostbite`, `SurvivalTests.RealOverheating_SpendsWater` | | |
-| Wetness: precipitation and ground contact, drying by fire, freezing below zero, lost insulation | `SurvivalContext`, wetness effect | Done | `SurvivalTests.SixHoursInRain_MakesYouWet`, `WetClothes_FreezeBelowZero_OnlyAFireDriesThem`, `Wetness_RobsClothingOfInsulation`; `GroundTests.CrossingAFootOfWaterSoaksYouFarMoreThanWalkingOnDampGround` | | |
+| Wetness: precipitation and ground contact, drying by fire, freezing below zero, lost insulation | `SurvivalContext`, wetness effect | Reduced | Clothing waterproofing is never read: the garments' base levels do nothing. Sim: `SurvivalTests.SixHoursInRain_MakesYouWet`, `WetClothes_FreezeBelowZero_OnlyAFireDriesThem`, `Wetness_RobsClothingOfInsulation`; `GroundTests.CrossingAFootOfWaterSoaksYouFarMoreThanWalkingOnDampGround` | | |
 | Regeneration when fed, watered and rested; blood regrows | `SurvivalProcessor` | Done | `SurvivalTests.FedWateredAndRested_Heals_AndRegrowsBlood`, `SleepHeals_FasterThanRegenerationAlone` | | |
 | Activity profiles (metabolic factor, fire proximity, stationary) | `Config/ActivityConfig.cs` | Done | `Sim.Surroundings` (the event multiplier is gone with events); covered across `WorkTests`, `ShelterTests` | | |
 
@@ -215,7 +224,7 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 | Feature | Old source | Status | Evidence or what is missing | Size | Depends on |
 |---|---|---|---|---|---|
 | Eat any food: calories and water per kg | `ConsumptionHandler` | Done | `Work` `Eat`; CLI `eat`; `WorkTests.Eating_TakesTenMinutes_AndPutsItsCaloriesAndWaterIntoTheBody` | | |
-| Drink from the pack, or from a river or lake | `ConsumptionHandler`, `WaterFeature` | Done | CLI `drink`; `WorkTests.Drinking_UsesThePacksWaterFirst_AtMostALitre_AndRefusesWhenThereIsNone`, `ARiverOrLake_GivesWaterWithoutAPack` | | |
+| Drink from the pack, or from a river or lake | `ConsumptionHandler`, `WaterFeature` | Changed | Drinking straight from a river or lake is new and easier; the old game drank only from the pack. Sim: CLI `drink`; `WorkTests.Drinking_UsesThePacksWaterFirst_AtMostALitre_AndRefusesWhenThereIsNone`, `ARiverOrLake_GivesWaterWithoutAPack` | | |
 | Cold water cools an overheated body | `ConsumptionHandler` | Done | `Work.Begin` (`Work.cs:202`); covered by the drink test | | |
 | Cook meat and fish at a burning fire | `CookingHandler.CookMeat/CookFish` | Done | CLI `cook`; `WorkTests.Cooking_TurnsRawToCooked_AtAKiloAQuarterHour_OnABurningFire` | | |
 | Melt snow | `CookingHandler.MeltSnow` | Partial | `WorkTests.MeltingSnow_MakesALitreInTenMinutes`. Missing: it ignores the real snow depth (`Work.cs:306`), so it works in July, as the old one did | S | |
@@ -233,10 +242,10 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 
 | Feature | Old source | Status | Evidence or what is missing | Size | Depends on |
 |---|---|---|---|---|---|
-| Resources by weight; gear instances with durability | `Inventory`, `Gear` | Done | `Items.cs`; `ItemsTests.EveryResource_HasARow_AndFuelsAreResources` | | |
+| Resources by weight; gear instances with durability | `Inventory`, `Gear` | Changed | One weight per resource lost the pieces and their counts; to be restored as discrete or continuous (decision "Resources are discrete or continuous"). Sim: `Items.cs`; `ItemsTests.EveryResource_HasARow_AndFuelsAreResources` | | |
 | Carrying capacity, accessories, encumbrance slows travel | `Inventory.MaxWeightKg`, `AbilityContext` | Done | `ItemsTests.Accessories_StackCapacity_AndTheirWeightCounts`, `Speed_UnderLoad_MatchesOld`, `AHeavyPack_SlowsTheCrossing` | | |
-| A full pack drops the rest on the ground | `InventoryCapacityHelper`, `GroundItemsFeature` | Done | `Items.Receive`; `ItemsTests.Receive_FillsThePack_ThenDropsTheRestOnTheTile` | | |
-| Clothing by slot, area-weighted clo, worn gear loses warmth | `Inventory.SlotCoverage`, `Gear.CloValue` | Done | `ItemsTests.Clothing_IsAreaWeighted_NotSummed`, `WornGear_LosesWeightAndWarmthWithCondition_AsOld` | | |
+| A full pack drops the rest on the ground | `InventoryCapacityHelper`, `GroundItemsFeature` | Reduced | Resources only: gear on a stash can never be picked up, so dropped or thrown gear is lost. Sim: `Items.Receive`; `ItemsTests.Receive_FillsThePack_ThenDropsTheRestOnTheTile` | | |
+| Clothing by slot, area-weighted clo, worn gear loses warmth | `Inventory.SlotCoverage`, `Gear.CloValue` | Reduced | The rule exists, but nothing ever wears clothing, so condition never falls. Sim: `ItemsTests.Clothing_IsAreaWeighted_NotSummed`, `WornGear_LosesWeightAndWarmthWithCondition_AsOld` | | |
 | Put on a garment | `TransferHandler.TransferEquipment` | Done | `Wear`; CLI `wear`; `ItemsTests.Wear_PutsOnAGarment_AndThePackTakesWhatItReplaced` | | |
 | Tools and weapons wear with use | `Gear.Use` | Done | `Items.Use/UseFor`; `WorkTests.Chopping_InOneStepOrInQuarterHours_CostsTheAxeTheSame`, combat weapon use in `CombatTests` | | |
 | Take a garment off without a replacement | `InventoryOverlay` unequip | Partial | `Wear` only swaps. Missing: an unequip (for drying a layer, or shedding heat) | S | |
@@ -252,7 +261,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 
 | Feature | Old recipes or source | Status | Evidence or what is missing | Size | Depends on |
 |---|---|---|---|---|---|
-| Camp structures by recipe: makeshift, padded and moss bedding, sleeping bag, branch frame, log frame, snow shelter | CampInfrastructure | Done | `Shelters.Recipes`, `Build`; CLI `build`; `ShelterTests.BranchFrame_TakesItsSticksAndHalfAnHour`, `SnowShelter_IsDugWithAShovel_InTheCold`, `SleepingBag_WarmsTheSleeper` | | |
+| Camp structures by recipe: makeshift, padded and moss bedding, sleeping bag, branch frame, log frame, snow shelter | CampInfrastructure | Reduced | The snow shelter needs a shovel, and no shovel can be made or found, so it never happens in play. Sim: `Shelters.Recipes`, `Build`; CLI `build`; `ShelterTests.BranchFrame_TakesItsSticksAndHalfAnHour`, `SnowShelter_IsDugWithAShovel_InTheCold`, `SleepingBag_WarmsTheSleeper` | | |
 | Crafting engine: recipe table as data, materials, time, tool needs, odds | `NeedCraftingSystem`, `CraftOption`, `CraftingHandler`, `CraftingEffort` | Missing | Everything below waits on this. Short-loop feature 8 (crafting luck) and the odds sheet build on it | L | data tables (§1) |
 | Fire starting: hand drill, bow drill, flint striker, pyrite strike-a-light, tinder bundle | FireStarting | Missing | | S | engine |
 | Cutting tools: crude edge, sharp rock, stone, bone, shale and flint knives, stone axe, bone shovel, knapping stone, bone needle | CuttingTool | Missing | | S | engine |
@@ -271,7 +280,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 
 | Feature | Old source | Status | Evidence or what is missing | Size | Depends on |
 |---|---|---|---|---|---|
-| Forage by density, with focus, depletion and regrowth | `ForageStrategy`, `ForageFeature`, `ForageDensity` | Done | `Gather` on a `ForagePool`; CLI `forage`; `PoolsTests.Forage_YieldsAndThinsLikeTheOld`, `WorkTests.AFocusedSearch_FindsMoreOfWhatItLooksFor_ThanAGeneralOne` | | |
+| Forage by density, with focus, depletion and regrowth | `ForageStrategy`, `ForageFeature`, `ForageDensity` | Reduced | The page always forages General for 60 min; no focus, time choice, clues, quality word, live finds or luck line; focus rule changed (`FocusGain` 1.3). Sim: `Gather` on a `ForagePool`; CLI `forage`; `PoolsTests.Forage_YieldsAndThinsLikeTheOld`, `WorkTests.AFocusedSearch_FindsMoreOfWhatItLooksFor_ThanAGeneralOne` | | |
 | Harvest a visible stock, tool-gated, with regrowth | `HarvestStrategy`, `HarvestableFeature` | Done | `StockPool` Harvest; CLI `harvest`; `WorkTests.Harvesting_TakesAUnitACycle_UntilPickedClean`, `AHarvestThatNeedsATool_IsRefusedWithoutIt` (old bug fixed) | | |
 | Chop: progress persists, trees fell and regrow, needs an axe | `ChoppingStrategy`, `WoodedAreaFeature` | Done | `TreePool`; CLI `chop`; `WorkTests.Chopping_NeedsAnAxe_PersistsAcrossSteps_AndStopsWhenTheTreeFalls`, `PoolsTests.ALimitedStand_ClearsAndRegrowsOneTreeAWeek` | | |
 | Salvage: a loot table rolled once | `SalvageStrategy`, `SalvageFeature`, `RewardGenerator` | Done | `StockPool` Salvage, `Content/loot.json`; CLI `salvage`; `WorkTests.Salvage_ComesAllAtOnce_GearIncluded`, `PoolsTests.ASalvage_IsRolledOnce_FromTheSeedAndTile` | | |
@@ -298,10 +307,10 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 | Shelters: insulation, overhead, wind; natural and built | `ShelterFeature` | Done | `Shelter.cs`; `ShelterTests.ShelterStep_MatchesOld`, `WindCoverage_CutsTheChillOnce_NotTheBodysWindToo` | | |
 | Improve a shelter with materials | `ShelterImprovementStrategy` | Done | `ImproveShelter`; CLI `improve`; `ShelterTests.Improve_UsesAPieceInTenMinutes_WithDiminishingReturns` | | |
 | Snow shelters melt in warm air | `ShelterFeature` (stub in the old game) | Done | `Shelters.Melt`; `ShelterTests.SnowShelter_MeltsByTheHour_HoweverOftenItIsLookedAt` (rate invented, overnight review) | | |
-| Shelter damage and repair | `ShelterFeature.Damage/Repair` | Done | `Shelters.Damage/Repair` (`Shelter.cs:211`); only melting calls Damage, since the old callers were events | | |
+| Shelter damage and repair | `ShelterFeature.Damage/Repair` | Changed | `Shelters.Repair` has no caller; Improve stands in for repair. Sim: `Shelters.Damage/Repair` (`Shelter.cs:211`); only melting calls Damage, since the old callers were events | | |
 | Bedding: sleep quality, ground protection, warmth | `BeddingFeature` | Done | `ShelterTests.CampBedding_SleepsAtFullQuality_AndKeepsTheGroundOff`, `BetterBedding_HealsSleepFaster` (old bug fixed: warmth now read) | | |
 | Multi-session building projects | `CraftingProjectFeature`, `CraftingProjectStrategy` | Done | `Project`; `ShelterTests.Project_PersistsAcrossSteps_AndBlocksAnotherBuild` | | |
-| Tent: pitch anywhere, pack up, keep improvements | `CampHandler.DeployTent/PackTent` | Done | `Build(Tent)`, `PackTent`; CLI `build tent`, `pack`; `ShelterTests.Tent_PitchesAndPacks_ThroughASave`, `Tent_KeepsItsImprovements_WhenPackedAndPitchedAgain` | | |
+| Tent: pitch anywhere, pack up, keep improvements | `CampHandler.DeployTent/PackTent` | Reduced | No tent can be made or found, so none can be pitched in play. Sim: `Build(Tent)`, `PackTent`; CLI `build tent`, `pack`; `ShelterTests.Tent_PitchesAndPacks_ThroughASave`, `Tent_KeepsItsImprovements_WhenPackedAndPitchedAgain` | | |
 | The starting camp: overhang and sleeping area | `GridWorldGenerator.CreateCampLocation` | Done | `World.New`; `PoolsTests.SiteShelters_StandFromTheStart_CampKeepsOneOverhang` | | |
 | Make camp elsewhere (moves "camp") | `CampHandler.MakeCamp`, `GameContext.EstablishCamp` | Partial | Makeshift bedding can be built anywhere (`Build(MakeshiftBedding)`), and storage is any tile's stash. Missing: the player's notion of *which* tile is camp, which "return to camp", the camp receipt and the UI's camp marker all read | S | knowledge model |
 | NPCs decide to build or improve shelter | `NPCActions` building | Partial | NPCs use a shelter and bedding where they sleep, but never build or improve one (overnight review, phase 4b decision) | S | |
@@ -311,8 +320,8 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 
 | Feature | Old source | Status | Evidence or what is missing | Size | Depends on |
 |---|---|---|---|---|---|
-| Camp storage (unlimited, at camp) | `CacheFeature.CreateCampCache`, `CampAction.Storage` | Done | Any tile's stash (`Items.StashAt`); CLI `stash`/`take`; `ItemsTests.StashAndUnstash_MoveThingsBetweenPackAndTile_AndSurviveASave` | | |
-| Drop and pick up on the ground | `GroundStashStrategy`, `GroundItemsFeature` | Done | Same stash; `WorkTests.AnEmptiedStash_IsGone` | | |
+| Camp storage (unlimited, at camp) | `CacheFeature.CreateCampCache`, `CampAction.Storage` | Changed | Any tile's stash is unlimited camp storage; the old camp cache was 1000 kg and only at camp. Sim: Any tile's stash (`Items.StashAt`); CLI `stash`/`take`; `ItemsTests.StashAndUnstash_MoveThingsBetweenPackAndTile_AndSurviveASave` | | |
+| Drop and pick up on the ground | `GroundStashStrategy`, `GroundItemsFeature` | Reduced | No choice of amount: the whole stack moves (old: a chosen count, Drop 1, Drop All). Sim: Same stash; `WorkTests.AnEmptiedStash_IsGone` | | |
 | Remote caches with capacity, predator, weather and food protection | `CacheFeature`, `CacheStrategy` | Partial | Named sites carry `SiteCache` as data (`Content.cs`), unused. The stash is unlimited and unprotected by decision (`Shelter.cs:81`). Raids are an emergent-table row ("Pack or bear digs out a stash with meat") | S | predators acting on stashes |
 
 ## 15. Map, locations and world generation
@@ -335,7 +344,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 |---|---|---|---|---|---|
 | Move N/S/E/W; crossing minutes from terrain and speed | `TravelRunner`, `TravelProcessor` | Done | `Traversal` (`Travel.cs`); CLI `n/s/e/w`; `TravelTests.CrossingMinutesAndRisk_MatchOld` | | |
 | Hazardous ground: quick at injury risk or careful and slower | `TravelProcessor`, hazard prompt | Done | `Pace`; CLI `careful`; `TravelTests.QuickHazardousCrossings_InjureAtTheOldRate_CarefulNever`, `InjuryRisk_RisesWithImpairedMovement` | | |
-| Travel injury | `TravelHandler.ApplyTravelInjury` | Done | `Traversal` injures; `TravelTests.EachSegmentsInjury_ComesFromItsOwnTilesPools` | | |
+| Travel injury | `TravelHandler.ApplyTravelInjury` | Reduced | Every fall reads "You hurt your leg."; the accident lines and the sprain effects are not ported. Sim: `Traversal` injures; `TravelTests.EachSegmentsInjury_ComesFromItsOwnTilesPools` | | |
 | Impassable terrain and blocking edges (cliff, ravine) | `GameMap.CanMoveTo`, `IsEdgeBlocked` | Done | `TravelTests.ImpassableMove_IsRefusedAtNoCost`, `MapTests.Blocked_ByEdgeOfWorldImpassableTerrainAndBarriersBothWays` | | |
 | Cannot walk with a broken body | `TravelRunner` | Done | `TravelTests.Travel_IsRefusedWhenTheBodyCannotWalk` | | |
 | A half crossing can be continued or abandoned | (old: event continue/stop prompt) | Done | `TravelTests.Travel_StaysOnTheOriginUntilTheCrossingCompletes_AndCanBeContinued` | | |
@@ -360,7 +369,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 | Feature | Old source | Status | Evidence or what is missing | Size | Depends on |
 |---|---|---|---|---|---|
 | Footprints by maker shape, traffic, heading, erosion clock | `TrackRegistry` | Done | `Tracks.cs`; `TracksTests.ScriptedPassages_ReadAsOld`, `Erosion_After30SeededDays_MatchesTheOldAccumulator`. Known bug carried over: traffic fades only when re-walked (`dev/active/rebuild-track-traffic-fade-bug.md`) | | |
-| Desire paths: wear tiers that speed travel and decay | `TrailWear` | Done | `TracksTests.TrailTimelines_MatchOld`, `WalkingARouteOften_MakesItFaster`, `AbandonedPath_IsGoneInAboutAMonth_AsOld` | | |
+| Desire paths: wear tiers that speed travel and decay | `TrailWear` | Reduced | Not drawn on the map, so a Trace does nothing the player can see. Sim: `TracksTests.TrailTimelines_MatchOld`, `WalkingARouteOften_MakesItFaster`, `AbandonedPath_IsGoneInAboutAMonth_AsOld` | | |
 | Herds and NPCs mark the ground through one seam | `GameMap.RecordMove` | Done | `Tracks.RecordMove`; `TracksTests.AHerdAgent_StampsAllItsMembers` | | |
 | Reading prints on a tile (maker, heading, age) | `TilePopup.RenderTracks`, `TrailSignSelector` | Core, no FE | `Tracks.Read` exists and is tested (`TracksTests.Traffic_SummarizesDirectionAsANetVector`); the CLI `look` does not show prints | | |
 | Prints shown within a Perception-scaled radius | `TrackRenderer` | Missing | Front end plus a perception radius rule | S | front end |
@@ -369,7 +378,7 @@ unlocking through the discovery log. The rebuild has only the camp `Build` recip
 
 | Feature | Old source | Status | Evidence | Size | Depends on |
 |---|---|---|---|---|---|
-| Fronts, cold snaps, grace period, a year's statistics | `Weather`, `WeatherFront`, `FrontPatterns` | Done | `Weather.cs` (a pure function of seed and minute); `WeatherTests.Year_MatchesOldStatistics`, `GracePeriod_HasNoSevereWeather`, `ColdSnapThatSkipsItsLastState_EndsEarly` | | |
+| Fronts, cold snaps, grace period, a year's statistics | `Weather`, `WeatherFront`, `FrontPatterns` | Reduced | The front is never shown (old top bar: "Calm Before The Storm"), nor precipitation as Light/Moderate/Heavy. Sim: `Weather.cs` (a pure function of seed and minute); `WeatherTests.Year_MatchesOldStatistics`, `GracePeriod_HasNoSevereWeather`, `ColdSnapThatSkipsItsLastState_EndsEarly` | | |
 | Wind chill, sun curve, visibility | `Weather`, `Location.GetTemperature` | Done | `WeatherTests.WindChill_MatchesOld`, `SunCurve_MatchesOld`, `VisibilityAndCalm_AsOld` | | |
 | Seasons, sunrise and sunset, night | `Weather.CurrentSeason`, `TimeOfDay` | Done | `Weather.SeasonAt`, `SunriseHour` (`Weather.cs:104-119`); `WeatherTests.Calendar_StartsJulyFirstAtNine` | | |
 | Weather reaches the ground separately from what a person feels | `Location.GetSurfaceWeather` | Done | `WeatherTests.SurfaceRates_AsOldGetSurfaceWeather`, `GroundTests.SurfaceWeather_CanopyInterceptsOnce_WhiteoutDepositsNothing_PassIsColder` | | |

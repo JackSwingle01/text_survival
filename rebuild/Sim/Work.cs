@@ -4,7 +4,7 @@ namespace Survival;
 public enum ForageFocus { General, Fuel, Food, Medicine, Materials }
 
 /// One step of work in progress: what Begin worked out, and what the minutes have added up to.
-/// The player's lives for one Sim.Step; an NPC's is saved with what it is doing (Agent.Doing).
+/// An NPC's is saved with what it is doing (Agent.Doing); the player's lives for one Sim.Step, or across one job's steps when held.
 public sealed class WorkSession
 {
     public required Activity Activity { get; init; }
@@ -15,7 +15,21 @@ public sealed class WorkSession
     public PoolId? Pool { get; init; }
     public double TargetMinutes { get; init; }
     public double DoneKg { get; set; }
+    /// A forage's luck, rolled once when it begins (Pools.RollLuck); 0 for other work.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public double LuckFactor { get; init; }
+    /// The clues a forage began with, by their index in the clue table (Clues.At), and their draw (ClueDraw): a scavenge clue pays once a draw.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<int>? Clues { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int ClueDraw { get; init; }
+    /// Every find as it turned up, after focus and yield: what the forage screen shows minute by minute. Not saved:
+    /// only that screen reads it, and the host saves no job part-way.
+    [System.Text.Json.Serialization.JsonIgnore] public List<Find> Finds { get; } = [];
 }
+
+/// One find of a forage, in the minute it turned up.
+public readonly record struct Find(long Minute, Resource Resource, double Kg);
 
 public static class Work
 {
@@ -24,11 +38,16 @@ public static class Work
     public const double MeltSnowLiters = 1.0;
     public const double ChopMinutesPerAxeUse = 60;
 
-    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or Stash or Unstash or Wear or TakeOff;
+    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or Stash or Unstash or Wear or TakeOff or WalkAbout;
+
+    /// Keep Walking: five minutes walking the ground to notice new clues.
+    public const int WalkAboutMinutes = 5;
 
     // ---- light and ability ----
 
     public const string TooDark = "too dark to work";
+
+    public const string WalkedAbout = "walked about";
 
     public const string Ate = "ate", Drank = "drank", CookedReason = "cooked", Melted = "melted", TreeFelled = "tree felled", ButcheredReason = "butchered";
 
@@ -60,7 +79,8 @@ public static class Work
         if (Refusal(world, g) != null) return new SortedDictionary<Resource, double>();
         var id = new PoolId(agent.Tile, g.Pool);
         if (NeedsLight(world, Pools.Def(world, id), g)) minutes = Math.Min(minutes, MinutesUntilTooDark(world, agent));
-        return Expected(world, agent, id, g, minutes, ForageYield(world, agent).TotalPct, rememberedDensity: null);
+        var clues = Pools.Def(world, id) is ForagePool ? [.. Survival.Clues.At(world, agent.Id).Select(c => c.Index)] : new List<int>();
+        return Expected(world, agent, id, g, minutes, ForageYield(world, agent).TotalPct, rememberedDensity: null, clues);
     }
 
     /// The same for a pool elsewhere, starting there in startInMinutes, on the ground as remembered (null: as it is).
@@ -73,10 +93,11 @@ public static class Work
         if (Items.PackOf(agent) is not { } pack || ToolRefusal(def, pack) != null) return new SortedDictionary<Resource, double>();
         if (NeedsLight(world, def, g)) minutes = Math.Min(minutes, MinutesUntilTooDarkAt(world, agent, id.Tile, startInMinutes));
         double perception = Body.Perception(agent.Body, new AbilityContext(Items.EncumbrancePct(agent), Weather.DarknessLevel(world, id.Tile), false));
-        return Expected(world, agent, id, g, minutes, ForageYield(agent, pack, perception).TotalPct, rememberedDensity);
+        return Expected(world, agent, id, g, minutes, ForageYield(agent, pack, perception).TotalPct, rememberedDensity, []); // a place out of sight shows no clues
     }
 
-    static SortedDictionary<Resource, double> Expected(World world, Agent agent, PoolId id, Gather g, int minutes, double yieldPct, double? rememberedDensity)
+    static SortedDictionary<Resource, double> Expected(World world, Agent agent, PoolId id, Gather g, int minutes, double yieldPct, double? rememberedDensity,
+        IReadOnlyList<int> clues)
     {
         var kg = new SortedDictionary<Resource, double>();
         double effectivePct = 1 / ImpairmentFactor(world, agent, id.Tile, g), workMinutes = minutes * effectivePct;
@@ -84,7 +105,7 @@ public static class Work
         {
             case ForagePool:
                 foreach (var (r, found) in Pools.ExpectedForage(world, id, minutes, effectivePct, rememberedDensity))
-                    kg[r] = found * yieldPct * FocusFactor(r, g.Focus);
+                    kg[r] = found * yieldPct * FocusFactor(r, g.Focus) * Survival.Clues.YieldFactor(clues, g.Focus, r);
                 break;
             case TreePool tree when Pools.ChopProgressPct(world, id) * tree.MinutesToFell + workMinutes >= tree.MinutesToFell - 1e-9:
                 foreach (var (r, logs) in Pools.ExpectedTree(tree)) kg[r] = logs;
@@ -100,7 +121,10 @@ public static class Work
     }
 
     static double FocusFactor(Resource r, ForageFocus focus) =>
-        focus == ForageFocus.General ? 1 : Items.Resources[r].Category == FocusCategory(focus) ? FocusGain : OffFocusKeepPct + OffFocusKeepSpreadPct / 2;
+        focus == ForageFocus.General || InFocus(r, focus) ? 1 : OffFocusKeepPct + OffFocusKeepSpreadPct / 2;
+
+    /// Whether a focus is looking for this resource. General looks for nothing in particular.
+    public static bool InFocus(Resource r, ForageFocus focus) => focus != ForageFocus.General && Items.Resources[r].Category == FocusCategory(focus);
 
     const double OffFocusKeepPct = 0.4, OffFocusKeepSpreadPct = 0.2;
 
@@ -177,6 +201,7 @@ public static class Work
                     {
                         TreePool when !Pools.HasTrees(world, id) => new("all the trees here have been felled"),
                         ShelterFind f => new($"the {f.Name} is shelter, not something to gather"),
+                        CarcassFind or StashFind => new("nothing like that here"), // found, it lies on the tile as itself
                         StockPool s when !Pools.HasStock(world, id) => new($"the {s.Name} is picked clean"),
                         _ => ToolRefusal(def, pack),
                     };
@@ -195,6 +220,8 @@ public static class Work
                         return new(PackFull, new MissingState(Lack.PackRoomKg, Have: Items.CapacityKg(pack) - Items.CarriedKg(agent)));
                     return NeedsLight(world, agent, activity) && TooDarkToWork(world, agent) ? Dark : null;
                 }
+            case WalkAbout:
+                return Pools.ForageAt(world, agent.Tile) == null ? new("nothing to forage here") : null;
             case Eat e:
                 if (e.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), e.Kg, "Eat a positive amount");
                 if (Items.Resources[e.Food].Category != ResourceCategory.Food) return new($"{Names.Cap(Names.Of(e.Food))} is not food");
@@ -270,8 +297,23 @@ public static class Work
         var body = agent.Body;
         switch (activity)
         {
+            case Gather g when Pools.Def(world, new PoolId(agent.Tile, g.Pool)) is ForagePool:
+                {
+                    var clues = Survival.Clues.At(world, agent.Id);
+                    if (agent.Id == AgentId.Player && clues.Count > 0) Tutorials.Show(world, agent, Tutorial.FirstClue, events);
+                    return new WorkSession
+                    {
+                        Activity = activity,
+                        Pool = new PoolId(agent.Tile, g.Pool),
+                        LuckFactor = Pools.RollLuck(world.Rng("work", agent.Id)),
+                        Clues = [.. clues.Select(c => c.Index)],
+                        ClueDraw = (Pools.StateOf(world, new PoolId(agent.Tile, g.Pool)) as ForageState)?.ClueDraw ?? 0,
+                    };
+                }
             case Gather g:
                 return new WorkSession { Activity = activity, Pool = new PoolId(agent.Tile, g.Pool) };
+            case WalkAbout:
+                return new WorkSession { Activity = activity, TargetMinutes = WalkAboutMinutes };
             case Butcher b:
                 {
                     var c = Carcasses.Find(world, agent.Tile, b.Carcass)!;
@@ -370,11 +412,17 @@ public static class Work
                                 double perception = Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent));
                                 double yieldFactor = ForageYield(agent, pack, perception).TotalPct;
                                 var rng = world.Rng("work", agent.Id);
-                                var finds = Pools.Forage(world, id, effective / 60.0, rng);
+                                var finds = Pools.Forage(world, id, effective / 60.0, rng, s.LuckFactor);
                                 var got = new Inventory();
-                                foreach (var (r, kg) in Focus(finds, g.Focus, rng)) Items.Add(got, r, kg * yieldFactor);
+                                foreach (var (r, kg) in Focus(finds, g.Focus, world.Rng("focus", agent.Id)))
+                                {
+                                    double found = kg * yieldFactor * Survival.Clues.YieldFactor(s.Clues ?? [], g.Focus, r);
+                                    Items.Add(got, r, found);
+                                    s.Finds.Add(new Find(world.Minute, r, found));
+                                }
                                 Keep(world, agent, s, got, events);
                                 Pools.Search(world, agent, perception / 60.0, events);
+                                if (agent.Mind is PersonMind mind && mind.Memory.Places.TryGetValue(agent.Tile, out var place)) place.Foraged = true;
                                 Skills.Award(world, agent, Skill.Foraging, Skills.ForageXpPerHour / 60, events);
                                 return null;
                             }
@@ -419,6 +467,9 @@ public static class Work
                 return Melted;
             case Stash or Unstash or Wear or TakeOff:
                 return null; // done on the first minute; the agent waits out the rest
+            case WalkAbout:
+                Pools.Search(world, agent, Traversal.TravelSearchPct * Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent)) / 60.0, events);
+                return s.Minutes >= s.TargetMinutes ? WalkedAbout : null;
             default:
                 throw new NotSupportedException($"{s.Activity.GetType().Name} is not work");
         }
@@ -440,10 +491,15 @@ public static class Work
     public static void End(World world, Agent agent, WorkSession s, List<WorldEvent> events)
     {
         if (s.Activity is Butcher b) EndButcher(world, agent, b, s, events);
+        bool foraged = s.Minutes > 0 && s.Pool is PoolId searched && Pools.Def(world, searched) is ForagePool;
+        if (foraged) EndForage(world, agent, s, events);
+        if (s.Activity is WalkAbout && s.Minutes > 0) Survival.Clues.Redraw(world, agent.Tile);
+        LuckTier? luck = foraged ? Pools.TierOf(s.LuckFactor) : null;
+        double? density = foraged ? Pools.ForageDensity(world, s.Pool!.Value) : null;
         if (s.Got.Kg.Count > 0 || s.Got.Gear.Count > 0)
-            events.Add(new Gathered(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Got)));
-        else if (s.Minutes > 0 && s.Pool is PoolId searched && Pools.Def(world, searched) is ForagePool)
-            events.Add(new Gathered(world.Minute, agent.Id, agent.Tile, ""));
+            events.Add(new Gathered(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Got), luck, density));
+        else if (foraged)
+            events.Add(new Gathered(world.Minute, agent.Id, agent.Tile, "", luck, density));
         if (s.Dropped.Kg.Count > 0 || s.Dropped.Gear.Count > 0)
             events.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Dropped)));
     }
@@ -493,14 +549,7 @@ public static class Work
         Items.AddAll(s.Dropped, Items.Receive(world, agent, got, events: null));
     }
 
-    /// Each find of the focus comes with another like it on these odds: the effort a general search spends on
-    /// sticks and stones goes on the berries and roots. Filtering alone would make focus cost the rest of the
-    /// haul and buy nothing. Tuned so a food forager in fresh forest about holds their weight, while poor
-    /// country, staying put and a general search still run a deficit. This lever, not kcal per kg (already
-    /// realistic) or density and depletion (shared with fuel, and what pushes a forager outward).
-    public const double FocusGain = 1.3;
-
-    /// Each find outside the focus survives on a 40-60% roll.
+    /// The focus is kept whole; each find outside it survives a 40-60% roll, on its own stream so the finds never depend on it.
     static IEnumerable<(Resource, double)> Focus(List<(Resource Resource, double Kg)> finds, ForageFocus focus, Rng rng)
     {
         if (focus == ForageFocus.General) return finds;
@@ -510,16 +559,70 @@ public static class Work
         {
             if (Items.Resources[group.Key].Category == target)
             {
-                foreach (var f in group)
-                {
-                    kept.Add(f);
-                    if (rng.NextDouble() < FocusGain - 1) kept.Add(f);
-                }
+                kept.AddRange(group);
                 continue;
             }
             double keepPct = OffFocusKeepPct + rng.NextDouble() * OffFocusKeepSpreadPct;
             foreach (var f in group) if (rng.NextDouble() < keepPct) kept.Add((f.Resource, f.Kg));
         }
         return kept;
+    }
+
+    /// A forage's end: a scavenge clue of the draw still showing lays its remains, the clues move on, tutorials come up.
+    static void EndForage(World world, Agent agent, WorkSession s, List<WorldEvent> events)
+    {
+        bool drawShowing = (Pools.StateOf(world, s.Pool!.Value) as ForageState)?.ClueDraw is int draw ? draw == s.ClueDraw : s.ClueDraw == 0;
+        if (drawShowing && s.Clues?.Select(i => Survival.Clues.Table.Clues[i]).FirstOrDefault(c => c.Kind == ClueKind.Scavenge) is { } scavenge)
+            Scavenge(world, agent, s, scavenge, events);
+        Survival.Clues.Redraw(world, agent.Tile);
+        if (agent.Id != AgentId.Player || Items.PackOf(agent) is not { } pack) return;
+        if (Items.Tool(pack, ToolType.Axe) != null) Tutorials.Show(world, agent, Tutorial.Axe, events);
+        if (Items.Tool(pack, ToolType.Shovel) != null) Tutorials.Show(world, agent, Tutorial.Shovel, events);
+        double fuelFound = s.Got.Kg.Where(kv => Items.Resources[kv.Key].Category == ResourceCategory.Fuel).Sum(kv => kv.Value);
+        double fuelHeld = pack.Kg.Where(kv => Items.Resources[kv.Key].Category == ResourceCategory.Fuel).Sum(kv => kv.Value);
+        if (Weather.DayNumber(world.Minute) == 1 && fuelFound > 0 && fuelHeld < DayOneFuelKg)
+            Tutorials.Show(world, agent, Tutorial.DayOneFuel, events, DayOneFuelKg - fuelHeld);
+    }
+
+    public const double DayOneFuelKg = 8.0;
+
+    /// Bone scraps, or on a roll a part-eaten carcass of an animal that ranges here; what is near finds it by its own search.
+    static void Scavenge(World world, Agent agent, WorkSession s, ClueDef clue, List<WorldEvent> events)
+    {
+        var rng = Rng.ForSystem(world.Seed, $"scavenge {TileIdConverter.Format(agent.Tile)} {s.ClueDraw}");
+        if (clue.Animals is not { Count: > 0 })
+        {
+            var bones = new Inventory();
+            Items.Add(bones, Resource.Bone, ScrapBoneKg[0] + rng.NextDouble() * (ScrapBoneKg[1] - ScrapBoneKg[0]));
+            Keep(world, agent, s, bones, events);
+            events.Add(new Scavenged(world.Minute, agent.Id, agent.Tile, null, clue.Remains!));
+            return;
+        }
+        var animals = clue.Animals.Where(a => Survival.Clues.RangesNear(world, agent.Tile, a.Animal)).ToList();
+        if (animals.Count == 0 || rng.NextDouble() >= ScavengeCarcassPct) return;
+        double pick = rng.NextDouble() * animals.Sum(a => a.Weight);
+        var animal = animals[^1].Animal;
+        foreach (var a in animals) { if ((pick -= a.Weight) < 0) { animal = a.Animal; break; } }
+        double eaten = clue.HarvestedPct![0] + rng.NextDouble() * (clue.HarvestedPct[1] - clue.HarvestedPct[0]);
+        var cause = new Cause(null, Pools.FoundDead);
+        var body = SpeciesTable.NewBody(animal, rng);
+        if (!clue.Frozen) Combat.LeaveCarcass(world, agent.Tile, animal, body, cause, eaten);
+        else Carcasses.FrozenThrough(world, agent.Tile,
+            Combat.LeaveCarcass(world, agent.Tile, animal, body, cause, eaten, world.Minute - Carcasses.FrozenThroughHours * 60L));
+        events.Add(new Scavenged(world.Minute, agent.Id, agent.Tile, animal, clue.Remains!));
+    }
+
+    /// The chance a scavenge clue's trail ends at a carcass: sign often leads nowhere, and a carcass is a find, not a promise.
+    public const double ScavengeCarcassPct = 0.25;
+
+    static readonly double[] ScrapBoneKg = [0.1, 0.3];
+
+    /// The forage's mood line as it stands: lean luck shows at once, good luck once it finds something.
+    public static string? Mood(WorkSession s)
+    {
+        if (s.LuckFactor <= 0) return null;
+        var tier = Pools.TierOf(s.LuckFactor);
+        bool shows = tier == LuckTier.Lean || (tier != LuckTier.Normal && (s.Got.Kg.Count > 0 || s.Dropped.Kg.Count > 0));
+        return shows ? Survival.Clues.Table.Luck[tier] : null;
     }
 }

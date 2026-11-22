@@ -34,9 +34,10 @@ file with `fetch` calls to the same five operations.
   refused. The page never builds an activity or names a game verb.
 - **Time is paced by the client.** A verb starts a job; `{"advance":N}` runs it up to N more game
   minutes and returns the view, so the clock is seen to move and a walk animates tile to tile.
-  `{"stop":true}` drops it. Wait, rest, sleep, walking and making run in those chunks (Sim continues
-  each across steps; tests check a chunked run leaves the world byte-identical to one step). Other work
-  (foraging, butchering, cooking) is one Sim step, which the page plays out on the clock.
+  `{"stop":true}` ends it at that minute. Wait, rest, sleep, walking, making and work (foraging,
+  butchering, cooking) run in those chunks: Sim continues each across steps, and holds work between them
+  (`Sim.Step` with `more`), so a chunked search is one search with one luck. The page plays the minutes
+  out at the old game's pace (`paceMs`). A verb with `durations` takes `{"verb":id,"minutes":N}`.
 - **Saves** are Sim's versioned JSON as bytes: kept in IndexedDB (one slot), and downloadable and
   uploadable as a file.
 - `Scenario(name)` is development only (`Host/Scenarios.cs`: `supplied`, `fight`, `dead`, `won`, `winter`), for
@@ -45,14 +46,18 @@ file with `fetch` calls to the same five operations.
 ## The map's ground
 
 `wwwroot/terrain-core.js` draws the ground per pixel from known terrain and world pixel coordinates;
-`wwwroot/terrain.js` bakes it into 8 x 8 cell chunks, a few milliseconds a frame, nearest the camera
-first. Cells are 48 CSS px everywhere (one art pixel each: crisp at a device pixel ratio of 1 or 2).
+`wwwroot/terrain.js` bakes it a cell at a time in a pool of workers (`wwwroot/terrain-worker.js`),
+nearest the camera first, and rebakes a cell only when the terrain within three cells or the ground
+state within two changes (`REACH` in `terrain-core.js`), so a step rebakes only the cells it reveals
+and their neighbours. A cell baked on its own is the same pixels as the whole map baked at once
+(`tools/terrain.test.mjs`). Cells are 48 CSS px everywhere (one art pixel each: crisp at a device pixel ratio of 1 or 2).
 Rivers are one channel through their cells, lakes have round shores, and mountains are lit ridged
 height with a snowline. Caves are dark passages cut through the rock along their cells, out of the
 mouth onto the ground beside it. Ravines and cliffs come from `MapDto.Edges` (those beside a known
 tile): the boundary steps are chained and rounded into a cleft whose far wall catches the light, or
 a one-sided face that drops toward the lower right (the Sim gives a cliff no high side), with a lip
-and a shadow. Ice, where snow and mud lie, and where every tree stands come from world
+and a shadow. A chain is rounded as a whole, so the page works out its pieces once per map
+(`edgePieces`) and hands each cell's bake the pieces in its reach (`piecesNear`). Ice, where snow and mud lie, and where every tree stands come from world
 noise; snow and mud are painted 96 px textures shown through those masks. A pixel takes the ground
 state of the cell whose terrain it shows, so state follows the same organic borders as the ground.
 A pixel reads only its cell's 5 x 5 neighbourhood, and unknown cells read as the cell's own terrain,

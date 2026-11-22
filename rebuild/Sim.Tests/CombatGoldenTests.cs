@@ -48,15 +48,15 @@ public class CombatGoldenTests
 
     // weight kg, strength, speed, vitality, combat allowance m, average blow (before luck)
     // The blow column moved to the damage unit (decision 2026-11-21-damage-is-measured-in-tissue-condition):
-    //   Wolf 0.45 → 1.86, Bear 0.6 → 3.22, CaveBear 0.8 → 2.1, Homotherium 0.9 → 2.4, Hyena 0.4 → 0.9, Caribou 0.25 → 0.6,
-    //   Megaloceros 0.5 → 1.2, Bison 0.55 → 1.5, Mammoth 1.2 → 3.5, Rabbit 0.02 → 0.05, Fox 0.12 → 0.25, Human 0.15 → 0.05.
-    // Species round (2026-11-21): realistic builds (species-stats-research.md), the 68 kg man, Homotherium for the
+    //   Wolf 0.45 → 1.86, Bear 0.6 → 3.22, CaveBear 0.8 → 2.1, SaberTooth 0.9 → 2.4, Hyena 0.4 → 0.9, Caribou 0.25 → 0.6,
+    //   Megaloceros 0.5 → 1.2, Bison 0.55 → 1.5, Mammoth 1.2 → 3.5, Hare 0.02 → 0.05, Fox 0.12 → 0.25, Human 0.15 → 0.05.
+    // Species round (2026-11-21): realistic builds (species-stats-research.md), the 68 kg man, SaberTooth for the
     // sabre-tooth. Old (the old game's AnimalFactory bodies) → new, weight / strength / speed / blow:
     //   Wolf 40 / 0.950 / 1.605 / 0.439 → 45 / 0.895 / 1.210 / 0.426; Bear 250 / 1.245 / 1.395 / 0.673 → 250 / 1.082 / 1.010 / 0.625
-    //   CaveBear 350 / 1.400 / 1.392 / 0.960 → 400 / 1.249 / 0.981 / 0.900; SaberTooth 300 / 1.492 / 1.678 / 1.122 → Homotherium 190 / 1.083 / 1.129 / 0.937
+    //   CaveBear 350 / 1.400 / 1.392 / 0.960 → 400 / 1.249 / 0.981 / 0.900; SaberTooth 300 / 1.492 / 1.678 / 1.122 → SaberTooth 190 / 1.083 / 1.129 / 0.937
     //   Hyena 70 / 1.028 / 1.684 / 0.406 → 85 / 0.947 / 1.183 / 0.389; Caribou 120 / 1.080 / 1.524 / 0.260 → 110 / 0.972 / 1.121 / 0.247
     //   Megaloceros 600 / 1.864 / 1.481 / 0.716 → 550 / 1.498 / 1.092 / 0.625; Bison 800 / 2.069 / 1.336 / 0.844 → 600 / 1.559 / 1.092 / 0.704
-    //   Mammoth 6000 / 9.222 / 0.624 / 6.133 → 5000 / 6.244 / 1.227 / 4.347; Rabbit 2 / 0.847 / 1.415 / 0.018 → 3 / 0.848 / 1.303 / 0.018
+    //   Mammoth 6000 / 9.222 / 0.624 / 6.133 → 5000 / 6.244 / 1.227 / 4.347; Hare 2 / 0.847 / 1.415 / 0.018 → 3 / 0.848 / 1.303 / 0.018
     //   Fox 6 / 0.873 / 1.586 / 0.112 → 6 / 0.831 / 1.232 / 0.110; Human 75 / 0.977 / 0.849 / 0.148 → 68 / 1.068 / 0.992 / 0.155
     // Speed's kilogram terms are a person's (body review B11): the mammoth's doubles. Combat reads speed only as a
     // share of a fresh body of its kind (SpeciesTable.Running), so the allowances do not move.
@@ -65,13 +65,13 @@ public class CombatGoldenTests
         { Species.Wolf, 45, 0.8947715999999999, 1.2096121549930419, 1, 6, 1.86 },
         { Species.Bear, 250, 1.08205, 1.0099605245894718, 1, 5, 3.22 },
         { Species.CaveBear, 400, 1.2488800000000002, 0.9813297123518419, 1, 4, 2.1 },
-        { Species.Homotherium, 190, 1.08302016, 1.1286958123788615, 1, 7, 2.4 },
+        { Species.SaberTooth, 190, 1.08302016, 1.1286958123788615, 1, 7, 2.4 },
         { Species.Hyena, 85, 0.9468708, 1.182606086953345, 1, 6, 0.9 },
         { Species.Caribou, 110, 0.9721110399999999, 1.1214800761239843, 1, 3, 0.6 },
         { Species.Megaloceros, 550, 1.4980128000000001, 1.0920166381655916, 1, 3, 1.2 },
         { Species.Bison, 600, 1.5592776000000002, 1.0922935825680593, 1, 3, 1.5 },
         { Species.Mammoth, 5000, 6.2444, 1.2274532803110698, 1, 3, 3.5 },
-        { Species.Rabbit, 3, 0.8482441199999999, 1.3033011900540226, 1, 3, 0.05 },
+        { Species.Hare, 3, 0.8482441199999999, 1.3033011900540226, 1, 3, 0.05 },
         { Species.Fox, 6, 0.83143248, 1.2321723978837684, 1, 3, 0.25 },
         // Each blow is its table row: strength counts against an average member of the kind.
         { Species.Human, 68, 1.0677653333333335, 0.9917410466689817, 1, 3, 0.05 },
@@ -182,7 +182,7 @@ public class CombatGoldenTests
         { Species.Wolf, 6, 0.5, 0.9, 0.65 },
         { Species.Bear, 1, 0.15, 0.7000000000000001, 0.3 },
         { Species.Hyena, 4, 0.42000000000000004, 0.5700000000000001, 0.5700000000000001 },
-        { Species.Homotherium, 1, 0.25, 0.75, 0.4 },
+        { Species.SaberTooth, 1, 0.25, 0.75, 0.4 },
         { Species.Caribou, 5, 0, 0, 0 },
     };
 

@@ -439,7 +439,7 @@ public static partial class Fauna
         {
             Species.Wolf => 1.2,
             Species.Bear or Species.CaveBear => 0.7,
-            Species.Homotherium => 1.3,
+            Species.SaberTooth => 1.3,
             Species.Hyena => 0.8,
             _ => 1.0,
         };
@@ -657,7 +657,7 @@ public static partial class Fauna
                 if (Roll(world, herd, 0.04) && PatrolStep(world, herd, mind) is { } walk) return walk;
                 return Wait(herd);
             case HerdState.Feeding:
-                if (HerdsAt(world, herd.Tile).Any(h => h.Id != herd.Id && h.Species is Species.Wolf or Species.Bear or Species.CaveBear or Species.Homotherium))
+                if (HerdsAt(world, herd.Tile).Any(h => h.Id != herd.Id && h.Species is Species.Wolf or Species.Bear or Species.CaveBear or Species.SaberTooth))
                 {
                     StartFleeing(world, mind, herd.Tile); // something bigger wants the kill
                     return Flee(world, herd, mind, HerdBehavior.Scavenger, events);
@@ -816,7 +816,7 @@ public static partial class Fauna
     }
 
     /// How far a species senses prey, in tiles.
-    public static int DetectionRangeTiles(Species s) => s is Species.Wolf or Species.Homotherium ? 12 : 8;
+    public static int DetectionRangeTiles(Species s) => s is Species.Wolf or Species.SaberTooth ? 12 : 8;
 
     /// Where the herds of its quarry, and the people it would come for, within the predator's senses stand.
     static HashSet<TileId> PreySensed(World world, Agent predator, List<WorldEvent> events)

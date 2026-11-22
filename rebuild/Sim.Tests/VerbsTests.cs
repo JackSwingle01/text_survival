@@ -242,7 +242,7 @@ public class VerbsTests
 
     /// What the person has not found is not there for them; what they know shows its one action.
     [Fact]
-    public void TheTilesPools_ShowOnlyTheKnownOnes_EachWithItsOneAction()
+    public void TheTilesPools_ShowOnlyTheKnownOnes_AndForageOffersItsFoci_AndKeepWalking()
     {
         var w = Camp(out var start);
         var m = Map.Of(w);
@@ -257,8 +257,15 @@ public class VerbsTests
         var listed = Verbs.At(w, P).LocationFeatures.Where(t => t.LocationFeature.Kind == LocationFeatureKind.Pool).ToList();
         Assert.Equal(pools.Select((_, i) => i).Where(i => Pools.Knows(w, P, new PoolId(camp, i))), listed.Select(t => t.LocationFeature.Index));
         var forage = listed.Single(t => pools[t.LocationFeature.Index] is ForagePool);
-        Assert.Equal(new Gather(P, forage.LocationFeature.Index), forage.Action!.Activity);
-        Assert.Equal("Forage", forage.Action.Label);
+        var def = (ForagePool)pools[forage.LocationFeature.Index];
+        Assert.True(forage.Interact);
+        var general = forage.Menu.Single(v => v.Activity == new Gather(P, forage.LocationFeature.Index));
+        Assert.Equal("Forage", general.Label); // not foraged here yet: no word for the ground
+        Assert.Equal(Verbs.ForageDurations, general.Durations);
+        Assert.Contains(general.Minutes, general.Durations!);
+        foreach (var focus in new[] { ForageFocus.Fuel, ForageFocus.Food, ForageFocus.Medicine, ForageFocus.Materials })
+            Assert.Equal(def.Items.Any(i => Work.InFocus(i.Resource, focus)), forage.Menu.Any(v => v.Activity is Gather g && g.Focus == focus));
+        Assert.Contains(forage.Menu, v => v.Activity is WalkAbout && v.Minutes == Work.WalkAboutMinutes);
         AssertEveryVerbIsTrue(w, P);
     }
 

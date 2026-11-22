@@ -1,24 +1,38 @@
-// The map's ground, baked from terrain-core.js into chunks of cells and drawn at one screen pixel
-// per art pixel. Baking is spread over frames, nearest the camera first; a chunk keeps showing its
-// last image until its new one is done.
+// The map's ground, baked from terrain-core.js a cell at a time in a pool of workers
+// (terrain-worker.js) and drawn at one screen pixel per art pixel. A cell's pixels depend only on its
+// neighbourhood (terrain-core.js's REACH), so each cell is rebaked only when that neighbourhood
+// changes - a step reveals a strip of ground and rebakes only the cells it can reach - and keeps
+// showing its last image until the new one comes back. Cells nearest the camera are baked first.
 //
 // Ground state: draw() takes ground (ground-state.js's memory: each cell's state and its key) and
-// world (palette and snowline). A chunk rebakes only when the states or terrain it can see change,
-// so snow settling on one tile does not redraw the screen.
+// world (palette and snowline). Snow settling on one tile rebakes only the cells around it.
 import { src } from './util.js';
-import { createBaker, textureNames, CELL } from './terrain-core.js';
+import { textureNames, around, edgePieces, piecesNear, CELL, GROUND_REACH } from './terrain-core.js';
 
 /** Terrain names by the map's known-tile codes (MapDto.Known). */
 export const TERRAIN = { F: 'forest', C: 'clearing', P: 'plain', H: 'hills', W: 'water', M: 'marsh', R: 'rock', X: 'mountain', D: 'deepwater', c: 'cavefloor', e: 'caveentrance' };
 
-const CHUNK = 8;          // cells per chunk side
-const BUDGET_MS = 6;      // baking per frame
+const CHUNK = 8;            // cells per canvas side: fewer, larger draws per frame
+const POOL = Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+const IN_FLIGHT = 2;        // jobs queued per worker, so none idles while the page posts the next
 
 export function createTerrain() {
-  const textures = new Map();
-  let wanted = null, wantedFor = null;
-  const chunks = new Map(); // "cx,cy" -> { canvas, sig, job }
-  let baker = null, bakerFor = null;
+  const textures = new Map(), sent = new Set();
+  let wanted = null, wantedFor = null, failure = null;
+  const workers = Array.from({ length: POOL }, () => {
+    const w = new Worker(new URL('./terrain-worker.js', import.meta.url), { type: 'module' });
+    w.jobs = 0;
+    w.onmessage = ({ data }) => { w.jobs--; done(data); };
+    w.onerror = e => { failure = new Error(`terrain worker failed: ${e.message}`); };
+    return w;
+  });
+  // Per map: chunk canvases, and per cell the bake its pixels show and the latest one asked for.
+  let W = 0, H = 0, chunks, drawn, asked, sigs = new Map(), sigsFor = null;
+  // The map's ravines and cliffs as pieces (a piece depends on its whole chain), per edge list.
+  let pieces = [], piecesFor = null;
+  const near = new Map(); // cell index -> the pieces in its reach, for the current pieces
+  const jobs = new Map(); // id -> { i, cx, cy, sig, W }
+  let nextId = 1;
 
   function load(world) {
     for (const name of textureNames(world)) {
@@ -40,24 +54,42 @@ export function createTerrain() {
   }
   // A texture that failed to load would leave the map blank for ever; say so instead.
   const ready = () => wanted.every(n => { const t = textures.get(n); if (t instanceof Error) throw t; return t; });
-  const tex = name => {
-    const t = textures.get(name);
-    if (!t) throw new Error(`terrain texture not loaded: ${name}`);
-    return t;
-  };
 
   /**
-   * What a chunk's pixels can depend on: ground state two cells around it, and terrain three (a
-   * sprite anchored in the next cell reads that cell's 5x5 neighbourhood).
+   * What a cell's pixels depend on (terrain-core.js's REACH: terrain three cells around, ground state
+   * two), or null when nothing in reach is known and the cell is blank.
    */
-  function signature(m, cx0, cy0, ground, world) {
-    let sig = world.key;
-    for (let y = Math.max(0, cy0 - 3); y < Math.min(m.height, cy0 + CHUNK + 3); y++)
-      sig += m.known.slice(y * m.width + Math.max(0, cx0 - 3), y * m.width + Math.min(m.width, cx0 + CHUNK + 3));
-    const xa = Math.max(0, cx0 - 2), xb = Math.min(m.width, cx0 + CHUNK + 2);
-    for (let y = Math.max(0, cy0 - 2); y < Math.min(m.height, cy0 + CHUNK + 2); y++)
-      for (let x = xa; x < xb; x++) sig += ground.keyAt(y * m.width + x);
+  function signature(m, ground, world, cx, cy) {
+    const codes = around(W, H, cx, cy, (x, y) => m.known[y * W + x]).join('');
+    if (!/[^.]/.test(codes)) return null;
+    let sig = world.key + codes;
+    for (const p of piecesAround(cx, cy)) sig += `|${p.type}${p.x1},${p.y1},${p.x2},${p.y2},${p.start},${p.total}`;
+    for (let y = Math.max(0, cy - GROUND_REACH); y <= Math.min(H - 1, cy + GROUND_REACH); y++)
+      for (let x = Math.max(0, cx - GROUND_REACH); x <= Math.min(W - 1, cx + GROUND_REACH); x++) sig += '|' + ground.keyAt(y * W + x);
     return sig;
+  }
+
+  function piecesAround(cx, cy) {
+    const i = cy * W + cx;
+    let list = near.get(i);
+    if (!list) near.set(i, list = piecesNear(pieces, cx, cy));
+    return list;
+  }
+
+  function done({ id, i, pixels }) {
+    const job = jobs.get(id);
+    jobs.delete(id);
+    if (job.W !== W) return; // a bake for a map since replaced
+    if (asked.get(i)?.id === id) asked.delete(i);
+    if ((drawn.get(i)?.id ?? 0) > id) return; // a newer bake of this cell came back first
+    drawn.set(i, { id, sig: job.sig });
+    const cx0 = Math.floor(job.cx / CHUNK) * CHUNK, cy0 = Math.floor(job.cy / CHUNK) * CHUNK, key = `${cx0},${cy0}`;
+    let canvas = chunks.get(key);
+    if (!canvas) {
+      chunks.set(key, canvas = document.createElement('canvas'));
+      canvas.width = Math.min(CHUNK, W - cx0) * CELL; canvas.height = Math.min(CHUNK, H - cy0) * CELL;
+    }
+    canvas.getContext('2d').putImageData(new ImageData(pixels, CELL, CELL), (job.cx - cx0) * CELL, (job.cy - cy0) * CELL);
   }
 
   /**
@@ -66,53 +98,50 @@ export function createTerrain() {
    * ground: { stateAt(x, y), keyAt(i), version }; world: { palette, snowline, key }.
    */
   function draw(ctx, { m, ox, oy, x0, y0, x1, y1, camera, ground, world }) {
+    if (failure) throw failure;
+    if (m.width !== W || m.height !== H) { W = m.width; H = m.height; chunks = new Map(); drawn = new Map(); asked = new Map(); sigsFor = null; piecesFor = null; }
     if (wantedFor !== world.key) load(world);
     if (!ready()) return;
-    const key = `${world.key}|${ground.version}|${m.width}`;
-    if (!baker || bakerFor !== m.known + key) {
-      // Ravines and cliffs come with the known tiles they lie beside, so m.known keys them too.
-      baker = createBaker({ width: m.width, height: m.height, terrainAt: (x, y) => {
-        const c = m.known[y * m.width + x];
-        return c === '.' ? null : TERRAIN[c];
-      }, edges: m.edges.map(e => ({ ax: e.ax, ay: e.ay, bx: e.bx, by: e.by, type: e.kind })) }, ground.stateAt, world, tex);
-      bakerFor = m.known + key;
+    const fresh = wanted.filter(n => !sent.has(n));
+    if (fresh.length) {
+      for (const w of workers) w.postMessage({ textures: fresh.map(n => [n, textures.get(n)]) });
+      for (const n of fresh) sent.add(n);
     }
+    if (piecesFor !== m.edges) {
+      pieces = edgePieces(m.edges.map(e => ({ ax: e.ax, ay: e.ay, bx: e.bx, by: e.by, type: e.kind })));
+      piecesFor = m.edges;
+      near.clear();
+    }
+    // Ravines and cliffs come with the known tiles they lie beside, so m.known keys them too.
+    const inputs = `${world.key}|${ground.version}|${m.known}`;
+    if (sigsFor !== inputs) { sigs = new Map(); sigsFor = inputs; }
+
     const todo = [];
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const i = y * W + x;
+      let sig = sigs.get(i);
+      if (sig === undefined) sigs.set(i, sig = signature(m, ground, world, x, y));
+      if (sig !== null && drawn.get(i)?.sig !== sig && asked.get(i)?.sig !== sig) todo.push(i);
+    }
+    ctx.imageSmoothingEnabled = false;
     for (let cy0 = Math.floor(y0 / CHUNK) * CHUNK; cy0 <= y1; cy0 += CHUNK)
       for (let cx0 = Math.floor(x0 / CHUNK) * CHUNK; cx0 <= x1; cx0 += CHUNK) {
-        const id = `${cx0},${cy0}`, sig = signature(m, cx0, cy0, ground, world);
-        let ch = chunks.get(id);
-        if (!ch) chunks.set(id, ch = { canvas: null, sig: null, job: null });
-        if (ch.sig !== sig && ch.job?.sig !== sig) {
-          const xb = Math.min(m.width, cx0 + CHUNK), yb = Math.min(m.height, cy0 + CHUNK), cells = [];
-          for (let y = cy0; y < yb; y++) for (let x = cx0; x < xb; x++) cells.push([x, y]);
-          ch.job = { sig, baker, x0: cx0, y0: cy0, x1: xb, y1: yb, cells, i: 0,
-            pixels: new Uint8ClampedArray((xb - cx0) * CELL * (yb - cy0) * CELL * 4) };
-        }
-        if (ch.job) todo.push(ch);
-        if (ch.canvas) {
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(ch.canvas, ox + cx0 * CELL, oy + cy0 * CELL);
-        }
+        const canvas = chunks.get(`${cx0},${cy0}`);
+        if (canvas) ctx.drawImage(canvas, ox + cx0 * CELL, oy + cy0 * CELL);
       }
-    // Bake for a few milliseconds, nearest the camera first.
-    const dist = ch => Math.hypot(ch.job.x0 + CHUNK / 2 - camera.x, ch.job.y0 + CHUNK / 2 - camera.y);
+
+    // Hand the cells nearest the camera to whichever workers have room.
+    const dist = i => Math.hypot(i % W + 0.5 - camera.x, Math.floor(i / W) + 0.5 - camera.y);
     todo.sort((a, b) => dist(a) - dist(b));
-    const t0 = performance.now();
-    for (const ch of todo) {
-      const j = ch.job;
-      while (j.i < j.cells.length && performance.now() - t0 < BUDGET_MS) {
-        const [x, y] = j.cells[j.i++];
-        j.baker.bakeCell(j.pixels, j.x0, j.y0, j.x1, x, y);
-      }
-      if (j.i < j.cells.length) break;
-      j.baker.bakeSprites(j.pixels, j.x0, j.y0, j.x1, j.y1);
-      const w = (j.x1 - j.x0) * CELL, h = (j.y1 - j.y0) * CELL;
-      ch.canvas ??= document.createElement('canvas');
-      ch.canvas.width = w; ch.canvas.height = h;
-      ch.canvas.getContext('2d').putImageData(new ImageData(j.pixels, w, h), 0, 0);
-      ch.sig = j.sig; ch.job = null;
-      if (performance.now() - t0 >= BUDGET_MS) break;
+    let next = 0;
+    for (const w of workers) while (w.jobs < IN_FLIGHT && next < todo.length) {
+      const i = todo[next++], cx = i % W, cy = Math.floor(i / W), id = nextId++, sig = sigs.get(i);
+      jobs.set(id, { i, cx, cy, sig, W });
+      asked.set(i, { id, sig });
+      w.jobs++;
+      w.postMessage({ id, i, width: W, height: H, cx, cy, world: { palette: world.palette, snowline: world.snowline },
+        terrain: around(W, H, cx, cy, (x, y) => TERRAIN[m.known[y * W + x]] ?? null),
+        states: around(W, H, cx, cy, ground.stateAt), pieces: piecesAround(cx, cy) });
     }
   }
 

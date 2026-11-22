@@ -8,7 +8,7 @@ import { createClient } from './client.js';
 import { createMap } from './map.js';
 import { createGrid } from './combat.js';
 import { putSave, getSave, download, upload } from './saves.js';
-import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey } from './util.js';
+import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs } from './util.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -16,7 +16,8 @@ const client = createClient();
 
 const S = {
   view: null,
-  drawer: null,          // { kind: 'here'|'fire'|'trip'|'place'|'make'|'body'|'pack'|'log'|'save'|'job', ... }
+  drawer: null,          // { kind: 'here'|'fire'|'trip'|'place'|'make'|'body'|'pack'|'log'|'save'|'job'|'forage', ... }
+  forage: { focus: 'anything', mins: 30 }, // the forage screen's choices: the focus (anything is General), how long
   busy: false,
   stop: false,
   drawPos: { x: 0, y: 0 },
@@ -45,7 +46,7 @@ const KIND_ICON = {
   wait: 'ui/clock', rest: 'ui/energy', sleep: 'ui/moon', fire: 'ui/fire', fuel: 'ui/fuel', torch: 'ui/torch', charcoal: 'ui/charcoal',
   gather: 'ui/foraging', butcher: 'ui/knife', eat: 'ui/food', drink: 'ui/water', cook: 'ui/meat', melt: 'ui/water', stash: 'ui/storage',
   take: 'ui/storage', wear: 'ui/equip', takeoff: 'ui/equip', walk: 'ui/follow', build: 'construction', improve: 'ui/shelter', pack: 'ui/backpack',
-  make: 'ui/project', abandon: 'ui/cancel', hunt: 'ui/spear', other: 'ui/inspect',
+  make: 'ui/project', abandon: 'ui/cancel', hunt: 'ui/spear', walkabout: 'ui/continue', other: 'ui/inspect',
 };
 const FIGHT_ICON = {
   Wait: 'ui/clock', Advance: 'ui/follow', Retreat: 'ui/back', Attack: 'ui/spear', Throw: 'ui/throw', 'Throw stone': 'ui/throw', Dodge: 'ui/dodge',
@@ -88,6 +89,7 @@ async function run(id, extra = {}) {
   if (verb.refused) { toast('ui/blocked', cap(verb.refused)); shake(id); return; }
   S.busy = true; S.stop = false;
   if (S.drawer?.kind === 'job') S.drawer = null; // the last job's result gives way to this one
+  if (S.drawer?.kind === 'forage') Object.assign(S.drawer, { done: null, startMinute: S.view.minute, logFrom: new Set(S.view.log.map(logKey)) });
   const logFrom = new Set(S.view.log.map(logKey)); // the lines already shown: the rest are this job's
   const startMinute = S.view.minute;
   try {
@@ -96,12 +98,15 @@ async function run(id, extra = {}) {
     if (!v.job.finished) {
       const total = v.job.totalMinutes ?? verb.minutes ?? 60;
       const quiet = v.job.kind === 'walk' || v.job.kind === 'fight' || total <= 2;
-      if (!quiet) openDrawer({ kind: 'job', verbId: id, verbKind: verb.kind, label: verb.label, startMinute, logFrom });
+      if (!quiet && S.drawer?.kind !== 'forage') openDrawer({ kind: 'job', verbId: id, verbKind: verb.kind, label: verb.label, startMinute, logFrom });
+      const rateOf = (minutes, kind) => minutes / paceMs(minutes, kind);
+      let rate = rateOf(total, v.job.kind), pacing = v.job.label;
       S.walking = v.job.kind === 'walk';
-      // how long it plays on screen: a crossing about half a second, an hour about a second, a night four
-      const ms = Math.min(4000, 350 + total * 8), rate = total / ms;
       while (!v.job.finished) {
-        if (S.stop) { v = await client.act({ stop: true }); break; }
+        // The host may hand over a job the player did not choose (dropped asleep): it is paced as its own,
+        // and only the host says when nothing is under way, so a stop it does not end runs on.
+        if (v.job.label !== pacing) { rate = rateOf(v.job.totalMinutes ?? 60, v.job.kind); pacing = v.job.label; S.walking = v.job.kind === 'walk'; }
+        if (S.stop) { S.stop = false; v = await client.act({ stop: true }); apply(v, { keepDrawer: true }); continue; }
         const before = S.displayMinute ?? v.minute, chunk = Math.max(1, Math.round(rate * 70));
         const t0 = performance.now();
         v = await client.act({ advance: chunk });
@@ -129,6 +134,8 @@ function finishJob(verb, v, startMinute, logFrom) {
     S.strikes.push(!!lit);
     if (S.drawer?.kind !== 'fire') openDrawer({ kind: 'fire' });
     S.drawer.result = lit ? { good: true, text: 'It caught.' } : { good: false, text: fresh.find(l => l.icon === 'ui/fire')?.text ?? cap(job.reason ?? 'It did not catch.') };
+  } else if (S.drawer?.kind === 'forage') {
+    S.drawer.done = { job, lines: fresh, walked: verb.kind === 'walkabout' };
   } else if (S.drawer?.kind === 'job' && S.drawer.verbId === verb.id) {
     S.drawer.done = { outcome: job.outcome, reason: job.reason, minutes: v.minute - startMinute, lines: fresh };
   } else if (job.outcome === 'interrupted' || job.outcome === 'refused' || job.kind === 'fight' && !v.combat) {
@@ -204,6 +211,7 @@ function dockVerbs(v) {
   else if (light) out.push(verbButton(light, { name: 'Start fire', sub: light.odds ? `${pct(light.odds.totalPct)} chance` : verbTime(light), key: 'F', open: 'fire' }));
   for (const t of v.locationFeatures) {
     if (t.kind === 'fire' || t.menu.length === 0) continue;
+    if (isForage(v, t)) { out.push(verbButton(t.menu[0], { name: 'Forage', sub: v.forage.quality ? `${v.forage.quality} ground` : 'search the ground', key: 'G', open: 'forage' })); continue; }
     if (t.action) { const a = t.menu.find(x => x.id === t.action); out.push(verbButton(a, { sub: a.refused ? '' : a.label.toLowerCase() === t.name.toLowerCase() ? verbTime(a) : `${t.name} · ${verbTime(a)}`, key: a.kind === 'gather' && a.label === 'Forage' ? 'G' : '' })); }
     else if (t.interact) out.push(verbButton({ ...t.menu[0], label: cap(t.name), refused: null }, { name: cap(t.name), sub: `${t.menu.length} things to do`, open: `feature:${v.locationFeatures.indexOf(t)}` }));
   }
@@ -233,7 +241,7 @@ function renderDock() {
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-verb],[data-open],[data-act]');
   if (!b || S.busy && b.dataset.act !== 'stop') return; // while time runs, only Stop
-  if (b.dataset.verb) return run(b.dataset.verb);
+  if (b.dataset.verb) return run(b.dataset.verb, b.dataset.forage ? { minutes: S.forage.mins } : {});
   if (b.dataset.open) {
     const o = b.dataset.open;
     if (o.startsWith('feature:')) { S.openFeature = +o.slice(8); return openDrawer({ kind: 'here' }); }
@@ -257,7 +265,7 @@ document.addEventListener('click', e => {
 // ---------------------------------------------------------------- the drawer
 
 function openDrawer(d) { S.drawer = d; render(); }
-function closeDrawer() { if (S.drawer?.kind === 'job' && S.busy) return; S.drawer = null; S.selected = null; render(); }
+function closeDrawer() { if ((S.drawer?.kind === 'job' || S.drawer?.kind === 'forage') && S.busy) return; S.drawer = null; S.selected = null; render(); }
 function head(ic, title, extra = '') {
   $('sideHead').innerHTML = `${img(ic, 'ico x2')}<h2>${px(title)}</h2>${extra}<button class="xbtn" data-act="close" aria-label="Close">ESC</button>`;
 }
@@ -291,7 +299,7 @@ function renderDrawer() {
   const d = S.drawer, v = S.view;
   $('drawer').hidden = !d || !!v.combat;
   if (!d || v.combat) return;
-  ({ here: renderHere, fire: renderFire, trip: renderTrip, place: renderPlace, make: renderMake, body: renderBody, pack: renderPack, log: renderLog, save: renderSave, job: renderJob }[d.kind])(d, v);
+  ({ here: renderHere, fire: renderFire, trip: renderTrip, place: renderPlace, make: renderMake, body: renderBody, pack: renderPack, log: renderLog, save: renderSave, job: renderJob, forage: renderForage }[d.kind])(d, v);
 }
 
 function fireBlock(v) {
@@ -310,6 +318,7 @@ function renderHere(d, v) {
     const conds = t.conditions.map(c => `<span class="cond">${esc(c.name)}</span>`).join('');
     const action = t.action ? t.menu.find(x => x.id === t.action) : null;
     const open = S.openFeature === i;
+    if (isForage(v, t)) return menuItem(t.menu[0], { name: 'Forage', sub: v.forage.quality ?? '', open: 'forage' });
     if (action && !conds && action.label.toLowerCase() === t.name.toLowerCase()) return menuItem(action);
     return `<div class="feature"><div class="feature-h"><b>${px(cap(t.name))}</b>${conds}
         ${action ? '' : t.interact ? `<button class="xbtn" data-act="menu" data-i="${i}">${open ? 'CLOSE' : 'INTERACT'}</button>` : t.menu.length === 0 ? '<span class="muted">nothing to do</span>' : ''}</div>
@@ -491,6 +500,57 @@ async function renderSave(d) {
     ${d.note ? `<p class="note" id="saveNote">${esc(d.note)}</p>` : ''}`;
 }
 
+/** The forage ground's feature: the one whose menu holds the forage screen's Keep Walking. */
+const isForage = (v, t) => v.forage && t.menu.some(x => x.id === v.forage.walkVerb);
+
+// The forage screen (old ForageOverlay, in the prototype's style): the ground's word and how hard it has been
+// searched, what you notice, what to look for and how long, then the finds as they turn up.
+function renderForage(d, v) {
+  const f = v.forage, running = S.busy, job = running ? v.job : d.done?.job;
+  if (!f) { closeDrawer(); return; }
+  const focus = forageFocus(f);
+  S.forage.focus = focus.focus;
+  head('ui/foraging', `Forage · ${v.place.name}`, costChip(dur(S.forage.mins)));
+  const showFinds = job && job.kind === 'gather';
+  const done = showFinds ? Math.min(1, job.doneMinutes / (job.totalMinutes || 1)) : 0;
+  const finds = showFinds ? job.finds ?? [] : [];
+  const lines = d.logFrom ? v.log.filter(l => !d.logFrom.has(logKey(l))) : [];
+  const rare = lines.filter(l => l.kind === 'rare'), told = !running && d.done && !d.done.walked ? lines.filter(l => l.kind !== 'rare' && l.icon !== 'ui/foraging' || (l.icon === 'ui/foraging' && finds.length === 0)) : [];
+  const mood = job?.mood;
+  const clues = f.clues.map(c => c.focus
+    ? `<button class="clue" data-focusname="${esc(c.focus)}" ${running ? 'disabled' : ''} ${tip(c.text, [`Look for ${c.focus}`])}>${img('ui/inspect')}<span>${esc(c.text)}</span></button>`
+    : `<div class="clue still">${img(c.kind === 'scavenge' ? 'carcass' : c.kind === 'game' ? 'ui/tracks' : 'ui/inspect')}<span>${esc(c.text)}</span></div>`).join('');
+  $('sideBody').innerHTML = `
+    <div class="sec"><div class="sec-h"><span class="label">The ground</span><span class="aside">${esc(f.effort)}</span></div>
+      <p class="ground">${f.quality ? `Resources look <b>${esc(f.quality)}</b>.` : 'You haven\'t foraged here yet.'}</p></div>
+    ${clues ? section('You notice', `<div class="clues">${clues}</div>`) : ''}
+    <div class="sec"><span class="label">Look for</span><div class="chips">${f.foci.map(x => `<button class="chip" data-focus="${x.focus}" aria-pressed="${x.focus === focus.focus}" ${running ? 'disabled' : ''} ${tip(cap(x.focus), [x.hint])}><img class="ico" src="${src(FOCUS_ICON[x.focus] ?? 'ui/foraging')}" alt="">${esc(x.focus === 'anything' ? 'General' : cap(x.focus))}</button>`).join('')}</div>
+      <p class="note">${esc(focus.hint)}</p></div>
+    <div class="sec"><span class="label">How long</span><div class="chips">${(byId(focus.verb)?.durations ?? []).map(m => `<button class="chip" data-mins="${m}" aria-pressed="${S.forage.mins === m}" ${running ? 'disabled' : ''}>${dur(m)}</button>`).join('')}</div></div>
+    <div class="run">
+      <div class="runbar ${!running && d.done ? 'ok' : ''}"><span class="fill" style="width:${done * 100}%"></span><span class="ticks10"></span></div>
+      <div class="runmeta">${mood ? `<span class="mood ${job.luck === 'lean' ? 'thin' : 'good'}">${esc(mood)}</span>` : running ? '<span class="mood wait">Searching</span>' : job?.outcome === 'stopped' ? '<span class="mood wait">Stopped</span>'
+        : job && (job.outcome === 'interrupted' || job.outcome === 'refused') && job.reason ? `<span class="mood thin">${esc(cap(job.reason))}</span>` : '<span></span>'}<span class="num">${showFinds ? `${(job.foundKg ?? 0).toFixed(2)} kg` : ''}</span></div>
+    </div>
+    <div class="found">${finds.length || rare.length ? '' : `<span class="empty">${told.length ? esc(told[told.length - 1].text) : 'Finds appear here as you search.'}</span>`}
+      ${rare.map(l => `<div class="item rare">${img(l.icon)}<span>${esc(l.text)}</span></div>`).join('')}
+      ${finds.map(x => `<div class="item ${x.category}">${img(stackIcon(x.resource))}${esc(cap(x.name))}<span class="n">×${x.count}</span></div>`).join('')}</div>
+    <div class="row">${running ? `<button class="act quiet" data-act="stop">Stop <span class="key">Esc</span></button>`
+      : `<button class="act" data-verb="${focus.verb}" data-forage="1">Search <span class="key">G</span></button><button class="act quiet" data-verb="${f.walkVerb}" ${tip('Keep walking', ['Spend 5 minutes walking to find new clues'])}>Keep walking (5 min) <span class="key">K</span></button>`}</div>
+    ${section('Your search', oddsSheet(f.yield, { title: "A minute's search" }))}`;
+}
+/** The chosen focus, or General where the ground does not offer it. */
+const forageFocus = f => f.foci.find(x => x.focus === S.forage.focus) ?? f.foci[f.foci.length - 1];
+const FOCUS_ICON = { fuel: 'ui/sticks', food: 'ui/food', medicine: 'ui/medicine', materials: 'ui/materials', anything: 'ui/foraging' };
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-focus],[data-mins],[data-focusname]');
+  if (!b || S.busy || S.drawer?.kind !== 'forage') return;
+  if (b.dataset.focus) S.forage.focus = b.dataset.focus;
+  else if (b.dataset.mins) S.forage.mins = +b.dataset.mins;
+  else S.forage.focus = b.dataset.focusname;
+  renderDrawer();
+});
+
 function renderJob(d, v) {
   const job = v.job;
   const done = job?.doneMinutes ?? 0, total = job?.totalMinutes;
@@ -615,7 +675,7 @@ document.addEventListener('keydown', e => {
     closeVeil();
     if (does === 'close') { e.preventDefault(); return; }
   }
-  if (k === 'Escape') { if (S.busy && S.drawer?.kind === 'job') S.stop = true; else closeDrawer(); return; }
+  if (k === 'Escape') { if (S.busy && (S.drawer?.kind === 'job' || S.drawer?.kind === 'forage')) S.stop = true; else closeDrawer(); return; }
   if (S.busy || v.combat) return;
   const arrows = { ArrowUp: 'north', ArrowRight: 'east', ArrowDown: 'south', ArrowLeft: 'west' };
   if (arrows[k]) {
@@ -630,7 +690,8 @@ document.addEventListener('keydown', e => {
     const light = lightVerb(v);
     if (S.drawer?.kind === 'fire' && light && !v.fire?.burning) run(light.id); else openDrawer({ kind: 'fire' });
   }
-  else if (key === 'g') { const f = v.locationFeatures.flatMap(t => t.menu).find(x => x.label === 'Forage'); if (f) run(f.id); }
+  else if (key === 'g') { if (S.drawer?.kind === 'forage') run(forageFocus(v.forage).verb, { minutes: S.forage.mins }); else if (v.forage) openDrawer({ kind: 'forage' }); }
+  else if (key === 'k') { if (S.drawer?.kind === 'forage' && v.forage) run(v.forage.walkVerb); }
   else if (key === 'z') { const s = v.tile.find(x => x.kind === 'sleep'); if (s) run(s.id); }
   else if (key === 'w') { const s = v.tile.find(x => x.kind === 'wait'); if (s) run(s.id); }
   else if (key === 'm') S.drawer?.kind === 'make' ? closeDrawer() : openDrawer({ kind: 'make' });
