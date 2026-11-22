@@ -235,6 +235,8 @@ public static class Ground
     /// nobody had ever trodden or dug it. Cheap (one cached state per class) and never written.
     public static double TraversalFactorEstimate(World world, TileId tile) => Underfoot(world, tile, Estimate).TraversalFactor;
 
+    public static double HazardDeltaEstimate(World world, TileId tile) => HazardDelta(world, tile, Estimate);
+
     static GroundState Estimate(World world, TileId tile) =>
         Unobserved(world, tile, Substrate(Map.Of(world), tile), world.Minute / StepMinutes * StepMinutes);
 

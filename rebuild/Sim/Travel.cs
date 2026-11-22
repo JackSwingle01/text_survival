@@ -70,7 +70,7 @@ public static class Traversal
             Dir = t.Dir,
             Pace = t.Pace,
             TotalMinutes = FlightMinutesPerTile(agent)
-                ?? CrossingMinutes(world, PaceBody(agent), from, to, t.Pace, sky, Items.EncumbrancePct(agent), GroundReadOf(agent, observe: true)),
+                ?? CrossingMinutes(world, PaceBody(agent), from, to, t.Pace, sky, Items.EncumbrancePct(agent), GroundReadOf(agent, GroundRead.Observe)),
             RiskPct = stumbles ? InjuryRiskPct(world, to, agent.Body, sky, t.Pace) : 0,
         };
     }
@@ -118,8 +118,7 @@ public static class Traversal
         Trip.Terms(world, body, from, to, pace, sky, encumbrancePct, ground).TotalMinutes;
 
     /// Animals read the weather-only estimate (decision 2026-11-22-animals-read-the-ground-estimate).
-    public static GroundRead GroundReadOf(Agent agent, bool observe) =>
-        agent.Mind is PersonMind ? observe ? GroundRead.Observe : GroundRead.Look : GroundRead.Estimate;
+    public static GroundRead GroundReadOf(Agent agent, GroundRead person) => agent.Mind is PersonMind ? person : GroundRead.Estimate;
 
     public static int SegmentMinutes(GeneratedMap m, TileId tile, double speed, WeatherSample sky)
     {

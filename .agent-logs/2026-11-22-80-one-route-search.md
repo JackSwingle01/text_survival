@@ -26,3 +26,7 @@ Revised: `ArchitectureTests.OnlyExposure_CombinesSkyTileShelterAndFire` (pre-exi
 Revised: `CommentHygieneTests` held Travel.cs at 12% comments → trimmed the new doc comments.
 Revised: the 30-day budget test (`ThirtyPopulatedDays_StayCheap`, seed 17) passes unchanged at its 6000 MB budget; measured by the probe at 4928 MB (main 4134 MB), save 835 KB, so the budget is not re-baselined.
 Follow-up: an NPC beside a pack resting two tiles away dithers between fleeing and its goal (Npc.Threat within ThreatTiles, then the warmth walk back), and dies asleep there; the shared planner's threat refusal (#87) should replace the flee-then-return rule.
+Revised (review): the edge-plus-trail sum was written three times (Terms, Pricer, Traversal.EdgeMinutes) → `Join` takes one edge total; Pricer reads `Traversal.EdgeMinutes`.
+Revised (review): animals at a careful pace still read the hazard from the tile's own ground (Peek), against the new decision record → `Ground.HazardDeltaEstimate` for `GroundRead.Estimate`.
+Revised (review): combat flight's drift (`CombatFlight.Drift`) still used the walker block rule, so a flyer fled a fight by walkers' rules → `Traversal.Blocked`.
+Revised (review): `GroundReadOf(agent, bool observe)` turned a flag back into the enum beside it → it takes the person's `GroundRead`; stale Trip comments naming `observe` fixed; `RouteMap.Origin` (no callers) removed; WalkLegs' redundant `routes.Into` dropped; Pricer reads its body's speed once.

@@ -23,8 +23,8 @@ public sealed record TripTime(int WalkingMinutes, int TerrainMinutes, int Weathe
 /// How a crossing reads the ground (Trip.Terms).
 public enum GroundRead { Look, Observe, Estimate }
 
-/// A crossing as seen before it is made. Reads only: the ground is looked at (Ground.Peek), never observed.
-// The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(..., observe: true).TotalMinutes.
+/// A crossing as seen before it is made, and the routes made of crossings. Previews look at the ground (Ground.Peek).
+// The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(..., GroundRead.Observe).TotalMinutes.
 public static class Trip
 {
     public static TripTime Time(World world, AgentId who, Direction dir, Pace pace)
@@ -43,7 +43,7 @@ public static class Trip
         var still = sky with { WindLevel = 0, PrecipitationPct = 0 }; // no wind or precipitation to slow a walk
         var (exit, entry) = (Segment(from), Segment(to));
         int edge = m.EdgeBetween(from, to)?.TraversalMinutes() ?? 0, trail = Tracks.TrailMinutes(world, from, to);
-        var (rounded, careful) = Join(HalfOf(world, from, body, speed, sky, ground, pace), HalfOf(world, to, body, speed, sky, ground, pace), edge, trail);
+        var (rounded, careful) = Join(HalfOf(world, from, body, speed, sky, ground, pace), HalfOf(world, to, body, speed, sky, ground, pace), edge + trail);
         int whole = exit.Minutes + entry.Minutes + edge + trail;
         return new TripTime(exit.Walking + entry.Walking, exit.Terrain + entry.Terrain, exit.Weather + entry.Weather,
             exit.Pace + entry.Pace, exit.Load + entry.Load, careful, edge, trail,
@@ -73,17 +73,22 @@ public static class Trip
             GroundRead.Estimate => Ground.TraversalFactorEstimate(world, tile),
             _ => Ground.TraversalFactorNow(world, tile),
         };
-        double Hazard() => ground == GroundRead.Observe ? Traversal.EffectiveHazardLevel(world, tile) : HazardNow(world, tile);
+        double Hazard() => ground switch
+        {
+            GroundRead.Observe => Traversal.EffectiveHazardLevel(world, tile),
+            GroundRead.Estimate => Traversal.HazardLevel(Map.Of(world), tile, world.Minute, Ground.HazardDeltaEstimate(world, tile)),
+            _ => HazardNow(world, tile),
+        };
         bool slow = pace == Pace.Careful && Traversal.PaceMatters(Traversal.InjuryOdds(Hazard(), body, sky, Pace.Quick).TotalPct);
         return new Half(Traversal.SegmentMinutes(Map.Of(world), tile, speed, sky), factor, slow);
     }
 
     /// The crossing from its two halves: the walk with the ground, rounded up; care slows both halves of risky
     /// ground on top of the five-minute floor (only the tile walked onto is rolled for).
-    static (int Rounded, int Careful) Join(Half exit, Half entry, int edge, int trail)
+    static (int Rounded, int Careful) Join(Half exit, Half entry, int edgeMinutes)
     {
         double surface = exit.Minutes * (exit.GroundFactor - 1) + entry.Minutes * (entry.GroundFactor - 1);
-        int rounded = (int)Math.Ceiling(exit.Minutes + entry.Minutes + edge + trail + surface);
+        int rounded = (int)Math.Ceiling(exit.Minutes + entry.Minutes + edgeMinutes + surface);
         return (rounded, (exit.Slow ? Careful(exit.Minutes) : 0) + (entry.Slow ? Careful(entry.Minutes) : 0));
     }
 
@@ -92,22 +97,23 @@ public static class Trip
     sealed class Pricer(World world, Agent agent, Pace pace, WeatherSample sky)
     {
         readonly BodyState body = Traversal.PaceBody(agent);
-        readonly double speed = Body.Speed(Traversal.PaceBody(agent), new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)));
-        readonly GroundRead ground = Traversal.GroundReadOf(agent, observe: false);
+        double? speed;
+        double Speed => speed ??= Body.Speed(body, new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)));
+        readonly GroundRead ground = Traversal.GroundReadOf(agent, GroundRead.Look);
         readonly int? flight = Traversal.FlightMinutesPerTile(agent);
         readonly Dictionary<TileId, Half> halves = [];
-        readonly GeneratedMap map = Map.Of(world);
 
         public int Minutes(TileId from, TileId to)
         {
             if (flight is int flat) return flat;
-            var (rounded, careful) = Join(HalfAt(from), HalfAt(to), map.EdgeBetween(from, to)?.TraversalMinutes() ?? 0, Tracks.TrailMinutes(world, from, to));
+            var (rounded, careful) = Join(HalfAt(from), HalfAt(to), Traversal.EdgeMinutes(world, from, to));
             return Math.Max(rounded, Traversal.MinimumCrossingMinutes) + careful;
         }
 
         Half HalfAt(TileId tile)
         {
-            if (!halves.TryGetValue(tile, out var half)) halves[tile] = half = HalfOf(world, tile, body, speed, sky, ground, pace);
+            if (!halves.TryGetValue(tile, out var half))
+                halves[tile] = half = HalfOf(world, tile, body, Speed, sky, ground, pace);
             return half;
         }
     }
@@ -194,7 +200,6 @@ public static class Trip
 public sealed class RouteMap(TileId origin, bool into, IReadOnlyDictionary<TileId, int> minutes,
     IReadOnlyDictionary<TileId, TileId> previous, double kcalPerMinute)
 {
-    public TileId Origin => origin;
     public bool Into => into;
     /// Settled tiles only: each is the least minutes there is.
     public IReadOnlyDictionary<TileId, int> Minutes => minutes;

@@ -259,7 +259,7 @@ public static class Npc
             var routes = from == Here ? FromHere() : ToSite(to);
             var end = from == Here ? to : from;
             if (!routes.Reaches(end)) yield break;
-            var path = from == Here || routes.Into ? routes.RouteTo(end) : routes.RouteBack(end);
+            var path = from == Here ? routes.RouteTo(end) : routes.RouteBack(end);
             var at = from;
             foreach (var next in path)
             {
