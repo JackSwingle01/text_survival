@@ -86,6 +86,32 @@ Each waits until the restores before it are done.
    illogical. The old recipes are the starting point; inputs are discrete pieces.
 3. **The fire as a workbench:** the jobs in `dev/active/short-loop-plan.md` §6 and the campfire drying
    slot, together with the curing rack.
+4. **Animal life** (after the foraging restore). The brief, decided by the user on 2026-11-22. Why:
+   the user expects emergence from animals travelling to water and food, sleeping at their natural
+   times, avoiding predators and seeking prey.
+   - **Body needs are shared components**, used by people, NPCs and animals alike: hunger (calories,
+     fat, then organ damage), thirst (hydration, then organ damage), rest (energy, sleep) and warmth
+     (left off animals for now). Which components a kind of body has is set in code, not data: it
+     does not vary meaningfully between species.
+   - **Starvation comes from the body** for every species. It replaces the wolves-only starvation
+     rule in Renewal (`Renewal.cs:68-74`) and the "shortfall ignored" floor in animal metabolism
+     (`BodySurvival.cs:384-390`; animals run `Fauna.Tick` in place of `Body.Tick`, `Sim.cs:264-272`).
+   - **One shared planner for seeking a need**, used by NPCs and animals: where to meet it and whether
+     the trip is worth it (travel plus the time to satisfy it, judged against staying put). Routes
+     and step times are already shared (`Trip`, `Travel`). Sources per need: food (grazing ground,
+     prey, carcasses), water (rivers, lakes, wet tiles), rest (a den if the herd has one, else where
+     it stands).
+   - **Herds rank their needs** on a simple version of the tier ladder. Herd-only behaviour stays in
+     the herd mind: fleeing, hunting together, pack cohesion, defending a kill.
+   - **Sleep follows the species' activity pattern** (diurnal, nocturnal or crepuscular; see
+     "Activity patterns" under "Decided in the 2026-11-21 grilling"), at the den if there is one,
+     otherwise where the herd stands.
+   - **Thirst is added**, with real water sources.
+   - **Grazing stops** where the forage odds are low enough. Today an eaten-out tile still feeds in
+     full (`Fauna.cs:291-292`, `323-324`).
+   - **Ravens fly**: they leave no prints.
+   - **After the shared planner exists, review the NPC mind** so NPCs and animals do not keep two
+     copies.
 
 Crippling injuries already has one (above).
 
@@ -96,6 +122,11 @@ user, who did not know they existed. Everything built from that design goes on t
 list as flagged changes, and a design-review session comes before any more of it is built. Until
 then no further emergent-world step starts: not step 3b (settling), step 4's remainder, or steps 5-6
 (roadmap items 7, 9 and 10 below wait on the session).
+
+The user reviewed the emergent-world overview on 2026-11-22. The design matches what was discussed,
+on the condition that everything ends up integrated, not cobbled together. The ravens, renewal and
+signs findings feed the Animal life (4) and Predators and items (1) design sessions above. The hold
+on further steps stays until those sessions are held.
 
 What was built:
 
