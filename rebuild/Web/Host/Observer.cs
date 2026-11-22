@@ -16,7 +16,7 @@ public sealed class Observer
     long? _groundSentMinute;
     readonly List<ObserverLogDto> _log = [];
 
-    public const int MaxLog = 200;
+    public const int MaxLog = 200, LogShown = 60;
 
     /// What the spawn tool can put on a tile: one row per kind, so a herd or an item is a new row. Each
     /// makes its thing on a passable tile; the tile is checked before it is asked.
@@ -56,7 +56,7 @@ public sealed class Observer
     {
         var w = W;
         return JsonSerializer.Serialize(new ObserverViewDto(w.Minute, ViewBuilder.ClockOf(w, Weather.At(w, w.Minute)), Actors(), Places(),
-            GroundIfChanged(), [.. _log.TakeLast(60)]), HostJson.Default.ObserverViewDto);
+            GroundIfChanged(), [.. _log.TakeLast(LogShown)]), HostJson.Default.ObserverViewDto);
     }
 
     /// Runs the world on for this many minutes with nobody acting for the player (Sim.Advance), then
@@ -66,8 +66,7 @@ public sealed class Observer
     {
         var w = W;
         var events = Sim.Advance(w, minutes);
-        foreach (var (id, f) in w.Fires.ToList())
-            if (f.CarriedBy == null) Fire.CatchUp(w, id, events);
+        Fire.CatchUpAll(w, events);
         foreach (var e in events)
             if (Journal.Files(e) && Narration.Of(w, e) is { } line) _log.Add(new ObserverLogDto(e.Tile.X, e.Tile.Y, Words.Log(line)));
         if (_log.Count > MaxLog) _log.RemoveRange(0, _log.Count - MaxLog);
@@ -98,7 +97,7 @@ public sealed class Observer
         if (!m.InBounds(t)) throw new ArgumentException($"Tile {x},{y} is off the map");
         var features = LocationFeatures.At(w, t).Select(f => new TileFeatureDto(f.Kind.ToString().ToLowerInvariant(), Verbs.NameOf(w, f),
             f.Kind == LocationFeatureKind.Pool && !w.Agents.Values.Any(a => a.Mind is PersonMind && Pools.Knows(w, a.Id, new PoolId(t, f.Index))))).ToList();
-        var actors = w.Agents.Values.Where(a => a.Tile == t && a.Members.Count > 0 && (Sim.IsAlive(a) || a.Mind is HerdMind))
+        var actors = w.Agents.Values.Where(a => a.Tile == t && Shown(a))
             .Select(a => new ActorDetailDto(a.Id.Value, Names.Cap(Cause.Describe(w, a.Id)), Doing(a), Insides(a))).ToList();
         var fire = Fire.PitAt(w, t) is FireId id ? ViewBuilder.FireOf(w.Fires[id]) : null;
         return JsonSerializer.Serialize(new TileDto(x, y, Map.Describe(m, t), Names.Title(m.TerrainAt(t)), Map.DiscoveryText(w, t), fire, features, actors),
@@ -142,8 +141,7 @@ public sealed class Observer
         var list = new List<ActorDto>();
         foreach (var (id, a) in w.Agents)
         {
-            if (!Sim.IsAlive(a) && a.Mind is not HerdMind) continue; // a dead person is a body, listed on its tile
-            if (a.Members.Count == 0) continue;
+            if (!Shown(a)) continue;
             var to = a.Crossing is { } c ? Map.Step(c.From, c.Dir) : (TileId?)null;
             list.Add(new ActorDto(id.Value, a.Mind is HerdMind ? "herd" : "npc", Words.SpeciesIcon(a.Species), Names.Cap(Cause.Describe(w, id)),
                 a.Tile.X, a.Tile.Y, a.Members.Count, Doing(a), (a.Mind as HerdMind)?.State is HerdState s ? Words.Of(s) : null,
@@ -151,6 +149,9 @@ public sealed class Observer
         }
         return list;
     }
+
+    /// An actor on the map: a living person, or a herd with members left. A dead person is a body, listed on its tile.
+    static bool Shown(Agent a) => a.Members.Count > 0 && (a.Mind is HerdMind || Sim.IsAlive(a));
 
     /// An activity in words: "travel north", "gather", or "deciding" between activities.
     static string Doing(Agent a) => Sim.ActivityOf(a) switch

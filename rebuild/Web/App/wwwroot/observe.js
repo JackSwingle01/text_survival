@@ -45,13 +45,15 @@ function commitGround(force) {
   S.ground = S.pendingGround; S.pendingGround = null; S.groundAt = performance.now();
 }
 
-/** One call to the world at a time: pause, step and clicks wait for the call in flight. */
-async function call(fn) {
-  if (S.busy) return null;
-  S.busy = true;
-  try { return await fn(); }
-  catch (e) { toast(e.message); console.error(e); return null; }
-  finally { S.busy = false; }
+/** One call to the world at a time: a click while time runs waits its turn behind the call in flight.
+ * A refusal (spawning on a mountain) is shown, never dropped; S.busy says a call is queued or running. */
+let queue = Promise.resolve(), queued = 0;
+function call(fn) {
+  queued++; S.busy = true;
+  queue = queue.then(fn)
+    .catch(e => { toast(e.message); console.error(e); return null; })
+    .finally(() => { S.busy = --queued > 0; });
+  return queue;
 }
 
 async function advance(minutes) {
@@ -60,7 +62,7 @@ async function advance(minutes) {
   if (!v) return;
   pacer.ran(minutes, performance.now() - t0);
   apply(v);
-  if (S.selected && performance.now() - S.inspectedAt > INSPECT_EVERY_MS) inspect(S.selected, true);
+  if (S.selected && performance.now() - S.inspectedAt > INSPECT_EVERY_MS) inspect(S.selected);
 }
 
 async function newWorld(seed) {
@@ -76,10 +78,10 @@ async function newWorld(seed) {
   const u = new URL(location.href); u.searchParams.set('seed', seed); history.replaceState(null, '', u);
 }
 
-async function inspect(t, quiet = false) {
+async function inspect(t) {
   S.selected = t;
-  const d = await (quiet ? obs.inspect(t.x, t.y).catch(() => null) : call(() => obs.inspect(t.x, t.y)));
   S.inspectedAt = performance.now();
+  const d = await call(() => obs.inspect(t.x, t.y));
   if (d) { S.inspected = d; renderInspector(); }
 }
 
@@ -88,7 +90,7 @@ async function spawnAt(t, keepArmed) {
   if (!v) return;
   apply(v);
   if (!keepArmed) { S.armed = null; renderSpawns(); }
-  inspect(t, true);
+  inspect(t);
 }
 
 // ---------------------------------------------------------------- time

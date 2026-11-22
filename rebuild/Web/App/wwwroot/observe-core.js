@@ -60,7 +60,7 @@ export function createPacer({ targetMs = 100, windowMs = 3000 } = {}) {
       if (span <= 0) return 0;
       return history.filter(h => h.t > now - windowMs).reduce((s, h) => s + h.minutes, 0) / (span / 1000);
     },
-    /** Forgets banked time (on pause, or a new rate). */
-    reset() { debt = 0; },
+    /** Forgets banked time and the achieved rate (on play, pause, or a new rate); keeps what calls cost. */
+    reset() { debt = 0; start = null; history.length = 0; },
   };
 }

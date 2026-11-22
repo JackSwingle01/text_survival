@@ -60,3 +60,12 @@ test('the pacer reports the rate it actually achieved over the last few seconds'
   for (let i = 0; i < 10; i++) { t += 500; p.ran(30, 5, t); }
   assert.equal(Math.round(p.achieved(t)), 60);
 });
+
+test('after a pause the achieved rate counts only from the restart', () => {
+  const p = createPacer();
+  let t = 0;
+  for (let i = 0; i < 10; i++) { t += 500; p.ran(30, 5, t); }
+  p.reset(); // paused, then played again
+  t += 10000; p.ran(30, 5, t); t += 500; p.ran(30, 5, t);
+  assert.equal(Math.round(p.achieved(t)), 120); // 60 minutes over the half second since the restart
+});
