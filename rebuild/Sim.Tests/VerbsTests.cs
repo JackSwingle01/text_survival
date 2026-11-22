@@ -351,4 +351,24 @@ public class VerbsTests
         Sim.Step(w, quick.Activity, 1);
         Assert.Equal(quick.Risk.TotalPct, w.Agent(P).Crossing!.RiskPct);
     }
+
+    /// A thing on a tile is called the same whoever looks: NameOf, which needs no one standing there,
+    /// gives every name Verbs.At lists for the person who is.
+    [Fact]
+    public void NameOf_GivesTheNamesVerbsAtLists()
+    {
+        var w = Camp(out var camp);
+        Agents.Spawn(w, Species.Wolf, camp, 2);
+        Npc.Spawn(w, camp);
+        var pit = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, Pit = PitType.Open };
+        Fire.AddFuel(pit, Resource.Kindling, 1);
+        Fire.IgniteAll(pit);
+        w.Fires[new FireId(w.NextFireId++)] = pit;
+
+        var listed = Verbs.At(w, P).LocationFeatures;
+        Assert.Contains(listed, t => t.LocationFeature.Kind == LocationFeatureKind.Fire);
+        Assert.Contains(listed, t => t.LocationFeature.Kind == LocationFeatureKind.Shelter);
+        Assert.True(listed.Count(t => t.LocationFeature.Kind == LocationFeatureKind.Agent) == 2, "the wolves and the NPC");
+        foreach (var t in listed) Assert.Equal(t.Name, Verbs.NameOf(w, t.LocationFeature));
+    }
 }

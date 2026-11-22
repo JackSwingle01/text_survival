@@ -13,12 +13,13 @@ export const TERRAIN = { F: 'forest', C: 'clearing', P: 'plain', H: 'hills', W: 
 
 const CHUNK = 8;          // cells per chunk side
 const BUDGET_MS = 6;      // baking per frame
+const MAX_CHUNKS = 160;   // baked chunks kept (each ~0.6 MB); the least recently drawn go first
 
 export function createTerrain() {
   const textures = new Map();
   let wanted = null, wantedFor = null;
-  const chunks = new Map(); // "cx,cy" -> { canvas, sig, job }
-  let baker = null, bakerFor = null;
+  const chunks = new Map(); // "cx,cy" -> { canvas, sig, job, drawn }
+  let baker = null, bakerFor = null, frame = 0;
 
   function load(world) {
     for (const name of textureNames(world)) {
@@ -77,11 +78,13 @@ export function createTerrain() {
       bakerFor = m.known + key;
     }
     const todo = [];
+    frame++;
     for (let cy0 = Math.floor(y0 / CHUNK) * CHUNK; cy0 <= y1; cy0 += CHUNK)
       for (let cx0 = Math.floor(x0 / CHUNK) * CHUNK; cx0 <= x1; cx0 += CHUNK) {
         const id = `${cx0},${cy0}`, sig = signature(m, cx0, cy0, ground, world);
         let ch = chunks.get(id);
-        if (!ch) chunks.set(id, ch = { canvas: null, sig: null, job: null });
+        if (!ch) chunks.set(id, ch = { canvas: null, sig: null, job: null, drawn: 0 });
+        ch.drawn = frame;
         if (ch.sig !== sig && ch.job?.sig !== sig) {
           const xb = Math.min(m.width, cx0 + CHUNK), yb = Math.min(m.height, cy0 + CHUNK), cells = [];
           for (let y = cy0; y < yb; y++) for (let x = cx0; x < xb; x++) cells.push([x, y]);
@@ -94,6 +97,10 @@ export function createTerrain() {
           ctx.drawImage(ch.canvas, ox + cx0 * CELL, oy + cy0 * CELL);
         }
       }
+    // Panning across a big map at a wide zoom would otherwise keep every chunk ever baked.
+    if (chunks.size > MAX_CHUNKS)
+      for (const [id] of [...chunks].filter(([, c]) => c.drawn !== frame).sort((a, b) => a[1].drawn - b[1].drawn).slice(0, chunks.size - MAX_CHUNKS))
+        chunks.delete(id);
     // Bake for a few milliseconds, nearest the camera first.
     const dist = ch => Math.hypot(ch.job.x0 + CHUNK / 2 - camera.x, ch.job.y0 + CHUNK / 2 - camera.y);
     todo.sort((a, b) => dist(a) - dist(b));

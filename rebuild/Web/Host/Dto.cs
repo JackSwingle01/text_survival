@@ -154,8 +154,41 @@ public sealed record ReceiptDto(string Title, long? SinceMinute, long Minute, bo
 /// One line of the journal. Kind: plain, bad, good or rare. Icon: an icon path under icons/.
 public sealed record LogDto(long Minute, string Text, string Kind, string Icon);
 
+// ---- Observer mode (Observer.cs): development only, a world with no player drawn as it truly is ----
+
+/// What never changes in an observer world, sent once by New: the terrain of every tile (MapDto.Known's
+/// codes, none of them unknown), the named places, the camp, and what can be spawned.
+public sealed record ObserverMapDto(int Width, int Height, string Terrain, int CampX, int CampY, IReadOnlyList<NamedDto> Named,
+    IReadOnlyList<SpawnableDto> Spawnables);
+/// One kind of thing the spawn tool can put on a tile. Id is what Spawn takes.
+public sealed record SpawnableDto(string Id, string Label);
+
+/// The observer's view after every call. Ground: null when it has not changed since the last view
+/// (it changes every Ground.StepMinutes), so the page keeps the copy it has.
+public sealed record ObserverViewDto(long Minute, ClockDto Clock, IReadOnlyList<ActorDto> Actors, IReadOnlyList<PlaceMarkDto> Places,
+    ObserverGroundDto? Ground, IReadOnlyList<ObserverLogDto> Log);
+/// Every passable tile's ground (SurfaceDto, bare tiles left out) and every frozen lake tile, now.
+public sealed record ObserverGroundDto(long Minute, IReadOnlyList<SurfaceDto> Surface, IReadOnlyList<int> FrozenWater);
+/// An NPC or a herd. Kind: npc or herd. Doing: its activity in words ("travel north"), or "deciding".
+/// State: a herd's (Fauna HerdState). Predator: Fauna.IsPredator. ToX/ToY/CrossingPct: a crossing under way, for the page to draw it moving.
+public sealed record ActorDto(int Id, string Kind, string Icon, string Name, int X, int Y, int Count, string Doing, string? State, bool Predator,
+    int? ToX = null, int? ToY = null, double? CrossingPct = null);
+/// A narrated world event and the tile it happened on.
+public sealed record ObserverLogDto(int X, int Y, LogDto Line);
+
+/// A tile as a person standing on it would find it: the place, its story, its fire, the things on it
+/// in Verbs.At's words, and who is there. Undiscovered: a pool nobody has found yet.
+public sealed record TileDto(int X, int Y, string Place, string Terrain, string? Story, FireDto? Fire, IReadOnlyList<TileFeatureDto> Features,
+    IReadOnlyList<ActorDetailDto> Actors);
+public sealed record TileFeatureDto(string Kind, string Name, bool Undiscovered);
+/// An actor on the tile, and its insides in lines: stats by tier, effects, a herd's state and hunger.
+public sealed record ActorDetailDto(int Id, string Name, string Doing, IReadOnlyList<string> Lines);
+
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(ActDto))]
 [JsonSerializable(typeof(ViewDto))]
+[JsonSerializable(typeof(ObserverMapDto))]
+[JsonSerializable(typeof(ObserverViewDto))]
+[JsonSerializable(typeof(TileDto))]
 public partial class HostJson : JsonSerializerContext;

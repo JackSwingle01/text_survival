@@ -42,6 +42,25 @@ file with `fetch` calls to the same five operations.
 - `Scenario(name)` is development only (`Host/Scenarios.cs`: `supplied`, `fight`, `dead`, `won`, `winter`), for
   screenshots and tests; the page uses it only for `?scenario=`.
 
+## Observer mode
+
+`observe.html?seed=N&npcs=K` is a development page (GLOSSARY: Observer mode): the same world with the
+player taken out, the whole map as it truly is, run at a rate in game minutes per real second. Drag to
+pan, wheel to zoom (from the whole valley to a few cells; below 24 px a cell the ground is a flat map,
+above it terrain.js's painted chunks), Space plays, `.` steps one second's worth. The Spawn buttons arm
+a kind (one row per kind in `Host/Observer.cs`'s `Spawnables`: an NPC today), then a click places it
+(Shift-click for several). Clicking a tile lists what is there in `Verbs.NameOf`'s words, and who,
+with their tiers or herd state; the log is world events in Sim's narration with their tile.
+
+It talks to `Host/Observer.cs` through `client.js`'s `observe` calls, never to `GameHost`: the player's
+view, built from Memory, is untouched. The rate it achieves is shown beside the clock; Sim's own speed
+is the ceiling (about 26-40 game minutes a second in the AOT build with a populated valley).
+
+```bash
+node --test tools/observe.test.mjs                               # camera and pacing
+node tools/shots.mjs /tmp/text-survival-web/wwwroot --observe    # play, zoom, spawn, inspect; times the calls
+```
+
 ## The map's ground
 
 `wwwroot/terrain-core.js` draws the ground per pixel from known terrain and world pixel coordinates;

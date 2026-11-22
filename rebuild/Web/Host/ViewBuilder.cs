@@ -55,7 +55,7 @@ sealed class ViewBuilder(World world, int gen)
         return new ViewDto(
             Gen: gen,
             Minute: world.Minute,
-            Clock: Clock(sky),
+            Clock: ClockOf(world, sky),
             Feels: new FeelsDto(Math.Round(feeling.FeltF, 1), [.. feeling.Terms.Select(t => new FeelsTermDto(t.Factor, Math.Round(t.DeltaF, 1)))]),
             Vitals: Vitals(body, tiers, exposure),
             Alerts: Alerts(body, tiers, sky),
@@ -168,7 +168,8 @@ sealed class ViewBuilder(World world, int gen)
 
     // ---- the always-on layer ----
 
-    ClockDto Clock(WeatherSample sky)
+    /// The clock and sky: the same for the player's view and the observer's.
+    public static ClockDto ClockOf(World world, WeatherSample sky)
     {
         int mod = Weather.MinuteOfDay(world.Minute);
         return new ClockDto(Weather.DayNumber(world.Minute), mod, Names.Title(Weather.SeasonAt(world.Minute)), Names.Title(sky.Condition),
@@ -236,7 +237,11 @@ sealed class ViewBuilder(World world, int gen)
     FireDto? FireHere()
     {
         if (Fire.PitAt(world, _player.Tile) is not FireId id) return null;
-        var f = world.Fires[id];
+        return FireOf(world.Fires[id]);
+    }
+
+    public static FireDto FireOf(FireState f)
+    {
         var phase = Fire.Phase(f);
         return new FireDto(Names.Title(phase), Fire.Burns(phase), Math.Round(Fire.FuelHours(f), 2), Math.Round(Fire.TemperatureF(f)), Math.Round(f.CharcoalKg, 2));
     }
@@ -278,8 +283,7 @@ sealed class ViewBuilder(World world, int gen)
             for (int x = 0; x < m.Width; x++)
             {
                 var t = new TileId(x, y);
-                known.Append(!Explored(t) ? UnknownCode
-                    : m.CaveAt(t) == Cave.Floor ? CaveFloorCode : m.CaveAt(t) == Cave.Entrance ? CaveMouthCode : TerrainCodes[(int)m.TerrainAt(t)]);
+                known.Append(!Explored(t) ? UnknownCode : TerrainCode(m, t));
             }
         var visible = Sight.InView(world, _player); // the view the player's looks already cast
 
@@ -323,16 +327,28 @@ sealed class ViewBuilder(World world, int gen)
                 var t = new TileId(x, y);
                 if (!Explored(t)) continue;
                 RememberedGround Seen() => memory.Explored?.At(t) ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
-                if (m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater && m.CaveAt(t) == Cave.None
-                    && Map.IsFrozen(m, t, inSight.Contains(t) ? world.Minute : Seen().SeenMinute))
+                if (FrozenWater(m, t, inSight.Contains(t) ? world.Minute : Seen().SeenMinute))
                     frozen.Add(y * m.Width + x);
                 if (!m.TerrainAt(t).IsPassable()) continue;
-                var g = inSight.Contains(t) ? Ground.SurfaceNow(world, t) : Seen().Surface;
-                double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
-                if (snowCm > 0 || waterCm > 0 || mud > 0) surface.Add(new SurfaceDto(y * m.Width + x, snowCm, g.Crusted, mud, waterCm, g.Iced));
+                if (SurfaceOf(inSight.Contains(t) ? Ground.SurfaceNow(world, t) : Seen().Surface, y * m.Width + x) is { } s) surface.Add(s);
             }
         return new MapDto(m.Width, m.Height, known.ToString(), [.. visible.Select(t => t.Y * m.Width + t.X).Order()], m.Camp.X, m.Camp.Y,
             places, sightings, tracks, named, surface, frozen);
+    }
+
+    /// A tile's code in MapDto.Known: a cave's floor or mouth, else its terrain.
+    public static char TerrainCode(GeneratedMap m, TileId t) =>
+        m.CaveAt(t) == Cave.Floor ? CaveFloorCode : m.CaveAt(t) == Cave.Entrance ? CaveMouthCode : TerrainCodes[(int)m.TerrainAt(t)];
+
+    /// A lake or deep-water tile that is ice at this minute (MapDto.FrozenWater).
+    public static bool FrozenWater(GeneratedMap m, TileId t, long minute) =>
+        m.TerrainAt(t) is Terrain.Water or Terrain.DeepWater && m.CaveAt(t) == Cave.None && Map.IsFrozen(m, t, minute);
+
+    /// A tile's ground as the page draws it, or null for bare, dry ground (left out of MapDto.Surface).
+    public static SurfaceDto? SurfaceOf(SurfaceSummary g, int index)
+    {
+        double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
+        return snowCm > 0 || waterCm > 0 || mud > 0 ? new SurfaceDto(index, snowCm, g.Crusted, mud, waterCm, g.Iced) : null;
     }
 
     public static string TrackIcon(TrackMaker m) => m switch

@@ -169,6 +169,12 @@ What a person has seen and remembers of the world: their map, the ground as last
 fires, dangers. It can be out of date or wrong.
 _Avoid_: beliefs, knowledge, explored
 
+**Observer mode**:
+A development view of a world with no player in it: the whole map as it truly is, not anyone's
+Memory, with time run at a chosen rate and people, animals or things placed by hand to watch what
+the world does.
+_Avoid_: debug mode, god mode, spectator, fog-of-war off
+
 ## Bodies
 
 **Damage**:
