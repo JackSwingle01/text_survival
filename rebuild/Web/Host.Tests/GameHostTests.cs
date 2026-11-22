@@ -172,6 +172,39 @@ public class GameHostTests
         Assert.Contains(v.Map.Places, p => (p.X, p.Y) == camp && p.Fire is null or "Cold" or "Embers");
     }
 
+    /// Waking where you slept, what changed in the night is the morning's news, not a homecoming:
+    /// whichever view carries it, its title is "Morning".
+    [Fact]
+    public void What_changed_in_the_night_reads_as_morning_on_waking()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var v = Parse(Scenarios.Apply(h, "supplied"));
+        for (int tries = 0; v.Fire is not { Burning: true }; tries++)
+        {
+            Assert.True(tries < 40, "the fire never caught");
+            v = Run(h, Find(v, x => x.Kind == "fire" && x.Refused == null, "light a fire"));
+            if (v.Fire is not { Burning: true }) v = Run(h, Find(v, x => x.Kind == "wait", "wait"));
+        }
+        var receipts = new List<ReceiptDto>();
+        var sleep = Parse(Act(h, Find(v, x => x.Kind == "sleep", "sleep").Id));
+        for (int i = 0; sleep.Job is { Finished: false } && i < 10_000; i++)
+        {
+            if (sleep.Receipt != null) receipts.Add(sleep.Receipt);
+            sleep = Parse(h.Act("""{"advance":60}"""));
+        }
+        if (sleep.Receipt != null) receipts.Add(sleep.Receipt);
+        var after = Parse(Act(h, Find(sleep, x => x.Kind == "wait", "wait").Id));
+        for (int i = 0; ; i++)
+        {
+            if (after.Receipt != null) receipts.Add(after.Receipt);
+            if (after.Job is not { Finished: false } || i > 100) break;
+            after = Parse(h.Act("""{"advance":10}"""));
+        }
+        var news = Assert.Single(receipts);
+        Assert.Equal("Morning", news.Title);
+    }
+
     [Fact]
     public void The_map_sends_only_explored_tiles_and_the_tiles_in_sight_are_explored()
     {

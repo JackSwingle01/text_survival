@@ -61,5 +61,15 @@ public class NamesTests
         var cut = Outcomes.Parse("succeed:injury:LeftArm|RightArm:0.03=.05");
         Assert.Equal(["Done, but you cut your left arm", "Done, but you cut your right arm"], cut.Select(o => o.Words));
         Assert.Equal("Fails: the striking tool loses 2 uses", Outcomes.Parse("fail:break_tool:Striking:2=.02").Single().Words);
+        Assert.Equal("Done, but an extra sharp rock", Outcomes.Parse("succeed:extra_product:sharp_rock:1=.05").Single().Words);
+    }
+
+    /// A title-case name read inside a sentence is lower case throughout, not just its first letter.
+    [Fact]
+    public void AFind_ReadsInLowerCase()
+    {
+        var w = World.New(17);
+        var camp = Map.Of(w).Camp;
+        Assert.Equal("You find stone pile.", Narration.ForPlayer(w, new PoolDiscovered(0, P, new PoolId(camp, 0), "Stone Pile"))!.Text);
     }
 }

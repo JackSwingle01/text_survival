@@ -25,6 +25,9 @@ public sealed class GameHost
     readonly Dictionary<string, Func<CellDto?, Job>> _verbs = [];
     readonly List<LogDto> _log = [];
     ReceiptDto? _receipt;
+    // Sim looks around on the first minute awake, which falls in whatever the player does next, so
+    // the minute sleep ended is what tells that look's news is the morning's.
+    long? _sleptUntil;
 
     public const int MaxLog = 80;
 
@@ -87,6 +90,7 @@ public sealed class GameHost
     {
         _job = null;
         _receipt = null;
+        _sleptUntil = null;
         _log.Clear();
         _verbs.Clear();
     }
@@ -152,10 +156,12 @@ public sealed class GameHost
         job.Done += r.MinutesElapsed;
         foreach (var e in r.Events)
         {
-            if (e is Noticed n && n.Who == AgentId.Player) _receipt = ReceiptOf(n.Receipt, job.Activity is Sleep);
+            if (e is Noticed n && n.Who == AgentId.Player)
+                _receipt = ReceiptOf(n.Receipt, job.Activity is Sleep || n.Minute <= _sleptUntil + 1);
             else if (Narration.ForPlayer(W, e) is { } line) _log.Add(Words.Log(line));
         }
         if (_log.Count > MaxLog) _log.RemoveRange(0, _log.Count - MaxLog);
+        if (job.Activity is Sleep) _sleptUntil = W.Minute;
     }
 
     ReceiptDto ReceiptOf(Receipt r, bool woke)
