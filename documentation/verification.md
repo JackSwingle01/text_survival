@@ -21,8 +21,11 @@ Each Stryker run takes under a minute for `Effects.cs` and several minutes for
 
 **Seeds, replay and the random search.** `Gens.Check` draws the same cases on every run, so the
 suite and CI fail only when the code changes; a failure names the fixed case's seed and the
-shrunk one, as `CsCheck_Seed=...`. The nightly `property-search.yml` job runs the property tests
-with fresh seeds and ten times the iterations, and opens an issue per failing test with its seed.
+shrunk one, as `CsCheck_Seed=...`. PR CI runs only the fast suite (`Category!=Slow`), which holds a
+quick sibling of every `_Many` property. The nightly `nightly.yml` run has two jobs: `slow` runs the
+Slow tests outside Verification, and `property-search` runs the property tests, `_Many` included,
+with fresh seeds and ten times the iterations. Each opens an issue per failing test, with its seed
+for a property.
 To replay any of them, run that one test with the seed:
 `CsCheck_Seed=asQ2YGi3KzQ1 dotnet test rebuild/Sim.Tests -c Release --filter <name>` (CsCheck runs
 that case first, then keeps shrinking). To search locally as the nightly job does, set

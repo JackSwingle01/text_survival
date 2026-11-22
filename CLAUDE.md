@@ -20,7 +20,10 @@ For the clean-room rebuild (`rebuild/`):
 - Each red-green cycle: only the test class or file in hand,
   `dotnet test rebuild/Sim.Tests --filter "FullyQualifiedName~<ClassName>"`. Before each commit: the fast
   suite, `--filter "Category!=Slow"` (about 35 s). Before handback or PR: the full
-  `dotnet test rebuild/Sim.Tests`. Stryker and long sims run in CI (`.github/workflows/mutation.yml`).
+  `dotnet test rebuild/Sim.Tests`. PR CI runs only the fast suite. The Slow tests and the random property
+  search run nightly (`.github/workflows/nightly.yml`; `gh workflow run nightly.yml --ref <branch>` runs
+  them on a branch), and Stryker at most daily (`.github/workflows/mutation.yml`).
+- `NpcBenchReport` reports and never gates; it runs only with `NPC_BENCH=1`.
 - Agents choosing which checks to run or add use the `mp:verification` skill.
 - Tag any new test that takes 5 s or more with `[Trait("Category", TestCategories.Slow)]`.
 - Run long simulations, sweeps and probes in Release (`-c Release`), and split independent seeds

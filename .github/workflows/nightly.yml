@@ -1,0 +1,133 @@
+name: Nightly
+
+# What is too slow for every PR (ci.yml runs only the fast suite), once a night on main:
+# - slow: every test tagged Slow, on its fixed seed. The Verification properties are left to the
+#   search below, which runs the same tests at ten times the iterations.
+# - property-search: the rebuild's property tests (Gens.Check) on fresh CsCheck seeds at ten times
+#   the iterations, where CI walks one fixed seed so a push fails only when the code changes.
+# Each failing test opens one issue with its message (and seed, for a property), so it can be
+# replayed locally (documentation/verification.md); a test that already has an open issue gets no
+# second one. Run it on a branch before merging something risky: gh workflow run nightly.yml --ref <branch>
+
+on:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: slow
+            title: Slow test failed
+            target: text_survival.sln
+            filter: Category=Slow&FullyQualifiedName!~Survival.Tests.Verification
+            search: ""
+            iter_factor: ""
+          - name: property-search
+            title: Property search failed
+            target: rebuild/Sim.Tests
+            filter: FullyQualifiedName~EffectsPropertyTests|FullyQualifiedName~Survival.Tests.Verification
+            search: random
+            iter_factor: "10"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: dotnet build "$TARGET" -c Release
+
+      - name: Tests
+        id: test
+        env:
+          TARGET: ${{ matrix.target }}
+          FILTER: ${{ matrix.filter }}
+          SIM_PROPERTY_SEARCH: ${{ matrix.search }}
+          SIM_PROPERTY_ITER_FACTOR: ${{ matrix.iter_factor }}
+        shell: bash
+        run: |
+          set +e
+          dotnet test "$TARGET" -c Release --no-build --filter "$FILTER" \
+            --logger "trx;LogFilePrefix=nightly" --results-directory "$RUNNER_TEMP/results"
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue per failing test
+        if: steps.test.outputs.exit != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE_PREFIX: ${{ matrix.title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/failures"
+          mkdir -p "$out"
+          # A solution-wide run writes one trx per test project (LogFilePrefix keeps their names apart).
+          python3 - "$RUNNER_TEMP/results" "$out" <<'PY'
+          import glob, re, sys, os, xml.etree.ElementTree as ET
+          results, out = sys.argv[1], sys.argv[2]
+          ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+          sha, run, prefix = os.environ["GITHUB_SHA"], os.environ["RUN_URL"], os.environ["TITLE_PREFIX"]
+          trxs = glob.glob(f"{results}/**/*.trx", recursive=True)
+          if not trxs:
+              sys.exit("No test results were written: the run failed before any test ran. See the log above.")
+          failed = [r for trx in trxs for r in ET.parse(trx).getroot().iterfind(".//t:UnitTestResult", ns)
+                    if r.get("outcome") == "Failed"]
+          for i, r in enumerate(failed):
+              name = r.get("testName")
+              message = r.findtext(".//t:ErrorInfo/t:Message", "", ns)
+              stack = r.findtext(".//t:ErrorInfo/t:StackTrace", "", ns)
+              seeds = re.findall(r"CsCheck_Seed=([\w-]+)", message)
+              method = name.split("(")[0]
+              replay = f"dotnet test text_survival.sln -c Release --filter \"FullyQualifiedName~{method}\""
+              seed_line = ""
+              if seeds:
+                  replay = f"CsCheck_Seed={seeds[0]} {replay}"
+                  seed_line = f"**Seed:** `{seeds[0]}`\n\n"
+              body = (f"The nightly run failed `{name}` at {sha}.\n\n"
+                      f"{seed_line}"
+                      f"Replay locally:\n\n```bash\n{replay}\n```\n\n"
+                      f"**Message:**\n\n```\n{message[:30000]}\n```\n\n"
+                      f"<details><summary>Stack trace</summary>\n\n```\n{stack[:20000]}\n```\n</details>\n\n"
+                      f"Run: {run}\n")
+              with open(f"{out}/{i}.title", "w") as f: f.write(f"{prefix}: {name}")
+              with open(f"{out}/{i}.search", "w") as f: f.write(method.rsplit(".", 1)[-1])
+              with open(f"{out}/{i}.body", "w") as f: f.write(body)
+          print(f"{len(failed)} failing test(s)")
+          PY
+
+          for title_file in "$out"/*.title; do
+            [ -e "$title_file" ] || continue
+            title=$(cat "$title_file")
+            search=$(cat "${title_file%.title}.search")
+            existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$search in:title" \
+                         --limit 100 --json number,title | jq -r --arg t "$title" 'map(select(.title == $t)) | .[0].number // empty')
+            if [ -n "$existing" ]; then
+              echo "Already open as #$existing: $title"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "${title_file%.title}.body"
+            fi
+          done
+
+      - name: Fail the run when a test failed
+        if: steps.test.outputs.exit != '0'
+        shell: bash
+        run: |
+          echo "::error::Nightly ${{ matrix.name }} found failures; see the issues opened above."
+          exit 1
