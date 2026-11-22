@@ -34,8 +34,9 @@ included), wind at it, precipitation, ground wetting, sun, and how covered it is
 _Avoid_: environment, weather effects
 
 **Effect**:
-A state that builds up and fades under exposure and time, on a body or a thing: wet, frozen,
-spoiling, and for bodies only bleeding, pain, shivering. One kind of thing for bodies and items.
+A state that builds up and fades under exposure and time, on a body, an item or a location feature:
+wet, frozen, spoiling, and for bodies only bleeding, pain, shivering. The same kind of state for all
+three.
 _Avoid_: status, debuff
 
 **Discomfort**:
@@ -67,6 +68,24 @@ Contest, toward an ally: the same claim, answered by that person's mind and thei
 The single verb shown for a location feature that offers several (a fire, a carcass, a stash, a
 shelter); it opens that feature's menu.
 _Avoid_: use, open
+
+## Items
+
+**Item**:
+Anything a person can carry: a resource or gear.
+_Avoid_: thing, object, loot
+
+**Resource**:
+A carried material, either discrete (counted in pieces, each with its own weight: a log, a stick, a
+stone) or continuous (measured as one amount: water, tinder, resin).
+_Avoid_: divisible, bulk, stackable, stack
+
+**Piece**:
+One unit of a discrete resource.
+
+**Gear**:
+A tool, weapon, garment or accessory, held one at a time, with its own condition that wears down.
+_Avoid_: equipment, kit
 
 ## Making things
 
@@ -144,6 +163,11 @@ _Avoid_: task, job, action
 **Refusal**:
 Why a verb can't start now, naming what is missing and how much where getting it would help.
 _Avoid_: error, block, requirement
+
+**Tutorial**:
+A once-per-game teaching line, kept so it never repeats (the day-1 line about gathering fuel before
+dark). Not a refusal, a status or narration.
+_Avoid_: hint, tip
 
 **Forecast**:
 A system's rough, probabilistic expectation of how its own part of the world goes on, assuming

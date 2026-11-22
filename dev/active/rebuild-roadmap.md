@@ -4,6 +4,46 @@ Nothing below was dropped by the re-ordering; it only moved. Design is in
 `documentation/emergent-world-design.md`, decisions in `documentation/decisions/`, open deferrals in
 `dev/active/rebuild-deferred.md`.
 
+## Restoring the old game (2026-11-22)
+
+The rules are in `dev/active/porting.md`: the old game is the default, improvements are flagged for
+the user, nothing reachable becomes unreachable. The audit's 130 items are in
+`dev/active/parity-audit-items.json`.
+
+The order:
+
+1. Foraging and discovery.
+2. Discrete and continuous resources (decision "Resources are discrete or continuous").
+3. Reachability: recipes, gear, picking gear back up.
+4. Consequences: wear, final death and autosave (decision "Death is final").
+5. The remaining screens: fire, body, butchering, combat feedback, travel, the tile sheet.
+
+Decided by the user on 2026-11-22:
+
+- **Foraging (the first restore).** The forage screen in the prototype's style, with the old game's
+  behaviour:
+  - focus: Fuel, Food, Medicine, Materials or General, offered only where that category grows;
+  - time: 15, 30 or 60 minutes, or Keep Walking (5 minutes, new clues);
+  - the ground's quality word, and how much of the hidden finds is searched;
+  - finds appearing as you search, with counts;
+  - the luck mood line, and the failure and discovery text.
+
+  Focus works as the old filter: the focus category is kept whole, the others cut to 40-60%. The
+  rebuild's `FocusGain` 1.3 reverts (an agent tuned it toward a survival number). The Foraging skill
+  stays (the user asked for it). The old clues are ported faithfully: the same texts, terrain pools,
+  weighting and multipliers (x1.2-1.5), followed by choosing the matching focus. Later, as a separate
+  decision: a clue could place a real patch (an extra stock of those resources on the tile, sized to
+  give the old multiplier, and depleting), so clues become true and lasting.
+- **Discovery.** Discoveries that place real things in the world come back. For the others, work out
+  whether each can become something real rather than an event. Each new one gets a design session
+  with the user (decision "Authored discoveries stay until the world produces them", amended
+  2026-11-22).
+- **Wear.** Tools and clothing wear out, as in the old game.
+- **Crippling injuries.** Keep the rebuild's current behaviour until a design session with the user.
+  *To do: hold that session.*
+- **The stomach.** Decision "The stomach holds a fixed amount": eating is refused at full, and food
+  goes to fat as it digests.
+
 ## The MVP: a run you can play
 
 A desktop run where you survive, prepare, hunt, get hunted, and try the pass.
@@ -66,8 +106,9 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 
 ## Design decisions still open (raise when their step comes up)
 
-- **Food balance:** NPCs survive 60 days but end near starvation; the forage focus gain; the NPC's
-  daily schedule (`rebuild-npc-food-and-forage-review.md`).
+- **Food balance:** NPCs survive 60 days but end near starvation; the NPC's
+  daily schedule (`rebuild-npc-food-and-forage-review.md`). The forage focus gain is decided: it
+  reverts to the old filter (see "Restoring the old game").
 - **Hunting thresholds:** bison only when starving; prey worth computed from the animal
   (`rebuild-npc-hunting.md`).
 - **Mammoth sinew:** about 300 kg, uncapped.
