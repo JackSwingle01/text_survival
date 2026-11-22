@@ -15,3 +15,16 @@ jobs:
       - run: dotnet restore text_survival.sln
       - run: dotnet build text_survival.sln -c Release --no-restore
       - run: dotnet test text_survival.sln -c Release --no-build --no-restore
+
+  # GitHub only reports a workflow it cannot parse; actionlint also catches bad expressions,
+  # unknown action inputs and shellcheck problems in run steps. Same version as the
+  # .githooks/pre-commit hook expects locally.
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: get_actionlint
+        shell: bash
+        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
+      - shell: bash
+        run: ${{ steps.get_actionlint.outputs.executable }} -color
