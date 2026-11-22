@@ -1593,9 +1593,9 @@ public static partial class Npc
         return (new Wait(me.Id), 1);
     }
 
-    /// The hardest-hitting weapon in the pack.
+    /// The best weapon in the pack (Combat.WeaponWorth).
     static Gear? Weapon(Me me) =>
-        me.Pack.Gear.Where(g => Items.Def(g).Weapon != null && Items.Works(g)).OrderByDescending(g => Items.Def(g).Weapon!.Damage).FirstOrDefault();
+        me.Pack.Gear.Where(g => Items.Def(g).Weapon != null && Items.Works(g)).OrderByDescending(g => Combat.WeaponWorth(Items.Def(g).Weapon!)).FirstOrDefault();
 
     /// One tile away from the threat, quick: toward camp when that is also away.
     static Plan? Flee(Me me, TileId from)

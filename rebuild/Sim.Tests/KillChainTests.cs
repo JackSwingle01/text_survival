@@ -104,7 +104,10 @@ public class KillChainTests
             var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
             var npc = Npc.Spawn(w, tile);
             var e = Combat.Create(w, [new Fighter(P), new Fighter(npc)], [new Fighter(caribou)], tile, 1, Awareness.Engaged, Awareness.Unaware);
-            return (e, caribou, Combat.UnitOf(e, npc), CombatAction.Attack);
+            var ally = Combat.UnitOf(e, npc);
+            var at = Combat.UnitOf(e, caribou).Position;
+            ally.Position = new Cell(at.X + 1, at.Y); // in reach of bare hands
+            return (e, caribou, ally, CombatAction.Attack);
         });
         w.Agent(prey).Body.BloodPct = 0;
         Combat.Finish(w, enc, []);

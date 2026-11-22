@@ -134,14 +134,14 @@ public class CombatStateTests
     }
 
     [Theory]
-    [InlineData(CombatAction.Advance, FighterState.Pressing)]
-    [InlineData(CombatAction.Attack, FighterState.Pressing)]
-    [InlineData(CombatAction.Wait, FighterState.Standoff)]
-    [InlineData(CombatAction.Intimidate, FighterState.Standoff)]
-    [InlineData(CombatAction.Retreat, FighterState.GivingGround)]
-    public void ThePlayersStateFollowsFromTheirAction(CombatAction action, FighterState state)
+    [InlineData(CombatAction.Advance, FighterState.Pressing, 3)]
+    [InlineData(CombatAction.Attack, FighterState.Pressing, 1)] // bare hands reach a neighbouring cell
+    [InlineData(CombatAction.Wait, FighterState.Standoff, 3)]
+    [InlineData(CombatAction.Intimidate, FighterState.Standoff, 3)]
+    [InlineData(CombatAction.Retreat, FighterState.GivingGround, 3)]
+    public void ThePlayersStateFollowsFromTheirAction(CombatAction action, FighterState state, int distanceM)
     {
-        var (w, e) = PlayerVs(Species.Wolf, 3);
+        var (w, e) = PlayerVs(Species.Wolf, distanceM);
         B(e).BoldnessModifier = -0.9; // it gives ground, short of running (a runner would be gone at once)
         var r = Sim.Step(w, new Fight(P, action), 1);
         Assert.True(r.InterruptedReason is null or "done", r.InterruptedReason);
@@ -177,7 +177,8 @@ public class CombatStateTests
         var (w, t) = CombatTests.Field();
         var wolf = CombatTests.Herd(w, Species.Wolf, 1, t);
         var npc = Npc.Spawn(w, t);
-        var spear = Items.Pack(w, npc).Gear.First(g => Items.Def(g).Weapon != null);
+        var spear = Items.Make("wooden_spear");
+        Items.Pack(w, npc).Gear.Add(spear);
         var e = Combat.Create(w, [new Fighter(npc) { Weapon = spear }], [new Fighter(wolf)], t, 12, Awareness.Engaged, Awareness.Engaged);
         var me = e.Units[0];
         me.State = FighterState.Pressing;
@@ -204,12 +205,40 @@ public class CombatStateTests
         Assert.Empty(e.Dropped!);
     }
 
+    /// The hold: standing off, an animal comes on as far as its margin takes it, never inside the longer
+    /// reach and half a metre; a spear's reach keeps it a metre further out than bare hands do.
+    [Theory]
+    [InlineData(false, 2.0)]
+    [InlineData(true, 3.0)]
+    public void InStandoff_AnAnimalComesNoNearerThanTheLongerReachAndHalfAMetre(bool spear, double holdM)
+    {
+        var (w, e) = PlayerVs(Species.Wolf, 12, spear: spear);
+        var wolf = B(e);
+        wolf.State = FighterState.Standoff;
+        wolf.BoldnessModifier = 10; // a margin that would carry it all the way in
+        Assert.Equal(holdM, Combat.HoldLineM(w, wolf, Me(e)), 9);
+        bool closed = false;
+        for (int i = 0; i < 50; i++)
+        {
+            var (action, to, _) = Combat.ChooseAction(w, e, wolf);
+            if (action != CombatAction.Move) continue;
+            double gap = wolf.Position.DistanceTo(Me(e).Position);
+            Assert.True(to!.Value.DistanceTo(Me(e).Position) >= Math.Min(gap, holdM), $"{action} to {to}, {gap:0.0} m out");
+            closed |= to.Value.DistanceTo(Me(e).Position) < gap;
+            wolf.Position = to.Value;
+        }
+        Assert.True(closed, "it never came on");
+        Assert.InRange(wolf.Position.DistanceTo(Me(e).Position), holdM, holdM + 1.5);
+    }
+
+    /// In the deadband it stops or circles; it never steps nearer.
     [Fact]
-    public void InStandoff_AnAnimalHoldsOrStepsAside_NeverAdvances()
+    public void InStandoff_AnAnimalAtAnEvenMarginHoldsOrStepsAside()
     {
         var (w, e) = PlayerVs(Species.Wolf, 8);
         var wolf = B(e);
         wolf.State = FighterState.Standoff;
+        wolf.BoldnessModifier = -Combat.Margin(w, e, wolf, Me(e)) + wolf.BoldnessModifier;
         double gap = wolf.Position.DistanceTo(Me(e).Position);
         for (int i = 0; i < 50; i++)
         {

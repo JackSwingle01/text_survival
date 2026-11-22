@@ -73,14 +73,15 @@ public class RunTests
     [Trait("Category", "Slow")]
     public void ATuningRun_IsAFunctionOfItsSeed_AndImprovesOnAToySpec()
     {
-        // Two parameters, one scenario, a band the spear's damage can reach: deliberately easy.
+        // Two parameters, one scenario, a band the spear's damage can reach and today's tables miss (a
+        // spear kills nearly every wolf that presses it): deliberately easy, but not already won.
         var ps = new[]
         {
-            new Parameter("spear.damage", ["items.json:gear.wooden_spear.weapon.damage"], 0.1, 15, Log: true),
+            new Parameter("spear.damage", ["items.json:gear.wooden_spear.weapon.damage"], 0.3, 6, Log: true),
             new Parameter("wolf.boldness", ["species.json:species.Wolf.boldness"], 0.2, 4, Log: true),
         };
-        var spec = new BandSpec(40, 80, Wolf, [new Band("dies", "wolf_spear", "aDies", 0.3, 0.5)], [], []);
-        double[] today = [8, 1.3];
+        var spec = new BandSpec(40, 80, Wolf, [new Band("kills", "wolf_spear", "bKilled", 0.4, 0.6)], [], []);
+        double[] today = [4.84, 1.15];
         var opt = new TuneOptions(Budget: 24, Seed: 3, Workers: 6, Sigma: 0.3, Lambda: 6);
         var a = Tuner.Run(ps, spec, today, opt, Scratch());
         var b = Tuner.Run(ps, spec, today, opt, Scratch());
@@ -88,6 +89,7 @@ public class RunTests
         Assert.Equal(a.Log.Select(g => (g.Best, g.Median, g.Sigma)), b.Log.Select(g => (g.Best, g.Median, g.Sigma)));
         Assert.Equal(a.FitnessAfter, b.FitnessAfter);
         Assert.Equal(4, a.Log.Count);
+        Assert.True(a.FitnessBefore > 0, "the band is already met: the run has nothing to improve");
         Assert.True(a.FitnessAfter < a.FitnessBefore, $"{a.FitnessBefore} -> {a.FitnessAfter}");
         var c = Tuner.Run(ps, spec, today, opt with { Seed = 4 }, Scratch());
         Assert.NotEqual(a.Log.Select(g => g.Best), c.Log.Select(g => g.Best));

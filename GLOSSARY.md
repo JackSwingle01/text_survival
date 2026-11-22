@@ -169,6 +169,20 @@ What a person has seen and remembers of the world: their map, the ground as last
 fires, dangers. It can be out of date or wrong.
 _Avoid_: beliefs, knowledge, explored
 
+## Bodies
+
+**Damage**:
+How hard a blow is, measured in tissue condition: a tissue of toughness 1 in a body of reference
+size loses one whole condition for every unit it takes. Weapons, bites and falls are all on this one
+unit.
+_Avoid_: damage scale, hit points, 0-1 damage
+
+**Toughness**:
+How many units of damage a tissue takes to destroy. It grows with the size of the body. How much of
+it one blow meets depends on the kind of blow: a point meets little of the soft tissue it passes, a
+club little of the flesh and all of the bone. What a blow does not meet, it passes on.
+_Avoid_: armor, hardness
+
 ## Danger
 
 **Boldness**:

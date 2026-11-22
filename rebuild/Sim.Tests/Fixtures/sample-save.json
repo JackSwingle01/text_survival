@@ -1,5 +1,5 @@
 {
-  "Version": 10,
+  "Version": 11,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -316,7 +316,7 @@
                   "Name": "Bone",
                   "Kind": 2,
                   "Condition": 1,
-                  "Toughness": 20,
+                  "Toughness": 4,
                   "Provides": null,
                   "ProvidesAmount": 0,
                   "IsExternal": false
@@ -326,7 +326,7 @@
                     "Name": "Brain",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.25,
+                    "Toughness": 0.3,
                     "Provides": 4,
                     "ProvidesAmount": 1,
                     "IsExternal": false
@@ -335,7 +335,7 @@
                     "Name": "Left Eye",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.5,
+                    "Toughness": 0.2,
                     "Provides": 5,
                     "ProvidesAmount": 0.5,
                     "IsExternal": true
@@ -344,7 +344,7 @@
                     "Name": "Right Eye",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.5,
+                    "Toughness": 0.2,
                     "Provides": 5,
                     "ProvidesAmount": 0.5,
                     "IsExternal": true
@@ -353,7 +353,7 @@
                     "Name": "Left Ear",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 1,
+                    "Toughness": 0.3,
                     "Provides": 6,
                     "ProvidesAmount": 0.5,
                     "IsExternal": true
@@ -362,7 +362,7 @@
                     "Name": "Right Ear",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 1,
+                    "Toughness": 0.3,
                     "Provides": 6,
                     "ProvidesAmount": 0.5,
                     "IsExternal": true
@@ -394,7 +394,7 @@
                   "Name": "Bone",
                   "Kind": 2,
                   "Condition": 1,
-                  "Toughness": 12,
+                  "Toughness": 3,
                   "Provides": null,
                   "ProvidesAmount": 0,
                   "IsExternal": false
@@ -404,7 +404,7 @@
                     "Name": "Heart",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 5,
+                    "Toughness": 0.5,
                     "Provides": 3,
                     "ProvidesAmount": 1,
                     "IsExternal": false
@@ -413,7 +413,7 @@
                     "Name": "Left Lung",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.6,
                     "Provides": 2,
                     "ProvidesAmount": 0.5,
                     "IsExternal": false
@@ -422,7 +422,7 @@
                     "Name": "Right Lung",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.6,
                     "Provides": 2,
                     "ProvidesAmount": 0.5,
                     "IsExternal": false
@@ -464,7 +464,7 @@
                     "Name": "Liver",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 4,
+                    "Toughness": 0.6,
                     "Provides": 7,
                     "ProvidesAmount": 0.6,
                     "IsExternal": false
@@ -473,7 +473,7 @@
                     "Name": "Stomach",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.5,
                     "Provides": 7,
                     "ProvidesAmount": 0.4,
                     "IsExternal": false
@@ -482,7 +482,7 @@
                     "Name": "Left Kidney",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 4,
+                    "Toughness": 0.4,
                     "Provides": null,
                     "ProvidesAmount": 0,
                     "IsExternal": false
@@ -491,7 +491,7 @@
                     "Name": "Right Kidney",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 4,
+                    "Toughness": 0.4,
                     "Provides": null,
                     "ProvidesAmount": 0,
                     "IsExternal": false
@@ -861,6 +861,10 @@
               "10,41": {
                 "SeenMinute": 75,
                 "Trees": true
+              },
+              "11,44": {
+                "SeenMinute": 75,
+                "Water": true
               }
             },
             "Sightings": {
@@ -919,7 +923,7 @@
                   "Name": "Bone",
                   "Kind": 2,
                   "Condition": 1,
-                  "Toughness": 20,
+                  "Toughness": 4,
                   "Provides": null,
                   "ProvidesAmount": 0,
                   "IsExternal": false
@@ -929,7 +933,7 @@
                     "Name": "Brain",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.25,
+                    "Toughness": 0.3,
                     "Provides": 4,
                     "ProvidesAmount": 1,
                     "IsExternal": false
@@ -938,7 +942,7 @@
                     "Name": "Left Eye",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.5,
+                    "Toughness": 0.2,
                     "Provides": 5,
                     "ProvidesAmount": 0.5,
                     "IsExternal": true
@@ -947,7 +951,7 @@
                     "Name": "Right Eye",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.5,
+                    "Toughness": 0.2,
                     "Provides": 5,
                     "ProvidesAmount": 0.5,
                     "IsExternal": true
@@ -956,7 +960,7 @@
                     "Name": "Left Ear",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 1,
+                    "Toughness": 0.3,
                     "Provides": 6,
                     "ProvidesAmount": 0.5,
                     "IsExternal": true
@@ -965,7 +969,7 @@
                     "Name": "Right Ear",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 1,
+                    "Toughness": 0.3,
                     "Provides": 6,
                     "ProvidesAmount": 0.5,
                     "IsExternal": true
@@ -997,7 +1001,7 @@
                   "Name": "Bone",
                   "Kind": 2,
                   "Condition": 1,
-                  "Toughness": 12,
+                  "Toughness": 3,
                   "Provides": null,
                   "ProvidesAmount": 0,
                   "IsExternal": false
@@ -1007,7 +1011,7 @@
                     "Name": "Heart",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 5,
+                    "Toughness": 0.5,
                     "Provides": 3,
                     "ProvidesAmount": 1,
                     "IsExternal": false
@@ -1016,7 +1020,7 @@
                     "Name": "Left Lung",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.6,
                     "Provides": 2,
                     "ProvidesAmount": 0.5,
                     "IsExternal": false
@@ -1025,7 +1029,7 @@
                     "Name": "Right Lung",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.6,
                     "Provides": 2,
                     "ProvidesAmount": 0.5,
                     "IsExternal": false
@@ -1067,7 +1071,7 @@
                     "Name": "Liver",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 4,
+                    "Toughness": 0.6,
                     "Provides": 7,
                     "ProvidesAmount": 0.6,
                     "IsExternal": false
@@ -1076,7 +1080,7 @@
                     "Name": "Stomach",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.5,
                     "Provides": 7,
                     "ProvidesAmount": 0.4,
                     "IsExternal": false
@@ -1085,7 +1089,7 @@
                     "Name": "Left Kidney",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 4,
+                    "Toughness": 0.4,
                     "Provides": null,
                     "ProvidesAmount": 0,
                     "IsExternal": false
@@ -1094,7 +1098,7 @@
                     "Name": "Right Kidney",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 4,
+                    "Toughness": 0.4,
                     "Provides": null,
                     "ProvidesAmount": 0,
                     "IsExternal": false
@@ -1521,7 +1525,7 @@
                   "Name": "Bone",
                   "Kind": 2,
                   "Condition": 1,
-                  "Toughness": 15,
+                  "Toughness": 4,
                   "Provides": null,
                   "ProvidesAmount": 0,
                   "IsExternal": false
@@ -1531,7 +1535,7 @@
                     "Name": "Brain",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.25,
+                    "Toughness": 0.3,
                     "Provides": 4,
                     "ProvidesAmount": 1,
                     "IsExternal": false
@@ -1540,7 +1544,7 @@
                     "Name": "Left Eye",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.5,
+                    "Toughness": 0.2,
                     "Provides": 5,
                     "ProvidesAmount": 0.6,
                     "IsExternal": true
@@ -1549,7 +1553,7 @@
                     "Name": "Right Eye",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.5,
+                    "Toughness": 0.2,
                     "Provides": 5,
                     "ProvidesAmount": 0.6,
                     "IsExternal": true
@@ -1558,7 +1562,7 @@
                     "Name": "Left Ear",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 1,
+                    "Toughness": 0.3,
                     "Provides": 6,
                     "ProvidesAmount": 0.6,
                     "IsExternal": true
@@ -1567,7 +1571,7 @@
                     "Name": "Right Ear",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 1,
+                    "Toughness": 0.3,
                     "Provides": 6,
                     "ProvidesAmount": 0.6,
                     "IsExternal": true
@@ -1609,7 +1613,7 @@
                     "Name": "Heart",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 5,
+                    "Toughness": 0.5,
                     "Provides": 3,
                     "ProvidesAmount": 1,
                     "IsExternal": false
@@ -1618,7 +1622,7 @@
                     "Name": "Left Lung",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.6,
                     "Provides": 2,
                     "ProvidesAmount": 0.5,
                     "IsExternal": false
@@ -1627,7 +1631,7 @@
                     "Name": "Right Lung",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.6,
                     "Provides": 2,
                     "ProvidesAmount": 0.5,
                     "IsExternal": false
@@ -1636,7 +1640,7 @@
                     "Name": "Liver",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 4,
+                    "Toughness": 0.6,
                     "Provides": 7,
                     "ProvidesAmount": 0.6,
                     "IsExternal": false
@@ -1645,7 +1649,7 @@
                     "Name": "Stomach",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.5,
                     "Provides": 7,
                     "ProvidesAmount": 0.4,
                     "IsExternal": false
@@ -1822,7 +1826,7 @@
                   "Name": "Bone",
                   "Kind": 2,
                   "Condition": 1,
-                  "Toughness": 15,
+                  "Toughness": 4,
                   "Provides": null,
                   "ProvidesAmount": 0,
                   "IsExternal": false
@@ -1832,7 +1836,7 @@
                     "Name": "Brain",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.25,
+                    "Toughness": 0.3,
                     "Provides": 4,
                     "ProvidesAmount": 1,
                     "IsExternal": false
@@ -1841,7 +1845,7 @@
                     "Name": "Left Eye",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.5,
+                    "Toughness": 0.2,
                     "Provides": 5,
                     "ProvidesAmount": 0.6,
                     "IsExternal": true
@@ -1850,7 +1854,7 @@
                     "Name": "Right Eye",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 0.5,
+                    "Toughness": 0.2,
                     "Provides": 5,
                     "ProvidesAmount": 0.6,
                     "IsExternal": true
@@ -1859,7 +1863,7 @@
                     "Name": "Left Ear",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 1,
+                    "Toughness": 0.3,
                     "Provides": 6,
                     "ProvidesAmount": 0.6,
                     "IsExternal": true
@@ -1868,7 +1872,7 @@
                     "Name": "Right Ear",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 1,
+                    "Toughness": 0.3,
                     "Provides": 6,
                     "ProvidesAmount": 0.6,
                     "IsExternal": true
@@ -1910,7 +1914,7 @@
                     "Name": "Heart",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 5,
+                    "Toughness": 0.5,
                     "Provides": 3,
                     "ProvidesAmount": 1,
                     "IsExternal": false
@@ -1919,7 +1923,7 @@
                     "Name": "Left Lung",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.6,
                     "Provides": 2,
                     "ProvidesAmount": 0.5,
                     "IsExternal": false
@@ -1928,7 +1932,7 @@
                     "Name": "Right Lung",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.6,
                     "Provides": 2,
                     "ProvidesAmount": 0.5,
                     "IsExternal": false
@@ -1937,7 +1941,7 @@
                     "Name": "Liver",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 4,
+                    "Toughness": 0.6,
                     "Provides": 7,
                     "ProvidesAmount": 0.6,
                     "IsExternal": false
@@ -1946,7 +1950,7 @@
                     "Name": "Stomach",
                     "Kind": 3,
                     "Condition": 1,
-                    "Toughness": 3,
+                    "Toughness": 0.5,
                     "Provides": 7,
                     "ProvidesAmount": 0.4,
                     "IsExternal": false
@@ -2152,7 +2156,7 @@
         "EmberDurationHours": 0,
         "EmberHoursRemaining": 0,
         "EmberStartTempF": 0,
-        "LastBurningTempF": 912.933168046265,
+        "LastBurningTempF": 912.9331680462649,
         "BurnedSinceLitKg": 2.660488987020837,
         "CharcoalKg": 0,
         "CarriedBy": null,

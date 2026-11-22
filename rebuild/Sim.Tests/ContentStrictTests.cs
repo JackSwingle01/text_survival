@@ -82,7 +82,10 @@ public class ContentStrictTests
     [InlineData("effects.json", "\"Pain\": { \"severityPerHour\": -0.15", "\"Pain\": { \"severityPerHour\": 0.15", "severityPerHour 0.15 grows by itself")]
     [InlineData("effects.json", "\"Moving\": -0.35", "\"Moving\": 0.35", "Moving 0.35 is not a loss")]
     [InlineData("species.json", "\"aggression\": 0.8", "\"aggression\": 1.8", "aggression in 0-1")]
-    [InlineData("items.json", "\"damage\": 12,", "\"damage\": -12,", "weapon damage -12")]
+    [InlineData("items.json", "\"damage\": 4.84, \"class\": \"Pierce\"", "\"damage\": -4.84, \"class\": \"Pierce\"", "weapon damage -4.84 (above 0)")]
+    [InlineData("items.json", "\"reachM\": 1.2,", "\"reachM\": -1.2,", "reachM -1.2")]
+    [InlineData("items.json", "\"accuracy\": 0.45,", "\"accuracy\": 1.45,", "accuracy 1.45")]
+    [InlineData("species.json", "\"reachM\": 2.5,", "\"reachM\": -2.5,", "reachM -2.5")]
     [InlineData("locations.json", "\"animals\": [\n      { \"animal\": \"Rabbit\", \"weight\": 0.6 },\n      { \"animal\": \"Fox\", \"weight\": 0.3 }\n     ]", "\"animals\": []", "small game needs a density, animals")]
     // Role and herd life agree: a caribou herd does not hunt as a pack.
     [InlineData("species.json", "\"temperament\": \"never\", \"behavior\": \"Prey\", \"diet\": \"Browser\"", "\"temperament\": \"never\", \"behavior\": \"Pack\", \"diet\": \"Browser\"", "species.json Caribou: role Prey does not live as a Pack herd")]

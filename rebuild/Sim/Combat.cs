@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Survival;
 
 /// How aware a fighter is as a fight opens, and how aware it is now (CombatUnit.Awareness, read off its
-/// FighterState): Unaware wanders or stays put, and being struck does double damage; Alert is Wary,
+/// FighterState): Unaware wanders or stays put, and being struck does half again; Alert is Wary,
 /// suspicious and harder to approach; Engaged is in the fight.
 public enum Awareness { Unaware, Alert, Engaged }
 
@@ -76,7 +76,6 @@ public sealed class CombatUnit
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool LeftChasing { get; set; }
     /// Run down this round: no defence, and no second flight, until the round ends.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool RunDown { get; set; }
-    /// As the old three-step awareness, for what only asks whether it knows (detection, ambush damage).
     /// Whether it has turned to run in this fight: the chase instinct fires on the first time only.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool HasRun { get; set; }
     [JsonIgnore] public Awareness Awareness => State switch
@@ -146,14 +145,16 @@ public sealed record ActionResult(string? Refused = null, bool Hit = false, bool
 /// minutes it took, for the caller (a herd's or NPC's own catch-up) to charge.
 public static partial class Combat
 {
-    public const int MapSize = 50; // old MAP_SIZE; the overview's "25x25" is stale
+    public const int MapSize = 50;
     public const int HeadlessRoundCap = 20;
     const int SignalCooldownMinutes = 5, SignalMinutes = 5;
     /// How close a dropped weapon must be to pick up.
     const double PickUpReachM = 1.5;
-    const double StoneRangeM = 15, StoneAccuracy = 0.90;
-    /// Old inventories counted stones as items; resources are kilograms now, so one throw is a typical stone.
-    public const double StoneKg = 0.3;
+    const string StoneKind = "stone";
+    /// A stone from the pack weighs and flies as the stone gear does (items.json "stone").
+    public static double StoneKg => Items.GearKinds[StoneKind].BaseWeightKg;
+    /// Two fighters in neighbouring cells, diagonals too, are in contact: a reach shorter than that still lands.
+    public const double TouchingM = 1.5;
 
     // ---- setup ----
 
@@ -291,7 +292,7 @@ public static partial class Combat
         if (Body.GetCapacities(target).Moving < 0.5) bold += 0.2;
         if (Body.Vitality(target) < 0.7) bold += 0.1;
         int hour = Weather.MinuteOfDay(world.Minute) / 60;
-        if (hour < 5 || hour >= 21) bold += 0.1; // old TimeOfDay.Night
+        if (hour < 5 || hour >= 21) bold += 0.1;
         if (fear > 0) bold *= 1.0 - fear;
         return Math.Clamp(bold, 0, t.Cap);
     }
@@ -465,15 +466,17 @@ public static partial class Combat
         var nearestZone = ZoneOf(unit.Position.DistanceTo((NearestEnemy(enc, unit) ?? target).Position));
         return action switch
         {
-            CombatAction.Attack when zone is not (Zone.Close or Zone.Near) => "Requires close or near range.",
+            CombatAction.Attack when distance > StrikeRangeM(world, unit) => "Out of reach.",
             CombatAction.Shove when zone != Zone.Close => "Requires close range.",
             // Near too: a bear's bluff is met at a few metres (round 1).
             CombatAction.Intimidate when nearestZone == Zone.Close => "Requires near range or further.",
             CombatAction.Throw when unit.Weapon == null => "No weapon to throw.",
+            CombatAction.Throw when Items.Def(unit.Weapon!).Weapon!.Thrown == null => "That is not made to be thrown.",
             CombatAction.Throw or CombatAction.ThrowStone when zone is not (Zone.Mid or Zone.Far) => "Requires mid or far range.",
             CombatAction.ThrowStone when zone != Zone.Mid => "Stones require mid range.",
             CombatAction.ThrowStone when Items.PackOf(world.Agent(unit.Agent)) is not Inventory pack || Items.Have(pack, Resource.Stone) < StoneKg => "No stones to throw.",
-            CombatAction.Throw when distance > Throwing(unit.Weapon!).RangeM => "Beyond weapon range.",
+            CombatAction.Throw when distance > Items.Def(unit.Weapon!).Weapon!.Thrown!.RangeM => "Beyond weapon range.",
+            CombatAction.ThrowStone when distance > Stone.Thrown!.RangeM => "Beyond weapon range.",
             _ => null,
         };
     }
@@ -498,9 +501,9 @@ public static partial class Combat
         switch (action)
         {
             case CombatAction.Wait: break;
-            case CombatAction.Move: Walk(world, enc, unit, to!.Value); break;
-            case CombatAction.Advance: Walk(world, enc, unit, unit.Position.Toward(target!.Position, Allowance(world, unit))); break;
-            case CombatAction.Retreat: Walk(world, enc, unit, unit.Position.Away(target!.Position, Allowance(world, unit))); break;
+            case CombatAction.Move: Walk(world, enc, unit, to!.Value, events); break;
+            case CombatAction.Advance: Walk(world, enc, unit, unit.Position.Toward(target!.Position, Allowance(world, unit)), events); break;
+            case CombatAction.Retreat: Walk(world, enc, unit, unit.Position.Away(target!.Position, Allowance(world, unit)), events); break;
             case CombatAction.Attack: result = Attack(world, enc, unit, target!, events); break;
             case CombatAction.Throw: result = Throw(world, enc, unit, target!, events); break;
             case CombatAction.ThrowStone:
@@ -569,7 +572,6 @@ public static partial class Combat
         var enc = EncounterOf(world, fight.Who) ?? throw new InvalidOperationException($"{fight.Who} has no fight to finish");
         var me = UnitOf(enc, fight.Who);
         // Everyone else in the field lived this minute already, on the scheduler (Sim.LiveBodies), before the player's.
-        // Old game: a fighter that bled out between blows stayed on the field, so the fight never ended (bug, fixed).
         Sweep(world, enc, events, by: null);
         foreach (var u in enc.Units.Where(u => u.SignalModifier != 0 && world.Minute >= u.SignalExpiresMinute))
         {
@@ -577,7 +579,7 @@ public static partial class Combat
             u.SignalModifier = 0;
         }
         CatchUpFlames(world, enc, events);
-        // Snapshot: old game indexed into a list that shrank as units fell, so one could lose its turn (bug, fixed).
+        // A snapshot, so a unit falling mid-round costs no one else a turn.
         if (me.InField)
             foreach (var u in Field(enc).Where(u => !IsPlayer(u)).ToList())
             {
@@ -596,7 +598,6 @@ public static partial class Combat
 
     /// The player is out (fled or fell, in a round or not): whoever is left fights it out unwatched,
     /// and the fight leaves the world. No fight outlives the player's part in it.
-    // The old game ran the remainder as a background fight, one round a minute; here it resolves at once.
     internal static void Finish(World world, Encounter enc, List<WorldEvent> events)
     {
         LetGo(world, enc); // nobody left to give chase to a runner the player was weighing up
@@ -657,12 +658,39 @@ public static partial class Combat
     // ---- primitives ----
 
     /// A step the fighter takes on its own legs: Move, paid for as metabolic work. A shove or a dodge's
-    /// metre is not walked (the dodge's burst pays for it).
-    internal static void Walk(World world, Encounter enc, CombatUnit unit, Cell destination)
+    /// metre is not walked (the dodge's burst pays for it). Stepping into a longer reach meets it braced.
+    internal static void Walk(World world, Encounter enc, CombatUnit unit, Cell destination, List<WorldEvent> events)
     {
         var from = unit.Position;
         Move(world, enc, unit, destination);
         Body.Cover(BodyOf(world, unit), RunningOf(world, unit), from.DistanceTo(unit.Position));
+        MeetBraced(world, enc, unit, from, events);
+    }
+
+    /// How far a fighter strikes from: its weapon's reach, or its body's own, never short of contact.
+    public static double StrikeRangeM(World world, CombatUnit u) =>
+        Math.Max(TouchingM, u.Weapon is Gear g ? Items.Def(g).Weapon!.ReachM : StatsOf(world, u).ReachM);
+
+    /// What a weapon is worth to whoever picks one: its damage, times how much further than contact it
+    /// strikes, since the longer reach strikes first.
+    public static double WeaponWorth(Weapon w) => w.Damage * Math.Max(TouchingM, w.ReachM) / TouchingM;
+
+    /// A fighter standing off or giving ground holds its weapon braced toward the one it faces: when that
+    /// one steps from outside its reach to inside it, and its own reach is the shorter, the braced one
+    /// strikes first. Nothing more than reach decides it, so a spear braces against a wolf and a tusk
+    /// against a person.
+    static void MeetBraced(World world, Encounter enc, CombatUnit mover, Cell from, List<WorldEvent> events)
+    {
+        double moverRangeM = StrikeRangeM(world, mover);
+        foreach (var braced in Enemies(enc, mover).ToList())
+        {
+            if (!mover.InField || IsDown(world, mover)) return;
+            if (TargetOf(enc, braced) != mover || IsDown(world, braced) || Body.IsAsleep(BodyOf(world, braced))
+                || StateOf(world, braced) is not (FighterState.Standoff or FighterState.GivingGround)) continue;
+            double rangeM = StrikeRangeM(world, braced);
+            if (rangeM > moverRangeM && from.DistanceTo(braced.Position) > rangeM && Refusal(world, enc, braced, CombatAction.Attack) == null)
+                Attack(world, enc, braced, mover, events);
+        }
     }
 
     /// Steps to a cell (or a free one beside it), on the grid. How the enemies
@@ -691,7 +719,7 @@ public static partial class Combat
     static ActionResult Attack(World world, Encounter enc, CombatUnit attacker, CombatUnit defender, List<WorldEvent> events)
     {
         Exert(world, attacker);
-        return world.Rng("combat", attacker.Agent).NextDouble() < 0.9 ? Strike(world, enc, attacker, defender, events) : new ActionResult();
+        return world.Rng("combat", attacker.Agent).NextDouble() < 0.9 ? Strike(world, enc, attacker, defender, AverageBlow(world, attacker), events) : new ActionResult();
     }
 
     /// A strike, throw, shove or dodge: its slice of the sprint reserve and its seconds of hard work.
@@ -705,35 +733,33 @@ public static partial class Combat
         Exert(world, attacker);
         double chance = ThrowChance(world, attacker, target, weapon);
         var at = target.Position;
-        var result = world.Rng("combat", attacker.Agent).NextDouble() < chance ? Strike(world, enc, attacker, target, events) : new ActionResult();
-        attacker.Weapon = null; // after the strike: its damage came from the weapon
+        var result = world.Rng("combat", attacker.Agent).NextDouble() < chance
+            ? Strike(world, enc, attacker, target, AverageThrow(world, attacker, Items.Def(weapon).Weapon!), events) : new ActionResult();
+        attacker.Weapon = null; // after the strike: it is named by the weapon
         (enc.Dropped ??= []).Add(new DroppedWeapon(at, weapon, attacker.Agent));
         return result;
     }
 
     /// The chance a throw of this weapon at this target lands, as the thrower would judge it.
-    public static double ThrowChance(World world, CombatUnit attacker, CombatUnit target, Gear weapon)
-    {
-        var (rangeM, accuracy) = Throwing(weapon);
-        return ThrownAccuracy(attacker.Position.DistanceTo(target.Position), rangeM, accuracy, StatsOf(world, target).IsSmall);
-    }
+    public static double ThrowChance(World world, CombatUnit attacker, CombatUnit target, Gear weapon) =>
+        Items.Def(weapon).Weapon!.Thrown is ThrownWeapon t ? ThrownChance(world, attacker, target, t) : 0;
 
     /// The chance a stone thrown at this target lands.
-    public static double StoneChance(World world, CombatUnit attacker, CombatUnit target) =>
-        ThrownAccuracy(attacker.Position.DistanceTo(target.Position), StoneRangeM, StoneAccuracy, StatsOf(world, target).IsSmall);
+    public static double StoneChance(World world, CombatUnit attacker, CombatUnit target) => ThrownChance(world, attacker, target, Stone.Thrown!);
 
-    /// Every weapon carries as far and true as any other until the weapon table gives each its own
-    /// (combat round 4). Old: by name, so "Stone" anywhere in it (the Stone Axe too) threw 25 m at 0.75.
-    static (double RangeM, double Accuracy) Throwing(Gear weapon) => (20.0, 0.70);
+    static double ThrownChance(World world, CombatUnit attacker, CombatUnit target, ThrownWeapon t) =>
+        ThrownAccuracy(attacker.Position.DistanceTo(target.Position), t.RangeM, t.Accuracy, StatsOf(world, target).IsSmall);
 
-    /// A quarter of a blow, no dodging or blocking it. Needs no weapon.
+    static Weapon Stone => Items.GearKinds[StoneKind].Weapon!;
+
+    /// Too quick to dodge or block. Needs no weapon in hand.
     static ActionResult ThrowStone(World world, Encounter enc, CombatUnit attacker, CombatUnit target, List<WorldEvent> events)
     {
         Exert(world, attacker);
         var rng = world.Rng("combat", attacker.Agent);
         if (rng.NextDouble() >= StoneChance(world, attacker, target)) return new ActionResult();
-        var (amount, type) = AttackDamage(world, attacker, rng);
-        amount *= 0.25 * AwarenessDamageFactor(target.Awareness);
+        var (amount, type) = Luck(AverageThrow(world, attacker, Stone), rng);
+        amount *= AwarenessDamageFactor(target.Awareness);
         Engage(world, enc, target);
         var damage = Hurt(world, enc, target, amount, type, StrikerOf(world, attacker, thrown: "thrown stone"), events);
         AfterHit(world, enc, attacker, target, events);
@@ -742,7 +768,8 @@ public static partial class Combat
 
     /// The defender may still turn the blow aside (DefenceChance): a block on its weapon, which wears it, or a
     /// dodge. Either does no harm and gives a metre, so a weapon never makes the defence worse than none.
-    static ActionResult Strike(World world, Encounter enc, CombatUnit attacker, CombatUnit defender, List<WorldEvent> events)
+    static ActionResult Strike(World world, Encounter enc, CombatUnit attacker, CombatUnit defender, (double Amount, DamageType Type) blow,
+        List<WorldEvent> events)
     {
         if (DefenceChance(world, enc, defender, attacker) is double defence and > 0 && world.Rng("combat", defender.Agent).NextDouble() < defence)
         {
@@ -751,8 +778,7 @@ public static partial class Combat
             Move(world, enc, defender, OnTheGrid(defender.Position.Move(attacker.Position.DirectionTo(defender.Position), 1.0f)));
             return new ActionResult(Dodged: defender.Weapon == null, Blocked: defender.Weapon != null);
         }
-        var rng = world.Rng("combat", attacker.Agent);
-        var (amount, type) = AttackDamage(world, attacker, rng);
+        var (amount, type) = Luck(blow, world.Rng("combat", attacker.Agent));
         amount *= AwarenessDamageFactor(defender.Awareness);
         var damage = Hurt(world, enc, defender, amount, type, StrikerOf(world, attacker), events);
         Engage(world, enc, defender);
@@ -768,28 +794,32 @@ public static partial class Combat
         Sweep(world, enc, events, attacker.Agent);
     }
 
-    /// Base attack (weapon or species) scaled by strength 50-100%, vitality 70-100% and luck 50-150%.
-    // Old Player added Fighting skill level to every blow; Fighting is not one of the skills yet (Skills).
-    static (double Amount, DamageType Type) AttackDamage(World world, CombatUnit attacker, Rng rng)
-    {
-        var (amount, type) = AverageBlow(world, attacker);
-        return (amount * (0.5 + rng.NextDouble()), type);
-    }
+    /// Luck takes a blow from half to one and a half of its average.
+    static (double Amount, DamageType Type) Luck((double Amount, DamageType Type) blow, Rng rng) => (blow.Amount * (0.5 + rng.NextDouble()), blow.Type);
 
-    /// The blow before luck: what it does on average.
-    internal static (double Amount, DamageType Type) AverageBlow(World world, CombatUnit attacker)
+    /// The blow before luck: the weapon's damage, or the species' own unarmed, as an average fresh member of
+    /// its kind strikes it, scaled by its strength against theirs (half weight) and its vitality 70-100%.
+    internal static (double Amount, DamageType Type) AverageBlow(World world, CombatUnit attacker) =>
+        attacker.Weapon is Gear g && Items.Def(g).Weapon is Weapon w ? Behind(world, attacker, w.Damage, TypeOf(w))
+            : Behind(world, attacker, StatsOf(world, attacker).AttackDamage, StatsOf(world, attacker).AttackType);
+
+    /// A throw before luck: the thrown row's damage, with the same strength and vitality behind it.
+    internal static (double Amount, DamageType Type) AverageThrow(World world, CombatUnit thrower, Weapon weapon) =>
+        Behind(world, thrower, weapon.Thrown!.Damage, TypeOf(weapon));
+
+    static (double Amount, DamageType Type) Behind(World world, CombatUnit attacker, double damage, DamageType type)
     {
         var body = BodyOf(world, attacker);
-        var stats = StatsOf(world, attacker);
-        var weapon = attacker.Weapon is Gear g ? Items.Def(g).Weapon! : null;
-        var type = weapon == null ? stats.AttackType : weapon.Class switch
-        {
-            WeaponClass.Blade => DamageType.Sharp,
-            WeaponClass.Pierce => DamageType.Pierce,
-            _ => DamageType.Blunt,
-        };
-        return ((weapon?.Damage ?? stats.AttackDamage) * (Body.Strength(body) / 2 + 0.5) * (0.7 + 0.3 * Body.Vitality(body)), type);
+        double strengthPct = SpeciesTable.StrengthPct(world.Agent(attacker.Agent).Species, body);
+        return (damage * (strengthPct / 2 + 0.5) * (0.7 + 0.3 * Body.Vitality(body)), type);
     }
+
+    static DamageType TypeOf(Weapon weapon) => weapon.Class switch
+    {
+        WeaponClass.Blade => DamageType.Sharp,
+        WeaponClass.Pierce => DamageType.Pierce,
+        _ => DamageType.Blunt,
+    };
 
     /// Who struck a blow and with what, as the body it lands on names it: "the player's wooden spear",
     /// "a wolf pack". Read as the blow lands, so a thrown weapon is named before it leaves the hand.
@@ -800,20 +830,19 @@ public static partial class Combat
         return new Cause(attacker.Agent, with == null ? who : $"{who}'s {with}");
     }
 
-    /// Through what the member wears (old Inventory.TotalCushioning/TotalToughness: summed, not worn
-    /// down). The body keeps who hurt it (BodyState.WoundedBy): whatever it dies of later names them.
+    /// Through what the member wears over the region hit (Body.Damage). The body keeps who hurt it
+    /// (BodyState.WoundedBy): whatever it dies of later names them.
     static DamageResult Hurt(World world, Encounter enc, CombatUnit target, double amount, DamageType type, Cause by, List<WorldEvent> events)
     {
         var body = BodyOf(world, target);
-        double cushioning = body.Worn.Sum(g => Items.Def(g).Cushioning), toughness = body.Worn.Sum(g => Items.Def(g).Toughness);
         body.WoundedBy = by;
-        var result = Body.Damage(body, new DamageInfo(amount, type, BodyTarget.Random, cushioning, toughness, by), world.Rng("body", target.Agent));
+        var result = Body.Damage(body, new DamageInfo(amount, type, BodyTarget.Random, by), world.Rng("body", target.Agent));
         events.Add(new Injured(world.Minute, target.Agent, enc.Tile, result.HitRegion, type, amount));
         return result;
     }
 
-    /// Unaware targets take double: the ambush.
-    public static double AwarenessDamageFactor(Awareness a) => a == Awareness.Unaware ? 2.0 : 1.0;
+    /// Unaware targets take half again: the ambush.
+    public static double AwarenessDamageFactor(Awareness a) => a == Awareness.Unaware ? 1.5 : 1.0;
 
     /// The chance an aware fighter turns a blow aside (combat round 1: Block and Dodge folded into one roll):
     /// 60% fresh and unladen, cut as its speed is (Running.SpeedPct: wounds, tiredness, load), higher
@@ -875,7 +904,6 @@ public static partial class Combat
 
     /// A call to the human companions on this side: a morale nudge that replaces the last one and
     /// lapses after five minutes (old CompanionCombat.Signal).
-    // The old game skipped companions whose opinion of the caller was negative; nothing writes opinions yet.
     static void Signal(World world, Encounter enc, CombatUnit caller, bool retreat)
     {
         caller.LastSignalMinute = world.Minute;
@@ -972,7 +1000,6 @@ public static partial class Combat
 
     /// Enemies not yet in the fight look at the mover: noticing it raises their alertness, seeing
     /// nothing lets it fade (round 2), and the awareness bands move them (Combat.Alert).
-    /// Old: one notice escalated a step, Unaware to Alert to Engaged, and nothing ever calmed.
     internal static void RunDetection(World world, Encounter enc, CombatUnit mover, int huntingSkill, double exposureMeters)
     {
         // Seeing nothing calms a watcher less while the mover covers more ground than a stalking step.

@@ -11,6 +11,9 @@
 //                 never scored; the note says why.
 //   orders        scenarios best first on a metric; any that beats the one before it costs the excess
 //   penalties     "dies stupidly": bands by another name, reported apart
+//   spread        no measured scenario should end one way (aDies, bKilled, bLeaves or aFled) in more than
+//                 maxShare of its fights; the excess, times weight, is fitness. exempt: scenarios that should
+//                 be lopsided.
 {
  "fights": 300,
  "reportFights": 1000,
@@ -24,6 +27,9 @@
   "wolf_spear": { "setup": "wolf1_aware", "weapon": "wooden_spear", "policy": "aggressive" },
   "wolf_axe":   { "setup": "wolf1_aware", "weapon": "stone_axe", "policy": "aggressive" },
   "wolf_knife": { "setup": "wolf1_aware", "weapon": "flint_knife", "policy": "aggressive" },
+  "wolf_crude_spear": { "setup": "wolf1_aware", "weapon": "crude_spear", "policy": "aggressive" },
+  "wolf_stone": { "setup": "wolf1_aware", "weapon": "stone", "policy": "aggressive" },
+  "wolf_staff": { "setup": "wolf1_aware", "weapon": "staff", "policy": "aggressive" },
   "wolf_hands": { "setup": "wolf1_aware", "weapon": "none", "policy": "aggressive" },
 
   "pack3_spear": { "setup": "pack3_aware", "weapon": "wooden_spear", "policy": "aggressive" },
@@ -41,7 +47,8 @@
  },
 
  "bands": [
-  { "name": "Careful spear hunt on caribou: meat", "scenario": "caribou_careful_spear", "metric": "bKilled", "min": 0.5, "max": 0.7 },
+  { "name": "Careful spear hunt on caribou: meat", "scenario": "caribou_careful_spear", "metric": "bKilled", "min": 0.2, "max": 0.7,
+   "note": "Was 50-70%; the floor is the user's acceptance bar for now (2026-11-22): a careful hunter kills a caribou some of the time." },
   { "name": "Quick approach on caribou: meat", "scenario": "caribou_quick_spear", "metric": "bKilled", "max": 0.2 },
 
   { "name": "Armed vs a lone wolf: win or drive off", "scenario": "wolf_spear", "metric": "aWinsOrDrivesOff", "min": 0.7, "max": 0.85 },
@@ -71,11 +78,16 @@
  ],
 
  "orders": [
-  { "name": "Weapon order against a lone wolf", "metric": "aWinsOrDrivesOff", "scenarios": ["wolf_spear", "wolf_axe", "wolf_knife", "wolf_hands"], "margin": 0.02,
-   "note": "Strict: each must beat the next by 2 points, so a tie at 100% still costs." },
+  { "name": "Weapon order against a lone wolf", "metric": "aWinsOrDrivesOff", "scenarios": ["wolf_spear", "wolf_axe", "wolf_knife", "wolf_stone", "wolf_staff", "wolf_hands"], "margin": 0.02,
+   "note": "Strict: each must beat the next by 2 points, so a tie at 100% still costs. The weapon table's order." },
+  { "name": "A crude spear does worse than a finished one", "metric": "aWinsOrDrivesOff", "scenarios": ["wolf_spear", "wolf_crude_spear"], "margin": 0.02 },
   { "name": "Weapon order on a careful caribou hunt", "metric": "bKilled", "scenarios": ["caribou_careful_spear", "caribou_careful_axe", "caribou_careful_knife"], "margin": 0.02,
-   "note": "Hands are left out: bare hands never kill a caribou, so the last step costs nothing and would only cost time." }
+   "note": "Hands are left out: bare hands never kill a caribou." }
  ],
+
+ // The user's acceptance bar (2026-11-22): spread outcomes. Exempt, as they should end one way: attacking a bear
+ // bare-handed, and a careless approach on caribou, which its own band holds to few kills.
+ "spread": { "maxShare": 0.95, "weight": 1, "exempt": ["bear_hands", "caribou_quick_spear"] },
 
  "penalties": [
   { "name": "A wolf killed by caribou", "scenario": "wolves_vs_caribou", "metric": "aDies", "max": 0.02, "weight": 2 },

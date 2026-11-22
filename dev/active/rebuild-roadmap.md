@@ -286,22 +286,22 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
   enters your tile only if its margin at your position, fire included, reaches the Pressing entry.
 - Reach per weapon and animal. A spear held in Standoff or while giving ground is braced
   automatically and strikes first.
-- One 0–1 damage scale. A hit of 0.5 or more reaches an organ; an unaware target takes ×1.5.
+- Damage in units of tissue condition (decisions/2026-11-21-damage-is-measured-in-tissue-condition.md): what is left after the layers reaches an organ; an unaware target takes ×1.5.
 
 | Weapon | Hand damage | Reach | Thrown: range / accuracy / damage |
 |---|---|---|---|
-| Hands | 0.10 Blunt | 0.8 m | — |
-| Staff (one stick, new) | 0.12 Blunt | 1.5 m | — |
-| Stone (new, also thrown) | 0.15 Blunt | 0.8 m | 15 m / 0.50 / 0.15 |
-| Crude spear (sharpened stick) | 0.22 Pierce | 2.5 m | 15 m / 0.55 / 0.22 |
-| Knife | 0.25–0.30 Sharp | 0.8 m | 10 m / 0.40 / 0.25 |
-| Wooden spear (fire-hardened) | 0.30 Pierce | 2.5 m | 20 m / 0.70 / 0.30 |
-| Heavy spear | 0.35 Pierce | 2.5 m | 15 m / 0.60 / 0.35 |
-| Axe | 0.40–0.45 Sharp | 1.2 m | 10 m / 0.45 / 0.35 |
-| Stone-tipped spear (crafting) | 0.40 Pierce | 2.5 m | 20 m / 0.70 / 0.40 |
-| Ivory-tipped spear (crafting) | 0.45 Pierce | 2.5 m | 20 m / 0.70 / 0.45 |
+| Hands | 0.05 Blunt | 0.8 m | — |
+| Staff (one stick, new) | 0.41 Blunt | 1.5 m | — |
+| Stone (new, also thrown) | 0.65 Blunt | 0.8 m | 15 m / 0.50 / 0.55 |
+| Crude spear (sharpened stick) | 0.91 Pierce | 2.5 m | 15 m / 0.55 / 1.40 |
+| Knife | 3.38 Sharp | 0.8 m | 10 m / 0.40 / 1.20 |
+| Wooden spear (fire-hardened) | 4.84 Pierce | 2.5 m | 20 m / 0.70 / 2.00 |
+| Heavy spear | 5.56 Pierce | 2.5 m | 15 m / 0.60 / 2.30 |
+| Axe | 6.00 Sharp | 1.2 m | 10 m / 0.45 / 1.50 |
+| Stone-tipped spear (crafting) | 6.29 Pierce | 2.5 m | 20 m / 0.70 / 2.60 |
+| Ivory-tipped spear (crafting, not built) | 0.45 Pierce on the old scale | 2.5 m | 20 m / 0.70 / 0.45 |
 
-  These are starting values for the tuning tool, keeping spear > axe > knife > stone > staff > hands.
+  Melee damage is the tuner's (2026-11-22); the outcome order spear > axe > knife > stone > staff > hands holds.
 - Glance moves onto the sight rays: one sight model for noticing and the explored map.
 - Progress (2026-11-21):
   - MVP 1 done.

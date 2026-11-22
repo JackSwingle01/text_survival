@@ -44,10 +44,24 @@ public sealed record Order(string Name, string Metric, IReadOnlyList<string> Sce
     }
 }
 
-/// What a candidate is scored on: the scenarios, the bands, the orderings and the "dies stupidly"
-/// penalties (bands by another name, reported apart), and how many fights each scenario gets.
+/// Fights should not all end one way: a scenario whose commonest ending (the person dies, the animal
+/// is killed, it leaves, the person gets away) is more than MaxShare of its fights costs the excess,
+/// weighted. Scenarios that should be lopsided are listed in Exempt.
+public sealed record OutcomeSpread(double MaxShare, double Weight = 1, IReadOnlyList<string>? Exempt = null)
+{
+    public static readonly string[] Endings = ["aDies", "bKilled", "bLeaves", "aFled"];
+
+    public static double Commonest(IReadOnlyDictionary<string, double> means) => Endings.Max(e => means[e]);
+
+    public double Distance(string scenario, IReadOnlyDictionary<string, double> means) =>
+        Exempt?.Contains(scenario) == true ? 0 : Math.Max(0, Commonest(means) - MaxShare) * Weight;
+}
+
+/// What a candidate is scored on: the scenarios, the bands, the orderings, the "dies stupidly"
+/// penalties (bands by another name, reported apart) and the spread, and how many fights each
+/// scenario gets.
 public sealed record BandSpec(int Fights, int ReportFights, IReadOnlyDictionary<string, Scenario> Scenarios,
-    IReadOnlyList<Band> Bands, IReadOnlyList<Order> Orders, IReadOnlyList<Band> Penalties)
+    IReadOnlyList<Band> Bands, IReadOnlyList<Order> Orders, IReadOnlyList<Band> Penalties, OutcomeSpread? Spread = null)
 {
     public IEnumerable<Band> AllBands => Bands.Concat(Penalties);
 
@@ -55,10 +69,15 @@ public sealed record BandSpec(int Fights, int ReportFights, IReadOnlyDictionary<
     public IReadOnlyList<string> Used =>
         [.. Scenarios.Keys.Where(k => AllBands.Any(b => b.Scenario == k) || Orders.Any(o => o.Scenarios.Contains(k)))];
 
-    /// Fitness: summed weighted distance outside every scored band, ordering and penalty.
+    /// Fitness: summed weighted distance outside every scored band, ordering and penalty, and every
+    /// measured scenario's excess over the spread.
     public double Fitness(IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> means) =>
         AllBands.Where(b => b.Scored).Sum(b => b.Distance(means[b.Scenario][b.Metric]))
-        + Orders.Where(o => o.Scored).Sum(o => o.Distance(o.Scenarios.ToDictionary(s => s, s => means[s][o.Metric])));
+        + Orders.Where(o => o.Scored).Sum(o => o.Distance(o.Scenarios.ToDictionary(s => s, s => means[s][o.Metric])))
+        + SpreadDistance(means);
+
+    public double SpreadDistance(IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> means) =>
+        Spread is { } sp ? Used.Sum(s => sp.Distance(s, means[s])) : 0;
 }
 
 public static class Specs
@@ -128,13 +147,13 @@ public static class Specs
     }
 
     sealed record BandFile(int Fights, int ReportFights, Dictionary<string, Scenario> Scenarios, IReadOnlyList<Band> Bands,
-        IReadOnlyList<Order>? Orders = null, IReadOnlyList<Band>? Penalties = null);
+        IReadOnlyList<Order>? Orders = null, IReadOnlyList<Band>? Penalties = null, OutcomeSpread? Spread = null);
 
     /// Reads a band spec and checks every scenario runs and every reference resolves.
     public static BandSpec LoadBands(string json)
     {
         var f = JsonSerializer.Deserialize<BandFile>(json, Options) ?? throw new InvalidDataException("empty band spec");
-        var spec = new BandSpec(f.Fights, f.ReportFights, f.Scenarios, f.Bands, f.Orders ?? [], f.Penalties ?? []);
+        var spec = new BandSpec(f.Fights, f.ReportFights, f.Scenarios, f.Bands, f.Orders ?? [], f.Penalties ?? [], f.Spread);
         var problems = new List<string>();
         if (spec.Fights < 1 || spec.ReportFights < 1) problems.Add("fights and reportFights must be at least 1");
         foreach (var (name, s) in spec.Scenarios)
@@ -152,6 +171,11 @@ public static class Specs
             if (o.Scenarios.Count < 2) problems.Add($"{o.Name}: an order needs two scenarios");
             foreach (var s in o.Scenarios) if (!spec.Scenarios.ContainsKey(s)) problems.Add($"{o.Name}: no scenario {s}");
             if (!FightOutcome.Metrics.Contains(o.Metric)) problems.Add($"{o.Name}: no metric {o.Metric}");
+        }
+        if (spec.Spread is { } sp)
+        {
+            if (sp.MaxShare is <= 0 or > 1 || sp.Weight < 0) problems.Add($"spread: maxShare in (0, 1], weight 0 or more");
+            foreach (var s in sp.Exempt ?? []) if (!spec.Used.Contains(s)) problems.Add($"spread: exempt {s} is not a measured scenario");
         }
         foreach (var dup in spec.AllBands.Select(b => b.Name).Concat(spec.Orders.Select(o => o.Name)).GroupBy(n => n).Where(g => g.Count() > 1))
             problems.Add($"{dup.Key} is listed twice");

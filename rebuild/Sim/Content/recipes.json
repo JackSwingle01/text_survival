@@ -79,6 +79,10 @@
   "outcomes": ["fail:waste_material:ScrapedHide:0.5=.08"] },
 
  // ---- weapons ----
+ "stone": { "name": "Stone", "category": "HuntingWeapon",
+  "inputs": [ { "of": "Stone", "kg": 0.3 } ], "tools": [], "requires": [], "minutes": 1,
+  "result": { "gear": "stone" },
+  "outcomes": [] },
  "staff": { "name": "Staff", "category": "HuntingWeapon",
   "inputs": [ { "of": "Pine|Birch|Oak", "kg": 1.5 } ], "tools": [], "faster": ["Cutting"], "requires": [], "minutes": 10,
   "result": { "gear": "staff" },

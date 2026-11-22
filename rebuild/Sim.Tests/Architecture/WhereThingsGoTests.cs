@@ -533,7 +533,7 @@ public class WhereThingsGoTests
     {
         ["Beliefs"] = (27, "the code name for memory until the rename", "memory"),
         ["Guarded"] = (13, "the condition the glossary calls occupied", "occupied"),
-        ["Margin"] = (64, "the word the glossary replaces with resolve", "resolve"),
+        ["Margin"] = (56, "the word the glossary replaces with resolve", "resolve"),
         ["Thing"] = (168, "location features are still things in the code (ThingRef, ThingKind, Things)", "location feature"),
     };
 

@@ -23,6 +23,8 @@ public sealed record SpeciesStats(
     double Threat, double Boldness, double Aggression, double Cohesion,
     /// Metres covered in one combat action at full Moving (old CombatMovement.Allowance).
     int MoveAllowanceM,
+    /// How far from its body it strikes unarmed.
+    double ReachM,
     Temperament Temperament,
     /// How its herd lives, and what its herd grazes. Humans and small game never form herds of their own.
     HerdBehavior Behavior,
@@ -118,6 +120,21 @@ public static class SpeciesTable
     /// A body so hurt or laden that it barely moves still runs a little, and pays a finite price for a burst.
     public const double MinSpeedPct = 0.1;
 
+    /// This body's strength as a share of an average fresh member's of its kind (a woman's own, for a
+    /// woman, as with running), so a species' or a weapon's damage is what an average one does:
+    /// Strength's kilogram terms are a person's.
+    public static double StrengthPct(Species species, BodyState body)
+    {
+        var sex = species == Species.Human ? body.Sex : Sex.Male;
+        lock (FreshStrengths)
+        {
+            if (!FreshStrengths.TryGetValue((species, sex), out double strength))
+                FreshStrengths[(species, sex)] = strength = Body.Strength(Average(species, sex));
+            return Body.Strength(body) / strength;
+        }
+    }
+
+    static readonly Dictionary<(Species, Sex), double> FreshStrengths = [];
     static readonly Dictionary<(Species, Sex), double> FreshSpeeds = [];
 
     /// Body.Speed of an average fresh member, unladen: worked out once per kind.

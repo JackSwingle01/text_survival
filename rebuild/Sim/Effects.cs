@@ -129,7 +129,10 @@ public static class Effects
 
     public static double CoreTempFPerHour(BodyState body) => body.Effects.Sum(e => DefOf(e.Kind).CoreTempFPerHour * e.Severity);
 
-    public static double BleedMlPerHour(BodyState body) => body.Effects.Sum(e => DefOf(e.Kind).BleedMlPerHour * e.Severity);
+    public static double BleedMlPerHour(BodyState body) =>
+        body.Effects.Sum(e => DefOf(e.Kind).BleedMlPerHour * e.Severity) * Math.Pow(body.WeightKg / Body.BaselineWeightKg, BloodFlowPerWeightExponent);
+
+    const double BloodFlowPerWeightExponent = 0.75;
 
     public static double MetabolicHeatFactor(BodyState body) => 1 + body.Effects.Sum(e => DefOf(e.Kind).MetabolicHeatDelta * e.Severity);
 

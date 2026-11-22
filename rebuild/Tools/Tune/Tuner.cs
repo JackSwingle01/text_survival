@@ -126,6 +126,13 @@ public static class Tuner
             if (after == null) sb.AppendLine($"| {name} | | {target} | {Values(before)} | {F(D(before))} |");
             else sb.AppendLine($"| {name} | | {target} | {Values(before)} | {Values(after)} | {F(D(before))} | {F(D(after))} |");
         }
+        if (spec.Spread is { } sp)
+        {
+            string Over(JobResult r) => string.Join(", ", spec.Used.Where(x => sp.Distance(x, r.Means[x]) > 0).Select(x => $"{x} {Pct(OutcomeSpread.Commonest(r.Means[x]))}"));
+            string target = $"no ending above {Pct(sp.MaxShare)}" + (sp.Exempt is { Count: > 0 } ex ? $" (exempt: {string.Join(", ", ex)})" : "");
+            if (after == null) sb.AppendLine($"| spread | | {target} | {Over(before)} | {F(spec.SpreadDistance(before.Means))} |");
+            else sb.AppendLine($"| spread | | {target} | {Over(before)} | {Over(after)} | {F(spec.SpreadDistance(before.Means))} | {F(spec.SpreadDistance(after.Means))} |");
+        }
         return sb.ToString();
     }
 

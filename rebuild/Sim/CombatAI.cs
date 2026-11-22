@@ -215,19 +215,19 @@ public static partial class Combat
         Enter(world, enc, u, next);
     }
 
-    /// Where the margin takes a fighter from the state it is in.
-    public static FighterState NextState(FighterState state, double margin)
+    /// Where its resolve takes a fighter from the state it is in.
+    public static FighterState NextState(FighterState state, double resolve)
     {
-        if (state == FighterState.Fleeing) return margin > FleeingRecoverMargin ? FighterState.GivingGround : FighterState.Fleeing;
-        if (margin < FleeingEnterMargin) return FighterState.Fleeing;
+        if (state == FighterState.Fleeing) return resolve > FleeingRecoverMargin ? FighterState.GivingGround : FighterState.Fleeing;
+        if (resolve < FleeingEnterMargin) return FighterState.Fleeing;
         return state switch
         {
-            FighterState.Pressing => margin < GivingGroundEnterMargin ? FighterState.GivingGround
-                : margin < PressingLeaveMargin ? FighterState.Standoff : FighterState.Pressing,
-            FighterState.GivingGround => margin >= PressingEnterMargin ? FighterState.Pressing
-                : margin > GivingGroundRecoverMargin ? FighterState.Standoff : FighterState.GivingGround,
-            FighterState.Standoff => margin >= PressingEnterMargin ? FighterState.Pressing
-                : margin < GivingGroundEnterMargin ? FighterState.GivingGround : FighterState.Standoff,
+            FighterState.Pressing => resolve < GivingGroundEnterMargin ? FighterState.GivingGround
+                : resolve < PressingLeaveMargin ? FighterState.Standoff : FighterState.Pressing,
+            FighterState.GivingGround => resolve >= PressingEnterMargin ? FighterState.Pressing
+                : resolve > GivingGroundRecoverMargin ? FighterState.Standoff : FighterState.GivingGround,
+            FighterState.Standoff => resolve >= PressingEnterMargin ? FighterState.Pressing
+                : resolve < GivingGroundEnterMargin ? FighterState.GivingGround : FighterState.Standoff,
             _ => state,
         };
     }
@@ -432,8 +432,7 @@ public static partial class Combat
                     return Wait();
                 }
                 if (Allowed(CombatAction.Attack)) return (CombatAction.Attack, null, null); // the target stepped into its reach
-                // It holds, or steps a metre round you (round 2: it may move sideways, or stop).
-                return rng.NextInt(2) == 0 ? Wait() : Go(Sideways(u, target, rng.NextInt(2) == 0 ? 1 : -1));
+                return Hold(world, enc, u, target, rng) is Cell held ? Go(held) : Wait();
             case FighterState.GivingGround:
                 if (!stats.IsAnimal && u.Weapon == null && Allowed(CombatAction.PickUp)) return (CombatAction.PickUp, null, null);
                 // The enemy in reach: a fighting retreat strikes while it has the nerve for it (a tunable line).
@@ -448,6 +447,37 @@ public static partial class Combat
 
     /// A wary animal's chance a round to come a step nearer to look (judgment: the sweeps tune it).
     const double WaryLookPct = 0.15;
+
+    /// The hold: standing off, an animal steps toward or away in proportion to its resolve, past a deadband,
+    /// and never comes inside the longer of the two reaches and half a metre; in the deadband, or at that
+    /// line, it stops or circles a metre round. Null when it stays put.
+    static Cell? Hold(World world, Encounter enc, CombatUnit u, CombatUnit target, Rng rng)
+    {
+        double resolve = Margin(world, enc, u, target), distanceM = u.Position.DistanceTo(target.Position);
+        double holdM = HoldLineM(world, u, target);
+        double stepM = Math.Abs(resolve) < HoldDeadbandResolve ? 0
+            : Math.Clamp(resolve * HoldStepMPerResolve, -Allowance(world, u), Math.Max(0, distanceM - holdM));
+        for (; Math.Abs(stepM) >= 1; stepM -= Math.Sign(stepM) * 0.5)
+        {
+            var c = stepM > 0 ? u.Position.Toward(target.Position, (float)stepM) : u.Position.Away(target.Position, (float)-stepM);
+            if (c != u.Position && KeepsHold(world, enc, c, u, target, holdM)) return c;
+        }
+        if (rng.NextInt(2) == 0) return null;
+        var side = Sideways(u, target, rng.NextInt(2) == 0 ? 1 : -1);
+        return KeepsHold(world, enc, side, u, target, holdM) ? side : null;
+    }
+
+    /// Where an animal standing off stops: the longer of its reach and its target's, and half a metre more.
+    public static double HoldLineM(World world, CombatUnit u, CombatUnit target) =>
+        Math.Max(StrikeRangeM(world, u), StrikeRangeM(world, target)) + HoldBeyondReachM;
+
+    /// A cell keeps the hold if it is outside the line, or no nearer than the animal stands now. It must be
+    /// free and on the grid, or the step would land on some other cell nobody checked.
+    static bool KeepsHold(World world, Encounter enc, Cell c, CombatUnit u, CombatUnit target, double holdM) =>
+        c.DistanceTo(target.Position) >= Math.Min(holdM, u.Position.DistanceTo(target.Position))
+        && InBounds(c) && OnTheGrid(c) == c && !Field(enc).Any(o => o != u && o.Position == c && Alive(world, o));
+
+    const double HoldBeyondReachM = 0.5, HoldDeadbandResolve = 0.05, HoldStepMPerResolve = 10;
 
     /// The cell a step toward this one ends on within the unit's allowance (a step rounded onto the grid can
     /// come out a little long), or null when there is no step to take.
@@ -478,7 +508,7 @@ public static partial class Combat
     }
 
     /// One AI turn: the round's morale, a target if it has lost one, the bands, then its state's action.
-    /// A pressing animal that closes to within 1.5 m strikes in the same turn.
+    /// A pressing animal that closes into its reach strikes in the same turn, unless a braced blow felled it.
     internal static void AiTurn(World world, Encounter enc, CombatUnit u, List<WorldEvent> events)
     {
         if (IsPlayer(u) || !u.InField || IsDown(world, u)) return;
@@ -494,7 +524,7 @@ public static partial class Combat
             throw new InvalidOperationException($"The AI chose a refused {action} for {u.Agent}: {refused}");
         if (action == CombatAction.Turn) return;
         if (action == CombatAction.Move && u.State == FighterState.Pressing && StatsOf(world, u).IsAnimal
-            && target is { InField: true } && u.InField && u.Position.DistanceTo(target.Position) <= 1.5)
+            && target is { InField: true } && u.InField && !IsDown(world, u) && u.Position.DistanceTo(target.Position) <= StrikeRangeM(world, u))
             Attack(world, enc, u, target, events);
         Sweep(world, enc, events, u.Agent);
     }

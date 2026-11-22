@@ -29,8 +29,11 @@ public enum EquipSlot { Head, Chest, Legs, Feet, Hands }
 
 public enum WeaponClass { Blade, Blunt, Pierce, Claw, Unarmed }
 
-/// What a weapon does in a fight. Read by combat.
-public sealed record Weapon(double Damage, WeaponClass Class, double BlockChance);
+/// What a weapon does in a fight, damage in units of tissue condition (DamageInfo). Thrown is null for what is not made to be thrown.
+public sealed record Weapon(double Damage, WeaponClass Class, double BlockChance, double ReachM, ThrownWeapon? Thrown = null);
+
+/// How far a thrown weapon carries, how true at point-blank, and how hard it lands.
+public sealed record ThrownWeapon(double RangeM, double Accuracy, double Damage);
 
 /// One row of the resource table (Content/items.json). Kcal and water per kg of food.
 public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0, double HydrationMlPerKg = 0);

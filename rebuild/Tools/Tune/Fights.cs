@@ -77,12 +77,12 @@ public sealed class Fights
                 && MapGen.Neighbors(t).All(nb => Map.Blocked(m, t, nb) == null));
 
     public static readonly string[] Setups = ["hunt_caribou_resting", "hunt_caribou_grazing", "hunt_bison_resting",
-        "wolf1_ambush", "wolf1_aware", "pack3_aware", "pack3_ambush", "pack5_aware", "pack5_ambush", "bear_close", "bear_den",
+        "wolf1_ambush", "wolf1_aware", "pack3_aware", "hyena3_aware", "pack3_ambush", "pack5_aware", "pack5_ambush", "bear_close", "bear_den",
         "wolves4_vs_caribou1_noticed", "wolves4_vs_caribou1_unnoticed", "wolves4_vs_caribou3_noticed", "wolves4_vs_bison1_noticed",
         "two_people_vs_wolves4", "one_person_vs_wolves4"];
     public static readonly string[] Policies = ["ai", "aggressive", "cautious", "stand_intimidate", "run",
         "careful_melee", "careful_throw", "quick_melee", "quick_throw"];
-    public static readonly string[] Weapons = ["none", "flint_knife", "wooden_spear", "stone_axe"];
+    public static readonly string[] Weapons = ["none", "flint_knife", "wooden_spear", "stone_axe", "crude_spear", "staff", "stone"];
     public static readonly string[] Conds = ["healthy", "tired", "hungry", "cold95", "cold92", "leg", "arm", "bleeding", "meat"];
     public static readonly string[] Fires = ["none", "campfire", "torch"];
 
@@ -327,6 +327,7 @@ public sealed class Fights
             "wolf1_aware" => (1, Species.Wolf, Opening.Approach, 0, Awareness.Engaged),
             "pack3_aware" => (3, Species.Wolf, Opening.Approach, 0, Awareness.Engaged),
             "pack3_ambush" => (3, Species.Wolf, Opening.Ambush, 4, Awareness.Unaware),
+            "hyena3_aware" => (3, Species.Hyena, Opening.Approach, 0, Awareness.Engaged),
             "pack5_aware" => (5, Species.Wolf, Opening.Approach, 0, Awareness.Engaged),
             "pack5_ambush" => (5, Species.Wolf, Opening.Ambush, 4, Awareness.Unaware),
             "bear_close" => (1, Species.Bear, Opening.CloseEncounter, 8, Awareness.Engaged),

@@ -35,13 +35,19 @@ public class BodyTests
 
     // ---- tissues ----
 
+    /// Damage is measured in tissue condition: what a tissue can stop grows with its toughness and the
+    /// size of the body, and a point meets less soft tissue than an edge, a club least; bone stops a
+    /// club best.
     [Fact]
-    public void Protection_IsToughnessTimesCondition()
+    public void EffectiveToughness_GrowsWithToughnessAndSize_AndDependsOnTheBlow()
     {
-        var t = new Tissue { Name = "Test", Kind = TissueKind.Muscle, Toughness = 10 };
-        Assert.Equal(10.0, Body.Protection(t), 6);
-        t.Condition = 0.5;
-        Assert.Equal(5.0, Body.Protection(t), 6);
+        var muscle = new Tissue { Name = "Muscle", Kind = TissueKind.Muscle, Toughness = 2 };
+        var bone = new Tissue { Name = "Bone", Kind = TissueKind.Bone, Toughness = 2 };
+        Assert.True(Body.EffectiveToughness(muscle, DamageType.Sharp, 2) > Body.EffectiveToughness(muscle, DamageType.Sharp, 1));
+        Assert.True(Body.EffectiveToughness(muscle, DamageType.Pierce, 1) < Body.EffectiveToughness(muscle, DamageType.Sharp, 1));
+        Assert.True(Body.EffectiveToughness(muscle, DamageType.Blunt, 1) < Body.EffectiveToughness(muscle, DamageType.Sharp, 1));
+        Assert.True(Body.EffectiveToughness(bone, DamageType.Blunt, 1) > Body.EffectiveToughness(bone, DamageType.Sharp, 1));
+        Assert.True(Body.EffectiveToughness(bone, DamageType.Blunt, 1) > Body.EffectiveToughness(bone, DamageType.Pierce, 1));
     }
 
     [Theory]
@@ -414,7 +420,7 @@ public class BodyTests
     [Fact]
     public void Damage_LightBlowToChest_ReachesNoOrgan()
     {
-        var result = Body.Damage(Baseline(), new DamageInfo(2, DamageType.Blunt, BodyTarget.Chest), TestRng());
+        var result = Body.Damage(Baseline(), new DamageInfo(0.4, DamageType.Blunt, BodyTarget.Chest), TestRng());
         Assert.Null(result.OrganHit);
         Assert.True(result.DamageAbsorbed > 0);
     }
@@ -434,11 +440,16 @@ public class BodyTests
         Assert.NotNull(result.OrganHit);
     }
 
+    /// A layer stops no more than it can of the blow and passes the rest on: a huge blow to an arm,
+    /// which has no organ behind it, goes out the other side.
     [Fact]
-    public void Damage_EachLayerAbsorbsAtMostSeventyPercent()
+    public void Damage_EachLayerStopsAtMostItsEffectiveToughness()
     {
-        var result = Body.Damage(Baseline(), new DamageInfo(100, DamageType.Blunt, BodyTarget.LeftArm), TestRng());
-        Assert.True(result.DamageAbsorbed > 0 && result.DamageAbsorbed <= 100 * (1 - 0.3 * 0.3 * 0.3) + 1e-9);
+        var b = BodyState.Create(BodyKind.Human, Body.BaselineWeightKg, Body.BaselineFatPct, Body.BaselineMusclePct);
+        var arm = RegionOf(b, "Left Arm");
+        double most = arm.Layers.Sum(t => Body.EffectiveToughness(t, DamageType.Blunt, 1) + Body.NaturalAbsorption(t, DamageType.Blunt));
+        var result = Body.Damage(b, new DamageInfo(100, DamageType.Blunt, BodyTarget.LeftArm), TestRng());
+        Assert.InRange(result.DamageAbsorbed, 1e-9, most + 1e-9);
     }
 
     [Fact]
@@ -472,20 +483,46 @@ public class BodyTests
     }
 
     [Fact]
-    public void Armor_ReducesBluntByCushioning_ButNotInternal()
+    public void Clothing_ReducesBluntByCushioning_ButNotInternal()
     {
         var bare = Baseline();
+        bare.Worn.Clear();
         var padded = Baseline();
-        Body.Damage(bare, new DamageInfo(0.3, DamageType.Blunt, BodyTarget.LeftArm), TestRng());
-        Body.Damage(padded, new DamageInfo(0.3, DamageType.Blunt, BodyTarget.LeftArm, ArmorCushioningLevel: 0.5), TestRng());
-        Assert.True(RegionOf(padded, "Left Arm").Condition > RegionOf(bare, "Left Arm").Condition);
+        Body.Damage(bare, new DamageInfo(0.3, DamageType.Blunt, BodyTarget.Chest), TestRng());
+        Body.Damage(padded, new DamageInfo(0.3, DamageType.Blunt, BodyTarget.Chest), TestRng());
+        Assert.True(RegionOf(padded, "Chest").Condition > RegionOf(bare, "Chest").Condition);
 
         var b = Baseline();
-        Body.Damage(b, new DamageInfo(0.5, DamageType.Internal, BodyTarget.Heart, ArmorCushioningLevel: 0.8), TestRng());
-        // Unarmored, and taken as condition directly: internal harm ignores toughness (body review B4;
-        // was 0.9, divided by the heart's toughness of 5).
+        Body.Damage(b, new DamageInfo(0.5, DamageType.Internal, BodyTarget.Heart), TestRng());
+        // Taken as condition directly: internal harm ignores clothing and toughness (body review B4).
         Assert.Equal(0.5, OrganOf(b, "Heart").Condition, 6);
     }
+
+    /// Clothing protects only the region it lies over: leg wraps, however thick, do nothing for a blow
+    /// to the head. Old: combat summed everything worn for a blow anywhere.
+    [Fact]
+    public void ClothingOnTheLegs_DoesNothingForAHeadBlow()
+    {
+        var bare = BodyState.BaselineHuman();
+        bare.Worn.Clear();
+        var legs = BodyState.BaselineHuman();
+        legs.Worn.Clear();
+        legs.Worn.Add(Items.Make("mammoth_hide_legs"));
+        Body.Damage(bare, new DamageInfo(0.6, DamageType.Blunt, BodyTarget.Head), TestRng());
+        Body.Damage(legs, new DamageInfo(0.6, DamageType.Blunt, BodyTarget.Head), TestRng());
+        Assert.Equal(Whole(RegionOf(bare, "Head")), Whole(RegionOf(legs, "Head")), 9);
+
+        var shin = BodyState.BaselineHuman();
+        shin.Worn.Clear();
+        shin.Worn.Add(Items.Make("mammoth_hide_legs"));
+        var bareShin = BodyState.BaselineHuman();
+        bareShin.Worn.Clear();
+        Body.Damage(shin, new DamageInfo(0.6, DamageType.Blunt, BodyTarget.LeftLeg), TestRng());
+        Body.Damage(bareShin, new DamageInfo(0.6, DamageType.Blunt, BodyTarget.LeftLeg), TestRng());
+        Assert.True(Whole(RegionOf(shin, "Left Leg")) > Whole(RegionOf(bareShin, "Left Leg")));
+    }
+
+    static double Whole(Region r) => r.Layers.Sum(t => t.Condition);
 
     /// Body review B4: internal harm takes condition at its rate, whatever the organ's toughness or what
     /// it has already lost, so a failing organ does not fail faster. Old: divided by toughness times
@@ -505,18 +542,18 @@ public class BodyTests
     }
 
     /// Body review A4: a deep wound to the head can reach the brain. Old: any eye or ear came first, so
-    /// 2,000 head stabs never touched it. A shallow wound still reaches no inner organ.
+    /// 2,000 head stabs never touched it. A wound the skull stops reaches no organ.
     [Fact]
     public void ADeepHeadWound_CanReachTheBrain_AShallowOneCannot()
     {
         int brain = 0, external = 0;
         for (int seed = 0; seed < 200; seed++)
         {
-            var hit = Body.Damage(Baseline(), new DamageInfo(9, DamageType.Pierce, BodyTarget.Head), Rng.ForSystem(seed, "head"));
+            var hit = Body.Damage(Baseline(), new DamageInfo(3.0, DamageType.Pierce, BodyTarget.Head), Rng.ForSystem(seed, "head"));
             if (hit.OrganHit == "Brain") brain++;
             else if (hit.OrganHit != null) external++;
-            var graze = Body.Damage(Baseline(), new DamageInfo(0.5, DamageType.Pierce, BodyTarget.Head), Rng.ForSystem(seed, "head"));
-            Assert.NotEqual("Brain", graze.OrganHit);
+            var graze = Body.Damage(Baseline(), new DamageInfo(1.0, DamageType.Pierce, BodyTarget.Head), Rng.ForSystem(seed, "head"));
+            Assert.Null(graze.OrganHit);
         }
         Assert.InRange(brain, 100, 180);  // about 70%
         Assert.InRange(external, 20, 100); // about 30%
@@ -535,7 +572,7 @@ public class BodyTests
     {
         var b = Baseline();
         OrganOf(b, "Liver").Condition = 0.5;
-        Body.Heal(b, 0.4); // liver toughness 4: 0.4 heals 0.1 condition
+        Body.Heal(b, 0.06); // liver toughness 0.6: 0.06 heals 0.1 condition
         Assert.Equal(0.6, OrganOf(b, "Liver").Condition, 6);
     }
 

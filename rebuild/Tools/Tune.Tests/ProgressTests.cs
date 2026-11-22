@@ -15,7 +15,7 @@ public class ProgressTests
 
     static readonly Parameter[] Ps =
     [
-        new("spear.damage", ["items.json:gear.wooden_spear.weapon.damage"], 0.1, 15, Log: true),
+        new("spear.damage", ["items.json:gear.wooden_spear.weapon.damage"], 0.3, 6, Log: true),
         new("wolf.boldness", ["species.json:species.Wolf.boldness"], 0.2, 4, Log: true),
     ];
 
@@ -24,7 +24,7 @@ public class ProgressTests
         [new Band("wolf lost", "pack_vs_caribou", "aDies", Max: 0.02)]);
 
     static readonly TuneOptions Opt = new(Budget: 12, Seed: 3, Workers: 6, Sigma: 0.3, Lambda: 4);
-    static readonly double[] Today = [8, 1.3];
+    static readonly double[] Today = [4.84, 1.15];
 
     static Provenance AtCommit(string c, string hash = "h") => new(c, false, hash, Provenance.ToolVersion);
 

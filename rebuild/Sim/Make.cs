@@ -15,7 +15,7 @@ public sealed record WasteMaterial(Resource Input, double SharePct) : Effect;
 public sealed record SaveMaterial(Resource Input, double SharePct) : Effect;
 /// Something more besides: Amount pieces of a gear kind, or kilos of a resource.
 public sealed record ExtraProduct(string What, double Amount) : Effect;
-/// A cut, through Body.Damage: Amount on DamageInfo's 0-1 scale.
+/// A cut, through Body.Damage: Amount in DamageInfo's units of tissue condition.
 public sealed record Injury(BodyTarget Target, double Amount) : Effect;
 /// The tool giving this capability loses whole uses of durability; no amount breaks it outright.
 public sealed record BreakTool(Capability Capability, int? Uses) : Effect;

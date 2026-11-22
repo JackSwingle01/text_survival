@@ -261,14 +261,14 @@ public static partial class Fauna
         return Access.Refusal(world, h.Who, Things.OfAgent(world, h.Prey), confronting: true);
     }
 
-    /// A person's stalk, with the hardest-hitting working weapon in the pack, at the herd's weakest member.
+    /// A person's stalk, with the best working weapon in the pack (Combat.WeaponWorth), at the herd's weakest member.
     /// The player's lasts this one minute of setting out (their Fight rounds are the stalk); anyone
     /// else's is fought out headless and lasts as many minutes as it had rounds.
     static int PersonHunt(World world, Hunt h, List<WorldEvent> events)
     {
         var hunter = world.Agent(h.Who);
         var weapon = Items.PackOf(hunter)!.Gear.Where(g => Items.Def(g).Weapon != null && Items.Works(g))
-            .OrderByDescending(g => Items.Def(g).Weapon!.Damage).FirstOrDefault();
+            .OrderByDescending(g => Combat.WeaponWorth(Items.Def(g).Weapon!)).FirstOrDefault();
         var enc = BeginHunt(world, h.Who, h.Prey, Weakest(world.Agent(h.Prey)), weapon);
         if (h.Who == AgentId.Player) return 1;
         Combat.ResolveHeadless(world, enc, events);

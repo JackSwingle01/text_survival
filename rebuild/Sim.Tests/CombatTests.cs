@@ -456,7 +456,7 @@ public class CombatTests
         var e = PlayerVs(w, t, Species.Wolf, 20);
         var refused = Sim.Step(w, new Fight(AgentId.Player, CombatAction.Attack), 1);
         Assert.Equal(0, refused.MinutesElapsed);
-        Assert.Equal("Requires close or near range.", refused.InterruptedReason);
+        Assert.Equal("Out of reach.", refused.InterruptedReason);
         Assert.Equal(0, w.Minute);
         Assert.Equal(0, e.Rounds);
 
@@ -602,7 +602,7 @@ public class CombatTests
         Assert.Equal(-0.25, B(e).BoldnessModifier, 9);
         Assert.Equal([0.9, 0.7, 0.2, 0.0, 0.4],
             new[] { CombatResult.Defeat, CombatResult.Fled, CombatResult.AnimalFled, CombatResult.Victory, CombatResult.AnimalDisengaged }.Select(Combat.FearAfter));
-        Assert.Equal(2.0, Combat.AwarenessDamageFactor(Awareness.Unaware));
+        Assert.Equal(1.5, Combat.AwarenessDamageFactor(Awareness.Unaware));
         Assert.Equal(1.0, Combat.AwarenessDamageFactor(Awareness.Alert));
     }
 

@@ -12,18 +12,18 @@
 // keep each top speed above its endurance speed, which the content loader insists on.
 {
  "parameters": [
-  { "name": "human.attackDamage", "path": "species.json:species.Human.attackDamage", "min": 0.02, "max": 1.5, "log": true, "note": "bare hands" },
+  { "name": "human.attackDamage", "path": "species.json:species.Human.attackDamage", "min": 0.05, "max": 1.5, "log": true, "note": "bare hands" },
   { "name": "human.threat", "path": "species.json:species.Human.threat", "min": 0.2, "max": 4, "log": true, "note": "what an animal reads off a person" },
   { "name": "human.moveAllowanceM", "path": "species.json:species.Human.moveAllowanceM", "min": 2, "max": 6, "integer": true },
 
-  { "name": "wolf.attackDamage", "path": "species.json:species.Wolf.attackDamage", "min": 0.05, "max": 3, "log": true },
+  { "name": "wolf.attackDamage", "path": "species.json:species.Wolf.attackDamage", "min": 0.2, "max": 3, "log": true },
   { "name": "wolf.threat", "path": "species.json:species.Wolf.threat", "min": 0.1, "max": 4, "log": true },
   { "name": "wolf.boldness", "path": "species.json:species.Wolf.boldness", "min": 0.2, "max": 4, "log": true },
   { "name": "wolf.aggression", "path": "species.json:species.Wolf.aggression", "min": 0.05, "max": 1, "note": "the tables hold aggression to 0-1" },
   { "name": "wolf.cohesion", "path": "species.json:species.Wolf.cohesion", "min": 0.1, "max": 4, "log": true, "note": "pack morale: ally bonus and the cascade when one falls" },
   { "name": "wolf.moveAllowanceM", "path": "species.json:species.Wolf.moveAllowanceM", "min": 2, "max": 10, "integer": true },
 
-  { "name": "bear.attackDamage", "path": "species.json:species.Bear.attackDamage", "min": 0.05, "max": 4, "log": true },
+  { "name": "bear.attackDamage", "path": "species.json:species.Bear.attackDamage", "min": 0.4, "max": 6, "log": true },
   { "name": "bear.threat", "path": "species.json:species.Bear.threat", "min": 0.3, "max": 6, "log": true },
   { "name": "bear.boldness", "path": "species.json:species.Bear.boldness", "min": 0.2, "max": 5, "log": true },
   { "name": "bear.aggression", "path": "species.json:species.Bear.aggression", "min": 0.05, "max": 1 },
@@ -58,10 +58,13 @@
   { "name": "wolf.chaseLimitSeconds", "path": "species.json:species.Wolf.chaseLimitSeconds", "min": 30, "max": 900, "log": true },
   { "name": "bear.chaseLimitSeconds", "path": "species.json:species.Bear.chaseLimitSeconds", "min": 5, "max": 300, "log": true },
 
-  { "name": "spear.damage", "path": "items.json:gear.wooden_spear.weapon.damage", "min": 0.1, "max": 15, "log": true },
-  { "name": "axe.damage", "path": "items.json:gear.stone_axe.weapon.damage", "min": 0.1, "max": 15, "log": true },
-  { "name": "knife.damage", "paths": ["items.json:gear.flint_knife.weapon.damage", "items.json:gear.bone_knife.weapon.damage", "items.json:gear.worn_knife.weapon.damage"],
-   "min": 0.1, "max": 15, "log": true, "note": "every knife alike, as today" },
+  { "name": "spear.damage", "path": "items.json:gear.wooden_spear.weapon.damage", "min": 0.5, "max": 6, "log": true, "note": "in units of tissue condition" },
+  { "name": "crudeSpear.damage", "path": "items.json:gear.crude_spear.weapon.damage", "min": 0.3, "max": 6, "log": true },
+  { "name": "axe.damage", "path": "items.json:gear.stone_axe.weapon.damage", "min": 0.3, "max": 6, "log": true },
+  { "name": "knife.damage", "paths": ["items.json:gear.flint_knife.weapon.damage", "items.json:gear.bone_knife.weapon.damage", "items.json:gear.worn_knife.weapon.damage",
+   "items.json:gear.stone_knife.weapon.damage"], "min": 0.3, "max": 6, "log": true, "note": "every knife alike" },
+  { "name": "stone.damage", "path": "items.json:gear.stone.weapon.damage", "min": 0.1, "max": 3, "log": true, "note": "a stone in the hand" },
+  { "name": "staff.damage", "path": "items.json:gear.staff.weapon.damage", "min": 0.1, "max": 3, "log": true },
 
   { "name": "fire.fireFear", "path": "fire.json:deterrence.fireFear", "min": 0.5, "max": 6, "log": true,
    "note": "what a flame at full intensity, close by, takes off an animal's margin; people are not deterred" },

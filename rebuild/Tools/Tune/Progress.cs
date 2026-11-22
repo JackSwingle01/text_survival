@@ -119,7 +119,8 @@ public sealed class ProgressLog(string path)
         var sorted = fitness.Order().ToArray();
         var scenarios = bestResult.Means.Keys.ToDictionary(s => s, s => new ScenarioResult(bestResult.Means[s], bestResult.Results[s],
             bestResult.Fights?[s] ?? "",
-            [.. spec.AllBands.Where(b => b.Scenario == s).Select(b => new BandResult(b.Name, bestResult.Means[s][b.Metric], b.Distance(bestResult.Means[s][b.Metric])))]));
+            [.. spec.AllBands.Where(b => b.Scenario == s).Select(b => new BandResult(b.Name, bestResult.Means[s][b.Metric], b.Distance(bestResult.Means[s][b.Metric]))),
+                .. spec.Spread is { } sp ? [new BandResult("spread", OutcomeSpread.Commonest(bestResult.Means[s]), sp.Distance(s, bestResult.Means[s]))] : Array.Empty<BandResult>()]));
         // An order has no single value: its value is its distance.
         var orders = spec.Orders.Select(o => o.Distance(o.Scenarios.ToDictionary(s => s, s => bestResult.Means[s][o.Metric])))
             .Zip(spec.Orders, (d, o) => new BandResult(o.Name, d, d)).ToList();

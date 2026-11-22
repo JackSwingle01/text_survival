@@ -408,7 +408,7 @@ public class SubstrateTests
         w.AccessGates = Access.Gate.All;
         foreach (var (name, refusal) in refusals) Assert.True(refusal() == "a wolf pack guards it", $"{name}: {refusal()}");
         // A fight is the confrontation: a guard does not bar striking at it.
-        var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 2, Awareness.Engaged, Awareness.Engaged);
+        var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 1, Awareness.Engaged, Awareness.Engaged);
         Assert.Null(Combat.Refusal(w, enc, Combat.UnitOf(enc, P), CombatAction.Attack));
     }
 

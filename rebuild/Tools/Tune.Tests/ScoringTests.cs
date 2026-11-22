@@ -51,6 +51,20 @@ public class ScoringTests
         Assert.Equal(0.2 + 0.1 + 0.1, spec.Fitness(means), 12);
     }
 
+    /// The spread costs a measured scenario's commonest ending above its share, and nothing for one exempt.
+    [Fact]
+    public void Spread_CostsAScenarioThatEndsOneWay_UnlessExempt()
+    {
+        var wolf = new Scenario("wolf1_aware", "wooden_spear", "healthy", "aggressive");
+        var spec = new BandSpec(10, 10, new Dictionary<string, Scenario> { ["s1"] = wolf, ["s2"] = wolf, ["s3"] = wolf },
+            [new Band("a", "s1", "rounds", Min: 0), new Band("b", "s2", "rounds", Min: 0), new Band("c", "s3", "rounds", Min: 0)], [], [],
+            new OutcomeSpread(0.95, Weight: 2, Exempt: ["s3"]));
+        IReadOnlyDictionary<string, double> M(double dies, double kill, double leaves) =>
+            FightOutcome.Metrics.ToDictionary(m => m, m => m switch { "aDies" => dies, "bKilled" => kill, "bLeaves" => leaves, _ => 0.0 });
+        var means = new Dictionary<string, IReadOnlyDictionary<string, double>> { ["s1"] = M(0.01, 0.98, 0.01), ["s2"] = M(0.3, 0.4, 0.3), ["s3"] = M(1, 0, 0) };
+        Assert.Equal((0.98 - 0.95) * 2, spec.Fitness(means), 12);
+    }
+
     [Fact]
     public void FightOutcome_Metrics()
     {
@@ -89,7 +103,7 @@ public class ScoringTests
         var ps = Specs.LoadParameters(File.ReadAllText(Path.Combine(SpecDir(), "combat.json")), files);
         Assert.Contains(ps, p => p.Name == "wolf.boldness");
         Assert.Equal(SpeciesTable.Of(Species.Wolf).Boldness, Specs.Current(files, "species.json:species.Wolf.boldness"));
-        Assert.Equal(8, Specs.Current(files, "items.json:gear.wooden_spear.weapon.damage"));
+        Assert.Equal(4.84, Specs.Current(files, "items.json:gear.wooden_spear.weapon.damage"));
         var bands = Specs.LoadBands(File.ReadAllText(Path.Combine(SpecDir(), "combat-bands.json")));
         Assert.All(bands.AllBands.Where(b => !b.Scored), b => Assert.False(string.IsNullOrWhiteSpace(b.Note)));
         Assert.All(bands.Used, s => Assert.True(bands.Scenarios.ContainsKey(s)));

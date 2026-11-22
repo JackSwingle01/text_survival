@@ -558,6 +558,7 @@ Severity describes what a player would notice:
 - *Options:*
   - (a) Each region gets only what covers it. **Recommended, low priority.**
   - (b) Keep it as it is.
+- *Decided:* (a), with the damage unit (decisions/2026-11-21-damage-is-measured-in-tissue-condition.md).
 
 ### (C) Fine as is: pin these
 

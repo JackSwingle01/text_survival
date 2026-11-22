@@ -13,7 +13,7 @@ public enum DamageType
     Blunt, Sharp, Pierce, Poison,
     /// Blood loss in ml; only Blood takes it.
     Bleed,
-    /// Starvation, dehydration, cold: bypasses armor and natural absorption, and takes condition
+    /// Starvation, dehydration, cold: bypasses clothing and natural absorption, and takes condition
     /// directly, whatever the tissue's toughness or what it has already lost.
     Internal,
     Burn,
@@ -28,7 +28,8 @@ public enum BodyTarget
     Heart, Brain, Lungs, Liver, Stomach, LeftKidney, RightKidney, LeftEye, RightEye, LeftEar, RightEar,
 }
 
-/// One layer or organ. Condition 0-1; Toughness divides the damage it takes.
+/// One layer or organ. Condition 0-1; Toughness is how many units of damage destroy it whole in a
+/// body of the reference weight (Body.EffectiveToughness).
 public sealed class Tissue
 {
     public required string Name { get; init; }
@@ -66,7 +67,7 @@ public sealed class BodyState
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Sex Sex { get; init; }
     public required List<Region> Regions { get; init; }
-    /// Blood is 5000ml at 1.0; circulation collapses at 0.5.
+    /// Of Body.BloodVolumeMl; circulation collapses at 0.5.
     public double BloodPct { get; set; } = 1.0;
     /// Bone, organs, water: everything that is neither fat nor muscle.
     public required double StructuralKg { get; set; }
@@ -153,9 +154,9 @@ public readonly record struct AbilityContext(double EncumbrancePct = 0, double D
 
 /// By: what this damage is, as the death it causes would be named ("the cold", "the player's wooden
 /// spear"). Null names nothing in particular: "its injuries".
+/// Amount is in units of tissue condition (GLOSSARY.md, Damage); blood loss is in ml.
 public sealed record DamageInfo(
-    double Amount, DamageType Type = DamageType.Blunt, BodyTarget Target = BodyTarget.Random,
-    double ArmorCushioningLevel = 0, double ArmorToughnessLevel = 0, Cause? By = null);
+    double Amount, DamageType Type = DamageType.Blunt, BodyTarget Target = BodyTarget.Random, Cause? By = null);
 
 public sealed class DamageResult
 {
@@ -176,9 +177,11 @@ public static partial class Body
     /// reserve's six minutes): an Upper Palaeolithic man (documentation/species-stats-research.md §2.1).
     /// The body a person is born with is the species row's (BodyState.BaselineHuman).
     public const double BaselineWeightKg = 68, BaselineFatPct = 0.12, BaselineMusclePct = 0.38;
-    public const double BloodVolumeMl = 5000;
+    public const double BloodMlPerKg = 70;
+    public static double BloodVolumeMl(BodyState body) => BloodMlPerKg * body.WeightKg;
 
     // ---- body plans ----
+
 
     static Region NewRegion(string name, double coverage, double boneToughness = 3) => new()
     {
@@ -188,38 +191,39 @@ public static partial class Body
         Bone = new Tissue { Name = "Bone", Kind = TissueKind.Bone, Toughness = boneToughness },
     };
 
+    /// An organ is far smaller than a region's whole skin: half a unit left in a spear destroys a heart.
     static Tissue Organ(string name, double toughness, Capacity? provides, double amount, bool external = false) =>
         new() { Name = name, Kind = TissueKind.Organ, Toughness = toughness, Provides = provides, ProvidesAmount = amount, IsExternal = external };
 
     static List<Tissue> HeadOrgans(double sightEach, double hearingEach) =>
     [
-        Organ("Brain", 0.25, Capacity.Consciousness, 1.0),
-        Organ("Left Eye", 0.5, Capacity.Sight, sightEach, external: true),
-        Organ("Right Eye", 0.5, Capacity.Sight, sightEach, external: true),
-        Organ("Left Ear", 1.0, Capacity.Hearing, hearingEach, external: true),
-        Organ("Right Ear", 1.0, Capacity.Hearing, hearingEach, external: true),
+        Organ("Brain", 0.3, Capacity.Consciousness, 1.0),
+        Organ("Left Eye", 0.2, Capacity.Sight, sightEach, external: true),
+        Organ("Right Eye", 0.2, Capacity.Sight, sightEach, external: true),
+        Organ("Left Ear", 0.3, Capacity.Hearing, hearingEach, external: true),
+        Organ("Right Ear", 0.3, Capacity.Hearing, hearingEach, external: true),
     ];
 
     static List<Tissue> HeartAndLungs() =>
     [
-        Organ("Heart", 5.0, Capacity.BloodPumping, 1.0),
-        Organ("Left Lung", 3.0, Capacity.Breathing, 0.5),
-        Organ("Right Lung", 3.0, Capacity.Breathing, 0.5),
+        Organ("Heart", 0.5, Capacity.BloodPumping, 1.0),
+        Organ("Left Lung", 0.6, Capacity.Breathing, 0.5),
+        Organ("Right Lung", 0.6, Capacity.Breathing, 0.5),
     ];
 
-    static List<Tissue> Gut() => [Organ("Liver", 4.0, Capacity.Digestion, 0.6), Organ("Stomach", 3.0, Capacity.Digestion, 0.4)];
+    static List<Tissue> Gut() => [Organ("Liver", 0.6, Capacity.Digestion, 0.6), Organ("Stomach", 0.5, Capacity.Digestion, 0.4)];
 
     internal static List<Region> HumanRegions()
     {
-        var head = NewRegion("Head", 10, boneToughness: 20);
+        var head = NewRegion("Head", 10, boneToughness: 4);
         head.Organs.AddRange(HeadOrgans(0.5, 0.5));
-        var chest = NewRegion("Chest", 25, boneToughness: 12);
+        var chest = NewRegion("Chest", 25);
         chest.Organs.AddRange(HeartAndLungs());
         var abdomen = NewRegion("Abdomen", 20);
         abdomen.Organs.AddRange(Gut());
         // Kidneys supply no capacity yet, but they are still something a blade can reach.
-        abdomen.Organs.Add(Organ("Left Kidney", 4.0, null, 0));
-        abdomen.Organs.Add(Organ("Right Kidney", 4.0, null, 0));
+        abdomen.Organs.Add(Organ("Left Kidney", 0.4, null, 0));
+        abdomen.Organs.Add(Organ("Right Kidney", 0.4, null, 0));
         return [head, chest, abdomen,
             NewRegion("Left Arm", 10), NewRegion("Right Arm", 10),
             NewRegion("Left Leg", 12.5), NewRegion("Right Leg", 12.5)];
@@ -227,7 +231,7 @@ public static partial class Body
 
     internal static List<Region> QuadrupedRegions()
     {
-        var head = NewRegion("Head", 15, boneToughness: 15);
+        var head = NewRegion("Head", 15, boneToughness: 4);
         head.Organs.AddRange(HeadOrgans(0.6, 0.6));
         var torso = NewRegion("Torso", 35);
         torso.Organs.AddRange(HeartAndLungs());
@@ -505,7 +509,7 @@ public static partial class Body
 
     // ---- damage ----
 
-    /// The one way anything hurts a body. Applies armor, picks the region, penetrates the layers,
+    /// The one way anything hurts a body. Picks the region, applies clothing over it, penetrates the layers,
     /// and adds the processes the wound sets off (bleeding, pain, shock, dazed). Damage is the only
     /// thing that kills (IsAlive), so the damage that takes a body over the line names its death.
     public static DamageResult Damage(BodyState body, DamageInfo hit, Rng rng)
@@ -518,23 +522,23 @@ public static partial class Body
 
     static DamageResult Wound(BodyState body, DamageInfo hit, Rng rng)
     {
-        double amount = hit.Amount * (1 - ArmorReduction(hit));
         var result = new DamageResult();
 
         if (hit.Target == BodyTarget.Blood && hit.Type is DamageType.Bleed or DamageType.Internal)
         {
             double before = body.BloodPct;
-            body.BloodPct = Math.Max(0, body.BloodPct - amount / BloodVolumeMl);
+            body.BloodPct = Math.Max(0, body.BloodPct - hit.Amount / BloodVolumeMl(body));
             result.HitRegion = "Blood";
             result.TissuesDamaged.Add(("Blood", before - body.BloodPct));
             return result;
         }
 
-        // Organs can only be aimed at by internal damage, or armor could be bypassed by naming one.
+        // Organs can only be aimed at by internal damage, or clothing could be bypassed by naming one.
         Tissue? organ = hit.Type == DamageType.Internal ? TargetOrgan(body, hit.Target, rng) : null;
         Region region = organ != null
             ? body.Regions.First(r => r.Organs.Contains(organ))
             : TargetRegion(body, hit.Target, rng) ?? RandomRegionByCoverage(body, rng);
+        double amount = hit.Amount * (1 - ClothingReduction(body, region, hit.Type));
 
         result.HitRegion = region.Name;
         result.RegionConditionBefore = region.Condition;
@@ -547,7 +551,7 @@ public static partial class Body
         }
         else
         {
-            DamageRegion(region, amount, hit.Type, result, rng);
+            DamageRegion(region, amount, hit.Type, SizeFactor(body), result, rng);
         }
         result.RegionConditionAfter = region.Condition;
 
@@ -559,16 +563,8 @@ public static partial class Body
 
         // Severed vessels: fatal without treatment.
         if (!wasDestroyed && region.IsDestroyed) Trigger(EffectKind.Bleeding, 1.0);
-
-        if (hit.Type is DamageType.Sharp or DamageType.Pierce
-            && result.TissuesDamaged.Any(t => t.Tissue == "Skin" && t.ConditionLost > 0.03))
-            Trigger(EffectKind.Bleeding, Math.Clamp(result.TotalDamageDealt * 0.5, 0.15, 1.0));
-
-        if (hit.Type == DamageType.Blunt)
-        {
-            double tissueLost = result.TissuesDamaged.Sum(t => t.ConditionLost);
-            if (tissueLost > 0.20) Trigger(EffectKind.Bleeding, Math.Clamp(tissueLost * 1.5, 0.2, 0.8));
-        }
+        else if (hit.Type is DamageType.Blunt or DamageType.Sharp or DamageType.Pierce && WoundBleeding(region, hit.Type, result) is double bleeding and > 0)
+            Trigger(EffectKind.Bleeding, bleeding);
 
         if (result.TotalDamageDealt > 0.25)
             Trigger(EffectKind.Shock, Math.Clamp((result.TotalDamageDealt - 0.25) * 2.0, 0.2, 0.8));
@@ -586,85 +582,134 @@ public static partial class Body
         return result;
     }
 
-    /// Cushioning stops blunt, toughness stops edges; at most 80%. Internal harm, blood loss, burns
-    /// and poison go straight through.
-    static double ArmorReduction(DamageInfo hit)
+    /// A wound bleeds from what it destroyed, deeper tissue more: a liver torn under whole skin bleeds.
+    /// A club bruises flesh without opening it, so only what it breaks inside bleeds.
+    static double WoundBleeding(Region region, DamageType type, DamageResult result)
     {
-        if (hit.Type is DamageType.Internal or DamageType.Bleed or DamageType.Burn or DamageType.Poison) return 0;
-        double reduction = hit.Type switch
+        double severity = 0;
+        foreach (var (name, lost) in result.TissuesDamaged)
         {
-            DamageType.Blunt => hit.ArmorCushioningLevel,
-            DamageType.Sharp => hit.ArmorToughnessLevel,
-            DamageType.Pierce => hit.ArmorToughnessLevel * 0.7,
-            _ => (hit.ArmorCushioningLevel + hit.ArmorToughnessLevel) / 2,
+            var tissue = region.Layers.Concat(region.Organs).First(t => t.Name == name);
+            bool bruised = type == DamageType.Blunt && tissue.Kind is TissueKind.Skin or TissueKind.Muscle;
+            severity += bruised ? 0 : lost * (tissue.IsExternal ? BleedingPerSkinLost : tissue.Kind switch
+            {
+                TissueKind.Skin => BleedingPerSkinLost,
+                TissueKind.Muscle => BleedingPerMuscleLost,
+                TissueKind.Bone => BleedingPerBoneLost,
+                _ => BleedingPerOrganLost,
+            });
+        }
+        return Math.Min(1, severity);
+    }
+
+    const double BleedingPerSkinLost = 0.1, BleedingPerMuscleLost = 0.3, BleedingPerBoneLost = 0.3, BleedingPerOrganLost = 0.8;
+
+    /// What is worn over the region hit: cushioning stops blunt, toughness edges, at most 80%.
+    static double ClothingReduction(BodyState body, Region region, DamageType type)
+    {
+        if (type is DamageType.Internal or DamageType.Bleed or DamageType.Burn or DamageType.Poison) return 0;
+        double cushioning = 0, toughness = 0;
+        foreach (var g in body.Worn)
+        {
+            var def = Items.Def(g);
+            if (def.Slot is not EquipSlot slot || !Covers(slot, region)) continue;
+            cushioning += def.Cushioning;
+            toughness += def.Toughness;
+        }
+        double reduction = type switch
+        {
+            DamageType.Blunt => cushioning,
+            DamageType.Sharp => toughness,
+            DamageType.Pierce => toughness * 0.7,
+            _ => (cushioning + toughness) / 2,
         };
         return Math.Clamp(reduction, 0, 0.8);
     }
 
-    static void DamageRegion(Region region, double amount, DamageType type, DamageResult result, Rng rng)
+    static bool Covers(EquipSlot slot, Region region) => slot switch
+    {
+        EquipSlot.Head => region.Name == "Head",
+        EquipSlot.Chest => region.Name is "Chest" or "Abdomen",
+        EquipSlot.Legs or EquipSlot.Feet => region.Name.Contains("Leg"),
+        EquipSlot.Hands => region.Name.Contains("Arm"),
+        _ => throw new ArgumentOutOfRangeException(nameof(slot), slot, null),
+    };
+
+    /// What passes all three layers reaches an organ, if the region has one, or goes out the far side.
+    static void DamageRegion(Region region, double amount, DamageType type, double size, DamageResult result, Rng rng)
     {
         double remaining = amount;
         if (type != DamageType.Internal)
-        {
-            // Each layer soaks up to 70% of what reaches it, limited by how tough it still is.
             foreach (var layer in region.Layers)
             {
-                if (remaining <= 0) break;
-                double absorbed = Math.Min(remaining * 0.7, Protection(layer));
-                if (absorbed > 0)
-                {
-                    double lost = DamageTissue(layer, absorbed, type);
-                    result.DamageAbsorbed += absorbed;
-                    if (lost > 0) result.TissuesDamaged.Add((layer.Name, lost));
-                }
-                remaining -= absorbed;
+                if (remaining <= 0) return;
+                remaining = Take(layer, remaining, type, size, result);
             }
-        }
         if (remaining <= 0) return;
 
-        var organ = OrganToHit(region, amount, rng);
-        if (organ != null)
+        var organ = OrganToHit(region, rng);
+        if (organ == null)
         {
-            result.OrganHit = organ.Name;
-            result.TissuesDamaged.Add((organ.Name, DamageTissue(organ, remaining, type)));
+            if (type == DamageType.Internal) throw new ArgumentException($"Internal harm to {region.Name}, which has no organ to take it");
+            return;
         }
-        else
-        {
-            double lost = DamageTissue(region.Muscle, remaining * 0.5, type);
-            if (lost > 0) result.TissuesDamaged.Add((region.Muscle.Name, lost));
-        }
+        result.OrganHit = organ.Name;
+        if (type == DamageType.Internal) result.TissuesDamaged.Add((organ.Name, DamageTissue(organ, remaining, type)));
+        else Take(organ, remaining, type, size, result);
     }
 
-    /// What gets through reaches an inner organ only through a deep wound; a shallow one finds an eye or
-    /// an ear if the region has one. A deep wound still lands on an eye or an ear some of the time, so a
-    /// blow to the head can reach the brain. The depth line is on the weapon scale (5), which only weapons
-    /// clear; putting it on one 0-1 scale is not decided.
-    static Tissue? OrganToHit(Region region, double amount, Rng rng)
+    /// A tissue stops up to its EffectiveToughness of one blow, and no more than it has left, losing
+    /// one condition per unit of its own toughness, and passes the rest on: a narrow blow destroys a
+    /// layer only over several blows.
+    static double Take(Tissue tissue, double amount, DamageType type, double size, DamageResult result)
+    {
+        double shrugged = tissue.Condition > 0 ? Math.Min(amount, NaturalAbsorption(tissue, type)) : 0;
+        double taken = Math.Min(amount - shrugged, Math.Min(EffectiveToughness(tissue, type, size), tissue.Toughness * size * tissue.Condition));
+        result.DamageAbsorbed += shrugged + taken;
+        if (taken > 0)
+        {
+            double before = tissue.Condition;
+            tissue.Condition = Math.Max(0, before - taken / (tissue.Toughness * size));
+            result.TissuesDamaged.Add((tissue.Name, before - tissue.Condition));
+        }
+        return amount - shrugged - taken;
+    }
+
+    static Tissue? OrganToHit(Region region, Rng rng)
     {
         var external = region.Organs.Where(o => o.IsExternal).ToList();
         var inner = region.Organs.Where(o => !o.IsExternal).ToList();
-        bool deep = inner.Count > 0 && amount > InnerOrganDepth;
-        if (external.Count > 0 && amount > 0 && (!deep || rng.NextDouble() < DeepWoundExternalPct))
+        if (external.Count > 0 && (inner.Count == 0 || rng.NextDouble() < ExternalOrganPct))
             return external[rng.NextInt(external.Count)];
-        if (deep) return inner[rng.NextInt(inner.Count)];
-        return null;
+        return inner.Count > 0 ? inner[rng.NextInt(inner.Count)] : null;
     }
 
-    const double InnerOrganDepth = 5, DeepWoundExternalPct = 0.3;
+    const double ExternalOrganPct = 0.3;
 
-    /// Returns the condition lost. A blow is divided by what the tissue has left to resist it; internal
-    /// harm (hunger, thirst, cold) takes condition directly, so its rates are what they say.
+    /// Internal harm (hunger, thirst, cold) takes condition directly, so its rates are what they say.
     static double DamageTissue(Tissue tissue, double amount, DamageType type)
     {
-        if (type != DamageType.Internal) amount -= NaturalAbsorption(tissue, type);
-        if (amount <= 0) return 0;
+        if (type != DamageType.Internal) throw new ArgumentException("Only internal harm reaches a tissue directly", nameof(type));
         double before = tissue.Condition;
-        tissue.Condition = Math.Max(0, before - (type == DamageType.Internal ? amount : amount / Protection(tissue)));
+        tissue.Condition = Math.Max(0, before - amount);
         return before - tissue.Condition;
     }
 
-    /// Protection a tissue gives, and the divisor for a blow it takes: toughness, worn down by damage.
-    public static double Protection(Tissue tissue) => tissue.Toughness * tissue.Condition;
+    /// How much of a blow a whole tissue can stop: its toughness times how much of it the blow meets.
+    /// A point goes deep; soft tissue gives little to a club, which breaks the bone behind it.
+    public static double EffectiveToughness(Tissue tissue, DamageType type, double size) =>
+        tissue.Toughness * size * (tissue.Kind, type) switch
+        {
+            (TissueKind.Skin or TissueKind.Muscle, DamageType.Pierce) => 0.4,
+            (TissueKind.Skin or TissueKind.Muscle, DamageType.Sharp) => 0.6,
+            (TissueKind.Skin or TissueKind.Muscle, DamageType.Blunt) => 0.3,
+            (TissueKind.Bone, DamageType.Pierce) => 0.3,
+            (TissueKind.Bone, DamageType.Sharp) => 0.5,
+            _ => 1.0,
+        };
+
+    /// Thicker hide, deeper muscle, heavier bone: toughness grows as the cube root of weight.
+    public static double SizeFactor(BodyState body) => Math.Cbrt(body.WeightKg / BaselineWeightKg);
 
     /// What a tissue shrugs off before it loses any condition. Organs, being inside, shrug off more.
     public static double NaturalAbsorption(Tissue tissue, DamageType type)
@@ -761,12 +806,13 @@ public static partial class Body
             .FirstOrDefault();
         if (worst == null) return;
 
+        double size = SizeFactor(body);
         foreach (var tissue in worst.Layers.Concat(worst.Organs.Where(o => o.Condition > 0)))
         {
             if (amount <= 0) return;
             if (tissue.Condition >= 1.0) continue;
-            double heal = Math.Min(amount, (1.0 - tissue.Condition) * tissue.Toughness);
-            tissue.Condition = Math.Min(1.0, tissue.Condition + heal / tissue.Toughness);
+            double heal = Math.Min(amount, (1.0 - tissue.Condition) * tissue.Toughness * size);
+            tissue.Condition = Math.Min(1.0, tissue.Condition + heal / (tissue.Toughness * size));
             amount -= heal;
         }
     }

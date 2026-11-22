@@ -58,7 +58,7 @@ public static partial class Content
         Dictionary<string, IReadOnlyList<Resource>> Diets, SightingPools Sightings);
     sealed record SpeciesRow(BodyKind Body, double WeightKg, double FatPct, double MusclePct, Role Role, bool IsSmall,
         double AttackDamage, DamageType AttackType, double Threat, double Boldness, double Aggression, double Cohesion,
-        int MoveAllowanceM, string Temperament, HerdBehavior Behavior, Diet Diet,
+        int MoveAllowanceM, double ReachM, string Temperament, HerdBehavior Behavior, Diet Diet,
         double TopSpeedMps, double EnduranceSpeedMps, double SprintSeconds, double RunCostJPerKgM, double BurstPct, double GrazeKcalPerMinute,
         double StrikeBackMargin, double ChaseLimitSeconds,
         FatRange? AutumnFatPct = null, PersonBuild? Female = null);
@@ -267,7 +267,7 @@ public static partial class Content
 
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
-            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.MoveAllowanceM, t, r.Behavior, r.Diet,
+            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
             new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackMargin, r.ChaseLimitSeconds, r.AutumnFatPct, r.Female);
 
     /// A recipe's materials in kilos: pieces of the first material's nominal piece.
@@ -375,13 +375,16 @@ public static partial class Content
             if (g.BaseWeightKg <= 0) yield return $"{at}: baseWeightKg {g.BaseWeightKg}";
             if (g.MaxDurability is 0 or < -1) yield return $"{at}: maxDurability {g.MaxDurability} (-1 never wears out)";
             if ((g.Category == GearCategory.Clothing) != (g.Slot != null)) yield return $"{at}: clothing, and only clothing, has a slot";
-            if (g.Category == GearCategory.Tool && g.Tool == null) yield return $"{at}: a tool needs its tool type";
+            if (g.Category == GearCategory.Tool && g.Tool == null && g.Weapon == null) yield return $"{at}: a tool needs its tool type, unless it is only a weapon";
             if (g.Category != GearCategory.Tool && (g.Tool != null || g.Weapon != null)) yield return $"{at}: only a tool is a tool or a weapon";
             if ((g.Category == GearCategory.Accessory) != (g.CapacityBonusKg > 0)) yield return $"{at}: accessories, and only accessories, add capacity";
             foreach (var (name, v) in new[] { ("insulation", g.Insulation), ("cushioning", g.Cushioning), ("toughness", g.Toughness), ("waterproofLevel", g.WaterproofLevel) })
                 if (v is < 0 or > 1) yield return $"{at}: {name} {v} is not in 0-1";
             if (g.CapacityBonusKg < 0) yield return $"{at}: capacityBonusKg {g.CapacityBonusKg}";
-            if (g.Weapon is { } w && (w.Damage <= 0 || w.BlockChance is < 0 or > 1)) yield return $"{at}: weapon damage {w.Damage}, blockChance {w.BlockChance}";
+            if (g.Weapon is { } w && (w.Damage <= 0 || w.BlockChance is < 0 or > 1 || w.ReachM <= 0))
+                yield return $"{at}: weapon damage {w.Damage} (above 0), blockChance {w.BlockChance}, reachM {w.ReachM}";
+            if (g.Weapon?.Thrown is { } t && (t.RangeM <= 0 || t.Accuracy is <= 0 or > 1 || t.Damage <= 0))
+                yield return $"{at}: thrown rangeM {t.RangeM}, accuracy {t.Accuracy} and damage {t.Damage} (above 0)";
             if (g.Capabilities.Contains(Capability.None)) yield return $"{at}: capabilities names None (an empty list is nothing)";
             if (g.Capabilities.Distinct().Count() != g.Capabilities.Count) yield return $"{at}: a capability listed twice";
         }
@@ -430,6 +433,7 @@ public static partial class Content
             if (!f.Temperaments.ContainsKey(r.Temperament)) yield return $"{at}: no temperament '{r.Temperament}'";
             if (r.WeightKg <= 0 || r.FatPct <= 0 || r.MusclePct <= 0 || r.FatPct + r.MusclePct >= 1) yield return $"{at}: build";
             if (r.MoveAllowanceM <= 0) yield return $"{at}: moveAllowanceM {r.MoveAllowanceM}";
+            if (r.ReachM <= 0) yield return $"{at}: reachM {r.ReachM}";
             if (r.AttackDamage <= 0 || r.Threat <= 0 || r.Boldness < 0 || r.Aggression is < 0 or > 1 || r.Cohesion < 0)
                 yield return $"{at}: attackDamage and threat above 0, boldness and cohesion not below, aggression in 0-1";
             if (HerdBehaviorProblem(r) is string bad) yield return $"{at}: {bad}";
