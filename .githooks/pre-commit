@@ -1,0 +1,18 @@
+#!/bin/sh
+# Lints staged GitHub Actions workflows with actionlint, so a broken workflow fails here
+# instead of as a 0-second "workflow file issue" run on GitHub.
+# Enable once per clone: git config core.hooksPath .githooks
+
+workflows=$(git diff --cached --name-only --diff-filter=ACMR -- '.github/workflows/*.yml' '.github/workflows/*.yaml')
+[ -z "$workflows" ] && exit 0
+
+if ! command -v actionlint >/dev/null 2>&1; then
+  echo "pre-commit: actionlint not installed, workflows NOT linted (brew install actionlint)" >&2
+  exit 0
+fi
+
+# shellcheck disable=SC2086
+actionlint $workflows || {
+  echo "pre-commit: actionlint failed; fix the workflow or commit with --no-verify" >&2
+  exit 1
+}
