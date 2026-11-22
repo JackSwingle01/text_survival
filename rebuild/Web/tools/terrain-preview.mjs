@@ -37,7 +37,9 @@ const M = JSON.parse(fs.readFileSync(args[0], 'utf8'));
 const state = opt('--state', WINTER), world = opt('--world', WINTER_WORLD);
 const textures = new Map(textureNames(world).map(n => [n, decodePng(path.join(icons, `${n}.png`))]));
 const tex = name => { const t = textures.get(name); if (!t) throw new Error(`missing terrain texture ${name}`); return t; };
-const map = { width: M.W, height: M.H, terrainAt: (x, y) => M.terrain[y][x] };
+// edges: [[ax, ay, bx, by, "ravine" | "cliff"], ...] between 4-adjacent cells, optional.
+const map = { width: M.W, height: M.H, terrainAt: (x, y) => M.terrain[y][x],
+  edges: (M.edges ?? []).map(([ax, ay, bx, by, type]) => ({ ax, ay, bx, by, type })) };
 const byTerrain = Object.values(state).some(v => typeof v === 'object');
 if (byTerrain && !('*' in state)) throw new Error('--state by terrain needs a "*" entry for the rest');
 const stateAt = byTerrain ? (x, y) => state[M.terrain[y][x]] ?? state['*'] : () => state;
