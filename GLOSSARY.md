@@ -44,19 +44,19 @@ capacity below about a fifth; wounds, blood loss and the cold take what they tak
 _Avoid_: debuff, need effect
 
 **Condition**:
-What an action sees about a thing: a fact read from its effects and its place (frozen to the
-ground, buried under snow, occupied), never stored. A blocking condition stands in front of the
-thing's action and has its own clearing action; a modifying condition blocks nothing and only
-changes how the action goes.
+What a verb sees about a location feature or an item: a fact read from its effects and its place
+(frozen to the ground, buried under snow, occupied), never stored. A blocking condition stands in
+front of the verb and has its own clearing verb; a modifying condition blocks nothing and only
+changes how the verb goes.
 _Avoid_: tag, flag, status
 
 **Occupied**:
-The blocking condition of a thing another actor is using right now: wolves feeding on a carcass,
+The blocking condition of a location feature another agent is using right now: wolves feeding on a carcass,
 a bear in a den, another person at a fire.
 _Avoid_: guarded, claimed, owned
 
 **Contest**:
-The clearing action for an occupied thing: making a claim on it. The occupant's own mind answers:
+The clearing verb for an occupied location feature: making a claim on it. The occupant's own mind answers:
 it yields, holds and threatens, or fights.
 _Avoid_: drive off, take, challenge
 
@@ -64,8 +64,8 @@ _Avoid_: drive off, take, challenge
 Contest, toward an ally: the same claim, answered by that person's mind and their opinion of you.
 
 **Interact**:
-The single action shown for a thing that has several actions (a fire, a carcass, a stash, a
-shelter); it opens that thing's menu.
+The single verb shown for a location feature that offers several (a fire, a carcass, a stash, a
+shelter); it opens that feature's menu.
 _Avoid_: use, open
 
 ## Making things
