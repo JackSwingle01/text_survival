@@ -54,7 +54,7 @@ For the clean-room rebuild (`rebuild/`):
   worktree. Agents touch only their own worktree.
 - One PR per ticket, into `main`. Merge when CI and the Claude review are green.
 - `.github/workflows/issue-agent.yml` works ready tickets unattended, oldest first (on dispatch and
-  on issue creation and close). It parks the rest with a comment and the `needs-user` label; remove
+  on issue creation and close, and hourly). It parks the rest with a comment and the `needs-user` label; remove
   the label to requeue. Blocked tickets get native "blocked by" links and a `blocked` label. `.github/scripts/issue_queue.py` decides what is in the queue.
 - Porting the old game: follow `dev/active/porting.md`.
 - Each ticket's agent keeps a work log (the `mp:work-log` skill's format) in `.agent-logs/`,

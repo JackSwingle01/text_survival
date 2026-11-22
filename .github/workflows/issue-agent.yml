@@ -11,6 +11,15 @@ name: Issue agent
 # - issues closed: drains the queue, because closing an issue (usually by merging its PR) is what
 #   unblocks the issues waiting on it. Blocked issues are triaged again and built if now ready;
 #   their branch starts from main, which by then has the blocker's work.
+# - schedule (hourly): drains the queue, to resume after a usage limit and to pick up issues whose
+#   `needs-user` label was removed. A drain with nothing eligible makes no Claude call.
+#
+# Usage limits. The plan is shared with Jack's own sessions. After each Claude step,
+# .github/scripts/plan_limits.py reads the usage Claude Code reported. A build does not start when
+# any usage window is at MAX_PLAN_UTILIZATION or above, and a step refused for a limit is not
+# blamed on the issue: the run leaves the issue untouched, stops the queue (fail-fast cancels the
+# jobs after it), and the next hourly run resumes where it stopped. Transient API errors (429,
+# overloaded) are retried by Claude Code itself.
 #
 # .github/scripts/issue_queue.py keeps out only what GitHub records as fact: issues from people
 # without write access, issues labelled `needs-user`, issues with an open PR or an `<issue#>-`
@@ -35,6 +44,8 @@ on:
         type: string
   issues:
     types: [opened, closed]
+  schedule:
+    - cron: "23 * * * *"
 
 permissions:
   contents: read
@@ -49,7 +60,7 @@ jobs:
   select:
     # The repo is public: only people with write access can spend the plan.
     if: |
-      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ||
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
     outputs:
@@ -92,11 +103,15 @@ jobs:
       id-token: write
     strategy:
       max-parallel: 1
-      fail-fast: false
+      # A job fails only when the plan ran out (or the workflow itself broke): then the issues
+      # after it must not start. An issue's own failure parks it and the job still succeeds.
+      fail-fast: true
       matrix:
         issue: ${{ fromJSON(needs.select.outputs.issues) }}
     env:
       GH_TOKEN: ${{ github.token }}
+      # No new build starts once any usage window (5-hour, 7-day) is this full.
+      MAX_PLAN_UTILIZATION: "0.8"
       ISSUE: ${{ matrix.issue }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
@@ -118,6 +133,7 @@ jobs:
       - name: Triage
         id: triage
         if: steps.check.outputs.go == 'true'
+        continue-on-error: true
         uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1, 2026-11-20
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -161,6 +177,13 @@ jobs:
             "summary":{"type":"string"},"established":{"type":"array","items":{"type":"string"}},
             "questions":{"type":"array","items":{"type":"string"}},
             "blocked_by":{"type":"array","items":{"type":"integer"}},"branch":{"type":"string"}}}'
+
+      - name: Triage usage
+        id: triage_usage
+        if: always() && steps.triage.outcome != 'skipped'
+        env:
+          EXEC: ${{ steps.triage.outputs.execution_file }}
+        run: python3 .github/scripts/plan_limits.py "$EXEC" "$MAX_PLAN_UTILIZATION" >> "$GITHUB_OUTPUT"
 
       - name: Read triage
         id: verdict
@@ -251,16 +274,17 @@ jobs:
           gh issue edit "$ISSUE" --add-label needs-user
 
       - uses: actions/setup-dotnet@v6
-        if: steps.verdict.outputs.decision == 'ready'
+        if: steps.verdict.outputs.decision == 'ready' && steps.triage_usage.outputs.headroom == 'true'
         with:
           global-json-file: global.json
       - name: Restore
-        if: steps.verdict.outputs.decision == 'ready'
+        if: steps.verdict.outputs.decision == 'ready' && steps.triage_usage.outputs.headroom == 'true'
         run: dotnet restore text_survival.sln
 
       - name: Implement
         id: implement
-        if: steps.verdict.outputs.decision == 'ready'
+        if: steps.verdict.outputs.decision == 'ready' && steps.triage_usage.outputs.headroom == 'true'
+        continue-on-error: true
         timeout-minutes: 300
         uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1, 2026-11-20
         env:
@@ -304,14 +328,21 @@ jobs:
             "pr_url":{"type":"string"},"summary":{"type":"string"},
             "questions":{"type":"array","items":{"type":"string"}}}}'
 
+      - name: Build usage
+        id: build_usage
+        if: always() && steps.implement.outcome != 'skipped'
+        env:
+          EXEC: ${{ steps.implement.outputs.execution_file }}
+        run: python3 .github/scripts/plan_limits.py "$EXEC" "$MAX_PLAN_UTILIZATION" >> "$GITHUB_OUTPUT"
+
       # The work and the log are kept even when no PR came of them.
       - name: Keep the work
-        if: always() && steps.verdict.outputs.decision == 'ready'
+        if: always() && steps.implement.outcome != 'skipped'
         run: |
           git format-patch origin/main --stdout > "$RUNNER_TEMP/work.patch" 2>/dev/null || true
           git diff >> "$RUNNER_TEMP/work.patch" || true
       - uses: actions/upload-artifact@v7
-        if: always() && steps.verdict.outputs.decision == 'ready'
+        if: always() && steps.implement.outcome != 'skipped'
         with:
           name: issue-${{ matrix.issue }}-work
           path: |
@@ -319,17 +350,38 @@ jobs:
             .agent-logs/
           if-no-files-found: ignore
 
-      # Whatever happened, the issue ends either with an open PR or parked with a reason.
-      - name: Report
+      # Running out of plan is not the issue's fault: it is left as it was, to be picked up again.
+      - name: Out of plan?
+        id: plan
         if: always() && steps.check.outputs.go == 'true'
         env:
           TRIAGE: ${{ steps.triage.outcome }}
+          TRIAGE_REJECTED: ${{ steps.triage_usage.outputs.rejected }}
+          BUILD_REJECTED: ${{ steps.build_usage.outputs.rejected }}
+          DECISION: ${{ steps.verdict.outputs.decision }}
+          HEADROOM: ${{ steps.triage_usage.outputs.headroom }}
+        run: |
+          if [ "$TRIAGE_REJECTED" = "true" ]; then why="triage hit a usage limit"
+          # A triage that fails says nothing about the issue (it reads and answers, nothing else), and
+          # parking on it would park every issue after it the same way.
+          elif [ "$TRIAGE" != "success" ]; then why="triage failed ($TRIAGE); see the Triage step's log"
+          elif [ "$BUILD_REJECTED" = "true" ]; then why="the build hit a usage limit; its work so far is in the issue-$ISSUE-work artifact"
+          elif [ "$DECISION" = "ready" ] && [ "$HEADROOM" != "true" ]; then
+            why="#$ISSUE is ready, but plan usage is at or over $MAX_PLAN_UTILIZATION, so no build starts"
+          else exit 0; fi
+          echo "stop=true" >> "$GITHUB_OUTPUT"
+          echo "why=$why" >> "$GITHUB_OUTPUT"
+
+      # Whatever happened, the issue ends either with an open PR or parked with a reason.
+      - name: Report
+        if: always() && steps.check.outputs.go == 'true' && steps.plan.outputs.stop != 'true'
+        env:
           DECISION: ${{ steps.verdict.outputs.decision }}
           IMPLEMENT: ${{ steps.implement.outcome }}
           OUTPUT: ${{ steps.implement.outputs.structured_output }}
         run: |
           set -uo pipefail
-          if [ "$DECISION" != "ready" ] && [ "$TRIAGE" = "success" ]; then exit 0; fi
+          if [ "$DECISION" != "ready" ]; then exit 0; fi
           pr=$(python3 .github/scripts/issue_queue.py pr "$ISSUE")
           if [ -n "$pr" ]; then
             echo "Opened $pr" >> "$GITHUB_STEP_SUMMARY"
@@ -338,9 +390,7 @@ jobs:
           {
             echo "## The issue agent stopped"
             echo
-            if [ "$TRIAGE" != "success" ]; then
-              echo "Triage did not finish ($TRIAGE)."
-            elif [ -n "${OUTPUT:-}" ]; then
+            if [ -n "${OUTPUT:-}" ]; then
               jq -r '.summary + "\n\n" +
                 (if (.questions | length) > 0
                   then "**What we still need from you:**\n\n" + (.questions | map("- " + .) | join("\n"))
@@ -358,3 +408,12 @@ jobs:
           gh issue comment "$ISSUE" --body-file comment.md
           gh issue edit "$ISSUE" --add-label needs-user
           cat comment.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stop the queue
+        if: always() && steps.plan.outputs.stop == 'true'
+        env:
+          WHY: ${{ steps.plan.outputs.why }}
+        run: |
+          echo "::error::Stopping the queue: $WHY. #$ISSUE is untouched; the hourly run resumes from it."
+          echo "Stopped: $WHY. The hourly run resumes from #$ISSUE." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
