@@ -106,7 +106,7 @@ public class CombatGoldenTests
     // steering itself: the fighter state machine replaced it (combat round 1). Its bands are pinned in
     // CombatStateTests.
 
-    // ---- shove, dodge, block, intimidate ----
+    // ---- shove, blows, intimidate ----
 
     /// Shoving reads weight and how well each body moves now (Running.SpeedPct), not Body.Strength (B11).
     [Fact]
@@ -153,13 +153,8 @@ public class CombatGoldenTests
     }
 
     [Fact]
-    public void BlocksAndBlows_MatchOldOdds()
+    public void Blows_MatchOldOdds()
     {
-        var rng = Rng.ForSystem(1, "test");
-        var spear = Items.Make("wooden_spear", durability: 100_000);
-        double armedMean = Enumerable.Range(0, 20000).Average(_ => Combat.ResolveBlock(spear, 1.0, rng));
-        Assert.Equal(0.35, armedMean, 2); // uniform 0-0.7
-
         // A melee attack lands 90% of the time against a target that does not defend itself (an unaware one).
         var (w, t) = Field();
         int hits = 0, tries = 2000;
@@ -235,7 +230,7 @@ public class CombatGoldenTests
         { "3 wolves vs spear", [0.000, 0.962, 0.000, 0.038, 0.000, 4.75] },
         { "4 wolves ambush 2 caribou", [0.999, 0.000, 0.000, 0.001, 0.000, 4.20] },
         { "4 wolves noticed by 2 caribou", [0.984, 0.000, 0.000, 0.016, 0.000, 6.40] },
-        { "bear vs spear", [0.000, 0.970, 0.000, 0.000, 0.030, 11.57] },
+        { "bear vs spear", [0.000, 0.731, 0.000, 0.000, 0.269, 15.10] },
     };
 
     [Trait("Category", TestCategories.Slow)]

@@ -362,6 +362,38 @@ public class CombatStateTests
         Assert.Equal(0, Combat.DefenceChance(w, e, me, wolf)); // no breath for it
     }
 
+    /// A blow the defence turns aside is turned aside whatever the defender holds: a weapon that let the
+    /// blow through, or held the defender at Close where it cannot shout, would make standing armed worse.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ATurnedBlow_DoesNoHarm_AndDrivesTheDefenderBack_ArmedOrNot(bool spear)
+    {
+        var (w, t) = CombatTests.Field();
+        var weapon = spear ? Items.Make("wooden_spear", durability: 100_000) : null;
+        int turned = 0;
+        for (int i = 0; i < 200; i++)
+        {
+            w.Encounters.Clear();
+            w.Agent(P).Members[0] = BodyState.BaselineHuman();
+            if (weapon != null) Items.Pack(w, P).Gear.Add(weapon);
+            var herd = CombatTests.Herd(w, Species.Bear, 1, t);
+            var e = Combat.Create(w, [new Fighter(P) { Weapon = weapon }], [new Fighter(herd)], t, 1, Awareness.Engaged, Awareness.Engaged);
+            var me = Me(e);
+            var bear = B(e);
+            double before = me.Position.DistanceTo(bear.Position);
+            var r = Combat.Apply(w, e, bear, CombatAction.Attack, []);
+            w.Agents.Remove(herd);
+            if (!r.Dodged && !r.Blocked) continue;
+            turned++;
+            Assert.Equal(spear, r.Blocked);
+            Assert.Null(r.Damage);
+            Assert.Equal(1.0, Combat.BodyOf(w, me).Regions.Min(g => g.Condition));
+            Assert.True(me.Position.DistanceTo(bear.Position) > before, $"held at {before} m");
+        }
+        Assert.InRange(turned, 60, 160); // about 0.9 x 0.6 of 200
+    }
+
     // ---- an NPC's fight or flight ----
 
     [Fact]

@@ -32,6 +32,24 @@ public class RunTests
         Assert.True(r[1].Means["wolf_spear"]["aDies"] > r[0].Means["wolf_spear"]["aDies"] + 0.3);
     }
 
+    /// The survey's stand-your-ground rows: a weapon in hand must not make standing up to an animal deadlier
+    /// than standing bare-handed.
+    [Theory]
+    [Trait("Category", "Slow")]
+    [InlineData("bear_close")]
+    [InlineData("wolf1_aware")]
+    public void StandingYourGround_WithASpear_IsNoWorseThanBareHanded(string setup)
+    {
+        var scenarios = new Dictionary<string, Scenario>
+        {
+            ["spear"] = new(setup, "wooden_spear", "healthy", "stand_intimidate"),
+            ["hands"] = new(setup, "none", "healthy", "stand_intimidate"),
+        };
+        var r = Workers.Fight(new Job(new Dictionary<string, double>(), scenarios, 200, 11, Threads: 6));
+        double spear = r.Means["spear"]["aDies"], hands = r.Means["hands"]["aDies"];
+        Assert.True(spear <= hands + 0.08, $"{setup}: {spear:P0} die standing with a spear, {hands:P0} bare-handed");
+    }
+
     [Fact]
     public void AWorkerGivenABadOverride_FailsTheRun()
     {

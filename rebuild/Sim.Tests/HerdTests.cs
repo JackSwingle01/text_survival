@@ -816,7 +816,10 @@ public class HerdTests(ITestOutputHelper output)
             var events = Sim.Advance(w, 30);
             if (!events.OfType<FightEnded>().Any(f => f.Agent == npc)) continue;
             fights++;
-            AssertEachLivedOnce(bodies, 30, $"seed {seed} NPC fight");
+            // A headless fight lives its rounds ahead of the clock (Combat.RunRounds): those minutes are lived
+            // already, and the clock skips them when it gets there.
+            foreach (var b in bodies.Where(Body.IsAlive))
+                AssertEachLivedOnce([b], 30 + (int)Math.Max(0, b.WoundsLivedThroughMinute - w.Minute), $"seed {seed} NPC fight");
         }
         Assert.True(fights >= 1, "the NPC never fought");
     }

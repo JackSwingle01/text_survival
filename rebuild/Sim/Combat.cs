@@ -740,29 +740,24 @@ public static partial class Combat
         return new ActionResult(Hit: true, Damage: damage);
     }
 
-    /// A blow that connected with something: the defender may still turn it aside (DefenceChance), with
-    /// its weapon if it has one (a block takes the edge off) and its feet if not (a dodge avoids it).
+    /// The defender may still turn the blow aside (DefenceChance): a block on its weapon, which wears it, or a
+    /// dodge. Either does no harm and gives a metre, so a weapon never makes the defence worse than none.
     static ActionResult Strike(World world, Encounter enc, CombatUnit attacker, CombatUnit defender, List<WorldEvent> events)
     {
-        bool blocked = false;
         if (DefenceChance(world, enc, defender, attacker) is double defence and > 0 && world.Rng("combat", defender.Agent).NextDouble() < defence)
         {
             Body.Burst(BodyOf(world, defender), RunningOf(world, defender));
-            if (defender.Weapon == null)
-            {
-                Move(world, enc, defender, OnTheGrid(defender.Position.Move(attacker.Position.DirectionTo(defender.Position), 1.0f)));
-                return new ActionResult(Dodged: true);
-            }
-            blocked = true;
+            if (defender.Weapon is Gear weapon) Items.Use(weapon);
+            Move(world, enc, defender, OnTheGrid(defender.Position.Move(attacker.Position.DirectionTo(defender.Position), 1.0f)));
+            return new ActionResult(Dodged: defender.Weapon == null, Blocked: defender.Weapon != null);
         }
         var rng = world.Rng("combat", attacker.Agent);
         var (amount, type) = AttackDamage(world, attacker, rng);
         amount *= AwarenessDamageFactor(defender.Awareness);
-        if (blocked) amount = ResolveBlock(defender.Weapon!, amount, rng);
         var damage = Hurt(world, enc, defender, amount, type, StrikerOf(world, attacker), events);
         Engage(world, enc, defender);
         AfterHit(world, enc, attacker, defender, events);
-        return new ActionResult(Hit: true, Blocked: blocked, Damage: damage);
+        return new ActionResult(Hit: true, Damage: damage);
     }
 
     /// Landing a blow heartens the striker a little (round 2); being hurt costs morale through the wound
@@ -842,13 +837,6 @@ public static partial class Combat
     }
 
     const double DefenceBasePct = 0.6, GivingGroundDefenceFactor = 1.3, PressingDefenceFactor = 0.5, MaxDefencePct = 0.9;
-
-    /// A weapon turns the blow to 0-70% of itself, and wears for it.
-    internal static double ResolveBlock(Gear weapon, double amount, Rng rng)
-    {
-        Items.Use(weapon);
-        return amount * (rng.NextDouble() * 0.7);
-    }
 
     /// Weight behind it against weight braced against it; a target standing off or giving ground has
     /// its feet set and is half as easy to move.
