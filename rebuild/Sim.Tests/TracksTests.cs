@@ -96,6 +96,65 @@ public class TracksTests
         Assert.True(FreshnessOf(w, heavy, TrackMaker.Hoof) > FreshnessOf(w, light, TrackMaker.Paw));
     }
 
+    // ---- prints fade by the ground's own snow (#105) ----
+
+    /// Still, cold, full heavy snow: about 5 cm of fresh snow an hour on open ground (0.005 m water an hour, a tenth as dense).
+    static readonly WeatherSample StillHeavySnow = new(0, WeatherCondition.HeavySnow, -10, 0, 1, 1, WindDirection.North);
+
+    static TileId OpenTile(World w)
+    {
+        var m = Map.Of(w);
+        for (int y = 0; y < m.Height; y++)
+            for (int x = 0; x + 1 < m.Width; x++)
+            {
+                TileId t = new(x, y), next = new(x + 1, y);
+                if (Map.OverheadCover(m, t) == 0 && m.CaveAt(t) == Cave.None && m.StageAt(t) == null && !Map.IsOpenWater(m, t, 0)
+                    && Map.OverheadCover(m, next) == 0) return t;
+            }
+        throw new InvalidOperationException("no open tile");
+    }
+
+    [Fact]
+    public void SnowDeeperThanAPrint_RemovesIt_AndShallowerSnowDoesNot()
+    {
+        var w = Ground(StillHeavySnow);
+        var t = OpenTile(w);
+        Tracks.RecordMove(w, t, new(t.X + 1, t.Y), TrackMaker.Human); // a person's print: 5 cm
+        w.Minute = 45;  // about 3.8 cm fallen
+        Assert.NotNull(Sign(w, t));
+        w.Minute = 75;  // about 6.3 cm fallen
+        Assert.Null(Sign(w, t));
+        // The same hour and a quarter under a still, dry sky leaves it nearly new.
+        var dry = Ground(CalmCold);
+        Tracks.RecordMove(dry, t, new(t.X + 1, t.Y), TrackMaker.Human);
+        dry.Minute = 75;
+        Assert.True(FreshnessOf(dry, t) > 0.95);
+    }
+
+    [Fact]
+    public void OnBareFrozenGround_UnderAStillDrySky_PrintsOutlastTodaysLightSnowLifetime()
+    {
+        var w = Ground(CalmCold);
+        Tracks.RecordMove(w, A, B, TrackMaker.Human);
+        w.Minute = 17 * 60; // a person's prints lasted 17 hours in light snow on the sky clock
+        Assert.True(FreshnessOf(w, A) > 0.75);
+        w.Minute = 3 * 1440;
+        Assert.NotNull(Sign(w, A));
+    }
+
+    [Fact]
+    public void AMammothsPrints_SurviveASnowfallThatRemovesAFoxs()
+    {
+        var w = Ground(StillHeavySnow);
+        var t = OpenTile(w);
+        TileId next = new(t.X + 1, t.Y);
+        Tracks.RecordMove(w, t, next, TrackMaker.Paw, individualDepth: Tracks.IndividualDepth(Species.Fox));
+        Tracks.RecordMove(w, t, next, TrackMaker.Hoof, individualDepth: Tracks.IndividualDepth(Species.Mammoth));
+        w.Minute = 120; // about 10 cm
+        Assert.Null(Sign(w, t, TrackMaker.Paw));
+        Assert.NotNull(Sign(w, t, TrackMaker.Hoof));
+    }
+
     [Fact]
     public void DeadTracks_AreNotReadable_AndArePrunedOnTheNextCrossing()
     {
@@ -484,12 +543,14 @@ public class TracksGoldenTests
         Assert.Equal(old, Tracks.ErosionAt(new World { Seed = seed }, 30 * 1440), 1e-6);
 
     // One person's prints: the minute they are gone, and freshness at 1 h, 6 h, 1 day, 2 days.
-    // The overview's "~4 days calm, ~6 h blizzard" is 96.0 h and 5.8 h.
+    // The overview's "~4 days calm" is 96.0 h. Snow buries them by the ground's own snowfall since #105:
+    // the old clock's blizzard lifetime was 347 minutes and seed 17's 715; at 5 cm a print, the blizzard's
+    // 4.9 cm an hour takes it in 75 and seed 17's opening snow in 210.
     [Theory]
     [InlineData("calm", 5760, 0.9895833333333334, 0.9375, 0.75, 0.5)]
-    [InlineData("blizzard", 347, 0.8270833333333332, 0, 0, 0)]
-    [InlineData("seed17", 715, 0.9386756453640829, 0.5072435461692317, 0, 0)] // re-captured: seed 17's sky moved
-    public void OnePersonsPrints_FadeAsOld(string sky, int diesAt, double h1, double h6, double d1, double d2)
+    [InlineData("blizzard", 75, 0.03916013442984867, 0, 0, 0)]
+    [InlineData("seed17", 210, 0.6990729511458382, 0, 0, 0)]
+    public void OnePersonsPrints_FadeAsOld_OrBuriedBySnow(string sky, int diesAt, double h1, double h6, double d1, double d2)
     {
         var w = Ground(Sky(sky));
         Tracks.RecordMove(w, new(4, 5), new(4, 4), TrackMaker.Human);

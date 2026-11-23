@@ -1,5 +1,5 @@
 {
-  "Version": 23,
+  "Version": 24,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -15,7 +15,8 @@
             "DirectionX": 0,
             "DirectionY": -1,
             "NorthSouthTraffic": 1,
-            "EastWestTraffic": 0
+            "EastWestTraffic": 0,
+            "SnowFallenM": 0.7925709090576951
           }
         },
         "Pools": {
@@ -50,12 +51,13 @@
           "Human": {
             "Minute": 82,
             "Heading": 3,
-            "Traffic": 2.8841451852062714,
+            "Traffic": 2.6176562125542073,
             "HeaviestIndividual": 1,
-            "DirectionX": -0.045735816732055956,
-            "DirectionY": -0.9298810019383272,
-            "NorthSouthTraffic": 0.9298810019383272,
-            "EastWestTraffic": 1.9542641832679442
+            "DirectionX": -0.14539404885615748,
+            "DirectionY": -0.7630502614103649,
+            "NorthSouthTraffic": 0.7630502614103649,
+            "EastWestTraffic": 1.8546059511438426,
+            "SnowFallenM": 1.1215786030652104
           }
         },
         "Stash": {
@@ -84,12 +86,13 @@
           "Human": {
             "Minute": 82,
             "Heading": 3,
-            "Traffic": 1.946852225982204,
+            "Traffic": 1.8738214134087077,
             "HeaviestIndividual": 1,
-            "DirectionX": -0.05314777401779591,
+            "DirectionX": -0.12617858659129244,
             "DirectionY": 0,
             "NorthSouthTraffic": 0,
-            "EastWestTraffic": 1.946852225982204
+            "EastWestTraffic": 1.8738214134087077,
+            "SnowFallenM": 0.801127573618012
           }
         }
       }

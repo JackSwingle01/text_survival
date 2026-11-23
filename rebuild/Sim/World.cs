@@ -21,7 +21,7 @@ public sealed class World
     public long Minute { get; set; }
     internal WeatherTimeline? WeatherCache;
     /// Owned by Tracks.
-    internal ErosionTimeline? ErosionCache;
+    internal SkyTimeline? ErosionCache, WeatheringCache;
     internal GeneratedMap? GeneratedMap;
     // Sorted: a Dictionary's order after Remove-then-Add differs from freshly loaded, so a loaded save would diverge.
     public SortedDictionary<TileId, TileState> Tiles { get; init; } = []; // only tiles that differ from generation
