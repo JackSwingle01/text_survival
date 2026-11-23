@@ -394,7 +394,9 @@ public class Phase2GateTests(ITestOutputHelper output)
         // seed and blind to machine load (about 3.4 GB in 4 s on an idle machine, 70 s beside the rest of the suite).
         // The wall clock is only a backstop for a blow-up that does not allocate. Both budgets here are
         // tripwires, not limits; see HerdTests.ThirtyPopulatedDays_StayCheap.
-        Assert.True(allocatedMB < 6000, $"allocated {allocatedMB} MB");
+        // Re-baselined on purpose 2026-11-23 with HerdTests.ThirtyPopulatedDays_StayCheap (#82, animals drink and sleep):
+        // 9,112 MB, Release, beside the slow suite.
+        Assert.True(allocatedMB < 11_000, $"allocated {allocatedMB} MB");
         Assert.True(clock.Elapsed.TotalSeconds < 300, $"took {clock.Elapsed.TotalSeconds:F1}s");
     }
 

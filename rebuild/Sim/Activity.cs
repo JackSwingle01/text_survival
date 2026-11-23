@@ -28,6 +28,7 @@ namespace Survival;
 [JsonDerivedType(typeof(Travel), "travel")]
 [JsonDerivedType(typeof(Graze), "graze")]
 [JsonDerivedType(typeof(Feed), "feed")]
+[JsonDerivedType(typeof(Watering), "watering")]
 [JsonDerivedType(typeof(Hunt), "hunt")]
 [JsonDerivedType(typeof(Raid), "raid")]
 [JsonDerivedType(typeof(Build), "build")]

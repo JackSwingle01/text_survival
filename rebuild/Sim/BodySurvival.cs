@@ -61,7 +61,31 @@ public static partial class Body
     /// Everything but sweat, which is modelled on its own (a real adult's 4000 total includes it).
     public const double BaseWaterLossMlPerDay = 2500;
     const double SleepWaterLossFactor = 0.7;
-    const double SleepRecoveryFactor = 2; // an hour asleep buys two awake
+    public const double PersonSleepHoursPerDay = 8;
+
+    /// An animal's water scales with its frame (structural mass), not with the fat it burns; a person's is the constant.
+    public static double MaxHydrationMlOf(BodyState body) =>
+        body.Kind == BodyKind.Human ? MaxHydrationMl : MaxHydrationMl * body.StructuralKg / BaselineStructuralKg;
+
+    static double BaselineStructuralKg => BaselineWeightKg * (1 - BaselineFatPct - BaselineMusclePct);
+
+    public static double WaterLossMlPerMinute(BodyState body, bool sleeping) =>
+        BaseWaterLossMlPerDay / 1440 * MaxHydrationMlOf(body) / MaxHydrationMl * (sleeping ? SleepWaterLossFactor : 1.0);
+
+    /// A day is spent awake and asleep in the body's own share: the store empties over the waking hours and fills
+    /// over the sleeping ones (a person's 8 h: an hour asleep buys two awake).
+    public static double EnergyDeltaPerMinute(bool sleeping, double sleepHoursPerDay) => sleeping
+        ? MaxEnergyMinutes / (sleepHoursPerDay * 60)
+        : -MaxEnergyMinutes / ((24 - sleepHoursPerDay) * 60);
+
+    /// An animal's minute of water and rest (no warmth; sleepFactor: how deep the sleep is where it lies): the loss, the store, and thirst's harm as LethalRates gives it.
+    public static void LiveNeeds(BodyState body, bool sleeping, double sleepHoursPerDay, double sleepFactor, Rng rng)
+    {
+        double thirst = LethalRates(body).ThirstPerHour;
+        body.HydrationMl = Math.Max(0, body.HydrationMl - WaterLossMlPerMinute(body, sleeping));
+        body.EnergyMinutes = Math.Clamp(body.EnergyMinutes + EnergyDeltaPerMinute(sleeping, sleepHoursPerDay) * (sleeping ? sleepFactor : 1), 0, MaxEnergyMinutes);
+        if (thirst > 0) Damage(body, new DamageInfo(thirst / 60.0, DamageType.Internal, BodyTarget.Brain, By: Thirst), rng);
+    }
 
     public const double BaseCoreTempF = 98.6;
     public const double SevereHypothermiaThresholdF = 89.6;
@@ -193,8 +217,8 @@ public static partial class Body
 
         double burnKcalPerMinute = BurnKcalPerHour(body, ctx.ActivityFactor) / 60.0;
         d.CaloriesDeltaKcal = -burnKcalPerMinute * minutes;
-        d.EnergyDeltaMinutes = ctx.IsSleeping ? SleepRecoveryFactor * minutes : -minutes;
-        d.HydrationDeltaMl = -BaseWaterLossMlPerDay / (24.0 * 60.0) * (ctx.IsSleeping ? SleepWaterLossFactor : 1.0) * minutes;
+        d.EnergyDeltaMinutes = EnergyDeltaPerMinute(ctx.IsSleeping, PersonSleepHoursPerDay) * minutes;
+        d.HydrationDeltaMl = -WaterLossMlPerMinute(body, ctx.IsSleeping) * minutes;
 
         ProcessTemperature(body, ctx, minutes, d);
         ProcessWetness(body, ctx, minutes, d);

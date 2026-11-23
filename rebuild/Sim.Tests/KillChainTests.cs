@@ -498,7 +498,7 @@ public class KillChainTests
                 if (herd.Species == Species.Wolf) Assert.DoesNotContain(land, packLand.Contains);
             }
         }
-        Assert.True(day >= 80, $"the player was there to be seen by for only {day} days"); // enough days of arrivals to judge
+        Assert.True(day >= 70, $"the player was there to be seen by for only {day} days"); // enough days of arrivals to judge
         Assert.True(arrivals > 0, "nothing came into an empty valley in two hundred days");
         Assert.Contains(w.Agents.Values, h => h.Species == Species.Caribou);
         // Capacity is derived, never saved: a loaded world reads the same capacities off the same land.

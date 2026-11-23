@@ -93,6 +93,28 @@ public class WeatherTests
         Assert.Equal(Season.Spring, Weather.SeasonAt((365 - 182 + 80) * 1440L)); // Mar 21
     }
 
+    /// Twilight is the 3 h either side of the light coming (05:00) and going (21:00), to the minute:
+    /// the same width before as after.
+    [Theory]
+    [InlineData(1, 59, false)]
+    [InlineData(2, 0, false)]
+    [InlineData(2, 1, true)]
+    [InlineData(5, 0, true)]
+    [InlineData(7, 59, true)]
+    [InlineData(8, 0, false)]
+    [InlineData(12, 0, false)]
+    [InlineData(17, 59, false)]
+    [InlineData(18, 0, false)]
+    [InlineData(18, 1, true)]
+    [InlineData(21, 0, true)]
+    [InlineData(23, 59, true)]
+    [InlineData(0, 0, false)]
+    public void Twilight_IsEvenAroundTheLightChanges(int hour, int minute, bool twilight)
+    {
+        long at = 1440 + hour * 60 + minute - Weather.MinuteOfDay(0); // that clock time on day 2
+        Assert.Equal(twilight, Weather.IsTwilight(at));
+    }
+
     [Fact]
     public void VisibilityAndCalm_AsOld()
     {

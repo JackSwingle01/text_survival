@@ -26,6 +26,11 @@ public sealed record HerdMind : Mind
     /// Familiarity 0-1 with each animal it knows, kept only by a closed-group species (Fauna.IsKin); null otherwise.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public SortedDictionary<AgentId, double>? Familiar { get; set; }
+    /// What it is seeing to (Fauna.Needs), kept until an interrupt.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Plan? Plan { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<Sensed>? Sightings { get; set; }
 }
 
 
@@ -34,6 +39,8 @@ public sealed record Feed(AgentId Who) : Activity(Who);
 /// A pack's hunt is fought headless at once; the player's stalk is fought round by round as Fight activities.
 public sealed record Hunt(AgentId Who, AgentId Prey) : Activity(Who);
 public sealed record Raid(AgentId Who) : Activity(Who);
+/// An animal drinks at the best water on its tile (Work.WaterAt).
+public sealed record Watering(AgentId Who) : Activity(Who);
 
 /// Every animal is its own agent and decides one minute at a time, in id order; a herd is its kin on its tile.
 public static partial class Fauna
@@ -112,7 +119,15 @@ public static partial class Fauna
 
     public static double BurnKcalPerMinute(BodyState body) => Body.MetabolismKcalPerDay(body, FieldMetabolismFactor) / 1440;
 
-    internal static void Burn(BodyState body) => Body.SpendKcal(body, BurnKcalPerMinute(body));
+    static void Burn(BodyState body) => Body.SpendKcal(body, BurnKcalPerMinute(body));
+
+    /// A living animal's minute: its burn, its water and rest, and mending while nothing is harming it (as a person heals).
+    internal static void Live(World world, Agent animal, BodyState body, bool sleeping)
+    {
+        Burn(body);
+        Body.LiveNeeds(body, sleeping, SpeciesTable.Of(animal.Species).SleepHoursPerDay, SleepFactor(animal, animal.Tile), world.Rng("body", animal.Id));
+        if (Hurt(body) && Body.IsAlive(body) && Body.LethalRates(body) == (0, 0, 0)) Mend(body);
+    }
 
     /// Its store's room plus the fat lost below its kind's build: a starved wolf gorges, and the surplus goes back on as fat.
     static double RoomKcal(Agent herd, BodyState b) =>
@@ -133,7 +148,8 @@ public static partial class Fauna
     public const double MendPctPerMinute = 0.0002;
 
     /// While any member is in a fight the dead stay listed (units name members by index): the aftermath takes them.
-    public static string? Tick(World world, Agent herd, List<WorldEvent> events)
+    /// Asleep while its activity is Rest.
+    public static string? Tick(World world, Agent herd, List<WorldEvent> events, Activity? doing = null)
     {
         var mind = MindOf(herd);
         mind.Fear = Math.Max(0, mind.Fear - FearDecayPerMinute);
@@ -144,19 +160,19 @@ public static partial class Fauna
             if (world.Minute <= body.WoundsLivedThroughMinute) continue;
             body.WoundsLivedThroughMinute = world.Minute;
             if (body.Effects.Count > 0 || body.SprintSpentLevel > 0) Body.TickWounds(body, world.Rng("body", herd.Id));
-            if (Body.IsAlive(body)) Burn(body);
             // Every animal mends, predator or prey, tissue included: a lame one walks again.
-            if (!Hurt(body)) { body.WoundedBy = null; continue; }
-            anyHurt = true;
-            if (Body.IsAlive(body)) Mend(body);
-            else anyDied = true;
+            if (Body.IsAlive(body)) Live(world, herd, body, doing is Rest);
+            // Dead of thirst its brain is gone, not mending: dead whether or not it reads as hurt.
+            if (!Body.IsAlive(body)) anyDied = true;
+            else if (!Hurt(body)) body.WoundedBy = null;
+            else anyHurt = true;
         }
-        if (!anyHurt || Combat.EncounterOf(world, herd.Id) != null) return null;
+        if (!anyHurt && !anyDied || Combat.EncounterOf(world, herd.Id) != null) return null;
         if (anyDied)
         {
             foreach (var body in herd.Members.Where(b => !Body.IsAlive(b)).ToList())
             {
-                var cause = body.WoundedBy is Cause w ? new Cause(w.Who, $"wounds from {w.What}") : new Cause(null, "its wounds");
+                var cause = body.WoundedBy is Cause w ? new Cause(w.Who, $"wounds from {w.What}") : body.DeathCause ?? new Cause(null, "its wounds");
                 Combat.LeaveCarcass(world, herd.Tile, herd.Species, body, cause);
                 events.Add(new Killed(world.Minute, herd.Id, herd.Species, body.WeightKg, herd.Tile, By: cause.Who));
                 herd.Members.Remove(body);
@@ -183,7 +199,7 @@ public static partial class Fauna
     }
 
 
-    public static bool Handles(Activity a) => a is Graze or Feed or Hunt or Raid;
+    public static bool Handles(Activity a) => a is Graze or Feed or Hunt or Raid or Watering;
 
     public static Refusal? Refusal(World world, Activity activity)
     {
@@ -193,6 +209,7 @@ public static partial class Fauna
         if (activity is Graze) return GrazeRefusal(world, agent);
         if (activity is Feed) return CanFeed(world, agent) ? null : new("nothing here it can reach to eat");
         if (activity is Raid) return RaidRefusal(world, agent);
+        if (activity is Watering) return WaterHere(world, agent) == null ? new("no water here") : null;
         if (activity is not Hunt h) return null;
         if (h.Prey == h.Who || !world.Agents.TryGetValue(h.Prey, out var prey) || prey.Tile != agent.Tile || !Sim.IsAlive(prey))
             return new("no such prey here");
@@ -233,6 +250,7 @@ public static partial class Fauna
         if (activity is Graze) GrazeMinute(world, herd);
         else if (activity is Feed) FeedMinute(world, herd);
         else if (activity is Raid) RaidMinute(world, herd);
+        else if (activity is Watering && WaterHere(world, herd) is { } water) Work.DrinkFrom(herd.Body, water);
         return null;
     }
 
@@ -340,6 +358,15 @@ public static partial class Fauna
     }
 
     const int MaxHunters = 6;
+    const double OffHoursVigilanceFactor = 0.7;
+
+    /// In its species' active hours (species.json activity), read through the one night rule.
+    public static bool ActiveNow(World world, Species s) => SpeciesTable.Of(s).Activity switch
+    {
+        ActivityPattern.Diurnal => !Weather.IsNight(world.Minute),
+        ActivityPattern.Nocturnal => Weather.IsNight(world.Minute),
+        _ => Weather.IsTwilight(world.Minute),
+    };
 
     /// An approach opens from the grid's edge, whatever distance it is given.
     const int AmbushFromM = 5;
@@ -373,6 +400,7 @@ public static partial class Fauna
             _ => 1.0,
         };
         if (preyMind.State == HerdState.Resting && StateMinutes(world, preyMind) < 30) vigilance *= 1.4; // just stopped running
+        if (!ActiveNow(world, prey.Species)) vigilance *= OffHoursVigilanceFactor;
         double stealth = 0.5 - Combat.Side(world, predator).Count * 0.02, hunger = Hunger(predator);
         if (hunger > 0.7) stealth += 0.15;
         if (hunger > 0.9) stealth += 0.15;
@@ -433,7 +461,7 @@ public static partial class Fauna
     {
         var mind = MindOf(herd);
         var behavior = BehaviorOf(herd.Species);
-        var choice = mind.State == HerdState.Fleeing ? Flee(world, herd, mind, behavior, events) : Cohere(world, herd, mind) ?? behavior switch
+        var choice = mind.State == HerdState.Fleeing ? Flee(world, herd, mind, behavior, events) : Needs(world, herd, mind, events) ?? Cohere(world, herd, mind) ?? behavior switch
         {
             HerdBehavior.Prey => DecidePrey(world, herd, mind),
             HerdBehavior.Pack => DecidePack(world, herd, mind, events),
@@ -474,27 +502,29 @@ public static partial class Fauna
         }
     }
 
+    /// In its active hours a fed pack is up and about.
     static (Activity, int) DecidePack(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
         double hunger = Hunger(herd);
+        bool active = ActiveNow(world, herd.Species);
         long t = StateMinutes(world, mind);
         switch (mind.State)
         {
             case HerdState.Resting:
-                if (hunger > 0.6) Become(world, mind, HerdState.Patrolling);
+                if (hunger > 0.6 || active) Become(world, mind, HerdState.Patrolling);
                 return Rest(herd);
             case HerdState.Patrolling:
                 // A pack goes back to the meat on its tile before it hunts again, so a kill feeds it for days.
                 if (CanFeed(world, herd)) { Become(world, mind, HerdState.Feeding); return (new Feed(herd.Id), 1); }
                 if (hunger > 0.4 && mind.Fear <= 0.5 && !SideFoughtThisMinute(world, herd) && PreyHere(world, herd, events) is Agent prey)
                     return (new Hunt(herd.Id, prey.Id), 1);
-                if (t > PackPatrolTimeoutMinutes && hunger <= StarvingHunger)
+                if (t > PackPatrolTimeoutMinutes && hunger <= StarvingHunger && !active)
                 {
                     Become(world, mind, HerdState.Resting);
                     mind.TerritoryIndex = 0;
                     return TowardNearest(world, herd, [mind.Territory[0]]) ?? Rest(herd);
                 }
-                if (hunger < 0.3) { Become(world, mind, HerdState.Resting); return Rest(herd); }
+                if (hunger < 0.3 && !active) { Become(world, mind, HerdState.Resting); return Rest(herd); }
                 if (t > 0 && t % (hunger > StarvingHunger ? StarvingPatrolEveryMinutes : PackPatrolEveryMinutes) == 0)
                 {
                     // A hungry pack follows a scent instead of walking its round, so packs and herds actually meet.
@@ -574,16 +604,17 @@ public static partial class Fauna
     static (Activity, int) DecideScavenger(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
         double hunger = Hunger(herd);
+        bool active = ActiveNow(world, herd.Species);
         long t = StateMinutes(world, mind);
         switch (mind.State)
         {
             case HerdState.Resting:
-                if (hunger > 0.4) Become(world, mind, HerdState.Patrolling);
+                if (hunger > 0.4 || active) Become(world, mind, HerdState.Patrolling);
                 return Rest(herd);
             case HerdState.Patrolling:
                 if (CanFeed(world, herd)) { Become(world, mind, HerdState.Feeding); return (new Feed(herd.Id), 1); }
                 if (t % CarcassSearchEveryMinutes == 0 && TowardNearest(world, herd, MeatSensed(world, herd.Tile)) is { } go) return go;
-                if (hunger < 0.3 && t > 60) { Become(world, mind, HerdState.Resting); return Rest(herd); }
+                if (hunger < 0.3 && t > 60 && !active) { Become(world, mind, HerdState.Resting); return Rest(herd); }
                 if (Drift(world, herd, mind, 0.04) is { } walk) return walk;
                 return Wait(herd);
             case HerdState.Feeding:

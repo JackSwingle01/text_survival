@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// GLOSSARY: Stat. Within a priority the NPC ranks them warmth, water, rest, food (Npc.Ladder).
+/// GLOSSARY: Stat. Within a priority they rank warmth, water, rest, food (Priorities.Ladder).
 public enum Stat { Warmth, Water, Food, Rest }
 
 /// Least urgent first: a later priority outranks an earlier one (GLOSSARY: Priority). None: nothing to do, not even topping up.
@@ -85,6 +85,21 @@ public static class Priorities
         body.CaloriesKcal <= 0 && body.FatKg <= StarvingFatPct * body.WeightKg + StarvingToleranceKg;
 
     public static double FatFloorKg(BodyState body) => FatFloorPct * body.WeightKg;
+
+    public static readonly Stat[] Ladder = [Stat.Warmth, Stat.Water, Stat.Rest, Stat.Food];
+
+    /// The top-ranked stat at minimum or above (Outranks); null if none is.
+    public static (Stat Stat, Priority Priority)? Top(StatPriorities priorities, Priority minimum)
+    {
+        (Stat, Priority)? top = null;
+        foreach (var stat in Ladder)
+            if (priorities[stat] >= minimum && (top is not var (s, p) || Outranks(stat, priorities[stat], s, p))) top = (stat, priorities[stat]);
+        return top;
+    }
+
+    /// A worse priority, or the same one higher in the hierarchy.
+    public static bool Outranks(Stat stat, Priority priority, Stat than, Priority thanPriority) => priority > thanPriority
+        || priority == thanPriority && Array.IndexOf(Ladder, stat) < Array.IndexOf(Ladder, than);
 
     /// None ranks nowhere; place is the stat's position in the hierarchy (a fraction falls between two stats).
     public static double Rank(Priority priority, double place) => priority == Priority.None ? 0 : (int)priority * 10 - place;

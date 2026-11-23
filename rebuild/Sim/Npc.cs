@@ -25,7 +25,6 @@ public sealed record NpcGoal(
 /// survival forecast passes. It reads the world only through verbs, refusals, forecasts and its own memory.
 public static class Npc
 {
-    static readonly Stat[] Ladder = [Stat.Warmth, Stat.Water, Stat.Rest, Stat.Food];
 
     // The NPC's own numbers. A plan looks SearchTiles from it and its camp; a source is
     // planned for MaxStintMinutes at a time, worked StintMinutes between decisions.

@@ -170,7 +170,7 @@ public static class Ground
     static GroundState Unobserved(World world, TileId tile, SubstrateProfile sub, long target)
     {
         var m = Map.Of(world);
-        var key = new GroundClass(sub, Map.OverheadCover(m, tile), Map.TemperatureDeltaF(m, tile), Map.WindFactor(m, tile));
+        var key = ClassOf(m, tile, sub);
         var cache = world.GroundCache ??= [];
         GroundState state;
         if (cache.TryGetValue(key, out var known) && known.LastUpdatedMinute <= target) state = Copy(known);
@@ -183,6 +183,9 @@ public static class Ground
         if (known == null || known.LastUpdatedMinute < state.LastUpdatedMinute) cache[key] = Copy(state);
         return state;
     }
+
+    static GroundClass ClassOf(GeneratedMap m, TileId tile, SubstrateProfile sub) =>
+        new(sub, Map.OverheadCover(m, tile), Map.TemperatureDeltaF(m, tile), Map.WindFactor(m, tile));
 
     static GroundState Copy(GroundState s) => new()
     {
@@ -239,6 +242,21 @@ public static class Ground
 
     static GroundState Estimate(World world, TileId tile) =>
         Unobserved(world, tile, Substrate(Map.Of(world), tile), world.Minute / StepMinutes * StepMinutes);
+
+    /// The estimate's snow and a pond's open liquid (none under ice): what an animal drinks. Read from the class's cached state without copying it.
+    public static GroundSeen WaterEstimate(World world, TileId tile)
+    {
+        var m = Map.Of(world);
+        if (Map.IsOpenWater(m, tile, world.Minute)) return new GroundSeen(0, MaxStandingWaterDepthM);
+        var sub = Substrate(m, tile);
+        long target = world.Minute / StepMinutes * StepMinutes;
+        var key = ClassOf(m, tile, sub);
+        if (world.WaterEstimateCache is not { } cache || cache.Minute != target) world.WaterEstimateCache = cache = (target, []);
+        if (cache.ByClass.TryGetValue(key, out var kept)) return kept;
+        var state = world.GroundCache?.GetValueOrDefault(key) is { } known && known.LastUpdatedMinute == target ? known : Unobserved(world, tile, sub, target);
+        var column = new Column(state, sub);
+        return cache.ByClass[key] = new GroundSeen(column.SnowDepthM, column.Summary.Iced ? 0 : column.StandingLiquidDepthM);
+    }
 
     // ---- the same, read without writing (Peek) ----
 
