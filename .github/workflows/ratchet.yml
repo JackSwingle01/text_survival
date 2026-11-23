@@ -6,10 +6,15 @@ name: Ratchet
 # ticket (issue_queue.py trusts issues this workflow files: github-actions[bot] with the `ratchet`
 # label). Issues filed with GITHUB_TOKEN start no workflows, so the agent's hourly run picks them up.
 # A new ratchet needs only a section in dev/ratchets.md, not a change here.
+#
+# Runs at 05:30 New York time. Cron is UTC only, so both offsets are scheduled and the job runs only
+# for the one that matches today's offset (EDT 09:30 UTC, EST 10:30 UTC). It keys on which schedule
+# fired, not the clock, so a late start still runs.
 
 on:
   schedule:
-    - cron: "7 2 * * *"
+    - cron: "30 9 * * *"
+    - cron: "30 10 * * *"
   workflow_dispatch:
 
 permissions:
@@ -25,12 +30,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - name: Only the schedule that is 05:30 in New York today
+        id: when
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+        shell: bash
+        run: |
+          zone=$(TZ=America/New_York date +%Z)
+          if [ -z "$SCHEDULE" ] || { [ "$zone" = EDT ] && [ "$SCHEDULE" = "30 9 * * *" ]; } ||
+             { [ "$zone" = EST ] && [ "$SCHEDULE" = "30 10 * * *" ]; }; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipping: New York is on $zone, so the other schedule is 05:30."
+          fi
+      - if: steps.when.outputs.go == 'true'
+        uses: actions/checkout@v7
       # Remaining commands may use the SDK (the formatting ratchet does).
-      - uses: actions/setup-dotnet@v6
+      - if: steps.when.outputs.go == 'true'
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
       - name: File the next batch of each ratchet
+        if: steps.when.outputs.go == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
