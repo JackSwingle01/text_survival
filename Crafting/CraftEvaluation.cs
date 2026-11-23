@@ -31,8 +31,11 @@ public sealed class CraftEvaluation
             later = (int)Math.Ceiling(later / 2.0);
         return new CraftEvaluation
         {
-            Inputs = inputs, Blockers = blockers, Warnings = warnings,
-            Minutes = minutes, LaterWorkMinutes = later,
+            Inputs = inputs,
+            Blockers = blockers,
+            Warnings = warnings,
+            Minutes = minutes,
+            LaterWorkMinutes = later,
             Output = option.TargetResult?.Invoke() ?? option.GearFactory?.Invoke(option.Durability)
         };
     }
