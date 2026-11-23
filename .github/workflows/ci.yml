@@ -20,7 +20,15 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore text_survival.sln
       - run: dotnet build text_survival.sln -c Release --no-restore
-      - run: dotnet test text_survival.sln -c Release --no-build --no-restore --filter "Category!=Slow"
+      - run: dotnet test text_survival.sln -c Release --no-build --no-restore --filter "Category!=Slow" --logger trx --results-directory TestResults
+      # Ratchet: a fast test takes at most 5 s here, except those in rebuild/Sim.Tests/slow-fast-tests.txt
+      # (dev/ratchets.md, "fast-test-time"). Also prints the slowest tests.
+      - name: Fast tests stay fast
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          mapfile -t trx < <(grep -l "Sim.Tests.dll" TestResults/*.trx)
+          python3 .github/scripts/test_durations.py "${trx[@]}" --max-seconds 5 --allow rebuild/Sim.Tests/slow-fast-tests.txt
 
   # GitHub only reports a workflow it cannot parse; actionlint also catches bad expressions,
   # unknown action inputs and shellcheck problems in run steps. Same version as the
