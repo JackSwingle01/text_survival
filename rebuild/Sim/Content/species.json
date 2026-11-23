@@ -25,6 +25,8 @@
 //     resolve (Combat.Resolve) is at or above this (-0.3 gives ground, -0.8 runs): when to fight a retreat is the
 //     tuner's to learn (decided 2026-11-21). A starting value, the same for all.
 //   grazeKcalPerMinute: what a member eats a minute grazing (winter forage, research §4.1); 0 for what never grazes.
+//   flightMinutesPerTile: a flyer's flat minutes a tile, over any ground and water but not the mountain wall
+//     (absent for what walks). The carrion flock is mostly on the wing: 1 (D; ravens cover 100 m in seconds).
 //   People only: autumnFatPct, the range a person's starting fat is drawn from (well fed for the autumn:
 //   SpeciesTable.NewBody); female, a woman's build, running and autumn fat, where they differ from a man's.
 // Every number's source is tagged by its row: V read in a primary source, R recalled from the literature
@@ -125,7 +127,8 @@
   "Raven": { "body": "Quadruped", "weightKg": 3, "fatPct": 0.10, "musclePct": 0.45, "role": "Scavenger", "isSmall": true,
    "attackDamage": 0.10, "attackType": "Pierce", "threat": 0.05, "boldness": 0.3, "aggression": 0.0, "cohesion": 1, "group": "Open", "moveAllowanceM": 6, "reachM": 0.2,
    "temperament": "never", "behavior": "Carrion", "diet": "Omnivore",
-   "topSpeedMps": 13.5, "enduranceSpeedMps": 5, "sprintSeconds": 15, "runCostJPerKgM": 6.0, "burstPct": 0.10, "grazeKcalPerMinute": 0.53, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30 }
+   "topSpeedMps": 13.5, "enduranceSpeedMps": 5, "sprintSeconds": 15, "runCostJPerKgM": 6.0, "burstPct": 0.10, "grazeKcalPerMinute": 0.53, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30,
+   "flightMinutesPerTile": 1 }
  },
 
  "temperaments": {

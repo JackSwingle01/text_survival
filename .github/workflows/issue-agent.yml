@@ -33,7 +33,17 @@ name: Issue agent
 # `blocked`. The queue then skips it without a Claude call until they close, and the next triage
 # removes the label. A blocker that can't be linked parks the issue as `needs-user` instead.
 #
-# Issue and dispatch workflows run from the default branch, so this only works once it is on main.
+# Publishing. The build pushes and opens its own PR, and also writes the PR's title and body to
+# files. A build longer than an hour outlives the Claude app token it started with (GitHub App
+# tokens last 60 minutes), so when no PR exists after a finished build, the "Open the PR" step
+# pushes and opens it from those files with the workflow's own GITHUB_TOKEN. That needs the repo
+# setting "Allow GitHub Actions to create and approve pull requests". Workflows on a PR that token
+# opens wait in an approval-required state: "Approve workflows to run" in the PR's merge box starts
+# CI and Claude Review (the PR body says so). Interim, until the PR is opened by an app whose PRs
+# start CI without approval.
+#
+# Issue and dispatch workflows run from the default branch, and the Claude app only issues tokens
+# to a workflow that matches the default branch, so a change here works once it is on main.
 
 on:
   workflow_dispatch:
@@ -97,9 +107,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     permissions:
-      contents: read
+      # Write, for "Open the PR": the fallback when the build's own token has expired.
+      contents: write
       issues: write
-      pull-requests: read
+      pull-requests: write
       id-token: write
     strategy:
       max-parallel: 1
@@ -282,6 +293,8 @@ jobs:
         run: |
           git fetch origin main
           git switch -c "$BRANCH" origin/main
+          mkdir -p "$RUNNER_TEMP/pr"
+          echo "$BRANCH" > "$RUNNER_TEMP/pr/branch.txt"
 
       - name: Implement
         id: implement
@@ -313,20 +326,25 @@ jobs:
               in the acceptance criteria that fails. Then answer needs_user.
               Commit what you have locally, but do not push.
             - You are on branch ${{ steps.verdict.outputs.branch }}, just made from origin/main. This
-              checkout counts as the ticket's own worktree; the runner is disposable. Push only that branch (`git push -u origin ${{ steps.verdict.outputs.branch }}`), never main.
-            - Open the pull request with `gh pr create --base main`, its body from mp:pr, with
-              "Closes #${{ matrix.issue }}" in it. Do not merge it.
+              checkout counts as the ticket's own worktree; the runner is disposable.
+            - Finish by publishing: commit every change on this branch; write the PR's title to
+              ${{ runner.temp }}/pr/title.txt and its body, from mp:pr with "Closes #${{ matrix.issue }}" in
+              it, to ${{ runner.temp }}/pr/body.md; then `git push -u origin ${{ steps.verdict.outputs.branch }}`
+              (never main) and `gh pr create --base main --title "<title>" --body-file
+              ${{ runner.temp }}/pr/body.md`. Do not merge it. Your GitHub token expires an hour into the
+              run: if the push or `gh` is refused for authentication, leave it there and answer built. The
+              workflow's next step publishes from the files on a fresh token.
 
-            Answer through the structured output: `outcome`, `pr_url` (empty if none), and `note`. When you
+            Answer through the structured output: `outcome` (built, or needs_user) and `note`. When you
             stop, `note` is posted on the issue: one or two short sentences saying what a person has to
             decide. Details belong in the work log, not the note.
           claude_args: >-
             --model claude-opus-5-5
             --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,Agent,Task,Skill,TodoWrite,WebFetch,WebSearch"
             --json-schema '{"type":"object","additionalProperties":false,
-            "required":["outcome","pr_url","note"],
-            "properties":{"outcome":{"type":"string","enum":["pr_opened","needs_user"]},
-            "pr_url":{"type":"string"},"note":{"type":"string","maxLength":300}}}'
+            "required":["outcome","note"],
+            "properties":{"outcome":{"type":"string","enum":["built","needs_user"]},
+            "note":{"type":"string","maxLength":300}}}'
 
       - name: Build usage
         id: build_usage
@@ -335,19 +353,54 @@ jobs:
           EXEC: ${{ steps.implement.outputs.execution_file }}
         run: python3 .github/scripts/plan_limits.py "$EXEC" "$MAX_PLAN_UTILIZATION" >> "$GITHUB_OUTPUT"
 
-      # The work and the log are kept even when no PR came of them.
+      - name: Read build
+        id: build
+        if: steps.implement.outcome == 'success'
+        env:
+          OUTPUT: ${{ steps.implement.outputs.structured_output }}
+        run: echo "outcome=$(jq -r '.outcome' <<< "$OUTPUT")" >> "$GITHUB_OUTPUT"
+
+      # Most builds open their own PR. One that ran past its token's hour is opened from its files.
+      - name: PR open?
+        id: opened
+        if: steps.build.outputs.outcome == 'built'
+        run: |
+          pr=$(python3 .github/scripts/issue_queue.py pr "$ISSUE")
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "${pr:-No PR yet: opening it from the files the build wrote.}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open the PR
+        if: steps.build.outputs.outcome == 'built' && steps.opened.outputs.pr == ''
+        continue-on-error: true
+        env:
+          BRANCH: ${{ steps.verdict.outputs.branch }}
+        run: |
+          set -euo pipefail
+          title=$(cat "$RUNNER_TEMP/pr/title.txt" 2>/dev/null || git log --reverse --format=%s origin/main..HEAD | head -1)
+          body="$RUNNER_TEMP/pr/body.md"
+          if [ ! -s "$body" ]; then
+            { echo "Closes #$ISSUE"; echo; git log --reverse --format='- %s' origin/main..HEAD; } > "$body"
+          fi
+          if ! grep -q "Closes #$ISSUE" "$body"; then printf '\nCloses #%s\n' "$ISSUE" >> "$body"; fi
+          printf '\n---\n_Opened by the workflow token after the build'"'"'s own expired, so CI and Claude Review wait for approval: select **Approve workflows to run** in the merge box._\n' >> "$body"
+          # The build's git credentials were its expired app token: push with this job's token instead.
+          git -c "http.https://github.com/.extraheader=" -c credential.helper= \
+            push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "HEAD:refs/heads/$BRANCH"
+          gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$body"
+
+      # The work is kept even when no PR came of it: pr/work.patch (the commits, for `git am`),
+      # pr/uncommitted.diff, pr/branch.txt, pr/title.txt, pr/body.md.
       - name: Keep the work
         if: always() && steps.implement.outcome != 'skipped'
         run: |
-          git format-patch origin/main --stdout > "$RUNNER_TEMP/work.patch" 2>/dev/null || true
-          git diff >> "$RUNNER_TEMP/work.patch" || true
+          mkdir -p "$RUNNER_TEMP/pr"
+          git format-patch origin/main --stdout > "$RUNNER_TEMP/pr/work.patch" || true
+          git diff HEAD > "$RUNNER_TEMP/pr/uncommitted.diff" || true
       - uses: actions/upload-artifact@v7
         if: always() && steps.implement.outcome != 'skipped'
         with:
           name: issue-${{ matrix.issue }}-work
-          path: |
-            ${{ runner.temp }}/work.patch
-            .agent-logs/
+          path: ${{ runner.temp }}/pr/
           if-no-files-found: ignore
 
       # Running out of plan is not the issue's fault: it is left as it was, to be picked up again.
@@ -387,7 +440,9 @@ jobs:
             echo "Opened $pr" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if [ -n "${OUTPUT:-}" ]; then note=$(jq -r '.note' <<< "$OUTPUT")
+          if [ -n "${OUTPUT:-}" ] && [ "$(jq -r '.outcome' <<< "$OUTPUT")" = "built" ]; then
+            note="Built and tested, but publishing the PR failed. The commits and PR text are in the run's issue-$ISSUE-work artifact."
+          elif [ -n "${OUTPUT:-}" ]; then note=$(jq -r '.note' <<< "$OUTPUT")
           else note="The build ended ($IMPLEMENT) without a pull request."; fi
           jq -rn --arg run "$RUN_URL" --arg note "$note" --arg artifact "issue-$ISSUE-work" \
             '$note + " Work so far: the `" + $artifact + "` artifact." + "\n\n<sub>[Issue agent](" + $run + ") · remove `needs-user` to requeue</sub>"' > comment.md

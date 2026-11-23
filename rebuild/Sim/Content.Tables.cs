@@ -62,7 +62,7 @@ public static partial class Content
         int MoveAllowanceM, double ReachM, string Temperament, HerdBehavior Behavior, Diet Diet,
         double TopSpeedMps, double EnduranceSpeedMps, double SprintSeconds, double RunCostJPerKgM, double BurstPct, double GrazeKcalPerMinute,
         double StrikeBackResolve, double ChaseLimitSeconds,
-        FatRange? AutumnFatPct = null, PersonBuild? Female = null);
+        FatRange? AutumnFatPct = null, PersonBuild? Female = null, int? FlightMinutesPerTile = null);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
         double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
         double MetabolicHeatDelta = 0, double HealingDelta = 0, double? HungerFreeHours = null);
@@ -313,7 +313,7 @@ public static partial class Content
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
             r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.Group, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
-            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.AutumnFatPct, r.Female);
+            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.AutumnFatPct, r.Female, r.FlightMinutesPerTile);
 
     /// A recipe's materials in kilos: pieces of the first material's nominal piece.
     static StructureRecipe ToRecipe(RecipeRow r, IReadOnlyDictionary<Resource, ShelterMaterial> materials) =>

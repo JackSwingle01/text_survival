@@ -1,12 +1,12 @@
 ## Primary References
 
-**Always consult these documentation files at the start of a conversation:**
+Read these when the task touches what they cover:
 
-- @principles.md
-- @principles-code.md
-- @./documentation/overview.md
-
-The principles doc tells you *how to approach* the codebase. The overview doc tells you *what exists*.
+- `principles.md` — design principles: experience goals, events, tensions, pacing. Read before
+  designing a feature or writing player-facing text.
+- `principles-code.md` — technical principles and naming conventions. Read before writing code.
+- `documentation/overview.md` — the old game's systems and where they live. Read before working
+  outside `rebuild/`.
 
 ## Build and Test
 

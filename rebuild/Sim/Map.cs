@@ -172,14 +172,28 @@ public static class Map
         if (MapGen.Manhattan(from, to) != 1) throw new ArgumentException($"{from} and {to} are not adjacent");
         if (!m.InBounds(to)) return "the edge of the world";
         if (!m.TerrainAt(to).IsPassable()) return m.TerrainAt(to) == Terrain.Mountain ? "mountains block the way" : "deep water blocks the way";
-        bool caveWall(TileId a, TileId b) => m.CaveAt(a) == Cave.Floor && (m.CaveIdAt(a) != m.CaveIdAt(b) || m.CaveAt(b) == Cave.None);
-        if (caveWall(from, to) || caveWall(to, from)) return "solid rock blocks the way";
+        if (CaveWall(m, from, to)) return "solid rock blocks the way";
         return m.EdgeBetween(from, to) switch
         {
             EdgeType.Ravine => "a deep ravine blocks the way",
             EdgeType.Cliff => "a sheer cliff blocks the way",
             _ => null,
         };
+    }
+
+    /// On the wing water, ravines and cliffs are nothing; the mountain wall and the rock round a cave still are.
+    public static string? BlockedInFlight(GeneratedMap m, TileId from, TileId to)
+    {
+        if (MapGen.Manhattan(from, to) != 1) throw new ArgumentException($"{from} and {to} are not adjacent");
+        if (!m.InBounds(to)) return "the edge of the world";
+        if (m.TerrainAt(to) == Terrain.Mountain) return "mountains block the way";
+        return CaveWall(m, from, to) ? "solid rock blocks the way" : null;
+    }
+
+    static bool CaveWall(GeneratedMap m, TileId from, TileId to)
+    {
+        bool wall(TileId a, TileId b) => m.CaveAt(a) == Cave.Floor && (m.CaveIdAt(a) != m.CaveIdAt(b) || m.CaveAt(b) == Cave.None);
+        return wall(from, to) || wall(to, from);
     }
 
     // ---- per-tile ground ----

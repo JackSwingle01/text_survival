@@ -151,6 +151,9 @@ public static partial class Body
     static double BurnKcalPerHour(BodyState body, double activityFactor) =>
         MetabolismKcalPerDay(body, activityFactor) / 24 * Effects.MetabolicHeatFactor(body);
 
+    /// A minute of the burn Process takes, as a forecast.
+    public static double BurnKcalPerMinute(BodyState body, double activityFactor) => BurnKcalPerHour(body, activityFactor) / 60;
+
     readonly record struct SweatResponse(double Severity, double ProducedMlPerHour, double EvaporatedMlPerHour)
     {
         public double CoolingKcalPerHour => EvaporatedMlPerHour * EvaporativeKcalPerMl;

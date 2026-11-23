@@ -651,6 +651,10 @@ public class HerdTests(ITestOutputHelper output)
         // individuals 4,332 MB in about 10 s (about 110 animals). The ticket's ceiling is 3x the herd baseline,
         // 12,192 MB; the cap below stays tighter. Wall clock flaked at 13-21 s under parallel suites (37 s in Debug
         // alone with individuals); the 120 s limit is only a backstop for a blow-up that does not allocate.
+        // These budgets are tripwires, not design limits: 6000 MB is about three times what a populated month
+        // allocated when it was set, and the 1 MB save was the phase 1 exit criterion. Crossing one calls for
+        // Jack's judgement on whether the cost buys something the player sees (then re-baseline). An agent does
+        // not redesign a feature to get back under one, nor raise the number: it reports the measurement in its PR.
         Assert.True(allocatedMB < 6000, $"allocated {allocatedMB} MB");
         Assert.True(clock.Elapsed.TotalSeconds < 120, $"took {clock.Elapsed.TotalSeconds:F1}s");
         Assert.True(json < 1_000_000, $"save is {json} bytes");

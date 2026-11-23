@@ -123,8 +123,6 @@ public static class Npc
     static Req Of(MissingResource m) => new(string.Join("/", m.AnyOf), m.AnyOf, _ => 1, m.Kg,
         Items.Resources[m.AnyOf[0]].Category switch { ResourceCategory.Fuel => ForageFocus.Fuel, ResourceCategory.Food => ForageFocus.Food, _ => ForageFocus.Materials });
 
-    sealed record Routes(Dictionary<TileId, double> Minutes, Dictionary<TileId, TileId> Previous);
-
     sealed class Mind(World world, Agent agent, NpcMind mind, List<WorldEvent> events)
     {
         readonly Memory memory = Memories.Of(agent);
@@ -143,8 +141,8 @@ public static class Npc
         double FireHereHours => fireHereHours ??= BurningHere ? Fire.HoursItWillBurn(PitHere!) : 0;
         bool Cold => CorePriority(Body.CoreTempF, mind.Goal?.Stat == Stat.Warmth) >= Priority.Need;
 
-        Routes? fromHere;
-        readonly Dictionary<TileId, Routes> toSite = [];
+        RouteMap? fromHere;
+        readonly Dictionary<TileId, RouteMap> toSite = [];
         readonly Dictionary<(PoolId, ForageFocus, int), IReadOnlyDictionary<Resource, double>> expected = [];
         Dictionary<Stat, Priority>? priorities;
         Dictionary<Stat, Priority> PrioritiesNow => priorities ??= Priorities();
@@ -258,24 +256,10 @@ public static class Npc
         IEnumerable<(Activity, TileId, int)> WalkLegs(TileId from, TileId to)
         {
             if (from == to) yield break;
-            var path = new List<TileId>();
-            if (from == Here)
-            {
-                var routes = FromHere();
-                if (!routes.Previous.ContainsKey(to)) yield break;
-                for (var t = to; t != from; t = routes.Previous[t]) path.Add(t);
-                path.Reverse();
-            }
-            else
-            {
-                var routes = ToSite(to);
-                if (!routes.Previous.ContainsKey(from)) yield break;
-                for (var t = routes.Previous[from]; ; t = routes.Previous[t])
-                {
-                    path.Add(t);
-                    if (t == to) break;
-                }
-            }
+            var routes = from == Here ? FromHere() : ToSite(to);
+            var end = from == Here ? to : from;
+            if (!routes.Reaches(end)) yield break;
+            var path = from == Here ? routes.RouteTo(end) : routes.RouteBack(end);
             var at = from;
             foreach (var next in path)
             {
@@ -301,7 +285,7 @@ public static class Npc
         /// The all of a fire: lit if out by the time it is back (tinder for the odds, kindling, what the refusal names), then fuel.
         Plan FirePlan(TileId site, double hoursWanted)
         {
-            double backMinutes = ToSite(site).Minutes.GetValueOrDefault(Here, 0);
+            double backMinutes = ToSite(site).MinutesTo(Here, 0);
             var reqs = new List<Req>();
             if (FireLeftHoursAt(site) * 60 < backMinutes + 1)
             {
@@ -341,7 +325,7 @@ public static class Npc
             double? Cost(TileId site)
             {
                 var plan = FirePlan(site, HoursWanted(priority));
-                return plan.Missing.Count > 0 ? null : here.Minutes.GetValueOrDefault(site) + plan.ForecastMinutes;
+                return plan.Missing.Count > 0 ? null : here.MinutesTo(site) + plan.ForecastMinutes;
             }
             double? campCost = Cost(Camp);
             var best = candidates.Select(t => (Tile: t, Cost: Cost(t))).Where(x => x.Cost != null).OrderBy(x => x.Cost).ThenBy(x => x.Tile).FirstOrDefault();
@@ -406,11 +390,11 @@ public static class Npc
             // One of: snow melted on a fire at camp, or, to drink now, a walk to open water it remembers.
             var here = FromHere();
             var fire = FirePlan(Camp, MeltFireHours);
-            double meltMinutes = fire.Missing.Count > 0 ? double.PositiveInfinity : here.Minutes.GetValueOrDefault(Camp, double.PositiveInfinity) + fire.ForecastMinutes + Work.MeltSnowMinutes;
+            double meltMinutes = fire.Missing.Count > 0 ? double.PositiveInfinity : here.MinutesTo(Camp, double.PositiveInfinity) + fire.ForecastMinutes + Work.MeltSnowMinutes;
             var water = priority == Priority.Want ? null : memory.Places.Where(p => p.Value.Water && here.Minutes.ContainsKey(p.Key)).Select(p => p.Key)
                 .OrderBy(t => here.Minutes[t]).ThenBy(t => t).Where(t => Survives(t, Work.DrinkMinutes, new Drink(Id), Camp)).Cast<TileId?>().FirstOrDefault();
             // Both trips end at camp, so each step toward one makes the other dearer: no turning back and forth.
-            double WaterTrip(TileId t) => here.Minutes[t] + ToSite(Camp).Minutes.GetValueOrDefault(t, here.Minutes[t]);
+            double WaterTrip(TileId t) => here.Minutes[t] + ToSite(Camp).MinutesTo(t, here.Minutes[t]);
             if (water is TileId w && WaterTrip(w) < meltMinutes) return WalkTo(w) is { } go ? go with { ForecastMinutes = WaterTrip(w) } : null;
             if (meltMinutes < double.PositiveInfinity) return (Light(fire, now: true) ?? NextLeaf(fire)) is { } step ? step with { ForecastMinutes = meltMinutes } : null;
             return priority >= Priority.Need ? Explore() : null;
@@ -423,7 +407,7 @@ public static class Npc
             if (priority == Priority.Want && Weather.IsDaytime(world.Minute)) return null;
             if (!AtCamp)
             {
-                double walk = ToSite(Camp).Minutes.GetValueOrDefault(Here, double.PositiveInfinity);
+                double walk = ToSite(Camp).MinutesTo(Here, double.PositiveInfinity);
                 if (priority < Priority.Critical && Body.EnergyMinutes > walk + WalkReserveEnergyMinutes && WalkTo(Camp) is { } home) return home with { ForecastMinutes = walk };
                 return SleepHere();
             }
@@ -542,12 +526,12 @@ public static class Npc
         {
             var here = FromHere();
             var back = ToSite(site);
-            double legHome = back.Minutes.GetValueOrDefault(Here, 0), best = double.PositiveInfinity;
+            double legHome = back.MinutesTo(Here, 0), best = double.PositiveInfinity;
             var offers = new List<(Leaf Leaf, double Travel, double PerUnit)>();
             foreach (var (t, outMinutes) in here.Minutes.OrderBy(x => x.Value).ThenBy(x => x.Key))
             {
                 if ((outMinutes - legHome) / want >= best) break;
-                double travel = t == site || plan.Leaves.Any(l => l.Tile == t) ? 0 : outMinutes + back.Minutes.GetValueOrDefault(t, outMinutes) - legHome;
+                double travel = t == site || plan.Leaves.Any(l => l.Tile == t) ? 0 : outMinutes + back.MinutesTo(t, outMinutes) - legHome;
                 foreach (var leaf in Offers(t, req, want, (int)outMinutes, site))
                 {
                     double net = leaf.Units - req.UsedPerHour * (travel + leaf.WorkMinutes) / 60;
@@ -640,7 +624,7 @@ public static class Npc
             if (away.Count > 0)
             {
                 var here = FromHere();
-                var next = away.OrderBy(l => here.Minutes.GetValueOrDefault(l.Tile, double.PositiveInfinity)).ThenBy(l => l.Tile).First();
+                var next = away.OrderBy(l => here.MinutesTo(l.Tile, double.PositiveInfinity)).ThenBy(l => l.Tile).First();
                 return next.Tile == Here ? Do(next) : WalkTo(next.Tile);
             }
             if (plan.Leaves.FirstOrDefault(l => l.Tile == Here) is { } atHand) return Do(atHand);
@@ -686,51 +670,29 @@ public static class Npc
 
         // ---- moving ----
 
-        Routes FromHere() => fromHere ??= Search(Here, forward: true);
+        RouteMap FromHere() => fromHere ??= Routes(into: null);
 
         /// The ways in to a site. Standing on it, the ways out stand for them: a forecast, near enough either way.
-        Routes ToSite(TileId site)
+        RouteMap ToSite(TileId site)
         {
             if (site == Here) return FromHere();
-            if (!toSite.TryGetValue(site, out var routes)) toSite[site] = routes = Search(site, forward: false);
+            if (!toSite.TryGetValue(site, out var routes)) toSite[site] = routes = Routes(into: site);
             return routes;
         }
 
-        /// Over ground it has seen, clear of predators it has just seen.
-        Routes Search(TileId origin, bool forward)
+        /// Over ground it has seen (Trip.Routes), near here or camp, clear of predators it has just seen.
+        RouteMap Routes(TileId? into)
         {
-            var minutes = new Dictionary<TileId, double> { [origin] = 0 };
-            var previous = new Dictionary<TileId, TileId>();
-            var queue = new PriorityQueue<TileId, double>();
             var threats = Threats().ToList();
-            queue.Enqueue(origin, 0);
-            while (queue.TryDequeue(out var t, out var d))
-            {
-                if (d > minutes[t]) continue;
-                foreach (var n in MapGen.Neighbors(t))
-                {
-                    if (MapGen.Manhattan(n, Here) > SearchTiles && MapGen.Manhattan(n, Camp) > SearchTiles || !map.InBounds(n)) continue;
-                    if (n != Here && !(memory.Explored?.Contains(n) ?? false)) continue;
-                    if (n != Here && n != Camp && threats.Any(p => MapGen.Manhattan(p, n) < ThreatTiles)) continue;
-                    var (from, to) = forward ? (t, n) : (n, t);
-                    if (Map.Blocked(map, from, to) != null) continue;
-                    double nd = d + Trip.StepMinutes(world, Id, from, to, Pace.Quick);
-                    if (nd >= minutes.GetValueOrDefault(n, double.PositiveInfinity)) continue;
-                    minutes[n] = nd;
-                    previous[n] = t;
-                    queue.Enqueue(n, nd);
-                }
-            }
-            return new Routes(minutes, previous);
+            return Trip.Routes(world, Id, into: into, refused: n =>
+                MapGen.Manhattan(n, Here) > SearchTiles && MapGen.Manhattan(n, Camp) > SearchTiles
+                || n != Here && n != Camp && threats.Any(p => MapGen.Manhattan(p, n) < ThreatTiles));
         }
 
         Next? WalkTo(TileId target)
         {
             var routes = FromHere();
-            if (target == Here || !routes.Previous.ContainsKey(target)) return null;
-            var step = target;
-            while (routes.Previous[step] != Here) step = routes.Previous[step];
-            return StepTo(Enum.GetValues<Direction>().First(d => Map.Step(Here, d) == step));
+            return target != Here && routes.Reaches(target) ? StepTo(routes.FirstStep(target)!.Value) : null;
         }
 
         /// Pace priced by risk: the least minutes plus priced injury odds.
