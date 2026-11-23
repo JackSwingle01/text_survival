@@ -134,7 +134,7 @@ public static class Traversal
     /// Zero beside a frozen river, whose ice already owns the hazard. from: for the edge's half of tile.
     public static double SurfaceHazardDelta(World world, TileId tile, TileId? from = null) =>
         Map.Of(world) is var m && m.BesideRiver(tile) && Map.IsFrozen(m, tile, world.Minute) ? 0
-            : (from is { } f ? Ground.Underfoot(world, tile, f) : Ground.Underfoot(world, tile)).HazardDelta;
+            : Ground.Underfoot(world, tile, from).HazardDelta;
 
     public static double EffectiveHazardLevel(World world, TileId tile, TileId? from = null) =>
         HazardLevel(Map.Of(world), tile, world.Minute, SurfaceHazardDelta(world, tile, from));

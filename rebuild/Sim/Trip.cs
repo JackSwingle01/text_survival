@@ -40,8 +40,8 @@ public static class Trip
         var (exit, entry) = (Segment(from), Segment(to));
         int edge = m.EdgeBetween(from, to)?.TraversalMinutes() ?? 0;
         var (rounded, careful) = Join(HalfOf(world, from, null, body, speed, sky, pace), HalfOf(world, to, null, body, speed, sky, pace), edge);
-        int bare = Math.Max(rounded, Traversal.MinimumCrossingMinutes) + careful;
-        int trail = Trodden(world, from, to) ? Total(Join(HalfOf(world, from, to, body, speed, sky, pace), HalfOf(world, to, from, body, speed, sky, pace), edge)) - bare : 0;
+        int bare = Total((rounded, careful));
+        int trail = Tracks.IsTrodden(world, from, to) ? TroddenTotal(world, from, to, body, speed, sky, pace, edge) - bare : 0;
         int whole = exit.Minutes + entry.Minutes + edge;
         return new TripTime(exit.Walking + entry.Walking, exit.Terrain + entry.Terrain, exit.Weather + entry.Weather,
             exit.Pace + entry.Pace, exit.Load + entry.Load, careful, edge, trail,
@@ -66,7 +66,7 @@ public static class Trip
     /// other: the tile across the edge, for the edge's half of tile; null for the bare tile.
     static Half HalfOf(World world, TileId tile, TileId? other, BodyState body, double speed, WeatherSample sky, Pace pace)
     {
-        double factor = (other is { } o ? Ground.Underfoot(world, tile, o) : Ground.Underfoot(world, tile)).TraversalFactor;
+        double factor = Ground.Underfoot(world, tile, other).TraversalFactor;
         bool slow = pace == Pace.Careful
             && Traversal.PaceMatters(Traversal.InjuryOdds(Traversal.EffectiveHazardLevel(world, tile, other), body, sky, Pace.Quick).TotalPct);
         return new Half(Traversal.SegmentMinutes(Map.Of(world), tile, speed, sky), factor, slow);
@@ -83,9 +83,8 @@ public static class Trip
 
     static int Total((int Rounded, int Careful) joined) => Math.Max(joined.Rounded, Traversal.MinimumCrossingMinutes) + joined.Careful;
 
-    /// Only an edge something has walked reads differently from its bare tiles.
-    static bool Trodden(World world, TileId from, TileId to) =>
-        Math.Abs(from.X - to.X) + Math.Abs(from.Y - to.Y) == 1 && world.Trails.ContainsKey(new EdgeId(from, to));
+    static int TroddenTotal(World world, TileId from, TileId to, BodyState body, double speed, WeatherSample sky, Pace pace, int edge) =>
+        Total(Join(HalfOf(world, from, to, body, speed, sky, pace), HalfOf(world, to, from, body, speed, sky, pace), edge));
 
     /// Prices one agent's crossings under one sky, each bare tile's half once however many crossings share it, and a
     /// trodden edge's halves each time: the same total Terms gives (Join), without its breakdown.
@@ -101,8 +100,7 @@ public static class Trip
         {
             if (flight is int flat) return flat;
             int edge = Traversal.EdgeMinutes(world, from, to);
-            if (Trodden(world, from, to))
-                return Total(Join(HalfOf(world, from, to, body, Speed, sky, pace), HalfOf(world, to, from, body, Speed, sky, pace), edge));
+            if (Tracks.IsTrodden(world, from, to)) return TroddenTotal(world, from, to, body, Speed, sky, pace, edge);
             return Total(Join(HalfAt(from), HalfAt(to), edge));
         }
 
@@ -129,6 +127,14 @@ public static class Trip
         int minutes = new Pricer(world, agent, pace, Weather.At(world, world.Minute)).Minutes(from, to);
         cache.Minutes[(who, from, to, pace)] = (minutes, encumbrancePct, speed);
         return minutes;
+    }
+
+    /// A crossing of this edge priced this minute was priced before it was trodden (Tracks.RecordMove): only its prices go.
+    internal static void Forget(World world, TileId a, TileId b)
+    {
+        if (world.StepMinutesCache is not { } cache) return;
+        foreach (var key in cache.Minutes.Keys.Where(k => (k.From == a && k.To == b) || (k.From == b && k.To == a)).ToList())
+            cache.Minutes.Remove(key);
     }
 
     /// The one route search, for people and animals alike: a Dijkstra from who's tile on StepMinutes' prices at a

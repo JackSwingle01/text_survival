@@ -203,11 +203,12 @@ public static class Ground
         return cache.ByClass[key] = SurfaceOf(state, sub);
     }
 
-    /// An edge's half of a tile: the tile's ground with its top snow packed by the edge to other (Tracks.TroddenLevel).
-    public static Surface Underfoot(World world, TileId tile, TileId other)
+    /// An edge's half of a tile: the tile's ground with its top snow packed by the edge to other (Tracks.TroddenLevel);
+    /// the tile itself for no other.
+    public static Surface Underfoot(World world, TileId tile, TileId? other)
     {
         var surface = Underfoot(world, tile);
-        return surface.Trodden(Tracks.TroddenLevel(world, tile, other, surface.SnowDepthM));
+        return other is { } o ? surface.Trodden(Tracks.TroddenLevel(world, tile, o, surface.SnowDepthM)) : surface;
     }
 
     /// The depth snow of this water equivalent lies when it has just fallen.

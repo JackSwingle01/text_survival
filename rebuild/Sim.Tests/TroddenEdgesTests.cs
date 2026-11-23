@@ -68,6 +68,20 @@ public class TroddenEdgesTests
     }
 
     [Fact]
+    public void AnAnimalsRouteSearch_FavoursAnEdgeOthersHavePacked()
+    {
+        var (trodden, bare) = Twins(HeavySnow, 1440);
+        int Minutes(World w)
+        {
+            var wolf = Agents.Spawn(w, Species.Wolf, Forest);
+            int minutes = Trip.Routes(w, wolf, maxMinutes: 240).Minutes[Rock];
+            Agents.Remove(w, wolf);
+            return minutes;
+        }
+        Assert.True(Minutes(trodden) < Minutes(bare));
+    }
+
+    [Fact]
     public void OnBareGround_TheSameTroddenEdge_SavesLittle()
     {
         var (trodden, bare) = Twins(Thaw, 1440);

@@ -259,6 +259,17 @@ public class TracksTests
     }
 
     [Fact]
+    public void Footprints_AgeFasterThanTrails()
+    {
+        var w = Ground(SteadySnow);
+        Cross(w, A, B, TrackMaker.Human, 20);
+        Assert.Equal(TrailTier.Path, Tracks.TierOf(w, A, B));
+        w.Minute = 3 * 1440; // three days of steady snow
+        Assert.Empty(Tracks.Read(w, A));
+        Assert.Equal(TrailTier.Path, Tracks.TierOf(w, A, B));
+    }
+
+    [Fact]
     public void TierFor_DerivesFromTheTroddenAmountAlone()
     {
         Assert.Equal(TrailTier.None, Tracks.TierFor(0));

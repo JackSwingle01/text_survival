@@ -84,10 +84,7 @@ public static class Tracks
         var edge = new EdgeId(from, to);
         double settled = TroddenAt(world, edge, now);
         world.Trails[edge] = new EdgeTrodden(settled + (1 - settled) * Math.Min(1, StampPct * individualDepth), now);
-        // The minute's forecasts over this edge read it loose; every other crossing's price stands.
-        if (world.StepMinutesCache is { } cache)
-            foreach (var key in cache.Minutes.Keys.Where(k => (k.From == from && k.To == to) || (k.From == to && k.To == from)).ToList())
-                cache.Minutes.Remove(key);
+        Trip.Forget(world, from, to);
     }
 
     /// Freshest first.
@@ -200,6 +197,10 @@ public static class Tracks
 
     /// Settled since its last stamp; snow fallen on it does not lower it.
     public static double TroddenAt(World world, TileId a, TileId b) => TroddenAt(world, new EdgeId(a, b), world.Minute);
+
+    /// Whether anything has walked the edge between neighbours a and b: only then does its half of a tile read differently.
+    public static bool IsTrodden(World world, TileId a, TileId b) =>
+        Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1 && world.Trails.ContainsKey(new EdgeId(a, b));
 
     static double TroddenAt(World world, EdgeId edge, long now)
     {
