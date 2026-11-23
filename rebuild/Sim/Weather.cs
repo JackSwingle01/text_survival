@@ -107,11 +107,12 @@ public static class Weather
         return hour < LightFromHour || hour >= DarkFromHour;
     }
 
-    /// Dawn and dusk: within TwilightHours of the light coming or going (IsNight's hours).
+    /// Dawn and dusk: within TwilightHours of the light coming or going (IsNight's hours), to the minute.
     public static bool IsTwilight(long minute)
     {
-        int hour = MinuteOfDay(minute) / 60;
-        return Math.Abs(hour - LightFromHour) < TwilightHours || Math.Abs(hour - DarkFromHour) < TwilightHours;
+        int minuteOfDay = MinuteOfDay(minute);
+        return Math.Abs(minuteOfDay - LightFromHour * 60) < TwilightHours * 60
+            || Math.Abs(minuteOfDay - DarkFromHour * 60) < TwilightHours * 60;
     }
 
     public const int TwilightHours = 3;
