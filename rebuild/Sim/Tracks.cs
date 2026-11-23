@@ -11,7 +11,7 @@ public enum TrafficPattern { Heading, NorthSouth, EastWest, Mixed }
 /// Totals are as of the last passage (Minute), faded passage to passage; reading fades them again by Freshness.
 /// SnowFallenM is Ground.SnowFallenM at that passage.
 public sealed record Track(long Minute, Direction Heading, double Traffic, double HeaviestIndividual,
-    double DirectionX, double DirectionY, double NorthSouthTraffic, double EastWestTraffic, double SnowFallenM = 0);
+    double DirectionX, double DirectionY, double NorthSouthTraffic, double EastWestTraffic, double SnowFallenM);
 
 /// Wear as of Minute; decay since then is derived on read.
 public sealed record TrailWear(double Wear, long Minute);
@@ -26,8 +26,9 @@ public static class Tracks
 {
     // ---- erosion ----
 
+    /// Weathering a Depth-1 print survives.
     public const double BaseLifespanUnits = 2880;
-    /// A boot sinks about 5 cm into loose snow.
+    /// Snow a print survives per unit of Depth: a boot sinks about 5 cm into loose snow.
     public const double PrintDepthPerUnitM = 0.05;
     // A person's prints: ~4 days in dead calm cold, 2.5 to 10 hours of light snow, about an hour of blizzard.
     const double StillAirUnits = 0.5, PrecipitationUnits = 6.0, WindUnits = 3.0, ThawUnits = 2.0, ThawAboveF = 34;
@@ -35,10 +36,9 @@ public static class Tracks
     public static double ErosionPerMinute(WeatherSample s) =>
         StillAirUnits + s.PrecipitationPct * PrecipitationUnits + s.WindLevel * WindUnits + (s.TemperatureF > ThawAboveF ? ThawUnits : 0);
 
-    /// Erosion less snow, which buries prints on the ground instead.
+    /// Erosion less falling snow, which buries prints on the ground instead.
     public static double WeatheringPerMinute(WeatherSample s) =>
-        StillAirUnits + (s.RainfallMPerMinute > 0 ? s.PrecipitationPct * PrecipitationUnits : 0) + s.WindLevel * WindUnits
-        + (s.TemperatureF > ThawAboveF ? ThawUnits : 0);
+        ErosionPerMinute(s) - (s.SnowfallWeMPerMinute > 0 ? s.PrecipitationPct * PrecipitationUnits : 0);
 
     /// Total erosion over minutes 1..minute, each under its own sky. Monotonic; an age is a difference of two.
     public static double ErosionAt(World world, long minute) => ClockAt(world, minute, ErosionPerMinute, ref world.ErosionCache);
@@ -86,11 +86,11 @@ public static class Tracks
     public static IReadOnlyList<TrackSign> Read(World world, TileId tile)
     {
         if (!world.Tiles.TryGetValue(tile, out var state) || state.Tracks == null) return [];
-        double weathering = WeatheringAt(world, world.Minute), snow = Ground.SnowFallenM(world, tile);
+        double weathering = WeatheringAt(world, world.Minute), snowFallenM = Ground.SnowFallenM(world, tile);
         var signs = new List<TrackSign>();
         foreach (var (maker, t) in state.Tracks)
         {
-            double f = Freshness(world, t, weathering, snow);
+            double f = Freshness(world, t, weathering, snowFallenM);
             if (f > 0) signs.Add(Sign(maker, t, f, world.Minute));
         }
         signs.Sort((a, b) => b.FreshnessPct != a.FreshnessPct ? b.FreshnessPct.CompareTo(a.FreshnessPct) : a.Maker.CompareTo(b.Maker));
@@ -113,11 +113,11 @@ public static class Tracks
     {
         if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
         state.Tracks ??= [];
-        double snow = Ground.SnowFallenM(world, tile);
+        double snowFallenM = Ground.SnowFallenM(world, tile);
         double traffic = individuals, heaviest = individualDepth, dx = 0, dy = 0, ns = 0, ew = 0;
         // What the weather left of the earlier sign carries over: daily routes read busier, yet nothing piles up forever.
         // A dead sign is no sign, whether or not the sweep has dropped it yet.
-        if (state.Tracks.TryGetValue(maker, out var old) && Freshness(world, old, weathering, snow) is var f && f > 0)
+        if (state.Tracks.TryGetValue(maker, out var old) && Freshness(world, old, weathering, snowFallenM) is var f && f > 0)
         {
             traffic += old.Traffic * f;
             heaviest = Math.Max(heaviest, old.HeaviestIndividual);
@@ -131,7 +131,7 @@ public static class Tracks
             case Direction.East: dx += individuals; ew += individuals; break;
             case Direction.West: dx -= individuals; ew += individuals; break;
         }
-        state.Tracks[maker] = new Track(now, heading, traffic, heaviest, dx, dy, ns, ew, snow);
+        state.Tracks[maker] = new Track(now, heading, traffic, heaviest, dx, dy, ns, ew, snowFallenM);
     }
 
     // A multi-tile hop reads by its larger axis.
@@ -176,9 +176,9 @@ public static class Tracks
         foreach (var (tile, state) in world.Tiles.ToList())
         {
             if (state.Tracks == null) continue;
-            double snow = Ground.SnowFallenM(world, tile);
+            double snowFallenM = Ground.SnowFallenM(world, tile);
             foreach (var (maker, t) in state.Tracks.ToList())
-                if (Freshness(world, t, weathering, snow) <= 0) state.Tracks.Remove(maker);
+                if (Freshness(world, t, weathering, snowFallenM) <= 0) state.Tracks.Remove(maker);
             if (state.Tracks.Count > 0) continue;
             state.Tracks = null;
             // Ground never lets go of a tile it has observed; pools, stashes and carcasses are kept too.

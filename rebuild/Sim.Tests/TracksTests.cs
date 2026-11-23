@@ -96,7 +96,7 @@ public class TracksTests
         Assert.True(FreshnessOf(w, heavy, TrackMaker.Hoof) > FreshnessOf(w, light, TrackMaker.Paw));
     }
 
-    // ---- prints fade by the ground's own snow (#105) ----
+    // ---- prints are buried by the ground's own snow ----
 
     /// Still, cold, full heavy snow: about 5 cm of fresh snow an hour on open ground (0.005 m water an hour, a tenth as dense).
     static readonly WeatherSample StillHeavySnow = new(0, WeatherCondition.HeavySnow, -10, 0, 1, 1, WindDirection.North);
@@ -140,6 +140,12 @@ public class TracksTests
         Assert.True(FreshnessOf(w, A) > 0.75);
         w.Minute = 3 * 1440;
         Assert.NotNull(Sign(w, A));
+        // Still light snow, 1.5 cm an hour, has buried the same print by then; the sky clock gave it 21 hours.
+        var snowing = Ground(new WeatherSample(0, WeatherCondition.LightSnow, -10, 0, 0.3, 1, WindDirection.North));
+        var t = OpenTile(snowing);
+        Tracks.RecordMove(snowing, t, new(t.X + 1, t.Y), TrackMaker.Human);
+        snowing.Minute = 17 * 60;
+        Assert.Null(Sign(snowing, t));
     }
 
     [Fact]
@@ -543,9 +549,8 @@ public class TracksGoldenTests
         Assert.Equal(old, Tracks.ErosionAt(new World { Seed = seed }, 30 * 1440), 1e-6);
 
     // One person's prints: the minute they are gone, and freshness at 1 h, 6 h, 1 day, 2 days.
-    // The overview's "~4 days calm" is 96.0 h. Snow buries them by the ground's own snowfall since #105:
-    // the old clock's blizzard lifetime was 347 minutes and seed 17's 715; at 5 cm a print, the blizzard's
-    // 4.9 cm an hour takes it in 75 and seed 17's opening snow in 210.
+    // The overview's "~4 days calm" is 96.0 h. At 5 cm a print, the blizzard's 4.9 cm an hour buries it in 75
+    // minutes, and seed 17's opening snow in 210.
     [Theory]
     [InlineData("calm", 5760, 0.9895833333333334, 0.9375, 0.75, 0.5)]
     [InlineData("blizzard", 75, 0.03916013442984867, 0, 0, 0)]
