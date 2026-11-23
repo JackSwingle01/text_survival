@@ -21,14 +21,26 @@ jobs:
       - run: dotnet restore text_survival.sln
       - run: dotnet build text_survival.sln -c Release --no-restore
       - run: dotnet test text_survival.sln -c Release --no-build --no-restore --filter "Category!=Slow" --logger trx --results-directory TestResults
-      # Ratchet: a fast test takes at most 5 s here, except those in rebuild/Sim.Tests/slow-fast-tests.txt
-      # (dev/ratchets.md, "fast-test-time"). Also prints the slowest tests.
+      # Ratchet: a fast test takes at most 5 s, except those in rebuild/Sim.Tests/slow-fast-tests.txt
+      # (dev/ratchets.md, "fast-test-time"). A time in the parallel run includes waiting on other tests
+      # and assemblies, so it only screens: what it flags runs again alone and serially, and that run gates.
+      # Tiered compilation is off for that run: a short process otherwise runs the sim's hot code
+      # unoptimized for its first seconds (FallingAsleep: 2.9 s in the suite, 6.5 s alone, 4.6 s alone untiered).
       - name: Fast tests stay fast
         if: ${{ !cancelled() }}
         shell: bash
         run: |
+          set -euo pipefail
+          check=(python3 .github/scripts/test_durations.py --max-seconds 5 --allow rebuild/Sim.Tests/slow-fast-tests.txt)
           mapfile -t trx < <(grep -l "Sim.Tests.dll" TestResults/*.trx)
-          python3 .github/scripts/test_durations.py "${trx[@]}" --max-seconds 5 --allow rebuild/Sim.Tests/slow-fast-tests.txt
+          "${check[@]}" "${trx[@]}" && exit 0
+          mapfile -t over < <("${check[@]}" --names-only "${trx[@]}")
+          [ ${#over[@]} -gt 0 ] || exit 1  # failed for another reason, shown above
+          filter=$(printf 'FullyQualifiedName=%s|' "${over[@]}")
+          echo "Re-running ${#over[@]} flagged test(s) alone and serially:"
+          DOTNET_TieredCompilation=0 dotnet test rebuild/Sim.Tests -c Release --no-build --no-restore --filter "${filter%|}" \
+            --logger "trx;LogFileName=$PWD/TestResults/isolated/alone.trx" -- xUnit.ParallelizeTestCollections=false
+          "${check[@]}" TestResults/isolated/alone.trx
 
   # GitHub only reports a workflow it cannot parse; actionlint also catches bad expressions,
   # unknown action inputs and shellcheck problems in run steps. Same version as the

@@ -9,6 +9,10 @@ took longer than the limit should either get quicker or be tagged
 `[Trait("Category", TestCategories.Slow)]`. The tests named in --allow (one per line, `#` comments,
 theory parameters left off) are known breaches, a ratchet burned down from dev/ratchets.md.
 Prints the slowest tests either way, so a passing run still shows what is close to the line.
+
+A test's time inside a parallel run includes waiting on the others (CI measured 0.1 s tests at 7 s), so
+CI screens the parallel run, re-runs what it flags alone and serially (--names-only lists them), and
+gates on that run.
 """
 
 import argparse
@@ -36,6 +40,8 @@ def main() -> int:
     ap.add_argument("--max-seconds", type=float, default=5.0)
     ap.add_argument("--allow", help="file of test names allowed over the limit")
     ap.add_argument("--top", type=int, default=15)
+    ap.add_argument("--names-only", action="store_true",
+                    help="print only the over-limit tests' method names, one per line, and exit 0")
     args = ap.parse_args()
 
     allowed: set[str] = set()
@@ -50,6 +56,11 @@ def main() -> int:
                 continue
             results.append((seconds(r.get("duration")), r.get("testName")))
     results.sort(reverse=True)
+    over = [(d, n) for d, n in results if d > args.max_seconds and method(n) not in allowed]
+
+    if args.names_only:
+        print("\n".join(dict.fromkeys(method(n) for _, n in over)))
+        return 0
 
     total = sum(d for d, _ in results)
     print(f"{len(results)} tests, {total:.0f} s summed test time. Slowest:")
@@ -57,7 +68,6 @@ def main() -> int:
         mark = "  (allowed)" if method(name) in allowed else ""
         print(f"  {d:7.2f} s  {name}{mark}")
 
-    over = [(d, n) for d, n in results if d > args.max_seconds and method(n) not in allowed]
     if not over:
         print(f"\nNo fast test outside {args.allow or 'an allow list'} took over {args.max_seconds:g} s.")
         return 0

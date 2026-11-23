@@ -1,7 +1,7 @@
 # Fast tests allowed over the 5 s limit, slowest first: a ratchet (dev/ratchets.md, "fast-test-time").
 # .github/scripts/test_durations.py fails CI on any other fast test over 5 s in the Release fast suite.
 # Only remove lines. Measured 2026-11-23 (Release, 4 cores, the whole fast suite): every fast test over 3 s,
-# for margin on slower runners.
+# for margin on slower runners, and three #108's CI flagged that measured 4-4.6 s alone.
 ReportTests.Curve_has_one_point_per_chunk
 HerdTests.Gate_ThreePopulatedDays_AreIndependentOfChunkingAndSaves
 Survival.Tests.ForecastTests.TheGatherForecast_AgreesWithAnHourOfForaging
@@ -50,3 +50,6 @@ NpcTests.Memory_IsOnePlacePerTile
 NpcTests.BesideALitFire_WithAPredatorNextDoor_ItSleeps
 Survival.Tests.VerbsTests.TheTilesPools_ShowOnlyTheKnownOnes_AndForageOffersItsFoci_AndKeepWalking
 Survival.Tests.WorkTests.AFocusedSearch_KeepsItsFocus_AndDropsAboutHalfTheRest
+Survival.Tests.CoreTests.FallingAsleep_IsTheSameHoweverTheMinutesAreStepped
+Survival.Tests.MemoryTests.NpcMemory_IsTheSharedModel
+Survival.Tests.ForageRestoreTests.ForagingInTheDarkWithoutLight_FindsLessThanByDay
