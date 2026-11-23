@@ -176,7 +176,7 @@ public class NpcTests(ITestOutputHelper output)
         var start = new TileId(camp.X + 1, camp.Y);
         var npc = Npc.Spawn(w, start, camp);
         var wolfTile = new TileId(start.X + 1, start.Y);
-        Agents.Spawn(w, Species.Wolf, wolfTile, 3);
+        Agents.SpawnGroup(w, Species.Wolf, wolfTile, 3);
         var (a, _) = Npc.Decide(w, w.Agent(npc), []);
         var travel = Assert.IsType<Travel>(a);
         Assert.True(MapGen.Manhattan(Map.Step(start, travel.Dir), wolfTile) > 1, $"ran {travel.Dir}, toward the wolves");
@@ -206,7 +206,7 @@ public class NpcTests(ITestOutputHelper output)
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp);
         var next = MapGen.Neighbors(camp).First(t => Map.Blocked(Map.Of(w), camp, t) == null);
-        Agents.Spawn(w, Species.CaveBear, next, 1, [next]);
+        Agents.Spawn(w, Species.CaveBear, next, [next]);
         Items.Add(Items.StashAt(w, camp), Resource.Birch, 40);
         Pit(w, camp, Resource.Kindling, 3);
         bool slept = false;

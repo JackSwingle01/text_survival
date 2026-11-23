@@ -91,8 +91,10 @@ public static class Tags
     static Tag OfAgent(World world, Agent a, AgentId? viewer)
     {
         var tags = Tag.None;
-        if (a.Members.Any(b => Body.IsAlive(b) && Combat.WoundLevel(b) > WoundedLevel)) tags |= Tag.Wounded;
-        if (a.Members.Any(b => Effects.Severity(b, EffectKind.Bloody) > 0) || Items.PackOf(a) is { } pack && Items.Have(pack, Resource.RawMeat) > 0)
+        // It stands for its herd (LocationFeatures.At).
+        var bodies = Combat.Side(world, a).Select(k => k.Body).ToList();
+        if (bodies.Any(b => Body.IsAlive(b) && Combat.WoundLevel(b) > WoundedLevel)) tags |= Tag.Wounded;
+        if (bodies.Any(b => Effects.Severity(b, EffectKind.Bloody) > 0) || Items.PackOf(a) is { } pack && Items.Have(pack, Resource.RawMeat) > 0)
             tags |= Tag.ScentSource;
         var enc = Combat.EncounterOf(world, a.Id);
         if (viewer is AgentId v && v != a.Id && enc != null && Combat.EncounterOf(world, v) == enc)
@@ -137,9 +139,12 @@ public static class Tags
     {
         if (viewer is AgentId v && (MadeBy(world, t) == v || FireDefends(world, t.Tile, v))) return [];
         return Nearby.Within(world, t.Tile, OccupantRadiusTiles)
-            .Where(a => a.Id != viewer && a.Mind is HerdMind mind && Fauna.IsPredator(a.Species) && Sim.IsAlive(a) && Attending(world, a, mind))
+            .Where(a => !Ours(world, a, viewer) && a.Mind is HerdMind mind && Fauna.IsPredator(a.Species) && Sim.IsAlive(a) && Attending(world, a, mind))
             .Select(a => a.Id).ToHashSet();
     }
+
+    static bool Ours(World world, Agent a, AgentId? viewer) =>
+        viewer is AgentId v && (a.Id == v || world.Agents.TryGetValue(v, out var them) && Fauna.IsKin(them, a));
 
     public const double AfraidLevel = 0.5;
 

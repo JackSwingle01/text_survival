@@ -18,7 +18,7 @@ public class HerdBudgetTests
     static (World, Agent) Caribou(double hunger)
     {
         var w = World.New(3);
-        var herd = w.Agent(Agents.Spawn(w, Species.Caribou, Open(w), 4));
+        var herd = w.Agent(Agents.Spawn(w, Species.Caribou, Open(w)));
         TestKit.SetHunger(herd, hunger);
         return (w, herd);
     }
@@ -61,14 +61,14 @@ public class HerdBudgetTests
         Assert.InRange(Fauna.BurnKcalPerMinute(SpeciesTable.Average(Species.Wolf)), 1.33, 1.37);
     }
 
-    /// A starved pack gorges on a kill and puts its lost fat back on; old (before review) feeding stopped at
+    /// A starved wolf gorges on a kill and puts its lost fat back on; old (before review) feeding stopped at
     /// a full store, so fat burned in a lean spell was gone for good.
     [Fact]
-    public void AStarvedPack_PutsItsFatBackOn_AtAKill()
+    public void AStarvedWolf_PutsItsFatBackOn_AtAKill()
     {
         var w = World.New(3);
         var tile = Open(w);
-        var pack = w.Agent(Agents.Spawn(w, Species.Wolf, tile, 2));
+        var pack = w.Agent(Agents.Spawn(w, Species.Wolf, tile));
         foreach (var b in pack.Members) { b.CaloriesKcal = 0; b.FatKg *= 0.6; }
         double lean = pack.Members.Sum(b => b.FatKg);
         for (int i = 0; i < 3; i++) Combat.LeaveCarcass(w, tile, Species.Caribou, SpeciesTable.Average(Species.Caribou), new Cause(null, "a test"));
@@ -82,7 +82,7 @@ public class HerdBudgetTests
     public void SaberTooth_DoesNotStarveWhileItForages()
     {
         var w = World.New(3);
-        var cat = w.Agent(Agents.Spawn(w, Species.SaberTooth, Open(w), 1));
+        var cat = w.Agent(Agents.Spawn(w, Species.SaberTooth, Open(w)));
         TestKit.SetHunger(cat, 0.8);
         Minutes(w, cat, new Graze(cat.Id), 60);
         Assert.True(Fauna.Hunger(cat) < 0.8);
@@ -99,15 +99,15 @@ public class HerdBudgetTests
     }
 
     [Fact]
-    public void APack_FeedingOnACarcass_FillsItsStoresFromTheMeat()
+    public void AWolf_FeedingOnACarcass_FillsItsStoresFromTheMeat()
     {
         var w = World.New(3);
         var tile = Open(w);
-        var pack = w.Agent(Agents.Spawn(w, Species.Wolf, tile, 3));
+        var pack = w.Agent(Agents.Spawn(w, Species.Wolf, tile));
         TestKit.SetHunger(pack, 0.9);
         Combat.LeaveCarcass(w, tile, Species.Caribou, SpeciesTable.Average(Species.Caribou), new Cause(null, "a test"));
         Minutes(w, pack, new Feed(pack.Id), 30);
-        Assert.True(Fauna.Hunger(pack) < 0.1, $"half an hour on a carcass left the pack at {Fauna.Hunger(pack):0.000}");
+        Assert.True(Fauna.Hunger(pack) < 0.1, $"half an hour on a carcass left the wolf at {Fauna.Hunger(pack):0.000}");
     }
 
     /// The cave bear is a den defender (species round): nothing makes it come at a person but its den.
@@ -116,7 +116,7 @@ public class HerdBudgetTests
     {
         var w = World.New(3);
         w.Minute = 3 * 60; // midday: the night would add its own boldness
-        var bear = Agents.Spawn(w, Species.CaveBear, Open(w), 1);
+        var bear = Agents.Spawn(w, Species.CaveBear, Open(w));
         var person = BodyState.BaselineHuman();
         Assert.Equal(0, Combat.Boldness(w, bear, person, hunger: 1.0), 9);
         Assert.True(Combat.Boldness(w, bear, person, defending: true) >= 0.5);

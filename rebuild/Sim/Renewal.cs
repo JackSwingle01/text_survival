@@ -18,7 +18,7 @@ public static partial class Fauna
     {
         Species.Caribou => new(135, 190, 0.030, 0.045, null, new(0.0035, 5, 15, 128, 192)),
         Species.Bison => new(130, 190, 0.020, 0.023, null, new(0.0066, 3, 8, 240, 400)),
-        Species.Megaloceros => new(140, 190, 0.020, 0.033, null, new(0.0014, 1, 3, 48, 96)),
+        Species.Megaloceros => new(140, 190, 0.020, 0.033, null, new(0.0014, 2, 3, 48, 96)),
         Species.Mammoth => new(120, 200, 0.004, 0.032, null, null),
         Species.Wolf => new(110, 150, 0.020, 1.0 / 700, 14, new(1.0 / 3500, 3, 8, 48, 80)),
         // Hyenas and the carrion flock find something when no kill is near, so they never starve; they thin only over capacity.
@@ -35,8 +35,8 @@ public static partial class Fauna
     const double StarveDeathPerDay = 0.3;
     const double ArrivalsPerDay = 0.05; // at the valley's full deficit
 
-    /// Once a day, at midnight. Each herd rolls on its own stream (renewal) in id order, arrivals on the valley's.
-    /// A herd in a fight neither starves, thins nor gives birth that day.
+    /// Once a day, at midnight. Each animal rolls on its own stream (renewal) in id order, arrivals on the valley's.
+    /// An animal in a fight neither starves, thins nor gives birth that day.
     public static void Renew(World world, List<WorldEvent> events)
     {
         if (Weather.MinuteOfDay(world.Minute) != 0) return;
@@ -54,10 +54,7 @@ public static partial class Fauna
             }
             if (day < row.SeasonStartDay || day > row.SeasonEndDay || capacity <= 0) continue;
             double p = row.BirthsPerHeadPerDay * Deficit(capacity, current);
-            int births = 0, room = (int)Math.Floor(capacity - current);
-            foreach (var _ in herd.Members.Where(Body.IsAlive).ToList())
-                if (births < room && rng.NextDouble() < p) births++;
-            for (int i = 0; i < births; i++) Born(world, herd, rng);
+            if (capacity - current >= 1 && rng.NextDouble() < p) Born(world, herd);
         }
         Arrive(world);
     }
@@ -77,30 +74,25 @@ public static partial class Fauna
     /// A herd Populate put over capacity should not starve, and a cave bear's land (cave floor) carries nothing measurable.
     static bool Thins(Species s) => BehaviorOf(s) is HerdBehavior.Pack or HerdBehavior.Scavenger or HerdBehavior.Carrion;
 
-    /// The birth rate run backwards, so a herd falls toward capacity as fast as it would grow toward it.
+    /// The birth rate run backwards, so a species falls toward capacity as fast as it would grow toward it.
     static void Thin(World world, Agent herd, double p, Rng rng, List<WorldEvent> events)
     {
-        int losses = herd.Members.Where(Body.IsAlive).Count(_ => rng.NextDouble() < p);
-        for (int i = 0; i < losses && world.Agents.ContainsKey(herd.Id); i++) Lose(world, herd, events);
+        if (rng.NextDouble() < p) Lose(world, herd, events);
     }
 
-    /// Returns whether the herd is gone (the last member leaves the world).
     static bool Lose(World world, Agent herd, List<WorldEvent> events)
     {
-        var body = herd.Members.Where(Body.IsAlive).OrderBy(b => b.FatKg).First();
+        var body = herd.Body;
         Combat.LeaveCarcass(world, herd.Tile, herd.Species, body, new Cause(null, "starvation"));
         events.Add(new Killed(world.Minute, herd.Id, herd.Species, body.WeightKg, herd.Tile, By: null));
-        herd.Members.Remove(body);
-        if (herd.Members.Count > 0) return false;
         Agents.Remove(world, herd.Id);
         return true;
     }
 
-    /// Newborns are full-grown bodies: there is no growth model.
-    static void Born(World world, Agent herd, Rng rng)
+    static void Born(World world, Agent mother)
     {
-        if (BehaviorOf(herd.Species) == HerdBehavior.Solitary) Agents.Spawn(world, herd.Species, herd.Tile, 1, [.. MindOf(herd).Territory]);
-        else herd.Members.Add(SpeciesTable.NewBody(herd.Species, rng));
+        var young = world.Agent(Agents.Spawn(world, mother.Species, mother.Tile, [.. MindOf(mother).Territory]));
+        Inherit(world, mother, young);
     }
 
     /// Beyond the farthest anyone can see, so nobody sees a herd appear from nothing.
@@ -114,7 +106,7 @@ public static partial class Fauna
         {
             if (RenewalOf(species)?.Arrival is not ArrivalRow a) continue;
             double capacity = ValleyCapacity(world, species);
-            double current = world.Agents.Values.Where(x => x.Species == species && x.Mind is HerdMind).Sum(x => x.Members.Count(Body.IsAlive));
+            double current = world.Agents.Values.Count(x => x.Species == species && x.Mind is HerdMind && Sim.IsAlive(x));
             if (rng.NextDouble() >= ArrivalsPerDay * Deficit(capacity, current)) continue;
             var land = ArrivalLand(world, species);
             if (land.Count == 0) continue;
@@ -125,7 +117,7 @@ public static partial class Fauna
             double room = CapacityOn(world, species, territory) - CurrentOn(world, species, territory);
             members = Math.Min(members, (int)Math.Floor(room));
             if (members < a.MinMembers) continue;
-            Agents.Spawn(world, species, start, members, territory);
+            Agents.SpawnGroup(world, species, start, members, territory);
         }
     }
 
@@ -148,7 +140,7 @@ public static partial class Fauna
     {
         var diet = DietOf(species);
         if (diet == Diet.Carnivore)
-            return world.Agents.Values.Where(a => a.Mind is HerdMind && IsQuarry(a.Species)).Sum(a => a.Members.Where(Body.IsAlive).Sum(b => b.WeightKg));
+            return world.Agents.Values.Where(a => a.Mind is HerdMind && IsQuarry(a.Species) && Sim.IsAlive(a)).Sum(a => a.Body.WeightKg);
         var cache = world.ValleyForageCache ??= [];
         if (!cache.TryGetValue(diet, out double score)) cache[diet] = score = OpenLand(world).Sum(t => ForageScore(world, t, diet));
         return score;
@@ -181,8 +173,8 @@ public static partial class Fauna
 
     static double CurrentFor(World world, Agent herd) => CurrentOn(world, herd.Species, MindOf(herd).Territory);
 
-    /// Herds whose land overlaps share what it carries rather than each filling it; a bear's cub on a copy of its
-    /// mother's land counts as a whole bear there; two packs count each other by how far their dens' ranges overlap.
+    /// Animals whose land overlaps share what it carries rather than each filling it; a newborn on a copy of its
+    /// mother's land counts whole there; meat-eaters count each other by how far their dens' ranges overlap.
     static double CurrentOn(World world, Species species, IReadOnlyList<TileId> land)
     {
         bool meat = DietOf(species) == Diet.Carnivore;
@@ -191,10 +183,8 @@ public static partial class Fauna
         foreach (var other in world.Agents.Values)
         {
             if (other.Species != species || other.Mind is not HerdMind mind) continue;
-            int alive = other.Members.Count(Body.IsAlive);
-            if (alive == 0) continue;
-            double share = meat ? RangeOverlap(mind.Territory[0], land[0]) : mind.Territory.Count(tiles!.Contains) / (double)mind.Territory.Count;
-            current += alive * share;
+            if (!Sim.IsAlive(other)) continue;
+            current += meat ? RangeOverlap(mind.Territory[0], land[0]) : mind.Territory.Count(tiles!.Contains) / (double)mind.Territory.Count;
         }
         return current;
     }
@@ -217,5 +207,5 @@ public static partial class Fauna
 
     public static double PreyKgNear(World world, TileId tile) =>
         Nearby.Within(world, tile, PreyRangeTiles).Where(a => a.Mind is HerdMind && IsQuarry(a.Species))
-            .Sum(a => a.Members.Where(Body.IsAlive).Sum(b => b.WeightKg));
+            .Where(Sim.IsAlive).Sum(a => a.Body.WeightKg);
 }

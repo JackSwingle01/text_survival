@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Survival;
@@ -26,7 +25,7 @@ public sealed record PlayerMind : PersonMind;
 /// The NPC utility AI picks the activities (state and decider live in Npc.cs).
 public sealed partial record NpcMind : PersonMind;
 
-/// One or more bodies that move and decide as a unit: the player, an NPC, a herd.
+/// One body that moves and decides: the player, an NPC, an animal.
 public sealed class Agent
 {
     public required AgentId Id { get; init; }
@@ -45,9 +44,9 @@ public sealed class Agent
     /// The Nearby index this agent was last put in; never saved.
     [JsonIgnore] internal NearbyIndex? Index { get; set; }
     public Species Species { get; init; } = Species.Human;
+    /// Its one body, in a list because a fight names a unit's body by index (Fighter.Member, always 0).
     public List<BodyState> Members { get; init; } = [BodyState.BaselineHuman()];
     public Mind Mind { get; init; } = new PlayerMind();
-    /// The one body of a one-body agent. Throws for a herd, which has no single body.
     [JsonIgnore] public BodyState Body => Members.Single();
     /// A tile crossing under way; the agent stays on Tile until it completes. Owned by Travel.
     public Crossing? Crossing { get; set; }
@@ -58,15 +57,14 @@ public sealed class Agent
     [JsonIgnore] internal Activity? Stepping { get; set; }
 }
 
-/// Making and splitting agents. A herd sends members, not itself, into a fight; a wounded member
-/// that leaves becomes an agent of its own.
+/// Making agents. Every animal is its own agent with one body; a herd is the animals of one species
+/// on one tile (Combat.Side), never stored.
 public static class Agents
 {
-    /// A new herd of this species on this tile, each member at its own random size (Species.NewBody).
-    /// Its territory is the tiles it patrols and grazes, its den first; by default just this tile.
-    public static AgentId Spawn(World world, Species species, TileId tile, int members, List<TileId>? territory = null)
+    /// One animal of this species on this tile, at its own random size (Species.NewBody). Its territory is
+    /// the tiles it patrols and grazes, its den first; by default just this tile.
+    public static AgentId Spawn(World world, Species species, TileId tile, List<TileId>? territory = null)
     {
-        if (members < 1) throw new ArgumentOutOfRangeException(nameof(members), members, "An agent has at least one member");
         var id = NewId(world);
         var rng = world.Birth("fauna", id);
         world.Agents[id] = new Agent
@@ -75,32 +73,19 @@ public static class Agents
             Tile = tile,
             Species = species,
             Mind = Fauna.NewMind(world, id, species, territory ?? [tile]),
-            Members = Enumerable.Range(0, members).Select(_ => SpeciesTable.NewBody(species, rng)).ToList(),
+            Members = [SpeciesTable.NewBody(species, rng)],
         };
         return id;
     }
 
-    /// Moves one member out into a new one-member agent on the same tile and returns its id. A
-    /// member that is already alone is already its own agent: its id comes back unchanged.
-    /// Refused while the agent has members in a fight: units name members by index.
-    public static AgentId SplitOff(World world, AgentId from, int memberIndex)
+    /// Animals that come into the world together, in id order: a closed-group species' start familiar with each
+    /// other (an existing pack, an arriving one), and every one has its own copy of the land.
+    public static List<AgentId> SpawnGroup(World world, Species species, TileId tile, int count, List<TileId>? territory = null)
     {
-        var source = world.Agent(from);
-        if (memberIndex < 0 || memberIndex >= source.Members.Count)
-            throw new ArgumentOutOfRangeException(nameof(memberIndex), memberIndex, $"{from} has {source.Members.Count} members");
-        if (Combat.EncounterOf(world, from) != null)
-            throw new InvalidOperationException($"{from} is in a fight; its members cannot be reordered until it ends");
-        if (source.Members.Count == 1) return from;
-        // A person is one body; splitting a pack would mint what is in it.
-        if (source.Mind is PersonMind) throw new InvalidOperationException($"{from} is a person and cannot split");
-        var body = source.Members[memberIndex];
-        source.Members.RemoveAt(memberIndex);
-        var id = NewId(world);
-        // Its own copy of what the herd knew, not the herd's: one mind shared by two agents would
-        // change both whenever either learned anything, and a save would load them as two.
-        var mind = JsonSerializer.Deserialize<Mind>(JsonSerializer.Serialize(source.Mind))!;
-        world.Agents[id] = new Agent { Id = id, Tile = source.Tile, Species = source.Species, Mind = mind, Members = [body] };
-        return id;
+        if (count < 1) throw new ArgumentOutOfRangeException(nameof(count), count, "A group has at least one animal");
+        var ids = Enumerable.Range(0, count).Select(_ => Spawn(world, species, tile, territory?.ToList())).ToList();
+        Fauna.Acquaint(world, ids);
+        return ids;
     }
 
     /// The agent leaves the world, and every stream it rolled on with it: ids are never made twice
@@ -108,6 +93,7 @@ public static class Agents
     public static void Remove(World world, AgentId id)
     {
         if (!world.Agents.Remove(id)) throw new InvalidOperationException($"No agent {id} to remove");
+        Fauna.Forget(world, id);
         foreach (var name in world.Rngs.Keys.Where(k => k.IsFor(id)).ToList()) world.Rngs.Remove(name);
     }
 

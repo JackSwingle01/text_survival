@@ -52,7 +52,6 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 - `Fauna.cs:47` - herds never come for the player or an NPC (old `ShouldEngagePlayer`, stalking, pack attacks on NPCs).
   Upgrade: encounters through `Combat.Boldness`, which is ready for them.
-- `Fauna.cs:165` - a lame member that mends never rejoins its herd; it lives on as its own herd.
 - `Fauna.cs:281` - old hungry wolves chased escaping prey 40% of the time; here they patrol on.
 - `Fauna.cs:505` - old hyenas shadowed feeding predators and wolf packs; only carcasses draw them here. The carrion
   flock (`Carrion.cs`) is the one that follows predators. Hyenas stay the old scavenger: they fight, and never starve

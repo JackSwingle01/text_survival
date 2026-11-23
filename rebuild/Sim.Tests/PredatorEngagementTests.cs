@@ -31,13 +31,16 @@ public class PredatorEngagementTests(ITestOutputHelper output)
 
     static AgentId Pack(World w, TileId tile, int count = 3, double hunger = 0.75, HerdState state = HerdState.Patrolling)
     {
-        var pack = Agents.Spawn(w, Species.Wolf, tile, count, [tile]);
-        CombatTests.Normalize(w, pack);
-        TestKit.SetHunger(w.Agent(pack), hunger);
-        var mind = (HerdMind)w.Agent(pack).Mind;
-        mind.State = state;
-        mind.StateSinceMinute = w.Minute - 30; // due to sniff the air this minute (DecidePack's patrol clock)
-        return pack;
+        var pack = Agents.SpawnGroup(w, Species.Wolf, tile, count, [tile]);
+        foreach (var wolf in pack)
+        {
+            CombatTests.Normalize(w, wolf);
+            TestKit.SetHunger(w.Agent(wolf), hunger);
+            var mind = (HerdMind)w.Agent(wolf).Mind;
+            mind.State = state;
+            mind.StateSinceMinute = w.Minute - 30; // due to sniff the air this minute (DecidePack's patrol clock)
+        }
+        return pack[0];
     }
 
     /// The person a test is about: the player where they stand, or an NPC there with the player sent far off.

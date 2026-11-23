@@ -21,7 +21,10 @@ public class SubstrateTests
         while (Weather.MinuteOfDay(w.Minute) != 12 * 60) w.Minute++;
     }
 
-    static AgentId Herd(World w, Species s, int members, TileId tile) => Agents.Spawn(w, s, tile, members);
+    /// A herd of this many on the tile, by its first animal.
+    static AgentId Herd(World w, Species s, int animals, TileId tile) => Group(w, s, animals, tile)[0];
+
+    static List<AgentId> Group(World w, Species s, int animals, TileId tile) => Agents.SpawnGroup(w, s, tile, animals);
 
     /// The player kills a caribou on this tile with a spear in hand: the fight's own aftermath leaves the carcass.
     static Carcass PlayerKill(World w, TileId tile)
@@ -111,8 +114,9 @@ public class SubstrateTests
         Assert.Equal(new Cause(P, "the player's wooden spear"), byPlayer.Cause);
 
         var caribou = Herd(w, Species.Caribou, 1, camp);
-        var wolves = Herd(w, Species.Wolf, 4, camp);
-        var hunt = Combat.Create(w, [.. Enumerable.Range(0, 4).Select(k => new Fighter(wolves, k))], [new Fighter(caribou)], camp, 2, Awareness.Engaged, Awareness.Unaware);
+        var pack = Group(w, Species.Wolf, 4, camp);
+        var wolves = pack[0];
+        var hunt = Combat.Create(w, [.. pack.Select(id => new Fighter(id))], [new Fighter(caribou)], camp, 2, Awareness.Engaged, Awareness.Unaware);
         w.Agent(caribou).Body.BloodPct = 0;
         Combat.ResolveHeadless(w, hunt, []);
         var byPack = w.Tiles[camp].Carcasses!.Single(c => c.Id != byPlayer.Id);
@@ -295,7 +299,7 @@ public class SubstrateTests
         Assert.False(Tags.Of(w, t).HasFlag(Tag.Unaware));
 
         var wolves = Herd(w, Species.Wolf, 2, camp);
-        Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 8, Awareness.Engaged, Awareness.Engaged);
+        Combat.Create(w, [new Fighter(P)], [new Fighter(wolves)], camp, 8, Awareness.Engaged, Awareness.Engaged);
         Assert.True(Tags.Of(w, LocationFeatures.OfAgent(w, wolves), P).HasFlag(Tag.Hostile));
         Assert.False(Tags.Of(w, LocationFeatures.OfAgent(w, wolves)).HasFlag(Tag.Hostile), "hostile is to someone");
         Assert.False(Tags.Of(w, LocationFeatures.OfAgent(w, caribou), P).HasFlag(Tag.Hostile));
@@ -413,7 +417,7 @@ public class SubstrateTests
         w.AccessGates = Access.Gate.All;
         foreach (var (name, refusal) in refusals) Assert.True(refusal() == "a wolf pack guards it", $"{name}: {refusal()}");
         // A fight is the confrontation: a guard does not bar striking at it.
-        var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 1, Awareness.Engaged, Awareness.Engaged);
+        var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves)], camp, 1, Awareness.Engaged, Awareness.Engaged);
         Assert.Null(Combat.Refusal(w, enc, Combat.UnitOf(enc, P), CombatAction.Attack));
     }
 
@@ -428,7 +432,8 @@ public class SubstrateTests
         var npc = Npc.Spawn(w, camp);
         var theirs = Carcasses.Create(w, camp, "Caribou", SpeciesTable.NewBody(Species.Caribou, w.Rng("test")), w.Minute, cause: new Cause(npc, "a person"));
         var t = new LocationFeature(LocationFeatureKind.Carcass, camp, theirs.Id);
-        var wolves = Herd(w, Species.Wolf, 3, camp);
+        var pack = Group(w, Species.Wolf, 3, camp);
+        var wolves = pack[0];
         Assert.True(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "someone else's kill, with a pack on it");
         Assert.True(Tags.Of(w, t, npc).HasFlag(Tag.Occupied), "the viewer's own kill: the wolves have taken it");
         var stash = Items.StashAt(w, camp, new Cause(npc, "stashed by a person"));
@@ -437,14 +442,14 @@ public class SubstrateTests
         Assert.False(Tags.Of(w, pile, npc).HasFlag(Tag.Occupied), "what the viewer made");
         Assert.True(Tags.Of(w, pile, P).HasFlag(Tag.Occupied), "what someone else made");
 
-        var mind = Fauna.MindOf(w.Agent(wolves));
-        mind.Fear = 0.9;
+        // Every wolf of the pack: each one guards on its own.
+        var minds = pack.Select(id => Fauna.MindOf(w.Agent(id))).ToList();
+        foreach (var mind in minds) mind.Fear = 0.9;
         Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "an afraid pack");
-        mind.Fear = 0;
-        mind.State = HerdState.Fleeing;
+        foreach (var mind in minds) (mind.Fear, mind.State) = (0, HerdState.Fleeing);
         Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "a running pack");
-        mind.State = HerdState.Patrolling;
-        var enc = Combat.Create(w, [new Fighter(npc)], [new Fighter(wolves, 0)], camp, 8, Awareness.Engaged, Awareness.Engaged);
+        foreach (var mind in minds) mind.State = HerdState.Patrolling;
+        var enc = Combat.Create(w, [new Fighter(npc)], [.. pack.Select(id => new Fighter(id))], camp, 8, Awareness.Engaged, Awareness.Engaged);
         Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "a pack fighting someone else");
         w.Encounters.Remove(enc);
         Assert.True(Tags.Of(w, t, P).HasFlag(Tag.Occupied));

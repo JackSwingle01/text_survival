@@ -34,15 +34,14 @@ public static partial class Combat
             : null;
         var escapedBody = escaped != null ? BodyOf(world, escaped) : null;
 
-        // Which animal agents ran off whole: every member still alive was in this fight and left it on a heading
-        // (or chasing). Read before the dead leave their herds and a wounded one splits off.
+        // Which animals ran off: alive, and left the fight on a heading (or chasing). Read before the dead leave the world.
         var drifts = units.Where(u => StatsOf(world, u).IsAnimal).Select(u => u.Agent).Distinct()
             .Select(id => (Id: id, Living: units.Where(u => u.Agent == id && Alive(world, u)).ToList()))
             .Where(a => a.Living.Count > 0 && a.Living.Count == world.Agent(a.Id).Members.Count(Body.IsAlive) && a.Living.All(u => u.FledHeading != null))
             .Select(a => (a.Id, Far: a.Living.OrderByDescending(u => u.FledTiles).First()))
             .ToList();
 
-        // Which sides lost someone, before the dead leave their herds.
+        // Which sides lost someone, before the dead leave the world.
         var fell = units.Where(u => !Alive(world, u)).Select(u => u.Team).ToHashSet();
         var fought = units.Select(u => u.Agent).Distinct().ToList();
         foreach (var id in fought)
@@ -55,18 +54,17 @@ public static partial class Combat
                 LeaveCarcass(world, enc.Tile, agent.Species, body, body.WoundedBy ?? fellTo[units.First(u => u.Agent == id).Team]);
                 agent.Members.Remove(body);
             }
-            // An agent is one or more bodies; with none left there is nothing to move or decide.
+            // Its body is dead: there is nothing left to move or decide.
             if (agent.Members.Count == 0) Agents.Remove(world, id);
         }
 
         if (escaped != null)
         {
-            var source = world.Agent(escaped.Agent);
-            var newId = Agents.SplitOff(world, escaped.Agent, source.Members.IndexOf(escapedBody!));
+            var id = escaped.Agent;
             // It ran on the way it fled, leaving its trail that way.
-            if (escaped.FledHeading is Direction heading) Drift(world, newId, heading, escaped.FledTiles);
-            events.Add(new WoundedEscaped(world.Minute, newId, source.Species, 0.3 + WoundLevel(escapedBody!) * 0.5, enc.Tile, escaped.FledHeading));
-            Fauna.Escaped(world, newId, world.Agent(newId).Tile);
+            if (escaped.FledHeading is Direction heading) Drift(world, id, heading, escaped.FledTiles);
+            events.Add(new WoundedEscaped(world.Minute, id, world.Agent(id).Species, 0.3 + WoundLevel(escapedBody!) * 0.5, enc.Tile, escaped.FledHeading));
+            Fauna.Escaped(world, id, world.Agent(id).Tile);
         }
 
         foreach (var id in fought)
@@ -79,9 +77,8 @@ public static partial class Combat
             if (world.Agents.TryGetValue(id, out var person) && person.Mind is PersonMind) Sim.EndDoing(world, person, events);
         }
 
-        // Those carry on along their heading as far as the farthest of them ran; a herd with members
-        // that stayed behind, or one now gone with its last member, does not.
-        foreach (var (id, far) in drifts.Where(d => world.Agents.ContainsKey(d.Id)))
+        // Those carry on along their heading as far as they ran; the wounded one that got away already has.
+        foreach (var (id, far) in drifts.Where(d => world.Agents.ContainsKey(d.Id) && d.Id != escaped?.Agent))
             Drift(world, id, far.FledHeading!.Value, far.FledTiles);
     }
 

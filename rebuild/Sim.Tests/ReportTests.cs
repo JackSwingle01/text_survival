@@ -31,7 +31,10 @@ public class ReportTests
         var kinds = finds.Select(f => f.Kind).ToHashSet();
         foreach (var kind in new[] { "carcass", "stash", "fire pit", "shelter", "bedding", "place", "stock", "worked forage", "tracks", "herd" })
             Assert.Contains(kind, kinds);
-        Assert.Equal(w.Agents.Count - 1, finds.Count(f => f.Category == FindCategory.Agent || f.Kind == "body"));
+        // One row a herd (the animals of one species on one tile), one a person, one a body.
+        int rows = w.Agents.Values.Where(a => a.Id != AgentId.Player)
+            .Select(a => a.Mind is HerdMind ? $"{a.Species} {a.Tile}" : a.Id.ToString()).Distinct().Count();
+        Assert.Equal(rows, finds.Count(f => f.Category == FindCategory.Agent || f.Kind == "body"));
 
         var d = Report.Distribution(w, finds);
         Assert.Equal(finds.Count, d.Total);

@@ -92,9 +92,10 @@ public static class Effects
 
     /// Summed capacity deltas, each scaled by severity, except that the discomforts' losses saturate
     /// first: hunger, thirst and tiredness wear a body down without leaving it helpless.
-    public static double[] CapacityDeltas(BodyState body)
+    public static IReadOnlyList<double> CapacityDeltas(BodyState body)
     {
-        int count = Enum.GetValues<Capacity>().Length;
+        if (body.Effects.Count == 0) return NoDeltas;
+        int count = CapacityCount;
         var deltas = new double[count];
         var discomfortLoss = new double[count];
         foreach (var e in body.Effects)
@@ -109,6 +110,9 @@ public static class Effects
         for (int i = 0; i < count; i++) deltas[i] -= DiscomfortLoss(discomfortLoss[i]);
         return deltas;
     }
+
+    static readonly int CapacityCount = Enum.GetValues<Capacity>().Length;
+    static readonly double[] NoDeltas = new double[CapacityCount];
 
     internal const double DiscomfortMaxLoss = 0.8;
 

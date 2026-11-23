@@ -40,3 +40,16 @@ static class TestKit
         return world;
     }
 }
+
+/// Animals a test spawned together, in id order. Where one id is wanted, they stand for the first.
+readonly record struct Animals(List<AgentId> Ids)
+{
+    public AgentId this[int i] => Ids[i];
+    public int Count => Ids.Count;
+    public static implicit operator AgentId(Animals a) => a.Ids[0];
+    public static Animals Spawn(World world, Species species, TileId tile, int count, List<TileId>? territory = null) =>
+        new(Agents.SpawnGroup(world, species, tile, count, territory));
+    /// How many of them are still in the world.
+    public int Living(World world) => Ids.Count(world.Agents.ContainsKey);
+    public IEnumerable<Agent> In(World world) => Ids.Where(world.Agents.ContainsKey).Select(world.Agent);
+}

@@ -58,11 +58,14 @@ public class FireDeterrenceTests(ITestOutputHelper output)
         var next = MapGen.Neighbors(here).First();
         var w = new World { Seed = seed, GeneratedMap = m, Minute = 13 * 60 }; // 22:00
         w.Agents[P] = new Agent { Id = P, Tile = here };
-        var pack = Agents.Spawn(w, Species.Wolf, next, 3, [here, next]);
-        CombatTests.Normalize(w, pack);
-        TestKit.SetHunger(w.Agent(pack), 0.5);
-        ((HerdMind)w.Agent(pack).Mind).State = HerdState.Patrolling;
-        return (w, here, pack);
+        var pack = Agents.SpawnGroup(w, Species.Wolf, next, 3, [here, next]);
+        foreach (var wolf in pack)
+        {
+            CombatTests.Normalize(w, wolf);
+            TestKit.SetHunger(w.Agent(wolf), 0.5);
+            ((HerdMind)w.Agent(wolf).Mind).State = HerdState.Patrolling;
+        }
+        return (w, here, pack[0]);
     }
 
     /// A pit lit from kindling with pine laid on, burned for the half hour before this minute so the pine has caught.

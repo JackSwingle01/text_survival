@@ -102,7 +102,7 @@ public sealed class Observer
         if (a.Mind is HerdMind h)
         {
             lines.Add($"State: {Words.Of(h.State)} for {Ago(w.Minute - h.StateSinceMinute)}");
-            lines.Add($"Members: {a.Members.Count(Body.IsAlive)} alive of {a.Members.Count}");
+            lines.Add($"Herd: {Combat.Side(w, a).Count} here");
             lines.Add($"Fear: {h.Fear:P0}");
             if (h.LastFedMinute > HerdMind.Never) lines.Add($"Last fed: {Ago(w.Minute - h.LastFedMinute)} ago");
             lines.Add($"Territory: {h.Territory.Count} tiles");
@@ -129,19 +129,23 @@ public sealed class Observer
     {
         var w = W;
         var list = new List<ActorDto>();
+        // One actor a herd, its first animal standing for it (LocationFeatures.At), with the herd's count.
+        var inAHerd = new HashSet<AgentId>();
         foreach (var (id, a) in w.Agents)
         {
-            if (!Shown(a)) continue;
+            if (!Shown(a) || !inAHerd.Add(id)) continue;
+            int count = a.Mind is HerdMind ? Combat.Side(w, a).Count : 1;
+            if (a.Mind is HerdMind) inAHerd.UnionWith(Combat.Side(w, a).Select(k => k.Id));
             var to = a.Crossing is { } c ? Map.Step(c.From, c.Dir) : (TileId?)null;
             list.Add(new ActorDto(id.Value, a.Mind is HerdMind ? "herd" : "npc", Words.SpeciesIcon(a.Species), Names.Cap(Cause.Describe(w, id)),
-                a.Tile.X, a.Tile.Y, a.Members.Count, Doing(a), (a.Mind as HerdMind)?.State is HerdState s ? Words.Of(s) : null,
+                a.Tile.X, a.Tile.Y, count, Doing(a), (a.Mind as HerdMind)?.State is HerdState s ? Words.Of(s) : null,
                 a.Mind is HerdMind && Fauna.IsPredator(a.Species), to?.X, to?.Y, a.Crossing is { } cr ? Math.Round((double)cr.ElapsedMinutes / cr.TotalMinutes, 3) : null));
         }
         return list;
     }
 
-    /// An actor on the map: a living person, or a herd with members left. A dead person is a body, listed on its tile.
-    static bool Shown(Agent a) => a.Members.Count > 0 && (a.Mind is HerdMind || Sim.IsAlive(a));
+    /// An actor on the map: a living person or animal. A dead person is a body, listed on its tile.
+    static bool Shown(Agent a) => Sim.IsAlive(a);
 
     /// An activity in words: "travel north", "gather", or "deciding" between activities.
     static string Doing(Agent a) => Sim.ActivityOf(a) switch

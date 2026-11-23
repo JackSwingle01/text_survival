@@ -4,6 +4,9 @@ namespace Survival;
 /// flock. Birds have no body plan, so its members are small quadrupeds.
 public enum Species { Human, Wolf, Bear, CaveBear, SaberTooth, Hyena, Caribou, Megaloceros, Bison, Mammoth, Hare, Fox, Raven }
 
+/// Who an animal takes for kin: any of its species (Open), or only those it is familiar with (Closed).
+public enum Group { Open, Closed }
+
 /// Humans are their own row: they never bolt by instinct.
 public enum Role { Human, Prey, DangerousPrey, Predator, Scavenger }
 
@@ -16,6 +19,7 @@ public sealed record SpeciesStats(
     Role Role, bool IsSmall,
     double AttackDamage, DamageType AttackType,
     double Threat, double Boldness, double Aggression, double Cohesion,
+    Group Group,
     int MoveAllowanceM, // per combat action at full Moving
     double ReachM,
     Temperament Temperament,
