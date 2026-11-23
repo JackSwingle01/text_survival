@@ -2,9 +2,6 @@
 # .github/scripts/test_durations.py fails CI on any other fast test over 5 s in the Release fast suite.
 # Only remove lines. Measured 2026-11-23 (Release, 4 cores, the whole fast suite): every fast test over 3 s,
 # for margin on slower runners, and three #108's CI flagged that measured 4-4.6 s alone.
-ReportTests.Curve_has_one_point_per_chunk
-HerdTests.Gate_ThreePopulatedDays_AreIndependentOfChunkingAndSaves
-Survival.Tests.ForecastTests.TheGatherForecast_AgreesWithAnHourOfForaging
 KillChainTests.Herds_SharingLand_ShareWhatItCarries
 KillChainTests.A_Carcass_RotsToBonesThenIsGone_KeepingItsCause
 NpcTests.SaveAndLoadMidRun_MatchesAStraightRun

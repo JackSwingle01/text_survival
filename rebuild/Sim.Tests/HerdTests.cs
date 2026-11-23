@@ -227,7 +227,34 @@ public class HerdTests(ITestOutputHelper output)
         Assert.Equal(one, Save.ToJson(RunPlayer(3, 300, 7, saveEverySteps: 5)));
     }
 
+    /// The rule of Gate_ThreePopulatedDays_AreIndependentOfChunkingAndSaves, fast: a day of the planted
+    /// pack and prey in a world with nobody else in it.
     [Fact]
+    public void Gate_APlantedHuntsDay_IsIndependentOfChunkingAndSaves()
+    {
+        World PlantedBare()
+        {
+            var w = Survival.Tests.Verification.ConservationWorlds.Seeded();
+            PackAndPrey(w);
+            w.Agent(P).Members[0] = BodyState.BaselineHuman();
+            return w;
+        }
+        var a = PlantedBare();
+        var events = Sim.Advance(a, 1440);
+        Assert.Contains(events, e => e is EncounterEnded); // the planted hunt
+        string straight = Save.ToJson(a);
+
+        var b = PlantedBare();
+        while (b.Minute < 1440)
+        {
+            Sim.Advance(b, (int)Math.Min(97, 1440 - b.Minute));
+            b = Save.FromJson(Save.ToJson(b));
+        }
+        Assert.Equal(straight, Save.ToJson(b));
+    }
+
+    [Fact]
+    [Trait("Category", TestCategories.Slow)]
     public void Gate_ThreePopulatedDays_AreIndependentOfChunkingAndSaves()
     {
         var a = Planted(5);
