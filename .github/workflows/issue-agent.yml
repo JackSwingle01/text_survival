@@ -33,10 +33,12 @@ name: Issue agent
 # `blocked`. The queue then skips it without a Claude call until they close, and the next triage
 # removes the label. A blocker that can't be linked parks the issue as `needs-user` instead.
 #
-# Publishing. A build longer than an hour outlives the Claude app token it started with (GitHub App
-# tokens last 60 minutes), so the build only commits and writes the PR's title and body. The
-# Publish step (.github/actions/publish-pr) pushes and opens the PR on a fresh token. The workflow's
-# own GITHUB_TOKEN can't stand in: a PR it opens triggers neither CI nor Claude Review.
+# Publishing. The build pushes and opens its own PR, and also writes the PR's title and body to
+# files. A build longer than an hour outlives the Claude app token it started with (GitHub App
+# tokens last 60 minutes), so when no PR exists after a finished build, the Publish step
+# (.github/actions/publish-pr, a short Sonnet run on a fresh token) pushes and opens it from those
+# files. The workflow's own GITHUB_TOKEN can't stand in: a PR it opens triggers neither CI nor
+# Claude Review.
 #
 # Restore. A build that finished but never became a PR is kept in its run's `issue-N-work` artifact
 # (commits as work.patch, the PR text, the branch name). A manual run with `restore_from_run` (the
@@ -336,10 +338,13 @@ jobs:
               Commit what you have locally, but do not push.
             - You are on branch ${{ steps.verdict.outputs.branch }}, just made from origin/main. This
               checkout counts as the ticket's own worktree; the runner is disposable.
-            - Publishing is the workflow's next step, on a fresh token: yours expires an hour into the run.
-              So end with every change committed on this branch, and instead of pushing or opening the
-              pull request, write its title to ${{ runner.temp }}/pr/title.txt and its body, from mp:pr
-              with "Closes #${{ matrix.issue }}" in it, to ${{ runner.temp }}/pr/body.md.
+            - Finish by publishing: commit every change on this branch; write the PR's title to
+              ${{ runner.temp }}/pr/title.txt and its body, from mp:pr with "Closes #${{ matrix.issue }}" in
+              it, to ${{ runner.temp }}/pr/body.md; then `git push -u origin ${{ steps.verdict.outputs.branch }}`
+              (never main) and `gh pr create --base main --title "<title>" --body-file
+              ${{ runner.temp }}/pr/body.md`. Do not merge it. Your GitHub token expires an hour into the
+              run: if the push or `gh` is refused for authentication, leave it there and answer built. The
+              workflow's next step publishes from the files on a fresh token.
 
             Answer through the structured output: `outcome` (built, or needs_user) and `note`. When you
             stop, `note` is posted on the issue: one or two short sentences saying what a person has to
@@ -366,8 +371,19 @@ jobs:
           OUTPUT: ${{ steps.implement.outputs.structured_output }}
         run: echo "outcome=$(jq -r '.outcome' <<< "$OUTPUT")" >> "$GITHUB_OUTPUT"
 
+      # Most builds open their own PR. One that ran past its token's hour is published from its files.
+      - name: PR open?
+        id: opened
+        if: steps.build.outputs.outcome == 'built'
+        run: |
+          pr=$(python3 .github/scripts/issue_queue.py pr "$ISSUE")
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "${pr:-No PR yet: publishing from the files the build wrote.}" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publish
-        if: steps.build.outputs.outcome == 'built' && steps.build_usage.outputs.rejected != 'true'
+        if: |
+          steps.build.outputs.outcome == 'built' && steps.opened.outputs.pr == '' &&
+          steps.build_usage.outputs.rejected != 'true'
         continue-on-error: true
         uses: ./.github/actions/publish-pr
         with:
