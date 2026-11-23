@@ -304,12 +304,12 @@ public static partial class Combat
         return [new Fighter(lead), .. others.Take(extra).Select(id => new Fighter(id))];
     }
 
+    const double ActiveHoursBoldnessDelta = 0.1;
+
     /// How readily an animal comes at a target: species temperament, its side's numbers (Side)
     /// against the people standing with the target, the target's wounds, its active hours. It decides whether a
     /// predator engages and seeds its morale (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear
     /// live on HerdMind (Fauna); callers pass them in (neutral by default).
-    const double ActiveHoursBoldnessDelta = 0.1;
-
     public static double Boldness(World world, AgentId herd, BodyState target, bool defending = false,
         double hunger = 0, double fear = 0, bool targetCarriesMeat = false, int othersWithTarget = 0)
     {

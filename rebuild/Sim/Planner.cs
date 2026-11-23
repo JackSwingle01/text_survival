@@ -2,8 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-/// What an agent knows, read by every source listing and the planner: Memory for people, the slow world plus sensing for animals.
-public abstract class Knowledge
+/// The world as an agent knows it, read by every source listing and the planner: the slow world plus sensing for animals.
+public abstract class WorldView
 {
     public abstract bool Threat(TileId tile);
 
@@ -14,7 +14,7 @@ public abstract class Knowledge
 
 public readonly record struct GroundSeen(double SnowDepthM, double PondLiquidM);
 
-/// A forecast of what a source pays: units of the stat a minute, and the kcal each unit costs.
+/// A forecast of what a source pays: the stat's units a minute (ml of water, energy minutes), and the kcal each unit costs.
 public readonly record struct Source(double PerMinute, double KcalPerUnit = 0);
 
 public sealed record Asking(Stat Stat, Priority Priority, double Amount, double EarnKcalPerMinute, double Cohesion, Func<TileId, bool> KinAt);
@@ -33,7 +33,7 @@ public static class Planner
     public const int MaxRouteMinutes = 1440;
 
     /// travel + amount ÷ rate + kcal ÷ the earning rate, x (1 + cohesion) with no kin there; threats refused below Critical.
-    public static Plan Choose(World world, AgentId who, Knowledge view, Asking ask, Func<TileId, Source?> sourceAt, bool routeAway = true)
+    public static Plan Choose(World world, AgentId who, WorldView view, Asking ask, Func<TileId, Source?> sourceAt, bool routeAway = true)
     {
         var agent = world.Agent(who);
         var here = agent.Tile;

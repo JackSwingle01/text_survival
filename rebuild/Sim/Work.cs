@@ -301,7 +301,7 @@ public static class Work
     public const double OpenWaterDrinkPctPerMinute = 0.05, SnowDrinkPctPerMinute = 0.01, MinStandingWaterM = 0.02, MinSnowM = 0.02;
 
     /// A forecast: the ml a body drinks a minute here as the view knows it; open water or a pond first, else snow at its kcal.
-    public static Source? WaterAt(Knowledge view, TileId tile, BodyState body)
+    public static Source? WaterAt(WorldView view, TileId tile, BodyState body)
     {
         double capacityMl = Body.MaxHydrationMlOf(body);
         var ground = view.Ground(tile);

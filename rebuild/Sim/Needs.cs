@@ -9,19 +9,15 @@ public static partial class Fauna
     /// Asleep away from its den, a denning animal sleeps lighter (D).
     const double OpenSleepFactor = 0.75;
 
-    sealed class AnimalKnowledge(World world, HerdMind mind) : Knowledge
+    sealed class AnimalView(World world, HerdMind mind) : WorldView
     {
         public override bool Threat(TileId tile) => mind.Sightings?.Exists(s => s.Tile == tile) == true;
         public override bool OpenWater(TileId tile) => Work.HasUnfrozenWater(world, tile);
-        public override GroundSeen Ground(TileId tile)
-        {
-            var (snowM, pondM) = Survival.Ground.WaterEstimate(world, tile);
-            return new GroundSeen(snowM, pondM);
-        }
+        public override GroundSeen Ground(TileId tile) => Survival.Ground.WaterEstimate(world, tile);
     }
 
     /// A forecast: what an animal drinks a minute where it stands (Work.WaterAt, from what it knows).
-    public static Source? WaterHere(World world, Agent animal) => Work.WaterAt(new AnimalKnowledge(world, MindOf(animal)), animal.Tile, animal.Body);
+    public static Source? WaterHere(World world, Agent animal) => Work.WaterAt(new AnimalView(world, MindOf(animal)), animal.Tile, animal.Body);
 
     static TileId? Den(Agent animal, HerdMind mind) => IsPredator(animal.Species) && mind.Territory.Count > 0 ? mind.Territory[0] : null;
 
@@ -42,13 +38,10 @@ public static partial class Fauna
         var food = Priorities.FoodPriority(body, SpeciesTable.Of(animal.Species).FatPct * body.WeightKg, seeingTo: false, foodToHand: false);
         var priorities = new StatPriorities(Priority.None, water, food, rest);
         // A plan holds until its stat is seen to or another outranks the priority it was made at (as an NPC's goal does).
-        if (mind.Plan is { } plan && priorities[plan.Stat] >= Priority.Need && !Priorities.Ladder.Any(s => Outranks(s, priorities[s], plan.Stat, plan.Priority)))
+        if (mind.Plan is { } plan && priorities[plan.Stat] >= Priority.Need && !Priorities.Ladder.Any(s => Priorities.Outranks(s, priorities[s], plan.Stat, plan.Priority)))
             return (plan.Stat, priorities[plan.Stat]);
         return Priorities.Top(priorities, Priority.Need) is { Stat: not Stat.Food } top ? top : null;
     }
-
-    static bool Outranks(Stat stat, Priority priority, Stat than, Priority thanPriority) => priority > thanPriority
-        || priority == thanPriority && Array.IndexOf(Priorities.Ladder, stat) < Array.IndexOf(Priorities.Ladder, than);
 
     static (Activity, int)? Needs(World world, Agent animal, HerdMind mind, List<WorldEvent> events)
     {
@@ -57,9 +50,14 @@ public static partial class Fauna
             mind.Plan = null;
             return null;
         }
-        if (mind.Plan == null || world.Minute % SenseEveryMinutes == 0) Sense(world, animal, mind);
+        bool sensed = mind.Plan == null || world.Minute % SenseEveryMinutes == 0;
+        if (sensed) Sense(world, animal, mind);
+        if (mind.Plan is { Route: [var next, ..] } walking && next == animal.Tile) walking.Route.RemoveAt(0);
         if (Interrupt(world, animal, mind, stat, priority, events) != null)
-            mind.Plan = PlanFor(world, animal, mind, new AnimalKnowledge(world, mind), stat, priority);
+        {
+            if (!sensed) Sense(world, animal, mind); // a plan is made on what it senses now
+            mind.Plan = PlanFor(world, animal, mind, new AnimalView(world, mind), stat, priority);
+        }
         var plan = mind.Plan!;
         if (plan.Route.Count > 0) return (new Travel(animal.Id, Way(animal.Tile, plan.Route[0])), UntilArrived);
         if (plan.At == null)
@@ -86,14 +84,13 @@ public static partial class Fauna
         return Rest(animal);
     }
 
-    /// The five interrupts, or null while the plan holds; staying put for want of a plan is weighed again every two hours.
+    /// The five interrupts (and a plan's own end), or null while the plan holds; staying put for want of a plan is weighed again every two hours.
     static string? Interrupt(World world, Agent animal, HerdMind mind, Stat stat, Priority priority, List<WorldEvent> events)
     {
         if (mind.Plan is not { } plan) return "no plan";
         if (world.ReplanEveryDecision) return "planning every decision";
         if (plan.Stat != stat || priority > plan.Priority) return "a stat rose above the plan's";
         if (plan.At == null) return world.Minute % PlanAgainEveryMinutes == 0 ? "time to look again" : null;
-        if (plan.Route.Count > 0 && plan.Route[0] == animal.Tile) plan.Route.RemoveAt(0);
         if (Following(world, animal) != null) return "its kin are leaving";
         if (priority < Priority.Critical && plan.Route.Append(plan.At.Value).Any(t => ThreatNear(mind, t))) return "a threat on the way";
         if (plan.Route.Count == 0)
@@ -103,7 +100,7 @@ public static partial class Fauna
             || HeldOff(world, animal, next, events) ? "the next step is refused" : null;
     }
 
-    static Plan PlanFor(World world, Agent animal, HerdMind mind, Knowledge view, Stat stat, Priority priority)
+    static Plan PlanFor(World world, Agent animal, HerdMind mind, WorldView view, Stat stat, Priority priority)
     {
         var body = animal.Body;
         var row = SpeciesTable.Of(animal.Species);

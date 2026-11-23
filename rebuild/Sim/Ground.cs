@@ -244,10 +244,10 @@ public static class Ground
         Unobserved(world, tile, Substrate(Map.Of(world), tile), world.Minute / StepMinutes * StepMinutes);
 
     /// The estimate's snow and a pond's open liquid (none under ice): what an animal drinks. Read from the class's cached state without copying it.
-    public static (double SnowDepthM, double PondLiquidM) WaterEstimate(World world, TileId tile)
+    public static GroundSeen WaterEstimate(World world, TileId tile)
     {
         var m = Map.Of(world);
-        if (Map.IsOpenWater(m, tile, world.Minute)) return (0, MaxStandingWaterDepthM);
+        if (Map.IsOpenWater(m, tile, world.Minute)) return new GroundSeen(0, MaxStandingWaterDepthM);
         var sub = Substrate(m, tile);
         long target = world.Minute / StepMinutes * StepMinutes;
         var key = ClassOf(m, tile, sub);
@@ -255,7 +255,7 @@ public static class Ground
         if (cache.ByClass.TryGetValue(key, out var kept)) return kept;
         var state = world.GroundCache?.GetValueOrDefault(key) is { } known && known.LastUpdatedMinute == target ? known : Unobserved(world, tile, sub, target);
         var column = new Column(state, sub);
-        return cache.ByClass[key] = (column.SnowDepthM, column.Summary.Iced ? 0 : column.StandingLiquidDepthM);
+        return cache.ByClass[key] = new GroundSeen(column.SnowDepthM, column.Summary.Iced ? 0 : column.StandingLiquidDepthM);
     }
 
     // ---- the same, read without writing (Peek) ----
