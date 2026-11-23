@@ -90,9 +90,19 @@ _Avoid_: stash, supplies, ground items
 
 **Cache**:
 A location feature that holds food up to a capacity and keeps out every animal except those with an
-ability it lists (flies, climbs, digs, strong). Built or found; food buried in snow is a cache that
+ability it lists (flies, climbs, digs, strong, hands). Built or found; food buried in snow is a cache that
 diggers get into.
 _Avoid_: storage, stash, camp storage
+
+**Ability**:
+What a species' body lets it do to get at food: flies, climbs, digs, strong, hands. People have hands,
+and every cache lets hands in.
+_Avoid_: capability (that is what tools give a person), access
+
+**Dirty**:
+An effect on a body that builds with time, sweat and carcass work and only adds to its scent. It does
+not fade on its own; washing removes it, with Bloody.
+_Avoid_: sweaty, grimy, unwashed
 
 **Exposed**:
 Of food: reachable by a given animal, because it lies in a pile or in a cache that animal gets into.
