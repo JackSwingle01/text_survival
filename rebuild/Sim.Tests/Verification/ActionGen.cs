@@ -209,7 +209,7 @@ static class ActionGen
     // ---- running ----
 
     /// Activities whose minutes may be split across steps: repeating them carries on where the last
-    /// step left off. The others act once when they start (light, eat, pile, a round), so two steps
+    /// step left off. The others act once when they start (light, eat, put down, a round), so two steps
     /// of them are two acts, not one act cut in half; they always run as one step.
     /// A fight is splittable too: every minute of a Fight step is one round of the same action.
     public static bool Splittable(Activity a) => a is Wait or Rest or Sleep or Travel or Gather or WalkAbout or Butcher or Build or ImproveShelter or Fight or Make;

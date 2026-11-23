@@ -161,6 +161,29 @@ public class SaveFixtureTests
         Assert.Equal(Indented(Save.ToJson(SampleWorld())), Indented(Save.ToJson(w)));
     }
 
+    /// What the sample does not hold: a person part-way through putting down, and the events whose text named
+    /// the stash. Written as format 25 would have written them, they load under the pile's names.
+    [Fact]
+    public void AFormat25Save_RenamesTheStashInActivitiesAndTheJournal()
+    {
+        var w = SampleWorld();
+        var npc = w.Agents.Keys.First(id => id != P && w.Agent(id).Mind is NpcMind);
+        w.Agent(npc).Doing = new Doing { Plain = new PutDown(npc, Resource.Pine, 1), MinutesLeft = 1 };
+        var tile = w.Agent(P).Tile;
+        w.Journal[tile] = [.. w.Journal.GetValueOrDefault(tile) ?? [],
+            new PlanRefused(w.Minute, npc, tile, nameof(PickUp), "no pine in the pile here"),
+            new PoolDiscovered(w.Minute, P, new PoolId(tile, 0), "Trapper's Bundle")];
+        string current = Save.ToJson(w);
+        string old = current.Replace($"{{\"Version\":{Save.FormatVersion},", "{\"Version\":25,")
+            .Replace("\"kind\":\"putdown\"", "\"kind\":\"stash\"")
+            .Replace("\"Activity\":\"PickUp\"", "\"Activity\":\"Unstash\"")
+            .Replace("no pine in the pile here", "no pine stashed here")
+            .Replace("Trapper's Bundle", "Trapper's Stash");
+        Assert.NotEqual(current, old);
+
+        Assert.Equal(current, Save.ToJson(Save.FromJson(old)));
+    }
+
     /// A loaded sample runs on like any world: the format holds everything the world needs.
     [Fact]
     public void TheSampleSave_RunsOn_AsTheWorldItWasSavedFrom()

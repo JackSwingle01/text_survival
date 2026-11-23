@@ -322,7 +322,7 @@ public static class Work
 
     // ---- the session ----
 
-    /// Starts work Refusal allowed. Instant work (pile, wear, eating and drinking) happens here.
+    /// Starts work Refusal allowed. Instant work (putting down, wear, eating and drinking) happens here.
     public static WorkSession Begin(World world, Activity activity, List<WorldEvent> events)
     {
         if (Refusal(world, activity) is { } refused) throw new InvalidOperationException($"Work.Begin on a refused activity: {refused}");

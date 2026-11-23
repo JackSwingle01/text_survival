@@ -13,7 +13,7 @@ namespace Survival.Tests.Verification;
 ///              - raw cooked[r] - cut pieces weathered away with their carcass[r]
 ///
 /// Every term is read off something other than the inventories: events (Ate, Drank, FuelAdded,
-/// FireStartFailed), the carcasses' own YieldKg, the fire's charcoal, the pit's room. Moves (pile,
+/// FireStartFailed), the carcasses' own YieldKg, the fire's charcoal, the pit's room. Moves (put down,
 /// pick up, a full pack dropping to the ground, cut pieces waiting on a carcass, wearing, a skeleton
 /// scattering into a pile) have no term: they must net to zero. Gear by kind is constant.
 /// Raids and work-pool gathering are separate properties below.

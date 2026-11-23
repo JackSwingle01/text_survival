@@ -77,7 +77,7 @@ public class Phase2GateTests(ITestOutputHelper output)
             for (int i = walked - 1; i >= 0; i--) t.Injuries += Walk(w, Opposite(path[i]), 1);
             if (!Alive(w)) return;
             Assert.Equal(camp, w.Agent(P).Tile); // walked back the same way
-            PileWood(w, t);
+            PutDownWood(w, t);
         }
         Note("home");
 
@@ -186,7 +186,7 @@ public class Phase2GateTests(ITestOutputHelper output)
                 foreach (var r in pile.Kg.Keys.ToList()) S(w, new PickUp(P, r, 99), 1);
             }
             t.Injuries += Walk(w, Direction.West, 1);
-            PileWood(w, t);
+            PutDownWood(w, t);
             if (Items.PileAt(w, wood).Kg.Count == 0) break;
         }
     }
@@ -233,7 +233,7 @@ public class Phase2GateTests(ITestOutputHelper output)
 
     /// Everything but food and a fire-lighting reserve goes on the camp pile, so the next walk
     /// starts with room in the pack.
-    static void PileWood(World w, Tally t)
+    static void PutDownWood(World w, Tally t)
     {
         var pack = Items.Pack(w, P);
         foreach (var (r, kg) in pack.Kg.ToList())

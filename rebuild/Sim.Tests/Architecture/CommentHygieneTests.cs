@@ -70,7 +70,6 @@ public class CommentHygieneTests
         ["Renewal.cs"] = 16,
         ["Report.cs"] = 11,
         ["Rng.cs"] = 15,
-        ["Save.cs"] = 14,
         ["Shelter.cs"] = 12,
         ["Signs.cs"] = 11,
         ["Sim.cs"] = 27,
