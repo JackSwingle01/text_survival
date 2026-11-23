@@ -931,11 +931,11 @@ public static class HerdLongRun
             foreach (var f in Sim.Advance(w, 1).OfType<EncounterEnded>().Where(f => packOf.ContainsKey(f.Agent))) hunts[packOf[f.Agent]] = hunts.GetValueOrDefault(packOf[f.Agent]) + 1;
             progress.Sample(w);
         }
-        var (worst, who) = progress.Worst;
-        output.WriteLine($"seed {seed}: longest wanting to move within {RadiusTiles} tile {worst / 1440.0:F2} days ({who}); by state "
+        var (worstMinutes, who) = progress.Worst;
+        output.WriteLine($"seed {seed}: longest wanting to move within {RadiusTiles} tile {worstMinutes / 1440.0:F2} days ({who}); by state "
             + string.Join(", ", progress.WorstByState.Select(kv => $"{kv.Key} {kv.Value / 1440.0:F2}"))
             + $"; hunts {string.Join(", ", packs.Select(p => $"{p} {hunts.GetValueOrDefault(p)}"))}");
-        Assert.True(worst <= MaxDaysStuck * 1440, $"seed {seed}: {who} wanted to move but got no further than {RadiusTiles} tile in {worst / 1440.0:F2} days");
+        Assert.True(worstMinutes <= MaxDaysStuck * 1440, $"seed {seed}: {who} wanted to move but got no further than {RadiusTiles} tile in {worstMinutes / 1440.0:F2} days");
         Assert.All(packs.Where(p => packOf.Any(x => x.Value == p && w.Agents.ContainsKey(x.Key))),
             p => Assert.True(hunts.GetValueOrDefault(p) > 0, $"seed {seed}: pack {p} lived {Days} days and never hunted"));
     }

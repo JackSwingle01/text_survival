@@ -23,3 +23,6 @@ Revised: Herds_ArriveWhereTheValleyIsEmpty (pre-existing, seed 123, 80 days) →
 Revised: HerdLongRunTests (seed 17) and HerdLongRunSeed5Tests renamed to HerdLongRunSeed5/17/42Tests on a shared HerdLongRun.Run, one minute a step.
 Revised: CohesionGate measured every 7 minutes: worst species alone 2.3% (seed 123 megaloceros), limit 10% unchanged.
 Follow-up: IndividualsTests.ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun (pre-existing, untagged) takes 9 s in Debug, over the 5 s Slow line.
+Revised (review): NetProgress's comment said a minute it cannot walk counts as neither progress nor wanting, but it starts the count afresh → the comment says what it does; RadiusTiles and WantsToMove private, the tuple's state named LastState, minutes and tiles named in HerdLongRun and the pup test.
+Revised (review): ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun (pre-existing, 9 s) → tagged Slow, as the ticket asks of every test of 5 s or more.
+Revised (review): the keep-alive line, the empty-valley loop and the jump to the minute before midnight each repeat across test files → left as they are: each is one line and the files already repeat the first two.

@@ -235,12 +235,12 @@ public class IndividualsTests(ITestOutputHelper output)
         foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
         while (Weather.DayOfYear(w.Minute) != 110) w.Minute += 1440; // the whelping season opens, before anyone is put down
         var m = Map.Of(w);
-        int apart = Fauna.DetectionRangeTiles(Species.Wolf) + 8;
+        int apartTiles = Fauna.DetectionRangeTiles(Species.Wolf) + 8;
         bool Open(TileId t) => m.InBounds(t) && m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null;
         var den = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
-            .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Open(t) && Open(Map.Step(t, Direction.North)) && Open(new TileId(t.X + apart, t.Y)));
+            .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Open(t) && Open(Map.Step(t, Direction.North)) && Open(new TileId(t.X + apartTiles, t.Y)));
         var strangersDen = Map.Step(den, Direction.North);
-        var grazing = new TileId(den.X + apart, den.Y);
+        var grazing = new TileId(den.X + apartTiles, den.Y);
         Agents.SpawnGroup(w, Species.Bison, grazing, 60, [grazing]);
         var pack = Agents.SpawnGroup(w, Species.Wolf, den, 8, [den]);
         var strangers = Agents.SpawnGroup(w, Species.Wolf, strangersDen, 3, [strangersDen]);
@@ -276,6 +276,7 @@ public class IndividualsTests(ITestOutputHelper output)
     }
 
     /// Same seed, same world; a save and load mid-run changes nothing.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun()
     {
