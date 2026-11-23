@@ -1,5 +1,7 @@
 using Survival;
 using Xunit;
+using Xunit.Abstractions;
+using Survival.Tests;
 
 /// Emergent-world build step 3, part A (the kill chain): stable ids, who killed what, the body and
 /// carcass pipeline, herd renewal, the carrion flock, the herds' access gate, and the caches that
@@ -452,33 +454,70 @@ public class KillChainTests
         Assert.Contains(w.Tiles.Values.SelectMany(t => t.Carcasses ?? []), c => c.Animal == "Wolf" && c.Cause?.What == "starvation");
     }
 
+    /// An arrival comes in out of everyone's sight: the player's and every other person's. A valley emptied
+    /// of animals, the player in its middle and someone else a quarter of the way across, so most of the
+    /// open land is in somebody's sight. Arrivals come in at midnight and nothing else in the empty
+    /// valley's day bears on where: the clock goes to each midnight and lives through it.
+    [Fact]
+    public void An_Arrival_ComesInOutOfEveryonesSight()
+    {
+        var w = Bare(seed: 123);
+        var m = Map.Of(w);
+        w.Agent(P).Tile = new TileId(m.Width / 2, m.Height / 2);
+        var npc = Npc.Spawn(w, new TileId(m.Width / 4, m.Height / 2));
+        var people = new[] { P, npc };
+        int arrivals = 0;
+        for (int day = 0; day < 100; day++)
+        {
+            foreach (var body in people.Select(id => w.Agent(id).Body))
+                (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900);
+            int before = w.NextAgentId;
+            w.Minute += 1440 - Weather.MinuteOfDay(w.Minute) - 1;
+            var watching = people.Select(id => w.Agent(id).Tile).ToList();
+            Sim.Advance(w, 1);
+            foreach (var herd in w.Agents.Values.Where(a => a.Mind is HerdMind && a.Id.Value >= before).GroupBy(a => a.Tile))
+            {
+                arrivals++;
+                Assert.All(watching, seer => Assert.True(MapGen.Manhattan(herd.Key, seer) > Fauna.ArrivalClearanceTiles,
+                    $"{herd.First().Species} came in at {herd.Key}, in sight of someone at {seer}"));
+            }
+            Sim.Advance(w, 1);
+        }
+        Assert.True(arrivals >= 10, $"only {arrivals} arrivals in a hundred days of an empty valley");
+    }
+
     /// Arrivals come where the valley is empty, never megafauna, outside camp's safe zone and out of
     /// everyone's sight, no bigger than the land they come to carries, and no pack on another's land.
     /// Review: an arrival was sized from its row alone (caribou twelve strong on land carrying four, a
     /// wolf pack of ten on land carrying two), and a pack could come in on top of another's land.
-    [Trait("Category", TestCategories.Slow)]
-    [Fact]
-    public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight()
+    /// #96: the lone player on open land was killed by a pack that came for them, so the days watched
+    /// were however long they lived (95 on seed 123, and the check was cut to 80); a fire kept burning
+    /// on their tile now holds packs off, and they watch all 200 days. Each seed its own class.
+    internal static void ArrivalsRun(int seed, ITestOutputHelper output)
     {
-        var w = Bare(seed: 123); // a valley with mammoths, all taken out
+        var w = Bare(seed: seed);
         var camp = Map.Of(w).Camp;
         Assert.True(Fauna.ValleyCapacity(w, Species.Caribou) > 0);
         Assert.Equal(0, Fauna.ValleyCapacity(w, Species.Mammoth));
         // The player out on the open land, where arrivals could otherwise land in plain view.
-        var open = Fauna.MindOf(World.New(123).Agents.Values.First(a => a.Species == Species.Bison)).Territory[0];
+        var open = Fauna.MindOf(World.New(seed).Agents.Values.First(a => a.Species is Species.Bison or Species.Caribou)).Territory[0];
         w.Agent(P).Tile = open;
+        var fire = new FireId(w.NextFireId++);
         var seen = new HashSet<AgentId>(w.Agents.Keys);
         int arrivals = 0;
         // Each day's look is the minute after midnight, when the day's arrivals came in (Fauna.Renew).
         Sim.Advance(w, 1440 - Weather.MinuteOfDay(w.Minute));
-        // Alone on open land they may be killed by a pack that comes for them: the days they lived are the ones looked at.
         int day = 0;
         for (; day < 200 && Body.IsAlive(w.Agent(P).Body); day++)
         {
             var lands = w.Agents.Values.Where(a => a.Mind is HerdMind).Select(a => Fauna.MindOf(a).Territory.ToList()).ToList();
-            var body = w.Agent(P).Body;
-            (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // alive, and so someone to be seen by
-            Sim.Advance(w, 1440);
+            for (int hour = 0; hour < 24; hour++)
+            {
+                var body = w.Agent(P).Body;
+                (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // alive, and so someone to be seen by
+                w.Fires[fire] = FireDeterrenceTests.Pit(open, w.Minute, pineKg: 5); // kept burning
+                Sim.Advance(w, 60);
+            }
             var newcomers = w.Agents.Values.Where(a => a.Mind is HerdMind && !seen.Contains(a.Id)).ToList();
             var packLand = w.Agents.Values.Where(a => a.Species == Species.Wolf && seen.Contains(a.Id)).SelectMany(a => Fauna.MindOf(a).Territory).ToHashSet();
             // Those that came together share one land: an arriving herd is its newcomers on one land.
@@ -498,8 +537,9 @@ public class KillChainTests
                 if (herd.Species == Species.Wolf) Assert.DoesNotContain(land, packLand.Contains);
             }
         }
-        Assert.True(day >= 70, $"the player was there to be seen by for only {day} days"); // enough days of arrivals to judge
-        Assert.True(arrivals > 0, "nothing came into an empty valley in two hundred days");
+        output.WriteLine($"seed {seed}: the player watched {day} days; {arrivals} herds arrived");
+        Assert.True(day >= 100, $"seed {seed}: the player was there to be seen by for only {day} days"); // enough days of arrivals to judge
+        Assert.True(arrivals > 0, $"seed {seed}: nothing came into an empty valley in two hundred days");
         Assert.Contains(w.Agents.Values, h => h.Species == Species.Caribou);
         // Capacity is derived, never saved: a loaded world reads the same capacities off the same land.
         var loaded = Save.FromJson(Save.ToJson(w));
@@ -552,6 +592,10 @@ public class KillChainTests
     /// days unfed, so they followed nothing down. What lives on kills thins toward what its land
     /// carries: a fed pack, hyenas and a flock on land with no prey near and little growing all lose
     /// members, and the herd that is left is no bigger than before.
+    /// One seed is enough (#96): the world is hand-built, with nothing else alive, and every loss is an
+    /// animal's own daily roll (Fauna.Thin, 0.02 a day for a wolf on land carrying none, 0.015 for a
+    /// hyena), so another seed is another draw at the same odds, not another valley. No loss in 60 days:
+    /// the pack of eight about e^-9.6, the six hyenas about e^-5.4.
     [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void What_LivesOnKills_ThinsWhenTheLandCannotFeedIt()
@@ -831,4 +875,23 @@ public class KillChainTests
         Agents.Remove(w, spawned);
         Check();
     }
+}
+
+[Trait("Category", TestCategories.Slow)]
+public class ArrivalsSeed123Tests(ITestOutputHelper output)
+{
+    /// A valley with mammoths, all taken out.
+    [Fact] public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight() => KillChainTests.ArrivalsRun(123, output);
+}
+
+[Trait("Category", TestCategories.Slow)]
+public class ArrivalsSeed17Tests(ITestOutputHelper output)
+{
+    [Fact] public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight() => KillChainTests.ArrivalsRun(17, output);
+}
+
+[Trait("Category", TestCategories.Slow)]
+public class ArrivalsSeed42Tests(ITestOutputHelper output)
+{
+    [Fact] public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight() => KillChainTests.ArrivalsRun(42, output);
 }

@@ -63,7 +63,8 @@ public class IndividualsTests(ITestOutputHelper output)
     }
 
     /// A fight's outcome reaches the whole herd, not only the animals drawn into it: when a pack takes
-    /// one caribou of ten, the nine that never fought run too.
+    /// one caribou of ten, the nine that never fought run too. A valley emptied of animals, so nothing
+    /// but the pack and the herd is near.
     [Fact]
     public void APackHunt_SendsTheRestOfThePreyHerdRunning()
     {
@@ -71,6 +72,7 @@ public class IndividualsTests(ITestOutputHelper output)
         for (int seed = 1; seed <= 6; seed++)
         {
             var w = World.New(seed);
+            foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
             var tile = Quiet(w);
             var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
             var herd = Agents.SpawnGroup(w, Species.Caribou, tile, 10);
@@ -221,37 +223,60 @@ public class IndividualsTests(ITestOutputHelper output)
         Assert.All(herd, id => Assert.NotNull(Memories.LastSeenMinute(npc, id)));
     }
 
-    /// A pup born into a pack knows its mother and whom she knows, and they know it: it is of their pack.
-    [Trait("Category", TestCategories.Slow)]
+    /// A pup born into a pack knows its mother and whom she knows, and they know it: it is of their pack,
+    /// and not of the strangers denning beside it. A valley emptied of animals: two packs on neighbouring
+    /// dens in the whelping season, fed so they never hunt, and bison pinned to one tile in range, beyond
+    /// scent, so the land carries far more wolves than there are and a pup comes within the season
+    /// (eight wolves at 0.02 a day each, times the land's room, (51.6 - 11) / 51.6: no pup in its 41 days about 1 in 250).
     [Fact]
     public void AWolfBornIntoAPack_IsOfThePack()
     {
         var w = World.New(17);
-        while (Weather.DayOfYear(w.Minute) != 112) w.Minute += 1440; // the whelping season, before the clock starts
-        int born = w.NextAgentId;
-        var packs = w.Agents.Values.Where(a => a.Species == Species.Wolf).Select(a => Fauna.HerdOf(w, a).Select(k => k.Id).ToHashSet())
-            .DistinctBy(p => p.Min()).ToList(); // each pack once
+        foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
+        while (Weather.DayOfYear(w.Minute) != 110) w.Minute += 1440; // the whelping season opens, before anyone is put down
+        var m = Map.Of(w);
+        int apartTiles = Fauna.DetectionRangeTiles(Species.Wolf) + 8;
+        bool Open(TileId t) => m.InBounds(t) && m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null;
+        var den = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Open(t) && Open(Map.Step(t, Direction.North)) && Open(new TileId(t.X + apartTiles, t.Y)));
+        var strangersDen = Map.Step(den, Direction.North);
+        var grazing = new TileId(den.X + apartTiles, den.Y);
+        Agents.SpawnGroup(w, Species.Bison, grazing, 60, [grazing]);
+        var pack = Agents.SpawnGroup(w, Species.Wolf, den, 8, [den]);
+        var strangers = Agents.SpawnGroup(w, Species.Wolf, strangersDen, 3, [strangersDen]);
+        var wolves = pack.Concat(strangers).ToList();
+        double capacity = Fauna.CapacityOf(w, w.Agent(pack[0]));
+        Assert.True(capacity >= 3 * wolves.Count, $"the land carries {capacity:0.0} wolves");
+
         Agent? pup = null;
-        for (int day = 0; day < 40 && pup == null; day++)
+        int day = 0;
+        for (; day <= 40 && pup == null; day++)
         {
-            Sim.Advance(w, 1440);
-            var body = w.Agent(P).Body;
-            (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900);
-            // A pup is born on its mother's tile; a pack that arrives is placed out of everyone's sight.
-            pup = w.Agents.Values.FirstOrDefault(a => a.Species == Species.Wolf && a.Id.Value >= born
-                && packs.SelectMany(p => p).Any(id => w.Agents.TryGetValue(id, out var o) && o.Tile == a.Tile));
+            foreach (var wolf in wolves.Where(w.Agents.ContainsKey).Select(w.Agent))
+            {
+                TestKit.SetHunger(wolf, 0);
+                Fauna.MindOf(wolf).LastFedMinute = w.Minute;
+            }
+            // Births are rolled at midnight and nothing in the fed packs' day bears on them: the clock goes
+            // straight to the minute before, and lives through midnight.
+            w.Minute += 1440 - Weather.MinuteOfDay(w.Minute) - 1;
+            Sim.Advance(w, 2);
+            // A pup has a copy of its mother's land; a pack that arrives comes to land of its own.
+            pup = w.Agents.Values.FirstOrDefault(a => a.Species == Species.Wolf && !wolves.Contains(a.Id)
+                && Fauna.MindOf(a).Territory.SequenceEqual([den]));
         }
+        output.WriteLine($"a pup on day {day} of the season, on land carrying {capacity:0.0} wolves");
         Assert.NotNull(pup);
-        var pack = packs.Single(p => p.Any(id => Fauna.Familiarity(pup, id) > 0));
         Assert.All(pack.Where(w.Agents.ContainsKey).Select(w.Agent), wolf =>
         {
             Assert.True(Fauna.Familiarity(pup, wolf.Id) > 0, $"the pup does not know {wolf.Id}");
             Assert.True(Fauna.Familiarity(wolf, pup.Id) > 0, $"{wolf.Id} does not know the pup");
         });
-        Assert.DoesNotContain(packs.Where(p => p != pack).SelectMany(p => p), id => Fauna.Familiarity(pup, id) > 0);
+        Assert.DoesNotContain(strangers, id => Fauna.Familiarity(pup, id) > 0);
     }
 
     /// Same seed, same world; a save and load mid-run changes nothing.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun()
     {
@@ -268,10 +293,11 @@ public class IndividualsTests(ITestOutputHelper output)
 
 /// The first part of the cohesion gate (spec "Testing Decisions"): 60 days, several seeds, per open-group
 /// species, fewer than a tenth of its animals alone on average. The no-blob and split/join checks wait
-/// for crowding (#83). One class per seed, so they run side by side.
+/// for crowding (#83). One class per seed, so they run side by side. A look every seven minutes, which
+/// no cycle fitting the hour can keep landing on the same phase of, as a look every hour could (#96).
 public static class CohesionGate
 {
-    const int Days = 60;
+    const int Days = 60, LookEveryMinutes = 7;
     const double MaxAlonePct = 0.10;
     static readonly Species[] OpenGroup = [Species.Caribou, Species.Bison, Species.Megaloceros, Species.Mammoth];
 
@@ -279,9 +305,9 @@ public static class CohesionGate
     {
         var w = World.New(seed);
         var alone = OpenGroup.ToDictionary(s => s, _ => (Alone: 0L, Animals: 0L));
-        for (int hour = 0; hour < Days * 24; hour++)
+        for (int minute = 0; minute < Days * 1440; minute += LookEveryMinutes)
         {
-            Sim.Advance(w, 60);
+            Sim.Advance(w, LookEveryMinutes);
             var body = w.Agent(AgentId.Player).Body;
             (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // the player stays out of it, alive
             foreach (var a in w.Agents.Values.Where(a => a.Mind is HerdMind && alone.ContainsKey(a.Species) && Sim.IsAlive(a)))
@@ -291,7 +317,7 @@ public static class CohesionGate
             }
         }
         output.WriteLine($"seed {seed}: " + string.Join(", ", alone.Where(kv => kv.Value.Animals > 0)
-            .Select(kv => $"{kv.Key} {(double)kv.Value.Alone / kv.Value.Animals:P1} alone of {kv.Value.Animals / (Days * 24.0):0.0}")));
+            .Select(kv => $"{kv.Key} {(double)kv.Value.Alone / kv.Value.Animals:P1} alone of {kv.Value.Animals * LookEveryMinutes / (Days * 1440.0):0.0}")));
         foreach (var (species, (lone, all)) in alone.Where(kv => kv.Value.Animals > 0))
             Assert.True((double)lone / all < MaxAlonePct, $"seed {seed}: {species} alone {(double)lone / all:P1} of the time on average");
     }
