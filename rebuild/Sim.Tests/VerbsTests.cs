@@ -36,6 +36,7 @@ public class VerbsTests
         {
             var copy = Save.FromJson(before);
             copy.AccessGates = w.AccessGates; // never saved
+            copy.GroundCache = w.GroundCache == null ? null : new(w.GroundCache); // never saved: a scene's ground (TestKit.EditGround)
             var result = Sim.Step(copy, v.Activity, v.Minutes);
             if (v.Refused?.Reason != null) Assert.True(result.MinutesElapsed == 0 && result.InterruptedReason == v.Refused?.Reason,
                 $"{v.Label}: listed refused '{v.Refused}', Step said '{result.InterruptedReason}' after {result.MinutesElapsed} min");

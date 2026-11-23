@@ -227,7 +227,6 @@ public class WhereThingsGoTests
         ["Skill"] = Unconverted,
         ["Species"] = Unconverted,
         ["Structure"] = Unconverted,
-        ["SurfaceMaterial"] = Unconverted,
         ["TissueKind"] = Unconverted,
         ["ToolType"] = Unconverted,
         ["TrackMaker"] = Unconverted,
