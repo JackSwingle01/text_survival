@@ -62,6 +62,78 @@ public class IndividualsTests(ITestOutputHelper output)
         Assert.True(hunts >= 3, $"only {hunts} of 6 packs hunted the caribou beside them");
     }
 
+    /// A fight's outcome reaches the whole herd, not only the animals drawn into it: when a pack takes
+    /// one caribou of ten, the nine that never fought run too.
+    [Fact]
+    public void APackHunt_SendsTheRestOfThePreyHerdRunning()
+    {
+        int hunts = 0;
+        for (int seed = 1; seed <= 6; seed++)
+        {
+            var w = World.New(seed);
+            var tile = Quiet(w);
+            var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
+            var herd = Agents.SpawnGroup(w, Species.Caribou, tile, 10);
+            foreach (var wolf in pack.Select(w.Agent))
+            {
+                TestKit.SetHunger(wolf, 0.9);
+                Fauna.MindOf(wolf).State = HerdState.Patrolling;
+            }
+            for (int i = 0; i < 120; i++)
+            {
+                var ended = Sim.Advance(w, 1).OfType<EncounterEnded>().Where(e => herd.Contains(e.Agent)).ToList();
+                if (ended.Count == 0) continue;
+                var fought = ended.Select(e => e.Agent).ToHashSet();
+                var bystanders = herd.Where(id => !fought.Contains(id) && w.Agents.TryGetValue(id, out var a) && a.Tile == ended[0].Tile && !Sim.Held(w, id))
+                    .Select(w.Agent).ToList();
+                Assert.NotEmpty(bystanders);
+                hunts++;
+                Assert.All(bystanders, c =>
+                {
+                    Assert.Equal(HerdState.Fleeing, Fauna.MindOf(c).State);
+                    Assert.True(Fauna.MindOf(c).Fear > 0, $"caribou {c.Id} saw its herd attacked and is not afraid");
+                });
+                break;
+            }
+        }
+        Assert.True(hunts >= 3, $"only {hunts} of 6 packs hunted the caribou beside them");
+    }
+
+    /// A pack that catches a scent goes to where it smelled the prey, even once it is out of range: it does
+    /// not forget and turn back the moment the scent fades (which, on the edge of its range, walked a
+    /// starving pack to and fro between two tiles for days). A valley emptied of animals, so the pack has
+    /// only the one scent to follow.
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void APack_KeepsOnToWhereItLastSmelledPrey(int seed)
+    {
+        var w = World.New(seed);
+        foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
+        var m = Map.Of(w);
+        int range = Fauna.DetectionRangeTiles(Species.Wolf);
+        // A straight run of open plain, the pack at one end and the scent at the other.
+        bool Open(TileId t) => m.InBounds(t) && m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null;
+        var tile = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Enumerable.Range(0, range + 1).All(i => Open(new TileId(t.X + i, t.Y))
+                && (i == 0 || Map.Blocked(m, new TileId(t.X + i - 1, t.Y), new TileId(t.X + i, t.Y)) == null)));
+        var scent = new TileId(tile.X + range, tile.Y);
+        var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
+        foreach (var wolf in pack.Select(w.Agent))
+        {
+            TestKit.SetHunger(wolf, 0.95);
+            Fauna.MindOf(wolf).State = HerdState.Patrolling;
+        }
+        var caribou = Agents.Spawn(w, Species.Caribou, scent);
+        Fauna.MindOf(w.Agent(caribou)).State = HerdState.Resting;
+        for (int i = 0; i < 120 && pack.All(id => w.Agent(id).Tile == tile); i++) Sim.Advance(w, 1);
+        Assert.Contains(pack, id => MapGen.Manhattan(w.Agent(id).Tile, scent) < range); // it set out after the scent
+        Agents.Remove(w, caribou); // the scent is gone: what is left is where it was
+        for (int i = 0; i < 6 * 60 && !pack.Any(id => w.Agent(id).Tile == scent); i++) Sim.Advance(w, 1);
+        Assert.Contains(pack, id => w.Agent(id).Tile == scent);
+    }
+
     /// Boldness from numbers counts the derived herd: the wolves on the tile that know each other.
     [Fact]
     public void ABoldnessFromNumbers_CountsTheWolvesItKnows_OnItsTile()
@@ -145,7 +217,9 @@ public class IndividualsTests(ITestOutputHelper output)
             Sim.Advance(w, 1440);
             var body = w.Agent(P).Body;
             (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900);
-            pup = w.Agents.Values.FirstOrDefault(a => a.Species == Species.Wolf && a.Id.Value >= born);
+            // A pup is born on its mother's tile; a pack that arrives is placed out of everyone's sight.
+            pup = w.Agents.Values.FirstOrDefault(a => a.Species == Species.Wolf && a.Id.Value >= born
+                && packs.SelectMany(p => p).Any(id => w.Agents.TryGetValue(id, out var o) && o.Tile == a.Tile));
         }
         Assert.NotNull(pup);
         var pack = packs.Single(p => p.Any(id => Fauna.Familiarity(pup, id) > 0));

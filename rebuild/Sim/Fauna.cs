@@ -569,8 +569,9 @@ public static partial class Fauna
                 {
                     // A hungry pack follows the scent of prey it can sense instead of walking its round, so packs
                     // and herds actually meet.
-                    if (hunger > 0.6 && TowardNearest(world, herd, PreySensed(world, herd, events)) is { } stalk) return stalk;
-                    if (hunger > StarvingHunger && Foray(world, herd, mind) is { } range) return range;
+                    if (hunger > 0.6 && Stalk(world, herd, mind, events) is { } stalk) return stalk;
+                    // A scent it has lost is still its foray (Stalk), hungry or starving.
+                    if ((hunger > StarvingHunger || (hunger > 0.6 && mind.Foray != null)) && Foray(world, herd, mind) is { } range) return range;
                     if (PatrolStep(world, herd, mind) is { } walk) return walk;
                 }
                 return Wait(herd);
@@ -593,6 +594,8 @@ public static partial class Fauna
         {
             if (mind.Foray is not TileId target || target == herd.Tile)
             {
+                // A lost scent followed to its end: only a starving pack ranges on from there.
+                if (Hunger(herd) <= StarvingHunger) { mind.Foray = null; return null; }
                 mind.Foray = ForayTarget(world, herd, mind.Territory[0]);
                 if (mind.Foray == null) return null;
                 target = mind.Foray.Value;
@@ -725,7 +728,7 @@ public static partial class Fauna
         var m = Map.Of(world);
         var land = mind.Territory.ToHashSet();
         var step = land.Contains(target) && land.Contains(herd.Tile) ? FirstStep(m, herd.Tile, target, land) : null;
-        step ??= Route(m, herd.Tile, [target]);
+        step ??= Route(m, herd.Tile, [target])?.First;
         return step is Direction d ? (new Travel(herd.Id, d), UntilArrived) : null;
     }
 
@@ -733,7 +736,18 @@ public static partial class Fauna
     static (Activity, int)? TowardNearest(World world, Agent herd, HashSet<TileId> goals)
     {
         if (goals.Count == 0 || goals.Contains(herd.Tile) || !CanMove(herd)) return null;
-        return Route(Map.Of(world), herd.Tile, goals) is Direction d ? (new Travel(herd.Id, d), UntilArrived) : null;
+        return Route(Map.Of(world), herd.Tile, goals) is { } r ? (new Travel(herd.Id, r.First), UntilArrived) : null;
+    }
+
+    /// A hungry pack goes after prey it can sense, and remembers where: the scent's tile becomes its
+    /// foray, so a pack that steps out of range keeps on to where it smelled the prey instead of turning back.
+    static (Activity, int)? Stalk(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
+    {
+        var sensed = PreySensed(world, herd, events);
+        if (sensed.Count == 0 || sensed.Contains(herd.Tile) || !CanMove(herd)) return null;
+        if (Route(Map.Of(world), herd.Tile, sensed) is not { } r) return null;
+        mind.Foray = r.Goal;
+        return (new Travel(herd.Id, r.First), UntilArrived);
     }
 
     /// Breadth-first through its own land, in Direction order: deterministic.
@@ -763,7 +777,7 @@ public static partial class Fauna
     /// and not a shortest way inside a box around the two ends, which moves with the herd, so the next
     /// box's way can turn it back and it walks to and fro for days. On one fixed map every step along a
     /// shortest way brings it strictly nearer.
-    static Direction? Route(GeneratedMap m, TileId from, IReadOnlyCollection<TileId> goals)
+    static (Direction First, TileId Goal)? Route(GeneratedMap m, TileId from, IReadOnlyCollection<TileId> goals)
     {
         int Guess(TileId t) => goals.Min(g => MapGen.Manhattan(t, g));
         var cost = new Dictionary<TileId, int> { [from] = 0 };
@@ -774,7 +788,7 @@ public static partial class Fauna
         while (open.TryDequeue(out var at, out _))
         {
             if (!done.Add(at)) continue;
-            if (at != from && goals.Contains(at)) return first[at];
+            if (at != from && goals.Contains(at)) return (first[at], at);
             if (done.Count > MaxRouteTiles) return null;
             foreach (var d in Enum.GetValues<Direction>())
             {
