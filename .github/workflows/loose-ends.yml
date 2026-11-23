@@ -140,6 +140,9 @@ jobs:
           CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # This run's own token, not the Claude app's (which would need id-token: write): the model
+          # gets this job's read permissions, and its allowed tools include no GitHub write.
+          github_token: ${{ github.token }}
           plugin_marketplaces: "https://github.com/JackSwingle01/skills.git"
           plugins: "mp@jackswingle01"
           prompt: |
