@@ -52,6 +52,9 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 - `Fauna.cs:47` - herds never come for the player or an NPC (old `ShouldEngagePlayer`, stalking, pack attacks on NPCs).
   Upgrade: encounters through `Combat.Boldness`, which is ready for them.
+- `Agent.cs` - `Agent.Members` is a list that always holds one body, and `Fighter.Member` is always 0, since every
+  animal became its own agent (#81). Upgrade: one `Body` field and fighters named by agent alone; it changes the save
+  and the combat unit model, so it waits for a ticket of its own.
 - `Fauna.cs:281` - old hungry wolves chased escaping prey 40% of the time; here they patrol on.
 - `Fauna.cs:505` - old hyenas shadowed feeding predators and wolf packs; only carcasses draw them here. The carrion
   flock (`Carrion.cs`) is the one that follows predators. Hyenas stay the old scavenger: they fight, and never starve

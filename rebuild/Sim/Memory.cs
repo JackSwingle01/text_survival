@@ -468,14 +468,12 @@ public static class Memories
 
     static bool HasTreePool(World world, TileId t) => Pools.At(world, t).Any(p => p is TreePool);
 
-    /// Standing timber on the tile (a stand of trees is plain to see from a distance).
-    /// The living agents in view, one group per herd (the animals of one species on one tile) and one per
-    /// person, each in id order, groups in order of their first.
+    /// The living herds and people in view (Fauna.GroupsAt), the looker left out.
     static IEnumerable<List<Agent>> InView(World world, Agent person, SightView view) =>
-        world.Agents.Values.Where(a => a.Id != person.Id && view.Set.Contains(a.Tile) && Sim.IsAlive(a))
-            .GroupBy(a => a.Mind is HerdMind ? (a.Tile, a.Species, Person: AgentId.Player) : (a.Tile, a.Species, Person: a.Id))
-            .Select(g => g.ToList());
+        world.Agents.Values.Where(a => view.Set.Contains(a.Tile)).Select(a => a.Tile).Distinct().Order()
+            .SelectMany(t => Fauna.GroupsAt(world, t)).Where(g => g[0].Id != person.Id && Sim.IsAlive(g[0]));
 
+    /// Standing timber on the tile (a stand of trees is plain to see from a distance).
     static bool Trees(World world, TileId t)
     {
         var pools = Pools.At(world, t);

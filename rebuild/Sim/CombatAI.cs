@@ -291,14 +291,14 @@ public static partial class Combat
     /// hunger, fear, numbers against the people standing with it, wounds, the night); the rest are its
     /// allies; every flame on the target's tile is beside it; and every other person there presses on it.
     /// The tile's flames must be caught up (Fire.CatchUpOn).
-    public static double ResolveToward(World world, Agent herd, Agent target)
+    public static double ResolveToward(World world, Agent animal, Agent target)
     {
-        var stats = SpeciesTable.Of(herd.Species);
-        var living = Combat.Side(world, herd).Where(Sim.IsAlive).Select(a => a.Body).ToList();
-        if (living.Count == 0) throw new ArgumentException($"{herd.Id} has nobody alive to come on");
+        var stats = SpeciesTable.Of(animal.Species);
+        var living = Combat.Side(world, animal).Where(Sim.IsAlive).Select(a => a.Body).ToList();
+        if (living.Count == 0) throw new ArgumentException($"{animal.Id} has nobody alive to come on");
         var body = target.Body;
         var others = PeopleWith(world, target);
-        double delta = BoldnessToward(world, herd, target) - 0.5;
+        double delta = BoldnessToward(world, animal, target) - 0.5;
         int lead = Enumerable.Range(0, living.Count).MaxBy(i => Courage(stats, delta, living[i]));
         double nerve = Courage(stats, delta, living[lead]) + AllyBonus(stats.Cohesion, living.Where((_, i) => i != lead).Select(m => stats.Threat * Body.Vitality(m)));
         double deterrence = FireDeterrence(stats, Fire.FlamesOn(world, target.Tile).Select(f => (f.IntensityPct, 0.0)));
@@ -309,11 +309,11 @@ public static partial class Combat
 
     /// An animal's boldness toward one agent where it stands now: Boldness, with its hunger and learned fear,
     /// raw meat in the target's pack, and the people standing with it.
-    public static double BoldnessToward(World world, Agent herd, Agent target)
+    public static double BoldnessToward(World world, Agent animal, Agent target)
     {
-        var mind = Fauna.MindOf(herd);
+        var mind = Fauna.MindOf(animal);
         bool meat = Items.PackOf(target) is Inventory pack && (Items.Have(pack, Resource.RawMeat) > 0 || Items.Have(pack, Resource.RawFish) > 0);
-        return Boldness(world, herd.Id, target.Body, hunger: Fauna.Hunger(herd), fear: mind.Fear, targetCarriesMeat: meat,
+        return Boldness(world, animal.Id, target.Body, hunger: Fauna.Hunger(animal), fear: mind.Fear, targetCarriesMeat: meat,
             othersWithTarget: PeopleWith(world, target).Count);
     }
 

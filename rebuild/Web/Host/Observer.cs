@@ -102,7 +102,7 @@ public sealed class Observer
         if (a.Mind is HerdMind h)
         {
             lines.Add($"State: {Words.Of(h.State)} for {Ago(w.Minute - h.StateSinceMinute)}");
-            lines.Add($"Herd: {Combat.Side(w, a).Count} here");
+            lines.Add($"Herd: {Fauna.HerdOf(w, a).Count} here");
             lines.Add($"Fear: {h.Fear:P0}");
             if (h.LastFedMinute > HerdMind.Never) lines.Add($"Last fed: {Ago(w.Minute - h.LastFedMinute)} ago");
             lines.Add($"Territory: {h.Territory.Count} tiles");
@@ -129,13 +129,11 @@ public sealed class Observer
     {
         var w = W;
         var list = new List<ActorDto>();
-        // One actor a herd, its first animal standing for it (LocationFeatures.At), with the herd's count.
-        var inAHerd = new HashSet<AgentId>();
-        foreach (var (id, a) in w.Agents)
+        // One actor a herd, its first animal standing for it, with the herd's count (Fauna.GroupsAt).
+        foreach (var group in w.Agents.Values.Select(a => a.Tile).Distinct().Order().SelectMany(t => Fauna.GroupsAt(w, t)))
         {
-            if (!Shown(a) || !inAHerd.Add(id)) continue;
-            int count = a.Mind is HerdMind ? Combat.Side(w, a).Count : 1;
-            if (a.Mind is HerdMind) inAHerd.UnionWith(Combat.Side(w, a).Select(k => k.Id));
+            var (a, id, count) = (group[0], group[0].Id, group.Count);
+            if (!Shown(a)) continue;
             var to = a.Crossing is { } c ? Map.Step(c.From, c.Dir) : (TileId?)null;
             list.Add(new ActorDto(id.Value, a.Mind is HerdMind ? "herd" : "npc", Words.SpeciesIcon(a.Species), Names.Cap(Cause.Describe(w, id)),
                 a.Tile.X, a.Tile.Y, count, Doing(a), (a.Mind as HerdMind)?.State is HerdState s ? Words.Of(s) : null,

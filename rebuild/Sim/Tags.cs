@@ -92,7 +92,7 @@ public static class Tags
     {
         var tags = Tag.None;
         // It stands for its herd (LocationFeatures.At).
-        var bodies = Combat.Side(world, a).Select(k => k.Body).ToList();
+        var bodies = Fauna.HerdOf(world, a).Select(k => k.Body).ToList();
         if (bodies.Any(b => Body.IsAlive(b) && Combat.WoundLevel(b) > WoundedLevel)) tags |= Tag.Wounded;
         if (bodies.Any(b => Effects.Severity(b, EffectKind.Bloody) > 0) || Items.PackOf(a) is { } pack && Items.Have(pack, Resource.RawMeat) > 0)
             tags |= Tag.ScentSource;

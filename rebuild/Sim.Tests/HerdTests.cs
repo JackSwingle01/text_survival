@@ -648,7 +648,7 @@ public class HerdTests(ITestOutputHelper output)
         // Cost is budgeted in bytes allocated, not seconds: the sim is single-threaded, so this thread's
         // allocation is deterministic for a seed and blind to machine load, and it tracks the work done.
         // Re-baselined 2026-11-23 for one agent per animal (#81), Release: herds as agents 4,064 MB in 5.1 s,
-        // individuals 4,397 MB in 10 s (about 110 animals). The ticket's ceiling is 3x the herd baseline,
+        // individuals 4,332 MB in about 10 s (about 110 animals). The ticket's ceiling is 3x the herd baseline,
         // 12,192 MB; the cap below stays tighter. Wall clock flaked at 13-21 s under parallel suites (37 s in Debug
         // alone with individuals); the 120 s limit is only a backstop for a blow-up that does not allocate.
         Assert.True(allocatedMB < 6000, $"allocated {allocatedMB} MB");

@@ -680,7 +680,7 @@ public static partial class Fauna
     /// tile runs a herd to the edge of the map.
     static (Activity, int) Flee(World world, Agent herd, HerdMind mind, HerdBehavior behavior, List<WorldEvent> events)
     {
-        if (mind.FleeFrom is TileId from && herd.Tile == from && CanMove(herd) && (Following(world, herd) ?? FleeDirection(world, herd, from, events)) is Direction away)
+        if (mind.FleeFrom is TileId from && herd.Tile == from && CanMove(herd) && (Following(world, herd)?.Way ?? FleeDirection(world, herd, from, events)) is Direction away)
             return (new Travel(herd.Id, away), UntilArrived);
         mind.FleeFrom = null;
         Become(world, mind, behavior is HerdBehavior.Scavenger or HerdBehavior.Carrion ? HerdState.Patrolling : HerdState.Resting);

@@ -129,6 +129,34 @@ public class IndividualsTests(ITestOutputHelper output)
         Assert.All(herd, id => Assert.NotNull(Memories.LastSeenMinute(npc, id)));
     }
 
+    /// A pup born into a pack knows its mother and whom she knows, and they know it: it is of their pack.
+    [Trait("Category", TestCategories.Slow)]
+    [Fact]
+    public void AWolfBornIntoAPack_IsOfThePack()
+    {
+        var w = World.New(17);
+        while (Weather.DayOfYear(w.Minute) != 112) w.Minute += 1440; // the whelping season, before the clock starts
+        int born = w.NextAgentId;
+        var packs = w.Agents.Values.Where(a => a.Species == Species.Wolf).Select(a => Fauna.HerdOf(w, a).Select(k => k.Id).ToHashSet())
+            .DistinctBy(p => p.Min()).ToList(); // each pack once
+        Agent? pup = null;
+        for (int day = 0; day < 40 && pup == null; day++)
+        {
+            Sim.Advance(w, 1440);
+            var body = w.Agent(P).Body;
+            (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900);
+            pup = w.Agents.Values.FirstOrDefault(a => a.Species == Species.Wolf && a.Id.Value >= born);
+        }
+        Assert.NotNull(pup);
+        var pack = packs.Single(p => p.Any(id => Fauna.Familiarity(pup, id) > 0));
+        Assert.All(pack.Where(w.Agents.ContainsKey).Select(w.Agent), wolf =>
+        {
+            Assert.True(Fauna.Familiarity(pup, wolf.Id) > 0, $"the pup does not know {wolf.Id}");
+            Assert.True(Fauna.Familiarity(wolf, pup.Id) > 0, $"{wolf.Id} does not know the pup");
+        });
+        Assert.DoesNotContain(packs.Where(p => p != pack).SelectMany(p => p), id => Fauna.Familiarity(pup, id) > 0);
+    }
+
     /// Same seed, same world; a save and load mid-run changes nothing.
     [Fact]
     public void ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun()
@@ -165,7 +193,7 @@ public static class CohesionGate
             foreach (var a in w.Agents.Values.Where(a => a.Mind is HerdMind && alone.ContainsKey(a.Species) && Sim.IsAlive(a)))
             {
                 var (lone, all) = alone[a.Species];
-                alone[a.Species] = (lone + (Combat.Side(w, a).Count == 1 ? 1 : 0), all + 1);
+                alone[a.Species] = (lone + (Fauna.HerdOf(w, a).Count == 1 ? 1 : 0), all + 1);
             }
         }
         output.WriteLine($"seed {seed}: " + string.Join(", ", alone.Where(kv => kv.Value.Animals > 0)

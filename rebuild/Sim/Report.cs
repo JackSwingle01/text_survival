@@ -152,15 +152,12 @@ public static class Report
 
         foreach (var (t, b) in w.Beddings)
             Add(t, "bedding", FindCategory.Structure, null, Shelters.Beddings[b].Name);
-        // One row a herd, under its first animal (LocationFeatures.At), and one a person.
-        var inAHerd = new HashSet<AgentId>();
-        foreach (var (id, a) in w.Agents)
+        foreach (var group in Groups(w))
         {
-            if (id == AgentId.Player || !Sim.IsAlive(a) || !inAHerd.Add(id)) continue; // the dead are signs, above
-            var side = Combat.Side(w, a);
-            inAHerd.UnionWith(side.Select(k => k.Id));
+            var a = group[0];
+            if (a.Id == AgentId.Player || !Sim.IsAlive(a)) continue; // the dead are signs, above
             string state = a.Mind is HerdMind h ? h.State.ToString() : a.Mind.GetType().Name;
-            Add(a.Tile, a.Mind is HerdMind ? "herd" : "person", FindCategory.Agent, null, $"{a.Species} x{side.Count}, {state} ({id})");
+            Add(a.Tile, a.Mind is HerdMind ? "herd" : "person", FindCategory.Agent, null, $"{a.Species} x{group.Count}, {state} ({a.Id})");
         }
 
         rows.Sort((p, q) =>
@@ -352,10 +349,13 @@ public static class Report
     // ---- populations ----
 
     public static IReadOnlyList<PopulationRow> Populations(World w) =>
-        w.Agents.Values.Where(a => a.Id != AgentId.Player && Sim.IsAlive(a))
-            .GroupBy(a => a.Species).OrderBy(g => g.Key)
-            .Select(g => new PopulationRow(g.Key, g.Select(a => a.Mind is HerdMind ? (a.Tile, AgentId.Player) : (a.Tile, a.Id)).Distinct().Count(), g.Count()))
+        Groups(w).Where(g => g[0].Id != AgentId.Player && Sim.IsAlive(g[0]))
+            .GroupBy(g => g[0].Species).OrderBy(s => s.Key)
+            .Select(s => new PopulationRow(s.Key, s.Count(), s.Sum(g => g.Count)))
             .ToList();
+
+    /// Every herd and person in the world (Fauna.GroupsAt), tile by tile.
+    static IEnumerable<List<Agent>> Groups(World w) => w.Agents.Values.Select(a => a.Tile).Distinct().Order().SelectMany(t => Fauna.GroupsAt(w, t));
 
     public static IReadOnlyList<CurvePoint> Curve(World w, int days, int chunkDays)
     {

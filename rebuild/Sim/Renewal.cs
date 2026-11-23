@@ -61,13 +61,14 @@ public static partial class Fauna
 
     static double Deficit(double capacity, double current) => capacity <= 0 ? 0 : Math.Max(0, (capacity - current) / capacity);
 
-    /// Returns whether the herd is gone.
+    /// Returns whether the animal starved.
     static bool Starve(World world, Agent herd, RenewalRow row, Rng rng, List<WorldEvent> events)
     {
         var mind = MindOf(herd);
         if (row.StarveDays is not int days || world.Minute - mind.LastFedMinute <= days * 1440L) return false;
         if (rng.NextDouble() >= StarveDeathPerDay) return false;
-        return Lose(world, herd, events);
+        Lose(world, herd, events);
+        return true;
     }
 
     /// What lives on kills follows them down. Grazers, browsers and bears only stop giving birth when full.
@@ -80,13 +81,12 @@ public static partial class Fauna
         if (rng.NextDouble() < p) Lose(world, herd, events);
     }
 
-    static bool Lose(World world, Agent herd, List<WorldEvent> events)
+    static void Lose(World world, Agent animal, List<WorldEvent> events)
     {
-        var body = herd.Body;
-        Combat.LeaveCarcass(world, herd.Tile, herd.Species, body, new Cause(null, "starvation"));
-        events.Add(new Killed(world.Minute, herd.Id, herd.Species, body.WeightKg, herd.Tile, By: null));
-        Agents.Remove(world, herd.Id);
-        return true;
+        var body = animal.Body;
+        Combat.LeaveCarcass(world, animal.Tile, animal.Species, body, new Cause(null, "starvation"));
+        events.Add(new Killed(world.Minute, animal.Id, animal.Species, body.WeightKg, animal.Tile, By: null));
+        Agents.Remove(world, animal.Id);
     }
 
     static void Born(World world, Agent mother)
