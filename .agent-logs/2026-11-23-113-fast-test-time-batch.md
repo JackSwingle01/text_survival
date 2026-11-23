@@ -10,3 +10,7 @@ Revised: the scout and the adversarial design review as sub-agents → done inli
 Revised: Bare() said loading costs about a millisecond, but every load regenerates the seed's map (~35 ms) → Bare and Seeded hand the template's GeneratedMap (read-only after generation) to each world they load: speeds every Bare user, changes no check
 Revised: Curve_has_one_point_per_chunk checks the chunking and the day numbers, not the animals → runs on the bare world (ConservationWorlds.Seeded)
 Revised: ThreePopulatedDays is three populated days by nature → tagged Slow; quick sibling Gate_APlantedHuntsDay_IsIndependentOfChunkingAndSaves on the bare world with only the planted pack and prey, so the Advance-chunking-and-saves rule keeps a fast check
+Follow-up: BodySurvivalPropertyTests.FixedPoint_TheCoreSettlesOrLeaves_ItNeverOscillates took 6.3 s in one fast-suite run (1 s alone, under 5 s on the rerun): a CsCheck property that loads no world, slowed by contention, so it can fail test_durations.py by chance. Check: its duration across a few CI runs' fast.trx
+Revised (review): the sibling copied the three-day test's body line for line → both call one AssertIndependentOfChunkingAndSaves(planted, minutes)
+Revised (review): the sibling looked arguable beside Gate_OneLongStep_ManyShortOnes_AndSaveLoad_GiveTheSameWorld → kept: that one steps the player through 300 minutes with Sim.Step, and only the sibling checks Sim.Advance over a day that includes the planted hunt's encounter
+Revised (review): ConservationWorlds written out by full namespace → a using, as NpcTests has
