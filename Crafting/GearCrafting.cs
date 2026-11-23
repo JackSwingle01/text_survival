@@ -106,11 +106,19 @@ public static class GearCrafting
     private static CraftOption Action(Gear target, CraftOption design, string operation, string method,
         string name, string description, List<MaterialRequirement> requirements, List<ToolType> tools,
         int minutes, Func<Gear> result, Func<string?> blocker) => new()
-    {
-        Id = $"{operation}:{target.InstanceId}:{design.Id}", FamilyId = design.FamilyId, Method = method,
-        Name = name, Description = description, Category = design.Category,
-        CraftingTimeMinutes = minutes, Durability = design.Durability,
-        Requirements = requirements, RequiredTools = tools,
-        TargetGear = target, TargetResult = result, TargetBlocker = blocker
-    };
+        {
+            Id = $"{operation}:{target.InstanceId}:{design.Id}",
+            FamilyId = design.FamilyId,
+            Method = method,
+            Name = name,
+            Description = description,
+            Category = design.Category,
+            CraftingTimeMinutes = minutes,
+            Durability = design.Durability,
+            Requirements = requirements,
+            RequiredTools = tools,
+            TargetGear = target,
+            TargetResult = result,
+            TargetBlocker = blocker
+        };
 }

@@ -18,17 +18,28 @@ public sealed class EncounterState
 
     public static EncounterState Capture(CombatScenario scenario) => new()
     {
-        Location = scenario.Location!, Purpose = scenario.Purpose, Rounds = scenario.ElapsedRounds,
-        IsOver = scenario.IsOver, ConsideredHelpers = scenario.ConsideredHelpers.ToList(),
+        Location = scenario.Location!,
+        Purpose = scenario.Purpose,
+        Rounds = scenario.ElapsedRounds,
+        IsOver = scenario.IsOver,
+        ConsideredHelpers = scenario.ConsideredHelpers.ToList(),
         ThrownWeapons = scenario.ThrownWeapons.ToList(),
         Combatants = scenario.Team1.Concat(scenario.Team2).Select(u => new CombatantState
         {
-            Actor = u.actor, TeamOne = scenario.Team1.Contains(u), Active = scenario.Units.Contains(u),
-            Position = u.Position, Awareness = u.Awareness, Boldness = u.BoldnessModifier,
-            Signal = u.CompanionSignalModifier, SignalExpires = u.CompanionSignalExpiresAt,
+            Actor = u.actor,
+            TeamOne = scenario.Team1.Contains(u),
+            Active = scenario.Units.Contains(u),
+            Position = u.Position,
+            Awareness = u.Awareness,
+            Boldness = u.BoldnessModifier,
+            Signal = u.CompanionSignalModifier,
+            SignalExpires = u.CompanionSignalExpiresAt,
             LastSignal = scenario.LastSignalMinute.GetValueOrDefault(u.actor, -100),
-            JustDamaged = u.JustDamaged, Optimistic = u.InitialOptimism,
-            Dodge = u.DodgeSet, Block = u.BlockSet, Brace = u.BraceSet
+            JustDamaged = u.JustDamaged,
+            Optimistic = u.InitialOptimism,
+            Dodge = u.DodgeSet,
+            Block = u.BlockSet,
+            Brace = u.BraceSet
         }).ToList()
     };
 
@@ -36,10 +47,15 @@ public sealed class EncounterState
     {
         var units = Combatants.Select(c => new Unit(c.Actor, c.Position)
         {
-            Awareness = c.Awareness, BoldnessModifier = c.Boldness,
-            CompanionSignalModifier = c.Signal, CompanionSignalExpiresAt = c.SignalExpires,
-            JustDamaged = c.JustDamaged, InitialOptimism = c.Optimistic,
-            DodgeSet = c.Dodge, BlockSet = c.Block, BraceSet = c.Brace
+            Awareness = c.Awareness,
+            BoldnessModifier = c.Boldness,
+            CompanionSignalModifier = c.Signal,
+            CompanionSignalExpiresAt = c.SignalExpires,
+            JustDamaged = c.JustDamaged,
+            InitialOptimism = c.Optimistic,
+            DodgeSet = c.Dodge,
+            BlockSet = c.Block,
+            BraceSet = c.Brace
         }).ToList();
         var scenario = new CombatScenario(units.Where((u, i) => Combatants[i].TeamOne).ToList(),
             units.Where((u, i) => !Combatants[i].TeamOne).ToList(), null, Location)

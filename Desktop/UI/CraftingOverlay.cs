@@ -159,8 +159,12 @@ public class CraftingOverlay
 
     private static string SectionIcon(string section) => section switch
     {
-        "Tools" => "gear", "Fire & light" => "fire", "Food gathering" => "food",
-        "Clothing & carrying" => "clothing", "Camp" => "shelter", _ => "materials"
+        "Tools" => "gear",
+        "Fire & light" => "fire",
+        "Food gathering" => "food",
+        "Clothing & carrying" => "clothing",
+        "Camp" => "shelter",
+        _ => "materials"
     };
 
     private static string RecipeIcon(CraftOption option, CraftEvaluation e) => e.Output is { } gear ? UiIcons.ForGear(gear)

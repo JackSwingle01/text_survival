@@ -37,8 +37,10 @@ public static class PredatorEventFactory
             state == HerdState.Feeding ? " For now, the animal's attention is on feeding." : "";
         if (name == "Movement Nearby") name = scene switch
         {
-            "carcass" => "Company at the Carcass", "fishing" => "Movement by the Water",
-            "traps" => "At the Trap Line", "camp" => "Movement at Camp Edge",
+            "carcass" => "Company at the Carcass",
+            "fishing" => "Movement by the Water",
+            "traps" => "At the Trap Line",
+            "camp" => "Movement at Camp Edge",
             _ => following ? "The Followers" : "A Nearby Animal"
         };
         bool Valid(GameContext c) => PredatorInteractions.CanObserve(c, herd) && herd!.State == state &&
@@ -51,9 +53,13 @@ public static class PredatorEventFactory
 
         EventResult Response(string message, Func<GameContext, Task> action, int minutes = 0,
             Func<GameContext, bool>? available = null, ActivityType? activity = null) => new EventResult(message, minutes: minutes)
-            { SourceHerd = herd, WorldAction = action, TimeActivity = activity,
+            {
+                SourceHerd = herd,
+                WorldAction = action,
+                TimeActivity = activity,
                 DescribeAfterAction = c => message + " " + ObserveResult(c, herd),
-                Validate = c => Valid(c) && (available?.Invoke(c) ?? true) };
+                Validate = c => Valid(c) && (available?.Invoke(c) ?? true)
+            };
 
         evt.Choice("Watch", scene == "carcass" ? "Leave the meat untouched for five minutes and watch. The animals can keep moving." :
                 scene == "fishing" ? "Pause fishing for five minutes and watch the animals." :
@@ -61,14 +67,14 @@ public static class PredatorEventFactory
             [Response("You watch the animals and your surroundings.", _ => Task.CompletedTask, 5,
                 activity: ActivityType.Resting)]);
         if (ctx.CurrentActivity is not (ActivityType.Idle or ActivityType.Resting or ActivityType.Sleeping or ActivityType.Traveling))
-        evt.Choice("Stop working", scene switch
+            evt.Choice("Stop working", scene switch
             {
                 "carcass" => "Leave the unfinished carcass and choose your next move on the map.",
                 "fishing" => "Put fishing aside and choose your next move on the map.",
                 "traps" => "Leave the traps for now and choose your next move on the map.",
                 _ => "Put the task aside so you can choose your next move on the map."
             },
-            [Response("You stop what you were doing and look for a route away.", _ => Task.CompletedTask).Aborts()]);
+                [Response("You stop what you were doing and look for a route away.", _ => Task.CompletedTask).Aborts()]);
         evt.Choice("Shout and stand tall", "Try to intimidate this group. Different animals respond differently.",
             [Response("You stand tall and shout toward the animals.", c =>
             { PredatorInteractions.Deter(c, herd!, fire: false); return Task.CompletedTask; }, 1,

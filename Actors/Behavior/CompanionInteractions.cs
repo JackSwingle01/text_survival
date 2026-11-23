@@ -68,8 +68,13 @@ public static class CompanionInteractions
             EndAgreement(npc, minute, "Chose to leave");
             return;
         }
-        state.PendingNeed = new() { Id = state.NextIncidentId++, IsDeparture = true,
-            Recipient = target, ExpiresAtMinute = minute + 10 };
+        state.PendingNeed = new()
+        {
+            Id = state.NextIncidentId++,
+            IsDeparture = true,
+            Recipient = target,
+            ExpiresAtMinute = minute + 10
+        };
     }
 
     public static bool CanTalk(Actor a, Actor b) => a != b && a.IsAlive && b.IsAlive &&

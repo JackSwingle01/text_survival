@@ -329,7 +329,7 @@ public class WorldRenderer : IDisposable
             timeFactor,
             (dx, dy) =>
             {
-                int nx = worldX+dx, ny = worldY+dy;
+                int nx = worldX + dx, ny = worldY + dy;
                 return map.IsValidPosition(nx, ny) && map.GetVisibility(nx, ny) != TileVisibility.Unexplored
                     ? map.DisplayTerrain(map.GetLocationAt(nx, ny)!) : null;
             }, caveFloor: location.CaveId.HasValue && !map.IsCaveConcealed(location));
