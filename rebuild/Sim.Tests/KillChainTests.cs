@@ -406,6 +406,7 @@ public class KillChainTests
     static int CaribouIn(World w) => w.Agents.Values.Count(a => a.Species == Species.Caribou && a.Mind is HerdMind);
 
     [Fact]
+    [Trait("Category", TestCategories.Slow)] // a long-run simulation: about 43 s in Release
     public void Prey_CalveInTheirSeason_TowardWhatTheLandCarries()
     {
         var w = Bare();

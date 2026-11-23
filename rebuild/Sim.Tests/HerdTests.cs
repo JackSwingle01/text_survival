@@ -634,6 +634,7 @@ public class HerdTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("Category", TestCategories.Slow)] // a long-run simulation: about 43 s in Release
     public void ThirtyPopulatedDays_StayCheap()
     {
         var w = World.New(17);
