@@ -17,17 +17,22 @@ dotnet test
 
 For the clean-room rebuild (`rebuild/`):
 
-- Each red-green cycle: only the test class or file in hand,
-  `dotnet test rebuild/Sim.Tests --filter "FullyQualifiedName~<ClassName>"`. Before each commit: the fast
-  suite, `--filter "Category!=Slow"` (about 35 s). Before handback or PR: the full
-  `dotnet test rebuild/Sim.Tests`. PR CI runs only the fast suite. The Slow tests and the random property
-  search run nightly (`.github/workflows/nightly.yml`; `gh workflow run nightly.yml --ref <branch>` runs
-  them on a branch), and Stryker at most daily (`.github/workflows/mutation.yml`).
+- Run tests in Release (`-c Release`): Debug is over twice as slow, and CI measures Release.
+- Each red-green cycle, and each commit along the way: only the test classes in hand,
+  `dotnet test rebuild/Sim.Tests -c Release --filter "FullyQualifiedName~<ClassName>"`. Before a push,
+  handback or PR: the fast suite, `--filter "Category!=Slow"` (about 3 min on 4 cores, 2026-11-23).
+- Never run the whole Slow suite. Run a Slow test by name only when it checks what you changed. PR CI
+  runs only the fast suite; the Slow tests and the random property search run nightly
+  (`.github/workflows/nightly.yml`; `gh workflow run nightly.yml --ref <branch>` runs them on a branch),
+  and Stryker at most daily (`.github/workflows/mutation.yml`).
 - Ratchets (a check with an exception list that only shrinks) are burned down by one daily run that
   files a batch at a time for the issue agent. When you add one, add its section to `dev/ratchets.md`.
 - `NpcBenchReport` reports and never gates; it runs only with `NPC_BENCH=1`.
 - Agents choosing which checks to run or add use the `mp:verification` skill.
-- Tag any new test that takes 5 s or more with `[Trait("Category", TestCategories.Slow)]`.
+- A fast test takes under 5 s in the Release fast suite; CI fails one that doesn't, except those listed
+  in `rebuild/Sim.Tests/slow-fast-tests.txt` (a ratchet). Make it quicker or tag it
+  `[Trait("Category", TestCategories.Slow)]`. A test that steps `World.New(seed)` pays for every animal
+  on the map each minute.
 - Run long simulations, sweeps and probes in Release (`-c Release`), and split independent seeds
   across parallel processes.
 - Skip the old suite (`text_survival.Tests`) and the full solution build unless files outside

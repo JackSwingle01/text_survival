@@ -398,9 +398,27 @@ jobs:
           fi
           if ! grep -q "Closes #$ISSUE" "$body"; then printf '\nCloses #%s\n' "$ISSUE" >> "$body"; fi
           printf '\n---\n_Opened by the workflow token after the build'"'"'s own expired, so CI and Claude Review wait for approval: select **Approve workflows to run** in the merge box._\n' >> "$body"
-          # The build's git credentials were its expired app token: push with this job's token instead.
-          git -c "http.https://github.com/.extraheader=" -c credential.helper= \
-            push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "HEAD:refs/heads/$BRANCH"
+          # The build's git credentials were its expired app token: use this job's token instead.
+          remote="https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git"
+          nocreds=(-c "http.https://github.com/.extraheader=" -c credential.helper=)
+          # GitHub refuses a push with this token whenever the branch's workflow files differ from main's
+          # (it has no `workflows` permission), and that includes a branch merely behind a main whose
+          # workflows changed during the build (#95). Merge main first, so only the build's own changes remain.
+          git "${nocreds[@]}" fetch "$remote" main
+          # "Keep the work" saves the build's own commits as a patch on the old base: put HEAD back after.
+          built=$(git rev-parse HEAD)
+          trap 'git reset -q --hard "$built"' EXIT
+          if ! git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+               merge --no-edit FETCH_HEAD; then
+            git merge --abort || true
+            echo "::error::The branch doesn't merge with main; resolve it by hand from the issue-$ISSUE-work artifact."
+            exit 1
+          fi
+          if changed=$(git diff --name-only FETCH_HEAD HEAD -- .github/workflows) && [ -n "$changed" ]; then
+            echo "::error::The build changed workflow files ($changed), which this token can't push. Push it by hand from the issue-$ISSUE-work artifact."
+            exit 1
+          fi
+          git "${nocreds[@]}" push "$remote" "HEAD:refs/heads/$BRANCH"
           gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$body"
 
       # The work is kept even when no PR came of it: pr/work.patch (the commits, for `git am`),
@@ -416,6 +434,36 @@ jobs:
         with:
           name: issue-${{ matrix.issue }}-work
           path: ${{ runner.temp }}/pr/
+          if-no-files-found: ignore
+
+      # The full transcripts, the main session's and every sub-agent's, for debugging a run
+      # (mp:transcript-tally reads them). Claude Code writes them under ~/.claude/projects; the action
+      # only prints the final result line. The repo is public, so any signed-in GitHub user can download
+      # this artifact: tokens are scrubbed first, and it is kept 30 days. Nothing is uploaded unless the
+      # scrub succeeds. The scrubber is read from GitHub at this run's commit, not from the checkout,
+      # which the agent could have changed.
+      - name: Collect transcripts
+        id: transcripts
+        if: always() && steps.triage.outcome != 'skipped'
+        env:
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/transcripts"
+          rm -rf "$out"
+          scrubber=$(mktemp --suffix=.py)
+          gh api -H "Accept: application/vnd.github.raw" \
+            "repos/$GITHUB_REPOSITORY/contents/.github/scripts/scrub_tokens.py?ref=$GITHUB_SHA" > "$scrubber"
+          mkdir -p "$out"
+          cp -r "$HOME/.claude/projects/." "$out/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/claude-execution-output.json" "$out/" 2>/dev/null || true
+          python3 -I "$scrubber" "$out" || { rm -rf "$out"; echo "::error::Scrubbing failed: no transcripts uploaded."; exit 1; }
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.transcripts.outcome == 'success'
+        with:
+          name: issue-${{ matrix.issue }}-transcripts
+          path: ${{ runner.temp }}/transcripts/
+          retention-days: 30
           if-no-files-found: ignore
 
       # Running out of plan is not the issue's fault: it is left as it was, to be picked up again.
