@@ -5,6 +5,9 @@ public enum Species { Human, Wolf, Bear, CaveBear, SaberTooth, Hyena, Caribou, M
 /// Who an animal takes for kin: any of its species (Open), or only those it is familiar with (Closed).
 public enum Group { Open, Closed }
 
+/// The hours a species is about: by day, at dawn and dusk (Weather.IsTwilight), or by night.
+public enum ActivityPattern { Diurnal, Crepuscular, Nocturnal }
+
 public enum Role { Human, Prey, DangerousPrey, Predator, Scavenger }
 
 public sealed record Temperament(double Base, double PerMember, double HungryAt, double StarvingAt, double HungerBonus, double DefendBonus, double Cap);
@@ -25,9 +28,12 @@ public sealed record SpeciesStats(
     /// Giving ground with the enemy in reach, it strikes instead of backing off at this resolve or above.
     double StrikeBackResolve,
     double ChaseLimitSeconds,
+    double SleepHoursPerDay,
+    ActivityPattern Activity,
     FatRange? AutumnFatPct,
     PersonBuild? Female,
-    int? FlightMinutesPerTile = null)
+    int? FlightMinutesPerTile = null,
+    double PerceptionFactor = 1)
 {
     public bool IsAnimal => Role != Role.Human;
     public bool IsSkittish => Role == Role.Prey || (Role == Role.Scavenger && IsSmall);
@@ -69,7 +75,14 @@ public static class SpeciesTable
         double size = Math.Clamp(1.0 + ((rng.NextDouble() + rng.NextDouble()) / 2 - 0.5) * 2 * 0.15, 0.7, 1.3);
         var body = BodyState.Create(row.Body, row.WeightKg * size, row.FatPct, row.MusclePct);
         body.CaloriesKcal = Body.CaloriesCapacityKcal(body) * (1 - rng.NextDouble() * 0.3);
+        Refreshed(body);
         return body;
+    }
+
+    static void Refreshed(BodyState body)
+    {
+        body.HydrationMl = Body.MaxHydrationMlOf(body);
+        body.EnergyMinutes = Body.MaxEnergyMinutes;
     }
 
     public static BodyState Average(Species species, Sex sex = Sex.Male)
@@ -78,6 +91,7 @@ public static class SpeciesTable
         var row = Of(species);
         var body = BodyState.Create(row.Body, row.WeightKg, row.FatPct, row.MusclePct);
         body.CaloriesKcal = Body.CaloriesCapacityKcal(body);
+        Refreshed(body);
         return body;
     }
 

@@ -78,6 +78,7 @@ public class WhereThingsGoTests
         ["Graze"] = "a herd eating forage",
         ["Feed"] = "a herd eating a carcass",
         ["Raid"] = "a herd raiding a stash",
+        ["Watering"] = "an animal drinking where it stands",
     };
 
     static readonly Dictionary<string, string> NoBodyProfileYet = new();
@@ -447,7 +448,7 @@ public class WhereThingsGoTests
 
     // ---- NpcUsesOnlyThePublicInterface ----
 
-    /// Internal Sim members Npc.cs reaches today: none. The NPC uses only verbs, refusals, forecasts and memory.
+    /// Internal Sim members Npc.cs or Planner.cs reach today: none. They use only verbs, refusals, forecasts and memory.
     static readonly Dictionary<string, string> NpcInternalUses = new();
 
     static readonly Regex NpcForbiddenCalls = new(@"\bSim\.Start\b|\bFauna\.BeginHunt\b|\bCombat\.ResolveHeadless\b");
@@ -475,32 +476,39 @@ public class WhereThingsGoTests
 
     static Type OuterMost(Type t) => t.DeclaringType is { } d ? OuterMost(d) : t;
 
+    /// The NPC and the planner it will share with animals: neither may be handed the true world (spec "What animals know").
+    static readonly string[] PublicInterfaceOnly = ["Npc.cs", "Planner.cs"];
+
     [Fact]
     public void NpcUsesOnlyThePublicInterface()
     {
-        string npc = CodeOf(Path.Combine(ArchitectureTests.SimSourceDir(), "Npc.cs"));
-        var npcTypes = Regex.Matches(npc, @"\b(?:class|record|struct|enum)\s+(\w+)").Select(m => m.Groups[1].Value).ToHashSet();
+        var files = PublicInterfaceOnly.Select(f => (File: f, Code: CodeOf(Path.Combine(ArchitectureTests.SimSourceDir(), f)))).ToList();
+        var npcTypes = files.SelectMany(f => Regex.Matches(f.Code, @"\b(?:class|record|struct|enum)\s+(\w+)")).Select(m => m.Groups[1].Value).ToHashSet();
         Assert.Contains("Npc", npcTypes);
+        Assert.Contains("Planner", npcTypes);
         const BindingFlags publicMembers = BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance;
         var publicNames = SimTypes.Where(t => t.IsPublic || t.IsNestedPublic).SelectMany(t => t.GetMembers(publicMembers)).Select(m => m.Name).ToHashSet();
         var npcOwn = SimTypes.Where(t => npcTypes.Contains(OuterMost(t).Name)).SelectMany(t => t.GetMembers(publicMembers | BindingFlags.NonPublic)).Select(m => m.Name).ToHashSet();
         var found = new List<(string Key, string Detail)>();
-        foreach (var (type, name, isStatic) in InternalMembers(npcTypes).DistinctBy(x => (x.Type, x.Name)))
+        foreach (var (file, code) in files)
         {
-            // A static member is named with its type. An instance member is matched by name only when no public
-            // member and none of the NPC's own share it, so a same-named member elsewhere is not taken for it.
-            if (!isStatic && (publicNames.Contains(name) || npcOwn.Contains(name))) continue;
-            var pattern = isStatic ? $@"\b{OuterMost(type).Name}\.{name}\b" : $@"\.{name}\b";
-            foreach (Match m in Regex.Matches(npc, pattern))
+            foreach (var (type, name, isStatic) in InternalMembers(npcTypes).DistinctBy(x => (x.Type, x.Name)))
             {
-                int line = LineOf(npc, m.Index);
-                found.Add(($"{type.Name}.{name}", $"Npc.cs:{line} uses internal {type.Name}.{name}: {LineAt(npc, line)}"));
+                // A static member is named with its type. An instance member is matched by name only when no public
+                // member and none of the NPC's own share it, so a same-named member elsewhere is not taken for it.
+                if (!isStatic && (publicNames.Contains(name) || npcOwn.Contains(name))) continue;
+                var pattern = isStatic ? $@"\b{OuterMost(type).Name}\.{name}\b" : $@"\.{name}\b";
+                foreach (Match m in Regex.Matches(code, pattern))
+                {
+                    int line = LineOf(code, m.Index);
+                    found.Add(($"{type.Name}.{name}", $"{file}:{line} uses internal {type.Name}.{name}: {LineAt(code, line)}"));
+                }
             }
-        }
-        foreach (Match m in NpcForbiddenCalls.Matches(npc))
-        {
-            int line = LineOf(npc, m.Index);
-            found.Add((m.Value, $"Npc.cs:{line} calls {m.Value}, which runs the world for the NPC: {LineAt(npc, line)}"));
+            foreach (Match m in NpcForbiddenCalls.Matches(code))
+            {
+                int line = LineOf(code, m.Index);
+                found.Add((m.Value, $"{file}:{line} calls {m.Value}, which runs the world for the NPC: {LineAt(code, line)}"));
+            }
         }
         AssertNone(SetRatchet(found.DistinctBy(f => f.Key), NpcInternalUses, nameof(NpcInternalUses),
             $"Choose an activity and let Sim.Step run it; read the world through verbs, refusals, forecasts and memory ({Guide}, Agent behaviour)"));

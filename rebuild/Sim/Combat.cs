@@ -304,8 +304,10 @@ public static partial class Combat
         return [new Fighter(lead), .. others.Take(extra).Select(id => new Fighter(id))];
     }
 
+    const double ActiveHoursBoldnessDelta = 0.1;
+
     /// How readily an animal comes at a target: species temperament, its side's numbers (Side)
-    /// against the people standing with the target, the target's wounds, the night. It decides whether a
+    /// against the people standing with the target, the target's wounds, its active hours. It decides whether a
     /// predator engages and seeds its morale (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear
     /// live on HerdMind (Fauna); callers pass them in (neutral by default).
     public static double Boldness(World world, AgentId herd, BodyState target, bool defending = false,
@@ -322,7 +324,7 @@ public static partial class Combat
         if (targetCarriesMeat) bold += 0.1;
         if (Body.GetCapacities(target).Moving < 0.5) bold += 0.2;
         if (Body.Vitality(target) < 0.7) bold += 0.1;
-        if (Weather.IsNight(world.Minute)) bold += 0.1;
+        if (Fauna.ActiveNow(world, agent.Species)) bold += ActiveHoursBoldnessDelta;
         if (fear > 0) bold *= 1.0 - fear;
         return Math.Clamp(bold, 0, t.Cap);
     }
@@ -677,7 +679,7 @@ public static partial class Combat
                 var body = BodyOf(world, u);
                 Body.TickWounds(body, world.Rng("body", u.Agent));
                 // An animal burns and mends in the minute it bleeds (Fauna.Tick).
-                if (world.Agent(u.Agent).Mind is HerdMind && Body.IsAlive(body)) { Fauna.Burn(body); Fauna.Mend(body); }
+                if (world.Agent(u.Agent) is { Mind: HerdMind } animal && Body.IsAlive(body)) Fauna.Live(world, animal, body, sleeping: false);
                 body.WoundsLivedThroughMinute = Math.Max(body.WoundsLivedThroughMinute, world.Minute - 1) + 1;
             }
             Sweep(world, enc, events, by: null);

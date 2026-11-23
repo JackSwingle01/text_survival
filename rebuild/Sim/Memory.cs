@@ -180,6 +180,9 @@ public static class Sight
         return seen;
     }
 
+    /// One ray of the view: whether a tile is seen from another with this budget (BudgetTiles).
+    public static bool Sees(World world, TileId from, TileId to, double budgetTiles) => CanSee(Map.Of(world), from, to, budgetTiles);
+
     static bool InCave(GeneratedMap m, TileId t) => m.CaveAt(t) == Cave.Floor;
 
     /// Budget a tile takes per tile-length of ray: infinite through a mountain, through nothing to see

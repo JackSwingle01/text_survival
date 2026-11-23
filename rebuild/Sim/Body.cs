@@ -111,7 +111,7 @@ public sealed class BodyState
     [JsonIgnore] public double MusclePct => MuscleKg / WeightKg;
     [JsonIgnore] public double EnergyPct => EnergyMinutes / Body.MaxEnergyMinutes;
     [JsonIgnore] public double CaloriesPct => CaloriesKcal / Body.CaloriesCapacityKcal(this);
-    [JsonIgnore] public double HydrationPct => HydrationMl / Body.MaxHydrationMl;
+    [JsonIgnore] public double HydrationPct => HydrationMl / Body.MaxHydrationMlOf(this);
 
     public static BodyState Create(BodyKind kind, double weightKg, double fatPct, double musclePct, Sex sex = Sex.Male) => new()
     {
@@ -797,5 +797,5 @@ public static partial class Body
     }
 
     public static void Drink(BodyState body, double ml) =>
-        body.HydrationMl = Math.Min(MaxHydrationMl, body.HydrationMl + ml);
+        body.HydrationMl = Math.Min(MaxHydrationMlOf(body), body.HydrationMl + ml);
 }

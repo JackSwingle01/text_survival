@@ -115,7 +115,7 @@ public class HerdBudgetTests
     public void TheCaveBear_IsBoldOnlyDefending()
     {
         var w = World.New(3);
-        w.Minute = 3 * 60; // midday: the night would add its own boldness
+        w.Minute = 15 * 60; // midnight: a cave bear's active hours would add their own boldness
         var bear = Agents.Spawn(w, Species.CaveBear, Open(w));
         var person = BodyState.BaselineHuman();
         Assert.Equal(0, Combat.Boldness(w, bear, person, hunger: 1.0), 9);
