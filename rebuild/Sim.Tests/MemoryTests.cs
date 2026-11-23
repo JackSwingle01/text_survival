@@ -219,7 +219,7 @@ public class MemoryTests
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         Snow(w, t, 0.4);
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes); // the clock's next look sees it
-        double seenM = Ground.SurfaceNow(w, t).SnowDepthM;
+        double seenM = Ground.Underfoot(w, t).SnowDepthM;
         Assert.True(seenM > 0.35);
         Assert.Equal(seenM, Explored(w, P).At(t)!.Value.Surface.SnowDepthM, 3);
 
@@ -233,7 +233,7 @@ public class MemoryTests
         var remembered = Explored(loaded, P).At(t)!.Value;
         Assert.Equal(seenM, remembered.Surface.SnowDepthM, 3);
         Assert.Equal(2 * Memories.GlanceMinutes, remembered.SeenMinute);
-        Assert.Equal(0, Ground.SurfaceNow(loaded, t).SnowDepthM, 3);
+        Assert.Equal(0, Ground.Underfoot(loaded, t).SnowDepthM, 3);
     }
 
     /// Every tile in view has its ground remembered, with the minute of the look.
@@ -254,15 +254,15 @@ public class MemoryTests
     {
         var g = new GroundMemory(4, 3);
         var t = new TileId(2, 1);
-        g.Remember(t, new SurfaceSummary(0.12345, true, 0.456, 0.0071, true), 1234567);
-        Assert.Equal(new RememberedGround(new SurfaceSummary(0.123, true, 0.46, 0.007, true), 1234567), g.At(t));
+        g.Remember(t, new SeenSurface(0.12345, true, 0.456, 0.0071, true), 1234567);
+        Assert.Equal(new RememberedGround(new SeenSurface(0.123, true, 0.46, 0.007, true), 1234567), g.At(t));
         var loaded = GroundMemory.Parse(g.Format());
         Assert.Equal(g.At(t), loaded.At(t));
         Assert.Equal(1, loaded.Count);
         Assert.Null(loaded.At(new TileId(0, 0)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SurfaceSummary(-0.01, false, 0, 0, false), 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SurfaceSummary(0, false, 1.2, 0, false), 0));
-        Assert.Equal(new RememberedGround(new SurfaceSummary(0.123, true, 0.46, 0.007, true), 1234567), g.At(t)); // a refused value leaves the tile as it was
+        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SeenSurface(-0.01, false, 0, 0, false), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SeenSurface(0, false, 1.2, 0, false), 0));
+        Assert.Equal(new RememberedGround(new SeenSurface(0.123, true, 0.46, 0.007, true), 1234567), g.At(t)); // a refused value leaves the tile as it was
         Assert.Equal(1, g.Count);
         Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse("4x3:AA==:"));
         var one = g.Format();
@@ -341,11 +341,11 @@ public class MemoryTests
     {
         var g = new GroundMemory(4, 3);
         TileId a = new(1, 1), east = new(2, 1), south = new(1, 2);
-        var ground = new SurfaceSummary(0.1, false, 0, 0, false);
+        var ground = new SeenSurface(0.1, false, 0, 0, false);
         foreach (var t in new[] { a, east, south }) g.Remember(t, ground, 5);
         g.RememberTrailTier(east, a, TrailTier.Trail);
         g.RememberTrailTier(a, south, TrailTier.Trace);
-        g.Remember(a, new SurfaceSummary(0.2, true, 0.5, 0, true), 6);
+        g.Remember(a, new SeenSurface(0.2, true, 0.5, 0, true), 6);
         Assert.Equal(TrailTier.Trail, g.TrailTierAt(a, east));
         Assert.Equal(TrailTier.Trace, g.TrailTierAt(south, a));
         var loaded = GroundMemory.Parse(g.Format());

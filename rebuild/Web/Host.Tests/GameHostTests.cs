@@ -472,7 +472,7 @@ public class GameHostTests
         Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes); // ground is kept once it has lived any time
         Snow(w, t, 0.4);
         Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes); // the next look sees it
-        double seenCm = Math.Round(Ground.SurfaceNow(w, t).SnowDepthM * 100, 1);
+        double seenCm = Math.Round(Ground.Underfoot(w, t).SnowDepthM * 100, 1);
         Assert.True(seenCm > 30, $"{seenCm} cm");
 
         var m = Map.Of(w);
@@ -485,7 +485,7 @@ public class GameHostTests
         var loaded = new GameHost();
         var v = Parse(loaded.Load(h.Save()));
         Assert.DoesNotContain(Index(w, t), v.Map.Visible);
-        Assert.Equal(0, Ground.SurfaceNow(loaded.World, t).SnowDepthM);
+        Assert.Equal(0, Ground.Underfoot(loaded.World, t).SnowDepthM);
         var remembered = v.Map.Surface.Single(s => s.I == Index(w, t));
         Assert.Equal(seenCm, remembered.SnowCm);
     }
@@ -637,11 +637,11 @@ public class GameHostTests
 
         var v = Parse(h.View());
         Assert.Contains(Index(w, t), v.Map.Visible);
-        Assert.Equal(Math.Round(Ground.SurfaceNow(w, t).SnowDepthM * 100, 1), v.Map.Surface.Single(s => s.I == Index(w, t)).SnowCm);
+        Assert.Equal(Math.Round(Ground.Underfoot(w, t).SnowDepthM * 100, 1), v.Map.Surface.Single(s => s.I == Index(w, t)).SnowCm);
         int width = Map.Of(w).Width;
         foreach (var i in v.Map.Visible)
         {
-            var g = Ground.SurfaceNow(w, new TileId(i % width, i / width));
+            var g = Ground.Underfoot(w, new TileId(i % width, i / width));
             var s = v.Map.Surface.SingleOrDefault(x => x.I == i);
             Assert.Equal(Math.Round(g.SnowDepthM * 100, 1), s?.SnowCm ?? 0);
             Assert.Equal(Math.Round(g.WaterDepthM * 100, 1), s?.WaterCm ?? 0);
