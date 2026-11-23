@@ -39,7 +39,7 @@ public class CommentHygieneTests
     const double CommentShareLimitPct = 0.10;
 
     /// The ratchet: files over the limit today, each held at its current share (whole percent). A file
-    /// may only go down; the ratchet task takes one off at a time and brings it under the limit.
+    /// may only go down; the daily ratchet run (dev/ratchets.md) files a batch at a time to bring under the limit.
     static readonly Dictionary<string, int> OverCommentLimit = new()
     {
         ["Access.cs"] = 22,

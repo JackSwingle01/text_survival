@@ -24,6 +24,10 @@ REPO = os.environ["GITHUB_REPOSITORY"]
 NEEDS_USER = "needs-user"
 # Only people who can already push may spend the plan; the repo is public.
 TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
+# Issues the daily ratchet run (.github/workflows/ratchet.yml) files with this repo's GITHUB_TOKEN.
+# Only this repo's workflows act as that bot here, and no workflow runs untrusted code with write
+# access, so its issues carrying this label are as trusted as the tracker on main they came from.
+RATCHET_BOT, RATCHET_LABEL = "github-actions[bot]", "ratchet"
 
 
 def api(path):
@@ -86,7 +90,8 @@ def skip_reason(issue, repo):
     ready, a design ticket, a map or blocked in its text is triage's judgement."""
     n = issue["number"]
     labels = {label["name"] for label in issue["labels"]}
-    if issue["author_association"] not in TRUSTED:
+    from_ratchet_run = issue["user"]["login"] == RATCHET_BOT and RATCHET_LABEL in labels
+    if issue["author_association"] not in TRUSTED and not from_ratchet_run:
         return f"opened by {issue['user']['login']}, who has no write access"
     if NEEDS_USER in labels:
         return f"labelled {NEEDS_USER}"

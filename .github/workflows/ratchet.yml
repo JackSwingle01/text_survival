@@ -1,0 +1,62 @@
+name: Ratchet
+
+# Burns down the ratchets in dev/ratchets.md, one batch at a time. Once a day, for each ratchet with
+# no open `ratchet` issue, .github/scripts/ratchets.py runs its remaining command and files the next
+# batch as an issue, or the retire step when nothing is left. The issue agent builds it like any
+# ticket (issue_queue.py trusts issues this workflow files: github-actions[bot] with the `ratchet`
+# label). Issues filed with GITHUB_TOKEN start no workflows, so the agent's hourly run picks them up.
+# A new ratchet needs only a section in dev/ratchets.md, not a change here.
+#
+# Runs at 05:30 New York time. Cron is UTC only, so both offsets are scheduled and the job runs only
+# for the one that matches today's offset (EDT 09:30 UTC, EST 10:30 UTC). It keys on which schedule
+# fired, not the clock, so a late start still runs.
+
+on:
+  schedule:
+    - cron: "30 9 * * *"
+    - cron: "30 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ratchet
+  cancel-in-progress: false
+
+jobs:
+  file:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Only the schedule that is 05:30 in New York today
+        id: when
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+        shell: bash
+        run: |
+          zone=$(TZ=America/New_York date +%Z)
+          if [ -z "$SCHEDULE" ] || { [ "$zone" = EDT ] && [ "$SCHEDULE" = "30 9 * * *" ]; } ||
+             { [ "$zone" = EST ] && [ "$SCHEDULE" = "30 10 * * *" ]; }; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipping: New York is on $zone, so the other schedule is 05:30."
+          fi
+      - if: steps.when.outputs.go == 'true'
+        uses: actions/checkout@v7
+      # Remaining commands may use the SDK (the formatting ratchet does).
+      - if: steps.when.outputs.go == 'true'
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: File the next batch of each ratchet
+        if: steps.when.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh label create ratchet --color 5319E7 \
+            --description "A batch from dev/ratchets.md, filed by the daily ratchet run" 2>/dev/null || true
+          python3 .github/scripts/ratchets.py run
