@@ -418,6 +418,29 @@ jobs:
           path: ${{ runner.temp }}/pr/
           if-no-files-found: ignore
 
+      # The full transcripts, the main session's and every sub-agent's, for debugging a run
+      # (mp:transcript-tally reads them). Claude Code writes them under ~/.claude/projects; the action
+      # only prints the final result line. The repo is public, so any signed-in GitHub user can download
+      # this artifact: tokens are scrubbed first, and it is kept 30 days.
+      - name: Collect transcripts
+        if: always() && steps.triage.outcome != 'skipped'
+        env:
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          set -uo pipefail
+          out="$RUNNER_TEMP/transcripts"
+          mkdir -p "$out"
+          cp -r "$HOME/.claude/projects/." "$out/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/claude-execution-output.json" "$out/" 2>/dev/null || true
+          python3 .github/scripts/scrub_tokens.py "$out"
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.triage.outcome != 'skipped'
+        with:
+          name: issue-${{ matrix.issue }}-transcripts
+          path: ${{ runner.temp }}/transcripts/
+          retention-days: 30
+          if-no-files-found: ignore
+
       # Running out of plan is not the issue's fault: it is left as it was, to be picked up again.
       - name: Out of plan?
         id: plan
