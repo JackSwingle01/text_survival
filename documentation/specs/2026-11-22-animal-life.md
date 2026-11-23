@@ -289,10 +289,11 @@ Four separate pieces, shared by NPCs and animals.
    - It stops expanding once travel alone exceeds the best total found so far.
    - People route over the tiles they've explored. Animals route over any tile.
    - Animals cross at the pace of the agent's body.
-   - **Everyone reads the ground true.** A tile's ground is its ground class's shared state, and
-     reading it stores nothing (#95); only a tile something has written to (`Ground.Write`) keeps its
-     own state, until it reads as its class again. So animals read the same ground people do, at the
-     class's cost. Ponds and snow as water sources follow the same answer.
+   - **Everyone reads the ground true.** A tile's ground is its ground class's shared state, read
+     through one function (`Ground.At`) that stores nothing, and no tile keeps ground of its own (#95).
+     So animals read the same ground people do, at the class's cost. Trampling, when it comes, is a
+     trodden amount per tile and edge folded into that read, not a tile's own ground. Ponds and snow as
+     water sources follow the same answer.
    - Flyers pay a flat cost per tile, ignore terrain and water, and can't cross the mountain wall.
    - The current planner forecast that refuses herds becomes the shared one.
 4. **Choice.**

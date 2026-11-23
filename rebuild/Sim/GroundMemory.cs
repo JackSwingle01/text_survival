@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-/// A tile's ground as a person last saw it (Ground.Look, to the millimetre and the hundredth), and
+/// A tile's ground as a person last saw it (Ground.SurfaceNow, to the millimetre and the hundredth), and
 /// the minute they saw it.
 public readonly record struct RememberedGround(SurfaceSummary Surface, long SeenMinute);
 

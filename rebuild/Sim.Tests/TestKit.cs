@@ -12,6 +12,15 @@ static class TestKit
         ((NpcMind)agent.Mind).TargetFatKg = agent.Body.FatKg;
     }
 
+    /// Changes the ground a tile reads from now on. Nothing stores ground per tile, so this changes its whole ground
+    /// class (Ground.SetClassState): every tile sharing it reads the change.
+    public static void EditGround(World world, TileId tile, Action<GroundState, SubstrateProfile> edit)
+    {
+        var state = Ground.At(world, tile);
+        edit(state, Ground.Substrate(Map.Of(world), tile));
+        Ground.SetClassState(world, tile, state);
+    }
+
     /// 15 January, 09:00: a minute when the lakes and rivers are ice (Map.IsFrozen). World minute 0, 1 July, is open water.
     public const long JanuaryMinute = 198 * 1440;
 

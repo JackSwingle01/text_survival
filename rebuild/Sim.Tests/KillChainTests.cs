@@ -783,29 +783,24 @@ public class KillChainTests
 
     // ---- the caches ----
 
-    /// A never-observed tile's ground carried on from its class's cache is the ground the long way
-    /// gives, sub-step for sub-step, through Peek and through CatchUp.
+    /// A tile's ground carried on from its class's cache is the ground the long way gives, sub-step for sub-step.
     [Fact]
     public void Ground_CarriedOnFromItsClass_IsTheLongWay()
     {
         var w = World.New(17);
         var m = Map.Of(w);
         var plain = Enumerable.Range(5, m.Width - 10).SelectMany(x => Enumerable.Range(5, m.Height - 10).Select(y => new TileId(x, y)))
-            .Where(t => m.TerrainAt(t) == Terrain.Plain && m.SiteAt(t) == null && m.CaveAt(t) == Cave.None && t != m.Camp
-                && w.Tiles.GetValueOrDefault(t)?.Ground == null).Take(3).ToList();
+            .Where(t => m.TerrainAt(t) == Terrain.Plain && m.SiteAt(t) == null && m.CaveAt(t) == Cave.None && t != m.Camp).Take(2).ToList();
+        static string Json(GroundState g) => System.Text.Json.JsonSerializer.Serialize(g);
         w.Minute = 4 * 1440 + 7;
-        Ground.Peek(w, plain[0]); // warms the class
+        Ground.At(w, plain[0]); // warms the class
         w.Minute = 9 * 1440 + 3;
-        var carried = Save.ToJson(new World { Seed = 17, Tiles = new() { [plain[1]] = new TileState { Ground = Ground.Peek(w, plain[1]) } } });
         var fresh = World.New(17);
         fresh.Minute = w.Minute;
-        var longWay = Save.ToJson(new World { Seed = 17, Tiles = new() { [plain[1]] = new TileState { Ground = Ground.Peek(fresh, plain[1]) } } });
-        Assert.Equal(longWay, carried);
-        static string Json(GroundState g) => System.Text.Json.JsonSerializer.Serialize(g);
-        Assert.Equal(Json(Ground.CatchUp(fresh, plain[2])), Json(Ground.CatchUp(w, plain[2])));
+        Assert.Equal(Json(Ground.At(fresh, plain[1])), Json(Ground.At(w, plain[1])));
     }
 
-    /// The ground cache shares one state among every unobserved tile of a class (Ground.Peek): read
+    /// The ground cache shares one state among every tile of a class (Ground.At): read
     /// warm, tile after tile, a sample from across the map is the ground each tile gives on its own
     /// with the cache thrown away. A per-tile input the class leaves out (a tile's own weather) would
     /// hand a tile another's ground here, and this fails.
@@ -820,14 +815,14 @@ public class KillChainTests
             w.Minute = day * 1440L + 7 * day;
             var sample = Enumerable.Range(0, m.Width * m.Height).Where(i => i % 101 == day % 101)
                 .Select(i => new TileId(i / m.Height, i % m.Height))
-                .Where(t => m.TerrainAt(t).IsPassable() && w.Tiles.GetValueOrDefault(t)?.Ground == null).ToList();
+                .Where(t => m.TerrainAt(t).IsPassable()).ToList();
             Assert.True(sample.Count > 40, $"{sample.Count} tiles sampled");
             w.GroundCache = null;
-            var warm = sample.Select(t => Json(Ground.Peek(w, t))).ToList();
+            var warm = sample.Select(t => Json(Ground.At(w, t))).ToList();
             for (int i = 0; i < sample.Count; i++)
             {
                 w.GroundCache = null;
-                Assert.True(warm[i] == Json(Ground.Peek(w, sample[i])), $"day {day}: {sample[i]} read another tile's ground from the cache");
+                Assert.True(warm[i] == Json(Ground.At(w, sample[i])), $"day {day}: {sample[i]} read another tile's ground from the cache");
             }
         }
     }

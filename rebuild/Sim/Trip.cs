@@ -20,11 +20,9 @@ public sealed record TripTime(int WalkingMinutes, int TerrainMinutes, int Weathe
     ];
 }
 
-/// How a crossing reads the ground (Trip.Terms).
-public enum GroundRead { Look, Observe }
-
-/// A crossing as seen before it is made, and the routes made of crossings. Previews look at the ground (Ground.Peek).
-// The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(..., GroundRead.Observe).TotalMinutes.
+/// A crossing as seen before it is made, and the routes made of crossings. Reading the ground writes nothing, so a
+/// preview and the crossing itself read the same ground.
+// The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(...).TotalMinutes.
 public static class Trip
 {
     public static TripTime Time(World world, AgentId who, Direction dir, Pace pace)
@@ -33,16 +31,15 @@ public static class Trip
         return Terms(world, Traversal.PaceBody(agent), agent.Tile, Map.Step(agent.Tile, dir), pace, Weather.At(world, world.Minute), Items.EncumbrancePct(agent));
     }
 
-    /// ground: Look reads without writing; Observe catches the ground up as a crossing does (Ground.CatchUp).
     public static TripTime Terms(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky,
-        double encumbrancePct = 0, GroundRead ground = GroundRead.Look)
+        double encumbrancePct = 0)
     {
         var m = Map.Of(world);
         double unloaded = Body.Speed(body), speed = Body.Speed(body, new AbilityContext(EncumbrancePct: encumbrancePct));
         var still = sky with { WindLevel = 0, PrecipitationPct = 0 }; // no wind or precipitation to slow a walk
         var (exit, entry) = (Segment(from), Segment(to));
         int edge = m.EdgeBetween(from, to)?.TraversalMinutes() ?? 0, trail = Tracks.TrailMinutes(world, from, to);
-        var (rounded, careful) = Join(HalfOf(world, from, body, speed, sky, ground, pace), HalfOf(world, to, body, speed, sky, ground, pace), edge + trail);
+        var (rounded, careful) = Join(HalfOf(world, from, body, speed, sky, pace), HalfOf(world, to, body, speed, sky, pace), edge + trail);
         int whole = exit.Minutes + entry.Minutes + edge + trail;
         return new TripTime(exit.Walking + entry.Walking, exit.Terrain + entry.Terrain, exit.Weather + entry.Weather,
             exit.Pace + entry.Pace, exit.Load + entry.Load, careful, edge, trail,
@@ -64,19 +61,11 @@ public static class Trip
     /// that, and whether care slows it.
     readonly record struct Half(int Minutes, double GroundFactor, bool Slow);
 
-    static Half HalfOf(World world, TileId tile, BodyState body, double speed, WeatherSample sky, GroundRead ground, Pace pace)
+    static Half HalfOf(World world, TileId tile, BodyState body, double speed, WeatherSample sky, Pace pace)
     {
-        double factor = ground switch
-        {
-            GroundRead.Observe => Ground.TraversalFactor(world, tile),
-            _ => Ground.TraversalFactorNow(world, tile),
-        };
-        double Hazard() => ground switch
-        {
-            GroundRead.Observe => Traversal.EffectiveHazardLevel(world, tile),
-            _ => HazardNow(world, tile),
-        };
-        bool slow = pace == Pace.Careful && Traversal.PaceMatters(Traversal.InjuryOdds(Hazard(), body, sky, Pace.Quick).TotalPct);
+        double factor = Ground.TraversalFactor(world, tile);
+        bool slow = pace == Pace.Careful
+            && Traversal.PaceMatters(Traversal.InjuryOdds(Traversal.EffectiveHazardLevel(world, tile), body, sky, Pace.Quick).TotalPct);
         return new Half(Traversal.SegmentMinutes(Map.Of(world), tile, speed, sky), factor, slow);
     }
 
@@ -109,7 +98,7 @@ public static class Trip
         Half HalfAt(TileId tile)
         {
             if (!halves.TryGetValue(tile, out var half))
-                halves[tile] = half = HalfOf(world, tile, body, Speed, sky, GroundRead.Look, pace);
+                halves[tile] = half = HalfOf(world, tile, body, Speed, sky, pace);
             return half;
         }
     }
@@ -181,14 +170,13 @@ public static class Trip
         // A crossing under way this way keeps the risk fixed when it began (Traversal.Begin resumes it).
         if (agent.Crossing is { } c && c.Dir == dir && c.Pace == pace && c.From == agent.Tile)
             return new Odds("As you set out", c.RiskPct, []);
-        return Traversal.InjuryOdds(HazardNow(world, Map.Step(agent.Tile, dir)), Traversal.PaceBody(agent), Weather.At(world, world.Minute), pace);
+        return Traversal.InjuryOdds(Traversal.EffectiveHazardLevel(world, Map.Step(agent.Tile, dir)), Traversal.PaceBody(agent), Weather.At(world, world.Minute), pace);
     }
 
     public static bool PaceMatters(World world, AgentId who, Direction dir) => Traversal.PaceMatters(Risk(world, who, dir, Pace.Quick).TotalPct);
 
     static int Careful(int segmentMinutes) => (int)Math.Ceiling(segmentMinutes * Traversal.CarefulFactor) - segmentMinutes;
 
-    static double HazardNow(World world, TileId tile) => Traversal.HazardLevel(Map.Of(world), tile, world.Minute, Ground.HazardDeltaNow(world, tile));
 }
 
 /// What Trip.Routes found: the minutes to every tile it settled, the calories the walk burns, and the way.

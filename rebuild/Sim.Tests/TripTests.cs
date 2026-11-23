@@ -73,7 +73,7 @@ public class TripTests
         Assert.True(Trip.Terms(w, body, from, to, Pace.Careful, calm).CarefulMinutes > 0);
         Assert.True(Trip.Terms(w, body, from, to, Pace.Quick, calm, encumbrancePct: 1.5).LoadMinutes > 0);
 
-        Ground.Write(w, to, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.6, CompactionPct = 0.1, FrozenFractionPct = 1 }));
+        TestKit.EditGround(w, to, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.6, CompactionPct = 0.1, FrozenFractionPct = 1 }));
         Assert.True(Trip.Terms(w, body, from, to, Pace.Quick, calm).GroundMinutes > 0);
         Assert.Equal(Traversal.CrossingMinutes(w, body, from, to, Pace.Careful, calm), Trip.Terms(w, body, from, to, Pace.Careful, calm).TotalMinutes);
 

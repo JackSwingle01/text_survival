@@ -20,9 +20,6 @@ public sealed class TileState
     /// Footprints, one sign per kind of maker. Owned by Tracks; null when the ground is clean.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public SortedDictionary<TrackMaker, Track>? Tracks { get; set; }
-    /// Snow, water and ice on the ground, once something has written to it (Ground.Write). Owned by Ground; null while it is its class's.
-    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public GroundState? Ground { get; set; }
     /// Pools something has drawn from, by index into Pools.At. Owned by Pools.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<int, PoolState>? Pools { get; set; }
@@ -39,7 +36,7 @@ public sealed class TileState
     public List<Carcass>? Carcasses { get; set; }
     /// Nothing here differs from generation, so the tile can leave World.Tiles.
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsEmpty => Tracks == null && Ground == null && Pools == null && Stash == null && StashCause == null && StashId == null && Carcasses == null;
+    public bool IsEmpty => Tracks == null && Pools == null && Stash == null && StashCause == null && StashId == null && Carcasses == null;
 }
 
 /// Trees is stated on every row, null where none stand, so a forest cannot lose its timber to a typo.

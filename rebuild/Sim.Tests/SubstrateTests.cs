@@ -333,7 +333,7 @@ public class SubstrateTests
 
     static void SnowUnder(World w, TileId tile, double metres)
     {
-        Ground.Write(w, tile, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = metres, CompactionPct = 0.3, FrozenFractionPct = 1 }));
+        TestKit.EditGround(w, tile, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = metres, CompactionPct = 0.3, FrozenFractionPct = 1 }));
     }
 
     [Fact]

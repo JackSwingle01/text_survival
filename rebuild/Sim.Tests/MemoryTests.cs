@@ -201,7 +201,7 @@ public class MemoryTests
     static readonly WeatherSample Cold = new(0, WeatherCondition.Cloudy, -10, 0.1, 0, 0.8, WindDirection.North);
 
     static void Snow(World w, TileId t, double depthM) =>
-        Ground.Write(w, t, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 }));
+        TestKit.EditGround(w, t, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 }));
 
     /// The first passable tile in view from here, other than here.
     static TileId InViewFrom(World w, TileId from) =>
@@ -226,7 +226,7 @@ public class MemoryTests
         Put(w, P, OutOfView(w, t));
         Sim.Step(w, new Wait(P), 1);
         Assert.False(Sight.InSight(w, w.Agent(P), t));
-        Ground.Write(w, t, (g, _) => g.Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow)); // gone while nobody looked
+        TestKit.EditGround(w, t, (g, _) => g.Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow)); // gone while nobody looked
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
 
         var loaded = Save.FromJson(Save.ToJson(w));

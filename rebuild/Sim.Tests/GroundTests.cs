@@ -453,6 +453,8 @@ public class GroundTests
         throw new InvalidOperationException("no such tile on seed 17");
     }
 
+    static string Json(GroundState g) => System.Text.Json.JsonSerializer.Serialize(g);
+
     static TileId OpenTile(Terrain t) => First(p => Seed17.TerrainAt(p) == t && Seed17.CaveAt(p) == Cave.None
         && Seed17.StageAt(p) == null && p != Seed17.Camp && !Seed17.BesideRiver(p));
 
@@ -496,81 +498,12 @@ public class GroundTests
         var tiles = new[] { Seed17.Camp, OpenTile(Terrain.Plain), OpenTile(Terrain.Marsh), OpenTile(Terrain.Forest) };
         foreach (var t in tiles)
         {
-            Ground.CatchUp(world, t);
+            Ground.At(world, t);
             Ground.TraversalFactor(world, t);
-            Ground.Look(world, t);
+            Ground.SurfaceNow(world, t);
             Ground.ContactWettingRate(world, t, SurfaceContact.RestingOnGround, 0);
         }
         Assert.Empty(world.Tiles);
-    }
-
-    /// A drift written onto a plain melts under a warm sky; the tile keeps its own state while the drift reads,
-    /// steps it, and reads its class again once the drift is gone.
-    static World Drifted(TileId tile)
-    {
-        var world = World17(Sky(WeatherCondition.Clear, 10, 0));
-        world.Minute = 60;
-        Ground.Write(world, tile, (g, sub) => Ground.AddSnow(g, sub, 0.03));
-        return world;
-    }
-
-    [Fact]
-    public void AWrittenTile_KeepsItsOwnState_StepsIt_AndDropsBackToItsClass()
-    {
-        var tile = OpenTile(Terrain.Plain);
-        var world = Drifted(tile);
-        double drift = Ground.SnowDepthM(world, tile);
-        Assert.True(drift > 0.2, $"the drift reads {drift:F3} m");
-        Assert.Equal(60, world.Tiles[tile].Ground!.LastUpdatedMinute);
-
-        world.Minute = 6 * 60;
-        double melting = Ground.SnowDepthM(world, tile);
-        Assert.InRange(melting, 0.001, drift - 0.01);
-        Assert.Equal(6 * 60, world.Tiles[tile].Ground!.LastUpdatedMinute);
-        Assert.DoesNotContain(world.Tiles, t => t.Key != tile); // reading it wrote nothing anywhere else
-
-        world.Minute = 20 * 1440;
-        Ground.CatchUp(world, tile);
-        Assert.False(world.Tiles.ContainsKey(tile), "a thawed drift should leave the tile to its class");
-        Assert.Equal(0, Ground.SnowDepthM(world, tile));
-    }
-
-    [Fact]
-    public void WritesTooSmallToRead_AddUp()
-    {
-        var tile = OpenTile(Terrain.Plain);
-        var world = World17(Sky(WeatherCondition.Clear, -10, 0));
-        world.Minute = 60;
-        double bare = Ground.SnowDepthM(world, tile);
-        for (int i = 0; i < 10; i++) Ground.Write(world, tile, (g, sub) => Ground.AddSnow(g, sub, 0.0003)); // about 3 mm each
-        Assert.True(Ground.SnowDepthM(world, tile) - bare > 0.02, $"ten small writes read {Ground.SnowDepthM(world, tile) - bare:F4} m");
-    }
-
-    [Fact]
-    public void AWrittenTile_DropsBackAtTheSameMinute_HoweverOftenItIsLookedAt()
-    {
-        var tile = OpenTile(Terrain.Plain);
-        var often = Drifted(tile);
-        long dropped = -1;
-        for (long m = often.Minute; m <= 20 * 1440 && dropped < 0; m += 7)
-        {
-            often.Minute = m;
-            Ground.CatchUp(often, tile);
-            if (!often.Tiles.ContainsKey(tile)) dropped = m / Ground.StepMinutes * Ground.StepMinutes;
-        }
-        Assert.True(dropped > 0, "the drift never left");
-
-        var once = Drifted(tile);
-        once.Minute = dropped - 1;
-        Ground.Peek(once, tile); // looking without writing keeps it
-        var reloaded = Save.FromJson(Save.ToJson(once)); // and so does a save and load
-        Ground.CatchUp(once, tile);
-        Ground.CatchUp(reloaded, tile);
-        Assert.True(once.Tiles.ContainsKey(tile) && reloaded.Tiles.ContainsKey(tile), "kept until the minute it drops");
-        once.Minute = reloaded.Minute = dropped;
-        Ground.CatchUp(once, tile);
-        Ground.CatchUp(reloaded, tile);
-        Assert.False(once.Tiles.ContainsKey(tile) || reloaded.Tiles.ContainsKey(tile), $"dropped at {dropped} when looked at often");
     }
 
     [Fact]
@@ -578,23 +511,21 @@ public class GroundTests
     {
         var world = World17(); // seeded: the ground has lived the June pre-roll
         var camp = Seed17.Camp;
-        var ground = Ground.CatchUp(world, camp);
+        var ground = Ground.At(world, camp);
         Assert.Equal(0, ground.LastUpdatedMinute);
         Assert.True(ground.Layers[0].FrozenFractionPct < 0.5, $"camp ground {ground.Layers[0].FrozenFractionPct:P0} frozen on July 1");
         AssertConserved(ground, Ground.Substrate(Seed17, camp));
     }
 
     [Fact]
-    public void CatchUp_IsTheSameHoweverOftenTheTileIsLookedAt()
+    public void TheGround_IsTheSameHoweverOftenTheTileIsRead()
     {
         var tile = OpenTile(Terrain.Marsh);
         var often = World17();
         var once = World17();
-        for (long m = 1; m <= 10 * 1440; m++) { often.Minute = m; if (m % 7 == 0) Ground.CatchUp(often, tile); }
-        Ground.CatchUp(often, tile); // the last of them: 10 days is not a multiple of 7 minutes
-        once.Minute = often.Minute;
-        Ground.CatchUp(once, tile);
-        Assert.Equal(Save.ToJson(once), Save.ToJson(often));
+        for (long m = 1; m <= 10 * 1440; m++) { often.Minute = m; if (m % 7 == 0) Ground.At(often, tile); }
+        once.Minute = often.Minute; // 10 days is not a multiple of 7 minutes
+        Assert.Equal(Json(Ground.At(once, tile)), Json(Ground.At(often, tile)));
     }
 
     /// Lazy 15-minute sub-steps against minute-by-minute stepping (the old foreground tile), on
@@ -617,7 +548,7 @@ public class GroundTests
             Ground.Advance(reference, sub, 1, Exposure.Surface(world, tile, m));
             if (m % 1440 != 0 || m <= 0) continue;
             world.Minute = m;
-            var lazy = Ground.CatchUp(world, tile);
+            var lazy = Ground.At(world, tile);
             peakSnowM = Math.Max(peakSnowM, Ground.SnowDepthM(reference, sub));
             maxSnowM = Math.Max(maxSnowM, Math.Abs(Ground.SnowDepthM(lazy, sub) - Ground.SnowDepthM(reference, sub)));
             maxWaterM = Math.Max(maxWaterM, Math.Abs(Ground.StoredWaterM(lazy, sub) - Ground.StoredWaterM(reference, sub)));
@@ -683,7 +614,7 @@ public class GroundTests
         {
             var s = Ground.Baseline(Ground.Substrate(Seed17, t));
             Ground.AddWater(s, Ground.Substrate(Seed17, t), 0.08);
-            world.Tiles[t] = new TileState { Ground = s };
+            Ground.SetClassState(world, t, s); // every marsh of its class floods with it
         }
         world.Minute = 12 * 60;
         double bare = Map.TravelHazardLevel(Seed17, land, world.Minute);
@@ -705,7 +636,7 @@ public class GroundTests
         var sub = Ground.Substrate(Seed17, tile);
         var s = Ground.Baseline(sub, 0);
         Ground.AddWater(s, sub, waterM);
-        world.Tiles[tile] = new TileState { Ground = s };
+        Ground.SetClassState(world, tile, s);
         return world;
     }
 
@@ -729,36 +660,35 @@ public class GroundTests
     }
 
     [Fact]
-    public void GroundState_SurvivesSaveAndLoad_AndCarriesOnTheSame()
+    public void TheGround_CarriesOnTheSame_AcrossASaveAndLoad()
     {
-        // Observed directly: seed 17 opens in heavy snow, and an agent with no fire would not live the days.
+        // Read directly: seed 17 opens in heavy snow, and an agent with no fire would not live the days.
         var world = World.New(17);
         var tiles = Enumerable.Range(0, 5).Select(i => new TileId(Seed17.Camp.X + i, Seed17.Camp.Y)).ToList();
         world.Minute = 3 * 1440;
-        foreach (var t in tiles) Ground.Write(world, t, (g, sub) => Ground.AddSnow(g, sub, 0.05)); // a drift on each
-        Assert.Equal(tiles.Count, world.Tiles.Values.Count(t => t.Ground != null));
+        foreach (var t in tiles) Ground.At(world, t); // warms the classes, which the save leaves out
         var loaded = Save.FromJson(Save.ToJson(world));
         world.Minute = loaded.Minute = 4 * 1440 + 7;
-        foreach (var t in tiles) { Ground.CatchUp(world, t); Ground.CatchUp(loaded, t); }
+        Assert.Equal(tiles.Select(t => Json(Ground.At(world, t))), tiles.Select(t => Json(Ground.At(loaded, t))));
         Assert.Equal(Save.ToJson(world), Save.ToJson(loaded));
     }
 
-    /// A tile first looked at on day 30 simulates 30 days from its baseline. Must stay cheap, and
-    /// a few hundred observed tiles must keep the save small (plan decision 1).
+    /// A class first read on day 30 simulates 30 days from its baseline. Must stay cheap, and
+    /// reading a few hundred tiles must keep the save small (plan decision 1).
     [Fact]
-    public void FirstObservationOnDay30_IsCheap_AndThreeHundredTilesKeepTheSaveSmall()
+    public void FirstReadOnDay30_IsCheap_AndThreeHundredTilesKeepTheSaveSmall()
     {
         var world = World.New(17);
         world.Minute = 30 * 1440;
         var tiles = Enumerable.Range(0, 300).Select(i => new TileId(5 + i % 60, 30 + i / 60)).ToList();
-        Ground.CatchUp(world, new TileId(4, 30)); // JIT and the weather timeline
+        Ground.At(world, new TileId(4, 30)); // JIT and the weather timeline
         var watch = Stopwatch.StartNew();
-        Ground.CatchUp(world, tiles[0]);
+        Ground.At(world, tiles[0]);
         double oneMs = watch.Elapsed.TotalMilliseconds;
-        foreach (var t in tiles.Skip(1)) Ground.CatchUp(world, t);
+        foreach (var t in tiles.Skip(1)) Ground.At(world, t);
         double allMs = watch.Elapsed.TotalMilliseconds;
         int bytes = Save.ToJson(world).Length;
-        Console.WriteLine($"day-30 first observation: one tile {oneMs:F2} ms, 300 tiles {allMs:F0} ms, save {bytes / 1024} KB");
+        Console.WriteLine($"day-30 first read: one tile {oneMs:F2} ms, 300 tiles {allMs:F0} ms, save {bytes / 1024} KB");
         Assert.True(oneMs < 50, $"one tile took {oneMs:F2} ms");
         Assert.True(bytes < 1024 * 1024, $"save is {bytes} bytes");
     }
@@ -772,7 +702,7 @@ public class GroundTests
         Console.WriteLine($"wait: {result.MinutesElapsed} min ({result.InterruptedReason}) in {watch.ElapsedMilliseconds} ms, save {Save.ToJson(world).Length / 1024} KB");
         Assert.True(result.MinutesElapsed > 60, "the agent should live long enough to watch the ground");
         // The agent's own tile is read every minute it stands there, and reading stores nothing.
-        Assert.DoesNotContain(world.Tiles.Values, t => t.Ground != null);
+        Assert.DoesNotContain("\"Layers\"", Save.ToJson(world));
     }
 
     /// Output of the old-code harness (golden-ground/Program.cs), but for hd on the frozen ponds

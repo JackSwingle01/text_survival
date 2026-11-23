@@ -1,5 +1,5 @@
 {
-  "Version": 22,
+  "Version": 23,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -17,29 +17,6 @@
             "NorthSouthTraffic": 1,
             "EastWestTraffic": 0
           }
-        },
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.446495348259833,
-              "FrozenFractionPct": 0.03439394182648681
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.02954832858165671,
-              "CompactionPct": 0.04469459049309967,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.20488085335018244,
-          "WaterDrainedM": 0.11573727356676665,
-          "WaterEvaporatedM": 0.006170541153386771,
-          "WaterOverflowedM": 0.009101958291151393,
-          "LastUpdatedMinute": 165
         },
         "Pools": {
           "1": {
@@ -81,29 +58,6 @@
             "EastWestTraffic": 1.9542641832679442
           }
         },
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.5609629230242762,
-              "FrozenFractionPct": 0.1272478071445237
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.041463514991129324,
-              "CompactionPct": 0.04474511829143293,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.264783194690255,
-          "WaterDrainedM": 0.11796450034405591,
-          "WaterEvaporatedM": 0.007235458223766969,
-          "WaterOverflowedM": 0.04625183432822394,
-          "LastUpdatedMinute": 165
-        },
         "Stash": {
           "Kg": {
             "Pine": 2
@@ -137,29 +91,6 @@
             "NorthSouthTraffic": 0,
             "EastWestTraffic": 1.946852225982204
           }
-        },
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.446495348259833,
-              "FrozenFractionPct": 0.03439394182648681
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.02954832858165671,
-              "CompactionPct": 0.04469459049309967,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.20488085335018244,
-          "WaterDrainedM": 0.11573727356676665,
-          "WaterEvaporatedM": 0.006170541153386771,
-          "WaterOverflowedM": 0.009101958291151393,
-          "LastUpdatedMinute": 165
         }
       }
     },

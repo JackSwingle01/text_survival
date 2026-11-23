@@ -29,7 +29,7 @@ public class TravelTests
         {
             var ground = Ground.Baseline(Ground.Substrate(Seed17, t));
             ground.LastUpdatedMinute = world.Minute;
-            world.Tiles[t] = new TileState { Ground = ground };
+            Ground.SetClassState(world, t, ground);
         }
         return world;
     }

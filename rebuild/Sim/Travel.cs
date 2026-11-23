@@ -116,9 +116,8 @@ public static class Traversal
     public const double TravelSearchPct = 0.25;
 
     /// encumbrancePct is carried weight over capacity (Items.EncumbrancePct): past half, a load slows you.
-    public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky, double encumbrancePct = 0,
-        GroundRead ground = GroundRead.Observe) =>
-        Trip.Terms(world, body, from, to, pace, sky, encumbrancePct, ground).TotalMinutes;
+    public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky, double encumbrancePct = 0) =>
+        Trip.Terms(world, body, from, to, pace, sky, encumbrancePct).TotalMinutes;
 
     public static int SegmentMinutes(GeneratedMap m, TileId tile, double speed, WeatherSample sky)
     {
@@ -140,7 +139,6 @@ public static class Traversal
 
     public static double EffectiveHazardLevel(World world, TileId tile) => HazardLevel(Map.Of(world), tile, world.Minute, SurfaceHazardDelta(world, tile));
 
-    /// One rule whether the surface was observed (EffectiveHazardLevel) or only looked at (Trip.Risk).
     internal static double HazardLevel(GeneratedMap m, TileId tile, long minute, double surfaceDelta) => Math.Min(1.0, Map.TravelHazardLevel(m, tile, minute) + surfaceDelta);
 
     public static bool PaceMatters(double quickRiskPct) => quickRiskPct > FootingRules.PaceMattersAbovePct;
