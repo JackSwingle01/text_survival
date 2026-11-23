@@ -1,4 +1,5 @@
 using Survival;
+using Survival.Tests.Verification;
 using Xunit;
 
 public class ReportTests
@@ -167,7 +168,7 @@ public class ReportTests
     [Fact]
     public void Curve_has_one_point_per_chunk()
     {
-        var w = World.New(17);
+        var w = ConservationWorlds.Seeded(); // the chunking is the subject, not the animals
         var curve = Report.Curve(w, 4, 2);
         Assert.Equal(2, curve.Count);
         Assert.Equal([2, 4], curve.Select(p => p.Day));

@@ -1,4 +1,5 @@
 using Survival;
+using Survival.Tests.Verification;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -227,24 +228,45 @@ public class HerdTests(ITestOutputHelper output)
         Assert.Equal(one, Save.ToJson(RunPlayer(3, 300, 7, saveEverySteps: 5)));
     }
 
-    [Fact]
-    public void Gate_ThreePopulatedDays_AreIndependentOfChunkingAndSaves()
+    /// Planted worlds, each with the same baseline player, run straight and in 97-minute chunks with a
+    /// save and load after each: the planted hunt happens, and both runs end in the same world.
+    static void AssertIndependentOfChunkingAndSaves(Func<World> planted, int minutes)
     {
-        var a = Planted(5);
-        a.Agent(P).Members[0] = BodyState.BaselineHuman();
-        var events = Sim.Advance(a, 3 * 1440);
+        World Make()
+        {
+            var w = planted();
+            w.Agent(P).Members[0] = BodyState.BaselineHuman(); // the same player in both
+            return w;
+        }
+        var a = Make();
+        var events = Sim.Advance(a, minutes);
         Assert.Contains(events, e => e is EncounterEnded); // the planted hunt, at least
         string straight = Save.ToJson(a);
 
-        var b = Planted(5);
-        b.Agent(P).Members[0] = BodyState.BaselineHuman(); // as a's: the same player in both
-        while (b.Minute < 3 * 1440)
+        var b = Make();
+        while (b.Minute < minutes)
         {
-            Sim.Advance(b, (int)Math.Min(97, 3 * 1440 - b.Minute));
+            Sim.Advance(b, (int)Math.Min(97, minutes - b.Minute));
             b = Save.FromJson(Save.ToJson(b));
         }
         Assert.Equal(straight, Save.ToJson(b));
     }
+
+    /// The rule of Gate_ThreePopulatedDays_AreIndependentOfChunkingAndSaves, fast: a day of the planted
+    /// pack and prey in a world with nobody else in it.
+    [Fact]
+    public void Gate_APlantedHuntsDay_IsIndependentOfChunkingAndSaves() =>
+        AssertIndependentOfChunkingAndSaves(() =>
+        {
+            var w = ConservationWorlds.Seeded();
+            PackAndPrey(w);
+            return w;
+        }, 1440);
+
+    [Fact]
+    [Trait("Category", TestCategories.Slow)]
+    public void Gate_ThreePopulatedDays_AreIndependentOfChunkingAndSaves() =>
+        AssertIndependentOfChunkingAndSaves(() => Planted(5), 3 * 1440);
 
     [Fact]
     public void HerdsAreNotTickedForMinutesAHeadlessFightAlreadyLived()
