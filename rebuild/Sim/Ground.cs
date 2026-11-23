@@ -125,7 +125,7 @@ public static class Ground
     }
 
     /// A tile's ground is its GroundClass's (Unobserved) and reading stores nothing; a tile written to (Write)
-    /// keeps its own state, stepped here in place, until it reads as its class again.
+    /// keeps its own state, stepped here in place, and is let go here once it reads as its class again.
     public static GroundState CatchUp(World world, TileId tile)
     {
         long target = world.Minute / StepMinutes * StepMinutes;
@@ -161,16 +161,16 @@ public static class Ground
         write(state, sub);
     }
 
-    /// False once own and its class's (the shadow) read alike, checked at each sub-step: the drop minute depends only on the writes.
+    /// False once own and its class's (the shadow) read alike after a sub-step: the drop minute depends only on the
+    /// writes, and a write too small to read lasts to the next sub-step for the next write to add to.
     static bool StepOwn(World world, TileId tile, GroundState own, GroundState shadow, SubstrateProfile sub, long target)
     {
-        if (Close(own, shadow, sub)) return false;
-        var (column, beside) = (new Column(own, sub), new Column(shadow, sub));
+        var (column, classColumn) = (new Column(own, sub), new Column(shadow, sub));
         for (long start = own.LastUpdatedMinute; start < target; start += StepMinutes)
         {
             var weather = Exposure.Surface(world, tile, start + StepMinutes / 2 + 1);
             column.Step(StepMinutes, weather);
-            beside.Step(StepMinutes, weather);
+            classColumn.Step(StepMinutes, weather);
             own.LastUpdatedMinute = shadow.LastUpdatedMinute = start + StepMinutes;
             if (Close(own, shadow, sub)) return false;
         }
@@ -203,12 +203,12 @@ public static class Ground
             && Math.Abs(seenX.WaterDepthM - seenY.WaterDepthM) <= CloseDepthM
             && Math.Abs(seenX.MudLevel - seenY.MudLevel) <= CloseMudLevel
             && seenX.Crusted == seenY.Crusted && seenX.Iced == seenY.Iced
-            && Math.Abs(x.TraversalFactor - y.TraversalFactor) <= CloseFactor
-            && Math.Abs(x.HazardDelta - y.HazardDelta) <= CloseFactor
-            && Math.Abs(x.ContactWettingRate(SurfaceContact.RestingOnGround, 0) - y.ContactWettingRate(SurfaceContact.RestingOnGround, 0)) <= CloseFactor;
+            && Math.Abs(x.TraversalFactor - y.TraversalFactor) <= CloseReading
+            && Math.Abs(x.HazardDelta - y.HazardDelta) <= CloseReading
+            && Math.Abs(x.ContactWettingRate(SurfaceContact.RestingOnGround, currentWetnessPct: 0) - y.ContactWettingRate(SurfaceContact.RestingOnGround, currentWetnessPct: 0)) <= CloseReading;
     }
 
-    const double CloseDepthM = 0.005, CloseHeldM = 0.01, CloseMudLevel = 0.05, CloseFactor = 0.01;
+    const double CloseDepthM = 0.005, CloseHeldM = 0.01, CloseMudLevel = 0.05, CloseReading = 0.01;
 
     static double IceHeldM(GroundState s, SubstrateProfile sub) =>
         s.Layers.Sum(l => l.Material == SurfaceMaterial.Water ? l.ThicknessM * l.FrozenFractionPct : FrozenWaterM(l, sub));

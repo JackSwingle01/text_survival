@@ -536,6 +536,17 @@ public class GroundTests
     }
 
     [Fact]
+    public void WritesTooSmallToRead_AddUp()
+    {
+        var tile = OpenTile(Terrain.Plain);
+        var world = World17(Sky(WeatherCondition.Clear, -10, 0));
+        world.Minute = 60;
+        double bare = Ground.SnowDepthM(world, tile);
+        for (int i = 0; i < 10; i++) Ground.Write(world, tile, (g, sub) => Ground.AddSnow(g, sub, 0.0003)); // about 3 mm each
+        Assert.True(Ground.SnowDepthM(world, tile) - bare > 0.02, $"ten small writes read {Ground.SnowDepthM(world, tile) - bare:F4} m");
+    }
+
+    [Fact]
     public void AWrittenTile_DropsBackAtTheSameMinute_HoweverOftenItIsLookedAt()
     {
         var tile = OpenTile(Terrain.Plain);
