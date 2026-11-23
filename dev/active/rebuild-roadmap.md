@@ -515,7 +515,7 @@ Audit: `dev/active/rebuild-architecture-audit-2026-11-21.md`. Npc.cs is a priori
 - NPC behaviour is hand-built (the ladder), not learned. After the rewrite, the existing Tune tool tunes its few numbers (priority lines, forecast fudge factors, the abort budget) against the bench, with fresh random seeds each generation. A learned NPC policy is an experiment for after the combat learning experiment.
 - After the MVP: lakes and rivers freeze and thaw with the weather. Ice thickness grows and melts per water tile in the Sim, which sets whether a crossing is safe and what the map draws: thin ice on the creek with the lake still open at first snow, ice going out in the thaw. Until then, the date decides (`Map.IsFrozen`, `terrain.json` `waterIce`): lakes and rivers are thick ice from mid-October to mid-May and open water the rest of the year, when an unnamed lake tile is waded (a foot of water: slow and soaking).
 - Combat balance (from the fire-deterrence survey): standing your ground with a spear against a bear (98% death) does worse than bare-handed (40%). That's a bug, being diagnosed. The high death rates themselves (bear 98%, pack of three 92% against a person standing their ground, no fire) are for combat stage 4 (reach, damage scale, weapon table) and the tuner. Hyenas never enter a lone person's tile; check when tuning.
-- Comment cleanup to 10% per file is deferred to after the MVP. The ratchet test keeps enforcing ceilings meanwhile, so nothing gets worse.
+- Comment cleanup to 10% per file runs now, a batch a day, through the daily ratchet run (`dev/ratchets.md`, decided 2026-11-23). The ratchet test keeps enforcing ceilings, so nothing gets worse.
 
 ## MVP order (2026-11-21, re-ordered; nothing dropped)
 1. Bugs: 75% injury on quick snow crossings; spear worse than bare hands.
@@ -525,7 +525,7 @@ Audit: `dev/active/rebuild-architecture-audit-2026-11-21.md`. Npc.cs is a priori
 5. MVP 3: hunting retune (stalking and throwing viable now that prey outrun people).
 6. Blind browser playtest end to end, then fix blockers.
 
-After the MVP, in this order: NPC step 1 (Sim forecasts and structured refusals from the prototype), NPC step 2 (rewrite on the tier ladder, then tune its numbers), the audit refactors (conditions replacing Tags and Access, split Fauna and move species data, effects kernel, Carcass from a clock, unified catch-up), water bodies freezing, the comment ratchet, then roadmap items 6-14.
+After the MVP, in this order: NPC step 1 (Sim forecasts and structured refusals from the prototype), NPC step 2 (rewrite on the tier ladder, then tune its numbers), the audit refactors (conditions replacing Tags and Access, split Fauna and move species data, effects kernel, Carcass from a clock, unified catch-up), water bodies freezing, then roadmap items 6-14.
 - Crossing injury odds: (hazard^e)/2 for a quick crossing, rolled once per tile (hazard 1.0 → 50%). Careful carries a quarter of that, (hazard^e)/8. No cliff at 0.3. The pond-ice term scales with ice thickness. Check injury severity in the browser playtest before tuning further.
 - Lakes and rivers: open water and impassable from about May to October, ice and crossable otherwise, decided by the date through one Sim function, until real freezing lands after the MVP.
 - Combat moves are verbs: during a fight, the fight system offers its verbs (refusal, odds, cost in seconds) through the same interface as every other verb. The code merge of `CombatAction` into `Verb` comes after the MVP, with the audit refactors.

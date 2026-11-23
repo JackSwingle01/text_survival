@@ -1,0 +1,41 @@
+name: Ratchet
+
+# Burns down the ratchets in dev/ratchets.md, one batch at a time. Once a day, for each ratchet with
+# no open `ratchet` issue, .github/scripts/ratchets.py runs its remaining command and files the next
+# batch as an issue, or the retire step when nothing is left. The issue agent builds it like any
+# ticket (issue_queue.py trusts issues this workflow files: github-actions[bot] with the `ratchet`
+# label). Issues filed with GITHUB_TOKEN start no workflows, so the agent's hourly run picks them up.
+# A new ratchet needs only a section in dev/ratchets.md, not a change here.
+
+on:
+  schedule:
+    - cron: "7 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ratchet
+  cancel-in-progress: false
+
+jobs:
+  file:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      # Remaining commands may use the SDK (the formatting ratchet does).
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: File the next batch of each ratchet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh label create ratchet --color 5319E7 \
+            --description "A batch from dev/ratchets.md, filed by the daily ratchet run" 2>/dev/null || true
+          python3 .github/scripts/ratchets.py run

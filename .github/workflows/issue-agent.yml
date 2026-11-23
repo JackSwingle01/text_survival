@@ -22,7 +22,7 @@ name: Issue agent
 # overloaded) are retried by Claude Code itself.
 #
 # .github/scripts/issue_queue.py keeps out only what GitHub records as fact: issues from people
-# without write access, issues labelled `needs-user`, issues with an open PR or an `<issue#>-`
+# without write access (except the `ratchet` issues .github/workflows/ratchet.yml files), issues labelled `needs-user`, issues with an open PR or an `<issue#>-`
 # branch, and issues with an open native "blocked by" link. Everything that takes reading the
 # issue (a design ticket, a map, blocking written in the text, a vague spec) is the triage call's
 # judgement on Sonnet.
