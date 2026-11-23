@@ -37,9 +37,10 @@ name: Issue agent
 # files. A build longer than an hour outlives the Claude app token it started with (GitHub App
 # tokens last 60 minutes), so when no PR exists after a finished build, the "Open the PR" step
 # pushes and opens it from those files with the workflow's own GITHUB_TOKEN. That needs the repo
-# setting "Allow GitHub Actions to create and approve pull requests". GitHub starts no workflows
-# for a PR that token opens: close and reopen it to run CI, and add the `review` label for Claude
-# Review (the PR body says so). Interim, until the PR is opened by an app whose PRs start CI.
+# setting "Allow GitHub Actions to create and approve pull requests". Workflows on a PR that token
+# opens wait in an approval-required state: "Approve workflows to run" in the PR's merge box starts
+# CI and Claude Review (the PR body says so). Interim, until the PR is opened by an app whose PRs
+# start CI without approval.
 #
 # Issue and dispatch workflows run from the default branch, and the Claude app only issues tokens
 # to a workflow that matches the default branch, so a change here works once it is on main.
@@ -381,7 +382,7 @@ jobs:
             { echo "Closes #$ISSUE"; echo; git log --reverse --format='- %s' origin/main..HEAD; } > "$body"
           fi
           if ! grep -q "Closes #$ISSUE" "$body"; then printf '\nCloses #%s\n' "$ISSUE" >> "$body"; fi
-          printf '\n---\n_Opened by the workflow token after the build'"'"'s own expired, so CI and Claude Review did not start: close and reopen this PR to run CI, and add the `review` label for Claude Review._\n' >> "$body"
+          printf '\n---\n_Opened by the workflow token after the build'"'"'s own expired, so CI and Claude Review wait for approval: select **Approve workflows to run** in the merge box._\n' >> "$body"
           # The build's git credentials were its expired app token: push with this job's token instead.
           git -c "http.https://github.com/.extraheader=" -c credential.helper= \
             push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "HEAD:refs/heads/$BRANCH"
