@@ -23,6 +23,8 @@ For the clean-room rebuild (`rebuild/`):
   `dotnet test rebuild/Sim.Tests`. PR CI runs only the fast suite. The Slow tests and the random property
   search run nightly (`.github/workflows/nightly.yml`; `gh workflow run nightly.yml --ref <branch>` runs
   them on a branch), and Stryker at most daily (`.github/workflows/mutation.yml`).
+- Ratchets (a check with an exception list that only shrinks) are burned down by one daily run that
+  files a batch at a time for the issue agent. When you add one, add its section to `dev/ratchets.md`.
 - `NpcBenchReport` reports and never gates; it runs only with `NPC_BENCH=1`.
 - Agents choosing which checks to run or add use the `mp:verification` skill.
 - Tag any new test that takes 5 s or more with `[Trait("Category", TestCategories.Slow)]`.

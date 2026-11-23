@@ -37,6 +37,7 @@ jobs:
 
   # Ratchet: whitespace formatting is enforced only on the C# files a PR touches, so older
   # unformatted files get fixed when they are next edited instead of in one repo-wide reformat.
+  # The daily ratchet run (dev/ratchets.md) formats the rest a batch at a time.
   # Fix locally with: dotnet format whitespace --folder --include <files>
   format:
     if: github.event_name == 'pull_request'
