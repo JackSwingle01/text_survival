@@ -483,6 +483,25 @@ public class ForecastTests
         Assert.Equal(kcal - burn - snow.PerMinute * snow.KcalPerUnit, KcalHeld(wolf.Body), 3);
     }
 
+    /// Three hungry caribou on the only half-grazed lichen tile: each takes what Fauna.GrazeHere says, a third of a lone one's
+    /// share of what is left (spec "Cohesion and crowding"), less its minute's burn.
+    [Fact]
+    public void Grazing_WithCrowding_AgreesWithWhatTheAnimalEats()
+    {
+        var w = FoodTests.Pasture();
+        var tile = new TileId(20, 1);
+        foreach (var t in w.PoolCache!.Keys.Where(t => t != tile).ToList()) w.PoolCache[t] = []; // nowhere better to go
+        Pools.SetGrazed(w, new PoolId(tile, 0), Resource.Usnea, 0.5);
+        var herd = Enumerable.Range(0, 3).Select(_ => PlannerTests.Animal(w, Species.Caribou, tile)).ToList();
+        foreach (var a in herd) a.Body.CaloriesKcal = 0;
+        var caribou = herd[0];
+        var graze = Assert.IsType<Source>(Fauna.GrazeHere(w, caribou));
+        Assert.Equal(SpeciesTable.Of(Species.Caribou).GrazeKcalPerMinute * 0.5 / 3, graze.PerMinute, 9);
+        double before = KcalHeld(caribou.Body), burn = Fauna.BurnKcalPerMinute(caribou.Body);
+        Sim.Advance(w, 1);
+        Assert.Equal(before - burn + graze.PerMinute, KcalHeld(caribou.Body), 3);
+    }
+
     /// A tired wolf's minute asleep buys what Fauna.RestPerMinute says: at its den in full, elsewhere a lighter sleep.
     [Theory]
     [InlineData(true)]

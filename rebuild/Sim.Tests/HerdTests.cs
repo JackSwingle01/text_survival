@@ -306,8 +306,9 @@ public class HerdTests(ITestOutputHelper output)
     {
         var w = World.New(1);
         var tile = Quiet(w, Terrain.Forest);
-        var bison = Animals.Spawn(w, Species.Bison, tile, 6);
-        var deer = Animals.Spawn(w, Species.Caribou, tile, 6);
+        // One of each: crowded, a herd spreads to the tiles around (FoodTests).
+        var bison = Animals.Spawn(w, Species.Bison, tile, 1);
+        var deer = Animals.Spawn(w, Species.Caribou, tile, 1);
         foreach (var a in bison.In(w).Concat(deer.In(w))) { TestKit.SetHunger(a, 1.0); Fauna.MindOf(a).State = HerdState.Grazing; }
         Sim.Advance(w, 30);
         var pool = new PoolId(tile, 0);
@@ -666,9 +667,10 @@ public class HerdTests(ITestOutputHelper output)
 
     // ---- wounds mend; the lame stay behind ----
 
+    /// In forest, where a caribou's lichen grows: a lame animal with nothing to eat where it lies is never fed enough to mend.
     static Animals HerdWithALameMember(World w, int members)
     {
-        var tile = Quiet(w);
+        var tile = Quiet(w, Terrain.Forest);
         var land = MapGen.Neighbors(tile).Prepend(tile).SelectMany(t => MapGen.Neighbors(t).Prepend(t)).Distinct()
             .Where(t => Map.Of(w).TerrainAt(t).IsPassable()).ToList();
         land.Remove(tile);

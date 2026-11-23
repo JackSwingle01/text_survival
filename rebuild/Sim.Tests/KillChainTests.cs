@@ -440,16 +440,32 @@ public class KillChainTests
         Assert.True(w.Agents.Values.Count(a => a.Species == Species.Caribou && Fauna.MindOf(a).Territory.SequenceEqual(land)) <= full);
     }
 
+    /// Hunger kills from the body, one animal at a time, the leanest first (spec "Bodies"): renewal no longer starves a
+    /// pack for days unfed. Old: a pack fourteen days unfed lost a wolf a day to a renewal roll, fat or not.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
-    public void A_PackLongUnfed_Starves()
+    public void A_PackLongUnfed_StarvesFromItsBodies_TheLeanestFirst()
     {
         var w = Bare();
         var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Wolf)).Territory;
         var wolves = Animals.Spawn(w, Species.Wolf, land[0], 4, [.. land]);
-        foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).LastFedMinute = w.Minute - Days(30);
-        Sim.Advance(w, 20 * 1440);
-        Assert.True(wolves.Living(w) < 4, "a pack thirty days unfed lost no one");
-        Assert.Contains(w.Tiles.Values.SelectMany(t => t.Carcasses ?? []), c => c.Animal == "Wolf" && c.Cause?.What == "starvation");
+        var pack = wolves.In(w).OrderBy(a => a.Id).ToList();
+        for (int i = 0; i < pack.Count; i++)
+        {
+            var b = pack[i].Body;
+            Fauna.MindOf(pack[i]).LastFedMinute = w.Minute - Days(30);
+            if (i == pack.Count - 1) continue; // fed, though long unfed by the clock
+            b.CaloriesKcal = 0;
+            b.MuscleKg = 0.15 * b.WeightKg + 0.05 + 0.5 * i; // the first the leanest
+            b.FatKg = 0.03 * b.WeightKg;
+        }
+        var deaths = new List<Killed>();
+        for (int day = 0; day < 10; day++) deaths.AddRange(Sim.Advance(w, 1440).OfType<Killed>());
+        Assert.NotEmpty(deaths);
+        Assert.Equal(pack[0].Id, deaths[0].Agent);
+        Assert.Equal(deaths.Count, deaths.Select(k => k.Minute).Distinct().Count());
+        Assert.DoesNotContain(deaths, k => k.Agent == pack[^1].Id);
+        Assert.All(w.Tiles.Values.SelectMany(t => t.Carcasses ?? []).Where(c => c.Animal == "Wolf"), c => Assert.Equal("starvation", c.Cause?.What));
     }
 
     /// Arrivals come where the valley is empty, never megafauna, outside camp's safe zone and out of
@@ -564,11 +580,7 @@ public class KillChainTests
         Assert.Equal(0, Fauna.CapacityOf(w, w.Agent(wolves))); // no prey left in the valley
         double flockRoom = Fauna.CapacityOf(w, w.Agent(flock));
         Assert.True(flockRoom < 6, $"the flock's land carries {flockRoom:0.0}");
-        for (int d = 0; d < 60; d++)
-        {
-            foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).LastFedMinute = w.Minute; // fed (scavenging), never past StarveDays
-            Sim.Advance(w, 1440);
-        }
+        Sim.Advance(w, 60 * 1440);
         Assert.True(wolves.Living(w) < 8, "a pack on land with no prey lost no one");
         Assert.True(hyenas.Living(w) < 6, "hyenas on land with no prey lost no one");
         Assert.True(flock.Living(w) < 6, "a flock over what its land carries lost no one");
