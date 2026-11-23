@@ -16,6 +16,12 @@ public class TracksTests
     static TrackSign? Sign(World w, TileId t, TrackMaker maker = TrackMaker.Human) =>
         Tracks.Read(w, t).Where(s => s.Maker == maker).Cast<TrackSign?>().FirstOrDefault();
 
+    /// A group crossing together: each walker is its own crossing (Tracks.RecordMove), in the same minute.
+    static void Cross(World w, TileId from, TileId to, TrackMaker maker, int walkers, double individualDepth = 1.0)
+    {
+        for (int i = 0; i < walkers; i++) Tracks.RecordMove(w, from, to, maker, individualDepth);
+    }
+
     static double FreshnessOf(World w, TileId t, TrackMaker maker = TrackMaker.Human) => Sign(w, t, maker)?.FreshnessPct ?? 0;
     static int TrafficOf(World w, TileId t, TrackMaker maker = TrackMaker.Human) => Sign(w, t, maker)?.Traffic ?? 0;
 
@@ -129,7 +135,7 @@ public class TracksTests
     public void Traffic_CountsAWholeHerdFromOnePassage()
     {
         var w = Ground();
-        Tracks.RecordMove(w, A, B, TrackMaker.Hoof, individuals: 12, individualDepth: 1.3);
+        Cross(w, A, B, TrackMaker.Hoof, 12, 1.3);
         Assert.Equal(12, TrafficOf(w, A, TrackMaker.Hoof));
     }
 
@@ -172,7 +178,7 @@ public class TracksTests
     public void Traffic_FadesAsTheSignAges()
     {
         var w = Ground();
-        Tracks.RecordMove(w, A, B, TrackMaker.Hoof, individuals: 12, individualDepth: 1.3);
+        Cross(w, A, B, TrackMaker.Hoof, 12, 1.3);
         w.Minute = 3000;
         Assert.InRange(TrafficOf(w, A, TrackMaker.Hoof), 1, 11);
     }
@@ -182,8 +188,8 @@ public class TracksTests
     {
         var w = Ground();
         TileId lone = new(6, 6), herd = new(8, 6);
-        Tracks.RecordMove(w, lone, new(6, 7), TrackMaker.Hoof, individuals: 1, individualDepth: 1.3);
-        Tracks.RecordMove(w, herd, new(8, 7), TrackMaker.Hoof, individuals: 12, individualDepth: 1.3);
+        Cross(w, lone, new(6, 7), TrackMaker.Hoof, 1, 1.3);
+        Cross(w, herd, new(8, 7), TrackMaker.Hoof, 12, 1.3);
         w.Minute = 3000;
         Assert.True(FreshnessOf(w, herd, TrackMaker.Hoof) > FreshnessOf(w, lone, TrackMaker.Hoof));
     }
@@ -191,18 +197,18 @@ public class TracksTests
     // ---- the seam (old GroundMemoryIntegrationTests) ----
 
     [Fact]
-    public void RecordMove_FeedsBothTracksAndTrailWear()
+    public void RecordMove_FeedsBothTracksAndTheEdge()
     {
         var w = Ground();
         Tracks.RecordMove(w, A, B, TrackMaker.Human);
         Assert.Single(Tracks.Read(w, A));
         Assert.Single(Tracks.Read(w, B));
-        Assert.Equal(1.0, Tracks.WearAt(w, A, B));
+        Assert.Equal(Tracks.StampPct, Tracks.TroddenAt(w, A, B), 12);
         Assert.Equal(TrailTier.None, Tracks.TierOf(w, A, B)); // one crossing is not a path
     }
 
     [Fact]
-    public void Wear_IsSharedByBothDirectionsOfTravel()
+    public void Trodden_IsSharedByBothDirectionsOfTravel()
     {
         var w = Ground();
         for (int i = 0; i < 3; i++)
@@ -216,7 +222,7 @@ public class TracksTests
     }
 
     [Fact]
-    public void NonAdjacentHop_MarksBothEnds_WearsNoEdge()
+    public void NonAdjacentHop_MarksBothEnds_PacksNoEdge()
     {
         var w = Ground();
         TileId far = new(7, 3);
@@ -224,7 +230,6 @@ public class TracksTests
         Assert.Single(Tracks.Read(w, A));
         Assert.Single(Tracks.Read(w, far));
         Assert.Empty(w.Trails);
-        Assert.Equal(0, Tracks.TrailMinutes(w, A, B));
     }
 
     [Fact]
@@ -232,61 +237,53 @@ public class TracksTests
     {
         var byHerd = Ground();
         var byLoner = Ground();
-        double caribou = Math.Clamp(Math.Sqrt(120 / 70.0), 0.4, 3.0); // old AnimalType.Caribou.IndividualTrackDepth
-        Tracks.RecordMove(byHerd, A, B, TrackMaker.Hoof, individuals: 12, individualDepth: caribou);
-        Tracks.RecordMove(byLoner, A, B, TrackMaker.Hoof, individuals: 1, individualDepth: caribou);
+        double caribou = Tracks.IndividualDepth(Species.Caribou);
+        Cross(byHerd, A, B, TrackMaker.Hoof, 12, caribou);
+        Cross(byLoner, A, B, TrackMaker.Hoof, 1, caribou);
         Assert.Equal(TrailTier.Path, Tracks.TierOf(byHerd, A, B));
         Assert.Equal(TrailTier.None, Tracks.TierOf(byLoner, A, B));
     }
 
     [Fact]
-    public void Wear_IsLinearInHeadCount()
-    {
-        var together = Ground();
-        var separately = Ground();
-        Tracks.RecordMove(together, A, B, TrackMaker.Paw, individuals: 5, individualDepth: 0.8);
-        for (int i = 0; i < 5; i++) Tracks.RecordMove(separately, A, B, TrackMaker.Paw, individuals: 1, individualDepth: 0.8);
-        Assert.Equal(Tracks.WearAt(together, A, B), Tracks.WearAt(separately, A, B), 12);
-    }
-
-    [Fact]
-    public void TrailMinutes_RewardOnlyRealPaths()
+    public void Trodden_Saturates_TheFirstCrossingsCountMost()
     {
         var w = Ground();
-        Assert.Equal(0, Tracks.TrailMinutes(w, A, B));
-        for (int i = 0; i < 6; i++) Tracks.RecordMove(w, A, B, TrackMaker.Human); // a trace
-        Assert.Equal(0, Tracks.TrailMinutes(w, A, B));
-        for (int i = 0; i < 8; i++) Tracks.RecordMove(w, A, B, TrackMaker.Human); // a path
-        Assert.Equal(-1, Tracks.TrailMinutes(w, A, B));
-        for (int i = 0; i < 21; i++) Tracks.RecordMove(w, A, B, TrackMaker.Human); // a trail
-        Assert.Equal(-2, Tracks.TrailMinutes(w, A, B));
+        Tracks.RecordMove(w, A, B, TrackMaker.Human);
+        double first = Tracks.TroddenAt(w, A, B);
+        Cross(w, A, B, TrackMaker.Human, 18);
+        double before = Tracks.TroddenAt(w, A, B);
+        Tracks.RecordMove(w, A, B, TrackMaker.Human);
+        Assert.True(Tracks.TroddenAt(w, A, B) - before < first / 2, "the twentieth packs under half what the first did");
+        Cross(w, A, B, TrackMaker.Hoof, 500, 3.0);
+        Assert.InRange(Tracks.TroddenAt(w, A, B), 0.999, 1.0);
     }
 
     [Fact]
-    public void Footprints_AgeFasterThanTrails()
-    {
-        var w = Ground(SteadySnow);
-        for (int i = 0; i < 20; i++) Tracks.RecordMove(w, A, B, TrackMaker.Human);
-        Assert.Equal(TrailTier.Path, Tracks.TierOf(w, A, B));
-        w.Minute = 3 * 1440; // three days of steady snow
-        Assert.Empty(Tracks.Read(w, A));
-        Assert.Equal(TrailTier.Path, Tracks.TierOf(w, A, B));
-    }
-
-    // ---- desire paths (old TrailWearTests) ----
-
-    [Fact]
-    public void TierFor_DerivesFromWearAlone()
+    public void TierFor_DerivesFromTheTroddenAmountAlone()
     {
         Assert.Equal(TrailTier.None, Tracks.TierFor(0));
-        Assert.Equal(TrailTier.None, Tracks.TierFor(Tracks.TraceAt - 1));
+        Assert.Equal(TrailTier.None, Tracks.TierFor(Tracks.TraceAt - 0.01));
         Assert.Equal(TrailTier.Trace, Tracks.TierFor(Tracks.TraceAt));
         Assert.Equal(TrailTier.Path, Tracks.TierFor(Tracks.PathAt));
         Assert.Equal(TrailTier.Trail, Tracks.TierFor(Tracks.TrailAt));
     }
 
+    [Theory] // adult human crossings in a row: about the old wear's 5, 14 and 35
+    [InlineData(4, TrailTier.None)]
+    [InlineData(5, TrailTier.Trace)]
+    [InlineData(13, TrailTier.Trace)]
+    [InlineData(14, TrailTier.Path)]
+    [InlineData(31, TrailTier.Path)]
+    [InlineData(32, TrailTier.Trail)]
+    public void Tiers_ReadAsCrossings(int crossings, TrailTier tier)
+    {
+        var w = Ground();
+        Cross(w, A, B, TrackMaker.Human, crossings);
+        Assert.Equal(tier, Tracks.TierOf(w, A, B));
+    }
+
     [Fact]
-    public void HeavierMovers_WearGroundFaster()
+    public void HeavierMovers_PackGroundFaster()
     {
         var light = Ground();
         var heavy = Ground();
@@ -295,49 +292,42 @@ public class TracksTests
             Tracks.RecordMove(light, A, B, TrackMaker.Paw, individualDepth: 0.76); // a wolf
             Tracks.RecordMove(heavy, A, B, TrackMaker.Hoof, individualDepth: 3.0); // a mammoth
         }
-        Assert.Equal(TrailTier.Path, Tracks.TierOf(heavy, A, B));  // 15
-        Assert.Equal(TrailTier.None, Tracks.TierOf(light, A, B));  // 3.8
+        Assert.Equal(TrailTier.Path, Tracks.TierOf(heavy, A, B));  // 0.56
+        Assert.Equal(TrailTier.None, Tracks.TierOf(light, A, B));  // 0.18
     }
 
     [Fact]
-    public void Wear_IsCapped()
+    public void Settling_ReclaimsAbandonedRoutes()
     {
         var w = Ground();
-        for (int i = 0; i < 500; i++) Tracks.RecordMove(w, A, B, TrackMaker.Hoof, individualDepth: 3.0);
-        Assert.Equal(Tracks.MaxWear, Tracks.WearAt(w, A, B));
-    }
-
-    [Fact]
-    public void Decay_ReclaimsAbandonedRoutes()
-    {
-        var w = Ground();
-        for (int i = 0; i < 14; i++) Tracks.RecordMove(w, A, B, TrackMaker.Human);
+        Cross(w, A, B, TrackMaker.Human, 14);
         Assert.Equal(TrailTier.Path, Tracks.TierOf(w, A, B));
-        w.Minute = 35 * 1440; // five weeks of still cold, walked by nobody
-        Assert.Equal(0, Tracks.WearAt(w, A, B));
+        w.Minute = 18 * 1440; // 0.51 settles 0.51 in under 18 days of still cold, walked by nobody
+        Assert.Equal(0, Tracks.TroddenAt(w, A, B));
         Tracks.RecordMove(w, new(50, 50), new(50, 51), TrackMaker.Human);
         Assert.False(w.Trails.ContainsKey(new EdgeId(A, B)), "a reclaimed route is pruned from the save");
     }
 
     [Fact]
-    public void Decay_BadWeatherBuriesAPathWithoutUndoingIt()
+    public void Snowfall_BuriesAnEdgeWithoutLoweringItsAmount()
     {
         var calm = Ground(CalmCold);
         var storm = Ground(Blizzard);
-        for (int i = 0; i < 20; i++) { Tracks.RecordMove(calm, A, B, TrackMaker.Human); Tracks.RecordMove(storm, A, B, TrackMaker.Human); }
+        Cross(calm, A, B, TrackMaker.Human, 25);
+        Cross(storm, A, B, TrackMaker.Human, 25);
         calm.Minute = storm.Minute = 5 * 1440;
-        Assert.True(Tracks.WearAt(storm, A, B) < Tracks.WearAt(calm, A, B));
-        Assert.Equal(TrailTier.Path, Tracks.TierOf(calm, A, B));
-        Assert.Equal(TrailTier.Trace, Tracks.TierOf(storm, A, B)); // loses its bonus, not its existence
+        Assert.Equal(Tracks.TroddenAt(calm, A, B), Tracks.TroddenAt(storm, A, B));
+        Assert.Equal(TrailTier.Path, Tracks.TierOf(storm, A, B));
     }
 
     [Fact]
-    public void Decay_TrailsOutliveFootprintsByAWideMargin()
+    public void Trails_OutliveFootprintsByAWideMargin()
     {
         var w = Ground();
-        for (int i = 0; i < 60; i++) Tracks.RecordMove(w, A, B, TrackMaker.Human);
+        Cross(w, A, B, TrackMaker.Human, 60);
         w.Minute = (long)(Tracks.BaseLifespanUnits * 3.0 / 0.5); // outlasts the deepest print the game can leave
-        Assert.Equal(TrailTier.Trail, Tracks.TierOf(w, A, B));
+        Assert.Empty(Tracks.Read(w, A));
+        Assert.NotEqual(TrailTier.None, Tracks.TierOf(w, A, B));
     }
 
     // ---- erosion is derived, not accumulated ----
@@ -382,7 +372,7 @@ public class TracksTests
     }
 
     [Fact]
-    public void Walking_LeavesPrintsOnBothTiles_AndWearsTheEdge()
+    public void Walking_LeavesPrintsOnBothTiles_AndPacksTheEdge()
     {
         var w = Walker();
         var r = Sim.Step(w, new Travel(AgentId.Player, Direction.South, Pace.Quick), 60);
@@ -392,28 +382,7 @@ public class TracksTests
         Assert.Equal(TrackMaker.Human, sign.Maker);
         Assert.Equal(Direction.South, sign.Heading);
         Assert.Single(Tracks.Read(w, forest));
-        Assert.Equal(1.0, Tracks.WearAt(w, forest, rock));
-    }
-
-    [Fact]
-    public void WalkingARouteOften_MakesItFaster()
-    {
-        var w = Walker();
-        TileId forest = new(2, 33), rock = new(2, 34);
-        var body = w.Agent(AgentId.Player).Body;
-        int fresh = Traversal.CrossingMinutes(w, body, forest, rock, Pace.Quick, CalmCold);
-        Assert.Equal(6, fresh); // the 68 kg man; the old 75 kg traveller took 7
-        for (int i = 0; i < 40; i++)
-        {
-            var dir = w.Agent(AgentId.Player).Tile == forest ? Direction.South : Direction.North;
-            Assert.Equal("arrived", Sim.Step(w, new Travel(AgentId.Player, dir, Pace.Careful), 60).InterruptedReason);
-        }
-        Assert.Equal(TrailTier.Trail, Tracks.TierOf(w, forest, rock));
-        Assert.Equal(-2, Traversal.EdgeMinutes(w, rock, forest));
-        // Today's ground (Ground) may slow both; the beaten route is still two minutes quicker than bare.
-        int beaten = Traversal.CrossingMinutes(w, body, forest, rock, Pace.Quick, CalmCold);
-        w.Trails.Remove(new EdgeId(forest, rock));
-        Assert.Equal(Traversal.CrossingMinutes(w, body, forest, rock, Pace.Quick, CalmCold) - 2, beaten);
+        Assert.Equal(Tracks.StampPct, Tracks.TroddenAt(w, forest, rock), 12);
     }
 
     [Fact]
@@ -444,21 +413,21 @@ public class TracksTests
         herd.Crossing = new Crossing { From = herd.Tile, Dir = Direction.South, Pace = Pace.Quick, TotalMinutes = 1 };
         Traversal.Advance(w, herd, []);
         Assert.Equal(3, Sign(w, new(2, 34))!.Value.Traffic);
-        Assert.Equal(3.0, Tracks.WearAt(w, new(2, 33), new(2, 34)));
+        Assert.Equal(1 - Math.Pow(1 - Tracks.StampPct, 3), Tracks.TroddenAt(w, new(2, 33), new(2, 34)), 12);
     }
 
     [Fact]
-    public void SaveMidRun_RoundTripsTracksAndWear_AndSavesNoErosion()
+    public void SaveMidRun_RoundTripsTracksAndTrodden_AndSavesNoErosion()
     {
         var w = new World { Seed = 17 };
-        for (int i = 0; i < 30; i++) { w.Minute = i * 97; Tracks.RecordMove(w, A, B, TrackMaker.Human); Tracks.RecordMove(w, B, new(4, 4), TrackMaker.Paw, 5, 0.76); }
+        for (int i = 0; i < 30; i++) { w.Minute = i * 97; Tracks.RecordMove(w, A, B, TrackMaker.Human); Cross(w, B, new(4, 4), TrackMaker.Paw, 5, 0.76); }
         w.Minute += 500;
         string json = Save.ToJson(w);
         Assert.DoesNotContain("rosion", json);
         var loaded = Save.FromJson(json);
         Assert.Equal(json, Save.ToJson(loaded));
         Assert.Equal(Tracks.Read(w, B), Tracks.Read(loaded, B));
-        Assert.Equal(Tracks.WearAt(w, A, B), Tracks.WearAt(loaded, A, B));
+        Assert.Equal(Tracks.TroddenAt(w, A, B), Tracks.TroddenAt(loaded, A, B));
         Assert.Equal(Tracks.TierOf(w, B, new(4, 4)), Tracks.TierOf(loaded, B, new(4, 4)));
     }
 }
@@ -530,7 +499,7 @@ public class TracksGoldenTests
         foreach (var (minute, dx, dy, count) in moves)
         {
             w.Minute = minute;
-            Tracks.RecordMove(w, at, new(at.X + dx, at.Y + dy), TrackMaker.Human, count);
+            for (int i = 0; i < count; i++) Tracks.RecordMove(w, at, new(at.X + dx, at.Y + dy), TrackMaker.Human);
         }
         w.Minute = readAt;
         var s = Assert.Single(Tracks.Read(w, at));
@@ -539,63 +508,5 @@ public class TracksGoldenTests
         Assert.Equal(heading, s.Heading);
         Assert.Equal(freshness, s.FreshnessPct, Digits);
         Assert.Equal(depth, s.Depth, Digits);
-    }
-
-    // Trail wear under seed-17 weather for 60 days: who crosses how often, and the minute each
-    // tier is first reached (-1 never). The overview's herd timelines (caribou Path in ~8 days,
-    // a lone bear never) come from how often real herds cross an edge, which arrives with phase 3.
-    [Theory]
-    [InlineData("human daily", 1, 1.0, 1440, -1, -1, -1, 1.0)]
-    // Re-captured after the weather pre-roll and phase fix moved seed 17's sky (p2fix/golden-tracks).
-    [InlineData("human twice a day", 1, 1.0, 720, 5760, 16560, 42480, 50)]
-    [InlineData("12 caribou every 4 days", 12, 1.3093073414159542, 5760, 9120, 5760, 17280, 50)]
-    [InlineData("wolf pack of 5 every 2 days", 5, 0.7559289460184544, 2880, 5760, 17280, 46080, 50)]
-    [InlineData("wolf pack of 5 every 3 days", 5, 0.7559289460184544, 4320, 8640, 43200, -1, 27.729504770880077)]
-    [InlineData("lone bear daily", 1, 1.889822365046136, 1440, 5760, 18720, 46080, 50)]
-    public void TrailTimelines_MatchOld(string who, double n, double depth, int every, int trace, int path, int trail, double day60)
-    {
-        _ = who;
-        var w = Ground(null);
-        TileId a = new(4, 4), b = new(5, 4);
-        var first = new Dictionary<TrailTier, int>();
-        for (int t = 1; t <= 60 * 1440; t++)
-        {
-            w.Minute = t;
-            if (t % every == 0) Tracks.RecordMove(w, a, b, TrackMaker.Hoof, n, depth);
-            if (t % every != 0 && t % 24 != 0) continue; // tiers only change on a crossing or by decay; sample decay often enough to catch it
-            first.TryAdd(Tracks.TierOf(w, a, b), t);
-        }
-        Assert.Equal(trace, first.GetValueOrDefault(TrailTier.Trace, -1));
-        Assert.Equal(path, first.GetValueOrDefault(TrailTier.Path, -1));
-        Assert.Equal(trail, first.GetValueOrDefault(TrailTier.Trail, -1));
-        Assert.Equal(day60, Tracks.WearAt(w, a, b), Digits);
-    }
-
-    [Fact]
-    public void AbandonedPath_IsGoneInAboutAMonth_AsOld()
-    {
-        var w = Ground(CalmCold);
-        TileId a = new(4, 4), b = new(5, 4);
-        for (int i = 0; i < 14; i++) Tracks.RecordMove(w, a, b, TrackMaker.Human);
-        w.Minute = 38809;
-        Assert.True(Tracks.WearAt(w, a, b) > 0);
-        w.Minute = 38810; // day 26.95
-        Assert.Equal(0, Tracks.WearAt(w, a, b));
-    }
-
-    [Theory]
-    [InlineData("blizzard", 5996, 12.794888000003084, TrailTier.Trace)]
-    [InlineData("calm", -1, 17.495479999994927, TrailTier.Path)]
-    public void FiveDays_OnATwentyCrossingRoute_AsOld(string sky, int losesBonusAt, double endWear, TrailTier endTier)
-    {
-        var w = Ground(Sky(sky));
-        TileId a = new(4, 4), b = new(5, 4);
-        for (int i = 0; i < 20; i++) Tracks.RecordMove(w, a, b, TrackMaker.Human);
-        int lost = -1;
-        for (int t = 1; t <= 5 * 1440 && lost < 0; t++) { w.Minute = t; if (Tracks.TrailMinutes(w, a, b) == 0) lost = t; }
-        Assert.Equal(losesBonusAt, lost);
-        w.Minute = 5 * 1440;
-        Assert.Equal(endWear, Tracks.WearAt(w, a, b), Digits);
-        Assert.Equal(endTier, Tracks.TierOf(w, a, b));
     }
 }

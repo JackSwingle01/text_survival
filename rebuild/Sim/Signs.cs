@@ -50,8 +50,8 @@ public static class Signs
     {
         if (t.TrailDirection is Direction dir)
         {
-            var wear = world.Trails[new EdgeId(t.Tile, Map.Step(t.Tile, dir))];
-            return new Sign(t, SignKind.Trail, wear.Minute, null);
+            var trodden = world.Trails[new EdgeId(t.Tile, Map.Step(t.Tile, dir))];
+            return new Sign(t, SignKind.Trail, trodden.Minute, null);
         }
         var prints = Tracks.Read(world, t.Tile).First(s => (int)s.Maker == t.Index);
         return new Sign(t, SignKind.Prints, world.Minute - prints.AgeMinutes, null);

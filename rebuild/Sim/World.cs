@@ -21,7 +21,9 @@ public sealed class World
     public long Minute { get; set; }
     internal WeatherTimeline? WeatherCache;
     /// Owned by Tracks.
-    internal ErosionTimeline? ErosionCache;
+    internal SkyTimeline? ErosionCache;
+    /// Owned by Tracks.
+    internal SkyTimeline? SnowfallCache;
     internal GeneratedMap? GeneratedMap;
     // Sorted: a Dictionary's order after Remove-then-Add differs from freshly loaded, so a loaded save would diverge.
     public SortedDictionary<TileId, TileState> Tiles { get; init; } = []; // only tiles that differ from generation
@@ -33,8 +35,8 @@ public sealed class World
     public int NextAgentId { get; set; } = 1;
     /// Owned by Combat; a fight stays here from Combat.Create until its aftermath.
     public List<Encounter> Encounters { get; init; } = [];
-    /// Desire-path wear, only on edges something has walked. Owned by Tracks.
-    public SortedDictionary<EdgeId, TrailWear> Trails { get; init; } = [];
+    /// Each edge's trodden amount, only on edges something has walked. Owned by Tracks.
+    public SortedDictionary<EdgeId, EdgeTrodden> Trails { get; init; } = [];
     /// The clock hour of the last sweep of faded tracks. Owned by Tracks.
     public long TracksSweptHour { get; set; } = -1;
     public int NextCarcassId { get; set; }

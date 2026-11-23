@@ -343,11 +343,12 @@ public class TravelTests
             Assert.Equal(quick * 0.25, Trip.Risk(world, P, Direction.South, Pace.Careful).TotalPct, 12);
             Assert.InRange(Traversal.InjuryRiskPct(world, forest, body, sky, Pace.Careful), 0, 0.001);
         }
-        var trail = At(2, 33);
-        for (int i = 0; i < 60; i++) Tracks.RecordMove(trail, new TileId(2, 33), new TileId(2, 34), TrackMaker.Human);
-        var walker = trail.Agent(P).Body;
-        Assert.Equal(Traversal.MinimumCrossingMinutes, Traversal.CrossingMinutes(trail, walker, new TileId(2, 33), new TileId(2, 34), Pace.Quick, Calm));
-        Assert.True(Traversal.CrossingMinutes(trail, walker, new TileId(2, 33), new TileId(2, 34), Pace.Careful, Calm) > Traversal.MinimumCrossingMinutes,
+        // A short crossing onto rock: quick, it is the five-minute floor; careful, more.
+        var shortWay = At(19, 46);
+        var walker = shortWay.Agent(P).Body;
+        TileId shortFrom = new(19, 46), rockBeyond = new(19, 47);
+        Assert.Equal(Traversal.MinimumCrossingMinutes, Traversal.CrossingMinutes(shortWay, walker, shortFrom, rockBeyond, Pace.Quick, Calm));
+        Assert.True(Traversal.CrossingMinutes(shortWay, walker, shortFrom, rockBeyond, Pace.Careful, Calm) > Traversal.MinimumCrossingMinutes,
             "the five-minute floor swallowed the careful minutes");
 
         var plain = At(2, 51);

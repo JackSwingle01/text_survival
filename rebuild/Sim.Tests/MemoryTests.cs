@@ -277,7 +277,7 @@ public class MemoryTests
 
     // ---- routes as last seen (Memory.Explored trail tiers) ----
 
-    static void Wear(World w, TileId a, TileId b, double wear) => w.Trails[new EdgeId(a, b)] = new TrailWear(wear, w.Minute);
+    static void Tread(World w, TileId a, TileId b, double trodden) => w.Trails[new EdgeId(a, b)] = new EdgeTrodden(trodden, w.Minute);
 
     /// A neighbour of t, also in view from the camp, both passable.
     static TileId NeighbourInView(World w, TileId t)
@@ -291,7 +291,7 @@ public class MemoryTests
         throw new InvalidOperationException($"No neighbour of {t} in view");
     }
 
-    /// A route seen as a path, worn into a trail while the player is away, is still a path in their
+    /// A route seen as a path, trodden into a trail while the player is away, is still a path in their
     /// memory, after a save and load too; back in sight it is a trail.
     [Fact]
     public void RouteOutOfSight_IsTheRouteAsLastSeen_AfterASaveAndLoad()
@@ -300,7 +300,7 @@ public class MemoryTests
         var camp = Map.Of(w).Camp;
         var a = InViewFrom(w, camp);
         var b = NeighbourInView(w, a);
-        Wear(w, a, b, Tracks.PathAt + 1);
+        Tread(w, a, b, Tracks.PathAt + 0.05);
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         Assert.Equal(TrailTier.Path, Explored(w, P).TrailTierAt(a, b));
         Assert.Equal(TrailTier.Path, Explored(w, P).TrailTierAt(b, a));
@@ -308,7 +308,7 @@ public class MemoryTests
         Put(w, P, OutOfView(w, camp));
         Sim.Step(w, new Wait(P), 1);
         Assert.False(Sight.InSight(w, w.Agent(P), a) || Sight.InSight(w, w.Agent(P), b));
-        Wear(w, a, b, Tracks.TrailAt + 1); // worn in while nobody looked
+        Tread(w, a, b, Tracks.TrailAt + 0.05); // trodden in while nobody looked
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         var loaded = Save.FromJson(Save.ToJson(w));
         Assert.Equal(TrailTier.Path, Explored(loaded, P).TrailTierAt(a, b));
@@ -318,14 +318,14 @@ public class MemoryTests
         Assert.Equal(TrailTier.Trail, Explored(loaded, P).TrailTierAt(a, b));
     }
 
-    /// A route seen gone is forgotten; one never worn is none.
+    /// A route seen gone is forgotten; one never trodden is none.
     [Fact]
     public void RouteSeenFaded_IsForgotten()
     {
         var w = Mild17();
         var a = InViewFrom(w, Map.Of(w).Camp);
         var b = NeighbourInView(w, a);
-        Wear(w, a, b, Tracks.TraceAt + 1);
+        Tread(w, a, b, Tracks.TraceAt + 0.05);
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         Assert.Equal(TrailTier.Trace, Explored(w, P).TrailTierAt(a, b));
         w.Trails.Remove(new EdgeId(a, b));

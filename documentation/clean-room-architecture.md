@@ -171,7 +171,7 @@ static StepResult Step(World w, Activity a, int minutes);
 ```
 
 - An agent is one or more bodies that move and decide as a unit. A herd is an agent with many members; there is no separate herd type.
-- The UI, the NPC utility AI and the herd behaviors (prey, pack, solitary) all just choose the next `Activity`. Everything after that — travel, tracks, trail wear, lazy catch-up, combat entry — is shared.
+- The UI, the NPC utility AI and the herd behaviors (prey, pack, solitary) all just choose the next `Activity`. Everything after that — travel, tracks, trodden edges, lazy catch-up, combat entry — is shared.
 - `Step` returns `Interrupted(reason)`: the player gets an event, an NPC or herd re-plans.
 - Threat response and cooperation come almost free, because NPCs run the player's code.
 - Splitting falls out: a wounded animal leaving its herd is a new agent with one member; a herd sends members, not itself, into a fight.

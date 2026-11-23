@@ -104,6 +104,9 @@ public sealed record Exposure(
             RainfallMPerMinute: s.RainfallMPerMinute * exposure);
     }
 
+    public static double SnowfallWeSince(World world, TileId tile, long minute) =>
+        (Tracks.SnowfallWeAt(world, world.Minute) - Tracks.SnowfallWeAt(world, minute)) * (1 - Map.OverheadCover(Map.Of(world), tile));
+
     /// windLevel is WindAt's. The defaults are a fully exposed tile.
     public static double FeltAirF(WeatherSample s, double windLevel, double overheadCoverLevel = 0, double temperatureDeltaF = 0)
     {

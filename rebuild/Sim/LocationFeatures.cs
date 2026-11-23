@@ -138,7 +138,7 @@ public static class LocationFeatures
     internal static TrailTier TrailTo(World world, TileId tile, Direction dir)
     {
         var to = Map.Step(tile, dir);
-        // Most edges were never walked: no wear to read.
+        // Most edges were never walked: nothing trodden to read.
         return Map.Of(world).InBounds(to) && world.Trails.ContainsKey(new EdgeId(tile, to)) ? Tracks.TierOf(world, tile, to) : TrailTier.None;
     }
 }

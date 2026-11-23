@@ -99,8 +99,8 @@ public class SaveFixtureTests
         w.Agent(npc).Body.EnergyMinutes = 0;
         Effects.Set(w.Agent(npc).Body, EffectKind.Asleep, 40 / 90.0);
         ((NpcMind)w.Agent(npc).Mind).Goal = new NpcGoal(Stat.Warmth, Priority.Need, w.Minute, 90); // a committed goal, saved by name
-        // A path worn beside camp, and seen: a route in memory.
-        w.Trails[new EdgeId(camp, new TileId(camp.X, camp.Y + 1))] = new TrailWear(Tracks.PathAt + 1, w.Minute);
+        // A path trodden beside camp, and seen: a route in memory.
+        w.Trails[new EdgeId(camp, new TileId(camp.X, camp.Y + 1))] = new EdgeTrodden(Tracks.PathAt + 0.05, w.Minute);
         Memories.Glance(w, w.Agent(P), []);
         Sim.Step(w, new Wait(P), 2);
         // A caribou on its way to water, the wolf it sensed kept in mind (Fauna.Needs): a stored plan and a sighting.

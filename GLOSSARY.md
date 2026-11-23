@@ -158,6 +158,13 @@ standing liquid and its ice. One read gives it (underfoot at a place), and every
 ground (traversal, footing hazard, search, wetting, drinkable water) is worked out from it alone.
 _Avoid_: surface summary, ground state (the column the physics steps, which only Ground and its tests read)
 
+**Trodden**:
+How packed by feet a place's snow is, from 0 to 1. An edge's trodden amount comes from completed
+crossings, each walker by its weight, saturating so the first count most; it settles away in about a
+month, and snow fallen on it since its last stamp hides it until the next. Read at an edge's half of a
+tile, it raises the top snow's packing. Trail tiers (trace, path, trail) are derived from it.
+_Avoid_: path wear, trail wear
+
 **Discovery**:
 A location feature or items hidden at a place until searching turns them up.
 _Avoid_: find, hidden feature
