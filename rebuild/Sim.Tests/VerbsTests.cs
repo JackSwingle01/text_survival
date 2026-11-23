@@ -36,6 +36,7 @@ public class VerbsTests
         {
             var copy = Save.FromJson(before);
             copy.AccessGates = w.AccessGates; // never saved
+            copy.GroundCache = w.GroundCache == null ? null : new(w.GroundCache); // never saved: a scene's ground (TestKit.EditGround)
             var result = Sim.Step(copy, v.Activity, v.Minutes);
             if (v.Refused?.Reason != null) Assert.True(result.MinutesElapsed == 0 && result.InterruptedReason == v.Refused?.Reason,
                 $"{v.Label}: listed refused '{v.Refused}', Step said '{result.InterruptedReason}' after {result.MinutesElapsed} min");
@@ -160,7 +161,7 @@ public class VerbsTests
         ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(tile, pool));
         w.Agent(P).Tile = tile;
         Sim.Step(w, new Wait(P), 1);
-        Ground.CatchUp(w, tile).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 3, CompactionPct = 0.3, FrozenFractionPct = 1 });
+        TestKit.EditGround(w, tile, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 3, CompactionPct = 0.3, FrozenFractionPct = 1 }));
         var unblocked = Verbs.At(w, P).LocationFeatures.Single(t => t.LocationFeature == new LocationFeature(LocationFeatureKind.Pool, tile, pool));
         Assert.Empty(unblocked.Conditions); // the gate is not wired: buried bars nothing yet
 

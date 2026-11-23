@@ -29,7 +29,7 @@ public sealed class SurfaceLayer
 /// A tile's ground as the eye takes it in (Ground.SurfaceNow). What the map draws; the physics stays in Ground.
 public readonly record struct SurfaceSummary(double SnowDepthM, bool Crusted, double MudLevel, double WaterDepthM, bool Iced);
 
-/// A tile's ground, where it differs from generation. Depths are metres of a one-square-metre
+/// A ground class's snow, water and ice (Ground.At), never saved. Depths are metres of a one-square-metre
 /// column. Water is conserved: WaterAddedM = held + drained + evaporated + overflowed, always.
 public sealed class GroundState
 {
@@ -42,7 +42,7 @@ public sealed class GroundState
     public long LastUpdatedMinute { get; set; }
 }
 
-/// Everything besides the sky that a never-observed tile's ground history depends on: tiles sharing these share ground.
+/// Everything besides the sky that a tile's ground history depends on: tiles sharing these share ground.
 internal readonly record struct GroundClass(SubstrateProfile Substrate, double CoverLevel, double TemperatureDeltaF, double WindFactor);
 
 /// The ground under a tile before anything falls on it (Content/terrain.json substrates). Derived from terrain, never saved.
@@ -75,7 +75,7 @@ public sealed record SubstrateProfile(
     public static SubstrateProfile For(Terrain terrain) => Named(terrain.Row().Substrate);
 }
 
-/// Tiles catch up lazily, so when or how often one is looked at never changes what it holds.
+/// A tile's ground is its class's, caught up lazily, so when or how often it is looked at never changes what it holds.
 public static class Ground
 {
     /// Sub-step of the lazy catch-up, aligned to world minutes divisible by it.
@@ -124,24 +124,19 @@ public static class Ground
         return state;
     }
 
-    /// A never-observed tile starts frozen through at HistoryStartMinute and lives every minute since,
-    /// so day 1 has weather behind it; only observed tiles pay (about 2 ms each). Stored in
-    /// World.Tiles once it has lived any time; until then it is the unsaved baseline.
-    public static GroundState CatchUp(World world, TileId tile)
+    /// A tile's ground: its GroundClass's state now (OfClass), a copy the caller may change without changing the
+    /// world. Nothing per tile is stored. Every ground read goes through here, so a tile's or an edge's trodden amount
+    /// folds in here when it comes.
+    public static GroundState At(World world, TileId tile) =>
+        OfClass(world, tile, Substrate(Map.Of(world), tile), world.Minute / StepMinutes * StepMinutes);
+
+    /// Test seam: puts the tile's ground class, so every tile sharing it, in this state from its LastUpdatedMinute on.
+    /// Unsaved, like the cache it writes. Nothing in play calls it.
+    internal static void SetClassState(World world, TileId tile, GroundState state)
     {
-        long target = world.Minute / StepMinutes * StepMinutes;
-        var sub = Substrate(Map.Of(world), tile);
-        world.Tiles.TryGetValue(tile, out var ts);
-        if (ts?.Ground is { } state)
-        {
-            StepTo(world, tile, state, sub, target);
-            return state;
-        }
-        if (target <= HistoryStartMinute(world)) return Unobserved(world, tile, sub, target);
-        state = Unobserved(world, tile, sub, target);
-        if (ts == null) world.Tiles[tile] = ts = new TileState();
-        ts.Ground = state;
-        return state;
+        var m = Map.Of(world);
+        (world.GroundCache ??= [])[ClassOf(m, tile, Substrate(m, tile))] = Copy(state);
+        world.WaterSeenCache = null;
     }
 
     static void StepTo(World world, TileId tile, GroundState state, SubstrateProfile sub, long target)
@@ -154,20 +149,10 @@ public static class Ground
         state.LastUpdatedMinute = Math.Max(state.LastUpdatedMinute, target);
     }
 
-    /// CatchUp without writing: a copy is caught up, so looking changes nothing.
-    public static GroundState Peek(World world, TileId tile)
-    {
-        long target = world.Minute / StepMinutes * StepMinutes;
-        var sub = Substrate(Map.Of(world), tile);
-        if (world.Tiles.GetValueOrDefault(tile)?.Ground is not { } stored) return Unobserved(world, tile, sub, target);
-        var state = Copy(stored);
-        StepTo(world, tile, state, sub, target);
-        return state;
-    }
-
     /// Every tile of a GroundClass shares ground, so the class's latest is cached (World.GroundCache,
     /// never saved) and carried on: a whole-map pass pays once per class, with the result the long way gives.
-    static GroundState Unobserved(World world, TileId tile, SubstrateProfile sub, long target)
+    /// The ground at a minute before the cache's is lived again from the history start.
+    static GroundState OfClass(World world, TileId tile, SubstrateProfile sub, long target)
     {
         var m = Map.Of(world);
         var key = ClassOf(m, tile, sub);
@@ -203,77 +188,52 @@ public static class Ground
 
     /// On an open lake the water is waded at the deepest the ground holds, so the ground's own
     /// rules apply. Snow on the lake's ice waits, unread, for the freeze.
-    static Column Underfoot(World world, TileId tile, Func<World, TileId, GroundState> ground)
+    static Column Underfoot(World world, TileId tile)
     {
         var m = Map.Of(world);
         var sub = Substrate(m, tile);
-        if (!Map.IsOpenWater(m, tile, world.Minute)) return new Column(ground(world, tile), sub);
+        if (!Map.IsOpenWater(m, tile, world.Minute)) return new Column(At(world, tile), sub);
         var water = Baseline(sub);
         water.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Water, ThicknessM = MaxStandingWaterDepthM, WaterSaturationPct = 1 });
         return new Column(water, sub);
     }
 
-    public static SurfaceSummary SurfaceNow(World world, TileId tile) => Underfoot(world, tile, Peek).Summary;
-
-    /// Kept ground is caught up in place; never-kept ground is read without writing. Either way the same
-    /// sub-steps, so what is seen does not depend on when anyone looked before.
-    public static SurfaceSummary Look(World world, TileId tile) =>
-        world.Tiles.GetValueOrDefault(tile)?.Ground != null ? Underfoot(world, tile, CatchUp).Summary : SurfaceNow(world, tile);
-
-    public static double SnowDepthNowM(World world, TileId tile) => Underfoot(world, tile, Peek).SnowDepthM;
-
     /// A pinned test sky has no past, so its ground starts at minute 0.
     public static long HistoryStartMinute(World world) => world.FixedWeather == null ? -Weather.PreRollMinutes : 0;
 
-    // ---- world queries (each one is an observation: it catches the tile up) ----
+    // ---- world queries: reading writes nothing, so looking and crossing read the same ground ----
 
-    public static double TraversalFactor(World world, TileId tile) => Underfoot(world, tile, CatchUp).TraversalFactor;
+    public static SurfaceSummary SurfaceNow(World world, TileId tile) => Underfoot(world, tile).Summary;
+
+    public static double TraversalFactor(World world, TileId tile) => Underfoot(world, tile).TraversalFactor;
 
     /// Zero beside a frozen river, whose own ice (Map.TravelHazardLevel) already owns the hazard.
-    public static double HazardDelta(World world, TileId tile) => HazardDelta(world, tile, CatchUp);
+    public static double HazardDelta(World world, TileId tile) =>
+        Map.Of(world).BesideRiver(tile) && Map.IsFrozen(Map.Of(world), tile, world.Minute) ? 0 : Underfoot(world, tile).HazardDelta;
 
-    // ---- the weather-only estimate: the ground as the weather alone has made it, never this tile's own ----
-
-    /// What animals read (Traversal.GroundReadOf): the tile's ground class carried on through the weather, as if
-    /// nobody had ever trodden or dug it. Cheap (one cached state per class) and never written.
-    public static double TraversalFactorEstimate(World world, TileId tile) => Underfoot(world, tile, Estimate).TraversalFactor;
-
-    public static double HazardDeltaEstimate(World world, TileId tile) => HazardDelta(world, tile, Estimate);
-
-    static GroundState Estimate(World world, TileId tile) =>
-        Unobserved(world, tile, Substrate(Map.Of(world), tile), world.Minute / StepMinutes * StepMinutes);
-
-    /// The estimate's snow and a pond's open liquid (none under ice): what an animal drinks. Read from the class's cached state without copying it.
-    public static GroundSeen WaterEstimate(World world, TileId tile)
+    /// What an animal drinks on a tile (Fauna's AnimalView): its snow and a pond's open liquid (none under ice),
+    /// cached per class for the minute.
+    public static GroundSeen WaterSeen(World world, TileId tile)
     {
         var m = Map.Of(world);
         if (Map.IsOpenWater(m, tile, world.Minute)) return new GroundSeen(0, MaxStandingWaterDepthM);
         var sub = Substrate(m, tile);
         long target = world.Minute / StepMinutes * StepMinutes;
         var key = ClassOf(m, tile, sub);
-        if (world.WaterEstimateCache is not { } cache || cache.Minute != target) world.WaterEstimateCache = cache = (target, []);
+        if (world.WaterSeenCache is not { } cache || cache.Minute != target) world.WaterSeenCache = cache = (target, []);
         if (cache.ByClass.TryGetValue(key, out var kept)) return kept;
-        var state = world.GroundCache?.GetValueOrDefault(key) is { } known && known.LastUpdatedMinute == target ? known : Unobserved(world, tile, sub, target);
+        var state = world.GroundCache?.GetValueOrDefault(key) is { } known && known.LastUpdatedMinute == target ? known : OfClass(world, tile, sub, target);
         var column = new Column(state, sub);
         return cache.ByClass[key] = new GroundSeen(column.SnowDepthM, column.Summary.Iced ? 0 : column.StandingLiquidDepthM);
     }
 
-    // ---- the same, read without writing (Peek) ----
-
-    public static double TraversalFactorNow(World world, TileId tile) => Underfoot(world, tile, Peek).TraversalFactor;
-
-    public static double HazardDeltaNow(World world, TileId tile) => HazardDelta(world, tile, Peek);
-
-    static double HazardDelta(World world, TileId tile, Func<World, TileId, GroundState> ground) =>
-        Map.Of(world).BesideRiver(tile) && Map.IsFrozen(Map.Of(world), tile, world.Minute) ? 0 : Underfoot(world, tile, ground).HazardDelta;
-
     public static double ContactWettingRate(World world, TileId tile, SurfaceContact contact, double currentWetnessPct) =>
-        Underfoot(world, tile, CatchUp).ContactWettingRate(contact, currentWetnessPct);
+        Underfoot(world, tile).ContactWettingRate(contact, currentWetnessPct);
 
     public static double SearchFactor(World world, TileId tile, double baseElevationM, double verticalExtentM) =>
-        Underfoot(world, tile, CatchUp).SearchFactor(baseElevationM, verticalExtentM);
+        Underfoot(world, tile).SearchFactor(baseElevationM, verticalExtentM);
 
-    public static double SnowDepthM(World world, TileId tile) => Underfoot(world, tile, CatchUp).SnowDepthM;
+    public static double SnowDepthM(World world, TileId tile) => Underfoot(world, tile).SnowDepthM;
 
     // Burial access and digging need a per-placement elevation, footprint and hole depth on TileState; not built.
     // No route packing: nothing calls Compact.

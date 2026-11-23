@@ -80,7 +80,6 @@ public class CommentHygieneTests
         ["Tags.cs"] = 13,
         ["Priorities.cs"] = 14,
         ["Tracks.cs"] = 18,
-        ["Travel.cs"] = 12,
         ["Trip.cs"] = 20,
         ["Verbs.cs"] = 11,
         ["Weather.cs"] = 11,

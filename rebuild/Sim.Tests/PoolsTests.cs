@@ -340,17 +340,14 @@ public class PoolsTests
         var bare = WithPools(new ForagePool("forage", 0.5, Pools.MixedForest), bush);
         var snowy = WithPools(new ForagePool("forage", 0.5, Pools.MixedForest), bush);
         var camp = Map.Of(snowy).Camp;
-        var sub = Ground.Substrate(Map.Of(snowy), camp);
-        var ground = Ground.Baseline(sub);
-        snowy.Tiles[camp] = new TileState { Ground = ground }; // observed: the ground now lives on the tile
-        Ground.AddSnow(ground, sub, 0.1); // about a metre of fresh snow
+        TestKit.EditGround(snowy, camp, (g, sub) => Ground.AddSnow(g, sub, 0.1)); // about a metre of fresh snow
         Pools.Search(bare, bare.Agent(P), 1.0, []);
         Pools.Search(snowy, snowy.Agent(P), 1.0, []);
         double Hours(World w) => ((PersonMind)w.Agent(P).Mind).Memory.SearchHours[Camp(w, 1)];
         Assert.Equal(1.0, Hours(bare), 9);
         Assert.InRange(Hours(snowy), 0.099, 0.99); // buried: down to the 0.1 floor
         double earned = Hours(snowy);
-        Ground.AddSnow(ground, sub, 0.1);
+        TestKit.EditGround(snowy, camp, (g, sub) => Ground.AddSnow(g, sub, 0.1));
         Assert.Equal(earned, Hours(snowy), 12);
     }
 }

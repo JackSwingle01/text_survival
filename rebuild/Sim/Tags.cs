@@ -207,7 +207,7 @@ public static class Tags
 
     /// Things the world was born with sit on the ground, so snow as deep as they stand buries them.
     static Tag BuriedUnder(World world, TileId tile, double? heightM) =>
-        heightM is double h && Ground.SnowDepthNowM(world, tile) >= h ? Tag.Buried : Tag.None;
+        heightM is double h && Ground.SnowDepthM(world, tile) >= h ? Tag.Buried : Tag.None;
 
     static Tag OfInventory(Inventory inv)
     {

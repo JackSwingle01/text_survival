@@ -16,6 +16,8 @@
   <ItemGroup>
     <!-- The combat tuner (rebuild/Tools/Tune) builds fights from the same internals the tests use. -->
     <InternalsVisibleTo Include="Tune" />
+    <!-- The host tests set a ground class state (Ground.SetClassState), as Sim.Tests do. -->
+    <InternalsVisibleTo Include="Host.Tests" />
   </ItemGroup>
 
   <ItemGroup>

@@ -77,7 +77,7 @@ public class ArchitectureTests
     [
         (@"\bMap\.WindFactor\(", "reads a tile's wind factor",
             [("Map.cs", "WindFactor", "its definition"),
-             ("Ground.cs", "ClassOf", "the key of a never-observed tile's ground class, not a wind")]),
+             ("Ground.cs", "ClassOf", "the key of a tile's ground class, not a wind")]),
         (@"\bMap\.OverheadCover\(", "reads a tile's overhead cover",
             [("Map.cs", "OverheadCover", "its definition"),
              ("Ground.cs", "ClassOf", "the ground class key")]),

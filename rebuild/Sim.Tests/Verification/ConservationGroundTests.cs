@@ -10,7 +10,7 @@ namespace Survival.Tests.Verification;
 ///   WaterAddedM = StoredWaterM + WaterDrainedM + WaterEvaporatedM + WaterOverflowedM
 ///
 /// and every sink only grows. Driven two ways: the state-level API (Advance, AddWater, AddSnow,
-/// Compact) over generated weather, and the world's lazy catch-up (Ground.CatchUp) under the seed's
+/// Compact) over generated weather, and the world's lazy catch-up (Ground.At) under the seed's
 /// own sky, looked at whenever.
 public class ConservationGroundTests
 {
@@ -112,16 +112,16 @@ public class ConservationGroundTests
             w.Minute += dt;
             foreach (var t in tiles)
             {
-                var g = Ground.CatchUp(w, t);
+                var g = Ground.At(w, t);
                 Balanced(g, Ground.Substrate(m, t), $"{t} at minute {w.Minute}");
             }
         }
     }
 
     [Fact]
-    public void Ground_CatchUp_KeepsTheLedger() => WorldScenes.Check(WorldLevel, iter: 6);
+    public void Ground_At_KeepsTheLedger() => WorldScenes.Check(WorldLevel, iter: 6);
 
     [Fact]
     [Trait("Category", TestCategories.Slow)]
-    public void Ground_CatchUp_KeepsTheLedger_Many() => WorldScenes.Check(WorldLevel, iter: 150);
+    public void Ground_At_KeepsTheLedger_Many() => WorldScenes.Check(WorldLevel, iter: 150);
 }

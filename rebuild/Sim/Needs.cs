@@ -13,7 +13,7 @@ public static partial class Fauna
     {
         public override bool Threat(TileId tile) => mind.Sightings?.Exists(s => s.Tile == tile) == true;
         public override bool OpenWater(TileId tile) => Work.HasUnfrozenWater(world, tile);
-        public override GroundSeen Ground(TileId tile) => Survival.Ground.WaterEstimate(world, tile);
+        public override GroundSeen Ground(TileId tile) => Survival.Ground.WaterSeen(world, tile);
     }
 
     /// A forecast: what an animal drinks a minute where it stands (Work.WaterAt, from what it knows).
