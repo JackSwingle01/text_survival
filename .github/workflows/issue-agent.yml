@@ -439,20 +439,27 @@ jobs:
       # The full transcripts, the main session's and every sub-agent's, for debugging a run
       # (mp:transcript-tally reads them). Claude Code writes them under ~/.claude/projects; the action
       # only prints the final result line. The repo is public, so any signed-in GitHub user can download
-      # this artifact: tokens are scrubbed first, and it is kept 30 days.
+      # this artifact: tokens are scrubbed first, and it is kept 30 days. Nothing is uploaded unless the
+      # scrub succeeds. The scrubber is read from GitHub at this run's commit, not from the checkout,
+      # which the agent could have changed.
       - name: Collect transcripts
+        id: transcripts
         if: always() && steps.triage.outcome != 'skipped'
         env:
           OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          set -uo pipefail
+          set -euo pipefail
           out="$RUNNER_TEMP/transcripts"
+          rm -rf "$out"
+          scrubber=$(mktemp --suffix=.py)
+          gh api -H "Accept: application/vnd.github.raw" \
+            "repos/$GITHUB_REPOSITORY/contents/.github/scripts/scrub_tokens.py?ref=$GITHUB_SHA" > "$scrubber"
           mkdir -p "$out"
           cp -r "$HOME/.claude/projects/." "$out/" 2>/dev/null || true
           cp "$RUNNER_TEMP/claude-execution-output.json" "$out/" 2>/dev/null || true
-          python3 .github/scripts/scrub_tokens.py "$out"
+          python3 -I "$scrubber" "$out" || { rm -rf "$out"; echo "::error::Scrubbing failed: no transcripts uploaded."; exit 1; }
       - uses: actions/upload-artifact@v7
-        if: always() && steps.triage.outcome != 'skipped'
+        if: always() && steps.transcripts.outcome == 'success'
         with:
           name: issue-${{ matrix.issue }}-transcripts
           path: ${{ runner.temp }}/transcripts/
