@@ -134,6 +134,26 @@ public class IndividualsTests(ITestOutputHelper output)
         Assert.Contains(pack, id => w.Agent(id).Tile == scent);
     }
 
+    /// A flock follows a raven that flies off, though its flight starts and ends inside its own minute and
+    /// no other raven ever sees it under way; kin deciding before it in id order follow the minute after.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3)]
+    public void AFlock_FollowsAFlightTooShortToSeeUnderWay(int leader)
+    {
+        var w = World.New(1);
+        var from = Quiet(w);
+        var to = Map.Step(from, Direction.East);
+        var flock = Agents.SpawnGroup(w, Species.Raven, from, 4);
+        Assert.Equal(1, Traversal.FlightMinutesPerTile(w.Agent(flock[leader])));
+        Sim.Start(w, new Travel(flock[leader], Direction.East), int.MaxValue, [], out var doing);
+        w.Agent(flock[leader]).Doing = doing;
+        var moved = new HashSet<AgentId>();
+        for (int i = 0; i < 10 && moved.Count < flock.Count; i++)
+            foreach (var m in Sim.Advance(w, 1).OfType<Moved>().Where(m => m.From == from && m.To == to)) moved.Add(m.Who);
+        Assert.Equal(flock.ToHashSet(), moved);
+    }
+
     /// Boldness from numbers counts the derived herd: the wolves on the tile that know each other.
     [Fact]
     public void ABoldnessFromNumbers_CountsTheWolvesItKnows_OnItsTile()

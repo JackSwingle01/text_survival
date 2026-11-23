@@ -26,8 +26,7 @@ public static partial class Fauna
         return herd;
     }
 
-    /// Who stands on a tile as anyone would tell them apart: one group a herd and one a person (living or dead),
-    /// each in id order, the groups in order of their first. The one rule for "one per herd".
+    /// The one rule for "one per herd": a group per herd and per person, each in id order.
     public static List<List<Agent>> GroupsAt(World world, TileId tile)
     {
         var groups = new List<List<Agent>>();
@@ -107,13 +106,23 @@ public static partial class Fauna
     {
         Span<int> going = stackalloc int[4];
         (Direction Way, Agent Lead)? best = null;
+        static void Count(Span<int> going, ref (Direction Way, Agent Lead)? best, Direction dir, Agent other)
+        {
+            if (++going[(int)dir] > (best is var (b, _) ? going[(int)b] : 0)) best = (dir, best is var (d, l) && d == dir ? l : other);
+        }
         foreach (var id in Nearby.At(world, animal.Tile))
         {
             var other = world.Agents[id];
-            if (!Leaving(other, animal.Tile) || !Combat.OnSide(world, animal, other)) continue;
-            var dir = other.Crossing!.Dir;
-            if (++going[(int)dir] > (best is var (b, _) ? going[(int)b] : 0)) best = (dir, best is var (d, l) && d == dir ? l : other);
+            if (Leaving(other, animal.Tile) && Combat.OnSide(world, animal, other)) Count(going, ref best, other.Crossing!.Dir, other);
         }
+        // Kin that just left (a flight ends within its own turn); those before it in id order see it a minute late.
+        foreach (var n in MapGen.Neighbors(animal.Tile))
+            foreach (var id in Nearby.At(world, n))
+            {
+                var other = world.Agents[id];
+                if (other.LastLeft is { } left && left.From == animal.Tile && left.Minute >= world.Minute - 1 && other.Tile == n
+                    && IsKin(animal, other) && !Sim.Held(world, other.Id)) Count(going, ref best, left.Dir, other);
+            }
         return best;
     }
 

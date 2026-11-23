@@ -83,7 +83,7 @@ animals it knows, by id, 0 to 1. A sighting in a person's memory is one per herd
 `Others` listing the rest. The sample's pack is two wolves that know each other. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
-activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands.
+activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands. An animal also carries `LastLeft` (the tile, direction and minute of the last crossing it finished), written only once it has moved, so kin can follow a crossing too short to see under way.
 
 ## After the first release
 

@@ -50,6 +50,9 @@ public sealed class Agent
     [JsonIgnore] public BodyState Body => Members.Single();
     /// A tile crossing under way; the agent stays on Tile until it completes. Owned by Travel.
     public Crossing? Crossing { get; set; }
+    /// An animal's last finished crossing, so kin can follow one too short to see under way (Fauna.Following).
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Departure? LastLeft { get; set; }
     /// What an NPC or herd is doing until its mind decides again (Scheduler). Null for the player,
     /// whose activities live inside one Sim.Step, and for an agent about to decide.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
