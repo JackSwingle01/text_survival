@@ -323,7 +323,7 @@ public class GameHostTests
     {
         var h = new GameHost();
         h.NewGame(Seed);
-        Agents.Spawn(h.World, Species.Caribou, h.World.Agent(AgentId.Player).Tile, 3);
+        Agents.SpawnGroup(h.World, Species.Caribou, h.World.Agent(AgentId.Player).Tile, 3);
         var hunt = Find(Parse(h.View()), x => x.Kind == "hunt" && x.Refused == null, "hunt");
         var v = Run(h, hunt);
         Assert.NotNull(v.Combat);

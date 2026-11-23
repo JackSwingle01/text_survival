@@ -277,18 +277,34 @@ public static partial class Combat
             throw new ArgumentException($"{Items.Def(weapon).Name} is not in {f.Agent}'s pack");
     }
 
-    /// The lead plus a random handful (0 to maxExtra) of its living herd mates.
-    public static List<Fighter> SendMembers(World world, AgentId herd, int lead, int maxExtra = 3)
+    /// Who is on this agent's side where it stands: itself first, then its kin on its tile in id order
+    /// (Fauna.IsKin: any of its species for an open group, the ones it knows for a closed one) that no
+    /// fight holds. A person stands alone. The one read for boldness from numbers, noticing, and who
+    /// joins a fight; rival packs meeting on a tile are two sides.
+    public static List<Agent> Side(World world, Agent agent)
     {
-        var agent = world.Agent(herd);
-        var rng = world.Rng("combat", herd);
-        var others = Enumerable.Range(0, agent.Members.Count).Where(i => i != lead && Body.IsAlive(agent.Members[i])).ToList();
-        int extra = Math.Min(others.Count, maxExtra) is int max and > 0 ? rng.NextInt(max + 1) : 0;
-        for (int i = others.Count - 1; i > 0; i--) { int j = rng.NextInt(i + 1); (others[i], others[j]) = (others[j], others[i]); }
-        return [new Fighter(herd, lead), .. others.Take(extra).Select(i => new Fighter(herd, i))];
+        var side = new List<Agent> { agent };
+        if (agent.Mind is not HerdMind) return side;
+        foreach (var id in Nearby.At(world, agent.Tile))
+            if (OnSide(world, agent, world.Agents[id])) side.Add(world.Agents[id]);
+        return side;
     }
 
-    /// How readily a herd comes at a target: species temperament, pack size
+    /// Whether the other, on the agent's tile, is on its side (Side): the rule, for reads that only count.
+    public static bool OnSide(World world, Agent agent, Agent other) =>
+        Fauna.IsKin(agent, other) && other.Tile == agent.Tile && !Sim.Held(world, other.Id);
+
+    /// The lead plus a random handful (0 to maxExtra) of its side.
+    public static List<Fighter> SendSide(World world, AgentId lead, int maxExtra = 3)
+    {
+        var others = Side(world, world.Agent(lead)).Skip(1).Select(a => a.Id).ToList();
+        var rng = world.Rng("combat", lead);
+        int extra = Math.Min(others.Count, maxExtra) is int max and > 0 ? rng.NextInt(max + 1) : 0;
+        for (int i = others.Count - 1; i > 0; i--) { int j = rng.NextInt(i + 1); (others[i], others[j]) = (others[j], others[i]); }
+        return [new Fighter(lead), .. others.Take(extra).Select(id => new Fighter(id))];
+    }
+
+    /// How readily an animal comes at a target: species temperament, its side's numbers (Side)
     /// against the people standing with the target, the target's wounds, the night. It decides whether a
     /// predator engages and seeds its morale (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear
     /// live on HerdMind (Fauna); callers pass them in (neutral by default).
@@ -298,7 +314,7 @@ public static partial class Combat
         var agent = world.Agent(herd);
         var t = SpeciesTable.Of(agent.Species).Temperament;
         if (t.Cap <= 0) return 0;
-        double bold = t.Base + (agent.Members.Count - othersWithTarget) * t.PerMember;
+        double bold = t.Base + (Side(world, agent).Count - othersWithTarget) * t.PerMember;
         if (hunger > t.HungryAt) bold += t.HungerBonus;
         if (hunger > t.StarvingAt) bold += t.HungerBonus;
         if (defending) bold += t.DefendBonus;

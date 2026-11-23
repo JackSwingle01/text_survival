@@ -19,8 +19,8 @@ public static partial class Fauna
         var preyLand = available.ToList();
         var wolfLand = new HashSet<TileId>();
 
-        void Herd(Species species, TileId start, List<TileId> territory, int members) =>
-            Agents.Spawn(world, species, start, members, territory);
+        void Herd(Species species, TileId start, List<TileId> territory, int animals) =>
+            Agents.SpawnGroup(world, species, start, animals, territory);
 
         // Every Wolf Den has a pack, first, its land grown around the den, so a den may sit inside camp's safe zone.
         var wolfDens = SitesNamed(m, "wolf_den");
@@ -59,7 +59,7 @@ public static partial class Fauna
         {
             var start = preyLand[rng.NextInt(preyLand.Count)];
             var land = Territory(m, start, preyLand, 48 + rng.NextInt(49), rng);
-            if (land.Count >= 3) Herd(Species.Megaloceros, start, land, 1 + rng.NextInt(3));
+            if (land.Count >= 3) Herd(Species.Megaloceros, start, land, 2 + rng.NextInt(2));
         }
         for (int i = 0; i < large - large / 2 && preyLand.Count > 0; i++)
         {
@@ -109,7 +109,7 @@ public static partial class Fauna
         {
             var start = interior[rng.NextInt(interior.Count)];
             var land = Territory(m, start, interior, 150 + rng.NextInt(101), rng);
-            if (land.Count >= 3) Agents.Spawn(world, Species.Raven, start, 3 + rng.NextInt(4), land);
+            if (land.Count >= 3) Agents.SpawnGroup(world, Species.Raven, start, 3 + rng.NextInt(4), land);
         }
     }
 
@@ -168,7 +168,7 @@ public static partial class Fauna
             for (int i = 0; i < land.Count; i++)
                 foreach (var n in MapGen.Neighbors(land[i]))
                     if (m.InBounds(n) && m.CaveIdAt(n) == caveId && Map.Blocked(m, land[i], n) == null && reached.Add(n)) land.Add(n);
-            Agents.Spawn(world, species, den, species == Species.CaveBear ? 1 : 2 + rng.NextInt(3), land);
+            Agents.SpawnGroup(world, species, den, species == Species.CaveBear ? 1 : 2 + rng.NextInt(3), land);
         }
     }
 

@@ -102,7 +102,7 @@ public sealed class Observer
         if (a.Mind is HerdMind h)
         {
             lines.Add($"State: {Words.Of(h.State)} for {Ago(w.Minute - h.StateSinceMinute)}");
-            lines.Add($"Members: {a.Members.Count(Body.IsAlive)} alive of {a.Members.Count}");
+            lines.Add($"Herd: {Fauna.HerdOf(w, a).Count} here");
             lines.Add($"Fear: {h.Fear:P0}");
             if (h.LastFedMinute > HerdMind.Never) lines.Add($"Last fed: {Ago(w.Minute - h.LastFedMinute)} ago");
             lines.Add($"Territory: {h.Territory.Count} tiles");
@@ -129,19 +129,21 @@ public sealed class Observer
     {
         var w = W;
         var list = new List<ActorDto>();
-        foreach (var (id, a) in w.Agents)
+        // One actor a herd, its first animal standing for it, with the herd's count (Fauna.GroupsAt).
+        foreach (var group in w.Agents.Values.Select(a => a.Tile).Distinct().Order().SelectMany(t => Fauna.GroupsAt(w, t)))
         {
+            var (a, id, count) = (group[0], group[0].Id, group.Count);
             if (!Shown(a)) continue;
             var to = a.Crossing is { } c ? Map.Step(c.From, c.Dir) : (TileId?)null;
             list.Add(new ActorDto(id.Value, a.Mind is HerdMind ? "herd" : "npc", Words.SpeciesIcon(a.Species), Names.Cap(Cause.Describe(w, id)),
-                a.Tile.X, a.Tile.Y, a.Members.Count, Doing(a), (a.Mind as HerdMind)?.State is HerdState s ? Words.Of(s) : null,
+                a.Tile.X, a.Tile.Y, count, Doing(a), (a.Mind as HerdMind)?.State is HerdState s ? Words.Of(s) : null,
                 a.Mind is HerdMind && Fauna.IsPredator(a.Species), to?.X, to?.Y, a.Crossing is { } cr ? Math.Round((double)cr.ElapsedMinutes / cr.TotalMinutes, 3) : null));
         }
         return list;
     }
 
-    /// An actor on the map: a living person, or a herd with members left. A dead person is a body, listed on its tile.
-    static bool Shown(Agent a) => a.Members.Count > 0 && (a.Mind is HerdMind || Sim.IsAlive(a));
+    /// An actor on the map: a living person or animal. A dead person is a body, listed on its tile.
+    static bool Shown(Agent a) => Sim.IsAlive(a);
 
     /// An activity in words: "travel north", "gather", or "deciding" between activities.
     static string Doing(Agent a) => Sim.ActivityOf(a) switch

@@ -38,7 +38,7 @@ public class SaveTests
         var w = World.New(17);
         var tile = Map.Step(Map.Of(w).Camp, Direction.West);
         Items.Add(Items.StashAt(w, tile, new Cause(AgentId.Player, "stashed by the player")), Resource.RawMeat, 5);
-        var flock = Agents.Spawn(w, Species.Raven, tile, 4, [tile]);
+        var flock = Agents.SpawnGroup(w, Species.Raven, tile, 4, [tile])[0];
         w.Agent(flock).Doing = new Doing { Plain = new Raid(flock), MinutesLeft = 1 };
 
         var loaded = Save.FromJson(Save.ToJson(w));
@@ -79,7 +79,7 @@ public class SaveFixtureTests
         Shelters.PlaceBedding(w, camp, BeddingKind.Camp);
         TestKit.Supply(w);
         var npc = Npc.Spawn(w, camp);
-        Agents.Spawn(w, Species.Wolf, new TileId(camp.X + 12, camp.Y), 2);
+        Agents.SpawnGroup(w, Species.Wolf, new TileId(camp.X + 12, camp.Y), 2); // a pack: two wolves that know each other
         Sim.Step(w, new Wait(P), 5);
         for (int i = 0; i < 10 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++)
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);

@@ -58,7 +58,7 @@ public static partial class Content
     sealed record SpeciesFile(Dictionary<string, SpeciesRow> Species, Dictionary<string, Temperament> Temperaments,
         Dictionary<string, IReadOnlyList<Resource>> Diets, SightingPools Sightings);
     sealed record SpeciesRow(BodyKind Body, double WeightKg, double FatPct, double MusclePct, Role Role, bool IsSmall,
-        double AttackDamage, DamageType AttackType, double Threat, double Boldness, double Aggression, double Cohesion,
+        double AttackDamage, DamageType AttackType, double Threat, double Boldness, double Aggression, double Cohesion, Group Group,
         int MoveAllowanceM, double ReachM, string Temperament, HerdBehavior Behavior, Diet Diet,
         double TopSpeedMps, double EnduranceSpeedMps, double SprintSeconds, double RunCostJPerKgM, double BurstPct, double GrazeKcalPerMinute,
         double StrikeBackResolve, double ChaseLimitSeconds,
@@ -312,7 +312,7 @@ public static partial class Content
 
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
-            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
+            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.Group, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
             new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.AutumnFatPct, r.Female, r.FlightMinutesPerTile);
 
     /// A recipe's materials in kilos: pieces of the first material's nominal piece.

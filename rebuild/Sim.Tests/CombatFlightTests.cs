@@ -13,7 +13,7 @@ public class CombatFlightTests
         var (w, t) = CombatTests.Field();
         var herd = CombatTests.Herd(w, species, count, t);
         CombatTests.Normalize(w, herd);
-        return (w, Combat.Create(w, [new Fighter(P)], [.. Enumerable.Range(0, count).Select(i => new Fighter(herd, i))], t, distanceM,
+        return (w, Combat.Create(w, [new Fighter(P)], [.. Enumerable.Range(0, count).Select(i => new Fighter(herd[i]))], t, distanceM,
             Awareness.Engaged, Awareness.Engaged));
     }
 
@@ -122,13 +122,14 @@ public class CombatFlightTests
     [Fact]
     public void NotCaught_TheChasersAreGoneToo_AndTheHerdRunsOnAlongTheHeading()
     {
-        // Two wolves after a fresh caribou 25 m off: rolled once, sometimes away.
-        for (int seed = 1; seed <= 60; seed++)
+        // Two wolves after a fresh caribou 25 m off: rolled once, away about one chase in a hundred and fifty, so
+        // the scan starts near a seed where it got away (re-pinned when each wolf became its own agent).
+        for (int seed = 150; seed <= 450; seed++)
         {
             var (w, t) = CombatTests.Field(seed);
             var pack = CombatTests.Herd(w, Species.Wolf, 2, t);
             var caribou = CombatTests.Herd(w, Species.Caribou, 1, t);
-            var e = Combat.Create(w, [new Fighter(pack, 0), new Fighter(pack, 1)], [new Fighter(caribou)], t, 25, Awareness.Engaged, Awareness.Engaged);
+            var e = Combat.Create(w, [new Fighter(pack[0]), new Fighter(pack[1])], [new Fighter(caribou)], t, 25, Awareness.Engaged, Awareness.Engaged);
             foreach (var u in e.Units.Where(u => u.Team == 0)) u.State = FighterState.Pressing;
             var chasers = e.Units.Where(u => u.Team == 0 && Combat.CatchOdds(w, u, e.Units[2]).Pct >= 0.25).ToList();
             Assert.NotEmpty(chasers);
@@ -140,7 +141,7 @@ public class CombatFlightTests
             Assert.True(e.Rounds >= 3, "a four-minute chase was charged no time"); // the wolves' 240 s limit
             Combat.ResolveHeadless(w, e, events);
             Assert.NotEqual(t, w.Agent(caribou).Tile); // it ran on the way it fled
-            Assert.NotEqual(t, w.Agent(pack).Tile); // and the pack after it
+            Assert.All(chasers, c => Assert.NotEqual(t, w.Agent(c.Agent).Tile)); // and the wolves that chased it after it
             return;
         }
         throw new InvalidOperationException("no seed had the caribou get away from a chase");

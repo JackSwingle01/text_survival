@@ -16,9 +16,11 @@ public class HerdGoldenTests
     {
         var w = new World { Seed = 1 };
         var tile = new TileId(5, 5);
-        var pack = w.Agent(Agents.Spawn(w, pred, tile, packSize));
-        var prey = w.Agent(Agents.Spawn(w, preySpecies, tile, herdSize));
-        TestKit.SetHunger(pack, hunger);
+        // The pack and the herd are derived: that many animals of one species on the tile (Combat.Side).
+        var wolves = Agents.SpawnGroup(w, pred, tile, packSize).Select(w.Agent).ToList();
+        var herd = Agents.SpawnGroup(w, preySpecies, tile, herdSize).Select(w.Agent).ToList();
+        foreach (var wolf in wolves) TestKit.SetHunger(wolf, hunger);
+        var (pack, prey) = (wolves[0], herd[0]);
         w.Minute = 1000;
         ((HerdMind)prey.Mind).State = state;
         ((HerdMind)prey.Mind).StateSinceMinute = w.Minute - stateMinutes;

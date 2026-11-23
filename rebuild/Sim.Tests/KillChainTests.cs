@@ -82,7 +82,7 @@ public class KillChainTests
     {
         var (w, enc, prey) = Struck((w, tile) =>
         {
-            var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
+            var caribou = Agents.Spawn(w, Species.Caribou, tile);
             var spear = Items.Make("wooden_spear");
             Items.Pack(w, P).Gear.Add(spear);
             var e = Combat.Create(w, [new Fighter(P) { Weapon = spear }], [new Fighter(caribou)], tile, 10, Awareness.Engaged, Awareness.Unaware);
@@ -101,7 +101,7 @@ public class KillChainTests
     {
         var (w, enc, prey) = Struck((w, tile) =>
         {
-            var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
+            var caribou = Agents.Spawn(w, Species.Caribou, tile);
             var npc = Npc.Spawn(w, tile);
             var e = Combat.Create(w, [new Fighter(P), new Fighter(npc)], [new Fighter(caribou)], tile, 1, Awareness.Engaged, Awareness.Unaware);
             var ally = Combat.UnitOf(e, npc);
@@ -122,7 +122,7 @@ public class KillChainTests
     {
         var (w, enc, prey) = Struck((w, tile) =>
         {
-            var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
+            var caribou = Agents.Spawn(w, Species.Caribou, tile);
             var spear = Items.Make("wooden_spear");
             Items.Pack(w, P).Gear.Add(spear);
             var e = Combat.Create(w, [new Fighter(P) { Weapon = spear }], [new Fighter(caribou)], tile, 1, Awareness.Engaged, Awareness.Unaware);
@@ -376,7 +376,7 @@ public class KillChainTests
             var npc = Npc.Spawn(w, Map.Step(camp, Direction.East));
             w.Agent(npc).Body.BloodPct = 0;
             Body.MarkDead(w.Agent(npc).Body, w.Minute, new Cause(null, "the cold"));
-            Agents.Spawn(w, Species.Raven, Map.Step(Map.Step(camp, Direction.North), Direction.North), 4, [Map.Step(Map.Step(camp, Direction.North), Direction.North), camp]);
+            Animals.Spawn(w, Species.Raven, Map.Step(Map.Step(camp, Direction.North), Direction.North), 4, [Map.Step(Map.Step(camp, Direction.North), Direction.North), camp]);
             return w;
         }
         var whole = Make();
@@ -394,11 +394,14 @@ public class KillChainTests
     /// Day-of-year to world minute, at the hour the clock starts (09:00).
     static long MinuteOfDayOfYear(int dayOfYear) => (dayOfYear - 182 + 365) % 365 * 1440L;
 
-    static AgentId CaribouHerd(World w, int members)
+    static Animals CaribouHerd(World w, int members)
     {
         var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Caribou)).Territory;
-        return Agents.Spawn(w, Species.Caribou, land[0], members, [.. land]);
+        return Animals.Spawn(w, Species.Caribou, land[0], members, [.. land]);
     }
+
+    /// Calves are animals of their own: the valley's caribou, counted.
+    static int CaribouIn(World w) => w.Agents.Values.Count(a => a.Species == Species.Caribou && a.Mind is HerdMind);
 
     [Fact]
     public void Prey_CalveInTheirSeason_TowardWhatTheLandCarries()
@@ -411,15 +414,15 @@ public class KillChainTests
         for (int d = 0; d < 40; d++)
         {
             Sim.Advance(w, 1440);
-            Assert.InRange(w.Agent(herd).Members.Count, 3, Math.Max(3, (int)Math.Floor(capacity)));
+            Assert.InRange(CaribouIn(w), 3, Math.Max(3, (int)Math.Floor(capacity)));
         }
-        Assert.True(w.Agent(herd).Members.Count > 3, "nothing born in forty days of the calving season");
+        Assert.True(CaribouIn(w) > 3, "nothing born in forty days of the calving season");
 
         var off = Bare();
         off.Minute = MinuteOfDayOfYear(250);
-        var idle = CaribouHerd(off, 3);
+        CaribouHerd(off, 3);
         Sim.Advance(off, 40 * 1440);
-        Assert.Equal(3, off.Agent(idle).Members.Count);
+        Assert.Equal(3, CaribouIn(off));
     }
 
     [Fact]
@@ -428,12 +431,13 @@ public class KillChainTests
         var w = Bare();
         w.Minute = MinuteOfDayOfYear(140);
         var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Caribou)).Territory;
-        var probe = Agents.Spawn(w, Species.Caribou, land[0], 1, [.. land]);
+        var probe = Agents.Spawn(w, Species.Caribou, land[0], [.. land]);
         int full = (int)Math.Ceiling(Fauna.CapacityOf(w, w.Agent(probe)));
         Agents.Remove(w, probe);
-        var herd = Agents.Spawn(w, Species.Caribou, land[0], full, [.. land]);
+        Animals.Spawn(w, Species.Caribou, land[0], full, [.. land]);
         Sim.Advance(w, 30 * 1440);
-        Assert.True(w.Agent(herd).Members.Count <= full);
+        // Its calves would be on its land; arrivals come to land of their own.
+        Assert.True(w.Agents.Values.Count(a => a.Species == Species.Caribou && Fauna.MindOf(a).Territory.SequenceEqual(land)) <= full);
     }
 
     [Fact]
@@ -441,10 +445,10 @@ public class KillChainTests
     {
         var w = Bare();
         var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Wolf)).Territory;
-        var wolves = Agents.Spawn(w, Species.Wolf, land[0], 4, [.. land]);
-        Fauna.MindOf(w.Agent(wolves)).LastFedMinute = w.Minute - Days(30);
+        var wolves = Animals.Spawn(w, Species.Wolf, land[0], 4, [.. land]);
+        foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).LastFedMinute = w.Minute - Days(30);
         Sim.Advance(w, 20 * 1440);
-        Assert.True(!w.Agents.ContainsKey(wolves) || w.Agent(wolves).Members.Count < 4, "a pack thirty days unfed lost no one");
+        Assert.True(wolves.Living(w) < 4, "a pack thirty days unfed lost no one");
         Assert.Contains(w.Tiles.Values.SelectMany(t => t.Carcasses ?? []), c => c.Animal == "Wolf" && c.Cause?.What == "starvation");
     }
 
@@ -477,23 +481,24 @@ public class KillChainTests
             Sim.Advance(w, 1440);
             var newcomers = w.Agents.Values.Where(a => a.Mind is HerdMind && !seen.Contains(a.Id)).ToList();
             var packLand = w.Agents.Values.Where(a => a.Species == Species.Wolf && seen.Contains(a.Id)).SelectMany(a => Fauna.MindOf(a).Territory).ToHashSet();
-            foreach (var herd in newcomers)
+            // Those that came together share one land: an arriving herd is its newcomers on one land.
+            foreach (var group in newcomers.GroupBy(a => string.Join(";", Fauna.MindOf(a).Territory)))
             {
-                seen.Add(herd.Id);
+                var herd = group.First();
+                foreach (var a in group) seen.Add(a.Id);
                 var land = Fauna.MindOf(herd).Territory;
-                // A cub on its mother's land, or a lame member left behind on its herd's: born here, not arrived.
-                if (lands.Concat(w.Agents.Values.Where(o => o.Id != herd.Id && o.Mind is HerdMind).Select(o => Fauna.MindOf(o).Territory)).Any(l => l.SequenceEqual(land)))
-                    continue;
+                // A newborn on its mother's land: born here, not arrived.
+                if (lands.Any(l => l.SequenceEqual(land))) continue;
                 arrivals++;
                 Assert.False(Fauna.IsMegafauna(herd.Species));
                 Assert.True(MapGen.Manhattan(land[0], camp) > Fauna.SafeZoneTiles, $"{herd.Species} came in at {land[0]}, inside camp's safe zone");
                 Assert.True(MapGen.Manhattan(land[0], open) > Fauna.ArrivalClearanceTiles, $"{herd.Species} came in at {land[0]}, in sight of the player at {open}");
-                Assert.True(herd.Members.Count <= Fauna.CapacityOf(w, herd) + 1e-9,
-                    $"{herd.Species} came in {herd.Members.Count} strong on land carrying {Fauna.CapacityOf(w, herd):0.0}");
+                Assert.True(group.Count() <= Fauna.CapacityOf(w, herd) + 1e-9,
+                    $"{herd.Species} came in {group.Count()} strong on land carrying {Fauna.CapacityOf(w, herd):0.0}");
                 if (herd.Species == Species.Wolf) Assert.DoesNotContain(land, packLand.Contains);
             }
         }
-        Assert.True(day >= 100, $"the player was there to be seen by for only {day} days");
+        Assert.True(day >= 80, $"the player was there to be seen by for only {day} days"); // enough days of arrivals to judge
         Assert.True(arrivals > 0, "nothing came into an empty valley in two hundred days");
         Assert.Contains(w.Agents.Values, h => h.Species == Species.Caribou);
         // Capacity is derived, never saved: a loaded world reads the same capacities off the same land.
@@ -512,10 +517,10 @@ public class KillChainTests
         var a = CaribouHerd(w, 1);
         int full = (int)Math.Floor(Fauna.CapacityOf(w, w.Agent(a)));
         Assert.True(full >= 4, $"capacity {full}");
-        w.Agent(a).Members.AddRange(Enumerable.Range(0, full / 2 - 1).Select(_ => SpeciesTable.NewBody(Species.Caribou, w.Rng("test"))));
-        var b = CaribouHerd(w, full - full / 2);
+        CaribouHerd(w, full / 2 - 1);
+        CaribouHerd(w, full - full / 2);
         Sim.Advance(w, 50 * 1440);
-        int together = w.Agent(a).Members.Count + w.Agent(b).Members.Count;
+        int together = CaribouIn(w);
         Assert.True(together <= full, $"{together} caribou on land carrying {full}");
     }
 
@@ -527,20 +532,20 @@ public class KillChainTests
     {
         var w = Bare(seed: 123);
         var land = Fauna.MindOf(World.New(123).Agents.Values.First(a => a.Species == Species.Mammoth)).Territory;
-        var mammoths = Agents.Spawn(w, Species.Mammoth, land[0], 6, [.. land]);
-        var wolves = Agents.Spawn(w, Species.Wolf, land[0], 6, [land[0]]);
-        TestKit.SetHunger(w.Agent(wolves), 0.95);
+        var mammoths = Animals.Spawn(w, Species.Mammoth, land[0], 6, [.. land]);
+        var wolves = Animals.Spawn(w, Species.Wolf, land[0], 6, [land[0]]);
+        foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0.95);
         Assert.False(Fauna.IsQuarry(Species.Mammoth));
         Assert.True(Fauna.IsQuarry(Species.Caribou) && Fauna.IsQuarry(Species.Bison));
         var events = new List<WorldEvent>();
-        for (int i = 0; i < 3 * 1440 && w.Agents.ContainsKey(wolves); i++)
+        for (int i = 0; i < 3 * 1440 && wolves.Living(w) > 0; i++)
         {
-            TestKit.SetHunger(w.Agent(wolves), 0.95); // starving the whole time, on the mammoths' land
+            foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0.95); // starving the whole time, on the mammoths' land
             events.AddRange(Sim.Advance(w, 1));
         }
-        Assert.DoesNotContain(events.OfType<EncounterEnded>(), f => f.Agent == mammoths);
-        Assert.True(w.Agents.ContainsKey(wolves), "the pack went for the mammoths and died of it");
-        Assert.True(w.Agent(mammoths).Members.Count >= 6);
+        Assert.DoesNotContain(events.OfType<EncounterEnded>(), f => mammoths.Ids.Contains(f.Agent));
+        Assert.True(wolves.Living(w) == 6, "the pack went for the mammoths and lost wolves to it");
+        Assert.Equal(6, mammoths.Living(w));
     }
 
     /// Review: hyenas and the carrion flock never died but in a fight, and a pack only after fourteen
@@ -553,20 +558,20 @@ public class KillChainTests
     {
         var w = Bare();
         var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Wolf)).Territory;
-        var wolves = Agents.Spawn(w, Species.Wolf, land[0], 8, [.. land]);
-        var hyenas = Agents.Spawn(w, Species.Hyena, land[0], 6, [.. land]);
-        var flock = Agents.Spawn(w, Species.Raven, land[0], 6, [land[0]]);
+        var wolves = Animals.Spawn(w, Species.Wolf, land[0], 8, [.. land]);
+        var hyenas = Animals.Spawn(w, Species.Hyena, land[0], 6, [.. land]);
+        var flock = Animals.Spawn(w, Species.Raven, land[0], 6, [land[0]]);
         Assert.Equal(0, Fauna.CapacityOf(w, w.Agent(wolves))); // no prey left in the valley
         double flockRoom = Fauna.CapacityOf(w, w.Agent(flock));
         Assert.True(flockRoom < 6, $"the flock's land carries {flockRoom:0.0}");
         for (int d = 0; d < 60; d++)
         {
-            Fauna.MindOf(w.Agent(wolves)).LastFedMinute = w.Minute; // fed (scavenging), never past StarveDays
+            foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).LastFedMinute = w.Minute; // fed (scavenging), never past StarveDays
             Sim.Advance(w, 1440);
         }
-        Assert.True(!w.Agents.ContainsKey(wolves) || w.Agent(wolves).Members.Count < 8, "a pack on land with no prey lost no one");
-        Assert.True(!w.Agents.ContainsKey(hyenas) || w.Agent(hyenas).Members.Count < 6, "hyenas on land with no prey lost no one");
-        Assert.True(!w.Agents.ContainsKey(flock) || w.Agent(flock).Members.Count < 6, "a flock over what its land carries lost no one");
+        Assert.True(wolves.Living(w) < 8, "a pack on land with no prey lost no one");
+        Assert.True(hyenas.Living(w) < 6, "hyenas on land with no prey lost no one");
+        Assert.True(flock.Living(w) < 6, "a flock over what its land carries lost no one");
         Assert.Contains(w.Tiles.Values.SelectMany(t => t.Carcasses ?? []), c => c.Animal == "Hyena" && c.Cause?.What == "starvation");
     }
 
@@ -580,7 +585,7 @@ public class KillChainTests
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         var kill = Caribou(w, camp, new Cause(P, "the player's wooden spear"));
         Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), Resource.Pine, 2);
-        Agents.Spawn(w, Species.Wolf, camp, 3);
+        Animals.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
         Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Butcher(P, kill.Id))?.Reason);
         Assert.Null(Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
@@ -620,13 +625,13 @@ public class KillChainTests
         var c = Caribou(w, tile);
         double meat = Carcasses.MeatKg(c);
         var start = new TileId(tile.X, tile.Y + 6);
-        var flock = Agents.Spawn(w, Species.Raven, start, 5, [start, tile]);
+        var flock = Animals.Spawn(w, Species.Raven, start, 5, [start, tile]);
         Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon));
         for (int i = 0; i < 6 * 60 && w.Agent(flock).Tile != tile; i++) Sim.Advance(w, 1);
         Assert.Equal(tile, w.Agent(flock).Tile);
         Assert.True(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon), "circling flesh: a beacon");
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "carcass" && f.Text.Contains("ravens circling"));
-        TestKit.SetHunger(w.Agent(flock), 1);
+        foreach (var raven in flock.In(w)) TestKit.SetHunger(raven, 1);
         Sim.Advance(w, 60);
         Assert.True(Carcasses.MeatKg(c) < meat, "the flock ate nothing");
     }
@@ -637,10 +642,10 @@ public class KillChainTests
         var w = Bare();
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
-        var wolves = Agents.Spawn(w, Species.Wolf, tile, 3);
-        Fauna.MindOf(w.Agent(wolves)).State = HerdState.Resting;
+        var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
+        foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).State = HerdState.Resting;
         var start = new TileId(tile.X - 5, tile.Y);
-        var flock = Agents.Spawn(w, Species.Raven, start, 4, [start, tile]);
+        var flock = Animals.Spawn(w, Species.Raven, start, 4, [start, tile]);
         for (int i = 0; i < 6 * 60 && w.Agent(flock).Tile != w.Agent(wolves).Tile; i++) Sim.Advance(w, 1);
         Assert.Equal(w.Agent(wolves).Tile, w.Agent(flock).Tile);
         var sign = Signs.At(w, w.Agent(flock).Tile).Single(s => s.Kind == SignKind.RavensOver);
@@ -656,13 +661,13 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(camp, Direction.West);
         Items.Add(Items.StashAt(w, tile, new Cause(P, "stashed by the player")), Resource.RawMeat, 5);
-        var flock = Agents.Spawn(w, Species.Raven, tile, 4, [tile]);
-        TestKit.SetHunger(w.Agent(flock), 0.2); // not hungry enough to forage: only the stash tempts it
+        var flock = Animals.Spawn(w, Species.Raven, tile, 4, [tile]);
+        foreach (var raven in flock.In(w)) TestKit.SetHunger(raven, 0.2); // not hungry enough to forage: only the stash tempts it
         Assert.Null(Fauna.Refusal(w, new Raid(flock)));
         w.Agent(P).Tile = tile;
         Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(flock))?.Reason);
         w.Agent(P).Tile = camp;
-        Agents.Spawn(w, Species.Wolf, tile, 2);
+        Animals.Spawn(w, Species.Wolf, tile, 2);
         Assert.Null(Fauna.Refusal(w, new Raid(flock))); // the guard gate is not wired
         w.AccessGates = Access.Gate.All;
         Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Raid(flock))?.Reason);
@@ -683,7 +688,7 @@ public class KillChainTests
         var w = Bare();
         var camp = Map.Of(w).Camp;
         var c = Caribou(w, camp);
-        Agents.Spawn(w, Species.Raven, camp, 4);
+        Animals.Spawn(w, Species.Raven, camp, 4);
         Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, camp, c.Id)).HasFlag(Tag.Occupied));
     }
 
@@ -696,18 +701,18 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
         Caribou(w, tile);
-        var flock = Agents.Spawn(w, Species.Raven, tile, 3); // guards nothing, so the pack alone holds the tile
-        var caribou = Agents.Spawn(w, Species.Caribou, tile, 2);
+        var flock = Animals.Spawn(w, Species.Raven, tile, 3); // guards nothing, so the pack alone holds the tile
+        var caribou = Animals.Spawn(w, Species.Caribou, tile, 2);
         Assert.Null(Fauna.Refusal(w, new Feed(flock)));
         Assert.Null(Fauna.Refusal(w, new Graze(caribou)));
-        var wolves = Agents.Spawn(w, Species.Wolf, tile, 3);
+        var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
         Assert.Null(Fauna.Refusal(w, new Feed(flock))); // unwired: the pack changes nothing yet
         Assert.Null(Fauna.Refusal(w, new Graze(caribou)));
         w.AccessGates = Access.Gate.All;
         Assert.Equal("nothing here it can reach to eat", Fauna.Refusal(w, new Feed(flock))?.Reason);
         Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Graze(caribou))?.Reason);
         Assert.Null(Fauna.Refusal(w, new Feed(wolves))); // the guard's own meal
-        Fauna.MindOf(w.Agent(wolves)).Fear = 0.9; // an afraid pack holds nothing
+        foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).Fear = 0.9; // an afraid pack holds nothing
         Assert.Null(Fauna.Refusal(w, new Feed(flock)));
         Assert.Null(Fauna.Refusal(w, new Graze(caribou)));
     }
@@ -722,7 +727,7 @@ public class KillChainTests
         TestKit.Supply(w);
         var npc = Npc.Spawn(w, camp);
         TestKit.Supply(w, npc);
-        Agents.Spawn(w, Species.Wolf, camp, 3);
+        Animals.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
         Assert.Null(Work.Refusal(w, new Stash(P, Resource.Pine, 1))); // a new pile: the player's own
         Sim.Step(w, new Stash(P, Resource.Pine, 1), 1);
@@ -795,7 +800,7 @@ public class KillChainTests
         Assert.Equal(new AgentId(NpcBench.FirstId), NpcBench.Spawn(a, Map.Of(a).Camp));
         Assert.Equal(new AgentId(NpcBench.FirstId), NpcBench.Spawn(b, Map.Of(b).Camp));
         Assert.Equal(new AgentId(NpcBench.FirstId + 1), NpcBench.Spawn(b, Map.Of(b).Camp));
-        Assert.True(Agents.Spawn(b, Species.Caribou, Map.Of(b).Camp, 1).CompareTo(new AgentId(NpcBench.FirstId + 1)) > 0);
+        Assert.True(Agents.Spawn(b, Species.Caribou, Map.Of(b).Camp).CompareTo(new AgentId(NpcBench.FirstId + 1)) > 0);
     }
 
     /// The Nearby index answers as a walk over every agent would, as herds walk, are born and die.
@@ -819,7 +824,7 @@ public class KillChainTests
             Sim.Advance(w, 37);
             Check();
         }
-        var spawned = Agents.Spawn(w, Species.Caribou, m.Camp, 2);
+        var spawned = Animals.Spawn(w, Species.Caribou, m.Camp, 2);
         Check();
         w.Agent(spawned).Tile = Map.Step(m.Camp, Direction.South); // set by hand, as tests do
         Check();

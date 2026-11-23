@@ -322,9 +322,9 @@ public sealed class Fights
         {
             var g = ArmPlayer();
             var species = c.Setup.Contains("bison") ? Species.Bison : Species.Caribou;
-            var herd = Agents.Spawn(w, species, tile, 4);
-            ((HerdMind)w.Agent(herd).Mind).State = c.Setup.Contains("grazing") ? HerdState.Grazing : HerdState.Resting;
-            var enc = Fauna.BeginHunt(w, P, herd, 0, g);
+            var herd = Agents.SpawnGroup(w, species, tile, 4);
+            foreach (var id in herd) ((HerdMind)w.Agent(id).Mind).State = c.Setup.Contains("grazing") ? HerdState.Grazing : HerdState.Resting;
+            var enc = Fauna.BeginHunt(w, P, herd[0], g);
             Observe(enc);
             return DrivePlayer(enc, HuntPolicy);
         }
@@ -349,8 +349,8 @@ public sealed class Fights
         FightOutcome PersonVsAnimal()
         {
             var (count, s, o, dist, aw) = AnimalSetup(c.Setup);
-            var herd = Agents.Spawn(w, s, tile, count);
-            var animals = Enumerable.Range(0, count).Select(i => new Fighter(herd, i) { BoldnessDelta = OpeningBoldness(c.Setup, s) }).ToList();
+            var herd = Agents.SpawnGroup(w, s, tile, count);
+            var animals = herd.Select(id => new Fighter(id) { BoldnessDelta = OpeningBoldness(c.Setup, s) }).ToList();
             if (c.Policy != "ai")
             {
                 var weapon = ArmPlayer();
@@ -369,18 +369,18 @@ public sealed class Fights
 
         FightOutcome PackVsPrey()
         {
-            var pack = Agents.Spawn(w, Species.Wolf, tile, 4);
+            var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 4);
             var preySpecies = c.Setup.Contains("bison") ? Species.Bison : Species.Caribou;
             int preyCount = c.Setup.Contains("caribou3") ? 3 : 1;
-            var prey = Agents.Spawn(w, preySpecies, tile, 4);
+            var prey = Agents.SpawnGroup(w, preySpecies, tile, 4);
             bool noticed = c.Setup.EndsWith("_noticed");
-            var enc = Combat.Create(w, [.. Enumerable.Range(0, 4).Select(i => new Fighter(pack, i))],
-                [.. Enumerable.Range(0, preyCount).Select(i => new Fighter(prey, i))], tile,
+            var enc = Combat.Create(w, [.. pack.Select(id => new Fighter(id))],
+                [.. prey.Take(preyCount).Select(id => new Fighter(id))], tile,
                 noticed ? 15 : 5, Awareness.Engaged, noticed ? Awareness.Alert : Awareness.Unaware);
             var events = new List<WorldEvent>();
             Observe(enc);
             var r = Combat.ResolveHeadless(w, enc, events);
-            bool wolfDied = events.OfType<Killed>().Any(k => k.Agent == pack);
+            bool wolfDied = events.OfType<Killed>().Any(k => pack.Contains(k.Agent));
             return new(r.ToString(), wolfDied, BKilled(enc, events), r == CombatResult.Fled, enc.Rounds);
         }
 
@@ -389,8 +389,8 @@ public sealed class Fights
             int people = c.Setup.StartsWith("two") ? 2 : 1;
             var ids = new List<Fighter>();
             for (int i = 0; i < people; i++) { var pid = Person(out var g); ids.Add(new Fighter(pid) { Weapon = g }); }
-            var pack = Agents.Spawn(w, Species.Wolf, tile, 4);
-            var enc = Combat.Create(w, ids, [.. Enumerable.Range(0, 4).Select(i => new Fighter(pack, i))], tile, 0,
+            var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 4);
+            var enc = Combat.Create(w, ids, [.. pack.Select(id => new Fighter(id))], tile, 0,
                 Awareness.Engaged, Awareness.Engaged, Opening.Approach);
             var events = new List<WorldEvent>();
             Observe(enc);

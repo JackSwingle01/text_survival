@@ -42,7 +42,7 @@ public static class Signs
     {
         var a = world.Agent(new AgentId(t.Index));
         if (Fauna.BehaviorOf(a.Species) != HerdBehavior.Carrion || Fauna.MeatHere(world, t.Tile) > 0) yield break;
-        var followed = Fauna.HerdsAt(world, t.Tile).FirstOrDefault(h => Fauna.IsPredator(h.Species) && Sim.IsAlive(h));
+        var followed = Fauna.AnimalsAt(world, t.Tile).FirstOrDefault(h => Fauna.IsPredator(h.Species) && Sim.IsAlive(h));
         if (followed != null) yield return new Sign(t, SignKind.RavensOver, null, Cause.By(world, followed.Id));
     }
 

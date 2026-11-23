@@ -236,7 +236,7 @@ public class ConservationItemsTests
         var tile = Map.Step(Map.Step(Camp(w), Direction.East), Direction.East);
         for (int i = 0; i < RaidStash.Length; i++)
             if (s.StashKg[i] > 0) Items.Add(Items.StashAt(w, tile, new Cause(P, "stashed by the player")), RaidStash[i], s.StashKg[i]);
-        Agents.Spawn(w, Species.Raven, tile, s.Members);
+        Agents.SpawnGroup(w, Species.Raven, tile, s.Members);
         var before = ItemKg(w);
         var gear = GearCount(w);
         Sim.Advance(w, s.Minutes);

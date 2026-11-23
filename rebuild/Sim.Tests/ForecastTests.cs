@@ -365,7 +365,7 @@ public class ForecastTests
     public void Routes_ForAnAnimal_AgreeWithTheWalkMade()
     {
         var w = Bare(-5);
-        var herd = Agents.Spawn(w, Species.Caribou, Map.Step(Camp(w), Direction.South), 3);
+        var herd = Agents.SpawnGroup(w, Species.Caribou, Map.Step(Camp(w), Direction.South), 3)[0];
         RouteAgrees(w, herd, 0.001);
     }
 
@@ -383,7 +383,7 @@ public class ForecastTests
     public void Routes_StopAtTheCutoff()
     {
         var w = Bare(-5);
-        var herd = Agents.Spawn(w, Species.Caribou, Camp(w), 1);
+        var herd = Agents.Spawn(w, Species.Caribou, Camp(w));
         var routes = Trip.Routes(w, herd, maxMinutes: 30);
         Assert.All(routes.Reached, t => Assert.InRange(routes.Minutes[t], 0, 30));
         Assert.True(Trip.Routes(w, herd, maxMinutes: 120).Minutes.Count > routes.Minutes.Count);
@@ -393,7 +393,7 @@ public class ForecastTests
     public void Routes_UntilStopsAtTheFirstTileItAccepts_InMinutesThenTileOrder()
     {
         var w = Bare(-5);
-        var herd = Agents.Spawn(w, Species.Caribou, Camp(w), 1);
+        var herd = Agents.Spawn(w, Species.Caribou, Camp(w));
         var settled = new List<(int Minutes, TileId Tile)>();
         var routes = Trip.Routes(w, herd, until: (t, minutes) => { settled.Add((minutes, t)); return settled.Count == 20; });
         Assert.Equal(20, settled.Count);
@@ -421,14 +421,14 @@ public class ForecastTests
         var w = Bare(-5);
         var m = Map.Of(w);
         var (west, east) = AcrossALake(w);
-        var flock = Agents.Spawn(w, Species.Raven, west, 3);
+        var flock = Agents.SpawnGroup(w, Species.Raven, west, 3)[0];
         var routes = Trip.Routes(w, flock);
         Assert.Equal(Enumerable.Range(west.X + 1, 5).Select(x => new TileId(x, west.Y)), routes.RouteTo(east));
         Assert.Equal(5 * Traversal.FlightMinutesPerTile(w.Agent(flock))!.Value, routes.Minutes[east]);
         Assert.DoesNotContain(routes.Reached, t => m.TerrainAt(t) == Terrain.Mountain);
         Assert.Contains(routes.Reached, t => MapGen.Neighbors(t).Any(n => m.InBounds(n) && m.TerrainAt(n) == Terrain.Mountain));
 
-        var herd = Agents.Spawn(w, Species.Caribou, west, 3);
+        var herd = Agents.SpawnGroup(w, Species.Caribou, west, 3)[0];
         var walking = Trip.Routes(w, herd);
         Assert.True(!walking.Reaches(east) || walking.Minutes[east] > routes.Minutes[east]);
     }
@@ -441,7 +441,7 @@ public class ForecastTests
         // looked at first, so only the tie-break sends it west.
         var start = Camp(w);
         var corner = new TileId(start.X - 1, start.Y + 1);
-        var flock = Agents.Spawn(w, Species.Raven, start, 3);
+        var flock = Agents.SpawnGroup(w, Species.Raven, start, 3)[0];
         var path = Trip.Routes(w, flock).RouteTo(corner);
         Assert.Equal([new TileId(start.X - 1, start.Y), corner], path); // (x-1, y) sorts before (x, y+1)
         var again = Save.FromJson(Save.ToJson(w));

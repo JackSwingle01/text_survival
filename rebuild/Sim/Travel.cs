@@ -17,6 +17,8 @@ public sealed class Crossing
     public double RiskPct { get; init; }
 }
 
+public readonly record struct Departure(TileId From, Direction Dir, long Minute);
+
 /// A record, not a struct, so the reader requires Target, Type and Amount (a struct row would default them).
 public sealed record Accident(BodyTarget Target, DamageType Type, double Amount, EffectKind? Effect = null, double Severity = 0);
 
@@ -94,6 +96,7 @@ public static class Traversal
         var to = Map.Step(from, c.Dir);
         agent.Tile = to;
         agent.Crossing = null;
+        if (agent.Mind is HerdMind) agent.LastLeft = new Departure(from, c.Dir, world.Minute);
         events.Add(new Moved(world.Minute, agent.Id, from, to));
         // A herd marks the ground with all its feet; the carrion flock is mostly on the wing, the fox in it too light.
         if (Fauna.BehaviorOf(agent.Species) != HerdBehavior.Carrion)

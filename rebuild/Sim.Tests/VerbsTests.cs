@@ -95,7 +95,7 @@ public class VerbsTests
     /// The player kills a caribou on this tile with a spear in hand: the fight's own aftermath leaves the carcass.
     static Carcass PlayerKill(World w, TileId tile)
     {
-        var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
+        var caribou = Agents.Spawn(w, Species.Caribou, tile);
         var spear = Items.Make("wooden_spear");
         Items.Pack(w, P).Gear.Add(spear);
         var enc = Combat.Create(w, [new Fighter(P) { Weapon = spear }], [new Fighter(caribou)], tile, 2, Awareness.Engaged, Awareness.Unaware);
@@ -192,9 +192,11 @@ public class VerbsTests
         var w = Camp(out var camp);
         Sim.Step(w, new Wait(P), 1);
         var npc = Npc.Spawn(w, camp);
-        var herd = Agents.Spawn(w, Species.Caribou, camp, 3);
+        var herd = Agents.SpawnGroup(w, Species.Caribou, camp, 3)[0];
         Items.Pack(w, P).Gear.Add(Items.Make("wooden_spear"));
         var here = Verbs.At(w, P);
+        // Three caribou on the tile are one herd, listed under its first.
+        Assert.Single(here.LocationFeatures, t => t.LocationFeature.Kind == LocationFeatureKind.Agent && w.Agent(new AgentId(t.LocationFeature.Index)).Mind is HerdMind);
         var caribou = here.LocationFeatures.Single(t => t.LocationFeature == LocationFeatures.OfAgent(w, herd));
         Assert.Equal(new Hunt(P, herd), caribou.Action!.Activity);
         Assert.True(caribou.Action.Allowed);
@@ -211,7 +213,7 @@ public class VerbsTests
     {
         var w = Camp(out var camp);
         Sim.Step(w, new Wait(P), 1);
-        var wolf = Agents.Spawn(w, Species.Wolf, camp, 1);
+        var wolf = Agents.Spawn(w, Species.Wolf, camp);
         Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], camp, 10, Awareness.Engaged, Awareness.Engaged);
         Assert.All(Verbs.At(w, P).All, v => Assert.Equal(Sim.InAnEncounter, v.Refused?.Reason));
         AssertEveryVerbIsTrue(w, P);
@@ -365,7 +367,7 @@ public class VerbsTests
     public void NameOf_GivesTheNamesVerbsAtLists()
     {
         var w = Camp(out var camp);
-        Agents.Spawn(w, Species.Wolf, camp, 2);
+        Agents.SpawnGroup(w, Species.Wolf, camp, 2);
         Npc.Spawn(w, camp);
         var pit = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, Pit = PitType.Open };
         Fire.AddFuel(pit, Resource.Kindling, 1);

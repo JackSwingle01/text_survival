@@ -65,10 +65,10 @@ public static partial class Fauna
 
     /// A predator herd holds the carcass, so the flock waits overhead until it has gone.
     static bool PredatorAt(World world, TileId tile) =>
-        HerdsAt(world, tile).Any(h => IsPredator(h.Species) && Sim.IsAlive(h));
+        AnimalsAt(world, tile).Any(h => IsPredator(h.Species) && Sim.IsAlive(h));
 
     public static Agent? FlockAt(World world, TileId tile) =>
-        HerdsAt(world, tile).FirstOrDefault(h => BehaviorOf(h.Species) == HerdBehavior.Carrion && Sim.IsAlive(h));
+        AnimalsAt(world, tile).FirstOrDefault(h => BehaviorOf(h.Species) == HerdBehavior.Carrion && Sim.IsAlive(h));
 
     static Refusal? RaidRefusal(World world, Agent herd)
     {

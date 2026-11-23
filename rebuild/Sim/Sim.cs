@@ -233,7 +233,11 @@ public static class Sim
     internal static bool Held(World world, AgentId id) =>
         world.Encounters.Count > 0 && world.Encounters.Any(e => e.Units.Any(u => u.Agent == id && u.InField));
 
-    public static bool IsAlive(Agent agent) => agent.Members.Any(Body.IsAlive);
+    public static bool IsAlive(Agent agent)
+    {
+        foreach (var b in agent.Members) if (Body.IsAlive(b)) return true;
+        return false;
+    }
 
     // ---- one activity, whoever does it: start, a minute lived, stop ----
 
@@ -582,3 +586,4 @@ public static class Minds
         _ => throw new NotSupportedException($"No decider for {agent.Mind.GetType().Name}"),
     };
 }
+

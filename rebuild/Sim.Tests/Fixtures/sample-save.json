@@ -1,5 +1,5 @@
 {
-  "Version": 20,
+  "Version": 21,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -1685,7 +1685,32 @@
             "Effects": [],
             "WoundsLivedThroughMinute": 172,
             "Worn": []
-          },
+          }
+        ],
+        "Mind": {
+          "kind": "herd",
+          "Territory": [
+            "19,42"
+          ],
+          "TerritoryIndex": 0,
+          "State": 0,
+          "StateSinceMinute": 1,
+          "Fear": 0,
+          "LastEncounterMinute": -1000000,
+          "FleeFrom": null,
+          "Foray": null,
+          "LastFedMinute": 0,
+          "Familiar": {
+            "3": 1
+          }
+        },
+        "Crossing": null
+      },
+      "3": {
+        "Id": 3,
+        "Tile": "19,42",
+        "Species": 1,
+        "Members": [
           {
             "Kind": 1,
             "Regions": [
@@ -1975,11 +2000,11 @@
               }
             ],
             "BloodPct": 1,
-            "StructuralKg": 18.09177644117437,
-            "FatKg": 4.307565819327231,
-            "MuscleKg": 20.67631593277071,
+            "StructuralKg": 20.306917216405814,
+            "FatKg": 4.834980289620432,
+            "MuscleKg": 23.20790539017807,
             "CoreTempF": 98.6,
-            "CaloriesKcal": 1011.5018050197725,
+            "CaloriesKcal": 910.3066574052773,
             "EnergyMinutes": 900,
             "HydrationMl": 3000,
             "ClothingHeatBufferPct": 0.3,
@@ -2000,7 +2025,10 @@
           "LastEncounterMinute": -1000000,
           "FleeFrom": null,
           "Foray": null,
-          "LastFedMinute": 0
+          "LastFedMinute": 0,
+          "Familiar": {
+            "2": 1
+          }
         },
         "Crossing": null
       }
@@ -2084,7 +2112,7 @@
       }
     },
     "NextFireId": 2,
-    "NextAgentId": 3,
+    "NextAgentId": 4,
     "Encounters": [],
     "Trails": {
       "7,41|7,42": {

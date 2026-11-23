@@ -69,19 +69,18 @@ public class Phase3GateTests
             case 2:
                 {
                     if (Burning()) break;
-                    var wolves = Agents.Spawn(w, Species.Wolf, tile, 2);
-                    Combat.Create(w, [new Fighter(P) { Weapon = Items.Tool(pack, ToolType.Spear) }], [new Fighter(wolves, 0)], tile, 8, Awareness.Engaged, Awareness.Engaged);
+                    var wolves = Agents.SpawnGroup(w, Species.Wolf, tile, 2);
+                    Combat.Create(w, [new Fighter(P) { Weapon = Items.Tool(pack, ToolType.Spear) }], [new Fighter(wolves[0])], tile, 8, Awareness.Engaged, Awareness.Engaged);
                     break;
                 }
             case 4:
                 {
-                    // A pack of five loses one to wandering off, then four ambush a lone caribou. The
-                    // caribou comes first, so the agent its death removes is not the newest one.
-                    var caribou = Agents.Spawn(w, Species.Caribou, tile, 1);
-                    var wolves = Agents.Spawn(w, Species.Wolf, tile, 5);
-                    Agents.SplitOff(w, wolves, 4);
+                    // A pack of five, four of which ambush a lone caribou. The caribou comes first, so the
+                    // agent its death removes is not the newest one.
+                    var caribou = Agents.Spawn(w, Species.Caribou, tile);
+                    var wolves = Agents.SpawnGroup(w, Species.Wolf, tile, 5);
                     t.Splits++;
-                    var hunt = Combat.Create(w, [.. Enumerable.Range(0, 4).Select(k => new Fighter(wolves, k))], [new Fighter(caribou)], tile, 5, Awareness.Engaged, Awareness.Unaware);
+                    var hunt = Combat.Create(w, [.. wolves.Take(4).Select(id => new Fighter(id))], [new Fighter(caribou)], tile, 5, Awareness.Engaged, Awareness.Unaware);
                     Combat.ResolveHeadless(w, hunt, []);
                     if (!w.Agents.ContainsKey(caribou)) t.HerdsEmptied++;
                     break;

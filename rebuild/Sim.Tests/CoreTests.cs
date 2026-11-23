@@ -186,6 +186,6 @@ public class CoreTests
     {
         var world = World.New(1);
         Assert.Throws<ArgumentOutOfRangeException>(() => Sim.Step(world, new Wait(AgentId.Player), 0));
-        Assert.Throws<KeyNotFoundException>(() => Sim.Step(world, new Wait(new AgentId(99)), 1));
+        Assert.Throws<KeyNotFoundException>(() => Sim.Step(world, new Wait(new AgentId(world.NextAgentId)), 1)); // never made
     }
 }
