@@ -1,0 +1,52 @@
+name: Publish a built issue
+description: >-
+  Push an issue agent build's local branch and open its pull request, on a fresh Claude app token.
+  A build longer than an hour outlives the token it started with (GitHub App tokens last 60
+  minutes), so the build commits and publishing is this short step of its own. A pull request
+  opened with the workflow's GITHUB_TOKEN would not trigger CI or Claude Review; the app's does.
+  Interim: a run of claude-code-action is how this workflow gets an app token; a PR job on the
+  repo's own token (or Jack's own GitHub App) replaces it.
+
+inputs:
+  issue:
+    description: Issue number the branch builds.
+    required: true
+  branch:
+    description: The local branch, already checked out, with the build's commits on it.
+    required: true
+  pr_dir:
+    description: >-
+      Directory holding the PR's title.txt and body.md, as the build wrote them. A missing body is
+      written here from the branch's work log.
+    required: true
+  claude_code_oauth_token:
+    description: secrets.CLAUDE_CODE_OAUTH_TOKEN
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1, 2026-11-20
+      with:
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        plugin_marketplaces: "https://github.com/JackSwingle01/skills.git"
+        plugins: "mp@jackswingle01"
+        prompt: |
+          Publish issue #${{ inputs.issue }}'s build: push branch ${{ inputs.branch }} and open its pull
+          request into main. The branch is checked out with its commits; nothing else needs changing.
+
+          1. If ${{ inputs.pr_dir }}/body.md is missing, write it: call the Skill tool with "mp:pr", passing
+             the work log this branch adds under .agent-logs/
+             (`git diff --name-only origin/main...HEAD -- .agent-logs`). The body says
+             "Closes #${{ inputs.issue }}". If ${{ inputs.pr_dir }}/title.txt is missing, use the first
+             commit's subject.
+          2. `git push -u origin ${{ inputs.branch }}`. If it is rejected, stop: no force push, no rebase.
+          3. `gh pr create --base main --head ${{ inputs.branch }} --title "<title.txt>" --body-file ${{ inputs.pr_dir }}/body.md`.
+
+          Answer through the structured output: `pr_url`, empty if no PR was opened, and `note`, one
+          sentence on what failed if anything did.
+        claude_args: >-
+          --model claude-sonnet-5-5
+          --allowedTools "Read,Write,Glob,Grep,Skill,Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(git show:*),Bash(git push:*),Bash(gh pr create:*),Bash(gh pr list:*),Bash(cat:*),Bash(ls:*)"
+          --json-schema '{"type":"object","additionalProperties":false,"required":["pr_url","note"],
+          "properties":{"pr_url":{"type":"string"},"note":{"type":"string","maxLength":300}}}'

@@ -35,7 +35,7 @@ name: Issue agent
 #
 # Publishing. A build longer than an hour outlives the Claude app token it started with (GitHub App
 # tokens last 60 minutes), so the build only commits and writes the PR's title and body. The
-# Publish step (.github/actions/publish) pushes and opens the PR on a fresh token. The workflow's
+# Publish step (.github/actions/publish-pr) pushes and opens the PR on a fresh token. The workflow's
 # own GITHUB_TOKEN can't stand in: a PR it opens triggers neither CI nor Claude Review.
 #
 # Restore. A build that finished but never became a PR is kept in its run's `issue-N-work` artifact
@@ -369,7 +369,7 @@ jobs:
       - name: Publish
         if: steps.build.outputs.outcome == 'built' && steps.build_usage.outputs.rejected != 'true'
         continue-on-error: true
-        uses: ./.github/actions/publish
+        uses: ./.github/actions/publish-pr
         with:
           issue: ${{ matrix.issue }}
           branch: ${{ steps.verdict.outputs.branch }}
@@ -505,7 +505,7 @@ jobs:
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Publish
-        uses: ./.github/actions/publish
+        uses: ./.github/actions/publish-pr
         with:
           issue: ${{ inputs.issue }}
           branch: ${{ steps.rebuild.outputs.branch }}
