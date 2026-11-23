@@ -10,3 +10,6 @@ Revised: scout and adversarial design-review sub-agents skipped, decided unatten
 Revised: tdd seams, decided unattended → none; the existing CommentHygieneTests is the check, the fast suite guards behaviour.
 Revised: Fight's "Target indexes Encounter.Units" note goes, though only a rename could say it → Fight is saved as JSON and its property names are its format; keeping the note would put Activity.cs over 10%.
 Checked: CommentHygieneTests 4/4; the ratchet's remaining command prints neither file; fast suite 1551/1551 (Release).
+Revised (review): Wired's, PutDownRefusal's, Build's and Make's rewrites misread the code, and the header said every agent's activity is saved (the player's is not) → reworded; PutDownRefusal's reason for a new pile and Block's "Gate.None means plain distance" are restored, shortened.
+Revised (review): Gather's "Pool-th pool (Pools.At)" and Butcher's carcass index go without a rename, for the same reason as Fight's Target → the names are the save format.
+Follow-up: Fight.Target, Gather.Pool and Butcher.Carcass are bare int indexes; a typed index would say what each indexes once a save-format change is due.

@@ -14,7 +14,7 @@ public static class Access
         All = Buried | Occupied | FrozenIn | AcrossWater,
     }
 
-    /// None is switched on yet; until then each gate is reached only through the gates overloads.
+    /// None is switched on in play yet; tests switch them on through World.AccessGates or the gates overloads.
     public const Gate Wired = Gate.None;
 
     public const string BuriedReason = "it is buried under the snow", FrozenInReason = "it is frozen in",
@@ -27,6 +27,7 @@ public static class Access
     public static Refusal? Refusal(World world, AgentId who, LocationFeature t, Gate gates, bool confronting = false) =>
         Blocker(world, who, t, gates, confronting) is { } b ? new(b.Reason, b.Missing) : null;
 
+    /// Gate.None means plain distance.
     public readonly record struct Block(Gate Gate, string Reason, Missing? Missing = null);
 
     public static Block? Blocker(World world, AgentId who, LocationFeature t, bool confronting = false) =>
@@ -57,13 +58,14 @@ public static class Access
     static string OccupiedReason(World world, LocationFeature t, AgentId who) =>
         $"{Cause.Describe(world, Tags.Occupants(world, t, who).Min())} guards it";
 
-    /// What is put down lies on top, so snow or ice over a stash does not bar adding to it; only an occupant does.
+    /// What is put down lies on top, so snow or ice over a stash does not bar adding to it; only its occupant does.
     public static Refusal? PutDownRefusal(World world, AgentId who, TileId tile) => PutDownRefusal(world, who, tile, world.AccessGates);
 
     public static Refusal? PutDownRefusal(World world, AgentId who, TileId tile, Gate gates)
     {
         if (world.Agent(who).Tile != tile) return new(OutOfReach);
         if (!gates.HasFlag(Gate.Occupied)) return null;
+        // A new pile is the putter's own, so no occupant bars it.
         var pile = LocationFeatures.StashAt(world, tile);
         if (pile == null) return null;
         return Tags.Occupants(world, pile.Value, who).Count > 0 ? new(OccupiedReason(world, pile.Value, who)) : null;

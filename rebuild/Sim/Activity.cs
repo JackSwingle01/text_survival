@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-/// Saved while an agent is part-way through one: a new activity type needs its line here, or saving a
+/// Saved while an NPC or herd is part-way through one: a new activity type needs its line here, or saving a
 /// world where someone is doing it throws.
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(Wait), "wait")]
@@ -64,11 +64,11 @@ public sealed record Fight(AgentId Who, CombatAction Action, int? Target = null,
 /// Repeating it continues a crossing cut short; anything else abandons it.
 public sealed record Travel(AgentId Who, Direction Dir, Pace Pace = Pace.Quick) : Activity(Who);
 
-/// Work left off is picked up again, so the materials are taken only at the start.
+/// A new one takes its materials at the start; work left off takes none when picked up again.
 public sealed record Build(AgentId Who, Structure What) : Activity(Who);
 public sealed record ImproveShelter(AgentId Who, ShelterStat Stat, Resource Material) : Activity(Who);
 public sealed record PackTent(AgentId Who) : Activity(Who);
 
-/// A project in the pack is picked up where it was left, so the materials are taken only at the start.
+/// A new project takes its materials at the start; one in the pack takes none when picked up again.
 public sealed record Make(AgentId Who, string Recipe) : Activity(Who);
 public sealed record Abandon(AgentId Who, string Recipe) : Activity(Who);
