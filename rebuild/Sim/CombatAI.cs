@@ -270,13 +270,13 @@ public static partial class Combat
         _ => action == CombatAction.Wait,
     };
 
-    /// Where a fighter would stand toward the strongest of a herd at this distance, before any fight:
+    /// Where a fighter would stand toward the strongest of an animal's side (Combat.Side) at this distance, before any fight:
     /// the same resolve and bands a fight runs on (an NPC deciding whether to stand or run).
     /// No allies yet and no morale; the fighter's boldness delta is its own nature.
     public static FighterState WouldStand(World world, Fighter me, Agent threat, double distanceM)
     {
         var them = SpeciesTable.Of(threat.Species);
-        var living = threat.Members.Where(Body.IsAlive).ToList();
+        var living = Combat.Side(world, threat).Where(Sim.IsAlive).Select(a => a.Body).ToList();
         if (living.Count == 0) throw new ArgumentException($"{threat.Id} has nobody alive to stand against");
         double worst = living.Max(m => them.Threat * Body.Vitality(m));
         // Resolve's terms, before the fight: no allies, no morale yet, and fire deters no person.
@@ -285,20 +285,20 @@ public static partial class Combat
         return NextState(FighterState.Standoff, resolve);
     }
 
-    /// The resolve a herd would have toward one agent (the member named, for a herd) were it at its side,
-    /// before any fight: Resolve's terms, and it must follow Resolve when Resolve changes. Its boldest member
-    /// leads, carrying the herd's boldness toward the target as a predator that chose to come
-    /// (Fighter.BoldnessDelta: hunger, fear, numbers against the people standing with it, wounds, the
-    /// night); its other members are its allies; every flame on the target's tile is beside it; and every
-    /// other person there presses on it. The tile's flames must be caught up (Fire.CatchUpOn).
-    public static double ResolveToward(World world, Agent herd, Agent target, int member = 0)
+    /// The resolve an animal's side (Combat.Side) would have toward one agent were they at it, before any
+    /// fight: Resolve's terms, and it must follow Resolve when Resolve changes. Its boldest leads, carrying
+    /// the animal's boldness toward the target as a predator that chose to come (Fighter.BoldnessDelta:
+    /// hunger, fear, numbers against the people standing with it, wounds, the night); the rest are its
+    /// allies; every flame on the target's tile is beside it; and every other person there presses on it.
+    /// The tile's flames must be caught up (Fire.CatchUpOn).
+    public static double ResolveToward(World world, Agent animal, Agent target)
     {
-        var stats = SpeciesTable.Of(herd.Species);
-        var living = herd.Members.Where(Body.IsAlive).ToList();
-        if (living.Count == 0) throw new ArgumentException($"{herd.Id} has nobody alive to come on");
-        var body = target.Members[member];
+        var stats = SpeciesTable.Of(animal.Species);
+        var living = Combat.Side(world, animal).Where(Sim.IsAlive).Select(a => a.Body).ToList();
+        if (living.Count == 0) throw new ArgumentException($"{animal.Id} has nobody alive to come on");
+        var body = target.Body;
         var others = PeopleWith(world, target);
-        double delta = BoldnessToward(world, herd, target, member) - 0.5;
+        double delta = BoldnessToward(world, animal, target) - 0.5;
         int lead = Enumerable.Range(0, living.Count).MaxBy(i => Courage(stats, delta, living[i]));
         double nerve = Courage(stats, delta, living[lead]) + AllyBonus(stats.Cohesion, living.Where((_, i) => i != lead).Select(m => stats.Threat * Body.Vitality(m)));
         double deterrence = FireDeterrence(stats, Fire.FlamesOn(world, target.Tile).Select(f => (f.IntensityPct, 0.0)));
@@ -307,13 +307,13 @@ public static partial class Combat
         return nerve - deterrence - PerceivedThreat(threat, 0) - pressure;
     }
 
-    /// A herd's boldness toward one agent (the member named, for a herd) where it stands now: Boldness,
-    /// with the herd's hunger and learned fear, raw meat in the target's pack, and the people standing with it.
-    public static double BoldnessToward(World world, Agent herd, Agent target, int member = 0)
+    /// An animal's boldness toward one agent where it stands now: Boldness, with its hunger and learned fear,
+    /// raw meat in the target's pack, and the people standing with it.
+    public static double BoldnessToward(World world, Agent animal, Agent target)
     {
-        var mind = Fauna.MindOf(herd);
+        var mind = Fauna.MindOf(animal);
         bool meat = Items.PackOf(target) is Inventory pack && (Items.Have(pack, Resource.RawMeat) > 0 || Items.Have(pack, Resource.RawFish) > 0);
-        return Boldness(world, herd.Id, target.Members[member], hunger: Fauna.Hunger(herd), fear: mind.Fear, targetCarriesMeat: meat,
+        return Boldness(world, animal.Id, target.Body, hunger: Fauna.Hunger(animal), fear: mind.Fear, targetCarriesMeat: meat,
             othersWithTarget: PeopleWith(world, target).Count);
     }
 

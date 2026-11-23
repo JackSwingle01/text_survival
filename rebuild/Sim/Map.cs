@@ -158,6 +158,8 @@ public static class Map
 
     public static GeneratedMap Of(World world) => world.GeneratedMap ??= Generate(world.Seed);
 
+    public static readonly IReadOnlyList<Direction> Directions = Enum.GetValues<Direction>();
+
     public static TileId Step(TileId from, Direction dir) => dir switch
     {
         Direction.North => new(from.X, from.Y - 1),

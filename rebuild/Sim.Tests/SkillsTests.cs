@@ -65,10 +65,10 @@ public class SkillsTests
     }
 
     [Fact]
-    public void AHerd_LearnsNothing()
+    public void AnAnimal_LearnsNothing()
     {
         var w = World.New(17);
-        var wolves = Agents.Spawn(w, Species.Wolf, Map.Of(w).Camp, 2);
+        var wolves = Agents.Spawn(w, Species.Wolf, Map.Of(w).Camp);
         var events = new List<WorldEvent>();
         Skills.Award(w, w.Agent(wolves), Skill.Foraging, 100, events);
         Assert.Empty(events);

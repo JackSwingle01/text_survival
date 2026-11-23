@@ -1,5 +1,5 @@
 {
-  "Version": 20,
+  "Version": 22,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -1679,13 +1679,38 @@
             "MuscleKg": 21.61521783743796,
             "CoreTempF": 98.6,
             "CaloriesKcal": 978.3387443053491,
-            "EnergyMinutes": 900,
-            "HydrationMl": 3000,
+            "EnergyMinutes": 960,
+            "HydrationMl": 2108.8192382098255,
             "ClothingHeatBufferPct": 0.3,
             "Effects": [],
             "WoundsLivedThroughMinute": 172,
             "Worn": []
-          },
+          }
+        ],
+        "Mind": {
+          "kind": "herd",
+          "Territory": [
+            "19,42"
+          ],
+          "TerritoryIndex": 0,
+          "State": 0,
+          "StateSinceMinute": 1,
+          "Fear": 0,
+          "LastEncounterMinute": -1000000,
+          "FleeFrom": null,
+          "Foray": null,
+          "LastFedMinute": 0,
+          "Familiar": {
+            "3": 1
+          }
+        },
+        "Crossing": null
+      },
+      "3": {
+        "Id": 3,
+        "Tile": "19,42",
+        "Species": 1,
+        "Members": [
           {
             "Kind": 1,
             "Regions": [
@@ -1975,13 +2000,13 @@
               }
             ],
             "BloodPct": 1,
-            "StructuralKg": 18.09177644117437,
-            "FatKg": 4.307565819327231,
-            "MuscleKg": 20.67631593277071,
+            "StructuralKg": 20.306917216405814,
+            "FatKg": 4.834980289620432,
+            "MuscleKg": 23.20790539017807,
             "CoreTempF": 98.6,
-            "CaloriesKcal": 1011.5018050197725,
-            "EnergyMinutes": 900,
-            "HydrationMl": 3000,
+            "CaloriesKcal": 910.3066574052773,
+            "EnergyMinutes": 960,
+            "HydrationMl": 2264.2046790106433,
             "ClothingHeatBufferPct": 0.3,
             "Effects": [],
             "WoundsLivedThroughMinute": 172,
@@ -2000,7 +2025,348 @@
           "LastEncounterMinute": -1000000,
           "FleeFrom": null,
           "Foray": null,
-          "LastFedMinute": 0
+          "LastFedMinute": 0,
+          "Familiar": {
+            "2": 1
+          }
+        },
+        "Crossing": null
+      },
+      "4": {
+        "Id": 4,
+        "Tile": "22,42",
+        "Species": 6,
+        "Members": [
+          {
+            "Kind": 1,
+            "Regions": [
+              {
+                "Name": "Head",
+                "Coverage": 15,
+                "Skin": {
+                  "Name": "Skin",
+                  "Kind": 0,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Muscle": {
+                  "Name": "Muscle",
+                  "Kind": 1,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Bone": {
+                  "Name": "Bone",
+                  "Kind": 2,
+                  "Condition": 1,
+                  "Toughness": 4,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Organs": [
+                  {
+                    "Name": "Brain",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.3,
+                    "Provides": 4,
+                    "ProvidesAmount": 1,
+                    "IsExternal": false
+                  },
+                  {
+                    "Name": "Left Eye",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.2,
+                    "Provides": 5,
+                    "ProvidesAmount": 0.6,
+                    "IsExternal": true
+                  },
+                  {
+                    "Name": "Right Eye",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.2,
+                    "Provides": 5,
+                    "ProvidesAmount": 0.6,
+                    "IsExternal": true
+                  },
+                  {
+                    "Name": "Left Ear",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.3,
+                    "Provides": 6,
+                    "ProvidesAmount": 0.6,
+                    "IsExternal": true
+                  },
+                  {
+                    "Name": "Right Ear",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.3,
+                    "Provides": 6,
+                    "ProvidesAmount": 0.6,
+                    "IsExternal": true
+                  }
+                ]
+              },
+              {
+                "Name": "Torso",
+                "Coverage": 35,
+                "Skin": {
+                  "Name": "Skin",
+                  "Kind": 0,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Muscle": {
+                  "Name": "Muscle",
+                  "Kind": 1,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Bone": {
+                  "Name": "Bone",
+                  "Kind": 2,
+                  "Condition": 1,
+                  "Toughness": 3,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Organs": [
+                  {
+                    "Name": "Heart",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.5,
+                    "Provides": 3,
+                    "ProvidesAmount": 1,
+                    "IsExternal": false
+                  },
+                  {
+                    "Name": "Left Lung",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.6,
+                    "Provides": 2,
+                    "ProvidesAmount": 0.5,
+                    "IsExternal": false
+                  },
+                  {
+                    "Name": "Right Lung",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.6,
+                    "Provides": 2,
+                    "ProvidesAmount": 0.5,
+                    "IsExternal": false
+                  },
+                  {
+                    "Name": "Liver",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.6,
+                    "Provides": 7,
+                    "ProvidesAmount": 0.6,
+                    "IsExternal": false
+                  },
+                  {
+                    "Name": "Stomach",
+                    "Kind": 3,
+                    "Condition": 1,
+                    "Toughness": 0.5,
+                    "Provides": 7,
+                    "ProvidesAmount": 0.4,
+                    "IsExternal": false
+                  }
+                ]
+              },
+              {
+                "Name": "Front Left Leg",
+                "Coverage": 12.5,
+                "Skin": {
+                  "Name": "Skin",
+                  "Kind": 0,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Muscle": {
+                  "Name": "Muscle",
+                  "Kind": 1,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Bone": {
+                  "Name": "Bone",
+                  "Kind": 2,
+                  "Condition": 1,
+                  "Toughness": 3,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Organs": []
+              },
+              {
+                "Name": "Front Right Leg",
+                "Coverage": 12.5,
+                "Skin": {
+                  "Name": "Skin",
+                  "Kind": 0,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Muscle": {
+                  "Name": "Muscle",
+                  "Kind": 1,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Bone": {
+                  "Name": "Bone",
+                  "Kind": 2,
+                  "Condition": 1,
+                  "Toughness": 3,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Organs": []
+              },
+              {
+                "Name": "Rear Left Leg",
+                "Coverage": 12.5,
+                "Skin": {
+                  "Name": "Skin",
+                  "Kind": 0,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Muscle": {
+                  "Name": "Muscle",
+                  "Kind": 1,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Bone": {
+                  "Name": "Bone",
+                  "Kind": 2,
+                  "Condition": 1,
+                  "Toughness": 3,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Organs": []
+              },
+              {
+                "Name": "Rear Right Leg",
+                "Coverage": 12.5,
+                "Skin": {
+                  "Name": "Skin",
+                  "Kind": 0,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Muscle": {
+                  "Name": "Muscle",
+                  "Kind": 1,
+                  "Condition": 1,
+                  "Toughness": 1,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Bone": {
+                  "Name": "Bone",
+                  "Kind": 2,
+                  "Condition": 1,
+                  "Toughness": 3,
+                  "Provides": null,
+                  "ProvidesAmount": 0,
+                  "IsExternal": false
+                },
+                "Organs": []
+              }
+            ],
+            "BloodPct": 1,
+            "StructuralKg": 55.036079564943186,
+            "FatKg": 9.784191922656566,
+            "MuscleKg": 57.48212754560732,
+            "CoreTempF": 98.6,
+            "CaloriesKcal": 3069.8854711279073,
+            "EnergyMinutes": 960,
+            "HydrationMl": 6474.832889993317,
+            "ClothingHeatBufferPct": 0.3,
+            "Effects": [],
+            "Worn": []
+          }
+        ],
+        "Mind": {
+          "kind": "herd",
+          "Territory": [
+            "22,42"
+          ],
+          "TerritoryIndex": 0,
+          "State": 1,
+          "StateSinceMinute": 172,
+          "Fear": 0,
+          "LastEncounterMinute": -1000000,
+          "FleeFrom": null,
+          "Foray": null,
+          "LastFedMinute": 172,
+          "Plan": {
+            "Stat": "Water",
+            "Priority": "Need",
+            "At": "24,42",
+            "Route": [
+              "23,42",
+              "24,42"
+            ]
+          },
+          "Sightings": [
+            {
+              "Who": 2,
+              "Tile": "19,42",
+              "Minute": 172
+            }
+          ]
         },
         "Crossing": null
       }
@@ -2011,6 +2377,12 @@
       },
       "body:1": {
         "State": 9750169814475236501
+      },
+      "body:2": {
+        "State": 9750173113010121100
+      },
+      "body:3": {
+        "State": 9750172013498492923
       },
       "fire:0": {
         "State": 12312604483156130127
@@ -2084,7 +2456,7 @@
       }
     },
     "NextFireId": 2,
-    "NextAgentId": 3,
+    "NextAgentId": 5,
     "Encounters": [],
     "Trails": {
       "7,41|7,42": {

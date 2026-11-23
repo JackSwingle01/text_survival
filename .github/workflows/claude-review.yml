@@ -40,6 +40,9 @@ jobs:
           CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The issue agent opens PRs as claude[bot] (its build) or github-actions[bot] (the fallback);
+          # the action refuses bot-triggered runs unless the bot is listed here.
+          allowed_bots: "claude,github-actions"
           # mp: the owner's skills (JackSwingle01/skills), installed for reference.
           plugin_marketplaces: |
             https://github.com/anthropics/claude-plugins-official.git

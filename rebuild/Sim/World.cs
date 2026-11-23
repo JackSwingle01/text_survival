@@ -62,6 +62,9 @@ public sealed class World
     internal Dictionary<GroundClass, GroundState>? GroundCache;
     /// Owned by Ground: each written tile's class state at the tile's own minute.
     internal Dictionary<TileId, GroundState>? GroundShadows;
+    internal (long Minute, Dictionary<GroundClass, GroundSeen> ByClass)? WaterSeenCache;
+    /// The stored-plan benchmark's other arm: animals plan again at every decision (Fauna.Needs).
+    internal bool ReplanEveryDecision;
     internal Dictionary<Diet, double>? ValleyForageCache;
     internal List<TileId>? OpenLandCache;
     internal SortedSet<TileId>? CarcassTiles;

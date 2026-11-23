@@ -63,7 +63,7 @@ public readonly record struct Cause(
         if (!world.Agents.TryGetValue(who, out var a)) return "someone";
         if (a.Mind is PersonMind) return "a person";
         string species = a.Species.ToString().ToLowerInvariant();
-        if (a.Members.Count <= 1) return $"a {species}";
+        if (Fauna.HerdOf(world, a).Count <= 1) return $"a {species}";
         return Fauna.BehaviorOf(a.Species) == HerdBehavior.Prey ? $"a {species} herd" : $"a {species} pack";
     }
 
@@ -78,7 +78,7 @@ public static class LocationFeatures
     public static IEnumerable<LocationFeature> At(World world, TileId tile)
     {
         var found = new List<LocationFeature>();
-        foreach (var id in Nearby.At(world, tile)) found.Add(OfAgent(world, id));
+        foreach (var group in Fauna.GroupsAt(world, tile)) found.Add(OfAgent(world, group[0].Id)); // a herd under its first
         var state = world.Tiles.GetValueOrDefault(tile);
         foreach (var c in state?.Carcasses ?? []) found.Add(new(LocationFeatureKind.Carcass, tile, c.Id));
         var pools = Pools.At(world, tile);

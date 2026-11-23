@@ -17,8 +17,8 @@ public sealed class Memory
     /// Tiles stood on, and tiles seen with something notable (trees, open water, a fire, a shelter,
     /// a den). A bare tile seen from a distance is not kept: the save stays small.
     public SortedDictionary<TileId, TileMemory> Places { get; init; } = [];
-    /// The last place each animal group or person was seen, predator or not. Forgotten after
-    /// Memories.SightingMemoryMinutes.
+    /// The last place each herd or person was seen, predator or not, keyed by its first animal (Sighting).
+    /// Forgotten after Memories.SightingMemoryMinutes.
     public SortedDictionary<AgentId, Sighting> Sightings { get; init; } = [];
     /// Every tile ever in view (Sight.Visible), whether or not anything was there, with its ground and
     /// the routes worn between them as last seen: what the map draws as known rather than unexplored,
@@ -76,8 +76,12 @@ public sealed class TileMemory
 
 public readonly record struct SeenCarcass(int Id, string Animal);
 
-/// An animal group or person, seen on Tile at Minute: how many, and of what kind.
-public sealed record Sighting(TileId Tile, Species Species, int Count, long Minute);
+/// A herd or a person, seen on Tile at Minute: how many, and of what kind. Kept under its first animal's id;
+/// Others are the rest of the herd, so seeing any of them again updates this one sighting.
+public sealed record Sighting(TileId Tile, Species Species, int Count, long Minute)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<AgentId>? Others { get; init; }
+}
 
 /// What a person learned to fear about a place.
 [Flags]
@@ -176,6 +180,9 @@ public static class Sight
         return seen;
     }
 
+    /// One ray of the view: whether a tile is seen from another with this budget (BudgetTiles).
+    public static bool Sees(World world, TileId from, TileId to, double budgetTiles) => CanSee(Map.Of(world), from, to, budgetTiles);
+
     static bool InCave(GeneratedMap m, TileId t) => m.CaveAt(t) == Cave.Floor;
 
     /// Budget a tile takes per tile-length of ray: infinite through a mountain, through nothing to see
@@ -270,9 +277,11 @@ public static class Memories
     public static bool Watch(World world, Agent agent, List<WorldEvent> events) =>
         world.Minute % GlanceMinutes == 0 && Glance(world, agent, events);
 
-    /// When the person last saw this agent, while they remember it.
+    /// When the person last saw this agent, alone or in its herd, while they remember it.
     public static long? LastSeenMinute(Agent person, AgentId other) =>
-        Of(person).Sightings.TryGetValue(other, out var s) ? s.Minute : null;
+        Of(person).Sightings.Where(s => Holds(s, other)).Select(s => (long?)s.Value.Minute).FirstOrDefault();
+
+    static bool Holds(KeyValuePair<AgentId, Sighting> sighting, AgentId id) => sighting.Key == id || sighting.Value.Others?.Contains(id) == true;
 
     /// An NPC's look as it decides: around it, then the tile underfoot. What it would be told is
     /// not reported: nothing reads an NPC's receipts yet.
@@ -325,16 +334,17 @@ public static class Memories
         }
         bool nearer = false;
         var seen = memory.Sightings;
-        foreach (var other in world.Agents.Values)
+        foreach (var group in InView(world, agent, view))
         {
-            if (other.Id == agent.Id || !view.Set.Contains(other.Tile)) continue;
-            int alive = other.Members.Count(Body.IsAlive);
-            if (alive == 0) continue;
+            var first = group[0];
+            // What it remembered of any of them is this sighting now, wherever and however many they were then.
+            var was = seen.Where(s => group.Any(a => Holds(s, a.Id))).ToList();
+            foreach (var (id, _) in was) seen.Remove(id);
             // Both measured from where the person stands now: walking up to a pack is not the pack coming on.
-            if (other.Mind is HerdMind && Fauna.IsPredator(other.Species) && (!seen.TryGetValue(other.Id, out var was)
-                    || MapGen.Manhattan(other.Tile, agent.Tile) < MapGen.Manhattan(was.Tile, agent.Tile)))
+            if (first.Mind is HerdMind && Fauna.IsPredator(first.Species)
+                && (was.Count == 0 || MapGen.Manhattan(first.Tile, agent.Tile) < was.Min(s => MapGen.Manhattan(s.Value.Tile, agent.Tile))))
                 nearer = true;
-            seen[other.Id] = new Sighting(other.Tile, other.Species, alive, now);
+            seen[first.Id] = new Sighting(first.Tile, first.Species, group.Count, now) { Others = group.Count > 1 ? [.. group.Skip(1).Select(a => a.Id)] : null };
         }
         foreach (var (id, s) in seen.ToList())
             if (now - s.Minute > SightingMemoryMinutes) seen.Remove(id);
@@ -460,6 +470,11 @@ public static class Memories
     }
 
     static bool HasTreePool(World world, TileId t) => Pools.At(world, t).Any(p => p is TreePool);
+
+    /// The living herds and people in view (Fauna.GroupsAt), the looker left out.
+    static IEnumerable<List<Agent>> InView(World world, Agent person, SightView view) =>
+        world.Agents.Values.Where(a => view.Set.Contains(a.Tile)).Select(a => a.Tile).Distinct().Order()
+            .SelectMany(t => Fauna.GroupsAt(world, t)).Where(g => g[0].Id != person.Id && Sim.IsAlive(g[0]));
 
     /// Standing timber on the tile (a stand of trees is plain to see from a distance).
     static bool Trees(World world, TileId t)

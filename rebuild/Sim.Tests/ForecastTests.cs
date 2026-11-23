@@ -365,7 +365,7 @@ public class ForecastTests
     public void Routes_ForAnAnimal_AgreeWithTheWalkMade()
     {
         var w = Bare(-5);
-        var herd = Agents.Spawn(w, Species.Caribou, Map.Step(Camp(w), Direction.South), 3);
+        var herd = Agents.SpawnGroup(w, Species.Caribou, Map.Step(Camp(w), Direction.South), 3)[0];
         RouteAgrees(w, herd, 0.001);
     }
 
@@ -383,7 +383,7 @@ public class ForecastTests
     public void Routes_StopAtTheCutoff()
     {
         var w = Bare(-5);
-        var herd = Agents.Spawn(w, Species.Caribou, Camp(w), 1);
+        var herd = Agents.Spawn(w, Species.Caribou, Camp(w));
         var routes = Trip.Routes(w, herd, maxMinutes: 30);
         Assert.All(routes.Reached, t => Assert.InRange(routes.Minutes[t], 0, 30));
         Assert.True(Trip.Routes(w, herd, maxMinutes: 120).Minutes.Count > routes.Minutes.Count);
@@ -393,7 +393,7 @@ public class ForecastTests
     public void Routes_UntilStopsAtTheFirstTileItAccepts_InMinutesThenTileOrder()
     {
         var w = Bare(-5);
-        var herd = Agents.Spawn(w, Species.Caribou, Camp(w), 1);
+        var herd = Agents.Spawn(w, Species.Caribou, Camp(w));
         var settled = new List<(int Minutes, TileId Tile)>();
         var routes = Trip.Routes(w, herd, until: (t, minutes) => { settled.Add((minutes, t)); return settled.Count == 20; });
         Assert.Equal(20, settled.Count);
@@ -421,14 +421,14 @@ public class ForecastTests
         var w = Bare(-5);
         var m = Map.Of(w);
         var (west, east) = AcrossALake(w);
-        var flock = Agents.Spawn(w, Species.Raven, west, 3);
+        var flock = Agents.SpawnGroup(w, Species.Raven, west, 3)[0];
         var routes = Trip.Routes(w, flock);
         Assert.Equal(Enumerable.Range(west.X + 1, 5).Select(x => new TileId(x, west.Y)), routes.RouteTo(east));
         Assert.Equal(5 * Traversal.FlightMinutesPerTile(w.Agent(flock))!.Value, routes.Minutes[east]);
         Assert.DoesNotContain(routes.Reached, t => m.TerrainAt(t) == Terrain.Mountain);
         Assert.Contains(routes.Reached, t => MapGen.Neighbors(t).Any(n => m.InBounds(n) && m.TerrainAt(n) == Terrain.Mountain));
 
-        var herd = Agents.Spawn(w, Species.Caribou, west, 3);
+        var herd = Agents.SpawnGroup(w, Species.Caribou, west, 3)[0];
         var walking = Trip.Routes(w, herd);
         Assert.True(!walking.Reaches(east) || walking.Minutes[east] > routes.Minutes[east]);
     }
@@ -441,11 +441,63 @@ public class ForecastTests
         // looked at first, so only the tie-break sends it west.
         var start = Camp(w);
         var corner = new TileId(start.X - 1, start.Y + 1);
-        var flock = Agents.Spawn(w, Species.Raven, start, 3);
+        var flock = Agents.SpawnGroup(w, Species.Raven, start, 3)[0];
         var path = Trip.Routes(w, flock).RouteTo(corner);
         Assert.Equal([new TileId(start.X - 1, start.Y), corner], path); // (x-1, y) sorts before (x, y+1)
         var again = Save.FromJson(Save.ToJson(w));
         Assert.Equal(path, Trip.Routes(again, flock).RouteTo(corner));
+    }
+
+    // ---- Work and Fauna: what an animal's water and rest pay ----
+
+    static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat;
+
+    /// A thirsty caribou beside a lake drinks what Fauna.WaterHere says, for nothing, less the minute's loss.
+    [Fact]
+    public void Water_FromALake_AgreesWithWhatTheAnimalDrinks()
+    {
+        var w = PlannerTests.Strip(water: [new TileId(10, 2)]);
+        var caribou = PlannerTests.Animal(w, Species.Caribou, new TileId(10, 1), hydrationPct: 0.4);
+        var water = Assert.IsType<Source>(Fauna.WaterHere(w, caribou));
+        Assert.Equal(0, water.KcalPerUnit);
+        double before = caribou.Body.HydrationMl;
+        Sim.Advance(w, 1);
+        Assert.Equal(before - Body.WaterLossMlPerMinute(caribou.Body, sleeping: false) + water.PerMinute, caribou.Body.HydrationMl, 6);
+    }
+
+    /// Snow pays water slower, and every ml costs what melting and warming it costs (Work.SnowKcalPerMl): a wolf, which
+    /// does not graze, loses its burn and the snow's kcal and nothing else.
+    [Fact]
+    public void Water_FromSnow_AgreesWithWhatTheAnimalDrinks_AndWhatItCosts()
+    {
+        var w = PlannerTests.Strip(sky: new WeatherSample(0, WeatherCondition.LightSnow, -10, 0.1, 0.8, 0.8, WindDirection.North));
+        Sim.Advance(w, 1440);
+        var wolf = PlannerTests.Animal(w, Species.Wolf, new TileId(20, 1), hydrationPct: 0.4);
+        var snow = Assert.IsType<Source>(Fauna.WaterHere(w, wolf));
+        Assert.Equal(0.117, snow.KcalPerUnit, 9);
+        var lake = PlannerTests.Strip(water: [new TileId(10, 2)]);
+        Assert.True(snow.PerMinute < Fauna.WaterHere(lake, PlannerTests.Animal(lake, Species.Wolf, new TileId(10, 1)))!.Value.PerMinute);
+        double ml = wolf.Body.HydrationMl, kcal = KcalHeld(wolf.Body), burn = Fauna.BurnKcalPerMinute(wolf.Body);
+        Sim.Advance(w, 1);
+        Assert.Equal(ml - Body.WaterLossMlPerMinute(wolf.Body, sleeping: false) + snow.PerMinute, wolf.Body.HydrationMl, 6);
+        Assert.Equal(kcal - burn - snow.PerMinute * snow.KcalPerUnit, KcalHeld(wolf.Body), 3);
+    }
+
+    /// A tired wolf's minute asleep buys what Fauna.RestPerMinute says: at its den in full, elsewhere a lighter sleep.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Rest_AgreesWithWhatAMinuteAsleepBuys(bool atItsDen)
+    {
+        var w = PlannerTests.Strip();
+        Sim.Advance(w, 3 * 60); // noon: outside a wolf's hours
+        var at = new TileId(20, 1);
+        var wolf = w.Agent(Agents.Spawn(w, Species.Wolf, at, [atItsDen ? at : new TileId(30, 1)]));
+        wolf.Body.EnergyMinutes = 0.2 * Body.MaxEnergyMinutes;
+        double rest = Fauna.RestPerMinute(wolf, at), before = wolf.Body.EnergyMinutes;
+        Assert.Equal(Body.EnergyDeltaPerMinute(sleeping: true, SpeciesTable.Of(Species.Wolf).SleepHoursPerDay) * (atItsDen ? 1 : 0.75), rest, 9);
+        Sim.Advance(w, 1);
+        Assert.Equal(before + rest, wolf.Body.EnergyMinutes, 6);
     }
 
     // ---- Body: health ----

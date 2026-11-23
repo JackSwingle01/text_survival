@@ -418,7 +418,7 @@ public class MemoryTests
         var m = Map.Of(w);
         var dir = Enum.GetValues<Direction>().First(d => m.TerrainAt(Map.Step(into, d)).IsPassable() && Map.Blocked(m, Map.Step(into, d), into) == null);
         var from = Map.Step(into, dir);
-        var herd = Agents.Spawn(w, Species.Caribou, from, 12);
+        var herd = Agents.SpawnGroup(w, Species.Caribou, from, 12)[0]; // its herd follows it
         var back = dir switch { Direction.North => Direction.South, Direction.South => Direction.North, Direction.East => Direction.West, _ => Direction.East };
         var walk = Sim.Step(w, new Travel(herd, back), 120);
         Assert.Contains(walk.Events.OfType<Moved>(), e => e.Who == herd && e.To == into);

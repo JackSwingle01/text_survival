@@ -37,8 +37,8 @@ public static class Scenarios
             // A lone wolf on the player's tile, stalked: the player's hunt opens on the grid.
             case "fight":
                 {
-                    var wolf = Agents.Spawn(w, Species.Wolf, p.Tile, 1);
-                    Fauna.BeginHunt(w, AgentId.Player, wolf, 0);
+                    var wolf = Agents.Spawn(w, Species.Wolf, p.Tile);
+                    Fauna.BeginHunt(w, AgentId.Player, wolf);
                     break;
                 }
             case "dead":

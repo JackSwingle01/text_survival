@@ -15,7 +15,7 @@ public class CombatStateTests
         var herd = CombatTests.Herd(w, species, count, t);
         CombatTests.Normalize(w, herd);
         Gear? weapon = spear ? CombatTests.Spear(w) : null;
-        var e = Combat.Create(w, [new Fighter(P) { Weapon = weapon }], [.. Enumerable.Range(0, count).Select(i => new Fighter(herd, i))],
+        var e = Combat.Create(w, [new Fighter(P) { Weapon = weapon }], [.. Enumerable.Range(0, count).Select(i => new Fighter(herd[i]))],
             t, distanceM, Awareness.Engaged, b);
         return (w, e);
     }

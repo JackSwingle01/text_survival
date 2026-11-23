@@ -22,7 +22,7 @@ name: Issue agent
 # overloaded) are retried by Claude Code itself.
 #
 # .github/scripts/issue_queue.py keeps out only what GitHub records as fact: issues from people
-# without write access, issues labelled `needs-user`, issues with an open PR or an `<issue#>-`
+# without write access (except the `ratchet` issues .github/workflows/ratchet.yml files), issues labelled `needs-user`, issues with an open PR or an `<issue#>-`
 # branch, and issues with an open native "blocked by" link. Everything that takes reading the
 # issue (a design ticket, a map, blocking written in the text, a vague spec) is the triage call's
 # judgement on Sonnet.
@@ -32,6 +32,11 @@ name: Issue agent
 # finds an issue blocked, the run links its blockers as native "blocked by", comments and labels it
 # `blocked`. The queue then skips it without a Claude call until they close, and the next triage
 # removes the label. A blocker that can't be linked parks the issue as `needs-user` instead.
+#
+# While a job works an issue (triage through build), the issue carries the `agent-working` label;
+# the job's last step removes it however the job ended. A job killed outright (timeout, runner
+# loss) can't run that step, so each run's select job clears the label from every issue first:
+# runs share one concurrency group, so no other run can be working one at that point.
 #
 # Publishing. The build pushes and opens its own PR, and also writes the PR's title and body to
 # files. A build longer than an hour outlives the Claude app token it started with (GitHub App
@@ -88,6 +93,12 @@ jobs:
           gh label create blocked --color FBCA04 \
             --description "Waits on open issues (linked as blocked by); the issue agent retries when they close" \
             2>/dev/null || true
+          gh label create agent-working --color 1D76DB \
+            --description "The issue agent is working this issue now" 2>/dev/null || true
+          # Left over from a run that was killed: no other run is active inside this concurrency group.
+          for n in $(gh issue list --label agent-working --state all --limit 100 --json number --jq '.[].number'); do
+            gh issue edit "$n" --remove-label agent-working || true
+          done
           # shellcheck disable=SC2086
           issues=$(python3 .github/scripts/issue_queue.py list $ONLY 2> skipped.txt)
           {
@@ -140,6 +151,10 @@ jobs:
           else
             echo "$reason" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Mark working
+        if: steps.check.outputs.go == 'true'
+        run: gh issue edit "$ISSUE" --add-label agent-working || true
 
       - name: Triage
         id: triage
@@ -449,6 +464,10 @@ jobs:
           gh issue comment "$ISSUE" --body-file comment.md
           gh issue edit "$ISSUE" --add-label needs-user
           cat comment.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clear working
+        if: always() && steps.check.outputs.go == 'true'
+        run: gh issue edit "$ISSUE" --remove-label agent-working || true
 
       - name: Stop the queue
         if: always() && steps.plan.outputs.stop == 'true'

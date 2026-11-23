@@ -233,7 +233,11 @@ public static class Sim
     internal static bool Held(World world, AgentId id) =>
         world.Encounters.Count > 0 && world.Encounters.Any(e => e.Units.Any(u => u.Agent == id && u.InField));
 
-    public static bool IsAlive(Agent agent) => agent.Members.Any(Body.IsAlive);
+    public static bool IsAlive(Agent agent)
+    {
+        foreach (var b in agent.Members) if (Body.IsAlive(b)) return true;
+        return false;
+    }
 
     // ---- one activity, whoever does it: start, a minute lived, stop ----
 
@@ -332,7 +336,7 @@ public static class Sim
     /// A fight holds its fighters' activities, never their bodies.
     internal static string? LiveBodies(World world, Agent agent, Activity activity, List<WorldEvent> events)
     {
-        if (agent.Mind is HerdMind) return Fauna.Tick(world, agent, events);
+        if (agent.Mind is HerdMind) return Fauna.Tick(world, agent, events, activity);
         Fire.CatchUpAround(world, agent, events); // before anything reads the fire this minute
         var body = agent.Body;
         var interrupt = Body.Tick(world, agent, Surroundings(world, agent, activity, events), events);
@@ -582,3 +586,4 @@ public static class Minds
         _ => throw new NotSupportedException($"No decider for {agent.Mind.GetType().Name}"),
     };
 }
+

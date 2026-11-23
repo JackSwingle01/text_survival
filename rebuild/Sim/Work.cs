@@ -282,6 +282,40 @@ public static class Work
             && Map.Blocked(m, tile, n) == null);
     }
 
+    /// HasOpenWater without the ice, for an animal, which cuts no hole.
+    public static bool HasUnfrozenWater(World world, TileId tile)
+    {
+        var m = Map.Of(world);
+        bool Open(TileId t) => Map.HoldsWater(m, t) && m.TerrainAt(t) != Terrain.DeepWater && !Map.IsFrozen(m, t, world.Minute);
+        if (Open(tile)) return true;
+        foreach (var d in Map.Directions)
+        {
+            var n = Map.Step(tile, d);
+            if (m.InBounds(n) && m.TerrainAt(n) == Terrain.Water && Open(n) && Map.Blocked(m, tile, n) == null) return true;
+        }
+        return false;
+    }
+
+    /// Melting snow (80 kcal a litre) and warming it to the body's heat (37).
+    public const double SnowKcalPerMl = 0.117;
+    public const double OpenWaterDrinkPctPerMinute = 0.05, SnowDrinkPctPerMinute = 0.01, MinStandingWaterM = 0.02, MinSnowM = 0.02;
+
+    /// A forecast: the ml a body drinks a minute here as the view knows it; open water or a pond first, else snow at its kcal.
+    public static Source? WaterAt(WorldView view, TileId tile, BodyState body)
+    {
+        double capacityMl = Body.MaxHydrationMlOf(body);
+        var ground = view.Ground(tile);
+        if (view.OpenWater(tile) || ground.PondLiquidM >= MinStandingWaterM) return new Source(OpenWaterDrinkPctPerMinute * capacityMl);
+        return ground.SnowDepthM >= MinSnowM ? new Source(SnowDrinkPctPerMinute * capacityMl, SnowKcalPerMl) : null;
+    }
+
+    public static void DrinkFrom(BodyState body, Source water)
+    {
+        double ml = Math.Min(water.PerMinute, Math.Max(0, Body.MaxHydrationMlOf(body) - body.HydrationMl));
+        Body.Drink(body, ml);
+        if (water.KcalPerUnit > 0) Body.SpendKcal(body, ml * water.KcalPerUnit);
+    }
+
     static bool HasCookingFire(World world, TileId tile) => Fire.PitAt(world, tile) is FireId id && Fire.IsActive(world.Fires[id]);
 
     static Resource? Cooked(Resource raw) => raw switch { Resource.RawMeat => Resource.CookedMeat, Resource.RawFish => Resource.CookedFish, _ => null };

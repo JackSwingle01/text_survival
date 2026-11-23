@@ -189,7 +189,7 @@ public static class Verbs
         LocationFeatureKind.Item => throw new InvalidOperationException("LocationFeatures.At listed an item, which has no ids yet"),
     };
 
-    /// A herd offers a hunt; location features nobody can act on yet (a person, a body, prints) are listed with no verbs.
+    /// A herd offers a hunt (of its weakest, Fauna.PersonHunt); location features nobody can act on yet (a person, a body, prints) are listed with no verbs.
     static (string Name, List<(string Label, Activity Activity, int Minutes)> Menu) Describe(World world, AgentId who, LocationFeature t, Inventory? pack)
     {
         var have = pack?.Kg ?? [];

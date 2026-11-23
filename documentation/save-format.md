@@ -77,10 +77,13 @@ session's `ClueDraw`, skipped at its default (a scavenge clue pays once a draw).
 the worn trails a person has seen in the spare bits of `GroundMemory`'s flags byte: the tier (`TrailTier`, 0 to 3) of
 each seen tile's east and south edges, two bits each, so a trail costs a saved tile nothing. A trail is remembered only
 between two seen tiles. NPC memories carry them too, since a person's memory is one structure. The sample wears a path
-beside camp and the player looks at it. Version 20 (the glossary's priorities) renamed `NpcGoal.Tier` to `NpcGoal.Priority`; its values (`Critical`, `Need`, `Want`, by name) are unchanged, and nothing else moved. When you add
+beside camp and the player looks at it. Version 20 (the glossary's priorities) renamed `NpcGoal.Tier` to `NpcGoal.Priority`; its values (`Critical`, `Need`, `Want`, by name) are unchanged, and nothing else moved. Version 21 (animals are individuals, #81) saves every animal as its own agent with one body
+(`Members` holds one), its own `HerdMind` with its own copy of its land, and a closed-group animal's `Familiar`: the
+animals it knows, by id, 0 to 1. A sighting in a person's memory is one per herd, keyed by its first animal, with
+`Others` listing the rest. The sample's pack is two wolves that know each other. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
-activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands.
+activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands. An animal also carries `LastLeft` (the tile, direction and minute of the last crossing it finished), written only once it has moved, so kin can follow a crossing too short to see under way. Version 22 (thirst, water and rest on the planner, #82) gives an animal's `HerdMind` a stored `Plan` (the stat by name, its priority by name, the goal tile, the tiles still to walk) and `Sightings` (the threats it sensed: who, where, the minute), each written only when set; an animal's body now spends and refills `HydrationMl` and `EnergyMinutes`, and a new animal starts full of both. The `watering` activity (an animal drinking) is new. The sample adds a caribou on its way to water with a wolf in mind.
 
 ## After the first release
 

@@ -38,7 +38,7 @@ public class SaveTests
         var w = World.New(17);
         var tile = Map.Step(Map.Of(w).Camp, Direction.West);
         Items.Add(Items.StashAt(w, tile, new Cause(AgentId.Player, "stashed by the player")), Resource.RawMeat, 5);
-        var flock = Agents.Spawn(w, Species.Raven, tile, 4, [tile]);
+        var flock = Agents.SpawnGroup(w, Species.Raven, tile, 4, [tile])[0];
         w.Agent(flock).Doing = new Doing { Plain = new Raid(flock), MinutesLeft = 1 };
 
         var loaded = Save.FromJson(Save.ToJson(w));
@@ -79,7 +79,7 @@ public class SaveFixtureTests
         Shelters.PlaceBedding(w, camp, BeddingKind.Camp);
         TestKit.Supply(w);
         var npc = Npc.Spawn(w, camp);
-        Agents.Spawn(w, Species.Wolf, new TileId(camp.X + 12, camp.Y), 2);
+        Agents.SpawnGroup(w, Species.Wolf, new TileId(camp.X + 12, camp.Y), 2); // a pack: two wolves that know each other
         Sim.Step(w, new Wait(P), 5);
         for (int i = 0; i < 10 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++)
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
@@ -103,6 +103,11 @@ public class SaveFixtureTests
         w.Trails[new EdgeId(camp, new TileId(camp.X, camp.Y + 1))] = new TrailWear(Tracks.PathAt + 1, w.Minute);
         Memories.Glance(w, w.Agent(P), []);
         Sim.Step(w, new Wait(P), 2);
+        // A caribou on its way to water, the wolf it sensed kept in mind (Fauna.Needs): a stored plan and a sighting.
+        var den = new TileId(camp.X + 12, camp.Y);
+        var caribou = (HerdMind)w.Agent(Agents.Spawn(w, Species.Caribou, new TileId(camp.X + 15, camp.Y))).Mind;
+        caribou.Plan = new Plan(Stat.Water, Priority.Need, new TileId(camp.X + 17, camp.Y), [new TileId(camp.X + 16, camp.Y), new TileId(camp.X + 17, camp.Y)]);
+        caribou.Sightings = [new Sensed(Fauna.AnimalsAt(w, den).First().Id, den, w.Minute)];
         return w;
     }
 

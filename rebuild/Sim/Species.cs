@@ -1,25 +1,26 @@
 namespace Survival;
 
-/// Raven is the folded scavenger kind (emergent-world-design §4): ravens, a fox and a wolverine as one
-/// flock. Birds have no body plan, so its members are small quadrupeds.
 public enum Species { Human, Wolf, Bear, CaveBear, SaberTooth, Hyena, Caribou, Megaloceros, Bison, Mammoth, Hare, Fox, Raven }
 
-/// Humans are their own row: they never bolt by instinct.
+/// Who an animal takes for kin: any of its species (Open), or only those it is familiar with (Closed).
+public enum Group { Open, Closed }
+
+/// The hours a species is about: by day, at dawn and dusk (Weather.IsTwilight), or by night.
+public enum ActivityPattern { Diurnal, Crepuscular, Nocturnal }
+
 public enum Role { Human, Prey, DangerousPrey, Predator, Scavenger }
 
-/// Species that never start a fight have Cap 0.
 public sealed record Temperament(double Base, double PerMember, double HungryAt, double StarvingAt, double HungerBonus, double DefendBonus, double Cap);
 
-/// One row of the species table (Content/species.json).
 public sealed record SpeciesStats(
     BodyKind Body, double WeightKg, double FatPct, double MusclePct,
     Role Role, bool IsSmall,
     double AttackDamage, DamageType AttackType,
     double Threat, double Boldness, double Aggression, double Cohesion,
-    int MoveAllowanceM, // per combat action at full Moving
+    Group Group,
+    int MoveAllowanceM,
     double ReachM,
     Temperament Temperament,
-    /// Humans and small game never form herds of their own.
     HerdBehavior Behavior,
     Diet Diet,
     Motion Motion,
@@ -27,15 +28,14 @@ public sealed record SpeciesStats(
     /// Giving ground with the enemy in reach, it strikes instead of backing off at this resolve or above.
     double StrikeBackResolve,
     double ChaseLimitSeconds,
-    /// People only: a person's starting fat is drawn from this range, well fed for the autumn.
+    double SleepHoursPerDay,
+    ActivityPattern Activity,
     FatRange? AutumnFatPct,
-    /// People only: where a woman's build differs from a man's (the row's own).
     PersonBuild? Female,
-    /// A flyer's flat minutes a tile, whatever the ground (Traversal.FlightMinutesPerTile); null for what walks.
-    int? FlightMinutesPerTile = null)
+    int? FlightMinutesPerTile = null,
+    double PerceptionFactor = 1)
 {
     public bool IsAnimal => Role != Role.Human;
-    /// Prey and small scavengers run once they know you are there; fighting is what predators do.
     public bool IsSkittish => Role == Role.Prey || (Role == Role.Scavenger && IsSmall);
 }
 
@@ -59,9 +59,6 @@ public static class SpeciesTable
     public static SpeciesStats Of(Species s) =>
         Rows.TryGetValue(s, out var row) ? row : throw new KeyNotFoundException($"No species row for {s}");
 
-    /// An animal starts a little hungry: its store 70-100% full. A person is well fed for the autumn,
-    /// fat drawn evenly from the row's range (a lean 12% left NPCs too little to winter on).
-    /// The rng is the person's own (World.Birth), so the draw is the seed's.
     public static BodyState NewBody(Species species, Rng rng, Sex sex = Sex.Male)
     {
         if (species == Species.Human)
@@ -78,7 +75,14 @@ public static class SpeciesTable
         double size = Math.Clamp(1.0 + ((rng.NextDouble() + rng.NextDouble()) / 2 - 0.5) * 2 * 0.15, 0.7, 1.3);
         var body = BodyState.Create(row.Body, row.WeightKg * size, row.FatPct, row.MusclePct);
         body.CaloriesKcal = Body.CaloriesCapacityKcal(body) * (1 - rng.NextDouble() * 0.3);
+        Refreshed(body);
         return body;
+    }
+
+    static void Refreshed(BodyState body)
+    {
+        body.HydrationMl = Body.MaxHydrationMlOf(body);
+        body.EnergyMinutes = Body.MaxEnergyMinutes;
     }
 
     public static BodyState Average(Species species, Sex sex = Sex.Male)
@@ -87,6 +91,7 @@ public static class SpeciesTable
         var row = Of(species);
         var body = BodyState.Create(row.Body, row.WeightKg, row.FatPct, row.MusclePct);
         body.CaloriesKcal = Body.CaloriesCapacityKcal(body);
+        Refreshed(body);
         return body;
     }
 
@@ -101,7 +106,6 @@ public static class SpeciesTable
         return new Running(motion, Math.Max(MinSpeedPct, Body.Speed(body, context) / FreshSpeed(species, body.Sex)), carriedKg);
     }
 
-    /// Floor: a body so hurt or laden it barely moves still pays a finite price for a burst.
     public const double MinSpeedPct = 0.1;
 
     /// A share of a fresh member's strength, so a species' or weapon's damage is what an average one does:

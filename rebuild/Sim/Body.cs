@@ -111,7 +111,7 @@ public sealed class BodyState
     [JsonIgnore] public double MusclePct => MuscleKg / WeightKg;
     [JsonIgnore] public double EnergyPct => EnergyMinutes / Body.MaxEnergyMinutes;
     [JsonIgnore] public double CaloriesPct => CaloriesKcal / Body.CaloriesCapacityKcal(this);
-    [JsonIgnore] public double HydrationPct => HydrationMl / Body.MaxHydrationMl;
+    [JsonIgnore] public double HydrationPct => HydrationMl / Body.MaxHydrationMlOf(this);
 
     public static BodyState Create(BodyKind kind, double weightKg, double fatPct, double musclePct, Sex sex = Sex.Male) => new()
     {
@@ -233,11 +233,15 @@ public static partial class Body
     public static Capacities GetCapacities(BodyState body) => GetCapacities(body, Effects.CapacityDeltas(body));
 
     /// Tissue and blood alone, as digestion and life use: hunger does not slow absorbing food, and no effect stops a heart.
-    static Capacities GetCapacitiesWithoutEffects(BodyState body) => GetCapacities(body, new double[CapacityCount]);
+    static Capacities GetCapacitiesWithoutEffects(BodyState body) => GetCapacities(body, NoEffectDeltas);
 
-    static Capacities GetCapacities(BodyState body, double[] effectDeltas)
+    static readonly double[] NoEffectDeltas = new double[CapacityCount];
+
+    // On the stack: every animal's life and legs are read every minute (Sim.IsAlive, Fauna's minds).
+    static Capacities GetCapacities(BodyState body, IReadOnlyList<double> effectDeltas)
     {
-        var c = IsWhole(body) ? (double[])WholeTissueCapacities[(int)body.Kind].Clone() : TissueCapacities(body);
+        Span<double> c = stackalloc double[CapacityCount];
+        (IsWhole(body) ? WholeTissueCapacities[(int)body.Kind] : TissueCapacities(body)).CopyTo(c);
 
         for (int i = 0; i < CapacityCount; i++)
             c[i] = Clamp01(Clamp01(c[i]) + Math.Clamp(effectDeltas[i], -1, 1));
@@ -793,5 +797,5 @@ public static partial class Body
     }
 
     public static void Drink(BodyState body, double ml) =>
-        body.HydrationMl = Math.Min(MaxHydrationMl, body.HydrationMl + ml);
+        body.HydrationMl = Math.Min(MaxHydrationMlOf(body), body.HydrationMl + ml);
 }

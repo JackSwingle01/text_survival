@@ -62,7 +62,7 @@ public class StepOutcomeTests
     public void AFightThatEnds_Finished()
     {
         var w = Camp(out var camp);
-        var wolf = Agents.Spawn(w, Species.Wolf, camp, 1);
+        var wolf = Agents.Spawn(w, Species.Wolf, camp);
         Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], camp, 10, Awareness.Engaged, Awareness.Engaged);
         w.Agent(wolf).Body.BloodPct = 0;
         var r = Sim.Step(w, new Fight(P, CombatAction.Wait), 1);
@@ -83,7 +83,7 @@ public class StepOutcomeTests
     public void InAFight_AnythingElse_Refused()
     {
         var w = Camp(out var camp);
-        var wolf = Agents.Spawn(w, Species.Wolf, camp, 1);
+        var wolf = Agents.Spawn(w, Species.Wolf, camp);
         Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], camp, 10, Awareness.Engaged, Awareness.Engaged);
         var r = Sim.Step(w, new Wait(P), 5);
         Assert.Equal((StepOutcome.Refused, Sim.InAnEncounter), (r.Outcome, r.Reason));

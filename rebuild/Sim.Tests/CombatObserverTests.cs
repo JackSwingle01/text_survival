@@ -15,7 +15,7 @@ public class CombatObserverTests
         var (w, t) = CombatTests.Field(7);
         var pack = CombatTests.Herd(w, Species.Wolf, 3, t);
         var prey = CombatTests.Herd(w, Species.Caribou, 2, t);
-        var enc = Combat.Create(w, [new Fighter(pack, 0), new Fighter(pack, 1), new Fighter(pack, 2)], [new Fighter(prey, 0)], t, 15,
+        var enc = Combat.Create(w, [new Fighter(pack[0]), new Fighter(pack[1]), new Fighter(pack[2])], [new Fighter(prey[0])], t, 15,
             Awareness.Engaged, Awareness.Alert);
         var seen = watch ? new Recorder() : null;
         if (seen != null) Combat.Watch(w, enc, seen);

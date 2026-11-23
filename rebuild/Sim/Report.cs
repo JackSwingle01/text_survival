@@ -24,7 +24,7 @@ public sealed record DistributionReport(IReadOnlyList<RegionRow> Regions, int[] 
     public bool TooMany(RegionRow r) => r.Total > MedianFinds * Report.MaxRegionFactor;
 }
 
-public sealed record PopulationRow(Species Species, int Herds, int Members);
+public sealed record PopulationRow(Species Species, int Herds, int Animals);
 public sealed record CurvePoint(int Day, IReadOnlyList<PopulationRow> Populations);
 
 /// QA instruments over a world (emergent-world-design §8). Reads only; Curve is the one thing here that runs the sim.
@@ -152,13 +152,12 @@ public static class Report
 
         foreach (var (t, b) in w.Beddings)
             Add(t, "bedding", FindCategory.Structure, null, Shelters.Beddings[b].Name);
-        foreach (var (id, a) in w.Agents)
+        foreach (var group in Groups(w))
         {
-            if (id == AgentId.Player) continue;
-            int alive = a.Members.Count(Body.IsAlive);
-            if (alive == 0) continue; // a body: a sign, above
+            var a = group[0];
+            if (a.Id == AgentId.Player || !Sim.IsAlive(a)) continue; // the dead are signs, above
             string state = a.Mind is HerdMind h ? h.State.ToString() : a.Mind.GetType().Name;
-            Add(a.Tile, a.Mind is HerdMind ? "herd" : "person", FindCategory.Agent, null, $"{a.Species} x{alive}, {state} ({id})");
+            Add(a.Tile, a.Mind is HerdMind ? "herd" : "person", FindCategory.Agent, null, $"{a.Species} x{group.Count}, {state} ({a.Id})");
         }
 
         rows.Sort((p, q) =>
@@ -334,7 +333,7 @@ public static class Report
         int few = d.Regions.Count(d.TooFew), many = d.Regions.Count(d.TooMany);
         sb.Append(Invariant($"median finds/region {d.MedianFinds:0.#}: {few} below {MinRegionFactor:0.##}x, {many} above {MaxRegionFactor:0.#}x\n"));
         sb.Append(Invariant($"floors failing: water {d.Regions.Count(r => !r.Water)}, fuel (under {MinFuelFireHours:0} h of fire by hand) {d.Regions.Count(r => !r.Fuel)}, shelter {d.Regions.Count(r => !r.Shelter)} of {d.Regions.Count}\n"));
-        sb.Append(Invariant($"populations: {string.Join(", ", Populations(w).Select(p => $"{p.Species} {p.Members} in {p.Herds}"))}\n"));
+        sb.Append(Invariant($"populations: {string.Join(", ", Populations(w).Select(p => $"{p.Species} {p.Animals} in {p.Herds}"))}\n"));
         sb.Append("\nregion  tiles " + string.Join(" ", cats.Select(c => Invariant($"{Short(c),5}"))) + " total  floors(water fuel shelter) fuel_h felled_h count\n");
         foreach (var r in d.Regions)
             sb.Append(Invariant($"{r.X,2},{r.Y,-2}  {r.PassableTiles,5} ") + string.Join(" ", r.Counts.Select(n => Invariant($"{n,5}")))
@@ -350,10 +349,13 @@ public static class Report
     // ---- populations ----
 
     public static IReadOnlyList<PopulationRow> Populations(World w) =>
-        w.Agents.Values.Where(a => a.Id != AgentId.Player && Sim.IsAlive(a))
-            .GroupBy(a => a.Species).OrderBy(g => g.Key)
-            .Select(g => new PopulationRow(g.Key, g.Count(), g.Sum(a => a.Members.Count(Body.IsAlive))))
+        Groups(w).Where(g => g[0].Id != AgentId.Player && Sim.IsAlive(g[0]))
+            .GroupBy(g => g[0].Species).OrderBy(s => s.Key)
+            .Select(s => new PopulationRow(s.Key, s.Count(), s.Sum(g => g.Count)))
             .ToList();
+
+    /// Every herd and person in the world (Fauna.GroupsAt), tile by tile.
+    static IEnumerable<List<Agent>> Groups(World w) => w.Agents.Values.Select(a => a.Tile).Distinct().Order().SelectMany(t => Fauna.GroupsAt(w, t));
 
     public static IReadOnlyList<CurvePoint> Curve(World w, int days, int chunkDays)
     {
@@ -374,7 +376,7 @@ public static class Report
         var species = curve.SelectMany(p => p.Populations.Select(r => r.Species)).Distinct().OrderBy(s => s).ToList();
         var sb = new StringBuilder("day  " + string.Join(" ", species.Select(s => $"{s,11}")) + "\n");
         foreach (var p in curve)
-            sb.Append(Invariant($"{p.Day,4} ") + string.Join(" ", species.Select(s => Invariant($"{p.Populations.FirstOrDefault(r => r.Species == s)?.Members ?? 0,11}"))) + "\n");
+            sb.Append(Invariant($"{p.Day,4} ") + string.Join(" ", species.Select(s => Invariant($"{p.Populations.FirstOrDefault(r => r.Species == s)?.Animals ?? 0,11}"))) + "\n");
         return sb.ToString();
     }
 }

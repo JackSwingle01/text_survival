@@ -95,7 +95,7 @@ static class ActionGen
             Combat.LeaveCarcass(w, camp, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 100, 0.1, 0.4), new Cause(null, "a test"));
         if (s.Fight)
         {
-            var wolf = Agents.Spawn(w, Species.Wolf, camp, 1);
+            var wolf = Agents.Spawn(w, Species.Wolf, camp);
             Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], camp, 8, Awareness.Engaged, Awareness.Engaged);
         }
         return w;
@@ -291,12 +291,9 @@ static class ActionGen
     {
         foreach (var (id, a) in w.Agents)
         {
-            if (a.Mind is HerdMind)
-            {
-                if (a.Members.Count == 0) throw new InvalidOperationException($"after step {step}: herd {id} has no members");
-                if (!a.Members.All(Body.IsAlive)) throw new InvalidOperationException($"after step {step}: herd {id} carries a dead member");
-            }
-            else if (a.Members.Count != 1) throw new InvalidOperationException($"after step {step}: person {id} has {a.Members.Count} bodies");
+            // Every agent is one body (decision record "Animals are individuals"), and a dead animal leaves the world.
+            if (a.Members.Count != 1) throw new InvalidOperationException($"after step {step}: {id} has {a.Members.Count} bodies");
+            if (a.Mind is HerdMind && !Body.IsAlive(a.Body)) throw new InvalidOperationException($"after step {step}: animal {id} is dead and still here");
             foreach (var b in a.Members) Finite(b, $"after step {step}: {id}");
         }
     }
