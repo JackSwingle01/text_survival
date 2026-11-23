@@ -12,3 +12,4 @@ Revised: the work goes to the issue agent as issues, not a second Claude job →
 Follow-up: the formatting ratchet covers the whole repo (31 files, 30 outside rebuild/), so its batches touch the old game; narrow its command to rebuild/ if formatting code that is being replaced isn't wanted
 Follow-up: the WhereThingsGo lists (NotInActionGenYet, EnumsSavedAsNumbers, SpeciesNamedInCode, ...) are not in the tracker yet
 Follow-up: actionlint not run locally (denied in this session); CI's actionlint job checks the new workflow
+Revised (review): the comments command exited 1 once OverCommentLimit was empty (grep with no match under pipefail), so its retire issue was never filed, and one failing command stopped every later ratchet → the grep is guarded, and run() files the other ratchets and fails at the end

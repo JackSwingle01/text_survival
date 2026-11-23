@@ -133,12 +133,19 @@ def open_ratchet_titles():
 def run(dry_run):
     ratchets = parse(TRACKER.read_text())
     open_titles = [] if dry_run else open_ratchet_titles()
+    failed = []
     for r in ratchets:
         in_flight = next((t for t in open_titles if t == title_prefix(r) or t.startswith(title_prefix(r) + " ")), None)
         if in_flight:
             print(f"{r['name']}: skipped, already open: {in_flight}")
             continue
-        items = remaining(r)
+        try:
+            items = remaining(r)
+        except TrackerError as e:
+            # One broken command must not stop the other ratchets' batches.
+            print(f"::error::dev/ratchets.md: {e}")
+            failed.append(r["name"])
+            continue
         title, body = batch_issue(r, items) if items else retire_issue(r)
         if dry_run:
             print(f"===== {title}\n{body}\n")
@@ -146,6 +153,8 @@ def run(dry_run):
         url = gh("issue", "create", "--repo", os.environ["GITHUB_REPOSITORY"], "--title", title,
                  "--label", LABEL, "--body", body).strip()
         print(f"{r['name']}: filed {url} ({len(items)} remaining)")
+    if failed:
+        raise TrackerError("remaining command failed for " + ", ".join(failed))
 
 
 def main(argv):

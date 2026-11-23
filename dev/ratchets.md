@@ -22,7 +22,8 @@ Add the check with its exception list first (a test, or a CI step), then a secti
 - `## name`: a short lower-case name, used in the issue title (`Ratchet: name`).
 - `- **batch:** N`: items per issue. Size it so one PR stays easy to review.
 - A `bash` code block: the `remaining` command, run from the repository root. It prints one item
-  per line, in the order to take them, and exits 0 (even when items remain).
+  per line, in the order to take them, and exits 0 whether or not any are left. It runs under
+  `bash -eo pipefail`, so guard a `grep` that may match nothing (`{ grep ... || true; }`).
 - The job: what to do to each item, and the check that proves it's done. It goes into the issue
   word for word, so it must leave no decision to Jack.
 - A paragraph starting `When empty:`: what to remove once nothing is left (the empty list, the
@@ -34,7 +35,7 @@ Add the check with its exception list first (a test, or a CI step), then a secti
 
 ```bash
 awk '/OverCommentLimit = new\(\)/{f=1;next} f&&/^ *};/{exit} f' rebuild/Sim.Tests/Architecture/CommentHygieneTests.cs |
-  grep -oP '\["\K[^"]+' |
+  { grep -oP '\["\K[^"]+' || true; } |
   while read -r f; do find rebuild/Sim -name "$f" -not -path '*/obj/*' -not -path '*/bin/*'; done
 ```
 
