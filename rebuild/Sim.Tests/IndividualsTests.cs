@@ -291,59 +291,151 @@ public class IndividualsTests(ITestOutputHelper output)
     }
 }
 
-/// The first part of the cohesion gate (spec "Testing Decisions"): 60 days, several seeds, per open-group
-/// species, fewer than a tenth of its animals alone on average. The no-blob and split/join checks wait
-/// for crowding (#83). One class per seed, so they run side by side. A look every seven minutes, which
-/// no cycle fitting the hour can keep landing on the same phase of, as a look every hour could (#96).
+/// The cohesion gate (spec "Testing Decisions"): 60 days, several seeds, in Release, every metric per species. A herd
+/// here is the animals of a species on a connected group of occupied tiles (8 neighbours), so a herd spread over
+/// several tiles while it grazes counts as one (#83, Jack 2026-11-24). Bands were set from a first run (work log,
+/// 2026-11-23-83). Pack stability and kill rates are #84's. One class per seed, so they run side by side. A look every
+/// seven minutes, which no cycle fitting the hour can keep landing on the same phase of, as a look every hour could (#96).
 public static class CohesionGate
 {
     const int Days = 60, LookEveryMinutes = 7;
-    const double MaxAlonePct = 0.10;
+    const double MaxAlonePct = 0.10, MaxHerdPct = 0.60;
+    const int BlobFloor = 20;
+    /// Splits and joins an animal-day (a look at which its herd's members had changed) at least: a frozen lockstep has none.
+    const double MinRegroupsPerAnimalDay = 0.5;
+    /// Tile changes an animal-day: a herd that never moves, or one that oscillates.
+    const double MinMovesPerAnimalDay = 0.5, MaxMovesPerAnimalDay = 40;
+    /// The share of a species on its single busiest water tile, on average over the looks.
+    const double MaxWaterTilePct = 0.5;
+    /// Deaths of hunger and thirst (bodies, and renewal's thinning over capacity) per head living on average, over the 60 days.
+    const double MaxHungerAndThirstDeathsPerHead = 0.5;
+    /// Allocation a day: 3x the herd baseline (#81: 4,064 MB for 30 populated days on seed 17), kept after #133 (Jack).
+    const double MaxAllocatedMbPerDay = 3 * 4064.0 / 30;
     static readonly Species[] OpenGroup = [Species.Caribou, Species.Bison, Species.Megaloceros, Species.Mammoth];
+
+    sealed class Tally
+    {
+        public long Alone, AnimalLooks, Regroups, Moves, Deaths;
+        public double MaxHerdPct, WaterTilePctSum;
+        public int Looks;
+        public List<int> Herds = [];
+    }
+
+    /// The herds of one species: its animals on each connected group of occupied tiles, 8 neighbours.
+    internal static List<List<Agent>> Herds(IEnumerable<Agent> ofOneSpecies)
+    {
+        var byTile = ofOneSpecies.GroupBy(a => a.Tile).ToDictionary(g => g.Key, g => g.ToList());
+        var seen = new HashSet<TileId>();
+        var herds = new List<List<Agent>>();
+        foreach (var start in byTile.Keys.OrderBy(t => t.X).ThenBy(t => t.Y))
+        {
+            if (!seen.Add(start)) continue;
+            var herd = new List<Agent>();
+            var queue = new Queue<TileId>([start]);
+            while (queue.TryDequeue(out var t))
+            {
+                herd.AddRange(byTile[t]);
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        var n = new TileId(t.X + dx, t.Y + dy);
+                        if (byTile.ContainsKey(n) && seen.Add(n)) queue.Enqueue(n);
+                    }
+            }
+            herds.Add(herd);
+        }
+        return herds;
+    }
 
     internal static void Run(int seed, ITestOutputHelper output)
     {
         var w = TestWorlds.New(seed);
-        var alone = OpenGroup.ToDictionary(s => s, _ => (Alone: 0L, Animals: 0L));
+        var tallies = new SortedDictionary<Species, Tally>();
+        Tally Of(Species s) => tallies.TryGetValue(s, out var t) ? t : tallies[s] = new Tally();
+        var company = new Dictionary<AgentId, int>();
+        long allocated = GC.GetAllocatedBytesForCurrentThread();
         for (int minute = 0; minute < Days * 1440; minute += LookEveryMinutes)
         {
-            Sim.Advance(w, LookEveryMinutes);
+            var events = Sim.Advance(w, LookEveryMinutes);
             var body = w.Agent(AgentId.Player).Body;
             (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // the player stays out of it, alive
-            foreach (var a in w.Agents.Values.Where(a => a.Mind is HerdMind && alone.ContainsKey(a.Species) && Sim.IsAlive(a)))
+            foreach (var e in events)
             {
-                var (lone, all) = alone[a.Species];
-                alone[a.Species] = (lone + (Fauna.HerdOf(w, a).Count == 1 ? 1 : 0), all + 1);
+                if (e is Moved m && w.Agents.TryGetValue(m.Who, out var mover) && mover.Mind is HerdMind) Of(mover.Species).Moves++;
+                if (e is Killed { By: null } k && w.Tiles.GetValueOrDefault(k.Tile)?.Carcasses?.Find(c => c.DiedMinute == k.Minute)?.Cause?.What is "starvation" or "thirst")
+                    Of(k.Species).Deaths++;
+            }
+            var animals = w.Agents.Values.Where(a => a.Mind is HerdMind && Sim.IsAlive(a)).ToList();
+            foreach (var group in animals.GroupBy(a => a.Species))
+            {
+                var t = Of(group.Key);
+                int living = group.Count();
+                t.Looks++;
+                t.AnimalLooks += living;
+                var herds = Herds(group);
+                if (living > BlobFloor) t.MaxHerdPct = Math.Max(t.MaxHerdPct, herds.Max(h => h.Count) / (double)living);
+                if (minute % 1440 == 0) t.Herds = herds.Select(h => h.Count).OrderDescending().ToList();
+                var atWater = group.GroupBy(a => a.Tile).Where(h => Work.HasUnfrozenWater(w, h.Key) || Work.HasOpenWater(w, h.Key))
+                    .Select(h => h.Count()).DefaultIfEmpty(0).Max();
+                t.WaterTilePctSum += atWater / (double)living;
+                foreach (var herd in herds)
+                {
+                    int key = herd.Select(k => k.Id.GetHashCode()).OrderBy(h => h).Aggregate(17, (acc, h) => acc * 31 + h);
+                    foreach (var a in herd)
+                    {
+                        if (herd.Count == 1) t.Alone++;
+                        if (company.TryGetValue(a.Id, out var was) && was != key) t.Regroups++;
+                        company[a.Id] = key;
+                    }
+                }
             }
         }
-        output.WriteLine($"seed {seed}: " + string.Join(", ", alone.Where(kv => kv.Value.Animals > 0)
-            .Select(kv => $"{kv.Key} {(double)kv.Value.Alone / kv.Value.Animals:P1} alone of {kv.Value.Animals * LookEveryMinutes / (Days * 1440.0):0.0}")));
-        foreach (var (species, (lone, all)) in alone.Where(kv => kv.Value.Animals > 0))
-            Assert.True((double)lone / all < MaxAlonePct, $"seed {seed}: {species} alone {(double)lone / all:P1} of the time on average");
+        double mbPerDay = (GC.GetAllocatedBytesForCurrentThread() - allocated) / 1e6 / Days;
+        output.WriteLine($"seed {seed}: {mbPerDay:F0} MB a day allocated");
+        double LooksPerDay = 1440.0 / LookEveryMinutes;
+        foreach (var (s, t) in tallies)
+        {
+            double animalDays = t.AnimalLooks / LooksPerDay, heads = t.AnimalLooks / (double)Math.Max(1, t.Looks);
+            output.WriteLine($"seed {seed} {s}: {heads:F1} living on average; alone {t.Alone / (double)t.AnimalLooks:P1}; biggest herd {t.MaxHerdPct:P0}; "
+                + $"regroups {t.Regroups / animalDays:F2}/animal-day; moves {t.Moves / animalDays:F2}/animal-day; busiest water tile {t.WaterTilePctSum / t.Looks:P1}; "
+                + $"hunger and thirst deaths {t.Deaths} ({t.Deaths / Math.Max(1, heads):F2} a head); herds at the last day's start [{string.Join(" ", t.Herds)}]");
+        }
+        Assert.True(mbPerDay < MaxAllocatedMbPerDay, $"seed {seed}: {mbPerDay:F0} MB a day allocated, over {MaxAllocatedMbPerDay:F0}");
+        foreach (var (s, t) in tallies)
+        {
+            double animalDays = t.AnimalLooks / LooksPerDay, heads = t.AnimalLooks / (double)Math.Max(1, t.Looks);
+            Assert.True(t.Deaths / Math.Max(1, heads) <= MaxHungerAndThirstDeathsPerHead, $"seed {seed}: {s} lost {t.Deaths} to hunger and thirst, {heads:F1} living on average");
+            Assert.True(t.WaterTilePctSum / t.Looks < MaxWaterTilePct, $"seed {seed}: {s} {t.WaterTilePctSum / t.Looks:P1} on its busiest water tile");
+            Assert.InRange(t.Moves / animalDays, MinMovesPerAnimalDay, MaxMovesPerAnimalDay);
+            if (!OpenGroup.Contains(s)) continue;
+            Assert.True(t.Alone / (double)t.AnimalLooks < MaxAlonePct, $"seed {seed}: {s} alone {t.Alone / (double)t.AnimalLooks:P1} of the time on average");
+            Assert.True(t.MaxHerdPct <= MaxHerdPct, $"seed {seed}: one {s} herd held {t.MaxHerdPct:P0} of its species");
+            Assert.True(t.Regroups / animalDays >= MinRegroupsPerAnimalDay, $"seed {seed}: {s} regrouped {t.Regroups / animalDays:F2} times an animal-day");
+        }
     }
 }
 
 [Trait("Category", TestCategories.Slow)]
 public class CohesionGateSeed17Tests(ITestOutputHelper output)
 {
-    [Fact] public void SixtyDays_FewOpenGroupAnimalsAlone() => CohesionGate.Run(17, output);
+    [Fact] public void SixtyDays_PassesTheCohesionGate() => CohesionGate.Run(17, output);
 }
 
 [Trait("Category", TestCategories.Slow)]
 public class CohesionGateSeed23Tests(ITestOutputHelper output)
 {
-    [Fact] public void SixtyDays_FewOpenGroupAnimalsAlone() => CohesionGate.Run(23, output);
+    [Fact] public void SixtyDays_PassesTheCohesionGate() => CohesionGate.Run(23, output);
 }
 
 [Trait("Category", TestCategories.Slow)]
 public class CohesionGateSeed42Tests(ITestOutputHelper output)
 {
-    [Fact] public void SixtyDays_FewOpenGroupAnimalsAlone() => CohesionGate.Run(42, output);
+    [Fact] public void SixtyDays_PassesTheCohesionGate() => CohesionGate.Run(42, output);
 }
 
 [Trait("Category", TestCategories.Slow)]
 public class CohesionGateSeed123Tests(ITestOutputHelper output)
 {
     /// A valley with a Bone Hollow, so the mammoths are measured too.
-    [Fact] public void SixtyDays_FewOpenGroupAnimalsAlone() => CohesionGate.Run(123, output);
+    [Fact] public void SixtyDays_PassesTheCohesionGate() => CohesionGate.Run(123, output);
 }

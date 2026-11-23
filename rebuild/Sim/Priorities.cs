@@ -75,6 +75,17 @@ public static class Priorities
         return body.CaloriesPct < HungryPct && !foodToHand ? Priority.Need : Priority.Want;
     }
 
+    public const double AnimalFedPct = 0.8;
+
+    /// By its own build, not a person's floor: the shortfalls are a person's share of its weight, and a meal is seen to until AnimalFedPct.
+    public static Priority AnimalFoodPriority(BodyState body, double buildFatPct, bool seeingTo)
+    {
+        if (Starving(body)) return Priority.Critical;
+        double scale = body.WeightKg / Body.BaselineWeightKg, shortfallKg = buildFatPct * body.WeightKg - body.FatKg;
+        if (shortfallKg >= WantedShortfallKg * scale || body.CaloriesPct < HungryPct) return Priority.Need;
+        return seeingTo && (shortfallKg > SatisfiedShortfallKg * scale || body.CaloriesPct < AnimalFedPct) ? Priority.Need : Priority.Want;
+    }
+
     public static Priority RestPriority(double energyPct, bool seeingTo) =>
         energyPct <= RestCriticalPct ? Priority.Critical
         : energyPct < RestNeedPct || seeingTo && energyPct < RestAgainPct ? Priority.Need
