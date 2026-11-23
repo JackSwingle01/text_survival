@@ -242,7 +242,7 @@ public static class Sim
     // ---- one activity, whoever does it: start, a minute lived, stop ----
 
     /// Checks and begins an activity at this instant; refusal or null. Instant parts (lighting,
-    /// eating, stashing) happen here, before the first minute is lived.
+    /// eating, putting down) happen here, before the first minute is lived.
     internal static Refusal? Start(World world, Activity activity, int minutes, List<WorldEvent> events, out Doing doing)
     {
         var agent = world.Agent(activity.Who);
@@ -362,7 +362,7 @@ public static class Sim
         var (activityFactor, fireProximityFactor, sleeping, stationary) = activity switch
         {
             Sleep => (0.5, 2.0, true, true),
-            Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or Stash or Unstash or Wear or TakeOff => (1.0, 2.0, false, true),
+            Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or PutDown or PickUp or Wear or TakeOff => (1.0, 2.0, false, true),
             Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, tending the fire
             Build or ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // crafting
             Travel or WalkAbout => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat

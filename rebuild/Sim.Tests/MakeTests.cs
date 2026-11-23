@@ -520,12 +520,12 @@ public class MakeTests
                 if (!MakeOne(r, 0)) continue;
                 made.Add(r.Id);
                 progress = true;
-                // Keep the pack light: what no recipe uses as a tool or input goes on the camp stash,
+                // Keep the pack light: what no recipe uses as a tool or input goes on the camp pile,
                 // and what the land gives goes back to it.
                 foreach (var g in pack.Gear.Where(g => !Recipes.All.Any(x => x.Items.Contains(g.Kind) || x.Tools.Concat(x.Faster).Any(cap => Items.Def(g).Capabilities.Contains(cap)))).ToList())
                 {
                     pack.Gear.Remove(g);
-                    Items.StashAt(w, camp).Gear.Add(g);
+                    Items.PileAt(w, camp).Gear.Add(g);
                 }
                 foreach (var res in pack.Kg.Keys.Where(land.Contains).ToList()) pack.Kg.Remove(res);
             }

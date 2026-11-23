@@ -429,7 +429,7 @@ public class GameHostTests
         var h = new GameHost();
         var v = Parse(h.NewGame(Seed));
         Assert.Contains(v.PackVerbs, x => x.Kind == "takeoff");
-        Assert.Contains(v.PackVerbs, x => x.Kind == "stash");
+        Assert.Contains(v.PackVerbs, x => x.Kind == "putdown");
         var go = v.Walk.First(w => w.Refused == null && !w.Careful);
         var after = Run(h, go, chunk: 3);
         Assert.Contains(after.Log, l => l.Text.StartsWith("You reach ", StringComparison.Ordinal) && l.Icon == "ui/follow");

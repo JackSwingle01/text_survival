@@ -11,7 +11,7 @@ public class ReportTests
         var camp = Map.Of(w).Camp;
         for (int i = 0; i < 10 && Fire.PitAt(w, camp) == null; i++)
             Sim.Step(w, new StartFire(AgentId.Player, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
-        Sim.Step(w, new Stash(AgentId.Player, Resource.Kindling, 1), 1);
+        Sim.Step(w, new PutDown(AgentId.Player, Resource.Kindling, 1), 1);
         Sim.Step(w, new Gather(AgentId.Player, 0), 60);
         Carcasses.Create(w, camp, "Caribou", SpeciesTable.NewBody(Species.Caribou, w.Rng("test")), w.Minute);
         Sim.Advance(w, 2 * 1440);
@@ -30,7 +30,7 @@ public class ReportTests
         var w = Lived();
         var finds = Report.Finds(w);
         var kinds = finds.Select(f => f.Kind).ToHashSet();
-        foreach (var kind in new[] { "carcass", "stash", "fire pit", "shelter", "bedding", "place", "stock", "worked forage", "tracks", "herd" })
+        foreach (var kind in new[] { "carcass", "pile", "fire pit", "shelter", "bedding", "place", "stock", "worked forage", "tracks", "herd" })
             Assert.Contains(kind, kinds);
         // One row a herd (the animals of one species on one tile), one a person, one a body.
         int rows = w.Agents.Values.Where(a => a.Id != AgentId.Player)

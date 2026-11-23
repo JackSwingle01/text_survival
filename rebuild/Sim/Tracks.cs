@@ -197,7 +197,7 @@ public static class Tracks
                 if (Freshness(world, t, weathering, snowFallenM) <= 0) state.Tracks.Remove(maker);
             if (state.Tracks.Count > 0) continue;
             state.Tracks = null;
-            // Ground never lets go of a tile it has observed; pools, stashes and carcasses are kept too.
+            // Ground never lets go of a tile it has observed; pools, piles and carcasses are kept too.
             Map.Tidy(world, tile);
         }
         foreach (var (edge, _) in world.Trails.ToList())

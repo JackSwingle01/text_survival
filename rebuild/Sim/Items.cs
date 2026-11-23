@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// Fuels are resources too (Fire.Props says how they burn): a log is one thing in a pack, on a stash or on the fire.
+/// Fuels are resources too (Fire.Props says how they burn): a log is one thing in a pack, on a pile or on the fire.
 public enum Resource
 {
     Tinder, BirchBark, Amadou, Usnea, Chaga, Kindling, Pine, Birch, Oak, Bone, Peat,
@@ -62,7 +62,7 @@ public sealed class MakeProject
     public Inventory Materials { get; init; } = new();
 }
 
-/// What one agent carries, or a stash on a tile.
+/// What one agent carries, or a pile on a tile.
 public sealed class Inventory
 {
     /// Sorted, not a Dictionary: a Dictionary's order after Remove-then-Add differs from its order
@@ -154,7 +154,7 @@ public static class Items
     {
         foreach (var (r, kg) in from.Kg.OrderBy(kv => kv.Key)) Add(to, r, kg);
         to.Gear.AddRange(from.Gear);
-        // A dead person's half-made spear lies on their stash.
+        // A dead person's half-made spear lies on their pile.
         if (from.Projects is { Count: > 0 } projects) (to.Projects ??= []).AddRange(projects);
     }
 
@@ -182,7 +182,7 @@ public static class Items
     public static double EncumbrancePct(Agent agent) =>
         PackOf(agent) is { } pack ? CarriedKg(agent) / CapacityKg(pack) : 0;
 
-    /// What does not fit drops on the tile's stash, or with dropExcess false is only handed back. Null events reports nothing.
+    /// What does not fit drops on the tile's pile, or with dropExcess false is only handed back. Null events reports nothing.
     /// Returns what did not fit.
     public static Inventory Receive(World world, Agent agent, Inventory gained, List<WorldEvent>? events, bool dropExcess = true)
     {
@@ -203,49 +203,49 @@ public static class Items
         }
         if (dropExcess && (dropped.Kg.Count > 0 || dropped.Gear.Count > 0))
         {
-            AddAll(StashAt(world, agent.Tile, new Cause(agent.Id, $"dropped by {Cause.Describe(world, agent.Id)}, pack full")), dropped);
+            AddAll(PileAt(world, agent.Tile, new Cause(agent.Id, $"dropped by {Cause.Describe(world, agent.Id)}, pack full")), dropped);
             events?.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Describe(dropped)));
         }
         return dropped;
     }
 
-    /// Camp storage and dropped things are the same pile: unlimited. The first thing put on an empty pile begins a new stash with this cause and its own id.
-    public static Inventory StashAt(World world, TileId tile, Cause made)
+    /// Camp storage and dropped things are the same pile: unlimited. The first thing put on an empty pile begins a new pile with this cause and its own id.
+    public static Inventory PileAt(World world, TileId tile, Cause made)
     {
-        var stash = Pile(world, tile, out var state);
-        if (stash.Kg.Count == 0 && stash.Gear.Count == 0)
+        var pile = PileOrNew(world, tile, out var state);
+        if (pile.Kg.Count == 0 && pile.Gear.Count == 0)
         {
-            state.StashCause = made;
-            state.StashId = world.NextStashId++;
+            state.PileCause = made;
+            state.PileId = world.NextPileId++;
         }
-        return stash;
+        return pile;
     }
 
-    /// For setting a scene (tests): the game puts things down through StashAt with a cause.
-    public static Inventory StashAt(World world, TileId tile)
+    /// For setting a scene (tests): the game puts things down through PileAt with a cause.
+    public static Inventory PileAt(World world, TileId tile)
     {
-        var stash = Pile(world, tile, out var state);
-        state.StashId ??= world.NextStashId++;
-        return stash;
+        var pile = PileOrNew(world, tile, out var state);
+        state.PileId ??= world.NextPileId++;
+        return pile;
     }
 
-    static Inventory Pile(World world, TileId tile, out TileState state)
+    static Inventory PileOrNew(World world, TileId tile, out TileState state)
     {
         if (!world.Tiles.TryGetValue(tile, out state!)) world.Tiles[tile] = state = new TileState();
-        return state.Stash ??= new Inventory();
+        return state.Pile ??= new Inventory();
     }
 
     /// A tile left with nothing on it leaves World.Tiles.
-    public static double TakeFromStash(World world, TileId tile, Resource r, double kg)
+    public static double TakeFromPile(World world, TileId tile, Resource r, double kg)
     {
         var state = world.Tiles.GetValueOrDefault(tile);
-        if (state?.Stash is not Inventory stash) return 0;
-        double taken = Take(stash, r, kg);
-        if (stash.Kg.Count == 0 && stash.Gear.Count == 0)
+        if (state?.Pile is not Inventory pile) return 0;
+        double taken = Take(pile, r, kg);
+        if (pile.Kg.Count == 0 && pile.Gear.Count == 0)
         {
-            state.Stash = null;
-            state.StashCause = null;
-            state.StashId = null;
+            state.Pile = null;
+            state.PileCause = null;
+            state.PileId = null;
             Map.Tidy(world, tile);
         }
         return taken;

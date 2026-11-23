@@ -87,7 +87,7 @@
    { "resource": "BirchBark", "units": 3, "unitsMax": 5, "kgPerUnit": 0.03 },
    { "resource": "PineResin", "units": 2, "unitsMax": 3, "kgPerUnit": 0.05 },
    { "chance": 0.3, "resource": "Amadou", "units": 1, "unitsMax": 2, "kgPerUnit": 0.02 } ] },
-  "MedicineStash": { "name": "Medicine Stash", "found": ["You discover something interesting: Medicine Stash."], "work": "Salvage", "minutes": 10, "items": [
+  "MedicineBundle": { "name": "Medicine Bundle", "found": ["You discover something interesting: Medicine Bundle."], "work": "Salvage", "minutes": 10, "items": [
    { "resource": "BirchPolypore", "units": 2, "unitsMax": 3, "kgPerUnit": 0.08 },
    { "take": 2, "takeMax": 3, "shuffle": [
     { "resource": "WillowBark", "units": 2, "unitsMax": 3, "kgPerUnit": 0.06 },
@@ -101,7 +101,7 @@
    { "resource": "Tinder", "kgPerUnit": 0.05 },
    { "resource": "PlantFiber", "kgPerUnit": 0.1 },
    { "chance": 0.5, "gear": "worn_knife" } ] },
-  "TrapperStash": { "name": "Trapper's Stash", "found": ["You discover something interesting: Trapper's Stash."], "work": "Salvage", "minutes": 25, "items": [
+  "TrapperBundle": { "name": "Trapper's Bundle", "found": ["You discover something interesting: Trapper's Bundle."], "work": "Salvage", "minutes": 25, "items": [
    { "resource": "PlantFiber", "kgPerUnit": 0.15, "kgPerUnitMax": 0.3 },
    { "resource": "Sinew", "kgPerUnit": 0.12, "kgPerUnitMax": 0.25 },
    { "resource": "Kindling", "kgPerUnit": 0.5, "kgPerUnitMax": 0.8 },
@@ -117,7 +117,7 @@
 
 
   // Discoveries the old game told as events (DiscoveryEventFactory), each as the location feature it left: a
-  // carcass, a stash, a salvage or a harvest. Found lines are the old events' openings. Where the event's choices
+  // carcass, a pile, a salvage or a harvest. Found lines are the old events' openings. Where the event's choices
   // rolled what you came away with, the find's outcomes are its first, fullest choice: its outcomes' odds and reward
   // pools (loot.json), each outcome's own line read after the opening. Not ported, the outcomes' other parts:
   //   OldCampsite: fear (Unsettling 15%, Panicking 10%, Frightening 10%), the Disturbed tension, the human remains (10%).
@@ -138,7 +138,7 @@
    { "weight": 0.50, "line": "You uncover frozen carcasses. Partially eaten, but there's meat here.", "loot": ["BasicMeat"] },
    { "weight": 0.30, "line": "The cache is fresh. The bear hasn't been gone long.", "loot": ["SmallGame"] } ] },
   "HiddenCache": { "name": "Hidden Cache", "found": ["Something about this rock formation seems deliberate. You pry at the stones and find a hollow space behind them. Someone hid supplies here."],
-   "stash": true, "outcomes": [
+   "pile": true, "outcomes": [
    { "weight": 0.50, "line": "A good haul. Whoever cached this had the right idea.", "loot": ["HiddenCache"] },
    { "weight": 0.35, "line": "Preserved food, tools, tinder. A lifeline.", "loot": ["HiddenCache", "TinderBundle"] },
    { "weight": 0.15, "line": "The cache is old but well-preserved. Quality supplies.", "loot": ["HiddenCache"] } ] },
@@ -217,11 +217,11 @@
    { "find": "DryWoodStack", "spawnChance": 0.02, "expectedHours": 2.0 },
    { "find": "CordageBundle", "spawnChance": 0.02, "expectedHours": 2.5 },
    { "find": "TinderCache", "spawnChance": 0.02, "expectedHours": 2.0 },
-   { "find": "MedicineStash", "spawnChance": 0.01, "expectedHours": 3.5 },
+   { "find": "MedicineBundle", "spawnChance": 0.01, "expectedHours": 3.5 },
    { "find": "MassiveDeadfall", "spawnChance": 0.02, "expectedHours": 3.0 },
    { "find": "RockOverhang", "spawnChance": 0.01, "expectedHours": 4.0 },
    { "find": "AbandonedCamp", "spawnChance": 0.02, "expectedHours": 3.5 },
-   { "find": "TrapperStash", "spawnChance": 0.02, "expectedHours": 4.0 },
+   { "find": "TrapperBundle", "spawnChance": 0.02, "expectedHours": 4.0 },
    { "find": "HuntersBlind", "spawnChance": 0.02, "expectedHours": 3.0 },
    { "find": "OldCampsite", "spawnChance": 0.01, "expectedHours": 4.0 },
    { "find": "KillSite", "spawnChance": 0.02, "expectedHours": 3.0 },
@@ -258,7 +258,7 @@
    { "find": "FrozenSmallGame", "spawnChance": 0.02, "expectedHours": 2.0 },
    { "find": "AntlerShed", "spawnChance": 0.03, "expectedHours": 1.5 },
    { "find": "KnappingScatter", "spawnChance": 0.02, "expectedHours": 2.0 },
-   { "find": "MedicineStash", "spawnChance": 0.01, "expectedHours": 3.5 },
+   { "find": "MedicineBundle", "spawnChance": 0.01, "expectedHours": 3.5 },
    { "find": "RockOverhang", "spawnChance": 0.03, "expectedHours": 3.0 },
    { "find": "IceCave", "spawnChance": 0.02, "expectedHours": 3.5 },
    { "find": "PyriteSeam", "spawnChance": 0.02, "expectedHours": 4.0 },
@@ -285,8 +285,8 @@
    { "waitsFor": "small game: marsh waterfowl", "spawnChance": 0.06, "expectedHours": 1.0 },
    { "find": "MedicinePatch", "spawnChance": 0.03, "expectedHours": 2.5 },
    { "find": "CordageBundle", "spawnChance": 0.02, "expectedHours": 2.0 },
-   { "find": "MedicineStash", "spawnChance": 0.01, "expectedHours": 3.5 },
-   { "find": "TrapperStash", "spawnChance": 0.02, "expectedHours": 4.0 },
+   { "find": "MedicineBundle", "spawnChance": 0.01, "expectedHours": 3.5 },
+   { "find": "TrapperBundle", "spawnChance": 0.02, "expectedHours": 4.0 },
    { "waitsFor": "event: mushroom_patch", "spawnChance": 0.02, "expectedHours": 2.5 }
   ],
   "Water": [

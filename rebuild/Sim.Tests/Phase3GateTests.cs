@@ -98,7 +98,7 @@ public class Phase3GateTests
                     int trees = Pools.At(w, tile).ToList().FindIndex(p => p is TreePool);
                     if (trees >= 0 && !Work.TooDarkToWork(w, me)) S(new Gather(P, trees), 120);
                     foreach (var (r, kg) in pack.Kg.ToList())
-                        if (r is not (Resource.Tinder or Resource.Kindling) && Items.Resources[r].Category != ResourceCategory.Food) S(new Stash(P, r, kg), 1);
+                        if (r is not (Resource.Tinder or Resource.Kindling) && Items.Resources[r].Category != ResourceCategory.Food) S(new PutDown(P, r, kg), 1);
                     var dir = tile == camp ? Direction.East : Direction.West;
                     for (int tries = 0; tries < 5 && w.Agent(P).Tile == tile && Combat.EncounterOf(w, P) == null; tries++)
                         S(new Travel(P, dir, Pace.Careful), 30);

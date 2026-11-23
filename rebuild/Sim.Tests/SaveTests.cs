@@ -37,7 +37,7 @@ public class SaveTests
     {
         var w = World.New(17);
         var tile = Map.Step(Map.Of(w).Camp, Direction.West);
-        Items.Add(Items.StashAt(w, tile, new Cause(AgentId.Player, "stashed by the player")), Resource.RawMeat, 5);
+        Items.Add(Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player")), Resource.RawMeat, 5);
         var flock = Agents.SpawnGroup(w, Species.Raven, tile, 4, [tile])[0];
         w.Agent(flock).Doing = new Doing { Plain = new Raid(flock), MinutesLeft = 1 };
 
@@ -66,7 +66,7 @@ public class SaveFixtureTests
         return Path.Combine(dir!.FullName, "Fixtures", "sample-save.json");
     }
 
-    /// A small world with a bit of most of what a save holds: a fire burning, a stash, a shelter and
+    /// A small world with a bit of most of what a save holds: a fire burning, a pile, a shelter and
     /// bedding, a crossing made, an NPC, a wolf pack, the player's memory, explored and remembered ground, rng
     /// streams, a journal, a made thing's parts and an unfinished one in the pack, a well-fed player and an NPC asleep. Not World.New: its two dozen herds would make the fixture half a megabyte.
     internal static World SampleWorld()
@@ -84,7 +84,7 @@ public class SaveFixtureTests
         for (int i = 0; i < 10 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++)
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
         Sim.Step(w, new AddFuel(P, Resource.Birch, 2), 1);
-        Sim.Step(w, new Stash(P, Resource.Pine, 2), 1);
+        Sim.Step(w, new PutDown(P, Resource.Pine, 2), 1);
         Sim.Step(w, new Travel(P, Direction.East), 60);
         Sim.Step(w, new Wait(P), 30);
         Sim.Step(w, new Travel(P, Direction.West), 60);
@@ -134,6 +134,31 @@ public class SaveFixtureTests
         Assert.True(fixture == Indented(Save.ToJson(Save.FromJson(fixture))),
             $"The save format changed: loading {Path.GetFileName(path)} and saving again gives different bytes. " +
             "Make the change deliberate: documentation/save-format.md.");
+    }
+
+    static string FixturePath(string name) => Path.Combine(Path.GetDirectoryName(FixturePath())!, name);
+
+    /// Fixtures/sample-save-v25.json is the sample as format 25 wrote it, before the stash was renamed the
+    /// pile (#121). It loads as the same world the current sample is: its stashes are piles, its stash
+    /// events and causes are named for the pile. Never regenerated.
+    [Fact]
+    public void ASaveFromBeforeThePileRename_LoadsItsStashesAsPiles()
+    {
+        string old = File.ReadAllText(FixturePath("sample-save-v25.json"));
+        Assert.Contains("\"Version\": 25", old);
+
+        var w = Save.FromJson(old);
+
+        var piled = w.Tiles.Values.Where(t => t.Pile != null).ToList();
+        Assert.NotEmpty(piled);
+        Assert.All(piled, t => Assert.NotNull(t.PileId));
+        Assert.Contains(piled, t => t.PileCause?.What == "put down by the player");
+        Assert.Equal(2, w.NextPileId);
+        var events = w.Journal.Values.SelectMany(e => e).ToList();
+        Assert.Contains(events, e => e is PutOnPile);
+        Assert.Contains(events, e => e is PickedUp);
+        Assert.Contains(Memories.Of(w.Agent(P)).Places.Values, p => p.Pile != null);
+        Assert.Equal(Indented(Save.ToJson(SampleWorld())), Indented(Save.ToJson(w)));
     }
 
     /// A loaded sample runs on like any world: the format holds everything the world needs.

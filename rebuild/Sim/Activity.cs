@@ -19,8 +19,8 @@ namespace Survival;
 [JsonDerivedType(typeof(Cook), "cook")]
 [JsonDerivedType(typeof(MeltSnow), "meltsnow")]
 [JsonDerivedType(typeof(WalkAbout), "walkabout")]
-[JsonDerivedType(typeof(Stash), "stash")]
-[JsonDerivedType(typeof(Unstash), "unstash")]
+[JsonDerivedType(typeof(PutDown), "putdown")]
+[JsonDerivedType(typeof(PickUp), "pickup")]
 [JsonDerivedType(typeof(Wear), "wear")]
 [JsonDerivedType(typeof(TakeOff), "takeoff")]
 [JsonDerivedType(typeof(Fight), "fight")]
@@ -54,8 +54,8 @@ public sealed record Drink(AgentId Who, double Liters = Work.MaxDrinkLiters) : A
 public sealed record Cook(AgentId Who, Resource Raw, double Kg) : Activity(Who);
 public sealed record MeltSnow(AgentId Who) : Activity(Who);
 public sealed record WalkAbout(AgentId Who) : Activity(Who);
-public sealed record Stash(AgentId Who, Resource Resource, double Kg) : Activity(Who);
-public sealed record Unstash(AgentId Who, Resource Resource, double Kg) : Activity(Who);
+public sealed record PutDown(AgentId Who, Resource Resource, double Kg) : Activity(Who);
+public sealed record PickUp(AgentId Who, Resource Resource, double Kg) : Activity(Who);
 public sealed record Wear(AgentId Who, string Gear) : Activity(Who);
 public sealed record TakeOff(AgentId Who, string Gear) : Activity(Who);
 

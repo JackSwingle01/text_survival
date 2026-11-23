@@ -37,13 +37,13 @@ static class MapView
         {
             bool underfoot = t == person.Tile;
             var fire = underfoot ? (pitHere is { } ph ? Fire.Phase(ph) : null) : mem.Fire;
-            bool notable = fire != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Stash is { Count: > 0 } || mem.Danger != Danger.None;
+            bool notable = fire != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Pile is { Count: > 0 } || mem.Danger != Danger.None;
             if (!notable) continue;
             // The fuel was reckoned beside the fire; age it from then. A fire seen burning since keeps that reckoning.
             double? hoursLeft = underfoot ? (pitHere != null && Fire.IsActive(pitHere) ? Math.Round(Fire.FuelHours(pitHere), 1) : null)
                 : mem.FireHours is double h && mem.VisitedMinute is long v ? Math.Max(0, Math.Round(h - (world.Minute - v) / 60.0, 1)) : null;
             places.Add(new PlaceMarkDto(t.X, t.Y, underfoot ? world.Minute : mem.SeenMinute, fire is { } f ? Names.Title(f) : null, hoursLeft, mem.Shelter,
-                mem.Carcasses is { Count: > 0 }, mem.Stash is { Count: > 0 }, mem.Danger.HasFlag(Danger.Den), mem.Danger.HasFlag(Danger.Hurt)));
+                mem.Carcasses is { Count: > 0 }, mem.Pile is { Count: > 0 }, mem.Danger.HasFlag(Danger.Den), mem.Danger.HasFlag(Danger.Hurt)));
         }
         var sightings = memory.Sightings.Where(s => s.Key != person.Id)
             .Select(s => new SightingDto(s.Value.Tile.X, s.Value.Tile.Y, Words.SpeciesIcon(s.Value.Species), s.Value.Count, s.Value.Minute)).ToList();

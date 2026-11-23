@@ -105,22 +105,22 @@ public class ItemsTests
         var dropped = Items.Receive(w, agent, gained, events);
         Assert.Equal(Items.CapacityKg(Items.Pack(w, P)), Items.CarriedKg(agent), 9);
         Assert.Equal(20 - (15 - 4.43), Items.Have(dropped, Resource.Stone), 9);
-        Assert.Equal(Items.Have(dropped, Resource.Stone), Items.Have(w.Tiles[agent.Tile].Stash!, Resource.Stone), 9);
+        Assert.Equal(Items.Have(dropped, Resource.Stone), Items.Have(w.Tiles[agent.Tile].Pile!, Resource.Stone), 9);
         Assert.Single(events.OfType<Dropped>());
     }
 
     [Fact]
-    public void StashAndUnstash_MoveThingsBetweenPackAndTile_AndSurviveASave()
+    public void PutDownAndPickUp_MoveThingsBetweenPackAndTile_AndSurviveASave()
     {
         var w = New();
-        Assert.Null(Sim.Step(w, new Stash(P, Resource.Kindling, 0.5), 1).InterruptedReason);
+        Assert.Null(Sim.Step(w, new PutDown(P, Resource.Kindling, 0.5), 1).InterruptedReason);
         Assert.Equal(0.4, Items.Have(Items.Pack(w, P), Resource.Kindling), 9);
         var loaded = Save.FromJson(Save.ToJson(w));
-        Assert.Equal(0.5, Items.Have(loaded.Tiles[Map.Of(loaded).Camp].Stash!, Resource.Kindling), 9);
-        Sim.Step(loaded, new Unstash(P, Resource.Kindling, 99), 1);
+        Assert.Equal(0.5, Items.Have(loaded.Tiles[Map.Of(loaded).Camp].Pile!, Resource.Kindling), 9);
+        Sim.Step(loaded, new PickUp(P, Resource.Kindling, 99), 1);
         Assert.Equal(0.9, Items.Have(Items.Pack(loaded, P), Resource.Kindling), 9);
-        var r = Sim.Step(loaded, new Unstash(P, Resource.Kindling, 1), 5);
-        Assert.Equal(("no kindling stashed here", 0), (r.InterruptedReason, r.MinutesElapsed));
+        var r = Sim.Step(loaded, new PickUp(P, Resource.Kindling, 1), 5);
+        Assert.Equal(("no kindling in the pile here", 0), (r.InterruptedReason, r.MinutesElapsed));
     }
 
     [Fact]

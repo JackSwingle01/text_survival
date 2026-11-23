@@ -38,7 +38,7 @@ static class ConservationWorlds
 
     public static TileId Camp(World w) => Map.Of(w).Camp;
 
-    /// Kilograms of each resource held as items: every pack, every stash, and every cut piece
+    /// Kilograms of each resource held as items: every pack, every pile, and every cut piece
     /// waiting on a carcass. Carcass ledgers (uncut Remaining) and fires are not items.
     public static SortedDictionary<Resource, double> ItemKg(World w)
     {
@@ -50,13 +50,13 @@ static class ConservationWorlds
         foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) Add(pack.Kg);
         foreach (var ts in w.Tiles.Values)
         {
-            if (ts.Stash is { } stash) Add(stash.Kg);
+            if (ts.Pile is { } pile) Add(pile.Kg);
             foreach (var c in ts.Carcasses ?? []) Add(c.Pending);
         }
         return t;
     }
 
-    /// Every piece of gear, by kind: in packs, worn by any member of any agent, and on stashes.
+    /// Every piece of gear, by kind: in packs, worn by any member of any agent, and on piles.
     public static SortedDictionary<string, int> GearCount(World w)
     {
         var t = new SortedDictionary<string, int>();
@@ -66,7 +66,7 @@ static class ConservationWorlds
             if (Items.PackOf(a) is { } pack) Add(pack.Gear);
             foreach (var b in a.Members) Add(b.Worn);
         }
-        foreach (var ts in w.Tiles.Values) if (ts.Stash is { } stash) Add(stash.Gear);
+        foreach (var ts in w.Tiles.Values) if (ts.Pile is { } pile) Add(pile.Gear);
         return t;
     }
 

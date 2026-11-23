@@ -267,7 +267,7 @@ public class ForecastTests
                 forecast += Total(Work.ExpectedGather(w, Me(w), g, 60));
                 double before = Items.CarriedKg(Me(w));
                 Sim.Step(w, g, 60);
-                gathered += Items.CarriedKg(Me(w)) - before + (w.Tiles.GetValueOrDefault(Camp(w))?.Stash is { } s ? Items.WeightKg(s) : 0);
+                gathered += Items.CarriedKg(Me(w)) - before + (w.Tiles.GetValueOrDefault(Camp(w))?.Pile is { } s ? Items.WeightKg(s) : 0);
             }
             Assert.InRange(gathered, forecast * 0.8, forecast * 1.2);
         }

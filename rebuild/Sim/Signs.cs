@@ -1,10 +1,10 @@
 namespace Survival;
 
 /// RavensOver: the carrion flock over a predator herd (no flesh on the tile), its cause the predator.
-public enum SignKind { Body, Carcass, Stash, FirePit, Shelter, Prints, Trail, WorkedGround, Grazed, Felled, Picked, Bones, RavensOver }
+public enum SignKind { Body, Carcass, Pile, FirePit, Shelter, Prints, Trail, WorkedGround, Grazed, Felled, Picked, Bones, RavensOver }
 
 /// One piece of evidence on a tile (emergent-world-design §3.2). MadeMinute is null where the location feature keeps
-/// no clock of its making (stash, fire pit, shelter, body, stumps): adding one would be a new saved field.
+/// no clock of its making (pile, fire pit, shelter, body, stumps): adding one would be a new saved field.
 /// For prints and desire paths it is the last passage, which is what their fading counts from.
 public sealed record Sign(LocationFeature LocationFeature, SignKind Kind, long? MadeMinute, Cause? Cause);
 
@@ -22,7 +22,7 @@ public static class Signs
                 LocationFeatureKind.Body => [OfBody(world.Agent(new AgentId(t.Index)).Body, t)],
                 LocationFeatureKind.Carcass => [Of(world, t, Carcasses.Find(world, tile, t.Index)!)],
                 LocationFeatureKind.Pool => OfPool(world, t),
-                LocationFeatureKind.Stash => [new Sign(t, SignKind.Stash, null, state!.StashCause)],
+                LocationFeatureKind.Pile => [new Sign(t, SignKind.Pile, null, state!.PileCause)],
                 LocationFeatureKind.Fire => [new Sign(t, SignKind.FirePit, null, world.Fires[new FireId(t.Index)].Cause)],
                 LocationFeatureKind.Shelter => [new Sign(t, SignKind.Shelter, null, Shelters.Peek(world, tile)!.Cause)],
                 LocationFeatureKind.Track => [OfTrack(world, t)],
