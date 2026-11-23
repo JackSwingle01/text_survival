@@ -58,9 +58,9 @@ public static class Scenarios
                     Sim.Step(w, new Wait(AgentId.Player), 1);
                     break;
                 }
-            // Winter, with routes worn near camp and prints fresh around the player. The wear is written
-            // as it stands, a little over each tier so it holds through the looks, not walked in: the
-            // scenario does not hang on how fast feet wear a route.
+            // Winter, with routes trodden near camp and prints fresh around the player. The trodden amount is
+            // written as it stands, a little over each tier so it holds through the looks, not walked in: the
+            // scenario does not hang on how fast feet pack a route.
             case "trails":
                 {
                     ToWinter(w);
@@ -69,19 +69,19 @@ public static class Scenarios
                     int side = c.X < m.Width / 2 ? 1 : -1; // toward the open side of the map
                     TileId At(int dx, int dy) => new(c.X + side * dx, c.Y + dy);
                     bool Open(TileId t) => m.InBounds(t) && m.TerrainAt(t).IsPassable();
-                    void Wear(TileId a, TileId b, double wear)
+                    void Tread(TileId a, TileId b, double trodden)
                     {
-                        if (Open(a) && Open(b)) w.Trails[new EdgeId(a, b)] = new TrailWear(wear, w.Minute);
+                        if (Open(a) && Open(b)) w.Trails[new EdgeId(a, b)] = new EdgeTrodden(trodden, w.Minute);
                     }
                     // A route out of camp: a trail beside it, a path further on, a trace where it turns north.
-                    for (int i = 0; i < 8; i++) Wear(At(i, 1), At(i + 1, 1), i < 3 ? Tracks.TrailAt + 5 : i < 5 ? Tracks.PathAt + 3 : Tracks.TraceAt + 2);
-                    for (int j = 1; j > -4; j--) Wear(At(8, j), At(8, j - 1), Tracks.TraceAt + 2);
-                    // Grazing ground beyond it, worn on every side.
+                    for (int i = 0; i < 8; i++) Tread(At(i, 1), At(i + 1, 1), i < 3 ? Tracks.TrailAt + 0.1 : i < 5 ? Tracks.PathAt + 0.1 : Tracks.TraceAt + 0.1);
+                    for (int j = 1; j > -4; j--) Tread(At(8, j), At(8, j - 1), Tracks.TraceAt + 0.1);
+                    // Grazing ground beyond it, trodden on every side.
                     for (int y = -8; y <= -5; y++)
                         for (int x = 5; x <= 9; x++)
                         {
-                            Wear(At(x, y), At(x + 1, y), Tracks.TrailAt + 5);
-                            Wear(At(x, y), At(x, y + 1), Tracks.TrailAt + 5);
+                            Tread(At(x, y), At(x + 1, y), Tracks.TrailAt + 0.1);
+                            Tread(At(x, y), At(x, y + 1), Tracks.TrailAt + 0.1);
                         }
                     // The player has walked out along it and looked, and is back in camp.
                     foreach (var look in new[] { At(4, 1), At(8, 0), At(8, -4), At(7, -7) })
@@ -101,10 +101,11 @@ public static class Scenarios
                         .OrderBy(t => m.TerrainAt(t) == Terrain.Forest).ThenBy(t => Math.Abs(t.X - c.X) + Math.Abs(t.Y - c.Y)).ThenBy(t => t)
                         .Take(3).ToList();
                     if (open.Count < 3) throw new InvalidOperationException($"The trails scenario needs three tiles of ground in sight near camp; seed {w.Seed} has {open.Count}");
-                    Tracks.RecordMove(w, Map.Step(open[0], Direction.West), open[0], TrackMaker.Human, 1);
-                    Tracks.RecordMove(w, Map.Step(open[1], Direction.South), open[1], TrackMaker.Paw, 4);
+                    // One walker a crossing: four wolves, three caribou each way.
+                    Tracks.RecordMove(w, Map.Step(open[0], Direction.West), open[0], TrackMaker.Human);
+                    for (int i = 0; i < 4; i++) Tracks.RecordMove(w, Map.Step(open[1], Direction.South), open[1], TrackMaker.Paw);
                     foreach (var dir in new[] { Direction.West, Direction.East, Direction.North, Direction.South })
-                        Tracks.RecordMove(w, Map.Step(open[2], dir), open[2], TrackMaker.Hoof, 3);
+                        for (int i = 0; i < 3; i++) Tracks.RecordMove(w, Map.Step(open[2], dir), open[2], TrackMaker.Hoof);
                     Sim.Step(w, new Wait(AgentId.Player), 1);
                     break;
                 }

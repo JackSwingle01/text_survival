@@ -362,11 +362,10 @@ public static class Memories
         if ((explored.Width, explored.Height) != (m.Width, m.Height))
             throw new InvalidOperationException($"Explored ground is {explored.Width}x{explored.Height}, the map {m.Width}x{m.Height}");
         foreach (var t in view.Tiles) explored.Remember(t, SeenSurface.Of(Ground.Underfoot(world, t)), world.Minute);
-        double erosion = Tracks.ErosionAt(world, world.Minute);
         foreach (var t in view.Tiles)
             foreach (var n in SeenNeighbours(m, explored, t))
                 if (n.X >= t.X && n.Y >= t.Y || !view.Set.Contains(n))
-                    explored.RememberTrailTier(t, n, Tracks.TierNow(world, t, n, erosion));
+                    explored.RememberTrailTier(t, n, Tracks.TierOf(world, t, n));
     }
 
     /// The trails a person knows of, between tiles they have seen, in edge order: those touching a tile
@@ -378,12 +377,11 @@ public static class Memories
         foreach (var (a, b, tier) in explored.Trails())
             if (!inSight.Contains(a) && !inSight.Contains(b)) known[new EdgeId(a, b)] = tier;
         var m = Map.Of(world);
-        double erosion = Tracks.ErosionAt(world, world.Minute);
         foreach (var t in inSight)
         {
             if (!explored.Contains(t)) continue;
             foreach (var n in SeenNeighbours(m, explored, t))
-                if (Tracks.TierNow(world, t, n, erosion) is var tier and not TrailTier.None) known[new EdgeId(t, n)] = tier;
+                if (Tracks.TierOf(world, t, n) is var tier and not TrailTier.None) known[new EdgeId(t, n)] = tier;
         }
         return [.. known.Select(k => (k.Key, k.Value))];
     }

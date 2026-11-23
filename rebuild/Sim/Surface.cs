@@ -1,6 +1,7 @@
 namespace Survival;
 
 /// The ground at a place as it is (Ground.Underfoot), and its effects, from it alone: the column stays Ground's.
+/// TroddenLevel is a trodden edge's packing at its half of a tile (Trodden).
 public readonly record struct Surface(
     double SnowDepthM,
     double SnowPackingLevel,
@@ -11,13 +12,15 @@ public readonly record struct Surface(
     double StandingLiquidM,
     double IceM,
     bool Iced,
-    double CoverHeightM)
+    double CoverHeightM,
+    double TroddenLevel = 0)
 {
     /// Snow deeper than this is what a foot stands on, hiding the footing of whatever is under it.
     const double SnowFootingDepthM = 0.05;
     /// Pond ice this thick is as slick as ice gets; a thinner film is slick in proportion.
     const double FullSlickIceM = 0.004;
     const double SlickIceHazardDelta = 0.35;
+    const double TroddenSlickHazardDelta = 0.05;
 
     bool SnowIsFooting => SnowDepthM > SnowFootingDepthM;
 
@@ -26,6 +29,9 @@ public readonly record struct Surface(
     public double WaterDepthM => StandingLiquidM + IceM;
 
     public double DrinkableWaterM => Iced ? 0 : StandingLiquidM;
+
+    public Surface Trodden(double level) => level <= 0 ? this
+        : this with { SnowPackingLevel = SnowPackingLevel + (1 - SnowPackingLevel) * level, TroddenLevel = level };
 
     public double TraversalFactor
     {
@@ -52,6 +58,7 @@ public readonly record struct Surface(
             {
                 hazard += 0.05;
                 if (Crusted) hazard += 0.10;
+                hazard += TroddenSlickHazardDelta * TroddenLevel;
             }
             else hazard += SlickIceHazardDelta * Math.Min(1, IceM / FullSlickIceM);
             hazard += MudLevel * 0.05;

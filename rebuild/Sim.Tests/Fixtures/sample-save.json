@@ -1,5 +1,5 @@
 {
-  "Version": 24,
+  "Version": 25,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -2394,15 +2394,15 @@
     "Encounters": [],
     "Trails": {
       "7,41|7,42": {
-        "Wear": 1,
+        "Amount": 0.05,
         "Minute": 5
       },
       "7,42|7,43": {
-        "Wear": 15,
+        "Amount": 0.55,
         "Minute": 170
       },
       "7,42|8,42": {
-        "Wear": 1.9712764101863662,
+        "Amount": 0.09651984126984128,
         "Minute": 82
       }
     },

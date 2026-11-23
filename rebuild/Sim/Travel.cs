@@ -73,7 +73,7 @@ public static class Traversal
             Pace = t.Pace,
             TotalMinutes = FlightMinutesPerTile(agent)
                 ?? CrossingMinutes(world, PaceBody(agent), from, to, t.Pace, sky, Items.EncumbrancePct(agent)),
-            RiskPct = stumbles ? InjuryRiskPct(world, to, agent.Body, sky, t.Pace) : 0,
+            RiskPct = stumbles ? InjuryRiskPct(world, to, agent.Body, sky, t.Pace, from) : 0,
         };
     }
 
@@ -98,9 +98,7 @@ public static class Traversal
         agent.Crossing = null;
         if (agent.Mind is HerdMind) agent.LastLeft = new Departure(from, c.Dir, world.Minute);
         events.Add(new Moved(world.Minute, agent.Id, from, to));
-        // A herd marks the ground with all its feet; the carrion flock is mostly on the wing, the fox in it too light.
-        if (Fauna.BehaviorOf(agent.Species) != HerdBehavior.Carrion)
-            Tracks.RecordMove(world, from, to, Tracks.MakerOf(agent.Species), agent.Members.Count, Tracks.IndividualDepth(agent.Species));
+        Tracks.RecordMove(world, agent, from, to);
 
         if (c.RiskPct > 0 && world.Rng("travel", agent.Id).NextDouble() < c.RiskPct && Injure(world, agent, to, events) is string stop) return stop;
         if (to == Map.Of(world).Exit && agent.Mind is PersonMind)
@@ -127,18 +125,19 @@ public static class Traversal
         return (int)Math.Ceiling(Map.BaseTraversalMinutes(m, tile) * (1 + multiplier) / Math.Max(0.1, speed));
     }
 
-    public static int EdgeMinutes(World world, TileId from, TileId to) =>
-        (Map.Of(world).EdgeBetween(from, to)?.TraversalMinutes() ?? 0) + Tracks.TrailMinutes(world, from, to);
+    public static int EdgeMinutes(World world, TileId from, TileId to) => Map.Of(world).EdgeBetween(from, to)?.TraversalMinutes() ?? 0;
 
-    /// Added after the edge bonus, from the baseline segment: a worn path is bare earth under the snow, not a cleared lane.
+    /// Added after the edge's minutes, from the baseline segment.
     public static double SurfaceExcessMinutes(World world, TileId tile, int segmentMinutes) =>
         segmentMinutes * (Ground.Underfoot(world, tile).TraversalFactor - 1);
 
-    /// Zero beside a frozen river, whose ice already owns the hazard.
-    public static double SurfaceHazardDelta(World world, TileId tile) =>
-        Map.Of(world) is var m && m.BesideRiver(tile) && Map.IsFrozen(m, tile, world.Minute) ? 0 : Ground.Underfoot(world, tile).HazardDelta;
+    /// Zero beside a frozen river, whose ice already owns the hazard. from: for the edge's half of tile.
+    public static double SurfaceHazardDelta(World world, TileId tile, TileId? from = null) =>
+        Map.Of(world) is var m && m.BesideRiver(tile) && Map.IsFrozen(m, tile, world.Minute) ? 0
+            : Ground.Underfoot(world, tile, from).HazardDelta;
 
-    public static double EffectiveHazardLevel(World world, TileId tile) => HazardLevel(Map.Of(world), tile, world.Minute, SurfaceHazardDelta(world, tile));
+    public static double EffectiveHazardLevel(World world, TileId tile, TileId? from = null) =>
+        HazardLevel(Map.Of(world), tile, world.Minute, SurfaceHazardDelta(world, tile, from));
 
     internal static double HazardLevel(GeneratedMap m, TileId tile, long minute, double surfaceDelta) => Math.Min(1.0, Map.TravelHazardLevel(m, tile, minute) + surfaceDelta);
 
@@ -149,11 +148,11 @@ public static class Traversal
     /// The one curve every injury risk is read from, so easy ground is nearly safe and there is no step in it.
     internal static double FallPct(double footing) => Math.Pow(Math.Clamp(footing, 0, 1), FootingRules.InjuryExponent) / FootingRules.InjuryDivisor;
 
-    public static double InjuryRiskPct(World world, TileId tile, BodyState body, WeatherSample sky, Pace pace = Pace.Quick) =>
-        InjuryOdds(world, tile, body, sky, pace).TotalPct;
+    public static double InjuryRiskPct(World world, TileId tile, BodyState body, WeatherSample sky, Pace pace = Pace.Quick, TileId? from = null) =>
+        InjuryOdds(world, tile, body, sky, pace, from).TotalPct;
 
-    public static Odds InjuryOdds(World world, TileId tile, BodyState body, WeatherSample sky, Pace pace = Pace.Quick) =>
-        InjuryOdds(EffectiveHazardLevel(world, tile), body, sky, pace);
+    public static Odds InjuryOdds(World world, TileId tile, BodyState body, WeatherSample sky, Pace pace = Pace.Quick, TileId? from = null) =>
+        InjuryOdds(EffectiveHazardLevel(world, tile, from), body, sky, pace);
 
     /// Weather and bad legs worsen footing in proportion, so easy ground stays easy in a storm.
     internal static Odds InjuryOdds(double hazardLevel, BodyState body, WeatherSample sky, Pace pace)

@@ -188,18 +188,18 @@ public class IndividualsTests(ITestOutputHelper output)
             foreach (var m in Sim.Advance(w, 1).OfType<Moved>().Where(m => m.From == from && m.To == to)) moved.Add(m.Who);
         Assert.Equal(herd.Count, moved.Count); // every one followed
         var together = Tracks.Read(w, to).Single(t => t.Maker == TrackMaker.Hoof);
-        double wear = Tracks.WearAt(w, from, to);
+        double trodden = Tracks.TroddenAt(w, from, to);
 
-        // The same herd as one agent of twelve: one stamp of twelve, at the minute the last one crossed.
+        // The same herd crossing at once: twelve stamps, at the minute the last one crossed.
         var once = World.New(1);
         once.Minute = w.Minute;
-        Tracks.RecordMove(once, from, to, TrackMaker.Hoof, herd.Count, Tracks.IndividualDepth(Species.Caribou));
+        foreach (var _ in herd) Tracks.RecordMove(once, from, to, TrackMaker.Hoof, Tracks.IndividualDepth(Species.Caribou));
         var alone = Tracks.Read(once, to).Single(t => t.Maker == TrackMaker.Hoof);
-        output.WriteLine($"crossed over {w.Minute - start} min: traffic {together.Traffic} vs {alone.Traffic}, wear {wear:0.00} vs {Tracks.WearAt(once, from, to):0.00}");
+        output.WriteLine($"crossed over {w.Minute - start} min: traffic {together.Traffic} vs {alone.Traffic}, trodden {trodden:0.000} vs {Tracks.TroddenAt(once, from, to):0.000}");
         Assert.Equal(alone.Traffic, together.Traffic);
         Assert.Equal(alone.Depth, together.Depth, 1);
         Assert.Equal(alone.Heading, together.Heading);
-        Assert.Equal(Tracks.WearAt(once, from, to), wear, 1);
+        Assert.Equal(Tracks.TroddenAt(once, from, to), trodden, 2);
     }
 
     /// Twelve caribou on a tile are one herd of twelve to whoever sees them, and seen again they are still one.
