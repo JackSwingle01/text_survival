@@ -28,7 +28,7 @@ _Avoid_: optional, luxury
 
 **Source**:
 A place where a stat can be met right now, with what it offers there: grazing, open water, snow, a
-den, a carcass, a stash.
+den, a carcass, a pile, a cache.
 _Avoid_: offer, patch, spot
 
 **Route**:
@@ -79,9 +79,36 @@ _Avoid_: drive off, take, challenge
 Contest, toward an ally: the same claim, answered by that person's mind and their opinion of you.
 
 **Interact**:
-The single verb shown for a location feature that offers several (a fire, a carcass, a stash, a
-shelter); it opens that feature's menu.
+The single verb shown for a location feature that offers several (a fire, a carcass, a pile, a
+cache, a shelter); it opens that feature's menu.
 _Avoid_: use, open
+
+**Pile**:
+Whatever items lie on a tile, outside any cache: no limit and no protection. Any animal whose diet
+takes a food in it can eat it.
+_Avoid_: stash, supplies, ground items
+
+**Cache**:
+A location feature that holds food up to a capacity and keeps out every animal except those with an
+ability it lists (flies, climbs, digs, strong). Built or found; food buried in snow is a cache that
+diggers get into.
+_Avoid_: storage, stash, camp storage
+
+**Exposed**:
+Of food: reachable by a given animal, because it lies in a pile or in a cache that animal gets into.
+Worked out each time, never stored.
+_Avoid_: unprotected, unguarded
+
+**Scent**:
+What a source gives off to an animal's nose: a strength (per food, for blood and bleeding, for a
+carcass) scaled by a cache's scent multiplier, carried further downwind than upwind and read through
+the species' sense of smell. Piles and caches are found only by scent or by standing on their tile.
+_Avoid_: smell radius, signal (signal is the wider set: noise, scent, fire light)
+
+**Diet**:
+Which foods an animal eats from piles, caches and carcasses: carnivore, omnivore or herbivore. What a
+herbivore grazes from the ground is its own list per species.
+_Avoid_: browser, grazer (as diets)
 
 ## Items
 
@@ -137,7 +164,7 @@ condition, item, verb, terrain or discovery.
 _Avoid_: feature on its own for something at a place (say location feature)
 
 **Location feature**:
-Anything at a place that can be seen, used or taken from: a fire, a shelter, a stash, a carcass, a
+Anything at a place that can be seen, used or taken from: a fire, a shelter, a pile, a cache, a carcass, a
 stand of trees, a berry bush, forage ground, a lake, a rock overhang. Location features are told apart
 by the verbs they offer, not by sub-kinds.
 _Avoid_: thing, structure, landmark, site feature, object
@@ -209,12 +236,12 @@ somewhere its kin aren't costs it more, and under attack it holds with them.
 _Avoid_: herding instinct, sociality
 
 **Camp**:
-A place a person has set up to live from for now, with a fire, a stash or a shelter. Camps are
+A place a person has set up to live from for now, with a fire, a pile, a cache or a shelter. Camps are
 temporary, and a person may have several.
 _Avoid_: home, base
 
 **Memory**:
-What a person has seen and remembers of the world: their map, the ground as last seen, stashes,
+What a person has seen and remembers of the world: their map, the ground as last seen, piles and caches,
 fires, dangers. It can be out of date or wrong.
 _Avoid_: beliefs, knowledge, explored
 
