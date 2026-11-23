@@ -98,7 +98,7 @@ public static class Weather
     public static int SunsetHour(long minute) => SeasonAt(minute) switch { Season.Winter => 16, Season.Summer => 20, _ => 18 };
 
     /// The light to work by: before LightFromHour and from DarkFromHour it is too dark without a flame,
-    /// whatever the season. Work, a predator's boldness, people's plans and the page's daylight all read it.
+    /// whatever the season. Work, an animal's active hours, people's plans and the page's daylight all read it.
     public const int LightFromHour = 5, DarkFromHour = 21;
 
     public static bool IsNight(long minute)
@@ -106,6 +106,15 @@ public static class Weather
         int hour = MinuteOfDay(minute) / 60;
         return hour < LightFromHour || hour >= DarkFromHour;
     }
+
+    /// Dawn and dusk: within TwilightHours of the light coming or going (IsNight's hours).
+    public static bool IsTwilight(long minute)
+    {
+        int hour = MinuteOfDay(minute) / 60;
+        return Math.Abs(hour - LightFromHour) < TwilightHours || Math.Abs(hour - DarkFromHour) < TwilightHours;
+    }
+
+    public const int TwilightHours = 3;
 
     /// Minutes until IsNight; 0 at night.
     public static int LightLeftMinutes(long minute) => IsNight(minute) ? 0 : DarkFromHour * 60 - MinuteOfDay(minute);

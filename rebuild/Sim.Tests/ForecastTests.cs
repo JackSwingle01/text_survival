@@ -448,6 +448,58 @@ public class ForecastTests
         Assert.Equal(path, Trip.Routes(again, flock).RouteTo(corner));
     }
 
+    // ---- Work and Fauna: what an animal's water and rest pay ----
+
+    static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat;
+
+    /// A thirsty caribou beside a lake drinks what Fauna.WaterHere says, for nothing, less the minute's loss.
+    [Fact]
+    public void Water_FromALake_AgreesWithWhatTheAnimalDrinks()
+    {
+        var w = PlannerTests.Strip(water: [new TileId(10, 2)]);
+        var caribou = PlannerTests.Animal(w, Species.Caribou, new TileId(10, 1), hydrationPct: 0.4);
+        var water = Assert.IsType<Source>(Fauna.WaterHere(w, caribou));
+        Assert.Equal(0, water.KcalPerUnit);
+        double before = caribou.Body.HydrationMl;
+        Sim.Advance(w, 1);
+        Assert.Equal(before - Body.WaterLossMlPerMinute(caribou.Body, sleeping: false) + water.PerMinute, caribou.Body.HydrationMl, 6);
+    }
+
+    /// Snow pays water slower, and every ml costs what melting and warming it costs (Work.SnowKcalPerMl): a wolf, which
+    /// does not graze, loses its burn and the snow's kcal and nothing else.
+    [Fact]
+    public void Water_FromSnow_AgreesWithWhatTheAnimalDrinks_AndWhatItCosts()
+    {
+        var w = PlannerTests.Strip(sky: new WeatherSample(0, WeatherCondition.LightSnow, -10, 0.1, 0.8, 0.8, WindDirection.North));
+        Sim.Advance(w, 1440);
+        var wolf = PlannerTests.Animal(w, Species.Wolf, new TileId(20, 1), hydrationPct: 0.4);
+        var snow = Assert.IsType<Source>(Fauna.WaterHere(w, wolf));
+        Assert.Equal(0.117, snow.KcalPerUnit, 9);
+        var lake = PlannerTests.Strip(water: [new TileId(10, 2)]);
+        Assert.True(snow.PerMinute < Fauna.WaterHere(lake, PlannerTests.Animal(lake, Species.Wolf, new TileId(10, 1)))!.Value.PerMinute);
+        double ml = wolf.Body.HydrationMl, kcal = KcalHeld(wolf.Body), burn = Fauna.BurnKcalPerMinute(wolf.Body);
+        Sim.Advance(w, 1);
+        Assert.Equal(ml - Body.WaterLossMlPerMinute(wolf.Body, sleeping: false) + snow.PerMinute, wolf.Body.HydrationMl, 6);
+        Assert.Equal(kcal - burn - snow.PerMinute * snow.KcalPerUnit, KcalHeld(wolf.Body), 3);
+    }
+
+    /// A tired wolf's minute asleep buys what Fauna.RestPerMinute says: at its den in full, elsewhere a lighter sleep.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Rest_AgreesWithWhatAMinuteAsleepBuys(bool atItsDen)
+    {
+        var w = PlannerTests.Strip();
+        Sim.Advance(w, 3 * 60); // noon: outside a wolf's hours
+        var at = new TileId(20, 1);
+        var wolf = w.Agent(Agents.Spawn(w, Species.Wolf, at, [atItsDen ? at : new TileId(30, 1)]));
+        wolf.Body.EnergyMinutes = 0.2 * Body.MaxEnergyMinutes;
+        double rest = Fauna.RestPerMinute(wolf, at), before = wolf.Body.EnergyMinutes;
+        Assert.Equal(Body.EnergyDeltaPerMinute(sleeping: true, SpeciesTable.Of(Species.Wolf).SleepHoursPerDay) * (atItsDen ? 1 : 0.75), rest, 9);
+        Sim.Advance(w, 1);
+        Assert.Equal(before + rest, wolf.Body.EnergyMinutes, 6);
+    }
+
     // ---- Body: health ----
 
     static BodyState Bleeding(double severity)

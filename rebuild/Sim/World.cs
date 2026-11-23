@@ -60,6 +60,9 @@ public sealed class World
     internal Access.Gate AccessGates = Access.Wired;
     internal Dictionary<double, DecayTimeline>? DecayCache;
     internal Dictionary<GroundClass, GroundState>? GroundCache;
+    internal (long Minute, Dictionary<GroundClass, (double SnowDepthM, double PondLiquidM)> ByClass)? WaterEstimateCache;
+    /// The stored-plan benchmark's other arm: animals plan again at every decision (Fauna.Needs).
+    internal bool ReplanEveryDecision;
     internal Dictionary<Diet, double>? ValleyForageCache;
     internal List<TileId>? OpenLandCache;
     internal SortedSet<TileId>? CarcassTiles;

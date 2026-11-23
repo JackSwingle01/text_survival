@@ -172,7 +172,7 @@ public class CombatGoldenTests
         Assert.InRange(hits / (double)tries, 0.88, 0.92);
     }
 
-    // ---- herd boldness (old Herd.BoldnessToward at 09:00, exact) ----
+    // ---- herd boldness (old Herd.BoldnessToward by day, exact: outside each species' active hours, which add their own) ----
 
     // members, toward a healthy person, defending, toward a bleeding person
     public static readonly TheoryData<Species, int, double, double, double> HerdBoldness = new()
@@ -191,6 +191,7 @@ public class CombatGoldenTests
     {
         var (w, t) = Field();
         var herd = Herd(w, species, count, t);
+        while (Fauna.ActiveNow(w, species)) w.Minute += 60;
         var person = TestKit.OldBaselineHuman();
         var hurt = TestKit.OldBaselineHuman();
         Effects.Add(hurt, EffectKind.Bleeding, 0.5);
@@ -208,7 +209,23 @@ public class CombatGoldenTests
         Assert.Equal(0.45, Combat.Boldness(w, herd, person, hunger: 0.8), Digits);
         Assert.Equal(0.65, Combat.Boldness(w, herd, person, hunger: 0.95), Digits);
         Assert.Equal(0.125, Combat.Boldness(w, herd, person, fear: 0.5), Digits);
-        w.Minute = 13 * 60; // 22:00
+        w.Minute = 13 * 60; // 22:00, dusk: a wolf's hours
         Assert.Equal(0.35, Combat.Boldness(w, herd, person), Digits);
+    }
+
+    /// No flat night bonus: each species is bolder in its own active hours (spec "Bodies").
+    [Theory]
+    [InlineData(Species.Bear, 3 * 60, 15 * 60)]     // diurnal: 12:00 against 00:00
+    [InlineData(Species.Hyena, 15 * 60, 3 * 60)]    // nocturnal: 00:00 against 12:00
+    [InlineData(Species.Wolf, 11 * 60, 3 * 60)]     // crepuscular: 20:00 against 12:00
+    public void Boldness_FollowsTheSpeciesHours_NotTheNight(Species species, int activeMinute, int restingMinute)
+    {
+        var (w, t) = Field();
+        var herd = Herd(w, species, 1, t);
+        var person = TestKit.OldBaselineHuman();
+        w.Minute = restingMinute;
+        double resting = Combat.Boldness(w, herd, person);
+        w.Minute = activeMinute;
+        Assert.Equal(resting + 0.1, Combat.Boldness(w, herd, person), Digits);
     }
 }

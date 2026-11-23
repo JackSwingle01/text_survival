@@ -336,7 +336,7 @@ public static class Sim
     /// A fight holds its fighters' activities, never their bodies.
     internal static string? LiveBodies(World world, Agent agent, Activity activity, List<WorldEvent> events)
     {
-        if (agent.Mind is HerdMind) return Fauna.Tick(world, agent, events);
+        if (agent.Mind is HerdMind) return Fauna.Tick(world, agent, events, activity);
         Fire.CatchUpAround(world, agent, events); // before anything reads the fire this minute
         var body = agent.Body;
         var interrupt = Body.Tick(world, agent, Surroundings(world, agent, activity, events), events);

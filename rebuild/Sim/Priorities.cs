@@ -86,6 +86,18 @@ public static class Priorities
 
     public static double FatFloorKg(BodyState body) => FatFloorPct * body.WeightKg;
 
+    /// The stat hierarchy within a priority (GLOSSARY: Priority).
+    public static readonly Stat[] Ladder = [Stat.Warmth, Stat.Water, Stat.Rest, Stat.Food];
+
+    /// The top-ranked stat at minimum or above: the worst priority, then the hierarchy; null if none is.
+    public static (Stat Stat, Priority Priority)? Top(StatPriorities priorities, Priority minimum)
+    {
+        (Stat, Priority)? top = null;
+        foreach (var stat in Ladder)
+            if (priorities[stat] >= minimum && (top is not var (_, p) || priorities[stat] > p)) top = (stat, priorities[stat]);
+        return top;
+    }
+
     /// None ranks nowhere; place is the stat's position in the hierarchy (a fraction falls between two stats).
     public static double Rank(Priority priority, double place) => priority == Priority.None ? 0 : (int)priority * 10 - place;
 

@@ -103,6 +103,11 @@ public class SaveFixtureTests
         w.Trails[new EdgeId(camp, new TileId(camp.X, camp.Y + 1))] = new TrailWear(Tracks.PathAt + 1, w.Minute);
         Memories.Glance(w, w.Agent(P), []);
         Sim.Step(w, new Wait(P), 2);
+        // A caribou on its way to water, the wolf it sensed kept in mind (Fauna.Needs): a stored plan and a sighting.
+        var den = new TileId(camp.X + 12, camp.Y);
+        var caribou = (HerdMind)w.Agent(Agents.Spawn(w, Species.Caribou, new TileId(camp.X + 15, camp.Y))).Mind;
+        caribou.Plan = new Plan(Stat.Water, Priority.Need, new TileId(camp.X + 17, camp.Y), [new TileId(camp.X + 16, camp.Y), new TileId(camp.X + 17, camp.Y)]);
+        caribou.Sightings = [new Sensed(Fauna.AnimalsAt(w, den).First().Id, den, w.Minute)];
         return w;
     }
 
