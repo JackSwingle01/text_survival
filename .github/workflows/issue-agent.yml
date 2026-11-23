@@ -35,10 +35,11 @@ name: Issue agent
 #
 # Publishing. The build pushes and opens its own PR, and also writes the PR's title and body to
 # files. A build longer than an hour outlives the Claude app token it started with (GitHub App
-# tokens last 60 minutes), so when no PR exists after a finished build, the Publish step
-# (.github/actions/publish-pr, a short Sonnet run on a fresh token) pushes and opens it from those
-# files. The workflow's own GITHUB_TOKEN can't stand in: a PR it opens triggers neither CI nor
-# Claude Review.
+# tokens last 60 minutes), so when no PR exists after a finished build, the "Open the PR" step
+# pushes and opens it from those files with the workflow's own GITHUB_TOKEN. That needs the repo
+# setting "Allow GitHub Actions to create and approve pull requests". GitHub starts no workflows
+# for a PR that token opens: close and reopen it to run CI, and add the `review` label for Claude
+# Review (the PR body says so). Interim, until the PR is opened by an app whose PRs start CI.
 #
 # Issue and dispatch workflows run from the default branch, and the Claude app only issues tokens
 # to a workflow that matches the default branch, so a change here works once it is on main.
@@ -105,9 +106,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     permissions:
-      contents: read
+      # Write, for "Open the PR": the fallback when the build's own token has expired.
+      contents: write
       issues: write
-      pull-requests: read
+      pull-requests: write
       id-token: write
     strategy:
       max-parallel: 1
@@ -357,26 +359,33 @@ jobs:
           OUTPUT: ${{ steps.implement.outputs.structured_output }}
         run: echo "outcome=$(jq -r '.outcome' <<< "$OUTPUT")" >> "$GITHUB_OUTPUT"
 
-      # Most builds open their own PR. One that ran past its token's hour is published from its files.
+      # Most builds open their own PR. One that ran past its token's hour is opened from its files.
       - name: PR open?
         id: opened
         if: steps.build.outputs.outcome == 'built'
         run: |
           pr=$(python3 .github/scripts/issue_queue.py pr "$ISSUE")
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
-          echo "${pr:-No PR yet: publishing from the files the build wrote.}" >> "$GITHUB_STEP_SUMMARY"
+          echo "${pr:-No PR yet: opening it from the files the build wrote.}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publish
-        if: |
-          steps.build.outputs.outcome == 'built' && steps.opened.outputs.pr == '' &&
-          steps.build_usage.outputs.rejected != 'true'
+      - name: Open the PR
+        if: steps.build.outputs.outcome == 'built' && steps.opened.outputs.pr == ''
         continue-on-error: true
-        uses: ./.github/actions/publish-pr
-        with:
-          issue: ${{ matrix.issue }}
-          branch: ${{ steps.verdict.outputs.branch }}
-          pr_dir: ${{ runner.temp }}/pr
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        env:
+          BRANCH: ${{ steps.verdict.outputs.branch }}
+        run: |
+          set -euo pipefail
+          title=$(cat "$RUNNER_TEMP/pr/title.txt" 2>/dev/null || git log --reverse --format=%s origin/main..HEAD | head -1)
+          body="$RUNNER_TEMP/pr/body.md"
+          if [ ! -s "$body" ]; then
+            { echo "Closes #$ISSUE"; echo; git log --reverse --format='- %s' origin/main..HEAD; } > "$body"
+          fi
+          if ! grep -q "Closes #$ISSUE" "$body"; then printf '\nCloses #%s\n' "$ISSUE" >> "$body"; fi
+          printf '\n---\n_Opened by the workflow token after the build'"'"'s own expired, so CI and Claude Review did not start: close and reopen this PR to run CI, and add the `review` label for Claude Review._\n' >> "$body"
+          # The build's git credentials were its expired app token: push with this job's token instead.
+          git -c "http.https://github.com/.extraheader=" -c credential.helper= \
+            push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "HEAD:refs/heads/$BRANCH"
+          gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$body"
 
       # The work is kept even when no PR came of it: pr/work.patch (the commits, for `git am`),
       # pr/uncommitted.diff, pr/branch.txt, pr/title.txt, pr/body.md.
