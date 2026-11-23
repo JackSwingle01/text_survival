@@ -40,11 +40,6 @@ name: Issue agent
 # files. The workflow's own GITHUB_TOKEN can't stand in: a PR it opens triggers neither CI nor
 # Claude Review.
 #
-# Restore. A build that finished but never became a PR is kept in its run's `issue-N-work` artifact
-# (commits as work.patch, the PR text, the branch name). A manual run with `restore_from_run` (the
-# run id) and `issue` rebuilds that branch on main, keeping commits already on the remote branch,
-# and publishes it. It has its own concurrency group, so it doesn't wait behind a running queue.
-#
 # Issue and dispatch workflows run from the default branch, and the Claude app only issues tokens
 # to a workflow that matches the default branch, so a change here works once it is on main.
 
@@ -53,14 +48,6 @@ on:
     inputs:
       issue:
         description: "Work only this issue number (empty: the whole queue, oldest first)"
-        required: false
-        type: string
-      restore_from_run:
-        description: "Restore instead: publish the build kept in this run's issue-<issue>-work artifact"
-        required: false
-        type: string
-      branch:
-        description: "Restore only: the branch name, if the artifact predates branch.txt"
         required: false
         type: string
   issues:
@@ -74,16 +61,15 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: ${{ inputs.restore_from_run && 'issue-agent-restore' || 'issue-agent' }}
+  group: issue-agent
   cancel-in-progress: false
 
 jobs:
   select:
     # The repo is public: only people with write access can spend the plan.
     if: |
-      !inputs.restore_from_run && (
       github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ||
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
     outputs:
       issues: ${{ steps.list.outputs.issues }}
@@ -392,8 +378,8 @@ jobs:
           pr_dir: ${{ runner.temp }}/pr
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-      # The work is kept even when no PR came of it, in the form a restore run reads back:
-      # pr/work.patch (the commits), pr/uncommitted.diff, pr/branch.txt, pr/title.txt, pr/body.md.
+      # The work is kept even when no PR came of it: pr/work.patch (the commits, for `git am`),
+      # pr/uncommitted.diff, pr/branch.txt, pr/title.txt, pr/body.md.
       - name: Keep the work
         if: always() && steps.implement.outcome != 'skipped'
         run: |
@@ -445,7 +431,7 @@ jobs:
             exit 0
           fi
           if [ -n "${OUTPUT:-}" ] && [ "$(jq -r '.outcome' <<< "$OUTPUT")" = "built" ]; then
-            note="Built, but publishing the PR failed. Run this workflow with restore_from_run=$GITHUB_RUN_ID and issue=$ISSUE to publish it."
+            note="Built and tested, but publishing the PR failed. The commits and PR text are in the run's issue-$ISSUE-work artifact."
           elif [ -n "${OUTPUT:-}" ]; then note=$(jq -r '.note' <<< "$OUTPUT")
           else note="The build ended ($IMPLEMENT) without a pull request."; fi
           jq -rn --arg run "$RUN_URL" --arg note "$note" --arg artifact "issue-$ISSUE-work" \
@@ -462,79 +448,3 @@ jobs:
           echo "::error::Stopping the queue: $WHY. #$ISSUE is untouched; the hourly run resumes from it."
           echo "Stopped: $WHY. The hourly run resumes from #$ISSUE." >> "$GITHUB_STEP_SUMMARY"
           exit 1
-
-  # Publishes a finished build that never became a PR, from its run's artifact (see the header).
-  restore:
-    if: inputs.restore_from_run != ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: read
-      actions: read
-      id-token: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      ISSUE: ${{ inputs.issue }}
-      FROM_RUN: ${{ inputs.restore_from_run }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Rebuild the branch
-        id: rebuild
-        env:
-          BRANCH_INPUT: ${{ inputs.branch }}
-        run: |
-          set -euo pipefail
-          if [ -z "$ISSUE" ]; then echo "::error::A restore needs the issue number."; exit 1; fi
-          dl="$RUNNER_TEMP/restore"
-          gh run download "$FROM_RUN" -R "$GITHUB_REPOSITORY" -n "issue-$ISSUE-work" -D "$dl"
-          # Older artifacts kept work.patch beside .agent-logs/ rather than in pr/.
-          patch=$(find "$dl" -name work.patch | head -1)
-          if [ -z "$patch" ] || ! grep -q '^From [0-9a-f]\{40\} ' "$patch"; then
-            echo "::error::No commits in run $FROM_RUN's issue-$ISSUE-work artifact."; exit 1
-          fi
-          mkdir -p "$RUNNER_TEMP/pr"
-          for f in title.txt body.md branch.txt; do
-            found=$(find "$dl" -name "$f" | head -1)
-            if [ -n "$found" ]; then cp "$found" "$RUNNER_TEMP/pr/$f"; fi
-          done
-          branch=${BRANCH_INPUT:-$(cat "$RUNNER_TEMP/pr/branch.txt" 2>/dev/null || echo "$ISSUE-restored")}
-          case "$branch" in "$ISSUE"-*) ;; *) echo "::error::Branch $branch doesn't start with $ISSUE-."; exit 1;; esac
-
-          # Only the committer: git am keeps each commit's author (claude[bot]).
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch" origin/main
-          # In older artifacts, uncommitted changes were appended to work.patch, and git am folds them
-          # into the last commit; newer ones keep them apart in uncommitted.diff, left out here.
-          git am --3way "$patch"
-          if git fetch origin "$branch" 2>/dev/null; then
-            # Part of the build reached the remote before the token expired. Rebasing onto it drops
-            # the commits it already has (same patch), so the push is a fast-forward.
-            git rebase "origin/$branch"
-          fi
-          git log --oneline origin/main..HEAD | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
-
-      - name: Publish
-        uses: ./.github/actions/publish-pr
-        with:
-          issue: ${{ inputs.issue }}
-          branch: ${{ steps.rebuild.outputs.branch }}
-          pr_dir: ${{ runner.temp }}/pr
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-      - name: Report
-        if: always() && steps.rebuild.outcome == 'success'
-        run: |
-          pr=$(python3 .github/scripts/issue_queue.py pr "$ISSUE")
-          if [ -z "$pr" ]; then
-            echo "::error::Publishing #$ISSUE from run $FROM_RUN opened no PR; see the Publish step."; exit 1
-          fi
-          echo "Restored #$ISSUE as $pr" >> "$GITHUB_STEP_SUMMARY"
-          gh issue edit "$ISSUE" --remove-label needs-user 2>/dev/null || true
-          gh issue comment "$ISSUE" --body "Restored from run $FROM_RUN as $pr."

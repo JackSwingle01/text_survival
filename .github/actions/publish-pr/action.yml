@@ -3,8 +3,7 @@ description: >-
   Push an issue agent build's local branch and open its pull request, on a fresh Claude app token,
   when the build couldn't. A build longer than an hour outlives the token it started with (GitHub
   App tokens last 60 minutes), so it is left with commits and PR text but no PR, and this step
-  finishes the job; the restore job uses it too. A pull request
-  opened with the workflow's GITHUB_TOKEN would not trigger CI or Claude Review; the app's does.
+  finishes the job. A pull request opened with the workflow's GITHUB_TOKEN would not trigger CI or Claude Review; the app's does.
   Interim: a run of claude-code-action is how this workflow gets an app token; a PR job on the
   repo's own token (or Jack's own GitHub App) replaces it.
 
