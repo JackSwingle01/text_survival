@@ -7,7 +7,7 @@ using Xunit;
 namespace Survival.Tests;
 
 /// The ground's interface: one read gives the surface, and every effect is worked out from the surface
-/// alone. The oracle is the column's own effects before the surface existed, recorded from main (#104).
+/// alone. The oracle is the column's own effects, recorded before they were worked out from the surface.
 public class SurfaceTests
 {
     /// tag | traversal | hazard | search(0, 0.3) | search(0.02, 0.05) | walking wet 0 | walking wet 0.05 | resting 0.2 |
@@ -101,9 +101,9 @@ public class SurfaceTests
     }
 
     /// Every passable tile of seed 17 on three days: each effect, the map's five values and the animal's water,
-    /// hashed. Main's reads gave this hash; the frozen-river and open-lake rules are in it.
+    /// hashed, as the world reads gave them before the surface: the frozen-river and open-lake rules are in it.
     [Fact]
-    public void Underfoot_OnEveryTile_ReadsWhatMainRead()
+    public void Underfoot_OnEveryTile_ReadsTheRecordedGround()
     {
         var w = World.New(17);
         var m = Map.Of(w);

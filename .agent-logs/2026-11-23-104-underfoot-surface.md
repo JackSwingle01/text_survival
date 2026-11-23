@@ -37,3 +37,11 @@ Revised: tests called the world reads this ticket removes (SurfaceNow, Traversal
 Revised: the GroundState overloads (TraversalFactor, HazardDelta, SearchFactor, ContactWettingRate) stay as one-liners through Ground.SurfaceOf, so the golden script and the physics tests run unchanged through the surface.
 Revised: CommentHygieneTests holds a new file to 10% comments, and Surface.cs came in at 16% → its header shrank to one line and the comments on WaterDepthM, DrinkableWaterM and ContactCeiling went.
 Revised: the 30-day run (HerdTests.ThirtyPopulatedDays_StayCheap, seed 17, Release) on main 9,749 MB (9,738 MB on an earlier run), 30.4 s, save 819 KB (839,076 bytes); on the branch 7,867 MB, 29.6 s, the same save byte for byte (SHA-256 8b9bd5c6…), the same 31,682 moves, 55 fight sides, 12 kills. The drop is the per-class Surface cache: every system now shares the per-step read that only animals' water had.
+Revised (review): SurfaceViewTests' header still named Ground.SurfaceNow → now Ground.Underfoot.
+Revised (review): SurfaceTests' comments and a test name told history ("recorded from main") → they say what the oracle is: the column's effects recorded before the surface existed.
+Revised (review): HazardDelta repeated Crusted's threshold, as two ifs that were an if/else → it tests Crusted, in an if/else; same values (SurfaceTests exact).
+Revised (review): CoverDepthM holds a height → renamed CoverHeightM.
+Revised (review): GLOSSARY said nobody else reads the ground state, but Ground's tests do → "only Ground and its tests read".
+Revised (review): the GroundState overloads of TraversalFactor, HazardDelta, SearchFactor and ContactWettingRate are pass-throughs to SurfaceOf → kept, so the golden and physics tests run unchanged as the ticket prefers; open question in the PR.
+Revised (review): SeenSurface and GroundSeen are projections beside the Surface → kept: the ticket keeps memory's projection as today, and a memory-built WorldView (#87) cannot fill a whole Surface; open question in the PR.
+Follow-up: nothing tests SurfaceCache directly (SetClassState then a read in the same minute); TestKit.EditGround scenes cover it only indirectly.

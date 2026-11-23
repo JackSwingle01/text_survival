@@ -11,7 +11,7 @@ public readonly record struct Surface(
     double StandingLiquidM,
     double IceM,
     bool Iced,
-    double CoverDepthM)
+    double CoverHeightM)
 {
     /// Snow deeper than this is what a foot stands on, hiding the footing of whatever is under it.
     const double SnowFootingDepthM = 0.05;
@@ -48,12 +48,12 @@ public readonly record struct Surface(
         get
         {
             double hazard = 0;
-            if (!SnowIsFooting) hazard += SlickIceHazardDelta * Math.Min(1, IceM / FullSlickIceM);
             if (SnowIsFooting)
             {
                 hazard += 0.05;
-                if (CrustLevel > 0.25) hazard += 0.10;
+                if (Crusted) hazard += 0.10;
             }
+            else hazard += SlickIceHazardDelta * Math.Min(1, IceM / FullSlickIceM);
             hazard += MudLevel * 0.05;
             return Math.Clamp(hazard, 0, 0.5);
         }
@@ -64,7 +64,7 @@ public readonly record struct Surface(
     {
         const double Floor = 0.1;
         double extent = Math.Max(verticalExtentM, 0.05);
-        double cover = CoverDepthM - baseElevationM;
+        double cover = CoverHeightM - baseElevationM;
         if (cover <= 0) return 1;
         return 1 - Math.Clamp(cover / extent, 0, 1) * (1 - Floor);
     }

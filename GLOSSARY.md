@@ -156,7 +156,7 @@ _Avoid_: structure, building
 The ground at a place as it is: snow depth, the top snow's packing, slush, crust, mud, dampness,
 standing liquid and its ice. One read gives it (underfoot at a place), and every effect of the
 ground (traversal, footing hazard, search, wetting, drinkable water) is worked out from it alone.
-_Avoid_: surface summary, ground state (the column the physics steps, which nobody else reads)
+_Avoid_: surface summary, ground state (the column the physics steps, which only Ground and its tests read)
 
 **Discovery**:
 A location feature or items hidden at a place until searching turns them up.

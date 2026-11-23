@@ -1,6 +1,6 @@
 namespace Survival.Tests;
 
-/// Ground.SurfaceNow: a tile's ground as a view draws it (snow, crust, mud, standing water, ice),
+/// Ground.Underfoot: a tile's ground as a view draws it (snow, crust, mud, standing water, ice),
 /// read without writing anything.
 public class SurfaceViewTests
 {
