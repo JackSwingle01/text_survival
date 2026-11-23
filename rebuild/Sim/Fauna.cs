@@ -559,7 +559,7 @@ public static partial class Fauna
                 {
                     Become(world, mind, HerdState.Resting);
                     mind.TerritoryIndex = 0;
-                    return Toward(world, herd, mind, mind.Territory[0]) ?? Rest(herd);
+                    return TowardNearest(world, herd, [mind.Territory[0]]) ?? Rest(herd);
                 }
                 if (hunger < 0.3) { Become(world, mind, HerdState.Resting); return Rest(herd); }
                 if (t > 0 && t % (hunger > StarvingHunger ? StarvingPatrolEveryMinutes : PackPatrolEveryMinutes) == 0)
@@ -594,7 +594,7 @@ public static partial class Fauna
                 if (mind.Foray == null) return null;
                 target = mind.Foray.Value;
             }
-            if (Toward(world, herd, mind, target) is { } step) return step;
+            if (TowardNearest(world, herd, [target]) is { } step) return step;
             if (!CanMove(herd)) return null;
             mind.Foray = null; // no way there: somewhere else
         }
@@ -685,8 +685,7 @@ public static partial class Fauna
 
     static Direction? FleeDirection(World world, Agent herd, TileId threat, List<WorldEvent> events)
     {
-        var m = Map.Of(world);
-        var options = Enum.GetValues<Direction>().Where(d => Map.Blocked(m, herd.Tile, Map.Step(herd.Tile, d)) == null
+        var options = Enum.GetValues<Direction>().Where(d => Traversal.Blocked(world, herd, herd.Tile, Map.Step(herd.Tile, d)) == null
             && !HeldOff(world, herd, Map.Step(herd.Tile, d), events)).ToList();
         if (options.Count == 0) return null;
         int best = options.Max(d => MapGen.Manhattan(Map.Step(herd.Tile, d), threat));
@@ -705,86 +704,30 @@ public static partial class Fauna
     {
         if (mind.Territory.Count < 2) return null;
         if (herd.Tile == mind.Territory[mind.TerritoryIndex]) mind.TerritoryIndex = world.Rng("herds", herd.Id).NextInt(mind.Territory.Count);
-        var walk = Toward(world, herd, mind, mind.Territory[mind.TerritoryIndex]);
+        var walk = TowardNearest(world, herd, [mind.Territory[mind.TerritoryIndex]]);
         if (walk != null || !CanMove(herd)) return walk;
         // No way there from here (walled off): it makes for somewhere else on its land next time.
         mind.TerritoryIndex = world.Rng("herds", herd.Id).NextInt(mind.Territory.Count);
         return null;
     }
 
-    /// One step toward a tile: the shortest way through its own land when there is one (kept to the
-    /// territory so it stays cheap), else the shortest way over open ground (Route). Null when already
-    /// there, lame, or there is no way.
-    static (Activity, int)? Toward(World world, Agent herd, HerdMind mind, TileId target)
-    {
-        if (herd.Tile == target || !CanMove(herd)) return null;
-        var m = Map.Of(world);
-        var land = mind.Territory.ToHashSet();
-        var step = land.Contains(target) && land.Contains(herd.Tile) ? FirstStep(m, herd.Tile, target, land) : null;
-        step ??= Route(m, herd.Tile, [target]);
-        return step is Direction d ? (new Travel(herd.Id, d), UntilArrived) : null;
-    }
-
-    /// One step toward whichever of these tiles is nearest by the way there, not as the crow flies.
+    /// One step toward whichever of these tiles is quickest to reach (Trip.Routes), not nearest as the crow flies;
+    /// ties go to the lower tile. Null when on one already, lame, or none is within a day's walk.
     static (Activity, int)? TowardNearest(World world, Agent herd, HashSet<TileId> goals)
     {
         if (goals.Count == 0 || goals.Contains(herd.Tile) || !CanMove(herd)) return null;
-        return Route(Map.Of(world), herd.Tile, goals) is Direction d ? (new Travel(herd.Id, d), UntilArrived) : null;
-    }
-
-    /// Breadth-first through its own land, in Direction order: deterministic.
-    static Direction? FirstStep(GeneratedMap m, TileId from, TileId to, HashSet<TileId> land)
-    {
-        var firstDir = new Dictionary<TileId, Direction>();
-        var queue = new Queue<TileId>();
-        queue.Enqueue(from);
-        while (queue.TryDequeue(out var at))
-            foreach (var d in Enum.GetValues<Direction>())
-            {
-                var next = Map.Step(at, d);
-                if (next == from || firstDir.ContainsKey(next) || !land.Contains(next) || Map.Blocked(m, at, next) != null) continue;
-                firstDir[next] = at == from ? d : firstDir[at];
-                if (next == to) return firstDir[next];
-                queue.Enqueue(next);
-            }
-        return null;
-    }
-
-    /// Tiles a route may search before it gives up: a goal walled off from the herd is not worth the whole map.
-    const int MaxRouteTiles = 4000;
-
-    /// The first step of a shortest way over open ground to the nearest of the goals (A*, guided by
-    /// the distance to the nearest goal), or null when none turns up within MaxRouteTiles. Not a greedy
-    /// step to the nearer neighbour, which a mountain between a herd and its target holds still for good;
-    /// and not a shortest way inside a box around the two ends, which moves with the herd, so the next
-    /// box's way can turn it back and it walks to and fro for days. On one fixed map every step along a
-    /// shortest way brings it strictly nearer.
-    static Direction? Route(GeneratedMap m, TileId from, IReadOnlyCollection<TileId> goals)
-    {
-        int Guess(TileId t) => goals.Min(g => MapGen.Manhattan(t, g));
-        var cost = new Dictionary<TileId, int> { [from] = 0 };
-        var first = new Dictionary<TileId, Direction>();
-        var done = new HashSet<TileId>();
-        var open = new PriorityQueue<TileId, (int Total, int Left)>();
-        open.Enqueue(from, (Guess(from), Guess(from)));
-        while (open.TryDequeue(out var at, out _))
+        TileId? reached = null;
+        var routes = Trip.Routes(world, herd.Id, MaxRouteMinutes, until: (t, _) =>
         {
-            if (!done.Add(at)) continue;
-            if (at != from && goals.Contains(at)) return first[at];
-            if (done.Count > MaxRouteTiles) return null;
-            foreach (var d in Enum.GetValues<Direction>())
-            {
-                var next = Map.Step(at, d);
-                int g = cost[at] + 1;
-                if (done.Contains(next) || (cost.TryGetValue(next, out var known) && known <= g) || Map.Blocked(m, at, next) != null) continue;
-                cost[next] = g;
-                first[next] = at == from ? d : first[at];
-                int left = Guess(next);
-                open.Enqueue(next, (g + left, left));
-            }
-        }
-        return null;
+            if (!goals.Contains(t)) return false;
+            reached = t;
+            return true;
+        });
+        return reached is TileId goal ? (new Travel(herd.Id, routes.FirstStep(goal)!.Value), UntilArrived) : null;
     }
+
+    /// How far a route looks before it gives up: a goal walled off from the herd is not worth the whole map.
+    const int MaxRouteMinutes = 1440;
 
     /// A herd of its quarry or a person it would come for, on this tile and in no fight: the one it has
     /// the most resolve toward, the first in id order on a tie.

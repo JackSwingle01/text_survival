@@ -349,6 +349,9 @@ public static class Sim
     /// it is sleep, whether it keeps you put long enough for a shelter to help, and how it touches the ground.
     readonly record struct Hold(double ActivityFactor, double FireProximityFactor, bool Sleeping, bool Stationary, SurfaceContact Contact);
 
+    /// The metabolic factor an activity holds the body at (HoldOf).
+    internal static double ActivityFactor(World world, TileId tile, Activity activity) => HoldOf(world, tile, activity).ActivityFactor;
+
     static Hold HoldOf(World world, TileId tile, Activity activity)
     {
         var gathering = activity is Gather g ? Pools.Def(world, new PoolId(tile, g.Pool)) : null;

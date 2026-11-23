@@ -30,8 +30,22 @@ public static class Traversal
     {
         var agent = world.Agent(t.Who);
         if (CannotWalk(agent) is string lame) return new(lame, new MissingState(Lack.MovingPct, LameMovingPct, Moving(agent)));
-        return Map.Blocked(Map.Of(world), agent.Tile, Map.Step(agent.Tile, t.Dir)) is string blocked ? new(blocked) : null;
+        return Blocked(world, agent, agent.Tile, Map.Step(agent.Tile, t.Dir)) is string blocked ? new(blocked) : null;
     }
+
+    public static string? Blocked(World world, Agent agent, TileId from, TileId to) =>
+        FlightMinutesPerTile(agent) == null ? Map.Blocked(Map.Of(world), from, to) : Map.BlockedInFlight(Map.Of(world), from, to);
+
+    public static int? FlightMinutesPerTile(Agent agent) => SpeciesTable.Of(agent.Species).FlightMinutesPerTile;
+
+    public static BodyState PaceBody(Agent agent) =>
+        agent.Members.Count == 1 ? agent.Members[0] : agent.Members.Where(Body.IsAlive).MinBy(b => Body.Speed(b))
+            ?? throw new InvalidOperationException($"{agent.Id} has no living member to walk");
+
+    /// A minute on the move, all members: a person walking, an animal at the field metabolism it always burns.
+    public static double KcalPerMinute(World world, Agent agent) => agent.Mind is HerdMind
+        ? agent.Members.Where(Body.IsAlive).Sum(Fauna.BurnKcalPerMinute)
+        : Body.BurnKcalPerMinute(agent.Body, Sim.ActivityFactor(world, agent.Tile, new Travel(agent.Id, Direction.North)));
 
     /// At or under this Moving, a person can barely move.
     public const double LameMovingPct = 0.1;
@@ -49,15 +63,15 @@ public static class Traversal
         var from = agent.Tile;
         var to = Map.Step(from, t.Dir);
         var sky = Weather.At(world, world.Minute);
-        if (agent.Mind is HerdMind)
-            return agent.Crossing = new Crossing { From = from, Dir = t.Dir, Pace = t.Pace, TotalMinutes = HerdCrossingMinutes(world, agent, from, to, sky) };
+        bool stumbles = agent.Mind is PersonMind && FlightMinutesPerTile(agent) == null;
         return agent.Crossing = new Crossing
         {
             From = from,
             Dir = t.Dir,
             Pace = t.Pace,
-            TotalMinutes = CrossingMinutes(world, agent.Body, from, to, t.Pace, sky, Items.EncumbrancePct(agent)),
-            RiskPct = InjuryRiskPct(world, to, agent.Body, sky, t.Pace),
+            TotalMinutes = FlightMinutesPerTile(agent)
+                ?? CrossingMinutes(world, PaceBody(agent), from, to, t.Pace, sky, Items.EncumbrancePct(agent), GroundReadOf(agent, GroundRead.Observe)),
+            RiskPct = stumbles ? InjuryRiskPct(world, to, agent.Body, sky, t.Pace) : 0,
         };
     }
 
@@ -99,18 +113,12 @@ public static class Traversal
     public const double TravelSearchPct = 0.25;
 
     /// encumbrancePct is carried weight over capacity (Items.EncumbrancePct): past half, a load slows you.
-    public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky, double encumbrancePct = 0) =>
-        Trip.Terms(world, body, from, to, pace, sky, encumbrancePct, observe: true).TotalMinutes;
+    public static int CrossingMinutes(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky, double encumbrancePct = 0,
+        GroundRead ground = GroundRead.Observe) =>
+        Trip.Terms(world, body, from, to, pace, sky, encumbrancePct, ground).TotalMinutes;
 
-    /// At the slowest member's pace, and a herd does not stumble (no injury roll).
-    // Herds ignore today's snow and mud: reading it would catch up the ground on every tile a herd
-    // crosses (a month of history each, and a ground state in the save).
-    public static int HerdCrossingMinutes(World world, Agent herd, TileId from, TileId to, WeatherSample sky)
-    {
-        var m = Map.Of(world);
-        double speed = herd.Members.Where(Body.IsAlive).Min(b => Body.Speed(b));
-        return Math.Max(MinimumCrossingMinutes, SegmentMinutes(m, from, speed, sky) + SegmentMinutes(m, to, speed, sky) + EdgeMinutes(world, from, to));
-    }
+    /// Animals read the weather-only estimate (decision 2026-11-22-animals-read-the-ground-estimate).
+    public static GroundRead GroundReadOf(Agent agent, GroundRead person) => agent.Mind is PersonMind ? person : GroundRead.Estimate;
 
     public static int SegmentMinutes(GeneratedMap m, TileId tile, double speed, WeatherSample sky)
     {

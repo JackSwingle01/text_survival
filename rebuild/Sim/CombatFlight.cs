@@ -177,7 +177,7 @@ public static partial class Combat
         for (int i = 0; i < tiles; i++)
         {
             var open = new[] { heading, (Direction)(((int)heading + 3) % 4), (Direction)(((int)heading + 1) % 4) }
-                .Select(d => Map.Step(agent.Tile, d)).Where(n => m.InBounds(n) && Map.Blocked(m, agent.Tile, n) == null).Cast<TileId?>().FirstOrDefault();
+                .Select(d => Map.Step(agent.Tile, d)).Where(n => m.InBounds(n) && Traversal.Blocked(world, agent, agent.Tile, n) == null).Cast<TileId?>().FirstOrDefault();
             if (open is not TileId next) return;
             Tracks.RecordMove(world, agent.Tile, next, Tracks.MakerOf(agent.Species), agent.Members.Count, Tracks.IndividualDepth(agent.Species));
             agent.Tile = next;

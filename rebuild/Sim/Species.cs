@@ -30,7 +30,9 @@ public sealed record SpeciesStats(
     /// People only: a person's starting fat is drawn from this range, well fed for the autumn.
     FatRange? AutumnFatPct,
     /// People only: where a woman's build differs from a man's (the row's own).
-    PersonBuild? Female)
+    PersonBuild? Female,
+    /// A flyer's flat minutes a tile, whatever the ground (Traversal.FlightMinutesPerTile); null for what walks.
+    int? FlightMinutesPerTile = null)
 {
     public bool IsAnimal => Role != Role.Human;
     /// Prey and small scavengers run once they know you are there; fighting is what predators do.

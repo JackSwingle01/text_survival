@@ -637,6 +637,10 @@ public class HerdTests(ITestOutputHelper output)
         // allocation is deterministic for a seed and blind to machine load, and it tracks the work done
         // (about 2.1 GB in 2.5 s when this was written). Wall clock flaked at 13-21 s under parallel suites;
         // the 60 s limit is only a backstop for a blow-up that does not allocate.
+        // These budgets are tripwires, not design limits: 6000 MB is about three times what a populated month
+        // allocated when it was set, and the 1 MB save was the phase 1 exit criterion. Crossing one calls for
+        // Jack's judgement on whether the cost buys something the player sees (then re-baseline). An agent does
+        // not redesign a feature to get back under one, nor raise the number: it reports the measurement in its PR.
         Assert.True(allocatedMB < 6000, $"allocated {allocatedMB} MB");
         Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed.TotalSeconds:F1}s");
         Assert.True(json < 1_000_000, $"save is {json} bytes");
