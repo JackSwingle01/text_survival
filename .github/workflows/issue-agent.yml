@@ -33,13 +33,32 @@ name: Issue agent
 # `blocked`. The queue then skips it without a Claude call until they close, and the next triage
 # removes the label. A blocker that can't be linked parks the issue as `needs-user` instead.
 #
-# Issue and dispatch workflows run from the default branch, so this only works once it is on main.
+# Publishing. A build longer than an hour outlives the Claude app token it started with (GitHub App
+# tokens last 60 minutes), so the build only commits and writes the PR's title and body. The
+# Publish step (.github/actions/publish) pushes and opens the PR on a fresh token. The workflow's
+# own GITHUB_TOKEN can't stand in: a PR it opens triggers neither CI nor Claude Review.
+#
+# Restore. A build that finished but never became a PR is kept in its run's `issue-N-work` artifact
+# (commits as work.patch, the PR text, the branch name). A manual run with `restore_from_run` (the
+# run id) and `issue` rebuilds that branch on main, keeping commits already on the remote branch,
+# and publishes it. It has its own concurrency group, so it doesn't wait behind a running queue.
+#
+# Issue and dispatch workflows run from the default branch, and the Claude app only issues tokens
+# to a workflow that matches the default branch, so a change here works once it is on main.
 
 on:
   workflow_dispatch:
     inputs:
       issue:
         description: "Work only this issue number (empty: the whole queue, oldest first)"
+        required: false
+        type: string
+      restore_from_run:
+        description: "Restore instead: publish the build kept in this run's issue-<issue>-work artifact"
+        required: false
+        type: string
+      branch:
+        description: "Restore only: the branch name, if the artifact predates branch.txt"
         required: false
         type: string
   issues:
@@ -53,15 +72,16 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: issue-agent
+  group: ${{ inputs.restore_from_run && 'issue-agent-restore' || 'issue-agent' }}
   cancel-in-progress: false
 
 jobs:
   select:
     # The repo is public: only people with write access can spend the plan.
     if: |
+      !inputs.restore_from_run && (
       github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ||
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
     runs-on: ubuntu-latest
     outputs:
       issues: ${{ steps.list.outputs.issues }}
@@ -282,6 +302,8 @@ jobs:
         run: |
           git fetch origin main
           git switch -c "$BRANCH" origin/main
+          mkdir -p "$RUNNER_TEMP/pr"
+          echo "$BRANCH" > "$RUNNER_TEMP/pr/branch.txt"
 
       - name: Implement
         id: implement
@@ -313,20 +335,22 @@ jobs:
               in the acceptance criteria that fails. Then answer needs_user.
               Commit what you have locally, but do not push.
             - You are on branch ${{ steps.verdict.outputs.branch }}, just made from origin/main. This
-              checkout counts as the ticket's own worktree; the runner is disposable. Push only that branch (`git push -u origin ${{ steps.verdict.outputs.branch }}`), never main.
-            - Open the pull request with `gh pr create --base main`, its body from mp:pr, with
-              "Closes #${{ matrix.issue }}" in it. Do not merge it.
+              checkout counts as the ticket's own worktree; the runner is disposable.
+            - Publishing is the workflow's next step, on a fresh token: yours expires an hour into the run.
+              So end with every change committed on this branch, and instead of pushing or opening the
+              pull request, write its title to ${{ runner.temp }}/pr/title.txt and its body, from mp:pr
+              with "Closes #${{ matrix.issue }}" in it, to ${{ runner.temp }}/pr/body.md.
 
-            Answer through the structured output: `outcome`, `pr_url` (empty if none), and `note`. When you
+            Answer through the structured output: `outcome` (built, or needs_user) and `note`. When you
             stop, `note` is posted on the issue: one or two short sentences saying what a person has to
             decide. Details belong in the work log, not the note.
           claude_args: >-
             --model claude-opus-5-5
             --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,Agent,Task,Skill,TodoWrite,WebFetch,WebSearch"
             --json-schema '{"type":"object","additionalProperties":false,
-            "required":["outcome","pr_url","note"],
-            "properties":{"outcome":{"type":"string","enum":["pr_opened","needs_user"]},
-            "pr_url":{"type":"string"},"note":{"type":"string","maxLength":300}}}'
+            "required":["outcome","note"],
+            "properties":{"outcome":{"type":"string","enum":["built","needs_user"]},
+            "note":{"type":"string","maxLength":300}}}'
 
       - name: Build usage
         id: build_usage
@@ -335,19 +359,36 @@ jobs:
           EXEC: ${{ steps.implement.outputs.execution_file }}
         run: python3 .github/scripts/plan_limits.py "$EXEC" "$MAX_PLAN_UTILIZATION" >> "$GITHUB_OUTPUT"
 
-      # The work and the log are kept even when no PR came of them.
+      - name: Read build
+        id: build
+        if: steps.implement.outcome == 'success'
+        env:
+          OUTPUT: ${{ steps.implement.outputs.structured_output }}
+        run: echo "outcome=$(jq -r '.outcome' <<< "$OUTPUT")" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
+        if: steps.build.outputs.outcome == 'built' && steps.build_usage.outputs.rejected != 'true'
+        continue-on-error: true
+        uses: ./.github/actions/publish
+        with:
+          issue: ${{ matrix.issue }}
+          branch: ${{ steps.verdict.outputs.branch }}
+          pr_dir: ${{ runner.temp }}/pr
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      # The work is kept even when no PR came of it, in the form a restore run reads back:
+      # pr/work.patch (the commits), pr/uncommitted.diff, pr/branch.txt, pr/title.txt, pr/body.md.
       - name: Keep the work
         if: always() && steps.implement.outcome != 'skipped'
         run: |
-          git format-patch origin/main --stdout > "$RUNNER_TEMP/work.patch" 2>/dev/null || true
-          git diff >> "$RUNNER_TEMP/work.patch" || true
+          mkdir -p "$RUNNER_TEMP/pr"
+          git format-patch origin/main --stdout > "$RUNNER_TEMP/pr/work.patch" || true
+          git diff HEAD > "$RUNNER_TEMP/pr/uncommitted.diff" || true
       - uses: actions/upload-artifact@v7
         if: always() && steps.implement.outcome != 'skipped'
         with:
           name: issue-${{ matrix.issue }}-work
-          path: |
-            ${{ runner.temp }}/work.patch
-            .agent-logs/
+          path: ${{ runner.temp }}/pr/
           if-no-files-found: ignore
 
       # Running out of plan is not the issue's fault: it is left as it was, to be picked up again.
@@ -387,7 +428,9 @@ jobs:
             echo "Opened $pr" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if [ -n "${OUTPUT:-}" ]; then note=$(jq -r '.note' <<< "$OUTPUT")
+          if [ -n "${OUTPUT:-}" ] && [ "$(jq -r '.outcome' <<< "$OUTPUT")" = "built" ]; then
+            note="Built, but publishing the PR failed. Run this workflow with restore_from_run=$GITHUB_RUN_ID and issue=$ISSUE to publish it."
+          elif [ -n "${OUTPUT:-}" ]; then note=$(jq -r '.note' <<< "$OUTPUT")
           else note="The build ended ($IMPLEMENT) without a pull request."; fi
           jq -rn --arg run "$RUN_URL" --arg note "$note" --arg artifact "issue-$ISSUE-work" \
             '$note + " Work so far: the `" + $artifact + "` artifact." + "\n\n<sub>[Issue agent](" + $run + ") · remove `needs-user` to requeue</sub>"' > comment.md
@@ -403,3 +446,79 @@ jobs:
           echo "::error::Stopping the queue: $WHY. #$ISSUE is untouched; the hourly run resumes from it."
           echo "Stopped: $WHY. The hourly run resumes from #$ISSUE." >> "$GITHUB_STEP_SUMMARY"
           exit 1
+
+  # Publishes a finished build that never became a PR, from its run's artifact (see the header).
+  restore:
+    if: inputs.restore_from_run != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+      actions: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ inputs.issue }}
+      FROM_RUN: ${{ inputs.restore_from_run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Rebuild the branch
+        id: rebuild
+        env:
+          BRANCH_INPUT: ${{ inputs.branch }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ISSUE" ]; then echo "::error::A restore needs the issue number."; exit 1; fi
+          dl="$RUNNER_TEMP/restore"
+          gh run download "$FROM_RUN" -R "$GITHUB_REPOSITORY" -n "issue-$ISSUE-work" -D "$dl"
+          # Older artifacts kept work.patch beside .agent-logs/ rather than in pr/.
+          patch=$(find "$dl" -name work.patch | head -1)
+          if [ -z "$patch" ] || ! grep -q '^From [0-9a-f]\{40\} ' "$patch"; then
+            echo "::error::No commits in run $FROM_RUN's issue-$ISSUE-work artifact."; exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/pr"
+          for f in title.txt body.md branch.txt; do
+            found=$(find "$dl" -name "$f" | head -1)
+            if [ -n "$found" ]; then cp "$found" "$RUNNER_TEMP/pr/$f"; fi
+          done
+          branch=${BRANCH_INPUT:-$(cat "$RUNNER_TEMP/pr/branch.txt" 2>/dev/null || echo "$ISSUE-restored")}
+          case "$branch" in "$ISSUE"-*) ;; *) echo "::error::Branch $branch doesn't start with $ISSUE-."; exit 1;; esac
+
+          # Only the committer: git am keeps each commit's author (claude[bot]).
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch" origin/main
+          # In older artifacts, uncommitted changes were appended to work.patch, and git am folds them
+          # into the last commit; newer ones keep them apart in uncommitted.diff, left out here.
+          git am --3way "$patch"
+          if git fetch origin "$branch" 2>/dev/null; then
+            # Part of the build reached the remote before the token expired. Rebasing onto it drops
+            # the commits it already has (same patch), so the push is a fast-forward.
+            git rebase "origin/$branch"
+          fi
+          git log --oneline origin/main..HEAD | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
+        uses: ./.github/actions/publish
+        with:
+          issue: ${{ inputs.issue }}
+          branch: ${{ steps.rebuild.outputs.branch }}
+          pr_dir: ${{ runner.temp }}/pr
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Report
+        if: always() && steps.rebuild.outcome == 'success'
+        run: |
+          pr=$(python3 .github/scripts/issue_queue.py pr "$ISSUE")
+          if [ -z "$pr" ]; then
+            echo "::error::Publishing #$ISSUE from run $FROM_RUN opened no PR; see the Publish step."; exit 1
+          fi
+          echo "Restored #$ISSUE as $pr" >> "$GITHUB_STEP_SUMMARY"
+          gh issue edit "$ISSUE" --remove-label needs-user 2>/dev/null || true
+          gh issue comment "$ISSUE" --body "Restored from run $FROM_RUN as $pr."
