@@ -132,10 +132,11 @@ public static class Traversal
 
     /// Added after the edge bonus, from the baseline segment: a worn path is bare earth under the snow, not a cleared lane.
     public static double SurfaceExcessMinutes(World world, TileId tile, int segmentMinutes) =>
-        segmentMinutes * (Ground.TraversalFactor(world, tile) - 1);
+        segmentMinutes * (Ground.Underfoot(world, tile).TraversalFactor - 1);
 
     /// Zero beside a frozen river, whose ice already owns the hazard.
-    public static double SurfaceHazardDelta(World world, TileId tile) => Ground.HazardDelta(world, tile);
+    public static double SurfaceHazardDelta(World world, TileId tile) =>
+        Map.Of(world) is var m && m.BesideRiver(tile) && Map.IsFrozen(m, tile, world.Minute) ? 0 : Ground.Underfoot(world, tile).HazardDelta;
 
     public static double EffectiveHazardLevel(World world, TileId tile) => HazardLevel(Map.Of(world), tile, world.Minute, SurfaceHazardDelta(world, tile));
 

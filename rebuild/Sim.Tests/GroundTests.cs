@@ -487,7 +487,7 @@ public class GroundTests
 
         world.FixedWeather = Sky(WeatherCondition.Whiteout, -10, 1, wind: 1);
         world.Minute = 1440;
-        Assert.Equal(0, Ground.SnowDepthM(world, plain), 9);
+        Assert.Equal(0, Ground.Underfoot(world, plain).SnowDepthM, 9);
     }
 
     [Fact]
@@ -499,9 +499,7 @@ public class GroundTests
         foreach (var t in tiles)
         {
             Ground.At(world, t);
-            Ground.TraversalFactor(world, t);
-            Ground.SurfaceNow(world, t);
-            Ground.ContactWettingRate(world, t, SurfaceContact.RestingOnGround, 0);
+            Ground.Underfoot(world, t);
         }
         Assert.Empty(world.Tiles);
     }
@@ -580,8 +578,8 @@ public class GroundTests
         int snowMinutes = Traversal.CrossingMinutes(snowy, body, from, to, Pace.Quick, calm);
         int bareMinutes = Traversal.CrossingMinutes(bare, body, from, to, Pace.Quick, calm);
         Assert.True(snowMinutes > bareMinutes + 5, $"{bareMinutes} -> {snowMinutes}");
-        double expected = Traversal.SegmentMinutes(Seed17, from, Body.Speed(body), calm) * (Ground.TraversalFactor(snowy, from) - 1)
-            + Traversal.SegmentMinutes(Seed17, to, Body.Speed(body), calm) * (Ground.TraversalFactor(snowy, to) - 1);
+        double expected = Traversal.SegmentMinutes(Seed17, from, Body.Speed(body), calm) * (Ground.Underfoot(snowy, from).TraversalFactor - 1)
+            + Traversal.SegmentMinutes(Seed17, to, Body.Speed(body), calm) * (Ground.Underfoot(snowy, to).TraversalFactor - 1);
         int unfloored = Traversal.SegmentMinutes(Seed17, from, Body.Speed(body), calm) + Traversal.SegmentMinutes(Seed17, to, Body.Speed(body), calm);
         Assert.InRange(snowMinutes - unfloored, expected - 1, expected + 1);
     }

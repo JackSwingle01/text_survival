@@ -63,7 +63,7 @@ public static class Trip
 
     static Half HalfOf(World world, TileId tile, BodyState body, double speed, WeatherSample sky, Pace pace)
     {
-        double factor = Ground.TraversalFactor(world, tile);
+        double factor = Ground.Underfoot(world, tile).TraversalFactor;
         bool slow = pace == Pace.Careful
             && Traversal.PaceMatters(Traversal.InjuryOdds(Traversal.EffectiveHazardLevel(world, tile), body, sky, Pace.Quick).TotalPct);
         return new Half(Traversal.SegmentMinutes(Map.Of(world), tile, speed, sky), factor, slow);

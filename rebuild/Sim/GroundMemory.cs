@@ -4,9 +4,14 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-/// A tile's ground as a person last saw it (Ground.SurfaceNow, to the millimetre and the hundredth), and
-/// the minute they saw it.
-public readonly record struct RememberedGround(SurfaceSummary Surface, long SeenMinute);
+/// What a person keeps of a tile's surface (Ground.Underfoot), and what the map draws, in sight or remembered.
+public readonly record struct SeenSurface(double SnowDepthM, bool Crusted, double MudLevel, double WaterDepthM, bool Iced)
+{
+    public static SeenSurface Of(Surface s) => new(s.SnowDepthM, s.Crusted, s.MudLevel, s.WaterDepthM, s.Iced);
+}
+
+/// A tile's surface as a person last saw it, to the millimetre and the hundredth, and the minute they saw it.
+public readonly record struct RememberedGround(SeenSurface Surface, long SeenMinute);
 
 /// The tiles a person has seen on one map, each with its ground as last seen (Memory.Explored), and
 /// the trails worn between seen tiles as last seen (Tracks.TierOf). Held to millimetres and hundredths
@@ -48,11 +53,11 @@ public sealed class GroundMemory
     {
         int i = Index(t);
         if ((_flags[i] & Seen) == 0) return null;
-        return new RememberedGround(new SurfaceSummary(_snowMm[i] / 1000.0, (_flags[i] & Crust) != 0, _mudPct[i] / 100.0, _waterMm[i] / 1000.0,
+        return new RememberedGround(new SeenSurface(_snowMm[i] / 1000.0, (_flags[i] & Crust) != 0, _mudPct[i] / 100.0, _waterMm[i] / 1000.0,
             (_flags[i] & Ice) != 0), _minute[i]);
     }
 
-    public void Remember(TileId t, SurfaceSummary s, long minute)
+    public void Remember(TileId t, SeenSurface s, long minute)
     {
         int i = Index(t);
         if (minute is < int.MinValue or > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(minute), minute, "A minute ground memory cannot hold");

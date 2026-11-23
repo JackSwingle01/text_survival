@@ -145,7 +145,7 @@ public class PlannerTests
     {
         var w = Strip(sky: new WeatherSample(0, WeatherCondition.FreezingRain, -12, 0.1, 0.8, 0.8, WindDirection.North));
         Sim.Advance(w, 4 * 1440); // freezing rain stands on the plain and ices over
-        Assert.True(Ground.SurfaceNow(w, T(20)).Iced, "the pond is not iced over");
+        Assert.True(Ground.Underfoot(w, T(20)).Iced, "the pond is not iced over");
         var caribou = Animal(w, Species.Caribou, T(20), hydrationPct: 0.4);
         double before = caribou.Body.HydrationPct;
         Sim.Advance(w, 6 * 60);

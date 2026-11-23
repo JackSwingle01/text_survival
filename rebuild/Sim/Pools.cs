@@ -709,7 +709,7 @@ public static class Pools
             if (mind.Memory.Discovered.Contains(id)) continue;
             var (revealAt, height) = Hiding(pools[i]);
             double hours = mind.Memory.SearchHours.GetValueOrDefault(id)
-                + perceptionWeightedHours * Ground.SearchFactor(world, tile, 0, height);
+                + perceptionWeightedHours * Ground.Underfoot(world, tile).SearchFactor(0, height);
             if (hours >= revealAt)
             {
                 mind.Memory.SearchHours.Remove(id);
