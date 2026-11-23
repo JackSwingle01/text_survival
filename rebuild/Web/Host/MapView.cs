@@ -56,7 +56,7 @@ static class MapView
         // In sight, the ground as it is; out of sight, as the person last saw it.
         RememberedGround seen(TileId t) => memory.Explored?.At(t) ?? throw new InvalidOperationException($"Tile {t} is out of sight and was never seen");
         long minuteOf(TileId t) => inSight.Contains(t) ? world.Minute : seen(t).SeenMinute;
-        SurfaceSummary groundOf(TileId t) => inSight.Contains(t) ? Ground.SurfaceNow(world, t) : seen(t).Surface;
+        SeenSurface groundOf(TileId t) => inSight.Contains(t) ? SeenSurface.Of(Ground.Underfoot(world, t)) : seen(t).Surface;
         var trails = Memories.Trails(world, person, inSight).Select(t => Trail(t.Edge, t.Tier)).ToList();
         return Build(world, explored, minuteOf, groundOf, [.. visible.Select(t => t.Y * m.Width + t.X).Order()], places, sightings, tracks, trails);
     }
@@ -73,14 +73,14 @@ static class MapView
         var trails = new List<TrailDto>();
         foreach (var edge in world.Trails.Keys) // edge order: Trails is sorted
             if (Tracks.TierOf(world, edge.A, edge.B) is var tier and not TrailTier.None) trails.Add(Trail(edge, tier));
-        return Build(world, _ => true, _ => world.Minute, t => Ground.SurfaceNow(world, t), [.. Enumerable.Range(0, m.Width * m.Height)],
+        return Build(world, _ => true, _ => world.Minute, t => SeenSurface.Of(Ground.Underfoot(world, t)), [.. Enumerable.Range(0, m.Width * m.Height)],
             [], [], tracks, trails);
     }
 
     /// The per-tile rules both sides share. explored: whether the tile is on the map at all; minuteOf: the
     /// minute it is drawn as of (now, or when last seen); groundOf: its ground as of then, asked only of
     /// passable tiles.
-    static MapDto Build(World world, Func<TileId, bool> explored, Func<TileId, long> minuteOf, Func<TileId, SurfaceSummary> groundOf, IReadOnlyList<int> visible,
+    static MapDto Build(World world, Func<TileId, bool> explored, Func<TileId, long> minuteOf, Func<TileId, SeenSurface> groundOf, IReadOnlyList<int> visible,
         List<PlaceMarkDto> places, List<SightingDto> sightings, List<TrackDto> tracks, List<TrailDto> trails)
     {
         var m = Map.Of(world);
@@ -124,7 +124,7 @@ static class MapView
         m.CaveAt(t) == Cave.Floor ? CaveFloorCode : m.CaveAt(t) == Cave.Entrance ? CaveMouthCode : TerrainCodes[(int)m.TerrainAt(t)];
 
     /// A tile's ground as the page draws it, or null for bare, dry ground (left out of MapDto.Surface).
-    static SurfaceDto? SurfaceOf(SurfaceSummary g, int index)
+    static SurfaceDto? SurfaceOf(SeenSurface g, int index)
     {
         double snowCm = Math.Round(g.SnowDepthM * 100, 1), waterCm = Math.Round(g.WaterDepthM * 100, 1), mud = Math.Round(g.MudLevel, 2);
         return snowCm > 0 || waterCm > 0 || mud > 0 ? new SurfaceDto(index, snowCm, g.Crusted, mud, waterCm, g.Iced) : null;

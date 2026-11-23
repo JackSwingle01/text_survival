@@ -87,7 +87,7 @@ public class TravelTests
         var valley = Enumerable.Range(30, m.Height - 35).SelectMany(y => Enumerable.Range(5, m.Width - 10).Select(x => new TileId(x, y))).Where(Open).ToList();
 
         var plain = valley.First(t => m.TerrainAt(t) == Terrain.Plain && m.TerrainAt(Map.Step(t, Direction.North)) == Terrain.Plain
-            && Ground.SurfaceNow(world, t) is { Iced: true, SnowDepthM: > 0.3 });
+            && Ground.Underfoot(world, t) is { Iced: true, SnowDepthM: > 0.3 });
         me.Tile = plain;
         Assert.False(Trip.PaceMatters(world, P, Direction.North), $"quick risk {Trip.Risk(world, P, Direction.North, Pace.Quick).TotalPct:P2} on buried ice");
 
@@ -99,7 +99,7 @@ public class TravelTests
         Assert.True(Trip.Time(world, P, Direction.North, Pace.Careful).TotalMinutes > Trip.Time(world, P, Direction.North, Pace.Quick).TotalMinutes,
             "careful pays for its care in minutes");
 
-        bool Gentle(TileId t) => Map.TravelHazardLevel(m, t, world.Minute) <= 0.1 && Ground.SurfaceNow(world, t).SnowDepthM > 0.3;
+        bool Gentle(TileId t) => Map.TravelHazardLevel(m, t, world.Minute) <= 0.1 && Ground.Underfoot(world, t).SnowDepthM > 0.3;
         var gentle = valley.Where(t => Gentle(t) && Gentle(Map.Step(t, Direction.North))).ToList();
         Assert.True(gentle.Count > 500, $"only {gentle.Count} gentle snowy crossings");
         var risky = gentle.Where(t => { me.Tile = t; return Trip.PaceMatters(world, P, Direction.North); }).ToList();
@@ -455,7 +455,7 @@ public class TravelTests
         var onto = new Travel(P, Direction.East, Pace.Careful);
         Assert.False(Map.IsFrozen(m, lake, w.Minute));
         Assert.Null(Verbs.At(w, P).Walk.Single(v => v.Activity == new Travel(P, Direction.East)).Refused);
-        Assert.Equal(new SurfaceSummary(0, false, 0, Ground.MaxStandingWaterDepthM, false), Ground.SurfaceNow(w, lake));
+        Assert.Equal(new SeenSurface(0, false, 0, Ground.MaxStandingWaterDepthM, false), SeenSurface.Of(Ground.Underfoot(w, lake)));
         Assert.True(Trip.Time(w, P, Direction.East, Pace.Careful).GroundMinutes > 0, "wading is slower than the walk");
         Assert.Equal("arrived", Sim.Step(w, onto, 600).InterruptedReason);
         Assert.Equal(lake, me.Tile);
@@ -466,8 +466,8 @@ public class TravelTests
 
         w.Minute = TestKit.JanuaryMinute;
         Assert.True(Map.IsFrozen(m, lake, w.Minute));
-        Assert.Equal(0, Ground.SurfaceNow(w, lake).WaterDepthM);
-        Assert.Equal(0, Ground.ContactWettingRate(w, lake, SurfaceContact.Walking, 0));
+        Assert.Equal(0, Ground.Underfoot(w, lake).WaterDepthM);
+        Assert.Equal(0, Ground.Underfoot(w, lake).ContactWettingRate(SurfaceContact.Walking, 0));
     }
 
     /// A shore drinks from the open lake beside it in July; in January the lake is ice and the shore is dry.

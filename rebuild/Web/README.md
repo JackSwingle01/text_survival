@@ -23,7 +23,7 @@ file with `fetch` calls to the same five operations.
 - **Views are plain data**, rebuilt on every call from the player's side of the world: `Verbs.At`, the
   player's memory (explored tiles, remembered places, sightings), `Sight` for what is in view now,
   `Priorities.Of` for the vitals and alerts, the clock and sky, the fire on the tile, trip terms and odds.
-  The map never reads the truth of a tile out of sight: the ground it carries is `Ground.SurfaceNow` in
+  The map never reads the truth of a tile out of sight: the ground it carries is `Ground.Underfoot` in
   sight and the player's memory of it (`Memory.Explored`) out of sight.
 - **The words are Sim's.** Names come from `Names` (`Sim/Content/names.json`), journal and receipt lines
   from `Narration`, odds factors and make outcomes are already in words, and a job's end is Sim's

@@ -14,7 +14,7 @@ public sealed class World
         {
             if (Minute != 0 && !Nullable.Equals(field, value))
                 throw new InvalidOperationException($"FixedWeather changed at minute {Minute}: the sky is pinned before the clock starts");
-            if (!Nullable.Equals(field, value)) (DecayCache, GroundCache) = (null, null);
+            if (!Nullable.Equals(field, value)) (DecayCache, GroundCache, SurfaceCache) = (null, null, null);
             field = value;
         }
     }
@@ -60,7 +60,7 @@ public sealed class World
     internal Access.Gate AccessGates = Access.Wired;
     internal Dictionary<double, DecayTimeline>? DecayCache;
     internal Dictionary<GroundClass, GroundState>? GroundCache;
-    internal (long Minute, Dictionary<GroundClass, GroundSeen> ByClass)? WaterSeenCache;
+    internal (long Minute, Dictionary<GroundClass, Surface> ByClass)? SurfaceCache;
     /// The stored-plan benchmark's other arm: animals plan again at every decision (Fauna.Needs).
     internal bool ReplanEveryDecision;
     internal Dictionary<Diet, double>? ValleyForageCache;

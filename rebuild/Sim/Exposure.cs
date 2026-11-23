@@ -78,7 +78,7 @@ public sealed record Exposure(
             // A roof over someone keeping still, or the sky's own cover, whichever is more.
             OverheadCoverLevel: Math.Max(overhead, cover.Shelter.OverheadLevel),
             SunlightLevel: sky.SunlightLevel * (1 - overhead),
-            GroundWettingPctPerMinute: contact is SurfaceContact c ? Ground.ContactWettingRate(world, tile, c, wetnessPct) : 0);
+            GroundWettingPctPerMinute: contact is SurfaceContact c ? Ground.Underfoot(world, tile).ContactWettingRate(c, wetnessPct) : 0);
     }
 
     /// The one wind at a body or thing: regional wind reaching this tile, less a pit's walls and a shelter's.

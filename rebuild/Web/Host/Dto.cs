@@ -113,7 +113,7 @@ public sealed record SkillDto(string Name, int Level);
 /// with the observer's view). As the player knows it: Known: one character per tile, row by row (Width per row): '.'
 /// for never seen, otherwise the terrain's code (TerrainCodes). Visible: indices (y*Width+x) in sight now.
 /// Everything else is memory: places as last seen, sightings with their minute. Surface: the ground of
-/// each known tile with anything on it, in tile order: in sight, as it is now (Ground.SurfaceNow); out
+/// each known tile with anything on it, in tile order: in sight, as it is now (Ground.Underfoot); out
 /// of sight, as last seen (Memory.Explored). A known tile that is not listed is bare, dry ground.
 /// FrozenWater: the known lake and deep-water tiles that are ice (Map.IsFrozen), in tile order: in sight, now;
 /// out of sight, when last seen. A known one not listed is open water.
