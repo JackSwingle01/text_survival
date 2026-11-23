@@ -644,6 +644,7 @@ public class HerdTests(ITestOutputHelper output)
         Assert.True(allocatedMB < 6000, $"allocated {allocatedMB} MB");
         Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed.TotalSeconds:F1}s");
         Assert.True(json < 1_000_000, $"save is {json} bytes");
+        Assert.DoesNotContain(w.Tiles.Values, t => t.Ground != null); // everyone read the ground; nothing wrote it
     }
 
     // ---- wounds mend; the lame are left behind ----

@@ -441,7 +441,7 @@ public class GameHostTests
     // ---- the ground on the map: in sight as it is, out of sight as last seen ----
 
     static void Snow(World w, TileId t, double depthM) =>
-        Ground.CatchUp(w, t).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 });
+        Ground.Write(w, t, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 }));
 
     static TileId InSightOfPlayer(World w)
     {
@@ -472,7 +472,7 @@ public class GameHostTests
             .First(f => m.TerrainAt(f).IsPassable() && m.SiteAt(f) == null && Math.Abs(f.X - t.X) + Math.Abs(f.Y - t.Y) > 2 * Sight.MaxTiles);
         p.Crossing = null;
         Sim.Step(w, new Wait(AgentId.Player), 1);
-        Ground.CatchUp(w, t).Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow); // gone while nobody looked
+        Ground.Write(w, t, (g, _) => g.Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow)); // gone while nobody looked
 
         var loaded = new GameHost();
         var v = Parse(loaded.Load(h.Save()));

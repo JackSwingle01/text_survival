@@ -489,15 +489,77 @@ public class GroundTests
     }
 
     [Fact]
-    public void BeforeTheFirstSubStep_NothingIsStored()
+    public void ReadingATile_StoresNothing_ItReadsItsClass()
     {
-        var world = World17(Sky(WeatherCondition.Clear, -10, 0)); // a pinned sky has no history before minute 0
-        world.Minute = Ground.StepMinutes - 1;
-        Ground.TraversalFactor(world, OpenTile(Terrain.Plain));
+        var world = World17(); // seeded: the ground has lived the June pre-roll
+        world.Minute = 3 * 1440;
+        var tiles = new[] { Seed17.Camp, OpenTile(Terrain.Plain), OpenTile(Terrain.Marsh), OpenTile(Terrain.Forest) };
+        foreach (var t in tiles)
+        {
+            Ground.CatchUp(world, t);
+            Ground.TraversalFactor(world, t);
+            Ground.Look(world, t);
+            Ground.ContactWettingRate(world, t, SurfaceContact.RestingOnGround, 0);
+        }
         Assert.Empty(world.Tiles);
-        world.Minute = Ground.StepMinutes;
-        Ground.TraversalFactor(world, OpenTile(Terrain.Plain));
-        Assert.Equal(Ground.StepMinutes, Assert.Single(world.Tiles).Value.Ground!.LastUpdatedMinute);
+    }
+
+    /// A drift written onto a plain melts under a warm sky; the tile keeps its own state while the drift reads,
+    /// steps it, and reads its class again once the drift is gone.
+    static World Drifted(TileId tile)
+    {
+        var world = World17(Sky(WeatherCondition.Clear, 10, 0));
+        world.Minute = 60;
+        Ground.Write(world, tile, (g, sub) => Ground.AddSnow(g, sub, 0.03));
+        return world;
+    }
+
+    [Fact]
+    public void AWrittenTile_KeepsItsOwnState_StepsIt_AndDropsBackToItsClass()
+    {
+        var tile = OpenTile(Terrain.Plain);
+        var world = Drifted(tile);
+        double drift = Ground.SnowDepthM(world, tile);
+        Assert.True(drift > 0.2, $"the drift reads {drift:F3} m");
+        Assert.Equal(60, world.Tiles[tile].Ground!.LastUpdatedMinute);
+
+        world.Minute = 6 * 60;
+        double melting = Ground.SnowDepthM(world, tile);
+        Assert.InRange(melting, 0.001, drift - 0.01);
+        Assert.Equal(6 * 60, world.Tiles[tile].Ground!.LastUpdatedMinute);
+        Assert.DoesNotContain(world.Tiles, t => t.Key != tile); // reading it wrote nothing anywhere else
+
+        world.Minute = 20 * 1440;
+        Ground.CatchUp(world, tile);
+        Assert.False(world.Tiles.ContainsKey(tile), "a thawed drift should leave the tile to its class");
+        Assert.Equal(0, Ground.SnowDepthM(world, tile));
+    }
+
+    [Fact]
+    public void AWrittenTile_DropsBackAtTheSameMinute_HoweverOftenItIsLookedAt()
+    {
+        var tile = OpenTile(Terrain.Plain);
+        var often = Drifted(tile);
+        long dropped = -1;
+        for (long m = often.Minute; m <= 20 * 1440 && dropped < 0; m += 7)
+        {
+            often.Minute = m;
+            Ground.CatchUp(often, tile);
+            if (!often.Tiles.ContainsKey(tile)) dropped = m / Ground.StepMinutes * Ground.StepMinutes;
+        }
+        Assert.True(dropped > 0, "the drift never left");
+
+        var once = Drifted(tile);
+        once.Minute = dropped - 1;
+        Ground.Peek(once, tile); // looking without writing keeps it
+        var reloaded = Save.FromJson(Save.ToJson(once)); // and so does a save and load
+        Ground.CatchUp(once, tile);
+        Ground.CatchUp(reloaded, tile);
+        Assert.True(once.Tiles.ContainsKey(tile) && reloaded.Tiles.ContainsKey(tile), "kept until the minute it drops");
+        once.Minute = reloaded.Minute = dropped;
+        Ground.CatchUp(once, tile);
+        Ground.CatchUp(reloaded, tile);
+        Assert.False(once.Tiles.ContainsKey(tile) || reloaded.Tiles.ContainsKey(tile), $"dropped at {dropped} when looked at often");
     }
 
     [Fact]
@@ -507,7 +569,6 @@ public class GroundTests
         var camp = Seed17.Camp;
         var ground = Ground.CatchUp(world, camp);
         Assert.Equal(0, ground.LastUpdatedMinute);
-        Assert.Same(ground, world.Tiles[camp].Ground); // a month lived is worth keeping
         Assert.True(ground.Layers[0].FrozenFractionPct < 0.5, $"camp ground {ground.Layers[0].FrozenFractionPct:P0} frozen on July 1");
         AssertConserved(ground, Ground.Substrate(Seed17, camp));
     }
@@ -663,8 +724,8 @@ public class GroundTests
         var world = World.New(17);
         var tiles = Enumerable.Range(0, 5).Select(i => new TileId(Seed17.Camp.X + i, Seed17.Camp.Y)).ToList();
         world.Minute = 3 * 1440;
-        foreach (var t in tiles) Ground.CatchUp(world, t);
-        Assert.Contains(world.Tiles.Values, t => t.Ground != null);
+        foreach (var t in tiles) Ground.Write(world, t, (g, sub) => Ground.AddSnow(g, sub, 0.05)); // a drift on each
+        Assert.Equal(tiles.Count, world.Tiles.Values.Count(t => t.Ground != null));
         var loaded = Save.FromJson(Save.ToJson(world));
         world.Minute = loaded.Minute = 4 * 1440 + 7;
         foreach (var t in tiles) { Ground.CatchUp(world, t); Ground.CatchUp(loaded, t); }
@@ -692,15 +753,15 @@ public class GroundTests
     }
 
     [Fact]
-    public void TheActingAgentsTile_IsCaughtUpEveryMinute()
+    public void TheActingAgentsTile_IsReadEveryMinute_AndKeepsNoGround()
     {
         var world = World.New(17);
         var watch = Stopwatch.StartNew();
         var result = Sim.Step(world, new Wait(P), 30 * 1440);
         Console.WriteLine($"wait: {result.MinutesElapsed} min ({result.InterruptedReason}) in {watch.ElapsedMilliseconds} ms, save {Save.ToJson(world).Length / 1024} KB");
         Assert.True(result.MinutesElapsed > 60, "the agent should live long enough to watch the ground");
-        // The agent's own tile is observed every minute it stands there.
-        Assert.Equal(world.Minute / Ground.StepMinutes * Ground.StepMinutes, world.Tiles[Map.Of(world).Camp].Ground!.LastUpdatedMinute);
+        // The agent's own tile is read every minute it stands there, and reading stores nothing.
+        Assert.DoesNotContain(world.Tiles.Values, t => t.Ground != null);
     }
 
     /// Output of the old-code harness (golden-ground/Program.cs), but for hd on the frozen ponds

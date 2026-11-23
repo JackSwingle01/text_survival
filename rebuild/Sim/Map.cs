@@ -20,7 +20,7 @@ public sealed class TileState
     /// Footprints, one sign per kind of maker. Owned by Tracks; null when the ground is clean.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public SortedDictionary<TrackMaker, Track>? Tracks { get; set; }
-    /// Snow, water and ice on the ground. Owned by Ground; null until the tile is first observed.
+    /// Snow, water and ice on the ground, once something has written to it (Ground.Write). Owned by Ground; null while it is its class's.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public GroundState? Ground { get; set; }
     /// Pools something has drawn from, by index into Pools.At. Owned by Pools.

@@ -24,7 +24,7 @@ public class SurfaceViewTests
         var w = World.New(17);
         var camp = Map.Of(w).Camp;
         double already = Ground.SurfaceNow(w, camp).SnowDepthM; // seed 17's camp has a dusting
-        Ground.CatchUp(w, camp).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.4, CompactionPct = 0.3, FrozenFractionPct = 1 });
+        Ground.Write(w, camp, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.4, CompactionPct = 0.3, FrozenFractionPct = 1 }));
         string before = Save.ToJson(w);
         var s = Ground.SurfaceNow(w, camp);
         Assert.Equal(before, Save.ToJson(w));
@@ -37,7 +37,7 @@ public class SurfaceViewTests
     {
         var w = World.New(17);
         var camp = Map.Of(w).Camp;
-        Ground.CatchUp(w, camp).Layers.Insert(1, new SurfaceLayer { Material = SurfaceMaterial.Water, ThicknessM = 0.05, WaterSaturationPct = 1, FrozenFractionPct = 1 });
+        Ground.Write(w, camp, (g, _) => g.Layers.Insert(1, new SurfaceLayer { Material = SurfaceMaterial.Water, ThicknessM = 0.05, WaterSaturationPct = 1, FrozenFractionPct = 1 }));
         var s = Ground.SurfaceNow(w, camp);
         Assert.True(s.Iced);
         Assert.True(s.WaterDepthM > 0.05); // ice stands taller than the water it froze from

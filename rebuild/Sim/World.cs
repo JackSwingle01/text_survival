@@ -14,7 +14,7 @@ public sealed class World
         {
             if (Minute != 0 && !Nullable.Equals(field, value))
                 throw new InvalidOperationException($"FixedWeather changed at minute {Minute}: the sky is pinned before the clock starts");
-            if (!Nullable.Equals(field, value)) (DecayCache, GroundCache) = (null, null);
+            if (!Nullable.Equals(field, value)) (DecayCache, GroundCache, GroundShadows) = (null, null, null);
             field = value;
         }
     }
@@ -60,6 +60,8 @@ public sealed class World
     internal Access.Gate AccessGates = Access.Wired;
     internal Dictionary<double, DecayTimeline>? DecayCache;
     internal Dictionary<GroundClass, GroundState>? GroundCache;
+    /// Owned by Ground: each written tile's class state at the tile's own minute.
+    internal Dictionary<TileId, GroundState>? GroundShadows;
     internal Dictionary<Diet, double>? ValleyForageCache;
     internal List<TileId>? OpenLandCache;
     internal SortedSet<TileId>? CarcassTiles;

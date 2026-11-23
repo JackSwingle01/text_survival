@@ -160,7 +160,7 @@ public class VerbsTests
         ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(tile, pool));
         w.Agent(P).Tile = tile;
         Sim.Step(w, new Wait(P), 1);
-        Ground.CatchUp(w, tile).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 3, CompactionPct = 0.3, FrozenFractionPct = 1 });
+        Ground.Write(w, tile, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 3, CompactionPct = 0.3, FrozenFractionPct = 1 }));
         var unblocked = Verbs.At(w, P).LocationFeatures.Single(t => t.LocationFeature == new LocationFeature(LocationFeatureKind.Pool, tile, pool));
         Assert.Empty(unblocked.Conditions); // the gate is not wired: buried bars nothing yet
 

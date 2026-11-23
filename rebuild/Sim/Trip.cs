@@ -21,7 +21,7 @@ public sealed record TripTime(int WalkingMinutes, int TerrainMinutes, int Weathe
 }
 
 /// How a crossing reads the ground (Trip.Terms).
-public enum GroundRead { Look, Observe, Estimate }
+public enum GroundRead { Look, Observe }
 
 /// A crossing as seen before it is made, and the routes made of crossings. Previews look at the ground (Ground.Peek).
 // The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(..., GroundRead.Observe).TotalMinutes.
@@ -33,8 +33,7 @@ public static class Trip
         return Terms(world, Traversal.PaceBody(agent), agent.Tile, Map.Step(agent.Tile, dir), pace, Weather.At(world, world.Minute), Items.EncumbrancePct(agent));
     }
 
-    /// ground: Look reads without writing; Observe catches the ground up as a person's crossing does (writing to
-    /// the world); Estimate is the weather-only ground animals read (Ground.TraversalFactorEstimate).
+    /// ground: Look reads without writing; Observe catches the ground up as a crossing does (Ground.CatchUp).
     public static TripTime Terms(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky,
         double encumbrancePct = 0, GroundRead ground = GroundRead.Look)
     {
@@ -70,13 +69,11 @@ public static class Trip
         double factor = ground switch
         {
             GroundRead.Observe => Ground.TraversalFactor(world, tile),
-            GroundRead.Estimate => Ground.TraversalFactorEstimate(world, tile),
             _ => Ground.TraversalFactorNow(world, tile),
         };
         double Hazard() => ground switch
         {
             GroundRead.Observe => Traversal.EffectiveHazardLevel(world, tile),
-            GroundRead.Estimate => Traversal.HazardLevel(Map.Of(world), tile, world.Minute, Ground.HazardDeltaEstimate(world, tile)),
             _ => HazardNow(world, tile),
         };
         bool slow = pace == Pace.Careful && Traversal.PaceMatters(Traversal.InjuryOdds(Hazard(), body, sky, Pace.Quick).TotalPct);
@@ -99,7 +96,6 @@ public static class Trip
         readonly BodyState body = Traversal.PaceBody(agent);
         double? speed;
         double Speed => speed ??= Body.Speed(body, new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)));
-        readonly GroundRead ground = Traversal.GroundReadOf(agent, GroundRead.Look);
         readonly int? flight = Traversal.FlightMinutesPerTile(agent);
         readonly Dictionary<TileId, Half> halves = [];
 
@@ -113,7 +109,7 @@ public static class Trip
         Half HalfAt(TileId tile)
         {
             if (!halves.TryGetValue(tile, out var half))
-                halves[tile] = half = HalfOf(world, tile, body, Speed, sky, ground, pace);
+                halves[tile] = half = HalfOf(world, tile, body, Speed, sky, GroundRead.Look, pace);
             return half;
         }
     }

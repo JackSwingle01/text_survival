@@ -427,8 +427,8 @@ public class TracksTests
         Tracks.RecordMove(w, c, d, TrackMaker.Human);
         Assert.False(w.Tiles.ContainsKey(a), "a clean tile is generation again: nothing to save");
         Assert.False(w.Tiles.ContainsKey(b));
-        // Ground the tile has lived keeps it, prints or not.
-        Survival.Ground.CatchUp(w, c);
+        // Ground of its own keeps it, prints or not.
+        Survival.Ground.Write(w, c, (g, sub) => Survival.Ground.AddSnow(g, sub, 0.05));
         w.Minute = 20_000;
         Tracks.RecordMove(w, a, b, TrackMaker.Human);
         Assert.True(w.Tiles.ContainsKey(c));

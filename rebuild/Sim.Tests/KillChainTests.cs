@@ -751,10 +751,8 @@ public class KillChainTests
         fresh.Minute = w.Minute;
         var longWay = Save.ToJson(new World { Seed = 17, Tiles = new() { [plain[1]] = new TileState { Ground = Ground.Peek(fresh, plain[1]) } } });
         Assert.Equal(longWay, carried);
-        Ground.CatchUp(w, plain[2]);
-        Ground.CatchUp(fresh, plain[2]);
         static string Json(GroundState g) => System.Text.Json.JsonSerializer.Serialize(g);
-        Assert.Equal(Json(fresh.Tiles[plain[2]].Ground!), Json(w.Tiles[plain[2]].Ground!));
+        Assert.Equal(Json(Ground.CatchUp(fresh, plain[2])), Json(Ground.CatchUp(w, plain[2])));
     }
 
     /// The ground cache shares one state among every unobserved tile of a class (Ground.Peek): read

@@ -214,7 +214,7 @@ public class CarcassTests
         // takes the first 30 minutes, the cutting the last 4 (decay costs meat only).
         double Meat(int minute) => 0.6703585854625697 * (1 - 0.8 * Carcasses.DecayLevel(minute / 60.0 * Carcasses.DecayFactor(Exposure.OpenAirF(w, Map.Of(w).Camp, Mild))));
         Assert.InRange(Items.Have(Items.Pack(w, P), Resource.RawMeat), Meat(34), Meat(30));
-        Assert.Null(w.Tiles[Map.Of(w).Camp].Carcasses); // the emptied list goes, so the tile can clean up
+        Assert.Null(w.Tiles.GetValueOrDefault(Map.Of(w).Camp)?.Carcasses); // the emptied list goes, so the tile can clean up
         Assert.True(Effects.Severity(w.Agent(P).Body, EffectKind.Bloody) > 0);
         Assert.Equal("no such carcass here", Sim.Step(w, new Butcher(P, c.Id), 10).InterruptedReason);
     }

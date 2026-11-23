@@ -201,7 +201,7 @@ public class MemoryTests
     static readonly WeatherSample Cold = new(0, WeatherCondition.Cloudy, -10, 0.1, 0, 0.8, WindDirection.North);
 
     static void Snow(World w, TileId t, double depthM) =>
-        Ground.CatchUp(w, t).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 });
+        Ground.Write(w, t, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 }));
 
     /// The first passable tile in view from here, other than here.
     static TileId InViewFrom(World w, TileId from) =>
@@ -216,7 +216,7 @@ public class MemoryTests
         w.FixedWeather = Cold;
         var camp = Map.Of(w).Camp;
         var t = InViewFrom(w, camp);
-        Sim.Step(w, new Wait(P), Memories.GlanceMinutes); // ground is kept once it has lived any time (Ground.CatchUp)
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         Snow(w, t, 0.4);
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes); // the clock's next look sees it
         double seenM = Ground.SurfaceNow(w, t).SnowDepthM;
@@ -226,7 +226,7 @@ public class MemoryTests
         Put(w, P, OutOfView(w, t));
         Sim.Step(w, new Wait(P), 1);
         Assert.False(Sight.InSight(w, w.Agent(P), t));
-        Ground.CatchUp(w, t).Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow); // gone while nobody looked
+        Ground.Write(w, t, (g, _) => g.Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow)); // gone while nobody looked
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
 
         var loaded = Save.FromJson(Save.ToJson(w));
