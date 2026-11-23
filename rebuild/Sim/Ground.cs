@@ -35,6 +35,8 @@ public sealed class GroundState
     public double WaterDrainedM { get; set; }
     public double WaterEvaporatedM { get; set; }
     public double WaterOverflowedM { get; set; }
+    /// Fresh snow fallen since the history start, as deep as it landed. Only rises.
+    public double SnowFallenM { get; set; }
     /// The world minute this state describes. Always a multiple of Ground.StepMinutes.
     public long LastUpdatedMinute { get; set; }
 }
@@ -174,6 +176,7 @@ public static class Ground
         WaterDrainedM = s.WaterDrainedM,
         WaterEvaporatedM = s.WaterEvaporatedM,
         WaterOverflowedM = s.WaterOverflowedM,
+        SnowFallenM = s.SnowFallenM,
         LastUpdatedMinute = s.LastUpdatedMinute,
     };
 
@@ -201,6 +204,16 @@ public static class Ground
         if (cache.ByClass.TryGetValue(key, out var kept)) return kept;
         var state = world.GroundCache?.GetValueOrDefault(key) is { } known && known.LastUpdatedMinute == target ? known : OfClass(world, tile, sub, target);
         return cache.ByClass[key] = SurfaceOf(state, sub);
+    }
+
+    /// Read in place when the class is caught up to the minute.
+    internal static double SnowFallenM(World world, TileId tile)
+    {
+        var m = Map.Of(world);
+        var sub = Substrate(m, tile);
+        long target = world.Minute / StepMinutes * StepMinutes;
+        return world.GroundCache?.GetValueOrDefault(ClassOf(m, tile, sub)) is { } known && known.LastUpdatedMinute == target
+            ? known.SnowFallenM : OfClass(world, tile, sub, target).SnowFallenM;
     }
 
     /// An edge's half of a tile: the tile's ground with its top snow packed by the edge to other (Tracks.TroddenLevel);
@@ -362,6 +375,7 @@ public static class Ground
             if (waterEquivalentM <= NegligibleM) return;
             state.WaterAddedM += waterEquivalentM;
             double thickness = FreshSnowDepthM(waterEquivalentM);
+            state.SnowFallenM += thickness;
             _layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = thickness });
             Consolidate();
         }

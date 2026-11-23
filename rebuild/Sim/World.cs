@@ -21,7 +21,7 @@ public sealed class World
     public long Minute { get; set; }
     internal WeatherTimeline? WeatherCache;
     /// Owned by Tracks.
-    internal SkyTimeline? ErosionCache;
+    internal SkyTimeline? ErosionCache, WeatheringCache;
     /// Owned by Tracks.
     internal SkyTimeline? SnowfallCache;
     internal GeneratedMap? GeneratedMap;
