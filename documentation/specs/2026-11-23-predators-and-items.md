@@ -190,7 +190,8 @@ toward the bear's country, no fire.
 - **The pile** is what the rebuild now calls a stash: one unlimited, unprotected collection of items per
   tile, with a cause on what leaves it. It is renamed "pile" in the glossary, the UI words and the code.
 - **Diet** has three values: Carnivore, Omnivore, Herbivore. Each maps to the resources it eats from
-  piles, caches and carcasses, as content data. Browser and Grazer go as diets. What a herbivore grazes
+  piles, caches and carcasses, as content data; Herbivore's list is empty, so herbivores leave piles
+  and caches alone. Browser and Grazer go as diets. What a herbivore grazes
   from the ground becomes a per-species list in the species data (caribou, megaloceros and mammoth keep
   what browsers eat today, and bison what grazers eat), so grazing and carrying capacity behave as
   before.
@@ -350,7 +351,7 @@ toward the bear's country, no fire.
   in the manner of `SightTests`: reach downwind against upwind, calm air, strength, sense of smell and
   a cache's scent multiplier. It is used only where the world seam can't separate cases cheaply.
 - **Seam 4, verbs.** Washing and taking from a pile or cache, through `Verbs` and `Sim.Step`, as in
-  `VerbsTests` and `WorkTests`, including that the take is refused for nothing a person can't carry.
+  `VerbsTests` and `WorkTests`, including that the take is refused for anything a person can't carry.
 - **Content.** `ContentStrictTests` covers the new species data (abilities, sense of smell, base scent,
   grazing list) and food scent strengths, so a missing value fails at load.
 - **Determinism and save:** same seed, same world; save and load mid-raid, with a torn-open cache and a
@@ -378,7 +379,7 @@ toward the bear's country, no fire.
   - natural caches lose the unused weatherproof and preserves flags;
   - food finding by scent is new, since the old game had predators find food only on their own and
     adjacent tiles when hungry;
-  - herbivores and omnivores now raid plant food, where the old game counted only meat and fish;
+  - omnivores now raid plant food, where the old game counted only meat and fish;
   - cooked meat counts again (CMB-16), through scent, not a bonus;
   - ravens and foxes as real raiders are new to the port (the old game's ravens were text only).
 - Audit items resolved: ITM-14 (camp storage and caches) and CMB-16 (cooked meat).
