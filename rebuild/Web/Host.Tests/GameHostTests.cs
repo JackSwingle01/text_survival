@@ -492,7 +492,7 @@ public class GameHostTests
 
     // ---- routes and prints on the map ----
 
-    static void Wear(World w, TileId a, TileId b, double wear) => w.Trails[new EdgeId(a, b)] = new TrailWear(wear, w.Minute);
+    static void Tread(World w, TileId a, TileId b, double trodden) => w.Trails[new EdgeId(a, b)] = new EdgeTrodden(trodden, w.Minute);
 
     static TileId NeighbourInSight(World w, TileId t)
     {
@@ -520,9 +520,9 @@ public class GameHostTests
         var p = w.Agent(AgentId.Player);
         var a = InSightOfPlayer(w);
         var b = NeighbourInSight(w, a);
-        Wear(w, a, b, Tracks.PathAt + 1);
+        Tread(w, a, b, Tracks.PathAt + 0.05);
         Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes);
-        Wear(w, a, b, Tracks.TrailAt + 1); // after the look
+        Tread(w, a, b, Tracks.TrailAt + 0.05); // after the look
         Assert.Contains(Trail(a, b, "trail"), Sent(Parse(h.View())));
 
         var m = Map.Of(w);
@@ -531,7 +531,7 @@ public class GameHostTests
         p.Crossing = null;
         Sim.Step(w, new Wait(AgentId.Player), 1);
         var far = Enumerable.Range(0, m.Width).Select(x => new TileId(x, m.Height - 1)).First(t => !Memories.Of(p).Explored!.Contains(t));
-        Wear(w, far, Map.Step(far, Direction.North), Tracks.TrailAt + 1); // never seen
+        Tread(w, far, Map.Step(far, Direction.North), Tracks.TrailAt + 0.05); // never seen
 
         var v = Parse(new GameHost().Load(h.Save()));
         Assert.DoesNotContain(Index(w, a), v.Map.Visible);
@@ -555,7 +555,7 @@ public class GameHostTests
         var w = h.World;
         var here = w.Agent(AgentId.Player).Tile;
         var west = Map.Step(here, Direction.West);
-        Tracks.RecordMove(w, west, here, TrackMaker.Paw, 3);
+        for (int i = 0; i < 3; i++) Tracks.RecordMove(w, west, here, TrackMaker.Paw);
         var t = Parse(h.View()).Map.Tracks.Single(t => t.X == here.X && t.Y == here.Y && t.Maker == "paw");
         Assert.Equal("east", t.Heading);
         Assert.Equal("heading", t.Pattern);
@@ -574,7 +574,7 @@ public class GameHostTests
         var m = Map.Of(w);
         var far = Enumerable.Range(1, 20).Select(d => new TileId(here.X + MapView.TrackReadTiles + d, here.Y))
             .First(t => m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.TerrainAt(Map.Step(t, Direction.East)).IsPassable());
-        Tracks.RecordMove(w, Map.Step(far, Direction.East), far, TrackMaker.Hoof, 5);
+        for (int i = 0; i < 5; i++) Tracks.RecordMove(w, Map.Step(far, Direction.East), far, TrackMaker.Hoof);
         var v = Parse(h.View());
         Assert.NotEmpty(Tracks.Read(w, far));
         Assert.All(v.Map.Tracks, t => Assert.True(Math.Max(Math.Abs(t.X - here.X), Math.Abs(t.Y - here.Y)) <= MapView.TrackReadTiles, $"prints at {t.X},{t.Y}"));

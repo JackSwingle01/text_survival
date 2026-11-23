@@ -3,7 +3,7 @@ namespace Survival;
 /// By shape, not identity: the player's boots and an NPC's are the same mark.
 public enum TrackMaker { Human, Paw, Hoof }
 
-/// Derived from the wear scalar. The world never stores it; a person's memory keeps the tier they saw (GroundMemory).
+/// Derived from the edge's trodden amount. The world never stores it; a person's memory keeps the tier they saw (GroundMemory).
 public enum TrailTier { None, Trace, Path, Trail }
 
 public enum TrafficPattern { Heading, NorthSouth, EastWest, Mixed }
@@ -12,16 +12,16 @@ public enum TrafficPattern { Heading, NorthSouth, EastWest, Mixed }
 public sealed record Track(long Minute, Direction Heading, double Traffic, double HeaviestIndividual,
     double DirectionX, double DirectionY, double NorthSouthTraffic, double EastWestTraffic);
 
-/// Wear as of Minute; decay since then is derived on read.
-public sealed record TrailWear(double Wear, long Minute);
+/// How packed an edge's snow is, 0 to 1, as of its last stamp (Minute); the settling since is derived on read.
+public sealed record EdgeTrodden(double Amount, long Minute);
 
 /// FreshnessPct 1 = just made.
 public readonly record struct TrackSign(TrackMaker Maker, double FreshnessPct, int Traffic, TrafficPattern Pattern,
     Direction Heading, long AgeMinutes, double Depth, int NorthSouthTraffic, int EastWestTraffic);
 
-/// Footprints and desire paths, both aged against erosion. The sky is a pure function of
-/// (seed, minute), so erosion is derived (ErosionAt), never ticked or saved; tracks and wear
-/// store the minute they were last added to and catch up on read.
+/// Footprints, aged against erosion, and trodden edges, settling and buried by snowfall. The sky is a pure function
+/// of (seed, minute), so erosion and snowfall are derived (ErosionAt, SnowfallWeAt), never ticked or saved; prints
+/// and edges store the minute they were last added to and catch up on read.
 public static class Tracks
 {
     // ---- erosion ----
@@ -40,18 +40,31 @@ public static class Tracks
         if (minute < 0) throw new ArgumentOutOfRangeException(nameof(minute), minute, "Erosion starts at minute 0");
         // A pinned sky has been the sky since minute 0: World refuses to change it once the clock moves.
         if (world.FixedWeather is WeatherSample sky) return ErosionPerMinute(sky) * minute;
-        return (world.ErosionCache ??= new ErosionTimeline()).At(world, minute);
+        return (world.ErosionCache ??= new SkyTimeline(ErosionPerMinute)).At(world, minute);
+    }
+
+    /// Snow fallen on open ground over minutes 1..minute, metres water-equivalent. Monotonic, like ErosionAt.
+    public static double SnowfallWeAt(World world, long minute)
+    {
+        if (minute < 0) throw new ArgumentOutOfRangeException(nameof(minute), minute, "Snowfall is counted from minute 0");
+        if (world.FixedWeather is WeatherSample sky) return sky.SnowfallWeMPerMinute * minute;
+        return (world.SnowfallCache ??= new SkyTimeline(s => s.SnowfallWeMPerMinute)).At(world, minute);
     }
 
     // ---- footprints ----
 
-    /// The single seam for a completed crossing, whoever made it. individuals is head count;
-    /// individualDepth is how heavily one marks the ground, an adult human at 1.0.
-    public static void RecordMove(World world, TileId from, TileId to, TrackMaker maker, double individuals = 1, double individualDepth = 1.0)
+    /// An agent's completed crossing: each walker marks the ground by its own weight; a flyer touches nothing on the way.
+    public static void RecordMove(World world, Agent agent, TileId from, TileId to)
+    {
+        if (Traversal.FlightMinutesPerTile(agent) != null) return;
+        foreach (var _ in agent.Members) RecordMove(world, from, to, MakerOf(agent.Species), IndividualDepth(agent.Species));
+    }
+
+    /// The single seam for a completed crossing, one walker at a time; an adult human's individualDepth is 1.0.
+    public static void RecordMove(World world, TileId from, TileId to, TrackMaker maker, double individualDepth = 1.0)
     {
         if (from == to) return;
-        if (individuals <= 0 || individualDepth <= 0)
-            throw new ArgumentOutOfRangeException(nameof(individuals), $"{individuals} x {individualDepth}: a move needs feet");
+        if (individualDepth <= 0) throw new ArgumentOutOfRangeException(nameof(individualDepth), individualDepth, "a move needs feet");
         long now = world.Minute;
         double erosion = ErosionAt(world, now);
         // At most hourly: with herds walking, a sweep per crossing dominates a long run's cost.
@@ -62,14 +75,16 @@ public static class Tracks
         }
 
         var heading = HeadingOf(from, to);
-        Stamp(world, from, maker, heading, individuals, individualDepth, now, erosion);
-        Stamp(world, to, maker, heading, individuals, individualDepth, now, erosion);
+        Stamp(world, from, maker, heading, individualDepth, now, erosion);
+        Stamp(world, to, maker, heading, individualDepth, now, erosion);
 
-        // Only neighbours share an edge: crediting one arbitrary edge for a multi-tile hop would wear in a route nothing walked.
+        // Only neighbours share an edge: crediting one arbitrary edge for a multi-tile hop would pack a route nothing walked.
         if (Math.Abs(from.X - to.X) + Math.Abs(from.Y - to.Y) != 1) return;
-        // Linear in head count: every set of feet treads the ground.
+        // Saturating, as grazing does: the first crossings pack the most, and each packs a share of what is still loose.
         var edge = new EdgeId(from, to);
-        world.Trails[edge] = new TrailWear(Math.Min(MaxWear, WearAt(world, edge, now, erosion) + individuals * individualDepth), now);
+        double settled = TroddenAt(world, edge, now);
+        world.Trails[edge] = new EdgeTrodden(settled + (1 - settled) * Math.Min(1, StampPct * individualDepth), now);
+        Trip.Forget(world, from, to);
     }
 
     /// Freshest first.
@@ -93,11 +108,11 @@ public static class Tracks
     static double Freshness(World world, Track t, double erosionNow) =>
         Math.Clamp(1 - (erosionNow - ErosionAt(world, t.Minute)) / (BaseLifespanUnits * Depth(t)), 0, 1);
 
-    static void Stamp(World world, TileId tile, TrackMaker maker, Direction heading, double individuals, double individualDepth, long now, double erosion)
+    static void Stamp(World world, TileId tile, TrackMaker maker, Direction heading, double individualDepth, long now, double erosion)
     {
         if (!world.Tiles.TryGetValue(tile, out var state)) world.Tiles[tile] = state = new TileState();
         state.Tracks ??= [];
-        double traffic = individuals, heaviest = individualDepth, dx = 0, dy = 0, ns = 0, ew = 0;
+        double traffic = 1, heaviest = individualDepth, dx = 0, dy = 0, ns = 0, ew = 0;
         // What the weather left of the earlier sign carries over: daily routes read busier, yet nothing piles up forever.
         // A dead sign is no sign, whether or not the sweep has dropped it yet.
         if (state.Tracks.TryGetValue(maker, out var old) && Freshness(world, old, erosion) is var f && f > 0)
@@ -109,10 +124,10 @@ public static class Tracks
         }
         switch (heading)
         {
-            case Direction.North: dy -= individuals; ns += individuals; break;
-            case Direction.South: dy += individuals; ns += individuals; break;
-            case Direction.East: dx += individuals; ew += individuals; break;
-            case Direction.West: dx -= individuals; ew += individuals; break;
+            case Direction.North: dy -= 1; ns += 1; break;
+            case Direction.South: dy += 1; ns += 1; break;
+            case Direction.East: dx += 1; ew += 1; break;
+            case Direction.West: dx -= 1; ew += 1; break;
         }
         state.Tracks[maker] = new Track(now, heading, traffic, heaviest, dx, dy, ns, ew);
     }
@@ -167,31 +182,45 @@ public static class Tracks
             Map.Tidy(world, tile);
         }
         foreach (var (edge, _) in world.Trails.ToList())
-            if (WearAt(world, edge, now, erosion) <= 0) world.Trails.Remove(edge);
+            if (TroddenAt(world, edge, now) <= 0) world.Trails.Remove(edge);
     }
 
-    // ---- desire paths ----
+    // ---- trodden edges ----
 
-    /// Wear for each tier. One adult human crossing adds 1, so these read roughly as net crossings.
-    public const double TraceAt = 5, PathAt = 14, TrailAt = 35;
-    /// Wear stops accumulating here, so an abandoned trail fades in a bounded time.
-    public const double MaxWear = 50;
-    /// Settling and regrowth, whatever the sky: about 0.44 wear a day, so an abandoned Path is gone in a month.
-    const double SettlingPerMinute = 0.000306;
-    /// Snow filling the trench, per erosion unit. Deliberately the smaller term: burying a path is not undoing it.
-    const double BuryingPerErosionUnit = 0.0000837;
-    const double MinimumWear = 0.5;
+    /// Trodden amount for each tier: about 5, 14 and 32 adult human crossings in a row.
+    public const double TraceAt = 0.2, PathAt = 0.5, TrailAt = 0.8;
+    /// The share of an edge's still-loose snow one adult human's crossing packs; IndividualDepth scales it.
+    public const double StampPct = 0.05;
+    /// Settling and regrowth, whatever the sky: a saturated edge is gone in 35 days, a Trail in four weeks.
+    const double SettlingPerMinute = 1.0 / (35 * 1440);
+    const double MinimumTrodden = 0.01;
 
-    public static double WearAt(World world, TileId a, TileId b) => WearAt(world, new EdgeId(a, b), world.Minute, ErosionAt(world, world.Minute));
+    /// Settled since its last stamp; snow fallen on it does not lower it.
+    public static double TroddenAt(World world, TileId a, TileId b) => TroddenAt(world, new EdgeId(a, b), world.Minute);
 
-    static double WearAt(World world, EdgeId edge, long now, double erosionNow)
+    /// Whether anything has walked the edge between neighbours a and b: only then does its half of a tile read differently.
+    public static bool IsTrodden(World world, TileId a, TileId b) =>
+        Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1 && world.Trails.ContainsKey(new EdgeId(a, b));
+
+    static double TroddenAt(World world, EdgeId edge, long now)
     {
-        if (!world.Trails.TryGetValue(edge, out var w)) return 0;
-        double wear = w.Wear - (now - w.Minute) * SettlingPerMinute - (erosionNow - ErosionAt(world, w.Minute)) * BuryingPerErosionUnit;
-        return wear < MinimumWear ? 0 : wear;
+        if (!world.Trails.TryGetValue(edge, out var t)) return 0;
+        double amount = t.Amount - (now - t.Minute) * SettlingPerMinute;
+        return amount < MinimumTrodden ? 0 : amount;
     }
 
-    public static TrailTier TierFor(double wear) => wear switch
+    /// At tile's half: the trodden amount, less the share of tile's snow fallen since the last stamp.
+    public static double TroddenLevel(World world, TileId tile, TileId other, double snowDepthM)
+    {
+        var edge = new EdgeId(tile, other);
+        if (snowDepthM <= 0 || !world.Trails.TryGetValue(edge, out var t)) return 0;
+        double amount = TroddenAt(world, edge, world.Minute);
+        if (amount <= 0) return 0;
+        double fallenM = Ground.FreshSnowDepthM(Exposure.SnowfallWeSince(world, tile, t.Minute));
+        return amount * (1 - Math.Min(1, fallenM / snowDepthM));
+    }
+
+    public static TrailTier TierFor(double trodden) => trodden switch
     {
         >= TrailAt => TrailTier.Trail,
         >= PathAt => TrailTier.Path,
@@ -199,19 +228,7 @@ public static class Tracks
         _ => TrailTier.None,
     };
 
-    public static TrailTier TierOf(World world, TileId a, TileId b) => TierFor(WearAt(world, a, b));
-
-    /// TierOf for many edges at one minute: erosion is worked out once by the caller (ErosionAt).
-    internal static TrailTier TierNow(World world, TileId a, TileId b, double erosionNow) =>
-        TierFor(WearAt(world, new EdgeId(a, b), world.Minute, erosionNow));
-
-    /// Minutes a beaten route saves. A trace is only visible; you have to beat a route properly first.
-    public static int TrailMinutes(World world, TileId a, TileId b) => TierOf(world, a, b) switch
-    {
-        TrailTier.Trail => -2,
-        TrailTier.Path => -1,
-        _ => 0,
-    };
+    public static TrailTier TierOf(World world, TileId a, TileId b) => TierFor(TroddenAt(world, a, b));
 
     // ---- who leaves what ----
 
@@ -227,8 +244,8 @@ public static class Tracks
         species == Species.Human ? 1.0 : Math.Clamp(Math.Sqrt(SpeciesTable.Of(species).WeightKg / 70.0), 0.4, 3.0);
 }
 
-/// Prefix sums of erosion over the seed's front states (sky constant between starts). Derived; rebuilt after a load.
-internal sealed class ErosionTimeline
+/// Prefix sums of a per-minute rate of the sky over the seed's front states. Derived; rebuilt after a load.
+internal sealed class SkyTimeline(Func<WeatherSample, double> ratePerMinute)
 {
     readonly List<long> starts = [];
     // From the weather pre-roll start; only differences are read, so the origin cancels.
@@ -247,7 +264,7 @@ internal sealed class ErosionTimeline
             {
                 before.Add(starts.Count == 0 ? 0 : before[^1] + rates[^1] * (s.Start - starts[^1]));
                 starts.Add(s.Start);
-                rates.Add(Tracks.ErosionPerMinute(new WeatherSample(s.Start, s.Condition, s.TemperatureC, s.WindLevel,
+                rates.Add(ratePerMinute(new WeatherSample(s.Start, s.Condition, s.TemperatureC, s.WindLevel,
                     s.PrecipitationPct, s.CloudCoverPct, s.Heading, s.Front)));
             }
             coveredThrough = last;

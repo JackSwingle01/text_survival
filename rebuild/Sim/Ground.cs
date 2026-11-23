@@ -117,8 +117,7 @@ public static class Ground
     }
 
     /// A tile's ground: its GroundClass's state now (OfClass), a copy the caller may change without changing the
-    /// world. Nothing per tile is stored. Every ground read goes through here, so a tile's or an edge's trodden amount
-    /// folds in here when it comes.
+    /// world. Nothing per tile is stored; an edge's trodden amount is read over it (Underfoot at an edge's half).
     public static GroundState At(World world, TileId tile) =>
         OfClass(world, tile, Substrate(Map.Of(world), tile), world.Minute / StepMinutes * StepMinutes);
 
@@ -204,10 +203,21 @@ public static class Ground
         return cache.ByClass[key] = SurfaceOf(state, sub);
     }
 
+    /// An edge's half of a tile: the tile's ground with its top snow packed by the edge to other (Tracks.TroddenLevel);
+    /// the tile itself for no other.
+    public static Surface Underfoot(World world, TileId tile, TileId? other)
+    {
+        var surface = Underfoot(world, tile);
+        return other is { } o ? surface.Trodden(Tracks.TroddenLevel(world, tile, o, surface.SnowDepthM)) : surface;
+    }
+
+    /// The depth snow of this water equivalent lies when it has just fallen.
+    public static double FreshSnowDepthM(double waterEquivalentM) => waterEquivalentM * IceExpansion / LooseSnowIceFraction;
+
     public static Surface SurfaceOf(GroundState s, SubstrateProfile sub) => new Column(s, sub).Surface;
 
     // Burial access and digging need a per-placement elevation, footprint and hole depth on TileState; not built.
-    // No route packing: nothing calls Compact.
+    // No route packing: nothing calls Compact. A trodden edge is read over the class's ground (Underfoot at an edge's half).
 
     public static void Advance(GroundState s, SubstrateProfile sub, int minutes, SurfaceWeather weather)
     {
@@ -351,7 +361,7 @@ public static class Ground
         {
             if (waterEquivalentM <= NegligibleM) return;
             state.WaterAddedM += waterEquivalentM;
-            double thickness = waterEquivalentM * IceExpansion / LooseSnowIceFraction;
+            double thickness = FreshSnowDepthM(waterEquivalentM);
             _layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = thickness });
             Consolidate();
         }

@@ -354,6 +354,30 @@ public class ForecastTests
         Assert.InRange(before - Held(), routes.Kcal(target)!.Value * (1 - kcalTolerancePct), routes.Kcal(target)!.Value * (1 + kcalTolerancePct));
     }
 
+    /// A day into heavy snow, with every east-west edge near camp trodden hard: deep loose snow, where a trail pays.
+    static World TroddenSnow()
+    {
+        var w = Bare(-10);
+        w.FixedWeather = new(0, WeatherCondition.HeavySnow, -10, 0.2, 0.6, 1, WindDirection.North);
+        w.Minute = 1440;
+        var camp = Camp(w);
+        for (int dx = -6; dx < 6; dx++)
+            for (int dy = -6; dy <= 6; dy++)
+                w.Trails[new EdgeId(new TileId(camp.X + dx, camp.Y + dy), new TileId(camp.X + dx + 1, camp.Y + dy))] = new EdgeTrodden(0.9, w.Minute);
+        return w;
+    }
+
+    [Fact]
+    public void Routes_OverTroddenEdges_AgreeWithTheWalkMade_ForAPersonAndAnAnimal()
+    {
+        var person = TroddenSnow();
+        Assert.True(Ground.Underfoot(person, Camp(person)).SnowDepthM > 0.2);
+        RouteAgrees(person, P, 0.02);
+        var w = TroddenSnow();
+        var caribou = Agents.Spawn(w, Species.Caribou, Map.Step(Camp(w), Direction.South));
+        RouteAgrees(w, caribou, 0.001);
+    }
+
     [Fact]
     public void Routes_ForAPerson_AgreeWithTheWalkMade()
     {
