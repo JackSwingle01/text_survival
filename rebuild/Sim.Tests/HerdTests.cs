@@ -906,50 +906,57 @@ public class HerdTests(ITestOutputHelper output)
 
 }
 
-/// Months of the populated valley: nothing in it gets stuck. One class per seed, so they run side by side.
-[Trait("Category", TestCategories.Slow)]
-public class HerdLongRunSeed5Tests(ITestOutputHelper output)
+/// Months of the populated valley: nothing in it gets stuck, and every pack hunts (#96). Each seed is
+/// its own class, so they run side by side; three seeds, because any change to behaviour reshuffles a
+/// whole run, and a bug one valley happens to miss another finds.
+public static class HerdLongRun
 {
-    [Fact] public void SixtyDays_NoHerdStaysPut_AndPacksHunt() => HerdLongRunTests.Run(5, output);
-}
+    /// Review 3: a herd that chased meat off its land stood behind a mountain for forty days. No animal
+    /// that can walk spends more than two days wanting to move (patrolling, grazing on, fleeing) without
+    /// getting more than a tile from where it last made progress, read every minute (NetProgress):
+    /// resting and feeding, a pack may lie up at a big kill for a fortnight. Every pack that lives hunts.
+    const int Days = 60, MaxDaysStuck = 2, RadiusTiles = 1;
 
-[Trait("Category", TestCategories.Slow)]
-public class HerdLongRunTests(ITestOutputHelper output)
-{
-    [Fact] public void SixtyDays_NoHerdStaysPut_AndPacksHunt() => Run(17, output);
-
-    /// Review 3: a herd that chased meat off its land stood behind a mountain for forty days. No herd
-    /// that can walk spends more than a few days on one tile wanting to move (patrolling, grazing on,
-    /// fleeing): resting and feeding, a pack may lie up at a big kill for a fortnight. Every pack that lives hunts.
     internal static void Run(int seed, ITestOutputHelper output)
     {
-        const int Days = 60, MaxDaysPut = 2;
         var w = World.New(seed);
-        var put = new Dictionary<AgentId, (TileId Tile, long Minutes)>();
+        var progress = new NetProgress(RadiusTiles);
         var hunts = new Dictionary<AgentId, int>();
         // A pack is the wolves that started together on their den, named by its first.
         var packOf = w.Agents.Values.Where(a => a.Species == Species.Wolf).GroupBy(a => a.Tile)
             .SelectMany(g => g.Select(a => (a.Id, Pack: g.First().Id))).ToDictionary(x => x.Id, x => x.Pack);
         var packs = packOf.Values.Distinct().ToList();
-        long worst = 0;
-        string? worstWho = null;
-        for (int hour = 0; hour < Days * 24; hour++)
+        for (int minute = 0; minute < Days * 1440; minute++)
         {
-            foreach (var f in Sim.Advance(w, 60).OfType<EncounterEnded>().Where(f => packOf.ContainsKey(f.Agent))) hunts[packOf[f.Agent]] = hunts.GetValueOrDefault(packOf[f.Agent]) + 1;
-            foreach (var h in w.Agents.Values.Where(a => a.Mind is HerdMind))
-            {
-                bool wantsToMove = ((HerdMind)h.Mind).State is HerdState.Patrolling or HerdState.Grazing or HerdState.Fleeing;
-                if (!put.TryGetValue(h.Id, out var p) || p.Tile != h.Tile || !h.Members.All(b => Body.GetCapacities(b).Moving > 0.1))
-                    p = (h.Tile, 0);
-                put[h.Id] = p = (p.Tile, p.Minutes + (wantsToMove ? 60 : 0));
-                if (p.Minutes > worst) (worst, worstWho) = (p.Minutes, $"{h.Id} {h.Species} at {h.Tile}");
-            }
+            foreach (var f in Sim.Advance(w, 1).OfType<EncounterEnded>().Where(f => packOf.ContainsKey(f.Agent))) hunts[packOf[f.Agent]] = hunts.GetValueOrDefault(packOf[f.Agent]) + 1;
+            progress.Sample(w);
         }
-        output.WriteLine($"seed {seed}: longest put wanting to move {worst / 1440.0:F1} days ({worstWho}); hunts {string.Join(", ", packs.Select(p => $"{p} {hunts.GetValueOrDefault(p)}"))}");
-        Assert.True(worst <= MaxDaysPut * 1440, $"{worstWho} wanted to move but stayed on one tile {worst / 1440.0:F1} days");
+        var (worst, who) = progress.Worst;
+        output.WriteLine($"seed {seed}: longest wanting to move within {RadiusTiles} tile {worst / 1440.0:F2} days ({who}); by state "
+            + string.Join(", ", progress.WorstByState.Select(kv => $"{kv.Key} {kv.Value / 1440.0:F2}"))
+            + $"; hunts {string.Join(", ", packs.Select(p => $"{p} {hunts.GetValueOrDefault(p)}"))}");
+        Assert.True(worst <= MaxDaysStuck * 1440, $"seed {seed}: {who} wanted to move but got no further than {RadiusTiles} tile in {worst / 1440.0:F2} days");
         Assert.All(packs.Where(p => packOf.Any(x => x.Value == p && w.Agents.ContainsKey(x.Key))),
-            p => Assert.True(hunts.GetValueOrDefault(p) > 0, $"pack {p} lived {Days} days and never hunted"));
+            p => Assert.True(hunts.GetValueOrDefault(p) > 0, $"seed {seed}: pack {p} lived {Days} days and never hunted"));
     }
+}
+
+[Trait("Category", TestCategories.Slow)]
+public class HerdLongRunSeed5Tests(ITestOutputHelper output)
+{
+    [Fact] public void SixtyDays_NothingStuck_AndPacksHunt() => HerdLongRun.Run(5, output);
+}
+
+[Trait("Category", TestCategories.Slow)]
+public class HerdLongRunSeed17Tests(ITestOutputHelper output)
+{
+    [Fact] public void SixtyDays_NothingStuck_AndPacksHunt() => HerdLongRun.Run(17, output);
+}
+
+[Trait("Category", TestCategories.Slow)]
+public class HerdLongRunSeed42Tests(ITestOutputHelper output)
+{
+    [Fact] public void SixtyDays_NothingStuck_AndPacksHunt() => HerdLongRun.Run(42, output);
 }
 
 /// Den-anchored herds (old HerdPopulator's Wolf Den, Bear Cave and Bone Hollow).
