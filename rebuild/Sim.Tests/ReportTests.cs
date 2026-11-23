@@ -69,7 +69,8 @@ public class ReportTests
             var w = World.New(17);
             w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
             var m = Map.Of(w);
-            tile = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+            tile = (from x in Enumerable.Range(0, m.Width)
+                    from y in Enumerable.Range(0, m.Height)
                     let t = new TileId(x, y)
                     where m.TerrainAt(t) == Terrain.Plain && Manhattan(t, m.Camp) > 30 && m.CaveAt(t) == Cave.None && m.StageAt(t) == null && m.SiteAt(t) == null
                     select t).First();
@@ -123,7 +124,8 @@ public class ReportTests
     {
         var w = World.New(17);
         var m = Map.Of(w);
-        var forest = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+        var forest = (from x in Enumerable.Range(0, m.Width)
+                      from y in Enumerable.Range(0, m.Height)
                       let t = new TileId(x, y)
                       where Pools.At(w, t).Any(p => p is TreePool) && Pools.At(w, t).Any(p => p is ForagePool)
                       select t).First();
@@ -146,7 +148,8 @@ public class ReportTests
         var w = World.New(17);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
         var m = Map.Of(w);
-        var tile = (from x in Enumerable.Range(0, m.Width) from y in Enumerable.Range(0, m.Height)
+        var tile = (from x in Enumerable.Range(0, m.Width)
+                    from y in Enumerable.Range(0, m.Height)
                     let t = new TileId(x, y)
                     where m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null && t != m.Camp
                     select t).First();
