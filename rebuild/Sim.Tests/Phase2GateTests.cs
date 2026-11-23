@@ -392,7 +392,8 @@ public class Phase2GateTests(ITestOutputHelper output)
         Assert.True(json.Length < 1_000_000, $"save is {json.Length} bytes");
         // Cost is budgeted in bytes allocated, as in HerdTests.ThirtyPopulatedDays_StayCheap: deterministic for the
         // seed and blind to machine load (about 3.4 GB in 4 s on an idle machine, 70 s beside the rest of the suite).
-        // The wall clock is only a backstop for a blow-up that does not allocate.
+        // The wall clock is only a backstop for a blow-up that does not allocate. Both budgets here are
+        // tripwires, not limits; see HerdTests.ThirtyPopulatedDays_StayCheap.
         Assert.True(allocatedMB < 6000, $"allocated {allocatedMB} MB");
         Assert.True(clock.Elapsed.TotalSeconds < 300, $"took {clock.Elapsed.TotalSeconds:F1}s");
     }
