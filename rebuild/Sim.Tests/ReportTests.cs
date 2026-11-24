@@ -18,7 +18,8 @@ public class ReportTests
         return w;
     }
 
-    /// Seed 17's lived world, built once for the tests that only start from it.
+    /// Seed 17's lived world, built once for the tests that only start from it. Building it steps the world two
+    /// days, and the first test to ask pays for that, so every test that starts from it is a LongRun test.
     static readonly SharedWorld SharedLived = new(() => Lived());
 
     /// An independent build against the shared one: the same seed and steps give the same dump, through a
@@ -52,6 +53,7 @@ public class ReportTests
     /// The report only reads: carcass decay and snow melt are caught up on copies, so the save
     /// is the same byte for byte before and after every report.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Reports_change_nothing_in_the_world()
     {
         var w = SharedLived.Copy();
