@@ -15,7 +15,7 @@ public class TestWorldSourceTests
     {
         ["TestWorlds.cs"] = (2, "the source itself: it builds and loads"),
         ["TestWorldsTests.cs"] = (1, "checks the source against World.New"),
-        ["SaveTests.cs"] = (10, "the save format and loading are the subject"),
+        ["SaveTests.cs"] = (8, "the save format and loading are the subject"),
         ["ContentTests.cs"] = (1, "a search over seeds"),
         ["PoolsTests.cs"] = (5, "searches over seeds 1-40"),
         ["HerdTests.cs"] = (5, "searches over 24, 60 and 200 seeds, and the valley's population is the subject"),

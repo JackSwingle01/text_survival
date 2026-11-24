@@ -35,6 +35,9 @@ For the clean-room rebuild (`rebuild/`):
   on the map each minute.
 - Run long simulations, sweeps and probes in Release (`-c Release`), and split independent seeds
   across parallel processes.
+- Changing what a save holds: follow `documentation/save-format.md`. The format is derived from the
+  saved types, so there is no version number to raise and no changelog to append to; regenerate the
+  fixture and commit it with the change.
 - Skip the old suite (`text_survival.Tests`) and the full solution build unless files outside
   `rebuild/` changed.
 - Wait for long runs with `run_in_background` and its completion notice, not `until ...; do sleep`

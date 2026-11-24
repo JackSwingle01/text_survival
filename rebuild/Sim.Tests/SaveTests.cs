@@ -2,33 +2,78 @@ using System.Text.Json;
 
 namespace Survival.Tests;
 
-/// The save format: every save says which format it is in, and a fixed sample save, committed under
+/// The save format: every save says which format it is in (derived from the saved types), and a fixed sample world, committed under
 /// Fixtures/, must load and save again byte for byte, so a change to the format is always deliberate
 /// (documentation/save-format.md).
 public class SaveTests
 {
     [Fact]
-    public void ASave_CarriesTheFormatVersion()
+    public void ASave_CarriesTheFormat()
     {
         using var doc = JsonDocument.Parse(Save.ToJson(World.New(17)));
-        Assert.Equal(Save.FormatVersion, doc.RootElement.GetProperty("Version").GetInt32());
+        Assert.Equal(Save.Format, doc.RootElement.GetProperty("Format").GetString());
     }
 
     [Fact]
     public void ASaveInAnotherFormat_IsRefused_NamingBoth()
     {
         string json = Save.ToJson(World.New(17));
-        string other = json.Replace($"{{\"Version\":{Save.FormatVersion},", $"{{\"Version\":{Save.FormatVersion + 1},");
+        string other = json.Replace($"{{\"Format\":\"{Save.Format}\",", "{\"Format\":\"0123456789ab\",");
         var e = Assert.Throws<JsonException>(() => Save.FromJson(other));
-        Assert.Contains($"format {Save.FormatVersion + 1}", e.Message);
-        Assert.Contains($"format {Save.FormatVersion}", e.Message.Replace($"format {Save.FormatVersion + 1}", ""));
+        Assert.Contains("format 0123456789ab", e.Message);
+        Assert.Contains($"format {Save.Format}", e.Message);
     }
 
     [Fact]
-    public void ASaveWithNoVersion_IsRefused()
+    public void ASaveWithNoFormat_IsRefused()
     {
         var e = Assert.Throws<JsonException>(() => Save.FromJson("""{"Seed":17,"Minute":0}"""));
-        Assert.Contains("no format version", e.Message);
+        Assert.Contains("no format", e.Message);
+    }
+
+    [Fact]
+    public void ASaveInAnOldNumberedFormat_IsRefused()
+    {
+        var e = Assert.Throws<JsonException>(() => Save.FromJson("""{"Version":27,"World":{}}"""));
+        Assert.Contains("numbered format 27", e.Message);
+        Assert.Contains($"format {Save.Format}", e.Message);
+    }
+
+    record ToyV1(int Minute, string Name);
+    record ToyV2(int Minute, string Name, double SnowM);
+    record ToyRenamed(int Minute, string Label);
+    enum ToyKind { Hare, Wolf }
+    record ToyHolder(ToyKind Kind, Dictionary<AgentId, List<ToyV1>> ByAgent, Activity? Doing);
+
+    static string Describe(Type t) => Save.Describe(t, new JsonSerializerOptions { TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver() });
+
+    /// The format is the saved types' shape: what the serializer would read differently changes it.
+    [Fact]
+    public void TheFormat_IsTheShapeOfTheSavedTypes()
+    {
+        string v1 = Describe(typeof(ToyV1)).Replace("ToyV1", "Toy");
+        Assert.NotEqual(v1, Describe(typeof(ToyV2)).Replace("ToyV2", "Toy"));      // a field added
+        Assert.NotEqual(v1, Describe(typeof(ToyRenamed)).Replace("ToyRenamed", "Toy")); // a field renamed
+        Assert.Equal(v1, Describe(typeof(ToyV1)).Replace("ToyV1", "Toy"));          // and nothing else moves it
+    }
+
+    /// The description reaches through collections, nullables, enums, polymorphic bases and custom converters.
+    [Fact]
+    public void TheFormat_ReachesEverySavedType()
+    {
+        string d = Describe(typeof(ToyHolder));
+        Assert.Contains("enum Hare=0,Wolf=1", d);                  // enum names and numbers
+        Assert.Contains("converter Survival.AgentIdConverter", d); // a type written by its own converter
+        Assert.Contains("raid=Survival.Raid", d);                 // a derived activity by its discriminator
+        Assert.Contains("Minute:System.Int32", d);                // the element type inside a map of lists
+    }
+
+    [Fact]
+    public void TheFormat_ChangesWithAChangeOfMeaning()
+    {
+        string d = Describe(typeof(ToyV1));
+        Assert.NotEqual(Save.Fingerprint(d, "#1 a"), Save.Fingerprint(d, "#2 b"));
+        Assert.Equal(Save.Fingerprint(d, "#1 a"), Save.Fingerprint(d, "#1 a"));
     }
 
     /// A raid lasts a minute, so nothing saves one today; this keeps one saveable if it ever lasts longer.
@@ -55,7 +100,7 @@ public class SaveFixtureTests
 {
     static readonly AgentId P = AgentId.Player;
 
-    /// Set to regenerate the fixture from SampleWorld (after raising Save.FormatVersion).
+    /// Set to regenerate the fixture from SampleWorld (after a format change).
     const string UpdateVariable = "SURVIVAL_UPDATE_SAVE_FIXTURE";
 
     static string FixturePath()
@@ -127,11 +172,11 @@ public class SaveFixtureTests
         if (Environment.GetEnvironmentVariable(UpdateVariable) == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, Indented(Save.ToJson(SampleWorld())));
+            File.WriteAllText(path, Indented(Save.WorldToJson(SampleWorld())));
         }
         Assert.True(File.Exists(path), $"No sample save at {path}: see documentation/save-format.md");
         string fixture = File.ReadAllText(path);
-        Assert.True(fixture == Indented(Save.ToJson(Save.FromJson(fixture))),
+        Assert.True(fixture == Indented(Save.WorldToJson(Save.WorldFromJson(fixture))),
             $"The save format changed: loading {Path.GetFileName(path)} and saving again gives different bytes. " +
             "Make the change deliberate: documentation/save-format.md.");
     }
@@ -140,8 +185,8 @@ public class SaveFixtureTests
     [Fact]
     public void TheSampleSave_RunsOn_AsTheWorldItWasSavedFrom()
     {
-        var loaded = Save.FromJson(File.ReadAllText(FixturePath()));
-        var again = Save.FromJson(File.ReadAllText(FixturePath()));
+        var loaded = Save.WorldFromJson(File.ReadAllText(FixturePath()));
+        var again = Save.WorldFromJson(File.ReadAllText(FixturePath()));
         Sim.Step(loaded, new Wait(P), 120);
         Sim.Step(again, new Wait(P), 60);
         Sim.Step(again, new Wait(P), 60);

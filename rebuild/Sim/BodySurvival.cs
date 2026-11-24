@@ -567,7 +567,7 @@ public static partial class Body
     }
 
     const double CollapsePctPerMinute = 0.01;
-    /// The unit of a saved Asleep severity: changing MaxCollapseMinutes raises Save.FormatVersion.
+    /// The unit of a saved Asleep severity: changing MaxCollapseMinutes is a change of meaning (Save.MeaningChange).
     const int MinCollapseMinutes = 15, MaxCollapseMinutes = 90;
 
     /// Dropped from exhaustion, not the chosen Sleep activity: it can only sleep it out (Sim).
