@@ -12,7 +12,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
 
     static World WithPools(params PoolDef[] pools)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         w.PoolCache = new() { [Map.Of(w).Camp] = pools };
         return w;
@@ -97,7 +97,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
     [Fact]
     public void WaterClues_AreOnlyNoticedByWater_AndForestOnesOnlyWithTrees()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         int checkedTiles = 0;
         for (int x = 0; x < m.Width && checkedTiles < 60; x += 3)
@@ -254,7 +254,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
         }
         Assert.Equal(bands.Count - 1, last);
 
-        var walker = World.New(17);
+        var walker = TestWorlds.New(17);
         walker.FixedWeather = Mild;
         var from = walker.Agent(P).Tile;
         var go = Verbs.At(walker, P).Walk.First(v => v.Allowed);
@@ -299,7 +299,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
         var w = WithPools(Forage);
         var first = Sim.Step(w, new Gather(P, 0), 10).Events.OfType<TutorialShown>().ToList();
         Assert.Contains(first, t => t.Tutorial == Tutorial.FirstClue);
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         loaded.PoolCache = new() { [Camp(loaded)] = [Forage] };
         Assert.DoesNotContain(Sim.Step(loaded, new Gather(P, 0), 10).Events.OfType<TutorialShown>(), t => t.Tutorial == Tutorial.FirstClue);
         Assert.All(Enum.GetValues<Tutorial>(), t => Assert.False(string.IsNullOrWhiteSpace(Tutorials.Text(t, 3))));

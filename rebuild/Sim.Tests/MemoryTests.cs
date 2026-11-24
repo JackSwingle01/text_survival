@@ -9,7 +9,7 @@ public class MemoryTests
 
     static World Mild17()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         return w;
     }
@@ -48,7 +48,7 @@ public class MemoryTests
     /// The minute a fire would die if nobody touched it from now, worked out on a copy of the world.
     static long DiesAt(World w, FireId id)
     {
-        var copy = Save.FromJson(Save.ToJson(w));
+        var copy = TestWorlds.Load(Save.ToJson(w));
         var events = new List<WorldEvent>();
         for (int i = 0; i < 48 * 60 && events.OfType<FireDied>().All(e => e.Fire != id); i++)
         {
@@ -103,7 +103,7 @@ public class MemoryTests
         Assert.All(places, p => Assert.Contains(p.Key, Sight.Visible(w, camp)));
         Assert.All(places.Where(p => p.Key != camp), p => Assert.True(p.Value.Trees || p.Value.Water || p.Value.Fire != null || p.Value.Shelter != null || p.Value.Danger != Danger.None));
         string json = Save.ToJson(w);
-        Assert.Equal(json, Save.ToJson(Save.FromJson(json)));
+        Assert.Equal(json, Save.ToJson(TestWorlds.Load(json)));
     }
 
     // ---- the ground explored (Memory.Explored) ----
@@ -117,7 +117,7 @@ public class MemoryTests
     [Fact]
     public void ANewWorld_HasLookedAroundOnce()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var inView = Sight.Visible(w, camp, Eyes(w, P));
         Assert.Equal(inView.Count, Explored(w, P).Count);
@@ -174,13 +174,13 @@ public class MemoryTests
     {
         World Walk(int chunk, bool reload)
         {
-            var w = World.New(17);
+            var w = TestWorlds.New(17);
             foreach (var dir in new[] { Direction.East, Direction.East, Direction.South, Direction.East })
             {
                 for (int done = 0; done < 90; done += chunk)
                 {
                     if (Sim.Step(w, new Travel(P, dir), chunk).InterruptedReason is "arrived") break;
-                    if (reload) w = Save.FromJson(Save.ToJson(w));
+                    if (reload) w = TestWorlds.Load(Save.ToJson(w));
                 }
                 Sim.Step(w, new Wait(P), 30);
             }
@@ -191,7 +191,7 @@ public class MemoryTests
         string json = Save.ToJson(whole);
         Assert.Equal(json, Save.ToJson(Walk(1, false)));
         Assert.Equal(json, Save.ToJson(Walk(7, true)));
-        var loaded = Save.FromJson(json);
+        var loaded = TestWorlds.Load(json);
         Assert.Equal(Explored(whole, P).Count, Explored(loaded, P).Count);
         Assert.Equal(json, Save.ToJson(loaded));
     }
@@ -212,7 +212,7 @@ public class MemoryTests
     [Fact]
     public void GroundOutOfSight_IsTheGroundAsLastSeen_AfterASaveAndLoad()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Cold;
         var camp = Map.Of(w).Camp;
         var t = InViewFrom(w, camp);
@@ -229,7 +229,7 @@ public class MemoryTests
         TestKit.EditGround(w, t, (g, _) => g.Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow)); // gone while nobody looked
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
 
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         var remembered = Explored(loaded, P).At(t)!.Value;
         Assert.Equal(seenM, remembered.Surface.SnowDepthM, 3);
         Assert.Equal(2 * Memories.GlanceMinutes, remembered.SeenMinute);
@@ -310,7 +310,7 @@ public class MemoryTests
         Assert.False(Sight.InSight(w, w.Agent(P), a) || Sight.InSight(w, w.Agent(P), b));
         Tread(w, a, b, Tracks.TrailAt + 0.05); // trodden in while nobody looked
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(TrailTier.Path, Explored(loaded, P).TrailTierAt(a, b));
 
         Put(loaded, P, camp);
@@ -482,7 +482,7 @@ public class MemoryTests
     {
         (World, TileId) Make()
         {
-            var w = World.New(17);
+            var w = TestWorlds.New(17);
             w.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 10, 0.1, 0, 0.8, WindDirection.North);
             var t = Away(w, Map.Of(w).Camp, 12);
             Shelters.Place(w, t, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
@@ -620,7 +620,7 @@ public class MemoryTests
         Assert.Equal(Journal.MaxEntriesPerTile, w.Journal[camp].Count);
         Assert.Equal(5, w.Journal[camp][0].Minute); // the oldest went first
         string json = Save.ToJson(w);
-        var loaded = Save.FromJson(json);
+        var loaded = TestWorlds.Load(json);
         Assert.Equal(json, Save.ToJson(loaded));
         Assert.IsType<PutOnPile>(loaded.Journal[camp][^1]);
     }
@@ -714,7 +714,7 @@ public class MemoryTests
     [Fact]
     public void NpcMemory_IsTheSharedModel()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var npc = Npc.Spawn(w, Map.Of(w).Camp);
         NpcDriver.Live(w, npc, 1440);
         var places = ((NpcMind)w.Agent(npc).Mind).Memory.Places;
@@ -749,7 +749,7 @@ public class MemoryTests
                     var r = Sim.Step(w, make(), n, more: done + n < total); // one job: work held between its chunks
                     Assert.True(r.MinutesElapsed > 0, r.InterruptedReason);
                     done += r.MinutesElapsed;
-                    if (reload) w = Save.FromJson(Save.ToJson(w));
+                    if (reload) w = TestWorlds.Load(Save.ToJson(w));
                 }
             }
             Do(() => new Gather(P, 0), 90);

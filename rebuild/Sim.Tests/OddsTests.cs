@@ -102,7 +102,7 @@ public class OddsTests
         {
             for (int seed = 0; seed < 200; seed++)
             {
-                var w = World.New(3);
+                var w = TestWorlds.New(3);
                 ((PersonMind)w.Agent(P).Mind).Skills[Skill.Firecraft] = new SkillProgress { Level = level };
                 if (wet) Effects.Set(w.Agent(P).Body, EffectKind.Wet, 1.0);
                 Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
@@ -139,7 +139,7 @@ public class OddsTests
     [Fact]
     public void InjuryOdds_FollowTheFootingCurve_AndAddUp()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         var hurt = BodyState.BaselineHuman();
         Body.Damage(hurt, new DamageInfo(0.6, DamageType.Blunt, BodyTarget.AnyLeg), Rng.ForSystem(1, "legs"));
@@ -190,7 +190,7 @@ public class OddsTests
     [Fact]
     public void InjuryOdds_WeatherTerm_IsNamedForItsCause()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         var tile = Enumerable.Range(0, m.Width * m.Height).Select(i => new TileId(i % m.Width, i / m.Width))
             .First(t => m.TerrainAt(t).IsPassable() && Traversal.IsHazardous(w, t));
@@ -206,7 +206,7 @@ public class OddsTests
     [Fact]
     public void ForageYield_IsTheOldProduct_AndAddsUp()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var me = w.Agent(P);
         foreach (bool axe in new[] { false, true })
             foreach (bool shovel in new[] { false, true })

@@ -15,7 +15,7 @@ public class ExposureTests
 
     static World Night(WeatherSample sky)
     {
-        var w = World.New(Seed);
+        var w = TestWorlds.New(Seed);
         w.FixedWeather = sky;
         w.Minute = 960; // Jul 2 01:00
         return w;

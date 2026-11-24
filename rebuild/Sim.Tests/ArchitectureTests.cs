@@ -207,7 +207,7 @@ public class ArchitectureTests
     public void ABusyRun_RaisesNoEventWithoutATile()
     {
         var events = Phase3GateTests.RunCollecting(200);
-        var m = Map.Of(World.New(17));
+        var m = Map.Of(TestWorlds.New(17));
         Assert.True(events.Select(e => e.GetType()).Distinct().Count() >= 12, string.Join(", ", events.Select(e => e.GetType().Name).Distinct()));
         var bad = events.Where(e => e.Tile == default || !m.InBounds(e.Tile)).Select(e => e.ToString()).Take(5).ToList();
         Assert.True(bad.Count == 0, string.Join("\n", bad));

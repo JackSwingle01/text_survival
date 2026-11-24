@@ -5,7 +5,7 @@ namespace Survival.Tests;
 public class TravelTests
 {
     static readonly AgentId P = AgentId.Player;
-    static readonly GeneratedMap Seed17 = Map.Generate(17);
+    static readonly GeneratedMap Seed17 = TestWorlds.Map(17);
 
     static readonly WeatherSample Calm = new(0, WeatherCondition.Clear, -10, 0, 0, 0, WindDirection.North);
     static readonly WeatherSample Blizzard = new(0, WeatherCondition.Blizzard, -10, 0.8, 0.7, 1, WindDirection.North);
@@ -68,7 +68,7 @@ public class TravelTests
     static World SnowyDecemberAfternoon()
     {
         const int december15 = 349, afternoonMinuteOfDay = 15 * 60;
-        var world = World.New(5);
+        var world = TestWorlds.New(5);
         long first = Enumerable.Range(0, 400).Select(d => d * 1440L).First(t => Weather.DayOfYear(t) == december15);
         long afternoon = first + afternoonMinuteOfDay - Weather.MinuteOfDay(first);
         world.Minute = Enumerable.Range(0, 60).Select(d => afternoon + d * 1440L)
@@ -389,7 +389,7 @@ public class TravelTests
 
     static string RunRoute(int seed, int? saveAtStep = null, int splitMinutes = 3)
     {
-        var world = World.New(seed);
+        var world = TestWorlds.New(seed);
         world.FixedWeather = Calm with { TemperatureC = 5 }; // walking all day, not freezing to death
         int step = 0;
         foreach (var activity in Route(world))
@@ -447,7 +447,7 @@ public class TravelTests
     [Fact]
     public void ALake_IsWadedInJuly_AndWalkedOnAsIceInJanuary()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         var (west, lake, east) = LakeBetweenLand(m);
         var me = w.Agent(P);
@@ -475,7 +475,7 @@ public class TravelTests
     [Fact]
     public void AShore_HasWaterToDrinkInJuly_NotInJanuary()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         var shore = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
             .First(t => m.TerrainAt(t) is Terrain.Forest or Terrain.Plain && m.SiteAt(t) == null && !m.BesideRiver(t) && m.CaveAt(t) == Cave.None
@@ -489,7 +489,7 @@ public class TravelTests
     [Fact]
     public void WaterIsIce_FromFreezeUpToBreakUp()
     {
-        var m = Map.Generate(17);
+        var m = TestWorlds.Map(17);
         var lake = LakeBetweenLand(m).Lake;
         var ice = Content.Tables.WaterIce;
         // The first time each day of the year comes round after 1 July.

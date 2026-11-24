@@ -13,7 +13,7 @@ public class KillChainTests
     /// Seed 17 with nothing else alive in it but the player, in a fixed sky (41 °F: rot at its base rate).
     static World Bare(double tempC = 5, int seed = 17)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, tempC, 0.1, 0, 0.8, WindDirection.North);
         foreach (var id in w.Agents.Keys.Where(id => id != P).ToList()) Agents.Remove(w, id);
         return w;
@@ -39,7 +39,7 @@ public class KillChainTests
         var second = LocationFeatures.PileAt(w, camp)!.Value;
         Assert.NotEqual(first, second);
         Assert.False(LocationFeatures.Exists(w, first), "a held ref to the old pile never names the new one");
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(second, LocationFeatures.PileAt(loaded, camp));
         Assert.Equal(w.NextPileId, loaded.NextPileId);
     }
@@ -57,7 +57,7 @@ public class KillChainTests
         Assert.NotEqual(first, second);
         Assert.False(LocationFeatures.Exists(w, first));
         Assert.True(LocationFeatures.Exists(w, second));
-        Assert.Equal(second, LocationFeatures.ShelterAt(Save.FromJson(Save.ToJson(w)), tile));
+        Assert.Equal(second, LocationFeatures.ShelterAt(TestWorlds.Load(Save.ToJson(w)), tile));
     }
 
     // ---- who killed what ----
@@ -385,7 +385,7 @@ public class KillChainTests
         Sim.Advance(whole, 25 * 1440);
         var stepped = Make();
         Sim.Advance(stepped, 3 * 1440 + 17);
-        stepped = Save.FromJson(Save.ToJson(stepped));
+        stepped = TestWorlds.Load(Save.ToJson(stepped));
         for (int i = 0; i < 7; i++) Sim.Advance(stepped, 1000);
         Sim.Advance(stepped, 25 * 1440 - (3 * 1440 + 17) - 7000);
         Assert.Equal(Save.ToJson(whole), Save.ToJson(stepped));
@@ -398,7 +398,7 @@ public class KillChainTests
 
     static Animals CaribouHerd(World w, int members)
     {
-        var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Caribou)).Territory;
+        var land = Fauna.MindOf(TestWorlds.New(17).Agents.Values.First(a => a.Species == Species.Caribou)).Territory;
         return Animals.Spawn(w, Species.Caribou, land[0], members, [.. land]);
     }
 
@@ -433,7 +433,7 @@ public class KillChainTests
     {
         var w = Bare();
         w.Minute = MinuteOfDayOfYear(140);
-        var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Caribou)).Territory;
+        var land = Fauna.MindOf(TestWorlds.New(17).Agents.Values.First(a => a.Species == Species.Caribou)).Territory;
         var probe = Agents.Spawn(w, Species.Caribou, land[0], [.. land]);
         int full = (int)Math.Ceiling(Fauna.CapacityOf(w, w.Agent(probe)));
         Agents.Remove(w, probe);
@@ -447,7 +447,7 @@ public class KillChainTests
     public void A_PackLongUnfed_Starves()
     {
         var w = Bare();
-        var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Wolf)).Territory;
+        var land = Fauna.MindOf(TestWorlds.New(17).Agents.Values.First(a => a.Species == Species.Wolf)).Territory;
         var wolves = Animals.Spawn(w, Species.Wolf, land[0], 4, [.. land]);
         foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).LastFedMinute = w.Minute - Days(30);
         Sim.Advance(w, 20 * 1440);
@@ -501,7 +501,7 @@ public class KillChainTests
         Assert.True(Fauna.ValleyCapacity(w, Species.Caribou) > 0);
         Assert.Equal(0, Fauna.ValleyCapacity(w, Species.Mammoth));
         // The player out on the open land, where arrivals could otherwise land in plain view.
-        var open = Fauna.MindOf(World.New(seed).Agents.Values.First(a => a.Species is Species.Bison or Species.Caribou)).Territory[0];
+        var open = Fauna.MindOf(TestWorlds.New(seed).Agents.Values.First(a => a.Species is Species.Bison or Species.Caribou)).Territory[0];
         w.Agent(P).Tile = open;
         var fire = new FireId(w.NextFireId++);
         var seen = new HashSet<AgentId>(w.Agents.Keys);
@@ -543,7 +543,7 @@ public class KillChainTests
         Assert.True(arrivals > 0, $"seed {seed}: nothing came into an empty valley in two hundred days");
         Assert.Contains(w.Agents.Values, h => h.Species == Species.Caribou);
         // Capacity is derived, never saved: a loaded world reads the same capacities off the same land.
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         foreach (var herd in w.Agents.Values.Where(a => a.Mind is HerdMind))
             Assert.Equal(Fauna.CapacityOf(w, herd), Fauna.CapacityOf(loaded, loaded.Agent(herd.Id)));
     }
@@ -572,7 +572,7 @@ public class KillChainTests
     public void A_Pack_LeavesMammothsAlone()
     {
         var w = Bare(seed: 123);
-        var land = Fauna.MindOf(World.New(123).Agents.Values.First(a => a.Species == Species.Mammoth)).Territory;
+        var land = Fauna.MindOf(TestWorlds.New(123).Agents.Values.First(a => a.Species == Species.Mammoth)).Territory;
         var mammoths = Animals.Spawn(w, Species.Mammoth, land[0], 6, [.. land]);
         var wolves = Animals.Spawn(w, Species.Wolf, land[0], 6, [land[0]]);
         foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0.95);
@@ -602,7 +602,7 @@ public class KillChainTests
     public void What_LivesOnKills_ThinsWhenTheLandCannotFeedIt()
     {
         var w = Bare();
-        var land = Fauna.MindOf(World.New(17).Agents.Values.First(a => a.Species == Species.Wolf)).Territory;
+        var land = Fauna.MindOf(TestWorlds.New(17).Agents.Values.First(a => a.Species == Species.Wolf)).Territory;
         var wolves = Animals.Spawn(w, Species.Wolf, land[0], 8, [.. land]);
         var hyenas = Animals.Spawn(w, Species.Hyena, land[0], 6, [.. land]);
         var flock = Animals.Spawn(w, Species.Raven, land[0], 6, [land[0]]);
@@ -787,7 +787,7 @@ public class KillChainTests
     [Fact]
     public void Ground_CarriedOnFromItsClass_IsTheLongWay()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         var plain = Enumerable.Range(5, m.Width - 10).SelectMany(x => Enumerable.Range(5, m.Height - 10).Select(y => new TileId(x, y)))
             .Where(t => m.TerrainAt(t) == Terrain.Plain && m.SiteAt(t) == null && m.CaveAt(t) == Cave.None && t != m.Camp).Take(2).ToList();
@@ -795,7 +795,7 @@ public class KillChainTests
         w.Minute = 4 * 1440 + 7;
         Ground.At(w, plain[0]); // warms the class
         w.Minute = 9 * 1440 + 3;
-        var fresh = World.New(17);
+        var fresh = TestWorlds.New(17);
         fresh.Minute = w.Minute;
         Assert.Equal(Json(Ground.At(fresh, plain[1])), Json(Ground.At(w, plain[1])));
     }
@@ -807,7 +807,7 @@ public class KillChainTests
     [Fact]
     public void Ground_FromTheCache_IsEachTilesOwn_AcrossTheMap()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         static string Json(GroundState g) => System.Text.Json.JsonSerializer.Serialize(g);
         foreach (int day in new[] { 3, 40, 150 })
@@ -832,8 +832,8 @@ public class KillChainTests
     [Fact]
     public void A_BenchNpc_KeepsItsId_WhateverTheValleyHolds()
     {
-        var a = World.New(17);
-        var b = World.New(5);
+        var a = TestWorlds.New(17);
+        var b = TestWorlds.New(5);
         Assert.NotEqual(a.Agents.Count, b.Agents.Count);
         Assert.Equal(new AgentId(NpcBench.FirstId), NpcBench.Spawn(a, Map.Of(a).Camp));
         Assert.Equal(new AgentId(NpcBench.FirstId), NpcBench.Spawn(b, Map.Of(b).Camp));
@@ -845,7 +845,7 @@ public class KillChainTests
     [Fact]
     public void Nearby_IsExact_AsAgentsMove()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         void Check()
         {

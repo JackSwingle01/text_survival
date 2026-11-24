@@ -336,7 +336,7 @@ public class Phase2GateTests(ITestOutputHelper output)
     /// script has to survive the dice, not one lucky draw of them. Null leaves the seed's own streams.
     static World NewWorld(int seed, int? salt = null)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
         if (salt is int s)
             foreach (var sys in PlayerStreams) w.Rngs[StreamName.Of(sys, P)] = Rng.ForSystem(s * 1000003 + seed, sys + ":salt");
@@ -416,7 +416,7 @@ public class Phase2GateTests(ITestOutputHelper output)
         var half = NewWorld(17);
         var tally = new Tally();
         for (int day = 0; day < 15; day++) PlayDay(half, tally);
-        var resumed = Run(17, fromDay: 15, start: Save.FromJson(Save.ToJson(half))).World;
+        var resumed = Run(17, fromDay: 15, start: TestWorlds.Load(Save.ToJson(half))).World;
         Assert.Equal(Save.ToJson(straight), Save.ToJson(resumed));
     }
 

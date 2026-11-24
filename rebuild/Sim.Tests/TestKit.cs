@@ -51,22 +51,13 @@ static class TestKit
 }
 
 /// A warm-up world several tests build alike, built once per test run (even under parallel tests) and
-/// handed to each test as its own save/load copy, so one test's changes never reach another. The copy is
-/// given the build's generated map, which is read-only once generated and is not in a save.
+/// handed to each test as its own save/load copy, so one test's changes never reach another. The copy loads
+/// through TestWorlds.Load, onto the seed's shared map.
 sealed class SharedWorld(Func<World> build)
 {
-    readonly Lazy<(string Json, GeneratedMap Map)> built = new(() =>
-    {
-        var w = build();
-        return (Save.ToJson(w), Map.Of(w));
-    });
+    readonly Lazy<string> json = new(() => Save.ToJson(build()));
 
-    public World Copy()
-    {
-        var w = Save.FromJson(built.Value.Json);
-        w.GeneratedMap = built.Value.Map;
-        return w;
-    }
+    public World Copy() => TestWorlds.Load(json.Value);
 }
 
 /// Animals a test spawned together, in id order. Where one id is wanted, they stand for the first.

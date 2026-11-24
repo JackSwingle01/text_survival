@@ -11,7 +11,7 @@ static class ConservationWorlds
     /// generating it a few hundred.
     static readonly SharedWorld Template = new(() =>
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         foreach (var id in w.Agents.Keys.Where(id => id != P).ToList()) Agents.Remove(w, id);
         return w;
     });

@@ -433,7 +433,7 @@ public class GroundTests
 
     // ================= the world: weather in, lazy catch-up, wiring =================
 
-    static readonly GeneratedMap Seed17 = Map.Generate(17);
+    static readonly GeneratedMap Seed17 = TestWorlds.Map(17);
 
     static World World17(WeatherSample? sky = null, TileId? at = null)
     {
@@ -661,11 +661,11 @@ public class GroundTests
     public void TheGround_CarriesOnTheSame_AcrossASaveAndLoad()
     {
         // Read directly: seed 17 opens in heavy snow, and an agent with no fire would not live the days.
-        var world = World.New(17);
+        var world = TestWorlds.New(17);
         var tiles = Enumerable.Range(0, 5).Select(i => new TileId(Seed17.Camp.X + i, Seed17.Camp.Y)).ToList();
         world.Minute = 3 * 1440;
         foreach (var t in tiles) Ground.At(world, t); // warms the classes, which the save leaves out
-        var loaded = Save.FromJson(Save.ToJson(world));
+        var loaded = TestWorlds.Load(Save.ToJson(world));
         world.Minute = loaded.Minute = 4 * 1440 + 7;
         Assert.Equal(tiles.Select(t => Json(Ground.At(world, t))), tiles.Select(t => Json(Ground.At(loaded, t))));
         Assert.Equal(Save.ToJson(world), Save.ToJson(loaded));
@@ -676,7 +676,7 @@ public class GroundTests
     [Fact]
     public void FirstReadOnDay30_IsCheap_AndThreeHundredTilesKeepTheSaveSmall()
     {
-        var world = World.New(17);
+        var world = TestWorlds.New(17);
         world.Minute = 30 * 1440;
         var tiles = Enumerable.Range(0, 300).Select(i => new TileId(5 + i % 60, 30 + i / 60)).ToList();
         Ground.At(world, new TileId(4, 30)); // JIT and the weather timeline
@@ -694,7 +694,7 @@ public class GroundTests
     [Fact]
     public void TheActingAgentsTile_IsReadEveryMinute_AndKeepsNoGround()
     {
-        var world = World.New(17);
+        var world = TestWorlds.New(17);
         var watch = Stopwatch.StartNew();
         var result = Sim.Step(world, new Wait(P), 30 * 1440);
         Console.WriteLine($"wait: {result.MinutesElapsed} min ({result.InterruptedReason}) in {watch.ElapsedMilliseconds} ms, save {Save.ToJson(world).Length / 1024} KB");
