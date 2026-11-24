@@ -149,6 +149,10 @@ jobs:
         uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1, 2026-11-20
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Most builds are dispatched by triage or by the build before them, as github-actions,
+          # and the action refuses bot actors unless named here. Only this repo's own workflows act
+          # as that bot, so this lets in nothing from outside.
+          allowed_bots: github-actions
           prompt: "Reply with the single word ok."
           claude_args: --model claude-haiku-5-5 --max-turns 1
 
@@ -205,6 +209,10 @@ jobs:
           CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Most builds are dispatched by triage or by the build before them, as github-actions,
+          # and the action refuses bot actors unless named here. Only this repo's own workflows act
+          # as that bot, so this lets in nothing from outside.
+          allowed_bots: github-actions
           plugin_marketplaces: "https://github.com/JackSwingle01/skills.git"
           plugins: "mp@jackswingle01"
           prompt: |
