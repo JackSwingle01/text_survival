@@ -43,7 +43,9 @@ public class SaveTests
     record ToyV2(int Minute, string Name, double SnowM);
     record ToyRenamed(int Minute, string Label);
     enum ToyKind { Hare, Wolf }
-    record ToyHolder(ToyKind Kind, Dictionary<AgentId, List<ToyV1>> ByAgent, Activity? Doing);
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<ToyNamed>))]
+    enum ToyNamed { Calm, Storm }
+    record ToyHolder(ToyKind Kind, ToyNamed Named, Dictionary<AgentId, List<ToyV1>> ByAgent, Activity? Doing);
 
     static string Describe(Type t) => Save.Describe(t, new JsonSerializerOptions { TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver() });
 
@@ -62,7 +64,8 @@ public class SaveTests
     public void TheFormat_ReachesEverySavedType()
     {
         string d = Describe(typeof(ToyHolder));
-        Assert.Contains("enum Hare=0,Wolf=1", d);                  // enum names and numbers
+        Assert.Contains("enum Hare=0,Wolf=1\n", d);                // enum names and numbers
+        Assert.Contains("enum Calm=0,Storm=1 via System.Text.Json.Serialization.JsonStringEnumConverter`1[", d); // and its own converter
         Assert.Contains("converter Survival.AgentIdConverter", d); // a type written by its own converter
         Assert.Contains("raid=Survival.Raid", d);                 // a derived activity by its discriminator
         Assert.Contains("Minute:System.Int32", d);                // the element type inside a map of lists

@@ -75,7 +75,8 @@ public static class Save
             return "nullable " + Name(inner);
         }
         if (type.IsEnum)
-            return "enum " + string.Join(",", Enum.GetNames(type).Select(n => $"{n}={Convert.ToInt64(Enum.Parse(type, n))}"));
+            return "enum " + string.Join(",", Enum.GetNames(type).Select(n => $"{n}={Convert.ToInt64(Enum.Parse(type, n))}"))
+                + (type.GetCustomAttribute<JsonConverterAttribute>()?.ConverterType is Type enumConverter ? " via " + Name(enumConverter) : "");
         if (type.GetCustomAttribute<JsonConverterAttribute>()?.ConverterType is Type own)
             return "converter " + Name(own);
 
