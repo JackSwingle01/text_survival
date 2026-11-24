@@ -122,7 +122,7 @@ public class MemoryTests
         var inView = Sight.Visible(w, camp, Eyes(w, P));
         Assert.Equal(inView.Count, Explored(w, P).Count);
         Assert.All(inView, t => Assert.True(Explored(w, P).Contains(t), $"{t} in view but not explored"));
-        Assert.Equal(Save.ToJson(w), Save.ToJson(TestWorlds.New(17)));
+        Assert.Equal(Save.ToJson(w), Save.ToJson(World.New(17)));
     }
 
     /// Everything in view is explored, bare ground too, which Places leaves out.

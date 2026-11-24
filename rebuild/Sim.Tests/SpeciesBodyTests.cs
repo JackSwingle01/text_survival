@@ -343,7 +343,7 @@ public class SpeciesBodyTests
             }
         }
         Assert.True(fats.Distinct().Count() == fats.Count, "two people drew the same fat");
-        Assert.Equal(TestWorlds.New(3).Agent(AgentId.Player).Body.FatKg, TestWorlds.New(3).Agent(AgentId.Player).Body.FatKg);
+        Assert.Equal(World.New(3).Agent(AgentId.Player).Body.FatKg, World.New(3).Agent(AgentId.Player).Body.FatKg);
     }
 
     [Fact]

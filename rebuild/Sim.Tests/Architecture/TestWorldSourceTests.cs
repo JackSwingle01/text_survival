@@ -29,6 +29,8 @@ public class TestWorldSourceTests
         ["TravelTests.cs"] = (1, "a load mid-crossing against a straight run is the subject"),
         ["NpcBenchReport.cs"] = (1, "a benchmark of the real world, run only with NPC_BENCH=1"),
         ["PlanBenchReport.cs"] = (1, "a benchmark of the real world over its own seeds"),
+        ["SpeciesBodyTests.cs"] = (2, "two World.New of one seed draw the same fat: determinism is the subject"),
+        ["MemoryTests.cs"] = (1, "a seed's World.New looks the same: determinism is the subject"),
     };
 
     /// Files still to move onto TestWorlds. Only shrinks.
