@@ -101,39 +101,33 @@ public class IndividualsTests(ITestOutputHelper output)
         Assert.True(hunts >= 3, $"only {hunts} of 6 packs hunted the caribou beside them");
     }
 
-    /// A pack that catches a scent goes to where it smelled the prey, even once it is out of range: it does
-    /// not forget and turn back the moment the scent fades (which, on the edge of its range, walked a
-    /// starving pack to and fro between two tiles for days). A valley emptied of animals, so the pack has
-    /// only the one scent to follow.
+    /// A hungry pack that senses a caribou down a run of open plain goes to it and kills it (the quarry as a food source,
+    /// valued by the kill-chance forecast); a valley emptied of animals, so the pack has only the one caribou to go after.
+    /// (Was: a pack keeps on to where it last smelled prey, the old stalk's scent; a quarry sighting now stays until the
+    /// pack sees its tile empty.)
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
-    public void APack_KeepsOnToWhereItLastSmelledPrey(int seed)
+    public void AHungryPack_GoesToTheQuarryItSenses_AndKillsIt(int seed)
     {
         var w = TestWorlds.New(seed);
         foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
         var m = Map.Of(w);
-        int range = Fauna.DetectionRangeTiles(Species.Wolf);
-        // A straight run of open plain, the pack at one end and the scent at the other.
+        const int range = 6;
         bool Open(TileId t) => m.InBounds(t) && m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null;
         var tile = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
             .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Enumerable.Range(0, range + 1).All(i => Open(new TileId(t.X + i, t.Y))
                 && (i == 0 || Map.Blocked(m, new TileId(t.X + i - 1, t.Y), new TileId(t.X + i, t.Y)) == null)));
-        var scent = new TileId(tile.X + range, tile.Y);
+        var at = new TileId(tile.X + range, tile.Y);
         var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
-        foreach (var wolf in pack.Select(w.Agent))
-        {
-            TestKit.SetHunger(wolf, 0.95);
-            Fauna.MindOf(wolf).State = HerdState.Patrolling;
-        }
-        var caribou = Agents.Spawn(w, Species.Caribou, scent);
+        foreach (var wolf in pack.Select(w.Agent)) TestKit.SetHunger(wolf, 0.95);
+        var caribou = Agents.Spawn(w, Species.Caribou, at);
         Fauna.MindOf(w.Agent(caribou)).State = HerdState.Resting;
-        for (int i = 0; i < 120 && pack.All(id => w.Agent(id).Tile == tile); i++) Sim.Advance(w, 1);
-        Assert.Contains(pack, id => MapGen.Manhattan(w.Agent(id).Tile, scent) < range); // it set out after the scent
-        Agents.Remove(w, caribou); // the scent is gone: what is left is where it was
-        for (int i = 0; i < 6 * 60 && !pack.Any(id => w.Agent(id).Tile == scent); i++) Sim.Advance(w, 1);
-        Assert.Contains(pack, id => w.Agent(id).Tile == scent);
+        var killed = new List<Killed>();
+        for (int i = 0; i < 6 * 60 && killed.Count == 0; i++) killed.AddRange(Sim.Advance(w, 1).OfType<Killed>().Where(k => k.Agent == caribou));
+        var kill = Assert.Single(killed);
+        Assert.Contains(pack, id => kill.By == id);
     }
 
     /// A flock follows a raven that flies off, though its flight starts and ends inside its own minute and
@@ -294,7 +288,8 @@ public class IndividualsTests(ITestOutputHelper output)
 /// The cohesion gate (spec "Testing Decisions"): 60 days, several seeds, in Release, every metric per species. A herd
 /// here is the animals of a species on a connected group of occupied tiles (8 neighbours), so a herd spread over
 /// several tiles while it grazes counts as one (#83, Jack 2026-11-24). Bands were set from a first run (work log,
-/// 2026-11-23-83). Pack stability and kill rates are #84's. One class per seed, so they run side by side. A look every
+/// 2026-11-23-83). Packs are the wolves (or hyenas) familiar with each other (#84): those at the first look after the
+/// warm-up must neither merge nor dissolve unless killed off, and rival packs should keep apart. One class per seed, so they run side by side. A look every
 /// seven minutes, which no cycle fitting the hour can keep landing on the same phase of, as a look every hour could (#96).
 /// It measures after a warm-up, so the populated start isn't counted. It fails only on what means something is broken
 /// (allocation past twice the ceiling, an open-group species mostly alone); every other limit is reported, and one
@@ -307,8 +302,18 @@ public static class CohesionGate
     const double MaxBlobLooksPct = 0.5;
     /// What fails the gate: allocation past twice its ceiling, or an open-group species alone this much.
     const double BrokenAllocationFactor = 2, BrokenAlonePct = 0.25;
-    /// Their hunger is the stand-ins' until #84 (the hunt) and #85 (the carrion flock), so the deaths band skips them.
-    static readonly Species[] StandIns = [Species.Raven, Species.Hyena, Species.Wolf];
+    /// Their hunger is the carrion flock's stand-in until #85, so the deaths band skips them.
+    static readonly Species[] StandIns = [Species.Raven];
+    static readonly Species[] ClosedGroup = [Species.Wolf, Species.Hyena];
+    /// Kills a week by a pack species, a band set from the run with the hunt on the planner (work log 2026-11-24-84:
+    /// wolves 1.1-2.0, hyenas 1.6-4.9 on the four seeds).
+    const double MinKillsPerWeek = 0.5, MaxKillsPerWeek = 10;
+    /// The longest a pack animal whose food is due goes with no quarry within its sight's reach, in days (the same run: 1.7-23.4).
+    const double MaxDaysWithoutPrey = 25;
+    /// The share of looks two rival packs are within a tile of each other.
+    const double MaxRivalsNearPct = 0.05;
+    /// The most the count of packs may move from the first look's.
+    const int MaxPackCountDrift = 2;
     const int BlobFloor = 20;
     /// Splits and joins an animal-day (a look at which its herd's members had changed) at least: a frozen lockstep has none.
     const double MinRegroupsPerAnimalDay = 0.5;
@@ -330,6 +335,43 @@ public static class CohesionGate
         public double MaxHerdPct, WaterTilePctSum;
         public int Looks;
         public List<int> Herds = [];
+        public long Kills, HungryLooks, RivalsNearLooks;
+        public int MinPacks = int.MaxValue, MaxPacks, FirstPacks = -1;
+        public double LongestWithoutPreyDays;
+    }
+
+    /// The packs of a closed-group species: its living animals linked by mutual kinship (Fauna.IsKin), two or more.
+    internal static List<HashSet<AgentId>> Packs(List<Agent> ofOneSpecies)
+    {
+        var packs = new List<HashSet<AgentId>>();
+        var placed = new HashSet<AgentId>();
+        foreach (var start in ofOneSpecies)
+        {
+            if (!placed.Add(start.Id)) continue;
+            var pack = new HashSet<AgentId> { start.Id };
+            var queue = new Queue<Agent>([start]);
+            while (queue.TryDequeue(out var a))
+                foreach (var b in ofOneSpecies)
+                    if (!placed.Contains(b.Id) && Fauna.IsKin(a, b) && Fauna.IsKin(b, a)) { placed.Add(b.Id); pack.Add(b.Id); queue.Enqueue(b); }
+            if (pack.Count > 1) packs.Add(pack);
+        }
+        return packs;
+    }
+
+    /// A predator's look while its food is due: the stretch it has gone with no quarry within its roam's reach (its
+    /// species' clear sight), the longest kept.
+    static void Hungry(World w, List<Agent> predators, Tally t, Dictionary<AgentId, int> withoutPrey, double looksPerDay)
+    {
+        foreach (var p in predators)
+        {
+            bool due = Priorities.AnimalFoodPriority(p.Body, SpeciesTable.Of(p.Species).FatPct, seeingTo: false) >= Priority.Need;
+            int reach = (int)(Sight.OpenGroundTiles * SpeciesTable.Of(p.Species).PerceptionFactor);
+            bool prey = Nearby.Within(w, p.Tile, reach).Any(a => a.Mind is HerdMind && Fauna.IsQuarry(a.Species) && Sim.IsAlive(a));
+            if (!due || prey) { withoutPrey.Remove(p.Id); continue; }
+            t.HungryLooks++;
+            int looks = withoutPrey[p.Id] = withoutPrey.GetValueOrDefault(p.Id) + 1;
+            t.LongestWithoutPreyDays = Math.Max(t.LongestWithoutPreyDays, looks / looksPerDay);
+        }
     }
 
     /// The herds of one species: its animals on each connected group of occupied tiles, 8 neighbours.
@@ -364,6 +406,9 @@ public static class CohesionGate
         var tallies = new SortedDictionary<Species, Tally>();
         Tally Of(Species s) => tallies.TryGetValue(s, out var t) ? t : tallies[s] = new Tally();
         var company = new Dictionary<AgentId, int>();
+        var firstPacks = new Dictionary<Species, List<HashSet<AgentId>>>();
+        var withoutPrey = new Dictionary<AgentId, int>();
+        var merges = new List<string>();
         long allocated = 0;
         for (int minute = 0; minute < Days * 1440; minute += LookEveryMinutes)
         {
@@ -375,6 +420,8 @@ public static class CohesionGate
             foreach (var e in events)
             {
                 if (e is Moved m && w.Agents.TryGetValue(m.Who, out var mover) && mover.Mind is HerdMind) Of(mover.Species).Moves++;
+                if (e is Killed { By: AgentId by } kill && w.Agents.TryGetValue(by, out var killer) && killer.Mind is HerdMind && Fauna.IsPredator(killer.Species)
+                    && Fauna.IsQuarry(kill.Species)) Of(killer.Species).Kills++;
                 if (e is Killed { By: null } k && w.Tiles.GetValueOrDefault(k.Tile)?.Carcasses?.Find(c => c.DiedMinute == k.Minute)?.Cause?.What is "starvation" or "thirst")
                     Of(k.Species).Deaths++;
             }
@@ -399,6 +446,22 @@ public static class CohesionGate
                     }
                 }
                 t.Herds = herds.Select(h => h.Count).OrderDescending().ToList();
+                if (Fauna.IsPredator(group.Key) && Combat.Hunts(group.Key)) Hungry(w, group.ToList(), t, withoutPrey, looksPerDay: 1440.0 / LookEveryMinutes);
+                if (ClosedGroup.Contains(group.Key))
+                {
+                    var packs = Packs(group.ToList());
+                    if (!firstPacks.ContainsKey(group.Key)) (firstPacks[group.Key], t.FirstPacks) = (packs, packs.Count);
+                    (t.MinPacks, t.MaxPacks) = (Math.Min(t.MinPacks, packs.Count), Math.Max(t.MaxPacks, packs.Count));
+                    var first = firstPacks[group.Key];
+                    foreach (var pack in packs)
+                        if (first.Count(f => f.Overlaps(pack)) > 1) merges.Add($"day {minute / 1440}: {group.Key} packs merged into [{string.Join(" ", pack)}]");
+                    var tileOf = group.ToDictionary(a => a.Id, a => a.Tile);
+                    bool near = false;
+                    for (int i = 0; i < first.Count && !near; i++)
+                        for (int j = i + 1; j < first.Count && !near; j++)
+                            near = first[i].Where(tileOf.ContainsKey).Any(a => first[j].Where(tileOf.ContainsKey).Any(b => MapGen.Manhattan(tileOf[a], tileOf[b]) <= 1));
+                    if (near) t.RivalsNearLooks++;
+                }
                 var atWater = group.GroupBy(a => a.Tile).Where(h => Work.HasUnfrozenWater(w, h.Key) || Work.HasOpenWater(w, h.Key))
                     .Select(h => h.Count()).DefaultIfEmpty(0).Max();
                 t.WaterTilePctSum += atWater / (double)living;
@@ -442,7 +505,39 @@ public static class CohesionGate
             Band(blobLooks <= MaxBlobLooksPct, $"one {s} herd held over {MaxHerdPct:P0} of its species at {blobLooks:P1} of looks");
             Band(t.Regroups / animalDays >= MinRegroupsPerAnimalDay, $"{s} regrouped {t.Regroups / animalDays:F2} times an animal-day");
         }
+        var dissolved = new List<string>();
+        foreach (var (s, first) in firstPacks)
+        {
+            var living = w.Agents.Values.Where(a => a.Species == s && a.Mind is HerdMind && Sim.IsAlive(a)).ToList();
+            var now = Packs(living);
+            foreach (var pack in first)
+            {
+                int left = pack.Count(w.Agents.ContainsKey);
+                bool held = now.Any(p => p.Count(pack.Contains) >= 2);
+                output.WriteLine($"seed {seed} {s} pack of {pack.Count} on day {WarmUpDays}: {left} living on day {Days}, {(held ? "still a pack" : left < 2 ? "killed off" : "dissolved")}");
+                if (!held && left >= 2) dissolved.Add($"{s} pack [{string.Join(" ", pack)}] dissolved with {left} living");
+            }
+        }
+        foreach (var (s, t) in tallies)
+        {
+            double weeks = (Days - WarmUpDays) / 7.0;
+            // The saber-tooth lives on its small game (the stand-in grazing) and hunts only when that pays less: no band.
+            if (ClosedGroup.Contains(s))
+            {
+                output.WriteLine($"seed {seed} {s}: {t.Kills / weeks:F1} kills a week; longest without prey in reach while hungry {t.LongestWithoutPreyDays:F1} days");
+                Band(t.Kills / weeks >= MinKillsPerWeek && t.Kills / weeks <= MaxKillsPerWeek, $"{s} made {t.Kills / weeks:F1} kills a week");
+                Band(t.LongestWithoutPreyDays <= MaxDaysWithoutPrey, $"{s} went {t.LongestWithoutPreyDays:F1} days hungry with no prey in reach");
+            }
+            if (t.FirstPacks < 0) continue;
+            output.WriteLine($"seed {seed} {s}: packs {t.FirstPacks} at first, {t.MinPacks}-{t.MaxPacks} over the run; rival packs within a tile at {t.RivalsNearLooks / (double)t.Looks:P2} of looks");
+            Band(t.MaxPacks - t.FirstPacks <= MaxPackCountDrift && t.FirstPacks - t.MinPacks <= MaxPackCountDrift, $"{s} packs ranged {t.MinPacks}-{t.MaxPacks} from {t.FirstPacks}");
+            Band(t.RivalsNearLooks / (double)t.Looks <= MaxRivalsNearPct, $"{s} rival packs within a tile at {t.RivalsNearLooks / (double)t.Looks:P1} of looks");
+        }
         foreach (var o in outside) output.WriteLine($"seed {seed} outside its band: {o}");
+        foreach (var m in merges.Take(5).Concat(dissolved)) output.WriteLine($"seed {seed} BROKEN: {m}");
+        // The ticket's own (#84): rival packs never merge, and a pack lasts the run unless killed off.
+        Assert.True(merges.Count == 0, $"seed {seed}: {merges.FirstOrDefault()}");
+        Assert.True(dissolved.Count == 0, $"seed {seed}: {dissolved.FirstOrDefault()}");
         // Broken: these fail.
         Assert.True(mbPerDay < BrokenAllocationFactor * MaxAllocatedMbPerDay, $"seed {seed}: {mbPerDay:F0} MB a day allocated, over {BrokenAllocationFactor * MaxAllocatedMbPerDay:F0}");
         foreach (var (s, t) in tallies)

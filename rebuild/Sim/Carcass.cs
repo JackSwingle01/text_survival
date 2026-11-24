@@ -53,6 +53,9 @@ public static class Carcasses
     public static ButcherModeProps ModeProps(ButcherMode mode) =>
         Modes.TryGetValue(mode, out var props) ? props : throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
 
+    /// The meat a carcass holds of its body's muscle.
+    public const double MeatOfMusclePct = 0.65;
+
     public static Carcass Create(World world, TileId tile, string animal, BodyState body, long diedMinute,
         bool isBird = false, bool isMegafauna = false, double harvestedPct = 0, IReadOnlyDictionary<Resource, double>? special = null,
         Cause? cause = null)
@@ -60,7 +63,7 @@ public static class Carcasses
         var y = new Dictionary<Resource, double>();
         bool specialHide = special?.ContainsKey(Resource.MammothHide) == true;
         foreach (var (r, kg) in special ?? new Dictionary<Resource, double>()) y[r] = kg;
-        y[Resource.RawMeat] = body.MuscleKg * 0.65;
+        y[Resource.RawMeat] = body.MuscleKg * MeatOfMusclePct;
         y[Resource.RawFat] = body.FatKg * 0.6;
         y[Resource.Bone] = (body.WeightKg - body.MuscleKg - body.FatKg) * 0.25;
         y[Resource.Sinew] = body.WeightKg * 0.05;
