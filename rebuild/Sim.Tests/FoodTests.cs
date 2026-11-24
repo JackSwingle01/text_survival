@@ -128,6 +128,7 @@ public class FoodTests
     public void MammothsAndACaribou_ShareATile_ByIntake_NotByHead()
     {
         var w = Pasture();
+        foreach (var t in w.PoolCache!.Keys.Where(t => t != T(20)).ToList()) w.PoolCache[t] = []; // nowhere better to go
         var mammoth = Hungry(w, Species.Mammoth, T(20));
         for (int i = 0; i < 3; i++) Hungry(w, Species.Mammoth, T(20));
         var caribou = Hungry(w, Species.Caribou, T(20));
@@ -149,9 +150,7 @@ public class FoodTests
         double mKcal = Fauna.GrazeHere(w, mammoth)!.Value.PerMinute, cKcal = Fauna.GrazeHere(w, caribou)!.Value.PerMinute;
         Sim.Advance(w, 1);
         Assert.Equal((T(30), T(5)), (mammoth.Tile, caribou.Tile));
-        // Read back a minute later, after a minute's regrowth: add it back.
-        double Grazed(Agent a) => Fauna.Eats(SpeciesTable.Of(a.Species).Diet)
-            .Max(r => Pools.GrazedLevel(w, new PoolId(a.Tile, 0), r)) + 1.0 / 60 / Pools.ForageRespawnHours;
+        double Grazed(Agent a) => Fauna.Eats(SpeciesTable.Of(a.Species).Diet).Max(r => Pools.GrazedLevel(w, new PoolId(a.Tile, 0), r));
         Assert.Equal(Grazed(mammoth) / mKcal, Grazed(caribou) / cKcal, 9);
         Assert.True(Grazed(mammoth) / Grazed(caribou) < 10, "the mammoth grazed its tile down by its mass");
     }
