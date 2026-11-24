@@ -32,10 +32,11 @@ public sealed record SpeciesStats(
     ActivityPattern Activity,
     FatRange? AutumnFatPct,
     PersonBuild? Female,
+    double SmellFactor,
+    double ScentLevel,
     int? FlightMinutesPerTile = null,
     double PerceptionFactor = 1,
-    double StealthFactor = 1,
-    int DetectionRangeTiles = 8)
+    double StealthFactor = 1)
 {
     public bool IsAnimal => Role != Role.Human;
     public bool IsSkittish => Role == Role.Prey || (Role == Role.Scavenger && IsSmall);

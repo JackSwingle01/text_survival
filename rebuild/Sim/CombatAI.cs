@@ -308,13 +308,13 @@ public static partial class Combat
     }
 
     /// An animal's boldness toward one agent where it stands now: Boldness, with its hunger and learned fear,
-    /// raw meat in the target's pack, the people standing with it, and whether it is defending a kill it holds (Fauna.HoldsAKill).
+    /// the people standing with the target, and whether it is defending a kill it holds (Fauna.HoldsAKill). Carried meat
+    /// draws it by scent (Scent.Of), not by boldness (CMB-16).
     public static double BoldnessToward(World world, Agent animal, Agent target)
     {
         var mind = Fauna.MindOf(animal);
-        bool meat = Items.PackOf(target) is Inventory pack && (Items.Have(pack, Resource.RawMeat) > 0 || Items.Have(pack, Resource.RawFish) > 0);
         return Boldness(world, animal.Id, target.Body, defending: Fauna.HoldsAKill(world, animal), hunger: Fauna.Hunger(animal), fear: mind.Fear,
-            targetCarriesMeat: meat, othersWithTarget: PeopleWith(world, target).Count);
+            othersWithTarget: PeopleWith(world, target).Count);
     }
 
     /// The living people on the target's tile, the target left out.

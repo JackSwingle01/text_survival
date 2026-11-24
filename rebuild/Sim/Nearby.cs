@@ -9,11 +9,13 @@ internal sealed class NearbyIndex
 {
     readonly Dictionary<TileId, List<Agent>> byTile = [];
     internal readonly Agent[] All;
+    internal readonly Agent[] People;
     readonly int nextAgentId;
 
     internal NearbyIndex(World world)
     {
         All = [.. world.Agents.Values];
+        People = Array.FindAll(All, a => a.Mind is PersonMind);
         nextAgentId = world.NextAgentId;
         foreach (var a in All) // id order, so every list starts sorted
         {
@@ -52,6 +54,8 @@ public static class Nearby
 
     /// Living or dead, in id order.
     public static IReadOnlyList<Agent> At(World world, TileId tile) => Index(world).At(tile);
+
+    public static IReadOnlyList<Agent> People(World world) => Index(world).People;
 
     /// Agents within radius tiles (Manhattan), living or dead, in id order.
     public static List<Agent> Within(World world, TileId tile, int radius)

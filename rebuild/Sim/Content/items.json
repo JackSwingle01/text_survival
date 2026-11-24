@@ -4,6 +4,9 @@
 // resources: every Resource has one row. category is its one category (old ResourceCategories);
 //   kcalPerKg and hydrationMlPerKg are what eating a kilo gives (old ConsumptionHandler), 0 if left out;
 //   water must state its hydrationMlPerKg, and only food and water give either.
+//   scentLevel (food only, and every food): what a kilo carried or left out gives off to an animal's nose,
+//   0-1 (Scent). The spec's order, numbers D: raw meat and fish strong, cooked a little less, dried less
+//   again, berries and honey low, nuts and roots near nothing.
 //   Which resources burn, and how, is fire.json's; which build shelters is shelters.json's.
 // gear: the authored design, by kind id (old Gear factory methods). An item carries only its kind and
 //   wear. maxDurability is stated on every kind; -1 never wears out. insulation is tenths of a clo over the slot's share of the
@@ -27,17 +30,17 @@
   "Birch": { "category": "Fuel" },
   "Oak": { "category": "Fuel" },
   "Peat": { "category": "Fuel" },
-  "CookedMeat": { "category": "Food", "kcalPerKg": 2500 },
-  "RawMeat": { "category": "Food", "kcalPerKg": 1500 },
-  "Berries": { "category": "Food", "kcalPerKg": 500, "hydrationMlPerKg": 200 },
-  "Honey": { "category": "Food", "kcalPerKg": 3000 },
-  "Nuts": { "category": "Food", "kcalPerKg": 6000 },
-  "Roots": { "category": "Food", "kcalPerKg": 400, "hydrationMlPerKg": 100 },
-  "DriedMeat": { "category": "Food", "kcalPerKg": 3000, "hydrationMlPerKg": -50 },
-  "DriedBerries": { "category": "Food", "kcalPerKg": 2500 },
-  "CookedFish": { "category": "Food", "kcalPerKg": 1400 },
-  "RawFish": { "category": "Food", "kcalPerKg": 1200 },
-  "DriedFish": { "category": "Food", "kcalPerKg": 2800, "hydrationMlPerKg": -30 },
+  "CookedMeat": { "category": "Food", "kcalPerKg": 2500, "scentLevel": 0.5 },
+  "RawMeat": { "category": "Food", "kcalPerKg": 1500, "scentLevel": 0.6 },
+  "Berries": { "category": "Food", "kcalPerKg": 500, "hydrationMlPerKg": 200, "scentLevel": 0.1 },
+  "Honey": { "category": "Food", "kcalPerKg": 3000, "scentLevel": 0.1 },
+  "Nuts": { "category": "Food", "kcalPerKg": 6000, "scentLevel": 0.02 },
+  "Roots": { "category": "Food", "kcalPerKg": 400, "hydrationMlPerKg": 100, "scentLevel": 0.02 },
+  "DriedMeat": { "category": "Food", "kcalPerKg": 3000, "hydrationMlPerKg": -50, "scentLevel": 0.3 },
+  "DriedBerries": { "category": "Food", "kcalPerKg": 2500, "scentLevel": 0.05 },
+  "CookedFish": { "category": "Food", "kcalPerKg": 1400, "scentLevel": 0.5 },
+  "RawFish": { "category": "Food", "kcalPerKg": 1200, "scentLevel": 0.6 },
+  "DriedFish": { "category": "Food", "kcalPerKg": 2800, "hydrationMlPerKg": -30, "scentLevel": 0.3 },
   "Water": { "category": "Water", "hydrationMlPerKg": 1000 },
   "Stone": { "category": "Material" },
   "Bone": { "category": "Material" },

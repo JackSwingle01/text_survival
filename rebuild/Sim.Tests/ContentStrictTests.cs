@@ -53,6 +53,9 @@ public class ContentStrictTests
     // A fall with no target or kind of hit would land on a random part as blunt.
     [InlineData("accidents.json", "{ \"target\": \"Chest\", \"type\": \"Blunt\", \"amount\": 0.10 }", "{ \"amount\": 0.10 }", "target")]
     [InlineData("accidents.json", "{ \"target\": \"Chest\", \"type\": \"Blunt\", \"amount\": 0.10 }", "{ \"target\": \"Chest\", \"amount\": 0.10 }", "type")]
+    // A species with no nose or no scent of its own would smell nothing, or never be smelled (spec "Scent").
+    [InlineData("species.json", "\"smellFactor\": 2.5, \"scentLevel\": 0.3, ", "\"scentLevel\": 0.3, ", "smellFactor")]
+    [InlineData("species.json", "\"smellFactor\": 2.5, \"scentLevel\": 0.3, ", "\"smellFactor\": 2.5, ", "scentLevel")]
     public void Loader_RefusesAStructRow_MissingAField(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
 
@@ -68,6 +71,9 @@ public class ContentStrictTests
     [InlineData("discoveries.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "a harvest's item needs respawnHoursPerUnit")]
     [InlineData("locations.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "respawnHoursPerUnit")]
     [InlineData("terrain.json", ", \"trees\": { \"name\": \"Forest Trees\", \"minutesToFell\": 100 }", "", "trees")]
+    // A food with no scent would draw nothing to a pile of it.
+    [InlineData("items.json", "\"kcalPerKg\": 2500, \"scentLevel\": 0.5 }", "\"kcalPerKg\": 2500 }", "CookedMeat: food, and only food, states its scentLevel")]
+    [InlineData("items.json", "\"Stone\": { \"category\": \"Material\" }", "\"Stone\": { \"category\": \"Material\", \"scentLevel\": 0.1 }", "Stone: food, and only food, states its scentLevel")]
     public void Loader_RefusesAPermissiveDefault_LeftOut(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
 
@@ -81,6 +87,9 @@ public class ContentStrictTests
     [InlineData("effects.json", "\"Pain\": { \"severityPerHour\": -0.15", "\"Pain\": { \"severityPerHour\": 0.15", "severityPerHour 0.15 grows by itself")]
     [InlineData("effects.json", "\"Moving\": -0.35", "\"Moving\": 0.35", "Moving 0.35 is not a loss")]
     [InlineData("species.json", "\"aggression\": 0.8", "\"aggression\": 1.8", "aggression in 0-1")]
+    [InlineData("species.json", "\"smellFactor\": 2.5, \"scentLevel\": 0.3", "\"smellFactor\": 0, \"scentLevel\": 0.3", "smellFactor above 0, scentLevel in 0-1")]
+    [InlineData("species.json", "\"smellFactor\": 2.5, \"scentLevel\": 0.3", "\"smellFactor\": 2.5, \"scentLevel\": 1.3", "smellFactor above 0, scentLevel in 0-1")]
+    [InlineData("items.json", "\"kcalPerKg\": 1500, \"scentLevel\": 0.6", "\"kcalPerKg\": 1500, \"scentLevel\": -0.6", "RawMeat scentLevel -0.6 is not in 0-1")]
     [InlineData("items.json", "\"damage\": 4.84, \"class\": \"Pierce\"", "\"damage\": -4.84, \"class\": \"Pierce\"", "weapon damage -4.84 (above 0)")]
     [InlineData("items.json", "\"reachM\": 1.2,", "\"reachM\": -1.2,", "reachM -1.2")]
     [InlineData("items.json", "\"accuracy\": 0.45,", "\"accuracy\": 1.45,", "accuracy 1.45")]

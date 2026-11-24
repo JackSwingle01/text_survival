@@ -26,7 +26,8 @@ public sealed record Weapon(double Damage, WeaponClass Class, double BlockChance
 
 public sealed record ThrownWeapon(double RangeM, double Accuracy, double Damage);
 
-public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0, double HydrationMlPerKg = 0);
+/// ScentLevel: what a kilo of it gives off to an animal's nose (Scent), stated for every food and nothing else.
+public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0, double HydrationMlPerKg = 0, double? ScentLevel = null);
 
 /// Instances carry only their kind and wear. Insulation is in tenths of a clo over the covered part of the body.
 /// Capabilities is what carrying it lets someone do to a thing (Survival.Capabilities), stated on every row.

@@ -94,7 +94,7 @@ public static class Tags
         // It stands for its herd (LocationFeatures.At).
         var bodies = Fauna.HerdOf(world, a).Select(k => k.Body).ToList();
         if (bodies.Any(b => Body.IsAlive(b) && Combat.WoundLevel(b) > WoundedLevel)) tags |= Tag.Wounded;
-        if (bodies.Any(b => Effects.Severity(b, EffectKind.Bloody) > 0) || Items.PackOf(a) is { } pack && Items.Have(pack, Resource.RawMeat) > 0)
+        if (bodies.Any(b => Effects.Severity(b, EffectKind.Bloody) > 0) || Items.PackOf(a) is { } pack && pack.Kg.Any(s => s.Value > 0 && Scent.OfFood(s.Key) >= Scent.ScentSourceLevel))
             tags |= Tag.ScentSource;
         var enc = Combat.EncounterOf(world, a.Id);
         if (viewer is AgentId v && v != a.Id && enc != null && Combat.EncounterOf(world, v) == enc)
@@ -217,7 +217,7 @@ public static class Tags
             if (kg <= 0) continue;
             if (Items.Resources[r].Category == ResourceCategory.Food) tags |= Tag.Edible;
             if (Fire.IsFuel(r)) tags |= Tag.Burnable;
-            if (r is Resource.RawMeat or Resource.RawFish) tags |= Tag.ScentSource;
+            if (Scent.OfFood(r) >= Scent.ScentSourceLevel) tags |= Tag.ScentSource;
         }
         return tags;
     }
