@@ -361,7 +361,7 @@ public static class Memories
         var explored = memory.Explored;
         if ((explored.Width, explored.Height) != (m.Width, m.Height))
             throw new InvalidOperationException($"Explored ground is {explored.Width}x{explored.Height}, the map {m.Width}x{m.Height}");
-        foreach (var t in view.Tiles) explored.Remember(t, SeenSurface.Of(Ground.Underfoot(world, t)), world.Minute);
+        foreach (var t in view.Tiles) explored.Remember(t, SeenSurface.Of(Ground.Within(world, t)), world.Minute);
         foreach (var t in view.Tiles)
             foreach (var n in SeenNeighbours(m, explored, t))
                 if (n.X >= t.X && n.Y >= t.Y || !view.Set.Contains(n))

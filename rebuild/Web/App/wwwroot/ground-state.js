@@ -35,10 +35,10 @@ export const SEASONS = Object.freeze({
 const ICE_RANK = { none: 0, thin: 1, thick: 2 };
 const quantise = v => Math.round(Math.min(1, Math.max(0, v)) * GROUND.steps) / GROUND.steps;
 const states = new Map();
-function intern(patches, snow, dust, laden, mud, water, ice) {
-  const key = `d${dust}p${patches.toFixed(2)}s${snow.toFixed(2)}${laden ? 'l' : ''}m${mud.toFixed(2)}w${water.toFixed(2)}${ice}`;
+function intern(patches, snow, dust, laden, mud, water, ice, trodden) {
+  const key = `d${dust}p${patches.toFixed(2)}s${snow.toFixed(2)}${laden ? 'l' : ''}m${mud.toFixed(2)}w${water.toFixed(2)}${ice}t${trodden.toFixed(2)}`;
   let s = states.get(key);
-  if (!s) states.set(key, s = Object.freeze({ patches, snow, dust, laden, mud, water, ice, key }));
+  if (!s) states.set(key, s = Object.freeze({ patches, snow, dust, laden, mud, water, ice, trodden, key }));
   return s;
 }
 
@@ -46,7 +46,7 @@ function intern(patches, snow, dust, laden, mud, water, ice) {
  * A cell's drawn state from its SurfaceDto (null: in sight with nothing on it) and terrain name:
  * { dust: 0 | 1 (a dusting lies where patches do not), patches: 0..1 of the ground under patches,
  * snow: 0..1 under full cover, laden, mud: 0..1, water: 0..1 standing water's extent,
- * ice: 'none' | 'thin' | 'thick' (the standing water's, or the lake's), key }. Mud and standing water are apart, so a film of ice on soaked ground covers only as
+ * ice: 'none' | 'thin' | 'thick' (the standing water's, or the lake's), trodden: 0..1 packed by time spent on it, key }. Mud and standing water are apart, so a film of ice on soaked ground covers only as
  * much as the film does. frozen: the lake or river is ice; the payload carries no thickness for it, so it
  * is thick.
  */
@@ -59,7 +59,8 @@ export function cellState(surface, terrain, frozen = false) {
   const shown = v => { const q = quantise(v); return q < GROUND.wetMin ? 0 : q; };
   const pond = surface?.ice ? (waterCm >= GROUND.thickIceCm ? 'thick' : 'thin') : 'none';
   const lake = frozen ? 'thick' : 'none';
-  return intern(patches, snow, dust, snowCm >= GROUND.ladenCm, shown(mudLevel), shown(waterCm / GROUND.wetFullCm), ICE_RANK[pond] > ICE_RANK[lake] ? pond : lake);
+  return intern(patches, snow, dust, snowCm >= GROUND.ladenCm, shown(mudLevel), shown(waterCm / GROUND.wetFullCm), ICE_RANK[pond] > ICE_RANK[lake] ? pond : lake,
+    quantise(surface?.troddenLevel ?? 0));
 }
 
 export const BARE = cellState(null, null);

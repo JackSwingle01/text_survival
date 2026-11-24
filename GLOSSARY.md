@@ -229,7 +229,10 @@ _Avoid_: surface summary, ground state (the column the physics steps, which only
 How packed by feet a place's snow is, from 0 to 1. An edge's trodden amount comes from completed
 crossings, each walker by its weight, saturating so the first count most; it settles away in about a
 month, and snow fallen on it since its last stamp hides it until the next. Read at an edge's half of a
-tile, it raises the top snow's packing. Trail tiers (trace, path, trail) are derived from it.
+tile, it raises the top snow's packing. Trail tiers (trace, path, trail) are derived from it. A tile's
+trodden amount comes only from time spent on it (grazing, bedding, feeding, working), stamped every
+15 minutes on the clock (a lot), an average over the tile; it settles away in a fortnight, and is read
+within the tile (Ground.Within). From 0.2 the tile reads as trodden ground, such as a bedding ground.
 _Avoid_: path wear, trail wear
 
 **Discovery**:

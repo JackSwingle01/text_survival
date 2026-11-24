@@ -69,12 +69,13 @@ public static class Tags
                 : Tracks.Read(world, t.Tile).First(s => (int)s.Maker == t.Index).FreshnessPct >= FreshPrintsPct ? Tag.Fresh : Tag.None,
             LocationFeatureKind.Sign => Tag.None,
             LocationFeatureKind.Item => Tag.None,
+            LocationFeatureKind.Trodden => Tag.None,
         };
         bool holdable = t.Kind switch
         {
             LocationFeatureKind.Agent => false, // an agent is met, not held: Hostile says what it means to you
             LocationFeatureKind.Body or LocationFeatureKind.Carcass or LocationFeatureKind.Pool or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter => true,
-            LocationFeatureKind.Track => false,
+            LocationFeatureKind.Track or LocationFeatureKind.Trodden => false,
             LocationFeatureKind.Sign => true,
             LocationFeatureKind.Item => false,
         };
@@ -164,7 +165,7 @@ public static class Tags
         LocationFeatureKind.Pile => world.Tiles.GetValueOrDefault(t.Tile)?.PileCause?.Who,
         LocationFeatureKind.Fire => world.Fires.GetValueOrDefault(new FireId(t.Index))?.Cause?.Who,
         LocationFeatureKind.Shelter => Shelters.Peek(world, t.Tile)?.Cause?.Who,
-        LocationFeatureKind.Track => null,
+        LocationFeatureKind.Track or LocationFeatureKind.Trodden => null,
         LocationFeatureKind.Sign => null,
         LocationFeatureKind.Item => null,
     };

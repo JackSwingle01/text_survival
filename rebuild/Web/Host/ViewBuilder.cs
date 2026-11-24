@@ -270,6 +270,7 @@ sealed class ViewBuilder(World world, int gen)
         TrackMaker.Human => "tracks/boot",
         TrackMaker.Paw => "tracks/paw",
         TrackMaker.Hoof => "tracks/hoof",
+        TrackMaker.Bird => "tracks/bird",
         _ => throw new ArgumentOutOfRangeException(nameof(m), m, null),
     };
 

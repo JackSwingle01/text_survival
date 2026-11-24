@@ -132,21 +132,23 @@ public sealed record EdgeDto(int Ax, int Ay, int Bx, int By, string Kind);
 public sealed record TrailDto(int Ax, int Ay, int Bx, int By, string Tier);
 
 /// One known tile's ground. I: its index (y*Width+x). SnowCm: lying snow; Crust: its top refrozen;
-/// MudLevel: 0-1 on bare ground; WaterCm: standing water (ice included); Ice: that water mostly frozen.
+/// MudLevel: 0-1 on bare ground; WaterCm: standing water (ice included); Ice: that water mostly frozen;
+/// TroddenLevel: 0-1 packed by time spent on it (a bedding ground), from Tracks.TroddenTileAt, else left out.
 /// Zeros and falses are left out: every view lists every known tile's ground, mostly snow alone.
 public sealed record SurfaceDto(int I,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double SnowCm,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Crust,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double MudLevel,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double WaterCm,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Ice);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Ice,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double TroddenLevel = 0);
 
 /// A remembered tile with something on it. Fire: the phase as last seen. FireHoursLeft: the fuel
 /// reckoned when last beside it, aged to now (null when not known to be burning). SeenMinute: when.
 public sealed record PlaceMarkDto(int X, int Y, long SeenMinute, string? Fire, double? FireHoursLeft, string? Shelter, bool Carcass,
     bool Pile, bool Den, bool Hurt);
 public sealed record SightingDto(int X, int Y, string Species, int Count, long Minute);
-/// Prints on a tile in sight near the player. Maker: human, paw or hoof. Traffic: how many passed, as the
+/// Prints on a tile in sight near the player. Maker: human, paw, hoof or bird. Traffic: how many passed, as the
 /// prints read. Heading: the way the net traffic went (north, east, south, west); Pattern: heading (one way),
 /// northsouth, eastwest or mixed. FreshnessPct: 1 just made.
 public sealed record TrackDto(int X, int Y, string Maker, string Reading, long AgeMinutes, int Traffic, string Heading, string Pattern,
