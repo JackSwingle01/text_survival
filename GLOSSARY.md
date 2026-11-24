@@ -353,9 +353,14 @@ Consciousness is all but gone. Every verb is refused and time passes until the b
 dies.
 _Avoid_: incapacitated, knocked out, downed
 
+**Faculty**:
+What a body can do right now, from its capacities and its build: strength, speed, dexterity,
+perception. Verbs read faculties; faculties read capacities.
+_Avoid_: ability (that is what a species can get at), stat (that is a need), attribute, skill
+
 **Vitality**:
-One overall read of what a body can do right now, taken from its strength, speed, dexterity and
-perception against a fresh body of its kind. Nothing inside a body reads it; it is for whoever is
+One overall read of what a body can do right now, taken from its four faculties against a fresh
+body of its kind. Nothing inside a body reads it; it is for whoever is
 looking at the body. Whether a body is alive is a separate matter, read from its heart, lungs and
 brain alone.
 _Avoid_: health, hit points, condition
