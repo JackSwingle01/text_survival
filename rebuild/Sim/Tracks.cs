@@ -95,6 +95,7 @@ public static class Tracks
         var edge = new EdgeId(from, to);
         double settled = TroddenAt(world, edge, now);
         world.Trails[edge] = new EdgeTrodden(settled + (1 - settled) * Math.Min(1, StampPct * individualDepth), now);
+        TrodEdgesOf(world).Add(edge);
         Trip.Forget(world, from, to);
     }
 
@@ -205,7 +206,11 @@ public static class Tracks
             Map.Tidy(world, tile);
         }
         foreach (var (edge, _) in world.Trails.ToList())
-            if (TroddenAt(world, edge, now) <= 0) world.Trails.Remove(edge);
+            if (TroddenAt(world, edge, now) <= 0)
+            {
+                world.Trails.Remove(edge);
+                TrodEdgesOf(world).Remove(edge);
+            }
     }
 
     // ---- trodden edges ----
@@ -223,7 +228,29 @@ public static class Tracks
 
     /// Whether anything has walked the edge between neighbours a and b: only then does its half of a tile read differently.
     public static bool IsTrodden(World world, TileId a, TileId b) =>
-        Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1 && world.Trails.ContainsKey(new EdgeId(a, b));
+        Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1 && TrodEdgesOf(world).Edges.Contains(new EdgeId(a, b));
+
+    /// World.Trails' keys, for a lookup that allocates nothing: a SortedDictionary's boxes the key until the JIT
+    /// optimises it, and the route search asks of every crossing it prices (#155). Tracks keeps it as it writes;
+    /// a write to Trails from elsewhere (tests, scenarios, a load) changes its count, and the next read rebuilds it.
+    /// Membership only, so overwriting an edge's amount needs nothing.
+    internal sealed class TrodEdges
+    {
+        public readonly HashSet<EdgeId> Edges = [];
+        public void Add(EdgeId edge) => Edges.Add(edge);
+        public void Remove(EdgeId edge) => Edges.Remove(edge);
+    }
+
+    static TrodEdges TrodEdgesOf(World world)
+    {
+        var index = world.TrodEdges ??= new TrodEdges();
+        if (index.Edges.Count != world.Trails.Count)
+        {
+            index.Edges.Clear();
+            foreach (var edge in world.Trails.Keys) index.Edges.Add(edge);
+        }
+        return index;
+    }
 
     static double TroddenAt(World world, EdgeId edge, long now)
     {

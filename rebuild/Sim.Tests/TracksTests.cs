@@ -286,6 +286,51 @@ public class TracksTests
         Assert.Single(w.Trails);
     }
 
+    /// The route search asks this of every crossing it prices (#155): a SortedDictionary lookup boxed the key.
+    [Fact]
+    public void IsTrodden_AllocatesNothing()
+    {
+        var w = Ground();
+        Tracks.RecordMove(w, A, B, TrackMaker.Human);
+        TileId c = new(3, 4);
+        Assert.True(Tracks.IsTrodden(w, A, B));
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        bool trodden = Tracks.IsTrodden(w, B, A), loose = Tracks.IsTrodden(w, A, c);
+        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+        Assert.True(trodden);
+        Assert.False(loose);
+    }
+
+    /// Tests and scenarios write World.Trails by hand; IsTrodden still reads it as it is.
+    [Fact]
+    public void IsTrodden_FollowsTrailsWrittenDirectly()
+    {
+        var w = Ground();
+        TileId c = new(3, 4);
+        Assert.False(Tracks.IsTrodden(w, A, c));
+        w.Trails[new EdgeId(A, c)] = new EdgeTrodden(0.5, w.Minute);
+        Assert.True(Tracks.IsTrodden(w, c, A));
+        w.Trails.Remove(new EdgeId(A, c));
+        Assert.False(Tracks.IsTrodden(w, A, c));
+        Tracks.RecordMove(w, A, B, TrackMaker.Human);
+        Assert.True(Tracks.IsTrodden(w, A, B));
+    }
+
+    /// The sweep drops a faded edge, and IsTrodden with it.
+    [Fact]
+    public void IsTrodden_EndsWhenTheSweepDropsAFadedEdge()
+    {
+        var w = Ground();
+        TileId c = new(3, 4);
+        Tracks.RecordMove(w, A, B, TrackMaker.Human);
+        Assert.True(Tracks.IsTrodden(w, A, B));
+        w.Minute += 60 * 24 * 40;
+        Tracks.RecordMove(w, A, c, TrackMaker.Human); // the hour's sweep runs first
+        Assert.False(w.Trails.ContainsKey(new EdgeId(A, B)));
+        Assert.False(Tracks.IsTrodden(w, A, B));
+        Assert.True(Tracks.IsTrodden(w, A, c));
+    }
+
     [Fact]
     public void NonAdjacentHop_MarksBothEnds_PacksNoEdge()
     {
