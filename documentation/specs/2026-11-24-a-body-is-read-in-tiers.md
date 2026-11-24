@@ -68,8 +68,8 @@ takes your strength, and losing blood still does.
 
 ### Unconsciousness
 
-14. As a player, I want every action refused while I am unconscious, so that I cannot chop wood while
-    out cold.
+14. As a player, I want every action that needs a faculty refused while I am unconscious, so that I
+    cannot chop wood while out cold.
 15. As a player, I want time to pass while I am unconscious until I come round or die, so that being
     knocked out is a danger and not a pause.
 16. As a player, I want unconsciousness to come from a blow to the head, lost blood, cold, shock or
