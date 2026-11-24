@@ -34,5 +34,22 @@ cuts perception; awake and thirst show through Tired/Thirsty effects only once t
   the player, the species row for the wolf), the same body `SpeciesTable.StrengthPct` divides by.
   The player's own body in the world is `SpeciesTable.NewBody`, which draws its fat; the report uses
   the baseline so its numbers do not depend on a seed.
+- Revised (review): strength and speed now read `SpeciesTable.StrengthPct` and
+  `SpeciesTable.Running(...).SpeedPct`, the shares the world reads, instead of restating them. Speed
+  therefore shows Running's 0.1 floor (half blood: 0.10, not 0.00). Dexterity and perception have no
+  sim share, so they still divide by `SpeciesTable.Average`. `Destroyed` throws on a region name that
+  matches nothing. Fields renamed to `...Pct`. The three stepping loops became one `Live` with a
+  `Kept` record. Kept the ungated row check (353 ms) against the review's scope note: it is the
+  issue's "a test runs the report and checks every reference body appears", and gating it too would
+  mean it never runs.
+- Revised: the result differs from the hypothesis in two places. Half its blood lost is death today
+  (`CirculationFailsBloodPct` is 0.5, so every faculty and vitality are 0), not just "cut hard". And
+  sixteen and forty hours awake print the same: the energy store is 960 minutes, exactly sixteen
+  hours, so both bodies are fully drained and Tired is at 1.
 
 ## Follow-up
+
+- Follow-up: the half-blood row is a dead body, so it says nothing about a bleeding survivor. If
+  #201 keeps 50% as the line, a "40% of its blood lost" row would show the band before it.
+- Follow-up: tiredness reaches its whole effect at the end of a sixteen-hour day, with nothing more
+  for forty hours (Tired severity saturates). That belongs to #206 (Deprivation rethink).
